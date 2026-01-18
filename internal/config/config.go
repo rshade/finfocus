@@ -346,6 +346,8 @@ func (c *Config) Set(key, value string) error {
 		return c.setPluginValue(parts[1:], value)
 	case "logging":
 		return c.setLoggingValue(parts[1:], value)
+	case "plugin_host":
+		return c.setPluginHostValue(parts[1:], value)
 	default:
 		return fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -365,6 +367,8 @@ func (c *Config) Get(key string) (interface{}, error) {
 		return c.getPluginValue(parts[1:])
 	case "logging":
 		return c.getLoggingValue(parts[1:])
+	case "plugin_host":
+		return c.getPluginHostValue(parts[1:])
 	default:
 		return nil, fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -867,6 +871,39 @@ func (c *Config) getLoggingValue(parts []string) (interface{}, error) {
 		return c.Logging.File, nil
 	default:
 		return nil, fmt.Errorf("unknown logging setting: %s", parts[0])
+	}
+}
+
+// Helper methods for plugin_host values.
+func (c *Config) setPluginHostValue(parts []string, value string) error {
+	if len(parts) != 1 {
+		return errors.New("invalid plugin_host key")
+	}
+
+	switch parts[0] {
+	case "strict_compatibility":
+		boolVal, err := strconv.ParseBool(value)
+		if err != nil {
+			return fmt.Errorf("strict_compatibility must be a boolean: %w", err)
+		}
+		c.PluginHostConfig.StrictCompatibility = boolVal
+	default:
+		return fmt.Errorf("unknown plugin_host setting: %s", parts[0])
+	}
+
+	return nil
+}
+
+func (c *Config) getPluginHostValue(parts []string) (interface{}, error) {
+	if len(parts) != 1 {
+		return nil, errors.New("invalid plugin_host key")
+	}
+
+	switch parts[0] {
+	case "strict_compatibility":
+		return c.PluginHostConfig.StrictCompatibility, nil
+	default:
+		return nil, fmt.Errorf("unknown plugin_host setting: %s", parts[0])
 	}
 }
 

@@ -23,6 +23,9 @@ const (
 
 	// downloadTimeout is the timeout for large plugin downloads (15MB+).
 	downloadTimeout = 5 * time.Minute
+
+	// githubMaxPerPage is the maximum items per page for GitHub API pagination.
+	githubMaxPerPage = 100
 )
 
 // GitHubRelease represents release metadata from GitHub API.
@@ -85,6 +88,134 @@ func (c *GitHubClient) GetLatestRelease(owner, repo string) (*GitHubRelease, err
 func (c *GitHubClient) GetReleaseByTag(owner, repo, tag string) (*GitHubRelease, error) {
 	url := fmt.Sprintf("%s/repos/%s/%s/releases/tags/%s", c.BaseURL, owner, repo, tag)
 	return c.fetchRelease(url)
+}
+
+// ListStableReleases fetches all releases and returns only stable (non-draft, non-prerelease)
+// releases sorted by creation order (newest first, as returned by GitHub API).
+//
+//nolint:noctx // context not needed for simple HTTP
+func (c *GitHubClient) ListStableReleases(owner, repo string, limit int) ([]GitHubRelease, error) {
+	// Fetch paginated releases (up to limit, max githubMaxPerPage per page)
+	url := fmt.Sprintf(
+		"%s/repos/%s/%s/releases?per_page=%d",
+		c.BaseURL, owner, repo, min(limit, githubMaxPerPage),
+	)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	if c.token != "" {
+		req.Header.Set("Authorization", "token "+c.token)
+	}
+
+	resp, err := c.HTTPClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode == http.StatusNotFound {
+		return nil, errors.New("repository not found")
+	}
+	if resp.StatusCode == http.StatusForbidden {
+		return nil, errors.New(
+			"GitHub API rate limit exceeded. Set GITHUB_TOKEN for higher limits",
+		)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode)
+	}
+
+	var allReleases []GitHubRelease
+	if decodeErr := json.NewDecoder(resp.Body).Decode(&allReleases); decodeErr != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", decodeErr)
+	}
+
+	// Filter to stable releases only (non-draft, non-prerelease)
+	var stableReleases []GitHubRelease
+	for _, release := range allReleases {
+		if !release.Draft && !release.Prerelease {
+			stableReleases = append(stableReleases, release)
+			if len(stableReleases) >= limit {
+				break
+			}
+		}
+	}
+
+	return stableReleases, nil
+}
+
+// FindReleaseWithAsset attempts to find a release with a matching platform asset.
+// If version is specified, it first tries that exact version. If no asset is found
+// for the requested version, or if version is empty, it falls back to searching
+// through recent stable releases to find one with a compatible asset.
+//
+// Parameters:
+//   - owner, repo: GitHub repository owner and name
+//   - version: specific version to try first (empty string for latest)
+//   - projectName: project name used in asset filenames
+//   - hints: optional naming hints for asset matching
+//
+// Returns the release and asset that matched, or an error if none found.
+func (c *GitHubClient) FindReleaseWithAsset(
+	owner, repo, version, projectName string,
+	hints *AssetNamingHints,
+) (*GitHubRelease, *ReleaseAsset, error) {
+	const maxFallbackReleases = 10
+
+	// If specific version requested, try it first
+	if version != "" {
+		release, err := c.GetReleaseByTag(owner, repo, version)
+		if err == nil {
+			asset, assetErr := FindPlatformAssetWithHints(release, projectName, hints)
+			if assetErr == nil {
+				return release, asset, nil
+			}
+			// Asset not found for requested version, will try fallback
+		}
+		// Release not found or asset not found, continue to fallback
+	}
+
+	// Try stable releases as fallback
+	stableReleases, err := c.ListStableReleases(owner, repo, maxFallbackReleases)
+	if err != nil {
+		if version != "" {
+			return nil, nil, fmt.Errorf(
+				"version %s not available and failed to list fallback releases: %w",
+				version, err,
+			)
+		}
+		return nil, nil, fmt.Errorf("failed to list releases: %w", err)
+	}
+
+	if len(stableReleases) == 0 {
+		return nil, nil, errors.New("no stable releases found")
+	}
+
+	// Try each stable release until we find one with a matching asset
+	var lastAssetErr error
+	for i := range stableReleases {
+		release := &stableReleases[i]
+		asset, assetErr := FindPlatformAssetWithHints(release, projectName, hints)
+		if assetErr == nil {
+			return release, asset, nil
+		}
+		lastAssetErr = assetErr
+	}
+
+	if version != "" {
+		return nil, nil, fmt.Errorf(
+			"no compatible asset found for version %s or any of %d fallback releases: %w",
+			version, len(stableReleases), lastAssetErr,
+		)
+	}
+	return nil, nil, fmt.Errorf(
+		"no compatible asset found in %d stable releases: %w",
+		len(stableReleases), lastAssetErr,
+	)
 }
 
 // fetchRelease fetches release data with retry logic.

@@ -1,8 +1,11 @@
 package pluginhost
 
 import (
+	"context"
+	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -150,4 +153,35 @@ func TestCompatibilityResult_String(t *testing.T) {
 			require.Equal(t, tt.want, tt.r.String())
 		})
 	}
+}
+
+func TestCheckVersionCompatibility_StrictMode(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("parse error in permissive mode returns nil", func(t *testing.T) {
+		// Ensure strict mode is off
+		os.Unsetenv("FINFOCUS_STRICT_COMPATIBILITY")
+
+		err := checkVersionCompatibility(ctx, "test-plugin", "invalid-version")
+		assert.NoError(t, err, "permissive mode should not error on parse failures")
+	})
+
+	t.Run("parse error in strict mode returns error", func(t *testing.T) {
+		// Enable strict mode
+		t.Setenv("FINFOCUS_STRICT_COMPATIBILITY", "true")
+
+		err := checkVersionCompatibility(ctx, "test-plugin", "invalid-version")
+		require.Error(t, err, "strict mode should error on parse failures")
+		assert.ErrorIs(t, err, ErrPluginIncompatible)
+		assert.Contains(t, err.Error(), "failed to parse spec version")
+		assert.Contains(t, err.Error(), "test-plugin")
+	})
+
+	t.Run("valid version with strict mode passes", func(t *testing.T) {
+		// Enable strict mode
+		t.Setenv("FINFOCUS_STRICT_COMPATIBILITY", "true")
+
+		err := checkVersionCompatibility(ctx, "test-plugin", "0.4.14")
+		assert.NoError(t, err, "valid version should pass in strict mode")
+	})
 }

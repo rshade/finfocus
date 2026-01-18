@@ -397,6 +397,10 @@ func TestFindBinary_Legacy(t *testing.T) {
 
 		legacyBin := filepath.Join(pluginDir, "pulumicost-plugin-myplugin")
 		newBin := filepath.Join(pluginDir, "finfocus-plugin-myplugin")
+		if runtime.GOOS == "windows" {
+			legacyBin += ".exe"
+			newBin += ".exe"
+		}
 		require.NoError(t, os.WriteFile(legacyBin, []byte("old"), 0755))
 		require.NoError(t, os.WriteFile(newBin, []byte("new"), 0755))
 
