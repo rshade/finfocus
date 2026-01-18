@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -508,6 +509,197 @@ func TestIsLockStale(t *testing.T) {
 	// Test with non-existent file - should not be stale (safe default)
 	if isLockStale(filepath.Join(tmpDir, "nonexistent.lock")) {
 		t.Error("Non-existent lock file should not be considered stale")
+	}
+}
+
+func TestRemoveOtherVersions(t *testing.T) {
+	tests := []struct {
+		name            string
+		setupDir        func(t *testing.T) string
+		pluginName      string
+		keepVersion     string
+		wantRemoved     int
+		wantBytesFreed  bool
+		wantErrContains string
+	}{
+		{
+			name: "removes other versions, keeps specified",
+			setupDir: func(t *testing.T) string {
+				dir := t.TempDir()
+				// Create multiple versions
+				for _, v := range []string{"v1.0.0", "v1.1.0", "v2.0.0"} {
+					vPath := filepath.Join(dir, "test-plugin", v)
+					if err := os.MkdirAll(vPath, 0755); err != nil {
+						t.Fatal(err)
+					}
+					// Add a file to track size
+					binPath := filepath.Join(vPath, "binary")
+					if err := os.WriteFile(binPath, []byte("test content"), 0755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				return dir
+			},
+			pluginName:     "test-plugin",
+			keepVersion:    "v2.0.0",
+			wantRemoved:    2,
+			wantBytesFreed: true,
+		},
+		{
+			name: "no versions to remove",
+			setupDir: func(t *testing.T) string {
+				dir := t.TempDir()
+				vPath := filepath.Join(dir, "test-plugin", "v1.0.0")
+				if err := os.MkdirAll(vPath, 0755); err != nil {
+					t.Fatal(err)
+				}
+				return dir
+			},
+			pluginName:  "test-plugin",
+			keepVersion: "v1.0.0",
+			wantRemoved: 0,
+		},
+		{
+			name: "plugin directory does not exist",
+			setupDir: func(t *testing.T) string {
+				return t.TempDir()
+			},
+			pluginName:  "nonexistent-plugin",
+			keepVersion: "v1.0.0",
+			wantRemoved: 0,
+		},
+		{
+			name: "skips non-directory entries",
+			setupDir: func(t *testing.T) string {
+				dir := t.TempDir()
+				pluginPath := filepath.Join(dir, "test-plugin")
+				if err := os.MkdirAll(pluginPath, 0755); err != nil {
+					t.Fatal(err)
+				}
+				// Create a version directory
+				vPath := filepath.Join(pluginPath, "v1.0.0")
+				if err := os.MkdirAll(vPath, 0755); err != nil {
+					t.Fatal(err)
+				}
+				// Create a lock file (non-directory)
+				lockPath := filepath.Join(pluginPath, "test-plugin.lock")
+				if err := os.WriteFile(lockPath, []byte("lock"), 0600); err != nil {
+					t.Fatal(err)
+				}
+				return dir
+			},
+			pluginName:  "test-plugin",
+			keepVersion: "v1.0.0",
+			wantRemoved: 0, // Lock file should be skipped
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pluginDir := tt.setupDir(t)
+			installer := NewInstaller(pluginDir)
+
+			var progressMessages []string
+			progress := func(msg string) {
+				progressMessages = append(progressMessages, msg)
+			}
+
+			result, err := installer.RemoveOtherVersions(
+				tt.pluginName,
+				tt.keepVersion,
+				pluginDir,
+				progress,
+			)
+
+			if tt.wantErrContains != "" {
+				if err == nil {
+					t.Errorf("expected error containing %q, got nil", tt.wantErrContains)
+					return
+				}
+				if !strings.Contains(err.Error(), tt.wantErrContains) {
+					t.Errorf("error %q does not contain %q", err.Error(), tt.wantErrContains)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if len(result.RemovedVersions) != tt.wantRemoved {
+				t.Errorf("removed %d versions, want %d", len(result.RemovedVersions), tt.wantRemoved)
+			}
+
+			if tt.wantBytesFreed && result.BytesFreed == 0 {
+				t.Error("expected bytes freed to be > 0")
+			}
+
+			if result.PluginName != tt.pluginName {
+				t.Errorf("PluginName = %s, want %s", result.PluginName, tt.pluginName)
+			}
+
+			if result.KeptVersion != tt.keepVersion {
+				t.Errorf("KeptVersion = %s, want %s", result.KeptVersion, tt.keepVersion)
+			}
+		})
+	}
+}
+
+func TestRemoveOtherVersionsResult(t *testing.T) {
+	result := RemoveOtherVersionsResult{
+		PluginName:      "test-plugin",
+		KeptVersion:     "v2.0.0",
+		RemovedVersions: []string{"v1.0.0", "v1.5.0"},
+		BytesFreed:      1024,
+	}
+
+	if result.PluginName != "test-plugin" {
+		t.Errorf("PluginName = %v, want test-plugin", result.PluginName)
+	}
+	if result.KeptVersion != "v2.0.0" {
+		t.Errorf("KeptVersion = %v, want v2.0.0", result.KeptVersion)
+	}
+	if len(result.RemovedVersions) != 2 {
+		t.Errorf("RemovedVersions length = %d, want 2", len(result.RemovedVersions))
+	}
+	if result.BytesFreed != 1024 {
+		t.Errorf("BytesFreed = %d, want 1024", result.BytesFreed)
+	}
+}
+
+func TestGetDirSize(t *testing.T) {
+	dir := t.TempDir()
+
+	// Create some files with known sizes
+	file1 := filepath.Join(dir, "file1.txt")
+	file2 := filepath.Join(dir, "subdir", "file2.txt")
+
+	if err := os.MkdirAll(filepath.Join(dir, "subdir"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file1, []byte("hello"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(file2, []byte("world!"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	size, err := getDirSize(dir)
+	if err != nil {
+		t.Fatalf("getDirSize() error: %v", err)
+	}
+
+	// "hello" = 5 bytes, "world!" = 6 bytes = 11 bytes total
+	expectedSize := int64(11)
+	if size != expectedSize {
+		t.Errorf("getDirSize() = %d, want %d", size, expectedSize)
+	}
+}
+
+func TestGetDirSizeNonExistent(t *testing.T) {
+	_, err := getDirSize("/nonexistent/path")
+	if err == nil {
+		t.Error("expected error for non-existent path")
 	}
 }
 

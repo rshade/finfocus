@@ -11,7 +11,10 @@
       "supported_providers": ["kubernetes"],
       "capabilities": ["cost_retrieval", "cost_projection"],
       "security_level": "official",
-      "min_spec_version": "0.1.0"
+      "min_spec_version": "0.1.0",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-kubecost"
+      }
     },
     "aws-public": {
       "name": "aws-public",

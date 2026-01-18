@@ -62,6 +62,43 @@
 - Test both success and error paths for all public functions.
 - Use fixtures from `testdata/` instead of embedding large data structures.
 
+### Testify Assertion Standards
+
+**CRITICAL**: All Go tests MUST use testify's `require` and `assert` packages.
+NEVER use manual `if x != y { t.Errorf(...) }` patterns.
+
+**Required Imports**:
+
+```go
+import (
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+)
+```
+
+**When to Use `require.*` (stops test on failure)**:
+
+- Setup operations that must succeed for test to be valid
+- Error checks where continuing would cause panics or misleading failures
+- Non-nil checks for required objects before using them
+
+**When to Use `assert.*` (continues test on failure)**:
+
+- Value comparisons after setup is complete
+- Multiple property checks on a result
+- Non-critical validations where seeing all failures is helpful
+
+**Common Assertion Conversions**:
+
+| Manual Pattern                                   | Testify Replacement           |
+| ------------------------------------------------ | ----------------------------- |
+| `if err != nil { t.Fatal(err) }`                 | `require.NoError(t, err)`     |
+| `if err == nil { t.Error("expected error") }`    | `require.Error(t, err)`       |
+| `if x != y { t.Errorf("got %v, want %v", x, y) }`| `assert.Equal(t, y, x)`       |
+| `if len(x) != n { t.Errorf(...) }`               | `assert.Len(t, x, n)`         |
+| `if !strings.Contains(s, sub) { t.Errorf(...) }` | `assert.Contains(t, s, sub)`  |
+| `if x == nil { t.Fatal("nil") }`                 | `require.NotNil(t, x)`        |
+
 ## Documentation Standards
 
 - Run `make docs-lint` before committing documentation changes
