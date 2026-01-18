@@ -694,6 +694,102 @@ func (i *Installer) resolvePluginSource(
 	return owner, repo, nil, nil
 }
 
+// RemoveOtherVersionsResult contains the result of removing other plugin versions.
+type RemoveOtherVersionsResult struct {
+	PluginName      string
+	KeptVersion     string
+	RemovedVersions []string
+	BytesFreed      int64
+}
+
+// RemoveOtherVersions removes all versions of a plugin except the specified one.
+// This is used for cleanup after upgrade/install operations.
+// It scans the plugin directory for version subdirectories and removes any
+// that don't match the keepVersion parameter.
+func (i *Installer) RemoveOtherVersions(
+	name string,
+	keepVersion string,
+	pluginDir string,
+	progress func(msg string),
+) (*RemoveOtherVersionsResult, error) {
+	if pluginDir == "" {
+		pluginDir = i.pluginDir
+	}
+
+	pluginPath := filepath.Join(pluginDir, name)
+
+	// Check if plugin directory exists
+	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
+		return &RemoveOtherVersionsResult{
+			PluginName:  name,
+			KeptVersion: keepVersion,
+		}, nil
+	}
+
+	// List all version directories
+	entries, err := os.ReadDir(pluginPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read plugin directory: %w", err)
+	}
+
+	result := &RemoveOtherVersionsResult{
+		PluginName:      name,
+		KeptVersion:     keepVersion,
+		RemovedVersions: []string{},
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue // Skip non-directories (e.g., lock files)
+		}
+
+		version := entry.Name()
+		if version == keepVersion {
+			continue // Keep the specified version
+		}
+
+		versionPath := filepath.Join(pluginPath, version)
+
+		// Calculate directory size before removal
+		size, sizeErr := getDirSize(versionPath)
+		if sizeErr != nil && progress != nil {
+			progress(fmt.Sprintf("Debug: failed to calculate size for %s: %v", versionPath, sizeErr))
+		}
+
+		if progress != nil {
+			progress(fmt.Sprintf("Removing old version %s...", version))
+		}
+
+		if removeErr := os.RemoveAll(versionPath); removeErr != nil {
+			// Log warning but continue with other versions
+			if progress != nil {
+				progress(fmt.Sprintf("Warning: failed to remove %s: %v", version, removeErr))
+			}
+			continue
+		}
+
+		result.RemovedVersions = append(result.RemovedVersions, version)
+		result.BytesFreed += size
+	}
+
+	return result, nil
+}
+
+// getDirSize calculates the total size of all files in a directory recursively.
+func getDirSize(path string) (int64, error) {
+	var size int64
+	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() {
+			size += info.Size()
+		}
+		return nil
+	})
+	return size, err
+}
+
 // RemoveOptions configures plugin removal behavior.
 type RemoveOptions struct {
 	KeepConfig bool   // Don't remove from config file

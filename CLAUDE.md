@@ -596,6 +596,72 @@ func TestFunction_Errors(t *testing.T) {
 - Resource exhaustion (memory, file handles, goroutines)
 - Concurrent access errors (race conditions, deadlocks)
 
+### Testify Assertion Standards
+
+**CRITICAL**: All Go tests MUST use testify's `require` and `assert` packages.
+NEVER use manual `if x != y { t.Errorf(...) }` patterns.
+
+**Required Imports**:
+
+```go
+import (
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+)
+```
+
+**When to Use `require.*` (stops test on failure)**:
+
+- Setup operations that must succeed for test to be valid
+- Error checks where continuing would cause panics or misleading failures
+- Non-nil checks for required objects before using them
+- File/directory creation in test setup
+
+```go
+// Setup must succeed - use require
+require.NoError(t, os.MkdirAll(dir, 0755))
+require.NoError(t, os.WriteFile(path, data, 0644))
+
+// Must have result before checking properties
+result, err := SomeFunction()
+require.NoError(t, err)
+require.NotNil(t, result)
+```
+
+**When to Use `assert.*` (continues test on failure)**:
+
+- Value comparisons after setup is complete
+- Multiple property checks on a result
+- Non-critical validations where seeing all failures is helpful
+
+```go
+// Value assertions - use assert
+assert.Equal(t, "expected", result.Name)
+assert.Len(t, result.Items, 3)
+assert.Contains(t, result.Message, "success")
+assert.True(t, result.IsValid)
+```
+
+**Common Assertion Conversions**:
+
+| Manual Pattern                                   | Testify Replacement           |
+| ------------------------------------------------ | ----------------------------- |
+| `if err != nil { t.Fatal(err) }`                 | `require.NoError(t, err)`     |
+| `if err == nil { t.Error("expected error") }`    | `require.Error(t, err)`       |
+| `if x != y { t.Errorf("got %v, want %v", x, y) }`| `assert.Equal(t, y, x)`       |
+| `if len(x) != n { t.Errorf(...) }`               | `assert.Len(t, x, n)`         |
+| `if !strings.Contains(s, sub) { t.Errorf(...) }` | `assert.Contains(t, s, sub)`  |
+| `if x == nil { t.Fatal("nil") }`                 | `require.NotNil(t, x)`        |
+
+**Error Message Validation**:
+
+```go
+// Check error exists AND contains expected message
+err := SomeFunction(invalidInput)
+require.Error(t, err)
+assert.Contains(t, err.Error(), "invalid input")
+```
+
 ### Local Plugin Development
 
 To debug plugin issues during Core development:

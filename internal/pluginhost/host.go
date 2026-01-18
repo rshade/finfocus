@@ -2,14 +2,20 @@ package pluginhost
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
 	"google.golang.org/grpc"
 )
+
+// ErrPluginIncompatible is returned when a plugin's spec version is incompatible
+// with the core spec version and strict compatibility mode is enabled.
+var ErrPluginIncompatible = errors.New("plugin spec version incompatible with core")
 
 // contextKey is a private type for context keys to avoid collisions.
 type contextKey string
@@ -76,8 +82,13 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 		Metadata:           infoResp.GetMetadata(),
 	}
 
-	// Check version compatibility
-	checkVersionCompatibility(ctx, client.Name, infoResp.GetSpecVersion())
+	// Check version compatibility (may return error in strict mode)
+	if compatErr := checkVersionCompatibility(ctx, client.Name, infoResp.GetSpecVersion()); compatErr != nil {
+		if closeErr := closeFn(); closeErr != nil {
+			return nil, fmt.Errorf("%w (close error: %w)", compatErr, closeErr)
+		}
+		return nil, compatErr
+	}
 
 	return client, nil
 }
@@ -92,18 +103,21 @@ func handleGetPluginInfoError(ctx context.Context, pluginName string, err error)
 	log.Warn().Err(err).Str("plugin", pluginName).Msg("Failed to get plugin info")
 }
 
-func checkVersionCompatibility(ctx context.Context, pluginName, pluginSpecVersion string) {
+// checkVersionCompatibility validates plugin spec version compatibility.
+// In permissive mode (default), it logs a warning on mismatch.
+// In strict mode, it returns an error on mismatch.
+func checkVersionCompatibility(ctx context.Context, pluginName, pluginSpecVersion string) error {
 	v, ok := ctx.Value(SkipVersionCheckKey).(bool)
 	skipCheck := ok && v
 	if skipCheck {
-		return
+		return nil
 	}
 
 	log := logging.FromContext(ctx)
 	result, verErr := CompareSpecVersions(pluginsdk.SpecVersion, pluginSpecVersion)
 	if verErr != nil {
 		log.Warn().Err(verErr).Str("plugin", pluginName).Msg("Failed to parse plugin spec version")
-		return
+		return nil // Parse errors are not blocking
 	}
 
 	if result == MajorMismatch {
@@ -112,5 +126,13 @@ func checkVersionCompatibility(ctx context.Context, pluginName, pluginSpecVersio
 			Str("core_spec", pluginsdk.SpecVersion).
 			Str("plugin_spec", pluginSpecVersion).
 			Msg("Plugin spec version mismatch: this may cause instability")
+
+		// In strict mode, return an error to block plugin initialization
+		if config.GetStrictPluginCompatibility() {
+			return fmt.Errorf("%w: plugin %s has spec version %s, core requires compatible with %s",
+				ErrPluginIncompatible, pluginName, pluginSpecVersion, pluginsdk.SpecVersion)
+		}
 	}
+
+	return nil
 }

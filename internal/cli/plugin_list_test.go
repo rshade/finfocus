@@ -143,3 +143,25 @@ func TestPluginListCmdAvailableFlag(t *testing.T) {
 	assert.Equal(t, "false", availableFlag.DefValue)
 	assert.Contains(t, availableFlag.Usage, "List available plugins from registry")
 }
+
+// BenchmarkPluginList measures plugin listing performance.
+// With parallel fetching, execution time should scale O(1) relative to plugin count
+// (bounded by the slowest plugin), not O(N) (sum of all plugin latencies).
+//
+// Run with: go test -bench=BenchmarkPluginList -benchtime=1x ./internal/cli/...
+func BenchmarkPluginList(b *testing.B) {
+	// Suppress log output during benchmarks
+	b.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	for i := 0; i < b.N; i++ {
+		var buf bytes.Buffer
+		cmd := cli.NewPluginListCmd()
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+		cmd.SetArgs([]string{})
+
+		if err := cmd.Execute(); err != nil {
+			b.Fatalf("plugin list execute failed: %v", err)
+		}
+	}
+}

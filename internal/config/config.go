@@ -63,13 +63,22 @@ type Config struct {
 	SpecDir   string `yaml:"-" json:"-"`
 
 	// New comprehensive configuration
-	Output   OutputConfig            `yaml:"output"   json:"output"`
-	Plugins  map[string]PluginConfig `yaml:"plugins"  json:"plugins"`
-	Logging  LoggingConfig           `yaml:"logging"  json:"logging"`
-	Analyzer AnalyzerConfig          `yaml:"analyzer" json:"analyzer"`
+	Output           OutputConfig            `yaml:"output"      json:"output"`
+	Plugins          map[string]PluginConfig `yaml:"plugins"     json:"plugins"`
+	Logging          LoggingConfig           `yaml:"logging"     json:"logging"`
+	Analyzer         AnalyzerConfig          `yaml:"analyzer"    json:"analyzer"`
+	PluginHostConfig PluginHostConfig        `yaml:"plugin_host" json:"plugin_host"`
 
 	// Internal fields
 	configPath string
+}
+
+// PluginHostConfig defines plugin host behavior settings.
+type PluginHostConfig struct {
+	// StrictCompatibility blocks plugin initialization on spec version mismatch.
+	// When true, plugins with incompatible spec versions will fail to load.
+	// When false (default), a warning is logged but initialization continues.
+	StrictCompatibility bool `yaml:"strict_compatibility" json:"strict_compatibility"`
 }
 
 // OutputConfig defines output formatting preferences.
@@ -130,10 +139,10 @@ type AnalyzerPlugin struct {
 
 // ResolveConfigDir determines the configuration directory based on environment variables.
 // It follows this precedence order:
-// 1. $FINFOCUS_HOME - explicit override
-// 2. $PULUMI_HOME/finfocus/ - if PULUMI_HOME is set (Pulumi ecosystem integration)
-// 3. $HOME/.finfocus/ - default fallback (standard behavior)
-// 4. ./.finfocus - fallback of last resort if home directory cannot be determined
+// 1. $FINFOCUS_HOME - explicit override.
+// 2. $PULUMI_HOME/finfocus/ - if PULUMI_HOME is set (Pulumi ecosystem integration).
+// 3. $HOME/.finfocus/ - default fallback (standard behavior).
+// 4. ./.finfocus - fallback of last resort if home directory cannot be determined.
 func ResolveConfigDir() string {
 	// Check explicit FINFOCUS_HOME first
 	if ffHome := os.Getenv("FINFOCUS_HOME"); ffHome != "" {
@@ -364,10 +373,11 @@ func (c *Config) Get(key string) (interface{}, error) {
 // List returns all configuration as a map.
 func (c *Config) List() map[string]interface{} {
 	return map[string]interface{}{
-		"output":   c.Output,
-		"plugins":  c.Plugins,
-		"logging":  c.Logging,
-		"analyzer": c.Analyzer,
+		"output":      c.Output,
+		"plugins":     c.Plugins,
+		"logging":     c.Logging,
+		"analyzer":    c.Analyzer,
+		"plugin_host": c.PluginHostConfig,
 	}
 }
 

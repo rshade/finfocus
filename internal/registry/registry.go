@@ -134,6 +134,44 @@ func (r *Registry) GetLatestPlugin(name string) (PluginInfo, bool, []string, err
 	return PluginInfo{}, false, warnings, nil
 }
 
+// isExecutable checks if the given file info represents an executable file.
+func isExecutable(path string, info os.FileInfo) bool {
+	if runtime.GOOS == osWindows {
+		return filepath.Ext(path) == extExe
+	}
+	return info.Mode()&0111 != 0
+}
+
+// findByPattern attempts to find a binary matching the given pattern in dir.
+func findByPattern(dir, pattern string) string {
+	path := filepath.Join(dir, pattern)
+	if runtime.GOOS == osWindows {
+		path += extExe
+	}
+
+	info, err := os.Stat(path)
+	if err != nil || info.IsDir() {
+		return ""
+	}
+
+	if isExecutable(path, info) {
+		return path
+	}
+	return ""
+}
+
+// buildPluginPatterns returns the list of patterns to search for a plugin binary.
+func buildPluginPatterns(pluginName string) []string {
+	patterns := []string{
+		"finfocus-plugin-" + pluginName,
+		pluginName,
+	}
+	if os.Getenv("FINFOCUS_LOG_LEGACY") == "1" {
+		patterns = append(patterns, "pulumicost-plugin-"+pluginName)
+	}
+	return patterns
+}
+
 func (r *Registry) findBinary(dir string) string {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -142,29 +180,9 @@ func (r *Registry) findBinary(dir string) string {
 
 	// Try to find by name patterns first
 	pluginName := filepath.Base(filepath.Dir(dir))
-	patterns := []string{
-		"finfocus-plugin-" + pluginName,
-		pluginName,
-	}
-
-	// Add legacy pattern if enabled
-	if os.Getenv("FINFOCUS_LOG_LEGACY") == "1" {
-		patterns = append(patterns, "pulumicost-plugin-"+pluginName)
-	}
-
-	for _, pattern := range patterns {
-		path := filepath.Join(dir, pattern)
-		if runtime.GOOS == osWindows {
-			path += extExe
-		}
-		if info, statErr := os.Stat(path); statErr == nil && !info.IsDir() {
-			if runtime.GOOS != osWindows {
-				if info.Mode()&0111 != 0 {
-					return path
-				}
-			} else {
-				return path
-			}
+	for _, pattern := range buildPluginPatterns(pluginName) {
+		if path := findByPattern(dir, pattern); path != "" {
+			return path
 		}
 	}
 
@@ -180,14 +198,8 @@ func (r *Registry) findBinary(dir string) string {
 			continue
 		}
 
-		if runtime.GOOS != osWindows {
-			if info.Mode()&0111 != 0 {
-				return path
-			}
-		} else {
-			if filepath.Ext(path) == extExe {
-				return path
-			}
+		if isExecutable(path, info) {
+			return path
 		}
 	}
 

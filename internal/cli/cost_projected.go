@@ -121,15 +121,11 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		return err
 	}
 
-	for _, f := range params.filter {
-		if f != "" {
-			if filterErr := engine.ValidateFilter(f); filterErr != nil {
-				return filterErr
-			}
-			resources = engine.FilterResources(resources, f)
-			log.Debug().Ctx(ctx).Str("filter", f).Int("filtered_count", len(resources)).
-				Msg("applied resource filter")
-		}
+	resources, err = ApplyFilters(ctx, resources, params.filter)
+	if err != nil {
+		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
+		audit.logFailure(ctx, err)
+		return fmt.Errorf("applying filters: %w", err)
 	}
 
 	specDir := params.specDir

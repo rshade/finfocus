@@ -4,6 +4,9 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"runtime"
+	"sort"
+	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -12,6 +15,7 @@ import (
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/registry"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 )
 
 // NewPluginListCmd creates a Cobra "list" command for displaying plugins.
@@ -112,6 +116,10 @@ const notAvailable = "N/A"
 // runPluginListCmd lists installed plugins and writes a tabulated listing to the provided Cobra command output.
 // It checks whether the configured plugin directory exists and prints a message and returns nil if it does not.
 // If no plugins are installed it prints 'No plugins found.' and returns nil.
+//
+// Plugin metadata is fetched concurrently using errgroup with a concurrency limit of runtime.NumCPU()
+// to minimize total execution time. Results are sorted deterministically by plugin name.
+//
 // cmd is the Cobra command used for printing. verbose controls whether plugin details are shown.
 // Returns an error if querying the registry for installed plugins fails; otherwise nil.
 func runPluginListCmd(cmd *cobra.Command, verbose bool) error {
@@ -133,50 +141,91 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool) error {
 		return nil
 	}
 
-	var enriched []enrichedPluginInfo
 	ctx := cmd.Context()
-	launcher := pluginhost.NewProcessLauncher()
-
-	for _, p := range plugins {
-		// Launch plugin to get metadata
-		// 5s timeout for launch + info
-		const launchTimeout = 5 * time.Second
-		launchCtx, cancel := context.WithTimeout(ctx, launchTimeout)
-		client, launchErr := pluginhost.NewClient(launchCtx, launcher, p.Path)
-		if launchErr != nil {
-			logging.FromContext(ctx).Debug().
-				Ctx(ctx).
-				Str("plugin_path", p.Path).
-				Err(launchErr).
-				Msg("failed to launch plugin during list enumeration")
-			cancel()
-			continue
-		}
-
-		specVer := notAvailable
-		runVer := notAvailable
-
-		if client.Metadata != nil {
-			specVer = client.Metadata.SpecVersion
-			runVer = client.Metadata.Version
-		}
-
-		enriched = append(enriched, enrichedPluginInfo{
-			PluginInfo:     p,
-			SpecVersion:    specVer,
-			RuntimeVersion: runVer,
-		})
-
-		_ = client.Close()
-		cancel()
-	}
+	enriched := fetchPluginMetadataParallel(ctx, plugins)
 
 	if len(enriched) == 0 && len(plugins) > 0 {
 		cmd.Println("No healthy plugins found (all failed to respond).")
 		return nil
 	}
 
+	// Sort by plugin name for deterministic output
+	sort.Slice(enriched, func(i, j int) bool {
+		return enriched[i].Name < enriched[j].Name
+	})
+
 	return displayPlugins(cmd, enriched, verbose)
+}
+
+// fetchPluginMetadataParallel fetches metadata from all plugins concurrently.
+// It uses errgroup with a concurrency limit of runtime.NumCPU() to prevent resource exhaustion.
+// Plugins that fail to respond within the timeout are skipped (not included in results).
+func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginInfo) []enrichedPluginInfo {
+	launcher := pluginhost.NewProcessLauncher()
+
+	// Thread-safe collection of results
+	var mu sync.Mutex
+	var enriched []enrichedPluginInfo
+
+	// Use errgroup with concurrency limit
+	g, gCtx := errgroup.WithContext(ctx)
+	g.SetLimit(runtime.NumCPU())
+
+	for _, p := range plugins {
+		g.Go(func() error {
+			info := fetchSinglePluginMetadata(gCtx, launcher, p)
+			if info != nil {
+				mu.Lock()
+				enriched = append(enriched, *info)
+				mu.Unlock()
+			}
+			// Always return nil - we don't want one plugin failure to cancel others
+			return nil
+		})
+	}
+
+	// Wait for all goroutines to complete (errors are intentionally ignored)
+	_ = g.Wait()
+
+	return enriched
+}
+
+// fetchSinglePluginMetadata fetches metadata for a single plugin with timeout.
+// Returns nil if the plugin fails to respond or times out.
+func fetchSinglePluginMetadata(
+	ctx context.Context,
+	launcher pluginhost.Launcher,
+	plugin registry.PluginInfo,
+) *enrichedPluginInfo {
+	log := logging.FromContext(ctx)
+	const launchTimeout = 5 * time.Second
+	launchCtx, cancel := context.WithTimeout(ctx, launchTimeout)
+	defer cancel()
+
+	client, launchErr := pluginhost.NewClient(launchCtx, launcher, plugin.Path)
+	if launchErr != nil {
+		log.Debug().
+			Ctx(ctx).
+			Str("plugin_path", plugin.Path).
+			Err(launchErr).
+			Msg("failed to launch plugin during list enumeration")
+		return nil
+	}
+	defer func() { _ = client.Close() }()
+
+	specVer := notAvailable
+	runVer := notAvailable
+
+	if client.Metadata != nil {
+		specVer = client.Metadata.SpecVersion
+		runVer = client.Metadata.Version
+	}
+
+	return &enrichedPluginInfo{
+		PluginInfo:     plugin,
+		SpecVersion:    specVer,
+		RuntimeVersion: runVer,
+	}
 }
 
 func displayPlugins(cmd *cobra.Command, plugins []enrichedPluginInfo, verbose bool) error {

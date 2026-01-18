@@ -5,6 +5,7 @@ Auto-generated from all feature plans. Last updated: 2026-01-12
 ## Active Technologies
 - Go 1.25.5 + `github.com/spf13/cobra` (CLI), `github.com/spf13/viper` (Config), `github.com/rshade/finfocus-spec` (renamed from `finfocus-spec`) (113-rebrand-to-finfocus)
 - Filesystem (`~/.finfocus/config.yaml`, `~/.finfocus/plugins/`) (113-rebrand-to-finfocus)
+- Filesystem (Plugin directories) (115-v021-dx-improvements)
 
 - Markdown, Go 1.25.5 (for code verification) + Jekyll (for docs site), GitHub Pages (010-sync-docs-codebase)
 - Git repository (docs folder) (010-sync-docs-codebase)
@@ -133,6 +134,43 @@ Configuration validation with >85% coverage:
 
 **Priority paths**: File I/O, network, validation, resource exhaustion, concurrency.
 
+### Testify Assertion Standards
+
+**CRITICAL**: All Go tests MUST use testify's `require` and `assert` packages.
+NEVER use manual `if x != y { t.Errorf(...) }` patterns.
+
+**Required Imports**:
+
+```go
+import (
+    "github.com/stretchr/testify/assert"
+    "github.com/stretchr/testify/require"
+)
+```
+
+**When to Use `require.*` (stops test on failure)**:
+
+- Setup operations that must succeed for test to be valid
+- Error checks where continuing would cause panics or misleading failures
+- Non-nil checks for required objects before using them
+
+**When to Use `assert.*` (continues test on failure)**:
+
+- Value comparisons after setup is complete
+- Multiple property checks on a result
+- Non-critical validations where seeing all failures is helpful
+
+**Common Assertion Conversions**:
+
+| Manual Pattern                                   | Testify Replacement           |
+| ------------------------------------------------ | ----------------------------- |
+| `if err != nil { t.Fatal(err) }`                 | `require.NoError(t, err)`     |
+| `if err == nil { t.Error("expected error") }`    | `require.Error(t, err)`       |
+| `if x != y { t.Errorf("got %v, want %v", x, y) }`| `assert.Equal(t, y, x)`       |
+| `if len(x) != n { t.Errorf(...) }`               | `assert.Len(t, x, n)`         |
+| `if !strings.Contains(s, sub) { t.Errorf(...) }` | `assert.Contains(t, s, sub)`  |
+| `if x == nil { t.Fatal("nil") }`                 | `require.NotNil(t, x)`        |
+
 ### CI Integration
 
 - PRs: 30-second fuzz smoke tests, benchmark smoke tests
@@ -153,6 +191,7 @@ Configuration validation with >85% coverage:
 - **Property Extraction**: Core (`adapter.go`) relies on populated `Inputs` to extract SKU and Region. If `Inputs` are empty (due to ingest issues), pricing lookup fails.
 
 ## Recent Changes
+- 115-v021-dx-improvements: Added Go 1.25.5
 - 113-rebrand-to-finfocus: Added Go 1.25.5 + `github.com/spf13/cobra` (CLI), `github.com/spf13/viper` (Config), `github.com/rshade/finfocus-spec` (renamed from `finfocus-spec`)
 
 - 112-plugin-info-discovery: Added Go 1.25.5 + github.com/rshade/finfocus-spec v0.4.14, github.com/Masterminds/semver/v3

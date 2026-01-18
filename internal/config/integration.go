@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 )
 
@@ -68,6 +69,21 @@ func GetLogFile() string {
 func GetPluginConfiguration(pluginName string) (map[string]interface{}, error) {
 	cfg := GetGlobalConfig()
 	return cfg.GetPluginConfig(pluginName)
+}
+
+// GetStrictPluginCompatibility returns whether strict plugin compatibility mode is enabled.
+// When true, plugins with incompatible spec versions will fail to load.
+// When false (default), a warning is logged but initialization continues.
+// This can also be enabled via FINFOCUS_STRICT_COMPATIBILITY=true environment variable.
+func GetStrictPluginCompatibility() bool {
+	// Environment variable takes precedence if set
+	if env := os.Getenv("FINFOCUS_STRICT_COMPATIBILITY"); env != "" {
+		if val, err := strconv.ParseBool(env); err == nil {
+			return val
+		}
+	}
+	cfg := GetGlobalConfig()
+	return cfg.PluginHostConfig.StrictCompatibility
 }
 
 // EnsureConfigDir ensures the finfocus configuration directory exists.
