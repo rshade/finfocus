@@ -55,7 +55,18 @@ func SafeCopy(src, dst string) error {
 	})
 }
 
-// RunMigration handles the interactive migration from legacy to new configuration.
+// RunMigration performs an interactive migration of a legacy configuration directory
+// to the new location.
+//
+// RunMigration writes status and prompt messages to out and reads the user's response
+// from in. If no legacy configuration is detected, if the new path already exists,
+// or if the user declines the prompt, the function returns nil and no changes are made.
+// If obtaining the new path fails, the function returns that error. If the copy of the
+// legacy configuration to the new location fails, the function returns an error
+// wrapping the underlying copy failure.
+//
+// out is used for writing prompts and status messages. in is used for reading the
+// user's response to the migration prompt.
 func RunMigration(out io.Writer, in io.Reader) error {
 	legacyPath, exists := DetectLegacy()
 	if !exists {
@@ -97,6 +108,14 @@ func RunMigration(out io.Writer, in io.Reader) error {
 	return nil
 }
 
+// copyFile copies the file at src to dst, creating any missing parent directories
+// and preserving the source file's permission bits.
+//
+// The src and dst parameters are filesystem paths. If necessary, parent directories
+// of dst are created with mode 0700. The destination file is created or truncated
+// and its contents are replaced with those from src. The returned error is non-nil
+// if any filesystem operation (opening, creating, copying, stat'ing, or chmod'ing)
+// fails.
 func copyFile(src, dst string) error {
 	sourceFile, err := os.Open(src)
 	if err != nil {

@@ -775,7 +775,9 @@ func (i *Installer) RemoveOtherVersions(
 	return result, nil
 }
 
-// getDirSize calculates the total size of all files in a directory recursively.
+// getDirSize returns the total size in bytes of all files under the named
+// directory, traversing subdirectories recursively. It returns the computed
+// size and any error encountered while walking the directory tree.
 func getDirSize(path string) (int64, error) {
 	var size int64
 	err := filepath.Walk(path, func(_ string, info os.FileInfo, err error) error {

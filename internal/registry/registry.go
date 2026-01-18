@@ -134,7 +134,9 @@ func (r *Registry) GetLatestPlugin(name string) (PluginInfo, bool, []string, err
 	return PluginInfo{}, false, warnings, nil
 }
 
-// isExecutable checks if the given file info represents an executable file.
+// isExecutable reports whether the file at path is executable.
+// On Windows it returns true if the file has a ".exe" extension; on other platforms
+// it checks the executable permission bits of the provided FileInfo.
 func isExecutable(path string, info os.FileInfo) bool {
 	if runtime.GOOS == osWindows {
 		return filepath.Ext(path) == extExe
@@ -143,6 +145,11 @@ func isExecutable(path string, info os.FileInfo) bool {
 }
 
 // findByPattern attempts to find a binary matching the given pattern in dir.
+// dir is the directory to search. pattern is the candidate filename (without
+// platform-specific extension).
+// It returns the path to the executable if a matching file exists, is not a
+// directory, and is executable (on Windows the pattern will be checked with a
+// `.exe` extension); otherwise it returns an empty string.
 func findByPattern(dir, pattern string) string {
 	path := filepath.Join(dir, pattern)
 	if runtime.GOOS == osWindows {
@@ -160,7 +167,8 @@ func findByPattern(dir, pattern string) string {
 	return ""
 }
 
-// buildPluginPatterns returns the list of patterns to search for a plugin binary.
+// buildPluginPatterns constructs filename patterns to search for a plugin binary for the given pluginName.
+// It returns the default patterns "finfocus-plugin-<name>" and "<name>", and if the environment variable FINFOCUS_LOG_LEGACY is set to "1" it also includes the legacy "pulumicost-plugin-<name>" pattern.
 func buildPluginPatterns(pluginName string) []string {
 	patterns := []string{
 		"finfocus-plugin-" + pluginName,

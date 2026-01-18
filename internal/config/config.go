@@ -142,7 +142,10 @@ type AnalyzerPlugin struct {
 // 1. $FINFOCUS_HOME - explicit override.
 // 2. $PULUMI_HOME/finfocus/ - if PULUMI_HOME is set (Pulumi ecosystem integration).
 // 3. $HOME/.finfocus/ - default fallback (standard behavior).
-// 4. ./.finfocus - fallback of last resort if home directory cannot be determined.
+// ResolveConfigDir determines the directory path to use for finfocus configuration.
+// It selects the path in the following precedence: the FINFOCUS_HOME environment variable;
+// PULUMI_HOME joined with "finfocus"; the user's $HOME/.finfocus; and finally the
+// current working directory's .finfocus when the home directory cannot be determined.
 func ResolveConfigDir() string {
 	// Check explicit FINFOCUS_HOME first
 	if ffHome := os.Getenv("FINFOCUS_HOME"); ffHome != "" {

@@ -156,7 +156,11 @@ timestamp if not provided.`,
 //   - --from is missing when using --pulumi-json
 //   - Resource loading fails
 //   - Time range parsing fails
-//   - Plugin communication fails
+// executeCostActual runs the "actual" cost subcommand workflow using the provided Cobra command and parameters.
+// It validates input flags, loads and filters resources, resolves the time range, opens adapter plugins,
+// requests actual cost data from the engine, renders the output, and records audit information.
+// It returns an error if any step fails (validation, resource loading, filter application, time parsing,
+// plugin initialization/communication, cost fetching, or output rendering).
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -452,7 +456,18 @@ func buildActualAuditParams(params costActualParams) map[string]string {
 	return auditParams
 }
 
-// loadActualResources loads resources from either plan or state file based on params.
+// loadActualResources loads resource descriptors either from a Pulumi state file or a Pulumi plan,
+// depending on the fields of params. If params.statePath is non-empty, the function loads and maps
+// resources from the state file; otherwise it loads and maps resources from the Pulumi plan at
+// params.planPath. Failures to load or map resources are recorded on the provided audit context
+// and returned as errors.
+//
+// Parameters:
+//  - ctx: the context for cancellation and logging.
+//  - params: configuration specifying the state or plan path and other flags.
+//  - audit: audit context used to record failures.
+//
+// Returns a slice of engine.ResourceDescriptor on success, or an error if loading or mapping fails.
 func loadActualResources(
 	ctx context.Context,
 	params costActualParams,
@@ -483,7 +498,13 @@ func loadActualResources(
 	return resources, nil
 }
 
-// resolveFromDate determines the 'from' date, auto-detecting from state if needed.
+// resolveFromDate determines the 'from' date to use for the actual-cost operation.
+// If params.fromStr is non-empty it is returned unchanged. If params.fromStr is
+// empty and params.statePath is set, the function returns the earliest resource
+// creation timestamp found in resources formatted as RFC3339. An error is
+// returned if auto-detection from state fails or if no from date can be
+// resolved (for example when neither --from nor a state path to inspect is
+// available).
 func resolveFromDate(
 	ctx context.Context,
 	params costActualParams,

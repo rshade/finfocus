@@ -19,7 +19,13 @@ import (
 // A warning is logged if the filtered result is empty.
 //
 // Filter syntax follows engine.ValidateFilter rules: "key=value" format
-// (e.g., "type=aws:ec2/instance", "tag:env=prod").
+// ApplyFilters validates and applies a sequence of filter expressions to a slice of ResourceDescriptor.
+// It first validates all non-empty filters; if any validation fails, it returns nil and that validation error.
+// If the filters slice is empty, the original resources are returned unchanged.
+// Valid, non-empty filters are applied sequentially to the resource set and the resulting slice is returned.
+// ctx is used for cancellation and logging. resources is the input set to filter. filters is the ordered list
+// of filter expressions; empty strings in filters are ignored.
+// It returns the filtered resources and a nil error on success, or nil and a validation error if any filter is invalid.
 func ApplyFilters(
 	ctx context.Context,
 	resources []engine.ResourceDescriptor,

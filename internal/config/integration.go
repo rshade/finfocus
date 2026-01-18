@@ -65,7 +65,9 @@ func GetLogFile() string {
 	return cfg.Logging.File
 }
 
-// GetPluginConfiguration returns configuration for a specific plugin.
+// GetPluginConfiguration retrieves the configuration for the named plugin.
+// The returned map contains the plugin's configuration keys and values.
+// It returns an error if the plugin configuration cannot be retrieved.
 func GetPluginConfiguration(pluginName string) (map[string]interface{}, error) {
 	cfg := GetGlobalConfig()
 	return cfg.GetPluginConfig(pluginName)
@@ -74,7 +76,8 @@ func GetPluginConfiguration(pluginName string) (map[string]interface{}, error) {
 // GetStrictPluginCompatibility returns whether strict plugin compatibility mode is enabled.
 // When true, plugins with incompatible spec versions will fail to load.
 // When false (default), a warning is logged but initialization continues.
-// This can also be enabled via FINFOCUS_STRICT_COMPATIBILITY=true environment variable.
+// GetStrictPluginCompatibility reports whether strict plugin compatibility is enabled.
+// It first checks the FINFOCUS_STRICT_COMPATIBILITY environment variable and, if it parses as a boolean, returns that value; otherwise it returns the value from the global configuration's PluginHostConfig.StrictCompatibility.
 func GetStrictPluginCompatibility() bool {
 	// Environment variable takes precedence if set
 	if env := os.Getenv("FINFOCUS_STRICT_COMPATIBILITY"); env != "" {
@@ -87,6 +90,8 @@ func GetStrictPluginCompatibility() bool {
 }
 
 // EnsureConfigDir ensures the finfocus configuration directory exists.
+// It returns an error if the configuration directory path cannot be determined
+// or if creating the directory (and any necessary parents) fails.
 func EnsureConfigDir() error {
 	dir, err := GetConfigDir()
 	if err != nil {

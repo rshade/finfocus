@@ -121,7 +121,20 @@ const notAvailable = "N/A"
 // to minimize total execution time. Results are sorted deterministically by plugin name.
 //
 // cmd is the Cobra command used for printing. verbose controls whether plugin details are shown.
-// Returns an error if querying the registry for installed plugins fails; otherwise nil.
+// runPluginListCmd lists installed plugins, enriches them with runtime metadata, and renders the output to the provided command.
+// 
+// It checks whether the configured plugin directory exists, queries the plugin registry for installed plugins, fetches
+// per-plugin metadata in parallel, sorts results by plugin name, and delegates rendering to displayPlugins.
+// The function prints user-facing messages to cmd when the plugin directory is missing, no plugins are installed, or when
+// installed plugins exist but none responded to metadata requests.
+//
+// Parameters:
+//   - cmd: the Cobra command used for printing output and obtaining the request context.
+//   - verbose: when true, instructs the renderer to include extended plugin information.
+//
+// Returns:
+//   An error if listing plugins from the registry fails or if rendering the plugin list fails. Returns nil when the
+//   operation completes successfully or when there are no plugins to display.
 func runPluginListCmd(cmd *cobra.Command, verbose bool) error {
 	cfg := config.New()
 	if _, err := os.Stat(cfg.PluginDir); os.IsNotExist(err) {
@@ -159,7 +172,13 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool) error {
 
 // fetchPluginMetadataParallel fetches metadata from all plugins concurrently.
 // It uses errgroup with a concurrency limit of runtime.NumCPU() to prevent resource exhaustion.
-// Plugins that fail to respond within the timeout are skipped (not included in results).
+// fetchPluginMetadataParallel fetches metadata for the provided plugins concurrently.
+// ctx is the parent context used for per-plugin queries. plugins is the list of
+// plugin entries to query.
+// Plugin queries are performed in parallel with a bounded level of concurrency.
+// Queries that fail or do not respond within their per-call timeout are skipped
+// and do not cause the overall operation to fail.
+// It returns a slice of enrichedPluginInfo for the plugins that responded successfully.
 func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginInfo) []enrichedPluginInfo {
 	launcher := pluginhost.NewProcessLauncher()
 
@@ -191,7 +210,17 @@ func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginI
 }
 
 // fetchSinglePluginMetadata fetches metadata for a single plugin with timeout.
-// Returns nil if the plugin fails to respond or times out.
+// fetchSinglePluginMetadata attempts to launch the given plugin and retrieve its spec and runtime versions.
+// It uses a short per-call timeout and returns an enrichedPluginInfo containing the original PluginInfo
+// plus SpecVersion and RuntimeVersion populated from the plugin metadata.
+//
+// Parameters:
+//  - ctx: the parent context used for logging and cancellation.
+//  - launcher: the plugin host launcher used to start the plugin process.
+//  - plugin: the plugin registry information, including the executable path.
+//
+// Returns a pointer to enrichedPluginInfo with SpecVersion and RuntimeVersion set to the values
+// reported by the plugin, or `nil` if the plugin could not be launched, did not respond, or timed out.
 func fetchSinglePluginMetadata(
 	ctx context.Context,
 	launcher pluginhost.Launcher,
@@ -228,6 +257,14 @@ func fetchSinglePluginMetadata(
 	}
 }
 
+// displayPlugins writes the provided plugins list to the command's output using a tabular layout.
+// It selects a verbose or simple column set based on the verbose flag.
+//
+// cmd is the Cobra command whose output writer will receive the table.
+// plugins is the slice of enrichedPluginInfo to render.
+// verbose controls whether verbose columns (including executable status) are shown.
+//
+// It returns any error encountered while writing or flushing the table.
 func displayPlugins(cmd *cobra.Command, plugins []enrichedPluginInfo, verbose bool) error {
 	const tabPadding = 2
 	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, tabPadding, ' ', 0)

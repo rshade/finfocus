@@ -37,7 +37,22 @@ type Launcher interface {
 	Start(ctx context.Context, path string, args ...string) (*grpc.ClientConn, func() error, error)
 }
 
-// NewClient creates a new plugin client by launching the plugin and establishing a gRPC connection.
+// NewClient creates and initializes a plugin Client by launching the plugin binary and establishing a gRPC connection.
+//
+// NewClient starts the plugin using the provided Launcher, obtains the plugin's legacy name, and prepares a CostSource gRPC client.
+// It attempts to fetch plugin metadata with a 5 second timeout and stores that metadata on the returned Client when available.
+// If the plugin does not implement GetPluginInfo or the info call fails, NewClient returns the Client with Metadata left nil and a nil error.
+// After obtaining plugin info, NewClient validates spec version compatibility; in strict compatibility mode a mismatch causes the plugin to be closed and an error to be returned.
+// If obtaining the legacy name fails, NewClient ensures the plugin process is closed before returning an error.
+//
+// Parameters:
+//  - ctx: context for launching and RPC calls; may carry SkipVersionCheckKey to skip version validation.
+//  - launcher: launcher used to start the plugin process and produce a gRPC connection and close function.
+//  - binPath: filesystem path to the plugin binary to start.
+//
+// Returns:
+//  - *Client: initialized client with Name, Conn, API, Close, and optionally Metadata (nil if GetPluginInfo failed or was unimplemented).
+//  - error: any error encountered while launching the plugin, retrieving its name, or enforcing strict version compatibility. Closing errors are wrapped when the client close fails while handling an error.
 func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client, error) {
 	conn, closeFn, err := launcher.Start(ctx, binPath)
 	if err != nil {
@@ -93,6 +108,9 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 	return client, nil
 }
 
+// handleGetPluginInfoError logs plugin info retrieval issues.
+// If the error indicates the GetPluginInfo RPC is unimplemented, it logs a debug message noting a legacy plugin.
+// For any other error (timeout, network, etc.) it logs a warning that includes the error and the plugin name.
 func handleGetPluginInfoError(ctx context.Context, pluginName string, err error) {
 	log := logging.FromContext(ctx)
 	if IsUnimplementedError(err) {
@@ -105,7 +123,17 @@ func handleGetPluginInfoError(ctx context.Context, pluginName string, err error)
 
 // checkVersionCompatibility validates plugin spec version compatibility.
 // In permissive mode (default), it logs a warning on mismatch.
-// In strict mode, it returns an error on mismatch.
+// checkVersionCompatibility validates a plugin's spec version against the core spec
+// version and enforces strict compatibility when configured.
+//
+// It reads SkipVersionCheckKey from ctx; if set to true the check is skipped.
+// pluginName is used only for logging and error messages. pluginSpecVersion is the
+// spec version reported by the plugin.
+//
+// Returns nil if the check is skipped, the versions are compatible, or the plugin's
+// spec version cannot be parsed (parse errors are logged but not blocking).
+// Returns an error wrapping ErrPluginIncompatible when a major-version mismatch is
+// detected and strict plugin compatibility is enabled via config.GetStrictPluginCompatibility().
 func checkVersionCompatibility(ctx context.Context, pluginName, pluginSpecVersion string) error {
 	v, ok := ctx.Value(SkipVersionCheckKey).(bool)
 	skipCheck := ok && v

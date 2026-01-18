@@ -8,7 +8,10 @@ import (
 	"github.com/rshade/finfocus/internal/registry"
 )
 
-// formatBytes formats a byte count into a human-readable string (KB, MB, GB).
+// formatBytes converts a size in bytes to a human-readable string using GB, MB, KB,
+// or bytes. bytes is interpreted as a count of bytes; values at or above KB, MB,
+// or GB are formatted with two decimal places (e.g., "1.23 MB"), otherwise the
+// integer byte count is returned as "<n> bytes".
 func formatBytes(bytes int64) string {
 	const (
 		kb = 1024
@@ -28,7 +31,11 @@ func formatBytes(bytes int64) string {
 	}
 }
 
-// displaySecurityWarning shows security warnings for plugin installations.
+// displaySecurityWarning prints security warnings related to a plugin install request.
+// It warns when the spec refers to a URL-based plugin that URL-based plugins are not
+// verified by the FinFocus team and should only be installed from trusted sources.
+// For registry plugins, it warns if the plugin's SecurityLevel is "experimental" to
+// indicate the plugin has not been fully reviewed.
 func displaySecurityWarning(cmd *cobra.Command, spec *registry.PluginSpecifier) {
 	if spec.IsURL {
 		cmd.Printf("⚠️  Installing from URL: %s/%s\n", spec.Owner, spec.Repo)
@@ -45,7 +52,20 @@ func displaySecurityWarning(cmd *cobra.Command, spec *registry.PluginSpecifier) 
 	}
 }
 
-// handleCleanup removes other versions if --clean flag is set.
+// handleCleanup removes other installed versions of the plugin described by
+// result and prints progress and a summary to cmd.
+// 
+// It uses installer to remove versions from pluginDir, invoking progress with
+// progress messages. On error it prints a warning to cmd. If versions were
+// removed, it prints each removed version and, when available, the amount of
+// space freed formatted by formatBytes.
+//
+// Parameters:
+//  - cmd: Cobra command used for printing output.
+//  - installer: Installer used to perform removal of other versions.
+//  - result: Installation result containing the installed plugin name and version.
+//  - pluginDir: Directory where plugins are stored.
+//  - progress: Callback invoked with progress messages.
 func handleCleanup(
 	cmd *cobra.Command,
 	installer *registry.Installer,
@@ -78,7 +98,14 @@ func handleCleanup(
 // NewPluginInstallCmd creates the install command for installing plugins from registry or URL.
 //
 //	--plugin-dir    Custom plugin directory (default: ~/.finfocus/plugins)
-//	--clean         Remove other versions after successful install
+// NewPluginInstallCmd creates the "install" Cobra command used to install plugins from the registry or a GitHub URL.
+// 
+// The command accepts a single plugin specifier (registry name, registry with version, GitHub URL, or URL with version),
+// and exposes flags to force reinstall, skip saving to config, clean up other installed versions, and override the plugin directory.
+// On successful installation the command prints the installed plugin's name, version, and path; if the --clean flag is provided it
+// additionally removes other versions of the installed plugin to free disk space.
+// 
+// It returns the configured *cobra.Command.
 func NewPluginInstallCmd() *cobra.Command {
 	var (
 		force     bool

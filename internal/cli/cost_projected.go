@@ -97,7 +97,23 @@ const costProjectedExample = `  # Basic usage
 //
 // Returns an error if validation fails (e.g., utilization out of range or invalid filter),
 // resource loading/mapping or plugin initialization fails, cost calculation fails, or
-// result rendering fails.
+// executeCostProjected runs the projected cost workflow for a Pulumi plan and writes results to the command output.
+// 
+// It validates and injects utilization into the context, loads and maps resources from the given Pulumi JSON plan,
+// applies any resource filters, opens adapter plugins and pricing specs, computes projected costs (including per-resource
+// errors), renders the results to the requested output format, and records audit information.
+//
+// Parameters:
+//   - cmd: the Cobra command being executed; its context is used for cancellation, logging, and output.
+//   - params: configuration for the projected cost run (plan path, spec directory, adapter, output format, filters, utilization).
+//
+// Returns an error if:
+//   - the provided utilization is outside the range 0.0–1.0,
+//   - loading or mapping the Pulumi plan fails,
+//   - applying resource filters fails,
+//   - opening plugins fails,
+//   - calculating projected costs fails,
+//   - or rendering the output fails.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
 	ctx := cmd.Context()
 
