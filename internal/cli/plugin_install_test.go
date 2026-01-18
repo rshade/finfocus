@@ -103,7 +103,7 @@ func TestPluginInstallCmd_Flags(t *testing.T) {
 	}
 
 	// Check that expected flags exist
-	expectedFlags := []string{"force", "no-save", "plugin-dir"}
+	expectedFlags := []string{"force", "no-save", "plugin-dir", "clean"}
 	for _, flag := range expectedFlags {
 		if pluginCmd.Flags().Lookup(flag) == nil {
 			t.Errorf("expected flag --%s not found", flag)
@@ -138,6 +138,7 @@ func TestPluginInstallCmd_Examples(t *testing.T) {
 		"kubecost@v1.0.0",
 		"--force",
 		"--no-save",
+		"--clean",
 	}
 
 	for _, example := range examples {

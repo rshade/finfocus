@@ -178,7 +178,12 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		return err
 	}
 
-	resources = applyResourceFilters(ctx, resources, params.filter)
+	resources, err = ApplyFilters(ctx, resources, params.filter)
+	if err != nil {
+		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
+		audit.logFailure(ctx, err)
+		return fmt.Errorf("applying filters: %w", err)
+	}
 
 	fromStr, err := resolveFromDate(ctx, params, resources)
 	if err != nil {
@@ -476,25 +481,6 @@ func loadActualResources(
 	}
 
 	return resources, nil
-}
-
-// applyResourceFilters applies filter expressions to the resource list.
-func applyResourceFilters(
-	ctx context.Context,
-	resources []engine.ResourceDescriptor,
-	filters []string,
-) []engine.ResourceDescriptor {
-	log := logging.FromContext(ctx)
-
-	for _, f := range filters {
-		resources = engine.FilterResources(resources, f)
-	}
-
-	if len(resources) == 0 {
-		log.Warn().Ctx(ctx).Msg("no resources match filter criteria")
-	}
-
-	return resources
 }
 
 // resolveFromDate determines the 'from' date, auto-detecting from state if needed.

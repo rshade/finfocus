@@ -154,3 +154,52 @@ func TestGetPluginInfo_Timeout(t *testing.T) {
 	assert.Equal(t, "slow-plugin", client.Name)
 	assert.Nil(t, client.Metadata)
 }
+
+func TestGetPluginInfo_StrictMode_BlocksIncompatible(t *testing.T) {
+	// Enable strict compatibility mode
+	t.Setenv("FINFOCUS_STRICT_COMPATIBILITY", "true")
+
+	// Setup mock server returning incompatible major version
+	srv := &mockCostSourceServer{
+		name: "incompatible-plugin",
+		pluginInfo: &pbc.GetPluginInfoResponse{
+			Version:     "1.0.0",
+			SpecVersion: "99.0.0", // Major version mismatch
+		},
+	}
+	launcher, cleanup := setupMockServer(t, srv)
+	defer cleanup()
+
+	ctx := context.Background()
+	client, err := pluginhost.NewClient(ctx, launcher, "dummy")
+
+	// In strict mode, incompatible plugins should fail to load
+	require.Error(t, err)
+	assert.ErrorIs(t, err, pluginhost.ErrPluginIncompatible)
+	assert.Nil(t, client)
+}
+
+func TestGetPluginInfo_PermissiveMode_AllowsIncompatible(t *testing.T) {
+	// Ensure strict mode is OFF (default)
+	t.Setenv("FINFOCUS_STRICT_COMPATIBILITY", "false")
+
+	// Setup mock server returning incompatible major version
+	srv := &mockCostSourceServer{
+		name: "incompatible-plugin",
+		pluginInfo: &pbc.GetPluginInfoResponse{
+			Version:     "1.0.0",
+			SpecVersion: "99.0.0", // Major version mismatch
+		},
+	}
+	launcher, cleanup := setupMockServer(t, srv)
+	defer cleanup()
+
+	ctx := context.Background()
+	client, err := pluginhost.NewClient(ctx, launcher, "dummy")
+
+	// In permissive mode (default), incompatible plugins load with warning
+	require.NoError(t, err)
+	require.NotNil(t, client)
+	defer client.Close()
+	assert.Equal(t, "incompatible-plugin", client.Name)
+}

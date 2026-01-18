@@ -38,8 +38,8 @@ guardrails in `CONTEXT.md`.
   - [x] Comprehensive E2E tests for Analyzer integration (#228)
   - [x] Add recommendations to analyzer diagnostics (#321)
   - [x] Shared TUI package with Bubble Tea (#222, #258)
-  - [x] Pagination for large datasets (#225)
-  - [x] Plugin installer: remove old versions during install (#237)
+  - [x] E2E and Conformance test reliability fixes (#323)
+  - [x] AWS fallback scope and non-deterministic output fixes (#324)
 - [x] **v0.2.0: State-Based Costs & Plugin Maturity** *(Released 2026-01-16)*
   - [x] State-based actual cost estimation for `cost actual` (#380, #382)
   - [x] Plugin info and dry-run discovery (#398)
@@ -47,14 +47,8 @@ guardrails in `CONTEXT.md`.
 
 ## Immediate Priority (Bug Fixes)
 
-- [ ] **Test Reliability & CI Stability**
-  - [ ] Fix nightly test failures (recurring)
-        ([#417](https://github.com/rshade/finfocus/issues/417),
-        [#414](https://github.com/rshade/finfocus/issues/414))
-  - [ ] Fix AWS fallback scope and non-deterministic output
-        ([#324](https://github.com/rshade/finfocus/issues/324))
-  - [ ] Fix E2E and Conformance test reliability issues
-        ([#323](https://github.com/rshade/finfocus/issues/323))
+- [x] **Test Reliability & CI Stability** *(Completed 2026-01-17)*
+  - [x] Nightly test failures resolved (#417, #414, #424)
 
 ## Current Focus (v0.2.1 - Polish & DX Improvements)
 
@@ -74,14 +68,17 @@ guardrails in `CONTEXT.md`.
         ([#236](https://github.com/rshade/finfocus/issues/236))
   - [ ] Multi-Plugin Routing: Intelligent Feature-Based Plugin Selection
         ([#410](https://github.com/rshade/finfocus/issues/410))
-  - [ ] Parallel plugin metadata fetching in plugin list command
-        ([#408](https://github.com/rshade/finfocus/issues/408))
-- [ ] **Enhanced Visualization**
-  - [ ] Upgrade cost commands to enhanced TUI
-        ([#218](https://github.com/rshade/finfocus/issues/218))
-- [ ] **Code Quality**
-  - [ ] Fix CodeRabbit issues from #398
-        ([#412](https://github.com/rshade/finfocus/issues/412))
+  - [x] Parallel plugin metadata fetching in plugin list command
+        ([#408](https://github.com/rshade/finfocus/issues/408)) *(Completed 2026-01-17)*
+- [x] **Enhanced Visualization**
+  - [x] Upgrade cost commands to enhanced TUI (#218) *(Completed)*
+- [x] **Code Quality**
+  - [x] Fix CodeRabbit issues from #398 (#412) *(Completed 2026-01-17)*
+- [ ] **Deferred from v0.1.x**
+  - [ ] Pagination for large datasets
+        ([#225](https://github.com/rshade/finfocus/issues/225))
+  - [ ] Plugin installer: remove old versions during install
+        ([#237](https://github.com/rshade/finfocus/issues/237))
 
 ## Near-Term Vision (v0.3.0 - Budgeting & Intelligence)
 

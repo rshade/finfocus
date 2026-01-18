@@ -19,6 +19,8 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
+require golang.org/x/sync v0.19.0
+
 require (
 	connectrpc.com/connect v1.19.1 // indirect
 	connectrpc.com/grpchealth v1.4.0 // indirect

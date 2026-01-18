@@ -143,12 +143,14 @@ finfocus plugin install <plugin-name> [--version <version>] [--url <url>] [optio
 
 ### Options
 
-| Flag        | Description                                  | Default           |
-| ----------- | -------------------------------------------- | ----------------- |
-| `--version` | Specify plugin version to install            | latest            |
-| `--url`     | URL to plugin binary (for custom installs)   | (registry lookup) |
-| `--force`   | Force overwrite existing plugin installation | false             |
-| `--help`    | Show help                                    |                   |
+| Flag        | Description                                        | Default           |
+| ----------- | -------------------------------------------------- | ----------------- |
+| `--version` | Specify plugin version to install                  | latest            |
+| `--url`     | URL to plugin binary (for custom installs)         | (registry lookup) |
+| `--force`   | Force overwrite existing plugin installation       | false             |
+| `--clean`   | Remove all other versions after successful install | false             |
+| `--no-save` | Don't add plugin to config file                    | false             |
+| `--help`    | Show help                                          |                   |
 
 ### Examples
 
@@ -158,6 +160,9 @@ finfocus plugin install vantage
 
 # Install a specific version of a plugin
 finfocus plugin install kubecost --version 0.2.0
+
+# Install and remove all other versions (cleanup disk space)
+finfocus plugin install kubecost --clean
 
 # Install from a custom URL
 finfocus plugin install my-plugin --url https://example.com/my-plugin-0.1.0.tar.gz

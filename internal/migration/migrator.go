@@ -68,7 +68,7 @@ func RunMigration(out io.Writer, in io.Reader) error {
 	}
 
 	// If new path already exists, don't prompt for migration
-	if _, err := os.Stat(newPath); err == nil {
+	if _, statErr := os.Stat(newPath); statErr == nil {
 		return nil
 	}
 
@@ -76,17 +76,21 @@ func RunMigration(out io.Writer, in io.Reader) error {
 	fmt.Fprintf(out, "Would you like to migrate to %s? [y/N] ", newPath)
 
 	var response string
-	fmt.Fscanln(in, &response)
+	if _, scanErr := fmt.Fscanln(in, &response); scanErr != nil {
+		// If we can't read input, treat as "no"
+		response = ""
+	}
 	response = strings.ToLower(strings.TrimSpace(response))
 
 	if response != "y" && response != "yes" {
-		fmt.Fprintln(out, "Migration skipped. Please note that legacy configuration will be ignored unless FINFOCUS_COMPAT=1 is set.")
+		fmt.Fprintln(out, "Migration skipped. Legacy configuration will be ignored "+
+			"unless FINFOCUS_COMPAT=1 is set.")
 		return nil
 	}
 
 	fmt.Fprintln(out, "Migrating configuration...")
-	if err := SafeCopy(legacyPath, newPath); err != nil {
-		return fmt.Errorf("migration failed: %w", err)
+	if copyErr := SafeCopy(legacyPath, newPath); copyErr != nil {
+		return fmt.Errorf("migration failed: %w", copyErr)
 	}
 
 	fmt.Fprintf(out, "Migration complete. Your old config has been preserved at %s.\n", legacyPath)
@@ -101,24 +105,23 @@ func copyFile(src, dst string) error {
 	defer sourceFile.Close()
 
 	// Ensure parent directory exists
-	if err := os.MkdirAll(filepath.Dir(dst), 0700); err != nil {
-		return err
+	if mkdirErr := os.MkdirAll(filepath.Dir(dst), 0700); mkdirErr != nil {
+		return mkdirErr
 	}
 
-	destFile, err := os.Create(dst)
-	if err != nil {
-		return err
+	destFile, createErr := os.Create(dst)
+	if createErr != nil {
+		return createErr
 	}
 	defer destFile.Close()
 
-	_, err = io.Copy(destFile, sourceFile)
-	if err != nil {
-		return err
+	if _, copyErr := io.Copy(destFile, sourceFile); copyErr != nil {
+		return copyErr
 	}
 
-	sourceInfo, err := os.Stat(src)
-	if err != nil {
-		return err
+	sourceInfo, statErr := os.Stat(src)
+	if statErr != nil {
+		return statErr
 	}
 
 	return os.Chmod(dst, sourceInfo.Mode())
