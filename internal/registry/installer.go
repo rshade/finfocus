@@ -712,6 +712,13 @@ func (i *Installer) RemoveOtherVersions(
 	pluginDir string,
 	progress func(msg string),
 ) (*RemoveOtherVersionsResult, error) {
+	// Acquire lock for concurrent safety during version removal
+	unlock, err := i.acquireLock(name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to acquire lock for %s: %w", name, err)
+	}
+	defer unlock()
+
 	if pluginDir == "" {
 		pluginDir = i.pluginDir
 	}
@@ -719,7 +726,7 @@ func (i *Installer) RemoveOtherVersions(
 	pluginPath := filepath.Join(pluginDir, name)
 
 	// Check if plugin directory exists
-	if _, err := os.Stat(pluginPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(pluginPath); os.IsNotExist(statErr) {
 		return &RemoveOtherVersionsResult{
 			PluginName:  name,
 			KeptVersion: keepVersion,

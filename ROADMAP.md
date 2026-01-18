@@ -47,6 +47,9 @@ guardrails in `CONTEXT.md`.
 
 ## Immediate Priority (Bug Fixes)
 
+- [ ] **Active Nightly Failure**
+  - [ ] Nightly test failure - 2026-01-18
+        ([#427](https://github.com/rshade/finfocus/issues/427))
 - [x] **Test Reliability & CI Stability** *(Completed 2026-01-17)*
   - [x] Nightly test failures resolved (#417, #414, #424)
 
@@ -68,12 +71,25 @@ guardrails in `CONTEXT.md`.
         ([#236](https://github.com/rshade/finfocus/issues/236))
   - [ ] Multi-Plugin Routing: Intelligent Feature-Based Plugin Selection
         ([#410](https://github.com/rshade/finfocus/issues/410))
-  - [x] Parallel plugin metadata fetching in plugin list command
-        ([#408](https://github.com/rshade/finfocus/issues/408)) *(Completed 2026-01-17)*
+  - [ ] Parallel plugin metadata fetching in plugin list command
+        ([#408](https://github.com/rshade/finfocus/issues/408))
 - [x] **Enhanced Visualization**
   - [x] Upgrade cost commands to enhanced TUI (#218) *(Completed)*
 - [x] **Code Quality**
   - [x] Fix CodeRabbit issues from #398 (#412) *(Completed 2026-01-17)*
+- [ ] **Plugin Robustness** *(New - 2026-01-18)*
+  - [ ] Respect strict mode for spec version parse errors
+        ([#435](https://github.com/rshade/finfocus/issues/435))
+  - [ ] Add Set/Get handlers for plugin_host config section
+        ([#434](https://github.com/rshade/finfocus/issues/434))
+  - [ ] Show installed plugins even when metadata fetch fails
+        ([#432](https://github.com/rshade/finfocus/issues/432))
+  - [ ] Add lock acquisition to RemoveOtherVersions
+        ([#431](https://github.com/rshade/finfocus/issues/431))
+  - [ ] Fallback to latest stable version when asset missing
+        ([#430](https://github.com/rshade/finfocus/issues/430))
+  - [ ] Replace manual assertions with testify in registry tests
+        ([#429](https://github.com/rshade/finfocus/issues/429))
 - [ ] **Deferred from v0.1.x**
   - [ ] Pagination for large datasets
         ([#225](https://github.com/rshade/finfocus/issues/225))

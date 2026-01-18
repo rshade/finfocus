@@ -117,7 +117,14 @@ func checkVersionCompatibility(ctx context.Context, pluginName, pluginSpecVersio
 	result, verErr := CompareSpecVersions(pluginsdk.SpecVersion, pluginSpecVersion)
 	if verErr != nil {
 		log.Warn().Err(verErr).Str("plugin", pluginName).Msg("Failed to parse plugin spec version")
-		return nil // Parse errors are not blocking
+		// In strict mode, parse errors also block plugin initialization
+		if config.GetStrictPluginCompatibility() {
+			return fmt.Errorf(
+				"%w: failed to parse spec version %q for plugin %s: %s",
+				ErrPluginIncompatible, pluginSpecVersion, pluginName, verErr.Error(),
+			)
+		}
+		return nil // Parse errors are not blocking in permissive mode
 	}
 
 	if result == MajorMismatch {

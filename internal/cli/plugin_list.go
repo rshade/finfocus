@@ -101,6 +101,7 @@ type enrichedPluginInfo struct {
 	// Metadata
 	SpecVersion    string `json:"specVersion"`
 	RuntimeVersion string `json:"runtimeVersion"`
+	Notes          string `json:"notes,omitempty"` // Error or status notes
 }
 
 // displayVersion returns RuntimeVersion when it's not notAvailable, otherwise Version.
@@ -144,11 +145,6 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool) error {
 	ctx := cmd.Context()
 	enriched := fetchPluginMetadataParallel(ctx, plugins)
 
-	if len(enriched) == 0 && len(plugins) > 0 {
-		cmd.Println("No healthy plugins found (all failed to respond).")
-		return nil
-	}
-
 	// Sort by plugin name for deterministic output
 	sort.Slice(enriched, func(i, j int) bool {
 		return enriched[i].Name < enriched[j].Name
@@ -174,11 +170,10 @@ func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginI
 	for _, p := range plugins {
 		g.Go(func() error {
 			info := fetchSinglePluginMetadata(gCtx, launcher, p)
-			if info != nil {
-				mu.Lock()
-				enriched = append(enriched, *info)
-				mu.Unlock()
-			}
+			// Always add result - fetchSinglePluginMetadata never returns nil
+			mu.Lock()
+			enriched = append(enriched, *info)
+			mu.Unlock()
 			// Always return nil - we don't want one plugin failure to cancel others
 			return nil
 		})
@@ -191,7 +186,7 @@ func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginI
 }
 
 // fetchSinglePluginMetadata fetches metadata for a single plugin with timeout.
-// Returns nil if the plugin fails to respond or times out.
+// Always returns a result, never nil. Failed plugins have Notes field populated.
 func fetchSinglePluginMetadata(
 	ctx context.Context,
 	launcher pluginhost.Launcher,
@@ -202,6 +197,13 @@ func fetchSinglePluginMetadata(
 	launchCtx, cancel := context.WithTimeout(ctx, launchTimeout)
 	defer cancel()
 
+	// Initialize result with N/A values
+	result := &enrichedPluginInfo{
+		PluginInfo:     plugin,
+		SpecVersion:    notAvailable,
+		RuntimeVersion: notAvailable,
+	}
+
 	client, launchErr := pluginhost.NewClient(launchCtx, launcher, plugin.Path)
 	if launchErr != nil {
 		log.Debug().
@@ -209,23 +211,18 @@ func fetchSinglePluginMetadata(
 			Str("plugin_path", plugin.Path).
 			Err(launchErr).
 			Msg("failed to launch plugin during list enumeration")
-		return nil
+		// Return result with error note instead of nil
+		result.Notes = fmt.Sprintf("Failed: %v", launchErr)
+		return result
 	}
 	defer func() { _ = client.Close() }()
 
-	specVer := notAvailable
-	runVer := notAvailable
-
 	if client.Metadata != nil {
-		specVer = client.Metadata.SpecVersion
-		runVer = client.Metadata.Version
+		result.SpecVersion = client.Metadata.SpecVersion
+		result.RuntimeVersion = client.Metadata.Version
 	}
 
-	return &enrichedPluginInfo{
-		PluginInfo:     plugin,
-		SpecVersion:    specVer,
-		RuntimeVersion: runVer,
-	}
+	return result
 }
 
 func displayPlugins(cmd *cobra.Command, plugins []enrichedPluginInfo, verbose bool) error {
@@ -239,25 +236,67 @@ func displayPlugins(cmd *cobra.Command, plugins []enrichedPluginInfo, verbose bo
 }
 
 func displayVerbosePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) error {
-	fmt.Fprintln(w, "Name\tVersion\tSpec\tPath\tExecutable")
-	fmt.Fprintln(w, "----\t-------\t----\t----\t----------")
+	// Check if any plugins have notes to show
+	hasNotes := false
+	for _, plugin := range plugins {
+		if plugin.Notes != "" {
+			hasNotes = true
+			break
+		}
+	}
+
+	if hasNotes {
+		fmt.Fprintln(w, "Name\tVersion\tSpec\tPath\tExecutable\tNotes")
+		fmt.Fprintln(w, "----\t-------\t----\t----\t----------\t-----")
+	} else {
+		fmt.Fprintln(w, "Name\tVersion\tSpec\tPath\tExecutable")
+		fmt.Fprintln(w, "----\t-------\t----\t----\t----------")
+	}
 
 	for _, plugin := range plugins {
 		execStatus := getExecutableStatus(plugin.Path)
 		ver := plugin.displayVersion()
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", plugin.Name, ver, plugin.SpecVersion, plugin.Path, execStatus)
+		if hasNotes {
+			fmt.Fprintf(
+				w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+				plugin.Name, ver, plugin.SpecVersion, plugin.Path, execStatus, plugin.Notes,
+			)
+		} else {
+			fmt.Fprintf(
+				w, "%s\t%s\t%s\t%s\t%s\n",
+				plugin.Name, ver, plugin.SpecVersion, plugin.Path, execStatus,
+			)
+		}
 	}
 	return w.Flush()
 }
 
 func displaySimplePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) error {
-	fmt.Fprintln(w, "Name\tVersion\tSpec\tPath")
-	fmt.Fprintln(w, "----\t-------\t----\t----")
+	// Check if any plugins have notes to show
+	hasNotes := false
+	for _, plugin := range plugins {
+		if plugin.Notes != "" {
+			hasNotes = true
+			break
+		}
+	}
+
+	if hasNotes {
+		fmt.Fprintln(w, "Name\tVersion\tSpec\tPath\tNotes")
+		fmt.Fprintln(w, "----\t-------\t----\t----\t-----")
+	} else {
+		fmt.Fprintln(w, "Name\tVersion\tSpec\tPath")
+		fmt.Fprintln(w, "----\t-------\t----\t----")
+	}
 
 	for _, plugin := range plugins {
 		ver := plugin.displayVersion()
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", plugin.Name, ver, plugin.SpecVersion, plugin.Path)
+		if hasNotes {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", plugin.Name, ver, plugin.SpecVersion, plugin.Path, plugin.Notes)
+		} else {
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", plugin.Name, ver, plugin.SpecVersion, plugin.Path)
+		}
 	}
 	return w.Flush()
 }

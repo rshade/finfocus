@@ -156,6 +156,22 @@ func TestConfig_SetGetValues(t *testing.T) {
 	value, err = cfg.Get("logging.level")
 	require.NoError(t, err)
 	assert.Equal(t, "debug", value)
+
+	// Test plugin_host values
+	err = cfg.Set("plugin_host.strict_compatibility", "true")
+	require.NoError(t, err)
+
+	value, err = cfg.Get("plugin_host.strict_compatibility")
+	require.NoError(t, err)
+	assert.Equal(t, true, value)
+
+	// Test setting to false
+	err = cfg.Set("plugin_host.strict_compatibility", "false")
+	require.NoError(t, err)
+
+	value, err = cfg.Get("plugin_host.strict_compatibility")
+	require.NoError(t, err)
+	assert.Equal(t, false, value)
 }
 
 func TestConfig_SetErrors(t *testing.T) {
@@ -181,6 +197,16 @@ func TestConfig_SetErrors(t *testing.T) {
 	err = cfg.Set("plugins.aws", "value")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "plugin key must be in format")
+
+	// Invalid plugin_host key
+	err = cfg.Set("plugin_host.invalid", "true")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown plugin_host setting")
+
+	// Invalid plugin_host strict_compatibility value
+	err = cfg.Set("plugin_host.strict_compatibility", "not-a-bool")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "strict_compatibility must be a boolean")
 }
 
 func TestConfig_GetErrors(t *testing.T) {
@@ -201,6 +227,11 @@ func TestConfig_GetErrors(t *testing.T) {
 	_, err = cfg.Get("plugins.nonexistent.key")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "plugin not found")
+
+	// Unknown plugin_host key
+	_, err = cfg.Get("plugin_host.invalid")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown plugin_host setting")
 }
 
 func TestConfig_Validation(t *testing.T) {
