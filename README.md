@@ -14,6 +14,7 @@ FinFocus Core is a CLI tool that analyzes Pulumi infrastructure definitions to p
 - **📊 Projected Costs**: Estimate monthly costs before deploying infrastructure
 - **💰 Actual Costs**: Track historical spending with detailed breakdowns
 - **🔌 Plugin-Based**: Extensible architecture supporting multiple cost data sources
+- **🧪 E2E Testing**: Comprehensive guide for validating infrastructure costs against real cloud resources
 - **🌱 Sustainability**: Estimate carbon footprint and energy usage
 - **📈 Advanced Analytics**: Resource grouping, filtering, and aggregation
 - **💰 Budgets**: Core engine support for filtering and health aggregation of budgets
@@ -310,6 +311,7 @@ Complete documentation is available in the [docs/](docs/) directory with guides 
 - **👤 End Users**: [User Guide](docs/guides/user-guide.md) - How to install and use FinFocus
 - **🛠️ Engineers**: [Developer Guide](docs/guides/developer-guide.md) - How to extend and contribute
 - **🏗️ Architects**: [Architect Guide](docs/guides/architect-guide.md) - System design and integration
+- **🧪 E2E Testers**: [E2E Testing Guide](docs/testing/e2e-guide.md) - Setup and execution
 - **💼 Business/CEO**: [Business Value](docs/guides/business-value.md) - ROI and competitive advantage
 
 **Quick Links:**
@@ -332,21 +334,17 @@ Complete documentation is available in the [docs/](docs/) directory with guides 
 
 ## Architecture
 
-FinFocus Core is designed as a plugin-agnostic orchestrator:
+FinFocus Core is designed as a plugin-agnostic orchestrator.
 
+```mermaid
+graph LR
+    Plan[Pulumi JSON] --> Core[FinFocus Core]
+    Core -->|gRPC| Plugin[Plugins]
+    Plugin -.->|API/DB| Source[Cost Data Sources]
+    Core -->|Aggregation| Report[Cost Analysis & Reporting]
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Pulumi JSON   │    │  FinFocus     │    │    Plugins      │
-│     Output      │───▶│     Core        │───▶│  (Kubecost,     │
-│                 │    │                 │    │   Vantage, ...) │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-                              │
-                              ▼
-                       ┌─────────────────┐
-                       │  Cost Analysis  │
-                       │   & Reporting   │
-                       └─────────────────┘
-```
+
+For a detailed breakdown of the component interactions and data flow, see the [Plugin Ecosystem Architecture](docs/architecture/plugin-ecosystem.md) guide.
 
 ## Nightly Failure Analysis
 

@@ -91,11 +91,11 @@ finfocus cost actual [options]
 
 When `--estimate-confidence` is enabled, a Confidence column appears showing data reliability:
 
-| Level  | Description                                                    |
-| ------ | -------------------------------------------------------------- |
-| HIGH   | Real billing data from plugin (AWS Cost Explorer, Kubecost)    |
-| MEDIUM | Runtime estimate for Pulumi-created resources                  |
-| LOW    | Runtime estimate for imported resources (creation time unknown)|
+| Level  | Description                                                     |
+| ------ | --------------------------------------------------------------- |
+| HIGH   | Real billing data from plugin (AWS Cost Explorer, Kubecost)     |
+| MEDIUM | Runtime estimate for Pulumi-created resources                   |
+| LOW    | Runtime estimate for imported resources (creation time unknown) |
 
 ### Examples
 

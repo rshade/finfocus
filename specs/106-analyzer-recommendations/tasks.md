@@ -172,11 +172,11 @@ Full recommendation verification requires Phase 8-11 (GetRecommendations RPC).
 
 - [x] T032 [P] Add E2E test fixture for recommendations in
   `test/e2e/fixtures/analyzer/` or extend existing fixture
-- [ ] T033 Add `TestAnalyzer_RecommendationDisplay` E2E test in
+- [x] T033 Add `TestAnalyzer_RecommendationDisplay` E2E test in
   `test/e2e/analyzer_e2e_test.go` (placeholder - awaits RPC integration)
-- [ ] T034 Add `TestAnalyzer_StackSummaryWithRecommendations` E2E test in
+- [x] T034 Add `TestAnalyzer_StackSummaryWithRecommendations` E2E test in
   `test/e2e/analyzer_e2e_test.go` (placeholder - awaits RPC integration)
-- [ ] T035 Run E2E tests with `make test-e2e` and verify pass
+- [x] T035 Run E2E tests with `make test-e2e` and verify pass
 
 **Checkpoint**: E2E placeholder tests exist - full verification in Phase 11
 

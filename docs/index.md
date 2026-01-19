@@ -57,9 +57,11 @@ business stakeholder, you'll find comprehensive guides to help you succeed with 
 ### 📚 Comprehensive Guides
 
 - **[User Guide](guides/user-guide.html)** - Complete guide for end users
+- **[E2E Testing Guide](testing/e2e-guide.html)** - Testing infrastructure with real clouds
 - **[Developer Guide](guides/developer-guide.html)** - Complete guide for plugin developers
 - **[Architect Guide](guides/architect-guide.html)** - Complete guide for software architects
 - **[Business Value](guides/business-value.html)** - Value proposition and ROI
+- **[Troubleshooting Guide](guides/troubleshooting.html)** - Common issues and solutions
 
 ### 🚀 Getting Started (Recommended for first-time users)
 
@@ -71,6 +73,7 @@ business stakeholder, you'll find comprehensive guides to help you succeed with 
 ### 🏗️ Architecture & Design
 
 - **[System Overview](architecture/system-overview.html)** - High-level architecture with diagrams
+- **[Plugin Ecosystem](architecture/plugin-ecosystem.html)** - Component roles and data flow
 - **[Core Concepts](architecture/core-concepts.html)** - Key concepts explained
 - **[Plugin Protocol](architecture/plugin-protocol.html)** - gRPC plugin protocol specification
 - **[Cost Calculation](architecture/cost-calculation.html)** - How costs are calculated and aggregated
@@ -102,6 +105,7 @@ business stakeholder, you'll find comprehensive guides to help you succeed with 
 
 - **[CLI Commands](reference/cli-commands.html)** - Complete command reference
 - **[Configuration](reference/config-reference.html)** - Configuration options
+- **[Plugin Compatibility](reference/plugin-compatibility.html)** - Feature support matrix
 - **[API Reference](reference/api-reference.html)** - gRPC API documentation
 - **[Error Codes](reference/error-codes.html)** - Error codes and solutions
 

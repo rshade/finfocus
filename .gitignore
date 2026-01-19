@@ -85,7 +85,4 @@ yarn-error.log*
 context.txt
 analysis.md
 dist/
-<<<<<<< HEAD
 build/
-=======
->>>>>>> 68d2842 (fix: analyzer verbose logs in pulumi preview)
