@@ -109,6 +109,7 @@ business stakeholder, you'll find comprehensive guides to help you succeed with 
 
 - **[Installation Guide](deployment/installation.html)** - Detailed installation procedures
 - **[Configuration Guide](deployment/configuration.html)** - How to configure
+- **[Deployment Architecture](deployment/deployment-architecture.html)** - Deployment diagram
 - **[Docker](deployment/docker.html)** - Docker deployment
 - **[CI/CD Integration](deployment/cicd-integration.html)** - Pipeline integration
 - **[Security](deployment/security.html)** - Security best practices

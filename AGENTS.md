@@ -1,73 +1,70 @@
 # Repository Guidelines
 
-## Project Structure
+## Project Snapshot
 
-- `cmd/finfocus`: CLI entrypoint and flag wiring.
-- `internal/` packages: core logic (engine, ingest, registry, pluginhost,
-  config, logging, analyzer) kept unexported.
-- `pkg/version`: shared version/build metadata used by the CLI.
-- `examples/` and `testdata/`: Pulumi plan fixtures and sample specs; prefer
-  extending these for reproducible tests.
-- `test/e2e/fixtures/`: Real Pulumi project fixtures for E2E tests.
-- `docs/`: Jekyll site and contributor docs; `scripts/` contains helper
-  tooling; `bin/` is populated by builds.
+- Go CLI for finfocus in `cmd/finfocus` with unexported logic in `internal/`.
+- Fixtures live in `examples/`, `testdata/`, and `test/e2e/fixtures/`.
+- Docs are in `docs/`; scripts in `scripts/`; build artifacts in `bin/`.
 
-## Build, Test, and Development Commands
+## Build, Lint, and Test Commands
 
-- `make build`: Compile the `finfocus` binary to `bin/` with version metadata.
+- `make build`: Build the `finfocus` binary into `bin/` with version metadata.
+- `make run` / `make dev`: Build then run the CLI; `make inspect` launches MCP inspector.
 - `make test` | `make test-race`: Run unit tests (optionally with race detector).
-- `go test -run TestName ./path/to/package`: Run a specific test in a package.
-- `go test -v ./... -run TestFunc`: Run a specific test function across all packages.
-- `make lint`: Run `golangci-lint` v2.6.2 plus `markdownlint` (expects
-  `AGENTS.md` to pass).
-- `make validate`: Run `go mod tidy -diff` and `go vet` to verify module state
-  and static checks.
-- `make run` / `make dev`: Build then run the CLI; use `make inspect` to launch
-  the MCP inspector after a build.
+- `go test ./...`: Run the full Go test suite.
+- `go test -run TestName ./path/to/package`: Run a single test in one package.
+- `go test -v ./... -run TestFunc`: Run a single test across all packages.
+- `make lint`: Run `golangci-lint` v2.6.2 plus `markdownlint`.
+- `make validate`: Run `go mod tidy -diff` and `go vet` checks.
+- `make docs-lint`: Lint docs when editing Markdown.
 
-## Code Style Guidelines
+## Go Formatting and Imports
 
-### Formatting & Imports
+- Go 1.25.5+; use tabs for indentation and run `gofmt` on Go files.
+- Imports grouped as: standard library, third-party, internal packages.
+- `goimports`/`golines` enforced via `golangci-lint`; keep lines tidy.
+- Avoid `init()` and global variables (lint rule).
+- `//nolint:lintername` only when required and with justification.
 
-- Go 1.25.5+, tabs for indentation. Format with `gofmt`; imports and line
-  length enforced by `goimports`/`golines` via `golangci-lint`.
-- Import order: standard library, third-party, internal. Group internal imports together.
-- No `init()` functions or global variables (enforced by golangci-lint).
-- Use `//nolint:lintername` directives sparingly; include explanation when used.
+## Types, Naming, and API Surface
 
-### Error Handling
+- Package names lowercase and short (`engine`, `config`, `pluginhost`).
+- Custom domain types preferred (`type Duration time.Duration`).
+- Exported identifiers require Go doc comments when part of CLI surface.
+- Struct tags use JSON/YAML tags (`yaml:"field_name"`).
+- CLI flags are kebab-case; env/config keys uppercase snake (`FINFOCUS_*`).
+- Define interfaces before implementations; keep interfaces small.
+- Pass `context.Context` through request lifecycles.
 
-- Wrap errors with `fmt.Errorf("%w", err)` for context preservation.
-- Define sentinel errors as `var ErrName = errors.New("description")`.
-- Return errors with context: `return fmt.Errorf("operation failed: %w", err)`.
-- Validate inputs early and return descriptive errors for validation failures.
-- Use early returns for error checks; avoid deep nesting.
+## Error Handling and Control Flow
 
-### Types & Naming
+- Wrap errors with `%w`: `fmt.Errorf("operation failed: %w", err)`.
+- Sentinel errors are `var ErrName = errors.New("description")`.
+- Validate inputs early and return descriptive errors.
+- Prefer early returns to reduce nesting.
+- Use context cancellation and return partial results where sensible.
 
-- Package names: lowercase and succinct (e.g., `engine`, `config`, `pluginhost`).
-- Custom types for domain values: `type Duration time.Duration`,
-  `type ContextKey string`.
-- Exported identifiers require Go doc comments when part of the CLI surface.
-- Struct fields: use JSON/YAML tags for serialization (`yaml:"field_name"`).
-- CLI flags: kebab-case (`--pulumi-json`); config/env keys: uppercase snake
-  (`FINFOCUS_PLUGIN_*`).
-- Interface definitions before implementations; prefer small interfaces.
-- Use `context.Context` throughout for cancellation and timeout handling.
+## Logging Expectations
 
-### Testing Patterns
+- Use `internal/logging` for structured logging.
+- Fetch logger from context: `log := logging.FromContext(ctx)`.
+- Include `component` and `operation` fields for traceability.
+- Use `Debug` for detailed flow, `Info` for milestones, `Warn` for recoverable issues.
 
-- Use testify/assert and testify/require for assertions.
-- Keep table-driven tests focused; avoid redundant test cases.
-- Test both success and error paths for all public functions.
-- Use fixtures from `testdata/` instead of embedding large data structures.
+## Testing Guidelines
 
-### Testify Assertion Standards
+- Table-driven tests with clear `wantErr` / `errContains` fields.
+- Test both success and failure paths, especially file I/O and validation.
+- Use fixtures from `testdata/` or `examples/` over large literals.
+- Use integration tests in `examples/` for HTTP/CRUD flows.
+- Plugins: add conformance coverage in `internal/conformance` and targeted tests in
+  `internal/engine` or `internal/registry`.
 
-**CRITICAL**: All Go tests MUST use testify's `require` and `assert` packages.
-NEVER use manual `if x != y { t.Errorf(...) }` patterns.
+## Testify Assertions (Required)
 
-**Required Imports**:
+**CRITICAL**: All Go tests must use `testify/assert` and `testify/require`.
+
+Required imports:
 
 ```go
 import (
@@ -76,123 +73,51 @@ import (
 )
 ```
 
-**When to Use `require.*` (stops test on failure)**:
+Use `require.*` for setup failures and nil checks, `assert.*` for value comparisons.
 
-- Setup operations that must succeed for test to be valid
-- Error checks where continuing would cause panics or misleading failures
-- Non-nil checks for required objects before using them
+## Documentation and Markdown
 
-**When to Use `assert.*` (continues test on failure)**:
+- Docs use frontmatter with `title`, `description`, and `layout`.
+- Frontmatter `title` is the H1; content must start with H2 or body text.
+- Run `make docs-lint` after Markdown edits.
+- `markdownlint` runs as part of `make lint`.
 
-- Value comparisons after setup is complete
-- Multiple property checks on a result
-- Non-critical validations where seeing all failures is helpful
+## Commit and PR Guidance
 
-**Common Assertion Conversions**:
+- Conventional Commits required (`feat:`, `fix:`, `chore:`...).
+- PRs include summary, linked issues, and a test plan (e.g., `make test`).
+- Avoid bundling unrelated changes; call out breaking changes.
+- Run `make lint` and `make test` before committing.
 
-| Manual Pattern                                   | Testify Replacement           |
-| ------------------------------------------------ | ----------------------------- |
-| `if err != nil { t.Fatal(err) }`                 | `require.NoError(t, err)`     |
-| `if err == nil { t.Error("expected error") }`    | `require.Error(t, err)`       |
-| `if x != y { t.Errorf("got %v, want %v", x, y) }`| `assert.Equal(t, y, x)`       |
-| `if len(x) != n { t.Errorf(...) }`               | `assert.Len(t, x, n)`         |
-| `if !strings.Contains(s, sub) { t.Errorf(...) }` | `assert.Contains(t, s, sub)`  |
-| `if x == nil { t.Fatal("nil") }`                 | `require.NotNil(t, x)`        |
+## Security and Configuration
 
-## Documentation Standards
+- Never commit secrets; use `FINFOCUS_PLUGIN_*` env vars or `~/.finfocus/config.yaml`.
+- Plugins live in `~/.finfocus/plugins/<name>/<version>/`.
+- Validate plugins with `finfocus plugin validate` and `finfocus plugin certify`.
+- Scrub Pulumi plan fixtures if identifiers appear.
 
-- Run `make docs-lint` before committing documentation changes
-- Use frontmatter YAML with `title`, `description`, and `layout` fields
-- **CRITICAL**: Files with frontmatter must NOT have duplicate H1 - the frontmatter
-  `title` serves as the page H1, content should start with H2 or text
+## Common Workflows
 
-## Testing Guidelines
+### Adding Resource Types
 
-- Author `_test.go` files with `TestXxx`/`BenchmarkXxx`; keep table-driven tests
-  near the code they cover.
-- Use `go test ./...` (optionally `-cover` or `-race`) before submitting; add
-  fixtures to `examples/` or `testdata/` instead of embedding large literals.
-- When adding plugins or adapters, include conformance coverage in
-  `internal/conformance` and targeted cases in `internal/engine` or
-  `internal/registry`.
-- **Error path testing**: Always test error conditions—every error return should
-  have a corresponding test. Use table-driven tests with `wantErr`/`errContains`
-  fields. Priority: file I/O, network, validation, and resource cleanup errors.
-- **Unit Testing Best Practices**: Focus on pure transformation functions,
-  stateless logic, and simple methods. Avoid unit testing CRUD operations
-  requiring HTTP clients—test those as integration tests in `examples/`.
-  Don't mock dependencies that don't provide interfaces. Use testify/assert
-  and testify/require for assertions.
-
-## Commit & Pull Request Guidelines
-
-- Commit messages follow Conventional Commits (`feat:`, `fix:`, `chore:`…) as
-  enforced by `commitlint.config.js`; keep them scoped and imperative.
-- PRs should include: a concise summary, linked issues, a short test plan (e.g.,
-  `make test`, `make lint`, `make validate`), and CLI output or screenshots when
-  user-facing behavior changes.
-- Avoid bundling unrelated changes; keep docs and code changes cohesive. Flag
-  breaking changes explicitly in the PR description.
-- Always run `make lint`, and `make test` before committing changes.
-
-## Security & Configuration Tips
-
-- Do not commit secrets; prefer env vars (`FINFOCUS_PLUGIN_AWS_*`,
-  `FINFOCUS_PLUGIN_VANTAGE_*`, etc.) and `~/.finfocus/config.yaml` for local
-  config.
-- Plugins live under `~/.finfocus/plugins/`; validate with
-  `finfocus plugin validate` before shipping.
-- Treat Pulumi plan JSON files as sensitive if they contain identifiers; scrub
-  or use redacted fixtures in examples.
-
-## Common Development Patterns
+1. Add resource type to `internal/engine/types.go`.
+2. Implement validation in the resource `Validate()` method.
+3. Add pricing data in `specs/` or via plugin support.
+4. Add unit tests in `internal/engine/types_test.go`.
+5. Add integration tests in `internal/conformance/`.
 
 ### Plugin Development
 
-- Use `finfocus plugin init` to scaffold new plugin projects
-- Implement the plugin protocol from finfocus-spec
-- Test plugins with `finfocus plugin certify` before shipping
-- Install to `~/.finfocus/plugins/<name>/<version>/`
+- `finfocus plugin init` scaffolds new plugins.
+- Implement the protocol from finfocus-spec.
+- Install to `~/.finfocus/plugins/<name>/<version>/`.
 
-### Adding New Resource Types
+## Current Stack
 
-1. Add resource type to `internal/engine/types.go`
-2. Implement validation logic in the resource's `Validate()` method
-3. Add pricing data to `specs/` or implement plugin support
-4. Write unit tests in `internal/engine/types_test.go`
-5. Add integration tests in `internal/conformance/`
+- Go 1.25.5 with `github.com/Masterminds/semver/v3` and finfocus plugin SDK.
+- charmbracelet/lipgloss v1.0.0 and golang.org/x/term v0.37.0.
+- Plugin directory: `~/.finfocus/plugins/<plugin-name>/<version>/`.
 
-### Error Recovery
+## Cursor/Copilot Rules
 
-- Use context cancellation for timeouts: `ctx, cancel :=
-context.WithTimeout(ctx, timeout)`
-- Log warnings for non-critical failures but continue processing
-- Return partial results when possible instead of failing completely
-- Always check context cancellation in loops: `if err := ctx.Err(); err != nil {
-return }`
-
-### Logging Patterns
-
-- Use structured logging from `internal/logging` package
-- Retrieve logger from context: `log := logging.FromContext(ctx)`
-- Include component and operation fields for traceability:
-  `Str("component", "engine")`
-- Use appropriate log levels: Debug for detailed flow, Info for key events,
-  Warn for recoverable issues, Error for failures
-- Always include context in log calls: `Ctx(ctx)`
-
-## Active Technologies
-
-- Go 1.25.5 + github.com/Masterminds/semver/v3, existing plugin
-  infrastructure (already in go.mod, 001-latest-plugin-version)
-- File system (plugin directory structure:
-  `~/.finfocus/plugins/<plugin-name>/<version>/`)
-- Go 1.25.5 + existing CLI infrastructure, test helpers
-- Go 1.25.5 + pluginsdk from finfocus-spec
-- Environment variable constants via pluginsdk
-- Go 1.25.5 + charmbracelet/lipgloss v1.0.0, golang.org/x/term v0.37.0
-
-## Recent Changes
-
-- 001-latest-plugin-version: Added Go 1.25.5 +
-  github.com/Masterminds/semver/v3, existing plugin infrastructure
+- No `.cursor/rules/`, `.cursorrules`, or `.github/copilot-instructions.md` found.
