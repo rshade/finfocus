@@ -33,6 +33,11 @@ func TestE2E_Output_NDJSON(t *testing.T) {
 		}
 		var obj map[string]interface{}
 		err := json.Unmarshal([]byte(line), &obj)
-		assert.NoError(t, err, "Line should be valid JSON: %s", line)
+		require.NoError(t, err, "Line should be valid JSON: %s", line)
+
+		// Schema validation
+		assert.Contains(t, obj, "resourceType", "Missing resourceType field in NDJSON: %s", line)
+		assert.Contains(t, obj, "currency", "Missing currency field in NDJSON: %s", line)
+		assert.Contains(t, obj, "resourceId", "Missing resourceId field in NDJSON: %s", line)
 	}
 }

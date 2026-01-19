@@ -3,6 +3,8 @@ package generator
 import (
 	"errors"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestBenchmarkConfig_Validate(t *testing.T) {
@@ -162,12 +164,13 @@ func TestGeneratePlan(t *testing.T) {
 			},
 			checkPlan: func(t *testing.T, plan SyntheticPlan) {
 				// Generate again with same seed
-				plan2, _ := GeneratePlan(BenchmarkConfig{
+				plan2, err := GeneratePlan(BenchmarkConfig{
 					ResourceCount:   10,
 					MaxDepth:        2,
 					DependencyRatio: 0.5,
 					Seed:            12345,
 				})
+				require.NoError(t, err)
 				for i := range plan.Resources {
 					if plan.Resources[i].Name != plan2.Resources[i].Name {
 						t.Errorf("resource %d name mismatch: %s vs %s",
