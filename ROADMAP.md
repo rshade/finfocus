@@ -47,11 +47,8 @@ guardrails in `CONTEXT.md`.
 
 ## Immediate Priority (Bug Fixes)
 
-- [ ] **Active Nightly Failure**
-  - [ ] Nightly test failure - 2026-01-18
-        ([#427](https://github.com/rshade/finfocus/issues/427))
-- [x] **Test Reliability & CI Stability** *(Completed 2026-01-17)*
-  - [x] Nightly test failures resolved (#417, #414, #424)
+- [x] **Test Reliability & CI Stability** *(Completed 2026-01-18)*
+  - [x] Nightly test failures resolved (#417, #414, #424, #427)
 
 ## Current Focus (v0.2.1 - Polish & DX Improvements)
 
@@ -59,42 +56,39 @@ guardrails in `CONTEXT.md`.
   - [ ] Add `--estimate-confidence` flag for actual cost transparency
         ([#333](https://github.com/rshade/finfocus/issues/333))
 - [ ] **Plugin Ecosystem Maturity**
-  - [ ] Implement GetPluginInfo consumer-side requirements
-        ([#376](https://github.com/rshade/finfocus/issues/376))
-        *Status: Unblocked (Spec v0.4.12+)*
+  - [x] Implement GetPluginInfo consumer-side requirements (#376)
+        *(Completed in PR #398)*
   - [ ] Update Plugin Generator Templates (includes gRPC reflection)
         ([#248](https://github.com/rshade/finfocus/issues/248))
 - [ ] **Developer Experience & Tooling**
+  - [x] Parallel plugin metadata fetching in plugin list command (#408)
+        *(Completed in PR #426)*
   - [ ] Dynamic Data Recording via Integration Plans
         ([#275](https://github.com/rshade/finfocus/issues/275))
   - [ ] Cross-Repository Integration Test Workflow
         ([#236](https://github.com/rshade/finfocus/issues/236))
   - [ ] Multi-Plugin Routing: Intelligent Feature-Based Plugin Selection
         ([#410](https://github.com/rshade/finfocus/issues/410))
-  - [ ] Parallel plugin metadata fetching in plugin list command
-        ([#408](https://github.com/rshade/finfocus/issues/408))
-- [x] **Enhanced Visualization**
-  - [x] Upgrade cost commands to enhanced TUI (#218) *(Completed)*
+- [x] **Enhanced Visualization** *(Completed 2026-01-17)*
+  - [x] Upgrade cost commands to enhanced TUI (#218)
 - [x] **Code Quality**
   - [x] Fix CodeRabbit issues from #398 (#412) *(Completed 2026-01-17)*
-- [ ] **Plugin Robustness** *(New - 2026-01-18)*
-  - [ ] Respect strict mode for spec version parse errors
-        ([#435](https://github.com/rshade/finfocus/issues/435))
-  - [ ] Add Set/Get handlers for plugin_host config section
-        ([#434](https://github.com/rshade/finfocus/issues/434))
-  - [ ] Show installed plugins even when metadata fetch fails
-        ([#432](https://github.com/rshade/finfocus/issues/432))
-  - [ ] Add lock acquisition to RemoveOtherVersions
-        ([#431](https://github.com/rshade/finfocus/issues/431))
+- [x] **Plugin Robustness** *(Completed 2026-01-18)*
+  - [x] Respect strict mode for spec version parse errors (#435)
+  - [x] Add Set/Get handlers for plugin_host config section (#434)
+  - [x] Show installed plugins even when metadata fetch fails (#432)
+  - [x] Add lock acquisition to RemoveOtherVersions (#431)
   - [ ] Fallback to latest stable version when asset missing
         ([#430](https://github.com/rshade/finfocus/issues/430))
+        *Status: Infrastructure implemented, needs integration into install flow*
   - [ ] Replace manual assertions with testify in registry tests
         ([#429](https://github.com/rshade/finfocus/issues/429))
+        *Status: 2/10 test files converted*
 - [ ] **Deferred from v0.1.x**
   - [ ] Pagination for large datasets
         ([#225](https://github.com/rshade/finfocus/issues/225))
-  - [ ] Plugin installer: remove old versions during install
-        ([#237](https://github.com/rshade/finfocus/issues/237))
+  - [x] Plugin installer: remove old versions during install (#237)
+        *(Completed in PR #426 - `--clean` flag and auto-removal on update)*
 
 ## Near-Term Vision (v0.3.0 - Budgeting & Intelligence)
 
@@ -112,7 +106,7 @@ guardrails in `CONTEXT.md`.
   - [ ] Namespace filtering & Kubecost metadata handling
         ([#266](https://github.com/rshade/finfocus/issues/266))
 - [ ] **Sustainability (GreenOps)**
-  - [x] Integrate Sustainability Metrics into Engine & TUI (#302)
+  - [x] Integrate Sustainability Metrics into Engine & TUI (#302) *(Completed 2025-12-24)*
   - [ ] GreenOps Impact Equivalencies
         ([#303](https://github.com/rshade/finfocus/issues/303))
 - [ ] **Forecasting & Projections ("Cost Time Machine")**
@@ -171,8 +165,7 @@ guardrails in `CONTEXT.md`.
   - [ ] Adopt enhanced ARN provider type safety
         *(Issue TBD)*
 - [ ] **Code Quality Refactoring**
-  - [ ] Extract shared applyFilters helper
-        ([#337](https://github.com/rshade/finfocus/issues/337))
+  - [x] Extract shared applyFilters helper (#337) *(Completed 2026-01-18)*
   - [ ] Remove redundant .Ctx(ctx) calls in ingest/state.go
         ([#338](https://github.com/rshade/finfocus/issues/338))
   - [ ] Pre-allocate slice in GetCustomResourcesWithContext
@@ -203,7 +196,8 @@ guardrails in `CONTEXT.md`.
       requires external service integration to maintain core statelessness*
 - [ ] Accessibility options (--no-color, --plain, high contrast) (#224)
 - [ ] Configuration validation with helpful error messages (#223)
-- [ ] Registry should pick latest version when multiple versions installed (#140)
+- [x] Registry should pick latest version when multiple versions installed (#140)
+      *(Completed 2026-01-09)*
 - [ ] Plugin developer upgrade command for SDK migrations (#270) - *Research*
 - [ ] **Dependency Visualization ("Blast Radius")**
       ([#366](https://github.com/rshade/finfocus/issues/366))

@@ -19,18 +19,22 @@ const (
 
 // InstallOptions configures plugin installation behavior.
 type InstallOptions struct {
-	Force     bool   // Reinstall even if version exists
-	NoSave    bool   // Don't add to config file
-	PluginDir string // Custom plugin directory (default: ~/.finfocus/plugins)
+	Force            bool   // Reinstall even if version exists
+	NoSave           bool   // Don't add to config file
+	PluginDir        string // Custom plugin directory (default: ~/.finfocus/plugins)
+	FallbackToLatest bool   // Automatically install latest stable version if requested version lacks assets
+	NoFallback       bool   // Disable fallback behavior entirely (fail if requested version lacks assets)
 }
 
 // InstallResult contains the result of a plugin installation.
 type InstallResult struct {
-	Name       string
-	Version    string
-	Path       string
-	FromURL    bool
-	Repository string
+	Name             string
+	Version          string
+	Path             string
+	FromURL          bool
+	Repository       string
+	WasFallback      bool   // True if installed version differs from requested
+	RequestedVersion string // Original version requested (empty if @latest)
 }
 
 // Installer handles plugin installation from registry or URLs.
