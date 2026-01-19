@@ -1,21 +1,25 @@
 ---
 layout: default
 title: Plugin Compatibility
+description: Capability matrix for official FinFocus plugins.
 parent: Reference
 nav_order: 3
 ---
 
-This matrix outlines the capabilities of the official FinFocus plugins, helping you choose the right plugin for your use
-case.
+## Overview
+
+This reference helps teams evaluate FinFocus plugins. Use the matrix below to
+compare capabilities and choose the best fit for projected or actual cost
+workflows.
 
 ## Official Plugins
 
-| Plugin Name              | Provider | Projected Costs |  Actual Costs   | Auth Required | E2E Support | Notes                                                                              |
-| :----------------------- | :------- | :-------------: | :-------------: | :-----------: | :---------: | :--------------------------------------------------------------------------------- |
-| **aws-public**           | AWS      |       ✅        | ⚠️ (Fallback\*) |      ❌       |     ✅      | Uses embedded list prices. \*Actual costs are estimated by `runtime × list price`. |
-| **aws-costexplorer**     | AWS      |       ❌        |       ✅        |      ✅       |     ✅      | Queries real billing data. Includes discounts/RIs.                                 |
-| **azure-retail**         | Azure    |       ✅        |       ❌        |      ❌       |     ❌      | Uses Azure Retail Prices API.                                                      |
-| **google-cloud-billing** | GCP      |       ❌        |       ✅        |      ✅       |     ❌      | Queries Google Cloud Billing API.                                                  |
+| Plugin Name          | Provider | Projected Costs | Actual Costs     | Auth Required | E2E Support | Notes                                                                              |
+| -------------------- | -------- | --------------- | ---------------- | ------------- | ----------- | ---------------------------------------------------------------------------------- |
+| aws-public           | AWS      | [X]             | [!] (Fallback\*) | [ ]           | [X]         | Uses embedded list prices. \*Actual costs are estimated by `runtime × list price`. |
+| aws-costexplorer     | AWS      | [ ]             | [X]              | [X]           | [X]         | Queries real billing data. Includes discounts/RIs.                                 |
+| azure-retail         | Azure    | [X]             | [ ]              | [ ]           | [ ]         | Uses Azure Retail Prices API.                                                      |
+| google-cloud-billing | GCP      | [ ]             | [X]              | [X]           | [ ]         | Queries Google Cloud Billing API.                                                  |
 
 ## Feature Definitions
 

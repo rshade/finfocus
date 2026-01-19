@@ -1,11 +1,24 @@
 ---
 layout: default
 title: Troubleshooting
+description: Solutions for common FinFocus installation, configuration, and runtime issues.
 parent: Guides
 nav_order: 5
 ---
 
-This guide addresses common issues encountered when using FinFocus.
+## Overview
+
+This guide addresses common issues encountered when using FinFocus, including
+installation problems, AWS credential errors, cost calculation issues, and E2E
+test failures.
+
+## Table of Contents
+
+- [Installation Failures](#installation-failures)
+- [AWS Credential Problems](#aws-credential-problems)
+- [Cost Calculation Errors](#cost-calculation-errors)
+- [E2E Test Timeouts](#e2e-test-timeouts)
+- [Resource Cleanup Issues](#resource-cleanup-issues)
 
 ## Installation Failures
 
@@ -58,6 +71,9 @@ The configured AWS credentials must have `ce:GetCostAndUsage` permission. Ensure
 }
 ```
 
+See [AWS Cost Explorer API Permissions](https://docs.aws.amazon.com/cost-management/latest/userguide/ce-access.html) for
+additional guidance on Cost Explorer access and IAM policy best practices.
+
 ### Profile Not Found
 
 **Symptom**: `Profile 'default' not found`
@@ -84,10 +100,10 @@ export AWS_PROFILE=my-profile
 
 **Debug**:
 
-Run with verbose logging to see plugin selection:
+Run with debug logging to see plugin selection:
 
 ```bash
-finfocus cost projected --pulumi-json plan.json --verbose
+finfocus --debug cost projected --pulumi-json plan.json
 ```
 
 ### Mismatch Between Projected and Actual

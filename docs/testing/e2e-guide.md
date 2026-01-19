@@ -1,12 +1,25 @@
 ---
 layout: default
 title: E2E Testing Guide
+description: How to configure, run, and troubleshoot FinFocus end-to-end tests.
 parent: Testing
 nav_order: 1
 ---
 
-This guide details how to set up and run end-to-end (E2E) tests for FinFocus to ensure the system works correctly with
-real cloud resources.
+## Overview
+
+This guide details how to set up and run end-to-end (E2E) tests for FinFocus to
+ensure the system works correctly with real cloud resources. E2E tests validate
+the complete cost calculation pipeline using actual AWS services.
+
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Running Tests](#running-tests)
+- [Test Scenarios](#test-scenarios)
+- [Related Documentation](#related-documentation)
+- [Troubleshooting](#troubleshooting)
 
 ## Prerequisites
 
@@ -85,9 +98,16 @@ After resources have been running (or using historical data), this scenario quer
 
 Compares projected costs against actual costs (where applicable) to ensure accuracy within a defined tolerance.
 
-### 4. Cleanup verification
+### 4. Cleanup Verification
 
 Ensures that all resources created during the test are destroyed, preventing accidental costs.
+
+## Related Documentation
+
+- [Plugin Ecosystem Guide](../architecture/plugin-ecosystem.md)
+- [Troubleshooting Guide](../guides/troubleshooting.md)
+- [Cost Calculation Guide](../guides/cost-calculation.md)
+- [Plugin Compatibility Reference](../reference/plugin-compatibility.md)
 
 ## Troubleshooting
 

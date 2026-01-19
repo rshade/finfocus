@@ -1,12 +1,16 @@
 ---
 layout: default
 title: AWS Public Plugin
+description: Default fallback plugin for estimating AWS costs using public list pricing.
 parent: Plugins
 nav_order: 10
 ---
 
-The `aws-public` plugin is the default fallback provider for FinFocus. It provides estimated costs using public list
-pricing (MSRP) without requiring AWS credentials.
+## Overview
+
+The `aws-public` plugin is the default fallback provider for FinFocus. It uses
+public list pricing (MSRP) to estimate costs and requires no AWS credentials,
+making it safe for CI/CD pipelines.
 
 ## Features
 

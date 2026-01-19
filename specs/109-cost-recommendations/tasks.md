@@ -33,9 +33,9 @@
 
 **Purpose**: Verify existing infrastructure and prepare for modifications
 
-- [ ] T001 Verify existing `internal/cli/cost_recommendations.go` has required base functionality
-- [ ] T002 Verify existing `internal/tui/` package has required components (LoadingState, styles, table)
-- [ ] T003 [P] Create test fixtures for recommendations in `test/fixtures/recommendations/`
+- [x] T001 Verify existing `internal/cli/cost_recommendations.go` has required base functionality
+- [x] T002 Verify existing `internal/tui/` package has required components (LoadingState, styles, table)
+- [x] T003 [P] Create test fixtures for recommendations in `test/fixtures/recommendations/`
 
 ---
 
@@ -47,16 +47,16 @@
 
 ### Tests for Foundational Components (MANDATORY - TDD Required) ⚠️
 
-- [ ] T004 [P] Create unit tests for RecommendationsSummary in `internal/tui/recommendations_model_test.go`
-- [ ] T005 [P] Create unit tests for RecommendationRow in `internal/tui/recommendations_view_test.go`
+- [x] T004 [P] Create unit tests for RecommendationsSummary in `internal/tui/recommendations_model_test.go`
+- [x] T005 [P] Create unit tests for RecommendationRow in `internal/tui/recommendations_view_test.go`
 
 ### Implementation for Foundational Components
 
-- [ ] T006 [P] Create `RecommendationsSummary` struct in `internal/tui/recommendations_model.go`
-- [ ] T007 [P] Create `NewRecommendationsSummary()` function in `internal/tui/recommendations_model.go`
-- [ ] T008 [P] Create `RecommendationSortField` enum in `internal/tui/recommendations_model.go`
-- [ ] T009 [P] Create `RecommendationRow` struct in `internal/tui/recommendations_view.go`
-- [ ] T010 [P] Create `NewRecommendationRow()` function in `internal/tui/recommendations_view.go`
+- [x] T006 [P] Create `RecommendationsSummary` struct in `internal/tui/recommendations_model.go`
+- [x] T007 [P] Create `NewRecommendationsSummary()` function in `internal/tui/recommendations_model.go`
+- [x] T008 [P] Create `RecommendationSortField` enum in `internal/tui/recommendations_model.go`
+- [x] T009 [P] Create `RecommendationRow` struct in `internal/tui/recommendations_view.go`
+- [x] T010 [P] Create `NewRecommendationRow()` function in `internal/tui/recommendations_view.go`
 
 **Checkpoint**: Foundation ready - summary/view components exist for US1, US2, US5 to use
 
@@ -70,18 +70,18 @@
 
 ### Tests for User Story 1 (MANDATORY - TDD Required) ⚠️
 
-- [ ] T011 [P] [US1] Unit test for `renderRecommendationsSummary()` in `internal/cli/cost_recommendations_test.go`
-- [ ] T012 [P] [US1] Unit test for sorting recommendations by savings in `internal/cli/cost_recommendations_test.go`
-- [ ] T013 [P] [US1] Integration test for summary output in `test/integration/recommendations_test.go`
+- [x] T011 [P] [US1] Unit test for `renderRecommendationsSummary()` in `internal/cli/cost_recommendations_test.go`
+- [x] T012 [P] [US1] Unit test for sorting recommendations by savings in `internal/cli/cost_recommendations_test.go`
+- [x] T013 [P] [US1] Integration test for summary output in `test/integration/recommendations_test.go`
 
 ### Implementation for User Story 1
 
-- [ ] T014 [US1] Implement `sortRecommendationsBySavings()` helper in `internal/cli/cost_recommendations.go`
-- [ ] T015 [US1] Implement `renderRecommendationsSummary()` function in `internal/cli/cost_recommendations.go`
-- [ ] T016 [US1] Update `renderRecommendationsTable()` to show only top 5 by default in `internal/cli/cost_recommendations.go`
-- [ ] T017 [US1] Update `RenderRecommendationsOutput()` to call summary renderer in `internal/cli/cost_recommendations.go`
-- [ ] T018 [US1] Handle edge case: 0 recommendations in `internal/cli/cost_recommendations.go`
-- [ ] T019 [US1] Handle edge case: fewer than 5 recommendations in `internal/cli/cost_recommendations.go`
+- [x] T014 [US1] Implement `sortRecommendationsBySavings()` helper in `internal/cli/cost_recommendations.go`
+- [x] T015 [US1] Implement `renderRecommendationsSummary()` function in `internal/cli/cost_recommendations.go`
+- [x] T016 [US1] Update `renderRecommendationsTable()` to show only top 5 by default in `internal/cli/cost_recommendations.go`
+- [x] T017 [US1] Update `RenderRecommendationsOutput()` to call summary renderer in `internal/cli/cost_recommendations.go`
+- [x] T018 [US1] Handle edge case: 0 recommendations in `internal/cli/cost_recommendations.go`
+- [x] T019 [US1] Handle edge case: fewer than 5 recommendations in `internal/cli/cost_recommendations.go`
 
 **Checkpoint**: Summary mode works - users see top 5 by savings by default
 
@@ -95,15 +95,15 @@
 
 ### Tests for User Story 2 (MANDATORY - TDD Required) ⚠️
 
-- [ ] T020 [P] [US2] Unit test for `--verbose` flag parsing in `internal/cli/cost_recommendations_test.go`
-- [ ] T021 [P] [US2] Unit test for verbose table rendering in `internal/cli/cost_recommendations_test.go`
+- [x] T020 [P] [US2] Unit test for `--verbose` flag parsing in `internal/cli/cost_recommendations_test.go`
+- [x] T021 [P] [US2] Unit test for verbose table rendering in `internal/cli/cost_recommendations_test.go`
 
 ### Implementation for User Story 2
 
-- [ ] T022 [US2] Add `verbose` field to `costRecommendationsParams` struct in `internal/cli/cost_recommendations.go`
-- [ ] T023 [US2] Add `--verbose` flag to `NewCostRecommendationsCmd()` in `internal/cli/cost_recommendations.go`
-- [ ] T024 [US2] Update `renderRecommendationsTable()` to show all recommendations when verbose in `internal/cli/cost_recommendations.go`
-- [ ] T025 [US2] Ensure full description shown without truncation in verbose mode in `internal/cli/cost_recommendations.go`
+- [x] T022 [US2] Add `verbose` field to `costRecommendationsParams` struct in `internal/cli/cost_recommendations.go`
+- [x] T023 [US2] Add `--verbose` flag to `NewCostRecommendationsCmd()` in `internal/cli/cost_recommendations.go`
+- [x] T024 [US2] Update `renderRecommendationsTable()` to show all recommendations when verbose in `internal/cli/cost_recommendations.go`
+- [x] T025 [US2] Ensure full description shown without truncation in verbose mode in `internal/cli/cost_recommendations.go`
 
 **Checkpoint**: Verbose mode works - users can see all recommendations with `--verbose`
 
@@ -117,14 +117,14 @@
 
 ### Tests for User Story 3 (MANDATORY - TDD Required) ⚠️
 
-- [ ] T026 [P] [US3] Unit test for filter + summary mode interaction in `internal/cli/cost_recommendations_test.go`
-- [ ] T027 [P] [US3] Unit test for filter + verbose mode interaction in `internal/cli/cost_recommendations_test.go`
+- [x] T026 [P] [US3] Unit test for filter + summary mode interaction in `internal/cli/cost_recommendations_test.go`
+- [x] T027 [P] [US3] Unit test for filter + verbose mode interaction in `internal/cli/cost_recommendations_test.go`
 
 ### Implementation for User Story 3
 
-- [ ] T028 [US3] Verify `applyActionTypeFilter()` applies before summary calculation in `internal/cli/cost_recommendations.go`
-- [ ] T029 [US3] Update summary statistics to reflect filtered results in `internal/cli/cost_recommendations.go`
-- [ ] T030 [US3] Add invalid action type error message enhancement in `internal/cli/cost_recommendations.go`
+- [x] T028 [US3] Verify `applyActionTypeFilter()` applies before summary calculation in `internal/cli/cost_recommendations.go`
+- [x] T029 [US3] Update summary statistics to reflect filtered results in `internal/cli/cost_recommendations.go`
+- [x] T030 [US3] Add invalid action type error message enhancement in `internal/cli/cost_recommendations.go`
 
 **Checkpoint**: Filtering works with both summary and verbose modes
 
@@ -138,17 +138,17 @@
 
 ### Tests for User Story 5 (MANDATORY - TDD Required) ⚠️
 
-- [ ] T031 [P] [US5] Unit test for JSON summary structure in `internal/cli/cost_recommendations_test.go`
-- [ ] T032 [P] [US5] Unit test for NDJSON with summary line in `internal/cli/cost_recommendations_test.go`
+- [x] T031 [P] [US5] Unit test for JSON summary structure in `internal/cli/cost_recommendations_test.go`
+- [x] T032 [P] [US5] Unit test for NDJSON with summary line in `internal/cli/cost_recommendations_test.go`
 
 ### Implementation for User Story 5
 
-- [ ] T033 [US5] Add `jsonSummary` struct to `internal/cli/cost_recommendations.go`
-- [ ] T034 [US5] Update `recommendationsJSONOutput` to include Summary field in `internal/cli/cost_recommendations.go`
-- [ ] T035 [US5] Update `renderRecommendationsJSON()` to populate summary in `internal/cli/cost_recommendations.go`
-- [ ] T036 [US5] Update `renderRecommendationsNDJSON()` to emit summary as first line in `internal/cli/cost_recommendations.go`
-- [ ] T037 [US5] Add `count_by_action_type` breakdown to JSON summary in `internal/cli/cost_recommendations.go`
-- [ ] T038 [US5] Add `savings_by_action_type` breakdown to JSON summary in `internal/cli/cost_recommendations.go`
+- [x] T033 [US5] Add `jsonSummary` struct to `internal/cli/cost_recommendations.go`
+- [x] T034 [US5] Update `recommendationsJSONOutput` to include Summary field in `internal/cli/cost_recommendations.go`
+- [x] T035 [US5] Update `renderRecommendationsJSON()` to populate summary in `internal/cli/cost_recommendations.go`
+- [x] T036 [US5] Update `renderRecommendationsNDJSON()` to emit summary as first line in `internal/cli/cost_recommendations.go`
+- [x] T037 [US5] Add `count_by_action_type` breakdown to JSON summary in `internal/cli/cost_recommendations.go`
+- [x] T038 [US5] Add `savings_by_action_type` breakdown to JSON summary in `internal/cli/cost_recommendations.go`
 
 **Checkpoint**: JSON/NDJSON output includes summary - ready for CI/CD integration
 
@@ -162,30 +162,30 @@
 
 ### Tests for User Story 4 (MANDATORY - TDD Required) ⚠️
 
-- [ ] T039 [P] [US4] Unit test for RecommendationsViewModel state transitions in `internal/tui/recommendations_model_test.go`
-- [ ] T040 [P] [US4] Unit test for keyboard handlers in `internal/tui/recommendations_model_test.go`
-- [ ] T041 [P] [US4] Unit test for filter logic in `internal/tui/recommendations_model_test.go`
-- [ ] T042 [P] [US4] Unit test for table rendering in `internal/tui/recommendations_view_test.go`
-- [ ] T043 [P] [US4] Unit test for detail view rendering in `internal/tui/recommendations_view_test.go`
+- [x] T039 [P] [US4] Unit test for RecommendationsViewModel state transitions in `internal/tui/recommendations_model_test.go`
+- [x] T040 [P] [US4] Unit test for keyboard handlers in `internal/tui/recommendations_model_test.go`
+- [x] T041 [P] [US4] Unit test for filter logic in `internal/tui/recommendations_model_test.go`
+- [x] T042 [P] [US4] Unit test for table rendering in `internal/tui/recommendations_view_test.go`
+- [x] T043 [P] [US4] Unit test for detail view rendering in `internal/tui/recommendations_view_test.go`
 
 ### Implementation for User Story 4
 
-- [ ] T044 [US4] Create `RecommendationsViewModel` struct in `internal/tui/recommendations_model.go`
-- [ ] T045 [US4] Implement `NewRecommendationsViewModel()` constructor in `internal/tui/recommendations_model.go`
-- [ ] T046 [US4] Implement `Init()` method for RecommendationsViewModel in `internal/tui/recommendations_model.go`
-- [ ] T047 [US4] Implement `Update()` method with state machine in `internal/tui/recommendations_model.go`
-- [ ] T048 [US4] Implement keyboard handlers (Enter, Esc, /, s, q) in `internal/tui/recommendations_model.go`
-- [ ] T049 [US4] Implement `applyFilter()` method in `internal/tui/recommendations_model.go`
-- [ ] T050 [US4] Implement `cycleSort()` method in `internal/tui/recommendations_model.go`
-- [ ] T051 [US4] Implement `View()` method in `internal/tui/recommendations_model.go`
-- [ ] T052 [P] [US4] Create `NewRecommendationsTable()` in `internal/tui/recommendations_view.go`
-- [ ] T053 [P] [US4] Create `RenderRecommendationsSummaryStyled()` in `internal/tui/recommendations_view.go`
-- [ ] T054 [P] [US4] Create `RenderRecommendationDetail()` in `internal/tui/recommendations_view.go`
-- [ ] T055 [US4] Add TTY detection to `executeCostRecommendations()` in `internal/cli/cost_recommendations.go`
-- [ ] T056 [US4] Add `--plain` flag to bypass interactive mode in `internal/cli/cost_recommendations.go`
-- [ ] T057 [US4] Add `--no-color` flag to disable styling in `internal/cli/cost_recommendations.go`
-- [ ] T058 [US4] Implement `runInteractiveRecommendations()` in `internal/cli/cost_recommendations.go`
-- [ ] T059 [US4] Route to interactive mode based on DetectOutputMode in `internal/cli/cost_recommendations.go`
+- [x] T044 [US4] Create `RecommendationsViewModel` struct in `internal/tui/recommendations_model.go`
+- [x] T045 [US4] Implement `NewRecommendationsViewModel()` constructor in `internal/tui/recommendations_model.go`
+- [x] T046 [US4] Implement `Init()` method for RecommendationsViewModel in `internal/tui/recommendations_model.go`
+- [x] T047 [US4] Implement `Update()` method with state machine in `internal/tui/recommendations_model.go`
+- [x] T048 [US4] Implement keyboard handlers (Enter, Esc, /, s, q) in `internal/tui/recommendations_model.go`
+- [x] T049 [US4] Implement `applyFilter()` method in `internal/tui/recommendations_model.go`
+- [x] T050 [US4] Implement `cycleSort()` method in `internal/tui/recommendations_model.go`
+- [x] T051 [US4] Implement `View()` method in `internal/tui/recommendations_model.go`
+- [x] T052 [P] [US4] Create `NewRecommendationsTable()` in `internal/tui/recommendations_view.go`
+- [x] T053 [P] [US4] Create `RenderRecommendationsSummaryStyled()` in `internal/tui/recommendations_view.go`
+- [x] T054 [P] [US4] Create `RenderRecommendationDetail()` in `internal/tui/recommendations_view.go`
+- [x] T055 [US4] Add TTY detection to `executeCostRecommendations()` in `internal/cli/cost_recommendations.go`
+- [x] T056 [US4] Add `--plain` flag to bypass interactive mode in `internal/cli/cost_recommendations.go`
+- [x] T057 [US4] Add `--no-color` flag to disable styling in `internal/cli/cost_recommendations.go`
+- [x] T058 [US4] Implement `runInteractiveRecommendations()` in `internal/cli/cost_recommendations.go`
+- [x] T059 [US4] Route to interactive mode based on DetectOutputMode in `internal/cli/cost_recommendations.go`
 
 **Checkpoint**: Interactive TUI works - users can navigate, filter, and view details
 
@@ -199,15 +199,15 @@
 
 ### Tests for User Story 6 (MANDATORY - TDD Required) ⚠️
 
-- [ ] T060 [P] [US6] Unit test for loading state in RecommendationsViewModel in `internal/tui/recommendations_model_test.go`
-- [ ] T061 [P] [US6] Unit test for loading view rendering in `internal/tui/recommendations_view_test.go`
+- [x] T060 [P] [US6] Unit test for loading state in RecommendationsViewModel in `internal/tui/recommendations_model_test.go`
+- [x] T061 [P] [US6] Unit test for loading view rendering in `internal/tui/recommendations_view_test.go`
 
 ### Implementation for User Story 6
 
-- [ ] T062 [US6] Add `NewRecommendationsViewModelWithLoading()` constructor in `internal/tui/recommendations_model.go`
-- [ ] T063 [US6] Implement `loadingCompleteMsg` handling in Update() in `internal/tui/recommendations_model.go`
-- [ ] T064 [US6] Create `RenderRecommendationsLoading()` in `internal/tui/recommendations_view.go`
-- [ ] T065 [US6] Integrate loading state into `runInteractiveRecommendations()` in `internal/cli/cost_recommendations.go`
+- [x] T062 [US6] Add `NewRecommendationsViewModelWithLoading()` constructor in `internal/tui/recommendations_model.go`
+- [x] T063 [US6] Implement `loadingCompleteMsg` handling in Update() in `internal/tui/recommendations_model.go`
+- [x] T064 [US6] Create `RenderRecommendationsLoading()` in `internal/tui/recommendations_view.go`
+- [x] T065 [US6] Integrate loading state into `runInteractiveRecommendations()` in `internal/cli/cost_recommendations.go`
 
 **Checkpoint**: Loading spinner provides feedback during plugin queries
 
@@ -217,14 +217,14 @@
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T066 [P] Update CLI help text and examples in `internal/cli/cost_recommendations.go`
-- [ ] T067 [P] Ensure 80% test coverage for `internal/cli/cost_recommendations.go`
-- [ ] T068 [P] Ensure 80% test coverage for `internal/tui/recommendations_model.go`
-- [ ] T069 [P] Ensure 80% test coverage for `internal/tui/recommendations_view.go`
-- [ ] T070 Run `make lint` and fix any issues
-- [ ] T071 Run `make test` and verify all tests pass
-- [ ] T072 Validate quickstart.md scenarios manually
-- [ ] T073 Test cross-platform behavior (Linux, macOS, Windows if available)
+- [x] T066 [P] Update CLI help text and examples in `internal/cli/cost_recommendations.go`
+- [x] T067 [P] Ensure 80% test coverage for `internal/cli/cost_recommendations.go`
+- [x] T068 [P] Ensure 80% test coverage for `internal/tui/recommendations_model.go`
+- [x] T069 [P] Ensure 80% test coverage for `internal/tui/recommendations_view.go`
+- [x] T070 Run `make lint` and fix any issues
+- [x] T071 Run `make test` and verify all tests pass
+- [x] T072 Validate quickstart.md scenarios manually
+- [x] T073 Test cross-platform behavior (Linux, macOS, Windows if available)
 
 ---
 
