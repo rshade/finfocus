@@ -34,7 +34,7 @@ jobs:
       - name: Setup Ruby
         uses: ruby/setup-ruby@v1.281.0
         with:
-          ruby-version: '4.0.0'
+          ruby-version: '4.0.1'
           working-directory: './docs'
 
       - name: Install Bundler 4.0
