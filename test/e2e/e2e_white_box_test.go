@@ -70,7 +70,8 @@ func TestProjectedCost_EC2_WithPlugin(t *testing.T) {
 	defer pm.DeferPluginCleanup(ctx, "aws-public")()
 
 	// List installed plugins for debugging
-	plugins, _ := pm.ListPlugins(ctx)
+	plugins, err := pm.ListPlugins(ctx)
+	require.NoError(t, err)
 	t.Logf("Installed plugins:\n%s", plugins)
 
 	// Setup Project - this deploys real AWS infrastructure using CLI commands

@@ -21,6 +21,7 @@ func TestShouldSkip_WithCredentials(t *testing.T) {
 	t.Setenv("AWS_ACCESS_KEY_ID", "test")
 	t.Setenv("AWS_SECRET_ACCESS_KEY", "test")
 
-	skip, _ := ShouldSkip("aws")
+	skip, reason := ShouldSkip("aws")
 	assert.False(t, skip)
+	assert.Empty(t, reason)
 }

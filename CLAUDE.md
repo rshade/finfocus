@@ -1017,17 +1017,19 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
-- Go 1.25.5 + finfocus-spec v0.4.11 (pluginsdk), cobra v1.10.1, (108-action-type-enum)
+- Go 1.25.5 + finfocus-spec v0.5.2 (pluginsdk), cobra v1.10.1, (108-action-type-enum)
 - N/A (stateless enum mapping) (108-action-type-enum)
 - Go 1.25.5 + Cobra v1.10.1, Bubble Tea, Lip Gloss, zerolog v1.34.0 (109-cost-recommendations)
 - N/A (stateless command, data from plugins via gRPC) (109-cost-recommendations)
-- Go 1.25.5 + cobra v1.10.1, finfocus-spec v0.4.11 (pluginsdk), (111-state-actual-cost)
+- Go 1.25.5 + cobra v1.10.1, finfocus-spec v0.5.2 (pluginsdk), (111-state-actual-cost)
 - N/A (stateless CLI tool; reads Pulumi state JSON files) (111-state-actual-cost)
 - Go 1.25.5 + Cobra v1.10.2 (CLI), golang.org/x/term (TTY detection), existing `internal/registry` and `internal/tui` packages (116-plugin-install-fallback)
 - N/A (stateless CLI feature) (116-plugin-install-fallback)
+- Go 1.25.5 + testify v1.11.1, GitHub Actions, finfocus-spec v0.5.2 (pluginsdk) (118-test-quality-ci)
+- N/A (test infrastructure, no persistent storage) (118-test-quality-ci)
 
 - Go 1.25.5 + pluginsdk v0.4.11+, zerolog v1.34.0; N/A storage (validation is stateless) (107-preflight-validation)
-- Go 1.25.5 + github.com/rshade/finfocus-spec v0.4.11 (pluginsdk) (106-analyzer-recommendations)
+- Go 1.25.5 + github.com/rshade/finfocus-spec v0.5.2 (pluginsdk) (106-analyzer-recommendations)
 - N/A (display-only feature) (106-analyzer-recommendations)
 - N/A (no persistent storage for TUI state) (106-cost-tui-upgrade)
 

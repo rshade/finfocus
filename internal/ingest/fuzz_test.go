@@ -13,6 +13,21 @@ func FuzzJSON(f *testing.F) {
 	f.Add([]byte(`{"steps":[{"op":"create","urn":"test","type":"aws:s3/bucket:Bucket"}]}`))
 	f.Add([]byte(`{"steps":[{"op":"create","urn":"test","type":"test","inputs":{"key":"value"}}]}`))
 
+	// Add seed corpus - newState structures (Pulumi v3+)
+	// Create operation with newState containing type and inputs
+	f.Add(
+		[]byte(
+			`{"steps":[{"op":"create","urn":"test","newState":{"type":"aws:ec2/instance:Instance","urn":"test","inputs":{"instanceType":"t3.micro"}}}]}`,
+		),
+	)
+	// Update operation with oldState and newState
+	f.Add(
+		[]byte(
+			`{"steps":[{"op":"update","urn":"test","oldState":{"type":"aws:s3/bucket:Bucket"},"newState":{"type":"aws:s3/bucket:Bucket","inputs":{"bucket":"my-bucket"}}}]}`,
+		),
+	)
+	f.Add([]byte(`{"steps":[{"op":"create","urn":"test","newState":{"type":"malformed","inputs":null}}]}`))
+
 	// Add seed corpus - edge cases
 	f.Add([]byte(`{}`))
 	f.Add([]byte(`null`))

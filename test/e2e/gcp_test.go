@@ -16,7 +16,8 @@ func TestE2E_GCP_ProjectedCost(t *testing.T) {
 	binary := findFinFocusBinary()
 	require.NotEmpty(t, binary)
 
-	planPath, _ := filepath.Abs("../fixtures/plans/gcp/simple.json")
+	planPath, err := filepath.Abs("../fixtures/plans/gcp/simple.json")
+	require.NoError(t, err)
 
 	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
 	output, err := cmd.CombinedOutput()

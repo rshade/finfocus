@@ -104,9 +104,10 @@ func TestAnalyzer_FullStackFlow(t *testing.T) {
 	assert.Len(t, infoResp.GetPolicies(), 2)
 
 	// Step 4: Analyze Stack
-	props, _ := structpb.NewStruct(map[string]interface{}{
+	props, err := structpb.NewStruct(map[string]interface{}{
 		"instanceType": "t3.micro",
 	})
+	require.NoError(t, err)
 
 	resources := []*pulumirpc.AnalyzerResource{
 		{
