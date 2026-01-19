@@ -65,7 +65,7 @@ guardrails in `CONTEXT.md`.
   - [ ] Support extended RecommendationActionType enum
         ([#298](https://github.com/rshade/finfocus/issues/298))
   - [x] Add --estimate-confidence flag for actual cost transparency
-        ([#333](https://github.com/rshade/finfocus/issues/333)) *(Completed 2026-01-18)*
+        ([#333](https://github.com/rshade/finfocus/issues/333)) _(Completed 2026-01-18)_
 - [ ] **Forecasting & Projections ("Cost Time Machine")**
       ([#364](https://github.com/rshade/finfocus/issues/364))
   - [ ] Projection Math Engine (Linear/Exponential extrapolation)

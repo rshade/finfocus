@@ -16,6 +16,7 @@ guardrails in `CONTEXT.md`.
 - [Immediate Priority](#immediate-priority-bug-fixes)
 - [Current Focus (v0.2.1)](#current-focus-v021---polish--dx-improvements)
 - [Near-Term Vision (v0.3.0)](#near-term-vision-v030---budgeting--intelligence)
+- [Future Vision (v0.4.0)](#future-vision-v040---notifications--integrations)
 - [Stability & Maintenance](#stability--maintenance)
 - [Documentation](#documentation)
 - [Icebox / Backlog](#icebox--backlog)
@@ -47,8 +48,8 @@ guardrails in `CONTEXT.md`.
 
 ## Immediate Priority (Bug Fixes)
 
-- [ ] **Test Reliability & CI Stability**
-  - [ ] Nightly test failure - 2026-01-19
+- [x] **Test Reliability & CI Stability** *(Completed 2026-01-19)*
+  - [x] Nightly test failure - 2026-01-19
         ([#452](https://github.com/rshade/finfocus/issues/452))
   - [x] Previous nightly failures resolved (#417, #414, #424, #427)
 
@@ -57,11 +58,8 @@ guardrails in `CONTEXT.md`.
 - [x] **Cost Estimation Enhancements** *(Completed 2026-01-18)*
   - [x] Add `--estimate-confidence` flag for actual cost transparency
         ([#333](https://github.com/rshade/finfocus/issues/333))
-- [ ] **Plugin Ecosystem Maturity**
+- [x] **Plugin Ecosystem Maturity** *(Completed in PR #398)*
   - [x] Implement GetPluginInfo consumer-side requirements (#376)
-        *(Completed in PR #398)*
-  - [ ] Update Plugin Generator Templates (includes gRPC reflection)
-        ([#248](https://github.com/rshade/finfocus/issues/248))
 - [ ] **Developer Experience & Tooling**
   - [x] Parallel plugin metadata fetching in plugin list command (#408)
         *(Completed in PR #426)*
@@ -69,8 +67,6 @@ guardrails in `CONTEXT.md`.
         ([#275](https://github.com/rshade/finfocus/issues/275))
   - [ ] Cross-Repository Integration Test Workflow
         ([#236](https://github.com/rshade/finfocus/issues/236))
-  - [ ] Multi-Plugin Routing: Intelligent Feature-Based Plugin Selection
-        ([#410](https://github.com/rshade/finfocus/issues/410))
 - [x] **Enhanced Visualization** *(Completed 2026-01-17)*
   - [x] Upgrade cost commands to enhanced TUI (#218)
 - [x] **Code Quality**
@@ -91,6 +87,13 @@ guardrails in `CONTEXT.md`.
 
 ## Near-Term Vision (v0.3.0 - Budgeting & Intelligence)
 
+- [ ] **Plugin Intelligence**
+  - [ ] Multi-Plugin Routing: Intelligent Feature-Based Plugin Selection
+        ([#410](https://github.com/rshade/finfocus/issues/410))
+  - [ ] Update Plugin Generator Templates for spec v0.5.x
+        ([#248](https://github.com/rshade/finfocus/issues/248))
+        *Deferred from v0.2.1 to align with finfocus-spec v0.5.x features
+        (UsageProfile, PricingTier, BypassReason)*
 - [ ] **Budgeting & Cost Controls** *(Budget Health Suite)*
   - [ ] Budget health calculation & threshold alerting
         ([#267](https://github.com/rshade/finfocus/issues/267))
@@ -136,6 +139,14 @@ guardrails in `CONTEXT.md`.
   - *Cross-Repo:* Requires `UsageProfile` enum in
     [finfocus-spec](https://github.com/rshade/finfocus-spec)
 
+## Future Vision (v0.4.0 - Notifications & Integrations)
+
+- [ ] **External Notifications**
+  - [ ] Webhook and email notifications for budget alerts
+        ([#220](https://github.com/rshade/finfocus/issues/220))
+  - *Note:* Requires external service integration to maintain core
+    statelessness per CONTEXT.md boundaries
+
 ## Stability & Maintenance
 
 - [x] **Quality Gates**
@@ -154,8 +165,8 @@ guardrails in `CONTEXT.md`.
   - [ ] Set up AWS test account and infrastructure for E2E testing
         ([#181](https://github.com/rshade/finfocus/issues/181))
 - [ ] **Fuzzing & Security**
-  - [ ] Create fuzz test skeleton for JSON parser
-        ([#330](https://github.com/rshade/finfocus/issues/330))
+  - [x] Create fuzz test skeleton for JSON parser
+        ([#330](https://github.com/rshade/finfocus/issues/330)) *(Completed)*
   - [ ] Improve fuzzing seeds, benchmarks, and validation
         ([#326](https://github.com/rshade/finfocus/issues/326))
 - [ ] **CI/CD & Automation**
@@ -166,13 +177,13 @@ guardrails in `CONTEXT.md`.
         *(Issue TBD)*
   - [ ] Adopt enhanced ARN provider type safety
         *(Issue TBD)*
-- [ ] **Code Quality Refactoring**
+- [x] **Code Quality Refactoring** *(Completed 2026-01-18)*
   - [x] Extract shared applyFilters helper (#337) *(Completed 2026-01-18)*
-  - [ ] Remove redundant .Ctx(ctx) calls in ingest/state.go
+  - [x] Remove redundant .Ctx(ctx) calls in ingest/state.go
         ([#338](https://github.com/rshade/finfocus/issues/338))
-  - [ ] Pre-allocate slice in GetCustomResourcesWithContext
+  - [x] Pre-allocate slice in GetCustomResourcesWithContext
         ([#339](https://github.com/rshade/finfocus/issues/339))
-  - [ ] Simplify map conversion in state_test.go
+  - [x] Simplify map conversion in state_test.go
         ([#340](https://github.com/rshade/finfocus/issues/340))
 
 ## Documentation
@@ -192,8 +203,6 @@ guardrails in `CONTEXT.md`.
 ## Icebox / Backlog
 
 - [ ] Plugin integrity verification strategy (#164)
-- [ ] Webhook and email notifications for budget alerts (#220) - *Likely
-      requires external service integration to maintain core statelessness*
 - [ ] Accessibility options (--no-color, --plain, high contrast) (#224)
 - [ ] Configuration validation with helpful error messages (#223)
 - [x] Registry should pick latest version when multiple versions installed (#140)

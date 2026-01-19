@@ -6,6 +6,7 @@ Auto-generated from all feature plans. Last updated: 2026-01-12
 - Go 1.25.5 + `github.com/spf13/cobra` (CLI), `github.com/spf13/viper` (Config), `github.com/rshade/finfocus-spec` (renamed from `finfocus-spec`) (113-rebrand-to-finfocus)
 - Filesystem (`~/.finfocus/config.yaml`, `~/.finfocus/plugins/`) (113-rebrand-to-finfocus)
 - Filesystem (Plugin directories) (115-v021-dx-improvements)
+- Markdown (GFM), Mermaid (for diagrams) + Jekyll (for site generation), mermaid.js (for rendering diagrams) (118-e2e-plugin-docs)
 
 - Markdown, Go 1.25.5 (for code verification) + Jekyll (for docs site), GitHub Pages (010-sync-docs-codebase)
 - Git repository (docs folder) (010-sync-docs-codebase)
@@ -191,6 +192,7 @@ import (
 - **Property Extraction**: Core (`adapter.go`) relies on populated `Inputs` to extract SKU and Region. If `Inputs` are empty (due to ingest issues), pricing lookup fails.
 
 ## Recent Changes
+- 118-e2e-plugin-docs: Added Markdown (GFM), Mermaid (for diagrams) + Jekyll (for site generation), mermaid.js (for rendering diagrams)
 - 115-v021-dx-improvements: Added Go 1.25.5
 - 113-rebrand-to-finfocus: Added Go 1.25.5 + `github.com/spf13/cobra` (CLI), `github.com/spf13/viper` (Config), `github.com/rshade/finfocus-spec` (renamed from `finfocus-spec`)
 

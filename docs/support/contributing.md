@@ -446,7 +446,7 @@ FinFocus operates as a three-repository ecosystem:
 
 | Repository                | Purpose                                     |
 | ------------------------- | ------------------------------------------- |
-| [finfocus][core]     | CLI tool, plugin host, orchestration engine |
+| [finfocus][core]          | CLI tool, plugin host, orchestration engine |
 | [finfocus-spec][spec]     | Protocol buffer definitions, SDK generation |
 | [finfocus-plugin][plugin] | Plugin implementations (Kubecost, Vantage)  |
 
