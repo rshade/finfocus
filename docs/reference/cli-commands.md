@@ -75,35 +75,54 @@ finfocus cost actual [options]
 
 ### Options
 
-| Flag         | Description                                              | Default    |
-| ------------ | -------------------------------------------------------- | ---------- |
-| `--from`     | Start date (YYYY-MM-DD or RFC3339)                       | 7 days ago |
-| `--to`       | End date (YYYY-MM-DD or RFC3339)                         | Today      |
-| `--filter`   | Filter resources (tag:key=value, type=\*)                | None       |
-| `--group-by` | Group results (resource, type, provider, daily, monthly) | resource   |
-| `--output`   | Output format: table, json, ndjson                       | table      |
-| `--help`     | Show help                                                |            |
+| Flag                    | Description                                              | Default    |
+| ----------------------- | -------------------------------------------------------- | ---------- |
+| `--pulumi-json`         | Path to Pulumi preview JSON                              |            |
+| `--pulumi-state`        | Path to Pulumi state JSON from `pulumi stack export`     |            |
+| `--from`                | Start date (YYYY-MM-DD or RFC3339)                       | 7 days ago |
+| `--to`                  | End date (YYYY-MM-DD or RFC3339)                         | Today      |
+| `--filter`              | Filter resources (tag:key=value, type=\*)                | None       |
+| `--group-by`            | Group results (resource, type, provider, daily, monthly) | resource   |
+| `--output`              | Output format: table, json, ndjson                       | table      |
+| `--estimate-confidence` | Show confidence level for cost estimates                 | false      |
+| `--help`                | Show help                                                |            |
+
+### Confidence Levels
+
+When `--estimate-confidence` is enabled, a Confidence column appears showing data reliability:
+
+| Level  | Description                                                    |
+| ------ | -------------------------------------------------------------- |
+| HIGH   | Real billing data from plugin (AWS Cost Explorer, Kubecost)    |
+| MEDIUM | Runtime estimate for Pulumi-created resources                  |
+| LOW    | Runtime estimate for imported resources (creation time unknown)|
 
 ### Examples
 
 ```bash
-# Last 7 days
-finfocus cost actual
+# Estimate costs from Pulumi state (--from auto-detected from timestamps)
+finfocus cost actual --pulumi-state state.json
 
-# Specific date range
-finfocus cost actual --from 2024-01-01 --to 2024-01-31
+# Estimate costs from state with explicit date range
+finfocus cost actual --pulumi-state state.json --from 2025-01-01 --to 2025-01-31
 
-# By day
-finfocus cost actual --group-by daily --from 2024-01-01 --to 2024-01-31
+# Get costs from Pulumi plan
+finfocus cost actual --pulumi-json plan.json --from 2025-01-01
 
-# By provider
-finfocus cost actual --group-by provider
+# Group by day
+finfocus cost actual --pulumi-json plan.json --group-by daily --from 2025-01-01 --to 2025-01-31
+
+# Group by provider
+finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by provider
 
 # Filter by tag
-finfocus cost actual --filter "tag:env=prod"
+finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --filter "tag:env=prod"
 
 # JSON output
-finfocus cost actual --output json --from 2024-01-01
+finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --output json
+
+# Show estimate confidence levels (useful for imported resources)
+finfocus cost actual --pulumi-state state.json --estimate-confidence
 ```
 
 ## plugin init

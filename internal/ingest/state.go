@@ -69,7 +69,6 @@ func LoadStackExport(path string) (*StackExport, error) {
 func LoadStackExportWithContext(ctx context.Context, path string) (*StackExport, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
-		Ctx(ctx).
 		Str("component", "ingest").
 		Str("operation", "load_state").
 		Str("state_path", path).
@@ -78,7 +77,6 @@ func LoadStackExportWithContext(ctx context.Context, path string) (*StackExport,
 	data, err := os.ReadFile(path)
 	if err != nil {
 		log.Error().
-			Ctx(ctx).
 			Str("component", "ingest").
 			Err(err).
 			Str("state_path", path).
@@ -87,7 +85,6 @@ func LoadStackExportWithContext(ctx context.Context, path string) (*StackExport,
 	}
 
 	log.Debug().
-		Ctx(ctx).
 		Str("component", "ingest").
 		Int("file_size_bytes", len(data)).
 		Msg("state file read successfully")
@@ -95,7 +92,6 @@ func LoadStackExportWithContext(ctx context.Context, path string) (*StackExport,
 	var state StackExport
 	if unmarshalErr := json.Unmarshal(data, &state); unmarshalErr != nil {
 		log.Error().
-			Ctx(ctx).
 			Str("component", "ingest").
 			Err(unmarshalErr).
 			Str("state_path", path).
@@ -104,7 +100,6 @@ func LoadStackExportWithContext(ctx context.Context, path string) (*StackExport,
 	}
 
 	log.Debug().
-		Ctx(ctx).
 		Str("component", "ingest").
 		Int("version", state.Version).
 		Int("resource_count", len(state.Deployment.Resources)).
@@ -122,7 +117,8 @@ func (s *StackExport) GetCustomResources() []StackExportResource {
 // GetCustomResourcesWithContext returns custom resources with logging context.
 func (s *StackExport) GetCustomResourcesWithContext(ctx context.Context) []StackExportResource {
 	log := logging.FromContext(ctx)
-	var resources []StackExportResource
+	// Pre-allocate with estimate; most resources in typical stacks are custom
+	resources := make([]StackExportResource, 0, len(s.Deployment.Resources))
 
 	for _, r := range s.Deployment.Resources {
 		if r.Custom {
@@ -131,7 +127,6 @@ func (s *StackExport) GetCustomResourcesWithContext(ctx context.Context) []Stack
 	}
 
 	log.Debug().
-		Ctx(ctx).
 		Str("component", "ingest").
 		Int("total_resources", len(s.Deployment.Resources)).
 		Int("custom_resources", len(resources)).

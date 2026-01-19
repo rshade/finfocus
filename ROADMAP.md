@@ -52,8 +52,8 @@ guardrails in `CONTEXT.md`.
 
 ## Current Focus (v0.2.1 - Polish & DX Improvements)
 
-- [ ] **Cost Estimation Enhancements**
-  - [ ] Add `--estimate-confidence` flag for actual cost transparency
+- [x] **Cost Estimation Enhancements** *(Completed 2026-01-18)*
+  - [x] Add `--estimate-confidence` flag for actual cost transparency
         ([#333](https://github.com/rshade/finfocus/issues/333))
 - [ ] **Plugin Ecosystem Maturity**
   - [x] Implement GetPluginInfo consumer-side requirements (#376)
@@ -79,9 +79,8 @@ guardrails in `CONTEXT.md`.
   - [x] Show installed plugins even when metadata fetch fails (#432)
   - [x] Add lock acquisition to RemoveOtherVersions (#431)
   - [x] Fallback to latest stable version when asset missing (#430)
-- [ ] **Code Quality (Ongoing)**
-  - [ ] Replace manual assertions with testify in registry tests
-        ([#429](https://github.com/rshade/finfocus/issues/429))
+- [x] **Code Quality** *(Completed 2026-01-19)*
+  - [x] Replace manual assertions with testify in registry tests (#429)
 - [ ] **Deferred from v0.1.x**
   - [ ] Pagination for large datasets
         ([#225](https://github.com/rshade/finfocus/issues/225))
@@ -136,17 +135,12 @@ guardrails in `CONTEXT.md`.
 - [x] **Quality Gates**
   - [x] Improve CLI package coverage to 75% (achieved 74.5%) (#269)
   - [x] Integration Test Suite for Plugin Communication (#235)
-- [ ] **Integration Testing Expansion**
-  - [ ] Integration tests for resource filtering and output formats
-        ([#319](https://github.com/rshade/finfocus/issues/319))
-  - [ ] Integration tests for cross-provider aggregation
-        ([#251](https://github.com/rshade/finfocus/issues/251))
-  - [ ] Integration tests for `--group-by` flag
-        ([#250](https://github.com/rshade/finfocus/issues/250))
-  - [ ] Integration tests for `cost actual` command scenarios
-        ([#252](https://github.com/rshade/finfocus/issues/252))
-  - [ ] Integration tests for config management commands
-        ([#254](https://github.com/rshade/finfocus/issues/254))
+- [x] **Integration Testing Expansion** *(Completed 2026-01-19)*
+  - [x] Integration tests for resource filtering and output formats (#319)
+  - [x] Integration tests for cross-provider aggregation (#251)
+  - [x] Integration tests for `--group-by` flag (#250)
+  - [x] Integration tests for `cost actual` command scenarios (#252)
+  - [x] Integration tests for config management commands (#254)
   - [ ] E2E test for actual cost command
         ([#334](https://github.com/rshade/finfocus/issues/334))
 - [ ] **Fuzzing & Security**

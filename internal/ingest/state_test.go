@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -195,7 +196,7 @@ func TestMapStateResource(t *testing.T) {
 	tests := []struct {
 		name     string
 		resource ingest.StackExportResource
-		validate func(t *testing.T, desc interface{})
+		validate func(t *testing.T, desc engine.ResourceDescriptor)
 	}{
 		{
 			name: "resource with timestamps",
@@ -210,19 +211,16 @@ func TestMapStateResource(t *testing.T) {
 					"instanceType": "t3.micro",
 				},
 			},
-			validate: func(t *testing.T, desc interface{}) {
-				d := desc.(map[string]interface{})
-				props := d["properties"].(map[string]interface{})
-
+			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
 				// Original inputs preserved
-				assert.Equal(t, "t3.micro", props["instanceType"])
+				assert.Equal(t, "t3.micro", desc.Properties["instanceType"])
 
 				// Timestamps injected
-				assert.Equal(t, "2024-01-15T10:30:00Z", props[ingest.PropertyPulumiCreated])
-				assert.Equal(t, "2024-06-20T14:22:00Z", props[ingest.PropertyPulumiModified])
+				assert.Equal(t, "2024-01-15T10:30:00Z", desc.Properties[ingest.PropertyPulumiCreated])
+				assert.Equal(t, "2024-06-20T14:22:00Z", desc.Properties[ingest.PropertyPulumiModified])
 
 				// External flag not set (false)
-				_, hasExternal := props[ingest.PropertyPulumiExternal]
+				_, hasExternal := desc.Properties[ingest.PropertyPulumiExternal]
 				assert.False(t, hasExternal)
 			},
 		},
@@ -238,18 +236,15 @@ func TestMapStateResource(t *testing.T) {
 					"bucket": "my-bucket",
 				},
 			},
-			validate: func(t *testing.T, desc interface{}) {
-				d := desc.(map[string]interface{})
-				props := d["properties"].(map[string]interface{})
-
+			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
 				// External flag set
-				assert.Equal(t, "true", props[ingest.PropertyPulumiExternal])
+				assert.Equal(t, "true", desc.Properties[ingest.PropertyPulumiExternal])
 
 				// Created timestamp present
-				assert.Equal(t, "2024-01-15T10:30:00Z", props[ingest.PropertyPulumiCreated])
+				assert.Equal(t, "2024-01-15T10:30:00Z", desc.Properties[ingest.PropertyPulumiCreated])
 
 				// Modified not present (nil in input)
-				_, hasModified := props[ingest.PropertyPulumiModified]
+				_, hasModified := desc.Properties[ingest.PropertyPulumiModified]
 				assert.False(t, hasModified)
 			},
 		},
@@ -263,16 +258,13 @@ func TestMapStateResource(t *testing.T) {
 					"instanceType": "t2.micro",
 				},
 			},
-			validate: func(t *testing.T, desc interface{}) {
-				d := desc.(map[string]interface{})
-				props := d["properties"].(map[string]interface{})
-
+			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
 				// Original inputs preserved
-				assert.Equal(t, "t2.micro", props["instanceType"])
+				assert.Equal(t, "t2.micro", desc.Properties["instanceType"])
 
 				// No timestamps injected
-				_, hasCreated := props[ingest.PropertyPulumiCreated]
-				_, hasModified := props[ingest.PropertyPulumiModified]
+				_, hasCreated := desc.Properties[ingest.PropertyPulumiCreated]
+				_, hasModified := desc.Properties[ingest.PropertyPulumiModified]
 				assert.False(t, hasCreated)
 				assert.False(t, hasModified)
 			},
@@ -284,15 +276,7 @@ func TestMapStateResource(t *testing.T) {
 			desc, err := ingest.MapStateResource(tt.resource)
 			require.NoError(t, err)
 
-			// Convert to map for easier assertion
-			descMap := map[string]interface{}{
-				"type":       desc.Type,
-				"id":         desc.ID,
-				"provider":   desc.Provider,
-				"properties": desc.Properties,
-			}
-
-			tt.validate(t, descMap)
+			tt.validate(t, desc)
 		})
 	}
 }

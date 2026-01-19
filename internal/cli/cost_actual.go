@@ -99,7 +99,10 @@ timestamp if not provided.`,
   finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --output json --group-by provider
 
   # Use RFC3339 timestamps
-  finfocus cost actual --pulumi-json plan.json --from 2025-01-01T00:00:00Z --to 2025-01-31T23:59:59Z`,
+  finfocus cost actual --pulumi-json plan.json --from 2025-01-01T00:00:00Z --to 2025-01-31T23:59:59Z
+
+  # Show confidence levels for cost estimates (useful for imported resources)
+  finfocus cost actual --pulumi-state state.json --estimate-confidence`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return executeCostActual(cmd, params)
 		},
