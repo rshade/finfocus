@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"testing"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -14,6 +15,16 @@ func TestFilterBudgets(t *testing.T) {
 		filter   *pbc.BudgetFilter
 		expected []string // Expected Budget IDs
 	}{
+		{
+			name: "nil filter returns all budgets unchanged",
+			budgets: []*pbc.Budget{
+				{Id: "1", Source: "aws"},
+				{Id: "2", Source: "gcp"},
+				{Id: "3", Source: "azure"},
+			},
+			filter:   nil,
+			expected: []string{"1", "2", "3"},
+		},
 		{
 			name: "empty filter returns all",
 			budgets: []*pbc.Budget{
@@ -161,7 +172,7 @@ func TestCalculateBudgetSummary(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := CalculateBudgetSummary(tc.budgets)
+			result := CalculateBudgetSummary(context.Background(), tc.budgets)
 			assert.Equal(t, tc.expected, result)
 		})
 	}

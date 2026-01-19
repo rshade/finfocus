@@ -6,11 +6,15 @@ How to use the new Budget Filtering and Aggregation logic in the engine.
 
 ```go
 import (
+    "context"
+
     "github.com/rshade/finfocus/internal/engine"
     pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
 func main() {
+    ctx := context.Background()
+
     // 1. Create a filter
     filter := &pbc.BudgetFilter{
         Providers: []string{"aws", "gcp"},
@@ -21,8 +25,8 @@ func main() {
     // budgets := ... (get from plugins)
     filtered := engine.FilterBudgets(budgets, filter)
 
-    // 3. Calculate Summary
-    summary := engine.CalculateBudgetSummary(filtered)
+    // 3. Calculate Summary (uses context for trace propagation)
+    summary := engine.CalculateBudgetSummary(ctx, filtered)
 
     fmt.Printf("Total: %d, Critical: %d\n", summary.TotalBudgets, summary.BudgetsCritical)
 }
