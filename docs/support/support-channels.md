@@ -20,11 +20,8 @@ For general questions, ideas, and show-and-tell, use GitHub Discussions.
 
 - [Join the Discussion](https://github.com/rshade/finfocus/discussions)
 
-## Professional Support
+## Scope of Support
 
-_Professional support options are currently in development._
-
-## Consulting
-
-If you need help with custom plugin development or enterprise integration,
-please reach out to the maintainers directly or via the community channels.
+FinFocus support is provided through GitHub Issues and GitHub Discussions only.
+For professional support, consulting, or SLAs, please open a GitHub Discussion
+with details so maintainers can advise on next steps.

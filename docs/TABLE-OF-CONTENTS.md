@@ -134,15 +134,16 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 ### 🚀 Deployment & Operations
 
-| Page                                                | Purpose                 |
-| --------------------------------------------------- | ----------------------- |
-| [Installation Guide](deployment/installation.md)    | Detailed installation   |
-| [Configuration Guide](deployment/configuration.md)  | Configuration how-to    |
-| [Docker](deployment/docker.md)                      | Docker deployment       |
-| [Kubernetes](deployment/kubernetes.md)              | K8s deployment (future) |
-| [CI/CD Integration](deployment/cicd-integration.md) | Pipeline integration    |
-| [Security](deployment/security.md)                  | Security best practices |
-| [Troubleshooting](deployment/troubleshooting.md)    | Operational issues      |
+| Page                                                             | Purpose                 |
+| ---------------------------------------------------------------- | ----------------------- |
+| [Installation Guide](deployment/installation.md)                 | Detailed installation   |
+| [Configuration Guide](deployment/configuration.md)               | Configuration how-to    |
+| [Deployment Architecture](deployment/deployment-architecture.md) | Deployment diagram      |
+| [Docker](deployment/docker.md)                                   | Docker deployment       |
+| [Kubernetes](deployment/kubernetes.md)                           | K8s deployment (future) |
+| [CI/CD Integration](deployment/cicd-integration.md)              | Pipeline integration    |
+| [Security](deployment/security.md)                               | Security best practices |
+| [Troubleshooting](deployment/troubleshooting.md)                 | Operational issues      |
 
 ### 💬 Support & Community
 
@@ -212,6 +213,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 ### Operations & Deployment
 
 - [Deployment Guide](deployment/deployment.md)
+- [Deployment Architecture](deployment/deployment-architecture.md)
 - [Configuration](deployment/configuration.md)
 - [Docker](deployment/docker.md)
 - [Security](deployment/security.md)
