@@ -3,6 +3,7 @@ package recorder
 import (
 	"context"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -217,6 +218,102 @@ func TestRecorderPlugin_Shutdown(t *testing.T) {
 
 	// Should not panic
 	plugin.Shutdown()
+}
+
+func TestRecorderPlugin_GetRecommendations(t *testing.T) {
+	tests := []struct {
+		name         string
+		mockResponse bool
+	}{
+		{
+			name:         "mock disabled",
+			mockResponse: false,
+		},
+		{
+			name:         "mock enabled",
+			mockResponse: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			cfg := &Config{
+				OutputDir:    tmpDir,
+				MockResponse: tt.mockResponse,
+			}
+			plugin := NewRecorderPlugin(cfg, testLogger())
+
+			req := &pbc.GetRecommendationsRequest{}
+			resp, err := plugin.GetRecommendations(context.Background(), req)
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+
+			if tt.mockResponse {
+				// When mock is enabled, expect non-empty recommendations
+				require.NotEmpty(t, resp.GetRecommendations())
+				for _, rec := range resp.GetRecommendations() {
+					assert.NotEmpty(t, rec.GetId())
+					assert.NotEmpty(t, rec.GetDescription())
+					assert.NotNil(t, rec.GetImpact())
+					assert.Greater(t, rec.GetImpact().GetEstimatedSavings(), float64(0))
+					assert.Equal(t, "USD", rec.GetImpact().GetCurrency())
+				}
+			} else {
+				// When mock is disabled, expect empty recommendations
+				assert.Empty(t, resp.GetRecommendations())
+			}
+		})
+	}
+}
+
+func TestRecorderPlugin_GetPluginInfo(t *testing.T) {
+	t.Run("successful metadata retrieval", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cfg := &Config{OutputDir: tmpDir}
+		plugin := NewRecorderPlugin(cfg, testLogger())
+
+		req := &pbc.GetPluginInfoRequest{}
+
+		resp, err := plugin.GetPluginInfo(context.Background(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "recorder", resp.GetName())
+		assert.Equal(t, "0.1.0", resp.GetVersion())
+		assert.NotEmpty(t, resp.GetSpecVersion())
+		assert.Len(t, resp.GetProviders(), 1)
+		assert.Contains(t, resp.GetProviders(), "test")
+		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS)
+		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS)
+		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS)
+	})
+
+	t.Run("recording failure does not affect metadata", func(t *testing.T) {
+		// Use a read-only directory to trigger recording failure
+		tmpDir := t.TempDir()
+		readOnlyDir := filepath.Join(tmpDir, "readonly")
+		err := os.MkdirAll(readOnlyDir, 0444) // Read-only permissions
+		require.NoError(t, err)
+
+		cfg := &Config{OutputDir: readOnlyDir}
+		plugin := NewRecorderPlugin(cfg, testLogger())
+
+		req := &pbc.GetPluginInfoRequest{}
+
+		// GetPluginInfo should succeed even if recording fails
+		resp, err := plugin.GetPluginInfo(context.Background(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "recorder", resp.GetName())
+		assert.Equal(t, "0.1.0", resp.GetVersion())
+		assert.NotEmpty(t, resp.GetSpecVersion())
+		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS)
+		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS)
+		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS)
+	})
 }
 
 func TestRecorderPlugin_ThreadSafety(t *testing.T) {

@@ -1,0 +1,98 @@
+openapi: 3.0.3
+info:
+  title: Plugin Init Recorder Fixtures
+  version: 1.0.0
+paths:
+  /plugin/init:
+    post:
+      summary: Initialize a plugin with recorded fixtures
+      parameters:
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: providers
+          required: true
+          schema:
+            type: array
+            items:
+              type: string
+        - in: query
+          name: version
+          required: false
+          schema:
+            type: string
+        - in: query
+          name: offline
+          required: false
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Plugin initialized with recorded requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InitResult"
+        "400":
+          description: Invalid input or missing fixtures
+        "500":
+          description: Recording workflow failure
+  /fixtures/plan:
+    get:
+      summary: Retrieve canonical plan fixture
+      parameters:
+        - in: query
+          name: provider
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: version
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Plan fixture data
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Fixture not found
+  /fixtures/state:
+    get:
+      summary: Retrieve canonical state fixture
+      parameters:
+        - in: query
+          name: version
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: State fixture data
+          content:
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Fixture not found
+components:
+  schemas:
+    InitResult:
+      type: object
+      properties:
+        project_path:
+          type: string
+        testdata_path:
+          type: string
+        recorded_requests:
+          type: array
+          items:
+            type: string
+        summary:
+          type: string

@@ -58,6 +58,15 @@ guardrails in `CONTEXT.md`.
 - [ ] **Developer Experience & Tooling**
   - [ ] Dynamic Data Recording via Integration Plans
         ([#275](https://github.com/rshade/finfocus/issues/275))
+- [ ] **CI/CD Hardening**
+  - [ ] Harden Nightly Analysis Workflow security and reliability
+        ([#325](https://github.com/rshade/finfocus/issues/325))
+- [ ] **Multi-Region Testing**
+  - [ ] Multi-region E2E testing support
+        ([#185](https://github.com/rshade/finfocus/issues/185))
+- [ ] **Documentation**
+  - [ ] Update documentation for TUI features, budgets, and recommendations
+        ([#226](https://github.com/rshade/finfocus/issues/226))
 - [ ] **Deferred Items**
   - [ ] Pagination for large datasets
         ([#225](https://github.com/rshade/finfocus/issues/225))
@@ -142,16 +151,11 @@ guardrails in `CONTEXT.md`.
         ([#334](https://github.com/rshade/finfocus/issues/334)) *(Completed 2026-01-19)*
   - [x] Set up AWS test account and infrastructure for E2E testing
         ([#181](https://github.com/rshade/finfocus/issues/181)) *(Completed 2026-01-19)*
-  - [ ] Multi-region E2E testing support
-        ([#185](https://github.com/rshade/finfocus/issues/185))
 - [x] **Fuzzing & Security** *(Completed 2026-01-19)*
   - [x] Create fuzz test skeleton for JSON parser
         ([#330](https://github.com/rshade/finfocus/issues/330))
   - [x] Improve fuzzing seeds, benchmarks, and validation
         ([#326](https://github.com/rshade/finfocus/issues/326))
-- [ ] **CI/CD & Automation**
-  - [ ] Harden Nightly Analysis Workflow
-        ([#325](https://github.com/rshade/finfocus/issues/325))
 - [ ] **Plugin SDK Hardening**
   - [ ] Research: Evaluate GetPricingSpec RPC usage in core
         ([#465](https://github.com/rshade/finfocus/issues/465))
@@ -174,9 +178,6 @@ guardrails in `CONTEXT.md`.
   - [x] Expand Deployment Overview (#349)
   - [x] Update documentation for E2E testing and plugin ecosystem
         ([#182](https://github.com/rshade/finfocus/issues/182)) *(Completed 2026-01-19)*
-- [ ] **Remaining Documentation**
-  - [ ] Update documentation for TUI features, budgets, and recommendations
-        ([#226](https://github.com/rshade/finfocus/issues/226))
 
 ## Icebox / Backlog
 

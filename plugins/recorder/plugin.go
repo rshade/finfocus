@@ -11,6 +11,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+const (
+	maxPageSize = 1000
+)
+
 // RecorderPlugin implements the CostSourceService interface.
 // It records all incoming gRPC requests to JSON files and optionally
 // returns mock cost responses for testing purposes.
@@ -143,44 +147,90 @@ func (p *RecorderPlugin) GetActualCost(
 	}, nil
 }
 
-// GetPricingSpec returns pricing specification for a resource type.
-// The recorder plugin returns an empty response as it doesn't have real pricing data.
-func (p *RecorderPlugin) GetPricingSpec(
-	_ context.Context, req *pbc.GetPricingSpecRequest,
-) (*pbc.GetPricingSpecResponse, error) {
+// GetRecommendations handles recommendations requests.
+func (p *RecorderPlugin) GetRecommendations(
+	_ context.Context, req *pbc.GetRecommendationsRequest,
+) (*pbc.GetRecommendationsResponse, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	// Validate request
+	if req == nil {
+		p.logger.Warn().Msg("GetRecommendations request is nil")
+		return nil, status.Errorf(codes.InvalidArgument, "request is required")
+	}
+
+	// Validate PageSize bounds if set
+	if req.GetPageSize() < 0 {
+		p.logger.Warn().
+			Int32("page_size", req.GetPageSize()).
+			Msg("invalid page_size in GetRecommendations request")
+		_ = p.recorder.RecordRequest("GetRecommendations", req)
+		return nil, status.Errorf(codes.InvalidArgument, "page_size must be non-negative")
+	}
+	if req.GetPageSize() > maxPageSize {
+		p.logger.Warn().
+			Int32("page_size", req.GetPageSize()).
+			Msg("page_size exceeds maximum in GetRecommendations request")
+		_ = p.recorder.RecordRequest("GetRecommendations", req)
+		return nil, status.Errorf(codes.InvalidArgument, "page_size must not exceed %d", maxPageSize)
+	}
+
 	// Record the request to disk
-	if err := p.recorder.RecordRequest("GetPricingSpec", req); err != nil {
+	if err := p.recorder.RecordRequest("GetRecommendations", req); err != nil {
 		p.logger.Warn().Err(err).Msg("failed to record request")
 	}
 
-	// Return empty pricing spec
-	return &pbc.GetPricingSpecResponse{}, nil
+	// Return mock or empty response
+	if p.mocker != nil {
+		resp := p.mocker.CreateRecommendationsResponse()
+		recs := resp.GetRecommendations()
+
+		// Apply pagination
+		limit := int(req.GetPageSize())
+		if limit == 0 {
+			limit = len(recs) // Treat 0 as no-limit
+		}
+
+		// Slice to the minimum of limit and actual length
+		if limit < len(recs) {
+			recs = recs[:limit]
+		}
+
+		return &pbc.GetRecommendationsResponse{
+			Recommendations: recs,
+		}, nil
+	}
+
+	return &pbc.GetRecommendationsResponse{
+		Recommendations: []*pbc.Recommendation{},
+	}, nil
 }
 
-// EstimateCost returns an estimated cost for a resource.
-// The recorder plugin returns zero or mock estimate based on configuration.
-func (p *RecorderPlugin) EstimateCost(
-	_ context.Context, req *pbc.EstimateCostRequest,
-) (*pbc.EstimateCostResponse, error) {
+// GetPluginInfo returns information about the plugin.
+func (p *RecorderPlugin) GetPluginInfo(
+	_ context.Context, req *pbc.GetPluginInfoRequest,
+) (*pbc.GetPluginInfoResponse, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	// Record the request to disk
-	if err := p.recorder.RecordRequest("EstimateCost", req); err != nil {
+	if err := p.recorder.RecordRequest("GetPluginInfo", req); err != nil {
 		p.logger.Warn().Err(err).Msg("failed to record request")
 	}
 
-	// Return mock or zero estimate
-	if p.mocker != nil {
-		return p.mocker.CreateEstimateCostResponse(), nil
-	}
-
-	return &pbc.EstimateCostResponse{
-		CostMonthly: 0.0,
-		Currency:    "USD",
+	return &pbc.GetPluginInfoResponse{
+		Name:        "recorder",
+		Version:     "0.1.0",
+		SpecVersion: "0.5.2",
+		Providers: []string{
+			"test",
+		},
+		Capabilities: []pbc.PluginCapability{
+			pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
+			pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS,
+			pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS,
+		},
 	}, nil
 }
 

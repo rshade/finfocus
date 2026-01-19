@@ -489,6 +489,8 @@ make test-e2e
 **CRITICAL**: E2E tests MUST call actual finfocus CLI binary.
 Never simulate cost values or stub CLI execution.
 
+**Actual cost integration coverage**: `test/e2e/actual_cost_test.go` (build tag `integration`) runs `finfocus cost actual` against static Pulumi state fixtures and validates JSON output structure and edge cases.
+
 ### Expected Failure Test Patterns
 
 **IMPORTANT**: Tests that intentionally create failing plugin scenarios (e.g., mock
@@ -917,7 +919,7 @@ make install-recorder  # Build and install to ~/.finfocus/plugins/recorder/0.1.0
 **Configuration (Environment Variables)**:
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+| --- | --- | --- |
 | `FINFOCUS_RECORDER_OUTPUT_DIR` | `./recorded_data` | Directory for recorded JSON files |
 | `FINFOCUS_RECORDER_MOCK_RESPONSE` | `false` | Enable randomized mock responses |
 
@@ -1017,6 +1019,7 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
+
 - Go 1.25.5 + finfocus-spec v0.5.2 (pluginsdk), cobra v1.10.1, (108-action-type-enum)
 - N/A (stateless enum mapping) (108-action-type-enum)
 - Go 1.25.5 + Cobra v1.10.1, Bubble Tea, Lip Gloss, zerolog v1.34.0 (109-cost-recommendations)

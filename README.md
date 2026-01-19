@@ -168,42 +168,6 @@ finfocus config set output.precision 4
 finfocus config set plugins.aws.region us-west-2
 ```
 
-### Budget Configuration
-
-Set up spending limits with threshold alerts to stay in control of your cloud costs:
-
-```yaml
-# ~/.finfocus/config.yaml
-cost:
-  budgets:
-    amount: 1000.00
-    currency: USD
-    period: monthly
-    alerts:
-      - threshold: 80
-        type: actual      # Alert when actual spend reaches 80%
-      - threshold: 100
-        type: forecasted  # Alert when forecasted spend will exceed budget
-```
-
-When you run cost commands, budget status is displayed automatically:
-
-```text
-╭──────────────────────────────────────────╮
-│ BUDGET STATUS                            │
-│ ────────────────────────────────────     │
-│ Budget: $1,000.00/monthly                │
-│ Current Spend: $850.00 (85.0%)           │
-│                                          │
-│ ██████████████████████████░░░░ 85%       │
-│ ⚠ WARNING - spend exceeds 80% threshold  │
-╰──────────────────────────────────────────╯
-```
-
-For CI/CD environments (non-TTY), output is plain text suitable for logs.
-
-See [Budget Management](docs/guides/user-guide.md#budget-management) for complete configuration options.
-
 ### Environment Variables for Secrets
 
 For sensitive values like API keys and credentials, use environment variables instead of storing them in configuration files:
