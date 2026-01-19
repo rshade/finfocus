@@ -1,4 +1,3 @@
-// Package cli_test provides integration tests for CLI → Engine workflow.
 package cli_test
 
 import (

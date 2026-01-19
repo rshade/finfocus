@@ -2,6 +2,9 @@ package registry
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestValidateRegistryEntry(t *testing.T) {
@@ -73,8 +76,10 @@ func TestValidateRegistryEntry(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateRegistryEntry(tt.entry)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateRegistryEntry() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -132,22 +137,14 @@ func TestParsePluginSpecifier(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := ParsePluginSpecifier(tt.spec)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParsePluginSpecifier() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			if tt.wantErr {
+				require.Error(t, err)
 				return
 			}
-			if result.Name != tt.wantName {
-				t.Errorf("Name = %v, want %v", result.Name, tt.wantName)
-			}
-			if result.Version != tt.wantVersion {
-				t.Errorf("Version = %v, want %v", result.Version, tt.wantVersion)
-			}
-			if result.IsURL != tt.wantIsURL {
-				t.Errorf("IsURL = %v, want %v", result.IsURL, tt.wantIsURL)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantName, result.Name)
+			assert.Equal(t, tt.wantVersion, result.Version)
+			assert.Equal(t, tt.wantIsURL, result.IsURL)
 		})
 	}
 }
@@ -181,19 +178,13 @@ func TestParseGitHubURL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			owner, repo, err := ParseGitHubURL(tt.url)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseGitHubURL() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
 			if tt.wantErr {
+				require.Error(t, err)
 				return
 			}
-			if owner != tt.wantOwner {
-				t.Errorf("owner = %v, want %v", owner, tt.wantOwner)
-			}
-			if repo != tt.wantRepo {
-				t.Errorf("repo = %v, want %v", repo, tt.wantRepo)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantOwner, owner)
+			assert.Equal(t, tt.wantRepo, repo)
 		})
 	}
 }
