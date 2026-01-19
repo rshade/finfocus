@@ -45,6 +45,21 @@ type ReleaseAsset struct {
 	ContentType        string `json:"content_type"`
 }
 
+// FallbackInfo contains metadata about release selection, including whether
+// a fallback occurred during version resolution.
+type FallbackInfo struct {
+	// Release is the GitHub release that was selected
+	Release *GitHubRelease
+	// Asset is the platform-compatible asset from the release
+	Asset *ReleaseAsset
+	// WasFallback is true if the selected version differs from the requested version
+	WasFallback bool
+	// RequestedVersion is the original version that was requested (empty if @latest)
+	RequestedVersion string
+	// FallbackReason explains why fallback occurred (e.g., "no compatible assets")
+	FallbackReason string
+}
+
 // GitHubClient provides GitHub API access for releases.
 type GitHubClient struct {
 	HTTPClient *http.Client
@@ -164,7 +179,42 @@ func (c *GitHubClient) FindReleaseWithAsset(
 	owner, repo, version, projectName string,
 	hints *AssetNamingHints,
 ) (*GitHubRelease, *ReleaseAsset, error) {
+	info, err := c.FindReleaseWithFallbackInfo(owner, repo, version, projectName, hints)
+	if err != nil {
+		return nil, nil, err
+	}
+	return info.Release, info.Asset, nil
+}
+
+// FindReleaseWithFallbackInfo attempts to find a release with a matching platform asset,
+// returning detailed information about whether a fallback occurred.
+//
+// If version is specified, it first tries that exact version. If no asset is found
+// for the requested version, or if version is empty, it falls back to searching
+// through recent stable releases to find one with a compatible asset.
+//
+// Parameters:
+//   - owner, repo: GitHub repository owner and name
+//   - version: specific version to try first (empty string for latest)
+//   - projectName: project name used in asset filenames
+//   - hints: optional naming hints for asset matching
+//
+// Returns FallbackInfo containing:
+//   - Release and Asset that matched
+//   - WasFallback: true if the returned version differs from the requested version
+//   - RequestedVersion: the original version that was requested
+//   - FallbackReason: explanation if fallback occurred
+//
+//nolint:gocognit // Complexity is necessary to handle version lookup, fallback search, and asset matching scenarios
+func (c *GitHubClient) FindReleaseWithFallbackInfo(
+	owner, repo, version, projectName string,
+	hints *AssetNamingHints,
+) (*FallbackInfo, error) {
 	const maxFallbackReleases = 10
+
+	info := &FallbackInfo{
+		RequestedVersion: version,
+	}
 
 	// If specific version requested, try it first
 	if version != "" {
@@ -172,27 +222,34 @@ func (c *GitHubClient) FindReleaseWithAsset(
 		if err == nil {
 			asset, assetErr := FindPlatformAssetWithHints(release, projectName, hints)
 			if assetErr == nil {
-				return release, asset, nil
+				// Found exact match - no fallback needed
+				info.Release = release
+				info.Asset = asset
+				info.WasFallback = false
+				return info, nil
 			}
 			// Asset not found for requested version, will try fallback
+			info.FallbackReason = "no compatible assets"
+		} else {
+			// Release not found
+			info.FallbackReason = "release not found"
 		}
-		// Release not found or asset not found, continue to fallback
 	}
 
 	// Try stable releases as fallback
 	stableReleases, err := c.ListStableReleases(owner, repo, maxFallbackReleases)
 	if err != nil {
 		if version != "" {
-			return nil, nil, fmt.Errorf(
+			return nil, fmt.Errorf(
 				"version %s not available and failed to list fallback releases: %w",
 				version, err,
 			)
 		}
-		return nil, nil, fmt.Errorf("failed to list releases: %w", err)
+		return nil, fmt.Errorf("failed to list releases: %w", err)
 	}
 
 	if len(stableReleases) == 0 {
-		return nil, nil, errors.New("no stable releases found")
+		return nil, errors.New("no stable releases found")
 	}
 
 	// Try each stable release until we find one with a matching asset
@@ -201,18 +258,30 @@ func (c *GitHubClient) FindReleaseWithAsset(
 		release := &stableReleases[i]
 		asset, assetErr := FindPlatformAssetWithHints(release, projectName, hints)
 		if assetErr == nil {
-			return release, asset, nil
+			info.Release = release
+			info.Asset = asset
+			// It's a fallback if we had a specific version requested and got a different one
+			info.WasFallback = version != "" && release.TagName != version
+			if !info.WasFallback && version == "" {
+				// When no version specified, check if this was the "latest" release
+				// If we're iterating through stable releases, first one is latest
+				info.WasFallback = i > 0
+				if info.WasFallback {
+					info.FallbackReason = "latest version lacks compatible assets"
+				}
+			}
+			return info, nil
 		}
 		lastAssetErr = assetErr
 	}
 
 	if version != "" {
-		return nil, nil, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"no compatible asset found for version %s or any of %d fallback releases: %w",
 			version, len(stableReleases), lastAssetErr,
 		)
 	}
-	return nil, nil, fmt.Errorf(
+	return nil, fmt.Errorf(
 		"no compatible asset found in %d stable releases: %w",
 		len(stableReleases), lastAssetErr,
 	)

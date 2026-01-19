@@ -1023,6 +1023,8 @@ CodeRabbit now:
 - N/A (stateless command, data from plugins via gRPC) (109-cost-recommendations)
 - Go 1.25.5 + cobra v1.10.1, finfocus-spec v0.4.11 (pluginsdk), (111-state-actual-cost)
 - N/A (stateless CLI tool; reads Pulumi state JSON files) (111-state-actual-cost)
+- Go 1.25.5 + Cobra v1.10.2 (CLI), golang.org/x/term (TTY detection), existing `internal/registry` and `internal/tui` packages (116-plugin-install-fallback)
+- N/A (stateless CLI feature) (116-plugin-install-fallback)
 
 - Go 1.25.5 + pluginsdk v0.4.11+, zerolog v1.34.0; N/A storage (validation is stateless) (107-preflight-validation)
 - Go 1.25.5 + github.com/rshade/finfocus-spec v0.4.11 (pluginsdk) (106-analyzer-recommendations)
