@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.3](https://github.com/rshade/finfocus/compare/v0.2.2...v0.2.3) (2026-01-19)
+
+
+### Added
+
+* **cli:** add version fallback for plugin install command ([#439](https://github.com/rshade/finfocus/issues/439)) ([29ae341](https://github.com/rshade/finfocus/commit/29ae341acfbe146117fa43644a403e6bd98eafaa)), closes [#430](https://github.com/rshade/finfocus/issues/430)
+* **engine:** implement budget filtering and summary aggregation logic ([#446](https://github.com/rshade/finfocus/issues/446)) ([39ea80c](https://github.com/rshade/finfocus/commit/39ea80c5dee176986e97dee558c1a4e87fde9108))
+
+
+### Fixed
+
+* **registry:** make GitHub API tests platform-agnostic ([#453](https://github.com/rshade/finfocus/issues/453)) ([d8eac33](https://github.com/rshade/finfocus/commit/d8eac33ba963b002f72923dc9b31574d27eaf723)), closes [#452](https://github.com/rshade/finfocus/issues/452)
+
+
+### Documentation
+
+* **cli:** document --estimate-confidence flag for cost actual command ([a2684ae](https://github.com/rshade/finfocus/commit/a2684ae6fe931e273e9cbb8041349ef3b280bd14)), closes [#333](https://github.com/rshade/finfocus/issues/333)
+* **core:** update documentation for E2E testing and plugin ecosystem ([#454](https://github.com/rshade/finfocus/issues/454)) ([ee8d893](https://github.com/rshade/finfocus/commit/ee8d89328a5c169a6305f1e7afe6eeca49ac2b13))
+* **deployment:** expand deployment, security, config, troubleshooting, and support guides ([#441](https://github.com/rshade/finfocus/issues/441)) ([6edb8ef](https://github.com/rshade/finfocus/commit/6edb8efc4e6cb73dfe67ec6332231af8286ff1fe)), closes [#349](https://github.com/rshade/finfocus/issues/349) [#350](https://github.com/rshade/finfocus/issues/350) [#351](https://github.com/rshade/finfocus/issues/351) [#352](https://github.com/rshade/finfocus/issues/352) [#353](https://github.com/rshade/finfocus/issues/353)
+
 ## [0.2.2](https://github.com/rshade/finfocus/compare/v0.2.1...v0.2.2) (2026-01-18)
 
 
