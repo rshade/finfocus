@@ -2,13 +2,26 @@ package registry
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"testing"
 )
+
+// testAssetName generates a platform-specific asset name for testing.
+// This ensures tests pass on all platforms (Linux, macOS, Windows) by matching
+// what FindReleaseWithAsset expects based on runtime.GOOS and runtime.GOARCH.
+func testAssetName(project, version string) string {
+	ext := ".tar.gz"
+	if runtime.GOOS == "windows" {
+		ext = ".zip"
+	}
+	return fmt.Sprintf("%s_%s_%s_%s%s", project, version, runtime.GOOS, runtime.GOARCH, ext)
+}
 
 func TestGetLatestRelease(t *testing.T) {
 	// Setup mock server
@@ -225,13 +238,14 @@ func TestListStableReleases_NotFound(t *testing.T) {
 }
 
 func TestFindReleaseWithAsset_ExactVersionFound(t *testing.T) {
+	assetName := testAssetName("plugin", "v1.0.0")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/repos/owner/repo/releases/tags/v1.0.0":
 			release := GitHubRelease{
 				TagName: "v1.0.0",
 				Assets: []ReleaseAsset{
-					{Name: "plugin_v1.0.0_linux_amd64.tar.gz", BrowserDownloadURL: "http://dl/1"},
+					{Name: assetName, BrowserDownloadURL: "http://dl/1"},
 				},
 			}
 			if err := json.NewEncoder(w).Encode(release); err != nil {
@@ -261,32 +275,35 @@ func TestFindReleaseWithAsset_ExactVersionFound(t *testing.T) {
 }
 
 func TestFindReleaseWithAsset_FallbackToStable(t *testing.T) {
+	// v1.0.0 has the platform-specific asset we'll fall back to
+	v1AssetName := testAssetName("plugin", "v1.0.0")
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/repos/owner/repo/releases/tags/v2.0.0":
-			// Version exists but has no matching asset
+			// Version exists but has no matching asset (freebsd won't match any CI platform)
 			release := GitHubRelease{
 				TagName: "v2.0.0",
 				Assets: []ReleaseAsset{
-					{Name: "plugin_v2.0.0_windows_amd64.zip", BrowserDownloadURL: "http://dl/win"},
+					{Name: "plugin_v2.0.0_freebsd_amd64.tar.gz", BrowserDownloadURL: "http://dl/freebsd"},
 				},
 			}
 			if err := json.NewEncoder(w).Encode(release); err != nil {
 				t.Errorf("Failed to encode release: %v", err)
 			}
 		case "/repos/owner/repo/releases":
-			// Fallback releases - v1.0.0 has Linux asset
+			// Fallback releases - v1.0.0 has platform-specific asset
 			releases := []GitHubRelease{
 				{
 					TagName: "v2.0.0",
 					Assets: []ReleaseAsset{
-						{Name: "plugin_v2.0.0_windows_amd64.zip", BrowserDownloadURL: "http://dl/win"},
+						{Name: "plugin_v2.0.0_freebsd_amd64.tar.gz", BrowserDownloadURL: "http://dl/freebsd"},
 					},
 				},
 				{
 					TagName: "v1.0.0",
 					Assets: []ReleaseAsset{
-						{Name: "plugin_v1.0.0_linux_amd64.tar.gz", BrowserDownloadURL: "http://dl/linux"},
+						{Name: v1AssetName, BrowserDownloadURL: "http://dl/platform"},
 					},
 				},
 			}
@@ -303,29 +320,30 @@ func TestFindReleaseWithAsset_FallbackToStable(t *testing.T) {
 	client.BaseURL = server.URL
 	client.HTTPClient = server.Client()
 
-	// Request v2.0.0 which doesn't have Linux asset, should fallback to v1.0.0
+	// Request v2.0.0 which doesn't have platform asset, should fallback to v1.0.0
 	release, asset, err := client.FindReleaseWithAsset("owner", "repo", "v2.0.0", "plugin", nil)
 	if err != nil {
 		t.Fatalf("FindReleaseWithAsset failed: %v", err)
 	}
 
-	// Should have fallen back to v1.0.0 which has the Linux asset
+	// Should have fallen back to v1.0.0 which has the platform-specific asset
 	if release.TagName != "v1.0.0" {
 		t.Errorf("Expected fallback to v1.0.0, got %s", release.TagName)
 	}
-	if asset == nil || asset.Name != "plugin_v1.0.0_linux_amd64.tar.gz" {
-		t.Errorf("Expected Linux asset, got %v", asset)
+	if asset == nil || asset.Name != v1AssetName {
+		t.Errorf("Expected platform asset %s, got %v", v1AssetName, asset)
 	}
 }
 
 func TestFindReleaseWithAsset_NoVersionSpecified(t *testing.T) {
+	assetName := testAssetName("plugin", "v1.0.0")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/repos/owner/repo/releases" {
 			releases := []GitHubRelease{
 				{
 					TagName: "v1.0.0",
 					Assets: []ReleaseAsset{
-						{Name: "plugin_v1.0.0_linux_amd64.tar.gz", BrowserDownloadURL: "http://dl/1"},
+						{Name: assetName, BrowserDownloadURL: "http://dl/1"},
 					},
 				},
 			}

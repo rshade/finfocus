@@ -47,8 +47,10 @@ guardrails in `CONTEXT.md`.
 
 ## Immediate Priority (Bug Fixes)
 
-- [x] **Test Reliability & CI Stability** *(Completed 2026-01-18)*
-  - [x] Nightly test failures resolved (#417, #414, #424, #427)
+- [ ] **Test Reliability & CI Stability**
+  - [ ] Nightly test failure - 2026-01-19
+        ([#452](https://github.com/rshade/finfocus/issues/452))
+  - [x] Previous nightly failures resolved (#417, #414, #424, #427)
 
 ## Current Focus (v0.2.1 - Polish & DX Improvements)
 
@@ -102,6 +104,10 @@ guardrails in `CONTEXT.md`.
         ([#219](https://github.com/rshade/finfocus/issues/219))
   - [ ] Namespace filtering & Kubecost metadata handling
         ([#266](https://github.com/rshade/finfocus/issues/266))
+  - [ ] Budget health aggregation and multi-provider summary validation tests
+        ([#265](https://github.com/rshade/finfocus/issues/265))
+  - [ ] Kubecost budget mapping and namespace filtering validation tests
+        ([#264](https://github.com/rshade/finfocus/issues/264))
 - [ ] **Sustainability (GreenOps)**
   - [x] Integrate Sustainability Metrics into Engine & TUI (#302) *(Completed 2025-12-24)*
   - [ ] GreenOps Impact Equivalencies
@@ -143,6 +149,10 @@ guardrails in `CONTEXT.md`.
   - [x] Integration tests for config management commands (#254)
   - [ ] E2E test for actual cost command
         ([#334](https://github.com/rshade/finfocus/issues/334))
+  - [ ] Multi-region E2E testing support
+        ([#185](https://github.com/rshade/finfocus/issues/185))
+  - [ ] Set up AWS test account and infrastructure for E2E testing
+        ([#181](https://github.com/rshade/finfocus/issues/181))
 - [ ] **Fuzzing & Security**
   - [ ] Create fuzz test skeleton for JSON parser
         ([#330](https://github.com/rshade/finfocus/issues/330))
@@ -176,6 +186,8 @@ guardrails in `CONTEXT.md`.
 - [ ] **Remaining Documentation**
   - [ ] Update documentation for TUI features, budgets, and recommendations
         ([#226](https://github.com/rshade/finfocus/issues/226))
+  - [ ] Update documentation for E2E testing and plugin ecosystem
+        ([#182](https://github.com/rshade/finfocus/issues/182))
 
 ## Icebox / Backlog
 
