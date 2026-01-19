@@ -28,6 +28,9 @@ const (
 	centsMultiplier = 100
 	// milliMultiplier is the multiplier for rounding costs to 3 decimal places.
 	milliMultiplier = 1000
+
+	// maxRecommendationsPerRequest is the maximum number of recommendations to generate per request.
+	maxRecommendationsPerRequest = 5
 )
 
 // Mocker generates randomized but valid cost responses for testing.
@@ -106,5 +109,35 @@ func (m *Mocker) CreateEstimateCostResponse() *pbc.EstimateCostResponse {
 	return &pbc.EstimateCostResponse{
 		CostMonthly: monthlyCost,
 		Currency:    "USD",
+	}
+}
+
+// GenerateRecommendations generates a randomized list of recommendations.
+func (m *Mocker) GenerateRecommendations() []*pbc.Recommendation {
+	// Generate 1 to maxRecommendationsPerRequest recommendations
+	//nolint:gosec // G404: math/rand/v2 is appropriate for non-cryptographic mock data generation
+	count := 1 + rand.IntN(maxRecommendationsPerRequest)
+	recs := make([]*pbc.Recommendation, count)
+	for i := range count {
+		savings := m.GenerateProjectedCost()
+		recs[i] = &pbc.Recommendation{
+			Id:          fmt.Sprintf("mock-rec-%d", i),
+			ActionType:  pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_RIGHTSIZE,
+			Description: "Mock recommendation from recorder plugin",
+			Impact: &pbc.RecommendationImpact{
+				EstimatedSavings: savings,
+				Currency:         "USD",
+			},
+		}
+	}
+	return recs
+}
+
+// CreateRecommendationsResponse creates a mock GetRecommendationsResponse.
+func (m *Mocker) CreateRecommendationsResponse() *pbc.GetRecommendationsResponse {
+	recs := m.GenerateRecommendations()
+	m.logger.Debug().Int("count", len(recs)).Msg("generated mock recommendations")
+	return &pbc.GetRecommendationsResponse{
+		Recommendations: recs,
 	}
 }

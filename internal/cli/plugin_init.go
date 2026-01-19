@@ -1,24 +1,31 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/rs/zerolog"
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/logging"
 	"github.com/spf13/cobra"
 )
 
 // PluginInitOptions contains configuration options for plugin initialization.
 type PluginInitOptions struct {
-	Name      string
-	Author    string
-	Providers []string
-	OutputDir string
-	Force     bool
+	Name           string
+	Author         string
+	Providers      []string
+	OutputDir      string
+	Force          bool
+	RecordFixtures bool
+	FixtureVersion string
+	Offline        bool
+	Strict         bool
 }
 
 const (
@@ -414,6 +421,107 @@ EOF
 {{CODE_BLOCK_END}}
 `
 
+func runRecordingWorkflow(
+	ctx context.Context,
+	cmd *cobra.Command,
+	logger zerolog.Logger,
+	opts *PluginInitOptions,
+	projectDir string,
+) error {
+	resolver := NewFixtureResolver(
+		logger,
+		opts.Offline,
+		opts.FixtureVersion,
+		"test/fixtures",
+	)
+
+	// Resolve and download state fixture once (provider-agnostic)
+	stateSource, stateErr := resolver.ResolveStateFixture(ctx)
+	if stateErr != nil {
+		return fmt.Errorf("resolving state fixture: %w", stateErr)
+	}
+
+	cmd.Printf("  Resolved state fixture: %s\n", stateSource.Origin)
+
+	statePath, stateDownloadErr := resolver.DownloadFixture(ctx, stateSource)
+	if stateDownloadErr != nil {
+		return fmt.Errorf("downloading state fixture: %w", stateDownloadErr)
+	}
+	// Only remove downloaded files, not local fixtures
+	if !opts.Offline {
+		defer os.Remove(statePath)
+	}
+
+	recordingWorkflow := NewRecorderWorkflow(
+		logger,
+		projectDir,
+	)
+
+	if prepareErr := recordingWorkflow.PrepareOutputDirectory(); prepareErr != nil {
+		return fmt.Errorf("preparing recording directory: %w", prepareErr)
+	}
+
+	totalRecorded := 0
+
+	// Iterate over all providers
+	for _, provider := range opts.Providers {
+		cmd.Printf("  Processing provider: %s\n", provider)
+
+		planSource, planErr := resolver.ResolvePlanFixture(ctx, provider)
+		if planErr != nil {
+			logger.Warn().
+				Str("provider", provider).
+				Err(planErr).
+				Msg("failed to resolve plan fixture for provider")
+			return fmt.Errorf("resolving plan fixture for %s: %w", provider, planErr)
+		}
+
+		cmd.Printf("    Resolved plan fixture: %s\n", planSource.Origin)
+
+		planPath, downloadErr := resolver.DownloadFixture(ctx, planSource)
+		if downloadErr != nil {
+			logger.Warn().
+				Str("provider", provider).
+				Err(downloadErr).
+				Msg("failed to download plan fixture")
+			return fmt.Errorf("downloading plan fixture for %s: %w", provider, downloadErr)
+		}
+		// Only remove downloaded files, not local fixtures
+		if !opts.Offline {
+			defer os.Remove(planPath)
+		}
+
+		cmd.Printf("    Recording requests for %s...\n", provider)
+
+		if recordErr := recordingWorkflow.RunWithRecorder(ctx, planPath, statePath, true); recordErr != nil {
+			logger.Warn().
+				Str("provider", provider).
+				Err(recordErr).
+				Msg("recording workflow failed for provider")
+			return fmt.Errorf("running recording workflow for %s: %w", provider, recordErr)
+		}
+
+		if validateErr := recordingWorkflow.ValidateRecordings(); validateErr != nil {
+			logger.Warn().
+				Str("provider", provider).
+				Err(validateErr).
+				Msg("validation failed for provider recordings")
+			return fmt.Errorf("validating recordings for %s: %w", provider, validateErr)
+		}
+
+		session := recordingWorkflow.Session()
+		totalRecorded += len(session.Recorded)
+		cmd.Printf("    ✅ Recorded %d requests for %s\n", len(session.Recorded), provider)
+	}
+
+	if copyErr := recordingWorkflow.CopyRecordedRequestsToTestdata(projectDir); copyErr != nil {
+		return fmt.Errorf("copying recorded requests: %w", copyErr)
+	}
+
+	cmd.Printf("  ✅ Total recorded %d requests to testdata/recorded_requests/\n", totalRecorded)
+	return nil
+}
+
 func renderIssues(providers []string) string {
 	replacements := map[string]string{
 		"{{PROVIDERS}}":        strings.Join(providers, ", "),
@@ -491,6 +599,14 @@ This command creates a new directory structure for plugin development including:
 		StringSliceVar(&opts.Providers, "providers", []string{}, "Supported cloud providers (e.g., aws,azure,gcp)")
 	cmd.Flags().StringVar(&opts.OutputDir, "output-dir", ".", "Output directory for plugin project")
 	cmd.Flags().BoolVar(&opts.Force, "force", false, "Overwrite existing files if directory exists")
+	cmd.Flags().BoolVar(&opts.RecordFixtures, "record-fixtures", false,
+		"Generate recorded request fixtures during initialization")
+	cmd.Flags().StringVar(&opts.FixtureVersion, "fixture-version", "latest",
+		"Version of fixtures to fetch (tag or 'latest')")
+	cmd.Flags().BoolVar(&opts.Offline, "offline", false,
+		"Use local fixtures without network access")
+	cmd.Flags().BoolVar(&opts.Strict, "strict", false,
+		"Fail initialization if recording workflow encounters errors")
 
 	_ = cmd.MarkFlagRequired("author")
 	_ = cmd.MarkFlagRequired("providers")
@@ -539,6 +655,26 @@ func RunPluginInit(cmd *cobra.Command, opts *PluginInitOptions) error {
 		return fmt.Errorf("generating project files: %w", err)
 	}
 
+	// Run fixture recording workflow if enabled
+	if opts.RecordFixtures {
+		cmd.Printf("\n📦 Setting up recorded fixtures...\n")
+
+		loggerPtr := logging.FromContext(cmd.Context())
+		if loggerPtr == nil {
+			// Fallback to a default logger if context doesn't have one
+			logger := zerolog.Nop()
+			loggerPtr = &logger
+		}
+
+		if recordErr := runRecordingWorkflow(cmd.Context(), cmd, *loggerPtr, opts, projectDir); recordErr != nil {
+			if opts.Strict {
+				return fmt.Errorf("recording workflow failed: %w", recordErr)
+			}
+			cmd.Printf("⚠️  Recording workflow failed: %v\n", recordErr)
+			cmd.Printf("   Plugin initialized but without recorded fixtures.\n")
+		}
+	}
+
 	cmd.Printf("\n✅ Plugin project initialized successfully!\n\n")
 	cmd.Printf("Next steps:\n")
 	cmd.Printf("1. cd %s\n", projectDir)
@@ -546,6 +682,14 @@ func RunPluginInit(cmd *cobra.Command, opts *PluginInitOptions) error {
 	cmd.Printf("3. make build\n")
 	cmd.Printf("4. Edit internal/pricing/calculator.go to implement your pricing logic\n")
 	cmd.Printf("5. Edit internal/client/client.go to implement your cloud provider client\n\n")
+
+	if opts.RecordFixtures {
+		testdataDir := filepath.Join(projectDir, "testdata", "recorded_requests")
+		if _, err := os.Stat(testdataDir); err == nil {
+			cmd.Printf("Recorded fixtures available at: %s\n", testdataDir)
+		}
+	}
+
 	cmd.Printf("For more information, see the README.md file in your project.\n")
 
 	return nil
