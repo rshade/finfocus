@@ -23,20 +23,20 @@ func TestProjectedCost_FilterByType(t *testing.T) {
 	require.NoError(t, err)
 
 	// renderJSON wraps results in {"finfocus": ...}
-	var wrapper map[string]interface{}
+	var wrapper map[string]any
 	err = json.Unmarshal([]byte(output), &wrapper)
 	require.NoError(t, err)
 
-	result, ok := wrapper["finfocus"].(map[string]interface{})
+	result, ok := wrapper["finfocus"].(map[string]any)
 	require.True(t, ok, "expected finfocus wrapper")
 
-	resources, ok := result["resources"].([]interface{})
+	resources, ok := result["resources"].([]any)
 	require.True(t, ok, "expected resources to be an array")
 
 	// Verify filtered results
 	assert.NotEmpty(t, resources, "Expected matches for filter: type=aws:ec2/instance:Instance. Output: %s", output)
 	for _, r := range resources {
-		res, ok := r.(map[string]interface{})
+		res, ok := r.(map[string]any)
 		require.True(t, ok, "expected resource to be an object")
 		assert.Equal(t, "aws:ec2/instance:Instance", res["resourceType"])
 	}
@@ -54,18 +54,18 @@ func TestProjectedCost_FilterByTypeSubstring(t *testing.T) {
 	require.NoError(t, err)
 
 	// renderJSON wraps results in {"finfocus": ...}
-	var wrapper map[string]interface{}
+	var wrapper map[string]any
 	err = json.Unmarshal([]byte(output), &wrapper)
 	require.NoError(t, err)
 
-	result, ok := wrapper["finfocus"].(map[string]interface{})
+	result, ok := wrapper["finfocus"].(map[string]any)
 	require.True(t, ok, "expected finfocus wrapper")
 
-	resources, ok := result["resources"].([]interface{})
+	resources, ok := result["resources"].([]any)
 	require.True(t, ok, "expected resources to be an array")
 	assert.NotEmpty(t, resources)
 	for _, r := range resources {
-		res, ok := r.(map[string]interface{})
+		res, ok := r.(map[string]any)
 		require.True(t, ok, "expected resource to be an object")
 		assert.Contains(t, res["resourceType"], "Bucket")
 	}
@@ -83,18 +83,18 @@ func TestProjectedCost_FilterByProvider(t *testing.T) {
 	require.NoError(t, err)
 
 	// renderJSON wraps results in {"finfocus": ...}
-	var wrapper map[string]interface{}
+	var wrapper map[string]any
 	err = json.Unmarshal([]byte(output), &wrapper)
 	require.NoError(t, err)
 
-	result, ok := wrapper["finfocus"].(map[string]interface{})
+	result, ok := wrapper["finfocus"].(map[string]any)
 	require.True(t, ok, "expected finfocus wrapper")
 
-	resources, ok := result["resources"].([]interface{})
+	resources, ok := result["resources"].([]any)
 	require.True(t, ok, "expected resources to be an array")
 	assert.NotEmpty(t, resources)
 	for _, r := range resources {
-		res, ok := r.(map[string]interface{})
+		res, ok := r.(map[string]any)
 		require.True(t, ok, "expected resource to be an object")
 		typeStr, ok := res["resourceType"].(string)
 		require.True(t, ok, "expected resourceType to be a string")
@@ -114,7 +114,7 @@ func TestActualCost_FilterByTag(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	var resources []map[string]interface{}
+	var resources []map[string]any
 	err = json.Unmarshal([]byte(output), &resources)
 	require.NoError(t, err)
 
@@ -145,7 +145,7 @@ func TestActualCost_FilterByTagAndType(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	var resources []map[string]interface{}
+	var resources []map[string]any
 	err = json.Unmarshal([]byte(output), &resources)
 	require.NoError(t, err)
 
@@ -191,14 +191,14 @@ func TestProjectedCost_FilterNoMatch(t *testing.T) {
 	require.NoError(t, err)
 
 	// renderJSON wraps results in {"finfocus": ...}
-	var wrapper map[string]interface{}
+	var wrapper map[string]any
 	err = json.Unmarshal([]byte(output), &wrapper)
 	require.NoError(t, err)
 
-	result, ok := wrapper["finfocus"].(map[string]interface{})
+	result, ok := wrapper["finfocus"].(map[string]any)
 	require.True(t, ok, "expected finfocus wrapper")
 
-	resources, ok := result["resources"].([]interface{})
+	resources, ok := result["resources"].([]any)
 	require.True(t, ok, "expected resources to be an array")
 	assert.Empty(t, resources, "Expected no resources to match 'type=nonexistent'")
 }
@@ -228,14 +228,14 @@ func TestFilter_CaseSensitivity(t *testing.T) {
 	require.NoError(t, err)
 
 	// renderJSON wraps results in {"finfocus": ...}
-	var wrapper map[string]interface{}
+	var wrapper map[string]any
 	err = json.Unmarshal([]byte(output), &wrapper)
 	require.NoError(t, err)
 
-	result, ok := wrapper["finfocus"].(map[string]interface{})
+	result, ok := wrapper["finfocus"].(map[string]any)
 	require.True(t, ok, "expected finfocus wrapper")
 
-	resources, ok := result["resources"].([]interface{})
+	resources, ok := result["resources"].([]any)
 	require.True(t, ok)
 	assert.NotEmpty(t, resources, "Filter should be case-insensitive")
 }
@@ -258,15 +258,197 @@ func TestFilter_AllOutputFormats(t *testing.T) {
 
 			if format == "json" {
 				// renderJSON wraps results in {"finfocus": ...}
-				var wrapper map[string]interface{}
+				var wrapper map[string]any
 				err = json.Unmarshal([]byte(output), &wrapper)
 				assert.NoError(t, err)
-				result, ok := wrapper["finfocus"].(map[string]interface{})
+				result, ok := wrapper["finfocus"].(map[string]any)
 				require.True(t, ok, "expected finfocus wrapper")
-				resources, ok := result["resources"].([]interface{})
+				resources, ok := result["resources"].([]any)
 				require.True(t, ok, "expected resources to be an array")
 				assert.NotEmpty(t, resources)
 			}
 		})
+	}
+}
+
+// TestActualCost_FilterByTag_NDJSON tests tag filter with NDJSON output for actual costs.
+func TestActualCost_FilterByTag_NDJSON(t *testing.T) {
+	h := helpers.NewCLIHelper(t)
+	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
+
+	output, err := h.Execute(
+		"cost", "actual", "--pulumi-json", planFile,
+		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--filter", "tag:env=prod", "--output", "ndjson",
+	)
+	require.NoError(t, err)
+
+	// NDJSON should be newline-delimited JSON
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	assert.NotEmpty(t, lines, "Should have NDJSON lines")
+
+	// Each line should be valid JSON
+	for i, line := range lines {
+		if line == "" {
+			continue
+		}
+		var obj map[string]any
+		err = json.Unmarshal([]byte(line), &obj)
+		assert.NoError(t, err, "Line %d should be valid JSON", i)
+	}
+}
+
+// TestActualCost_FilterByType_Exact tests exact type match filter.
+func TestActualCost_FilterByType_Exact(t *testing.T) {
+	h := helpers.NewCLIHelper(t)
+	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
+
+	output, err := h.Execute(
+		"cost", "actual", "--pulumi-json", planFile,
+		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--filter", "type=aws:ec2/instance:Instance", "--output", "json",
+	)
+	require.NoError(t, err)
+
+	var resources []map[string]any
+	err = json.Unmarshal([]byte(output), &resources)
+	require.NoError(t, err)
+
+	// All results should have the exact type
+	for _, res := range resources {
+		resType, ok := res["resourceType"].(string)
+		require.True(t, ok, "resourceType should be a string")
+		assert.Contains(t, resType, "ec2", "Should match EC2 instances")
+	}
+}
+
+// TestActualCost_FilterByType_Substring tests partial type match filter.
+func TestActualCost_FilterByType_Substring(t *testing.T) {
+	h := helpers.NewCLIHelper(t)
+	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
+
+	output, err := h.Execute(
+		"cost", "actual", "--pulumi-json", planFile,
+		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--filter", "type=bucket", "--output", "json",
+	)
+	require.NoError(t, err)
+
+	var resources []map[string]any
+	err = json.Unmarshal([]byte(output), &resources)
+	require.NoError(t, err)
+
+	// All results should have bucket in the type
+	for _, res := range resources {
+		resType, ok := res["resourceType"].(string)
+		require.True(t, ok, "resourceType should be a string")
+		assert.Contains(t, strings.ToLower(resType), "bucket", "Should match bucket types")
+	}
+}
+
+// TestActualCost_FilterByProvider_Actual tests provider filter for actual costs.
+func TestActualCost_FilterByProvider_Actual(t *testing.T) {
+	h := helpers.NewCLIHelper(t)
+	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
+
+	output, err := h.Execute(
+		"cost", "actual", "--pulumi-json", planFile,
+		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--filter", "provider=aws", "--output", "json",
+	)
+	require.NoError(t, err)
+
+	var resources []map[string]any
+	err = json.Unmarshal([]byte(output), &resources)
+	require.NoError(t, err)
+
+	// All results should be from AWS
+	for _, res := range resources {
+		resType, ok := res["resourceType"].(string)
+		require.True(t, ok, "resourceType should be a string")
+		assert.True(t, strings.HasPrefix(resType, "aws:"), "Should only have AWS resources")
+	}
+}
+
+// TestActualCost_FilterNoMatch tests filter with no matching results.
+func TestActualCost_FilterNoMatch(t *testing.T) {
+	h := helpers.NewCLIHelper(t)
+	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
+
+	output, err := h.Execute(
+		"cost", "actual", "--pulumi-json", planFile,
+		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--filter", "type=nonexistent_type", "--output", "json",
+	)
+	require.NoError(t, err)
+
+	var resources []map[string]any
+	err = json.Unmarshal([]byte(output), &resources)
+	require.NoError(t, err)
+
+	// Should have empty result set
+	assert.Empty(t, resources, "Should have empty results for non-matching filter")
+}
+
+// TestActualCost_FilterCaseSensitivity tests case-insensitive filter matching.
+func TestActualCost_FilterCaseSensitivity(t *testing.T) {
+	h := helpers.NewCLIHelper(t)
+	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
+
+	// Use uppercase filter value
+	output, err := h.Execute(
+		"cost", "actual", "--pulumi-json", planFile,
+		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--filter", "TYPE=AWS:EC2/INSTANCE:INSTANCE", "--output", "json",
+	)
+	require.NoError(t, err)
+
+	var resources []map[string]any
+	err = json.Unmarshal([]byte(output), &resources)
+	require.NoError(t, err)
+
+	// Should find results with case-insensitive matching
+	assert.NotEmpty(t, resources, "Filter should be case-insensitive")
+}
+
+// TestActualCost_FilterInvalidSyntax_Actual tests invalid filter syntax for actual costs.
+func TestActualCost_FilterInvalidSyntax_Actual(t *testing.T) {
+	h := helpers.NewCLIHelper(t)
+	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
+
+	_, err := h.Execute(
+		"cost", "actual", "--pulumi-json", planFile,
+		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--filter", "invalid-no-equals-sign",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid filter syntax")
+}
+
+// TestActualCost_MultipleFilters tests using multiple --filter flags.
+func TestActualCost_MultipleFilters(t *testing.T) {
+	h := helpers.NewCLIHelper(t)
+	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
+
+	// Use multiple filter flags
+	output, err := h.Execute(
+		"cost", "actual", "--pulumi-json", planFile,
+		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--filter", "provider=aws",
+		"--filter", "type=ec2",
+		"--output", "json",
+	)
+	require.NoError(t, err)
+
+	var resources []map[string]any
+	err = json.Unmarshal([]byte(output), &resources)
+	require.NoError(t, err)
+
+	// All results should be AWS EC2 instances
+	for _, res := range resources {
+		resType, ok := res["resourceType"].(string)
+		require.True(t, ok, "resourceType should be a string")
+		assert.True(t, strings.HasPrefix(resType, "aws:"), "Should only have AWS resources")
+		assert.Contains(t, strings.ToLower(resType), "ec2", "Should only have EC2 resources")
 	}
 }

@@ -73,17 +73,15 @@ guardrails in `CONTEXT.md`.
   - [x] Upgrade cost commands to enhanced TUI (#218)
 - [x] **Code Quality**
   - [x] Fix CodeRabbit issues from #398 (#412) *(Completed 2026-01-17)*
-- [x] **Plugin Robustness** *(Completed 2026-01-18)*
+- [x] **Plugin Robustness** *(Completed 2026-01-19)*
   - [x] Respect strict mode for spec version parse errors (#435)
   - [x] Add Set/Get handlers for plugin_host config section (#434)
   - [x] Show installed plugins even when metadata fetch fails (#432)
   - [x] Add lock acquisition to RemoveOtherVersions (#431)
-  - [ ] Fallback to latest stable version when asset missing
-        ([#430](https://github.com/rshade/finfocus/issues/430))
-        *Status: Infrastructure implemented, needs integration into install flow*
+  - [x] Fallback to latest stable version when asset missing (#430)
+- [ ] **Code Quality (Ongoing)**
   - [ ] Replace manual assertions with testify in registry tests
         ([#429](https://github.com/rshade/finfocus/issues/429))
-        *Status: 2/10 test files converted*
 - [ ] **Deferred from v0.1.x**
   - [ ] Pagination for large datasets
         ([#225](https://github.com/rshade/finfocus/issues/225))
@@ -175,17 +173,13 @@ guardrails in `CONTEXT.md`.
 
 ## Documentation
 
-- [ ] **User & Developer Guides**
-  - [ ] Expand Support Channels documentation
-        ([#353](https://github.com/rshade/finfocus/issues/353))
-  - [ ] Expand Troubleshooting Guide
-        ([#352](https://github.com/rshade/finfocus/issues/352))
-  - [ ] Expand Configuration Guide
-        ([#351](https://github.com/rshade/finfocus/issues/351))
-  - [ ] Expand Security Guide
-        ([#350](https://github.com/rshade/finfocus/issues/350))
-  - [ ] Expand Deployment Overview
-        ([#349](https://github.com/rshade/finfocus/issues/349))
+- [x] **User & Developer Guides** *(Completed 2026-01-19)*
+  - [x] Expand Support Channels documentation (#353)
+  - [x] Expand Troubleshooting Guide (#352)
+  - [x] Expand Configuration Guide (#351)
+  - [x] Expand Security Guide (#350)
+  - [x] Expand Deployment Overview (#349)
+- [ ] **Remaining Documentation**
   - [ ] Update documentation for TUI features, budgets, and recommendations
         ([#226](https://github.com/rshade/finfocus/issues/226))
 

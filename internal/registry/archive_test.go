@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestSanitizePath(t *testing.T) {
@@ -54,8 +57,10 @@ func TestSanitizePath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := sanitizePath(tt.destDir, tt.path)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("sanitizePath() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -66,21 +71,15 @@ func TestValidateBinary(t *testing.T) {
 
 	// Create executable file
 	execPath := filepath.Join(tmpDir, "executable")
-	if err := os.WriteFile(execPath, []byte("binary"), 0750); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(execPath, []byte("binary"), 0750))
 
 	// Create non-executable file
 	nonExecPath := filepath.Join(tmpDir, "nonexec")
-	if err := os.WriteFile(nonExecPath, []byte("data"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(nonExecPath, []byte("data"), 0644))
 
 	// Create directory
 	dirPath := filepath.Join(tmpDir, "directory")
-	if err := os.MkdirAll(dirPath, 0750); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(dirPath, 0750))
 
 	tests := []struct {
 		name    string
@@ -120,8 +119,10 @@ func TestValidateBinary(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateBinary(tt.path)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ValidateBinary() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -139,19 +140,13 @@ func TestExtractArchive(t *testing.T) {
 		"file2.txt": "content2",
 	})
 
-	if err := os.MkdirAll(destDir, 0750); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(destDir, 0750))
 
 	err := ExtractArchive(tarPath, destDir)
-	if err != nil {
-		t.Errorf("ExtractArchive() error = %v", err)
-	}
+	require.NoError(t, err)
 
 	// Verify files extracted
-	if _, err := os.Stat(filepath.Join(destDir, "file1.txt")); os.IsNotExist(err) {
-		t.Error("file1.txt was not extracted")
-	}
+	assert.FileExists(t, filepath.Join(destDir, "file1.txt"))
 }
 
 func TestExtractArchiveZip(t *testing.T) {
@@ -165,19 +160,13 @@ func TestExtractArchiveZip(t *testing.T) {
 		"file2.txt": "content2",
 	})
 
-	if err := os.MkdirAll(destDir, 0750); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.MkdirAll(destDir, 0750))
 
 	err := ExtractArchive(zipPath, destDir)
-	if err != nil {
-		t.Errorf("ExtractArchive() error = %v", err)
-	}
+	require.NoError(t, err)
 
 	// Verify files extracted
-	if _, err := os.Stat(filepath.Join(destDir, "file1.txt")); os.IsNotExist(err) {
-		t.Error("file1.txt was not extracted")
-	}
+	assert.FileExists(t, filepath.Join(destDir, "file1.txt"))
 }
 
 func TestExtractArchiveUnsupported(t *testing.T) {
@@ -185,38 +174,26 @@ func TestExtractArchiveUnsupported(t *testing.T) {
 	unsupportedPath := filepath.Join(tmpDir, "test.rar")
 	destDir := filepath.Join(tmpDir, "extracted")
 
-	if err := os.WriteFile(unsupportedPath, []byte("fake"), 0644); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, os.WriteFile(unsupportedPath, []byte("fake"), 0644))
 
 	err := ExtractArchive(unsupportedPath, destDir)
-	if err == nil {
-		t.Error("expected error for unsupported archive format")
-	}
+	require.Error(t, err, "expected error for unsupported archive format")
 }
 
 func TestExtractArchiveNonExistent(t *testing.T) {
 	tmpDir := t.TempDir()
 	err := ExtractArchive(filepath.Join(tmpDir, "nonexistent.tar.gz"), tmpDir)
-	if err == nil {
-		t.Error("expected error for non-existent archive")
-	}
+	require.Error(t, err, "expected error for non-existent archive")
 }
 
 func TestMaxFileSizeBoundary(t *testing.T) {
 	// Test that maxFileSize constant is set to 500MB
-	expectedSize := int64(500 * 1024 * 1024)
-	if maxFileSize != expectedSize {
-		t.Errorf("maxFileSize = %d, want %d (500MB)", maxFileSize, expectedSize)
-	}
+	expectedSize := 500 * 1024 * 1024
+	assert.Equal(t, expectedSize, maxFileSize, "maxFileSize should be 500MB")
 
 	// Test that the boundary is reasonable (greater than 100MB, less than 1GB)
-	if maxFileSize <= 100*1024*1024 {
-		t.Error("maxFileSize should be greater than 100MB for plugin compatibility")
-	}
-	if maxFileSize >= 1024*1024*1024 {
-		t.Error("maxFileSize should be less than 1GB to prevent excessive memory usage")
-	}
+	assert.Greater(t, maxFileSize, 100*1024*1024, "maxFileSize should be greater than 100MB for plugin compatibility")
+	assert.Less(t, maxFileSize, 1024*1024*1024, "maxFileSize should be less than 1GB to prevent excessive memory usage")
 }
 
 // Helper to create test tar.gz archives.
@@ -224,9 +201,7 @@ func createTestTarGz(t *testing.T, path string, files map[string]string) {
 	t.Helper()
 
 	f, err := os.Create(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer f.Close()
 
 	gw := gzip.NewWriter(f)
@@ -241,12 +216,9 @@ func createTestTarGz(t *testing.T, path string, files map[string]string) {
 			Mode: 0644,
 			Size: int64(len(content)),
 		}
-		if err := tw.WriteHeader(hdr); err != nil {
-			t.Fatal(err)
-		}
-		if _, err := tw.Write([]byte(content)); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, tw.WriteHeader(hdr))
+		_, err := tw.Write([]byte(content))
+		require.NoError(t, err)
 	}
 }
 
@@ -255,9 +227,7 @@ func createTestZip(t *testing.T, path string, files map[string]string) {
 	t.Helper()
 
 	f, err := os.Create(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer f.Close()
 
 	zw := zip.NewWriter(f)
@@ -265,11 +235,8 @@ func createTestZip(t *testing.T, path string, files map[string]string) {
 
 	for name, content := range files {
 		w, err := zw.Create(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if _, err := w.Write([]byte(content)); err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
+		_, err = w.Write([]byte(content))
+		require.NoError(t, err)
 	}
 }

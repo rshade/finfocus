@@ -2,6 +2,9 @@ package registry
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseVersionConstraint(t *testing.T) {
@@ -22,8 +25,10 @@ func TestParseVersionConstraint(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := ParseVersionConstraint(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("ParseVersionConstraint() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
 			}
 		})
 	}
@@ -31,9 +36,7 @@ func TestParseVersionConstraint(t *testing.T) {
 
 func TestSatisfiesConstraint(t *testing.T) {
 	constraint, err := ParseVersionConstraint(">=1.0.0,<2.0.0")
-	if err != nil {
-		t.Fatalf("ParseVersionConstraint() error = %v", err)
-	}
+	require.NoError(t, err)
 
 	tests := []struct {
 		version string
@@ -49,23 +52,17 @@ func TestSatisfiesConstraint(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
 			got, err := SatisfiesConstraint(tt.version, constraint)
-			if err != nil {
-				t.Errorf("SatisfiesConstraint() error = %v", err)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("SatisfiesConstraint(%q) = %v, want %v", tt.version, got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got, "SatisfiesConstraint(%q)", tt.version)
 		})
 	}
 }
 
 func TestSatisfiesConstraintInvalidVersion(t *testing.T) {
-	constraint, _ := ParseVersionConstraint(">=1.0.0")
-	_, err := SatisfiesConstraint("invalid", constraint)
-	if err == nil {
-		t.Error("SatisfiesConstraint() expected error for invalid version")
-	}
+	constraint, err := ParseVersionConstraint(">=1.0.0")
+	require.NoError(t, err)
+	_, err = SatisfiesConstraint("invalid", constraint)
+	require.Error(t, err, "expected error for invalid version")
 }
 
 func TestCompareVersions(t *testing.T) {
@@ -86,13 +83,8 @@ func TestCompareVersions(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.v1+" vs "+tt.v2, func(t *testing.T) {
 			got, err := CompareVersions(tt.v1, tt.v2)
-			if err != nil {
-				t.Errorf("CompareVersions() error = %v", err)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("CompareVersions(%q, %q) = %v, want %v", tt.v1, tt.v2, got, tt.want)
-			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got, "CompareVersions(%q, %q)", tt.v1, tt.v2)
 		})
 	}
 }
@@ -110,9 +102,7 @@ func TestCompareVersionsInvalid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := CompareVersions(tt.v1, tt.v2)
-			if err == nil {
-				t.Error("CompareVersions() expected error for invalid version")
-			}
+			require.Error(t, err, "expected error for invalid version")
 		})
 	}
 }
@@ -135,9 +125,7 @@ func TestIsValidVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
-			if got := IsValidVersion(tt.version); got != tt.want {
-				t.Errorf("IsValidVersion(%q) = %v, want %v", tt.version, got, tt.want)
-			}
+			assert.Equal(t, tt.want, IsValidVersion(tt.version), "IsValidVersion(%q)", tt.version)
 		})
 	}
 }
