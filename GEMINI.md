@@ -194,7 +194,6 @@ import (
 - 115-v021-dx-improvements: Added Go 1.25.5
 - 113-rebrand-to-finfocus: Added Go 1.25.5 + `github.com/spf13/cobra` (CLI), `github.com/spf13/viper` (Config), `github.com/rshade/finfocus-spec` (renamed from `finfocus-spec`)
 
-- 112-plugin-info-discovery: Added Go 1.25.5 + github.com/rshade/finfocus-spec v0.4.14, github.com/Masterminds/semver/v3
 
   plus Jekyll (for docs site), GitHub Pages
   plan JSON.

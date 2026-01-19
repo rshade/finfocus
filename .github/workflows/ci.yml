@@ -189,13 +189,15 @@ jobs:
 
       - name: Run JSON fuzz test (30s smoke)
         run: |
-          go test -fuzz=FuzzJSON -fuzztime=30s ./internal/ingest
-          go test -fuzz=FuzzPulumiPlanParse -fuzztime=30s ./internal/ingest
+          # Use -timeout=60s to give cleanup headroom beyond the 30s fuzz duration
+          go test -fuzz=FuzzJSON -fuzztime=30s -timeout=60s ./internal/ingest
+          go test -fuzz=FuzzPulumiPlanParse -fuzztime=30s -timeout=60s ./internal/ingest
 
       - name: Run YAML fuzz test (30s smoke)
         run: |
-          go test -fuzz=FuzzYAML -fuzztime=30s ./internal/spec
-          go test -fuzz=FuzzSpecFilename -fuzztime=30s ./internal/spec
+          # Use -timeout=60s to give cleanup headroom beyond the 30s fuzz duration
+          go test -fuzz=FuzzYAML -fuzztime=30s -timeout=60s ./internal/spec
+          go test -fuzz=FuzzSpecFilename -fuzztime=30s -timeout=60s ./internal/spec
 
       - name: Save fuzz corpus cache
         uses: actions/cache/save@v5
