@@ -16,6 +16,7 @@ FinFocus Core is a CLI tool that analyzes Pulumi infrastructure definitions to p
 - **🔌 Plugin-Based**: Extensible architecture supporting multiple cost data sources
 - **🌱 Sustainability**: Estimate carbon footprint and energy usage
 - **📈 Advanced Analytics**: Resource grouping, filtering, and aggregation
+- **💰 Budgets**: Core engine support for filtering and health aggregation of budgets
 - **📱 Multiple Formats**: Table, JSON, and NDJSON output options
 - **🔍 Smart Filtering**: Filter by resource type, tags, or custom expressions
 - **⏰ Time Range Queries**: Flexible date range support for cost analysis
