@@ -159,7 +159,22 @@ timestamp if not provided.`,
 //   - --from is missing when using --pulumi-json
 //   - Resource loading fails
 //   - Time range parsing fails
-//   - Plugin communication fails
+//
+// executeCostActual orchestrates the "actual" cost workflow for the CLI command.
+// It validates input flags, loads and filters resources, resolves the requested
+// time range, opens adapter plugins, requests actual cost data from the engine,
+// renders the results and optional budget status, and records audit information.
+//
+// cmd is the Cobra command whose context and I/O are used for the operation.
+// params holds CLI flag values and options that control loading, filtering,
+// grouping, output formatting, adapter selection, and estimate confidence.
+//
+// The function returns an error when validation fails, resources or plan/state
+// cannot be loaded or mapped, filter expressions are invalid, the time range
+// cannot be parsed or is out of bounds, plugin initialization or communication
+// fails, fetching actual costs fails, or rendering the output fails. Rendering
+// budget status is non-fatal: failures there are logged as warnings and do not
+// make the function return an error.
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -231,6 +246,17 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	for _, r := range resultWithErrors.Results {
 		totalCost += r.TotalCost
 	}
+
+	currency, mixedCurrencies := extractCurrencyFromResults(resultWithErrors.Results)
+
+	// Render budget status only for table format and when currencies are consistent
+	if !mixedCurrencies && params.output == "table" {
+		if budgetErr := renderBudgetIfConfigured(cmd, totalCost, currency); budgetErr != nil {
+			log.Warn().Ctx(ctx).Err(budgetErr).Msg("failed to render budget status")
+			// Don't fail the command, just log the warning.
+		}
+	}
+
 	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
 	return nil
 }
@@ -322,6 +348,31 @@ func ValidateDateRange(from, to time.Time) error {
 			"Tip: Use --group-by monthly to analyze longer periods efficiently", days, maxDateRangeDays)
 	}
 	return nil
+}
+
+// extractCurrencyFromResults scans results to find a single canonical currency.
+// It returns the currency code and a boolean indicating if mixed currencies were detected.
+// If no currency is found, it defaults to "USD".
+func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
+	currency := ""
+	mixedCurrencies := false
+
+	for _, r := range results {
+		if r.Currency != "" {
+			if currency == "" {
+				currency = r.Currency
+			} else if r.Currency != currency {
+				mixedCurrencies = true
+				break
+			}
+		}
+	}
+
+	if currency == "" {
+		currency = "USD" //nolint:goconst // Default currency, isolated use.
+	}
+
+	return currency, mixedCurrencies
 }
 
 // parseTagFilter parses a group-by specifier for a tag filter and returns the parsed tags and the resulting groupBy.

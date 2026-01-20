@@ -69,6 +69,9 @@ docs/.jekyll-cache/
 docs/.jekyll-metadata
 docs/Gemfile.lock
 
+# Large original logo (use logo-readme.png for README)
+docs/assets/logo.png
+
 # NPM/Node artifacts
 node_modules/
 package-lock.json
