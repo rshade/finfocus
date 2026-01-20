@@ -985,7 +985,8 @@ func (c *Config) getCostBudgetsValue(parts []string) (interface{}, error) {
 	}
 }
 
-// GetOutputFormat returns the output format to use, preferring user choice over config default.
+// GetOutputFormat selects the output format, preferring the provided userChoice over the configured default.
+// It returns userChoice if non-empty; otherwise it returns the DefaultFormat from the global configuration.
 func GetOutputFormat(userChoice string) string {
 	// If user provided a format, use it
 	if userChoice != "" {

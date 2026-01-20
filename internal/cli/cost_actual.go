@@ -159,7 +159,21 @@ timestamp if not provided.`,
 //   - --from is missing when using --pulumi-json
 //   - Resource loading fails
 //   - Time range parsing fails
-//   - Plugin communication fails
+// executeCostActual orchestrates the "actual" cost workflow for the CLI command.
+// It validates input flags, loads and filters resources, resolves the requested
+// time range, opens adapter plugins, requests actual cost data from the engine,
+// renders the results and optional budget status, and records audit information.
+//
+// cmd is the Cobra command whose context and I/O are used for the operation.
+// params holds CLI flag values and options that control loading, filtering,
+// grouping, output formatting, adapter selection, and estimate confidence.
+//
+// The function returns an error when validation fails, resources or plan/state
+// cannot be loaded or mapped, filter expressions are invalid, the time range
+// cannot be parsed or is out of bounds, plugin initialization or communication
+// fails, fetching actual costs fails, or rendering the output fails. Rendering
+// budget status is non-fatal: failures there are logged as warnings and do not
+// make the function return an error.
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)

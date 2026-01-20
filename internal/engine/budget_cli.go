@@ -79,7 +79,7 @@ type DefaultBudgetEngine struct {
 	now func() time.Time
 }
 
-// NewBudgetEngine creates a new DefaultBudgetEngine instance.
+// NewBudgetEngine returns a DefaultBudgetEngine configured to use time.Now as the time source.
 func NewBudgetEngine() *DefaultBudgetEngine {
 	return &DefaultBudgetEngine{
 		now: time.Now,
@@ -87,7 +87,9 @@ func NewBudgetEngine() *DefaultBudgetEngine {
 }
 
 // NewBudgetEngineWithTime creates a new DefaultBudgetEngine with a custom time function.
-// This is useful for testing scenarios where time needs to be controlled.
+// NewBudgetEngineWithTime creates a DefaultBudgetEngine that uses nowFunc as the source of current time.
+// nowFunc is called whenever the engine needs the current time and enables deterministic behavior for tests.
+// It returns a pointer to a DefaultBudgetEngine configured to use the provided time function.
 func NewBudgetEngineWithTime(nowFunc func() time.Time) *DefaultBudgetEngine {
 	return &DefaultBudgetEngine{
 		now: nowFunc,
@@ -190,7 +192,10 @@ func (e *DefaultBudgetEngine) evaluateAlerts(
 	return results
 }
 
-// evaluateThreshold determines the status for a single threshold.
+// evaluateThreshold determines the threshold status for a given percentage relative to a threshold.
+// It returns ThresholdStatusExceeded when `percentage` is greater than or equal to `threshold`,
+// ThresholdStatusApproaching when `percentage` is within `ApproachingThresholdBuffer` percentage points below `threshold`,
+// and ThresholdStatusOK otherwise.
 func evaluateThreshold(threshold, percentage float64) ThresholdStatusValue {
 	if percentage >= threshold {
 		return ThresholdStatusExceeded
