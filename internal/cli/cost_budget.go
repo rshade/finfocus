@@ -34,21 +34,41 @@ const (
 	thresholdPercent80  = 80
 )
 
-// Budget color definitions (as functions to avoid global variables).
-func boxBorderColor() lipgloss.Color   { return lipgloss.Color("240") }
-func boxTitleColor() lipgloss.Color    { return lipgloss.Color("39") }
-func colorWarning() lipgloss.Color     { return lipgloss.Color("214") }
-func colorApproaching() lipgloss.Color { return lipgloss.Color("220") }
-func progressOKColor() lipgloss.Color  { return lipgloss.Color("42") }
+// boxBorderColor returns the lipgloss.Color used for budget box borders.
+func boxBorderColor() lipgloss.Color { return lipgloss.Color("240") }
 
-//nolint:unused // Used for warning color in progress bar (kept for completeness).
-func progressWarningColor() lipgloss.Color  { return lipgloss.Color("214") }
+// boxTitleColor returns the Lip Gloss color used for budget box titles.
+func boxTitleColor() lipgloss.Color { return lipgloss.Color("39") }
+
+// colorWarning returns the lipgloss color used for warning-level (approaching) budget states.
+func colorWarning() lipgloss.Color { return lipgloss.Color("214") }
+
+// colorApproaching returns the Lip Gloss color used to style alerts and progress indicators when a budget is approaching its threshold.
+func colorApproaching() lipgloss.Color { return lipgloss.Color("220") }
+
+// progressOKColor returns the color used for progress bars that indicate an OK (below warning) budget level.
+func progressOKColor() lipgloss.Color { return lipgloss.Color("42") }
+
+// progressWarningColor returns the lipgloss.Color used to represent a warning state in the progress bar.
+// It is retained for completeness and may be unused in the current presentation logic.
+//
+//nolint:unused // Retained for future use and API completeness
+func progressWarningColor() lipgloss.Color { return lipgloss.Color("214") }
+
+// progressExceededColor returns the Lip Gloss color used for progress bars and alerts when a budget has been exceeded.
 func progressExceededColor() lipgloss.Color { return lipgloss.Color("196") }
 
 // RenderBudgetStatus renders the budget status to the writer.
 // It automatically detects if the output is a TTY and renders appropriately:
 // - TTY: Styled output with colors and borders using Lip Gloss.
-// - Non-TTY: Plain text output suitable for CI/CD pipelines.
+// RenderBudgetStatus renders the given budget status to w using a terminal-styled
+// bordered box when w is a TTY or plain text suitable for non-interactive outputs
+// otherwise.
+//
+// w is the destination for the rendered output. status is the budget status to
+// render; if status is nil, the function performs no output and returns nil.
+//
+// The function returns any error produced by the chosen rendering implementation.
 func RenderBudgetStatus(w io.Writer, status *engine.BudgetStatus) error {
 	if status == nil {
 		return nil
@@ -62,7 +82,8 @@ func RenderBudgetStatus(w io.Writer, status *engine.BudgetStatus) error {
 }
 
 // isWriterTerminal checks if the writer is a terminal (TTY).
-// This wraps the package-level isTerminal function for io.Writer compatibility.
+// isWriterTerminal reports whether the provided io.Writer refers to a terminal.
+// It returns true when w is an *os.File whose file descriptor is a terminal, and false for any other writer.
 func isWriterTerminal(w io.Writer) bool {
 	// If w is a file (like os.Stdout), check if it's a terminal
 	if f, ok := w.(*os.File); ok {
@@ -73,10 +94,20 @@ func isWriterTerminal(w io.Writer) bool {
 }
 
 // renderStyledBudget renders a styled budget status box using Lip Gloss.
-// This is displayed when output is to a TTY terminal.
+// renderStyledBudget writes a styled, bordered budget status box to the provided writer for TTY output.
+//
+// It renders title, budget and current spend lines, a colored progress bar, alert messages, and an
+// optional forecasted spend line using terminal styling. If `status` contains forecast or alert
+// information those are included in the box.
+//
+// Parameters:
+//   - w: the destination io.Writer (expected to be a terminal/TTY).
+//   - status: the budget status to render; its fields drive the amounts, percentages, alerts, and forecast.
+//
+// Returns an error if writing the rendered box to `w` fails.
 func renderStyledBudget(w io.Writer, status *engine.BudgetStatus) error {
 	// Get terminal width for responsive layout
-	width := getTerminalWidth()
+	width := getTerminalWidth(w)
 	boxWidth := calculateBoxWidth(width)
 	barWidth := calculateProgressBarWidth(boxWidth)
 
@@ -147,37 +178,55 @@ func renderStyledBudget(w io.Writer, status *engine.BudgetStatus) error {
 }
 
 // renderPlainBudget renders a plain text budget status for non-TTY environments.
-// This is suitable for CI/CD pipelines and log files.
+// renderPlainBudget writes a plain-text budget summary to w suitable for non-TTY environments such as CI/CD pipelines and log files.
+// It writes a header, the configured budget, current spend with percentage, a status message, and an optional forecasted spend line based on the provided status.
+// The status parameter supplies currency, budget amounts, current and forecasted spends, and percentage values used in the output.
+// It returns an error if any write operation fails.
 func renderPlainBudget(w io.Writer, status *engine.BudgetStatus) error {
 	p := message.NewPrinter(language.English)
 
-	fmt.Fprintln(w, "BUDGET STATUS")
-	fmt.Fprintln(w, "=============")
-	fmt.Fprintf(w, "Budget: %s%.2f/%s\n",
+	if _, err := fmt.Fprintln(w, "BUDGET STATUS"); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(w, "============="); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "Budget: %s%.2f/%s\n",
 		currencySymbol(status.Currency),
 		status.Budget.Amount,
-		status.Budget.GetPeriod())
-	fmt.Fprintf(w, "Current Spend: %s%.2f (%.1f%%)\n",
+		status.Budget.GetPeriod()); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintf(w, "Current Spend: %s%.2f (%.1f%%)\n",
 		currencySymbol(status.Currency),
 		status.CurrentSpend,
-		status.Percentage)
+		status.Percentage); err != nil {
+		return err
+	}
 
 	// Status line
 	statusMsg := getStatusMessage(status)
-	_, _ = p.Fprintf(w, "Status: %s\n", statusMsg)
+	if _, err := p.Fprintf(w, "Status: %s\n", statusMsg); err != nil {
+		return err
+	}
 
 	// Forecasted spend (if applicable)
 	if status.ForecastedSpend > 0 {
-		fmt.Fprintf(w, "Forecasted: %s%.2f (%.1f%%)\n",
+		if _, err := fmt.Fprintf(w, "Forecasted: %s%.2f (%.1f%%)\n",
 			currencySymbol(status.Currency),
 			status.ForecastedSpend,
-			status.ForecastPercentage)
+			status.ForecastPercentage); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
-// renderProgressBar creates an ASCII progress bar with color based on status.
+// renderProgressBar renders a colored ASCII progress bar representing the given budget status.
+// It uses status.CappedPercentage to compute the filled portion and `width` as the total bar length.
+// The returned string combines colored filled and empty segments and appends a numeric percentage
+// label; the percentage label is highlighted with the exceeded style when the status is over budget.
 func renderProgressBar(status *engine.BudgetStatus, width int) string {
 	// Calculate filled portion (capped at 100%)
 	cappedPercent := status.CappedPercentage()
@@ -206,7 +255,8 @@ func renderProgressBar(status *engine.BudgetStatus, width int) string {
 	return filled + empty + percentLabel
 }
 
-// determineProgressBarColor returns the appropriate color based on percentage.
+// determineProgressBarColor chooses a progress bar color based on the percentage of budget used.
+// It returns the exceeded color for percentages >= 100%, a warning color for percentages >= 80% and < 100%, and the OK color for percentages < 80%.
 func determineProgressBarColor(percentage float64) lipgloss.Color {
 	switch {
 	case percentage >= thresholdPercent100:
@@ -218,7 +268,8 @@ func determineProgressBarColor(percentage float64) lipgloss.Color {
 	}
 }
 
-// renderAlertMessages creates alert message lines based on threshold statuses.
+// renderAlertMessages formats alert messages for the thresholds contained in the provided BudgetStatus.
+// It returns the formatted alert lines joined with newline separators; if there are no alerts to show, an empty string is returned.
 func renderAlertMessages(status *engine.BudgetStatus) string {
 	var messages []string
 
@@ -240,7 +291,9 @@ func renderAlertMessages(status *engine.BudgetStatus) string {
 	return strings.Join(messages, "\n")
 }
 
-// formatAlertMessage creates a human-readable alert message.
+// formatAlertMessage returns a formatted alert string that combines the provided prefix with the alert's
+// type ("spend" or "forecasted spend") and the alert threshold as a whole percentage. The returned string
+// has the form "<prefix> - <type> exceeds <threshold>%".
 func formatAlertMessage(alert engine.ThresholdStatus, prefix string) string {
 	typeStr := "spend"
 	if alert.Type == config.AlertTypeForecasted {
@@ -249,7 +302,11 @@ func formatAlertMessage(alert engine.ThresholdStatus, prefix string) string {
 	return fmt.Sprintf("%s - %s exceeds %.0f%% threshold", prefix, typeStr, alert.Threshold)
 }
 
-// getStatusMessage returns a plain text status message for non-TTY output.
+// getStatusMessage returns a plain-text status label for non-TTY output.
+// It returns one of:
+// - "WARNING - Exceeds X% threshold" when any threshold has been exceeded (X is the highest exceeded threshold),
+// - "APPROACHING - Near budget threshold" when a threshold is being approached,
+// - "OK - Within budget" when the spend is within configured thresholds.
 func getStatusMessage(status *engine.BudgetStatus) string {
 	if status.HasExceededAlerts() {
 		highest := status.GetHighestExceededThreshold()
@@ -261,7 +318,8 @@ func getStatusMessage(status *engine.BudgetStatus) string {
 	return "OK - Within budget"
 }
 
-// currencySymbol returns the symbol for a currency code.
+// currencySymbol maps a three-letter currency code to its typographic symbol.
+// For unrecognized codes the function returns the original code followed by a space.
 func currencySymbol(currency string) string {
 	symbols := map[string]string{
 		"USD": "$",
@@ -278,8 +336,19 @@ func currencySymbol(currency string) string {
 	return currency + " "
 }
 
-// getTerminalWidth returns the current terminal width.
-func getTerminalWidth() int {
+// getTerminalWidth returns the terminal width in columns for the given io.Writer.
+// If the writer is an *os.File, it queries the terminal size using GetSize.
+// If the terminal size cannot be determined or yields a non-positive width,
+// it returns a sensible fallback width (defaultBoxWidth + boxPaddingWidth).
+func getTerminalWidth(w io.Writer) int {
+	// Try to detect if the writer is an *os.File with a file descriptor
+	if f, ok := w.(*os.File); ok {
+		width, _, err := term.GetSize(int(f.Fd()))
+		if err == nil && width > 0 {
+			return width
+		}
+	}
+	// Fallback: try os.Stdout as a last resort
 	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {
 		return defaultBoxWidth + boxPaddingWidth
@@ -299,7 +368,9 @@ func calculateBoxWidth(termWidth int) int {
 	return boxWidth
 }
 
-// calculateProgressBarWidth calculates the progress bar width based on box width.
+// calculateProgressBarWidth returns the width available for the progress bar given the containing box width.
+// It subtracts barPaddingWidth from boxWidth and then clamps the result to be at least minProgressBarWidth
+// and at most progressBarWidth.
 func calculateProgressBarWidth(boxWidth int) int {
 	barWidth := boxWidth - barPaddingWidth
 	barWidth = max(barWidth, minProgressBarWidth)
@@ -309,7 +380,18 @@ func calculateProgressBarWidth(boxWidth int) int {
 
 // renderBudgetIfConfigured checks if a budget is configured and renders status if so.
 // It evaluates the current spend against the configured budget and displays the result.
-// If no budget is configured, it returns nil without rendering anything.
+// renderBudgetIfConfigured checks whether a budget is configured in the global
+// configuration and, if so, evaluates the configured budgets against the
+// provided totalCost and currency and renders the resulting budget status to
+// the command's stdout.
+//
+// cmd is the cobra command used for output. totalCost is the current total
+// cost to evaluate. currency is the currency code used for evaluation.
+//
+// If no global configuration exists or no budget is configured, renderBudgetIfConfigured
+// does nothing and returns nil. It returns an error if budget evaluation fails
+// or if rendering the budget status fails. A blank line is printed to the
+// command output immediately before the rendered status when a budget is shown.
 func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency string) error {
 	// Get the global configuration
 	cfg := config.GetGlobalConfig()

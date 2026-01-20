@@ -31,6 +31,7 @@ var (
 	ErrBudgetCurrencyRequired = errors.New(
 		"currency is required when budget amount is greater than 0",
 	)
+	ErrUnsupportedBudgetPeriod  = errors.New("budget period must be 'monthly'")
 	ErrAlertThresholdOutOfRange = errors.New("alert threshold must be between 0 and 1000")
 	ErrAlertTypeInvalid         = errors.New("alert type must be 'actual' or 'forecasted'")
 )
@@ -97,6 +98,12 @@ func (b BudgetConfig) Validate() error {
 	// If budget is disabled (Amount == 0), no further validation needed
 	if b.IsDisabled() {
 		return nil
+	}
+
+	// Period validation: only "monthly" is supported
+	// Check period before other validations so invalid periods fail fast
+	if b.Period != "" && b.Period != DefaultBudgetPeriod {
+		return fmt.Errorf("%w: got %q", ErrUnsupportedBudgetPeriod, b.Period)
 	}
 
 	// Currency is required for enabled budgets

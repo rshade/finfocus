@@ -424,12 +424,30 @@ func TestEvaluateThreshold(t *testing.T) {
 		percentage float64
 		expected   ThresholdStatusValue
 	}{
+		// Normal thresholds (> 5%)
 		{"exceeded - exactly at threshold", 80.0, 80.0, ThresholdStatusExceeded},
 		{"exceeded - above threshold", 80.0, 85.0, ThresholdStatusExceeded},
 		{"approaching - within 5%", 80.0, 76.0, ThresholdStatusApproaching},
 		{"approaching - exactly 5% below", 80.0, 75.0, ThresholdStatusApproaching},
 		{"OK - more than 5% below", 80.0, 74.0, ThresholdStatusOK},
 		{"OK - well below", 80.0, 50.0, ThresholdStatusOK},
+
+		// Small thresholds (at or below 5% buffer)
+		// Threshold at buffer value (5%) - no approaching state possible
+		{"small threshold 5% - exceeded", 5.0, 5.0, ThresholdStatusExceeded},
+		{"small threshold 5% - above", 5.0, 6.0, ThresholdStatusExceeded},
+		{"small threshold 5% - below, no approaching", 5.0, 4.0, ThresholdStatusOK},
+		{"small threshold 5% - zero", 5.0, 0.0, ThresholdStatusOK},
+
+		// Threshold below buffer (3%)
+		{"small threshold 3% - exceeded", 3.0, 3.0, ThresholdStatusExceeded},
+		{"small threshold 3% - above", 3.0, 4.0, ThresholdStatusExceeded},
+		{"small threshold 3% - below, no approaching", 3.0, 2.0, ThresholdStatusOK},
+		{"small threshold 3% - zero", 3.0, 0.0, ThresholdStatusOK},
+
+		// Threshold 0%
+		{"zero threshold - exceeded", 0.0, 0.0, ThresholdStatusExceeded},
+		{"zero threshold - above", 0.0, 1.0, ThresholdStatusExceeded},
 	}
 
 	for _, tc := range tests {
