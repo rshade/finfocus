@@ -1,10 +1,4 @@
----
-title: finfocus Strategic Roadmap
-description: >-
-  Strategic roadmap mapping 1:1 with GitHub Issues, outlining the evolution
-  of finfocus while adhering to technical guardrails.
-layout: docs
----
+# FinFocus Strategic Roadmap
 
 This roadmap maps 1:1 with tracked work in GitHub Issues. It outlines the
 evolution of `finfocus` while strictly adhering to the technical
@@ -13,14 +7,12 @@ guardrails in `CONTEXT.md`.
 ## Table of Contents
 
 - [Past Milestones](#past-milestones-done)
-- [Immediate Priority](#immediate-priority-bug-fixes)
-- [Current Focus (v0.2.1)](#current-focus-v021---polish--dx-improvements)
+- [Current Focus (v0.2.4)](#current-focus-v024---remaining-polish)
 - [Near-Term Vision (v0.3.0)](#near-term-vision-v030---budgeting--intelligence)
 - [Future Vision (v0.4.0)](#future-vision-v040---notifications--integrations)
 - [Stability & Maintenance](#stability--maintenance)
 - [Documentation](#documentation)
 - [Icebox / Backlog](#icebox--backlog)
-- [Naming & Branding](#naming--branding)
 
 ## Past Milestones (Done)
 
@@ -45,45 +37,30 @@ guardrails in `CONTEXT.md`.
   - [x] State-based actual cost estimation for `cost actual` (#380, #382)
   - [x] Plugin info and dry-run discovery (#398)
   - [x] Ecosystem rebrand to FinFocus (#415)
-
-## Immediate Priority (Bug Fixes)
-
-- [x] **Test Reliability & CI Stability** *(Completed 2026-01-19)*
-  - [x] Nightly test failure - 2026-01-19
-        ([#452](https://github.com/rshade/finfocus/issues/452))
-  - [x] Previous nightly failures resolved (#417, #414, #424, #427)
-
-## Current Focus (v0.2.1 - Polish & DX Improvements)
-
-- [x] **Cost Estimation Enhancements** *(Completed 2026-01-18)*
-  - [x] Add `--estimate-confidence` flag for actual cost transparency
-        ([#333](https://github.com/rshade/finfocus/issues/333))
-- [x] **Plugin Ecosystem Maturity** *(Completed in PR #398)*
+- [x] **v0.2.1-v0.2.3: Polish & DX Improvements** *(Released 2026-01-19)*
+  - [x] Add `--estimate-confidence` flag for actual cost transparency (#333)
   - [x] Implement GetPluginInfo consumer-side requirements (#376)
-- [ ] **Developer Experience & Tooling**
   - [x] Parallel plugin metadata fetching in plugin list command (#408)
-        *(Completed in PR #426)*
+  - [x] Cross-Repository Integration Test Workflow (#236)
+  - [x] Upgrade cost commands to enhanced TUI (#218)
+  - [x] Plugin robustness: strict mode, config handlers, metadata fallback (#435, #434, #432, #431)
+  - [x] Fallback to latest stable version when asset missing (#430)
+  - [x] Budget filtering and summary aggregation logic (#446)
+  - [x] Replace manual assertions with testify (#429)
+  - [x] Plugin installer: remove old versions during install (#237)
+  - [x] E2E test for actual cost command (#334)
+  - [x] Set up AWS test account and infrastructure (#181)
+  - [x] Fuzzing seeds, benchmarks, and validation improvements (#326)
+  - [x] Documentation updates (#182, #349-#353, #454)
+
+## Current Focus (v0.2.4 - Remaining Polish)
+
+- [ ] **Developer Experience & Tooling**
   - [ ] Dynamic Data Recording via Integration Plans
         ([#275](https://github.com/rshade/finfocus/issues/275))
-  - [ ] Cross-Repository Integration Test Workflow
-        ([#236](https://github.com/rshade/finfocus/issues/236))
-- [x] **Enhanced Visualization** *(Completed 2026-01-17)*
-  - [x] Upgrade cost commands to enhanced TUI (#218)
-- [x] **Code Quality**
-  - [x] Fix CodeRabbit issues from #398 (#412) *(Completed 2026-01-17)*
-- [x] **Plugin Robustness** *(Completed 2026-01-19)*
-  - [x] Respect strict mode for spec version parse errors (#435)
-  - [x] Add Set/Get handlers for plugin_host config section (#434)
-  - [x] Show installed plugins even when metadata fetch fails (#432)
-  - [x] Add lock acquisition to RemoveOtherVersions (#431)
-  - [x] Fallback to latest stable version when asset missing (#430)
-- [x] **Code Quality** *(Completed 2026-01-19)*
-  - [x] Replace manual assertions with testify in registry tests (#429)
-- [ ] **Deferred from v0.1.x**
+- [ ] **Deferred Items**
   - [ ] Pagination for large datasets
         ([#225](https://github.com/rshade/finfocus/issues/225))
-  - [x] Plugin installer: remove old versions during install (#237)
-        *(Completed in PR #426 - `--clean` flag and auto-removal on update)*
 
 ## Near-Term Vision (v0.3.0 - Budgeting & Intelligence)
 
@@ -126,11 +103,14 @@ guardrails in `CONTEXT.md`.
   - [ ] UX: "Warning Mode" UI styles for bypassed runs
   - *Cross-Repo:* Requires `BypassReason` in
     [finfocus-spec](https://github.com/rshade/finfocus-spec)
-- [ ] **Interoperability & Data Exchange**
-  - [ ] Implement JSON-LD export for FOCUS cost records
-        *(Issue TBD - Cross-Repo: Uses sdk/go/jsonld from spec 032)*
-  - [ ] OpenCost Compatibility Mapping
-        *(Issue TBD)*
+- [ ] **What-If Analysis**
+  - [ ] Add 'cost estimate' command for scenario modeling
+        ([#463](https://github.com/rshade/finfocus/issues/463))
+        *Cross-Repo: Uses `EstimateCost` RPC from finfocus-spec v0.5.2*
+- [ ] **Recommendation Lifecycle**
+  - [ ] Add recommendation dismissal and snooze management
+        ([#464](https://github.com/rshade/finfocus/issues/464))
+        *Cross-Repo: Uses `DismissRecommendation` RPC from finfocus-spec v0.5.2*
 - [ ] **Contextual Profiles ("Dev Mode")**
       ([#368](https://github.com/rshade/finfocus/issues/368))
   - [ ] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
@@ -158,25 +138,23 @@ guardrails in `CONTEXT.md`.
   - [x] Integration tests for `--group-by` flag (#250)
   - [x] Integration tests for `cost actual` command scenarios (#252)
   - [x] Integration tests for config management commands (#254)
-  - [ ] E2E test for actual cost command
-        ([#334](https://github.com/rshade/finfocus/issues/334))
+  - [x] E2E test for actual cost command
+        ([#334](https://github.com/rshade/finfocus/issues/334)) *(Completed 2026-01-19)*
+  - [x] Set up AWS test account and infrastructure for E2E testing
+        ([#181](https://github.com/rshade/finfocus/issues/181)) *(Completed 2026-01-19)*
   - [ ] Multi-region E2E testing support
         ([#185](https://github.com/rshade/finfocus/issues/185))
-  - [ ] Set up AWS test account and infrastructure for E2E testing
-        ([#181](https://github.com/rshade/finfocus/issues/181))
-- [ ] **Fuzzing & Security**
+- [x] **Fuzzing & Security** *(Completed 2026-01-19)*
   - [x] Create fuzz test skeleton for JSON parser
-        ([#330](https://github.com/rshade/finfocus/issues/330)) *(Completed)*
-  - [ ] Improve fuzzing seeds, benchmarks, and validation
+        ([#330](https://github.com/rshade/finfocus/issues/330))
+  - [x] Improve fuzzing seeds, benchmarks, and validation
         ([#326](https://github.com/rshade/finfocus/issues/326))
 - [ ] **CI/CD & Automation**
   - [ ] Harden Nightly Analysis Workflow
         ([#325](https://github.com/rshade/finfocus/issues/325))
 - [ ] **Plugin SDK Hardening**
-  - [ ] Implement configurable CORS & Security headers for plugin servers
-        *(Issue TBD)*
-  - [ ] Adopt enhanced ARN provider type safety
-        *(Issue TBD)*
+  - [ ] Research: Evaluate GetPricingSpec RPC usage in core
+        ([#465](https://github.com/rshade/finfocus/issues/465))
 - [x] **Code Quality Refactoring** *(Completed 2026-01-18)*
   - [x] Extract shared applyFilters helper (#337) *(Completed 2026-01-18)*
   - [x] Remove redundant .Ctx(ctx) calls in ingest/state.go
@@ -194,11 +172,11 @@ guardrails in `CONTEXT.md`.
   - [x] Expand Configuration Guide (#351)
   - [x] Expand Security Guide (#350)
   - [x] Expand Deployment Overview (#349)
+  - [x] Update documentation for E2E testing and plugin ecosystem
+        ([#182](https://github.com/rshade/finfocus/issues/182)) *(Completed 2026-01-19)*
 - [ ] **Remaining Documentation**
   - [ ] Update documentation for TUI features, budgets, and recommendations
         ([#226](https://github.com/rshade/finfocus/issues/226))
-  - [ ] Update documentation for E2E testing and plugin ecosystem
-        ([#182](https://github.com/rshade/finfocus/issues/182))
 
 ## Icebox / Backlog
 
@@ -240,21 +218,8 @@ guardrails in `CONTEXT.md`.
 | GreenOps Receipt | CarbonFootprint | Converter | CCF Math | N/A |
 | Spot Market Advisor | PricingTier | Cyan style | N/A | SpotHistory |
 | Dev Mode | UsageProfile | --profile | Burstable | IOPS warn |
-
-## Naming & Branding
-
-- [ ] **Project Rename**
-  - *Objective*: Replace the dry `finfocus` name with a stronger brand identity.
-  - *Current Leader*: **Tailly** (CLI: `tally`)
-    - *Vibe*: Developer-friendly, ecosystem-native (the "Tail" of the Pulumi Platypus).
-    - *Command*: `tally cost projected` (avoiding `tail` conflict while
-      preserving clear verb structure).
-    - *Mascot Potential*: High (Platypus).
-  - *Alternative*: **FinFocus** (CLI: `fin`)
-    - *Vibe*: Enterprise, compliance-focused (FinOps FOCUS spec).
-    - *Command*: `fin cost projected`.
-  - *Decision*: Leaning towards **Tailly** for better DX; **FinFocus**
-    offers stronger enterprise signaling.
+| What-If Analysis | EstimateCost | cost estimate | PropertyDelta | N/A |
+| Rec Lifecycle | DismissRecommendation | dismiss/snooze | Dismiss | N/A |
 
 ### Strategic Research Items (The "Detailed Horizon")
 
@@ -269,7 +234,8 @@ guardrails in `CONTEXT.md`.
     returned by the orchestration layer.
   - *Success Criteria*: A valid GFM document is generated that renders
     correctly in a GitHub comment using only data from the `CostResult` array.
-- [ ] **Interactive "What-If" Property Tuning**
+- [x] **Interactive "What-If" Property Tuning**
+      ([#463](https://github.com/rshade/finfocus/issues/463)) *Tracked*
   - *Objective*: Allow developers to explore pricing alternatives for a
     resource in real-time without modifying Pulumi code.
   - *Technical Approach*: Extend the TUI to allow key-value editing of a
@@ -291,17 +257,3 @@ guardrails in `CONTEXT.md`.
     configuration.
   - *Success Criteria*: The CLI produces a "Policy Violated" diagnostic when
     a plugin-returned cost exceeds the user-defined threshold.
-
----
-
-**Verification Questions:**
-
-1. **Statelessness Conflicts**: Issue #138 (Caching) and #137
-   (Metrics/Telemetry) suggest persistent state. Should these be reframed to
-   focus on *integration* with external systems (e.g., Prometheus/Redis)
-   rather than internal core implementation?
-2. **Feature Bloom**: Issue #141 (Distributed calculation) seems out of scope
-   for a "Lightweight Orchestrator." Should this be closed as "Will Not Do"?
-3. **Budget Health**: Feature #267 assumes thresholds are stored in
-   `~/.finfocus/config.yaml`. Does this local config-driven approach
-   satisfy our "transient to the process" mandate?

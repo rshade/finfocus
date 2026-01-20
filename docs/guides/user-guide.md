@@ -15,11 +15,12 @@ infrastructure.
 4. [Cost Types](#cost-types)
 5. [Common Workflows](#common-workflows)
 6. [Configuration](#configuration)
-7. [Output Formats](#output-formats)
-8. [Filtering and Grouping](#filtering-and-grouping)
-9. [Debugging and Logging](#debugging-and-logging)
-10. [Logging Configuration](#logging-configuration)
-11. [Troubleshooting](#troubleshooting)
+7. [Budget Management](#budget-management)
+8. [Output Formats](#output-formats)
+9. [Filtering and Grouping](#filtering-and-grouping)
+10. [Debugging and Logging](#debugging-and-logging)
+11. [Logging Configuration](#logging-configuration)
+12. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -308,6 +309,213 @@ resources:
       monthly: 15.00
       currency: USD
 ```
+
+---
+
+## Budget Management
+
+FinFocus allows you to set spending limits and receive alerts when your cloud costs
+approach or exceed configured thresholds. This helps you stay in control of your
+infrastructure spending.
+
+### Configuring a Budget
+
+Add a budget configuration to your `~/.finfocus/config.yaml`:
+
+```yaml
+cost:
+  budgets:
+    amount: 1000.00
+    currency: USD
+    period: monthly
+    alerts:
+      - threshold: 50
+        type: actual
+      - threshold: 80
+        type: actual
+      - threshold: 100
+        type: forecasted
+```
+
+**Configuration Fields:**
+
+| Field        | Description                                         | Example          |
+| ------------ | --------------------------------------------------- | ---------------- |
+| `amount`     | Total spend limit for the period                    | `1000.00`        |
+| `currency`   | ISO 4217 currency code                              | `USD`, `EUR`     |
+| `period`     | Budget period (default: monthly)                    | `monthly`        |
+| `alerts`     | List of threshold alerts                            | See below        |
+
+**Alert Configuration:**
+
+| Field       | Description                                          | Values                   |
+| ----------- | ---------------------------------------------------- | ------------------------ |
+| `threshold` | Percentage of budget that triggers alert             | `0` - `1000`             |
+| `type`      | What spend to check against threshold                | `actual`, `forecasted`   |
+
+### Alert Types
+
+**Actual Alerts** (`type: actual`)
+
+Triggers when your current spending exceeds the threshold percentage of your budget.
+
+```yaml
+alerts:
+  - threshold: 80
+    type: actual  # Alert when actual spend reaches 80% of budget
+```
+
+**Forecasted Alerts** (`type: forecasted`)
+
+Triggers when your projected end-of-period spend exceeds the threshold. Uses linear
+extrapolation based on your current daily spending rate.
+
+```yaml
+alerts:
+  - threshold: 100
+    type: forecasted  # Alert when forecasted spend will exceed budget
+```
+
+### Viewing Budget Status
+
+When a budget is configured, FinFocus automatically displays budget status after
+cost calculations:
+
+**Terminal Output (TTY):**
+
+```text
+╭──────────────────────────────────────────╮
+│ BUDGET STATUS                            │
+│ ────────────────────────────────────     │
+│                                          │
+│ Budget: $1,000.00/monthly                │
+│ Current Spend: $850.00 (85.0%)           │
+│                                          │
+│ ██████████████████████████░░░░ 85%       │
+│                                          │
+│ ⚠ WARNING - spend exceeds 80% threshold  │
+│                                          │
+│ Forecasted: $1,240.00 (124.0%)           │
+╰──────────────────────────────────────────╯
+```
+
+**CI/CD Output (Non-TTY):**
+
+```text
+BUDGET STATUS
+=============
+Budget: $1000.00/monthly
+Current Spend: $850.00 (85.0%)
+Status: WARNING - Exceeds 80% threshold
+Forecasted: $1240.00 (124.0%)
+```
+
+### Progress Bar Colors
+
+The progress bar color indicates budget health:
+
+| Color  | Meaning                        |
+| ------ | ------------------------------ |
+| Green  | Under 80% of budget            |
+| Yellow | Between 80% and 100% of budget |
+| Red    | Over 100% of budget            |
+
+### Alert Status Levels
+
+| Status       | Indicator | Description                                    |
+| ------------ | --------- | ---------------------------------------------- |
+| OK           | (none)    | Spend is below threshold                       |
+| APPROACHING  | ◉         | Within 5% of threshold (e.g., 75-80%)          |
+| EXCEEDED     | ⚠         | At or above threshold                          |
+
+### Forecasting Logic
+
+Forecasted spend uses linear extrapolation:
+
+```text
+Forecasted Spend = (Current Spend / Current Day) × Total Days in Month
+```
+
+**Example:**
+
+- Current day: 15th of a 31-day month
+- Current spend: $600
+- Daily rate: $600 / 15 = $40/day
+- Forecasted spend: $40 × 31 = $1,240
+
+### Common Budget Configurations
+
+**Basic Budget with Single Alert:**
+
+```yaml
+cost:
+  budgets:
+    amount: 500.00
+    currency: USD
+    alerts:
+      - threshold: 80
+        type: actual
+```
+
+**Comprehensive Budget with Multiple Alerts:**
+
+```yaml
+cost:
+  budgets:
+    amount: 2000.00
+    currency: USD
+    period: monthly
+    alerts:
+      - threshold: 50
+        type: actual      # Heads-up at 50%
+      - threshold: 80
+        type: actual      # Warning at 80%
+      - threshold: 100
+        type: actual      # Critical at 100%
+      - threshold: 100
+        type: forecasted  # Proactive: warn if forecast exceeds budget
+```
+
+**Proactive Forecasting Only:**
+
+```yaml
+cost:
+  budgets:
+    amount: 1000.00
+    currency: USD
+    alerts:
+      - threshold: 90
+        type: forecasted  # Warn if forecast will hit 90%
+      - threshold: 100
+        type: forecasted  # Critical if forecast will exceed budget
+```
+
+### Disabling Budgets
+
+Set the amount to 0 to disable budget tracking:
+
+```yaml
+cost:
+  budgets:
+    amount: 0  # Budget disabled
+```
+
+### Multi-Currency Support
+
+FinFocus supports multiple currencies for budget display:
+
+| Currency | Symbol |
+| -------- | ------ |
+| USD      | $      |
+| EUR      | €      |
+| GBP      | £      |
+| JPY      | ¥      |
+| CAD      | C$     |
+| AUD      | A$     |
+| CHF      | CHF    |
+
+**Note:** Budget currency must match your actual cost currency. A currency mismatch
+will result in an error.
 
 ---
 

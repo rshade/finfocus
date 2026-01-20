@@ -68,6 +68,7 @@ type Config struct {
 	Logging          LoggingConfig           `yaml:"logging"     json:"logging"`
 	Analyzer         AnalyzerConfig          `yaml:"analyzer"    json:"analyzer"`
 	PluginHostConfig PluginHostConfig        `yaml:"plugin_host" json:"plugin_host"`
+	Cost             CostConfig              `yaml:"cost"        json:"cost"`
 
 	// Internal fields
 	configPath string
@@ -348,6 +349,8 @@ func (c *Config) Set(key, value string) error {
 		return c.setLoggingValue(parts[1:], value)
 	case "plugin_host":
 		return c.setPluginHostValue(parts[1:], value)
+	case "cost":
+		return c.setCostValue(parts[1:], value)
 	default:
 		return fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -369,6 +372,8 @@ func (c *Config) Get(key string) (interface{}, error) {
 		return c.getLoggingValue(parts[1:])
 	case "plugin_host":
 		return c.getPluginHostValue(parts[1:])
+	case "cost":
+		return c.getCostValue(parts[1:])
 	default:
 		return nil, fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -382,6 +387,7 @@ func (c *Config) List() map[string]interface{} {
 		"logging":     c.Logging,
 		"analyzer":    c.Analyzer,
 		"plugin_host": c.PluginHostConfig,
+		"cost":        c.Cost,
 	}
 }
 
@@ -417,6 +423,11 @@ func (c *Config) Validate() error {
 	// Validate plugin configurations
 	if err := c.validatePluginConfigurations(); err != nil {
 		return fmt.Errorf("plugin configuration validation failed: %w", err)
+	}
+
+	// Validate cost configuration
+	if err := c.Cost.Validate(); err != nil {
+		return fmt.Errorf("cost configuration validation failed: %w", err)
 	}
 
 	return nil
@@ -904,6 +915,73 @@ func (c *Config) getPluginHostValue(parts []string) (interface{}, error) {
 		return c.PluginHostConfig.StrictCompatibility, nil
 	default:
 		return nil, fmt.Errorf("unknown plugin_host setting: %s", parts[0])
+	}
+}
+
+// Helper methods for cost values.
+func (c *Config) setCostValue(parts []string, value string) error {
+	if len(parts) < 1 {
+		return errors.New("invalid cost key")
+	}
+
+	switch parts[0] {
+	case "budgets":
+		return c.setCostBudgetsValue(parts[1:], value)
+	default:
+		return fmt.Errorf("unknown cost setting: %s", parts[0])
+	}
+}
+
+func (c *Config) setCostBudgetsValue(parts []string, value string) error {
+	if len(parts) != 1 {
+		return errors.New("invalid cost.budgets key")
+	}
+
+	switch parts[0] {
+	case "amount":
+		amount, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return fmt.Errorf("amount must be a number: %w", err)
+		}
+		c.Cost.Budgets.Amount = amount
+	case "currency":
+		c.Cost.Budgets.Currency = value
+	case "period":
+		c.Cost.Budgets.Period = value
+	default:
+		return fmt.Errorf("unknown cost.budgets setting: %s", parts[0])
+	}
+
+	return nil
+}
+
+func (c *Config) getCostValue(parts []string) (interface{}, error) {
+	if len(parts) < 1 {
+		return c.Cost, nil
+	}
+
+	switch parts[0] {
+	case "budgets":
+		return c.getCostBudgetsValue(parts[1:])
+	default:
+		return nil, fmt.Errorf("unknown cost setting: %s", parts[0])
+	}
+}
+
+func (c *Config) getCostBudgetsValue(parts []string) (interface{}, error) {
+	if len(parts) < 1 {
+		return c.Cost.Budgets, nil
+	}
+
+	switch parts[0] {
+	case "amount":
+		return c.Cost.Budgets.Amount, nil
+	case "currency":
+		return c.Cost.Budgets.Currency, nil
+	case "period":
+		return c.Cost.Budgets.GetPeriod(), nil
+	default:
+		return nil, fmt.Errorf("unknown cost.budgets setting: %s", parts[0])
 	}
 }
 

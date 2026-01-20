@@ -228,9 +228,20 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		Dur("duration_ms", time.Since(audit.start)).Msg("actual cost calculation complete")
 
 	totalCost := 0.0
+	currency := "USD" //nolint:goconst // Default currency, isolated use.
 	for _, r := range resultWithErrors.Results {
 		totalCost += r.TotalCost
+		if r.Currency != "" {
+			currency = r.Currency
+		}
 	}
+
+	// Render budget status if configured.
+	if budgetErr := renderBudgetIfConfigured(cmd, totalCost, currency); budgetErr != nil {
+		log.Warn().Ctx(ctx).Err(budgetErr).Msg("failed to render budget status")
+		// Don't fail the command, just log the warning.
+	}
+
 	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
 	return nil
 }

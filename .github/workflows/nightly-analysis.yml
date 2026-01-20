@@ -8,6 +8,7 @@ jobs:
   analyze-failure:
     if: github.event.label.name == 'nightly-failure'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: read
       issues: write
@@ -21,35 +22,42 @@ jobs:
         with:
           go-version-file: 'go.mod'
 
-      - name: Setup OpenCode CLI
-        run: |
-          npm install -g @opencode/cli
+      - name: Install OpenCode CLI
+        run: curl -fsSL https://opencode.ai/install | bash
+        env:
+          VERSION: '1.0.114'
 
       - name: Analyze Failure Context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          go run scripts/analysis/analyze_failure.go \
+          if ! go run scripts/analysis/analyze_failure.go \
             --issue-body "$ISSUE_BODY" \
-            --output context.txt
+            --output context.txt; then
+            echo "::error::Failed to analyze failure context"
+            exit 1
+          fi
 
       - name: Generate Analysis Report
         env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: |
-          opencode run \
+          if ! opencode run \
             --model "claude-3-5-sonnet-20241022" \
             --context context.txt \
             --prompt "Analyze this CI failure log. Provide a structured report with: 1. Executive Summary, 2. Root Cause Analysis (be specific), 3. Recommended Fixes. Format as Markdown." \
-            > analysis.md
+            > analysis.md; then
+            echo "::error::Failed to generate analysis report"
+            exit 1
+          fi
 
       - name: Post Triage Report
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -f analysis.md ]; then
+          if [ -s analysis.md ]; then
             gh issue comment ${{ github.event.issue.number }} --body-file analysis.md
           else
-            echo "::warning::analysis.md not found, skipping comment"
+            echo "::warning::analysis.md not found or empty, skipping comment"
           fi
