@@ -421,6 +421,20 @@ EOF
 {{CODE_BLOCK_END}}
 `
 
+// runRecordingWorkflow resolves fixtures, downloads required plan and state fixtures,
+// executes a recording workflow for each provider in opts, validates the recordings,
+// and copies recorded requests into the project's testdata/recorded_requests directory.
+//
+// The ctx controls cancellation for network and IO operations. The cmd is used for
+// user-facing progress output. The logger records structured diagnostics. opts
+// provides initialization flags and the list of providers to record. projectDir
+// is the root directory of the generated plugin project where recordings are stored.
+//
+// On success, recorded request files are written under projectDir/testdata/recorded_requests.
+// The function returns an error if fixture resolution or download fails, if the recording
+// workflow or validation fails for any provider, or if copying recorded requests into
+// the project directory fails. Temporary downloaded fixtures are removed when opts.Offline
+// is false.
 func runRecordingWorkflow(
 	ctx context.Context,
 	cmd *cobra.Command,
@@ -522,6 +536,9 @@ func runRecordingWorkflow(
 	return nil
 }
 
+// renderIssues renders the issues.md template by substituting placeholder tokens.
+// The providers slice is joined with ", " and placed into the `{{PROVIDERS}}` token; additional tokens for backticks and code block delimiters are also replaced.
+// It returns the rendered markdown content as a string.
 func renderIssues(providers []string) string {
 	replacements := map[string]string{
 		"{{PROVIDERS}}":        strings.Join(providers, ", "),
@@ -563,7 +580,11 @@ func renderReadme(name string, providers []string) string {
 }
 
 // NewPluginInitCmd builds the Cobra command that scaffolds a plugin project and writes
-// the generated project into the specified output directory.
+// NewPluginInitCmd creates and returns a Cobra command for initializing a plugin development project.
+// The command exposes "init <plugin-name>" and scaffolds a new plugin project including module setup,
+// manifest, boilerplate source, Makefile, README, and example tests. It registers flags for author,
+// providers, output directory, force overwrite, and fixture recording options (`--record-fixtures`,
+// `--fixture-version`, `--offline`, `--strict`) and marks the author and providers flags as required.
 func NewPluginInitCmd() *cobra.Command {
 	var opts PluginInitOptions
 
@@ -616,7 +637,20 @@ This command creates a new directory structure for plugin development including:
 
 // RunPluginInit validates the provided PluginInitOptions, creates the target project directory (honoring the force flag),
 // generates the boilerplate project files, and prints progress and next-step instructions to the command output.
-// It returns an error if validation fails (invalid name or no providers), if the directory cannot be created, or if file generation fails.
+// RunPluginInit initializes a new plugin project on disk and scaffolds all required files.
+// 
+// RunPluginInit validates the plugin name and provider list, creates the project
+// directory, generates project files, and optionally runs a fixture recording
+// workflow to populate testdata. It prints progress and next-step instructions to
+// the provided Cobra command's output.
+//
+// cmd is the Cobra command used for printing progress and for deriving context.
+// opts provides initialization options such as Name, Author, Providers, OutputDir,
+// Force, and flags controlling fixture recording.
+//
+// It returns an error if validation fails (invalid name or no providers), if the
+// project directory cannot be created, if file generation fails, or if the optional
+// fixture recording workflow fails when the Strict option is set.
 func RunPluginInit(cmd *cobra.Command, opts *PluginInitOptions) error {
 	// Validate plugin name
 	if !IsValidPluginName(opts.Name) {

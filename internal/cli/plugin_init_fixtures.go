@@ -36,6 +36,13 @@ type FixtureResolver struct {
 	localBasePath  string
 }
 
+// NewFixtureResolver creates a FixtureResolver configured to resolve fixtures.
+//
+// logger is used for structured logging. offline toggles local-only resolution when true.
+// version selects the fixture version to resolve (e.g., "latest", a tag, "main", or "local").
+// localBase sets the base filesystem path to search for local fixtures.
+//
+// The returned FixtureResolver is ready to resolve and (when not offline) download fixture sources.
 func NewFixtureResolver(logger zerolog.Logger, offline bool, version, localBase string) *FixtureResolver {
 	return &FixtureResolver{
 		logger:         logger,
@@ -242,6 +249,9 @@ func (r *FixtureResolver) DownloadFixture(ctx context.Context, source *FixtureSo
 	return tempFile.Name(), nil
 }
 
+// fetchLatestReleaseTag queries the GitHub Releases API for the repository's latest release and returns its tag name.
+// The provided context is used for cancellation and the request is bounded by fixtureTimeout.
+// It returns the release tag on success or an error if the HTTP request fails, the response status is not 200, or the JSON response cannot be decoded.
 func fetchLatestReleaseTag(ctx context.Context) (string, error) {
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, fixtureTimeout)
 	defer cancel()
