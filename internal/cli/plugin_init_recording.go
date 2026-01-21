@@ -43,6 +43,12 @@ type RecorderWorkflow struct {
 	session *RecordingSession
 }
 
+// NewRecorderWorkflow creates a RecorderWorkflow configured with the provided logger and output directory.
+// It initializes an internal RecordingSession with a generated session ID, the given output directory,
+// the current start time, and a status of "initialized".
+// logger is used for workflow logging.
+// outputDir is the base directory where recorded request files and session data will be placed.
+// It returns a pointer to the constructed RecorderWorkflow.
 func NewRecorderWorkflow(logger zerolog.Logger, outputDir string) *RecorderWorkflow {
 	return &RecorderWorkflow{
 		logger: logger,
@@ -55,6 +61,9 @@ func NewRecorderWorkflow(logger zerolog.Logger, outputDir string) *RecorderWorkf
 	}
 }
 
+// generateSessionID returns a pseudo-unique session identifier.
+// It generates a cryptographically random 16-byte value and encodes it as a hexadecimal string.
+// If secure random generation fails, it falls back to a timestamp-based numeric ID.
 func generateSessionID() string {
 	b := make([]byte, sessionIDBytes)
 	if _, err := rand.Read(b); err != nil {
