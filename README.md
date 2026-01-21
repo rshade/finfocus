@@ -7,20 +7,20 @@
 
 **Cloud cost analysis for Pulumi infrastructure** - Calculate projected and actual infrastructure costs without modifying your Pulumi programs.
 
-FinFocus Core is a CLI tool that analyzes Pulumi infrastructure definitions to provide accurate cost estimates and historical cost tracking through a flexible plugin-based architecture.
+FinFocus Core is a CLI tool that analyzes Pulumi infrastructure definitions to provide accurate cost estimates, budget enforcement, and historical cost tracking through a flexible plugin-based architecture.
 
 ## Key Features
 
-- **📊 Projected Costs**: Estimate monthly costs before deploying infrastructure
-- **💰 Actual Costs**: Track historical spending with detailed breakdowns
-- **🔌 Plugin-Based**: Extensible architecture supporting multiple cost data sources
-- **🧪 E2E Testing**: Comprehensive guide for validating infrastructure costs against real cloud resources
-- **🌱 Sustainability**: Estimate carbon footprint and energy usage
+- **📊 [Projected Costs](docs/reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
+- **💰 [Budgets & Alerts](docs/guides/budgets.md)**: Configure spending limits, alerts, and CI/CD thresholds
+- **💡 [Recommendations](docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
+- **♿ [Accessibility](docs/guides/accessibility.md)**: High-contrast, plain text, and adaptive terminal UI modes
+- **💰 [Actual Costs](docs/reference/cli-commands.md#cost-actual)**: Track historical spending with detailed breakdowns
+- **🔌 [Plugin-Based](docs/plugins/README.md)**: Extensible architecture supporting multiple cost data sources
+- **🧪 [E2E Testing](docs/testing/e2e-guide.md)**: Comprehensive guide for validating infrastructure costs against real cloud resources
 - **📈 Advanced Analytics**: Resource grouping, filtering, and aggregation
-- **💰 Budgets**: Core engine support for filtering and health aggregation of budgets
 - **📱 Multiple Formats**: Table, JSON, and NDJSON output options
 - **🔍 Smart Filtering**: Filter by resource type, tags, or custom expressions
-- **⏰ Time Range Queries**: Flexible date range support for cost analysis
 - **🏗️ No Code Changes**: Works with existing Pulumi projects via JSON output
 
 ## Quick Start
@@ -58,14 +58,20 @@ pulumi preview --json > plan.json
 finfocus cost projected --pulumi-json plan.json
 ```
 
-**Actual Costs** (FUTURE) - View historical spending (requires plugins):
+**Check Budget** - Verify if plan fits within budget:
 
 ```bash
-# Last 7 days
-finfocus cost actual --pulumi-json plan.json --from 2025-01-07
+# Set budget first
+export FINFOCUS_BUDGET_AMOUNT=500
 
-# Specific date range
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --to 2025-01-31
+# Check projected cost against budget
+finfocus cost projected --pulumi-json plan.json
+```
+
+**View Recommendations** - Find savings opportunities:
+
+```bash
+finfocus cost recommendations --pulumi-json plan.json
 ```
 
 ## Example Output
@@ -75,10 +81,12 @@ finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --to 2025-01-31
 ```bash
 $ finfocus cost projected --pulumi-json examples/plans/aws-simple-plan.json
 
+Budget: $500.00 (75% used)
+[=====================>......] $375.00 / $500.00
+
 RESOURCE                          ADAPTER     MONTHLY   CURRENCY  NOTES
-aws:ec2/instance:Instance         aws-spec    $7.50     USD       t3.micro Linux on-demand
-aws:s3/bucket:Bucket             none        $0.00     USD       No pricing information available
-aws:rds/instance:Instance        none        $0.00     USD       No pricing information available
+aws:ec2/instance:Instance         aws-spec    $375.00   USD       t3.xlarge
+aws:s3/bucket:Bucket             none        $0.00     USD       No pricing info
 ```
 
 ### Actual Cost Analysis (FUTURE)
@@ -114,6 +122,42 @@ FinFocus uses plugins to fetch cost data from various sources:
 - **Spec Files**: Local YAML/JSON pricing specifications as fallback
 - **Plugin Discovery**: Automatic detection from `~/.finfocus/plugins/`
 
+## Configuration
+
+FinFocus is configured via `~/.finfocus/config.yaml`.
+
+### Budget Configuration
+
+```yaml
+# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+cost:
+  budgets:
+    amount: 500.00
+    currency: USD
+    alerts:
+      - threshold: 80
+        type: actual
+      - threshold: 100
+        type: forecasted
+```
+
+See [Budget Guide](docs/guides/budgets.md) for full configuration details.
+
+### Environment Variables for Secrets
+
+For sensitive values like API keys and credentials, use environment variables:
+
+```bash
+# AWS credentials
+export FINFOCUS_PLUGIN_AWS_ACCESS_KEY_ID="your-access-key"
+export FINFOCUS_PLUGIN_AWS_SECRET_ACCESS_KEY="your-secret-key"
+
+# Vantage API
+export FINFOCUS_PLUGIN_VANTAGE_API_TOKEN="your-token"
+```
+
+The naming convention is: `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase.
+
 ## Advanced Usage
 
 ### Resource Filtering
@@ -121,22 +165,6 @@ FinFocus uses plugins to fetch cost data from various sources:
 ```bash
 # Filter by resource type
 finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2/instance"
-
-# Filter by tag (FUTURE)
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by "tag:Environment=prod"
-```
-
-### Cost Aggregation (FUTURE)
-
-```bash
-# Group by provider
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by provider
-
-# Group by resource type
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by type
-
-# Group by date for time series
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by date
 ```
 
 ### Output Formats
@@ -152,199 +180,29 @@ finfocus cost projected --pulumi-json plan.json --output json
 finfocus cost projected --pulumi-json plan.json --output ndjson
 ```
 
-## Configuration
-
-### Basic Configuration (FUTURE)
-
-FinFocus can be configured using a YAML file at `~/.finfocus/config.yaml`:
-
-```bash
-# Initialize default configuration
-finfocus config init
-
-# Set configuration values
-finfocus config set output.default_format json
-finfocus config set output.precision 4
-finfocus config set plugins.aws.region us-west-2
-```
-
-### Budget Configuration
-
-Set up spending limits with threshold alerts to stay in control of your cloud costs:
-
-```yaml
-# ~/.finfocus/config.yaml
-cost:
-  budgets:
-    amount: 1000.00
-    currency: USD
-    period: monthly
-    alerts:
-      - threshold: 80
-        type: actual      # Alert when actual spend reaches 80%
-      - threshold: 100
-        type: forecasted  # Alert when forecasted spend will exceed budget
-```
-
-When you run cost commands, budget status is displayed automatically:
-
-```text
-╭──────────────────────────────────────────╮
-│ BUDGET STATUS                            │
-│ ────────────────────────────────────     │
-│ Budget: $1,000.00/monthly                │
-│ Current Spend: $850.00 (85.0%)           │
-│                                          │
-│ ██████████████████████████░░░░ 85%       │
-│ ⚠ WARNING - spend exceeds 80% threshold  │
-╰──────────────────────────────────────────╯
-```
-
-For CI/CD environments (non-TTY), output is plain text suitable for logs.
-
-See [Budget Management](docs/guides/user-guide.md#budget-management) for complete configuration options.
-
-### Environment Variables for Secrets
-
-For sensitive values like API keys and credentials, use environment variables instead of storing them in configuration files:
-
-```bash
-# AWS credentials
-export FINFOCUS_PLUGIN_AWS_ACCESS_KEY_ID="your-access-key"
-export FINFOCUS_PLUGIN_AWS_SECRET_ACCESS_KEY="your-secret-key"
-
-# Azure credentials
-export FINFOCUS_PLUGIN_AZURE_CLIENT_ID="your-client-id"
-export FINFOCUS_PLUGIN_AZURE_CLIENT_SECRET="your-client-secret"
-
-# Kubecost API
-export FINFOCUS_PLUGIN_KUBECOST_API_KEY="your-api-key"
-
-# Vantage API
-export FINFOCUS_PLUGIN_VANTAGE_API_TOKEN="your-token"
-```
-
-Environment variables override configuration file values and are the recommended way to handle sensitive data. The naming convention is: `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase.
-
-### Configuration Management Commands (FUTURE)
-
-```bash
-# View configuration
-finfocus config get output.default_format
-finfocus config list
-
-# Validate configuration
-finfocus config validate
-```
-
 ## Plugin Management
 
-### List Available Plugins
+### List & Install Plugins
 
 ```bash
+# List available
 finfocus plugin list
-```
 
-### Inspect Plugin Capabilities
+# Install Vantage plugin
+finfocus plugin install vantage
 
-```bash
-finfocus plugin inspect <plugin> <resource-type>
-```
-
-**Example Output:**
-
-```text
-$ finfocus plugin inspect aws-public aws:ec2/instance:Instance
-
-Field Mappings:
-FIELD                STATUS     CONDITION
--------------------- ---------- ----------
-instanceType         SUPPORTED  
-region               SUPPORTED  
-tenancy              SUPPORTED  
-ebsOptimized         CONDITIONAL Only if true
-```
-
-**JSON Output:**
-
-```bash
-finfocus plugin inspect aws-public aws:ec2/instance:Instance --json
-```
-
-```json
-{
-  "fieldMappings": [
-    {
-      "fieldName": "instanceType",
-      "status": "SUPPORTED"
-    },
-    {
-      "fieldName": "region",
-      "status": "SUPPORTED"
-    },
-    {
-      "fieldName": "tenancy",
-      "status": "SUPPORTED"
-    },
-    {
-      "fieldName": "ebsOptimized",
-      "status": "CONDITIONAL",
-      "condition": "Only if true"
-    }
-  ]
-}
-```
-
-### Install Plugin
-
-```bash
-finfocus plugin install <plugin>
-```
-
-### Update Plugin
-
-```bash
-finfocus plugin update <plugin>
-```
-
-### Remove Plugin
-
-```bash
-finfocus plugin remove <plugin>
-```
-
-### Validate Plugin Installation
-
-```bash
-finfocus plugin validate
-```
-
-### Certify Plugin
-
-```bash
-finfocus plugin certify <plugin>
-```
-
-### Plugin Directory Structure
-
-```
-~/.finfocus/plugins/
-├── kubecost/
-│   └── 1.0.0/
-│       └── finfocus-kubecost
-├── vantage/
-│   └── 1.0.0/
-│       └── finfocus-vantage
-├── aws-plugin/
-│   └── 0.1.0/
-│       └── finfocus-aws
+# Inspect capabilities
+finfocus plugin inspect vantage aws:ec2/instance:Instance
 ```
 
 ## Documentation
 
-Complete documentation is available in the [docs/](docs/) directory with guides for every audience:
+Complete documentation is available in the [docs/](docs/) directory:
 
 - **👤 End Users**: [User Guide](docs/guides/user-guide.md) - How to install and use FinFocus
+- **💰 Budgets**: [Budget Guide](docs/guides/budgets.md) - Configure alerts and thresholds
+- **💡 Recommendations**: [Recommendations Guide](docs/guides/recommendations.md) - Optimization insights
+- **♿ Accessibility**: [Accessibility Guide](docs/guides/accessibility.md) - UI configuration
 - **🛠️ Engineers**: [Developer Guide](docs/guides/developer-guide.md) - How to extend and contribute
 - **🏗️ Architects**: [Architect Guide](docs/guides/architect-guide.md) - System design and integration
 - **🧪 E2E Testers**: [E2E Testing Guide](docs/testing/e2e-guide.md) - Setup and execution
@@ -358,39 +216,6 @@ Complete documentation is available in the [docs/](docs/) directory with guides 
 - [🛠️ Plugin Development](docs/plugins/plugin-development.md)
 - [🏗️ System Architecture](docs/architecture/system-overview.md)
 - [💬 FAQ & Support](docs/support/faq.md)
-
-## Use Cases
-
-- **💡 Pre-deployment Planning**: Estimate costs before infrastructure changes
-- **📊 Cost Optimization**: Identify expensive resources and right-size instances
-- **🔍 Cost Attribution**: Track spending by team, environment, or project
-- **📈 Trend Analysis**: Monitor cost changes over time
-- **🚨 Budget Monitoring**: Set up alerts for cost thresholds
-- **📋 Financial Reporting**: Generate cost reports for stakeholders
-
-## Architecture
-
-FinFocus Core is designed as a plugin-agnostic orchestrator.
-
-```mermaid
-graph LR
-    Plan[Pulumi JSON] --> Core[FinFocus Core]
-    Core -->|gRPC| Plugin[Plugins]
-    Plugin -.->|API/DB| Source[Cost Data Sources]
-    Core -->|Aggregation| Report[Cost Analysis & Reporting]
-```
-
-For a detailed breakdown of the component interactions and data flow, see the [Plugin Ecosystem Architecture](docs/architecture/plugin-ecosystem.md) guide.
-
-## Nightly Failure Analysis
-
-FinFocus includes an automated workflow for analyzing nightly build failures. If a nightly build fails, an issue labeled `nightly-failure` is created. This triggers a workflow that:
-
-1.  Retrieves build logs.
-2.  Analyzes the failure using an LLM (via OpenCode).
-3.  Posts a triage report as a comment on the issue, including a summary, root cause analysis, and recommended fixes.
-
-This helps maintainers quickly identify and resolve regressions.
 
 ## Contributing
 

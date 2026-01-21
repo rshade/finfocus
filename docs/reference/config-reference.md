@@ -37,3 +37,31 @@ plugins:
 ### Plugins
 
 - `dir`: The directory where plugins are installed.
+
+### Cost & Budgets
+
+Configure budget limits, alerts, and cost calculation preferences.
+
+#### `cost.budgets`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `amount` | number | - | **Required**. The budget limit amount. |
+| `currency` | string | `USD` | ISO 4217 currency code. |
+| `period` | string | `monthly` | Budget period (daily, weekly, monthly, yearly). |
+| `alerts` | list | `[]` | List of alert definitions. |
+
+#### `cost.budgets.alerts`
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `threshold` | number | - | **Required**. Percentage of budget (1-100) to trigger alert. |
+| `type` | string | `actual` | Trigger on `actual` (historical) or `forecasted` (projected) cost. |
+
+## JSON Schema Validation
+
+For IDE autocompletion (VS Code, JetBrains), add this comment to the top of your `config.yaml`:
+
+```yaml
+# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+```

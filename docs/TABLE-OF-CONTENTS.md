@@ -13,8 +13,9 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 1. Start: [5-Minute Quickstart](getting-started/quickstart.md)
 2. Install: [Installation Guide](getting-started/installation.md)
 3. Learn: [User Guide](guides/user-guide.md)
-4. Command Reference: [CLI Commands](reference/cli-commands.md)
-5. Get Help: [FAQ](support/faq.md) | [Troubleshooting](support/troubleshooting.md)
+4. Configure: [Budgets](guides/budgets.md) | [Recommendations](guides/recommendations.md)
+5. Command Reference: [CLI Commands](reference/cli-commands.md)
+6. Get Help: [FAQ](support/faq.md) | [Troubleshooting](support/troubleshooting.md)
 
 ### 🛠️ For Engineers/Plugin Developers
 
@@ -63,6 +64,14 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Developer Guide](guides/developer-guide.md)    | Complete engineer guide  | Long   |
 | [Architecture Guide](guides/architect-guide.md) | Complete architect guide | Long   |
 | [Business Value](guides/business-value.md)      | Executive summary & ROI  | Medium |
+
+### 🚀 Feature Guides
+
+| Page                                          | Purpose                                  |
+| --------------------------------------------- | ---------------------------------------- |
+| [Budget Configuration](guides/budgets.md)     | Configure budgets, alerts, and thresholds |
+| [Recommendations](guides/recommendations.md)  | Use cost optimization recommendations    |
+| [Accessibility](guides/accessibility.md)      | Configure colors, contrast, and TUI      |
 
 ### 🏗️ Architecture & Design
 
@@ -191,6 +200,9 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 - [Quickstart](getting-started/quickstart.md)
 - [User Guide](guides/user-guide.md)
+- [Budgets & Alerts](guides/budgets.md)
+- [Cost Recommendations](guides/recommendations.md)
+- [Accessibility Options](guides/accessibility.md)
 - [CLI Commands](reference/cli-commands.md)
 - [Examples](getting-started/examples/)
 

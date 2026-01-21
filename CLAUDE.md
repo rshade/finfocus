@@ -1027,6 +1027,8 @@ CodeRabbit now:
 - N/A (stateless CLI feature) (116-plugin-install-fallback)
 - Go 1.25.5 + testify v1.11.1, GitHub Actions, finfocus-spec v0.5.2 (pluginsdk) (118-test-quality-ci)
 - N/A (test infrastructure, no persistent storage) (118-test-quality-ci)
+- Markdown (CommonMark spec), YAML for configuration examples, JSON for schema + Jekyll (GitHub Pages), markdownlint-cli2, yaml-language-server (for schema validation) (119-tui-docs-update)
+- Filesystem (docs/ directory structure), GitHub Pages for hosting (119-tui-docs-update)
 
 - Go 1.25.5 + pluginsdk v0.4.11+, zerolog v1.34.0; N/A storage (validation is stateless) (107-preflight-validation)
 - Go 1.25.5 + github.com/rshade/finfocus-spec v0.5.2 (pluginsdk) (106-analyzer-recommendations)

@@ -63,6 +63,40 @@ finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2*"
 finfocus cost projected --pulumi-json plan.json --output ndjson
 ```
 
+## cost recommendations
+
+Display cost optimization recommendations from cloud providers.
+
+### Usage
+
+```bash
+finfocus cost recommendations --pulumi-json <file> [options]
+```
+
+### Options
+
+| Flag            | Description                        | Default  |
+| --------------- | ---------------------------------- | -------- |
+| `--pulumi-json` | Path to Pulumi preview JSON        | Required |
+| `--filter`      | Filter expression                  | None     |
+| `--output`      | Output format: table, json, ndjson | table    |
+| `--limit`       | Limit number of recommendations    | 0 (all)  |
+| `--verbose`     | Enable verbose logging             | false    |
+| `--help`        | Show help                          |          |
+
+### Examples
+
+```bash
+# Interactive mode (default)
+finfocus cost recommendations --pulumi-json plan.json
+
+# Filter high priority
+finfocus cost recommendations --pulumi-json plan.json --filter "priority=high"
+
+# JSON output
+finfocus cost recommendations --pulumi-json plan.json --output json
+```
+
 ## cost actual
 
 Get actual historical costs from plugins.
@@ -476,6 +510,10 @@ finfocus [global options] command [command options]
 | `--help`               | Show help                                    |
 | `--version`            | Show version                                 |
 | `--debug`              | Enable debug logging                         |
+| `--verbose`            | Enable verbose output                        |
+| `--no-color`           | Disable colored output                       |
+| `--plain`              | Enable plain text mode (no TUI)              |
+| `--high-contrast`      | Enable high contrast mode                    |
 | `--skip-version-check` | Skip plugin spec version compatibility check |
 
 ## Date Formats

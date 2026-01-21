@@ -60,7 +60,7 @@ jobs:
         run: |
           # Build the plugin binary
           cd plugin-aws
-          go build -o finfocus-plugin-aws-public .
+          go build -o finfocus-plugin-aws-public ./cmd/finfocus-plugin-aws-public
 
           # Create proper registry directory structure: <name>/<version>/
           # Use 'dev' version for CI integration builds
