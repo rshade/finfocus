@@ -1,0 +1,201 @@
+# Configuration Example Template
+# Purpose: Template for budget configuration examples in docs/examples/config-budgets/
+# Usage: Copy this template and customize for specific scenario
+# Related docs: [Link to guide section]
+# Tested with: FinFocus vX.Y.Z
+
+# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+
+# ============================================================================
+# [SCENARIO NAME]
+# ============================================================================
+# Use case: [1-2 sentence description of when to use this configuration]
+# Example: "Use this configuration to fail CI/CD pipelines when total monthly
+#          cost exceeds $500 budget threshold."
+#
+# Key features demonstrated:
+# - [Feature 1]
+# - [Feature 2]
+# - [Feature 3]
+#
+# Prerequisites:
+# - [Prerequisite 1 - e.g., "FinFocus CLI installed"]
+# - [Prerequisite 2 - e.g., "Pulumi project configured"]
+# ============================================================================
+
+# Cost management configuration
+cost:
+  # Budget thresholds and alerts
+  budgets:
+    # Budget amount in specified currency
+    # Range: Any positive number
+    # Example: 500.00 for $500/month budget
+    amount: [VALUE]
+
+    # ISO 4217 currency code
+    # Allowed values: USD, EUR, GBP, JPY, etc.
+    # Default: USD
+    currency: USD
+
+    # Budget period for cost accumulation
+    # Allowed values: daily, weekly, monthly, yearly
+    # Default: monthly
+    # Note: Most cloud providers report costs daily, monthly is most common
+    period: monthly
+
+    # Alert thresholds (list of alert configurations)
+    alerts:
+      # Alert 1: [Description of what this alert does]
+      - threshold: [VALUE]  # Percentage of budget (1-100)
+        type: actual        # actual (current costs) or forecasted (projected)
+        # Explanation: [Why this threshold is useful]
+        # Example: 80% threshold catches overruns before budget exhausted
+
+      # Alert 2: [Description of additional alert]
+      - threshold: [VALUE]
+        type: forecasted
+        # Explanation: [Why forecasting is useful]
+
+# ============================================================================
+# USAGE EXAMPLES
+# ============================================================================
+#
+# Basic usage (display budget status):
+#   finfocus cost projected --pulumi-json plan.json
+#
+# CI/CD integration (fail on budget exceeded):
+#   finfocus cost projected --pulumi-json plan.json || exit 1
+#
+# Check current budget status:
+#   finfocus cost actual --start-date 2024-01-01 --end-date 2024-01-31
+#
+# ============================================================================
+
+# ============================================================================
+# ADDITIONAL CONFIGURATION OPTIONS
+# ============================================================================
+#
+# This example focuses on budget configuration. For complete configuration
+# options, see:
+#
+# - Budget Configuration Guide: docs/guides/budgets.md
+# - Configuration Reference: docs/reference/config-reference.md#budgets
+# - More Examples: docs/examples/config-budgets/
+#
+# ============================================================================
+
+# ============================================================================
+# INLINE COMMENT STYLE GUIDE
+# ============================================================================
+#
+# Use this comment structure for configuration examples:
+#
+# 1. HEADER SECTION (lines 1-20)
+#    - Template metadata
+#    - Scenario name and use case
+#    - Key features demonstrated
+#    - Prerequisites
+#
+# 2. CONFIGURATION SECTION (lines 21-60)
+#    - Inline comments above each field
+#    - Explanation of allowed values
+#    - Examples of when to use specific values
+#    - Notes about defaults and behavior
+#
+# 3. USAGE EXAMPLES SECTION (lines 61-75)
+#    - Command examples showing how to use this config
+#    - Common scenarios (basic, CI/CD, automation)
+#
+# 4. ADDITIONAL INFO SECTION (lines 76-90)
+#    - Links to related documentation
+#    - Cross-references to guides and examples
+#
+# ============================================================================
+
+# ============================================================================
+# VALIDATION
+# ============================================================================
+#
+# This configuration can be validated against the JSON schema:
+#
+#   1. Add schema comment to top of file:
+#      # yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+#
+#   2. Open file in VS Code with yaml-language-server installed
+#
+#   3. Schema will provide:
+#      - Field autocompletion
+#      - Validation error messages
+#      - Inline documentation on hover
+#      - Default value suggestions
+#
+# See docs/guides/budgets.md#json-schema-setup for installation instructions.
+#
+# ============================================================================
+
+# ============================================================================
+# EXAMPLE SCENARIOS
+# ============================================================================
+#
+# Common budget configuration scenarios:
+#
+# 1. SINGLE THRESHOLD (simple)
+#    - One alert at 100% of budget
+#    - Fail CI/CD on budget exceeded
+#    - Use case: Hard budget limit enforcement
+#
+# 2. MULTIPLE THRESHOLDS (progressive alerts)
+#    - Alerts at 50%, 80%, 100%
+#    - Early warning + enforcement
+#    - Use case: Proactive cost management
+#
+# 3. CI/CD INTEGRATION (automation)
+#    - Exit codes for pipeline control
+#    - JSON output for parsing
+#    - Use case: Automated cost gates
+#
+# 4. WEBHOOK NOTIFICATIONS (integrations)
+#    - Alert to Slack/Teams/PagerDuty
+#    - Real-time cost monitoring
+#    - Use case: Team-wide visibility
+#
+# 5. PROVIDER-SPECIFIC (AWS, Azure, GCP)
+#    - Provider-specific budget settings
+#    - Use case: Multi-cloud cost management
+#
+# See docs/examples/config-budgets/ for complete examples of each scenario.
+#
+# ============================================================================
+
+# ============================================================================
+# TROUBLESHOOTING
+# ============================================================================
+#
+# Common issues with budget configuration:
+#
+# Issue: Budget alerts not triggering
+# Solution: Ensure "amount" matches your expected cost range. Check currency.
+#
+# Issue: Forecasted alerts triggering incorrectly
+# Solution: Forecasting requires historical data. Use "actual" for immediate costs.
+#
+# Issue: Configuration not loading
+# Solution: Verify YAML syntax with yamllint or online validator.
+#
+# Issue: Schema validation errors in IDE
+# Solution: Check schema URL is accessible and yaml-language-server is installed.
+#
+# See docs/guides/budgets.md#troubleshooting for more solutions.
+#
+# ============================================================================
+
+# ============================================================================
+# VERSION HISTORY
+# ============================================================================
+#
+# Template version: 1.0.0
+# Last updated: 2026-01-20
+# Tested with: FinFocus v0.1.0+
+# Schema version: https://rshade.github.io/finfocus/schemas/config.json (draft-2020-12)
+#
+# ============================================================================

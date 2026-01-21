@@ -1,0 +1,22 @@
+# Single Threshold Budget Configuration
+# Use case: Simple budget enforcement for personal projects or dev environments
+# Related docs: docs/guides/budgets.md#example-1-single-budget-threshold
+# Tested with: FinFocus v0.1.0+
+
+# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+
+cost:
+  budgets:
+    # Set a hard limit of $500/month
+    amount: 500.00
+    currency: USD
+    period: monthly
+
+    alerts:
+      # Alert when actual costs reach 100% of budget
+      - threshold: 100
+        type: actual
+        # This will trigger a visual warning in the CLI output
+
+# Usage:
+#   finfocus cost projected --pulumi-json plan.json

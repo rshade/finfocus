@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://rshade.github.io/finfocus/schemas/config.json",
+  "title": "FinFocus Configuration",
+  "description": "Configuration file for FinFocus CLI tool",
+  "type": "object",
+  "properties": {
+    "cost": {
+      "type": "object",
+      "description": "Cost management settings",
+      "properties": {
+        "budgets": {
+          "type": "object",
+          "description": "Budget thresholds and alerts",
+          "properties": {
+            "amount": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Budget amount in specified currency"
+            },
+            "currency": {
+              "type": "string",
+              "enum": ["USD", "EUR", "GBP"],
+              "default": "USD",
+              "description": "ISO 4217 currency code"
+            },
+            "period": {
+              "type": "string",
+              "enum": ["daily", "weekly", "monthly", "yearly"],
+              "default": "monthly",
+              "description": "Budget period"
+            },
+            "alerts": {
+              "type": "array",
+              "description": "List of budget alerts",
+              "items": {
+                "$ref": "#/definitions/BudgetAlert"
+              }
+            }
+          },
+          "required": ["amount", "currency"]
+        }
+      }
+    },
+    "tui": {
+      "type": "object",
+      "description": "Terminal UI and accessibility settings",
+      "properties": {
+        "adaptive_colors": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable adaptive color schemes based on terminal background"
+        },
+        "color_scheme": {
+          "type": "string",
+          "enum": ["auto", "light", "dark"],
+          "default": "auto",
+          "description": "Force specific color scheme"
+        },
+        "plain": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable plain text mode (disable TUI)"
+        },
+        "high_contrast": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable high contrast mode"
+        }
+      }
+    }
+  },
+  "definitions": {
+    "BudgetAlert": {
+      "type": "object",
+      "properties": {
+        "threshold": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 100,
+          "description": "Percentage of budget at which to trigger alert (1-100)"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["actual", "forecasted"],
+          "description": "Alert trigger type: actual (current costs) or forecasted (projected)"
+        }
+      },
+      "required": ["threshold", "type"]
+    }
+  }
+}

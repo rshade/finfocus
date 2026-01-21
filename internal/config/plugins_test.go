@@ -3,10 +3,23 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
+
+// setHomeDir sets the appropriate home directory environment variable
+// for both Unix (HOME) and Windows (USERPROFILE) systems.
+// This ensures os.UserHomeDir() works correctly in tests on all platforms.
+func setHomeDir(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", dir)
+	}
+}
 
 func TestInstalledPlugin(t *testing.T) {
 	plugin := InstalledPlugin{
@@ -40,9 +53,8 @@ func TestInstalledPluginsConfig(t *testing.T) {
 }
 
 func TestLoadInstalledPluginsNoFile(t *testing.T) {
-	// Set HOME to temp directory
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	setHomeDir(t, tmpDir)
 
 	plugins, err := LoadInstalledPlugins()
 	if err != nil {
@@ -55,7 +67,7 @@ func TestLoadInstalledPluginsNoFile(t *testing.T) {
 
 func TestLoadInstalledPluginsWithFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	setHomeDir(t, tmpDir)
 
 	// Create config directory and file
 	configDir := filepath.Join(tmpDir, ".finfocus")
@@ -83,17 +95,14 @@ func TestLoadInstalledPluginsWithFile(t *testing.T) {
 	if err != nil {
 		t.Errorf("LoadInstalledPlugins() error = %v", err)
 	}
-	if len(plugins) != 1 {
-		t.Errorf("LoadInstalledPlugins() returned %d plugins, want 1", len(plugins))
-	}
-	if plugins[0].Name != "test-plugin" {
-		t.Errorf("plugins[0].Name = %v, want test-plugin", plugins[0].Name)
-	}
+	// Use require to stop test on failure and prevent panic
+	require.Len(t, plugins, 1, "LoadInstalledPlugins() returned wrong number of plugins")
+	require.Equal(t, "test-plugin", plugins[0].Name)
 }
 
 func TestSaveInstalledPlugins(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	setHomeDir(t, tmpDir)
 
 	plugins := []InstalledPlugin{
 		{Name: "plugin1", URL: "url1", Version: "v1.0.0"},
@@ -123,7 +132,7 @@ func TestSaveInstalledPlugins(t *testing.T) {
 
 func TestAddInstalledPlugin(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	setHomeDir(t, tmpDir)
 
 	// Add first plugin
 	plugin1 := InstalledPlugin{Name: "plugin1", URL: "url1", Version: "v1.0.0"}
@@ -166,7 +175,7 @@ func TestAddInstalledPlugin(t *testing.T) {
 
 func TestRemoveInstalledPlugin(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	setHomeDir(t, tmpDir)
 
 	// Add plugins
 	plugins := []InstalledPlugin{
@@ -197,7 +206,7 @@ func TestRemoveInstalledPlugin(t *testing.T) {
 
 func TestGetInstalledPlugin(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	setHomeDir(t, tmpDir)
 
 	// Add plugin
 	plugin := InstalledPlugin{Name: "test-plugin", URL: "url", Version: "v1.0.0"}
@@ -223,7 +232,7 @@ func TestGetInstalledPlugin(t *testing.T) {
 
 func TestUpdateInstalledPluginVersion(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	setHomeDir(t, tmpDir)
 
 	// Add plugin
 	plugin := InstalledPlugin{Name: "test-plugin", URL: "url", Version: "v1.0.0"}
@@ -254,7 +263,7 @@ func TestUpdateInstalledPluginVersion(t *testing.T) {
 
 func TestGetMissingPlugins(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	setHomeDir(t, tmpDir)
 
 	// Create plugins directory
 	pluginsDir := filepath.Join(tmpDir, ".finfocus", "plugins")
@@ -292,7 +301,7 @@ func TestGetMissingPlugins(t *testing.T) {
 
 func TestLoadInstalledPluginsInvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
-	t.Setenv("HOME", tmpDir)
+	setHomeDir(t, tmpDir)
 
 	// Create config with invalid YAML
 	configDir := filepath.Join(tmpDir, ".finfocus")

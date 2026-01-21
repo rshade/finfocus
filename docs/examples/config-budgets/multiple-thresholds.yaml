@@ -1,0 +1,32 @@
+# Multiple Thresholds Budget Configuration
+# Use case: Progressive alerting for production environments to catch issues early
+# Related docs: docs/guides/budgets.md#example-2-multiple-alert-thresholds
+# Tested with: FinFocus v0.1.0+
+
+# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+
+cost:
+  budgets:
+    amount: 2000.00
+    currency: USD
+    period: monthly
+
+    alerts:
+      # Early warning at 50% utilization
+      - threshold: 50
+        type: actual
+      
+      # Warning when projected costs exceed 80%
+      - threshold: 80
+        type: forecasted
+      
+      # Critical alert at 90% utilization
+      - threshold: 90
+        type: actual
+        
+      # Breach alert at 100%
+      - threshold: 100
+        type: actual
+
+# Usage:
+#   finfocus cost actual --start-date 2024-01-01

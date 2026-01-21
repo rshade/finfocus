@@ -12,6 +12,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// setHomeDir sets the appropriate home directory environment variable
+// for both Unix (HOME) and Windows (USERPROFILE) systems.
+// This ensures os.UserHomeDir() works correctly in tests on all platforms.
+func setHomeDir(t *testing.T, dir string) {
+	t.Helper()
+	t.Setenv("HOME", dir)
+	if runtime.GOOS == "windows" {
+		t.Setenv("USERPROFILE", dir)
+	}
+}
+
 // TestGetConfigDir tests retrieval of the configuration directory path.
 func TestGetConfigDir(t *testing.T) {
 	tests := []struct {
@@ -92,7 +103,7 @@ func TestEnsureConfigDir(t *testing.T) {
 		configDir := filepath.Join(tempDir, ".finfocus")
 
 		// Override the config dir for testing
-		t.Setenv("HOME", tempDir)
+		setHomeDir(t, tempDir)
 
 		// Directory should not exist initially
 		_, err := os.Stat(configDir)
@@ -118,7 +129,7 @@ func TestEnsureConfigDir(t *testing.T) {
 		require.NoError(t, err)
 
 		// Override the config dir for testing
-		t.Setenv("HOME", tempDir)
+		setHomeDir(t, tempDir)
 
 		// This should not error on existing directory
 		err = config.EnsureConfigDir()
@@ -138,7 +149,7 @@ func TestEnsureSubDirs(t *testing.T) {
 		tempDir := t.TempDir()
 
 		// Override the config dir for testing
-		t.Setenv("HOME", tempDir)
+		setHomeDir(t, tempDir)
 
 		err := config.EnsureSubDirs()
 		require.NoError(t, err)
@@ -188,7 +199,7 @@ func TestConfigPermissions(t *testing.T) {
 		tempDir := t.TempDir()
 
 		// Override the config dir for testing
-		t.Setenv("HOME", tempDir)
+		setHomeDir(t, tempDir)
 
 		err := config.EnsureConfigDir()
 		require.NoError(t, err)

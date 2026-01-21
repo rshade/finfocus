@@ -1,0 +1,23 @@
+# CI/CD Integration Budget Configuration
+# Use case: Fail build pipelines when infrastructure changes exceed budget
+# Related docs: docs/guides/budgets.md#example-3-cicd-integration
+# Tested with: FinFocus v0.1.0+
+
+# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+
+cost:
+  budgets:
+    amount: 500.00
+    currency: USD
+    
+    alerts:
+      # Trigger alert if the NEW plan (forecasted) would exceed 100% of budget
+      - threshold: 100
+        type: forecasted
+
+# Usage in CI Pipeline:
+#   finfocus cost projected --pulumi-json plan.json || exit 1
+#
+# Note: FinFocus exits with code 0 by default even on alerts.
+# You may need to configure exit_on_alert (future feature) or parse output.
+# For now, you can grep for "Budget exceeded" or check JSON output.
