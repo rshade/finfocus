@@ -196,7 +196,6 @@ import (
 ## Recent Changes
 - 001-cli-budget-alerts: Added Go 1.25.5 + `github.com/charmbracelet/lipgloss`, `golang.org/x/term`, `github.com/spf13/viper` (existing config), `github.com/spf13/cobra` (existing CLI)
 - 118-e2e-plugin-docs: Added Markdown (GFM), Mermaid (for diagrams) + Jekyll (for site generation), mermaid.js (for rendering diagrams)
-- 115-v021-dx-improvements: Added Go 1.25.5
 
 
   plus Jekyll (for docs site), GitHub Pages
