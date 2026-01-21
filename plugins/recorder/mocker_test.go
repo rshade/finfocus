@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -127,4 +128,64 @@ func TestMockerConstants(t *testing.T) {
 	assert.Equal(t, 0.001, MinActualCost)
 	assert.Equal(t, 100.0, MaxActualCost)
 	assert.Equal(t, 730.0, HoursPerMonth)
+}
+
+func TestMocker_GenerateRecommendations_Count(t *testing.T) {
+	mocker := NewMocker(mockerTestLogger())
+
+	// Generate recommendations multiple times and verify count is in expected range
+	for i := 0; i < 100; i++ {
+		recs := mocker.GenerateRecommendations()
+		assert.Greater(t, len(recs), 0, "should generate at least 1 recommendation")
+		assert.LessOrEqual(
+			t,
+			len(recs),
+			maxRecommendationsPerRequest,
+			"should generate at most maxRecommendationsPerRequest recommendations",
+		)
+	}
+}
+
+func TestMocker_GenerateRecommendations_Structure(t *testing.T) {
+	mocker := NewMocker(mockerTestLogger())
+
+	recs := mocker.GenerateRecommendations()
+	require.Greater(t, len(recs), 0)
+
+	for _, rec := range recs {
+		assert.NotEmpty(t, rec.GetId(), "recommendation should have an ID")
+		assert.Equal(t, pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_RIGHTSIZE, rec.GetActionType())
+		assert.NotEmpty(t, rec.GetDescription())
+		assert.NotNil(t, rec.GetImpact(), "recommendation should have impact")
+		assert.Greater(t, rec.GetImpact().GetEstimatedSavings(), float64(0))
+		assert.Equal(t, "USD", rec.GetImpact().GetCurrency())
+	}
+}
+
+func TestMocker_CreateRecommendationsResponse(t *testing.T) {
+	mocker := NewMocker(mockerTestLogger())
+
+	resp := mocker.CreateRecommendationsResponse()
+
+	require.NotNil(t, resp)
+	require.Greater(t, len(resp.GetRecommendations()), 0)
+
+	for _, rec := range resp.GetRecommendations() {
+		assert.NotEmpty(t, rec.GetId())
+		assert.Equal(t, pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_RIGHTSIZE, rec.GetActionType())
+		assert.NotEmpty(t, rec.GetDescription())
+		assert.Greater(t, rec.GetImpact().GetEstimatedSavings(), float64(0))
+	}
+}
+
+func TestMocker_RecommendationSavings(t *testing.T) {
+	mocker := NewMocker(mockerTestLogger())
+
+	recs := mocker.GenerateRecommendations()
+	for _, rec := range recs {
+		savings := rec.GetImpact().GetEstimatedSavings()
+		// Savings should be derived from projected cost generation
+		assert.GreaterOrEqual(t, savings, MinProjectedCost)
+		assert.LessOrEqual(t, savings, MaxProjectedCost)
+	}
 }
