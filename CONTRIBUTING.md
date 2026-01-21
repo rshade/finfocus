@@ -431,6 +431,10 @@ analysis workflow:
   using OpenCode, and post a triage report as a comment.
 - **Goal**: Provide immediate root cause hypothesis and suggested fixes to
   reduce manual investigation time.
+- **Hardening**: The workflow enforces strict security and reliability standards:
+  - **Pinned Dependencies**: Uses specific versions of CLI tools and actions.
+  - **Timeouts**: Enforces a 59-minute execution limit to prevent resource exhaustion.
+  - **Error Handling**: Fails explicitly on any command error to avoid silent failures.
 
 ## Project Architecture
 
