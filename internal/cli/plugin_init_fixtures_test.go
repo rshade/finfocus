@@ -190,8 +190,12 @@ func TestFixtureResolver_ResolveRemotePlanFixture_ExplicitVersion(t *testing.T) 
 func TestFixtureResolver_ResolveRemotePlanFixture_LatestFallback(t *testing.T) {
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
-	// Use "latest" version to trigger GitHub API fetch
-	resolver := NewFixtureResolver(logger, false, "latest", "/test/path")
+	// Use stubbed releaseTagFetcher to avoid network calls
+	stubbedFetcher := func(_ context.Context) (string, error) {
+		return "v1.2.3", nil
+	}
+
+	resolver := NewFixtureResolver(logger, false, "latest", "/test/path", WithReleaseTagFetcher(stubbedFetcher))
 
 	source, err := resolver.ResolvePlanFixture(context.Background(), "aws")
 	require.NoError(t, err)
@@ -199,8 +203,7 @@ func TestFixtureResolver_ResolveRemotePlanFixture_LatestFallback(t *testing.T) {
 
 	assert.Equal(t, "plan", source.Type)
 	assert.Equal(t, "aws", source.Provider)
-	// Version should either be a tag name from GitHub or "main" if fallback occurred
-	assert.NotEmpty(t, source.Version)
+	assert.Equal(t, "v1.2.3", source.Version)
 	assert.Contains(t, source.Origin, "aws")
 	assert.Contains(t, source.Origin, "simple.json")
 }

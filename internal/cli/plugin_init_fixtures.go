@@ -30,10 +30,11 @@ type FixtureSource struct {
 }
 
 type FixtureResolver struct {
-	logger         zerolog.Logger
-	offlineMode    bool
-	fixtureVersion string
-	localBasePath  string
+	logger            zerolog.Logger
+	offlineMode       bool
+	fixtureVersion    string
+	localBasePath     string
+	releaseTagFetcher func(context.Context) (string, error)
 }
 
 // NewFixtureResolver creates a FixtureResolver configured to resolve fixtures.
@@ -41,14 +42,37 @@ type FixtureResolver struct {
 // logger is used for structured logging. offline toggles local-only resolution when true.
 // version selects the fixture version to resolve (e.g., "latest", a tag, "main", or "local").
 // localBase sets the base filesystem path to search for local fixtures.
+// opts are optional configuration functions that can customize the resolver behavior.
 //
 // The returned FixtureResolver is ready to resolve and (when not offline) download fixture sources.
-func NewFixtureResolver(logger zerolog.Logger, offline bool, version, localBase string) *FixtureResolver {
-	return &FixtureResolver{
-		logger:         logger,
-		offlineMode:    offline,
-		fixtureVersion: version,
-		localBasePath:  localBase,
+func NewFixtureResolver(
+	logger zerolog.Logger,
+	offline bool,
+	version, localBase string,
+	opts ...func(*FixtureResolver),
+) *FixtureResolver {
+	resolver := &FixtureResolver{
+		logger:            logger,
+		offlineMode:       offline,
+		fixtureVersion:    version,
+		localBasePath:     localBase,
+		releaseTagFetcher: fetchLatestReleaseTag, // Default implementation
+	}
+
+	// Apply optional configuration
+	for _, opt := range opts {
+		opt(resolver)
+	}
+
+	return resolver
+}
+
+// WithReleaseTagFetcher configures a custom release tag fetcher function.
+func WithReleaseTagFetcher(
+	fetcher func(context.Context) (string, error),
+) func(*FixtureResolver) {
+	return func(r *FixtureResolver) {
+		r.releaseTagFetcher = fetcher
 	}
 }
 
@@ -86,7 +110,7 @@ func (r *FixtureResolver) resolveRemotePlanFixture(ctx context.Context, provider
 	version := r.fixtureVersion
 	if version == "latest" {
 		var err error
-		version, err = fetchLatestReleaseTag(ctx)
+		version, err = r.releaseTagFetcher(ctx)
 		if err != nil {
 			r.logger.Warn().Err(err).Msg("failed to fetch latest release, using main branch")
 			version = "main"
@@ -142,7 +166,7 @@ func (r *FixtureResolver) resolveRemoteStateFixture(ctx context.Context) (*Fixtu
 	version := r.fixtureVersion
 	if version == "latest" {
 		var err error
-		version, err = fetchLatestReleaseTag(ctx)
+		version, err = r.releaseTagFetcher(ctx)
 		if err != nil {
 			r.logger.Warn().Err(err).Msg("failed to fetch latest release, using main branch")
 			version = "main"

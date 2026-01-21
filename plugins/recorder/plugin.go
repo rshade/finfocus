@@ -214,6 +214,11 @@ func (p *RecorderPlugin) GetPluginInfo(
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	// Validate request is non-nil
+	if req == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "request is required")
+	}
+
 	// Record the request to disk
 	if err := p.recorder.RecordRequest("GetPluginInfo", req); err != nil {
 		p.logger.Warn().Err(err).Msg("failed to record request")

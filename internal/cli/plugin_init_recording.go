@@ -22,20 +22,20 @@ const (
 )
 
 type RecordingSession struct {
-	ID          string
-	OutputDir   string
-	FixtureDir  string
-	StartedAt   time.Time
-	CompletedAt time.Time
-	Status      string
-	Errors      []string
-	Recorded    []RecordedRequest
+	ID          string            `json:"id"`
+	OutputDir   string            `json:"output_dir"`
+	FixtureDir  string            `json:"fixture_dir"`
+	StartedAt   time.Time         `json:"started_at"`
+	CompletedAt time.Time         `json:"completed_at"`
+	Status      string            `json:"status"`
+	Errors      []string          `json:"errors,omitempty"`
+	Recorded    []RecordedRequest `json:"recorded,omitempty"`
 }
 
 type RecordedRequest struct {
-	Type      string
-	Path      string
-	Timestamp time.Time
+	Type      string    `json:"type"`
+	Path      string    `json:"path"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type RecorderWorkflow struct {

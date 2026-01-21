@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -638,7 +639,7 @@ This command creates a new directory structure for plugin development including:
 // RunPluginInit validates the provided PluginInitOptions, creates the target project directory (honoring the force flag),
 // generates the boilerplate project files, and prints progress and next-step instructions to the command output.
 // RunPluginInit initializes a new plugin project on disk and scaffolds all required files.
-// 
+//
 // RunPluginInit validates the plugin name and provider list, creates the project
 // directory, generates project files, and optionally runs a fixture recording
 // workflow to populate testdata. It prints progress and next-step instructions to
@@ -695,8 +696,10 @@ func RunPluginInit(cmd *cobra.Command, opts *PluginInitOptions) error {
 
 		loggerPtr := logging.FromContext(cmd.Context())
 		if loggerPtr == nil {
-			// Fallback to a default logger if context doesn't have one
-			logger := zerolog.Nop()
+			// Fallback to a visible console logger if context doesn't have one
+			consoleWriter := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
+			logger := zerolog.New(consoleWriter).With().Timestamp().Logger()
+			logger.Warn().Msg("context logger not available, using fallback console logger")
 			loggerPtr = &logger
 		}
 
