@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.4](https://github.com/rshade/finfocus/compare/v0.2.3...v0.2.4) (2026-01-21)
+
+
+### Added
+
+* **cli:** add budget status display with threshold alerts ([#466](https://github.com/rshade/finfocus/issues/466)) ([c7fee8b](https://github.com/rshade/finfocus/commit/c7fee8bd9951856e2d2ecd26b4d3cd1d9062a966))
+* **cli:** complete plugin init with recorded fixtures ([#470](https://github.com/rshade/finfocus/issues/470)) ([dfa62fb](https://github.com/rshade/finfocus/commit/dfa62fb53acacfa15ee5c1defae076286f648a0e))
+
+
+### Documentation
+
+* **tui:** add budget, recommendations, and accessibility guides ([#472](https://github.com/rshade/finfocus/issues/472)) ([7d34d80](https://github.com/rshade/finfocus/commit/7d34d805e4d9f9c1b56c49d2313e1f823f6f3e27)), closes [#226](https://github.com/rshade/finfocus/issues/226) [#468](https://github.com/rshade/finfocus/issues/468) [#469](https://github.com/rshade/finfocus/issues/469)
+
 ## [0.2.3](https://github.com/rshade/finfocus/compare/v0.2.2...v0.2.3) (2026-01-19)
 
 
