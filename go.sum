@@ -108,8 +108,8 @@ github.com/rogpeppe/go-internal v1.12.0/go.mod h1:E+RYuTGaKKdloAfM02xzb0FW3Paa99
 github.com/rs/xid v1.6.0/go.mod h1:7XoLgs4eV+QndskICGsho+ADou8ySMSjJKDIan90Nz0=
 github.com/rs/zerolog v1.34.0 h1:k43nTLIwcTVQAncfCw4KZ2VY6ukYoZaBPNOE8txlOeY=
 github.com/rs/zerolog v1.34.0/go.mod h1:bJsvje4Z08ROH4Nhs5iH600c3IkWhwp44iRc54W6wYQ=
-github.com/rshade/finfocus-spec v0.5.2 h1:Vwe0w7nIyt4yRlzJ4U2oH9ksiiuO56hgqotTt5+uulU=
-github.com/rshade/finfocus-spec v0.5.2/go.mod h1:fUMah0XvFqbDO1DYMVkMLHSPxMw3e2zbEVp0Cr0oSb4=
+github.com/rshade/finfocus-spec v0.5.4 h1:2nNQ7/SMjB1k2zdugnmM6NWBELDXV1J1Nk7Dj6cZFcg=
+github.com/rshade/finfocus-spec v0.5.4/go.mod h1:jw6VTyUqzwgK96llyAfESkgigHNrSKHD7W5IT6u0AH8=
 github.com/russross/blackfriday/v2 v2.1.0/go.mod h1:+Rmxgy9KzJVeS9/2gXHxylqXiyQDYRxCVz55jmeOWTM=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 h1:KRzFb2m7YtdldCEkzs6KqmJw4nqEVZGK7IN2kJkjTuQ=
 github.com/santhosh-tekuri/jsonschema/v6 v6.0.2/go.mod h1:JXeL+ps8p7/KNMjDQk3TCwPpBy0wYklyWTfbkIzdIFU=
