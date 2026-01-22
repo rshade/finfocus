@@ -6,10 +6,11 @@ import (
 	"io"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
+
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/tui"
-	"github.com/spf13/cobra"
 )
 
 // RenderCostOutput routes the cost results to the appropriate rendering function

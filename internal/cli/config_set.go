@@ -3,8 +3,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/rshade/finfocus/internal/config"
 	"github.com/spf13/cobra"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // NewConfigSetCmd creates the config set command for setting configuration values.

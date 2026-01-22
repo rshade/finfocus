@@ -1,13 +1,15 @@
 package cli
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/rs/zerolog"
-	"github.com/rshade/finfocus/internal/logging"
-	"github.com/rshade/finfocus/internal/migration"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
+
+	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/migration"
 )
 
 // isTerminal checks if the given file is a terminal.
@@ -28,7 +30,11 @@ func NewRootCmd(ver string) *cobra.Command {
 
 // NewRootCmdWithArgs creates the root command with explicit args and env lookup for testability.
 // This allows tests to inject custom args and environment variables.
-func NewRootCmdWithArgs(ver string, args []string, lookupEnv func(string) (string, bool)) *cobra.Command {
+func NewRootCmdWithArgs(
+	ver string,
+	args []string,
+	lookupEnv func(string) (string, bool),
+) *cobra.Command {
 	var logResult *logging.LogPathResult
 
 	// Detect plugin mode from binary name or environment variable
@@ -49,8 +55,15 @@ func NewRootCmdWithArgs(ver string, args []string, lookupEnv func(string) (strin
 		Version: ver,
 		Example: example,
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			// Validate cache-ttl is non-negative (negative values cause undefined cache expiry behavior)
+			cacheTTL, _ := cmd.Flags().GetInt("cache-ttl")
+			if cacheTTL < 0 {
+				return fmt.Errorf("cache-ttl must be >= 0, got %d", cacheTTL)
+			}
+
 			// Check for migration if in interactive terminal
-			if isTerminal(os.Stdin) {
+			_, skipMigration := lookupEnv("FINFOCUS_SKIP_MIGRATION_CHECK")
+			if isTerminal(os.Stdin) && !skipMigration {
 				if err := migration.RunMigration(cmd.OutOrStdout(), cmd.InOrStdin()); err != nil {
 					// We log the error but don't fail the command as migration is best-effort
 					cmd.PrintErrf("Warning: migration check failed: %v\n", err)
@@ -73,7 +86,10 @@ func NewRootCmdWithArgs(ver string, args []string, lookupEnv func(string) (strin
 	}
 
 	cmd.PersistentFlags().Bool("debug", false, "enable debug logging")
-	cmd.PersistentFlags().Bool("skip-version-check", false, "skip plugin spec version compatibility check")
+	cmd.PersistentFlags().
+		Bool("skip-version-check", false, "skip plugin spec version compatibility check")
+	cmd.PersistentFlags().
+		Int("cache-ttl", 0, "cache TTL in seconds (0 = use config default, overrides config file and env var)")
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd())
 
 	return cmd
@@ -84,6 +100,9 @@ const rootCmdExample = `  # Calculate projected costs from a Pulumi plan
 
   # Get actual costs for the last 7 days
   finfocus cost actual --pulumi-json plan.json --from 2025-01-07
+
+  # Get cost recommendations with custom cache TTL (5 minutes)
+  finfocus cost recommendations --pulumi-json plan.json --cache-ttl 300
 
   # Install a plugin from registry
   finfocus plugin install kubecost

@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rshade/finfocus/test/integration/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/test/integration/helpers"
 )
 
 // TestOutputFormat_JSON tests JSON output format.

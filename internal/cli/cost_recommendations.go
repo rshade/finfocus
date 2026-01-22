@@ -6,17 +6,25 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"strings"
+	"sync"
+	"syscall"
 	"text/tabwriter"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/spf13/cobra"
+	"golang.org/x/term"
+
+	"github.com/rshade/finfocus/internal/cli/pagination"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
 	"github.com/rshade/finfocus/internal/tui"
-	"github.com/spf13/cobra"
 )
 
 // Note: The engine.Recommendation struct has these fields:
@@ -26,6 +34,19 @@ import (
 // - EstimatedSavings float64
 // - Currency string
 
+const (
+	// defaultCacheTTLSeconds is the default TTL for cache entries (1 hour).
+	defaultCacheTTLSeconds = 3600
+	// defaultCacheMaxSizeMB is the default maximum cache size (100MB).
+	defaultCacheMaxSizeMB = 100
+	// progressDelayMS is the delay before showing progress indicator (500ms).
+	progressDelayMS = 500
+	// progressTickerMS is the spinner update interval (100ms).
+	progressTickerMS = 100
+	// batchSize is the number of resources per batch for progress calculation.
+	progressBatchSize = 100
+)
+
 // costRecommendationsParams holds the parameters for the recommendations command execution.
 type costRecommendationsParams struct {
 	planPath string
@@ -33,6 +54,11 @@ type costRecommendationsParams struct {
 	output   string
 	filter   []string
 	verbose  bool
+	limit    int
+	page     int
+	pageSize int
+	offset   int
+	sort     string
 }
 
 // NewCostRecommendationsCmd creates the "recommendations" subcommand that fetches cost optimization
@@ -97,11 +123,22 @@ Valid action types for filtering:
 
 	// Use configuration default if no output format specified
 	defaultFormat := config.GetDefaultOutputFormat()
-	cmd.Flags().StringVar(&params.output, "output", defaultFormat, "Output format: table, json, or ndjson")
+	cmd.Flags().
+		StringVar(&params.output, "output", defaultFormat, "Output format: table, json, or ndjson")
 	cmd.Flags().StringArrayVar(&params.filter, "filter", []string{},
 		"Filter expressions (e.g., 'action=MIGRATE,RIGHTSIZE')")
 	cmd.Flags().BoolVar(&params.verbose, "verbose", false,
 		"Show all recommendations with full details (default shows top 5 by savings)")
+	cmd.Flags().IntVar(&params.limit, "limit", 0,
+		"Maximum number of recommendations to return (0 = unlimited)")
+	cmd.Flags().IntVar(&params.page, "page", 0,
+		"Page number for page-based pagination (1-indexed, 0 = disabled)")
+	cmd.Flags().IntVar(&params.pageSize, "page-size", 0,
+		"Number of items per page (requires --page)")
+	cmd.Flags().IntVar(&params.offset, "offset", 0,
+		"Number of items to skip for offset-based pagination")
+	cmd.Flags().StringVar(&params.sort, "sort", "",
+		"Sort expression (e.g., 'savings:desc', 'name:asc')")
 
 	_ = cmd.MarkFlagRequired("pulumi-json")
 
@@ -117,6 +154,8 @@ Valid action types for filtering:
 //
 // Returns an error when resource loading fails, plugins cannot be opened, recommendation
 // fetching fails, or output rendering fails.
+//
+//nolint:gocognit,gocyclo,cyclop,funlen // Complex orchestration function with multiple steps - acceptable complexity.
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -147,8 +186,77 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	}
 	defer cleanup()
 
+	// Setup cache if available
+	cfg := config.New()
+	cacheDir := cfg.Cost.Cache.Directory
+	if cacheDir == "" {
+		// Default to ~/.finfocus/cache
+		homeDir, _ := os.UserHomeDir()
+		cacheDir = filepath.Join(homeDir, ".finfocus", "cache")
+	}
+
+	// Check for --cache-ttl flag override
+	cacheTTL := cfg.Cost.Cache.TTLSeconds
+	if flagTTL, flagErr := cmd.Flags().GetInt("cache-ttl"); flagErr == nil && flagTTL > 0 {
+		cacheTTL = flagTTL
+		log.Debug().
+			Ctx(ctx).
+			Int("cache_ttl", cacheTTL).
+			Msg("cache TTL overridden by --cache-ttl flag")
+	} else if cacheTTL == 0 {
+		cacheTTL = defaultCacheTTLSeconds
+	}
+
+	cacheMaxSize := cfg.Cost.Cache.MaxSizeMB
+	if cacheMaxSize == 0 {
+		cacheMaxSize = defaultCacheMaxSizeMB
+	}
+
+	cacheStore, cacheErr := cache.NewFileStore(
+		cacheDir,
+		cfg.Cost.Cache.Enabled,
+		cacheTTL,
+		cacheMaxSize,
+	)
+	if cacheErr != nil {
+		log.Debug().
+			Ctx(ctx).
+			Err(cacheErr).
+			Msg("cache initialization failed, proceeding without cache")
+	}
+
+	// Create engine with optional cache
+	eng := engine.New(clients, nil)
+	if cacheStore != nil && cacheStore.IsEnabled() {
+		eng = eng.WithCache(cacheStore)
+	}
+
+	// Setup progress indicator for queries >500ms
+	var result *engine.RecommendationsResult
+	progressCtx, cancelProgress := context.WithCancel(ctx)
+	defer cancelProgress()
+
+	var spinnerWg sync.WaitGroup
+	spinnerWg.Add(1)
+
+	// Start goroutine to show progress after 500ms
+	go func() {
+		defer spinnerWg.Done()
+		showProgressIndicator(progressCtx, cmd, resources)
+	}()
+
 	// Fetch recommendations from engine
-	result, err := engine.New(clients, nil).GetRecommendationsForResources(ctx, resources)
+	result, err = eng.GetRecommendationsForResources(ctx, resources)
+
+	// Cancel progress indicator
+	cancelProgress()
+	spinnerWg.Wait()
+
+	// Clear progress line if it was shown
+	if term.IsTerminal(int(os.Stderr.Fd())) {
+		fmt.Fprint(cmd.ErrOrStderr(), "\r\033[K") // Clear line
+	}
+
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to fetch recommendations")
 		audit.logFailure(ctx, err)
@@ -167,16 +275,104 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 		}
 	}
 
+	// Apply sorting if specified (T034)
+	if params.sort != "" {
+		sorter := pagination.NewRecommendationSorter()
+		field, order, parseErr := pagination.ParseSortExpression(params.sort)
+		if parseErr != nil {
+			return fmt.Errorf("invalid sort expression: %w", parseErr)
+		}
+
+		// Validate sort field
+		if !sorter.IsValidField(field) {
+			return fmt.Errorf("invalid sort field: %q (valid fields: %s)",
+				field, strings.Join(sorter.GetValidFields(), ", "))
+		}
+
+		filteredRecommendations = sorter.Sort(filteredRecommendations, field, order)
+		log.Debug().Ctx(ctx).
+			Str("field", field).
+			Str("order", order).
+			Int("count", len(filteredRecommendations)).
+			Msg("applied sorting")
+	}
+
+	// Apply pagination if specified (T033)
+	paginationParams := pagination.PaginationParams{
+		Limit:    params.limit,
+		Offset:   params.offset,
+		Page:     params.page,
+		PageSize: params.pageSize,
+	}
+
+	// Validate pagination parameters
+	if validationErr := paginationParams.Validate(); validationErr != nil {
+		return fmt.Errorf("invalid pagination parameters: %w", validationErr)
+	}
+
+	// Apply pagination to recommendations
+	totalCount := len(filteredRecommendations)
+	paginatedRecommendations := filteredRecommendations
+
+	//nolint:nestif // Pagination logic requires multiple conditional checks for edge cases.
+	if paginationParams.IsEnabled() {
+		offset, limit := paginationParams.CalculateOffsetLimit()
+
+		// Handle out-of-bounds page edge case (T036)
+		// For page-based pagination, cap offset to last available page
+		if paginationParams.IsPageBased() && offset >= len(filteredRecommendations) &&
+			len(filteredRecommendations) > 0 {
+			pageSize := paginationParams.PageSize
+			if pageSize <= 0 {
+				pageSize = len(filteredRecommendations)
+			}
+			// Last page starts at the last multiple of pageSize that's < len(items)
+			lastPageStart := ((len(filteredRecommendations) - 1) / pageSize) * pageSize
+			offset = lastPageStart
+		}
+
+		// Apply offset and limit
+		if offset >= len(filteredRecommendations) {
+			paginatedRecommendations = []engine.Recommendation{}
+		} else {
+			end := offset + limit
+			if limit == 0 || end > len(filteredRecommendations) {
+				end = len(filteredRecommendations)
+			}
+			paginatedRecommendations = filteredRecommendations[offset:end]
+		}
+
+		log.Debug().Ctx(ctx).
+			Int("offset", offset).
+			Int("limit", limit).
+			Int("total", totalCount).
+			Int("returned", len(paginatedRecommendations)).
+			Msg("applied pagination")
+	}
+
+	// Generate pagination metadata (T035)
+	var paginationMeta *pagination.PaginationMeta
+	if paginationParams.IsEnabled() {
+		meta := pagination.NewPaginationMeta(paginationParams, totalCount)
+		paginationMeta = &meta
+		log.Debug().Ctx(ctx).
+			Int("current_page", paginationMeta.CurrentPage).
+			Int("total_pages", paginationMeta.TotalPages).
+			Bool("has_next", paginationMeta.HasNext).
+			Bool("has_previous", paginationMeta.HasPrevious).
+			Msg("generated pagination metadata")
+	}
+
 	// Create filtered result for rendering
 	filteredResult := &engine.RecommendationsResult{
-		Recommendations: filteredRecommendations,
+		Recommendations: paginatedRecommendations,
 		Errors:          result.Errors,
 		TotalSavings:    calculateTotalSavings(filteredRecommendations),
 		Currency:        result.Currency,
 	}
 
 	// Render output
-	if renderErr := RenderRecommendationsOutput(ctx, cmd, params.output, filteredResult, params.verbose); renderErr != nil {
+	if renderErr := RenderRecommendationsOutput(ctx, cmd, params.output, filteredResult, params.verbose, paginationMeta); renderErr != nil {
 		return renderErr
 	}
 
@@ -253,6 +449,7 @@ func RenderRecommendationsOutput(
 	outputFormat string,
 	result *engine.RecommendationsResult,
 	verbose bool,
+	paginationMeta *pagination.PaginationMeta,
 ) error {
 	if result == nil {
 		return errors.New("render recommendations: result cannot be nil")
@@ -268,9 +465,17 @@ func RenderRecommendationsOutput(
 	// JSON/NDJSON bypass TUI entirely
 	switch fmtType {
 	case engine.OutputJSON:
-		return renderRecommendationsJSON(cmd.OutOrStdout(), result)
+		return renderRecommendationsJSON(cmd.OutOrStdout(), result, paginationMeta)
 	case engine.OutputNDJSON:
-		return renderRecommendationsNDJSON(cmd.OutOrStdout(), result)
+		// T050: Disable pagination metadata in NDJSON streaming mode
+		// NDJSON is designed for line-by-line streaming without pagination
+		err := renderRecommendationsNDJSON(cmd.OutOrStdout(), result, nil)
+		// T049: Handle SIGPIPE gracefully for streaming output
+		// When piped to commands like `head -n 5`, suppress broken pipe errors
+		if isBrokenPipe(err) {
+			return nil
+		}
+		return err
 	case engine.OutputTable:
 		// Fall through to terminal mode detection below
 	}
@@ -363,7 +568,14 @@ func renderRecommendationsSummary(w io.Writer, recommendations []engine.Recommen
 		for _, at := range actionTypes {
 			count := countByAction[at]
 			savings := savingsByAction[at]
-			fmt.Fprintf(w, "  %s: %d (%.2f %s)\n", formatActionTypeLabel(at), count, savings, currency)
+			fmt.Fprintf(
+				w,
+				"  %s: %d (%.2f %s)\n",
+				formatActionTypeLabel(at),
+				count,
+				savings,
+				currency,
+			)
 		}
 	}
 
@@ -384,7 +596,11 @@ func sortActionTypes(actionTypes []string) {
 // renderRecommendationsTableWithVerbose renders recommendations in table format.
 // When verbose is false: shows summary section and top 5 recommendations sorted by savings.
 // When verbose is true: shows summary section and ALL recommendations sorted by savings.
-func renderRecommendationsTableWithVerbose(w io.Writer, result *engine.RecommendationsResult, verbose bool) error {
+func renderRecommendationsTableWithVerbose(
+	w io.Writer,
+	result *engine.RecommendationsResult,
+	verbose bool,
+) error {
 	// Render summary section first
 	renderRecommendationsSummary(w, result.Recommendations)
 
@@ -448,7 +664,11 @@ func renderRecommendationsTableWithVerbose(w io.Writer, result *engine.Recommend
 	// Show hint if more recommendations exist
 	if showMoreHint {
 		remaining := len(sorted) - defaultTopRecommendations
-		fmt.Fprintf(w, "\n... and %d more recommendation(s). Use --verbose to see all.\n", remaining)
+		fmt.Fprintf(
+			w,
+			"\n... and %d more recommendation(s). Use --verbose to see all.\n",
+			remaining,
+		)
 	}
 
 	// Errors
@@ -463,7 +683,11 @@ func renderRecommendationsTableWithVerbose(w io.Writer, result *engine.Recommend
 }
 
 // renderRecommendationsJSON renders recommendations in JSON format.
-func renderRecommendationsJSON(w io.Writer, result *engine.RecommendationsResult) error {
+func renderRecommendationsJSON(
+	w io.Writer,
+	result *engine.RecommendationsResult,
+	paginationMeta *pagination.PaginationMeta,
+) error {
 	// Build summary from recommendations
 	summary := buildJSONSummary(result.Recommendations)
 
@@ -473,6 +697,7 @@ func renderRecommendationsJSON(w io.Writer, result *engine.RecommendationsResult
 		TotalSavings:    result.TotalSavings,
 		Currency:        result.Currency,
 		Errors:          result.Errors,
+		Pagination:      paginationMeta,
 	}
 
 	for _, rec := range result.Recommendations {
@@ -497,7 +722,11 @@ func renderRecommendationsJSON(w io.Writer, result *engine.RecommendationsResult
 // renderRecommendationsNDJSON renders recommendations in NDJSON format.
 // The first line is a summary object with type: "summary", followed by
 // individual recommendation objects.
-func renderRecommendationsNDJSON(w io.Writer, result *engine.RecommendationsResult) error {
+func renderRecommendationsNDJSON(
+	w io.Writer,
+	result *engine.RecommendationsResult,
+	paginationMeta *pagination.PaginationMeta,
+) error {
 	encoder := json.NewEncoder(w)
 
 	// Build and emit summary as first line
@@ -509,6 +738,7 @@ func renderRecommendationsNDJSON(w io.Writer, result *engine.RecommendationsResu
 		Currency:          jsonSum.Currency,
 		CountByActionType: jsonSum.CountByActionType,
 		SavingsByAction:   jsonSum.SavingsByAction,
+		Pagination:        paginationMeta,
 	}
 	if err := encoder.Encode(summary); err != nil {
 		return fmt.Errorf("encoding NDJSON summary: %w", err)
@@ -536,6 +766,22 @@ func formatActionTypeLabel(actionType string) string {
 	return proto.ActionTypeLabelFromString(actionType)
 }
 
+// isBrokenPipe checks if an error is a broken pipe error (SIGPIPE).
+// This occurs when output is piped to commands like `head` that close the pipe early.
+// T049: Handle SIGPIPE gracefully for streaming output.
+func isBrokenPipe(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Check for EPIPE (broken pipe) error
+	var errno syscall.Errno
+	if errors.As(err, &errno) {
+		return errno == syscall.EPIPE
+	}
+	// Also check error message as fallback
+	return strings.Contains(err.Error(), "broken pipe")
+}
+
 // JSON output structures for recommendations.
 type recommendationsJSONOutput struct {
 	Summary         jsonSummary                  `json:"summary"`
@@ -543,6 +789,7 @@ type recommendationsJSONOutput struct {
 	TotalSavings    float64                      `json:"total_savings"`
 	Currency        string                       `json:"currency"`
 	Errors          []engine.RecommendationError `json:"errors,omitempty"`
+	Pagination      *pagination.PaginationMeta   `json:"pagination,omitempty"`
 }
 
 // jsonSummary represents the summary section in JSON output.
@@ -556,12 +803,13 @@ type jsonSummary struct {
 
 // ndjsonSummary represents the summary line in NDJSON output.
 type ndjsonSummary struct {
-	Type              string             `json:"type"`
-	TotalCount        int                `json:"total_count"`
-	TotalSavings      float64            `json:"total_savings"`
-	Currency          string             `json:"currency"`
-	CountByActionType map[string]int     `json:"count_by_action_type"`
-	SavingsByAction   map[string]float64 `json:"savings_by_action_type"`
+	Type              string                     `json:"type"`
+	TotalCount        int                        `json:"total_count"`
+	TotalSavings      float64                    `json:"total_savings"`
+	Currency          string                     `json:"currency"`
+	CountByActionType map[string]int             `json:"count_by_action_type"`
+	SavingsByAction   map[string]float64         `json:"savings_by_action_type"`
+	Pagination        *pagination.PaginationMeta `json:"pagination,omitempty"`
 }
 
 type recommendationJSON struct {
@@ -594,5 +842,60 @@ func buildJSONSummary(recommendations []engine.Recommendation) jsonSummary {
 		Currency:          currency,
 		CountByActionType: countByAction,
 		SavingsByAction:   savingsByAction,
+	}
+}
+
+// showProgressIndicator displays a spinner with batch progress for queries >500ms.
+// This function is designed to run in a goroutine and will only show progress if
+// the operation takes longer than 500ms.
+func showProgressIndicator(
+	ctx context.Context,
+	cmd *cobra.Command,
+	resources []engine.ResourceDescriptor,
+) {
+	// Wait before showing progress
+	timer := time.NewTimer(progressDelayMS * time.Millisecond)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		// Operation completed before threshold
+		return
+	case <-timer.C:
+		// Operation exceeded threshold, show progress
+	}
+
+	// Only show progress if stderr is a terminal
+	if !term.IsTerminal(int(os.Stderr.Fd())) {
+		return
+	}
+
+	// Spinner frames
+	spinnerFrames := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	frameIndex := 0
+
+	// Calculate total batches
+	totalBatches := len(resources) / progressBatchSize
+	if len(resources)%progressBatchSize > 0 {
+		totalBatches++
+	}
+
+	ticker := time.NewTicker(progressTickerMS * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			// Update spinner frame
+			frame := spinnerFrames[frameIndex%len(spinnerFrames)]
+			frameIndex++
+
+			// Show spinner with resource count and estimated batches
+			msg := fmt.Sprintf("\r%s Fetching recommendations for %d resources (%d batches)...",
+				frame, len(resources), totalBatches)
+			fmt.Fprint(cmd.ErrOrStderr(), msg)
+		}
 	}
 }

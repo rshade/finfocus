@@ -4,8 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/rshade/finfocus/internal/config"
 	"github.com/spf13/cobra"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // NewConfigInitCmd creates the config init command for initializing configuration.

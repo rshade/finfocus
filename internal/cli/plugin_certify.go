@@ -5,9 +5,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/rshade/finfocus/internal/conformance"
 	"github.com/rshade/finfocus/internal/logging"
-	"github.com/spf13/cobra"
 )
 
 // Certification timeout and output constants.

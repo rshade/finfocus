@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
+
 	"github.com/rshade/finfocus/internal/engine"
 )
 

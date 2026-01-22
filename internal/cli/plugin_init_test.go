@@ -5,8 +5,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/cli"
 	"github.com/spf13/cobra"
+
+	"github.com/rshade/finfocus/internal/cli"
 )
 
 func TestPluginInitCommand(t *testing.T) {

@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rshade/finfocus/internal/logging"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // T023: Unit test for AuditEntry struct.

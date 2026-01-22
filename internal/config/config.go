@@ -9,8 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	"github.com/rs/zerolog/log"
 	"gopkg.in/yaml.v3"
+
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 )
 
 // Duration is a wrapper around time.Duration that supports YAML/JSON parsing.
@@ -51,6 +53,10 @@ const (
 	defaultPerResourceTimeout   = 5 * time.Second
 	defaultTotalTimeout         = 60 * time.Second
 	defaultWarnThresholdTimeout = 30 * time.Second
+
+	// Cache defaults.
+	defaultCacheTTLSeconds = 3600 // 1 hour default
+	defaultCacheMaxSizeMB  = 100  // 100 MB default
 )
 
 // ErrConfigCorrupted is returned in strict mode when the config file exists but cannot be parsed.
@@ -204,6 +210,14 @@ func New() *Config {
 			},
 			Plugins: make(map[string]AnalyzerPlugin),
 		},
+		Cost: CostConfig{
+			Cache: CacheConfig{
+				Enabled:    true,
+				TTLSeconds: defaultCacheTTLSeconds,
+				Directory:  filepath.Join(finfocusDir, "cache"),
+				MaxSizeMB:  defaultCacheMaxSizeMB,
+			},
+		},
 
 		configPath: filepath.Join(finfocusDir, "config.yaml"),
 	}
@@ -278,6 +292,14 @@ func NewStrict() (*Config, error) {
 				WarnThreshold: Duration(defaultWarnThresholdTimeout),
 			},
 			Plugins: make(map[string]AnalyzerPlugin),
+		},
+		Cost: CostConfig{
+			Cache: CacheConfig{
+				Enabled:    true,
+				TTLSeconds: defaultCacheTTLSeconds,
+				Directory:  filepath.Join(finfocusDir, "cache"),
+				MaxSizeMB:  defaultCacheMaxSizeMB,
+			},
 		},
 
 		configPath: filepath.Join(finfocusDir, "config.yaml"),
@@ -679,6 +701,32 @@ func (c *Config) applyEnvOverrides() {
 	}
 	if logFile := os.Getenv(pluginsdk.EnvLogFile); logFile != "" {
 		c.Logging.File = logFile
+	}
+
+	// Cache configuration overrides (T067)
+	if enabled := os.Getenv("FINFOCUS_CACHE_ENABLED"); enabled != "" {
+		if e, err := strconv.ParseBool(enabled); err == nil {
+			c.Cost.Cache.Enabled = e
+		}
+	}
+	if ttl := os.Getenv("FINFOCUS_CACHE_TTL_SECONDS"); ttl != "" {
+		if t, err := strconv.Atoi(ttl); err == nil {
+			c.Cost.Cache.TTLSeconds = t
+		}
+	}
+	if dir := os.Getenv("FINFOCUS_CACHE_DIR"); dir != "" {
+		c.Cost.Cache.Directory = dir
+	}
+	if maxSize := os.Getenv("FINFOCUS_CACHE_MAX_SIZE_MB"); maxSize != "" {
+		if m, err := strconv.Atoi(maxSize); err == nil {
+			c.Cost.Cache.MaxSizeMB = m
+		} else {
+			log.Debug().
+				Str("env_var", "FINFOCUS_CACHE_MAX_SIZE_MB").
+				Str("value", maxSize).
+				Err(err).
+				Msg("failed to parse cache max size, using default")
+		}
 	}
 
 	// Plugin overrides (FINFOCUS_PLUGIN_<NAME>_<KEY>=value)

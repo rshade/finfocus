@@ -8,8 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/rshade/finfocus/internal/logging"
 	"gopkg.in/yaml.v3"
+
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 const (

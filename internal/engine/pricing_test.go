@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
 func TestGetDefaultMonthlyByType(t *testing.T) {

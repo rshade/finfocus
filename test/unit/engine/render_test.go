@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/engine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // TestRenderResults_TableFormat tests table output rendering.

@@ -6,9 +6,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/spec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/spec"
 )
 
 // TestNewLoader_CreatesLoader tests loader creation.

@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // TestEnv_OutputFormatOverride tests FINFOCUS_OUTPUT_FORMAT environment variable.

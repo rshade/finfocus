@@ -6,11 +6,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/tui/list"
 )
 
 // RecommendationSortField represents the field to sort recommendations by.
@@ -47,6 +48,34 @@ const (
 	// defaultCurrency is used when no currency is specified.
 	defaultCurrency = "USD"
 )
+
+// getCurrencySymbol returns the symbol for a currency code, or the code itself if unknown.
+func getCurrencySymbol(currency string) string {
+	// Mapping of ISO 4217 currency codes to their symbols.
+	switch currency {
+	case "USD":
+		return "$"
+	case "EUR":
+		return "€"
+	case "GBP":
+		return "£"
+	case "JPY", "CNY":
+		return "¥"
+	case "CAD":
+		return "C$"
+	case "AUD":
+		return "A$"
+	case "CHF":
+		return "CHF"
+	case "INR":
+		return "₹"
+	case "KRW":
+		return "₩"
+	default:
+		// Fall back to currency code for unknown currencies
+		return currency
+	}
+}
 
 // RecommendationsSummary contains aggregated statistics for recommendations display.
 type RecommendationsSummary struct {
@@ -110,6 +139,53 @@ func NewRecommendationsSummary(recs []engine.Recommendation) *RecommendationsSum
 	return summary
 }
 
+// renderRecommendation formats a single recommendation for list display.
+// The selected parameter indicates whether this item is currently selected.
+func renderRecommendation(rec engine.Recommendation, selected bool) string {
+	// Format resource ID (truncate if too long)
+	resourceID := rec.ResourceID
+	if len(resourceID) > recColWidthResource {
+		resourceID = resourceID[:recColWidthResource-3] + "..."
+	}
+
+	// Format action type
+	actionType := rec.Type
+	if len(actionType) > recColWidthAction {
+		actionType = actionType[:recColWidthAction-3] + "..."
+	}
+
+	// Format savings with correct currency symbol
+	currency := rec.Currency
+	if currency == "" {
+		currency = defaultCurrency
+	}
+	savings := fmt.Sprintf("%s%.2f", getCurrencySymbol(currency), rec.EstimatedSavings)
+
+	// Format description (truncate if too long)
+	description := rec.Description
+	if len(description) > recDescTruncateLen {
+		description = description[:recDescTruncateLen] + "..."
+	}
+
+	// Build the row
+	row := fmt.Sprintf("%-*s  %-*s  %*s  %-*s",
+		recColWidthResource, resourceID,
+		recColWidthAction, actionType,
+		recColWidthSavings, savings,
+		recColWidthDescription, description,
+	)
+
+	// Apply selection styling
+	if selected {
+		return lipgloss.NewStyle().
+			Foreground(lipgloss.Color("229")).
+			Background(lipgloss.Color("57")).
+			Render(row)
+	}
+
+	return row
+}
+
 // Messages for RecommendationsViewModel.
 type recommendationsLoadingMsg struct {
 	recommendations []engine.Recommendation
@@ -124,9 +200,8 @@ type RecommendationsViewModel struct {
 	recommendations    []engine.Recommendation // Filtered/sorted for display
 
 	// Interactive components
-	table     table.Model
-	textInput textinput.Model
-	selected  int
+	virtualList *list.VirtualListModel[engine.Recommendation]
+	textInput   textinput.Model
 
 	// Display configuration
 	width      int
@@ -158,7 +233,7 @@ func NewRecommendationsViewModel(recs []engine.Recommendation) *RecommendationsV
 		height:             defaultHeight,
 	}
 	m.applySort()
-	m.rebuildTable()
+	m.rebuildList()
 	return m
 }
 
@@ -218,7 +293,7 @@ func (m *RecommendationsViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if winMsg, ok := msg.(tea.WindowSizeMsg); ok {
 		m.width = winMsg.Width
 		m.height = winMsg.Height
-		m.rebuildTable()
+		m.rebuildList()
 	}
 
 	// Handle loading complete
@@ -259,7 +334,7 @@ func (m *RecommendationsViewModel) handleLoadingComplete(
 	m.summary = NewRecommendationsSummary(msg.recommendations)
 	m.state = ViewStateList
 	m.applySort()
-	m.rebuildTable()
+	m.rebuildList()
 	return m, nil
 }
 
@@ -290,7 +365,6 @@ func (m *RecommendationsViewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea
 			return m, tea.Quit
 		case keyEnter:
 			if len(m.recommendations) > 0 {
-				m.selected = m.table.Cursor()
 				m.state = ViewStateDetail
 			}
 			return m, nil
@@ -309,9 +383,17 @@ func (m *RecommendationsViewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea
 			return m, nil
 		}
 	}
-	var cmd tea.Cmd
-	m.table, cmd = m.table.Update(msg)
-	return m, cmd
+
+	// Forward navigation to virtual list
+	if m.virtualList != nil {
+		updatedModel, cmd := m.virtualList.Update(msg)
+		if vl, ok := updatedModel.(*list.VirtualListModel[engine.Recommendation]); ok {
+			m.virtualList = vl
+		}
+		return m, cmd
+	}
+
+	return m, nil
 }
 
 func (m *RecommendationsViewModel) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -322,7 +404,6 @@ func (m *RecommendationsViewModel) handleDetailUpdate(msg tea.Msg) (tea.Model, t
 			return m, tea.Quit
 		case keyEsc:
 			m.state = ViewStateList
-			m.table.Focus()
 			return m, nil
 		}
 	}
@@ -359,14 +440,14 @@ func (m *RecommendationsViewModel) applyFilter() {
 	}
 	m.summary = NewRecommendationsSummary(m.recommendations)
 	m.applySort()
-	m.rebuildTable()
+	m.rebuildList()
 }
 
 // cycleSort cycles through the available sort fields.
 func (m *RecommendationsViewModel) cycleSort() {
 	m.sortBy = (m.sortBy + 1) % numRecommendationSortFields
 	m.applySort()
-	m.rebuildTable()
+	m.rebuildList()
 }
 
 // applySort sorts recommendations based on the current sort field.
@@ -386,13 +467,18 @@ func (m *RecommendationsViewModel) applySort() {
 	})
 }
 
-// rebuildTable rebuilds the table model with current recommendations.
-func (m *RecommendationsViewModel) rebuildTable() {
+// rebuildList rebuilds the virtual list model with current recommendations.
+func (m *RecommendationsViewModel) rebuildList() {
 	availableHeight := m.height - recSummaryHeight - 1
 	if availableHeight < minHeight {
 		availableHeight = minHeight
 	}
-	m.table = NewRecommendationsTable(m.recommendations, availableHeight)
+	m.virtualList = list.NewVirtualListModel(
+		m.recommendations,
+		availableHeight,
+		m.width,
+		renderRecommendation,
+	)
 }
 
 // View renders the current view.
@@ -405,8 +491,11 @@ func (m *RecommendationsViewModel) View() string {
 	case ViewStateLoading:
 		return RenderLoading(m.loading)
 	case ViewStateDetail:
-		if m.selected >= 0 && m.selected < len(m.recommendations) {
-			return RenderRecommendationDetail(m.recommendations[m.selected], m.width)
+		if m.virtualList != nil {
+			selected := m.virtualList.Selected()
+			if selected >= 0 && selected < len(m.recommendations) {
+				return RenderRecommendationDetail(m.recommendations[selected], m.width)
+			}
 		}
 		return "Error: selected index out of bounds"
 	case ViewStateList:
@@ -418,62 +507,62 @@ func (m *RecommendationsViewModel) View() string {
 
 func (m *RecommendationsViewModel) renderListView() string {
 	summary := RenderRecommendationsSummaryTUI(m.summary, m.width)
-	tableView := m.table.View()
 
-	helpText := "\n[/] Filter  [s] Sort  [Enter] Details  [q] Quit"
+	// Render the virtual list
+	var listView string
+	if m.virtualList != nil {
+		// Add table header before virtual list
+		header := fmt.Sprintf("%-*s  %-*s  %*s  %-*s",
+			recColWidthResource, "Resource",
+			recColWidthAction, "Action",
+			recColWidthSavings, "Savings",
+			recColWidthDescription, "Description",
+		)
+		headerStyle := lipgloss.NewStyle().
+			BorderStyle(lipgloss.NormalBorder()).
+			BorderForeground(lipgloss.Color("240")).
+			BorderBottom(true).
+			Bold(true)
+		listView = headerStyle.Render(header) + "\n" + m.virtualList.View()
+	}
+
+	helpText := "\n[/] Filter  [s] Sort  [↑↓/jk] Navigate  [Enter] Details  [q] Quit"
 
 	if m.showFilter {
 		return lipgloss.JoinVertical(
 			lipgloss.Left,
 			summary,
-			tableView,
+			listView,
 			"\nFilter: "+m.textInput.View(),
 			helpText,
 		)
 	}
 
-	return lipgloss.JoinVertical(lipgloss.Left, summary, tableView, helpText)
+	return lipgloss.JoinVertical(lipgloss.Left, summary, listView, helpText)
 }
 
-// NewRecommendationsTable creates a table model for displaying recommendations.
-func NewRecommendationsTable(recs []engine.Recommendation, height int) table.Model {
-	columns := []table.Column{
-		{Title: "Resource", Width: recColWidthResource},
-		{Title: "Action", Width: recColWidthAction},
-		{Title: "Savings", Width: recColWidthSavings},
-		{Title: "Description", Width: recColWidthDescription},
-	}
-
-	rows := make([]table.Row, len(recs))
+// NewRecommendationsTable is deprecated: Use VirtualListModel for better performance.
+// This function is kept for backward compatibility with tests.
+// It creates a simple list representation instead of a table model.
+func NewRecommendationsTable(recs []engine.Recommendation, height int) string {
+	var result strings.Builder
 	for i, rec := range recs {
-		savings := fmt.Sprintf("$%.2f", rec.EstimatedSavings)
+		if i >= height {
+			break
+		}
+		currency := rec.Currency
+		if currency == "" {
+			currency = defaultCurrency
+		}
+		savings := fmt.Sprintf("%s%.2f", getCurrencySymbol(currency), rec.EstimatedSavings)
 		desc := rec.Description
 		if len(desc) > recDescTruncateLen {
 			desc = desc[:recDescTruncateLen] + "..."
 		}
-		rows[i] = table.Row{rec.ResourceID, rec.Type, savings, desc}
+		_, _ = result.WriteString(fmt.Sprintf("%s | %s | %s | %s\n",
+			rec.ResourceID, rec.Type, savings, desc))
 	}
-
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(true),
-		table.WithHeight(height),
-	)
-
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(false)
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("229")).
-		Background(lipgloss.Color("57")).
-		Bold(false)
-	t.SetStyles(s)
-
-	return t
+	return result.String()
 }
 
 // RenderRecommendationsSummaryTUI renders the recommendations summary for TUI display.
@@ -488,13 +577,13 @@ func RenderRecommendationsSummaryTUI(summary *RecommendationsSummary, _ int) str
 	}
 
 	var sb strings.Builder
-	sb.WriteString("RECOMMENDATIONS SUMMARY\n")
-	sb.WriteString("=======================\n")
-	sb.WriteString(fmt.Sprintf("Total: %d recommendations\n", summary.TotalCount))
-	sb.WriteString(fmt.Sprintf("Potential Savings: $%.2f %s\n", summary.TotalSavings, currency))
+	_, _ = sb.WriteString("RECOMMENDATIONS SUMMARY\n")
+	_, _ = sb.WriteString("=======================\n")
+	_, _ = sb.WriteString(fmt.Sprintf("Total: %d recommendations\n", summary.TotalCount))
+	_, _ = sb.WriteString(fmt.Sprintf("Potential Savings: %s%.2f\n", getCurrencySymbol(currency), summary.TotalSavings))
 
 	if len(summary.CountByAction) > 0 {
-		sb.WriteString("\nBy Action Type:\n")
+		_, _ = sb.WriteString("\nBy Action Type:\n")
 
 		// Sort action types for deterministic output
 		actionTypes := make([]string, 0, len(summary.CountByAction))
@@ -503,10 +592,11 @@ func RenderRecommendationsSummaryTUI(summary *RecommendationsSummary, _ int) str
 		}
 		sort.Strings(actionTypes)
 
+		currencySymbol := getCurrencySymbol(currency)
 		for _, actionType := range actionTypes {
 			count := summary.CountByAction[actionType]
 			savings := summary.SavingsByAction[actionType]
-			sb.WriteString(fmt.Sprintf("  %s: %d ($%.2f)\n", actionType, count, savings))
+			_, _ = sb.WriteString(fmt.Sprintf("  %s: %d (%s%.2f)\n", actionType, count, currencySymbol, savings))
 		}
 	}
 
@@ -523,13 +613,14 @@ func RenderRecommendationDetail(rec engine.Recommendation, width int) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString("RECOMMENDATION DETAIL\n")
-	sb.WriteString("=====================\n\n")
-	sb.WriteString(fmt.Sprintf("Resource:    %s\n", rec.ResourceID))
-	sb.WriteString(fmt.Sprintf("Action Type: %s\n", rec.Type))
-	sb.WriteString(fmt.Sprintf("Savings:     $%.2f %s\n", rec.EstimatedSavings, currency))
-	sb.WriteString(fmt.Sprintf("Description: %s\n", rec.Description))
-	sb.WriteString("\n[Esc] Back to list  [q] Quit")
+	_, _ = sb.WriteString("RECOMMENDATION DETAIL\n")
+	_, _ = sb.WriteString("=====================\n\n")
+	_, _ = sb.WriteString(fmt.Sprintf("Resource:    %s\n", rec.ResourceID))
+	_, _ = sb.WriteString(fmt.Sprintf("Action Type: %s\n", rec.Type))
+	_, _ = sb.WriteString(fmt.Sprintf("Savings:     %s%.2f %s\n",
+		getCurrencySymbol(currency), rec.EstimatedSavings, currency))
+	_, _ = sb.WriteString(fmt.Sprintf("Description: %s\n", rec.Description))
+	_, _ = sb.WriteString("\n[Esc] Back to list  [q] Quit")
 
 	return sb.String()
 }

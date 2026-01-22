@@ -5,12 +5,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/pluginhost"
-	"github.com/rshade/finfocus/internal/proto"
-	"github.com/rshade/finfocus/test/mocks/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
+	"github.com/rshade/finfocus/test/mocks/plugin"
 )
 
 // TestNewClient_Success tests successful client creation with mock plugin.

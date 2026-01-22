@@ -3,9 +3,10 @@ package plugin_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rshade/finfocus/internal/proto"
 	"github.com/rshade/finfocus/test/mocks/plugin"
-	"github.com/stretchr/testify/assert"
 )
 
 // TestSetLatency verifies latency configuration.

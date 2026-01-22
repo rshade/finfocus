@@ -143,11 +143,29 @@ func (b BudgetConfig) GetForecastedAlerts() []AlertConfig {
 	return alerts
 }
 
-// CostConfig holds cost-related configuration settings including budgets.
+// CostConfig holds cost-related configuration settings including budgets and caching.
 // It groups all cost management features under a single configuration section.
 type CostConfig struct {
 	// Budgets contains the budget configuration for cost tracking.
 	Budgets BudgetConfig `yaml:"budgets,omitempty" json:"budgets,omitempty"`
+
+	// Cache contains the cache configuration for query result caching.
+	Cache CacheConfig `yaml:"cache,omitempty" json:"cache,omitempty"`
+}
+
+// CacheConfig defines caching behavior for query results.
+type CacheConfig struct {
+	// Enabled controls whether caching is enabled (default: true).
+	Enabled bool `yaml:"enabled" json:"enabled"`
+
+	// TTLSeconds is the time-to-live for cached entries in seconds (default: 3600 = 1 hour).
+	TTLSeconds int `yaml:"ttl_seconds" json:"ttl_seconds"`
+
+	// Directory is the cache directory path (default: ~/.finfocus/cache).
+	Directory string `yaml:"directory,omitempty" json:"directory,omitempty"`
+
+	// MaxSizeMB is the maximum cache size in megabytes (default: 100, 0 = unlimited).
+	MaxSizeMB int `yaml:"max_size_mb" json:"max_size_mb"`
 }
 
 // Validate validates the cost configuration.

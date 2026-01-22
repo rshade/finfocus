@@ -3,10 +3,11 @@ package proto_test
 import (
 	"testing"
 
-	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
-	"github.com/rshade/finfocus/internal/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 // T011: Table-driven tests for ActionTypeLabel() covering all 11 types.

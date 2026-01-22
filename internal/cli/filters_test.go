@@ -4,10 +4,11 @@ import (
 	"context"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/cli"
-	"github.com/rshade/finfocus/internal/engine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/cli"
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 func TestApplyFilters(t *testing.T) {

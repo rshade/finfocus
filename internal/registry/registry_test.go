@@ -10,10 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+
+	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
 func TestListLatestPlugins(t *testing.T) {

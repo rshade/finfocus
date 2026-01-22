@@ -12,12 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
-	"github.com/rshade/finfocus/internal/constants"
-	"github.com/rshade/finfocus/internal/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	"github.com/rshade/finfocus/internal/constants"
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 const (

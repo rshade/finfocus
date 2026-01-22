@@ -8,9 +8,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/cli"
 )
 
 // T001: Test NewCostRecommendationsCmd() creates a valid command.

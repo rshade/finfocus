@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rshade/finfocus/test/integration/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/test/integration/helpers"
 )
 
 // TestCrossProvider_MultiProviderPlan tests cross-provider aggregation with a multi-provider plan.

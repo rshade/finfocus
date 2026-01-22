@@ -9,9 +9,10 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/rshade/finfocus/internal/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 const (

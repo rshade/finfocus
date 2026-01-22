@@ -6,10 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/engine"
-	"github.com/rshade/finfocus/internal/spec"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/spec"
 )
 
 func TestProjectedCostIntegration(t *testing.T) {

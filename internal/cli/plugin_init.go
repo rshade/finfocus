@@ -10,10 +10,11 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/spf13/cobra"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/logging"
-	"github.com/spf13/cobra"
 )
 
 // PluginInitOptions contains configuration options for plugin initialization.

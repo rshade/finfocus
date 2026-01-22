@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
-	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -16,6 +14,9 @@ import (
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
 const bufSize = 1024 * 1024

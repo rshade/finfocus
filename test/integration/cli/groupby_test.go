@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rshade/finfocus/test/integration/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/test/integration/helpers"
 )
 
 // TestGroupBy_Resource_JSON tests --group-by resource with JSON output.

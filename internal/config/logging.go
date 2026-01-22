@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+
 	"github.com/rshade/finfocus/internal/logging"
 )
 

@@ -10,10 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rshade/finfocus/internal/pluginhost"
-	"github.com/rshade/finfocus/internal/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 // TestRecorderPlugin_Integration verifies that the recorder plugin can be discovered and used.

@@ -1,0 +1,91 @@
+// Package main generates test fixture files for pagination and performance testing.
+//
+// This tool creates large_dataset_1000.json and large_dataset_10000.json files
+// containing realistic recommendation data for integration and performance tests.
+//
+// Usage:
+//
+//	go run generate_fixtures.go
+package main
+
+import (
+	"encoding/json"
+	"fmt"
+	"math/rand"
+	"os"
+	"time"
+)
+
+// Recommendation represents a cost optimization recommendation for testing.
+type Recommendation struct {
+	Resource     string  `json:"resource"`
+	Provider     string  `json:"provider"`
+	ResourceType string  `json:"resourceType"`
+	MonthlyCost  float64 `json:"monthlyCost"`
+	Savings      float64 `json:"savings"`
+	ActionType   string  `json:"actionType"`
+	Region       string  `json:"region"`
+}
+
+var (
+	providers     = []string{"aws", "azure", "gcp"}
+	resourceTypes = []string{"Instance", "Database", "Bucket", "LoadBalancer", "Cache"}
+	actionTypes   = []string{"RIGHTSIZE", "TERMINATE", "PURCHASE_COMMITMENT", "DELETE_UNUSED", "MODIFY"}
+	regions       = []string{"us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"}
+)
+
+func generateRecommendation(id int) Recommendation {
+	provider := providers[rand.Intn(len(providers))]
+	resourceType := resourceTypes[rand.Intn(len(resourceTypes))]
+	actionType := actionTypes[rand.Intn(len(actionTypes))]
+	region := regions[rand.Intn(len(regions))]
+
+	monthlyCost := rand.Float64()*1000 + 10  // $10-$1010/month
+	savingsPercent := rand.Float64()*0.5 + 0.1 // 10-60% savings
+	savings := monthlyCost * savingsPercent
+
+	return Recommendation{
+		Resource:     fmt.Sprintf("%s:%s:%s/resource-%d", provider, resourceType, resourceType, id),
+		Provider:     provider,
+		ResourceType: fmt.Sprintf("%s:%s:%s", provider, resourceType, resourceType),
+		MonthlyCost:  monthlyCost,
+		Savings:      savings,
+		ActionType:   actionType,
+		Region:       region,
+	}
+}
+
+func generateDataset(count int, filename string) error {
+	rand.Seed(time.Now().UnixNano())
+
+	recommendations := make([]Recommendation, count)
+	for i := 0; i < count; i++ {
+		recommendations[i] = generateRecommendation(i + 1)
+	}
+
+	data, err := json.MarshalIndent(recommendations, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling JSON: %w", err)
+	}
+
+	if err := os.WriteFile(filename, data, 0644); err != nil {
+		return fmt.Errorf("writing file: %w", err)
+	}
+
+	fmt.Printf("Generated %s with %d recommendations\n", filename, count)
+	return nil
+}
+
+func main() {
+	if err := generateDataset(1000, "large_dataset_1000.json"); err != nil {
+		fmt.Fprintf(os.Stderr, "Error generating 1000-item dataset: %v\n", err)
+		os.Exit(1)
+	}
+
+	if err := generateDataset(10000, "large_dataset_10000.json"); err != nil {
+		fmt.Fprintf(os.Stderr, "Error generating 10000-item dataset: %v\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Test fixtures generated successfully!")
+}

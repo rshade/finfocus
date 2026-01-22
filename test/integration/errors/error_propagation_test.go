@@ -4,10 +4,11 @@ package errors_test
 import (
 	"testing"
 
-	"github.com/rshade/finfocus/test/integration/helpers"
-	"github.com/rshade/finfocus/test/mocks/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/test/integration/helpers"
+	"github.com/rshade/finfocus/test/mocks/plugin"
 )
 
 // TestErrorPropagation_MissingPlanFile tests error when plan file doesn't exist.

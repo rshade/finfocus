@@ -5,10 +5,11 @@ import (
 	"sync"
 
 	"github.com/rs/zerolog"
-	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
-	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
 const (

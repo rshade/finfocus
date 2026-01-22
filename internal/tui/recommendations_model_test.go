@@ -5,9 +5,10 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/rshade/finfocus/internal/engine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 func TestNewRecommendationsSummary(t *testing.T) {
@@ -371,18 +372,21 @@ func TestRecommendationsTable(t *testing.T) {
 		{ResourceID: "r2", Type: "TERMINATE", Description: "Remove unused", EstimatedSavings: 50.00},
 	}
 
-	t.Run("creates table with correct rows", func(t *testing.T) {
-		table := NewRecommendationsTable(recs, 10)
+	t.Run("creates list with correct rows", func(t *testing.T) {
+		output := NewRecommendationsTable(recs, 10)
 
-		// Table should be created without error
-		assert.NotEmpty(t, table.View())
+		// Output should contain recommendation data
+		assert.Contains(t, output, "r1")
+		assert.Contains(t, output, "RIGHTSIZE")
+		assert.Contains(t, output, "r2")
+		assert.Contains(t, output, "TERMINATE")
 	})
 
-	t.Run("empty recommendations creates empty table", func(t *testing.T) {
-		table := NewRecommendationsTable([]engine.Recommendation{}, 10)
+	t.Run("empty recommendations creates empty list", func(t *testing.T) {
+		output := NewRecommendationsTable([]engine.Recommendation{}, 10)
 
-		// Table should still be created
-		assert.NotEmpty(t, table.View())
+		// Empty list should be empty string
+		assert.Empty(t, output)
 	})
 }
 
@@ -460,13 +464,13 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		m := updatedModel.(*RecommendationsViewModel)
 
 		assert.Equal(t, ViewStateDetail, m.state)
-		assert.Equal(t, 0, m.selected) // First item selected
+		// Selection is managed by VirtualListModel internally
 	})
 
 	t.Run("Escape from detail returns to list", func(t *testing.T) {
 		model := NewRecommendationsViewModel(recs)
 		model.state = ViewStateDetail
-		model.selected = 0
+		// Selection is managed by VirtualListModel
 
 		// Simulate Escape key
 		msg := tea.KeyMsg{Type: tea.KeyEscape}
@@ -580,7 +584,9 @@ func TestRecommendationsViewModel_ViewStates(t *testing.T) {
 	t.Run("renders detail view correctly", func(t *testing.T) {
 		model := NewRecommendationsViewModel(recs)
 		model.state = ViewStateDetail
-		model.selected = 0
+		if model.virtualList != nil {
+			model.virtualList.SetSelected(0)
+		}
 
 		output := model.View()
 		assert.Contains(t, output, "r1")
@@ -590,10 +596,13 @@ func TestRecommendationsViewModel_ViewStates(t *testing.T) {
 	t.Run("renders detail view bounds check", func(t *testing.T) {
 		model := NewRecommendationsViewModel(recs)
 		model.state = ViewStateDetail
-		model.selected = 999 // Out of bounds
+		if model.virtualList != nil {
+			model.virtualList.SetSelected(999) // Out of bounds (will be capped by VirtualListModel)
+		}
 
 		output := model.View()
-		assert.Contains(t, output, "out of bounds")
+		// VirtualListModel caps selection to valid range, so we'll still see valid data
+		assert.Contains(t, output, "r1")
 	})
 }
 

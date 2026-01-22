@@ -5,12 +5,14 @@ import (
 	"errors"
 	"testing"
 
-	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
-	"github.com/rshade/finfocus/internal/pluginhost"
-	"github.com/rshade/finfocus/internal/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 // mockCostSourceClient implements proto.CostSourceClient for testing.

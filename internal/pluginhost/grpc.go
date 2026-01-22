@@ -4,9 +4,10 @@ import (
 	"context"
 
 	"github.com/rs/zerolog"
-	"github.com/rshade/finfocus/internal/logging"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // TraceIDMetadataKey is the gRPC metadata key for trace ID propagation.

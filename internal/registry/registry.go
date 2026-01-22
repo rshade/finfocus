@@ -8,6 +8,7 @@ import (
 	"runtime"
 
 	"github.com/Masterminds/semver/v3"
+
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"

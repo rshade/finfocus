@@ -5,9 +5,10 @@ import (
 	"sync"
 	"time"
 
-	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
 // ConformancePlugin is a reference implementation that correctly implements
