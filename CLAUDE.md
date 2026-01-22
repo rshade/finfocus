@@ -202,7 +202,7 @@ Shared utilities for recommendation action type handling:
 - `MatchesActionType(recType string, types []pbc.RecommendationActionType) bool` - Filter matching
 
 Valid action types: RIGHTSIZE, TERMINATE, PURCHASE_COMMITMENT, ADJUST_REQUESTS, MODIFY,
-DELETE_UNUSED, MIGRATE, CONSOLIDATE, SCHEDULE, REFACTOR, OTHER
+DELETE_UNUSED, MIGRATE, CONSOLIDATE, SCHEDULE, REFACTOR, INVESTIGATE, OTHER
 
 ## Documentation
 
@@ -1019,6 +1019,8 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
+
+- Go 1.25.5 + github.com/stretchr/testify v1.11.1, Pulumi Automation API (v3.210.0+), E2E test framework (`test/e2e/`), local filesystem for Pulumi state files and fixtures (`test/e2e/fixtures/`) (001-multi-region-e2e)
 
 - Go 1.25.5 + finfocus-spec v0.5.2 (pluginsdk), cobra v1.10.1, (108-action-type-enum)
 - N/A (stateless enum mapping) (108-action-type-enum)

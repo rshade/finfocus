@@ -1,0 +1,195 @@
+name: multi-region-test-eu-west-1
+runtime: yaml
+description: Multi-region E2E test fixture for eu-west-1 with 16 resources
+
+config:
+  aws:region:
+    value: eu-west-1
+  pulumi:tags:
+    value:
+      Environment: e2e-test
+      ManagedBy: finfocus
+      TestSuite: multi-region
+
+resources:
+  # VPC Infrastructure (required for networking resources)
+  test-vpc:
+    type: aws:ec2:Vpc
+    properties:
+      cidrBlock: "10.0.0.0/16"
+      tags:
+        Name: test-vpc
+
+  test-igw:
+    type: aws:ec2:InternetGateway
+    properties:
+      vpcId: ${test-vpc.id}
+      tags:
+        Name: test-igw
+
+  test-subnet:
+    type: aws:ec2:Subnet
+    properties:
+      vpcId: ${test-vpc.id}
+      cidrBlock: "10.0.1.0/24"
+      availabilityZone: eu-west-1a
+      mapPublicIpOnLaunch: true
+      tags:
+        Name: test-subnet
+
+  test-subnet-2:
+    type: aws:ec2:Subnet
+    properties:
+      vpcId: ${test-vpc.id}
+      cidrBlock: "10.0.2.0/24"
+      availabilityZone: eu-west-1b
+      tags:
+        Name: test-subnet-2
+
+  test-rt:
+    type: aws:ec2:RouteTable
+    properties:
+      vpcId: ${test-vpc.id}
+      routes:
+        - cidrBlock: "0.0.0.0/0"
+          gatewayId: ${test-igw.id}
+      tags:
+        Name: test-rt
+
+  test-rta:
+    type: aws:ec2:RouteTableAssociation
+    properties:
+      subnetId: ${test-subnet.id}
+      routeTableId: ${test-rt.id}
+
+  # EC2 Instances (compute) - 2 resources
+  web-server-t3-micro:
+    type: aws:ec2:Instance
+    properties:
+      ami: ami-placeholder-eu-west-1
+      instanceType: t3.micro
+      subnetId: ${test-subnet.id}
+      associatePublicIpAddress: true
+      tags:
+        Name: web-server-t3-micro
+
+  web-server-t3-small:
+    type: aws:ec2:Instance
+    properties:
+      ami: ami-placeholder-eu-west-1
+      instanceType: t3.small
+      subnetId: ${test-subnet.id}
+      associatePublicIpAddress: true
+      tags:
+        Name: web-server-t3-small
+
+  # EBS Volumes (storage) - 2 resources
+  data-volume-gp3:
+    type: aws:ebs:Volume
+    properties:
+      availabilityZone: eu-west-1a
+      size: 100
+      type: gp3
+      iops: 3000
+      tags:
+        Name: data-volume-gp3
+
+  data-volume-io2:
+    type: aws:ebs:Volume
+    properties:
+      availabilityZone: eu-west-1a
+      size: 50
+      type: io2
+      iops: 1000
+      tags:
+        Name: data-volume-io2
+
+  # Network Resources - 2 resources
+  test-eip:
+    type: aws:ec2:Eip
+    properties:
+      domain: vpc
+      tags:
+        Name: test-eip
+
+  test-nat-gw:
+    type: aws:ec2:NatGateway
+    properties:
+      allocationId: ${test-eip.id}
+      subnetId: ${test-subnet.id}
+      tags:
+        Name: test-nat-gw
+
+  test-vpc-endpoint:
+    type: aws:ec2:VpcEndpoint
+    properties:
+      vpcId: ${test-vpc.id}
+      serviceName: com.amazonaws.eu-west-1.s3
+      vpcEndpointType: Gateway
+      routeTableIds:
+        - ${test-rt.id}
+      tags:
+        Name: test-vpc-endpoint
+
+  # RDS Subnet Group (required for RDS - needs subnets in at least 2 AZs)
+  test-db-subnet-group:
+    type: aws:rds:SubnetGroup
+    properties:
+      subnetIds:
+        - ${test-subnet.id}
+        - ${test-subnet-2.id}
+      tags:
+        Name: test-db-subnet-group
+
+  # RDS Instances (database) - 2 resources
+  test-db-postgres:
+    type: aws:rds:Instance
+    properties:
+      allocatedStorage: 20
+      engine: postgres
+      engineVersion: "13.7"
+      instanceClass: db.t3.micro
+      dbName: testdb
+      username: testuser  # TEST ONLY - do not use in production
+      password: testpassword123  # TEST ONLY - ephemeral test credentials
+      parameterGroupName: default.postgres13
+      skipFinalSnapshot: true
+      dbSubnetGroupName: ${test-db-subnet-group.name}
+      tags:
+        Name: test-db-postgres
+
+  test-db-mysql:
+    type: aws:rds:Instance
+    properties:
+      allocatedStorage: 20
+      engine: mysql
+      engineVersion: "8.0.28"
+      instanceClass: db.t3.micro
+      dbName: testdb
+      username: testuser  # TEST ONLY - do not use in production
+      password: testpassword123  # TEST ONLY - ephemeral test credentials
+      parameterGroupName: default.mysql8.0
+      skipFinalSnapshot: true
+      dbSubnetGroupName: ${test-db-subnet-group.name}
+      tags:
+        Name: test-db-mysql
+
+outputs:
+  vpcId:
+    value: ${test-vpc.id}
+  ec2T3MicroId:
+    value: ${web-server-t3-micro.id}
+  ec2T3SmallId:
+    value: ${web-server-t3-small.id}
+  ebsGp3Id:
+    value: ${data-volume-gp3.id}
+  ebsIo2Id:
+    value: ${data-volume-io2.id}
+  natGwId:
+    value: ${test-nat-gw.id}
+  vpcEndpointId:
+    value: ${test-vpc-endpoint.id}
+  rdsPgId:
+    value: ${test-db-postgres.id}
+  rdsMyId:
+    value: ${test-db-mysql.id}

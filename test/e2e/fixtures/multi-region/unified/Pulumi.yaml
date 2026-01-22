@@ -1,0 +1,74 @@
+name: multi-region-test-unified
+runtime: yaml
+description: Unified multi-region E2E test fixture with resources across all regions
+
+config:
+  pulumi:tags:
+    value:
+      Environment: e2e-test
+      ManagedBy: finfocus
+      TestSuite: multi-region-unified
+
+resources:
+  # AWS Provider for us-east-1
+  aws-us-east-1:
+    type: pulumi:providers:aws
+    properties:
+      region: us-east-1
+
+  # AWS Provider for eu-west-1
+  aws-eu-west-1:
+    type: pulumi:providers:aws
+    properties:
+      region: eu-west-1
+
+  # AWS Provider for ap-northeast-1
+  aws-ap-northeast-1:
+    type: pulumi:providers:aws
+    properties:
+      region: ap-northeast-1
+
+  # EC2 Instance in us-east-1
+  web-us-east-1:
+    type: aws:ec2:Instance
+    properties:
+      ami: ami-placeholder-us-east-1
+      instanceType: t3.micro
+      tags:
+        Name: web-us-east-1
+        Region: us-east-1
+    options:
+      provider: ${aws-us-east-1}
+
+  # EC2 Instance in eu-west-1
+  web-eu-west-1:
+    type: aws:ec2:Instance
+    properties:
+      ami: ami-placeholder-eu-west-1
+      instanceType: t3.micro
+      tags:
+        Name: web-eu-west-1
+        Region: eu-west-1
+    options:
+      provider: ${aws-eu-west-1}
+
+  # EC2 Instance in ap-northeast-1
+  web-ap-northeast-1:
+    type: aws:ec2:Instance
+    properties:
+      ami: ami-placeholder-ap-northeast-1
+      instanceType: t3.micro
+      tags:
+        Name: web-ap-northeast-1
+        Region: ap-northeast-1
+    options:
+      provider: ${aws-ap-northeast-1}
+
+outputs:
+  regions:
+    value:
+      - us-east-1
+      - eu-west-1
+      - ap-northeast-1
+  resourceCount:
+    value: 3

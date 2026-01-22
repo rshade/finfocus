@@ -3,6 +3,7 @@ package migration
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,5 +35,10 @@ func TestSafeCopy(t *testing.T) {
 
 	info, err := os.Stat(filepath.Join(dst, "plugins", "aws", "plugin.exe"))
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0700), info.Mode().Perm())
+	// On Windows, file permissions work differently - just ensure it's a regular file
+	if runtime.GOOS == "windows" {
+		assert.True(t, info.Mode().IsRegular(), "should be a regular file")
+	} else {
+		assert.Equal(t, os.FileMode(0700), info.Mode().Perm())
+	}
 }

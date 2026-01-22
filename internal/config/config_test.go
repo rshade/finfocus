@@ -451,13 +451,13 @@ func TestConfig_FINFOCUS_LOG_FORMAT_EnvVar(t *testing.T) {
 	stubHome(t)
 
 	// Test various log formats via environment variable
+	// Note: Only "json" and "text" are valid formats per isValidFormat()
 	tests := []struct {
 		envValue       string
 		expectedFormat string
 	}{
 		{"json", "json"},
 		{"text", "text"},
-		{"console", "console"},
 	}
 
 	for _, tt := range tests {

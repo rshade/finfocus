@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,6 +41,10 @@ func TestCreateWriter_CreatesFile(t *testing.T) {
 
 // T059: Unit test for createWriter fallback to stderr on permission error.
 func TestCreateWriter_FallbackOnPermissionError(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping permission test on Windows - POSIX permissions not enforced")
+	}
+
 	// Create a directory and make it read-only to force permission error
 	tmpDir := t.TempDir()
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
@@ -108,6 +113,10 @@ func TestNewLoggerWithPath_CreatesFile(t *testing.T) {
 
 // T061: Unit test for NewLoggerWithPath fallback.
 func TestNewLoggerWithPath_Fallback(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping permission test on Windows - POSIX permissions not enforced")
+	}
+
 	tmpDir := t.TempDir()
 	readOnlyDir := filepath.Join(tmpDir, "readonly")
 	err := os.Mkdir(readOnlyDir, 0500)
