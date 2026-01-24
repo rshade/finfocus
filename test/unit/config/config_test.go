@@ -7,9 +7,10 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // setHomeDir sets the appropriate home directory environment variable

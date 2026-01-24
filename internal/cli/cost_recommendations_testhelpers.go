@@ -114,7 +114,7 @@ func RenderRecommendationsJSONForTest(w io.Writer, recs []TestableRecommendation
 		TotalSavings:    calculateTotalSavingsForTest(engineRecs),
 		Currency:        "USD",
 	}
-	return renderRecommendationsJSON(w, result)
+	return renderRecommendationsJSON(w, result, nil)
 }
 
 // RenderRecommendationsNDJSONForTest is a test export for renderRecommendationsNDJSON.
@@ -125,7 +125,7 @@ func RenderRecommendationsNDJSONForTest(w io.Writer, recs []TestableRecommendati
 		TotalSavings:    calculateTotalSavingsForTest(engineRecs),
 		Currency:        "USD",
 	}
-	return renderRecommendationsNDJSON(w, result)
+	return renderRecommendationsNDJSON(w, result, nil)
 }
 
 // sortRecommendationsBySavings sorts recommendations by estimated savings in descending order.

@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"time"
 
+	"google.golang.org/grpc"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
-	"google.golang.org/grpc"
 )
 
 // ErrPluginIncompatible is returned when a plugin's spec version is incompatible

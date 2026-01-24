@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/cli"
-	"github.com/rshade/finfocus/internal/engine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/cli"
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // createTestPlan creates a temporary Pulumi plan JSON file for testing.

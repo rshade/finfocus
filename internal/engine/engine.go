@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -12,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rshade/finfocus/internal/engine/batch"
+	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
@@ -31,6 +34,7 @@ const (
 	defaultComputeMonthlyCost   = 20.0  // Default monthly cost for compute resources
 	defaultServiceName          = "default"
 	defaultCurrency             = "USD" // Default currency for cost calculations
+	batchProcessingThreshold    = 100   // Threshold for enabling batch processing
 )
 
 const (
@@ -74,6 +78,7 @@ type SpecLoader interface {
 type Engine struct {
 	clients []*pluginhost.Client
 	loader  SpecLoader
+	cache   *cache.FileStore
 }
 
 // New creates a new Engine with the given plugin clients and spec loader.
@@ -81,7 +86,15 @@ func New(clients []*pluginhost.Client, loader SpecLoader) *Engine {
 	return &Engine{
 		clients: clients,
 		loader:  loader,
+		cache:   nil, // Cache is optional, set via WithCache
 	}
+}
+
+// WithCache sets the cache store for the engine.
+// This is optional - if not set, no caching will be performed.
+func (e *Engine) WithCache(cacheStore *cache.FileStore) *Engine {
+	e.cache = cacheStore
+	return e
 }
 
 func (e *Engine) getConcurrencyMultiplier() int {
@@ -834,7 +847,10 @@ func (e *Engine) getActualCostForResource(
 			engineResult := *costResult
 			// Only allocate sustainability map if source has values
 			if len(costResult.Sustainability) > 0 {
-				engineResult.Sustainability = make(map[string]SustainabilityMetric, len(costResult.Sustainability))
+				engineResult.Sustainability = make(
+					map[string]SustainabilityMetric,
+					len(costResult.Sustainability),
+				)
 				for k, v := range costResult.Sustainability {
 					engineResult.Sustainability[k] = SustainabilityMetric{
 						Value: v.Value,
@@ -1500,7 +1516,8 @@ func ValidateFilter(filter string) error {
 	parts := strings.SplitN(filter, "=", filterKeyValueParts)
 	if len(parts) != filterKeyValueParts {
 		return errors.New(
-			"invalid filter syntax: expected 'key=value' (e.g., 'type=aws:ec2/instance' or 'tag:env=prod')")
+			"invalid filter syntax: expected 'key=value' (e.g., 'type=aws:ec2/instance' or 'tag:env=prod')",
+		)
 	}
 	if strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
 		return errors.New("filter key and value must be non-empty")
@@ -2352,6 +2369,9 @@ func convertProtoRecommendation(rec *proto.Recommendation) Recommendation {
 }
 
 // GetRecommendationsForResources fetches cost optimization recommendations for the given resources.
+// For large datasets (>100 resources), it uses batch processing to improve performance and memory usage.
+//
+//nolint:gocognit // Complex orchestration function with caching and batch processing.
 func (e *Engine) GetRecommendationsForResources(
 	ctx context.Context,
 	resources []ResourceDescriptor,
@@ -2365,63 +2385,255 @@ func (e *Engine) GetRecommendationsForResources(
 		return result, nil
 	}
 
+	// Check cache if enabled
+	//nolint:nestif // Cache lookup requires nested checks for key generation, cache hit, and unmarshaling.
+	if e.cache != nil && e.cache.IsEnabled() {
+		cacheKey, keyErr := e.generateRecommendationsCacheKey(resources)
+		if keyErr == nil {
+			if cachedEntry, cacheErr := e.cache.Get(cacheKey); cacheErr == nil && cachedEntry != nil {
+				log.Debug().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("cache_key", cacheKey).
+					Msg("cache hit for recommendations")
+
+				// Unmarshal cached result
+				var cachedResult RecommendationsResult
+				if unmarshalErr := json.Unmarshal(cachedEntry.Data, &cachedResult); unmarshalErr == nil {
+					return &cachedResult, nil
+				}
+				log.Warn().
+					Ctx(ctx).
+					Str("component", "engine").
+					Msg("failed to unmarshal cached recommendations")
+			}
+		}
+	}
+
+	// Use batch processing for large datasets
+	useBatchProcessing := len(resources) > batchProcessingThreshold
+
 	for _, client := range e.clients {
 		log.Info().
 			Ctx(ctx).
 			Str("component", "engine").
 			Str("plugin", client.Name).
 			Int("resource_count", len(resources)).
+			Bool("batch_processing", useBatchProcessing).
 			Msg("fetching recommendations from plugin")
 
-		targetResources := make([]*proto.ResourceDescriptor, 0, len(resources))
-		for _, r := range resources {
-			targetResources = append(targetResources, &proto.ResourceDescriptor{
-				ID:         r.ID,
-				Type:       r.Type,
-				Provider:   r.Provider,
-				Properties: convertToProto(r.Properties),
-			})
-		}
+		if useBatchProcessing {
+			if err := e.fetchRecommendationsWithBatching(ctx, client, resources, result); err != nil {
+				log.Warn().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("plugin", client.Name).
+					Err(err).
+					Msg("failed to fetch recommendations with batching")
 
-		req := &proto.GetRecommendationsRequest{
-			TargetResources:  targetResources,
-			ProjectionPeriod: "monthly",
-		}
-
-		resp, err := client.API.GetRecommendations(ctx, req)
-		if err != nil {
-			log.Warn().
-				Ctx(ctx).
-				Str("component", "engine").
-				Str("plugin", client.Name).
-				Err(err).
-				Msg("failed to fetch recommendations")
-
-			result.Errors = append(result.Errors, RecommendationError{
-				PluginName: client.Name,
-				Error:      err.Error(),
-			})
-			continue
-		}
-
-		log.Info().
-			Ctx(ctx).
-			Str("component", "engine").
-			Str("plugin", client.Name).
-			Int("recommendation_count", len(resp.Recommendations)).
-			Msg("received recommendations from plugin")
-
-		for _, rec := range resp.Recommendations {
-			engineRec := convertProtoRecommendation(rec)
-			if result.Currency == defaultCurrency && engineRec.Currency != "" {
-				result.Currency = engineRec.Currency
+				result.Errors = append(result.Errors, RecommendationError{
+					PluginName: client.Name,
+					Error:      err.Error(),
+				})
 			}
-			result.TotalSavings += engineRec.EstimatedSavings
-			result.Recommendations = append(result.Recommendations, engineRec)
+		} else {
+			if err := e.fetchRecommendationsSequential(ctx, client, resources, result); err != nil {
+				log.Warn().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("plugin", client.Name).
+					Err(err).
+					Msg("failed to fetch recommendations")
+
+				result.Errors = append(result.Errors, RecommendationError{
+					PluginName: client.Name,
+					Error:      err.Error(),
+				})
+			}
+		}
+	}
+
+	// Store result in cache if enabled
+	//nolint:nestif // Cache storage requires nested checks for key generation, marshaling, and storage.
+	if e.cache != nil && e.cache.IsEnabled() {
+		cacheKey, keyErr := e.generateRecommendationsCacheKey(resources)
+		if keyErr == nil {
+			resultData, marshalErr := json.Marshal(result)
+			if marshalErr == nil {
+				if setErr := e.cache.Set(cacheKey, json.RawMessage(resultData)); setErr != nil {
+					log.Warn().
+						Ctx(ctx).
+						Str("component", "engine").
+						Err(setErr).
+						Msg("failed to store recommendations in cache")
+				} else {
+					log.Debug().
+						Ctx(ctx).
+						Str("component", "engine").
+						Str("cache_key", cacheKey).
+						Msg("stored recommendations in cache")
+				}
+			}
 		}
 	}
 
 	return result, nil
+}
+
+// generateRecommendationsCacheKey generates a cache key for the given resources.
+func (e *Engine) generateRecommendationsCacheKey(resources []ResourceDescriptor) (string, error) {
+	// Extract resource types for key generation
+	resourceTypes := make([]string, 0, len(resources))
+	for _, r := range resources {
+		resourceTypes = append(resourceTypes, r.Type)
+	}
+
+	// Build cache key using resource types and operation
+	keyParams := cache.KeyParams{
+		Operation:     "recommendations",
+		Provider:      "multi", // Cross-provider recommendations
+		ResourceTypes: resourceTypes,
+	}
+
+	key, err := cache.GenerateKey(keyParams)
+	if err != nil {
+		return "", fmt.Errorf("generating recommendations cache key: %w", err)
+	}
+	return key, nil
+}
+
+// fetchRecommendationsSequential fetches recommendations without batching (for small datasets).
+func (e *Engine) fetchRecommendationsSequential(
+	ctx context.Context,
+	client *pluginhost.Client,
+	resources []ResourceDescriptor,
+	result *RecommendationsResult,
+) error {
+	log := logging.FromContext(ctx)
+
+	targetResources := make([]*proto.ResourceDescriptor, 0, len(resources))
+	for _, r := range resources {
+		targetResources = append(targetResources, &proto.ResourceDescriptor{
+			ID:         r.ID,
+			Type:       r.Type,
+			Provider:   r.Provider,
+			Properties: convertToProto(r.Properties),
+		})
+	}
+
+	req := &proto.GetRecommendationsRequest{
+		TargetResources:  targetResources,
+		ProjectionPeriod: "monthly",
+	}
+
+	resp, err := client.API.GetRecommendations(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	log.Info().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("plugin", client.Name).
+		Int("recommendation_count", len(resp.Recommendations)).
+		Msg("received recommendations from plugin")
+
+	for _, rec := range resp.Recommendations {
+		engineRec := convertProtoRecommendation(rec)
+		if result.Currency == defaultCurrency && engineRec.Currency != "" {
+			result.Currency = engineRec.Currency
+		}
+		result.TotalSavings += engineRec.EstimatedSavings
+		result.Recommendations = append(result.Recommendations, engineRec)
+	}
+
+	return nil
+}
+
+// fetchRecommendationsWithBatching fetches recommendations using batch processing for large datasets.
+func (e *Engine) fetchRecommendationsWithBatching(
+	ctx context.Context,
+	client *pluginhost.Client,
+	resources []ResourceDescriptor,
+	result *RecommendationsResult,
+) error {
+	log := logging.FromContext(ctx)
+
+	// Create batch processor with threshold-sized batches
+	processor, err := batch.NewProcessor[ResourceDescriptor](batchProcessingThreshold)
+	if err != nil {
+		return fmt.Errorf("failed to create batch processor: %w", err)
+	}
+
+	// Process resources in batches
+	err = processor.Process(
+		ctx,
+		resources,
+		func(ctx context.Context, batchResources []ResourceDescriptor, batchIndex int) error {
+			// Convert batch to proto format
+			targetResources := make([]*proto.ResourceDescriptor, 0, len(batchResources))
+			for _, r := range batchResources {
+				targetResources = append(targetResources, &proto.ResourceDescriptor{
+					ID:         r.ID,
+					Type:       r.Type,
+					Provider:   r.Provider,
+					Properties: convertToProto(r.Properties),
+				})
+			}
+
+			// Fetch recommendations for this batch
+			req := &proto.GetRecommendationsRequest{
+				TargetResources:  targetResources,
+				ProjectionPeriod: "monthly",
+			}
+
+			resp, recErr := client.API.GetRecommendations(ctx, req)
+			if recErr != nil {
+				log.Warn().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("plugin", client.Name).
+					Int("batch_index", batchIndex).
+					Int("batch_size", len(batchResources)).
+					Err(recErr).
+					Msg("failed to fetch recommendations for batch")
+				return fmt.Errorf("batch %d failed: %w", batchIndex, recErr)
+			}
+
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("plugin", client.Name).
+				Int("batch_index", batchIndex).
+				Int("recommendation_count", len(resp.Recommendations)).
+				Msg("received recommendations for batch")
+
+			// Aggregate results (thread-safe append)
+			for _, rec := range resp.Recommendations {
+				engineRec := convertProtoRecommendation(rec)
+				if result.Currency == defaultCurrency && engineRec.Currency != "" {
+					result.Currency = engineRec.Currency
+				}
+				result.TotalSavings += engineRec.EstimatedSavings
+				result.Recommendations = append(result.Recommendations, engineRec)
+			}
+
+			return nil
+		},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	log.Info().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("plugin", client.Name).
+		Int("total_recommendations", len(result.Recommendations)).
+		Msg("completed batch processing")
+
+	return nil
 }
 
 // MergeRecommendations merges recommendations into CostResults by matching ResourceID.

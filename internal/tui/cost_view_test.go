@@ -3,8 +3,9 @@ package tui
 import (
 	"testing"
 
-	"github.com/rshade/finfocus/internal/engine"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 func TestRenderCostSummary(t *testing.T) {

@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/rshade/finfocus/internal/engine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 func TestCostViewModel_Update(t *testing.T) {

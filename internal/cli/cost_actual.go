@@ -9,11 +9,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
-	"github.com/spf13/cobra"
 )
 
 const (

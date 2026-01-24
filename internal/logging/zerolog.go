@@ -11,6 +11,7 @@ import (
 
 	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 )
 

@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/rshade/finfocus/internal/config"
 	"github.com/spf13/cobra"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // NewConfigGetCmd creates the config get command for retrieving configuration values.

@@ -10,12 +10,13 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/registry"
-	"github.com/spf13/cobra"
-	"golang.org/x/sync/errgroup"
 )
 
 // NewPluginListCmd creates a Cobra "list" command for displaying plugins.

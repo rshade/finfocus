@@ -4,8 +4,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rshade/finfocus/test/integration/helpers"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/test/integration/helpers"
 )
 
 // TestCLI_TUI_OutputModes verifies that the CLI correctly selects between TUI and plain output.

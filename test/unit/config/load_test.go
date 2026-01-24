@@ -5,9 +5,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // TestNew_DefaultConfiguration tests creating a new config with default values.

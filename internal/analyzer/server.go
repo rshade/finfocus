@@ -6,9 +6,10 @@ import (
 	"sync"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 const (

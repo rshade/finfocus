@@ -3,8 +3,9 @@ package cli
 import (
 	"fmt"
 
-	"github.com/rshade/finfocus/internal/config"
 	"github.com/spf13/cobra"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // NewConfigValidateCmd creates the config validate command for validating configuration.

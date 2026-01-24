@@ -4,9 +4,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus/internal/config"
-	"github.com/stretchr/testify/assert"
 )
 
 // T007: Unit test for config bridge function.

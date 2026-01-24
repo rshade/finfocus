@@ -4,9 +4,10 @@ import (
 	"testing"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
-	"github.com/rshade/finfocus/internal/engine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 func TestCostToDiagnostic(t *testing.T) {

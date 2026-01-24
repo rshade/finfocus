@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
-	"github.com/rshade/finfocus/internal/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
+
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // T036: Unit test for gRPC unary client interceptor.

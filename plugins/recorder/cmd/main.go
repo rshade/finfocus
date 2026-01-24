@@ -25,6 +25,7 @@ import (
 	"syscall"
 
 	"github.com/rs/zerolog"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus/plugins/recorder"
 )

@@ -5,12 +5,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
 	"github.com/rshade/finfocus/test/mocks/plugin"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // TestGetProjectedCost_WithPlugin tests projected cost calculation using a mock plugin.

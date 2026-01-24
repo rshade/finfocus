@@ -3,8 +3,9 @@ package conformance_test
 import (
 	"testing"
 
-	"github.com/rshade/finfocus/internal/conformance"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/conformance"
 )
 
 func TestCertification_Pass(t *testing.T) {

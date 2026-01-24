@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/logging"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // T017: Integration test for file logging with path output.

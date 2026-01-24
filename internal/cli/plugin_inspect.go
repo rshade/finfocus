@@ -11,11 +11,12 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/spf13/cobra"
+
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
-	"github.com/spf13/cobra"
 )
 
 // NewPluginInspectCmd creates the plugin inspect command.

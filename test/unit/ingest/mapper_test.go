@@ -3,10 +3,11 @@ package ingest_test
 import (
 	"testing"
 
-	"github.com/rshade/finfocus/internal/engine"
-	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/ingest"
 )
 
 // TestMapResource_ValidResource tests mapping a valid Pulumi resource to ResourceDescriptor.

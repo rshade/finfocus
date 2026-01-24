@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 
 	"github.com/rs/zerolog"
+
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 

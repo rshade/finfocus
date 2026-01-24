@@ -10,10 +10,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/rshade/finfocus/internal/cli"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/pkg/version"
-	"github.com/spf13/cobra"
 )
 
 // run executes the main application logic for the finfocus program.

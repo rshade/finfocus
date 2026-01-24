@@ -6,11 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/spf13/cobra"
+
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/spec"
-	"github.com/spf13/cobra"
 )
 
 // displayErrorSummary prints an error summary to the command output.

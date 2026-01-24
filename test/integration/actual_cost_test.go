@@ -4,10 +4,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rshade/finfocus/internal/engine"
-	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/ingest"
 )
 
 // TestStateBasedActualCost_LoadAndMapResources tests loading resources from state file.

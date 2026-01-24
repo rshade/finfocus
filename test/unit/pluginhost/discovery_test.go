@@ -10,10 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rshade/finfocus/internal/pluginhost"
-	"github.com/rshade/finfocus/test/mocks/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/test/mocks/plugin"
 )
 
 // Ensure plugin import is used for integration test helpers.

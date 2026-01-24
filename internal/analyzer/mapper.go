@@ -6,8 +6,9 @@ import (
 	"strings"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
-	"github.com/rshade/finfocus/internal/engine"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // URN parsing constants.

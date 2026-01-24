@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rshade/finfocus/test/integration/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/test/integration/helpers"
 )
 
 // TestConfigInit_CreateNewConfig tests creating a new configuration file.

@@ -10,6 +10,9 @@ import (
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
 	"github.com/rs/zerolog"
+	"github.com/spf13/cobra"
+	"google.golang.org/grpc"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus/internal/analyzer"
 	"github.com/rshade/finfocus/internal/config"
@@ -17,8 +20,6 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/spec"
-	"github.com/spf13/cobra"
-	"google.golang.org/grpc"
 )
 
 // getAnalyzerLogLevel reads the FINFOCUS_LOG_LEVEL environment variable and returns

@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
 // testGetProjectedCostValid verifies that GetProjectedCost returns a projected monthly cost and currency for a valid resource descriptor.

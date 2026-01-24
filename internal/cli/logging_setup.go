@@ -4,11 +4,12 @@ import (
 	"context"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
-	"github.com/spf13/cobra"
 )
 
 // setupLogging configures logging based on config file, environment, and CLI flags.

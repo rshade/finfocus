@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rshade/finfocus/internal/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/cli"
 )
 
 func TestNewAnalyzerCmd(t *testing.T) {

@@ -6,11 +6,12 @@ import (
 	"testing"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
-	"github.com/rshade/finfocus/internal/engine"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // mockCostCalculator implements the CostCalculator interface for testing.

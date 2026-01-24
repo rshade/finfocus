@@ -3,8 +3,9 @@ package plugin_test
 import (
 	"testing"
 
-	"github.com/rshade/finfocus/test/mocks/plugin"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/test/mocks/plugin"
 )
 
 // Example_basicUsage demonstrates basic mock plugin configuration.

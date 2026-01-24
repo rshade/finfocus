@@ -9,9 +9,10 @@ import (
 	"testing"
 
 	"github.com/rs/zerolog"
-	"github.com/rshade/finfocus/internal/cli"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/cli"
 )
 
 // CLIHelper provides utilities for testing CLI commands in integration tests.

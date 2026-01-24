@@ -6,9 +6,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/cli"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/cli"
 )
 
 // TestPluginListCmd_NoPlugins tests listing with no plugins installed.

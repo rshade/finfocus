@@ -7,10 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rshade/finfocus/internal/config"
-	"github.com/rshade/finfocus/test/integration/helpers"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/test/integration/helpers"
 )
 
 // TestConfigLoading_DefaultValues tests that default configuration values are loaded correctly.

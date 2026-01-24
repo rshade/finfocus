@@ -7,9 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/spf13/cobra"
+
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/registry"
-	"github.com/spf13/cobra"
 )
 
 // ErrPluginValidationFailed is returned when one or more plugins fail validation.
