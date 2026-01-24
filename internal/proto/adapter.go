@@ -442,6 +442,11 @@ type CostSourceClient interface {
 		in *Empty,
 		opts ...grpc.CallOption,
 	) (*pbc.GetPluginInfoResponse, error)
+	GetBudgets(
+		ctx context.Context,
+		in *pbc.GetBudgetsRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.GetBudgetsResponse, error)
 	DryRun(
 		ctx context.Context,
 		in *pbc.DryRunRequest,
@@ -479,6 +484,14 @@ func (c *clientAdapter) GetPluginInfo(
 	opts ...grpc.CallOption,
 ) (*pbc.GetPluginInfoResponse, error) {
 	return c.client.GetPluginInfo(ctx, &pbc.GetPluginInfoRequest{}, opts...)
+}
+
+func (c *clientAdapter) GetBudgets(
+	ctx context.Context,
+	in *pbc.GetBudgetsRequest,
+	opts ...grpc.CallOption,
+) (*pbc.GetBudgetsResponse, error) {
+	return c.client.GetBudgets(ctx, in, opts...)
 }
 
 func (c *clientAdapter) DryRun(

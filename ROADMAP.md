@@ -7,7 +7,7 @@ guardrails in `CONTEXT.md`.
 ## Table of Contents
 
 - [Past Milestones](#past-milestones-done)
-- [Current Focus (v0.2.4)](#current-focus-v024---remaining-polish)
+- [Current Focus (v0.2.5)](#current-focus-v025---testing--stability)
 - [Near-Term Vision (v0.3.0)](#near-term-vision-v030---budgeting--intelligence)
 - [Future Vision (v0.4.0)](#future-vision-v040---notifications--integrations)
 - [Stability & Maintenance](#stability--maintenance)
@@ -52,22 +52,16 @@ guardrails in `CONTEXT.md`.
   - [x] Set up AWS test account and infrastructure (#181)
   - [x] Fuzzing seeds, benchmarks, and validation improvements (#326)
   - [x] Documentation updates (#182, #349-#353, #454)
+- [x] **v0.2.4: Final Polish** *(Completed 2026-01-24)*
+  - [x] Dynamic Data Recording via Integration Plans (#275)
+  - [x] Harden Nightly Analysis Workflow security and reliability (#325)
+  - [x] Documentation for TUI features, budgets, and recommendations (#226)
 
-## Current Focus (v0.2.4 - Remaining Polish)
+## Current Focus (v0.2.5 - Testing & Stability)
 
-- [ ] **Developer Experience & Tooling**
-  - [ ] Dynamic Data Recording via Integration Plans
-        ([#275](https://github.com/rshade/finfocus/issues/275))
-- [ ] **CI/CD Hardening**
-  - [ ] Harden Nightly Analysis Workflow security and reliability
-        ([#325](https://github.com/rshade/finfocus/issues/325))
-- [ ] **Multi-Region Testing**
-  - [ ] Multi-region E2E testing support
-        ([#185](https://github.com/rshade/finfocus/issues/185))
-- [ ] **Documentation**
-  - [ ] Update documentation for TUI features, budgets, and recommendations
-        ([#226](https://github.com/rshade/finfocus/issues/226))
-- [ ] **Deferred Items**
+- [x] **Multi-Region Testing** *(Completed 2026-01-24)*
+  - [x] Multi-region E2E testing support (#185, PR #485)
+- [ ] **Performance**
   - [ ] Pagination for large datasets
         ([#225](https://github.com/rshade/finfocus/issues/225))
 
@@ -76,17 +70,12 @@ guardrails in `CONTEXT.md`.
 - [ ] **Plugin Intelligence**
   - [ ] Multi-Plugin Routing: Intelligent Feature-Based Plugin Selection
         ([#410](https://github.com/rshade/finfocus/issues/410))
-  - [ ] Update Plugin Generator Templates for spec v0.5.x
-        ([#248](https://github.com/rshade/finfocus/issues/248))
-        *Deferred from v0.2.1 to align with finfocus-spec v0.5.x features
-        (UsageProfile, PricingTier, BypassReason)*
 - [ ] **Budgeting & Cost Controls** *(Budget Health Suite)*
   - [ ] Budget health calculation & threshold alerting
         ([#267](https://github.com/rshade/finfocus/issues/267))
   - [ ] Provider filtering & summary aggregation for Budgets
         ([#263](https://github.com/rshade/finfocus/issues/263))
-  - [ ] Budget status display in CLI
-        ([#217](https://github.com/rshade/finfocus/issues/217))
+  - [x] Budget status display in CLI (#217) *(Completed)*
   - [ ] Flexible budget scoping (per-provider, per-resource)
         ([#221](https://github.com/rshade/finfocus/issues/221))
   - [ ] Exit codes for budget threshold violations
@@ -181,9 +170,20 @@ guardrails in `CONTEXT.md`.
 
 ## Icebox / Backlog
 
+- [ ] TUI Lazy Loading & Error Recovery (#483) *Deferred from TUI Phase 7*
 - [ ] Plugin integrity verification strategy (#164)
 - [ ] Accessibility options (--no-color, --plain, high contrast) (#224)
 - [ ] Configuration validation with helpful error messages (#223)
+- [ ] **Plugin Generator Enhancements** *(Deprioritized - solo plugin dev)*
+  - [ ] Update Plugin Generator Templates for spec v0.5.x (#248)
+  - [ ] Generate Docker support files (#456)
+  - [ ] Generate documentation templates (#457)
+  - [ ] Add GetPluginInfo and Supports to calculator template (#458)
+  - [ ] Add health endpoint to generated main.go (#459)
+  - [ ] Enhanced Makefile template with new targets (#460)
+  - [ ] Add new CLI flags for generation control (#461)
+  - [ ] Generate standardized GitHub workflow files (#462)
+  - [ ] Generate .golangci-lint.yml configuration (#493)
 - [x] Registry should pick latest version when multiple versions installed (#140)
       *(Completed 2026-01-09)*
 - [ ] Plugin developer upgrade command for SDK migrations (#270) - *Research*

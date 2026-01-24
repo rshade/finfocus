@@ -147,6 +147,29 @@ func (s *mockServer) GetActualCost(
 	return response, nil
 }
 
+// GetBudgets implements the GetBudgets RPC method.
+func (s *mockServer) GetBudgets(
+	_ context.Context,
+	_ *pbc.GetBudgetsRequest,
+) (*pbc.GetBudgetsResponse, error) {
+	// Simulate latency if configured
+	latency := s.plugin.GetLatency()
+	if latency > 0 {
+		time.Sleep(time.Duration(latency) * time.Millisecond)
+	}
+
+	// Check for error injection
+	if err := s.plugin.ShouldInjectError("GetBudgets"); err != nil {
+		return nil, toGRPCError(err)
+	}
+
+	budgets := s.plugin.GetBudgetsResponse()
+	// Return configured budgets (or nil/empty if none)
+	return &pbc.GetBudgetsResponse{
+		Budgets: budgets,
+	}, nil
+}
+
 // RegisterServer registers the mock server with a gRPC server instance.
 func (s *mockServer) RegisterServer(grpcServer *grpc.Server) {
 	pbc.RegisterCostSourceServiceServer(grpcServer, s)

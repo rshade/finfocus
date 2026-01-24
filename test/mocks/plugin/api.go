@@ -10,6 +10,7 @@ import (
 	"errors"
 	"sync"
 
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/proto"
 )
 
@@ -20,6 +21,9 @@ type MockConfig struct {
 
 	// ActualCostResponses maps resource IDs to their configured actual cost responses
 	ActualCostResponses map[string]*proto.ActualCostResult
+
+	// BudgetsResponse configures the response for GetBudgets call
+	BudgetsResponse []*pbc.Budget
 
 	// ErrorType specifies which error to inject (if any)
 	ErrorType ErrorType
@@ -86,6 +90,7 @@ func NewMockPlugin() *MockPlugin {
 		config: MockConfig{
 			ProjectedCostResponses: make(map[string]*proto.CostResult),
 			ActualCostResponses:    make(map[string]*proto.ActualCostResult),
+			BudgetsResponse:        nil,
 			ErrorType:              ErrorNone,
 			ErrorMethod:            "",
 			LatencyMS:              0,
@@ -123,6 +128,13 @@ func (m *MockPlugin) SetActualCostResponse(resourceID string, response *proto.Ac
 	m.config.ActualCostResponses[resourceID] = response
 }
 
+// SetBudgetsResponse configures the response for GetBudgets.
+func (m *MockPlugin) SetBudgetsResponse(budgets []*pbc.Budget) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.config.BudgetsResponse = budgets
+}
+
 // SetError configures the mock to return an error for a specific method.
 // methodName should be "GetProjectedCost" or "GetActualCost".
 // Set errorType to ErrorNone to clear error injection.
@@ -149,6 +161,7 @@ func (m *MockPlugin) Reset() {
 	m.config = MockConfig{
 		ProjectedCostResponses: make(map[string]*proto.CostResult),
 		ActualCostResponses:    make(map[string]*proto.ActualCostResult),
+		BudgetsResponse:        nil,
 		ErrorType:              ErrorNone,
 		ErrorMethod:            "",
 		LatencyMS:              0,
@@ -183,6 +196,13 @@ func (m *MockPlugin) GetActualResponse(resourceID string) (*proto.ActualCostResu
 	defer m.mu.RUnlock()
 	resp, ok := m.config.ActualCostResponses[resourceID]
 	return resp, ok
+}
+
+// GetBudgetsResponse returns the configured budgets.
+func (m *MockPlugin) GetBudgetsResponse() []*pbc.Budget {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.config.BudgetsResponse
 }
 
 // ShouldInjectError determines if an error should be injected for the given method.

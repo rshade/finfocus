@@ -1,0 +1,173 @@
+// Package contracts defines the function signatures for the Budget Health Suite.
+// This file serves as the API contract for implementation.
+//
+// NOTE: This is a design document, not executable code.
+// Implementation will be in internal/engine/budget*.go files.
+package contracts
+
+import (
+	"context"
+	"time"
+
+	pbc "github.com/rshade/finfocus-spec/gen/go/cost/v1"
+)
+
+// =============================================================================
+// Health Calculation (FR-001, FR-008)
+// =============================================================================
+
+// CalculateBudgetHealth determines the health status of a single budget
+// based on its current utilization percentage.
+//
+// Thresholds:
+//   - OK: 0-79%
+//   - WARNING: 80-89%
+//   - CRITICAL: 90-99%
+//   - EXCEEDED: 100%+
+//
+// Returns UNSPECIFIED if budget has no status or invalid data.
+func CalculateBudgetHealth(budget *pbc.Budget) pbc.BudgetHealthStatus
+
+// CalculateBudgetHealthFromPercentage calculates health from raw percentage.
+// This is the core calculation used by CalculateBudgetHealth.
+func CalculateBudgetHealthFromPercentage(percentageUsed float64) pbc.BudgetHealthStatus
+
+// AggregateHealth returns the worst-case health status across all budgets.
+// If budgets is empty, returns UNSPECIFIED.
+func AggregateHealth(budgets []*pbc.Budget) pbc.BudgetHealthStatus
+
+// =============================================================================
+// Provider Filtering (FR-002, FR-009)
+// =============================================================================
+
+// FilterBudgetsByProvider filters budgets by provider name(s).
+//
+// Behavior:
+//   - Case-insensitive matching ("aws" matches "AWS", "Aws", etc.)
+//   - OR logic: budget matches if it matches ANY provider in the list
+//   - Empty providers list returns all budgets (no filtering)
+//   - Returns empty slice if no budgets match
+func FilterBudgetsByProvider(budgets []*pbc.Budget, providers []string) []*pbc.Budget
+
+// MatchesProvider checks if a budget matches any of the given providers.
+// Used internally by FilterBudgetsByProvider.
+func MatchesProvider(budget *pbc.Budget, providers []string) bool
+
+// =============================================================================
+// Currency Validation (FR-003)
+// =============================================================================
+
+// ValidateCurrency checks if a currency code is valid ISO 4217 format.
+//
+// Valid format: exactly 3 uppercase letters (A-Z).
+// Examples: "USD", "EUR", "GBP" are valid; "usd", "US", "USDD" are invalid.
+//
+// Returns nil if valid, error with descriptive message if invalid.
+func ValidateCurrency(code string) error
+
+// ValidateBudgetCurrency validates the currency in a budget's amount.
+// Returns nil if valid or amount is nil, error otherwise.
+func ValidateBudgetCurrency(budget *pbc.Budget) error
+
+// =============================================================================
+// Summary Aggregation (FR-004)
+// =============================================================================
+
+// CalculateBudgetSummary aggregates budget counts by health status.
+//
+// Guarantees:
+//   - TotalBudgets = BudgetsOk + BudgetsWarning + BudgetsCritical + BudgetsExceeded
+//   - All counts are non-negative
+//   - Empty input returns summary with all zeros
+func CalculateBudgetSummary(budgets []*pbc.Budget) *pbc.BudgetSummary
+
+// CalculateExtendedSummary provides detailed breakdown by provider and currency.
+// Includes list of critical/exceeded budget IDs for immediate attention.
+func CalculateExtendedSummary(budgets []*pbc.Budget) *ExtendedBudgetSummary
+
+// ExtendedBudgetSummary provides detailed budget health breakdown.
+type ExtendedBudgetSummary struct {
+	*pbc.BudgetSummary                              // Embedded proto summary
+	ByProvider      map[string]*pbc.BudgetSummary   // Per-provider breakdown
+	ByCurrency      map[string]*pbc.BudgetSummary   // Per-currency breakdown
+	OverallHealth   pbc.BudgetHealthStatus          // Worst-case health
+	CriticalBudgets []string                        // IDs of critical/exceeded budgets
+}
+
+// =============================================================================
+// Threshold Evaluation (FR-005, FR-007, FR-010)
+// =============================================================================
+
+// EvaluateThresholds checks which thresholds have been triggered.
+//
+// Behavior:
+//   - Evaluates against current spend for ACTUAL thresholds
+//   - Evaluates against forecasted spend for FORECASTED thresholds
+//   - Sets Triggered=true and TriggeredAt for crossed thresholds
+//   - Returns all thresholds with updated triggered status
+func EvaluateThresholds(
+	budget *pbc.Budget,
+	currentSpend float64,
+	forecastedSpend float64,
+) []*pbc.BudgetThreshold
+
+// DefaultThresholds returns the standard thresholds to apply when none configured.
+// Returns: 50% ACTUAL, 80% ACTUAL, 100% ACTUAL
+func DefaultThresholds() []*pbc.BudgetThreshold
+
+// ApplyDefaultThresholds adds default thresholds to a budget if none exist.
+// Modifies the budget in place and returns it.
+func ApplyDefaultThresholds(budget *pbc.Budget) *pbc.Budget
+
+// =============================================================================
+// Forecasting (FR-006)
+// =============================================================================
+
+// CalculateForecastedSpend predicts end-of-period spending using linear extrapolation.
+//
+// Formula: forecastedSpend = (currentSpend / elapsedDays) * totalDays
+//
+// Edge cases:
+//   - Period not started (now < periodStart): returns currentSpend
+//   - No elapsed time: returns currentSpend
+//   - Zero current spend: returns 0
+func CalculateForecastedSpend(
+	currentSpend float64,
+	periodStart time.Time,
+	periodEnd time.Time,
+) float64
+
+// CalculateForecastedPercentage calculates forecasted utilization percentage.
+// Returns 0 if budgetLimit <= 0.
+func CalculateForecastedPercentage(forecastedSpend float64, budgetLimit float64) float64
+
+// UpdateBudgetForecast updates a budget's status with calculated forecast.
+// Modifies budget.Status in place. Creates Status if nil.
+func UpdateBudgetForecast(budget *pbc.Budget, periodStart, periodEnd time.Time)
+
+// =============================================================================
+// Engine Integration
+// =============================================================================
+
+// GetBudgets retrieves budgets from plugins and applies health calculations.
+// This is the main entry point for budget health functionality.
+//
+// Flow:
+//  1. Query plugins for budgets via GetBudgets RPC
+//  2. Filter by provider if specified
+//  3. Calculate health status for each budget
+//  4. Evaluate thresholds
+//  5. Generate summary statistics
+func (e *Engine) GetBudgets(ctx context.Context, filter *BudgetFilterOptions) (*BudgetResult, error)
+
+// BudgetFilterOptions contains criteria for filtering budgets.
+type BudgetFilterOptions struct {
+	Providers []string // Filter by provider names (case-insensitive, OR logic)
+}
+
+// BudgetResult contains the complete budget health response.
+type BudgetResult struct {
+	Budgets []*pbc.Budget          // Filtered budgets with health status
+	Summary *ExtendedBudgetSummary // Aggregated statistics
+	Errors  []error                // Any errors during processing
+}
