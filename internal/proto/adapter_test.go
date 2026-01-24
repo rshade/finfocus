@@ -42,6 +42,11 @@ type mockCostSourceClient struct {
 		in *pbc.DryRunRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.DryRunResponse, error)
+	getBudgetsFunc func(
+		ctx context.Context,
+		in *pbc.GetBudgetsRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.GetBudgetsResponse, error)
 }
 
 func (m *mockCostSourceClient) Name(
@@ -53,6 +58,17 @@ func (m *mockCostSourceClient) Name(
 		return m.nameFunc(ctx, in, opts...)
 	}
 	return &NameResponse{Name: "mock-plugin"}, nil
+}
+
+func (m *mockCostSourceClient) GetBudgets(
+	ctx context.Context,
+	in *pbc.GetBudgetsRequest,
+	opts ...grpc.CallOption,
+) (*pbc.GetBudgetsResponse, error) {
+	if m.getBudgetsFunc != nil {
+		return m.getBudgetsFunc(ctx, in, opts...)
+	}
+	return &pbc.GetBudgetsResponse{Budgets: []*pbc.Budget{}}, nil
 }
 
 func (m *mockCostSourceClient) GetPluginInfo(

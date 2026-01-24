@@ -2,16 +2,71 @@ package engine
 
 import (
 	"context"
-	"regexp"
+	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/logging"
 )
 
-// currencyPattern is the regex pattern for valid ISO 4217 currency codes.
-const currencyPattern = `^[A-Z]{3}$`
+// PercentageMultiplier is used to convert ratios to percentages.
+const PercentageMultiplier = 100.0
+
+// CurrencyCodeLength is the required length for valid ISO 4217 currency codes.
+const CurrencyCodeLength = 3
+
+// ErrInvalidCurrency is returned when a currency code fails validation.
+var ErrInvalidCurrency = errors.New("invalid currency code")
+
+// ErrInvalidBudget is returned when a budget fails validation.
+var ErrInvalidBudget = errors.New("invalid budget")
+
+// BudgetFilterOptions contains criteria for filtering budgets.
+type BudgetFilterOptions struct {
+	Providers []string // Filter by provider names (case-insensitive, OR logic)
+}
+
+// BudgetResult contains the complete budget health response.
+type BudgetResult struct {
+	Budgets []*pbc.Budget          // Filtered budgets with health status
+	Summary *ExtendedBudgetSummary // Aggregated statistics
+	Errors  []error                // Any errors during processing
+}
+
+// ExtendedBudgetSummary provides detailed budget health breakdown.
+
+type ExtendedBudgetSummary struct {
+	*pbc.BudgetSummary // Embedded proto summary
+
+	ByProvider      map[string]*pbc.BudgetSummary // Per-provider breakdown
+	ByCurrency      map[string]*pbc.BudgetSummary // Per-currency breakdown
+	OverallHealth   pbc.BudgetHealthStatus        // Worst-case health
+	CriticalBudgets []string                      // IDs of critical/exceeded budgets
+}
+
+// BudgetHealthResult contains health assessment for a single budget.
+type BudgetHealthResult struct {
+	BudgetID     string                 // Budget identifier
+	BudgetName   string                 // Human-readable name
+	Provider     string                 // Source provider (aws-budgets, kubecost, etc.)
+	Health       pbc.BudgetHealthStatus // Calculated health status
+	Utilization  float64                // Current percentage used (0-100+)
+	Forecasted   float64                // Forecasted percentage at period end
+	Currency     string                 // ISO 4217 currency code
+	Limit        float64                // Budget limit amount
+	CurrentSpend float64                // Current spend amount
+}
+
+// ThresholdEvaluationResult contains evaluated threshold state.
+type ThresholdEvaluationResult struct {
+	Threshold   *pbc.BudgetThreshold // Original threshold
+	Triggered   bool                 // Whether threshold was crossed
+	TriggeredAt time.Time            // When triggered (zero if not)
+	SpendType   string               // "actual" or "forecasted"
+}
 
 // FilterBudgets filters a list of budgets based on the provided criteria.
 // It returns a new slice containing only the matching budgets.
@@ -74,51 +129,114 @@ func matchesBudgetFilter(b *pbc.Budget, filter *pbc.BudgetFilter) bool {
 	return true
 }
 
-// CalculateBudgetSummary computes a BudgetSummary for the given budgets.
-// It sets TotalBudgets to the number of provided budgets and increments
-// the appropriate health counters (BudgetsOk, BudgetsWarning, BudgetsCritical,
-// BudgetsExceeded) based on each budget's status.Health. Budgets with a nil
-// status or a health of UNSPECIFIED are logged and excluded from the health
-// counts. It returns a pointer to the populated BudgetSummary.
-func CalculateBudgetSummary(ctx context.Context, budgets []*pbc.Budget) *pbc.BudgetSummary {
-	logger := logging.FromContext(ctx).With().
-		Str("component", "engine").
-		Str("operation", "CalculateBudgetSummary").
-		Logger()
-
-	summary := &pbc.BudgetSummary{
-		TotalBudgets: int32(len(budgets)), //nolint:gosec // length is bounded by practical budget limits
+// isValidCurrency reports whether currency is a three-letter ISO 4217 currency code (uppercase A–Z).
+// Uses ASCII byte checks instead of regex for efficiency (no allocations).
+// Returns true if the input is exactly 3 uppercase letters, false otherwise.
+func isValidCurrency(code string) bool {
+	if len(code) != CurrencyCodeLength {
+		return false
 	}
-
-	for _, b := range budgets {
-		status := b.GetStatus()
-		if status == nil || status.GetHealth() == pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED {
-			logger.Warn().Str("budget_id", b.GetId()).Msg("Budget missing health status, excluded from health metrics")
-			continue
-		}
-
-		switch status.GetHealth() {
-		case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED:
-			// Already handled above, no-op for exhaustive switch
-		case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
-			summary.BudgetsOk++
-		case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING:
-			summary.BudgetsWarning++
-		case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL:
-			summary.BudgetsCritical++
-		case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED:
-			summary.BudgetsExceeded++
+	for i := range CurrencyCodeLength {
+		c := code[i]
+		if c < 'A' || c > 'Z' {
+			return false
 		}
 	}
-
-	return summary
+	return true
 }
 
-// validateCurrency reports whether currency is a three-letter ISO 4217 currency code (uppercase A–Z).
-// It returns true if the input matches the required pattern, false otherwise.
-func validateCurrency(currency string) bool {
-	matched, _ := regexp.MatchString(currencyPattern, currency)
-	return matched
+// ValidateCurrency checks if a currency code is valid ISO 4217 format.
+//
+// Valid format: exactly 3 uppercase letters (A-Z).
+// Examples: "USD", "EUR", "GBP" are valid; "usd", "US", "USDD" are invalid.
+//
+// Returns nil if valid, error with descriptive message if invalid.
+func ValidateCurrency(code string) error {
+	if code == "" {
+		return fmt.Errorf("%w: currency code is required", ErrInvalidCurrency)
+	}
+	if !isValidCurrency(code) {
+		return fmt.Errorf("%w: must be 3 uppercase letters (got %q)", ErrInvalidCurrency, code)
+	}
+	return nil
+}
+
+// ValidateBudgetCurrency validates the currency in a budget's amount.
+// Returns nil if valid or amount is nil, error otherwise.
+func ValidateBudgetCurrency(budget *pbc.Budget) error {
+	if budget == nil {
+		return nil
+	}
+	amount := budget.GetAmount()
+	if amount == nil {
+		return nil
+	}
+	currency := amount.GetCurrency()
+	if currency == "" {
+		return nil // Empty currency is allowed (will use default)
+	}
+	if err := ValidateCurrency(currency); err != nil {
+		return fmt.Errorf("budget %q: %w", budget.GetId(), err)
+	}
+	return nil
+}
+
+// ValidateBudget validates required budget fields.
+func ValidateBudget(budget *pbc.Budget) error {
+	if budget == nil {
+		return fmt.Errorf("%w: budget is nil", ErrInvalidBudget)
+	}
+	if strings.TrimSpace(budget.GetId()) == "" {
+		return fmt.Errorf("%w: budget id is required", ErrInvalidBudget)
+	}
+	if amount := budget.GetAmount(); amount != nil && amount.GetLimit() < 0 {
+		return fmt.Errorf("%w: budget %q has negative limit", ErrInvalidBudget, budget.GetId())
+	}
+	return nil
+}
+
+func budgetID(budget *pbc.Budget) string {
+	if budget == nil {
+		return ""
+	}
+	return budget.GetId()
+}
+
+func budgetLimit(budget *pbc.Budget) float64 {
+	if amount := budget.GetAmount(); amount != nil {
+		return amount.GetLimit()
+	}
+	return 0
+}
+
+func prepareBudget(ctx context.Context, budget *pbc.Budget, periodStart time.Time, periodEnd time.Time) error {
+	if err := ValidateBudget(budget); err != nil {
+		return err
+	}
+	if err := ValidateBudgetCurrency(budget); err != nil {
+		return err
+	}
+
+	ApplyDefaultThresholds(budget)
+
+	limit := budgetLimit(budget)
+	status := budget.GetStatus()
+	if status != nil {
+		if limit > 0 {
+			status.PercentageUsed = (status.GetCurrentSpend() / limit) * PercentageMultiplier
+		} else {
+			status.Health = pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED
+		}
+	}
+
+	UpdateBudgetForecast(ctx, budget, periodStart, periodEnd)
+
+	if status != nil && limit > 0 {
+		status.Health = CalculateBudgetHealth(budget)
+		_ = EvaluateThresholds(ctx, budget, status.GetCurrentSpend(), status.GetForecastedSpend())
+	}
+
+	return nil
 }
 
 // matchStringSlice reports whether target is present in candidates using a case-insensitive comparison.
@@ -140,4 +258,127 @@ func getMetadataValue(b *pbc.Budget, key string) string {
 		return ""
 	}
 	return metadata[key]
+}
+
+// FilterBudgetsByProvider filters budgets by provider name(s).
+//
+// Behavior:
+//   - Case-insensitive matching ("aws" matches "AWS", "Aws", etc.)
+//   - OR logic: budget matches if it matches ANY provider in the list
+//   - Empty providers list returns all budgets (no filtering)
+//   - Returns empty slice if no budgets match
+func FilterBudgetsByProvider(ctx context.Context, budgets []*pbc.Budget, providers []string) []*pbc.Budget {
+	logger := logging.FromContext(ctx).With().
+		Str("component", "engine").
+		Str("operation", "FilterBudgetsByProvider").
+		Logger()
+
+	// If no providers specified, return all budgets
+	if len(providers) == 0 {
+		return budgets
+	}
+
+	logger.Debug().
+		Strs("providers", providers).
+		Int("input_count", len(budgets)).
+		Msg("filtering budgets by provider")
+
+	var filtered []*pbc.Budget
+	for _, b := range budgets {
+		if MatchesProvider(b, providers) {
+			filtered = append(filtered, b)
+		}
+	}
+
+	logger.Debug().
+		Int("output_count", len(filtered)).
+		Msg("filtering complete")
+
+	return filtered
+}
+
+// MatchesProvider checks if a budget matches any of the given providers.
+// Returns true if providers is empty (no filtering).
+// Returns false if budget is nil.
+func MatchesProvider(budget *pbc.Budget, providers []string) bool {
+	if budget == nil {
+		return false
+	}
+	// Empty providers means no filter - match all
+	if len(providers) == 0 {
+		return true
+	}
+	return matchStringSlice(budget.GetSource(), providers)
+}
+
+// GetBudgets retrieves budgets from plugins and applies health calculations.
+// This is the main entry point for budget health functionality.
+func (e *Engine) GetBudgets(ctx context.Context, filter *BudgetFilterOptions) (*BudgetResult, error) {
+	logger := logging.FromContext(ctx).With().
+		Str("component", "engine").
+		Str("operation", "GetBudgets").
+		Logger()
+
+	result := &BudgetResult{}
+
+	var allBudgets []*pbc.Budget
+
+	// 1. Query plugins
+	for _, client := range e.clients {
+		resp, err := client.API.GetBudgets(ctx, &pbc.GetBudgetsRequest{})
+		if err != nil {
+			logger.Warn().Str("plugin", client.Name).Err(err).Msg("failed to get budgets from plugin")
+			result.Errors = append(result.Errors, fmt.Errorf("plugin %s: %w", client.Name, err))
+			continue
+		}
+		if resp != nil && len(resp.GetBudgets()) > 0 {
+			allBudgets = append(allBudgets, resp.GetBudgets()...)
+		}
+	}
+
+	if len(allBudgets) == 0 && len(result.Errors) > 0 {
+		return result, fmt.Errorf("failed to retrieve budgets from any plugin: %v", result.Errors)
+	}
+
+	// 2. Filter budgets
+	var providers []string
+	if filter != nil {
+		providers = filter.Providers
+	}
+	filteredBudgets := FilterBudgetsByProvider(ctx, allBudgets, providers)
+
+	// 3. Process each budget
+	now := time.Now()
+	// Determine current period start/end.
+	// For MVP, we assume monthly budgets and calculate for current month.
+	// In future, we might read period from budget object or request.
+	periodStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+	periodEnd := periodStart.AddDate(0, 1, 0).Add(-time.Nanosecond)
+
+	var validBudgets []*pbc.Budget
+	for _, b := range filteredBudgets {
+		if err := prepareBudget(ctx, b, periodStart, periodEnd); err != nil {
+			logger.Warn().
+				Str("budget_id", budgetID(b)).
+				Err(err).
+				Msg("invalid budget, skipping")
+			result.Errors = append(result.Errors, err)
+			continue
+		}
+
+		validBudgets = append(validBudgets, b)
+	}
+
+	result.Budgets = validBudgets
+
+	// 4. Summarize
+	result.Summary = CalculateExtendedSummary(ctx, validBudgets)
+
+	logger.Info().
+		Int("total_budgets", len(allBudgets)).
+		Int("filtered_budgets", len(filteredBudgets)).
+		Str("overall_health", result.Summary.OverallHealth.String()).
+		Msg("budget retrieval complete")
+
+	return result, nil
 }

@@ -8,6 +8,7 @@ The `internal/engine` package is the core orchestration layer for FinFocus, resp
 
 **Key Capabilities:**
 - **Multi-Provider Cost Calculation**: Orchestrates cost queries across AWS, Azure, GCP, and other cloud providers
+- **Budget Health Monitoring**: Real-time status tracking, forecasting, and threshold alerting
 - **Cross-Provider Aggregation**: Advanced time-based cost aggregation with currency validation and error handling
 - **Plugin Architecture**: gRPC-based plugin system with graceful fallback to local YAML specifications
 - **Flexible Grouping**: Resource-based and time-based grouping strategies for comprehensive cost analysis
@@ -37,6 +38,13 @@ The `internal/engine` package is the core orchestration layer for FinFocus, resp
    - Enhanced table format with cost summaries and breakdowns
    - Aggregated JSON with totals by provider, service, and adapter
    - Streaming NDJSON for large result sets
+
+4. **Budget Health Components** (`budget*.go`)
+   - **Budget Engine** (`budget.go`): Orchestrates retrieval, filtering, and processing
+   - **Health** (`budget_health.go`): Calculates status (OK/WARNING/CRITICAL) based on utilization
+   - **Forecasting** (`budget_forecast.go`): Predicts end-of-period spend via linear extrapolation
+   - **Thresholds** (`budget_threshold.go`): Evaluates alerts for actual and forecasted spend
+   - **Summary** (`budget_summary.go`): Aggregates health statistics by provider and currency
 
 ### Data Flow Architecture
 
@@ -547,4 +555,113 @@ aggregations, err := CreateCrossProviderAggregation(results, GroupByMonthly)
 - Check date ranges before expensive processing
 
 This package acts as the central coordinating layer, making it critical for understanding the overall cost calculation flow in FinFocus.
+
+## Budget Health System (New in v0.5.4)
+
+### Budget Health Status Logic
+
+**Health Status Calculation**:
+
+Status is determined by `Spend / Limit` percentage:
+
+- **OK**: < 80% utilization
+- **WARNING**: 80% - 89% utilization
+- **CRITICAL**: 90% - 100% utilization
+- **EXCEEDED**: > 100% utilization
+
+```go
+// Calculates health status from utilization percentage
+func CalculateBudgetHealthFromPercentage(percentage float64) pbc.BudgetHealthStatus
+```
+
+**Aggregation Strategy**:
+
+When aggregating multiple budgets, the "worst" status wins:
+`EXCEEDED > CRITICAL > WARNING > OK`
+
+```go
+// Returns the most severe health status from a list
+func AggregateHealth(statuses []pbc.BudgetHealthStatus) pbc.BudgetHealthStatus
+```
+
+### Budget Filtering & Orchestration
+
+**Provider Filtering**:
+
+Case-insensitive filtering by cloud provider:
+
+```go
+// Filter budgets by provider list (case-insensitive)
+func FilterBudgetsByProvider(ctx context.Context, budgets []*pbc.Budget, providers []string) []*pbc.Budget
+```
+
+**Orchestration Flow** (`Engine.GetBudgets`):
+
+1. **Plugin Query**: Fetch all budgets from active plugins
+2. **Filtering**: Apply provider filters if specified
+3. **Forecasting**: Calculate end-of-period forecast via linear extrapolation
+4. **Health Calculation**: Determine status based on actual AND forecasted spend
+5. **Threshold Evaluation**: Check for triggered alert thresholds
+6. **Summary Generation**: Aggregate statistics by status, provider, and currency
+
+### Forecasting Logic
+
+**Linear Extrapolation**:
+
+Predicts end-of-period spend based on current run rate:
+
+```go
+// Forecast = CurrentSpend + (DailyRate * RemainingDays)
+func CalculateForecastedSpend(current float64, start, end, now time.Time) float64
+```
+
+- Handles mid-period calculations
+- Returns 0 if period hasn't started
+- Returns current spend if period ended
+
+### Threshold Evaluation
+
+**Alert Logic**:
+
+Evaluates both `ACTUAL` and `FORECASTED` thresholds:
+
+```go
+// Checks if spend exceeds threshold percentage
+func EvaluateThresholds(ctx context.Context, budget *pbc.Budget, currentSpend, forecastedSpend float64) []ThresholdEvaluationResult
+```
+
+The function returns `[]ThresholdEvaluationResult` containing evaluation results for each threshold:
+
+```go
+type ThresholdEvaluationResult struct {
+    Threshold   *pbc.BudgetThreshold // Original threshold
+    Triggered   bool                 // Whether threshold was crossed
+    TriggeredAt time.Time            // When triggered (zero if not)
+    SpendType   string               // "actual" or "forecasted"
+}
+```
+
+- **Default Thresholds**: 50%, 80%, 100% (if none specified)
+- **State Tracking**: Records `TriggeredAt` timestamp for alerts
+
+### Summary Statistics
+
+**Aggregation Dimensions**:
+
+Generates comprehensive summaries for executive reporting:
+
+```go
+type ExtendedBudgetSummary struct {
+    *pbc.BudgetSummary              // Embedded proto summary
+    ByProvider      map[string]*pbc.BudgetSummary // Per-provider breakdown
+    ByCurrency      map[string]*pbc.BudgetSummary // Per-currency breakdown
+    OverallHealth   pbc.BudgetHealthStatus        // Worst-case health
+    CriticalBudgets []string                      // IDs of critical/exceeded budgets
+}
+```
+
+- **Health Counts**: Number of budgets in each state (OK, WARNING, etc.)
+- **Critical List**: Direct access to budgets needing attention
+- **Multi-Currency**: Separate aggregations per currency code
+
 

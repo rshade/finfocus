@@ -77,22 +77,6 @@ make lint    # Run linting
 **CRITICAL**: Before claiming any Go version "doesn't exist" or suggesting version
 changes, verify on <https://go.dev/dl/> first.
 
-## SpecKit Feature Development Workflow
-
-This project uses SpecKit for structured feature development. Features are developed in numbered branches with specifications, plans, and task lists.
-
-### Slash Commands
-
-- `/speckit.specify [description]` - Create feature specification from natural language
-- `/speckit.clarify` - Identify underspecified areas and ask clarification questions
-- `/speckit.plan` - Generate technical implementation plan
-- `/speckit.tasks` - Generate actionable task list from plan
-- `/speckit.implement` - Execute tasks from tasks.md
-- `/speckit.analyze` - Cross-artifact consistency analysis
-- `/speckit.checklist` - Generate custom validation checklist
-- `/speckit.taskstoissues` - Convert tasks to GitHub issues
-- `/speckit.revisit` - Escalate implementation issues back to research/planning
-
 ### Constitution Precedence Rule
 
 **CRITICAL**: The constitution (`.specify/memory/constitution.md`) takes **absolute
@@ -109,27 +93,6 @@ Common conflicts to watch for:
 - Learning mode may suggest "mark with TODO" → Constitution forbids TODOs
 - Explanatory mode may suggest placeholders → Constitution forbids stubs
 - Any mode suggesting deferred implementation → Constitution requires completeness
-
-### Directory Structure
-
-```text
-specs/
-└── NNN-feature-name/
-    ├── spec.md          # Feature specification (what/why)
-    ├── plan.md          # Technical plan (how)
-    ├── tasks.md         # Actionable task list
-    └── checklists/      # Validation checklists
-```
-
-### Constitution
-
-See `.specify/memory/constitution.md` for non-negotiable principles:
-
-- Plugin-First Architecture
-- Test-Driven Development (80% coverage minimum, 95% for critical paths)
-- Cross-Platform Compatibility
-- Documentation as Code
-- Protocol Stability
 
 ## Architecture
 
@@ -186,9 +149,6 @@ Pulumi JSON → Ingestion → Resource Descriptors → Engine
 Plugins communicate via gRPC using protocol buffers from `finfocus-spec`:
 
 - `Name()` - Plugin identification
-- `GetProjectedCost()` - Estimated costs for resources
-- `GetActualCost()` - Historical costs from cloud APIs
-- `GetRecommendations()` - Cost optimization recommendations
 
 ### Action Type Utilities (`internal/proto/action_types.go`)
 
@@ -904,10 +864,6 @@ The recorder plugin is a reference implementation demonstrating how to build a F
 **Key Files**:
 
 - `plugins/recorder/plugin.go` - Main plugin implementation with CostSourceService
-- `plugins/recorder/recorder.go` - Request serialization to JSON files
-- `plugins/recorder/mocker.go` - Mock response generation with randomized costs
-- `plugins/recorder/config.go` - Environment variable configuration
-- `plugins/recorder/cmd/main.go` - Plugin entry point with signal handling
 
 **Build Commands**:
 
@@ -958,7 +914,7 @@ go test -bench=BenchmarkRecorder ./plugins/recorder/...  # Performance (<10ms ov
 **Implementation Patterns Demonstrated**:
 
 - `pluginsdk.BasePlugin` embedding with wildcard provider matcher
-- Request validation using pluginsdk v0.4.6 helpers
+- Request validation using pluginsdk v0.4.6+ helpers
 - `protojson.Marshal` for human-readable JSON serialization
 - ULID for time-ordered, collision-free filenames
 - Graceful shutdown with context cancellation
@@ -1020,43 +976,9 @@ CodeRabbit now:
 
 ## Active Technologies
 
-- Go 1.25.5 + github.com/stretchr/testify v1.11.1, Pulumi Automation API (v3.210.0+), E2E test framework (`test/e2e/`), local filesystem for Pulumi state files and fixtures (`test/e2e/fixtures/`) (001-multi-region-e2e)
-
-- Go 1.25.5 + finfocus-spec v0.5.2 (pluginsdk), cobra v1.10.1, (108-action-type-enum)
-- N/A (stateless enum mapping) (108-action-type-enum)
-- Go 1.25.5 + Cobra v1.10.1, Bubble Tea, Lip Gloss, zerolog v1.34.0 (109-cost-recommendations)
-- N/A (stateless command, data from plugins via gRPC) (109-cost-recommendations)
-- Go 1.25.5 + cobra v1.10.1, finfocus-spec v0.5.2 (pluginsdk), (111-state-actual-cost)
-- N/A (stateless CLI tool; reads Pulumi state JSON files) (111-state-actual-cost)
-- Go 1.25.5 + Cobra v1.10.2 (CLI), golang.org/x/term (TTY detection), existing `internal/registry` and `internal/tui` packages (116-plugin-install-fallback)
-- N/A (stateless CLI feature) (116-plugin-install-fallback)
-- Go 1.25.5 + testify v1.11.1, GitHub Actions, finfocus-spec v0.5.2 (pluginsdk) (118-test-quality-ci)
-- N/A (test infrastructure, no persistent storage) (118-test-quality-ci)
-- Markdown (CommonMark spec), YAML for configuration examples, JSON for schema + Jekyll (GitHub Pages), markdownlint-cli2, yaml-language-server (for schema validation) (119-tui-docs-update)
-- Filesystem (docs/ directory structure), GitHub Pages for hosting (119-tui-docs-update)
-
-- Go 1.25.5 + pluginsdk v0.4.11+, zerolog v1.34.0; N/A storage (validation is stateless) (107-preflight-validation)
-- Go 1.25.5 + github.com/rshade/finfocus-spec v0.5.2 (pluginsdk) (106-analyzer-recommendations)
-- N/A (display-only feature) (106-analyzer-recommendations)
-- N/A (no persistent storage for TUI state) (106-cost-tui-upgrade)
-
-- Go 1.25.5 + google.golang.org/grpc v1.77.0, github.com/rshade/finfocus-spec v0.4.1, github.com/stretchr/testify v1.11.1 (102-plugin-ecosystem-maturity)
-- N/A (test framework, no persistent storage) (102-plugin-ecosystem-maturity)
-- Go 1.25.5 + github.com/rshade/finfocus-spec v0.4.1 (pluginsdk), google.golang.org/grpc v1.77.0 (017-remove-port-env)
-- Local filesystem (`./recorded_data` default, configurable via env var) (018-recorder-plugin)
-- Go 1.25.5 + testing (stdlib), github.com/stretchr/testify, github.com/oklog/ulid/v2 (012-analyzer-e2e-tests)
-- Local Pulumi state (`file://` backend), temp directories for test fixtures (012-analyzer-e2e-tests)
-- Go 1.25.5 (009-analyzer-plugin)
-- `~/.finfocus/config.yaml` for plugin configuration (existing infrastructure) (009-analyzer-plugin)
-- Go 1.25.5 + testing (stdlib), github.com/stretchr/testify (001-engine-test-coverage)
-- Go 1.25.5 + zerolog v1.34.0, cobra v1.10.1, yaml.v3 (007-integrate-logging)
-- File system (`~/.finfocus/config.yaml`, log files) (007-integrate-logging)
+- Go 1.25.5 + finfocus-spec v0.5.3+ (protobuf types), google.golang.org/grpc, github.com/stretchr/testify
 
 ## Recent Changes
-
-- 001-engine-test-coverage: Added Go 1.25.5 + testing (stdlib), github.com/stretchr/testify
-- 007-integrate-logging: Added zerolog v1.34.0 logging integration across all components
-- 013-test-infra-hardening: Added comprehensive test infrastructure hardening
 
 ## Session Analysis - Recommended Updates
 
@@ -1076,42 +998,3 @@ Based on recent development sessions, consider adding:
 - **CI Workflows**: Update GitHub Actions go-version parameters in documentation examples
 
 This ensures complete version consistency across the entire codebase and documentation.
-
-## AI Agent File Maintenance
-
-This file (CLAUDE.md) provides guidance for Claude Code and other AI assistants. To maintain its effectiveness:
-
-### Update Requirements
-
-- **Review regularly** when significant codebase changes occur
-- **Update version information** immediately when Go versions change
-- **Document new patterns** and conventions as they emerge
-- **Include new technologies** and dependencies as they are added
-- **Update build/test commands** when processes change
-- **Maintain architecture documentation** as the system evolves
-
-### When to Update
-
-- New major features are implemented
-- Build or testing processes change
-- New dependencies are added
-- Coding standards evolve
-- Project structure changes significantly
-- New tools or workflows are introduced
-
-### Integration with GitHub Copilot
-
-- This file is automatically read by GitHub Copilot via `.github/instructions/ai-agent-files.instructions.md`
-- Use it as the authoritative source for development practices
-- Reference these instructions when working with AI assistants
-- Keep instructions current to ensure consistent AI assistance
-
-### Maintenance Checklist
-
-- [ ] Go version information is current
-- [ ] Build commands work as documented
-- [ ] Test commands produce expected results
-- [ ] Architecture documentation reflects current state
-- [ ] Dependencies are accurately listed
-- [ ] Security practices are up to date
-- [ ] Performance guidelines remain relevant
