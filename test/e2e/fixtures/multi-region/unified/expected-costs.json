@@ -1,0 +1,35 @@
+{
+  "fixture_type": "unified",
+  "total_regions": 3,
+  "resources": [
+    {
+      "resource_name": "web-us-east-1",
+      "resource_type": "aws:ec2:Instance",
+      "region": "us-east-1",
+      "min_cost": 6.66,
+      "max_cost": 7.36,
+      "cost_type": "projected"
+    },
+    {
+      "resource_name": "web-eu-west-1",
+      "resource_type": "aws:ec2:Instance",
+      "region": "eu-west-1",
+      "min_cost": 7.13,
+      "max_cost": 7.87,
+      "cost_type": "projected"
+    },
+    {
+      "resource_name": "web-ap-northeast-1",
+      "resource_type": "aws:ec2:Instance",
+      "region": "ap-northeast-1",
+      "min_cost": 7.60,
+      "max_cost": 8.40,
+      "cost_type": "projected"
+    }
+  ],
+  "aggregate_validation": {
+    "total_min_cost": 21.39,
+    "total_max_cost": 23.63,
+    "tolerance": 0.05
+  }
+}

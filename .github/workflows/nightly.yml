@@ -99,7 +99,7 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE || 'e2e-test-passphrase' }}
           E2E_TIMEOUT_MINS: '60'
           FINFOCUS_LOG_LEVEL: debug
-          FINFOCUS_LOG_FORMAT: console
+          FINFOCUS_LOG_FORMAT: text
         run: |
           echo "Running integration tests (including nightly-only tests)..."
           go test -v -timeout 50m -tags nightly ./test/integration/...
@@ -151,7 +151,7 @@ jobs:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE || 'e2e-test-passphrase' }}
           E2E_TIMEOUT_MINS: '60'
           FINFOCUS_LOG_LEVEL: debug
-          FINFOCUS_LOG_FORMAT: console
+          FINFOCUS_LOG_FORMAT: text
           FINFOCUS_BINARY: ${{ github.workspace }}/bin/finfocus
         run: |
           cd test/e2e
@@ -203,7 +203,7 @@ jobs:
           E2E_REGION: us-east-1
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE || 'e2e-test-passphrase' }}
           FINFOCUS_LOG_LEVEL: debug
-          FINFOCUS_LOG_FORMAT: console
+          FINFOCUS_LOG_FORMAT: text
           FINFOCUS_BINARY: ${{ github.workspace }}/bin/finfocus
         run: |
           cd test/e2e

@@ -72,6 +72,11 @@ func TestActionTypeLabel(t *testing.T) {
 			expected: "Refactor",
 		},
 		{
+			name:     "INVESTIGATE",
+			input:    pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_INVESTIGATE,
+			expected: "Investigate",
+		},
+		{
 			name:     "OTHER",
 			input:    pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_OTHER,
 			expected: "Other",
@@ -144,6 +149,11 @@ func TestParseActionType(t *testing.T) {
 			name:     "REFACTOR uppercase",
 			input:    "REFACTOR",
 			expected: pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_REFACTOR,
+		},
+		{
+			name:     "INVESTIGATE uppercase",
+			input:    "INVESTIGATE",
+			expected: pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_INVESTIGATE,
 		},
 		{
 			name:     "OTHER uppercase",
@@ -304,8 +314,8 @@ func TestParseActionTypeFilter(t *testing.T) {
 func TestValidActionTypes(t *testing.T) {
 	types := proto.ValidActionTypes()
 
-	// Should have exactly 11 types (excluding UNSPECIFIED)
-	assert.Len(t, types, 11)
+	// Should have exactly 12 types (excluding UNSPECIFIED)
+	assert.Len(t, types, 12)
 
 	// Should not contain UNSPECIFIED
 	for _, at := range types {
@@ -324,6 +334,7 @@ func TestValidActionTypes(t *testing.T) {
 		"CONSOLIDATE",
 		"SCHEDULE",
 		"REFACTOR",
+		"INVESTIGATE",
 		"OTHER",
 	}
 	for _, expected := range expectedTypes {

@@ -24,6 +24,7 @@ var actionTypeLabels = map[pbc.RecommendationActionType]string{
 	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_CONSOLIDATE:         "Consolidate",
 	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_SCHEDULE:            "Schedule",
 	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_REFACTOR:            "Refactor",
+	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_INVESTIGATE:         "Investigate",
 	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_OTHER:               "Other",
 }
 
@@ -42,6 +43,7 @@ var actionTypeNames = map[string]pbc.RecommendationActionType{
 	"CONSOLIDATE":         pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_CONSOLIDATE,
 	"SCHEDULE":            pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_SCHEDULE,
 	"REFACTOR":            pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_REFACTOR,
+	"INVESTIGATE":         pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_INVESTIGATE,
 	"OTHER":               pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_OTHER,
 }
 
@@ -59,6 +61,7 @@ var stringLabels = map[string]string{
 	"CONSOLIDATE":         "Consolidate",
 	"SCHEDULE":            "Schedule",
 	"REFACTOR":            "Refactor",
+	"INVESTIGATE":         "Investigate",
 	"OTHER":               "Other",
 }
 

@@ -1,0 +1,70 @@
+{
+  "region": "eu-west-1",
+  "cost_type": "projected",
+  "resources": [
+    {
+      "resource_type": "aws:ec2:Instance",
+      "resource_name": "web-server-t3-micro",
+      "min_cost": 7.2,
+      "max_cost": 8.3,
+      "region": "eu-west-1",
+      "cost_type": "projected"
+    },
+    {
+      "resource_type": "aws:ec2:Instance",
+      "resource_name": "web-server-t3-small",
+      "min_cost": 14.3,
+      "max_cost": 16.5,
+      "region": "eu-west-1",
+      "cost_type": "projected"
+    },
+    {
+      "resource_type": "aws:ebs:Volume",
+      "resource_name": "data-volume-gp3",
+      "min_cost": 8.3,
+      "max_cost": 9.4,
+      "region": "eu-west-1",
+      "cost_type": "projected"
+    },
+    {
+      "resource_type": "aws:ebs:Volume",
+      "resource_name": "data-volume-io2",
+      "min_cost": 10.5,
+      "max_cost": 11.6,
+      "region": "eu-west-1",
+      "cost_type": "projected"
+    },
+    {
+      "resource_type": "aws:ec2:NatGateway",
+      "resource_name": "test-nat-gw",
+      "min_cost": 34.1,
+      "max_cost": 37.9,
+      "region": "eu-west-1",
+      "cost_type": "projected"
+    },
+    {
+      "resource_type": "aws:ec2:VpcEndpoint",
+      "resource_name": "test-vpc-endpoint",
+      "min_cost": 7.5,
+      "max_cost": 8.4,
+      "region": "eu-west-1",
+      "cost_type": "projected"
+    },
+    {
+      "resource_type": "aws:rds:Instance",
+      "resource_name": "test-db-postgres",
+      "min_cost": 13.8,
+      "max_cost": 15.4,
+      "region": "eu-west-1",
+      "cost_type": "projected"
+    },
+    {
+      "resource_type": "aws:rds:Instance",
+      "resource_name": "test-db-mysql",
+      "min_cost": 13.8,
+      "max_cost": 15.4,
+      "region": "eu-west-1",
+      "cost_type": "projected"
+    }
+  ]
+}

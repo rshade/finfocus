@@ -100,3 +100,159 @@ func (v *DefaultCostValidator) ValidateActual(calculated float64, runtime time.D
 	// or billing granularity if needed. For now, using the same tolerance.
 	return v.ValidateProjected(calculated, expectedTotal)
 }
+
+// ValidateCost checks if actual cost is within expected range with tolerance.
+func (v *DefaultCostValidator) ValidateCost(actual CostResult, expected ExpectedCost, tolerance float64) CostValidationResult {
+	// Use midpoint of expected range for tolerance calculation
+	expectedMidpoint := (expected.MinCost + expected.MaxCost) / 2
+	diff := math.Abs(actual.MonthlyCost - expectedMidpoint)
+	var variance float64
+	if expectedMidpoint != 0 {
+		variance = (diff / expectedMidpoint) * 100
+	}
+
+	// Apply tolerance to the range if provided (tolerance > 0)
+	var lowerBound, upperBound float64
+	if tolerance > 0 {
+		// Normalize tolerance: if > 1, treat as percentage (5 -> 0.05)
+		t := tolerance
+		if tolerance > 1 {
+			t = tolerance / 100
+		}
+		// Apply tolerance as percentage adjustment to midpoint
+		lowerBound = expectedMidpoint * (1 - t)
+		upperBound = expectedMidpoint * (1 + t)
+	} else {
+		// Fall back to expected min/max range
+		lowerBound = expected.MinCost
+		upperBound = expected.MaxCost
+	}
+
+	withinTolerance := actual.MonthlyCost >= lowerBound && actual.MonthlyCost <= upperBound
+
+	return CostValidationResult{
+		ResourceName:    actual.ResourceName,
+		ResourceType:    actual.ResourceType,
+		Region:          actual.Region,
+		ActualCost:      actual.MonthlyCost,
+		ExpectedMin:     lowerBound,
+		ExpectedMax:     upperBound,
+		WithinTolerance: withinTolerance,
+		Variance:        variance,
+		Timestamp:       time.Now(),
+		CostType:        actual.CostType,
+	}
+}
+
+// ValidateMultiRegionCosts validates costs across multiple regions and aggregates results.
+func (v *DefaultCostValidator) ValidateMultiRegionCosts(results []CostResult, expectations []ExpectedCost, tolerance float64) (*MultiRegionTestResult, error) {
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no results to validate")
+	}
+
+	regions := make(map[string]bool)
+	var validationResults []CostValidationResult
+
+	// Create lookup map for expectations by resource and region
+	expectationMap := make(map[string]map[string]ExpectedCost)
+	for _, exp := range expectations {
+		if expectationMap[exp.ResourceName] == nil {
+			expectationMap[exp.ResourceName] = make(map[string]ExpectedCost)
+		}
+		expectationMap[exp.ResourceName][exp.Region] = exp
+	}
+
+	for _, result := range results {
+		regions[result.Region] = true
+
+		exp, exists := expectationMap[result.ResourceName][result.Region]
+		if !exists {
+			return nil, fmt.Errorf("no expectation found for resource %s in region %s", result.ResourceName, result.Region)
+		}
+
+		validationResult := v.ValidateCost(result, exp, tolerance)
+		validationResults = append(validationResults, validationResult)
+	}
+
+	// Aggregate results
+	totalResources := len(validationResults)
+	passed := 0
+	failed := 0
+	for _, vr := range validationResults {
+		if vr.WithinTolerance {
+			passed++
+		} else {
+			failed++
+		}
+	}
+
+	var regionList []string
+	for r := range regions {
+		regionList = append(regionList, r)
+	}
+
+	testResult := &MultiRegionTestResult{
+		Regions:           regionList,
+		Results:           validationResults,
+		TotalResources:    totalResources,
+		PassedValidations: passed,
+		FailedValidations: failed,
+		ExecutionTime:     0, // Will be set by caller
+		TestTimestamp:     time.Now(),
+		Success:           failed == 0,
+	}
+
+	return testResult, nil
+}
+
+// ValidateUnifiedFixtureCosts validates costs for a unified multi-region fixture.
+// It validates both per-resource costs and aggregate total.
+func (v *DefaultCostValidator) ValidateUnifiedFixtureCosts(results []CostResult, expected UnifiedExpectedCosts) (*UnifiedValidationResult, error) {
+	if len(results) == 0 {
+		return nil, fmt.Errorf("no results to validate")
+	}
+
+	result := &UnifiedValidationResult{
+		PerResourceResults: make([]CostValidationResult, 0, len(expected.Resources)),
+	}
+
+	// Validate each resource
+	for _, exp := range expected.Resources {
+		actual := findResultByNameAndRegion(results, exp.ResourceName, exp.Region)
+		if actual == nil {
+			return nil, fmt.Errorf("missing cost result for resource %s in region %s", exp.ResourceName, exp.Region)
+		}
+
+		validation := v.ValidateCost(*actual, exp, expected.AggregateValidation.Tolerance)
+		result.PerResourceResults = append(result.PerResourceResults, validation)
+	}
+
+	// Calculate and validate aggregate total
+	totalCost := sumCosts(results)
+	result.TotalCost = totalCost
+	result.ExpectedTotalMin = expected.AggregateValidation.TotalMinCost
+	result.ExpectedTotalMax = expected.AggregateValidation.TotalMaxCost
+	result.TotalWithinTolerance = totalCost >= expected.AggregateValidation.TotalMinCost &&
+		totalCost <= expected.AggregateValidation.TotalMaxCost
+
+	return result, nil
+}
+
+// findResultByNameAndRegion finds a CostResult by resource name and region.
+func findResultByNameAndRegion(results []CostResult, name, region string) *CostResult {
+	for i := range results {
+		if results[i].ResourceName == name && results[i].Region == region {
+			return &results[i]
+		}
+	}
+	return nil
+}
+
+// sumCosts calculates the sum of all monthly costs.
+func sumCosts(results []CostResult) float64 {
+	var total float64
+	for _, r := range results {
+		total += r.MonthlyCost
+	}
+	return total
+}

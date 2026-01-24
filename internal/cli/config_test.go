@@ -16,6 +16,7 @@ func setupTestConfig(t *testing.T) (string, func()) {
 	t.Helper()
 	testHome := t.TempDir()
 	t.Setenv("HOME", testHome)
+	t.Setenv("USERPROFILE", testHome) // Windows compatibility
 	// If a reset helper exists, call it here; otherwise noop.
 	cleanup := func() {}
 	return testHome, cleanup
