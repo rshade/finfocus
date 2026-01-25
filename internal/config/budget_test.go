@@ -481,3 +481,186 @@ func TestConfig_List_IncludesCost(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, 1000.0, costConfig.Budgets.Amount)
 }
+
+// T004: Unit test for ErrExitCodeOutOfRange error type.
+func TestErrExitCodeOutOfRange(t *testing.T) {
+	// Verify the error variable exists and has the expected message
+	require.NotNil(t, ErrExitCodeOutOfRange)
+	assert.Contains(t, ErrExitCodeOutOfRange.Error(), "exit code must be between 0 and 255")
+}
+
+// T005: Unit test for BudgetConfig.GetExitCode() method.
+func TestBudgetConfig_GetExitCode(t *testing.T) {
+	tests := []struct {
+		name     string
+		budget   BudgetConfig
+		expected int
+	}{
+		{
+			name:     "default exit code when not set",
+			budget:   BudgetConfig{Amount: 100.0, Currency: "USD"},
+			expected: 1,
+		},
+		{
+			name:     "explicit exit code 0",
+			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitCode: 0, ExitOnThreshold: true},
+			expected: 0,
+		},
+		{
+			name:     "explicit exit code 2",
+			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitCode: 2},
+			expected: 2,
+		},
+		{
+			name:     "max exit code 255",
+			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitCode: 255},
+			expected: 255,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.budget.GetExitCode())
+		})
+	}
+}
+
+// T006: Unit test for BudgetConfig.ShouldExitOnThreshold() method.
+func TestBudgetConfig_ShouldExitOnThreshold(t *testing.T) {
+	tests := []struct {
+		name     string
+		budget   BudgetConfig
+		expected bool
+	}{
+		{
+			name:     "default is disabled",
+			budget:   BudgetConfig{Amount: 100.0, Currency: "USD"},
+			expected: false,
+		},
+		{
+			name:     "explicitly enabled",
+			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitOnThreshold: true},
+			expected: true,
+		},
+		{
+			name:     "explicitly disabled",
+			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitOnThreshold: false},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, tc.budget.ShouldExitOnThreshold())
+		})
+	}
+}
+
+// T007: Unit test for exit code validation (0-255 range).
+func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
+	tests := []struct {
+		name      string
+		budget    BudgetConfig
+		wantErr   bool
+		errString string
+	}{
+		{
+			name: "valid exit code 0",
+			budget: BudgetConfig{
+				Amount:          100.0,
+				Currency:        "USD",
+				ExitOnThreshold: true,
+				ExitCode:        0,
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid exit code 1 (default)",
+			budget: BudgetConfig{
+				Amount:          100.0,
+				Currency:        "USD",
+				ExitOnThreshold: true,
+				ExitCode:        1,
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid exit code 255 (max)",
+			budget: BudgetConfig{
+				Amount:          100.0,
+				Currency:        "USD",
+				ExitOnThreshold: true,
+				ExitCode:        255,
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid exit code 256 (exceeds max)",
+			budget: BudgetConfig{
+				Amount:          100.0,
+				Currency:        "USD",
+				ExitOnThreshold: true,
+				ExitCode:        256,
+			},
+			wantErr:   true,
+			errString: "exit code must be between 0 and 255",
+		},
+		{
+			name: "invalid exit code -1 (negative)",
+			budget: BudgetConfig{
+				Amount:          100.0,
+				Currency:        "USD",
+				ExitOnThreshold: true,
+				ExitCode:        -1,
+			},
+			wantErr:   true,
+			errString: "exit code must be between 0 and 255",
+		},
+		{
+			name: "exit code validation skipped when exit disabled",
+			budget: BudgetConfig{
+				Amount:          100.0,
+				Currency:        "USD",
+				ExitOnThreshold: false,
+				ExitCode:        999, // Invalid but not validated when disabled
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.budget.Validate()
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errString)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// Test YAML parsing with exit code fields.
+func TestBudgetConfig_YAMLParsing_ExitCode(t *testing.T) {
+	yamlData := `
+cost:
+  budgets:
+    amount: 1000
+    currency: USD
+    exit_on_threshold: true
+    exit_code: 2
+`
+
+	var cfg struct {
+		Cost CostConfig `yaml:"cost"`
+	}
+
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	require.NoError(t, err)
+
+	assert.True(t, cfg.Cost.Budgets.ExitOnThreshold)
+	assert.Equal(t, 2, cfg.Cost.Budgets.ExitCode)
+	assert.True(t, cfg.Cost.Budgets.ShouldExitOnThreshold())
+	assert.Equal(t, 2, cfg.Cost.Budgets.GetExitCode())
+}

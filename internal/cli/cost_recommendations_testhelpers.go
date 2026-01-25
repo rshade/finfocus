@@ -78,7 +78,7 @@ func RenderRecommendationsTableVerboseForTest(w io.Writer, recs []TestableRecomm
 	result := &engine.RecommendationsResult{
 		Recommendations: engineRecs,
 		TotalSavings:    calculateTotalSavingsForTest(engineRecs),
-		Currency:        "USD",
+		Currency:        defaultCurrency,
 	}
 	return renderRecommendationsTableWithVerbose(w, result, verbose)
 }
@@ -112,7 +112,7 @@ func RenderRecommendationsJSONForTest(w io.Writer, recs []TestableRecommendation
 	result := &engine.RecommendationsResult{
 		Recommendations: engineRecs,
 		TotalSavings:    calculateTotalSavingsForTest(engineRecs),
-		Currency:        "USD",
+		Currency:        defaultCurrency,
 	}
 	return renderRecommendationsJSON(w, result, nil)
 }
@@ -123,7 +123,7 @@ func RenderRecommendationsNDJSONForTest(w io.Writer, recs []TestableRecommendati
 	result := &engine.RecommendationsResult{
 		Recommendations: engineRecs,
 		TotalSavings:    calculateTotalSavingsForTest(engineRecs),
-		Currency:        "USD",
+		Currency:        defaultCurrency,
 	}
 	return renderRecommendationsNDJSON(w, result, nil)
 }

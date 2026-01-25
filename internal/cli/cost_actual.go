@@ -251,10 +251,11 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	currency, mixedCurrencies := extractCurrencyFromResults(resultWithErrors.Results)
 
 	// Render budget status only for table format and when currencies are consistent
+	// T026: Call checkBudgetExit after renderBudgetIfConfigured
 	if !mixedCurrencies && params.output == "table" {
-		if budgetErr := renderBudgetIfConfigured(cmd, totalCost, currency); budgetErr != nil {
-			log.Warn().Ctx(ctx).Err(budgetErr).Msg("failed to render budget status")
-			// Don't fail the command, just log the warning.
+		budgetStatus, budgetErr := renderBudgetIfConfigured(cmd, totalCost, currency)
+		if exitErr := checkBudgetExit(cmd, budgetStatus, budgetErr); exitErr != nil {
+			return exitErr
 		}
 	}
 
@@ -351,30 +352,7 @@ func ValidateDateRange(from, to time.Time) error {
 	return nil
 }
 
-// extractCurrencyFromResults scans results to find a single canonical currency.
-// It returns the currency code and a boolean indicating if mixed currencies were detected.
-// If no currency is found, it defaults to "USD".
-func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
-	currency := ""
-	mixedCurrencies := false
-
-	for _, r := range results {
-		if r.Currency != "" {
-			if currency == "" {
-				currency = r.Currency
-			} else if r.Currency != currency {
-				mixedCurrencies = true
-				break
-			}
-		}
-	}
-
-	if currency == "" {
-		currency = "USD" //nolint:goconst // Default currency, isolated use.
-	}
-
-	return currency, mixedCurrencies
-}
+// validateActualInputFlags validates that exactly one of --pulumi-json or --pulumi-state is provided,
 
 // parseTagFilter parses a group-by specifier for a tag filter and returns the parsed tags and the resulting groupBy.
 // If groupBy is of the form "tag:key=value", it returns a map containing {key: value} and an empty actualGroupBy (indicating tag-based filtering).

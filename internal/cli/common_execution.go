@@ -90,3 +90,28 @@ func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*p
 
 	return clients, cleanup, nil
 }
+
+// extractCurrencyFromResults scans results to find a single canonical currency.
+// It returns the currency code and a boolean indicating if mixed currencies were detected.
+// If no currency is found, it defaults to "USD".
+func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
+	currency := ""
+	mixedCurrencies := false
+
+	for _, r := range results {
+		if r.Currency != "" {
+			if currency == "" {
+				currency = r.Currency
+			} else if r.Currency != currency {
+				mixedCurrencies = true
+				break
+			}
+		}
+	}
+
+	if currency == "" {
+		currency = defaultCurrency
+	}
+
+	return currency, mixedCurrencies
+}

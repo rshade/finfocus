@@ -61,9 +61,8 @@ guardrails in `CONTEXT.md`.
 
 - [x] **Multi-Region Testing** *(Completed 2026-01-24)*
   - [x] Multi-region E2E testing support (#185, PR #485)
-- [ ] **Performance**
-  - [ ] Pagination for large datasets
-        ([#225](https://github.com/rshade/finfocus/issues/225))
+- [x] **Performance** *(Completed 2026-01-24)*
+  - [x] Pagination and NDJSON streaming for CI/CD integration (#225, PR #488)
 
 ## Near-Term Vision (v0.3.0 - Budgeting & Intelligence)
 
@@ -71,10 +70,8 @@ guardrails in `CONTEXT.md`.
   - [ ] Multi-Plugin Routing: Intelligent Feature-Based Plugin Selection
         ([#410](https://github.com/rshade/finfocus/issues/410))
 - [ ] **Budgeting & Cost Controls** *(Budget Health Suite)*
-  - [ ] Budget health calculation & threshold alerting
-        ([#267](https://github.com/rshade/finfocus/issues/267))
-  - [ ] Provider filtering & summary aggregation for Budgets
-        ([#263](https://github.com/rshade/finfocus/issues/263))
+  - [x] Budget health calculation & threshold alerting (#267) *(Completed)*
+  - [x] Provider filtering & summary aggregation for Budgets (#263) *(Completed)*
   - [x] Budget status display in CLI (#217) *(Completed)*
   - [ ] Flexible budget scoping (per-provider, per-resource)
         ([#221](https://github.com/rshade/finfocus/issues/221))

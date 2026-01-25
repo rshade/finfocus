@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/migration"
 )
@@ -141,9 +142,53 @@ const pluginCmdExample = `  # Calculate projected costs from a Pulumi plan
   # Set configuration values
   pulumi plugin run tool cost -- config set output.default_format json`
 
+// CostFlags holds the budget exit flags for the cost command group.
+// These are persistent flags that apply to all cost subcommands.
+type CostFlags struct {
+	ExitOnThreshold bool
+	ExitCode        int
+}
+
 // newCostCmd creates the cost command group with projected, actual, and recommendations subcommands.
+// It also adds persistent flags for budget exit code configuration (Issue #219).
 func newCostCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "cost", Short: "Cost calculation commands"}
+	var flags CostFlags
+
+	cmd := &cobra.Command{
+		Use:   "cost",
+		Short: "Cost calculation commands",
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			// Apply CLI flag overrides to the global config if flags were explicitly set
+			cfg := config.GetGlobalConfig()
+			if cfg == nil {
+				return nil
+			}
+
+			// CLI flags override environment variables and config file
+			if cmd.Flags().Changed("exit-on-threshold") {
+				cfg.Cost.Budgets.ExitOnThreshold = flags.ExitOnThreshold
+			}
+			if cmd.Flags().Changed("exit-code") {
+				cfg.Cost.Budgets.ExitCode = flags.ExitCode
+			}
+
+			// Validate budget configuration if ExitOnThreshold is enabled (T048)
+			if cfg.Cost.Budgets.ExitOnThreshold {
+				if err := cfg.Cost.Budgets.Validate(); err != nil {
+					return fmt.Errorf("invalid budget configuration: %w", err)
+				}
+			}
+
+			return nil
+		},
+	}
+
+	// Add persistent flags for budget exit behavior (T046, T047)
+	cmd.PersistentFlags().BoolVar(&flags.ExitOnThreshold, "exit-on-threshold", false,
+		"Exit with non-zero code when budget thresholds are exceeded")
+	cmd.PersistentFlags().IntVar(&flags.ExitCode, "exit-code", 1,
+		"Exit code to use when budget thresholds are exceeded (0-255)")
+
 	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd())
 	return cmd
 }

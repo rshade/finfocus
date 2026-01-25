@@ -538,7 +538,7 @@ func renderRecommendationsSummary(w io.Writer, recommendations []engine.Recommen
 	totalSavings := 0.0
 	countByAction := make(map[string]int)
 	savingsByAction := make(map[string]float64)
-	currency := "USD"
+	currency := defaultCurrency
 
 	for _, rec := range recommendations {
 		totalSavings += rec.EstimatedSavings
@@ -825,7 +825,7 @@ func buildJSONSummary(recommendations []engine.Recommendation) jsonSummary {
 	countByAction := make(map[string]int)
 	savingsByAction := make(map[string]float64)
 	totalSavings := 0.0
-	currency := "USD"
+	currency := defaultCurrency
 
 	for _, rec := range recommendations {
 		countByAction[rec.Type]++
