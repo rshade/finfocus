@@ -681,3 +681,233 @@ func TestResolveConfigDir(t *testing.T) {
 		assert.Contains(t, dir, ".finfocus")
 	})
 }
+
+// =============================================================================
+// Budget Exit Environment Variable Tests (Issue #219 - Phase 4)
+// =============================================================================
+
+// T028: Unit test for FINFOCUS_BUDGET_EXIT_ON_THRESHOLD=true enables exit.
+func TestConfig_FINFOCUS_BUDGET_EXIT_ON_THRESHOLD_True(t *testing.T) {
+	stubHome(t)
+	t.Setenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD", "true")
+
+	cfg := New()
+	assert.True(t, cfg.Cost.Budgets.ExitOnThreshold,
+		"FINFOCUS_BUDGET_EXIT_ON_THRESHOLD=true should enable exit")
+}
+
+// T029: Unit test for FINFOCUS_BUDGET_EXIT_ON_THRESHOLD=1 enables exit.
+func TestConfig_FINFOCUS_BUDGET_EXIT_ON_THRESHOLD_One(t *testing.T) {
+	stubHome(t)
+	t.Setenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD", "1")
+
+	cfg := New()
+	assert.True(t, cfg.Cost.Budgets.ExitOnThreshold,
+		"FINFOCUS_BUDGET_EXIT_ON_THRESHOLD=1 should enable exit")
+}
+
+// T030: Unit test for FINFOCUS_BUDGET_EXIT_ON_THRESHOLD=false disables exit.
+func TestConfig_FINFOCUS_BUDGET_EXIT_ON_THRESHOLD_False(t *testing.T) {
+	stubHome(t)
+	t.Setenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD", "false")
+
+	cfg := New()
+	assert.False(t, cfg.Cost.Budgets.ExitOnThreshold,
+		"FINFOCUS_BUDGET_EXIT_ON_THRESHOLD=false should disable exit")
+}
+
+// T031: Unit test for FINFOCUS_BUDGET_EXIT_CODE=42 sets exit code.
+func TestConfig_FINFOCUS_BUDGET_EXIT_CODE(t *testing.T) {
+	stubHome(t)
+	t.Setenv("FINFOCUS_BUDGET_EXIT_CODE", "42")
+
+	cfg := New()
+	assert.Equal(t, 42, cfg.Cost.Budgets.ExitCode,
+		"FINFOCUS_BUDGET_EXIT_CODE should set the exit code")
+}
+
+// T032: Unit test for env var overriding config file value.
+func TestConfig_Budget_EnvOverridesConfigFile(t *testing.T) {
+	// Create a temporary config file with exit_on_threshold: false
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, ".finfocus")
+	err := os.MkdirAll(configDir, 0700)
+	require.NoError(t, err)
+
+	configContent := `
+cost:
+  budgets:
+    amount: 1000
+    currency: USD
+    exit_on_threshold: false
+    exit_code: 1
+`
+	err = os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(configContent), 0600)
+	require.NoError(t, err)
+
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir)
+	t.Setenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD", "true")
+	t.Setenv("FINFOCUS_BUDGET_EXIT_CODE", "5")
+
+	cfg := New()
+
+	// Environment should override config file values
+	assert.True(t, cfg.Cost.Budgets.ExitOnThreshold,
+		"env should override config file exit_on_threshold")
+	assert.Equal(t, 5, cfg.Cost.Budgets.ExitCode,
+		"env should override config file exit_code")
+	// Config file values should still be loaded for non-overridden fields
+	assert.Equal(t, 1000.0, cfg.Cost.Budgets.Amount,
+		"config file budget amount should still be loaded")
+}
+
+// Additional edge case tests for environment variables.
+func TestConfig_FINFOCUS_BUDGET_EXIT_ENV_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name            string
+		exitOnThreshold string
+		exitCode        string
+		expectEnabled   bool
+		expectCode      int
+	}{
+		{
+			name:            "TRUE uppercase enables",
+			exitOnThreshold: "TRUE",
+			exitCode:        "",
+			expectEnabled:   true,
+			expectCode:      0, // Default when not set
+		},
+		{
+			name:            "0 disables",
+			exitOnThreshold: "0",
+			exitCode:        "",
+			expectEnabled:   false,
+			expectCode:      0,
+		},
+		{
+			name:            "max exit code 255",
+			exitOnThreshold: "true",
+			exitCode:        "255",
+			expectEnabled:   true,
+			expectCode:      255,
+		},
+		{
+			name:            "exit code 0 (warning-only)",
+			exitOnThreshold: "true",
+			exitCode:        "0",
+			expectEnabled:   true,
+			expectCode:      0,
+		},
+		{
+			name:            "invalid exit code defaults to 0",
+			exitOnThreshold: "true",
+			exitCode:        "abc",
+			expectEnabled:   true,
+			expectCode:      0, // Invalid value, not parsed
+		},
+		{
+			name:            "invalid boolean defaults to false",
+			exitOnThreshold: "maybe",
+			exitCode:        "",
+			expectEnabled:   false, // Invalid value, not parsed
+			expectCode:      0,
+		},
+		{
+			name:            "negative exit code parsed",
+			exitOnThreshold: "true",
+			exitCode:        "-1",
+			expectEnabled:   true,
+			expectCode:      -1,
+		},
+		{
+			name:            "out-of-range exit code parsed",
+			exitOnThreshold: "true",
+			exitCode:        "256",
+			expectEnabled:   true,
+			expectCode:      256,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			stubHome(t)
+			if tc.exitOnThreshold != "" {
+				t.Setenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD", tc.exitOnThreshold)
+			}
+			if tc.exitCode != "" {
+				t.Setenv("FINFOCUS_BUDGET_EXIT_CODE", tc.exitCode)
+			}
+
+			cfg := New()
+			assert.Equal(t, tc.expectEnabled, cfg.Cost.Budgets.ExitOnThreshold)
+			assert.Equal(t, tc.expectCode, cfg.Cost.Budgets.ExitCode)
+		})
+	}
+}
+
+// T049: Test validation of budget exit codes from environment variables.
+func TestConfig_BudgetExitCode_Validation(t *testing.T) {
+	tests := []struct {
+		name            string
+		exitOnThreshold string
+		exitCode        string
+		wantErr         bool
+		errContains     string
+	}{
+		{
+			name:            "negative exit code fails validation",
+			exitOnThreshold: "true",
+			exitCode:        "-1",
+			wantErr:         true,
+			errContains:     "exit code must be between 0 and 255",
+		},
+		{
+			name:            "out-of-range exit code fails validation",
+			exitOnThreshold: "true",
+			exitCode:        "256",
+			wantErr:         true,
+			errContains:     "exit code must be between 0 and 255",
+		},
+		{
+			name:            "valid exit code 255 passes validation",
+			exitOnThreshold: "true",
+			exitCode:        "255",
+			wantErr:         false,
+		},
+		{
+			name:            "valid exit code 0 passes validation",
+			exitOnThreshold: "true",
+			exitCode:        "0",
+			wantErr:         false,
+		},
+		{
+			name:            "negative exit code with ExitOnThreshold=false passes validation",
+			exitOnThreshold: "false",
+			exitCode:        "-1",
+			wantErr:         false, // Validation only happens when ExitOnThreshold is true
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			stubHome(t)
+			// Mock environment variables
+			t.Setenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD", tc.exitOnThreshold)
+			t.Setenv("FINFOCUS_BUDGET_EXIT_CODE", tc.exitCode)
+
+			cfg := New()
+			// Manually set required fields so Validate doesn't fail on currency/amount
+			cfg.Cost.Budgets.Amount = 100
+			cfg.Cost.Budgets.Currency = "USD"
+
+			err := cfg.Cost.Budgets.Validate()
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tc.errContains)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

@@ -25,6 +25,12 @@ const (
 	MinThresholdPercent = 0.0    // Minimum threshold percentage
 )
 
+// Exit code limits (Unix standard).
+const (
+	MinExitCode = 0   // Minimum valid exit code
+	MaxExitCode = 255 // Maximum valid exit code (Unix standard)
+)
+
 // Budget validation errors.
 var (
 	ErrBudgetAmountNegative   = errors.New("budget amount cannot be negative")
@@ -34,6 +40,7 @@ var (
 	ErrUnsupportedBudgetPeriod  = errors.New("budget period must be 'monthly'")
 	ErrAlertThresholdOutOfRange = errors.New("alert threshold must be between 0 and 1000")
 	ErrAlertTypeInvalid         = errors.New("alert type must be 'actual' or 'forecasted'")
+	ErrExitCodeOutOfRange       = errors.New("exit code must be between 0 and 255")
 )
 
 // AlertConfig defines a specific threshold that triggers a notification.
@@ -67,6 +74,14 @@ type BudgetConfig struct {
 	Period string `yaml:"period,omitempty" json:"period,omitempty"`
 	// Alerts is a list of thresholds that trigger notifications.
 	Alerts []AlertConfig `yaml:"alerts,omitempty" json:"alerts,omitempty"`
+
+	// ExitOnThreshold enables non-zero exit codes when budget thresholds are exceeded.
+	// When true, the CLI will exit with the configured exit code on threshold violation.
+	ExitOnThreshold bool `yaml:"exit_on_threshold,omitempty" json:"exit_on_threshold,omitempty"`
+	// ExitCode is the exit code to use when a threshold is exceeded.
+	// Only validated when ExitOnThreshold is true. Defaults to 1 if not set.
+	// Must be in range 0-255 (Unix standard).
+	ExitCode int `yaml:"exit_code,omitempty" json:"exit_code,omitempty"` //nolint:golines // struct tag
 }
 
 // IsEnabled returns true if the budget is configured and enabled (Amount > 0).
@@ -85,6 +100,33 @@ func (b BudgetConfig) GetPeriod() string {
 		return DefaultBudgetPeriod
 	}
 	return b.Period
+}
+
+// ShouldExitOnThreshold returns true if the CLI should exit with a non-zero
+// code when budget thresholds are exceeded.
+func (b BudgetConfig) ShouldExitOnThreshold() bool {
+	return b.ExitOnThreshold
+}
+
+// GetExitCode returns the configured exit code, defaulting to 1 if not set.
+// This method provides the raw exit code defined in the configuration. Callers
+// should typically check ShouldExitOnThreshold() (or ExitOnThreshold) to determine
+// if they should act on this exit code.
+//
+// Note: Exit code 0 is valid and explicitly allowed (for warning-only mode).
+// When ExitOnThreshold is true and GetExitCode() returns 0, the CLI should log
+// a warning instead of terminating with a non-zero error.
+func (b BudgetConfig) GetExitCode() int {
+	// When ExitOnThreshold is true and ExitCode is 0, return 0 (warning-only mode)
+	if b.ExitOnThreshold && b.ExitCode == 0 {
+		return 0
+	}
+	// When ExitCode is explicitly set, return it
+	if b.ExitCode != 0 {
+		return b.ExitCode
+	}
+	// Default to 1 when not set
+	return 1
 }
 
 // Validate checks if the budget configuration is valid.
@@ -115,6 +157,13 @@ func (b BudgetConfig) Validate() error {
 	for i, alert := range b.Alerts {
 		if err := alert.Validate(); err != nil {
 			return fmt.Errorf("alert[%d]: %w", i, err)
+		}
+	}
+
+	// Validate exit code only when exit on threshold is enabled
+	if b.ExitOnThreshold {
+		if b.ExitCode < MinExitCode || b.ExitCode > MaxExitCode {
+			return fmt.Errorf("%w: got %d", ErrExitCodeOutOfRange, b.ExitCode)
 		}
 	}
 

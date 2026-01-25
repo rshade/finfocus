@@ -321,16 +321,18 @@ func getStatusMessage(status *engine.BudgetStatus) string {
 // currencySymbol maps a three-letter currency code to its typographic symbol.
 // For unrecognized codes the function returns the original code followed by a space.
 func currencySymbol(currency string) string {
-	symbols := map[string]string{
-		"USD": "$",
-		"EUR": "€",
-		"GBP": "£",
-		"JPY": "¥",
-		"CAD": "C$",
-		"AUD": "A$",
-		"CHF": "CHF ",
+	currencySymbols := map[string]string{
+		defaultCurrency: "$",
+		"EUR":           "€",
+		"GBP":           "£",
+		"JPY":           "¥",
+		"CNY":           "¥",
+		"CAD":           "C$",
+		"AUD":           "A$",
+		"INR":           "₹",
+		"KRW":           "₩",
 	}
-	if sym, ok := symbols[currency]; ok {
+	if sym, ok := currencySymbols[currency]; ok {
 		return sym
 	}
 	return currency + " "
@@ -389,14 +391,16 @@ func calculateProgressBarWidth(boxWidth int) int {
 // cost to evaluate. currency is the currency code used for evaluation.
 //
 // If no global configuration exists or no budget is configured, renderBudgetIfConfigured
-// does nothing and returns nil. It returns an error if budget evaluation fails
+// does nothing and returns (nil, nil). It returns an error if budget evaluation fails
 // or if rendering the budget status fails. A blank line is printed to the
 // command output immediately before the rendered status when a budget is shown.
-func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency string) error {
+//
+// The returned BudgetStatus can be used for exit code evaluation.
+func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency string) (*engine.BudgetStatus, error) {
 	// Get the global configuration
 	cfg := config.GetGlobalConfig()
 	if cfg == nil || !cfg.Cost.HasBudget() {
-		return nil // No budget configured
+		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no budget configured
 	}
 
 	// Create budget engine and evaluate
@@ -404,12 +408,77 @@ func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency st
 	status, err := budgetEngine.Evaluate(cfg.Cost.Budgets, totalCost, currency)
 	if err != nil {
 		// Budget evaluation failed (e.g., currency mismatch)
-		return fmt.Errorf("evaluating budget: %w", err)
+		return nil, fmt.Errorf("evaluating budget: %w", err)
 	}
 
 	// Add a blank line before budget status
 	cmd.Println()
 
 	// Render the budget status
-	return RenderBudgetStatus(cmd.OutOrStdout(), status)
+	if renderErr := RenderBudgetStatus(cmd.OutOrStdout(), status); renderErr != nil {
+		return status, renderErr
+	}
+
+	return status, nil
+}
+
+// BudgetExitError is a sentinel error that carries an exit code for budget threshold violations.
+// It is used to communicate the exit code from budget evaluation to the CLI layer.
+type BudgetExitError struct {
+	ExitCode int
+	Reason   string
+}
+
+func (e *BudgetExitError) Error() string {
+	return e.Reason
+}
+
+// checkBudgetExit evaluates whether the CLI should exit based on budget status.
+// It returns a BudgetExitError with the appropriate exit code if a threshold was exceeded
+// and exit_on_threshold is enabled, or nil if no exit is needed.
+//
+// For budget evaluation errors (FR-009), it returns a BudgetExitError with code 1.
+func checkBudgetExit(cmd *cobra.Command, status *engine.BudgetStatus, evalErr error) error {
+	isDebug := cmd.Flag("debug") != nil && cmd.Flag("debug").Changed
+
+	// FR-009: Budget evaluation errors return exit code 1
+	if evalErr != nil {
+		// Log the error for debugging
+		if isDebug {
+			cmd.PrintErrf("DEBUG: budget evaluation error: %v\n", evalErr)
+		}
+		return &BudgetExitError{
+			ExitCode: engine.ExitCodeBudgetEvaluationError,
+			Reason:   fmt.Sprintf("budget evaluation failed: %v", evalErr),
+		}
+	}
+
+	// No status means no budget configured - no exit needed
+	if status == nil {
+		return nil
+	}
+
+	// Check if we should exit based on threshold violation
+	if status.ShouldExit() {
+		exitCode := status.GetExitCode()
+		reason := status.ExitReason()
+
+		// Log exit reason when debug is enabled
+		if isDebug {
+			cmd.PrintErrf("DEBUG: %s\n", reason)
+		}
+
+		// Warning-only mode: exit code 0 means log warning but don't fail
+		if exitCode == 0 {
+			cmd.PrintErrf("WARNING: %s\n", reason)
+			return nil
+		}
+
+		return &BudgetExitError{
+			ExitCode: exitCode,
+			Reason:   reason,
+		}
+	}
+
+	return nil
 }

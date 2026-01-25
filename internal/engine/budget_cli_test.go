@@ -456,3 +456,249 @@ func TestEvaluateThreshold(t *testing.T) {
 		})
 	}
 }
+
+// =============================================================================
+// Budget Exit Code Tests (Issue #219)
+// =============================================================================
+
+// T013: Unit test for BudgetStatus.ShouldExit() returns false when disabled.
+func TestBudgetStatus_ShouldExit_Disabled(t *testing.T) {
+	status := &BudgetStatus{
+		Budget: config.BudgetConfig{
+			Amount:          1000.0,
+			Currency:        "USD",
+			ExitOnThreshold: false, // Disabled
+		},
+		Alerts: []ThresholdStatus{
+			{Threshold: 80.0, Status: ThresholdStatusExceeded},
+		},
+	}
+
+	assert.False(t, status.ShouldExit(), "should not exit when exit_on_threshold is disabled")
+}
+
+// T014: Unit test for BudgetStatus.ShouldExit() returns false when no thresholds exceeded.
+func TestBudgetStatus_ShouldExit_NoExceeded(t *testing.T) {
+	status := &BudgetStatus{
+		Budget: config.BudgetConfig{
+			Amount:          1000.0,
+			Currency:        "USD",
+			ExitOnThreshold: true, // Enabled
+		},
+		Alerts: []ThresholdStatus{
+			{Threshold: 80.0, Status: ThresholdStatusOK},
+			{Threshold: 100.0, Status: ThresholdStatusApproaching},
+		},
+	}
+
+	assert.False(t, status.ShouldExit(), "should not exit when no thresholds are exceeded")
+}
+
+// T015: Unit test for BudgetStatus.ShouldExit() returns true when enabled AND exceeded.
+func TestBudgetStatus_ShouldExit_EnabledAndExceeded(t *testing.T) {
+	status := &BudgetStatus{
+		Budget: config.BudgetConfig{
+			Amount:          1000.0,
+			Currency:        "USD",
+			ExitOnThreshold: true, // Enabled
+		},
+		Alerts: []ThresholdStatus{
+			{Threshold: 80.0, Status: ThresholdStatusExceeded},
+		},
+	}
+
+	assert.True(t, status.ShouldExit(), "should exit when exit_on_threshold is enabled and threshold is exceeded")
+}
+
+// T016: Unit test for BudgetStatus.GetExitCode() returns 0 when should not exit.
+func TestBudgetStatus_GetExitCode_NoExit(t *testing.T) {
+	tests := []struct {
+		name   string
+		status *BudgetStatus
+	}{
+		{
+			name: "exit disabled, no exceeded",
+			status: &BudgetStatus{
+				Budget: config.BudgetConfig{
+					Amount:          1000.0,
+					Currency:        "USD",
+					ExitOnThreshold: false,
+					ExitCode:        2,
+				},
+				Alerts: []ThresholdStatus{
+					{Threshold: 80.0, Status: ThresholdStatusOK},
+				},
+			},
+		},
+		{
+			name: "exit enabled but no exceeded",
+			status: &BudgetStatus{
+				Budget: config.BudgetConfig{
+					Amount:          1000.0,
+					Currency:        "USD",
+					ExitOnThreshold: true,
+					ExitCode:        2,
+				},
+				Alerts: []ThresholdStatus{
+					{Threshold: 80.0, Status: ThresholdStatusOK},
+				},
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, 0, tc.status.GetExitCode(), "should return 0 when should not exit")
+		})
+	}
+}
+
+// T017: Unit test for BudgetStatus.GetExitCode() returns configured code on exit.
+func TestBudgetStatus_GetExitCode_ShouldExit(t *testing.T) {
+	tests := []struct {
+		name         string
+		exitCode     int
+		expectedCode int
+	}{
+		// Note: When ExitOnThreshold=true and ExitCode=0, it's warning-only mode (exit code 0)
+		// The "default exit code 1" behavior is handled by BudgetConfig.GetExitCode() when
+		// exit is NOT enabled. When exit IS enabled with ExitCode=0, that's explicit warning mode.
+		{"custom exit code 2", 2, 2},
+		{"max exit code 255", 255, 255},
+		{"explicit exit code 1", 1, 1},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			status := &BudgetStatus{
+				Budget: config.BudgetConfig{
+					Amount:          1000.0,
+					Currency:        "USD",
+					ExitOnThreshold: true,
+					ExitCode:        tc.exitCode,
+				},
+				Alerts: []ThresholdStatus{
+					{Threshold: 80.0, Status: ThresholdStatusExceeded},
+				},
+			}
+
+			assert.Equal(t, tc.expectedCode, status.GetExitCode())
+		})
+	}
+}
+
+// T018: Unit test for BudgetStatus.ExitReason() returns empty string when no exit.
+func TestBudgetStatus_ExitReason_NoExit(t *testing.T) {
+	status := &BudgetStatus{
+		Budget: config.BudgetConfig{
+			Amount:          1000.0,
+			Currency:        "USD",
+			ExitOnThreshold: false,
+		},
+		Alerts: []ThresholdStatus{
+			{Threshold: 80.0, Status: ThresholdStatusExceeded},
+		},
+	}
+
+	assert.Empty(t, status.ExitReason(), "should return empty string when should not exit")
+}
+
+// T019: Unit test for BudgetStatus.ExitReason() returns descriptive message on exit.
+func TestBudgetStatus_ExitReason_OnExit(t *testing.T) {
+	status := &BudgetStatus{
+		Budget: config.BudgetConfig{
+			Amount:          1000.0,
+			Currency:        "USD",
+			ExitOnThreshold: true,
+			ExitCode:        2,
+		},
+		Alerts: []ThresholdStatus{
+			{Threshold: 80.0, Status: ThresholdStatusExceeded},
+			{Threshold: 100.0, Status: ThresholdStatusExceeded},
+		},
+	}
+
+	reason := status.ExitReason()
+	assert.NotEmpty(t, reason)
+	assert.Contains(t, reason, "budget threshold exceeded")
+	assert.Contains(t, reason, "100") // Should mention highest threshold
+}
+
+// T020a: Unit test for exit code 1 when budget evaluation error occurs (FR-009).
+func TestBudgetStatus_ExitCodeOnError(t *testing.T) {
+	// When evaluation fails, the error exit code should be 1 (not the configured code)
+	// This is tested at the CLI level, but we verify the constant here
+	assert.Equal(t, 1, ExitCodeBudgetEvaluationError,
+		"budget evaluation error exit code should be 1")
+}
+
+// Additional exit code tests for edge cases.
+func TestBudgetStatus_ShouldExit_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name       string
+		status     *BudgetStatus
+		shouldExit bool
+	}{
+		{
+			name: "empty alerts list",
+			status: &BudgetStatus{
+				Budget: config.BudgetConfig{
+					Amount:          1000.0,
+					Currency:        "USD",
+					ExitOnThreshold: true,
+				},
+				Alerts: []ThresholdStatus{},
+			},
+			shouldExit: false,
+		},
+		{
+			name: "nil budget status",
+			status: &BudgetStatus{
+				Budget: config.BudgetConfig{
+					ExitOnThreshold: true,
+				},
+				Alerts: nil,
+			},
+			shouldExit: false,
+		},
+		{
+			name: "warning-only mode (exit code 0)",
+			status: &BudgetStatus{
+				Budget: config.BudgetConfig{
+					Amount:          1000.0,
+					Currency:        "USD",
+					ExitOnThreshold: true,
+					ExitCode:        0, // Warning-only mode
+				},
+				Alerts: []ThresholdStatus{
+					{Threshold: 80.0, Status: ThresholdStatusExceeded},
+				},
+			},
+			shouldExit: true, // Still returns true, but exit code will be 0
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.shouldExit, tc.status.ShouldExit())
+		})
+	}
+}
+
+// Test exit code with warning-only mode (exit_code: 0).
+func TestBudgetStatus_GetExitCode_WarningOnly(t *testing.T) {
+	status := &BudgetStatus{
+		Budget: config.BudgetConfig{
+			Amount:          1000.0,
+			Currency:        "USD",
+			ExitOnThreshold: true,
+			ExitCode:        0, // Warning-only mode
+		},
+		Alerts: []ThresholdStatus{
+			{Threshold: 80.0, Status: ThresholdStatusExceeded},
+		},
+	}
+
+	// Should return 0 even when threshold is exceeded (warning-only mode)
+	assert.Equal(t, 0, status.GetExitCode())
+}

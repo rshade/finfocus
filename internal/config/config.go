@@ -676,6 +676,8 @@ func (c *Config) SetPluginConfig(pluginName string, config map[string]interface{
 }
 
 // applyEnvOverrides applies environment variable overrides.
+//
+//nolint:gocognit // Complexity is inherent to handling multiple env overrides
 func (c *Config) applyEnvOverrides() {
 	// Compatibility layer for legacy PULUMICOST_ variables
 	if os.Getenv("FINFOCUS_COMPAT") == "1" || os.Getenv("FINFOCUS_COMPAT") == "true" {
@@ -726,6 +728,18 @@ func (c *Config) applyEnvOverrides() {
 				Str("value", maxSize).
 				Err(err).
 				Msg("failed to parse cache max size, using default")
+		}
+	}
+
+	// Budget exit configuration overrides (Issue #219)
+	if exitOnThreshold := os.Getenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD"); exitOnThreshold != "" {
+		if e, err := strconv.ParseBool(exitOnThreshold); err == nil {
+			c.Cost.Budgets.ExitOnThreshold = e
+		}
+	}
+	if exitCode := os.Getenv("FINFOCUS_BUDGET_EXIT_CODE"); exitCode != "" {
+		if code, err := strconv.Atoi(exitCode); err == nil {
+			c.Cost.Budgets.ExitCode = code
 		}
 	}
 

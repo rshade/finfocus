@@ -35,6 +35,16 @@ func ResetGlobalConfigForTest() {
 	globalConfigInit = false
 }
 
+// SetGlobalConfig sets the global configuration for testing purposes.
+// If cfg is nil, it resets the global config state.
+func SetGlobalConfig(cfg *Config) {
+	globalConfigMu.Lock()
+	defer globalConfigMu.Unlock()
+
+	GlobalConfig = cfg
+	globalConfigInit = cfg != nil
+}
+
 // GetGlobalConfig returns the global configuration, initializing it if needed.
 func GetGlobalConfig() *Config {
 	InitGlobalConfig()

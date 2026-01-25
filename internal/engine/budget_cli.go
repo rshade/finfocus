@@ -38,6 +38,13 @@ var (
 	ErrBudgetDisabled = errors.New("budget is disabled (amount is 0)")
 )
 
+// Exit code constants for CLI integration.
+const (
+	// ExitCodeBudgetEvaluationError is returned when budget evaluation fails (FR-009).
+	// This is distinct from the configured exit code for threshold violations.
+	ExitCodeBudgetEvaluationError = 1
+)
+
 // ThresholdStatus represents the status of an individual alert threshold.
 type ThresholdStatus struct {
 	// Threshold is the configured threshold percentage (e.g., 80.0 for 80%).
@@ -286,4 +293,43 @@ func (s *BudgetStatus) IsOverBudget() bool {
 // IsForecastOverBudget returns true if forecasted spend exceeds the budget amount.
 func (s *BudgetStatus) IsForecastOverBudget() bool {
 	return s.ForecastPercentage > percentFull
+}
+
+// ShouldExit returns true if the CLI should "exit" due to an exceeded budget threshold.
+// It returns true when ExitOnThreshold is enabled in the budget config and any
+// threshold has been exceeded, regardless of whether the configured exit code
+// is zero (warning-only).
+func (s *BudgetStatus) ShouldExit() bool {
+	if !s.Budget.ShouldExitOnThreshold() {
+		return false
+	}
+	return s.HasExceededAlerts()
+}
+
+// GetExitCode returns the appropriate exit code based on budget evaluation.
+// Returns 0 if no exit should occur (ShouldExit() is false).
+// Returns the configured exit code if a threshold is exceeded and ExitOnThreshold is enabled.
+// Note: A zero exit code representing a warning-only condition is explicitly allowed.
+func (s *BudgetStatus) GetExitCode() int {
+	if !s.ShouldExit() {
+		return 0
+	}
+	return s.Budget.GetExitCode()
+}
+
+// ExitReason returns a human-readable reason for the exit code.
+// Returns an empty string if no exit should occur.
+// A zero exit code represents a warning-only condition.
+// Used for debug logging and user feedback.
+func (s *BudgetStatus) ExitReason() string {
+	if !s.ShouldExit() {
+		return ""
+	}
+
+	highest := s.GetHighestExceededThreshold()
+	if s.Budget.GetExitCode() == 0 {
+		return fmt.Sprintf("budget threshold exceeded (%.0f%%) - warning only, exit code 0", highest)
+	}
+	return fmt.Sprintf("budget threshold exceeded (%.0f%%) - exiting with code %d",
+		highest, s.Budget.GetExitCode())
 }

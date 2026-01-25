@@ -158,6 +158,18 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	for _, r := range resultWithErrors.Results {
 		totalCost += r.Monthly
 	}
+
+	currency, mixedCurrencies := extractCurrencyFromResults(resultWithErrors.Results)
 	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
+
+	// Evaluate and render budget status (T025: Call checkBudgetExit after renderBudgetIfConfigured)
+	// Render budget status only when currencies are consistent
+	if !mixedCurrencies {
+		budgetStatus, budgetErr := renderBudgetIfConfigured(cmd, totalCost, currency)
+		if exitErr := checkBudgetExit(cmd, budgetStatus, budgetErr); exitErr != nil {
+			return exitErr
+		}
+	}
+
 	return nil
 }
