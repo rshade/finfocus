@@ -14,6 +14,14 @@ import (
 	"github.com/rshade/finfocus/internal/spec"
 )
 
+// getBudgetScopeFilter returns the budget-scope flag value or empty string if not set.
+func getBudgetScopeFilter(cmd *cobra.Command) string {
+	if flag := cmd.Flag("budget-scope"); flag != nil {
+		return flag.Value.String()
+	}
+	return ""
+}
+
 // displayErrorSummary prints an error summary to the command output.
 // It only displays for table format since JSON/NDJSON formats include errors in their structure.
 func displayErrorSummary(
@@ -165,8 +173,11 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	// Evaluate and render budget status (T025: Call checkBudgetExit after renderBudgetIfConfigured)
 	// Render budget status only when currencies are consistent
 	if !mixedCurrencies {
-		budgetStatus, budgetErr := renderBudgetIfConfigured(cmd, totalCost, currency)
-		if exitErr := checkBudgetExit(cmd, budgetStatus, budgetErr); exitErr != nil {
+		scopeFilter := getBudgetScopeFilter(cmd)
+
+		budgetResult, budgetErr := renderBudgetWithScope(
+			cmd, resultWithErrors.Results, totalCost, currency, scopeFilter)
+		if exitErr := checkBudgetExitFromResult(cmd, budgetResult, budgetErr); exitErr != nil {
 			return exitErr
 		}
 	}

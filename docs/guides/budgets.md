@@ -31,6 +31,23 @@ checks into your CI/CD pipelines.
 
 ---
 
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Configuration Reference](#configuration-reference)
+- [Examples](#examples)
+  - [Single Budget Threshold](#example-1-single-budget-threshold)
+  - [Multiple Alert Thresholds](#example-2-multiple-alert-thresholds)
+  - [CI/CD Integration](#example-3-cicd-integration)
+- [Scoped Budgets](#scoped-budgets)
+  - [Provider Budgets](#provider-budgets)
+  - [Tag Budgets](#tag-budgets)
+  - [Resource Type Budgets](#resource-type-budgets)
+- [Troubleshooting](#troubleshooting)
+- [See Also](#see-also)
+
+---
+
 ## Quick Start
 
 Get started with budgets in under 5 minutes.
@@ -103,28 +120,28 @@ For IDE autocomplete and validation, add this comment to your config file:
 
 ### Configuration Options
 
-| Option | Type | Default | Required | Description |
-|--------|------|---------|----------|-------------|
-| `amount` | number | - | Yes | Budget amount in specified currency |
-| `currency` | string | `"USD"` | No | ISO 4217 currency code (USD, EUR, GBP) |
-| `period` | string | `"monthly"` | No | Budget period (daily, weekly, monthly, yearly) |
-| `alerts` | list | `[]` | No | Alert thresholds (see Alerts Options below) |
+| Option     | Type   | Default     | Required | Description                                    |
+| ---------- | ------ | ----------- | -------- | ---------------------------------------------- |
+| `amount`   | number | -           | Yes      | Budget amount in specified currency            |
+| `currency` | string | `"USD"`     | No       | ISO 4217 currency code (USD, EUR, GBP)         |
+| `period`   | string | `"monthly"` | No       | Budget period (daily, weekly, monthly, yearly) |
+| `alerts`   | list   | `[]`        | No       | Alert thresholds (see Alerts Options below)    |
 
 ### Alerts Options
 
-| Option | Type | Default | Required | Description |
-|--------|------|---------|----------|-------------|
-| `threshold` | number | - | Yes | Percentage of budget (1-100) |
-| `type` | string | `"actual"` | No | Alert type (actual, forecasted) |
+| Option      | Type   | Default    | Required | Description                     |
+| ----------- | ------ | ---------- | -------- | ------------------------------- |
+| `threshold` | number | -          | Yes      | Percentage of budget (1-100)    |
+| `type`      | string | `"actual"` | No       | Alert type (actual, forecasted) |
 
 ### Environment Variables
 
 Override configuration with environment variables:
 
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `FINFOCUS_BUDGET_AMOUNT` | Override budget amount | `500.00` |
-| `FINFOCUS_BUDGET_CURRENCY` | Override currency | `EUR` |
+| Variable                   | Description            | Example  |
+| -------------------------- | ---------------------- | -------- |
+| `FINFOCUS_BUDGET_AMOUNT`   | Override budget amount | `500.00` |
+| `FINFOCUS_BUDGET_CURRENCY` | Override currency      | `EUR`    |
 
 See [Configuration Reference](../reference/config-reference.md#budgets) for complete details.
 
@@ -191,7 +208,7 @@ cost:
 
 **Explanation:**
 
-This setup provides early visibility. You'll get notified when you hit 50% of budget, if you're *projected* to hit
+This setup provides early visibility. You'll get notified when you hit 50% of budget, if you're _projected_ to hit
 80%, and finally when you breach 100%.
 
 See [complete example](../examples/config-budgets/multiple-thresholds.yaml).
@@ -225,10 +242,225 @@ finfocus cost projected --pulumi-json plan.json || {
 
 **Explanation:**
 
-By using `type: forecasted` at 100% threshold, FinFocus checks if the *new* infrastructure plan will push total costs
+By using `type: forecasted` at 100% threshold, FinFocus checks if the _new_ infrastructure plan will push total costs
 over budget. If yes, it returns a non-zero exit code, stopping the deployment.
 
 See [complete example](../examples/config-budgets/cicd-integration.yaml).
+
+---
+
+## Scoped Budgets
+
+Define budgets at multiple levels for granular cost control: global, per-provider, per-tag, and per-resource-type.
+
+### Provider Budgets
+
+Track and limit spending per cloud provider (AWS, GCP, Azure).
+
+**Configuration:**
+
+```yaml
+cost:
+  scoped_budgets:
+    # Global budget applies to all resources (required when scopes defined)
+    global:
+      amount: 5000.00
+      currency: USD
+      period: monthly
+      alerts:
+        - threshold: 80
+          type: actual
+
+    # Per-provider budgets
+    providers:
+      aws:
+        amount: 3000.00
+      gcp:
+        amount: 2000.00
+      azure:
+        amount: 1000.00
+```
+
+**Usage:**
+
+```bash
+# View all budgets including provider breakdown
+finfocus cost projected --pulumi-json plan.json
+
+# Filter to show only provider budgets
+finfocus cost projected --pulumi-json plan.json --budget-scope=provider
+
+# Filter to a specific provider
+finfocus cost projected --pulumi-json plan.json --budget-scope=provider=aws
+```
+
+**Example Output:**
+
+```text
+BUDGET STATUS
+═════════════════════════════════════════════════════════════
+
+GLOBAL
+  Budget: $5,000.00  |  Spend: $3,250.00 (65.0%)
+  ████████████████████░░░░░░░░░░  OK
+
+BY PROVIDER
+───────────────────────────────────────────────────────────────
+  aws      Budget: $3,000.00 | Spend: $2,100.00 (70.0%)  OK
+  gcp      Budget: $2,000.00 | Spend: $1,150.00 (57.5%)  OK
+  azure    Budget: $1,000.00 | Spend: $0.00 (0.0%)       OK
+
+Overall Health: OK
+```
+
+**Key Points:**
+
+- Provider names are case-insensitive (`aws`, `AWS`, `Aws` all match)
+- Provider is extracted from resource type (e.g., `aws:ec2/instance` → `aws`)
+- All provider budgets must use the same currency as the global budget
+- Each resource's cost counts toward both its provider budget AND the global budget
+
+### Tag Budgets
+
+Track costs by resource tags (e.g., `team:platform`, `env:prod`) with priority-based allocation.
+
+**Configuration:**
+
+```yaml
+cost:
+  scoped_budgets:
+    # Global budget applies to all resources (required when scopes defined)
+    global:
+      amount: 10000.00
+      currency: USD
+      period: monthly
+
+    # Per-tag budgets with priority ordering
+    tags:
+      - selector: 'team:platform'
+        priority: 100
+        amount: 3000.00
+      - selector: 'team:backend'
+        priority: 100
+        amount: 2500.00
+      - selector: 'env:prod'
+        priority: 50
+        amount: 5000.00
+      - selector: 'cost-center:*'
+        priority: 10
+        amount: 1000.00
+```
+
+**Usage:**
+
+```bash
+# View all budgets including tag breakdown
+finfocus cost projected --pulumi-json plan.json
+
+# Filter to show only tag budgets
+finfocus cost projected --pulumi-json plan.json --budget-scope=tag
+```
+
+**Example Output:**
+
+```text
+BUDGET STATUS
+═════════════════════════════════════════════════════════════
+
+GLOBAL
+  Budget: $10,000.00  |  Spend: $6,500.00 (65.0%)
+  ████████████████████░░░░░░░░░░  OK
+
+BY TAG
+───────────────────────────────────────────────────────────────
+  team:platform  Budget: $3,000.00 | Spend: $2,100.00 (70.0%)  OK
+  team:backend   Budget: $2,500.00 | Spend: $1,500.00 (60.0%)  OK
+  env:prod       Budget: $5,000.00 | Spend: $4,200.00 (84.0%)  WARNING
+
+Overall Health: WARNING
+```
+
+**Tag Selector Patterns:**
+
+| Pattern     | Description                             | Example Match                                          |
+| ----------- | --------------------------------------- | ------------------------------------------------------ |
+| `key:value` | Exact match on tag key and value        | `team:platform` matches resources with `team=platform` |
+| `key:*`     | Wildcard match on any value for the key | `env:*` matches `env=prod`, `env=dev`, `env=staging`   |
+
+**Priority-Based Allocation:**
+
+When a resource matches multiple tag budgets, cost is allocated to the highest priority budget only:
+
+- Higher priority values take precedence (100 > 50 > 10)
+- If multiple budgets share the same priority, the first alphabetically wins
+- A warning is emitted when priority ties occur
+
+**Configuration Tips:**
+
+- Use specific selectors (`team:platform`) for known teams
+- Use wildcards (`cost-center:*`) as catch-all budgets with lower priority
+- Ensure higher-priority budgets are more specific to avoid allocation conflicts
+
+### Resource Type Budgets
+
+Track and limit spending per resource type (e.g., `aws:ec2/instance`, `gcp:compute/instance`).
+
+**Configuration:**
+
+```yaml
+cost:
+  scoped_budgets:
+    # Global budget applies to all resources (required when scopes defined)
+    global:
+      amount: 10000.00
+      currency: USD
+      period: monthly
+
+    # Per-resource-type budgets
+    types:
+      'aws:ec2/instance':
+        amount: 2000.00
+      'aws:rds/instance':
+        amount: 3000.00
+      'gcp:compute/instance':
+        amount: 1500.00
+```
+
+**Usage:**
+
+```bash
+# View all budgets including type breakdown
+finfocus cost projected --pulumi-json plan.json
+
+# Filter to show only resource type budgets
+finfocus cost projected --pulumi-json plan.json --budget-scope=type
+```
+
+**Example Output:**
+
+```text
+BUDGET STATUS
+═════════════════════════════════════════════════════════════
+
+GLOBAL
+  Budget: $10,000.00  |  Spend: $5,500.00 (55.0%)
+  █████████████████░░░░░░░░░░░░░░  OK
+
+BY TYPE
+───────────────────────────────────────────────────────────────
+  aws:ec2/instance  Budget: $2,000.00 | Spend: $1,200.00 (60.0%)  OK
+  aws:rds/instance  Budget: $3,000.00 | Spend: $2,700.00 (90.0%)  CRITICAL
+
+Overall Health: CRITICAL
+```
+
+**Key Points:**
+
+- Resource types use exact matching (case-sensitive)
+- Type is extracted from Pulumi resource type (e.g., `aws:ec2/instance:Instance` → `aws:ec2/instance`)
+- All type budgets must use the same currency as the global budget
+- Each resource's cost counts toward its type budget AND the global budget
+- Unconfigured resource types do not appear in the BY TYPE section
 
 ---
 
@@ -253,7 +485,7 @@ Common issues and solutions for budget configuration.
 Check your currency matches your cloud provider data:
 
 ```yaml
-currency: USD  # Ensure this matches plugin output
+currency: USD # Ensure this matches plugin output
 ```
 
 And ensure you're using the right alert type. Use `forecasted` for `cost projected` commands.
@@ -297,6 +529,6 @@ Ensure you have the correct schema directive and your indentation is correct:
 
 ---
 
-**Last Updated**: 2026-01-20
+**Last Updated**: 2026-01-27
 **FinFocus Version**: v0.1.0
 **Feedback**: [Open an issue](https://github.com/rshade/finfocus/issues/new) to improve this guide

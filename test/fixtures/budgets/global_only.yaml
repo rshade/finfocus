@@ -1,0 +1,16 @@
+# Test fixture: Global budget only (simplest scoped budget configuration)
+cost:
+  budgets:
+    global:
+      amount: 5000.00
+      currency: USD
+      period: monthly
+      alerts:
+        - threshold: 50.0
+          type: actual
+        - threshold: 80.0
+          type: actual
+        - threshold: 100.0
+          type: forecasted
+    exit_on_threshold: true
+    exit_code: 1
