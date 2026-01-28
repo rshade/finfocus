@@ -58,7 +58,14 @@ type ValidationWarning struct {
 
 // ValidateRoutingConfig validates the routing configuration against available plugins.
 //
-//nolint:gocognit,funlen // Validation requires checking multiple configuration aspects comprehensively.
+// ValidateRoutingConfig validates routing configuration against the provided plugin clients.
+// It verifies plugin presence, detects duplicate plugin entries, ensures priorities are >= 0,
+// warns about unknown features, and validates pattern definitions (type must be "glob" or "regex",
+// pattern must be non-empty, and regex patterns must compile).
+// cfg is the routing configuration to validate; if nil, validation passes (automatic routing only).
+// clients is the list of available plugin clients used to confirm plugin existence.
+// It returns a ValidationResult whose Valid field is true when no blocking errors were found,
+// Errors contains blocking validation issues, and Warnings contains non-blocking advisories.
 func ValidateRoutingConfig(cfg *config.RoutingConfig, clients []*pluginhost.Client) ValidationResult {
 	result := ValidationResult{
 		Valid:    true,

@@ -10,7 +10,10 @@ import (
 	"github.com/rshade/finfocus/internal/router"
 )
 
-// NewConfigValidateCmd creates the config validate command for validating configuration.
+// NewConfigValidateCmd returns a Cobra command that validates the application's configuration.
+// The command checks general configuration syntax and routing semantics, including plugin existence,
+// pattern and feature validation, priority values, and duplicate plugin detection.
+// The returned command accepts a --verbose / -v flag to emit detailed validation information.
 func NewConfigValidateCmd() *cobra.Command {
 	var verbose bool
 	cmd := &cobra.Command{
@@ -41,7 +44,10 @@ This includes:
 	return cmd
 }
 
-// runConfigValidate executes the configuration validation logic.
+// runConfigValidate validates the application's configuration and reports results to cmd.
+// It validates both general and routing configuration; when routing yields warnings it emits a separating blank line before the success message.
+// cmd is used for CLI output. If verbose is true, detailed configuration information is printed.
+// It returns an error when validation fails.
 func runConfigValidate(cmd *cobra.Command, verbose bool) error {
 	cfg := config.New()
 
@@ -69,7 +75,15 @@ func runConfigValidate(cmd *cobra.Command, verbose bool) error {
 }
 
 // validateRoutingConfig validates the routing configuration against available plugins.
-// Returns true if there are warnings, and an error if validation failed.
+// validateRoutingConfig validates routing-related configuration and reports any issues to the provided command output.
+// It checks routing rules against available plugin clients and prints errors or warnings to the command's output streams.
+//
+// cmd is the Cobra command used for printing validation messages and for deriving a context when loading plugins.
+// cfg is the loaded configuration to validate; if cfg.Routing is nil the function performs no validation.
+//
+// It returns true if routing validation produced warnings, false otherwise. It returns a non-nil error when validation
+// produced one or more errors. When plugin loading fails the function emits a warning and proceeds with validation
+// without plugin clients.
 func validateRoutingConfig(cmd *cobra.Command, cfg *config.Config) (bool, error) {
 	if cfg.Routing == nil {
 		return false, nil
@@ -107,7 +121,11 @@ func validateRoutingConfig(cmd *cobra.Command, cfg *config.Config) (bool, error)
 	return false, nil
 }
 
-// printVerboseDetails prints detailed configuration information.
+// printVerboseDetails prints detailed configuration information to the command's output.
+// It writes the output format, output precision, logging level, and log file, then
+// prints plugin and routing summaries via printPluginDetails and printRoutingDetails.
+// cmd is the Cobra command used for printing output.
+// cfg is the configuration whose details are displayed.
 func printVerboseDetails(cmd *cobra.Command, cfg *config.Config) {
 	cmd.Println()
 	cmd.Println("Configuration details:")
@@ -120,7 +138,8 @@ func printVerboseDetails(cmd *cobra.Command, cfg *config.Config) {
 	printRoutingDetails(cmd, cfg)
 }
 
-// printPluginDetails prints configured plugins information.
+// printPluginDetails writes a summary of configured plugins to the command output.
+// It prints the number of plugins and each plugin name from cfg.Plugins, or "No plugins configured" if none.
 func printPluginDetails(cmd *cobra.Command, cfg *config.Config) {
 	if len(cfg.Plugins) > 0 {
 		cmd.Printf("  Configured plugins: %d\n", len(cfg.Plugins))
@@ -132,7 +151,11 @@ func printPluginDetails(cmd *cobra.Command, cfg *config.Config) {
 	}
 }
 
-// printRoutingDetails prints routing configuration summary.
+// printRoutingDetails writes a summary of the routing configuration to the command's output.
+// It reports when automatic routing is in use, or lists each configured routing plugin with its name,
+// priority, features (if any), and the number of patterns (if any).
+// cmd is the Cobra command used for printing output.
+// cfg is the configuration whose Routing field provides the routing rules to summarize.
 func printRoutingDetails(cmd *cobra.Command, cfg *config.Config) {
 	if cfg.Routing == nil || len(cfg.Routing.Plugins) == 0 {
 		cmd.Println("  No routing rules configured (automatic routing)")
