@@ -975,6 +975,7 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
+
 - Go 1.25.5 + github.com/spf13/cobra (CLI), github.com/rs/zerolog (logging), github.com/rshade/finfocus-spec v0.5.3+ (proto definitions/SDK), google.golang.org/grpc, github.com/stretchr/testify; YAML config file (~/.finfocus/config.yaml)
 
 ## Recent Changes

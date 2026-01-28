@@ -1,0 +1,44 @@
+# Test fixture: Valid routing configuration
+# This file demonstrates a complete, valid routing configuration
+# for multi-plugin routing with automatic and declarative routing.
+
+routing:
+  plugins:
+    # AWS Cost Explorer for recommendations (high priority)
+    - name: aws-ce
+      features:
+        - Recommendations
+      priority: 20
+      fallback: true
+
+    # AWS Public for projected/actual costs
+    - name: aws-public
+      features:
+        - ProjectedCosts
+        - ActualCosts
+      patterns:
+        - type: glob
+          pattern: "aws:*"
+      priority: 10
+      fallback: true
+
+    # EKS-specific plugin (highest priority for EKS resources)
+    - name: eks-costs
+      patterns:
+        - type: regex
+          pattern: "aws:eks:.*"
+      priority: 30
+      fallback: false
+
+    # GCP plugin (automatic routing by provider, default priority)
+    - name: gcp-public
+      priority: 10
+
+    # Azure plugin (explicit feature assignment)
+    - name: azure-costs
+      features:
+        - ProjectedCosts
+        - ActualCosts
+        - Recommendations
+      priority: 10
+      fallback: true

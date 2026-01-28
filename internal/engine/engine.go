@@ -74,11 +74,33 @@ type SpecLoader interface {
 	LoadSpec(provider, service, sku string) (interface{}, error)
 }
 
+// PluginMatch represents a matched plugin from the router.
+// This mirrors router.PluginMatch to avoid circular imports.
+type PluginMatch struct {
+	Client      *pluginhost.Client
+	Priority    int
+	Fallback    bool
+	MatchReason string
+	Source      string
+}
+
+// Router selects appropriate plugins for resources.
+// This interface is implemented by the router package.
+type Router interface {
+	// SelectPlugins returns plugins that match a resource for a given feature.
+	// Results are ordered by priority (highest first).
+	SelectPlugins(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch
+
+	// ShouldFallback returns true if fallback is enabled for a plugin.
+	ShouldFallback(pluginName string) bool
+}
+
 // Engine orchestrates cost calculations between plugins and local pricing specifications.
 type Engine struct {
 	clients []*pluginhost.Client
 	loader  SpecLoader
 	cache   *cache.FileStore
+	router  Router // Optional router for plugin selection; if nil, queries all plugins
 }
 
 // New creates a new Engine with the given plugin clients and spec loader.
@@ -97,6 +119,13 @@ func (e *Engine) WithCache(cacheStore *cache.FileStore) *Engine {
 	return e
 }
 
+// WithRouter sets the router for intelligent plugin selection.
+// This is optional - if not set, all plugins are queried for each resource.
+func (e *Engine) WithRouter(router Router) *Engine {
+	e.router = router
+	return e
+}
+
 func (e *Engine) getConcurrencyMultiplier() int {
 	if val := os.Getenv(envConcurrencyMultiplier); val != "" {
 		if i, err := strconv.Atoi(val); err == nil && i > 0 {
@@ -104,6 +133,81 @@ func (e *Engine) getConcurrencyMultiplier() int {
 		}
 	}
 	return defaultConcurrencyMultiplier
+}
+
+// selectPluginMatchesForResource returns the full PluginMatch list for a resource.
+// This includes fallback configuration and priority information for each plugin.
+//
+// Parameters:
+//   - ctx: Context for cancellation and tracing
+//   - resource: The resource to find plugins for
+//   - feature: The feature being requested (e.g., "ProjectedCosts", "ActualCosts")
+//
+// Returns:
+//   - []PluginMatch: Matched plugins with metadata, ordered by priority
+func (e *Engine) selectPluginMatchesForResource(
+	ctx context.Context,
+	resource ResourceDescriptor,
+	feature string,
+) []PluginMatch {
+	log := logging.FromContext(ctx)
+
+	// If no router configured, return all clients as matches with fallback enabled
+	if e.router == nil {
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "engine").
+			Str("operation", "select_plugins").
+			Str("resource_type", resource.Type).
+			Int("client_count", len(e.clients)).
+			Msg("no router configured, using all clients")
+
+		matches := make([]PluginMatch, len(e.clients))
+		for i, client := range e.clients {
+			matches[i] = PluginMatch{
+				Client:      client,
+				Priority:    0,
+				Fallback:    true, // Default to fallback enabled
+				MatchReason: "automatic",
+				Source:      "automatic",
+			}
+		}
+		return matches
+	}
+
+	// Use router for intelligent plugin selection
+	matches := e.router.SelectPlugins(ctx, resource, feature)
+	if len(matches) == 0 {
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "engine").
+			Str("operation", "select_plugins").
+			Str("resource_type", resource.Type).
+			Msg("router returned no matches, falling back to all clients")
+
+		// Create matches for all clients with fallback enabled
+		fallbackMatches := make([]PluginMatch, len(e.clients))
+		for i, client := range e.clients {
+			fallbackMatches[i] = PluginMatch{
+				Client:      client,
+				Priority:    0,
+				Fallback:    true,
+				MatchReason: "automatic",
+				Source:      "automatic",
+			}
+		}
+		return fallbackMatches
+	}
+
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("operation", "select_plugins").
+		Str("resource_type", resource.Type).
+		Int("matched_count", len(matches)).
+		Msg("router selected plugins")
+
+	return matches
 }
 
 func (e *Engine) getWorkerCount(jobCount int) int {
@@ -180,13 +284,18 @@ func (e *Engine) GetProjectedCost(
 			resource := j.resource
 			var resourceResults []CostResult
 
-			for _, client := range e.clients {
+			// Select plugin matches using router (if configured) or all clients
+			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
+
+			for i, match := range selectedMatches {
+				client := match.Client
 				log.Debug().
 					Ctx(ctx).
 					Str("component", "engine").
 					Str("resource_type", resource.Type).
 					Str("resource_id", resource.ID).
 					Str("plugin", client.Name).
+					Int("priority", match.Priority).
 					Msg("querying plugin for projected cost")
 
 				// Apply per-resource timeout for plugin calls
@@ -194,13 +303,37 @@ func (e *Engine) GetProjectedCost(
 				result, err := e.getProjectedCostFromPlugin(resourceCtx, client, resource)
 				resourceCancel()
 				if err != nil {
-					log.Debug().
-						Ctx(ctx).
-						Str("component", "engine").
-						Str("resource_type", resource.Type).
-						Str("plugin", client.Name).
-						Err(err).
-						Msg("plugin did not return cost data")
+					// Check if fallback is enabled for this plugin
+					if !match.Fallback {
+						log.Info().
+							Ctx(ctx).
+							Str("component", "engine").
+							Str("resource_type", resource.Type).
+							Str("plugin", client.Name).
+							Err(err).
+							Msg("plugin failed and fallback disabled, stopping fallback chain")
+						break // Stop trying more plugins
+					}
+					// Log fallback event at INFO level per FR-020
+					if i < len(selectedMatches)-1 {
+						nextPlugin := selectedMatches[i+1].Client.Name
+						log.Info().
+							Ctx(ctx).
+							Str("component", "engine").
+							Str("resource_type", resource.Type).
+							Str("failed_plugin", client.Name).
+							Str("next_plugin", nextPlugin).
+							Err(err).
+							Msg("plugin failed, falling back to next priority plugin")
+					} else {
+						log.Debug().
+							Ctx(ctx).
+							Str("component", "engine").
+							Str("resource_type", resource.Type).
+							Str("plugin", client.Name).
+							Err(err).
+							Msg("last plugin failed, no more plugins to try")
+					}
 					continue
 				}
 				if result != nil {
@@ -356,23 +489,45 @@ func (e *Engine) GetProjectedCostWithErrors(
 			resource := j.resource
 			var resourceResults []CostResult
 			var resourceErrors []ErrorDetail
+			log := logging.FromContext(ctx)
 
-			// Try each plugin client
-			for _, client := range e.clients {
+			// Select plugin matches using router (if configured) or all clients
+			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
+
+			// Try each selected plugin with fallback chain logic
+			fallbackChainBroken := false
+			for i, match := range selectedMatches {
+				if fallbackChainBroken {
+					break
+				}
+
+				client := match.Client
 				pluginResult, err := e.getProjectedCostFromPlugin(ctx, client, resource)
 				if err != nil {
-					// Log error with structured fields using context-based logger
-					log := logging.FromContext(ctx)
-					log.Warn().
-						Ctx(ctx).
-						Str("component", "engine").
-						Str("resource_type", resource.Type).
-						Str("resource_id", resource.ID).
-						Str("plugin", client.Name).
-						Err(err).
-						Msg("plugin call failed for projected cost")
+					// Check if fallback is enabled for this plugin
+					if !match.Fallback {
+						log.Info().
+							Ctx(ctx).
+							Str("component", "engine").
+							Str("resource_type", resource.Type).
+							Str("plugin", client.Name).
+							Err(err).
+							Msg("plugin failed and fallback disabled, stopping fallback chain")
+						fallbackChainBroken = true
+					} else if i < len(selectedMatches)-1 {
+						// Log fallback event at INFO level per FR-020
+						nextPlugin := selectedMatches[i+1].Client.Name
+						log.Info().
+							Ctx(ctx).
+							Str("component", "engine").
+							Str("resource_type", resource.Type).
+							Str("failed_plugin", client.Name).
+							Str("next_plugin", nextPlugin).
+							Err(err).
+							Msg("plugin failed, falling back to next priority plugin")
+					}
 
-					// Track error instead of silent failure
+					// Track error
 					resourceErrors = append(resourceErrors, ErrorDetail{
 						ResourceType: resource.Type,
 						ResourceID:   resource.ID,
@@ -552,7 +707,18 @@ func (e *Engine) GetActualCostWithOptions(
 			var resourceResult *CostResult
 			var partialErr error
 
-			for _, client := range e.clients {
+			// Select plugin matches using router (if configured) or all clients
+			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
+
+			fallbackChainBroken := false
+			for i, match := range selectedMatches {
+				if fallbackChainBroken {
+					break
+				}
+
+				client := match.Client
+
+				// Apply explicit adapter filter if specified
 				if request.Adapter != "" && client.Name != request.Adapter {
 					continue
 				}
@@ -563,6 +729,7 @@ func (e *Engine) GetActualCostWithOptions(
 					Str("resource_type", resource.Type).
 					Str("resource_id", resource.ID).
 					Str("plugin", client.Name).
+					Int("priority", match.Priority).
 					Msg("querying plugin for actual cost")
 
 				// Apply per-resource timeout for plugin calls
@@ -576,13 +743,29 @@ func (e *Engine) GetActualCostWithOptions(
 				)
 				resourceCancel()
 				if err != nil {
-					log.Debug().
-						Ctx(ctx).
-						Str("component", "engine").
-						Str("resource_type", resource.Type).
-						Str("plugin", client.Name).
-						Err(err).
-						Msg("plugin did not return actual cost data")
+					// Check if fallback is enabled for this plugin
+					if !match.Fallback {
+						log.Info().
+							Ctx(ctx).
+							Str("component", "engine").
+							Str("resource_type", resource.Type).
+							Str("plugin", client.Name).
+							Err(err).
+							Msg("plugin failed and fallback disabled, stopping fallback chain")
+						fallbackChainBroken = true
+					} else if i < len(selectedMatches)-1 {
+						// Log fallback event at INFO level per FR-020
+						nextPlugin := selectedMatches[i+1].Client.Name
+						log.Info().
+							Ctx(ctx).
+							Str("component", "engine").
+							Str("resource_type", resource.Type).
+							Str("failed_plugin", client.Name).
+							Str("next_plugin", nextPlugin).
+							Err(err).
+							Msg("plugin failed, falling back to next priority plugin")
+					}
+
 					newErr := fmt.Errorf("plugin %s: %w", client.Name, err)
 					if partialErr == nil {
 						partialErr = newErr
@@ -802,6 +985,8 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 }
 
 // getActualCostForResource processes a single resource for actual cost with error tracking.
+//
+//nolint:gocognit,funlen // Cost calculation with fallback chain requires multiple nested conditions.
 func (e *Engine) getActualCostForResource(
 	ctx context.Context,
 	resource ResourceDescriptor,
@@ -809,8 +994,20 @@ func (e *Engine) getActualCostForResource(
 ) (CostResult, []ErrorDetail) {
 	var errors []ErrorDetail
 	var resourceResult *CostResult
+	log := logging.FromContext(ctx)
 
-	for _, client := range e.clients {
+	// Select plugin matches using router (if configured) or all clients
+	selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
+
+	fallbackChainBroken := false
+	for i, match := range selectedMatches {
+		if fallbackChainBroken {
+			break
+		}
+
+		client := match.Client
+
+		// Apply explicit adapter filter if specified
 		if request.Adapter != "" && client.Name != request.Adapter {
 			continue
 		}
@@ -823,16 +1020,28 @@ func (e *Engine) getActualCostForResource(
 			request.To,
 		)
 		if err != nil {
-			// Log error with structured fields using context-based logger
-			log := logging.FromContext(ctx)
-			log.Warn().
-				Ctx(ctx).
-				Str("component", "engine").
-				Str("resource_type", resource.Type).
-				Str("resource_id", resource.ID).
-				Str("plugin", client.Name).
-				Err(err).
-				Msg("plugin call failed for actual cost")
+			// Check if fallback is enabled for this plugin
+			if !match.Fallback {
+				log.Info().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("resource_type", resource.Type).
+					Str("plugin", client.Name).
+					Err(err).
+					Msg("plugin failed and fallback disabled, stopping fallback chain")
+				fallbackChainBroken = true
+			} else if i < len(selectedMatches)-1 {
+				// Log fallback event at INFO level per FR-020
+				nextPlugin := selectedMatches[i+1].Client.Name
+				log.Info().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("resource_type", resource.Type).
+					Str("failed_plugin", client.Name).
+					Str("next_plugin", nextPlugin).
+					Err(err).
+					Msg("plugin failed, falling back to next priority plugin")
+			}
 
 			errors = append(errors, ErrorDetail{
 				ResourceType: resource.Type,
