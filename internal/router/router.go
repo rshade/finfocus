@@ -139,7 +139,8 @@ type DefaultRouter struct {
 type Option func(*DefaultRouter)
 
 // WithConfig sets the routing configuration.
-// If not provided, automatic routing only is used.
+// WithConfig returns an Option that sets the router's routing configuration.
+// If cfg is nil, the router will operate in automatic provider-based routing only.
 func WithConfig(cfg *config.RoutingConfig) Option {
 	return func(r *DefaultRouter) {
 		r.config = cfg
@@ -147,7 +148,8 @@ func WithConfig(cfg *config.RoutingConfig) Option {
 }
 
 // WithClients sets the available plugin clients.
-// Required - router cannot function without clients.
+// WithClients returns an Option that injects the list of available plugin clients into a DefaultRouter.
+// The provided clients slice is required for the router to function and replaces the router's current client list.
 func WithClients(clients []*pluginhost.Client) Option {
 	return func(r *DefaultRouter) {
 		r.clients = clients
@@ -161,7 +163,16 @@ func WithClients(clients []*pluginhost.Client) Option {
 //	router, err := NewRouter(
 //	    WithClients(clients),
 //	    WithConfig(config.Routing),
-//	)
+// NewRouter creates a DefaultRouter configured by the provided options.
+// 
+// The router is initialized with internal caches, builds a per-plugin routing
+// lookup from any supplied routing config, and pre-compiles all declarative
+// patterns found in that config for fast matching at runtime.
+// 
+// opts are functional options (e.g., WithConfig, WithClients) used to provide
+// the routing configuration and available plugin clients.
+// 
+// The returned error is non-nil if any configured pattern fails to compile.
 func NewRouter(opts ...Option) (*DefaultRouter, error) {
 	r := &DefaultRouter{
 		patterns:     make(map[string]*CompiledPattern),
@@ -196,7 +207,7 @@ func NewRouter(opts ...Option) (*DefaultRouter, error) {
 	return r, nil
 }
 
-// patternKey generates a unique key for a pattern.
+// compiled pattern caches and lookups.
 func patternKey(pluginName string, pattern config.ResourcePattern) string {
 	return pluginName + ":" + pattern.Type + ":" + pattern.Pattern
 }
@@ -413,7 +424,9 @@ func (r *DefaultRouter) Validate(_ context.Context) ValidationResult {
 }
 
 // sortByPriority sorts matches by priority (highest first).
-// Stable sort preserves order for equal priorities.
+// sortByPriority sorts the provided slice of PluginMatch in-place by Priority in
+// descending order. It uses a stable sort, so elements with equal Priority retain
+// their relative order.
 func sortByPriority(matches []PluginMatch) {
 	sort.SliceStable(matches, func(i, j int) bool {
 		return matches[i].Priority > matches[j].Priority
@@ -421,7 +434,8 @@ func sortByPriority(matches []PluginMatch) {
 }
 
 // AllEqualPriority returns true if all matches have the same priority.
-// This indicates that all plugins should be queried in parallel.
+// AllEqualPriority reports whether all PluginMatch entries in the slice have the same Priority.
+// It returns true for slices with zero or one element, or when every element's Priority equals the first element's Priority; otherwise it returns false.
 func AllEqualPriority(matches []PluginMatch) bool {
 	if len(matches) <= 1 {
 		return true

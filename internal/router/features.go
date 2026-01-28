@@ -30,7 +30,8 @@ const (
 )
 
 // ValidFeatures returns all valid feature names.
-// This is the authoritative list of features supported by the routing system.
+// ValidFeatures lists the complete set of supported Feature values used by the router.
+// The returned slice contains FeatureProjectedCosts, FeatureActualCosts, FeatureRecommendations, FeatureCarbon, FeatureDryRun, and FeatureBudgets.
 func ValidFeatures() []Feature {
 	return []Feature{
 		FeatureProjectedCosts,
@@ -43,7 +44,8 @@ func ValidFeatures() []Feature {
 }
 
 // IsValidFeature checks if a feature name is valid.
-// Comparison is case-sensitive; use the exact constant values.
+// IsValidFeature reports whether name exactly matches one of the valid Feature values.
+// Comparison is case-sensitive; it returns true if a match is found and false otherwise.
 func IsValidFeature(name string) bool {
 	for _, f := range ValidFeatures() {
 		if string(f) == name {
@@ -54,7 +56,8 @@ func IsValidFeature(name string) bool {
 }
 
 // ValidFeatureNames returns the string names of all valid features.
-// Useful for error messages and documentation.
+// ValidFeatureNames returns the string names of all supported Feature values.
+// The returned slice preserves the order produced by ValidFeatures.
 func ValidFeatureNames() []string {
 	features := ValidFeatures()
 	names := make([]string, len(features))
@@ -65,7 +68,9 @@ func ValidFeatureNames() []string {
 }
 
 // ParseFeature parses a string into a Feature.
-// Returns the Feature and true if valid, or empty Feature and false if invalid.
+// ParseFeature parses s into a Feature if it matches a known feature name.
+// It returns the parsed Feature and true when s exactly matches a valid feature
+// name (case-sensitive), or the empty Feature and false otherwise.
 func ParseFeature(s string) (Feature, bool) {
 	if IsValidFeature(s) {
 		return Feature(s), true
@@ -91,14 +96,16 @@ var methodToFeature = map[string]Feature{
 }
 
 // FeatureFromMethod returns the Feature corresponding to a gRPC method name.
-// Returns the Feature and true if the method maps to a feature, empty and false otherwise.
+// FeatureFromMethod looks up the Feature associated with a gRPC method name.
+// It returns the Feature and true if a mapping exists; otherwise the zero Feature and false.
 func FeatureFromMethod(method string) (Feature, bool) {
 	f, ok := methodToFeature[method]
 	return f, ok
 }
 
 // DefaultFeatures returns the features assumed for plugins that don't report capabilities.
-// Per the research document, ProjectedCosts and ActualCosts are assumed available.
+// DefaultFeatures returns the default feature set assumed for plugins that do not report capabilities.
+// The default set includes FeatureProjectedCosts and FeatureActualCosts.
 func DefaultFeatures() []Feature {
 	return []Feature{
 		FeatureProjectedCosts,
