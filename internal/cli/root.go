@@ -147,6 +147,7 @@ const pluginCmdExample = `  # Calculate projected costs from a Pulumi plan
 type CostFlags struct {
 	ExitOnThreshold bool
 	ExitCode        int
+	BudgetScope     string // Filter which budget scopes to display (T025)
 }
 
 // newCostCmd creates the cost command group with projected, actual, and recommendations subcommands.
@@ -165,14 +166,17 @@ func newCostCmd() *cobra.Command {
 			}
 
 			// CLI flags override environment variables and config file
+			//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
 			if cmd.Flags().Changed("exit-on-threshold") {
 				cfg.Cost.Budgets.ExitOnThreshold = flags.ExitOnThreshold
 			}
+			//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
 			if cmd.Flags().Changed("exit-code") {
 				cfg.Cost.Budgets.ExitCode = flags.ExitCode
 			}
 
 			// Validate budget configuration if ExitOnThreshold is enabled (T048)
+			//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
 			if cfg.Cost.Budgets.ExitOnThreshold {
 				if err := cfg.Cost.Budgets.Validate(); err != nil {
 					return fmt.Errorf("invalid budget configuration: %w", err)
@@ -188,6 +192,10 @@ func newCostCmd() *cobra.Command {
 		"Exit with non-zero code when budget thresholds are exceeded")
 	cmd.PersistentFlags().IntVar(&flags.ExitCode, "exit-code", 1,
 		"Exit code to use when budget thresholds are exceeded (0-255)")
+
+	// Add persistent flag for budget scope filtering (T025)
+	cmd.PersistentFlags().StringVar(&flags.BudgetScope, "budget-scope", "",
+		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
 
 	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd())
 	return cmd

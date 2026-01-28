@@ -1,0 +1,13 @@
+# Test fixture: Invalid configuration - currency mismatch
+# This should fail validation because provider uses EUR while global uses USD
+cost:
+  budgets:
+    global:
+      amount: 5000.00
+      currency: USD
+      period: monthly
+
+    providers:
+      aws:
+        amount: 3000.00
+        currency: EUR
