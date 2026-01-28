@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 	"sort"
+	"strings"
 	"sync"
 	"text/tabwriter"
 	"time"
@@ -100,9 +101,11 @@ type enrichedPluginInfo struct {
 	registry.PluginInfo
 
 	// Metadata
-	SpecVersion    string `json:"specVersion"`
-	RuntimeVersion string `json:"runtimeVersion"`
-	Notes          string `json:"notes,omitempty"` // Error or status notes
+	SpecVersion        string   `json:"specVersion"`
+	RuntimeVersion     string   `json:"runtimeVersion"`
+	SupportedProviders []string `json:"supportedProviders,omitempty"`
+	Capabilities       []string `json:"capabilities,omitempty"` // Inferred from plugin methods
+	Notes              string   `json:"notes,omitempty"`        // Error or status notes
 }
 
 // displayVersion returns RuntimeVersion when it's not notAvailable, otherwise Version.
@@ -221,6 +224,12 @@ func fetchSinglePluginMetadata(
 	if client.Metadata != nil {
 		result.SpecVersion = client.Metadata.SpecVersion
 		result.RuntimeVersion = client.Metadata.Version
+		result.SupportedProviders = client.Metadata.SupportedProviders
+
+		// Infer capabilities from plugin metadata
+		// Currently defaults to ProjectedCosts and ActualCosts per FR-021
+		// until finfocus-spec#287 adds explicit capability reporting
+		result.Capabilities = []string{"ProjectedCosts", "ActualCosts"}
 	}
 
 	return result
@@ -247,26 +256,27 @@ func displayVerbosePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) er
 	}
 
 	if hasNotes {
-		fmt.Fprintln(w, "Name\tVersion\tSpec\tPath\tExecutable\tNotes")
-		fmt.Fprintln(w, "----\t-------\t----\t----\t----------\t-----")
+		fmt.Fprintln(w, "Name\tVersion\tProviders\tCapabilities\tSpec\tPath\tNotes")
+		fmt.Fprintln(w, "----\t-------\t---------\t------------\t----\t----\t-----")
 	} else {
-		fmt.Fprintln(w, "Name\tVersion\tSpec\tPath\tExecutable")
-		fmt.Fprintln(w, "----\t-------\t----\t----\t----------")
+		fmt.Fprintln(w, "Name\tVersion\tProviders\tCapabilities\tSpec\tPath")
+		fmt.Fprintln(w, "----\t-------\t---------\t------------\t----\t----")
 	}
 
 	for _, plugin := range plugins {
-		execStatus := getExecutableStatus(plugin.Path)
 		ver := plugin.displayVersion()
+		providers := formatProviders(plugin.SupportedProviders)
+		capabilities := formatCapabilities(plugin.Capabilities)
 
 		if hasNotes {
 			fmt.Fprintf(
-				w, "%s\t%s\t%s\t%s\t%s\t%s\n",
-				plugin.Name, ver, plugin.SpecVersion, plugin.Path, execStatus, plugin.Notes,
+				w, "%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+				plugin.Name, ver, providers, capabilities, plugin.SpecVersion, plugin.Path, plugin.Notes,
 			)
 		} else {
 			fmt.Fprintf(
-				w, "%s\t%s\t%s\t%s\t%s\n",
-				plugin.Name, ver, plugin.SpecVersion, plugin.Path, execStatus,
+				w, "%s\t%s\t%s\t%s\t%s\t%s\n",
+				plugin.Name, ver, providers, capabilities, plugin.SpecVersion, plugin.Path,
 			)
 		}
 	}
@@ -284,31 +294,42 @@ func displaySimplePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) err
 	}
 
 	if hasNotes {
-		fmt.Fprintln(w, "Name\tVersion\tSpec\tPath\tNotes")
-		fmt.Fprintln(w, "----\t-------\t----\t----\t-----")
+		fmt.Fprintln(w, "Name\tVersion\tProviders\tNotes")
+		fmt.Fprintln(w, "----\t-------\t---------\t-----")
 	} else {
-		fmt.Fprintln(w, "Name\tVersion\tSpec\tPath")
-		fmt.Fprintln(w, "----\t-------\t----\t----")
+		fmt.Fprintln(w, "Name\tVersion\tProviders")
+		fmt.Fprintln(w, "----\t-------\t---------")
 	}
 
 	for _, plugin := range plugins {
 		ver := plugin.displayVersion()
+		providers := formatProviders(plugin.SupportedProviders)
 		if hasNotes {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n", plugin.Name, ver, plugin.SpecVersion, plugin.Path, plugin.Notes)
+			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", plugin.Name, ver, providers, plugin.Notes)
 		} else {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", plugin.Name, ver, plugin.SpecVersion, plugin.Path)
+			fmt.Fprintf(w, "%s\t%s\t%s\n", plugin.Name, ver, providers)
 		}
 	}
 	return w.Flush()
 }
 
-func getExecutableStatus(path string) string {
-	info, err := os.Stat(path)
-	if err != nil {
-		return "No"
+// formatProviders formats the list of supported providers for display.
+// Returns "*" for global plugins (empty list or ["*"]) and comma-separated list otherwise.
+func formatProviders(providers []string) string {
+	if len(providers) == 0 {
+		return "*"
 	}
-	if info.Mode()&0111 != 0 {
-		return "Yes"
+	if len(providers) == 1 && providers[0] == "*" {
+		return "*"
 	}
-	return "No"
+	return strings.Join(providers, ", ")
+}
+
+// formatCapabilities formats the list of capabilities for display.
+// Returns comma-separated list or "-" if no capabilities.
+func formatCapabilities(capabilities []string) string {
+	if len(capabilities) == 0 {
+		return "-"
+	}
+	return strings.Join(capabilities, ", ")
 }
