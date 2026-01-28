@@ -976,7 +976,7 @@ CodeRabbit now:
 
 ## Active Technologies
 
-- Go 1.25.6 + github.com/spf13/cobra (CLI), github.com/rs/zerolog (logging), gopkg.in/yaml.v3, github.com/rshade/finfocus-spec v0.5.3+ (proto definitions/SDK), google.golang.org/grpc, github.com/stretchr/testify; YAML config file (~/.finfocus/config.yaml)
+- Go 1.25.6 + github.com/spf13/cobra (CLI), github.com/rs/zerolog (logging), gopkg.in/yaml.v3, github.com/rshade/finfocus-spec v0.5.3+ (proto definitions/SDK), google.golang.org/grpc, github.com/stretchr/testify, github.com/charmbracelet/lipgloss (TUI styling), golang.org/x/text (number formatting); YAML config file (~/.finfocus/config.yaml)
 
 ## Recent Changes
 
