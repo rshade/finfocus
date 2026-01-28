@@ -48,7 +48,12 @@ type BudgetScopeFilter struct {
 // - "provider" - show BY PROVIDER section
 // - "provider=aws" - show only AWS provider budget
 // - "tag" - show BY TAG section
-// - "type" - show BY TYPE section.
+// NewBudgetScopeFilter creates a BudgetScopeFilter from a comma-separated scope flag.
+// The scopeFlag controls which sections of scoped budget output are enabled and may
+// include: "global", "provider", "provider=<name>", "tag", and "type". An empty
+// scopeFlag enables all sections. Multiple specifiers can be combined with commas.
+// Provider names are stored lowercased when provided as "provider=<name>". If no
+// valid specifiers are found the filter defaults to enabling all sections.
 func NewBudgetScopeFilter(scopeFlag string) *BudgetScopeFilter {
 	filter := &BudgetScopeFilter{}
 
@@ -95,7 +100,7 @@ func NewBudgetScopeFilter(scopeFlag string) *BudgetScopeFilter {
 }
 
 // RenderScopedBudgetStatus renders the hierarchical scoped budget result to the writer.
-// It automatically detects if the output is a TTY and renders appropriately.
+// used. Any error returned by the underlying rendering routine is propagated.
 func RenderScopedBudgetStatus(w io.Writer, result *engine.ScopedBudgetResult, filter *BudgetScopeFilter) error {
 	if result == nil {
 		return nil
@@ -111,7 +116,11 @@ func RenderScopedBudgetStatus(w io.Writer, result *engine.ScopedBudgetResult, fi
 	return renderPlainScopedBudget(w, result, filter)
 }
 
-// renderStyledScopedBudget renders a styled hierarchical budget status box using Lip Gloss.
+// renderStyledScopedBudget renders a styled, boxed representation of a scoped budget result using Lip Gloss.
+// It writes the overall health, optional GLOBAL/BY PROVIDER/BY TAG/BY TYPE sections, critical scope warnings,
+// and general warnings to w according to the provided filter.
+// w is the destination writer, result is the scoped budget result to render, and filter selects which sections to include.
+// Returns any error encountered while writing the rendered box.
 func renderStyledScopedBudget(w io.Writer, result *engine.ScopedBudgetResult, filter *BudgetScopeFilter) error {
 	// Title style
 	titleStyle := lipgloss.NewStyle().
@@ -202,7 +211,13 @@ func renderStyledScopedBudget(w io.Writer, result *engine.ScopedBudgetResult, fi
 	return err
 }
 
-// renderPlainScopedBudget renders a plain text hierarchical budget status.
+// renderPlainScopedBudget renders the scoped budget result as plain text to w.
+// It writes the header and overall health, then conditionally writes the GLOBAL,
+// BY PROVIDER, BY TAG, and BY TYPE sections according to the provided filter,
+// and finally writes any critical scopes.
+// w is the destination writer, result contains the scoped budget data, and filter
+// selects which sections to include (if nil, all sections are rendered).
+// It returns any error encountered while writing output.
 func renderPlainScopedBudget(
 	w io.Writer,
 	result *engine.ScopedBudgetResult,
@@ -233,7 +248,13 @@ func renderPlainScopedBudget(
 	return writePlainCriticalScopes(w, result.CriticalScopes)
 }
 
-// writePlainHeader writes the budget status header with overall health.
+// writePlainHeader writes the "BUDGET STATUS" header, an underline, and an
+// "Overall Health" line to the provided writer.
+// 
+// w is the destination writer. p is a language printer used to format the
+// overall health label. health is the budget health status to display.
+// 
+// It returns an error if any of the write operations fail.
 func writePlainHeader(w io.Writer, p *message.Printer, health pbc.BudgetHealthStatus) error {
 	if _, err := fmt.Fprintln(w, "BUDGET STATUS"); err != nil {
 		return err
@@ -245,7 +266,9 @@ func writePlainHeader(w io.Writer, p *message.Printer, health pbc.BudgetHealthSt
 	return err
 }
 
-// writePlainGlobalSection writes the global budget section if enabled.
+// writePlainGlobalSection writes the GLOBAL section when the provided filter enables it and a global scoped status is available.
+// If the filter disables the global section or the global status is nil, it performs no output.
+// It returns any error encountered while rendering the section.
 func writePlainGlobalSection(
 	w io.Writer,
 	filter *BudgetScopeFilter,
@@ -259,7 +282,10 @@ func writePlainGlobalSection(
 	})
 }
 
-// writePlainProviderSectionWrapper writes the provider section if enabled and has data.
+// writePlainProviderSectionWrapper writes the "BY PROVIDER" section to w when the
+// filter enables provider sections and providers contains entries. If the filter
+// disables provider output or providers is empty, it does nothing. It returns any
+// error produced while writing the section content.
 func writePlainProviderSectionWrapper(
 	w io.Writer,
 	filter *BudgetScopeFilter,
@@ -287,7 +313,9 @@ func writePlainTagSectionWrapper(
 	})
 }
 
-// writePlainTypeSectionWrapper writes the type section if enabled and has data.
+// writePlainTypeSectionWrapper writes the BY TYPE section to w when the provided
+// filter enables type sections and the types map is non-empty. It returns any
+// error encountered while writing the section.
 func writePlainTypeSectionWrapper(
 	w io.Writer,
 	filter *BudgetScopeFilter,
@@ -301,7 +329,10 @@ func writePlainTypeSectionWrapper(
 	})
 }
 
-// writePlainSection writes a section with header, underline, content, and trailing newline.
+// writePlainSection writes a section header and underline, invokes renderContent to write
+// the section body, and appends a trailing newline.
+// It returns the first non-nil error encountered while writing the header, writing the
+// underline, executing renderContent, or writing the trailing newline.
 func writePlainSection(w io.Writer, header, underline string, renderContent func() error) error {
 	if _, err := fmt.Fprintln(w, header); err != nil {
 		return err
@@ -316,7 +347,9 @@ func writePlainSection(w io.Writer, header, underline string, renderContent func
 	return err
 }
 
-// writePlainCriticalScopes writes the critical scopes section if any exist.
+// writePlainCriticalScopes writes a "CRITICAL SCOPES:" section and lists each scope on its own line
+// prefixed with "  - ". If `criticalScopes` is empty, it does nothing. It returns any error encountered
+// while writing to `w`.
 func writePlainCriticalScopes(w io.Writer, criticalScopes []string) error {
 	if len(criticalScopes) == 0 {
 		return nil
@@ -332,7 +365,10 @@ func writePlainCriticalScopes(w io.Writer, criticalScopes []string) error {
 	return nil
 }
 
-// renderOverallHealthSummary renders the overall health status line.
+// renderOverallHealthSummary builds a formatted "Overall Health" line for the given scoped budget result.
+// It reads result.OverallHealth to produce a labeled, styled health indicator used for display.
+// The result must be non-nil; calling this with a nil result will cause a panic.
+// It returns the complete "Overall Health: <label>" string with the label styled.
 func renderOverallHealthSummary(result *engine.ScopedBudgetResult) string {
 	p := message.NewPrinter(language.English)
 
@@ -346,7 +382,14 @@ func renderOverallHealthSummary(result *engine.ScopedBudgetResult) string {
 	return p.Sprintf("Overall Health: %s", style.Render(label))
 }
 
-// renderScopedStatusLine renders a single scoped budget status line with progress bar.
+// renderScopedStatusLine builds a multiline string describing a scoped budget status,
+// including budget and spend amounts, the percentage used, a horizontal progress bar,
+// and a styled health label.
+// 
+// The `status` parameter provides the scoped budget values and health to format.
+// 
+// Returns the formatted multiline string containing the budget line, progress bar,
+// and colored health label.
 func renderScopedStatusLine(status *engine.ScopedBudgetStatus) string {
 	p := message.NewPrinter(language.English)
 	var content strings.Builder
@@ -376,7 +419,10 @@ func renderScopedStatusLine(status *engine.ScopedBudgetStatus) string {
 	return content.String()
 }
 
-// renderPlainScopedStatusLine renders a plain text scoped budget status line.
+// renderPlainScopedStatusLine writes a single-line plain-text summary of the given scoped budget status to w.
+// The output includes the budget amount (with currency symbol), current spend, percentage, and health label.
+// w is the destination writer and status provides the values to render.
+// It returns any write error encountered.
 func renderPlainScopedStatusLine(w io.Writer, status *engine.ScopedBudgetStatus) error {
 	p := message.NewPrinter(language.English)
 
@@ -392,7 +438,10 @@ func renderPlainScopedStatusLine(w io.Writer, status *engine.ScopedBudgetStatus)
 	return nil
 }
 
-// renderProviderSection renders the BY PROVIDER section content.
+// renderProviderSection builds the "BY PROVIDER" section content for the given providers.
+// It includes an uppercase provider label followed by the provider's scoped status for each entry.
+// If filterProviders is non-empty, only providers whose name appears in filterProviders (case-insensitive) are included.
+// The returned string contains the concatenated section lines with trailing newlines for each provider block.
 func renderProviderSection(providers map[string]*engine.ScopedBudgetStatus, filterProviders []string) string {
 	var content strings.Builder
 
@@ -420,7 +469,16 @@ func renderProviderSection(providers map[string]*engine.ScopedBudgetStatus, filt
 	return content.String()
 }
 
-// renderPlainProviderSection renders the plain text BY PROVIDER section.
+// renderPlainProviderSection writes the "BY PROVIDER" plain-text section to w.
+// It lists providers in alphabetical order and, if filterProviders is non-empty,
+// restricts output to providers whose names match any entry in filterProviders
+// (case-insensitive). For each included provider it writes the provider name in
+// uppercase followed by the provider's plain scoped status line.
+//
+// w is the destination writer. providers maps provider names to their scoped
+// status. filterProviders, when non-empty, limits which providers are rendered.
+//
+// It returns any write or rendering error encountered.
 func renderPlainProviderSection(
 	w io.Writer,
 	providers map[string]*engine.ScopedBudgetStatus,
@@ -448,7 +506,9 @@ func renderPlainProviderSection(
 	return nil
 }
 
-// renderTagSection renders the BY TAG section content.
+// renderTagSection builds the BY TAG section content from the provided scoped statuses.
+// It returns a formatted string containing each tag's scope key and its corresponding rendered scoped status.
+// The tags parameter supplies the scoped budget statuses to include, in the given order.
 func renderTagSection(tags []*engine.ScopedBudgetStatus) string {
 	var content strings.Builder
 
@@ -463,7 +523,12 @@ func renderTagSection(tags []*engine.ScopedBudgetStatus) string {
 	return content.String()
 }
 
-// renderPlainTagSection renders the plain text BY TAG section.
+// renderPlainTagSection writes the BY TAG section in plain text to w.
+// For each ScopedBudgetStatus in tags it writes a header line with the
+// status.ScopeKey followed by the scoped status line rendered by
+// renderPlainScopedStatusLine.
+// w is the destination writer and tags is the list of tag-scoped statuses to render.
+// It returns any error encountered while writing to w or while rendering a scoped status.
 func renderPlainTagSection(w io.Writer, tags []*engine.ScopedBudgetStatus) error {
 	for _, status := range tags {
 		if _, err := fmt.Fprintf(w, "%s:\n", status.ScopeKey); err != nil {
@@ -476,7 +541,10 @@ func renderPlainTagSection(w io.Writer, tags []*engine.ScopedBudgetStatus) error
 	return nil
 }
 
-// renderTypeSection renders the BY TYPE section content.
+// renderTypeSection builds the "BY TYPE" section content for the provided map of scoped statuses.
+// For each type key (sorted alphabetically) it writes the key as a bold label followed by the
+// corresponding rendered scoped status line, each separated by newlines. The returned string
+// contains the concatenated section content.
 func renderTypeSection(types map[string]*engine.ScopedBudgetStatus) string {
 	var content strings.Builder
 
@@ -498,7 +566,11 @@ func renderTypeSection(types map[string]*engine.ScopedBudgetStatus) string {
 	return content.String()
 }
 
-// renderPlainTypeSection renders the plain text BY TYPE section.
+// renderPlainTypeSection writes the plain-text BY TYPE section to w.
+// It lists type keys in alphabetical order and for each key writes a header
+// line "<type>:" followed by the plain scoped status line for that type.
+// It returns any write error encountered or any error returned by
+// renderPlainScopedStatusLine.
 func renderPlainTypeSection(w io.Writer, types map[string]*engine.ScopedBudgetStatus) error {
 	keys := make([]string, 0, len(types))
 	for key := range types {
@@ -537,7 +609,9 @@ func renderCriticalScopesWarning(scopes []string) string {
 	return content.String()
 }
 
-// renderScopedWarnings renders budget evaluation warnings.
+// renderScopedWarnings renders a warnings block for scoped budget output.
+// It returns a string containing a "Warnings:" header followed by each warning
+// on its own line prefixed with a bullet ("•") and two-space indent.
 func renderScopedWarnings(warnings []string) string {
 	warningStyle := lipgloss.NewStyle().
 		Foreground(colorWarning())
@@ -555,7 +629,12 @@ func renderScopedWarnings(warnings []string) string {
 	return content.String()
 }
 
-// renderScopedProgressBar renders a progress bar for scoped budgets.
+// renderScopedProgressBar renders a horizontal progress bar that visually represents
+// the given percentage within a fixed character width.
+//
+// The displayed fill is capped at 100% for the bar length calculation; the bar's
+// color reflects the original (uncapped) percentage. The returned string contains
+// the styled filled and empty segments ready for printing.
 func renderScopedProgressBar(percentage float64, width int) string {
 	// Cap percentage at 100% for bar display
 	cappedPercent := percentage
@@ -578,7 +657,8 @@ func renderScopedProgressBar(percentage float64, width int) string {
 	return filled + empty
 }
 
-// healthStatusLabel returns a human-readable label for a health status.
+// healthStatusLabel maps a BudgetHealthStatus to its human-readable label.
+// It returns the `UNSPECIFIED` label for unknown or default values.
 func healthStatusLabel(health pbc.BudgetHealthStatus) string {
 	switch health {
 	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
@@ -596,7 +676,13 @@ func healthStatusLabel(health pbc.BudgetHealthStatus) string {
 	}
 }
 
-// healthStatusColor returns the appropriate color for a health status.
+// healthStatusColor returns the lipgloss color corresponding to the given BudgetHealthStatus.
+// It maps:
+//  - BUDGET_HEALTH_STATUS_OK to progressOKColor()
+//  - BUDGET_HEALTH_STATUS_WARNING to colorWarning()
+//  - BUDGET_HEALTH_STATUS_CRITICAL to orange ("208")
+//  - BUDGET_HEALTH_STATUS_EXCEEDED to progressExceededColor()
+//  - BUDGET_HEALTH_STATUS_UNSPECIFIED (and any unknown value) to gray ("246").
 func healthStatusColor(health pbc.BudgetHealthStatus) lipgloss.Color {
 	switch health {
 	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
@@ -614,7 +700,8 @@ func healthStatusColor(health pbc.BudgetHealthStatus) lipgloss.Color {
 	}
 }
 
-// containsIgnoreCase checks if a slice contains a string (case-insensitive).
+// containsIgnoreCase reports whether the slice contains target using a case-insensitive comparison.
+// It returns true if any element of slice equals target when compared ignoring case, false otherwise.
 func containsIgnoreCase(slice []string, target string) bool {
 	targetLower := strings.ToLower(target)
 	for _, s := range slice {

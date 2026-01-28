@@ -226,7 +226,10 @@ func (r *ScopedBudgetResult) AllScopes() []*ScopedBudgetStatus {
 //   - "gcp:compute/instance" -> "gcp"
 //   - "azure:compute/virtualMachine" -> "azure"
 //   - "unknown" -> "unknown"
-//   - ":ec2/instance" -> "" (colon at start, no provider)
+// ExtractProvider returns the provider name extracted from a resource type string.
+// The provider is the substring before the first ':' converted to lower case.
+// If the string has a leading ':' (e.g., ":ec2/instance"), it returns an empty string.
+// If there is no ':' present, it returns the entire string in lower case.
 func ExtractProvider(resourceType string) string {
 	idx := strings.Index(resourceType, ":")
 	if idx > 0 {
@@ -240,13 +243,15 @@ func ExtractProvider(resourceType string) string {
 }
 
 // CalculateHealthFromPercentage calculates health status from a raw utilization percentage.
-// This is a convenience wrapper around CalculateBudgetHealthFromPercentage for scoped budgets.
+// CalculateHealthFromPercentage converts a spend percentage into a BudgetHealthStatus for scoped budgets.
+// The percentage is expressed as a value between 0 and 100. It returns the corresponding pbc.BudgetHealthStatus.
 func CalculateHealthFromPercentage(percentage float64) pbc.BudgetHealthStatus {
 	return CalculateBudgetHealthFromPercentage(percentage)
 }
 
 // AggregateHealthStatuses returns the worst-case health status from a list of statuses.
-// If statuses is empty, returns UNSPECIFIED.
+// AggregateHealthStatuses returns the most-severe budget health status from the provided slice.
+// If the slice is empty, it returns BUDGET_HEALTH_STATUS_UNSPECIFIED.
 func AggregateHealthStatuses(statuses []pbc.BudgetHealthStatus) pbc.BudgetHealthStatus {
 	if len(statuses) == 0 {
 		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED
@@ -277,7 +282,10 @@ type ScopedBudgetEvaluator struct {
 	typeIndex map[string]*config.ScopedBudget
 }
 
-// NewScopedBudgetEvaluator creates a new evaluator for the given configuration.
+// NewScopedBudgetEvaluator constructs a ScopedBudgetEvaluator from the provided BudgetsConfig.
+// If cfg is nil, it returns an evaluator with empty provider and type indices and no tag budgets.
+// The returned evaluator contains a case-insensitive provider index, tag budgets ordered by
+// descending priority, and a copied type index for exact-key lookups.
 func NewScopedBudgetEvaluator(cfg *config.BudgetsConfig) *ScopedBudgetEvaluator {
 	if cfg == nil {
 		return &ScopedBudgetEvaluator{
@@ -378,7 +386,12 @@ func (e *ScopedBudgetEvaluator) SelectHighestPriorityTagBudget(
 	return selected, []string{warning}
 }
 
-// collectSamePrioritySelectors returns all selectors with the same priority as the first match.
+// collectSamePrioritySelectors returns the selectors from the start of the matches slice
+// that share the provided priority.
+//
+// matches must be non-empty and the first element is expected to have Priority equal
+// to priority. The function assumes matches is ordered by descending priority and
+// collects the contiguous prefix of selectors whose Priority equals priority.
 func collectSamePrioritySelectors(matches []config.TagBudget, priority int) []string {
 	samePriority := []string{matches[0].Selector}
 	for i := 1; i < len(matches); i++ {
@@ -391,7 +404,7 @@ func collectSamePrioritySelectors(matches []config.TagBudget, priority int) []st
 	return samePriority
 }
 
-// handlePriorityTie resolves a priority tie by selecting the first alphabetically.
+//  - string: a warning message describing the tie and the chosen selector.
 func handlePriorityTie(
 	ctx context.Context,
 	matches []config.TagBudget,
@@ -461,7 +474,11 @@ func (e *ScopedBudgetEvaluator) AllocateCostToProvider(
 	return allocation
 }
 
-// CalculateProviderBudgetStatus calculates the budget status for a provider scope.
+// CalculateProviderBudgetStatus computes the ScopedBudgetStatus for the given provider.
+// It populates ScopeType, ScopeKey, Budget, CurrentSpend, Percentage, Health, and Currency.
+// Percentage is currentSpend divided by budget.Amount multiplied by 100 (treated as 0 if budget.Amount <= 0).
+// Health is derived from Percentage using CalculateHealthFromPercentage.
+// provider is the provider identifier, budget is the configured scoped budget, and currentSpend is the measured spend.
 func CalculateProviderBudgetStatus(
 	provider string,
 	budget *config.ScopedBudget,
@@ -540,7 +557,10 @@ func (e *ScopedBudgetEvaluator) AllocateCostToTag(
 	return allocation
 }
 
-// CalculateTagBudgetStatus calculates the budget status for a tag scope.
+// CalculateTagBudgetStatus computes the ScopedBudgetStatus for a tag budget using the provided current spend.
+// It produces a status with ScopeType set to ScopeTypeTag and ScopeKey set to the tag budget's selector.
+// The returned Percentage is (currentSpend / tagBudget.Amount) * 100; if tagBudget.Amount is zero or negative, Percentage is 0.
+// Health is derived from the computed percentage. The returned status carries the tag budget, current spend and the budget currency.
 func CalculateTagBudgetStatus(
 	tagBudget *config.TagBudget,
 	currentSpend float64,
@@ -689,7 +709,10 @@ func (e *ScopedBudgetEvaluator) AllocateCosts(
 }
 
 // CalculateOverallHealth calculates the worst-case health status across all scopes.
-// Uses "worst wins" aggregation: EXCEEDED > CRITICAL > WARNING > OK > UNSPECIFIED.
+// CalculateOverallHealth determines the overall budget health by taking the worst-case
+// health across all scoped statuses in result (global, providers, tags, and types).
+// Uses "worst wins" severity ordering: EXCEEDED > CRITICAL > WARNING > OK > UNSPECIFIED.
+// If result is nil, or no scoped statuses are present, it returns UNSPECIFIED.
 func CalculateOverallHealth(result *ScopedBudgetResult) pbc.BudgetHealthStatus {
 	if result == nil {
 		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED
@@ -720,7 +743,11 @@ func CalculateOverallHealth(result *ScopedBudgetResult) pbc.BudgetHealthStatus {
 	return AggregateHealthStatuses(statuses)
 }
 
-// IdentifyCriticalScopes returns the scope identifiers that have CRITICAL or EXCEEDED status.
+// IdentifyCriticalScopes returns the identifiers of scopes whose health is CRITICAL or EXCEEDED.
+// It inspects the global scope, provider scopes, tag scopes, and type scopes in the provided
+// ScopedBudgetResult. If result is nil the function returns nil. The returned slice contains
+// scope identifier strings (for example "global" or "type:key"); it will be nil when no scopes
+// meet the critical/exceeded criteria.
 func IdentifyCriticalScopes(result *ScopedBudgetResult) []string {
 	if result == nil {
 		return nil

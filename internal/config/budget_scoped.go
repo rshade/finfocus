@@ -222,7 +222,11 @@ type ParsedTagSelector struct {
 }
 
 // ParseTagSelector parses a tag selector string into its components.
-// Valid formats: "key:value" or "key:*".
+// ParseTagSelector parses a tag selector in the form "key:value" or "key:*" and returns a ParsedTagSelector.
+//
+// The selector must match the configured tag selector pattern and contain exactly one colon. If valid, the
+// returned ParsedTagSelector contains the key, value, and IsWildcard set to true when the value is `"*"`. On
+// failure this returns an error wrapping ErrInvalidTagSelector indicating the input did not meet the required format.
 func ParseTagSelector(selector string) (*ParsedTagSelector, error) {
 	if !tagSelectorPattern.MatchString(selector) {
 		return nil, fmt.Errorf("%w: %q must match pattern 'key:value' or 'key:*'",

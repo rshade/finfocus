@@ -175,7 +175,20 @@ timestamp if not provided.`,
 // cannot be parsed or is out of bounds, plugin initialization or communication
 // fails, fetching actual costs fails, or rendering the output fails. Rendering
 // budget status is non-fatal: failures there are logged as warnings and do not
-// make the function return an error.
+// executeCostActual orchestrates the "actual" cost workflow for the CLI command.
+//
+// executeCostActual validates input flags, loads resources from a Pulumi plan or state,
+// applies resource filters, resolves the time range, invokes adapter plugins to obtain
+// historical cost data or estimates, and renders the results to the command output.
+// When the output format is "table" and all results use a single currency, it also
+// renders budget status scoped by the optional "budget-scope" flag and may cause the
+// command to exit early based on budget checks.
+// Parameters:
+//   - cmd: the Cobra command whose context and flags drive execution and output.
+//   - params: CLI flag values controlling sources, date range, grouping, filtering,
+//     adapter selection, output format, and estimate confidence.
+// Returns an error if any validation, data loading, parsing, plugin interaction,
+// cost retrieval, rendering, or budget-check step fails.
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)

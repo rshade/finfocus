@@ -151,7 +151,16 @@ type CostFlags struct {
 }
 
 // newCostCmd creates the cost command group with projected, actual, and recommendations subcommands.
-// It also adds persistent flags for budget exit code configuration (Issue #219).
+// newCostCmd creates the "cost" command group with subcommands for projected, actual,
+// and recommendation cost calculations.
+//
+// The command applies CLI flag overrides to the global configuration and validates
+// budget configuration when budget-based exit behavior is enabled. It registers
+// persistent flags to control budget exit behavior (`--exit-on-threshold`, `--exit-code`)
+// and to filter displayed budget scopes (`--budget-scope`).
+//
+// If budget validation fails during the command's PersistentPreRunE, the command will
+// return an error.
 func newCostCmd() *cobra.Command {
 	var flags CostFlags
 
