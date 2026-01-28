@@ -32,6 +32,10 @@ func (p *CompiledPattern) Match(resourceType string) (bool, error) {
 }
 
 // CompilePattern compiles a ResourcePattern for efficient matching.
+// It returns a *CompiledPattern containing the original pattern and, if the pattern is a regex,
+// the compiled *regexp.Regexp stored in the CompiledPattern.Regex field.
+// If the pattern is marked as a regex but fails to compile, it returns an error that includes the
+// original pattern and the underlying compilation error.
 func CompilePattern(pattern config.ResourcePattern) (*CompiledPattern, error) {
 	compiled := &CompiledPattern{
 		Original: pattern,
@@ -55,7 +59,9 @@ type PatternCache struct {
 	globs   map[string]bool // tracks if glob pattern is valid
 }
 
-// NewPatternCache creates a new pattern cache.
+// NewPatternCache returns a new PatternCache with its internal maps for compiled
+// regexes and glob validity initialized. The returned cache is ready for
+// concurrent use.
 func NewPatternCache() *PatternCache {
 	return &PatternCache{
 		regexes: make(map[string]*regexp.Regexp),

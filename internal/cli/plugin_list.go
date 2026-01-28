@@ -190,7 +190,22 @@ func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginI
 }
 
 // fetchSinglePluginMetadata fetches metadata for a single plugin with timeout.
-// Always returns a result, never nil. Failed plugins have Notes field populated.
+// fetchSinglePluginMetadata fetches runtime metadata for the given plugin and returns an enrichedPluginInfo.
+//
+// It attempts to contact the plugin via the provided launcher and, when metadata is available,
+// populates SpecVersion, RuntimeVersion, SupportedProviders, and Capabilities. SpecVersion and
+// RuntimeVersion default to "N/A" when not provided. Capabilities are inferred to include
+// "ProjectedCosts" and "ActualCosts" when metadata is present.
+//
+// Parameters:
+//  - ctx: the context used for the operation (may carry cancellation and logging).
+//  - launcher: the pluginhost launcher used to start or connect to the plugin.
+//  - plugin: the registry.PluginInfo describing the plugin to inspect.
+//
+// Returns:
+//  - a non-nil *enrichedPluginInfo containing the original PluginInfo plus any discovered
+//    metadata. If any step fails, the returned struct's Notes field contains a human-readable
+//    failure description.
 func fetchSinglePluginMetadata(
 	ctx context.Context,
 	launcher pluginhost.Launcher,
@@ -245,6 +260,11 @@ func displayPlugins(cmd *cobra.Command, plugins []enrichedPluginInfo, verbose bo
 	return displaySimplePlugins(w, plugins)
 }
 
+// displayVerbosePlugins writes a detailed tab-separated table of plugin information to w.
+// The table includes columns for Name, Version, Providers, Capabilities, Spec, and Path.
+// If any plugin in the provided slice has a non-empty Notes field, a Notes column is included.
+// w is the tabwriter used for output and plugins is the list of enrichedPluginInfo to display.
+// It returns any error encountered while flushing the writer.
 func displayVerbosePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) error {
 	// Check if any plugins have notes to show
 	hasNotes := false
@@ -283,6 +303,14 @@ func displayVerbosePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) er
 	return w.Flush()
 }
 
+// displaySimplePlugins writes a compact tab-separated table of plugins to w.
+// If any plugin has a non-empty Notes field, a Notes column is included.
+// Each row contains the plugin name, a display version (RuntimeVersion when available,
+// otherwise the plugin version), and the formatted providers; Notes are appended when present.
+// Parameters:
+//   - w: destination tab writer for formatted output.
+//   - plugins: list of enriched plugin information to display.
+// Returns any error encountered while flushing the writer.
 func displaySimplePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) error {
 	// Check if any plugins have notes to show
 	hasNotes := false
@@ -314,7 +342,8 @@ func displaySimplePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) err
 }
 
 // formatProviders formats the list of supported providers for display.
-// Returns "*" for global plugins (empty list or ["*"]) and comma-separated list otherwise.
+// formatProviders returns "*" for global plugins when the providers slice is empty or contains only `"*"`, and returns a comma-separated list of providers otherwise.
+// The providers parameter is a slice of provider identifiers; the returned string preserves the order of the slice.
 func formatProviders(providers []string) string {
 	if len(providers) == 0 {
 		return "*"
@@ -326,7 +355,8 @@ func formatProviders(providers []string) string {
 }
 
 // formatCapabilities formats the list of capabilities for display.
-// Returns comma-separated list or "-" if no capabilities.
+// formatCapabilities returns a comma-separated string of capabilities.
+// If the slice is empty, it returns "-".
 func formatCapabilities(capabilities []string) string {
 	if len(capabilities) == 0 {
 		return "-"
