@@ -42,7 +42,13 @@ plugins:
 
 Configure budget limits, alerts, and cost calculation preferences.
 
-#### `cost.budgets`
+#### Legacy Budget Configuration (Deprecated)
+
+The flat `cost.budgets` structure is deprecated. Use `cost.budgets` with `global`, `providers`, `tags`, and `types` sections instead.
+
+#### `cost.budgets.global`
+
+Global budget applied to all resources.
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
@@ -50,13 +56,79 @@ Configure budget limits, alerts, and cost calculation preferences.
 | `currency` | string | `USD` | ISO 4217 currency code. |
 | `period` | string | `monthly` | Budget period (daily, weekly, monthly, yearly). |
 | `alerts` | list | `[]` | List of alert definitions. |
+| `exit_code` | number | 2 | Exit code when budget exceeded (CI/CD integration). |
 
-#### `cost.budgets.alerts`
+#### `cost.budgets.providers`
+
+Per-provider budgets for multi-cloud cost control.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `<provider>` | object | - | Provider name (aws, gcp, azure) with budget settings. |
+| `<provider>.amount` | number | - | **Required**. Provider budget limit. |
+| `<provider>.currency` | string | Global currency | Must match global budget currency. |
+
+#### `cost.budgets.tags`
+
+Tag-based budgets for team/project cost allocation.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `selector` | string | - | **Required**. Tag pattern (`key:value` or `key:*`). |
+| `priority` | number | 0 | Priority for overlapping tags (higher wins). |
+| `amount` | number | - | **Required**. Tag budget limit. |
+| `currency` | string | Global currency | Must match global budget currency. |
+
+#### `cost.budgets.types`
+
+Per-resource-type budgets for category control.
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `<type>` | object | - | Resource type (e.g., `aws:ec2/instance`) with budget settings. |
+| `<type>.amount` | number | - | **Required**. Type budget limit. |
+| `<type>.currency` | string | Global currency | Must match global budget currency. |
+
+#### `cost.budgets.alerts` (within any scope)
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `threshold` | number | - | **Required**. Percentage of budget (1-100) to trigger alert. |
 | `type` | string | `actual` | Trigger on `actual` (historical) or `forecasted` (projected) cost. |
+
+#### Example: Scoped Budget Configuration
+
+```yaml
+cost:
+  budgets:
+    global:
+      amount: 10000.00
+      currency: USD
+      period: monthly
+      exit_code: 2
+      alerts:
+        - threshold: 80
+          type: actual
+    providers:
+      aws:
+        amount: 5000.00
+      gcp:
+        amount: 3000.00
+    tags:
+      - selector: "team:platform"
+        priority: 100
+        amount: 3000.00
+      - selector: "env:prod"
+        priority: 50
+        amount: 5000.00
+    types:
+      "aws:ec2/instance":
+        amount: 2000.00
+      "aws:rds/instance":
+        amount: 3000.00
+```
+
+See [Budget Configuration Guide](../guides/budgets.md) for detailed usage.
 
 ## JSON Schema Validation
 

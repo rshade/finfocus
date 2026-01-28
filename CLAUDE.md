@@ -976,6 +976,8 @@ CodeRabbit now:
 
 ## Active Technologies
 - Go 1.25.5 + github.com/spf13/cobra (CLI), github.com/rs/zerolog (logging), github.com/rshade/finfocus-spec v0.5.3+ (proto definitions/SDK), google.golang.org/grpc, github.com/stretchr/testify; YAML config file (~/.finfocus/config.yaml)
+- Go 1.25.5 + github.com/spf13/cobra, github.com/rs/zerolog, gopkg.in/yaml.v3 (221-flexible-budget-scoping)
+- ~/.finfocus/config.yaml (YAML file-based configuration) (221-flexible-budget-scoping)
 
 ## Recent Changes
 

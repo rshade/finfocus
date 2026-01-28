@@ -165,8 +165,15 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	// Evaluate and render budget status (T025: Call checkBudgetExit after renderBudgetIfConfigured)
 	// Render budget status only when currencies are consistent
 	if !mixedCurrencies {
-		budgetStatus, budgetErr := renderBudgetIfConfigured(cmd, totalCost, currency)
-		if exitErr := checkBudgetExit(cmd, budgetStatus, budgetErr); exitErr != nil {
+		// Get budget-scope filter from flag (defaults to empty string = show all)
+		scopeFilter := ""
+		if flag := cmd.Flag("budget-scope"); flag != nil {
+			scopeFilter = flag.Value.String()
+		}
+
+		budgetResult, budgetErr := renderBudgetWithScope(
+			cmd, resultWithErrors.Results, totalCost, currency, scopeFilter)
+		if exitErr := checkBudgetExitFromResult(cmd, budgetResult, budgetErr); exitErr != nil {
 			return exitErr
 		}
 	}

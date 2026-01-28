@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -11,6 +12,8 @@ import (
 	"golang.org/x/term"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
@@ -318,20 +321,25 @@ func getStatusMessage(status *engine.BudgetStatus) string {
 	return "OK - Within budget"
 }
 
+// currencySymbols maps ISO currency codes to their typographic symbols.
+// Package-level to avoid repeated allocation on each call.
+//
+//nolint:gochecknoglobals // Intentional: immutable lookup table for performance
+var currencySymbols = map[string]string{
+	defaultCurrency: "$",
+	"EUR":           "€",
+	"GBP":           "£",
+	"JPY":           "¥",
+	"CNY":           "¥",
+	"CAD":           "C$",
+	"AUD":           "A$",
+	"INR":           "₹",
+	"KRW":           "₩",
+}
+
 // currencySymbol maps a three-letter currency code to its typographic symbol.
 // For unrecognized codes the function returns the original code followed by a space.
 func currencySymbol(currency string) string {
-	currencySymbols := map[string]string{
-		defaultCurrency: "$",
-		"EUR":           "€",
-		"GBP":           "£",
-		"JPY":           "¥",
-		"CNY":           "¥",
-		"CAD":           "C$",
-		"AUD":           "A$",
-		"INR":           "₹",
-		"KRW":           "₩",
-	}
 	if sym, ok := currencySymbols[currency]; ok {
 		return sym
 	}
@@ -405,6 +413,7 @@ func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency st
 
 	// Create budget engine and evaluate
 	budgetEngine := engine.NewBudgetEngine()
+	//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
 	status, err := budgetEngine.Evaluate(cfg.Cost.Budgets, totalCost, currency)
 	if err != nil {
 		// Budget evaluation failed (e.g., currency mismatch)
@@ -420,6 +429,271 @@ func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency st
 	}
 
 	return status, nil
+}
+
+// BudgetRenderResult holds the result of budget rendering for exit code evaluation.
+// It can contain either a legacy BudgetStatus or a ScopedBudgetResult.
+type BudgetRenderResult struct {
+	// LegacyStatus is set when using legacy budget configuration.
+	LegacyStatus *engine.BudgetStatus
+	// ScopedResult is set when using scoped budget configuration.
+	ScopedResult *engine.ScopedBudgetResult
+}
+
+// renderBudgetWithScope renders budget status using either scoped or legacy budgets.
+// It automatically detects which configuration style is in use and renders appropriately.
+// The scopeFilter parameter is only used when scoped budgets are configured.
+//
+// This is the main entry point for budget rendering in cost commands.
+func renderBudgetWithScope(
+	cmd *cobra.Command,
+	costs []engine.CostResult,
+	totalCost float64,
+	currency string,
+	scopeFilter string,
+) (*BudgetRenderResult, error) {
+	cfg := config.GetGlobalConfig()
+	if cfg == nil {
+		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no config
+	}
+
+	// Check if scoped budgets are configured (provider/tag/type)
+	budgetsCfg := cfg.Cost.GetEffectiveBudgets()
+	if budgetsCfg != nil && budgetsCfg.HasScopedBudgets() {
+		// Use scoped budget rendering
+		result, err := renderScopedBudgetIfConfigured(cmd, costs, scopeFilter)
+		if err != nil {
+			return nil, err
+		}
+		return &BudgetRenderResult{ScopedResult: result}, nil
+	}
+
+	// Fall back to legacy budget rendering
+	status, err := renderBudgetIfConfigured(cmd, totalCost, currency)
+	if err != nil {
+		return nil, err
+	}
+	return &BudgetRenderResult{LegacyStatus: status}, nil
+}
+
+// checkBudgetExitFromResult evaluates whether the CLI should exit based on budget result.
+// It handles both legacy and scoped budget results.
+func checkBudgetExitFromResult(cmd *cobra.Command, result *BudgetRenderResult, evalErr error) error {
+	if result == nil {
+		return checkBudgetExit(cmd, nil, evalErr)
+	}
+
+	if result.LegacyStatus != nil {
+		return checkBudgetExit(cmd, result.LegacyStatus, evalErr)
+	}
+
+	// For scoped budgets, check if any scope is critical/exceeded
+	if result.ScopedResult != nil && result.ScopedResult.HasCriticalBudgets() {
+		isDebug := cmd.Flag("debug") != nil && cmd.Flag("debug").Changed
+		reason := fmt.Sprintf("budget exceeded: %d critical scope(s)", len(result.ScopedResult.CriticalScopes))
+
+		if isDebug {
+			cmd.PrintErrf("DEBUG: %s: %v\n", reason, result.ScopedResult.CriticalScopes)
+		}
+
+		// Check if exit-on-threshold is enabled
+		cfg := config.GetGlobalConfig()
+		//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
+		if cfg != nil && cfg.Cost.Budgets.ExitOnThreshold {
+			return &BudgetExitError{
+				//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
+				ExitCode: cfg.Cost.Budgets.ExitCode,
+				Reason:   reason,
+			}
+		}
+	}
+
+	return nil
+}
+
+// renderScopedBudgetIfConfigured renders scoped budget status if configured.
+// It uses the new hierarchical budget configuration with provider, tag, and type scopes.
+// The scopeFilter parameter controls which scopes are displayed.
+//
+// This function is used when ScopedBudgets are configured. For legacy budget
+// configurations, use renderBudgetIfConfigured instead.
+//
+// Returns the ScopedBudgetResult for exit code evaluation, or nil if no budgets configured.
+func renderScopedBudgetIfConfigured(
+	cmd *cobra.Command,
+	costs []engine.CostResult,
+	scopeFilter string,
+) (*engine.ScopedBudgetResult, error) {
+	cfg := config.GetGlobalConfig()
+	if cfg == nil {
+		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no config
+	}
+
+	// Get effective budgets (handles legacy migration)
+	budgetsCfg := cfg.Cost.GetEffectiveBudgets()
+	if budgetsCfg == nil || !budgetsCfg.IsEnabled() {
+		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no budget configured
+	}
+
+	// Check if we have scoped budgets (provider/tag/type)
+	if !budgetsCfg.HasScopedBudgets() {
+		// Fall back to legacy rendering for global-only budgets
+		return nil, nil //nolint:nilnil // use legacy renderBudgetIfConfigured instead
+	}
+
+	// Create scoped budget evaluator
+	eval := engine.NewScopedBudgetEvaluator(budgetsCfg)
+
+	// Allocate costs and evaluate all scopes
+	result := evaluateScopedBudgets(cmd.Context(), eval, budgetsCfg, costs)
+
+	// Add a blank line before budget status
+	cmd.Println()
+
+	// Render the scoped budget status
+	filter := NewBudgetScopeFilter(scopeFilter)
+	if renderErr := RenderScopedBudgetStatus(cmd.OutOrStdout(), result, filter); renderErr != nil {
+		return result, renderErr
+	}
+
+	return result, nil
+}
+
+// evaluateScopedBudgets allocates costs to scopes and calculates budget statuses.
+func evaluateScopedBudgets(
+	ctx context.Context,
+	eval *engine.ScopedBudgetEvaluator,
+	cfg *config.BudgetsConfig,
+	costs []engine.CostResult,
+) *engine.ScopedBudgetResult {
+	result := &engine.ScopedBudgetResult{
+		ByProvider: make(map[string]*engine.ScopedBudgetStatus),
+		ByType:     make(map[string]*engine.ScopedBudgetStatus),
+	}
+
+	// Track spend per scope
+	globalSpend := 0.0
+	providerSpend := make(map[string]float64)
+	typeSpend := make(map[string]float64)
+
+	// Allocate each cost result to appropriate scopes
+	for _, cost := range costs {
+		// Check for context cancellation to support graceful shutdown
+		select {
+		case <-ctx.Done():
+			return result // Return partial result on cancellation
+		default:
+		}
+
+		// All costs count toward global
+		globalSpend += cost.Monthly
+
+		// Allocate to provider
+		allocation := eval.AllocateCostToProvider(ctx, cost.ResourceType, cost.Monthly)
+		if allocation.Provider != "" {
+			providerSpend[allocation.Provider] += cost.Monthly
+		}
+
+		// Allocate to type (if type budget exists)
+		if eval.GetTypeBudget(cost.ResourceType) != nil {
+			typeSpend[cost.ResourceType] += cost.Monthly
+		}
+	}
+
+	// Calculate global status
+	if cfg.Global != nil {
+		result.Global = engine.CalculateProviderBudgetStatus("", cfg.Global, globalSpend)
+		result.Global.ScopeType = engine.ScopeTypeGlobal
+		result.Global.ScopeKey = ""
+	}
+
+	// Calculate provider statuses (skip nil budgets)
+	for provider, budget := range cfg.Providers {
+		if budget == nil {
+			continue
+		}
+		spend := providerSpend[provider]
+		status := engine.CalculateProviderBudgetStatus(provider, budget, spend)
+		result.ByProvider[provider] = status
+	}
+
+	// Calculate type statuses (skip nil budgets)
+	for resourceType, budget := range cfg.Types {
+		if budget == nil {
+			continue
+		}
+		spend := typeSpend[resourceType]
+		status := engine.CalculateProviderBudgetStatus(resourceType, budget, spend)
+		status.ScopeType = engine.ScopeTypeType
+		status.ScopeKey = resourceType
+		result.ByType[resourceType] = status
+	}
+
+	// Calculate overall health (worst wins)
+	healthStatuses := collectHealthStatuses(result)
+	result.OverallHealth = engine.AggregateHealthStatuses(healthStatuses)
+
+	// Identify critical scopes
+	result.CriticalScopes = identifyCriticalScopes(result)
+
+	return result
+}
+
+// collectHealthStatuses gathers all health statuses from a scoped budget result.
+func collectHealthStatuses(result *engine.ScopedBudgetResult) []pbc.BudgetHealthStatus {
+	var statuses []pbc.BudgetHealthStatus
+
+	if result.Global != nil {
+		statuses = append(statuses, result.Global.Health)
+	}
+
+	for _, status := range result.ByProvider {
+		statuses = append(statuses, status.Health)
+	}
+
+	for _, status := range result.ByTag {
+		statuses = append(statuses, status.Health)
+	}
+
+	for _, status := range result.ByType {
+		statuses = append(statuses, status.Health)
+	}
+
+	return statuses
+}
+
+// identifyCriticalScopes returns scope identifiers with CRITICAL or EXCEEDED status.
+func identifyCriticalScopes(result *engine.ScopedBudgetResult) []string {
+	var critical []string
+
+	isCritical := func(health pbc.BudgetHealthStatus) bool {
+		return health == pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL ||
+			health == pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED
+	}
+
+	if result.Global != nil && isCritical(result.Global.Health) {
+		critical = append(critical, "global")
+	}
+
+	for key, status := range result.ByProvider {
+		if isCritical(status.Health) {
+			critical = append(critical, "provider:"+key)
+		}
+	}
+
+	for _, status := range result.ByTag {
+		if isCritical(status.Health) {
+			critical = append(critical, "tag:"+status.ScopeKey)
+		}
+	}
+
+	for key, status := range result.ByType {
+		if isCritical(status.Health) {
+			critical = append(critical, "type:"+key)
+		}
+	}
+
+	return critical
 }
 
 // BudgetExitError is a sentinel error that carries an exit code for budget threshold violations.

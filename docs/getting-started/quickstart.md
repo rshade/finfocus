@@ -101,6 +101,42 @@ finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2*"
 finfocus cost projected --pulumi-json plan.json --filter "type=aws:rds*"
 ```
 
+## Step 6: Configure Scoped Budgets (Optional)
+
+Create `~/.finfocus/config.yaml` with hierarchical budgets:
+
+```yaml
+cost:
+  budgets:
+    global:
+      amount: 5000.00
+      currency: USD
+      period: monthly
+    providers:
+      aws:
+        amount: 3000.00
+      gcp:
+        amount: 2000.00
+    tags:
+      - selector: "team:platform"
+        priority: 100
+        amount: 2000.00
+    types:
+      "aws:ec2/instance":
+        amount: 1000.00
+```
+
+Then run with budget display:
+
+```bash
+finfocus cost projected --pulumi-json plan.json
+
+# Filter by scope
+finfocus cost projected --pulumi-json plan.json --budget-scope=provider
+finfocus cost projected --pulumi-json plan.json --budget-scope=tag
+finfocus cost projected --pulumi-json plan.json --budget-scope=type
+```
+
 ---
 
 ## What's Next?
