@@ -1,0 +1,29 @@
+# Test fixture: Resource type budget configuration
+cost:
+  budgets:
+    global:
+      amount: 10000.00
+      currency: USD
+      period: monthly
+
+    types:
+      "aws:ec2/instance":
+        amount: 3000.00
+        alerts:
+          - threshold: 80.0
+            type: actual
+          - threshold: 95.0
+            type: forecasted
+
+      "aws:rds/instance":
+        amount: 4000.00
+        exit_on_threshold: true
+        exit_code: 4
+
+      "gcp:compute/instance":
+        amount: 2000.00
+
+      "azure:compute/virtualMachine":
+        amount: 1000.00
+
+    exit_on_threshold: false

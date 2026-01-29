@@ -1,4 +1,35 @@
 <!--
+Sync Impact Report - Constitution v1.5.0 (Documentation Integrity)
+================================================================
+
+Version Change: 1.4.0 → 1.5.0
+Change Type: Materially expanded guidance (MINOR)
+
+Changes Made:
+- Renamed Principle IV to "Documentation Integrity (Anti-Drift)"
+- Added strict requirements for Godoc coverage (80%+)
+- Mandated compilable code examples in READMEs
+- Required strict function signature matching between docs and code
+- Added requirement for SDK package READMEs
+- Added requirement for Spec Status Tracking
+- Explicitly required documentation validation in CI
+
+Rationale:
+- To prevent documentation drift where code evolves but docs lag behind
+- Automated validation prevents drift without requiring constant manual vigilance
+- Ensures developer trust through verifiable documentation accuracy
+
+Templates Requiring Updates:
+- ✅ .specify/templates/plan-template.md (Updated Constitution Check)
+- ✅ .specify/templates/tasks-template.md (Updated Principle IV reference)
+
+Follow-up TODOs:
+- None
+
+Date: 2026-01-27
+
+---
+
 Sync Impact Report - Constitution v1.4.0 (Documentation Synchronization)
 ======================================================================
 
@@ -134,19 +165,30 @@ every commit. Platform-specific code MUST be isolated and documented.
 **Rationale**: Infrastructure teams use diverse operating systems.
 Cross-platform support is essential for adoption and prevents vendor lock-in.
 
-### IV. Documentation Synchronization & Quality
+### IV. Documentation Integrity (Anti-Drift)
 
-Every user-facing feature MUST have corresponding documentation before
-release. `README.md` and the `docs/` directory MUST be updated concurrently
-with implementation to prevent documentation drift. Documentation MUST
-include audience-specific guides (User, Developer, Architect, Business).
-All code examples in documentation MUST be tested. Documentation linting
-MUST pass in CI.
+Documentation MUST remain synchronized with implementation and MUST be
+verifiable:
 
-**Rationale**: Outdated documentation misleads users and erodes trust.
-Synchronous updates ensure the codebase and documentation remain a single
-source of truth. Audience-specific guides ensure all stakeholders can adopt
-and extend PulumiCost effectively.
+- **Godoc Coverage**: All exported functions, types, and methods in Go SDK
+  packages MUST have godoc comments. CI MUST verify 80%+ documentation
+  coverage.
+- **README ↔ Code Sync**: Code examples in README files MUST compile. Function
+  signatures, type names, and method names in documentation MUST match exported
+  symbols exactly.
+- **Semantic Versioning for Docs**: When a documented API changes, the
+  corresponding documentation MUST be updated in the same PR.
+- **Package Completeness**: Every SDK package with 3+ exported symbols MUST
+  have a `README.md`.
+- **Doc Validation in CI**: A documentation linter MUST run in CI checking
+  markdown link validity, code block syntax, and function signature accuracy.
+- **Spec Status Tracking**: Specifications in `specs/` MUST have status
+  indicators. Specs missing `plan.md` and `tasks.md` for >30 days SHOULD be
+  alerted.
+
+**Rationale**: Documentation drift erodes developer trust. Automated validation
+prevents drift without requiring constant manual vigilance. Synchronous updates
+ensure the codebase and documentation remain a single source of truth.
 
 ### V. Protocol Stability
 
@@ -281,4 +323,4 @@ When using the Pulumi SDK (`github.com/pulumi/pulumi/sdk/v3`):
 - Earlier versions may have different package structures or missing types
 - This ensures compatibility with the current Pulumi Analyzer protocol
 
-**Version**: 1.4.0 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-01-07
+**Version**: 1.5.0 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-01-27

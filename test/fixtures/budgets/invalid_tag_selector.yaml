@@ -1,0 +1,12 @@
+# Test fixture: Invalid configuration - bad tag selector format
+# This should fail validation because tag selector is malformed
+cost:
+  budgets:
+    global:
+      amount: 5000.00
+      currency: USD
+      period: monthly
+
+    tags:
+      - selector: "invalid selector with spaces"
+        amount: 1000.00

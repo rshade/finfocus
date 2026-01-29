@@ -1,0 +1,31 @@
+# Test fixture: Multi-provider budget configuration
+cost:
+  budgets:
+    global:
+      amount: 10000.00
+      currency: USD
+      period: monthly
+      alerts:
+        - threshold: 80.0
+          type: actual
+        - threshold: 100.0
+          type: actual
+
+    providers:
+      aws:
+        amount: 5000.00
+        alerts:
+          - threshold: 75.0
+            type: actual
+          - threshold: 90.0
+            type: actual
+      gcp:
+        amount: 3000.00
+        alerts:
+          - threshold: 80.0
+            type: actual
+      azure:
+        amount: 2000.00
+
+    exit_on_threshold: true
+    exit_code: 2
