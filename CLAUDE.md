@@ -976,6 +976,8 @@ CodeRabbit now:
 
 ## Active Technologies
 - Go 1.25.5 + github.com/spf13/cobra (CLI), github.com/rs/zerolog (logging), github.com/rshade/finfocus-spec v0.5.3+ (proto definitions/SDK), google.golang.org/grpc, github.com/stretchr/testify; YAML config file (~/.finfocus/config.yaml)
+- Go 1.25.5 (per go.mod) + github.com/spf13/cobra (CLI), github.com/charmbracelet/lipgloss (TUI styling), github.com/rs/zerolog (logging), golang.org/x/text (number formatting) (125-greenops-equivalencies)
+- N/A (pure computation, no persistence) (125-greenops-equivalencies)
 
 ## Recent Changes
 

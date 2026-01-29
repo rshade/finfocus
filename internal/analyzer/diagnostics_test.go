@@ -971,3 +971,116 @@ func TestAggregateRecommendations_NilCosts(t *testing.T) {
 	assert.Equal(t, "USD", agg.Currency) // Default
 	assert.False(t, agg.MixedCurrencies)
 }
+
+// Phase 5 (US3) - Carbon Equivalency Tests for Analyzer Diagnostics
+
+func TestFormatCostMessage_WithCarbonEquivalencies(t *testing.T) {
+	// T034: Test formatCostMessage displays carbon equivalencies in compact format
+	cost := engine.CostResult{
+		Monthly:  100.0,
+		Currency: "USD",
+		Adapter:  "aws-public",
+		Sustainability: map[string]engine.SustainabilityMetric{
+			"carbon_footprint": {Value: 150.0, Unit: "kg"},
+		},
+	}
+
+	msg := formatCostMessage(cost)
+
+	// Should contain cost info
+	assert.Contains(t, msg, "$100.00 USD")
+	assert.Contains(t, msg, "aws-public")
+
+	// Should contain carbon equivalencies in compact format
+	assert.Contains(t, msg, "≈")
+	assert.Contains(t, msg, "mi")
+	assert.Contains(t, msg, "phones")
+	// Should contain expected values (150/0.192 ≈ 781 miles, 150/0.00822 ≈ 18248 phones)
+	assert.Contains(t, msg, "781")
+	assert.Contains(t, msg, "18,248")
+}
+
+func TestFormatCostMessage_CompactFormatForAnalyzer(t *testing.T) {
+	// T035: Test that analyzer uses compact format (≈ X mi, Y phones)
+	cost := engine.CostResult{
+		Monthly:  50.0,
+		Currency: "USD",
+		Adapter:  "local-spec",
+		Sustainability: map[string]engine.SustainabilityMetric{
+			"carbon_footprint": {Value: 100.0, Unit: "kg"},
+		},
+	}
+
+	msg := formatCostMessage(cost)
+
+	// Compact format should use:
+	// - ≈ symbol instead of "Equivalent to"
+	// - "mi" instead of "miles driven"
+	// - "phones" instead of "smartphones charged"
+	assert.Contains(t, msg, "≈")
+	assert.Contains(t, msg, "mi")
+	assert.Contains(t, msg, "phones")
+	// Should NOT contain verbose format elements
+	assert.NotContains(t, msg, "Equivalent to")
+	assert.NotContains(t, msg, "miles driven")
+	assert.NotContains(t, msg, "smartphones charged")
+}
+
+func TestFormatCostMessage_OmitsEquivalenciesBelowThreshold(t *testing.T) {
+	// Equivalencies should be omitted when carbon is below threshold (1 kg)
+	cost := engine.CostResult{
+		Monthly:  50.0,
+		Currency: "USD",
+		Adapter:  "local-spec",
+		Sustainability: map[string]engine.SustainabilityMetric{
+			"carbon_footprint": {Value: 0.5, Unit: "kg"}, // Below 1kg threshold
+		},
+	}
+
+	msg := formatCostMessage(cost)
+
+	// Should contain carbon metric
+	assert.Contains(t, msg, "carbon_footprint")
+	// Should NOT contain equivalency text
+	assert.NotContains(t, msg, "≈")
+	assert.NotContains(t, msg, "mi")
+	assert.NotContains(t, msg, "phones")
+}
+
+func TestFormatCostMessage_OmitsEquivalenciesWhenNoCarbon(t *testing.T) {
+	// Equivalencies should be omitted when no carbon data
+	cost := engine.CostResult{
+		Monthly:  50.0,
+		Currency: "USD",
+		Adapter:  "local-spec",
+		Sustainability: map[string]engine.SustainabilityMetric{
+			"energy_consumption": {Value: 2000.0, Unit: "kWh"},
+		},
+	}
+
+	msg := formatCostMessage(cost)
+
+	// Should contain energy metric
+	assert.Contains(t, msg, "energy_consumption")
+	// Should NOT contain equivalency text
+	assert.NotContains(t, msg, "≈")
+	assert.NotContains(t, msg, "mi")
+	assert.NotContains(t, msg, "phones")
+}
+
+func TestFormatCostMessage_LargeCarbon_MillionScaling(t *testing.T) {
+	// Large carbon values should use million scaling
+	cost := engine.CostResult{
+		Monthly:  1000000.0,
+		Currency: "USD",
+		Adapter:  "enterprise",
+		Sustainability: map[string]engine.SustainabilityMetric{
+			"carbon_footprint": {Value: 10000000.0, Unit: "kg"}, // 10 million kg
+		},
+	}
+
+	msg := formatCostMessage(cost)
+
+	// Should use "million" abbreviation for large values
+	assert.Contains(t, msg, "million")
+}

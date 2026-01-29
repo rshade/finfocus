@@ -88,6 +88,24 @@ External service integration for cost data.
 ### Cost Aggregation
 Combining costs from multiple resources and/or plugins.
 
+### GreenOps (Carbon Equivalencies)
+The greenops package converts carbon footprint metrics (kg CO2e) to human-readable equivalencies using EPA formulas.
+
+**Key Files:**
+- docs/guides/greenops-equivalencies.md - User guide for carbon equivalencies
+- docs/architecture/greenops-package.md - Architecture documentation
+- internal/greenops/ - Core package with Calculate(), NormalizeToKg(), FormatLarge()
+
+**Equivalency Types:**
+1. **Miles Driven** - Carbon equivalent to driving a passenger vehicle
+2. **Smartphones Charged** - Carbon equivalent to charging smartphones
+
+**Display Features:**
+- Automatic threshold filtering (≥1 kg CO2e)
+- Large number scaling (~1.5 million format)
+- Thousand separator formatting (18,248)
+- Compact format for analyzers (≈ 781 mi, 18,248 phones)
+
 ---
 
 ## Documentation Maintenance

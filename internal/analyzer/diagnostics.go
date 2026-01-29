@@ -6,8 +6,10 @@ import (
 	"strings"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
+	"github.com/rs/zerolog/log"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/greenops"
 )
 
 // Policy pack and policy name constants for diagnostic messages.
@@ -149,6 +151,12 @@ func formatCostMessage(cost engine.CostResult) string {
 		if len(sustainParts) > 0 {
 			message += fmt.Sprintf(" [%s]", getJoinedSustainability(sustainParts))
 		}
+
+		// Add carbon equivalencies if carbon_footprint is present
+		carbonEquiv := getCarbonEquivalencyText(cost.Sustainability)
+		if carbonEquiv != "" {
+			message += " " + carbonEquiv
+		}
 	}
 
 	// Append recommendations if present (follows sustainability pattern)
@@ -161,6 +169,35 @@ func formatCostMessage(cost engine.CostResult) string {
 
 func getJoinedSustainability(parts []string) string {
 	return strings.Join(parts, ", ")
+}
+
+// getCarbonEquivalencyText returns the compact equivalency text for carbon metrics.
+// Returns empty string if no carbon data or below threshold.
+func getCarbonEquivalencyText(sustainability map[string]engine.SustainabilityMetric) string {
+	// Check canonical key first
+	metric, ok := sustainability[greenops.CarbonMetricKey]
+	if !ok {
+		// Fallback to deprecated key
+		metric, ok = sustainability[greenops.DeprecatedCarbonKey]
+	}
+
+	if !ok {
+		return ""
+	}
+
+	// Calculate equivalencies
+	input := greenops.CarbonInput{Value: metric.Value, Unit: metric.Unit}
+	output, err := greenops.Calculate(input)
+	if err != nil {
+		log.Warn().Str("unit", metric.Unit).Err(err).
+			Msg("carbon equivalency calculation failed")
+		return ""
+	}
+	if output.IsEmpty {
+		return ""
+	}
+
+	return output.CompactText
 }
 
 // maxRecommendationsToShow is the maximum number of recommendations to display

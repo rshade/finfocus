@@ -8,8 +8,10 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
+	"github.com/rs/zerolog/log"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/greenops"
 )
 
 // Layout constants.
@@ -127,6 +129,15 @@ func RenderCostSummary(results []engine.CostResult, width int) string {
 		providerParts = append(providerParts, part)
 	}
 	content.WriteString(LabelStyle.Render(strings.Join(providerParts, "  ")))
+
+	// Add carbon equivalency if present.
+	if carbonInput, found := aggregateCarbonFromResults(results); found {
+		output, err := greenops.Calculate(carbonInput)
+		if err == nil && !output.IsEmpty {
+			content.WriteString("\n")
+			content.WriteString(SubtleStyle.Render(output.DisplayText))
+		}
+	}
 
 	// Box it. Use width-2 to account for borders.
 	return BoxStyle.Width(width - borderPadding).Render(content.String())
@@ -317,6 +328,9 @@ func RenderDetailView(resource engine.CostResult, width int) string {
 		content.WriteString("\n")
 	}
 
+	// Sustainability metrics.
+	renderSustainabilitySection(&content, resource.Sustainability)
+
 	// Notes/Errors.
 	if resource.Notes != "" {
 		content.WriteString(HeaderStyle.Render("NOTES"))
@@ -338,4 +352,67 @@ func RenderLoading(loading *LoadingState) string {
 		return "Loading..."
 	}
 	return fmt.Sprintf("\n %s %s\n\n", loading.spinner.View(), loading.message)
+}
+
+// renderSustainabilitySection writes sustainability metrics to the builder.
+func renderSustainabilitySection(content *strings.Builder, sustainability map[string]engine.SustainabilityMetric) {
+	if len(sustainability) == 0 {
+		return
+	}
+
+	content.WriteString(HeaderStyle.Render("SUSTAINABILITY"))
+	content.WriteString("\n")
+
+	// Sort metric keys for deterministic output.
+	keys := make([]string, 0, len(sustainability))
+	for k := range sustainability {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		metric := sustainability[k]
+		fmt.Fprintf(content, "- %s: %.2f %s\n", k, metric.Value, metric.Unit)
+	}
+	content.WriteString("\n")
+}
+
+// aggregateCarbonFromResults extracts and sums carbon_footprint metrics from all results.
+// Returns the aggregated CarbonInput and true if carbon data was found, false otherwise.
+func aggregateCarbonFromResults(results []engine.CostResult) (greenops.CarbonInput, bool) {
+	totalCarbon := 0.0
+	unit := ""
+	found := false
+
+	for _, r := range results {
+		if r.Sustainability == nil {
+			continue
+		}
+
+		// Check for canonical key first.
+		metric, ok := r.Sustainability[greenops.CarbonMetricKey]
+		if !ok {
+			// Fallback to deprecated key.
+			metric, ok = r.Sustainability[greenops.DeprecatedCarbonKey]
+		}
+
+		if ok {
+			// Normalize to kg before summing.
+			kg, err := greenops.NormalizeToKg(metric.Value, metric.Unit)
+			if err != nil {
+				log.Warn().
+					Str("resource_type", r.ResourceType).
+					Str("resource_id", r.ResourceID).
+					Str("unit", metric.Unit).
+					Err(err).
+					Msg("skipped resource with invalid carbon unit")
+				continue
+			}
+			totalCarbon += kg
+			unit = "kg" // Always normalize to kg.
+			found = true
+		}
+	}
+
+	return greenops.CarbonInput{Value: totalCarbon, Unit: unit}, found
 }
