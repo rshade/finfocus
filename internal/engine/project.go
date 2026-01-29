@@ -7,6 +7,10 @@ import (
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/rs/zerolog/log"
+
+	"github.com/rshade/finfocus/internal/greenops"
 )
 
 // OutputFormat specifies the output format for cost results (table, JSON, NDJSON).
@@ -256,6 +260,10 @@ func renderBreakdowns(w io.Writer, aggregated *AggregatedResults) {
 // line containing the key, the summed value formatted with two decimal places, and
 // the metric unit. If no sustainability metrics are present, it writes nothing.
 //
+// When carbon_footprint metrics are present and above the display threshold,
+// it also displays real-world equivalencies (miles driven, smartphones charged)
+// using EPA-published conversion factors.
+//
 // It assumes the same unit is used for a given metric key across resources.
 func renderSustainabilitySummary(w io.Writer, aggregated *AggregatedResults) {
 	sustainTotals := make(map[string]SustainabilityMetric)
@@ -280,7 +288,39 @@ func renderSustainabilitySummary(w io.Writer, aggregated *AggregatedResults) {
 			m := sustainTotals[k]
 			fmt.Fprintf(w, "%s:\t%.2f %s\n", k, m.Value, m.Unit)
 		}
+
+		// Calculate and display carbon equivalencies if carbon_footprint is present
+		renderCarbonEquivalencies(w, sustainTotals)
+
 		fmt.Fprintf(w, "\n")
+	}
+}
+
+// renderCarbonEquivalencies calculates and displays real-world equivalencies
+// for carbon emissions using EPA conversion factors.
+//
+// If carbon_footprint is present and above the minimum threshold (1.0 kg),
+// it displays equivalencies like "Equivalent to driving ~781 miles or charging ~18,248 smartphones".
+func renderCarbonEquivalencies(w io.Writer, sustainTotals map[string]SustainabilityMetric) {
+	// Convert engine.SustainabilityMetric to greenops.SustainabilityMetric
+	greenopsMetrics := make(map[string]greenops.SustainabilityMetric, len(sustainTotals))
+	for k, m := range sustainTotals {
+		greenopsMetrics[k] = greenops.SustainabilityMetric{
+			Value: m.Value,
+			Unit:  m.Unit,
+		}
+	}
+
+	// Calculate equivalencies
+	output := greenops.CalculateFromMap(greenopsMetrics)
+
+	// Display equivalencies if available
+	if !output.IsEmpty {
+		fmt.Fprintf(w, "  %s\n", output.DisplayText)
+		log.Debug().
+			Float64("input_kg", output.InputKg).
+			Int("result_count", len(output.Results)).
+			Msg("rendered carbon equivalencies")
 	}
 }
 

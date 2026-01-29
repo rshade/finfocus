@@ -5,6 +5,9 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestRenderResults tests the main rendering dispatcher.
@@ -690,4 +693,213 @@ func TestConfidenceOmittedWhenUnknown(t *testing.T) {
 	if strings.Contains(jsonStr, `"confidence"`) {
 		t.Errorf("Expected confidence to be omitted when unknown, got: %s", jsonStr)
 	}
+}
+
+// TestRenderSustainabilitySummary_WithEquivalencies tests carbon equivalency display.
+// This test verifies User Story 1: View Carbon Equivalencies in CLI Table Output.
+func TestRenderSustainabilitySummary_WithEquivalencies(t *testing.T) {
+	// Test case from spec: 150 kg CO2e should produce equivalency text
+	aggregated := &AggregatedResults{
+		Summary: CostSummary{
+			TotalMonthly: 100.0,
+			Currency:     "USD",
+		},
+		Resources: []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-123",
+				Monthly:      100.0,
+				Currency:     "USD",
+				Sustainability: map[string]SustainabilityMetric{
+					"carbon_footprint": {Value: 150.0, Unit: "kg"},
+				},
+			},
+		},
+	}
+
+	var buf strings.Builder
+	renderSustainabilitySummary(&buf, aggregated)
+	output := buf.String()
+
+	// Verify SUSTAINABILITY SUMMARY header is present
+	assert.Contains(t, output, "SUSTAINABILITY SUMMARY")
+
+	// Verify carbon_footprint metric is displayed
+	assert.Contains(t, output, "carbon_footprint:")
+	assert.Contains(t, output, "150.00 kg")
+
+	// FR-001: Verify equivalency display text is present
+	assert.Contains(t, output, "Equivalent to")
+
+	// FR-005: Verify number formatting with separators
+	assert.Contains(t, output, "18,248") // smartphones with comma separator
+
+	// Verify miles driven is mentioned
+	assert.Contains(t, output, "miles")
+
+	// Verify smartphones charged is mentioned
+	assert.Contains(t, output, "smartphones")
+}
+
+// TestRenderSustainabilitySummary_BelowThreshold tests that equivalencies are omitted for small values.
+func TestRenderSustainabilitySummary_BelowThreshold(t *testing.T) {
+	// Carbon value below 1kg threshold should not show equivalencies
+	aggregated := &AggregatedResults{
+		Summary: CostSummary{
+			TotalMonthly: 100.0,
+			Currency:     "USD",
+		},
+		Resources: []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-123",
+				Monthly:      100.0,
+				Currency:     "USD",
+				Sustainability: map[string]SustainabilityMetric{
+					"carbon_footprint": {Value: 0.5, Unit: "kg"}, // Below threshold
+				},
+			},
+		},
+	}
+
+	var buf strings.Builder
+	renderSustainabilitySummary(&buf, aggregated)
+	output := buf.String()
+
+	// Verify SUSTAINABILITY SUMMARY is present with the metric
+	assert.Contains(t, output, "SUSTAINABILITY SUMMARY")
+	assert.Contains(t, output, "carbon_footprint:")
+
+	// Equivalencies should NOT be displayed for values below threshold
+	assert.NotContains(t, output, "Equivalent to")
+	assert.NotContains(t, output, "miles")
+}
+
+// TestRenderSustainabilitySummary_NoCarbon tests behavior when no carbon metric exists.
+func TestRenderSustainabilitySummary_NoCarbon(t *testing.T) {
+	// Only energy consumption, no carbon_footprint
+	aggregated := &AggregatedResults{
+		Summary: CostSummary{
+			TotalMonthly: 100.0,
+			Currency:     "USD",
+		},
+		Resources: []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-123",
+				Monthly:      100.0,
+				Currency:     "USD",
+				Sustainability: map[string]SustainabilityMetric{
+					"energy_consumption": {Value: 2000.0, Unit: "kWh"},
+				},
+			},
+		},
+	}
+
+	var buf strings.Builder
+	renderSustainabilitySummary(&buf, aggregated)
+	output := buf.String()
+
+	// Verify sustainability summary is present with energy metric
+	assert.Contains(t, output, "SUSTAINABILITY SUMMARY")
+	assert.Contains(t, output, "energy_consumption:")
+
+	// No equivalencies should be shown without carbon metric
+	assert.NotContains(t, output, "Equivalent to")
+}
+
+// TestRenderSustainabilitySummary_AggregatesMultipleResources tests aggregation.
+func TestRenderSustainabilitySummary_AggregatesMultipleResources(t *testing.T) {
+	// Multiple resources with carbon emissions should be aggregated
+	aggregated := &AggregatedResults{
+		Summary: CostSummary{
+			TotalMonthly: 200.0,
+			Currency:     "USD",
+		},
+		Resources: []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-123",
+				Monthly:      100.0,
+				Currency:     "USD",
+				Sustainability: map[string]SustainabilityMetric{
+					"carbon_footprint": {Value: 75.0, Unit: "kg"},
+				},
+			},
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-456",
+				Monthly:      100.0,
+				Currency:     "USD",
+				Sustainability: map[string]SustainabilityMetric{
+					"carbon_footprint": {Value: 75.0, Unit: "kg"},
+				},
+			},
+		},
+	}
+
+	var buf strings.Builder
+	renderSustainabilitySummary(&buf, aggregated)
+	output := buf.String()
+
+	// Total should be 150kg (75 + 75)
+	assert.Contains(t, output, "150.00 kg")
+
+	// Equivalencies should reflect the aggregated total
+	assert.Contains(t, output, "Equivalent to")
+}
+
+// TestRenderSustainabilitySummary_LargeValues tests large number formatting.
+func TestRenderSustainabilitySummary_LargeValues(t *testing.T) {
+	// Large carbon value should use million/billion scaling
+	aggregated := &AggregatedResults{
+		Summary: CostSummary{
+			TotalMonthly: 100000.0,
+			Currency:     "USD",
+		},
+		Resources: []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-123",
+				Monthly:      100000.0,
+				Currency:     "USD",
+				Sustainability: map[string]SustainabilityMetric{
+					"carbon_footprint": {Value: 10000000.0, Unit: "kg"}, // 10 million kg
+				},
+			},
+		},
+	}
+
+	var buf strings.Builder
+	renderSustainabilitySummary(&buf, aggregated)
+	output := buf.String()
+
+	// Large values should use "million" scaling
+	assert.Contains(t, output, "million")
+}
+
+// TestRenderSustainabilitySummary_GracefulDegradation tests error handling.
+func TestRenderSustainabilitySummary_GracefulDegradation(t *testing.T) {
+	// Empty sustainability data should not crash
+	aggregated := &AggregatedResults{
+		Summary: CostSummary{
+			TotalMonthly: 100.0,
+			Currency:     "USD",
+		},
+		Resources: []CostResult{
+			{
+				ResourceType:   "aws:ec2:Instance",
+				ResourceID:     "i-123",
+				Monthly:        100.0,
+				Currency:       "USD",
+				Sustainability: nil, // No sustainability data
+			},
+		},
+	}
+
+	var buf strings.Builder
+	// Should not panic
+	require.NotPanics(t, func() {
+		renderSustainabilitySummary(&buf, aggregated)
+	})
 }
