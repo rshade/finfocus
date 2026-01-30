@@ -8,8 +8,8 @@ The go.mod file manages Go module dependencies and version requirements.
 
 ## Go Version Management:
 
-- **Current version**: Go 1.25.5
-- **Compatibility**: Ensure all dependencies support Go 1.25.5
+- **Current version**: Go 1.25.6
+- **Compatibility**: Ensure all dependencies support Go 1.25.6
 - **Updates**: Update version consistently across all documentation
 
 ## Dependency Management:

@@ -17,7 +17,7 @@ Implement comprehensive integration tests for the `--filter` flag across `cost p
   the iteration process.
 -->
 
-**Language/Version**: Go 1.25.5 (from AGENTS.md and go.mod)
+**Language/Version**: Go 1.25.6 (from AGENTS.md and go.mod)
 **Primary Dependencies**: Existing CLI infrastructure (`internal/cli/`, `internal/engine/`), test helpers (`test/integration/helpers/`)
 **Storage**: N/A (CLI tool processing JSON files)
 **Testing**: Go testing framework with testify assertions (existing pattern in test/integration/cli/)

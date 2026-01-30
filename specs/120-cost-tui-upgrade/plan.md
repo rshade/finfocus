@@ -13,7 +13,7 @@ resource tables, detail views, and loading states.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**:
 
 - `github.com/charmbracelet/bubbletea` v1.2.4 (already transitive, promote to direct)

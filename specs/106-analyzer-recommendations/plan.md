@@ -20,7 +20,7 @@ include recommendations. The analyzer must:
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: github.com/rshade/finfocus-spec v0.4.10 (pluginsdk,
 protobuf types), github.com/pulumi/pulumi/sdk/v3 (Analyzer protocol)
 **Storage**: N/A (display-only feature)

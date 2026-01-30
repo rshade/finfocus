@@ -11,7 +11,7 @@ Rename the entire `finfocus` ecosystem to `finfocus`. This includes renaming the
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: `github.com/spf13/cobra` (CLI), `github.com/spf13/viper` (Config), `github.com/rshade/finfocus-spec` (renamed from `finfocus-spec`)
 **Storage**: Filesystem (`~/.finfocus/config.yaml`, `~/.finfocus/plugins/`)
 **Testing**: Go standard library testing + `testify`

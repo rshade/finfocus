@@ -9,7 +9,7 @@ Add fallback behavior to `finfocus plugin install` when a requested version lack
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: Cobra v1.10.2 (CLI), golang.org/x/term (TTY detection), existing `internal/registry` and `internal/tui` packages
 **Storage**: N/A (stateless CLI feature)
 **Testing**: Go testing + testify, existing test infrastructure in `test/unit/`, `test/integration/`

@@ -9,7 +9,7 @@ Integrate `pluginsdk.ValidateProjectedCostRequest()` and `pluginsdk.ValidateActu
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: github.com/rshade/finfocus-spec/sdk/go/pluginsdk v0.4.11+, zerolog v1.34.0
 **Storage**: N/A (validation is stateless)
 **Testing**: go test with table-driven tests, mock clients

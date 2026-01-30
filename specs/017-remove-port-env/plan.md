@@ -9,7 +9,7 @@ Remove the legacy `PORT` environment variable from plugin process spawning in `i
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: github.com/rshade/finfocus-spec v0.4.1 (pluginsdk), google.golang.org/grpc v1.77.0
 **Storage**: N/A
 **Testing**: go test (stdlib), github.com/stretchr/testify

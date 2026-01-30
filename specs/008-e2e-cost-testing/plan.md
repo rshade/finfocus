@@ -15,7 +15,7 @@ Implement an End-to-End (E2E) testing framework for FinFocus using the Pulumi Au
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**:
 
 - `github.com/pulumi/pulumi-aws/sdk/v7` (AWS Provider v7)

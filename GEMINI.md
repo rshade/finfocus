@@ -3,29 +3,29 @@
 Auto-generated from all feature plans. Last updated: 2026-01-12
 
 ## Active Technologies
-- Go 1.25.5 + `github.com/spf13/cobra` (CLI), `github.com/spf13/viper` (Config), `github.com/rshade/finfocus-spec` (renamed from `finfocus-spec`) (113-rebrand-to-finfocus)
+- Go 1.25.6 + `github.com/spf13/cobra` (CLI), `github.com/spf13/viper` (Config), `github.com/rshade/finfocus-spec` (renamed from `finfocus-spec`) (113-rebrand-to-finfocus)
 - Filesystem (`~/.finfocus/config.yaml`, `~/.finfocus/plugins/`) (113-rebrand-to-finfocus)
 - Filesystem (Plugin directories) (115-v021-dx-improvements)
 - Markdown (GFM), Mermaid (for diagrams) + Jekyll (for site generation), mermaid.js (for rendering diagrams) (118-e2e-plugin-docs)
-- Go 1.25.5 + `github.com/charmbracelet/lipgloss`, `golang.org/x/term`, `github.com/spf13/viper` (existing config), `github.com/spf13/cobra` (existing CLI) (001-cli-budget-alerts)
+- Go 1.25.6 + `github.com/charmbracelet/lipgloss`, `golang.org/x/term`, `github.com/spf13/viper` (existing config), `github.com/spf13/cobra` (existing CLI) (001-cli-budget-alerts)
 - Local filesystem (`~/.finfocus/config.yaml`) (001-cli-budget-alerts)
 
-- Markdown, Go 1.25.5 (for code verification) + Jekyll (for docs site), GitHub Pages (010-sync-docs-codebase)
+- Markdown, Go 1.25.6 (for code verification) + Jekyll (for docs site), GitHub Pages (010-sync-docs-codebase)
 - Git repository (docs folder) (010-sync-docs-codebase)
 - Pulumi Analyzer integration (finfocus analyzer serve)
 - Plugin management commands (finfocus plugin init/install/update/remove)
 - GitHub Actions, `gh` CLI, OpenCode CLI/API (019-nightly-failure-analysis)
-- Go 1.25.5 + `github.com/stretchr/testify` (assertions), `net/http/httptest` (mocking) (021-plugin-integration-tests)
+- Go 1.25.6 + `github.com/stretchr/testify` (assertions), `net/http/httptest` (mocking) (021-plugin-integration-tests)
 - Filesystem (mocked via `t.TempDir()`) (021-plugin-integration-tests)
-- Go 1.25.5 + `github.com/spf13/cobra` (CLI), `github.com/spf13/pflag` (023-add-cli-filter-flag)
+- Go 1.25.6 + `github.com/spf13/cobra` (CLI), `github.com/spf13/pflag` (023-add-cli-filter-flag)
 - Pure Go (no external dependencies for filter logic) (023-add-cli-filter-flag)
-- Go 1.25.5 + `github.com/Masterminds/semver/v3` (001-latest-plugin-version)
+- Go 1.25.6 + `github.com/Masterminds/semver/v3` (001-latest-plugin-version)
 - Filesystem (`~/.finfocus/plugins/`) (001-latest-plugin-version)
-- Go 1.25.5 + github.com/rshade/finfocus-spec v0.4.14, github.com/Masterminds/semver/v3 (112-plugin-info-discovery)
+- Go 1.25.6 + github.com/rshade/finfocus-spec v0.4.14, github.com/Masterminds/semver/v3 (112-plugin-info-discovery)
 
 - Local Pulumi state (ephemeral), no persistent DB (Stateless operation). (008-e2e-cost-testing, 009-analyzer-plugin, 112-plugin-info-discovery)
 
-- Go 1.25.5
+- Go 1.25.6
 - `github.com/rshade/finfocus-spec`
 - `google.golang.org/grpc` (002-implement-supports-handler)
 
@@ -66,7 +66,7 @@ finfocus analyzer serve
 
 ## Code Style
 
-Go 1.25.5: Follow standard conventions
+Go 1.25.6: Follow standard conventions
 
 ## Documentation Standards
 
@@ -194,7 +194,7 @@ import (
 - **Property Extraction**: Core (`adapter.go`) relies on populated `Inputs` to extract SKU and Region. If `Inputs` are empty (due to ingest issues), pricing lookup fails.
 
 ## Recent Changes
-- 001-cli-budget-alerts: Added Go 1.25.5 + `github.com/charmbracelet/lipgloss`, `golang.org/x/term`, `github.com/spf13/viper` (existing config), `github.com/spf13/cobra` (existing CLI)
+- 001-cli-budget-alerts: Added Go 1.25.6 + `github.com/charmbracelet/lipgloss`, `golang.org/x/term`, `github.com/spf13/viper` (existing config), `github.com/spf13/cobra` (existing CLI)
 - 118-e2e-plugin-docs: Added Markdown (GFM), Mermaid (for diagrams) + Jekyll (for site generation), mermaid.js (for rendering diagrams)
 
 
@@ -210,12 +210,12 @@ Based on recent development sessions, consider adding:
 - **Version Consistency**: When updating Go versions, update both `go.mod` and ALL markdown files simultaneously
 - **Search Pattern**: Use `grep "Go.*1\." --include="*.md"` to find all version references in documentation
 - **Files to Check**: go.mod, all .md files in docs/, specs/, examples/, and root-level documentation
-- **Docker Images**: Update Docker base images (e.g., `golang:1.24` → `golang:1.25.5`) in documentation examples
+- **Docker Images**: Update Docker base images (e.g., `golang:1.24` → `golang:1.25.6`) in documentation examples
 
 ### Systematic Version Updates
 
 - **Process**: 1) Update go.mod first, 2) Find all references with grep, 3) Update each file systematically, 4) Verify with final grep search
-- **Common Patterns**: Update both specific versions (1.24.10 → 1.25.5) and minimum requirements (Go 1.24+ → Go 1.25.5+)
+- **Common Patterns**: Update both specific versions (1.24.10 → 1.25.6) and minimum requirements (Go 1.24+ → Go 1.25.6+)
 - **CI Workflows**: Update GitHub Actions go-version parameters in documentation examples
 
 This ensures complete version consistency across the entire codebase and documentation.

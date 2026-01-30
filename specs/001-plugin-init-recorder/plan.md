@@ -9,7 +9,7 @@ Deliver a recorder-compatible plugin initialization flow that fetches canonical 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5  
+**Language/Version**: Go 1.25.6  
 **Primary Dependencies**: finfocus-spec SDK, Cobra CLI, zerolog, gRPC, pluginsdk  
 **Storage**: Local filesystem for fixture downloads and recorded request output  
 **Testing**: go test, testify/assert + require, make test, make lint  

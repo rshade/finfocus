@@ -9,7 +9,7 @@ This feature implements the consumer-side requirements for `GetPluginInfo` and `
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: github.com/rshade/finfocus-spec v0.4.14, github.com/Masterminds/semver/v3
 **Storage**: N/A (Stateless CLI)
 **Testing**: go test, testify

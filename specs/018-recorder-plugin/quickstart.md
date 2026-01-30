@@ -6,7 +6,7 @@ This guide shows how to build, install, and use the Recorder plugin to inspect g
 
 ## Prerequisites
 
-- Go 1.25.5+
+- Go 1.25.6+
 - finfocus-core built (`make build`)
 - A Pulumi plan JSON file (optional, for testing)
 

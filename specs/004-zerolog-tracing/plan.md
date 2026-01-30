@@ -12,7 +12,7 @@ configurable log levels, JSON/console output formats, and a `--debug` CLI flag.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: github.com/rs/zerolog v1.34.0, github.com/oklog/ulid/v2 (for trace IDs)
 **Storage**: N/A (logs to stderr/file, no persistence)
 **Testing**: go test with -race flag, testify assertions

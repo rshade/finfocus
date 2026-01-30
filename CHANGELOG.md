@@ -121,7 +121,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 * **deps:** update go dependencies ([#314](https://github.com/rshade/finfocus/issues/314)) ([c09f298](https://github.com/rshade/finfocus/commit/c09f298281c8b7e18d47fe086dd6fb5d921fd571))
 * **deps:** update module github.com/rshade/finfocus-spec to v0.4.3 ([#211](https://github.com/rshade/finfocus/issues/211)) ([4cb56d9](https://github.com/rshade/finfocus/commit/4cb56d928ab0b5887fd2fc56c182383d9eedfffe))
 * **deps:** update module github.com/spf13/cobra to v1.10.2 ([#240](https://github.com/rshade/finfocus/issues/240)) ([ad3bfd7](https://github.com/rshade/finfocus/commit/ad3bfd7b92d189a912dbae3ae10bbda2067e6bf2))
-* update Go version to 1.25.5 and improve plugin integration tests ([#244](https://github.com/rshade/finfocus/issues/244)) ([4f383df](https://github.com/rshade/finfocus/commit/4f383df0df1e1d4d3d23259adef8eb29d6ea41e9))
+* update Go version to 1.25.6 and improve plugin integration tests ([#244](https://github.com/rshade/finfocus/issues/244)) ([4f383df](https://github.com/rshade/finfocus/commit/4f383df0df1e1d4d3d23259adef8eb29d6ea41e9))
 
 
 ### Changed

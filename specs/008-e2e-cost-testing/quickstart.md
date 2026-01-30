@@ -4,7 +4,7 @@ This guide explains how to run the End-to-End (E2E) cost validation tests for Fi
 
 ## Prerequisites
 
-1. **Go 1.25.5+** installed.
+1. **Go 1.25.6+** installed.
 2. **Pulumi CLI** installed.
 3. **AWS Credentials** configured in your environment:
    - `AWS_ACCESS_KEY_ID`

@@ -75,7 +75,7 @@ jsonStr := fmt.Sprintf(`{"steps": [%s]}`, strings.Join(resources, ","))
 **Key Patterns from Existing Workflows**:
 
 1. Use `actions/checkout@v6` with path separation for multiple repos
-2. Use `actions/setup-go@v6` with `go-version: '1.25.5'` and `cache: true`
+2. Use `actions/setup-go@v6` with `go-version: '1.25.6'` and `cache: true`
 3. Use `actions/github-script@v8` for issue creation on failure
 4. Set `permissions: { contents: read, issues: write }`
 
