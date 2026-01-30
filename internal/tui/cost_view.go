@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"sort"
@@ -8,10 +9,10 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/rs/zerolog/log"
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/greenops"
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // Layout constants.
@@ -71,8 +72,13 @@ func extractProvider(resourceType string) string {
 	return "unknown"
 }
 
-// RenderCostSummary renders a styled summary of the cost results using Lip Gloss.
-func RenderCostSummary(results []engine.CostResult, width int) string {
+// RenderCostSummary renders a boxed, styled cost summary for the provided cost results.
+// It aggregates costs per provider (using `TotalCost` when > 0, otherwise `Monthly`), computes the overall total and resource count, and lists providers sorted by descending cost share.
+// If aggregated carbon data is available it appends a carbon-equivalency line.
+// The width parameter controls the total box width used for rendering.
+// If results is empty, the function returns a "No results to display." message.
+// The ctx parameter enables trace ID propagation for contextual logging.
+func RenderCostSummary(ctx context.Context, results []engine.CostResult, width int) string {
 	if len(results) == 0 {
 		return InfoStyle.Render("No results to display.")
 	}
@@ -131,8 +137,8 @@ func RenderCostSummary(results []engine.CostResult, width int) string {
 	content.WriteString(LabelStyle.Render(strings.Join(providerParts, "  ")))
 
 	// Add carbon equivalency if present.
-	if carbonInput, found := aggregateCarbonFromResults(results); found {
-		output, err := greenops.Calculate(carbonInput)
+	if carbonInput, found := aggregateCarbonFromResults(ctx, results); found {
+		output, err := greenops.Calculate(ctx, carbonInput)
 		if err == nil && !output.IsEmpty {
 			content.WriteString("\n")
 			content.WriteString(SubtleStyle.Render(output.DisplayText))
@@ -259,7 +265,13 @@ func NewAggregationTable(aggs []engine.CrossProviderAggregation, height int) tab
 	return t
 }
 
-// RenderDetailView renders the detailed view for a single resource.
+// RenderDetailView renders a boxed, human-readable detail view for the given resource.
+// It includes resource ID, type, provider, cost (total or monthly/hourly), an optional period,
+// delta (shown only when its magnitude exceeds deltaEpsilon), a sorted breakdown section,
+// a sustainability section when metrics are present, and a notes section where messages
+// prefixed with "ERROR:" are rendered with critical styling.
+// The resulting content is wrapped to the provided width (accounting for border padding)
+// and returned as a string.
 func RenderDetailView(resource engine.CostResult, width int) string {
 	var content strings.Builder
 
@@ -346,7 +358,9 @@ func RenderDetailView(resource engine.CostResult, width int) string {
 	return BoxStyle.Width(width - borderPadding).Render(content.String())
 }
 
-// RenderLoading renders the loading screen with spinner.
+// RenderLoading returns the string to display for a loading screen.
+// If loading is nil, it returns the plain text "Loading...". Otherwise it
+// returns a string combining the loading spinner view and the loading message.
 func RenderLoading(loading *LoadingState) string {
 	if loading == nil {
 		return "Loading..."
@@ -354,7 +368,17 @@ func RenderLoading(loading *LoadingState) string {
 	return fmt.Sprintf("\n %s %s\n\n", loading.spinner.View(), loading.message)
 }
 
-// renderSustainabilitySection writes sustainability metrics to the builder.
+// renderSustainabilitySection writes a "SUSTAINABILITY" section to content when sustainability
+// metrics are present.
+//
+// The section begins with a header and a newline, followed by one line per metric in the
+// form "- <name>: <value> <unit>" where value is formatted with two decimal places. Metric
+// keys are rendered in sorted order for deterministic output. If the sustainability map is
+// empty the function returns without writing anything.
+//
+// Parameters:
+//   - content: destination builder to which the section will be written.
+//   - sustainability: map of metric name to SustainabilityMetric to render.
 func renderSustainabilitySection(content *strings.Builder, sustainability map[string]engine.SustainabilityMetric) {
 	if len(sustainability) == 0 {
 		return
@@ -378,10 +402,15 @@ func renderSustainabilitySection(content *strings.Builder, sustainability map[st
 }
 
 // aggregateCarbonFromResults extracts and sums carbon_footprint metrics from all results.
-// Returns the aggregated CarbonInput and true if carbon data was found, false otherwise.
-func aggregateCarbonFromResults(results []engine.CostResult) (greenops.CarbonInput, bool) {
+// aggregateCarbonFromResults aggregates carbon footprint metrics from the given cost results.
+// It scans each result's Sustainability map for the canonical carbon metric key or a deprecated
+// fallback, normalizes found values to kilograms, and sums them.
+// ctx enables trace ID propagation for warning logs.
+// Invalid or unnormalizable units are logged and skipped.
+// It returns a CarbonInput containing the total carbon in kilograms and `true` if any carbon
+// data was found; otherwise it returns a zero-value CarbonInput and `false`.
+func aggregateCarbonFromResults(ctx context.Context, results []engine.CostResult) (greenops.CarbonInput, bool) {
 	totalCarbon := 0.0
-	unit := ""
 	found := false
 
 	for _, r := range results {
@@ -400,18 +429,24 @@ func aggregateCarbonFromResults(results []engine.CostResult) (greenops.CarbonInp
 			// Normalize to kg before summing.
 			kg, err := greenops.NormalizeToKg(metric.Value, metric.Unit)
 			if err != nil {
-				log.Warn().
+				logging.FromContext(ctx).Warn().
+					Ctx(ctx).
 					Str("resource_type", r.ResourceType).
 					Str("resource_id", r.ResourceID).
 					Str("unit", metric.Unit).
 					Err(err).
-					Msg("skipped resource with invalid carbon unit")
+					Msg("skipped resource due to NormalizeToKg error")
 				continue
 			}
 			totalCarbon += kg
-			unit = "kg" // Always normalize to kg.
 			found = true
 		}
+	}
+
+	// Always use kg as we normalize all values to kilograms.
+	unit := ""
+	if found {
+		unit = "kg"
 	}
 
 	return greenops.CarbonInput{Value: totalCarbon, Unit: unit}, found

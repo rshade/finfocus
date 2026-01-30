@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -84,6 +85,7 @@ type CostViewModel struct {
 	state      ViewState
 	allResults []engine.CostResult // All loaded results (source of truth)
 	results    []engine.CostResult // Currently visible (filtered/sorted)
+	ctx        context.Context     // Context for trace ID propagation
 
 	// Interactive components
 	table     table.Model
@@ -118,11 +120,13 @@ func newTextInput() textinput.Model {
 }
 
 // NewCostViewModel creates a new model with the given results.
-func NewCostViewModel(results []engine.CostResult) *CostViewModel {
+// The ctx parameter enables trace ID propagation for contextual logging.
+func NewCostViewModel(ctx context.Context, results []engine.CostResult) *CostViewModel {
 	m := &CostViewModel{
 		state:      ViewStateList,
 		allResults: results,
 		results:    results,
+		ctx:        ctx,
 		table:      NewResultTable(results, defaultHeight),
 		textInput:  newTextInput(),
 	}
@@ -131,10 +135,12 @@ func NewCostViewModel(results []engine.CostResult) *CostViewModel {
 }
 
 // NewCostViewModelWithLoading creates a model that starts in loading state.
-func NewCostViewModelWithLoading(fetcher func() ([]engine.CostResult, error)) *CostViewModel {
+// The ctx parameter enables trace ID propagation for contextual logging.
+func NewCostViewModelWithLoading(ctx context.Context, fetcher func() ([]engine.CostResult, error)) *CostViewModel {
 	m := &CostViewModel{
 		state:     ViewStateLoading,
 		loading:   NewLoadingState(),
+		ctx:       ctx,
 		textInput: newTextInput(),
 		fetchCmd: func() tea.Msg {
 			res, err := fetcher()
@@ -145,11 +151,17 @@ func NewCostViewModelWithLoading(fetcher func() ([]engine.CostResult, error)) *C
 }
 
 // NewCostViewModelFromActual creates a new model for actual costs.
-func NewCostViewModelFromActual(results []engine.CostResult, groupBy engine.GroupBy) *CostViewModel {
+// The ctx parameter enables trace ID propagation for contextual logging.
+func NewCostViewModelFromActual(
+	ctx context.Context,
+	results []engine.CostResult,
+	groupBy engine.GroupBy,
+) *CostViewModel {
 	m := &CostViewModel{
 		state:      ViewStateList,
 		allResults: results,
 		results:    results,
+		ctx:        ctx,
 		groupBy:    groupBy,
 		isActual:   true,
 		textInput:  newTextInput(),
@@ -387,7 +399,7 @@ func (m *CostViewModel) View() string {
 }
 
 func (m *CostViewModel) renderListView() string {
-	summary := RenderCostSummary(m.results, m.width)
+	summary := RenderCostSummary(m.ctx, m.results, m.width)
 	tableView := m.table.View()
 
 	if m.showFilter {

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"strings"
@@ -718,7 +719,7 @@ func TestRenderSustainabilitySummary_WithEquivalencies(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	renderSustainabilitySummary(&buf, aggregated)
+	renderSustainabilitySummary(context.Background(), &buf, aggregated)
 	output := buf.String()
 
 	// Verify SUSTAINABILITY SUMMARY header is present
@@ -763,7 +764,7 @@ func TestRenderSustainabilitySummary_BelowThreshold(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	renderSustainabilitySummary(&buf, aggregated)
+	renderSustainabilitySummary(context.Background(), &buf, aggregated)
 	output := buf.String()
 
 	// Verify SUSTAINABILITY SUMMARY is present with the metric
@@ -797,7 +798,7 @@ func TestRenderSustainabilitySummary_NoCarbon(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	renderSustainabilitySummary(&buf, aggregated)
+	renderSustainabilitySummary(context.Background(), &buf, aggregated)
 	output := buf.String()
 
 	// Verify sustainability summary is present with energy metric
@@ -839,7 +840,7 @@ func TestRenderSustainabilitySummary_AggregatesMultipleResources(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	renderSustainabilitySummary(&buf, aggregated)
+	renderSustainabilitySummary(context.Background(), &buf, aggregated)
 	output := buf.String()
 
 	// Total should be 150kg (75 + 75)
@@ -871,7 +872,7 @@ func TestRenderSustainabilitySummary_LargeValues(t *testing.T) {
 	}
 
 	var buf strings.Builder
-	renderSustainabilitySummary(&buf, aggregated)
+	renderSustainabilitySummary(context.Background(), &buf, aggregated)
 	output := buf.String()
 
 	// Large values should use "million" scaling
@@ -900,6 +901,6 @@ func TestRenderSustainabilitySummary_GracefulDegradation(t *testing.T) {
 	var buf strings.Builder
 	// Should not panic
 	require.NotPanics(t, func() {
-		renderSustainabilitySummary(&buf, aggregated)
+		renderSustainabilitySummary(context.Background(), &buf, aggregated)
 	})
 }

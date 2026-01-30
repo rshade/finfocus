@@ -995,8 +995,8 @@ func TestFormatCostMessage_WithCarbonEquivalencies(t *testing.T) {
 	assert.Contains(t, msg, "≈")
 	assert.Contains(t, msg, "mi")
 	assert.Contains(t, msg, "phones")
-	// Should contain expected values (150/0.192 ≈ 781 miles, 150/0.00822 ≈ 18248 phones)
-	assert.Contains(t, msg, "781")
+	// Should contain expected values (150/0.393 ≈ 382 miles, 150/0.00822 ≈ 18248 phones)
+	assert.Contains(t, msg, "382")
 	assert.Contains(t, msg, "18,248")
 }
 

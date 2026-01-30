@@ -1,8 +1,11 @@
 package greenops
 
 import (
+	"bytes"
+	"context"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -24,7 +27,7 @@ func TestCalculate(t *testing.T) {
 		{
 			name:           "150kg reference value - miles",
 			input:          CarbonInput{Value: 150.0, Unit: "kg"},
-			wantMiles:      781.25, // 150 / 0.192 = 781.25
+			wantMiles:      381.68, // 150 / 0.393 = 381.68
 			wantPhones:     18248.18,
 			wantIsEmpty:    false,
 			checkDisplay:   true,
@@ -34,7 +37,7 @@ func TestCalculate(t *testing.T) {
 		{
 			name:           "150kg reference value - smartphones",
 			input:          CarbonInput{Value: 150.0, Unit: "kg"},
-			wantMiles:      781.25,
+			wantMiles:      381.68,
 			wantPhones:     18248.18, // 150 / 0.00822 = 18248.18
 			wantIsEmpty:    false,
 			checkDisplay:   true,
@@ -45,14 +48,14 @@ func TestCalculate(t *testing.T) {
 		{
 			name:        "grams normalized correctly",
 			input:       CarbonInput{Value: 150000.0, Unit: "g"},
-			wantMiles:   781.25,
+			wantMiles:   381.68,
 			wantPhones:  18248.18,
 			wantIsEmpty: false,
 		},
 		{
 			name:        "metric tons normalized correctly",
 			input:       CarbonInput{Value: 0.15, Unit: "t"},
-			wantMiles:   781.25,
+			wantMiles:   381.68,
 			wantPhones:  18248.18,
 			wantIsEmpty: false,
 		},
@@ -65,8 +68,8 @@ func TestCalculate(t *testing.T) {
 		{
 			name:        "exactly at threshold",
 			input:       CarbonInput{Value: 1.0, Unit: "kg"},
-			wantMiles:   5.208333, // 1 / 0.192
-			wantPhones:  121.65,   // 1 / 0.00822
+			wantMiles:   2.544,  // 1 / 0.393
+			wantPhones:  121.65, // 1 / 0.00822
 			wantIsEmpty: false,
 		},
 		{
@@ -90,7 +93,7 @@ func TestCalculate(t *testing.T) {
 		{
 			name:        "large value (1 million kg)",
 			input:       CarbonInput{Value: 1000000.0, Unit: "kg"},
-			wantMiles:   5208333.33, // ~5.2 million miles
+			wantMiles:   2544529.26, // ~2.5 million miles
 			wantPhones:  121654501.22,
 			wantIsEmpty: false,
 		},
@@ -98,7 +101,7 @@ func TestCalculate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Calculate(tt.input)
+			got, err := Calculate(context.Background(), tt.input)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -154,7 +157,7 @@ func TestCalculateFromMap(t *testing.T) {
 			metrics: map[string]SustainabilityMetric{
 				"carbon_footprint": {Value: 150.0, Unit: "kg"},
 			},
-			wantMiles:   781.25,
+			wantMiles:   381.68,
 			wantIsEmpty: false,
 		},
 		{
@@ -162,7 +165,7 @@ func TestCalculateFromMap(t *testing.T) {
 			metrics: map[string]SustainabilityMetric{
 				"gCO2e": {Value: 150.0, Unit: "kg"},
 			},
-			wantMiles:   781.25,
+			wantMiles:   381.68,
 			wantIsEmpty: false,
 		},
 		{
@@ -171,7 +174,7 @@ func TestCalculateFromMap(t *testing.T) {
 				"carbon_footprint": {Value: 150.0, Unit: "kg"},
 				"gCO2e":            {Value: 300.0, Unit: "kg"}, // Should be ignored
 			},
-			wantMiles:   781.25, // Uses carbon_footprint value
+			wantMiles:   381.68, // Uses carbon_footprint value
 			wantIsEmpty: false,
 		},
 		{
@@ -202,7 +205,7 @@ func TestCalculateFromMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CalculateFromMap(tt.metrics)
+			got := CalculateFromMap(context.Background(), tt.metrics)
 
 			if tt.wantIsEmpty {
 				assert.True(t, got.IsEmpty, "expected IsEmpty to be true")
@@ -222,7 +225,7 @@ func TestCalculateFromMap(t *testing.T) {
 func TestCalculate_DisplayTextFormat(t *testing.T) {
 	// Test display text formatting per FR-003 and FR-007
 	input := CarbonInput{Value: 150.0, Unit: "kg"}
-	got, err := Calculate(input)
+	got, err := Calculate(context.Background(), input)
 	require.NoError(t, err)
 
 	// FR-003: Must use "Equivalent to" or "Approx." labeling
@@ -243,7 +246,7 @@ func TestCalculate_DisplayTextFormat(t *testing.T) {
 func TestCalculate_LargeNumberFormatting(t *testing.T) {
 	// Test large number scaling per research.md thresholds
 	input := CarbonInput{Value: 10000000.0, Unit: "kg"} // 10 million kg
-	got, err := Calculate(input)
+	got, err := Calculate(context.Background(), input)
 	require.NoError(t, err)
 
 	// Should use "million" scaling for large values
@@ -253,7 +256,7 @@ func TestCalculate_LargeNumberFormatting(t *testing.T) {
 func TestCalculate_VeryLargeNumberFormatting(t *testing.T) {
 	// Test billion-scale formatting
 	input := CarbonInput{Value: 1000000000.0, Unit: "kg"} // 1 billion kg
-	got, err := Calculate(input)
+	got, err := Calculate(context.Background(), input)
 	require.NoError(t, err)
 
 	// Should use "billion" scaling
@@ -263,17 +266,46 @@ func TestCalculate_VeryLargeNumberFormatting(t *testing.T) {
 // Benchmarks for equivalency calculations
 
 func BenchmarkCalculate(b *testing.B) {
+	ctx := context.Background()
 	input := CarbonInput{Value: 150.0, Unit: "kg"}
 	for b.Loop() {
-		_, _ = Calculate(input)
+		_, _ = Calculate(ctx, input)
 	}
 }
 
 func BenchmarkCalculateFromMap(b *testing.B) {
+	ctx := context.Background()
 	metrics := map[string]SustainabilityMetric{
 		"carbon_footprint": {Value: 150.0, Unit: "kg"},
 	}
 	for b.Loop() {
-		_ = CalculateFromMap(metrics)
+		_ = CalculateFromMap(ctx, metrics)
 	}
+}
+
+// TestCalculateFromMap_DeprecationWarning verifies that using the deprecated 'gCO2e' key
+// logs a deprecation warning per FR-009.
+func TestCalculateFromMap_DeprecationWarning(t *testing.T) {
+	// Capture log output by creating a context with a logger that writes to a buffer.
+	var buf bytes.Buffer
+	logger := zerolog.New(&buf)
+	ctx := logger.WithContext(context.Background())
+
+	// Use deprecated key
+	metrics := map[string]SustainabilityMetric{
+		"gCO2e": {Value: 150.0, Unit: "kg"},
+	}
+
+	got := CalculateFromMap(ctx, metrics)
+
+	// Verify calculation still succeeds
+	assert.False(t, got.IsEmpty)
+	require.Len(t, got.Results, 2)
+	assert.InDelta(t, 381.68, got.Results[0].Value, 381.68*0.01)
+
+	// Verify deprecation warning was logged
+	logOutput := buf.String()
+	assert.Contains(t, logOutput, "deprecated")
+	assert.Contains(t, logOutput, "gCO2e")
+	assert.Contains(t, logOutput, "carbon_footprint")
 }

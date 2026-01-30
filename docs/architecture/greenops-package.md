@@ -1,4 +1,10 @@
-# GreenOps Package Architecture
+---
+layout: default
+title: GreenOps Package Architecture
+description: Internal greenops package for carbon equivalency calculations
+parent: Architecture
+nav_order: 5
+---
 
 The `internal/greenops/` package provides carbon emission equivalency calculations
 for FinFocus, converting abstract CO2e values into human-readable comparisons.
@@ -62,7 +68,7 @@ type EquivalencyResult struct {
 ```go
 // EPA formula constants (2024 edition)
 const (
-    EPAMilesDrivenFactor      = 0.192   // kg CO2e per mile
+    EPAMilesDrivenFactor      = 0.393   // kg CO2e per mile (8.89÷22.8×1.006)
     EPASmartphoneChargeFactor = 0.00822 // kg CO2e per charge
     EPATreeSeedlingFactor     = 60.0    // kg absorbed per tree/10yr
     EPAHomeDayFactor          = 18.3    // kg per day US home
@@ -138,15 +144,15 @@ func FormatLarge(n float64) string
          │
          ▼
 ┌─────────────────┐     ┌──────────────────────┐
-│  EPA Formulas   │────►│ Miles: 150/0.192     │
+│  EPA Formulas   │────►│ Miles: 150/0.393     │
 │                 │     │ Phones: 150/0.00822  │
 └────────┬────────┘     └──────────────────────┘
          │
          ▼
 ┌─────────────────┐     ┌──────────────────────────────────────┐
-│  Format Values  │────►│ FormattedValue: "781", "18,248"      │
+│  Format Values  │────►│ FormattedValue: "382", "18,248"      │
 │                 │     │ DisplayText: "Equivalent to..."     │
-└────────┬────────┘     │ CompactText: "(≈ 781 mi, 18,248...)" │
+└────────┬────────┘     │ CompactText: "(≈ 382 mi, 18,248...)" │
          │              └──────────────────────────────────────┘
          ▼
 ┌─────────────────┐

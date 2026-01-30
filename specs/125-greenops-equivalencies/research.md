@@ -31,7 +31,7 @@ This document captures research findings and technology decisions for implementi
 
 | Equivalency | Formula | Source |
 |-------------|---------|--------|
-| Miles driven | `kg_CO2e / 0.192` | Average passenger vehicle (8.89 kg CO2/gallon × 21.6 mpg) |
+| Miles driven | `kg_CO2e / 0.393` | Average passenger vehicle (8.89 kg CO2/gallon ÷ 22.8 mpg × GHG adj) |
 | Smartphones charged | `kg_CO2e / 0.00822` | Average smartphone charge (8.22 g CO2) |
 | Tree seedlings grown 10 years | `kg_CO2e / 60.0` | Urban tree carbon sequestration |
 | Home electricity (days) | `kg_CO2e / 18.3` | Average US home daily consumption |

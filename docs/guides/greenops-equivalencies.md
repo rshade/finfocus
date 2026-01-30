@@ -1,4 +1,10 @@
-# GreenOps Carbon Equivalencies
+---
+layout: default
+title: GreenOps Carbon Equivalencies
+description: User guide for carbon emission equivalencies
+parent: Guides
+nav_order: 5
+---
 
 FinFocus displays human-readable carbon emission equivalencies alongside sustainability
 metrics, making environmental impact more tangible and understandable.
@@ -20,7 +26,7 @@ summary:
 SUSTAINABILITY SUMMARY
 ======================
 carbon_footprint:      150.00 kg
-  Equivalent to driving ~781 miles or charging ~18,248 smartphones
+  Equivalent to driving ~382 miles or charging ~18,248 smartphones
 energy_consumption:    2000.00 kWh
 ```
 
@@ -33,7 +39,7 @@ In the interactive TUI view, equivalencies appear below the provider breakdown:
 │ COST SUMMARY                                     │
 │ Total Cost:    $245.50    Resources: 5           │
 │ aws: $200.00 (81.5%)  gcp: $45.50 (18.5%)       │
-│ Equivalent to driving ~781 miles or charging     │
+│ Equivalent to driving ~382 miles or charging     │
 │ ~18,248 smartphones                              │
 ╰──────────────────────────────────────────────────╯
 ```
@@ -44,7 +50,7 @@ During `pulumi preview`, equivalencies appear in compact format:
 
 ```text
 warning: finfocus: Estimated Monthly Cost: $245.50 USD (source: aws-public)
-         [carbon_footprint: 150.00 kg] (≈ 781 mi, 18,248 phones)
+         [carbon_footprint: 150.00 kg] (≈ 382 mi, 18,248 phones)
 ```
 
 ## EPA Formulas
@@ -52,10 +58,10 @@ warning: finfocus: Estimated Monthly Cost: $245.50 USD (source: aws-public)
 Equivalencies are calculated using EPA Greenhouse Gas Equivalencies Calculator
 formulas (2024 edition):
 
-| Equivalency          | Formula             | Explanation                                              |
-| -------------------- | ------------------- | -------------------------------------------------------- |
-| Miles Driven         | `kg_CO2e / 0.192`   | Average passenger vehicle: 8.89 kg CO2/gallon ÷ 21.6 mpg |
-| Smartphones Charged  | `kg_CO2e / 0.00822` | Average smartphone charge: 8.22g CO2                     |
+| Equivalency          | Formula             | Explanation                                                        |
+| -------------------- | ------------------- | ------------------------------------------------------------------ |
+| Miles Driven         | `kg_CO2e / 0.393`   | Average passenger vehicle: 8.89 kg CO2/gallon ÷ 22.8 mpg × GHG adj |
+| Smartphones Charged  | `kg_CO2e / 0.00822` | Average smartphone charge: 8.22g CO2                               |
 
 Source: [EPA GHG Equivalencies Calculator](https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator)
 
@@ -84,20 +90,20 @@ internally:
 ### Small Project (150 kg CO2e/month)
 
 ```text
-Miles driven:        150 / 0.192    = 781 miles
+Miles driven:        150 / 0.393    = 382 miles
 Smartphones charged: 150 / 0.00822  = 18,248 smartphones
 ```
 
-Display: "Equivalent to driving ~781 miles or charging ~18,248 smartphones"
+Display: "Equivalent to driving ~382 miles or charging ~18,248 smartphones"
 
 ### Data Center Scale (10,000,000 kg CO2e/month)
 
 ```text
-Miles driven:        10,000,000 / 0.192    = 52,083,333 miles
+Miles driven:        10,000,000 / 0.393    = 25,445,293 miles
 Smartphones charged: 10,000,000 / 0.00822  = 1,216,545,012 smartphones
 ```
 
-Display: "Equivalent to driving ~52.1 million miles or charging ~1.2 billion smartphones"
+Display: "Equivalent to driving ~25.4 million miles or charging ~1.2 billion smartphones"
 
 ## Integration with Plugins
 
@@ -133,5 +139,5 @@ The legacy key `gCO2e` is deprecated but still supported for backward compatibil
 ## Related Documentation
 
 - [Cost Calculation Guide](cost-calculation.md) - How costs are calculated
-- [Plugin Development](../plugins/development.md) - Creating plugins with carbon support
+- [Plugin Development](../plugins/plugin-development.md) - Creating plugins with carbon support
 - [Architecture: GreenOps Package](../architecture/greenops-package.md) - Technical details

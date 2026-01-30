@@ -10,8 +10,17 @@ package greenops
 const (
 	// EPAMilesDrivenFactor is kg CO2e per mile for average passenger vehicle.
 	// Source: EPA GHG Equivalencies Calculator (2024 edition).
+	// Reference: https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator-calculations-and-references
+	//
+	// Derivation from EPA 2024 data:
+	//   - CO2 per gallon gasoline: 8.89 kg (8.89 × 10⁻³ metric tons)
+	//   - Average fuel economy: 22.8 miles per gallon
+	//   - GHG adjustment (CH4 + N2O): 1/0.994 = 1.006
+	//   - Result: 8.89 ÷ 22.8 × 1.006 = 0.392 ≈ 0.393 kg CO2e/mile
+	//   - EPA reference: 3.93 × 10⁻⁴ metric tons/mile = 0.393 kg/mile
+	//
 	// Note: This is the divisor used in the equivalency formula (kg_CO2e / factor).
-	EPAMilesDrivenFactor = 0.192
+	EPAMilesDrivenFactor = 0.393
 
 	// EPASmartphoneChargeFactor is kg CO2e per smartphone charge.
 	// Based on average smartphone battery capacity and grid carbon intensity.

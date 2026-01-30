@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -123,7 +124,7 @@ func TestRenderCostSummary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := RenderCostSummary(tt.results, tt.width)
+			output := RenderCostSummary(context.Background(), tt.results, tt.width)
 			for _, s := range tt.contains {
 				assert.Contains(t, output, s)
 			}
@@ -378,7 +379,7 @@ func TestRenderCostSummary_WithCarbonEquivalencies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			output := RenderCostSummary(tt.results, tt.width)
+			output := RenderCostSummary(context.Background(), tt.results, tt.width)
 
 			for _, s := range tt.contains {
 				assert.Contains(t, output, s)
@@ -404,7 +405,7 @@ func TestRenderCostSummary_EquivalencyStyling(t *testing.T) {
 		},
 	}
 
-	output := RenderCostSummary(results, 100)
+	output := RenderCostSummary(context.Background(), results, 100)
 
 	// The equivalency text should appear on its own line after the provider breakdown
 	lines := strings.Split(output, "\n")

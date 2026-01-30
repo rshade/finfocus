@@ -26,9 +26,9 @@ As a DevOps engineer reviewing infrastructure costs, I want to see real-world eq
 
 **Acceptance Scenarios**:
 
-1. **Given** a Pulumi plan with resources that generate carbon emissions, **When** I run `finfocus cost projected --pulumi-json plan.json`, **Then** the summary section displays carbon emissions with at least one real-world equivalency (e.g., "~781 miles driven" or "~18,000 smartphones charged")
+1. **Given** a Pulumi plan with resources that generate carbon emissions, **When** I run `finfocus cost projected --pulumi-json plan.json`, **Then** the summary section displays carbon emissions with at least one real-world equivalency (e.g., "~382 miles driven" or "~18,000 smartphones charged")
 
-2. **Given** aggregated carbon emissions totaling 150 kg CO2e, **When** the summary is rendered, **Then** I see output like: "Est. Carbon Footprint: 150 kg CO2e (Equivalent to driving ~781 miles or charging ~18,248 smartphones)"
+2. **Given** aggregated carbon emissions totaling 150 kg CO2e, **When** the summary is rendered, **Then** I see output like: "Est. Carbon Footprint: 150 kg CO2e (Equivalent to driving ~382 miles or charging ~18,248 smartphones)"
 
 3. **Given** a Pulumi plan with zero carbon emissions, **When** I run the cost command, **Then** no carbon equivalency line appears in the summary (graceful omission)
 
@@ -110,7 +110,7 @@ As a developer using `pulumi preview` with the FinFocus analyzer, I want to see 
 
 - EPA equivalency formulas are stable and will be used as the authoritative source
 - Formulas are hardcoded as Go constants with EPA source URL and version date comments (no config file override)
-- Miles driven formula: `kg_CO2e / 0.192` where 0.192 is the divisor (kg CO2e per mile; inverted from 8.89 kg/gal ÷ 21.6 mpg), EPA 2024
+- Miles driven formula: `kg_CO2e / 0.393` where 0.393 is the divisor (kg CO2e per mile; 8.89 kg/gal ÷ 22.8 mpg × GHG adj), EPA 2024
 - Smartphones charged formula: `kg_CO2e / 0.00822` where 0.00822 is kg CO2e per smartphone charge, EPA 2024
 - Tree seedlings formula: `kg_CO2e / 60.0` where 60.0 is kg CO2e absorbed per tree seedling grown for 10 years (carbon sequestration), EPA 2024. Note: This differs from monthly absorption rate; we use the 10-year cumulative value for meaningful comparisons
 - Carbon metrics may arrive in varying units (g, kg, metric tons); equivalency calculator normalizes all values to kg internally before applying formulas, preserving original unit in logs for auditability
