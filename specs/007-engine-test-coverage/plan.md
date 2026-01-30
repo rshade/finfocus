@@ -13,7 +13,7 @@ benchmarks to 1K, 10K, 100K resource scales.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: testing (stdlib), github.com/stretchr/testify
 **Storage**: N/A (testing framework, no persistence)
 **Testing**: `go test` with `-coverprofile`, `-race`, `-bench`

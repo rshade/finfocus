@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-1. **Go 1.25.5+** installed
+1. **Go 1.25.6+** installed
 2. **Pulumi CLI** installed (`pulumi version` should work)
 3. **finfocus binary** built (`make build`)
 4. **AWS credentials** configured (via environment or AWS CLI)

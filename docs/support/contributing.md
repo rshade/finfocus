@@ -65,7 +65,7 @@ submit a pull request directly.
 
 | Tool             | Version    | Purpose             |
 | ---------------- | ---------- | ------------------- |
-| Go               | 1.25.5+    | Core development    |
+| Go               | 1.25.6+    | Core development    |
 | golangci-lint    | v2.6.2     | Go linting          |
 | markdownlint-cli | v0.45.0    | Markdown linting    |
 | Git              | Latest     | Version control     |

@@ -9,7 +9,7 @@ Add end-to-end tests that verify the FinFocus Analyzer plugin works correctly wi
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: testing (stdlib), github.com/stretchr/testify, github.com/oklog/ulid/v2
 **Storage**: Local Pulumi state (`file://` backend), temp directories for test fixtures
 **Testing**: Go test with `-tags e2e` build constraint

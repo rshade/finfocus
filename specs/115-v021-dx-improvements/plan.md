@@ -13,7 +13,7 @@ This feature implements a set of developer experience (DX) and performance impro
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: 
 - `golang.org/x/sync/errgroup` (Concurrency)
 - `github.com/spf13/cobra` (CLI)

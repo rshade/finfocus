@@ -11,7 +11,7 @@ Implement error aggregation for `GetProjectedCost` and `GetActualCost` in the pr
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: gRPC, zerolog (new), finfocus-spec proto SDK
 **Storage**: N/A (in-memory error aggregation)
 **Testing**: go test with race detection, 80% coverage minimum

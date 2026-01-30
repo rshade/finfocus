@@ -48,10 +48,10 @@ recent changes focusing on:
    - Cost calculation logic accuracy
    - CLI UX and error messaging quality
 
-7. **Go Version Idioms (Go 1.25.5+)**
-   - Use Go Go 1.25.5+ language features and standard library improvements
+7. **Go Version Idioms (Go 1.25.6+)**
+   - Use Go Go 1.25.6+ language features and standard library improvements
    - Leverage modern Go patterns and best practices
-   - Ensure compatibility with Go Go 1.25.5+ runtime behavior
+   - Ensure compatibility with Go Go 1.25.6+ runtime behavior
    - Utilize updated standard library APIs and optimizations
 
 ### Context for Review

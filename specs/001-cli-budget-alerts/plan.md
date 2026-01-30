@@ -9,7 +9,7 @@ Implement budget configuration support and threshold alert display in the finfoc
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5  
+**Language/Version**: Go 1.25.6  
 **Primary Dependencies**: `github.com/charmbracelet/lipgloss`, `golang.org/x/term`, `github.com/spf13/viper` (existing config), `github.com/spf13/cobra` (existing CLI)  
 **Storage**: Local filesystem (`~/.finfocus/config.yaml`)  
 **Testing**: `github.com/stretchr/testify` (assertions), `go test`  

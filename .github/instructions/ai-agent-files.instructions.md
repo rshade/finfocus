@@ -53,5 +53,5 @@ This repository contains AI agent instruction files that provide guidance for di
 
 - **Never commit changes** without user approval (CLAUDE.md restriction)
 - **Always run tests and linting** before completion
-- **Follow Go 1.25.5+ standards** and best practices
+- **Follow Go 1.25.6+ standards** and best practices
 - **Maintain high test coverage** (80%+ target)

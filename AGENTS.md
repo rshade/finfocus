@@ -45,7 +45,7 @@ layout: "docs"
 
 ### Go Formatting and Imports
 
-- Go 1.25.5+; use tabs for indentation and run `gofmt` on Go files.
+- Go 1.25.6+; use tabs for indentation and run `gofmt` on Go files.
 - Imports grouped as: standard library, third-party, internal packages.
 - `goimports`/`golines` enforced via `golangci-lint`; keep lines tidy.
 - Avoid `init()` and global variables (lint rule).
@@ -139,7 +139,7 @@ Use `require.*` for setup failures and nil checks, `assert.*` for value comparis
 
 ### Current Stack
 
-- Go 1.25.5 with `github.com/Masterminds/semver/v3` and finfocus plugin SDK.
+- Go 1.25.6 with `github.com/Masterminds/semver/v3` and finfocus plugin SDK.
 - charmbracelet/lipgloss v1.0.0 and golang.org/x/term v0.37.0.
 - Plugin directory: `~/.finfocus/plugins/<plugin-name>/<version>/`.
 
@@ -149,9 +149,9 @@ Use `require.*` for setup failures and nil checks, `assert.*` for value comparis
 
 ### Active Technologies
 
-- Go 1.25.5 + finfocus-spec SDK, Cobra CLI, zerolog, gRPC, pluginsdk (001-plugin-init-recorder)
+- Go 1.25.6 + finfocus-spec SDK, Cobra CLI, zerolog, gRPC, pluginsdk (001-plugin-init-recorder)
 - Local filesystem for fixture downloads and recorded request output (001-plugin-init-recorder)
 
 ### Recent Changes
 
-- 001-plugin-init-recorder: Added Go 1.25.5 + finfocus-spec SDK, Cobra CLI, zerolog, gRPC, pluginsdk
+- 001-plugin-init-recorder: Added Go 1.25.6 + finfocus-spec SDK, Cobra CLI, zerolog, gRPC, pluginsdk

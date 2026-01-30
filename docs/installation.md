@@ -259,7 +259,7 @@ docker run --rm finfocus --version
 
 ### Prerequisites for Building
 
-- **Go**: Version 1.25.5 or later
+- **Go**: Version 1.25.6 or later
   - Install from: https://golang.org/dl/
 - **Git**: For cloning the repository
 - **Make**: For using build scripts (optional)

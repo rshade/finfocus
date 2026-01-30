@@ -989,7 +989,7 @@ func (e *Engine) getProjectedCostFromPlugin(
 				ID:         resource.ID,
 				Type:       resource.Type,
 				Provider:   resource.Provider,
-				Properties: convertToProto(resource.Properties),
+				Properties: ConvertToProto(resource.Properties),
 			},
 		},
 	}
@@ -1185,12 +1185,77 @@ func (e *Engine) getActualCostFromPlugin(
 	}, nil
 }
 
-func convertToProto(properties map[string]interface{}) map[string]string {
+// ConvertToProto converts a map[string]interface{} to map[string]string for gRPC.
+// It handles nested structures from protobuf Struct conversions by extracting
+// meaningful values from common patterns.
+func ConvertToProto(properties map[string]interface{}) map[string]string {
 	result := make(map[string]string)
 	for k, v := range properties {
-		result[k] = fmt.Sprintf("%v", v)
+		result[k] = ConvertValueToString(v)
 	}
 	return result
+}
+
+// ConvertValueToString converts an interface{} value to a string representation.
+// It handles nested maps and slices that may come from protobuf Struct conversions.
+//
+//nolint:gocognit // Complexity is inherent to handling multiple types in a type switch
+func ConvertValueToString(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+
+	switch val := v.(type) {
+	case string:
+		return val
+	case float64:
+		// Protobuf numbers are always float64
+		// Check if it's actually an integer
+		if val == float64(int64(val)) {
+			return strconv.FormatInt(int64(val), 10)
+		}
+		return strconv.FormatFloat(val, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(val)
+	case map[string]interface{}:
+		// Try common nested patterns from protobuf Struct
+		// Pattern 1: {"value": "..."} - common in Pulumi outputs
+		if value, ok := val["value"]; ok {
+			return ConvertValueToString(value)
+		}
+		// Pattern 2: {"id": "..."} - common for resource references
+		if id, ok := val["id"]; ok {
+			return ConvertValueToString(id)
+		}
+		// Pattern 3: {"name": "..."} - common for named resources
+		if name, ok := val["name"]; ok {
+			return ConvertValueToString(name)
+		}
+		// Pattern 4: Single key map - extract the value
+		if len(val) == 1 {
+			for _, innerVal := range val {
+				return ConvertValueToString(innerVal)
+			}
+		}
+		// Fallback: convert to string representation
+		return fmt.Sprintf("%v", val)
+	case []interface{}:
+		// For arrays, try to extract first element if single-element array
+		if len(val) == 1 {
+			return ConvertValueToString(val[0])
+		}
+		// For multi-element arrays, join as comma-separated
+		if len(val) > 0 {
+			parts := make([]string, len(val))
+			for i, elem := range val {
+				parts[i] = ConvertValueToString(elem)
+			}
+			return strings.Join(parts, ",")
+		}
+		return ""
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 func extractService(resourceType string) string {
@@ -2517,7 +2582,7 @@ func (e *Engine) fetchRecommendationsSequential(
 			ID:         r.ID,
 			Type:       r.Type,
 			Provider:   r.Provider,
-			Properties: convertToProto(r.Properties),
+			Properties: ConvertToProto(r.Properties),
 		})
 	}
 
@@ -2577,7 +2642,7 @@ func (e *Engine) fetchRecommendationsWithBatching(
 					ID:         r.ID,
 					Type:       r.Type,
 					Provider:   r.Provider,
-					Properties: convertToProto(r.Properties),
+					Properties: ConvertToProto(r.Properties),
 				})
 			}
 

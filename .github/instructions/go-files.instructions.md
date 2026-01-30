@@ -4,13 +4,13 @@ applyTo: '**/*.go'
 
 # Go Code Instructions
 
-This repository uses Go 1.25.5+ with specific coding standards and best practices.
+This repository uses Go 1.25.6+ with specific coding standards and best practices.
 
 ## Go Version Requirements:
 
-- **Minimum version**: Go 1.25.5
-- **Target version**: Go 1.25.5
-- **Compatibility**: Ensure code works with Go 1.25.5 features
+- **Minimum version**: Go 1.25.6
+- **Target version**: Go 1.25.6
+- **Compatibility**: Ensure code works with Go 1.25.6 features
 
 ## Code Quality Standards:
 

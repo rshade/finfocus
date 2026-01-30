@@ -1,9 +1,18 @@
+# TEMPORARILY DISABLED - Schedule trigger disabled pending architectural fix
+# See enhancement issue for proper implementation using registry-based plugin install.
+#
+# Current Problem: Building plugin from source fails because generated data files
+# (CCF instance specs) are gitignored and not available in CI.
+#
+# Correct Approach: Use `finfocus plugin install aws-public` to download the
+# published plugin binary from GitHub releases instead of building from source.
+
 name: Cross-Repository Integration
 
 on:
-  schedule:
-    # Run at 2 AM UTC every day
-    - cron: '0 2 * * *'
+  # schedule:
+  #   # Run at 2 AM UTC every day - TEMPORARILY DISABLED
+  #   - cron: '0 2 * * *'
   workflow_dispatch:
     inputs:
       core_ref:

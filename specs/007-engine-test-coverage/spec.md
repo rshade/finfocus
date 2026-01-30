@@ -166,7 +166,7 @@ As a quality engineer, I need integration tests that verify engine components wo
 
 ### Assumptions
 
-- Go 1.25.5 is the target runtime environment
+- Go 1.25.6 is the target runtime environment
 - Test coverage is measured using standard `go tool cover` tooling
 - Benchmark baselines will be established during initial test implementation
 - Mock plugin implementations from `test/mocks/plugin/` will be used for integration testing

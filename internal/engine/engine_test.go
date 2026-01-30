@@ -1154,3 +1154,170 @@ func TestRecommendationsResult_NoErrors(t *testing.T) {
 	assert.False(t, result.HasErrors())
 	assert.Empty(t, result.ErrorSummary())
 }
+
+// TestConvertValueToString tests the convertValueToString helper function.
+func TestConvertValueToString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    interface{}
+		expected string
+	}{
+		{
+			name:     "nil value",
+			input:    nil,
+			expected: "",
+		},
+		{
+			name:     "string value",
+			input:    "t2.micro",
+			expected: "t2.micro",
+		},
+		{
+			name:     "integer as float64",
+			input:    float64(42),
+			expected: "42",
+		},
+		{
+			name:     "float value",
+			input:    3.14,
+			expected: "3.14",
+		},
+		{
+			name:     "boolean true",
+			input:    true,
+			expected: "true",
+		},
+		{
+			name:     "boolean false",
+			input:    false,
+			expected: "false",
+		},
+		{
+			name:     "nested map with value key",
+			input:    map[string]interface{}{"value": "t3.medium"},
+			expected: "t3.medium",
+		},
+		{
+			name:     "nested map with id key",
+			input:    map[string]interface{}{"id": "subnet-12345"},
+			expected: "subnet-12345",
+		},
+		{
+			name:     "nested map with name key",
+			input:    map[string]interface{}{"name": "my-resource"},
+			expected: "my-resource",
+		},
+		{
+			name:     "nested map with single arbitrary key",
+			input:    map[string]interface{}{"instanceType": "t2.large"},
+			expected: "t2.large",
+		},
+		{
+			name:     "nested map with multiple keys (no value/id/name)",
+			input:    map[string]interface{}{"foo": "bar", "baz": "qux"},
+			expected: "map[baz:qux foo:bar]",
+		},
+		{
+			name:     "deeply nested value",
+			input:    map[string]interface{}{"value": map[string]interface{}{"value": "deep"}},
+			expected: "deep",
+		},
+		{
+			name:     "single element array",
+			input:    []interface{}{"only-one"},
+			expected: "only-one",
+		},
+		{
+			name:     "multi element array",
+			input:    []interface{}{"a", "b", "c"},
+			expected: "a,b,c",
+		},
+		{
+			name:     "empty array",
+			input:    []interface{}{},
+			expected: "",
+		},
+		{
+			name:     "array with nested map",
+			input:    []interface{}{map[string]interface{}{"value": "nested-in-array"}},
+			expected: "nested-in-array",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := engine.ConvertValueToString(tt.input)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestConvertToProto tests the convertToProto function with various property types.
+func TestConvertToProto(t *testing.T) {
+	tests := []struct {
+		name       string
+		properties map[string]interface{}
+		expected   map[string]string
+	}{
+		{
+			name:       "nil properties",
+			properties: nil,
+			expected:   map[string]string{},
+		},
+		{
+			name:       "empty properties",
+			properties: map[string]interface{}{},
+			expected:   map[string]string{},
+		},
+		{
+			name: "simple string properties",
+			properties: map[string]interface{}{
+				"instanceType": "t2.micro",
+				"region":       "us-east-1",
+			},
+			expected: map[string]string{
+				"instanceType": "t2.micro",
+				"region":       "us-east-1",
+			},
+		},
+		{
+			name: "nested value pattern from Pulumi",
+			properties: map[string]interface{}{
+				"instanceType": map[string]interface{}{"value": "t3.large"},
+				"ami":          map[string]interface{}{"id": "ami-12345678"},
+				"subnetId":     map[string]interface{}{"id": "subnet-abcdef"},
+			},
+			expected: map[string]string{
+				"instanceType": "t3.large",
+				"ami":          "ami-12345678",
+				"subnetId":     "subnet-abcdef",
+			},
+		},
+		{
+			name: "mixed property types",
+			properties: map[string]interface{}{
+				"instanceType":   "t2.micro",
+				"availableZone":  map[string]interface{}{"value": "us-east-1a"},
+				"count":          float64(3),
+				"enableMonitor":  true,
+				"securityGroups": []interface{}{"sg-1", "sg-2"},
+				"singleSG":       []interface{}{"sg-only"},
+			},
+			expected: map[string]string{
+				"instanceType":   "t2.micro",
+				"availableZone":  "us-east-1a",
+				"count":          "3",
+				"enableMonitor":  "true",
+				"securityGroups": "sg-1,sg-2",
+				"singleSG":       "sg-only",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := engine.ConvertToProto(tt.properties)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}

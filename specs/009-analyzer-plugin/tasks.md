@@ -168,7 +168,7 @@ still finishes with warnings.
 - [x] T063.5 Create integration test for SC-003 latency requirement in `test/integration/analyzer_test.go` to verify <2s latency on small stacks.
 - [x] T064 Run full test suite: `make test`
 - [x] T065 Run linting: `make lint`
-- [x] T065.5 Run `govulncheck ./...` to verify no high/critical vulnerabilities (stdlib vulns noted, need Go 1.25.5)
+- [x] T065.5 Run `govulncheck ./...` to verify no high/critical vulnerabilities (stdlib vulns noted, need Go 1.25.6)
 - [x] T066 Verify coverage meets 80% threshold for analyzer package (achieved 92.7%)
 - [x] T066.5 Verify 80% docstring coverage for `internal/analyzer` package (all exported symbols documented)
 
