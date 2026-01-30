@@ -15,13 +15,18 @@ import (
 var printer = message.NewPrinter(language.English)
 
 // FormatNumber formats an integer with thousand separators.
-// Example: FormatNumber(18248) returns "18,248".
+// FormatNumber formats n with comma thousand separators using the package's English-locale printer.
 func FormatNumber(n int64) string {
 	return printer.Sprintf("%d", n)
 }
 
 // FormatFloat formats a float with the specified precision and thousand separators.
-// Example: FormatFloat(1234.567, 2) returns "1,234.57".
+// FormatFloat formats f rounded to precision decimal places and returns a string
+// with English-style thousand separators applied to the integer part when possible.
+// If precision is 0 the value is formatted via FormatNumber. The function rounds
+// to the requested precision, preserves the decimal portion, and preserves the
+// sign for negative values. If applying thousand separators to the integer
+// portion fails, the plain decimal-formatted string is returned.
 func FormatFloat(f float64, precision int) string {
 	// Round to the specified precision.
 	const base = 10
@@ -49,7 +54,9 @@ func FormatFloat(f float64, precision int) string {
 	return formatted
 }
 
-// splitDecimal splits a formatted number string into integer and decimal parts.
+// splitDecimal splits s at the first '.' and returns a slice containing the integer and decimal parts.
+// If a '.' is found the returned slice has two elements: the substring before the dot and the substring after the dot (the decimal part excludes the '.').
+// If no '.' is present the returned slice contains a single element equal to s.
 func splitDecimal(s string) []string {
 	for i, c := range s {
 		if c == '.' {
@@ -59,7 +66,10 @@ func splitDecimal(s string) []string {
 	return []string{s}
 }
 
-// parseIntPart parses an integer string, handling negative numbers.
+// ParseIntPart parses s as a base-10 integer and returns its int64 value.
+// It accepts an optional leading '-' to denote a negative number and otherwise
+// requires only digits 0-9. If s contains any non-digit (or an unexpected
+// leading '+'), it returns an error describing the invalid rune.
 func parseIntPart(s string) (int64, error) {
 	const base = 10
 	var n int64
@@ -88,7 +98,10 @@ func parseIntPart(s string) (int64, error) {
 // Values at or above LargeNumberThreshold use "~X.X million" format.
 // Values at or above BillionThreshold use "~X.X billion" format.
 //
-// Example: FormatLarge(1500000000) returns "~1.5 billion".
+// FormatLarge abbreviates large floating-point numbers using million and billion units.
+// If n is greater than or equal to BillionThreshold it returns a string like "~X.X billion" with one decimal place.
+// If n is greater than or equal to LargeNumberThreshold it returns a string like "~X.X million" with one decimal place.
+// For values below those thresholds it returns a comma-separated integer representation of n rounded to the nearest integer.
 func FormatLarge(n float64) string {
 	if n >= BillionThreshold {
 		billions := n / BillionThreshold

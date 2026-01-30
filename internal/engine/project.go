@@ -264,7 +264,12 @@ func renderBreakdowns(w io.Writer, aggregated *AggregatedResults) {
 // it also displays real-world equivalencies (miles driven, smartphones charged)
 // using EPA-published conversion factors.
 //
-// It assumes the same unit is used for a given metric key across resources.
+// renderSustainabilitySummary writes a SUSTAINABILITY SUMMARY section to w showing aggregated sustainability metrics.
+// It sums metrics with the same key across all resources (assuming the same unit is used for a given metric key),
+// prints each metric as "key: value unit" sorted by key, and, when a carbon_footprint metric is present,
+// also displays derived carbon equivalencies.
+// w is the destination for formatted output.
+// aggregated provides the resources whose Sustainability metrics will be aggregated and displayed.
 func renderSustainabilitySummary(w io.Writer, aggregated *AggregatedResults) {
 	sustainTotals := make(map[string]SustainabilityMetric)
 	for _, r := range aggregated.Resources {
@@ -300,7 +305,9 @@ func renderSustainabilitySummary(w io.Writer, aggregated *AggregatedResults) {
 // for carbon emissions using EPA conversion factors.
 //
 // If carbon_footprint is present and above the minimum threshold (1.0 kg),
-// it displays equivalencies like "Equivalent to driving ~781 miles or charging ~18,248 smartphones".
+// renderCarbonEquivalencies writes a human-readable carbon equivalencies line to w when equivalencies can be calculated from the provided sustainability totals.
+// w is the destination writer. sustainTotals maps metric keys to SustainabilityMetric values used to compute equivalencies.
+// If equivalencies are produced, the function writes a single indented line containing the equivalency display text and emits a debug log with the input kilograms and the number of resulting equivalencies.
 func renderCarbonEquivalencies(w io.Writer, sustainTotals map[string]SustainabilityMetric) {
 	// Convert engine.SustainabilityMetric to greenops.SustainabilityMetric
 	greenopsMetrics := make(map[string]greenops.SustainabilityMetric, len(sustainTotals))

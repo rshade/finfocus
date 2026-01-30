@@ -19,7 +19,21 @@ import (
 //
 //	input := CarbonInput{Value: 150.0, Unit: "kg"}
 //	output, err := Calculate(input)
-//	// output.DisplayText == "Equivalent to driving ~781 miles or charging ~18,248 smartphones"
+// Calculate converts a CarbonInput to kilograms and computes EPA-based equivalencies
+// expressed as miles driven and smartphones charged.
+//
+// If normalization to kilograms fails, Calculate returns an empty EquivalencyOutput
+// (IsEmpty = true) and the normalization error. If the normalized kilogram value is
+// below MinEquivalencyThresholdKg, Calculate returns an empty EquivalencyOutput
+// with InputKg set to the normalized value and no error. If numeric overflow or
+// invalid results occur during equivalency calculation, Calculate returns an empty
+// EquivalencyOutput with ErrCalculationOverflow.
+//
+// On success, the returned EquivalencyOutput contains InputKg, a Results slice with
+// EquivalencyMilesDriven and EquivalencySmartphonesCharged entries (each containing
+// the raw and formatted values and a label), a human-readable DisplayText of the
+// form "Equivalent to driving ~{miles} miles or charging ~{phones} smartphones",
+// a CompactText for diagnostics "(≈ {miles} mi, {phones} phones)", and IsEmpty = false.
 func Calculate(input CarbonInput) (EquivalencyOutput, error) {
 	// Normalize to kg
 	kg, err := NormalizeToKg(input.Value, input.Unit)
@@ -92,7 +106,18 @@ func Calculate(input CarbonInput) (EquivalencyOutput, error) {
 //	metrics := map[string]SustainabilityMetric{
 //	    "carbon_footprint": {Value: 150.0, Unit: "kg"},
 //	}
-//	output := CalculateFromMap(metrics)
+// CalculateFromMap extracts a carbon metric from the provided metrics map and computes equivalencies.
+// 
+// If the map is nil or contains neither the canonical key "carbon_footprint" nor the deprecated key "gCO2e",
+// the function returns an empty EquivalencyOutput with IsEmpty set to true.
+// The function prefers the canonical key; if only the deprecated key is present a deprecation warning is logged.
+// If equivalency computation fails for a found metric, a warning is logged and an empty EquivalencyOutput is returned.
+//
+// Parameters:
+//   - metrics: a map of metric keys to SustainabilityMetric values from which a carbon metric may be read.
+//
+// Returns:
+//   - EquivalencyOutput containing computed equivalencies when successful, or an empty EquivalencyOutput with IsEmpty = true on missing data or computation failure.
 func CalculateFromMap(metrics map[string]SustainabilityMetric) EquivalencyOutput {
 	if metrics == nil {
 		return EquivalencyOutput{IsEmpty: true}
@@ -124,7 +149,10 @@ func CalculateFromMap(metrics map[string]SustainabilityMetric) EquivalencyOutput
 
 // formatEquivalencyValue formats an equivalency value for display.
 // Uses large number scaling for million/billion values, otherwise
-// comma-separated integers.
+// formatEquivalencyValue formats a floating-point equivalency value for display.
+// If v is greater than or equal to LargeNumberThreshold it returns a compact
+// large-number representation; otherwise it rounds v to the nearest integer and
+// returns a comma-separated integer string.
 func formatEquivalencyValue(v float64) string {
 	if v >= LargeNumberThreshold {
 		return FormatLarge(v)

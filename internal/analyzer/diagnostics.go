@@ -117,7 +117,7 @@ func StackSummaryDiagnostic(
 // Message formats:
 //   - With cost: "Estimated Monthly Cost: $X.XX USD (source: adapter-name)"
 //   - Zero cost with notes: Returns the notes directly
-//   - Zero cost no notes: "Unable to estimate cost"
+// appended prefixed by " | ".
 func formatCostMessage(cost engine.CostResult) string {
 	var message string
 	switch {
@@ -167,12 +167,13 @@ func formatCostMessage(cost engine.CostResult) string {
 	return message
 }
 
+// getJoinedSustainability joins the provided sustainability metric parts using ", " as the separator to produce a deterministic, human-readable summary string.
 func getJoinedSustainability(parts []string) string {
 	return strings.Join(parts, ", ")
 }
 
 // getCarbonEquivalencyText returns the compact equivalency text for carbon metrics.
-// Returns empty string if no carbon data or below threshold.
+// On calculation errors the function logs a warning.
 func getCarbonEquivalencyText(sustainability map[string]engine.SustainabilityMetric) string {
 	// Check canonical key first
 	metric, ok := sustainability[greenops.CarbonMetricKey]
