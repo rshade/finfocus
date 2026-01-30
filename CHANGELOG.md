@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.5](https://github.com/rshade/finfocus/compare/v0.2.4...v0.2.5) (2026-01-30)
+
+
+### Added
+
+* **cli:** add budget threshold exit codes for CI/CD integration ([#496](https://github.com/rshade/finfocus/issues/496)) ([a5883ea](https://github.com/rshade/finfocus/commit/a5883ea6bf65673606e09aa045f6f06794fefdf1)), closes [#219](https://github.com/rshade/finfocus/issues/219)
+* **cli:** add pagination and NDJSON streaming for CI/CD integration ([#488](https://github.com/rshade/finfocus/issues/488)) ([7026346](https://github.com/rshade/finfocus/commit/7026346cab6db708817b1450593113c9c9ebac8c)), closes [#122](https://github.com/rshade/finfocus/issues/122)
+* **engine:** add budget health suite with status tracking, forecasting, and thresholds ([#494](https://github.com/rshade/finfocus/issues/494)) ([6c09cc4](https://github.com/rshade/finfocus/commit/6c09cc44ee2bfc5bb54f80e565f2b62da689f12a)), closes [#263](https://github.com/rshade/finfocus/issues/263) [#267](https://github.com/rshade/finfocus/issues/267)
+
+
+### Fixed
+
+* **deps:** update module github.com/pulumi/pulumi/sdk/v3 to v3.217.0 ([#500](https://github.com/rshade/finfocus/issues/500)) ([ee3bfca](https://github.com/rshade/finfocus/commit/ee3bfcaec88d28d9acce44a2e1c26ea9a0aab3e0))
+* **deps:** update module github.com/rshade/finfocus-spec to v0.5.4 ([#477](https://github.com/rshade/finfocus/issues/477)) ([4b2424c](https://github.com/rshade/finfocus/commit/4b2424c02666c48e33105d3019fcbb115108d238))
+
+
+### Changed
+
+* add ConvertToProto and ConvertValueToString helpers for gRPC plugin communication ([#520](https://github.com/rshade/finfocus/issues/520)) ([5aaefc4](https://github.com/rshade/finfocus/commit/5aaefc42202846544b413a1fab6d62e8c16a7cd9))
+
 ## [0.2.4](https://github.com/rshade/finfocus/compare/v0.2.3...v0.2.4) (2026-01-21)
 
 
