@@ -1,5 +1,9 @@
 //go:build integration
 
+// Package integration provides black-box integration tests that validate the
+// interaction between multiple internal packages (router, engine, pluginhost, config).
+// These tests are intentionally kept in a separate package to ensure they test
+// the public API surface and cross-package integration behavior.
 package integration
 
 import (

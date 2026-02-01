@@ -406,10 +406,11 @@ func TestAllEqualPriority(t *testing.T) {
 }
 
 func TestMatchReason_String(t *testing.T) {
+	assert.Equal(t, "no_match", MatchReasonNoMatch.String())
 	assert.Equal(t, "automatic", MatchReasonAutomatic.String())
 	assert.Equal(t, "pattern", MatchReasonPattern.String())
 	assert.Equal(t, "global", MatchReasonGlobal.String())
-	assert.Equal(t, "unknown", MatchReason(-1).String())
+	assert.Equal(t, "unknown", MatchReason(-99).String()) // Some undefined value
 }
 
 func TestSelectPlugins_WildcardProvider(t *testing.T) {

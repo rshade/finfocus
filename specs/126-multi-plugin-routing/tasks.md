@@ -65,21 +65,21 @@
 
 ### Tests for User Story 1 (TDD Required)
 
-- [ ] T015 [P] [US1] Unit test for provider extraction in `internal/router/provider_test.go`
-- [ ] T016 [P] [US1] Unit test for automatic routing in `internal/router/automatic_test.go`
-- [ ] T017 [P] [US1] Unit test for global plugin matching (empty/wildcard providers) in `internal/router/automatic_test.go`
-- [ ] T018 [US1] Integration test for automatic routing in `test/integration/routing_automatic_test.go` (include wildcard `["*"]` provider case per F-009)
-- [ ] T018a [P] [US1] Unit test for source field attribution in automatic routing results in `internal/router/automatic_test.go` (F-002)
+- [X] T015 [P] [US1] Unit test for provider extraction in `internal/router/provider_test.go`
+- [X] T016 [P] [US1] Unit test for automatic routing in `internal/router/automatic_test.go`
+- [X] T017 [P] [US1] Unit test for global plugin matching (empty/wildcard providers) in `internal/router/automatic_test.go`
+- [X] T018 [US1] Integration test for automatic routing in `test/integration/routing_automatic_test.go` (include wildcard `["*"]` provider case per F-009)
+- [X] T018a [P] [US1] Unit test for source field attribution in automatic routing results in `internal/router/automatic_test.go` (F-002)
 
 ### Implementation for User Story 1
 
-- [ ] T019 [US1] Implement automatic provider matching in `internal/router/automatic.go`
-- [ ] T020 [US1] Implement `matchesProvider()` helper checking SupportedProviders in `internal/router/automatic.go`
-- [ ] T021 [US1] Implement global plugin detection (empty/wildcard) in `internal/router/automatic.go`
-- [ ] T022 [US1] Implement `SelectPlugins()` for automatic routing in `internal/router/router.go`
-- [ ] T023 [US1] Add debug logging for routing decisions per FR-020 in `internal/router/router.go`
-- [ ] T024 [US1] Integrate router into Engine.GetProjectedCost() in `internal/engine/engine.go`
-- [ ] T025 [US1] Modify engine plugin loop to use router-selected plugins in `internal/engine/engine.go`
+- [X] T019 [US1] Implement automatic provider matching in `internal/router/router.go` (Note: Implemented in router.go:272-313, not separate automatic.go file)
+- [X] T020 [US1] Implement `matchesProvider()` helper checking SupportedProviders in `internal/router/router.go:371-382`
+- [X] T021 [US1] Implement global plugin detection (empty/wildcard) in `internal/router/router.go:372-380`
+- [X] T022 [US1] Implement `SelectPlugins()` for automatic routing in `internal/router/router.go:216-326`
+- [X] T023 [US1] Add debug logging for routing decisions per FR-020 in `internal/router/router.go`
+- [X] T024 [US1] Integrate router into Engine.GetProjectedCost() in `internal/engine/engine.go:179`
+- [X] T025 [US1] Modify engine plugin loop to use router-selected plugins in `internal/engine/engine.go`
 
 **Checkpoint**: Automatic routing works - resources route to provider-matching plugins without config
 
@@ -93,20 +93,20 @@
 
 ### Tests for User Story 2 (TDD Required)
 
-- [ ] T026 [P] [US2] Unit test for feature matching in `internal/router/features_test.go`
-- [ ] T027 [P] [US2] Unit test for feature-based routing in `internal/router/declarative_test.go`
-- [ ] T028 [US2] Integration test for feature routing in `test/integration/routing_features_test.go`
-- [ ] T028a [P] [US2] Integration test for DryRun feature routing in `test/integration/routing_features_test.go` (F-001)
-- [ ] T028b [P] [US2] Integration test for Budgets feature routing in `test/integration/routing_features_test.go` (F-001)
+- [X] T026 [P] [US2] Unit test for feature matching in `internal/router/features_test.go`
+- [X] T027 [P] [US2] Unit test for feature-based routing in `internal/router/router_test.go` (Note: Implemented in router_test.go, not separate declarative_test.go)
+- [X] T028 [US2] Integration test for feature routing in `test/integration/routing_features_test.go`
+- [X] T028a [P] [US2] Integration test for DryRun feature routing in `test/integration/routing_features_test.go` (F-001)
+- [X] T028b [P] [US2] Integration test for Budgets feature routing in `test/integration/routing_features_test.go` (F-001)
 
 ### Implementation for User Story 2
 
-- [ ] T029 [US2] Implement `matchesFeature()` helper in `internal/router/declarative.go`
-- [ ] T030 [US2] Implement feature filtering in SelectPlugins() in `internal/router/declarative.go`
-- [ ] T031 [US2] Add feature validation warnings per FR-017 in `internal/router/validation.go`
-- [ ] T032a [US2] Integrate feature routing for `cost projected` command in `internal/engine/engine.go` (F-008)
-- [ ] T032b [US2] Integrate feature routing for `cost actual` command in `internal/engine/engine.go` (F-008)
-- [ ] T032c [US2] Integrate feature routing for `cost recommendations` command in `internal/engine/engine.go` (F-008)
+- [X] T029 [US2] Implement `matchesFeature()` helper in `internal/router/router.go:328-341`
+- [X] T030 [US2] Implement feature filtering in SelectPlugins() in `internal/router/router.go:241-243,283-286`
+- [X] T031 [US2] Add feature validation warnings per FR-017 in `internal/router/validation.go`
+- [X] T032a [US2] Integrate feature routing for `cost projected` command in `internal/engine/engine.go`
+- [X] T032b [US2] Integrate feature routing for `cost actual` command in `internal/engine/engine.go`
+- [X] T032c [US2] Integrate feature routing for `cost recommendations` command in `internal/engine/engine.go`
 
 **Checkpoint**: Feature-specific routing works - different features route to different plugins
 
@@ -120,19 +120,19 @@
 
 ### Tests for User Story 3 (TDD Required)
 
-- [ ] T033 [P] [US3] Unit test for glob pattern matching in `internal/router/pattern_test.go`
-- [ ] T034 [P] [US3] Unit test for regex pattern matching in `internal/router/pattern_test.go`
-- [ ] T035 [P] [US3] Unit test for pattern compilation caching in `internal/router/pattern_test.go`
-- [ ] T036 [US3] Integration test for pattern-based routing in `test/integration/routing_patterns_test.go`
+- [X] T033 [P] [US3] Unit test for glob pattern matching in `internal/router/pattern_test.go`
+- [X] T034 [P] [US3] Unit test for regex pattern matching in `internal/router/pattern_test.go`
+- [X] T035 [P] [US3] Unit test for pattern compilation caching in `internal/router/pattern_test.go`
+- [X] T036 [US3] Integration test for pattern-based routing in `test/integration/routing_patterns_test.go`
 
 ### Implementation for User Story 3
 
-- [ ] T037 [US3] Implement CompiledPattern struct in `internal/router/pattern.go`
-- [ ] T038 [US3] Implement glob matching with `filepath.Match` in `internal/router/pattern.go`
-- [ ] T039 [US3] Implement regex matching with compiled patterns in `internal/router/pattern.go`
-- [ ] T040 [US3] Implement pattern cache for compiled regexes per FR-022 in `internal/router/pattern.go`
-- [ ] T041 [US3] Implement `matchesPattern()` helper in `internal/router/declarative.go`
-- [ ] T042 [US3] Implement pattern precedence over automatic routing per FR-009 in `internal/router/declarative.go`
+- [X] T037 [US3] Implement CompiledPattern struct in `internal/router/pattern.go:12-31`
+- [X] T038 [US3] Implement glob matching with `filepath.Match` in `internal/router/pattern.go:23-25,67-69`
+- [X] T039 [US3] Implement regex matching with compiled patterns in `internal/router/pattern.go:26-30,72-95`
+- [X] T040 [US3] Implement pattern cache for compiled regexes per FR-022 in `internal/router/pattern.go:33-95` and `router.go:195-206`
+- [X] T041 [US3] Implement `matchesPattern()` helper in `internal/router/router.go:343-358` (Note: Named matchesAnyPattern in implementation)
+- [X] T042 [US3] Implement pattern precedence over automatic routing per FR-009 in `internal/router/router.go:238-269`
 
 **Checkpoint**: Pattern-based routing works - resource patterns override automatic provider matching
 
@@ -146,16 +146,16 @@
 
 ### Tests for User Story 4 (TDD Required)
 
-- [ ] T043 [P] [US4] Unit test for priority sorting in `internal/router/priority_test.go`
-- [ ] T044 [P] [US4] Unit test for equal priority (query all) in `internal/router/priority_test.go`
-- [ ] T045 [US4] Integration test for priority-based selection in `test/integration/routing_priority_test.go`
+- [X] T043 [P] [US4] Unit test for priority sorting in `internal/router/priority_test.go`
+- [X] T044 [P] [US4] Unit test for equal priority (query all) in `internal/router/priority_test.go`
+- [X] T045 [US4] Integration test for priority-based selection in `test/integration/routing_priority_test.go`
 
 ### Implementation for User Story 4
 
-- [ ] T046 [US4] Implement `sortByPriority()` helper in `internal/router/priority.go`
-- [ ] T047 [US4] Implement equal-priority detection for querying all plugins per FR-014 in `internal/router/priority.go`
-- [ ] T048 [US4] Modify SelectPlugins() to return priority-ordered list in `internal/router/router.go`
-- [ ] T049 [US4] Add source field population for result attribution per FR-014 in `internal/engine/engine.go`
+- [X] T046 [US4] Implement `sortByPriority()` helper in `internal/router/router.go:427-435`
+- [X] T047 [US4] Implement equal-priority detection for querying all plugins per FR-014 in `internal/router/router.go:438-444` (AllEqualPriority helper)
+- [X] T048 [US4] Modify SelectPlugins() to return priority-ordered list in `internal/router/router.go:315-316`
+- [X] T049 [US4] Add source field population for result attribution per FR-014 in `internal/router/router.go:254-255,301`
 
 **Checkpoint**: Priority-based selection works - highest priority plugins queried first
 
@@ -169,19 +169,19 @@
 
 ### Tests for User Story 5 (TDD Required)
 
-- [ ] T050 [P] [US5] Unit test for fallback trigger on error in `internal/router/priority_test.go`
-- [ ] T051 [P] [US5] Unit test for fallback disabled behavior in `internal/router/priority_test.go`
-- [ ] T052 [P] [US5] Unit test for empty result fallback trigger in `internal/router/priority_test.go` (Note: Empty result = no cost data triggers fallback; $0 cost = valid result, NO fallback per F-007)
-- [ ] T052a [P] [US5] Unit test for $0 cost result NOT triggering fallback in `internal/router/priority_test.go` (F-007)
-- [ ] T053 [US5] Integration test for fallback chain in `test/integration/routing_fallback_test.go`
+- [X] T050 [P] [US5] Unit test for fallback trigger on error in `internal/router/priority_test.go`
+- [X] T051 [P] [US5] Unit test for fallback disabled behavior in `internal/router/priority_test.go`
+- [X] T052 [P] [US5] Unit test for empty result fallback trigger in `internal/router/priority_test.go` (Note: Empty result = no cost data triggers fallback; $0 cost = valid result, NO fallback per F-007)
+- [X] T052a [P] [US5] Unit test for $0 cost result NOT triggering fallback in `internal/router/priority_test.go` (F-007)
+- [X] T053 [US5] Integration test for fallback chain in `test/integration/routing_fallback_test.go`
 
 ### Implementation for User Story 5
 
-- [ ] T054 [US5] Implement `ShouldFallback()` method in `internal/router/router.go`
-- [ ] T055 [US5] Implement fallback logic for connection failures in `internal/engine/engine.go`
-- [ ] T056 [US5] Implement fallback logic for empty results in `internal/engine/engine.go`
-- [ ] T057 [US5] Add fallback event logging (INFO level) per FR-020 in `internal/engine/engine.go`
-- [ ] T058 [US5] Implement per-resource fallback for partial failures in `internal/engine/engine.go`
+- [X] T054 [US5] Implement `ShouldFallback()` method in `internal/router/router.go:414-420`
+- [X] T055 [US5] Implement fallback logic for connection failures in `internal/engine/engine.go`
+- [X] T056 [US5] Implement fallback logic for empty results in `internal/engine/engine.go`
+- [X] T057 [US5] Add fallback event logging (INFO level) per FR-020 in `internal/engine/engine.go`
+- [X] T058 [US5] Implement per-resource fallback for partial failures in `internal/engine/engine.go`
 
 **Checkpoint**: Fallback works - plugin failures trigger automatic fallback to next priority
 
@@ -195,21 +195,21 @@
 
 ### Tests for User Story 6 (TDD Required)
 
-- [ ] T059 [P] [US6] Unit test for plugin existence validation in `internal/router/validation_test.go`
-- [ ] T060 [P] [US6] Unit test for regex syntax validation in `internal/router/validation_test.go`
-- [ ] T061 [P] [US6] Unit test for feature name validation in `internal/router/validation_test.go`
-- [ ] T061a [P] [US6] Unit test for duplicate plugin configuration warning in `internal/router/validation_test.go` (F-003)
-- [ ] T062 [US6] Integration test for config validate command in `test/integration/config_validate_test.go`
+- [X] T059 [P] [US6] Unit test for plugin existence validation in `internal/router/validation_test.go`
+- [X] T060 [P] [US6] Unit test for regex syntax validation in `internal/router/validation_test.go`
+- [X] T061 [P] [US6] Unit test for feature name validation in `internal/router/validation_test.go`
+- [X] T061a [P] [US6] Unit test for duplicate plugin configuration warning in `internal/router/validation_test.go` (F-003)
+- [X] T062 [US6] Integration test for config validate command in `test/integration/config_validate_test.go`
 
 ### Implementation for User Story 6
 
-- [ ] T063 [US6] Implement `Validate()` method returning ValidationResult in `internal/router/validation.go`
-- [ ] T064 [US6] Implement plugin existence check in `internal/router/validation.go`
-- [ ] T065 [US6] Implement regex pattern syntax validation in `internal/router/validation.go`
-- [ ] T066 [US6] Implement feature name validation with warnings in `internal/router/validation.go`
-- [ ] T066a [US6] Implement duplicate plugin configuration detection with warning in `internal/router/validation.go` (F-003)
-- [ ] T067 [US6] Create `config validate` CLI command in `internal/cli/config_validate.go`
-- [ ] T068 [US6] Wire config validate command to root in `internal/cli/root.go`
+- [X] T063 [US6] Implement `Validate()` method returning ValidationResult in `internal/router/validation.go`
+- [X] T064 [US6] Implement plugin existence check in `internal/router/validation.go`
+- [X] T065 [US6] Implement regex pattern syntax validation in `internal/router/validation.go`
+- [X] T066 [US6] Implement feature name validation with warnings in `internal/router/validation.go`
+- [X] T066a [US6] Implement duplicate plugin configuration detection with warning in `internal/router/validation.go` (F-003)
+- [X] T067 [US6] Create `config validate` CLI command in `internal/cli/config_validate.go`
+- [X] T068 [US6] Wire config validate command to root in `internal/cli/root.go:212`
 
 **Checkpoint**: Config validation works - users can validate routing config before use
 
@@ -223,15 +223,15 @@
 
 ### Tests for User Story 7 (TDD Required)
 
-- [ ] T069 [P] [US7] Unit test for capability display formatting in `internal/cli/plugin_list_test.go`
-- [ ] T070 [US7] Integration test for plugin list with capabilities in `test/integration/plugin_list_test.go`
+- [X] T069 [P] [US7] Unit test for capability display formatting in `internal/cli/plugin_list_test.go`
+- [X] T070 [US7] Integration test for plugin list with capabilities in `test/integration/plugin_list_test.go`
 
 ### Implementation for User Story 7
 
-- [ ] T071 [US7] Modify plugin list output to show SupportedProviders in `internal/cli/plugin_list.go`
-- [ ] T072 [US7] Modify plugin list output to show capabilities in `internal/cli/plugin_list.go`
-- [ ] T073 [US7] Add --verbose flag for detailed capability display in `internal/cli/plugin_list.go`
-- [ ] T074 [US7] Implement capability inference from RPC methods per FR-021 in `internal/router/features.go`
+- [X] T074 [US7] Implement capability inference from RPC methods per FR-021 in `internal/router/features.go` (Note: Foundation for T071-T073 display logic)
+- [X] T071 [US7] Modify plugin list output to show SupportedProviders in `internal/cli/plugin_list.go`
+- [X] T072 [US7] Modify plugin list output to show capabilities in `internal/cli/plugin_list.go`
+- [X] T073 [US7] Add --verbose flag for detailed capability display in `internal/cli/plugin_list.go`
 
 **Checkpoint**: Plugin list shows capabilities and providers - users can configure routing correctly
 
@@ -241,13 +241,13 @@
 
 **Purpose**: Documentation, cleanup, and final quality gates
 
-- [ ] T075 [P] Update README.md with multi-plugin routing section
-- [ ] T076 [P] Create routing configuration guide in `docs/guides/routing.md`
-- [ ] T077 [P] Update CLI reference docs in `docs/reference/cli.md`
-- [ ] T078 Run `make lint` and fix any issues
-- [ ] T079 Run `make test` and ensure all tests pass with 80%+ coverage
-- [ ] T080 Run quickstart.md validation (test examples work)
-- [ ] T081 Final code review for Constitution compliance
+- [X] T075 [P] Update README.md with multi-plugin routing section
+- [X] T076 [P] Create routing configuration guide in `docs/guides/routing.md`
+- [X] T077 [P] Update CLI reference docs in `docs/reference/cli-commands.md`
+- [X] T078 Run `make lint` and fix any issues
+- [X] T079 Run `make test` and ensure all tests pass with 80%+ coverage
+- [X] T080 Run quickstart.md validation (test examples work)
+- [X] T081 Final code review for Constitution compliance
 
 ---
 
@@ -353,7 +353,7 @@ Task: "Create ValidationResult structs in internal/router/validation.go"
 ### Task Count Summary
 
 | Phase | Story | Task Count |
-|-------|-------|------------|
+| ----- | ----- | ---------- |
 | Phase 1 | Setup | 4 |
 | Phase 2 | Foundational | 11 |
 | Phase 3 | US1 - Automatic Routing | 12 |

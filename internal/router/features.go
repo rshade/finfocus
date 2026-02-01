@@ -29,9 +29,8 @@ const (
 	FeatureBudgets Feature = "Budgets"
 )
 
-// ValidFeatures returns all valid feature names.
-// ValidFeatures lists the complete set of supported Feature values used by the router.
-// The returned slice contains FeatureProjectedCosts, FeatureActualCosts, FeatureRecommendations, FeatureCarbon, FeatureDryRun, and FeatureBudgets.
+// ValidFeatures returns all supported Feature values (ProjectedCosts, ActualCosts,
+// Recommendations, Carbon, DryRun, Budgets).
 func ValidFeatures() []Feature {
 	return []Feature{
 		FeatureProjectedCosts,

@@ -133,8 +133,6 @@ func TestFeatureFromMethod(t *testing.T) {
 
 func TestDefaultFeatures(t *testing.T) {
 	defaults := DefaultFeatures()
-
 	require.Len(t, defaults, 2)
-	assert.Contains(t, defaults, FeatureProjectedCosts)
-	assert.Contains(t, defaults, FeatureActualCosts)
+	assert.Equal(t, []Feature{FeatureProjectedCosts, FeatureActualCosts}, defaults)
 }

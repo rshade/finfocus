@@ -63,7 +63,7 @@ type PluginMatch struct {
 ### MatchReason
 
 - `MatchReasonPattern` - Plugin matched via resource pattern
-- `MatchReasonProvider` - Plugin matched via provider (automatic routing)
+- `MatchReasonAutomatic` - Plugin matched via provider (automatic routing)
 
 ## Testing Commands
 

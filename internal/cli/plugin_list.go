@@ -236,14 +236,25 @@ func fetchSinglePluginMetadata(
 	}
 	defer func() { _ = client.Close() }()
 
-	if client.Metadata != nil {
-		result.SpecVersion = client.Metadata.SpecVersion
-		result.RuntimeVersion = client.Metadata.Version
-		result.SupportedProviders = client.Metadata.SupportedProviders
+	if client.Metadata == nil {
+		return result
+	}
 
-		// Infer capabilities from plugin metadata
-		// Currently defaults to ProjectedCosts and ActualCosts per FR-021
-		// until finfocus-spec#287 adds explicit capability reporting
+	if client.Metadata.SpecVersion != "" {
+		result.SpecVersion = client.Metadata.SpecVersion
+	}
+	if client.Metadata.Version != "" {
+		result.RuntimeVersion = client.Metadata.Version
+	}
+	if len(client.Metadata.SupportedProviders) > 0 {
+		result.SupportedProviders = client.Metadata.SupportedProviders
+	}
+
+	// Read capabilities from plugin metadata
+	if len(client.Metadata.Capabilities) > 0 {
+		result.Capabilities = client.Metadata.Capabilities
+	} else {
+		// Fallback for legacy plugins without capability reporting
 		result.Capabilities = []string{"ProjectedCosts", "ActualCosts"}
 	}
 

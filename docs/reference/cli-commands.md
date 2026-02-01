@@ -9,10 +9,13 @@ Complete command reference for FinFocus.
 ## Commands Overview
 
 ```bash
-finfocus                 # Help
-finfocus cost            # Cost commands
-finfocus cost projected  # Estimate costs from plan
-finfocus cost actual     # Get actual historical costs
+finfocus                    # Help
+finfocus cost               # Cost commands
+finfocus cost projected     # Estimate costs from plan
+finfocus cost actual        # Get actual historical costs
+finfocus cost recommendations # Get cost optimization recommendations
+finfocus config             # Configuration commands
+finfocus config validate    # Validate routing configuration
 finfocus plugin             # Plugin commands
 finfocus plugin init        # Initialize a new plugin
 finfocus plugin install     # Install a plugin
@@ -24,7 +27,7 @@ finfocus plugin validate    # Validate plugin setup
 finfocus plugin conformance # Run conformance tests
 finfocus plugin certify     # Run certification tests
 finfocus analyzer           # Analyzer commands
-finfocus analyzer serve  # Start the analyzer gRPC server
+finfocus analyzer serve     # Start the analyzer gRPC server
 ```
 
 ## cost projected
@@ -159,6 +162,51 @@ finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --output json
 finfocus cost actual --pulumi-state state.json --estimate-confidence
 ```
 
+## config validate
+
+Validate routing configuration for errors and warnings.
+
+### Usage
+
+```bash
+finfocus config validate [options]
+```
+
+### Options
+
+| Flag     | Description |
+| -------- | ----------- |
+| `--help` | Show help   |
+
+### Examples
+
+```bash
+# Validate routing configuration
+finfocus config validate
+
+# Success output:
+# ✓ Configuration valid
+#
+# Discovered plugins:
+#   aws-ce: Recommendations, ActualCosts (priority: 20)
+#   aws-public: ProjectedCosts, ActualCosts (priority: 10)
+#
+# Routing rules:
+#   aws:eks:* → eks-costs (pattern, priority: 30)
+#   aws:* → aws-public (provider, priority: 10)
+
+# Error output:
+# ✗ Configuration invalid
+#
+# Errors:
+#   - aws-ce: plugin not found
+#   - patterns[0].pattern: invalid regex: missing closing bracket
+#
+# Warnings:
+#   - aws-public: feature 'Carbon' not supported by plugin
+#   - eks-costs: duplicate plugin configuration found
+```
+
 ## plugin init
 
 Initialize a new FinFocus plugin project.
@@ -278,7 +326,7 @@ finfocus plugin remove --all
 
 ## plugin list
 
-List installed plugins.
+List installed plugins with optional capability details.
 
 ### Usage
 
@@ -288,9 +336,10 @@ finfocus plugin list [options]
 
 ### Options
 
-| Flag     | Description |
-| -------- | ----------- |
-| `--help` | Show help   |
+| Flag        | Description                                     | Default |
+| ----------- | ----------------------------------------------- | ------- |
+| `--verbose` | Show detailed plugin capabilities and providers | false   |
+| `--help`    | Show help                                       |         |
 
 ### Examples
 
@@ -302,6 +351,16 @@ finfocus plugin list
 # NAME      VERSION   SPEC    PATH
 # vantage   0.1.0     0.4.14  /Users/me/.finfocus/plugins/vantage/v0.1.0/finfocus-plugin-vantage
 # kubecost  0.2.0     0.4.14  /Users/me/.finfocus/plugins/kubecost/v0.2.0/finfocus-plugin-kubecost
+
+# List with detailed capabilities (routing-aware)
+finfocus plugin list --verbose
+
+# Output:
+# NAME        VERSION  PROVIDERS    CAPABILITIES                 SPEC    PATH
+# aws-public  1.0.0    [aws]        ProjectedCosts, ActualCosts  0.4.14  /Users/me/.finfocus/plugins/aws-public/v1.0.0/finfocus-plugin-aws-public
+# aws-ce      1.0.0    [aws]        Recommendations, ActualCosts 0.4.14  /Users/me/.finfocus/plugins/aws-ce/v1.0.0/finfocus-plugin-aws-ce
+# gcp-public  1.0.0    [gcp]        ProjectedCosts, ActualCosts  0.4.14  /Users/me/.finfocus/plugins/gcp-public/v1.0.0/finfocus-plugin-gcp-public
+# eks-costs   0.5.0    [aws]        ProjectedCosts                   healthy
 ```
 
 ## plugin inspect

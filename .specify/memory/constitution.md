@@ -129,7 +129,9 @@ Rationale:
 Date: 2025-11-24
 -->
 
-# PulumiCost Core Constitution
+# FinFocus Core Constitution
+
+**Note**: This project was formerly known as "PulumiCost". References to "PulumiCost" in this document are legacy naming and should be read as "FinFocus" throughout.
 
 ## Core Principles
 
@@ -206,16 +208,16 @@ Code changes MUST be complete implementations, not stubs or placeholders.
 "Stubbing out" functionality for future implementation is strictly prohibited
 in the main codebase.
 
-1.  **No TODOs**: TODO comments are FORBIDDEN in committed code. Implement
-    the feature fully or track it via a GitHub issue.
-2.  **No Stubs**: Stub implementations that bypass actual functionality or
-    return hardcoded/simulated results where real logic is required are
-    FORBIDDEN.
-3.  **Task Finality**: All task list items in `tasks.md` MUST be fully
-    implemented, tested, and verified before being marked as complete `[x]`.
-4.  **Real Tests**: Tests MUST exercise real behavior and logic. Mocking is
-    permitted only for external systems (e.g., cloud APIs, gRPC services)
-    as defined in the testing framework.
+1. **No TODOs**: TODO comments are FORBIDDEN in committed code. Implement
+   the feature fully or track it via a GitHub issue.
+2. **No Stubs**: Stub implementations that bypass actual functionality or
+   return hardcoded/simulated results where real logic is required are
+   FORBIDDEN.
+3. **Task Finality**: All task list items in `tasks.md` MUST be fully
+   implemented, tested, and verified before being marked as complete `[x]`.
+4. **Real Tests**: Tests MUST exercise real behavior and logic. Mocking is
+   permitted only for external systems (e.g., cloud APIs, gRPC services)
+   as defined in the testing framework.
 
 **Rationale**: Maintains a high standard of code readiness, prevents
 technical debt accumulation, and ensures that every merged feature is
@@ -247,12 +249,11 @@ maratori's golden config v2.5.0 intentionally for strict quality enforcement.
 
 ## Multi-Repo Governance
 
-PulumiCost operates as a three-repository ecosystem:
+FinFocus (formerly PulumiCost) operates as a three-repository ecosystem:
 
-- **pulumicost-core**: CLI tool, plugin host, orchestration engine (this
-  repository)
-- **pulumicost-spec**: Protocol buffer definitions, SDK generation
-- **pulumicost-plugin**: Plugin implementations (Kubecost, Vantage, etc.)
+- **finfocus-core** (formerly pulumicost-core): CLI tool, plugin host, orchestration engine (this repository)
+- **finfocus-spec** (formerly pulumicost-spec): Protocol buffer definitions, SDK generation
+- **finfocus-plugin** (formerly pulumicost-plugin): Plugin implementations (Kubecost, Vantage, etc.)
 
 **Cross-Repo Change Protocol**:
 

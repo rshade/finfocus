@@ -89,10 +89,13 @@ type PluginMatch struct {
 type MatchReason int
 
 const (
+	// MatchReasonNoMatch indicates the plugin did not match the resource.
+	MatchReasonNoMatch MatchReason = iota - 1
+
 	// MatchReasonAutomatic means matched via SupportedProviders metadata.
 	// The resource's provider (extracted from type) matched the plugin's
 	// declared SupportedProviders list.
-	MatchReasonAutomatic MatchReason = iota
+	MatchReasonAutomatic
 
 	// MatchReasonPattern means matched via configured pattern.
 	// A declarative glob or regex pattern matched the resource type.
@@ -106,6 +109,8 @@ const (
 // String returns the string representation of a MatchReason.
 func (r MatchReason) String() string {
 	switch r {
+	case MatchReasonNoMatch:
+		return "no_match"
 	case MatchReasonAutomatic:
 		return "automatic"
 	case MatchReasonPattern:
@@ -356,8 +361,14 @@ func (r *DefaultRouter) matchesAnyPattern(cfg config.PluginRouting, resourceType
 				continue
 			}
 			r.mu.Lock()
-			r.patterns[key] = compiled
-			r.mu.Unlock()
+			// Double-check: another goroutine may have compiled while we waited
+			if existing, exists := r.patterns[key]; exists {
+				r.mu.Unlock()
+				compiled = existing
+			} else {
+				r.patterns[key] = compiled
+				r.mu.Unlock()
+			}
 		}
 
 		matched, err := compiled.Match(resourceType)
@@ -388,7 +399,7 @@ func (r *DefaultRouter) matchesProvider(client *pluginhost.Client, provider stri
 		}
 	}
 
-	return -1 // No match
+	return MatchReasonNoMatch
 }
 
 // findClient finds a client by name.

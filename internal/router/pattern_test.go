@@ -144,7 +144,7 @@ func TestCompiledPattern_Match_Regex(t *testing.T) {
 			wantMatch:    true,
 		},
 		{
-			name:         "partial match fails without start anchor",
+			name:         "partial match without start anchor succeeds",
 			pattern:      "gcp:",
 			resourceType: "aws:gcp:Instance",
 			wantMatch:    true, // partial match

@@ -14,7 +14,7 @@ The engine currently queries ALL plugins for ALL resources. This feature transfo
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5 (per go.mod)
+**Language/Version**: Go 1.25.6 (per go.mod)
 **Primary Dependencies**: github.com/spf13/cobra (CLI), google.golang.org/grpc (plugin communication), github.com/rshade/finfocus-spec (protocol definitions)
 **Storage**: ~/.finfocus/config.yaml (YAML configuration)
 **Testing**: go test with testify/require, testify/assert (80% minimum coverage)
@@ -36,7 +36,7 @@ Verify compliance with PulumiCost Core Constitution (`.specify/memory/constituti
 - [x] **Protocol Stability**: No changes to gRPC protocol. Uses existing GetPluginInfo metadata.
 - [x] **Implementation Completeness**: Feature fully scoped with 7 user stories and 23 functional requirements.
 - [x] **Quality Gates**: All CI checks (tests, lint, security) planned as validation criteria.
-- [x] **Multi-Repo Coordination**: Spec dependency on finfocus-spec#287 (PluginCapability enum) documented; fallback logic implemented until resolved.
+- [x] **Multi-Repo Coordination**: Spec dependency on finfocus-spec#287 (PluginCapability enum) ✅ RESOLVED in v0.5.5+ (currently using v0.5.5).
 
 **Violations Requiring Justification**: None
 
@@ -161,7 +161,7 @@ routing:
 ## Key Implementation Files
 
 | File | Purpose | Changes |
-|------|---------|---------|
+| ---- | ------- | ------- |
 | `internal/router/router.go` | Router interface and factory | NEW |
 | `internal/router/automatic.go` | Provider-based routing | NEW |
 | `internal/router/declarative.go` | Config-based routing | NEW |
@@ -176,16 +176,16 @@ routing:
 ## Risk Mitigation
 
 | Risk | Mitigation |
-|------|------------|
+| ---- | ---------- |
 | Breaking existing configs | Routing is additive; no routing config = automatic routing (backward compatible) |
 | Performance regression | <10ms routing overhead target, caching for patterns |
 | Plugin protocol changes | No protocol changes required; uses existing metadata |
 | Circular fallback | Priority-ordered linear chain; each plugin tried once |
-| Missing PluginCapability enum | Fallback: infer capabilities from RPC availability until finfocus-spec#287 resolved |
+| Missing PluginCapability enum | ✅ RESOLVED in v0.5.5+: PluginCapability enum now available in finfocus-spec |
 
 ## Dependencies
 
 - **Internal**: `internal/pluginhost/host.go` (Client.Metadata.SupportedProviders)
 - **Internal**: `internal/analyzer/mapper.go` (extractProviderFromType)
 - **Internal**: `internal/config/config.go` (Config struct)
-- **External**: rshade/finfocus-spec#287 (PluginCapability enum) - optional, fallback implemented
+- **External**: rshade/finfocus-spec#287 (PluginCapability enum) - ✅ RESOLVED in v0.5.5+ (currently using v0.5.5)

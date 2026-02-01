@@ -9,6 +9,7 @@ import (
 	"google.golang.org/grpc"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
@@ -81,6 +82,7 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 		SpecVersion:        infoResp.GetSpecVersion(),
 		SupportedProviders: infoResp.GetProviders(),
 		Metadata:           infoResp.GetMetadata(),
+		Capabilities:       ConvertCapabilities(infoResp.GetCapabilities()),
 	}
 
 	// Check version compatibility (may return error in strict mode)
@@ -143,4 +145,48 @@ func checkVersionCompatibility(ctx context.Context, pluginName, pluginSpecVersio
 	}
 
 	return nil
+}
+
+// ConvertCapabilities converts proto PluginCapability enums to string slice.
+// Returns capability names in lowercase format: "projected_costs", "actual_costs", etc.
+func ConvertCapabilities(caps []pbc.PluginCapability) []string {
+	if len(caps) == 0 {
+		return nil
+	}
+
+	result := make([]string, 0, len(caps))
+	for _, cap := range caps {
+		switch cap {
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS:
+			result = append(result, "projected_costs")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS:
+			result = append(result, "actual_costs")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS:
+			result = append(result, "recommendations")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_DRY_RUN:
+			result = append(result, "dry_run")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS:
+			result = append(result, "budgets")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON:
+			result = append(result, "carbon")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_ENERGY:
+			result = append(result, "energy")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_WATER:
+			result = append(result, "water")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_PRICING_SPEC:
+			result = append(result, "pricing_spec")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_ESTIMATE_COST:
+			result = append(result, "estimate_cost")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_DISMISS_RECOMMENDATIONS:
+			result = append(result, "dismiss_recommendations")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED:
+			// Skip unspecified - not a real capability
+			continue
+		default:
+			// Unknown capability - skip
+			continue
+		}
+	}
+
+	return result
 }

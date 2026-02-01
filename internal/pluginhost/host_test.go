@@ -5,7 +5,10 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
@@ -186,4 +189,95 @@ func (m *mockLauncher) Start(
 	// This is a simplified mock - in reality we can't return a nil connection
 	// but for error testing this is sufficient
 	return nil, func() error { return nil }, errors.New("mock launcher always fails after start")
+}
+
+func TestConvertCapabilities(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    []pbc.PluginCapability
+		expected []string
+	}{
+		{
+			name: "AllCapabilities",
+			input: []pbc.PluginCapability{
+				pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_DRY_RUN,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_ENERGY,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_WATER,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_PRICING_SPEC,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_ESTIMATE_COST,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_DISMISS_RECOMMENDATIONS,
+			},
+			expected: []string{
+				"projected_costs",
+				"actual_costs",
+				"recommendations",
+				"dry_run",
+				"budgets",
+				"carbon",
+				"energy",
+				"water",
+				"pricing_spec",
+				"estimate_cost",
+				"dismiss_recommendations",
+			},
+		},
+		{
+			name:     "Empty",
+			input:    []pbc.PluginCapability{},
+			expected: nil,
+		},
+		{
+			name:     "Nil",
+			input:    nil,
+			expected: nil,
+		},
+		{
+			name: "SkipsUnspecified",
+			input: []pbc.PluginCapability{
+				pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS,
+			},
+			expected: []string{
+				"projected_costs",
+				"actual_costs",
+			},
+		},
+		{
+			name: "SubsetOfCapabilities",
+			input: []pbc.PluginCapability{
+				pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS,
+			},
+			expected: []string{
+				"projected_costs",
+				"actual_costs",
+			},
+		},
+		{
+			name: "OnlyUnspecified",
+			input: []pbc.PluginCapability{
+				pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED,
+			},
+			expected: []string{}, // Returns empty slice, not nil
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := pluginhost.ConvertCapabilities(tt.input)
+			if tt.expected == nil {
+				assert.Nil(t, result)
+			} else {
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
 }

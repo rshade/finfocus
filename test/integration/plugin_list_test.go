@@ -1,6 +1,8 @@
 //go:build integration
 
-package integration
+// Package cli_test provides black-box integration tests for the internal/cli package.
+// These tests validate CLI behavior from an external consumer perspective.
+package cli_test
 
 import (
 	"bytes"

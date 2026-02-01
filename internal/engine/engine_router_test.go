@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -115,11 +116,11 @@ func TestEngine_RouterIntegration(t *testing.T) {
 	})
 
 	t.Run("router tracks selected plugins correctly", func(t *testing.T) {
-		selectionCount := 0
+		var selectionCount int32
 
 		router := &mockRouter{
 			selectPluginsFunc: func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
-				selectionCount++
+				atomic.AddInt32(&selectionCount, 1)
 				// Return empty for test purposes
 				return []PluginMatch{}
 			},
@@ -138,7 +139,7 @@ func TestEngine_RouterIntegration(t *testing.T) {
 		require.NoError(t, err)
 
 		// Router should have been consulted for each resource
-		assert.Equal(t, 3, selectionCount)
+		assert.Equal(t, int32(3), atomic.LoadInt32(&selectionCount))
 	})
 }
 

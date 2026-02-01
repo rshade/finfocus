@@ -1,6 +1,10 @@
 package config
 
-import "fmt"
+import (
+	"fmt"
+	"path/filepath"
+	"regexp"
+)
 
 // RoutingConfig defines the complete routing strategy for plugins.
 //
@@ -139,16 +143,35 @@ func (r *RoutingConfig) Validate() error {
 
 		// Validate patterns
 		for j, pattern := range plugin.Patterns {
-			if pattern.Pattern == "" {
-				return fmt.Errorf("plugin %q: pattern at index %d: pattern string is required", plugin.Name, j)
-			}
-
-			if pattern.Type != PatternTypeGlob && pattern.Type != PatternTypeRegex {
-				return fmt.Errorf("plugin %q: pattern at index %d: invalid type %q (must be %q or %q)",
-					plugin.Name, j, pattern.Type, PatternTypeGlob, PatternTypeRegex)
+			if err := validatePattern(plugin.Name, j, pattern); err != nil {
+				return err
 			}
 		}
 	}
 
+	return nil
+}
+
+// validatePattern validates a single resource pattern.
+func validatePattern(pluginName string, index int, pattern ResourcePattern) error {
+	if pattern.Pattern == "" {
+		return fmt.Errorf("plugin %q: pattern at index %d: pattern string is required", pluginName, index)
+	}
+
+	switch pattern.Type {
+	case PatternTypeRegex:
+		if _, err := regexp.Compile(pattern.Pattern); err != nil {
+			return fmt.Errorf("plugin %q: pattern at index %d: invalid regex %q: %w",
+				pluginName, index, pattern.Pattern, err)
+		}
+	case PatternTypeGlob:
+		if _, err := filepath.Match(pattern.Pattern, ""); err != nil {
+			return fmt.Errorf("plugin %q: pattern at index %d: invalid glob %q: %w",
+				pluginName, index, pattern.Pattern, err)
+		}
+	default:
+		return fmt.Errorf("plugin %q: pattern at index %d: invalid type %q (must be %q or %q)",
+			pluginName, index, pattern.Type, PatternTypeGlob, PatternTypeRegex)
+	}
 	return nil
 }
