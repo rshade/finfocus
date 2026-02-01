@@ -95,6 +95,7 @@ func splitDecimal(s string) []string {
 // It accepts an optional leading '-' to denote a negative number and otherwise
 // requires only digits 0-9. If s contains any non-digit (or an unexpected
 // leading '+'), it returns an error describing the invalid rune.
+// Returns an error if the parsed value would overflow int64 bounds.
 func parseIntPart(s string) (int64, error) {
 	if s == "" {
 		return 0, errors.New("empty integer part")
@@ -112,7 +113,26 @@ func parseIntPart(s string) (int64, error) {
 		if c < '0' || c > '9' {
 			return 0, fmt.Errorf("invalid character: %c", c)
 		}
-		n = n*base + int64(c-'0')
+
+		digit := int64(c - '0')
+
+		// Overflow check before multiplication and addition.
+		// For positive numbers: check if n * base + digit > MaxInt64
+		// For negative numbers: check if n * base + digit > |MinInt64| (where |MinInt64| = MaxInt64 + 1)
+		if negative {
+			// Allow accumulation up to |MinInt64| = 9223372036854775808
+			// This is equivalent to checking n * base + digit <= MaxInt64 + 1
+			if n > math.MaxInt64/base || (n == math.MaxInt64/base && digit > 8) {
+				return 0, errors.New("integer overflow")
+			}
+		} else {
+			// Check if n > (MaxInt64 - digit) / base to prevent n * base + digit > MaxInt64
+			if n > (math.MaxInt64-digit)/base {
+				return 0, errors.New("integer overflow")
+			}
+		}
+
+		n = n*base + digit
 	}
 
 	if negative {
