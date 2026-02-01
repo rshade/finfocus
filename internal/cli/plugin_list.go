@@ -198,14 +198,14 @@ func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginI
 // "ProjectedCosts" and "ActualCosts" when metadata is present.
 //
 // Parameters:
-//  - ctx: the context used for the operation (may carry cancellation and logging).
-//  - launcher: the pluginhost launcher used to start or connect to the plugin.
-//  - plugin: the registry.PluginInfo describing the plugin to inspect.
+//   - ctx: the context used for the operation (may carry cancellation and logging).
+//   - launcher: the pluginhost launcher used to start or connect to the plugin.
+//   - plugin: the registry.PluginInfo describing the plugin to inspect.
 //
 // Returns:
-//  - a non-nil *enrichedPluginInfo containing the original PluginInfo plus any discovered
-//    metadata. If any step fails, the returned struct's Notes field contains a human-readable
-//    failure description.
+//   - a non-nil *enrichedPluginInfo containing the original PluginInfo plus any discovered
+//     metadata. If any step fails, the returned struct's Notes field contains a human-readable
+//     failure description.
 func fetchSinglePluginMetadata(
 	ctx context.Context,
 	launcher pluginhost.Launcher,
@@ -310,6 +310,7 @@ func displayVerbosePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) er
 // Parameters:
 //   - w: destination tab writer for formatted output.
 //   - plugins: list of enriched plugin information to display.
+//
 // Returns any error encountered while flushing the writer.
 func displaySimplePlugins(w *tabwriter.Writer, plugins []enrichedPluginInfo) error {
 	// Check if any plugins have notes to show

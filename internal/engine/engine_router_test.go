@@ -1,4 +1,4 @@
-package engine_test
+package engine
 
 import (
 	"context"
@@ -7,21 +7,20 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
 // mockRouter is a test router implementation for engine integration tests.
 type mockRouter struct {
-	selectPluginsFunc func(ctx context.Context, resource engine.ResourceDescriptor, feature string) []engine.PluginMatch
+	selectPluginsFunc func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch
 	shouldFallbackFn  func(pluginName string) bool
 }
 
 func (m *mockRouter) SelectPlugins(
 	ctx context.Context,
-	resource engine.ResourceDescriptor,
+	resource ResourceDescriptor,
 	feature string,
-) []engine.PluginMatch {
+) []PluginMatch {
 	if m.selectPluginsFunc != nil {
 		return m.selectPluginsFunc(ctx, resource, feature)
 	}
@@ -39,13 +38,13 @@ func (m *mockRouter) ShouldFallback(pluginName string) bool {
 func TestEngine_WithRouter(t *testing.T) {
 	t.Run("router is optional", func(t *testing.T) {
 		// Engine should work without a router
-		e := engine.New(nil, nil)
+		e := New(nil, nil)
 		assert.NotNil(t, e)
 	})
 
 	t.Run("router can be set via WithRouter", func(t *testing.T) {
 		router := &mockRouter{}
-		e := engine.New(nil, nil).WithRouter(router)
+		e := New(nil, nil).WithRouter(router)
 		assert.NotNil(t, e)
 	})
 }
@@ -58,10 +57,10 @@ func TestEngine_RouterIntegration(t *testing.T) {
 
 	t.Run("without router and no clients returns empty results", func(t *testing.T) {
 		// Create engine with no router and no clients
-		e := engine.New(nil, nil)
+		e := New(nil, nil)
 
 		// Empty resources should return empty results
-		results, err := e.GetProjectedCost(ctx, []engine.ResourceDescriptor{})
+		results, err := e.GetProjectedCost(ctx, []ResourceDescriptor{})
 		require.NoError(t, err)
 		assert.Empty(t, results)
 	})
@@ -71,20 +70,21 @@ func TestEngine_RouterIntegration(t *testing.T) {
 		capturedResourceType := ""
 
 		router := &mockRouter{
-			selectPluginsFunc: func(ctx context.Context, resource engine.ResourceDescriptor, feature string) []engine.PluginMatch {
+			selectPluginsFunc: func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
 				capturedFeature = feature
 				capturedResourceType = resource.Type
 				// Return empty - engine will fallback to "none" adapter
-				return []engine.PluginMatch{}
+				return []PluginMatch{}
 			},
 		}
 
 		// Create engine with no real clients but with router
-		e := engine.New([]*pluginhost.Client{}, nil).WithRouter(router)
+		e := New([]*pluginhost.Client{}, nil).WithRouter(router)
 
-		_, _ = e.GetProjectedCost(ctx, []engine.ResourceDescriptor{
+		_, err := e.GetProjectedCost(ctx, []ResourceDescriptor{
 			{Type: "aws:ec2:Instance", ID: "i-1"},
 		})
+		require.NoError(t, err)
 
 		assert.Equal(t, "ProjectedCosts", capturedFeature)
 		assert.Equal(t, "aws:ec2:Instance", capturedResourceType)
@@ -92,16 +92,16 @@ func TestEngine_RouterIntegration(t *testing.T) {
 
 	t.Run("router empty match falls back to all clients", func(t *testing.T) {
 		router := &mockRouter{
-			selectPluginsFunc: func(ctx context.Context, resource engine.ResourceDescriptor, feature string) []engine.PluginMatch {
+			selectPluginsFunc: func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
 				// Return empty - should fall back to all clients
-				return []engine.PluginMatch{}
+				return []PluginMatch{}
 			},
 		}
 
 		// Create engine with no real clients
-		e := engine.New([]*pluginhost.Client{}, nil).WithRouter(router)
+		e := New([]*pluginhost.Client{}, nil).WithRouter(router)
 
-		resources := []engine.ResourceDescriptor{
+		resources := []ResourceDescriptor{
 			{Type: "unknown:resource:Type", ID: "unknown-1"},
 		}
 
@@ -118,17 +118,17 @@ func TestEngine_RouterIntegration(t *testing.T) {
 		selectionCount := 0
 
 		router := &mockRouter{
-			selectPluginsFunc: func(ctx context.Context, resource engine.ResourceDescriptor, feature string) []engine.PluginMatch {
+			selectPluginsFunc: func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
 				selectionCount++
 				// Return empty for test purposes
-				return []engine.PluginMatch{}
+				return []PluginMatch{}
 			},
 		}
 
-		e := engine.New([]*pluginhost.Client{}, nil).WithRouter(router)
+		e := New([]*pluginhost.Client{}, nil).WithRouter(router)
 
 		// Process multiple resources
-		resources := []engine.ResourceDescriptor{
+		resources := []ResourceDescriptor{
 			{Type: "aws:ec2:Instance", ID: "i-1"},
 			{Type: "gcp:compute:Instance", ID: "gcp-1"},
 			{Type: "azure:compute:VM", ID: "azure-1"},
@@ -153,11 +153,11 @@ func TestEngine_RouterNotNilReturnsPluginMatch(t *testing.T) {
 		gcpClient := &pluginhost.Client{Name: "gcp-public"}
 
 		router := &mockRouter{
-			selectPluginsFunc: func(ctx context.Context, resource engine.ResourceDescriptor, feature string) []engine.PluginMatch {
+			selectPluginsFunc: func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
 				// Track what the router returned
 				if resource.Type == "aws:ec2:Instance" {
 					selectedPlugins = append(selectedPlugins, "aws-public")
-					return []engine.PluginMatch{
+					return []PluginMatch{
 						{
 							Client:      awsClient,
 							Priority:    10,
@@ -167,13 +167,13 @@ func TestEngine_RouterNotNilReturnsPluginMatch(t *testing.T) {
 						},
 					}
 				}
-				return []engine.PluginMatch{}
+				return []PluginMatch{}
 			},
 		}
 
 		// Note: Without actual plugin API implementations, the engine will error
 		// but the router selection still happens first
-		e := engine.New([]*pluginhost.Client{awsClient, gcpClient}, nil).WithRouter(router)
+		e := New([]*pluginhost.Client{awsClient, gcpClient}, nil).WithRouter(router)
 
 		_ = e // Engine created successfully with router
 

@@ -163,15 +163,16 @@ func WithClients(clients []*pluginhost.Client) Option {
 //	router, err := NewRouter(
 //	    WithClients(clients),
 //	    WithConfig(config.Routing),
+//
 // NewRouter creates a DefaultRouter configured by the provided options.
-// 
+//
 // The router is initialized with internal caches, builds a per-plugin routing
 // lookup from any supplied routing config, and pre-compiles all declarative
 // patterns found in that config for fast matching at runtime.
-// 
+//
 // opts are functional options (e.g., WithConfig, WithClients) used to provide
 // the routing configuration and available plugin clients.
-// 
+//
 // The returned error is non-nil if any configured pattern fails to compile.
 func NewRouter(opts ...Option) (*DefaultRouter, error) {
 	r := &DefaultRouter{

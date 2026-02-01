@@ -242,19 +242,28 @@ func TestPatternCache_ConcurrentAccess(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
+	errCh := make(chan error, goroutines*iterations)
 
 	for i := 0; i < goroutines; i++ {
 		go func() {
 			defer wg.Done()
 			for j := 0; j < iterations; j++ {
 				pattern := "aws:ec2:.*"
-				_, err := cache.MatchRegex(pattern, "aws:ec2:Instance")
-				assert.NoError(t, err)
+				if _, err := cache.MatchRegex(pattern, "aws:ec2:Instance"); err != nil {
+					errCh <- err
+				}
 			}
 		}()
 	}
 
 	wg.Wait()
+	close(errCh)
+
+	// Assert no errors occurred
+	for err := range errCh {
+		require.NoError(t, err)
+	}
+
 	// Should have exactly one cached pattern despite concurrent access
 	assert.Equal(t, 1, cache.Size())
 }
