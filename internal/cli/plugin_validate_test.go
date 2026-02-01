@@ -17,6 +17,11 @@ import (
 func TestNewPluginValidateCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	// Use temporary directory to avoid validating real plugins
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+
 	tests := []struct {
 		name        string
 		args        []string
@@ -61,6 +66,11 @@ func TestNewPluginValidateCmd(t *testing.T) {
 func TestPluginValidateCmdFlags(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	// Use temporary directory to avoid validating real plugins
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+
 	cmd := cli.NewPluginValidateCmd()
 
 	// Check plugin flag
@@ -74,6 +84,11 @@ func TestPluginValidateCmdFlags(t *testing.T) {
 func TestPluginValidateCmdHelp(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	// Use temporary directory to avoid validating real plugins
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+
 	var buf bytes.Buffer
 	cmd := cli.NewPluginValidateCmd()
 	cmd.SetOut(&buf)
@@ -92,6 +107,11 @@ func TestPluginValidateCmdHelp(t *testing.T) {
 func TestPluginValidateCmdExamples(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	// Use temporary directory to avoid validating real plugins
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+
 	cmd := cli.NewPluginValidateCmd()
 
 	// Check that examples are present
@@ -105,6 +125,11 @@ func TestPluginValidateCmdExamples(t *testing.T) {
 func TestValidatePlugin(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	// Use temporary directory to avoid validating real plugins
+	tmpHomeDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpHomeDir)
+
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 

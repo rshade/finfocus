@@ -692,7 +692,10 @@ func TestConfig_FINFOCUS_BUDGET_EXIT_ON_THRESHOLD_True(t *testing.T) {
 	t.Setenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD", "true")
 
 	cfg := New()
-	assert.True(t, cfg.Cost.Budgets.ExitOnThreshold,
+	require.NotNil(t, cfg.Cost.Budgets)
+	require.NotNil(t, cfg.Cost.Budgets.Global)
+	require.NotNil(t, cfg.Cost.Budgets.Global.ExitOnThreshold)
+	require.True(t, *cfg.Cost.Budgets.Global.ExitOnThreshold,
 		"FINFOCUS_BUDGET_EXIT_ON_THRESHOLD=true should enable exit")
 }
 
@@ -702,7 +705,10 @@ func TestConfig_FINFOCUS_BUDGET_EXIT_ON_THRESHOLD_One(t *testing.T) {
 	t.Setenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD", "1")
 
 	cfg := New()
-	assert.True(t, cfg.Cost.Budgets.ExitOnThreshold,
+	require.NotNil(t, cfg.Cost.Budgets)
+	require.NotNil(t, cfg.Cost.Budgets.Global)
+	require.NotNil(t, cfg.Cost.Budgets.Global.ExitOnThreshold)
+	require.True(t, *cfg.Cost.Budgets.Global.ExitOnThreshold,
 		"FINFOCUS_BUDGET_EXIT_ON_THRESHOLD=1 should enable exit")
 }
 
@@ -712,7 +718,10 @@ func TestConfig_FINFOCUS_BUDGET_EXIT_ON_THRESHOLD_False(t *testing.T) {
 	t.Setenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD", "false")
 
 	cfg := New()
-	assert.False(t, cfg.Cost.Budgets.ExitOnThreshold,
+	require.NotNil(t, cfg.Cost.Budgets)
+	require.NotNil(t, cfg.Cost.Budgets.Global)
+	require.NotNil(t, cfg.Cost.Budgets.Global.ExitOnThreshold)
+	assert.False(t, *cfg.Cost.Budgets.Global.ExitOnThreshold,
 		"FINFOCUS_BUDGET_EXIT_ON_THRESHOLD=false should disable exit")
 }
 
@@ -722,7 +731,10 @@ func TestConfig_FINFOCUS_BUDGET_EXIT_CODE(t *testing.T) {
 	t.Setenv("FINFOCUS_BUDGET_EXIT_CODE", "42")
 
 	cfg := New()
-	assert.Equal(t, 42, cfg.Cost.Budgets.ExitCode,
+	require.NotNil(t, cfg.Cost.Budgets)
+	require.NotNil(t, cfg.Cost.Budgets.Global)
+	require.NotNil(t, cfg.Cost.Budgets.Global.ExitCode)
+	assert.Equal(t, 42, *cfg.Cost.Budgets.Global.ExitCode,
 		"FINFOCUS_BUDGET_EXIT_CODE should set the exit code")
 }
 
@@ -734,13 +746,15 @@ func TestConfig_Budget_EnvOverridesConfigFile(t *testing.T) {
 	err := os.MkdirAll(configDir, 0700)
 	require.NoError(t, err)
 
+	// Use the new hierarchical budget format
 	configContent := `
 cost:
   budgets:
-    amount: 1000
-    currency: USD
-    exit_on_threshold: false
-    exit_code: 1
+    global:
+      amount: 1000
+      currency: USD
+      exit_on_threshold: false
+      exit_code: 1
 `
 	err = os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(configContent), 0600)
 	require.NoError(t, err)
@@ -753,12 +767,16 @@ cost:
 	cfg := New()
 
 	// Environment should override config file values
-	assert.True(t, cfg.Cost.Budgets.ExitOnThreshold,
+	require.NotNil(t, cfg.Cost.Budgets)
+	require.NotNil(t, cfg.Cost.Budgets.Global)
+	require.NotNil(t, cfg.Cost.Budgets.Global.ExitOnThreshold)
+	require.True(t, *cfg.Cost.Budgets.Global.ExitOnThreshold,
 		"env should override config file exit_on_threshold")
-	assert.Equal(t, 5, cfg.Cost.Budgets.ExitCode,
+	require.NotNil(t, cfg.Cost.Budgets.Global.ExitCode)
+	assert.Equal(t, 5, *cfg.Cost.Budgets.Global.ExitCode,
 		"env should override config file exit_code")
 	// Config file values should still be loaded for non-overridden fields
-	assert.Equal(t, 1000.0, cfg.Cost.Budgets.Amount,
+	assert.Equal(t, 1000.0, cfg.Cost.Budgets.Global.Amount,
 		"config file budget amount should still be loaded")
 }
 
@@ -840,8 +858,29 @@ func TestConfig_FINFOCUS_BUDGET_EXIT_ENV_EdgeCases(t *testing.T) {
 			}
 
 			cfg := New()
-			assert.Equal(t, tc.expectEnabled, cfg.Cost.Budgets.ExitOnThreshold)
-			assert.Equal(t, tc.expectCode, cfg.Cost.Budgets.ExitCode)
+			// Access budget values through the Global scope
+			if cfg.Cost.Budgets == nil || cfg.Cost.Budgets.Global == nil {
+				// If no budgets configured, expect disabled behavior
+				assert.False(t, tc.expectEnabled, "expected ExitOnThreshold to be disabled when Budgets is nil")
+				return
+			}
+
+			// Check ExitOnThreshold
+			exitOnThreshold := cfg.Cost.Budgets.Global.ExitOnThreshold
+			if exitOnThreshold != nil {
+				assert.Equal(t, tc.expectEnabled, *exitOnThreshold)
+			} else {
+				assert.False(t, tc.expectEnabled, "expected ExitOnThreshold to be set")
+			}
+
+			// Check ExitCode
+			exitCodeNotSet := tc.exitCode == "" || tc.exitCode == "abc"
+			if exitCodeNotSet && cfg.Cost.Budgets.Global.ExitCode != nil {
+				assert.Equal(t, tc.expectCode, *cfg.Cost.Budgets.Global.ExitCode)
+			} else if !exitCodeNotSet {
+				require.NotNil(t, cfg.Cost.Budgets.Global.ExitCode)
+				assert.Equal(t, tc.expectCode, *cfg.Cost.Budgets.Global.ExitCode)
+			}
 		})
 	}
 }
@@ -897,11 +936,18 @@ func TestConfig_BudgetExitCode_Validation(t *testing.T) {
 			t.Setenv("FINFOCUS_BUDGET_EXIT_CODE", tc.exitCode)
 
 			cfg := New()
+			// Ensure budgets config structure exists with required fields
+			if cfg.Cost.Budgets == nil {
+				cfg.Cost.Budgets = &BudgetsConfig{}
+			}
+			if cfg.Cost.Budgets.Global == nil {
+				cfg.Cost.Budgets.Global = &ScopedBudget{}
+			}
 			// Manually set required fields so Validate doesn't fail on currency/amount
-			cfg.Cost.Budgets.Amount = 100
-			cfg.Cost.Budgets.Currency = "USD"
+			cfg.Cost.Budgets.Global.Amount = 100
+			cfg.Cost.Budgets.Global.Currency = "USD"
 
-			err := cfg.Cost.Budgets.Validate()
+			_, err := cfg.Cost.Budgets.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tc.errContains)

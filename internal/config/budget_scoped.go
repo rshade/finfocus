@@ -66,11 +66,17 @@ type ScopedBudget struct {
 }
 
 // IsEnabled returns true if the scoped budget is configured and enabled (Amount > 0).
+// Nil-receiver behavior: ScopedBudget.IsEnabled() treats a nil receiver as not enabled
+// and returns false. This allows safe nil-checking without explicit nil guards.
 func (s *ScopedBudget) IsEnabled() bool {
 	return s != nil && s.Amount > 0
 }
 
 // IsDisabled returns true if the scoped budget is disabled (nil or Amount == 0).
+// Nil-receiver behavior: ScopedBudget.IsDisabled() treats a nil receiver as disabled/not
+// configured and returns true. This semantic difference from IsEnabled is deliberate:
+// "nil == not enabled" vs "nil == disabled/not configured" allows callers to check
+// absence of configuration explicitly.
 func (s *ScopedBudget) IsDisabled() bool {
 	return s == nil || s.Amount == 0
 }
@@ -182,9 +188,16 @@ func (s *ScopedBudget) validateAlerts() error {
 	return nil
 }
 
-// validateExitCode validates the exit code if set.
+// validateExitCode validates the exit code if set and ExitOnThreshold is enabled.
+// Exit code is only validated when ExitOnThreshold is true, since the value
+// is unused when threshold-based exit is disabled.
 func (s *ScopedBudget) validateExitCode() error {
+	// Skip validation if exit code is not set
 	if s.ExitCode == nil {
+		return nil
+	}
+	// Skip validation if ExitOnThreshold is not enabled
+	if s.ExitOnThreshold == nil || !*s.ExitOnThreshold {
 		return nil
 	}
 	if *s.ExitCode < MinExitCode || *s.ExitCode > MaxExitCode {
@@ -414,6 +427,15 @@ func (b *BudgetsConfig) Validate() ([]string, error) {
 	warnings, err := b.validateTagBudgets(globalCurrency)
 	if err != nil {
 		return nil, err
+	}
+
+	// Warn about tag budgets not being fully functional
+	// Tag-based cost allocation requires tag data in CostResult, which is not yet implemented.
+	// Users should be aware that tag budgets are configured but may not track costs correctly.
+	if len(b.Tags) > 0 {
+		warnings = append(warnings,
+			"tag-based budgets are configured but tag allocation is not yet fully implemented; "+
+				"tag budgets will show $0 spend until tag data is available in cost results")
 	}
 
 	if err = b.validateTypeBudgets(globalCurrency); err != nil {

@@ -240,9 +240,11 @@ func TestCostConfig_Validate(t *testing.T) {
 		{
 			name: "valid cost config",
 			cost: CostConfig{
-				Budgets: BudgetConfig{
-					Amount:   1000.0,
-					Currency: "USD",
+				Budgets: &BudgetsConfig{
+					Global: &ScopedBudget{
+						Amount:   1000.0,
+						Currency: "USD",
+					},
 				},
 			},
 			wantErr: false,
@@ -255,8 +257,10 @@ func TestCostConfig_Validate(t *testing.T) {
 		{
 			name: "invalid budget propagates error",
 			cost: CostConfig{
-				Budgets: BudgetConfig{
-					Amount: -100.0,
+				Budgets: &BudgetsConfig{
+					Global: &ScopedBudget{
+						Amount: -100.0,
+					},
 				},
 			},
 			wantErr: true,
@@ -289,14 +293,18 @@ func TestCostConfig_HasBudget(t *testing.T) {
 		{
 			name: "zero amount has no budget",
 			cost: CostConfig{
-				Budgets: BudgetConfig{Amount: 0.0},
+				Budgets: &BudgetsConfig{
+					Global: &ScopedBudget{Amount: 0.0},
+				},
 			},
 			expected: false,
 		},
 		{
 			name: "positive amount has budget",
 			cost: CostConfig{
-				Budgets: BudgetConfig{Amount: 100.0, Currency: "USD"},
+				Budgets: &BudgetsConfig{
+					Global: &ScopedBudget{Amount: 100.0, Currency: "USD"},
+				},
 			},
 			expected: true,
 		},
@@ -313,16 +321,17 @@ func TestBudgetConfig_YAMLParsing(t *testing.T) {
 	yamlData := `
 cost:
   budgets:
-    amount: 1000
-    currency: USD
-    period: monthly
-    alerts:
-      - threshold: 50
-        type: actual
-      - threshold: 80
-        type: actual
-      - threshold: 100
-        type: forecasted
+    global:
+      amount: 1000
+      currency: USD
+      period: monthly
+      alerts:
+        - threshold: 50
+          type: actual
+        - threshold: 80
+          type: actual
+        - threshold: 100
+          type: forecasted
 `
 
 	var cfg struct {
@@ -332,18 +341,20 @@ cost:
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
 	require.NoError(t, err)
 
-	assert.Equal(t, 1000.0, cfg.Cost.Budgets.Amount)
-	assert.Equal(t, "USD", cfg.Cost.Budgets.Currency)
-	assert.Equal(t, "monthly", cfg.Cost.Budgets.Period)
-	assert.Len(t, cfg.Cost.Budgets.Alerts, 3)
+	require.NotNil(t, cfg.Cost.Budgets)
+	require.NotNil(t, cfg.Cost.Budgets.Global)
+	assert.Equal(t, 1000.0, cfg.Cost.Budgets.Global.Amount)
+	assert.Equal(t, "USD", cfg.Cost.Budgets.Global.Currency)
+	assert.Equal(t, "monthly", cfg.Cost.Budgets.Global.Period)
+	assert.Len(t, cfg.Cost.Budgets.Global.Alerts, 3)
 
 	// Validate alert parsing
-	assert.Equal(t, 50.0, cfg.Cost.Budgets.Alerts[0].Threshold)
-	assert.Equal(t, AlertTypeActual, cfg.Cost.Budgets.Alerts[0].Type)
-	assert.Equal(t, 80.0, cfg.Cost.Budgets.Alerts[1].Threshold)
-	assert.Equal(t, AlertTypeActual, cfg.Cost.Budgets.Alerts[1].Type)
-	assert.Equal(t, 100.0, cfg.Cost.Budgets.Alerts[2].Threshold)
-	assert.Equal(t, AlertTypeForecasted, cfg.Cost.Budgets.Alerts[2].Type)
+	assert.Equal(t, 50.0, cfg.Cost.Budgets.Global.Alerts[0].Threshold)
+	assert.Equal(t, AlertTypeActual, cfg.Cost.Budgets.Global.Alerts[0].Type)
+	assert.Equal(t, 80.0, cfg.Cost.Budgets.Global.Alerts[1].Threshold)
+	assert.Equal(t, AlertTypeActual, cfg.Cost.Budgets.Global.Alerts[1].Type)
+	assert.Equal(t, 100.0, cfg.Cost.Budgets.Global.Alerts[2].Threshold)
+	assert.Equal(t, AlertTypeForecasted, cfg.Cost.Budgets.Global.Alerts[2].Type)
 
 	// Validate the parsed config
 	require.NoError(t, cfg.Cost.Validate())
@@ -351,13 +362,15 @@ cost:
 
 func TestBudgetConfig_YAMLRoundTrip(t *testing.T) {
 	original := CostConfig{
-		Budgets: BudgetConfig{
-			Amount:   1500.50,
-			Currency: "EUR",
-			Period:   "monthly",
-			Alerts: []AlertConfig{
-				{Threshold: 75.0, Type: AlertTypeActual},
-				{Threshold: 100.0, Type: AlertTypeForecasted},
+		Budgets: &BudgetsConfig{
+			Global: &ScopedBudget{
+				Amount:   1500.50,
+				Currency: "EUR",
+				Period:   "monthly",
+				Alerts: []AlertConfig{
+					{Threshold: 75.0, Type: AlertTypeActual},
+					{Threshold: 100.0, Type: AlertTypeForecasted},
+				},
 			},
 		},
 	}
@@ -372,12 +385,14 @@ func TestBudgetConfig_YAMLRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify equality
-	assert.Equal(t, original.Budgets.Amount, parsed.Budgets.Amount)
-	assert.Equal(t, original.Budgets.Currency, parsed.Budgets.Currency)
-	assert.Equal(t, original.Budgets.Period, parsed.Budgets.Period)
-	assert.Len(t, parsed.Budgets.Alerts, 2)
-	assert.Equal(t, original.Budgets.Alerts[0].Threshold, parsed.Budgets.Alerts[0].Threshold)
-	assert.Equal(t, original.Budgets.Alerts[0].Type, parsed.Budgets.Alerts[0].Type)
+	require.NotNil(t, parsed.Budgets)
+	require.NotNil(t, parsed.Budgets.Global)
+	assert.Equal(t, original.Budgets.Global.Amount, parsed.Budgets.Global.Amount)
+	assert.Equal(t, original.Budgets.Global.Currency, parsed.Budgets.Global.Currency)
+	assert.Equal(t, original.Budgets.Global.Period, parsed.Budgets.Global.Period)
+	assert.Len(t, parsed.Budgets.Global.Alerts, 2)
+	assert.Equal(t, original.Budgets.Global.Alerts[0].Threshold, parsed.Budgets.Global.Alerts[0].Threshold)
+	assert.Equal(t, original.Budgets.Global.Alerts[0].Type, parsed.Budgets.Global.Alerts[0].Type)
 }
 
 func TestConfig_CostIntegration(t *testing.T) {
@@ -410,9 +425,11 @@ func TestConfig_CostIntegration(t *testing.T) {
 	t.Run("get entire cost config", func(t *testing.T) {
 		cfg := &Config{
 			Cost: CostConfig{
-				Budgets: BudgetConfig{
-					Amount:   500.0,
-					Currency: "EUR",
+				Budgets: &BudgetsConfig{
+					Global: &ScopedBudget{
+						Amount:   500.0,
+						Currency: "EUR",
+					},
 				},
 			},
 		}
@@ -421,24 +438,29 @@ func TestConfig_CostIntegration(t *testing.T) {
 		require.NoError(t, err)
 		costConfig, ok := cost.(CostConfig)
 		require.True(t, ok)
-		assert.Equal(t, 500.0, costConfig.Budgets.Amount)
+		require.NotNil(t, costConfig.Budgets)
+		require.NotNil(t, costConfig.Budgets.Global)
+		assert.Equal(t, 500.0, costConfig.Budgets.Global.Amount)
 	})
 
 	t.Run("get entire budgets config", func(t *testing.T) {
 		cfg := &Config{
 			Cost: CostConfig{
-				Budgets: BudgetConfig{
-					Amount:   750.0,
-					Currency: "GBP",
+				Budgets: &BudgetsConfig{
+					Global: &ScopedBudget{
+						Amount:   750.0,
+						Currency: "GBP",
+					},
 				},
 			},
 		}
 
 		budgets, err := cfg.Get("cost.budgets")
 		require.NoError(t, err)
-		budgetConfig, ok := budgets.(BudgetConfig)
+		budgetsConfig, ok := budgets.(*BudgetsConfig)
 		require.True(t, ok)
-		assert.Equal(t, 750.0, budgetConfig.Amount)
+		require.NotNil(t, budgetsConfig.Global)
+		assert.Equal(t, 750.0, budgetsConfig.Global.Amount)
 	})
 
 	t.Run("invalid set value", func(t *testing.T) {
@@ -466,9 +488,11 @@ func TestConfig_CostIntegration(t *testing.T) {
 func TestConfig_List_IncludesCost(t *testing.T) {
 	cfg := &Config{
 		Cost: CostConfig{
-			Budgets: BudgetConfig{
-				Amount:   1000.0,
-				Currency: "USD",
+			Budgets: &BudgetsConfig{
+				Global: &ScopedBudget{
+					Amount:   1000.0,
+					Currency: "USD",
+				},
 			},
 		},
 	}
@@ -479,7 +503,9 @@ func TestConfig_List_IncludesCost(t *testing.T) {
 
 	costConfig, ok := cost.(CostConfig)
 	require.True(t, ok)
-	assert.Equal(t, 1000.0, costConfig.Budgets.Amount)
+	require.NotNil(t, costConfig.Budgets)
+	require.NotNil(t, costConfig.Budgets.Global)
+	assert.Equal(t, 1000.0, costConfig.Budgets.Global.Amount)
 }
 
 // T004: Unit test for ErrExitCodeOutOfRange error type.
@@ -646,10 +672,11 @@ func TestBudgetConfig_YAMLParsing_ExitCode(t *testing.T) {
 	yamlData := `
 cost:
   budgets:
-    amount: 1000
-    currency: USD
-    exit_on_threshold: true
-    exit_code: 2
+    global:
+      amount: 1000
+      currency: USD
+      exit_on_threshold: true
+      exit_code: 2
 `
 
 	var cfg struct {
@@ -659,8 +686,16 @@ cost:
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
 	require.NoError(t, err)
 
-	assert.True(t, cfg.Cost.Budgets.ExitOnThreshold)
-	assert.Equal(t, 2, cfg.Cost.Budgets.ExitCode)
-	assert.True(t, cfg.Cost.Budgets.ShouldExitOnThreshold())
-	assert.Equal(t, 2, cfg.Cost.Budgets.GetExitCode())
+	require.NotNil(t, cfg.Cost.Budgets)
+	require.NotNil(t, cfg.Cost.Budgets.Global)
+	require.NotNil(t, cfg.Cost.Budgets.Global.ExitOnThreshold)
+	assert.True(t, *cfg.Cost.Budgets.Global.ExitOnThreshold)
+	require.NotNil(t, cfg.Cost.Budgets.Global.ExitCode)
+	assert.Equal(t, 2, *cfg.Cost.Budgets.Global.ExitCode)
+	shouldExit := cfg.Cost.Budgets.Global.ShouldExitOnThreshold()
+	require.NotNil(t, shouldExit)
+	assert.True(t, *shouldExit)
+	exitCode := cfg.Cost.Budgets.Global.GetExitCode()
+	require.NotNil(t, exitCode)
+	assert.Equal(t, 2, *exitCode)
 }

@@ -261,7 +261,7 @@ Track and limit spending per cloud provider (AWS, GCP, Azure).
 
 ```yaml
 cost:
-  scoped_budgets:
+  budgets:
     # Global budget applies to all resources (required when scopes defined)
     global:
       amount: 5000.00
@@ -328,7 +328,7 @@ Track costs by resource tags (e.g., `team:platform`, `env:prod`) with priority-b
 
 ```yaml
 cost:
-  scoped_budgets:
+  budgets:
     # Global budget applies to all resources (required when scopes defined)
     global:
       amount: 10000.00
@@ -409,7 +409,7 @@ Track and limit spending per resource type (e.g., `aws:ec2/instance`, `gcp:compu
 
 ```yaml
 cost:
-  scoped_budgets:
+  budgets:
     # Global budget applies to all resources (required when scopes defined)
     global:
       amount: 10000.00
