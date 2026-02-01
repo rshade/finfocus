@@ -22,7 +22,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 1. Start: [Developer Guide](guides/developer-guide.md)
 2. Build: [Plugin Development](plugins/plugin-development.md)
 3. Reference: [Plugin SDK](plugins/plugin-sdk.md)
-4. Example: [Vantage Plugin](plugins/vantage/README.md)
+4. Example: [AWS Public Plugin](plugins/aws-public.md)
 5. Contribute: [Contributing Guide](support/contributing.md)
 
 ### 🏗️ For Software Architects
@@ -52,9 +52,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Installation Guide](getting-started/installation.md)      | Step-by-step installation | End Users, Ops |
 | [Prerequisites](getting-started/prerequisites.md)          | System requirements       | Everyone       |
 | [Examples](getting-started/examples/)                      | Practical usage examples  | End Users      |
-| [Vantage Setup](getting-started/examples/vantage-setup.md) | Vantage plugin example    | End Users      |
-| [Local Pricing](getting-started/examples/local-pricing.md) | Local specs example       | End Users      |
-| [Multi-Plugin](getting-started/examples/multi-plugin.md)   | Multiple plugins example  | Advanced Users |
+| [AWS Public Setup](plugins/aws-public.md)                  | AWS public pricing plugin | End Users      |
 
 ### 📚 Comprehensive Guides (by Audience)
 
@@ -105,23 +103,17 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Plugin Examples](plugins/plugin-examples.md)             | Code examples and patterns |
 | [Plugin Checklist](plugins/plugin-checklist.md)           | Ensure plugin is complete  |
 
-#### Vantage (IN PROGRESS)
+#### AWS Public (AVAILABLE)
 
-| Page                                                  | Purpose                        |
-| ----------------------------------------------------- | ------------------------------ |
-| [Vantage README](plugins/vantage/README.md)           | Overview and status            |
-| [Setup Guide](plugins/vantage/setup.md)               | Installation and configuration |
-| [Authentication](plugins/vantage/authentication.md)   | API key management             |
-| [Features](plugins/vantage/features.md)               | Supported features             |
-| [Cost Mapping](plugins/vantage/cost-mapping.md)       | How costs map to FinFocus      |
-| [Troubleshooting](plugins/vantage/troubleshooting.md) | Common issues                  |
+| Page                                           | Purpose                        |
+| ---------------------------------------------- | ------------------------------ |
+| [AWS Public Plugin](plugins/aws-public.md)     | Setup and configuration        |
 
 #### Kubecost (PLANNED)
 
 | Page                                           | Purpose                     |
 | ---------------------------------------------- | --------------------------- |
 | [Coming Soon](plugins/kubecost/coming-soon.md) | Timeline and features       |
-| [Differences](plugins/kubecost/differences.md) | How it differs from Vantage |
 
 #### Future Plugins
 
@@ -135,7 +127,6 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | Page                                                        | Purpose                      |
 | ----------------------------------------------------------- | ---------------------------- |
 | [CLI Commands](reference/cli-commands.md)                   | Complete command reference   |
-| [CLI Flags](reference/cli-flags.md)                         | Detailed flag documentation  |
 | [Configuration](reference/config-reference.md)              | Configuration file reference |
 | [API Reference](reference/api-reference.md)                 | gRPC API documentation       |
 | [Error Codes](reference/error-codes.md)                     | Error codes and solutions    |
@@ -211,7 +202,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 - [Developer Guide](guides/developer-guide.md)
 - [Plugin Development](plugins/plugin-development.md)
 - [Plugin SDK](plugins/plugin-sdk.md)
-- [Vantage Example](plugins/vantage/README.md)
+- [AWS Public Example](plugins/aws-public.md)
 - [Plugin Examples](plugins/plugin-examples.md)
 
 ### System Design
