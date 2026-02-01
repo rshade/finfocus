@@ -1,9 +1,13 @@
-# FinFocus
+---
+layout: default
+title: FinFocus
+description: Cloud cost analysis for Pulumi infrastructure
+---
 
 [![CI](https://github.com/rshade/finfocus/actions/workflows/ci.yml/badge.svg)](https://github.com/rshade/finfocus/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-61%25-yellow)](https://github.com/rshade/finfocus/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rshade/finfocus)](https://goreportcard.com/report/github.com/rshade/finfocus)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 **Cloud cost analysis for Pulumi infrastructure** - Calculate projected and actual infrastructure costs without modifying your Pulumi programs.
 
@@ -30,9 +34,28 @@ FinFocus Core is a CLI tool that analyzes Pulumi infrastructure definitions to p
 Download the latest release or build from source:
 
 ```bash
-# Download latest release (coming soon)
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o finfocus
+# Linux (amd64)
+curl -L https://github.com/rshade/finfocus/releases/download/v0.2.5/finfocus-v0.2.5-linux-amd64.tar.gz -o finfocus.tar.gz
+tar -xzf finfocus.tar.gz
 chmod +x finfocus
+sudo mv finfocus /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -L https://github.com/rshade/finfocus/releases/download/v0.2.5/finfocus-v0.2.5-macos-arm64.tar.gz -o finfocus.tar.gz
+tar -xzf finfocus.tar.gz
+chmod +x finfocus
+sudo mv finfocus /usr/local/bin/
+
+# macOS (Intel)
+curl -L https://github.com/rshade/finfocus/releases/download/v0.2.5/finfocus-v0.2.5-macos-amd64.tar.gz -o finfocus.tar.gz
+tar -xzf finfocus.tar.gz
+chmod +x finfocus
+sudo mv finfocus /usr/local/bin/
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.2.5/finfocus-v0.2.5-windows-amd64.zip" -OutFile finfocus.zip
+Expand-Archive finfocus.zip -DestinationPath .
+Move-Item finfocus.exe C:\Windows\System32\
 
 # Or build from source
 git clone https://github.com/rshade/finfocus
@@ -61,11 +84,18 @@ finfocus cost projected --pulumi-json plan.json
 **Check Budget** - Verify if plan fits within budget:
 
 ```bash
-# Set budget first
-export FINFOCUS_BUDGET_AMOUNT=500
-
-# Check projected cost against budget
+# Configure budget in ~/.finfocus/config.yaml (see Configuration section)
+# Then check projected cost against budget
 finfocus cost projected --pulumi-json plan.json
+
+# Exit with non-zero code if budget exceeded (CI/CD integration)
+finfocus cost projected --pulumi-json plan.json --exit-on-threshold
+
+# Custom exit code (default: 1)
+finfocus cost projected --pulumi-json plan.json --exit-on-threshold --exit-code 2
+
+# Filter budget scope (global, provider:<name>, tag:<key>=<value>, type:<resource-type>)
+finfocus cost projected --pulumi-json plan.json --budget-scope "provider:aws"
 ```
 
 **View Recommendations** - Find savings opportunities:
@@ -89,7 +119,7 @@ aws:ec2/instance:Instance         aws-spec    $375.00   USD       t3.xlarge
 aws:s3/bucket:Bucket             none        $0.00     USD       No pricing info
 ```
 
-### Actual Cost Analysis (FUTURE)
+### Actual Cost Analysis
 
 ```bash
 $ finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by type --output json
@@ -118,7 +148,7 @@ $ finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --group-by type
 
 FinFocus uses plugins to fetch cost data from various sources:
 
-- **Cost Plugins**: Query cloud provider APIs (Kubecost, Vantage, AWS Cost Explorer, etc.)
+- **Cost Plugins**: Query cloud provider APIs (AWS Public Pricing, AWS Cost Explorer, Azure, etc.)
 - **Spec Files**: Local YAML/JSON pricing specifications as fallback
 - **Plugin Discovery**: Automatic detection from `~/.finfocus/plugins/`
 
@@ -148,12 +178,12 @@ See [Budget Guide](docs/guides/budgets.md) for full configuration details.
 For sensitive values like API keys and credentials, use environment variables:
 
 ```bash
-# AWS credentials
+# AWS credentials (for aws-public and aws-ce plugins)
 export FINFOCUS_PLUGIN_AWS_ACCESS_KEY_ID="your-access-key"
 export FINFOCUS_PLUGIN_AWS_SECRET_ACCESS_KEY="your-secret-key"
 
-# Vantage API
-export FINFOCUS_PLUGIN_VANTAGE_API_TOKEN="your-token"
+# Azure credentials (for azure-public plugin)
+export FINFOCUS_PLUGIN_AZURE_SUBSCRIPTION_ID="your-subscription-id"
 ```
 
 The naming convention is: `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase.
@@ -180,19 +210,77 @@ finfocus cost projected --pulumi-json plan.json --output json
 finfocus cost projected --pulumi-json plan.json --output ndjson
 ```
 
+## Configuration Management
+
+FinFocus provides commands to manage configuration:
+
+```bash
+# Initialize configuration (creates ~/.finfocus/config.yaml)
+finfocus config init [--force]
+
+# Set configuration values
+finfocus config set cost.budgets.amount 500.00
+finfocus config set output.format json
+
+# Get configuration values
+finfocus config get cost.budgets.amount
+
+# List all configuration
+finfocus config list [--format json|yaml]
+
+# Validate configuration
+finfocus config validate [--verbose]
+```
+
 ## Plugin Management
 
 ### List & Install Plugins
 
 ```bash
-# List available
+# List installed plugins
 finfocus plugin list
 
-# Install Vantage plugin
-finfocus plugin install vantage
+# Install AWS public pricing plugin
+finfocus plugin install aws-public
 
-# Inspect capabilities
-finfocus plugin inspect vantage aws:ec2/instance:Instance
+# Inspect plugin capabilities
+finfocus plugin inspect aws-public
+
+# Validate plugin installation
+finfocus plugin validate
+```
+
+### Available Plugins
+
+| Plugin | Status | Description |
+|--------|--------|-------------|
+| `aws-public` | Available | AWS public pricing data |
+| `aws-ce` | In Development | AWS Cost Explorer integration |
+| `azure-public` | In Development | Azure public pricing data |
+| `kubecost` | Planned | Kubernetes cost analysis |
+
+## Pulumi Analyzer Integration
+
+FinFocus provides zero-click cost estimation during `pulumi preview` via the Pulumi Analyzer protocol:
+
+```bash
+# Start the analyzer server (prints port to stdout for Pulumi handshake)
+finfocus analyzer serve [--debug]
+```
+
+When integrated with Pulumi, costs are automatically calculated and displayed as advisory diagnostics during preview, without modifying your Pulumi programs. The analyzer uses ADVISORY enforcement and never blocks deployments.
+
+## Debugging
+
+Enable debug output for troubleshooting:
+
+```bash
+# Global debug flag
+finfocus --debug cost projected --pulumi-json plan.json
+
+# Environment variable
+export FINFOCUS_LOG_LEVEL=debug
+export FINFOCUS_LOG_FORMAT=json    # json or console
 ```
 
 ## Documentation
@@ -212,7 +300,7 @@ Complete documentation is available in the [docs/](docs/) directory:
 
 - [🚀 5-Minute Quickstart](docs/getting-started/quickstart.md)
 - [📖 Full Documentation Index](docs/README.md)
-- [🔌 Available Plugins](docs/plugins/) - Vantage, Kubecost, and more
+- [🔌 Available Plugins](docs/plugins/) - AWS Public Pricing and more
 - [🛠️ Plugin Development](docs/plugins/plugin-development.md)
 - [🏗️ System Architecture](docs/architecture/system-overview.md)
 - [💬 FAQ & Support](docs/support/faq.md)
@@ -232,8 +320,7 @@ Apache-2.0 - See [LICENSE](LICENSE) for details.
 ## Related Projects
 
 - [finfocus-spec](https://github.com/rshade/finfocus-spec) - Protocol definitions and schemas
-- [finfocus-plugin-kubecost](https://github.com/rshade/finfocus-plugin-kubecost) - Kubecost integration plugin
-- [finfocus-plugin-vantage](https://github.com/rshade/finfocus-plugin-vantage) - Vantage cost intelligence plugin
+- [finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public) - AWS public pricing plugin
 
 ---
 

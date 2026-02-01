@@ -68,7 +68,7 @@ business stakeholder, you'll find comprehensive guides to help you succeed with 
 - **[5-Minute Quickstart](getting-started/quickstart.html)** - Get costs in 5 minutes
 - **[Installation Guide](getting-started/installation.html)** - Step-by-step installation
 - **[Prerequisites](getting-started/prerequisites.html)** - System requirements
-- **[Examples](getting-started/examples/)** - Practical examples with Vantage, local pricing, and multiple plugins
+- **[Examples](getting-started/examples/)** - Practical examples with AWS Public plugin
 
 ### 🏗️ Architecture & Design
 
@@ -88,12 +88,9 @@ business stakeholder, you'll find comprehensive guides to help you succeed with 
 - **[Plugin Examples](plugins/plugin-examples.html)** - Code patterns and examples
 - **[Plugin Checklist](plugins/plugin-checklist.html)** - Ensure your plugin is complete
 
-#### Vantage Plugin (IN PROGRESS)
+#### AWS Public Plugin (AVAILABLE)
 
-- **[Setup Guide](plugins/vantage/setup.html)** - Get started with Vantage
-- **[Authentication](plugins/vantage/authentication.html)** - API key management
-- **[Features](plugins/vantage/features.html)** - What's supported
-- **[Troubleshooting](plugins/vantage/troubleshooting.html)** - Common issues
+- **[AWS Public Plugin](plugins/aws-public.html)** - AWS public pricing data
 
 #### Future Plugins (PLANNED)
 
@@ -152,7 +149,9 @@ FinFocus is a CLI tool that calculates cloud infrastructure costs from Pulumi in
 
 FinFocus uses a plugin system to support multiple cost providers:
 
-- **Vantage** (IN PROGRESS) - Multi-cloud cost aggregation
+- **AWS Public** (AVAILABLE) - AWS public pricing data
+- **AWS Cost Explorer** (IN DEVELOPMENT) - AWS Cost Explorer integration
+- **Azure Public** (IN DEVELOPMENT) - Azure public pricing data
 - **Kubecost** (PLANNED) - Kubernetes cost allocation
 - **Flexera** (FUTURE) - Enterprise cost management
 - **Cloudability** (FUTURE) - Cloud cost visibility
@@ -179,7 +178,7 @@ See [plan.html](plan.html) for complete documentation architecture, maintenance 
 ### By Use Case
 
 - **I just installed FinFocus** → [Quickstart](getting-started/quickstart.html)
-- **I want to integrate with Vantage** → [Vantage Setup](plugins/vantage/setup.html)
+- **I want to use AWS pricing** → [AWS Public Plugin](plugins/aws-public.html)
 - **I'm building a custom plugin** → [Plugin Development](plugins/plugin-development.html)
 - **I'm integrating with CI/CD** → [CI/CD Integration](deployment/cicd-integration.html)
 - **Something's not working** → [Troubleshooting](support/troubleshooting.html)
@@ -226,7 +225,9 @@ See [plan.html](plan.html) for complete documentation architecture, maintenance 
   ├─ Examples
   ├─ Checklist
   └─ Per-Plugin Documentation
-      ├─ Vantage (IN PROGRESS)
+      ├─ AWS Public (AVAILABLE)
+      ├─ AWS Cost Explorer (IN DEVELOPMENT)
+      ├─ Azure Public (IN DEVELOPMENT)
       ├─ Kubecost (PLANNED)
       ├─ Flexera (FUTURE)
       └─ Cloudability (FUTURE)

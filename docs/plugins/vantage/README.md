@@ -4,31 +4,29 @@ Cost visibility platform integration for multi-cloud cost aggregation.
 
 ## Status
 
-✅ **IN PROGRESS** - Active development and production testing
-
-## Quick Links
-
-- **[Setup Guide](setup.md)** - Getting started with Vantage
-- **[Authentication](authentication.md)** - API key management
-- **[Features](features.md)** - What's supported
-- **[Cost Mapping](cost-mapping.md)** - How costs are mapped
-- **[Troubleshooting](troubleshooting.md)** - Common issues and solutions
+🔴 **NOT AVAILABLE** - This plugin is not currently available. See [AWS Public Plugin](../aws-public.md)
+for an available alternative.
 
 ## Overview
 
-The Vantage plugin connects FinFocus to Vantage's cost aggregation API, enabling:
+The Vantage plugin was planned to connect FinFocus to Vantage's cost aggregation API.
+This integration is not currently available.
 
-- Real-time cost data from multiple cloud providers
-- Unified cost reporting across AWS, Azure, GCP, and more
-- Advanced cost allocation and tagging
-- Historical cost analysis and trends
+## Available Alternatives
 
-## Installation
+For cost data, consider using:
 
-```bash
-# Coming soon - installation instructions
-```
+- **[AWS Public Plugin](../aws-public.md)** - AWS public pricing data (AVAILABLE)
+- **[Kubecost](../kubecost/coming-soon.md)** - Kubernetes cost allocation (PLANNED)
 
----
+## Documentation Structure
 
-**Status:** 🟡 In Development - Full documentation coming next week
+The following documentation files exist for reference but the plugin is not available:
+
+- [Setup Guide](setup.md)
+- [Authentication](authentication.md)
+- [Features](features.md)
+- [Cost Mapping](cost-mapping.md)
+- [Troubleshooting](troubleshooting.md)
+
+These files are retained for historical reference and potential future re-enablement.
