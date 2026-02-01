@@ -411,10 +411,30 @@ func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency st
 		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no budget configured
 	}
 
+	// Extract global budget from hierarchical config for legacy evaluation
+	budgetsCfg := cfg.Cost.Budgets
+	if budgetsCfg == nil || budgetsCfg.Global == nil {
+		return nil, nil //nolint:nilnil // no global budget configured
+	}
+
+	// Convert ScopedBudget to BudgetConfig for evaluation
+	globalBudget := budgetsCfg.Global
+	budgetConfig := config.BudgetConfig{
+		Amount:   globalBudget.Amount,
+		Currency: globalBudget.Currency,
+		Period:   globalBudget.Period,
+		Alerts:   globalBudget.Alerts,
+	}
+	if globalBudget.ExitOnThreshold != nil {
+		budgetConfig.ExitOnThreshold = *globalBudget.ExitOnThreshold
+	}
+	if globalBudget.ExitCode != nil {
+		budgetConfig.ExitCode = *globalBudget.ExitCode
+	}
+
 	// Create budget engine and evaluate
 	budgetEngine := engine.NewBudgetEngine()
-	//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
-	status, err := budgetEngine.Evaluate(cfg.Cost.Budgets, totalCost, currency)
+	status, err := budgetEngine.Evaluate(budgetConfig, totalCost, currency)
 	if err != nil {
 		// Budget evaluation failed (e.g., currency mismatch)
 		return nil, fmt.Errorf("evaluating budget: %w", err)
@@ -458,7 +478,7 @@ func renderBudgetWithScope(
 	}
 
 	// Check if scoped budgets are configured (provider/tag/type)
-	budgetsCfg := cfg.Cost.GetEffectiveBudgets()
+	budgetsCfg := cfg.Cost.Budgets
 	if budgetsCfg != nil && budgetsCfg.HasScopedBudgets() {
 		// Use scoped budget rendering
 		result, err := renderScopedBudgetIfConfigured(cmd, costs, scopeFilter)
@@ -509,7 +529,7 @@ func checkScopedBudgetExit(cmd *cobra.Command, scopedResult *engine.ScopedBudget
 		return nil
 	}
 
-	budgetsCfg := cfg.Cost.GetEffectiveBudgets()
+	budgetsCfg := cfg.Cost.Budgets
 	if budgetsCfg == nil {
 		return nil
 	}
@@ -535,11 +555,11 @@ func checkScopedBudgetExit(cmd *cobra.Command, scopedResult *engine.ScopedBudget
 }
 
 // renderScopedBudgetIfConfigured renders scoped budget status if configured.
-// It uses the new hierarchical budget configuration with provider, tag, and type scopes.
+// It uses the hierarchical budget configuration with provider, tag, and type scopes.
 // The scopeFilter parameter controls which scopes are displayed.
 //
-// This function is used when ScopedBudgets are configured. For legacy budget
-// configurations, use renderBudgetIfConfigured instead.
+// This function is used when scoped budgets (provider/tag/type) are configured.
+// For global-only budgets, use renderBudgetIfConfigured instead.
 //
 // Returns the ScopedBudgetResult for exit code evaluation, or nil if no budgets configured.
 func renderScopedBudgetIfConfigured(
@@ -552,8 +572,8 @@ func renderScopedBudgetIfConfigured(
 		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no config
 	}
 
-	// Get effective budgets (handles legacy migration)
-	budgetsCfg := cfg.Cost.GetEffectiveBudgets()
+	// Get budgets configuration
+	budgetsCfg := cfg.Cost.Budgets
 	if budgetsCfg == nil || !budgetsCfg.IsEnabled() {
 		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no budget configured
 	}
@@ -597,6 +617,7 @@ func evaluateScopedBudgets(
 	// Track spend per scope
 	globalSpend := 0.0
 	providerSpend := make(map[string]float64)
+	tagSpend := make(map[string]float64)
 	typeSpend := make(map[string]float64)
 
 	// Allocate each cost result to appropriate scopes
@@ -614,6 +635,12 @@ func evaluateScopedBudgets(
 		if allocation.Provider != "" {
 			providerSpend[allocation.Provider] += cost.Monthly
 		}
+
+		// NOTE: Tag budget allocation is not implemented here because CostResult
+		// does not carry tag information. Tag-based budgets require tags to be
+		// passed through from the original ResourceDescriptor.
+		// Future enhancement: Add Tags field to CostResult or pass resources alongside costs.
+		_ = tagSpend // silence unused warning until tag budgets are fully implemented
 
 		// Allocate to type (if type budget exists)
 		if eval.GetTypeBudget(cost.ResourceType) != nil {
@@ -636,6 +663,16 @@ func evaluateScopedBudgets(
 		spend := providerSpend[provider]
 		status := engine.CalculateProviderBudgetStatus(provider, budget, spend)
 		result.ByProvider[provider] = status
+	}
+
+	// Calculate tag statuses
+	for _, tagBudget := range cfg.Tags {
+		if tagBudget.IsDisabled() {
+			continue
+		}
+		spend := tagSpend[tagBudget.Selector]
+		status := engine.CalculateTagBudgetStatus(&tagBudget, spend)
+		result.ByTag = append(result.ByTag, status)
 	}
 
 	// Calculate type statuses (skip nil budgets)

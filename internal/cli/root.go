@@ -165,20 +165,25 @@ func newCostCmd() *cobra.Command {
 				return nil
 			}
 
-			// CLI flags override environment variables and config file
-			//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
-			if cmd.Flags().Changed("exit-on-threshold") {
-				cfg.Cost.Budgets.ExitOnThreshold = flags.ExitOnThreshold
+			// Ensure budgets config structure exists for CLI flag overrides
+			if cfg.Cost.Budgets == nil {
+				cfg.Cost.Budgets = &config.BudgetsConfig{}
 			}
-			//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
+			if cfg.Cost.Budgets.Global == nil {
+				cfg.Cost.Budgets.Global = &config.ScopedBudget{}
+			}
+
+			// CLI flags override environment variables and config file
+			if cmd.Flags().Changed("exit-on-threshold") {
+				cfg.Cost.Budgets.Global.ExitOnThreshold = &flags.ExitOnThreshold
+			}
 			if cmd.Flags().Changed("exit-code") {
-				cfg.Cost.Budgets.ExitCode = flags.ExitCode
+				cfg.Cost.Budgets.Global.ExitCode = &flags.ExitCode
 			}
 
 			// Validate budget configuration if ExitOnThreshold is enabled (T048)
-			//nolint:staticcheck // SA1019: intentional use of deprecated Budgets for backward compatibility
-			if cfg.Cost.Budgets.ExitOnThreshold {
-				if err := cfg.Cost.Budgets.Validate(); err != nil {
+			if cfg.Cost.Budgets.Global.ExitOnThreshold != nil && *cfg.Cost.Budgets.Global.ExitOnThreshold {
+				if err := cfg.Cost.Budgets.Global.Validate(""); err != nil {
 					return fmt.Errorf("invalid budget configuration: %w", err)
 				}
 			}

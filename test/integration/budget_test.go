@@ -49,16 +49,18 @@ alerts:
 
 // TestBudgetConfig_CostConfigYAMLIntegration tests full CostConfig YAML parsing.
 func TestBudgetConfig_CostConfigYAMLIntegration(t *testing.T) {
+	// Use the new hierarchical budget format
 	configContent := `
 budgets:
-  amount: 1000.0
-  currency: USD
-  period: monthly
-  alerts:
-    - threshold: 50
-      type: actual
-    - threshold: 80
-      type: actual
+  global:
+    amount: 1000.0
+    currency: USD
+    period: monthly
+    alerts:
+      - threshold: 50
+        type: actual
+      - threshold: 80
+        type: actual
 `
 	var costCfg config.CostConfig
 	err := yaml.Unmarshal([]byte(configContent), &costCfg)
@@ -66,8 +68,10 @@ budgets:
 
 	// Verify cost config
 	assert.True(t, costCfg.HasBudget())
-	assert.Equal(t, 1000.0, costCfg.Budgets.Amount)
-	assert.Equal(t, "USD", costCfg.Budgets.Currency)
+	require.NotNil(t, costCfg.Budgets)
+	require.NotNil(t, costCfg.Budgets.Global)
+	assert.Equal(t, 1000.0, costCfg.Budgets.Global.Amount)
+	assert.Equal(t, "USD", costCfg.Budgets.Global.Currency)
 }
 
 // TestBudgetEngine_EvaluationIntegration tests full budget evaluation workflow.

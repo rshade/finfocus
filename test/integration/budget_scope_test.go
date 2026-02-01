@@ -395,35 +395,6 @@ exit_code: 2
 		require.NoError(t, err)
 		assert.Empty(t, warnings)
 	})
-
-	t.Run("legacy to scoped budget migration", func(t *testing.T) {
-		// Legacy format
-		legacyYAML := `
-budgets:
-  amount: 5000
-  currency: USD
-  period: monthly
-  alerts:
-    - threshold: 80
-      type: actual
-  exit_on_threshold: true
-  exit_code: 1
-`
-		var costCfg config.CostConfig
-		err := yaml.Unmarshal([]byte(legacyYAML), &costCfg)
-		require.NoError(t, err)
-
-		// Verify legacy config is loaded
-		assert.True(t, costCfg.Budgets.IsEnabled())
-		assert.Equal(t, 5000.0, costCfg.Budgets.Amount)
-
-		// Get effective budgets (should migrate to scoped format)
-		effectiveBudgets := costCfg.GetEffectiveBudgets()
-		require.NotNil(t, effectiveBudgets)
-		require.NotNil(t, effectiveBudgets.Global)
-		assert.Equal(t, 5000.0, effectiveBudgets.Global.Amount)
-		assert.Equal(t, "USD", effectiveBudgets.Global.Currency)
-	})
 }
 
 // TestFullScopedBudgetStatus_EndToEnd tests complete multi-scope budget evaluation (T057).

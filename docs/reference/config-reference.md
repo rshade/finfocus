@@ -42,12 +42,11 @@ plugins:
 
 Configure budget limits, alerts, and cost calculation preferences.
 
-#### Legacy Budget Configuration (Deprecated)
+#### Hierarchical Budget Configuration
 
-The flat `cost.budgets` structure with `amount`/`currency`/`period` at the top level is deprecated.
-Use `cost.scoped_budgets` with `global`, `providers`, `tags`, and `types` sections instead.
+The `cost.budgets` section supports hierarchical scoping with `global`, `providers`, `tags`, and `types` sections.
 
-#### `cost.scoped_budgets.global`
+#### `cost.budgets.global`
 
 Global budget applied to all resources.
 
@@ -60,7 +59,7 @@ Global budget applied to all resources.
 | `exit_on_threshold` | boolean | `false`   | Whether to exit CI/CD when the budget threshold is reached (global and per-scope). |
 | `exit_code`         | number  | 2         | Exit code when budget exceeded (CI/CD integration).                                |
 
-#### `cost.scoped_budgets.providers`
+#### `cost.budgets.providers`
 
 Per-provider budgets for multi-cloud cost control.
 
@@ -70,7 +69,7 @@ Per-provider budgets for multi-cloud cost control.
 | `<provider>.amount`   | number | -               | **Required**. Provider budget limit.                  |
 | `<provider>.currency` | string | Global currency | Must match global budget currency.                    |
 
-#### `cost.scoped_budgets.tags`
+#### `cost.budgets.tags`
 
 Tag-based budgets for team/project cost allocation.
 
@@ -81,7 +80,7 @@ Tag-based budgets for team/project cost allocation.
 | `amount`   | number | -               | **Required**. Tag budget limit.                     |
 | `currency` | string | Global currency | Must match global budget currency.                  |
 
-#### `cost.scoped_budgets.types`
+#### `cost.budgets.types`
 
 Per-resource-type budgets for category control.
 
@@ -91,7 +90,7 @@ Per-resource-type budgets for category control.
 | `<type>.amount`   | number | -               | **Required**. Type budget limit.                               |
 | `<type>.currency` | string | Global currency | Must match global budget currency.                             |
 
-#### `cost.scoped_budgets.alerts` (within any scope)
+#### `cost.budgets.alerts` (within any scope)
 
 | Option      | Type   | Default  | Description                                                        |
 | ----------- | ------ | -------- | ------------------------------------------------------------------ |
@@ -102,7 +101,7 @@ Per-resource-type budgets for category control.
 
 ```yaml
 cost:
-  scoped_budgets:
+  budgets:
     global:
       amount: 10000.00
       currency: USD

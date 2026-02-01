@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"fmt"
-	"maps"
 	"sort"
 	"strings"
 	"time"
@@ -297,6 +296,10 @@ type ScopedBudgetEvaluator struct {
 }
 
 // NewScopedBudgetEvaluator creates a new evaluator for the given configuration.
+// Note: Invalid tag selectors are logged as warnings and skipped. The configuration
+// should be validated with BudgetsConfig.Validate() before creating an evaluator
+// to catch syntax errors early. A future enhancement may return an error for
+// invalid selectors to fail fast on configuration errors.
 func NewScopedBudgetEvaluator(cfg *config.BudgetsConfig) *ScopedBudgetEvaluator {
 	if cfg == nil {
 		return &ScopedBudgetEvaluator{
@@ -306,9 +309,12 @@ func NewScopedBudgetEvaluator(cfg *config.BudgetsConfig) *ScopedBudgetEvaluator 
 		}
 	}
 
-	// Build provider index (case-insensitive)
+	// Build provider index (case-insensitive, skip nil and disabled budgets)
 	providerIndex := make(map[string]*config.ScopedBudget, len(cfg.Providers))
 	for name, budget := range cfg.Providers {
+		if budget == nil || budget.IsDisabled() {
+			continue
+		}
 		providerIndex[strings.ToLower(name)] = budget
 	}
 
@@ -338,9 +344,14 @@ func NewScopedBudgetEvaluator(cfg *config.BudgetsConfig) *ScopedBudgetEvaluator 
 		})
 	}
 
-	// Build type index
+	// Build type index (skip nil and disabled budgets)
 	typeIndex := make(map[string]*config.ScopedBudget, len(cfg.Types))
-	maps.Copy(typeIndex, cfg.Types)
+	for name, budget := range cfg.Types {
+		if budget == nil || budget.IsDisabled() {
+			continue
+		}
+		typeIndex[name] = budget
+	}
 
 	return &ScopedBudgetEvaluator{
 		config:        cfg,

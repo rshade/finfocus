@@ -734,12 +734,14 @@ func (c *Config) applyEnvOverrides() {
 	// Budget exit configuration overrides (Issue #219)
 	if exitOnThreshold := os.Getenv("FINFOCUS_BUDGET_EXIT_ON_THRESHOLD"); exitOnThreshold != "" {
 		if e, err := strconv.ParseBool(exitOnThreshold); err == nil {
-			c.Cost.Budgets.ExitOnThreshold = e
+			c.ensureBudgetsConfig()
+			c.Cost.Budgets.Global.ExitOnThreshold = &e
 		}
 	}
 	if exitCode := os.Getenv("FINFOCUS_BUDGET_EXIT_CODE"); exitCode != "" {
 		if code, err := strconv.Atoi(exitCode); err == nil {
-			c.Cost.Budgets.ExitCode = code
+			c.ensureBudgetsConfig()
+			c.Cost.Budgets.Global.ExitCode = &code
 		}
 	}
 
@@ -1005,11 +1007,14 @@ func (c *Config) setCostBudgetsValue(parts []string, value string) error {
 		if err != nil {
 			return fmt.Errorf("amount must be a number: %w", err)
 		}
-		c.Cost.Budgets.Amount = amount
+		c.ensureBudgetsConfig()
+		c.Cost.Budgets.Global.Amount = amount
 	case "currency":
-		c.Cost.Budgets.Currency = value
+		c.ensureBudgetsConfig()
+		c.Cost.Budgets.Global.Currency = value
 	case "period":
-		c.Cost.Budgets.Period = value
+		c.ensureBudgetsConfig()
+		c.Cost.Budgets.Global.Period = value
 	case "alerts":
 		return errors.New("cost.budgets.alerts must be configured via YAML")
 	default:
@@ -1017,6 +1022,16 @@ func (c *Config) setCostBudgetsValue(parts []string, value string) error {
 	}
 
 	return nil
+}
+
+// ensureBudgetsConfig ensures that the Budgets and Global structures are initialized.
+func (c *Config) ensureBudgetsConfig() {
+	if c.Cost.Budgets == nil {
+		c.Cost.Budgets = &BudgetsConfig{}
+	}
+	if c.Cost.Budgets.Global == nil {
+		c.Cost.Budgets.Global = &ScopedBudget{}
+	}
 }
 
 func (c *Config) getCostValue(parts []string) (interface{}, error) {
@@ -1037,13 +1052,18 @@ func (c *Config) getCostBudgetsValue(parts []string) (interface{}, error) {
 		return c.Cost.Budgets, nil
 	}
 
+	// Access global budget values for backwards compatibility
+	if c.Cost.Budgets == nil || c.Cost.Budgets.Global == nil {
+		return nil, errors.New("no budget configured")
+	}
+
 	switch parts[0] {
 	case "amount":
-		return c.Cost.Budgets.Amount, nil
+		return c.Cost.Budgets.Global.Amount, nil
 	case "currency":
-		return c.Cost.Budgets.Currency, nil
+		return c.Cost.Budgets.Global.Currency, nil
 	case "period":
-		return c.Cost.Budgets.GetPeriod(), nil
+		return c.Cost.Budgets.Global.GetPeriod(), nil
 	default:
 		return nil, fmt.Errorf("unknown cost.budgets setting: %s", parts[0])
 	}

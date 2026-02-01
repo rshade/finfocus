@@ -195,16 +195,9 @@ func (b BudgetConfig) GetForecastedAlerts() []AlertConfig {
 // CostConfig holds cost-related configuration settings including budgets and caching.
 // It groups all cost management features under a single configuration section.
 type CostConfig struct {
-	// Budgets contains the legacy flat budget configuration for cost tracking.
-	// Legacy format with amount/currency at top level is auto-migrated to ScopedBudgets.Global.
-	//
-	// Deprecated: Use ScopedBudgets for new configurations with hierarchical scoping.
-	Budgets BudgetConfig `yaml:"budgets,omitempty" json:"budgets,omitempty"`
-
-	// ScopedBudgets contains the new hierarchical budget configuration with
+	// Budgets contains the hierarchical budget configuration with
 	// global, provider, tag, and resource type scopes.
-	// Takes precedence over legacy Budgets when both are set.
-	ScopedBudgets *BudgetsConfig `yaml:"scoped_budgets,omitempty" json:"scoped_budgets,omitempty"`
+	Budgets *BudgetsConfig `yaml:"budgets,omitempty" json:"budgets,omitempty"`
 
 	// Cache contains the cache configuration for query result caching.
 	Cache CacheConfig `yaml:"cache,omitempty" json:"cache,omitempty"`
@@ -227,95 +220,34 @@ type CacheConfig struct {
 
 // Validate validates the cost configuration.
 // Returns an error for fatal validation issues. Non-fatal warnings (like duplicate
-// tag budget priorities) can be retrieved via GetScopedBudgetsWarnings().
+// tag budget priorities) can be retrieved via GetBudgetsWarnings().
 func (c CostConfig) Validate() error {
-	// Always validate legacy budget (catches negative amounts even when "disabled")
-	if err := c.Budgets.Validate(); err != nil {
-		return fmt.Errorf("budgets: %w", err)
-	}
-
-	// Validate scoped budgets if set
-	if c.ScopedBudgets != nil {
-		_, err := c.ScopedBudgets.Validate()
+	// Validate budgets if set
+	if c.Budgets != nil {
+		_, err := c.Budgets.Validate()
 		if err != nil {
-			return fmt.Errorf("scoped_budgets: %w", err)
+			return fmt.Errorf("budgets: %w", err)
 		}
-		// Warnings are non-fatal and available via GetScopedBudgetsWarnings()
+		// Warnings are non-fatal and available via GetBudgetsWarnings()
 	}
 
 	return nil
 }
 
 // HasBudget returns true if a budget is configured and enabled.
-// Checks both legacy Budgets and ScopedBudgets configurations.
 func (c CostConfig) HasBudget() bool {
-	if c.Budgets.IsEnabled() {
-		return true
-	}
-	if c.ScopedBudgets != nil && c.ScopedBudgets.IsEnabled() {
-		return true
-	}
-	return false
+	return c.Budgets != nil && c.Budgets.IsEnabled()
 }
 
-// GetEffectiveBudgets returns the effective BudgetsConfig, migrating legacy
-// configuration if necessary. Returns nil if no budgets are configured.
-func (c CostConfig) GetEffectiveBudgets() *BudgetsConfig {
-	// If scoped budgets are explicitly configured, use them
-	if c.ScopedBudgets != nil {
-		return c.ScopedBudgets
-	}
-
-	// If legacy budget is configured, migrate to scoped format
-	if c.Budgets.IsEnabled() {
-		return c.migrateLegacyBudget()
-	}
-
-	return nil
-}
-
-// migrateLegacyBudget converts the legacy BudgetConfig to BudgetsConfig format.
-func (c CostConfig) migrateLegacyBudget() *BudgetsConfig {
-	if !c.Budgets.IsEnabled() {
-		return nil
-	}
-
-	// Create exit_on_threshold pointer if enabled
-	var exitOnThreshold *bool
-	if c.Budgets.ExitOnThreshold {
-		exitOnThreshold = &c.Budgets.ExitOnThreshold
-	}
-
-	// Create exit_code pointer if non-default
-	var exitCode *int
-	if c.Budgets.ExitCode != 0 {
-		exitCode = &c.Budgets.ExitCode
-	}
-
-	return &BudgetsConfig{
-		Global: &ScopedBudget{
-			Amount:          c.Budgets.Amount,
-			Currency:        c.Budgets.Currency,
-			Period:          c.Budgets.Period,
-			Alerts:          c.Budgets.Alerts,
-			ExitOnThreshold: exitOnThreshold,
-			ExitCode:        exitCode,
-		},
-		ExitOnThreshold: c.Budgets.ExitOnThreshold,
-		ExitCode:        exitCode,
-	}
-}
-
-// GetScopedBudgetsWarnings validates the scoped budgets and returns any warnings.
-// Returns nil if no scoped budgets are configured or no warnings exist.
+// GetBudgetsWarnings validates the budgets and returns any warnings.
+// Returns nil if no budgets are configured or no warnings exist.
 // Validation errors are included as warnings to avoid silent failures.
-func (c CostConfig) GetScopedBudgetsWarnings() []string {
-	budgets := c.GetEffectiveBudgets()
-	if budgets == nil {
+func (c CostConfig) GetBudgetsWarnings() []string {
+	if c.Budgets == nil {
 		return nil
 	}
 
-	warnings, err := budgets.Validate()
+	warnings, err := c.Budgets.Validate()
 	if err != nil {
 		// Include validation error as a warning to avoid silent failure
 		return append(warnings, fmt.Sprintf("validation error: %v", err))
