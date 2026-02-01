@@ -1,0 +1,49 @@
+# Test fixture: Full scoped budget configuration with all scope types
+cost:
+  budgets:
+    global:
+      amount: 15000.00
+      currency: USD
+      period: monthly
+      alerts:
+        - threshold: 50.0
+          type: actual
+        - threshold: 80.0
+          type: actual
+        - threshold: 100.0
+          type: forecasted
+
+    providers:
+      aws:
+        amount: 8000.00
+        alerts:
+          - threshold: 80.0
+            type: actual
+      gcp:
+        amount: 5000.00
+      azure:
+        amount: 2000.00
+
+    tags:
+      - selector: "team:platform"
+        priority: 100
+        amount: 3000.00
+        exit_on_threshold: true
+        exit_code: 5
+      - selector: "env:prod"
+        priority: 50
+        amount: 10000.00
+      - selector: "cost-center:*"
+        priority: 10
+        amount: 1000.00
+
+    types:
+      "aws:ec2/instance":
+        amount: 2000.00
+      "aws:rds/instance":
+        amount: 3000.00
+        exit_on_threshold: true
+        exit_code: 6
+
+    exit_on_threshold: true
+    exit_code: 1

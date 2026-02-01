@@ -281,11 +281,15 @@ func TestCostCmd_CLIFlagsOverrideEnv(t *testing.T) {
 	t.Cleanup(func() { config.SetGlobalConfig(prev) })
 
 	// Initialize config from env (simulating what happens in real CLI)
+	exitOnThreshold := false
+	exitCode := 5
 	cfg := &config.Config{
 		Cost: config.CostConfig{
-			Budgets: config.BudgetConfig{
-				ExitOnThreshold: false, // From env
-				ExitCode:        5,     // From env
+			Budgets: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					ExitOnThreshold: &exitOnThreshold, // From env
+					ExitCode:        &exitCode,        // From env
+				},
 			},
 		},
 	}
@@ -305,8 +309,10 @@ func TestCostCmd_CLIFlagsOverrideEnv(t *testing.T) {
 	// Verify CLI flags overrode the env values
 	globalCfg := config.GetGlobalConfig()
 	require.NotNil(t, globalCfg)
-	assert.True(t, globalCfg.Cost.Budgets.ExitOnThreshold, "CLI flag should override env to true")
-	assert.Equal(t, 99, globalCfg.Cost.Budgets.ExitCode, "CLI flag should override env to 99")
+	require.NotNil(t, globalCfg.Cost.Budgets)
+	require.NotNil(t, globalCfg.Cost.Budgets.Global)
+	assert.True(t, *globalCfg.Cost.Budgets.Global.ExitOnThreshold, "CLI flag should override env to true")
+	assert.Equal(t, 99, *globalCfg.Cost.Budgets.Global.ExitCode, "CLI flag should override env to 99")
 }
 
 // T044: Unit test for CLI flags overriding config file values.
@@ -316,13 +322,17 @@ func TestCostCmd_CLIFlagsOverrideConfig(t *testing.T) {
 	t.Cleanup(func() { config.SetGlobalConfig(prev) })
 
 	// Simulate config loaded from file
+	exitOnThreshold := false
+	exitCode := 3
 	cfg := &config.Config{
 		Cost: config.CostConfig{
-			Budgets: config.BudgetConfig{
-				Amount:          1000.0,
-				Currency:        "USD",
-				ExitOnThreshold: false, // From config file
-				ExitCode:        3,     // From config file
+			Budgets: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					Amount:          1000.0,
+					Currency:        "USD",
+					ExitOnThreshold: &exitOnThreshold, // From config file
+					ExitCode:        &exitCode,        // From config file
+				},
 			},
 		},
 	}
@@ -340,12 +350,14 @@ func TestCostCmd_CLIFlagsOverrideConfig(t *testing.T) {
 	// Verify CLI flags overrode the config file values
 	globalCfg := config.GetGlobalConfig()
 	require.NotNil(t, globalCfg)
-	assert.True(t, globalCfg.Cost.Budgets.ExitOnThreshold, "CLI flag should override config to true")
-	assert.Equal(t, 7, globalCfg.Cost.Budgets.ExitCode, "CLI flag should override config to 7")
+	require.NotNil(t, globalCfg.Cost.Budgets)
+	require.NotNil(t, globalCfg.Cost.Budgets.Global)
+	assert.True(t, *globalCfg.Cost.Budgets.Global.ExitOnThreshold, "CLI flag should override config to true")
+	assert.Equal(t, 7, *globalCfg.Cost.Budgets.Global.ExitCode, "CLI flag should override config to 7")
 
 	// Verify other config values were preserved
-	assert.Equal(t, 1000.0, globalCfg.Cost.Budgets.Amount, "budget amount should be preserved")
-	assert.Equal(t, "USD", globalCfg.Cost.Budgets.Currency, "currency should be preserved")
+	assert.Equal(t, 1000.0, globalCfg.Cost.Budgets.Global.Amount, "budget amount should be preserved")
+	assert.Equal(t, "USD", globalCfg.Cost.Budgets.Global.Currency, "currency should be preserved")
 }
 
 // T045: Integration test for CLI flag overrides - only changed flags are applied.
@@ -355,11 +367,15 @@ func TestCostCmd_OnlyChangedFlagsApplied(t *testing.T) {
 	t.Cleanup(func() { config.SetGlobalConfig(prev) })
 
 	// Simulate config with specific values
+	exitOnThreshold := true
+	exitCode := 42
 	cfg := &config.Config{
 		Cost: config.CostConfig{
-			Budgets: config.BudgetConfig{
-				ExitOnThreshold: true,
-				ExitCode:        42,
+			Budgets: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					ExitOnThreshold: &exitOnThreshold,
+					ExitCode:        &exitCode,
+				},
 			},
 		},
 	}
@@ -377,8 +393,10 @@ func TestCostCmd_OnlyChangedFlagsApplied(t *testing.T) {
 	// Verify only the changed flag was applied
 	globalCfg := config.GetGlobalConfig()
 	require.NotNil(t, globalCfg)
-	assert.True(t, globalCfg.Cost.Budgets.ExitOnThreshold, "unchanged flag should preserve config value")
-	assert.Equal(t, 99, globalCfg.Cost.Budgets.ExitCode, "changed flag should override config value")
+	require.NotNil(t, globalCfg.Cost.Budgets)
+	require.NotNil(t, globalCfg.Cost.Budgets.Global)
+	assert.True(t, *globalCfg.Cost.Budgets.Global.ExitOnThreshold, "unchanged flag should preserve config value")
+	assert.Equal(t, 99, *globalCfg.Cost.Budgets.Global.ExitCode, "changed flag should override config value")
 }
 
 // T045b: Test that PersistentPreRunE handles nil global config gracefully.

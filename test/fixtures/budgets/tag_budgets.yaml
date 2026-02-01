@@ -1,0 +1,38 @@
+# Test fixture: Tag-based budget configuration with priorities
+cost:
+  budgets:
+    global:
+      amount: 8000.00
+      currency: USD
+      period: monthly
+
+    tags:
+      - selector: "team:platform"
+        priority: 100
+        amount: 2000.00
+        exit_on_threshold: true
+        exit_code: 3
+
+      - selector: "team:backend"
+        priority: 100
+        amount: 2500.00
+
+      - selector: "env:prod"
+        priority: 50
+        amount: 5000.00
+        alerts:
+          - threshold: 70.0
+            type: actual
+          - threshold: 85.0
+            type: forecasted
+
+      - selector: "env:staging"
+        priority: 50
+        amount: 1500.00
+
+      - selector: "cost-center:*"
+        priority: 10
+        amount: 500.00
+
+    exit_on_threshold: true
+    exit_code: 1

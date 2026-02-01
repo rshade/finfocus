@@ -147,6 +147,7 @@ const pluginCmdExample = `  # Calculate projected costs from a Pulumi plan
 type CostFlags struct {
 	ExitOnThreshold bool
 	ExitCode        int
+	BudgetScope     string // Filter which budget scopes to display (T025)
 }
 
 // newCostCmd creates the cost command group with projected, actual, and recommendations subcommands.
@@ -164,17 +165,25 @@ func newCostCmd() *cobra.Command {
 				return nil
 			}
 
+			// Ensure budgets config structure exists for CLI flag overrides
+			if cfg.Cost.Budgets == nil {
+				cfg.Cost.Budgets = &config.BudgetsConfig{}
+			}
+			if cfg.Cost.Budgets.Global == nil {
+				cfg.Cost.Budgets.Global = &config.ScopedBudget{}
+			}
+
 			// CLI flags override environment variables and config file
 			if cmd.Flags().Changed("exit-on-threshold") {
-				cfg.Cost.Budgets.ExitOnThreshold = flags.ExitOnThreshold
+				cfg.Cost.Budgets.Global.ExitOnThreshold = &flags.ExitOnThreshold
 			}
 			if cmd.Flags().Changed("exit-code") {
-				cfg.Cost.Budgets.ExitCode = flags.ExitCode
+				cfg.Cost.Budgets.Global.ExitCode = &flags.ExitCode
 			}
 
 			// Validate budget configuration if ExitOnThreshold is enabled (T048)
-			if cfg.Cost.Budgets.ExitOnThreshold {
-				if err := cfg.Cost.Budgets.Validate(); err != nil {
+			if cfg.Cost.Budgets.Global.ExitOnThreshold != nil && *cfg.Cost.Budgets.Global.ExitOnThreshold {
+				if err := cfg.Cost.Budgets.Global.Validate(""); err != nil {
 					return fmt.Errorf("invalid budget configuration: %w", err)
 				}
 			}
@@ -188,6 +197,10 @@ func newCostCmd() *cobra.Command {
 		"Exit with non-zero code when budget thresholds are exceeded")
 	cmd.PersistentFlags().IntVar(&flags.ExitCode, "exit-code", 1,
 		"Exit code to use when budget thresholds are exceeded (0-255)")
+
+	// Add persistent flag for budget scope filtering (T025)
+	cmd.PersistentFlags().StringVar(&flags.BudgetScope, "budget-scope", "",
+		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
 
 	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd())
 	return cmd
