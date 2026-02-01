@@ -14,13 +14,15 @@ import (
 	"github.com/rshade/finfocus/internal/registry"
 )
 
-func TestNewPluginValidateCmd(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
+// setupTestEnv sets up test isolation by configuring log level and using a temporary home directory.
+func setupTestEnv(t *testing.T) {
+	t.Helper()
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+}
 
-	// Use temporary directory to avoid validating real plugins
-	tmpDir := t.TempDir()
-	t.Setenv("FINFOCUS_HOME", tmpDir)
+func TestNewPluginValidateCmd(t *testing.T) {
+	setupTestEnv(t)
 
 	tests := []struct {
 		name        string
@@ -64,12 +66,7 @@ func TestNewPluginValidateCmd(t *testing.T) {
 }
 
 func TestPluginValidateCmdFlags(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-
-	// Use temporary directory to avoid validating real plugins
-	tmpDir := t.TempDir()
-	t.Setenv("FINFOCUS_HOME", tmpDir)
+	setupTestEnv(t)
 
 	cmd := cli.NewPluginValidateCmd()
 
@@ -82,12 +79,7 @@ func TestPluginValidateCmdFlags(t *testing.T) {
 }
 
 func TestPluginValidateCmdHelp(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-
-	// Use temporary directory to avoid validating real plugins
-	tmpDir := t.TempDir()
-	t.Setenv("FINFOCUS_HOME", tmpDir)
+	setupTestEnv(t)
 
 	var buf bytes.Buffer
 	cmd := cli.NewPluginValidateCmd()
@@ -105,12 +97,7 @@ func TestPluginValidateCmdHelp(t *testing.T) {
 }
 
 func TestPluginValidateCmdExamples(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-
-	// Use temporary directory to avoid validating real plugins
-	tmpDir := t.TempDir()
-	t.Setenv("FINFOCUS_HOME", tmpDir)
+	setupTestEnv(t)
 
 	cmd := cli.NewPluginValidateCmd()
 
@@ -123,12 +110,7 @@ func TestPluginValidateCmdExamples(t *testing.T) {
 }
 
 func TestValidatePlugin(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-
-	// Use temporary directory to avoid validating real plugins
-	tmpHomeDir := t.TempDir()
-	t.Setenv("FINFOCUS_HOME", tmpHomeDir)
+	setupTestEnv(t)
 
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()

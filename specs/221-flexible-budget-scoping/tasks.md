@@ -97,7 +97,7 @@ toward AWS and Global budgets, not GCP budget
 - [X] T025 [US1] Add --budget-scope flag with "provider" filter to cost budget command in internal/cli/cost_budget.go
 - [X] T026 [US1] Implement BY PROVIDER section rendering in internal/cli/cost_budget_render.go
 - [X] T027 [US1] Add debug logging for provider scope matching in internal/engine/budget_scope.go
-- [X] T028 [P] [US1] Add provider budget section to docs/guides/user/budget-scoping.md
+- [X] T028 [P] [US1] Add provider budget section to docs/guides/budgets.md
 
 **Checkpoint**: Provider budgets fully functional - can view BY PROVIDER section
 

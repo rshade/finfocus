@@ -13,7 +13,7 @@ scope-aware cost allocation in the engine, and provides a grouped CLI display wi
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5
+**Language/Version**: Go 1.25.6
 **Primary Dependencies**: github.com/spf13/cobra, github.com/rs/zerolog, gopkg.in/yaml.v3
 **Storage**: ~/.finfocus/config.yaml (YAML file-based configuration)
 **Testing**: go test with testify (80% minimum, 95% critical paths)
@@ -27,7 +27,7 @@ scope-aware cost allocation in the engine, and provides a grouped CLI display wi
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-Verify compliance with PulumiCost Core Constitution (`.specify/memory/constitution.md`):
+Verify compliance with FinFocus Core Constitution (`.specify/memory/constitution.md`):
 
 - [x] **Plugin-First Architecture**: Feature is orchestration logic in core, not a
       plugin. Budgets are user-defined in config, not provider-specific data.
@@ -91,10 +91,9 @@ test/
 
 docs/
 ├── guides/
-│   └── user/
-│       └── budget-scoping.md     # NEW: User guide for scoped budgets
+│   └── budgets.md                # User guide for scoped budgets
 └── reference/
-    └── configuration.md          # Update with budgets section
+    └── config-reference.md       # Update with budgets section
 ```
 
 **Structure Decision**: Single project structure, extending existing packages.

@@ -425,11 +425,16 @@ func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency st
 		Period:   globalBudget.Period,
 		Alerts:   globalBudget.Alerts,
 	}
+	// Use scoped exit settings if present, otherwise fallback to parent BudgetsConfig settings
 	if globalBudget.ExitOnThreshold != nil {
 		budgetConfig.ExitOnThreshold = *globalBudget.ExitOnThreshold
+	} else {
+		budgetConfig.ExitOnThreshold = budgetsCfg.ExitOnThreshold
 	}
 	if globalBudget.ExitCode != nil {
 		budgetConfig.ExitCode = *globalBudget.ExitCode
+	} else if budgetsCfg.ExitCode != nil {
+		budgetConfig.ExitCode = *budgetsCfg.ExitCode
 	}
 
 	// Create budget engine and evaluate
@@ -499,12 +504,17 @@ func renderBudgetWithScope(
 // checkBudgetExitFromResult evaluates whether the CLI should exit based on budget result.
 // It handles both legacy and scoped budget results.
 func checkBudgetExitFromResult(cmd *cobra.Command, result *BudgetRenderResult, evalErr error) error {
-	if result == nil {
+	// Handle evaluation errors first - propagate them consistently
+	if evalErr != nil {
 		return checkBudgetExit(cmd, nil, evalErr)
 	}
 
+	if result == nil {
+		return checkBudgetExit(cmd, nil, nil)
+	}
+
 	if result.LegacyStatus != nil {
-		return checkBudgetExit(cmd, result.LegacyStatus, evalErr)
+		return checkBudgetExit(cmd, result.LegacyStatus, nil)
 	}
 
 	// For scoped budgets, check if any scope is critical/exceeded

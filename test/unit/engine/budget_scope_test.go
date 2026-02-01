@@ -1013,6 +1013,54 @@ func TestAllocateCosts(t *testing.T) {
 		require.NotNil(t, allocation)
 		assert.Empty(t, allocation.AllocatedScopes)
 	})
+
+	// Edge case from spec.md:L68 - "Missing Provider/Type Mapping":
+	// Resources with unrecognized providers/types should only contribute to the Global budget.
+	t.Run("unrecognized provider/type allocates to global only", func(t *testing.T) {
+		cfg := &config.BudgetsConfig{
+			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
+			Providers: map[string]*config.ScopedBudget{
+				"aws": {Amount: 5000, Currency: "USD"},
+				"gcp": {Amount: 3000, Currency: "USD"},
+			},
+			Tags: []config.TagBudget{
+				{
+					Selector:     "team:platform",
+					Priority:     100,
+					ScopedBudget: config.ScopedBudget{Amount: 2000, Currency: "USD"},
+				},
+			},
+			Types: map[string]*config.ScopedBudget{
+				"aws:ec2/instance": {Amount: 1000, Currency: "USD"},
+			},
+		}
+
+		eval := engine.NewScopedBudgetEvaluator(cfg)
+
+		// Test with an unrecognized provider (oracle is not configured)
+		allocation := eval.AllocateCosts(ctx, "oracle:database/instance", nil, 150.0)
+
+		require.NotNil(t, allocation)
+		assert.Equal(t, 150.0, allocation.Cost)
+		assert.Equal(t, "oracle", allocation.Provider)
+		// Should ONLY allocate to global - no provider, tag, or type match
+		assert.Contains(t, allocation.AllocatedScopes, "global")
+		assert.NotContains(t, allocation.AllocatedScopes, "provider:oracle")
+		assert.NotContains(t, allocation.AllocatedScopes, "provider:aws")
+		assert.NotContains(t, allocation.AllocatedScopes, "provider:gcp")
+		assert.Len(t, allocation.AllocatedScopes, 1, "unrecognized resources should only allocate to global")
+
+		// Test with a known provider but unrecognized resource type
+		allocation2 := eval.AllocateCosts(ctx, "aws:lambda/function", nil, 75.0)
+
+		require.NotNil(t, allocation2)
+		assert.Equal(t, "aws", allocation2.Provider)
+		// Should allocate to global AND provider (aws is configured), but NOT type
+		assert.Contains(t, allocation2.AllocatedScopes, "global")
+		assert.Contains(t, allocation2.AllocatedScopes, "provider:aws")
+		assert.NotContains(t, allocation2.AllocatedScopes, "type:aws:lambda/function")
+		assert.Len(t, allocation2.AllocatedScopes, 2, "known provider with unknown type gets global+provider")
+	})
 }
 
 // TestCalculateOverallHealth tests worst-wins health aggregation (T055).
