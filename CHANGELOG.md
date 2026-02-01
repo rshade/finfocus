@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6](https://github.com/rshade/finfocus/compare/v0.2.5...v0.2.6) (2026-02-01)
+
+
+### Added
+
+* **greenops:** add carbon emission equivalency calculations ([#515](https://github.com/rshade/finfocus/issues/515)) ([0b70143](https://github.com/rshade/finfocus/commit/0b70143e7e20b7f19a041bc09f671dcbc552f777))
+
 ## [0.2.5](https://github.com/rshade/finfocus/compare/v0.2.4...v0.2.5) (2026-01-30)
 
 
