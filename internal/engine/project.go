@@ -1,12 +1,16 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"sort"
 	"strings"
 	"text/tabwriter"
+
+	"github.com/rshade/finfocus/internal/greenops"
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // OutputFormat specifies the output format for cost results (table, JSON, NDJSON).
@@ -37,12 +41,18 @@ const (
 // The results parameter is the slice of CostResult to be rendered.
 // It returns an error if rendering fails or if the provided format is unsupported.
 func RenderResults(writer io.Writer, format OutputFormat, results []CostResult) error {
+	return RenderResultsWithContext(context.Background(), writer, format, results)
+}
+
+// RenderResultsWithContext renders the given cost results using the specified output format with context.
+// The ctx parameter enables trace ID propagation for debug logging.
+func RenderResultsWithContext(ctx context.Context, writer io.Writer, format OutputFormat, results []CostResult) error {
 	// Aggregate results for enhanced reporting
 	aggregated := AggregateResults(results)
 
 	switch format {
 	case OutputTable:
-		return renderTable(writer, aggregated)
+		return renderTable(ctx, writer, aggregated)
 	case OutputJSON:
 		return renderJSON(writer, aggregated)
 	case OutputNDJSON:
@@ -165,15 +175,16 @@ func RenderCrossProviderAggregation(
 // renderTable writes the aggregated cost results to w in a human-readable tabular format.
 // It creates an internal tab writer and emits the following sections in order: cost summary,
 // breakdowns (by provider/service/adapter), sustainability summary, and resource details.
+// ctx enables trace ID propagation for debug logging.
 // writer is the destination for the rendered table. aggregated contains the precomputed
 // results to render.
 // Returns an error if writing to or flushing the tabulated output fails.
-func renderTable(writer io.Writer, aggregated *AggregatedResults) error {
+func renderTable(ctx context.Context, writer io.Writer, aggregated *AggregatedResults) error {
 	w := tabwriter.NewWriter(writer, 0, 0, defaultTabPadding, ' ', 0)
 
 	renderSummary(w, aggregated)
 	renderBreakdowns(w, aggregated)
-	renderSustainabilitySummary(w, aggregated)
+	renderSustainabilitySummary(ctx, w, aggregated)
 	renderResourceDetails(w, aggregated)
 
 	return w.Flush()
@@ -256,14 +267,42 @@ func renderBreakdowns(w io.Writer, aggregated *AggregatedResults) {
 // line containing the key, the summed value formatted with two decimal places, and
 // the metric unit. If no sustainability metrics are present, it writes nothing.
 //
-// It assumes the same unit is used for a given metric key across resources.
-func renderSustainabilitySummary(w io.Writer, aggregated *AggregatedResults) {
+// When carbon_footprint metrics are present and above the display threshold,
+// it also displays real-world equivalencies (miles driven, smartphones charged)
+// using EPA-published conversion factors.
+//
+// renderSustainabilitySummary writes a SUSTAINABILITY SUMMARY section to w showing aggregated sustainability metrics.
+// It sums metrics with the same key across all resources (assuming the same unit is used for a given metric key),
+// prints each metric as "key: value unit" sorted by key, and, when a carbon_footprint metric is present,
+// also displays derived carbon equivalencies.
+// ctx enables trace ID propagation for debug logging.
+// w is the destination for formatted output.
+// aggregated provides the resources whose Sustainability metrics will be aggregated and displayed.
+func renderSustainabilitySummary(ctx context.Context, w io.Writer, aggregated *AggregatedResults) {
 	sustainTotals := make(map[string]SustainabilityMetric)
 	for _, r := range aggregated.Resources {
 		for k, m := range r.Sustainability {
 			total := sustainTotals[k]
-			total.Value += m.Value
-			total.Unit = m.Unit // Assume same unit for same kind
+			// For carbon metrics, normalize to kg before summing to handle mixed units
+			if k == greenops.CarbonMetricKey || k == greenops.DeprecatedCarbonKey {
+				kg, err := greenops.NormalizeToKg(m.Value, m.Unit)
+				if err != nil {
+					logging.FromContext(ctx).Warn().
+						Ctx(ctx).
+						Str("component", "engine").
+						Str("operation", "render_sustainability_summary").
+						Str("metric_key", k).
+						Str("unit", m.Unit).
+						Err(err).
+						Msg("skipped resource with NormalizeToKg error")
+					continue
+				}
+				total.Value += kg
+				total.Unit = "kg"
+			} else {
+				total.Value += m.Value
+				total.Unit = m.Unit
+			}
 			sustainTotals[k] = total
 		}
 	}
@@ -280,7 +319,59 @@ func renderSustainabilitySummary(w io.Writer, aggregated *AggregatedResults) {
 			m := sustainTotals[k]
 			fmt.Fprintf(w, "%s:\t%.2f %s\n", k, m.Value, m.Unit)
 		}
+
+		// Calculate and display carbon equivalencies if carbon_footprint is present
+		renderCarbonEquivalencies(ctx, w, sustainTotals)
+
 		fmt.Fprintf(w, "\n")
+	}
+}
+
+// renderCarbonEquivalencies calculates and displays real-world equivalencies
+// for carbon emissions using EPA conversion factors.
+//
+// If carbon_footprint is present and above the minimum threshold (1.0 kg),
+// renderCarbonEquivalencies writes a human-readable carbon equivalencies line to w when equivalencies can be calculated from the provided sustainability totals.
+// ctx enables trace ID propagation for debug logging.
+// w is the destination writer. sustainTotals maps metric keys to SustainabilityMetric values used to compute equivalencies.
+// If equivalencies are produced, the function writes a single indented line containing the equivalency display text and emits a debug log with the input kilograms and the number of resulting equivalencies.
+func renderCarbonEquivalencies(ctx context.Context, w io.Writer, sustainTotals map[string]SustainabilityMetric) {
+	// Convert engine.SustainabilityMetric to greenops.SustainabilityMetric
+	greenopsMetrics := make(map[string]greenops.SustainabilityMetric, len(sustainTotals))
+	for k, m := range sustainTotals {
+		greenopsMetrics[k] = greenops.SustainabilityMetric{
+			Value: m.Value,
+			Unit:  m.Unit,
+		}
+	}
+
+	// Merge deprecated key into canonical key to ensure both contribute
+	if deprecated, hasDeprecated := greenopsMetrics[greenops.DeprecatedCarbonKey]; hasDeprecated {
+		if canonical, hasCanonical := greenopsMetrics[greenops.CarbonMetricKey]; hasCanonical {
+			// Both keys present: sum their values (both should already be in kg)
+			greenopsMetrics[greenops.CarbonMetricKey] = greenops.SustainabilityMetric{
+				Value: canonical.Value + deprecated.Value,
+				Unit:  canonical.Unit,
+			}
+		} else {
+			// Only deprecated key: promote to canonical
+			greenopsMetrics[greenops.CarbonMetricKey] = deprecated
+		}
+		// Remove deprecated key to avoid double-counting in CalculateFromMap
+		delete(greenopsMetrics, greenops.DeprecatedCarbonKey)
+	}
+
+	// Calculate equivalencies (pass ctx for contextual logging)
+	output := greenops.CalculateFromMap(ctx, greenopsMetrics)
+
+	// Display equivalencies if available
+	if !output.IsEmpty {
+		fmt.Fprintf(w, "  %s\n", output.DisplayText)
+		logging.FromContext(ctx).Debug().
+			Ctx(ctx).
+			Float64("input_kg", output.InputKg).
+			Int("result_count", len(output.Results)).
+			Msg("rendered carbon equivalencies")
 	}
 }
 

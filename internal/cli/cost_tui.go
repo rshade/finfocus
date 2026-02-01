@@ -15,10 +15,9 @@ import (
 
 // RenderCostOutput routes the cost results to the appropriate rendering function
 // based on the detected output mode (Plain, Styled, or Interactive).
-// The context parameter is reserved for future use (e.g., cancellation, tracing)
-// but is currently unused to maintain API compatibility.
+// The context parameter enables trace ID propagation for contextual logging.
 func RenderCostOutput(
-	_ context.Context,
+	ctx context.Context,
 	cmd *cobra.Command,
 	outputFormat string,
 	resultWithErrors *engine.CostResultWithErrors,
@@ -45,10 +44,10 @@ func RenderCostOutput(
 	// 3. Route to specific renderer
 	switch mode {
 	case tui.OutputModeInteractive:
-		return runInteractiveTUI(resultWithErrors)
+		return runInteractiveTUI(ctx, resultWithErrors)
 
 	case tui.OutputModeStyled:
-		return renderStyledOutput(cmd.OutOrStdout(), resultWithErrors)
+		return renderStyledOutput(ctx, cmd.OutOrStdout(), resultWithErrors)
 
 	case tui.OutputModePlain:
 		return renderPlainOutput(cmd.OutOrStdout(), resultWithErrors)
@@ -59,10 +58,9 @@ func RenderCostOutput(
 }
 
 // RenderActualCostOutput routes actual cost results to the appropriate rendering function.
-// The context parameter is reserved for future use (e.g., cancellation, tracing)
-// but is currently unused to maintain API compatibility.
+// The context parameter enables trace ID propagation for contextual logging.
 func RenderActualCostOutput(
-	_ context.Context,
+	ctx context.Context,
 	cmd *cobra.Command,
 	outputFormat string,
 	resultWithErrors *engine.CostResultWithErrors,
@@ -84,7 +82,7 @@ func RenderActualCostOutput(
 	mode := tui.DetectOutputMode(false, false, false)
 	switch mode {
 	case tui.OutputModeInteractive:
-		return runInteractiveActualCostTUI(resultWithErrors, engine.GroupBy(groupBy))
+		return runInteractiveActualCostTUI(ctx, resultWithErrors, engine.GroupBy(groupBy))
 
 	case tui.OutputModeStyled, tui.OutputModePlain:
 		fallthrough
@@ -97,16 +95,20 @@ func RenderActualCostOutput(
 	}
 }
 
-func runInteractiveTUI(resultWithErrors *engine.CostResultWithErrors) error {
-	p := tea.NewProgram(tui.NewCostViewModel(resultWithErrors.Results))
+func runInteractiveTUI(ctx context.Context, resultWithErrors *engine.CostResultWithErrors) error {
+	p := tea.NewProgram(tui.NewCostViewModel(ctx, resultWithErrors.Results))
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive TUI: %w", err)
 	}
 	return nil
 }
 
-func runInteractiveActualCostTUI(resultWithErrors *engine.CostResultWithErrors, groupBy engine.GroupBy) error {
-	p := tea.NewProgram(tui.NewCostViewModelFromActual(resultWithErrors.Results, groupBy))
+func runInteractiveActualCostTUI(
+	ctx context.Context,
+	resultWithErrors *engine.CostResultWithErrors,
+	groupBy engine.GroupBy,
+) error {
+	p := tea.NewProgram(tui.NewCostViewModelFromActual(ctx, resultWithErrors.Results, groupBy))
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive TUI: %w", err)
 	}
@@ -129,8 +131,9 @@ func renderPlainOutput(w io.Writer, resultWithErrors *engine.CostResultWithError
 }
 
 // renderStyledOutput renders the styled summary using Lip Gloss (T011).
-func renderStyledOutput(w io.Writer, resultWithErrors *engine.CostResultWithErrors) error {
-	summary := tui.RenderCostSummary(resultWithErrors.Results, tui.TerminalWidth())
+// The ctx parameter enables trace ID propagation for contextual logging.
+func renderStyledOutput(ctx context.Context, w io.Writer, resultWithErrors *engine.CostResultWithErrors) error {
+	summary := tui.RenderCostSummary(ctx, resultWithErrors.Results, tui.TerminalWidth())
 	fmt.Fprint(w, summary)
 
 	// Display error summary using plain text format.

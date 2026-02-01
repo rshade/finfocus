@@ -1,6 +1,7 @@
 package analyzer
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -8,6 +9,8 @@ import (
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/greenops"
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // Policy pack and policy name constants for diagnostic messages.
@@ -115,7 +118,8 @@ func StackSummaryDiagnostic(
 // Message formats:
 //   - With cost: "Estimated Monthly Cost: $X.XX USD (source: adapter-name)"
 //   - Zero cost with notes: Returns the notes directly
-//   - Zero cost no notes: "Unable to estimate cost"
+//
+// appended prefixed by " | ".
 func formatCostMessage(cost engine.CostResult) string {
 	var message string
 	switch {
@@ -149,6 +153,12 @@ func formatCostMessage(cost engine.CostResult) string {
 		if len(sustainParts) > 0 {
 			message += fmt.Sprintf(" [%s]", getJoinedSustainability(sustainParts))
 		}
+
+		// Add carbon equivalencies if carbon_footprint is present
+		carbonEquiv := getCarbonEquivalencyText(context.Background(), cost.Sustainability)
+		if carbonEquiv != "" {
+			message += " " + carbonEquiv
+		}
 	}
 
 	// Append recommendations if present (follows sustainability pattern)
@@ -159,8 +169,42 @@ func formatCostMessage(cost engine.CostResult) string {
 	return message
 }
 
+// getJoinedSustainability joins the provided sustainability metric parts using ", " as the separator to produce a deterministic, human-readable summary string.
 func getJoinedSustainability(parts []string) string {
 	return strings.Join(parts, ", ")
+}
+
+// getCarbonEquivalencyText returns the compact equivalency text for carbon metrics.
+// ctx enables trace ID propagation for warning logs.
+// On calculation errors the function logs a warning.
+func getCarbonEquivalencyText(ctx context.Context, sustainability map[string]engine.SustainabilityMetric) string {
+	// Check canonical key first
+	metric, ok := sustainability[greenops.CarbonMetricKey]
+	if !ok {
+		// Fallback to deprecated key
+		metric, ok = sustainability[greenops.DeprecatedCarbonKey]
+	}
+
+	if !ok {
+		return ""
+	}
+
+	// Calculate equivalencies
+	input := greenops.CarbonInput{Value: metric.Value, Unit: metric.Unit}
+	output, err := greenops.Calculate(ctx, input)
+	if err != nil {
+		logging.FromContext(ctx).Warn().
+			Ctx(ctx).
+			Str("unit", metric.Unit).
+			Err(err).
+			Msg("carbon equivalency calculation failed")
+		return ""
+	}
+	if output.IsEmpty {
+		return ""
+	}
+
+	return output.CompactText
 }
 
 // maxRecommendationsToShow is the maximum number of recommendations to display

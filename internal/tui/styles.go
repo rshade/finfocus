@@ -22,6 +22,12 @@ var (
 	// Use for numbers, results, and important data display.
 	ValueStyle = lipgloss.NewStyle().
 			Foreground(ColorValue)
+
+	// SubtleStyle formats secondary/supplementary information with muted styling.
+	// Use for equivalencies, hints, and supporting details.
+	SubtleStyle = lipgloss.NewStyle().
+			Foreground(ColorSubtle).
+			Italic(true)
 )
 
 // Status styles provide visual indicators for different operational states.
