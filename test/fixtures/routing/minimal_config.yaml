@@ -1,0 +1,5 @@
+# Test fixture: Minimal routing configuration
+# Empty plugins list uses automatic provider-based routing only.
+
+routing:
+  plugins: []

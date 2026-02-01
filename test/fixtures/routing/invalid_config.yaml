@@ -1,0 +1,38 @@
+# Test fixture: Invalid routing configuration
+# This file contains various configuration errors for testing validation.
+
+routing:
+  plugins:
+    # Missing name (required field)
+    - features:
+        - ProjectedCosts
+      priority: 10
+
+    # Invalid regex pattern (missing closing bracket)
+    - name: bad-regex-plugin
+      patterns:
+        - type: regex
+          pattern: "aws:(ec2|rds"
+
+    # Invalid pattern type (not "glob" or "regex")
+    - name: bad-pattern-type
+      patterns:
+        - type: wildcard
+          pattern: "aws:*"
+
+    # Invalid feature name (not in valid features list)
+    - name: invalid-feature-plugin
+      features:
+        - InvalidFeature
+        - ProjectedCosts
+      priority: 5
+
+    # Negative priority (must be >= 0)
+    - name: negative-priority
+      priority: -5
+
+    # Empty pattern string
+    - name: empty-pattern
+      patterns:
+        - type: glob
+          pattern: ""

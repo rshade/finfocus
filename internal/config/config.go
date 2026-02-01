@@ -76,6 +76,10 @@ type Config struct {
 	PluginHostConfig PluginHostConfig        `yaml:"plugin_host" json:"plugin_host"`
 	Cost             CostConfig              `yaml:"cost"        json:"cost"`
 
+	// Routing configures plugin routing behavior.
+	// If nil, automatic provider-based routing is used (FR-023 backward compatibility).
+	Routing *RoutingConfig `yaml:"routing,omitempty" json:"routing,omitempty"`
+
 	// Internal fields
 	configPath string
 }
@@ -410,6 +414,7 @@ func (c *Config) List() map[string]interface{} {
 		"analyzer":    c.Analyzer,
 		"plugin_host": c.PluginHostConfig,
 		"cost":        c.Cost,
+		"routing":     c.Routing,
 	}
 }
 
@@ -450,6 +455,13 @@ func (c *Config) Validate() error {
 	// Validate cost configuration
 	if err := c.Cost.Validate(); err != nil {
 		return fmt.Errorf("cost configuration validation failed: %w", err)
+	}
+
+	// Validate routing configuration if present
+	if c.Routing != nil {
+		if err := c.Routing.Validate(); err != nil {
+			return fmt.Errorf("routing configuration validation failed: %w", err)
+		}
 	}
 
 	return nil
