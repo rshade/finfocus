@@ -2,10 +2,12 @@ package cli
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/router"
 )
@@ -94,7 +96,11 @@ func validateRoutingConfig(cmd *cobra.Command, cfg *config.Config) (bool, error)
 	clients, cleanup, err := reg.Open(cmd.Context(), "")
 	if err != nil {
 		cmd.PrintErrln("Warning: Could not load plugins for validation:", err)
-		clients = nil
+		// Create synthetic clients from config names so pattern/feature validation still runs
+		clients = make([]*pluginhost.Client, 0, len(cfg.Routing.Plugins))
+		for _, p := range cfg.Routing.Plugins {
+			clients = append(clients, &pluginhost.Client{Name: p.Name})
+		}
 	} else {
 		defer cleanup()
 	}
@@ -143,7 +149,12 @@ func printVerboseDetails(cmd *cobra.Command, cfg *config.Config) {
 func printPluginDetails(cmd *cobra.Command, cfg *config.Config) {
 	if len(cfg.Plugins) > 0 {
 		cmd.Printf("  Configured plugins: %d\n", len(cfg.Plugins))
-		for pluginName := range cfg.Plugins {
+		names := make([]string, 0, len(cfg.Plugins))
+		for name := range cfg.Plugins {
+			names = append(names, name)
+		}
+		sort.Strings(names)
+		for _, pluginName := range names {
 			cmd.Printf("    - %s\n", pluginName)
 		}
 	} else {

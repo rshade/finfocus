@@ -1,5 +1,7 @@
 package config
 
+import "fmt"
+
 // RoutingConfig defines the complete routing strategy for plugins.
 //
 // YAML Location: ~/.finfocus/config.yaml under "routing" key
@@ -14,7 +16,7 @@ type RoutingConfig struct {
 	// Plugins contains the ordered list of plugin routing rules.
 	// Order matters for tie-breaking when priorities are equal.
 	// May be empty (uses automatic routing only).
-	Plugins []PluginRouting `yaml:"plugins"`
+	Plugins []PluginRouting `yaml:"plugins" json:"plugins"`
 }
 
 // PluginRouting defines how a specific plugin should be used.
@@ -22,7 +24,7 @@ type PluginRouting struct {
 	// Name is the plugin identifier.
 	// Must match an installed plugin name from ~/.finfocus/plugins/<name>/.
 	// Required.
-	Name string `yaml:"name"`
+	Name string `yaml:"name" json:"name"`
 
 	// Features limits which capabilities this plugin handles.
 	// If empty, all features the plugin reports are enabled.
@@ -36,12 +38,12 @@ type PluginRouting struct {
 	//   - Budgets: Budget tracking and alerts
 	//
 	// Invalid feature names generate a validation warning (non-blocking).
-	Features []string `yaml:"features,omitempty"`
+	Features []string `yaml:"features,omitempty" json:"features,omitempty"`
 
 	// Patterns defines resource type patterns this plugin handles.
 	// If empty, automatic provider-based routing is used.
 	// Patterns take precedence over automatic routing.
-	Patterns []ResourcePattern `yaml:"patterns,omitempty"`
+	Patterns []ResourcePattern `yaml:"patterns,omitempty" json:"patterns,omitempty"`
 
 	// Priority determines selection order.
 	// Higher values = higher priority (preferred).
@@ -51,7 +53,7 @@ type PluginRouting struct {
 	//   - Different priorities: Highest priority plugin is tried first
 	//   - Equal priority (0): All matching plugins queried in parallel
 	//   - Fallback: If enabled and plugin fails, next priority is tried
-	Priority int `yaml:"priority,omitempty"`
+	Priority int `yaml:"priority,omitempty" json:"priority,omitempty"`
 
 	// Fallback enables trying the next plugin if this one fails.
 	// Default is true if not specified.
@@ -65,7 +67,7 @@ type PluginRouting struct {
 	// Conditions that do NOT trigger fallback:
 	//   - InvalidArgument (plugin explicitly rejected request)
 	//   - $0 cost result (valid result, not a failure)
-	Fallback *bool `yaml:"fallback,omitempty"`
+	Fallback *bool `yaml:"fallback,omitempty" json:"fallback,omitempty"`
 }
 
 // FallbackEnabled returns whether fallback is enabled for this plugin.
@@ -92,22 +94,12 @@ type ResourcePattern struct {
 	//   - Full regular expression support
 	//   - Must be valid RE2 syntax (no backreferences)
 	//   - Example: "aws:(ec2|rds)/.*" matches "aws:ec2/instance:Instance"
-	Type string `yaml:"type"`
+	Type string `yaml:"type" json:"type"`
 
 	// Pattern is the pattern string.
 	// Required. Must be non-empty.
 	// Validated at config load time.
-	Pattern string `yaml:"pattern"`
-}
-
-// IsGlob returns true if this is a glob pattern.
-func (p ResourcePattern) IsGlob() bool {
-	return p.Type == "glob"
-}
-
-// IsRegex returns true if this is a regex pattern.
-func (p ResourcePattern) IsRegex() bool {
-	return p.Type == "regex"
+	Pattern string `yaml:"pattern" json:"pattern"`
 }
 
 // PatternTypeGlob is the pattern type for glob matching.
@@ -115,3 +107,48 @@ const PatternTypeGlob = "glob"
 
 // PatternTypeRegex is the pattern type for regex matching.
 const PatternTypeRegex = "regex"
+
+// IsGlob returns true if this is a glob pattern.
+func (p ResourcePattern) IsGlob() bool {
+	return p.Type == PatternTypeGlob
+}
+
+// IsRegex returns true if this is a regex pattern.
+func (p ResourcePattern) IsRegex() bool {
+	return p.Type == PatternTypeRegex
+}
+
+// Validate performs lightweight structural validation of the routing configuration.
+// It checks that plugin names are non-empty, patterns have valid types and non-empty strings,
+// and priority values are non-negative.
+func (r *RoutingConfig) Validate() error {
+	if r == nil {
+		return nil
+	}
+
+	for i, plugin := range r.Plugins {
+		// Validate plugin name is present
+		if plugin.Name == "" {
+			return fmt.Errorf("plugin at index %d: name is required", i)
+		}
+
+		// Validate priority is non-negative
+		if plugin.Priority < 0 {
+			return fmt.Errorf("plugin %q: priority must be non-negative, got %d", plugin.Name, plugin.Priority)
+		}
+
+		// Validate patterns
+		for j, pattern := range plugin.Patterns {
+			if pattern.Pattern == "" {
+				return fmt.Errorf("plugin %q: pattern at index %d: pattern string is required", plugin.Name, j)
+			}
+
+			if pattern.Type != PatternTypeGlob && pattern.Type != PatternTypeRegex {
+				return fmt.Errorf("plugin %q: pattern at index %d: invalid type %q (must be %q or %q)",
+					plugin.Name, j, pattern.Type, PatternTypeGlob, PatternTypeRegex)
+			}
+		}
+	}
+
+	return nil
+}

@@ -66,6 +66,8 @@ type ValidationWarning struct {
 // clients is the list of available plugin clients used to confirm plugin existence.
 // It returns a ValidationResult whose Valid field is true when no blocking errors were found,
 // Errors contains blocking validation issues, and Warnings contains non-blocking advisories.
+//
+//nolint:gocognit,funlen // Validation logic requires nested checks for comprehensive coverage
 func ValidateRoutingConfig(cfg *config.RoutingConfig, clients []*pluginhost.Client) ValidationResult {
 	result := ValidationResult{
 		Valid:    true,

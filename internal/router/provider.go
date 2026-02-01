@@ -37,7 +37,7 @@ func ExtractProviderFromType(resourceType string) string {
 	}
 
 	parts := strings.Split(resourceType, ":")
-	if len(parts) >= 1 && parts[0] != "" {
+	if parts[0] != "" {
 		return parts[0]
 	}
 
@@ -61,6 +61,7 @@ func NormalizeProvider(provider string) string {
 // ProviderMatches checks if a resource's provider matches a plugin's supported provider.
 // Returns true if:
 //   - The supported provider is global (empty or "*")
+//
 // ProviderMatches reports whether a resource provider matches a supported provider.
 // It returns true if the supportedProvider denotes a global provider (empty or "*")
 // or if the resourceProvider and supportedProvider are equal after normalization.

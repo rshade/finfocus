@@ -52,20 +52,17 @@ func CompilePattern(pattern config.ResourcePattern) (*CompiledPattern, error) {
 	return compiled, nil
 }
 
-// PatternCache provides thread-safe caching for compiled patterns.
+// PatternCache provides thread-safe caching for compiled regex patterns.
 type PatternCache struct {
 	mu      sync.RWMutex
 	regexes map[string]*regexp.Regexp
-	globs   map[string]bool // tracks if glob pattern is valid
 }
 
-// NewPatternCache returns a new PatternCache with its internal maps for compiled
-// regexes and glob validity initialized. The returned cache is ready for
-// concurrent use.
+// NewPatternCache returns a new PatternCache with its internal map for compiled
+// regexes initialized. The returned cache is ready for concurrent use.
 func NewPatternCache() *PatternCache {
 	return &PatternCache{
 		regexes: make(map[string]*regexp.Regexp),
-		globs:   make(map[string]bool),
 	}
 }
 
@@ -114,10 +111,9 @@ func (c *PatternCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.regexes = make(map[string]*regexp.Regexp)
-	c.globs = make(map[string]bool)
 }
 
-// Size returns the number of cached patterns.
+// Size returns the number of cached regex patterns.
 func (c *PatternCache) Size() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

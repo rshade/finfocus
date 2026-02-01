@@ -457,6 +457,13 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("cost configuration validation failed: %w", err)
 	}
 
+	// Validate routing configuration if present
+	if c.Routing != nil {
+		if err := c.Routing.Validate(); err != nil {
+			return fmt.Errorf("routing configuration validation failed: %w", err)
+		}
+	}
+
 	return nil
 }
 
