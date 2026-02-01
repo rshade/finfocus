@@ -1,0 +1,8 @@
+# Test fixture: Invalid configuration - missing global budget
+# This should fail validation because scoped budgets exist without global
+cost:
+  budgets:
+    providers:
+      aws:
+        amount: 3000.00
+        currency: USD

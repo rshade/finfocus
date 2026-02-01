@@ -12,7 +12,7 @@ FinFocus Core is a CLI tool that analyzes Pulumi infrastructure definitions to p
 ## Key Features
 
 - **📊 [Projected Costs](docs/reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
-- **💰 [Budgets & Alerts](docs/guides/budgets.md)**: Configure spending limits, alerts, and CI/CD thresholds
+- **💰 [Budgets & Alerts](docs/guides/budgets.md)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
 - **💡 [Recommendations](docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
 - **♿ [Accessibility](docs/guides/accessibility.md)**: High-contrast, plain text, and adaptive terminal UI modes
 - **💰 [Actual Costs](docs/reference/cli-commands.md#cost-actual)**: Track historical spending with detailed breakdowns

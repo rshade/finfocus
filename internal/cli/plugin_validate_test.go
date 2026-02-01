@@ -14,9 +14,16 @@ import (
 	"github.com/rshade/finfocus/internal/registry"
 )
 
-func TestNewPluginValidateCmd(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
+// setupTestEnv sets up test isolation by configuring log level and using a temporary home directory.
+func setupTestEnv(t *testing.T) {
+	t.Helper()
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+}
+
+func TestNewPluginValidateCmd(t *testing.T) {
+	setupTestEnv(t)
+
 	tests := []struct {
 		name        string
 		args        []string
@@ -59,8 +66,8 @@ func TestNewPluginValidateCmd(t *testing.T) {
 }
 
 func TestPluginValidateCmdFlags(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestEnv(t)
+
 	cmd := cli.NewPluginValidateCmd()
 
 	// Check plugin flag
@@ -72,8 +79,8 @@ func TestPluginValidateCmdFlags(t *testing.T) {
 }
 
 func TestPluginValidateCmdHelp(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestEnv(t)
+
 	var buf bytes.Buffer
 	cmd := cli.NewPluginValidateCmd()
 	cmd.SetOut(&buf)
@@ -90,8 +97,8 @@ func TestPluginValidateCmdHelp(t *testing.T) {
 }
 
 func TestPluginValidateCmdExamples(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestEnv(t)
+
 	cmd := cli.NewPluginValidateCmd()
 
 	// Check that examples are present
@@ -103,8 +110,8 @@ func TestPluginValidateCmdExamples(t *testing.T) {
 }
 
 func TestValidatePlugin(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestEnv(t)
+
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 

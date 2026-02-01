@@ -195,8 +195,9 @@ func (b BudgetConfig) GetForecastedAlerts() []AlertConfig {
 // CostConfig holds cost-related configuration settings including budgets and caching.
 // It groups all cost management features under a single configuration section.
 type CostConfig struct {
-	// Budgets contains the budget configuration for cost tracking.
-	Budgets BudgetConfig `yaml:"budgets,omitempty" json:"budgets,omitempty"`
+	// Budgets contains the hierarchical budget configuration with
+	// global, provider, tag, and resource type scopes.
+	Budgets *BudgetsConfig `yaml:"budgets,omitempty" json:"budgets,omitempty"`
 
 	// Cache contains the cache configuration for query result caching.
 	Cache CacheConfig `yaml:"cache,omitempty" json:"cache,omitempty"`
@@ -218,11 +219,38 @@ type CacheConfig struct {
 }
 
 // Validate validates the cost configuration.
+// Returns an error for fatal validation issues. Non-fatal warnings (like duplicate
+// tag budget priorities) can be retrieved via GetBudgetsWarnings().
 func (c CostConfig) Validate() error {
-	return c.Budgets.Validate()
+	// Validate budgets if set
+	if c.Budgets != nil {
+		_, err := c.Budgets.Validate()
+		if err != nil {
+			return fmt.Errorf("budgets: %w", err)
+		}
+		// Warnings are non-fatal and available via GetBudgetsWarnings()
+	}
+
+	return nil
 }
 
 // HasBudget returns true if a budget is configured and enabled.
 func (c CostConfig) HasBudget() bool {
-	return c.Budgets.IsEnabled()
+	return c.Budgets != nil && c.Budgets.IsEnabled()
+}
+
+// GetBudgetsWarnings validates the budgets and returns any warnings.
+// Returns nil if no budgets are configured or no warnings exist.
+// Validation errors are included as warnings to avoid silent failures.
+func (c CostConfig) GetBudgetsWarnings() []string {
+	if c.Budgets == nil {
+		return nil
+	}
+
+	warnings, err := c.Budgets.Validate()
+	if err != nil {
+		// Include validation error as a warning to avoid silent failure
+		return append(warnings, fmt.Sprintf("validation error: %v", err))
+	}
+	return warnings
 }
