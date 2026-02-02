@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.6](https://github.com/rshade/finfocus/compare/v0.2.5...v0.2.6) (2026-02-02)
+
+
+### Added
+
+* **cli:** add flexible budget scoping (per-provider, per-type, per-tag) ([#509](https://github.com/rshade/finfocus/issues/509)) ([54b6680](https://github.com/rshade/finfocus/commit/54b6680506e087a3cd4809bd17be16e612ef7d94))
+* **greenops:** add carbon emission equivalency calculations ([#515](https://github.com/rshade/finfocus/issues/515)) ([0b70143](https://github.com/rshade/finfocus/commit/0b70143e7e20b7f19a041bc09f671dcbc552f777))
+* **router:** add intelligent multi-plugin routing for cost calculations ([#507](https://github.com/rshade/finfocus/issues/507)) ([3510f92](https://github.com/rshade/finfocus/commit/3510f92c10a5a27b6b0aa5e8ddb3b64fa587331c))
+
+
+### Fixed
+
+* **deps:** update module github.com/pulumi/pulumi/sdk/v3 to v3.218.0 ([#530](https://github.com/rshade/finfocus/issues/530)) ([dd653f8](https://github.com/rshade/finfocus/commit/dd653f8d4b436ae1b5b2c41007ece13e1e557547))
+
+
+### Documentation
+
+* updating readme and relevant documentation for new functions ([#524](https://github.com/rshade/finfocus/issues/524)) ([bda0f35](https://github.com/rshade/finfocus/commit/bda0f35a5d16b762658ba2ee777d5dfc064e0aa1))
+
 ## [0.2.5](https://github.com/rshade/finfocus/compare/v0.2.4...v0.2.5) (2026-01-30)
 
 
