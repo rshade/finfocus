@@ -595,6 +595,19 @@ func TestRoutingConfig_Validate(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "empty plugin name",
+			config: &RoutingConfig{Plugins: []PluginRouting{
+				{
+					Name: "",
+					Patterns: []ResourcePattern{
+						{Type: PatternTypeGlob, Pattern: "aws:*"},
+					},
+				},
+			}},
+			wantErr:     true,
+			errContains: "plugin at index 0: name is required",
+		},
+		{
 			name: "valid glob pattern",
 			config: &RoutingConfig{
 				Plugins: []PluginRouting{

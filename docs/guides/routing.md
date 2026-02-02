@@ -10,6 +10,12 @@ layout: default
 
 FinFocus intelligently routes cost calculation requests to the most appropriate plugins based on:
 
+1. **Provider Matching**: Automatically route resources to plugins that support their cloud provider
+2. **Feature Capabilities**: Route different operations (projected costs, recommendations) to specialized plugins
+3. **Resource Patterns**: Override default routing with custom glob or regex patterns
+4. **Priority Ordering**: Control which plugin is preferred when multiple match
+5. **Automatic Fallback**: Retry with alternative plugins when the primary fails
+
 ## Table of Contents
 
 - [Overview](#overview)
@@ -30,12 +36,6 @@ FinFocus intelligently routes cost calculation requests to the most appropriate 
 - [Related Documentation](#related-documentation)
 - [Changelog](#changelog)
 
-1. **Provider Matching**: Automatically route resources to plugins that support their cloud provider
-2. **Feature Capabilities**: Route different operations (projected costs, recommendations) to specialized plugins
-3. **Resource Patterns**: Override default routing with custom glob or regex patterns
-4. **Priority Ordering**: Control which plugin is preferred when multiple match
-5. **Automatic Fallback**: Retry with alternative plugins when the primary fails
-
 ## How Routing Works
 
 ### Layer 1: Automatic Provider-Based Routing (Zero Configuration)
@@ -49,9 +49,11 @@ finfocus plugin install gcp-public
 
 # Verify what each plugin supports
 finfocus plugin list
-# NAME        VERSION  PROVIDERS    CAPABILITIES
-# aws-public  1.0.0    [aws]        ProjectedCosts, ActualCosts
-# gcp-public  1.0.0    [gcp]        ProjectedCosts, ActualCosts
+# NAME        VERSION  PROVIDERS
+# aws-public  1.0.0    aws
+# gcp-public  1.0.0    gcp
+#
+# Note: Output is tab-delimited. Column alignment may vary by terminal.
 
 # Cost calculation automatically routes resources
 finfocus cost projected --pulumi-json multi-cloud-plan.json
@@ -382,9 +384,9 @@ finfocus plugin list --verbose
 
 # Output:
 NAME        VERSION  PROVIDERS    CAPABILITIES                     STATUS
-aws-public  1.0.0    [aws]        ProjectedCosts, ActualCosts      healthy
-aws-ce      1.0.0    [aws]        Recommendations, ActualCosts     healthy
-gcp-public  1.0.0    [gcp]        ProjectedCosts, ActualCosts      healthy
+aws-public  1.0.0    aws          ProjectedCosts, ActualCosts      healthy
+aws-ce      1.0.0    aws          Recommendations, ActualCosts     healthy
+gcp-public  1.0.0    gcp          ProjectedCosts, ActualCosts      healthy
 ```
 
 ## Troubleshooting

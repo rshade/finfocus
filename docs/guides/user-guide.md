@@ -275,7 +275,7 @@ Vantage provides unified cost data from multiple cloud providers.
 
 **Setup:**
 
-1. Get Vantage API key from https://vantage.sh
+1. Get Vantage API key from [vantage.sh](https://vantage.sh)
 2. Configure plugin (see [Vantage Plugin Setup](../plugins/vantage/setup.md))
 3. Run commands with Vantage data
 
@@ -339,19 +339,19 @@ cost:
 
 **Configuration Fields:**
 
-| Field        | Description                                         | Example          |
-| ------------ | --------------------------------------------------- | ---------------- |
-| `amount`     | Total spend limit for the period                    | `1000.00`        |
-| `currency`   | ISO 4217 currency code                              | `USD`, `EUR`     |
-| `period`     | Budget period (default: monthly)                    | `monthly`        |
-| `alerts`     | List of threshold alerts                            | See below        |
+| Field      | Description                      | Example      |
+| ---------- | -------------------------------- | ------------ |
+| `amount`   | Total spend limit for the period | `1000.00`    |
+| `currency` | ISO 4217 currency code           | `USD`, `EUR` |
+| `period`   | Budget period (default: monthly) | `monthly`    |
+| `alerts`   | List of threshold alerts         | See below    |
 
 **Alert Configuration:**
 
-| Field       | Description                                          | Values                   |
-| ----------- | ---------------------------------------------------- | ------------------------ |
-| `threshold` | Percentage of budget that triggers alert             | `0` - `1000`             |
-| `type`      | What spend to check against threshold                | `actual`, `forecasted`   |
+| Field       | Description                              | Values                 |
+| ----------- | ---------------------------------------- | ---------------------- |
+| `threshold` | Percentage of budget that triggers alert | `0` - `1000`           |
+| `type`      | What spend to check against threshold    | `actual`, `forecasted` |
 
 ### Alert Types
 
@@ -362,7 +362,7 @@ Triggers when your current spending exceeds the threshold percentage of your bud
 ```yaml
 alerts:
   - threshold: 80
-    type: actual  # Alert when actual spend reaches 80% of budget
+    type: actual # Alert when actual spend reaches 80% of budget
 ```
 
 **Forecasted Alerts** (`type: forecasted`)
@@ -373,7 +373,7 @@ extrapolation based on your current daily spending rate.
 ```yaml
 alerts:
   - threshold: 100
-    type: forecasted  # Alert when forecasted spend will exceed budget
+    type: forecasted # Alert when forecasted spend will exceed budget
 ```
 
 ### Viewing Budget Status
@@ -422,11 +422,11 @@ The progress bar color indicates budget health:
 
 ### Alert Status Levels
 
-| Status       | Indicator | Description                                    |
-| ------------ | --------- | ---------------------------------------------- |
-| OK           | (none)    | Spend is below threshold                       |
-| APPROACHING  | ◉         | Within 5% of threshold (e.g., 75-80%)          |
-| EXCEEDED     | ⚠         | At or above threshold                          |
+| Status      | Indicator | Description                           |
+| ----------- | --------- | ------------------------------------- |
+| OK          | (none)    | Spend is below threshold              |
+| APPROACHING | ◉         | Within 5% of threshold (e.g., 75-80%) |
+| EXCEEDED    | ⚠         | At or above threshold                 |
 
 ### Forecasting Logic
 
@@ -467,13 +467,13 @@ cost:
     period: monthly
     alerts:
       - threshold: 50
-        type: actual      # Heads-up at 50%
+        type: actual # Heads-up at 50%
       - threshold: 80
-        type: actual      # Warning at 80%
+        type: actual # Warning at 80%
       - threshold: 100
-        type: actual      # Critical at 100%
+        type: actual # Critical at 100%
       - threshold: 100
-        type: forecasted  # Proactive: warn if forecast exceeds budget
+        type: forecasted # Proactive: warn if forecast exceeds budget
 ```
 
 **Proactive Forecasting Only:**
@@ -485,9 +485,9 @@ cost:
     currency: USD
     alerts:
       - threshold: 90
-        type: forecasted  # Warn if forecast will hit 90%
+        type: forecasted # Warn if forecast will hit 90%
       - threshold: 100
-        type: forecasted  # Critical if forecast will exceed budget
+        type: forecasted # Critical if forecast will exceed budget
 ```
 
 ### Disabling Budgets
@@ -497,7 +497,7 @@ Set the amount to 0 to disable budget tracking:
 ```yaml
 cost:
   budgets:
-    amount: 0  # Budget disabled
+    amount: 0 # Budget disabled
 ```
 
 ### Multi-Currency Support

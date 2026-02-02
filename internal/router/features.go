@@ -3,6 +3,8 @@
 // enabling multi-cloud cost analysis with configurable plugin selection.
 package router
 
+import "sync"
+
 // Feature represents a plugin capability type.
 // Features determine which operations a plugin can handle (e.g., ProjectedCosts, Recommendations).
 type Feature string
@@ -42,21 +44,32 @@ func ValidFeatures() []Feature {
 	}
 }
 
+//nolint:gochecknoglobals // Immutable cache for feature name lookups.
+var (
+	validFeatureNamesOnce sync.Once
+	validFeatureNamesSet  map[string]struct{}
+)
+
+func validFeatureNameSet() map[string]struct{} {
+	validFeatureNamesOnce.Do(func() {
+		set := make(map[string]struct{}, len(ValidFeatures()))
+		for _, f := range ValidFeatures() {
+			set[string(f)] = struct{}{}
+		}
+		validFeatureNamesSet = set
+	})
+	return validFeatureNamesSet
+}
+
 // IsValidFeature checks if a feature name is valid.
 // IsValidFeature reports whether name exactly matches one of the valid Feature values.
 // Comparison is case-sensitive; it returns true if a match is found and false otherwise.
 func IsValidFeature(name string) bool {
-	for _, f := range ValidFeatures() {
-		if string(f) == name {
-			return true
-		}
-	}
-	return false
+	_, ok := validFeatureNameSet()[name]
+	return ok
 }
 
-// ValidFeatureNames returns the string names of all valid features.
-// ValidFeatureNames returns the string names of all supported Feature values.
-// The returned slice preserves the order produced by ValidFeatures.
+// ValidFeatureNames returns the string names of all supported Feature values in the same order as ValidFeatures.
 func ValidFeatureNames() []string {
 	features := ValidFeatures()
 	names := make([]string, len(features))

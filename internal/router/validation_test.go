@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -263,12 +264,11 @@ func TestValidateRoutingConfig(t *testing.T) {
 			} else {
 				// For "at least N errors" cases
 				minCount := -tc.wantErrCount
-				assert.True(
+				require.GreaterOrEqual(
 					t,
-					len(result.Errors) >= minCount,
-					"expected at least %d errors, got %d",
-					minCount,
 					len(result.Errors),
+					minCount,
+					fmt.Sprintf("expected at least %d errors, got %d", minCount, len(result.Errors)),
 				)
 			}
 

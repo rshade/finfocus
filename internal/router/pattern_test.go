@@ -144,7 +144,7 @@ func TestCompiledPattern_Match_Regex(t *testing.T) {
 			wantMatch:    true,
 		},
 		{
-			name:         "partial match without start anchor succeeds",
+			name:         "regex matches substring without anchor",
 			pattern:      "gcp:",
 			resourceType: "aws:gcp:Instance",
 			wantMatch:    true, // partial match
@@ -259,10 +259,12 @@ func TestPatternCache_ConcurrentAccess(t *testing.T) {
 	wg.Wait()
 	close(errCh)
 
-	// Assert no errors occurred
+	// Collect and assert no errors occurred
+	var errors []error
 	for err := range errCh {
-		require.NoError(t, err)
+		errors = append(errors, err)
 	}
+	require.Empty(t, errors, "concurrent cache access should not produce errors")
 
 	// Should have exactly one cached pattern despite concurrent access
 	assert.Equal(t, 1, cache.Size())

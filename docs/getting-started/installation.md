@@ -17,14 +17,14 @@ Detailed steps to install FinFocus on your system.
 
 ### Option 1: Build from Source (Recommended)
 
-**Step 1: Clone the repository**
+#### Step 1: Clone the repository
 
 ```bash
 git clone https://github.com/rshade/finfocus
 cd finfocus
 ```
 
-**Step 2: Build**
+#### Step 2: Build
 
 ```bash
 make build
@@ -32,7 +32,7 @@ make build
 
 Binary will be created at: `bin/finfocus`
 
-**Step 3: Add to PATH (optional)**
+#### Step 3: Add to PATH (optional)
 
 ```bash
 # macOS/Linux
@@ -42,7 +42,7 @@ export PATH="$PWD/bin:$PATH"
 sudo cp bin/finfocus /usr/local/bin/
 ```
 
-**Step 4: Verify**
+#### Step 4: Verify
 
 ```bash
 finfocus --version

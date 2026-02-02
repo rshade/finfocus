@@ -5,6 +5,7 @@ import (
 	"sort"
 	"sync"
 
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
@@ -242,16 +243,11 @@ func (r *DefaultRouter) SelectPlugins(
 	// First pass: check declarative patterns (highest precedence)
 	if r.config != nil {
 		for _, pluginCfg := range r.config.Plugins {
-			// Check feature filter
-			if !r.matchesFeature(pluginCfg, feature) {
-				continue
-			}
-
 			// Check patterns if configured
 			if len(pluginCfg.Patterns) > 0 {
 				if r.matchesAnyPattern(pluginCfg, resource.Type) {
 					client := r.findClient(pluginCfg.Name)
-					if client != nil {
+					if client != nil && r.matchesFeature(client, pluginCfg, feature) {
 						matches = append(matches, PluginMatch{
 							Client:      client,
 							Priority:    pluginCfg.Priority,
@@ -286,9 +282,11 @@ func (r *DefaultRouter) SelectPlugins(
 		if matchReason == MatchReasonAutomatic || matchReason == MatchReasonGlobal {
 			// Check feature filter from config if exists
 			if cfg, ok := r.pluginConfig[client.Name]; ok {
-				if !r.matchesFeature(*cfg, feature) {
+				if !r.matchesFeature(client, *cfg, feature) {
 					continue
 				}
+			} else if !r.matchesFeature(client, config.PluginRouting{}, feature) {
+				continue
 			}
 
 			priority := 0
@@ -331,18 +329,125 @@ func (r *DefaultRouter) SelectPlugins(
 }
 
 // matchesFeature checks if a plugin configuration matches the requested feature.
-func (r *DefaultRouter) matchesFeature(cfg config.PluginRouting, feature string) bool {
+func (r *DefaultRouter) matchesFeature(client *pluginhost.Client, cfg config.PluginRouting, feature string) bool {
+	resolvedFeature := feature
+	if parsedFeature, parsedOk := ParseFeature(feature); parsedOk {
+		resolvedFeature = string(parsedFeature)
+	} else if methodFeature, methodOk := FeatureFromMethod(feature); methodOk {
+		resolvedFeature = string(methodFeature)
+	}
+
 	// If no features are configured, all features are allowed
 	if len(cfg.Features) == 0 {
-		return true
+		return r.matchesCapabilities(client, resolvedFeature)
 	}
 
 	for _, f := range cfg.Features {
-		if f == feature {
-			return true
+		if f == resolvedFeature {
+			return r.matchesCapabilities(client, resolvedFeature)
 		}
 	}
 	return false
+}
+
+func (r *DefaultRouter) matchesCapabilities(client *pluginhost.Client, feature string) bool {
+	if client == nil || client.Metadata == nil {
+		return true
+	}
+
+	capabilities := client.Metadata.Capabilities
+	if len(capabilities) == 0 {
+		return true
+	}
+
+	requestedFeature, ok := ParseFeature(feature)
+	if !ok {
+		if resolved, found := FeatureFromMethod(feature); found {
+			requestedFeature = resolved
+		} else {
+			return true
+		}
+	}
+
+	requiredCapability := capabilityNameForFeature(requestedFeature)
+	if requiredCapability == "" {
+		return true
+	}
+
+	capabilitySet := normalizedCapabilitySet(capabilities)
+	_, ok = capabilitySet[requiredCapability]
+	return ok
+}
+
+func capabilityNameForFeature(feature Feature) string {
+	capability, ok := capabilityEnumFromFeature(feature)
+	if !ok {
+		return ""
+	}
+	converted := pluginhost.ConvertCapabilities([]pbc.PluginCapability{capability})
+	if len(converted) == 0 {
+		return ""
+	}
+	return converted[0]
+}
+
+func normalizedCapabilitySet(capabilities []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(capabilities))
+	for _, capability := range capabilities {
+		if capability == "" {
+			continue
+		}
+		set[capability] = struct{}{}
+		if feature, ok := ParseFeature(capability); ok {
+			if normalized := capabilityNameForFeature(feature); normalized != "" {
+				set[normalized] = struct{}{}
+			}
+		}
+		if enumValue, ok := capabilityEnumFromString(capability); ok {
+			for _, normalized := range pluginhost.ConvertCapabilities([]pbc.PluginCapability{enumValue}) {
+				set[normalized] = struct{}{}
+			}
+		}
+	}
+	return set
+}
+
+func capabilityEnumFromFeature(feature Feature) (pbc.PluginCapability, bool) {
+	switch feature {
+	case FeatureProjectedCosts:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS, true
+	case FeatureActualCosts:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS, true
+	case FeatureRecommendations:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS, true
+	case FeatureCarbon:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON, true
+	case FeatureDryRun:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_DRY_RUN, true
+	case FeatureBudgets:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS, true
+	default:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED, false
+	}
+}
+
+func capabilityEnumFromString(capability string) (pbc.PluginCapability, bool) {
+	switch capability {
+	case "ProjectedCosts", "projected_costs":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS, true
+	case "ActualCosts", "actual_costs":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS, true
+	case "Recommendations", "recommendations":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS, true
+	case "Carbon", "carbon":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_CARBON, true
+	case "DryRun", "dry_run":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_DRY_RUN, true
+	case "Budgets", "budgets":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS, true
+	default:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED, false
+	}
 }
 
 // matchesAnyPattern checks if the resource type matches any of the plugin's patterns.

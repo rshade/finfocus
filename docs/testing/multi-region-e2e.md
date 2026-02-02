@@ -483,7 +483,7 @@ FAIL: Pulumi Automation API support required (issue #177)
 
 ## Unified Multi-Region Fixtures (User Story 4)
 
-### Overview
+### Unified Overview
 
 In addition to per-region fixtures, the unified fixture tests a **single Pulumi program**
 that deploys resources across multiple regions - a common real-world pattern.
@@ -541,13 +541,13 @@ go test -v -tags e2e ./test/e2e -run TestMultiRegion_Unified_Projected
 
 ### Troubleshooting Unified Fixtures
 
-**Issue: "Region not detected for resource"**
+#### 1. Issue: "Region not detected for resource"
 
 - Ensure provider is explicitly declared with `region` property
 - Verify resource uses `options.provider` to reference the provider
 - Check plan JSON contains provider URN with region
 
-**Issue: "Aggregate total outside tolerance"**
+#### 2. Issue: "Aggregate total outside tolerance"
 
 - Tolerance compounds: 3 resources at +5% each = ~+15% total
 - Update `aggregate_validation` bounds in `expected-costs.json` if needed

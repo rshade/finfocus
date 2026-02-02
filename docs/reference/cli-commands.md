@@ -34,13 +34,13 @@ finfocus analyzer serve     # Start the analyzer gRPC server
 
 Calculate estimated costs from Pulumi plan.
 
-### Usage
+### Usage (cost projected)
 
 ```bash
 finfocus cost projected --pulumi-json <file> [options]
 ```
 
-### Options
+### Options (cost projected)
 
 | Flag            | Description                               | Default  |
 | --------------- | ----------------------------------------- | -------- |
@@ -50,7 +50,7 @@ finfocus cost projected --pulumi-json <file> [options]
 | `--utilization` | Assumed resource utilization (0.0-1.0)    | 1.0      |
 | `--help`        | Show help                                 |          |
 
-### Examples
+### Examples (cost projected)
 
 ```bash
 # Basic usage
@@ -70,13 +70,13 @@ finfocus cost projected --pulumi-json plan.json --output ndjson
 
 Display cost optimization recommendations from cloud providers.
 
-### Usage
+### Usage (cost recommendations)
 
 ```bash
 finfocus cost recommendations --pulumi-json <file> [options]
 ```
 
-### Options
+### Options (cost recommendations)
 
 | Flag            | Description                        | Default  |
 | --------------- | ---------------------------------- | -------- |
@@ -87,7 +87,7 @@ finfocus cost recommendations --pulumi-json <file> [options]
 | `--verbose`     | Enable verbose logging             | false    |
 | `--help`        | Show help                          |          |
 
-### Examples
+### Examples (cost recommendations)
 
 ```bash
 # Interactive mode (default)
@@ -104,13 +104,13 @@ finfocus cost recommendations --pulumi-json plan.json --output json
 
 Get actual historical costs from plugins.
 
-### Usage
+### Usage (cost actual)
 
 ```bash
 finfocus cost actual [options]
 ```
 
-### Options
+### Options (cost actual)
 
 | Flag                    | Description                                              | Default    |
 | ----------------------- | -------------------------------------------------------- | ---------- |
@@ -134,7 +134,7 @@ When `--estimate-confidence` is enabled, a Confidence column appears showing dat
 | MEDIUM | Runtime estimate for Pulumi-created resources                   |
 | LOW    | Runtime estimate for imported resources (creation time unknown) |
 
-### Examples
+### Examples (cost actual)
 
 ```bash
 # Estimate costs from Pulumi state (--from auto-detected from timestamps)
@@ -166,19 +166,19 @@ finfocus cost actual --pulumi-state state.json --estimate-confidence
 
 Validate routing configuration for errors and warnings.
 
-### Usage
+### Usage (config validate)
 
 ```bash
 finfocus config validate [options]
 ```
 
-### Options
+### Options (config validate)
 
 | Flag     | Description |
 | -------- | ----------- |
 | `--help` | Show help   |
 
-### Examples
+### Examples (config validate)
 
 ```bash
 # Validate routing configuration
@@ -211,13 +211,13 @@ finfocus config validate
 
 Initialize a new FinFocus plugin project.
 
-### Usage
+### Usage (plugin init)
 
 ```bash
 finfocus plugin init <plugin-name> --author <name> --providers <list> [options]
 ```
 
-### Options
+### Options (plugin init)
 
 | Flag          | Description                             | Default    |
 | ------------- | --------------------------------------- | ---------- |
@@ -225,7 +225,7 @@ finfocus plugin init <plugin-name> --author <name> --providers <list> [options]
 | `--providers` | Comma-separated list of cloud providers | (required) |
 | `--help`      | Show help                               |            |
 
-### Examples
+### Examples (plugin init)
 
 ```bash
 # Initialize a new AWS plugin
@@ -236,13 +236,13 @@ finfocus plugin init my-aws-plugin --author "Your Name" --providers aws
 
 Install a FinFocus plugin from a registry or URL.
 
-### Usage
+### Usage (plugin install)
 
 ```bash
 finfocus plugin install <plugin-name> [--version <version>] [--url <url>] [options]
 ```
 
-### Options
+### Options (plugin install)
 
 | Flag        | Description                                        | Default           |
 | ----------- | -------------------------------------------------- | ----------------- |
@@ -253,7 +253,7 @@ finfocus plugin install <plugin-name> [--version <version>] [--url <url>] [optio
 | `--no-save` | Don't add plugin to config file                    | false             |
 | `--help`    | Show help                                          |                   |
 
-### Examples
+### Examples (plugin install)
 
 ```bash
 # Install the latest Vantage plugin
@@ -273,13 +273,13 @@ finfocus plugin install my-plugin --url https://example.com/my-plugin-0.1.0.tar.
 
 Update an installed FinFocus plugin.
 
-### Usage
+### Usage (plugin update)
 
 ```bash
 finfocus plugin update <plugin-name> [options]
 ```
 
-### Options
+### Options (plugin update)
 
 | Flag        | Description                                 | Default |
 | ----------- | ------------------------------------------- | ------- |
@@ -287,7 +287,7 @@ finfocus plugin update <plugin-name> [options]
 | `--all`     | Update all installed plugins                | false   |
 | `--help`    | Show help                                   |         |
 
-### Examples
+### Examples (plugin update)
 
 ```bash
 # Update the Vantage plugin to the latest version
@@ -301,20 +301,20 @@ finfocus plugin update --all
 
 Remove an installed FinFocus plugin.
 
-### Usage
+### Usage (plugin remove)
 
 ```bash
 finfocus plugin remove <plugin-name> [options]
 ```
 
-### Options
+### Options (plugin remove)
 
 | Flag     | Description                  | Default |
 | -------- | ---------------------------- | ------- |
 | `--all`  | Remove all installed plugins | false   |
 | `--help` | Show help                    |         |
 
-### Examples
+### Examples (plugin remove)
 
 ```bash
 # Remove the Vantage plugin
@@ -328,20 +328,20 @@ finfocus plugin remove --all
 
 List installed plugins with optional capability details.
 
-### Usage
+### Usage (plugin list)
 
 ```bash
 finfocus plugin list [options]
 ```
 
-### Options
+### Options (plugin list)
 
 | Flag        | Description                                     | Default |
 | ----------- | ----------------------------------------------- | ------- |
 | `--verbose` | Show detailed plugin capabilities and providers | false   |
 | `--help`    | Show help                                       |         |
 
-### Examples
+### Examples (plugin list)
 
 ```bash
 # List all plugins
@@ -360,20 +360,20 @@ finfocus plugin list --verbose
 # aws-public  1.0.0    [aws]        ProjectedCosts, ActualCosts  0.4.14  /Users/me/.finfocus/plugins/aws-public/v1.0.0/finfocus-plugin-aws-public
 # aws-ce      1.0.0    [aws]        Recommendations, ActualCosts 0.4.14  /Users/me/.finfocus/plugins/aws-ce/v1.0.0/finfocus-plugin-aws-ce
 # gcp-public  1.0.0    [gcp]        ProjectedCosts, ActualCosts  0.4.14  /Users/me/.finfocus/plugins/gcp-public/v1.0.0/finfocus-plugin-gcp-public
-# eks-costs   0.5.0    [aws]        ProjectedCosts                   healthy
+# eks-costs   0.5.0    [aws]        ProjectedCosts                 0.4.14  /Users/me/.finfocus/plugins/eks-costs/v0.5.0/finfocus-plugin-eks-costs
 ```
 
 ## plugin inspect
 
 Inspect a plugin's capabilities and field mappings.
 
-### Usage
+### Usage (plugin inspect)
 
 ```bash
 finfocus plugin inspect <plugin-name> <resource-type> [options]
 ```
 
-### Options
+### Options (plugin inspect)
 
 | Flag        | Description                       | Default |
 | ----------- | --------------------------------- | ------- |
@@ -381,7 +381,7 @@ finfocus plugin inspect <plugin-name> <resource-type> [options]
 | `--json`    | Output in JSON format             | false   |
 | `--help`    | Show help                         |         |
 
-### Examples
+### Examples (plugin inspect)
 
 ```bash
 # Inspect field mappings for AWS EC2 Instance
@@ -406,19 +406,19 @@ finfocus plugin inspect aws-public aws:ec2/instance:Instance --json
 
 Validate plugin installations.
 
-### Usage
+### Usage (plugin validate)
 
 ```bash
 finfocus plugin validate [options]
 ```
 
-### Options
+### Options (plugin validate)
 
 | Flag     | Description |
 | -------- | ----------- |
 | `--help` | Show help   |
 
-### Examples
+### Examples (plugin validate)
 
 ```bash
 # Validate all plugins
@@ -433,13 +433,13 @@ finfocus plugin validate
 
 Run conformance tests against a plugin binary to verify protocol compliance.
 
-### Usage
+### Usage (plugin conformance)
 
 ```bash
 finfocus plugin conformance <plugin-path> [options]
 ```
 
-### Options
+### Options (plugin conformance)
 
 | Flag            | Description                                                            | Default |
 | --------------- | ---------------------------------------------------------------------- | ------- |
@@ -452,7 +452,7 @@ finfocus plugin conformance <plugin-path> [options]
 | `--filter`      | Regex filter for test names                                            |         |
 | `--help`        | Show help                                                              |         |
 
-### Examples
+### Examples (plugin conformance)
 
 ```bash
 # Basic conformance check
@@ -475,13 +475,13 @@ finfocus plugin conformance --mode stdio ./plugins/aws-cost
 
 Run full certification tests and generate a certification report.
 
-### Usage
+### Usage (plugin certify)
 
 ```bash
 finfocus plugin certify <plugin-path> [options]
 ```
 
-### Options
+### Options (plugin certify)
 
 | Flag           | Description                          | Default |
 | -------------- | ------------------------------------ | ------- |
@@ -499,7 +499,7 @@ A plugin is certified if all conformance tests pass:
 - All context/timeout tests
 - All performance tests
 
-### Examples
+### Examples (plugin certify)
 
 ```bash
 # Basic certification
@@ -532,13 +532,13 @@ Starts the FinFocus analyzer gRPC server. This command is intended to be run by
 the Pulumi CLI as part of the `pulumi preview` workflow, typically configured in
 `Pulumi.yaml`.
 
-### Usage
+### Usage (analyzer serve)
 
 ```bash
 finfocus analyzer serve [options]
 ```
 
-### Options
+### Options (analyzer serve)
 
 | Flag              | Description                                  | Default     |
 | ----------------- | -------------------------------------------- | ----------- |
@@ -547,7 +547,7 @@ finfocus analyzer serve [options]
 | `--pulumilogfile` | Pulumi log file name (internal use)          | (generated) |
 | `--help`          | Show help                                    |             |
 
-### Examples
+### Examples (analyzer serve)
 
 ```bash
 # This command is typically not run directly by users.

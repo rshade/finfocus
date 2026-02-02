@@ -4,9 +4,22 @@ title: Troubleshooting Guide
 description: Common issues and solutions
 ---
 
+This guide helps you diagnose and resolve common issues with FinFocus. Each
+section covers a specific category of problems with step-by-step solutions.
+
+## Table of Contents
+
+- [Installation Issues](#installation-issues)
+- [Cost Calculation Issues](#cost-calculation-issues)
+- [Plugin Issues](#plugin-issues)
+- [Performance Issues](#performance-issues)
+- [File Issues](#file-issues)
+- [Configuration Issues](#configuration-issues)
+- [Getting More Help](#getting-more-help)
+
 ## Installation Issues
 
-**"finfocus: command not found"**
+### "finfocus: command not found"
 
 Solution:
 
@@ -21,7 +34,7 @@ export PATH="$PWD/bin:$PATH"
 ls -la bin/finfocus
 ```
 
-**"make: command not found"**
+### "make: command not found"
 
 Solution:
 
@@ -39,7 +52,7 @@ make --version
 
 ## Cost Calculation Issues
 
-**"No cost data available"**
+### "No cost data available"
 
 Causes:
 
@@ -59,7 +72,7 @@ finfocus plugin validate
 # docs/plugins/vantage/setup.md
 ```
 
-**"Invalid date format"**
+### "Invalid date format"
 
 Solution:
 
@@ -71,7 +84,7 @@ finfocus cost actual --from 2024-01-01
 finfocus cost actual --from 2024-01-01T00:00:00Z
 ```
 
-**"Filter not working"**
+### "Filter not working"
 
 Solution:
 
@@ -85,7 +98,7 @@ finfocus cost actual --filter "tag:env=prod AND tag:team=platform"
 
 ## Plugin Issues
 
-**"Plugin validation failed"**
+### "Plugin validation failed"
 
 ```bash
 # Debug plugin
@@ -96,7 +109,7 @@ ls -la ~/.finfocus/plugins/*/*/
 chmod +x ~/.finfocus/plugins/*/*/finfocus-*
 ```
 
-**"Plugin timeout"**
+### "Plugin timeout"
 
 Solution:
 
@@ -105,7 +118,7 @@ Solution:
 3. Check plugin logs
 4. Increase timeout (if available)
 
-**"API authentication failed"**
+### "API authentication failed"
 
 Solution:
 
@@ -119,7 +132,7 @@ cat ~/.finfocus/config.yaml
 
 ## Performance Issues
 
-**"CLI is slow"**
+### "CLI is slow"
 
 Solution:
 
@@ -131,7 +144,7 @@ finfocus cost actual --from 2024-01-31 --to 2024-01-31
 finfocus cost actual --output ndjson
 ```
 
-**"Plugin is timing out"**
+### "Plugin is timing out"
 
 Solution:
 
@@ -142,7 +155,7 @@ Solution:
 
 ## File Issues
 
-**"Pulumi JSON file not found"**
+### "Pulumi JSON file not found"
 
 Solution:
 
@@ -154,7 +167,7 @@ pulumi preview --json > plan.json
 cat plan.json | head
 ```
 
-**"Permission denied"**
+### "Permission denied"
 
 Solution:
 
@@ -169,7 +182,7 @@ chmod +x bin/finfocus
 
 ## Configuration Issues
 
-**"Configuration not found"**
+### "Configuration not found"
 
 Solution:
 
@@ -182,7 +195,7 @@ mkdir -p ~/.finfocus/specs
 # Add YAML spec files
 ```
 
-**"Default currency error"**
+### "Default currency error"
 
 Solution:
 

@@ -12,28 +12,28 @@ import (
 type ValidationResult struct {
 	// Valid is true if no errors were found.
 	// Warnings do not affect validity.
-	Valid bool
+	Valid bool `json:"valid"`
 
 	// Errors are blocking issues that prevent routing.
 	// If len(Errors) > 0, Valid must be false.
-	Errors []ValidationError
+	Errors []ValidationError `json:"errors"`
 
 	// Warnings are non-blocking issues that should be reviewed.
 	// Routing will still work, but behavior may be unexpected.
-	Warnings []ValidationWarning
+	Warnings []ValidationWarning `json:"warnings"`
 }
 
 // ValidationError represents a blocking validation error.
 type ValidationError struct {
 	// Plugin is the plugin name (empty for global errors).
-	Plugin string
+	Plugin string `json:"plugin"`
 
 	// Field is the configuration field with the error.
 	// Examples: "name", "patterns[0].pattern", "features"
-	Field string
+	Field string `json:"field"`
 
 	// Message describes the error.
-	Message string
+	Message string `json:"message"`
 }
 
 // Error implements the error interface.
@@ -47,13 +47,13 @@ func (e ValidationError) Error() string {
 // ValidationWarning represents a non-blocking warning.
 type ValidationWarning struct {
 	// Plugin is the plugin name (empty for global warnings).
-	Plugin string
+	Plugin string `json:"plugin"`
 
 	// Field is the configuration field with the warning.
-	Field string
+	Field string `json:"field"`
 
 	// Message describes the warning.
-	Message string
+	Message string `json:"message"`
 }
 
 // ValidateRoutingConfig validates the routing configuration against available plugins.

@@ -138,12 +138,12 @@ For IDE autocomplete and validation, add this comment to your config file:
 
 Override configuration with environment variables:
 
-| Variable                         | Description                              | Example  |
-| -------------------------------- | ---------------------------------------- | -------- |
-| `FINFOCUS_BUDGET_AMOUNT`         | Override budget amount                   | `500.00` |
-| `FINFOCUS_BUDGET_CURRENCY`       | Override currency                        | `EUR`    |
+| Variable                            | Description                                 | Example  |
+| ----------------------------------- | ------------------------------------------- | -------- |
+| `FINFOCUS_BUDGET_AMOUNT`            | Override budget amount                      | `500.00` |
+| `FINFOCUS_BUDGET_CURRENCY`          | Override currency                           | `EUR`    |
 | `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` | Exit process when budget threshold exceeded | `true`   |
-| `FINFOCUS_BUDGET_EXIT_CODE`      | Exit code to use when enforcement triggers | `2`      |
+| `FINFOCUS_BUDGET_EXIT_CODE`         | Exit code to use when enforcement triggers  | `2`      |
 
 See [Configuration Reference](../reference/config-reference.md#budgets) for complete details.
 
