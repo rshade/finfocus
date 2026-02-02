@@ -7,8 +7,8 @@ guardrails in `CONTEXT.md`.
 ## Table of Contents
 
 - [Past Milestones](#past-milestones-done)
-- [Current Focus (v0.2.5)](#current-focus-v025---testing--stability)
-- [Near-Term Vision (v0.3.0)](#near-term-vision-v030---budgeting--intelligence)
+- [Current Focus (v0.3.0)](#current-focus-v030---intelligence--analysis)
+- [Near-Term Vision (v0.3.x)](#near-term-vision-v03x---forecasting--governance)
 - [Future Vision (v0.4.0)](#future-vision-v040---notifications--integrations)
 - [Stability & Maintenance](#stability--maintenance)
 - [Documentation](#documentation)
@@ -56,37 +56,54 @@ guardrails in `CONTEXT.md`.
   - [x] Dynamic Data Recording via Integration Plans (#275)
   - [x] Harden Nightly Analysis Workflow security and reliability (#325)
   - [x] Documentation for TUI features, budgets, and recommendations (#226)
-
-## Current Focus (v0.2.5 - Testing & Stability)
-
-- [x] **Multi-Region Testing** *(Completed 2026-01-24)*
+- [x] **v0.2.5: Testing & Stability** *(Completed 2026-01-24)*
   - [x] Multi-region E2E testing support (#185, PR #485)
-- [x] **Performance** *(Completed 2026-01-24)*
   - [x] Pagination and NDJSON streaming for CI/CD integration (#225, PR #488)
+  - [x] Flexible budget scoping (per-provider, per-resource)
+        ([#221](https://github.com/rshade/finfocus/issues/221)) *(Completed 2026-02-01)*
+  - [x] Exit codes for budget threshold violations
+        ([#219](https://github.com/rshade/finfocus/issues/219)) *(Completed 2026-01-25)*
+  - [x] GreenOps Impact Equivalencies
+        ([#303](https://github.com/rshade/finfocus/issues/303)) *(Completed 2026-02-01)*
 
-## Near-Term Vision (v0.3.0 - Budgeting & Intelligence)
+## Current Focus (v0.3.0 - Intelligence & Analysis)
 
-- [ ] **Plugin Intelligence**
-  - [ ] Multi-Plugin Routing: Intelligent Feature-Based Plugin Selection
+- [ ] **Multi-Plugin Routing** *(In Progress - PR #507)*
+  - [ ] Intelligent Feature-Based Plugin Selection
         ([#410](https://github.com/rshade/finfocus/issues/410))
-- [ ] **Budgeting & Cost Controls** *(Budget Health Suite)*
-  - [x] Budget health calculation & threshold alerting (#267) *(Completed)*
-  - [x] Provider filtering & summary aggregation for Budgets (#263) *(Completed)*
-  - [x] Budget status display in CLI (#217) *(Completed)*
-  - [ ] Flexible budget scoping (per-provider, per-resource)
-        ([#221](https://github.com/rshade/finfocus/issues/221))
-  - [ ] Exit codes for budget threshold violations
-        ([#219](https://github.com/rshade/finfocus/issues/219))
-  - [ ] Namespace filtering & Kubecost metadata handling
-        ([#266](https://github.com/rshade/finfocus/issues/266))
-  - [ ] Budget health aggregation and multi-provider summary validation tests
-        ([#265](https://github.com/rshade/finfocus/issues/265))
-  - [ ] Kubecost budget mapping and namespace filtering validation tests
-        ([#264](https://github.com/rshade/finfocus/issues/264))
-- [ ] **Sustainability (GreenOps)**
-  - [x] Integrate Sustainability Metrics into Engine & TUI (#302) *(Completed 2025-12-24)*
-  - [ ] GreenOps Impact Equivalencies
-        ([#303](https://github.com/rshade/finfocus/issues/303))
+  - [ ] Docs formatting & validation.go fix (PR #507 follow-up)
+        ([#533](https://github.com/rshade/finfocus/issues/533))
+  - Provider-aware automatic matching
+  - Declarative pattern-based overrides (glob/regex)
+  - Priority-based plugin selection with fallback chains
+  - Configuration validation via `finfocus config validate`
+- [ ] **Tag-Based Budget Filtering**
+  - [ ] Extend BudgetFilterOptions with tag support
+        ([#532](https://github.com/rshade/finfocus/issues/532))
+  - Reuses existing `--filter "tag:key=value"` syntax
+  - Enables Kubecost namespace filtering
+- [ ] **What-If Analysis**
+  - [ ] Add `cost estimate` command for scenario modeling
+        ([#463](https://github.com/rshade/finfocus/issues/463))
+  - *Uses `EstimateCost` RPC from finfocus-spec v0.5.2+*
+- [ ] **Recommendation Lifecycle**
+  - [ ] Add recommendation dismissal and snooze management
+        ([#464](https://github.com/rshade/finfocus/issues/464))
+  - *Uses `DismissRecommendation` RPC from finfocus-spec v0.5.2+*
+
+## Near-Term Vision (v0.3.x - Forecasting & Governance)
+
+- [x] **Budgeting & Cost Controls** *(Budget Health Suite - Completed)*
+  - [x] Budget health calculation & threshold alerting (#267)
+  - [x] Provider filtering & summary aggregation for Budgets (#263)
+  - [x] Budget status display in CLI (#217)
+  - [x] Flexible budget scoping (#221) *(Completed 2026-02-01)*
+  - [x] Exit codes for budget threshold violations (#219) *(Completed 2026-01-25)*
+  - *Note: Kubecost-specific features moved to
+    [finfocus-plugin-kubecost](https://github.com/rshade/finfocus-plugin-kubecost)*
+- [x] **Sustainability (GreenOps)** *(Completed 2026-02-01)*
+  - [x] Integrate Sustainability Metrics into Engine & TUI (#302)
+  - [x] GreenOps Impact Equivalencies (#303)
 - [ ] **Forecasting & Projections ("Cost Time Machine")**
       ([#364](https://github.com/rshade/finfocus/issues/364))
   - [ ] Projection Math Engine (Linear/Exponential extrapolation)
@@ -98,14 +115,6 @@ guardrails in `CONTEXT.md`.
   - [ ] UX: "Warning Mode" UI styles for bypassed runs
   - *Cross-Repo:* Requires `BypassReason` in
     [finfocus-spec](https://github.com/rshade/finfocus-spec)
-- [ ] **What-If Analysis**
-  - [ ] Add 'cost estimate' command for scenario modeling
-        ([#463](https://github.com/rshade/finfocus/issues/463))
-        *Cross-Repo: Uses `EstimateCost` RPC from finfocus-spec v0.5.2*
-- [ ] **Recommendation Lifecycle**
-  - [ ] Add recommendation dismissal and snooze management
-        ([#464](https://github.com/rshade/finfocus/issues/464))
-        *Cross-Repo: Uses `DismissRecommendation` RPC from finfocus-spec v0.5.2*
 - [ ] **Contextual Profiles ("Dev Mode")**
       ([#368](https://github.com/rshade/finfocus/issues/368))
   - [ ] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
@@ -167,6 +176,8 @@ guardrails in `CONTEXT.md`.
 
 ## Icebox / Backlog
 
+- [ ] Add optional LRU in-memory cache layer to complement FileStore
+      ([#495](https://github.com/rshade/finfocus/issues/495))
 - [ ] TUI Lazy Loading & Error Recovery (#483) *Deferred from TUI Phase 7*
 - [ ] Plugin integrity verification strategy (#164)
 - [ ] Accessibility options (--no-color, --plain, high contrast) (#224)
