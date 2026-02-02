@@ -67,10 +67,10 @@ FinFocus uses a plugin-based architecture to support multiple cost data sources.
 
 ### Plugin Types
 
-| Type | Description | Example |
-|------|-------------|---------|
-| Cost Plugins | Query cloud provider pricing APIs | AWS Public, AWS Cost Explorer |
-| Spec Files | Local YAML/JSON pricing specifications | Custom pricing data |
+| Type         | Description                            | Example                       |
+| ------------ | -------------------------------------- | ----------------------------- |
+| Cost Plugins | Query cloud provider pricing APIs      | AWS Public, AWS Cost Explorer |
+| Spec Files   | Local YAML/JSON pricing specifications | Custom pricing data           |
 
 ### Plugin Selection
 
@@ -126,12 +126,12 @@ FinFocus supports various ways to aggregate and group cost data:
 
 ### Group By Options
 
-| Option | Description |
-|--------|-------------|
-| `resource` | Group by individual resource |
-| `type` | Group by resource type |
-| `provider` | Group by cloud provider |
-| `date` | Group by date (for actual costs) |
+| Option     | Description                      |
+| ---------- | -------------------------------- |
+| `resource` | Group by individual resource     |
+| `type`     | Group by resource type           |
+| `provider` | Group by cloud provider          |
+| `date`     | Group by date (for actual costs) |
 
 ### Example: Grouping by Type
 
@@ -172,22 +172,22 @@ cost:
 
 Budgets can be scoped to specific resources:
 
-| Scope | Description | Example |
-|-------|-------------|---------|
-| `global` | All resources | Default |
-| `provider:<name>` | By cloud provider | `provider:aws` |
-| `tag:<key>=<value>` | By resource tag | `tag:env=prod` |
-| `type:<resource-type>` | By resource type | `type:aws:ec2/instance` |
+| Scope                  | Description       | Example                 |
+| ---------------------- | ----------------- | ----------------------- |
+| `global`               | All resources     | Default                 |
+| `provider:<name>`      | By cloud provider | `provider:aws`          |
+| `tag:<key>=<value>`    | By resource tag   | `tag:env=prod`          |
+| `type:<resource-type>` | By resource type  | `type:aws:ec2/instance` |
 
 ## Output Formats
 
 FinFocus supports multiple output formats:
 
-| Format | Use Case |
-|--------|----------|
-| `table` | Human-readable terminal output (default) |
-| `json` | API integration and programmatic access |
-| `ndjson` | Streaming and pipeline processing |
+| Format   | Use Case                                 |
+| -------- | ---------------------------------------- |
+| `table`  | Human-readable terminal output (default) |
+| `json`   | API integration and programmatic access  |
+| `ndjson` | Streaming and pipeline processing        |
 
 ## Related Documentation
 

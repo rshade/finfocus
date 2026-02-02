@@ -232,6 +232,87 @@ finfocus config list [--format json|yaml]
 finfocus config validate [--verbose]
 ```
 
+## Multi-Plugin Routing
+
+FinFocus intelligently routes resources to appropriate plugins based on provider, resource patterns, and feature capabilities.
+
+### Automatic Routing (Zero Configuration)
+
+Resources automatically route to plugins based on their supported providers:
+
+```bash
+# Install multiple plugins
+finfocus plugin install aws-public
+finfocus plugin install gcp-public
+
+# View plugin capabilities
+finfocus plugin list --verbose
+# NAME        VERSION  PROVIDERS  CAPABILITIES                  SPEC    PATH
+# aws-public  1.0.0    aws        ProjectedCosts, ActualCosts   0.5.5   ~/.finfocus/plugins/aws-public/1.0.0/...
+# gcp-public  1.0.0    gcp        ProjectedCosts, ActualCosts   0.5.5   ~/.finfocus/plugins/gcp-public/1.0.0/...
+
+# Cost calculation automatically routes resources
+finfocus cost projected --pulumi-json plan.json
+# AWS resources → aws-public
+# GCP resources → gcp-public
+```
+
+### Declarative Routing (Advanced Configuration)
+
+For advanced control, configure plugin routing in `~/.finfocus/config.yaml`:
+
+```yaml
+routing:
+  plugins:
+    # Route recommendations to AWS Cost Explorer (higher accuracy)
+    - name: aws-ce
+      features:
+        - Recommendations
+      priority: 20
+      fallback: true
+
+    # Route projected costs to AWS Public (no credentials needed)
+    - name: aws-public
+      features:
+        - ProjectedCosts
+        - ActualCosts
+      priority: 10
+      fallback: true
+
+    # Route EKS resources to specialized plugin (highest priority)
+    - name: eks-costs
+      patterns:
+        - type: glob
+          pattern: "aws:eks:*"
+      priority: 30
+```
+
+**Key Features:**
+
+- **Priority-Based Selection**: Higher priority plugins are queried first (default: 0)
+- **Automatic Fallback**: If a plugin fails, automatically try the next priority
+- **Pattern Matching**: Use glob or regex patterns to route specific resource types
+- **Feature Routing**: Assign different plugins for different capabilities
+
+### Validate Routing Configuration
+
+```bash
+finfocus config validate
+
+# Output (success):
+# ✓ Configuration valid
+#
+# Discovered plugins:
+#   aws-ce: Recommendations (priority: 20)
+#   aws-public: ProjectedCosts, ActualCosts (priority: 10)
+#
+# Routing rules:
+#   aws:eks:* → eks-costs (pattern)
+#   aws:* → aws-public (provider)
+```
+
+See the [Routing Configuration Guide](docs/guides/routing.md) for detailed examples and troubleshooting.
+
 ## Plugin Management
 
 ### List & Install Plugins
@@ -240,8 +321,12 @@ finfocus config validate [--verbose]
 # List installed plugins
 finfocus plugin list
 
-# Install AWS public pricing plugin
+# List with detailed capabilities
+finfocus plugin list --verbose
+
+# Install plugins
 finfocus plugin install aws-public
+finfocus plugin install vantage
 
 # Inspect plugin capabilities
 finfocus plugin inspect aws-public

@@ -21,9 +21,6 @@ coverage.*
 *.coverprofile
 profile.cov
 
-# Dependency directories (remove the comment below to include it)
-# vendor/
-
 # Go workspace file
 go.work
 go.work.sum
@@ -87,5 +84,8 @@ yarn-error.log*
 # Nightly failure analysis artifacts
 context.txt
 analysis.md
+
+# Build Folders
 dist/
 build/
+vendor/

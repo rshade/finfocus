@@ -1,0 +1,15 @@
+# Test fixture: Configuration without routing key
+# This tests backward compatibility (FR-023) - configs without
+# the routing key should use automatic routing by default.
+
+output:
+  default_format: table
+  precision: 2
+
+logging:
+  level: info
+  format: text
+
+plugins:
+  aws-public:
+    region: us-east-1

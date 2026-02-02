@@ -575,3 +575,178 @@ func TestValidation_SetPluginConfigNilMap(t *testing.T) {
 	assert.NotNil(t, cfg.Plugins)
 	assert.Contains(t, cfg.Plugins, "test")
 }
+
+// TestRoutingConfig_Validate tests RoutingConfig validation.
+func TestRoutingConfig_Validate(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      *RoutingConfig
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:    "nil config",
+			config:  nil,
+			wantErr: false,
+		},
+		{
+			name:    "empty plugins",
+			config:  &RoutingConfig{Plugins: []PluginRouting{}},
+			wantErr: false,
+		},
+		{
+			name: "empty plugin name",
+			config: &RoutingConfig{Plugins: []PluginRouting{
+				{
+					Name: "",
+					Patterns: []ResourcePattern{
+						{Type: PatternTypeGlob, Pattern: "aws:*"},
+					},
+				},
+			}},
+			wantErr:     true,
+			errContains: "plugin at index 0: name is required",
+		},
+		{
+			name: "valid glob pattern",
+			config: &RoutingConfig{
+				Plugins: []PluginRouting{
+					{
+						Name: "test",
+						Patterns: []ResourcePattern{
+							{Type: PatternTypeGlob, Pattern: "aws:ec2/*"},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid regex pattern",
+			config: &RoutingConfig{
+				Plugins: []PluginRouting{
+					{
+						Name: "test",
+						Patterns: []ResourcePattern{
+							{Type: PatternTypeRegex, Pattern: "^aws:(ec2|rds):.*$"},
+						},
+					},
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid regex pattern",
+			config: &RoutingConfig{
+				Plugins: []PluginRouting{
+					{
+						Name: "test",
+						Patterns: []ResourcePattern{
+							{Type: PatternTypeRegex, Pattern: "aws:(ec2|rds"},
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "invalid regex",
+		},
+		{
+			name: "invalid glob pattern - bad syntax",
+			config: &RoutingConfig{
+				Plugins: []PluginRouting{
+					{
+						Name: "test",
+						Patterns: []ResourcePattern{
+							{Type: PatternTypeGlob, Pattern: "aws:["},
+						},
+					},
+				},
+			},
+			wantErr:     true,
+			errContains: "invalid glob",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := tt.config.Validate()
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestValidatePattern tests the validatePattern helper function.
+func TestValidatePattern(t *testing.T) {
+	tests := []struct {
+		name        string
+		pluginName  string
+		index       int
+		pattern     ResourcePattern
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "empty pattern string",
+			pluginName:  "test",
+			index:       0,
+			pattern:     ResourcePattern{Type: PatternTypeGlob, Pattern: ""},
+			wantErr:     true,
+			errContains: "pattern string is required",
+		},
+		{
+			name:        "invalid pattern type",
+			pluginName:  "test",
+			index:       0,
+			pattern:     ResourcePattern{Type: "wildcard", Pattern: "aws:*"},
+			wantErr:     true,
+			errContains: "invalid type",
+		},
+		{
+			name:       "valid regex",
+			pluginName: "test",
+			index:      0,
+			pattern:    ResourcePattern{Type: PatternTypeRegex, Pattern: "^aws:.*$"},
+			wantErr:    false,
+		},
+		{
+			name:        "invalid regex - unclosed group",
+			pluginName:  "test",
+			index:       0,
+			pattern:     ResourcePattern{Type: PatternTypeRegex, Pattern: "aws:(ec2|rds"},
+			wantErr:     true,
+			errContains: "invalid regex",
+		},
+		{
+			name:       "valid glob",
+			pluginName: "test",
+			index:      0,
+			pattern:    ResourcePattern{Type: PatternTypeGlob, Pattern: "aws:ec2/*"},
+			wantErr:    false,
+		},
+		{
+			name:        "invalid glob - unclosed bracket",
+			pluginName:  "test",
+			index:       0,
+			pattern:     ResourcePattern{Type: PatternTypeGlob, Pattern: "aws:[a-z"},
+			wantErr:     true,
+			errContains: "invalid glob",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validatePattern(tt.pluginName, tt.index, tt.pattern)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

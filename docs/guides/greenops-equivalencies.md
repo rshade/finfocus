@@ -58,10 +58,10 @@ warning: finfocus: Estimated Monthly Cost: $245.50 USD (source: aws-public)
 Equivalencies are calculated using EPA Greenhouse Gas Equivalencies Calculator
 formulas (2024 edition):
 
-| Equivalency          | Formula             | Explanation                                                        |
-| -------------------- | ------------------- | ------------------------------------------------------------------ |
-| Miles Driven         | `kg_CO2e / 0.393`   | Average passenger vehicle: 8.89 kg CO2/gallon ÷ 22.8 mpg × GHG adj |
-| Smartphones Charged  | `kg_CO2e / 0.00822` | Average smartphone charge: 8.22g CO2                               |
+| Equivalency         | Formula             | Explanation                                                        |
+| ------------------- | ------------------- | ------------------------------------------------------------------ |
+| Miles Driven        | `kg_CO2e / 0.393`   | Average passenger vehicle: 8.89 kg CO2/gallon ÷ 22.8 mpg × GHG adj |
+| Smartphones Charged | `kg_CO2e / 0.00822` | Average smartphone charge: 8.22g CO2                               |
 
 Source: [EPA GHG Equivalencies Calculator](https://www.epa.gov/energy/greenhouse-gas-equivalencies-calculator)
 

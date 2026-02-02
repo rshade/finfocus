@@ -67,21 +67,23 @@ export NO_COLOR=1
 
 These flags can be added to any `finfocus` command that produces output.
 
-| Flag | Description | Effect |
-|------|-------------|--------|
-| `--no-color` | Disable colored output | Removes ANSI color codes. |
-| `--high-contrast` | Enable high contrast | Uses strictly black/white/bold colors for maximum visibility. |
-| `--plain` | Enable plain text mode | Removes colors, borders, and interactive elements. Ideal for screen readers. |
+| Flag              | Description            | Effect                                                                       |
+| ----------------- | ---------------------- | ---------------------------------------------------------------------------- |
+| `--no-color`      | Disable colored output | Removes ANSI color codes.                                                    |
+| `--high-contrast` | Enable high contrast   | Uses strictly black/white/bold colors for maximum visibility.                |
+| `--plain`         | Enable plain text mode | Removes colors, borders, and interactive elements. Ideal for screen readers. |
 
 ### Environment Variables
 
 Environment variables allow you to set preferences globally without typing flags every time.
 
-| Variable | Value | Description |
-|----------|-------|-------------|
-| `NO_COLOR` | `1` or `true` | Standard variable to disable color. Respects [no-color.org](https://no-color.org) standard. |
-| `PULUMICOST_HIGH_CONTRAST` | `1` or `true` | Forces high contrast mode. |
-| `PULUMICOST_PLAIN` | `1` or `true` | Forces plain text mode. |
+| Variable                   | Value         | Description                                                |
+| -------------------------- | ------------- | ---------------------------------------------------------- |
+| `NO_COLOR`                 | `1` or `true` | Standard no-color variable. See [no-color.org][no-color].  |
+| `PULUMICOST_HIGH_CONTRAST` | `1` or `true` | Forces high contrast mode.                                 |
+| `PULUMICOST_PLAIN`         | `1` or `true` | Forces plain text mode.                                    |
+
+[no-color]: https://no-color.org
 
 ---
 

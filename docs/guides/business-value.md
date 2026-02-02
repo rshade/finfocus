@@ -257,19 +257,19 @@ Week 4: Cost optimization sprint
 
 ### Common Concerns
 
-**"Will developers slow down?"**
+#### "Will developers slow down?"
 
 - FinFocus adds <1 second to cost estimation
 - Actually speeds up decision-making
 - No negative performance impact
 
-**"Do we need new tools?"**
+#### "Do we need new tools?"
 
 - Works with existing Pulumi projects
 - No new infrastructure required
 - Simple CLI tool
 
-**"Is it accurate?"**
+#### "Is it accurate?"
 
 - Highly accurate cost estimation
 - 95%+ match to actual bills

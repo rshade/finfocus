@@ -72,13 +72,13 @@ Suggested:  t3.medium -> t3.small
 
 When running in interactive mode (default for TTY), use these keyboard shortcuts:
 
-| Key | Action |
-|-----|--------|
-| `↑` / `↓` | Navigate list |
-| `Enter` | View recommendation details |
-| `Esc` | Back to list (from details) |
-| `/` | Filter list (future) |
-| `q` | Quit |
+| Key       | Action                      |
+| --------- | --------------------------- |
+| `↑` / `↓` | Navigate list               |
+| `Enter`   | View recommendation details |
+| `Esc`     | Back to list (from details) |
+| `/`       | Filter list (future)        |
+| `q`       | Quit                        |
 
 ---
 
@@ -96,11 +96,11 @@ finfocus cost recommendations --pulumi-json plan.json --filter "key=value"
 
 ### Common Filters
 
-| Filter Key | Description | Example |
-|------------|-------------|---------|
-| `priority` | Importance level | `priority=high` |
-| `category` | Savings category | `category=cost` |
-| `savings` | Minimum savings | `savings>100` (future) |
+| Filter Key | Description      | Example                |
+| ---------- | ---------------- | ---------------------- |
+| `priority` | Importance level | `priority=high`        |
+| `category` | Savings category | `category=cost`        |
+| `savings`  | Minimum savings  | `savings>100` (future) |
 
 ### Example: High Priority Only
 
@@ -127,14 +127,14 @@ finfocus cost recommendations --pulumi-json plan.json --output json > savings.js
 ```json
 {
   "summary": {
-    "totalPotentialSavings": 150.00,
+    "totalPotentialSavings": 150.0,
     "currency": "USD"
   },
   "recommendations": [
     {
       "resourceId": "i-1234567890abcdef0",
       "action": "Terminate",
-      "savings": 50.00,
+      "savings": 50.0,
       "priority": "high"
     }
   ]

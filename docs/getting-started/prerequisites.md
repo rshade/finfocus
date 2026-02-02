@@ -78,12 +78,12 @@ No credentials needed - works with Pulumi definitions.
 
 Requires plugin credentials:
 
-**Vantage:**
+#### Vantage
 
-- API key from https://vantage.sh
+- API key from [vantage.sh](https://vantage.sh)
 - Read-only access sufficient
 
-**Kubecost (future):**
+#### Kubecost (future)
 
 - Kubecost cluster access
 - Metrics endpoint
@@ -97,18 +97,18 @@ Requires plugin credentials:
 
 ## Troubleshooting
 
-**"pulumi command not found"**
+### "pulumi command not found"
 
-- Install Pulumi: https://www.pulumi.com/docs/install/
+- Install Pulumi: [Pulumi install guide](https://www.pulumi.com/docs/install/)
 - Add to PATH
 
-**"Permission denied" on binary**
+### "Permission denied" on binary
 
 ```bash
 chmod +x finfocus
 ```
 
-**"No space left on device"**
+### "No space left on device"
 
 - Free up disk space
 - Install to different location

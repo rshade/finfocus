@@ -27,6 +27,7 @@ type PluginMetadata struct {
 	SpecVersion        string            `json:"specVersion"                  yaml:"specVersion"`
 	SupportedProviders []string          `json:"supportedProviders,omitempty" yaml:"supportedProviders,omitempty"`
 	Metadata           map[string]string `json:"metadata,omitempty"           yaml:"metadata,omitempty"`
+	Capabilities       []string          `json:"capabilities,omitempty"       yaml:"capabilities,omitempty"`
 }
 
 // FieldMapping describes how a Pulumi resource property maps to pricing inputs.
