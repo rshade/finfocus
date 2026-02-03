@@ -3,17 +3,23 @@ package logging
 import (
 	"context"
 	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
 	"strings"
+	"sync/atomic"
 	"time"
 
-	"github.com/oklog/ulid/v2"
 	"github.com/rs/zerolog"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 )
+
+// fallbackCounter provides uniqueness for last-resort trace ID generation (atomic for thread safety).
+//
+//nolint:gochecknoglobals // Package-level counter required for fallback trace ID uniqueness across goroutines
+var fallbackCounter atomic.Uint32
 
 // traceIDKey is a private type for context keys to avoid collisions.
 type traceIDKey struct{}
@@ -211,10 +217,24 @@ func parseLevel(level string) zerolog.Level {
 	}
 }
 
-// GenerateTraceID creates a new ULID-format trace identifier.
-// ULIDs are lexicographically sortable and monotonic within the same millisecond.
+// traceIDByteLength is the number of bytes for an OpenTelemetry trace ID (128-bit = 16 bytes).
+const traceIDByteLength = 16
+
+// GenerateTraceID creates a new OpenTelemetry-format trace identifier.
+// This uses the pluginsdk's GenerateTraceID which produces a 32-character
+// lowercase hexadecimal string, compatible with OpenTelemetry and W3C Trace Context.
 func GenerateTraceID() string {
-	return ulid.MustNew(ulid.Timestamp(time.Now()), rand.Reader).String()
+	traceID, err := pluginsdk.GenerateTraceID()
+	if err != nil {
+		// Fallback to simple hex if generation fails (extremely unlikely)
+		b := make([]byte, traceIDByteLength)
+		if _, readErr := rand.Read(b); readErr != nil {
+			// Last resort fallback with timestamp, process ID, and counter for uniqueness
+			return fmt.Sprintf("%016x%08x%08x", time.Now().UnixNano(), os.Getpid(), fallbackCounter.Add(1))
+		}
+		return hex.EncodeToString(b)
+	}
+	return traceID
 }
 
 // GetOrGenerateTraceID returns a trace ID from environment, context, or generates a new one.

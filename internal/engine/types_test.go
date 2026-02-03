@@ -4,6 +4,9 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // Test GroupBy validation.
@@ -29,9 +32,7 @@ func TestGroupBy_IsValid(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.groupBy.IsValid()
-			if got != tt.expected {
-				t.Errorf("IsValid() = %v, want %v", got, tt.expected)
-			}
+			assert.Equal(t, tt.expected, got, "IsValid() mismatch")
 		})
 	}
 }
@@ -55,9 +56,7 @@ func TestGroupBy_IsTimeBasedGrouping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.groupBy.IsTimeBasedGrouping()
-			if got != tt.expected {
-				t.Errorf("IsTimeBasedGrouping() = %v, want %v", got, tt.expected)
-			}
+			assert.Equal(t, tt.expected, got, "IsTimeBasedGrouping() mismatch")
 		})
 	}
 }
@@ -82,9 +81,7 @@ func TestGroupBy_String(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := tt.groupBy.String()
-			if got != tt.expected {
-				t.Errorf("String() = %q, want %q", got, tt.expected)
-			}
+			assert.Equal(t, tt.expected, got, "String() mismatch")
 		})
 	}
 }
@@ -101,26 +98,14 @@ func TestResourceDescriptor(t *testing.T) {
 		},
 	}
 
-	if rd.Type != "aws:ec2:Instance" {
-		t.Errorf("Type = %q, want %q", rd.Type, "aws:ec2:Instance")
-	}
-	if rd.ID != "i-123456" {
-		t.Errorf("ID = %q, want %q", rd.ID, "i-123456")
-	}
-	if rd.Provider != "aws" {
-		t.Errorf("Provider = %q, want %q", rd.Provider, "aws")
-	}
-	if len(rd.Properties) != 2 {
-		t.Errorf("Properties length = %d, want 2", len(rd.Properties))
-	}
+	assert.Equal(t, "aws:ec2:Instance", rd.Type)
+	assert.Equal(t, "i-123456", rd.ID)
+	assert.Equal(t, "aws", rd.Provider)
+	assert.Len(t, rd.Properties, 2)
 
 	// Verify properties
-	if instanceType, ok := rd.Properties["instanceType"]; !ok || instanceType != "t3.micro" {
-		t.Errorf("Properties[instanceType] = %v, want t3.micro", instanceType)
-	}
-	if region, ok := rd.Properties["region"]; !ok || region != "us-east-1" {
-		t.Errorf("Properties[region] = %v, want us-east-1", region)
-	}
+	assert.Equal(t, "t3.micro", rd.Properties["instanceType"])
+	assert.Equal(t, "us-east-1", rd.Properties["region"])
 }
 
 // Test CostResult creation and defaults.
@@ -148,53 +133,23 @@ func TestCostResult(t *testing.T) {
 	}
 
 	// Verify all fields
-	if cr.ResourceType != "aws:ec2:Instance" {
-		t.Errorf("ResourceType = %q, want aws:ec2:Instance", cr.ResourceType)
-	}
-	if cr.ResourceID != "i-123456" {
-		t.Errorf("ResourceID = %q, want i-123456", cr.ResourceID)
-	}
-	if cr.Adapter != "kubecost" {
-		t.Errorf("Adapter = %q, want kubecost", cr.Adapter)
-	}
-	if cr.Currency != "USD" {
-		t.Errorf("Currency = %q, want USD", cr.Currency)
-	}
-	if cr.Monthly != 100.50 {
-		t.Errorf("Monthly = %f, want 100.50", cr.Monthly)
-	}
-	if cr.Hourly != 0.1377 {
-		t.Errorf("Hourly = %f, want 0.1377", cr.Hourly)
-	}
-	if cr.TotalCost != 100.50 {
-		t.Errorf("TotalCost = %f, want 100.50", cr.TotalCost)
-	}
-	if len(cr.Breakdown) != 2 {
-		t.Errorf("Breakdown length = %d, want 2", len(cr.Breakdown))
-	}
-	if len(cr.DailyCosts) != 3 {
-		t.Errorf("DailyCosts length = %d, want 3", len(cr.DailyCosts))
-	}
-	if cr.CostPeriod != "monthly" {
-		t.Errorf("CostPeriod = %q, want monthly", cr.CostPeriod)
-	}
-	if cr.Notes != "Test cost result" {
-		t.Errorf("Notes = %q, want 'Test cost result'", cr.Notes)
-	}
-	if cr.StartDate.IsZero() {
-		t.Error("StartDate should not be zero")
-	}
-	if cr.EndDate.IsZero() {
-		t.Error("EndDate should not be zero")
-	}
+	assert.Equal(t, "aws:ec2:Instance", cr.ResourceType)
+	assert.Equal(t, "i-123456", cr.ResourceID)
+	assert.Equal(t, "kubecost", cr.Adapter)
+	assert.Equal(t, "USD", cr.Currency)
+	assert.Equal(t, 100.50, cr.Monthly)
+	assert.Equal(t, 0.1377, cr.Hourly)
+	assert.Equal(t, 100.50, cr.TotalCost)
+	assert.Len(t, cr.Breakdown, 2)
+	assert.Len(t, cr.DailyCosts, 3)
+	assert.Equal(t, "monthly", cr.CostPeriod)
+	assert.Equal(t, "Test cost result", cr.Notes)
+	assert.False(t, cr.StartDate.IsZero(), "StartDate should not be zero")
+	assert.False(t, cr.EndDate.IsZero(), "EndDate should not be zero")
 
 	// Verify breakdown
-	if cr.Breakdown["compute"] != 80.00 {
-		t.Errorf("Breakdown[compute] = %f, want 80.00", cr.Breakdown["compute"])
-	}
-	if cr.Breakdown["storage"] != 20.50 {
-		t.Errorf("Breakdown[storage] = %f, want 20.50", cr.Breakdown["storage"])
-	}
+	assert.Equal(t, 80.00, cr.Breakdown["compute"])
+	assert.Equal(t, 20.50, cr.Breakdown["storage"])
 }
 
 // Test CrossProviderAggregation.
@@ -210,43 +165,27 @@ func TestCrossProviderAggregation(t *testing.T) {
 		Currency: "USD",
 	}
 
-	if agg.Period != "2024-01-15" {
-		t.Errorf("Period = %q, want 2024-01-15", agg.Period)
-	}
-	if agg.Total != 525.75 {
-		t.Errorf("Total = %f, want 525.75", agg.Total)
-	}
-	if agg.Currency != "USD" {
-		t.Errorf("Currency = %q, want USD", agg.Currency)
-	}
-	if len(agg.Providers) != 3 {
-		t.Errorf("Providers length = %d, want 3", len(agg.Providers))
-	}
+	assert.Equal(t, "2024-01-15", agg.Period)
+	assert.Equal(t, 525.75, agg.Total)
+	assert.Equal(t, "USD", agg.Currency)
+	assert.Len(t, agg.Providers, 3)
 
 	// Verify provider costs
-	if agg.Providers["aws"] != 250.00 {
-		t.Errorf("Providers[aws] = %f, want 250.00", agg.Providers["aws"])
-	}
-	if agg.Providers["azure"] != 180.50 {
-		t.Errorf("Providers[azure] = %f, want 180.50", agg.Providers["azure"])
-	}
-	if agg.Providers["gcp"] != 95.25 {
-		t.Errorf("Providers[gcp] = %f, want 95.25", agg.Providers["gcp"])
-	}
+	assert.Equal(t, 250.00, agg.Providers["aws"])
+	assert.Equal(t, 180.50, agg.Providers["azure"])
+	assert.Equal(t, 95.25, agg.Providers["gcp"])
 
 	// Verify total matches sum
 	var sum float64
 	for _, cost := range agg.Providers {
 		sum += cost
 	}
-	if sum != agg.Total {
-		t.Errorf("Provider sum %f != Total %f", sum, agg.Total)
-	}
+	assert.Equal(t, agg.Total, sum, "Provider sum should equal Total")
 }
 
 // Test error types.
 func TestErrorTypes(t *testing.T) {
-	errors := []struct {
+	errTests := []struct {
 		name string
 		err  error
 	}{
@@ -257,14 +196,10 @@ func TestErrorTypes(t *testing.T) {
 		{"ErrInvalidDateRange", ErrInvalidDateRange},
 	}
 
-	for _, tt := range errors {
+	for _, tt := range errTests {
 		t.Run(tt.name, func(t *testing.T) {
-			if tt.err == nil {
-				t.Error("Error should not be nil")
-			}
-			if tt.err.Error() == "" {
-				t.Errorf("Error message should not be empty for %v", tt.err)
-			}
+			require.NotNil(t, tt.err, "Error should not be nil")
+			assert.NotEmpty(t, tt.err.Error(), "Error message should not be empty")
 		})
 	}
 }
@@ -277,12 +212,8 @@ func TestCostResultWithErrors_EdgeCases(t *testing.T) {
 			Errors:  nil,
 		}
 
-		if result.HasErrors() {
-			t.Error("HasErrors() should return false for nil errors")
-		}
-		if result.ErrorSummary() != "" {
-			t.Error("ErrorSummary() should return empty string for nil errors")
-		}
+		assert.False(t, result.HasErrors(), "HasErrors() should return false for nil errors")
+		assert.Empty(t, result.ErrorSummary(), "ErrorSummary() should return empty string for nil errors")
 	})
 
 	t.Run("exactly 5 errors shows all", func(t *testing.T) {
@@ -300,13 +231,9 @@ func TestCostResultWithErrors_EdgeCases(t *testing.T) {
 		}
 
 		summary := result.ErrorSummary()
-		if summary == "" {
-			t.Error("ErrorSummary should not be empty for 5 errors")
-		}
+		assert.NotEmpty(t, summary, "ErrorSummary should not be empty for 5 errors")
 		// Should not contain "and X more" since exactly at limit
-		if len(summary) > 500 {
-			t.Error("ErrorSummary should not be excessively long for 5 errors")
-		}
+		assert.LessOrEqual(t, len(summary), 500, "ErrorSummary should not be excessively long for 5 errors")
 	})
 
 	t.Run("nil results slice", func(t *testing.T) {
@@ -315,9 +242,7 @@ func TestCostResultWithErrors_EdgeCases(t *testing.T) {
 			Errors:  []ErrorDetail{},
 		}
 
-		if result.HasErrors() {
-			t.Error("HasErrors() should return false for empty errors with nil results")
-		}
+		assert.False(t, result.HasErrors(), "HasErrors() should return false for empty errors with nil results")
 	})
 
 	t.Run("error with empty resource type", func(t *testing.T) {
@@ -333,13 +258,8 @@ func TestCostResultWithErrors_EdgeCases(t *testing.T) {
 			},
 		}
 
-		if !result.HasErrors() {
-			t.Error("HasErrors() should return true")
-		}
-		summary := result.ErrorSummary()
-		if summary == "" {
-			t.Error("ErrorSummary should handle empty resource type")
-		}
+		assert.True(t, result.HasErrors(), "HasErrors() should return true")
+		assert.NotEmpty(t, result.ErrorSummary(), "ErrorSummary should handle empty resource type")
 	})
 }
 
@@ -354,19 +274,261 @@ func TestErrorDetail_Fields(t *testing.T) {
 		Timestamp:    timestamp,
 	}
 
-	if detail.ResourceType != "aws:ec2:Instance" {
-		t.Errorf("ResourceType = %s, want aws:ec2:Instance", detail.ResourceType)
-	}
-	if detail.ResourceID != "i-1234567890abcdef0" {
-		t.Errorf("ResourceID = %s, want i-1234567890abcdef0", detail.ResourceID)
-	}
-	if detail.PluginName != "test-plugin" {
-		t.Errorf("PluginName = %s, want test-plugin", detail.PluginName)
-	}
-	if !errors.Is(detail.Error, ErrNoCostData) {
-		t.Errorf("Error = %v, want %v", detail.Error, ErrNoCostData)
-	}
-	if !detail.Timestamp.Equal(timestamp) {
-		t.Errorf("Timestamp = %v, want %v", detail.Timestamp, timestamp)
-	}
+	assert.Equal(t, "aws:ec2:Instance", detail.ResourceType)
+	assert.Equal(t, "i-1234567890abcdef0", detail.ResourceID)
+	assert.Equal(t, "test-plugin", detail.PluginName)
+	assert.True(t, errors.Is(detail.Error, ErrNoCostData), "Error should be ErrNoCostData")
+	assert.True(t, detail.Timestamp.Equal(timestamp), "Timestamp mismatch")
+}
+
+// Test EstimateResult creation and fields.
+func TestEstimateResult(t *testing.T) {
+	t.Run("positive cost change", func(t *testing.T) {
+		resource := &ResourceDescriptor{
+			Provider: "aws",
+			Type:     "ec2:Instance",
+			ID:       "i-123",
+			Properties: map[string]interface{}{
+				"instanceType": "t3.micro",
+			},
+		}
+
+		result := EstimateResult{
+			Resource: resource,
+			Baseline: &CostResult{
+				Monthly:  8.32,
+				Hourly:   0.0114,
+				Currency: "USD",
+			},
+			Modified: &CostResult{
+				Monthly:  83.22,
+				Hourly:   0.114,
+				Currency: "USD",
+			},
+			TotalChange: 74.90,
+			Deltas: []CostDelta{
+				{
+					Property:      "instanceType",
+					OriginalValue: "t3.micro",
+					NewValue:      "m5.large",
+					CostChange:    74.90,
+				},
+			},
+			UsedFallback: false,
+		}
+
+		assert.Equal(t, "ec2:Instance", result.Resource.Type)
+		assert.Equal(t, 8.32, result.Baseline.Monthly)
+		assert.Equal(t, 83.22, result.Modified.Monthly)
+		assert.Equal(t, 74.90, result.TotalChange)
+		assert.Len(t, result.Deltas, 1)
+		assert.False(t, result.UsedFallback)
+	})
+
+	t.Run("negative cost change (savings)", func(t *testing.T) {
+		result := EstimateResult{
+			Resource: &ResourceDescriptor{
+				Provider: "aws",
+				Type:     "ec2:Instance",
+			},
+			Baseline: &CostResult{
+				Monthly:  83.22,
+				Currency: "USD",
+			},
+			Modified: &CostResult{
+				Monthly:  8.32,
+				Currency: "USD",
+			},
+			TotalChange: -74.90,
+			Deltas: []CostDelta{
+				{
+					Property:      "instanceType",
+					OriginalValue: "m5.large",
+					NewValue:      "t3.micro",
+					CostChange:    -74.90,
+				},
+			},
+			UsedFallback: true,
+		}
+
+		assert.Less(t, result.TotalChange, 0.0, "TotalChange should be negative")
+		assert.Less(t, result.Deltas[0].CostChange, 0.0, "CostChange should be negative")
+		assert.True(t, result.UsedFallback)
+	})
+
+	t.Run("nil baseline and modified", func(t *testing.T) {
+		result := EstimateResult{
+			Resource: &ResourceDescriptor{
+				Provider: "aws",
+				Type:     "ec2:Instance",
+			},
+			Baseline:    nil,
+			Modified:    nil,
+			TotalChange: 0,
+			Deltas:      nil,
+		}
+
+		assert.Nil(t, result.Baseline)
+		assert.Nil(t, result.Modified)
+		assert.Equal(t, 0.0, result.TotalChange)
+	})
+
+	t.Run("multiple deltas", func(t *testing.T) {
+		result := EstimateResult{
+			Resource: &ResourceDescriptor{
+				Provider: "aws",
+				Type:     "ec2:Instance",
+			},
+			Baseline: &CostResult{
+				Monthly:  8.32,
+				Currency: "USD",
+			},
+			Modified: &CostResult{
+				Monthly:  92.42,
+				Currency: "USD",
+			},
+			TotalChange: 84.10,
+			Deltas: []CostDelta{
+				{
+					Property:      "instanceType",
+					OriginalValue: "t3.micro",
+					NewValue:      "m5.large",
+					CostChange:    74.90,
+				},
+				{
+					Property:      "volumeSize",
+					OriginalValue: "8",
+					NewValue:      "100",
+					CostChange:    9.20,
+				},
+			},
+		}
+
+		assert.Len(t, result.Deltas, 2)
+
+		// Sum of deltas should approximately equal total change
+		var sumDeltas float64
+		for _, delta := range result.Deltas {
+			sumDeltas += delta.CostChange
+		}
+		assert.InDelta(t, 84.10, sumDeltas, 0.001, "Sum of deltas should approximately equal total change")
+	})
+}
+
+// Test CostDelta creation and fields.
+func TestCostDelta(t *testing.T) {
+	t.Run("cost increase", func(t *testing.T) {
+		delta := CostDelta{
+			Property:      "instanceType",
+			OriginalValue: "t3.micro",
+			NewValue:      "m5.large",
+			CostChange:    65.70,
+		}
+
+		assert.Equal(t, "instanceType", delta.Property)
+		assert.Equal(t, "t3.micro", delta.OriginalValue)
+		assert.Equal(t, "m5.large", delta.NewValue)
+		assert.Equal(t, 65.70, delta.CostChange)
+	})
+
+	t.Run("cost decrease (savings)", func(t *testing.T) {
+		delta := CostDelta{
+			Property:      "instanceType",
+			OriginalValue: "m5.large",
+			NewValue:      "t3.micro",
+			CostChange:    -65.70,
+		}
+
+		assert.Less(t, delta.CostChange, 0.0, "CostChange should be negative")
+	})
+
+	t.Run("zero cost change", func(t *testing.T) {
+		delta := CostDelta{
+			Property:      "tags",
+			OriginalValue: "old-tag",
+			NewValue:      "new-tag",
+			CostChange:    0.0,
+		}
+
+		assert.Equal(t, 0.0, delta.CostChange)
+	})
+
+	t.Run("combined delta", func(t *testing.T) {
+		// When multiple properties change and per-property attribution is not possible
+		delta := CostDelta{
+			Property:      "combined",
+			OriginalValue: "",
+			NewValue:      "",
+			CostChange:    84.10,
+		}
+
+		assert.Equal(t, "combined", delta.Property)
+	})
+}
+
+// Test EstimateRequest creation and fields.
+func TestEstimateRequest(t *testing.T) {
+	t.Run("with single override", func(t *testing.T) {
+		request := EstimateRequest{
+			Resource: &ResourceDescriptor{
+				Provider: "aws",
+				Type:     "ec2:Instance",
+				ID:       "i-123",
+				Properties: map[string]interface{}{
+					"instanceType": "t3.micro",
+				},
+			},
+			PropertyOverrides: map[string]string{
+				"instanceType": "m5.large",
+			},
+			UsageProfile: "production",
+		}
+
+		assert.Equal(t, "ec2:Instance", request.Resource.Type)
+		assert.Len(t, request.PropertyOverrides, 1)
+		assert.Equal(t, "m5.large", request.PropertyOverrides["instanceType"])
+		assert.Equal(t, "production", request.UsageProfile)
+	})
+
+	t.Run("with multiple overrides", func(t *testing.T) {
+		request := EstimateRequest{
+			Resource: &ResourceDescriptor{
+				Provider: "aws",
+				Type:     "ec2:Instance",
+			},
+			PropertyOverrides: map[string]string{
+				"instanceType": "m5.large",
+				"volumeSize":   "100",
+			},
+		}
+
+		assert.Len(t, request.PropertyOverrides, 2)
+	})
+
+	t.Run("with nil overrides", func(t *testing.T) {
+		request := EstimateRequest{
+			Resource: &ResourceDescriptor{
+				Provider: "aws",
+				Type:     "ec2:Instance",
+			},
+			PropertyOverrides: nil,
+		}
+
+		assert.Nil(t, request.PropertyOverrides)
+	})
+
+	t.Run("with empty usage profile", func(t *testing.T) {
+		request := EstimateRequest{
+			Resource: &ResourceDescriptor{
+				Provider: "aws",
+				Type:     "ec2:Instance",
+			},
+			PropertyOverrides: map[string]string{
+				"instanceType": "m5.large",
+			},
+			UsageProfile: "",
+		}
+
+		assert.Empty(t, request.UsageProfile)
+	})
 }

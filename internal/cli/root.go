@@ -152,13 +152,26 @@ type CostFlags struct {
 
 // newCostCmd creates the cost command group with projected, actual, and recommendations subcommands.
 // It also adds persistent flags for budget exit code configuration (Issue #219).
+//
+//nolint:gocognit // Function is logically cohesive; complexity comes from config setup.
 func newCostCmd() *cobra.Command {
 	var flags CostFlags
 
 	cmd := &cobra.Command{
 		Use:   "cost",
 		Short: "Cost calculation commands",
-		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			// Call root command's PersistentPreRunE to ensure logging/tracing is set up.
+			// Cobra child commands override parent's PersistentPreRunE, so we must call explicitly.
+			// Navigate to the root command to avoid recursion. We pass root itself as the command
+			// to prevent Cobra from traversing back through the parent chain.
+			root := cmd.Root()
+			if root != nil && root.PersistentPreRunE != nil && root != cmd {
+				if err := root.PersistentPreRunE(root, args); err != nil {
+					return err
+				}
+			}
+
 			// Apply CLI flag overrides to the global config if flags were explicitly set
 			cfg := config.GetGlobalConfig()
 			if cfg == nil {
@@ -202,7 +215,7 @@ func newCostCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&flags.BudgetScope, "budget-scope", "",
 		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
 
-	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd())
+	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd(), NewCostEstimateCmd())
 	return cmd
 }
 

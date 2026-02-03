@@ -322,11 +322,12 @@ exec cat
 }
 
 func createWindowsStdioMock(t *testing.T) string {
-	// On Windows, create a simple PowerShell script that echoes
-	script := `
-$input | ForEach-Object { $_ }
+	// On Windows, use a batch file that invokes PowerShell to echo stdin
+	// This avoids the "not a valid Win32 application" error when executing .ps1 directly
+	script := `@echo off
+powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$input | ForEach-Object { $_ }"
 `
-	return createStdioScript(t, script, ".ps1")
+	return createStdioScript(t, script, ".bat")
 }
 
 func createStdioScript(t *testing.T, content, ext string) string {

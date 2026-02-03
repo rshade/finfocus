@@ -128,16 +128,19 @@ func TestE2E_ProjectedCostWorkflow(t *testing.T) {
 	output, err := cmd.Output()
 	require.NoError(t, err, "Command failed: %v", err)
 
-	// Parse JSON output (aggregated format with summary and results)
+	// Parse JSON output (aggregated format wrapped in "finfocus" key)
 	var aggregated map[string]interface{}
 	err = json.Unmarshal(output, &aggregated)
 	require.NoError(t, err, "Failed to parse JSON output: %s", string(output))
 
-	// Validate output structure
-	assert.Contains(t, aggregated, "summary")
-	assert.Contains(t, aggregated, "resources")
+	// Validate output structure - data is wrapped in "finfocus" key
+	assert.Contains(t, aggregated, "finfocus")
+	finfocusData, ok := aggregated["finfocus"].(map[string]interface{})
+	require.True(t, ok, "finfocus field should be an object")
+	assert.Contains(t, finfocusData, "summary")
+	assert.Contains(t, finfocusData, "resources")
 
-	results, ok := aggregated["resources"].([]interface{})
+	results, ok := finfocusData["resources"].([]interface{})
 	require.True(t, ok, "Resources field should be an array")
 	assert.NotEmpty(t, results, "Expected cost results")
 

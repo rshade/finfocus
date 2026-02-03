@@ -1,0 +1,46 @@
+{
+  "version": 3,
+  "deployment": {
+    "manifest": {
+      "time": "2026-02-02T10:00:00Z",
+      "magic": "test-plan",
+      "version": "test-version"
+    },
+    "resources": [
+      {
+        "urn": "urn:pulumi:dev::test-project::aws:ec2/instance:Instance::web-server",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "outputs": {
+          "id": "i-web12345",
+          "instanceType": "t3.small",
+          "ami": "ami-12345678",
+          "availabilityZone": "us-east-1a"
+        }
+      },
+      {
+        "urn": "urn:pulumi:dev::test-project::aws:ec2/instance:Instance::api-server",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "outputs": {
+          "id": "i-api12345",
+          "instanceType": "t3.medium",
+          "ami": "ami-12345678",
+          "availabilityZone": "us-east-1b"
+        }
+      },
+      {
+        "urn": "urn:pulumi:dev::test-project::aws:rds/instance:Instance::database",
+        "type": "aws:rds/instance:Instance",
+        "custom": true,
+        "outputs": {
+          "id": "db-12345678",
+          "instanceClass": "db.t3.micro",
+          "engine": "mysql",
+          "allocatedStorage": 20,
+          "availabilityZone": "us-east-1a"
+        }
+      }
+    ]
+  }
+}

@@ -323,24 +323,18 @@ nc -l $port || python3 -m http.server $port || python -m SimpleHTTPServer $port
 }
 
 func createWindowsMockServer(t *testing.T) string {
-	script := `param([string]$port = "8080")
-foreach ($arg in $args) {
-    if ($arg -match "--port=(.+)") {
-        $port = $matches[1]
-    }
-}
-$listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, $port)
-$listener.Start()
-try {
-    while ($true) {
-        $client = $listener.AcceptTcpClient()
-        $client.Close()
-    }
-} finally {
-    $listener.Stop()
-}
+	// Use a batch file that invokes PowerShell to create a TCP listener
+	// This avoids the "not a valid Win32 application" error when executing .ps1 directly
+	script := `@echo off
+setlocal enabledelayedexpansion
+set port=8080
+for %%a in (%*) do (
+    set arg=%%a
+    if "!arg:~0,7!"=="--port=" set port=!arg:~7!
+)
+powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "$listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any, %port%); $listener.Start(); try { while ($true) { $client = $listener.AcceptTcpClient(); $client.Close() } } finally { $listener.Stop() }"
 `
-	return createScript(t, script, ".ps1")
+	return createScript(t, script, ".bat")
 }
 
 func createScript(t *testing.T, content, ext string) string {
@@ -935,32 +929,12 @@ func createEnvCheckingScript(t *testing.T) string {
 	t.Helper()
 
 	if runtime.GOOS == "windows" {
-		// Windows PowerShell script
-		script := fmt.Sprintf(`
-$envPort = $env:%s
-$fallbackPort = $env:PORT
-
-if (-not $envPort) {
-    Write-Error "%s environment variable not set"
-    exit 1
-}
-
-# PORT should NOT be set by core (issue #232)
-# Note: PORT might be inherited from user's environment, so we only check
-# that core didn't explicitly set it to match FINFOCUS_PLUGIN_PORT
-# The test sets up a clean environment, so if PORT is set here, it's a bug
-
-# Output the environment variables for validation
-Write-Output "%s=$envPort"
-if ($fallbackPort) {
-    Write-Output "PORT=$fallbackPort (WARNING: should not be set by core)"
-}
-
-# Keep running briefly for the test
-Start-Sleep -Milliseconds 100
-exit 0
+		// Windows batch script that invokes PowerShell
+		// This avoids the "not a valid Win32 application" error when executing .ps1 directly
+		script := fmt.Sprintf(`@echo off
+powershell -Command "$envPort = $env:%s; $fallbackPort = $env:PORT; if (-not $envPort) { Write-Error '%s environment variable not set'; exit 1 }; Write-Output '%s=' + $envPort; if ($fallbackPort) { Write-Output 'PORT=' + $fallbackPort + ' (WARNING: should not be set by core)' }; Start-Sleep -Milliseconds 100; exit 0"
 `, pluginsdk.EnvPort, pluginsdk.EnvPort, pluginsdk.EnvPort)
-		return createScript(t, script, ".ps1")
+		return createScript(t, script, ".bat")
 	}
 
 	// Unix shell script

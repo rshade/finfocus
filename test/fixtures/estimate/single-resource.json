@@ -1,0 +1,23 @@
+{
+  "version": 3,
+  "deployment": {
+    "manifest": {
+      "time": "2026-02-02T10:00:00Z",
+      "magic": "test-plan",
+      "version": "test-version"
+    },
+    "resources": [
+      {
+        "urn": "urn:pulumi:dev::test-project::aws:ec2/instance:Instance::test-server",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "outputs": {
+          "id": "i-12345678",
+          "instanceType": "t3.micro",
+          "ami": "ami-12345678",
+          "availabilityZone": "us-east-1a"
+        }
+      }
+    ]
+  }
+}

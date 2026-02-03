@@ -10,8 +10,6 @@ guardrails in `CONTEXT.md`.
 - [Current Focus (v0.3.0)](#current-focus-v030---intelligence--analysis)
 - [Near-Term Vision (v0.3.x)](#near-term-vision-v03x---forecasting--governance)
 - [Future Vision (v0.4.0)](#future-vision-v040---notifications--integrations)
-- [Stability & Maintenance](#stability--maintenance)
-- [Documentation](#documentation)
 - [Icebox / Backlog](#icebox--backlog)
 
 ## Past Milestones (Done)
@@ -56,32 +54,30 @@ guardrails in `CONTEXT.md`.
   - [x] Dynamic Data Recording via Integration Plans (#275)
   - [x] Harden Nightly Analysis Workflow security and reliability (#325)
   - [x] Documentation for TUI features, budgets, and recommendations (#226)
-- [x] **v0.2.5: Testing & Stability** *(Completed 2026-01-24)*
+  - [x] Budget status display in CLI (#217, PR #466)
+- [x] **v0.2.5: Testing & Stability** *(Released 2026-01-30)*
   - [x] Multi-region E2E testing support (#185, PR #485)
   - [x] Pagination and NDJSON streaming for CI/CD integration (#225, PR #488)
-  - [x] Flexible budget scoping (per-provider, per-resource)
-        ([#221](https://github.com/rshade/finfocus/issues/221)) *(Completed 2026-02-01)*
   - [x] Exit codes for budget threshold violations
-        ([#219](https://github.com/rshade/finfocus/issues/219)) *(Completed 2026-01-25)*
-  - [x] GreenOps Impact Equivalencies
-        ([#303](https://github.com/rshade/finfocus/issues/303)) *(Completed 2026-02-01)*
+        ([#219](https://github.com/rshade/finfocus/issues/219))
+  - [x] Budget health calculation & threshold alerting (#267, PR #494)
+  - [x] Provider filtering & summary aggregation for Budgets (#263, PR #494)
+- [x] **v0.2.6: Routing & Budget Enhancements** *(Released 2026-02-02)*
+  - [x] Intelligent Multi-Plugin Routing with feature-based plugin selection
+        ([#410](https://github.com/rshade/finfocus/issues/410), PR #507)
+  - [x] Flexible budget scoping (per-provider, per-type, per-tag)
+        ([#221](https://github.com/rshade/finfocus/issues/221), PR #509)
+  - [x] Sustainability metrics integration in Engine & TUI (#302)
+  - [x] GreenOps carbon emission equivalency calculations
+        ([#303](https://github.com/rshade/finfocus/issues/303), PR #515)
+  - [x] Tag-based budget filtering
+        ([#532](https://github.com/rshade/finfocus/issues/532), PR #535)
 
 ## Current Focus (v0.3.0 - Intelligence & Analysis)
 
-- [ ] **Multi-Plugin Routing** *(In Progress - PR #507)*
-  - [ ] Intelligent Feature-Based Plugin Selection
-        ([#410](https://github.com/rshade/finfocus/issues/410))
+- [ ] **Multi-Plugin Routing Polish**
   - [ ] Docs formatting & validation.go fix (PR #507 follow-up)
         ([#533](https://github.com/rshade/finfocus/issues/533))
-  - Provider-aware automatic matching
-  - Declarative pattern-based overrides (glob/regex)
-  - Priority-based plugin selection with fallback chains
-  - Configuration validation via `finfocus config validate`
-- [ ] **Tag-Based Budget Filtering**
-  - [ ] Extend BudgetFilterOptions with tag support
-        ([#532](https://github.com/rshade/finfocus/issues/532))
-  - Reuses existing `--filter "tag:key=value"` syntax
-  - Enables Kubecost namespace filtering
 - [ ] **What-If Analysis**
   - [ ] Add `cost estimate` command for scenario modeling
         ([#463](https://github.com/rshade/finfocus/issues/463))
@@ -90,20 +86,12 @@ guardrails in `CONTEXT.md`.
   - [ ] Add recommendation dismissal and snooze management
         ([#464](https://github.com/rshade/finfocus/issues/464))
   - *Uses `DismissRecommendation` RPC from finfocus-spec v0.5.2+*
+- [ ] **Plugin SDK Hardening**
+  - [ ] Research: Evaluate GetPricingSpec RPC usage in core
+        ([#465](https://github.com/rshade/finfocus/issues/465))
 
 ## Near-Term Vision (v0.3.x - Forecasting & Governance)
 
-- [x] **Budgeting & Cost Controls** *(Budget Health Suite - Completed)*
-  - [x] Budget health calculation & threshold alerting (#267)
-  - [x] Provider filtering & summary aggregation for Budgets (#263)
-  - [x] Budget status display in CLI (#217)
-  - [x] Flexible budget scoping (#221) *(Completed 2026-02-01)*
-  - [x] Exit codes for budget threshold violations (#219) *(Completed 2026-01-25)*
-  - *Note: Kubecost-specific features moved to
-    [finfocus-plugin-kubecost](https://github.com/rshade/finfocus-plugin-kubecost)*
-- [x] **Sustainability (GreenOps)** *(Completed 2026-02-01)*
-  - [x] Integrate Sustainability Metrics into Engine & TUI (#302)
-  - [x] GreenOps Impact Equivalencies (#303)
 - [ ] **Forecasting & Projections ("Cost Time Machine")**
       ([#364](https://github.com/rshade/finfocus/issues/364))
   - [ ] Projection Math Engine (Linear/Exponential extrapolation)
@@ -131,49 +119,6 @@ guardrails in `CONTEXT.md`.
   - *Note:* Requires external service integration to maintain core
     statelessness per CONTEXT.md boundaries
 
-## Stability & Maintenance
-
-- [x] **Quality Gates**
-  - [x] Improve CLI package coverage to 75% (achieved 74.5%) (#269)
-  - [x] Integration Test Suite for Plugin Communication (#235)
-- [x] **Integration Testing Expansion** *(Completed 2026-01-19)*
-  - [x] Integration tests for resource filtering and output formats (#319)
-  - [x] Integration tests for cross-provider aggregation (#251)
-  - [x] Integration tests for `--group-by` flag (#250)
-  - [x] Integration tests for `cost actual` command scenarios (#252)
-  - [x] Integration tests for config management commands (#254)
-  - [x] E2E test for actual cost command
-        ([#334](https://github.com/rshade/finfocus/issues/334)) *(Completed 2026-01-19)*
-  - [x] Set up AWS test account and infrastructure for E2E testing
-        ([#181](https://github.com/rshade/finfocus/issues/181)) *(Completed 2026-01-19)*
-- [x] **Fuzzing & Security** *(Completed 2026-01-19)*
-  - [x] Create fuzz test skeleton for JSON parser
-        ([#330](https://github.com/rshade/finfocus/issues/330))
-  - [x] Improve fuzzing seeds, benchmarks, and validation
-        ([#326](https://github.com/rshade/finfocus/issues/326))
-- [ ] **Plugin SDK Hardening**
-  - [ ] Research: Evaluate GetPricingSpec RPC usage in core
-        ([#465](https://github.com/rshade/finfocus/issues/465))
-- [x] **Code Quality Refactoring** *(Completed 2026-01-18)*
-  - [x] Extract shared applyFilters helper (#337) *(Completed 2026-01-18)*
-  - [x] Remove redundant .Ctx(ctx) calls in ingest/state.go
-        ([#338](https://github.com/rshade/finfocus/issues/338))
-  - [x] Pre-allocate slice in GetCustomResourcesWithContext
-        ([#339](https://github.com/rshade/finfocus/issues/339))
-  - [x] Simplify map conversion in state_test.go
-        ([#340](https://github.com/rshade/finfocus/issues/340))
-
-## Documentation
-
-- [x] **User & Developer Guides** *(Completed 2026-01-19)*
-  - [x] Expand Support Channels documentation (#353)
-  - [x] Expand Troubleshooting Guide (#352)
-  - [x] Expand Configuration Guide (#351)
-  - [x] Expand Security Guide (#350)
-  - [x] Expand Deployment Overview (#349)
-  - [x] Update documentation for E2E testing and plugin ecosystem
-        ([#182](https://github.com/rshade/finfocus/issues/182)) *(Completed 2026-01-19)*
-
 ## Icebox / Backlog
 
 - [ ] Add optional LRU in-memory cache layer to complement FileStore
@@ -192,8 +137,6 @@ guardrails in `CONTEXT.md`.
   - [ ] Add new CLI flags for generation control (#461)
   - [ ] Generate standardized GitHub workflow files (#462)
   - [ ] Generate .golangci-lint.yml configuration (#493)
-- [x] Registry should pick latest version when multiple versions installed (#140)
-      *(Completed 2026-01-09)*
 - [ ] Plugin developer upgrade command for SDK migrations (#270) - *Research*
 - [ ] **Dependency Visualization ("Blast Radius")**
       ([#366](https://github.com/rshade/finfocus/issues/366))
@@ -243,19 +186,6 @@ guardrails in `CONTEXT.md`.
     returned by the orchestration layer.
   - *Success Criteria*: A valid GFM document is generated that renders
     correctly in a GitHub comment using only data from the `CostResult` array.
-- [x] **Interactive "What-If" Property Tuning**
-      ([#463](https://github.com/rshade/finfocus/issues/463)) *Tracked*
-  - *Objective*: Allow developers to explore pricing alternatives for a
-    resource in real-time without modifying Pulumi code.
-  - *Technical Approach*: Extend the TUI to allow key-value editing of a
-    `ResourceDescriptor.Properties` map and re-triggering the
-    `Engine.GetProjectedCost` gRPC call.
-  - *Anti-Guess Boundary*: The core MUST NOT contain any logic to determine
-    which properties affect price; it must blindly pass the user-modified map
-    to the gRPC plugin and display the response.
-  - *Success Criteria*: The TUI refreshes a resource's price after an
-    in-memory property change by receiving and displaying a new `CostResult`
-    from the plugin.
 - [ ] **Stateless Cost-Policy Linting**
   - *Objective*: Prevent accidental cost overruns by flagging resources that
     exceed organizational informational thresholds.

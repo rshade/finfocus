@@ -58,8 +58,9 @@ func TestEnsureConfigDir(t *testing.T) {
 	// Create a temporary home directory
 	tmpHome := t.TempDir()
 
-	// Mock home directory
+	// Mock home directory for both Unix and Windows
 	t.Setenv("HOME", tmpHome)
+	t.Setenv("USERPROFILE", tmpHome) // Windows uses USERPROFILE
 
 	// Test ensuring config directory
 	err := EnsureConfigDir()

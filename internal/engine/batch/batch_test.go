@@ -99,13 +99,26 @@ func TestProgress(t *testing.T) {
 	p.AddProcessed(90)
 	assert.Equal(t, 100.0, p.PercentComplete())
 	assert.True(t, p.IsComplete())
-	assert.Greater(t, p.ElapsedTime(), time.Duration(0))
 
 	t.Run("Estimates", func(t *testing.T) {
 		p.Reset()
+		// Add a small sleep to ensure measurable elapsed time across all platforms
+		// Windows timer resolution is ~15ms, so we sleep long enough to be measurable
+		time.Sleep(20 * time.Millisecond)
 		p.AddProcessed(50)
-		assert.Greater(t, p.ItemsPerSecond(), 0.0)
-		assert.Greater(t, p.BatchesPerSecond(), 0.0)
+
+		// Verify elapsed time is measurable after sleep
+		// Use 5ms threshold to account for Windows timer granularity (~15ms)
+		minElapsed := 5 * time.Millisecond
+		assert.GreaterOrEqual(t, p.ElapsedTime(), minElapsed,
+			"elapsed time should exceed %v after 20ms sleep", minElapsed)
+
+		// Minimum expected rate after 20ms sleep with 50 items (tolerates Windows timer granularity)
+		const minExpectedRate = 0.05
+		assert.GreaterOrEqual(t, p.ItemsPerSecond(), minExpectedRate,
+			"expected measurable items per second rate")
+		assert.GreaterOrEqual(t, p.BatchesPerSecond(), minExpectedRate,
+			"expected measurable batches per second rate")
 		// Estimated remaining should be around elapsed time since 50% done
 		assert.NotNil(t, p.EstimatedTimeRemaining())
 	})

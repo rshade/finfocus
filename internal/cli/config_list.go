@@ -31,7 +31,7 @@ func NewConfigListCmd() *cobra.Command {
 
 			// Format and output based on requested format
 			switch format {
-			case "json":
+			case outputFormatJSON:
 				jsonData, err := json.MarshalIndent(allConfig, "", "  ")
 				if err != nil {
 					return fmt.Errorf("failed to marshal config to JSON: %w", err)
