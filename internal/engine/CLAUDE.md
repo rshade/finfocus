@@ -598,11 +598,59 @@ func FilterBudgetsByProvider(ctx context.Context, budgets []*pbc.Budget, provide
 **Orchestration Flow** (`Engine.GetBudgets`):
 
 1. **Plugin Query**: Fetch all budgets from active plugins
-2. **Filtering**: Apply provider filters if specified
-3. **Forecasting**: Calculate end-of-period forecast via linear extrapolation
-4. **Health Calculation**: Determine status based on actual AND forecasted spend
-5. **Threshold Evaluation**: Check for triggered alert thresholds
-6. **Summary Generation**: Aggregate statistics by status, provider, and currency
+2. **Provider Filtering**: Apply provider filters (OR logic, case-insensitive)
+3. **Tag Filtering**: Apply tag filters (AND logic, case-sensitive, glob patterns supported)
+4. **Forecasting**: Calculate end-of-period forecast via linear extrapolation
+5. **Health Calculation**: Determine status based on actual AND forecasted spend
+6. **Threshold Evaluation**: Check for triggered alert thresholds
+7. **Summary Generation**: Aggregate statistics by status, provider, and currency
+
+### Tag-Based Budget Filtering (Issue #222)
+
+**BudgetFilterOptions** now supports tag-based filtering:
+
+```go
+type BudgetFilterOptions struct {
+    Providers []string          // Filter by provider names (case-insensitive, OR logic)
+    Tags      map[string]string // Filter by metadata tags (case-sensitive, AND logic, supports glob patterns)
+}
+```
+
+**Key Functions**:
+
+- `FilterBudgetsByTags(ctx, budgets, tags)` - Filters budgets by metadata tags
+- `matchesBudgetTagsWithGlob(budget, tags)` - Checks if a budget matches all specified tags
+
+**Tag Filtering Behavior**:
+
+- **AND Logic**: All specified tags must match for a budget to be included
+- **Case-Sensitive**: Both keys and values are matched case-sensitively
+- **Glob Patterns**: Values support `*` wildcards via `path.Match()` (e.g., `prod-*`)
+- **Empty Tags**: Empty or nil tags map means no filtering (all budgets pass)
+- **Legacy Format**: Supports both `key` and `tag:key` metadata formats
+
+**CLI Filter Syntax** (via `ParseBudgetFilters`):
+
+```bash
+# Filter by exact tag match
+--filter "tag:namespace=production"
+
+# Filter with glob pattern
+--filter "tag:namespace=prod-*"
+
+# Multiple tag filters (AND logic)
+--filter "tag:namespace=production" --filter "tag:cluster=us-east-1"
+
+# Combined provider and tag filters
+--filter "provider=kubecost" --filter "tag:namespace=staging"
+```
+
+**Validation** (`ValidateBudgetFilter`):
+
+- Tag filters must have format `tag:key=value`
+- Key must be non-empty
+- Value can be empty (matches budgets with empty metadata value)
+- Unknown filter prefixes are rejected
 
 ### Forecasting Logic
 

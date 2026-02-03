@@ -741,6 +741,53 @@ defer os.Unsetenv(pluginsdk.EnvLogLevel)
 **Note**: Config-specific variables like `FINFOCUS_OUTPUT_FORMAT` and
 `FINFOCUS_CONFIG_STRICT` are NOT in pluginsdk as they are core-specific.
 
+## gRPC Metadata Keys (pluginsdk)
+
+FinFocus uses standardized gRPC metadata keys for distributed tracing across
+plugin boundaries.
+
+### Available Constants
+
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `pluginsdk.TraceIDMetadataKey` | `"x-finfocus-trace-id"` | gRPC metadata key for trace ID propagation |
+
+### Trace ID Propagation Flow
+
+1. **Core (client-side)**: `TraceInterceptor()` in `internal/pluginhost/grpc.go`
+   injects the trace ID from context into outgoing gRPC metadata
+2. **Plugins (server-side)**: `TracingUnaryServerInterceptor()` from pluginsdk
+   extracts the trace ID from incoming metadata and adds it to the context
+
+### Usage in Core
+
+```go
+import "github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+
+// TraceInterceptor automatically uses pluginsdk.TraceIDMetadataKey
+// to inject trace IDs into outgoing gRPC calls
+conn, err := grpc.DialContext(ctx, addr,
+    grpc.WithUnaryInterceptor(pluginhost.TraceInterceptor()),
+)
+```
+
+### Usage in Plugins
+
+```go
+import "github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+
+// TracingUnaryServerInterceptor extracts trace ID from metadata
+server := grpc.NewServer(
+    grpc.UnaryInterceptor(pluginsdk.TracingUnaryServerInterceptor()),
+)
+
+// In handlers, get trace ID from context
+func (s *Server) GetProjectedCost(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+    traceID := pluginsdk.TraceIDFromContext(ctx)
+    // Use traceID for logging correlation
+}
+```
+
 ## Package-Specific Documentation
 
 ### internal/cli
@@ -975,6 +1022,8 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
+- Go 1.25.6 + github.com/spf13/cobra (CLI), github.com/rshade/finfocus-spec (proto), path (glob matching) (222-budget-tag-filter)
+- N/A (filtering in-memory) (222-budget-tag-filter)
 
 - Go 1.25.6 + github.com/spf13/cobra (CLI), github.com/rs/zerolog (logging), gopkg.in/yaml.v3, github.com/rshade/finfocus-spec v0.5.3+ (proto definitions/SDK), google.golang.org/grpc, github.com/stretchr/testify, github.com/charmbracelet/lipgloss (TUI styling), golang.org/x/text (number formatting); YAML config file (~/.finfocus/config.yaml)
 
