@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path"
 	"strings"
 	"time"
 
@@ -26,7 +27,8 @@ var ErrInvalidBudget = errors.New("invalid budget")
 
 // BudgetFilterOptions contains criteria for filtering budgets.
 type BudgetFilterOptions struct {
-	Providers []string // Filter by provider names (case-insensitive, OR logic)
+	Providers []string          // Filter by provider names (case-insensitive, OR logic)
+	Tags      map[string]string // Filter by metadata tags (case-sensitive, AND logic, supports glob patterns)
 }
 
 // BudgetResult contains the complete budget health response.
@@ -260,6 +262,114 @@ func getMetadataValue(b *pbc.Budget, key string) string {
 	return metadata[key]
 }
 
+// matchesBudgetTagsWithGlob checks if a budget's metadata matches all specified tags.
+// Tags are matched using AND logic: all specified tags must match for the budget to pass.
+// Tag values support glob patterns (via path.Match), e.g., "prod-*" matches "prod-us", "prod-eu".
+// The match is case-sensitive for both keys and values.
+//
+// Parameters:
+//   - b: The budget to check
+//   - tags: Map of tag keys to values/patterns to match against budget metadata
+//
+// Returns true if:
+//   - tags map is nil or empty (no filtering)
+//   - all specified tags match the budget's metadata (exact or glob pattern match)
+//
+// Returns false if:
+//   - budget is nil
+//   - any tag key is missing from budget metadata
+//   - any tag value doesn't match (exact or glob pattern)
+//
+// Glob pattern errors are treated as non-matches (budget excluded).
+func matchesBudgetTagsWithGlob(b *pbc.Budget, tags map[string]string) bool {
+	// No tags = no filtering, all budgets pass
+	if len(tags) == 0 {
+		return true
+	}
+
+	// Nil budget cannot match any tags
+	if b == nil {
+		return false
+	}
+
+	metadata := b.GetMetadata()
+	if metadata == nil {
+		// No metadata means no tags can match
+		return false
+	}
+
+	// AND logic: all tags must match
+	for key, pattern := range tags {
+		// Try both direct key and prefixed key (for legacy "tag:key" storage)
+		metaVal, exists := metadata[key]
+		if !exists {
+			// Also check with "tag:" prefix (legacy format)
+			metaVal, exists = metadata["tag:"+key]
+			if !exists {
+				return false
+			}
+		}
+
+		// Empty pattern matches only empty value
+		if pattern == "" {
+			if metaVal != "" {
+				return false
+			}
+			continue
+		}
+
+		// Try glob pattern matching
+		matched, err := path.Match(pattern, metaVal)
+		if err != nil {
+			// Invalid pattern syntax, treat as non-match
+			return false
+		}
+		if !matched {
+			return false
+		}
+	}
+
+	return true
+}
+
+// FilterBudgetsByTags filters budgets by metadata tags.
+//
+// Behavior:
+//   - Case-sensitive matching for both keys and values
+//   - AND logic: budget must match ALL specified tags
+//   - Supports glob patterns in values (e.g., "prod-*" matches "prod-us")
+//   - Empty tags map returns all budgets (no filtering)
+//   - Returns empty slice if no budgets match
+func FilterBudgetsByTags(ctx context.Context, budgets []*pbc.Budget, tags map[string]string) []*pbc.Budget {
+	logger := logging.FromContext(ctx).With().
+		Str("component", "engine").
+		Str("operation", "FilterBudgetsByTags").
+		Logger()
+
+	// If no tags specified, return all budgets
+	if len(tags) == 0 {
+		return budgets
+	}
+
+	logger.Debug().
+		Int("tag_count", len(tags)).
+		Int("input_count", len(budgets)).
+		Msg("filtering budgets by tags")
+
+	var filtered []*pbc.Budget
+	for _, b := range budgets {
+		if matchesBudgetTagsWithGlob(b, tags) {
+			filtered = append(filtered, b)
+		}
+	}
+
+	logger.Debug().
+		Int("output_count", len(filtered)).
+		Msg("tag filtering complete")
+
+	return filtered
+}
+
 // FilterBudgetsByProvider filters budgets by provider name(s).
 //
 // Behavior:
@@ -341,11 +451,15 @@ func (e *Engine) GetBudgets(ctx context.Context, filter *BudgetFilterOptions) (*
 	}
 
 	// 2. Filter budgets
+	// Apply provider filter first (OR logic), then tag filter (AND logic)
 	var providers []string
+	var tags map[string]string
 	if filter != nil {
 		providers = filter.Providers
+		tags = filter.Tags
 	}
 	filteredBudgets := FilterBudgetsByProvider(ctx, allBudgets, providers)
+	filteredBudgets = FilterBudgetsByTags(ctx, filteredBudgets, tags)
 
 	// 3. Process each budget
 	now := time.Now()

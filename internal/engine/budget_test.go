@@ -580,3 +580,470 @@ func BenchmarkMatchesProvider(b *testing.B) {
 		_ = MatchesProvider(budget, providers)
 	}
 }
+
+// =============================================================================
+// Tag-Based Budget Filtering Tests (T007-T011, T015-T018, T021-T022, T026, T030-T032)
+// =============================================================================
+
+// TestMatchesBudgetTagsWithGlob_ExactMatch tests exact tag value matching (T007, US1).
+func TestMatchesBudgetTagsWithGlob_ExactMatch(t *testing.T) {
+	tests := []struct {
+		name     string
+		budget   *pbc.Budget
+		tags     map[string]string
+		expected bool
+	}{
+		{
+			name: "exact match single tag",
+			budget: &pbc.Budget{
+				Id:       "1",
+				Metadata: map[string]string{"namespace": "production"},
+			},
+			tags:     map[string]string{"namespace": "production"},
+			expected: true,
+		},
+		{
+			name: "exact match with tag: prefix in metadata",
+			budget: &pbc.Budget{
+				Id:       "2",
+				Metadata: map[string]string{"tag:namespace": "production"},
+			},
+			tags:     map[string]string{"namespace": "production"},
+			expected: true,
+		},
+		{
+			name: "no match - different value",
+			budget: &pbc.Budget{
+				Id:       "3",
+				Metadata: map[string]string{"namespace": "staging"},
+			},
+			tags:     map[string]string{"namespace": "production"},
+			expected: false,
+		},
+		{
+			name: "no match - case sensitive",
+			budget: &pbc.Budget{
+				Id:       "4",
+				Metadata: map[string]string{"namespace": "Production"},
+			},
+			tags:     map[string]string{"namespace": "production"},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+// TestMatchesBudgetTagsWithGlob_MissingKey tests budget missing required tag key (T008, US1).
+func TestMatchesBudgetTagsWithGlob_MissingKey(t *testing.T) {
+	tests := []struct {
+		name     string
+		budget   *pbc.Budget
+		tags     map[string]string
+		expected bool
+	}{
+		{
+			name: "budget lacks required key",
+			budget: &pbc.Budget{
+				Id:       "1",
+				Metadata: map[string]string{"other": "value"},
+			},
+			tags:     map[string]string{"namespace": "production"},
+			expected: false,
+		},
+		{
+			name: "budget has nil metadata",
+			budget: &pbc.Budget{
+				Id:       "2",
+				Metadata: nil,
+			},
+			tags:     map[string]string{"namespace": "production"},
+			expected: false,
+		},
+		{
+			name:     "nil budget",
+			budget:   nil,
+			tags:     map[string]string{"namespace": "production"},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+// TestMatchesBudgetTagsWithGlob_EmptyTags tests empty tags map returns all (T011, US1).
+func TestMatchesBudgetTagsWithGlob_EmptyTags(t *testing.T) {
+	budget := &pbc.Budget{
+		Id:       "1",
+		Metadata: map[string]string{"namespace": "production"},
+	}
+
+	tests := []struct {
+		name     string
+		tags     map[string]string
+		expected bool
+	}{
+		{
+			name:     "nil tags matches all",
+			tags:     nil,
+			expected: true,
+		},
+		{
+			name:     "empty tags map matches all",
+			tags:     map[string]string{},
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := matchesBudgetTagsWithGlob(budget, tc.tags)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+// TestMatchesBudgetTagsWithGlob_GlobPatterns tests glob pattern matching (T015-T018, US2).
+func TestMatchesBudgetTagsWithGlob_GlobPatterns(t *testing.T) {
+	tests := []struct {
+		name     string
+		budget   *pbc.Budget
+		tags     map[string]string
+		expected bool
+	}{
+		{
+			name: "prefix glob pattern matches (prod-*)",
+			budget: &pbc.Budget{
+				Id:       "1",
+				Metadata: map[string]string{"namespace": "prod-us"},
+			},
+			tags:     map[string]string{"namespace": "prod-*"},
+			expected: true,
+		},
+		{
+			name: "suffix glob pattern matches (*-production)",
+			budget: &pbc.Budget{
+				Id:       "2",
+				Metadata: map[string]string{"env": "team-a-production"},
+			},
+			tags:     map[string]string{"env": "*-production"},
+			expected: true,
+		},
+		{
+			name: "both-ends glob pattern matches (*prod*)",
+			budget: &pbc.Budget{
+				Id:       "3",
+				Metadata: map[string]string{"env": "my-production-env"},
+			},
+			tags:     map[string]string{"env": "*prod*"},
+			expected: true,
+		},
+		{
+			name: "glob pattern no match",
+			budget: &pbc.Budget{
+				Id:       "4",
+				Metadata: map[string]string{"namespace": "staging"},
+			},
+			tags:     map[string]string{"namespace": "prod-*"},
+			expected: false,
+		},
+		{
+			name: "character class glob pattern [a-z]",
+			budget: &pbc.Budget{
+				Id:       "5",
+				Metadata: map[string]string{"env": "a"},
+			},
+			tags:     map[string]string{"env": "[a-z]"},
+			expected: true,
+		},
+		{
+			name: "single character glob pattern (?)",
+			budget: &pbc.Budget{
+				Id:       "6",
+				Metadata: map[string]string{"region": "us"},
+			},
+			tags:     map[string]string{"region": "u?"},
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+// TestMatchesBudgetTagsWithGlob_MultipleTags tests AND logic for multiple tags (T021-T022, US3).
+func TestMatchesBudgetTagsWithGlob_MultipleTags(t *testing.T) {
+	tests := []struct {
+		name     string
+		budget   *pbc.Budget
+		tags     map[string]string
+		expected bool
+	}{
+		{
+			name: "multiple tags all match (AND logic)",
+			budget: &pbc.Budget{
+				Id:       "1",
+				Metadata: map[string]string{"namespace": "production", "cluster": "us-east-1"},
+			},
+			tags:     map[string]string{"namespace": "production", "cluster": "us-east-1"},
+			expected: true,
+		},
+		{
+			name: "multiple tags partial match fails (AND logic)",
+			budget: &pbc.Budget{
+				Id:       "2",
+				Metadata: map[string]string{"namespace": "production", "cluster": "us-west-2"},
+			},
+			tags:     map[string]string{"namespace": "production", "cluster": "us-east-1"},
+			expected: false,
+		},
+		{
+			name: "multiple tags with glob patterns",
+			budget: &pbc.Budget{
+				Id:       "3",
+				Metadata: map[string]string{"namespace": "prod-us", "cluster": "cluster-a-prod"},
+			},
+			tags:     map[string]string{"namespace": "prod-*", "cluster": "*-prod"},
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+// TestMatchesBudgetTagsWithGlob_EdgeCases tests edge cases (T030-T032, Phase 7).
+func TestMatchesBudgetTagsWithGlob_EdgeCases(t *testing.T) {
+	tests := []struct {
+		name     string
+		budget   *pbc.Budget
+		tags     map[string]string
+		expected bool
+	}{
+		{
+			name: "tag key with special characters (kubernetes.io/name)",
+			budget: &pbc.Budget{
+				Id:       "1",
+				Metadata: map[string]string{"kubernetes.io/name": "my-app"},
+			},
+			tags:     map[string]string{"kubernetes.io/name": "my-app"},
+			expected: true,
+		},
+		{
+			name: "empty tag value matches empty metadata value",
+			budget: &pbc.Budget{
+				Id:       "2",
+				Metadata: map[string]string{"namespace": ""},
+			},
+			tags:     map[string]string{"namespace": ""},
+			expected: true,
+		},
+		{
+			name: "empty tag value does not match non-empty metadata",
+			budget: &pbc.Budget{
+				Id:       "3",
+				Metadata: map[string]string{"namespace": "production"},
+			},
+			tags:     map[string]string{"namespace": ""},
+			expected: false,
+		},
+		{
+			name: "case-sensitive key matching",
+			budget: &pbc.Budget{
+				Id:       "4",
+				Metadata: map[string]string{"Namespace": "production"},
+			},
+			tags:     map[string]string{"namespace": "production"},
+			expected: false, // Different key case
+		},
+		{
+			name: "invalid glob pattern treated as non-match",
+			budget: &pbc.Budget{
+				Id:       "5",
+				Metadata: map[string]string{"namespace": "production"},
+			},
+			tags:     map[string]string{"namespace": "[invalid"},
+			expected: false, // Invalid pattern syntax
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
+
+// TestFilterBudgetsByTags tests the full filtering function (T003, T009).
+func TestFilterBudgetsByTags(t *testing.T) {
+	budgets := []*pbc.Budget{
+		{Id: "1", Metadata: map[string]string{"namespace": "production", "cluster": "us-east-1"}},
+		{Id: "2", Metadata: map[string]string{"namespace": "production", "cluster": "us-west-2"}},
+		{Id: "3", Metadata: map[string]string{"namespace": "staging", "cluster": "us-east-1"}},
+		{Id: "4", Metadata: map[string]string{"namespace": "dev"}},
+		{Id: "5", Metadata: nil},
+	}
+
+	tests := []struct {
+		name        string
+		tags        map[string]string
+		expectedIDs []string
+	}{
+		{
+			name:        "empty tags returns all",
+			tags:        nil,
+			expectedIDs: []string{"1", "2", "3", "4", "5"},
+		},
+		{
+			name:        "filter by single exact tag",
+			tags:        map[string]string{"namespace": "production"},
+			expectedIDs: []string{"1", "2"},
+		},
+		{
+			name:        "filter by multiple tags (AND)",
+			tags:        map[string]string{"namespace": "production", "cluster": "us-east-1"},
+			expectedIDs: []string{"1"},
+		},
+		{
+			name:        "filter with glob pattern",
+			tags:        map[string]string{"namespace": "prod*"},
+			expectedIDs: []string{"1", "2"},
+		},
+		{
+			name:        "no matches returns empty",
+			tags:        map[string]string{"namespace": "nonexistent"},
+			expectedIDs: []string{},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			result := FilterBudgetsByTags(ctx, budgets, tc.tags)
+
+			var resultIDs []string
+			for _, b := range result {
+				resultIDs = append(resultIDs, b.GetId())
+			}
+			assert.ElementsMatch(t, tc.expectedIDs, resultIDs)
+		})
+	}
+}
+
+// TestFilterBudgetsByTags_CombinedWithProvider tests combined provider and tag filtering (T026, T028-T029, US4).
+func TestFilterBudgetsByTags_CombinedWithProvider(t *testing.T) {
+	budgets := []*pbc.Budget{
+		{Id: "1", Source: "kubecost", Metadata: map[string]string{"namespace": "production"}},
+		{Id: "2", Source: "kubecost", Metadata: map[string]string{"namespace": "staging"}},
+		{Id: "3", Source: "aws-budgets", Metadata: map[string]string{"namespace": "production"}},
+		{Id: "4", Source: "aws-budgets", Metadata: map[string]string{"namespace": "staging"}},
+	}
+
+	ctx := context.Background()
+
+	// First filter by provider (OR logic)
+	providerFiltered := FilterBudgetsByProvider(ctx, budgets, []string{"kubecost"})
+	require.Len(t, providerFiltered, 2) // IDs 1 and 2
+
+	// Then filter by tags (AND logic)
+	tagFiltered := FilterBudgetsByTags(ctx, providerFiltered, map[string]string{"namespace": "production"})
+	require.Len(t, tagFiltered, 1)
+	assert.Equal(t, "1", tagFiltered[0].GetId())
+}
+
+// TestFilterBudgetsByTags_BackwardCompatibility tests existing provider filtering unchanged (T013, T042).
+func TestFilterBudgetsByTags_BackwardCompatibility(t *testing.T) {
+	budgets := []*pbc.Budget{
+		{Id: "1", Source: "aws-budgets"},
+		{Id: "2", Source: "kubecost"},
+		{Id: "3", Source: "gcp-billing"},
+	}
+
+	ctx := context.Background()
+
+	// Provider-only filtering should work as before
+	result := FilterBudgetsByProvider(ctx, budgets, []string{"aws-budgets"})
+	require.Len(t, result, 1)
+	assert.Equal(t, "1", result[0].GetId())
+
+	// Empty tags should not affect results
+	result = FilterBudgetsByTags(ctx, budgets, nil)
+	require.Len(t, result, 3)
+
+	result = FilterBudgetsByTags(ctx, budgets, map[string]string{})
+	require.Len(t, result, 3)
+}
+
+// =============================================================================
+// Tag Filtering Benchmarks
+// =============================================================================
+
+// BenchmarkFilterBudgetsByTags1000 benchmarks tag filtering for 1000 budgets.
+func BenchmarkFilterBudgetsByTags1000(b *testing.B) {
+	ctx := context.Background()
+	budgets := generateBudgetsWithTags(1000)
+	tags := map[string]string{"namespace": "prod-*", "cluster": "us-*"}
+
+	b.ResetTimer()
+	for b.Loop() {
+		_ = FilterBudgetsByTags(ctx, budgets, tags)
+	}
+}
+
+// BenchmarkMatchesBudgetTagsWithGlob benchmarks single budget tag matching.
+func BenchmarkMatchesBudgetTagsWithGlob(b *testing.B) {
+	budget := &pbc.Budget{
+		Id: "1",
+		Metadata: map[string]string{
+			"namespace": "prod-us-east-1",
+			"cluster":   "us-east-1",
+			"env":       "production",
+		},
+	}
+	tags := map[string]string{"namespace": "prod-*", "cluster": "us-*"}
+
+	b.ResetTimer()
+	for b.Loop() {
+		_ = matchesBudgetTagsWithGlob(budget, tags)
+	}
+}
+
+// generateBudgetsWithTags creates n budgets with varying metadata for benchmarking.
+func generateBudgetsWithTags(n int) []*pbc.Budget {
+	namespaces := []string{"prod-us", "prod-eu", "staging-us", "dev-local"}
+	clusters := []string{"us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1"}
+	budgets := make([]*pbc.Budget, n)
+
+	for i := 0; i < n; i++ {
+		idSuffix := strconv.Itoa(i)
+		budgets[i] = &pbc.Budget{
+			Id:     "budget-" + idSuffix,
+			Name:   "Budget " + idSuffix,
+			Source: "kubecost",
+			Metadata: map[string]string{
+				"namespace": namespaces[i%len(namespaces)],
+				"cluster":   clusters[i%len(clusters)],
+			},
+		}
+	}
+	return budgets
+}
