@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7](https://github.com/rshade/finfocus/compare/v0.2.6...v0.2.7) (2026-02-05)
+
+
+### Added
+
+* **cli:** add cost estimate command for what-if analysis ([#538](https://github.com/rshade/finfocus/issues/538)) ([bce24df](https://github.com/rshade/finfocus/commit/bce24df43166fd0cfb0aba671a0693db366b5d7b)), closes [#463](https://github.com/rshade/finfocus/issues/463)
+* **engine:** add tag-based filtering to BudgetFilterOptions ([#535](https://github.com/rshade/finfocus/issues/535)) ([085b689](https://github.com/rshade/finfocus/commit/085b689c7d95d602899f16d4cecc1211cf2a13f8)), closes [#532](https://github.com/rshade/finfocus/issues/532)
+
 ## [0.2.6](https://github.com/rshade/finfocus/compare/v0.2.5...v0.2.6) (2026-02-02)
 
 
