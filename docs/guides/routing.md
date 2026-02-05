@@ -580,7 +580,6 @@ finfocus cost projected --pulumi-json plan.json
 plugins:
   aws-public:
     region: us-east-1
-
 # No routing config = automatic routing based on providers
 ```
 

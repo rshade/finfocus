@@ -71,8 +71,8 @@ type ValidationWarning struct {
 func ValidateRoutingConfig(cfg *config.RoutingConfig, clients []*pluginhost.Client) ValidationResult {
 	result := ValidationResult{
 		Valid:    true,
-		Errors:   []ValidationError{},
-		Warnings: []ValidationWarning{},
+		Errors:   make([]ValidationError, 0),
+		Warnings: make([]ValidationWarning, 0),
 	}
 
 	// If no config, validation passes (automatic routing only)

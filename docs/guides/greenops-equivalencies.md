@@ -9,6 +9,21 @@ nav_order: 5
 FinFocus displays human-readable carbon emission equivalencies alongside sustainability
 metrics, making environmental impact more tangible and understandable.
 
+## Table of Contents
+
+- [Overview](#overview)
+- [Where Equivalencies Appear](#where-equivalencies-appear)
+  - [CLI Output](#cli-output)
+  - [TUI Summary](#tui-summary)
+  - [Analyzer Diagnostics](#analyzer-diagnostics)
+- [EPA Formulas](#epa-formulas)
+- [Display Thresholds](#display-thresholds)
+- [Unit Normalization](#unit-normalization)
+- [Example Calculations](#example-calculations)
+- [Integration with Plugins](#integration-with-plugins)
+- [Troubleshooting](#troubleshooting)
+- [Related Documentation](#related-documentation)
+
 ## Overview
 
 When analyzing cloud infrastructure costs, FinFocus calculates carbon footprint values

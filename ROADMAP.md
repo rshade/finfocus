@@ -78,9 +78,9 @@ guardrails in `CONTEXT.md`.
 - [ ] **Multi-Plugin Routing Polish**
   - [ ] Docs formatting & validation.go fix (PR #507 follow-up)
         ([#533](https://github.com/rshade/finfocus/issues/533))
-- [ ] **What-If Analysis**
-  - [ ] Add `cost estimate` command for scenario modeling
-        ([#463](https://github.com/rshade/finfocus/issues/463))
+- [x] **What-If Analysis**
+  - [x] Add `cost estimate` command for scenario modeling
+        ([#463](https://github.com/rshade/finfocus/issues/463), PR #538)
   - *Uses `EstimateCost` RPC from finfocus-spec v0.5.2+*
 - [ ] **Recommendation Lifecycle**
   - [ ] Add recommendation dismissal and snooze management
@@ -92,6 +92,9 @@ guardrails in `CONTEXT.md`.
 
 ## Near-Term Vision (v0.3.x - Forecasting & Governance)
 
+- [ ] **Time-Series Forecasting Enhancement**
+  - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
+        ([#539](https://github.com/rshade/finfocus/issues/539))
 - [ ] **Forecasting & Projections ("Cost Time Machine")**
       ([#364](https://github.com/rshade/finfocus/issues/364))
   - [ ] Projection Math Engine (Linear/Exponential extrapolation)
@@ -121,8 +124,15 @@ guardrails in `CONTEXT.md`.
 
 ## Icebox / Backlog
 
-- [ ] Add optional LRU in-memory cache layer to complement FileStore
-      ([#495](https://github.com/rshade/finfocus/issues/495))
+- [ ] **Cache Architecture Improvements**
+  - [ ] Extract Cache interface and refactor FileStore
+        ([#541](https://github.com/rshade/finfocus/issues/541))
+  - [ ] Add caching to GetActualCost with 1-hour TTL
+        ([#542](https://github.com/rshade/finfocus/issues/542))
+  - [ ] Add caching to GetProjectedCost with SHA-based keys
+        ([#543](https://github.com/rshade/finfocus/issues/543))
+  - [ ] Add optional LRU in-memory cache layer to complement FileStore
+        ([#495](https://github.com/rshade/finfocus/issues/495))
 - [ ] TUI Lazy Loading & Error Recovery (#483) *Deferred from TUI Phase 7*
 - [ ] Plugin integrity verification strategy (#164)
 - [ ] Accessibility options (--no-color, --plain, high contrast) (#224)
@@ -137,6 +147,8 @@ guardrails in `CONTEXT.md`.
   - [ ] Add new CLI flags for generation control (#461)
   - [ ] Generate standardized GitHub workflow files (#462)
   - [ ] Generate .golangci-lint.yml configuration (#493)
+- [ ] Use registry-based plugin install for cross-repo integration tests
+      ([#517](https://github.com/rshade/finfocus/issues/517))
 - [ ] Plugin developer upgrade command for SDK migrations (#270) - *Research*
 - [ ] **Dependency Visualization ("Blast Radius")**
       ([#366](https://github.com/rshade/finfocus/issues/366))

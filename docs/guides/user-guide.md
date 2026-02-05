@@ -275,7 +275,7 @@ Vantage provides unified cost data from multiple cloud providers.
 
 **Setup:**
 
-1. Get Vantage API key from [vantage.sh](https://vantage.sh)
+1. Get Vantage API key from [Vantage](https://vantage.sh)
 2. Configure plugin (see [Vantage Plugin Setup](../plugins/vantage/setup.md))
 3. Run commands with Vantage data
 

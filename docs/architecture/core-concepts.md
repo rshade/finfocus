@@ -6,6 +6,22 @@ description: Key concepts and terminology used in FinFocus
 
 This page explains the fundamental concepts and terminology used throughout FinFocus.
 
+## Table of Contents
+
+- [Resource Descriptors](#resource-descriptors)
+- [Cost Types](#cost-types)
+  - [Projected Costs](#projected-costs)
+  - [Actual Costs](#actual-costs)
+- [Plugin Architecture](#plugin-architecture)
+  - [How Plugins Work](#how-plugins-work)
+  - [Plugin Types](#plugin-types)
+  - [Plugin Selection](#plugin-selection)
+- [Cost Calculation Flow](#cost-calculation-flow)
+- [Aggregation and Grouping](#aggregation-and-grouping)
+- [Budgets and Thresholds](#budgets-and-thresholds)
+- [Output Formats](#output-formats)
+- [Related Documentation](#related-documentation)
+
 ## Resource Descriptors
 
 A **Resource Descriptor** is the internal representation of a cloud resource that FinFocus uses
