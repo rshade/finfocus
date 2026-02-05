@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -115,8 +116,14 @@ func TestValidatePlugin(t *testing.T) {
 	// Create a temporary directory for testing
 	tmpDir := t.TempDir()
 
+	// Use platform-appropriate binary name and extension
+	pluginName := "test-plugin"
+	if runtime.GOOS == "windows" {
+		pluginName = "test-plugin.exe"
+	}
+
 	// Create a mock plugin binary
-	pluginPath := filepath.Join(tmpDir, "test-plugin")
+	pluginPath := filepath.Join(tmpDir, pluginName)
 	err := os.WriteFile(pluginPath, []byte("#!/bin/sh\necho test"), 0755)
 	require.NoError(t, err)
 
@@ -129,6 +136,12 @@ func TestValidatePlugin(t *testing.T) {
 	}`
 	err = os.WriteFile(manifestPath, []byte(manifestContent), 0644)
 	require.NoError(t, err)
+
+	// Use platform-appropriate name for the non-executable test
+	nonExecName := "non-exec"
+	if runtime.GOOS == "windows" {
+		nonExecName = "non-exec.txt" // Use .txt to ensure it's not recognized as executable
+	}
 
 	tests := []struct {
 		name        string
@@ -171,11 +184,11 @@ func TestValidatePlugin(t *testing.T) {
 			plugin: registry.PluginInfo{
 				Name:    "non-exec",
 				Version: "1.0.0",
-				Path:    filepath.Join(tmpDir, "non-exec"),
+				Path:    filepath.Join(tmpDir, nonExecName),
 			},
 			setupFunc: func() {
 				// Create non-executable file
-				nonExecPath := filepath.Join(tmpDir, "non-exec")
+				nonExecPath := filepath.Join(tmpDir, nonExecName)
 				writeErr := os.WriteFile(nonExecPath, []byte("test"), 0644)
 				require.NoError(t, writeErr)
 			},

@@ -29,10 +29,10 @@ const (
 
 // ResourceDescriptor represents a cloud resource with its type, provider, and properties.
 type ResourceDescriptor struct {
-	Type       string
-	ID         string
-	Provider   string
-	Properties map[string]interface{}
+	Type       string                 `json:"type"`
+	ID         string                 `json:"id"`
+	Provider   string                 `json:"provider"`
+	Properties map[string]interface{} `json:"properties"`
 }
 
 // Validate checks that the ResourceDescriptor has valid fields and returns an error if validation fails.
@@ -478,4 +478,80 @@ func (r *RecommendationsResult) ErrorSummary() string {
 		summaries = append(summaries, fmt.Sprintf("%s: %s", e.PluginName, e.Error))
 	}
 	return strings.Join(summaries, "; ")
+}
+
+// EstimateResult represents the result of a what-if cost estimation.
+// It contains baseline and modified costs along with per-property deltas.
+//
+// Usage Examples:
+//
+//	result := EstimateResult{
+//		Resource: &ResourceDescriptor{Provider: "aws", Type: "ec2:Instance"},
+//		Baseline: &CostResult{Monthly: 8.32, Currency: "USD"},
+//		Modified: &CostResult{Monthly: 83.22, Currency: "USD"},
+//		TotalChange: 74.90,
+//		Deltas: []CostDelta{
+//			{Property: "instanceType", OriginalValue: "t3.micro", NewValue: "m5.large", CostChange: 74.90},
+//		},
+//	}
+type EstimateResult struct {
+	// Resource is the resource being estimated
+	Resource *ResourceDescriptor `json:"resource"`
+
+	// Baseline is the cost with original properties
+	Baseline *CostResult `json:"baseline"`
+
+	// Modified is the cost with property overrides applied
+	Modified *CostResult `json:"modified"`
+
+	// TotalChange is the difference between modified and baseline monthly costs
+	// Positive = increase, negative = savings
+	TotalChange float64 `json:"totalChange"`
+
+	// Deltas contains per-property cost impact breakdown
+	Deltas []CostDelta `json:"deltas"`
+
+	// UsedFallback indicates if EstimateCost RPC was unavailable
+	// and the result was computed from two GetProjectedCost calls
+	UsedFallback bool `json:"usedFallback,omitempty"`
+}
+
+// CostDelta represents the cost impact of changing a single property.
+//
+// Usage Examples:
+//
+//	delta := CostDelta{
+//		Property:      "instanceType",
+//		OriginalValue: "t3.micro",
+//		NewValue:      "m5.large",
+//		CostChange:    65.70, // Positive means cost increase
+//	}
+type CostDelta struct {
+	// Property is the name of the property that was changed
+	Property string `json:"property"`
+
+	// OriginalValue is the value before the change
+	OriginalValue string `json:"originalValue"`
+
+	// NewValue is the value after the change
+	NewValue string `json:"newValue"`
+
+	// CostChange is the monthly cost difference
+	// Positive = increase, negative = savings
+	CostChange float64 `json:"costChange"`
+}
+
+// EstimateRequest encapsulates parameters for EstimateCost.
+//
+// This is the internal request structure used by the engine layer
+// for what-if cost analysis operations.
+type EstimateRequest struct {
+	// Resource is the base resource descriptor
+	Resource *ResourceDescriptor `json:"resource,omitempty"`
+
+	// PropertyOverrides are the changes to evaluate
+	PropertyOverrides map[string]string `json:"propertyOverrides,omitempty"`
+
+	// UsageProfile optionally provides context (dev, prod, etc.)
+	UsageProfile string `json:"usageProfile,omitempty"`
 }

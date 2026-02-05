@@ -1,8 +1,7 @@
----
-layout: default
-title: FinFocus
-description: Cloud cost analysis for Pulumi infrastructure
----
+# FinFocus
+
+*Cloud cost analysis for Pulumi infrastructure*
+
 
 [![CI](https://github.com/rshade/finfocus/actions/workflows/ci.yml/badge.svg)](https://github.com/rshade/finfocus/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-61%25-yellow)](https://github.com/rshade/finfocus/actions/workflows/ci.yml)
@@ -11,7 +10,7 @@ description: Cloud cost analysis for Pulumi infrastructure
 
 **Cloud cost analysis for Pulumi infrastructure** - Calculate projected and actual infrastructure costs without modifying your Pulumi programs.
 
-FinFocus Core is a CLI tool that analyzes Pulumi infrastructure definitions to provide accurate cost estimates, budget enforcement, and historical cost tracking through a flexible plugin-based architecture.
+FinFocus is a CLI tool that analyzes Pulumi infrastructure definitions to provide accurate cost estimates, budget enforcement, and historical cost tracking through a flexible plugin-based architecture.
 
 ## Key Features
 

@@ -13,6 +13,7 @@ finfocus                    # Help
 finfocus cost               # Cost commands
 finfocus cost projected     # Estimate costs from plan
 finfocus cost actual        # Get actual historical costs
+finfocus cost estimate      # What-if cost analysis
 finfocus cost recommendations # Get cost optimization recommendations
 finfocus config             # Configuration commands
 finfocus config validate    # Validate routing configuration
@@ -161,6 +162,104 @@ finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --output json
 # Show estimate confidence levels (useful for imported resources)
 finfocus cost actual --pulumi-state state.json --estimate-confidence
 ```
+
+## cost estimate
+
+Perform what-if cost analysis on resources without modifying Pulumi code.
+
+### Usage (cost estimate)
+
+```bash
+finfocus cost estimate [options]
+```
+
+### Modes
+
+The command supports two mutually exclusive modes:
+
+**Single-Resource Mode:**
+
+- Specify `--provider` and `--resource-type` to estimate cost for a single resource
+- Use `--property` to specify property overrides (repeatable)
+
+**Plan-Based Mode:**
+
+- Specify `--pulumi-json` to load resources from a Pulumi plan
+- Use `--modify` to apply modifications to specific resources
+
+### Options (cost estimate)
+
+| Flag              | Description                               | Default  |
+| ----------------- | ----------------------------------------- | -------- |
+| `--provider`      | Cloud provider (aws, gcp, azure)          |          |
+| `--resource-type` | Resource type (e.g., ec2:Instance)        |          |
+| `--property`      | Property override key=value (repeatable)  |          |
+| `--pulumi-json`   | Path to Pulumi preview JSON               |          |
+| `--modify`        | Resource modification resource:key=value  |          |
+| `--region`        | Region for cost calculation               |          |
+| `--interactive`   | Launch interactive TUI mode               | false    |
+| `--output`        | Output format: table, json, ndjson        | table    |
+| `--adapter`       | Specific plugin adapter to use            |          |
+| `--help`          | Show help                                 |          |
+
+### Examples (cost estimate)
+
+```bash
+# Single resource estimation - estimate cost of changing instance type
+finfocus cost estimate --provider aws --resource-type ec2:Instance \
+  --property instanceType=m5.large
+
+# Single resource with region
+finfocus cost estimate --provider aws --resource-type ec2:Instance \
+  --property instanceType=m5.large --region us-west-2
+
+# Plan-based estimation - modify a specific resource in existing plan
+finfocus cost estimate --pulumi-json plan.json \
+  --modify "web-server:instanceType=m5.large"
+
+# Plan-based with multiple modifications
+finfocus cost estimate --pulumi-json plan.json \
+  --modify "web-server:instanceType=m5.large" \
+  --modify "api-server:instanceType=c5.xlarge"
+
+# Interactive TUI mode
+finfocus cost estimate --interactive
+
+# Interactive mode with plan
+finfocus cost estimate --pulumi-json plan.json --interactive
+
+# JSON output for scripting
+finfocus cost estimate --provider aws --resource-type ec2:Instance \
+  --property instanceType=m5.large --output json
+```
+
+### Output Example
+
+```text
+What-If Cost Analysis
+=====================
+
+Resource: ec2:Instance (aws)
+ID: estimate-resource
+
+Baseline:  $8.32/mo (USD)
+Modified:  $83.22/mo (USD)
+
+Change:    +$74.90/mo
+
+Property Changes:
+-----------------
+  instanceType: t3.micro -> m5.large (+$74.90/mo)
+```
+
+### Interactive Mode
+
+The interactive TUI mode allows you to:
+
+- Navigate through resource properties with arrow keys
+- Edit property values inline (press Enter to edit)
+- See live cost updates as you modify properties
+- Press 'q' or Ctrl+C to exit
 
 ## config validate
 

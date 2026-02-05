@@ -140,17 +140,17 @@ func TestNewLogger_LevelConfiguration(t *testing.T) {
 	}
 }
 
-// T006: Unit test for ULID trace ID generation.
-func TestGenerateTraceID_ReturnsValidULID(t *testing.T) {
+// T006: Unit test for OpenTelemetry trace ID generation.
+func TestGenerateTraceID_ReturnsValidOTelFormat(t *testing.T) {
 	traceID := GenerateTraceID()
 
-	// ULID is 26 characters
-	assert.Len(t, traceID, 26)
+	// OpenTelemetry trace ID is 32 lowercase hex characters
+	assert.Len(t, traceID, 32)
 
-	// Should be alphanumeric uppercase (ULID format)
+	// Should be lowercase hexadecimal (OpenTelemetry format)
 	for _, c := range traceID {
-		isValid := (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z')
-		assert.True(t, isValid, "character %c is not valid ULID", c)
+		isValid := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')
+		assert.True(t, isValid, "character %c is not valid hex", c)
 	}
 }
 
@@ -366,8 +366,8 @@ func TestGetOrGenerateTraceID_GeneratesNewIfNone(t *testing.T) {
 	ctx := context.Background()
 	traceID := GetOrGenerateTraceID(ctx)
 
-	// Should generate a valid ULID
-	assert.Len(t, traceID, 26)
+	// Should generate a valid OpenTelemetry trace ID (32 hex chars)
+	assert.Len(t, traceID, 32)
 }
 
 // Test for timestamp presence in logs.

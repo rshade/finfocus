@@ -42,7 +42,7 @@ func TestTracePropagation_TraceIDInDebugOutput(t *testing.T) {
 	// Check that trace ID appears in debug output
 	combined := stdout.String() + stderr.String()
 
-	// Trace ID should be a ULID (26 characters, alphanumeric)
+	// Trace ID should be in OpenTelemetry format (32 hex characters)
 	assert.Contains(t, combined, "trace_id", "debug output should contain trace_id field")
 }
 
@@ -124,7 +124,7 @@ func TestTracePropagation_GeneratesNewTraceID(t *testing.T) {
 	ctx := context.Background()
 
 	result := logging.GetOrGenerateTraceID(ctx)
-	assert.Len(t, result, 26, "should generate valid ULID (26 chars)")
+	assert.Len(t, result, 32, "should generate valid OTel trace ID (32 hex chars)")
 }
 
 // T058: Integration test validating external trace ID flow.

@@ -658,19 +658,39 @@ func TestInstallerLockConcurrent(t *testing.T) {
 
 	// On Windows, lock file release may be delayed due to file handle timing.
 	// Wait for the lock file to be cleaned up before attempting final acquisition.
+	const (
+		// windowsLockPollRetries is the number of times to check for lock file cleanup.
+		// Windows file handle release can be delayed under load.
+		windowsLockPollRetries = 50
+		// windowsLockPollDelay is the interval between lock file checks.
+		// Total timeout: 50 * 50ms = 2.5 seconds maximum wait.
+		windowsLockPollDelay = 50 * time.Millisecond
+	)
 	if runtime.GOOS == "windows" {
 		lockPath := filepath.Join(tmpDir, name+".lock")
-		for i := 0; i < 20; i++ {
+		for i := 0; i < windowsLockPollRetries; i++ {
 			if _, err := os.Stat(lockPath); os.IsNotExist(err) {
 				break
 			}
-			// Small delay to allow Windows file handles to fully close
-			time.Sleep(10 * time.Millisecond)
+			time.Sleep(windowsLockPollDelay)
 		}
 	}
 
 	// After all goroutines complete, we should be able to acquire the lock again
-	unlock, err := installer.acquireLock(name)
+	// On Windows, add retry logic in case the lock file is still being released
+	var unlock func()
+	var err error
+	maxRetries := 5
+	for i := 0; i < maxRetries; i++ {
+		unlock, err = installer.acquireLock(name)
+		if err == nil {
+			break
+		}
+		if runtime.GOOS == "windows" && i < maxRetries-1 {
+			// Windows may need extra time for file handle cleanup
+			time.Sleep(100 * time.Millisecond)
+		}
+	}
 	require.NoError(t, err, "Failed to acquire lock after concurrent test")
 	unlock()
 }
