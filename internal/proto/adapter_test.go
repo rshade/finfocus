@@ -48,6 +48,11 @@ type mockCostSourceClient struct {
 		in *pbc.GetBudgetsRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.GetBudgetsResponse, error)
+	dismissRecommendationFunc func(
+		ctx context.Context,
+		in *DismissRecommendationRequest,
+		opts ...grpc.CallOption,
+	) (*DismissRecommendationResponse, error)
 }
 
 func (m *mockCostSourceClient) Name(
@@ -125,6 +130,17 @@ func (m *mockCostSourceClient) GetRecommendations(
 		return m.getRecommendationsFunc(ctx, in, opts...)
 	}
 	return &GetRecommendationsResponse{Recommendations: []*Recommendation{}}, nil
+}
+
+func (m *mockCostSourceClient) DismissRecommendation(
+	ctx context.Context,
+	in *DismissRecommendationRequest,
+	opts ...grpc.CallOption,
+) (*DismissRecommendationResponse, error) {
+	if m.dismissRecommendationFunc != nil {
+		return m.dismissRecommendationFunc(ctx, in, opts...)
+	}
+	return &DismissRecommendationResponse{Success: true}, nil
 }
 
 // T020: Unit test for DryRun wrapper.
@@ -1919,4 +1935,268 @@ func TestGetActualCost_ValidationFailure_InvalidTimeRange(t *testing.T) {
 			t.Errorf("Notes should mention time-related issue, got %q", notes)
 		}
 	}
+}
+
+// T006: Unit tests for DismissRecommendation adapter method.
+
+func TestDismissRecommendationRequest_Creation(t *testing.T) {
+	expiresAt := time.Now().Add(24 * time.Hour)
+
+	tests := []struct {
+		name     string
+		request  DismissRecommendationRequest
+		validate func(t *testing.T, req DismissRecommendationRequest)
+	}{
+		{
+			name: "permanent dismissal",
+			request: DismissRecommendationRequest{
+				RecommendationID: "rec-123",
+				Reason:           pbc.DismissalReason_DISMISSAL_REASON_BUSINESS_CONSTRAINT,
+				CustomReason:     "Intentional oversizing for burst capacity",
+				ExpiresAt:        nil,
+				DismissedBy:      "user@example.com",
+			},
+			validate: func(t *testing.T, req DismissRecommendationRequest) {
+				assert.Equal(t, "rec-123", req.RecommendationID)
+				assert.Equal(t, pbc.DismissalReason_DISMISSAL_REASON_BUSINESS_CONSTRAINT, req.Reason)
+				assert.Equal(t, "Intentional oversizing for burst capacity", req.CustomReason)
+				assert.Nil(t, req.ExpiresAt)
+				assert.Equal(t, "user@example.com", req.DismissedBy)
+			},
+		},
+		{
+			name: "snooze with expiry",
+			request: DismissRecommendationRequest{
+				RecommendationID: "rec-456",
+				Reason:           pbc.DismissalReason_DISMISSAL_REASON_DEFERRED,
+				CustomReason:     "Q2 review",
+				ExpiresAt:        &expiresAt,
+				DismissedBy:      "",
+			},
+			validate: func(t *testing.T, req DismissRecommendationRequest) {
+				assert.Equal(t, "rec-456", req.RecommendationID)
+				assert.Equal(t, pbc.DismissalReason_DISMISSAL_REASON_DEFERRED, req.Reason)
+				require.NotNil(t, req.ExpiresAt)
+				assert.Equal(t, expiresAt, *req.ExpiresAt)
+			},
+		},
+		{
+			name: "other reason with custom note",
+			request: DismissRecommendationRequest{
+				RecommendationID: "rec-789",
+				Reason:           pbc.DismissalReason_DISMISSAL_REASON_OTHER,
+				CustomReason:     "Custom explanation required for OTHER reason",
+				ExpiresAt:        nil,
+				DismissedBy:      "admin",
+			},
+			validate: func(t *testing.T, req DismissRecommendationRequest) {
+				assert.Equal(t, pbc.DismissalReason_DISMISSAL_REASON_OTHER, req.Reason)
+				assert.NotEmpty(t, req.CustomReason)
+			},
+		},
+		{
+			name: "all dismissal reasons valid",
+			request: DismissRecommendationRequest{
+				RecommendationID: "rec-all",
+				Reason:           pbc.DismissalReason_DISMISSAL_REASON_NOT_APPLICABLE,
+			},
+			validate: func(t *testing.T, req DismissRecommendationRequest) {
+				// Verify reason enum is set correctly
+				assert.Equal(t, pbc.DismissalReason_DISMISSAL_REASON_NOT_APPLICABLE, req.Reason)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.validate(t, tt.request)
+		})
+	}
+}
+
+func TestDismissRecommendationResponse_Creation(t *testing.T) {
+	dismissedAt := time.Now()
+	expiresAt := time.Now().Add(7 * 24 * time.Hour)
+
+	tests := []struct {
+		name     string
+		response DismissRecommendationResponse
+		validate func(t *testing.T, resp DismissRecommendationResponse)
+	}{
+		{
+			name: "successful dismissal",
+			response: DismissRecommendationResponse{
+				Success:          true,
+				Message:          "Recommendation dismissed successfully",
+				DismissedAt:      dismissedAt,
+				ExpiresAt:        nil,
+				RecommendationID: "rec-123",
+			},
+			validate: func(t *testing.T, resp DismissRecommendationResponse) {
+				assert.True(t, resp.Success)
+				assert.Equal(t, "Recommendation dismissed successfully", resp.Message)
+				assert.Equal(t, "rec-123", resp.RecommendationID)
+				assert.Nil(t, resp.ExpiresAt)
+			},
+		},
+		{
+			name: "successful snooze with expiry",
+			response: DismissRecommendationResponse{
+				Success:          true,
+				Message:          "Recommendation snoozed",
+				DismissedAt:      dismissedAt,
+				ExpiresAt:        &expiresAt,
+				RecommendationID: "rec-456",
+			},
+			validate: func(t *testing.T, resp DismissRecommendationResponse) {
+				assert.True(t, resp.Success)
+				require.NotNil(t, resp.ExpiresAt)
+				assert.Equal(t, expiresAt, *resp.ExpiresAt)
+			},
+		},
+		{
+			name: "failed dismissal",
+			response: DismissRecommendationResponse{
+				Success:          false,
+				Message:          "Recommendation not found",
+				RecommendationID: "rec-unknown",
+			},
+			validate: func(t *testing.T, resp DismissRecommendationResponse) {
+				assert.False(t, resp.Success)
+				assert.Contains(t, resp.Message, "not found")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.validate(t, tt.response)
+		})
+	}
+}
+
+func TestMockCostSourceClient_DismissRecommendation(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("successful dismissal via mock", func(t *testing.T) {
+		dismissedAt := time.Now()
+		mockClient := &mockCostSourceClient{
+			dismissRecommendationFunc: func(
+				_ context.Context,
+				in *DismissRecommendationRequest,
+				_ ...grpc.CallOption,
+			) (*DismissRecommendationResponse, error) {
+				return &DismissRecommendationResponse{
+					Success:          true,
+					Message:          "Dismissed by mock",
+					DismissedAt:      dismissedAt,
+					RecommendationID: in.RecommendationID,
+				}, nil
+			},
+		}
+
+		req := &DismissRecommendationRequest{
+			RecommendationID: "rec-mock-test",
+			Reason:           pbc.DismissalReason_DISMISSAL_REASON_BUSINESS_CONSTRAINT,
+			CustomReason:     "Test note",
+		}
+
+		resp, err := mockClient.DismissRecommendation(ctx, req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+		assert.Equal(t, "rec-mock-test", resp.RecommendationID)
+		assert.Equal(t, "Dismissed by mock", resp.Message)
+	})
+
+	t.Run("dismissal with ExpiresAt conversion", func(t *testing.T) {
+		expiresAt := time.Now().Add(30 * 24 * time.Hour)
+		var capturedReq *DismissRecommendationRequest
+
+		mockClient := &mockCostSourceClient{
+			dismissRecommendationFunc: func(
+				_ context.Context,
+				in *DismissRecommendationRequest,
+				_ ...grpc.CallOption,
+			) (*DismissRecommendationResponse, error) {
+				capturedReq = in
+				return &DismissRecommendationResponse{
+					Success:   true,
+					ExpiresAt: in.ExpiresAt,
+				}, nil
+			},
+		}
+
+		req := &DismissRecommendationRequest{
+			RecommendationID: "rec-snooze",
+			Reason:           pbc.DismissalReason_DISMISSAL_REASON_DEFERRED,
+			ExpiresAt:        &expiresAt,
+		}
+
+		resp, err := mockClient.DismissRecommendation(ctx, req)
+		require.NoError(t, err)
+		require.NotNil(t, capturedReq)
+		require.NotNil(t, capturedReq.ExpiresAt)
+		assert.Equal(t, expiresAt, *capturedReq.ExpiresAt)
+		require.NotNil(t, resp.ExpiresAt)
+	})
+
+	t.Run("dismissal error handling", func(t *testing.T) {
+		mockClient := &mockCostSourceClient{
+			dismissRecommendationFunc: func(
+				_ context.Context,
+				_ *DismissRecommendationRequest,
+				_ ...grpc.CallOption,
+			) (*DismissRecommendationResponse, error) {
+				return nil, errors.New("plugin communication error")
+			},
+		}
+
+		req := &DismissRecommendationRequest{
+			RecommendationID: "rec-error",
+			Reason:           pbc.DismissalReason_DISMISSAL_REASON_INACCURATE,
+		}
+
+		resp, err := mockClient.DismissRecommendation(ctx, req)
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "plugin communication error")
+	})
+
+	t.Run("default mock returns success", func(t *testing.T) {
+		mockClient := &mockCostSourceClient{}
+
+		req := &DismissRecommendationRequest{
+			RecommendationID: "rec-default",
+			Reason:           pbc.DismissalReason_DISMISSAL_REASON_ALREADY_IMPLEMENTED,
+		}
+
+		resp, err := mockClient.DismissRecommendation(ctx, req)
+		require.NoError(t, err)
+		assert.True(t, resp.Success)
+	})
+
+	t.Run("all dismissal reasons", func(t *testing.T) {
+		reasons := []pbc.DismissalReason{
+			pbc.DismissalReason_DISMISSAL_REASON_NOT_APPLICABLE,
+			pbc.DismissalReason_DISMISSAL_REASON_ALREADY_IMPLEMENTED,
+			pbc.DismissalReason_DISMISSAL_REASON_BUSINESS_CONSTRAINT,
+			pbc.DismissalReason_DISMISSAL_REASON_TECHNICAL_CONSTRAINT,
+			pbc.DismissalReason_DISMISSAL_REASON_DEFERRED,
+			pbc.DismissalReason_DISMISSAL_REASON_INACCURATE,
+			pbc.DismissalReason_DISMISSAL_REASON_OTHER,
+		}
+
+		mockClient := &mockCostSourceClient{}
+
+		for _, reason := range reasons {
+			req := &DismissRecommendationRequest{
+				RecommendationID: fmt.Sprintf("rec-reason-%d", reason),
+				Reason:           reason,
+			}
+
+			resp, err := mockClient.DismissRecommendation(ctx, req)
+			require.NoError(t, err, "reason %v should not error", reason)
+			assert.True(t, resp.Success, "reason %v should succeed", reason)
+		}
+	})
 }

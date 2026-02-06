@@ -10,7 +10,7 @@ This guide covers how to implement and integrate carbon emission equivalencies i
 
 ## Prerequisites
 
-- Go 1.25.5+
+- Go 1.25.7+
 - Familiarity with FinFocus codebase (`internal/` package structure)
 - Understanding of existing sustainability metrics pipeline
 

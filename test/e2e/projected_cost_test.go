@@ -5,6 +5,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"errors"
 	"os/exec"
 	"path/filepath"
 	"testing"
@@ -26,17 +27,24 @@ func TestE2E_ProjectedCost(t *testing.T) {
 	// Run command
 	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
 	output, err := cmd.Output()
-	if exitErr, ok := err.(*exec.ExitError); ok {
-		t.Fatalf("Command failed with stderr: %s", string(exitErr.Stderr))
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			require.NoError(t, err, "command failed with stderr: %s", string(exitErr.Stderr))
+		}
+		require.NoError(t, err)
 	}
-	require.NoError(t, err, "Command failed")
 
 	// Verify JSON output
 	var result map[string]interface{}
 	err = json.Unmarshal(output, &result)
 	require.NoError(t, err, "Failed to parse JSON output: %s", string(output))
 
+	// JSON output wraps under "finfocus" key
+	finfocus, ok := result["finfocus"].(map[string]interface{})
+	require.True(t, ok, "expected finfocus wrapper key")
+
 	// Verify structure
-	assert.Contains(t, result, "summary")
-	assert.Contains(t, result, "resources")
+	assert.Contains(t, finfocus, "summary")
+	assert.Contains(t, finfocus, "resources")
 }

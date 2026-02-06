@@ -5,7 +5,7 @@
 
 ## Prerequisites
 
-- Go 1.25.6 installed
+- Go 1.25.7 installed
 - Repository cloned and on `109-cost-recommendations` branch
 - Familiarity with Bubble Tea TUI framework
 

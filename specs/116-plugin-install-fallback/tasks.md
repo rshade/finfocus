@@ -30,7 +30,7 @@
 **Purpose**: Project initialization and branch setup
 
 - [x] T001 Verify branch `116-plugin-install-fallback` exists and is checked out
-- [x] T002 [P] Verify Go 1.25.6 and Cobra v1.10.2 are available
+- [x] T002 [P] Verify Go 1.25.7 and Cobra v1.10.2 are available
 
 ---
 

@@ -32,7 +32,7 @@ Before installing the Vantage plugin, ensure you have:
 
 ### System Requirements
 
-- Go 1.25.6 or later
+- Go 1.25.7 or later
 - `make` (for building from source)
 - Docker (optional, for running mock tests)
 

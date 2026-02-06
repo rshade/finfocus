@@ -148,7 +148,7 @@ As a CI/CD pipeline maintainer, I need the E2E tests to run reliably in CI witho
 - Built `finfocus` binary with analyzer functionality.
 - `aws-public` plugin for accurate pricing data.
 - Existing E2E test framework in `test/e2e/`.
-- Go 1.25.6+ for test execution.
+- Go 1.25.7+ for test execution.
 
 ## Out of Scope
 

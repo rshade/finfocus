@@ -9,7 +9,7 @@ The system will implement logic to automatically select the latest version of in
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: `github.com/Masterminds/semver/v3`
 **Storage**: Filesystem (`~/.finfocus/plugins/`)
 **Testing**: Go `testing` package (Unit tests in `internal/registry`)

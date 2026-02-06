@@ -139,7 +139,7 @@ As a developer writing tests, I need all test files to properly handle errors fr
 - GitHub Actions `workflow_dispatch` is available for manual workflow triggering
 - The `actions/checkout@v6` and `actions/setup-go@v6` actions are available and stable
 - Plugin binary naming conventions follow existing patterns (`finfocus-plugin-*` or `bin/*`)
-- Go 1.25.6 fuzz testing features are stable and compatible with CI runners
+- Go 1.25.7 fuzz testing features are stable and compatible with CI runners
 - Nightly schedule cron (`0 2 * * *`) runs at 2 AM UTC as expected by GitHub Actions
 
 ## Clarifications

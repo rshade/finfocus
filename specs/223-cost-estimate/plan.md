@@ -9,7 +9,7 @@ Implement a new `finfocus cost estimate` command that enables developers to perf
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.5 (protocol), Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling)
 **Storage**: N/A (stateless command)
 **Testing**: go test with testify/assert, testify/require; 80% minimum coverage

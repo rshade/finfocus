@@ -149,6 +149,37 @@ type Recommendation struct {
 	// Currency is the ISO 4217 code for EstimatedSavings (e.g., "USD").
 	// Empty if EstimatedSavings is zero.
 	Currency string `json:"currency,omitempty"`
+
+	// Status indicates the lifecycle state of this recommendation.
+	// Empty or "Active" for active recommendations, "Dismissed" or "Snoozed"
+	// for dismissed/snoozed recommendations shown via --include-dismissed.
+	Status RecommendationStatus `json:"status,omitempty"`
+}
+
+// RecommendationStatus represents the lifecycle state of a recommendation.
+type RecommendationStatus string
+
+const (
+	// RecommendationStatusActive indicates an active (non-dismissed) recommendation.
+	RecommendationStatusActive RecommendationStatus = "Active"
+	// RecommendationStatusDismissed indicates a permanently dismissed recommendation.
+	RecommendationStatusDismissed RecommendationStatus = "Dismissed"
+	// RecommendationStatusSnoozed indicates a temporarily snoozed recommendation.
+	RecommendationStatusSnoozed RecommendationStatus = "Snoozed"
+)
+
+// IsValid returns true if the status is a known value.
+func (rs RecommendationStatus) IsValid() bool {
+	switch rs {
+	case RecommendationStatusActive, RecommendationStatusDismissed, RecommendationStatusSnoozed, "":
+		return true
+	}
+	return false
+}
+
+// String returns the string representation of the status.
+func (rs RecommendationStatus) String() string {
+	return string(rs)
 }
 
 // CostResult contains the calculated cost information for a single resource.
@@ -554,4 +585,59 @@ type EstimateRequest struct {
 
 	// UsageProfile optionally provides context (dev, prod, etc.)
 	UsageProfile string `json:"usageProfile,omitempty"`
+}
+
+// DismissRequest contains parameters for dismissing a recommendation.
+type DismissRequest struct {
+	// RecommendationID is the unique identifier of the recommendation to dismiss.
+	RecommendationID string `json:"recommendationId"`
+
+	// Reason is the CLI flag value (e.g., "business-constraint").
+	Reason string `json:"reason"`
+
+	// CustomReason is the free-text explanation from the --note flag.
+	CustomReason string `json:"customReason,omitempty"`
+
+	// ExpiresAt is the snooze expiry date; nil means permanent dismissal.
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+
+	// Recommendation is the current recommendation details for the LastKnown snapshot.
+	Recommendation *Recommendation `json:"recommendation,omitempty"`
+}
+
+// DismissResult contains the outcome of a dismiss operation.
+type DismissResult struct {
+	// RecommendationID is the ID of the dismissed recommendation.
+	RecommendationID string `json:"recommendationId"`
+
+	// PluginDismissed is true if a plugin accepted the dismissal via RPC.
+	PluginDismissed bool `json:"pluginDismissed"`
+
+	// PluginName identifies which plugin handled the dismissal.
+	PluginName string `json:"pluginName,omitempty"`
+
+	// PluginMessage is the plugin's response message.
+	PluginMessage string `json:"pluginMessage,omitempty"`
+
+	// PluginFailed is true if a plugin dismiss RPC was attempted but failed.
+	// Local persistence still proceeds, but the upstream state may be inconsistent.
+	PluginFailed bool `json:"pluginFailed"`
+
+	// LocalPersisted is true if the dismissal was saved locally.
+	LocalPersisted bool `json:"localPersisted"`
+
+	// Warning contains a non-fatal warning (e.g., plugin failed but local succeeded).
+	Warning string `json:"warning,omitempty"`
+}
+
+// UndismissResult contains the outcome of an undismiss operation.
+type UndismissResult struct {
+	// RecommendationID is the ID of the undismissed recommendation.
+	RecommendationID string `json:"recommendationId"`
+
+	// WasDismissed is false if the recommendation wasn't dismissed.
+	WasDismissed bool `json:"wasDismissed"`
+
+	// Message provides information about the undismiss operation.
+	Message string `json:"message,omitempty"`
 }

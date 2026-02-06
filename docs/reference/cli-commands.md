@@ -14,7 +14,11 @@ finfocus cost               # Cost commands
 finfocus cost projected     # Estimate costs from plan
 finfocus cost actual        # Get actual historical costs
 finfocus cost estimate      # What-if cost analysis
-finfocus cost recommendations # Get cost optimization recommendations
+finfocus cost recommendations          # Get cost optimization recommendations
+finfocus cost recommendations dismiss  # Dismiss a recommendation
+finfocus cost recommendations snooze   # Snooze a recommendation
+finfocus cost recommendations undismiss # Re-enable a dismissed recommendation
+finfocus cost recommendations history  # View recommendation lifecycle history
 finfocus config             # Configuration commands
 finfocus config validate    # Validate routing configuration
 finfocus plugin             # Plugin commands
@@ -79,14 +83,25 @@ finfocus cost recommendations --pulumi-json <file> [options]
 
 ### Options (cost recommendations)
 
-| Flag            | Description                        | Default  |
-| --------------- | ---------------------------------- | -------- |
-| `--pulumi-json` | Path to Pulumi preview JSON        | Required |
-| `--filter`      | Filter expression                  | None     |
-| `--output`      | Output format: table, json, ndjson | table    |
-| `--limit`       | Limit number of recommendations    | 0 (all)  |
-| `--verbose`     | Enable verbose logging             | false    |
-| `--help`        | Show help                          |          |
+| Flag                  | Description                                              | Default  |
+| --------------------- | -------------------------------------------------------- | -------- |
+| `--pulumi-json`       | Path to Pulumi preview JSON                              | Required |
+| `--filter`            | Filter expression (e.g., `action=RIGHTSIZE,TERMINATE`)   | None     |
+| `--output`            | Output format: table, json, ndjson                       | table    |
+| `--limit`             | Limit number of recommendations                          | 0 (all)  |
+| `--verbose`           | Show all recommendations with full details               | false    |
+| `--include-dismissed` | Show dismissed and snoozed recommendations alongside active ones | false |
+| `--sort`              | Sort expression (e.g., `savings:desc`)                   | None     |
+| `--help`              | Show help                                                |          |
+
+### Subcommands (cost recommendations)
+
+| Subcommand  | Description                               |
+| ----------- | ----------------------------------------- |
+| `dismiss`   | Permanently dismiss a recommendation      |
+| `snooze`    | Snooze a recommendation until a date      |
+| `undismiss` | Re-enable a dismissed recommendation      |
+| `history`   | View lifecycle history for a recommendation |
 
 ### Examples (cost recommendations)
 
@@ -94,11 +109,148 @@ finfocus cost recommendations --pulumi-json <file> [options]
 # Interactive mode (default)
 finfocus cost recommendations --pulumi-json plan.json
 
-# Filter high priority
-finfocus cost recommendations --pulumi-json plan.json --filter "priority=high"
+# Filter by action type
+finfocus cost recommendations --pulumi-json plan.json --filter "action=RIGHTSIZE,TERMINATE"
 
 # JSON output
 finfocus cost recommendations --pulumi-json plan.json --output json
+
+# Include dismissed and snoozed recommendations
+finfocus cost recommendations --pulumi-json plan.json --include-dismissed
+```
+
+## cost recommendations dismiss
+
+Permanently dismiss a recommendation with a reason.
+
+### Usage (cost recommendations dismiss)
+
+```bash
+finfocus cost recommendations dismiss <recommendation-id> [options]
+```
+
+### Options (cost recommendations dismiss)
+
+| Flag            | Description                                              | Default  |
+| --------------- | -------------------------------------------------------- | -------- |
+| `-r, --reason`  | Dismissal reason (required)                              | Required |
+| `-n, --note`    | Free-text explanation (required for `other` reason)      | None     |
+| `-f, --force`   | Skip confirmation prompt                                 | false    |
+| `--pulumi-json` | Path to Pulumi preview JSON (for plugin communication)   | None     |
+| `--adapter`     | Use specific adapter plugin                              | None     |
+
+### Valid Reasons
+
+| Reason                 | Description                            |
+| ---------------------- | -------------------------------------- |
+| `not-applicable`       | Recommendation doesn't apply           |
+| `already-implemented`  | Already acted on this recommendation   |
+| `business-constraint`  | Business requirements prevent action   |
+| `technical-constraint` | Technical limitations prevent action   |
+| `deferred`             | Will address later                     |
+| `inaccurate`           | Recommendation data is wrong           |
+| `other`                | Custom reason (requires `--note`)      |
+
+### Examples (cost recommendations dismiss)
+
+```bash
+# Dismiss with a reason
+finfocus cost recommendations dismiss rec-123abc \
+  --reason business-constraint --pulumi-json plan.json
+
+# Dismiss with a custom note
+finfocus cost recommendations dismiss rec-123abc \
+  --reason other --note "Intentional oversizing" --pulumi-json plan.json
+
+# Skip confirmation prompt
+finfocus cost recommendations dismiss rec-123abc \
+  --reason not-applicable --force --pulumi-json plan.json
+```
+
+## cost recommendations snooze
+
+Temporarily dismiss a recommendation until a future date.
+
+### Usage (cost recommendations snooze)
+
+```bash
+finfocus cost recommendations snooze <recommendation-id> [options]
+```
+
+### Options (cost recommendations snooze)
+
+| Flag            | Description                                            | Default    |
+| --------------- | ------------------------------------------------------ | ---------- |
+| `--until`       | Snooze until date (required, YYYY-MM-DD or RFC3339; must be in the future) | Required   |
+| `-r, --reason`  | Dismissal reason                                       | `deferred` |
+| `-n, --note`    | Free-text explanation                                  | None       |
+| `-f, --force`   | Skip confirmation prompt                               | false      |
+| `--pulumi-json` | Path to Pulumi preview JSON (for plugin communication) | None       |
+| `--adapter`     | Use specific adapter plugin                            | None       |
+
+### Examples (cost recommendations snooze)
+
+```bash
+# Snooze until a specific date (replace with a future date)
+finfocus cost recommendations snooze rec-456def \
+  --until YYYY-MM-DD --pulumi-json plan.json
+
+# Snooze with reason and note (replace with a future date)
+finfocus cost recommendations snooze rec-456def \
+  --until YYYY-MM-DD --reason deferred \
+  --note "Scheduled for Q2 review" --pulumi-json plan.json
+```
+
+## cost recommendations undismiss
+
+Re-enable a previously dismissed or snoozed recommendation.
+
+### Usage (cost recommendations undismiss)
+
+```bash
+finfocus cost recommendations undismiss <recommendation-id> [options]
+```
+
+### Options (cost recommendations undismiss)
+
+| Flag          | Description              | Default |
+| ------------- | ------------------------ | ------- |
+| `-f, --force` | Skip confirmation prompt | false   |
+
+### Examples (cost recommendations undismiss)
+
+```bash
+# Re-enable a dismissed recommendation
+finfocus cost recommendations undismiss rec-123abc
+```
+
+## cost recommendations history
+
+View the lifecycle history of a specific recommendation.
+
+### Usage (cost recommendations history)
+
+```bash
+finfocus cost recommendations history <recommendation-id> [options]
+```
+
+### Options (cost recommendations history)
+
+| Flag       | Description                        | Default |
+| ---------- | ---------------------------------- | ------- |
+| `--output` | Output format: table, json, ndjson | table   |
+
+### Examples (cost recommendations history)
+
+```bash
+# View history in table format
+finfocus cost recommendations history rec-123abc
+
+# View history as JSON
+finfocus cost recommendations history rec-123abc --output json
+
+# View history as NDJSON (one JSON object per line)
+finfocus cost recommendations history rec-123abc --output ndjson
 ```
 
 ## cost actual

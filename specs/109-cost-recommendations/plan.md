@@ -16,7 +16,7 @@ Enhance the existing `finfocus cost recommendations` command to add summary/verb
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: Cobra v1.10.1, Bubble Tea, Lip Gloss, zerolog v1.34.0
 **Storage**: N/A (stateless command, data from plugins via gRPC)
 **Testing**: go test with testify, table-driven tests

@@ -25,7 +25,7 @@ the complete cost calculation pipeline using actual AWS services.
 
 Before running end-to-end tests, ensure your environment meets the following requirements:
 
-- **Go 1.25.6+**: Required for building the core and plugins.
+- **Go 1.25.7+**: Required for building the core and plugins.
 - **AWS Credentials**: A valid AWS account with read permissions (for Cost Explorer) and resource creation permissions
   (for infrastructure tests).
 - **FinFocus Core**: Installed locally.

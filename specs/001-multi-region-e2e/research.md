@@ -196,7 +196,7 @@ func TestMain(m *testing.M) {
 
 ## Technology Stack Summary
 
-- **Go** (1.25.6): Test implementation language
+- **Go** (1.25.7): Test implementation language
 - **testify** (v1.11.1): Assertion and require helpers
 - **Pulumi SDK** (v3.210.0+): Automation API for resource deployment
 - **AWS SDK Go v2** (latest): (Indirect) Plugin uses for actual costs

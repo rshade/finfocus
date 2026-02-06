@@ -9,7 +9,7 @@ Implement multi-region E2E testing infrastructure to validate both projected and
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: testify v1.11.1, Pulumi Automation API v3.210.0+, existing E2E test framework (`test/e2e/`)
 **Storage**: Local filesystem (Pulumi state files, test fixtures in `test/e2e/fixtures/`)
 **Testing**: `go test` with `-tags e2e` build constraint, testify assertions

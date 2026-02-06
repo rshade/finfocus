@@ -27,7 +27,7 @@ description: 'Task list for integration tests for --filter flag'
 **Purpose**: Ensure development environment is ready for test implementation
 
 - [x] T001 Verify existing test infrastructure works in test/integration/helpers/cli_helper.go
-- [x] T002 Confirm Go 1.25.6 and testify dependencies are available
+- [x] T002 Confirm Go 1.25.7 and testify dependencies are available
 - [x] T003 Test existing integration test execution with `make test`
 
 ---

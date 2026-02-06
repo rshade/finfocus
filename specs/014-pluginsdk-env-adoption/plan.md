@@ -11,7 +11,7 @@ Migrate finfocus-core to use standardized pluginsdk/env.go constants for environ
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6  
+**Language/Version**: Go 1.25.7  
 **Primary Dependencies**: pluginsdk from finfocus-spec v0.4.5+ (github.com/rshade/finfocus-spec/sdk/go/pluginsdk)  
 **Storage**: N/A (environment variable configuration)  
 **Testing**: Go unit tests, integration tests  

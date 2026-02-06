@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/spf13/cobra"
 
@@ -54,12 +55,11 @@ func NewPluginValidateCmd() *cobra.Command {
 // ctx is reserved for future use and is not inspected.
 // plugin provides the plugin's Path, Name, and Version used for validation.
 func ValidatePlugin(_ context.Context, plugin registry.PluginInfo) error {
-	if _, err := os.Stat(plugin.Path); err != nil {
-		return fmt.Errorf("plugin binary not found: %s", plugin.Path)
-	}
-
 	info, err := os.Stat(plugin.Path)
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("plugin binary not found: %s", plugin.Path)
+		}
 		return fmt.Errorf("cannot stat plugin binary: %w", err)
 	}
 
@@ -67,8 +67,14 @@ func ValidatePlugin(_ context.Context, plugin registry.PluginInfo) error {
 		return errors.New("plugin path is a directory, not a binary")
 	}
 
-	if info.Mode()&0111 == 0 {
-		return errors.New("plugin binary is not executable")
+	if runtime.GOOS == "windows" {
+		if filepath.Ext(plugin.Path) != ".exe" {
+			return errors.New("plugin binary is not executable (Windows requires .exe extension)")
+		}
+	} else {
+		if info.Mode()&0111 == 0 {
+			return errors.New("plugin binary is not executable")
+		}
 	}
 
 	manifestPath := filepath.Join(filepath.Dir(plugin.Path), "plugin.manifest.json")

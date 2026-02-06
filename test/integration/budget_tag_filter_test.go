@@ -81,6 +81,14 @@ func (m *mockTagFilterClient) DryRun(
 	return &pbc.DryRunResponse{}, nil
 }
 
+func (m *mockTagFilterClient) DismissRecommendation(
+	ctx context.Context,
+	in *proto.DismissRecommendationRequest,
+	opts ...grpc.CallOption,
+) (*proto.DismissRecommendationResponse, error) {
+	return &proto.DismissRecommendationResponse{Success: true}, nil
+}
+
 // TestBudgetTagFilter_EndToEnd tests tag-based budget filtering (Issue #222).
 func TestBudgetTagFilter_EndToEnd(t *testing.T) {
 	ctx := context.Background()

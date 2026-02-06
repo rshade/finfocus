@@ -9,7 +9,7 @@ Implement a comprehensive plugin installation system enabling users to install, 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: archive/tar, archive/zip, compress/gzip, net/http, github.com/spf13/cobra, gopkg.in/yaml.v3
 **Storage**: File system (~/.finfocus/plugins/, ~/.finfocus/config.yaml)
 **Testing**: go test with race detection, 80% minimum coverage

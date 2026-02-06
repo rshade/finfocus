@@ -46,12 +46,12 @@ func (r *RegionTestConfig) Validate() error {
 
 // ExpectedCost defines expected cost range for a specific resource type in a region.
 type ExpectedCost struct {
-	ResourceType string  // Pulumi resource type (e.g., "aws:ec2:Instance")
-	ResourceName string  // Logical resource name in Pulumi program
-	MinCost      float64 // Minimum acceptable monthly cost (USD)
-	MaxCost      float64 // Maximum acceptable monthly cost (USD)
-	Region       string  // AWS region this expectation applies to
-	CostType     string  // "projected" or "actual"
+	ResourceType string  `json:"resource_type"` // Pulumi resource type (e.g., "aws:ec2:Instance")
+	ResourceName string  `json:"resource_name"` // Logical resource name in Pulumi program
+	MinCost      float64 `json:"min_cost"`      // Minimum acceptable monthly cost (USD)
+	MaxCost      float64 `json:"max_cost"`      // Maximum acceptable monthly cost (USD)
+	Region       string  `json:"region"`        // AWS region this expectation applies to
+	CostType     string  `json:"cost_type"`     // "projected" or "actual"
 }
 
 // Validate validates the ExpectedCost.
@@ -238,12 +238,12 @@ type PluginInfo struct {
 }
 
 // GetLoadedPlugins retrieves information about currently loaded plugins.
-// This function executes 'finfocus plugin list --output json' to get plugin information.
+// This function executes 'finfocus plugin list' to get plugin information.
 func GetLoadedPlugins(t *testing.T) ([]PluginInfo, error) {
 	t.Helper()
 
 	binaryPath := findFinFocusBinary()
-	cmd := exec.Command(binaryPath, "plugin", "list", "--output", "json")
+	cmd := exec.Command(binaryPath, "plugin", "list")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -279,7 +279,7 @@ func parsePluginListText(output string) []PluginInfo {
 			plugins = append(plugins, PluginInfo{
 				Name:    fields[0],
 				Version: fields[1],
-				Path:    fields[2],
+				Path:    strings.Join(fields[2:], " "),
 			})
 		}
 	}

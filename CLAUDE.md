@@ -72,7 +72,7 @@ make lint    # Run linting
 
 ## Go Version
 
-**Project Go Version**: 1.25.6 (see `go.mod`)
+**Project Go Version**: 1.25.7 (see `go.mod`)
 
 **CRITICAL**: Before claiming any Go version "doesn't exist" or suggesting version
 changes, verify on <https://go.dev/dl/> first.
@@ -333,7 +333,7 @@ Triggered on pull requests and pushes to main branch:
 
 **Test Job:**
 
-- Go 1.25.6 setup with caching
+- Go 1.25.7 setup with caching
 - Unit tests with race detection and coverage reporting
 - Coverage threshold check (minimum 61%)
 - Artifacts uploaded for coverage reports
@@ -1022,10 +1022,12 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
-
-- Go 1.25.6 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.5 (protocol), Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)
+- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.5 (protocol):
+  - zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)
+  - Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)
+- Local JSON file (`~/.finfocus/dismissed.json`) for dismissal state; plugin-side storage delegated to plugins (508-recommendation-dismissal)
 - State Management: N/A (stateless command design) (223-cost-estimate)
 
 ## Recent Changes
 
-- 223-cost-estimate: Added Go 1.25.6 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.5 (protocol), Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling)
+- 223-cost-estimate: Added Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.5 (protocol), Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling)

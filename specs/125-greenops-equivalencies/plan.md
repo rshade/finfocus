@@ -13,7 +13,7 @@ Add human-readable carbon emission equivalencies to CLI, TUI, and Analyzer outpu
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.5 (per go.mod)
+**Language/Version**: Go 1.25.7 (per go.mod)
 **Primary Dependencies**: github.com/spf13/cobra (CLI), github.com/charmbracelet/lipgloss (TUI styling), github.com/rs/zerolog (logging), golang.org/x/text (number formatting)
 **Storage**: N/A (pure computation, no persistence)
 **Testing**: go test with testify (assert/require), table-driven tests

@@ -11,7 +11,7 @@
 
 ## Technical Context
 
-**Language/Version**: Markdown, Go 1.25.6 (for code verification)
+**Language/Version**: Markdown, Go 1.25.7 (for code verification)
 **Primary Dependencies**: Jekyll (for docs site), GitHub Pages
 **Storage**: Git repository (docs folder)
 **Testing**: `make docs-lint` (markdown-link-check, markdownlint)

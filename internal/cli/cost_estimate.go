@@ -480,9 +480,9 @@ func findModificationsForResource(
 // renderEstimateResult renders a single estimate result to the output.
 func renderEstimateResult(w io.Writer, format string, result *engine.EstimateResult) error {
 	switch format {
-	case "json":
+	case outputFormatJSON:
 		return renderEstimateResultJSON(w, result)
-	case "ndjson":
+	case outputFormatNDJSON:
 		return renderEstimateResultNDJSON(w, result)
 	default:
 		return renderEstimateResultTable(w, result)
@@ -492,9 +492,9 @@ func renderEstimateResult(w io.Writer, format string, result *engine.EstimateRes
 // renderMultipleEstimateResults renders multiple estimate results.
 func renderMultipleEstimateResults(w io.Writer, format string, results []*engine.EstimateResult) error {
 	switch format {
-	case "json":
+	case outputFormatJSON:
 		return renderMultipleEstimateResultsJSON(w, results)
-	case "ndjson":
+	case outputFormatNDJSON:
 		return renderMultipleEstimateResultsNDJSON(w, results)
 	default:
 		return renderMultipleEstimateResultsTable(w, results)

@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sort"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 )
 
@@ -16,6 +18,7 @@ type TestableRecommendation struct {
 	Description      string
 	EstimatedSavings float64
 	Currency         string
+	Status           string
 }
 
 // toEngineRecommendation converts TestableRecommendation to engine.Recommendation.
@@ -26,6 +29,7 @@ func toEngineRecommendation(tr TestableRecommendation) engine.Recommendation {
 		Description:      tr.Description,
 		EstimatedSavings: tr.EstimatedSavings,
 		Currency:         tr.Currency,
+		Status:           engine.RecommendationStatus(tr.Status),
 	}
 }
 
@@ -54,6 +58,7 @@ func toTestableRecommendations(recs []engine.Recommendation) []TestableRecommend
 			Description:      r.Description,
 			EstimatedSavings: r.EstimatedSavings,
 			Currency:         r.Currency,
+			Status:           string(r.Status),
 		}
 	}
 	return result
@@ -126,6 +131,37 @@ func RenderRecommendationsNDJSONForTest(w io.Writer, recs []TestableRecommendati
 		Currency:        defaultCurrency,
 	}
 	return renderRecommendationsNDJSON(w, result, nil)
+}
+
+// HasStatusAnnotationsForTest is a test export for hasStatusAnnotations.
+func HasStatusAnnotationsForTest(recs []TestableRecommendation) bool {
+	engineRecs := toEngineRecommendations(recs)
+	return hasStatusAnnotations(engineRecs)
+}
+
+// MergeDismissedRecommendationsForTest is a test export for mergeDismissedRecommendations.
+func MergeDismissedRecommendationsForTest(
+	recs []TestableRecommendation,
+	storePath string,
+) ([]TestableRecommendation, error) {
+	engineRecs := toEngineRecommendations(recs)
+	result := &engine.RecommendationsResult{
+		Recommendations: engineRecs,
+	}
+
+	store, err := config.NewDismissalStore(storePath)
+	if err != nil {
+		return nil, fmt.Errorf("creating dismissal store: %w", err)
+	}
+	if loadErr := store.Load(); loadErr != nil {
+		return nil, fmt.Errorf("loading dismissal store: %w", loadErr)
+	}
+
+	allRecords := store.GetAllRecords()
+
+	mergeDismissalRecordsIntoResult(allRecords, result)
+
+	return toTestableRecommendations(result.Recommendations), nil
 }
 
 // sortRecommendationsBySavings sorts recommendations by estimated savings in descending order.

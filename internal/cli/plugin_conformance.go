@@ -15,9 +15,10 @@ import (
 
 // Output format constants.
 const (
-	outputFormatTable = "table"
-	outputFormatJSON  = "json"
-	outputFormatJUnit = "junit"
+	outputFormatTable  = "table"
+	outputFormatJSON   = "json"
+	outputFormatNDJSON = "ndjson"
+	outputFormatJUnit  = "junit"
 )
 
 // Exit codes for conformance test results.

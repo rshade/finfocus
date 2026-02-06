@@ -9,7 +9,7 @@ Implement a comprehensive integration test suite for the `plugin init`, `install
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: `github.com/stretchr/testify` (assertions), `net/http/httptest` (mocking)
 **Storage**: Filesystem (mocked via `t.TempDir()`)
 **Testing**: Go standard `testing` package + `testify`

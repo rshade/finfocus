@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"google.golang.org/grpc"
@@ -189,4 +190,13 @@ func ConvertCapabilities(caps []pbc.PluginCapability) []string {
 	}
 
 	return result
+}
+
+// HasCapability checks whether the plugin client advertises a given capability string.
+// Returns false if the client has no metadata.
+func (c *Client) HasCapability(capability string) bool {
+	if c.Metadata == nil {
+		return false
+	}
+	return slices.Contains(c.Metadata.Capabilities, capability)
 }

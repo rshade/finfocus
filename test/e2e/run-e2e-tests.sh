@@ -40,9 +40,23 @@ fi
 
 # Check for Go
 if ! command -v go &> /dev/null; then
-    echo -e "${RED}ERROR: Go not found. Please install Go 1.25.5+${NC}"
+    echo -e "${RED}ERROR: Go not found. Please install Go 1.25.7+${NC}"
     exit 1
 fi
+
+# Validate Go version >= 1.25.7
+GO_VERSION=$(go version | grep -oP 'go(\d+\.\d+(\.\d+)?)' | sed 's/go//')
+REQUIRED_VERSION="1.25.7"
+
+version_ge() {
+    printf '%s\n%s\n' "$2" "$1" | sort -V -C
+}
+
+if ! version_ge "${GO_VERSION}" "${REQUIRED_VERSION}"; then
+    echo -e "${RED}ERROR: Go ${GO_VERSION} is too old. Minimum required: ${REQUIRED_VERSION}${NC}"
+    exit 1
+fi
+echo "  Go version: ${GO_VERSION} (>= ${REQUIRED_VERSION})"
 
 # Check for AWS credentials
 echo ""

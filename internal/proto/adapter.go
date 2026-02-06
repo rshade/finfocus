@@ -422,6 +422,42 @@ type RecommendationImpact struct {
 	SavingsPercentage float64
 }
 
+// DismissRecommendationRequest contains parameters for dismissing a recommendation via plugin RPC.
+type DismissRecommendationRequest struct {
+	// RecommendationID is the unique identifier of the recommendation to dismiss.
+	RecommendationID string
+
+	// Reason is the DismissalReason proto enum value.
+	Reason pbc.DismissalReason
+
+	// CustomReason is the free-text explanation (required when Reason is OTHER).
+	CustomReason string
+
+	// ExpiresAt is the snooze expiry; nil means permanent dismissal.
+	ExpiresAt *time.Time
+
+	// DismissedBy identifies the user who dismissed the recommendation.
+	DismissedBy string
+}
+
+// DismissRecommendationResponse contains the result of a dismiss RPC call.
+type DismissRecommendationResponse struct {
+	// Success indicates whether the plugin accepted the dismissal.
+	Success bool
+
+	// Message is the plugin's response message.
+	Message string
+
+	// DismissedAt is when the plugin recorded the dismissal.
+	DismissedAt time.Time
+
+	// ExpiresAt is the snooze expiry echoed back from the plugin.
+	ExpiresAt *time.Time
+
+	// RecommendationID echoes back the dismissed recommendation's ID.
+	RecommendationID string
+}
+
 // CostSourceClient wraps the generated gRPC client from finfocus-spec.
 //
 //nolint:dupl // Mock implementation in adapter_test.go intentionally mirrors this interface.
@@ -457,6 +493,11 @@ type CostSourceClient interface {
 		in *pbc.DryRunRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.DryRunResponse, error)
+	DismissRecommendation(
+		ctx context.Context,
+		in *DismissRecommendationRequest,
+		opts ...grpc.CallOption,
+	) (*DismissRecommendationResponse, error)
 }
 
 // NewCostSourceClient creates a new cost source client using the real proto client.
@@ -505,6 +546,45 @@ func (c *clientAdapter) DryRun(
 	opts ...grpc.CallOption,
 ) (*pbc.DryRunResponse, error) {
 	return c.client.DryRun(ctx, in, opts...)
+}
+
+func (c *clientAdapter) DismissRecommendation(
+	ctx context.Context,
+	in *DismissRecommendationRequest,
+	opts ...grpc.CallOption,
+) (*DismissRecommendationResponse, error) {
+	req := &pbc.DismissRecommendationRequest{
+		RecommendationId: in.RecommendationID,
+		Reason:           in.Reason,
+		CustomReason:     in.CustomReason,
+		DismissedBy:      in.DismissedBy,
+	}
+
+	if in.ExpiresAt != nil {
+		req.ExpiresAt = timestamppb.New(*in.ExpiresAt)
+	}
+
+	resp, err := c.client.DismissRecommendation(ctx, req, opts...)
+	if err != nil {
+		return nil, fmt.Errorf("DismissRecommendation RPC failed: %w", err)
+	}
+
+	result := &DismissRecommendationResponse{
+		Success:          resp.GetSuccess(),
+		Message:          resp.GetMessage(),
+		RecommendationID: resp.GetRecommendationId(),
+	}
+
+	if resp.GetDismissedAt() != nil {
+		result.DismissedAt = resp.GetDismissedAt().AsTime()
+	}
+
+	if resp.GetExpiresAt() != nil {
+		expiresAt := resp.GetExpiresAt().AsTime()
+		result.ExpiresAt = &expiresAt
+	}
+
+	return result, nil
 }
 
 // resolveSKUAndRegion extracts the SKU and region from resource properties based on the cloud provider.

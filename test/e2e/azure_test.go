@@ -20,7 +20,7 @@ func TestE2E_Azure_ProjectedCost(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
-	output, err := cmd.CombinedOutput()
+	output, err := cmd.Output()
 	require.NoError(t, err)
 
 	var result map[string]interface{}
