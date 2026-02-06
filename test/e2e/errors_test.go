@@ -45,8 +45,9 @@ func TestE2E_Errors_InvalidFormat(t *testing.T) {
 	binary := findFinFocusBinary()
 	require.NotEmpty(t, binary)
 
-	// Run with invalid format
-	cmd := exec.CommandContext(ctx, binary, "cost", "projected", "--output", "invalid")
+	// Run with invalid format (--pulumi-json required to reach format validation)
+	cmd := exec.CommandContext(ctx, binary, "cost", "projected",
+		"--pulumi-json", "/dev/null", "--output", "invalid")
 	output, err := cmd.CombinedOutput()
 
 	// Verify timeout didn't fire

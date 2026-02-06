@@ -190,3 +190,17 @@ func ConvertCapabilities(caps []pbc.PluginCapability) []string {
 
 	return result
 }
+
+// HasCapability checks whether the plugin client advertises a given capability string.
+// Returns false if the client has no metadata.
+func (c *Client) HasCapability(capability string) bool {
+	if c.Metadata == nil {
+		return false
+	}
+	for _, cap := range c.Metadata.Capabilities {
+		if cap == capability {
+			return true
+		}
+	}
+	return false
+}

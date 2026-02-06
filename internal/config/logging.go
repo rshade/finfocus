@@ -15,6 +15,11 @@ import (
 //nolint:gochecknoglobals // Logger is intentionally global for application-wide structured logging
 var Logger zerolog.Logger
 
+// logFileHandle tracks the current log file for cleanup (prevents Windows file locking issues).
+//
+//nolint:gochecknoglobals // Tracks the global logger's file handle for proper cleanup
+var logFileHandle *os.File
+
 // InitLogger initializes the package-level Logger with the specified log level and optional file output.
 // It sets the global Logger, configures console output, and—when logToFile is true—ensures the log directory
 // exists and opens the configured log file (falling back to "/tmp/finfocus.log" if none is set).
@@ -40,6 +45,9 @@ func InitLogger(level string, logToFile bool) error {
 	}
 	writers = append(writers, consoleWriter)
 
+	// Close any previously opened log file to prevent file handle leaks
+	CloseLogFile()
+
 	// File writer if enabled
 	if logToFile {
 		if logDirErr := EnsureLogDir(); logDirErr != nil {
@@ -60,6 +68,7 @@ func InitLogger(level string, logToFile bool) error {
 		if fileErr != nil {
 			return fileErr
 		}
+		logFileHandle = logFile
 		writers = append(writers, logFile)
 	}
 
@@ -85,6 +94,15 @@ func SetLogLevel(level string) {
 		lvl = zerolog.InfoLevel
 	}
 	Logger = Logger.Level(lvl)
+}
+
+// CloseLogFile closes the current log file handle, if any.
+// This is important on Windows where open file handles prevent file deletion.
+func CloseLogFile() {
+	if logFileHandle != nil {
+		_ = logFileHandle.Close()
+		logFileHandle = nil
+	}
 }
 
 // GetLogger returns the global logger instance.

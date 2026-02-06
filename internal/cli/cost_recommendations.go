@@ -45,20 +45,23 @@ const (
 	progressTickerMS = 100
 	// batchSize is the number of resources per batch for progress calculation.
 	progressBatchSize = 100
+	// statusActive is the default status label for active recommendations.
+	statusActive = "Active"
 )
 
 // costRecommendationsParams holds the parameters for the recommendations command execution.
 type costRecommendationsParams struct {
-	planPath string
-	adapter  string
-	output   string
-	filter   []string
-	verbose  bool
-	limit    int
-	page     int
-	pageSize int
-	offset   int
-	sort     string
+	planPath         string
+	adapter          string
+	output           string
+	filter           []string
+	verbose          bool
+	limit            int
+	page             int
+	pageSize         int
+	offset           int
+	sort             string
+	includeDismissed bool
 }
 
 // NewCostRecommendationsCmd creates the "recommendations" subcommand that fetches cost optimization
@@ -139,8 +142,18 @@ Valid action types for filtering:
 		"Number of items to skip for offset-based pagination")
 	cmd.Flags().StringVar(&params.sort, "sort", "",
 		"Sort expression (e.g., 'savings:desc', 'name:asc')")
+	cmd.Flags().BoolVar(&params.includeDismissed, "include-dismissed", false,
+		"Show dismissed and snoozed recommendations alongside active ones")
 
 	_ = cmd.MarkFlagRequired("pulumi-json")
+
+	// Add subcommands for recommendation lifecycle management
+	cmd.AddCommand(
+		newRecommendationsDismissCmd(),
+		newRecommendationsSnoozeCmd(),
+		newRecommendationsUndismissCmd(),
+		newRecommendationsHistoryCmd(),
+	)
 
 	return cmd
 }
@@ -261,6 +274,22 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 		log.Error().Ctx(ctx).Err(err).Msg("failed to fetch recommendations")
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("fetching recommendations: %w", err)
+	}
+
+	// Annotate active recommendations with status
+	for i := range result.Recommendations {
+		if result.Recommendations[i].Status == "" {
+			result.Recommendations[i].Status = statusActive
+		}
+	}
+
+	// Merge dismissed/snoozed recommendations if --include-dismissed
+	if params.includeDismissed {
+		mergeErr := mergeDismissedRecommendations(ctx, result)
+		if mergeErr != nil {
+			log.Warn().Ctx(ctx).Err(mergeErr).
+				Msg("failed to merge dismissed recommendations, continuing with active only")
+		}
 	}
 
 	// Apply action type filters if specified
@@ -631,30 +660,21 @@ func renderRecommendationsTableWithVerbose(
 
 	tw := tabwriter.NewWriter(w, 0, 0, tabPadding, ' ', 0)
 
+	// Detect if any recommendations have status annotations
+	hasStatus := hasStatusAnnotations(displayRecs)
+
 	// Header
-	fmt.Fprintln(tw, "RESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS")
-	fmt.Fprintln(tw, "--------\t-----------\t-----------\t-------")
+	if hasStatus {
+		fmt.Fprintln(tw, "STATUS\tRESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS")
+		fmt.Fprintln(tw, "------\t--------\t-----------\t-----------\t-------")
+	} else {
+		fmt.Fprintln(tw, "RESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS")
+		fmt.Fprintln(tw, "--------\t-----------\t-----------\t-------")
+	}
 
-	// Recommendations (top 5 by savings)
+	// Recommendations (top 5 by savings or all in verbose)
 	for _, rec := range displayRecs {
-		savings := ""
-		if rec.EstimatedSavings > 0 {
-			savings = fmt.Sprintf("%.2f %s", rec.EstimatedSavings, rec.Currency)
-		}
-
-		// Truncate long descriptions
-		description := rec.Description
-		const maxDescLen = 50
-		if len(description) > maxDescLen {
-			description = description[:maxDescLen-3] + "..."
-		}
-
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-			rec.ResourceID,
-			formatActionTypeLabel(rec.Type),
-			description,
-			savings,
-		)
+		writeRecommendationRow(tw, rec, hasStatus)
 	}
 
 	if err := tw.Flush(); err != nil {
@@ -682,6 +702,33 @@ func renderRecommendationsTableWithVerbose(
 	return nil
 }
 
+// writeRecommendationRow writes a single recommendation row to the tabwriter.
+func writeRecommendationRow(tw *tabwriter.Writer, rec engine.Recommendation, hasStatus bool) {
+	savings := ""
+	if rec.EstimatedSavings > 0 {
+		savings = fmt.Sprintf("%.2f %s", rec.EstimatedSavings, rec.Currency)
+	}
+
+	// Truncate long descriptions
+	description := rec.Description
+	const maxDescLen = 50
+	if len(description) > maxDescLen {
+		description = description[:maxDescLen-3] + "..."
+	}
+
+	if hasStatus {
+		status := rec.Status
+		if status == "" {
+			status = statusActive
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+			status, rec.ResourceID, formatActionTypeLabel(rec.Type), description, savings)
+	} else {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+			rec.ResourceID, formatActionTypeLabel(rec.Type), description, savings)
+	}
+}
+
 // renderRecommendationsJSON renders recommendations in JSON format.
 func renderRecommendationsJSON(
 	w io.Writer,
@@ -707,6 +754,7 @@ func renderRecommendationsJSON(
 			Description:      rec.Description,
 			EstimatedSavings: rec.EstimatedSavings,
 			Currency:         rec.Currency,
+			Status:           rec.Status,
 		}
 		output.Recommendations = append(output.Recommendations, jsonRec)
 	}
@@ -760,6 +808,17 @@ func renderRecommendationsNDJSON(
 	return nil
 }
 
+// hasStatusAnnotations returns true if any recommendation has a non-empty, non-Active status.
+// This is used to conditionally display the Status column in table output.
+func hasStatusAnnotations(recs []engine.Recommendation) bool {
+	for _, rec := range recs {
+		if rec.Status != "" && rec.Status != statusActive {
+			return true
+		}
+	}
+	return false
+}
+
 // formatActionTypeLabel returns a human-readable label for an action type.
 // Uses the proto utilities for consistent label formatting across the codebase.
 func formatActionTypeLabel(actionType string) string {
@@ -780,6 +839,78 @@ func isBrokenPipe(err error) bool {
 	}
 	// Also check error message as fallback
 	return strings.Contains(err.Error(), "broken pipe")
+}
+
+// mergeDismissedRecommendations loads the local dismissal store and appends
+// dismissed/snoozed recommendations to the result with status annotations.
+// Active recommendations already in the result are not duplicated.
+func mergeDismissedRecommendations(ctx context.Context, result *engine.RecommendationsResult) error {
+	log := logging.FromContext(ctx)
+
+	store, err := loadDismissalStore()
+	if err != nil {
+		return fmt.Errorf("loading dismissal store for merge: %w", err)
+	}
+
+	allRecords := store.GetAllRecords()
+	if len(allRecords) == 0 {
+		return nil
+	}
+
+	// Build a set of active recommendation IDs to avoid duplicates.
+	// We index by ResourceID since that's what active recommendations carry.
+	activeResourceIDs := make(map[string]bool, len(result.Recommendations))
+	for _, rec := range result.Recommendations {
+		activeResourceIDs[rec.ResourceID] = true
+	}
+
+	for _, record := range allRecords {
+		// Skip active (undismissed) records — they are kept only for history
+		if record.Status == config.StatusActive {
+			continue
+		}
+
+		// Skip if this dismissed record's resource matches an active recommendation
+		if record.LastKnown != nil && activeResourceIDs[record.LastKnown.ResourceID] {
+			continue
+		}
+		// Also check the recommendation ID against active resource IDs
+		if activeResourceIDs[record.RecommendationID] {
+			continue
+		}
+
+		// Determine display status
+		status := "Dismissed"
+		if record.Status == config.StatusSnoozed {
+			status = "Snoozed"
+		}
+
+		// Convert LastKnown snapshot to Recommendation
+		rec := engine.Recommendation{
+			Status: status,
+		}
+
+		if record.LastKnown != nil {
+			rec.ResourceID = record.LastKnown.ResourceID
+			rec.Type = record.LastKnown.Type
+			rec.Description = record.LastKnown.Description
+			rec.EstimatedSavings = record.LastKnown.EstimatedSavings
+			rec.Currency = record.LastKnown.Currency
+		} else {
+			// Minimal info when no LastKnown snapshot exists
+			rec.ResourceID = record.RecommendationID
+			rec.Description = fmt.Sprintf("%s recommendation (no details available)", status)
+		}
+
+		result.Recommendations = append(result.Recommendations, rec)
+	}
+
+	log.Debug().Ctx(ctx).
+		Int("dismissed_count", len(allRecords)).
+		Int("merged_total", len(result.Recommendations)).
+		Msg("merged dismissed recommendations into results")
+
+	return nil
 }
 
 // JSON output structures for recommendations.
@@ -818,6 +949,7 @@ type recommendationJSON struct {
 	Description      string  `json:"description"`
 	EstimatedSavings float64 `json:"estimated_savings,omitempty"`
 	Currency         string  `json:"currency,omitempty"`
+	Status           string  `json:"status,omitempty"`
 }
 
 // buildJSONSummary constructs the summary structure for JSON/NDJSON output.

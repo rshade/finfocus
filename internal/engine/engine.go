@@ -13,6 +13,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine/batch"
 	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/logging"
@@ -2645,7 +2646,7 @@ func convertProtoRecommendation(rec *proto.Recommendation) Recommendation {
 // GetRecommendationsForResources fetches cost optimization recommendations for the given resources.
 // For large datasets (>100 resources), it uses batch processing to improve performance and memory usage.
 //
-//nolint:gocognit // Complex orchestration function with caching and batch processing.
+//nolint:gocognit,funlen // Complex orchestration function with caching and batch processing.
 func (e *Engine) GetRecommendationsForResources(
 	ctx context.Context,
 	resources []ResourceDescriptor,
@@ -2684,6 +2685,9 @@ func (e *Engine) GetRecommendationsForResources(
 		}
 	}
 
+	// Load dismissal store to filter excluded recommendation IDs
+	excludedIDs := loadExcludedRecommendationIDs(ctx)
+
 	// Use batch processing for large datasets
 	useBatchProcessing := len(resources) > batchProcessingThreshold
 
@@ -2697,7 +2701,7 @@ func (e *Engine) GetRecommendationsForResources(
 			Msg("fetching recommendations from plugin")
 
 		if useBatchProcessing {
-			if err := e.fetchRecommendationsWithBatching(ctx, client, resources, result); err != nil {
+			if err := e.fetchRecommendationsWithBatching(ctx, client, resources, result, excludedIDs); err != nil {
 				log.Warn().
 					Ctx(ctx).
 					Str("component", "engine").
@@ -2711,7 +2715,7 @@ func (e *Engine) GetRecommendationsForResources(
 				})
 			}
 		} else {
-			if err := e.fetchRecommendationsSequential(ctx, client, resources, result); err != nil {
+			if err := e.fetchRecommendationsSequential(ctx, client, resources, result, excludedIDs); err != nil {
 				log.Warn().
 					Ctx(ctx).
 					Str("component", "engine").
@@ -2782,6 +2786,7 @@ func (e *Engine) fetchRecommendationsSequential(
 	client *pluginhost.Client,
 	resources []ResourceDescriptor,
 	result *RecommendationsResult,
+	excludedIDs ...[]string,
 ) error {
 	log := logging.FromContext(ctx)
 
@@ -2798,6 +2803,10 @@ func (e *Engine) fetchRecommendationsSequential(
 	req := &proto.GetRecommendationsRequest{
 		TargetResources:  targetResources,
 		ProjectionPeriod: "monthly",
+	}
+
+	if len(excludedIDs) > 0 {
+		req.ExcludedRecommendationIDs = excludedIDs[0]
 	}
 
 	resp, err := client.API.GetRecommendations(ctx, req)
@@ -2830,6 +2839,7 @@ func (e *Engine) fetchRecommendationsWithBatching(
 	client *pluginhost.Client,
 	resources []ResourceDescriptor,
 	result *RecommendationsResult,
+	excludedIDs ...[]string,
 ) error {
 	log := logging.FromContext(ctx)
 
@@ -2859,6 +2869,10 @@ func (e *Engine) fetchRecommendationsWithBatching(
 			req := &proto.GetRecommendationsRequest{
 				TargetResources:  targetResources,
 				ProjectionPeriod: "monthly",
+			}
+
+			if len(excludedIDs) > 0 {
+				req.ExcludedRecommendationIDs = excludedIDs[0]
 			}
 
 			resp, recErr := client.API.GetRecommendations(ctx, req)
@@ -2939,3 +2953,243 @@ func MergeRecommendations(
 
 	return merged
 }
+
+// DismissRecommendation dismisses a recommendation by ID. When a connected plugin
+// advertises the dismiss_recommendations capability, the DismissRecommendation RPC
+// is called first. The dismissal is always persisted locally regardless of plugin result.
+//
+//nolint:funlen // Orchestration function with plugin iteration and local persistence.
+func (e *Engine) DismissRecommendation(
+	ctx context.Context,
+	store *config.DismissalStore,
+	req DismissRequest,
+) (*DismissResult, error) {
+	log := logging.FromContext(ctx)
+	result := &DismissResult{
+		RecommendationID: req.RecommendationID,
+	}
+
+	if req.RecommendationID == "" {
+		return nil, errors.New("recommendation ID is required")
+	}
+
+	// Check if already dismissed
+	if existing, ok := store.Get(req.RecommendationID); ok {
+		// Allow overwriting (direct state transitions: Dismissed->Snoozed, re-snooze, etc.)
+		log.Debug().
+			Ctx(ctx).
+			Str("recommendation_id", req.RecommendationID).
+			Str("existing_status", string(existing.Status)).
+			Msg("overwriting existing dismissal record")
+	}
+
+	// Parse the reason string to proto enum for plugin RPC
+	reasonEnum, parseErr := proto.ParseDismissalReason(req.Reason)
+	if parseErr != nil {
+		return nil, fmt.Errorf("invalid dismissal reason: %w", parseErr)
+	}
+
+	// Try plugin dismissal for each plugin with dismiss capability
+	for _, client := range e.clients {
+		if !client.HasCapability(capabilityDismissRecommendations) {
+			continue
+		}
+
+		log.Info().
+			Ctx(ctx).
+			Str("plugin", client.Name).
+			Str("recommendation_id", req.RecommendationID).
+			Msg("sending dismiss request to plugin")
+
+		protoReq := &proto.DismissRecommendationRequest{
+			RecommendationID: req.RecommendationID,
+			Reason:           reasonEnum,
+			CustomReason:     req.CustomReason,
+			ExpiresAt:        req.ExpiresAt,
+		}
+
+		resp, err := client.API.DismissRecommendation(ctx, protoReq)
+		if err != nil {
+			log.Warn().
+				Ctx(ctx).
+				Str("plugin", client.Name).
+				Err(err).
+				Msg("plugin dismiss RPC failed, continuing with local persistence")
+			result.PluginFailed = true
+			result.Warning = fmt.Sprintf("plugin %s dismiss failed: %v", client.Name, err)
+			continue
+		}
+
+		if resp.Success {
+			result.PluginDismissed = true
+			result.PluginName = client.Name
+			result.PluginMessage = resp.Message
+
+			log.Info().
+				Ctx(ctx).
+				Str("plugin", client.Name).
+				Str("recommendation_id", req.RecommendationID).
+				Msg("plugin accepted dismissal")
+		}
+	}
+
+	// Always persist locally
+	now := time.Now()
+	status := config.StatusDismissed
+	action := config.ActionDismissed
+	if req.ExpiresAt != nil {
+		status = config.StatusSnoozed
+		action = config.ActionSnoozed
+	}
+
+	record := &config.DismissalRecord{
+		RecommendationID: req.RecommendationID,
+		Status:           status,
+		Reason:           reasonEnum.String(),
+		CustomReason:     req.CustomReason,
+		DismissedAt:      now,
+		ExpiresAt:        req.ExpiresAt,
+		History: []config.LifecycleEvent{
+			{
+				Action:       action,
+				Reason:       reasonEnum.String(),
+				CustomReason: req.CustomReason,
+				Timestamp:    now,
+				ExpiresAt:    req.ExpiresAt,
+			},
+		},
+	}
+
+	// Preserve existing history if overwriting
+	if existing, ok := store.Get(req.RecommendationID); ok {
+		record.History = append(existing.History, record.History...)
+	}
+
+	// Add LastKnown snapshot if recommendation details provided
+	if req.Recommendation != nil {
+		record.LastKnown = &config.LastKnownRecommendation{
+			Description:      req.Recommendation.Description,
+			EstimatedSavings: req.Recommendation.EstimatedSavings,
+			Currency:         req.Recommendation.Currency,
+			Type:             req.Recommendation.Type,
+			ResourceID:       req.Recommendation.ResourceID,
+		}
+	}
+
+	if err := store.Set(record); err != nil {
+		return nil, fmt.Errorf("persisting dismissal locally: %w", err)
+	}
+
+	if err := store.Save(); err != nil {
+		return nil, fmt.Errorf("saving dismissal state: %w", err)
+	}
+
+	result.LocalPersisted = true
+	return result, nil
+}
+
+// UndismissRecommendation re-enables a previously dismissed or snoozed recommendation.
+func (e *Engine) UndismissRecommendation(
+	ctx context.Context,
+	store *config.DismissalStore,
+	recommendationID string,
+) (*UndismissResult, error) {
+	log := logging.FromContext(ctx)
+	result := &UndismissResult{
+		RecommendationID: recommendationID,
+	}
+
+	if recommendationID == "" {
+		return nil, errors.New("recommendation ID is required")
+	}
+
+	existing, ok := store.Get(recommendationID)
+	if !ok {
+		result.WasDismissed = false
+		result.Message = fmt.Sprintf("recommendation %s is not dismissed", recommendationID)
+		return result, nil
+	}
+
+	// Add undismissed lifecycle event
+	existing.History = append(existing.History, config.LifecycleEvent{
+		Action:    config.ActionUndismissed,
+		Reason:    existing.Reason,
+		Timestamp: time.Now(),
+	})
+
+	// Mark as active instead of deleting (preserves audit trail)
+	existing.Status = config.StatusActive
+	existing.ExpiresAt = nil
+
+	if err := store.Set(existing); err != nil {
+		return nil, fmt.Errorf("updating dismissal record: %w", err)
+	}
+
+	if err := store.Save(); err != nil {
+		return nil, fmt.Errorf("saving dismissal state: %w", err)
+	}
+
+	result.WasDismissed = true
+	result.Message = fmt.Sprintf("recommendation %s has been undismissed", recommendationID)
+
+	log.Info().
+		Ctx(ctx).
+		Str("recommendation_id", recommendationID).
+		Msg("recommendation undismissed")
+
+	return result, nil
+}
+
+// GetRecommendationHistory returns the lifecycle events for a recommendation.
+func (e *Engine) GetRecommendationHistory(
+	_ context.Context,
+	store *config.DismissalStore,
+	recommendationID string,
+) ([]config.LifecycleEvent, error) {
+	if recommendationID == "" {
+		return nil, errors.New("recommendation ID is required")
+	}
+
+	record, ok := store.Get(recommendationID)
+	if !ok {
+		return []config.LifecycleEvent{}, nil
+	}
+
+	return record.History, nil
+}
+
+// loadExcludedRecommendationIDs loads the dismissal store and returns excluded recommendation IDs.
+func loadExcludedRecommendationIDs(ctx context.Context) []string {
+	log := logging.FromContext(ctx)
+
+	dismissalStore, storeErr := config.NewDismissalStore("")
+	if storeErr != nil {
+		return nil
+	}
+
+	if loadErr := dismissalStore.Load(); loadErr != nil {
+		log.Warn().Ctx(ctx).Err(loadErr).
+			Msg("failed to load dismissal state, continuing without exclusions")
+		return nil
+	}
+
+	// Clean expired snoozes before extracting IDs
+	if cleanErr := dismissalStore.CleanExpiredSnoozes(); cleanErr != nil {
+		log.Warn().Ctx(ctx).Err(cleanErr).Msg("failed to clean expired snoozes")
+	} else if saveErr := dismissalStore.Save(); saveErr != nil {
+		log.Warn().Ctx(ctx).Err(saveErr).
+			Msg("failed to save dismissal state after cleaning expired snoozes")
+	}
+
+	excludedIDs := dismissalStore.GetDismissedIDs()
+	if len(excludedIDs) > 0 {
+		log.Debug().Ctx(ctx).
+			Int("excluded_count", len(excludedIDs)).
+			Msg("excluding dismissed recommendation IDs from query")
+	}
+
+	return excludedIDs
+}
+
+// capabilityDismissRecommendations is the capability string for dismiss support.
+const capabilityDismissRecommendations = "dismiss_recommendations"
