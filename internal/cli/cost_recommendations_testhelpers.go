@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sort"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 )
 
@@ -16,6 +18,7 @@ type TestableRecommendation struct {
 	Description      string
 	EstimatedSavings float64
 	Currency         string
+	Status           string
 }
 
 // toEngineRecommendation converts TestableRecommendation to engine.Recommendation.
@@ -26,6 +29,7 @@ func toEngineRecommendation(tr TestableRecommendation) engine.Recommendation {
 		Description:      tr.Description,
 		EstimatedSavings: tr.EstimatedSavings,
 		Currency:         tr.Currency,
+		Status:           tr.Status,
 	}
 }
 
@@ -54,6 +58,7 @@ func toTestableRecommendations(recs []engine.Recommendation) []TestableRecommend
 			Description:      r.Description,
 			EstimatedSavings: r.EstimatedSavings,
 			Currency:         r.Currency,
+			Status:           r.Status,
 		}
 	}
 	return result
@@ -126,6 +131,80 @@ func RenderRecommendationsNDJSONForTest(w io.Writer, recs []TestableRecommendati
 		Currency:        defaultCurrency,
 	}
 	return renderRecommendationsNDJSON(w, result, nil)
+}
+
+// HasStatusAnnotationsForTest is a test export for hasStatusAnnotations.
+func HasStatusAnnotationsForTest(recs []TestableRecommendation) bool {
+	engineRecs := toEngineRecommendations(recs)
+	return hasStatusAnnotations(engineRecs)
+}
+
+// MergeDismissedRecommendationsForTest is a test export for mergeDismissedRecommendations.
+func MergeDismissedRecommendationsForTest(
+	recs []TestableRecommendation,
+	storePath string,
+) ([]TestableRecommendation, error) {
+	engineRecs := toEngineRecommendations(recs)
+	result := &engine.RecommendationsResult{
+		Recommendations: engineRecs,
+	}
+
+	ctx := context.Background()
+	store, err := config.NewDismissalStore(storePath)
+	if err != nil {
+		return nil, err
+	}
+	if loadErr := store.Load(); loadErr != nil {
+		return nil, loadErr
+	}
+
+	allRecords := store.GetAllRecords()
+
+	// Build active resource IDs set
+	activeResourceIDs := make(map[string]bool, len(result.Recommendations))
+	for _, rec := range result.Recommendations {
+		activeResourceIDs[rec.ResourceID] = true
+	}
+
+	for _, record := range allRecords {
+		// Skip active (undismissed) records
+		if record.Status == config.StatusActive {
+			continue
+		}
+		// Check both LastKnown.ResourceID and RecommendationID against active set
+		if record.LastKnown != nil && activeResourceIDs[record.LastKnown.ResourceID] {
+			continue
+		}
+		if activeResourceIDs[record.RecommendationID] {
+			continue
+		}
+
+		status := "Dismissed"
+		if record.Status == config.StatusSnoozed {
+			status = "Snoozed"
+		}
+
+		rec := engine.Recommendation{
+			Status: status,
+		}
+
+		if record.LastKnown != nil {
+			rec.ResourceID = record.LastKnown.ResourceID
+			rec.Type = record.LastKnown.Type
+			rec.Description = record.LastKnown.Description
+			rec.EstimatedSavings = record.LastKnown.EstimatedSavings
+			rec.Currency = record.LastKnown.Currency
+		} else {
+			rec.ResourceID = record.RecommendationID
+			rec.Description = fmt.Sprintf("%s recommendation (no details available)", status)
+		}
+
+		result.Recommendations = append(result.Recommendations, rec)
+	}
+
+	_ = ctx // used for consistency with production code
+
+	return toTestableRecommendations(result.Recommendations), nil
 }
 
 // sortRecommendationsBySavings sorts recommendations by estimated savings in descending order.

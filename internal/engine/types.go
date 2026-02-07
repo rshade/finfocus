@@ -149,6 +149,11 @@ type Recommendation struct {
 	// Currency is the ISO 4217 code for EstimatedSavings (e.g., "USD").
 	// Empty if EstimatedSavings is zero.
 	Currency string `json:"currency,omitempty"`
+
+	// Status indicates the lifecycle state of this recommendation.
+	// Empty or "Active" for active recommendations, "Dismissed" or "Snoozed"
+	// for dismissed/snoozed recommendations shown via --include-dismissed.
+	Status string `json:"status,omitempty"`
 }
 
 // CostResult contains the calculated cost information for a single resource.
@@ -554,4 +559,59 @@ type EstimateRequest struct {
 
 	// UsageProfile optionally provides context (dev, prod, etc.)
 	UsageProfile string `json:"usageProfile,omitempty"`
+}
+
+// DismissRequest contains parameters for dismissing a recommendation.
+type DismissRequest struct {
+	// RecommendationID is the unique identifier of the recommendation to dismiss.
+	RecommendationID string
+
+	// Reason is the CLI flag value (e.g., "business-constraint").
+	Reason string
+
+	// CustomReason is the free-text explanation from the --note flag.
+	CustomReason string
+
+	// ExpiresAt is the snooze expiry date; nil means permanent dismissal.
+	ExpiresAt *time.Time
+
+	// Recommendation is the current recommendation details for the LastKnown snapshot.
+	Recommendation *Recommendation
+}
+
+// DismissResult contains the outcome of a dismiss operation.
+type DismissResult struct {
+	// RecommendationID is the ID of the dismissed recommendation.
+	RecommendationID string
+
+	// PluginDismissed is true if a plugin accepted the dismissal via RPC.
+	PluginDismissed bool
+
+	// PluginName identifies which plugin handled the dismissal.
+	PluginName string
+
+	// PluginMessage is the plugin's response message.
+	PluginMessage string
+
+	// PluginFailed is true if a plugin dismiss RPC was attempted but failed.
+	// Local persistence still proceeds, but the upstream state may be inconsistent.
+	PluginFailed bool
+
+	// LocalPersisted is true if the dismissal was saved locally.
+	LocalPersisted bool
+
+	// Warning contains a non-fatal warning (e.g., plugin failed but local succeeded).
+	Warning string
+}
+
+// UndismissResult contains the outcome of an undismiss operation.
+type UndismissResult struct {
+	// RecommendationID is the ID of the undismissed recommendation.
+	RecommendationID string
+
+	// WasDismissed is false if the recommendation wasn't dismissed.
+	WasDismissed bool
+
+	// Message provides information about the undismiss operation.
+	Message string
 }

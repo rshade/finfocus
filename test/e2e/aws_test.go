@@ -21,15 +21,19 @@ func TestE2E_AWS_ProjectedCost(t *testing.T) {
 	require.NoError(t, err)
 
 	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
-	output, err := cmd.CombinedOutput()
+	output, err := cmd.Output()
 	require.NoError(t, err)
 
 	var result map[string]interface{}
 	err = json.Unmarshal(output, &result)
 	require.NoError(t, err)
 
+	// JSON output wraps under "finfocus" key
+	finfocus, ok := result["finfocus"].(map[string]interface{})
+	require.True(t, ok, "expected finfocus wrapper key")
+
 	// Verify we got valid output structure
-	resources, ok := result["resources"].([]interface{})
+	resources, ok := finfocus["resources"].([]interface{})
 	require.True(t, ok, "expected resources to be an array")
 	assert.NotEmpty(t, resources, "expected at least one resource in output")
 }

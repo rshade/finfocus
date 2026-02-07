@@ -86,6 +86,9 @@ func TestProcessLauncher_Start_MockCommand(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping process launcher test in short mode")
 	}
+	if runtime.GOOS == "windows" {
+		t.Skip("mock gRPC server not supported on Windows")
+	}
 
 	launcher := NewProcessLauncher()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -809,7 +812,7 @@ func TestProcessLauncher_StartPluginEnvironment(t *testing.T) {
 		}
 
 		// Process succeeded - validate output is clean (no error messages) and contains expected env vars
-		stdoutStr := stdout.String()
+		stdoutStr := strings.ReplaceAll(stdout.String(), "\r\n", "\n")
 		stderrStr := stderr.String()
 		if strings.Contains(stderrStr, "ERROR:") || strings.Contains(stdoutStr, "ERROR:") {
 			t.Fatalf("plugin process succeeded but output contains errors\nstdout: %s\nstderr: %s",
@@ -932,7 +935,7 @@ func createEnvCheckingScript(t *testing.T) string {
 		// Windows batch script that invokes PowerShell
 		// This avoids the "not a valid Win32 application" error when executing .ps1 directly
 		script := fmt.Sprintf(`@echo off
-powershell -Command "$envPort = $env:%s; $fallbackPort = $env:PORT; if (-not $envPort) { Write-Error '%s environment variable not set'; exit 1 }; Write-Output '%s=' + $envPort; if ($fallbackPort) { Write-Output 'PORT=' + $fallbackPort + ' (WARNING: should not be set by core)' }; Start-Sleep -Milliseconds 100; exit 0"
+powershell -NoProfile -NonInteractive -Command "$envPort = $env:%s; $fallbackPort = $env:PORT; if (-not $envPort) { Write-Error '%s environment variable not set'; exit 1 }; Write-Output ('%s=' + $envPort); if ($fallbackPort) { Write-Output ('PORT=' + $fallbackPort + ' (WARNING: should not be set by core)') }; Start-Sleep -Milliseconds 100; exit 0"
 `, pluginsdk.EnvPort, pluginsdk.EnvPort, pluginsdk.EnvPort)
 		return createScript(t, script, ".bat")
 	}

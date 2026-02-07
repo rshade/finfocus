@@ -22,13 +22,16 @@ func TestE2E_Output_JSON(t *testing.T) {
 
 	// Run with JSON output
 	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
-	output, err := cmd.CombinedOutput()
+	output, err := cmd.Output()
 	require.NoError(t, err)
 
 	var result map[string]interface{}
 	err = json.Unmarshal(output, &result)
 	require.NoError(t, err)
 
-	assert.Contains(t, result, "summary")
-	assert.Contains(t, result, "resources")
+	// JSON output wraps under "finfocus" key
+	finfocus, ok := result["finfocus"].(map[string]interface{})
+	require.True(t, ok, "expected finfocus wrapper key")
+	assert.Contains(t, finfocus, "summary")
+	assert.Contains(t, finfocus, "resources")
 }

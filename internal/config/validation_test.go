@@ -511,6 +511,9 @@ func TestValidation_InitLoggerErrors(t *testing.T) {
 
 		err := InitLogger("debug", true)
 		require.NoError(t, err)
+
+		// Close log file to release handle (prevents Windows file locking)
+		t.Cleanup(CloseLogFile)
 	})
 }
 

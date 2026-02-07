@@ -95,6 +95,7 @@ func TestNewLoggerWithPath_CreatesFile(t *testing.T) {
 	}
 
 	result := NewLoggerWithPath(cfg)
+	defer result.Close() // Release file handle (prevents Windows file locking)
 
 	assert.True(t, result.UsingFile)
 	assert.Equal(t, logFile, result.FilePath)

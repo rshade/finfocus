@@ -36,7 +36,11 @@ func TestE2E_ProjectedCost(t *testing.T) {
 	err = json.Unmarshal(output, &result)
 	require.NoError(t, err, "Failed to parse JSON output: %s", string(output))
 
+	// JSON output wraps under "finfocus" key
+	finfocus, ok := result["finfocus"].(map[string]interface{})
+	require.True(t, ok, "expected finfocus wrapper key")
+
 	// Verify structure
-	assert.Contains(t, result, "summary")
-	assert.Contains(t, result, "resources")
+	assert.Contains(t, finfocus, "summary")
+	assert.Contains(t, finfocus, "resources")
 }

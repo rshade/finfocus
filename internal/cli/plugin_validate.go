@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/spf13/cobra"
 
@@ -67,8 +68,14 @@ func ValidatePlugin(_ context.Context, plugin registry.PluginInfo) error {
 		return errors.New("plugin path is a directory, not a binary")
 	}
 
-	if info.Mode()&0111 == 0 {
-		return errors.New("plugin binary is not executable")
+	if runtime.GOOS == "windows" {
+		if filepath.Ext(plugin.Path) != ".exe" {
+			return errors.New("plugin binary is not executable (Windows requires .exe extension)")
+		}
+	} else {
+		if info.Mode()&0111 == 0 {
+			return errors.New("plugin binary is not executable")
+		}
 	}
 
 	manifestPath := filepath.Join(filepath.Dir(plugin.Path), "plugin.manifest.json")

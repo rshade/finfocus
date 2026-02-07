@@ -23,7 +23,7 @@ func TestE2E_Output_NDJSON(t *testing.T) {
 
 	// Run with NDJSON output
 	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "ndjson")
-	output, err := cmd.CombinedOutput()
+	output, err := cmd.Output()
 	require.NoError(t, err)
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")

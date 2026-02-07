@@ -193,7 +193,7 @@ func TestValidatePlugin(t *testing.T) {
 				require.NoError(t, writeErr)
 			},
 			expectError: true,
-			errorMsg:    "plugin binary is not executable",
+			errorMsg:    "plugin binary is not executable", // matches both Unix and Windows messages
 		},
 		{
 			name: "manifest name mismatch",
