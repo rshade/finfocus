@@ -32,7 +32,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Setup Ruby
-        uses: ruby/setup-ruby@v1.287.0
+        uses: ruby/setup-ruby@v1.288.0
         with:
           ruby-version: '4.0.0'
           working-directory: './docs'
