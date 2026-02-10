@@ -9,7 +9,7 @@ Add configurable exit codes when budget thresholds are exceeded, enabling CI/CD 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: github.com/spf13/cobra (CLI), github.com/rs/zerolog (logging), github.com/rshade/finfocus-spec (proto definitions)
 **Storage**: YAML config file (~/.finfocus/config.yaml)
 **Testing**: go test with testify (require/assert), 80% minimum coverage

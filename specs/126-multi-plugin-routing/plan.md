@@ -14,7 +14,7 @@ The engine currently queries ALL plugins for ALL resources. This feature transfo
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6 (per go.mod)
+**Language/Version**: Go 1.25.7 (per go.mod)
 **Primary Dependencies**: github.com/spf13/cobra (CLI), google.golang.org/grpc (plugin communication), github.com/rshade/finfocus-spec (protocol definitions)
 **Storage**: ~/.finfocus/config.yaml (YAML configuration)
 **Testing**: go test with testify/require, testify/assert (80% minimum coverage)

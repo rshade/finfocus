@@ -52,7 +52,7 @@ func TestPluginInit_Basic(t *testing.T) {
 	goModContent, err := os.ReadFile(goModPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(goModContent), "module github.com/example/test-plugin")
-	assert.Contains(t, string(goModContent), "go 1.25.5")
+	assert.Contains(t, string(goModContent), "go 1.25.7")
 
 	// Verify manifest.yaml exists and has correct content
 	manifestPath := filepath.Join(projectDir, "manifest.yaml")

@@ -15,7 +15,7 @@
 
 ### R-1: E2E Test Command Verification
 - **Command**: `make test-e2e` (Verified in Makefile via listing/reading if needed, assumed from spec).
-- **Prerequisites**: Go 1.25.6+, AWS Credentials, Plugins installed.
+- **Prerequisites**: Go 1.25.7+, AWS Credentials, Plugins installed.
 - **Output**: `test-results/e2e-summary.json` (from spec).
 
 ### R-2: Documentation Structure

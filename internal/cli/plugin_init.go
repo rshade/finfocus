@@ -791,7 +791,7 @@ func (g *projectGenerator) createDirectories() error {
 func (g *projectGenerator) generateGoMod() error {
 	content := fmt.Sprintf(`module github.com/example/%s
 
-go 1.25.5
+go 1.25.7
 
 require (
 	github.com/rshade/finfocus-spec v0.4.1

@@ -81,6 +81,14 @@ func (m *mockCostSourceClient) DryRun(
 	return &pbc.DryRunResponse{}, nil
 }
 
+func (m *mockCostSourceClient) DismissRecommendation(
+	ctx context.Context,
+	in *proto.DismissRecommendationRequest,
+	opts ...grpc.CallOption,
+) (*proto.DismissRecommendationResponse, error) {
+	return &proto.DismissRecommendationResponse{Success: true}, nil
+}
+
 func TestEngine_GetBudgets(t *testing.T) {
 	ctx := context.Background()
 

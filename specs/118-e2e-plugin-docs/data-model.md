@@ -9,7 +9,7 @@
 - **Title**: E2E Testing Guide
 - **Audience**: Developers, CI Engineers
 - **Key Sections**:
-  - Prerequisites (Go 1.25.6+, AWS Creds)
+  - Prerequisites (Go 1.25.7+, AWS Creds)
   - Quick Start
   - Running Tests (`make test-e2e`)
   - Test Scenarios (Projected, Actual, Validation, Cleanup)

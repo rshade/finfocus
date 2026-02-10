@@ -91,10 +91,10 @@ func TestPluginValidateCmdHelp(t *testing.T) {
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "Validate that installed plugins can be loaded")
-	assert.Contains(t, output, "Validate that installed plugins can be loaded")
+	assert.Contains(t, output, "Validate that installed plugins can be loaded and respond to basic API calls")
 	assert.Contains(t, output, "--plugin")
 	assert.Contains(t, output, "Validate a specific plugin by name")
+	assert.Equal(t, "Validate installed plugins", cmd.Short)
 }
 
 func TestPluginValidateCmdExamples(t *testing.T) {
@@ -193,7 +193,7 @@ func TestValidatePlugin(t *testing.T) {
 				require.NoError(t, writeErr)
 			},
 			expectError: true,
-			errorMsg:    "plugin binary is not executable",
+			errorMsg:    "plugin binary is not executable", // matches both Unix and Windows messages
 		},
 		{
 			name: "manifest name mismatch",

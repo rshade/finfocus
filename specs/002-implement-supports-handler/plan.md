@@ -9,7 +9,7 @@ This plan outlines the implementation of a `Supports` gRPC handler in the `plugi
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: `github.com/rshade/finfocus-spec v0.1.0`, `google.golang.org/grpc v1.77.0`
 **Storage**: N/A
 **Testing**: Go `testing` package with `stretchr/testify`

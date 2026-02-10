@@ -12,7 +12,7 @@ This directory contains GitHub Actions workflows for CI/CD, automated code revie
 
 **ci.yml** - Complete CI/CD pipeline triggered on PRs and main branch pushes:
 
-- **Test Job**: Go 1.25.6 setup, unit tests with race detection, coverage reporting (20% minimum threshold)
+- **Test Job**: Go 1.25.7 setup, unit tests with race detection, coverage reporting (20% minimum threshold)
 - **Lint Job**: golangci-lint with project-specific configuration, security scanning with gosec
 - **Security Job**: govulncheck for dependency vulnerability scanning
 - **Validation Job**: gofmt formatting checks, go mod tidy verification, go vet static analysis
@@ -185,7 +185,7 @@ gh auth status
 
 **Go Setup**:
 
-- ✅ **Standard**: `actions/setup-go@v5` with `go-version: '1.25.6'` and `cache: true`
+- ✅ **Standard**: `actions/setup-go@v5` with `go-version: '1.25.7'` and `cache: true`
 - **Consistency**: All workflows should use identical Go version and caching
 
 **Checkout**:

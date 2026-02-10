@@ -36,7 +36,7 @@ permissions:
 
 env:
   GOPRIVATE: github.com/rshade/*
-  GO_VERSION: '1.25.6'
+  GO_VERSION: '1.25.7'
 
 jobs:
   # Cross-platform test suite

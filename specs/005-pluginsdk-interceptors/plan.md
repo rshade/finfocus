@@ -14,7 +14,7 @@ as the first in the chain.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: google.golang.org/grpc v1.74.2, github.com/rs/zerolog
 **Storage**: N/A (stateless configuration)
 **Testing**: go test with race detection

@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -45,20 +46,23 @@ const (
 	progressTickerMS = 100
 	// batchSize is the number of resources per batch for progress calculation.
 	progressBatchSize = 100
+	// statusActive is the default status label for active recommendations.
+	statusActive engine.RecommendationStatus = engine.RecommendationStatusActive
 )
 
 // costRecommendationsParams holds the parameters for the recommendations command execution.
 type costRecommendationsParams struct {
-	planPath string
-	adapter  string
-	output   string
-	filter   []string
-	verbose  bool
-	limit    int
-	page     int
-	pageSize int
-	offset   int
-	sort     string
+	planPath         string
+	adapter          string
+	output           string
+	filter           []string
+	verbose          bool
+	limit            int
+	page             int
+	pageSize         int
+	offset           int
+	sort             string
+	includeDismissed bool
 }
 
 // NewCostRecommendationsCmd creates the "recommendations" subcommand that fetches cost optimization
@@ -139,8 +143,18 @@ Valid action types for filtering:
 		"Number of items to skip for offset-based pagination")
 	cmd.Flags().StringVar(&params.sort, "sort", "",
 		"Sort expression (e.g., 'savings:desc', 'name:asc')")
+	cmd.Flags().BoolVar(&params.includeDismissed, "include-dismissed", false,
+		"Show dismissed and snoozed recommendations alongside active ones")
 
 	_ = cmd.MarkFlagRequired("pulumi-json")
+
+	// Add subcommands for recommendation lifecycle management
+	cmd.AddCommand(
+		newRecommendationsDismissCmd(),
+		newRecommendationsSnoozeCmd(),
+		newRecommendationsUndismissCmd(),
+		newRecommendationsHistoryCmd(),
+	)
 
 	return cmd
 }
@@ -261,6 +275,22 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 		log.Error().Ctx(ctx).Err(err).Msg("failed to fetch recommendations")
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("fetching recommendations: %w", err)
+	}
+
+	// Annotate active recommendations with status
+	for i := range result.Recommendations {
+		if result.Recommendations[i].Status == "" {
+			result.Recommendations[i].Status = statusActive
+		}
+	}
+
+	// Merge dismissed/snoozed recommendations if --include-dismissed
+	if params.includeDismissed {
+		mergeErr := mergeDismissedRecommendations(ctx, result)
+		if mergeErr != nil {
+			log.Warn().Ctx(ctx).Err(mergeErr).
+				Msg("failed to merge dismissed recommendations, continuing with active only")
+		}
 	}
 
 	// Apply action type filters if specified
@@ -584,13 +614,7 @@ func renderRecommendationsSummary(w io.Writer, recommendations []engine.Recommen
 
 // sortActionTypes sorts action type strings alphabetically.
 func sortActionTypes(actionTypes []string) {
-	for i := range len(actionTypes) - 1 {
-		for j := i + 1; j < len(actionTypes); j++ {
-			if actionTypes[i] > actionTypes[j] {
-				actionTypes[i], actionTypes[j] = actionTypes[j], actionTypes[i]
-			}
-		}
-	}
+	slices.Sort(actionTypes)
 }
 
 // renderRecommendationsTableWithVerbose renders recommendations in table format.
@@ -631,30 +655,21 @@ func renderRecommendationsTableWithVerbose(
 
 	tw := tabwriter.NewWriter(w, 0, 0, tabPadding, ' ', 0)
 
+	// Detect if any recommendations have status annotations
+	hasStatus := hasStatusAnnotations(displayRecs)
+
 	// Header
-	fmt.Fprintln(tw, "RESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS")
-	fmt.Fprintln(tw, "--------\t-----------\t-----------\t-------")
+	if hasStatus {
+		fmt.Fprintln(tw, "STATUS\tRESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS")
+		fmt.Fprintln(tw, "------\t--------\t-----------\t-----------\t-------")
+	} else {
+		fmt.Fprintln(tw, "RESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS")
+		fmt.Fprintln(tw, "--------\t-----------\t-----------\t-------")
+	}
 
-	// Recommendations (top 5 by savings)
+	// Recommendations (top 5 by savings or all in verbose)
 	for _, rec := range displayRecs {
-		savings := ""
-		if rec.EstimatedSavings > 0 {
-			savings = fmt.Sprintf("%.2f %s", rec.EstimatedSavings, rec.Currency)
-		}
-
-		// Truncate long descriptions
-		description := rec.Description
-		const maxDescLen = 50
-		if len(description) > maxDescLen {
-			description = description[:maxDescLen-3] + "..."
-		}
-
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-			rec.ResourceID,
-			formatActionTypeLabel(rec.Type),
-			description,
-			savings,
-		)
+		writeRecommendationRow(tw, rec, hasStatus)
 	}
 
 	if err := tw.Flush(); err != nil {
@@ -682,6 +697,33 @@ func renderRecommendationsTableWithVerbose(
 	return nil
 }
 
+// writeRecommendationRow writes a single recommendation row to the tabwriter.
+func writeRecommendationRow(tw *tabwriter.Writer, rec engine.Recommendation, hasStatus bool) {
+	savings := ""
+	if rec.EstimatedSavings > 0 {
+		savings = fmt.Sprintf("%.2f %s", rec.EstimatedSavings, rec.Currency)
+	}
+
+	// Truncate long descriptions
+	description := rec.Description
+	const maxDescLen = 50
+	if len(description) > maxDescLen {
+		description = description[:maxDescLen-3] + "..."
+	}
+
+	if hasStatus {
+		status := rec.Status
+		if status == "" {
+			status = statusActive
+		}
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
+			status, rec.ResourceID, formatActionTypeLabel(rec.Type), description, savings)
+	} else {
+		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
+			rec.ResourceID, formatActionTypeLabel(rec.Type), description, savings)
+	}
+}
+
 // renderRecommendationsJSON renders recommendations in JSON format.
 func renderRecommendationsJSON(
 	w io.Writer,
@@ -707,6 +749,7 @@ func renderRecommendationsJSON(
 			Description:      rec.Description,
 			EstimatedSavings: rec.EstimatedSavings,
 			Currency:         rec.Currency,
+			Status:           string(rec.Status),
 		}
 		output.Recommendations = append(output.Recommendations, jsonRec)
 	}
@@ -752,12 +795,24 @@ func renderRecommendationsNDJSON(
 			Description:      rec.Description,
 			EstimatedSavings: rec.EstimatedSavings,
 			Currency:         rec.Currency,
+			Status:           string(rec.Status),
 		}
 		if err := encoder.Encode(jsonRec); err != nil {
 			return fmt.Errorf("encoding NDJSON: %w", err)
 		}
 	}
 	return nil
+}
+
+// hasStatusAnnotations returns true if any recommendation has a non-empty, non-Active status.
+// This is used to conditionally display the Status column in table output.
+func hasStatusAnnotations(recs []engine.Recommendation) bool {
+	for _, rec := range recs {
+		if rec.Status != "" && rec.Status != statusActive {
+			return true
+		}
+	}
+	return false
 }
 
 // formatActionTypeLabel returns a human-readable label for an action type.
@@ -780,6 +835,89 @@ func isBrokenPipe(err error) bool {
 	}
 	// Also check error message as fallback
 	return strings.Contains(err.Error(), "broken pipe")
+}
+
+// mergeDismissedRecommendations loads the local dismissal store and appends
+// dismissed/snoozed recommendations to the result with status annotations.
+// Active recommendations already in the result are not duplicated.
+func mergeDismissedRecommendations(ctx context.Context, result *engine.RecommendationsResult) error {
+	log := logging.FromContext(ctx)
+
+	store, err := loadDismissalStore()
+	if err != nil {
+		return fmt.Errorf("loading dismissal store for merge: %w", err)
+	}
+
+	allRecords := store.GetAllRecords()
+	if len(allRecords) == 0 {
+		return nil
+	}
+
+	originalLen := len(result.Recommendations)
+
+	mergeDismissalRecordsIntoResult(allRecords, result)
+
+	mergedCount := len(result.Recommendations) - originalLen
+
+	log.Debug().Ctx(ctx).
+		Int("dismissed_merged", mergedCount).
+		Int("merged_total", len(result.Recommendations)).
+		Msg("merged dismissed recommendations into results")
+
+	return nil
+}
+
+// mergeDismissalRecordsIntoResult appends dismissed/snoozed records into the result,
+// skipping any that match active recommendations. It uses separate maps for
+// ResourceID and RecommendationID deduplication to prevent false matches.
+func mergeDismissalRecordsIntoResult(records map[string]*config.DismissalRecord, result *engine.RecommendationsResult) {
+	activeResourceIDs := make(map[string]bool, len(result.Recommendations))
+	activeRecommendationIDs := make(map[string]bool, len(result.Recommendations))
+	for _, rec := range result.Recommendations {
+		activeResourceIDs[rec.ResourceID] = true
+		activeRecommendationIDs[rec.ResourceID] = true
+	}
+
+	for _, record := range records {
+		// Skip active (undismissed) records — they are kept only for history
+		if record.Status == config.StatusActive {
+			continue
+		}
+
+		// Skip if this dismissed record's resource matches an active recommendation
+		if record.LastKnown != nil && activeResourceIDs[record.LastKnown.ResourceID] {
+			continue
+		}
+		// Check the recommendation ID against active recommendation IDs
+		if activeRecommendationIDs[record.RecommendationID] {
+			continue
+		}
+
+		// Determine display status
+		status := engine.RecommendationStatusDismissed
+		if record.Status == config.StatusSnoozed {
+			status = engine.RecommendationStatusSnoozed
+		}
+
+		// Convert LastKnown snapshot to Recommendation
+		rec := engine.Recommendation{
+			Status: status,
+		}
+
+		if record.LastKnown != nil {
+			rec.ResourceID = record.LastKnown.ResourceID
+			rec.Type = record.LastKnown.Type
+			rec.Description = record.LastKnown.Description
+			rec.EstimatedSavings = record.LastKnown.EstimatedSavings
+			rec.Currency = record.LastKnown.Currency
+		} else {
+			// Minimal info when no LastKnown snapshot exists
+			rec.ResourceID = record.RecommendationID
+			rec.Description = fmt.Sprintf("%s recommendation (no details available)", status)
+		}
+
+		result.Recommendations = append(result.Recommendations, rec)
+	}
 }
 
 // JSON output structures for recommendations.
@@ -818,6 +956,7 @@ type recommendationJSON struct {
 	Description      string  `json:"description"`
 	EstimatedSavings float64 `json:"estimated_savings,omitempty"`
 	Currency         string  `json:"currency,omitempty"`
+	Status           string  `json:"status,omitempty"`
 }
 
 // buildJSONSummary constructs the summary structure for JSON/NDJSON output.

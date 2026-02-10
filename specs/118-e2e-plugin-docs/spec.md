@@ -8,7 +8,7 @@
 ## Clarifications
 
 ### Session 2026-01-19
-- Q: What Go version requirement should be documented? → A: Go 1.25.6+ (due to critical bug in 1.25.4)
+- Q: What Go version requirement should be documented? → A: Go 1.25.7+ (due to critical bug in 1.25.4)
 - Q: How should the new documentation files be organized in the `docs/` directory? → A: Structure by category (e.g., `docs/testing/`, `docs/architecture/`, `docs/guides/`)
 - Q: What format should be used for the architecture diagrams? → A: Mermaid diagrams (in-line code, versionable)
 - Q: Should README links point to local files or the documentation site? → A: Docs site links preferred
@@ -26,7 +26,7 @@ Developers and CI engineers need a clear guide to set up and run end-to-end (E2E
 
 **Acceptance Scenarios**:
 
-1. **Given** a developer with Go 1.25.6+ and AWS credentials, **When** they follow the "E2E Testing Quick Start" guide, **Then** they can successfully install required plugins and run the E2E test suite.
+1. **Given** a developer with Go 1.25.7+ and AWS credentials, **When** they follow the "E2E Testing Quick Start" guide, **Then** they can successfully install required plugins and run the E2E test suite.
 2. **Given** an E2E test failure, **When** the user consults the "Troubleshooting" section, **Then** they find steps to interpret results (e.g., `test-results/e2e-summary.json`) and diagnose common issues (e.g., credential errors).
 
 ---
@@ -68,7 +68,7 @@ Users encountering installation or runtime errors need a centralized resource to
 - **FR-004**: The `README.md` for `pulumicost-core` MUST be updated to include a summary of E2E testing, plugin ecosystem links, and an architecture diagram using Mermaid.
 - **FR-005**: The `README.md` for `pulumicost-plugin-aws-public` MUST be updated to clarify its role as a fallback/public-pricing plugin and its relationship to the core.
 - **FR-006**: The documentation MUST include a "Troubleshooting" section addressing common issues: Plugin Installation Failures, AWS Credential Problems, Cost Calculation Errors, and E2E Test Timeouts.
-- **FR-007**: The documentation MUST provide a "Quick Start" for E2E testing that assumes a clean environment (Go 1.25.6+, AWS creds).
+- **FR-007**: The documentation MUST provide a "Quick Start" for E2E testing that assumes a clean environment (Go 1.25.7+, AWS creds).
 - **FR-008**: Documentation files MUST be organized by category within the `docs/` directory (e.g., `docs/testing/e2e-guide.md`, `docs/architecture/plugin-ecosystem.md`, `docs/guides/troubleshooting.md`).
 - **FR-009**: All architecture diagrams MUST be implemented using Mermaid formatting within the Markdown files.
 - **FR-010**: Links in `README.md` files SHOULD point to the hosted documentation site where available, with relative local links as fallbacks.

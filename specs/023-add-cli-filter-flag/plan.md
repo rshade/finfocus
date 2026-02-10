@@ -11,7 +11,7 @@ This feature adds the missing `--filter` flag to the `finfocus actual-cost` comm
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: `github.com/spf13/cobra` (CLI), `github.com/spf13/pflag`
 **Storage**: N/A (CLI logic)
 **Testing**: `test/integration/cli/filter_test.go` (existing, failing), Go `testing` package

@@ -20,7 +20,7 @@ reliability (AWS region scoping, deterministic output, test timeouts).
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: cobra v1.10.1, finfocus-spec v0.4.11 (pluginsdk),
 zerolog v1.34.0, Bubble Tea/Lip Gloss (TUI)
 **Storage**: N/A (stateless CLI tool; reads Pulumi state JSON files)

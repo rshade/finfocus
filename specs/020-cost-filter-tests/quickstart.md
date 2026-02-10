@@ -9,7 +9,7 @@ This guide helps you understand and run the integration tests for the `--filter`
 
 ## Prerequisites
 
-- Go 1.25.6+ installed
+- Go 1.25.7+ installed
 - Project built: `make build`
 - Test fixtures available in `test/fixtures/plans/`
 

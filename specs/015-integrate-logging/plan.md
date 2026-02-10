@@ -13,7 +13,7 @@ and adds audit capabilities.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: zerolog v1.34.0 (already integrated), cobra v1.10.1, yaml.v3
 **Storage**: File system (`~/.finfocus/config.yaml`, log files)
 **Testing**: go test with testify, race detection required

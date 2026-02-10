@@ -18,7 +18,7 @@ The implementation uses proto definitions from finfocus-spec v0.5.4 and follows 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: finfocus-spec v0.5.4 (protobuf types), google.golang.org/grpc, github.com/stretchr/testify
 **Storage**: N/A (stateless engine functionality)
 **Testing**: go test with testify assertions, table-driven tests

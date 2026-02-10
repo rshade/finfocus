@@ -5,6 +5,7 @@ package e2e
 
 import (
 	"encoding/json"
+	"errors"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -23,8 +24,14 @@ func TestE2E_Output_NDJSON(t *testing.T) {
 
 	// Run with NDJSON output
 	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "ndjson")
-	output, err := cmd.CombinedOutput()
-	require.NoError(t, err)
+	output, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			require.NoError(t, err, "command failed with stderr: %s", string(exitErr.Stderr))
+		}
+		require.NoError(t, err)
+	}
 
 	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
 	for _, line := range lines {

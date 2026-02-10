@@ -118,7 +118,7 @@ test:
   steps:
     - uses: actions/setup-go@v5
       with:
-        go-version: '1.25.6'
+        go-version: '1.25.7'
         cache: true
     - run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
     - run: go tool cover -func=coverage.out

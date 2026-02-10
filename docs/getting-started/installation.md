@@ -9,7 +9,7 @@ Detailed steps to install FinFocus on your system.
 ## Prerequisites
 
 - Pulumi CLI installed
-- Go 1.25.6+ (if building from source)
+- Go 1.25.7+ (if building from source)
 - Git (if building from source)
 - 5-10 minutes
 

@@ -5,7 +5,7 @@
 
 ## Prerequisites
 
-- Go 1.25.6 installed
+- Go 1.25.7 installed
 - finfocus repository cloned
 - Make and golangci-lint available
 

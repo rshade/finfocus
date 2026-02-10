@@ -7,11 +7,13 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/cli"
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // T001: Test NewCostRecommendationsCmd() creates a valid command.
@@ -816,4 +818,309 @@ func TestRenderRecommendationsNDJSON_WithSummary(t *testing.T) {
 		require.NoError(t, err)
 		assert.Contains(t, rec, "resource_id", "line %d should be a recommendation", i)
 	}
+}
+
+// ============================================================================
+// Phase 5: US3 - Include Dismissed Tests (T018)
+// ============================================================================
+
+// T018: Test --include-dismissed flag exists on the command.
+func TestCostRecommendationsCmd_IncludeDismissedFlag(t *testing.T) {
+	cmd := cli.NewCostRecommendationsCmd()
+
+	flag := cmd.Flags().Lookup("include-dismissed")
+	require.NotNil(t, flag, "include-dismissed flag should exist")
+	assert.Equal(t, "false", flag.DefValue, "default should be false")
+}
+
+// T018: Test hasStatusAnnotations detects status annotations.
+func TestHasStatusAnnotations(t *testing.T) {
+	tests := []struct {
+		name   string
+		recs   []cli.TestableRecommendation
+		expect bool
+	}{
+		{
+			name:   "no recs",
+			recs:   nil,
+			expect: false,
+		},
+		{
+			name: "all active (no status)",
+			recs: []cli.TestableRecommendation{
+				{ResourceID: "r1", Type: "RIGHTSIZE"},
+				{ResourceID: "r2", Type: "TERMINATE"},
+			},
+			expect: false,
+		},
+		{
+			name: "all active (explicit)",
+			recs: []cli.TestableRecommendation{
+				{ResourceID: "r1", Status: "Active"},
+				{ResourceID: "r2", Status: "Active"},
+			},
+			expect: false,
+		},
+		{
+			name: "has dismissed",
+			recs: []cli.TestableRecommendation{
+				{ResourceID: "r1", Status: "Active"},
+				{ResourceID: "r2", Status: "Dismissed"},
+			},
+			expect: true,
+		},
+		{
+			name: "has snoozed",
+			recs: []cli.TestableRecommendation{
+				{ResourceID: "r1", Status: "Active"},
+				{ResourceID: "r2", Status: "Snoozed"},
+			},
+			expect: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := cli.HasStatusAnnotationsForTest(tt.recs)
+			assert.Equal(t, tt.expect, result)
+		})
+	}
+}
+
+// T018: Test merge of dismissed/snoozed records with active recommendations.
+func TestMergeDismissedRecommendations(t *testing.T) {
+	// Create a temp dismissal store with test data
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "dismissed.json")
+
+	store, err := config.NewDismissalStore(storePath)
+	require.NoError(t, err)
+
+	// Add dismissed record with LastKnown
+	now := time.Now()
+	require.NoError(t, store.Set(&config.DismissalRecord{
+		RecommendationID: "rec-dismissed-1",
+		Status:           config.StatusDismissed,
+		Reason:           "BUSINESS_CONSTRAINT",
+		DismissedAt:      now,
+		LastKnown: &config.LastKnownRecommendation{
+			Description:      "Rightsize web-server",
+			EstimatedSavings: 45.00,
+			Currency:         "USD",
+			Type:             "RIGHTSIZE",
+			ResourceID:       "aws:ec2:web-server",
+		},
+		History: []config.LifecycleEvent{
+			{Action: config.ActionDismissed, Reason: "BUSINESS_CONSTRAINT", Timestamp: now},
+		},
+	}))
+
+	// Add snoozed record with LastKnown
+	future := now.Add(30 * 24 * time.Hour)
+	require.NoError(t, store.Set(&config.DismissalRecord{
+		RecommendationID: "rec-snoozed-1",
+		Status:           config.StatusSnoozed,
+		Reason:           "DEFERRED",
+		DismissedAt:      now,
+		ExpiresAt:        &future,
+		LastKnown: &config.LastKnownRecommendation{
+			Description:      "Terminate idle db",
+			EstimatedSavings: 120.00,
+			Currency:         "USD",
+			Type:             "TERMINATE",
+			ResourceID:       "aws:rds:idle-db",
+		},
+		History: []config.LifecycleEvent{
+			{Action: config.ActionSnoozed, Reason: "DEFERRED", Timestamp: now, ExpiresAt: &future},
+		},
+	}))
+
+	require.NoError(t, store.Save())
+
+	// Active recommendations
+	activeRecs := []cli.TestableRecommendation{
+		{ResourceID: "aws:ec2:active-1", Type: "MIGRATE", EstimatedSavings: 30.00, Currency: "USD"},
+		{ResourceID: "aws:s3:active-2", Type: "DELETE_UNUSED", EstimatedSavings: 5.00, Currency: "USD"},
+	}
+
+	// Merge
+	merged, mergeErr := cli.MergeDismissedRecommendationsForTest(activeRecs, storePath)
+	require.NoError(t, mergeErr)
+
+	// Should have 4 total: 2 active + 1 dismissed + 1 snoozed
+	require.Len(t, merged, 4)
+
+	// Verify active recs are present (no status set in test data)
+	activeCount := 0
+	dismissedCount := 0
+	snoozedCount := 0
+	for _, rec := range merged {
+		switch rec.Status {
+		case "Dismissed":
+			dismissedCount++
+			assert.Equal(t, "aws:ec2:web-server", rec.ResourceID)
+			assert.Equal(t, "RIGHTSIZE", rec.Type)
+			assert.Equal(t, 45.00, rec.EstimatedSavings)
+		case "Snoozed":
+			snoozedCount++
+			assert.Equal(t, "aws:rds:idle-db", rec.ResourceID)
+			assert.Equal(t, "TERMINATE", rec.Type)
+			assert.Equal(t, 120.00, rec.EstimatedSavings)
+		default:
+			activeCount++
+		}
+	}
+
+	assert.Equal(t, 2, activeCount, "should have 2 active recommendations")
+	assert.Equal(t, 1, dismissedCount, "should have 1 dismissed recommendation")
+	assert.Equal(t, 1, snoozedCount, "should have 1 snoozed recommendation")
+}
+
+// T018: Test merge with empty dismissal store.
+func TestMergeDismissedRecommendations_EmptyStore(t *testing.T) {
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "dismissed.json")
+
+	activeRecs := []cli.TestableRecommendation{
+		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
+	}
+
+	merged, err := cli.MergeDismissedRecommendationsForTest(activeRecs, storePath)
+	require.NoError(t, err)
+	assert.Len(t, merged, 1, "no dismissed records should be added")
+}
+
+// T018: Test merge does not duplicate active recommendations.
+func TestMergeDismissedRecommendations_NoDuplicates(t *testing.T) {
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "dismissed.json")
+
+	store, err := config.NewDismissalStore(storePath)
+	require.NoError(t, err)
+
+	// Add a dismissed record whose LastKnown.ResourceID matches an active rec's ResourceID.
+	// The RecommendationID is different from the ResourceID (realistic scenario).
+	now := time.Now()
+	require.NoError(t, store.Set(&config.DismissalRecord{
+		RecommendationID: "rec-dismiss-001", // Plugin-assigned recommendation ID
+		Status:           config.StatusDismissed,
+		Reason:           "NOT_APPLICABLE",
+		DismissedAt:      now,
+		LastKnown: &config.LastKnownRecommendation{
+			ResourceID: "aws:ec2:active-1", // Matches active rec below
+			Type:       "RIGHTSIZE",
+		},
+		History: []config.LifecycleEvent{
+			{Action: config.ActionDismissed, Reason: "NOT_APPLICABLE", Timestamp: now},
+		},
+	}))
+	require.NoError(t, store.Save())
+
+	activeRecs := []cli.TestableRecommendation{
+		{ResourceID: "aws:ec2:active-1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
+	}
+
+	merged, mergeErr := cli.MergeDismissedRecommendationsForTest(activeRecs, storePath)
+	require.NoError(t, mergeErr)
+	// Should NOT duplicate — dismissed record's LastKnown.ResourceID matches the active rec's ResourceID,
+	// even though the RecommendationID ("rec-dismiss-001") differs from the ResourceID ("aws:ec2:active-1")
+	assert.Len(t, merged, 1, "should not duplicate active recommendation")
+}
+
+// T018: Test table rendering with status column shows Status header.
+func TestRenderRecommendationsTable_WithStatusColumn(t *testing.T) {
+	recs := []cli.TestableRecommendation{
+		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD", Status: "Active"},
+		{ResourceID: "r2", Type: "TERMINATE", EstimatedSavings: 45.00, Currency: "USD", Status: "Dismissed"},
+		{ResourceID: "r3", Type: "MIGRATE", EstimatedSavings: 120.00, Currency: "USD", Status: "Snoozed"},
+	}
+
+	var buf bytes.Buffer
+	err := cli.RenderRecommendationsTableVerboseForTest(&buf, recs, true)
+	require.NoError(t, err)
+	output := buf.String()
+
+	// Status column header should be present
+	assert.Contains(t, output, "STATUS")
+	assert.Contains(t, output, "Active")
+	assert.Contains(t, output, "Dismissed")
+	assert.Contains(t, output, "Snoozed")
+}
+
+// T018: Test table rendering without status column (all active).
+func TestRenderRecommendationsTable_WithoutStatusColumn(t *testing.T) {
+	recs := []cli.TestableRecommendation{
+		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
+		{ResourceID: "r2", Type: "TERMINATE", EstimatedSavings: 90.00, Currency: "USD"},
+	}
+
+	var buf bytes.Buffer
+	err := cli.RenderRecommendationsTableVerboseForTest(&buf, recs, true)
+	require.NoError(t, err)
+	output := buf.String()
+
+	// STATUS header should NOT be present when all recs are active
+	assert.NotContains(t, output, "STATUS")
+}
+
+// T018: Test JSON output includes status field when present.
+func TestRenderRecommendationsJSON_WithStatus(t *testing.T) {
+	recs := []cli.TestableRecommendation{
+		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD", Status: "Active"},
+		{ResourceID: "r2", Type: "TERMINATE", EstimatedSavings: 45.00, Currency: "USD", Status: "Dismissed"},
+	}
+
+	var buf bytes.Buffer
+	err := cli.RenderRecommendationsJSONForTest(&buf, recs)
+	require.NoError(t, err)
+
+	var output map[string]interface{}
+	err = json.Unmarshal(buf.Bytes(), &output)
+	require.NoError(t, err)
+
+	recommendations, ok := output["recommendations"].([]interface{})
+	require.True(t, ok)
+	require.Len(t, recommendations, 2)
+
+	// First rec should have status "Active"
+	rec1, ok := recommendations[0].(map[string]interface{})
+	require.True(t, ok, "recommendations[0] should be a map")
+	assert.Equal(t, "Active", rec1["status"])
+
+	// Second rec should have status "Dismissed"
+	rec2, ok := recommendations[1].(map[string]interface{})
+	require.True(t, ok, "recommendations[1] should be a map")
+	assert.Equal(t, "Dismissed", rec2["status"])
+}
+
+// T018: Test dismissed record without LastKnown shows minimal info.
+func TestMergeDismissedRecommendations_NoLastKnown(t *testing.T) {
+	tmpDir := t.TempDir()
+	storePath := filepath.Join(tmpDir, "dismissed.json")
+
+	store, err := config.NewDismissalStore(storePath)
+	require.NoError(t, err)
+
+	now := time.Now()
+	require.NoError(t, store.Set(&config.DismissalRecord{
+		RecommendationID: "rec-no-snapshot",
+		Status:           config.StatusDismissed,
+		Reason:           "INACCURATE",
+		DismissedAt:      now,
+		// No LastKnown
+		History: []config.LifecycleEvent{
+			{Action: config.ActionDismissed, Reason: "INACCURATE", Timestamp: now},
+		},
+	}))
+	require.NoError(t, store.Save())
+
+	activeRecs := []cli.TestableRecommendation{}
+
+	merged, mergeErr := cli.MergeDismissedRecommendationsForTest(activeRecs, storePath)
+	require.NoError(t, mergeErr)
+	require.Len(t, merged, 1)
+
+	assert.Equal(t, "Dismissed", merged[0].Status)
+	assert.Equal(t, "rec-no-snapshot", merged[0].ResourceID)
+	assert.Contains(t, merged[0].Description, "Dismissed recommendation")
 }

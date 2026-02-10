@@ -9,7 +9,7 @@ Improve test quality and CI/CD infrastructure by: (1) adding `newState` seed cor
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: testify v1.11.1, GitHub Actions, finfocus-spec v0.4.11 (pluginsdk)
 **Storage**: N/A (test infrastructure, no persistent storage)
 **Testing**: Go native testing with fuzz support, testify assertions, E2E via CLI binary execution

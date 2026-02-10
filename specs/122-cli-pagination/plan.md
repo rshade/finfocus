@@ -20,7 +20,7 @@ Technical approach: Enhance existing CLI command handlers and TUI components wit
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**:
 - github.com/spf13/cobra v1.10.2 (CLI framework)
 - github.com/charmbracelet/bubbletea v0.27.2+ (TUI framework)

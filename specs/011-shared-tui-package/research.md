@@ -14,7 +14,7 @@
 
 - Bubble Tea provides excellent model-view-update architecture for CLI TUIs
 - Lip Gloss offers consistent styling with ANSI color support
-- Versions chosen for stability and compatibility with Go 1.25.6
+- Versions chosen for stability and compatibility with Go 1.25.7
 - Charm libraries are actively maintained and widely adopted in Go CLI ecosystem
 
 **Alternatives Considered**:

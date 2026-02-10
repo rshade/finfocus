@@ -3,6 +3,7 @@ package config
 import (
 	"io"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -15,6 +16,16 @@ import (
 //nolint:gochecknoglobals // Logger is intentionally global for application-wide structured logging
 var Logger zerolog.Logger
 
+// logFileHandle tracks the current log file for cleanup (prevents Windows file locking issues).
+//
+//nolint:gochecknoglobals // Tracks the global logger's file handle for proper cleanup
+var logFileHandle *os.File
+
+// logMu protects concurrent access to logFileHandle and Logger.
+//
+//nolint:gochecknoglobals // Guards the global logger state
+var logMu sync.RWMutex
+
 // InitLogger initializes the package-level Logger with the specified log level and optional file output.
 // It sets the global Logger, configures console output, and—when logToFile is true—ensures the log directory
 // exists and opens the configured log file (falling back to "/tmp/finfocus.log" if none is set).
@@ -24,6 +35,9 @@ var Logger zerolog.Logger
 //
 // It returns an error if directory creation or opening the log file fails, otherwise nil.
 func InitLogger(level string, logToFile bool) error {
+	logMu.Lock()
+	defer logMu.Unlock()
+
 	// Parse log level
 	lvl, err := zerolog.ParseLevel(level)
 	if err != nil {
@@ -39,6 +53,9 @@ func InitLogger(level string, logToFile bool) error {
 		TimeFormat: time.RFC3339,
 	}
 	writers = append(writers, consoleWriter)
+
+	// Close any previously opened log file to prevent file handle leaks
+	closeLogFileLocked()
 
 	// File writer if enabled
 	if logToFile {
@@ -60,6 +77,7 @@ func InitLogger(level string, logToFile bool) error {
 		if fileErr != nil {
 			return fileErr
 		}
+		logFileHandle = logFile
 		writers = append(writers, logFile)
 	}
 
@@ -80,6 +98,9 @@ func InitLogger(level string, logToFile bool) error {
 // SetLogLevel sets the package global Logger's level to the value parsed from level.
 // If the provided level cannot be parsed, the logger level is set to zerolog.InfoLevel.
 func SetLogLevel(level string) {
+	logMu.Lock()
+	defer logMu.Unlock()
+
 	lvl, err := zerolog.ParseLevel(level)
 	if err != nil {
 		lvl = zerolog.InfoLevel
@@ -87,8 +108,38 @@ func SetLogLevel(level string) {
 	Logger = Logger.Level(lvl)
 }
 
+// CloseLogFile closes the current log file handle, if any, and resets the Logger
+// to a safe console-only writer so subsequent logs are not written to a closed file.
+func CloseLogFile() {
+	logMu.Lock()
+	defer logMu.Unlock()
+	closeLogFileLocked()
+}
+
+// closeLogFileLocked closes the log file and resets the logger. Must be called with logMu held.
+func closeLogFileLocked() {
+	if logFileHandle != nil {
+		_ = logFileHandle.Close()
+		logFileHandle = nil
+
+		// Reset Logger to console-only so subsequent writes don't go to a closed file
+		consoleWriter := zerolog.ConsoleWriter{
+			Out:        os.Stderr,
+			TimeFormat: time.RFC3339,
+		}
+		Logger = zerolog.New(consoleWriter).
+			Level(Logger.GetLevel()).
+			With().
+			Timestamp().
+			Caller().
+			Logger()
+	}
+}
+
 // GetLogger returns the global logger instance.
 func GetLogger() zerolog.Logger {
+	logMu.RLock()
+	defer logMu.RUnlock()
 	return Logger
 }
 

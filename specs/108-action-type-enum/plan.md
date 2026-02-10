@@ -13,7 +13,7 @@ help text, and JSON serialization.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6
+**Language/Version**: Go 1.25.7
 **Primary Dependencies**: finfocus-spec v0.4.11 (pluginsdk), cobra v1.10.1,
   bubbletea v1.3.10, lipgloss v1.1.0
 **Storage**: N/A (stateless enum mapping)

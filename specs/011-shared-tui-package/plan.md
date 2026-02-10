@@ -11,7 +11,7 @@ Create a shared internal TUI package at `internal/tui/` providing common Bubble 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.6 (aligned with project go.mod)  
+**Language/Version**: Go 1.25.7 (aligned with project go.mod)  
 **Primary Dependencies**: github.com/charmbracelet/bubbletea v1.2.4, github.com/charmbracelet/bubbles v0.20.0, github.com/charmbracelet/lipgloss v1.0.0, golang.org/x/term v0.27.0, golang.org/x/text v0.21.0  
 **Storage**: N/A (UI rendering package)  
 **Testing**: Go testing framework with table-driven tests  
