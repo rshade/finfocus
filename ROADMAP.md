@@ -11,7 +11,6 @@ guardrails in `CONTEXT.md`.
 - [Future Vision (v0.4.0+)](#future-vision-v040---notifications-integrations--backlog)
 - [Completed Milestones](#completed-milestones)
 - [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
-- [Strategic Research Items](#strategic-research-items-the-detailed-horizon)
 - [Boundary Safeguards](#boundary-safeguards)
 
 ## Immediate Focus (v0.3.0 - Intelligence & Analysis)
@@ -23,9 +22,9 @@ guardrails in `CONTEXT.md`.
 - [x] **Multi-Plugin Routing Polish**
   - [x] Docs formatting & validation.go fix (PR #507 follow-up)
         ([#533](https://github.com/rshade/finfocus/issues/533))
-- [ ] **Recommendation Lifecycle**
-  - [ ] Add recommendation dismissal and snooze management
-        ([#464](https://github.com/rshade/finfocus/issues/464))
+- [x] **Recommendation Lifecycle**
+  - [x] Add recommendation dismissal and snooze management
+        ([#464](https://github.com/rshade/finfocus/issues/464), PR #557)
   - *Uses `DismissRecommendation` RPC from finfocus-spec v0.5.2+*
 - [ ] **Plugin SDK Hardening**
   - [ ] Research: Evaluate GetPricingSpec RPC usage in core
@@ -65,6 +64,11 @@ guardrails in `CONTEXT.md`.
         ([#220](https://github.com/rshade/finfocus/issues/220))
   - *Note:* Requires external service integration to maintain core
     statelessness per CONTEXT.md boundaries
+- [ ] **Recommendation Lifecycle Enhancements** *(spec-first)*
+  - [ ] Add `include_dismissed` field to GetRecommendationsRequest
+        ([#545](https://github.com/rshade/finfocus/issues/545))
+  - [ ] Add GetRecommendationHistory RPC to CostSourceService
+        ([#546](https://github.com/rshade/finfocus/issues/546))
 - [ ] **Cost Time Machine** *(depends on #548)*
   - [ ] Phase 1 — MVP: `cost history collect` + `view --plain` with
         asciigraph and bbolt storage
@@ -135,6 +139,27 @@ guardrails in `CONTEXT.md`.
     (CLI, TUI, MCP).
   - *Success Criteria*: Orchestrator returns grouped results by currency when
     multi-region/multi-currency resources are encountered.
+- [ ] **Markdown "Cost-Change" Report & CI/CD Bridge**
+  - *Objective*: Enable automated PR feedback by providing a Git-native
+    visualization of cost deltas.
+  - *Technical Approach*: Implement a new `OutputFormatter` that translates
+    `CostResult` maps into GFM (GitHub Flavored Markdown) using collapsible
+    `<details>` tags for per-resource breakdowns.
+  - *Anti-Guess Boundary*: The engine MUST NOT calculate the delta itself if
+    it isn't already provided by the input source; it strictly formats data
+    returned by the orchestration layer.
+  - *Success Criteria*: A valid GFM document is generated that renders
+    correctly in a GitHub comment using only data from the `CostResult` array.
+- [ ] **Stateless Cost-Policy Linting**
+  - *Objective*: Prevent accidental cost overruns by flagging resources that
+    exceed organizational informational thresholds.
+  - *Technical Approach*: Compare the `Monthly` field of a `CostResult`
+    against a static threshold defined in a local `policy.yaml`.
+  - *Anti-Guess Boundary*: This is a comparison-only feature; the core MUST
+    NOT attempt to "optimize" or "suggest remediation" for the resource
+    configuration.
+  - *Success Criteria*: The CLI produces a "Policy Violated" diagnostic when
+    a plugin-returned cost exceeds the user-defined threshold.
 
 ## Completed Milestones
 
@@ -145,6 +170,8 @@ guardrails in `CONTEXT.md`.
         ([#463](https://github.com/rshade/finfocus/issues/463), PR #538)
   - [x] Docs formatting & validation.go fix (PR #507 follow-up)
         ([#533](https://github.com/rshade/finfocus/issues/533))
+  - [x] Recommendation dismissal and lifecycle management
+        ([#464](https://github.com/rshade/finfocus/issues/464), PR #557)
 - [x] **v0.2.6: Routing & Budget Enhancements** *(Released 2026-02-02)*
   - [x] Intelligent Multi-Plugin Routing with feature-based plugin selection
         ([#410](https://github.com/rshade/finfocus/issues/410), PR #507)
@@ -211,7 +238,7 @@ guardrails in `CONTEXT.md`.
   - [x] CLI Filter Flag (#203)
   - [x] Test Infrastructure Hardening (#200)
 
-### Cross-Repository Feature Matrix
+## Cross-Repository Feature Matrix
 
 | Feature | spec | core | aws-public | aws-ce |
 | ------- | ---- | ---- | ---------- | ------ |
@@ -223,30 +250,6 @@ guardrails in `CONTEXT.md`.
 | Dev Mode | UsageProfile (v0.5.5) | --profile | Burstable | IOPS warn |
 | What-If Analysis | EstimateCost | cost estimate | PropertyDelta | N/A |
 | Rec Lifecycle | DismissRecommendation | dismiss/snooze | Dismiss | N/A |
-
-### Strategic Research Items (The "Detailed Horizon")
-
-- [ ] **Markdown "Cost-Change" Report & CI/CD Bridge**
-  - *Objective*: Enable automated PR feedback by providing a Git-native
-    visualization of cost deltas.
-  - *Technical Approach*: Implement a new `OutputFormatter` that translates
-    `CostResult` maps into GFM (GitHub Flavored Markdown) using collapsible
-    `<details>` tags for per-resource breakdowns.
-  - *Anti-Guess Boundary*: The engine MUST NOT calculate the delta itself if
-    it isn't already provided by the input source; it strictly formats data
-    returned by the orchestration layer.
-  - *Success Criteria*: A valid GFM document is generated that renders
-    correctly in a GitHub comment using only data from the `CostResult` array.
-- [ ] **Stateless Cost-Policy Linting**
-  - *Objective*: Prevent accidental cost overruns by flagging resources that
-    exceed organizational informational thresholds.
-  - *Technical Approach*: Compare the `Monthly` field of a `CostResult`
-    against a static threshold defined in a local `policy.yaml`.
-  - *Anti-Guess Boundary*: This is a comparison-only feature; the core MUST
-    NOT attempt to "optimize" or "suggest remediation" for the resource
-    configuration.
-  - *Success Criteria*: The CLI produces a "Policy Violated" diagnostic when
-    a plugin-returned cost exceeds the user-defined threshold.
 
 ## Boundary Safeguards
 
