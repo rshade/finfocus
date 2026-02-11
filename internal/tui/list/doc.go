@@ -1,4 +1,4 @@
-// Package list provides virtual scrolling components for Bubble Tea TUI applications.
+// Package listview provides virtual scrolling components for Bubble Tea TUI applications.
 //
 // This package implements efficient rendering for large lists (10,000+ items) by only
 // rendering visible rows within the viewport. Key features:
@@ -9,4 +9,4 @@
 //
 // Virtual scrolling enables responsive TUI experiences even with massive datasets,
 // ensuring the application starts immediately without pre-rendering all rows.
-package list
+package listview

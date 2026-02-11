@@ -283,7 +283,11 @@ func FromContext(ctx context.Context) *zerolog.Logger {
 				level = parsedLevel
 			} else {
 				// Log invalid log level values at error level
-				fmt.Fprintf(os.Stderr, "Invalid %s '%s': %v, using default info level\n", pluginsdk.EnvLogLevel, envLevel, err)
+				fmt.Fprintf(
+					os.Stderr,
+					"Invalid %s '%s': %v, using default info level\n",
+					pluginsdk.EnvLogLevel, envLevel, err,
+				)
 			}
 		}
 		defaultLogger := zerolog.New(os.Stderr).

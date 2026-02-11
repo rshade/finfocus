@@ -1,4 +1,4 @@
-package list_test
+package listview_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/rshade/finfocus/internal/tui/list"
+	listview "github.com/rshade/finfocus/internal/tui/list"
 )
 
 // TestVirtualListModel_NewModel tests VirtualListModel initialization.
@@ -17,7 +17,7 @@ func TestVirtualListModel_NewModel(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	assert.Equal(t, 5, model.ItemCount())
 	assert.Equal(t, 20, model.Height())
@@ -80,7 +80,7 @@ func TestVirtualListModel_VisibleRangeCalculation(t *testing.T) {
 				return item
 			}
 
-			model := list.NewVirtualListModel(items, tt.viewportHeight, 80, renderFunc)
+			model := listview.NewVirtualListModel(items, tt.viewportHeight, 80, renderFunc)
 			model.SetSelected(tt.selectedIndex)
 
 			assert.Equal(t, tt.expectFrom, model.VisibleFrom())
@@ -99,7 +99,7 @@ func TestVirtualListModel_ScrollBoundaries(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	tests := []struct {
 		name           string
@@ -152,7 +152,7 @@ func TestVirtualListModel_SelectionLogic(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	tests := []struct {
 		name          string
@@ -218,7 +218,7 @@ func TestVirtualListModel_PageUpDown(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	tests := []struct {
 		name          string
@@ -272,7 +272,7 @@ func TestVirtualListModel_WindowResize(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	// Simulate window resize
 	resizeMsg := tea.WindowSizeMsg{Width: 120, Height: 30}
@@ -288,7 +288,7 @@ func TestVirtualListModel_EmptyList(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel([]string{}, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel([]string{}, 20, 80, renderFunc)
 
 	assert.Equal(t, 0, model.ItemCount())
 	assert.Equal(t, 0, model.Selected())
@@ -309,7 +309,7 @@ func TestVirtualListModel_SingleItem(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel([]string{"item1"}, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel([]string{"item1"}, 20, 80, renderFunc)
 
 	assert.Equal(t, 1, model.ItemCount())
 	assert.Equal(t, 0, model.Selected())
@@ -332,7 +332,7 @@ func TestVirtualListModel_SetSelected(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	tests := []struct {
 		name          string

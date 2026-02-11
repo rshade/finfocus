@@ -1,4 +1,4 @@
-package list_test
+package listview_test
 
 import (
 	"strings"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/rshade/finfocus/internal/tui/list"
+	listview "github.com/rshade/finfocus/internal/tui/list"
 )
 
 // TestVirtualListModel_ViewRendersOnlyVisibleRows tests that only visible rows are rendered.
@@ -25,7 +25,7 @@ func TestVirtualListModel_ViewRendersOnlyVisibleRows(t *testing.T) {
 	}
 
 	// Viewport height of 20 means only ~20 rows should be rendered
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	view := model.View()
 
@@ -54,7 +54,7 @@ func TestVirtualListModel_ViewUpdatesWithScroll(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	// Initial view
 	viewBefore := model.View()
@@ -80,7 +80,7 @@ func TestVirtualListModel_ViewWithBuffer(t *testing.T) {
 	}
 
 	// Small viewport
-	model := list.NewVirtualListModel(items, 10, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 10, 80, renderFunc)
 
 	// Select item in middle
 	model.SetSelected(50)
@@ -112,7 +112,7 @@ func TestVirtualListModel_ViewSelectedMarker(t *testing.T) {
 		return "  " + item
 	}
 
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	// Select second item
 	model.SetSelected(1)
@@ -131,7 +131,7 @@ func TestVirtualListModel_ViewEmptyList(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel([]string{}, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel([]string{}, 20, 80, renderFunc)
 
 	view := model.View()
 
@@ -151,7 +151,7 @@ func TestVirtualListModel_ViewPerformance(t *testing.T) {
 		return item
 	}
 
-	model := list.NewVirtualListModel(items, 20, 80, renderFunc)
+	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	// Render view (should be fast since it only renders visible rows)
 	view := model.View()
@@ -214,7 +214,7 @@ func TestVirtualListModel_ViewBoundaryConditions(t *testing.T) {
 				return item
 			}
 
-			model := list.NewVirtualListModel(items, tt.height, 80, renderFunc)
+			model := listview.NewVirtualListModel(items, tt.height, 80, renderFunc)
 			model.SetSelected(tt.selected)
 
 			// Should not panic

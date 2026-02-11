@@ -87,7 +87,9 @@ func RenderActualCostOutput(
 	case tui.OutputModeStyled, tui.OutputModePlain:
 		fallthrough
 	default:
-		if err := renderActualCostOutput(cmd.OutOrStdout(), engine.OutputTable, resultWithErrors.Results, groupBy, estimateConfidence); err != nil {
+		if err := renderActualCostOutput(
+			cmd.OutOrStdout(), engine.OutputTable, resultWithErrors.Results, groupBy, estimateConfidence,
+		); err != nil {
 			return err
 		}
 		displayErrorSummary(cmd, resultWithErrors, engine.OutputTable)

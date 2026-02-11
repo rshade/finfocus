@@ -1,4 +1,4 @@
-package list
+package listview
 
 import (
 	"strings"
@@ -86,13 +86,12 @@ func (m *VirtualListModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // handleKeyMsg processes keyboard input for navigation.
 //
-//nolint:gocognit // Key handling inherently requires multiple branches for different navigation keys.
+//nolint:gocognit,exhaustive // Key handling inherently requires multiple branches for different navigation keys.
 func (m *VirtualListModel[T]) handleKeyMsg(msg tea.KeyMsg) tea.Model {
 	if len(m.items) == 0 {
 		return m
 	}
 
-	//nolint:exhaustive // Only handle navigation keys; other key types are intentionally ignored.
 	switch msg.Type {
 	case tea.KeyUp:
 		if m.selected > 0 {
