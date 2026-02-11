@@ -236,7 +236,9 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		return fmt.Errorf("fetching actual costs: %w", err)
 	}
 
-	if renderErr := RenderActualCostOutput(ctx, cmd, params.output, resultWithErrors, actualGroupBy, params.estimateConfidence); renderErr != nil {
+	if renderErr := RenderActualCostOutput(
+		ctx, cmd, params.output, resultWithErrors, actualGroupBy, params.estimateConfidence,
+	); renderErr != nil {
 		return renderErr
 	}
 

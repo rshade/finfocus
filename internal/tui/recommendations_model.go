@@ -11,7 +11,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/rshade/finfocus/internal/engine"
-	"github.com/rshade/finfocus/internal/tui/list"
+	listview "github.com/rshade/finfocus/internal/tui/list"
 )
 
 // RecommendationSortField represents the field to sort recommendations by.
@@ -200,7 +200,7 @@ type RecommendationsViewModel struct {
 	recommendations    []engine.Recommendation // Filtered/sorted for display
 
 	// Interactive components
-	virtualList *list.VirtualListModel[engine.Recommendation]
+	virtualList *listview.VirtualListModel[engine.Recommendation]
 	textInput   textinput.Model
 
 	// Display configuration
@@ -387,7 +387,7 @@ func (m *RecommendationsViewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea
 	// Forward navigation to virtual list
 	if m.virtualList != nil {
 		updatedModel, cmd := m.virtualList.Update(msg)
-		if vl, ok := updatedModel.(*list.VirtualListModel[engine.Recommendation]); ok {
+		if vl, ok := updatedModel.(*listview.VirtualListModel[engine.Recommendation]); ok {
 			m.virtualList = vl
 		}
 		return m, cmd
@@ -473,7 +473,7 @@ func (m *RecommendationsViewModel) rebuildList() {
 	if availableHeight < minHeight {
 		availableHeight = minHeight
 	}
-	m.virtualList = list.NewVirtualListModel(
+	m.virtualList = listview.NewVirtualListModel(
 		m.recommendations,
 		availableHeight,
 		m.width,

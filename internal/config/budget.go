@@ -49,7 +49,7 @@ type AlertConfig struct {
 	// Threshold is the percentage of budget consumed that triggers this alert (e.g., 80.0 for 80%).
 	Threshold float64 `yaml:"threshold" json:"threshold"`
 	// Type is the evaluation type: "actual" or "forecasted".
-	Type AlertType `yaml:"type"      json:"type"`
+	Type AlertType `yaml:"type" json:"type"`
 }
 
 // Validate checks if the alert configuration is valid.
@@ -67,9 +67,9 @@ func (a AlertConfig) Validate() error {
 // It defines a budget with an amount, currency, time period, and threshold alerts.
 type BudgetConfig struct {
 	// Amount is the total spend limit for the period. Use 0 to disable the budget.
-	Amount float64 `yaml:"amount"           json:"amount"`
+	Amount float64 `yaml:"amount" json:"amount"`
 	// Currency is the ISO 4217 currency code (e.g., "USD", "EUR").
-	Currency string `yaml:"currency"         json:"currency"`
+	Currency string `yaml:"currency" json:"currency"`
 	// Period is the time period for the budget (e.g., "monthly"). Defaults to "monthly".
 	Period string `yaml:"period,omitempty" json:"period,omitempty"`
 	// Alerts is a list of thresholds that trigger notifications.
@@ -81,7 +81,7 @@ type BudgetConfig struct {
 	// ExitCode is the exit code to use when a threshold is exceeded.
 	// Only validated when ExitOnThreshold is true. Defaults to 1 if not set.
 	// Must be in range 0-255 (Unix standard).
-	ExitCode int `yaml:"exit_code,omitempty" json:"exit_code,omitempty"` //nolint:golines // struct tag
+	ExitCode int `yaml:"exit_code,omitempty" json:"exit_code,omitempty"`
 }
 
 // IsEnabled returns true if the budget is configured and enabled (Amount > 0).

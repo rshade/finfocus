@@ -402,7 +402,9 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	}
 
 	// Render output
-	if renderErr := RenderRecommendationsOutput(ctx, cmd, params.output, filteredResult, params.verbose, paginationMeta); renderErr != nil {
+	if renderErr := RenderRecommendationsOutput(
+		ctx, cmd, params.output, filteredResult, params.verbose, paginationMeta,
+	); renderErr != nil {
 		return renderErr
 	}
 
