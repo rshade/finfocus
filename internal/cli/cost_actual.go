@@ -229,12 +229,15 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		EstimateConfidence: params.estimateConfidence,
 	}
 
-	resultWithErrors, err := engine.New(clients, nil).GetActualCostWithOptionsAndErrors(ctx, request)
+	eng := engine.New(clients, nil)
+	resultWithErrors, err := eng.GetActualCostWithOptionsAndErrors(ctx, request)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to fetch actual costs")
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("fetching actual costs: %w", err)
 	}
+
+	fetchAndMergeRecommendations(ctx, eng, resources, resultWithErrors.Results)
 
 	if renderErr := RenderActualCostOutput(
 		ctx, cmd, params.output, resultWithErrors, actualGroupBy, params.estimateConfidence,

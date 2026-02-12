@@ -391,6 +391,260 @@ func TestRenderCostSummary_WithCarbonEquivalencies(t *testing.T) {
 	}
 }
 
+// TestRenderRecommendationsSection verifies the rendering of recommendation items.
+func TestRenderRecommendationsSection(t *testing.T) {
+	tests := []struct {
+		name        string
+		recs        []engine.Recommendation
+		contains    []string
+		notContains []string
+	}{
+		{
+			name: "single recommendation with savings",
+			recs: []engine.Recommendation{
+				{Type: "RIGHTSIZE", Description: "Switch to t3.small", EstimatedSavings: 5.00, Currency: "USD"},
+			},
+			contains: []string{
+				"RECOMMENDATIONS",
+				"[RIGHTSIZE] Switch to t3.small ($5.00 USD/mo savings)",
+			},
+		},
+		{
+			name: "recommendation without savings",
+			recs: []engine.Recommendation{
+				{Type: "TERMINATE", Description: "Resource is idle during weekends"},
+			},
+			contains:    []string{"[TERMINATE] Resource is idle during weekends"},
+			notContains: []string{"savings"},
+		},
+		{
+			name: "multiple recommendations sorted by savings descending",
+			recs: []engine.Recommendation{
+				{Type: "TERMINATE", Description: "Idle", EstimatedSavings: 2.0, Currency: "USD"},
+				{Type: "MIGRATE", Description: "Graviton", EstimatedSavings: 8.0, Currency: "USD"},
+				{Type: "RIGHTSIZE", Description: "Downsize", EstimatedSavings: 5.0, Currency: "USD"},
+			},
+			contains: []string{
+				"[MIGRATE] Graviton ($8.00 USD/mo savings)",
+				"[RIGHTSIZE] Downsize ($5.00 USD/mo savings)",
+				"[TERMINATE] Idle ($2.00 USD/mo savings)",
+			},
+		},
+		{
+			name: "recommendations with reasoning display indented warning lines",
+			recs: []engine.Recommendation{
+				{
+					Type: "MIGRATE", Description: "Switch to Graviton",
+					EstimatedSavings: 8.0, Currency: "USD",
+					Reasoning: []string{"Ensure application compatibility with ARM64 architecture"},
+				},
+			},
+			contains: []string{
+				"[MIGRATE] Switch to Graviton ($8.00 USD/mo savings)",
+				"Ensure application compatibility with ARM64 architecture",
+			},
+		},
+		{
+			name:        "empty recommendations slice produces no output",
+			recs:        []engine.Recommendation{},
+			notContains: []string{"RECOMMENDATIONS"},
+		},
+		{
+			name:        "nil recommendations produces no output",
+			recs:        nil,
+			notContains: []string{"RECOMMENDATIONS"},
+		},
+		{
+			name: "default currency USD when currency field is empty",
+			recs: []engine.Recommendation{
+				{Type: "RIGHTSIZE", Description: "Resize", EstimatedSavings: 3.50, Currency: ""},
+			},
+			contains: []string{"($3.50 USD/mo savings)"},
+		},
+		{
+			name: "unrecognized action type rendered as-is in brackets",
+			recs: []engine.Recommendation{
+				{Type: "UNKNOWN_TYPE", Description: "Some action"},
+			},
+			contains: []string{"[UNKNOWN_TYPE] Some action"},
+		},
+		{
+			name: "10+ recommendations all render without truncation",
+			recs: func() []engine.Recommendation {
+				recs := make([]engine.Recommendation, 12)
+				for i := range recs {
+					recs[i] = engine.Recommendation{
+						Type:        "RIGHTSIZE",
+						Description: "Recommendation " + strings.Repeat("X", i+1),
+					}
+				}
+				return recs
+			}(),
+			contains: []string{
+				"Recommendation X",
+				"Recommendation XXXXXXXXXXXX",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var content strings.Builder
+			renderRecommendationsSection(&content, tt.recs)
+			output := content.String()
+			for _, s := range tt.contains {
+				assert.Contains(t, output, s)
+			}
+			for _, s := range tt.notContains {
+				assert.NotContains(t, output, s)
+			}
+		})
+	}
+}
+
+// TestRenderRecommendationsSection_SortStability verifies that recommendations with
+// equal savings maintain their original order.
+func TestRenderRecommendationsSection_SortStability(t *testing.T) {
+	recs := []engine.Recommendation{
+		{Type: "FIRST", Description: "First with 5", EstimatedSavings: 5.0, Currency: "USD"},
+		{Type: "SECOND", Description: "Second with 5", EstimatedSavings: 5.0, Currency: "USD"},
+		{Type: "THIRD", Description: "Third with 5", EstimatedSavings: 5.0, Currency: "USD"},
+	}
+	var content strings.Builder
+	renderRecommendationsSection(&content, recs)
+	output := content.String()
+
+	idxFirst := strings.Index(output, "[FIRST]")
+	idxSecond := strings.Index(output, "[SECOND]")
+	idxThird := strings.Index(output, "[THIRD]")
+	assert.True(t, idxFirst < idxSecond, "FIRST should appear before SECOND")
+	assert.True(t, idxSecond < idxThird, "SECOND should appear before THIRD")
+}
+
+// TestRenderDetailViewWithRecommendations verifies the RECOMMENDATIONS section appears
+// in the correct position within the full detail view.
+func TestRenderDetailViewWithRecommendations(t *testing.T) {
+	t.Run("RECOMMENDATIONS section appears after SUSTAINABILITY and before NOTES", func(t *testing.T) {
+		resource := engine.CostResult{
+			ResourceType: "aws:ec2/instance",
+			ResourceID:   "i-123",
+			Monthly:      50.0,
+			Currency:     "USD",
+			Sustainability: map[string]engine.SustainabilityMetric{
+				"carbon_footprint": {Value: 10.0, Unit: "kg"},
+			},
+			Recommendations: []engine.Recommendation{
+				{Type: "RIGHTSIZE", Description: "Switch to t3.small", EstimatedSavings: 5.0, Currency: "USD"},
+			},
+			Notes: "Some note",
+		}
+		output := RenderDetailView(resource, 100)
+
+		assert.Contains(t, output, "RECOMMENDATIONS")
+		assert.Contains(t, output, "[RIGHTSIZE] Switch to t3.small")
+
+		// Verify ordering: SUSTAINABILITY before RECOMMENDATIONS before NOTES
+		idxSustain := strings.Index(output, "SUSTAINABILITY")
+		idxRecs := strings.Index(output, "RECOMMENDATIONS")
+		idxNotes := strings.Index(output, "NOTES")
+		assert.True(t, idxSustain < idxRecs, "SUSTAINABILITY should appear before RECOMMENDATIONS")
+		assert.True(t, idxRecs < idxNotes, "RECOMMENDATIONS should appear before NOTES")
+	})
+
+	t.Run("section absent when Recommendations is nil", func(t *testing.T) {
+		resource := engine.CostResult{
+			ResourceType:    "aws:ec2/instance",
+			ResourceID:      "i-123",
+			Monthly:         50.0,
+			Currency:        "USD",
+			Recommendations: nil,
+		}
+		output := RenderDetailView(resource, 100)
+
+		assert.NotContains(t, output, "RECOMMENDATIONS")
+	})
+}
+
+// TestRenderDetailViewNoRecommendations verifies the detail view renders correctly
+// when no recommendations are present (US3: Graceful Absence of Recommendations).
+func TestRenderDetailViewNoRecommendations(t *testing.T) {
+	t.Run("nil Recommendations produces no RECOMMENDATIONS section", func(t *testing.T) {
+		resource := engine.CostResult{
+			ResourceType:    "aws:ec2/instance",
+			ResourceID:      "i-123",
+			Monthly:         50.0,
+			Currency:        "USD",
+			Recommendations: nil,
+			Sustainability: map[string]engine.SustainabilityMetric{
+				"carbon_footprint": {Value: 10.0, Unit: "kg"},
+			},
+			Notes: "Some notes",
+		}
+		output := RenderDetailView(resource, 100)
+
+		assert.NotContains(t, output, "RECOMMENDATIONS")
+		// Verify other sections still render
+		assert.Contains(t, output, "RESOURCE DETAIL")
+		assert.Contains(t, output, "SUSTAINABILITY")
+		assert.Contains(t, output, "NOTES")
+	})
+
+	t.Run("empty Recommendations slice produces no RECOMMENDATIONS section", func(t *testing.T) {
+		resource := engine.CostResult{
+			ResourceType:    "aws:ec2/instance",
+			ResourceID:      "i-456",
+			Monthly:         75.0,
+			Currency:        "USD",
+			Recommendations: []engine.Recommendation{},
+			Breakdown: map[string]float64{
+				"compute": 60.0,
+				"storage": 15.0,
+			},
+		}
+		output := RenderDetailView(resource, 100)
+
+		assert.NotContains(t, output, "RECOMMENDATIONS")
+		// Verify other sections still render
+		assert.Contains(t, output, "RESOURCE DETAIL")
+		assert.Contains(t, output, "BREAKDOWN")
+	})
+
+	t.Run("all other sections render normally without recommendations", func(t *testing.T) {
+		resource := engine.CostResult{
+			ResourceType: "aws:ec2/instance",
+			ResourceID:   "i-789",
+			Monthly:      100.0,
+			Hourly:       0.14,
+			Currency:     "USD",
+			Breakdown: map[string]float64{
+				"compute": 80.0,
+				"storage": 20.0,
+			},
+			Sustainability: map[string]engine.SustainabilityMetric{
+				"carbon_footprint": {Value: 50.0, Unit: "kg"},
+			},
+			Recommendations: nil,
+			Notes:           "Test notes for resource",
+		}
+		output := RenderDetailView(resource, 100)
+
+		// Verify complete expected output
+		assert.Contains(t, output, "RESOURCE DETAIL")
+		assert.Contains(t, output, "i-789")
+		assert.Contains(t, output, "aws:ec2/instance")
+		assert.Contains(t, output, "Monthly Cost:")
+		assert.Contains(t, output, "$100.00")
+		assert.Contains(t, output, "BREAKDOWN")
+		assert.Contains(t, output, "compute:")
+		assert.Contains(t, output, "SUSTAINABILITY")
+		assert.Contains(t, output, "carbon_footprint")
+		assert.Contains(t, output, "NOTES")
+		assert.Contains(t, output, "Test notes for resource")
+		// Verify no recommendations section
+		assert.NotContains(t, output, "RECOMMENDATIONS")
+	})
+}
+
 // TestRenderCostSummary_EquivalencyStyling tests that equivalencies use consistent TUI styling.
 func TestRenderCostSummary_EquivalencyStyling(t *testing.T) {
 	results := []engine.CostResult{

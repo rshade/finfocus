@@ -9,6 +9,7 @@ Auto-generated from all feature plans. Last updated: 2026-01-12
 - Markdown (GFM), Mermaid (for diagrams) + Jekyll (for site generation), mermaid.js (for rendering diagrams) (118-e2e-plugin-docs)
 - Go 1.25.6 + `github.com/charmbracelet/lipgloss`, `golang.org/x/term`, `github.com/spf13/viper` (existing config), `github.com/spf13/cobra` (existing CLI) (001-cli-budget-alerts)
 - Local filesystem (`~/.finfocus/config.yaml`) (001-cli-budget-alerts)
+- Go 1.25.6 + `github.com/charmbracelet/bubbletea`, `github.com/charmbracelet/lipgloss`, `github.com/rshade/finfocus/internal/engine` (510-tui-detail-recommendations)
 
 - Markdown, Go 1.25.6 (for code verification) + Jekyll (for docs site), GitHub Pages (010-sync-docs-codebase)
 - Git repository (docs folder) (010-sync-docs-codebase)
@@ -194,6 +195,7 @@ import (
 - **Property Extraction**: Core (`adapter.go`) relies on populated `Inputs` to extract SKU and Region. If `Inputs` are empty (due to ingest issues), pricing lookup fails.
 
 ## Recent Changes
+- 510-tui-detail-recommendations: Added Go 1.25.6 + `github.com/charmbracelet/bubbletea`, `github.com/charmbracelet/lipgloss`, `github.com/rshade/finfocus/internal/engine`
 - 001-cli-budget-alerts: Added Go 1.25.6 + `github.com/charmbracelet/lipgloss`, `golang.org/x/term`, `github.com/spf13/viper` (existing config), `github.com/spf13/cobra` (existing CLI)
 - 118-e2e-plugin-docs: Added Markdown (GFM), Mermaid (for diagrams) + Jekyll (for site generation), mermaid.js (for rendering diagrams)
 

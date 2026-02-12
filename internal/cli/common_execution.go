@@ -91,6 +91,51 @@ func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*p
 	return clients, cleanup, nil
 }
 
+// recommendationFetcher abstracts recommendation retrieval for testability.
+type recommendationFetcher interface {
+	GetRecommendationsForResources(
+		ctx context.Context, resources []engine.ResourceDescriptor,
+	) (*engine.RecommendationsResult, error)
+}
+
+// fetchAndMergeRecommendations fetches recommendations for the given resources
+// and merges them into the corresponding cost results by ResourceID.
+// Errors are logged at WARN level but never propagated (FR-006).
+func fetchAndMergeRecommendations(ctx context.Context, fetcher recommendationFetcher,
+	resources []engine.ResourceDescriptor, results []engine.CostResult) {
+	log := logging.FromContext(ctx)
+	recsResult, err := fetcher.GetRecommendationsForResources(ctx, resources)
+	if err != nil {
+		log.Warn().Ctx(ctx).Err(err).
+			Msg("failed to fetch recommendations for detail view")
+		return
+	}
+	if len(recsResult.Recommendations) == 0 {
+		return
+	}
+
+	recMap := make(map[string][]engine.Recommendation)
+	for _, rec := range recsResult.Recommendations {
+		if rec.ResourceID == "" {
+			log.Warn().Ctx(ctx).
+				Str("recommendation_type", rec.Type).
+				Msg("skipping recommendation with empty ResourceID")
+			continue
+		}
+		recMap[rec.ResourceID] = append(recMap[rec.ResourceID], rec)
+	}
+
+	for i := range results {
+		if recs, found := recMap[results[i].ResourceID]; found {
+			results[i].Recommendations = recs
+		}
+	}
+
+	log.Debug().Ctx(ctx).
+		Int("recommendations_count", len(recsResult.Recommendations)).
+		Msg("merged recommendations into cost results")
+}
+
 // extractCurrencyFromResults scans results to find a single canonical currency.
 // It returns the currency code and a boolean indicating if mixed currencies were detected.
 // If no currency is found, it defaults to "USD".

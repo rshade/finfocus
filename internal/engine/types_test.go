@@ -1,12 +1,15 @@
 package engine
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 // Test GroupBy validation.
@@ -530,5 +533,186 @@ func TestEstimateRequest(t *testing.T) {
 		}
 
 		assert.Empty(t, request.UsageProfile)
+	})
+}
+
+// TestConvertProtoRecommendationReasoning verifies that convertProtoRecommendation
+// copies the Reasoning field from proto.Recommendation to engine.Recommendation.
+func TestConvertProtoRecommendationReasoning(t *testing.T) {
+	t.Run("multi-entry reasoning preserved in order", func(t *testing.T) {
+		protoRec := &proto.Recommendation{
+			ResourceID:  "my-instance",
+			ActionType:  "MIGRATE",
+			Description: "Switch to Graviton",
+			Impact: &proto.RecommendationImpact{
+				EstimatedSavings: 8.00,
+				Currency:         "USD",
+			},
+			Reasoning: []string{
+				"Ensure application compatibility with ARM64 architecture",
+				"Test workloads before full migration",
+			},
+		}
+
+		engineRec := convertProtoRecommendation(protoRec)
+
+		require.Len(t, engineRec.Reasoning, 2)
+		assert.Equal(t, "Ensure application compatibility with ARM64 architecture", engineRec.Reasoning[0])
+		assert.Equal(t, "Test workloads before full migration", engineRec.Reasoning[1])
+		assert.Equal(t, "my-instance", engineRec.ResourceID)
+		assert.Equal(t, "MIGRATE", engineRec.Type)
+		assert.Equal(t, "Switch to Graviton", engineRec.Description)
+		assert.Equal(t, 8.00, engineRec.EstimatedSavings)
+		assert.Equal(t, "USD", engineRec.Currency)
+	})
+
+	t.Run("empty reasoning produces nil", func(t *testing.T) {
+		protoRec := &proto.Recommendation{
+			ResourceID:  "my-instance",
+			ActionType:  "RIGHTSIZE",
+			Description: "Switch to t3.small",
+			Reasoning:   nil,
+		}
+
+		engineRec := convertProtoRecommendation(protoRec)
+
+		assert.Nil(t, engineRec.Reasoning)
+	})
+
+	t.Run("empty slice reasoning produces empty slice", func(t *testing.T) {
+		protoRec := &proto.Recommendation{
+			ResourceID:  "my-instance",
+			ActionType:  "TERMINATE",
+			Description: "Resource is idle",
+			Reasoning:   []string{},
+		}
+
+		engineRec := convertProtoRecommendation(protoRec)
+
+		assert.Empty(t, engineRec.Reasoning)
+	})
+
+	t.Run("single reasoning entry", func(t *testing.T) {
+		protoRec := &proto.Recommendation{
+			ResourceID:  "db-instance",
+			ActionType:  "RIGHTSIZE",
+			Description: "Reduce instance size",
+			Impact: &proto.RecommendationImpact{
+				EstimatedSavings: 15.50,
+				Currency:         "EUR",
+			},
+			Reasoning: []string{"Check connection pool limits before resizing"},
+		}
+
+		engineRec := convertProtoRecommendation(protoRec)
+
+		require.Len(t, engineRec.Reasoning, 1)
+		assert.Equal(t, "Check connection pool limits before resizing", engineRec.Reasoning[0])
+		assert.Equal(t, 15.50, engineRec.EstimatedSavings)
+		assert.Equal(t, "EUR", engineRec.Currency)
+	})
+}
+
+// TestCostResultJSONRecommendations verifies JSON serialization of CostResult with recommendations (US4).
+func TestCostResultJSONRecommendations(t *testing.T) {
+	t.Run("populated Recommendations includes recommendations array in JSON", func(t *testing.T) {
+		costResult := CostResult{
+			ResourceType: "aws:ec2:Instance",
+			ResourceID:   "i-123",
+			Monthly:      50.0,
+			Currency:     "USD",
+			Recommendations: []Recommendation{
+				{
+					Type:             "RIGHTSIZE",
+					Description:      "Switch to t3.small",
+					EstimatedSavings: 5.0,
+					Currency:         "USD",
+					Reasoning:        []string{"Ensure app supports smaller instances"},
+				},
+				{
+					Type:        "TERMINATE",
+					Description: "Resource is idle",
+				},
+			},
+		}
+
+		jsonBytes, err := json.Marshal(costResult)
+		require.NoError(t, err)
+		jsonStr := string(jsonBytes)
+
+		// Verify recommendations array is present
+		assert.Contains(t, jsonStr, "\"recommendations\"")
+		// Verify individual fields are present
+		assert.Contains(t, jsonStr, "\"type\":\"RIGHTSIZE\"")
+		assert.Contains(t, jsonStr, "\"type\":\"TERMINATE\"")
+		assert.Contains(t, jsonStr, "\"description\":\"Switch to t3.small\"")
+		assert.Contains(t, jsonStr, "\"description\":\"Resource is idle\"")
+		assert.Contains(t, jsonStr, "\"estimatedSavings\":5")
+		assert.Contains(t, jsonStr, "\"currency\":\"USD\"")
+		assert.Contains(t, jsonStr, "\"reasoning\"")
+		assert.Contains(t, jsonStr, "\"Ensure app supports smaller instances\"")
+	})
+
+	t.Run("nil Recommendations omits recommendations key entirely", func(t *testing.T) {
+		costResult := CostResult{
+			ResourceType:    "aws:ec2:Instance",
+			ResourceID:      "i-456",
+			Monthly:         75.0,
+			Currency:        "USD",
+			Recommendations: nil,
+		}
+
+		jsonBytes, err := json.Marshal(costResult)
+		require.NoError(t, err)
+		jsonStr := string(jsonBytes)
+
+		// Verify recommendations key is NOT present
+		assert.NotContains(t, jsonStr, "\"recommendations\"")
+		// Verify other fields are present
+		assert.Contains(t, jsonStr, "\"resourceType\":\"aws:ec2:Instance\"")
+		assert.Contains(t, jsonStr, "\"monthly\":75")
+	})
+
+	t.Run("empty Recommendations slice omits recommendations key", func(t *testing.T) {
+		costResult := CostResult{
+			ResourceType:    "aws:s3:Bucket",
+			ResourceID:      "my-bucket",
+			Monthly:         25.0,
+			Currency:        "USD",
+			Recommendations: []Recommendation{},
+		}
+
+		jsonBytes, err := json.Marshal(costResult)
+		require.NoError(t, err)
+		jsonStr := string(jsonBytes)
+
+		// Verify recommendations key is NOT present due to omitempty
+		assert.NotContains(t, jsonStr, "\"recommendations\"")
+	})
+
+	t.Run("recommendation with empty Reasoning omits reasoning key", func(t *testing.T) {
+		costResult := CostResult{
+			ResourceType: "aws:ec2:Instance",
+			ResourceID:   "i-789",
+			Recommendations: []Recommendation{
+				{
+					Type:             "MIGRATE",
+					Description:      "Switch to Graviton",
+					EstimatedSavings: 8.0,
+					Currency:         "USD",
+					Reasoning:        nil,
+				},
+			},
+		}
+
+		jsonBytes, err := json.Marshal(costResult)
+		require.NoError(t, err)
+		jsonStr := string(jsonBytes)
+
+		// Verify recommendations is present but reasoning is omitted for empty entries
+		assert.Contains(t, jsonStr, "\"recommendations\"")
+		assert.Contains(t, jsonStr, "\"type\":\"MIGRATE\"")
+		// The reasoning field should be omitted when empty
+		assert.NotContains(t, jsonStr, "\"reasoning\":[]")
 	})
 }
