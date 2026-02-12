@@ -10,6 +10,7 @@ Complete command reference for FinFocus.
 
 ```bash
 finfocus                    # Help
+finfocus overview           # Unified cost dashboard
 finfocus cost               # Cost commands
 finfocus cost projected     # Estimate costs from plan
 finfocus cost actual        # Get actual historical costs

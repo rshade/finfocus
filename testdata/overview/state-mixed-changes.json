@@ -1,0 +1,311 @@
+{
+  "version": 3,
+  "deployment": {
+    "manifest": {
+      "time": "2025-06-15T10:00:00Z",
+      "magic": "",
+      "version": ""
+    },
+    "resources": [
+      {
+        "urn": "urn:pulumi:prod::myapp::pulumi:pulumi:Stack::myapp-prod",
+        "type": "pulumi:pulumi:Stack",
+        "custom": false
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::pulumi:providers:aws::default",
+        "type": "pulumi:providers:aws",
+        "custom": true,
+        "id": "provider-aws-default"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-1",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "id": "i-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-2",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "id": "i-0123456789abcdef1"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-3",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "id": "i-0123456789abcdef2"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::assets",
+        "type": "aws:s3/bucket:Bucket",
+        "custom": true,
+        "id": "myapp-assets-bucket"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::logs",
+        "type": "aws:s3/bucket:Bucket",
+        "custom": true,
+        "id": "myapp-logs-bucket"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::backups",
+        "type": "aws:s3/bucket:Bucket",
+        "custom": true,
+        "id": "myapp-backups-bucket"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:rds/instance:Instance::main-db",
+        "type": "aws:rds/instance:Instance",
+        "custom": true,
+        "id": "myapp-main-db"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:rds/instance:Instance::replica-db",
+        "type": "aws:rds/instance:Instance",
+        "custom": true,
+        "id": "myapp-replica-db"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:lambda/function:Function::api-handler",
+        "type": "aws:lambda/function:Function",
+        "custom": true,
+        "id": "myapp-api-handler"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:lambda/function:Function::worker",
+        "type": "aws:lambda/function:Function",
+        "custom": true,
+        "id": "myapp-worker"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/securityGroup:SecurityGroup::web-sg",
+        "type": "aws:ec2/securityGroup:SecurityGroup",
+        "custom": true,
+        "id": "sg-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/securityGroup:SecurityGroup::db-sg",
+        "type": "aws:ec2/securityGroup:SecurityGroup",
+        "custom": true,
+        "id": "sg-0123456789abcdef1"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:elasticloadbalancingv2/targetGroup:TargetGroup::web-tg",
+        "type": "aws:elasticloadbalancingv2/targetGroup:TargetGroup",
+        "custom": true,
+        "id": "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/web-tg/abcdef1234567890"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:elasticloadbalancingv2/loadBalancer:LoadBalancer::web-lb",
+        "type": "aws:elasticloadbalancingv2/loadBalancer:LoadBalancer",
+        "custom": true,
+        "id": "arn:aws:elasticloadbalancing:us-east-1:123456789012:loadbalancer/app/web-lb/abcdef1234567890"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:cloudwatch/logGroup:LogGroup::api-logs",
+        "type": "aws:cloudwatch/logGroup:LogGroup",
+        "custom": true,
+        "id": "/aws/lambda/myapp-api-handler"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:cloudwatch/logGroup:LogGroup::worker-logs",
+        "type": "aws:cloudwatch/logGroup:LogGroup",
+        "custom": true,
+        "id": "/aws/lambda/myapp-worker"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:iam/role:Role::api-role",
+        "type": "aws:iam/role:Role",
+        "custom": true,
+        "id": "myapp-api-role"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:iam/role:Role::worker-role",
+        "type": "aws:iam/role:Role",
+        "custom": true,
+        "id": "myapp-worker-role"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:dynamodb/table:Table::sessions",
+        "type": "aws:dynamodb/table:Table",
+        "custom": true,
+        "id": "myapp-sessions"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:sqs/queue:Queue::tasks",
+        "type": "aws:sqs/queue:Queue",
+        "custom": true,
+        "id": "myapp-tasks"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:sns/topic:Topic::alerts",
+        "type": "aws:sns/topic:Topic",
+        "custom": true,
+        "id": "arn:aws:sns:us-east-1:123456789012:myapp-alerts"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:route53/record:Record::api-dns",
+        "type": "aws:route53/record:Record",
+        "custom": true,
+        "id": "Z1234567890_api.myapp.com_A"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:acm/certificate:Certificate::api-cert",
+        "type": "aws:acm/certificate:Certificate",
+        "custom": true,
+        "id": "arn:aws:acm:us-east-1:123456789012:certificate/abcdef12-3456-7890-abcd-ef1234567890"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:cloudfront/distribution:Distribution::cdn",
+        "type": "aws:cloudfront/distribution:Distribution",
+        "custom": true,
+        "id": "E1234567890ABC"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/vpc:Vpc::main",
+        "type": "aws:ec2/vpc:Vpc",
+        "custom": true,
+        "id": "vpc-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/subnet:Subnet::public-1",
+        "type": "aws:ec2/subnet:Subnet",
+        "custom": true,
+        "id": "subnet-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/subnet:Subnet::public-2",
+        "type": "aws:ec2/subnet:Subnet",
+        "custom": true,
+        "id": "subnet-0123456789abcdef1"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/subnet:Subnet::private-1",
+        "type": "aws:ec2/subnet:Subnet",
+        "custom": true,
+        "id": "subnet-0123456789abcdef2"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/subnet:Subnet::private-2",
+        "type": "aws:ec2/subnet:Subnet",
+        "custom": true,
+        "id": "subnet-0123456789abcdef3"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/natGateway:NatGateway::nat-1",
+        "type": "aws:ec2/natGateway:NatGateway",
+        "custom": true,
+        "id": "nat-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/internetGateway:InternetGateway::igw",
+        "type": "aws:ec2/internetGateway:InternetGateway",
+        "custom": true,
+        "id": "igw-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:elasticache/cluster:Cluster::cache",
+        "type": "aws:elasticache/cluster:Cluster",
+        "custom": true,
+        "id": "myapp-cache"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:kms/key:Key::encryption",
+        "type": "aws:kms/key:Key",
+        "custom": true,
+        "id": "arn:aws:kms:us-east-1:123456789012:key/abcdef12-3456-7890-abcd-ef1234567890"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:secretsmanager/secret:Secret::db-creds",
+        "type": "aws:secretsmanager/secret:Secret",
+        "custom": true,
+        "id": "arn:aws:secretsmanager:us-east-1:123456789012:secret:myapp-db-creds-AbCdEf"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ecs/cluster:Cluster::workers",
+        "type": "aws:ecs/cluster:Cluster",
+        "custom": true,
+        "id": "arn:aws:ecs:us-east-1:123456789012:cluster/myapp-workers"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ecs/taskDefinition:TaskDefinition::worker-task",
+        "type": "aws:ecs/taskDefinition:TaskDefinition",
+        "custom": true,
+        "id": "arn:aws:ecs:us-east-1:123456789012:task-definition/myapp-worker:5"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ecs/service:Service::worker-svc",
+        "type": "aws:ecs/service:Service",
+        "custom": true,
+        "id": "arn:aws:ecs:us-east-1:123456789012:service/myapp-workers/myapp-worker-svc"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:cloudwatch/metricAlarm:MetricAlarm::cpu-alarm",
+        "type": "aws:cloudwatch/metricAlarm:MetricAlarm",
+        "custom": true,
+        "id": "myapp-cpu-alarm"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:cloudwatch/metricAlarm:MetricAlarm::mem-alarm",
+        "type": "aws:cloudwatch/metricAlarm:MetricAlarm",
+        "custom": true,
+        "id": "myapp-mem-alarm"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/eip:Eip::nat-eip",
+        "type": "aws:ec2/eip:Eip",
+        "custom": true,
+        "id": "eipalloc-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:wafv2/webAcl:WebAcl::waf",
+        "type": "aws:wafv2/webAcl:WebAcl",
+        "custom": true,
+        "id": "arn:aws:wafv2:us-east-1:123456789012:regional/webacl/myapp-waf/abcdef12-3456-7890"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ses/emailIdentity:EmailIdentity::notify",
+        "type": "aws:ses/emailIdentity:EmailIdentity",
+        "custom": true,
+        "id": "notify@myapp.com"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:cloudwatch/dashboard:Dashboard::main-dash",
+        "type": "aws:cloudwatch/dashboard:Dashboard",
+        "custom": true,
+        "id": "myapp-main-dashboard"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:iam/policy:Policy::api-policy",
+        "type": "aws:iam/policy:Policy",
+        "custom": true,
+        "id": "arn:aws:iam::123456789012:policy/myapp-api-policy"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:iam/policy:Policy::worker-policy",
+        "type": "aws:iam/policy:Policy",
+        "custom": true,
+        "id": "arn:aws:iam::123456789012:policy/myapp-worker-policy"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:s3/bucketPolicy:BucketPolicy::assets-policy",
+        "type": "aws:s3/bucketPolicy:BucketPolicy",
+        "custom": true,
+        "id": "myapp-assets-bucket"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/routeTable:RouteTable::public-rt",
+        "type": "aws:ec2/routeTable:RouteTable",
+        "custom": true,
+        "id": "rtb-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/routeTable:RouteTable::private-rt",
+        "type": "aws:ec2/routeTable:RouteTable",
+        "custom": true,
+        "id": "rtb-0123456789abcdef1"
+      }
+    ]
+  }
+}

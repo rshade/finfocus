@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "op": "update",
+      "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-1",
+      "type": "aws:ec2/instance:Instance"
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-2",
+      "type": "aws:ec2/instance:Instance"
+    },
+    {
+      "op": "update",
+      "urn": "urn:pulumi:prod::myapp::aws:rds/instance:Instance::main-db",
+      "type": "aws:rds/instance:Instance"
+    },
+    {
+      "op": "delete",
+      "urn": "urn:pulumi:prod::myapp::aws:lambda/function:Function::worker",
+      "type": "aws:lambda/function:Function"
+    },
+    {
+      "op": "delete",
+      "urn": "urn:pulumi:prod::myapp::aws:iam/role:Role::worker-role",
+      "type": "aws:iam/role:Role"
+    },
+    {
+      "op": "replace",
+      "urn": "urn:pulumi:prod::myapp::aws:ec2/securityGroup:SecurityGroup::web-sg",
+      "type": "aws:ec2/securityGroup:SecurityGroup"
+    },
+    {
+      "op": "replace",
+      "urn": "urn:pulumi:prod::myapp::aws:ecs/taskDefinition:TaskDefinition::worker-task",
+      "type": "aws:ecs/taskDefinition:TaskDefinition"
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-4",
+      "type": "aws:ec2/instance:Instance"
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:prod::myapp::aws:lambda/function:Function::batch-processor",
+      "type": "aws:lambda/function:Function"
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:prod::myapp::aws:iam/role:Role::batch-role",
+      "type": "aws:iam/role:Role"
+    }
+  ]
+}

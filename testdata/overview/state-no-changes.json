@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "deployment": {
+    "manifest": {
+      "time": "2025-06-15T10:00:00Z",
+      "magic": "",
+      "version": ""
+    },
+    "resources": [
+      {
+        "urn": "urn:pulumi:prod::myapp::pulumi:pulumi:Stack::myapp-prod",
+        "type": "pulumi:pulumi:Stack",
+        "custom": false
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::pulumi:providers:aws::default",
+        "type": "pulumi:providers:aws",
+        "custom": true,
+        "id": "provider-aws-default"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-1",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "id": "i-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-2",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "id": "i-0123456789abcdef1"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::assets",
+        "type": "aws:s3/bucket:Bucket",
+        "custom": true,
+        "id": "myapp-assets-bucket"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::logs",
+        "type": "aws:s3/bucket:Bucket",
+        "custom": true,
+        "id": "myapp-logs-bucket"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:rds/instance:Instance::main-db",
+        "type": "aws:rds/instance:Instance",
+        "custom": true,
+        "id": "myapp-main-db"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:lambda/function:Function::api-handler",
+        "type": "aws:lambda/function:Function",
+        "custom": true,
+        "id": "myapp-api-handler"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:ec2/securityGroup:SecurityGroup::web-sg",
+        "type": "aws:ec2/securityGroup:SecurityGroup",
+        "custom": true,
+        "id": "sg-0123456789abcdef0"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:elasticloadbalancingv2/targetGroup:TargetGroup::web-tg",
+        "type": "aws:elasticloadbalancingv2/targetGroup:TargetGroup",
+        "custom": true,
+        "id": "arn:aws:elasticloadbalancing:us-east-1:123456789012:targetgroup/web-tg/abcdef1234567890"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:cloudwatch/logGroup:LogGroup::api-logs",
+        "type": "aws:cloudwatch/logGroup:LogGroup",
+        "custom": true,
+        "id": "/aws/lambda/myapp-api-handler"
+      },
+      {
+        "urn": "urn:pulumi:prod::myapp::aws:iam/role:Role::api-role",
+        "type": "aws:iam/role:Role",
+        "custom": true,
+        "id": "myapp-api-role"
+      }
+    ]
+  }
+}

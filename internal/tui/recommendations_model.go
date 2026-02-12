@@ -497,7 +497,7 @@ func (m *RecommendationsViewModel) View() string {
 				return RenderRecommendationDetail(m.recommendations[selected], m.width)
 			}
 		}
-		return "Error: selected index out of bounds"
+		return errSelectedOutOfBounds
 	case ViewStateList:
 		return m.renderListView()
 	default:
