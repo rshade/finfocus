@@ -2200,3 +2200,208 @@ func TestMockCostSourceClient_DismissRecommendation(t *testing.T) {
 		}
 	})
 }
+
+// =============================================================================
+// Cloud Identifier Resolution Tests
+// =============================================================================
+
+func TestResolveActualCostIdentifiers(t *testing.T) {
+	tests := []struct {
+		name        string
+		resourceID  string
+		properties  map[string]interface{}
+		wantCloudID string
+		wantARN     string
+		wantTagsLen int
+		wantTagKey  string
+		wantTagVal  string
+	}{
+		{
+			name:        "nil properties returns original ID",
+			resourceID:  "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			properties:  nil,
+			wantCloudID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			wantARN:     "",
+			wantTagsLen: 0,
+		},
+		{
+			name:       "cloud ID from properties",
+			resourceID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			properties: map[string]interface{}{
+				"pulumi:cloudId": "i-0abc123def456",
+			},
+			wantCloudID: "i-0abc123def456",
+			wantARN:     "",
+			wantTagsLen: 0,
+		},
+		{
+			name:       "cloud ID and ARN from properties",
+			resourceID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			properties: map[string]interface{}{
+				"pulumi:cloudId": "i-0abc123def456",
+				"pulumi:arn":     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			},
+			wantCloudID: "i-0abc123def456",
+			wantARN:     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			wantTagsLen: 0,
+		},
+		{
+			name:       "tags extracted from properties",
+			resourceID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			properties: map[string]interface{}{
+				"pulumi:cloudId": "i-0abc123def456",
+				"tags": map[string]interface{}{
+					"Name":        "web-server",
+					"Environment": "production",
+				},
+			},
+			wantCloudID: "i-0abc123def456",
+			wantARN:     "",
+			wantTagsLen: 2,
+			wantTagKey:  "Name",
+			wantTagVal:  "web-server",
+		},
+		{
+			name:       "tagsAll preferred over tags",
+			resourceID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			properties: map[string]interface{}{
+				"pulumi:cloudId": "i-0abc123def456",
+				"tags": map[string]interface{}{
+					"Name": "web-server",
+				},
+				"tagsAll": map[string]interface{}{
+					"Name":      "web-server",
+					"ManagedBy": "pulumi",
+				},
+			},
+			wantCloudID: "i-0abc123def456",
+			wantARN:     "",
+			wantTagsLen: 2,
+			wantTagKey:  "ManagedBy",
+			wantTagVal:  "pulumi",
+		},
+		{
+			name:       "empty cloud ID falls back to original",
+			resourceID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			properties: map[string]interface{}{
+				"pulumi:cloudId": "",
+			},
+			wantCloudID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			wantARN:     "",
+			wantTagsLen: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cloudID, arn, tags := resolveActualCostIdentifiers(tt.resourceID, tt.properties)
+
+			assert.Equal(t, tt.wantCloudID, cloudID)
+			assert.Equal(t, tt.wantARN, arn)
+			assert.Len(t, tags, tt.wantTagsLen)
+
+			if tt.wantTagKey != "" {
+				assert.Equal(t, tt.wantTagVal, tags[tt.wantTagKey])
+			}
+		})
+	}
+}
+
+func TestExtractResourceTags(t *testing.T) {
+	tests := []struct {
+		name       string
+		properties map[string]interface{}
+		wantLen    int
+	}{
+		{
+			name:       "nil properties",
+			properties: nil,
+			wantLen:    0,
+		},
+		{
+			name:       "no tags",
+			properties: map[string]interface{}{"instanceType": "t3.micro"},
+			wantLen:    0,
+		},
+		{
+			name: "tags as map[string]interface{}",
+			properties: map[string]interface{}{
+				"tags": map[string]interface{}{
+					"Name": "test",
+					"Env":  "dev",
+				},
+			},
+			wantLen: 2,
+		},
+		{
+			name: "tags as map[string]string",
+			properties: map[string]interface{}{
+				"tags": map[string]string{
+					"Name": "test",
+				},
+			},
+			wantLen: 1,
+		},
+		{
+			name: "tagsAll takes precedence",
+			properties: map[string]interface{}{
+				"tags": map[string]interface{}{
+					"Name": "test",
+				},
+				"tagsAll": map[string]interface{}{
+					"Name":      "test",
+					"ManagedBy": "pulumi",
+					"Env":       "prod",
+				},
+			},
+			wantLen: 3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tags := extractResourceTags(tt.properties)
+			assert.Len(t, tags, tt.wantLen)
+		})
+	}
+}
+
+func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
+	mockClient := &mockCostSourceClient{
+		getActualFunc: func(
+			ctx context.Context,
+			in *GetActualCostRequest,
+			opts ...grpc.CallOption,
+		) (*GetActualCostResponse, error) {
+			// The adapter should have resolved the cloud ID
+			// We verify the request still works with Properties
+			return &GetActualCostResponse{
+				Results: []*ActualCostResult{
+					{Currency: "USD", TotalCost: 42.0},
+				},
+			}, nil
+		},
+	}
+
+	startTime := time.Now().Add(-24 * time.Hour).Unix()
+	endTime := time.Now().Unix()
+
+	req := &GetActualCostRequest{
+		ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+		StartTime:   startTime,
+		EndTime:     endTime,
+		Properties: map[string]interface{}{
+			"pulumi:cloudId": "i-0abc123def456",
+			"pulumi:arn":     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			"tags": map[string]interface{}{
+				"Name": "web-server",
+			},
+		},
+	}
+
+	result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
+
+	require.Len(t, result.Results, 1)
+	assert.Empty(t, result.Errors)
+	assert.Equal(t, 42.0, result.Results[0].MonthlyCost)
+}

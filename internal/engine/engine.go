@@ -1343,6 +1343,7 @@ func (e *Engine) getActualCostFromPlugin(
 		ResourceIDs: []string{resource.ID},
 		StartTime:   from.Unix(),
 		EndTime:     to.Unix(),
+		Properties:  resource.Properties,
 	}
 
 	resp, err := client.API.GetActualCost(ctx, req)

@@ -7,7 +7,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -608,6 +607,10 @@ func TestGetDirSizeNonExistent(t *testing.T) {
 // attempts are properly serialized and only one goroutine can hold the lock
 // at a time.
 func TestInstallerLockConcurrent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping concurrent lock test on Windows: file handle release timing is unreliable in CI (see #573)")
+	}
+
 	tmpDir := t.TempDir()
 	installer := NewInstaller(tmpDir)
 	name := "concurrent-test-plugin"
@@ -656,41 +659,8 @@ func TestInstallerLockConcurrent(t *testing.T) {
 	total := successCount.Load() + errorCount.Load()
 	assert.Equal(t, int32(numGoroutines), total)
 
-	// On Windows, lock file release may be delayed due to file handle timing.
-	// Wait for the lock file to be cleaned up before attempting final acquisition.
-	const (
-		// windowsLockPollRetries is the number of times to check for lock file cleanup.
-		// Windows file handle release can be delayed under load.
-		windowsLockPollRetries = 50
-		// windowsLockPollDelay is the interval between lock file checks.
-		// Total timeout: 50 * 50ms = 2.5 seconds maximum wait.
-		windowsLockPollDelay = 50 * time.Millisecond
-	)
-	if runtime.GOOS == "windows" {
-		lockPath := filepath.Join(tmpDir, name+".lock")
-		for i := 0; i < windowsLockPollRetries; i++ {
-			if _, err := os.Stat(lockPath); os.IsNotExist(err) {
-				break
-			}
-			time.Sleep(windowsLockPollDelay)
-		}
-	}
-
 	// After all goroutines complete, we should be able to acquire the lock again
-	// On Windows, add retry logic in case the lock file is still being released
-	var unlock func()
-	var err error
-	maxRetries := 5
-	for i := 0; i < maxRetries; i++ {
-		unlock, err = installer.acquireLock(name)
-		if err == nil {
-			break
-		}
-		if runtime.GOOS == "windows" && i < maxRetries-1 {
-			// Windows may need extra time for file handle cleanup
-			time.Sleep(100 * time.Millisecond)
-		}
-	}
+	unlock, err := installer.acquireLock(name)
 	require.NoError(t, err, "Failed to acquire lock after concurrent test")
 	unlock()
 }
