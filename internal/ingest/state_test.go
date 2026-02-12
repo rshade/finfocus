@@ -39,9 +39,14 @@ const stateWithTimestamps = `{
         "modified": "2024-06-20T14:22:00Z",
         "inputs": {
           "instanceType": "t3.micro",
-          "ami": "ami-12345"
+          "ami": "ami-12345",
+          "tags": {
+            "Name": "web-server",
+            "Environment": "dev"
+          }
         },
         "outputs": {
+          "arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
           "publicIp": "54.123.45.67"
         }
       },
@@ -393,4 +398,208 @@ func TestGetCustomResourcesWithContext(t *testing.T) {
 	ctx := context.Background()
 	resources := state.GetCustomResourcesWithContext(ctx)
 	assert.Len(t, resources, 2)
+}
+
+func TestMapStateResource_CloudIdentifiers(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	created := time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC)
+
+	tests := []struct {
+		name     string
+		resource ingest.StackExportResource
+		validate func(t *testing.T, desc engine.ResourceDescriptor)
+	}{
+		{
+			name: "cloud ID and ARN injected from state",
+			resource: ingest.StackExportResource{
+				URN:    "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+				Type:   "aws:ec2/instance:Instance",
+				ID:     "i-0abc123def456",
+				Custom: true,
+				Inputs: map[string]interface{}{
+					"instanceType": "t3.micro",
+				},
+				Outputs: map[string]interface{}{
+					"arn":      "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+					"publicIp": "54.123.45.67",
+				},
+				Created: &created,
+			},
+			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
+				// Cloud ID injected
+				assert.Equal(t, "i-0abc123def456", desc.Properties[ingest.PropertyPulumiCloudID])
+
+				// ARN injected from outputs
+				assert.Equal(t, "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+					desc.Properties[ingest.PropertyPulumiARN])
+
+				// URN preserved
+				assert.Equal(t, "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+					desc.Properties[ingest.PropertyPulumiURN])
+
+				// ID field still uses URN for display/correlation
+				assert.Equal(t, "urn:pulumi:dev::project::aws:ec2/instance:Instance::web", desc.ID)
+
+				// Original inputs preserved
+				assert.Equal(t, "t3.micro", desc.Properties["instanceType"])
+			},
+		},
+		{
+			name: "resource without outputs still gets cloud ID",
+			resource: ingest.StackExportResource{
+				URN:    "urn:pulumi:dev::project::aws:s3/bucket:Bucket::data",
+				Type:   "aws:s3/bucket:Bucket",
+				ID:     "my-bucket-12345",
+				Custom: true,
+				Inputs: map[string]interface{}{
+					"bucket": "my-bucket-12345",
+				},
+			},
+			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
+				// Cloud ID injected from state ID
+				assert.Equal(t, "my-bucket-12345", desc.Properties[ingest.PropertyPulumiCloudID])
+
+				// No ARN (no outputs)
+				_, hasARN := desc.Properties[ingest.PropertyPulumiARN]
+				assert.False(t, hasARN)
+
+				// URN still preserved
+				assert.Equal(t, "urn:pulumi:dev::project::aws:s3/bucket:Bucket::data",
+					desc.Properties[ingest.PropertyPulumiURN])
+			},
+		},
+		{
+			name: "resource without cloud ID (empty ID field)",
+			resource: ingest.StackExportResource{
+				URN:    "urn:pulumi:dev::project::aws:ec2/instance:Instance::pending",
+				Type:   "aws:ec2/instance:Instance",
+				ID:     "",
+				Custom: true,
+				Inputs: map[string]interface{}{
+					"instanceType": "t3.micro",
+				},
+			},
+			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
+				// No cloud ID injected (empty)
+				_, hasCloudID := desc.Properties[ingest.PropertyPulumiCloudID]
+				assert.False(t, hasCloudID)
+
+				// URN still preserved
+				assert.Equal(t, "urn:pulumi:dev::project::aws:ec2/instance:Instance::pending",
+					desc.Properties[ingest.PropertyPulumiURN])
+			},
+		},
+		{
+			name: "tags extracted from inputs",
+			resource: ingest.StackExportResource{
+				URN:    "urn:pulumi:dev::project::aws:ec2/instance:Instance::tagged",
+				Type:   "aws:ec2/instance:Instance",
+				ID:     "i-tagged123",
+				Custom: true,
+				Inputs: map[string]interface{}{
+					"instanceType": "t3.micro",
+					"tags": map[string]interface{}{
+						"Name":        "tagged-instance",
+						"Environment": "dev",
+					},
+				},
+			},
+			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
+				// Tags should be present in properties
+				tags, ok := desc.Properties["tags"]
+				require.True(t, ok, "tags should exist in properties")
+
+				tagMap, ok := tags.(map[string]interface{})
+				require.True(t, ok, "tags should be a map")
+				assert.Equal(t, "tagged-instance", tagMap["Name"])
+				assert.Equal(t, "dev", tagMap["Environment"])
+			},
+		},
+		{
+			name: "tagsAll from outputs takes precedence",
+			resource: ingest.StackExportResource{
+				URN:    "urn:pulumi:dev::project::aws:ec2/launchTemplate:LaunchTemplate::nodes",
+				Type:   "aws:ec2/launchTemplate:LaunchTemplate",
+				ID:     "lt-0fedcba987654",
+				Custom: true,
+				Inputs: map[string]interface{}{
+					"tags": map[string]interface{}{
+						"Name": "nodes",
+					},
+				},
+				Outputs: map[string]interface{}{
+					"arn": "arn:aws:ec2:us-west-2:123456789012:launch-template/lt-0fedcba987654",
+					"tagsAll": map[string]interface{}{
+						"Name":      "nodes",
+						"ManagedBy": "pulumi",
+					},
+				},
+			},
+			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
+				// tagsAll should be present (from outputs)
+				tagsAll, ok := desc.Properties["tagsAll"]
+				require.True(t, ok, "tagsAll should exist in properties")
+
+				tagMap, ok := tagsAll.(map[string]interface{})
+				require.True(t, ok, "tagsAll should be a map")
+				assert.Equal(t, "nodes", tagMap["Name"])
+				assert.Equal(t, "pulumi", tagMap["ManagedBy"])
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			desc, err := ingest.MapStateResource(tt.resource)
+			require.NoError(t, err)
+			tt.validate(t, desc)
+		})
+	}
+}
+
+func TestMapStateResource_GoldenEKSState(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	statePath := "../../test/fixtures/state/golden-eks-state.json"
+
+	state, err := ingest.LoadStackExport(statePath)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+
+	assert.Equal(t, 3, state.Version)
+	assert.True(t, state.HasTimestamps())
+
+	customResources := state.GetCustomResources()
+	// Provider + IAM role + EKS cluster + SG + launch template + bastion = 6
+	assert.Len(t, customResources, 6)
+
+	resources, err := ingest.MapStateResources(customResources)
+	require.NoError(t, err)
+	assert.Len(t, resources, 6)
+
+	// Verify EKS cluster has cloud ID and ARN
+	var eksCluster *engine.ResourceDescriptor
+	for i := range resources {
+		if resources[i].Type == "aws:eks/cluster:Cluster" {
+			eksCluster = &resources[i]
+			break
+		}
+	}
+	require.NotNil(t, eksCluster, "should find EKS cluster resource")
+	assert.Equal(t, "main-eks-cluster", eksCluster.Properties[ingest.PropertyPulumiCloudID])
+	assert.Equal(t, "arn:aws:eks:us-west-2:123456789012:cluster/main-eks-cluster",
+		eksCluster.Properties[ingest.PropertyPulumiARN])
+
+	// Verify bastion host is marked as external and has cloud ID
+	var bastion *engine.ResourceDescriptor
+	for i := range resources {
+		if resources[i].Type == "aws:ec2/instance:Instance" {
+			bastion = &resources[i]
+			break
+		}
+	}
+	require.NotNil(t, bastion, "should find bastion instance")
+	assert.Equal(t, "i-0bastion1234abcde", bastion.Properties[ingest.PropertyPulumiCloudID])
+	assert.Equal(t, "true", bastion.Properties[ingest.PropertyPulumiExternal])
 }

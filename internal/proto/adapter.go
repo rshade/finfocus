@@ -182,12 +182,16 @@ func GetActualCostWithErrors(
 	}
 
 	for _, resourceID := range req.ResourceIDs {
+		// Resolve cloud-specific identifiers from properties
+		cloudID, arn, tags := resolveActualCostIdentifiers(resourceID, req.Properties)
+
 		// Pre-flight validation: construct proto request and validate before gRPC call
 		protoReq := &pbc.GetActualCostRequest{
-			ResourceId: resourceID,
+			ResourceId: cloudID,
 			Start:      timestamppb.New(time.Unix(req.StartTime, 0)),
 			End:        timestamppb.New(time.Unix(req.EndTime, 0)),
-			Tags:       make(map[string]string),
+			Tags:       tags,
+			Arn:        arn,
 		}
 
 		// Validate request using pluginsdk validation functions
@@ -196,6 +200,7 @@ func GetActualCostWithErrors(
 			log := logging.FromContext(ctx)
 			log.Warn().
 				Str("resource_id", resourceID).
+				Str("cloud_id", cloudID).
 				Err(err).
 				Msg("pre-flight validation failed for actual cost")
 
@@ -221,6 +226,7 @@ func GetActualCostWithErrors(
 			ResourceIDs: []string{resourceID},
 			StartTime:   req.StartTime,
 			EndTime:     req.EndTime,
+			Properties:  req.Properties,
 		}
 
 		resp, err := client.GetActualCost(ctx, singleReq)
@@ -320,6 +326,9 @@ type GetActualCostRequest struct {
 	ResourceIDs []string
 	StartTime   int64
 	EndTime     int64
+	// Properties carries resource context (cloud IDs, ARN, tags) from state.
+	// Used by the adapter to populate proto fields (ResourceId, Arn, Tags).
+	Properties map[string]interface{}
 }
 
 // ActualCostResult represents the calculated actual cost data retrieved from cloud providers.
@@ -631,6 +640,84 @@ func resolveSKUAndRegion(provider string, properties map[string]string) (string,
 	return sku, region
 }
 
+// resolveActualCostIdentifiers extracts cloud-specific resource ID, ARN, and tags
+// from resource properties. Falls back to the original resourceID if no cloud ID is available.
+func resolveActualCostIdentifiers(
+	resourceID string,
+	properties map[string]interface{},
+) (string, string, map[string]string) {
+	cloudID := resourceID
+	var arn string
+	tags := make(map[string]string)
+
+	if properties == nil {
+		return cloudID, arn, tags
+	}
+
+	// Use cloud ID if available (e.g., "i-0abc123", "db-instance-primary")
+	if v, ok := properties["pulumi:cloudId"]; ok {
+		if s, isStr := v.(string); isStr && s != "" {
+			cloudID = s
+		}
+	}
+
+	// Extract ARN from properties
+	if v, ok := properties["pulumi:arn"]; ok {
+		if s, isStr := v.(string); isStr && s != "" {
+			arn = s
+		}
+	}
+
+	// Extract tags from properties (prefer tagsAll for AWS completeness)
+	tags = extractResourceTags(properties)
+
+	return cloudID, arn, tags
+}
+
+// extractResourceTags extracts a flat map[string]string of tags from resource properties.
+// It checks "tagsAll" first (AWS complete tag set), then "tags".
+func extractResourceTags(properties map[string]interface{}) map[string]string {
+	tags := make(map[string]string)
+
+	// Try tagsAll first (AWS-specific: includes default tags + resource tags)
+	if tagMap := extractTagMap(properties, "tagsAll"); len(tagMap) > 0 {
+		return tagMap
+	}
+
+	// Fallback to tags
+	if tagMap := extractTagMap(properties, "tags"); len(tagMap) > 0 {
+		return tagMap
+	}
+
+	return tags
+}
+
+// extractTagMap extracts tags from a property key that holds a map.
+func extractTagMap(properties map[string]interface{}, key string) map[string]string {
+	result := make(map[string]string)
+	v, found := properties[key]
+	if !found {
+		return result
+	}
+
+	switch m := v.(type) {
+	case map[string]interface{}:
+		for k, val := range m {
+			if s, isStr := val.(string); isStr {
+				result[k] = s
+			} else {
+				result[k] = fmt.Sprintf("%v", val)
+			}
+		}
+	case map[string]string:
+		for k, val := range m {
+			result[k] = val
+		}
+	}
+
+	return result
+}
+
 func (c *clientAdapter) GetProjectedCost(
 	ctx context.Context,
 	in *GetProjectedCostRequest,
@@ -706,11 +793,15 @@ func (c *clientAdapter) GetActualCost(
 	var results []*ActualCostResult
 
 	for _, resourceID := range in.ResourceIDs {
+		// Resolve cloud-specific identifiers from properties
+		cloudID, arn, tags := resolveActualCostIdentifiers(resourceID, in.Properties)
+
 		req := &pbc.GetActualCostRequest{
-			ResourceId: resourceID,
+			ResourceId: cloudID,
 			Start:      timestamppb.New(time.Unix(in.StartTime, 0)),
 			End:        timestamppb.New(time.Unix(in.EndTime, 0)),
-			Tags:       make(map[string]string), // Empty tags for now
+			Tags:       tags,
+			Arn:        arn,
 		}
 
 		resp, err := c.client.GetActualCost(ctx, req, opts...)

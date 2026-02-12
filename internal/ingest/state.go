@@ -19,6 +19,12 @@ const (
 	PropertyPulumiModified = "pulumi:modified"
 	// PropertyPulumiExternal indicates the resource was imported (not created by Pulumi).
 	PropertyPulumiExternal = "pulumi:external"
+	// PropertyPulumiCloudID is the cloud-provider resource ID (e.g., "i-0abc123", "db-instance-primary").
+	PropertyPulumiCloudID = "pulumi:cloudId"
+	// PropertyPulumiARN is the canonical cloud identifier from outputs (e.g., AWS ARN).
+	PropertyPulumiARN = "pulumi:arn"
+	// PropertyPulumiURN is the Pulumi URN preserved for correlation.
+	PropertyPulumiURN = "pulumi:urn"
 )
 
 // StackExport represents the structure of `pulumi stack export` output.
@@ -136,7 +142,7 @@ func (s *StackExport) GetCustomResourcesWithContext(ctx context.Context) []Stack
 }
 
 // MapStateResource converts a StackExportResource to a ResourceDescriptor.
-// Timestamps are injected into Properties as pulumi:created and pulumi:modified.
+// Timestamps, cloud identifiers (ID, ARN), and outputs are injected into Properties.
 func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, error) {
 	provider := extractProvider(resource.Type)
 
@@ -157,12 +163,65 @@ func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, 
 		properties[PropertyPulumiExternal] = "true"
 	}
 
+	// Inject cloud identifiers for actual cost lookups
+	if resource.ID != "" {
+		properties[PropertyPulumiCloudID] = resource.ID
+	}
+	properties[PropertyPulumiURN] = resource.URN
+
+	// Extract ARN from outputs if available
+	if arn, ok := extractStringFromOutputs(resource.Outputs, "arn"); ok {
+		properties[PropertyPulumiARN] = arn
+	}
+
+	// Extract tags from outputs (prefer tagsAll over tags for AWS completeness)
+	if outputTags, ok := extractTagsFromMap(resource.Outputs, "tagsAll"); ok {
+		properties["tagsAll"] = outputTags
+	} else if inputTags, hasInputTags := extractTagsFromMap(resource.Inputs, "tags"); hasInputTags {
+		// Fallback: use tags from inputs if outputs don't have tagsAll
+		if _, alreadyHasTags := properties["tags"]; !alreadyHasTags {
+			properties["tags"] = inputTags
+		}
+	}
+
 	return engine.ResourceDescriptor{
 		Type:       resource.Type,
 		ID:         resource.URN,
 		Provider:   provider,
 		Properties: properties,
 	}, nil
+}
+
+// extractStringFromOutputs extracts a string value from a map by key.
+func extractStringFromOutputs(m map[string]interface{}, key string) (string, bool) {
+	if m == nil {
+		return "", false
+	}
+	v, found := m[key]
+	if !found {
+		return "", false
+	}
+	s, isStr := v.(string)
+	if !isStr || s == "" {
+		return "", false
+	}
+	return s, true
+}
+
+// extractTagsFromMap extracts a map[string]interface{} from a nested map value.
+func extractTagsFromMap(m map[string]interface{}, key string) (map[string]interface{}, bool) {
+	if m == nil {
+		return nil, false
+	}
+	v, found := m[key]
+	if !found {
+		return nil, false
+	}
+	tags, isMap := v.(map[string]interface{})
+	if !isMap || len(tags) == 0 {
+		return nil, false
+	}
+	return tags, true
 }
 
 // MapStateResources converts multiple StackExportResource to ResourceDescriptors.

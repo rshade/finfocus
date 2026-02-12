@@ -236,6 +236,43 @@ func TestStateBasedActualCost_InputValidation(t *testing.T) {
 	}
 }
 
+// TestStateBasedActualCost_CloudIdentifiers tests that cloud IDs and ARNs are extracted from state.
+func TestStateBasedActualCost_CloudIdentifiers(t *testing.T) {
+	statePath := "../fixtures/state/golden-eks-state.json"
+
+	state, err := ingest.LoadStackExport(statePath)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+
+	customResources := state.GetCustomResources()
+	resources, mapErr := ingest.MapStateResources(customResources)
+	require.NoError(t, mapErr)
+
+	// Every custom resource should have a cloud ID
+	foundCloudID := false
+	foundARN := false
+	for _, r := range resources {
+		if r.Properties == nil {
+			continue
+		}
+		if cloudID, ok := r.Properties[ingest.PropertyPulumiCloudID]; ok {
+			assert.NotEmpty(t, cloudID, "cloud ID should not be empty for %s", r.Type)
+			foundCloudID = true
+		}
+		if arn, ok := r.Properties[ingest.PropertyPulumiARN]; ok {
+			assert.NotEmpty(t, arn, "ARN should not be empty for %s", r.Type)
+			foundARN = true
+		}
+		// Every resource should have URN
+		urn, hasURN := r.Properties[ingest.PropertyPulumiURN]
+		assert.True(t, hasURN, "URN should be present for %s", r.Type)
+		assert.NotEmpty(t, urn)
+	}
+
+	assert.True(t, foundCloudID, "expected at least one resource with a cloud ID")
+	assert.True(t, foundARN, "expected at least one resource with an ARN")
+}
+
 // TestMultiProviderAggregation_LoadAndMapResources tests loading multi-provider state file.
 func TestMultiProviderAggregation_LoadAndMapResources(t *testing.T) {
 	statePath := "../fixtures/state/multi-provider.json"

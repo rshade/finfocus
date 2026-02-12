@@ -1,0 +1,165 @@
+{
+  "version": 3,
+  "deployment": {
+    "manifest": {
+      "time": "2025-06-01T10:00:00.000000000Z",
+      "magic": "a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
+      "version": "v3.130.0"
+    },
+    "resources": [
+      {
+        "urn": "urn:pulumi:prod::eks-cluster::pulumi:pulumi:Stack::eks-cluster-prod",
+        "type": "pulumi:pulumi:Stack",
+        "custom": false
+      },
+      {
+        "urn": "urn:pulumi:prod::eks-cluster::pulumi:providers:aws::default_us-west-2",
+        "type": "pulumi:providers:aws",
+        "custom": true,
+        "id": "provider-aws-usw2",
+        "inputs": {
+          "region": "us-west-2"
+        },
+        "outputs": {
+          "region": "us-west-2"
+        }
+      },
+      {
+        "urn": "urn:pulumi:prod::eks-cluster::aws:iam/role:Role::eks-cluster-role",
+        "type": "aws:iam/role:Role",
+        "custom": true,
+        "id": "eks-cluster-role-abc1234",
+        "external": false,
+        "provider": "urn:pulumi:prod::eks-cluster::pulumi:providers:aws::default_us-west-2",
+        "inputs": {
+          "name": "eks-cluster-role",
+          "assumeRolePolicy": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"Service\":\"eks.amazonaws.com\"},\"Action\":\"sts:AssumeRole\"}]}",
+          "tags": {
+            "Name": "eks-cluster-role",
+            "Environment": "production",
+            "Team": "platform"
+          }
+        },
+        "outputs": {
+          "arn": "arn:aws:iam::123456789012:role/eks-cluster-role-abc1234",
+          "name": "eks-cluster-role-abc1234",
+          "uniqueId": "AROA1234567890EXAMPLE"
+        },
+        "created": "2025-03-15T09:00:00Z",
+        "modified": "2025-03-15T09:00:00Z"
+      },
+      {
+        "urn": "urn:pulumi:prod::eks-cluster::aws:eks/cluster:Cluster::main",
+        "type": "aws:eks/cluster:Cluster",
+        "custom": true,
+        "id": "main-eks-cluster",
+        "external": false,
+        "provider": "urn:pulumi:prod::eks-cluster::pulumi:providers:aws::default_us-west-2",
+        "inputs": {
+          "name": "main-eks-cluster",
+          "roleArn": "arn:aws:iam::123456789012:role/eks-cluster-role-abc1234",
+          "version": "1.29",
+          "tags": {
+            "Name": "main-eks-cluster",
+            "Environment": "production",
+            "Team": "platform"
+          },
+          "vpcConfig": {
+            "subnetIds": ["subnet-0a1b2c3d", "subnet-0e5f6a7b"],
+            "securityGroupIds": ["sg-0abc1234def56789"]
+          }
+        },
+        "outputs": {
+          "arn": "arn:aws:eks:us-west-2:123456789012:cluster/main-eks-cluster",
+          "endpoint": "https://ABC123DEF456.gr7.us-west-2.eks.amazonaws.com",
+          "certificateAuthority": {"data": "LS0tLS1CRUdJTi...FAKE..."},
+          "name": "main-eks-cluster",
+          "platformVersion": "eks.8",
+          "status": "ACTIVE",
+          "vpcConfig": {
+            "clusterSecurityGroupId": "sg-0cluster1234",
+            "vpcId": "vpc-0abc123def456"
+          }
+        },
+        "created": "2025-03-15T09:05:00Z",
+        "modified": "2025-05-20T14:30:00Z"
+      },
+      {
+        "urn": "urn:pulumi:prod::eks-cluster::aws:ec2/securityGroup:SecurityGroup::eks-node-sg",
+        "type": "aws:ec2/securityGroup:SecurityGroup",
+        "custom": true,
+        "id": "sg-0abc1234def56789",
+        "external": false,
+        "provider": "urn:pulumi:prod::eks-cluster::pulumi:providers:aws::default_us-west-2",
+        "inputs": {
+          "name": "eks-node-sg",
+          "description": "Security group for EKS worker nodes",
+          "vpcId": "vpc-0abc123def456",
+          "tags": {
+            "Name": "eks-node-sg",
+            "Environment": "production"
+          }
+        },
+        "outputs": {
+          "arn": "arn:aws:ec2:us-west-2:123456789012:security-group/sg-0abc1234def56789",
+          "id": "sg-0abc1234def56789",
+          "ownerId": "123456789012"
+        },
+        "created": "2025-03-15T09:02:00Z",
+        "modified": "2025-03-15T09:02:00Z"
+      },
+      {
+        "urn": "urn:pulumi:prod::eks-cluster::aws:ec2/launchTemplate:LaunchTemplate::eks-nodes",
+        "type": "aws:ec2/launchTemplate:LaunchTemplate",
+        "custom": true,
+        "id": "lt-0fedcba9876543210",
+        "external": false,
+        "provider": "urn:pulumi:prod::eks-cluster::pulumi:providers:aws::default_us-west-2",
+        "inputs": {
+          "instanceType": "m5.xlarge",
+          "imageId": "ami-0eks1234567890abc",
+          "tags": {
+            "Name": "eks-nodes",
+            "Environment": "production"
+          }
+        },
+        "outputs": {
+          "arn": "arn:aws:ec2:us-west-2:123456789012:launch-template/lt-0fedcba9876543210",
+          "id": "lt-0fedcba9876543210",
+          "latestVersion": 3,
+          "tagsAll": {
+            "Name": "eks-nodes",
+            "Environment": "production",
+            "ManagedBy": "pulumi"
+          }
+        },
+        "created": "2025-03-15T09:10:00Z",
+        "modified": "2025-04-01T11:20:00Z"
+      },
+      {
+        "urn": "urn:pulumi:prod::eks-cluster::aws:ec2/instance:Instance::bastion",
+        "type": "aws:ec2/instance:Instance",
+        "custom": true,
+        "id": "i-0bastion1234abcde",
+        "external": true,
+        "provider": "urn:pulumi:prod::eks-cluster::pulumi:providers:aws::default_us-west-2",
+        "inputs": {
+          "instanceType": "t3.small",
+          "ami": "ami-0bastion12345",
+          "tags": {
+            "Name": "bastion-host",
+            "Environment": "production"
+          }
+        },
+        "outputs": {
+          "arn": "arn:aws:ec2:us-west-2:123456789012:instance/i-0bastion1234abcde",
+          "instanceType": "t3.small",
+          "publicIp": "198.51.100.10",
+          "privateIp": "10.0.1.50"
+        },
+        "created": "2025-01-10T08:00:00Z",
+        "modified": "2025-06-01T10:00:00Z"
+      }
+    ]
+  }
+}

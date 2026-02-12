@@ -1027,6 +1027,8 @@ CodeRabbit now:
   - Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)
 - Local JSON file (`~/.finfocus/dismissed.json`) for dismissal state; plugin-side storage delegated to plugins (508-recommendation-dismissal)
 - State Management: N/A (stateless command design) (223-cost-estimate)
+- Go 1.25.7 + Cobra v1.10.2 (CLI), zerolog v1.34.0 (logging), testify v1.11.1 (testing). No new dependencies. (509-pulumi-auto-detect)
+- N/A (stateless CLI invocation) (509-pulumi-auto-detect)
 
 ## Recent Changes
 

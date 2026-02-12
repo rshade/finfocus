@@ -44,7 +44,7 @@ jobs:
     name: Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
@@ -283,7 +283,7 @@ jobs:
     name: Build (${{ matrix.os }}-${{ matrix.goarch }})
     runs-on: ${{ matrix.os }}
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -362,10 +362,116 @@ jobs:
           path: benchmark-results.txt
           retention-days: 30
 
+  # Post-test AWS resource cleanup
+  aws-cleanup:
+    name: AWS E2E Cleanup
+    runs-on: ubuntu-latest
+    needs: [integration, e2e, analyzer-e2e]
+    if: always()
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ secrets.AWS_E2E_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Clean up E2E AWS resources
+        shell: bash
+        run: |
+          set +e  # Don't fail on individual cleanup errors
+
+          cleanup_region() {
+            local REGION="$1"
+            echo "=== Cleaning up region: ${REGION} ==="
+
+            # 1. Terminate EC2 instances tagged with e2e-test-*
+            mapfile -t INSTANCE_IDS < <(aws ec2 describe-instances \
+              --region "${REGION}" \
+              --filters "Name=tag:Name,Values=e2e-test-*" "Name=instance-state-name,Values=running,stopped,pending" \
+              --query "Reservations[].Instances[].InstanceId" --output text 2>/dev/null | xargs -n1)
+            if [ "${#INSTANCE_IDS[@]}" -gt 0 ]; then
+              echo "Terminating instances in ${REGION}: ${INSTANCE_IDS[*]}"
+              aws ec2 terminate-instances --region "${REGION}" --instance-ids "${INSTANCE_IDS[@]}"
+              aws ec2 wait instance-terminated --region "${REGION}" --instance-ids "${INSTANCE_IDS[@]}" || true
+            fi
+
+            # 2. Delete detached EBS volumes
+            mapfile -t VOLUME_IDS < <(aws ec2 describe-volumes \
+              --region "${REGION}" \
+              --filters "Name=tag:Name,Values=e2e-test-*" "Name=status,Values=available" \
+              --query "Volumes[].VolumeId" --output text 2>/dev/null | xargs -n1)
+            if [ "${#VOLUME_IDS[@]}" -gt 0 ]; then
+              echo "Deleting volumes in ${REGION}: ${VOLUME_IDS[*]}"
+              for VOL in "${VOLUME_IDS[@]}"; do
+                aws ec2 delete-volume --region "${REGION}" --volume-id "${VOL}" || true
+              done
+            fi
+
+            # 3. Delete security groups (non-default)
+            mapfile -t SG_IDS < <(aws ec2 describe-security-groups \
+              --region "${REGION}" \
+              --filters "Name=tag:Name,Values=e2e-test-*" \
+              --query "SecurityGroups[?GroupName!='default'].GroupId" --output text 2>/dev/null | xargs -n1)
+            if [ "${#SG_IDS[@]}" -gt 0 ]; then
+              echo "Deleting security groups in ${REGION}: ${SG_IDS[*]}"
+              for SG in "${SG_IDS[@]}"; do
+                aws ec2 delete-security-group --region "${REGION}" --group-id "${SG}" || true
+              done
+            fi
+
+            # 4. Delete subnets
+            mapfile -t SUBNET_IDS < <(aws ec2 describe-subnets \
+              --region "${REGION}" \
+              --filters "Name=tag:Name,Values=e2e-test-*" \
+              --query "Subnets[].SubnetId" --output text 2>/dev/null | xargs -n1)
+            if [ "${#SUBNET_IDS[@]}" -gt 0 ]; then
+              echo "Deleting subnets in ${REGION}: ${SUBNET_IDS[*]}"
+              for SUBNET in "${SUBNET_IDS[@]}"; do
+                aws ec2 delete-subnet --region "${REGION}" --subnet-id "${SUBNET}" || true
+              done
+            fi
+
+            # 5. Detach and delete internet gateways
+            mapfile -t VPC_IDS < <(aws ec2 describe-vpcs \
+              --region "${REGION}" \
+              --filters "Name=tag:Name,Values=e2e-test-*,test-vpc" \
+              --query "Vpcs[].VpcId" --output text 2>/dev/null | xargs -n1)
+            if [ "${#VPC_IDS[@]}" -gt 0 ]; then
+              for VPC in "${VPC_IDS[@]}"; do
+                mapfile -t IGW_IDS < <(aws ec2 describe-internet-gateways \
+                  --region "${REGION}" \
+                  --filters "Name=attachment.vpc-id,Values=${VPC}" \
+                  --query "InternetGateways[].InternetGatewayId" --output text 2>/dev/null | xargs -n1)
+                if [ "${#IGW_IDS[@]}" -gt 0 ]; then
+                  for IGW in "${IGW_IDS[@]}"; do
+                    echo "Detaching and deleting IGW ${IGW} from VPC ${VPC} in ${REGION}"
+                    aws ec2 detach-internet-gateway --region "${REGION}" --internet-gateway-id "${IGW}" --vpc-id "${VPC}" || true
+                    aws ec2 delete-internet-gateway --region "${REGION}" --internet-gateway-id "${IGW}" || true
+                  done
+                fi
+              done
+            fi
+
+            # 6. Delete VPCs
+            if [ "${#VPC_IDS[@]}" -gt 0 ]; then
+              echo "Deleting VPCs in ${REGION}: ${VPC_IDS[*]}"
+              for VPC in "${VPC_IDS[@]}"; do
+                aws ec2 delete-vpc --region "${REGION}" --vpc-id "${VPC}" || true
+              done
+            fi
+
+            echo "=== Cleanup complete for ${REGION} ==="
+          }
+
+          # Clean up all regions used by E2E tests
+          for REGION in us-east-1 eu-west-1 ap-northeast-1; do
+            cleanup_region "${REGION}"
+          done
+
   notify-failure:
     name: Notify on Failure
     runs-on: ubuntu-latest
-    needs: [cross-platform-tests, integration, e2e, analyzer-e2e, deep-fuzz, cross-platform-builds, benchmarks]
+    needs: [cross-platform-tests, integration, e2e, analyzer-e2e, deep-fuzz, cross-platform-builds, benchmarks, aws-cleanup]
     if: always() && github.event_name == 'schedule' && failure()
     steps:
       - name: Create failure issue
