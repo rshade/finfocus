@@ -14,6 +14,7 @@ FinFocus is a CLI tool that analyzes Pulumi infrastructure definitions to provid
 
 ## Key Features
 
+- **🔭 [Unified Overview](docs/commands/overview.md)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
 - **📊 [Projected Costs](docs/reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
 - **💰 [Budgets & Alerts](docs/guides/budgets.md)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
 - **💡 [Recommendations](docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
@@ -72,7 +73,23 @@ cd your-pulumi-project
 pulumi preview --json > plan.json
 ```
 
-### 3. Calculate Costs
+### 3. Unified Overview
+
+See all costs at a glance with the interactive dashboard:
+
+```bash
+# Export state and plan
+pulumi stack export > state.json
+pulumi preview --json > plan.json
+
+# Launch unified overview
+finfocus overview --pulumi-state state.json --pulumi-json plan.json
+
+# Non-interactive output for CI/CD
+finfocus overview --pulumi-state state.json --output json --yes
+```
+
+### 4. Calculate Costs
 
 **Projected Costs** - Estimate costs before deployment:
 

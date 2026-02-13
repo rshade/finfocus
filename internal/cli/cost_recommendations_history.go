@@ -75,11 +75,11 @@ func executeHistory(cmd *cobra.Command, recommendationID string, output string) 
 
 	// Render based on output format
 	switch output {
-	case "json":
+	case outputFormatJSON:
 		return renderHistoryJSON(cmd, recommendationID, events)
-	case "ndjson":
+	case outputFormatNDJSON:
 		return renderHistoryNDJSON(cmd, recommendationID, events)
-	case "table":
+	case outputFormatTable:
 		return renderHistoryTable(cmd, recommendationID, events)
 	default:
 		return fmt.Errorf("unsupported output format: %s", output)

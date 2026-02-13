@@ -34,8 +34,9 @@ const (
 	defaultStorageMonthlyCost   = 5.0   // Default monthly cost for storage resources
 	defaultComputeMonthlyCost   = 20.0  // Default monthly cost for compute resources
 	defaultServiceName          = "default"
-	defaultCurrency             = "USD" // Default currency for cost calculations
-	batchProcessingThreshold    = 100   // Threshold for enabling batch processing
+	defaultCurrency             = "USD"     // Default currency for cost calculations
+	batchProcessingThreshold    = 100       // Threshold for enabling batch processing
+	unknownProvider             = "unknown" // Fallback provider name when extraction fails
 )
 
 const (
@@ -1769,7 +1770,7 @@ func extractProviderFromType(resourceType string) string {
 	if len(parts) >= 1 {
 		return parts[0]
 	}
-	return "unknown"
+	return unknownProvider
 }
 
 // FilterResources selects resources that match the provided filter expression.
@@ -1959,7 +1960,7 @@ func (e *Engine) GroupResults(results []CostResult, groupBy GroupBy) []CostResul
 			if parts := strings.Split(result.ResourceType, ":"); len(parts) > 0 {
 				key = parts[0]
 			} else {
-				key = "unknown"
+				key = unknownProvider
 			}
 		case GroupByDate:
 			key = result.StartDate.Format("2006-01-02")

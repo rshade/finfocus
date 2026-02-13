@@ -1,0 +1,15 @@
+RESOURCE                            TYPE                      STATUS        ACTUAL(MTD)  PROJECTED  DELTA      DRIFT%  RECS
+--------                            ----                      ------        -----------  ---------  -----      ------  ----
+urn:pulumi:prod::myapp::pulumi:...  pulumi:providers:aws      ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/instance:Inst...  ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/instance:Inst...  ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:s3/...  aws:s3/bucket:Bucket      ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:s3/...  aws:s3/bucket:Bucket      ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:rds...  aws:rds/instance:Inst...  ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:lam...  aws:lambda/function:F...  ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/securityGroup...  ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:ela...  aws:elasticloadbalanc...  ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:clo...  aws:cloudwatch/logGro...  ✓ active      -            -          -          -       -
+urn:pulumi:prod::myapp::aws:iam...  aws:iam/role:Role         ✓ active      -            -          -          -       -
+                                                                                                                       
+SUMMARY                             state-no-changes          11 resources  $0.00 USD    $0.00 USD  $0.00 USD          

@@ -28,6 +28,9 @@ const (
 	filterInputCharLimit = 156 // Maximum characters allowed in filter input.
 )
 
+// msgSelectedOutOfBounds is displayed when the selected index exceeds the available rows.
+const msgSelectedOutOfBounds = "Error: selected index out of bounds"
+
 // Keyboard constants.
 const (
 	keyEsc   = "esc"
@@ -390,7 +393,7 @@ func (m *CostViewModel) View() string {
 		if m.selected >= 0 && m.selected < len(m.results) {
 			return RenderDetailView(m.results[m.selected], m.width)
 		}
-		return "Error: selected index out of bounds"
+		return msgSelectedOutOfBounds
 	case ViewStateList:
 		return m.renderListView()
 	default:

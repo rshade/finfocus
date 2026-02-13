@@ -1,0 +1,57 @@
+RESOURCE                            TYPE                      STATUS        ACTUAL(MTD)  PROJECTED           DELTA      DRIFT%  RECS
+--------                            ----                      ------        -----------  ---------           -----      ------  ----
+urn:pulumi:prod::myapp::pulumi:...  pulumi:providers:aws      ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/instance:Inst...  ~ updating    -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/instance:Inst...  ~ updating    -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/instance:Inst...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:s3/...  aws:s3/bucket:Bucket      ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:s3/...  aws:s3/bucket:Bucket      ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:s3/...  aws:s3/bucket:Bucket      ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:rds...  aws:rds/instance:Inst...  ~ updating    -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:rds...  aws:rds/instance:Inst...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:lam...  aws:lambda/function:F...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:lam...  aws:lambda/function:F...  - deleting    -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/securityGroup...  ↻ replacing   -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/securityGroup...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ela...  aws:elasticloadbalanc...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ela...  aws:elasticloadbalanc...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:clo...  aws:cloudwatch/logGro...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:clo...  aws:cloudwatch/logGro...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:iam...  aws:iam/role:Role         ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:iam...  aws:iam/role:Role         - deleting    -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:dyn...  aws:dynamodb/table:Table  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:sqs...  aws:sqs/queue:Queue       ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:sns...  aws:sns/topic:Topic       ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:rou...  aws:route53/record:Re...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:acm...  aws:acm/certificate:C...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:clo...  aws:cloudfront/distri...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/vpc:Vpc           ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/subnet:Subnet     ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/subnet:Subnet     ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/subnet:Subnet     ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/subnet:Subnet     ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/natGateway:Na...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/internetGatew...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ela...  aws:elasticache/clust...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:kms...  aws:kms/key:Key           ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:sec...  aws:secretsmanager/se...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ecs...  aws:ecs/cluster:Cluster   ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ecs...  aws:ecs/taskDefinitio...  ↻ replacing   -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ecs...  aws:ecs/service:Service   ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:clo...  aws:cloudwatch/metric...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:clo...  aws:cloudwatch/metric...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/eip:Eip           ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:waf...  aws:wafv2/webAcl:WebAcl   ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ses...  aws:ses/emailIdentity...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:clo...  aws:cloudwatch/dashbo...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:iam...  aws:iam/policy:Policy     ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:iam...  aws:iam/policy:Policy     ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:s3/...  aws:s3/bucketPolicy:B...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/routeTable:Ro...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/routeTable:Ro...  ✓ active      -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/instance:Inst...  + creating    -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:lam...  aws:lambda/function:F...  + creating    -            -                   -          -       -
+urn:pulumi:prod::myapp::aws:iam...  aws:iam/role:Role         + creating    -            -                   -          -       -
+                                                                                                                                
+SUMMARY                             state-mixed-changes       52 resources  $0.00 USD    $0.00 USD           $0.00 USD          
+                                                                                         10 pending changes                     
