@@ -51,9 +51,10 @@ func TestMergeResourcesForOverview(t *testing.T) {
 		wantStatuses   []ResourceStatus
 	}{
 		{
-			name:     "empty state and plan",
-			wantLen:  0,
-			wantURNs: nil,
+			name:         "empty state and plan",
+			wantLen:      0,
+			wantURNs:     []string{},
+			wantStatuses: []ResourceStatus{},
 		},
 		{
 			name: "state only no plan changes",
@@ -173,7 +174,9 @@ func TestMergeResourcesForOverview(t *testing.T) {
 			planSteps: []PlanStep{
 				{URN: "urn:pulumi:stack::proj::aws:ec2:Instance::ghost", Op: "delete", Type: "aws:ec2:Instance"},
 			},
-			wantLen: 0,
+			wantLen:      0,
+			wantURNs:     []string{},
+			wantStatuses: []ResourceStatus{},
 		},
 		{
 			name: "mixed scenario preserves state order",
@@ -204,20 +207,19 @@ func TestMergeResourcesForOverview(t *testing.T) {
 			require.NoError(t, err)
 			require.Len(t, rows, tt.wantLen)
 
+			require.Len(t, tt.wantURNs, tt.wantLen, "test setup: wantURNs length must match wantLen")
+			require.Len(t, tt.wantStatuses, tt.wantLen, "test setup: wantStatuses length must match wantLen")
+
 			for i, row := range rows {
-				if i < len(tt.wantURNs) {
-					assert.Equal(t, tt.wantURNs[i], row.URN, "URN mismatch at index %d", i)
-				}
-				if i < len(tt.wantStatuses) {
-					assert.Equal(
-						t,
-						tt.wantStatuses[i],
-						row.Status,
-						"Status mismatch at index %d for URN %s",
-						i,
-						row.URN,
-					)
-				}
+				assert.Equal(t, tt.wantURNs[i], row.URN, "URN mismatch at index %d", i)
+				assert.Equal(
+					t,
+					tt.wantStatuses[i],
+					row.Status,
+					"Status mismatch at index %d for URN %s",
+					i,
+					row.URN,
+				)
 			}
 		})
 	}

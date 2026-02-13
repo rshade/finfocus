@@ -169,7 +169,11 @@ func (d DateRange) Validate() error {
 	if d.End.IsZero() {
 		return fmt.Errorf("%w: end time is required", ErrOverviewValidation)
 	}
-	if d.End.Before(d.Start) {
+	if !d.End.After(d.Start) {
+		if d.End.Equal(d.Start) {
+			return fmt.Errorf("%w: zero-length date range (start and end are both %s)",
+				ErrOverviewValidation, d.Start.Format(time.RFC3339))
+		}
 		return fmt.Errorf("%w: end time (%s) is before start time (%s)",
 			ErrOverviewValidation, d.End.Format(time.RFC3339), d.Start.Format(time.RFC3339))
 	}
@@ -403,17 +407,17 @@ type OverviewRowUpdate struct {
 // This is a lightweight projection of ingest.StackExportResource to avoid an
 // import cycle (ingest already imports engine).
 type StateResource struct {
-	URN    string
-	Type   string
-	ID     string
-	Custom bool
+	URN    string `json:"urn,omitempty"`
+	Type   string `json:"type,omitempty"`
+	ID     string `json:"id,omitempty"`
+	Custom bool   `json:"custom,omitempty"`
 }
 
 // PlanStep represents a step from a Pulumi plan for overview merging.
 // This is a lightweight projection of ingest.PulumiStep to avoid an
 // import cycle (ingest already imports engine).
 type PlanStep struct {
-	URN  string
-	Op   string
-	Type string
+	URN  string `json:"urn,omitempty"`
+	Op   string `json:"op,omitempty"`
+	Type string `json:"type,omitempty"`
 }

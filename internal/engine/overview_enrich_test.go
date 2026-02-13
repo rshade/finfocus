@@ -131,8 +131,17 @@ func TestEnrichOverviewRow_NoPlugins(t *testing.T) {
 
 	EnrichOverviewRow(ctx, &row, eng, dateRange)
 
-	// With no plugins, actual/projected will be empty or have placeholder values
-	// The function should not panic and should complete gracefully
+	// With no plugins, the engine still returns placeholder results via spec
+	// fallback, so cost fields are non-nil but contain zero cost values.
+	if row.ActualCost != nil {
+		assert.Equal(t, 0.0, row.ActualCost.MTDCost, "ActualCost MTDCost should be zero with no plugins")
+		assert.Equal(t, "USD", row.ActualCost.Currency, "ActualCost currency should default to USD")
+	}
+	if row.ProjectedCost != nil {
+		assert.Equal(t, 0.0, row.ProjectedCost.MonthlyCost, "ProjectedCost MonthlyCost should be zero with no plugins")
+		assert.Equal(t, "USD", row.ProjectedCost.Currency, "ProjectedCost currency should default to USD")
+	}
+	assert.Empty(t, row.Recommendations, "Recommendations should be empty with no plugins")
 }
 
 func TestEnrichOverviewRow_CreatingStatus_SkipsActualCost(t *testing.T) {
@@ -243,16 +252,25 @@ func TestEnrichOverviewRows_ContextCancellation(t *testing.T) {
 	rows := make([]OverviewRow, 20)
 	for i := range rows {
 		rows[i] = OverviewRow{
-			URN:    "urn:resource-" + string(rune('a'+i)),
+			URN:    fmt.Sprintf("urn:resource-%d", i),
 			Type:   "aws:ec2:Instance",
 			Status: StatusActive,
 		}
 	}
 
 	progressChan := make(chan OverviewRowUpdate, len(rows))
+	start := time.Now()
 	result := EnrichOverviewRows(ctx, rows, eng, dateRange, progressChan)
-	// With cancelled context, some or all rows may not be enriched
+	elapsed := time.Since(start)
+
+	// With cancelled context, should complete quickly
 	assert.NotNil(t, result)
+	assert.Less(t, elapsed, 200*time.Millisecond, "cancelled context should not block")
+
+	// Count progress updates - should be fewer than total rows or equal
+	// (some goroutines may still send updates before seeing cancellation)
+	updateCount := len(progressChan)
+	assert.LessOrEqual(t, updateCount, len(rows))
 }
 
 func TestEnrichOverviewRows_ConcurrencyLimit(t *testing.T) {

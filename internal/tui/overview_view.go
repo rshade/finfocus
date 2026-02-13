@@ -177,13 +177,13 @@ func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRow) {
 	content.WriteString(HeaderStyle.Render("COST DRIFT"))
 	content.WriteString("\n")
 	content.WriteString(LabelStyle.Render("  Extrapolated Monthly: "))
-	content.WriteString(ValueStyle.Render(fmt.Sprintf("$%.2f", row.CostDrift.ExtrapolatedMonthly)))
+	content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(row.CostDrift.ExtrapolatedMonthly)))
 	content.WriteString("\n")
 	content.WriteString(LabelStyle.Render("  Projected: "))
-	content.WriteString(ValueStyle.Render(fmt.Sprintf("$%.2f", row.CostDrift.Projected)))
+	content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(row.CostDrift.Projected)))
 	content.WriteString("\n")
 	content.WriteString(LabelStyle.Render("  Delta: "))
-	content.WriteString(ValueStyle.Render(fmt.Sprintf("$%.2f", row.CostDrift.Delta)))
+	content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(row.CostDrift.Delta)))
 	content.WriteString("\n")
 	content.WriteString(LabelStyle.Render("  Drift: "))
 	driftStyle := ValueStyle
@@ -205,7 +205,7 @@ func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRo
 		fmt.Fprintf(content, "  %d. %s\n", i+1, rec.Description)
 		content.WriteString(LabelStyle.Render("     Savings: "))
 		content.WriteString(ValueStyle.Render(
-			fmt.Sprintf("%s %.2f\n", rec.Currency, rec.EstimatedSavings),
+			engine.FormatOverviewCurrency(rec.EstimatedSavings) + "\n",
 		))
 	}
 	content.WriteString("\n")

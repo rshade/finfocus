@@ -411,7 +411,10 @@ func truncateResourceName(urn string) string {
 // and enablePaginationIfNeeded to keep pagination state consistent.
 func (m *OverviewModel) applyFilter(filterText string) {
 	if filterText == "" {
-		m.rows = m.allRows
+		// Copy to avoid aliasing; refreshTable sorts m.rows in-place
+		// and must not reorder the source m.allRows.
+		m.rows = make([]engine.OverviewRow, len(m.allRows))
+		copy(m.rows, m.allRows)
 	} else {
 		query := strings.ToLower(filterText)
 		filtered := []engine.OverviewRow{}
@@ -449,14 +452,21 @@ func (m *OverviewModel) getDelta(row engine.OverviewRow) float64 {
 	return 0.0
 }
 
-// enablePaginationIfNeeded checks if pagination should be enabled.
+// enablePaginationIfNeeded checks if pagination should be enabled and clamps
+// the current page to valid bounds.
 func (m *OverviewModel) enablePaginationIfNeeded() {
 	if len(m.rows) > maxOverviewResourcesPerPage {
 		m.paginationEnabled = true
 		m.totalPages = (len(m.rows) + maxOverviewResourcesPerPage - 1) / maxOverviewResourcesPerPage
-		m.currentPage = 1
+		if m.currentPage > m.totalPages {
+			m.currentPage = m.totalPages
+		}
+		if m.currentPage < 1 {
+			m.currentPage = 1
+		}
 	} else {
 		m.paginationEnabled = false
+		m.currentPage = 1
 	}
 }
 

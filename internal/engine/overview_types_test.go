@@ -111,8 +111,10 @@ func TestDateRange_Validate(t *testing.T) {
 			dr:   DateRange{Start: now, End: later},
 		},
 		{
-			name: "same start and end",
-			dr:   DateRange{Start: now, End: now},
+			name:        "same start and end",
+			dr:          DateRange{Start: now, End: now},
+			wantErr:     true,
+			errContains: "zero-length date range",
 		},
 		{
 			name:        "zero start",

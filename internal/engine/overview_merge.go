@@ -16,18 +16,18 @@ const (
 	opDeleteReplaced    = "delete-replaced"
 )
 
-// opPrecedence defines which operation takes priority when multiple plan
-// steps reference the same URN (e.g., create-replacement + delete-replaced).
-// Higher values win.
-//
-//nolint:gochecknoglobals // Immutable lookup table for operation precedence.
-var opPrecedence = map[string]int{
-	opCreate:            0,
-	opUpdate:            1,
-	opCreateReplacement: 2, //nolint:mnd // Precedence ordering
-	opReplace:           3, //nolint:mnd // Precedence ordering
-	opDeleteReplaced:    4, //nolint:mnd // Precedence ordering
-	opDelete:            5, //nolint:mnd // Precedence ordering
+// getOpPrecedence returns a map defining which operation takes priority when
+// multiple plan steps reference the same URN (e.g., create-replacement +
+// delete-replaced). Higher values win.
+func getOpPrecedence() map[string]int {
+	return map[string]int{
+		opCreate:            0,
+		opUpdate:            1,
+		opCreateReplacement: 2, //nolint:mnd // Precedence ordering
+		opReplace:           3, //nolint:mnd // Precedence ordering
+		opDeleteReplaced:    4, //nolint:mnd // Precedence ordering
+		opDelete:            5, //nolint:mnd // Precedence ordering
+	}
 }
 
 // MapOperationToStatus converts a Pulumi plan operation string to a
@@ -72,10 +72,11 @@ func MergeResourcesForOverview(
 		Msg("starting resource merge for overview")
 
 	// Index plan steps by URN for O(1) lookup, using deterministic precedence.
+	precedence := getOpPrecedence()
 	planByURN := make(map[string]PlanStep, len(planSteps))
 	for _, step := range planSteps {
 		existing, exists := planByURN[step.URN]
-		if !exists || opPrecedence[step.Op] > opPrecedence[existing.Op] {
+		if !exists || precedence[step.Op] > precedence[existing.Op] {
 			planByURN[step.URN] = step
 		}
 	}
@@ -113,6 +114,7 @@ func MergeResourcesForOverview(
 		if step.Op != opCreate {
 			continue
 		}
+		seenURNs[step.URN] = struct{}{}
 		rows = append(rows, OverviewRow{
 			URN:    step.URN,
 			Type:   step.Type,

@@ -286,13 +286,23 @@ func validateAndApplyOverviewFilters(
 	}
 	for _, f := range filters {
 		parts := splitFilter(f)
-		if len(parts) == filterKeyValueParts {
-			if !allowedKeys[parts[0]] {
-				return nil, fmt.Errorf(
-					"unknown filter key %q (allowed: type, status, provider)",
-					parts[0],
-				)
-			}
+		if len(parts) != filterKeyValueParts {
+			return nil, fmt.Errorf(
+				"invalid filter %q: expected key=value format (allowed keys: type, status, provider)",
+				f,
+			)
+		}
+		if parts[0] == "" || parts[1] == "" {
+			return nil, fmt.Errorf(
+				"invalid filter %q: key and value must be non-empty",
+				f,
+			)
+		}
+		if !allowedKeys[parts[0]] {
+			return nil, fmt.Errorf(
+				"unknown filter key %q (allowed: type, status, provider)",
+				parts[0],
+			)
 		}
 	}
 	return applyOverviewFilters(rows, filters), nil
@@ -424,18 +434,28 @@ func runInteractiveOverview(
 	// Create Bubble Tea program
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
+	// Derived context so the enrichment goroutine stops when the TUI exits.
+	enrichCtx, enrichCancel := context.WithCancel(ctx)
+
 	// Start enrichment in background
 	go func() {
 		progressChan := make(chan engine.OverviewRowUpdate, len(skeletonRows))
 
 		// Launch enrichment goroutines
 		go func() {
-			engine.EnrichOverviewRows(ctx, skeletonRows, eng, dateRange, progressChan)
+			engine.EnrichOverviewRows(enrichCtx, skeletonRows, eng, dateRange, progressChan)
 		}()
 
 		// Bridge progress channel to Bubble Tea messages
 		loadedCount := 0
 		for update := range progressChan {
+			// Stop bridging when the TUI has exited.
+			select {
+			case <-enrichCtx.Done():
+				return
+			default:
+			}
+
 			loadedCount++
 
 			// Send resource loaded message
@@ -451,24 +471,30 @@ func runInteractiveOverview(
 					Total:  len(skeletonRows),
 				})
 
+				// Pre-compute percentage to avoid IIFE inside zerolog chain.
+				percent := 0
+				if len(skeletonRows) > 0 {
+					percent = (loadedCount * 100) / len(skeletonRows) //nolint:mnd // Percentage calculation.
+				}
+
 				log.Debug().
 					Ctx(ctx).
 					Str("component", "cli").
 					Str("operation", "overview_tui").
 					Int("loaded", loadedCount).
 					Int("total", len(skeletonRows)).
-					Int("percent", func() int {
-						if len(skeletonRows) > 0 {
-							return (loadedCount * 100) / len(skeletonRows) //nolint:mnd // Percentage calculation.
-						}
-						return 0
-					}()).
+					Int("percent", percent).
 					Msg("enrichment progress")
 			}
 		}
 
-		// Send completion message
-		p.Send(tui.OverviewAllResourcesLoadedMsg{})
+		// Send completion message only if context is still active.
+		select {
+		case <-enrichCtx.Done():
+			return
+		default:
+			p.Send(tui.OverviewAllResourcesLoadedMsg{})
+		}
 
 		log.Info().
 			Ctx(ctx).
@@ -480,6 +506,7 @@ func runInteractiveOverview(
 
 	// Run the TUI
 	_, err := p.Run()
+	enrichCancel() // Stop enrichment goroutine when TUI exits.
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("running TUI: %w", err)

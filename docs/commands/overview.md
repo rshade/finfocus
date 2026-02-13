@@ -140,7 +140,7 @@ Structured JSON object:
   "metadata": {
     "stackName": "prod",
     "region": "us-east-1",
-    "timeWindow": { "Start": "...", "End": "..." },
+    "timeWindow": { "start": "...", "end": "..." },
     "hasChanges": true,
     "totalResources": 50,
     "pendingChanges": 10,
