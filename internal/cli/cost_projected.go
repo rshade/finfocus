@@ -148,12 +148,15 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	defer cleanup()
 
-	resultWithErrors, err := engine.New(clients, spec.NewLoader(specDir)).GetProjectedCostWithErrors(ctx, resources)
+	eng := engine.New(clients, spec.NewLoader(specDir))
+	resultWithErrors, err := eng.GetProjectedCostWithErrors(ctx, resources)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to calculate projected costs")
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("calculating projected costs: %w", err)
 	}
+
+	fetchAndMergeRecommendations(ctx, eng, resources, resultWithErrors.Results)
 
 	if renderErr := RenderCostOutput(ctx, cmd, params.output, resultWithErrors); renderErr != nil {
 		return renderErr

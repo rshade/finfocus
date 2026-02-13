@@ -1,12 +1,15 @@
 package engine
 
 import (
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 // Test GroupBy validation.
@@ -531,4 +534,216 @@ func TestEstimateRequest(t *testing.T) {
 
 		assert.Empty(t, request.UsageProfile)
 	})
+}
+
+// TestConvertProtoRecommendationReasoning verifies that convertProtoRecommendation
+// copies the Reasoning field from proto.Recommendation to engine.Recommendation.
+func TestConvertProtoRecommendationReasoning(t *testing.T) {
+	tests := []struct {
+		name             string
+		input            *proto.Recommendation
+		wantReasoningLen int      // -1 for nil check
+		wantReasoning    []string // expected reasoning entries (nil = skip check)
+		wantResourceID   string
+		wantType         string
+		wantDescription  string
+		wantSavings      float64
+		wantCurrency     string
+	}{
+		{
+			name: "multi-entry reasoning preserved in order",
+			input: &proto.Recommendation{
+				ResourceID:  "my-instance",
+				ActionType:  "MIGRATE",
+				Description: "Switch to Graviton",
+				Impact: &proto.RecommendationImpact{
+					EstimatedSavings: 8.00,
+					Currency:         "USD",
+				},
+				Reasoning: []string{
+					"Ensure application compatibility with ARM64 architecture",
+					"Test workloads before full migration",
+				},
+			},
+			wantReasoningLen: 2,
+			wantReasoning: []string{
+				"Ensure application compatibility with ARM64 architecture",
+				"Test workloads before full migration",
+			},
+			wantResourceID:  "my-instance",
+			wantType:        "MIGRATE",
+			wantDescription: "Switch to Graviton",
+			wantSavings:     8.00,
+			wantCurrency:    "USD",
+		},
+		{
+			name: "empty reasoning produces nil",
+			input: &proto.Recommendation{
+				ResourceID:  "my-instance",
+				ActionType:  "RIGHTSIZE",
+				Description: "Switch to t3.small",
+				Reasoning:   nil,
+			},
+			wantReasoningLen: -1,
+			wantResourceID:   "my-instance",
+			wantType:         "RIGHTSIZE",
+			wantDescription:  "Switch to t3.small",
+		},
+		{
+			name: "empty slice reasoning produces empty slice",
+			input: &proto.Recommendation{
+				ResourceID:  "my-instance",
+				ActionType:  "TERMINATE",
+				Description: "Resource is idle",
+				Reasoning:   []string{},
+			},
+			wantReasoningLen: 0,
+			wantResourceID:   "my-instance",
+			wantType:         "TERMINATE",
+			wantDescription:  "Resource is idle",
+		},
+		{
+			name: "single reasoning entry",
+			input: &proto.Recommendation{
+				ResourceID:  "db-instance",
+				ActionType:  "RIGHTSIZE",
+				Description: "Reduce instance size",
+				Impact: &proto.RecommendationImpact{
+					EstimatedSavings: 15.50,
+					Currency:         "EUR",
+				},
+				Reasoning: []string{"Check connection pool limits before resizing"},
+			},
+			wantReasoningLen: 1,
+			wantReasoning:    []string{"Check connection pool limits before resizing"},
+			wantResourceID:   "db-instance",
+			wantType:         "RIGHTSIZE",
+			wantDescription:  "Reduce instance size",
+			wantSavings:      15.50,
+			wantCurrency:     "EUR",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			engineRec := convertProtoRecommendation(tt.input)
+
+			assert.Equal(t, tt.wantResourceID, engineRec.ResourceID)
+			assert.Equal(t, tt.wantType, engineRec.Type)
+			assert.Equal(t, tt.wantDescription, engineRec.Description)
+			assert.Equal(t, tt.wantSavings, engineRec.EstimatedSavings)
+			assert.Equal(t, tt.wantCurrency, engineRec.Currency)
+
+			if tt.wantReasoningLen == -1 {
+				assert.Nil(t, engineRec.Reasoning)
+			} else {
+				require.Len(t, engineRec.Reasoning, tt.wantReasoningLen)
+				if tt.wantReasoning != nil {
+					for i, want := range tt.wantReasoning {
+						assert.Equal(t, want, engineRec.Reasoning[i])
+					}
+				}
+			}
+		})
+	}
+}
+
+// TestCostResultJSONRecommendations verifies JSON serialization of CostResult with recommendations (US4).
+func TestCostResultJSONRecommendations(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           CostResult
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name: "populated Recommendations includes recommendations array in JSON",
+			input: CostResult{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-123",
+				Monthly:      50.0,
+				Currency:     "USD",
+				Recommendations: []Recommendation{
+					{
+						Type:             "RIGHTSIZE",
+						Description:      "Switch to t3.small",
+						EstimatedSavings: 5.0,
+						Currency:         "USD",
+						Reasoning:        []string{"Ensure app supports smaller instances"},
+					},
+					{
+						Type:        "TERMINATE",
+						Description: "Resource is idle",
+					},
+				},
+			},
+			wantContains: []string{
+				"\"recommendations\"",
+				"\"type\":\"RIGHTSIZE\"",
+				"\"type\":\"TERMINATE\"",
+				"\"description\":\"Switch to t3.small\"",
+				"\"description\":\"Resource is idle\"",
+				"\"estimatedSavings\":5",
+				"\"currency\":\"USD\"",
+				"\"reasoning\"",
+				"\"Ensure app supports smaller instances\"",
+			},
+		},
+		{
+			name: "nil Recommendations omits recommendations key entirely",
+			input: CostResult{
+				ResourceType:    "aws:ec2:Instance",
+				ResourceID:      "i-456",
+				Monthly:         75.0,
+				Currency:        "USD",
+				Recommendations: nil,
+			},
+			wantContains:    []string{"\"resourceType\":\"aws:ec2:Instance\"", "\"monthly\":75"},
+			wantNotContains: []string{"\"recommendations\""},
+		},
+		{
+			name: "empty Recommendations slice omits recommendations key",
+			input: CostResult{
+				ResourceType:    "aws:s3:Bucket",
+				ResourceID:      "my-bucket",
+				Monthly:         25.0,
+				Currency:        "USD",
+				Recommendations: []Recommendation{},
+			},
+			wantNotContains: []string{"\"recommendations\""},
+		},
+		{
+			name: "recommendation with empty Reasoning omits reasoning key",
+			input: CostResult{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-789",
+				Recommendations: []Recommendation{
+					{
+						Type:             "MIGRATE",
+						Description:      "Switch to Graviton",
+						EstimatedSavings: 8.0,
+						Currency:         "USD",
+						Reasoning:        nil,
+					},
+				},
+			},
+			wantContains:    []string{"\"recommendations\"", "\"type\":\"MIGRATE\""},
+			wantNotContains: []string{"\"reasoning\":[]"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonBytes, err := json.Marshal(tt.input)
+			require.NoError(t, err)
+			jsonStr := string(jsonBytes)
+
+			for _, s := range tt.wantContains {
+				assert.Contains(t, jsonStr, s)
+			}
+			for _, s := range tt.wantNotContains {
+				assert.NotContains(t, jsonStr, s)
+			}
+		})
+	}
 }

@@ -2649,6 +2649,8 @@ func convertProtoRecommendation(rec *proto.Recommendation) Recommendation {
 		engineRec.Currency = rec.Impact.Currency
 	}
 
+	engineRec.Reasoning = rec.Reasoning
+
 	return engineRec
 }
 

@@ -154,6 +154,11 @@ type Recommendation struct {
 	// Empty or "Active" for active recommendations, "Dismissed" or "Snoozed"
 	// for dismissed/snoozed recommendations shown via --include-dismissed.
 	Status RecommendationStatus `json:"status,omitempty"`
+
+	// Reasoning carries plugin-provided warnings and caveats explaining
+	// prerequisites or risks for implementing this recommendation
+	// (e.g., "Ensure application compatibility with ARM64 architecture").
+	Reasoning []string `json:"reasoning,omitempty"`
 }
 
 // RecommendationStatus represents the lifecycle state of a recommendation.

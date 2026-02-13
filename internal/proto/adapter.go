@@ -411,6 +411,11 @@ type Recommendation struct {
 
 	// Metadata contains additional provider-specific information.
 	Metadata map[string]string
+
+	// Reasoning carries plugin-provided warnings and caveats mapped from
+	// proto Recommendation.Reasoning (field 14). These explain prerequisites
+	// or risks associated with implementing the recommendation.
+	Reasoning []string
 }
 
 // RecommendationImpact describes the financial impact of implementing a recommendation.
@@ -957,6 +962,7 @@ func (c *clientAdapter) GetRecommendations(
 			Description: rec.GetDescription(),
 			Source:      rec.GetSource(),
 			Metadata:    rec.GetMetadata(),
+			Reasoning:   rec.GetReasoning(),
 		}
 
 		// Extract resource ID from resource info if available

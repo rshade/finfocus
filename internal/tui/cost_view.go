@@ -343,6 +343,9 @@ func RenderDetailView(resource engine.CostResult, width int) string {
 	// Sustainability metrics.
 	renderSustainabilitySection(&content, resource.Sustainability)
 
+	// Recommendations (FR-008: after sustainability, before notes).
+	renderRecommendationsSection(&content, resource.Recommendations)
+
 	// Notes/Errors.
 	if resource.Notes != "" {
 		content.WriteString(HeaderStyle.Render("NOTES"))
@@ -397,6 +400,47 @@ func renderSustainabilitySection(content *strings.Builder, sustainability map[st
 	for _, k := range keys {
 		metric := sustainability[k]
 		fmt.Fprintf(content, "- %s: %.2f %s\n", k, metric.Value, metric.Unit)
+	}
+	content.WriteString("\n")
+}
+
+// renderRecommendationsSection writes a "RECOMMENDATIONS" section to content when
+// recommendations are present. Recommendations are sorted by estimated savings in
+// descending order (FR-009). Each recommendation shows its action type, description,
+// and optional savings. Reasoning entries are rendered as indented warning lines
+// beneath the description (FR-002).
+func renderRecommendationsSection(content *strings.Builder, recommendations []engine.Recommendation) {
+	if len(recommendations) == 0 {
+		return
+	}
+
+	// Copy to avoid mutating the caller's slice during sort.
+	sorted := make([]engine.Recommendation, len(recommendations))
+	copy(sorted, recommendations)
+	sort.SliceStable(sorted, func(i, j int) bool {
+		return sorted[i].EstimatedSavings > sorted[j].EstimatedSavings
+	})
+
+	content.WriteString(HeaderStyle.Render("RECOMMENDATIONS"))
+	content.WriteString("\n")
+
+	for _, rec := range sorted {
+		savingsStr := ""
+		if rec.EstimatedSavings > 0 {
+			currency := rec.Currency
+			if currency == "" {
+				currency = defaultCurrency
+			}
+			savingsStr = fmt.Sprintf(" ($%.2f %s/mo savings)",
+				rec.EstimatedSavings, currency)
+		}
+		fmt.Fprintf(content, "- [%s] %s%s\n",
+			rec.Type, rec.Description, savingsStr)
+
+		for _, reason := range rec.Reasoning {
+			fmt.Fprintf(content, "    %s\n",
+				WarningStyle.Render(reason))
+		}
 	}
 	content.WriteString("\n")
 }
