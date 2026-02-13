@@ -184,10 +184,13 @@ func formatProjectedColumn(row OverviewRow) string {
 	return FormatOverviewCurrency(row.ProjectedCost.MonthlyCost)
 }
 
-// formatDeltaColumn formats the delta as Projected - MTD Actual. This shows
-// the remaining expected spend for the period, not the drift (which is shown
-// in the drift column using extrapolated comparison).
+// formatDeltaColumn formats the delta column. When CostDrift is available its
+// pre-computed Delta is used for consistency with the TUI's buildOverviewTable.
+// Otherwise falls back to Projected - MTD Actual.
 func formatDeltaColumn(row OverviewRow) string {
+	if row.CostDrift != nil {
+		return FormatOverviewDelta(row.CostDrift.Delta)
+	}
 	if row.ProjectedCost == nil && row.ActualCost == nil {
 		return "-"
 	}
@@ -226,11 +229,11 @@ func formatRecsColumn(row OverviewRow) string {
 
 // overviewRowTotals holds aggregated totals from overview rows.
 type overviewRowTotals struct {
-	actual   float64
+	actual    float64
 	projected float64
-	savings  float64
-	currency string
-	errors   []OverviewRowError
+	savings   float64
+	currency  string
+	errors    []OverviewRowError
 }
 
 // aggregateOverviewRows computes totals across overview rows with currency
@@ -286,33 +289,36 @@ func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx Stac
 		return err
 	}
 
-	t, err := aggregateOverviewRows(rows)
-	if err != nil {
-		return err
+	t, aggErr := aggregateOverviewRows(rows)
+	if aggErr != nil {
+		return aggErr
 	}
 
 	totalDelta := t.projected - t.actual
 
-	if _, err := fmt.Fprintf(tw, "SUMMARY\t%s\t%d resources\t%s\t%s\t%s\t\t\n",
+	if _, writeErr := fmt.Fprintf(tw, "SUMMARY\t%s\t%d resources\t%s\t%s\t%s\t\t\n",
 		stackCtx.StackName,
 		stackCtx.TotalResources,
 		FormatOverviewCurrency(t.actual)+" "+t.currency,
 		FormatOverviewCurrency(t.projected)+" "+t.currency,
 		FormatOverviewDelta(totalDelta)+" "+t.currency,
-	); err != nil {
-		return err
+	); writeErr != nil {
+		return writeErr
 	}
 
 	if t.savings > 0 {
-		if _, err := fmt.Fprintf(tw, "\t\t\t\tPotential Savings:\t%s %s\t\t\n",
-			FormatOverviewCurrency(t.savings), t.currency); err != nil {
-			return err
+		if _, writeErr := fmt.Fprintf(tw, "\t\t\t\tPotential Savings:\t%s %s\t\t\n",
+			FormatOverviewCurrency(t.savings), t.currency); writeErr != nil {
+			return writeErr
 		}
 	}
 
 	if stackCtx.HasChanges {
-		if _, err := fmt.Fprintf(tw, "\t\t\t\t%d pending changes\t\t\t\n", stackCtx.PendingChanges); err != nil {
-			return err
+		if _, writeErr := fmt.Fprintf(tw,
+			"\t\t\t\t%d pending changes\t\t\t\n",
+			stackCtx.PendingChanges,
+		); writeErr != nil {
+			return writeErr
 		}
 	}
 
@@ -321,10 +327,9 @@ func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx Stac
 
 // OverviewMetadata holds metadata information for the JSON output.
 // It embeds StackContext so field promotion avoids duplication.
+// GeneratedAt is promoted from StackContext.
 type OverviewMetadata struct {
 	StackContext
-
-	GeneratedAt time.Time `json:"generatedAt"`
 }
 
 // OverviewSummary holds aggregated summary statistics for the JSON output.
@@ -364,11 +369,15 @@ func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext
 		errs = []OverviewRowError{}
 	}
 
+	// Use caller-provided GeneratedAt if set, otherwise fall back to time.Now().
+	if stackCtx.GeneratedAt.IsZero() {
+		stackCtx.GeneratedAt = time.Now()
+	}
+
 	// Build output structure
 	output := OverviewJSONOutput{
 		Metadata: OverviewMetadata{
 			StackContext: stackCtx,
-			GeneratedAt:  time.Now(),
 		},
 		Resources: resources,
 		Summary: OverviewSummary{
@@ -384,8 +393,8 @@ func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext
 	// Marshal with indentation
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
-	if err := encoder.Encode(output); err != nil {
-		return fmt.Errorf("encoding JSON: %w", err)
+	if encErr := encoder.Encode(output); encErr != nil {
+		return fmt.Errorf("encoding JSON: %w", encErr)
 	}
 
 	return nil

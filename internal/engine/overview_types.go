@@ -359,6 +359,7 @@ type StackContext struct {
 	HasChanges     bool      `json:"hasChanges"`
 	TotalResources int       `json:"totalResources"`
 	PendingChanges int       `json:"pendingChanges"`
+	GeneratedAt    time.Time `json:"generatedAt,omitempty"`
 }
 
 // Validate checks that the StackContext fields are well-formed.

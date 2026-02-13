@@ -169,10 +169,10 @@ func TestNewOverviewCmd_ValidStateFileEmptyResources(t *testing.T) {
 		"--yes",
 	})
 
-	// This will try to open plugins which may fail, but it validates that
-	// state loading and merge work correctly
+	// cmd.Execute() may succeed or fail with "opening plugins" depending on
+	// the test environment. Both outcomes are acceptable because this test
+	// validates state loading and merge behaviour, not plugin connectivity.
 	err := cmd.Execute()
-	// May fail at plugin opening stage - that's expected
 	if err != nil {
 		assert.Contains(t, err.Error(), "opening plugins")
 	}

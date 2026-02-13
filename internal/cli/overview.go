@@ -132,17 +132,12 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	}
 
 	// 6. Pre-flight prompt (unless --yes)
-	if !params.yes {
-		cmd.Printf("Overview: %d resources", len(rows))
-		if hasChanges {
-			cmd.Printf(", %d pending changes", changeCount)
-		}
-		cmd.Println()
-	}
+	printOverviewSummaryLine(cmd, params.yes, len(rows), hasChanges, changeCount)
 
-	// 7. Apply resource filters
-	if len(params.filter) > 0 {
-		rows = applyOverviewFilters(rows, params.filter)
+	// 7. Validate filter keys and apply resource filters
+	rows, err = validateAndApplyOverviewFilters(rows, params.filter)
+	if err != nil {
+		return err
 	}
 
 	// 8. Open plugins
@@ -173,6 +168,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		HasChanges:     hasChanges,
 		TotalResources: len(rows),
 		PendingChanges: changeCount,
+		GeneratedAt:    time.Now(),
 	}
 
 	// 12. Render output (plain text)
@@ -184,6 +180,24 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 
 	audit.logSuccess(ctx, len(rows), 0)
 	return nil
+}
+
+// printOverviewSummaryLine prints a one-line pre-flight summary unless --yes.
+func printOverviewSummaryLine(
+	cmd *cobra.Command,
+	skipPrompt bool,
+	resourceCount int,
+	hasChanges bool,
+	changeCount int,
+) {
+	if skipPrompt {
+		return
+	}
+	cmd.Printf("Overview: %d resources", resourceCount)
+	if hasChanges {
+		cmd.Printf(", %d pending changes", changeCount)
+	}
+	cmd.Println()
 }
 
 // resolveOverviewDateRange parses the from/to strings into a DateRange.
@@ -259,6 +273,32 @@ func extractStackName(statePath string) string {
 	return base
 }
 
+// validateAndApplyOverviewFilters validates filter keys and applies filters.
+// Returns the filtered rows, or an error if an unknown key is found.
+func validateAndApplyOverviewFilters(
+	rows []engine.OverviewRow,
+	filters []string,
+) ([]engine.OverviewRow, error) {
+	if len(filters) == 0 {
+		return rows, nil
+	}
+	allowedKeys := map[string]bool{
+		"type": true, "status": true, "provider": true,
+	}
+	for _, f := range filters {
+		parts := splitFilter(f)
+		if len(parts) == filterKeyValueParts {
+			if !allowedKeys[parts[0]] {
+				return nil, fmt.Errorf(
+					"unknown filter key %q (allowed: type, status, provider)",
+					parts[0],
+				)
+			}
+		}
+	}
+	return applyOverviewFilters(rows, filters), nil
+}
+
 // applyOverviewFilters filters overview rows based on filter expressions.
 func applyOverviewFilters(rows []engine.OverviewRow, filters []string) []engine.OverviewRow {
 	if len(filters) == 0 {
@@ -304,10 +344,9 @@ func matchesOverviewFilters(row engine.OverviewRow, filters []string) bool {
 
 // splitFilter splits a "key=value" filter string.
 func splitFilter(filter string) []string {
-	for i, ch := range filter {
-		if ch == '=' {
-			return []string{filter[:i], filter[i+1:]}
-		}
+	left, right, found := strings.Cut(filter, "=")
+	if found {
+		return []string{left, right}
 	}
 	return []string{filter}
 }

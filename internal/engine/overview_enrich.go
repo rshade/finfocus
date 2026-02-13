@@ -189,9 +189,12 @@ func classifyError(urn string, err error) *OverviewRowError {
 		errType = ErrorTypeRateLimit
 	}
 
-	// Truncate message if too long
+	// Truncate message if too long (rune-safe to avoid splitting multi-byte characters)
 	if len(msg) > maxMessageLen {
-		msg = msg[:maxMessageLen]
+		runes := []rune(msg)
+		if len(runes) > maxMessageLen {
+			msg = string(runes[:maxMessageLen])
+		}
 	}
 
 	return &OverviewRowError{
@@ -234,7 +237,11 @@ func EnrichOverviewRows(
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			sem <- struct{}{}
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
 			defer func() { <-sem }()
 
 			if ctx.Err() != nil {

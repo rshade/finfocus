@@ -218,6 +218,7 @@ func TestActualCostData_Validate(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errContains)
+				assert.ErrorIs(t, err, ErrOverviewValidation)
 			} else {
 				require.NoError(t, err)
 			}
@@ -281,6 +282,7 @@ func TestProjectedCostData_Validate(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errContains)
+				assert.ErrorIs(t, err, ErrOverviewValidation)
 			} else {
 				require.NoError(t, err)
 			}
@@ -372,6 +374,7 @@ func TestCostDriftData_Validate(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errContains)
+				assert.ErrorIs(t, err, ErrOverviewValidation)
 			} else {
 				require.NoError(t, err)
 			}
@@ -437,6 +440,7 @@ func TestOverviewRowError_Validate(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errContains)
+				assert.ErrorIs(t, err, ErrOverviewValidation)
 			} else {
 				require.NoError(t, err)
 			}
@@ -565,6 +569,7 @@ func TestOverviewRow_Validate(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errContains)
+				assert.ErrorIs(t, err, ErrOverviewValidation)
 			} else {
 				require.NoError(t, err)
 			}
@@ -680,6 +685,7 @@ func TestStackContext_Validate(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errContains)
+				assert.ErrorIs(t, err, ErrOverviewValidation)
 			} else {
 				require.NoError(t, err)
 			}

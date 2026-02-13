@@ -955,3 +955,30 @@ func TestErrorType_MarshalJSON(t *testing.T) {
 		})
 	}
 }
+
+func TestErrorType_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    ErrorType
+		wantErr bool
+	}{
+		{"auth", `"auth"`, ErrorTypeAuth, false},
+		{"network", `"network"`, ErrorTypeNetwork, false},
+		{"rate_limit", `"rate_limit"`, ErrorTypeRateLimit, false},
+		{"unknown", `"unknown"`, ErrorTypeUnknown, false},
+		{"bad", `"bad"`, 0, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var et ErrorType
+			err := json.Unmarshal([]byte(tt.input), &et)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, et)
+			}
+		})
+	}
+}

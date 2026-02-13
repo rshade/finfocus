@@ -19,6 +19,8 @@ const (
 // opPrecedence defines which operation takes priority when multiple plan
 // steps reference the same URN (e.g., create-replacement + delete-replaced).
 // Higher values win.
+//
+//nolint:gochecknoglobals // Immutable lookup table for operation precedence.
 var opPrecedence = map[string]int{
 	opCreate:            0,
 	opUpdate:            1,

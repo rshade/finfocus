@@ -98,6 +98,7 @@ func TestIntegration_TableRender_NoChanges(t *testing.T) {
 		HasChanges:     false,
 		TotalResources: len(rows),
 		PendingChanges: 0,
+		GeneratedAt:    now,
 	}
 
 	// Render table
@@ -155,6 +156,7 @@ func TestIntegration_TableRender_MixedChanges(t *testing.T) {
 		HasChanges:     hasChanges,
 		TotalResources: len(rows),
 		PendingChanges: changeCount,
+		GeneratedAt:    now,
 	}
 
 	// Render table
@@ -414,6 +416,7 @@ func TestIntegration_JSONRender_NoChanges(t *testing.T) {
 		StackName:      "state-no-changes",
 		TimeWindow:     engine.DateRange{Start: now.AddDate(0, 0, -15), End: now},
 		TotalResources: len(rows),
+		GeneratedAt:    now,
 	}
 
 	// Render JSON

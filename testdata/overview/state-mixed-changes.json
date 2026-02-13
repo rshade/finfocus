@@ -268,7 +268,7 @@
         "urn": "urn:pulumi:prod::myapp::aws:ses/emailIdentity:EmailIdentity::notify",
         "type": "aws:ses/emailIdentity:EmailIdentity",
         "custom": true,
-        "id": "notify@myapp.com"
+        "id": "ses-notify-identity"
       },
       {
         "urn": "urn:pulumi:prod::myapp::aws:cloudwatch/dashboard:Dashboard::main-dash",

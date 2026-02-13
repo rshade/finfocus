@@ -63,6 +63,9 @@ type OverviewModel struct {
 	currentPage       int
 	totalPages        int
 
+	// Loading spinner
+	loadingState *LoadingState
+
 	// Error state
 	err error
 }
@@ -90,13 +93,16 @@ func NewOverviewModel(
 	// Initialize table with skeleton data
 	m.table = m.buildOverviewTable()
 
-	// Start loading spinner
-	loading := NewLoadingState()
-	return m, loading.Init()
+	// Initialize loading spinner
+	m.loadingState = NewLoadingState()
+	return m, m.loadingState.Init()
 }
 
 // Init initializes the model (Bubble Tea interface).
 func (m OverviewModel) Init() tea.Cmd {
+	if m.loadingState != nil {
+		return m.loadingState.Init()
+	}
 	return NewLoadingState().Init()
 }
 
