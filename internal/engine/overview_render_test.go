@@ -432,7 +432,7 @@ func TestFormatDriftColumn(t *testing.T) {
 					IsWarning:    true,
 				},
 			},
-			want: "+15%",
+			want: "+15% \u26a0",
 		},
 		{
 			name: "negative_drift_warning",
@@ -442,17 +442,13 @@ func TestFormatDriftColumn(t *testing.T) {
 					IsWarning:    true,
 				},
 			},
-			want: "-20%",
+			want: "-20% \u26a0",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := formatDriftColumn(tt.row)
-			if tt.name == "no_drift" {
-				assert.Equal(t, "-", result)
-			} else {
-				assert.True(t, strings.HasPrefix(result, tt.want))
-			}
+			assert.Equal(t, tt.want, result)
 		})
 	}
 }

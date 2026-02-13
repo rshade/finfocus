@@ -33,7 +33,7 @@ const defaultDaysPerMonth = 30.0
 //   - daysInMonth: total days in the current month (28-31).
 func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth int) (*CostDriftData, error) {
 	if dayOfMonth < driftMinDay {
-		return nil, fmt.Errorf("insufficient data (day %d of month)", dayOfMonth)
+		return nil, fmt.Errorf("%w: insufficient data (day %d of month)", ErrOverviewValidation, dayOfMonth)
 	}
 
 	// Edge cases where drift is not meaningful.
@@ -75,6 +75,8 @@ func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth in
 //   - Deleting: delta -= extrapolated_actual
 //
 // The currency is taken from the first non-nil cost data encountered.
+// Mixed currencies cannot reach this function because upstream returns
+// ErrMixedCurrencies before aggregation.
 // The currentDayOfMonth is used for extrapolation of actual costs; if it is
 // less than driftMinDay, actual costs are used without extrapolation.
 func CalculateProjectedDelta(rows []OverviewRow, currentDayOfMonth int) (float64, string) {
@@ -128,6 +130,12 @@ func getProjectedMonthlyCost(row OverviewRow) float64 {
 // getExtrapolatedActual extrapolates the MTD actual cost to a full month.
 // If the day of month is too early for reliable extrapolation, returns the
 // raw MTD cost.
+//
+// Note: This function uses defaultDaysPerMonth (30) for extrapolation, which
+// differs from CalculateCostDrift that uses the actual daysInMonth (28-31).
+// This is intentional: delta calculations use a standardised month length for
+// consistent comparisons, while drift calculations use calendar-accurate
+// month length for precision.
 func getExtrapolatedActual(row OverviewRow, dayOfMonth int) float64 {
 	if row.ActualCost == nil {
 		return 0

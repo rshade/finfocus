@@ -4,8 +4,6 @@ title: overview Command
 description: Unified cost dashboard combining state, plan, actual costs, projected costs, drift, and recommendations
 ---
 
-# finfocus overview
-
 Display a unified cost dashboard combining Pulumi state and plan data with actual
 costs, projected costs, drift analysis, and recommendations.
 

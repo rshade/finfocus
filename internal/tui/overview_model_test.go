@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"testing"
 	"time"
 
@@ -49,7 +50,7 @@ func TestOverviewModel_StateTransitions(t *testing.T) {
 	assert.Equal(t, ViewStateLoading, model.state)
 
 	// Transition: Loading -> List (all resources loaded)
-	msg := overviewAllResourcesLoadedMsg{}
+	msg := OverviewAllResourcesLoadedMsg{}
 	updatedModel, _ := model.Update(msg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, ViewStateList, model.state)
@@ -61,8 +62,7 @@ func TestOverviewModel_StateTransitions(t *testing.T) {
 	assert.Equal(t, ViewStateDetail, model.state)
 
 	// Transition: Detail -> List (Esc key)
-	escMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'e', 's', 'c'}}
-	escMsg.Type = tea.KeyEscape
+	escMsg := tea.KeyMsg{Type: tea.KeyEscape}
 	updatedModel, _ = model.Update(escMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, ViewStateList, model.state)
@@ -88,7 +88,7 @@ func TestOverviewModel_ResourceLoadedMsg(t *testing.T) {
 		},
 	}
 
-	msg := overviewResourceLoadedMsg{Index: 0, Row: enrichedRow}
+	msg := OverviewResourceLoadedMsg{Index: 0, Row: enrichedRow}
 	updatedModel, _ := model.Update(msg)
 	model = updatedModel.(OverviewModel)
 
@@ -106,7 +106,7 @@ func TestOverviewModel_LoadingProgressMsg(t *testing.T) {
 
 	model, _ := NewOverviewModel(ctx, skeletonRows, 10)
 
-	msg := overviewLoadingProgressMsg{Loaded: 5, Total: 10}
+	msg := OverviewLoadingProgressMsg{Loaded: 5, Total: 10}
 	updatedModel, _ := model.Update(msg)
 	model = updatedModel.(OverviewModel)
 
@@ -263,7 +263,7 @@ func TestOverviewModel_PaginationBoundaries(t *testing.T) {
 	skeletonRows := make([]engine.OverviewRow, 300)
 	for i := range skeletonRows {
 		skeletonRows[i] = engine.OverviewRow{
-			URN:    "urn:test:" + string(rune(i)),
+			URN:    fmt.Sprintf("urn:test:%d", i),
 			Type:   "aws:ec2:Instance",
 			Status: engine.StatusActive,
 		}
@@ -432,7 +432,7 @@ func TestOverviewModel_GetVisibleRows(t *testing.T) {
 	// Create 300 rows
 	rows := make([]engine.OverviewRow, 300)
 	for i := range rows {
-		rows[i] = engine.OverviewRow{URN: "urn:" + string(rune(i)), Type: "test", Status: engine.StatusActive}
+		rows[i] = engine.OverviewRow{URN: fmt.Sprintf("urn:%d", i), Type: "test", Status: engine.StatusActive}
 	}
 
 	model, _ := NewOverviewModel(ctx, rows, 300)
@@ -466,7 +466,7 @@ func TestOverviewModel_AllResourcesLoadedTransition(t *testing.T) {
 	assert.Equal(t, ViewStateLoading, model.state)
 
 	// Send completion message
-	msg := overviewAllResourcesLoadedMsg{}
+	msg := OverviewAllResourcesLoadedMsg{}
 	updatedModel, _ := model.Update(msg)
 	model = updatedModel.(OverviewModel)
 
@@ -518,7 +518,7 @@ func TestOverviewModel_EnrichmentIntegration(t *testing.T) {
 		},
 	}
 
-	msg1 := overviewResourceLoadedMsg{Index: 0, Row: enrichedRow1}
+	msg1 := OverviewResourceLoadedMsg{Index: 0, Row: enrichedRow1}
 	updatedModel, _ := model.Update(msg1)
 	model = updatedModel.(OverviewModel)
 

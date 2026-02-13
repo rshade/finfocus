@@ -324,8 +324,7 @@ func TestDetectPendingChanges(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			has, count, err := DetectPendingChanges(ctx, tt.steps)
-			require.NoError(t, err)
+			has, count := DetectPendingChanges(ctx, tt.steps)
 			assert.Equal(t, tt.wantHas, has)
 			assert.Equal(t, tt.wantCount, count)
 		})

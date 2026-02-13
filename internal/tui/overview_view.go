@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
@@ -109,7 +110,7 @@ func (m OverviewModel) getSortLabel() string {
 // renderDetailView renders the detail view for a selected resource.
 func (m OverviewModel) renderDetailView() string {
 	if m.selected < 0 || m.selected >= len(m.rows) {
-		return errSelectedOutOfBounds
+		return msgSelectedOutOfBounds
 	}
 
 	row := m.rows[m.selected]
@@ -148,9 +149,7 @@ func renderDetailActualCost(content *strings.Builder, row engine.OverviewRow) {
 	content.WriteString(HeaderStyle.Render("ACTUAL COST (MTD)"))
 	content.WriteString("\n")
 	content.WriteString(LabelStyle.Render("  Total: "))
-	content.WriteString(ValueStyle.Render(
-		fmt.Sprintf("%s %.2f", row.ActualCost.Currency, row.ActualCost.MTDCost),
-	))
+	content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(row.ActualCost.MTDCost)))
 	content.WriteString("\n")
 	renderBreakdown(content, row.ActualCost.Breakdown)
 	content.WriteString("\n")
@@ -164,9 +163,7 @@ func renderDetailProjectedCost(content *strings.Builder, row engine.OverviewRow)
 	content.WriteString(HeaderStyle.Render("PROJECTED COST (Monthly)"))
 	content.WriteString("\n")
 	content.WriteString(LabelStyle.Render("  Total: "))
-	content.WriteString(ValueStyle.Render(
-		fmt.Sprintf("%s %.2f", row.ProjectedCost.Currency, row.ProjectedCost.MonthlyCost),
-	))
+	content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(row.ProjectedCost.MonthlyCost)))
 	content.WriteString("\n")
 	renderBreakdown(content, row.ProjectedCost.Breakdown)
 	content.WriteString("\n")
@@ -227,12 +224,18 @@ func renderDetailError(content *strings.Builder, row engine.OverviewRow) {
 }
 
 // renderBreakdown writes a cost breakdown map to the builder.
+// Keys are sorted for deterministic output.
 func renderBreakdown(content *strings.Builder, breakdown map[string]float64) {
 	if len(breakdown) == 0 {
 		return
 	}
 	content.WriteString(LabelStyle.Render("  Breakdown:\n"))
-	for category, cost := range breakdown {
-		fmt.Fprintf(content, "    %s: $%.2f\n", category, cost)
+	keys := make([]string, 0, len(breakdown))
+	for k := range breakdown {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, category := range keys {
+		fmt.Fprintf(content, "    %s: %s\n", category, engine.FormatOverviewCurrency(breakdown[category]))
 	}
 }

@@ -23,23 +23,14 @@ type OverviewResourceLoadedMsg struct {
 	Row   engine.OverviewRow
 }
 
-// overviewResourceLoadedMsg is the internal alias for external message sending.
-type overviewResourceLoadedMsg = OverviewResourceLoadedMsg
-
 // OverviewLoadingProgressMsg is sent periodically during loading.
 type OverviewLoadingProgressMsg struct {
 	Loaded int
 	Total  int
 }
 
-// overviewLoadingProgressMsg is the internal alias for external message sending.
-type overviewLoadingProgressMsg = OverviewLoadingProgressMsg
-
 // OverviewAllResourcesLoadedMsg is sent when all resources are enriched.
 type OverviewAllResourcesLoadedMsg struct{}
-
-// overviewAllResourcesLoadedMsg is the internal alias for external message sending.
-type overviewAllResourcesLoadedMsg = OverviewAllResourcesLoadedMsg
 
 // OverviewModel is the Bubble Tea model for the interactive overview dashboard.
 //
@@ -120,17 +111,17 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	// Handle resource loaded
-	if loadedMsg, ok := msg.(overviewResourceLoadedMsg); ok {
+	if loadedMsg, ok := msg.(OverviewResourceLoadedMsg); ok {
 		return m.handleResourceLoaded(loadedMsg)
 	}
 
 	// Handle progress update
-	if progressMsg, ok := msg.(overviewLoadingProgressMsg); ok {
+	if progressMsg, ok := msg.(OverviewLoadingProgressMsg); ok {
 		return m.handleLoadingProgress(progressMsg)
 	}
 
 	// Handle all resources loaded
-	if _, ok := msg.(overviewAllResourcesLoadedMsg); ok {
+	if _, ok := msg.(OverviewAllResourcesLoadedMsg); ok {
 		return m.handleAllResourcesLoaded()
 	}
 
@@ -154,19 +145,18 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 }
 
-func (m OverviewModel) handleResourceLoaded(msg overviewResourceLoadedMsg) (tea.Model, tea.Cmd) {
+func (m OverviewModel) handleResourceLoaded(msg OverviewResourceLoadedMsg) (tea.Model, tea.Cmd) {
 	if msg.Index >= 0 && msg.Index < len(m.allRows) {
 		m.allRows[msg.Index] = msg.Row
 		m.loadedCount++
 
-		// Update filtered/sorted view
+		// Update filtered/sorted view (applyFilter calls refreshTable)
 		m.applyFilter(m.textInput.Value())
-		m.refreshTable()
 	}
 	return m, nil
 }
 
-func (m OverviewModel) handleLoadingProgress(msg overviewLoadingProgressMsg) (tea.Model, tea.Cmd) {
+func (m OverviewModel) handleLoadingProgress(msg OverviewLoadingProgressMsg) (tea.Model, tea.Cmd) {
 	percent := 0
 	if msg.Total > 0 {
 		percent = (msg.Loaded * 100) / msg.Total //nolint:mnd // Percentage calculation.
@@ -204,48 +194,65 @@ func (m OverviewModel) handleFilterInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m OverviewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
-		switch keyMsg.String() {
-		case keyQuit, keyCtrlC:
-			m.state = ViewStateQuitting
-			return m, tea.Quit
-		case keyEnter:
-			m.selected = m.table.Cursor()
-			if m.selected >= 0 && m.selected < len(m.rows) {
-				m.state = ViewStateDetail
-			}
-			return m, nil
-		case keySlash:
-			m.showFilter = true
-			m.textInput.Focus()
-			return m, textinput.Blink
-		case keyS:
-			m.cycleSort()
-			return m, nil
-		case keyEsc:
-			if m.textInput.Value() != "" {
-				m.textInput.SetValue("")
-				m.applyFilter("")
-			}
-			return m, nil
-		case "pgup":
-			if m.paginationEnabled && m.currentPage > 1 {
-				m.currentPage--
-				m.rebuildTable()
-			}
-			return m, nil
-		case "pgdown":
-			if m.paginationEnabled && m.currentPage < m.totalPages {
-				m.currentPage++
-				m.rebuildTable()
-			}
-			return m, nil
-		}
+	keyMsg, ok := msg.(tea.KeyMsg)
+	if !ok {
+		var cmd tea.Cmd
+		m.table, cmd = m.table.Update(msg)
+		return m, cmd
 	}
 
-	var cmd tea.Cmd
-	m.table, cmd = m.table.Update(msg)
-	return m, cmd
+	return m.handleListKeypress(keyMsg)
+}
+
+func (m OverviewModel) handleListKeypress(keyMsg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	switch keyMsg.String() {
+	case keyQuit, keyCtrlC:
+		m.state = ViewStateQuitting
+		return m, tea.Quit
+	case keyEnter:
+		m.selected = m.absoluteIndex(m.table.Cursor())
+		if m.selected >= 0 && m.selected < len(m.rows) {
+			m.state = ViewStateDetail
+		}
+		return m, nil
+	case keySlash:
+		m.showFilter = true
+		m.textInput.Focus()
+		return m, textinput.Blink
+	case keyS:
+		m.cycleSort()
+		return m, nil
+	case keyEsc:
+		if m.textInput.Value() != "" {
+			m.textInput.SetValue("")
+			m.applyFilter("")
+		}
+		return m, nil
+	case "pgup":
+		if m.paginationEnabled && m.currentPage > 1 {
+			m.currentPage--
+			m.rebuildTable()
+		}
+		return m, nil
+	case "pgdown":
+		if m.paginationEnabled && m.currentPage < m.totalPages {
+			m.currentPage++
+			m.rebuildTable()
+		}
+		return m, nil
+	default:
+		var cmd tea.Cmd
+		m.table, cmd = m.table.Update(keyMsg)
+		return m, cmd
+	}
+}
+
+// absoluteIndex converts a page-relative table cursor to an absolute row index.
+func (m OverviewModel) absoluteIndex(cursor int) int {
+	if m.paginationEnabled {
+		return (m.currentPage-1)*maxOverviewResourcesPerPage + cursor
+	}
+	return cursor
 }
 
 func (m OverviewModel) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -379,39 +386,42 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 // truncateResourceName shortens a URN for display.
 func truncateResourceName(urn string) string {
 	const maxLen = 30
+	if urn == "" {
+		return urn
+	}
 	if len(urn) <= maxLen {
 		return urn
 	}
-	// Extract resource name from URN (last component)
+	// Extract resource name from URN (last component).
+	// strings.Split always returns at least one element so no length check needed.
 	parts := strings.Split(urn, "::")
-	if len(parts) > 0 {
-		name := parts[len(parts)-1]
-		if len(name) <= maxLen {
-			return name
-		}
-		return name[:maxLen-3] + "..."
+	name := parts[len(parts)-1]
+	if len(name) <= maxLen {
+		return name
 	}
-	return urn[:maxLen-3] + "..."
+	return name[:maxLen-3] + "..."
 }
 
-// applyFilter filters rows based on text input.
+// applyFilter filters rows based on text input. It always calls refreshTable
+// and enablePaginationIfNeeded to keep pagination state consistent.
 func (m *OverviewModel) applyFilter(filterText string) {
 	if filterText == "" {
 		m.rows = m.allRows
-		return
-	}
+	} else {
+		query := strings.ToLower(filterText)
+		filtered := []engine.OverviewRow{}
 
-	query := strings.ToLower(filterText)
-	filtered := []engine.OverviewRow{}
-
-	for _, row := range m.allRows {
-		if strings.Contains(strings.ToLower(row.URN), query) ||
-			strings.Contains(strings.ToLower(row.Type), query) {
-			filtered = append(filtered, row)
+		for _, row := range m.allRows {
+			if strings.Contains(strings.ToLower(row.URN), query) ||
+				strings.Contains(strings.ToLower(row.Type), query) {
+				filtered = append(filtered, row)
+			}
 		}
+
+		m.rows = filtered
 	}
 
-	m.rows = filtered
+	m.enablePaginationIfNeeded()
 	m.refreshTable()
 }
 

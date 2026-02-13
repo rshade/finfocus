@@ -184,6 +184,9 @@ func formatProjectedColumn(row OverviewRow) string {
 	return FormatOverviewCurrency(row.ProjectedCost.MonthlyCost)
 }
 
+// formatDeltaColumn formats the delta as Projected - MTD Actual. This shows
+// the remaining expected spend for the period, not the drift (which is shown
+// in the drift column using extrapolated comparison).
 func formatDeltaColumn(row OverviewRow) string {
 	if row.ProjectedCost == nil && row.ActualCost == nil {
 		return "-"
@@ -221,69 +224,107 @@ func formatRecsColumn(row OverviewRow) string {
 	return strconv.Itoa(len(row.Recommendations))
 }
 
+// overviewRowTotals holds aggregated totals from overview rows.
+type overviewRowTotals struct {
+	actual   float64
+	projected float64
+	savings  float64
+	currency string
+	errors   []OverviewRowError
+}
+
+// aggregateOverviewRows computes totals across overview rows with currency
+// consistency checking. Returns ErrMixedCurrencies if different non-empty
+// currencies are encountered.
+func aggregateOverviewRows(rows []OverviewRow) (overviewRowTotals, error) {
+	var t overviewRowTotals
+	for _, row := range rows {
+		if row.Error != nil {
+			t.errors = append(t.errors, *row.Error)
+			continue
+		}
+		if row.ActualCost != nil {
+			t.actual += row.ActualCost.MTDCost
+			if err := checkCurrency(&t.currency, row.ActualCost.Currency); err != nil {
+				return t, err
+			}
+		}
+		if row.ProjectedCost != nil {
+			t.projected += row.ProjectedCost.MonthlyCost
+			if err := checkCurrency(&t.currency, row.ProjectedCost.Currency); err != nil {
+				return t, err
+			}
+		}
+		for _, rec := range row.Recommendations {
+			t.savings += rec.EstimatedSavings
+		}
+	}
+	if t.currency == "" {
+		t.currency = "USD"
+	}
+	return t, nil
+}
+
+// checkCurrency validates that currency is consistent. On first non-empty
+// value it sets *current; on subsequent non-empty values it returns
+// ErrMixedCurrencies if they differ.
+func checkCurrency(current *string, next string) error {
+	if next == "" {
+		return nil
+	}
+	if *current == "" {
+		*current = next
+	} else if next != *current {
+		return ErrMixedCurrencies
+	}
+	return nil
+}
+
 // renderSummaryFooter writes the summary line at the bottom of the table.
 func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx StackContext) error {
 	if _, err := fmt.Fprintf(tw, "\t\t\t\t\t\t\t\n"); err != nil {
 		return err
 	}
 
-	totalActual := 0.0
-	totalProjected := 0.0
-	totalSavings := 0.0
-	currency := "USD"
-
-	for _, row := range rows {
-		if row.Error != nil {
-			continue
-		}
-		if row.ActualCost != nil {
-			totalActual += row.ActualCost.MTDCost
-			if row.ActualCost.Currency != "" {
-				currency = row.ActualCost.Currency
-			}
-		}
-		if row.ProjectedCost != nil {
-			totalProjected += row.ProjectedCost.MonthlyCost
-			if row.ProjectedCost.Currency != "" {
-				currency = row.ProjectedCost.Currency
-			}
-		}
-		for _, rec := range row.Recommendations {
-			totalSavings += rec.EstimatedSavings
-		}
+	t, err := aggregateOverviewRows(rows)
+	if err != nil {
+		return err
 	}
 
-	totalDelta := totalProjected - totalActual
+	totalDelta := t.projected - t.actual
 
-	_, _ = fmt.Fprintf(tw, "SUMMARY\t%s\t%d resources\t%s\t%s\t%s\t\t\n",
+	if _, err := fmt.Fprintf(tw, "SUMMARY\t%s\t%d resources\t%s\t%s\t%s\t\t\n",
 		stackCtx.StackName,
 		stackCtx.TotalResources,
-		FormatOverviewCurrency(totalActual)+" "+currency,
-		FormatOverviewCurrency(totalProjected)+" "+currency,
-		FormatOverviewDelta(totalDelta)+" "+currency,
-	)
+		FormatOverviewCurrency(t.actual)+" "+t.currency,
+		FormatOverviewCurrency(t.projected)+" "+t.currency,
+		FormatOverviewDelta(totalDelta)+" "+t.currency,
+	); err != nil {
+		return err
+	}
 
-	if totalSavings > 0 {
-		_, _ = fmt.Fprintf(tw, "\t\t\t\tPotential Savings:\t%s %s\t\t\n",
-			FormatOverviewCurrency(totalSavings), currency)
+	if t.savings > 0 {
+		if _, err := fmt.Fprintf(tw, "\t\t\t\tPotential Savings:\t%s %s\t\t\n",
+			FormatOverviewCurrency(t.savings), t.currency); err != nil {
+			return err
+		}
 	}
 
 	if stackCtx.HasChanges {
-		_, _ = fmt.Fprintf(tw, "\t\t\t\t%d pending changes\t\t\t\n", stackCtx.PendingChanges)
+		if _, err := fmt.Fprintf(tw, "\t\t\t\t%d pending changes\t\t\t\n", stackCtx.PendingChanges); err != nil {
+			return err
+		}
 	}
 
 	return nil
 }
 
 // OverviewMetadata holds metadata information for the JSON output.
+// It embeds StackContext so field promotion avoids duplication.
 type OverviewMetadata struct {
-	StackName      string    `json:"stackName"`
-	Region         string    `json:"region,omitempty"`
-	TimeWindow     DateRange `json:"timeWindow"`
-	HasChanges     bool      `json:"hasChanges"`
-	TotalResources int       `json:"totalResources"`
-	PendingChanges int       `json:"pendingChanges"`
-	GeneratedAt    time.Time `json:"generatedAt"`
+	StackContext
+
+	GeneratedAt time.Time `json:"generatedAt"`
 }
 
 // OverviewSummary holds aggregated summary statistics for the JSON output.
@@ -306,55 +347,38 @@ type OverviewJSONOutput struct {
 // RenderOverviewAsJSON renders the overview rows as a structured JSON object
 // with metadata, resource array, summary, and errors.
 func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext) error {
-	// Compute summary statistics
-	var totalActualMTD, projectedMonthly, potentialSavings float64
-	currency := "USD"
-	var errors []OverviewRowError
-
-	for _, row := range rows {
-		if row.Error != nil {
-			errors = append(errors, *row.Error)
-			continue
-		}
-		if row.ActualCost != nil {
-			totalActualMTD += row.ActualCost.MTDCost
-			if row.ActualCost.Currency != "" {
-				currency = row.ActualCost.Currency
-			}
-		}
-		if row.ProjectedCost != nil {
-			projectedMonthly += row.ProjectedCost.MonthlyCost
-			if row.ProjectedCost.Currency != "" {
-				currency = row.ProjectedCost.Currency
-			}
-		}
-		for _, rec := range row.Recommendations {
-			potentialSavings += rec.EstimatedSavings
-		}
+	t, err := aggregateOverviewRows(rows)
+	if err != nil {
+		return err
 	}
 
-	projectedDelta := projectedMonthly - totalActualMTD
+	// Initialize resources to empty slice so JSON produces [] instead of null.
+	resources := rows
+	if resources == nil {
+		resources = []OverviewRow{}
+	}
+
+	// Ensure errors is non-nil for consistent JSON output.
+	errs := t.errors
+	if errs == nil {
+		errs = []OverviewRowError{}
+	}
 
 	// Build output structure
 	output := OverviewJSONOutput{
 		Metadata: OverviewMetadata{
-			StackName:      stackCtx.StackName,
-			Region:         stackCtx.Region,
-			TimeWindow:     stackCtx.TimeWindow,
-			HasChanges:     stackCtx.HasChanges,
-			TotalResources: stackCtx.TotalResources,
-			PendingChanges: stackCtx.PendingChanges,
-			GeneratedAt:    time.Now(),
+			StackContext: stackCtx,
+			GeneratedAt:  time.Now(),
 		},
-		Resources: rows,
+		Resources: resources,
 		Summary: OverviewSummary{
-			TotalActualMTD:   totalActualMTD,
-			ProjectedMonthly: projectedMonthly,
-			ProjectedDelta:   projectedDelta,
-			PotentialSavings: potentialSavings,
-			Currency:         currency,
+			TotalActualMTD:   t.actual,
+			ProjectedMonthly: t.projected,
+			ProjectedDelta:   t.projected - t.actual,
+			PotentialSavings: t.savings,
+			Currency:         t.currency,
 		},
-		Errors: errors,
+		Errors: errs,
 	}
 
 	// Marshal with indentation

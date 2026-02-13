@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"io"
+	"path/filepath"
+	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -79,8 +81,6 @@ Requires at least --pulumi-state to show current resources. Optionally provide
 }
 
 // executeOverview is the main execution pipeline for the overview command.
-//
-//nolint:funlen // Pipeline orchestration is inherently sequential with many steps.
 func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	ctx := cmd.Context()
 	if ctx == nil {
@@ -122,7 +122,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	}
 
 	// 4. Detect pending changes
-	hasChanges, changeCount, _ := engine.DetectPendingChanges(ctx, planSteps)
+	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 
 	// 5. Merge resources
 	rows, err := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
@@ -156,7 +156,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	eng := engine.New(clients, nil)
 
 	// 10. Determine if we should use interactive TUI or plain text
-	isInteractive := shouldUseInteractiveTUI(params.output, params.plain)
+	isInteractive := shouldUseInteractiveTUI(cmd.OutOrStdout(), params.output, params.plain)
 
 	if isInteractive {
 		// Launch interactive TUI with progressive loading
@@ -164,8 +164,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	}
 
 	// 10. Enrich rows (blocking, for plain text mode)
-	progressChan := make(chan engine.OverviewRowUpdate, len(rows))
-	rows = engine.EnrichOverviewRows(ctx, rows, eng, dateRange, progressChan)
+	rows = engine.EnrichOverviewRows(ctx, rows, eng, dateRange, nil)
 
 	// 11. Build stack context
 	stackCtx := engine.StackContext{
@@ -252,19 +251,9 @@ func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 
 // extractStackName extracts a stack name from the state file path.
 func extractStackName(statePath string) string {
-	// Use the filename without extension as a stack name fallback
-	base := statePath
-	for i := len(base) - 1; i >= 0; i-- {
-		if base[i] == '/' || base[i] == '\\' || base[i] == os.PathSeparator {
-			base = base[i+1:]
-			break
-		}
-	}
-	// Remove .json extension
-	if len(base) > 5 && base[len(base)-5:] == ".json" {
-		base = base[:len(base)-5]
-	}
-	if base == "" {
+	base := filepath.Base(statePath)
+	base = strings.TrimSuffix(base, ".json")
+	if base == "" || base == "." {
 		return "unknown"
 	}
 	return base
@@ -353,7 +342,9 @@ func renderOverviewOutput(
 }
 
 // shouldUseInteractiveTUI determines if the interactive TUI should be used.
-func shouldUseInteractiveTUI(outputFormat string, plainFlag bool) bool {
+// It accepts an io.Writer (typically cmd.OutOrStdout()) and type-asserts to
+// check for a file descriptor, ensuring cmd.SetOut() redirections are respected.
+func shouldUseInteractiveTUI(w io.Writer, outputFormat string, plainFlag bool) bool {
 	// Only use interactive TUI for table output
 	if outputFormat != "table" {
 		return false
@@ -364,8 +355,12 @@ func shouldUseInteractiveTUI(outputFormat string, plainFlag bool) bool {
 		return false
 	}
 
-	// Check if stdout is a TTY
-	return term.IsTerminal(int(os.Stdout.Fd()))
+	// Check if the writer has a file descriptor and is a TTY.
+	type fder interface{ Fd() uintptr }
+	if f, ok := w.(fder); ok {
+		return term.IsTerminal(int(f.Fd()))
+	}
+	return false
 }
 
 // runInteractiveOverview launches the interactive TUI with progressive loading.

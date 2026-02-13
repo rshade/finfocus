@@ -14,9 +14,9 @@ const overviewConcurrencyLimit = 10
 
 // EnrichOverviewRow enriches a single OverviewRow by fetching actual costs,
 // projected costs, and recommendations from the engine. Partial failures are
-// captured in row.Error; the function returns nil to allow batch processing
+// captured in row.Error; the function never fails to allow batch processing
 // to continue.
-func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateRange DateRange) error {
+func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateRange DateRange) {
 	log := logging.FromContext(ctx)
 	log.Debug().
 		Ctx(ctx).
@@ -47,8 +47,6 @@ func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateR
 	if row.ActualCost != nil && row.ProjectedCost != nil {
 		enrichCostDrift(row, dateRange)
 	}
-
-	return nil
 }
 
 // enrichActualCost fetches actual cost data for a row.
@@ -147,10 +145,12 @@ func enrichRecommendations(ctx context.Context, row *OverviewRow, eng *Engine, r
 }
 
 // enrichCostDrift calculates cost drift for a row that has both actual and projected costs.
-func enrichCostDrift(row *OverviewRow, _ DateRange) {
-	now := time.Now()
-	dayOfMonth := now.Day()
-	daysInMonth := daysInCurrentMonth(now)
+// It uses the dateRange end time to determine the day-of-month and days-in-month, which
+// ensures correct drift for historical queries rather than always using the current date.
+func enrichCostDrift(row *OverviewRow, dateRange DateRange) {
+	refTime := dateRange.End
+	dayOfMonth := refTime.Day()
+	daysInMonth := daysInCurrentMonth(refTime)
 
 	drift, err := CalculateCostDrift(
 		row.ActualCost.MTDCost,
@@ -172,6 +172,9 @@ func daysInCurrentMonth(t time.Time) int {
 }
 
 // classifyError converts a Go error into an OverviewRowError with an appropriate ErrorType.
+// It uses substring matching intentionally: upstream plugins and gRPC do not expose typed
+// or sentinel errors for auth/network/rate-limit conditions, so errors.Is/errors.As checks
+// would be dead code.
 func classifyError(urn string, err error) *OverviewRowError {
 	msg := err.Error()
 	errType := ErrorTypeUnknown
@@ -238,7 +241,7 @@ func EnrichOverviewRows(
 				return
 			}
 
-			_ = EnrichOverviewRow(ctx, &rows[idx], eng, dateRange)
+			EnrichOverviewRow(ctx, &rows[idx], eng, dateRange)
 
 			if progressChan != nil {
 				progressChan <- OverviewRowUpdate{
@@ -249,15 +252,13 @@ func EnrichOverviewRows(
 		}(i)
 	}
 
-	go func() {
-		wg.Wait()
-		if progressChan != nil {
-			close(progressChan)
-		}
-	}()
-
-	// Wait for all goroutines to finish before returning
+	// Wait for all goroutines to finish before returning, then close the
+	// progress channel synchronously. A previous implementation used a
+	// separate goroutine for closing, which raced with this wg.Wait().
 	wg.Wait()
+	if progressChan != nil {
+		close(progressChan)
+	}
 
 	log.Info().
 		Ctx(ctx).

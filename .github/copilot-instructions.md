@@ -40,7 +40,7 @@ The `finfocus` binary runs as both a standalone CLI and a Pulumi tool plugin. Mo
 
 ### Core Components
 
-1. **CLI** (`internal/cli/`) — Cobra commands: `cost projected|actual|recommendations|budget|estimate`, `plugin *`, `config *`, `analyzer serve`
+1. **CLI** (`internal/cli/`) — Cobra commands: `overview`, `cost projected|actual|recommendations|budget|estimate`, `plugin *`, `config *`, `analyzer serve`
 2. **Engine** (`internal/engine/`) — Orchestrates cost calculation. Tries plugins first, falls back to local YAML specs in `specs/`. Uses `hoursPerMonth = 730`. Supports table, JSON, NDJSON output. Includes batch processing (threshold: 100 resources), caching, and budget forecasting.
 3. **Router** (`internal/router/`) — Routes resource types to the correct plugin based on provider patterns, priority rules, and config-driven routing from `~/.finfocus/config.yaml`.
 4. **Proto Adapter** (`internal/proto/`) — Bridge between engine and plugins. Converts `ResourceDescriptor` to protobuf requests, performs pre-flight validation via `pluginsdk`, extracts SKU/Region from resource `Inputs`, and aggregates errors with `CostResultWithErrors`.

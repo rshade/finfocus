@@ -497,7 +497,7 @@ func (m *RecommendationsViewModel) View() string {
 				return RenderRecommendationDetail(m.recommendations[selected], m.width)
 			}
 		}
-		return errSelectedOutOfBounds
+		return msgSelectedOutOfBounds
 	case ViewStateList:
 		return m.renderListView()
 	default:

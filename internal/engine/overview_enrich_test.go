@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -128,8 +129,7 @@ func TestEnrichOverviewRow_NoPlugins(t *testing.T) {
 		Status: StatusActive,
 	}
 
-	err := EnrichOverviewRow(ctx, &row, eng, dateRange)
-	require.NoError(t, err)
+	EnrichOverviewRow(ctx, &row, eng, dateRange)
 
 	// With no plugins, actual/projected will be empty or have placeholder values
 	// The function should not panic and should complete gracefully
@@ -151,8 +151,7 @@ func TestEnrichOverviewRow_CreatingStatus_SkipsActualCost(t *testing.T) {
 		Status: StatusCreating,
 	}
 
-	err := EnrichOverviewRow(ctx, &row, eng, dateRange)
-	require.NoError(t, err)
+	EnrichOverviewRow(ctx, &row, eng, dateRange)
 
 	// Creating resources should not have actual cost
 	assert.Nil(t, row.ActualCost)
@@ -270,7 +269,7 @@ func TestEnrichOverviewRows_ConcurrencyLimit(t *testing.T) {
 	rows := make([]OverviewRow, overviewConcurrencyLimit+5)
 	for i := range rows {
 		rows[i] = OverviewRow{
-			URN:    "urn:r" + string(rune('0'+i%10)),
+			URN:    fmt.Sprintf("urn:r%d", i),
 			Type:   "aws:ec2:Instance",
 			Status: StatusActive,
 		}

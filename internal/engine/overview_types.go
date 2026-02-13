@@ -61,7 +61,7 @@ func (s ResourceStatus) String() string {
 
 // MarshalJSON implements json.Marshaler to output ResourceStatus as string.
 func (s ResourceStatus) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + s.String() + `"`), nil
+	return json.Marshal(s.String())
 }
 
 // UnmarshalJSON implements json.Unmarshaler to parse ResourceStatus from string.
@@ -126,7 +126,7 @@ func (e ErrorType) String() string {
 
 // MarshalJSON implements json.Marshaler to output ErrorType as string.
 func (e ErrorType) MarshalJSON() ([]byte, error) {
-	return []byte(`"` + e.String() + `"`), nil
+	return json.Marshal(e.String())
 }
 
 // UnmarshalJSON implements json.Unmarshaler to parse ErrorType from string.
@@ -377,6 +377,10 @@ func (s *StackContext) Validate() error {
 	}
 	if s.HasChanges && s.PendingChanges <= 0 {
 		return fmt.Errorf("%w: PendingChanges must be > 0 when HasChanges is true, got %d",
+			ErrOverviewValidation, s.PendingChanges)
+	}
+	if !s.HasChanges && s.PendingChanges > 0 {
+		return fmt.Errorf("%w: HasChanges must be true when PendingChanges > 0, got %d",
 			ErrOverviewValidation, s.PendingChanges)
 	}
 	return nil

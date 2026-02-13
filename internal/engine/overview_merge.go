@@ -16,6 +16,18 @@ const (
 	opDeleteReplaced    = "delete-replaced"
 )
 
+// opPrecedence defines which operation takes priority when multiple plan
+// steps reference the same URN (e.g., create-replacement + delete-replaced).
+// Higher values win.
+var opPrecedence = map[string]int{
+	opCreate:            0,
+	opUpdate:            1,
+	opCreateReplacement: 2, //nolint:mnd // Precedence ordering
+	opReplace:           3, //nolint:mnd // Precedence ordering
+	opDeleteReplaced:    4, //nolint:mnd // Precedence ordering
+	opDelete:            5, //nolint:mnd // Precedence ordering
+}
+
 // MapOperationToStatus converts a Pulumi plan operation string to a
 // ResourceStatus value. Unknown operations default to StatusActive.
 func MapOperationToStatus(op string) ResourceStatus {
@@ -57,10 +69,13 @@ func MergeResourcesForOverview(
 		Int("plan_steps", len(planSteps)).
 		Msg("starting resource merge for overview")
 
-	// Index plan steps by URN for O(1) lookup.
+	// Index plan steps by URN for O(1) lookup, using deterministic precedence.
 	planByURN := make(map[string]PlanStep, len(planSteps))
 	for _, step := range planSteps {
-		planByURN[step.URN] = step
+		existing, exists := planByURN[step.URN]
+		if !exists || opPrecedence[step.Op] > opPrecedence[existing.Op] {
+			planByURN[step.URN] = step
+		}
 	}
 
 	// Track URNs we have seen from state so we can detect new creates.
@@ -115,7 +130,7 @@ func MergeResourcesForOverview(
 
 // DetectPendingChanges inspects a set of plan steps and reports whether any
 // mutating operations are pending, along with the count.
-func DetectPendingChanges(ctx context.Context, planSteps []PlanStep) (bool, int, error) {
+func DetectPendingChanges(ctx context.Context, planSteps []PlanStep) (bool, int) {
 	log := logging.FromContext(ctx)
 
 	changeCount := 0
@@ -136,5 +151,5 @@ func DetectPendingChanges(ctx context.Context, planSteps []PlanStep) (bool, int,
 		Int("change_count", changeCount).
 		Msg("pending change detection complete")
 
-	return hasChanges, changeCount, nil
+	return hasChanges, changeCount
 }

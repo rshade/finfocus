@@ -84,24 +84,24 @@ finfocus cost recommendations --pulumi-json <file> [options]
 
 ### Options (cost recommendations)
 
-| Flag                  | Description                                              | Default  |
-| --------------------- | -------------------------------------------------------- | -------- |
-| `--pulumi-json`       | Path to Pulumi preview JSON                              | Required |
-| `--filter`            | Filter expression (e.g., `action=RIGHTSIZE,TERMINATE`)   | None     |
-| `--output`            | Output format: table, json, ndjson                       | table    |
-| `--limit`             | Limit number of recommendations                          | 0 (all)  |
-| `--verbose`           | Show all recommendations with full details               | false    |
-| `--include-dismissed` | Show dismissed and snoozed recommendations alongside active ones | false |
-| `--sort`              | Sort expression (e.g., `savings:desc`)                   | None     |
-| `--help`              | Show help                                                |          |
+| Flag                  | Description                                                      | Default  |
+| --------------------- | ---------------------------------------------------------------- | -------- |
+| `--pulumi-json`       | Path to Pulumi preview JSON                                      | Required |
+| `--filter`            | Filter expression (e.g., `action=RIGHTSIZE,TERMINATE`)           | None     |
+| `--output`            | Output format: table, json, ndjson                               | table    |
+| `--limit`             | Limit number of recommendations                                  | 0 (all)  |
+| `--verbose`           | Show all recommendations with full details                       | false    |
+| `--include-dismissed` | Show dismissed and snoozed recommendations alongside active ones | false    |
+| `--sort`              | Sort expression (e.g., `savings:desc`)                           | None     |
+| `--help`              | Show help                                                        |          |
 
 ### Subcommands (cost recommendations)
 
-| Subcommand  | Description                               |
-| ----------- | ----------------------------------------- |
-| `dismiss`   | Permanently dismiss a recommendation      |
-| `snooze`    | Snooze a recommendation until a date      |
-| `undismiss` | Re-enable a dismissed recommendation      |
+| Subcommand  | Description                                 |
+| ----------- | ------------------------------------------- |
+| `dismiss`   | Permanently dismiss a recommendation        |
+| `snooze`    | Snooze a recommendation until a date        |
+| `undismiss` | Re-enable a dismissed recommendation        |
 | `history`   | View lifecycle history for a recommendation |
 
 ### Examples (cost recommendations)
@@ -132,25 +132,25 @@ finfocus cost recommendations dismiss <recommendation-id> [options]
 
 ### Options (cost recommendations dismiss)
 
-| Flag            | Description                                              | Default  |
-| --------------- | -------------------------------------------------------- | -------- |
-| `-r, --reason`  | Dismissal reason (required)                              | Required |
-| `-n, --note`    | Free-text explanation (required for `other` reason)      | None     |
-| `-f, --force`   | Skip confirmation prompt                                 | false    |
-| `--pulumi-json` | Path to Pulumi preview JSON (for plugin communication)   | None     |
-| `--adapter`     | Use specific adapter plugin                              | None     |
+| Flag            | Description                                            | Default  |
+| --------------- | ------------------------------------------------------ | -------- |
+| `-r, --reason`  | Dismissal reason (required)                            | Required |
+| `-n, --note`    | Free-text explanation (required for `other` reason)    | None     |
+| `-f, --force`   | Skip confirmation prompt                               | false    |
+| `--pulumi-json` | Path to Pulumi preview JSON (for plugin communication) | None     |
+| `--adapter`     | Use specific adapter plugin                            | None     |
 
 ### Valid Reasons
 
-| Reason                 | Description                            |
-| ---------------------- | -------------------------------------- |
-| `not-applicable`       | Recommendation doesn't apply           |
-| `already-implemented`  | Already acted on this recommendation   |
-| `business-constraint`  | Business requirements prevent action   |
-| `technical-constraint` | Technical limitations prevent action   |
-| `deferred`             | Will address later                     |
-| `inaccurate`           | Recommendation data is wrong           |
-| `other`                | Custom reason (requires `--note`)      |
+| Reason                 | Description                          |
+| ---------------------- | ------------------------------------ |
+| `not-applicable`       | Recommendation doesn't apply         |
+| `already-implemented`  | Already acted on this recommendation |
+| `business-constraint`  | Business requirements prevent action |
+| `technical-constraint` | Technical limitations prevent action |
+| `deferred`             | Will address later                   |
+| `inaccurate`           | Recommendation data is wrong         |
+| `other`                | Custom reason (requires `--note`)    |
 
 ### Examples (cost recommendations dismiss)
 
@@ -180,14 +180,14 @@ finfocus cost recommendations snooze <recommendation-id> [options]
 
 ### Options (cost recommendations snooze)
 
-| Flag            | Description                                            | Default    |
-| --------------- | ------------------------------------------------------ | ---------- |
+| Flag            | Description                                                                | Default    |
+| --------------- | -------------------------------------------------------------------------- | ---------- |
 | `--until`       | Snooze until date (required, YYYY-MM-DD or RFC3339; must be in the future) | Required   |
-| `-r, --reason`  | Dismissal reason                                       | `deferred` |
-| `-n, --note`    | Free-text explanation                                  | None       |
-| `-f, --force`   | Skip confirmation prompt                               | false      |
-| `--pulumi-json` | Path to Pulumi preview JSON (for plugin communication) | None       |
-| `--adapter`     | Use specific adapter plugin                            | None       |
+| `-r, --reason`  | Dismissal reason                                                           | `deferred` |
+| `-n, --note`    | Free-text explanation                                                      | None       |
+| `-f, --force`   | Skip confirmation prompt                                                   | false      |
+| `--pulumi-json` | Path to Pulumi preview JSON (for plugin communication)                     | None       |
+| `--adapter`     | Use specific adapter plugin                                                | None       |
 
 ### Examples (cost recommendations snooze)
 
@@ -342,18 +342,18 @@ The command supports two mutually exclusive modes:
 
 ### Options (cost estimate)
 
-| Flag              | Description                               | Default  |
-| ----------------- | ----------------------------------------- | -------- |
-| `--provider`      | Cloud provider (aws, gcp, azure)          |          |
-| `--resource-type` | Resource type (e.g., ec2:Instance)        |          |
-| `--property`      | Property override key=value (repeatable)  |          |
-| `--pulumi-json`   | Path to Pulumi preview JSON               |          |
-| `--modify`        | Resource modification resource:key=value  |          |
-| `--region`        | Region for cost calculation               |          |
-| `--interactive`   | Launch interactive TUI mode               | false    |
-| `--output`        | Output format: table, json, ndjson        | table    |
-| `--adapter`       | Specific plugin adapter to use            |          |
-| `--help`          | Show help                                 |          |
+| Flag              | Description                              | Default |
+| ----------------- | ---------------------------------------- | ------- |
+| `--provider`      | Cloud provider (aws, gcp, azure)         |         |
+| `--resource-type` | Resource type (e.g., ec2:Instance)       |         |
+| `--property`      | Property override key=value (repeatable) |         |
+| `--pulumi-json`   | Path to Pulumi preview JSON              |         |
+| `--modify`        | Resource modification resource:key=value |         |
+| `--region`        | Region for cost calculation              |         |
+| `--interactive`   | Launch interactive TUI mode              | false   |
+| `--output`        | Output format: table, json, ndjson       | table   |
+| `--adapter`       | Specific plugin adapter to use           |         |
+| `--help`          | Show help                                |         |
 
 ### Examples (cost estimate)
 

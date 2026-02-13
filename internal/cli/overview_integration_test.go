@@ -51,10 +51,8 @@ func assertGoldenFile(t *testing.T, goldenPath string, actual string) {
 	}
 
 	if _, err := os.Stat(goldenPath); os.IsNotExist(err) {
-		// Create golden file on first run
-		require.NoError(t, os.MkdirAll(filepath.Dir(goldenPath), 0o755))
-		require.NoError(t, os.WriteFile(goldenPath, []byte(actual), 0o644))
-		t.Logf("Created golden file: %s", goldenPath)
+		require.Failf(t, "golden file missing",
+			"golden file %s does not exist; run with UPDATE_GOLDEN=1 to create it", goldenPath)
 		return
 	}
 
@@ -145,7 +143,7 @@ func TestIntegration_TableRender_MixedChanges(t *testing.T) {
 	require.NoError(t, err)
 
 	// Detect changes
-	hasChanges, changeCount, _ := engine.DetectPendingChanges(ctx, planSteps)
+	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	require.True(t, hasChanges)
 	require.Greater(t, changeCount, 0)
 
@@ -187,6 +185,15 @@ func TestIntegration_TableRender_MixedChanges(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // T036: End-to-end integration tests via CLI command execution
+//
+// These tests exercise the full CLI command pipeline. Because no plugins are
+// installed in the test environment, command execution is expected to fail with
+// an "opening plugins" error. This is checked with:
+//
+//	assert.Contains(t, err.Error(), "opening plugins")
+//
+// The test verifies that everything before plugin opening works correctly
+// (flag parsing, state loading, plan merging, etc.).
 // ---------------------------------------------------------------------------
 
 func TestIntegration_OverviewCommand_StateOnly(t *testing.T) {
@@ -484,7 +491,7 @@ func TestIntegration_MergeNoChanges(t *testing.T) {
 	}
 
 	// Detect no changes
-	hasChanges, count, _ := engine.DetectPendingChanges(ctx, nil)
+	hasChanges, count := engine.DetectPendingChanges(ctx, nil)
 	assert.False(t, hasChanges)
 	assert.Equal(t, 0, count)
 }
@@ -509,7 +516,7 @@ func TestIntegration_MergeMixedChanges(t *testing.T) {
 	require.Greater(t, len(rows), len(stateResources))
 
 	// Verify change detection
-	hasChanges, changeCount, _ := engine.DetectPendingChanges(ctx, planSteps)
+	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	assert.True(t, hasChanges)
 	assert.Equal(t, 10, changeCount) // 3 updates + 2 deletes + 2 replaces + 3 creates
 
