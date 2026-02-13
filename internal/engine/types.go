@@ -270,6 +270,7 @@ type ActualCostRequest struct {
 	GroupBy            string
 	Tags               map[string]string
 	EstimateConfidence bool // Show confidence level in output
+	FallbackEstimate   bool // When true, include $0 placeholder results for resources with no plugin data
 }
 
 // CrossProviderAggregation represents daily/monthly cost aggregation across providers.

@@ -411,6 +411,73 @@ func TestFindBinary_Legacy(t *testing.T) {
 	})
 }
 
+func TestFindBinary_MetadataRegion(t *testing.T) {
+	t.Run("metadata region selects correct binary", func(t *testing.T) {
+		dir := t.TempDir()
+		pluginDir := filepath.Join(dir, "aws-public", "v1.0.0")
+		require.NoError(t, os.MkdirAll(pluginDir, 0755))
+
+		// Create two region binaries
+		eastBin := filepath.Join(pluginDir, "finfocus-plugin-aws-public-us-east-1")
+		westBin := filepath.Join(pluginDir, "finfocus-plugin-aws-public-us-west-2")
+		if runtime.GOOS == "windows" {
+			eastBin += ".exe"
+			westBin += ".exe"
+		}
+		require.NoError(t, os.WriteFile(eastBin, []byte("east"), 0755))
+		require.NoError(t, os.WriteFile(westBin, []byte("west"), 0755))
+
+		// Write metadata pointing to us-west-2
+		require.NoError(t, WritePluginMetadata(pluginDir, map[string]string{
+			"region": "us-west-2",
+		}))
+
+		reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
+		found := reg.findBinary(pluginDir)
+		assert.Equal(t, westBin, found, "should select us-west-2 binary based on metadata")
+	})
+
+	t.Run("no metadata falls back to standard pattern", func(t *testing.T) {
+		dir := t.TempDir()
+		pluginDir := filepath.Join(dir, "aws-public", "v1.0.0")
+		require.NoError(t, os.MkdirAll(pluginDir, 0755))
+
+		standardBin := filepath.Join(pluginDir, "finfocus-plugin-aws-public")
+		regionBin := filepath.Join(pluginDir, "finfocus-plugin-aws-public-us-east-1")
+		if runtime.GOOS == "windows" {
+			standardBin += ".exe"
+			regionBin += ".exe"
+		}
+		require.NoError(t, os.WriteFile(standardBin, []byte("standard"), 0755))
+		require.NoError(t, os.WriteFile(regionBin, []byte("regional"), 0755))
+
+		reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
+		found := reg.findBinary(pluginDir)
+		assert.Equal(t, standardBin, found, "without metadata, should use standard pattern")
+	})
+
+	t.Run("metadata region binary missing falls back to standard", func(t *testing.T) {
+		dir := t.TempDir()
+		pluginDir := filepath.Join(dir, "aws-public", "v1.0.0")
+		require.NoError(t, os.MkdirAll(pluginDir, 0755))
+
+		standardBin := filepath.Join(pluginDir, "finfocus-plugin-aws-public")
+		if runtime.GOOS == "windows" {
+			standardBin += ".exe"
+		}
+		require.NoError(t, os.WriteFile(standardBin, []byte("standard"), 0755))
+
+		// Metadata points to us-west-2 but no us-west-2 binary exists
+		require.NoError(t, WritePluginMetadata(pluginDir, map[string]string{
+			"region": "us-west-2",
+		}))
+
+		reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
+		found := reg.findBinary(pluginDir)
+		assert.Equal(t, standardBin, found, "should fall back to standard when metadata region binary missing")
+	})
+}
+
 // Helper functions to reduce cognitive complexity
 
 func createSinglePluginDir(t *testing.T, name, version string) string {

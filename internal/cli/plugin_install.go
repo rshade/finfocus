@@ -60,7 +60,10 @@ Fallback Behavior:
   finfocus plugin install kubecost@v1.0.0 --fallback-to-latest
 
   # Fail immediately if requested version lacks assets (strict mode)
-  finfocus plugin install kubecost@v1.0.0 --no-fallback`
+  finfocus plugin install kubecost@v1.0.0 --no-fallback
+
+  # Install with region metadata (selects region-specific binary)
+  finfocus plugin install aws-public --metadata="region=us-west-2"`
 )
 
 // formatBytes formats a byte count into a human-readable string (KB, MB, GB).
@@ -209,6 +212,7 @@ func NewPluginInstallCmd() *cobra.Command {
 		clean            bool
 		fallbackToLatest bool
 		noFallback       bool
+		metadata         []string
 	)
 
 	cmd := &cobra.Command{
@@ -228,6 +232,9 @@ func NewPluginInstallCmd() *cobra.Command {
 
 			displaySecurityWarning(cmd, spec)
 
+			// Parse --metadata flags into map
+			metadataMap := parseMetadataFlags(metadata)
+
 			// Create installer and install
 			installer := registry.NewInstaller(pluginDir)
 			opts := registry.InstallOptions{
@@ -236,6 +243,7 @@ func NewPluginInstallCmd() *cobra.Command {
 				PluginDir:        pluginDir,
 				FallbackToLatest: fallbackToLatest,
 				NoFallback:       noFallback,
+				Metadata:         metadataMap,
 			}
 
 			progress := func(msg string) {
@@ -277,6 +285,13 @@ func NewPluginInstallCmd() *cobra.Command {
 		"no-fallback",
 		false,
 		"Disable fallback behavior entirely (fail if requested version lacks assets)",
+	)
+
+	cmd.Flags().StringArrayVar(
+		&metadata,
+		"metadata",
+		nil,
+		"Plugin metadata as key=value pairs (e.g., --metadata=\"region=us-west-2\"); repeatable",
 	)
 
 	// Mark flags as mutually exclusive
@@ -387,6 +402,7 @@ func handleFallback(
 		PluginDir:        opts.PluginDir,
 		FallbackToLatest: false, // Don't recurse
 		NoFallback:       true,  // Don't recurse
+		Metadata:         opts.Metadata,
 	}
 
 	result, err := installer.Install(fallbackSpecifier, fallbackOpts, progress)
@@ -399,4 +415,23 @@ func handleFallback(
 	result.RequestedVersion = spec.Version
 
 	return result, nil
+}
+
+// parseMetadataFlags converts --metadata flag values ("key=value") into a map.
+// Invalid entries (missing '=') are silently skipped.
+func parseMetadataFlags(flags []string) map[string]string {
+	if len(flags) == 0 {
+		return nil
+	}
+	m := make(map[string]string, len(flags))
+	for _, flag := range flags {
+		parts := strings.SplitN(flag, "=", 2) //nolint:mnd // split into key=value
+		if len(parts) == 2 {                  //nolint:mnd // expect key and value
+			m[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		}
+	}
+	if len(m) == 0 {
+		return nil
+	}
+	return m
 }

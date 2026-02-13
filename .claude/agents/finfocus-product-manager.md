@@ -39,7 +39,7 @@ You are the Product Manager for the FinFocus ecosystem, responsible for coordina
 - **Analyzer**: Pulumi Analyzer gRPC server for zero-click cost estimation during `pulumi preview`
 - **TUI**: Bubble Tea + Lip Gloss adaptive terminal UI
 - **Plugins**: Recorder (reference), AWS public pricing, Kubecost, Vantage
-- **Spec**: finfocus-spec v0.5.5 with pluginsdk, proto definitions, validation helpers
+- **Spec**: finfocus-spec v0.5.6 with pluginsdk, proto definitions, validation helpers
 
 ## Output Formats
 

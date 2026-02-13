@@ -920,8 +920,9 @@ func TestGetActualCostWithOptionsAndErrors(t *testing.T) {
 				{Type: "aws:ec2:Instance", ID: "i-123"},
 				{Type: "aws:rds:Instance", ID: "db-456"},
 			},
-			From: time.Now().Add(-24 * time.Hour),
-			To:   time.Now(),
+			From:             time.Now().Add(-24 * time.Hour),
+			To:               time.Now(),
+			FallbackEstimate: true,
 		}
 
 		result, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), request)
@@ -951,9 +952,10 @@ func TestGetActualCostWithOptionsAndErrors(t *testing.T) {
 					},
 				},
 			},
-			From: time.Now().Add(-24 * time.Hour),
-			To:   time.Now(),
-			Tags: map[string]string{"env": "prod"},
+			From:             time.Now().Add(-24 * time.Hour),
+			To:               time.Now(),
+			Tags:             map[string]string{"env": "prod"},
+			FallbackEstimate: true,
 		}
 
 		result, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), request)
@@ -987,9 +989,10 @@ func TestGetActualCostWithOptionsAndErrors(t *testing.T) {
 				{Type: "aws:ec2:Instance", ID: "i-123"},
 				{Type: "aws:ec2:Instance", ID: "i-456"},
 			},
-			From:    time.Now().Add(-24 * time.Hour),
-			To:      time.Now(),
-			GroupBy: "type",
+			From:             time.Now().Add(-24 * time.Hour),
+			To:               time.Now(),
+			GroupBy:          "type",
+			FallbackEstimate: true,
 		}
 
 		result, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), request)

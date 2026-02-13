@@ -12,6 +12,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 // Registry manages plugin discovery and lifecycle operations.
@@ -64,10 +65,12 @@ func (r *Registry) ListPlugins() ([]PluginInfo, error) {
 			versionPath := filepath.Join(pluginPath, version.Name())
 			binPath := r.findBinary(versionPath)
 			if binPath != "" {
+				meta := resolvePluginMetadata(versionPath, binPath)
 				plugins = append(plugins, PluginInfo{
-					Name:    entry.Name(),
-					Version: version.Name(),
-					Path:    binPath,
+					Name:     entry.Name(),
+					Version:  version.Name(),
+					Path:     binPath,
+					Metadata: meta,
 				})
 			}
 		}
@@ -179,8 +182,21 @@ func (r *Registry) findBinary(dir string) string {
 		return ""
 	}
 
-	// Try to find by name patterns first
 	pluginName := filepath.Base(filepath.Dir(dir))
+
+	// If metadata specifies a region, try region-specific binary first.
+	// This ensures that "plugin install aws-public --metadata=region=us-west-2"
+	// selects the us-west-2 binary instead of the first one alphabetically.
+	if meta, metaErr := ReadPluginMetadata(dir); metaErr == nil {
+		if region := meta["region"]; region != "" {
+			regionPattern := "finfocus-plugin-" + pluginName + "-" + region
+			if path := findByPattern(dir, regionPattern); path != "" {
+				return path
+			}
+		}
+	}
+
+	// Try to find by name patterns
 	for _, pattern := range buildPluginPatterns(pluginName) {
 		if path := findByPattern(dir, pattern); path != "" {
 			return path
@@ -281,11 +297,17 @@ func (r *Registry) Open(
 			continue
 		}
 
+		// Merge registry-level metadata (e.g., region) into the client's plugin metadata.
+		// This ensures routing decisions can use registry metadata even if the plugin
+		// didn't report it via GetPluginInfo.
+		mergeRegistryMetadata(client, plugin)
+
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "registry").
 			Str("plugin_name", plugin.Name).
 			Str("plugin_version", plugin.Version).
+			Str("region", plugin.Region()).
 			Msg("plugin connected successfully")
 
 		clients = append(clients, client)
@@ -302,7 +324,60 @@ func (r *Registry) Open(
 
 // PluginInfo contains metadata about a discovered plugin.
 type PluginInfo struct {
-	Name    string
-	Version string
-	Path    string
+	Name     string
+	Version  string
+	Path     string
+	Metadata map[string]string // User-supplied metadata from plugin.metadata.json or binary filename
+}
+
+// Region returns the plugin's region from metadata, or empty string if universal.
+func (p PluginInfo) Region() string {
+	if p.Metadata == nil {
+		return ""
+	}
+	return p.Metadata["region"]
+}
+
+// resolvePluginMetadata reads plugin.metadata.json from the version directory.
+// If not found, it attempts to parse the region from the binary filename.
+func resolvePluginMetadata(versionDir, binaryPath string) map[string]string {
+	// First try the metadata file
+	meta, err := ReadPluginMetadata(versionDir)
+	if err == nil {
+		return meta
+	}
+
+	// Fallback: parse region from binary filename
+	if region, ok := ParseRegionFromBinaryName(binaryPath); ok {
+		return map[string]string{"region": region}
+	}
+
+	return nil
+}
+
+// mergeRegistryMetadata injects registry-level metadata into the plugin client's
+// PluginMetadata. This ensures that information from plugin.metadata.json (e.g.,
+// region) is available to the router even if the plugin doesn't report it via
+// its GetPluginInfo RPC.
+func mergeRegistryMetadata(client *pluginhost.Client, plugin PluginInfo) {
+	if len(plugin.Metadata) == 0 {
+		return
+	}
+
+	if client.Metadata == nil {
+		client.Metadata = &proto.PluginMetadata{
+			Name: client.Name,
+		}
+	}
+
+	if client.Metadata.Metadata == nil {
+		client.Metadata.Metadata = make(map[string]string, len(plugin.Metadata))
+	}
+
+	// Only set keys that aren't already reported by the plugin itself
+	for k, v := range plugin.Metadata {
+		if _, exists := client.Metadata.Metadata[k]; !exists {
+			client.Metadata.Metadata[k] = v
+		}
+	}
 }

@@ -15,16 +15,35 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk/mapping"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/skus"
 )
 
 // ErrEstimateCostNotSupported indicates the EstimateCost RPC is not yet implemented.
-var ErrEstimateCostNotSupported = errors.New("EstimateCost RPC not yet implemented in finfocus-spec v0.5.5")
+var ErrEstimateCostNotSupported = errors.New("EstimateCost RPC not yet implemented in finfocus-spec v0.5.6")
+
+// ErrPropertiesMultiResource indicates Properties cannot be used with multiple ResourceIDs
+// because each resource requires its own cloud ID, ARN, and tag mappings.
+var ErrPropertiesMultiResource = errors.New(
+	"properties cannot be used with multiple ResourceIDs: each resource requires its own properties",
+)
 
 const (
 	// maxErrorsToDisplay is the maximum number of errors to show in summary before truncating.
 	maxErrorsToDisplay = 5
 	// awsProvider is the AWS provider name constant.
 	awsProvider = "aws"
+
+	// Cloud identifier property keys injected by ingest.MapStateResource.
+	// Duplicated here because proto cannot import ingest (circular dependency via engine).
+	// Must stay in sync with ingest.PropertyPulumiCloudID / PropertyPulumiARN.
+	propCloudID = "pulumi:cloudId"
+	propARN     = "pulumi:arn"
+
+	// arnMinSegments is the minimum number of colon-separated segments in a valid AWS ARN
+	// (arn:partition:service:region:account:resource).
+	arnMinSegments = 6
+	// arnRegionIndex is the index of the region segment in a split ARN.
+	arnRegionIndex = 3
 )
 
 // ErrorDetail captures information about a failed resource cost calculation.
@@ -87,7 +106,7 @@ func GetProjectedCostWithErrors(
 
 	for _, resource := range resources {
 		// Pre-flight validation: construct proto request and validate before gRPC call
-		sku, region := resolveSKUAndRegion(resource.Provider, resource.Properties)
+		sku, region := resolveSKUAndRegion(resource.Provider, resource.Type, resource.Properties)
 		protoReq := &pbc.GetProjectedCostRequest{
 			Resource: &pbc.ResourceDescriptor{
 				Id:           resource.ID,
@@ -168,6 +187,90 @@ func GetProjectedCostWithErrors(
 	return result
 }
 
+// validateActualCostRequest checks for invalid parameter combinations.
+// Returns a non-nil error result if Properties is set with multiple ResourceIDs.
+func validateActualCostRequest(pluginName string, req *GetActualCostRequest) *CostResultWithErrors {
+	if req.Properties != nil && len(req.ResourceIDs) > 1 {
+		return &CostResultWithErrors{
+			Results: []*CostResult{},
+			Errors: []ErrorDetail{{
+				ResourceID: strings.Join(req.ResourceIDs, ", "),
+				PluginName: pluginName,
+				Error:      ErrPropertiesMultiResource,
+				Timestamp:  time.Now(),
+			}},
+		}
+	}
+	return nil
+}
+
+func appendActualCostPlaceholder(result *CostResultWithErrors, notes string) {
+	result.Results = append(result.Results, &CostResult{
+		Currency:    "USD",
+		MonthlyCost: 0,
+		HourlyCost:  0,
+		Notes:       notes,
+	})
+}
+
+func recordActualCostValidationError(
+	ctx context.Context,
+	result *CostResultWithErrors,
+	pluginName string,
+	resourceID string,
+	cloudID string,
+	validationErr error,
+) {
+	log := logging.FromContext(ctx)
+	log.Warn().
+		Str("resource_id", resourceID).
+		Str("cloud_id", cloudID).
+		Err(validationErr).
+		Msg("pre-flight validation failed for actual cost")
+
+	result.Errors = append(result.Errors, ErrorDetail{
+		ResourceID: resourceID,
+		PluginName: pluginName,
+		Error:      fmt.Errorf("pre-flight validation failed: %w", validationErr),
+		Timestamp:  time.Now(),
+	})
+
+	appendActualCostPlaceholder(result, fmt.Sprintf("VALIDATION: %v", validationErr))
+}
+
+func recordActualCostPluginError(
+	result *CostResultWithErrors,
+	pluginName string,
+	resourceID string,
+	pluginErr error,
+) {
+	result.Errors = append(result.Errors, ErrorDetail{
+		ResourceID: resourceID,
+		PluginName: pluginName,
+		Error:      fmt.Errorf("plugin call failed: %w", pluginErr),
+		Timestamp:  time.Now(),
+	})
+
+	appendActualCostPlaceholder(result, fmt.Sprintf("ERROR: %v", pluginErr))
+}
+
+func appendActualCostResults(result *CostResultWithErrors, actualResults []*ActualCostResult) {
+	for _, actual := range actualResults {
+		costResult := &CostResult{
+			Currency:       actual.Currency,
+			MonthlyCost:    actual.TotalCost, // Total cost for the period
+			HourlyCost:     0,
+			CostBreakdown:  actual.CostBreakdown,
+			Sustainability: make(map[string]SustainabilityMetric),
+		}
+
+		for k, v := range actual.Sustainability {
+			costResult.Sustainability[k] = v
+		}
+		result.Results = append(result.Results, costResult)
+	}
+}
+
 // GetActualCostWithErrors retrieves actual cost data for each resource ID in req
 // and returns both successful CostResult entries and per-resource ErrorDetail records.
 func GetActualCostWithErrors(
@@ -176,14 +279,25 @@ func GetActualCostWithErrors(
 	pluginName string,
 	req *GetActualCostRequest,
 ) *CostResultWithErrors {
+	if errResult := validateActualCostRequest(pluginName, req); errResult != nil {
+		return errResult
+	}
+
 	result := &CostResultWithErrors{
 		Results: []*CostResult{},
 		Errors:  []ErrorDetail{},
 	}
 
 	for _, resourceID := range req.ResourceIDs {
-		// Resolve cloud-specific identifiers from properties
 		cloudID, arn, tags := resolveActualCostIdentifiers(resourceID, req.Properties)
+
+		// Inject SKU and region into tags for plugins that need pricing dimensions.
+		// The projected cost path calls resolveSKUAndRegion via the proto request builder,
+		// but actual cost requests only carry tags. Enrich tags so plugins like aws-public
+		// can look up costs by instance type / volume type.
+		if req.Provider != "" {
+			enrichTagsWithSKUAndRegion(tags, req.Provider, req.ResourceType, req.Properties)
+		}
 
 		// Pre-flight validation: construct proto request and validate before gRPC call
 		protoReq := &pbc.GetActualCostRequest{
@@ -194,31 +308,8 @@ func GetActualCostWithErrors(
 			Arn:        arn,
 		}
 
-		// Validate request using pluginsdk validation functions
 		if err := pluginsdk.ValidateActualCostRequest(protoReq); err != nil {
-			// Log validation failure at WARN level with context
-			log := logging.FromContext(ctx)
-			log.Warn().
-				Str("resource_id", resourceID).
-				Str("cloud_id", cloudID).
-				Err(err).
-				Msg("pre-flight validation failed for actual cost")
-
-			// Track error
-			result.Errors = append(result.Errors, ErrorDetail{
-				ResourceID: resourceID,
-				PluginName: pluginName,
-				Error:      fmt.Errorf("pre-flight validation failed: %w", err),
-				Timestamp:  time.Now(),
-			})
-
-			// Add placeholder result with VALIDATION note
-			result.Results = append(result.Results, &CostResult{
-				Currency:    "USD",
-				MonthlyCost: 0,
-				HourlyCost:  0,
-				Notes:       fmt.Sprintf("VALIDATION: %v", err),
-			})
+			recordActualCostValidationError(ctx, result, pluginName, resourceID, cloudID, err)
 			continue
 		}
 
@@ -227,52 +318,20 @@ func GetActualCostWithErrors(
 			StartTime:   req.StartTime,
 			EndTime:     req.EndTime,
 			Properties:  req.Properties,
+			Provider:    req.Provider,
 		}
 
 		resp, err := client.GetActualCost(ctx, singleReq)
 		if err != nil {
-			result.Errors = append(result.Errors, ErrorDetail{
-				ResourceID: resourceID,
-				PluginName: pluginName,
-				Error:      fmt.Errorf("plugin call failed: %w", err),
-				Timestamp:  time.Now(),
-			})
-
-			result.Results = append(result.Results, &CostResult{
-				Currency:    "USD",
-				MonthlyCost: 0,
-				HourlyCost:  0,
-				Notes:       fmt.Sprintf("ERROR: %v", err),
-			})
+			recordActualCostPluginError(result, pluginName, resourceID, err)
 			continue
 		}
 
 		// Aggregate total cost from results and convert to CostResult
 		if len(resp.Results) > 0 {
-			for _, actual := range resp.Results {
-				costResult := &CostResult{
-					Currency:       actual.Currency,
-					MonthlyCost:    actual.TotalCost, // Total cost for the period
-					HourlyCost:     0,
-					CostBreakdown:  actual.CostBreakdown,
-					Sustainability: make(map[string]SustainabilityMetric),
-				}
-
-				// Map impact metrics
-				for k, v := range actual.Sustainability {
-					costResult.Sustainability[k] = SustainabilityMetric{
-						Value: v.Value,
-						Unit:  v.Unit,
-					}
-				}
-				result.Results = append(result.Results, costResult)
-			}
+			appendActualCostResults(result, resp.Results)
 		} else {
-			result.Results = append(result.Results, &CostResult{
-				Currency:    "USD",
-				MonthlyCost: 0,
-				HourlyCost:  0,
-			})
+			appendActualCostPlaceholder(result, "")
 		}
 	}
 
@@ -329,6 +388,15 @@ type GetActualCostRequest struct {
 	// Properties carries resource context (cloud IDs, ARN, tags) from state.
 	// Used by the adapter to populate proto fields (ResourceId, Arn, Tags).
 	Properties map[string]interface{}
+	// Provider is the cloud provider identifier (e.g., "aws", "azure", "gcp").
+	// When set, the adapter resolves SKU and region from Properties and injects
+	// them into the tags sent to the plugin, enabling plugins like aws-public
+	// to price resources by instance type / volume type.
+	Provider string
+	// ResourceType is the Pulumi type token (e.g., "aws:eks/cluster:Cluster").
+	// Used by resolveSKUAndRegion as a fallback for well-known SKU resolution
+	// when property-based extraction returns empty.
+	ResourceType string
 }
 
 // ActualCostResult represents the calculated actual cost data retrieved from cloud providers.
@@ -599,10 +667,13 @@ func (c *clientAdapter) DismissRecommendation(
 // resolveSKUAndRegion extracts the SKU and region from resource properties based on the cloud provider.
 // It recognizes provider values such as "aws", "azure", "azure-native", "gcp", and "google-native" and
 // uses provider-specific extraction; for other providers it uses generic extraction helpers.
+// When property-based extraction returns empty, it falls back to well-known SKU mappings from the
+// skus package (e.g., EKS clusters → "cluster").
 // If the region cannot be determined from properties, the function falls back to the AWS_REGION or
 // AWS_DEFAULT_REGION environment variables.
-// provider is the cloud provider identifier; properties contains resource-specific key/value attributes.
-func resolveSKUAndRegion(provider string, properties map[string]string) (string, string) {
+// provider is the cloud provider identifier; resourceType is the Pulumi type token;
+// properties contains resource-specific key/value attributes.
+func resolveSKUAndRegion(provider, resourceType string, properties map[string]string) (string, string) {
 	var sku, region string
 	switch strings.ToLower(provider) {
 	case awsProvider:
@@ -611,7 +682,16 @@ func resolveSKUAndRegion(provider string, properties map[string]string) (string,
 			// Fallback for RDS and other AWS resources not covered by ExtractAWSSKU
 			sku = mapping.ExtractSKU(properties, "dbInstanceClass", "sku", "type", "tier")
 		}
+		if sku == "" {
+			// Fallback to well-known SKU mappings for resources with fixed costs
+			// (e.g., EKS clusters have $0.10/hr but no SKU property in state)
+			sku = skus.ResolveSKU(provider, resourceType, properties)
+		}
 		region = mapping.ExtractAWSRegion(properties)
+		if region == "" {
+			// Fallback: parse region from ARN (arn:aws:service:region:account:...)
+			region = regionFromARN(properties[propARN])
+		}
 	case "azure", "azure-native":
 		sku = mapping.ExtractAzureSKU(properties)
 		region = mapping.ExtractAzureRegion(properties)
@@ -640,6 +720,20 @@ func resolveSKUAndRegion(provider string, properties map[string]string) (string,
 	return sku, region
 }
 
+// regionFromARN extracts the AWS region from an ARN string.
+// AWS ARNs follow the format arn:partition:service:region:account:resource.
+// Returns empty string if the ARN is empty, malformed, or the region segment is empty
+// (e.g., global services like IAM: arn:aws:iam::123456789012:role/name).
+func regionFromARN(arn string) string {
+	// arn:aws:ec2:us-east-1:123456789012:instance/i-0abc
+	// 0   1   2   3        4             5
+	parts := strings.SplitN(arn, ":", arnMinSegments)
+	if len(parts) < arnMinSegments {
+		return ""
+	}
+	return parts[arnRegionIndex] // region segment
+}
+
 // resolveActualCostIdentifiers extracts cloud-specific resource ID, ARN, and tags
 // from resource properties. Falls back to the original resourceID if no cloud ID is available.
 func resolveActualCostIdentifiers(
@@ -655,14 +749,14 @@ func resolveActualCostIdentifiers(
 	}
 
 	// Use cloud ID if available (e.g., "i-0abc123", "db-instance-primary")
-	if v, ok := properties["pulumi:cloudId"]; ok {
+	if v, ok := properties[propCloudID]; ok {
 		if s, isStr := v.(string); isStr && s != "" {
 			cloudID = s
 		}
 	}
 
 	// Extract ARN from properties
-	if v, ok := properties["pulumi:arn"]; ok {
+	if v, ok := properties[propARN]; ok {
 		if s, isStr := v.(string); isStr && s != "" {
 			arn = s
 		}
@@ -718,6 +812,42 @@ func extractTagMap(properties map[string]interface{}, key string) map[string]str
 	return result
 }
 
+// toStringMap converts a map[string]interface{} to map[string]string.
+// Values that are not strings are converted via fmt.Sprintf.
+func toStringMap(m map[string]interface{}) map[string]string {
+	result := make(map[string]string, len(m))
+	for k, v := range m {
+		if s, ok := v.(string); ok {
+			result[k] = s
+		} else if v != nil {
+			result[k] = fmt.Sprintf("%v", v)
+		}
+	}
+	return result
+}
+
+// enrichTagsWithSKUAndRegion resolves SKU and region from resource properties
+// using the provider-specific extraction logic in resolveSKUAndRegion, then
+// injects them into tags. Existing tag values are never overwritten.
+func enrichTagsWithSKUAndRegion(
+	tags map[string]string,
+	provider, resourceType string,
+	properties map[string]interface{},
+) {
+	stringProps := toStringMap(properties)
+	sku, region := resolveSKUAndRegion(provider, resourceType, stringProps)
+	if sku != "" {
+		if _, exists := tags["sku"]; !exists {
+			tags["sku"] = sku
+		}
+	}
+	if region != "" {
+		if _, exists := tags["region"]; !exists {
+			tags["region"] = region
+		}
+	}
+}
+
 func (c *clientAdapter) GetProjectedCost(
 	ctx context.Context,
 	in *GetProjectedCostRequest,
@@ -728,7 +858,7 @@ func (c *clientAdapter) GetProjectedCost(
 
 	for _, resource := range in.Resources {
 		// Extract SKU and region from properties using intelligent mapping
-		sku, region := resolveSKUAndRegion(resource.Provider, resource.Properties)
+		sku, region := resolveSKUAndRegion(resource.Provider, resource.Type, resource.Properties)
 
 		req := &pbc.GetProjectedCostRequest{
 			Resource: &pbc.ResourceDescriptor{
@@ -795,6 +925,11 @@ func (c *clientAdapter) GetActualCost(
 	for _, resourceID := range in.ResourceIDs {
 		// Resolve cloud-specific identifiers from properties
 		cloudID, arn, tags := resolveActualCostIdentifiers(resourceID, in.Properties)
+
+		// Inject SKU and region into tags so plugins can price by instance type.
+		if in.Provider != "" {
+			enrichTagsWithSKUAndRegion(tags, in.Provider, in.ResourceType, in.Properties)
+		}
 
 		req := &pbc.GetActualCostRequest{
 			ResourceId: cloudID,
@@ -931,7 +1066,7 @@ func (c *clientAdapter) GetRecommendations(
 
 	// Convert target resources if provided
 	for _, resource := range in.TargetResources {
-		sku, region := resolveSKUAndRegion(resource.Provider, resource.Properties)
+		sku, region := resolveSKUAndRegion(resource.Provider, resource.Type, resource.Properties)
 		req.TargetResources = append(req.TargetResources, &pbc.ResourceDescriptor{
 			Id:           resource.ID,
 			Provider:     resource.Provider,

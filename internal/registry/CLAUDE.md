@@ -68,6 +68,13 @@ go test ./internal/registry/... -run TestFindBinary
 
 ### Binary Detection Logic
 
+**Metadata-Aware Selection:**
+
+When `plugin.metadata.json` exists in the version directory and contains a
+`region` key (e.g., `"region": "us-west-2"`), the registry first looks for a
+region-specific binary named `finfocus-plugin-<name>-<region>`. If the region
+binary is not found, it falls back to the standard naming patterns below.
+
 **Unix/Linux/macOS:**
 
 - Check file permissions for executable bit (`info.Mode()&0111 != 0`)

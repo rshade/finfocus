@@ -9,6 +9,7 @@ import (
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/registry"
 )
 
@@ -89,6 +90,84 @@ func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*p
 	log.Debug().Ctx(ctx).Int("plugin_count", len(clients)).Msg("plugins opened")
 
 	return clients, cleanup, nil
+}
+
+// resolveResourcesFromPulumi orchestrates auto-detection of a Pulumi project and
+// execution of the appropriate Pulumi CLI command to produce resource descriptors.
+// mode must be "preview" or "export".
+func resolveResourcesFromPulumi(
+	ctx context.Context,
+	stack string,
+	mode string,
+) ([]engine.ResourceDescriptor, error) {
+	log := logging.FromContext(ctx)
+
+	// Step 1: Find the Pulumi binary
+	if _, err := pulumidetect.FindBinary(); err != nil {
+		return nil, err
+	}
+
+	// Step 2: Find the Pulumi project
+	projectDir, err := pulumidetect.FindProject(".")
+	if err != nil {
+		return nil, err
+	}
+	log.Debug().Ctx(ctx).Str("project_dir", projectDir).Msg("detected Pulumi project")
+
+	// Step 3: Resolve stack
+	if stack == "" {
+		detected, stackErr := pulumidetect.GetCurrentStack(ctx, projectDir)
+		if stackErr != nil {
+			return nil, stackErr
+		}
+		stack = detected
+	}
+	log.Debug().Ctx(ctx).Str("stack", stack).Msg("using Pulumi stack")
+
+	// Step 4: Execute the appropriate Pulumi CLI command
+	switch mode {
+	case "preview":
+		log.Info().Ctx(ctx).Str("component", "pulumi").
+			Msg("Running pulumi preview --json (this may take a moment)...")
+
+		data, previewErr := pulumidetect.Preview(ctx, pulumidetect.PreviewOptions{
+			ProjectDir: projectDir,
+			Stack:      stack,
+		})
+		if previewErr != nil {
+			return nil, previewErr
+		}
+
+		plan, parseErr := ingest.ParsePulumiPlanWithContext(ctx, data)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parsing Pulumi preview output: %w", parseErr)
+		}
+
+		return ingest.MapResources(plan.GetResourcesWithContext(ctx))
+
+	case "export":
+		log.Info().Ctx(ctx).Str("component", "pulumi").
+			Msg("Running pulumi stack export...")
+
+		data, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
+			ProjectDir: projectDir,
+			Stack:      stack,
+		})
+		if exportErr != nil {
+			return nil, exportErr
+		}
+
+		state, parseErr := ingest.ParseStackExportWithContext(ctx, data)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parsing Pulumi stack export output: %w", parseErr)
+		}
+
+		customResources := state.GetCustomResourcesWithContext(ctx)
+		return ingest.MapStateResources(customResources)
+
+	default:
+		return nil, fmt.Errorf("unsupported Pulumi mode: %s", mode)
+	}
 }
 
 // extractCurrencyFromResults scans results to find a single canonical currency.

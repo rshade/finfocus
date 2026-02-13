@@ -93,11 +93,15 @@ go test ./internal/cli/... -run TestCLIIntegration
 ### Actual Cost Flow
 
 1. **Plugin Only**: Query plugins via `GetActualCost` gRPC call with time range
-2. **First Success**: Use first plugin that successfully returns data
-3. **Time Calculations**: Convert historical data to monthly/hourly rates
-4. **Advanced Features**: Support for filtering, tagging, and grouping
-5. **Cross-Provider Aggregation**: Time-based cost aggregation across multiple providers
-6. **No Fallback**: Actual costs require live plugin data
+2. **SKU/Region Enrichment**: When `Provider` is set in the request, the adapter
+   resolves SKU and region from resource properties (e.g., `instanceType`,
+   `availabilityZone`) and injects them into proto tags so plugins like
+   aws-public can price resources by instance type
+3. **First Success**: Use first plugin that successfully returns data
+4. **Time Calculations**: Convert historical data to monthly/hourly rates
+5. **Advanced Features**: Support for filtering, tagging, and grouping
+6. **Cross-Provider Aggregation**: Time-based cost aggregation across multiple providers
+7. **No Fallback**: Actual costs require live plugin data
 
 ### Cross-Provider Aggregation Pipeline
 

@@ -215,6 +215,10 @@ func newCostCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&flags.BudgetScope, "budget-scope", "",
 		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
 
+	// Add persistent flag for Pulumi stack selection during auto-detection
+	cmd.PersistentFlags().String("stack", "",
+		"Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state)")
+
 	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd(), NewCostEstimateCmd())
 	return cmd
 }

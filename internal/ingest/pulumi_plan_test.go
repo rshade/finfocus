@@ -416,6 +416,135 @@ func getPulumiPlanGetResourcesTestData() []struct {
 			plan:      &ingest.PulumiPlan{Steps: []ingest.PulumiStep{}},
 			wantCount: 0,
 		},
+		{
+			name: "update_op_with_old_state_outputs",
+			plan: &ingest.PulumiPlan{
+				Steps: []ingest.PulumiStep{
+					{
+						Op:   "update",
+						URN:  "urn:pulumi:dev::app::aws:ebs/volume:Volume::data",
+						Type: "aws:ebs/volume:Volume",
+						Inputs: map[string]interface{}{
+							"availabilityZone": "us-east-1a",
+						},
+						OldState: &ingest.PulumiState{
+							Type: "aws:ebs/volume:Volume",
+							Outputs: map[string]interface{}{
+								"size": float64(100),
+								"iops": float64(3000),
+							},
+						},
+					},
+				},
+			},
+			wantCount: 1,
+			validate: func(t *testing.T, resources []ingest.PulumiResource) {
+				r := resources[0]
+				// Outputs should be populated from OldState
+				if r.Outputs == nil {
+					t.Error("expected Outputs to be populated from OldState")
+					return
+				}
+				if r.Outputs["size"] != float64(100) {
+					t.Errorf("expected size 100, got %v", r.Outputs["size"])
+				}
+				if r.Outputs["iops"] != float64(3000) {
+					t.Errorf("expected iops 3000, got %v", r.Outputs["iops"])
+				}
+			},
+		},
+		{
+			name: "create_op_with_no_outputs",
+			plan: &ingest.PulumiPlan{
+				Steps: []ingest.PulumiStep{
+					{
+						Op:   "create",
+						URN:  "urn:pulumi:dev::app::aws:ec2/instance:Instance::new-web",
+						Type: "aws:ec2/instance:Instance",
+						Inputs: map[string]interface{}{
+							"instanceType": "t3.micro",
+						},
+					},
+				},
+			},
+			wantCount: 1,
+			validate: func(t *testing.T, resources []ingest.PulumiResource) {
+				r := resources[0]
+				// Create ops have no outputs
+				if r.Outputs != nil {
+					t.Errorf("expected nil Outputs for create op, got %v", r.Outputs)
+				}
+				// Inputs should still be set
+				if r.Inputs["instanceType"] != "t3.micro" {
+					t.Errorf("expected instanceType t3.micro, got %v", r.Inputs["instanceType"])
+				}
+			},
+		},
+		{
+			name: "step_outputs_take_precedence_over_state",
+			plan: &ingest.PulumiPlan{
+				Steps: []ingest.PulumiStep{
+					{
+						Op:   "update",
+						URN:  "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+						Type: "aws:ec2/instance:Instance",
+						Inputs: map[string]interface{}{
+							"instanceType": "t3.micro",
+						},
+						Outputs: map[string]interface{}{
+							"publicIp": "10.0.0.1",
+						},
+						OldState: &ingest.PulumiState{
+							Type: "aws:ec2/instance:Instance",
+							Outputs: map[string]interface{}{
+								"publicIp": "10.0.0.99",
+							},
+						},
+					},
+				},
+			},
+			wantCount: 1,
+			validate: func(t *testing.T, resources []ingest.PulumiResource) {
+				r := resources[0]
+				// Step-level outputs should win over OldState
+				if r.Outputs["publicIp"] != "10.0.0.1" {
+					t.Errorf("expected step-level publicIp 10.0.0.1, got %v", r.Outputs["publicIp"])
+				}
+			},
+		},
+		{
+			name: "same_op_gets_old_state_outputs",
+			plan: &ingest.PulumiPlan{
+				Steps: []ingest.PulumiStep{
+					{
+						Op:   "same",
+						URN:  "urn:pulumi:dev::app::aws:s3/bucket:Bucket::assets",
+						Type: "aws:s3/bucket:Bucket",
+						Inputs: map[string]interface{}{
+							"bucket": "my-assets",
+						},
+						OldState: &ingest.PulumiState{
+							Type: "aws:s3/bucket:Bucket",
+							Outputs: map[string]interface{}{
+								"arn":    "arn:aws:s3:::my-assets",
+								"region": "us-east-1",
+							},
+						},
+					},
+				},
+			},
+			wantCount: 1,
+			validate: func(t *testing.T, resources []ingest.PulumiResource) {
+				r := resources[0]
+				if r.Outputs == nil {
+					t.Error("expected Outputs for same op with OldState")
+					return
+				}
+				if r.Outputs["arn"] != "arn:aws:s3:::my-assets" {
+					t.Errorf("expected arn from OldState, got %v", r.Outputs["arn"])
+				}
+			},
+		},
 	}
 }
 
@@ -437,6 +566,143 @@ func TestPulumiPlan_GetResources(t *testing.T) {
 
 			if tt.validate != nil {
 				tt.validate(t, resources)
+			}
+		})
+	}
+}
+
+// --- ParsePulumiPlan tests (T012) ---
+
+func TestParsePulumiPlan_ValidJSON(t *testing.T) {
+	data := []byte(`{
+		"steps": [
+			{
+				"op": "create",
+				"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+				"type": "aws:ec2/instance:Instance",
+				"inputs": {"instanceType": "t3.micro"}
+			}
+		]
+	}`)
+
+	plan, err := ingest.ParsePulumiPlan(data)
+	if err != nil {
+		t.Fatalf("ParsePulumiPlan() unexpected error: %v", err)
+	}
+	if plan == nil {
+		t.Fatal("ParsePulumiPlan() returned nil plan")
+	}
+	if len(plan.Steps) != 1 {
+		t.Errorf("expected 1 step, got %d", len(plan.Steps))
+	}
+	if plan.Steps[0].Op != "create" {
+		t.Errorf("expected op 'create', got '%s'", plan.Steps[0].Op)
+	}
+	if plan.Steps[0].Type != "aws:ec2/instance:Instance" {
+		t.Errorf("expected type 'aws:ec2/instance:Instance', got '%s'", plan.Steps[0].Type)
+	}
+}
+
+func TestParsePulumiPlan_InvalidJSON(t *testing.T) {
+	data := []byte(`{not valid json`)
+
+	_, err := ingest.ParsePulumiPlan(data)
+	if err == nil {
+		t.Fatal("ParsePulumiPlan() expected error for invalid JSON, got nil")
+	}
+	if !containsString(err.Error(), "parsing plan JSON") {
+		t.Errorf("error should contain 'parsing plan JSON', got: %v", err)
+	}
+}
+
+func TestParsePulumiPlan_EmptyBytes(t *testing.T) {
+	_, err := ingest.ParsePulumiPlan([]byte(""))
+	if err == nil {
+		t.Fatal("ParsePulumiPlan() expected error for empty bytes, got nil")
+	}
+	if !containsString(err.Error(), "parsing plan JSON") {
+		t.Errorf("error should contain 'parsing plan JSON', got: %v", err)
+	}
+}
+
+func TestParsePulumiPlan_EmptyPlan(t *testing.T) {
+	data := []byte(`{"steps": []}`)
+
+	plan, err := ingest.ParsePulumiPlan(data)
+	if err != nil {
+		t.Fatalf("ParsePulumiPlan() unexpected error: %v", err)
+	}
+	if len(plan.Steps) != 0 {
+		t.Errorf("expected 0 steps, got %d", len(plan.Steps))
+	}
+}
+
+func TestParsePulumiPlan_MultiStep(t *testing.T) {
+	data := []byte(`{
+		"steps": [
+			{
+				"op": "create",
+				"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+				"type": "aws:ec2/instance:Instance",
+				"inputs": {"instanceType": "t3.micro"}
+			},
+			{
+				"op": "update",
+				"urn": "urn:pulumi:dev::app::aws:s3/bucket:Bucket::data",
+				"type": "aws:s3/bucket:Bucket",
+				"inputs": {"bucket": "my-bucket"}
+			}
+		]
+	}`)
+
+	plan, err := ingest.ParsePulumiPlan(data)
+	if err != nil {
+		t.Fatalf("ParsePulumiPlan() unexpected error: %v", err)
+	}
+	if len(plan.Steps) != 2 {
+		t.Errorf("expected 2 steps, got %d", len(plan.Steps))
+	}
+}
+
+// Regression: Verify LoadPulumiPlan still works after refactor to delegate to ParsePulumiPlan.
+func TestLoadPulumiPlan_RegressionAfterRefactor(t *testing.T) {
+	tests := getLoadPulumiPlanTestData()
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "plan.json")
+
+			err := os.WriteFile(tmpFile, []byte(tt.content), 0644)
+			if err != nil {
+				t.Fatalf("failed to create temp file: %v", err)
+			}
+
+			plan, err := ingest.LoadPulumiPlan(tmpFile)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("LoadPulumiPlan() expected error, got nil")
+					return
+				}
+				if tt.errMsg != "" && !containsString(err.Error(), tt.errMsg) {
+					t.Errorf("LoadPulumiPlan() error = %v, want error containing %v", err, tt.errMsg)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("LoadPulumiPlan() unexpected error = %v", err)
+				return
+			}
+
+			if plan == nil {
+				t.Errorf("LoadPulumiPlan() returned nil plan")
+				return
+			}
+
+			if tt.validate != nil {
+				tt.validate(t, plan)
 			}
 		})
 	}

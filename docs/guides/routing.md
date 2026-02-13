@@ -72,6 +72,8 @@ finfocus cost projected --pulumi-json multi-cloud-plan.json
 
 **Global Plugins**: Plugins reporting `["*"]` or empty providers match ALL resources (e.g., debugging plugins).
 
+**Metadata-Aware Binary Selection**: When a plugin is installed with `--metadata="region=us-west-2"`, the registry writes a `plugin.metadata.json` file alongside the binary. At load time the registry reads this metadata and prefers a region-specific binary (e.g., `finfocus-plugin-aws-public-us-west-2`) over the generic one. If no region binary is found, the standard binary is used as a fallback.
+
 ### Layer 2: Declarative Configuration (Advanced Control)
 
 For advanced scenarios, add routing rules to `~/.finfocus/config.yaml`:

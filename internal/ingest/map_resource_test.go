@@ -4,9 +4,82 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
 )
+
+func TestMergeProperties(t *testing.T) {
+	tests := []struct {
+		name     string
+		outputs  map[string]interface{}
+		inputs   map[string]interface{}
+		expected map[string]interface{}
+	}{
+		{
+			name:     "both nil",
+			outputs:  nil,
+			inputs:   nil,
+			expected: nil,
+		},
+		{
+			name:    "nil outputs",
+			outputs: nil,
+			inputs:  map[string]interface{}{"instanceType": "t3.micro"},
+			expected: map[string]interface{}{
+				"instanceType": "t3.micro",
+			},
+		},
+		{
+			name:    "nil inputs",
+			outputs: map[string]interface{}{"publicIp": "1.2.3.4"},
+			inputs:  nil,
+			expected: map[string]interface{}{
+				"publicIp": "1.2.3.4",
+			},
+		},
+		{
+			name:    "inputs win on conflict",
+			outputs: map[string]interface{}{"size": float64(100), "iops": float64(3000)},
+			inputs:  map[string]interface{}{"size": float64(200)},
+			expected: map[string]interface{}{
+				"size": float64(200),
+				"iops": float64(3000),
+			},
+		},
+		{
+			name:    "no conflict merges all keys",
+			outputs: map[string]interface{}{"arn": "arn:aws:ec2:us-east-1:123:instance/i-123", "publicIp": "1.2.3.4"},
+			inputs:  map[string]interface{}{"instanceType": "t3.micro", "ami": "ami-123"},
+			expected: map[string]interface{}{
+				"arn":          "arn:aws:ec2:us-east-1:123:instance/i-123",
+				"publicIp":     "1.2.3.4",
+				"instanceType": "t3.micro",
+				"ami":          "ami-123",
+			},
+		},
+		{
+			name:     "both empty maps",
+			outputs:  map[string]interface{}{},
+			inputs:   map[string]interface{}{},
+			expected: map[string]interface{}{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := ingest.MergeProperties(tt.outputs, tt.inputs)
+			if tt.expected == nil {
+				assert.Nil(t, result)
+			} else {
+				require.NotNil(t, result)
+				assert.Equal(t, tt.expected, result)
+			}
+		})
+	}
+}
 
 func TestMapResource(t *testing.T) {
 	tests := []struct {
@@ -234,6 +307,61 @@ func TestMapResource(t *testing.T) {
 				ID:         "urn:pulumi:dev::app::aws:s3/bucket:Bucket::nil-bucket",
 				Provider:   "aws",
 				Properties: nil,
+			},
+			wantErr: false,
+		},
+		{
+			name: "outputs_merged_with_inputs",
+			pulumiResource: ingest.PulumiResource{
+				Type:     "aws:ebs/volume:Volume",
+				URN:      "urn:pulumi:dev::app::aws:ebs/volume:Volume::data",
+				Provider: "aws",
+				Inputs: map[string]interface{}{
+					"availabilityZone": "us-east-1a",
+					"snapshotId":       "snap-0123456789abcdef0",
+				},
+				Outputs: map[string]interface{}{
+					"size": float64(100),
+					"iops": float64(3000),
+					"arn":  "arn:aws:ec2:us-east-1:123:volume/vol-123",
+				},
+			},
+			expected: engine.ResourceDescriptor{
+				Type:     "aws:ebs/volume:Volume",
+				ID:       "urn:pulumi:dev::app::aws:ebs/volume:Volume::data",
+				Provider: "aws",
+				Properties: map[string]interface{}{
+					"availabilityZone": "us-east-1a",
+					"snapshotId":       "snap-0123456789abcdef0",
+					"size":             float64(100),
+					"iops":             float64(3000),
+					"arn":              "arn:aws:ec2:us-east-1:123:volume/vol-123",
+				},
+			},
+			wantErr: false,
+		},
+		{
+			name: "inputs_override_outputs_on_conflict",
+			pulumiResource: ingest.PulumiResource{
+				Type:     "aws:ec2/instance:Instance",
+				URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::conflict",
+				Provider: "aws",
+				Inputs: map[string]interface{}{
+					"instanceType": "t3.large",
+				},
+				Outputs: map[string]interface{}{
+					"instanceType": "t3.micro",
+					"publicIp":     "54.1.2.3",
+				},
+			},
+			expected: engine.ResourceDescriptor{
+				Type:     "aws:ec2/instance:Instance",
+				ID:       "urn:pulumi:dev::app::aws:ec2/instance:Instance::conflict",
+				Provider: "aws",
+				Properties: map[string]interface{}{
+					"instanceType": "t3.large",
+					"publicIp":     "54.1.2.3",
+				},
 			},
 			wantErr: false,
 		},

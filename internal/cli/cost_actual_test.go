@@ -22,10 +22,12 @@ func TestNewCostActualCmd(t *testing.T) {
 		errorMsg    string
 	}{
 		{
-			name:        "missing required flags",
+			name:        "no flags triggers auto-detection (T023)",
 			args:        []string{},
 			expectError: true,
-			errorMsg:    "either --pulumi-json or --pulumi-state is required",
+			// Without flags, auto-detection kicks in and fails because no Pulumi project found.
+			// The error must NOT be "either --pulumi-json or --pulumi-state is required".
+			errorMsg: "",
 		},
 		{
 			name:        "missing from flag",
@@ -148,11 +150,12 @@ func TestCostActualCmdExamples(t *testing.T) {
 
 	// Check that examples are present
 	assert.NotEmpty(t, cmd.Example)
-	assert.Contains(t, cmd.Example, "finfocus cost actual --pulumi-json plan.json --from")
-	assert.Contains(t, cmd.Example, "to defaults to now")
+	assert.Contains(t, cmd.Example, "finfocus cost actual")
+	assert.Contains(t, cmd.Example, "--pulumi-json plan.json")
+	assert.Contains(t, cmd.Example, "--stack production")
 	assert.Contains(t, cmd.Example, "--group-by type")
 	assert.Contains(t, cmd.Example, "--group-by provider")
-	assert.Contains(t, cmd.Example, "RFC3339 timestamps")
+	assert.Contains(t, cmd.Example, "--estimate-confidence")
 }
 
 func TestParseTimeRange(t *testing.T) {
@@ -251,12 +254,13 @@ func TestCostActualCmdMutuallyExclusiveInputs(t *testing.T) {
 			errorMsg:    "mutually exclusive",
 		},
 		{
-			name: "neither pulumi-json nor pulumi-state provided",
+			name: "neither pulumi-json nor pulumi-state triggers auto-detection",
 			args: []string{
 				"--from", "2025-01-01",
 			},
 			expectError: true,
-			errorMsg:    "either --pulumi-json or --pulumi-state",
+			// Auto-detection kicks in but fails since no Pulumi project
+			errorMsg: "",
 		},
 		{
 			name: "only pulumi-state provided without from (auto-detect)",
@@ -387,6 +391,90 @@ func TestCostActualCmdWithEstimateConfidenceFlag(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestCostActualWithoutInputFlags verifies that validation allows neither
+// --pulumi-json nor --pulumi-state (auto-detection attempted) (T023).
+func TestCostActualWithoutInputFlags(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	var buf bytes.Buffer
+	cmd := cli.NewCostActualCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{})
+
+	err := cmd.Execute()
+	// Command will error (no Pulumi project in test env), but the error
+	// must NOT be about requiring input flags.
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "either --pulumi-json or --pulumi-state is required")
+	assert.NotContains(t, err.Error(), "required flag")
+}
+
+// TestCostActualMutualExclusivityStillEnforced verifies that both flags
+// provided together still returns an error (T024).
+func TestCostActualMutualExclusivityStillEnforced(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	var buf bytes.Buffer
+	cmd := cli.NewCostActualCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"--pulumi-json", "plan.json",
+		"--pulumi-state", "state.json",
+		"--from", "2025-01-01",
+	})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mutually exclusive")
+}
+
+// TestStackFlagExistsOnActual verifies the --stack flag is inherited by the
+// actual subcommand via the cost parent (T028).
+func TestStackFlagExistsOnActual(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	root := cli.NewRootCmd("test")
+	costCmd, _, err := root.Find([]string{"cost"})
+	require.NoError(t, err)
+
+	stackFlag := costCmd.PersistentFlags().Lookup("stack")
+	require.NotNil(t, stackFlag, "--stack flag should be on cost parent command")
+
+	// Verify it's accepted on actual subcommand
+	root.SetArgs([]string{"cost", "actual", "--stack", "production"})
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetErr(&buf)
+
+	execErr := root.Execute()
+	// Should fail from auto-detection, not unknown flag
+	require.Error(t, execErr)
+	assert.NotContains(t, execErr.Error(), "unknown flag")
+}
+
+// TestStackFlagIgnoredWithPulumiStateOnActual verifies --stack is ignored when
+// --pulumi-state is provided for cost actual (T030).
+func TestStackFlagIgnoredWithPulumiStateOnActual(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	root := cli.NewRootCmd("test")
+	root.SetArgs([]string{
+		"cost", "actual",
+		"--pulumi-state", "../../test/fixtures/state/valid-state.json",
+		"--stack", "production",
+	})
+
+	var buf bytes.Buffer
+	root.SetOut(&buf)
+	root.SetErr(&buf)
+
+	err := root.Execute()
+	// Should succeed (state file exists and is valid), proving --stack was ignored
+	require.NoError(t, err)
 }
 
 func TestParseTime(t *testing.T) {
