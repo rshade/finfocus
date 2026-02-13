@@ -367,6 +367,30 @@ func TestCostDriftData_Validate(t *testing.T) {
 			wantErr:     true,
 			errContains: "IsWarning must be true",
 		},
+		{
+			name: "IsWarning true but drift below threshold",
+			data: CostDriftData{
+				ExtrapolatedMonthly: 105,
+				Projected:           100,
+				Delta:               5,
+				PercentDrift:        5.0,
+				IsWarning:           true,
+			},
+			wantErr:     true,
+			errContains: "IsWarning must be false",
+		},
+		{
+			name: "IsWarning true at exactly threshold",
+			data: CostDriftData{
+				ExtrapolatedMonthly: 110,
+				Projected:           100,
+				Delta:               10,
+				PercentDrift:        10.0,
+				IsWarning:           true,
+			},
+			wantErr:     true,
+			errContains: "IsWarning must be false",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

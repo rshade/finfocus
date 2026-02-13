@@ -94,7 +94,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	})
 
 	// 1. Validate flags
-	dateRange, err := resolveOverviewDateRange(params.fromStr, params.toStr)
+	dateRange, err := resolveOverviewDateRange(params.fromStr, params.toStr, time.Now())
 	if err != nil {
 		return fmt.Errorf("invalid date range: %w", err)
 	}
@@ -202,10 +202,9 @@ func printOverviewSummaryLine(
 
 // resolveOverviewDateRange parses the from/to strings into a DateRange.
 // If from is empty, defaults to the 1st of the current month.
-// If to is empty, defaults to now.
-func resolveOverviewDateRange(fromStr, toStr string) (engine.DateRange, error) {
-	now := time.Now()
-
+// If to is empty, defaults to now. The now parameter controls the current
+// time used for defaults, enabling deterministic testing.
+func resolveOverviewDateRange(fromStr, toStr string, now time.Time) (engine.DateRange, error) {
 	var from time.Time
 	if fromStr == "" {
 		// Default to 1st of current month
@@ -336,7 +335,7 @@ func matchesOverviewFilters(row engine.OverviewRow, filters []string) bool {
 				return false
 			}
 		default:
-			// Unknown filter key - skip
+			panic("unexpected filter key in matchesOverviewFilters: " + key)
 		}
 	}
 	return true
@@ -413,8 +412,14 @@ func runInteractiveOverview(
 ) error {
 	log := logging.FromContext(ctx)
 
+	// Deep copy skeletonRows for the TUI model so the model has its own
+	// independent slice, preventing a data race between OverviewModel.applyFilter
+	// (reads) and EnrichOverviewRows (writes) on the backing array.
+	copiedRows := make([]engine.OverviewRow, len(skeletonRows))
+	copy(copiedRows, skeletonRows)
+
 	// Create TUI model
-	model, _ := tui.NewOverviewModel(ctx, skeletonRows, len(skeletonRows))
+	model, _ := tui.NewOverviewModel(ctx, copiedRows, len(copiedRows))
 
 	// Create Bubble Tea program
 	p := tea.NewProgram(model, tea.WithAltScreen())
@@ -441,10 +446,6 @@ func runInteractiveOverview(
 
 			// Send progress update every 10 resources or at completion
 			if loadedCount%10 == 0 || loadedCount == len(skeletonRows) {
-				percent := 0
-				if len(skeletonRows) > 0 {
-					percent = (loadedCount * 100) / len(skeletonRows) //nolint:mnd // Percentage calculation.
-				}
 				p.Send(tui.OverviewLoadingProgressMsg{
 					Loaded: loadedCount,
 					Total:  len(skeletonRows),
@@ -456,7 +457,12 @@ func runInteractiveOverview(
 					Str("operation", "overview_tui").
 					Int("loaded", loadedCount).
 					Int("total", len(skeletonRows)).
-					Int("percent", percent).
+					Int("percent", func() int {
+						if len(skeletonRows) > 0 {
+							return (loadedCount * 100) / len(skeletonRows) //nolint:mnd // Percentage calculation.
+						}
+						return 0
+					}()).
 					Msg("enrichment progress")
 			}
 		}

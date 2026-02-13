@@ -251,9 +251,12 @@ func EnrichOverviewRows(
 			EnrichOverviewRow(ctx, &rows[idx], eng, dateRange)
 
 			if progressChan != nil {
-				progressChan <- OverviewRowUpdate{
+				select {
+				case progressChan <- OverviewRowUpdate{
 					Index: idx,
 					Row:   rows[idx],
+				}:
+				case <-ctx.Done():
 				}
 			}
 		}(i)

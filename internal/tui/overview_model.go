@@ -176,9 +176,8 @@ func (m OverviewModel) handleAllResourcesLoaded() (tea.Model, tea.Cmd) {
 	m.loadedCount = m.totalCount
 	m.progressMsg = ""
 
-	// Apply initial sort and filter
+	// Apply initial sort and filter (applyFilter calls refreshTable internally)
 	m.applyFilter(m.textInput.Value())
-	m.refreshTable()
 	m.enablePaginationIfNeeded()
 
 	return m, nil

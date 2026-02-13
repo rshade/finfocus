@@ -249,6 +249,11 @@ func (c *CostDriftData) Validate() error {
 		return fmt.Errorf("%w: IsWarning must be true when abs(PercentDrift) > %.1f (got %.2f%%)",
 			ErrOverviewValidation, driftWarningThreshold, c.PercentDrift)
 	}
+	if c.IsWarning && math.Abs(c.PercentDrift) <= driftWarningThreshold {
+		return fmt.Errorf(
+			"%w: IsWarning must be false when abs(PercentDrift) <= %.1f (PercentDrift=%.2f%%, IsWarning=true)",
+			ErrOverviewValidation, driftWarningThreshold, c.PercentDrift)
+	}
 	return nil
 }
 
