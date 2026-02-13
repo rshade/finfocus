@@ -86,6 +86,7 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 	totalCost := 0.0
 	providerCosts := make(map[string]float64)
 
+	recCount := 0
 	for _, r := range results {
 		// Use TotalCost if present (Actual), otherwise Monthly (Projected).
 		cost := r.Monthly
@@ -96,6 +97,7 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 		totalCost += cost
 		provider := extractProvider(r.ResourceType)
 		providerCosts[provider] += cost
+		recCount += len(r.Recommendations)
 	}
 
 	// Create content.
@@ -110,6 +112,10 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 	content.WriteString(ValueStyle.Render(fmt.Sprintf("$%.2f", totalCost)))
 	content.WriteString(LabelStyle.Render("    Resources: "))
 	content.WriteString(ValueStyle.Render(strconv.Itoa(len(results))))
+	if recCount > 0 {
+		content.WriteString(LabelStyle.Render("    Recommendations: "))
+		content.WriteString(ValueStyle.Render(strconv.Itoa(recCount)))
+	}
 	content.WriteString("\n")
 
 	// Provider Breakdown (sorted by cost desc).

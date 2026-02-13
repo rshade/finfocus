@@ -20,6 +20,7 @@ func TestGroupBy_Resource_JSON(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "resource", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -45,6 +46,7 @@ func TestGroupBy_Type_JSON(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "type", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -77,6 +79,7 @@ func TestGroupBy_Provider_JSON(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "provider", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -113,6 +116,7 @@ func TestGroupBy_Daily_JSON(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-01-07",
+		"--fallback-estimate",
 		"--group-by", "daily", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -134,6 +138,7 @@ func TestGroupBy_Monthly_JSON(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-03-31",
+		"--fallback-estimate",
 		"--group-by", "monthly", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -155,6 +160,7 @@ func TestGroupBy_Date_Alias(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-01-07",
+		"--fallback-estimate",
 		"--group-by", "date", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -174,6 +180,7 @@ func TestGroupBy_WithFilter_Combined(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "tag:env=prod", "--group-by", "type", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -195,6 +202,7 @@ func TestGroupBy_TableOutput(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "type", "--output", "table",
 	)
 	require.NoError(t, err)
@@ -214,6 +222,7 @@ func TestGroupBy_NDJSONOutput(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "type", "--output", "ndjson",
 	)
 	require.NoError(t, err)
@@ -242,6 +251,7 @@ func TestGroupBy_InvalidValue(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "invalid_grouping", "--output", "json",
 	)
 
@@ -265,6 +275,7 @@ func TestGroupBy_MultiProvider(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "provider", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -298,6 +309,7 @@ func TestGroupBy_EmptyResults(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "type=nonexistent", "--group-by", "type", "--output", "json",
 	)
 	require.NoError(t, err)

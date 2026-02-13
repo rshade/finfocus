@@ -111,6 +111,7 @@ func TestActualCost_FilterByTag(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "tag:env=prod", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -142,6 +143,7 @@ func TestActualCost_FilterByTagAndType(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "tag:env=prod", "--group-by", "type", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -280,6 +282,7 @@ func TestActualCost_FilterByTag_NDJSON(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "tag:env=prod", "--output", "ndjson",
 	)
 	require.NoError(t, err)
@@ -307,6 +310,7 @@ func TestActualCost_FilterByType_Exact(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "type=aws:ec2/instance:Instance", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -331,6 +335,7 @@ func TestActualCost_FilterByType_Substring(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "type=bucket", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -355,6 +360,7 @@ func TestActualCost_FilterByProvider_Actual(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "provider=aws", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -379,6 +385,7 @@ func TestActualCost_FilterNoMatch(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "type=nonexistent_type", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -400,6 +407,7 @@ func TestActualCost_FilterCaseSensitivity(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "TYPE=AWS:EC2/INSTANCE:INSTANCE", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -435,6 +443,7 @@ func TestActualCost_MultipleFilters(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "provider=aws",
 		"--filter", "type=ec2",
 		"--output", "json",

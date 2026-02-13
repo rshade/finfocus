@@ -203,6 +203,10 @@ func renderSummary(w io.Writer, aggregated *AggregatedResults) {
 	fmt.Fprintf(w, "Total Monthly Cost:\t%.2f %s\n", aggregated.Summary.TotalMonthly, aggregated.Summary.Currency)
 	fmt.Fprintf(w, "Total Hourly Cost:\t%.2f %s\n", aggregated.Summary.TotalHourly, aggregated.Summary.Currency)
 	fmt.Fprintf(w, "Total Resources:\t%d\n", len(aggregated.Resources))
+	recCount := countRecommendations(aggregated.Resources)
+	if recCount > 0 {
+		fmt.Fprintf(w, "Recommendations:\t%d\n", recCount)
+	}
 	fmt.Fprintf(w, "\n")
 }
 
@@ -447,6 +451,12 @@ func formatResourceNotes(result CostResult) string {
 // Returns an error if flushing the tabwriter fails.
 func renderActualCostTable(writer io.Writer, results []CostResult, showConfidence bool) error {
 	w := tabwriter.NewWriter(writer, 0, 0, defaultTabPadding, ' ', 0)
+
+	// Show recommendation count summary when recommendations exist.
+	recCount := countRecommendations(results)
+	if recCount > 0 {
+		fmt.Fprintf(w, "Recommendations:\t%d\n\n", recCount)
+	}
 
 	// Check if we have actual cost data to determine appropriate headers
 	hasActualCosts := false
@@ -727,6 +737,15 @@ func renderNDJSONCrossProvider(writer io.Writer, aggregations []CrossProviderAgg
 		}
 	}
 	return nil
+}
+
+// countRecommendations returns the total number of recommendations across all results.
+func countRecommendations(results []CostResult) int {
+	count := 0
+	for _, r := range results {
+		count += len(r.Recommendations)
+	}
+	return count
 }
 
 // getCurrencySymbol returns the currency symbol for the given ISO currency code.

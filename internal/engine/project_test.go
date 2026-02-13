@@ -696,6 +696,133 @@ func TestConfidenceOmittedWhenUnknown(t *testing.T) {
 	}
 }
 
+// TestRenderSummary_RecommendationCount verifies the recommendation count line in plain summary.
+func TestRenderSummary_RecommendationCount(t *testing.T) {
+	t.Run("shows recommendation count when present", func(t *testing.T) {
+		aggregated := &AggregatedResults{
+			Summary: CostSummary{
+				TotalMonthly: 100.0,
+				TotalHourly:  0.137,
+				Currency:     "USD",
+			},
+			Resources: []CostResult{
+				{
+					ResourceType: "aws:ec2:Instance",
+					Monthly:      100.0,
+					Recommendations: []Recommendation{
+						{Type: "RIGHTSIZE", Description: "Switch to t3.small"},
+						{Type: "TERMINATE", Description: "Idle resource"},
+					},
+				},
+			},
+		}
+
+		var buf strings.Builder
+		renderSummary(&buf, aggregated)
+		output := buf.String()
+
+		assert.Contains(t, output, "Recommendations:\t2")
+	})
+
+	t.Run("omits recommendation count when zero", func(t *testing.T) {
+		aggregated := &AggregatedResults{
+			Summary: CostSummary{
+				TotalMonthly: 100.0,
+				TotalHourly:  0.137,
+				Currency:     "USD",
+			},
+			Resources: []CostResult{
+				{ResourceType: "aws:ec2:Instance", Monthly: 100.0},
+			},
+		}
+
+		var buf strings.Builder
+		renderSummary(&buf, aggregated)
+		output := buf.String()
+
+		assert.NotContains(t, output, "Recommendations:")
+	})
+}
+
+// TestRenderActualCostTable_RecommendationCount verifies the recommendation count
+// in the actual cost table output.
+func TestRenderActualCostTable_RecommendationCount(t *testing.T) {
+	t.Run("shows recommendation count before table header", func(t *testing.T) {
+		results := []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-123",
+				Adapter:      "kubecost",
+				Currency:     "USD",
+				TotalCost:    150.0,
+				CostPeriod:   "30 days",
+				Recommendations: []Recommendation{
+					{Type: "RIGHTSIZE", Description: "Downsize instance"},
+				},
+			},
+		}
+
+		var buf strings.Builder
+		err := renderActualCostTable(&buf, results, false)
+		require.NoError(t, err)
+		output := buf.String()
+
+		assert.Contains(t, output, "Recommendations:")
+		// Recommendation line should appear before the table header.
+		recIdx := strings.Index(output, "Recommendations:")
+		headerIdx := strings.Index(output, "Resource")
+		assert.Greater(t, headerIdx, recIdx, "Recommendation count should appear before table header")
+	})
+
+	t.Run("omits recommendation count when zero", func(t *testing.T) {
+		results := []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-123",
+				Adapter:      "kubecost",
+				Currency:     "USD",
+				TotalCost:    150.0,
+				CostPeriod:   "30 days",
+			},
+		}
+
+		var buf strings.Builder
+		err := renderActualCostTable(&buf, results, false)
+		require.NoError(t, err)
+		output := buf.String()
+
+		assert.NotContains(t, output, "Recommendations:")
+	})
+}
+
+// TestCountRecommendations verifies the helper function.
+func TestCountRecommendations(t *testing.T) {
+	tests := []struct {
+		name    string
+		results []CostResult
+		want    int
+	}{
+		{"nil results", nil, 0},
+		{"empty results", []CostResult{}, 0},
+		{"no recommendations", []CostResult{{ResourceType: "aws:ec2:Instance"}}, 0},
+		{
+			"mixed results",
+			[]CostResult{
+				{Recommendations: []Recommendation{{Type: "A"}, {Type: "B"}}},
+				{Recommendations: nil},
+				{Recommendations: []Recommendation{{Type: "C"}}},
+			},
+			3,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, countRecommendations(tt.results))
+		})
+	}
+}
+
 // TestRenderSustainabilitySummary_WithEquivalencies tests carbon equivalency display.
 // This test verifies User Story 1: View Carbon Equivalencies in CLI Table Output.
 func TestRenderSustainabilitySummary_WithEquivalencies(t *testing.T) {

@@ -265,6 +265,86 @@ func TestRenderDetailView(t *testing.T) {
 	}
 }
 
+// TestRenderCostSummary_RecommendationCount verifies that the recommendation count
+// is displayed in the cost summary when results have recommendations, and is absent otherwise.
+func TestRenderCostSummary_RecommendationCount(t *testing.T) {
+	tests := []struct {
+		name        string
+		results     []engine.CostResult
+		width       int
+		contains    []string
+		notContains []string
+	}{
+		{
+			name: "shows recommendation count when present",
+			results: []engine.CostResult{
+				{
+					ResourceType: "aws:ec2/instance",
+					ResourceID:   "i-123",
+					Monthly:      100.0,
+					Currency:     "USD",
+					Recommendations: []engine.Recommendation{
+						{Type: "RIGHTSIZE", Description: "Switch to t3.small", EstimatedSavings: 5.0, Currency: "USD"},
+						{Type: "TERMINATE", Description: "Idle resource"},
+					},
+				},
+				{
+					ResourceType: "aws:rds/instance",
+					ResourceID:   "db-456",
+					Monthly:      50.0,
+					Currency:     "USD",
+					Recommendations: []engine.Recommendation{
+						{Type: "DELETE_UNUSED", Description: "Unused snapshot"},
+					},
+				},
+			},
+			width: 80,
+			contains: []string{
+				"Recommendations:", "3",
+			},
+		},
+		{
+			name: "omits recommendation count when zero",
+			results: []engine.CostResult{
+				{
+					ResourceType: "aws:ec2/instance",
+					ResourceID:   "i-123",
+					Monthly:      100.0,
+					Currency:     "USD",
+				},
+			},
+			width:       80,
+			notContains: []string{"Recommendations:"},
+		},
+		{
+			name: "omits recommendation count with empty slices",
+			results: []engine.CostResult{
+				{
+					ResourceType:    "aws:ec2/instance",
+					ResourceID:      "i-123",
+					Monthly:         100.0,
+					Currency:        "USD",
+					Recommendations: []engine.Recommendation{},
+				},
+			},
+			width:       80,
+			notContains: []string{"Recommendations:"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := RenderCostSummary(context.Background(), tt.results, tt.width)
+			for _, s := range tt.contains {
+				assert.Contains(t, output, s)
+			}
+			for _, s := range tt.notContains {
+				assert.NotContains(t, output, s)
+			}
+		})
+	}
+}
+
 // TestRenderCostSummary_WithCarbonEquivalencies tests User Story 2:
 // Carbon equivalencies in TUI summary view.
 func TestRenderCostSummary_WithCarbonEquivalencies(t *testing.T) {
