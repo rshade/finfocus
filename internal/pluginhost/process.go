@@ -399,7 +399,10 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 
 // parsePortFromStdout scans the captured stdout buffer for a port number.
 // It recognizes bare port numbers or PORT=NNNNN lines (case-insensitive).
-// Returns the parsed port and true if found, or 0 and false otherwise.
+// parsePortFromStdout scans the provided buffer for a plugin port announcement and returns the parsed
+// port and true if a valid port is found, or 0 and false otherwise. It recognizes either a case-
+// insensitive "PORT=NNNN" key-value line or a bare numeric port on a line, and validates the port
+// is in the range 1–65535. If buf is nil or empty no port is returned.
 func parsePortFromStdout(buf *bytes.Buffer) (int, bool) {
 	if buf == nil || buf.Len() == 0 {
 		return 0, false

@@ -67,7 +67,8 @@ func (r *execRunner) Run(ctx context.Context, dir string, name string, args ...s
 var Runner CommandRunner = &execRunner{} //nolint:gochecknoglobals // Required for test injection
 
 // FindBinary locates the pulumi CLI binary in PATH.
-// Returns the full path to the binary or ErrPulumiNotFound if not found.
+// FindBinary returns the full path to the pulumi executable by searching the system PATH.
+// If the pulumi binary cannot be found, it returns ErrPulumiNotFound.
 func FindBinary() (string, error) {
 	path, err := exec.LookPath("pulumi")
 	if err != nil {
@@ -78,7 +79,12 @@ func FindBinary() (string, error) {
 
 // FindProject walks up the directory tree from dir looking for Pulumi.yaml
 // or Pulumi.yml. Returns the directory containing the project file, or
-// ErrNoProject if no project file is found before reaching the filesystem root.
+// FindProject searches upward from dir for a Pulumi project file (Pulumi.yaml or Pulumi.yml)
+// and returns the directory that contains the first matching file.
+// dir is the starting directory to begin the upward search; if relative, it is resolved to an absolute path.
+// Returns the containing directory path when a project file is found.
+// If no project file is found before reaching the filesystem root, the function returns "" and ErrNoProject.
+// If resolving the absolute path of dir fails, an error wrapping the underlying failure is returned.
 func FindProject(dir string) (string, error) {
 	absDir, err := filepath.Abs(dir)
 	if err != nil {
@@ -105,7 +111,10 @@ func FindProject(dir string) (string, error) {
 
 // GetCurrentStack runs pulumi stack ls --json in projectDir and returns
 // the name of the currently active stack. If no stack is marked as current,
-// returns ErrNoCurrentStack with the list of available stacks.
+// GetCurrentStack returns the name of the active Pulumi stack for the project at projectDir.
+// It runs `pulumi stack ls --json`, parses the JSON output, and returns the stack whose `Current` field is true.
+// If no stack is marked current, it returns a NoCurrentStackError containing the list of available stack names.
+// The ctx controls cancellation and timeouts for the underlying command; an error is returned if the Pulumi command fails or if the output cannot be parsed.
 func GetCurrentStack(ctx context.Context, projectDir string) (string, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -153,7 +162,19 @@ type pulumiCmdConfig struct {
 	wrapErr        func(string) error
 }
 
-// runPulumiCommand executes a Pulumi CLI command with timeout, logging, and error handling.
+// runPulumiCommand executes a Pulumi CLI operation using the provided configuration,
+// honoring the configured timeout, emitting structured logs, and mapping CLI stderr to
+// a wrapped error when the command fails.
+// 
+// The command is executed in cfg.projectDir with additional args from cfg.args and
+// an optional --stack flag when cfg.stack is set. If cfg.timeout is zero the
+// cfg.defaultTimeout is used instead. On success the command stdout is returned.
+// 
+// Errors returned include:
+//   - context.DeadlineExceeded when the operation exceeds the resolved timeout (wrapped
+//     in a formatted error that names the operation and timeout duration),
+//   - context.Canceled when the provided context is cancelled,
+//   - or the value produced by cfg.wrapErr with the command's stderr for other failures.
 func runPulumiCommand(ctx context.Context, cfg pulumiCmdConfig) ([]byte, error) {
 	log := logging.FromContext(ctx)
 
@@ -201,7 +222,10 @@ func runPulumiCommand(ctx context.Context, cfg pulumiCmdConfig) ([]byte, error) 
 }
 
 // Preview runs pulumi preview --json in the project directory and returns
-// the raw JSON output bytes.
+// Preview runs `pulumi preview --json` for the project specified by opts and returns the raw JSON output bytes.
+// ctx controls cancellation and timeout for the operation.
+// opts selects the project directory, optional stack, and may override the command timeout.
+// It returns the raw JSON output from the preview on success, or a non-nil error if the command fails, is canceled, or times out (errors are wrapped by PreviewError when applicable).
 func Preview(ctx context.Context, opts PreviewOptions) ([]byte, error) {
 	return runPulumiCommand(ctx, pulumiCmdConfig{
 		projectDir:     opts.ProjectDir,
@@ -216,7 +240,12 @@ func Preview(ctx context.Context, opts PreviewOptions) ([]byte, error) {
 }
 
 // StackExport runs pulumi stack export in the project directory and returns
-// the raw JSON output bytes.
+// StackExport runs `pulumi stack export` for the project at opts.ProjectDir and the stack specified by
+// opts.Stack, and returns the exported stack state as raw JSON bytes. If opts.Timeout is non-zero it
+// overrides the default export timeout.
+// 
+// The function returns the command's stdout (the exported JSON) on success, or an error if the Pulumi
+// command fails, is cancelled, or exceeds the configured timeout.
 func StackExport(ctx context.Context, opts ExportOptions) ([]byte, error) {
 	return runPulumiCommand(ctx, pulumiCmdConfig{
 		projectDir:     opts.ProjectDir,

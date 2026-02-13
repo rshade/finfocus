@@ -153,7 +153,15 @@ type CostFlags struct {
 // newCostCmd creates the cost command group with projected, actual, and recommendations subcommands.
 // It also adds persistent flags for budget exit code configuration (Issue #219).
 //
-//nolint:gocognit // Function is logically cohesive; complexity comes from config setup.
+// newCostCmd creates the "cost" command group with persistent flags, budget-related overrides, validation, and subcommands.
+//
+// The returned *cobra.Command includes persistent flags for budget behavior (--exit-on-threshold, --exit-code, --budget-scope)
+// and a --stack flag for Pulumi stack selection used during auto-detection. Its PersistentPreRunE arranges for the root command's
+// PersistentPreRunE to run, ensures the global configuration has a Budgets structure so CLI flag overrides can be applied,
+// applies explicit CLI flag values to the global config when those flags were changed, and validates the global scoped budget
+// configuration when exit-on-threshold is enabled.
+//
+// Returns a configured command that contains the projected, actual, recommendations, and estimate cost subcommands.
 func newCostCmd() *cobra.Command {
 	var flags CostFlags
 

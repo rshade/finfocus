@@ -92,7 +92,7 @@ func (c *CostResultWithErrors) ErrorSummary() string {
 }
 
 // GetProjectedCostWithErrors queries projected costs for each resource and aggregates successful results
-// together with per-resource error details.
+//     - Errors: a slice of ErrorDetail with per-resource failure information and timestamps.
 func GetProjectedCostWithErrors(
 	ctx context.Context,
 	client CostSourceClient,
@@ -188,7 +188,10 @@ func GetProjectedCostWithErrors(
 }
 
 // validateActualCostRequest checks for invalid parameter combinations.
-// Returns a non-nil error result if Properties is set with multiple ResourceIDs.
+// validateActualCostRequest returns a non-nil *CostResultWithErrors when Properties is provided together with more than one ResourceID.
+// The returned value contains no CostResult entries and a single ErrorDetail describing the validation failure (ErrPropertiesMultiResource).
+// The ErrorDetail.ResourceID is the comma-separated list of ResourceIDs, PluginName is set to the provided pluginName, and Timestamp is set to now.
+// Returns nil if the request is valid.
 func validateActualCostRequest(pluginName string, req *GetActualCostRequest) *CostResultWithErrors {
 	if req.Properties != nil && len(req.ResourceIDs) > 1 {
 		return &CostResultWithErrors{
@@ -204,6 +207,11 @@ func validateActualCostRequest(pluginName string, req *GetActualCostRequest) *Co
 	return nil
 }
 
+// appendActualCostPlaceholder appends a zero-valued CostResult with USD currency and the
+// provided notes to the given CostResultWithErrors' Results slice.
+//
+// result is the accumulator to which the placeholder result will be appended.
+// notes is an informational string stored in the placeholder's Notes field.
 func appendActualCostPlaceholder(result *CostResultWithErrors, notes string) {
 	result.Results = append(result.Results, &CostResult{
 		Currency:    "USD",
@@ -213,6 +221,10 @@ func appendActualCostPlaceholder(result *CostResultWithErrors, notes string) {
 	})
 }
 
+// recordActualCostValidationError records a pre-flight validation failure for an actual cost lookup.
+// It logs a warning, appends an ErrorDetail (including the plugin name, resource and cloud IDs, the wrapped validation error, and current timestamp)
+// to result.Errors, and appends a validation placeholder CostResult to result.
+// The provided result is mutated in-place.
 func recordActualCostValidationError(
 	ctx context.Context,
 	result *CostResultWithErrors,
@@ -238,6 +250,13 @@ func recordActualCostValidationError(
 	appendActualCostPlaceholder(result, fmt.Sprintf("VALIDATION: %v", validationErr))
 }
 
+// recordActualCostPluginError records a plugin call failure for the specified resource and appends a placeholder error result.
+// It appends an ErrorDetail to result.Errors containing ResourceID, PluginName, the wrapped error ("plugin call failed: <err>") and the current timestamp, then adds a zero-valued CostResult with a note prefixed by "ERROR:" describing the plugin error.
+// Parameters:
+//   - result: accumulator for results and per-resource errors.
+//   - pluginName: name of the plugin that produced the error.
+//   - resourceID: identifier of the resource for which the plugin call failed.
+//   - pluginErr: the error returned by the plugin call.
 func recordActualCostPluginError(
 	result *CostResultWithErrors,
 	pluginName string,
@@ -254,6 +273,13 @@ func recordActualCostPluginError(
 	appendActualCostPlaceholder(result, fmt.Sprintf("ERROR: %v", pluginErr))
 }
 
+// appendActualCostResults converts each ActualCostResult into a CostResult and appends it to result.Results.
+// The conversion copies Currency to Currency, TotalCost to MonthlyCost, copies CostBreakdown, sets HourlyCost to 0,
+// and deep-copies the Sustainability metrics into a new map. The provided result is mutated in-place.
+//
+// Parameters:
+//   - result: destination CostResultWithErrors whose Results slice will be extended.
+//   - actualResults: slice of ActualCostResult values to convert and append.
 func appendActualCostResults(result *CostResultWithErrors, actualResults []*ActualCostResult) {
 	for _, actual := range actualResults {
 		costResult := &CostResult{
@@ -272,7 +298,26 @@ func appendActualCostResults(result *CostResultWithErrors, actualResults []*Actu
 }
 
 // GetActualCostWithErrors retrieves actual cost data for each resource ID in req
-// and returns both successful CostResult entries and per-resource ErrorDetail records.
+// GetActualCostWithErrors computes actual cost data for each resource in req and returns both
+// successful CostResult entries and per-resource ErrorDetail records.
+// 
+// GetActualCostWithErrors validates the request, then for each ResourceID it resolves cloud
+// identifiers and tags (including optional SKU and region enrichment when Provider is set),
+// validates the plugin-facing request, and invokes the client's GetActualCost. For each
+// resource it appends either the plugin's cost results or a placeholder CostResult and records
+// any per-resource validation or plugin errors in the returned ErrorDetail slice.
+// 
+// Parameters:
+//   - ctx: request context for cancellation and timeouts.
+//   - client: the CostSourceClient used to call plugin GetActualCost.
+//   - pluginName: human-readable name of the plugin (used in ErrorDetail entries).
+//   - req: parameters for the actual cost query; must include ResourceIDs and time range.
+// 
+// Returns:
+//   A *CostResultWithErrors containing Results for each resource (actual or placeholder)
+//   and any per-resource ErrorDetail entries. If the request is invalid (for example,
+//   Properties are provided with multiple ResourceIDs) the returned CostResultWithErrors
+//   will contain the validation error and no per-resource processing will be performed.
 func GetActualCostWithErrors(
 	ctx context.Context,
 	client CostSourceClient,
@@ -677,7 +722,16 @@ func (c *clientAdapter) DismissRecommendation(
 // If the region cannot be determined from properties, the function falls back to the AWS_REGION or
 // AWS_DEFAULT_REGION environment variables.
 // provider is the cloud provider identifier; resourceType is the Pulumi type token;
-// properties contains resource-specific key/value attributes.
+// resolveSKUAndRegion determines the SKU and region for a resource using the given provider,
+// resourceType, and properties.
+//
+// For AWS it attempts AWS-specific SKU extraction, falls back to common SKU property names,
+// then to well-known SKU mappings for fixed-cost resources; the region is taken from properties
+// or parsed from the ARN. For Azure and GCP provider values it uses their respective extractors.
+// For other providers it uses generic SKU and region extraction. If the region remains empty
+// for AWS, the AWS_REGION or AWS_DEFAULT_REGION environment variables are used as a final fallback.
+//
+// It returns the resolved `sku` and `region`, each of which may be an empty string if not found.
 func resolveSKUAndRegion(provider, resourceType string, properties map[string]string) (string, string) {
 	var sku, region string
 	switch strings.ToLower(provider) {
@@ -728,7 +782,7 @@ func resolveSKUAndRegion(provider, resourceType string, properties map[string]st
 // regionFromARN extracts the AWS region from an ARN string.
 // AWS ARNs follow the format arn:partition:service:region:account:resource.
 // Returns empty string if the ARN is empty, malformed, or the region segment is empty
-// (e.g., global services like IAM: arn:aws:iam::123456789012:role/name).
+// does not contain the expected number of segments, an empty string is returned.
 func regionFromARN(arn string) string {
 	// arn:aws:ec2:us-east-1:123456789012:instance/i-0abc
 	// 0   1   2   3        4             5
@@ -740,7 +794,14 @@ func regionFromARN(arn string) string {
 }
 
 // resolveActualCostIdentifiers extracts cloud-specific resource ID, ARN, and tags
-// from resource properties. Falls back to the original resourceID if no cloud ID is available.
+// resolveActualCostIdentifiers extracts the cloud identifier, ARN, and tags from a resource's properties.
+// resourceID is used as the fallback cloud identifier when no cloud ID is present in properties.
+// properties is the map of resource properties to inspect; it may contain well-known keys such as propCloudID
+// (cloud identifier) and propARN (ARN). Tags are extracted preferring provider-specific keys (for example,
+// tagsAll for AWS) and returned as a map[string]string.
+//
+// Returns the resolved cloudID (or the original resourceID if none found), the ARN (or an empty string),
+// and a map of tags (empty if no tags are present).
 func resolveActualCostIdentifiers(
 	resourceID string,
 	properties map[string]interface{},
@@ -791,7 +852,10 @@ func extractResourceTags(properties map[string]interface{}) map[string]string {
 	return tags
 }
 
-// extractTagMap extracts tags from a property key that holds a map.
+// extractTagMap returns a map[string]string of tags stored under the given key in properties.
+// It looks up properties[key] and, if present and a map, copies its entries into a string map.
+// Non-string values are converted to their string representation; unsupported types or a missing key return an empty map.
+// properties is the source map to read from; key is the property name that should contain a tag map.
 func extractTagMap(properties map[string]interface{}, key string) map[string]string {
 	result := make(map[string]string)
 	v, found := properties[key]
@@ -818,7 +882,8 @@ func extractTagMap(properties map[string]interface{}, key string) map[string]str
 }
 
 // toStringMap converts a map[string]interface{} to map[string]string.
-// Values that are not strings are converted via fmt.Sprintf.
+// toStringMap converts a map[string]interface{} to a map[string]string.
+// Non-string values are converted using fmt.Sprintf("%v"); entries with nil values are omitted from the result.
 func toStringMap(m map[string]interface{}) map[string]string {
 	result := make(map[string]string, len(m))
 	for k, v := range m {
@@ -833,7 +898,16 @@ func toStringMap(m map[string]interface{}) map[string]string {
 
 // enrichTagsWithSKUAndRegion resolves SKU and region from resource properties
 // using the provider-specific extraction logic in resolveSKUAndRegion, then
-// injects them into tags. Existing tag values are never overwritten.
+// enrichTagsWithSKUAndRegion injects SKU and region entries into tags by resolving them from
+// the provided properties using the given provider and resourceType. Existing entries in tags
+// are preserved and never overwritten; when found, SKU is added under the key "sku" and
+// region under the key "region".
+//
+// Parameters:
+//  - tags: map to receive injected "sku" and "region" entries (mutated in place).
+//  - provider: cloud provider identifier used for SKU/region resolution.
+//  - resourceType: resource type token (e.g., Pulumi type) used as additional context for resolution.
+//  - properties: resource properties used to derive SKU and region; non-string values may be converted.
 func enrichTagsWithSKUAndRegion(
 	tags map[string]string,
 	provider, resourceType string,

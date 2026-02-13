@@ -339,7 +339,12 @@ func (p PluginInfo) Region() string {
 }
 
 // resolvePluginMetadata reads plugin.metadata.json from the version directory.
-// If not found, it attempts to parse the region from the binary filename.
+// resolvePluginMetadata reads plugin metadata from the given versionDir and returns it if available.
+// If no metadata file can be read, it attempts to infer a "region" value by parsing binaryPath and
+// returns a map containing {"region": "<value>"} when successful.
+// versionDir is the path to the plugin version directory to read plugin.metadata.json from.
+// binaryPath is the path to the plugin binary used to derive a region as a fallback.
+// Returns a map of metadata values, or nil if neither a metadata file nor a parsable region are available.
 func resolvePluginMetadata(versionDir, binaryPath string) map[string]string {
 	// First try the metadata file
 	meta, err := ReadPluginMetadata(versionDir)
@@ -358,7 +363,11 @@ func resolvePluginMetadata(versionDir, binaryPath string) map[string]string {
 // mergeRegistryMetadata injects registry-level metadata into the plugin client's
 // PluginMetadata. This ensures that information from plugin.metadata.json (e.g.,
 // region) is available to the router even if the plugin doesn't report it via
-// its GetPluginInfo RPC.
+// mergeRegistryMetadata injects metadata discovered by the registry into a plugin
+// client's metadata without overwriting keys the plugin already provides.
+// If the registry has no metadata for the plugin this is a no-op.
+// The function ensures the client's PluginMetadata and its Metadata map are
+// initialized before copying keys from the registry's PluginInfo.Metadata.
 func mergeRegistryMetadata(client *pluginhost.Client, plugin PluginInfo) {
 	if len(plugin.Metadata) == 0 {
 		return

@@ -77,7 +77,14 @@ func loadAndMapResources(
 	return resources, nil
 }
 
-// openPlugins opens the requested adapter plugins.
+// openPlugins opens the requested adapter plugins and returns the plugin clients,
+// a cleanup function to release plugin resources, and an error if opening fails.
+// The ctx is used for plugin initialization and cancellation. The adapter string
+// selects which adapter plugins to load. The provided audit context is recorded
+// when a failure occurs.
+// Returns the loaded plugin clients, a cleanup function that should be called
+// when the callers are finished with the plugins, and a non-nil error if opening
+// the plugins failed.
 func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*pluginhost.Client, func(), error) {
 	log := logging.FromContext(ctx)
 
@@ -142,7 +149,22 @@ func fetchAndMergeRecommendations(ctx context.Context, fetcher recommendationFet
 
 // resolveResourcesFromPulumi orchestrates auto-detection of a Pulumi project and
 // execution of the appropriate Pulumi CLI command to produce resource descriptors.
-// mode must be "preview" or "export".
+// resolveResourcesFromPulumi locates a Pulumi project and stack, runs the requested Pulumi command,
+// and returns the mapped resource descriptors for that stack.
+//
+// If `stack` is empty the current Pulumi stack for the detected project directory is used.
+// `mode` must be either "preview" to run `pulumi preview --json` or "export" to run `pulumi stack export`.
+// The function returns an error if the Pulumi binary or project cannot be found, if the stack cannot be resolved,
+// if the Pulumi command fails, if parsing the Pulumi output fails, or if an unsupported mode is provided.
+//
+// Parameters:
+//   - ctx: the context for cancellation and logging.
+//   - stack: the Pulumi stack to operate on; if empty the current stack is detected.
+//   - mode: one of "preview" or "export" specifying which Pulumi operation to run.
+//
+// Returns:
+//   - a slice of engine.ResourceDescriptor representing the mapped resources from the Pulumi output.
+//   - an error if any step (binary/project discovery, stack resolution, command execution, parsing, or unsupported mode) fails.
 func resolveResourcesFromPulumi(
 	ctx context.Context,
 	stack string,

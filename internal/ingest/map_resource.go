@@ -11,7 +11,9 @@ const unknownProvider = "unknown"
 
 // MergeProperties merges Outputs (base) with Inputs (overlay).
 // Inputs take precedence on key conflicts so user-declared values win over
-// provider-computed defaults. Returns nil when both maps are nil.
+// MergeProperties merges two property maps into a single map. Keys from the
+// inputs map override keys from the outputs map when they conflict. If both
+// inputs and outputs are nil, MergeProperties returns nil.
 func MergeProperties(outputs, inputs map[string]interface{}) map[string]interface{} {
 	if outputs == nil && inputs == nil {
 		return nil
@@ -26,7 +28,11 @@ func MergeProperties(outputs, inputs map[string]interface{}) map[string]interfac
 	return result
 }
 
-// MapResource converts a single Pulumi resource to a ResourceDescriptor.
+// MapResource converts a PulumiResource into an engine.ResourceDescriptor.
+// The returned descriptor contains the resource Type, URN as ID, the provider
+// derived from the resource type, and Properties produced by merging the
+// resource's outputs with its inputs (inputs take precedence).
+// The function does not currently produce an error; the returned error is nil.
 func MapResource(pulumiResource PulumiResource) (engine.ResourceDescriptor, error) {
 	provider := extractProvider(pulumiResource.Type)
 

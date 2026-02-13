@@ -14,7 +14,15 @@ const (
 	pluginMetadataFile = "plugin.metadata.json"
 )
 
-// WritePluginMetadata writes a plugin.metadata.json file to the given directory.
+// WritePluginMetadata writes the provided metadata map as indented JSON to a
+// file named plugin.metadata.json inside dir. The file is written with
+// permission mode 0600 and a trailing newline is appended.
+//
+// dir is the target directory for the metadata file. metadata is the key/value
+// map to encode.
+//
+// It returns an error if the metadata cannot be marshaled to JSON or if the
+// file cannot be written.
 func WritePluginMetadata(dir string, metadata map[string]string) error {
 	data, marshalErr := json.MarshalIndent(metadata, "", "  ")
 	if marshalErr != nil {
@@ -31,7 +39,11 @@ func WritePluginMetadata(dir string, metadata map[string]string) error {
 var ErrMetadataNotFound = errors.New("metadata file not found")
 
 // ReadPluginMetadata reads plugin.metadata.json from the given directory.
-// Returns ErrMetadataNotFound if the file does not exist.
+// ReadPluginMetadata reads the plugin.metadata.json file located in dir and parses it into a map[string]string.
+// dir is the directory containing the metadata file.
+// If the metadata file does not exist, ErrMetadataNotFound is returned.
+// If the file cannot be read or the JSON cannot be parsed, an error describing the failure is returned.
+// On success the parsed metadata map and a nil error are returned.
 func ReadPluginMetadata(dir string) (map[string]string, error) {
 	path := filepath.Join(dir, pluginMetadataFile)
 	data, err := os.ReadFile(path)
@@ -51,7 +63,11 @@ func ReadPluginMetadata(dir string) (map[string]string, error) {
 
 // ParseRegionFromBinaryName extracts a region string from a binary filename.
 // It looks for common AWS region patterns like "us-east-1", "eu-west-1", etc.
-// Returns the region and true if found, or empty string and false otherwise.
+// ParseRegionFromBinaryName returns the AWS region found in the base filename of binaryPath.
+// It examines the filename (not the full path) for known AWS region substrings and returns
+// the matched region and true if one is found.
+// The first return is the region string (e.g. "us-west-2"); the second is true when a region
+// was detected, or an empty string and false otherwise.
 func ParseRegionFromBinaryName(binaryPath string) (string, bool) {
 	name := filepath.Base(binaryPath)
 	// Look for region patterns in the filename

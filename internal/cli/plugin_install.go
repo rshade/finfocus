@@ -203,7 +203,24 @@ func handleInstallError(
 //	--plugin-dir         Custom plugin directory (default: ~/.finfocus/plugins)
 //	--clean              Remove other versions after successful install
 //	--fallback-to-latest Automatically install latest stable version if requested version lacks assets
-//	--no-fallback        Disable fallback behavior entirely (fail if requested version lacks assets)
+// NewPluginInstallCmd creates the "install" CLI command that installs a plugin from either the registry or a direct URL.
+// 
+// The returned *cobra.Command parses a single plugin specifier argument and supports options to control installation
+// behavior, including reinstallation, saving to config, cleanup of other versions, custom plugin directory, and
+// controlling fallback behavior when platform-specific assets are missing. It also accepts repeatable metadata
+// key=value pairs that are passed through to the installer.
+// 
+// Notable flags:
+//   - --force, -f: reinstall even if the requested version already exists.
+//   - --no-save: do not add the plugin to the user's config file.
+//   - --clean: remove other installed versions after a successful install.
+//   - --plugin-dir: specify a custom plugin installation directory.
+//   - --fallback-to-latest: automatically attempt a compatible latest stable release if the requested version lacks assets.
+//   - --no-fallback: disable fallback behavior entirely (mutually exclusive with --fallback-to-latest).
+//   - --metadata: repeatable key=value pairs attached to the plugin install.
+//
+// The command prints progress, shows a security warning for URL-based installs, and displays a concise install result.
+// It returns the configured *cobra.Command.
 func NewPluginInstallCmd() *cobra.Command {
 	var (
 		force            bool
@@ -303,7 +320,31 @@ func NewPluginInstallCmd() *cobra.Command {
 // errFallbackDeclined is returned when the user declines fallback in interactive mode.
 var errFallbackDeclined = errors.New("fallback declined")
 
-// handleFallback attempts to install a fallback version when the requested version lacks assets.
+// handleFallback attempts to find a compatible release and install a fallback version
+// when the requested plugin version has no assets for the current platform.
+//
+// It looks up repository and asset hints from the registry (or uses spec.Owner/spec.Repo
+// for URL specs), queries GitHub for a release that provides compatible assets, and then
+// either automatically proceeds (when autoFallback is true), prompts the user (when running
+// in a TTY), or returns an error (when not in a TTY and autoFallback is false).
+//
+// On success the returned InstallResult is marked as a fallback (WasFallback = true) and
+// RequestedVersion is set to the originally requested version.
+//
+// Parameters:
+//   - cmd: the Cobra command used for printing prompts and messages.
+//   - installer: installer used to perform the fallback installation.
+//   - spec: original plugin specifier (name or URL and requested version).
+//   - opts: original install options; select fields (Force, NoSave, PluginDir, Metadata)
+//     are propagated to the fallback install. Fallback-specific options (FallbackToLatest,
+//     NoFallback) are set to prevent recursion.
+//   - progress: progress callback used during installation.
+//   - autoFallback: when true, proceed without prompting when a compatible fallback is found.
+//
+// Returns:
+//   - *registry.InstallResult containing details of the installed fallback release when successful.
+//   - error if repository lookup fails, the repository format is invalid, no compatible fallback
+//     is found, the user declines the fallback, or the fallback installation fails.
 func handleFallback(
 	cmd *cobra.Command,
 	installer *registry.Installer,
@@ -418,7 +459,10 @@ func handleFallback(
 }
 
 // parseMetadataFlags converts --metadata flag values ("key=value") into a map.
-// Invalid entries (missing '=') are silently skipped.
+// parseMetadataFlags converts a slice of "key=value" strings into a map of keys to values.
+// Entries that do not contain an '=' are skipped. Leading and trailing whitespace is
+// trimmed from both keys and values. If the input contains no valid pairs, the function
+// returns nil. When a key appears multiple times, the last occurrence wins.
 func parseMetadataFlags(flags []string) map[string]string {
 	if len(flags) == 0 {
 		return nil
