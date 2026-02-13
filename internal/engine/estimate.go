@@ -165,7 +165,7 @@ func (e *Engine) tryEstimateCostRPC(
 	_ *pluginhost.Client,
 	_ *EstimateRequest,
 ) (*EstimateResult, error) {
-	// The EstimateCost RPC is not yet defined in finfocus-spec v0.5.5
+	// The EstimateCost RPC is not yet defined in finfocus-spec v0.5.6
 	// When the RPC is added to the spec, this method should:
 	// 1. Build the proto request using proto.BuildEstimateCostRequest
 	// 2. Call client.API.EstimateCost(ctx, protoReq)

@@ -965,3 +965,95 @@ exit 0
 
 	return createScript(t, script, ".sh")
 }
+
+func TestParsePortFromStdout(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		nilBuf   bool
+		wantPort int
+		wantOk   bool
+	}{
+		{name: "bare port number", input: "12345\n", wantPort: 12345, wantOk: true},
+		{name: "PORT=NNNNN format", input: "PORT=54321\n", wantPort: 54321, wantOk: true},
+		{name: "port= lowercase", input: "port=9999\n", wantPort: 9999, wantOk: true},
+		{name: "with leading noise", input: "starting server...\n42000\n", wantPort: 42000, wantOk: true},
+		{name: "empty buffer", input: "", wantPort: 0, wantOk: false},
+		{name: "no port number", input: "hello world\nno ports here\n", wantPort: 0, wantOk: false},
+		{name: "port out of range high", input: "99999\n", wantPort: 0, wantOk: false},
+		{name: "port zero", input: "0\n", wantPort: 0, wantOk: false},
+		{name: "negative number", input: "-1\n", wantPort: 0, wantOk: false},
+		{name: "whitespace around port", input: "  8080  \n", wantPort: 8080, wantOk: true},
+		{name: "nil buffer", nilBuf: true, wantPort: 0, wantOk: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf *bytes.Buffer
+			if tt.nilBuf {
+				buf = nil
+			} else {
+				buf = bytes.NewBufferString(tt.input)
+			}
+			port, ok := parsePortFromStdout(buf)
+			if ok != tt.wantOk {
+				t.Errorf("parsePortFromStdout() ok = %v, want %v", ok, tt.wantOk)
+			}
+			if port != tt.wantPort {
+				t.Errorf("parsePortFromStdout() port = %d, want %d", port, tt.wantPort)
+			}
+		})
+	}
+}
+
+func TestWaitForPluginBindWithFallback_DirectBind(t *testing.T) {
+	// Test that direct binding on --port still works
+	launcher := NewProcessLauncher()
+
+	// Start a TCP listener to simulate a plugin that binds correctly
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to create listener: %v", err)
+	}
+	defer listener.Close()
+
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	ctx := context.Background()
+	buf := bytes.NewBufferString("")
+
+	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, port, buf, "/fake/plugin")
+	if err != nil {
+		t.Fatalf("waitForPluginBindWithFallback() error: %v", err)
+	}
+	if gotPort != port {
+		t.Errorf("expected port %d, got %d", port, gotPort)
+	}
+}
+
+func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
+	// Test fallback to stdout-advertised port
+	launcher := NewProcessLauncher()
+
+	// Start a listener on a different port to simulate plugin stdout port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("failed to create listener: %v", err)
+	}
+	defer listener.Close()
+	stdoutPort := listener.Addr().(*net.TCPAddr).Port
+
+	// Use a port that nothing is listening on (assigned port)
+	assignedPort := 1 // port 1 should not have anything bound
+
+	ctx := context.Background()
+	buf := bytes.NewBufferString(fmt.Sprintf("%d\n", stdoutPort))
+
+	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, assignedPort, buf, "/fake/plugin")
+	if err != nil {
+		t.Fatalf("waitForPluginBindWithFallback() error: %v", err)
+	}
+	if gotPort != stdoutPort {
+		t.Errorf("expected stdout port %d, got %d", stdoutPort, gotPort)
+	}
+}

@@ -198,11 +198,13 @@ func TestErrorHandlingEdgeCases(t *testing.T) {
 		errorCheck  func(t *testing.T, err error)
 	}{
 		{
-			name:        "missing required pulumi-json for projected",
+			name:        "no flags triggers auto-detection for projected",
 			args:        []string{"cost", "projected"},
 			expectError: true,
 			errorCheck: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "required flag(s) \"pulumi-json\" not set")
+				// Auto-detection kicks in but fails (no Pulumi project in test env).
+				// The error must NOT be about a required flag.
+				assert.NotContains(t, err.Error(), "required flag")
 			},
 		},
 		{

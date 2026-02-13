@@ -19,11 +19,12 @@ const (
 
 // InstallOptions configures plugin installation behavior.
 type InstallOptions struct {
-	Force            bool   // Reinstall even if version exists
-	NoSave           bool   // Don't add to config file
-	PluginDir        string // Custom plugin directory (default: ~/.finfocus/plugins)
-	FallbackToLatest bool   // Automatically install latest stable version if requested version lacks assets
-	NoFallback       bool   // Disable fallback behavior entirely (fail if requested version lacks assets)
+	Force            bool              // Reinstall even if version exists
+	NoSave           bool              // Don't add to config file
+	PluginDir        string            // Custom plugin directory (default: ~/.finfocus/plugins)
+	FallbackToLatest bool              // Automatically install latest stable version if requested version lacks assets
+	NoFallback       bool              // Disable fallback behavior entirely (fail if requested version lacks assets)
+	Metadata         map[string]string // User-supplied metadata (e.g., region=us-west-2), stored as plugin.metadata.json
 }
 
 // InstallResult contains the result of a plugin installation.
@@ -362,6 +363,16 @@ func (i *Installer) installRelease(
 		)
 	}
 
+	// Override region in asset hints if user supplied region via --metadata
+	if opts.Metadata != nil {
+		if region, ok := opts.Metadata["region"]; ok && region != "" {
+			if hints == nil {
+				hints = &AssetNamingHints{}
+			}
+			hints.Region = region
+		}
+	}
+
 	// Find platform-specific asset (use hints if provided)
 	asset, err := FindPlatformAssetWithHints(release, name, hints)
 	if err != nil {
@@ -430,6 +441,15 @@ func (i *Installer) installRelease(
 	if validateErr := ValidateBinary(binaryPath); validateErr != nil {
 		_ = os.RemoveAll(installDir)
 		return nil, validateErr
+	}
+
+	// Write plugin.metadata.json if metadata was provided
+	if len(opts.Metadata) > 0 {
+		if metaErr := WritePluginMetadata(installDir, opts.Metadata); metaErr != nil {
+			if progress != nil {
+				progress(fmt.Sprintf("Warning: failed to write plugin metadata: %v", metaErr))
+			}
+		}
 	}
 
 	// Save to config unless --no-save

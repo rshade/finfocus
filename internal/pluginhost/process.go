@@ -1,6 +1,8 @@
 package pluginhost
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -8,6 +10,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -29,6 +32,7 @@ const (
 	pluginBindTimeout   = 60 * time.Second       // Time to wait for plugin to bind (large plugins need more time)
 	ciPluginBindTimeout = 120 * time.Second      // Increased timeout for CI environments
 	bindCheckInterval   = 100 * time.Millisecond // Interval between bind checks
+	stdoutPortFallback  = 5 * time.Second        // Time to wait for stdout port before full timeout
 
 	// Retry configuration for port collision handling.
 	maxPortRetries    = 5
@@ -182,7 +186,7 @@ func (p *ProcessLauncher) startOnce(
 	}
 	_ = pl // Silence unused variable warning
 
-	cmd, err := p.startPlugin(ctx, path, port, args)
+	cmd, stdoutBuf, err := p.startPlugin(ctx, path, port, args)
 	if err != nil {
 		log.Error().
 			Ctx(ctx).
@@ -200,20 +204,9 @@ func (p *ProcessLauncher) startOnce(
 		Int("pid", cmd.Process.Pid).
 		Msg("plugin process started")
 
-	// Wait for plugin to bind to port
-	bindCtx, bindCancel := context.WithTimeout(ctx, getPluginBindTimeout())
-	defer bindCancel()
-
-	if bindErr := p.waitForPluginBind(bindCtx, port); bindErr != nil {
-		// FR-007: Combined error + guidance message when plugin fails to bind
-		log.Error().
-			Ctx(ctx).
-			Str("component", "pluginhost").
-			Err(bindErr).
-			Int("port", port).
-			Str("plugin_path", path).
-			Str("guidance", "if using an older plugin, ensure it supports --port flag").
-			Msg("plugin failed to bind to port")
+	// Wait for plugin to bind to port, with stdout port detection fallback
+	connectPort, bindErr := p.waitForPluginBindWithFallback(ctx, port, stdoutBuf, path)
+	if bindErr != nil {
 		p.killProcess(cmd)
 		return nil, nil, fmt.Errorf("plugin failed to bind to port: %w", bindErr)
 	}
@@ -221,10 +214,10 @@ func (p *ProcessLauncher) startOnce(
 	log.Debug().
 		Ctx(ctx).
 		Str("component", "pluginhost").
-		Int("port", port).
+		Int("port", connectPort).
 		Msg("plugin bound to port successfully")
 
-	conn, err := p.connectToPlugin(ctx, fmt.Sprintf("127.0.0.1:%d", port), cmd)
+	conn, err := p.connectToPlugin(ctx, fmt.Sprintf("127.0.0.1:%d", connectPort), cmd)
 	if err != nil {
 		log.Error().
 			Ctx(ctx).
@@ -239,7 +232,7 @@ func (p *ProcessLauncher) startOnce(
 		Ctx(ctx).
 		Str("component", "pluginhost").
 		Str("plugin_path", path).
-		Int("port", port).
+		Int("port", connectPort).
 		Int("pid", cmd.Process.Pid).
 		Msg("plugin connected successfully")
 
@@ -336,6 +329,110 @@ func (p *ProcessLauncher) waitForPluginBind(ctx context.Context, port int) error
 	}
 }
 
+// waitForPluginBindWithFallback waits for the plugin to bind to the assigned port.
+// If binding fails within stdoutPortFallback, it checks whether the plugin wrote
+// a port number to stdout (backward-compatible protocol for older plugins).
+// Returns the port to connect on and any error.
+func (p *ProcessLauncher) waitForPluginBindWithFallback(
+	ctx context.Context,
+	assignedPort int,
+	stdoutBuf *bytes.Buffer,
+	pluginPath string,
+) (int, error) {
+	log := logging.FromContext(ctx)
+
+	// First, try the assigned --port with a short timeout to detect older plugins quickly
+	shortCtx, shortCancel := context.WithTimeout(ctx, stdoutPortFallback)
+	defer shortCancel()
+
+	if err := p.waitForPluginBind(shortCtx, assignedPort); err == nil {
+		return assignedPort, nil
+	}
+
+	// Short timeout elapsed — check if plugin wrote a port to stdout
+	if stdoutPort, ok := parsePortFromStdout(stdoutBuf); ok && stdoutPort != assignedPort {
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "pluginhost").
+			Int("assigned_port", assignedPort).
+			Int("stdout_port", stdoutPort).
+			Str("plugin_path", pluginPath).
+			Msg("plugin did not bind to --port; falling back to stdout-advertised port (older plugin protocol)")
+
+		// Try binding on the stdout-advertised port with the remaining full timeout
+		fullCtx, fullCancel := context.WithTimeout(ctx, getPluginBindTimeout())
+		defer fullCancel()
+
+		err := p.waitForPluginBind(fullCtx, stdoutPort)
+		if err == nil {
+			return stdoutPort, nil
+		}
+		return 0, fmt.Errorf("plugin advertised port %d on stdout but failed to bind: %w",
+			stdoutPort, err)
+	}
+
+	// No stdout port detected — continue waiting on assigned port with full timeout
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "pluginhost").
+		Int("port", assignedPort).
+		Str("plugin_path", pluginPath).
+		Msg("no stdout port detected, continuing to wait for --port binding")
+
+	fullCtx, fullCancel := context.WithTimeout(ctx, getPluginBindTimeout())
+	defer fullCancel()
+
+	if err := p.waitForPluginBind(fullCtx, assignedPort); err != nil {
+		log.Error().
+			Ctx(ctx).
+			Str("component", "pluginhost").
+			Err(err).
+			Int("port", assignedPort).
+			Str("plugin_path", pluginPath).
+			Str("guidance", "ensure the plugin supports --port flag or upgrade to pluginsdk v0.5.5+").
+			Msg("plugin failed to bind to port")
+		return 0, err
+	}
+
+	return assignedPort, nil
+}
+
+// parsePortFromStdout scans the captured stdout buffer for a port number.
+// It recognizes bare port numbers or PORT=NNNNN lines (case-insensitive).
+// Returns the parsed port and true if found, or 0 and false otherwise.
+func parsePortFromStdout(buf *bytes.Buffer) (int, bool) {
+	if buf == nil || buf.Len() == 0 {
+		return 0, false
+	}
+
+	scanner := bufio.NewScanner(bytes.NewReader(buf.Bytes()))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		// Try "PORT=NNNNN" format (case-insensitive)
+		if strings.HasPrefix(strings.ToUpper(line), "PORT=") {
+			portStr := strings.TrimPrefix(strings.ToUpper(line), "PORT=")
+			// Use the original casing for the number part
+			if idx := strings.Index(line, "="); idx >= 0 {
+				portStr = strings.TrimSpace(line[idx+1:])
+			}
+			if port, err := strconv.Atoi(portStr); err == nil && port > 0 && port <= 65535 {
+				return port, true
+			}
+		}
+
+		// Try bare port number (e.g., analyzer protocol prints just the number)
+		if port, err := strconv.Atoi(line); err == nil && port > 0 && port <= 65535 {
+			return port, true
+		}
+	}
+
+	return 0, false
+}
+
 // isPortCollisionError checks if an error is related to port collision.
 // It uses string pattern matching to handle port collision errors across
 // isPortCollisionError reports whether the provided error indicates a port/address
@@ -369,7 +466,7 @@ func (p *ProcessLauncher) startPlugin(
 	path string,
 	port int,
 	args []string,
-) (*exec.Cmd, error) {
+) (*exec.Cmd, *bytes.Buffer, error) {
 	log := logging.FromContext(ctx)
 
 	// FR-008: Log DEBUG message when PORT is detected in user's environment
@@ -394,7 +491,12 @@ func (p *ProcessLauncher) startPlugin(
 	cmd.Env = append(os.Environ(),
 		fmt.Sprintf("%s=%d", pluginsdk.EnvPort, port),
 	)
-	cmd.Stdout = os.Stderr
+
+	// Capture stdout in a buffer for backward-compatible port detection.
+	// Older plugins may print their port to stdout instead of binding to --port.
+	// We tee to stderr so existing log forwarding still works.
+	var stdoutBuf bytes.Buffer
+	cmd.Stdout = io.MultiWriter(os.Stderr, &stdoutBuf)
 
 	// In analyzer mode, suppress plugin stderr to prevent verbose logs from cluttering Pulumi preview output
 	// This addresses issue #401 where plugin JSON messages appear in user-facing output
@@ -412,9 +514,9 @@ func (p *ProcessLauncher) startPlugin(
 	cmd.WaitDelay = processWaitDelay
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("starting plugin: %w", err)
+		return nil, nil, fmt.Errorf("starting plugin: %w", err)
 	}
-	return cmd, nil
+	return cmd, &stdoutBuf, nil
 }
 
 func (p *ProcessLauncher) connectToPlugin(

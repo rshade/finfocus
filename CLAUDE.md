@@ -1022,7 +1022,8 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
-- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.5 (protocol):
+
+- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol):
   - zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)
   - Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)
 - Local JSON file (`~/.finfocus/dismissed.json`) for dismissal state; plugin-side storage delegated to plugins (508-recommendation-dismissal)
@@ -1032,4 +1033,4 @@ CodeRabbit now:
 
 ## Recent Changes
 
-- 223-cost-estimate: Added Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.5 (protocol), Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling)
+- 509-pulumi-auto-detect: Updated finfocus-spec v0.5.5 → v0.5.6 (pagination support for actual costs), metadata-aware registry binary selection, SKU/region injection in actual cost requests

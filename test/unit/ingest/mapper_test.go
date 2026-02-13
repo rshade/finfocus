@@ -390,3 +390,89 @@ func TestMapResource_VerifyEngineDescriptorType(t *testing.T) {
 	// Verify it's the correct type
 	assert.IsType(t, engine.ResourceDescriptor{}, descriptor)
 }
+
+// TestMapResource_OutputsMergedWithInputs tests that Outputs are merged as base with Inputs overlay.
+func TestMapResource_OutputsMergedWithInputs(t *testing.T) {
+	resource := ingest.PulumiResource{
+		URN:      "urn:pulumi:dev::app::aws:ebs/volume:Volume::data",
+		Type:     "aws:ebs/volume:Volume",
+		Provider: "aws",
+		Inputs: map[string]interface{}{
+			"availabilityZone": "us-east-1a",
+			"snapshotId":       "snap-012345",
+		},
+		Outputs: map[string]interface{}{
+			"size": float64(100),
+			"iops": float64(3000),
+			"arn":  "arn:aws:ec2:us-east-1:123:volume/vol-abc",
+		},
+	}
+
+	descriptor, err := ingest.MapResource(resource)
+
+	require.NoError(t, err)
+	// Inputs preserved
+	assert.Equal(t, "us-east-1a", descriptor.Properties["availabilityZone"])
+	assert.Equal(t, "snap-012345", descriptor.Properties["snapshotId"])
+	// Outputs merged in
+	assert.Equal(t, float64(100), descriptor.Properties["size"])
+	assert.Equal(t, float64(3000), descriptor.Properties["iops"])
+	assert.Equal(t, "arn:aws:ec2:us-east-1:123:volume/vol-abc", descriptor.Properties["arn"])
+}
+
+// TestMapResource_InputsOverrideOutputs tests that Inputs win on conflict with Outputs.
+func TestMapResource_InputsOverrideOutputs(t *testing.T) {
+	resource := ingest.PulumiResource{
+		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::resize",
+		Type:     "aws:ec2/instance:Instance",
+		Provider: "aws",
+		Inputs: map[string]interface{}{
+			"instanceType": "t3.large",
+		},
+		Outputs: map[string]interface{}{
+			"instanceType": "t3.micro",
+			"publicIp":     "54.1.2.3",
+		},
+	}
+
+	descriptor, err := ingest.MapResource(resource)
+
+	require.NoError(t, err)
+	// Input value wins
+	assert.Equal(t, "t3.large", descriptor.Properties["instanceType"])
+	// Output-only value still present
+	assert.Equal(t, "54.1.2.3", descriptor.Properties["publicIp"])
+}
+
+// TestMapResources_WithOutputs tests that MapResources handles Outputs on multiple resources.
+func TestMapResources_WithOutputs(t *testing.T) {
+	resources := []ingest.PulumiResource{
+		{
+			URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			Inputs:   map[string]interface{}{"instanceType": "t3.micro"},
+			Outputs:  map[string]interface{}{"publicIp": "10.0.0.1"},
+		},
+		{
+			URN:      "urn:pulumi:dev::app::aws:ebs/volume:Volume::data",
+			Type:     "aws:ebs/volume:Volume",
+			Provider: "aws",
+			Inputs:   map[string]interface{}{"availabilityZone": "us-east-1a"},
+			Outputs:  map[string]interface{}{"size": float64(50)},
+		},
+	}
+
+	descriptors, err := ingest.MapResources(resources)
+
+	require.NoError(t, err)
+	require.Len(t, descriptors, 2)
+
+	// First resource: input + output merged
+	assert.Equal(t, "t3.micro", descriptors[0].Properties["instanceType"])
+	assert.Equal(t, "10.0.0.1", descriptors[0].Properties["publicIp"])
+
+	// Second resource: input + output merged
+	assert.Equal(t, "us-east-1a", descriptors[1].Properties["availabilityZone"])
+	assert.Equal(t, float64(50), descriptors[1].Properties["size"])
+}

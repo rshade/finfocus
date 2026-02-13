@@ -143,6 +143,72 @@ finfocus cost actual --pulumi-json plan.json --from 2024-01-01 --to 2024-01-31
 
 ---
 
+## Automatic Pulumi Integration
+
+When you run `finfocus cost projected` or `finfocus cost actual` inside a Pulumi
+project directory, FinFocus automatically detects the project and runs the appropriate
+Pulumi CLI command. No flags required.
+
+### Simplified Workflow
+
+```bash
+# Just cd into your Pulumi project and run
+cd my-pulumi-project/
+finfocus cost projected
+
+# For actual costs
+finfocus cost actual
+```
+
+This replaces the manual two-step workflow:
+
+```bash
+# Old workflow (still supported)
+pulumi preview --json > plan.json
+finfocus cost projected --pulumi-json plan.json
+```
+
+### How Auto-Detection Works
+
+1. FinFocus looks for `Pulumi.yaml` or `Pulumi.yml` in the current directory and
+   parent directories
+2. It verifies the `pulumi` CLI is available in your PATH
+3. It determines the active stack (or uses `--stack` if provided)
+4. For projected costs: runs `pulumi preview --json`
+5. For actual costs: runs `pulumi stack export` and auto-detects the date range from
+   resource timestamps
+
+### Stack Selection
+
+Use `--stack` to target a specific stack without changing your active stack:
+
+```bash
+finfocus cost projected --stack production
+finfocus cost actual --stack staging
+```
+
+### Precedence Rules
+
+- Explicit file flags always take priority: `--pulumi-json` or `--pulumi-state`
+- When no file flag is provided, auto-detection is attempted
+- `--stack` only applies during auto-detection (ignored with file flags)
+
+### Requirements
+
+- The `pulumi` CLI must be installed and available in PATH
+- You must be inside a Pulumi project directory (or a subdirectory)
+- Environment variables for your cloud provider and Pulumi backend must be configured
+
+### Auto-Detection Errors
+
+If auto-detection fails, you'll see actionable error messages:
+
+- **"pulumi CLI not found"**: Install from <https://www.pulumi.com/docs/install/>
+- **"no Pulumi project found"**: Run from a directory containing `Pulumi.yaml`
+- **"no active Pulumi stack"**: Use `--stack` to specify one, or run `pulumi stack select`
+
+---
+
 ## Zero-Click Cost Estimation (Analyzer)
 
 FinFocus can integrate directly with the Pulumi CLI as an Analyzer, providing instant

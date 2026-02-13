@@ -49,22 +49,28 @@ type costProjectedParams struct {
 
 // NewCostProjectedCmd creates the "projected" subcommand that calculates estimated costs from a Pulumi preview JSON.
 //
-// The returned command registers these flags: --pulumi-json (required), --spec-dir, --adapter, --output, --filter (can be provided multiple times), and --utilization.
+// The returned command registers these flags: --pulumi-json (optional), --spec-dir, --adapter, --output, --filter (can be provided multiple times), and --utilization.
+// When --pulumi-json is omitted, the command auto-detects a Pulumi project in the current directory and runs pulumi preview --json.
 // When executed the command collects the flag values and calls executeCostProjected with the assembled parameters.
 func NewCostProjectedCmd() *cobra.Command {
 	var params costProjectedParams
 
 	cmd := &cobra.Command{
-		Use:     "projected",
-		Short:   "Calculate projected costs from a Pulumi plan",
-		Long:    "Calculate projected costs by analyzing a Pulumi preview JSON output",
+		Use:   "projected",
+		Short: "Calculate projected costs from a Pulumi plan",
+		Long: `Calculate projected costs by analyzing a Pulumi preview JSON output.
+
+When --pulumi-json is omitted, finfocus automatically detects the Pulumi project
+in the current directory and runs 'pulumi preview --json' to generate the input.
+Use --stack to target a specific stack during auto-detection.`,
 		Example: costProjectedExample,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return executeCostProjected(cmd, params)
 		},
 	}
 
-	cmd.Flags().StringVar(&params.planPath, "pulumi-json", "", "Path to Pulumi preview JSON output (required)")
+	cmd.Flags().StringVar(&params.planPath, "pulumi-json", "",
+		"Path to Pulumi preview JSON output (optional; auto-detected from Pulumi project if omitted)")
 	cmd.Flags().StringVar(&params.specDir, "spec-dir", "", "Directory containing pricing spec files")
 	cmd.Flags().StringVar(&params.adapter, "adapter", "", "Use only the specified adapter plugin")
 	cmd.Flags().StringVar(
@@ -73,12 +79,17 @@ func NewCostProjectedCmd() *cobra.Command {
 		"Resource filter expressions (e.g., 'type=aws:ec2/instance')")
 	cmd.Flags().Float64Var(
 		&params.utilization, "utilization", 1.0, "Utilization rate for sustainability calculations (0.0 to 1.0)")
-	_ = cmd.MarkFlagRequired("pulumi-json")
 
 	return cmd
 }
 
-const costProjectedExample = `  # Basic usage
+const costProjectedExample = `  # Auto-detect from Pulumi project
+  finfocus cost projected
+
+  # Specific stack
+  finfocus cost projected --stack production
+
+  # Explicit file (existing behavior)
   finfocus cost projected --pulumi-json plan.json
 
   # Filter resources by type
@@ -125,7 +136,15 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	audit := newAuditContext(ctx, "cost projected", auditParams)
 
-	resources, err := loadAndMapResources(ctx, params.planPath, audit)
+	var resources []engine.ResourceDescriptor
+	var err error
+
+	if params.planPath != "" {
+		resources, err = loadAndMapResources(ctx, params.planPath, audit)
+	} else {
+		stackFlag, _ := cmd.Flags().GetString("stack")
+		resources, err = resolveResourcesFromPulumi(ctx, stackFlag, "preview")
+	}
 	if err != nil {
 		return err
 	}

@@ -37,22 +37,20 @@ chmod +x finfocus
 finfocus --version
 ```
 
-## Step 2: Export Pulumi Plan (1 minute)
+## Step 2: Run FinFocus (1 minute)
+
+The simplest way: just run FinFocus inside your Pulumi project directory.
+It auto-detects the project and runs `pulumi preview --json` for you:
 
 ```bash
-# Go to your Pulumi project
 cd your-pulumi-project
-
-# Or use the example project
-cd /path/to/finfocus/examples
-
-# Export plan to JSON
-pulumi preview --json > plan.json
+finfocus cost projected
 ```
 
-## Step 3: Run FinFocus (1 minute)
+Alternatively, you can provide the plan file explicitly:
 
 ```bash
+pulumi preview --json > plan.json
 finfocus cost projected --pulumi-json plan.json
 ```
 

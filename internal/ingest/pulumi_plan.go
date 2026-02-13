@@ -36,6 +36,7 @@ type PulumiState struct {
 	Type     string                 `json:"type"`
 	URN      string                 `json:"urn"`
 	Inputs   map[string]interface{} `json:"inputs"`
+	Outputs  map[string]interface{} `json:"outputs"`
 	Provider string                 `json:"provider"`
 }
 
@@ -45,6 +46,41 @@ type PulumiResource struct {
 	URN      string
 	Provider string
 	Inputs   map[string]interface{}
+	Outputs  map[string]interface{}
+}
+
+// ParsePulumiPlan parses Pulumi plan JSON from bytes.
+func ParsePulumiPlan(data []byte) (*PulumiPlan, error) {
+	return ParsePulumiPlanWithContext(context.Background(), data)
+}
+
+// ParsePulumiPlanWithContext parses Pulumi plan JSON from bytes with logging context.
+func ParsePulumiPlanWithContext(ctx context.Context, data []byte) (*PulumiPlan, error) {
+	log := logging.FromContext(ctx)
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "ingest").
+		Str("operation", "parse_plan").
+		Int("data_size_bytes", len(data)).
+		Msg("parsing Pulumi plan from bytes")
+
+	var plan PulumiPlan
+	if err := json.Unmarshal(data, &plan); err != nil {
+		log.Error().
+			Ctx(ctx).
+			Str("component", "ingest").
+			Err(err).
+			Msg("failed to parse plan JSON")
+		return nil, fmt.Errorf("parsing plan JSON: %w", err)
+	}
+
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "ingest").
+		Int("step_count", len(plan.Steps)).
+		Msg("plan parsed successfully")
+
+	return &plan, nil
 }
 
 // LoadPulumiPlan loads and parses a Pulumi plan JSON file from the specified path.
@@ -79,24 +115,7 @@ func LoadPulumiPlanWithContext(ctx context.Context, path string) (*PulumiPlan, e
 		Int("file_size_bytes", len(data)).
 		Msg("plan file read successfully")
 
-	var plan PulumiPlan
-	if unmarshalErr := json.Unmarshal(data, &plan); unmarshalErr != nil {
-		log.Error().
-			Ctx(ctx).
-			Str("component", "ingest").
-			Err(unmarshalErr).
-			Str("plan_path", path).
-			Msg("failed to parse plan JSON")
-		return nil, fmt.Errorf("parsing plan JSON: %w", unmarshalErr)
-	}
-
-	log.Debug().
-		Ctx(ctx).
-		Str("component", "ingest").
-		Int("step_count", len(plan.Steps)).
-		Msg("plan parsed successfully")
-
-	return &plan, nil
+	return ParsePulumiPlanWithContext(ctx, data)
 }
 
 // GetResources extracts all resources from the Pulumi plan steps.
@@ -135,6 +154,7 @@ func (p *PulumiPlan) GetResourcesWithContext(ctx context.Context) []PulumiResour
 				URN:      step.URN,
 				Provider: extractProviderFromURN(step.URN),
 				Inputs:   inputs,
+				Outputs:  resolveStepOutputs(step),
 			})
 			log.Debug().
 				Ctx(ctx).
@@ -158,6 +178,22 @@ func (p *PulumiPlan) GetResourcesWithContext(ctx context.Context) []PulumiResour
 		Msg("resource extraction complete")
 
 	return resources
+}
+
+// resolveStepOutputs picks the best available Outputs for a step.
+// Priority: step-level > newState > oldState (update/same only).
+func resolveStepOutputs(step PulumiStep) map[string]interface{} {
+	switch {
+	case len(step.Outputs) > 0:
+		return step.Outputs
+	case step.NewState != nil && len(step.NewState.Outputs) > 0:
+		return step.NewState.Outputs
+	case (step.Op == "update" || step.Op == "same") &&
+		step.OldState != nil && len(step.OldState.Outputs) > 0:
+		return step.OldState.Outputs
+	default:
+		return nil
+	}
 }
 
 func extractTypeFromURN(urn string) string {
