@@ -199,6 +199,33 @@ func buildAltIDIndex(
 	return altMap
 }
 
+// detectPulumiProject locates the Pulumi binary, discovers the project directory,
+// and resolves the stack name. If stack is empty, the current stack is auto-detected.
+func detectPulumiProject(ctx context.Context, stack string) (string, string, error) {
+	log := logging.FromContext(ctx)
+
+	if _, binErr := pulumidetect.FindBinary(); binErr != nil {
+		return "", "", fmt.Errorf("find pulumi binary: %w", binErr)
+	}
+
+	projectDir, err := pulumidetect.FindProject(".")
+	if err != nil {
+		return "", "", fmt.Errorf("find pulumi project: %w", err)
+	}
+	log.Debug().Ctx(ctx).Str("project_dir", projectDir).Msg("detected Pulumi project")
+
+	if stack == "" {
+		detected, stackErr := pulumidetect.GetCurrentStack(ctx, projectDir)
+		if stackErr != nil {
+			return "", "", fmt.Errorf("detect current stack in %s: %w", projectDir, stackErr)
+		}
+		stack = detected
+	}
+	log.Debug().Ctx(ctx).Str("stack", stack).Msg("using Pulumi stack")
+
+	return projectDir, stack, nil
+}
+
 // pulumiMode represents the Pulumi CLI operation to execute.
 type pulumiMode string
 
@@ -225,29 +252,11 @@ func resolveResourcesFromPulumi(
 ) ([]engine.ResourceDescriptor, error) {
 	log := logging.FromContext(ctx)
 
-	// Step 1: Find the Pulumi binary
-	if _, err := pulumidetect.FindBinary(); err != nil {
-		return nil, fmt.Errorf("find pulumi binary: %w", err)
-	}
-
-	// Step 2: Find the Pulumi project
-	projectDir, err := pulumidetect.FindProject(".")
+	projectDir, resolvedStack, err := detectPulumiProject(ctx, stack)
 	if err != nil {
-		return nil, fmt.Errorf("find pulumi project: %w", err)
+		return nil, err
 	}
-	log.Debug().Ctx(ctx).Str("project_dir", projectDir).Msg("detected Pulumi project")
 
-	// Step 3: Resolve stack
-	if stack == "" {
-		detected, stackErr := pulumidetect.GetCurrentStack(ctx, projectDir)
-		if stackErr != nil {
-			return nil, fmt.Errorf("detect current stack in %s: %w", projectDir, stackErr)
-		}
-		stack = detected
-	}
-	log.Debug().Ctx(ctx).Str("stack", stack).Msg("using Pulumi stack")
-
-	// Step 4: Execute the appropriate Pulumi CLI command
 	switch mode {
 	case modePulumiPreview:
 		log.Info().Ctx(ctx).Str("component", "pulumi").
@@ -255,7 +264,7 @@ func resolveResourcesFromPulumi(
 
 		data, previewErr := pulumidetect.Preview(ctx, pulumidetect.PreviewOptions{
 			ProjectDir: projectDir,
-			Stack:      stack,
+			Stack:      resolvedStack,
 		})
 		if previewErr != nil {
 			return nil, fmt.Errorf("running pulumi preview: %w", previewErr)
@@ -274,7 +283,7 @@ func resolveResourcesFromPulumi(
 
 		data, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
 			ProjectDir: projectDir,
-			Stack:      stack,
+			Stack:      resolvedStack,
 		})
 		if exportErr != nil {
 			return nil, fmt.Errorf("running pulumi stack export: %w", exportErr)

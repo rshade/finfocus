@@ -144,6 +144,36 @@ func TestEnrichOverviewRow_NoPlugins(t *testing.T) {
 	assert.Empty(t, row.Recommendations, "Recommendations should be empty with no plugins")
 }
 
+func TestEnrichOverviewRow_PropertiesPassedToEngine(t *testing.T) {
+	ctx := context.Background()
+	eng := New(nil, nil)
+
+	now := time.Now()
+	dateRange := DateRange{
+		Start: now.Add(-24 * time.Hour),
+		End:   now,
+	}
+
+	props := map[string]interface{}{
+		"instanceType":     "t3.micro",
+		"availabilityZone": "us-east-1a",
+	}
+
+	row := OverviewRow{
+		URN:        "urn:pulumi:prod::app::aws:ec2:Instance::web",
+		Type:       "aws:ec2:Instance",
+		Status:     StatusActive,
+		Properties: props,
+	}
+
+	EnrichOverviewRow(ctx, &row, eng, dateRange)
+
+	// Properties should still be present on the row after enrichment
+	assert.Equal(t, props, row.Properties)
+	assert.Equal(t, "t3.micro", row.Properties["instanceType"])
+	assert.Equal(t, "us-east-1a", row.Properties["availabilityZone"])
+}
+
 func TestEnrichOverviewRow_CreatingStatus_SkipsActualCost(t *testing.T) {
 	ctx := context.Background()
 	eng := New(nil, nil)

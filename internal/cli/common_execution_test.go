@@ -3,12 +3,14 @@ package cli
 import (
 	"context"
 	"errors"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine"
+	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 )
 
 // mockRecommendationFetcher implements recommendationFetcher for testing.
@@ -296,6 +298,81 @@ func TestFetchAndMergeRecommendations(t *testing.T) {
 				assert.Nil(t, tt.results[idx].Recommendations,
 					"result[%d].Recommendations should be nil", idx)
 			}
+		})
+	}
+}
+
+func TestDetectPulumiProject_NoBinary(t *testing.T) {
+	// When the Pulumi binary is not on PATH, detectPulumiProject should fail
+	// with a "find pulumi binary" error.
+	t.Setenv("PATH", t.TempDir()) // empty PATH — no pulumi binary
+
+	_, _, err := detectPulumiProject(context.Background(), "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "find pulumi binary")
+}
+
+func TestDetectPulumiProject_NoProject(t *testing.T) {
+	// Skip if no pulumi binary on real PATH (CI without pulumi installed).
+	if _, err := pulumidetect.FindBinary(); err != nil {
+		t.Skip("pulumi binary not available")
+	}
+
+	// Run from a temp dir with no Pulumi.yaml so project detection fails.
+	origDir, dirErr := os.Getwd()
+	require.NoError(t, dirErr)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	_, _, err := detectPulumiProject(context.Background(), "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "find pulumi project")
+}
+
+func TestExtractCurrencyFromResults(t *testing.T) {
+	tests := []struct {
+		name         string
+		results      []engine.CostResult
+		wantCurrency string
+		wantMixed    bool
+	}{
+		{
+			name:         "no results defaults to USD",
+			results:      nil,
+			wantCurrency: "USD",
+		},
+		{
+			name: "single currency",
+			results: []engine.CostResult{
+				{Currency: "EUR"},
+				{Currency: "EUR"},
+			},
+			wantCurrency: "EUR",
+		},
+		{
+			name: "mixed currencies",
+			results: []engine.CostResult{
+				{Currency: "USD"},
+				{Currency: "EUR"},
+			},
+			wantCurrency: "USD",
+			wantMixed:    true,
+		},
+		{
+			name: "empty currency defaults to USD",
+			results: []engine.CostResult{
+				{Currency: ""},
+			},
+			wantCurrency: "USD",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			currency, mixed := extractCurrencyFromResults(tt.results)
+			assert.Equal(t, tt.wantCurrency, currency)
+			assert.Equal(t, tt.wantMixed, mixed)
 		})
 	}
 }

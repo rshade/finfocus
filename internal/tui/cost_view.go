@@ -160,11 +160,11 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 // NewResultTable creates and configures a new table model for cost results.
 func NewResultTable(results []engine.CostResult, height int) table.Model {
 	columns := []table.Column{
-		{Title: "Resource", Width: 40}, //nolint:mnd // Column width.
-		{Title: "Type", Width: 30},     //nolint:mnd // Column width.
-		{Title: "Provider", Width: 10}, //nolint:mnd // Column width.
-		{Title: "Cost", Width: 15},     //nolint:mnd // Column width.
-		{Title: "Delta", Width: 15},    //nolint:mnd // Column width.
+		{Title: "Resource", Width: 40},        //nolint:mnd // Column width.
+		{Title: "Type", Width: 30},            //nolint:mnd // Column width.
+		{Title: "Provider", Width: 10},        //nolint:mnd // Column width.
+		{Title: "Cost", Width: 15},            //nolint:mnd // Column width.
+		{Title: "Delta", Width: 15},           //nolint:mnd // Column width.
 		{Title: "Recommendations", Width: 15}, //nolint:mnd // Column width.
 	}
 
@@ -204,10 +204,10 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 // NewActualCostTable creates a table for actual cost results (using TotalCost).
 func NewActualCostTable(results []engine.CostResult, height int) table.Model {
 	columns := []table.Column{
-		{Title: "Resource", Width: 40},   //nolint:mnd // Column width.
-		{Title: "Type", Width: 30},       //nolint:mnd // Column width.
-		{Title: "Provider", Width: 10},   //nolint:mnd // Column width.
-		{Title: "Total Cost", Width: 15}, //nolint:mnd // Column width.
+		{Title: "Resource", Width: 40},        //nolint:mnd // Column width.
+		{Title: "Type", Width: 30},            //nolint:mnd // Column width.
+		{Title: "Provider", Width: 10},        //nolint:mnd // Column width.
+		{Title: "Total Cost", Width: 15},      //nolint:mnd // Column width.
 		{Title: "Recommendations", Width: 15}, //nolint:mnd // Column width.
 	}
 

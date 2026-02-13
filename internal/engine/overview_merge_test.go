@@ -262,6 +262,48 @@ func TestMergeResourcesForOverview_ResourceIDPopulated(t *testing.T) {
 	assert.Equal(t, "i-abc123", rows[0].ResourceID)
 }
 
+func TestMergeResourcesForOverview_PropertiesPreserved(t *testing.T) {
+	ctx := context.Background()
+
+	props := map[string]interface{}{
+		"instanceType":     "t3.micro",
+		"availabilityZone": "us-east-1a",
+	}
+
+	rows, err := MergeResourcesForOverview(ctx,
+		[]StateResource{
+			{
+				URN:        "urn:a",
+				Type:       "aws:ec2:Instance",
+				ID:         "i-abc123",
+				Custom:     true,
+				Properties: props,
+			},
+		},
+		nil,
+	)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, props, rows[0].Properties)
+}
+
+func TestMergeResourcesForOverview_NilPropertiesOK(t *testing.T) {
+	ctx := context.Background()
+
+	rows, err := MergeResourcesForOverview(ctx,
+		[]StateResource{
+			{URN: "urn:a", Type: "aws:ec2:Instance", ID: "i-123", Custom: true},
+		},
+		[]PlanStep{
+			{URN: "urn:b", Op: "create", Type: "aws:s3:Bucket"},
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, rows, 2)
+	assert.Nil(t, rows[0].Properties, "state resource without properties should have nil")
+	assert.Nil(t, rows[1].Properties, "plan-only resource should have nil properties")
+}
+
 // ---------------------------------------------------------------------------
 // DetectPendingChanges
 // ---------------------------------------------------------------------------
