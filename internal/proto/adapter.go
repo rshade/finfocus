@@ -14,6 +14,7 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk/mapping"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/awsutil"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/skus"
 )
@@ -38,12 +39,6 @@ const (
 	// Must stay in sync with ingest.PropertyPulumiCloudID / PropertyPulumiARN.
 	propCloudID = "pulumi:cloudId"
 	propARN     = "pulumi:arn"
-
-	// arnMinSegments is the minimum number of colon-separated segments in a valid AWS ARN
-	// (arn:partition:service:region:account:resource).
-	arnMinSegments = 6
-	// arnRegionIndex is the index of the region segment in a split ARN.
-	arnRegionIndex = 3
 )
 
 // ErrorDetail captures information about a failed resource cost calculation.
@@ -784,13 +779,7 @@ func resolveSKUAndRegion(provider, resourceType string, properties map[string]st
 // Returns empty string if the ARN is empty, malformed, or the region segment is empty
 // does not contain the expected number of segments, an empty string is returned.
 func regionFromARN(arn string) string {
-	// arn:aws:ec2:us-east-1:123456789012:instance/i-0abc
-	// 0   1   2   3        4             5
-	parts := strings.SplitN(arn, ":", arnMinSegments)
-	if len(parts) < arnMinSegments {
-		return ""
-	}
-	return parts[arnRegionIndex] // region segment
+	return awsutil.RegionFromARN(arn)
 }
 
 // resolveActualCostIdentifiers extracts cloud-specific resource ID, ARN, and tags

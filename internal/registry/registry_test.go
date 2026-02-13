@@ -340,7 +340,7 @@ func TestFindBinary(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			dir := tt.setupDir(t)
 			reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
-			binPath := reg.findBinary(dir)
+			binPath := reg.findBinary(dir, nil)
 			verifyBinaryResult(t, binPath, tt.wantExists)
 		})
 	}
@@ -386,7 +386,7 @@ func TestFindBinary_Legacy(t *testing.T) {
 		require.NoError(t, os.WriteFile(binPath, []byte("binary"), 0755))
 
 		reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
-		found := reg.findBinary(pluginDir)
+		found := reg.findBinary(pluginDir, nil)
 		assert.Equal(t, binPath, found)
 	})
 
@@ -406,7 +406,7 @@ func TestFindBinary_Legacy(t *testing.T) {
 		require.NoError(t, os.WriteFile(newBin, []byte("new"), 0755))
 
 		reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
-		found := reg.findBinary(pluginDir)
+		found := reg.findBinary(pluginDir, nil)
 		assert.Equal(t, newBin, found)
 	})
 }
@@ -433,7 +433,9 @@ func TestFindBinary_MetadataRegion(t *testing.T) {
 		}))
 
 		reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
-		found := reg.findBinary(pluginDir)
+		meta, err := ReadPluginMetadata(pluginDir)
+		require.NoError(t, err)
+		found := reg.findBinary(pluginDir, meta)
 		assert.Equal(t, westBin, found, "should select us-west-2 binary based on metadata")
 	})
 
@@ -452,7 +454,7 @@ func TestFindBinary_MetadataRegion(t *testing.T) {
 		require.NoError(t, os.WriteFile(regionBin, []byte("regional"), 0755))
 
 		reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
-		found := reg.findBinary(pluginDir)
+		found := reg.findBinary(pluginDir, nil)
 		assert.Equal(t, standardBin, found, "without metadata, should use standard pattern")
 	})
 
@@ -473,7 +475,9 @@ func TestFindBinary_MetadataRegion(t *testing.T) {
 		}))
 
 		reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
-		found := reg.findBinary(pluginDir)
+		meta, err := ReadPluginMetadata(pluginDir)
+		require.NoError(t, err)
+		found := reg.findBinary(pluginDir, meta)
 		assert.Equal(t, standardBin, found, "should fall back to standard when metadata region binary missing")
 	})
 }

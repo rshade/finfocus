@@ -93,6 +93,12 @@ func TestParseRegionFromBinaryName(t *testing.T) {
 			wantRegion: "",
 			wantOk:     false,
 		},
+		{
+			name:       "region-like false positive",
+			binaryPath: "plugin-us-east-12",
+			wantRegion: "",
+			wantOk:     false,
+		},
 	}
 
 	for _, tt := range tests {

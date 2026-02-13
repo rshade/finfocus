@@ -3,6 +3,7 @@ package ingest_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/rshade/finfocus/internal/engine"
@@ -304,7 +305,7 @@ func TestResourceTypeMappingIntegration(t *testing.T) {
 				// Validate that URN is preserved as ID
 				expectedURNSubstring := expected.ExpectedProvider + ":" +
 					extractResourceServiceType(expected.OriginalType)
-				if !containsString(descriptor.ID, expectedURNSubstring) {
+				if !strings.Contains(descriptor.ID, expectedURNSubstring) {
 					t.Errorf("resource %d: ID should contain %s, got %s",
 						i, expectedURNSubstring, descriptor.ID)
 				}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/rshade/finfocus/internal/awsutil"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
@@ -61,14 +62,12 @@ func normalizeToRegion(zone string) string {
 
 	// AWS AZ format: region + single letter suffix (e.g., us-west-2a)
 	// Check if last char is a lowercase letter and removing it yields a valid-looking region
-	if len(zone) > 0 {
-		lastChar := zone[len(zone)-1]
-		if lastChar >= 'a' && lastChar <= 'z' {
-			candidate := zone[:len(zone)-1]
-			// Check if it looks like a region (ends with a digit)
-			if len(candidate) > 0 && candidate[len(candidate)-1] >= '0' && candidate[len(candidate)-1] <= '9' {
-				return candidate
-			}
+	lastChar := zone[len(zone)-1]
+	if lastChar >= 'a' && lastChar <= 'z' {
+		candidate := zone[:len(zone)-1]
+		// Check if it looks like a region (ends with a digit)
+		if len(candidate) > 0 && candidate[len(candidate)-1] >= '0' && candidate[len(candidate)-1] <= '9' {
+			return candidate
 		}
 	}
 	return zone
@@ -82,12 +81,8 @@ func extractRegionFromARN(arn string) string {
 	if !strings.HasPrefix(arn, "arn:") {
 		return ""
 	}
-	parts := strings.SplitN(arn, ":", 6) //nolint:mnd // ARN has 6 colon-separated parts
-	if len(parts) < 4 {                  //nolint:mnd // need at least 4 parts for region
-		return ""
-	}
-	region := parts[3]
-	if region == "" || region == "*" {
+	region := awsutil.RegionFromARN(arn)
+	if region == "*" {
 		return ""
 	}
 	return region

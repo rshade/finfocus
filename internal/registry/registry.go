@@ -63,9 +63,16 @@ func (r *Registry) ListPlugins() ([]PluginInfo, error) {
 			}
 
 			versionPath := filepath.Join(pluginPath, version.Name())
-			binPath := r.findBinary(versionPath)
+			// Read metadata once and pass to findBinary to avoid duplicate reads.
+			meta, _ := ReadPluginMetadata(versionPath)
+			binPath := r.findBinary(versionPath, meta)
 			if binPath != "" {
-				meta := resolvePluginMetadata(versionPath, binPath)
+				// Enrich metadata with region from binary name if not already set.
+				if meta == nil {
+					if region, ok := ParseRegionFromBinaryName(binPath); ok {
+						meta = map[string]string{"region": region}
+					}
+				}
 				plugins = append(plugins, PluginInfo{
 					Name:     entry.Name(),
 					Version:  version.Name(),
@@ -176,7 +183,7 @@ func buildPluginPatterns(pluginName string) []string {
 	return patterns
 }
 
-func (r *Registry) findBinary(dir string) string {
+func (r *Registry) findBinary(dir string, meta map[string]string) string {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return ""
@@ -187,12 +194,10 @@ func (r *Registry) findBinary(dir string) string {
 	// If metadata specifies a region, try region-specific binary first.
 	// This ensures that "plugin install aws-public --metadata=region=us-west-2"
 	// selects the us-west-2 binary instead of the first one alphabetically.
-	if meta, metaErr := ReadPluginMetadata(dir); metaErr == nil {
-		if region := meta["region"]; region != "" {
-			regionPattern := "finfocus-plugin-" + pluginName + "-" + region
-			if path := findByPattern(dir, regionPattern); path != "" {
-				return path
-			}
+	if region := meta["region"]; region != "" {
+		regionBinPattern := "finfocus-plugin-" + pluginName + "-" + region
+		if path := findByPattern(dir, regionBinPattern); path != "" {
+			return path
 		}
 	}
 

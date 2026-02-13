@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
+	"regexp"
 )
 
 const (
@@ -24,6 +24,9 @@ const (
 // It returns an error if the metadata cannot be marshaled to JSON or if the
 // file cannot be written.
 func WritePluginMetadata(dir string, metadata map[string]string) error {
+	if metadata == nil {
+		metadata = map[string]string{}
+	}
 	data, marshalErr := json.MarshalIndent(metadata, "", "  ")
 	if marshalErr != nil {
 		return fmt.Errorf("marshaling metadata: %w", marshalErr)
@@ -39,11 +42,6 @@ func WritePluginMetadata(dir string, metadata map[string]string) error {
 var ErrMetadataNotFound = errors.New("metadata file not found")
 
 // ReadPluginMetadata reads plugin.metadata.json from the given directory.
-// ReadPluginMetadata reads the plugin.metadata.json file located in dir and parses it into a map[string]string.
-// dir is the directory containing the metadata file.
-// If the metadata file does not exist, ErrMetadataNotFound is returned.
-// If the file cannot be read or the JSON cannot be parsed, an error describing the failure is returned.
-// On success the parsed metadata map and a nil error are returned.
 func ReadPluginMetadata(dir string) (map[string]string, error) {
 	path := filepath.Join(dir, pluginMetadataFile)
 	data, err := os.ReadFile(path)
@@ -61,31 +59,19 @@ func ReadPluginMetadata(dir string) (map[string]string, error) {
 	return metadata, nil
 }
 
+// regionPattern matches cloud provider region strings at the end of a filename.
+// Covers AWS, Azure, GCP region naming conventions such as us-east-1, eu-west-3,
+// ap-southeast-2, etc.
+var regionPattern = regexp.MustCompile(`(?:us|eu|ap|sa|ca|me|af|il|mx)-[a-z]+-\d$`)
+
 // ParseRegionFromBinaryName extracts a region string from a binary filename.
-// It looks for common AWS region patterns like "us-east-1", "eu-west-1", etc.
-// ParseRegionFromBinaryName returns the AWS region found in the base filename of binaryPath.
-// It examines the filename (not the full path) for known AWS region substrings and returns
-// the matched region and true if one is found.
-// The first return is the region string (e.g. "us-west-2"); the second is true when a region
-// was detected, or an empty string and false otherwise.
+// It looks for common cloud region patterns like "us-east-1", "eu-west-1", etc.
+// Returns the region and true if found, or empty string and false otherwise.
 func ParseRegionFromBinaryName(binaryPath string) (string, bool) {
 	name := filepath.Base(binaryPath)
-	// Look for region patterns in the filename
-	// AWS regions: us-east-1, us-west-2, eu-west-1, ap-southeast-1, etc.
-	regionParts := []string{
-		"us-east-1", "us-east-2", "us-west-1", "us-west-2",
-		"eu-west-1", "eu-west-2", "eu-west-3", "eu-central-1", "eu-north-1",
-		"ap-southeast-1", "ap-southeast-2", "ap-northeast-1", "ap-northeast-2", "ap-northeast-3",
-		"ap-south-1", "ap-east-1",
-		"sa-east-1",
-		"ca-central-1",
-		"me-south-1",
-		"af-south-1",
+	region := regionPattern.FindString(name)
+	if region == "" {
+		return "", false
 	}
-	for _, region := range regionParts {
-		if strings.Contains(name, region) {
-			return region, true
-		}
-	}
-	return "", false
+	return region, true
 }

@@ -62,6 +62,25 @@ type portListener struct {
 	port     int
 }
 
+// lockedBuffer wraps bytes.Buffer with a mutex for concurrent read/write safety.
+type lockedBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (lb *lockedBuffer) Write(p []byte) (int, error) {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+	return lb.buf.Write(p)
+}
+
+// Snapshot returns a copy of the current buffer contents.
+func (lb *lockedBuffer) Snapshot() []byte {
+	lb.mu.Lock()
+	defer lb.mu.Unlock()
+	return append([]byte{}, lb.buf.Bytes()...)
+}
+
 // ProcessLauncher launches plugins as separate TCP server processes.
 type ProcessLauncher struct {
 	timeout       time.Duration
@@ -336,7 +355,7 @@ func (p *ProcessLauncher) waitForPluginBind(ctx context.Context, port int) error
 func (p *ProcessLauncher) waitForPluginBindWithFallback(
 	ctx context.Context,
 	assignedPort int,
-	stdoutBuf *bytes.Buffer,
+	stdoutBuf *lockedBuffer,
 	pluginPath string,
 ) (int, error) {
 	log := logging.FromContext(ctx)
@@ -350,7 +369,7 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 	}
 
 	// Short timeout elapsed — check if plugin wrote a port to stdout
-	if stdoutPort, ok := parsePortFromStdout(stdoutBuf); ok && stdoutPort != assignedPort {
+	if stdoutPort, ok := parsePortFromStdout(stdoutBuf.Snapshot()); ok && stdoutPort != assignedPort {
 		log.Warn().
 			Ctx(ctx).
 			Str("component", "pluginhost").
@@ -397,18 +416,15 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 	return assignedPort, nil
 }
 
-// parsePortFromStdout scans the captured stdout buffer for a port number.
+// parsePortFromStdout scans the captured stdout data for a port number.
 // It recognizes bare port numbers or PORT=NNNNN lines (case-insensitive).
-// parsePortFromStdout scans the provided buffer for a plugin port announcement and returns the parsed
-// port and true if a valid port is found, or 0 and false otherwise. It recognizes either a case-
-// insensitive "PORT=NNNN" key-value line or a bare numeric port on a line, and validates the port
-// is in the range 1–65535. If buf is nil or empty no port is returned.
-func parsePortFromStdout(buf *bytes.Buffer) (int, bool) {
-	if buf == nil || buf.Len() == 0 {
+// Returns the parsed port and true if found, or 0 and false otherwise.
+func parsePortFromStdout(data []byte) (int, bool) {
+	if len(data) == 0 {
 		return 0, false
 	}
 
-	scanner := bufio.NewScanner(bytes.NewReader(buf.Bytes()))
+	scanner := bufio.NewScanner(bytes.NewReader(data))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
@@ -417,8 +433,7 @@ func parsePortFromStdout(buf *bytes.Buffer) (int, bool) {
 
 		// Try "PORT=NNNNN" format (case-insensitive)
 		if strings.HasPrefix(strings.ToUpper(line), "PORT=") {
-			portStr := strings.TrimPrefix(strings.ToUpper(line), "PORT=")
-			// Use the original casing for the number part
+			var portStr string
 			if idx := strings.Index(line, "="); idx >= 0 {
 				portStr = strings.TrimSpace(line[idx+1:])
 			}
@@ -436,19 +451,7 @@ func parsePortFromStdout(buf *bytes.Buffer) (int, bool) {
 	return 0, false
 }
 
-// isPortCollisionError checks if an error is related to port collision.
-// It uses string pattern matching to handle port collision errors across
-// isPortCollisionError reports whether the provided error indicates a port/address
-// collision when attempting to bind a network address.
-//
-// It returns true if err contains common platform-independent phrases that
-// indicate the address or port is already in use; returns false for nil or
-// unrelated errors. The check uses string matching to remain portable across
 // isPortCollisionError reports whether err indicates a port or address collision.
-// It returns true if err is non-nil and its error message contains common
-// platform strings used for port-binding conflicts such as
-// "address already in use", "bind: address already in use", "port is already allocated",
-// or "failed to bind to port". If err is nil it returns false.
 func isPortCollisionError(err error) bool {
 	if err == nil {
 		return false
@@ -469,7 +472,7 @@ func (p *ProcessLauncher) startPlugin(
 	path string,
 	port int,
 	args []string,
-) (*exec.Cmd, *bytes.Buffer, error) {
+) (*exec.Cmd, *lockedBuffer, error) {
 	log := logging.FromContext(ctx)
 
 	// FR-008: Log DEBUG message when PORT is detected in user's environment
@@ -498,7 +501,7 @@ func (p *ProcessLauncher) startPlugin(
 	// Capture stdout in a buffer for backward-compatible port detection.
 	// Older plugins may print their port to stdout instead of binding to --port.
 	// We tee to stderr so existing log forwarding still works.
-	var stdoutBuf bytes.Buffer
+	var stdoutBuf lockedBuffer
 	cmd.Stdout = io.MultiWriter(os.Stderr, &stdoutBuf)
 
 	// In analyzer mode, suppress plugin stderr to prevent verbose logs from cluttering Pulumi preview output

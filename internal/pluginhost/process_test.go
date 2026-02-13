@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProcessLauncher_AllocatePort(t *testing.T) {
@@ -989,19 +991,13 @@ func TestParsePortFromStdout(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf *bytes.Buffer
-			if tt.nilBuf {
-				buf = nil
-			} else {
-				buf = bytes.NewBufferString(tt.input)
+			var data []byte
+			if !tt.nilBuf {
+				data = []byte(tt.input)
 			}
-			port, ok := parsePortFromStdout(buf)
-			if ok != tt.wantOk {
-				t.Errorf("parsePortFromStdout() ok = %v, want %v", ok, tt.wantOk)
-			}
-			if port != tt.wantPort {
-				t.Errorf("parsePortFromStdout() port = %d, want %d", port, tt.wantPort)
-			}
+			port, ok := parsePortFromStdout(data)
+			assert.Equal(t, tt.wantOk, ok)
+			assert.Equal(t, tt.wantPort, port)
 		})
 	}
 }
@@ -1012,23 +1008,18 @@ func TestWaitForPluginBindWithFallback_DirectBind(t *testing.T) {
 
 	// Start a TCP listener to simulate a plugin that binds correctly
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("failed to create listener: %v", err)
-	}
+	require.NoError(t, err)
 	defer listener.Close()
 
 	port := listener.Addr().(*net.TCPAddr).Port
 
-	ctx := context.Background()
-	buf := bytes.NewBufferString("")
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	buf := &lockedBuffer{}
 
 	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, port, buf, "/fake/plugin")
-	if err != nil {
-		t.Fatalf("waitForPluginBindWithFallback() error: %v", err)
-	}
-	if gotPort != port {
-		t.Errorf("expected port %d, got %d", port, gotPort)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, port, gotPort)
 }
 
 func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
@@ -1037,23 +1028,22 @@ func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
 
 	// Start a listener on a different port to simulate plugin stdout port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("failed to create listener: %v", err)
-	}
+	require.NoError(t, err)
 	defer listener.Close()
 	stdoutPort := listener.Addr().(*net.TCPAddr).Port
 
-	// Use a port that nothing is listening on (assigned port)
-	assignedPort := 1 // port 1 should not have anything bound
+	// Get an unbound port by opening and immediately closing a listener.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	unboundPort := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
 
-	ctx := context.Background()
-	buf := bytes.NewBufferString(fmt.Sprintf("%d\n", stdoutPort))
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	buf := &lockedBuffer{}
+	_, _ = buf.Write([]byte(fmt.Sprintf("%d\n", stdoutPort)))
 
-	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, assignedPort, buf, "/fake/plugin")
-	if err != nil {
-		t.Fatalf("waitForPluginBindWithFallback() error: %v", err)
-	}
-	if gotPort != stdoutPort {
-		t.Errorf("expected stdout port %d, got %d", stdoutPort, gotPort)
-	}
+	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, unboundPort, buf, "/fake/plugin")
+	require.NoError(t, err)
+	assert.Equal(t, stdoutPort, gotPort)
 }

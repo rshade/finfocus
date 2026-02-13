@@ -596,56 +596,71 @@ func TestMapStateResource_CloudIdentifiers(t *testing.T) {
 
 // --- ParseStackExport tests (T013) ---
 
-func TestParseStackExport_ValidJSON(t *testing.T) {
+func TestParseStackExport(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
-	data := []byte(stateWithTimestamps)
-	state, err := ingest.ParseStackExport(data)
-	require.NoError(t, err)
-	require.NotNil(t, state)
-	assert.Equal(t, 3, state.Version)
-	assert.Len(t, state.Deployment.Resources, 3)
-	assert.True(t, state.HasTimestamps())
-}
+	tests := []struct {
+		name          string
+		data          []byte
+		wantErr       bool
+		errContains   string
+		wantVersion   int
+		wantResources int
+		wantTimestamp bool
+	}{
+		{
+			name:          "valid JSON with timestamps",
+			data:          []byte(stateWithTimestamps),
+			wantVersion:   3,
+			wantResources: 3,
+			wantTimestamp: true,
+		},
+		{
+			name:        "invalid JSON",
+			data:        []byte(`{invalid json`),
+			wantErr:     true,
+			errContains: "parsing state JSON",
+		},
+		{
+			name:        "empty bytes",
+			data:        []byte(""),
+			wantErr:     true,
+			errContains: "parsing state JSON",
+		},
+		{
+			name:          "empty state",
+			data:          []byte(`{"version": 3, "deployment": {"manifest": {}, "resources": []}}`),
+			wantVersion:   3,
+			wantResources: 0,
+			wantTimestamp: false,
+		},
+		{
+			name:          "without timestamps",
+			data:          []byte(stateWithoutTimestamps),
+			wantResources: 1,
+			wantTimestamp: false,
+		},
+	}
 
-func TestParseStackExport_InvalidJSON(t *testing.T) {
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-
-	data := []byte(`{invalid json`)
-	_, err := ingest.ParseStackExport(data)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "parsing state JSON")
-}
-
-func TestParseStackExport_EmptyBytes(t *testing.T) {
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-
-	_, err := ingest.ParseStackExport([]byte(""))
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "parsing state JSON")
-}
-
-func TestParseStackExport_EmptyState(t *testing.T) {
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-
-	data := []byte(`{"version": 3, "deployment": {"manifest": {}, "resources": []}}`)
-	state, err := ingest.ParseStackExport(data)
-	require.NoError(t, err)
-	require.NotNil(t, state)
-	assert.Equal(t, 3, state.Version)
-	assert.Len(t, state.Deployment.Resources, 0)
-	assert.False(t, state.HasTimestamps())
-}
-
-func TestParseStackExport_WithoutTimestamps(t *testing.T) {
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-
-	data := []byte(stateWithoutTimestamps)
-	state, err := ingest.ParseStackExport(data)
-	require.NoError(t, err)
-	require.NotNil(t, state)
-	assert.False(t, state.HasTimestamps())
-	assert.Len(t, state.Deployment.Resources, 1)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state, err := ingest.ParseStackExport(tt.data)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, state)
+			if tt.wantVersion != 0 {
+				assert.Equal(t, tt.wantVersion, state.Version)
+			}
+			assert.Len(t, state.Deployment.Resources, tt.wantResources)
+			assert.Equal(t, tt.wantTimestamp, state.HasTimestamps())
+		})
+	}
 }
 
 func TestParseStackExportWithContext(t *testing.T) {
@@ -659,34 +674,29 @@ func TestParseStackExportWithContext(t *testing.T) {
 	assert.Equal(t, 3, state.Version)
 }
 
-// Regression: Verify LoadStackExport still works after refactor to delegate to ParseStackExport.
-func TestLoadStackExport_RegressionAfterRefactor(t *testing.T) {
+// TestLoadStackExport_DelegationEquivalence verifies that LoadStackExport and
+// ParseStackExport produce identical results for each fixture file.
+func TestLoadStackExport_DelegationEquivalence(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
-	tests := []struct {
-		name        string
-		content     string
-		expectError bool
-	}{
-		{name: "valid state", content: stateWithTimestamps, expectError: false},
-		{name: "valid state without timestamps", content: stateWithoutTimestamps, expectError: false},
-		{name: "invalid JSON", content: `{broken`, expectError: true},
+	fixtures := []string{
+		"../../test/fixtures/state/valid-state.json",
+		"../../test/fixtures/state/no-timestamps.json",
+		"../../test/fixtures/state/imported-resources.json",
+		"../../test/fixtures/state/multi-provider.json",
+		"../../test/fixtures/state/golden-eks-state.json",
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			statePath := filepath.Join(tmpDir, "state.json")
-			err := os.WriteFile(statePath, []byte(tt.content), 0o600)
+	for _, fixture := range fixtures {
+		t.Run(filepath.Base(fixture), func(t *testing.T) {
+			data, err := os.ReadFile(fixture)
 			require.NoError(t, err)
 
-			state, err := ingest.LoadStackExport(statePath)
-			if tt.expectError {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			require.NotNil(t, state)
+			parsedState, parseErr := ingest.ParseStackExport(data)
+			loadedState, loadErr := ingest.LoadStackExport(fixture)
+
+			assert.Equal(t, parseErr, loadErr)
+			assert.Equal(t, parsedState, loadedState)
 		})
 	}
 }

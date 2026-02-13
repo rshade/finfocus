@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 func TestExtractResourceRegion(t *testing.T) {
@@ -168,25 +170,30 @@ func TestRegionMatches(t *testing.T) {
 func TestPluginRegion(t *testing.T) {
 	tests := []struct {
 		name   string
-		client *mockClientForRegion
+		client *pluginhost.Client
 		want   string
 	}{
 		{name: "nil client", client: nil, want: ""},
-		{name: "with region", client: &mockClientForRegion{region: "us-west-2"}, want: "us-west-2"},
-		{name: "no region", client: &mockClientForRegion{region: ""}, want: ""},
+		{name: "nil metadata", client: &pluginhost.Client{}, want: ""},
+		{name: "nil metadata map", client: &pluginhost.Client{
+			Metadata: &proto.PluginMetadata{},
+		}, want: ""},
+		{name: "with region", client: &pluginhost.Client{
+			Metadata: &proto.PluginMetadata{
+				Metadata: map[string]string{"region": "us-west-2"},
+			},
+		}, want: "us-west-2"},
+		{name: "no region key", client: &pluginhost.Client{
+			Metadata: &proto.PluginMetadata{
+				Metadata: map[string]string{"other": "value"},
+			},
+		}, want: ""},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// PluginRegion expects a *pluginhost.Client, test via RegionMatches instead
-			// since we can't easily mock pluginhost.Client internals in a unit test
-			if tt.client != nil {
-				assert.Equal(t, tt.want, tt.client.region)
-			}
+			got := PluginRegion(tt.client)
+			assert.Equal(t, tt.want, got)
 		})
 	}
-}
-
-type mockClientForRegion struct {
-	region string
 }
