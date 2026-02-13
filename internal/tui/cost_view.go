@@ -27,15 +27,16 @@ const (
 
 // ResourceRow represents a single row in the interactive resource table.
 type ResourceRow struct {
-	ResourceName string // Truncated to 40 chars.
-	ResourceType string // e.g., "aws:ec2:Instance".
-	Provider     string // e.g., "aws".
-	Monthly      float64
-	TotalCost    float64 // For actual costs.
-	Delta        float64
-	Currency     string
-	HasError     bool
-	ErrorMsg     string
+	ResourceName        string // Truncated to 40 chars.
+	ResourceType        string // e.g., "aws:ec2:Instance".
+	Provider            string // e.g., "aws".
+	Monthly             float64
+	TotalCost           float64 // For actual costs.
+	Delta               float64
+	Currency            string
+	HasError            bool
+	ErrorMsg            string
+	RecommendationCount int // Number of recommendations for this resource.
 }
 
 // NewResourceRow converts an engine.CostResult into a display-ready ResourceRow.
@@ -47,15 +48,16 @@ func NewResourceRow(result engine.CostResult) ResourceRow {
 	provider := extractProvider(result.ResourceType)
 
 	return ResourceRow{
-		ResourceName: name,
-		ResourceType: result.ResourceType,
-		Provider:     provider,
-		Monthly:      result.Monthly,
-		TotalCost:    result.TotalCost,
-		Delta:        result.Delta,
-		Currency:     result.Currency,
-		HasError:     strings.HasPrefix(result.Notes, "ERROR:"),
-		ErrorMsg:     result.Notes,
+		ResourceName:        name,
+		ResourceType:        result.ResourceType,
+		Provider:            provider,
+		Monthly:             result.Monthly,
+		TotalCost:           result.TotalCost,
+		Delta:               result.Delta,
+		Currency:            result.Currency,
+		HasError:            strings.HasPrefix(result.Notes, "ERROR:"),
+		ErrorMsg:            result.Notes,
+		RecommendationCount: len(result.Recommendations),
 	}
 }
 
@@ -163,6 +165,7 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 		{Title: "Provider", Width: 10}, //nolint:mnd // Column width.
 		{Title: "Cost", Width: 15},     //nolint:mnd // Column width.
 		{Title: "Delta", Width: 15},    //nolint:mnd // Column width.
+		{Title: "Recommendations", Width: 15}, //nolint:mnd // Column width.
 	}
 
 	rows := make([]table.Row, len(results))
@@ -171,6 +174,7 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 
 		costStr := fmt.Sprintf("$%.2f", row.Monthly)
 		deltaStr := RenderDelta(row.Delta)
+		recsStr := formatRecsColumn(row.RecommendationCount)
 
 		rows[i] = table.Row{
 			row.ResourceName,
@@ -178,6 +182,7 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 			row.Provider,
 			costStr,
 			deltaStr,
+			recsStr,
 		}
 	}
 
@@ -203,18 +208,21 @@ func NewActualCostTable(results []engine.CostResult, height int) table.Model {
 		{Title: "Type", Width: 30},       //nolint:mnd // Column width.
 		{Title: "Provider", Width: 10},   //nolint:mnd // Column width.
 		{Title: "Total Cost", Width: 15}, //nolint:mnd // Column width.
+		{Title: "Recommendations", Width: 15}, //nolint:mnd // Column width.
 	}
 
 	rows := make([]table.Row, len(results))
 	for i, r := range results {
 		row := NewResourceRow(r)
 		costStr := fmt.Sprintf("$%.2f", row.TotalCost)
+		recsStr := formatRecsColumn(row.RecommendationCount)
 
 		rows[i] = table.Row{
 			row.ResourceName,
 			row.ResourceType,
 			row.Provider,
 			costStr,
+			recsStr,
 		}
 	}
 
@@ -449,6 +457,15 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 		}
 	}
 	content.WriteString("\n")
+}
+
+// formatRecsColumn returns the recommendation count as a string for TUI table display.
+// Returns "-" when the count is zero so the column stays visually clean.
+func formatRecsColumn(count int) string {
+	if count == 0 {
+		return "-"
+	}
+	return strconv.Itoa(count)
 }
 
 // aggregateCarbonFromResults extracts and sums carbon_footprint metrics from all results.

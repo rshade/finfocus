@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -390,8 +391,8 @@ func renderCarbonEquivalencies(ctx context.Context, w io.Writer, sustainTotals m
 func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
 	fmt.Fprintf(w, "RESOURCE DETAILS\n")
 	fmt.Fprintf(w, "================\n")
-	fmt.Fprintln(w, "Resource\tAdapter\tMonthly\tHourly\tCurrency\tNotes")
-	fmt.Fprintln(w, "--------\t-------\t-------\t------\t--------\t-----")
+	fmt.Fprintln(w, "Resource\tAdapter\tMonthly\tHourly\tCurrency\tRecommendations\tNotes")
+	fmt.Fprintln(w, "--------\t-------\t-------\t------\t--------\t---------------\t-----")
 
 	for _, result := range aggregated.Resources {
 		resource := fmt.Sprintf("%s/%s", result.ResourceType, result.ResourceID)
@@ -400,16 +401,27 @@ func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
 		}
 
 		notes := formatResourceNotes(result)
+		recs := formatRecommendationCount(len(result.Recommendations))
 
-		fmt.Fprintf(w, "%s\t%s\t%.2f\t%.4f\t%s\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%.2f\t%.4f\t%s\t%s\t%s\n",
 			resource,
 			result.Adapter,
 			result.Monthly,
 			result.Hourly,
 			result.Currency,
+			recs,
 			notes,
 		)
 	}
+}
+
+// formatRecommendationCount returns the recommendation count as a string for table display.
+// Returns "-" when the count is zero so the column stays visually clean.
+func formatRecommendationCount(count int) string {
+	if count == 0 {
+		return "-"
+	}
+	return strconv.Itoa(count)
 }
 
 // otherwise the notes consist solely of the sustainability list.
@@ -505,8 +517,8 @@ func buildActualCostHeaderColumns(hasActualCosts bool, showConfidence bool) ([]s
 		separators = append(separators, "----------")
 	}
 
-	headers = append(headers, "Currency", "Notes")
-	separators = append(separators, "--------", "-----")
+	headers = append(headers, "Currency", "Recommendations", "Notes")
+	separators = append(separators, "--------", "---------------", "-----")
 
 	return headers, separators
 }
@@ -567,7 +579,8 @@ func buildActualCostRowColumns(
 		columns = append(columns, result.Confidence.DisplayLabel())
 	}
 
-	columns = append(columns, result.Currency, notes)
+	recs := formatRecommendationCount(len(result.Recommendations))
+	columns = append(columns, result.Currency, recs, notes)
 	return columns
 }
 
