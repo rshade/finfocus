@@ -72,7 +72,7 @@ var Runner CommandRunner = &execRunner{} //nolint:gochecknoglobals // Required f
 func FindBinary() (string, error) {
 	path, err := exec.LookPath("pulumi")
 	if err != nil {
-		return "", ErrPulumiNotFound
+		return "", NotFoundError()
 	}
 	return path, nil
 }
@@ -165,11 +165,11 @@ type pulumiCmdConfig struct {
 // runPulumiCommand executes a Pulumi CLI operation using the provided configuration,
 // honoring the configured timeout, emitting structured logs, and mapping CLI stderr to
 // a wrapped error when the command fails.
-// 
+//
 // The command is executed in cfg.projectDir with additional args from cfg.args and
 // an optional --stack flag when cfg.stack is set. If cfg.timeout is zero the
 // cfg.defaultTimeout is used instead. On success the command stdout is returned.
-// 
+//
 // Errors returned include:
 //   - context.DeadlineExceeded when the operation exceeds the resolved timeout (wrapped
 //     in a formatted error that names the operation and timeout duration),
@@ -186,7 +186,7 @@ func runPulumiCommand(ctx context.Context, cfg pulumiCmdConfig) ([]byte, error) 
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
-	args := cfg.args
+	args := append([]string{}, cfg.args...)
 	if cfg.stack != "" {
 		args = append(args, "--stack", cfg.stack)
 	}
@@ -243,7 +243,7 @@ func Preview(ctx context.Context, opts PreviewOptions) ([]byte, error) {
 // StackExport runs `pulumi stack export` for the project at opts.ProjectDir and the stack specified by
 // opts.Stack, and returns the exported stack state as raw JSON bytes. If opts.Timeout is non-zero it
 // overrides the default export timeout.
-// 
+//
 // The function returns the command's stdout (the exported JSON) on success, or an error if the Pulumi
 // command fails, is cancelled, or exceeds the configured timeout.
 func StackExport(ctx context.Context, opts ExportOptions) ([]byte, error) {

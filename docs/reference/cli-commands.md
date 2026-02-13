@@ -280,7 +280,7 @@ finfocus cost actual [options]
 | ----------------------- | --------------------------------------------------------------------------- | ------- |
 | `--pulumi-json`         | Path to Pulumi preview JSON (mutually exclusive with --pulumi-state)        |         |
 | `--pulumi-state`        | Path to Pulumi state JSON from `pulumi stack export`                        |         |
-| `--stack`               | Pulumi stack name for auto-detection (ignored with --pulumi-json/--state)   |         |
+| `--stack`               | Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state) |         |
 | `--from`                | Start date (YYYY-MM-DD or RFC3339; auto-detected from state if omitted)     |         |
 | `--to`                  | End date (YYYY-MM-DD or RFC3339)                                            | Now     |
 | `--filter`              | Filter resources (tag:key=value, type=\*)                                   | None    |

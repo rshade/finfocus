@@ -87,7 +87,7 @@ func (c *CostResultWithErrors) ErrorSummary() string {
 }
 
 // GetProjectedCostWithErrors queries projected costs for each resource and aggregates successful results
-//     - Errors: a slice of ErrorDetail with per-resource failure information and timestamps.
+//   - Errors: a slice of ErrorDetail with per-resource failure information and timestamps.
 func GetProjectedCostWithErrors(
 	ctx context.Context,
 	client CostSourceClient,
@@ -295,24 +295,25 @@ func appendActualCostResults(result *CostResultWithErrors, actualResults []*Actu
 // GetActualCostWithErrors retrieves actual cost data for each resource ID in req
 // GetActualCostWithErrors computes actual cost data for each resource in req and returns both
 // successful CostResult entries and per-resource ErrorDetail records.
-// 
+//
 // GetActualCostWithErrors validates the request, then for each ResourceID it resolves cloud
 // identifiers and tags (including optional SKU and region enrichment when Provider is set),
 // validates the plugin-facing request, and invokes the client's GetActualCost. For each
 // resource it appends either the plugin's cost results or a placeholder CostResult and records
 // any per-resource validation or plugin errors in the returned ErrorDetail slice.
-// 
+//
 // Parameters:
 //   - ctx: request context for cancellation and timeouts.
 //   - client: the CostSourceClient used to call plugin GetActualCost.
 //   - pluginName: human-readable name of the plugin (used in ErrorDetail entries).
 //   - req: parameters for the actual cost query; must include ResourceIDs and time range.
-// 
+//
 // Returns:
-//   A *CostResultWithErrors containing Results for each resource (actual or placeholder)
-//   and any per-resource ErrorDetail entries. If the request is invalid (for example,
-//   Properties are provided with multiple ResourceIDs) the returned CostResultWithErrors
-//   will contain the validation error and no per-resource processing will be performed.
+//
+//	A *CostResultWithErrors containing Results for each resource (actual or placeholder)
+//	and any per-resource ErrorDetail entries. If the request is invalid (for example,
+//	Properties are provided with multiple ResourceIDs) the returned CostResultWithErrors
+//	will contain the validation error and no per-resource processing will be performed.
 func GetActualCostWithErrors(
 	ctx context.Context,
 	client CostSourceClient,
@@ -893,10 +894,10 @@ func toStringMap(m map[string]interface{}) map[string]string {
 // region under the key "region".
 //
 // Parameters:
-//  - tags: map to receive injected "sku" and "region" entries (mutated in place).
-//  - provider: cloud provider identifier used for SKU/region resolution.
-//  - resourceType: resource type token (e.g., Pulumi type) used as additional context for resolution.
-//  - properties: resource properties used to derive SKU and region; non-string values may be converted.
+//   - tags: map to receive injected "sku" and "region" entries (mutated in place).
+//   - provider: cloud provider identifier used for SKU/region resolution.
+//   - resourceType: resource type token (e.g., Pulumi type) used as additional context for resolution.
+//   - properties: resource properties used to derive SKU and region; non-string values may be converted.
 func enrichTagsWithSKUAndRegion(
 	tags map[string]string,
 	provider, resourceType string,

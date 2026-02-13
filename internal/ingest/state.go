@@ -71,7 +71,7 @@ func ParseStackExport(data []byte) (*StackExport, error) {
 }
 
 // ParseStackExportWithContext parses Pulumi state JSON from data using ctx for logging.
-// 
+//
 // The ctx is used to obtain a logger for diagnostic messages. The data parameter is the
 // raw JSON bytes representing a Pulumi stack export; the function unmarshals those bytes
 // into a StackExport value. On success it returns a pointer to the parsed StackExport.

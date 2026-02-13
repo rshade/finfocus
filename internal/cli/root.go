@@ -162,6 +162,8 @@ type CostFlags struct {
 // configuration when exit-on-threshold is enabled.
 //
 // Returns a configured command that contains the projected, actual, recommendations, and estimate cost subcommands.
+//
+//nolint:gocognit // CLI command setup with flag validation naturally has high branching.
 func newCostCmd() *cobra.Command {
 	var flags CostFlags
 

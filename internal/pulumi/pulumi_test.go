@@ -30,7 +30,10 @@ func (m *mockRunner) Run(_ context.Context, dir string, name string, args ...str
 	return m.stdout, m.stderr, m.err
 }
 
-// withMockRunner replaces the package Runner with a mock and restores it on cleanup.
+// withMockRunner replaces the package-level Runner with a mock and restores it
+// on cleanup. WARNING: This helper swaps a global variable without synchronization
+// and must NOT be used from tests that call t.Parallel(). For parallel-safe testing,
+// prefer dependency injection (pass a Runner into the code under test).
 func withMockRunner(t *testing.T, m *mockRunner) {
 	t.Helper()
 	orig := Runner
@@ -110,8 +113,10 @@ func TestFindProject_NotFound(t *testing.T) {
 
 func TestErrPulumiNotFound_ContainsInstallURL(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	assert.Contains(t, ErrPulumiNotFound.Error(), pulumiInstallURL)
-	assert.Contains(t, ErrPulumiNotFound.Error(), "--pulumi-json")
+	err := NotFoundError()
+	assert.ErrorIs(t, err, ErrPulumiNotFound)
+	assert.Contains(t, err.Error(), pulumiInstallURL)
+	assert.Contains(t, err.Error(), "--pulumi-json")
 }
 
 // --- T034: Error message quality for ErrNoProject ---

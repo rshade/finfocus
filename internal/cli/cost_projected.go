@@ -170,6 +170,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	if params.planPath != "" {
 		resources, err = loadAndMapResources(ctx, params.planPath, audit)
 	} else {
+		auditParams["pulumi_json"] = "auto-detect"
 		stackFlag, _ := cmd.Flags().GetString("stack")
 		resources, err = resolveResourcesFromPulumi(ctx, stackFlag, "preview")
 	}

@@ -203,13 +203,14 @@ func handleInstallError(
 //	--plugin-dir         Custom plugin directory (default: ~/.finfocus/plugins)
 //	--clean              Remove other versions after successful install
 //	--fallback-to-latest Automatically install latest stable version if requested version lacks assets
+//
 // NewPluginInstallCmd creates the "install" CLI command that installs a plugin from either the registry or a direct URL.
-// 
+//
 // The returned *cobra.Command parses a single plugin specifier argument and supports options to control installation
 // behavior, including reinstallation, saving to config, cleanup of other versions, custom plugin directory, and
 // controlling fallback behavior when platform-specific assets are missing. It also accepts repeatable metadata
 // key=value pairs that are passed through to the installer.
-// 
+//
 // Notable flags:
 //   - --force, -f: reinstall even if the requested version already exists.
 //   - --no-save: do not add the plugin to the user's config file.
@@ -250,7 +251,10 @@ func NewPluginInstallCmd() *cobra.Command {
 			displaySecurityWarning(cmd, spec)
 
 			// Parse --metadata flags into map
-			metadataMap := parseMetadataFlags(metadata)
+			metadataMap, metadataWarnings := parseMetadataFlags(metadata)
+			for _, w := range metadataWarnings {
+				cmd.Printf("Warning: %s\n", w)
+			}
 
 			// Create installer and install
 			installer := registry.NewInstaller(pluginDir)
@@ -459,23 +463,26 @@ func handleFallback(
 }
 
 // parseMetadataFlags converts --metadata flag values ("key=value") into a map.
-// parseMetadataFlags converts a slice of "key=value" strings into a map of keys to values.
-// Entries that do not contain an '=' are skipped. Leading and trailing whitespace is
-// trimmed from both keys and values. If the input contains no valid pairs, the function
-// returns nil. When a key appears multiple times, the last occurrence wins.
-func parseMetadataFlags(flags []string) map[string]string {
+// Entries that do not contain an '=' are collected as warnings. Leading and
+// trailing whitespace is trimmed from both keys and values. If the input
+// contains no valid pairs, the function returns nil and any accumulated
+// warnings. When a key appears multiple times, the last occurrence wins.
+func parseMetadataFlags(flags []string) (map[string]string, []string) {
 	if len(flags) == 0 {
-		return nil
+		return nil, nil
 	}
 	m := make(map[string]string, len(flags))
+	var warnings []string
 	for _, flag := range flags {
 		parts := strings.SplitN(flag, "=", 2) //nolint:mnd // split into key=value
-		if len(parts) == 2 {                  //nolint:mnd // expect key and value
-			m[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		if len(parts) != 2 {                  //nolint:mnd // expect key and value
+			warnings = append(warnings, fmt.Sprintf("ignored metadata entry %q: missing '='", flag))
+			continue
 		}
+		m[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 	}
 	if len(m) == 0 {
-		return nil
+		return nil, warnings
 	}
-	return m
+	return m, warnings
 }

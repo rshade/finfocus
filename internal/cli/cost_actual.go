@@ -203,12 +203,12 @@ timestamp if not provided.`,
 // executeCostActual runs the "actual" cost workflow: it validates CLI flags, loads and filters
 // resources, resolves the date range, opens adapter plugins, requests actual cost data from the
 // engine, renders the output, evaluates budget status (when applicable), and records audit events.
-// 
+//
 // Parameters:
-//  - cmd: the Cobra command providing context and CLI flag state.
-//  - params: the parsed costActualParams carrying paths, date strings, grouping, filters, adapter and
-//    output options, and flags such as estimate confidence and fallback-estimate.
-// 
+//   - cmd: the Cobra command providing context and CLI flag state.
+//   - params: the parsed costActualParams carrying paths, date strings, grouping, filters, adapter and
+//     output options, and flags such as estimate confidence and fallback-estimate.
+//
 // Returns an error if validation fails, resources cannot be loaded or filtered, the date range
 // cannot be parsed or resolved, plugins cannot be opened, the engine fails to fetch costs, the
 // output rendering fails, or any other non-recoverable step in the workflow encounters an error.
@@ -423,12 +423,12 @@ func parseTagFilter(groupBy string) (map[string]string, string) {
 // If actualGroupBy indicates a time-based grouping, it first creates a cross-provider aggregation
 // and renders that aggregation; otherwise it renders the raw results. The estimateConfidence flag
 // controls whether confidence values are included in non-aggregated output.
- // Parameters:
-//  - writer: destination for rendered output.
-//  - outputFormat: format to render results in (table, json, ndjson, etc.).
-//  - results: slice of cost results to render or aggregate.
-//  - actualGroupBy: grouping spec; time-based values trigger cross-provider aggregation.
-//  - estimateConfidence: include confidence levels in the rendered output when applicable.
+// Parameters:
+//   - writer: destination for rendered output.
+//   - outputFormat: format to render results in (table, json, ndjson, etc.).
+//   - results: slice of cost results to render or aggregate.
+//   - actualGroupBy: grouping spec; time-based values trigger cross-provider aggregation.
+//   - estimateConfidence: include confidence levels in the rendered output when applicable.
 //
 // Returns an error if aggregation or rendering fails.
 func renderActualCostOutput(
@@ -553,7 +553,7 @@ func buildActualAuditParams(params costActualParams) map[string]string {
 // loadActualResources loads resource descriptors from one of three sources:
 // a Pulumi state file, a Pulumi preview plan, or by auto-detecting from the
 // current Pulumi project when neither path is provided.
-// 
+//
 // The selection is driven by params: if params.statePath is set the state file
 // is used; if params.planPath is set the plan is used; otherwise the function
 // attempts auto-detection and uses the `stack` flag from cmd for project

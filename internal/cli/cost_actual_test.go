@@ -393,8 +393,11 @@ func TestCostActualCmdWithEstimateConfidenceFlag(t *testing.T) {
 	}
 }
 
-// TestCostActualWithoutInputFlags verifies that validation allows neither
-// --pulumi-json nor --pulumi-state (auto-detection attempted) (T023).
+// TestCostActualWithoutInputFlags is intentionally duplicated from the
+// "no flags triggers auto-detection (T023)" case in TestNewCostActualCmd.
+// This standalone test provides emphasis and standalone coverage for the
+// critical auto-detection path without requiring reviewers to scan the
+// full table-driven test.
 func TestCostActualWithoutInputFlags(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 

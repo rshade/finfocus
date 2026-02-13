@@ -15,9 +15,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 )
 
 func TestProcessLauncher_AllocatePort(t *testing.T) {

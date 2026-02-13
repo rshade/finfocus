@@ -902,8 +902,6 @@ func (e *Engine) GetActualCostWithOptions(
 
 // GetActualCostWithOptionsAndErrors retrieves actual costs with comprehensive error tracking.
 // It returns results for all resources (with placeholders for failures) and aggregated error details.
-//
-//nolint:gocognit // Concurrency orchestration + result collation naturally exceeds the cognitive complexity threshold.
 func (e *Engine) GetActualCostWithOptionsAndErrors(
 	ctx context.Context,
 	request ActualCostRequest,
@@ -944,12 +942,7 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 			}
 
 			resourceResult, errors := e.getActualCostForResource(ctx, resource, request)
-			if resourceResult.ResourceType == "" {
-				// No cost data and fallback not enabled — skip this resource
-				resultsChan <- workerResult{index: j.index, result: nil, errors: errors}
-			} else {
-				resultsChan <- workerResult{index: j.index, result: &resourceResult, errors: errors}
-			}
+			resultsChan <- workerResult{index: j.index, result: resourceResult, errors: errors}
 		}
 	}
 
@@ -1008,7 +1001,7 @@ func (e *Engine) getActualCostForResource(
 	ctx context.Context,
 	resource ResourceDescriptor,
 	request ActualCostRequest,
-) (CostResult, []ErrorDetail) {
+) (*CostResult, []ErrorDetail) {
 	var errors []ErrorDetail
 	var resourceResult *CostResult
 	log := logging.FromContext(ctx)
@@ -1103,15 +1096,15 @@ func (e *Engine) getActualCostForResource(
 					Str("resource_id", resource.ID).
 					Float64("estimated_cost", stateResult.TotalCost).
 					Msg("plugin returned $0 actual cost, using state-based estimation")
-				return *stateResult, errors
+				return stateResult, errors
 			}
 		}
-		return *resourceResult, errors
+		return resourceResult, errors
 	}
 
 	// Try state-based cost estimation as fallback
 	if stateResult := e.tryStateBasedEstimation(ctx, resource, request); stateResult != nil {
-		return *stateResult, errors
+		return stateResult, errors
 	}
 
 	// Without --fallback-estimate, warn and skip resources with no cost data.
@@ -1122,7 +1115,7 @@ func (e *Engine) getActualCostForResource(
 			Str("resource_type", resource.Type).
 			Str("resource_id", resource.ID).
 			Msg("no actual cost data available (use --fallback-estimate to include $0 placeholders)")
-		return CostResult{}, errors
+		return nil, errors
 	}
 
 	// Create placeholder result (gated behind --fallback-estimate)
@@ -1131,7 +1124,7 @@ func (e *Engine) getActualCostForResource(
 		notes = "ERROR: plugin call failed"
 	}
 
-	return CostResult{
+	return &CostResult{
 		ResourceType: resource.Type,
 		ResourceID:   resource.ID,
 		Adapter:      "none",

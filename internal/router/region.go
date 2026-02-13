@@ -103,6 +103,7 @@ func PluginRegion(client *pluginhost.Client) string {
 // Returns true if:
 //   - Plugin has no region (universal plugin, matches all)
 //   - Resource has no region (can't filter)
+//
 // RegionMatches reports whether the plugin region matches the resource region.
 // If either region is empty it is treated as a wildcard and the function returns true.
 // Otherwise the comparison is performed case-insensitively; the function returns

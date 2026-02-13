@@ -11,16 +11,12 @@ const (
 	pulumiTypeMinParts = 2
 )
 
-// awsWellKnownSKUs returns the well-known SKU map for AWS resource types.
-// Keys use the module/resource pattern extracted from full Pulumi types
-// awsWellKnownSKUs returns a map from Pulumi module/resource strings to well-known AWS SKU identifiers.
-// The keys use the module/resource pattern extracted from Pulumi type tokens (for example, "aws:eks/cluster:Cluster" -> "eks/cluster").
-// Values are canonical SKU names used to identify metered AWS resources (for example, "cluster" or "addon").
-func awsWellKnownSKUs() map[string]string {
-	return map[string]string{
-		"eks/cluster": "cluster", // EKS control plane ($0.10/hr)
-		"eks/addon":   "addon",   // EKS addon (most free, some paid like CoreDNS)
-	}
+// awsWellKnownSKUMap maps Pulumi module/resource strings to canonical SKU names.
+//
+//nolint:gochecknoglobals // Package-level lookup table, initialized once.
+var awsWellKnownSKUMap = map[string]string{
+	"eks/cluster": "cluster", // EKS control plane ($0.10/hr)
+	"eks/addon":   "addon",   // EKS addon (most free, some paid like CoreDNS)
 }
 
 // resolveAWSSKU extracts a well-known SKU for AWS resource types.
@@ -34,7 +30,7 @@ func resolveAWSSKU(resourceType string, _ map[string]string) string {
 	if segment == "" {
 		return ""
 	}
-	return awsWellKnownSKUs()[segment]
+	return awsWellKnownSKUMap[segment]
 }
 
 // extractPulumiSegment extracts the module/resource segment from a Pulumi type token.

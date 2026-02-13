@@ -351,7 +351,7 @@ func (r *DefaultRouter) SelectPlugins(
 			Str("resource_type", resource.Type).
 			Str("resource_region", resourceRegion).
 			Str("feature", feature).
-			Msg("no plugin matches resource region; install a plugin for this region: finfocus plugin install <name> --metadata=\"region=" + resourceRegion + "\"")
+			Msg("no plugin matches resource region; install a region-specific plugin")
 	}
 
 	// Sort by priority (highest first)

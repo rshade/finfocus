@@ -14,8 +14,7 @@ const pulumiInstallURL = "https://www.pulumi.com/docs/install/"
 // Sentinel errors for structured error handling across the Pulumi integration.
 var (
 	// ErrPulumiNotFound indicates the pulumi CLI binary is not in PATH.
-	ErrPulumiNotFound = fmt.Errorf(
-		"pulumi CLI not found in PATH; install from %s or provide --pulumi-json", pulumiInstallURL)
+	ErrPulumiNotFound = errors.New("pulumi CLI not found in PATH")
 
 	// ErrNoProject indicates no Pulumi.yaml or Pulumi.yml was found.
 	ErrNoProject = errors.New(
@@ -30,6 +29,13 @@ var (
 	// ErrExportFailed indicates pulumi stack export returned a non-zero exit code.
 	ErrExportFailed = errors.New("pulumi stack export failed")
 )
+
+// NotFoundError returns a user-facing error that wraps ErrPulumiNotFound
+// with install instructions. Callers can still use errors.Is(err, ErrPulumiNotFound).
+func NotFoundError() error {
+	return fmt.Errorf("%w; install from %s or provide --pulumi-json",
+		ErrPulumiNotFound, pulumiInstallURL)
+}
 
 // NoCurrentStackError constructs an error indicating that no current Pulumi stack is selected.
 // If the provided `available` slice is empty the returned error message appends "no stacks found in this project".

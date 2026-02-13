@@ -174,13 +174,13 @@ func resolveResourcesFromPulumi(
 
 	// Step 1: Find the Pulumi binary
 	if _, err := pulumidetect.FindBinary(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find pulumi binary: %w", err)
 	}
 
 	// Step 2: Find the Pulumi project
 	projectDir, err := pulumidetect.FindProject(".")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find pulumi project: %w", err)
 	}
 	log.Debug().Ctx(ctx).Str("project_dir", projectDir).Msg("detected Pulumi project")
 
@@ -188,7 +188,7 @@ func resolveResourcesFromPulumi(
 	if stack == "" {
 		detected, stackErr := pulumidetect.GetCurrentStack(ctx, projectDir)
 		if stackErr != nil {
-			return nil, stackErr
+			return nil, fmt.Errorf("detect current stack in %s: %w", projectDir, stackErr)
 		}
 		stack = detected
 	}
@@ -205,7 +205,7 @@ func resolveResourcesFromPulumi(
 			Stack:      stack,
 		})
 		if previewErr != nil {
-			return nil, previewErr
+			return nil, fmt.Errorf("running pulumi preview: %w", previewErr)
 		}
 
 		plan, parseErr := ingest.ParsePulumiPlanWithContext(ctx, data)
@@ -224,7 +224,7 @@ func resolveResourcesFromPulumi(
 			Stack:      stack,
 		})
 		if exportErr != nil {
-			return nil, exportErr
+			return nil, fmt.Errorf("running pulumi stack export: %w", exportErr)
 		}
 
 		state, parseErr := ingest.ParseStackExportWithContext(ctx, data)

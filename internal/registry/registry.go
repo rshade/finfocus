@@ -34,6 +34,8 @@ func NewDefault() *Registry {
 
 // ListPlugins scans the plugin directory and returns metadata for all discovered plugins.
 // It returns an empty list if the plugin directory doesn't exist.
+//
+//nolint:gocognit // Filesystem traversal with platform-specific binary detection requires multiple conditions.
 func (r *Registry) ListPlugins() ([]PluginInfo, error) {
 	var plugins []PluginInfo
 
@@ -341,28 +343,6 @@ func (p PluginInfo) Region() string {
 		return ""
 	}
 	return p.Metadata["region"]
-}
-
-// resolvePluginMetadata reads plugin.metadata.json from the version directory.
-// resolvePluginMetadata reads plugin metadata from the given versionDir and returns it if available.
-// If no metadata file can be read, it attempts to infer a "region" value by parsing binaryPath and
-// returns a map containing {"region": "<value>"} when successful.
-// versionDir is the path to the plugin version directory to read plugin.metadata.json from.
-// binaryPath is the path to the plugin binary used to derive a region as a fallback.
-// Returns a map of metadata values, or nil if neither a metadata file nor a parsable region are available.
-func resolvePluginMetadata(versionDir, binaryPath string) map[string]string {
-	// First try the metadata file
-	meta, err := ReadPluginMetadata(versionDir)
-	if err == nil {
-		return meta
-	}
-
-	// Fallback: parse region from binary filename
-	if region, ok := ParseRegionFromBinaryName(binaryPath); ok {
-		return map[string]string{"region": region}
-	}
-
-	return nil
 }
 
 // mergeRegistryMetadata injects registry-level metadata into the plugin client's
