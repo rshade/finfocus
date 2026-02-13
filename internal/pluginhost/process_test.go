@@ -15,6 +15,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 )
 
@@ -964,4 +967,85 @@ exit 0
 `, pluginsdk.EnvPort, pluginsdk.EnvPort, pluginsdk.EnvPort, pluginsdk.EnvPort)
 
 	return createScript(t, script, ".sh")
+}
+
+func TestParsePortFromStdout(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		nilBuf   bool
+		wantPort int
+		wantOk   bool
+	}{
+		{name: "bare port number", input: "12345\n", wantPort: 12345, wantOk: true},
+		{name: "PORT=NNNNN format", input: "PORT=54321\n", wantPort: 54321, wantOk: true},
+		{name: "port= lowercase", input: "port=9999\n", wantPort: 9999, wantOk: true},
+		{name: "with leading noise", input: "starting server...\n42000\n", wantPort: 42000, wantOk: true},
+		{name: "empty buffer", input: "", wantPort: 0, wantOk: false},
+		{name: "no port number", input: "hello world\nno ports here\n", wantPort: 0, wantOk: false},
+		{name: "port out of range high", input: "99999\n", wantPort: 0, wantOk: false},
+		{name: "port zero", input: "0\n", wantPort: 0, wantOk: false},
+		{name: "negative number", input: "-1\n", wantPort: 0, wantOk: false},
+		{name: "whitespace around port", input: "  8080  \n", wantPort: 8080, wantOk: true},
+		{name: "nil buffer", nilBuf: true, wantPort: 0, wantOk: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var data []byte
+			if !tt.nilBuf {
+				data = []byte(tt.input)
+			}
+			port, ok := parsePortFromStdout(data)
+			assert.Equal(t, tt.wantOk, ok)
+			assert.Equal(t, tt.wantPort, port)
+		})
+	}
+}
+
+func TestWaitForPluginBindWithFallback_DirectBind(t *testing.T) {
+	// Test that direct binding on --port still works
+	launcher := NewProcessLauncher()
+
+	// Start a TCP listener to simulate a plugin that binds correctly
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	port := listener.Addr().(*net.TCPAddr).Port
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	buf := &lockedBuffer{}
+
+	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, port, buf, "/fake/plugin")
+	require.NoError(t, err)
+	assert.Equal(t, port, gotPort)
+}
+
+func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
+	// Test fallback to stdout-advertised port
+	launcher := NewProcessLauncher()
+	launcher.stdoutFallback = 500 * time.Millisecond
+
+	// Start a listener on a different port to simulate plugin stdout port
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+	stdoutPort := listener.Addr().(*net.TCPAddr).Port
+
+	// Get an unbound port by opening and immediately closing a listener.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	unboundPort := ln.Addr().(*net.TCPAddr).Port
+	ln.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	buf := &lockedBuffer{}
+	_, _ = buf.Write([]byte(fmt.Sprintf("%d\n", stdoutPort)))
+
+	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, unboundPort, buf, "/fake/plugin")
+	require.NoError(t, err)
+	assert.Equal(t, stdoutPort, gotPort)
 }

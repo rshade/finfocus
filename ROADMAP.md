@@ -32,9 +32,22 @@ guardrails in `CONTEXT.md`.
 - [ ] **Config Architecture**
   - [ ] Split project-local and user-global `.finfocus/` directories
         ([#548](https://github.com/rshade/finfocus/issues/548))
+- [ ] **Pulumi Auto-Detection**
+  - [ ] Automatic Pulumi project detection for cost commands
+        ([#581](https://github.com/rshade/finfocus/issues/581))
+  - [ ] CodeRabbit follow-up cleanup from auto-detect PR
+        ([#589](https://github.com/rshade/finfocus/issues/589))
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
+- [ ] **Resource Filtering Improvements**
+  - [ ] Filter `pulumi:providers:*` synthetic resources from cost plugin routing
+        ([#582](https://github.com/rshade/finfocus/issues/582))
+  - [ ] Filter Pulumi component resources from cost plugin routing
+        ([#583](https://github.com/rshade/finfocus/issues/583))
+- [ ] **Unified Cost Dashboard**
+  - [ ] Add `finfocus overview` command — unified cost dashboard with TUI
+        ([#578](https://github.com/rshade/finfocus/issues/578))
 - [ ] **Contextual Profiles ("Dev Mode")**
       ([#368](https://github.com/rshade/finfocus/issues/368))
   - [ ] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
@@ -150,6 +163,15 @@ guardrails in `CONTEXT.md`.
     returned by the orchestration layer.
   - *Success Criteria*: A valid GFM document is generated that renders
     correctly in a GitHub comment using only data from the `CostResult` array.
+- [ ] **Cost Diff View**
+  - [ ] Add cost diff view to `cost projected` command
+        ([#576](https://github.com/rshade/finfocus/issues/576))
+- [ ] **Overview Command Enhancements**
+  - [ ] Add `--output json` support to `finfocus overview`
+        ([#579](https://github.com/rshade/finfocus/issues/579))
+- [ ] **Platform Reliability**
+  - [ ] Reimplement plugin installer lock for Windows reliability
+        ([#573](https://github.com/rshade/finfocus/issues/573))
 - [ ] **Stateless Cost-Policy Linting**
   - *Objective*: Prevent accidental cost overruns by flagging resources that
     exceed organizational informational thresholds.
@@ -165,6 +187,12 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] **TUI & Documentation Polish** *(Completed 2026-02-13)*
+  - [x] Display recommendations in resource detail view for cost
+        projected/actual
+        ([#575](https://github.com/rshade/finfocus/issues/575))
+  - [x] Document aws-public projected cost gaps for diff support
+        ([#577](https://github.com/rshade/finfocus/issues/577))
 - [x] **v0.3.0: Intelligence & Analysis** *(Completed)*
   - [x] Add `cost estimate` command for scenario modeling
         ([#463](https://github.com/rshade/finfocus/issues/463), PR #538)
@@ -250,6 +278,8 @@ guardrails in `CONTEXT.md`.
 | Dev Mode | UsageProfile (v0.5.5) | --profile | Burstable | IOPS warn |
 | What-If Analysis | EstimateCost | cost estimate | PropertyDelta | N/A |
 | Rec Lifecycle | DismissRecommendation | dismiss/snooze | Dismiss | N/A |
+| Auto-Detect | N/A | pulumi detect | N/A | N/A |
+| Resource Filter | N/A | provider/component filter | N/A | N/A |
 
 ## Boundary Safeguards
 

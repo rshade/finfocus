@@ -119,6 +119,7 @@ func TestActualCost_OutputFormats(t *testing.T) {
 			output, err := h.Execute(
 				"cost", "actual", "--pulumi-json", planFile,
 				"--from", "2025-01-01", "--to", "2025-12-31",
+				"--fallback-estimate",
 				"--output", format,
 			)
 			require.NoError(t, err)
@@ -170,6 +171,7 @@ func TestActualCost_CombinedFlags(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "provider=aws",
 		"--group-by", "type",
 		"--output", "json",

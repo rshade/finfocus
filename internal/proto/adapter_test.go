@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/awsutil"
 )
 
 // mockCostSourceClient is a mock implementation of CostSourceClient for testing.
@@ -794,7 +795,7 @@ func TestExtractSKUFromProperties(t *testing.T) {
 			if tt.provider != "" {
 				provider = tt.provider
 			}
-			sku, region := resolveSKUAndRegion(provider, tt.properties)
+			sku, region := resolveSKUAndRegion(provider, "", tt.properties)
 			if sku != tt.expected {
 				t.Errorf("resolveSKUAndRegion(%s) sku = %q, want %q", provider, sku, tt.expected)
 			}
@@ -877,7 +878,7 @@ func TestExtractRegionFromProperties(t *testing.T) {
 				t.Setenv(key, val)
 			}
 
-			sku, region := resolveSKUAndRegion("aws", tt.properties)
+			sku, region := resolveSKUAndRegion("aws", "", tt.properties)
 			if region != tt.expected {
 				t.Errorf("resolveSKUAndRegion() region = %q, want %q", region, tt.expected)
 			}
@@ -1871,7 +1872,7 @@ func TestResolveSKUAndRegion_AWSRegionFallbackScope(t *testing.T) {
 				t.Setenv(key, val)
 			}
 
-			_, region := resolveSKUAndRegion(tt.provider, tt.properties)
+			_, region := resolveSKUAndRegion(tt.provider, "", tt.properties)
 			if region != tt.expectedRegion {
 				t.Errorf("resolveSKUAndRegion(%q) region = %q, want %q",
 					tt.provider, region, tt.expectedRegion)
@@ -2290,6 +2291,26 @@ func TestResolveActualCostIdentifiers(t *testing.T) {
 			wantARN:     "",
 			wantTagsLen: 0,
 		},
+		{
+			name:       "non-string cloudId ignored",
+			resourceID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			properties: map[string]interface{}{
+				"pulumi:cloudId": 12345,
+			},
+			wantCloudID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			wantARN:     "",
+			wantTagsLen: 0,
+		},
+		{
+			name:       "ARN-only without cloudId",
+			resourceID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			properties: map[string]interface{}{
+				"pulumi:arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			},
+			wantCloudID: "urn:pulumi:dev::project::aws:ec2/instance:Instance::web",
+			wantARN:     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			wantTagsLen: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2364,44 +2385,683 @@ func TestExtractResourceTags(t *testing.T) {
 			assert.Len(t, tags, tt.wantLen)
 		})
 	}
+
+	// Spot-check: verify specific tag value from tagsAll precedence case
+	tags := extractResourceTags(map[string]interface{}{
+		"tagsAll": map[string]interface{}{
+			"Name": "production-web",
+		},
+	})
+	assert.Equal(t, "production-web", tags["Name"])
+}
+
+func TestExtractTagMap(t *testing.T) {
+	tests := []struct {
+		name       string
+		properties map[string]interface{}
+		key        string
+		wantLen    int
+		wantKey    string
+		wantVal    string
+	}{
+		{
+			name:       "missing key returns empty map",
+			properties: map[string]interface{}{"other": "value"},
+			key:        "tags",
+			wantLen:    0,
+		},
+		{
+			name:       "wrong type returns empty map",
+			properties: map[string]interface{}{"tags": "not-a-map"},
+			key:        "tags",
+			wantLen:    0,
+		},
+		{
+			name: "map[string]string extracted",
+			properties: map[string]interface{}{
+				"tags": map[string]string{"Name": "web"},
+			},
+			key:     "tags",
+			wantLen: 1,
+			wantKey: "Name",
+			wantVal: "web",
+		},
+		{
+			name: "map[string]interface{} with non-string values",
+			properties: map[string]interface{}{
+				"tags": map[string]interface{}{
+					"Name":  "api",
+					"Count": 42,
+				},
+			},
+			key:     "tags",
+			wantLen: 2,
+			wantKey: "Count",
+			wantVal: "42",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := extractTagMap(tt.properties, tt.key)
+			assert.Len(t, result, tt.wantLen)
+			if tt.wantKey != "" {
+				assert.Equal(t, tt.wantVal, result[tt.wantKey])
+			}
+		})
+	}
 }
 
 func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
-	mockClient := &mockCostSourceClient{
-		getActualFunc: func(
-			ctx context.Context,
-			in *GetActualCostRequest,
-			opts ...grpc.CallOption,
-		) (*GetActualCostResponse, error) {
-			// The adapter should have resolved the cloud ID
-			// We verify the request still works with Properties
-			return &GetActualCostResponse{
-				Results: []*ActualCostResult{
-					{Currency: "USD", TotalCost: 42.0},
-				},
-			}, nil
-		},
-	}
-
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	endTime := time.Now().Unix()
 
-	req := &GetActualCostRequest{
-		ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
-		StartTime:   startTime,
-		EndTime:     endTime,
-		Properties: map[string]interface{}{
-			"pulumi:cloudId": "i-0abc123def456",
-			"pulumi:arn":     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
-			"tags": map[string]interface{}{
-				"Name": "web-server",
+	t.Run("captures resolved cloud identifiers", func(t *testing.T) {
+		var capturedReq *GetActualCostRequest
+		mockClient := &mockCostSourceClient{
+			getActualFunc: func(
+				_ context.Context,
+				in *GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*GetActualCostResponse, error) {
+				capturedReq = in
+				return &GetActualCostResponse{
+					Results: []*ActualCostResult{
+						{Currency: "USD", TotalCost: 42.0},
+					},
+				}, nil
 			},
+		}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-0abc123def456",
+				"pulumi:arn":     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+				"tags": map[string]interface{}{
+					"Name": "web-server",
+				},
+			},
+		}
+
+		result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
+
+		require.Len(t, result.Results, 1)
+		assert.Empty(t, result.Errors)
+		assert.Equal(t, 42.0, result.Results[0].MonthlyCost)
+
+		// Verify the mock received the request with properties intact
+		require.NotNil(t, capturedReq)
+		require.NotNil(t, capturedReq.Properties)
+		assert.Equal(t, "i-0abc123def456", capturedReq.Properties["pulumi:cloudId"])
+		assert.Equal(t,
+			"arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			capturedReq.Properties["pulumi:arn"],
+		)
+		tagsVal, ok := capturedReq.Properties["tags"]
+		require.True(t, ok)
+		tagsMap, ok := tagsVal.(map[string]interface{})
+		require.True(t, ok)
+		assert.Equal(t, "web-server", tagsMap["Name"])
+	})
+
+	t.Run("plugin error propagation with properties", func(t *testing.T) {
+		mockClient := &mockCostSourceClient{
+			getActualFunc: func(
+				_ context.Context,
+				_ *GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*GetActualCostResponse, error) {
+				return nil, errors.New("cost API unavailable")
+			},
+		}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-0abc123def456",
+			},
+		}
+
+		result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
+
+		require.Len(t, result.Errors, 1)
+		assert.Contains(t, result.Errors[0].Error.Error(), "cost API unavailable")
+		require.Len(t, result.Results, 1)
+		assert.Contains(t, result.Results[0].Notes, "ERROR:")
+		assert.Equal(t, 0.0, result.Results[0].MonthlyCost)
+	})
+
+	t.Run("missing cloudId falls back to resource URN", func(t *testing.T) {
+		var capturedReq *GetActualCostRequest
+		mockClient := &mockCostSourceClient{
+			getActualFunc: func(
+				_ context.Context,
+				in *GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*GetActualCostResponse, error) {
+				capturedReq = in
+				return &GetActualCostResponse{
+					Results: []*ActualCostResult{
+						{Currency: "USD", TotalCost: 10.0},
+					},
+				}, nil
+			},
+		}
+
+		urn := "urn:pulumi:dev::project::aws:ec2/instance:Instance::web"
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{urn},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Properties: map[string]interface{}{
+				"pulumi:arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			},
+		}
+
+		result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
+
+		require.Len(t, result.Results, 1)
+		assert.Empty(t, result.Errors)
+
+		// The single-resource request should still carry the original URN as ResourceID
+		require.NotNil(t, capturedReq)
+		require.Len(t, capturedReq.ResourceIDs, 1)
+		assert.Equal(t, urn, capturedReq.ResourceIDs[0])
+		// Properties should still contain the ARN
+		assert.Equal(t,
+			"arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			capturedReq.Properties["pulumi:arn"],
+		)
+	})
+
+	t.Run("multi-resource with properties returns error", func(t *testing.T) {
+		mockClient := &mockCostSourceClient{}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"resource-1", "resource-2"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Properties:  map[string]interface{}{"pulumi:cloudId": "i-0abc"},
+		}
+
+		result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
+
+		require.Len(t, result.Errors, 1)
+		assert.ErrorIs(t, result.Errors[0].Error, ErrPropertiesMultiResource)
+		assert.Empty(t, result.Results)
+		assert.Contains(t, result.Errors[0].ResourceID, "resource-1")
+		assert.Contains(t, result.Errors[0].ResourceID, "resource-2")
+	})
+}
+
+func TestGetActualCostWithErrors_SKURegionInjection(t *testing.T) {
+	startTime := time.Now().Add(-24 * time.Hour).Unix()
+	endTime := time.Now().Unix()
+
+	t.Run("injects SKU and region into tags when provider set", func(t *testing.T) {
+		var capturedReq *GetActualCostRequest
+		mockClient := &mockCostSourceClient{
+			getActualFunc: func(
+				_ context.Context,
+				in *GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*GetActualCostResponse, error) {
+				capturedReq = in
+				return &GetActualCostResponse{
+					Results: []*ActualCostResult{
+						{Currency: "USD", TotalCost: 100.0},
+					},
+				}, nil
+			},
+		}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Provider:    "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-0abc123def456",
+				"instanceType":   "t3.medium",
+				"region":         "us-west-2",
+			},
+		}
+
+		result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
+
+		require.Len(t, result.Results, 1)
+		assert.Empty(t, result.Errors)
+
+		// Verify the request was forwarded to the mock
+		require.NotNil(t, capturedReq)
+		assert.Equal(t, "aws", capturedReq.Provider)
+	})
+
+	t.Run("does not inject SKU/region without provider", func(t *testing.T) {
+		var capturedReq *GetActualCostRequest
+		mockClient := &mockCostSourceClient{
+			getActualFunc: func(
+				_ context.Context,
+				in *GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*GetActualCostResponse, error) {
+				capturedReq = in
+				return &GetActualCostResponse{
+					Results: []*ActualCostResult{
+						{Currency: "USD", TotalCost: 50.0},
+					},
+				}, nil
+			},
+		}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-0abc123def456",
+				"instanceType":   "t3.medium",
+			},
+		}
+
+		result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
+
+		require.Len(t, result.Results, 1)
+		assert.Empty(t, result.Errors)
+		require.NotNil(t, capturedReq)
+		assert.Empty(t, capturedReq.Provider)
+	})
+
+	t.Run("does not overwrite existing tags", func(t *testing.T) {
+		mockClient := &mockCostSourceClient{
+			getActualFunc: func(
+				_ context.Context,
+				_ *GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*GetActualCostResponse, error) {
+				return &GetActualCostResponse{
+					Results: []*ActualCostResult{
+						{Currency: "USD", TotalCost: 75.0},
+					},
+				}, nil
+			},
+		}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Provider:    "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-0abc123def456",
+				"instanceType":   "t3.medium",
+				"tags": map[string]interface{}{
+					"sku":    "custom-sku",
+					"region": "custom-region",
+				},
+			},
+		}
+
+		result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
+
+		require.Len(t, result.Results, 1)
+		assert.Empty(t, result.Errors)
+	})
+}
+
+func TestToStringMap(t *testing.T) {
+	tests := []struct {
+		name  string
+		input map[string]interface{}
+		want  map[string]string
+	}{
+		{
+			name:  "nil map",
+			input: nil,
+			want:  map[string]string{},
+		},
+		{
+			name:  "string values",
+			input: map[string]interface{}{"a": "b", "c": "d"},
+			want:  map[string]string{"a": "b", "c": "d"},
+		},
+		{
+			name:  "mixed types",
+			input: map[string]interface{}{"str": "val", "num": 42, "nil": nil},
+			want:  map[string]string{"str": "val", "num": "42"},
 		},
 	}
 
-	result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := toStringMap(tt.input)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
 
-	require.Len(t, result.Results, 1)
-	assert.Empty(t, result.Errors)
-	assert.Equal(t, 42.0, result.Results[0].MonthlyCost)
+func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
+	t.Run("injects SKU and region from AWS properties", func(t *testing.T) {
+		tags := map[string]string{"Name": "web-server"}
+		props := map[string]interface{}{
+			"instanceType":     "t3.medium",
+			"availabilityZone": "us-west-2a",
+		}
+
+		enrichTagsWithSKUAndRegion(tags, "aws", "aws:ec2/instance:Instance", props)
+
+		assert.Equal(t, "t3.medium", tags["sku"])
+		assert.Contains(t, tags["region"], "us-west-2")
+		assert.Equal(t, "web-server", tags["Name"]) // Original preserved
+	})
+
+	t.Run("does not overwrite existing sku/region in tags", func(t *testing.T) {
+		tags := map[string]string{
+			"sku":    "existing-sku",
+			"region": "existing-region",
+		}
+		props := map[string]interface{}{
+			"instanceType": "t3.medium",
+			"region":       "us-east-1",
+		}
+
+		enrichTagsWithSKUAndRegion(tags, "aws", "aws:ec2/instance:Instance", props)
+
+		assert.Equal(t, "existing-sku", tags["sku"])
+		assert.Equal(t, "existing-region", tags["region"])
+	})
+
+	t.Run("extracts region from ARN when no explicit region", func(t *testing.T) {
+		tags := map[string]string{"Name": "web-server"}
+		props := map[string]interface{}{
+			"instanceType": "t3.medium",
+			"pulumi:arn":   "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc",
+		}
+
+		enrichTagsWithSKUAndRegion(tags, "aws", "aws:ec2/instance:Instance", props)
+
+		assert.Equal(t, "t3.medium", tags["sku"])
+		assert.Equal(t, "us-east-1", tags["region"])
+	})
+
+	t.Run("explicit region takes precedence over ARN", func(t *testing.T) {
+		tags := map[string]string{}
+		props := map[string]interface{}{
+			"instanceType":     "t3.medium",
+			"availabilityZone": "us-west-2a",
+			"pulumi:arn":       "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc",
+		}
+
+		enrichTagsWithSKUAndRegion(tags, "aws", "aws:ec2/instance:Instance", props)
+
+		assert.Contains(t, tags["region"], "us-west-2", "AZ-based region should win over ARN")
+	})
+
+	t.Run("empty properties does not add tags", func(t *testing.T) {
+		tags := map[string]string{"Name": "test"}
+		props := map[string]interface{}{}
+
+		enrichTagsWithSKUAndRegion(tags, "aws", "", props)
+
+		_, hasSKU := tags["sku"]
+		assert.False(t, hasSKU)
+	})
+
+	t.Run("EKS cluster gets SKU from well-known map via resourceType fallback", func(t *testing.T) {
+		tags := map[string]string{"Name": "my-cluster"}
+		props := map[string]interface{}{
+			"name": "my-cluster",
+		}
+
+		enrichTagsWithSKUAndRegion(tags, "aws", "aws:eks/cluster:Cluster", props)
+
+		assert.Equal(t, "cluster", tags["sku"])
+	})
+}
+
+func TestRegionFromARN(t *testing.T) {
+	tests := []struct {
+		name string
+		arn  string
+		want string
+	}{
+		{"ec2 instance", "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc", "us-east-1"},
+		{"rds instance", "arn:aws:rds:us-west-2:123456789012:db:mydb", "us-west-2"},
+		{"eks cluster", "arn:aws:eks:eu-west-1:123456789012:cluster/mycluster", "eu-west-1"},
+		{"s3 global", "arn:aws:s3:::my-bucket", ""},
+		{"iam global", "arn:aws:iam::123456789012:role/myrole", ""},
+		{"empty string", "", ""},
+		{"not an arn", "not-an-arn", ""},
+		{"too few parts", "arn:aws:ec2", ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := awsutil.RegionFromARN(tt.arn)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestActualCost_ProtoTagsContainSKUAndRegion verifies that SKU and region enrichment
+// flows through the clientAdapter.GetActualCost code path into the proto request tags.
+// This complements TestGetActualCostWithErrors_SKURegionInjection, which tests the
+// GetActualCostWithErrors wrapper using a mockCostSourceClient (our internal interface).
+// Here we mock pbc.CostSourceServiceClient (the raw gRPC client) to capture the actual
+// pbc.GetActualCostRequest and inspect its Tags map.
+func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
+	startTime := time.Now().Add(-24 * time.Hour).Unix()
+	endTime := time.Now().Unix()
+
+	t.Run("proto tags contain enriched sku and region", func(t *testing.T) {
+		var capturedProtoReq *pbc.GetActualCostRequest
+		mockGRPC := &mockPbcCostSourceServiceClient{
+			getActualCostFunc: func(
+				_ context.Context,
+				in *pbc.GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.GetActualCostResponse, error) {
+				capturedProtoReq = in
+				return &pbc.GetActualCostResponse{
+					Results: []*pbc.ActualCostResult{
+						{Cost: 100.0, Source: "mock"},
+					},
+				}, nil
+			},
+		}
+
+		adapter := &clientAdapter{client: mockGRPC}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Provider:    "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId":   "i-0abc123def456",
+				"instanceType":     "t3.medium",
+				"availabilityZone": "us-west-2a",
+			},
+		}
+
+		resp, err := adapter.GetActualCost(context.Background(), req)
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 1)
+
+		require.NotNil(t, capturedProtoReq)
+		assert.Equal(t, "t3.medium", capturedProtoReq.GetTags()["sku"])
+		assert.Contains(t, capturedProtoReq.GetTags()["region"], "us-west-2")
+	})
+
+	t.Run("proto tags empty when provider is empty", func(t *testing.T) {
+		var capturedProtoReq *pbc.GetActualCostRequest
+		mockGRPC := &mockPbcCostSourceServiceClient{
+			getActualCostFunc: func(
+				_ context.Context,
+				in *pbc.GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.GetActualCostResponse, error) {
+				capturedProtoReq = in
+				return &pbc.GetActualCostResponse{
+					Results: []*pbc.ActualCostResult{
+						{Cost: 50.0, Source: "mock"},
+					},
+				}, nil
+			},
+		}
+
+		adapter := &clientAdapter{client: mockGRPC}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Provider:    "", // empty provider — no enrichment
+			Properties: map[string]interface{}{
+				"pulumi:cloudId":   "i-0abc123def456",
+				"instanceType":     "t3.medium",
+				"availabilityZone": "us-west-2a",
+			},
+		}
+
+		resp, err := adapter.GetActualCost(context.Background(), req)
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 1)
+
+		require.NotNil(t, capturedProtoReq)
+		_, hasSKU := capturedProtoReq.GetTags()["sku"]
+		assert.False(t, hasSKU, "sku should not be injected without a provider")
+		_, hasRegion := capturedProtoReq.GetTags()["region"]
+		assert.False(t, hasRegion, "region should not be injected without a provider")
+	})
+
+	t.Run("proto tags preserve existing sku and region", func(t *testing.T) {
+		var capturedProtoReq *pbc.GetActualCostRequest
+		mockGRPC := &mockPbcCostSourceServiceClient{
+			getActualCostFunc: func(
+				_ context.Context,
+				in *pbc.GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.GetActualCostResponse, error) {
+				capturedProtoReq = in
+				return &pbc.GetActualCostResponse{
+					Results: []*pbc.ActualCostResult{
+						{Cost: 75.0, Source: "mock"},
+					},
+				}, nil
+			},
+		}
+
+		adapter := &clientAdapter{client: mockGRPC}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Provider:    "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId":   "i-0abc123def456",
+				"instanceType":     "t3.medium",
+				"availabilityZone": "us-west-2a",
+				"tags": map[string]interface{}{
+					"sku":    "custom-sku",
+					"region": "custom-region",
+				},
+			},
+		}
+
+		resp, err := adapter.GetActualCost(context.Background(), req)
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 1)
+
+		require.NotNil(t, capturedProtoReq)
+		assert.Equal(t, "custom-sku", capturedProtoReq.GetTags()["sku"],
+			"existing sku tag should not be overwritten")
+		assert.Equal(t, "custom-region", capturedProtoReq.GetTags()["region"],
+			"existing region tag should not be overwritten")
+	})
+}
+
+// mockPbcCostSourceServiceClient mocks the generated pbc.CostSourceServiceClient
+// gRPC interface. Only the methods needed for testing are stubbed; the rest panic.
+type mockPbcCostSourceServiceClient struct {
+	getActualCostFunc func(
+		ctx context.Context,
+		in *pbc.GetActualCostRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.GetActualCostResponse, error)
+}
+
+func (m *mockPbcCostSourceServiceClient) Name(
+	_ context.Context, _ *pbc.NameRequest, _ ...grpc.CallOption,
+) (*pbc.NameResponse, error) {
+	return &pbc.NameResponse{Name: "mock-grpc-plugin"}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) Supports(
+	_ context.Context, _ *pbc.SupportsRequest, _ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	return &pbc.SupportsResponse{}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) GetActualCost(
+	ctx context.Context, in *pbc.GetActualCostRequest, opts ...grpc.CallOption,
+) (*pbc.GetActualCostResponse, error) {
+	if m.getActualCostFunc != nil {
+		return m.getActualCostFunc(ctx, in, opts...)
+	}
+	return &pbc.GetActualCostResponse{}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) GetProjectedCost(
+	_ context.Context, _ *pbc.GetProjectedCostRequest, _ ...grpc.CallOption,
+) (*pbc.GetProjectedCostResponse, error) {
+	return &pbc.GetProjectedCostResponse{}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) GetPricingSpec(
+	_ context.Context, _ *pbc.GetPricingSpecRequest, _ ...grpc.CallOption,
+) (*pbc.GetPricingSpecResponse, error) {
+	return &pbc.GetPricingSpecResponse{}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) EstimateCost(
+	_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption,
+) (*pbc.EstimateCostResponse, error) {
+	return &pbc.EstimateCostResponse{}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) GetRecommendations(
+	_ context.Context, _ *pbc.GetRecommendationsRequest, _ ...grpc.CallOption,
+) (*pbc.GetRecommendationsResponse, error) {
+	return &pbc.GetRecommendationsResponse{}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) DismissRecommendation(
+	_ context.Context, _ *pbc.DismissRecommendationRequest, _ ...grpc.CallOption,
+) (*pbc.DismissRecommendationResponse, error) {
+	return &pbc.DismissRecommendationResponse{}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) GetPluginInfo(
+	_ context.Context, _ *pbc.GetPluginInfoRequest, _ ...grpc.CallOption,
+) (*pbc.GetPluginInfoResponse, error) {
+	return &pbc.GetPluginInfoResponse{}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) DryRun(
+	_ context.Context, _ *pbc.DryRunRequest, _ ...grpc.CallOption,
+) (*pbc.DryRunResponse, error) {
+	return &pbc.DryRunResponse{}, nil
+}
+
+func (m *mockPbcCostSourceServiceClient) GetBudgets(
+	_ context.Context, _ *pbc.GetBudgetsRequest, _ ...grpc.CallOption,
+) (*pbc.GetBudgetsResponse, error) {
+	return &pbc.GetBudgetsResponse{}, nil
 }

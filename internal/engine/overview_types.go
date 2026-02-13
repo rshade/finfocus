@@ -296,15 +296,16 @@ func (e *OverviewRowError) Validate() error {
 // Each row combines state, plan, actual costs, projected costs, drift, and
 // recommendations for a resource.
 type OverviewRow struct {
-	URN             string             `json:"urn"`
-	Type            string             `json:"type"`
-	ResourceID      string             `json:"resourceId,omitempty"`
-	Status          ResourceStatus     `json:"status"`
-	ActualCost      *ActualCostData    `json:"actualCost,omitempty"`
-	ProjectedCost   *ProjectedCostData `json:"projectedCost,omitempty"`
-	Recommendations []Recommendation   `json:"recommendations,omitempty"`
-	CostDrift       *CostDriftData     `json:"costDrift,omitempty"`
-	Error           *OverviewRowError  `json:"error,omitempty"`
+	URN             string                 `json:"urn"`
+	Type            string                 `json:"type"`
+	ResourceID      string                 `json:"resourceId,omitempty"`
+	Status          ResourceStatus         `json:"status"`
+	Properties      map[string]interface{} `json:"properties,omitempty"`
+	ActualCost      *ActualCostData        `json:"actualCost,omitempty"`
+	ProjectedCost   *ProjectedCostData     `json:"projectedCost,omitempty"`
+	Recommendations []Recommendation       `json:"recommendations,omitempty"`
+	CostDrift       *CostDriftData         `json:"costDrift,omitempty"`
+	Error           *OverviewRowError      `json:"error,omitempty"`
 }
 
 // Validate checks that the OverviewRow fields are well-formed. It validates
@@ -407,10 +408,11 @@ type OverviewRowUpdate struct {
 // This is a lightweight projection of ingest.StackExportResource to avoid an
 // import cycle (ingest already imports engine).
 type StateResource struct {
-	URN    string `json:"urn,omitempty"`
-	Type   string `json:"type,omitempty"`
-	ID     string `json:"id,omitempty"`
-	Custom bool   `json:"custom,omitempty"`
+	URN        string                 `json:"urn,omitempty"`
+	Type       string                 `json:"type,omitempty"`
+	ID         string                 `json:"id,omitempty"`
+	Custom     bool                   `json:"custom,omitempty"`
+	Properties map[string]interface{} `json:"properties,omitempty"`
 }
 
 // PlanStep represents a step from a Pulumi plan for overview merging.

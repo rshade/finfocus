@@ -27,15 +27,16 @@ const (
 
 // ResourceRow represents a single row in the interactive resource table.
 type ResourceRow struct {
-	ResourceName string // Truncated to 40 chars.
-	ResourceType string // e.g., "aws:ec2:Instance".
-	Provider     string // e.g., "aws".
-	Monthly      float64
-	TotalCost    float64 // For actual costs.
-	Delta        float64
-	Currency     string
-	HasError     bool
-	ErrorMsg     string
+	ResourceName        string // Truncated to 40 chars.
+	ResourceType        string // e.g., "aws:ec2:Instance".
+	Provider            string // e.g., "aws".
+	Monthly             float64
+	TotalCost           float64 // For actual costs.
+	Delta               float64
+	Currency            string
+	HasError            bool
+	ErrorMsg            string
+	RecommendationCount int // Number of recommendations for this resource.
 }
 
 // NewResourceRow converts an engine.CostResult into a display-ready ResourceRow.
@@ -47,15 +48,16 @@ func NewResourceRow(result engine.CostResult) ResourceRow {
 	provider := extractProvider(result.ResourceType)
 
 	return ResourceRow{
-		ResourceName: name,
-		ResourceType: result.ResourceType,
-		Provider:     provider,
-		Monthly:      result.Monthly,
-		TotalCost:    result.TotalCost,
-		Delta:        result.Delta,
-		Currency:     result.Currency,
-		HasError:     strings.HasPrefix(result.Notes, "ERROR:"),
-		ErrorMsg:     result.Notes,
+		ResourceName:        name,
+		ResourceType:        result.ResourceType,
+		Provider:            provider,
+		Monthly:             result.Monthly,
+		TotalCost:           result.TotalCost,
+		Delta:               result.Delta,
+		Currency:            result.Currency,
+		HasError:            strings.HasPrefix(result.Notes, "ERROR:"),
+		ErrorMsg:            result.Notes,
+		RecommendationCount: len(result.Recommendations),
 	}
 }
 
@@ -86,6 +88,7 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 	totalCost := 0.0
 	providerCosts := make(map[string]float64)
 
+	recCount := 0
 	for _, r := range results {
 		// Use TotalCost if present (Actual), otherwise Monthly (Projected).
 		cost := r.Monthly
@@ -96,6 +99,7 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 		totalCost += cost
 		provider := extractProvider(r.ResourceType)
 		providerCosts[provider] += cost
+		recCount += len(r.Recommendations)
 	}
 
 	// Create content.
@@ -110,6 +114,10 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 	content.WriteString(ValueStyle.Render(fmt.Sprintf("$%.2f", totalCost)))
 	content.WriteString(LabelStyle.Render("    Resources: "))
 	content.WriteString(ValueStyle.Render(strconv.Itoa(len(results))))
+	if recCount > 0 {
+		content.WriteString(LabelStyle.Render("    Recommendations: "))
+		content.WriteString(ValueStyle.Render(strconv.Itoa(recCount)))
+	}
 	content.WriteString("\n")
 
 	// Provider Breakdown (sorted by cost desc).
@@ -152,11 +160,12 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 // NewResultTable creates and configures a new table model for cost results.
 func NewResultTable(results []engine.CostResult, height int) table.Model {
 	columns := []table.Column{
-		{Title: "Resource", Width: 40}, //nolint:mnd // Column width.
-		{Title: "Type", Width: 30},     //nolint:mnd // Column width.
-		{Title: "Provider", Width: 10}, //nolint:mnd // Column width.
-		{Title: "Cost", Width: 15},     //nolint:mnd // Column width.
-		{Title: "Delta", Width: 15},    //nolint:mnd // Column width.
+		{Title: "Resource", Width: 40},        //nolint:mnd // Column width.
+		{Title: "Type", Width: 30},            //nolint:mnd // Column width.
+		{Title: "Provider", Width: 10},        //nolint:mnd // Column width.
+		{Title: "Cost", Width: 15},            //nolint:mnd // Column width.
+		{Title: "Delta", Width: 15},           //nolint:mnd // Column width.
+		{Title: "Recommendations", Width: 15}, //nolint:mnd // Column width.
 	}
 
 	rows := make([]table.Row, len(results))
@@ -165,6 +174,7 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 
 		costStr := fmt.Sprintf("$%.2f", row.Monthly)
 		deltaStr := RenderDelta(row.Delta)
+		recsStr := formatRecsColumn(row.RecommendationCount)
 
 		rows[i] = table.Row{
 			row.ResourceName,
@@ -172,6 +182,7 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 			row.Provider,
 			costStr,
 			deltaStr,
+			recsStr,
 		}
 	}
 
@@ -193,22 +204,25 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 // NewActualCostTable creates a table for actual cost results (using TotalCost).
 func NewActualCostTable(results []engine.CostResult, height int) table.Model {
 	columns := []table.Column{
-		{Title: "Resource", Width: 40},   //nolint:mnd // Column width.
-		{Title: "Type", Width: 30},       //nolint:mnd // Column width.
-		{Title: "Provider", Width: 10},   //nolint:mnd // Column width.
-		{Title: "Total Cost", Width: 15}, //nolint:mnd // Column width.
+		{Title: "Resource", Width: 40},        //nolint:mnd // Column width.
+		{Title: "Type", Width: 30},            //nolint:mnd // Column width.
+		{Title: "Provider", Width: 10},        //nolint:mnd // Column width.
+		{Title: "Total Cost", Width: 15},      //nolint:mnd // Column width.
+		{Title: "Recommendations", Width: 15}, //nolint:mnd // Column width.
 	}
 
 	rows := make([]table.Row, len(results))
 	for i, r := range results {
 		row := NewResourceRow(r)
 		costStr := fmt.Sprintf("$%.2f", row.TotalCost)
+		recsStr := formatRecsColumn(row.RecommendationCount)
 
 		rows[i] = table.Row{
 			row.ResourceName,
 			row.ResourceType,
 			row.Provider,
 			costStr,
+			recsStr,
 		}
 	}
 
@@ -443,6 +457,15 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 		}
 	}
 	content.WriteString("\n")
+}
+
+// formatRecsColumn returns the recommendation count as a string for TUI table display.
+// Returns "-" when the count is zero so the column stays visually clean.
+func formatRecsColumn(count int) string {
+	if count == 0 {
+		return "-"
+	}
+	return strconv.Itoa(count)
 }
 
 // aggregateCarbonFromResults extracts and sums carbon_footprint metrics from all results.

@@ -452,6 +452,40 @@ jobs:
               done
             fi
 
+            # 5a. Delete NAT Gateways per VPC (hold ENIs in subnets; must precede VPC deletion)
+            if [ "${#VPC_IDS[@]}" -gt 0 ]; then
+              for VPC in "${VPC_IDS[@]}"; do
+                mapfile -t NAT_IDS < <(aws ec2 describe-nat-gateways \
+                  --region "${REGION}" \
+                  --filter "Name=vpc-id,Values=${VPC}" "Name=state,Values=available,pending,failed" \
+                  --query "NatGateways[].NatGatewayId" --output text 2>/dev/null | xargs -n1)
+                if [ "${#NAT_IDS[@]}" -gt 0 ]; then
+                  for NAT in "${NAT_IDS[@]}"; do
+                    echo "Deleting NAT Gateway ${NAT} in VPC ${VPC} (${REGION})"
+                    aws ec2 delete-nat-gateway --region "${REGION}" --nat-gateway-id "${NAT}" || true
+                  done
+                  # Wait for NAT gateways to fully delete before proceeding
+                  for NAT in "${NAT_IDS[@]}"; do
+                    echo "Waiting for NAT Gateway ${NAT} to delete..."
+                    aws ec2 wait nat-gateway-deleted --region "${REGION}" \
+                      --nat-gateway-ids "${NAT}" 2>/dev/null || true
+                  done
+                fi
+              done
+            fi
+
+            # 5b. Release Elastic IPs tagged with e2e-test-* (disassociated EIPs still incur charges)
+            mapfile -t EIP_ALLOCS < <(aws ec2 describe-addresses \
+              --region "${REGION}" \
+              --filters "Name=tag:Name,Values=e2e-test-*" \
+              --query "Addresses[].AllocationId" --output text 2>/dev/null | xargs -n1)
+            if [ "${#EIP_ALLOCS[@]}" -gt 0 ]; then
+              for ALLOC in "${EIP_ALLOCS[@]}"; do
+                echo "Releasing Elastic IP ${ALLOC} in ${REGION}"
+                aws ec2 release-address --region "${REGION}" --allocation-id "${ALLOC}" || true
+              done
+            fi
+
             # 6. Delete VPCs
             if [ "${#VPC_IDS[@]}" -gt 0 ]; then
               echo "Deleting VPCs in ${REGION}: ${VPC_IDS[*]}"

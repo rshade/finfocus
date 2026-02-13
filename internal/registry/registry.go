@@ -12,6 +12,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 // Registry manages plugin discovery and lifecycle operations.
@@ -33,6 +34,8 @@ func NewDefault() *Registry {
 
 // ListPlugins scans the plugin directory and returns metadata for all discovered plugins.
 // It returns an empty list if the plugin directory doesn't exist.
+//
+//nolint:gocognit // Filesystem traversal with platform-specific binary detection requires multiple conditions.
 func (r *Registry) ListPlugins() ([]PluginInfo, error) {
 	var plugins []PluginInfo
 
@@ -62,12 +65,21 @@ func (r *Registry) ListPlugins() ([]PluginInfo, error) {
 			}
 
 			versionPath := filepath.Join(pluginPath, version.Name())
-			binPath := r.findBinary(versionPath)
+			// Read metadata once and pass to findBinary to avoid duplicate reads.
+			meta, _ := ReadPluginMetadata(versionPath)
+			binPath := r.findBinary(versionPath, meta)
 			if binPath != "" {
+				// Enrich metadata with region from binary name if not already set.
+				if meta == nil {
+					if region, ok := ParseRegionFromBinaryName(binPath); ok {
+						meta = map[string]string{"region": region}
+					}
+				}
 				plugins = append(plugins, PluginInfo{
-					Name:    entry.Name(),
-					Version: version.Name(),
-					Path:    binPath,
+					Name:     entry.Name(),
+					Version:  version.Name(),
+					Path:     binPath,
+					Metadata: meta,
 				})
 			}
 		}
@@ -173,14 +185,25 @@ func buildPluginPatterns(pluginName string) []string {
 	return patterns
 }
 
-func (r *Registry) findBinary(dir string) string {
+func (r *Registry) findBinary(dir string, meta map[string]string) string {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return ""
 	}
 
-	// Try to find by name patterns first
 	pluginName := filepath.Base(filepath.Dir(dir))
+
+	// If metadata specifies a region, try region-specific binary first.
+	// This ensures that "plugin install aws-public --metadata=region=us-west-2"
+	// selects the us-west-2 binary instead of the first one alphabetically.
+	if region := meta["region"]; region != "" {
+		regionBinPattern := "finfocus-plugin-" + pluginName + "-" + region
+		if path := findByPattern(dir, regionBinPattern); path != "" {
+			return path
+		}
+	}
+
+	// Try to find by name patterns
 	for _, pattern := range buildPluginPatterns(pluginName) {
 		if path := findByPattern(dir, pattern); path != "" {
 			return path
@@ -281,11 +304,17 @@ func (r *Registry) Open(
 			continue
 		}
 
+		// Merge registry-level metadata (e.g., region) into the client's plugin metadata.
+		// This ensures routing decisions can use registry metadata even if the plugin
+		// didn't report it via GetPluginInfo.
+		mergeRegistryMetadata(client, plugin)
+
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "registry").
 			Str("plugin_name", plugin.Name).
 			Str("plugin_version", plugin.Version).
+			Str("region", plugin.Region()).
 			Msg("plugin connected successfully")
 
 		clients = append(clients, client)
@@ -302,7 +331,44 @@ func (r *Registry) Open(
 
 // PluginInfo contains metadata about a discovered plugin.
 type PluginInfo struct {
-	Name    string
-	Version string
-	Path    string
+	Name     string            `json:"name"`
+	Version  string            `json:"version"`
+	Path     string            `json:"path"`
+	Metadata map[string]string `json:"metadata,omitempty"`
+}
+
+// Region returns the plugin's region from metadata, or empty string if universal.
+func (p PluginInfo) Region() string {
+	if p.Metadata == nil {
+		return ""
+	}
+	return p.Metadata["region"]
+}
+
+// mergeRegistryMetadata injects metadata discovered by the registry into a plugin
+// client's metadata without overwriting keys the plugin already provides.
+// If the registry has no metadata for the plugin this is a no-op.
+// The function ensures the client's PluginMetadata and its Metadata map are
+// initialized before copying keys from the registry's PluginInfo.Metadata.
+func mergeRegistryMetadata(client *pluginhost.Client, plugin PluginInfo) {
+	if len(plugin.Metadata) == 0 {
+		return
+	}
+
+	if client.Metadata == nil {
+		client.Metadata = &proto.PluginMetadata{
+			Name: client.Name,
+		}
+	}
+
+	if client.Metadata.Metadata == nil {
+		client.Metadata.Metadata = make(map[string]string, len(plugin.Metadata))
+	}
+
+	// Only set keys that aren't already reported by the plugin itself
+	for k, v := range plugin.Metadata {
+		if _, exists := client.Metadata.Metadata[k]; !exists {
+			client.Metadata.Metadata[k] = v
+		}
+	}
 }

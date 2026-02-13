@@ -443,6 +443,42 @@ func TestMapStateResource_CloudIdentifiers(t *testing.T) {
 
 				// Original inputs preserved
 				assert.Equal(t, "t3.micro", desc.Properties["instanceType"])
+
+				// Outputs merged into properties — publicIp now accessible
+				assert.Equal(t, "54.123.45.67", desc.Properties["publicIp"])
+			},
+		},
+		{
+			name: "provider-computed defaults from outputs (EBS volume)",
+			resource: ingest.StackExportResource{
+				URN:    "urn:pulumi:dev::project::aws:ebs/volume:Volume::data",
+				Type:   "aws:ebs/volume:Volume",
+				ID:     "vol-0abc123",
+				Custom: true,
+				Inputs: map[string]interface{}{
+					"availabilityZone": "us-east-1a",
+					"snapshotId":       "snap-0123456789abcdef0",
+				},
+				Outputs: map[string]interface{}{
+					"arn":  "arn:aws:ec2:us-east-1:123:volume/vol-0abc123",
+					"size": float64(100),
+					"iops": float64(3000),
+					"type": "gp3",
+				},
+			},
+			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
+				// Provider-computed values from outputs available in properties
+				assert.Equal(t, float64(100), desc.Properties["size"])
+				assert.Equal(t, float64(3000), desc.Properties["iops"])
+				assert.Equal(t, "gp3", desc.Properties["type"])
+
+				// Inputs still present
+				assert.Equal(t, "us-east-1a", desc.Properties["availabilityZone"])
+				assert.Equal(t, "snap-0123456789abcdef0", desc.Properties["snapshotId"])
+
+				// ARN extracted into namespaced key
+				assert.Equal(t, "arn:aws:ec2:us-east-1:123:volume/vol-0abc123",
+					desc.Properties[ingest.PropertyPulumiARN])
 			},
 		},
 		{
@@ -554,6 +590,113 @@ func TestMapStateResource_CloudIdentifiers(t *testing.T) {
 			desc, err := ingest.MapStateResource(tt.resource)
 			require.NoError(t, err)
 			tt.validate(t, desc)
+		})
+	}
+}
+
+// --- ParseStackExport tests (T013) ---
+
+func TestParseStackExport(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	tests := []struct {
+		name          string
+		data          []byte
+		wantErr       bool
+		errContains   string
+		wantVersion   int
+		wantResources int
+		wantTimestamp bool
+	}{
+		{
+			name:          "valid JSON with timestamps",
+			data:          []byte(stateWithTimestamps),
+			wantVersion:   3,
+			wantResources: 3,
+			wantTimestamp: true,
+		},
+		{
+			name:        "invalid JSON",
+			data:        []byte(`{invalid json`),
+			wantErr:     true,
+			errContains: "parsing state JSON",
+		},
+		{
+			name:        "empty bytes",
+			data:        []byte(""),
+			wantErr:     true,
+			errContains: "parsing state JSON",
+		},
+		{
+			name:          "empty state",
+			data:          []byte(`{"version": 3, "deployment": {"manifest": {}, "resources": []}}`),
+			wantVersion:   3,
+			wantResources: 0,
+			wantTimestamp: false,
+		},
+		{
+			name:          "without timestamps",
+			data:          []byte(stateWithoutTimestamps),
+			wantResources: 1,
+			wantTimestamp: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			state, err := ingest.ParseStackExport(tt.data)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, state)
+			if tt.wantVersion != 0 {
+				assert.Equal(t, tt.wantVersion, state.Version)
+			}
+			assert.Len(t, state.Deployment.Resources, tt.wantResources)
+			assert.Equal(t, tt.wantTimestamp, state.HasTimestamps())
+		})
+	}
+}
+
+func TestParseStackExportWithContext(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	ctx := context.Background()
+	data := []byte(stateWithTimestamps)
+	state, err := ingest.ParseStackExportWithContext(ctx, data)
+	require.NoError(t, err)
+	require.NotNil(t, state)
+	assert.Equal(t, 3, state.Version)
+}
+
+// TestLoadStackExport_DelegationEquivalence verifies that LoadStackExport and
+// ParseStackExport produce identical results for each fixture file.
+func TestLoadStackExport_DelegationEquivalence(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	fixtures := []string{
+		"../../test/fixtures/state/valid-state.json",
+		"../../test/fixtures/state/no-timestamps.json",
+		"../../test/fixtures/state/imported-resources.json",
+		"../../test/fixtures/state/multi-provider.json",
+		"../../test/fixtures/state/golden-eks-state.json",
+	}
+
+	for _, fixture := range fixtures {
+		t.Run(filepath.Base(fixture), func(t *testing.T) {
+			data, err := os.ReadFile(fixture)
+			require.NoError(t, err)
+
+			parsedState, parseErr := ingest.ParseStackExport(data)
+			loadedState, loadErr := ingest.LoadStackExport(fixture)
+
+			assert.Equal(t, parseErr, loadErr)
+			assert.Equal(t, parsedState, loadedState)
 		})
 	}
 }

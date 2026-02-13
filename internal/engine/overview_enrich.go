@@ -27,9 +27,10 @@ func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateR
 		Msg("enriching overview row")
 
 	resource := ResourceDescriptor{
-		Type:     row.Type,
-		ID:       row.URN,
-		Provider: extractProviderFromType(row.Type),
+		Type:       row.Type,
+		ID:         row.URN,
+		Provider:   extractProviderFromType(row.Type),
+		Properties: row.Properties,
 	}
 
 	// Fetch actual costs (skip for resources being created - they have no history)

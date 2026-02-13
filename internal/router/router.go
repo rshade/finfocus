@@ -221,7 +221,7 @@ func patternKey(pluginName string, pattern config.ResourcePattern) string {
 
 // SelectPlugins returns plugins that match a resource for a given feature.
 //
-//nolint:gocognit,nestif // Core routing logic requires checking multiple matching strategies.
+//nolint:gocognit,nestif,funlen // Core routing logic requires checking multiple matching strategies.
 func (r *DefaultRouter) SelectPlugins(
 	ctx context.Context,
 	resource engine.ResourceDescriptor,
@@ -238,6 +238,7 @@ func (r *DefaultRouter) SelectPlugins(
 		Msg("selecting plugins for resource")
 
 	provider := ExtractProviderFromType(resource.Type)
+	resourceRegion := ExtractResourceRegion(resource)
 	var matches []PluginMatch
 
 	// First pass: check declarative patterns (highest precedence)
@@ -248,6 +249,19 @@ func (r *DefaultRouter) SelectPlugins(
 				if r.matchesAnyPattern(pluginCfg, resource.Type) {
 					client := r.findClient(pluginCfg.Name)
 					if client != nil && r.matchesFeature(client, pluginCfg, feature) {
+						// Check region compatibility
+						pluginReg := PluginRegion(client)
+						if !RegionMatches(pluginReg, resourceRegion) {
+							log.Warn().
+								Ctx(ctx).
+								Str("component", "router").
+								Str("plugin", pluginCfg.Name).
+								Str("resource_type", resource.Type).
+								Str("plugin_region", pluginReg).
+								Str("resource_region", resourceRegion).
+								Msg("plugin skipped: region mismatch")
+							continue
+						}
 						matches = append(matches, PluginMatch{
 							Client:      client,
 							Priority:    pluginCfg.Priority,
@@ -280,6 +294,20 @@ func (r *DefaultRouter) SelectPlugins(
 		// Check if this client matches the provider
 		matchReason := r.matchesProvider(client, provider)
 		if matchReason == MatchReasonAutomatic || matchReason == MatchReasonGlobal {
+			// Check region compatibility
+			pluginReg := PluginRegion(client)
+			if !RegionMatches(pluginReg, resourceRegion) {
+				log.Warn().
+					Ctx(ctx).
+					Str("component", "router").
+					Str("plugin", client.Name).
+					Str("resource_type", resource.Type).
+					Str("plugin_region", pluginReg).
+					Str("resource_region", resourceRegion).
+					Msg("plugin skipped: region mismatch (consider installing plugin for this region)")
+				continue
+			}
+
 			// Check feature filter from config if exists
 			if cfg, ok := r.pluginConfig[client.Name]; ok {
 				if !r.matchesFeature(client, *cfg, feature) {
@@ -313,6 +341,17 @@ func (r *DefaultRouter) SelectPlugins(
 				Int("priority", priority).
 				Msg("plugin matched by provider")
 		}
+	}
+
+	// Warn if no plugins matched and we had region information
+	if len(matches) == 0 && resourceRegion != "" {
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "router").
+			Str("resource_type", resource.Type).
+			Str("resource_region", resourceRegion).
+			Str("feature", feature).
+			Msg("no plugin matches resource region; install a region-specific plugin")
 	}
 
 	// Sort by priority (highest first)

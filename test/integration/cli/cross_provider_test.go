@@ -20,6 +20,7 @@ func TestCrossProvider_MultiProviderPlan(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--output", "json",
 	)
 	require.NoError(t, err)
@@ -52,6 +53,7 @@ func TestCrossProvider_GroupByProvider(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "provider", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -72,6 +74,7 @@ func TestCrossProvider_GroupByMonthly(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-03-31",
+		"--fallback-estimate",
 		"--group-by", "monthly", "--output", "json",
 	)
 	require.NoError(t, err)
@@ -92,6 +95,7 @@ func TestCrossProvider_StateFile(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", stateFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--output", "json",
 	)
 	require.NoError(t, err)
@@ -112,6 +116,7 @@ func TestCrossProvider_FilterThenAggregate(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--filter", "tag:env=prod",
 		"--group-by", "provider",
 		"--output", "json",
@@ -134,6 +139,7 @@ func TestCrossProvider_CurrencyConsistency(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--output", "json",
 	)
 	require.NoError(t, err)
@@ -163,6 +169,7 @@ func TestCrossProvider_TableOutput(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "provider",
 		"--output", "table",
 	)
@@ -181,6 +188,7 @@ func TestCrossProvider_NDJSONOutput(t *testing.T) {
 	output, err := h.Execute(
 		"cost", "actual", "--pulumi-json", planFile,
 		"--from", "2025-01-01", "--to", "2025-12-31",
+		"--fallback-estimate",
 		"--group-by", "provider",
 		"--output", "ndjson",
 	)

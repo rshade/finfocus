@@ -103,6 +103,7 @@ func MergeResourcesForOverview(
 			Type:       res.Type,
 			ResourceID: res.ID,
 			Status:     status,
+			Properties: res.Properties,
 		})
 	}
 

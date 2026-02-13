@@ -16,6 +16,11 @@ import (
 func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	loggingCfg := config.GetLoggingConfig()
 
+	// Ensure log directory exists before attempting to open the file.
+	if loggingCfg.File != "" {
+		_ = config.EnsureLogDir() // best-effort; fallback to stderr on failure
+	}
+
 	debug, _ := cmd.Flags().GetBool("debug")
 	if debug {
 		loggingCfg.Level = "debug"

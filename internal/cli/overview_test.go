@@ -16,18 +16,25 @@ import (
 // NewOverviewCmd - Flag parsing and validation
 // ---------------------------------------------------------------------------
 
-func TestNewOverviewCmd_MissingRequiredFlag(t *testing.T) {
+func TestNewOverviewCmd_NoArgsAutoDetectFails(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	// Run from a temp dir with no Pulumi project so auto-detect fails
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
 	var buf bytes.Buffer
 	cmd := cli.NewOverviewCmd()
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{})
+	cmd.SetArgs([]string{"--yes"})
 
-	err := cmd.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "required flag")
+	execErr := cmd.Execute()
+	require.Error(t, execErr)
+	assert.Contains(t, execErr.Error(), "auto-detecting Pulumi project")
 }
 
 func TestNewOverviewCmd_HelpFlag(t *testing.T) {
@@ -46,6 +53,7 @@ func TestNewOverviewCmd_HelpFlag(t *testing.T) {
 	assert.Contains(t, output, "unified cost dashboard")
 	assert.Contains(t, output, "--pulumi-state")
 	assert.Contains(t, output, "--pulumi-json")
+	assert.Contains(t, output, "--stack")
 	assert.Contains(t, output, "--from")
 	assert.Contains(t, output, "--to")
 	assert.Contains(t, output, "--adapter")
@@ -190,6 +198,7 @@ func TestNewOverviewCmd_AllFlagsAccepted(t *testing.T) {
 	// Verify all flags are registered
 	assert.NotNil(t, cmd.Flags().Lookup("pulumi-json"))
 	assert.NotNil(t, cmd.Flags().Lookup("pulumi-state"))
+	assert.NotNil(t, cmd.Flags().Lookup("stack"))
 	assert.NotNil(t, cmd.Flags().Lookup("from"))
 	assert.NotNil(t, cmd.Flags().Lookup("to"))
 	assert.NotNil(t, cmd.Flags().Lookup("adapter"))
@@ -198,6 +207,43 @@ func TestNewOverviewCmd_AllFlagsAccepted(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("plain"))
 	assert.NotNil(t, cmd.Flags().Lookup("yes"))
 	assert.NotNil(t, cmd.Flags().Lookup("no-pagination"))
+}
+
+func TestNewOverviewCmd_StackFlagExists(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	cmd := cli.NewOverviewCmd()
+	stackFlag := cmd.Flags().Lookup("stack")
+	require.NotNil(t, stackFlag)
+	assert.Equal(t, "", stackFlag.DefValue)
+	assert.Contains(t, stackFlag.Usage, "Pulumi stack name")
+}
+
+func TestNewOverviewCmd_ExplicitStateStillWorks(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+
+	tmpDir := t.TempDir()
+	statePath := filepath.Join(tmpDir, "state.json")
+	stateJSON := `{"version":3,"deployment":{"manifest":{"time":"2025-01-01T00:00:00Z","magic":"","version":""},"resources":[]}}`
+	require.NoError(t, os.WriteFile(statePath, []byte(stateJSON), 0o600))
+
+	var buf bytes.Buffer
+	cmd := cli.NewOverviewCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"--pulumi-state", statePath,
+		"--yes",
+	})
+
+	// Should still work with explicit --pulumi-state (backwards compatibility).
+	// May fail at "opening plugins" depending on test environment.
+	err := cmd.Execute()
+	if err != nil {
+		assert.Contains(t, err.Error(), "opening plugins")
+	}
 }
 
 func TestNewOverviewCmd_YesShortFlag(t *testing.T) {

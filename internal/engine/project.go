@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"sort"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 
@@ -203,6 +204,10 @@ func renderSummary(w io.Writer, aggregated *AggregatedResults) {
 	fmt.Fprintf(w, "Total Monthly Cost:\t%.2f %s\n", aggregated.Summary.TotalMonthly, aggregated.Summary.Currency)
 	fmt.Fprintf(w, "Total Hourly Cost:\t%.2f %s\n", aggregated.Summary.TotalHourly, aggregated.Summary.Currency)
 	fmt.Fprintf(w, "Total Resources:\t%d\n", len(aggregated.Resources))
+	recCount := countRecommendations(aggregated.Resources)
+	if recCount > 0 {
+		fmt.Fprintf(w, "Recommendations:\t%d\n", recCount)
+	}
 	fmt.Fprintf(w, "\n")
 }
 
@@ -386,8 +391,8 @@ func renderCarbonEquivalencies(ctx context.Context, w io.Writer, sustainTotals m
 func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
 	fmt.Fprintf(w, "RESOURCE DETAILS\n")
 	fmt.Fprintf(w, "================\n")
-	fmt.Fprintln(w, "Resource\tAdapter\tMonthly\tHourly\tCurrency\tNotes")
-	fmt.Fprintln(w, "--------\t-------\t-------\t------\t--------\t-----")
+	fmt.Fprintln(w, "Resource\tAdapter\tMonthly\tHourly\tCurrency\tRecommendations\tNotes")
+	fmt.Fprintln(w, "--------\t-------\t-------\t------\t--------\t---------------\t-----")
 
 	for _, result := range aggregated.Resources {
 		resource := fmt.Sprintf("%s/%s", result.ResourceType, result.ResourceID)
@@ -396,16 +401,27 @@ func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
 		}
 
 		notes := formatResourceNotes(result)
+		recs := formatRecommendationCount(len(result.Recommendations))
 
-		fmt.Fprintf(w, "%s\t%s\t%.2f\t%.4f\t%s\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%.2f\t%.4f\t%s\t%s\t%s\n",
 			resource,
 			result.Adapter,
 			result.Monthly,
 			result.Hourly,
 			result.Currency,
+			recs,
 			notes,
 		)
 	}
+}
+
+// formatRecommendationCount returns the recommendation count as a string for table display.
+// Returns "-" when the count is zero so the column stays visually clean.
+func formatRecommendationCount(count int) string {
+	if count == 0 {
+		return "-"
+	}
+	return strconv.Itoa(count)
 }
 
 // otherwise the notes consist solely of the sustainability list.
@@ -447,6 +463,12 @@ func formatResourceNotes(result CostResult) string {
 // Returns an error if flushing the tabwriter fails.
 func renderActualCostTable(writer io.Writer, results []CostResult, showConfidence bool) error {
 	w := tabwriter.NewWriter(writer, 0, 0, defaultTabPadding, ' ', 0)
+
+	// Show recommendation count summary when recommendations exist.
+	recCount := countRecommendations(results)
+	if recCount > 0 {
+		fmt.Fprintf(w, "Recommendations:\t%d\n\n", recCount)
+	}
 
 	// Check if we have actual cost data to determine appropriate headers
 	hasActualCosts := false
@@ -495,8 +517,8 @@ func buildActualCostHeaderColumns(hasActualCosts bool, showConfidence bool) ([]s
 		separators = append(separators, "----------")
 	}
 
-	headers = append(headers, "Currency", "Notes")
-	separators = append(separators, "--------", "-----")
+	headers = append(headers, "Currency", "Recommendations", "Notes")
+	separators = append(separators, "--------", "---------------", "-----")
 
 	return headers, separators
 }
@@ -557,7 +579,8 @@ func buildActualCostRowColumns(
 		columns = append(columns, result.Confidence.DisplayLabel())
 	}
 
-	columns = append(columns, result.Currency, notes)
+	recs := formatRecommendationCount(len(result.Recommendations))
+	columns = append(columns, result.Currency, recs, notes)
 	return columns
 }
 
@@ -727,6 +750,15 @@ func renderNDJSONCrossProvider(writer io.Writer, aggregations []CrossProviderAgg
 		}
 	}
 	return nil
+}
+
+// countRecommendations returns the total number of recommendations across all results.
+func countRecommendations(results []CostResult) int {
+	count := 0
+	for _, r := range results {
+		count += len(r.Recommendations)
+	}
+	return count
 }
 
 // getCurrencySymbol returns the currency symbol for the given ISO currency code.

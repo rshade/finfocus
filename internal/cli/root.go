@@ -153,7 +153,17 @@ type CostFlags struct {
 // newCostCmd creates the cost command group with projected, actual, and recommendations subcommands.
 // It also adds persistent flags for budget exit code configuration (Issue #219).
 //
-//nolint:gocognit // Function is logically cohesive; complexity comes from config setup.
+// newCostCmd creates the "cost" command group with persistent flags, budget-related overrides, validation, and subcommands.
+//
+// The returned *cobra.Command includes persistent flags for budget behavior (--exit-on-threshold, --exit-code, --budget-scope)
+// and a --stack flag for Pulumi stack selection used during auto-detection. Its PersistentPreRunE arranges for the root command's
+// PersistentPreRunE to run, ensures the global configuration has a Budgets structure so CLI flag overrides can be applied,
+// applies explicit CLI flag values to the global config when those flags were changed, and validates the global scoped budget
+// configuration when exit-on-threshold is enabled.
+//
+// Returns a configured command that contains the projected, actual, recommendations, and estimate cost subcommands.
+//
+//nolint:gocognit // CLI command setup with flag validation naturally has high branching.
 func newCostCmd() *cobra.Command {
 	var flags CostFlags
 
@@ -214,6 +224,10 @@ func newCostCmd() *cobra.Command {
 	// Add persistent flag for budget scope filtering (T025)
 	cmd.PersistentFlags().StringVar(&flags.BudgetScope, "budget-scope", "",
 		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
+
+	// Add persistent flag for Pulumi stack selection during auto-detection
+	cmd.PersistentFlags().String("stack", "",
+		"Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state)")
 
 	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd(), NewCostEstimateCmd())
 	return cmd

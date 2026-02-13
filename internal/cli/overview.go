@@ -16,6 +16,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
+	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/tui"
 )
 
@@ -23,6 +24,7 @@ import (
 type overviewParams struct {
 	pulumiJSON   string
 	pulumiState  string
+	stack        string
 	fromStr      string
 	toStr        string
 	adapter      string
@@ -45,19 +47,26 @@ func NewOverviewCmd() *cobra.Command {
 		Long: `Display a unified cost dashboard combining Pulumi state and plan data
 with actual costs, projected costs, drift analysis, and recommendations.
 
-Requires at least --pulumi-state to show current resources. Optionally provide
---pulumi-json to detect pending infrastructure changes and their cost impact.`,
-		Example: `  # Show overview for current stack state
-  finfocus overview --pulumi-state state.json
+When run inside a Pulumi project directory without explicit file flags, overview
+auto-detects the project and current stack, then runs 'pulumi stack export' and
+'pulumi preview --json' to gather state and plan data automatically.
 
-  # Show overview with pending changes from plan
+Optionally provide --pulumi-state and/or --pulumi-json to use pre-exported files
+instead of running Pulumi CLI commands.`,
+		Example: `  # Auto-detect from current Pulumi project (recommended)
+  finfocus overview
+
+  # Auto-detect with a specific stack
+  finfocus overview --stack production
+
+  # Use pre-exported files
   finfocus overview --pulumi-state state.json --pulumi-json plan.json
 
   # Show overview with custom date range
-  finfocus overview --pulumi-state state.json --from 2025-01-01 --to 2025-01-31
+  finfocus overview --from 2025-01-01 --to 2025-01-31
 
   # Non-interactive plain text output
-  finfocus overview --pulumi-state state.json --plain --yes`,
+  finfocus overview --plain --yes`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return executeOverview(cmd, params)
 		},
@@ -65,6 +74,8 @@ Requires at least --pulumi-state to show current resources. Optionally provide
 
 	cmd.Flags().StringVar(&params.pulumiJSON, "pulumi-json", "", "path to Pulumi preview JSON")
 	cmd.Flags().StringVar(&params.pulumiState, "pulumi-state", "", "path to Pulumi state JSON")
+	cmd.Flags().StringVar(&params.stack, "stack", "",
+		"Pulumi stack name for auto-detection (ignored with --pulumi-state/--pulumi-json)")
 	cmd.Flags().StringVar(&params.fromStr, "from", "", "start date (YYYY-MM-DD or RFC3339)")
 	cmd.Flags().StringVar(&params.toStr, "to", "", "end date (YYYY-MM-DD or RFC3339, defaults to now)")
 	cmd.Flags().StringVar(&params.adapter, "adapter", "", "restrict to a specific adapter plugin")
@@ -73,9 +84,6 @@ Requires at least --pulumi-state to show current resources. Optionally provide
 	cmd.Flags().BoolVar(&params.plain, "plain", false, "force non-interactive plain text output")
 	cmd.Flags().BoolVarP(&params.yes, "yes", "y", false, "skip confirmation prompts")
 	cmd.Flags().BoolVar(&params.noPagination, "no-pagination", false, "disable pagination (plain mode only)")
-
-	// pulumi-state is required
-	_ = cmd.MarkFlagRequired("pulumi-state")
 
 	return cmd
 }
@@ -86,7 +94,6 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	log := logging.FromContext(ctx)
 	audit := newAuditContext(ctx, "overview", map[string]string{
 		"pulumi_state": params.pulumiState,
 		"pulumi_json":  params.pulumiJSON,
@@ -99,58 +106,43 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		return fmt.Errorf("invalid date range: %w", err)
 	}
 
-	// 2. Load Pulumi state
-	log.Debug().Ctx(ctx).Str("state_path", params.pulumiState).Msg("loading Pulumi state")
-	state, err := ingest.LoadStackExportWithContext(ctx, params.pulumiState)
+	// 2. Load Pulumi state and plan (from files or auto-detect)
+	stateResources, planSteps, stackName, err := resolveOverviewData(ctx, params)
 	if err != nil {
 		audit.logFailure(ctx, err)
-		return fmt.Errorf("loading Pulumi state: %w", err)
+		return err
 	}
 
-	stateResources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
-
-	// 3. Load Pulumi plan (optional)
-	var planSteps []engine.PlanStep
-	if params.pulumiJSON != "" {
-		log.Debug().Ctx(ctx).Str("plan_path", params.pulumiJSON).Msg("loading Pulumi plan")
-		plan, planErr := ingest.LoadPulumiPlanWithContext(ctx, params.pulumiJSON)
-		if planErr != nil {
-			audit.logFailure(ctx, planErr)
-			return fmt.Errorf("loading Pulumi plan: %w", planErr)
-		}
-		planSteps = convertPlanSteps(plan.Steps)
-	}
-
-	// 4. Detect pending changes
+	// 3. Detect pending changes
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 
-	// 5. Merge resources
+	// 4. Merge resources
 	rows, err := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("merging resources: %w", err)
 	}
 
-	// 6. Pre-flight prompt (unless --yes)
+	// 5. Pre-flight prompt (unless --yes)
 	printOverviewSummaryLine(cmd, params.yes, len(rows), hasChanges, changeCount)
 
-	// 7. Validate filter keys and apply resource filters
+	// 6. Validate filter keys and apply resource filters
 	rows, err = validateAndApplyOverviewFilters(rows, params.filter)
 	if err != nil {
 		return err
 	}
 
-	// 8. Open plugins
+	// 7. Open plugins
 	clients, cleanup, err := openPlugins(ctx, params.adapter, audit)
 	if err != nil {
 		return err
 	}
 	defer cleanup()
 
-	// 9. Create engine
+	// 8. Create engine
 	eng := engine.New(clients, nil)
 
-	// 10. Determine if we should use interactive TUI or plain text
+	// 9. Determine if we should use interactive TUI or plain text
 	isInteractive := shouldUseInteractiveTUI(cmd.OutOrStdout(), params.output, params.plain)
 
 	if isInteractive {
@@ -163,7 +155,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 
 	// 11. Build stack context
 	stackCtx := engine.StackContext{
-		StackName:      extractStackName(params.pulumiState),
+		StackName:      stackName,
 		TimeWindow:     dateRange,
 		HasChanges:     hasChanges,
 		TotalResources: len(rows),
@@ -180,6 +172,109 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 
 	audit.logSuccess(ctx, len(rows), 0)
 	return nil
+}
+
+// resolveOverviewData loads Pulumi state and plan data, either from explicit file
+// paths or by auto-detecting the Pulumi project and running CLI commands.
+func resolveOverviewData(
+	ctx context.Context, params overviewParams,
+) ([]engine.StateResource, []engine.PlanStep, string, error) {
+	if params.pulumiState != "" {
+		return loadOverviewFromFiles(ctx, params)
+	}
+	return loadOverviewFromAutoDetect(ctx, params)
+}
+
+// loadOverviewFromFiles loads state/plan from explicit file paths.
+func loadOverviewFromFiles(
+	ctx context.Context, params overviewParams,
+) ([]engine.StateResource, []engine.PlanStep, string, error) {
+	log := logging.FromContext(ctx)
+
+	log.Debug().Ctx(ctx).Str("state_path", params.pulumiState).Msg("loading Pulumi state")
+	state, err := ingest.LoadStackExportWithContext(ctx, params.pulumiState)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("loading Pulumi state: %w", err)
+	}
+	stateResources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
+	stackName := extractStackName(params.pulumiState)
+
+	var planSteps []engine.PlanStep
+	if params.pulumiJSON != "" {
+		plan, planErr := ingest.LoadPulumiPlanWithContext(ctx, params.pulumiJSON)
+		if planErr != nil {
+			return nil, nil, "", fmt.Errorf("loading Pulumi plan: %w", planErr)
+		}
+		planSteps = convertPlanSteps(plan.Steps)
+	}
+
+	return stateResources, planSteps, stackName, nil
+}
+
+// loadOverviewFromAutoDetect discovers the Pulumi project/stack and runs
+// both `pulumi stack export` and `pulumi preview --json` to gather data.
+func loadOverviewFromAutoDetect(
+	ctx context.Context, params overviewParams,
+) ([]engine.StateResource, []engine.PlanStep, string, error) {
+	log := logging.FromContext(ctx)
+
+	projectDir, resolvedStack, err := detectPulumiProject(ctx, params.stack)
+	if err != nil {
+		return nil, nil, "", fmt.Errorf("auto-detecting Pulumi project: %w", err)
+	}
+
+	// Run pulumi stack export
+	log.Info().Ctx(ctx).Str("component", "pulumi").Msg("Running pulumi stack export...")
+	exportData, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
+		ProjectDir: projectDir,
+		Stack:      resolvedStack,
+	})
+	if exportErr != nil {
+		return nil, nil, "", fmt.Errorf("running pulumi stack export: %w", exportErr)
+	}
+	state, parseErr := ingest.ParseStackExportWithContext(ctx, exportData)
+	if parseErr != nil {
+		return nil, nil, "", fmt.Errorf("parsing pulumi stack export: %w", parseErr)
+	}
+	stateResources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
+
+	// Resolve plan: from file if --pulumi-json provided, otherwise auto-detect
+	planSteps, planErr := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, resolvedStack)
+	if planErr != nil {
+		return nil, nil, "", planErr
+	}
+
+	return stateResources, planSteps, resolvedStack, nil
+}
+
+// resolveOverviewPlan loads plan steps from a file or runs pulumi preview.
+func resolveOverviewPlan(
+	ctx context.Context, pulumiJSON, projectDir, stack string,
+) ([]engine.PlanStep, error) {
+	log := logging.FromContext(ctx)
+
+	if pulumiJSON != "" {
+		plan, err := ingest.LoadPulumiPlanWithContext(ctx, pulumiJSON)
+		if err != nil {
+			return nil, fmt.Errorf("loading Pulumi plan: %w", err)
+		}
+		return convertPlanSteps(plan.Steps), nil
+	}
+
+	log.Info().Ctx(ctx).Str("component", "pulumi").
+		Msg("Running pulumi preview --json (this may take a moment)...")
+	previewData, err := pulumidetect.Preview(ctx, pulumidetect.PreviewOptions{
+		ProjectDir: projectDir,
+		Stack:      stack,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("running pulumi preview: %w", err)
+	}
+	plan, err := ingest.ParsePulumiPlanWithContext(ctx, previewData)
+	if err != nil {
+		return nil, fmt.Errorf("parsing pulumi preview: %w", err)
+	}
+	return convertPlanSteps(plan.Steps), nil
 }
 
 // printOverviewSummaryLine prints a one-line pre-flight summary unless --yes.
@@ -240,10 +335,11 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 	result := make([]engine.StateResource, len(resources))
 	for i, r := range resources {
 		result[i] = engine.StateResource{
-			URN:    r.URN,
-			Type:   r.Type,
-			ID:     r.ID,
-			Custom: r.Custom,
+			URN:        r.URN,
+			Type:       r.Type,
+			ID:         r.ID,
+			Custom:     r.Custom,
+			Properties: ingest.MergeProperties(r.Outputs, r.Inputs),
 		}
 	}
 	return result
@@ -422,7 +518,7 @@ func runInteractiveOverview(
 ) error {
 	log := logging.FromContext(ctx)
 
-	// Deep copy skeletonRows for the TUI model so the model has its own
+	// Copy skeletonRows for the TUI model so the model has its own
 	// independent slice, preventing a data race between OverviewModel.applyFilter
 	// (reads) and EnrichOverviewRows (writes) on the backing array.
 	copiedRows := make([]engine.OverviewRow, len(skeletonRows))

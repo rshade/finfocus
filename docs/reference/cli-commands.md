@@ -38,28 +38,36 @@ finfocus analyzer serve     # Start the analyzer gRPC server
 
 ## cost projected
 
-Calculate estimated costs from Pulumi plan.
+Calculate estimated costs from Pulumi plan. When `--pulumi-json` is omitted,
+FinFocus auto-detects the Pulumi project and runs `pulumi preview --json`.
 
 ### Usage (cost projected)
 
 ```bash
-finfocus cost projected --pulumi-json <file> [options]
+finfocus cost projected [options]
 ```
 
 ### Options (cost projected)
 
-| Flag            | Description                               | Default  |
-| --------------- | ----------------------------------------- | -------- |
-| `--pulumi-json` | Path to Pulumi preview JSON               | Required |
-| `--filter`      | Filter resources (tag:key=value, type=\*) | None     |
-| `--output`      | Output format: table, json, ndjson        | table    |
-| `--utilization` | Assumed resource utilization (0.0-1.0)    | 1.0      |
-| `--help`        | Show help                                 |          |
+| Flag            | Description                                                       | Default  |
+| --------------- | ----------------------------------------------------------------- | -------- |
+| `--pulumi-json` | Path to Pulumi preview JSON (optional; auto-detected if omitted)  |          |
+| `--stack`       | Pulumi stack name for auto-detection (ignored with --pulumi-json) |          |
+| `--filter`      | Filter resources (tag:key=value, type=\*)                         | None     |
+| `--output`      | Output format: table, json, ndjson                                | table    |
+| `--utilization` | Assumed resource utilization (0.0-1.0)                            | 1.0      |
+| `--help`        | Show help                                                         |          |
 
 ### Examples (cost projected)
 
 ```bash
-# Basic usage
+# Auto-detect from Pulumi project
+finfocus cost projected
+
+# Specific stack
+finfocus cost projected --stack production
+
+# Explicit file (existing behavior)
 finfocus cost projected --pulumi-json plan.json
 
 # JSON output
@@ -256,7 +264,9 @@ finfocus cost recommendations history rec-123abc --output ndjson
 
 ## cost actual
 
-Get actual historical costs from plugins.
+Get actual historical costs from plugins. When `--pulumi-json` and `--pulumi-state`
+are both omitted, FinFocus auto-detects the Pulumi project and runs
+`pulumi stack export`.
 
 ### Usage (cost actual)
 
@@ -266,17 +276,18 @@ finfocus cost actual [options]
 
 ### Options (cost actual)
 
-| Flag                    | Description                                              | Default    |
-| ----------------------- | -------------------------------------------------------- | ---------- |
-| `--pulumi-json`         | Path to Pulumi preview JSON                              |            |
-| `--pulumi-state`        | Path to Pulumi state JSON from `pulumi stack export`     |            |
-| `--from`                | Start date (YYYY-MM-DD or RFC3339)                       | 7 days ago |
-| `--to`                  | End date (YYYY-MM-DD or RFC3339)                         | Today      |
-| `--filter`              | Filter resources (tag:key=value, type=\*)                | None       |
-| `--group-by`            | Group results (resource, type, provider, daily, monthly) | resource   |
-| `--output`              | Output format: table, json, ndjson                       | table      |
-| `--estimate-confidence` | Show confidence level for cost estimates                 | false      |
-| `--help`                | Show help                                                |            |
+| Flag                    | Description                                                                 | Default |
+| ----------------------- | --------------------------------------------------------------------------- | ------- |
+| `--pulumi-json`         | Path to Pulumi preview JSON (mutually exclusive with --pulumi-state)        |         |
+| `--pulumi-state`        | Path to Pulumi state JSON from `pulumi stack export`                        |         |
+| `--stack`               | Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state) |         |
+| `--from`                | Start date (YYYY-MM-DD or RFC3339; auto-detected from state if omitted)     |         |
+| `--to`                  | End date (YYYY-MM-DD or RFC3339)                                            | Now     |
+| `--filter`              | Filter resources (tag:key=value, type=\*)                                   | None    |
+| `--group-by`            | Group results (resource, type, provider, daily, monthly)                    |         |
+| `--output`              | Output format: table, json, ndjson                                          | table   |
+| `--estimate-confidence` | Show confidence level for cost estimates                                    | false   |
+| `--help`                | Show help                                                                   |         |
 
 ### Confidence Levels
 
@@ -291,6 +302,12 @@ When `--estimate-confidence` is enabled, a Confidence column appears showing dat
 ### Examples (cost actual)
 
 ```bash
+# Auto-detect from Pulumi project (dates auto-detected from state)
+finfocus cost actual
+
+# Auto-detect with specific stack
+finfocus cost actual --stack production
+
 # Estimate costs from Pulumi state (--from auto-detected from timestamps)
 finfocus cost actual --pulumi-state state.json
 
@@ -502,6 +519,7 @@ finfocus plugin install <plugin-name> [--version <version>] [--url <url>] [optio
 | `--url`     | URL to plugin binary (for custom installs)         | (registry lookup) |
 | `--force`   | Force overwrite existing plugin installation       | false             |
 | `--clean`   | Remove all other versions after successful install | false             |
+| `--metadata` | Key=value metadata pairs (e.g., `region=us-west-2`) | (none)            |
 | `--no-save` | Don't add plugin to config file                    | false             |
 | `--help`    | Show help                                          |                   |
 
@@ -519,6 +537,9 @@ finfocus plugin install kubecost --clean
 
 # Install from a custom URL
 finfocus plugin install my-plugin --url https://example.com/my-plugin-0.1.0.tar.gz
+
+# Install with region metadata (selects region-specific binary)
+finfocus plugin install aws-public --metadata="region=us-west-2"
 ```
 
 ## plugin update

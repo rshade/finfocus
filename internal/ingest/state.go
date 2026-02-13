@@ -65,13 +65,53 @@ type StackExportResource struct {
 	Modified *time.Time `json:"modified,omitempty"`
 }
 
+// ParseStackExport parses Pulumi state JSON from bytes.
+func ParseStackExport(data []byte) (*StackExport, error) {
+	return ParseStackExportWithContext(context.Background(), data)
+}
+
+// ParseStackExportWithContext parses Pulumi state JSON from data using ctx for logging.
+//
+// The ctx is used to obtain a logger for diagnostic messages. The data parameter is the
+// raw JSON bytes representing a Pulumi stack export; the function unmarshals those bytes
+// into a StackExport value. On success it returns a pointer to the parsed StackExport.
+// If JSON unmarshalling fails the returned error wraps the underlying unmarshal error.
+func ParseStackExportWithContext(ctx context.Context, data []byte) (*StackExport, error) {
+	log := logging.FromContext(ctx)
+	log.Debug().
+		Str("component", "ingest").
+		Str("operation", "parse_state").
+		Int("data_size_bytes", len(data)).
+		Msg("parsing Pulumi state from bytes")
+
+	var state StackExport
+	if err := json.Unmarshal(data, &state); err != nil {
+		log.Error().
+			Str("component", "ingest").
+			Err(err).
+			Msg("failed to parse state JSON")
+		return nil, fmt.Errorf("parsing state JSON: %w", err)
+	}
+
+	log.Debug().
+		Str("component", "ingest").
+		Int("version", state.Version).
+		Int("resource_count", len(state.Deployment.Resources)).
+		Msg("state parsed successfully")
+
+	return &state, nil
+}
+
 // LoadStackExport loads and parses a Pulumi state JSON file from the specified path.
 // The state file is typically generated via `pulumi stack export > state.json`.
 func LoadStackExport(path string) (*StackExport, error) {
 	return LoadStackExportWithContext(context.Background(), path)
 }
 
-// LoadStackExportWithContext loads and parses a Pulumi state JSON file with logging context.
+// LoadStackExportWithContext loads and parses a Pulumi state JSON file located at the given path using the provided context.
+//
+// The path parameter specifies the filesystem location of the Pulumi state JSON to read.
+// It returns the parsed *StackExport on success, or an error if the file cannot be read or the contents cannot be parsed as a StackExport.
 func LoadStackExportWithContext(ctx context.Context, path string) (*StackExport, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -95,23 +135,7 @@ func LoadStackExportWithContext(ctx context.Context, path string) (*StackExport,
 		Int("file_size_bytes", len(data)).
 		Msg("state file read successfully")
 
-	var state StackExport
-	if unmarshalErr := json.Unmarshal(data, &state); unmarshalErr != nil {
-		log.Error().
-			Str("component", "ingest").
-			Err(unmarshalErr).
-			Str("state_path", path).
-			Msg("failed to parse state JSON")
-		return nil, fmt.Errorf("parsing state JSON: %w", unmarshalErr)
-	}
-
-	log.Debug().
-		Str("component", "ingest").
-		Int("version", state.Version).
-		Int("resource_count", len(state.Deployment.Resources)).
-		Msg("state parsed successfully")
-
-	return &state, nil
+	return ParseStackExportWithContext(ctx, data)
 }
 
 // GetCustomResources returns only custom resources (cloud resources) from state.
@@ -143,13 +167,16 @@ func (s *StackExport) GetCustomResourcesWithContext(ctx context.Context) []Stack
 
 // MapStateResource converts a StackExportResource to a ResourceDescriptor.
 // Timestamps, cloud identifiers (ID, ARN), and outputs are injected into Properties.
+// Properties are built by merging Outputs (base) with Inputs (overlay), so provider-
+// computed values like size, iops, and tagsAll are included while user-declared
+// from the resource type. This function does not currently return non-nil errors.
 func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, error) {
 	provider := extractProvider(resource.Type)
 
-	// Copy inputs to properties, then inject Pulumi metadata
-	properties := make(map[string]interface{})
-	for k, v := range resource.Inputs {
-		properties[k] = v
+	// Merge outputs (base) with inputs (overlay) — inputs win on conflict
+	properties := MergeProperties(resource.Outputs, resource.Inputs)
+	if properties == nil {
+		properties = make(map[string]interface{})
 	}
 
 	// Inject timestamps as RFC3339 strings
@@ -169,19 +196,9 @@ func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, 
 	}
 	properties[PropertyPulumiURN] = resource.URN
 
-	// Extract ARN from outputs if available
-	if arn, ok := extractStringFromOutputs(resource.Outputs, "arn"); ok {
+	// Extract ARN into namespaced property from merged properties
+	if arn, ok := properties["arn"].(string); ok && arn != "" {
 		properties[PropertyPulumiARN] = arn
-	}
-
-	// Extract tags from outputs (prefer tagsAll over tags for AWS completeness)
-	if outputTags, ok := extractTagsFromMap(resource.Outputs, "tagsAll"); ok {
-		properties["tagsAll"] = outputTags
-	} else if inputTags, hasInputTags := extractTagsFromMap(resource.Inputs, "tags"); hasInputTags {
-		// Fallback: use tags from inputs if outputs don't have tagsAll
-		if _, alreadyHasTags := properties["tags"]; !alreadyHasTags {
-			properties["tags"] = inputTags
-		}
 	}
 
 	return engine.ResourceDescriptor{
@@ -192,39 +209,9 @@ func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, 
 	}, nil
 }
 
-// extractStringFromOutputs extracts a string value from a map by key.
-func extractStringFromOutputs(m map[string]interface{}, key string) (string, bool) {
-	if m == nil {
-		return "", false
-	}
-	v, found := m[key]
-	if !found {
-		return "", false
-	}
-	s, isStr := v.(string)
-	if !isStr || s == "" {
-		return "", false
-	}
-	return s, true
-}
-
-// extractTagsFromMap extracts a map[string]interface{} from a nested map value.
-func extractTagsFromMap(m map[string]interface{}, key string) (map[string]interface{}, bool) {
-	if m == nil {
-		return nil, false
-	}
-	v, found := m[key]
-	if !found {
-		return nil, false
-	}
-	tags, isMap := v.(map[string]interface{})
-	if !isMap || len(tags) == 0 {
-		return nil, false
-	}
-	return tags, true
-}
-
-// MapStateResources converts multiple StackExportResource to ResourceDescriptors.
+// MapStateResources converts a slice of StackExportResource into a slice of engine.ResourceDescriptor.
+// It maps each resource using MapStateResource and preserves the input order.
+// If mapping any resource fails, it returns an error that wraps the underlying error and includes the resource URN.
 func MapStateResources(resources []StackExportResource) ([]engine.ResourceDescriptor, error) {
 	var descriptors []engine.ResourceDescriptor
 	for _, r := range resources {

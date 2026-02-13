@@ -942,7 +942,7 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 			}
 
 			resourceResult, errors := e.getActualCostForResource(ctx, resource, request)
-			resultsChan <- workerResult{index: j.index, result: &resourceResult, errors: errors}
+			resultsChan <- workerResult{index: j.index, result: resourceResult, errors: errors}
 		}
 	}
 
@@ -1001,7 +1001,7 @@ func (e *Engine) getActualCostForResource(
 	ctx context.Context,
 	resource ResourceDescriptor,
 	request ActualCostRequest,
-) (CostResult, []ErrorDetail) {
+) (*CostResult, []ErrorDetail) {
 	var errors []ErrorDetail
 	var resourceResult *CostResult
 	log := logging.FromContext(ctx)
@@ -1083,21 +1083,48 @@ func (e *Engine) getActualCostForResource(
 	}
 
 	if resourceResult != nil {
-		return *resourceResult, errors
+		// If the plugin returned $0 actual cost with no breakdown, try state-based
+		// estimation as a fallback. The plugin may not have billing data (e.g. AWS
+		// Cost Explorer returns $0 for some resource types) but we can still estimate
+		// cost from the projected hourly rate × uptime.
+		if resourceResult.TotalCost == 0 && len(resourceResult.Breakdown) == 0 {
+			stateResult := e.tryStateBasedEstimation(ctx, resource, request)
+			if stateResult != nil && stateResult.TotalCost > 0 {
+				log.Debug().Ctx(ctx).
+					Str("component", "engine").
+					Str("resource_type", resource.Type).
+					Str("resource_id", resource.ID).
+					Float64("estimated_cost", stateResult.TotalCost).
+					Msg("plugin returned $0 actual cost, using state-based estimation")
+				return stateResult, errors
+			}
+		}
+		return resourceResult, errors
 	}
 
 	// Try state-based cost estimation as fallback
 	if stateResult := e.tryStateBasedEstimation(ctx, resource, request); stateResult != nil {
-		return *stateResult, errors
+		return stateResult, errors
 	}
 
-	// Create placeholder result
+	// Without --fallback-estimate, warn and skip resources with no cost data.
+	// This avoids polluting output with misleading $0 results.
+	if !request.FallbackEstimate {
+		log.Warn().Ctx(ctx).
+			Str("component", "engine").
+			Str("resource_type", resource.Type).
+			Str("resource_id", resource.ID).
+			Msg("no actual cost data available (use --fallback-estimate to include $0 placeholders)")
+		return nil, errors
+	}
+
+	// Create placeholder result (gated behind --fallback-estimate)
 	notes := "No actual cost data available"
 	if len(errors) > 0 {
 		notes = "ERROR: plugin call failed"
 	}
 
-	return CostResult{
+	return &CostResult{
 		ResourceType: resource.Type,
 		ResourceID:   resource.ID,
 		Adapter:      "none",
@@ -1341,10 +1368,12 @@ func (e *Engine) getActualCostFromPlugin(
 	from, to time.Time,
 ) (*CostResult, error) {
 	req := &proto.GetActualCostRequest{
-		ResourceIDs: []string{resource.ID},
-		StartTime:   from.Unix(),
-		EndTime:     to.Unix(),
-		Properties:  resource.Properties,
+		ResourceIDs:  []string{resource.ID},
+		StartTime:    from.Unix(),
+		EndTime:      to.Unix(),
+		Properties:   resource.Properties,
+		Provider:     resource.Provider,
+		ResourceType: resource.Type,
 	}
 
 	resp, err := client.API.GetActualCost(ctx, req)
