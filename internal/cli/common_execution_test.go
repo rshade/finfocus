@@ -25,163 +25,176 @@ func (m *mockRecommendationFetcher) GetRecommendationsForResources(
 }
 
 func TestFetchAndMergeRecommendations(t *testing.T) {
-	t.Run("successful merge by ResourceID", func(t *testing.T) {
-		resources := []engine.ResourceDescriptor{
-			{ID: "res-1", Type: "aws:ec2:Instance"},
-			{ID: "res-2", Type: "aws:rds:Instance"},
-		}
-		results := []engine.CostResult{
-			{ResourceID: "res-1", Monthly: 10.0},
-			{ResourceID: "res-2", Monthly: 50.0},
-		}
-		fetcher := &mockRecommendationFetcher{
-			result: &engine.RecommendationsResult{
-				Recommendations: []engine.Recommendation{
-					{
-						ResourceID:       "res-1",
-						Type:             "RIGHTSIZE",
-						Description:      "Switch to t3.small",
-						EstimatedSavings: 5.0,
-						Currency:         "USD",
-					},
-					{
-						ResourceID:  "res-2",
-						Type:        "TERMINATE",
-						Description: "Idle resource",
+	tests := []struct {
+		name        string
+		resources   []engine.ResourceDescriptor
+		results     []engine.CostResult
+		fetcher     *mockRecommendationFetcher
+		wantRecs    map[int][]string // result index -> expected rec types
+		wantNilRecs []int            // result indices expected to have nil Recommendations
+	}{
+		{
+			name: "successful merge by ResourceID",
+			resources: []engine.ResourceDescriptor{
+				{ID: "res-1", Type: "aws:ec2:Instance"},
+				{ID: "res-2", Type: "aws:rds:Instance"},
+			},
+			results: []engine.CostResult{
+				{ResourceID: "res-1", Monthly: 10.0},
+				{ResourceID: "res-2", Monthly: 50.0},
+			},
+			fetcher: &mockRecommendationFetcher{
+				result: &engine.RecommendationsResult{
+					Recommendations: []engine.Recommendation{
+						{
+							ResourceID:       "res-1",
+							Type:             "RIGHTSIZE",
+							Description:      "Switch to t3.small",
+							EstimatedSavings: 5.0,
+							Currency:         "USD",
+						},
+						{
+							ResourceID:  "res-2",
+							Type:        "TERMINATE",
+							Description: "Idle resource",
+						},
 					},
 				},
 			},
-		}
-
-		fetchAndMergeRecommendations(context.Background(), fetcher, resources, results)
-
-		require.Len(t, results[0].Recommendations, 1)
-		assert.Equal(t, "RIGHTSIZE", results[0].Recommendations[0].Type)
-		assert.Equal(t, 5.0, results[0].Recommendations[0].EstimatedSavings)
-		require.Len(t, results[1].Recommendations, 1)
-		assert.Equal(t, "TERMINATE", results[1].Recommendations[0].Type)
-	})
-
-	t.Run("empty recommendations no-op", func(t *testing.T) {
-		results := []engine.CostResult{
-			{ResourceID: "res-1", Monthly: 10.0},
-		}
-		fetcher := &mockRecommendationFetcher{
-			result: &engine.RecommendationsResult{
-				Recommendations: nil,
+			wantRecs: map[int][]string{
+				0: {"RIGHTSIZE"},
+				1: {"TERMINATE"},
 			},
-		}
-
-		fetchAndMergeRecommendations(context.Background(), fetcher, nil, results)
-
-		assert.Nil(t, results[0].Recommendations)
-	})
-
-	t.Run("fetch error logs warning and returns gracefully", func(t *testing.T) {
-		results := []engine.CostResult{
-			{ResourceID: "res-1", Monthly: 10.0},
-		}
-		fetcher := &mockRecommendationFetcher{
-			err: errors.New("plugin unavailable"),
-		}
-
-		// Should not panic or modify results
-		fetchAndMergeRecommendations(context.Background(), fetcher, nil, results)
-
-		assert.Nil(t, results[0].Recommendations)
-	})
-
-	t.Run("recommendation with empty ResourceID is skipped", func(t *testing.T) {
-		results := []engine.CostResult{
-			{ResourceID: "", Monthly: 10.0},
-		}
-		fetcher := &mockRecommendationFetcher{
-			result: &engine.RecommendationsResult{
-				Recommendations: []engine.Recommendation{
-					{
-						ResourceID:  "",
-						Type:        "RIGHTSIZE",
-						Description: "Should be skipped",
+		},
+		{
+			name: "empty recommendations no-op",
+			results: []engine.CostResult{
+				{ResourceID: "res-1", Monthly: 10.0},
+			},
+			fetcher: &mockRecommendationFetcher{
+				result: &engine.RecommendationsResult{
+					Recommendations: nil,
+				},
+			},
+			wantNilRecs: []int{0},
+		},
+		{
+			name: "nil result from fetcher no-op",
+			results: []engine.CostResult{
+				{ResourceID: "res-1", Monthly: 10.0},
+			},
+			fetcher: &mockRecommendationFetcher{
+				result: nil,
+			},
+			wantNilRecs: []int{0},
+		},
+		{
+			name: "fetch error logs warning and returns gracefully",
+			results: []engine.CostResult{
+				{ResourceID: "res-1", Monthly: 10.0},
+			},
+			fetcher: &mockRecommendationFetcher{
+				err: errors.New("plugin unavailable"),
+			},
+			wantNilRecs: []int{0},
+		},
+		{
+			name: "recommendation with empty ResourceID is skipped",
+			results: []engine.CostResult{
+				{ResourceID: "", Monthly: 10.0},
+			},
+			fetcher: &mockRecommendationFetcher{
+				result: &engine.RecommendationsResult{
+					Recommendations: []engine.Recommendation{
+						{
+							ResourceID:  "",
+							Type:        "RIGHTSIZE",
+							Description: "Should be skipped",
+						},
 					},
 				},
 			},
-		}
-
-		fetchAndMergeRecommendations(context.Background(), fetcher, nil, results)
-
-		assert.Nil(t, results[0].Recommendations)
-	})
-
-	t.Run("mixed empty and valid ResourceID recommendations only merge valid", func(t *testing.T) {
-		resources := []engine.ResourceDescriptor{
-			{ID: "res-1", Type: "aws:ec2:Instance"},
-		}
-		results := []engine.CostResult{
-			{ResourceID: "res-1", Monthly: 10.0},
-			{ResourceID: "", Monthly: 1.0},
-		}
-		fetcher := &mockRecommendationFetcher{
-			result: &engine.RecommendationsResult{
-				Recommendations: []engine.Recommendation{
-					{
-						ResourceID:  "",
-						Type:        "TERMINATE",
-						Description: "Skipped",
-					},
-					{
-						ResourceID:  "res-1",
-						Type:        "RIGHTSIZE",
-						Description: "Resize",
+			wantNilRecs: []int{0},
+		},
+		{
+			name: "mixed empty and valid ResourceID recommendations only merge valid",
+			resources: []engine.ResourceDescriptor{
+				{ID: "res-1", Type: "aws:ec2:Instance"},
+			},
+			results: []engine.CostResult{
+				{ResourceID: "res-1", Monthly: 10.0},
+				{ResourceID: "", Monthly: 1.0},
+			},
+			fetcher: &mockRecommendationFetcher{
+				result: &engine.RecommendationsResult{
+					Recommendations: []engine.Recommendation{
+						{
+							ResourceID:  "",
+							Type:        "TERMINATE",
+							Description: "Skipped",
+						},
+						{
+							ResourceID:  "res-1",
+							Type:        "RIGHTSIZE",
+							Description: "Resize",
+						},
 					},
 				},
 			},
-		}
-
-		fetchAndMergeRecommendations(context.Background(), fetcher, resources, results)
-
-		require.Len(t, results[0].Recommendations, 1)
-		assert.Equal(t, "RIGHTSIZE", results[0].Recommendations[0].Type)
-		assert.Nil(t, results[1].Recommendations)
-	})
-
-	t.Run("multiple resources with partial recommendation coverage", func(t *testing.T) {
-		resources := []engine.ResourceDescriptor{
-			{ID: "res-1", Type: "aws:ec2:Instance"},
-			{ID: "res-2", Type: "aws:rds:Instance"},
-			{ID: "res-3", Type: "aws:s3:Bucket"},
-		}
-		results := []engine.CostResult{
-			{ResourceID: "res-1", Monthly: 10.0},
-			{ResourceID: "res-2", Monthly: 50.0},
-			{ResourceID: "res-3", Monthly: 5.0},
-		}
-		fetcher := &mockRecommendationFetcher{
-			result: &engine.RecommendationsResult{
-				Recommendations: []engine.Recommendation{
-					{
-						ResourceID:  "res-1",
-						Type:        "RIGHTSIZE",
-						Description: "Resize",
-					},
-					{
-						ResourceID:       "res-1",
-						Type:             "MIGRATE",
-						Description:      "Use Graviton",
-						EstimatedSavings: 8.0,
-						Currency:         "USD",
+			wantRecs:    map[int][]string{0: {"RIGHTSIZE"}},
+			wantNilRecs: []int{1},
+		},
+		{
+			name: "multiple resources with partial recommendation coverage",
+			resources: []engine.ResourceDescriptor{
+				{ID: "res-1", Type: "aws:ec2:Instance"},
+				{ID: "res-2", Type: "aws:rds:Instance"},
+				{ID: "res-3", Type: "aws:s3:Bucket"},
+			},
+			results: []engine.CostResult{
+				{ResourceID: "res-1", Monthly: 10.0},
+				{ResourceID: "res-2", Monthly: 50.0},
+				{ResourceID: "res-3", Monthly: 5.0},
+			},
+			fetcher: &mockRecommendationFetcher{
+				result: &engine.RecommendationsResult{
+					Recommendations: []engine.Recommendation{
+						{
+							ResourceID:  "res-1",
+							Type:        "RIGHTSIZE",
+							Description: "Resize",
+						},
+						{
+							ResourceID:       "res-1",
+							Type:             "MIGRATE",
+							Description:      "Use Graviton",
+							EstimatedSavings: 8.0,
+							Currency:         "USD",
+						},
 					},
 				},
 			},
-		}
+			wantRecs:    map[int][]string{0: {"RIGHTSIZE", "MIGRATE"}},
+			wantNilRecs: []int{1, 2},
+		},
+	}
 
-		fetchAndMergeRecommendations(context.Background(), fetcher, resources, results)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fetchAndMergeRecommendations(context.Background(), tt.fetcher, tt.resources, tt.results)
 
-		// res-1 has two recommendations
-		require.Len(t, results[0].Recommendations, 2)
-		assert.Equal(t, "RIGHTSIZE", results[0].Recommendations[0].Type)
-		assert.Equal(t, "MIGRATE", results[0].Recommendations[1].Type)
-		// res-2 and res-3 have none
-		assert.Nil(t, results[1].Recommendations)
-		assert.Nil(t, results[2].Recommendations)
-	})
+			for idx, wantTypes := range tt.wantRecs {
+				require.Len(t, tt.results[idx].Recommendations, len(wantTypes),
+					"result[%d] recommendation count mismatch", idx)
+				for j, wantType := range wantTypes {
+					assert.Equal(t, wantType, tt.results[idx].Recommendations[j].Type,
+						"result[%d].Recommendations[%d].Type", idx, j)
+				}
+			}
+			for _, idx := range tt.wantNilRecs {
+				assert.Nil(t, tt.results[idx].Recommendations,
+					"result[%d].Recommendations should be nil", idx)
+			}
+		})
+	}
 }

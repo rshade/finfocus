@@ -521,128 +521,135 @@ func TestRenderRecommendationsSection_SortStability(t *testing.T) {
 	assert.True(t, idxSecond < idxThird, "SECOND should appear before THIRD")
 }
 
-// TestRenderDetailViewWithRecommendations verifies the RECOMMENDATIONS section appears
-// in the correct position within the full detail view.
-func TestRenderDetailViewWithRecommendations(t *testing.T) {
-	t.Run("RECOMMENDATIONS section appears after SUSTAINABILITY and before NOTES", func(t *testing.T) {
-		resource := engine.CostResult{
-			ResourceType: "aws:ec2/instance",
-			ResourceID:   "i-123",
-			Monthly:      50.0,
-			Currency:     "USD",
-			Sustainability: map[string]engine.SustainabilityMetric{
-				"carbon_footprint": {Value: 10.0, Unit: "kg"},
+// TestRenderDetailViewRecommendations verifies the RECOMMENDATIONS section renders
+// correctly in the detail view for various recommendation states.
+func TestRenderDetailViewRecommendations(t *testing.T) {
+	tests := []struct {
+		name        string
+		resource    engine.CostResult
+		width       int
+		contains    []string
+		notContains []string
+		expectOrder []string // optional: verify these strings appear in order
+	}{
+		{
+			name: "RECOMMENDATIONS section appears after SUSTAINABILITY and before NOTES",
+			resource: engine.CostResult{
+				ResourceType: "aws:ec2/instance",
+				ResourceID:   "i-123",
+				Monthly:      50.0,
+				Currency:     "USD",
+				Sustainability: map[string]engine.SustainabilityMetric{
+					"carbon_footprint": {Value: 10.0, Unit: "kg"},
+				},
+				Recommendations: []engine.Recommendation{
+					{Type: "RIGHTSIZE", Description: "Switch to t3.small", EstimatedSavings: 5.0, Currency: "USD"},
+				},
+				Notes: "Some note",
 			},
-			Recommendations: []engine.Recommendation{
-				{Type: "RIGHTSIZE", Description: "Switch to t3.small", EstimatedSavings: 5.0, Currency: "USD"},
+			width: 100,
+			contains: []string{
+				"RECOMMENDATIONS",
+				"[RIGHTSIZE] Switch to t3.small",
 			},
-			Notes: "Some note",
-		}
-		output := RenderDetailView(resource, 100)
-
-		assert.Contains(t, output, "RECOMMENDATIONS")
-		assert.Contains(t, output, "[RIGHTSIZE] Switch to t3.small")
-
-		// Verify ordering: SUSTAINABILITY before RECOMMENDATIONS before NOTES
-		idxSustain := strings.Index(output, "SUSTAINABILITY")
-		idxRecs := strings.Index(output, "RECOMMENDATIONS")
-		idxNotes := strings.Index(output, "NOTES")
-		assert.True(t, idxSustain < idxRecs, "SUSTAINABILITY should appear before RECOMMENDATIONS")
-		assert.True(t, idxRecs < idxNotes, "RECOMMENDATIONS should appear before NOTES")
-	})
-
-	t.Run("section absent when Recommendations is nil", func(t *testing.T) {
-		resource := engine.CostResult{
-			ResourceType:    "aws:ec2/instance",
-			ResourceID:      "i-123",
-			Monthly:         50.0,
-			Currency:        "USD",
-			Recommendations: nil,
-		}
-		output := RenderDetailView(resource, 100)
-
-		assert.NotContains(t, output, "RECOMMENDATIONS")
-	})
-}
-
-// TestRenderDetailViewNoRecommendations verifies the detail view renders correctly
-// when no recommendations are present (US3: Graceful Absence of Recommendations).
-func TestRenderDetailViewNoRecommendations(t *testing.T) {
-	t.Run("nil Recommendations produces no RECOMMENDATIONS section", func(t *testing.T) {
-		resource := engine.CostResult{
-			ResourceType:    "aws:ec2/instance",
-			ResourceID:      "i-123",
-			Monthly:         50.0,
-			Currency:        "USD",
-			Recommendations: nil,
-			Sustainability: map[string]engine.SustainabilityMetric{
-				"carbon_footprint": {Value: 10.0, Unit: "kg"},
+			expectOrder: []string{"SUSTAINABILITY", "RECOMMENDATIONS", "NOTES"},
+		},
+		{
+			name: "section absent when Recommendations is nil",
+			resource: engine.CostResult{
+				ResourceType:    "aws:ec2/instance",
+				ResourceID:      "i-123",
+				Monthly:         50.0,
+				Currency:        "USD",
+				Recommendations: nil,
 			},
-			Notes: "Some notes",
-		}
-		output := RenderDetailView(resource, 100)
-
-		assert.NotContains(t, output, "RECOMMENDATIONS")
-		// Verify other sections still render
-		assert.Contains(t, output, "RESOURCE DETAIL")
-		assert.Contains(t, output, "SUSTAINABILITY")
-		assert.Contains(t, output, "NOTES")
-	})
-
-	t.Run("empty Recommendations slice produces no RECOMMENDATIONS section", func(t *testing.T) {
-		resource := engine.CostResult{
-			ResourceType:    "aws:ec2/instance",
-			ResourceID:      "i-456",
-			Monthly:         75.0,
-			Currency:        "USD",
-			Recommendations: []engine.Recommendation{},
-			Breakdown: map[string]float64{
-				"compute": 60.0,
-				"storage": 15.0,
+			width:       100,
+			notContains: []string{"RECOMMENDATIONS"},
+		},
+		{
+			name: "nil Recommendations with other sections still renders correctly",
+			resource: engine.CostResult{
+				ResourceType:    "aws:ec2/instance",
+				ResourceID:      "i-123",
+				Monthly:         50.0,
+				Currency:        "USD",
+				Recommendations: nil,
+				Sustainability: map[string]engine.SustainabilityMetric{
+					"carbon_footprint": {Value: 10.0, Unit: "kg"},
+				},
+				Notes: "Some notes",
 			},
-		}
-		output := RenderDetailView(resource, 100)
-
-		assert.NotContains(t, output, "RECOMMENDATIONS")
-		// Verify other sections still render
-		assert.Contains(t, output, "RESOURCE DETAIL")
-		assert.Contains(t, output, "BREAKDOWN")
-	})
-
-	t.Run("all other sections render normally without recommendations", func(t *testing.T) {
-		resource := engine.CostResult{
-			ResourceType: "aws:ec2/instance",
-			ResourceID:   "i-789",
-			Monthly:      100.0,
-			Hourly:       0.14,
-			Currency:     "USD",
-			Breakdown: map[string]float64{
-				"compute": 80.0,
-				"storage": 20.0,
+			width:       100,
+			contains:    []string{"RESOURCE DETAIL", "SUSTAINABILITY", "NOTES"},
+			notContains: []string{"RECOMMENDATIONS"},
+		},
+		{
+			name: "empty Recommendations slice produces no RECOMMENDATIONS section",
+			resource: engine.CostResult{
+				ResourceType:    "aws:ec2/instance",
+				ResourceID:      "i-456",
+				Monthly:         75.0,
+				Currency:        "USD",
+				Recommendations: []engine.Recommendation{},
+				Breakdown: map[string]float64{
+					"compute": 60.0,
+					"storage": 15.0,
+				},
 			},
-			Sustainability: map[string]engine.SustainabilityMetric{
-				"carbon_footprint": {Value: 50.0, Unit: "kg"},
+			width:       100,
+			contains:    []string{"RESOURCE DETAIL", "BREAKDOWN"},
+			notContains: []string{"RECOMMENDATIONS"},
+		},
+		{
+			name: "all other sections render normally without recommendations",
+			resource: engine.CostResult{
+				ResourceType: "aws:ec2/instance",
+				ResourceID:   "i-789",
+				Monthly:      100.0,
+				Hourly:       0.14,
+				Currency:     "USD",
+				Breakdown: map[string]float64{
+					"compute": 80.0,
+					"storage": 20.0,
+				},
+				Sustainability: map[string]engine.SustainabilityMetric{
+					"carbon_footprint": {Value: 50.0, Unit: "kg"},
+				},
+				Recommendations: nil,
+				Notes:           "Test notes for resource",
 			},
-			Recommendations: nil,
-			Notes:           "Test notes for resource",
-		}
-		output := RenderDetailView(resource, 100)
+			width: 100,
+			contains: []string{
+				"RESOURCE DETAIL", "i-789", "aws:ec2/instance",
+				"Monthly Cost:", "$100.00",
+				"BREAKDOWN", "compute:",
+				"SUSTAINABILITY", "carbon_footprint",
+				"NOTES", "Test notes for resource",
+			},
+			notContains: []string{"RECOMMENDATIONS"},
+		},
+	}
 
-		// Verify complete expected output
-		assert.Contains(t, output, "RESOURCE DETAIL")
-		assert.Contains(t, output, "i-789")
-		assert.Contains(t, output, "aws:ec2/instance")
-		assert.Contains(t, output, "Monthly Cost:")
-		assert.Contains(t, output, "$100.00")
-		assert.Contains(t, output, "BREAKDOWN")
-		assert.Contains(t, output, "compute:")
-		assert.Contains(t, output, "SUSTAINABILITY")
-		assert.Contains(t, output, "carbon_footprint")
-		assert.Contains(t, output, "NOTES")
-		assert.Contains(t, output, "Test notes for resource")
-		// Verify no recommendations section
-		assert.NotContains(t, output, "RECOMMENDATIONS")
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			output := RenderDetailView(tt.resource, tt.width)
+
+			for _, s := range tt.contains {
+				assert.Contains(t, output, s)
+			}
+			for _, s := range tt.notContains {
+				assert.NotContains(t, output, s)
+			}
+			if len(tt.expectOrder) > 1 {
+				prevIdx := -1
+				for _, s := range tt.expectOrder {
+					idx := strings.Index(output, s)
+					assert.Greater(t, idx, prevIdx, "%q should appear after previous ordered item", s)
+					prevIdx = idx
+				}
+			}
+		})
+	}
 }
 
 // TestRenderCostSummary_EquivalencyStyling tests that equivalencies use consistent TUI styling.

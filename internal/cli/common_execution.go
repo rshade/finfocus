@@ -107,10 +107,11 @@ func fetchAndMergeRecommendations(ctx context.Context, fetcher recommendationFet
 	recsResult, err := fetcher.GetRecommendationsForResources(ctx, resources)
 	if err != nil {
 		log.Warn().Ctx(ctx).Err(err).
+			Str("operation", "fetch_and_merge_recommendations").
 			Msg("failed to fetch recommendations for detail view")
 		return
 	}
-	if len(recsResult.Recommendations) == 0 {
+	if recsResult == nil || len(recsResult.Recommendations) == 0 {
 		return
 	}
 
@@ -118,6 +119,7 @@ func fetchAndMergeRecommendations(ctx context.Context, fetcher recommendationFet
 	for _, rec := range recsResult.Recommendations {
 		if rec.ResourceID == "" {
 			log.Warn().Ctx(ctx).
+				Str("operation", "fetch_and_merge_recommendations").
 				Str("recommendation_type", rec.Type).
 				Msg("skipping recommendation with empty ResourceID")
 			continue
@@ -132,6 +134,7 @@ func fetchAndMergeRecommendations(ctx context.Context, fetcher recommendationFet
 	}
 
 	log.Debug().Ctx(ctx).
+		Str("operation", "fetch_and_merge_recommendations").
 		Int("recommendations_count", len(recsResult.Recommendations)).
 		Msg("merged recommendations into cost results")
 }
