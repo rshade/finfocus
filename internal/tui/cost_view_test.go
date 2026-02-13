@@ -517,6 +517,9 @@ func TestRenderRecommendationsSection_SortStability(t *testing.T) {
 	idxFirst := strings.Index(output, "[FIRST]")
 	idxSecond := strings.Index(output, "[SECOND]")
 	idxThird := strings.Index(output, "[THIRD]")
+	assert.NotEqual(t, -1, idxFirst, "[FIRST] marker not found in output")
+	assert.NotEqual(t, -1, idxSecond, "[SECOND] marker not found in output")
+	assert.NotEqual(t, -1, idxThird, "[THIRD] marker not found in output")
 	assert.True(t, idxFirst < idxSecond, "FIRST should appear before SECOND")
 	assert.True(t, idxSecond < idxThird, "SECOND should appear before THIRD")
 }
