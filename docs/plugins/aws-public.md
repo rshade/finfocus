@@ -23,6 +23,10 @@ making it safe for CI/CD pipelines.
 
 ## Installation
 
+Both full repository path and short name forms are supported. Use the full path
+to install from a specific repository; use the short name when the plugin is
+published in the default registry.
+
 ```bash
 finfocus plugin install github.com/rshade/finfocus-plugin-aws-public
 
@@ -33,8 +37,17 @@ finfocus plugin install aws-public --metadata="region=us-west-2"
 ## Usage
 
 The plugin is automatically selected for `aws` resources when running cost analysis.
+When `--pulumi-json` and `--pulumi-state` are omitted, the CLI auto-detects the
+Pulumi project in the current directory. Date ranges are inferred from state timestamps.
 
 ```bash
+# Auto-detect Pulumi project (no flags needed)
+finfocus cost projected
+finfocus cost actual
+
+# Auto-detect with specific stack
+finfocus cost actual --stack production
+
 # Projected costs from a Pulumi plan
 finfocus cost projected --pulumi-json plan.json
 

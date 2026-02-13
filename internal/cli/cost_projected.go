@@ -47,10 +47,6 @@ type costProjectedParams struct {
 	utilization float64
 }
 
-// NewCostProjectedCmd creates the "projected" subcommand that calculates estimated costs from a Pulumi preview JSON.
-//
-// The returned command registers these flags: --pulumi-json (optional), --spec-dir, --adapter, --output, --filter (can be provided multiple times), and --utilization.
-// When --pulumi-json is omitted, the command auto-detects a Pulumi project in the current directory and runs pulumi preview --json.
 // NewCostProjectedCmd creates the "projected" subcommand for calculating projected costs.
 //
 // The command analyzes a Pulumi preview to produce projected monthly costs and supports
@@ -65,8 +61,6 @@ type costProjectedParams struct {
 //   - --output: output format, one of table, json, or ndjson (default from configuration)
 //   - --filter: repeatable resource filter expression(s)
 //   - --utilization: utilization rate for sustainability calculations (0.0 to 1.0)
-//
-// It returns the configured *cobra.Command.
 func NewCostProjectedCmd() *cobra.Command {
 	var params costProjectedParams
 
@@ -119,29 +113,17 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
   # Use custom spec directory
   finfocus cost projected --pulumi-json plan.json --spec-dir ./custom-specs`
 
-// executeCostProjected runs the projected cost workflow for a Pulumi plan.
-// It validates and injects the utilization into the context, loads and maps resources
-// from the provided Pulumi preview JSON, applies any resource filter expressions,
-// opens adapter plugins, computes projected costs, renders results to the command output,
-// and records audit information.
+// executeCostProjected runs the projected cost calculation for the "projected" command.
+// It validates the utilization value, obtains resource descriptors either from an explicit
+// Pulumi JSON plan or by running a Pulumi preview for the current/selected stack, applies
+// resource filters, loads pricing specs and adapter plugins, computes projected costs
+// (including any per-resource errors), renders the chosen output format, and evaluates
+// budget status when results use a single currency.
 //
 // Parameters:
 //   - cmd: the Cobra command whose context and output stream are used.
 //   - params: configuration for the operation (plan path, spec directory, adapter, output format,
 //     filter expressions, and utilization).
-//
-// Returns an error if validation fails (e.g., utilization out of range or invalid filter),
-// resource loading/mapping or plugin initialization fails, cost calculation fails, or
-// executeCostProjected runs the projected cost calculation for the "projected" command using
-// the provided Cobra command and parameters. It validates the utilization value, obtains resource
-// descriptors either from an explicit Pulumi JSON plan or by running a Pulumi preview for the
-// current/selected stack, applies resource filters, loads pricing specs and adapter plugins,
-// computes projected costs (including any per-resource errors), renders the chosen output format,
-// and evaluates budget status when results use a single currency.
-//
-// The cmd parameter supplies command context and flags (for example the "stack" flag used when
-// auto-detecting resources). The params argument configures input sources, output format, filters,
-// adapter plugin, spec directory, and utilization rate.
 //
 // Returns an error when validation fails, resources cannot be loaded or filtered, plugins cannot
 // be opened, cost computation fails, rendering fails, or when a budget-related exit condition is
@@ -172,7 +154,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	} else {
 		auditParams["pulumi_json"] = "auto-detect"
 		stackFlag, _ := cmd.Flags().GetString("stack")
-		resources, err = resolveResourcesFromPulumi(ctx, stackFlag, "preview")
+		resources, err = resolveResourcesFromPulumi(ctx, stackFlag, modePulumiPreview)
 	}
 	if err != nil {
 		return err

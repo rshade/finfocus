@@ -48,13 +48,21 @@ func NoCurrentStackError(available []string) error {
 		ErrNoCurrentStack, strings.Join(available, ", "))
 }
 
-// PreviewError returns an error wrapping ErrPreviewFailed that includes the Pulumi CLI stderr trimmed of leading and trailing whitespace.
+// PreviewError returns an error wrapping ErrPreviewFailed that includes the Pulumi CLI stderr
+// trimmed of leading and trailing whitespace.
 func PreviewError(stderr string) error {
-	return fmt.Errorf("%w: %s", ErrPreviewFailed, strings.TrimSpace(stderr))
+	trimmed := strings.TrimSpace(stderr)
+	if trimmed == "" {
+		return fmt.Errorf("%w", ErrPreviewFailed)
+	}
+	return fmt.Errorf("%w: %s", ErrPreviewFailed, trimmed)
 }
 
 // ExportError returns an error wrapping ErrExportFailed that includes the Pulumi CLI's stderr output.
-// The stderr parameter is the CLI's standard error output; leading and trailing whitespace are removed before inclusion.
 func ExportError(stderr string) error {
-	return fmt.Errorf("%w: %s", ErrExportFailed, strings.TrimSpace(stderr))
+	trimmed := strings.TrimSpace(stderr)
+	if trimmed == "" {
+		return fmt.Errorf("%w", ErrExportFailed)
+	}
+	return fmt.Errorf("%w: %s", ErrExportFailed, trimmed)
 }

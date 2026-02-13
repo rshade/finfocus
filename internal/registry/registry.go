@@ -331,10 +331,10 @@ func (r *Registry) Open(
 
 // PluginInfo contains metadata about a discovered plugin.
 type PluginInfo struct {
-	Name     string
-	Version  string
-	Path     string
-	Metadata map[string]string // User-supplied metadata from plugin.metadata.json or binary filename
+	Name     string            `json:"name"`
+	Version  string            `json:"version"`
+	Path     string            `json:"path"`
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 // Region returns the plugin's region from metadata, or empty string if universal.
@@ -345,9 +345,6 @@ func (p PluginInfo) Region() string {
 	return p.Metadata["region"]
 }
 
-// mergeRegistryMetadata injects registry-level metadata into the plugin client's
-// PluginMetadata. This ensures that information from plugin.metadata.json (e.g.,
-// region) is available to the router even if the plugin doesn't report it via
 // mergeRegistryMetadata injects metadata discovered by the registry into a plugin
 // client's metadata without overwriting keys the plugin already provides.
 // If the registry has no metadata for the plugin this is a no-op.

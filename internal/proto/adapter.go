@@ -182,20 +182,18 @@ func GetProjectedCostWithErrors(
 	return result
 }
 
-// validateActualCostRequest checks for invalid parameter combinations.
-// validateActualCostRequest returns a non-nil *CostResultWithErrors when Properties is provided together with more than one ResourceID.
-// The returned value contains no CostResult entries and a single ErrorDetail describing the validation failure (ErrPropertiesMultiResource).
-// The ErrorDetail.ResourceID is the comma-separated list of ResourceIDs, PluginName is set to the provided pluginName, and Timestamp is set to now.
-// Returns nil if the request is valid.
+// validateActualCostRequest returns a non-nil *CostResultWithErrors when Properties is provided
+// together with more than one ResourceID. Returns nil if the request is valid.
 func validateActualCostRequest(pluginName string, req *GetActualCostRequest) *CostResultWithErrors {
 	if req.Properties != nil && len(req.ResourceIDs) > 1 {
 		return &CostResultWithErrors{
 			Results: []*CostResult{},
 			Errors: []ErrorDetail{{
-				ResourceID: strings.Join(req.ResourceIDs, ", "),
-				PluginName: pluginName,
-				Error:      ErrPropertiesMultiResource,
-				Timestamp:  time.Now(),
+				ResourceType: req.ResourceType,
+				ResourceID:   strings.Join(req.ResourceIDs, ", "),
+				PluginName:   pluginName,
+				Error:        ErrPropertiesMultiResource,
+				Timestamp:    time.Now(),
 			}},
 		}
 	}
@@ -217,52 +215,52 @@ func appendActualCostPlaceholder(result *CostResultWithErrors, notes string) {
 }
 
 // recordActualCostValidationError records a pre-flight validation failure for an actual cost lookup.
-// It logs a warning, appends an ErrorDetail (including the plugin name, resource and cloud IDs, the wrapped validation error, and current timestamp)
-// to result.Errors, and appends a validation placeholder CostResult to result.
-// The provided result is mutated in-place.
+// It logs a warning, appends an ErrorDetail (including the plugin name, resource type, resource
+// and cloud IDs, the wrapped validation error, and current timestamp) to result.Errors, and
+// appends a validation placeholder CostResult to result. The provided result is mutated in-place.
 func recordActualCostValidationError(
 	ctx context.Context,
 	result *CostResultWithErrors,
 	pluginName string,
+	resourceType string,
 	resourceID string,
 	cloudID string,
 	validationErr error,
 ) {
 	log := logging.FromContext(ctx)
 	log.Warn().
+		Str("resource_type", resourceType).
 		Str("resource_id", resourceID).
 		Str("cloud_id", cloudID).
 		Err(validationErr).
 		Msg("pre-flight validation failed for actual cost")
 
 	result.Errors = append(result.Errors, ErrorDetail{
-		ResourceID: resourceID,
-		PluginName: pluginName,
-		Error:      fmt.Errorf("pre-flight validation failed: %w", validationErr),
-		Timestamp:  time.Now(),
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		PluginName:   pluginName,
+		Error:        fmt.Errorf("pre-flight validation failed: %w", validationErr),
+		Timestamp:    time.Now(),
 	})
 
 	appendActualCostPlaceholder(result, fmt.Sprintf("VALIDATION: %v", validationErr))
 }
 
-// recordActualCostPluginError records a plugin call failure for the specified resource and appends a placeholder error result.
-// It appends an ErrorDetail to result.Errors containing ResourceID, PluginName, the wrapped error ("plugin call failed: <err>") and the current timestamp, then adds a zero-valued CostResult with a note prefixed by "ERROR:" describing the plugin error.
-// Parameters:
-//   - result: accumulator for results and per-resource errors.
-//   - pluginName: name of the plugin that produced the error.
-//   - resourceID: identifier of the resource for which the plugin call failed.
-//   - pluginErr: the error returned by the plugin call.
+// recordActualCostPluginError records a plugin call failure for the specified resource and
+// appends a placeholder error result.
 func recordActualCostPluginError(
 	result *CostResultWithErrors,
 	pluginName string,
+	resourceType string,
 	resourceID string,
 	pluginErr error,
 ) {
 	result.Errors = append(result.Errors, ErrorDetail{
-		ResourceID: resourceID,
-		PluginName: pluginName,
-		Error:      fmt.Errorf("plugin call failed: %w", pluginErr),
-		Timestamp:  time.Now(),
+		ResourceType: resourceType,
+		ResourceID:   resourceID,
+		PluginName:   pluginName,
+		Error:        fmt.Errorf("plugin call failed: %w", pluginErr),
+		Timestamp:    time.Now(),
 	})
 
 	appendActualCostPlaceholder(result, fmt.Sprintf("ERROR: %v", pluginErr))
@@ -292,10 +290,6 @@ func appendActualCostResults(result *CostResultWithErrors, actualResults []*Actu
 	}
 }
 
-// GetActualCostWithErrors retrieves actual cost data for each resource ID in req
-// GetActualCostWithErrors computes actual cost data for each resource in req and returns both
-// successful CostResult entries and per-resource ErrorDetail records.
-//
 // GetActualCostWithErrors validates the request, then for each ResourceID it resolves cloud
 // identifiers and tags (including optional SKU and region enrichment when Provider is set),
 // validates the plugin-facing request, and invokes the client's GetActualCost. For each
@@ -350,7 +344,7 @@ func GetActualCostWithErrors(
 		}
 
 		if err := pluginsdk.ValidateActualCostRequest(protoReq); err != nil {
-			recordActualCostValidationError(ctx, result, pluginName, resourceID, cloudID, err)
+			recordActualCostValidationError(ctx, result, pluginName, req.ResourceType, resourceID, cloudID, err)
 			continue
 		}
 
@@ -364,7 +358,7 @@ func GetActualCostWithErrors(
 
 		resp, err := client.GetActualCost(ctx, singleReq)
 		if err != nil {
-			recordActualCostPluginError(result, pluginName, resourceID, err)
+			recordActualCostPluginError(result, pluginName, req.ResourceType, resourceID, err)
 			continue
 		}
 
@@ -745,7 +739,7 @@ func resolveSKUAndRegion(provider, resourceType string, properties map[string]st
 		region = mapping.ExtractAWSRegion(properties)
 		if region == "" {
 			// Fallback: parse region from ARN (arn:aws:service:region:account:...)
-			region = regionFromARN(properties[propARN])
+			region = awsutil.RegionFromARN(properties[propARN])
 		}
 	case "azure", "azure-native":
 		sku = mapping.ExtractAzureSKU(properties)
@@ -775,20 +769,8 @@ func resolveSKUAndRegion(provider, resourceType string, properties map[string]st
 	return sku, region
 }
 
-// regionFromARN extracts the AWS region from an ARN string.
-// AWS ARNs follow the format arn:partition:service:region:account:resource.
-// Returns empty string if the ARN is empty, malformed, or the region segment is empty
-// does not contain the expected number of segments, an empty string is returned.
-func regionFromARN(arn string) string {
-	return awsutil.RegionFromARN(arn)
-}
-
-// resolveActualCostIdentifiers extracts cloud-specific resource ID, ARN, and tags
 // resolveActualCostIdentifiers extracts the cloud identifier, ARN, and tags from a resource's properties.
 // resourceID is used as the fallback cloud identifier when no cloud ID is present in properties.
-// properties is the map of resource properties to inspect; it may contain well-known keys such as propCloudID
-// (cloud identifier) and propARN (ARN). Tags are extracted preferring provider-specific keys (for example,
-// tagsAll for AWS) and returned as a map[string]string.
 //
 // Returns the resolved cloudID (or the original resourceID if none found), the ARN (or an empty string),
 // and a map of tags (empty if no tags are present).
@@ -996,6 +978,9 @@ func (c *clientAdapter) GetActualCost(
 		cloudID, arn, tags := resolveActualCostIdentifiers(resourceID, in.Properties)
 
 		// Inject SKU and region into tags so plugins can price by instance type.
+		// Note: This enrichment is also performed in GetActualCostWithErrors for the
+		// pre-validated path. It is intentionally idempotent — direct callers of
+		// clientAdapter.GetActualCost may not have pre-enriched tags.
 		if in.Provider != "" {
 			enrichTagsWithSKUAndRegion(tags, in.Provider, in.ResourceType, in.Properties)
 		}

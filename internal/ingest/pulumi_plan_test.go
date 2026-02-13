@@ -3,6 +3,7 @@ package ingest_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -672,12 +673,14 @@ func TestParsePulumiPlan(t *testing.T) {
 // TestLoadPulumiPlan_DelegationEquivalence verifies that LoadPulumiPlan and
 // ParsePulumiPlan produce identical results for each fixture file.
 func TestLoadPulumiPlan_DelegationEquivalence(t *testing.T) {
+	_, thisFile, _, _ := runtime.Caller(0)
+	repoRoot := filepath.Join(filepath.Dir(thisFile), "..", "..")
 	fixtures := []string{
-		"../../test/fixtures/plans/aws-simple-plan.json",
-		"../../test/fixtures/plans/aws-multi-resource-plan.json",
-		"../../test/fixtures/plans/azure-simple-plan.json",
-		"../../test/fixtures/plans/gcp-simple-plan.json",
-		"../../test/fixtures/plans/multi-resource-plan.json",
+		filepath.Join(repoRoot, "test", "fixtures", "plans", "aws-simple-plan.json"),
+		filepath.Join(repoRoot, "test", "fixtures", "plans", "aws-multi-resource-plan.json"),
+		filepath.Join(repoRoot, "test", "fixtures", "plans", "azure-simple-plan.json"),
+		filepath.Join(repoRoot, "test", "fixtures", "plans", "gcp-simple-plan.json"),
+		filepath.Join(repoRoot, "test", "fixtures", "plans", "multi-resource-plan.json"),
 	}
 
 	for _, fixture := range fixtures {

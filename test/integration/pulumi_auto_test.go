@@ -64,7 +64,11 @@ func TestPulumiAutoDetection(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorIs(t, err, pulumidetect.ErrNoProject)
 	})
+}
 
+// TestPulumiParsing verifies that Pulumi plan and state parsing works correctly
+// from raw bytes. These tests do not require the pulumi CLI.
+func TestPulumiParsing(t *testing.T) {
 	t.Run("ParsePulumiPlan from bytes", func(t *testing.T) {
 		planJSON := []byte(`{
 			"steps": [

@@ -46,23 +46,6 @@ func defaultToNow(s string) string {
 	return s
 }
 
-// NewCostActualCmd creates the "actual" subcommand which fetches historical cloud-provider billing
-// costs for resources described in a Pulumi preview JSON or estimates costs from Pulumi state.
-//
-// The command is configured with flags:
-//   - --pulumi-json: path to Pulumi preview JSON output (mutually exclusive with --pulumi-state)
-//   - --pulumi-state: path to Pulumi state JSON from `pulumi stack export` (mutually exclusive with --pulumi-json)
-//   - --from: start date (YYYY-MM-DD or RFC3339, auto-detected from state if using --pulumi-state)
-//   - --to: end date (YYYY-MM-DD or RFC3339; defaults to now)
-//   - --adapter: restrict to a specific adapter plugin
-//   - --output: output format (table, json, ndjson; defaults from configuration)
-//   - --group-by: grouping or tag filter (resource, type, provider, date, daily, monthly, or tag:key=value)
-//
-// When using --pulumi-state:
-//   - The --from date is auto-detected from the earliest Created timestamp if not provided
-//   - Cost estimation is based on resource runtime: hourly_rate × runtime.Hours()
-//   - Plugin GetActualCost is tried first; state-based estimation is used as fallback
-//
 // NewCostActualCmd creates the "actual" subcommand for fetching historical cloud costs
 // or estimating costs from Pulumi state. The command accepts a Pulumi preview JSON
 // (--pulumi-json), a Pulumi state export (--pulumi-state), or auto-detects the Pulumi
@@ -72,8 +55,6 @@ func defaultToNow(s string) string {
 // The command exposes flags for output format, grouping, filtering, adapter selection,
 // showing estimate confidence, and including fallback $0 placeholders for resources
 // with no plugin cost data (--fallback-estimate).
-//
-// The returned *cobra.Command is configured and ready to be added to the CLI command tree.
 func NewCostActualCmd() *cobra.Command {
 	var params costActualParams
 
@@ -163,51 +144,15 @@ timestamp if not provided.`,
 	return cmd
 }
 
-// executeCostActual orchestrates the "actual" cost workflow for a Pulumi plan or state.
-// It validates input flags, loads resources, parses the time range, opens adapter plugins,
-// fetches/estimates actual costs, renders the output, and emits audit entries.
-//
-// When using --pulumi-state:
-//   - Resources are loaded from Pulumi state JSON (`pulumi stack export`)
-//   - The --from date is auto-detected from the earliest Created timestamp if not provided
-//   - Cost estimation uses runtime calculation: hourly_rate × time.Since(created).Hours()
-//
-// When using --pulumi-json:
-//   - Resources are loaded from Pulumi preview JSON
-//   - The --from flag is required
-//   - Costs are fetched from cloud provider billing APIs
-//
-// cmd is the Cobra command whose context and output writer are used.
-// params supplies the paths, adapter, output format, time range strings, grouping, and filter expressions.
-//
-// Returns an error when:
-//   - Both or neither --pulumi-json and --pulumi-state are provided
-//   - --from is missing when using --pulumi-json
-//   - Resource loading fails
-//   - Time range parsing fails
-//
-// executeCostActual orchestrates the "actual" cost workflow for the CLI command.
-// It validates input flags, loads and filters resources, resolves the requested
-// time range, opens adapter plugins, requests actual cost data from the engine,
-// renders the results and optional budget status, and records audit information.
-//
-// cmd is the Cobra command whose context and I/O are used for the operation.
-// params holds CLI flag values and options that control loading, filtering,
-// grouping, output formatting, adapter selection, and estimate confidence.
-//
-// The function returns an error when validation fails, resources or plan/state
-// cannot be loaded or mapped, filter expressions are invalid, the time range
-// cannot be parsed or is out of bounds, plugin initialization or communication
-// fails, fetching actual costs fails, or rendering the output fails. Rendering
-// budget status is non-fatal: failures there are logged as warnings and do not
-// executeCostActual runs the "actual" cost workflow: it validates CLI flags, loads and filters
-// resources, resolves the date range, opens adapter plugins, requests actual cost data from the
-// engine, renders the output, evaluates budget status (when applicable), and records audit events.
+// executeCostActual orchestrates the "actual" cost workflow: it validates CLI flags,
+// loads and filters resources, resolves the date range, opens adapter plugins, requests
+// actual cost data from the engine, renders the output, evaluates budget status (when
+// applicable), and records audit events.
 //
 // Parameters:
 //   - cmd: the Cobra command providing context and CLI flag state.
-//   - params: the parsed costActualParams carrying paths, date strings, grouping, filters, adapter and
-//     output options, and flags such as estimate confidence and fallback-estimate.
+//   - params: the parsed costActualParams carrying paths, date strings, grouping, filters,
+//     adapter and output options, and flags such as estimate confidence and fallback-estimate.
 //
 // Returns an error if validation fails, resources cannot be loaded or filtered, the date range
 // cannot be parsed or resolved, plugins cannot be opened, the engine fails to fetch costs, the
@@ -397,8 +342,6 @@ func ValidateDateRange(from, to time.Time) error {
 	return nil
 }
 
-// validateActualInputFlags validates that exactly one of --pulumi-json or --pulumi-state is provided,
-
 // parseTagFilter parses a group-by specifier for a tag filter and returns the parsed tags and the resulting groupBy.
 // If groupBy is of the form "tag:key=value", it returns a map containing {key: value} and an empty actualGroupBy (indicating tag-based filtering).
 // string (empty when filtering by tag).
@@ -417,12 +360,11 @@ func parseTagFilter(groupBy string) (map[string]string, string) {
 	return tags, actualGroupBy
 }
 
-// renderActualCostOutput renders actual cost results to the provided writer.
-// If actualGroupBy denotes a time-based grouping, it creates cross-provider aggregations;
 // renderActualCostOutput renders actual cost results to writer using the specified outputFormat.
 // If actualGroupBy indicates a time-based grouping, it first creates a cross-provider aggregation
 // and renders that aggregation; otherwise it renders the raw results. The estimateConfidence flag
 // controls whether confidence values are included in non-aggregated output.
+//
 // Parameters:
 //   - writer: destination for rendered output.
 //   - outputFormat: format to render results in (table, json, ndjson, etc.).
@@ -456,18 +398,12 @@ func renderActualCostOutput(
 	return engine.RenderActualCostResults(writer, outputFormat, results, estimateConfidence)
 }
 
-// validateActualInputFlags validates input flag combinations for cost actual.
-// --pulumi-json and --pulumi-state are mutually exclusive.
-// When neither is provided, auto-detection from the Pulumi project is attempted.
 // validateActualInputFlags validates the combinations of CLI input flags used by the
 // "actual" cost command, ensuring mutual exclusivity and required options.
 //
-// params: the parsed command parameters to validate.
-//
-// Returns an error if both --pulumi-json (planPath) and --pulumi-state (statePath)
-// are provided at the same time, or if --pulumi-json is supplied without an explicit
-// --from date. When neither planPath nor statePath is provided, auto-detection is
-// permitted and --from is optional.
+// Returns an error if both --pulumi-json and --pulumi-state are provided at the same
+// time, or if --pulumi-json is supplied without an explicit --from date. When neither
+// is provided, auto-detection is permitted and --from is optional.
 func validateActualInputFlags(params costActualParams) error {
 	hasPlan := params.planPath != ""
 	hasState := params.statePath != ""
@@ -601,7 +537,7 @@ func loadActualResources(
 
 	// Auto-detect from Pulumi project (neither --pulumi-json nor --pulumi-state provided)
 	stackFlag, _ := cmd.Flags().GetString("stack")
-	return resolveResourcesFromPulumi(ctx, stackFlag, "export")
+	return resolveResourcesFromPulumi(ctx, stackFlag, modePulumiExport)
 }
 
 // resolveFromDate returns the RFC3339-formatted start ("from") date to use for cost

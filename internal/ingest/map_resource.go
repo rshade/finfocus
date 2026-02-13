@@ -9,8 +9,6 @@ import (
 
 const unknownProvider = "unknown"
 
-// MergeProperties merges Outputs (base) with Inputs (overlay).
-// Inputs take precedence on key conflicts so user-declared values win over
 // MergeProperties merges two property maps into a single map. Keys from the
 // inputs map override keys from the outputs map when they conflict. If both
 // inputs and outputs are nil, MergeProperties returns nil.

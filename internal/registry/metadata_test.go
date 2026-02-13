@@ -105,6 +105,18 @@ func TestParseRegionFromBinaryName(t *testing.T) {
 			wantRegion: "",
 			wantOk:     false,
 		},
+		{
+			name:       "Windows .exe extension",
+			binaryPath: "plugin-us-west-1.exe",
+			wantRegion: "us-west-1",
+			wantOk:     true,
+		},
+		{
+			name:       "Windows .exe with false positive",
+			binaryPath: "plugin-us-east-12.exe",
+			wantRegion: "",
+			wantOk:     false,
+		},
 	}
 
 	for _, tt := range tests {

@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/awsutil"
 )
 
 // mockCostSourceClient is a mock implementation of CostSourceClient for testing.
@@ -2841,7 +2842,7 @@ func TestRegionFromARN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := regionFromARN(tt.arn)
+			got := awsutil.RegionFromARN(tt.arn)
 			assert.Equal(t, tt.want, got)
 		})
 	}

@@ -6,8 +6,6 @@ package skus
 
 import "strings"
 
-// ResolveSKU returns a well-known SKU for the given provider and resource type.
-// It is intended as a fallback after property-based SKU extraction fails.
 // ResolveSKU maps a provider and resource type to a well-known SKU identifier as a fallback
 // when property-based SKU extraction yields no result.
 //

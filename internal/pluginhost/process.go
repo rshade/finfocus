@@ -83,10 +83,11 @@ func (lb *lockedBuffer) Snapshot() []byte {
 
 // ProcessLauncher launches plugins as separate TCP server processes.
 type ProcessLauncher struct {
-	timeout       time.Duration
-	portListeners map[int]*portListener
-	mu            sync.Mutex
-	maxRetries    int // Maximum number of launch retries
+	timeout        time.Duration
+	portListeners  map[int]*portListener
+	mu             sync.Mutex
+	maxRetries     int           // Maximum number of launch retries
+	stdoutFallback time.Duration // configurable for tests; 0 means use default (stdoutPortFallback)
 }
 
 // NewProcessLauncher creates a new ProcessLauncher configured with the package default timeout and an initialized map for tracking reserved port listeners.
@@ -361,7 +362,11 @@ func (p *ProcessLauncher) waitForPluginBindWithFallback(
 	log := logging.FromContext(ctx)
 
 	// First, try the assigned --port with a short timeout to detect older plugins quickly
-	shortCtx, shortCancel := context.WithTimeout(ctx, stdoutPortFallback)
+	fallback := p.stdoutFallback
+	if fallback == 0 {
+		fallback = stdoutPortFallback
+	}
+	shortCtx, shortCancel := context.WithTimeout(ctx, fallback)
 	defer shortCancel()
 
 	if err := p.waitForPluginBind(shortCtx, assignedPort); err == nil {

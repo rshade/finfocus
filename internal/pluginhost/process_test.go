@@ -1026,6 +1026,7 @@ func TestWaitForPluginBindWithFallback_DirectBind(t *testing.T) {
 func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
 	// Test fallback to stdout-advertised port
 	launcher := NewProcessLauncher()
+	launcher.stdoutFallback = 500 * time.Millisecond
 
 	// Start a listener on a different port to simulate plugin stdout port
 	listener, err := net.Listen("tcp", "127.0.0.1:0")

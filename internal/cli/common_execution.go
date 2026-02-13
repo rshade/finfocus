@@ -147,20 +147,21 @@ func fetchAndMergeRecommendations(ctx context.Context, fetcher recommendationFet
 		Msg("merged recommendations into cost results")
 }
 
+// pulumiMode represents the Pulumi CLI operation to execute.
+type pulumiMode string
+
+const (
+	modePulumiPreview pulumiMode = "preview"
+	modePulumiExport  pulumiMode = "export"
+)
+
 // resolveResourcesFromPulumi orchestrates auto-detection of a Pulumi project and
 // execution of the appropriate Pulumi CLI command to produce resource descriptors.
-// resolveResourcesFromPulumi locates a Pulumi project and stack, runs the requested Pulumi command,
-// and returns the mapped resource descriptors for that stack.
 //
 // If `stack` is empty the current Pulumi stack for the detected project directory is used.
-// `mode` must be either "preview" to run `pulumi preview --json` or "export" to run `pulumi stack export`.
+// `mode` must be either modePulumiPreview or modePulumiExport.
 // The function returns an error if the Pulumi binary or project cannot be found, if the stack cannot be resolved,
 // if the Pulumi command fails, if parsing the Pulumi output fails, or if an unsupported mode is provided.
-//
-// Parameters:
-//   - ctx: the context for cancellation and logging.
-//   - stack: the Pulumi stack to operate on; if empty the current stack is detected.
-//   - mode: one of "preview" or "export" specifying which Pulumi operation to run.
 //
 // Returns:
 //   - a slice of engine.ResourceDescriptor representing the mapped resources from the Pulumi output.
@@ -168,7 +169,7 @@ func fetchAndMergeRecommendations(ctx context.Context, fetcher recommendationFet
 func resolveResourcesFromPulumi(
 	ctx context.Context,
 	stack string,
-	mode string,
+	mode pulumiMode,
 ) ([]engine.ResourceDescriptor, error) {
 	log := logging.FromContext(ctx)
 
@@ -196,7 +197,7 @@ func resolveResourcesFromPulumi(
 
 	// Step 4: Execute the appropriate Pulumi CLI command
 	switch mode {
-	case "preview":
+	case modePulumiPreview:
 		log.Info().Ctx(ctx).Str("component", "pulumi").
 			Msg("Running pulumi preview --json (this may take a moment)...")
 
@@ -215,7 +216,7 @@ func resolveResourcesFromPulumi(
 
 		return ingest.MapResources(plan.GetResourcesWithContext(ctx))
 
-	case "export":
+	case modePulumiExport:
 		log.Info().Ctx(ctx).Str("component", "pulumi").
 			Msg("Running pulumi stack export...")
 

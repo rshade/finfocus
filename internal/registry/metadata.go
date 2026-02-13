@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 )
 
 const (
@@ -66,9 +67,11 @@ var regionPattern = regexp.MustCompile(`(?:us|eu|ap|sa|ca|me|af|il|mx)-[a-z]+-\d
 
 // ParseRegionFromBinaryName extracts a region string from a binary filename.
 // It looks for common cloud region patterns like "us-east-1", "eu-west-1", etc.
+// File extensions (e.g., ".exe") are stripped before matching.
 // Returns the region and true if found, or empty string and false otherwise.
 func ParseRegionFromBinaryName(binaryPath string) (string, bool) {
 	name := filepath.Base(binaryPath)
+	name = strings.TrimSuffix(name, filepath.Ext(name))
 	region := regionPattern.FindString(name)
 	if region == "" {
 		return "", false

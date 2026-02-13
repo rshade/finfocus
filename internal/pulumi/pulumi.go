@@ -203,11 +203,11 @@ func runPulumiCommand(ctx context.Context, cfg pulumiCmdConfig) ([]byte, error) 
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return nil, fmt.Errorf(
-				"pulumi %s timed out after %s", cfg.operation, timeout,
+				"pulumi %s timed out after %s: %w", cfg.operation, timeout, ctx.Err(),
 			)
 		}
 		if ctx.Err() == context.Canceled {
-			return nil, ctx.Err()
+			return nil, fmt.Errorf("pulumi %s canceled: %w", cfg.operation, ctx.Err())
 		}
 		return nil, cfg.wrapErr(string(stderr))
 	}
