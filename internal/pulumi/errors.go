@@ -31,7 +31,9 @@ var (
 	ErrExportFailed = errors.New("pulumi stack export failed")
 )
 
-// NoCurrentStackError creates an error with available stack names listed.
+// NoCurrentStackError constructs an error indicating that no current Pulumi stack is selected.
+// If the provided `available` slice is empty the returned error message appends "no stacks found in this project".
+// If `available` contains names, the returned error wraps ErrNoCurrentStack and includes a suggestion to use `--stack` with a comma-separated list of available stacks.
 func NoCurrentStackError(available []string) error {
 	if len(available) == 0 {
 		return fmt.Errorf("%w; no stacks found in this project", ErrNoCurrentStack)
@@ -40,12 +42,13 @@ func NoCurrentStackError(available []string) error {
 		ErrNoCurrentStack, strings.Join(available, ", "))
 }
 
-// PreviewError wraps ErrPreviewFailed with the stderr output from the Pulumi CLI.
+// PreviewError returns an error wrapping ErrPreviewFailed that includes the Pulumi CLI stderr trimmed of leading and trailing whitespace.
 func PreviewError(stderr string) error {
 	return fmt.Errorf("%w: %s", ErrPreviewFailed, strings.TrimSpace(stderr))
 }
 
-// ExportError wraps ErrExportFailed with the stderr output from the Pulumi CLI.
+// ExportError returns an error wrapping ErrExportFailed that includes the Pulumi CLI's stderr output.
+// The stderr parameter is the CLI's standard error output; leading and trailing whitespace are removed before inclusion.
 func ExportError(stderr string) error {
 	return fmt.Errorf("%w: %s", ErrExportFailed, strings.TrimSpace(stderr))
 }

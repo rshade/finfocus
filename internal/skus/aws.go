@@ -13,7 +13,9 @@ const (
 
 // awsWellKnownSKUs returns the well-known SKU map for AWS resource types.
 // Keys use the module/resource pattern extracted from full Pulumi types
-// (e.g., "aws:eks/cluster:Cluster" → "eks/cluster").
+// awsWellKnownSKUs returns a map from Pulumi module/resource strings to well-known AWS SKU identifiers.
+// The keys use the module/resource pattern extracted from Pulumi type tokens (for example, "aws:eks/cluster:Cluster" -> "eks/cluster").
+// Values are canonical SKU names used to identify metered AWS resources (for example, "cluster" or "addon").
 func awsWellKnownSKUs() map[string]string {
 	return map[string]string{
 		"eks/cluster": "cluster", // EKS control plane ($0.10/hr)
@@ -23,7 +25,10 @@ func awsWellKnownSKUs() map[string]string {
 
 // resolveAWSSKU extracts a well-known SKU for AWS resource types.
 // It parses the Pulumi type token (e.g., "aws:eks/cluster:Cluster") to extract
-// the module/resource segment ("eks/cluster") and looks it up in the well-known map.
+// resolveAWSSKU returns the well-known AWS SKU name for a Pulumi resource type token.
+// It extracts the module/resource segment from resourceType and looks it up in the
+// well-known AWS SKU map. It returns the SKU string, or an empty string if the
+// token cannot be parsed or no matching SKU is found.
 func resolveAWSSKU(resourceType string, _ map[string]string) string {
 	segment := extractPulumiSegment(resourceType)
 	if segment == "" {
@@ -34,7 +39,11 @@ func resolveAWSSKU(resourceType string, _ map[string]string) string {
 
 // extractPulumiSegment extracts the module/resource segment from a Pulumi type token.
 // For "aws:eks/cluster:Cluster", it returns "eks/cluster".
-// For types that don't match the expected pattern, it returns empty string.
+// extractPulumiSegment extracts the module/resource segment from a Pulumi type token.
+// Given a token of the form "provider:module/resource:ClassName" (for example,
+// "aws:eks/cluster:Cluster"), it returns the lowercase module/resource portion
+// (for example, "eks/cluster"). If the token does not contain at least two
+// colon-separated segments, it returns an empty string.
 func extractPulumiSegment(resourceType string) string {
 	// Pulumi type tokens follow the pattern: provider:module/resource:ClassName
 	// e.g., "aws:eks/cluster:Cluster" → split by ":" → ["aws", "eks/cluster", "Cluster"]

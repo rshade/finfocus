@@ -70,7 +70,12 @@ func ParseStackExport(data []byte) (*StackExport, error) {
 	return ParseStackExportWithContext(context.Background(), data)
 }
 
-// ParseStackExportWithContext parses Pulumi state JSON from bytes with logging context.
+// ParseStackExportWithContext parses Pulumi state JSON from data using ctx for logging.
+// 
+// The ctx is used to obtain a logger for diagnostic messages. The data parameter is the
+// raw JSON bytes representing a Pulumi stack export; the function unmarshals those bytes
+// into a StackExport value. On success it returns a pointer to the parsed StackExport.
+// If JSON unmarshalling fails the returned error wraps the underlying unmarshal error.
 func ParseStackExportWithContext(ctx context.Context, data []byte) (*StackExport, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -103,7 +108,10 @@ func LoadStackExport(path string) (*StackExport, error) {
 	return LoadStackExportWithContext(context.Background(), path)
 }
 
-// LoadStackExportWithContext loads and parses a Pulumi state JSON file with logging context.
+// LoadStackExportWithContext loads and parses a Pulumi state JSON file located at the given path using the provided context.
+//
+// The path parameter specifies the filesystem location of the Pulumi state JSON to read.
+// It returns the parsed *StackExport on success, or an error if the file cannot be read or the contents cannot be parsed as a StackExport.
 func LoadStackExportWithContext(ctx context.Context, path string) (*StackExport, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -161,7 +169,7 @@ func (s *StackExport) GetCustomResourcesWithContext(ctx context.Context) []Stack
 // Timestamps, cloud identifiers (ID, ARN), and outputs are injected into Properties.
 // Properties are built by merging Outputs (base) with Inputs (overlay), so provider-
 // computed values like size, iops, and tagsAll are included while user-declared
-// Inputs still take precedence on conflicts.
+// from the resource type. This function does not currently return non-nil errors.
 func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, error) {
 	provider := extractProvider(resource.Type)
 
@@ -201,7 +209,9 @@ func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, 
 	}, nil
 }
 
-// MapStateResources converts multiple StackExportResource to ResourceDescriptors.
+// MapStateResources converts a slice of StackExportResource into a slice of engine.ResourceDescriptor.
+// It maps each resource using MapStateResource and preserves the input order.
+// If mapping any resource fails, it returns an error that wraps the underlying error and includes the resource URN.
 func MapStateResources(resources []StackExportResource) ([]engine.ResourceDescriptor, error) {
 	var descriptors []engine.ResourceDescriptor
 	for _, r := range resources {

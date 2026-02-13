@@ -49,12 +49,16 @@ type PulumiResource struct {
 	Outputs  map[string]interface{}
 }
 
-// ParsePulumiPlan parses Pulumi plan JSON from bytes.
+// ParsePulumiPlan parses a Pulumi plan from JSON bytes.
+// The data parameter should contain the raw Pulumi plan JSON output.
+// It returns the parsed *PulumiPlan, or an error if the data cannot be unmarshaled into a PulumiPlan.
 func ParsePulumiPlan(data []byte) (*PulumiPlan, error) {
 	return ParsePulumiPlanWithContext(context.Background(), data)
 }
 
-// ParsePulumiPlanWithContext parses Pulumi plan JSON from bytes with logging context.
+// ParsePulumiPlanWithContext parses Pulumi plan JSON from the provided byte slice using the given context to obtain a logger.
+// The ctx is used only for logging; data should contain the raw Pulumi plan JSON.
+// It returns the parsed PulumiPlan on success, or an error wrapping the JSON unmarshal failure if parsing fails.
 func ParsePulumiPlanWithContext(ctx context.Context, data []byte) (*PulumiPlan, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -88,7 +92,11 @@ func LoadPulumiPlan(path string) (*PulumiPlan, error) {
 	return LoadPulumiPlanWithContext(context.Background(), path)
 }
 
-// LoadPulumiPlanWithContext loads and parses a Pulumi plan JSON file with logging context.
+// LoadPulumiPlanWithContext loads and parses the Pulumi plan JSON file at the given path using the logger carried in ctx.
+// It logs progress and any errors encountered to the context's logger.
+// path is the filesystem path to the Pulumi plan JSON file to read and parse.
+// It returns the parsed *PulumiPlan on success.
+// It returns a non-nil error if the file cannot be read or if parsing the JSON fails.
 func LoadPulumiPlanWithContext(ctx context.Context, path string) (*PulumiPlan, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -181,7 +189,10 @@ func (p *PulumiPlan) GetResourcesWithContext(ctx context.Context) []PulumiResour
 }
 
 // resolveStepOutputs picks the best available Outputs for a step.
-// Priority: step-level > newState > oldState (update/same only).
+// resolveStepOutputs returns the outputs map for a PulumiStep.
+// It selects outputs with the following priority: step-level Outputs, NewState.Outputs,
+// and for operations "update" or "same" falls back to OldState.Outputs.
+// Returns nil if no outputs are available.
 func resolveStepOutputs(step PulumiStep) map[string]interface{} {
 	switch {
 	case len(step.Outputs) > 0:
@@ -196,6 +207,9 @@ func resolveStepOutputs(step PulumiStep) map[string]interface{} {
 	}
 }
 
+// extractTypeFromURN extracts the resource type from a Pulumi URN.
+// It returns the third '::'-separated segment when the URN contains at least
+// minURNParts segments; otherwise it returns an empty string.
 func extractTypeFromURN(urn string) string {
 	parts := strings.Split(urn, "::")
 	if len(parts) >= minURNParts {
