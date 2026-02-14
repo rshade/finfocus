@@ -46,24 +46,36 @@ func ExtractResourceRegion(resource engine.ResourceDescriptor) string {
 }
 
 // normalizeToRegion converts an availability zone string to its region form.
-// It trims surrounding whitespace and, for AZs that end with a lowercase letter
-// (for example "us-west-2a"), removes that letter and returns the resulting region
-// if the remainder ends with a digit (e.g., "us-west-2"). If the input is empty
-// or does not match an AZ-like pattern, the trimmed input (or empty string) is returned.
+// It trims surrounding whitespace and, for AZs that end with a lowercase letter,
+// removes the zone suffix and returns the resulting region.
+//
+// Supported formats:
+//   - AWS: "us-west-2a" → "us-west-2" (single letter suffix after digit)
+//   - GCP: "us-central1-a" → "us-central1" (dash + letter suffix after digit)
+//
+// If the input is empty or does not match an AZ-like pattern, the trimmed input
+// (or empty string) is returned.
 func normalizeToRegion(zone string) string {
 	zone = strings.TrimSpace(zone)
 	if zone == "" {
 		return ""
 	}
 
-	// AWS AZ format: region + single letter suffix (e.g., us-west-2a)
-	// Check if last char is a lowercase letter and removing it yields a valid-looking region
 	lastChar := zone[len(zone)-1]
 	if lastChar >= 'a' && lastChar <= 'z' {
 		candidate := zone[:len(zone)-1]
-		// Check if it looks like a region (ends with a digit)
+
+		// AWS: us-west-2a → us-west-2 (candidate ends with digit)
 		if len(candidate) > 0 && candidate[len(candidate)-1] >= '0' && candidate[len(candidate)-1] <= '9' {
 			return candidate
+		}
+
+		// GCP: us-central1-a → us-central1 (candidate ends with '-', char before is digit)
+		if len(candidate) > 1 && candidate[len(candidate)-1] == '-' {
+			beforeDash := candidate[len(candidate)-2]
+			if beforeDash >= '0' && beforeDash <= '9' {
+				return candidate[:len(candidate)-1]
+			}
 		}
 	}
 	return zone

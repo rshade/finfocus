@@ -41,6 +41,14 @@ func TestExtractResourceRegion(t *testing.T) {
 			want: "eu-west-1",
 		},
 		{
+			name: "GCP zone stripped to region",
+			resource: engine.ResourceDescriptor{
+				Type:       "gcp:compute:Instance",
+				Properties: map[string]interface{}{"availabilityZone": "us-central1-a"},
+			},
+			want: "us-central1",
+		},
+		{
 			name: "location property for Azure",
 			resource: engine.ResourceDescriptor{
 				Type:       "azure:compute:VM",
@@ -88,9 +96,17 @@ func TestNormalizeToRegion(t *testing.T) {
 		input string
 		want  string
 	}{
+		// AWS zones
 		{"us-west-2a", "us-west-2"},
 		{"us-west-2", "us-west-2"},
 		{"eu-central-1c", "eu-central-1"},
+		// GCP zones
+		{"us-central1-a", "us-central1"},
+		{"europe-west1-b", "europe-west1"},
+		{"asia-east2-c", "asia-east2"},
+		// GCP regions (no zone suffix) returned unchanged
+		{"us-central1", "us-central1"},
+		// Azure / other
 		{"eastus", "eastus"},
 		{"", ""},
 	}
