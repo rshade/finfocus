@@ -271,3 +271,115 @@ func TestPluginRemove_MultipleVersions(t *testing.T) {
 	v1Path := filepath.Join(pluginDir, pluginName, "v1.0.0")
 	assert.DirExists(t, v1Path, "v1.0.0 should still exist")
 }
+
+// TestPluginRemove_FilesystemOnly tests removal of plugins installed manually
+// (on disk but not tracked in config.yaml). This is the fix for issue #592.
+func TestPluginRemove_FilesystemOnly(t *testing.T) {
+	pluginDir := setupTestPluginDir(t)
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+
+	// Create empty config (no plugins registered)
+	finfocusDir := filepath.Join(homeDir, ".finfocus")
+	require.NoError(t, os.MkdirAll(finfocusDir, 0755))
+	configPath := filepath.Join(finfocusDir, "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte("# Empty config\n"), 0644))
+
+	// Install plugin manually (filesystem only, no config entry)
+	pluginName := "filesystem-only"
+	version := "v1.0.0"
+	installMockPlugin(t, pluginDir, pluginName, version)
+
+	// Verify plugin exists on disk
+	pluginPath := filepath.Join(pluginDir, pluginName, version)
+	assert.DirExists(t, pluginPath)
+
+	installer := registry.NewInstaller(pluginDir)
+
+	opts := registry.RemoveOptions{
+		PluginDir: pluginDir,
+	}
+
+	var progressMessages []string
+	progress := func(msg string) {
+		progressMessages = append(progressMessages, msg)
+	}
+
+	// Remove should succeed via filesystem fallback
+	err := installer.Remove(pluginName, opts, progress)
+	require.NoError(t, err)
+
+	// Verify plugin directory was removed
+	assert.NoDirExists(t, pluginPath, "plugin version directory should be removed")
+
+	// Verify parent directory is cleaned up
+	parentDir := filepath.Join(pluginDir, pluginName)
+	assert.NoDirExists(t, parentDir, "parent directory should be removed when empty")
+
+	// Verify progress was reported
+	assert.NotEmpty(t, progressMessages)
+}
+
+// TestPluginRemove_FilesystemOnly_MultipleVersions tests removal discovers
+// the first version directory for filesystem-only plugins.
+func TestPluginRemove_FilesystemOnly_MultipleVersions(t *testing.T) {
+	pluginDir := setupTestPluginDir(t)
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+
+	// Create empty config
+	finfocusDir := filepath.Join(homeDir, ".finfocus")
+	require.NoError(t, os.MkdirAll(finfocusDir, 0755))
+	configPath := filepath.Join(finfocusDir, "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte("# Empty config\n"), 0644))
+
+	// Install two versions manually (no config)
+	pluginName := "fs-multi"
+	installMockPlugin(t, pluginDir, pluginName, "v1.0.0")
+	installMockPlugin(t, pluginDir, pluginName, "v2.0.0")
+
+	installer := registry.NewInstaller(pluginDir)
+
+	opts := registry.RemoveOptions{
+		PluginDir: pluginDir,
+	}
+
+	// Remove should succeed (removes whichever version is discovered first)
+	err := installer.Remove(pluginName, opts, nil)
+	require.NoError(t, err)
+
+	// Parent directory should still exist since one version remains
+	parentDir := filepath.Join(pluginDir, pluginName)
+	assert.DirExists(t, parentDir, "parent directory should still exist with remaining version")
+}
+
+// TestPluginRemove_ConfigTracked_StillWorks tests that config-tracked removal
+// still works correctly (no regression).
+func TestPluginRemove_ConfigTracked_StillWorks(t *testing.T) {
+	pluginDir := setupTestPluginDir(t)
+	homeDir := t.TempDir()
+	t.Setenv("HOME", homeDir)
+
+	pluginName := "config-tracked"
+	version := "v1.0.0"
+	repoURL := "github.com/example/finfocus-plugin-config-tracked"
+	setupPluginWithConfig(t, pluginDir, homeDir, pluginName, version, repoURL)
+
+	// Verify plugin exists
+	pluginPath := filepath.Join(pluginDir, pluginName, version)
+	assert.DirExists(t, pluginPath)
+
+	installer := registry.NewInstaller(pluginDir)
+
+	opts := registry.RemoveOptions{
+		PluginDir: pluginDir,
+	}
+
+	err := installer.Remove(pluginName, opts, nil)
+	require.NoError(t, err)
+
+	// Verify plugin was removed
+	assert.NoDirExists(t, pluginPath, "plugin directory should be removed")
+	parentDir := filepath.Join(pluginDir, pluginName)
+	assert.NoDirExists(t, parentDir, "parent directory should be removed when empty")
+}

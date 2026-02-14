@@ -78,7 +78,8 @@ func SaveInstalledPlugins(plugins []InstalledPlugin) error {
 		if unmarshalErr := yaml.Unmarshal(existingData, &fullConfig); unmarshalErr != nil {
 			fullConfig = make(map[string]interface{})
 		}
-	} else {
+	}
+	if fullConfig == nil {
 		fullConfig = make(map[string]interface{})
 	}
 
