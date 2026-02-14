@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/router"
 )
 
 // mockCostCalculator implements the CostCalculator interface for testing.
@@ -596,7 +597,7 @@ func TestIsInternalPulumiType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := isInternalPulumiType(tt.resourceType)
+			got := router.IsInternalPulumiType(tt.resourceType)
 			assert.Equal(t, tt.want, got)
 		})
 	}

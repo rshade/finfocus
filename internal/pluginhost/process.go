@@ -503,23 +503,43 @@ func (p *ProcessLauncher) startPlugin(
 		fmt.Sprintf("%s=%d", pluginsdk.EnvPort, port),
 	)
 
-	// Capture stdout in a buffer for backward-compatible port detection.
-	// Older plugins may print their port to stdout instead of binding to --port.
-	// We tee to stderr so existing log forwarding still works.
-	var stdoutBuf lockedBuffer
-	cmd.Stdout = io.MultiWriter(os.Stderr, &stdoutBuf)
+	// Propagate logging configuration to plugin processes so well-behaved plugins
+	// (using pluginsdk) can write structured logs directly to the same file.
+	if logPath := logging.PluginLogPathFromContext(ctx); logPath != "" {
+		cmd.Env = append(cmd.Env,
+			fmt.Sprintf("%s=%s", pluginsdk.EnvLogFile, logPath),
+		)
+	}
+	if traceID := logging.TraceIDFromContext(ctx); traceID != "" {
+		cmd.Env = append(cmd.Env,
+			fmt.Sprintf("%s=%s", pluginsdk.EnvTraceID, traceID),
+		)
+	}
 
-	// In analyzer mode, suppress plugin stderr to prevent verbose logs from cluttering Pulumi preview output
-	// This addresses issue #401 where plugin JSON messages appear in user-facing output
-	if os.Getenv(constants.EnvAnalyzerMode) == "true" {
+	// Determine where plugin stdout/stderr should go.
+	// Priority: file logging (always capture) > analyzer mode (discard) > default (stderr)
+	var stdoutBuf lockedBuffer
+	pluginWriter := logging.PluginLogWriterFromContext(ctx)
+
+	switch {
+	case pluginWriter != nil:
+		// Redirect plugin output to the core log file for a clean terminal experience.
+		cmd.Stderr = pluginWriter
+		cmd.Stdout = io.MultiWriter(pluginWriter, &stdoutBuf)
+	case os.Getenv(constants.EnvAnalyzerMode) == "true":
+		// In analyzer mode, suppress plugin output to prevent cluttering Pulumi preview output.
+		// This addresses issue #401 where plugin JSON messages appear in user-facing output.
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "pluginhost").
 			Str("plugin_path", path).
 			Msg("suppressing plugin stderr output in analyzer mode")
 		cmd.Stderr = io.Discard
-	} else {
+		cmd.Stdout = io.MultiWriter(io.Discard, &stdoutBuf)
+	default:
+		// Fallback (debug mode or no file logging): plugin output goes to stderr.
 		cmd.Stderr = os.Stderr
+		cmd.Stdout = io.MultiWriter(os.Stderr, &stdoutBuf)
 	}
 	// Set WaitDelay before Start to avoid race condition with watchCtx goroutine
 	cmd.WaitDelay = processWaitDelay

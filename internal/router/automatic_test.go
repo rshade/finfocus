@@ -328,3 +328,40 @@ func TestAutomaticRouting_NoMatchingPlugins(t *testing.T) {
 
 	assert.Empty(t, matches, "GCP resource should not match AWS-only plugin")
 }
+
+// TestAutomaticRouting_InternalPulumiTypes tests that internal Pulumi types
+// are not matched by automatic or global plugins.
+func TestAutomaticRouting_InternalPulumiTypes(t *testing.T) {
+	ctx := context.Background()
+
+	awsClient := &pluginhost.Client{
+		Name: "aws-public",
+		Metadata: &proto.PluginMetadata{
+			SupportedProviders: []string{"aws"},
+		},
+	}
+	globalClient := &pluginhost.Client{
+		Name: "recorder",
+		Metadata: &proto.PluginMetadata{
+			SupportedProviders: []string{"*"},
+		},
+	}
+
+	router, err := NewRouter(WithClients([]*pluginhost.Client{awsClient, globalClient}))
+	require.NoError(t, err)
+
+	internalTypes := []string{
+		"pulumi:pulumi:Stack",
+		"pulumi:providers:aws",
+		"pulumi:providers:azure",
+		"pulumi:providers:gcp",
+	}
+
+	for _, resourceType := range internalTypes {
+		resource := engine.ResourceDescriptor{Type: resourceType}
+		matches := router.SelectPlugins(ctx, resource, "ProjectedCosts")
+
+		assert.Empty(t, matches,
+			"internal Pulumi type %s should not match any plugin (including global)", resourceType)
+	}
+}

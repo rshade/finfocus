@@ -499,3 +499,68 @@ func TestNewLogger_TextFormatAlias(t *testing.T) {
 	err := json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &logEntry)
 	assert.Error(t, err, "text format should not be valid JSON")
 }
+
+// Tests for plugin log writer context helpers.
+
+func TestContextWithPluginLogWriter_StoresAndRetrieves(t *testing.T) {
+	var buf bytes.Buffer
+	ctx := context.Background()
+	ctx = ContextWithPluginLogWriter(ctx, &buf)
+
+	writer := PluginLogWriterFromContext(ctx)
+	require.NotNil(t, writer)
+
+	// Verify it's the same writer by writing through it
+	_, err := writer.Write([]byte("test"))
+	require.NoError(t, err)
+	assert.Equal(t, "test", buf.String())
+}
+
+func TestPluginLogWriterFromContext_ReturnsNilIfNotSet(t *testing.T) {
+	ctx := context.Background()
+	writer := PluginLogWriterFromContext(ctx)
+	assert.Nil(t, writer)
+}
+
+func TestContextWithPluginLogPath_StoresAndRetrieves(t *testing.T) {
+	ctx := context.Background()
+	ctx = ContextWithPluginLogPath(ctx, "/tmp/test.log")
+
+	path := PluginLogPathFromContext(ctx)
+	assert.Equal(t, "/tmp/test.log", path)
+}
+
+func TestPluginLogPathFromContext_ReturnsEmptyIfNotSet(t *testing.T) {
+	ctx := context.Background()
+	path := PluginLogPathFromContext(ctx)
+	assert.Empty(t, path)
+}
+
+func TestLogPathResult_SetPluginLogFile_ClosedOnClose(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "test.log")
+
+	// Create the main log file
+	mainFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	require.NoError(t, err)
+
+	// Create a separate plugin log file handle
+	pluginFile, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+	require.NoError(t, err)
+
+	result := LogPathResult{
+		UsingFile: true,
+		FilePath:  logPath,
+		file:      mainFile,
+	}
+	result.SetPluginLogFile(pluginFile)
+
+	// Close should succeed and close both handles
+	require.NoError(t, result.Close())
+
+	// Verify both files are closed by attempting to write (should fail)
+	_, err = mainFile.WriteString("test")
+	assert.Error(t, err, "main file should be closed")
+	_, err = pluginFile.WriteString("test")
+	assert.Error(t, err, "plugin file should be closed")
+}
