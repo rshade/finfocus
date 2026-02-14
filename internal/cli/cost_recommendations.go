@@ -169,7 +169,21 @@ Valid action types for filtering:
 // Returns an error when resource loading fails, plugins cannot be opened, recommendation
 // fetching fails, or output rendering fails.
 //
-//nolint:gocognit,gocyclo,cyclop,funlen // Complex orchestration function with multiple steps - acceptable complexity.
+// executeCostRecommendations orchestrates the cost recommendations workflow for the CLI.
+// It loads and maps resources from a Pulumi preview JSON, opens adapter plugins, optionally
+// initializes a cache, queries the recommendation engine (with a progress indicator for long
+// runs), merges dismissed/snoozed records when requested, applies action-type filters,
+// sorting, and pagination, then renders the results and records audit metadata.
+//
+// Parameters:
+//   - cmd: the Cobra command providing context and I/O streams for progress and output.
+//   - params: command parameters controlling input path, adapter selection, output format,
+//     filtering, verbosity, pagination, sorting, and whether to include dismissed records.
+//
+// The function returns an error when any required step fails, for example: loading or mapping
+// resources, opening plugins, initializing or using the engine to fetch recommendations,
+// invalid filter or sort expressions, invalid pagination parameters, merging dismissed
+// records, or rendering the output.
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -200,197 +214,56 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	}
 	defer cleanup()
 
-	// Setup cache if available
+	// Setup cache and create engine
 	cfg := config.New()
-	cacheDir := cfg.Cost.Cache.Directory
-	if cacheDir == "" {
-		// Default to ~/.finfocus/cache
-		homeDir, _ := os.UserHomeDir()
-		cacheDir = filepath.Join(homeDir, ".finfocus", "cache")
-	}
+	cacheStore := setupRecommendationsCache(ctx, cmd, cfg)
 
-	// Check for --cache-ttl flag override
-	cacheTTL := cfg.Cost.Cache.TTLSeconds
-	if flagTTL, flagErr := cmd.Flags().GetInt("cache-ttl"); flagErr == nil && flagTTL > 0 {
-		cacheTTL = flagTTL
-		log.Debug().
-			Ctx(ctx).
-			Int("cache_ttl", cacheTTL).
-			Msg("cache TTL overridden by --cache-ttl flag")
-	} else if cacheTTL == 0 {
-		cacheTTL = defaultCacheTTLSeconds
-	}
-
-	cacheMaxSize := cfg.Cost.Cache.MaxSizeMB
-	if cacheMaxSize == 0 {
-		cacheMaxSize = defaultCacheMaxSizeMB
-	}
-
-	cacheStore, cacheErr := cache.NewFileStore(
-		cacheDir,
-		cfg.Cost.Cache.Enabled,
-		cacheTTL,
-		cacheMaxSize,
-	)
-	if cacheErr != nil {
-		log.Debug().
-			Ctx(ctx).
-			Err(cacheErr).
-			Msg("cache initialization failed, proceeding without cache")
-	}
-
-	// Create engine with optional cache
-	eng := engine.New(clients, nil)
+	eng := engine.New(clients, nil).
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 	if cacheStore != nil && cacheStore.IsEnabled() {
 		eng = eng.WithCache(cacheStore)
 	}
 
-	// Setup progress indicator for queries >500ms
-	var result *engine.RecommendationsResult
-	progressCtx, cancelProgress := context.WithCancel(ctx)
-	defer cancelProgress()
-
-	var spinnerWg sync.WaitGroup
-	spinnerWg.Add(1)
-
-	// Start goroutine to show progress after 500ms
-	go func() {
-		defer spinnerWg.Done()
-		showProgressIndicator(progressCtx, cmd, resources)
-	}()
-
-	// Fetch recommendations from engine
-	result, err = eng.GetRecommendationsForResources(ctx, resources)
-
-	// Cancel progress indicator
-	cancelProgress()
-	spinnerWg.Wait()
-
-	// Clear progress line if it was shown
-	if term.IsTerminal(int(os.Stderr.Fd())) {
-		fmt.Fprint(cmd.ErrOrStderr(), "\r\033[K") // Clear line
-	}
-
+	// Fetch recommendations with progress indicator
+	result, err := fetchRecommendationsWithProgress(ctx, cmd, eng, resources)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to fetch recommendations")
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("fetching recommendations: %w", err)
 	}
 
-	// Annotate active recommendations with status
-	for i := range result.Recommendations {
-		if result.Recommendations[i].Status == "" {
-			result.Recommendations[i].Status = statusActive
-		}
+	if result == nil {
+		log.Warn().Ctx(ctx).Msg("no recommendation results returned")
+		return nil
 	}
+
+	// Annotate active recommendations with status
+	annotateActiveStatus(result)
 
 	// Merge dismissed/snoozed recommendations if --include-dismissed
 	if params.includeDismissed {
-		mergeErr := mergeDismissedRecommendations(ctx, result)
-		if mergeErr != nil {
+		if mergeErr := mergeDismissedRecommendations(ctx, result); mergeErr != nil {
 			log.Warn().Ctx(ctx).Err(mergeErr).
 				Msg("failed to merge dismissed recommendations, continuing with active only")
 		}
 	}
 
-	// Apply action type filters if specified
-	filteredRecommendations := result.Recommendations
-	for _, f := range params.filter {
-		if f != "" {
-			filtered, filterErr := applyActionTypeFilter(ctx, filteredRecommendations, f)
-			if filterErr != nil {
-				return filterErr
-			}
-			filteredRecommendations = filtered
-		}
+	// Apply filters, sorting, and pagination
+	filteredRecommendations, err := applyActionTypeFilters(ctx, result.Recommendations, params.filter)
+	if err != nil {
+		return err
 	}
 
-	// Apply sorting if specified (T034)
-	if params.sort != "" {
-		sorter := pagination.NewRecommendationSorter()
-		field, order, parseErr := pagination.ParseSortExpression(params.sort)
-		if parseErr != nil {
-			return fmt.Errorf("invalid sort expression: %w", parseErr)
-		}
-
-		// Validate sort field
-		if !sorter.IsValidField(field) {
-			return fmt.Errorf("invalid sort field: %q (valid fields: %s)",
-				field, strings.Join(sorter.GetValidFields(), ", "))
-		}
-
-		filteredRecommendations = sorter.Sort(filteredRecommendations, field, order)
-		log.Debug().Ctx(ctx).
-			Str("field", field).
-			Str("order", order).
-			Int("count", len(filteredRecommendations)).
-			Msg("applied sorting")
+	filteredRecommendations, err = applySortExpression(ctx, filteredRecommendations, params.sort)
+	if err != nil {
+		return err
 	}
 
-	// Apply pagination if specified (T033)
-	paginationParams := pagination.PaginationParams{
-		Limit:    params.limit,
-		Offset:   params.offset,
-		Page:     params.page,
-		PageSize: params.pageSize,
-	}
-
-	// Validate pagination parameters
-	if validationErr := paginationParams.Validate(); validationErr != nil {
-		return fmt.Errorf("invalid pagination parameters: %w", validationErr)
-	}
-
-	// Apply pagination to recommendations
-	totalCount := len(filteredRecommendations)
-	paginatedRecommendations := filteredRecommendations
-
-	//nolint:nestif // Pagination logic requires multiple conditional checks for edge cases.
-	if paginationParams.IsEnabled() {
-		offset, limit := paginationParams.CalculateOffsetLimit()
-
-		// Handle out-of-bounds page edge case (T036)
-		// For page-based pagination, cap offset to last available page
-		if paginationParams.IsPageBased() && offset >= len(filteredRecommendations) &&
-			len(filteredRecommendations) > 0 {
-			pageSize := paginationParams.PageSize
-			if pageSize <= 0 {
-				pageSize = len(filteredRecommendations)
-			}
-			// Last page starts at the last multiple of pageSize that's < len(items)
-			lastPageStart := ((len(filteredRecommendations) - 1) / pageSize) * pageSize
-			offset = lastPageStart
-		}
-
-		// Apply offset and limit
-		if offset >= len(filteredRecommendations) {
-			paginatedRecommendations = []engine.Recommendation{}
-		} else {
-			end := offset + limit
-			if limit == 0 || end > len(filteredRecommendations) {
-				end = len(filteredRecommendations)
-			}
-			paginatedRecommendations = filteredRecommendations[offset:end]
-		}
-
-		log.Debug().Ctx(ctx).
-			Int("offset", offset).
-			Int("limit", limit).
-			Int("total", totalCount).
-			Int("returned", len(paginatedRecommendations)).
-			Msg("applied pagination")
-	}
-
-	// Generate pagination metadata (T035)
-	var paginationMeta *pagination.PaginationMeta
-	if paginationParams.IsEnabled() {
-		meta := pagination.NewPaginationMeta(paginationParams, totalCount)
-		paginationMeta = &meta
-		log.Debug().Ctx(ctx).
-			Int("current_page", paginationMeta.CurrentPage).
-			Int("total_pages", paginationMeta.TotalPages).
-			Bool("has_next", paginationMeta.HasNext).
-			Bool("has_previous", paginationMeta.HasPrevious).
-			Msg("generated pagination metadata")
+	paginatedRecommendations, paginationMeta, err := paginateRecommendations(
+		ctx, filteredRecommendations, params,
+	)
+	if err != nil {
+		return err
 	}
 
 	// Create filtered result for rendering
@@ -415,6 +288,225 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 
 	audit.logSuccess(ctx, len(filteredRecommendations), filteredResult.TotalSavings)
 	return nil
+}
+
+// setupRecommendationsCache initializes the file-based cache for recommendations.
+// Returns nil if cache initialization fails (the caller should proceed without cache).
+func setupRecommendationsCache(
+	ctx context.Context,
+	cmd *cobra.Command,
+	cfg *config.Config,
+) *cache.FileStore {
+	log := logging.FromContext(ctx)
+
+	cacheDir := cfg.Cost.Cache.Directory
+	if cacheDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		cacheDir = filepath.Join(homeDir, ".finfocus", "cache")
+	}
+
+	cacheTTL := resolveCacheTTL(ctx, cmd, cfg.Cost.Cache.TTLSeconds)
+
+	cacheMaxSize := cfg.Cost.Cache.MaxSizeMB
+	if cacheMaxSize == 0 {
+		cacheMaxSize = defaultCacheMaxSizeMB
+	}
+
+	cacheStore, cacheErr := cache.NewFileStore(
+		cacheDir,
+		cfg.Cost.Cache.Enabled,
+		cacheTTL,
+		cacheMaxSize,
+	)
+	if cacheErr != nil {
+		log.Debug().Ctx(ctx).Err(cacheErr).
+			Msg("cache initialization failed, proceeding without cache")
+	}
+
+	return cacheStore
+}
+
+// resolveCacheTTL determines the cache TTL from flag override, config, or default.
+func resolveCacheTTL(ctx context.Context, cmd *cobra.Command, configTTL int) int {
+	log := logging.FromContext(ctx)
+
+	if flagTTL, flagErr := cmd.Flags().GetInt("cache-ttl"); flagErr == nil && flagTTL > 0 {
+		log.Debug().Ctx(ctx).Int("cache_ttl", flagTTL).
+			Msg("cache TTL overridden by --cache-ttl flag")
+		return flagTTL
+	}
+
+	if configTTL > 0 {
+		return configTTL
+	}
+
+	return defaultCacheTTLSeconds
+}
+
+// fetchRecommendationsWithProgress fetches recommendations while showing a progress
+// indicator for operations that exceed 500ms.
+func fetchRecommendationsWithProgress(
+	ctx context.Context,
+	cmd *cobra.Command,
+	eng *engine.Engine,
+	resources []engine.ResourceDescriptor,
+) (*engine.RecommendationsResult, error) {
+	progressCtx, cancelProgress := context.WithCancel(ctx)
+	defer cancelProgress()
+
+	var spinnerWg sync.WaitGroup
+	spinnerWg.Add(1)
+
+	go func() {
+		defer spinnerWg.Done()
+		showProgressIndicator(progressCtx, cmd, resources)
+	}()
+
+	result, err := eng.GetRecommendationsForResources(ctx, resources)
+
+	cancelProgress()
+	spinnerWg.Wait()
+
+	// Clear progress line if it was shown
+	if term.IsTerminal(int(os.Stderr.Fd())) {
+		fmt.Fprint(cmd.ErrOrStderr(), "\r\033[K")
+	}
+
+	return result, err
+}
+
+// annotateActiveStatus sets the status to "Active" for any recommendation without a status.
+func annotateActiveStatus(result *engine.RecommendationsResult) {
+	for i := range result.Recommendations {
+		if result.Recommendations[i].Status == "" {
+			result.Recommendations[i].Status = statusActive
+		}
+	}
+}
+
+// applyActionTypeFilters applies all action type filter expressions to recommendations.
+func applyActionTypeFilters(
+	ctx context.Context,
+	recommendations []engine.Recommendation,
+	filters []string,
+) ([]engine.Recommendation, error) {
+	filtered := recommendations
+	for _, f := range filters {
+		if f == "" {
+			continue
+		}
+		var err error
+		filtered, err = applyActionTypeFilter(ctx, filtered, f)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return filtered, nil
+}
+
+// applySortExpression applies a sort expression to recommendations.
+// Returns the original slice unchanged if sortExpr is empty.
+func applySortExpression(
+	ctx context.Context,
+	recommendations []engine.Recommendation,
+	sortExpr string,
+) ([]engine.Recommendation, error) {
+	if sortExpr == "" {
+		return recommendations, nil
+	}
+
+	log := logging.FromContext(ctx)
+	sorter := pagination.NewRecommendationSorter()
+
+	field, order, parseErr := pagination.ParseSortExpression(sortExpr)
+	if parseErr != nil {
+		return nil, fmt.Errorf("invalid sort expression: %w", parseErr)
+	}
+
+	if !sorter.IsValidField(field) {
+		return nil, fmt.Errorf("invalid sort field: %q (valid fields: %s)",
+			field, strings.Join(sorter.GetValidFields(), ", "))
+	}
+
+	sorted := sorter.Sort(recommendations, field, order)
+	log.Debug().Ctx(ctx).
+		Str("field", field).Str("order", order).
+		Int("count", len(sorted)).
+		Msg("applied sorting")
+
+	return sorted, nil
+}
+
+// paginateRecommendations applies pagination to recommendations and returns the
+// paginated slice along with pagination metadata.
+func paginateRecommendations(
+	ctx context.Context,
+	recommendations []engine.Recommendation,
+	params costRecommendationsParams,
+) ([]engine.Recommendation, *pagination.PaginationMeta, error) {
+	log := logging.FromContext(ctx)
+
+	paginationParams := pagination.PaginationParams{
+		Limit:    params.limit,
+		Offset:   params.offset,
+		Page:     params.page,
+		PageSize: params.pageSize,
+	}
+
+	if validationErr := paginationParams.Validate(); validationErr != nil {
+		return nil, nil, fmt.Errorf("invalid pagination parameters: %w", validationErr)
+	}
+
+	if !paginationParams.IsEnabled() {
+		return recommendations, nil, nil
+	}
+
+	paginated := applyPaginationWindow(paginationParams, recommendations)
+
+	log.Debug().Ctx(ctx).
+		Int("total", len(recommendations)).
+		Int("returned", len(paginated)).
+		Msg("applied pagination")
+
+	meta := pagination.NewPaginationMeta(paginationParams, len(recommendations))
+	log.Debug().Ctx(ctx).
+		Int("current_page", meta.CurrentPage).
+		Int("total_pages", meta.TotalPages).
+		Bool("has_next", meta.HasNext).
+		Bool("has_previous", meta.HasPrevious).
+		Msg("generated pagination metadata")
+
+	return paginated, &meta, nil
+}
+
+// applyPaginationWindow slices recommendations based on pagination offset and limit,
+// handling out-of-bounds page capping for page-based pagination.
+func applyPaginationWindow(
+	pp pagination.PaginationParams,
+	recommendations []engine.Recommendation,
+) []engine.Recommendation {
+	offset, limit := pp.CalculateOffsetLimit()
+
+	// Handle out-of-bounds page edge case (T036):
+	// cap offset to the last available page for page-based pagination.
+	if pp.IsPageBased() && offset >= len(recommendations) && len(recommendations) > 0 {
+		pageSize := pp.PageSize
+		if pageSize <= 0 {
+			pageSize = len(recommendations)
+		}
+		offset = ((len(recommendations) - 1) / pageSize) * pageSize
+	}
+
+	if offset >= len(recommendations) {
+		return []engine.Recommendation{}
+	}
+
+	end := offset + limit
+	if limit == 0 || end > len(recommendations) {
+		end = len(recommendations)
+	}
+
+	return recommendations[offset:end]
 }
 
 // applyActionTypeFilter filters recommendations by action type based on a filter expression.

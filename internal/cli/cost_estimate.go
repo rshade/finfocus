@@ -288,15 +288,18 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 		Bool("interactive", params.Interactive).
 		Msg("starting cost estimation")
 
+	// Load config once for all execution paths
+	cfg := config.New()
+
 	// Determine mode and execute
 	var err error
 	switch {
 	case params.Interactive:
-		err = executeInteractiveEstimate(cmd, params)
+		err = executeInteractiveEstimate(cmd, params, cfg)
 	case params.PlanPath != "":
-		err = executePlanBasedEstimate(cmd, params)
+		err = executePlanBasedEstimate(cmd, params, cfg)
 	default:
-		err = executeSingleResourceEstimate(cmd, params)
+		err = executeSingleResourceEstimate(cmd, params, cfg)
 	}
 
 	if err != nil {
@@ -312,8 +315,9 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	return nil
 }
 
-// executeSingleResourceEstimate handles single-resource mode estimation.
-func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams) error {
+// executeSingleResourceEstimate parses property overrides, builds a resource descriptor,
+// requests a cost estimate via plugins or spec fallback, and writes output.
+func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams, cfg *config.Config) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
 
@@ -342,9 +346,6 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 		resource.Properties["region"] = params.Region
 	}
 
-	// Get spec directory
-	specDir := config.New().SpecDir
-
 	// Open plugins
 	clients, cleanup, err := openPlugins(ctx, params.Adapter, nil)
 	// IMPORTANT: Register cleanup immediately before any error handling to prevent resource leaks
@@ -358,7 +359,8 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 	}
 
 	// Create engine and estimate
-	eng := engine.New(clients, spec.NewLoader(specDir))
+	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 	request := &engine.EstimateRequest{
 		Resource:          resource,
 		PropertyOverrides: overrides,
@@ -374,8 +376,9 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 	return renderEstimateResult(cmd.OutOrStdout(), params.Output, result)
 }
 
-// executePlanBasedEstimate handles plan-based mode estimation.
-func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams) error {
+// executePlanBasedEstimate loads resources from a Pulumi plan, applies modifications,
+// estimates costs via plugins or spec fallback, and renders combined results.
+func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg *config.Config) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
 
@@ -401,9 +404,6 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams) err
 		return nil
 	}
 
-	// Get spec directory
-	specDir := config.New().SpecDir
-
 	// Open plugins
 	clients, cleanup, err := openPlugins(ctx, params.Adapter, nil)
 	// IMPORTANT: Register cleanup immediately before any error handling to prevent resource leaks
@@ -416,7 +416,8 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams) err
 	}
 
 	// Create engine
-	eng := engine.New(clients, spec.NewLoader(specDir))
+	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 
 	// Process each resource with modifications
 	var results []*engine.EstimateResult
@@ -692,8 +693,19 @@ func buildResourceFromParams(provider, resourceType, region string) *engine.Reso
 	}
 }
 
-// executeInteractiveEstimate handles interactive TUI mode for cost estimation.
-func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams) error {
+// executeInteractiveEstimate launches and runs the interactive TUI for cost estimation.
+// It obtains the command context and I/O from cmd and determines the initial resource from
+// params (uses the first resource from params.PlanPath if provided, otherwise builds a
+// resource from params.Provider and params.ResourceType). The function opens adapter
+// plugins (falling back to spec-only mode if plugins fail), constructs an engine with a
+// router, and runs a TUI that calls back into the engine to recalculate estimates as the
+// user edits properties. When the TUI exits, the final estimate (if any) is printed to the
+// command output using the configured output format.
+//
+// It returns an error when required interactive inputs are missing, when loading/parsing a
+// supplied Pulumi plan fails, when running the TUI fails, or when an unexpected TUI model
+// type is returned. Any error produced by rendering the final estimate is also returned.
+func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, cfg *config.Config) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
 
@@ -731,8 +743,7 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams) e
 		return errors.New("interactive mode requires --provider and --resource-type, or --pulumi-json")
 	}
 
-	// Get spec directory and create engine
-	specDir := config.New().SpecDir
+	// Create engine
 	clients, cleanup, err := openPlugins(ctx, params.Adapter, nil)
 	// IMPORTANT: Register cleanup immediately before any error handling to prevent resource leaks
 	if cleanup != nil {
@@ -743,7 +754,8 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams) e
 		clients = nil
 	}
 
-	eng := engine.New(clients, spec.NewLoader(specDir))
+	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 
 	// Create a recalculation callback for the TUI
 	recalculateFn := func(

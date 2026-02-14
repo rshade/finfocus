@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
@@ -88,7 +89,14 @@ instead of running Pulumi CLI commands.`,
 	return cmd
 }
 
-// executeOverview is the main execution pipeline for the overview command.
+// executeOverview runs the overview command pipeline. It validates the date range,
+// loads Pulumi state and plan data (from files or via auto-detection), detects pending
+// changes, merges and optionally filters resources, opens plugin clients, constructs an
+// engine with a router, and either launches an interactive TUI or enriches and renders
+// plain output. It records audit events for failures and successes.
+//
+// cmd is the Cobra command being executed; params contains the overview command flags
+// and options. The function returns an error if any step of the pipeline fails.
 func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	ctx := cmd.Context()
 	if ctx == nil {
@@ -141,7 +149,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	defer cleanup()
 
 	// 8. Create engine
-	eng := engine.New(clients, nil)
+	cfg := config.New()
+	eng := engine.New(clients, nil).
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 
 	// 9. Determine if we should use interactive TUI or plain text
 	isInteractive := shouldUseInteractiveTUI(cmd.OutOrStdout(), params.output, params.plain)

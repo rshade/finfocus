@@ -156,7 +156,18 @@ timestamp if not provided.`,
 //
 // Returns an error if validation fails, resources cannot be loaded or filtered, the date range
 // cannot be parsed or resolved, plugins cannot be opened, the engine fails to fetch costs, the
-// output rendering fails, or any other non-recoverable step in the workflow encounters an error.
+// executeCostActual orchestrates the "actual" cost workflow: it validates input flags,
+// loads and filters resources, resolves the time range, opens adapter plugins, requests
+// actual cost data from the engine, merges recommendations, renders output, and evaluates
+// budget status when appropriate.
+//
+// cmd is the cobra command whose context and flags control execution. params supplies
+// command-specific options such as plan/state paths, time range, adapter, output format,
+// grouping, filters, and estimation flags.
+//
+// The function returns an error when validation fails, resource loading or mapping fails,
+// filters are invalid, date parsing or validation fails, plugin initialization fails,
+// cost retrieval from the engine fails, or output rendering fails. On success it returns nil.
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -211,7 +222,9 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		FallbackEstimate:   params.fallbackEstimate,
 	}
 
-	eng := engine.New(clients, nil)
+	cfg := config.New()
+	eng := engine.New(clients, nil).
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 	resultWithErrors, err := eng.GetActualCostWithOptionsAndErrors(ctx, request)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to fetch actual costs")

@@ -132,7 +132,7 @@ type DefaultRouter struct {
 	clients []*pluginhost.Client
 
 	// patterns is the compiled pattern cache.
-	patterns map[string]*CompiledPattern
+	patterns map[compiledPatternKey]*CompiledPattern
 
 	// pluginConfig caches plugin routing config by name for fast lookup.
 	pluginConfig map[string]*config.PluginRouting
@@ -179,10 +179,14 @@ func WithClients(clients []*pluginhost.Client) Option {
 // opts are functional options (e.g., WithConfig, WithClients) used to provide
 // the routing configuration and available plugin clients.
 //
+// NewRouter creates a DefaultRouter configured by the provided options.
+// It initializes internal caches for compiled patterns and per-plugin routing
+// configuration, applies each Option to the router, and pre-compiles all
+// declarative patterns found in the routing configuration.
 // The returned error is non-nil if any configured pattern fails to compile.
 func NewRouter(opts ...Option) (*DefaultRouter, error) {
 	r := &DefaultRouter{
-		patterns:     make(map[string]*CompiledPattern),
+		patterns:     make(map[compiledPatternKey]*CompiledPattern),
 		pluginConfig: make(map[string]*config.PluginRouting),
 	}
 
@@ -214,9 +218,18 @@ func NewRouter(opts ...Option) (*DefaultRouter, error) {
 	return r, nil
 }
 
-// compiled pattern caches and lookups.
-func patternKey(pluginName string, pattern config.ResourcePattern) string {
-	return pluginName + ":" + pattern.Type + ":" + pattern.Pattern
+type compiledPatternKey struct {
+	pluginName  string
+	patternType string
+	pattern     string
+}
+
+// patternKey builds a compiledPatternKey from the given plugin name and resource pattern.
+// pluginName is the plugin's identifier; pattern is the declarative resource pattern.
+// The returned key combines the plugin name, the pattern's Type, and the pattern's Pattern
+// and is intended for use as a map key in the router's compiled pattern cache.
+func patternKey(pluginName string, pattern config.ResourcePattern) compiledPatternKey {
+	return compiledPatternKey{pluginName: pluginName, patternType: pattern.Type, pattern: pattern.Pattern}
 }
 
 // SelectPlugins returns plugins that match a resource for a given feature.
@@ -294,7 +307,19 @@ func (r *DefaultRouter) SelectPlugins(
 		// Check if this client matches the provider
 		matchReason := r.matchesProvider(client, provider)
 		if matchReason == MatchReasonAutomatic || matchReason == MatchReasonGlobal {
-			// Check region compatibility
+			// Look up plugin config once for feature, region, and priority checks
+			pcfg, hasConfig := r.pluginConfig[client.Name]
+			var pluginCfg config.PluginRouting
+			if hasConfig {
+				pluginCfg = *pcfg
+			}
+
+			// Check feature filter first (consistent with pattern-based path)
+			if !r.matchesFeature(client, pluginCfg, feature) {
+				continue
+			}
+
+			// Then check region compatibility
 			pluginReg := PluginRegion(client)
 			if !RegionMatches(pluginReg, resourceRegion) {
 				log.Warn().
@@ -308,21 +333,8 @@ func (r *DefaultRouter) SelectPlugins(
 				continue
 			}
 
-			// Check feature filter from config if exists
-			if cfg, ok := r.pluginConfig[client.Name]; ok {
-				if !r.matchesFeature(client, *cfg, feature) {
-					continue
-				}
-			} else if !r.matchesFeature(client, config.PluginRouting{}, feature) {
-				continue
-			}
-
-			priority := 0
-			fallback := true
-			if cfg, ok := r.pluginConfig[client.Name]; ok {
-				priority = cfg.Priority
-				fallback = cfg.FallbackEnabled()
-			}
+			priority := pluginCfg.Priority
+			fallback := pluginCfg.FallbackEnabled()
 
 			matches = append(matches, PluginMatch{
 				Client:      client,
