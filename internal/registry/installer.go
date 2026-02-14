@@ -836,15 +836,22 @@ func (i *Installer) Remove(name string, opts RemoveOptions, progress func(msg st
 	}
 	defer unlock()
 
-	// Get installed plugin info
-	installed, err := config.GetInstalledPlugin(name)
-	if err != nil {
-		return fmt.Errorf("plugin %q is not installed", name)
-	}
-
+	// Resolve pluginDir before config check (needed for filesystem fallback)
 	pluginDir := i.pluginDir
 	if opts.PluginDir != "" {
 		pluginDir = opts.PluginDir
+	}
+
+	// Try config first, fall back to filesystem discovery
+	inConfig := true
+	installed, err := config.GetInstalledPlugin(name)
+	if err != nil {
+		discovered, discoverErr := i.discoverPluginFromFilesystem(name, pluginDir)
+		if discoverErr != nil {
+			return fmt.Errorf("plugin %q is not installed", name)
+		}
+		installed = discovered
+		inConfig = false
 	}
 
 	// Remove plugin directory
@@ -868,8 +875,8 @@ func (i *Installer) Remove(name string, opts RemoveOptions, progress func(msg st
 		}
 	}
 
-	// Remove from config unless --keep-config
-	if !opts.KeepConfig {
+	// Remove from config unless --keep-config or plugin was not in config
+	if !opts.KeepConfig && inConfig {
 		if removeErr := config.RemoveInstalledPlugin(name); removeErr != nil {
 			if progress != nil {
 				progress(fmt.Sprintf("Warning: failed to remove from config: %v", removeErr))
@@ -882,4 +889,25 @@ func (i *Installer) Remove(name string, opts RemoveOptions, progress func(msg st
 	}
 
 	return nil
+}
+
+// discoverPluginFromFilesystem scans the plugin directory for a plugin not tracked in config.
+func (i *Installer) discoverPluginFromFilesystem(
+	name, pluginDir string,
+) (*config.InstalledPlugin, error) {
+	pluginPath := filepath.Join(pluginDir, name)
+	versions, err := os.ReadDir(pluginPath)
+	if err != nil {
+		return nil, fmt.Errorf("plugin directory not found: %w", err)
+	}
+	for _, v := range versions {
+		if !v.IsDir() {
+			continue
+		}
+		return &config.InstalledPlugin{
+			Name:    name,
+			Version: v.Name(),
+		}, nil
+	}
+	return nil, fmt.Errorf("no version found for plugin %q", name)
 }
