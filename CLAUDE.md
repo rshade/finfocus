@@ -800,6 +800,33 @@ The CLI package implements the Cobra-based command-line interface. Key patterns:
 - Support multiple date formats: "2006-01-02", RFC3339
 - See `internal/cli/CLAUDE.md` for detailed CLI architecture and patterns
 
+**Router Wiring Pattern** (`createRouterForEngine` in `common_execution.go`):
+
+All 9 `engine.New()` call sites that use plugin clients chain
+`.WithRouter(createRouterForEngine(ctx, clients))` to enable region-aware,
+priority-based plugin selection when routing config exists. The helper:
+
+1. Loads config via `config.New()`
+2. Returns `nil` if `cfg.Routing` is nil (no routing configured)
+3. Creates `router.NewRouter(WithClients, WithConfig)` and wraps in `router.NewEngineAdapter()`
+4. On error, logs WARN and returns `nil` (engine falls back to querying all plugins)
+
+**Wired call sites** (9 total):
+
+- `cost_projected.go` - 1 site
+- `cost_actual.go` - 1 site
+- `cost_estimate.go` - 3 sites
+- `cost_recommendations.go` - 1 site
+- `cost_recommendations_dismiss.go` - 1 site (plugin path only; line 301 `engine.New(nil, nil)` is skipped)
+- `overview.go` - 1 site
+- `analyzer_serve.go` - 1 site
+
+**Skipped call sites** (3 total, nil clients, no plugins to route):
+
+- `cost_recommendations_dismiss.go:301` - local-only dismissal
+- `cost_recommendations_history.go:55` - local-only history
+- `cost_recommendations_undismiss.go:62` - local-only undismiss
+
 ### internal/engine
 
 The engine package orchestrates cost calculations between plugins and specs:
@@ -1024,6 +1051,8 @@ CodeRabbit now:
 ## Active Technologies
 - Go 1.25.7 + cobra (CLI), os/filepath/runtime (platform detection), pkg/version (version info) (590-analyzer-install)
 - Filesystem only (symlinks on Unix, file copies on Windows) (590-analyzer-install)
+- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol), zerolog v1.34.0 (logging) (511-wire-router)
+- N/A (stateless per-invocation; reads `~/.finfocus/config.yaml`) (511-wire-router)
 
 - Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol):
   - zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)

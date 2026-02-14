@@ -141,7 +141,8 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	defer cleanup()
 
 	// 8. Create engine
-	eng := engine.New(clients, nil)
+	eng := engine.New(clients, nil).
+		WithRouter(createRouterForEngine(ctx, clients))
 
 	// 9. Determine if we should use interactive TUI or plain text
 	isInteractive := shouldUseInteractiveTUI(cmd.OutOrStdout(), params.output, params.plain)

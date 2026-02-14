@@ -358,7 +358,8 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 	}
 
 	// Create engine and estimate
-	eng := engine.New(clients, spec.NewLoader(specDir))
+	eng := engine.New(clients, spec.NewLoader(specDir)).
+		WithRouter(createRouterForEngine(ctx, clients))
 	request := &engine.EstimateRequest{
 		Resource:          resource,
 		PropertyOverrides: overrides,
@@ -416,7 +417,8 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams) err
 	}
 
 	// Create engine
-	eng := engine.New(clients, spec.NewLoader(specDir))
+	eng := engine.New(clients, spec.NewLoader(specDir)).
+		WithRouter(createRouterForEngine(ctx, clients))
 
 	// Process each resource with modifications
 	var results []*engine.EstimateResult
@@ -743,7 +745,8 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams) e
 		clients = nil
 	}
 
-	eng := engine.New(clients, spec.NewLoader(specDir))
+	eng := engine.New(clients, spec.NewLoader(specDir)).
+		WithRouter(createRouterForEngine(ctx, clients))
 
 	// Create a recalculation callback for the TUI
 	recalculateFn := func(

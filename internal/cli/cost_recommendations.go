@@ -240,7 +240,8 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	}
 
 	// Create engine with optional cache
-	eng := engine.New(clients, nil)
+	eng := engine.New(clients, nil).
+		WithRouter(createRouterForEngine(ctx, clients))
 	if cacheStore != nil && cacheStore.IsEnabled() {
 		eng = eng.WithCache(cacheStore)
 	}
