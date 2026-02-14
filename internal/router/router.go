@@ -300,7 +300,16 @@ func (r *DefaultRouter) SelectPlugins(
 		// Check if this client matches the provider
 		matchReason := r.matchesProvider(client, provider)
 		if matchReason == MatchReasonAutomatic || matchReason == MatchReasonGlobal {
-			// Check region compatibility
+			// Check feature filter first (consistent with pattern-based path)
+			if cfg, ok := r.pluginConfig[client.Name]; ok {
+				if !r.matchesFeature(client, *cfg, feature) {
+					continue
+				}
+			} else if !r.matchesFeature(client, config.PluginRouting{}, feature) {
+				continue
+			}
+
+			// Then check region compatibility
 			pluginReg := PluginRegion(client)
 			if !RegionMatches(pluginReg, resourceRegion) {
 				log.Warn().
@@ -311,15 +320,6 @@ func (r *DefaultRouter) SelectPlugins(
 					Str("plugin_region", pluginReg).
 					Str("resource_region", resourceRegion).
 					Msg("plugin skipped: region mismatch (consider installing plugin for this region)")
-				continue
-			}
-
-			// Check feature filter from config if exists
-			if cfg, ok := r.pluginConfig[client.Name]; ok {
-				if !r.matchesFeature(client, *cfg, feature) {
-					continue
-				}
-			} else if !r.matchesFeature(client, config.PluginRouting{}, feature) {
 				continue
 			}
 
