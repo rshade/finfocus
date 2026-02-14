@@ -7,7 +7,13 @@ import (
 // NewAnalyzerCmd creates the analyzer command group for Pulumi Analyzer plugin functionality.
 //
 // The analyzer command provides subcommands for running FinFocus as a Pulumi Analyzer plugin.
-// This enables zero-click cost estimation during `pulumi preview` operations.
+// NewAnalyzerCmd creates the "analyzer" cobra command group for Pulumi Analyzer plugin functionality.
+// 
+// The command group includes subcommands to serve, install, and uninstall the FinFocus analyzer.
+// The analyzer provides cost estimation during `pulumi preview` by communicating with the Pulumi engine
+// via gRPC and returning cost diagnostics that appear in the CLI output.
+// 
+// It returns a configured *cobra.Command representing the analyzer command and its subcommands.
 func NewAnalyzerCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "analyzer",

@@ -9,6 +9,9 @@ import (
 // NewAnalyzerUninstallCmd creates the analyzer uninstall command.
 //
 // This command removes all installed analyzer-finfocus-v* directories from
+// NewAnalyzerUninstallCmd creates a Cobra command to uninstall the finfocus Pulumi Analyzer plugin.
+// The command removes any analyzer-finfocus-v* directories from the Pulumi plugin directory
+// and prints the removed version when available. It accepts a --target-dir flag to override
 // the Pulumi plugin directory.
 func NewAnalyzerUninstallCmd() *cobra.Command {
 	var targetDir string

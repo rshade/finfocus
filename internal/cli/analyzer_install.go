@@ -9,7 +9,7 @@ import (
 // NewAnalyzerInstallCmd creates the analyzer install command.
 //
 // This command installs the finfocus binary as a Pulumi analyzer plugin by
-// creating a symlink (Unix) or copy (Windows) in the Pulumi plugin directory.
+// status, version, path, and any action suggestions to the command output.
 func NewAnalyzerInstallCmd() *cobra.Command {
 	var force bool
 	var targetDir string

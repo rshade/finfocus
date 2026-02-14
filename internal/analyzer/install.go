@@ -55,7 +55,8 @@ type InstallResult struct {
 // ResolvePulumiPluginDir resolves the Pulumi plugin directory with the following precedence:
 //  1. override (--target-dir flag) if non-empty
 //  2. $PULUMI_HOME/plugins/ if PULUMI_HOME is set
-//  3. $HOME/.pulumi/plugins/ (default)
+// ResolvePulumiPluginDir determines the filesystem path to use for Pulumi plugins.
+// It returns the provided override if non-empty, otherwise uses PULUMI_HOME/plugins if PULUMI_HOME is set, and falls back to $HOME/.pulumi/plugins; an error is returned only if the user's home directory cannot be resolved.
 func ResolvePulumiPluginDir(override string) (string, error) {
 	if override != "" {
 		return override, nil
@@ -93,7 +94,14 @@ func IsInstalled(targetDir string) (bool, error) {
 }
 
 // InstalledVersion returns the version string parsed from the first analyzer-finfocus-v{version}
-// directory found in the plugin directory. Returns empty string if not installed.
+// InstalledVersion returns the version string from the first analyzer plugin directory
+// found inside targetDir. It looks for a subdirectory whose name begins with
+// analyzerDirPrefix and returns the suffix after that prefix as the version.
+//
+// If no analyzer directory is present, it returns an empty string and a nil error.
+// If targetDir does not exist, it returns an empty string and a nil error.
+// If reading the directory fails for any other reason, it returns a non-nil error
+// describing the failure.
 func InstalledVersion(targetDir string) (string, error) {
 	entries, err := os.ReadDir(targetDir)
 	if err != nil {
@@ -114,7 +122,10 @@ func InstalledVersion(targetDir string) (string, error) {
 }
 
 // NeedsUpdate compares the installed analyzer version against the current binary version.
-// Returns true if they differ, false if they match or analyzer is not installed.
+// NeedsUpdate reports whether the installed analyzer version under the provided
+// targetDir differs from the version of the currently running finfocus binary.
+// If no analyzer installation is found in targetDir it returns false and a nil
+// error. An error is returned if the installed version cannot be determined.
 func NeedsUpdate(targetDir string) (bool, error) {
 	installed, err := InstalledVersion(targetDir)
 	if err != nil {
@@ -132,7 +143,28 @@ func NeedsUpdate(targetDir string) (bool, error) {
 // Install installs the finfocus binary as a Pulumi analyzer plugin.
 // It resolves the current binary path via os.Executable, creates a versioned directory
 // in the Pulumi plugin directory, and creates a symlink (Unix) or copy (Windows) of
-// the binary with the expected analyzer name.
+// Install installs the current finfocus binary into the Pulumi plugins directory as a versioned
+// analyzer plugin (analyzer-finfocus-v{version}/pulumi-analyzer-finfocus).
+//
+// If opts.TargetDir is non-empty it is used as the Pulumi plugin directory; otherwise the
+// directory is resolved via PULUMI_HOME or the default $HOME/.pulumi/plugins. If an existing
+// installation is present and opts.Force is false, the function returns the existing install
+// status without modifying the filesystem. If opts.Force is true and an existing version is
+// present, older analyzer directories are removed before installing the current binary.
+//
+// The function attempts to create a symlink to the running executable inside the versioned
+// plugin directory; if symlinks are not possible it falls back to copying the binary. On
+// success it returns an InstallResult describing the installed path, version, method
+// ("symlink" or "copy"), and whether an update was needed, otherwise it returns an error.
+//
+// Parameters:
+//   - ctx: context used for logging and cancellation.
+//   - opts: installation options; Force causes overwrite of existing installations, and
+//     TargetDir overrides the resolved Pulumi plugin directory.
+//
+// Returns:
+//   - *InstallResult describing the installation state when successful.
+//   - error if any filesystem or resolution step fails.
 func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 	log := logging.FromContext(ctx)
 
@@ -218,7 +250,13 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 	}, nil
 }
 
-// Uninstall removes all analyzer-finfocus-v* directories from the plugin directory.
+// Uninstall removes all analyzer-finfocus-v* directories from the Pulumi plugins directory.
+// 
+// If targetDir is non-empty it is used as the Pulumi plugins directory; otherwise the resolver
+// follows the standard precedence (PULUMI_HOME/plugins or $HOME/.pulumi/plugins).
+// If no analyzer installation is found, Uninstall returns nil.
+// Returns an error if resolving the plugin directory, checking installation state, or removing
+// the analyzer directories fails.
 func Uninstall(ctx context.Context, targetDir string) error {
 	log := logging.FromContext(ctx)
 
@@ -270,7 +308,7 @@ func removeAnalyzerDirs(dir string) error {
 
 // linkOrCopy creates a symlink from src to dst on Unix, or copies the file on Windows.
 // On Unix, if the symlink fails (e.g., cross-device), it falls back to a copy.
-// Returns the method used ("symlink" or "copy").
+// or "copy") or an error if neither operation succeeds.
 func linkOrCopy(src, dst string) (string, error) {
 	if runtime.GOOS == "windows" {
 		if err := copyFile(src, dst); err != nil {
@@ -291,7 +329,10 @@ func linkOrCopy(src, dst string) (string, error) {
 	return "copy", nil
 }
 
-// copyFile copies a file from src to dst, preserving executable permissions.
+// copyFile copies the file at src to dst, preserving file mode (including executable bits).
+// The destination file is created or truncated with the same permissions as the source.
+// It returns an error if the source cannot be opened or stat'ed, the destination cannot be created,
+// or if copying the file contents fails.
 func copyFile(src, dst string) error {
 	srcFile, err := os.Open(src)
 	if err != nil {
