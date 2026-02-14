@@ -312,7 +312,17 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	return nil
 }
 
-// executeSingleResourceEstimate handles single-resource mode estimation.
+// executeSingleResourceEstimate parses property overrides, builds a single resource descriptor from
+// params, attempts to open adapter plugins (falling back to spec-based estimation if plugins fail),
+// creates an engine with a router, requests a cost estimate for the resource, and renders the result
+// to cmd's output.
+//
+// The cmd parameter provides the execution context (for cancellation and logging) and the output
+// writer. The params parameter supplies provider, resource type, optional region, adapter, and
+// output-format settings.
+//
+// Returns an error if parsing the property overrides fails, if the engine fails to produce an
+// estimate, or if rendering the estimate to the requested output format fails.
 func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -375,7 +385,22 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 	return renderEstimateResult(cmd.OutOrStdout(), params.Output, result)
 }
 
-// executePlanBasedEstimate handles plan-based mode estimation.
+// executePlanBasedEstimate performs cost estimation for resources defined in a Pulumi plan.
+// It loads resources from the provided plan path, applies any CLI-specified modifications, requests
+// cost estimates for each applicable resource, and renders a combined result to the command output.
+//
+// Parameters:
+//   cmd - the Cobra command used to obtain execution context and output writers.
+//   params - command-line parameters controlling plan path, modifications, adapter selection, and output format.
+//
+// Behavior notes:
+//   - If no resources are found in the plan, the function prints "No resources found in plan" and returns nil.
+//   - When modifications are provided, resources without matching modifications are skipped.
+//   - If plugin clients cannot be opened, the function falls back to a spec-based estimation mode.
+//
+// Returns:
+//   An error if parsing modifications, loading resources, performing estimations, or rendering results fails;
+//   nil on successful completion (including the case of an empty plan).
 func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -694,7 +719,18 @@ func buildResourceFromParams(provider, resourceType, region string) *engine.Reso
 	}
 }
 
-// executeInteractiveEstimate handles interactive TUI mode for cost estimation.
+// executeInteractiveEstimate launches and runs the interactive TUI for cost estimation.
+// It obtains the command context and I/O from cmd and determines the initial resource from
+// params (uses the first resource from params.PlanPath if provided, otherwise builds a
+// resource from params.Provider and params.ResourceType). The function opens adapter
+// plugins (falling back to spec-only mode if plugins fail), constructs an engine with a
+// router, and runs a TUI that calls back into the engine to recalculate estimates as the
+// user edits properties. When the TUI exits, the final estimate (if any) is printed to the
+// command output using the configured output format.
+//
+// It returns an error when required interactive inputs are missing, when loading/parsing a
+// supplied Pulumi plan fails, when running the TUI fails, or when an unexpected TUI model
+// type is returned. Any error produced by rendering the final estimate is also returned.
 func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)

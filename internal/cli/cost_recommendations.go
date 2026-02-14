@@ -169,7 +169,21 @@ Valid action types for filtering:
 // Returns an error when resource loading fails, plugins cannot be opened, recommendation
 // fetching fails, or output rendering fails.
 //
-//nolint:gocognit,gocyclo,cyclop,funlen // Complex orchestration function with multiple steps - acceptable complexity.
+// executeCostRecommendations orchestrates the cost recommendations workflow for the CLI.
+// It loads and maps resources from a Pulumi preview JSON, opens adapter plugins, optionally
+// initializes a cache, queries the recommendation engine (with a progress indicator for long
+// runs), merges dismissed/snoozed records when requested, applies action-type filters,
+// sorting, and pagination, then renders the results and records audit metadata.
+//
+// Parameters:
+//  - cmd: the Cobra command providing context and I/O streams for progress and output.
+//  - params: command parameters controlling input path, adapter selection, output format,
+//    filtering, verbosity, pagination, sorting, and whether to include dismissed records.
+//
+// The function returns an error when any required step fails, for example: loading or mapping
+// resources, opening plugins, initializing or using the engine to fetch recommendations,
+// invalid filter or sort expressions, invalid pagination parameters, merging dismissed
+// records, or rendering the output.
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)

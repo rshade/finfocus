@@ -14,7 +14,8 @@ type EngineAdapter struct {
 }
 
 // NewEngineAdapter creates an engine.Router that delegates to the given Router,
-// converting []router.PluginMatch results to []engine.PluginMatch.
+// NewEngineAdapter returns an engine.Router that delegates routing decisions to the provided Router.
+// The adapter converts router-specific plugin match results into engine.PluginMatch values when delegating calls.
 func NewEngineAdapter(r Router) engine.Router {
 	return &EngineAdapter{router: r}
 }

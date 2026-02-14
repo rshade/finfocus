@@ -157,7 +157,13 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
 // It returns an error when validation fails (for example, utilization not between 0.0 and 1.0),
 // when reading flags fails, when resource loading or filtering fails, when plugin initialization or
 // cost computation fails, when rendering fails, or when budget evaluation requests a non-zero exit.
-// On success it returns nil.
+// executeCostProjected executes the "projected" subcommand: it loads Pulumi resources (from a provided plan or by auto-detection), applies filters, loads pricing specs and adapter plugins, calculates projected costs with recommendations, renders the requested output, and evaluates budget status.
+//
+// Parameters:
+//  - cmd: the Cobra command providing context and flags (used to read --stack and for command output).
+//  - params: command parameters including planPath, specDir, adapter, output format, filters, and utilization.
+//
+// Returns an error describing the failure when one of the following occurs: utilization is outside the range [0.0, 1.0]; reading the --stack flag fails; loading or resolving resources fails; applying filters fails; opening plugins fails; cost calculation fails; rendering output fails; or the budget check produces an exit error. Returns nil on success.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
 	ctx := cmd.Context()
 

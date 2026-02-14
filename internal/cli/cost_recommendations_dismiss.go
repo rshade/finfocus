@@ -290,7 +290,7 @@ func loadDismissalStore() (*config.DismissalStore, error) {
 }
 
 // createDismissEngine creates an engine instance, optionally with plugin connections.
-// If planPath is empty, creates a pluginless engine for local-only operations.
+// a non-nil error if plugin initialization fails.
 func createDismissEngine(
 	ctx context.Context,
 	planPath string,
