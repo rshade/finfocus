@@ -42,6 +42,7 @@ go tool cover -html=coverage.out        # View in browser
 
 # Plugin management
 ./bin/finfocus plugin list
+./bin/finfocus plugin list --output json  # JSON array for machine consumption
 ./bin/finfocus plugin validate
 ```
 
@@ -636,7 +637,7 @@ To debug plugin issues during Core development:
 
 ## Important Files
 
-- `cmd/finfocus/main.go` - CLI entry point
+- `cmd/finfocus/main.go` - CLI entry point (uses `errors.As` to extract `BudgetExitError.ExitCode` for semantic exit codes: 0=success, 1=error, 2=budget exceeded)
 - `internal/engine/engine.go` - Core orchestration
 - `internal/pluginhost/host.go` - Plugin client management
 - `internal/ingest/pulumi_plan.go` - Pulumi plan parsing
@@ -1004,6 +1005,35 @@ go test -bench=BenchmarkRecorder ./plugins/recorder/...  # Performance (<10ms ov
 - `ErrResourceValidation`: Internal resource validation failed.
 - `ErrConfigCorrupted`: Configuration file is malformed.
 
+### Structured Error Codes (JSON/NDJSON output)
+
+When JSON or NDJSON output is used, `CostResult` may include a `StructuredError` object
+with a stable error code for programmatic consumption by AI agents:
+
+| Constant | Code | Origin |
+|---|---|---|
+| `ErrCodePluginError` | `PLUGIN_ERROR` | gRPC call to plugin failed |
+| `ErrCodeValidationError` | `VALIDATION_ERROR` | Pre-flight request validation failed |
+| `ErrCodeTimeoutError` | `TIMEOUT_ERROR` | `context.DeadlineExceeded` from plugin |
+| `ErrCodeNoCostData` | `NO_COST_DATA` | No pricing information available |
+
+**StructuredError type** (defined in `internal/engine/types.go` and `internal/proto/adapter.go`):
+
+```go
+type StructuredError struct {
+    Code         string `json:"code"`
+    Message      string `json:"message"`
+    ResourceType string `json:"resourceType"`
+}
+```
+
+When `CostResult.Error` is non-nil, callers should prefer the structured `Error` field
+for programmatic error handling. The `Notes` field may still contain legacy `ERROR:` or
+`VALIDATION:` prefixes for backward compatibility with table/overview rendering (the
+adapter in `internal/proto/adapter.go` populates both fields). Error detection in
+table/overview code checks `result.Error != nil` in addition to prefix-based checks
+to support both structured and legacy error consumption.
+
 ## CodeRabbit Configuration
 
 ### Setup
@@ -1052,7 +1082,7 @@ CodeRabbit now:
 - Filesystem only (symlinks on Unix, file copies on Windows) (590-analyzer-install)
 - Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol), zerolog v1.34.0 (logging) (511-wire-router)
 - N/A (stateless per-invocation; reads `~/.finfocus/config.yaml`) (511-wire-router)
-
+- N/A (stateless CLI) (590-neo-cli-fixes)
 - Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol):
   - zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)
   - Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)

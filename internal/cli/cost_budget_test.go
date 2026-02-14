@@ -399,6 +399,83 @@ func TestCostCmd_OnlyChangedFlagsApplied(t *testing.T) {
 	assert.Equal(t, 99, *globalCfg.Cost.Budgets.Global.ExitCode, "changed flag should override config value")
 }
 
+// T003: Test that checkBudgetExitFromResult returns the BudgetExitError
+// (not just logs it), ensuring cost actual propagates budget errors.
+func TestCheckBudgetExitFromResult_ReturnsBudgetError(t *testing.T) {
+	tests := []struct {
+		name         string
+		result       *BudgetRenderResult
+		evalErr      error
+		wantErr      bool
+		wantExitCode int
+	}{
+		{
+			name: "legacy budget exceeded returns BudgetExitError",
+			result: &BudgetRenderResult{
+				LegacyStatus: &engine.BudgetStatus{
+					Budget: config.BudgetConfig{
+						Amount:          100.0,
+						Currency:        "USD",
+						ExitOnThreshold: true,
+						ExitCode:        2,
+					},
+					Alerts: []engine.ThresholdStatus{
+						{Threshold: 80.0, Status: engine.ThresholdStatusExceeded},
+					},
+				},
+			},
+			wantErr:      true,
+			wantExitCode: 2,
+		},
+		{
+			name:         "evaluation error returns exit code 1",
+			evalErr:      engine.ErrCurrencyMismatch,
+			wantErr:      true,
+			wantExitCode: 1,
+		},
+		{
+			name:    "nil result returns nil",
+			result:  nil,
+			wantErr: false,
+		},
+		{
+			name: "no exceeded thresholds returns nil",
+			result: &BudgetRenderResult{
+				LegacyStatus: &engine.BudgetStatus{
+					Budget: config.BudgetConfig{
+						Amount:          100.0,
+						Currency:        "USD",
+						ExitOnThreshold: true,
+						ExitCode:        2,
+					},
+					Alerts: []engine.ThresholdStatus{
+						{Threshold: 80.0, Status: engine.ThresholdStatusOK},
+					},
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			var errBuf bytes.Buffer
+			cmd.SetErr(&errBuf)
+
+			err := checkBudgetExitFromResult(cmd, tt.result, tt.evalErr)
+			if tt.wantErr {
+				require.Error(t, err)
+				var budgetErr *BudgetExitError
+				require.ErrorAs(t, err, &budgetErr)
+				assert.Equal(t, tt.wantExitCode, budgetErr.ExitCode)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 // T045b: Test that PersistentPreRunE handles nil global config gracefully.
 func TestCostCmd_NilGlobalConfig(t *testing.T) {
 	// Save and restore global config

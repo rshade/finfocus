@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -134,12 +136,17 @@ func GetProjectedCostWithErrors(
 				Timestamp:    time.Now(),
 			})
 
-			// Add placeholder result with VALIDATION note
+			// Add placeholder result with structured validation error
 			result.Results = append(result.Results, &CostResult{
 				Currency:    "USD",
 				MonthlyCost: 0,
 				HourlyCost:  0,
 				Notes:       fmt.Sprintf("VALIDATION: %v", err),
+				StructuredError: &StructuredError{
+					Code:         ErrCodeValidationError,
+					Message:      err.Error(),
+					ResourceType: resource.Type,
+				},
 			})
 			continue
 		}
@@ -150,6 +157,12 @@ func GetProjectedCostWithErrors(
 
 		resp, err := client.GetProjectedCost(ctx, req)
 		if err != nil {
+			// Determine error code: timeout vs generic plugin error
+			errCode := ErrCodePluginError
+			if errors.Is(err, context.DeadlineExceeded) || status.Code(err) == codes.DeadlineExceeded {
+				errCode = ErrCodeTimeoutError
+			}
+
 			// Track error instead of silent failure
 			result.Errors = append(result.Errors, ErrorDetail{
 				ResourceType: resource.Type,
@@ -159,12 +172,17 @@ func GetProjectedCostWithErrors(
 				Timestamp:    time.Now(),
 			})
 
-			// Add placeholder result with error note
+			// Add placeholder result with structured error
 			result.Results = append(result.Results, &CostResult{
 				Currency:    "USD",
 				MonthlyCost: 0,
 				HourlyCost:  0,
 				Notes:       fmt.Sprintf("ERROR: %v", err),
+				StructuredError: &StructuredError{
+					Code:         errCode,
+					Message:      err.Error(),
+					ResourceType: resource.Type,
+				},
 			})
 			continue
 		}
@@ -249,7 +267,17 @@ func recordActualCostValidationError(
 		Timestamp:    time.Now(),
 	})
 
-	appendActualCostPlaceholder(result, fmt.Sprintf("VALIDATION: %v", validationErr))
+	result.Results = append(result.Results, &CostResult{
+		Currency:    "USD",
+		MonthlyCost: 0,
+		HourlyCost:  0,
+		Notes:       fmt.Sprintf("VALIDATION: %v", validationErr),
+		StructuredError: &StructuredError{
+			Code:         ErrCodeValidationError,
+			Message:      validationErr.Error(),
+			ResourceType: resourceType,
+		},
+	})
 }
 
 // recordActualCostPluginError records a plugin call failure for the specified resource and
@@ -261,6 +289,12 @@ func recordActualCostPluginError(
 	resourceID string,
 	pluginErr error,
 ) {
+	// Determine error code: timeout vs generic plugin error
+	errCode := ErrCodePluginError
+	if errors.Is(pluginErr, context.DeadlineExceeded) || status.Code(pluginErr) == codes.DeadlineExceeded {
+		errCode = ErrCodeTimeoutError
+	}
+
 	result.Errors = append(result.Errors, ErrorDetail{
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
@@ -269,7 +303,17 @@ func recordActualCostPluginError(
 		Timestamp:    time.Now(),
 	})
 
-	appendActualCostPlaceholder(result, fmt.Sprintf("ERROR: %v", pluginErr))
+	result.Results = append(result.Results, &CostResult{
+		Currency:    "USD",
+		MonthlyCost: 0,
+		HourlyCost:  0,
+		Notes:       fmt.Sprintf("ERROR: %v", pluginErr),
+		StructuredError: &StructuredError{
+			Code:         errCode,
+			Message:      pluginErr.Error(),
+			ResourceType: resourceType,
+		},
+	})
 }
 
 // appendActualCostResults converts each ActualCostResult into a CostResult and appends it to result.Results.
@@ -402,15 +446,33 @@ type GetProjectedCostRequest struct {
 	Resources []*ResourceDescriptor
 }
 
+// Error code constants for StructuredError. These mirror the constants in
+// engine/types.go for use at the proto/adapter layer.
+const (
+	ErrCodePluginError     = "PLUGIN_ERROR"
+	ErrCodeValidationError = "VALIDATION_ERROR"
+	ErrCodeTimeoutError    = "TIMEOUT_ERROR"
+	ErrCodeNoCostData      = "NO_COST_DATA"
+)
+
+// StructuredError is a machine-readable error representation that accompanies
+// CostResult entries produced by error paths (validation, plugin, timeout).
+type StructuredError struct {
+	Code         string `json:"code"`
+	Message      string `json:"message"`
+	ResourceType string `json:"resourceType"`
+}
+
 // CostResult represents the calculated cost information for a single resource.
 // It includes monthly and hourly costs, currency, and detailed cost breakdowns.
 type CostResult struct {
-	Currency       string
-	MonthlyCost    float64
-	HourlyCost     float64
-	Notes          string
-	CostBreakdown  map[string]float64
-	Sustainability map[string]SustainabilityMetric
+	Currency        string
+	MonthlyCost     float64
+	HourlyCost      float64
+	Notes           string
+	CostBreakdown   map[string]float64
+	Sustainability  map[string]SustainabilityMetric
+	StructuredError *StructuredError `json:"structuredError,omitempty"`
 }
 
 // SustainabilityMetric represents a single sustainability impact measurement.

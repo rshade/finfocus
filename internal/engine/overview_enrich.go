@@ -79,8 +79,10 @@ func enrichActualCost(
 
 	if result != nil && len(result.Results) > 0 {
 		costResult := result.Results[0]
-		// Skip results with error notes
-		if strings.HasPrefix(costResult.Notes, "ERROR:") || strings.HasPrefix(costResult.Notes, "VALIDATION:") {
+		// Skip results with errors
+		if costResult.Error != nil ||
+			strings.HasPrefix(costResult.Notes, "ERROR:") ||
+			strings.HasPrefix(costResult.Notes, "VALIDATION:") {
 			return
 		}
 		row.ActualCost = &ActualCostData{
@@ -113,7 +115,9 @@ func enrichProjectedCost(ctx context.Context, row *OverviewRow, eng *Engine, res
 
 	if result != nil && len(result.Results) > 0 {
 		costResult := result.Results[0]
-		if strings.HasPrefix(costResult.Notes, "ERROR:") || strings.HasPrefix(costResult.Notes, "VALIDATION:") {
+		if costResult.Error != nil ||
+			strings.HasPrefix(costResult.Notes, "ERROR:") ||
+			strings.HasPrefix(costResult.Notes, "VALIDATION:") {
 			return
 		}
 		row.ProjectedCost = &ProjectedCostData{

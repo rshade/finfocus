@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/awsutil"
@@ -3129,4 +3131,174 @@ func TestAppendActualCostResults_DeepCopy(t *testing.T) {
 
 	// Verify the original was NOT mutated
 	assert.Equal(t, 100.0, originalBreakdown["Compute"], "Original CostBreakdown should not be mutated")
+}
+
+// T008: Test that StructuredError is populated for validation failures.
+func TestGetProjectedCostWithErrors_StructuredError_Validation(t *testing.T) {
+	ctx := context.Background()
+	client := &mockCostSourceClient{}
+
+	// Resource with empty type triggers pre-flight validation error
+	resources := []*ResourceDescriptor{
+		{ID: "res-1", Type: "", Provider: "aws", Properties: map[string]string{}},
+	}
+
+	result := GetProjectedCostWithErrors(ctx, client, "test-plugin", resources)
+
+	require.Len(t, result.Results, 1)
+	require.NotNil(t, result.Results[0].StructuredError)
+	assert.Equal(t, ErrCodeValidationError, result.Results[0].StructuredError.Code)
+	assert.NotEmpty(t, result.Results[0].StructuredError.Message)
+	// Notes retains VALIDATION: prefix for backward compatibility with table/overview rendering
+	assert.True(t, strings.HasPrefix(result.Results[0].Notes, "VALIDATION:"),
+		"Notes should retain VALIDATION: prefix for backward compatibility")
+	// StructuredError.Message contains the raw error without prefix
+	assert.False(t, strings.HasPrefix(result.Results[0].StructuredError.Message, "VALIDATION:"),
+		"StructuredError.Message should not have prefix")
+}
+
+// T008: Test that StructuredError is populated for plugin gRPC failures.
+func TestGetProjectedCostWithErrors_StructuredError_PluginError(t *testing.T) {
+	ctx := context.Background()
+	client := &mockCostSourceClient{
+		getProjectedFunc: func(_ context.Context, _ *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
+			return nil, errors.New("connection refused")
+		},
+	}
+
+	resources := []*ResourceDescriptor{
+		{
+			ID: "res-1", Type: "aws:ec2/instance:Instance", Provider: "aws",
+			Properties: map[string]string{"instanceType": "t3.micro", "region": "us-east-1"},
+		},
+	}
+
+	result := GetProjectedCostWithErrors(ctx, client, "test-plugin", resources)
+
+	require.Len(t, result.Results, 1)
+	require.NotNil(t, result.Results[0].StructuredError)
+	assert.Equal(t, ErrCodePluginError, result.Results[0].StructuredError.Code)
+	assert.Contains(t, result.Results[0].StructuredError.Message, "connection refused")
+	// Notes retains ERROR: prefix for backward compatibility with table/overview rendering
+	assert.True(t, strings.HasPrefix(result.Results[0].Notes, "ERROR:"),
+		"Notes should retain ERROR: prefix for backward compatibility")
+	// StructuredError.Message contains the raw error without prefix
+	assert.False(t, strings.HasPrefix(result.Results[0].StructuredError.Message, "ERROR:"),
+		"StructuredError.Message should not have prefix")
+}
+
+// T008: Test that TIMEOUT_ERROR is set for context.DeadlineExceeded.
+func TestGetProjectedCostWithErrors_StructuredError_Timeout(t *testing.T) {
+	ctx := context.Background()
+	client := &mockCostSourceClient{
+		getProjectedFunc: func(_ context.Context, _ *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
+			return nil, context.DeadlineExceeded
+		},
+	}
+
+	resources := []*ResourceDescriptor{
+		{
+			ID: "res-1", Type: "aws:ec2/instance:Instance", Provider: "aws",
+			Properties: map[string]string{"instanceType": "t3.micro", "region": "us-east-1"},
+		},
+	}
+
+	result := GetProjectedCostWithErrors(ctx, client, "test-plugin", resources)
+
+	require.Len(t, result.Results, 1)
+	require.NotNil(t, result.Results[0].StructuredError)
+	assert.Equal(t, ErrCodeTimeoutError, result.Results[0].StructuredError.Code)
+}
+
+// T008: Test that TIMEOUT_ERROR is set for gRPC status-wrapped deadline errors.
+func TestGetProjectedCostWithErrors_StructuredError_GRPCTimeout(t *testing.T) {
+	ctx := context.Background()
+	client := &mockCostSourceClient{
+		getProjectedFunc: func(_ context.Context, _ *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
+			return nil, status.Error(codes.DeadlineExceeded, "deadline exceeded")
+		},
+	}
+
+	resources := []*ResourceDescriptor{
+		{
+			ID: "res-1", Type: "aws:ec2/instance:Instance", Provider: "aws",
+			Properties: map[string]string{"instanceType": "t3.micro", "region": "us-east-1"},
+		},
+	}
+
+	result := GetProjectedCostWithErrors(ctx, client, "test-plugin", resources)
+
+	require.Len(t, result.Results, 1)
+	require.NotNil(t, result.Results[0].StructuredError)
+	assert.Equal(t, ErrCodeTimeoutError, result.Results[0].StructuredError.Code,
+		"gRPC status-wrapped deadline should be classified as TIMEOUT_ERROR")
+}
+
+// T008: Test StructuredError for actual cost validation failure.
+func TestGetActualCostWithErrors_StructuredError_Validation(t *testing.T) {
+	ctx := context.Background()
+	client := &mockCostSourceClient{}
+
+	// Empty resource ID triggers validation error
+	req := &GetActualCostRequest{
+		ResourceIDs:  []string{""},
+		StartTime:    time.Now().Add(-24 * time.Hour).Unix(),
+		EndTime:      time.Now().Unix(),
+		ResourceType: "aws:ec2/instance:Instance",
+	}
+
+	result := GetActualCostWithErrors(ctx, client, "test-plugin", req)
+
+	require.Len(t, result.Results, 1)
+	require.NotNil(t, result.Results[0].StructuredError)
+	assert.Equal(t, ErrCodeValidationError, result.Results[0].StructuredError.Code)
+}
+
+// T008: Test StructuredError for actual cost plugin failure.
+func TestGetActualCostWithErrors_StructuredError_PluginError(t *testing.T) {
+	ctx := context.Background()
+	client := &mockCostSourceClient{
+		getActualFunc: func(_ context.Context, _ *GetActualCostRequest, _ ...grpc.CallOption) (*GetActualCostResponse, error) {
+			return nil, errors.New("network error")
+		},
+	}
+
+	req := &GetActualCostRequest{
+		ResourceIDs:  []string{"i-12345"},
+		StartTime:    time.Now().Add(-24 * time.Hour).Unix(),
+		EndTime:      time.Now().Unix(),
+		ResourceType: "aws:ec2/instance:Instance",
+	}
+
+	result := GetActualCostWithErrors(ctx, client, "test-plugin", req)
+
+	require.Len(t, result.Results, 1)
+	require.NotNil(t, result.Results[0].StructuredError)
+	assert.Equal(t, ErrCodePluginError, result.Results[0].StructuredError.Code)
+	assert.Contains(t, result.Results[0].StructuredError.Message, "network error")
+}
+
+// T008: Test that TIMEOUT_ERROR is set for gRPC status-wrapped deadline errors in actual cost path.
+func TestGetActualCostWithErrors_StructuredError_GRPCTimeout(t *testing.T) {
+	ctx := context.Background()
+	client := &mockCostSourceClient{
+		getActualFunc: func(_ context.Context, _ *GetActualCostRequest, _ ...grpc.CallOption) (*GetActualCostResponse, error) {
+			return nil, status.Error(codes.DeadlineExceeded, "deadline exceeded")
+		},
+	}
+
+	req := &GetActualCostRequest{
+		ResourceIDs:  []string{"i-12345"},
+		StartTime:    time.Now().Add(-24 * time.Hour).Unix(),
+		EndTime:      time.Now().Unix(),
+		ResourceType: "aws:ec2/instance:Instance",
+	}
+
+	result := GetActualCostWithErrors(ctx, client, "test-plugin", req)
+
+	require.Len(t, result.Results, 1)
+	require.NotNil(t, result.Results[0].StructuredError)
+	assert.Equal(t, ErrCodeTimeoutError, result.Results[0].StructuredError.Code,
+		"gRPC status-wrapped deadline should be classified as TIMEOUT_ERROR")
+	assert.Contains(t, result.Results[0].StructuredError.Message, "deadline exceeded")
 }
