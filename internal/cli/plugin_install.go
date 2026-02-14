@@ -479,7 +479,12 @@ func parseMetadataFlags(flags []string) (map[string]string, []string) {
 			warnings = append(warnings, fmt.Sprintf("ignored metadata entry %q: missing '='", flag))
 			continue
 		}
-		m[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		key := strings.TrimSpace(parts[0])
+		if key == "" {
+			warnings = append(warnings, fmt.Sprintf("ignored metadata entry %q: empty key", flag))
+			continue
+		}
+		m[key] = strings.TrimSpace(parts[1])
 	}
 	if len(m) == 0 {
 		return nil, warnings

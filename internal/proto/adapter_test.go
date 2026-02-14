@@ -2988,7 +2988,8 @@ func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
 }
 
 // mockPbcCostSourceServiceClient mocks the generated pbc.CostSourceServiceClient
-// gRPC interface. Only the methods needed for testing are stubbed; the rest panic.
+// gRPC interface. Only GetActualCost uses a configurable callback; the rest return
+// empty success responses.
 type mockPbcCostSourceServiceClient struct {
 	getActualCostFunc func(
 		ctx context.Context,

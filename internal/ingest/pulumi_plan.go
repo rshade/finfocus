@@ -73,6 +73,7 @@ func ParsePulumiPlanWithContext(ctx context.Context, data []byte) (*PulumiPlan, 
 		log.Error().
 			Ctx(ctx).
 			Str("component", "ingest").
+			Str("operation", "parse_plan").
 			Err(err).
 			Msg("failed to parse plan JSON")
 		return nil, fmt.Errorf("parsing plan JSON: %w", err)

@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"os"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ func TestNewCostActualCmd(t *testing.T) {
 		args        []string
 		expectError bool
 		errorMsg    string
+		isolate     bool // chdir to temp dir to avoid Pulumi.yaml in repo tree
 	}{
 		{
 			name:        "no flags triggers auto-detection (T023)",
@@ -28,6 +30,7 @@ func TestNewCostActualCmd(t *testing.T) {
 			// Without flags, auto-detection kicks in and fails because no Pulumi project found.
 			// The error must NOT be "either --pulumi-json or --pulumi-state is required".
 			errorMsg: "",
+			isolate:  true,
 		},
 		{
 			name:        "missing from flag",
@@ -242,6 +245,7 @@ func TestCostActualCmdMutuallyExclusiveInputs(t *testing.T) {
 		args        []string
 		expectError bool
 		errorMsg    string
+		isolate     bool
 	}{
 		{
 			name: "both pulumi-json and pulumi-state provided",
@@ -261,6 +265,7 @@ func TestCostActualCmdMutuallyExclusiveInputs(t *testing.T) {
 			expectError: true,
 			// Auto-detection kicks in but fails since no Pulumi project
 			errorMsg: "",
+			isolate:  true,
 		},
 		{
 			name: "only pulumi-state provided without from (auto-detect)",
@@ -275,6 +280,13 @@ func TestCostActualCmdMutuallyExclusiveInputs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.isolate {
+				oldwd, wdErr := os.Getwd()
+				require.NoError(t, wdErr)
+				require.NoError(t, os.Chdir(t.TempDir()))
+				t.Cleanup(func() { _ = os.Chdir(oldwd) })
+			}
+
 			var buf bytes.Buffer
 			cmd := cli.NewCostActualCmd()
 			cmd.SetOut(&buf)
@@ -401,13 +413,19 @@ func TestCostActualCmdWithEstimateConfidenceFlag(t *testing.T) {
 func TestCostActualWithoutInputFlags(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
+	// Isolate from any Pulumi.yaml in the repository tree.
+	oldwd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(t.TempDir()))
+	t.Cleanup(func() { _ = os.Chdir(oldwd) })
+
 	var buf bytes.Buffer
 	cmd := cli.NewCostActualCmd()
 	cmd.SetOut(&buf)
 	cmd.SetErr(&buf)
 	cmd.SetArgs([]string{})
 
-	err := cmd.Execute()
+	err = cmd.Execute()
 	// Command will error (no Pulumi project in test env), but the error
 	// must NOT be about requiring input flags.
 	require.Error(t, err)
@@ -440,9 +458,15 @@ func TestCostActualMutualExclusivityStillEnforced(t *testing.T) {
 func TestStackFlagExistsOnActual(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
-	root := cli.NewRootCmd("test")
-	costCmd, _, err := root.Find([]string{"cost"})
+	// Isolate from any Pulumi.yaml in the repository tree.
+	oldwd, err := os.Getwd()
 	require.NoError(t, err)
+	require.NoError(t, os.Chdir(t.TempDir()))
+	t.Cleanup(func() { _ = os.Chdir(oldwd) })
+
+	root := cli.NewRootCmd("test")
+	costCmd, _, findErr := root.Find([]string{"cost"})
+	require.NoError(t, findErr)
 
 	stackFlag := costCmd.PersistentFlags().Lookup("stack")
 	require.NotNil(t, stackFlag, "--stack flag should be on cost parent command")

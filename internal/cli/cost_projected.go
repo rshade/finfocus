@@ -78,6 +78,8 @@ Use --stack to target a specific stack during auto-detection.`,
 		},
 	}
 
+	// --pulumi-json is intentionally optional (not MarkFlagRequired) to support
+	// automatic Pulumi project detection via FindProject + preview.
 	cmd.Flags().StringVar(&params.planPath, "pulumi-json", "",
 		"Path to Pulumi preview JSON output (optional; auto-detected from Pulumi project if omitted)")
 	cmd.Flags().StringVar(&params.specDir, "spec-dir", "", "Directory containing pricing spec files")
@@ -153,10 +155,14 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		resources, err = loadAndMapResources(ctx, params.planPath, audit)
 	} else {
 		auditParams["pulumi_json"] = "auto-detect"
-		stackFlag, _ := cmd.Flags().GetString("stack")
+		stackFlag, flagErr := cmd.Flags().GetString("stack")
+		if flagErr != nil {
+			return fmt.Errorf("reading --stack flag: %w", flagErr)
+		}
 		resources, err = resolveResourcesFromPulumi(ctx, stackFlag, modePulumiPreview)
 	}
 	if err != nil {
+		audit.logFailure(ctx, err)
 		return err
 	}
 

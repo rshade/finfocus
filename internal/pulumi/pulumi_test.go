@@ -137,6 +137,16 @@ func TestFindProject_NotFound_MessageQuality(t *testing.T) {
 	assert.Contains(t, err.Error(), "no Pulumi project found")
 }
 
+func TestNotFoundError_MentionsBothFlags(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	err := NotFoundError()
+	assert.ErrorIs(t, err, ErrPulumiNotFound)
+	assert.Contains(t, err.Error(), "--pulumi-json")
+	assert.Contains(t, err.Error(), "--pulumi-state")
+	assert.Contains(t, err.Error(), pulumiInstallURL)
+}
+
 // --- T035: Error message quality for ErrNoCurrentStack ---
 
 func TestNoCurrentStackError_IncludesStackNames(t *testing.T) {
@@ -317,11 +327,9 @@ func TestPreview_ContextCancellation(t *testing.T) {
 	}
 	withMockRunner(t, mock)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	// Use a deadline in the past so ctx.Err() == DeadlineExceeded deterministically.
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer cancel()
-
-	// Wait for context to expire.
-	time.Sleep(60 * time.Millisecond)
 
 	_, err := Preview(ctx, PreviewOptions{
 		ProjectDir: "/project",
@@ -401,10 +409,9 @@ func TestStackExport_ContextCancellation(t *testing.T) {
 	}
 	withMockRunner(t, mock)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	// Use a deadline in the past so ctx.Err() == DeadlineExceeded deterministically.
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(-time.Second))
 	defer cancel()
-
-	time.Sleep(60 * time.Millisecond)
 
 	_, err := StackExport(ctx, ExportOptions{
 		ProjectDir: "/project",

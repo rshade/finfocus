@@ -212,7 +212,11 @@ func detectPulumiProject(ctx context.Context, stack string) (string, string, err
 	if err != nil {
 		return "", "", fmt.Errorf("find pulumi project: %w", err)
 	}
-	log.Debug().Ctx(ctx).Str("project_dir", projectDir).Msg("detected Pulumi project")
+	log.Debug().Ctx(ctx).
+		Str("component", "pulumi").
+		Str("operation", "detect_project").
+		Str("project_dir", projectDir).
+		Msg("detected Pulumi project")
 
 	if stack == "" {
 		detected, stackErr := pulumidetect.GetCurrentStack(ctx, projectDir)
@@ -221,7 +225,11 @@ func detectPulumiProject(ctx context.Context, stack string) (string, string, err
 		}
 		stack = detected
 	}
-	log.Debug().Ctx(ctx).Str("stack", stack).Msg("using Pulumi stack")
+	log.Debug().Ctx(ctx).
+		Str("component", "pulumi").
+		Str("operation", "detect_project").
+		Str("stack", stack).
+		Msg("using Pulumi stack")
 
 	return projectDir, stack, nil
 }

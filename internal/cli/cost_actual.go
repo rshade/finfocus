@@ -536,7 +536,10 @@ func loadActualResources(
 	}
 
 	// Auto-detect from Pulumi project (neither --pulumi-json nor --pulumi-state provided)
-	stackFlag, _ := cmd.Flags().GetString("stack")
+	stackFlag, err := cmd.Flags().GetString("stack")
+	if err != nil {
+		return nil, fmt.Errorf("reading --stack flag: %w", err)
+	}
 	return resolveResourcesFromPulumi(ctx, stackFlag, modePulumiExport)
 }
 
@@ -562,8 +565,10 @@ func resolveFromDate(
 		return params.fromStr, nil
 	}
 
-	// Auto-detect from state timestamps (applicable for --pulumi-state and auto-detection)
-	if params.statePath != "" || (params.planPath == "" && params.statePath == "") {
+	// Auto-detect from state timestamps (applicable for --pulumi-state and auto-detection).
+	// This is equivalent to "not --pulumi-json" because validateActualInputFlags enforces
+	// mutual exclusivity between --pulumi-json and --pulumi-state.
+	if params.planPath == "" {
 		earliest, err := engine.FindEarliestCreatedTimestamp(resources)
 		if err != nil {
 			log.Error().Ctx(ctx).Err(err).

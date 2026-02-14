@@ -168,8 +168,8 @@ func (s *StackExport) GetCustomResourcesWithContext(ctx context.Context) []Stack
 // MapStateResource converts a StackExportResource to a ResourceDescriptor.
 // Timestamps, cloud identifiers (ID, ARN), and outputs are injected into Properties.
 // Properties are built by merging Outputs (base) with Inputs (overlay), so provider-
-// computed values like size, iops, and tagsAll are included while user-declared
-// from the resource type. This function does not currently return non-nil errors.
+// computed values like size, iops, and tagsAll are included while user-declared inputs
+// take precedence on conflict. This function does not currently return non-nil errors.
 func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, error) {
 	provider := extractProvider(resource.Type)
 

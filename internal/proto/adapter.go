@@ -704,24 +704,12 @@ func (c *clientAdapter) DismissRecommendation(
 	return result, nil
 }
 
-// resolveSKUAndRegion extracts the SKU and region from resource properties based on the cloud provider.
-// It recognizes provider values such as "aws", "azure", "azure-native", "gcp", and "google-native" and
-// uses provider-specific extraction; for other providers it uses generic extraction helpers.
-// When property-based extraction returns empty, it falls back to well-known SKU mappings from the
-// skus package (e.g., EKS clusters → "cluster").
-// If the region cannot be determined from properties, the function falls back to the AWS_REGION or
-// AWS_DEFAULT_REGION environment variables.
-// provider is the cloud provider identifier; resourceType is the Pulumi type token;
-// resolveSKUAndRegion determines the SKU and region for a resource using the given provider,
-// resourceType, and properties.
-//
-// For AWS it attempts AWS-specific SKU extraction, falls back to common SKU property names,
-// then to well-known SKU mappings for fixed-cost resources; the region is taken from properties
-// or parsed from the ARN. For Azure and GCP provider values it uses their respective extractors.
-// For other providers it uses generic SKU and region extraction. If the region remains empty
-// for AWS, the AWS_REGION or AWS_DEFAULT_REGION environment variables are used as a final fallback.
-//
-// It returns the resolved `sku` and `region`, each of which may be an empty string if not found.
+// resolveSKUAndRegion determines the SKU and region for a resource using provider-specific
+// extraction logic. For AWS it attempts AWS-specific SKU extraction, falls back to common
+// property names, then to well-known SKU mappings; the region is taken from properties, the
+// ARN, or the AWS_REGION/AWS_DEFAULT_REGION environment variables. For Azure and GCP it uses
+// their respective extractors. Other providers use generic extraction. Both return values may
+// be empty strings if resolution fails.
 func resolveSKUAndRegion(provider, resourceType string, properties map[string]string) (string, string) {
 	var sku, region string
 	switch strings.ToLower(provider) {
@@ -853,7 +841,6 @@ func extractTagMap(properties map[string]interface{}, key string) map[string]str
 	return result
 }
 
-// toStringMap converts a map[string]interface{} to map[string]string.
 // toStringMap converts a map[string]interface{} to a map[string]string.
 // Non-string values are converted using fmt.Sprintf("%v"); entries with nil values are omitted from the result.
 func toStringMap(m map[string]interface{}) map[string]string {
@@ -868,18 +855,10 @@ func toStringMap(m map[string]interface{}) map[string]string {
 	return result
 }
 
-// enrichTagsWithSKUAndRegion resolves SKU and region from resource properties
-// using the provider-specific extraction logic in resolveSKUAndRegion, then
 // enrichTagsWithSKUAndRegion injects SKU and region entries into tags by resolving them from
 // the provided properties using the given provider and resourceType. Existing entries in tags
 // are preserved and never overwritten; when found, SKU is added under the key "sku" and
 // region under the key "region".
-//
-// Parameters:
-//   - tags: map to receive injected "sku" and "region" entries (mutated in place).
-//   - provider: cloud provider identifier used for SKU/region resolution.
-//   - resourceType: resource type token (e.g., Pulumi type) used as additional context for resolution.
-//   - properties: resource properties used to derive SKU and region; non-string values may be converted.
 func enrichTagsWithSKUAndRegion(
 	tags map[string]string,
 	provider, resourceType string,
