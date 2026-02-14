@@ -107,7 +107,7 @@ func NewRootCmdWithArgs(
 		Int("cache-ttl", 0, "cache TTL in seconds (0 = use config default, overrides config file and env var)")
 	cmd.PersistentFlags().StringVar(&projectDirFlag, "project-dir", "",
 		"explicit Pulumi project directory for config resolution")
-	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd())
+	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
 
 	return cmd
 }

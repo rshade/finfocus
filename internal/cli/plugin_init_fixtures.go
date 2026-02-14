@@ -18,6 +18,7 @@ const (
 	defaultFixtureBaseURL = "https://raw.githubusercontent.com/rshade/finfocus"
 	githubAPIURL          = "https://api.github.com/repos/rshade/finfocus/releases"
 	fixtureTimeout        = 30 * time.Second
+	fixtureVersionLatest  = "latest"
 )
 
 type FixtureSource struct {
@@ -108,7 +109,7 @@ func (r *FixtureResolver) ResolveStateFixture(ctx context.Context) (*FixtureSour
 
 func (r *FixtureResolver) resolveRemotePlanFixture(ctx context.Context, provider string) (*FixtureSource, error) {
 	version := r.fixtureVersion
-	if version == "latest" {
+	if version == fixtureVersionLatest {
 		var err error
 		version, err = r.releaseTagFetcher(ctx)
 		if err != nil {
@@ -164,7 +165,7 @@ func (r *FixtureResolver) resolveLocalPlanFixture(provider string) (*FixtureSour
 
 func (r *FixtureResolver) resolveRemoteStateFixture(ctx context.Context) (*FixtureSource, error) {
 	version := r.fixtureVersion
-	if version == "latest" {
+	if version == fixtureVersionLatest {
 		var err error
 		version, err = r.releaseTagFetcher(ctx)
 		if err != nil {

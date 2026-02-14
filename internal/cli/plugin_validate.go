@@ -67,7 +67,7 @@ func ValidatePlugin(_ context.Context, plugin registry.PluginInfo) error {
 		return errors.New("plugin path is a directory, not a binary")
 	}
 
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == "windows" { //nolint:goconst // standard runtime.GOOS comparison
 		if filepath.Ext(plugin.Path) != ".exe" {
 			return errors.New("plugin binary is not executable (Windows requires .exe extension)")
 		}
