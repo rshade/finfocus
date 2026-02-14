@@ -502,7 +502,23 @@ func buildActualAuditParams(params costActualParams) map[string]string {
 //
 // The function returns a slice of engine.ResourceDescriptor on success.
 // It returns a non-nil error if loading the state or plan fails, if mapping
-// resources fails, or if auto-detection cannot resolve resources.
+// loadActualResources loads resource descriptors for the actual-cost command.
+// It chooses the source based on params:
+// - If params.statePath is set, it loads resources from the given Pulumi state file.
+// - If params.planPath is set, it loads and maps resources from the given Pulumi plan JSON.
+// - Otherwise it auto-detects resources from the current Pulumi project, using the value of the command's --stack flag.
+//
+// Parameters:
+//  - ctx: request context used for logging and cancellation.
+//  - cmd: the cobra command used to read the --stack flag when auto-detecting.
+//  - params: command parameters that determine which source to use (planPath, statePath).
+//  - audit: audit context to record failures when loading or mapping resources.
+//
+// Returns:
+//  - a slice of engine.ResourceDescriptor on success.
+//  - a non-nil error if loading or mapping fails, if reading the --stack flag fails, or if auto-detection cannot resolve resources.
+//
+// Errors returned when loading from a plan or state are logged and recorded to audit before being returned.
 func loadActualResources(
 	ctx context.Context,
 	cmd *cobra.Command,
@@ -552,7 +568,23 @@ func loadActualResources(
 // resources and returns that timestamp formatted with time.RFC3339. If auto-detection
 // fails, an error is returned advising the caller to provide --from explicitly. In
 // all other cases the function returns an error indicating that a --from date is
-// required.
+// resolveFromDate determines the RFC3339-formatted start date ("from") to use for the actual cost
+// calculation.
+//
+// If params.fromStr is non-empty, it is returned unchanged. If params.planPath is empty (i.e. not
+// using a Pulumi plan JSON), the function attempts to auto-detect the earliest resource Created
+// timestamp from resources and returns that timestamp formatted as RFC3339. If auto-detection fails,
+// an error is returned advising to specify --from explicitly. If params.planPath is set and no
+// fromStr was provided, an error is returned indicating that a --from date is required.
+//
+// Parameters:
+//   - ctx: context for logging and cancellation.
+//   - params: command parameters containing fromStr and planPath.
+//   - resources: resource descriptors used for auto-detection when applicable.
+//
+// Returns:
+//   - a string containing the start date formatted with time.RFC3339 on success.
+//   - a non-nil error if auto-detection fails or if a required --from value is missing.
 func resolveFromDate(
 	ctx context.Context,
 	params costActualParams,

@@ -200,7 +200,17 @@ func buildAltIDIndex(
 }
 
 // detectPulumiProject locates the Pulumi binary, discovers the project directory,
-// and resolves the stack name. If stack is empty, the current stack is auto-detected.
+// detectPulumiProject detects the Pulumi CLI, locates the Pulumi project directory starting
+// from the current working directory, and resolves the Pulumi stack name.
+// If the provided stack is empty, the current stack for the detected project is auto-detected.
+//
+// ctx provides cancellation and carries logger/trace information used by detection.
+// stack is an optional stack name; when empty the function will query the Pulumi project for
+// the current stack.
+//
+// Returns the project directory and the resolved stack name. An error is returned if the
+// Pulumi binary cannot be found, the project directory cannot be located, or the current
+// stack cannot be determined.
 func detectPulumiProject(ctx context.Context, stack string) (string, string, error) {
 	log := logging.FromContext(ctx)
 
