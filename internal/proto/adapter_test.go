@@ -3066,6 +3066,40 @@ func (m *mockPbcCostSourceServiceClient) GetBudgets(
 	return &pbc.GetBudgetsResponse{}, nil
 }
 
+func TestClientAdapter_GetActualCost_EmptyPluginResponse(t *testing.T) {
+	startTime := time.Now().Add(-24 * time.Hour).Unix()
+	endTime := time.Now().Unix()
+
+	// Plugin returns success with zero results — no phantom $0 entry should be created.
+	mockGRPC := &mockPbcCostSourceServiceClient{
+		getActualCostFunc: func(
+			_ context.Context,
+			_ *pbc.GetActualCostRequest,
+			_ ...grpc.CallOption,
+		) (*pbc.GetActualCostResponse, error) {
+			return &pbc.GetActualCostResponse{
+				Results: []*pbc.ActualCostResult{},
+			}, nil
+		},
+	}
+
+	adapter := &clientAdapter{client: mockGRPC}
+
+	req := &GetActualCostRequest{
+		ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+		StartTime:   startTime,
+		EndTime:     endTime,
+		Provider:    "aws",
+		Properties: map[string]interface{}{
+			"pulumi:cloudId": "i-0abc123def456",
+		},
+	}
+
+	resp, err := adapter.GetActualCost(context.Background(), req)
+	require.NoError(t, err)
+	assert.Empty(t, resp.Results, "empty plugin response must not produce a phantom $0 result")
+}
+
 func TestAppendActualCostResults_DeepCopy(t *testing.T) {
 	// Arrange
 	originalBreakdown := map[string]float64{

@@ -1003,6 +1003,11 @@ func (c *clientAdapter) GetActualCost(
 			continue
 		}
 
+		// Skip when plugin returned no cost data for this resource
+		if len(resp.GetResults()) == 0 {
+			continue
+		}
+
 		// Aggregate total cost from results
 		totalCost := 0.0
 		breakdown := make(map[string]float64)
@@ -1022,32 +1027,38 @@ func (c *clientAdapter) GetActualCost(
 		}
 
 		// Aggregate impact metrics (summing values for same kind across results)
-		for _, pbcResult := range resp.GetResults() {
-			for _, metric := range pbcResult.GetImpactMetrics() {
-				var key string
-				switch metric.GetKind() {
-				case pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT:
-					key = "carbon_footprint"
-				case pbc.MetricKind_METRIC_KIND_ENERGY_CONSUMPTION:
-					key = "energy_consumption"
-				case pbc.MetricKind_METRIC_KIND_WATER_USAGE:
-					key = "water_usage"
-				case pbc.MetricKind_METRIC_KIND_UNSPECIFIED:
-					key = "unspecified"
-				default:
-					key = strings.ToLower(metric.GetKind().String())
-				}
-
-				m := result.Sustainability[key]
-				m.Value += metric.GetValue()
-				m.Unit = metric.GetUnit()
-				result.Sustainability[key] = m
-			}
-		}
+		aggregateImpactMetrics(result, resp.GetResults())
 		results = append(results, result)
 	}
 
 	return &GetActualCostResponse{Results: results}, nil
+}
+
+// aggregateImpactMetrics sums impact metric values by kind across all actual cost results
+// into the sustainability map on the given ActualCostResult.
+func aggregateImpactMetrics(result *ActualCostResult, pbcResults []*pbc.ActualCostResult) {
+	for _, pbcResult := range pbcResults {
+		for _, metric := range pbcResult.GetImpactMetrics() {
+			var key string
+			switch metric.GetKind() {
+			case pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT:
+				key = "carbon_footprint"
+			case pbc.MetricKind_METRIC_KIND_ENERGY_CONSUMPTION:
+				key = "energy_consumption"
+			case pbc.MetricKind_METRIC_KIND_WATER_USAGE:
+				key = "water_usage"
+			case pbc.MetricKind_METRIC_KIND_UNSPECIFIED:
+				key = "unspecified"
+			default:
+				key = strings.ToLower(metric.GetKind().String())
+			}
+
+			m := result.Sustainability[key]
+			m.Value += metric.GetValue()
+			m.Unit = metric.GetUnit()
+			result.Sustainability[key] = m
+		}
+	}
 }
 
 // EstimateCostRequest represents the internal request for what-if cost estimation.
