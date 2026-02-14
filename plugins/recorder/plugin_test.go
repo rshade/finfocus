@@ -286,9 +286,10 @@ func TestRecorderPlugin_GetPluginInfo(t *testing.T) {
 		assert.NotEmpty(t, resp.GetSpecVersion())
 		assert.Len(t, resp.GetProviders(), 1)
 		assert.Contains(t, resp.GetProviders(), "test")
+		assert.Len(t, resp.GetCapabilities(), 2)
 		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS)
-		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS)
 		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS)
+		assert.NotContains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS)
 	})
 
 	t.Run("recording failure does not affect metadata", func(t *testing.T) {
@@ -311,9 +312,70 @@ func TestRecorderPlugin_GetPluginInfo(t *testing.T) {
 		assert.Equal(t, "recorder", resp.GetName())
 		assert.Equal(t, "0.1.0", resp.GetVersion())
 		assert.NotEmpty(t, resp.GetSpecVersion())
+		assert.Len(t, resp.GetCapabilities(), 2)
 		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS)
-		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS)
 		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS)
+		assert.NotContains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS)
+	})
+}
+
+func TestRecorderPlugin_Supports(t *testing.T) {
+	t.Run("returns false for any resource", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cfg := &Config{OutputDir: tmpDir}
+		plugin := NewRecorderPlugin(cfg, testLogger())
+
+		req := &pbc.SupportsRequest{
+			Resource: &pbc.ResourceDescriptor{
+				ResourceType: "aws:ec2:Instance",
+				Provider:     "aws",
+				Sku:          "t3.medium",
+				Region:       "us-east-1",
+			},
+		}
+
+		resp, err := plugin.Supports(context.Background(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.False(t, resp.GetSupported())
+		assert.Contains(t, resp.GetReason(), "synthetic/demo only")
+	})
+
+	t.Run("nil request returns error", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cfg := &Config{OutputDir: tmpDir}
+		plugin := NewRecorderPlugin(cfg, testLogger())
+
+		resp, err := plugin.Supports(context.Background(), nil)
+
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "request is required")
+	})
+
+	t.Run("records request to disk", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		cfg := &Config{OutputDir: tmpDir}
+		plugin := NewRecorderPlugin(cfg, testLogger())
+
+		req := &pbc.SupportsRequest{
+			Resource: &pbc.ResourceDescriptor{
+				ResourceType: "aws:s3:Bucket",
+				Provider:     "aws",
+			},
+		}
+
+		resp, err := plugin.Supports(context.Background(), req)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.False(t, resp.GetSupported())
+
+		// Verify a file was recorded
+		files, err := filepath.Glob(filepath.Join(tmpDir, "*.json"))
+		require.NoError(t, err)
+		assert.Len(t, files, 1)
 	})
 }
 
