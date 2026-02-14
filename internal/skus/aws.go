@@ -19,12 +19,16 @@ var awsWellKnownSKUMap = map[string]string{
 	"eks/addon":   "addon",   // EKS addon (most free, some paid like CoreDNS)
 }
 
-// resolveAWSSKU extracts a well-known SKU for AWS resource types.
-// It parses the Pulumi type token (e.g., "aws:eks/cluster:Cluster") to extract
 // resolveAWSSKU returns the well-known AWS SKU name for a Pulumi resource type token.
 // It extracts the module/resource segment from resourceType and looks it up in the
-// well-known AWS SKU map. It returns the SKU string, or an empty string if the
-// token cannot be parsed or no matching SKU is found.
+// well-known AWS SKU map. It returns an empty string if the token cannot be parsed or
+// resolveAWSSKU returns the canonical AWS SKU name for a Pulumi resource type token.
+// It extracts the module/resource segment from resourceType and looks it up in the
+// package's awsWellKnownSKUMap, returning the mapped SKU if present.
+// The second parameter is ignored.
+//
+// resourceType is a Pulumi type token in the form "provider:module/resource:ClassName".
+// An empty string is returned if the token cannot be parsed or no matching SKU exists.
 func resolveAWSSKU(resourceType string, _ map[string]string) string {
 	segment := extractPulumiSegment(resourceType)
 	if segment == "" {
@@ -33,13 +37,12 @@ func resolveAWSSKU(resourceType string, _ map[string]string) string {
 	return awsWellKnownSKUMap[segment]
 }
 
-// extractPulumiSegment extracts the module/resource segment from a Pulumi type token.
-// For "aws:eks/cluster:Cluster", it returns "eks/cluster".
-// extractPulumiSegment extracts the module/resource segment from a Pulumi type token.
-// Given a token of the form "provider:module/resource:ClassName" (for example,
-// "aws:eks/cluster:Cluster"), it returns the lowercase module/resource portion
-// (for example, "eks/cluster"). If the token does not contain at least two
-// colon-separated segments, it returns an empty string.
+// extractPulumiSegment extracts the lowercase module/resource segment from a Pulumi type
+// token. Given "aws:eks/cluster:Cluster" it returns "eks/cluster". If the token does not
+// extractPulumiSegment extracts the lowercase module/resource segment from a Pulumi type token.
+// It expects tokens of the form `provider:module/resource:ClassName` (for example `aws:eks/cluster:Cluster`).
+// If the token contains at least two colon-separated segments, it returns the lowercase second segment
+// (the `module/resource` portion). If the token does not contain at least two segments, it returns an empty string.
 func extractPulumiSegment(resourceType string) string {
 	// Pulumi type tokens follow the pattern: provider:module/resource:ClassName
 	// e.g., "aws:eks/cluster:Cluster" → split by ":" → ["aws", "eks/cluster", "Cluster"]

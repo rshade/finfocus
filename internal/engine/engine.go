@@ -1092,6 +1092,7 @@ func (e *Engine) getActualCostForResource(
 			if stateResult != nil && stateResult.TotalCost > 0 {
 				log.Debug().Ctx(ctx).
 					Str("component", "engine").
+					Str("operation", "get_actual_cost").
 					Str("resource_type", resource.Type).
 					Str("resource_id", resource.ID).
 					Float64("estimated_cost", stateResult.TotalCost).
@@ -1112,6 +1113,7 @@ func (e *Engine) getActualCostForResource(
 	if !request.FallbackEstimate {
 		log.Warn().Ctx(ctx).
 			Str("component", "engine").
+			Str("operation", "get_actual_cost").
 			Str("resource_type", resource.Type).
 			Str("resource_id", resource.ID).
 			Msg("no actual cost data available (use --fallback-estimate to include $0 placeholders)")

@@ -70,9 +70,11 @@ func (r *Registry) ListPlugins() ([]PluginInfo, error) {
 			binPath := r.findBinary(versionPath, meta)
 			if binPath != "" {
 				// Enrich metadata with region from binary name if not already set.
-				if meta == nil {
-					if region, ok := ParseRegionFromBinaryName(binPath); ok {
+				if region, ok := ParseRegionFromBinaryName(binPath); ok {
+					if meta == nil {
 						meta = map[string]string{"region": region}
+					} else if _, hasRegion := meta["region"]; !hasRegion {
+						meta["region"] = region
 					}
 				}
 				plugins = append(plugins, PluginInfo{

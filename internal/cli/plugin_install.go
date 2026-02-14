@@ -466,7 +466,11 @@ func handleFallback(
 // Entries that do not contain an '=' are collected as warnings. Leading and
 // trailing whitespace is trimmed from both keys and values. If the input
 // contains no valid pairs, the function returns nil and any accumulated
-// warnings. When a key appears multiple times, the last occurrence wins.
+// parseMetadataFlags parses metadata flag entries of the form "key=value" into a map.
+// It trims whitespace around keys and values, records warnings for entries that do not
+// contain an '=' or that have an empty key after trimming, and ignores those entries.
+// When a key appears multiple times, the last occurrence wins. If no valid pairs are
+// found the returned map is nil; warnings contains any ignored-entry messages.
 func parseMetadataFlags(flags []string) (map[string]string, []string) {
 	if len(flags) == 0 {
 		return nil, nil
@@ -479,7 +483,12 @@ func parseMetadataFlags(flags []string) (map[string]string, []string) {
 			warnings = append(warnings, fmt.Sprintf("ignored metadata entry %q: missing '='", flag))
 			continue
 		}
-		m[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+		key := strings.TrimSpace(parts[0])
+		if key == "" {
+			warnings = append(warnings, fmt.Sprintf("ignored metadata entry %q: empty key", flag))
+			continue
+		}
+		m[key] = strings.TrimSpace(parts[1])
 	}
 	if len(m) == 0 {
 		return nil, warnings

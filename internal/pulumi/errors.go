@@ -31,9 +31,13 @@ var (
 )
 
 // NotFoundError returns a user-facing error that wraps ErrPulumiNotFound
-// with install instructions. Callers can still use errors.Is(err, ErrPulumiNotFound).
+// NotFoundError returns an error indicating the Pulumi CLI was not found.
+// The returned error wraps ErrPulumiNotFound and includes guidance to
+// install the CLI (pulumiInstallURL) or to provide Pulumi input via
+// --pulumi-json or --pulumi-state. Callers can still detect the sentinel
+// using errors.Is(err, ErrPulumiNotFound).
 func NotFoundError() error {
-	return fmt.Errorf("%w; install from %s or provide --pulumi-json",
+	return fmt.Errorf("%w; install from %s or provide --pulumi-json / --pulumi-state",
 		ErrPulumiNotFound, pulumiInstallURL)
 }
 

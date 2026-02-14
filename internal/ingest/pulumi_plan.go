@@ -58,7 +58,10 @@ func ParsePulumiPlan(data []byte) (*PulumiPlan, error) {
 
 // ParsePulumiPlanWithContext parses Pulumi plan JSON from the provided byte slice using the given context to obtain a logger.
 // The ctx is used only for logging; data should contain the raw Pulumi plan JSON.
-// It returns the parsed PulumiPlan on success, or an error wrapping the JSON unmarshal failure if parsing fails.
+// ParsePulumiPlanWithContext parses a Pulumi preview JSON document from the provided byte slice and returns the resulting PulumiPlan.
+// ctx provides cancellation and carries logging context used during parsing.
+// data is the raw JSON bytes of a Pulumi preview plan.
+// On success, the parsed *PulumiPlan is returned; if the JSON cannot be unmarshaled, an error wrapping the unmarshal failure is returned.
 func ParsePulumiPlanWithContext(ctx context.Context, data []byte) (*PulumiPlan, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -73,6 +76,7 @@ func ParsePulumiPlanWithContext(ctx context.Context, data []byte) (*PulumiPlan, 
 		log.Error().
 			Ctx(ctx).
 			Str("component", "ingest").
+			Str("operation", "parse_plan").
 			Err(err).
 			Msg("failed to parse plan JSON")
 		return nil, fmt.Errorf("parsing plan JSON: %w", err)
