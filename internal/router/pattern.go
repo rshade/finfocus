@@ -19,6 +19,20 @@ type CompiledPattern struct {
 	Regex *regexp.Regexp
 }
 
+// matchResourceTypeGlob normalizes path separators in a glob pattern and a resource type
+// and then applies filepath.Match to determine whether the pattern matches the resource type.
+//
+// The function replaces "/" characters in both the pattern and resourceType with a
+// non-separator sentinel before matching so that glob wildcards do not treat "/" as a
+// path separator. This is necessary because Pulumi resource type strings include "/"
+// (for example "aws:ec2/instance:Instance") and should be matched as single tokens.
+//
+// Parameters:
+//   - pattern: glob pattern to match against the resource type.
+//   - resourceType: resource type string to test against the pattern.
+//
+// Returns true if the normalized pattern matches the normalized resourceType, and any
+// error produced by filepath.Match.
 func matchResourceTypeGlob(pattern, resourceType string) (bool, error) {
 	// filepath.Match treats path separators specially ("*") doesn't cross them.
 	// Pulumi resource types contain "/" (e.g. aws:ec2/instance:Instance), so we
@@ -71,7 +85,8 @@ type PatternCache struct {
 }
 
 // NewPatternCache returns a new PatternCache with its internal map for compiled
-// regexes initialized. The returned cache is ready for concurrent use.
+// NewPatternCache returns a new PatternCache with an initialized, empty regex map ready for concurrent use.
+// The returned cache's internal mutex is zero-valued and the map is prepared to store compiled regex patterns.
 func NewPatternCache() *PatternCache {
 	return &PatternCache{
 		regexes: make(map[string]*regexp.Regexp),

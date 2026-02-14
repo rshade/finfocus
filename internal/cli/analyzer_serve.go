@@ -74,7 +74,14 @@ All logging output goes to stderr.`,
 //
 // The cmd parameter is the Cobra command whose context and root version are used to control lifecycle and to populate the server version string.
 //
-// It returns an error if the server fails to bind to a port or if the gRPC server returns a runtime error while serving.
+// RunAnalyzerServe starts the Pulumi Analyzer gRPC server, writes the selected
+// listening port to stdout for the Pulumi plugin handshake, and runs until the
+// server is stopped by a termination signal or the command context is canceled.
+// The provided Cobra command is used for its context and to obtain the root
+// command version for the server.
+//
+// It returns an error if the server fails to bind to a port or if the gRPC
+// server encounters a runtime error while serving.
 func RunAnalyzerServe(cmd *cobra.Command) error {
 	ctx := cmd.Context()
 

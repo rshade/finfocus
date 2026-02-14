@@ -179,6 +179,10 @@ func WithClients(clients []*pluginhost.Client) Option {
 // opts are functional options (e.g., WithConfig, WithClients) used to provide
 // the routing configuration and available plugin clients.
 //
+// NewRouter creates a DefaultRouter configured by the provided options.
+// It initializes internal caches for compiled patterns and per-plugin routing
+// configuration, applies each Option to the router, and pre-compiles all
+// declarative patterns found in the routing configuration.
 // The returned error is non-nil if any configured pattern fails to compile.
 func NewRouter(opts ...Option) (*DefaultRouter, error) {
 	r := &DefaultRouter{
@@ -220,7 +224,10 @@ type compiledPatternKey struct {
 	pattern     string
 }
 
-// compiled pattern caches and lookups.
+// patternKey builds a compiledPatternKey from the given plugin name and resource pattern.
+// pluginName is the plugin's identifier; pattern is the declarative resource pattern.
+// The returned key combines the plugin name, the pattern's Type, and the pattern's Pattern
+// and is intended for use as a map key in the router's compiled pattern cache.
 func patternKey(pluginName string, pattern config.ResourcePattern) compiledPatternKey {
 	return compiledPatternKey{pluginName: pluginName, patternType: pattern.Type, pattern: pattern.Pattern}
 }

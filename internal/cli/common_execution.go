@@ -53,7 +53,14 @@ func (a *auditContext) logSuccess(ctx context.Context, count int, cost float64) 
 	a.logger.Log(ctx, *entry)
 }
 
-// loadAndMapResources loads a Pulumi plan and maps its resources.
+// loadAndMapResources loads a Pulumi plan from planPath and returns its mapped resources.
+// If loading or mapping fails the error is logged, audit.logFailure is invoked when audit is non-nil,
+// and a wrapped error is returned.
+// Parameters:
+//   - ctx: context for cancellation and logging.
+//   - planPath: filesystem path to the Pulumi plan to load.
+//   - audit: optional auditContext used to record failures; may be nil.
+// Returns the slice of mapped ResourceDescriptor on success, or an error describing the failure.
 func loadAndMapResources(
 	ctx context.Context,
 	planPath string,
@@ -90,7 +97,19 @@ func loadAndMapResources(
 // when a failure occurs.
 // Returns the loaded plugin clients, a cleanup function that should be called
 // when the callers are finished with the plugins, and a non-nil error if opening
-// the plugins failed.
+// openPlugins opens plugins for the specified adapter using the default registry.
+// It returns the loaded plugin clients, a cleanup function that is guaranteed to be non-nil, and an error.
+// If plugin opening fails the error is logged and, if audit is non-nil, recorded via audit.logFailure.
+//
+// Parameters:
+//  - ctx: context for plugin operations and logging.
+//  - adapter: name of the plugin adapter to open.
+//  - audit: optional audit context used to record failures; may be nil.
+//
+// Returns:
+//  - []*pluginhost.Client: slice of opened plugin clients (nil on error).
+//  - func(): cleanup function to release plugin resources (never nil).
+//  - error: non-nil if opening plugins failed.
 func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*pluginhost.Client, func(), error) {
 	log := logging.FromContext(ctx)
 
@@ -341,7 +360,11 @@ func resolveResourcesFromPulumi(
 
 // extractCurrencyFromResults scans results to find a single canonical currency.
 // It returns the currency code and a boolean indicating if mixed currencies were detected.
-// If no currency is found, it defaults to "USD".
+// extractCurrencyFromResults determines a canonical currency from the provided cost
+// results and reports whether multiple distinct currencies were encountered.
+// It returns the chosen currency and a boolean that is `true` if more than one
+// distinct non-empty currency was present in the slice. If no result contains a
+// currency, the function returns `defaultCurrency` and `false`.
 func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
 	currency := ""
 	mixedCurrencies := false
@@ -368,7 +391,12 @@ func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
 // configuration. It returns nil when no routing config exists (cfg.Routing is
 // nil) or when router creation fails (logged at WARN level). A nil return is
 // safe: engine.WithRouter(nil) preserves the default "query all plugins"
-// behavior.
+// createRouterForEngine creates an engine.Router backed by the configured router.
+// If the routing configuration is not set or router creation fails, it returns nil.
+// The returned router adapts the created router into an engine.Router via router.NewEngineAdapter.
+//
+// ctx is used for logging and cancellation.
+// clients are plugin host clients supplied to the router builder.
 func createRouterForEngine(ctx context.Context, clients []*pluginhost.Client) engine.Router {
 	log := logging.FromContext(ctx)
 
