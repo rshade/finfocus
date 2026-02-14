@@ -480,6 +480,32 @@ func TestFindBinary_MetadataRegion(t *testing.T) {
 		found := reg.findBinary(pluginDir, meta)
 		assert.Equal(t, standardBin, found, "should fall back to standard when metadata region binary missing")
 	})
+
+	t.Run("metadata without region enriches from binary name", func(t *testing.T) {
+		dir := t.TempDir()
+		pluginDir := filepath.Join(dir, "aws-public", "v1.0.0")
+		require.NoError(t, os.MkdirAll(pluginDir, 0755))
+
+		regionBin := filepath.Join(pluginDir, "finfocus-plugin-aws-public-us-east-1")
+		if runtime.GOOS == "windows" {
+			regionBin += ".exe"
+		}
+		require.NoError(t, os.WriteFile(regionBin, []byte("regional"), 0755))
+
+		// Write metadata without a region key
+		require.NoError(t, WritePluginMetadata(pluginDir, map[string]string{
+			"author": "test",
+		}))
+
+		reg := &Registry{root: dir, launcher: pluginhost.NewProcessLauncher()}
+		plugins, err := reg.ListPlugins()
+		require.NoError(t, err)
+		require.Len(t, plugins, 1)
+		assert.Equal(t, "us-east-1", plugins[0].Metadata["region"],
+			"region should be enriched from binary name when metadata exists but lacks region key")
+		assert.Equal(t, "test", plugins[0].Metadata["author"],
+			"existing metadata keys should be preserved")
+	})
 }
 
 // Helper functions to reduce cognitive complexity

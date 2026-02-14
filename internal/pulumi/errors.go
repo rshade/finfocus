@@ -33,7 +33,7 @@ var (
 // NotFoundError returns a user-facing error that wraps ErrPulumiNotFound
 // with install instructions. Callers can still use errors.Is(err, ErrPulumiNotFound).
 func NotFoundError() error {
-	return fmt.Errorf("%w; install from %s or provide --pulumi-json",
+	return fmt.Errorf("%w; install from %s or provide --pulumi-json / --pulumi-state",
 		ErrPulumiNotFound, pulumiInstallURL)
 }
 
