@@ -267,8 +267,8 @@ func recordActualCostPluginError(
 }
 
 // appendActualCostResults converts each ActualCostResult into a CostResult and appends it to result.Results.
-// The conversion copies Currency to Currency, TotalCost to MonthlyCost, copies CostBreakdown, sets HourlyCost to 0,
-// and deep-copies the Sustainability metrics into a new map. The provided result is mutated in-place.
+// It deep-copies both CostBreakdown and Sustainability metrics into new maps.
+// The provided result is mutated in-place.
 //
 // Parameters:
 //   - result: destination CostResultWithErrors whose Results slice will be extended.
@@ -279,8 +279,12 @@ func appendActualCostResults(result *CostResultWithErrors, actualResults []*Actu
 			Currency:       actual.Currency,
 			MonthlyCost:    actual.TotalCost, // Total cost for the period
 			HourlyCost:     0,
-			CostBreakdown:  actual.CostBreakdown,
+			CostBreakdown:  make(map[string]float64, len(actual.CostBreakdown)),
 			Sustainability: make(map[string]SustainabilityMetric),
+		}
+
+		for k, v := range actual.CostBreakdown {
+			costResult.CostBreakdown[k] = v
 		}
 
 		for k, v := range actual.Sustainability {
