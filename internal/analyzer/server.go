@@ -2,7 +2,6 @@ package analyzer
 
 import (
 	"context"
-	"strings"
 	"sync"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/router"
 )
 
 const (
@@ -21,19 +21,7 @@ const (
 
 	// analyzerDescription provides a description of the analyzer's purpose.
 	analyzerDescription = "Provides real-time cost estimation for Pulumi infrastructure resources during preview operations."
-
-	// internalTypePrefix identifies internal Pulumi resource types that have no cost.
-	internalTypePrefix = "pulumi:"
 )
-
-// isInternalPulumiType checks if a resource type is an internal Pulumi type
-// that has no associated cloud cost (e.g., pulumi:pulumi:Stack, pulumi:providers:aws).
-// isInternalPulumiType reports whether resourceType is an internal Pulumi resource
-// type (has the "pulumi:" prefix) and therefore should be treated as having zero
-// cloud cost.
-func isInternalPulumiType(resourceType string) bool {
-	return strings.HasPrefix(resourceType, internalTypePrefix)
-}
 
 // zeroCostResult returns an engine.CostResult representing zero cloud cost for an internal Pulumi resource.
 // The result uses USD currency, sets monthly and hourly costs to 0, and includes a note indicating the resource is internal.
@@ -160,7 +148,7 @@ func (s *Server) Analyze(
 
 	// Handle internal Pulumi types (e.g., pulumi:pulumi:Stack, pulumi:providers:aws)
 	// These have no cloud cost and should return $0.00
-	if isInternalPulumiType(resourceType) {
+	if router.IsInternalPulumiType(resourceType) {
 		cost := zeroCostResult(resourceType, resourceID)
 		// Cache the cost for AnalyzeStack summary
 		s.cacheCost(resourceID, cost)

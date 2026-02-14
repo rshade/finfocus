@@ -164,6 +164,17 @@ func (e *Engine) selectPluginMatchesForResource(
 
 	// If no router configured, return all clients as matches with fallback enabled
 	if e.router == nil {
+		// Filter internal Pulumi types when no router is configured
+		if strings.HasPrefix(resource.Type, "pulumi:") {
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("operation", "select_plugins").
+				Str("resource_type", resource.Type).
+				Msg("skipping internal Pulumi type (no router)")
+			return nil
+		}
+
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "engine").
@@ -188,6 +199,17 @@ func (e *Engine) selectPluginMatchesForResource(
 	// Use router for intelligent plugin selection
 	matches := e.router.SelectPlugins(ctx, resource, feature)
 	if len(matches) == 0 {
+		// Filter internal Pulumi types — do not fall back to all clients
+		if strings.HasPrefix(resource.Type, "pulumi:") {
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("operation", "select_plugins").
+				Str("resource_type", resource.Type).
+				Msg("skipping internal Pulumi type (router returned no matches)")
+			return nil
+		}
+
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "engine").
@@ -296,6 +318,9 @@ func (e *Engine) GetProjectedCost(
 
 			// Select plugin matches using router (if configured) or all clients
 			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
+			if selectedMatches == nil {
+				continue // Resource intentionally filtered (e.g., internal Pulumi type)
+			}
 
 			for i, match := range selectedMatches {
 				client := match.Client
@@ -508,6 +533,9 @@ func (e *Engine) GetProjectedCostWithErrors(
 
 			// Select plugin matches using router (if configured) or all clients
 			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
+			if selectedMatches == nil {
+				continue // Resource intentionally filtered (e.g., internal Pulumi type)
+			}
 
 			// Try each selected plugin with fallback chain logic
 			fallbackChainBroken := false
@@ -729,6 +757,10 @@ func (e *Engine) GetActualCostWithOptions(
 
 			// Select plugin matches using router (if configured) or all clients
 			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
+			if selectedMatches == nil {
+				resultsChan <- workerResult{index: j.index, result: nil}
+				continue // Resource intentionally filtered (e.g., internal Pulumi type)
+			}
 
 			fallbackChainBroken := false
 			for i, match := range selectedMatches {
@@ -1018,6 +1050,9 @@ func (e *Engine) getActualCostForResource(
 
 	// Select plugin matches using router (if configured) or all clients
 	selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
+	if selectedMatches == nil {
+		return nil, nil // Resource intentionally filtered (e.g., internal Pulumi type)
+	}
 
 	fallbackChainBroken := false
 	for i, match := range selectedMatches {
