@@ -29,6 +29,9 @@ func NewRootCmd(ver string) *cobra.Command {
 	return NewRootCmdWithArgs(ver, os.Args, os.LookupEnv)
 }
 
+// projectDirFlag holds the value of the --project-dir persistent flag.
+var projectDirFlag string //nolint:gochecknoglobals // Persistent flag shared across subcommands
+
 // NewRootCmdWithArgs creates the root command with explicit args and env lookup for testability.
 // This allows tests to inject custom args and environment variables.
 func NewRootCmdWithArgs(
@@ -77,6 +80,17 @@ func NewRootCmdWithArgs(
 				}
 			}
 
+			// Resolve project directory for config and dismissals
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("determining current directory: %w", err)
+			}
+			resolvedDir := config.ResolveProjectDir(projectDirFlag, cwd)
+			config.SetResolvedProjectDir(resolvedDir)
+
+			// Initialize global config with project overlay
+			config.InitGlobalConfigWithProject(resolvedDir)
+
 			result := setupLogging(cmd)
 			logResult = &result
 			return nil
@@ -91,6 +105,8 @@ func NewRootCmdWithArgs(
 		Bool("skip-version-check", false, "skip plugin spec version compatibility check")
 	cmd.PersistentFlags().
 		Int("cache-ttl", 0, "cache TTL in seconds (0 = use config default, overrides config file and env var)")
+	cmd.PersistentFlags().StringVar(&projectDirFlag, "project-dir", "",
+		"explicit Pulumi project directory for config resolution")
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd())
 
 	return cmd

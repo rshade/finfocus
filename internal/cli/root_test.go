@@ -279,6 +279,71 @@ func TestRootCmdPluginModeHelpOutput(t *testing.T) {
 	assert.Contains(t, output, "pulumi plugin run tool cost -- cost projected", "Examples should use plugin syntax")
 }
 
+// TestRootCmdProjectDirFlag verifies the --project-dir persistent flag:
+// 1. Exists as a persistent string flag with empty default
+// 2. Is available on subcommands (inherited)
+// 3. Appears in help output.
+func TestRootCmdProjectDirFlag(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+
+	t.Run("flag exists with correct type and default", func(t *testing.T) {
+		cmd := cli.NewRootCmd("test-version")
+
+		flag := cmd.PersistentFlags().Lookup("project-dir")
+		require.NotNil(t, flag, "--project-dir persistent flag should exist")
+		assert.Equal(t, "string", flag.Value.Type(), "flag should be a string type")
+		assert.Equal(t, "", flag.DefValue, "flag should have empty default value")
+		assert.Contains(t, flag.Usage, "project directory",
+			"flag usage should describe project directory")
+	})
+
+	t.Run("flag available on cost subcommand via help", func(t *testing.T) {
+		var buf bytes.Buffer
+		cmd := cli.NewRootCmd("test-version")
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+		cmd.SetArgs([]string{"cost", "--project-dir", "/some/path", "--help"})
+
+		err := cmd.Execute()
+		require.NoError(t, err, "cost --project-dir /some/path --help should succeed")
+
+		output := buf.String()
+		assert.Contains(t, output, "Cost calculation commands",
+			"cost help output should be displayed")
+	})
+
+	t.Run("flag available on config subcommand via help", func(t *testing.T) {
+		var buf bytes.Buffer
+		cmd := cli.NewRootCmd("test-version")
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+		cmd.SetArgs([]string{"config", "--project-dir", "/another/path", "--help"})
+
+		err := cmd.Execute()
+		require.NoError(t, err, "config --project-dir /another/path --help should succeed")
+
+		output := buf.String()
+		assert.Contains(t, output, "Configuration management commands",
+			"config help output should be displayed")
+	})
+
+	t.Run("flag appears in root help output", func(t *testing.T) {
+		var buf bytes.Buffer
+		cmd := cli.NewRootCmd("test-version")
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+		cmd.SetArgs([]string{"--help"})
+
+		err := cmd.Execute()
+		require.NoError(t, err)
+
+		output := buf.String()
+		assert.Contains(t, output, "--project-dir",
+			"root help should mention --project-dir flag")
+	})
+}
+
 // TestExitCodeBehavior verifies that the CLI returns proper exit codes:
 // - nil (exit 0) for successful commands
 // - error (exit 1) for failed commands

@@ -13,8 +13,16 @@ var GlobalConfig *Config        //nolint:gochecknoglobals // Singleton pattern f
 var globalConfigMu sync.RWMutex //nolint:gochecknoglobals // Protects globalConfigInit flag
 var globalConfigInit bool       //nolint:gochecknoglobals // Tracks if global config has been initialized
 
-// InitGlobalConfig initializes the global configuration.
+// InitGlobalConfig initializes the global configuration without project context.
+// For project-aware initialization, use InitGlobalConfigWithProject.
 func InitGlobalConfig() {
+	InitGlobalConfigWithProject("")
+}
+
+// InitGlobalConfigWithProject initializes the global configuration with optional
+// project directory context. If projectDir is non-empty, the project-local config
+// is shallow-merged over global defaults via NewWithProjectDir.
+func InitGlobalConfigWithProject(projectDir string) {
 	globalConfigMu.Lock()
 	defer globalConfigMu.Unlock()
 
@@ -22,7 +30,11 @@ func InitGlobalConfig() {
 		return
 	}
 
-	GlobalConfig = New()
+	if projectDir != "" {
+		GlobalConfig = NewWithProjectDir(projectDir)
+	} else {
+		GlobalConfig = New()
+	}
 	globalConfigInit = true
 }
 

@@ -152,6 +152,163 @@ func TestGetSpecDir(t *testing.T) {
 	assert.Contains(t, dir, "specs")
 }
 
+func TestInitGlobalConfigWithProject(t *testing.T) {
+	t.Run("project_config_overrides_global_budget", func(t *testing.T) {
+		ResetGlobalConfigForTest()
+		t.Cleanup(func() { ResetGlobalConfigForTest() })
+
+		// Set up isolated global config directory via FINFOCUS_HOME.
+		globalDir := t.TempDir()
+		t.Setenv("FINFOCUS_HOME", globalDir)
+		t.Setenv("PULUMI_HOME", "")
+
+		globalCfg := `cost:
+  budgets:
+    global:
+      amount: 10000
+      currency: USD
+`
+		require.NoError(t, os.WriteFile(filepath.Join(globalDir, "config.yaml"), []byte(globalCfg), 0644))
+
+		// Set up project directory with a budget override.
+		projectDir := filepath.Join(t.TempDir(), ".finfocus")
+		require.NoError(t, os.MkdirAll(projectDir, 0755))
+		projectCfg := `cost:
+  budgets:
+    global:
+      amount: 5000
+      currency: USD
+`
+		require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0644))
+
+		InitGlobalConfigWithProject(projectDir)
+		cfg := GetGlobalConfig()
+
+		require.NotNil(t, cfg)
+		require.NotNil(t, cfg.Cost.Budgets)
+		require.NotNil(t, cfg.Cost.Budgets.Global)
+		assert.Equal(t, float64(5000), cfg.Cost.Budgets.Global.Amount,
+			"project budget should override global budget")
+	})
+
+	t.Run("project_config_inherits_output_format_from_global", func(t *testing.T) {
+		ResetGlobalConfigForTest()
+		t.Cleanup(func() { ResetGlobalConfigForTest() })
+
+		globalDir := t.TempDir()
+		t.Setenv("FINFOCUS_HOME", globalDir)
+		t.Setenv("PULUMI_HOME", "")
+
+		// Global sets output format to json.
+		globalCfg := `output:
+  default_format: json
+  precision: 4
+`
+		require.NoError(t, os.WriteFile(filepath.Join(globalDir, "config.yaml"), []byte(globalCfg), 0644))
+
+		// Project only overrides budget, not output.
+		projectDir := filepath.Join(t.TempDir(), ".finfocus")
+		require.NoError(t, os.MkdirAll(projectDir, 0755))
+		projectCfg := `cost:
+  budgets:
+    global:
+      amount: 5000
+      currency: USD
+`
+		require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0644))
+
+		InitGlobalConfigWithProject(projectDir)
+		cfg := GetGlobalConfig()
+
+		require.NotNil(t, cfg)
+		assert.Equal(t, "json", cfg.Output.DefaultFormat,
+			"output format should be inherited from global config")
+		assert.Equal(t, 4, cfg.Output.Precision,
+			"output precision should be inherited from global config")
+		require.NotNil(t, cfg.Cost.Budgets)
+		require.NotNil(t, cfg.Cost.Budgets.Global)
+		assert.Equal(t, float64(5000), cfg.Cost.Budgets.Global.Amount,
+			"budget should come from project config")
+	})
+
+	t.Run("empty_project_dir_produces_same_as_InitGlobalConfig", func(t *testing.T) {
+		ResetGlobalConfigForTest()
+		t.Cleanup(func() { ResetGlobalConfigForTest() })
+
+		tmpHome := t.TempDir()
+		t.Setenv("FINFOCUS_HOME", tmpHome)
+		t.Setenv("PULUMI_HOME", "")
+
+		// Initialize with empty project dir.
+		InitGlobalConfigWithProject("")
+		cfgWithEmpty := GetGlobalConfig()
+		require.NotNil(t, cfgWithEmpty)
+
+		// Create a fresh New() for comparison.
+		cfgNew := New()
+		require.NotNil(t, cfgNew)
+
+		assert.Equal(t, cfgNew.Output, cfgWithEmpty.Output)
+		assert.Equal(t, cfgNew.Logging.Level, cfgWithEmpty.Logging.Level)
+		assert.Equal(t, cfgNew.Logging.Format, cfgWithEmpty.Logging.Format)
+		assert.Equal(t, cfgNew.Cost, cfgWithEmpty.Cost)
+		assert.Equal(t, cfgNew.PluginHostConfig, cfgWithEmpty.PluginHostConfig)
+		assert.Equal(t, cfgNew.PluginDir, cfgWithEmpty.PluginDir)
+		assert.Equal(t, cfgNew.SpecDir, cfgWithEmpty.SpecDir)
+	})
+
+	t.Run("two_projects_load_independent_configs", func(t *testing.T) {
+		// Project A: budget 3000.
+		projectDirA := filepath.Join(t.TempDir(), ".finfocus")
+		require.NoError(t, os.MkdirAll(projectDirA, 0755))
+		projectCfgA := `cost:
+  budgets:
+    global:
+      amount: 3000
+      currency: USD
+`
+		require.NoError(t, os.WriteFile(filepath.Join(projectDirA, "config.yaml"), []byte(projectCfgA), 0644))
+
+		// Project B: budget 7000.
+		projectDirB := filepath.Join(t.TempDir(), ".finfocus")
+		require.NoError(t, os.MkdirAll(projectDirB, 0755))
+		projectCfgB := `cost:
+  budgets:
+    global:
+      amount: 7000
+      currency: USD
+`
+		require.NoError(t, os.WriteFile(filepath.Join(projectDirB, "config.yaml"), []byte(projectCfgB), 0644))
+
+		globalDir := t.TempDir()
+		t.Setenv("FINFOCUS_HOME", globalDir)
+		t.Setenv("PULUMI_HOME", "")
+
+		// Init with project A and verify.
+		ResetGlobalConfigForTest()
+		InitGlobalConfigWithProject(projectDirA)
+		cfgA := GetGlobalConfig()
+		require.NotNil(t, cfgA)
+		require.NotNil(t, cfgA.Cost.Budgets)
+		require.NotNil(t, cfgA.Cost.Budgets.Global)
+		assert.Equal(t, float64(3000), cfgA.Cost.Budgets.Global.Amount,
+			"project A budget should be 3000")
+
+		// Reset and init with project B and verify.
+		ResetGlobalConfigForTest()
+		InitGlobalConfigWithProject(projectDirB)
+		cfgB := GetGlobalConfig()
+		require.NotNil(t, cfgB)
+		require.NotNil(t, cfgB.Cost.Budgets)
+		require.NotNil(t, cfgB.Cost.Budgets.Global)
+		assert.Equal(t, float64(7000), cfgB.Cost.Budgets.Global.Amount,
+			"project B budget should be 7000")
+
+		// Cleanup.
+		ResetGlobalConfigForTest()
+	})
+}
+
 func TestEnsureSubDirs(t *testing.T) {
 	stubHome(t)
 

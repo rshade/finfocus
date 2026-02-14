@@ -334,6 +334,16 @@ func NewStrict() (*Config, error) {
 	return cfg, nil
 }
 
+// SetConfigPath overrides the config file path used by Load and Save.
+func (c *Config) SetConfigPath(path string) {
+	c.configPath = path
+}
+
+// ConfigPath returns the config file path.
+func (c *Config) ConfigPath() string {
+	return c.configPath
+}
+
 // Load loads configuration from the config file.
 func (c *Config) Load() error {
 	data, err := os.ReadFile(c.configPath)

@@ -89,14 +89,16 @@ type DismissalStore struct {
 }
 
 // NewDismissalStore creates a new DismissalStore backed by the given file path.
-// If filePath is empty, it defaults to ~/.finfocus/dismissed.json.
+// If filePath is empty, it resolves using project context:
+//  1. If a project directory is set (via SetResolvedProjectDir), uses $PROJECT_DIR/dismissed.json.
+//  2. Otherwise falls back to ResolveConfigDir()/dismissed.json.
 func NewDismissalStore(filePath string) (*DismissalStore, error) {
 	if filePath == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("determining home directory: %w", err)
+		if projectDir := GetResolvedProjectDir(); projectDir != "" {
+			filePath = filepath.Join(projectDir, "dismissed.json")
+		} else {
+			filePath = filepath.Join(ResolveConfigDir(), "dismissed.json")
 		}
-		filePath = filepath.Join(homeDir, ".finfocus", "dismissed.json")
 	}
 
 	store := &DismissalStore{
