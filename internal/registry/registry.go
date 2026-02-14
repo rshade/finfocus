@@ -314,6 +314,7 @@ func (r *Registry) Open(
 		log.Debug().
 			Ctx(ctx).
 			Str("component", "registry").
+			Str("operation", "plugin_connected").
 			Str("plugin_name", plugin.Name).
 			Str("plugin_version", plugin.Version).
 			Str("region", plugin.Region()).

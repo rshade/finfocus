@@ -410,9 +410,17 @@ func TestBuildAltIDIndex(t *testing.T) {
 	altMap := buildAltIDIndex(resources, results)
 
 	// Cloud ID maps to correct result index
-	assert.Equal(t, 0, altMap["my-cluster-90b4099"])
-	assert.Equal(t, 0, altMap["arn:aws:eks:us-west-2:123:cluster/my-cluster-90b4099"])
-	assert.Equal(t, 2, altMap["i-0abc123"])
+	v, ok := altMap["my-cluster-90b4099"]
+	require.True(t, ok, "key should exist in altMap")
+	assert.Equal(t, 0, v)
+
+	v, ok = altMap["arn:aws:eks:us-west-2:123:cluster/my-cluster-90b4099"]
+	require.True(t, ok, "key should exist in altMap")
+	assert.Equal(t, 0, v)
+
+	v, ok = altMap["i-0abc123"]
+	require.True(t, ok, "key should exist in altMap")
+	assert.Equal(t, 2, v)
 
 	// Resource with no properties has no alt IDs
 	_, hasRole := altMap["urn:pulumi:dev::proj::aws:iam/role:Role::role"]

@@ -79,6 +79,7 @@ func ParseStackExport(data []byte) (*StackExport, error) {
 func ParseStackExportWithContext(ctx context.Context, data []byte) (*StackExport, error) {
 	log := logging.FromContext(ctx)
 	log.Debug().
+		Ctx(ctx).
 		Str("component", "ingest").
 		Str("operation", "parse_state").
 		Int("data_size_bytes", len(data)).
@@ -87,14 +88,18 @@ func ParseStackExportWithContext(ctx context.Context, data []byte) (*StackExport
 	var state StackExport
 	if err := json.Unmarshal(data, &state); err != nil {
 		log.Error().
+			Ctx(ctx).
 			Str("component", "ingest").
+			Str("operation", "parse_state").
 			Err(err).
 			Msg("failed to parse state JSON")
 		return nil, fmt.Errorf("parsing state JSON: %w", err)
 	}
 
 	log.Debug().
+		Ctx(ctx).
 		Str("component", "ingest").
+		Str("operation", "parse_state").
 		Int("version", state.Version).
 		Int("resource_count", len(state.Deployment.Resources)).
 		Msg("state parsed successfully")
