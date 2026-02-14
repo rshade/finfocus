@@ -50,7 +50,7 @@ naming convention so that Pulumi can discover it automatically.`,
 			switch result.Action {
 			case analyzer.ActionInstalled:
 				cmd.Printf("Analyzer installed successfully\n")
-				cmd.Printf("  Version: %s\n", result.Version)
+				cmd.Printf("  Version: v%s\n", result.Version)
 				cmd.Printf("  Path: %s\n", result.Path)
 				cmd.Printf("  Method: %s\n", result.Method)
 			case analyzer.ActionUpdateAvailable:

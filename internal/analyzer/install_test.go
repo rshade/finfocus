@@ -342,10 +342,10 @@ func TestInstall_CreatesDirectoryIfNeeded(t *testing.T) {
 }
 
 func TestInstall_SymlinkMethod_Unix(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("symlink test only applies to Unix")
 	}
-	t.Parallel()
 
 	dir := t.TempDir()
 	ctx := context.Background()
@@ -363,10 +363,10 @@ func TestInstall_SymlinkMethod_Unix(t *testing.T) {
 }
 
 func TestInstall_MkdirAllFailure(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("Unix permission test")
 	}
-	t.Parallel()
 
 	// Create a read-only directory so MkdirAll fails inside it
 	parentDir := t.TempDir()
@@ -541,10 +541,10 @@ func TestCopyFile_SourceNotFound(t *testing.T) {
 }
 
 func TestCopyFile_DestinationCreationFailure(t *testing.T) {
+	t.Parallel()
 	if runtime.GOOS == "windows" {
 		t.Skip("Unix permission test")
 	}
-	t.Parallel()
 
 	// Create a source file
 	srcDir := t.TempDir()

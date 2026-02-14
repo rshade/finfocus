@@ -30,7 +30,7 @@ func TestNewAnalyzerInstallCmd_FreshInstall(t *testing.T) {
 
 	output := buf.String()
 	assert.Contains(t, output, "Analyzer installed successfully")
-	assert.Contains(t, output, "Version: "+version.GetVersion())
+	assert.Contains(t, output, "Version: v"+version.GetVersion())
 	assert.Contains(t, output, "Path:")
 	assert.Contains(t, output, "Method:")
 }
@@ -93,6 +93,8 @@ func TestNewAnalyzerInstallCmd_ForceReinstall(t *testing.T) {
 	// Simulate old version
 	oldDir := filepath.Join(dir, "analyzer-finfocus-v0.0.1")
 	require.NoError(t, os.MkdirAll(oldDir, 0o755))
+	// Binary name must match analyzer.analyzerBinaryName (unexported, so not
+	// referenceable from this external _test package). Keep in sync manually.
 	require.NoError(t, os.WriteFile(filepath.Join(oldDir, "pulumi-analyzer-finfocus"), []byte("old"), 0o755))
 
 	cmd := cli.NewAnalyzerInstallCmd()
