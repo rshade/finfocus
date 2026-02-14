@@ -36,7 +36,10 @@ func NewRootCmdWithArgs(
 	args []string,
 	lookupEnv func(string) (string, bool),
 ) *cobra.Command {
-	var logResult *logging.LogPathResult
+	var (
+		logResult      *logging.LogPathResult
+		projectDirFlag string
+	)
 
 	// Detect plugin mode from binary name or environment variable
 	pluginMode := DetectPluginMode(args, lookupEnv)
@@ -77,6 +80,17 @@ func NewRootCmdWithArgs(
 				}
 			}
 
+			// Resolve project directory for config and dismissals
+			cwd, err := os.Getwd()
+			if err != nil {
+				return fmt.Errorf("determining current directory: %w", err)
+			}
+			resolvedDir := config.ResolveProjectDir(cmd.Context(), projectDirFlag, cwd)
+			config.SetResolvedProjectDir(resolvedDir)
+
+			// Initialize global config with project overlay
+			config.InitGlobalConfigWithProject(cmd.Context(), resolvedDir)
+
 			result := setupLogging(cmd)
 			logResult = &result
 			return nil
@@ -91,6 +105,8 @@ func NewRootCmdWithArgs(
 		Bool("skip-version-check", false, "skip plugin spec version compatibility check")
 	cmd.PersistentFlags().
 		Int("cache-ttl", 0, "cache TTL in seconds (0 = use config default, overrides config file and env var)")
+	cmd.PersistentFlags().StringVar(&projectDirFlag, "project-dir", "",
+		"explicit Pulumi project directory for config resolution")
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd())
 
 	return cmd
