@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -16,11 +17,6 @@ import (
 func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	loggingCfg := config.GetLoggingConfig()
 
-	// Ensure log directory exists before attempting to open the file.
-	if loggingCfg.File != "" {
-		_ = config.EnsureLogDir() // best-effort; fallback to stderr on failure
-	}
-
 	debug, _ := cmd.Flags().GetBool("debug")
 	if debug {
 		loggingCfg.Level = "debug"
@@ -33,6 +29,13 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	}
 	if envFormat := os.Getenv(pluginsdk.EnvLogFormat); envFormat != "" {
 		loggingCfg.Format = envFormat
+	}
+
+	// Ensure log directory exists after all overrides have been applied.
+	if loggingCfg.File != "" {
+		if err := config.EnsureLogDir(); err != nil {
+			_, _ = fmt.Fprintf(cmd.ErrOrStderr(), "Warning: could not create log directory: %v\n", err)
+		}
 	}
 
 	result := logging.NewLoggerWithPath(loggingCfg.ToLoggingConfig())
