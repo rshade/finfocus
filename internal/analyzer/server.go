@@ -24,7 +24,9 @@ const (
 )
 
 // zeroCostResult returns an engine.CostResult representing zero cloud cost for an internal Pulumi resource.
-// The result uses USD currency, sets monthly and hourly costs to 0, and includes a note indicating the resource is internal.
+// zeroCostResult constructs an engine.CostResult representing zero cloud cost for an internal Pulumi resource.
+// resourceType is the resource's provider type (for example, "pulumi:pulumi:Stack"); resourceID is the resource's identifier.
+// The returned CostResult uses USD currency, sets Monthly and Hourly to 0, and includes a note indicating the resource has no cloud cost.
 func zeroCostResult(resourceType, resourceID string) engine.CostResult {
 	return engine.CostResult{
 		ResourceType: resourceType,
