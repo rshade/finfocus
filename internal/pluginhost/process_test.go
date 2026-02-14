@@ -1049,3 +1049,29 @@ func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, stdoutPort, gotPort)
 }
+
+func TestWaitForPluginBindWithFallback_BothPortsFail(t *testing.T) {
+	launcher := NewProcessLauncher()
+	launcher.stdoutFallback = 200 * time.Millisecond
+
+	// Get two unbound ports by opening and immediately closing listeners.
+	ln1, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	unboundPort1 := ln1.Addr().(*net.TCPAddr).Port
+	ln1.Close()
+
+	ln2, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	unboundPort2 := ln2.Addr().(*net.TCPAddr).Port
+	ln2.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	buf := &lockedBuffer{}
+	_, _ = buf.Write([]byte(fmt.Sprintf("%d\n", unboundPort2)))
+
+	_, err = launcher.waitForPluginBindWithFallback(ctx, unboundPort1, buf, "/fake/plugin")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "failed to bind")
+}
