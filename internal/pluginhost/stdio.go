@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/rshade/finfocus/internal/constants"
 	"github.com/rshade/finfocus/internal/logging"
 )
 
@@ -64,10 +65,24 @@ func (s *StdioLauncher) Start(
 		return nil, nil, fmt.Errorf("creating stdout pipe: %w", err)
 	}
 
-	// Redirect plugin stderr to the log file when available, keeping the terminal clean.
-	if pluginWriter := logging.PluginLogWriterFromContext(ctx); pluginWriter != nil {
+	// Determine where plugin stderr should go.
+	// Priority: file logging (always capture) > analyzer mode (discard) > default (stderr)
+	pluginWriter := logging.PluginLogWriterFromContext(ctx)
+
+	switch {
+	case pluginWriter != nil:
+		// Redirect plugin output to the core log file for a clean terminal experience.
+		// In analyzer mode this also prevents polluting the Pulumi preview stream.
 		cmd.Stderr = pluginWriter
-	} else {
+	case os.Getenv(constants.EnvAnalyzerMode) == "true":
+		// No log file available; suppress output to prevent cluttering Pulumi preview output.
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "pluginhost").
+			Str("plugin_path", path).
+			Msg("suppressing plugin stderr output in analyzer mode (no log file configured)")
+		cmd.Stderr = io.Discard
+	default:
 		cmd.Stderr = os.Stderr
 	}
 	// Set WaitDelay before Start to avoid race condition with watchCtx goroutine

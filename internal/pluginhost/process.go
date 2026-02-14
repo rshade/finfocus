@@ -517,11 +517,15 @@ func (p *ProcessLauncher) startPlugin(
 	}
 
 	// Determine where plugin stdout/stderr should go.
-	// Priority: analyzer mode (discard) > file logging (redirect to log file) > default (stderr)
+	// Priority: file logging (always capture) > analyzer mode (discard) > default (stderr)
 	var stdoutBuf lockedBuffer
 	pluginWriter := logging.PluginLogWriterFromContext(ctx)
 
 	switch {
+	case pluginWriter != nil:
+		// Redirect plugin output to the core log file for a clean terminal experience.
+		cmd.Stderr = pluginWriter
+		cmd.Stdout = io.MultiWriter(pluginWriter, &stdoutBuf)
 	case os.Getenv(constants.EnvAnalyzerMode) == "true":
 		// In analyzer mode, suppress plugin output to prevent cluttering Pulumi preview output.
 		// This addresses issue #401 where plugin JSON messages appear in user-facing output.
@@ -532,10 +536,6 @@ func (p *ProcessLauncher) startPlugin(
 			Msg("suppressing plugin stderr output in analyzer mode")
 		cmd.Stderr = io.Discard
 		cmd.Stdout = io.MultiWriter(io.Discard, &stdoutBuf)
-	case pluginWriter != nil:
-		// Redirect plugin output to the core log file for a clean terminal experience.
-		cmd.Stderr = pluginWriter
-		cmd.Stdout = io.MultiWriter(pluginWriter, &stdoutBuf)
 	default:
 		// Fallback (debug mode or no file logging): plugin output goes to stderr.
 		cmd.Stderr = os.Stderr

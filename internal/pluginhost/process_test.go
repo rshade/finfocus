@@ -1110,9 +1110,7 @@ sleep 0.1
 	require.NoError(t, launcher.releasePortListener(port))
 
 	cmd, _, startErr := launcher.startPlugin(ctx, script, port, nil)
-	if startErr != nil {
-		t.Fatalf("startPlugin failed: %v", startErr)
-	}
+	require.NoError(t, startErr)
 
 	// Wait for process to finish
 	_ = cmd.Wait()
@@ -1151,9 +1149,7 @@ exit 0
 	require.NoError(t, launcher.releasePortListener(port))
 
 	cmd, _, startErr := launcher.startPlugin(ctx, script, port, nil)
-	if startErr != nil {
-		t.Fatalf("startPlugin failed: %v", startErr)
-	}
+	require.NoError(t, startErr)
 	_ = cmd.Wait()
 	// No assertion needed beyond "doesn't panic / doesn't error"
 }
