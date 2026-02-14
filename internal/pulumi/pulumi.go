@@ -179,6 +179,7 @@ type pulumiCmdConfig struct {
 //   - context.DeadlineExceeded when the operation exceeds the resolved timeout (wrapped
 //     in a formatted error that names the operation and timeout duration),
 //   - context.Canceled when the provided context is cancelled,
+//
 // runPulumiCommand executes a Pulumi CLI invocation described by cfg and returns the command's stdout.
 //
 // The provided cfg controls the working directory, stack selection, command arguments, and timeouts:
@@ -267,7 +268,7 @@ func Preview(ctx context.Context, opts PreviewOptions) ([]byte, error) {
 // StackExport runs `pulumi stack export` for the project at opts.ProjectDir and returns the
 // exported stack state as raw JSON bytes. Errors are wrapped by ExportError; context
 // StackExport exports the state of a Pulumi stack to JSON using the local Pulumi CLI.
-// 
+//
 // The opts parameter controls the project directory, target stack (empty selects the current stack),
 // and an optional per-operation timeout. It returns the raw JSON bytes produced by `pulumi stack export`.
 // An error is returned if the Pulumi CLI cannot be found or fails, if the operation times out, or if the

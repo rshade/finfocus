@@ -509,14 +509,14 @@ func buildActualAuditParams(params costActualParams) map[string]string {
 // - Otherwise it auto-detects resources from the current Pulumi project, using the value of the command's --stack flag.
 //
 // Parameters:
-//  - ctx: request context used for logging and cancellation.
-//  - cmd: the cobra command used to read the --stack flag when auto-detecting.
-//  - params: command parameters that determine which source to use (planPath, statePath).
-//  - audit: audit context to record failures when loading or mapping resources.
+//   - ctx: request context used for logging and cancellation.
+//   - cmd: the cobra command used to read the --stack flag when auto-detecting.
+//   - params: command parameters that determine which source to use (planPath, statePath).
+//   - audit: audit context to record failures when loading or mapping resources.
 //
 // Returns:
-//  - a slice of engine.ResourceDescriptor on success.
-//  - a non-nil error if loading or mapping fails, if reading the --stack flag fails, or if auto-detection cannot resolve resources.
+//   - a slice of engine.ResourceDescriptor on success.
+//   - a non-nil error if loading or mapping fails, if reading the --stack flag fails, or if auto-detection cannot resolve resources.
 //
 // Errors returned when loading from a plan or state are logged and recorded to audit before being returned.
 func loadActualResources(

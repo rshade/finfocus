@@ -45,4 +45,10 @@ func TestParseMetadataFlags(t *testing.T) {
 		assert.Equal(t, map[string]string{"k": "second"}, m)
 		assert.Empty(t, warnings)
 	})
+
+	t.Run("value containing equals sign is preserved", func(t *testing.T) {
+		m, warnings := parseMetadataFlags([]string{"key=val=ue"})
+		assert.Equal(t, map[string]string{"key": "val=ue"}, m)
+		assert.Empty(t, warnings)
+	})
 }

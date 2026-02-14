@@ -12,6 +12,17 @@ import (
 	"github.com/rshade/finfocus/internal/cli"
 )
 
+// isolateFromPulumiProject changes the working directory to a temp dir so
+// tests are not influenced by a Pulumi.yaml in the repository tree. The
+// original directory is restored via t.Cleanup.
+func isolateFromPulumiProject(t *testing.T) {
+	t.Helper()
+	oldwd, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(t.TempDir()))
+	t.Cleanup(func() { _ = os.Chdir(oldwd) })
+}
+
 func TestNewCostActualCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -281,10 +292,7 @@ func TestCostActualCmdMutuallyExclusiveInputs(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.isolate {
-				oldwd, wdErr := os.Getwd()
-				require.NoError(t, wdErr)
-				require.NoError(t, os.Chdir(t.TempDir()))
-				t.Cleanup(func() { _ = os.Chdir(oldwd) })
+				isolateFromPulumiProject(t)
 			}
 
 			var buf bytes.Buffer
@@ -414,10 +422,7 @@ func TestCostActualWithoutInputFlags(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	// Isolate from any Pulumi.yaml in the repository tree.
-	oldwd, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(t.TempDir()))
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
+	isolateFromPulumiProject(t)
 
 	var buf bytes.Buffer
 	cmd := cli.NewCostActualCmd()
@@ -425,7 +430,7 @@ func TestCostActualWithoutInputFlags(t *testing.T) {
 	cmd.SetErr(&buf)
 	cmd.SetArgs([]string{})
 
-	err = cmd.Execute()
+	err := cmd.Execute()
 	// Command will error (no Pulumi project in test env), but the error
 	// must NOT be about requiring input flags.
 	require.Error(t, err)
@@ -459,10 +464,7 @@ func TestStackFlagExistsOnActual(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	// Isolate from any Pulumi.yaml in the repository tree.
-	oldwd, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(t.TempDir()))
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
+	isolateFromPulumiProject(t)
 
 	root := cli.NewRootCmd("test")
 	costCmd, _, findErr := root.Find([]string{"cost"})

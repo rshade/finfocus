@@ -710,12 +710,12 @@ func (c *clientAdapter) DismissRecommendation(
 // ARN, or the AWS_REGION/AWS_DEFAULT_REGION environment variables. For Azure and GCP it uses
 // their respective extractors. Other providers use generic extraction. Both return values may
 // resolveSKUAndRegion determines the SKU and region for a resource based on its provider, type, and stringified properties.
-// 
+//
 // resolveSKUAndRegion examines provider-specific fields and fallbacks to derive a SKU and a region for pricing/enrichment.
 // For AWS it attempts AWS-specific SKU/region extraction, parses region from an ARN when present, and finally falls back to well-known SKU mappings.
 // For Azure and GCP it uses provider-specific extractors. For other providers it uses generic SKU and region extractors.
 // If the region remains empty for AWS resources, the function will also consult AWS environment variables `AWS_REGION` and `AWS_DEFAULT_REGION`.
-// 
+//
 // Parameters:
 //   - provider: cloud provider identifier (e.g., "aws", "azure", "gcp").
 //   - resourceType: the resource type token used for well-known SKU resolution when direct extraction fails.

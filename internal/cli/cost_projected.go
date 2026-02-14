@@ -60,19 +60,21 @@ type costProjectedParams struct {
 //   - --adapter: restrict processing to a single adapter plugin
 //   - --output: output format, one of table, json, or ndjson (default from configuration)
 //   - --filter: repeatable resource filter expression(s)
+//
 // NewCostProjectedCmd returns a Cobra command that calculates projected costs from a Pulumi plan.
-// 
+//
 // The command analyzes a Pulumi preview JSON output to produce projected monthly costs.
 // If --pulumi-json is omitted, the command will attempt to auto-detect the Pulumi project in the
 // current directory and run `pulumi preview --json`; use --stack to target a specific stack during
 // auto-detection. Available flags include:
-//   --pulumi-json    Path to Pulumi preview JSON output (optional; auto-detected if omitted).
-//   --spec-dir       Directory containing pricing specification files.
-//   --adapter        Restrict processing to a single adapter plugin.
-//   --output         Output format: table, json, or ndjson.
-//   --filter         Repeatable resource filter expressions (e.g., "type=aws:ec2/instance").
-//   --utilization    Utilization rate for sustainability calculations, between 0.0 and 1.0.
-// 
+//
+//	--pulumi-json    Path to Pulumi preview JSON output (optional; auto-detected if omitted).
+//	--spec-dir       Directory containing pricing specification files.
+//	--adapter        Restrict processing to a single adapter plugin.
+//	--output         Output format: table, json, or ndjson.
+//	--filter         Repeatable resource filter expressions (e.g., "type=aws:ec2/instance").
+//	--utilization    Utilization rate for sustainability calculations, between 0.0 and 1.0.
+//
 // The command's execution is delegated to executeCostProjected.
 func NewCostProjectedCmd() *cobra.Command {
 	var params costProjectedParams
