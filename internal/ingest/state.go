@@ -169,7 +169,15 @@ func (s *StackExport) GetCustomResourcesWithContext(ctx context.Context) []Stack
 // Timestamps, cloud identifiers (ID, ARN), and outputs are injected into Properties.
 // Properties are built by merging Outputs (base) with Inputs (overlay), so provider-
 // computed values like size, iops, and tagsAll are included while user-declared inputs
-// take precedence on conflict. This function does not currently return non-nil errors.
+// MapStateResource converts a StackExportResource into an engine.ResourceDescriptor.
+// It merges the resource's outputs with its inputs (inputs take precedence on conflict),
+// injects Pulumi-specific metadata (created/modified timestamps as RFC3339 strings, external flag,
+// cloud resource ID, URN), and, if present, copies the merged "arn" property into the Pulumi ARN key.
+// The given resource's Type becomes the descriptor Type and the resource URN is used as the descriptor ID.
+//
+// The resource parameter is the StackExportResource to convert.
+//
+// It returns the mapped engine.ResourceDescriptor and an error. The function currently does not return non-nil errors.
 func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, error) {
 	provider := extractProvider(resource.Type)
 
