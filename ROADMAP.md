@@ -6,37 +6,79 @@ guardrails in `CONTEXT.md`.
 
 ## Table of Contents
 
-- [Immediate Focus (v0.3.0)](#immediate-focus-v030---intelligence--analysis)
+- [Immediate Focus (v0.3.0)](#immediate-focus-v030---install-ux-scale--pulumi-integration)
 - [Near-Term Vision (v0.3.x)](#near-term-vision-v03x---forecasting--profiles)
 - [Future Vision (v0.4.0+)](#future-vision-v040---notifications-integrations--backlog)
 - [Completed Milestones](#completed-milestones)
 - [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
 - [Boundary Safeguards](#boundary-safeguards)
 
-## Immediate Focus (v0.3.0 - Intelligence & Analysis)
+## Immediate Focus (v0.3.0 - Install UX, Scale & Pulumi Integration)
 
-- [x] **What-If Analysis**
-  - [x] Add `cost estimate` command for scenario modeling
-        ([#463](https://github.com/rshade/finfocus/issues/463), PR #538)
-  - *Uses `EstimateCost` RPC from finfocus-spec v0.5.2+*
-- [x] **Multi-Plugin Routing Polish**
-  - [x] Docs formatting & validation.go fix (PR #507 follow-up)
-        ([#533](https://github.com/rshade/finfocus/issues/533))
-- [x] **Recommendation Lifecycle**
-  - [x] Add recommendation dismissal and snooze management
-        ([#464](https://github.com/rshade/finfocus/issues/464), PR #557)
-  - *Uses `DismissRecommendation` RPC from finfocus-spec v0.5.2+*
 - [ ] **Plugin SDK Hardening**
   - [ ] Research: Evaluate GetPricingSpec RPC usage in core
         ([#465](https://github.com/rshade/finfocus/issues/465))
 - [ ] **Config Architecture**
   - [ ] Split project-local and user-global `.finfocus/` directories
         ([#548](https://github.com/rshade/finfocus/issues/548))
-- [ ] **Pulumi Auto-Detection**
-  - [ ] Automatic Pulumi project detection for cost commands
-        ([#581](https://github.com/rshade/finfocus/issues/581))
+- [ ] **Pulumi Auto-Detection Follow-up**
   - [ ] CodeRabbit follow-up cleanup from auto-detect PR
         ([#589](https://github.com/rshade/finfocus/issues/589))
+- [ ] **Install UX**
+  - [ ] Install script (`curl | sh`)
+        ([#599](https://github.com/rshade/finfocus/issues/599))
+  - [ ] `finfocus setup` one-command bootstrap
+        ([#598](https://github.com/rshade/finfocus/issues/598))
+  - [ ] `finfocus analyzer install/uninstall` commands
+        ([#597](https://github.com/rshade/finfocus/issues/597))
+  - [ ] Checksum verification for plugin installation
+        ([#601](https://github.com/rshade/finfocus/issues/601))
+- [ ] **Scale & Performance**
+  - [ ] Scale benchmarks for cost commands
+        ([#607](https://github.com/rshade/finfocus/issues/607))
+  - [ ] `--jobs` flag and timing output for cost commands
+        ([#602](https://github.com/rshade/finfocus/issues/602))
+  - [ ] Projected cost caching
+        ([#600](https://github.com/rshade/finfocus/issues/600))
+- [ ] **CLI Polish**
+  - [ ] Neo-friendly CLI fixes
+        ([#611](https://github.com/rshade/finfocus/issues/611))
+  - [ ] Policy-compatible cost output
+        ([#604](https://github.com/rshade/finfocus/issues/604))
+- [ ] **Bug Fixes**
+  - [ ] Deep copy CostBreakdown in appendActualCostResults to prevent
+        source mutation
+        ([#614](https://github.com/rshade/finfocus/issues/614))
+  - [ ] Phantom $0 results from empty plugin responses
+        ([#595](https://github.com/rshade/finfocus/issues/595))
+- [ ] **Code Quality & Refactoring**
+  - [ ] Reorder router provider-based region check after feature matching
+        ([#616](https://github.com/rshade/finfocus/issues/616))
+  - [ ] Support GCP zone normalization in normalizeToRegion
+        ([#615](https://github.com/rshade/finfocus/issues/615))
+  - [ ] Add `.Ctx(ctx)` and structured log fields across packages
+        ([#613](https://github.com/rshade/finfocus/issues/613))
+  - [ ] Add Stack field to CostFlags struct
+        ([#612](https://github.com/rshade/finfocus/issues/612))
+  - [ ] Consolidate recommendation count and format helpers (DRY)
+        ([#610](https://github.com/rshade/finfocus/issues/610))
+  - [ ] Wrap errors from MapResources, MapStateResources, and
+        resolveOverviewData
+        ([#609](https://github.com/rshade/finfocus/issues/609))
+  - [ ] Wire router into cost commands for region-aware plugin selection
+        ([#590](https://github.com/rshade/finfocus/issues/590))
+- [ ] **Testing Improvements**
+  - [ ] Add negative test for waitForPluginBindWithFallback
+        ([#608](https://github.com/rshade/finfocus/issues/608))
+  - [ ] Fix state_test.go wantVersion skip and delegation fragility
+        ([#606](https://github.com/rshade/finfocus/issues/606))
+  - [ ] Isolate auto-detection tests with temp directories
+        ([#605](https://github.com/rshade/finfocus/issues/605))
+  - [ ] Use comma-ok idiom for altMap assertions
+        ([#603](https://github.com/rshade/finfocus/issues/603))
+- [ ] **Recorder Plugin Fixes**
+  - [ ] Recorder plugin should not declare ACTUAL_COSTS capability
+        ([#596](https://github.com/rshade/finfocus/issues/596))
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -187,6 +229,16 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] **Bug Fixes & Stability** *(Completed 2026-02-14)*
+  - [x] Fall back to filesystem discovery for plugin removal
+        ([#592](https://github.com/rshade/finfocus/issues/592), PR #621)
+  - [x] Auto-create log directory before opening log file
+        ([#591](https://github.com/rshade/finfocus/issues/591), PR #618)
+  - [x] Move EnsureLogDir() after debug/env overrides
+        ([#617](https://github.com/rshade/finfocus/issues/617))
+- [x] **Pulumi Auto-Detection** *(Completed 2026-02-13)*
+  - [x] Automatic Pulumi project detection for cost commands
+        ([#581](https://github.com/rshade/finfocus/issues/581), PR #586)
 - [x] **TUI & Documentation Polish** *(Completed 2026-02-13)*
   - [x] Display recommendations in resource detail view for cost
         projected/actual

@@ -234,9 +234,32 @@ func (p *RecorderPlugin) GetPluginInfo(
 		},
 		Capabilities: []pbc.PluginCapability{
 			pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
-			pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS,
 			pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS,
 		},
+	}, nil
+}
+
+// Supports overrides BasePlugin's default to always return false.
+// The recorder is a synthetic/demo plugin and should not be auto-selected
+// for real cost processing by the engine's resource matching logic.
+// The request is still recorded to disk for debugging purposes.
+func (p *RecorderPlugin) Supports(
+	_ context.Context, req *pbc.SupportsRequest,
+) (*pbc.SupportsResponse, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if req == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "request is required")
+	}
+
+	if err := p.recorder.RecordRequest("Supports", req); err != nil {
+		p.logger.Warn().Err(err).Msg("failed to record request")
+	}
+
+	return &pbc.SupportsResponse{
+		Supported: false,
+		Reason:    "recorder plugin - synthetic/demo only, does not provide cost data",
 	}, nil
 }
 
