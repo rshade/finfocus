@@ -2,7 +2,9 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"runtime"
 	"sort"
@@ -28,6 +30,7 @@ func NewPluginListCmd() *cobra.Command {
 	var (
 		verbose   bool
 		available bool
+		output    string
 	)
 
 	cmd := &cobra.Command{
@@ -41,17 +44,24 @@ func NewPluginListCmd() *cobra.Command {
   finfocus plugin list --verbose
 
   # List available plugins from registry
-  finfocus plugin list --available`,
+  finfocus plugin list --available
+
+  # List plugins as JSON for machine consumption
+  finfocus plugin list --output json`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if output != outputFormatTable && output != outputFormatJSON {
+				return fmt.Errorf("unsupported output format: %s (supported: table, json)", output)
+			}
 			if available {
 				return runPluginListAvailable(cmd)
 			}
-			return runPluginListCmd(cmd, verbose)
+			return runPluginListCmd(cmd, verbose, output)
 		},
 	}
 
 	cmd.Flags().BoolVar(&verbose, "verbose", false, "Show detailed plugin information")
 	cmd.Flags().BoolVar(&available, "available", false, "List available plugins from registry")
+	cmd.Flags().StringVar(&output, "output", outputFormatTable, "Output format (table, json)")
 
 	return cmd
 }
@@ -127,9 +137,12 @@ const notAvailable = "N/A"
 //
 // cmd is the Cobra command used for printing. verbose controls whether plugin details are shown.
 // Returns an error if querying the registry for installed plugins fails; otherwise nil.
-func runPluginListCmd(cmd *cobra.Command, verbose bool) error {
+func runPluginListCmd(cmd *cobra.Command, verbose bool, output string) error {
 	cfg := config.New()
 	if _, err := os.Stat(cfg.PluginDir); os.IsNotExist(err) {
+		if output == outputFormatJSON {
+			return renderPluginsJSON(cmd.OutOrStdout(), nil)
+		}
 		cmd.Printf("Plugin directory does not exist: %s\n", cfg.PluginDir)
 		cmd.Println("No plugins installed.")
 		return nil
@@ -142,6 +155,9 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool) error {
 	}
 
 	if len(plugins) == 0 {
+		if output == outputFormatJSON {
+			return renderPluginsJSON(cmd.OutOrStdout(), nil)
+		}
 		cmd.Println("No plugins found.")
 		return nil
 	}
@@ -154,6 +170,9 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool) error {
 		return enriched[i].Name < enriched[j].Name
 	})
 
+	if output == outputFormatJSON {
+		return renderPluginsJSON(cmd.OutOrStdout(), enriched)
+	}
 	return displayPlugins(cmd, enriched, verbose)
 }
 
@@ -374,4 +393,41 @@ func formatCapabilities(capabilities []string) string {
 		return "-"
 	}
 	return strings.Join(capabilities, ", ")
+}
+
+// PluginJSONEntry is the JSON-serializable representation of a plugin for
+// the --output json format. It matches the plugin-list-json contract schema.
+type PluginJSONEntry struct {
+	Name               string   `json:"name"`
+	Version            string   `json:"version"`
+	Path               string   `json:"path"`
+	SpecVersion        string   `json:"specVersion"`
+	RuntimeVersion     string   `json:"runtimeVersion"`
+	SupportedProviders []string `json:"supportedProviders"`
+	Capabilities       []string `json:"capabilities"`
+	Notes              string   `json:"notes,omitempty"`
+}
+
+// renderPluginsJSON serializes the enriched plugin list as a JSON array to w.
+// An empty or nil input produces "[]".
+func renderPluginsJSON(w io.Writer, plugins []enrichedPluginInfo) error {
+	entries := make([]PluginJSONEntry, 0, len(plugins))
+	for _, p := range plugins {
+		entries = append(entries, PluginJSONEntry{
+			Name:               p.Name,
+			Version:            p.displayVersion(),
+			Path:               p.Path,
+			SpecVersion:        p.SpecVersion,
+			RuntimeVersion:     p.RuntimeVersion,
+			SupportedProviders: p.SupportedProviders,
+			Capabilities:       p.Capabilities,
+			Notes:              p.Notes,
+		})
+	}
+	data, err := json.MarshalIndent(entries, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling plugin list to JSON: %w", err)
+	}
+	_, err = fmt.Fprintf(w, "%s\n", data)
+	return err
 }

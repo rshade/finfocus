@@ -5,6 +5,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -59,8 +60,21 @@ func run() error {
 	return nil
 }
 
+// extractBudgetExitCode returns the custom exit code from a BudgetExitError,
+// or 1 for non-budget errors, or 0 for nil errors.
+func extractBudgetExitCode(err error) int {
+	if err == nil {
+		return 0
+	}
+	var budgetErr *cli.BudgetExitError
+	if errors.As(err, &budgetErr) {
+		return budgetErr.ExitCode
+	}
+	return 1
+}
+
 func main() {
 	if err := run(); err != nil {
-		os.Exit(1)
+		os.Exit(extractBudgetExitCode(err))
 	}
 }

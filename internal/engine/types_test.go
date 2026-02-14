@@ -747,3 +747,116 @@ func TestCostResultJSONRecommendations(t *testing.T) {
 		})
 	}
 }
+
+// T007: Test StructuredError JSON serialization.
+func TestStructuredError_JSONSerialization(t *testing.T) {
+	t.Run("marshals with all fields", func(t *testing.T) {
+		se := &StructuredError{
+			Code:         ErrCodePluginError,
+			Message:      "connection refused",
+			ResourceType: "aws:ec2:Instance",
+		}
+
+		data, err := json.Marshal(se)
+		require.NoError(t, err)
+
+		var parsed map[string]interface{}
+		require.NoError(t, json.Unmarshal(data, &parsed))
+
+		assert.Equal(t, "PLUGIN_ERROR", parsed["code"])
+		assert.Equal(t, "connection refused", parsed["message"])
+		assert.Equal(t, "aws:ec2:Instance", parsed["resourceType"])
+	})
+
+	t.Run("roundtrip serialization", func(t *testing.T) {
+		original := &StructuredError{
+			Code:         ErrCodeTimeoutError,
+			Message:      "context deadline exceeded",
+			ResourceType: "aws:rds:Instance",
+		}
+
+		data, err := json.Marshal(original)
+		require.NoError(t, err)
+
+		var decoded StructuredError
+		require.NoError(t, json.Unmarshal(data, &decoded))
+
+		assert.Equal(t, original.Code, decoded.Code)
+		assert.Equal(t, original.Message, decoded.Message)
+		assert.Equal(t, original.ResourceType, decoded.ResourceType)
+	})
+}
+
+// T007: Test CostResult with StructuredError serialization.
+func TestCostResult_WithStructuredError_JSON(t *testing.T) {
+	t.Run("error present serializes error object", func(t *testing.T) {
+		result := CostResult{
+			ResourceType: "aws:ec2:Instance",
+			Currency:     "USD",
+			Monthly:      0,
+			Hourly:       0,
+			Notes:        "",
+			Error: &StructuredError{
+				Code:         ErrCodePluginError,
+				Message:      "plugin not responding",
+				ResourceType: "aws:ec2:Instance",
+			},
+		}
+
+		data, err := json.Marshal(result)
+		require.NoError(t, err)
+
+		jsonStr := string(data)
+		assert.Contains(t, jsonStr, `"error"`)
+		assert.Contains(t, jsonStr, `"PLUGIN_ERROR"`)
+		assert.Contains(t, jsonStr, `"plugin not responding"`)
+	})
+
+	t.Run("nil error omits error field", func(t *testing.T) {
+		result := CostResult{
+			ResourceType: "aws:ec2:Instance",
+			Currency:     "USD",
+			Monthly:      10.50,
+			Hourly:       0.014,
+		}
+
+		data, err := json.Marshal(result)
+		require.NoError(t, err)
+
+		jsonStr := string(data)
+		assert.NotContains(t, jsonStr, `"error"`)
+	})
+
+	t.Run("all error codes serialize correctly", func(t *testing.T) {
+		codes := []string{
+			ErrCodePluginError,
+			ErrCodeValidationError,
+			ErrCodeTimeoutError,
+			ErrCodeNoCostData,
+		}
+
+		for _, code := range codes {
+			result := CostResult{
+				ResourceType: "test:resource",
+				Currency:     "USD",
+				Error: &StructuredError{
+					Code:         code,
+					Message:      "test message",
+					ResourceType: "test:resource",
+				},
+			}
+
+			data, err := json.Marshal(result)
+			require.NoError(t, err)
+			assert.Contains(t, string(data), code)
+		}
+	})
+}
+
+// T007: Test error code constants have expected values.
+func TestErrorCodeConstants(t *testing.T) {
+	assert.Equal(t, "PLUGIN_ERROR", ErrCodePluginError)
+	assert.Equal(t, "VALIDATION_ERROR", ErrCodeValidationError)
+	assert.Equal(t, "TIMEOUT_ERROR", ErrCodeTimeoutError)
+	assert.Equal(t, "NO_COST_DATA", ErrCodeNoCostData)
+}

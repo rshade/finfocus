@@ -250,15 +250,14 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 
 	currency, mixedCurrencies := extractCurrencyFromResults(resultWithErrors.Results)
 
-	// Render budget status only for table format and when currencies are consistent
-	// T026: Call checkBudgetExit after renderBudgetIfConfigured
-	if !mixedCurrencies && params.output == outputFormatTable {
+	// Evaluate and render budget status when currencies are consistent
+	if !mixedCurrencies {
 		scopeFilter := getBudgetScopeFilter(cmd)
 
 		budgetResult, budgetErr := renderBudgetWithScope(
 			cmd, resultWithErrors.Results, totalCost, currency, scopeFilter)
 		if exitErr := checkBudgetExitFromResult(cmd, budgetResult, budgetErr); exitErr != nil {
-			log.Warn().Ctx(ctx).Err(exitErr).Msg("budget exit check returned error (non-fatal)")
+			return exitErr
 		}
 	}
 

@@ -55,7 +55,7 @@ func NewResourceRow(result engine.CostResult) ResourceRow {
 		TotalCost:           result.TotalCost,
 		Delta:               result.Delta,
 		Currency:            result.Currency,
-		HasError:            strings.HasPrefix(result.Notes, "ERROR:"),
+		HasError:            result.Error != nil || strings.HasPrefix(result.Notes, "ERROR:"),
 		ErrorMsg:            result.Notes,
 		RecommendationCount: len(result.Recommendations),
 	}
@@ -361,11 +361,15 @@ func RenderDetailView(resource engine.CostResult, width int) string {
 	renderRecommendationsSection(&content, resource.Recommendations)
 
 	// Notes/Errors.
-	if resource.Notes != "" {
+	if resource.Notes != "" || resource.Error != nil {
 		content.WriteString(HeaderStyle.Render("NOTES"))
 		content.WriteString("\n")
-		if strings.HasPrefix(resource.Notes, "ERROR:") {
-			content.WriteString(CriticalStyle.Render(resource.Notes))
+		if resource.Error != nil || strings.HasPrefix(resource.Notes, "ERROR:") {
+			errorMsg := resource.Notes
+			if resource.Error != nil {
+				errorMsg = resource.Error.Message
+			}
+			content.WriteString(CriticalStyle.Render(errorMsg))
 		} else {
 			content.WriteString(resource.Notes)
 		}

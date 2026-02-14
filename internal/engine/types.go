@@ -187,6 +187,24 @@ func (rs RecommendationStatus) String() string {
 	return string(rs)
 }
 
+// Error code constants for StructuredError. These are stable, additive-only
+// identifiers per FR-005 — existing codes will never be removed or renamed.
+const (
+	ErrCodePluginError     = "PLUGIN_ERROR"
+	ErrCodeValidationError = "VALIDATION_ERROR"
+	ErrCodeTimeoutError    = "TIMEOUT_ERROR"
+	ErrCodeNoCostData      = "NO_COST_DATA"
+)
+
+// StructuredError is a machine-readable error representation included in
+// JSON/NDJSON output so AI agents can programmatically categorize errors
+// without parsing the human-readable Notes field.
+type StructuredError struct {
+	Code         string `json:"code"`
+	Message      string `json:"message"`
+	ResourceType string `json:"resourceType"`
+}
+
 // CostResult contains the calculated cost information for a single resource.
 type CostResult struct {
 	ResourceType   string                          `json:"resourceType"`
@@ -202,6 +220,9 @@ type CostResult struct {
 	// This field is populated when plugins provide actionable recommendations
 	// alongside cost estimates (e.g., right-sizing, termination suggestions).
 	Recommendations []Recommendation `json:"recommendations,omitempty"`
+	// Error contains a machine-readable structured error for JSON/NDJSON output.
+	// When non-nil, the Notes field should not contain ERROR: or VALIDATION: prefixes.
+	Error *StructuredError `json:"error,omitempty"`
 	// Actual cost specific fields
 	TotalCost  float64   `json:"totalCost,omitempty"`
 	DailyCosts []float64 `json:"dailyCosts,omitempty"`

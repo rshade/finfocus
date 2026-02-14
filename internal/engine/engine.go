@@ -396,6 +396,11 @@ func (e *Engine) GetProjectedCost(
 						Monthly:      0,
 						Hourly:       0,
 						Notes:        "No pricing information available",
+						Error: &StructuredError{
+							Code:         ErrCodeNoCostData,
+							Message:      "No pricing information available",
+							ResourceType: resource.Type,
+						},
 					})
 				}
 			}
@@ -573,6 +578,11 @@ func (e *Engine) GetProjectedCostWithErrors(
 						Monthly:      0,
 						Hourly:       0,
 						Notes:        "No pricing information available",
+						Error: &StructuredError{
+							Code:         ErrCodeNoCostData,
+							Message:      "No pricing information available",
+							ResourceType: resource.Type,
+						},
 					})
 				}
 			}
@@ -1258,6 +1268,15 @@ func (e *Engine) getProjectedCostFromPlugin(
 			Notes:          result.Notes,
 			Breakdown:      result.CostBreakdown,
 			Sustainability: make(map[string]SustainabilityMetric),
+		}
+
+		// Map proto StructuredError to engine StructuredError
+		if result.StructuredError != nil {
+			engineResult.Error = &StructuredError{
+				Code:         result.StructuredError.Code,
+				Message:      result.StructuredError.Message,
+				ResourceType: result.StructuredError.ResourceType,
+			}
 		}
 
 		for k, v := range result.Sustainability {
