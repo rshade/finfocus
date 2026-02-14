@@ -431,3 +431,80 @@ func TestSelectPlugins_WildcardProvider(t *testing.T) {
 		assert.Equal(t, MatchReasonGlobal, m.MatchReason)
 	}
 }
+
+func TestSelectPlugins_InternalPulumiTypeFiltering(t *testing.T) {
+	ctx := context.Background()
+
+	awsClient := mockClient("aws-public", []string{"aws"})
+	globalClient := mockClient("recorder", []string{"*"})
+
+	router, err := NewRouter(WithClients([]*pluginhost.Client{awsClient, globalClient}))
+	require.NoError(t, err)
+
+	tests := []struct {
+		name        string
+		resource    engine.ResourceDescriptor
+		wantMatches int
+	}{
+		{
+			name:        "pulumi:pulumi:Stack is filtered out",
+			resource:    engine.ResourceDescriptor{Type: "pulumi:pulumi:Stack"},
+			wantMatches: 0,
+		},
+		{
+			name:        "pulumi:providers:aws is filtered out",
+			resource:    engine.ResourceDescriptor{Type: "pulumi:providers:aws"},
+			wantMatches: 0,
+		},
+		{
+			name:        "pulumi:providers:gcp is filtered out",
+			resource:    engine.ResourceDescriptor{Type: "pulumi:providers:gcp"},
+			wantMatches: 0,
+		},
+		{
+			name:        "real AWS resource still matches",
+			resource:    engine.ResourceDescriptor{Type: "aws:ec2/instance:Instance"},
+			wantMatches: 2, // aws-public + recorder
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			matches := router.SelectPlugins(ctx, tt.resource, "ProjectedCosts")
+			assert.Len(t, matches, tt.wantMatches)
+		})
+	}
+}
+
+func TestSelectPlugins_InternalPulumiTypeWithPatternOverride(t *testing.T) {
+	ctx := context.Background()
+
+	// Simulate a future "pulumi cost plugin" that declares a pattern for pulumi:* types
+	pulumiPlugin := mockClient("pulumi-costs", []string{})
+
+	cfg := &config.RoutingConfig{
+		Plugins: []config.PluginRouting{
+			{
+				Name:     "pulumi-costs",
+				Priority: 10,
+				Patterns: []config.ResourcePattern{
+					{Type: "glob", Pattern: "pulumi:*"},
+				},
+			},
+		},
+	}
+
+	router, err := NewRouter(
+		WithConfig(cfg),
+		WithClients([]*pluginhost.Client{pulumiPlugin}),
+	)
+	require.NoError(t, err)
+
+	// A declarative pattern should still match even for internal Pulumi types
+	resource := engine.ResourceDescriptor{Type: "pulumi:providers:aws"}
+	matches := router.SelectPlugins(ctx, resource, "ProjectedCosts")
+
+	require.Len(t, matches, 1)
+	assert.Equal(t, "pulumi-costs", matches[0].Client.Name)
+	assert.Equal(t, MatchReasonPattern, matches[0].MatchReason)
+}

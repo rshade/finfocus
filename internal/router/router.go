@@ -284,6 +284,22 @@ func (r *DefaultRouter) SelectPlugins(
 		}
 	}
 
+	// Internal Pulumi types (pulumi:providers:*, pulumi:pulumi:*) should not be
+	// routed to cost plugins via automatic matching. If a declarative pattern
+	// already matched (first pass), honor it — a future "pulumi cost plugin"
+	// can opt-in this way. Otherwise, skip the automatic pass entirely.
+	if IsInternalPulumiType(resource.Type) {
+		if len(matches) == 0 {
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "router").
+				Str("resource_type", resource.Type).
+				Msg("skipping internal Pulumi type (no declarative pattern match)")
+		}
+		sortByPriority(matches)
+		return matches
+	}
+
 	// Second pass: automatic provider-based matching for plugins without patterns
 	for _, client := range r.clients {
 		// Skip if already matched by pattern
