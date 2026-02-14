@@ -148,11 +148,9 @@ type CostFlags struct {
 	ExitOnThreshold bool
 	ExitCode        int
 	BudgetScope     string // Filter which budget scopes to display (T025)
+	Stack           string // Pulumi stack name for auto-detection
 }
 
-// newCostCmd creates the cost command group with projected, actual, and recommendations subcommands.
-// It also adds persistent flags for budget exit code configuration (Issue #219).
-//
 // newCostCmd creates the "cost" command group with persistent flags, budget-related overrides, validation, and subcommands.
 //
 // The returned *cobra.Command includes persistent flags for budget behavior (--exit-on-threshold, --exit-code, --budget-scope)
@@ -226,7 +224,7 @@ func newCostCmd() *cobra.Command {
 		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
 
 	// Add persistent flag for Pulumi stack selection during auto-detection
-	cmd.PersistentFlags().String("stack", "",
+	cmd.PersistentFlags().StringVar(&flags.Stack, "stack", "",
 		"Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state)")
 
 	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd(), NewCostEstimateCmd())

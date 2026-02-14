@@ -293,7 +293,11 @@ func resolveResourcesFromPulumi(
 			return nil, fmt.Errorf("parsing Pulumi preview output: %w", parseErr)
 		}
 
-		return ingest.MapResources(plan.GetResourcesWithContext(ctx))
+		resources, mapErr := ingest.MapResources(plan.GetResourcesWithContext(ctx))
+		if mapErr != nil {
+			return nil, fmt.Errorf("mapping preview resources: %w", mapErr)
+		}
+		return resources, nil
 
 	case modePulumiExport:
 		log.Info().Ctx(ctx).Str("component", "pulumi").
@@ -313,7 +317,11 @@ func resolveResourcesFromPulumi(
 		}
 
 		customResources := state.GetCustomResourcesWithContext(ctx)
-		return ingest.MapStateResources(customResources)
+		resources, mapErr := ingest.MapStateResources(customResources)
+		if mapErr != nil {
+			return nil, fmt.Errorf("mapping state resources: %w", mapErr)
+		}
+		return resources, nil
 
 	default:
 		return nil, fmt.Errorf("unsupported Pulumi mode: %s", mode)
