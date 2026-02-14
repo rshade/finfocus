@@ -1022,6 +1022,8 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
+- Go 1.25.7 + cobra (CLI), os/filepath/runtime (platform detection), pkg/version (version info) (590-analyzer-install)
+- Filesystem only (symlinks on Unix, file copies on Windows) (590-analyzer-install)
 
 - Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol):
   - zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)
