@@ -109,8 +109,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 2. Load Pulumi state and plan (from files or auto-detect)
 	stateResources, planSteps, stackName, err := resolveOverviewData(ctx, params)
 	if err != nil {
-		audit.logFailure(ctx, err)
-		return err
+		wrappedErr := fmt.Errorf("resolve overview data: %w", err)
+		audit.logFailure(ctx, wrappedErr)
+		return wrappedErr
 	}
 
 	// 3. Detect pending changes
