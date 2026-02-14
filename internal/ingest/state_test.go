@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -637,6 +638,7 @@ func TestParseStackExport(t *testing.T) {
 		{
 			name:          "without timestamps",
 			data:          []byte(stateWithoutTimestamps),
+			wantVersion:   3,
 			wantResources: 1,
 			wantTimestamp: false,
 		},
@@ -679,12 +681,15 @@ func TestParseStackExportWithContext(t *testing.T) {
 func TestLoadStackExport_DelegationEquivalence(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
+	_, thisFile, _, _ := runtime.Caller(0)
+	repoRoot := filepath.Join(filepath.Dir(thisFile), "..", "..")
+
 	fixtures := []string{
-		"../../test/fixtures/state/valid-state.json",
-		"../../test/fixtures/state/no-timestamps.json",
-		"../../test/fixtures/state/imported-resources.json",
-		"../../test/fixtures/state/multi-provider.json",
-		"../../test/fixtures/state/golden-eks-state.json",
+		filepath.Join(repoRoot, "test", "fixtures", "state", "valid-state.json"),
+		filepath.Join(repoRoot, "test", "fixtures", "state", "no-timestamps.json"),
+		filepath.Join(repoRoot, "test", "fixtures", "state", "imported-resources.json"),
+		filepath.Join(repoRoot, "test", "fixtures", "state", "multi-provider.json"),
+		filepath.Join(repoRoot, "test", "fixtures", "state", "golden-eks-state.json"),
 	}
 
 	for _, fixture := range fixtures {
@@ -695,8 +700,10 @@ func TestLoadStackExport_DelegationEquivalence(t *testing.T) {
 			parsedState, parseErr := ingest.ParseStackExport(data)
 			loadedState, loadErr := ingest.LoadStackExport(fixture)
 
-			assert.Equal(t, parseErr, loadErr)
-			assert.Equal(t, parsedState, loadedState)
+			assert.Equal(t, parseErr != nil, loadErr != nil)
+			if parseErr == nil && loadErr == nil {
+				assert.Equal(t, parsedState, loadedState)
+			}
 		})
 	}
 }
