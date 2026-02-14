@@ -47,6 +47,11 @@ func NewResourceRow(result engine.CostResult) ResourceRow {
 	}
 	provider := extractProvider(result.ResourceType)
 
+	errorMsg := result.Notes
+	if result.Error != nil && result.Error.Message != "" {
+		errorMsg = result.Error.Message
+	}
+
 	return ResourceRow{
 		ResourceName:        name,
 		ResourceType:        result.ResourceType,
@@ -56,7 +61,7 @@ func NewResourceRow(result engine.CostResult) ResourceRow {
 		Delta:               result.Delta,
 		Currency:            result.Currency,
 		HasError:            result.Error != nil || strings.HasPrefix(result.Notes, "ERROR:"),
-		ErrorMsg:            result.Notes,
+		ErrorMsg:            errorMsg,
 		RecommendationCount: len(result.Recommendations),
 	}
 }

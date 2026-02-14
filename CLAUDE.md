@@ -1027,9 +1027,12 @@ type StructuredError struct {
 }
 ```
 
-When `CostResult.Error` is non-nil, the `Notes` field contains the raw error message
-without `ERROR:` or `VALIDATION:` prefixes. Error detection in table/overview code
-checks `result.Error != nil` in addition to prefix-based checks for backward compatibility.
+When `CostResult.Error` is non-nil, callers should prefer the structured `Error` field
+for programmatic error handling. The `Notes` field may still contain legacy `ERROR:` or
+`VALIDATION:` prefixes for backward compatibility with table/overview rendering (the
+adapter in `internal/proto/adapter.go` populates both fields). Error detection in
+table/overview code checks `result.Error != nil` in addition to prefix-based checks
+to support both structured and legacy error consumption.
 
 ## CodeRabbit Configuration
 

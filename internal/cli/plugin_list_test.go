@@ -180,6 +180,10 @@ func TestPluginListCmd_JSONOutput_NoPlugins(t *testing.T) {
 // T013: Test that --output json produces valid JSON array.
 func TestPluginListCmd_JSONOutput_ValidJSON(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	// Use a controlled temp directory so the test is deterministic
+	// regardless of the host's installed plugins.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+
 	var buf bytes.Buffer
 	cmd := cli.NewPluginListCmd()
 	cmd.SetOut(&buf)
@@ -193,12 +197,8 @@ func TestPluginListCmd_JSONOutput_ValidJSON(t *testing.T) {
 	var entries []cli.PluginJSONEntry
 	require.NoError(t, json.Unmarshal([]byte(output), &entries), "output should be valid JSON array")
 
-	// Each entry should have required fields populated
-	for _, entry := range entries {
-		assert.NotEmpty(t, entry.Name, "name is required")
-		assert.NotEmpty(t, entry.Version, "version is required")
-		assert.NotEmpty(t, entry.Path, "path is required")
-	}
+	// With an empty FINFOCUS_HOME, no plugins should be found.
+	assert.Empty(t, entries, "empty FINFOCUS_HOME should produce no entries")
 }
 
 // T013: Test that invalid --output value returns an error.

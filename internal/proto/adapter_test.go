@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/awsutil"
@@ -3208,6 +3210,30 @@ func TestGetProjectedCostWithErrors_StructuredError_Timeout(t *testing.T) {
 	assert.Equal(t, ErrCodeTimeoutError, result.Results[0].StructuredError.Code)
 }
 
+// T008: Test that TIMEOUT_ERROR is set for gRPC status-wrapped deadline errors.
+func TestGetProjectedCostWithErrors_StructuredError_GRPCTimeout(t *testing.T) {
+	ctx := context.Background()
+	client := &mockCostSourceClient{
+		getProjectedFunc: func(_ context.Context, _ *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
+			return nil, status.Error(codes.DeadlineExceeded, "deadline exceeded")
+		},
+	}
+
+	resources := []*ResourceDescriptor{
+		{
+			ID: "res-1", Type: "aws:ec2/instance:Instance", Provider: "aws",
+			Properties: map[string]string{"instanceType": "t3.micro", "region": "us-east-1"},
+		},
+	}
+
+	result := GetProjectedCostWithErrors(ctx, client, "test-plugin", resources)
+
+	require.Len(t, result.Results, 1)
+	require.NotNil(t, result.Results[0].StructuredError)
+	assert.Equal(t, ErrCodeTimeoutError, result.Results[0].StructuredError.Code,
+		"gRPC status-wrapped deadline should be classified as TIMEOUT_ERROR")
+}
+
 // T008: Test StructuredError for actual cost validation failure.
 func TestGetActualCostWithErrors_StructuredError_Validation(t *testing.T) {
 	ctx := context.Background()
@@ -3250,4 +3276,29 @@ func TestGetActualCostWithErrors_StructuredError_PluginError(t *testing.T) {
 	require.NotNil(t, result.Results[0].StructuredError)
 	assert.Equal(t, ErrCodePluginError, result.Results[0].StructuredError.Code)
 	assert.Contains(t, result.Results[0].StructuredError.Message, "network error")
+}
+
+// T008: Test that TIMEOUT_ERROR is set for gRPC status-wrapped deadline errors in actual cost path.
+func TestGetActualCostWithErrors_StructuredError_GRPCTimeout(t *testing.T) {
+	ctx := context.Background()
+	client := &mockCostSourceClient{
+		getActualFunc: func(_ context.Context, _ *GetActualCostRequest, _ ...grpc.CallOption) (*GetActualCostResponse, error) {
+			return nil, status.Error(codes.DeadlineExceeded, "deadline exceeded")
+		},
+	}
+
+	req := &GetActualCostRequest{
+		ResourceIDs:  []string{"i-12345"},
+		StartTime:    time.Now().Add(-24 * time.Hour).Unix(),
+		EndTime:      time.Now().Unix(),
+		ResourceType: "aws:ec2/instance:Instance",
+	}
+
+	result := GetActualCostWithErrors(ctx, client, "test-plugin", req)
+
+	require.Len(t, result.Results, 1)
+	require.NotNil(t, result.Results[0].StructuredError)
+	assert.Equal(t, ErrCodeTimeoutError, result.Results[0].StructuredError.Code,
+		"gRPC status-wrapped deadline should be classified as TIMEOUT_ERROR")
+	assert.Contains(t, result.Results[0].StructuredError.Message, "deadline exceeded")
 }

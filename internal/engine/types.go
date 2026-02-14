@@ -221,7 +221,9 @@ type CostResult struct {
 	// alongside cost estimates (e.g., right-sizing, termination suggestions).
 	Recommendations []Recommendation `json:"recommendations,omitempty"`
 	// Error contains a machine-readable structured error for JSON/NDJSON output.
-	// When non-nil, the Notes field should not contain ERROR: or VALIDATION: prefixes.
+	// When non-nil, callers should prefer this structured error for programmatic
+	// handling. The Notes field may still contain ERROR: or VALIDATION: prefixes
+	// for backward compatibility (see internal/proto/adapter.go).
 	Error *StructuredError `json:"error,omitempty"`
 	// Actual cost specific fields
 	TotalCost  float64   `json:"totalCost,omitempty"`

@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -157,7 +159,7 @@ func GetProjectedCostWithErrors(
 		if err != nil {
 			// Determine error code: timeout vs generic plugin error
 			errCode := ErrCodePluginError
-			if errors.Is(err, context.DeadlineExceeded) {
+			if errors.Is(err, context.DeadlineExceeded) || status.Code(err) == codes.DeadlineExceeded {
 				errCode = ErrCodeTimeoutError
 			}
 
@@ -289,7 +291,7 @@ func recordActualCostPluginError(
 ) {
 	// Determine error code: timeout vs generic plugin error
 	errCode := ErrCodePluginError
-	if errors.Is(pluginErr, context.DeadlineExceeded) {
+	if errors.Is(pluginErr, context.DeadlineExceeded) || status.Code(pluginErr) == codes.DeadlineExceeded {
 		errCode = ErrCodeTimeoutError
 	}
 
@@ -456,9 +458,9 @@ const (
 // StructuredError is a machine-readable error representation that accompanies
 // CostResult entries produced by error paths (validation, plugin, timeout).
 type StructuredError struct {
-	Code         string
-	Message      string
-	ResourceType string
+	Code         string `json:"code"`
+	Message      string `json:"message"`
+	ResourceType string `json:"resourceType"`
 }
 
 // CostResult represents the calculated cost information for a single resource.
@@ -470,7 +472,7 @@ type CostResult struct {
 	Notes           string
 	CostBreakdown   map[string]float64
 	Sustainability  map[string]SustainabilityMetric
-	StructuredError *StructuredError
+	StructuredError *StructuredError `json:"structuredError,omitempty"`
 }
 
 // SustainabilityMetric represents a single sustainability impact measurement.

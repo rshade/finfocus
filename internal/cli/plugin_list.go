@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -53,6 +54,9 @@ func NewPluginListCmd() *cobra.Command {
 				return fmt.Errorf("unsupported output format: %s (supported: table, json)", output)
 			}
 			if available {
+				if output == outputFormatJSON {
+					return errors.New("--output json is not supported with --available")
+				}
 				return runPluginListAvailable(cmd)
 			}
 			return runPluginListCmd(cmd, verbose, output)
@@ -413,14 +417,22 @@ type PluginJSONEntry struct {
 func renderPluginsJSON(w io.Writer, plugins []enrichedPluginInfo) error {
 	entries := make([]PluginJSONEntry, 0, len(plugins))
 	for _, p := range plugins {
+		providers := p.SupportedProviders
+		if providers == nil {
+			providers = []string{}
+		}
+		capabilities := p.Capabilities
+		if capabilities == nil {
+			capabilities = []string{}
+		}
 		entries = append(entries, PluginJSONEntry{
 			Name:               p.Name,
 			Version:            p.displayVersion(),
 			Path:               p.Path,
 			SpecVersion:        p.SpecVersion,
 			RuntimeVersion:     p.RuntimeVersion,
-			SupportedProviders: p.SupportedProviders,
-			Capabilities:       p.Capabilities,
+			SupportedProviders: providers,
+			Capabilities:       capabilities,
 			Notes:              p.Notes,
 		})
 	}

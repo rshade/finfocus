@@ -62,12 +62,13 @@ func run() error {
 
 // extractBudgetExitCode returns the custom exit code from a BudgetExitError,
 // or 1 for non-budget errors, or 0 for nil errors.
+// Invariant: when err is non-nil the returned code is always >= 1.
 func extractBudgetExitCode(err error) int {
 	if err == nil {
 		return 0
 	}
 	var budgetErr *cli.BudgetExitError
-	if errors.As(err, &budgetErr) {
+	if errors.As(err, &budgetErr) && budgetErr.ExitCode != 0 {
 		return budgetErr.ExitCode
 	}
 	return 1
