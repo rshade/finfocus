@@ -224,7 +224,8 @@ func loadOverviewFromAutoDetect(
 	}
 
 	// Run pulumi stack export
-	log.Info().Ctx(ctx).Str("component", "pulumi").Msg("Running pulumi stack export...")
+	log.Info().Ctx(ctx).Str("component", "pulumi").Str("operation", "stack_export").
+		Msg("Running pulumi stack export...")
 	exportData, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
 		ProjectDir: projectDir,
 		Stack:      resolvedStack,
@@ -261,7 +262,7 @@ func resolveOverviewPlan(
 		return convertPlanSteps(plan.Steps), nil
 	}
 
-	log.Info().Ctx(ctx).Str("component", "pulumi").
+	log.Info().Ctx(ctx).Str("component", "pulumi").Str("operation", "preview").
 		Msg("Running pulumi preview --json (this may take a moment)...")
 	previewData, err := pulumidetect.Preview(ctx, pulumidetect.PreviewOptions{
 		ProjectDir: projectDir,

@@ -118,6 +118,9 @@ func GetProjectedCostWithErrors(
 			// Log validation failure at WARN level with context
 			log := logging.FromContext(ctx)
 			log.Warn().
+				Ctx(ctx).
+				Str("component", "adapter").
+				Str("operation", "GetProjectedCostWithErrors").
 				Str("resource_type", resource.Type).
 				Err(err).
 				Msg("pre-flight validation failed")
@@ -229,6 +232,9 @@ func recordActualCostValidationError(
 ) {
 	log := logging.FromContext(ctx)
 	log.Warn().
+		Ctx(ctx).
+		Str("component", "adapter").
+		Str("operation", "GetActualCostWithErrors").
 		Str("resource_type", resourceType).
 		Str("resource_id", resourceID).
 		Str("cloud_id", cloudID).
