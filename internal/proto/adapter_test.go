@@ -3065,3 +3065,33 @@ func (m *mockPbcCostSourceServiceClient) GetBudgets(
 ) (*pbc.GetBudgetsResponse, error) {
 	return &pbc.GetBudgetsResponse{}, nil
 }
+
+func TestAppendActualCostResults_DeepCopy(t *testing.T) {
+	// Arrange
+	originalBreakdown := map[string]float64{
+		"Compute": 100.0,
+		"Storage": 50.0,
+	}
+	actualResults := []*ActualCostResult{
+		{
+			Currency:      "USD",
+			TotalCost:     150.0,
+			CostBreakdown: originalBreakdown,
+		},
+	}
+	result := &CostResultWithErrors{
+		Results: []*CostResult{},
+	}
+
+	// Act
+	appendActualCostResults(result, actualResults)
+
+	// Assert
+	assert.Len(t, result.Results, 1)
+
+	// Mutate the result's breakdown
+	result.Results[0].CostBreakdown["Compute"] = 999.0
+
+	// Verify the original was NOT mutated
+	assert.Equal(t, 100.0, originalBreakdown["Compute"], "Original CostBreakdown should not be mutated")
+}
