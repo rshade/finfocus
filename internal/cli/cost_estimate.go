@@ -353,7 +353,8 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 	}
 
 	// Get spec directory
-	specDir := config.New().SpecDir
+	cfg := config.New()
+	specDir := cfg.SpecDir
 
 	// Open plugins
 	clients, cleanup, err := openPlugins(ctx, params.Adapter, nil)
@@ -369,7 +370,7 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 
 	// Create engine and estimate
 	eng := engine.New(clients, spec.NewLoader(specDir)).
-		WithRouter(createRouterForEngine(ctx, clients))
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 	request := &engine.EstimateRequest{
 		Resource:          resource,
 		PropertyOverrides: overrides,
@@ -390,8 +391,9 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 // cost estimates for each applicable resource, and renders a combined result to the command output.
 //
 // Parameters:
-//   cmd - the Cobra command used to obtain execution context and output writers.
-//   params - command-line parameters controlling plan path, modifications, adapter selection, and output format.
+//
+//	cmd - the Cobra command used to obtain execution context and output writers.
+//	params - command-line parameters controlling plan path, modifications, adapter selection, and output format.
 //
 // Behavior notes:
 //   - If no resources are found in the plan, the function prints "No resources found in plan" and returns nil.
@@ -399,8 +401,9 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 //   - If plugin clients cannot be opened, the function falls back to a spec-based estimation mode.
 //
 // Returns:
-//   An error if parsing modifications, loading resources, performing estimations, or rendering results fails;
-//   nil on successful completion (including the case of an empty plan).
+//
+//	An error if parsing modifications, loading resources, performing estimations, or rendering results fails;
+//	nil on successful completion (including the case of an empty plan).
 func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -428,7 +431,8 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams) err
 	}
 
 	// Get spec directory
-	specDir := config.New().SpecDir
+	cfg := config.New()
+	specDir := cfg.SpecDir
 
 	// Open plugins
 	clients, cleanup, err := openPlugins(ctx, params.Adapter, nil)
@@ -443,7 +447,7 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams) err
 
 	// Create engine
 	eng := engine.New(clients, spec.NewLoader(specDir)).
-		WithRouter(createRouterForEngine(ctx, clients))
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 
 	// Process each resource with modifications
 	var results []*engine.EstimateResult
@@ -770,7 +774,8 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams) e
 	}
 
 	// Get spec directory and create engine
-	specDir := config.New().SpecDir
+	cfg := config.New()
+	specDir := cfg.SpecDir
 	clients, cleanup, err := openPlugins(ctx, params.Adapter, nil)
 	// IMPORTANT: Register cleanup immediately before any error handling to prevent resource leaks
 	if cleanup != nil {
@@ -782,7 +787,7 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams) e
 	}
 
 	eng := engine.New(clients, spec.NewLoader(specDir)).
-		WithRouter(createRouterForEngine(ctx, clients))
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 
 	// Create a recalculation callback for the TUI
 	recalculateFn := func(

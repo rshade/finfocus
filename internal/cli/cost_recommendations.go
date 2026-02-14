@@ -176,9 +176,9 @@ Valid action types for filtering:
 // sorting, and pagination, then renders the results and records audit metadata.
 //
 // Parameters:
-//  - cmd: the Cobra command providing context and I/O streams for progress and output.
-//  - params: command parameters controlling input path, adapter selection, output format,
-//    filtering, verbosity, pagination, sorting, and whether to include dismissed records.
+//   - cmd: the Cobra command providing context and I/O streams for progress and output.
+//   - params: command parameters controlling input path, adapter selection, output format,
+//     filtering, verbosity, pagination, sorting, and whether to include dismissed records.
 //
 // The function returns an error when any required step fails, for example: loading or mapping
 // resources, opening plugins, initializing or using the engine to fetch recommendations,
@@ -255,7 +255,7 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 
 	// Create engine with optional cache
 	eng := engine.New(clients, nil).
-		WithRouter(createRouterForEngine(ctx, clients))
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 	if cacheStore != nil && cacheStore.IsEnabled() {
 		eng = eng.WithCache(cacheStore)
 	}

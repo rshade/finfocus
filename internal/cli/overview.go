@@ -13,6 +13,7 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
@@ -148,8 +149,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	defer cleanup()
 
 	// 8. Create engine
+	cfg := config.New()
 	eng := engine.New(clients, nil).
-		WithRouter(createRouterForEngine(ctx, clients))
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 
 	// 9. Determine if we should use interactive TUI or plain text
 	isInteractive := shouldUseInteractiveTUI(cmd.OutOrStdout(), params.output, params.plain)

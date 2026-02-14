@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
@@ -428,17 +429,17 @@ func TestBuildAltIDIndex(t *testing.T) {
 	assert.False(t, hasRole, "URN should not appear as alt ID")
 }
 
-func TestCreateRouterForEngine_NilRoutingConfig(t *testing.T) {
-	// With no config file present (default), cfg.Routing is nil → returns nil.
+func TestCreateRouterForEngine_NilConfig(t *testing.T) {
+	// Passing a nil cfg should return nil without panicking.
 	ctx := context.Background()
-	result := createRouterForEngine(ctx, nil)
-	assert.Nil(t, result, "nil routing config should return nil router")
+	result := createRouterForEngine(ctx, nil, nil)
+	assert.Nil(t, result, "nil config should return nil router")
 }
 
 func TestCreateRouterForEngine_EmptyClients(t *testing.T) {
-	// Even without clients, if no routing config exists, return nil.
+	// A config with no routing section should return nil regardless of clients.
 	ctx := context.Background()
-	result := createRouterForEngine(ctx, []*pluginhost.Client{})
+	result := createRouterForEngine(ctx, &config.Config{}, []*pluginhost.Client{})
 	assert.Nil(t, result, "no routing config should return nil regardless of clients")
 }
 
@@ -447,7 +448,23 @@ func BenchmarkCreateRouterForEngine(b *testing.B) {
 	clients := []*pluginhost.Client{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = createRouterForEngine(ctx, clients)
+		_ = createRouterForEngine(ctx, nil, clients)
+	}
+}
+
+func BenchmarkCreateRouterForEngine_WithConfig(b *testing.B) {
+	ctx := context.Background()
+	cfg := &config.Config{
+		Routing: &config.RoutingConfig{
+			Plugins: []config.PluginRouting{
+				{Name: "test-plugin", Priority: 10},
+			},
+		},
+	}
+	clients := []*pluginhost.Client{}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = createRouterForEngine(ctx, cfg, clients)
 	}
 }
 
@@ -463,14 +480,20 @@ func TestLoadAndMapResources_NilAudit_NoPanic(t *testing.T) {
 func TestOpenPlugins_NilAudit_NoPanic(t *testing.T) {
 	ctx := context.Background()
 
+	var clients []*pluginhost.Client
+	var cleanup func()
+	var err error
+
 	assert.NotPanics(t, func() {
-		clients, cleanup, err := openPlugins(ctx, "__nonexistent_adapter__", nil)
-		if err != nil {
-			assert.Nil(t, clients)
-			assert.Nil(t, cleanup)
-			return
-		}
+		clients, cleanup, err = openPlugins(ctx, "__nonexistent_adapter__", nil)
+	})
+
+	if err != nil {
+		assert.Nil(t, clients)
+		assert.Nil(t, cleanup)
+	} else {
+		// Registry may return 0 plugins without error; verify cleanup is safe.
 		require.NotNil(t, cleanup)
 		cleanup()
-	})
+	}
 }

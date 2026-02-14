@@ -22,8 +22,12 @@ func TestEngineAdapter_SelectPlugins(t *testing.T) {
 		wantSources    []string
 	}{
 		{
-			name:    "empty matches returns empty slice",
-			matches: []PluginMatch{},
+			name:           "empty matches returns empty slice",
+			matches:        []PluginMatch{},
+			wantReasons:    []string{},
+			wantPriorities: []int{},
+			wantFallbacks:  []bool{},
+			wantSources:    []string{},
 		},
 		{
 			name: "automatic match reason converts correctly",
@@ -132,18 +136,10 @@ func TestEngineAdapter_SelectPlugins(t *testing.T) {
 
 			require.Len(t, result, len(tt.matches))
 			for i, m := range result {
-				if i < len(tt.wantReasons) {
-					assert.Equal(t, tt.wantReasons[i], m.MatchReason, "MatchReason mismatch at index %d", i)
-				}
-				if i < len(tt.wantPriorities) {
-					assert.Equal(t, tt.wantPriorities[i], m.Priority, "Priority mismatch at index %d", i)
-				}
-				if i < len(tt.wantFallbacks) {
-					assert.Equal(t, tt.wantFallbacks[i], m.Fallback, "Fallback mismatch at index %d", i)
-				}
-				if i < len(tt.wantSources) {
-					assert.Equal(t, tt.wantSources[i], m.Source, "Source mismatch at index %d", i)
-				}
+				assert.Equal(t, tt.wantReasons[i], m.MatchReason, "MatchReason mismatch at index %d", i)
+				assert.Equal(t, tt.wantPriorities[i], m.Priority, "Priority mismatch at index %d", i)
+				assert.Equal(t, tt.wantFallbacks[i], m.Fallback, "Fallback mismatch at index %d", i)
+				assert.Equal(t, tt.wantSources[i], m.Source, "Source mismatch at index %d", i)
 				assert.Equal(t, tt.matches[i].Client, m.Client, "Client mismatch at index %d", i)
 			}
 		})
@@ -282,6 +278,11 @@ func TestEngineAdapter_MatchReasonNoMatch_EdgeCase(t *testing.T) {
 	matches := adapter.SelectPlugins(ctx, engine.ResourceDescriptor{Type: "unknown:resource"}, "")
 	require.Len(t, matches, 1)
 	assert.Equal(t, "no_match", matches[0].MatchReason)
+}
+
+func TestNewEngineAdapter_NilRouter(t *testing.T) {
+	adapter := NewEngineAdapter(nil)
+	assert.Nil(t, adapter, "NewEngineAdapter(nil) should return nil")
 }
 
 // stubRouter is a test double for router.Router.

@@ -311,8 +311,9 @@ func createDismissEngine(
 		return nil, nil, fmt.Errorf("opening plugins: %w", err)
 	}
 
+	cfg := config.New()
 	return engine.New(clients, nil).
-		WithRouter(createRouterForEngine(ctx, clients)), cleanup, nil
+		WithRouter(createRouterForEngine(ctx, cfg, clients)), cleanup, nil
 }
 
 // parseSnoozeDate parses a date string supporting both YYYY-MM-DD and RFC3339 formats.

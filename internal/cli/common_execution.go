@@ -60,6 +60,7 @@ func (a *auditContext) logSuccess(ctx context.Context, count int, cost float64) 
 //   - ctx: context for cancellation and logging.
 //   - planPath: filesystem path to the Pulumi plan to load.
 //   - audit: optional auditContext used to record failures; may be nil.
+//
 // Returns the slice of mapped ResourceDescriptor on success, or an error describing the failure.
 func loadAndMapResources(
 	ctx context.Context,
@@ -102,14 +103,14 @@ func loadAndMapResources(
 // If plugin opening fails the error is logged and, if audit is non-nil, recorded via audit.logFailure.
 //
 // Parameters:
-//  - ctx: context for plugin operations and logging.
-//  - adapter: name of the plugin adapter to open.
-//  - audit: optional audit context used to record failures; may be nil.
+//   - ctx: context for plugin operations and logging.
+//   - adapter: name of the plugin adapter to open.
+//   - audit: optional audit context used to record failures; may be nil.
 //
 // Returns:
-//  - []*pluginhost.Client: slice of opened plugin clients (nil on error).
-//  - func(): cleanup function to release plugin resources (never nil).
-//  - error: non-nil if opening plugins failed.
+//   - []*pluginhost.Client: slice of opened plugin clients (nil on error).
+//   - func(): cleanup function to release plugin resources (never nil).
+//   - error: non-nil if opening plugins failed.
 func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*pluginhost.Client, func(), error) {
 	log := logging.FromContext(ctx)
 
@@ -388,20 +389,18 @@ func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
 }
 
 // createRouterForEngine creates an engine.Router from the user's routing
-// configuration. It returns nil when no routing config exists (cfg.Routing is
-// nil) or when router creation fails (logged at WARN level). A nil return is
-// safe: engine.WithRouter(nil) preserves the default "query all plugins"
-// createRouterForEngine creates an engine.Router backed by the configured router.
-// If the routing configuration is not set or router creation fails, it returns nil.
-// The returned router adapts the created router into an engine.Router via router.NewEngineAdapter.
+// configuration. It returns nil when cfg is nil, cfg.Routing is nil, or when
+// router creation fails (logged at WARN level). A nil return is safe:
+// engine.WithRouter(nil) preserves the default "query all plugins" behaviour.
 //
 // ctx is used for logging and cancellation.
+// cfg is the application config; callers that already hold one should pass it to
+// avoid a redundant config.New() call.
 // clients are plugin host clients supplied to the router builder.
-func createRouterForEngine(ctx context.Context, clients []*pluginhost.Client) engine.Router {
+func createRouterForEngine(ctx context.Context, cfg *config.Config, clients []*pluginhost.Client) engine.Router {
 	log := logging.FromContext(ctx)
 
-	cfg := config.New()
-	if cfg.Routing == nil {
+	if cfg == nil || cfg.Routing == nil {
 		return nil
 	}
 

@@ -127,7 +127,7 @@ func RunAnalyzerServe(cmd *cobra.Command) error {
 
 	// Create the cost calculation engine
 	eng := engine.New(clients, specLoader).
-		WithRouter(createRouterForEngine(ctx, clients))
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
 
 	// Create the analyzer server
 	// Use the version from the command's root if available
