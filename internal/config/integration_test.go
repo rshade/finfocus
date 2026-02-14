@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -153,6 +154,8 @@ func TestGetSpecDir(t *testing.T) {
 }
 
 func TestInitGlobalConfigWithProject(t *testing.T) {
+	ctx := context.Background()
+
 	t.Run("project_config_overrides_global_budget", func(t *testing.T) {
 		ResetGlobalConfigForTest()
 		t.Cleanup(func() { ResetGlobalConfigForTest() })
@@ -168,20 +171,20 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
       amount: 10000
       currency: USD
 `
-		require.NoError(t, os.WriteFile(filepath.Join(globalDir, "config.yaml"), []byte(globalCfg), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(globalDir, "config.yaml"), []byte(globalCfg), 0o644))
 
 		// Set up project directory with a budget override.
 		projectDir := filepath.Join(t.TempDir(), ".finfocus")
-		require.NoError(t, os.MkdirAll(projectDir, 0755))
+		require.NoError(t, os.MkdirAll(projectDir, 0o755))
 		projectCfg := `cost:
   budgets:
     global:
       amount: 5000
       currency: USD
 `
-		require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0o644))
 
-		InitGlobalConfigWithProject(projectDir)
+		InitGlobalConfigWithProject(ctx, projectDir)
 		cfg := GetGlobalConfig()
 
 		require.NotNil(t, cfg)
@@ -204,20 +207,20 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
   default_format: json
   precision: 4
 `
-		require.NoError(t, os.WriteFile(filepath.Join(globalDir, "config.yaml"), []byte(globalCfg), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(globalDir, "config.yaml"), []byte(globalCfg), 0o644))
 
 		// Project only overrides budget, not output.
 		projectDir := filepath.Join(t.TempDir(), ".finfocus")
-		require.NoError(t, os.MkdirAll(projectDir, 0755))
+		require.NoError(t, os.MkdirAll(projectDir, 0o755))
 		projectCfg := `cost:
   budgets:
     global:
       amount: 5000
       currency: USD
 `
-		require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0o644))
 
-		InitGlobalConfigWithProject(projectDir)
+		InitGlobalConfigWithProject(ctx, projectDir)
 		cfg := GetGlobalConfig()
 
 		require.NotNil(t, cfg)
@@ -240,7 +243,7 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
 		t.Setenv("PULUMI_HOME", "")
 
 		// Initialize with empty project dir.
-		InitGlobalConfigWithProject("")
+		InitGlobalConfigWithProject(ctx, "")
 		cfgWithEmpty := GetGlobalConfig()
 		require.NotNil(t, cfgWithEmpty)
 
@@ -260,25 +263,25 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
 	t.Run("two_projects_load_independent_configs", func(t *testing.T) {
 		// Project A: budget 3000.
 		projectDirA := filepath.Join(t.TempDir(), ".finfocus")
-		require.NoError(t, os.MkdirAll(projectDirA, 0755))
+		require.NoError(t, os.MkdirAll(projectDirA, 0o755))
 		projectCfgA := `cost:
   budgets:
     global:
       amount: 3000
       currency: USD
 `
-		require.NoError(t, os.WriteFile(filepath.Join(projectDirA, "config.yaml"), []byte(projectCfgA), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(projectDirA, "config.yaml"), []byte(projectCfgA), 0o644))
 
 		// Project B: budget 7000.
 		projectDirB := filepath.Join(t.TempDir(), ".finfocus")
-		require.NoError(t, os.MkdirAll(projectDirB, 0755))
+		require.NoError(t, os.MkdirAll(projectDirB, 0o755))
 		projectCfgB := `cost:
   budgets:
     global:
       amount: 7000
       currency: USD
 `
-		require.NoError(t, os.WriteFile(filepath.Join(projectDirB, "config.yaml"), []byte(projectCfgB), 0644))
+		require.NoError(t, os.WriteFile(filepath.Join(projectDirB, "config.yaml"), []byte(projectCfgB), 0o644))
 
 		globalDir := t.TempDir()
 		t.Setenv("FINFOCUS_HOME", globalDir)
@@ -286,7 +289,7 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
 
 		// Init with project A and verify.
 		ResetGlobalConfigForTest()
-		InitGlobalConfigWithProject(projectDirA)
+		InitGlobalConfigWithProject(ctx, projectDirA)
 		cfgA := GetGlobalConfig()
 		require.NotNil(t, cfgA)
 		require.NotNil(t, cfgA.Cost.Budgets)
@@ -296,7 +299,7 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
 
 		// Reset and init with project B and verify.
 		ResetGlobalConfigForTest()
-		InitGlobalConfigWithProject(projectDirB)
+		InitGlobalConfigWithProject(ctx, projectDirB)
 		cfgB := GetGlobalConfig()
 		require.NotNil(t, cfgB)
 		require.NotNil(t, cfgB.Cost.Budgets)

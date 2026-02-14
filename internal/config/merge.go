@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
@@ -36,6 +37,10 @@ var knownTopLevelKeys = map[string]bool{
 // the target Config. Keys present in the overlay replace entire sections
 // in the target. Keys absent in the overlay are left unchanged.
 func ShallowMergeYAML(target *Config, overlayPath string) error {
+	if target == nil {
+		return errors.New("nil target *Config in ShallowMergeYAML")
+	}
+
 	data, err := os.ReadFile(overlayPath)
 	if err != nil {
 		return fmt.Errorf("reading overlay file %s: %w", overlayPath, err)

@@ -29,9 +29,6 @@ func NewRootCmd(ver string) *cobra.Command {
 	return NewRootCmdWithArgs(ver, os.Args, os.LookupEnv)
 }
 
-// projectDirFlag holds the value of the --project-dir persistent flag.
-var projectDirFlag string //nolint:gochecknoglobals // Persistent flag shared across subcommands
-
 // NewRootCmdWithArgs creates the root command with explicit args and env lookup for testability.
 // This allows tests to inject custom args and environment variables.
 func NewRootCmdWithArgs(
@@ -39,7 +36,10 @@ func NewRootCmdWithArgs(
 	args []string,
 	lookupEnv func(string) (string, bool),
 ) *cobra.Command {
-	var logResult *logging.LogPathResult
+	var (
+		logResult      *logging.LogPathResult
+		projectDirFlag string
+	)
 
 	// Detect plugin mode from binary name or environment variable
 	pluginMode := DetectPluginMode(args, lookupEnv)
@@ -85,11 +85,11 @@ func NewRootCmdWithArgs(
 			if err != nil {
 				return fmt.Errorf("determining current directory: %w", err)
 			}
-			resolvedDir := config.ResolveProjectDir(projectDirFlag, cwd)
+			resolvedDir := config.ResolveProjectDir(cmd.Context(), projectDirFlag, cwd)
 			config.SetResolvedProjectDir(resolvedDir)
 
 			// Initialize global config with project overlay
-			config.InitGlobalConfigWithProject(resolvedDir)
+			config.InitGlobalConfigWithProject(cmd.Context(), resolvedDir)
 
 			result := setupLogging(cmd)
 			logResult = &result

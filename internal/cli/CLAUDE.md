@@ -181,9 +181,9 @@ This dual display ensures users see both individual resource failures and overal
 The `--project-dir` persistent flag overrides automatic Pulumi project detection.
 It is wired in `PersistentPreRunE` of the root command:
 
-1. `config.ResolveProjectDir(projectDirFlag, cwd)` resolves the project `.finfocus/` path
+1. `config.ResolveProjectDir(cmd.Context(), projectDirFlag, cwd)` resolves the project `.finfocus/` path
 2. `config.SetResolvedProjectDir(resolvedDir)` stores it for the session
-3. `config.InitGlobalConfigWithProject(resolvedDir)` loads merged config
+3. `config.InitGlobalConfigWithProject(cmd.Context(), resolvedDir)` loads merged config
 
 This affects `config init` (creates project-local config), `NewDismissalStore`
 (stores dismissals per-project), and all config getters via `GetGlobalConfig()`.

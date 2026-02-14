@@ -189,11 +189,11 @@ my-pulumi-project/
 
 **Key Functions** (`internal/config/`):
 
-- `ResolveProjectDir(flagValue, startDir)` - discovers project `.finfocus/` directory
-- `NewWithProjectDir(projectDir)` - loads global config then shallow-merges project overlay
+- `ResolveProjectDir(ctx, flagValue, startDir)` - discovers project `.finfocus/` directory
+- `NewWithProjectDir(ctx, projectDir)` - loads global config then shallow-merges project overlay
 - `ShallowMergeYAML(target, overlayPath)` - applies top-level key replacement
 - `EnsureGitignore(dir)` - creates `.gitignore` in project `.finfocus/` directory
-- `InitGlobalConfigWithProject(projectDir)` - initializes global singleton with project merge
+- `InitGlobalConfigWithProject(ctx, projectDir)` - initializes global singleton with project merge
 
 ### Plugin Communication
 
@@ -1133,13 +1133,10 @@ CodeRabbit now:
 - Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol), zerolog v1.34.0 (logging) (511-wire-router)
 - N/A (stateless per-invocation; reads `~/.finfocus/config.yaml`) (511-wire-router)
 - N/A (stateless CLI) (590-neo-cli-fixes)
-- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol):
-- Go 1.25.7 (see `go.mod`) + Cobra v1.10.2 (CLI), zerolog v1.34.0 (logging), (591-config-split)
+- Go 1.25.7 (see `go.mod`) + Cobra v1.10.2 (CLI), zerolog v1.34.0 (logging) (591-config-split)
 - YAML (`config.yaml`) + JSON (`dismissed.json`) on local filesystem (591-config-split)
-
-- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol):
-  - zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)
-  - Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)
+- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol), zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)
+- Go 1.25.7 + Cobra v1.10.2 (CLI), Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)
 - Local JSON file (`~/.finfocus/dismissed.json`) for dismissal state; plugin-side storage delegated to plugins (508-recommendation-dismissal)
 - State Management: N/A (stateless command design) (223-cost-estimate)
 - Go 1.25.7 + Cobra v1.10.2 (CLI), zerolog v1.34.0 (logging), testify v1.11.1 (testing). No new dependencies. (509-pulumi-auto-detect)

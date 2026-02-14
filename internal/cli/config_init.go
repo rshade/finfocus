@@ -38,12 +38,7 @@ Use --global to force global configuration initialization even inside a project.
   # Create configuration, overwriting existing
   finfocus config init --force`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			// Determine target directory
-			cwd, err := os.Getwd()
-			if err != nil {
-				return fmt.Errorf("determining current directory: %w", err)
-			}
-			projectDir := config.ResolveProjectDir(projectDirFlag, cwd)
+			projectDir := config.GetResolvedProjectDir()
 
 			if projectDir != "" && !global {
 				return initProjectConfig(cmd, projectDir, force)
@@ -106,8 +101,10 @@ func initGlobalConfig(cmd *cobra.Command, force bool) error {
 
 	// Check if config already exists and force isn't set
 	if !force {
-		if err := cfg.Load(); err == nil {
+		if _, err := os.Stat(cfg.ConfigPath()); err == nil {
 			return errors.New("configuration file already exists, use --force to overwrite")
+		} else if !os.IsNotExist(err) {
+			return fmt.Errorf("cannot access config path %s: %w", cfg.ConfigPath(), err)
 		}
 	}
 

@@ -1,13 +1,13 @@
 package config
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
 	"sync"
 
-	"github.com/rs/zerolog/log"
-
+	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pulumi"
 )
 
@@ -41,19 +41,21 @@ func GetResolvedProjectDir() string {
 // Returns the path to $PROJECT/.finfocus/ or empty string if no project found.
 // Does NOT create the directory (read-only operation).
 // Returned path is always absolute (or empty).
-func ResolveProjectDir(flagValue, startDir string) string {
+func ResolveProjectDir(ctx context.Context, flagValue, startDir string) string {
 	if flagValue != "" {
-		return toAbsFinfocusDir(flagValue)
+		return toAbsFinfocusDir(ctx, flagValue)
 	}
 
 	if envDir := os.Getenv("FINFOCUS_PROJECT_DIR"); envDir != "" {
-		return toAbsFinfocusDir(envDir)
+		return toAbsFinfocusDir(ctx, envDir)
 	}
 
 	projectRoot, err := pulumi.FindProject(startDir)
 	if err != nil {
 		if !errors.Is(err, pulumi.ErrNoProject) {
-			log.Warn().
+			logger := logging.FromContext(ctx)
+			logger.Warn().
+				Str("component", "config").
 				Err(err).
 				Str("start_dir", startDir).
 				Msg("unexpected error during Pulumi project discovery")
@@ -61,13 +63,13 @@ func ResolveProjectDir(flagValue, startDir string) string {
 		return ""
 	}
 
-	return filepath.Join(projectRoot, ".finfocus")
+	return toAbsFinfocusDir(ctx, projectRoot)
 }
 
 // NewWithProjectDir creates a Config by loading global config then
 // shallow-merging project-local config on top. If projectDir is empty,
 // behaves identically to New().
-func NewWithProjectDir(projectDir string) *Config {
+func NewWithProjectDir(ctx context.Context, projectDir string) *Config {
 	cfg := New()
 
 	if projectDir == "" {
@@ -80,24 +82,30 @@ func NewWithProjectDir(projectDir string) *Config {
 		return cfg
 	}
 
-	if err := ShallowMergeYAML(cfg, overlayPath); err != nil {
-		log.Warn().
+	cfgCopy := New()
+	if err := ShallowMergeYAML(cfgCopy, overlayPath); err != nil {
+		logger := logging.FromContext(ctx)
+		logger.Warn().
+			Str("component", "config").
+			Str("operation", "merge_project_config").
 			Err(err).
 			Str("overlay_path", overlayPath).
 			Msg("failed to merge project config, using global defaults")
 		return cfg
 	}
 
-	return cfg
+	return cfgCopy
 }
 
 // toAbsFinfocusDir converts dir to an absolute path and appends ".finfocus".
 // If the path already ends with ".finfocus", it is returned as-is (after
 // resolving to an absolute path) to prevent double-append.
-func toAbsFinfocusDir(dir string) string {
+func toAbsFinfocusDir(ctx context.Context, dir string) string {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
-		log.Warn().
+		logger := logging.FromContext(ctx)
+		logger.Warn().
+			Str("component", "config").
 			Err(err).
 			Str("dir", dir).
 			Msg("failed to resolve absolute path for project directory")

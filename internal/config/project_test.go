@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -15,7 +16,7 @@ import (
 // writePulumiYAML creates a minimal Pulumi.yaml in the given directory.
 func writePulumiYAML(t *testing.T, dir string) {
 	t.Helper()
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte("name: test\n"), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte("name: test\n"), 0o644))
 }
 
 func TestResolveProjectDir_FlagOverride(t *testing.T) {
@@ -23,7 +24,7 @@ func TestResolveProjectDir_FlagOverride(t *testing.T) {
 
 	flagDir := t.TempDir()
 
-	got := config.ResolveProjectDir(flagDir, "/does/not/matter")
+	got := config.ResolveProjectDir(context.Background(), flagDir, "/does/not/matter")
 
 	assert.Equal(t, filepath.Join(flagDir, ".finfocus"), got)
 	assert.True(t, filepath.IsAbs(got), "returned path must be absolute")
@@ -34,7 +35,7 @@ func TestResolveProjectDir_FlagOverridesEnv(t *testing.T) {
 	flagDir := t.TempDir()
 	t.Setenv("FINFOCUS_PROJECT_DIR", envDir)
 
-	got := config.ResolveProjectDir(flagDir, "/does/not/matter")
+	got := config.ResolveProjectDir(context.Background(), flagDir, "/does/not/matter")
 
 	assert.Equal(t, filepath.Join(flagDir, ".finfocus"), got)
 }
@@ -43,7 +44,7 @@ func TestResolveProjectDir_EnvVarOverride(t *testing.T) {
 	envDir := t.TempDir()
 	t.Setenv("FINFOCUS_PROJECT_DIR", envDir)
 
-	got := config.ResolveProjectDir("", "/does/not/matter")
+	got := config.ResolveProjectDir(context.Background(), "", "/does/not/matter")
 
 	assert.Equal(t, filepath.Join(envDir, ".finfocus"), got)
 	assert.True(t, filepath.IsAbs(got), "returned path must be absolute")
@@ -54,11 +55,11 @@ func TestResolveProjectDir_PulumiWalkUp(t *testing.T) {
 	writePulumiYAML(t, root)
 
 	subDir := filepath.Join(root, "a", "b", "c")
-	require.NoError(t, os.MkdirAll(subDir, 0755))
+	require.NoError(t, os.MkdirAll(subDir, 0o755))
 
 	t.Setenv("FINFOCUS_PROJECT_DIR", "")
 
-	got := config.ResolveProjectDir("", subDir)
+	got := config.ResolveProjectDir(context.Background(), "", subDir)
 
 	assert.Equal(t, filepath.Join(root, ".finfocus"), got)
 	assert.True(t, filepath.IsAbs(got), "returned path must be absolute")
@@ -70,7 +71,7 @@ func TestResolveProjectDir_NoProjectFallback(t *testing.T) {
 	// Use a temp dir with no Pulumi.yaml anywhere in its ancestry.
 	emptyDir := t.TempDir()
 
-	got := config.ResolveProjectDir("", emptyDir)
+	got := config.ResolveProjectDir(context.Background(), "", emptyDir)
 
 	assert.Empty(t, got, "should return empty string when no project found")
 }
@@ -84,11 +85,11 @@ func TestResolveProjectDir_DeepNesting(t *testing.T) {
 	for i := range 25 {
 		deepDir = filepath.Join(deepDir, "d"+string(rune('a'+i%26)))
 	}
-	require.NoError(t, os.MkdirAll(deepDir, 0755))
+	require.NoError(t, os.MkdirAll(deepDir, 0o755))
 
 	t.Setenv("FINFOCUS_PROJECT_DIR", "")
 
-	got := config.ResolveProjectDir("", deepDir)
+	got := config.ResolveProjectDir(context.Background(), "", deepDir)
 
 	assert.Equal(t, filepath.Join(root, ".finfocus"), got)
 }
@@ -97,7 +98,7 @@ func TestResolveProjectDir_FilesystemRootBoundary(t *testing.T) {
 	t.Setenv("FINFOCUS_PROJECT_DIR", "")
 
 	// Starting from filesystem root should find no project and return "".
-	got := config.ResolveProjectDir("", "/")
+	got := config.ResolveProjectDir(context.Background(), "", "/")
 
 	assert.Empty(t, got, "should return empty string when starting from filesystem root")
 }
@@ -105,7 +106,7 @@ func TestResolveProjectDir_FilesystemRootBoundary(t *testing.T) {
 func TestResolveProjectDir_RelativeFlagValue(t *testing.T) {
 	t.Setenv("FINFOCUS_PROJECT_DIR", "")
 
-	got := config.ResolveProjectDir("relative/path", "/does/not/matter")
+	got := config.ResolveProjectDir(context.Background(), "relative/path", "/does/not/matter")
 
 	assert.True(t, filepath.IsAbs(got), "returned path must be absolute even for relative flag input")
 	assert.Contains(t, got, ".finfocus")
@@ -116,7 +117,7 @@ func TestResolveProjectDir_FlagWithFinfocusSuffix(t *testing.T) {
 
 	// User passes a path that already ends with .finfocus —
 	// should NOT double-append.
-	got := config.ResolveProjectDir("/my/project/.finfocus", "")
+	got := config.ResolveProjectDir(context.Background(), "/my/project/.finfocus", "")
 
 	assert.Equal(t, "/my/project/.finfocus", got)
 	assert.True(t, filepath.IsAbs(got))
@@ -125,7 +126,7 @@ func TestResolveProjectDir_FlagWithFinfocusSuffix(t *testing.T) {
 func TestResolveProjectDir_EnvWithFinfocusSuffix(t *testing.T) {
 	t.Setenv("FINFOCUS_PROJECT_DIR", "/other/project/.finfocus")
 
-	got := config.ResolveProjectDir("", "")
+	got := config.ResolveProjectDir(context.Background(), "", "")
 
 	assert.Equal(t, "/other/project/.finfocus", got)
 	assert.True(t, filepath.IsAbs(got))
@@ -136,7 +137,7 @@ func TestResolveProjectDir_InvalidFlagPath(t *testing.T) {
 
 	// Even a non-existent path should be returned (ResolveProjectDir is read-only,
 	// it does not check existence).
-	got := config.ResolveProjectDir("/nonexistent/path/to/project", "")
+	got := config.ResolveProjectDir(context.Background(), "/nonexistent/path/to/project", "")
 
 	assert.Equal(t, filepath.Join("/nonexistent/path/to/project", ".finfocus"), got)
 	assert.True(t, filepath.IsAbs(got))
@@ -149,14 +150,14 @@ func TestResolveProjectDir_NestedPulumiProjects(t *testing.T) {
 	dirB := filepath.Join(root, "a", "b")
 	dirC := filepath.Join(root, "a", "b", "c")
 
-	require.NoError(t, os.MkdirAll(dirC, 0755))
+	require.NoError(t, os.MkdirAll(dirC, 0o755))
 	writePulumiYAML(t, dirA)
 	writePulumiYAML(t, dirB)
 
 	t.Setenv("FINFOCUS_PROJECT_DIR", "")
 
 	// Walk-up from /a/b/c/ should find /a/b/ first (nearest ancestor).
-	got := config.ResolveProjectDir("", dirC)
+	got := config.ResolveProjectDir(context.Background(), "", dirC)
 
 	assert.Equal(t, filepath.Join(dirB, ".finfocus"), got,
 		"should find nearest Pulumi.yaml, not the one further up")
@@ -167,7 +168,7 @@ func TestResolveProjectDir_EmptyInputs(t *testing.T) {
 
 	// Both flag and startDir empty: startDir="" will be resolved to cwd by
 	// filepath.Abs inside pulumi.FindProject. This should not panic.
-	got := config.ResolveProjectDir("", "")
+	got := config.ResolveProjectDir(context.Background(), "", "")
 
 	// The result depends on whether cwd has a Pulumi.yaml ancestor.
 	// We just verify it does not panic and returns a valid result.
@@ -197,70 +198,61 @@ func TestSetResolvedProjectDir_EmptyString(t *testing.T) {
 }
 
 func TestNewWithProjectDir_BackwardCompatibility(t *testing.T) {
-	t.Run("with_FINFOCUS_HOME", func(t *testing.T) {
-		tmpHome := t.TempDir()
-		t.Setenv("FINFOCUS_HOME", tmpHome)
-		t.Setenv("PULUMI_HOME", "")
+	ctx := context.Background()
 
-		cfgNew := config.New()
-		cfgProject := config.NewWithProjectDir("")
+	tests := []struct {
+		name    string
+		setupFn func(t *testing.T, tmpDir string)
+	}{
+		{
+			name: "with_FINFOCUS_HOME",
+			setupFn: func(t *testing.T, tmpDir string) {
+				t.Helper()
+				t.Setenv("FINFOCUS_HOME", tmpDir)
+				t.Setenv("PULUMI_HOME", "")
+			},
+		},
+		{
+			name: "with_PULUMI_HOME",
+			setupFn: func(t *testing.T, tmpDir string) {
+				t.Helper()
+				t.Setenv("FINFOCUS_HOME", "")
+				t.Setenv("PULUMI_HOME", tmpDir)
+			},
+		},
+		{
+			name: "with_neither_set",
+			setupFn: func(t *testing.T, tmpDir string) {
+				t.Helper()
+				t.Setenv("FINFOCUS_HOME", "")
+				t.Setenv("PULUMI_HOME", "")
+				t.Setenv("HOME", tmpDir)
+				t.Setenv("USERPROFILE", tmpDir)
+			},
+		},
+	}
 
-		assert.Equal(t, cfgNew.Output, cfgProject.Output)
-		assert.Equal(t, cfgNew.Plugins, cfgProject.Plugins)
-		assert.Equal(t, cfgNew.Logging.Level, cfgProject.Logging.Level)
-		assert.Equal(t, cfgNew.Logging.Format, cfgProject.Logging.Format)
-		assert.Equal(t, cfgNew.Logging.File, cfgProject.Logging.File)
-		assert.Equal(t, cfgNew.Analyzer, cfgProject.Analyzer)
-		assert.Equal(t, cfgNew.PluginHostConfig, cfgProject.PluginHostConfig)
-		assert.Equal(t, cfgNew.Cost, cfgProject.Cost)
-		assert.Equal(t, cfgNew.Routing, cfgProject.Routing)
-		assert.Equal(t, cfgNew.PluginDir, cfgProject.PluginDir)
-		assert.Equal(t, cfgNew.SpecDir, cfgProject.SpecDir)
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			tt.setupFn(t, tmpDir)
 
-	t.Run("with_PULUMI_HOME", func(t *testing.T) {
-		tmpPulumi := t.TempDir()
-		t.Setenv("FINFOCUS_HOME", "")
-		t.Setenv("PULUMI_HOME", tmpPulumi)
+			cfgNew := config.New()
+			cfgProject := config.NewWithProjectDir(ctx, "")
 
-		cfgNew := config.New()
-		cfgProject := config.NewWithProjectDir("")
-
-		assert.Equal(t, cfgNew.Output, cfgProject.Output)
-		assert.Equal(t, cfgNew.Plugins, cfgProject.Plugins)
-		assert.Equal(t, cfgNew.Logging.Level, cfgProject.Logging.Level)
-		assert.Equal(t, cfgNew.Logging.Format, cfgProject.Logging.Format)
-		assert.Equal(t, cfgNew.Logging.File, cfgProject.Logging.File)
-		assert.Equal(t, cfgNew.Analyzer, cfgProject.Analyzer)
-		assert.Equal(t, cfgNew.PluginHostConfig, cfgProject.PluginHostConfig)
-		assert.Equal(t, cfgNew.Cost, cfgProject.Cost)
-		assert.Equal(t, cfgNew.Routing, cfgProject.Routing)
-		assert.Equal(t, cfgNew.PluginDir, cfgProject.PluginDir)
-		assert.Equal(t, cfgNew.SpecDir, cfgProject.SpecDir)
-	})
-
-	t.Run("with_neither_set", func(t *testing.T) {
-		tmpHome := t.TempDir()
-		t.Setenv("FINFOCUS_HOME", "")
-		t.Setenv("PULUMI_HOME", "")
-		t.Setenv("HOME", tmpHome)
-		t.Setenv("USERPROFILE", tmpHome)
-
-		cfgNew := config.New()
-		cfgProject := config.NewWithProjectDir("")
-
-		assert.Equal(t, cfgNew.Output, cfgProject.Output)
-		assert.Equal(t, cfgNew.Plugins, cfgProject.Plugins)
-		assert.Equal(t, cfgNew.Logging.Level, cfgProject.Logging.Level)
-		assert.Equal(t, cfgNew.Logging.Format, cfgProject.Logging.Format)
-		assert.Equal(t, cfgNew.Logging.File, cfgProject.Logging.File)
-		assert.Equal(t, cfgNew.Analyzer, cfgProject.Analyzer)
-		assert.Equal(t, cfgNew.PluginHostConfig, cfgProject.PluginHostConfig)
-		assert.Equal(t, cfgNew.Cost, cfgProject.Cost)
-		assert.Equal(t, cfgNew.Routing, cfgProject.Routing)
-		assert.Equal(t, cfgNew.PluginDir, cfgProject.PluginDir)
-		assert.Equal(t, cfgNew.SpecDir, cfgProject.SpecDir)
-	})
+			assert.Equal(t, cfgNew.Output, cfgProject.Output)
+			assert.Equal(t, cfgNew.Plugins, cfgProject.Plugins)
+			assert.Equal(t, cfgNew.Logging.Level, cfgProject.Logging.Level)
+			assert.Equal(t, cfgNew.Logging.Format, cfgProject.Logging.Format)
+			assert.Equal(t, cfgNew.Logging.File, cfgProject.Logging.File)
+			assert.Equal(t, cfgNew.Analyzer, cfgProject.Analyzer)
+			assert.Equal(t, cfgNew.PluginHostConfig, cfgProject.PluginHostConfig)
+			assert.Equal(t, cfgNew.Cost, cfgProject.Cost)
+			assert.Equal(t, cfgNew.Routing, cfgProject.Routing)
+			assert.Equal(t, cfgNew.PluginDir, cfgProject.PluginDir)
+			assert.Equal(t, cfgNew.SpecDir, cfgProject.SpecDir)
+		})
+	}
 }
 
 func TestNewWithProjectDir_PreservesGlobalPaths(t *testing.T) {
@@ -272,16 +264,16 @@ func TestNewWithProjectDir_PreservesGlobalPaths(t *testing.T) {
 
 	// Create a project directory with a config override.
 	projectDir := filepath.Join(t.TempDir(), ".finfocus")
-	require.NoError(t, os.MkdirAll(projectDir, 0755))
+	require.NoError(t, os.MkdirAll(projectDir, 0o755))
 	projectCfg := `cost:
   budgets:
     global:
       amount: 2000
       currency: USD
 `
-	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0o644))
 
-	cfg := config.NewWithProjectDir(projectDir)
+	cfg := config.NewWithProjectDir(context.Background(), projectDir)
 
 	require.NotNil(t, cfg)
 
@@ -317,18 +309,18 @@ func TestNewWithProjectDir_DualPathScenario(t *testing.T) {
 	globalCfg := `output:
   default_format: ndjson
 `
-	require.NoError(t, os.WriteFile(filepath.Join(customHome, "config.yaml"), []byte(globalCfg), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(customHome, "config.yaml"), []byte(globalCfg), 0o644))
 
 	// Create project directory with logging override.
 	projectDir := filepath.Join(t.TempDir(), ".finfocus")
-	require.NoError(t, os.MkdirAll(projectDir, 0755))
+	require.NoError(t, os.MkdirAll(projectDir, 0o755))
 	projectCfg := `logging:
   level: debug
   format: json
 `
-	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(projectDir, "config.yaml"), []byte(projectCfg), 0o644))
 
-	cfg := config.NewWithProjectDir(projectDir)
+	cfg := config.NewWithProjectDir(context.Background(), projectDir)
 
 	require.NotNil(t, cfg)
 
@@ -356,7 +348,7 @@ func BenchmarkResolveProjectDir_DeepTree(b *testing.B) {
 	require.NoError(b, os.WriteFile(
 		filepath.Join(root, "Pulumi.yaml"),
 		[]byte("name: bench\n"),
-		0644,
+		0o644,
 	))
 
 	// Build a 50-level-deep directory tree.
@@ -364,18 +356,20 @@ func BenchmarkResolveProjectDir_DeepTree(b *testing.B) {
 	for i := range 50 {
 		deepDir = filepath.Join(deepDir, "d"+string(rune('a'+i%26)))
 	}
-	require.NoError(b, os.MkdirAll(deepDir, 0755))
+	require.NoError(b, os.MkdirAll(deepDir, 0o755))
 
 	b.Setenv("FINFOCUS_PROJECT_DIR", "")
 
+	ctx := context.Background()
+
 	// Warm-up to ensure filesystem caches are populated.
-	config.ResolveProjectDir("", deepDir)
+	config.ResolveProjectDir(ctx, "", deepDir)
 
 	b.ResetTimer()
 
 	start := time.Now()
 	for b.Loop() {
-		result := config.ResolveProjectDir("", deepDir)
+		result := config.ResolveProjectDir(ctx, "", deepDir)
 		if result == "" {
 			b.Fatal("expected non-empty result")
 		}
@@ -398,7 +392,7 @@ func TestNewWithProjectDir_CorruptedYAML(t *testing.T) {
 	))
 
 	// Corrupted YAML logs warning and returns global defaults.
-	cfg := config.NewWithProjectDir(projectDir)
+	cfg := config.NewWithProjectDir(context.Background(), projectDir)
 	assert.NotNil(t, cfg)
 	assert.Equal(t, "table", cfg.Output.DefaultFormat)
 }
@@ -408,7 +402,7 @@ func TestNewWithProjectDir_MissingConfigYAML(t *testing.T) {
 	projectDir := filepath.Join(t.TempDir(), "project", ".finfocus")
 	require.NoError(t, os.MkdirAll(projectDir, 0o755))
 
-	cfg := config.NewWithProjectDir(projectDir)
+	cfg := config.NewWithProjectDir(context.Background(), projectDir)
 	assert.NotNil(t, cfg)
 	assert.Equal(t, "table", cfg.Output.DefaultFormat)
 }
