@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -85,6 +86,13 @@ func NewLoggerWithPath(cfg Config) LogPathResult {
 	switch cfg.Output {
 	case "file":
 		if cfg.File != "" {
+			// Ensure log directory exists before opening the file.
+			if mkdirErr := os.MkdirAll(filepath.Dir(cfg.File), 0700); mkdirErr != nil {
+				result.FallbackUsed = true
+				result.FallbackReason = mkdirErr.Error()
+				result.Logger = newLoggerWithWriter(cfg, os.Stderr)
+				break
+			}
 			file, err := os.OpenFile(cfg.File, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 			if err != nil {
 				// Fall back to stderr.

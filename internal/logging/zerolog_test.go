@@ -5,6 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -416,6 +418,65 @@ func TestLogger_WithComponent(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "engine", logEntry["component"])
+}
+
+// Test that NewLoggerWithPath auto-creates the log directory.
+func TestNewLoggerWithPath_CreatesLogDirectory(t *testing.T) {
+	tmpDir := t.TempDir()
+	logPath := filepath.Join(tmpDir, "nested", "deep", "finfocus.log")
+
+	cfg := Config{
+		Level:  "info",
+		Format: "json",
+		Output: "file",
+		File:   logPath,
+	}
+
+	result := NewLoggerWithPath(cfg)
+	defer result.Close()
+
+	require.True(t, result.UsingFile, "should be using file output")
+	assert.False(t, result.FallbackUsed, "should not fall back to stderr")
+	assert.Equal(t, logPath, result.FilePath)
+
+	// Verify directory was created
+	info, err := os.Stat(filepath.Dir(logPath))
+	require.NoError(t, err)
+	assert.True(t, info.IsDir())
+
+	// Verify log file is writable
+	result.Logger.Info().Msg("test log entry")
+	content, err := os.ReadFile(logPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "test log entry")
+}
+
+// Test that NewLoggerWithPath falls back to stderr when it cannot create the log directory.
+func TestNewLoggerWithPath_MkdirAllFails(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping permission test on Windows - POSIX permissions not enforced")
+	}
+
+	tmpDir := t.TempDir()
+	readOnlyDir := filepath.Join(tmpDir, "readonly")
+	require.NoError(t, os.Mkdir(readOnlyDir, 0500))
+
+	// Place the log file under a nested path so MkdirAll must create a subdirectory.
+	logPath := filepath.Join(readOnlyDir, "nested", "finfocus.log")
+
+	cfg := Config{
+		Level:  "info",
+		Format: "json",
+		Output: "file",
+		File:   logPath,
+	}
+
+	result := NewLoggerWithPath(cfg)
+	defer result.Close()
+
+	assert.True(t, result.FallbackUsed, "should fall back to stderr when mkdir fails")
+	assert.NotEmpty(t, result.FallbackReason, "should report reason for fallback")
+	assert.False(t, result.UsingFile, "should not be using file output")
 }
 
 // Test text format alias.
