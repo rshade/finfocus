@@ -25,6 +25,8 @@ that appear in the CLI output.`,
 	}
 
 	cmd.AddCommand(NewAnalyzerServeCmd())
+	cmd.AddCommand(NewAnalyzerInstallCmd())
+	cmd.AddCommand(NewAnalyzerUninstallCmd())
 
 	return cmd
 }

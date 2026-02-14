@@ -15,15 +15,9 @@ guardrails in `CONTEXT.md`.
 
 ## Immediate Focus (v0.3.0 - Install UX, Scale & Pulumi Integration)
 
-- [ ] **Plugin SDK Hardening**
-  - [ ] Research: Evaluate GetPricingSpec RPC usage in core
-        ([#465](https://github.com/rshade/finfocus/issues/465))
 - [ ] **Config Architecture**
   - [ ] Split project-local and user-global `.finfocus/` directories
         ([#548](https://github.com/rshade/finfocus/issues/548))
-- [ ] **Pulumi Auto-Detection Follow-up**
-  - [ ] CodeRabbit follow-up cleanup from auto-detect PR
-        ([#589](https://github.com/rshade/finfocus/issues/589))
 - [ ] **Install UX**
   - [ ] Install script (`curl | sh`)
         ([#599](https://github.com/rshade/finfocus/issues/599))
@@ -45,26 +39,15 @@ guardrails in `CONTEXT.md`.
         ([#611](https://github.com/rshade/finfocus/issues/611))
   - [ ] Policy-compatible cost output
         ([#604](https://github.com/rshade/finfocus/issues/604))
-- [ ] **Bug Fixes**
-  - [ ] Deep copy CostBreakdown in appendActualCostResults to prevent
-        source mutation
-        ([#614](https://github.com/rshade/finfocus/issues/614))
-  - [ ] Phantom $0 results from empty plugin responses
-        ([#595](https://github.com/rshade/finfocus/issues/595))
 - [ ] **Code Quality & Refactoring**
   - [ ] Reorder router provider-based region check after feature matching
         ([#616](https://github.com/rshade/finfocus/issues/616))
-  - [ ] Support GCP zone normalization in normalizeToRegion
-        ([#615](https://github.com/rshade/finfocus/issues/615))
   - [ ] Add `.Ctx(ctx)` and structured log fields across packages
         ([#613](https://github.com/rshade/finfocus/issues/613))
   - [ ] Add Stack field to CostFlags struct
         ([#612](https://github.com/rshade/finfocus/issues/612))
   - [ ] Consolidate recommendation count and format helpers (DRY)
         ([#610](https://github.com/rshade/finfocus/issues/610))
-  - [ ] Wrap errors from MapResources, MapStateResources, and
-        resolveOverviewData
-        ([#609](https://github.com/rshade/finfocus/issues/609))
   - [ ] Wire router into cost commands for region-aware plugin selection
         ([#590](https://github.com/rshade/finfocus/issues/590))
 - [ ] **Testing Improvements**
@@ -74,14 +57,16 @@ guardrails in `CONTEXT.md`.
         ([#606](https://github.com/rshade/finfocus/issues/606))
   - [ ] Isolate auto-detection tests with temp directories
         ([#605](https://github.com/rshade/finfocus/issues/605))
-  - [ ] Use comma-ok idiom for altMap assertions
-        ([#603](https://github.com/rshade/finfocus/issues/603))
-- [ ] **Recorder Plugin Fixes**
-  - [ ] Recorder plugin should not declare ACTUAL_COSTS capability
-        ([#596](https://github.com/rshade/finfocus/issues/596))
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
+- [ ] **Pricing Transparency** *(follow-up to #465 research)*
+  - [ ] Plugin-provided GetPricingSpec as fallback before local YAML specs
+        ([#638](https://github.com/rshade/finfocus/issues/638))
+  - [ ] Enrich cost estimate with GetPricingSpec discovery data
+        ([#637](https://github.com/rshade/finfocus/issues/637))
+  - [ ] Add `--explain` flag to `cost projected` for pricing transparency
+        ([#636](https://github.com/rshade/finfocus/issues/636))
 - [ ] **Resource Filtering Improvements**
   - [ ] Filter `pulumi:providers:*` synthetic resources from cost plugin routing
         ([#582](https://github.com/rshade/finfocus/issues/582))
@@ -229,6 +214,25 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] **GetPricingSpec Research & Code Quality** *(Completed 2026-02-14)*
+  - [x] Evaluate GetPricingSpec RPC usage in core
+        ([#465](https://github.com/rshade/finfocus/issues/465))
+  - [x] Support GCP zone normalization in normalizeToRegion
+        ([#615](https://github.com/rshade/finfocus/issues/615), PR #631)
+  - [x] Wrap errors from MapResources, MapStateResources, and
+        resolveOverviewData
+        ([#609](https://github.com/rshade/finfocus/issues/609))
+  - [x] Use comma-ok idiom for altMap assertions
+        ([#603](https://github.com/rshade/finfocus/issues/603), PR #630)
+  - [x] CodeRabbit follow-up cleanup from auto-detect PR
+        ([#589](https://github.com/rshade/finfocus/issues/589))
+  - [x] Deep copy CostBreakdown in appendActualCostResults to prevent
+        source mutation
+        ([#614](https://github.com/rshade/finfocus/issues/614))
+  - [x] Phantom $0 results from empty plugin responses
+        ([#595](https://github.com/rshade/finfocus/issues/595))
+  - [x] Recorder plugin should not declare ACTUAL_COSTS capability
+        ([#596](https://github.com/rshade/finfocus/issues/596), PR #628)
 - [x] **Bug Fixes & Stability** *(Completed 2026-02-14)*
   - [x] Fall back to filesystem discovery for plugin removal
         ([#592](https://github.com/rshade/finfocus/issues/592), PR #621)
@@ -332,6 +336,7 @@ guardrails in `CONTEXT.md`.
 | Rec Lifecycle | DismissRecommendation | dismiss/snooze | Dismiss | N/A |
 | Auto-Detect | N/A | pulumi detect | N/A | N/A |
 | Resource Filter | N/A | provider/component filter | N/A | N/A |
+| Pricing Transparency | GetPricingSpec | --explain + fallback | PricingSpec | N/A |
 
 ## Boundary Safeguards
 
