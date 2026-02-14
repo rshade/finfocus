@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 )
 
@@ -425,4 +426,51 @@ func TestBuildAltIDIndex(t *testing.T) {
 	// Resource with no properties has no alt IDs
 	_, hasRole := altMap["urn:pulumi:dev::proj::aws:iam/role:Role::role"]
 	assert.False(t, hasRole, "URN should not appear as alt ID")
+}
+
+func TestCreateRouterForEngine_NilRoutingConfig(t *testing.T) {
+	// With no config file present (default), cfg.Routing is nil → returns nil.
+	ctx := context.Background()
+	result := createRouterForEngine(ctx, nil)
+	assert.Nil(t, result, "nil routing config should return nil router")
+}
+
+func TestCreateRouterForEngine_EmptyClients(t *testing.T) {
+	// Even without clients, if no routing config exists, return nil.
+	ctx := context.Background()
+	result := createRouterForEngine(ctx, []*pluginhost.Client{})
+	assert.Nil(t, result, "no routing config should return nil regardless of clients")
+}
+
+func BenchmarkCreateRouterForEngine(b *testing.B) {
+	ctx := context.Background()
+	clients := []*pluginhost.Client{}
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		_ = createRouterForEngine(ctx, clients)
+	}
+}
+
+func TestLoadAndMapResources_NilAudit_NoPanic(t *testing.T) {
+	ctx := context.Background()
+
+	assert.NotPanics(t, func() {
+		_, err := loadAndMapResources(ctx, "/path/does/not/exist.json", nil)
+		require.Error(t, err)
+	})
+}
+
+func TestOpenPlugins_NilAudit_NoPanic(t *testing.T) {
+	ctx := context.Background()
+
+	assert.NotPanics(t, func() {
+		clients, cleanup, err := openPlugins(ctx, "__nonexistent_adapter__", nil)
+		if err != nil {
+			assert.Nil(t, clients)
+			assert.Nil(t, cleanup)
+			return
+		}
+		require.NotNil(t, cleanup)
+		cleanup()
+	})
 }

@@ -119,7 +119,8 @@ func RunAnalyzerServe(cmd *cobra.Command) error {
 	stderrLogger.Debug().Int("plugin_count", len(clients)).Msg("plugins loaded")
 
 	// Create the cost calculation engine
-	eng := engine.New(clients, specLoader)
+	eng := engine.New(clients, specLoader).
+		WithRouter(createRouterForEngine(ctx, clients))
 
 	// Create the analyzer server
 	// Use the version from the command's root if available

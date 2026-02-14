@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/registry"
+	"github.com/rshade/finfocus/internal/router"
 )
 
 // auditContext holds common context for audit logging within a cost command.
@@ -62,14 +64,18 @@ func loadAndMapResources(
 	plan, err := ingest.LoadPulumiPlanWithContext(ctx, planPath)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Str("plan_path", planPath).Msg("failed to load Pulumi plan")
-		audit.logFailure(ctx, err)
+		if audit != nil {
+			audit.logFailure(ctx, err)
+		}
 		return nil, fmt.Errorf("loading Pulumi plan: %w", err)
 	}
 
 	resources, err := ingest.MapResources(plan.GetResourcesWithContext(ctx))
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to map resources")
-		audit.logFailure(ctx, err)
+		if audit != nil {
+			audit.logFailure(ctx, err)
+		}
 		return nil, fmt.Errorf("mapping resources: %w", err)
 	}
 	log.Debug().Ctx(ctx).Int("resource_count", len(resources)).Msg("resources loaded from plan")
@@ -91,8 +97,13 @@ func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*p
 	clients, cleanup, err := registry.NewDefault().Open(ctx, adapter)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Str("adapter", adapter).Msg("failed to open plugins")
-		audit.logFailure(ctx, err)
+		if audit != nil {
+			audit.logFailure(ctx, err)
+		}
 		return nil, nil, fmt.Errorf("opening plugins: %w", err)
+	}
+	if cleanup == nil {
+		cleanup = func() {}
 	}
 	log.Debug().Ctx(ctx).Int("plugin_count", len(clients)).Msg("plugins opened")
 
@@ -351,4 +362,32 @@ func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
 	}
 
 	return currency, mixedCurrencies
+}
+
+// createRouterForEngine creates an engine.Router from the user's routing
+// configuration. It returns nil when no routing config exists (cfg.Routing is
+// nil) or when router creation fails (logged at WARN level). A nil return is
+// safe: engine.WithRouter(nil) preserves the default "query all plugins"
+// behavior.
+func createRouterForEngine(ctx context.Context, clients []*pluginhost.Client) engine.Router {
+	log := logging.FromContext(ctx)
+
+	cfg := config.New()
+	if cfg.Routing == nil {
+		return nil
+	}
+
+	r, err := router.NewRouter(
+		router.WithClients(clients),
+		router.WithConfig(cfg.Routing),
+	)
+	if err != nil {
+		log.Warn().Ctx(ctx).Err(err).
+			Str("component", "cli").
+			Str("operation", "create_router").
+			Msg("failed to create router, falling back to all-plugin mode")
+		return nil
+	}
+
+	return router.NewEngineAdapter(r)
 }

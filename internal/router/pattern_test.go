@@ -71,7 +71,13 @@ func TestCompiledPattern_Match_Glob(t *testing.T) {
 			name:         "wildcard at end",
 			pattern:      "aws:*",
 			resourceType: "aws:ec2:Instance",
-			wantMatch:    true, // filepath.Match matches * as any chars except separator (/)
+			wantMatch:    true,
+		},
+		{
+			name:         "wildcard crosses slash",
+			pattern:      "aws:*",
+			resourceType: "aws:ec2/instance:Instance",
+			wantMatch:    true,
 		},
 		{
 			name:         "question mark single char",
@@ -173,7 +179,11 @@ func TestCompiledPattern_Match_Regex(t *testing.T) {
 func TestPatternCache_MatchGlob(t *testing.T) {
 	cache := NewPatternCache()
 
-	matched, err := cache.MatchGlob("aws:ec2:*", "aws:ec2:Instance")
+	matched, err := cache.MatchGlob("aws:*", "aws:ec2/instance:Instance")
+	require.NoError(t, err)
+	assert.True(t, matched)
+
+	matched, err = cache.MatchGlob("aws:ec2:*", "aws:ec2:Instance")
 	require.NoError(t, err)
 	assert.True(t, matched)
 

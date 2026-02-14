@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -18,10 +19,21 @@ type CompiledPattern struct {
 	Regex *regexp.Regexp
 }
 
+func matchResourceTypeGlob(pattern, resourceType string) (bool, error) {
+	// filepath.Match treats path separators specially ("*") doesn't cross them.
+	// Pulumi resource types contain "/" (e.g. aws:ec2/instance:Instance), so we
+	// normalize "/" to a non-separator sentinel to keep glob behavior intuitive.
+	const sepSentinel = "\x00"
+
+	normPattern := strings.ReplaceAll(pattern, "/", sepSentinel)
+	normResourceType := strings.ReplaceAll(resourceType, "/", sepSentinel)
+	return filepath.Match(normPattern, normResourceType)
+}
+
 // Match checks if the pattern matches the given resource type.
 func (p *CompiledPattern) Match(resourceType string) (bool, error) {
 	if p.Original.IsGlob() {
-		return filepath.Match(p.Original.Pattern, resourceType)
+		return matchResourceTypeGlob(p.Original.Pattern, resourceType)
 	}
 
 	if p.Regex != nil {
@@ -67,9 +79,8 @@ func NewPatternCache() *PatternCache {
 }
 
 // MatchGlob matches a glob pattern against a resource type.
-// Glob patterns use filepath.Match semantics.
 func (c *PatternCache) MatchGlob(pattern, resourceType string) (bool, error) {
-	return filepath.Match(pattern, resourceType)
+	return matchResourceTypeGlob(pattern, resourceType)
 }
 
 // MatchRegex matches a regex pattern against a resource type.
