@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.7](https://github.com/rshade/finfocus/compare/v0.2.6...v0.2.7) (2026-02-14)
+
+
+### Added
+
+* **cli:** add analyzer install and uninstall commands ([#633](https://github.com/rshade/finfocus/issues/633)) ([63d7e23](https://github.com/rshade/finfocus/commit/63d7e23fa332da950f98ae70b1b5e922ca156f6a))
+* **cli:** add cost estimate command for what-if analysis ([#538](https://github.com/rshade/finfocus/issues/538)) ([bce24df](https://github.com/rshade/finfocus/commit/bce24df43166fd0cfb0aba671a0693db366b5d7b)), closes [#463](https://github.com/rshade/finfocus/issues/463)
+* **cli:** add recommendation dismissal and lifecycle management ([#557](https://github.com/rshade/finfocus/issues/557)) ([04e4f1a](https://github.com/rshade/finfocus/commit/04e4f1aa0981fcd6188e14309cd72c2a45a1d61c)), closes [#464](https://github.com/rshade/finfocus/issues/464)
+* **cli:** add structured errors, semantic exit codes, and plugin lis… ([#647](https://github.com/rshade/finfocus/issues/647)) ([5c94e50](https://github.com/rshade/finfocus/commit/5c94e50492baece7aa91b04fa586c8465c391b8f))
+* **cli:** add unified cost overview dashboard ([#509](https://github.com/rshade/finfocus/issues/509)) ([#584](https://github.com/rshade/finfocus/issues/584)) ([bccbc9d](https://github.com/rshade/finfocus/commit/bccbc9da8b5ecaa2c14b456e7b9c268b42386438))
+* **cli:** automatic Pulumi project detection for cost commands ([#586](https://github.com/rshade/finfocus/issues/586)) ([2a6db87](https://github.com/rshade/finfocus/commit/2a6db873a1b8f58518a0b52bff12eb82030214f7))
+* **cli:** wire router into commands for region-aware plugin selection ([#632](https://github.com/rshade/finfocus/issues/632)) ([e696591](https://github.com/rshade/finfocus/commit/e6965913a2605078ec68c9de6c97d8034166f5c2))
+* **engine:** add tag-based filtering to BudgetFilterOptions ([#535](https://github.com/rshade/finfocus/issues/535)) ([085b689](https://github.com/rshade/finfocus/commit/085b689c7d95d602899f16d4cecc1211cf2a13f8)), closes [#532](https://github.com/rshade/finfocus/issues/532)
+* **router:** filter internal Pulumi resources from cost plugin routing ([#648](https://github.com/rshade/finfocus/issues/648)) ([879e8cb](https://github.com/rshade/finfocus/commit/879e8cbecffa93797e69d6a7584a06fde31f7805))
+* **router:** support GCP zone normalization in normalizeToRegion ([#631](https://github.com/rshade/finfocus/issues/631)) ([3c5f69a](https://github.com/rshade/finfocus/commit/3c5f69a701a09428f97235623a902fb816a17433)), closes [#615](https://github.com/rshade/finfocus/issues/615)
+* **tui:** display recommendations in resource detail view ([#585](https://github.com/rshade/finfocus/issues/585)) ([a57fcd9](https://github.com/rshade/finfocus/commit/a57fcd9eaa829fee2b66313c6502f90ac346ebe5))
+
+
+### Fixed
+
+* **ci:** grant write permissions to Claude workflow tokens ([#571](https://github.com/rshade/finfocus/issues/571)) ([427d1e4](https://github.com/rshade/finfocus/commit/427d1e4998cc5b3dc0856e942819f99466a4aba7))
+* **deps:** update go dependencies ([#566](https://github.com/rshade/finfocus/issues/566)) ([e783168](https://github.com/rshade/finfocus/commit/e783168adad9e28da408d14fc456452d4b14835f))
+* **deps:** update go dependencies ([#626](https://github.com/rshade/finfocus/issues/626)) ([500ced2](https://github.com/rshade/finfocus/commit/500ced2f34e079906f485ba8024bf01dac5c4b24))
+* **deps:** update module github.com/charmbracelet/bubbles to v1 ([#627](https://github.com/rshade/finfocus/issues/627)) ([fc17976](https://github.com/rshade/finfocus/commit/fc179765791867ec997c3a3b2c76147c05a6ada2))
+* **ingest:** pass cloud resource IDs and ARNs to plugins for actual cost lookup ([#574](https://github.com/rshade/finfocus/issues/574)) ([3bdc6ff](https://github.com/rshade/finfocus/commit/3bdc6ff3a24b0db0fb65142e6558c760df95230a)), closes [#380](https://github.com/rshade/finfocus/issues/380)
+* **logging:** auto-create log directory before opening log file ([#618](https://github.com/rshade/finfocus/issues/618)) ([8b8717e](https://github.com/rshade/finfocus/commit/8b8717ea39968acd232fe04ecfc0fe24ece5d2ff)), closes [#591](https://github.com/rshade/finfocus/issues/591)
+* **proto:** deep copy CostBreakdown to prevent source mutation ([#622](https://github.com/rshade/finfocus/issues/622)) ([ce45c21](https://github.com/rshade/finfocus/commit/ce45c2192dab54e94ca7c3ba245d702f7e6e7712)), closes [#614](https://github.com/rshade/finfocus/issues/614)
+* **proto:** skip phantom $0 results from empty plugin responses ([#623](https://github.com/rshade/finfocus/issues/623)) ([862ead5](https://github.com/rshade/finfocus/commit/862ead53f40eb312319f47023a5ec87815594753)), closes [#593](https://github.com/rshade/finfocus/issues/593) [#595](https://github.com/rshade/finfocus/issues/595)
+* **recorder:** remove ACTUAL_COSTS capability and add Supports() override ([#628](https://github.com/rshade/finfocus/issues/628)) ([d2a8b81](https://github.com/rshade/finfocus/commit/d2a8b818be2275bc4f4f956a0dd6ef1574733908)), closes [#594](https://github.com/rshade/finfocus/issues/594) [#596](https://github.com/rshade/finfocus/issues/596)
+* **registry:** fall back to filesystem discovery for plugin removal ([#621](https://github.com/rshade/finfocus/issues/621)) ([156bbde](https://github.com/rshade/finfocus/commit/156bbdef7da1877e3b427369ff76fa3c2dd60f1b)), closes [#592](https://github.com/rshade/finfocus/issues/592)
+
+
+### Changed
+
+* **cli:** wrap bare error returns with descriptive context ([#634](https://github.com/rshade/finfocus/issues/634)) ([ec1c6a7](https://github.com/rshade/finfocus/commit/ec1c6a7e4023a7127a71be47df7de6efc15bcf32)), closes [#609](https://github.com/rshade/finfocus/issues/609)
+* **core:** coderabbit follow-up cleanup from pulumi auto-detect PR ([#619](https://github.com/rshade/finfocus/issues/619)) ([ce1ec73](https://github.com/rshade/finfocus/commit/ce1ec73ddcfc4aaa2c829a2512e36b5bb176cc18))
+
 ## [0.2.6](https://github.com/rshade/finfocus/compare/v0.2.5...v0.2.6) (2026-02-02)
 
 
