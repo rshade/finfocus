@@ -84,9 +84,8 @@ type PatternCache struct {
 	regexes map[string]*regexp.Regexp
 }
 
-// NewPatternCache returns a new PatternCache with its internal map for compiled
-// NewPatternCache returns a new PatternCache with an initialized, empty regex map ready for concurrent use.
-// The returned cache's internal mutex is zero-valued and the map is prepared to store compiled regex patterns.
+// NewPatternCache returns a new PatternCache with an initialized, empty regex map
+// and a zero-valued mutex ready for concurrent use.
 func NewPatternCache() *PatternCache {
 	return &PatternCache{
 		regexes: make(map[string]*regexp.Regexp),

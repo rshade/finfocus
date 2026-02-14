@@ -307,12 +307,15 @@ func (r *DefaultRouter) SelectPlugins(
 		// Check if this client matches the provider
 		matchReason := r.matchesProvider(client, provider)
 		if matchReason == MatchReasonAutomatic || matchReason == MatchReasonGlobal {
+			// Look up plugin config once for feature, region, and priority checks
+			pcfg, hasConfig := r.pluginConfig[client.Name]
+			var pluginCfg config.PluginRouting
+			if hasConfig {
+				pluginCfg = *pcfg
+			}
+
 			// Check feature filter first (consistent with pattern-based path)
-			if cfg, ok := r.pluginConfig[client.Name]; ok {
-				if !r.matchesFeature(client, *cfg, feature) {
-					continue
-				}
-			} else if !r.matchesFeature(client, config.PluginRouting{}, feature) {
+			if !r.matchesFeature(client, pluginCfg, feature) {
 				continue
 			}
 
@@ -330,12 +333,8 @@ func (r *DefaultRouter) SelectPlugins(
 				continue
 			}
 
-			priority := 0
-			fallback := true
-			if cfg, ok := r.pluginConfig[client.Name]; ok {
-				priority = cfg.Priority
-				fallback = cfg.FallbackEnabled()
-			}
+			priority := pluginCfg.Priority
+			fallback := pluginCfg.FallbackEnabled()
 
 			matches = append(matches, PluginMatch{
 				Client:      client,

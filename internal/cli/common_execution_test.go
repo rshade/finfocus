@@ -447,7 +447,7 @@ func BenchmarkCreateRouterForEngine(b *testing.B) {
 	ctx := context.Background()
 	clients := []*pluginhost.Client{}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = createRouterForEngine(ctx, nil, clients)
 	}
 }
@@ -463,7 +463,7 @@ func BenchmarkCreateRouterForEngine_WithConfig(b *testing.B) {
 	}
 	clients := []*pluginhost.Client{}
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_ = createRouterForEngine(ctx, cfg, clients)
 	}
 }

@@ -1050,7 +1050,6 @@ CodeRabbit now:
 ## Active Technologies
 - Go 1.25.7 + cobra (CLI), os/filepath/runtime (platform detection), pkg/version (version info) (590-analyzer-install)
 - Filesystem only (symlinks on Unix, file copies on Windows) (590-analyzer-install)
-- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol), zerolog v1.34.0 (logging) (511-wire-router)
 - Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol), zerolog v1.34.0 (logging) (511-wire-router)
 - N/A (stateless per-invocation; reads `~/.finfocus/config.yaml`) (511-wire-router)
 

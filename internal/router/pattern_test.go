@@ -92,6 +92,12 @@ func TestCompiledPattern_Match_Glob(t *testing.T) {
 			wantMatch:    false,
 		},
 		{
+			name:         "no cross-provider slash match",
+			pattern:      "aws:ec2/*",
+			resourceType: "aws:s3/bucket:Bucket",
+			wantMatch:    false,
+		},
+		{
 			name:         "character class",
 			pattern:      "aws:ec[23]:Instance",
 			resourceType: "aws:ec2:Instance",

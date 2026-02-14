@@ -232,6 +232,11 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 		return fmt.Errorf("fetching recommendations: %w", err)
 	}
 
+	if result == nil {
+		log.Warn().Ctx(ctx).Msg("no recommendation results returned")
+		return nil
+	}
+
 	// Annotate active recommendations with status
 	annotateActiveStatus(result)
 
