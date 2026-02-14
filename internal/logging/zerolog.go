@@ -25,6 +25,12 @@ var fallbackCounter atomic.Uint32
 // traceIDKey is a private type for context keys to avoid collisions.
 type traceIDKey struct{}
 
+// pluginLogWriterKey is a private type for storing the plugin log writer in context.
+type pluginLogWriterKey struct{}
+
+// pluginLogPathKey is a private type for storing the plugin log file path in context.
+type pluginLogPathKey struct{}
+
 // Config holds logging configuration settings.
 type Config struct {
 	Level      string // Log level: trace, debug, info, warn, error
@@ -65,6 +71,7 @@ type LogPathResult struct {
 	FallbackUsed   bool           // True if fallback to stderr occurred
 	FallbackReason string         // Reason for fallback (if any)
 	file           *os.File       // Internal: file handle for cleanup
+	pluginLogFile  *os.File       // Internal: separate file handle for plugin I/O
 }
 
 // NewLoggerWithPath creates a zerolog logger according to cfg and reports the chosen log destination.
@@ -117,8 +124,23 @@ func NewLoggerWithPath(cfg Config) LogPathResult {
 	return result
 }
 
+// SetPluginLogFile stores a separate file handle for plugin I/O redirection.
+// This handle is closed when Close() is called.
+func (r *LogPathResult) SetPluginLogFile(f *os.File) {
+	r.pluginLogFile = f
+}
+
 // Close releases any resources held by the logger (e.g., file handles).
 func (r *LogPathResult) Close() error {
+	if r.pluginLogFile != nil {
+		if err := r.pluginLogFile.Close(); err != nil {
+			// Still try to close the main file
+			if r.file != nil {
+				_ = r.file.Close()
+			}
+			return err
+		}
+	}
 	if r.file != nil {
 		return r.file.Close()
 	}
@@ -272,6 +294,39 @@ func ContextWithTraceID(ctx context.Context, traceID string) context.Context {
 func TraceIDFromContext(ctx context.Context) string {
 	if traceID, ok := ctx.Value(traceIDKey{}).(string); ok {
 		return traceID
+	}
+	return ""
+}
+
+// ContextWithPluginLogWriter stores a writer for plugin log output in the context.
+// This writer is used by plugin launchers to redirect plugin stderr/stdout
+// to the core log file instead of the terminal.
+func ContextWithPluginLogWriter(ctx context.Context, w io.Writer) context.Context {
+	return context.WithValue(ctx, pluginLogWriterKey{}, w)
+}
+
+// PluginLogWriterFromContext extracts the plugin log writer from context.
+// Returns nil if no writer is stored, indicating that plugin output should
+// use the default behavior (stderr).
+func PluginLogWriterFromContext(ctx context.Context) io.Writer {
+	if w, ok := ctx.Value(pluginLogWriterKey{}).(io.Writer); ok {
+		return w
+	}
+	return nil
+}
+
+// ContextWithPluginLogPath stores the plugin log file path in the context.
+// This path is propagated to plugin processes via FINFOCUS_LOG_FILE so that
+// well-behaved plugins can configure their own structured logging to the same file.
+func ContextWithPluginLogPath(ctx context.Context, path string) context.Context {
+	return context.WithValue(ctx, pluginLogPathKey{}, path)
+}
+
+// PluginLogPathFromContext extracts the plugin log file path from context.
+// Returns empty string if no path is stored.
+func PluginLogPathFromContext(ctx context.Context) string {
+	if path, ok := ctx.Value(pluginLogPathKey{}).(string); ok {
+		return path
 	}
 	return ""
 }

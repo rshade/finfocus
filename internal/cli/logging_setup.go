@@ -53,6 +53,20 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	ctx = logging.ContextWithTraceID(ctx, traceID)
 	ctx = logger.WithContext(ctx)
 
+	// When logging to a file, open a second append-mode handle for plugin I/O.
+	// Plugin stderr/stdout will be redirected here to keep the terminal clean.
+	// In debug mode (no file), plugins continue writing to stderr for visibility.
+	if result.UsingFile {
+		pluginLogFile, err := os.OpenFile(result.FilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
+		if err != nil {
+			logger.Warn().Err(err).Msg("could not open plugin log file, plugin output will go to stderr")
+		} else {
+			result.SetPluginLogFile(pluginLogFile)
+			ctx = logging.ContextWithPluginLogWriter(ctx, pluginLogFile)
+			ctx = logging.ContextWithPluginLogPath(ctx, result.FilePath)
+		}
+	}
+
 	auditLogger := logging.NewAuditLogger(logging.AuditLoggerConfig{
 		Enabled: loggingCfg.Audit.Enabled,
 		File:    loggingCfg.Audit.File,

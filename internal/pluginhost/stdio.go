@@ -64,7 +64,12 @@ func (s *StdioLauncher) Start(
 		return nil, nil, fmt.Errorf("creating stdout pipe: %w", err)
 	}
 
-	cmd.Stderr = os.Stderr
+	// Redirect plugin stderr to the log file when available, keeping the terminal clean.
+	if pluginWriter := logging.PluginLogWriterFromContext(ctx); pluginWriter != nil {
+		cmd.Stderr = pluginWriter
+	} else {
+		cmd.Stderr = os.Stderr
+	}
 	// Set WaitDelay before Start to avoid race condition with watchCtx goroutine
 	cmd.WaitDelay = stdioWaitDelay
 

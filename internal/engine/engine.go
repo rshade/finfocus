@@ -37,6 +37,11 @@ const (
 	defaultCurrency             = "USD"     // Default currency for cost calculations
 	batchProcessingThreshold    = 100       // Threshold for enabling batch processing
 	unknownProvider             = "unknown" // Fallback provider name when extraction fails
+
+	// pulumiInternalPrefix identifies Pulumi's internal resource types (e.g.,
+	// "pulumi:pulumi:Stack") that should be excluded from cost calculations
+	// since they represent framework bookkeeping, not billable cloud resources.
+	pulumiInternalPrefix = "pulumi:"
 )
 
 const (
@@ -165,7 +170,7 @@ func (e *Engine) selectPluginMatchesForResource(
 	// If no router configured, return all clients as matches with fallback enabled
 	if e.router == nil {
 		// Filter internal Pulumi types when no router is configured
-		if strings.HasPrefix(resource.Type, "pulumi:") {
+		if strings.HasPrefix(resource.Type, pulumiInternalPrefix) {
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").
@@ -200,7 +205,7 @@ func (e *Engine) selectPluginMatchesForResource(
 	matches := e.router.SelectPlugins(ctx, resource, feature)
 	if len(matches) == 0 {
 		// Filter internal Pulumi types — do not fall back to all clients
-		if strings.HasPrefix(resource.Type, "pulumi:") {
+		if strings.HasPrefix(resource.Type, pulumiInternalPrefix) {
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").
@@ -758,8 +763,13 @@ func (e *Engine) GetActualCostWithOptions(
 			// Select plugin matches using router (if configured) or all clients
 			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
 			if selectedMatches == nil {
+				// Send nil result to preserve index alignment in resultsChan.
+				// Downstream consumers expect one result per worker slot; the
+				// nil signals that this resource was intentionally filtered
+				// (e.g., internal Pulumi type) and is excluded when results
+				// are collected.
 				resultsChan <- workerResult{index: j.index, result: nil}
-				continue // Resource intentionally filtered (e.g., internal Pulumi type)
+				continue
 			}
 
 			fallbackChainBroken := false
