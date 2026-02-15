@@ -2,6 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,8 +14,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rshade/finfocus/internal/analyzer"
+	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/pkg/version"
 )
+
+// NOTE: Tests in this file are NOT safe for t.Parallel() because they mutate
+// package-level globals (analyzerInstaller, pluginInstaller). Do not add
+// t.Parallel() to any test that touches these globals.
 
 // newTestSetupCmd creates a testable setup command with captured output.
 // It returns the command and a buffer that receives all output.
@@ -93,9 +102,28 @@ func TestStepDetectPulumi(t *testing.T) {
 		assert.Contains(t, step.Message, "pulumi.com")
 	})
 
-	// Note: testing the "found" case requires pulumi on PATH, which is
-	// environment-dependent. The integration test in TestSetupFullRun
-	// covers this path when pulumi is available.
+	t.Run("pulumi_found", func(t *testing.T) {
+		tmpDir := t.TempDir()
+
+		// Create a fake pulumi script that prints a version string
+		var script string
+		var name string
+		if runtime.GOOS == "windows" {
+			name = "pulumi.bat"
+			script = "@echo v3.100.0\n"
+		} else {
+			name = "pulumi"
+			script = "#!/bin/sh\necho v3.100.0\n"
+		}
+		fakePulumi := filepath.Join(tmpDir, name)
+		require.NoError(t, os.WriteFile(fakePulumi, []byte(script), 0o755))
+
+		t.Setenv("PATH", tmpDir)
+		step := stepDetectPulumi(t.Context())
+
+		assert.Equal(t, StepSuccess, step.Status)
+		assert.Contains(t, step.Message, "v3.100.0")
+	})
 }
 
 // TestStepCreateDirectories verifies directory creation on a clean system.
@@ -103,7 +131,7 @@ func TestStepCreateDirectories(t *testing.T) {
 	tmpDir := filepath.Join(t.TempDir(), "finfocus")
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
-	steps := stepCreateDirectories()
+	steps := stepCreateDirectories(config.ResolveConfigDir())
 
 	require.Len(t, steps, 4, "expected 4 directory steps (base, plugins, cache, logs)")
 
@@ -137,7 +165,7 @@ func TestStepCreateDirectories_AlreadyExist(t *testing.T) {
 	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "cache"), dirPermBase))
 	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "logs"), dirPermBase))
 
-	steps := stepCreateDirectories()
+	steps := stepCreateDirectories(config.ResolveConfigDir())
 
 	require.Len(t, steps, 4)
 	for _, step := range steps {
@@ -154,7 +182,7 @@ func TestStepInitConfig(t *testing.T) {
 	// Ensure the config directory exists (setup would have created it)
 	require.NoError(t, os.MkdirAll(tmpDir, dirPermBase))
 
-	step := stepInitConfig()
+	step := stepInitConfig(config.ResolveConfigDir())
 
 	assert.Equal(t, StepSuccess, step.Status)
 	assert.True(t, step.Critical)
@@ -175,7 +203,7 @@ func TestStepInitConfig_AlreadyExists(t *testing.T) {
 	customContent := []byte("custom: true\n")
 	require.NoError(t, os.WriteFile(configPath, customContent, 0o600))
 
-	step := stepInitConfig()
+	step := stepInitConfig(config.ResolveConfigDir())
 
 	assert.Equal(t, StepSuccess, step.Status)
 	assert.Contains(t, step.Message, "already exists")
@@ -186,35 +214,120 @@ func TestStepInitConfig_AlreadyExists(t *testing.T) {
 	assert.Equal(t, customContent, data, "existing config should not be overwritten")
 }
 
-// TestStepInstallAnalyzer tests the analyzer installation step.
-// Note: This test may produce warnings if the Pulumi plugin directory
-// cannot be resolved, which is expected in test environments.
+// TestStepInstallAnalyzer tests the analyzer installation step with mock installer.
 func TestStepInstallAnalyzer(t *testing.T) {
-	step := stepInstallAnalyzer(t.Context())
+	t.Run("success_installed", func(t *testing.T) {
+		original := analyzerInstaller
+		t.Cleanup(func() { analyzerInstaller = original })
 
-	// In test environments, the result depends on whether Pulumi is installed.
-	// We just verify the step doesn't panic and returns a valid result.
-	assert.NotEmpty(t, step.Name)
-	assert.NotEmpty(t, step.Message)
-	assert.False(t, step.Critical, "analyzer install should not be critical")
+		analyzerInstaller = analyzerInstallerFunc(
+			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+				return &analyzer.InstallResult{
+					Installed: true,
+					Version:   "1.0.0",
+					Method:    "symlink",
+					Action:    analyzer.ActionInstalled,
+				}, nil
+			},
+		)
+
+		step := stepInstallAnalyzer(t.Context())
+
+		assert.Equal(t, StepSuccess, step.Status)
+		assert.Contains(t, step.Message, "Installed Pulumi analyzer")
+		assert.Contains(t, step.Message, "v1.0.0")
+		assert.Contains(t, step.Message, "symlink")
+		assert.False(t, step.Critical)
+	})
+
+	t.Run("already_current", func(t *testing.T) {
+		original := analyzerInstaller
+		t.Cleanup(func() { analyzerInstaller = original })
+
+		analyzerInstaller = analyzerInstallerFunc(
+			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+				return &analyzer.InstallResult{
+					Installed: true,
+					Version:   "1.0.0",
+					Action:    analyzer.ActionAlreadyCurrent,
+				}, nil
+			},
+		)
+
+		step := stepInstallAnalyzer(t.Context())
+
+		assert.Equal(t, StepSuccess, step.Status)
+		assert.Contains(t, step.Message, "already current")
+		assert.Contains(t, step.Message, "v1.0.0")
+	})
+
+	t.Run("update_available", func(t *testing.T) {
+		original := analyzerInstaller
+		t.Cleanup(func() { analyzerInstaller = original })
+
+		analyzerInstaller = analyzerInstallerFunc(
+			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+				return &analyzer.InstallResult{
+					Installed:      true,
+					Version:        "0.9.0",
+					CurrentVersion: "1.0.0",
+					Action:         analyzer.ActionUpdateAvailable,
+				}, nil
+			},
+		)
+
+		step := stepInstallAnalyzer(t.Context())
+
+		assert.Equal(t, StepWarning, step.Status)
+		assert.Contains(t, step.Message, "v0.9.0")
+		assert.Contains(t, step.Message, "v1.0.0")
+		assert.Contains(t, step.Message, "update available")
+	})
+
+	t.Run("error", func(t *testing.T) {
+		original := analyzerInstaller
+		t.Cleanup(func() { analyzerInstaller = original })
+
+		analyzerInstaller = analyzerInstallerFunc(
+			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+				return nil, errors.New("plugin dir not found")
+			},
+		)
+
+		step := stepInstallAnalyzer(t.Context())
+
+		assert.Equal(t, StepWarning, step.Status)
+		assert.Contains(t, step.Message, "Failed to install analyzer")
+		assert.Contains(t, step.Message, "plugin dir not found")
+		assert.NotNil(t, step.Err)
+	})
 }
 
-// TestStepInstallPlugins tests the plugin installation step.
-// In test environments, this will likely warn about network issues.
+// TestStepInstallPlugins tests the plugin installation step with a mock installer.
 func TestStepInstallPlugins(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "plugins"), dirPermPlugins))
 
-	cmd, _ := newTestSetupCmd()
-	steps := stepInstallPlugins(cmd)
+	original := pluginInstaller
+	t.Cleanup(func() { pluginInstaller = original })
+
+	pluginInstaller = pluginInstallerFunc(
+		func(_ string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
+			return &registry.InstallResult{Name: "aws-public", Version: "v0.1.0"}, nil
+		},
+	)
+
+	steps := stepInstallPlugins(tmpDir)
 
 	require.NotEmpty(t, steps, "should have at least one plugin result")
 	for _, step := range steps {
+		assert.Equal(t, StepSuccess, step.Status)
 		assert.NotEmpty(t, step.Name)
 		assert.NotEmpty(t, step.Message)
 		assert.False(t, step.Critical, "plugin install should not be critical")
 	}
+	assert.Contains(t, steps[0].Message, "aws-public")
 }
 
 // TestStepInstallPlugins_AlreadyInstalled tests when plugins are already present.
@@ -226,10 +339,9 @@ func TestStepInstallPlugins_AlreadyInstalled(t *testing.T) {
 	pluginDir := filepath.Join(tmpDir, "plugins", "aws-public", "v0.1.0")
 	require.NoError(t, os.MkdirAll(pluginDir, dirPermPlugins))
 
-	cmd, _ := newTestSetupCmd()
-	steps := stepInstallPlugins(cmd)
+	steps := stepInstallPlugins(tmpDir)
 
-	require.Len(t, steps, 1)
+	require.Len(t, steps, len(defaultPlugins))
 	assert.Equal(t, StepSuccess, steps[0].Status)
 	assert.Contains(t, steps[0].Message, "already installed")
 }
@@ -283,33 +395,59 @@ func TestSetupNonInteractive(t *testing.T) {
 
 // --- US4 Skip Flag Tests ---
 
-// TestSetupSkipAnalyzer verifies the --skip-analyzer flag.
+// TestSetupSkipAnalyzer verifies the --skip-analyzer flag in isolation.
 func TestSetupSkipAnalyzer(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
+	// Mock analyzer to avoid real install attempt
+	original := analyzerInstaller
+	t.Cleanup(func() { analyzerInstaller = original })
+	analyzerInstaller = analyzerInstallerFunc(
+		func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+			return &analyzer.InstallResult{Action: analyzer.ActionAlreadyCurrent, Version: "test"}, nil
+		},
+	)
+
 	cmd, buf := newTestSetupCmd()
-	cmd.SetArgs([]string{"--non-interactive", "--skip-analyzer", "--skip-plugins"})
+	// Only skip analyzer — plugins still run (mocked analyzer, plugin step proceeds)
+	cmd.SetArgs([]string{"--non-interactive", "--skip-analyzer"})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
 	output := buf.String()
 	assert.Contains(t, output, "[SKIP]", "should show skip marker for analyzer")
 	assert.Contains(t, output, "Skipped analyzer installation")
+	assert.NotContains(t, output, "Skipped plugin installation", "plugins should not be skipped")
+	// Directories and config should still be created
+	assert.DirExists(t, filepath.Join(tmpDir, "plugins"))
+	assert.FileExists(t, filepath.Join(tmpDir, "config.yaml"))
 }
 
-// TestSetupSkipPlugins verifies the --skip-plugins flag.
+// TestSetupSkipPlugins verifies the --skip-plugins flag in isolation.
 func TestSetupSkipPlugins(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
+	// Mock analyzer so it doesn't depend on real Pulumi
+	original := analyzerInstaller
+	t.Cleanup(func() { analyzerInstaller = original })
+	analyzerInstaller = analyzerInstallerFunc(
+		func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+			return &analyzer.InstallResult{Action: analyzer.ActionAlreadyCurrent, Version: "test"}, nil
+		},
+	)
+
 	cmd, buf := newTestSetupCmd()
-	cmd.SetArgs([]string{"--non-interactive", "--skip-plugins", "--skip-analyzer"})
+	// Only skip plugins — analyzer still runs (mocked)
+	cmd.SetArgs([]string{"--non-interactive", "--skip-plugins"})
 	err := cmd.Execute()
 	require.NoError(t, err)
 
 	output := buf.String()
 	assert.Contains(t, output, "Skipped plugin installation")
+	assert.NotContains(t, output, "Skipped analyzer installation", "analyzer should not be skipped")
+	assert.Contains(t, output, "Pulumi analyzer already current", "mocked analyzer should run and report status")
 }
 
 // TestSetupCombinedSkipFlags verifies both skip flags together.

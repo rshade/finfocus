@@ -1121,14 +1121,14 @@ func totalActualCost(pbcResults []*pbc.ActualCostResult) (float64, map[string]fl
 	for _, result := range pbcResults {
 		totalCost += result.GetCost()
 		if result.GetSource() != "" {
-			breakdown[result.GetSource()] = result.GetCost()
+			breakdown[result.GetSource()] += result.GetCost()
 		}
 	}
 	return totalCost, breakdown
 }
 
 func actualCostCurrency(pbcResults []*pbc.ActualCostResult) string {
-	currency := "USD"
+	var pricingCandidate string
 	for _, result := range pbcResults {
 		focusRecord := result.GetFocusRecord()
 		if focusRecord == nil {
@@ -1137,12 +1137,16 @@ func actualCostCurrency(pbcResults []*pbc.ActualCostResult) string {
 		if c := focusRecord.GetBillingCurrency(); c != "" {
 			return c
 		}
-		if c := focusRecord.GetPricingCurrency(); c != "" {
-			currency = c
-			break
+		if pricingCandidate == "" {
+			if c := focusRecord.GetPricingCurrency(); c != "" {
+				pricingCandidate = c
+			}
 		}
 	}
-	return currency
+	if pricingCandidate != "" {
+		return pricingCandidate
+	}
+	return "USD"
 }
 
 // aggregateImpactMetrics sums impact metric values by kind across all actual cost results

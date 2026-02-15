@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -43,32 +43,78 @@ const (
 
 // StepResult describes the outcome of executing a single setup step.
 type StepResult struct {
-	Name     string
-	Status   StepStatus
-	Message  string
-	Critical bool
-	Err      error
+	Name     string     `json:"name"               yaml:"name"`
+	Status   StepStatus `json:"status"             yaml:"status"`
+	Message  string     `json:"message"            yaml:"message"`
+	Critical bool       `json:"critical,omitempty" yaml:"critical,omitempty"`
+	Err      error      `json:"-"                  yaml:"-"`
 }
 
 // SetupOptions holds the configuration for the setup command, derived from CLI flags.
 type SetupOptions struct {
-	SkipAnalyzer   bool
-	SkipPlugins    bool
-	NonInteractive bool
+	SkipAnalyzer   bool `json:"skipAnalyzer,omitempty"   yaml:"skipAnalyzer,omitempty"`
+	SkipPlugins    bool `json:"skipPlugins,omitempty"    yaml:"skipPlugins,omitempty"`
+	NonInteractive bool `json:"nonInteractive,omitempty" yaml:"nonInteractive,omitempty"`
 }
 
 // SetupResult is the aggregate outcome of all setup steps.
 type SetupResult struct {
-	Steps       []StepResult
-	HasErrors   bool
-	HasWarnings bool
+	Steps       []StepResult `json:"steps,omitempty"       yaml:"steps,omitempty"`
+	HasErrors   bool         `json:"hasErrors,omitempty"   yaml:"hasErrors,omitempty"`
+	HasWarnings bool         `json:"hasWarnings,omitempty" yaml:"hasWarnings,omitempty"`
 }
+
+// AnalyzerInstaller is the interface for installing the Pulumi analyzer.
+type AnalyzerInstaller interface {
+	Install(ctx context.Context, opts analyzer.InstallOptions) (*analyzer.InstallResult, error)
+}
+
+// analyzerInstallerFunc is a function adapter for AnalyzerInstaller.
+type analyzerInstallerFunc func(ctx context.Context, opts analyzer.InstallOptions) (*analyzer.InstallResult, error)
+
+func (f analyzerInstallerFunc) Install(
+	ctx context.Context,
+	opts analyzer.InstallOptions,
+) (*analyzer.InstallResult, error) {
+	return f(ctx, opts)
+}
+
+// analyzerInstaller is the package-level installer used by stepInstallAnalyzer.
+// It defaults to the real analyzer.Install function and can be overridden in tests.
+//
+//nolint:gochecknoglobals // Intentionally global for test mockability
+var analyzerInstaller AnalyzerInstaller = analyzerInstallerFunc(analyzer.Install)
+
+// PluginInstaller is the interface for installing plugins.
+type PluginInstaller interface {
+	Install(specifier string, opts registry.InstallOptions, progress func(string)) (*registry.InstallResult, error)
+}
+
+// pluginInstallerFunc is a function adapter for PluginInstaller.
+type pluginInstallerFunc func(specifier string, opts registry.InstallOptions, progress func(string)) (*registry.InstallResult, error)
+
+func (f pluginInstallerFunc) Install(
+	specifier string,
+	opts registry.InstallOptions,
+	progress func(string),
+) (*registry.InstallResult, error) {
+	return f(specifier, opts, progress)
+}
+
+// pluginInstaller is the package-level installer used by stepInstallPlugins.
+// It defaults to nil (uses registry.NewInstaller) and can be overridden in tests.
+//
+//nolint:gochecknoglobals // Intentionally global for test mockability
+var pluginInstaller PluginInstaller
 
 // dirPermBase is the permission mode for the base and standard directories.
 const dirPermBase = 0o700
 
 // dirPermPlugins is the permission mode for the plugins directory.
 const dirPermPlugins = 0o750
+
+// pulumiVersionTimeout is the maximum time to wait for `pulumi version` to respond.
+const pulumiVersionTimeout = 5 * time.Second
 
 // formatStatus returns a status marker appropriate for the output mode.
 func formatStatus(status StepStatus, nonInteractive bool) string {
@@ -150,6 +196,9 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions) error {
 		ctx = context.Background()
 	}
 
+	traceID := logging.GetOrGenerateTraceID(ctx)
+	ctx = logging.ContextWithTraceID(ctx, traceID)
+
 	log := logging.FromContext(ctx)
 
 	// Auto-detect non-interactive mode when stdin is not a TTY
@@ -169,15 +218,18 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions) error {
 	printStep(cmd, step, opts.NonInteractive)
 	result.Steps = append(result.Steps, step)
 
+	// Resolve config directory once for all steps that need it
+	baseDir := config.ResolveConfigDir()
+
 	// Step 3: Create directories
-	dirSteps := stepCreateDirectories()
+	dirSteps := stepCreateDirectories(baseDir)
 	for _, s := range dirSteps {
 		printStep(cmd, s, opts.NonInteractive)
 		result.Steps = append(result.Steps, s)
 	}
 
 	// Step 4: Initialize config
-	step = stepInitConfig()
+	step = stepInitConfig(baseDir)
 	printStep(cmd, step, opts.NonInteractive)
 	result.Steps = append(result.Steps, step)
 
@@ -204,7 +256,7 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions) error {
 		printStep(cmd, step, opts.NonInteractive)
 		result.Steps = append(result.Steps, step)
 	} else {
-		pluginSteps := stepInstallPlugins(cmd)
+		pluginSteps := stepInstallPlugins(baseDir)
 		for _, s := range pluginSteps {
 			printStep(cmd, s, opts.NonInteractive)
 			result.Steps = append(result.Steps, s)
@@ -212,24 +264,19 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions) error {
 	}
 
 	// Compute aggregate status
-	for _, s := range result.Steps {
-		if s.Status == StepError && s.Critical {
-			result.HasErrors = true
-		}
-		if s.Status == StepWarning {
-			result.HasWarnings = true
-		}
-	}
+	computeAggregateStatus(result)
 
 	// Print summary
 	printSummary(cmd, result)
 
 	if result.HasErrors {
+		joinedErr := collectCriticalErrors(result)
 		log.Error().
 			Ctx(ctx).
 			Str("component", "setup").
+			Err(joinedErr).
 			Msg("setup completed with critical errors")
-		return errors.New("setup failed: one or more critical steps failed")
+		return fmt.Errorf("setup failed: one or more critical steps failed: %w", joinedErr)
 	}
 
 	return nil
@@ -249,6 +296,44 @@ func printSummary(cmd *cobra.Command, result *SetupResult) {
 	} else {
 		cmd.Println("Setup complete! Run 'finfocus cost projected --pulumi-json plan.json' to get started.")
 	}
+}
+
+// computeAggregateStatus updates the HasErrors and HasWarnings flags on the result.
+func computeAggregateStatus(result *SetupResult) {
+	for _, s := range result.Steps {
+		if s.Status == StepError && s.Critical {
+			result.HasErrors = true
+		}
+		if s.Status == StepWarning {
+			result.HasWarnings = true
+		}
+	}
+}
+
+// collectCriticalErrors returns a joined error from all critical step failures.
+func collectCriticalErrors(result *SetupResult) error {
+	var stepErrs []error
+	for _, s := range result.Steps {
+		if s.Status == StepError && s.Critical && s.Err != nil {
+			stepErrs = append(stepErrs, s.Err)
+		}
+	}
+	return errors.Join(stepErrs...)
+}
+
+// pluginHasVersionDir checks if a plugin directory contains at least one
+// plausible version subdirectory (a directory starting with "v" and not ".").
+func pluginHasVersionDir(pluginDir string) bool {
+	entries, err := os.ReadDir(pluginDir)
+	if err != nil {
+		return false
+	}
+	for _, entry := range entries {
+		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && strings.HasPrefix(entry.Name(), "v") {
+			return true
+		}
+	}
+	return false
 }
 
 // stepDisplayVersion prints the FinFocus version and Go runtime info.
@@ -282,7 +367,9 @@ func stepDetectPulumi(ctx context.Context) StepResult {
 	}
 
 	// Get Pulumi version
-	out, runErr := exec.CommandContext(ctx, "pulumi", "version").Output()
+	timeoutCtx, cancel := context.WithTimeout(ctx, pulumiVersionTimeout)
+	defer cancel()
+	out, runErr := exec.CommandContext(timeoutCtx, "pulumi", "version").Output()
 	if runErr != nil {
 		log.Debug().
 			Ctx(ctx).
@@ -307,9 +394,7 @@ func stepDetectPulumi(ctx context.Context) StepResult {
 
 // stepCreateDirectories creates the required FinFocus directories.
 // Returns one StepResult per directory.
-func stepCreateDirectories() []StepResult {
-	baseDir := config.ResolveConfigDir()
-
+func stepCreateDirectories(baseDir string) []StepResult {
 	dirs := []struct {
 		path string
 		perm os.FileMode
@@ -361,8 +446,7 @@ func stepCreateDirectories() []StepResult {
 }
 
 // stepInitConfig initializes the default config file if one does not exist.
-func stepInitConfig() StepResult {
-	baseDir := config.ResolveConfigDir()
+func stepInitConfig(baseDir string) StepResult {
 	configPath := filepath.Join(baseDir, "config.yaml")
 
 	if _, err := os.Stat(configPath); err == nil {
@@ -395,7 +479,7 @@ func stepInitConfig() StepResult {
 
 // stepInstallAnalyzer installs the Pulumi analyzer using the existing analyzer.Install() function.
 func stepInstallAnalyzer(ctx context.Context) StepResult {
-	result, err := analyzer.Install(ctx, analyzer.InstallOptions{})
+	result, err := analyzerInstaller.Install(ctx, analyzer.InstallOptions{})
 	if err != nil {
 		return StepResult{
 			Name:   "Analyzer installation",
@@ -446,33 +530,33 @@ func stepInstallAnalyzer(ctx context.Context) StepResult {
 
 // stepInstallPlugins installs the default plugin set.
 // Returns one StepResult per plugin in the default set.
-func stepInstallPlugins(cmd *cobra.Command) []StepResult {
-	cfg := config.New()
-	installer := registry.NewInstaller(cfg.PluginDir)
+// baseDir is the resolved FinFocus home directory (e.g., ~/.finfocus).
+func stepInstallPlugins(baseDir string) []StepResult {
+	pluginDir := filepath.Join(baseDir, "plugins")
+
+	var installer PluginInstaller
+	if pluginInstaller != nil {
+		installer = pluginInstaller
+	} else {
+		installer = registry.NewInstaller(pluginDir)
+	}
 
 	var results []StepResult
 	for _, pluginName := range defaultPlugins {
 		// Check if already installed by scanning the plugin directory
-		pluginDir := filepath.Join(cfg.PluginDir, pluginName)
-		if info, statErr := os.Stat(pluginDir); statErr == nil && info.IsDir() {
-			// Check if there's at least one version directory
-			entries, readErr := os.ReadDir(pluginDir)
-			if readErr == nil && len(entries) > 0 {
-				results = append(results, StepResult{
-					Name:    "Plugin installation",
-					Status:  StepSuccess,
-					Message: fmt.Sprintf("Plugin already installed: %s", pluginName),
-				})
-				continue
-			}
+		pluginPath := filepath.Join(pluginDir, pluginName)
+		if info, statErr := os.Stat(pluginPath); statErr == nil && info.IsDir() && pluginHasVersionDir(pluginPath) {
+			results = append(results, StepResult{
+				Name:    "Plugin installation",
+				Status:  StepSuccess,
+				Message: fmt.Sprintf("Plugin already installed: %s", pluginName),
+			})
+			continue
 		}
 
-		var progressBuf bytes.Buffer
 		installResult, err := installer.Install(pluginName, registry.InstallOptions{
 			FallbackToLatest: true,
-		}, func(msg string) {
-			progressBuf.WriteString(msg)
-		})
+		}, nil)
 		if err != nil {
 			results = append(results, StepResult{
 				Name:   "Plugin installation",
@@ -487,8 +571,6 @@ func stepInstallPlugins(cmd *cobra.Command) []StepResult {
 			})
 			continue
 		}
-
-		_ = cmd // used for potential future progress output
 
 		verInfo := installResult.Version
 		if verInfo == "" {

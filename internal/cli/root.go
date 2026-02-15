@@ -22,7 +22,7 @@ func isTerminal(f *os.File) bool {
 var logger zerolog.Logger //nolint:gochecknoglobals // Required for zerolog context integration
 
 // NewRootCmd creates the root Cobra command for the finfocus CLI.
-// It wires up logging, tracing, audit logging, and subcommands (cost, plugin, config, analyzer).
+// It wires up logging, tracing, audit logging, and subcommands (cost, plugin, config, analyzer, overview, setup).
 // The command dynamically adjusts its Use and Example strings based on whether it's running
 // as a Pulumi tool plugin (detected via binary name or FINFOCUS_PLUGIN_MODE env var).
 func NewRootCmd(ver string) *cobra.Command {
