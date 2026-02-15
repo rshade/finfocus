@@ -11,10 +11,18 @@ The `internal/cli` package implements the Cobra-based command-line interface for
 ### Command Hierarchy
 
 ```text
-finfocus
+finfocus [--project-dir DIR] [--debug]
 ├── cost
-│   ├── projected  # Calculate estimated costs from Pulumi plan
-│   └── actual     # Fetch historical costs from cloud providers
+│   ├── projected       # Calculate estimated costs from Pulumi plan
+│   ├── actual          # Fetch historical costs from cloud providers
+│   ├── recommendations # Get cost optimization recommendations
+│   └── estimate        # Quick cost estimate
+├── config
+│   ├── init [--global] [--force]  # Initialize config (project-local or global)
+│   ├── set             # Set configuration values
+│   ├── get             # Get configuration values
+│   ├── list            # List all configuration
+│   └── validate        # Validate configuration
 ├── plugin
 │   ├── init       # Initialize a new plugin project
 │   ├── install    # Install a plugin
@@ -166,6 +174,38 @@ This dual display ensures users see both individual resource failures and overal
 - Optional adapter override: `--adapter`
 - Output format: `--output` (table|json|ndjson)
 - Global debug flag: `--debug` on root command
+- Project directory: `--project-dir` on root command (persistent, available to all subcommands)
+
+### Project Directory Resolution
+
+The `--project-dir` persistent flag overrides automatic Pulumi project detection.
+It is wired in `PersistentPreRunE` of the root command:
+
+1. `config.ResolveProjectDir(cmd.Context(), projectDirFlag, cwd)` resolves the project `.finfocus/` path
+2. `config.SetResolvedProjectDir(resolvedDir)` stores it for the session
+3. `config.InitGlobalConfigWithProject(cmd.Context(), resolvedDir)` loads merged config
+
+This affects `config init` (creates project-local config), `NewDismissalStore`
+(stores dismissals per-project), and all config getters via `GetGlobalConfig()`.
+
+### Config Init Behavior
+
+`config init` is project-aware:
+
+- **Inside Pulumi project** (without `--global`): creates `$PROJECT/.finfocus/config.yaml`
+  and `$PROJECT/.finfocus/.gitignore`
+- **With `--global`**: always creates `~/.finfocus/config.yaml`
+- **Outside Pulumi project**: falls back to global init
+- `--force`: overwrites existing `config.yaml` but never overwrites `.gitignore`
+
+### DismissalStore Resolution
+
+`loadDismissalStore()` calls `config.NewDismissalStore("")` which uses:
+
+1. `GetResolvedProjectDir()` if set → `$PROJECT/.finfocus/dismissed.json`
+2. `ResolveConfigDir()` fallback → `~/.finfocus/dismissed.json`
+
+This means dismissals are automatically project-scoped when running inside a Pulumi project.
 
 ## Common Gotchas
 

@@ -145,6 +145,56 @@ Pulumi JSON → Ingestion → Resource Descriptors → Engine
                                               Cost Results → Output Rendering
 ```
 
+### Configuration Resolution (Two-Tier)
+
+FinFocus uses a two-tier configuration system: project-local overrides user-global defaults.
+
+**Project-Local** (`$PULUMI_PROJECT/.finfocus/`): project-specific settings
+
+```text
+my-pulumi-project/
+├── Pulumi.yaml
+├── .finfocus/
+│   ├── .gitignore       # Auto-generated, protects user-specific data
+│   ├── config.yaml      # Project budgets, output prefs, plugin config
+│   └── dismissed.json   # Per-project recommendation dismissals
+```
+
+**User-Global** (`~/.finfocus/`): shared resources
+
+```text
+~/.finfocus/
+├── plugins/             # Plugin binaries (shared across projects)
+├── cache/               # Cost calculation cache
+├── logs/                # Log files
+├── config.yaml          # Global defaults
+└── dismissed.json       # Fallback dismissals (no project context)
+```
+
+**Resolution Precedence** for project-specific settings (config, dismissals):
+
+1. `--project-dir` flag (explicit override)
+2. `FINFOCUS_PROJECT_DIR` env var
+3. Walk up from CWD to find `Pulumi.yaml`, use `$PROJECT/.finfocus/`
+4. Fall back to `~/.finfocus/` (backward compatible)
+
+**Resolution Precedence** for global resources (plugins, cache, logs):
+
+1. `FINFOCUS_HOME` env var
+2. `PULUMI_HOME/finfocus`
+3. `~/.finfocus/`
+
+**Config Merge**: Project `config.yaml` overrides global at the **top-level key** level
+(shallow merge). Keys absent in project config inherit from global defaults.
+
+**Key Functions** (`internal/config/`):
+
+- `ResolveProjectDir(ctx, flagValue, startDir)` - discovers project `.finfocus/` directory
+- `NewWithProjectDir(ctx, projectDir)` - loads global config then shallow-merges project overlay
+- `ShallowMergeYAML(target, overlayPath)` - applies top-level key replacement
+- `EnsureGitignore(dir)` - creates `.gitignore` in project `.finfocus/` directory
+- `InitGlobalConfigWithProject(ctx, projectDir)` - initializes global singleton with project merge
+
 ### Plugin Communication
 
 Plugins communicate via gRPC using protocol buffers from `finfocus-spec`:
@@ -1078,19 +1128,6 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
-- Go 1.25.7 + cobra (CLI), os/filepath/runtime (platform detection), pkg/version (version info) (590-analyzer-install)
-- Filesystem only (symlinks on Unix, file copies on Windows) (590-analyzer-install)
-- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol), zerolog v1.34.0 (logging) (511-wire-router)
-- N/A (stateless per-invocation; reads `~/.finfocus/config.yaml`) (511-wire-router)
-- N/A (stateless CLI) (590-neo-cli-fixes)
-- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol):
-  - zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)
-  - Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)
-- Local JSON file (`~/.finfocus/dismissed.json`) for dismissal state; plugin-side storage delegated to plugins (508-recommendation-dismissal)
-- State Management: N/A (stateless command design) (223-cost-estimate)
-- Go 1.25.7 + Cobra v1.10.2 (CLI), zerolog v1.34.0 (logging), testify v1.11.1 (testing). No new dependencies. (509-pulumi-auto-detect)
-- N/A (stateless CLI invocation) (509-pulumi-auto-detect)
+
 
 ## Recent Changes
-
-- 509-pulumi-auto-detect: Updated finfocus-spec v0.5.5 → v0.5.6 (pagination support for actual costs), metadata-aware registry binary selection, SKU/region injection in actual cost requests

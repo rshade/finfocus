@@ -434,6 +434,96 @@ func TestDismissalStore_SaveCreatesDirectory(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestNewDismissalStore_ProjectAware(t *testing.T) {
+	// Not parallel: subtests mutate package-level resolvedProjectDir and use t.Setenv.
+
+	t.Run("uses project dir when set", func(t *testing.T) {
+		// Set up project dir
+		projectDir := filepath.Join(t.TempDir(), "project", ".finfocus")
+
+		// Save and restore original resolved project dir
+		orig := GetResolvedProjectDir()
+		t.Cleanup(func() { SetResolvedProjectDir(orig) })
+
+		SetResolvedProjectDir(projectDir)
+
+		store, err := NewDismissalStore("")
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Join(projectDir, "dismissed.json"), store.FilePath())
+	})
+
+	t.Run("falls back to ResolveConfigDir when no project", func(t *testing.T) {
+		// Clear project dir
+		orig := GetResolvedProjectDir()
+		t.Cleanup(func() { SetResolvedProjectDir(orig) })
+		SetResolvedProjectDir("")
+
+		store, err := NewDismissalStore("")
+		require.NoError(t, err)
+
+		// Should use ResolveConfigDir() which uses FINFOCUS_HOME, etc
+		expected := filepath.Join(ResolveConfigDir(), "dismissed.json")
+		assert.Equal(t, expected, store.FilePath())
+	})
+
+	t.Run("explicit filePath takes precedence over project dir", func(t *testing.T) {
+		orig := GetResolvedProjectDir()
+		t.Cleanup(func() { SetResolvedProjectDir(orig) })
+		SetResolvedProjectDir("/some/project/.finfocus")
+
+		explicitPath := filepath.Join(t.TempDir(), "custom-dismissed.json")
+		store, err := NewDismissalStore(explicitPath)
+		require.NoError(t, err)
+		assert.Equal(t, explicitPath, store.FilePath())
+	})
+
+	t.Run("respects FINFOCUS_HOME when no project", func(t *testing.T) {
+		orig := GetResolvedProjectDir()
+		t.Cleanup(func() { SetResolvedProjectDir(orig) })
+		SetResolvedProjectDir("")
+
+		customHome := t.TempDir()
+		t.Setenv("FINFOCUS_HOME", customHome)
+
+		store, err := NewDismissalStore("")
+		require.NoError(t, err)
+		assert.Equal(t, filepath.Join(customHome, "dismissed.json"), store.FilePath())
+	})
+}
+
+func TestNewDismissalStore_LoadWithProjectContext(t *testing.T) {
+	// Not parallel: mutates package-level resolvedProjectDir.
+
+	projectDir := filepath.Join(t.TempDir(), "myproject", ".finfocus")
+	require.NoError(t, os.MkdirAll(projectDir, 0o755))
+
+	orig := GetResolvedProjectDir()
+	t.Cleanup(func() { SetResolvedProjectDir(orig) })
+	SetResolvedProjectDir(projectDir)
+
+	// Simulates what loadDismissalStore does in the CLI
+	store, err := NewDismissalStore("")
+	require.NoError(t, err)
+
+	// Load should succeed (empty file = empty store)
+	require.NoError(t, store.Load())
+	assert.Equal(t, 0, store.Count())
+	assert.Equal(t, filepath.Join(projectDir, "dismissed.json"), store.FilePath())
+
+	// Set and save a record
+	require.NoError(t, store.Set(&DismissalRecord{
+		RecommendationID: "test-rec",
+		Status:           StatusDismissed,
+		Reason:           "OTHER",
+		DismissedAt:      time.Now(),
+	}))
+	require.NoError(t, store.Save())
+
+	// Verify file was created in project dir
+	_, err = os.Stat(filepath.Join(projectDir, "dismissed.json"))
+	require.NoError(t, err, "dismissed.json should be created in project dir")
+}
+
 func TestDismissalStore_ConcurrentAccess(t *testing.T) {
 	t.Parallel()
 
