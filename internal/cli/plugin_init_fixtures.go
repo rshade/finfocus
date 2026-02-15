@@ -239,20 +239,15 @@ func (r *FixtureResolver) DownloadFixture(ctx context.Context, source *FixtureSo
 		return "", fmt.Errorf("fetching fixture %s: HTTP %d", source.Origin, resp.StatusCode)
 	}
 
-	content, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", fmt.Errorf("reading fixture %s: %w", source.Origin, err)
-	}
-
 	tempFile, err := os.CreateTemp("", "finfocus-fixture-*.json")
 	if err != nil {
 		return "", fmt.Errorf("creating temp file: %w", err)
 	}
 
-	if _, writeErr := tempFile.Write(content); writeErr != nil {
+	if _, copyErr := io.Copy(tempFile, resp.Body); copyErr != nil {
 		_ = tempFile.Close()
 		_ = os.Remove(tempFile.Name())
-		return "", fmt.Errorf("writing temp file: %w", writeErr)
+		return "", fmt.Errorf("writing temp file: %w", copyErr)
 	}
 
 	if syncErr := tempFile.Sync(); syncErr != nil {
