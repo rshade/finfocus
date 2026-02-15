@@ -127,19 +127,30 @@ func (f AnalyzerInstallerFunc) Install(
 
 // PluginInstaller is the interface for installing plugins.
 type PluginInstaller interface {
-	Install(specifier string, opts registry.InstallOptions, progress func(string)) (*registry.InstallResult, error)
+	Install(
+		ctx context.Context,
+		specifier string,
+		opts registry.InstallOptions,
+		progress func(string),
+	) (*registry.InstallResult, error)
 }
 
 // PluginInstallerFunc is a function adapter for PluginInstaller.
-type PluginInstallerFunc func(specifier string, opts registry.InstallOptions, progress func(string)) (*registry.InstallResult, error)
+type PluginInstallerFunc func(
+	ctx context.Context,
+	specifier string,
+	opts registry.InstallOptions,
+	progress func(string),
+) (*registry.InstallResult, error)
 
 // Install delegates to the underlying function.
 func (f PluginInstallerFunc) Install(
+	ctx context.Context,
 	specifier string,
 	opts registry.InstallOptions,
 	progress func(string),
 ) (*registry.InstallResult, error) {
-	return f(specifier, opts, progress)
+	return f(ctx, specifier, opts, progress)
 }
 
 // DirPermBase is the permission mode for the base and standard directories.
@@ -310,7 +321,7 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions, runner *SetupRunner) error
 		printStep(cmd, step, opts.NonInteractive)
 		result.Steps = append(result.Steps, step)
 	} else {
-		pluginSteps := runner.StepInstallPlugins(baseDir)
+		pluginSteps := runner.StepInstallPlugins(ctx, baseDir)
 		for _, s := range pluginSteps {
 			printStep(cmd, s, opts.NonInteractive)
 			result.Steps = append(result.Steps, s)
@@ -585,7 +596,7 @@ func (r *SetupRunner) StepInstallAnalyzer(ctx context.Context) StepResult {
 // StepInstallPlugins installs the default plugin set.
 // Returns one StepResult per plugin in the default set.
 // baseDir is the resolved FinFocus home directory (e.g., ~/.finfocus).
-func (r *SetupRunner) StepInstallPlugins(baseDir string) []StepResult {
+func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []StepResult {
 	pluginDir := filepath.Join(baseDir, "plugins")
 
 	var installer PluginInstaller
@@ -608,7 +619,7 @@ func (r *SetupRunner) StepInstallPlugins(baseDir string) []StepResult {
 			continue
 		}
 
-		installResult, err := installer.Install(pluginName, registry.InstallOptions{
+		installResult, err := installer.Install(ctx, pluginName, registry.InstallOptions{
 			FallbackToLatest: true,
 		}, nil)
 		if err != nil {

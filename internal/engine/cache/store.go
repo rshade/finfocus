@@ -129,9 +129,12 @@ func (s *FileStore) Get(key string) (*CacheEntry, error) {
 		}
 		if freshEntry.IsExpired() {
 			_ = os.Remove(filePath)
+			s.mu.Unlock()
+			return nil, ErrCacheExpired
 		}
+		// Entry was refreshed by another goroutine and is now valid.
 		s.mu.Unlock()
-		return nil, ErrCacheExpired
+		return &freshEntry, nil
 	}
 
 	s.mu.RUnlock()

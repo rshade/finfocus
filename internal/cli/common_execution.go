@@ -548,23 +548,11 @@ func printTimingOutput(cmd *cobra.Command, start time.Time, resourceCount int, o
 		resourceCount, elapsed.Seconds(), throughput)
 }
 
-// evaluateBudgetStatus checks budget thresholds when currencies are consistent.
-// evaluateBudgetStatus determines whether a budget exit status should be returned based on the
-// provided cost results and total cost.
-//
-// evaluateBudgetStatus inspects the results' currency consistency, obtains a budget scope filter
-// from the command, renders the budget with the resolved currency and scope, and returns any
-// non-nil exit error produced by the budget check. If multiple currencies are present across
-// results or no budget issue is found, it returns nil.
-//
-// Parameters:
-//   - cmd: the Cobra command providing flags and context for budget rendering and checks.
-//   - results: the collection of cost results to evaluate against the budget.
-//   - totalCost: the aggregated cost to use when rendering and evaluating the budget.
-//
-// Returns:
-//   - an error representing a budget exit status when a budget rule is violated, or nil when
-//     currencies are mixed or no budget issue is detected.
+// evaluateBudgetStatus checks budget thresholds when all results share the same
+// currency. It extracts the currency, obtains a scope filter from cmd via
+// getBudgetScopeFilter, calls renderBudgetWithScope to produce a budgetResult,
+// and returns any exit error from checkBudgetExitFromResult. Returns nil when
+// currencies are mixed or no budget violation is detected.
 func evaluateBudgetStatus(
 	cmd *cobra.Command,
 	results []engine.CostResult,

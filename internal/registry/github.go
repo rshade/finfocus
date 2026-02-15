@@ -299,8 +299,10 @@ func retryBackoff(ctx context.Context, attempt int) error {
 	}
 	backoffDivisor := 2
 	d := time.Duration(1<<attempt) * time.Second / time.Duration(backoffDivisor)
+	t := time.NewTimer(d)
+	defer t.Stop()
 	select {
-	case <-time.After(d):
+	case <-t.C:
 		return nil
 	case <-ctx.Done():
 		return fmt.Errorf("request cancelled during backoff: %w", ctx.Err())

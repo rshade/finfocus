@@ -142,16 +142,45 @@
 
 ---
 
+## Phase 7: Refinement Fixes (Post-Review)
+
+**Purpose**: Targeted reliability and quality refinements discovered during code review. All 6 tasks touch different files and are fully parallelizable.
+
+### Implementation
+
+- [X] T030 [P] [US5] Replace verbose `evaluateBudgetStatus` doc comment with a single concise paragraph stating: checks budget thresholds when all results share the same currency, uses `getBudgetScopeFilter` to obtain scope from `cmd`, calls `renderBudgetWithScope(results, totalCost, currency, scopeFilter)`, and returns any exit error from `checkBudgetExitFromResult`; keep parameter/return docs but remove the three overlapping paragraphs in `internal/cli/common_execution.go` (lines 420-436)
+- [X] T031 [P] [US1] Add `audit.logFailure(ctx, budgetErr)` call before returning `budgetErr` in the budget-evaluation block of `cost actual` (mirroring the pattern in `cost_projected.go:284-286`) so budget failures are logged to audit in `internal/cli/cost_actual.go` (lines 285-287)
+- [X] T032 [P] [US4] Fix cache re-validation path: when `freshEntry.IsExpired() == false` after re-reading under write lock, return `&freshEntry, nil` instead of unconditionally returning `ErrCacheExpired`; when expired or unmarshal fails, remove the file and return `nil, ErrCacheExpired`; ensure `s.mu.Unlock()` is called on every return path in `internal/engine/cache/store.go` (lines 98-127)
+- [X] T033 [P] [US1] Clamp negative values to 0 in `WithJobs`: add `if jobs < 0 { jobs = 0 }` before assignment, and add a brief doc comment noting negative inputs are normalized to 0 (auto) in `internal/engine/engine.go` (lines 145-151)
+- [X] T034 [P] [US4] Add `defer stdoutReader.Close()` cleanup after pipe creation in `TestProxy_GracefulShutdown` so the test releases the `stdoutReader` resource in `internal/pluginhost/stdio_test.go` (line 385)
+- [X] T035 [P] [US2] Replace `time.After(d)` with `time.NewTimer(d)` in `retryBackoff`, add `defer t.Stop()` to release timer resources on context cancellation, and update the `select` to read from `t.C` in `internal/registry/github.go` (lines 293-308)
+
+**Checkpoint**: All 6 refinements applied; `make test` and `make lint` pass
+
+---
+
+## Phase 8: Final Validation
+
+**Purpose**: Confirm all refinements integrate cleanly
+
+- [X] T036 Run `make test` and verify all tests pass
+- [X] T037 Run `make test-race` and verify zero data races
+- [X] T038 Run `make lint` and verify zero lint errors
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies
 
-- **Phase 1 (US1)**: No dependencies on other phases - can start immediately
-- **Phase 2 (US2)**: No dependencies on other phases - can start immediately
-- **Phase 3 (US3)**: No dependencies on other phases - can start immediately
-- **Phase 4 (US4)**: No dependencies on other phases - can start immediately
-- **Phase 5 (US5)**: No dependencies on other phases - can start immediately
-- **Phase 6 (Polish)**: Depends on ALL user story phases being complete
+- **Phase 1 (US1)**: No dependencies on other phases - COMPLETE
+- **Phase 2 (US2)**: No dependencies on other phases - COMPLETE
+- **Phase 3 (US3)**: No dependencies on other phases - COMPLETE
+- **Phase 4 (US4)**: No dependencies on other phases - COMPLETE
+- **Phase 5 (US5)**: No dependencies on other phases - COMPLETE
+- **Phase 6 (Polish)**: COMPLETE
+- **Phase 7 (Refinements)**: Depends on Phases 1-6 being complete (applies to already-implemented code)
+- **Phase 8 (Final Validation)**: Depends on Phase 7 being complete
 
 ### User Story Dependencies
 
@@ -162,6 +191,10 @@
 - **US5 (P3)**: Independent - modifies CLI tests, engine/project, TUI exclusively
 
 **All 5 user stories can proceed in parallel** since they modify disjoint file sets.
+
+### Within Phase 7 (Refinements)
+
+All 6 tasks (T030-T035) touch **different files** and have **zero interdependencies**. They can all execute in parallel.
 
 ### Within Each User Story
 
@@ -176,21 +209,20 @@ Within each phase, tasks marked [P] touch different files and can execute concur
 - **US1**: T002 + T003 (different test files); T005 + T007 (projected vs actual)
 - **US4**: T014 + T015 + T016 (three different packages); T017 + T018 + T019 (three different packages)
 - **US5**: T021 + T022 (test file vs engine file)
+- **Refinements (Phase 7)**: ALL 6 tasks (T030-T035) can run in parallel (6 different files)
 
 ---
 
-## Parallel Example: User Story 4 (All 3 Fixes)
+## Parallel Example: Phase 7 (All 6 Refinements)
 
 ```text
-# Launch all tests in parallel (3 different packages):
-Task T014: "Test worker pool bound in internal/engine/overview_enrich_test.go"
-Task T015: "Test synchronous deletion in internal/engine/cache/store_test.go"
-Task T016: "Test proxy shutdown in internal/pluginhost/stdio_test.go"
-
-# Launch all implementations in parallel (3 different packages):
-Task T017: "Refactor overview enrichment in internal/engine/overview_enrich.go"
-Task T018: "Fix cache deletion in internal/engine/cache/store.go"
-Task T019: "Fix proxy lifecycle in internal/pluginhost/stdio.go"
+# All 6 refinement tasks target different files - full parallelism:
+Task T030: "Simplify evaluateBudgetStatus doc comment in internal/cli/common_execution.go"
+Task T031: "Add audit.logFailure for budget errors in internal/cli/cost_actual.go"
+Task T032: "Fix cache re-validation to return valid entries in internal/engine/cache/store.go"
+Task T033: "Clamp negative WithJobs values to 0 in internal/engine/engine.go"
+Task T034: "Close stdoutReader pipe in TestProxy_GracefulShutdown in internal/pluginhost/stdio_test.go"
+Task T035: "Replace time.After with time.NewTimer in retryBackoff in internal/registry/github.go"
 ```
 
 ---
@@ -205,12 +237,13 @@ Task T019: "Fix proxy lifecycle in internal/pluginhost/stdio.go"
 
 ### Incremental Delivery
 
-1. US1 (--jobs flag) → Test → Commit
-2. US2 (context HTTP) → Test → Commit
-3. US3 (fuzz masking) → Test → Commit
-4. US4 (goroutine fixes) → Test → Commit
-5. US5 (DRY + test isolation) → Test → Commit
-6. Polish → Final validation → PR
+1. US1 (--jobs flag) -> Test -> Commit
+2. US2 (context HTTP) -> Test -> Commit
+3. US3 (fuzz masking) -> Test -> Commit
+4. US4 (goroutine fixes) -> Test -> Commit
+5. US5 (DRY + test isolation) -> Test -> Commit
+6. Polish -> Final validation
+7. Refinements (Phase 7) -> All 6 fixes in parallel -> Validate -> Commit
 
 ### Fastest Path (Maximum Parallelism)
 
@@ -218,7 +251,8 @@ All 5 user stories modify disjoint files and can execute simultaneously:
 
 1. US1 + US2 + US3 + US4 + US5 in parallel
 2. Polish phase
-3. Final `make test && make lint` validation
+3. All 6 refinements in parallel
+4. Final `make test && make lint` validation
 
 ---
 
@@ -228,5 +262,6 @@ All 5 user stories modify disjoint files and can execute simultaneously:
 - [Story] label maps task to specific user story for traceability
 - Each user story is independently completable and testable
 - All 5 user stories touch disjoint file sets: full parallelism possible
+- Phase 7 adds 6 refinement tasks, all targeting different files (full parallelism)
 - Commit after each user story for clean git history
-- Total: 29 tasks across 5 user stories + polish phase
+- Total: 38 tasks (29 original + 6 refinements + 3 validation)

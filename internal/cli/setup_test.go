@@ -411,13 +411,13 @@ func TestStepInstallPlugins(t *testing.T) {
 
 	runner := &cli.SetupRunner{
 		PluginInstaller: cli.PluginInstallerFunc(
-			func(_ string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
+			func(_ context.Context, _ string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
 				return &registry.InstallResult{Name: "aws-public", Version: "v0.1.0"}, nil
 			},
 		),
 	}
 
-	steps := runner.StepInstallPlugins(tmpDir)
+	steps := runner.StepInstallPlugins(context.Background(), tmpDir)
 
 	require.NotEmpty(t, steps, "should have at least one plugin result")
 	for _, step := range steps {
@@ -439,7 +439,7 @@ func TestStepInstallPlugins_AlreadyInstalled(t *testing.T) {
 	require.NoError(t, os.MkdirAll(pluginDir, cli.DirPermPlugins))
 
 	runner := &cli.SetupRunner{}
-	steps := runner.StepInstallPlugins(tmpDir)
+	steps := runner.StepInstallPlugins(context.Background(), tmpDir)
 
 	require.Len(t, steps, len(cli.DefaultPlugins))
 	assert.Equal(t, cli.StepSuccess, steps[0].Status)
@@ -508,7 +508,7 @@ func TestSetupSkipAnalyzer(t *testing.T) {
 			},
 		),
 		PluginInstaller: cli.PluginInstallerFunc(
-			func(specifier string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
+			func(_ context.Context, specifier string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
 				return &registry.InstallResult{Name: specifier, Version: "v0.1.0"}, nil
 			},
 		),

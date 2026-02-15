@@ -280,6 +280,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	}
 
 	if budgetErr := evaluateBudgetStatus(cmd, resultWithErrors.Results, totalCost); budgetErr != nil {
+		audit.logFailure(ctx, budgetErr)
 		return budgetErr
 	}
 

@@ -383,6 +383,7 @@ func TestProxy_GracefulShutdown(t *testing.T) {
 	stdinReader, stdinWriter := io.Pipe()
 	defer stdinWriter.Close()
 	stdoutReader, stdoutWriter := io.Pipe()
+	defer stdoutReader.Close()
 
 	launcher := NewStdioLauncher()
 

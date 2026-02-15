@@ -145,7 +145,11 @@ func (e *Engine) WithDismissalStore(store *config.DismissalStore) *Engine {
 // WithJobs sets an explicit worker count override for concurrent operations.
 // When jobs > 0, this value is used instead of the auto-calculated worker count.
 // When jobs == 0 (default), the auto calculation based on NumCPU is used.
+// Negative inputs are normalized to 0 (auto).
 func (e *Engine) WithJobs(jobs int) *Engine {
+	if jobs < 0 {
+		jobs = 0
+	}
 	e.jobs = jobs
 	return e
 }
