@@ -1129,19 +1129,26 @@ CodeRabbit now:
 
 ## Active Technologies
 
-- Go 1.25.7 + cobra (CLI), os/filepath/runtime (platform detection), pkg/version (version info) (590-analyzer-install)
-- Filesystem only (symlinks on Unix, file copies on Windows) (590-analyzer-install)
-- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol), zerolog v1.34.0 (logging) (511-wire-router)
-- N/A (stateless per-invocation; reads `~/.finfocus/config.yaml`) (511-wire-router)
-- N/A (stateless CLI) (590-neo-cli-fixes)
-- Go 1.25.7 + cobra v1.10.2 (CLI), golang.org/x/term (TTY detection), zerolog v1.34.0 (logging) (591-setup-command)
-- Filesystem only — directories, YAML config file, symlinks/copies for analyzer (591-setup-command)
-- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol):
-  - zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)
-  - Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)
-- Local JSON file (`~/.finfocus/dismissed.json`) for dismissal state; plugin-side storage delegated to plugins (508-recommendation-dismissal)
-- State Management: N/A (stateless command design) (223-cost-estimate)
-- Go 1.25.7 + Cobra v1.10.2 (CLI), zerolog v1.34.0 (logging), testify v1.11.1 (testing). No new dependencies. (509-pulumi-auto-detect)
-- N/A (stateless CLI invocation) (509-pulumi-auto-detect)
+### Current Stack
+
+- **Language**: Go 1.25.7
+- **CLI**: Cobra v1.10.2
+- **Logging**: zerolog v1.34.0
+- **Plugins**: gRPC v1.79.1, finfocus-spec v0.5.6
+- **TUI**: Bubble Tea v1.3.10, Lip Gloss v1.1.0
+- **Testing**: testify v1.11.1
+- **Terminal**: golang.org/x/term (TTY detection)
+
+### Branch-Specific Notes
+
+| Branch | Additional Technologies | State |
+|--------|------------------------|-------|
+| 590-analyzer-install | os/filepath/runtime, pkg/version | Filesystem (symlinks/copies) |
+| 511-wire-router | (core stack) | Stateless; reads config.yaml |
+| 590-neo-cli-fixes | (core stack) | Stateless CLI |
+| 591-setup-command | golang.org/x/term | Filesystem (dirs, YAML, symlinks) |
+| 508-recommendation-dismissal | (core stack) | Local JSON (dismissed.json) |
+| 223-cost-estimate | Bubble Tea, Lip Gloss | Stateless command design |
+| 509-pulumi-auto-detect | (core stack) | Stateless CLI |
 
 ## Recent Changes

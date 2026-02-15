@@ -1,8 +1,9 @@
-package cli
+package cli_test
 
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -15,23 +16,31 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/analyzer"
+	"github.com/rshade/finfocus/internal/cli"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/pkg/version"
 )
 
-// NOTE: Tests in this file are NOT safe for t.Parallel() because they mutate
-// package-level globals (analyzerInstaller, pluginInstaller). Do not add
-// t.Parallel() to any test that touches these globals.
-
 // newTestSetupCmd creates a testable setup command with captured output.
 // It returns the command and a buffer that receives all output.
 func newTestSetupCmd() (*cobra.Command, *bytes.Buffer) {
 	buf := &bytes.Buffer{}
-	cmd := NewSetupCmd()
+	cmd := cli.NewSetupCmd()
 	cmd.SetOut(buf)
 	cmd.SetErr(buf)
 	// Silence usage on error to keep test output clean
+	cmd.SilenceUsage = true
+	cmd.SilenceErrors = true
+	return cmd, buf
+}
+
+// newTestSetupCmdWithRunner creates a testable setup command using a custom runner.
+func newTestSetupCmdWithRunner(runner *cli.SetupRunner) (*cobra.Command, *bytes.Buffer) {
+	buf := &bytes.Buffer{}
+	cmd := cli.NewSetupCmdWithRunner(runner)
+	cmd.SetOut(buf)
+	cmd.SetErr(buf)
 	cmd.SilenceUsage = true
 	cmd.SilenceErrors = true
 	return cmd, buf
@@ -56,35 +65,130 @@ func runTestSetup(t *testing.T, flags ...string) (string, error) {
 func TestFormatStatus(t *testing.T) {
 	tests := []struct {
 		name           string
-		status         StepStatus
+		status         cli.StepStatus
 		nonInteractive bool
 		expected       string
 	}{
-		{"success_tty", StepSuccess, false, "\u2713"},
-		{"warning_tty", StepWarning, false, "!"},
-		{"skipped_tty", StepSkipped, false, "-"},
-		{"error_tty", StepError, false, "\u2717"},
-		{"success_non_interactive", StepSuccess, true, "[OK]"},
-		{"warning_non_interactive", StepWarning, true, "[WARN]"},
-		{"skipped_non_interactive", StepSkipped, true, "[SKIP]"},
-		{"error_non_interactive", StepError, true, "[ERR]"},
+		{"success_tty", cli.StepSuccess, false, "\u2713"},
+		{"warning_tty", cli.StepWarning, false, "!"},
+		{"skipped_tty", cli.StepSkipped, false, "-"},
+		{"error_tty", cli.StepError, false, "\u2717"},
+		{"success_non_interactive", cli.StepSuccess, true, "[OK]"},
+		{"warning_non_interactive", cli.StepWarning, true, "[WARN]"},
+		{"skipped_non_interactive", cli.StepSkipped, true, "[SKIP]"},
+		{"error_non_interactive", cli.StepError, true, "[ERR]"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := formatStatus(tt.status, tt.nonInteractive)
+			result := cli.FormatStatus(tt.status, tt.nonInteractive)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+// --- StepStatus Tests ---
+
+// TestStepStatus_String verifies human-readable labels for all StepStatus values.
+func TestStepStatus_String(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   cli.StepStatus
+		expected string
+	}{
+		{"success", cli.StepSuccess, "success"},
+		{"warning", cli.StepWarning, "warning"},
+		{"skipped", cli.StepSkipped, "skipped"},
+		{"error", cli.StepError, "error"},
+		{"unknown", cli.StepStatus(99), "unknown(99)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.status.String())
+		})
+	}
+}
+
+// TestStepStatus_MarshalJSON verifies JSON string output for StepStatus.
+func TestStepStatus_MarshalJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		status   cli.StepStatus
+		expected string
+	}{
+		{"success", cli.StepSuccess, `"success"`},
+		{"warning", cli.StepWarning, `"warning"`},
+		{"skipped", cli.StepSkipped, `"skipped"`},
+		{"error", cli.StepError, `"error"`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.status)
+			require.NoError(t, err)
+			assert.Equal(t, tt.expected, string(data))
+		})
+	}
+}
+
+// TestStepStatus_UnmarshalJSON verifies round-trip and error handling.
+func TestStepStatus_UnmarshalJSON(t *testing.T) {
+	t.Run("round_trip", func(t *testing.T) {
+		statuses := []cli.StepStatus{
+			cli.StepSuccess,
+			cli.StepWarning,
+			cli.StepSkipped,
+			cli.StepError,
+		}
+		for _, original := range statuses {
+			data, err := json.Marshal(original)
+			require.NoError(t, err)
+
+			var parsed cli.StepStatus
+			err = json.Unmarshal(data, &parsed)
+			require.NoError(t, err)
+			assert.Equal(t, original, parsed)
+		}
+	})
+
+	t.Run("invalid_value", func(t *testing.T) {
+		var s cli.StepStatus
+		err := json.Unmarshal([]byte(`"bogus"`), &s)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unknown step status")
+	})
+
+	t.Run("invalid_json", func(t *testing.T) {
+		var s cli.StepStatus
+		err := json.Unmarshal([]byte(`123`), &s)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing step status")
+	})
+}
+
+// TestStepStatus_StepResult_JSON verifies StepResult serializes status as string.
+func TestStepStatus_StepResult_JSON(t *testing.T) {
+	sr := cli.StepResult{
+		Name:    "test step",
+		Status:  cli.StepSuccess,
+		Message: "all good",
+	}
+	data, err := json.Marshal(sr)
+	require.NoError(t, err)
+
+	// Status should be a string, not an integer
+	assert.Contains(t, string(data), `"status":"success"`)
+	assert.NotContains(t, string(data), `"status":0`)
 }
 
 // --- US1 Tests ---
 
 // TestStepDisplayVersion verifies the version step outputs version and Go runtime.
 func TestStepDisplayVersion(t *testing.T) {
-	step := stepDisplayVersion()
+	step := cli.StepDisplayVersion()
 
-	assert.Equal(t, StepSuccess, step.Status)
+	assert.Equal(t, cli.StepSuccess, step.Status)
 	assert.Contains(t, step.Message, version.GetVersion())
 	assert.Contains(t, step.Message, runtime.Version())
 	assert.Equal(t, "Version display", step.Name)
@@ -95,9 +199,9 @@ func TestStepDetectPulumi(t *testing.T) {
 	t.Run("pulumi_not_found", func(t *testing.T) {
 		// Ensure pulumi is not on a contrived PATH
 		t.Setenv("PATH", t.TempDir())
-		step := stepDetectPulumi(t.Context())
+		step := cli.StepDetectPulumi(t.Context())
 
-		assert.Equal(t, StepWarning, step.Status)
+		assert.Equal(t, cli.StepWarning, step.Status)
 		assert.Contains(t, step.Message, "Pulumi CLI not found")
 		assert.Contains(t, step.Message, "pulumi.com")
 	})
@@ -119,9 +223,9 @@ func TestStepDetectPulumi(t *testing.T) {
 		require.NoError(t, os.WriteFile(fakePulumi, []byte(script), 0o755))
 
 		t.Setenv("PATH", tmpDir)
-		step := stepDetectPulumi(t.Context())
+		step := cli.StepDetectPulumi(t.Context())
 
-		assert.Equal(t, StepSuccess, step.Status)
+		assert.Equal(t, cli.StepSuccess, step.Status)
 		assert.Contains(t, step.Message, "v3.100.0")
 	})
 }
@@ -131,12 +235,12 @@ func TestStepCreateDirectories(t *testing.T) {
 	tmpDir := filepath.Join(t.TempDir(), "finfocus")
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
-	steps := stepCreateDirectories(config.ResolveConfigDir())
+	steps := cli.StepCreateDirectories(config.ResolveConfigDir())
 
 	require.Len(t, steps, 4, "expected 4 directory steps (base, plugins, cache, logs)")
 
 	for _, step := range steps {
-		assert.Equal(t, StepSuccess, step.Status, "step %q should succeed", step.Name)
+		assert.Equal(t, cli.StepSuccess, step.Status, "step %q should succeed", step.Name)
 		assert.True(t, step.Critical, "directory steps should be critical")
 		assert.Contains(t, step.Message, "Created")
 	}
@@ -151,7 +255,7 @@ func TestStepCreateDirectories(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		info, err := os.Stat(filepath.Join(tmpDir, "plugins"))
 		require.NoError(t, err)
-		assert.Equal(t, os.FileMode(dirPermPlugins), info.Mode().Perm(), "plugins dir should be 0750")
+		assert.Equal(t, os.FileMode(cli.DirPermPlugins), info.Mode().Perm(), "plugins dir should be 0750")
 	}
 }
 
@@ -161,15 +265,15 @@ func TestStepCreateDirectories_AlreadyExist(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
 	// Pre-create directories
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "plugins"), dirPermPlugins))
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "cache"), dirPermBase))
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "logs"), dirPermBase))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "plugins"), cli.DirPermPlugins))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "cache"), cli.DirPermBase))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "logs"), cli.DirPermBase))
 
-	steps := stepCreateDirectories(config.ResolveConfigDir())
+	steps := cli.StepCreateDirectories(config.ResolveConfigDir())
 
 	require.Len(t, steps, 4)
 	for _, step := range steps {
-		assert.Equal(t, StepSuccess, step.Status, "existing dirs should report success, not error")
+		assert.Equal(t, cli.StepSuccess, step.Status, "existing dirs should report success, not error")
 		assert.Contains(t, step.Message, "exists", "should report directory already exists")
 	}
 }
@@ -180,11 +284,11 @@ func TestStepInitConfig(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
 	// Ensure the config directory exists (setup would have created it)
-	require.NoError(t, os.MkdirAll(tmpDir, dirPermBase))
+	require.NoError(t, os.MkdirAll(tmpDir, cli.DirPermBase))
 
-	step := stepInitConfig(config.ResolveConfigDir())
+	step := cli.StepInitConfig(config.ResolveConfigDir())
 
-	assert.Equal(t, StepSuccess, step.Status)
+	assert.Equal(t, cli.StepSuccess, step.Status)
 	assert.True(t, step.Critical)
 	assert.Contains(t, step.Message, "Initialized config")
 
@@ -203,9 +307,9 @@ func TestStepInitConfig_AlreadyExists(t *testing.T) {
 	customContent := []byte("custom: true\n")
 	require.NoError(t, os.WriteFile(configPath, customContent, 0o600))
 
-	step := stepInitConfig(config.ResolveConfigDir())
+	step := cli.StepInitConfig(config.ResolveConfigDir())
 
-	assert.Equal(t, StepSuccess, step.Status)
+	assert.Equal(t, cli.StepSuccess, step.Status)
 	assert.Contains(t, step.Message, "already exists")
 
 	// Verify the original content is preserved
@@ -217,23 +321,22 @@ func TestStepInitConfig_AlreadyExists(t *testing.T) {
 // TestStepInstallAnalyzer tests the analyzer installation step with mock installer.
 func TestStepInstallAnalyzer(t *testing.T) {
 	t.Run("success_installed", func(t *testing.T) {
-		original := analyzerInstaller
-		t.Cleanup(func() { analyzerInstaller = original })
+		runner := &cli.SetupRunner{
+			AnalyzerInstaller: cli.AnalyzerInstallerFunc(
+				func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+					return &analyzer.InstallResult{
+						Installed: true,
+						Version:   "1.0.0",
+						Method:    "symlink",
+						Action:    analyzer.ActionInstalled,
+					}, nil
+				},
+			),
+		}
 
-		analyzerInstaller = analyzerInstallerFunc(
-			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
-				return &analyzer.InstallResult{
-					Installed: true,
-					Version:   "1.0.0",
-					Method:    "symlink",
-					Action:    analyzer.ActionInstalled,
-				}, nil
-			},
-		)
+		step := runner.StepInstallAnalyzer(t.Context())
 
-		step := stepInstallAnalyzer(t.Context())
-
-		assert.Equal(t, StepSuccess, step.Status)
+		assert.Equal(t, cli.StepSuccess, step.Status)
 		assert.Contains(t, step.Message, "Installed Pulumi analyzer")
 		assert.Contains(t, step.Message, "v1.0.0")
 		assert.Contains(t, step.Message, "symlink")
@@ -241,62 +344,59 @@ func TestStepInstallAnalyzer(t *testing.T) {
 	})
 
 	t.Run("already_current", func(t *testing.T) {
-		original := analyzerInstaller
-		t.Cleanup(func() { analyzerInstaller = original })
+		runner := &cli.SetupRunner{
+			AnalyzerInstaller: cli.AnalyzerInstallerFunc(
+				func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+					return &analyzer.InstallResult{
+						Installed: true,
+						Version:   "1.0.0",
+						Action:    analyzer.ActionAlreadyCurrent,
+					}, nil
+				},
+			),
+		}
 
-		analyzerInstaller = analyzerInstallerFunc(
-			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
-				return &analyzer.InstallResult{
-					Installed: true,
-					Version:   "1.0.0",
-					Action:    analyzer.ActionAlreadyCurrent,
-				}, nil
-			},
-		)
+		step := runner.StepInstallAnalyzer(t.Context())
 
-		step := stepInstallAnalyzer(t.Context())
-
-		assert.Equal(t, StepSuccess, step.Status)
+		assert.Equal(t, cli.StepSuccess, step.Status)
 		assert.Contains(t, step.Message, "already current")
 		assert.Contains(t, step.Message, "v1.0.0")
 	})
 
 	t.Run("update_available", func(t *testing.T) {
-		original := analyzerInstaller
-		t.Cleanup(func() { analyzerInstaller = original })
+		runner := &cli.SetupRunner{
+			AnalyzerInstaller: cli.AnalyzerInstallerFunc(
+				func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+					return &analyzer.InstallResult{
+						Installed:      true,
+						Version:        "0.9.0",
+						CurrentVersion: "1.0.0",
+						Action:         analyzer.ActionUpdateAvailable,
+					}, nil
+				},
+			),
+		}
 
-		analyzerInstaller = analyzerInstallerFunc(
-			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
-				return &analyzer.InstallResult{
-					Installed:      true,
-					Version:        "0.9.0",
-					CurrentVersion: "1.0.0",
-					Action:         analyzer.ActionUpdateAvailable,
-				}, nil
-			},
-		)
+		step := runner.StepInstallAnalyzer(t.Context())
 
-		step := stepInstallAnalyzer(t.Context())
-
-		assert.Equal(t, StepWarning, step.Status)
+		assert.Equal(t, cli.StepWarning, step.Status)
 		assert.Contains(t, step.Message, "v0.9.0")
 		assert.Contains(t, step.Message, "v1.0.0")
 		assert.Contains(t, step.Message, "update available")
 	})
 
 	t.Run("error", func(t *testing.T) {
-		original := analyzerInstaller
-		t.Cleanup(func() { analyzerInstaller = original })
+		runner := &cli.SetupRunner{
+			AnalyzerInstaller: cli.AnalyzerInstallerFunc(
+				func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+					return nil, errors.New("plugin dir not found")
+				},
+			),
+		}
 
-		analyzerInstaller = analyzerInstallerFunc(
-			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
-				return nil, errors.New("plugin dir not found")
-			},
-		)
+		step := runner.StepInstallAnalyzer(t.Context())
 
-		step := stepInstallAnalyzer(t.Context())
-
-		assert.Equal(t, StepWarning, step.Status)
+		assert.Equal(t, cli.StepWarning, step.Status)
 		assert.Contains(t, step.Message, "Failed to install analyzer")
 		assert.Contains(t, step.Message, "plugin dir not found")
 		assert.NotNil(t, step.Err)
@@ -307,22 +407,21 @@ func TestStepInstallAnalyzer(t *testing.T) {
 func TestStepInstallPlugins(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", tmpDir)
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "plugins"), dirPermPlugins))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "plugins"), cli.DirPermPlugins))
 
-	original := pluginInstaller
-	t.Cleanup(func() { pluginInstaller = original })
+	runner := &cli.SetupRunner{
+		PluginInstaller: cli.PluginInstallerFunc(
+			func(_ string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
+				return &registry.InstallResult{Name: "aws-public", Version: "v0.1.0"}, nil
+			},
+		),
+	}
 
-	pluginInstaller = pluginInstallerFunc(
-		func(_ string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
-			return &registry.InstallResult{Name: "aws-public", Version: "v0.1.0"}, nil
-		},
-	)
-
-	steps := stepInstallPlugins(tmpDir)
+	steps := runner.StepInstallPlugins(tmpDir)
 
 	require.NotEmpty(t, steps, "should have at least one plugin result")
 	for _, step := range steps {
-		assert.Equal(t, StepSuccess, step.Status)
+		assert.Equal(t, cli.StepSuccess, step.Status)
 		assert.NotEmpty(t, step.Name)
 		assert.NotEmpty(t, step.Message)
 		assert.False(t, step.Critical, "plugin install should not be critical")
@@ -337,12 +436,13 @@ func TestStepInstallPlugins_AlreadyInstalled(t *testing.T) {
 
 	// Pre-create the plugin directory structure
 	pluginDir := filepath.Join(tmpDir, "plugins", "aws-public", "v0.1.0")
-	require.NoError(t, os.MkdirAll(pluginDir, dirPermPlugins))
+	require.NoError(t, os.MkdirAll(pluginDir, cli.DirPermPlugins))
 
-	steps := stepInstallPlugins(tmpDir)
+	runner := &cli.SetupRunner{}
+	steps := runner.StepInstallPlugins(tmpDir)
 
-	require.Len(t, steps, len(defaultPlugins))
-	assert.Equal(t, StepSuccess, steps[0].Status)
+	require.Len(t, steps, len(cli.DefaultPlugins))
+	assert.Equal(t, cli.StepSuccess, steps[0].Status)
 	assert.Contains(t, steps[0].Message, "already installed")
 }
 
@@ -400,17 +500,22 @@ func TestSetupSkipAnalyzer(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
-	// Mock analyzer to avoid real install attempt
-	original := analyzerInstaller
-	t.Cleanup(func() { analyzerInstaller = original })
-	analyzerInstaller = analyzerInstallerFunc(
-		func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
-			return &analyzer.InstallResult{Action: analyzer.ActionAlreadyCurrent, Version: "test"}, nil
-		},
-	)
+	// Mock both installers via SetupRunner
+	runner := &cli.SetupRunner{
+		AnalyzerInstaller: cli.AnalyzerInstallerFunc(
+			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+				return &analyzer.InstallResult{Action: analyzer.ActionAlreadyCurrent, Version: "test"}, nil
+			},
+		),
+		PluginInstaller: cli.PluginInstallerFunc(
+			func(specifier string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
+				return &registry.InstallResult{Name: specifier, Version: "v0.1.0"}, nil
+			},
+		),
+	}
 
-	cmd, buf := newTestSetupCmd()
-	// Only skip analyzer — plugins still run (mocked analyzer, plugin step proceeds)
+	cmd, buf := newTestSetupCmdWithRunner(runner)
+	// Only skip analyzer — plugins still run (both mocked)
 	cmd.SetArgs([]string{"--non-interactive", "--skip-analyzer"})
 	err := cmd.Execute()
 	require.NoError(t, err)
@@ -430,15 +535,15 @@ func TestSetupSkipPlugins(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
 	// Mock analyzer so it doesn't depend on real Pulumi
-	original := analyzerInstaller
-	t.Cleanup(func() { analyzerInstaller = original })
-	analyzerInstaller = analyzerInstallerFunc(
-		func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
-			return &analyzer.InstallResult{Action: analyzer.ActionAlreadyCurrent, Version: "test"}, nil
-		},
-	)
+	runner := &cli.SetupRunner{
+		AnalyzerInstaller: cli.AnalyzerInstallerFunc(
+			func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
+				return &analyzer.InstallResult{Action: analyzer.ActionAlreadyCurrent, Version: "test"}, nil
+			},
+		),
+	}
 
-	cmd, buf := newTestSetupCmd()
+	cmd, buf := newTestSetupCmdWithRunner(runner)
 	// Only skip plugins — analyzer still runs (mocked)
 	cmd.SetArgs([]string{"--non-interactive", "--skip-plugins"})
 	err := cmd.Execute()
@@ -523,7 +628,7 @@ func TestSetupPartialExisting(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
 	// Pre-create only the plugins directory
-	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "plugins"), dirPermPlugins))
+	require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, "plugins"), cli.DirPermPlugins))
 
 	cmd, buf := newTestSetupCmd()
 	cmd.SetArgs([]string{"--non-interactive", "--skip-analyzer", "--skip-plugins"})
