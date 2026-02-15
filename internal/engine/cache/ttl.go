@@ -5,39 +5,36 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
-// TTL configuration constants and defaults.
+// Re-exported constants from config for backward compatibility.
+// The canonical definitions live in internal/config/cache_defaults.go to avoid
+// a dependency inversion (config → engine/cache).
 const (
-	// DefaultTTLSeconds is the default cache TTL (1 hour).
-	DefaultTTLSeconds = 3600
+	DefaultTTLSeconds     = config.CacheDefaultTTLSeconds
+	DefaultCacheMaxSizeMB = config.CacheDefaultMaxSizeMB
+	EnvTTLSeconds         = config.CacheEnvTTLSeconds
+	EnvTTLSecondsLegacy   = config.CacheEnvTTLSecondsLegacy
+	EnvCacheEnabled       = config.CacheEnvEnabled
+	EnvCacheDir           = config.CacheEnvDir
+	EnvCacheMaxSize       = config.CacheEnvMaxSize
+)
 
+// Cache-internal constants.
+const (
 	// MinTTLSeconds is the minimum allowed TTL (1 minute).
 	MinTTLSeconds = 60
 
 	// MaxTTLSeconds is the maximum allowed TTL (7 days).
 	MaxTTLSeconds = 604800
 
-	// DefaultCacheMaxSizeMB is the default maximum cache size in MB.
-	DefaultCacheMaxSizeMB = 100
-
 	// minutesPerHour is used for duration formatting calculations.
 	minutesPerHour = 60
 
 	// hoursPerDay is used for duration formatting calculations.
 	hoursPerDay = 24
-
-	// EnvTTLSeconds is the environment variable for overriding TTL.
-	EnvTTLSeconds = "FINFOCUS_CACHE_TTL_SECONDS"
-
-	// EnvCacheEnabled is the environment variable for enabling/disabling cache.
-	EnvCacheEnabled = "FINFOCUS_CACHE_ENABLED"
-
-	// EnvCacheDir is the environment variable for cache directory.
-	EnvCacheDir = "FINFOCUS_CACHE_DIR"
-
-	// EnvCacheMaxSize is the environment variable for max cache size in MB.
-	EnvCacheMaxSize = "FINFOCUS_CACHE_MAX_SIZE_MB"
 )
 
 // TTL validation errors.
@@ -79,6 +76,9 @@ func DefaultTTLConfig() *TTLConfig {
 // If the environment variable is invalid, returns the default and logs a warning.
 func GetTTLFromEnv() int {
 	envVal := os.Getenv(EnvTTLSeconds)
+	if envVal == "" {
+		envVal = os.Getenv(EnvTTLSecondsLegacy)
+	}
 	if envVal == "" {
 		return DefaultTTLSeconds
 	}

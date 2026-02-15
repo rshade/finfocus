@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -22,7 +21,6 @@ import (
 	"github.com/rshade/finfocus/internal/cli/pagination"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
-	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
 	"github.com/rshade/finfocus/internal/tui"
@@ -36,10 +34,6 @@ import (
 // - Currency string
 
 const (
-	// defaultCacheTTLSeconds is the default TTL for cache entries (1 hour).
-	defaultCacheTTLSeconds = 3600
-	// defaultCacheMaxSizeMB is the default maximum cache size (100MB).
-	defaultCacheMaxSizeMB = 100
 	// progressDelayMS is the delay before showing progress indicator (500ms).
 	progressDelayMS = 500
 	// progressTickerMS is the spinner update interval (100ms).
@@ -159,31 +153,11 @@ Valid action types for filtering:
 	return cmd
 }
 
-// executeCostRecommendations orchestrates the recommendations workflow for a Pulumi plan.
-// It loads and maps resources, opens adapter plugins, fetches recommendations, applies filters,
-// and renders the output.
-//
-// cmd is the Cobra command whose context and output writer are used.
-// params supplies the plan path, adapter, output format, and filter expressions.
-//
-// Returns an error when resource loading fails, plugins cannot be opened, recommendation
-// fetching fails, or output rendering fails.
-//
 // executeCostRecommendations orchestrates the cost recommendations workflow for the CLI.
 // It loads and maps resources from a Pulumi preview JSON, opens adapter plugins, optionally
 // initializes a cache, queries the recommendation engine (with a progress indicator for long
 // runs), merges dismissed/snoozed records when requested, applies action-type filters,
 // sorting, and pagination, then renders the results and records audit metadata.
-//
-// Parameters:
-//   - cmd: the Cobra command providing context and I/O streams for progress and output.
-//   - params: command parameters controlling input path, adapter selection, output format,
-//     filtering, verbosity, pagination, sorting, and whether to include dismissed records.
-//
-// The function returns an error when any required step fails, for example: loading or mapping
-// resources, opening plugins, initializing or using the engine to fetch recommendations,
-// invalid filter or sort expressions, invalid pagination parameters, merging dismissed
-// records, or rendering the output.
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -214,15 +188,8 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	}
 	defer cleanup()
 
-	// Setup cache and create engine
-	cfg := config.New()
-	cacheStore := setupRecommendationsCache(ctx, cmd, cfg)
-
-	eng := engine.New(clients, nil).
-		WithRouter(createRouterForEngine(ctx, cfg, clients))
-	if cacheStore != nil && cacheStore.IsEnabled() {
-		eng = eng.WithCache(cacheStore)
-	}
+	// Create engine with optional cache and router
+	eng := newEngineWithCache(ctx, cmd, clients, nil)
 
 	// Fetch recommendations with progress indicator
 	result, err := fetchRecommendationsWithProgress(ctx, cmd, eng, resources)
@@ -288,59 +255,6 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 
 	audit.logSuccess(ctx, len(filteredRecommendations), filteredResult.TotalSavings)
 	return nil
-}
-
-// setupRecommendationsCache initializes the file-based cache for recommendations.
-// Returns nil if cache initialization fails (the caller should proceed without cache).
-func setupRecommendationsCache(
-	ctx context.Context,
-	cmd *cobra.Command,
-	cfg *config.Config,
-) *cache.FileStore {
-	log := logging.FromContext(ctx)
-
-	cacheDir := cfg.Cost.Cache.Directory
-	if cacheDir == "" {
-		homeDir, _ := os.UserHomeDir()
-		cacheDir = filepath.Join(homeDir, ".finfocus", "cache")
-	}
-
-	cacheTTL := resolveCacheTTL(ctx, cmd, cfg.Cost.Cache.TTLSeconds)
-
-	cacheMaxSize := cfg.Cost.Cache.MaxSizeMB
-	if cacheMaxSize == 0 {
-		cacheMaxSize = defaultCacheMaxSizeMB
-	}
-
-	cacheStore, cacheErr := cache.NewFileStore(
-		cacheDir,
-		cfg.Cost.Cache.Enabled,
-		cacheTTL,
-		cacheMaxSize,
-	)
-	if cacheErr != nil {
-		log.Debug().Ctx(ctx).Err(cacheErr).
-			Msg("cache initialization failed, proceeding without cache")
-	}
-
-	return cacheStore
-}
-
-// resolveCacheTTL determines the cache TTL from flag override, config, or default.
-func resolveCacheTTL(ctx context.Context, cmd *cobra.Command, configTTL int) int {
-	log := logging.FromContext(ctx)
-
-	if flagTTL, flagErr := cmd.Flags().GetInt("cache-ttl"); flagErr == nil && flagTTL > 0 {
-		log.Debug().Ctx(ctx).Int("cache_ttl", flagTTL).
-			Msg("cache TTL overridden by --cache-ttl flag")
-		return flagTTL
-	}
-
-	if configTTL > 0 {
-		return configTTL
-	}
-
-	return defaultCacheTTLSeconds
 }
 
 // fetchRecommendationsWithProgress fetches recommendations while showing a progress

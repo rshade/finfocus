@@ -899,6 +899,16 @@ The engine package orchestrates cost calculations between plugins and specs:
   - Intelligent cost calculation (actual vs projected with time period conversion)
   - Provider extraction from resource types ("aws:ec2:Instance" → "aws")
   - Sorted chronological output for trend analysis
+- **Caching System**:
+  - `cache.Cache` interface (Get, Set, IsEnabled) in `internal/engine/cache/store.go`
+  - `FileStore` implements `Cache` with file-based JSON storage at `~/.finfocus/cache/`
+  - Projected costs: per-resource caching (change one resource, only that key invalidates)
+  - Actual costs: whole-query caching (key includes time range, tags, adapter, groupBy)
+  - Cache hits append ` (cached)` to the Adapter field for visual feedback
+  - `InitCache(ctx, cmd)` in `internal/cli/common_execution.go`: shared helper with
+    precedence CLI flag (`--cache-ttl`) > env var (`FINFOCUS_CACHE_TTL`) > config > default
+  - `newEngineWithCache()`: creates Engine and wires optional cache in one call
+  - All cost commands (`projected`, `actual`, `recommendations`) use `newEngineWithCache()`
 - See `internal/engine/CLAUDE.md` for detailed calculation flows
 
 **Error Types for Cross-Provider Aggregation**:
@@ -1143,6 +1153,7 @@ CodeRabbit now:
 
 | Branch | Additional Technologies | State |
 |--------|------------------------|-------|
+| 592-engine-caching | `internal/engine/cache` (FileStore, KeyParams, GenerateKey) | File-based JSON cache at `~/.finfocus/cache/` |
 | 590-analyzer-install | os/filepath/runtime, pkg/version | Filesystem (symlinks/copies) |
 | 511-wire-router | (core stack) | Stateless; reads config.yaml |
 | 590-neo-cli-fixes | (core stack) | Stateless CLI |

@@ -53,10 +53,6 @@ const (
 	defaultPerResourceTimeout   = 5 * time.Second
 	defaultTotalTimeout         = 60 * time.Second
 	defaultWarnThresholdTimeout = 30 * time.Second
-
-	// Cache defaults.
-	defaultCacheTTLSeconds = 3600 // 1 hour default
-	defaultCacheMaxSizeMB  = 100  // 100 MB default
 )
 
 // ErrConfigCorrupted is returned in strict mode when the config file exists but cannot be parsed.
@@ -217,9 +213,9 @@ func New() *Config {
 		Cost: CostConfig{
 			Cache: CacheConfig{
 				Enabled:    true,
-				TTLSeconds: defaultCacheTTLSeconds,
+				TTLSeconds: CacheDefaultTTLSeconds,
 				Directory:  filepath.Join(finfocusDir, "cache"),
-				MaxSizeMB:  defaultCacheMaxSizeMB,
+				MaxSizeMB:  CacheDefaultMaxSizeMB,
 			},
 		},
 
@@ -300,9 +296,9 @@ func NewStrict() (*Config, error) {
 		Cost: CostConfig{
 			Cache: CacheConfig{
 				Enabled:    true,
-				TTLSeconds: defaultCacheTTLSeconds,
+				TTLSeconds: CacheDefaultTTLSeconds,
 				Directory:  filepath.Join(finfocusDir, "cache"),
-				MaxSizeMB:  defaultCacheMaxSizeMB,
+				MaxSizeMB:  CacheDefaultMaxSizeMB,
 			},
 		},
 
@@ -733,8 +729,12 @@ func (c *Config) applyEnvOverrides() {
 			c.Cost.Cache.Enabled = e
 		}
 	}
-	if ttl := os.Getenv("FINFOCUS_CACHE_TTL_SECONDS"); ttl != "" {
+	if ttl := os.Getenv(CacheEnvTTLSeconds); ttl != "" {
 		if t, err := strconv.Atoi(ttl); err == nil {
+			c.Cost.Cache.TTLSeconds = t
+		}
+	} else if ttlLegacy := os.Getenv(CacheEnvTTLSecondsLegacy); ttlLegacy != "" {
+		if t, err := strconv.Atoi(ttlLegacy); err == nil {
 			c.Cost.Cache.TTLSeconds = t
 		}
 	}

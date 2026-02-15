@@ -222,9 +222,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		FallbackEstimate:   params.fallbackEstimate,
 	}
 
-	cfg := config.New()
-	eng := engine.New(clients, nil).
-		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	eng := newEngineWithCache(ctx, cmd, clients, nil)
 	resultWithErrors, err := eng.GetActualCostWithOptionsAndErrors(ctx, request)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to fetch actual costs")
