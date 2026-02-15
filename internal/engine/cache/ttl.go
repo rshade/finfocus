@@ -28,7 +28,10 @@ const (
 	hoursPerDay = 24
 
 	// EnvTTLSeconds is the environment variable for overriding TTL.
-	EnvTTLSeconds = "FINFOCUS_CACHE_TTL_SECONDS"
+	EnvTTLSeconds = "FINFOCUS_CACHE_TTL"
+
+	// EnvTTLSecondsLegacy is a backward-compatible alias for EnvTTLSeconds.
+	EnvTTLSecondsLegacy = "FINFOCUS_CACHE_TTL_SECONDS"
 
 	// EnvCacheEnabled is the environment variable for enabling/disabling cache.
 	EnvCacheEnabled = "FINFOCUS_CACHE_ENABLED"
@@ -79,6 +82,9 @@ func DefaultTTLConfig() *TTLConfig {
 // If the environment variable is invalid, returns the default and logs a warning.
 func GetTTLFromEnv() int {
 	envVal := os.Getenv(EnvTTLSeconds)
+	if envVal == "" {
+		envVal = os.Getenv(EnvTTLSecondsLegacy)
+	}
 	if envVal == "" {
 		return DefaultTTLSeconds
 	}

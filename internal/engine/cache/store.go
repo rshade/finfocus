@@ -21,6 +21,18 @@ var (
 	ErrCacheDisabled   = errors.New("cache is disabled")
 )
 
+// Cache defines the interface for cache operations used by the engine.
+// This interface intentionally excludes maintenance operations (Delete, Clear,
+// CleanupExpired) which remain on FileStore only.
+type Cache interface {
+	Get(key string) (*CacheEntry, error)
+	Set(key string, data json.RawMessage) error
+	IsEnabled() bool
+}
+
+// Compile-time check that FileStore implements Cache.
+var _ Cache = (*FileStore)(nil)
+
 // FileStore provides file-based caching with TTL expiration.
 // It stores cache entries as JSON files in a directory structure.
 // Thread-safe for concurrent access.

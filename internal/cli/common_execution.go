@@ -3,10 +3,16 @@ package cli
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strconv"
 	"time"
+
+	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
@@ -357,6 +363,104 @@ func resolveResourcesFromPulumi(
 	default:
 		return nil, fmt.Errorf("unsupported Pulumi mode: %s", mode)
 	}
+}
+
+// newEngineWithCache creates an Engine, wires the router and an optional cache.Cache.
+func newEngineWithCache(
+	ctx context.Context,
+	cmd *cobra.Command,
+	clients []*pluginhost.Client,
+	loader engine.SpecLoader,
+) *engine.Engine {
+	cfg := config.New()
+	eng := engine.New(clients, loader).
+		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	if cacheStore := InitCache(ctx, cmd); cacheStore != nil {
+		eng = eng.WithCache(cacheStore)
+	}
+	return eng
+}
+
+// InitCache creates a cache.Cache instance based on configuration precedence:
+// CLI flag (--cache-ttl) > env var (FINFOCUS_CACHE_TTL) > config file > default.
+// Returns nil when caching is disabled (TTL<=0) or initialization fails.
+// When --cache-ttl is explicitly set to 0, caching is disabled regardless of config/env.
+func InitCache(ctx context.Context, cmd *cobra.Command) cache.Cache {
+	log := logging.FromContext(ctx)
+	cfg := config.New()
+
+	// Determine cache TTL with precedence: CLI flag > env var > config > default (0)
+	cacheTTL := 0
+
+	// Start with config value
+	if cfg.Cost.Cache.Enabled && cfg.Cost.Cache.TTLSeconds > 0 {
+		cacheTTL = cfg.Cost.Cache.TTLSeconds
+	}
+
+	// Override with env var if set (any valid integer, including 0 to disable)
+	envName := cache.EnvTTLSeconds
+	envVal := os.Getenv(envName)
+	if envVal == "" {
+		envName = cache.EnvTTLSecondsLegacy
+		envVal = os.Getenv(envName)
+	}
+	if envVal != "" {
+		if ttl, err := strconv.Atoi(envVal); err == nil {
+			cacheTTL = ttl
+		} else {
+			log.Warn().
+				Ctx(ctx).
+				Str("env_var", envName).
+				Str("value", envVal).
+				Msg("invalid cache TTL env var, ignoring")
+		}
+	}
+
+	// Override with CLI flag if explicitly set by user
+	if cmd.Flags().Changed("cache-ttl") {
+		if flagTTL, flagErr := cmd.Flags().GetInt("cache-ttl"); flagErr == nil {
+			cacheTTL = flagTTL
+			log.Debug().
+				Ctx(ctx).
+				Int("cache_ttl", cacheTTL).
+				Msg("cache TTL overridden by --cache-ttl flag")
+		}
+	}
+
+	// TTL<=0 means caching is disabled
+	if cacheTTL <= 0 {
+		return nil
+	}
+
+	// Determine cache directory
+	cacheDir := cfg.Cost.Cache.Directory
+	if cacheDir == "" {
+		homeDir, _ := os.UserHomeDir()
+		cacheDir = filepath.Join(homeDir, ".finfocus", "cache")
+	}
+
+	// Determine max size
+	cacheMaxSize := cfg.Cost.Cache.MaxSizeMB
+	if cacheMaxSize == 0 {
+		cacheMaxSize = cache.DefaultCacheMaxSizeMB
+	}
+
+	cacheStore, err := cache.NewFileStore(cacheDir, true, cacheTTL, cacheMaxSize)
+	if err != nil {
+		log.Warn().
+			Ctx(ctx).
+			Err(err).
+			Msg("cache initialization failed, proceeding without cache")
+		return nil
+	}
+
+	log.Debug().
+		Ctx(ctx).
+		Int("cache_ttl", cacheTTL).
+		Str("cache_dir", cacheDir).
+		Msg("cache initialized")
+
+	return cacheStore
 }
 
 // extractCurrencyFromResults scans results to find a single canonical currency.

@@ -13,6 +13,8 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+
+	"github.com/rshade/finfocus/internal/engine/cache"
 )
 
 // Duration is a wrapper around time.Duration that supports YAML/JSON parsing.
@@ -53,10 +55,6 @@ const (
 	defaultPerResourceTimeout   = 5 * time.Second
 	defaultTotalTimeout         = 60 * time.Second
 	defaultWarnThresholdTimeout = 30 * time.Second
-
-	// Cache defaults.
-	defaultCacheTTLSeconds = 3600 // 1 hour default
-	defaultCacheMaxSizeMB  = 100  // 100 MB default
 )
 
 // ErrConfigCorrupted is returned in strict mode when the config file exists but cannot be parsed.
@@ -217,9 +215,9 @@ func New() *Config {
 		Cost: CostConfig{
 			Cache: CacheConfig{
 				Enabled:    true,
-				TTLSeconds: defaultCacheTTLSeconds,
+				TTLSeconds: cache.DefaultTTLSeconds,
 				Directory:  filepath.Join(finfocusDir, "cache"),
-				MaxSizeMB:  defaultCacheMaxSizeMB,
+				MaxSizeMB:  cache.DefaultCacheMaxSizeMB,
 			},
 		},
 
@@ -300,9 +298,9 @@ func NewStrict() (*Config, error) {
 		Cost: CostConfig{
 			Cache: CacheConfig{
 				Enabled:    true,
-				TTLSeconds: defaultCacheTTLSeconds,
+				TTLSeconds: cache.DefaultTTLSeconds,
 				Directory:  filepath.Join(finfocusDir, "cache"),
-				MaxSizeMB:  defaultCacheMaxSizeMB,
+				MaxSizeMB:  cache.DefaultCacheMaxSizeMB,
 			},
 		},
 
@@ -733,8 +731,12 @@ func (c *Config) applyEnvOverrides() {
 			c.Cost.Cache.Enabled = e
 		}
 	}
-	if ttl := os.Getenv("FINFOCUS_CACHE_TTL_SECONDS"); ttl != "" {
+	if ttl := os.Getenv(cache.EnvTTLSeconds); ttl != "" {
 		if t, err := strconv.Atoi(ttl); err == nil {
+			c.Cost.Cache.TTLSeconds = t
+		}
+	} else if ttlLegacy := os.Getenv(cache.EnvTTLSecondsLegacy); ttlLegacy != "" {
+		if t, err := strconv.Atoi(ttlLegacy); err == nil {
 			c.Cost.Cache.TTLSeconds = t
 		}
 	}

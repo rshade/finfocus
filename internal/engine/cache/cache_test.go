@@ -10,6 +10,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestCacheInterfaceCompliance(t *testing.T) {
+	tempDir := t.TempDir()
+
+	store, err := NewFileStore(tempDir, true, 60, 10)
+	require.NoError(t, err)
+
+	// Verify FileStore implements Cache interface
+	var c Cache = store
+	assert.True(t, c.IsEnabled())
+
+	// Verify Get/Set work through interface
+	data := json.RawMessage(`{"test":"compliance"}`)
+	require.NoError(t, c.Set("compliance-key", data))
+
+	entry, err := c.Get("compliance-key")
+	require.NoError(t, err)
+	assert.JSONEq(t, string(data), string(entry.Data))
+}
+
 func TestCacheEntry(t *testing.T) {
 	key := "test-key"
 	data := json.RawMessage(`{"foo":"bar"}`)
