@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -79,7 +80,7 @@ func TestInstall_FromRegistry(t *testing.T) {
 	installer := NewInstallerWithClient(client, pluginDir)
 
 	// Install
-	result, err := installer.Install("aws-public", InstallOptions{}, nil)
+	result, err := installer.Install(context.Background(), "aws-public", InstallOptions{}, nil)
 	if err != nil {
 		t.Fatalf("Install failed: %v", err)
 	}

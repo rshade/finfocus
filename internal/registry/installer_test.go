@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -197,7 +198,7 @@ func TestInstallAlreadyExists(t *testing.T) {
 
 	// This should fail because we can't actually contact GitHub
 	// but if it gets past the "already installed" check, the test structure is correct
-	_, err := installer.Install("test-plugin@v1.0.0", opts, nil)
+	_, err := installer.Install(context.Background(), "test-plugin@v1.0.0", opts, nil)
 	assert.Error(t, err, "expected error for non-existent registry plugin")
 }
 
@@ -243,7 +244,7 @@ func TestInstallEmptySpecifier(t *testing.T) {
 	installer := NewInstaller(tmpDir)
 	opts := InstallOptions{}
 
-	_, err := installer.Install("", opts, nil)
+	_, err := installer.Install(context.Background(), "", opts, nil)
 	assert.Error(t, err, "expected error for empty specifier")
 }
 
@@ -252,7 +253,7 @@ func TestInstallInvalidURLFormat(t *testing.T) {
 	installer := NewInstaller(tmpDir)
 	opts := InstallOptions{}
 
-	_, err := installer.Install("github.com/invalid", opts, nil)
+	_, err := installer.Install(context.Background(), "github.com/invalid", opts, nil)
 	assert.Error(t, err, "expected error for invalid URL format")
 }
 

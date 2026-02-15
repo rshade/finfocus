@@ -204,7 +204,7 @@ func renderSummary(w io.Writer, aggregated *AggregatedResults) {
 	fmt.Fprintf(w, "Total Monthly Cost:\t%.2f %s\n", aggregated.Summary.TotalMonthly, aggregated.Summary.Currency)
 	fmt.Fprintf(w, "Total Hourly Cost:\t%.2f %s\n", aggregated.Summary.TotalHourly, aggregated.Summary.Currency)
 	fmt.Fprintf(w, "Total Resources:\t%d\n", len(aggregated.Resources))
-	recCount := countRecommendations(aggregated.Resources)
+	recCount := CountRecommendations(aggregated.Resources)
 	if recCount > 0 {
 		fmt.Fprintf(w, "Recommendations:\t%d\n", recCount)
 	}
@@ -401,7 +401,7 @@ func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
 		}
 
 		notes := formatResourceNotes(result)
-		recs := formatRecommendationCount(len(result.Recommendations))
+		recs := FormatRecommendationCount(len(result.Recommendations))
 
 		fmt.Fprintf(w, "%s\t%s\t%.2f\t%.4f\t%s\t%s\t%s\n",
 			resource,
@@ -415,9 +415,9 @@ func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
 	}
 }
 
-// formatRecommendationCount returns the recommendation count as a string for table display.
+// FormatRecommendationCount returns the recommendation count as a string for table display.
 // Returns "-" when the count is zero so the column stays visually clean.
-func formatRecommendationCount(count int) string {
+func FormatRecommendationCount(count int) string {
 	if count == 0 {
 		return "-"
 	}
@@ -465,7 +465,7 @@ func renderActualCostTable(writer io.Writer, results []CostResult, showConfidenc
 	w := tabwriter.NewWriter(writer, 0, 0, defaultTabPadding, ' ', 0)
 
 	// Show recommendation count summary when recommendations exist.
-	recCount := countRecommendations(results)
+	recCount := CountRecommendations(results)
 	if recCount > 0 {
 		fmt.Fprintf(w, "Recommendations:\t%d\n\n", recCount)
 	}
@@ -579,7 +579,7 @@ func buildActualCostRowColumns(
 		columns = append(columns, result.Confidence.DisplayLabel())
 	}
 
-	recs := formatRecommendationCount(len(result.Recommendations))
+	recs := FormatRecommendationCount(len(result.Recommendations))
 	columns = append(columns, result.Currency, recs, notes)
 	return columns
 }
@@ -752,8 +752,8 @@ func renderNDJSONCrossProvider(writer io.Writer, aggregations []CrossProviderAgg
 	return nil
 }
 
-// countRecommendations returns the total number of recommendations across all results.
-func countRecommendations(results []CostResult) int {
+// CountRecommendations returns the total number of recommendations across all results.
+func CountRecommendations(results []CostResult) int {
 	count := 0
 	for _, r := range results {
 		count += len(r.Recommendations)

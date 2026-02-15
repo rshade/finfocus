@@ -506,6 +506,52 @@ func TestStackFlagIgnoredWithPulumiStateOnActual(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCostActualCmd_JobsFlag(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	cmd := cli.NewCostActualCmd()
+
+	jobsFlag := cmd.Flags().Lookup("jobs")
+	require.NotNil(t, jobsFlag, "--jobs flag should exist")
+	assert.Equal(t, "int", jobsFlag.Value.Type())
+	assert.Equal(t, "0", jobsFlag.DefValue)
+
+	// Check shorthand
+	jobsShortFlag := cmd.Flags().ShorthandLookup("j")
+	require.NotNil(t, jobsShortFlag, "-j shorthand should exist")
+	assert.Equal(t, "jobs", jobsShortFlag.Name)
+}
+
+func TestCostActualCmd_NegativeJobs(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	var buf bytes.Buffer
+	cmd := cli.NewCostActualCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--pulumi-json", "test.json", "--from", "2025-01-01", "--jobs", "-1"})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--jobs must be non-negative")
+}
+
+func TestCostActualCmd_JobsFlagInHelp(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	var buf bytes.Buffer
+	cmd := cli.NewCostActualCmd()
+	cmd.SetOut(&buf)
+	cmd.SetArgs([]string{"--help"})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "--jobs")
+	assert.Contains(t, output, "-j")
+	assert.Contains(t, output, "parallel workers")
+}
+
 func TestParseTime(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")

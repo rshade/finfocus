@@ -36,6 +36,7 @@ type costActualParams struct {
 	toStr              string
 	groupBy            string
 	filter             []string
+	jobs               int
 }
 
 // defaultToNow returns s if non-empty, otherwise returns the current time in RFC3339 format.
@@ -138,6 +139,8 @@ timestamp if not provided.`,
 	)
 	cmd.Flags().StringArrayVar(&params.filter, "filter", []string{},
 		"Resource filter expressions (e.g., 'type=aws:ec2/instance', 'tag:env=prod')")
+	cmd.Flags().IntVarP(&params.jobs, "jobs", "j", 0,
+		"Number of parallel workers (0 = auto based on CPU count)")
 
 	// Note: --pulumi-json and --from are no longer required - validation is done in executeCostActual
 
@@ -171,6 +174,10 @@ timestamp if not provided.`,
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
+
+	if params.jobs < 0 {
+		return fmt.Errorf("--jobs must be non-negative, got %d", params.jobs)
+	}
 
 	// Validate mutually exclusive flags
 	if err := validateActualInputFlags(params); err != nil {
@@ -222,7 +229,8 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		FallbackEstimate:   params.fallbackEstimate,
 	}
 
-	eng := newEngineWithCache(ctx, cmd, clients, nil)
+	eng := newEngineWithCache(ctx, cmd, clients, nil).WithJobs(params.jobs)
+	start := time.Now()
 	resultWithErrors, err := eng.GetActualCostWithOptionsAndErrors(ctx, request)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to fetch actual costs")
@@ -238,6 +246,8 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		return renderErr
 	}
 
+	printTimingOutput(cmd.ErrOrStderr(), start, len(resources), params.output)
+
 	log.Info().Ctx(ctx).Str("operation", "cost_actual").Int("result_count", len(resultWithErrors.Results)).
 		Dur("duration_ms", time.Since(audit.start)).Msg("actual cost calculation complete")
 
@@ -246,17 +256,8 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		totalCost += r.TotalCost
 	}
 
-	currency, mixedCurrencies := extractCurrencyFromResults(resultWithErrors.Results)
-
-	// Evaluate and render budget status when currencies are consistent
-	if !mixedCurrencies {
-		scopeFilter := getBudgetScopeFilter(cmd)
-
-		budgetResult, budgetErr := renderBudgetWithScope(
-			cmd, resultWithErrors.Results, totalCost, currency, scopeFilter)
-		if exitErr := checkBudgetExitFromResult(cmd, budgetResult, budgetErr); exitErr != nil {
-			return exitErr
-		}
+	if budgetErr := evaluateBudgetStatus(cmd, resultWithErrors.Results, totalCost); budgetErr != nil {
+		return budgetErr
 	}
 
 	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)

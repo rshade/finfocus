@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -519,6 +520,37 @@ func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
 	}
 
 	return currency, mixedCurrencies
+}
+
+// printTimingOutput writes throughput metrics to w when the output format is
+// table. It is suppressed for JSON/NDJSON modes.
+func printTimingOutput(w io.Writer, start time.Time, resourceCount int, output string) {
+	if engine.OutputFormat(output) != engine.OutputTable {
+		return
+	}
+	elapsed := time.Since(start)
+	throughput := 0.0
+	if elapsed.Seconds() > 0 {
+		throughput = float64(resourceCount) / elapsed.Seconds()
+	}
+	fmt.Fprintf(w, "\nAnalyzed %d resources in %.1fs (%.1f resources/sec)\n",
+		resourceCount, elapsed.Seconds(), throughput)
+}
+
+// evaluateBudgetStatus checks budget thresholds when currencies are consistent.
+// It returns nil if currencies are mixed or no budget issue is found.
+func evaluateBudgetStatus(
+	cmd *cobra.Command,
+	results []engine.CostResult,
+	totalCost float64,
+) error {
+	currency, mixedCurrencies := extractCurrencyFromResults(results)
+	if mixedCurrencies {
+		return nil
+	}
+	scopeFilter := getBudgetScopeFilter(cmd)
+	budgetResult, budgetErr := renderBudgetWithScope(cmd, results, totalCost, currency, scopeFilter)
+	return checkBudgetExitFromResult(cmd, budgetResult, budgetErr)
 }
 
 // createRouterForEngine creates an engine.Router from the user's routing

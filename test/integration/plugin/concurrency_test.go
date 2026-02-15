@@ -1,6 +1,7 @@
 package plugin_test
 
 import (
+	"context"
 	"sync"
 	"testing"
 
@@ -59,7 +60,7 @@ func TestConcurrentInstall_SamePlugin(t *testing.T) {
 
 			// Use github.com URL format for proper parsing
 			specifier := "github.com/example/finfocus-plugin-test"
-			_, err := installer.Install(specifier, opts, nil)
+			_, err := installer.Install(context.Background(), specifier, opts, nil)
 			if err != nil {
 				errors <- err
 			}
@@ -133,7 +134,7 @@ func TestConcurrentInstall_DifferentPlugins(t *testing.T) {
 			}
 
 			specifier := "github.com/example/finfocus-plugin-" + name
-			_, err := installer.Install(specifier, opts, nil)
+			_, err := installer.Install(context.Background(), specifier, opts, nil)
 			results <- struct {
 				name string
 				err  error
@@ -191,7 +192,7 @@ func TestConcurrentUpdateAndInstall(t *testing.T) {
 		}
 		// Note: Update requires the plugin to be in config, which we haven't set up.
 		// This will fail, but that's expected for this test structure.
-		_, err := installer.Update("existing", opts, nil)
+		_, err := installer.Update(context.Background(), "existing", opts, nil)
 		updateErr <- err
 	}()
 
@@ -204,7 +205,7 @@ func TestConcurrentUpdateAndInstall(t *testing.T) {
 			PluginDir: pluginDir,
 		}
 		specifier := "github.com/example/finfocus-plugin-new"
-		_, err := installer.Install(specifier, opts, nil)
+		_, err := installer.Install(context.Background(), specifier, opts, nil)
 		installErr <- err
 	}()
 

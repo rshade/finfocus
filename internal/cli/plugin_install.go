@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -181,7 +182,7 @@ func handleInstallError(
 	}
 
 	// Try to find a fallback version
-	fallbackResult, fallbackErr := handleFallback(cmd, installer, spec, opts, progress, fallbackToLatest)
+	fallbackResult, fallbackErr := handleFallback(cmd.Context(), cmd, installer, spec, opts, progress, fallbackToLatest)
 	if fallbackErr != nil {
 		if errors.Is(fallbackErr, errFallbackDeclined) {
 			cmd.Printf("Installation aborted.\n")
@@ -272,7 +273,7 @@ func NewPluginInstallCmd() *cobra.Command {
 			}
 
 			// Try the initial installation
-			result, err := installer.Install(specifier, opts, progress)
+			result, err := installer.Install(cmd.Context(), specifier, opts, progress)
 			if err != nil {
 				return handleInstallError(
 					cmd, installer, spec, opts, progress,
@@ -350,6 +351,7 @@ var errFallbackDeclined = errors.New("fallback declined")
 //   - error if repository lookup fails, the repository format is invalid, no compatible fallback
 //     is found, the user declines the fallback, or the fallback installation fails.
 func handleFallback(
+	ctx context.Context,
 	cmd *cobra.Command,
 	installer *registry.Installer,
 	spec *registry.PluginSpecifier,
@@ -389,7 +391,7 @@ func handleFallback(
 	}
 
 	// Find a release with compatible assets using fallback search
-	info, err := client.FindReleaseWithFallbackInfo(owner, repo, spec.Version, spec.Name, assetHints)
+	info, err := client.FindReleaseWithFallbackInfo(ctx, owner, repo, spec.Version, spec.Name, assetHints)
 	if err != nil {
 		return nil, fmt.Errorf("no compatible version found: %w", err)
 	}
@@ -450,7 +452,7 @@ func handleFallback(
 		Metadata:         opts.Metadata,
 	}
 
-	result, err := installer.Install(fallbackSpecifier, fallbackOpts, progress)
+	result, err := installer.Install(ctx, fallbackSpecifier, fallbackOpts, progress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to install fallback version: %w", err)
 	}

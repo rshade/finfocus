@@ -179,7 +179,7 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 
 		costStr := fmt.Sprintf("$%.2f", row.Monthly)
 		deltaStr := RenderDelta(row.Delta)
-		recsStr := formatRecsColumn(row.RecommendationCount)
+		recsStr := engine.FormatRecommendationCount(row.RecommendationCount)
 
 		rows[i] = table.Row{
 			row.ResourceName,
@@ -220,7 +220,7 @@ func NewActualCostTable(results []engine.CostResult, height int) table.Model {
 	for i, r := range results {
 		row := NewResourceRow(r)
 		costStr := fmt.Sprintf("$%.2f", row.TotalCost)
-		recsStr := formatRecsColumn(row.RecommendationCount)
+		recsStr := engine.FormatRecommendationCount(row.RecommendationCount)
 
 		rows[i] = table.Row{
 			row.ResourceName,
@@ -466,15 +466,6 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 		}
 	}
 	content.WriteString("\n")
-}
-
-// formatRecsColumn returns the recommendation count as a string for TUI table display.
-// Returns "-" when the count is zero so the column stays visually clean.
-func formatRecsColumn(count int) string {
-	if count == 0 {
-		return "-"
-	}
-	return strconv.Itoa(count)
 }
 
 // aggregateCarbonFromResults extracts and sums carbon_footprint metrics from all results.

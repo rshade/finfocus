@@ -1,6 +1,7 @@
 package plugin_test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -209,7 +210,7 @@ func TestPluginInstall_VersionWithoutAssets_ReturnsError(t *testing.T) {
 
 	// Try to install v1.1.0 which has no assets
 	specifier := "github.com/example/finfocus-plugin-fallback@v1.1.0"
-	_, err := installer.Install(specifier, opts, nil)
+	_, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	// Installer should return error - the CLI layer handles fallback
 	require.Error(t, err)
@@ -248,7 +249,7 @@ func TestPluginInstall_NoFallback(t *testing.T) {
 
 	// Try to install v1.1.0 which has no assets
 	specifier := "github.com/example/finfocus-plugin-strict@v1.1.0"
-	_, err := installer.Install(specifier, opts, nil)
+	_, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	// Should fail with "no asset found" error
 	require.Error(t, err)
@@ -287,7 +288,7 @@ func TestPluginInstall_FallbackDeclinedNonTTY(t *testing.T) {
 
 	// Try to install v1.1.0 which has no assets
 	specifier := "github.com/example/finfocus-plugin-nontty@v1.1.0"
-	_, err := installer.Install(specifier, opts, nil)
+	_, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	// Should fail because we're in non-TTY and can't prompt
 	require.Error(t, err)
@@ -314,7 +315,9 @@ func TestFindReleaseWithFallbackInfo_FindsFallbackVersion(t *testing.T) {
 	client.BaseURL = server.URL
 
 	// Use FindReleaseWithFallbackInfo to find a version with assets
-	info, err := client.FindReleaseWithFallbackInfo("example", "finfocus-plugin-multi", "v1.2.0", "multi", nil)
+	info, err := client.FindReleaseWithFallbackInfo(
+		context.Background(), "example", "finfocus-plugin-multi", "v1.2.0", "multi", nil,
+	)
 
 	// Should find v1.0.0 as fallback
 	require.NoError(t, err)
@@ -353,7 +356,7 @@ func TestPluginInstall_NoFallbackNeeded(t *testing.T) {
 
 	// Install v1.1.0 which has assets
 	specifier := "github.com/example/finfocus-plugin-normal@v1.1.0"
-	result, err := installer.Install(specifier, opts, nil)
+	result, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	// Should succeed without fallback
 	require.NoError(t, err)

@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -52,7 +53,7 @@ func TestGetLatestRelease(t *testing.T) {
 	client := NewGitHubClient()
 	client.HTTPClient = server.Client()
 
-	release, err := client.fetchRelease(server.URL + "/repos/owner/repo/releases/latest")
+	release, err := client.fetchRelease(context.Background(), server.URL+"/repos/owner/repo/releases/latest")
 	if err != nil {
 		t.Fatalf("fetchRelease failed: %v", err)
 	}
@@ -80,7 +81,7 @@ func TestGetReleaseByTag(t *testing.T) {
 	client.HTTPClient = server.Client()
 
 	// Testing fetchRelease with constructed URL from test
-	release, err := client.fetchRelease(server.URL + "/repos/owner/repo/releases/tags/v1.0.0")
+	release, err := client.fetchRelease(context.Background(), server.URL+"/repos/owner/repo/releases/tags/v1.0.0")
 	if err != nil {
 		t.Fatalf("fetchRelease failed: %v", err)
 	}
@@ -104,7 +105,7 @@ func TestDownloadAsset(t *testing.T) {
 	tmpDir := t.TempDir()
 	destPath := filepath.Join(tmpDir, "asset.bin")
 
-	err := client.DownloadAsset(server.URL, destPath, nil)
+	err := client.DownloadAsset(context.Background(), server.URL, destPath, nil)
 	if err != nil {
 		t.Fatalf("DownloadAsset failed: %v", err)
 	}
@@ -129,7 +130,7 @@ func TestFetchRelease_NotFound(t *testing.T) {
 	client := NewGitHubClient()
 	client.HTTPClient = server.Client()
 
-	_, err := client.fetchRelease(server.URL)
+	_, err := client.fetchRelease(context.Background(), server.URL)
 	if err == nil {
 		t.Error("Expected error for 404, got nil")
 	}
@@ -144,7 +145,7 @@ func TestFetchRelease_RateLimit(t *testing.T) {
 	client := NewGitHubClient()
 	client.HTTPClient = server.Client()
 
-	_, err := client.fetchRelease(server.URL)
+	_, err := client.fetchRelease(context.Background(), server.URL)
 	if err == nil {
 		t.Error("Expected error for 403, got nil")
 	}
@@ -175,7 +176,7 @@ func TestListStableReleases(t *testing.T) {
 	client.BaseURL = server.URL
 	client.HTTPClient = server.Client()
 
-	releases, err := client.ListStableReleases("owner", "repo", 10)
+	releases, err := client.ListStableReleases(context.Background(), "owner", "repo", 10)
 	if err != nil {
 		t.Fatalf("ListStableReleases failed: %v", err)
 	}
@@ -210,7 +211,7 @@ func TestListStableReleases_WithLimit(t *testing.T) {
 	client.BaseURL = server.URL
 	client.HTTPClient = server.Client()
 
-	releases, err := client.ListStableReleases("owner", "repo", 2)
+	releases, err := client.ListStableReleases(context.Background(), "owner", "repo", 2)
 	if err != nil {
 		t.Fatalf("ListStableReleases failed: %v", err)
 	}
@@ -231,7 +232,7 @@ func TestListStableReleases_NotFound(t *testing.T) {
 	client.BaseURL = server.URL
 	client.HTTPClient = server.Client()
 
-	_, err := client.ListStableReleases("owner", "repo", 10)
+	_, err := client.ListStableReleases(context.Background(), "owner", "repo", 10)
 	if err == nil {
 		t.Error("Expected error for 404, got nil")
 	}
@@ -261,7 +262,7 @@ func TestFindReleaseWithAsset_ExactVersionFound(t *testing.T) {
 	client.BaseURL = server.URL
 	client.HTTPClient = server.Client()
 
-	release, asset, err := client.FindReleaseWithAsset("owner", "repo", "v1.0.0", "plugin", nil)
+	release, asset, err := client.FindReleaseWithAsset(context.Background(), "owner", "repo", "v1.0.0", "plugin", nil)
 	if err != nil {
 		t.Fatalf("FindReleaseWithAsset failed: %v", err)
 	}
@@ -321,7 +322,7 @@ func TestFindReleaseWithAsset_FallbackToStable(t *testing.T) {
 	client.HTTPClient = server.Client()
 
 	// Request v2.0.0 which doesn't have platform asset, should fallback to v1.0.0
-	release, asset, err := client.FindReleaseWithAsset("owner", "repo", "v2.0.0", "plugin", nil)
+	release, asset, err := client.FindReleaseWithAsset(context.Background(), "owner", "repo", "v2.0.0", "plugin", nil)
 	if err != nil {
 		t.Fatalf("FindReleaseWithAsset failed: %v", err)
 	}
@@ -361,7 +362,7 @@ func TestFindReleaseWithAsset_NoVersionSpecified(t *testing.T) {
 	client.HTTPClient = server.Client()
 
 	// Empty version should search stable releases
-	release, asset, err := client.FindReleaseWithAsset("owner", "repo", "", "plugin", nil)
+	release, asset, err := client.FindReleaseWithAsset(context.Background(), "owner", "repo", "", "plugin", nil)
 	if err != nil {
 		t.Fatalf("FindReleaseWithAsset failed: %v", err)
 	}
@@ -410,7 +411,7 @@ func TestFindReleaseWithAsset_NoCompatibleAsset(t *testing.T) {
 	client.BaseURL = server.URL
 	client.HTTPClient = server.Client()
 
-	_, _, err := client.FindReleaseWithAsset("owner", "repo", "v1.0.0", "plugin", nil)
+	_, _, err := client.FindReleaseWithAsset(context.Background(), "owner", "repo", "v1.0.0", "plugin", nil)
 	if err == nil {
 		t.Error("Expected error for no compatible asset, got nil")
 	}

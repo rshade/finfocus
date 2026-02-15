@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -173,8 +174,26 @@ func (s *StdioLauncher) proxy(listener net.Listener, stdin io.WriteCloser, stdou
 	}
 	defer conn.Close()
 
+	var wg sync.WaitGroup
+	wg.Add(2) //nolint:mnd // Two io.Copy directions
+
+	// conn -> stdin (gRPC requests to plugin)
 	go func() {
+		defer wg.Done()
 		_, _ = io.Copy(stdin, conn)
+		// stdin direction done; close stdout to unblock the other copy
+		_ = stdout.Close()
 	}()
-	_, _ = io.Copy(conn, stdout)
+
+	// stdout -> conn (plugin responses to gRPC)
+	go func() {
+		defer wg.Done()
+		_, _ = io.Copy(conn, stdout)
+		// stdout direction done; close the read side of conn to unblock the other copy
+		if tc, ok := conn.(*net.TCPConn); ok {
+			_ = tc.CloseRead()
+		}
+	}()
+
+	wg.Wait()
 }
