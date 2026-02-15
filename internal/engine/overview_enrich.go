@@ -212,13 +212,24 @@ func classifyError(urn string, err error) *OverviewRowError {
 
 // ExtractProviderFromResourceType extracts the provider name from a resource
 // type string (e.g., "aws:ec2:Instance" -> "aws"). This is an exported wrapper
-// around the internal extractProviderFromType function for use by CLI code.
+// ExtractProviderFromResourceType returns the provider name extracted from resourceType, or an empty string if no provider can be determined.
 func ExtractProviderFromResourceType(resourceType string) string {
 	return extractProviderFromType(resourceType)
 }
 
 // enrichWorker processes row indices from jobs, enriching each row and sending
-// progress updates. It exits when the jobs channel is closed or the context is cancelled.
+// enrichWorker consumes row indices from the jobs channel, enriches each corresponding
+// OverviewRow in place, and optionally sends progress updates; it exits when the jobs
+// channel is closed or the context is cancelled.
+//
+// Parameters:
+//  - ctx: context to observe cancellation and deadlines.
+//  - jobs: channel providing indices of rows to process.
+//  - rows: slice of OverviewRow to be updated in place by index.
+//  - eng: engine used to perform enrichment operations.
+//  - dateRange: date range passed to enrichment functions.
+//  - progressChan: optional channel to receive OverviewRowUpdate values for each
+//    completed row; may be nil to disable progress reporting.
 func enrichWorker(
 	ctx context.Context,
 	jobs <-chan int,
@@ -247,7 +258,22 @@ func enrichWorker(
 // The number of workers is bounded by overviewConcurrencyLimit (or the row count
 // if smaller), preventing goroutine-per-row proliferation. Updates are sent on
 // progressChan as each row completes. The channel is closed when all rows are
-// done. Returns the enriched rows slice.
+// EnrichOverviewRows concurrently enriches each OverviewRow in rows with cost and recommendation data.
+// It runs a fixed-size worker pool (capped by overviewConcurrencyLimit or the number of rows), respects
+// context cancellation, and records any per-row failures in each row's Error field without returning an error.
+// If progressChan is non-nil, the function sends OverviewRowUpdate messages as rows are processed and closes
+// progressChan before returning.
+//
+// Parameters:
+//  - ctx: the context to observe for cancellation and logging.
+//  - rows: the slice of OverviewRow to enrich; enrichment is performed in-place and the same slice is returned.
+//  - eng: the Engine used to fetch costs and recommendations.
+//  - dateRange: the date range used for cost calculations.
+//  - progressChan: optional channel that receives progress updates for each enriched row; may be nil.
+//
+// Returns:
+//  The input slice of OverviewRow populated with enrichment results (ActualCost, ProjectedCost, Recommendations,
+//  CostDrift) and any per-row Error values set for partial failures.
 func EnrichOverviewRows(
 	ctx context.Context,
 	rows []OverviewRow,

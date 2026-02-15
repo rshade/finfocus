@@ -368,7 +368,17 @@ func resolveResourcesFromPulumi(
 // results and reports whether multiple distinct currencies were encountered.
 // It returns the chosen currency and a boolean that is `true` if more than one
 // distinct non-empty currency was present in the slice. If no result contains a
-// currency, the function returns `defaultCurrency` and `false`.
+// extractCurrencyFromResults determines a canonical currency for a set of cost results.
+// It scans results for the first non-empty currency and returns that currency along with
+// a boolean indicating whether more than one distinct non-empty currency was observed.
+// If no result contains a currency, it returns defaultCurrency and false.
+//
+// Parameters:
+//  - results: slice of CostResult to inspect for currency information.
+//
+// Returns:
+//  - string: the chosen currency (first non-empty found or defaultCurrency if none found).
+//  - bool: true if multiple distinct non-empty currencies were detected, false otherwise.
 func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
 	currency := ""
 	mixedCurrencies := false
@@ -392,7 +402,15 @@ func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
 }
 
 // printTimingOutput writes throughput metrics to w when the output format is
-// table. It is suppressed for JSON/NDJSON modes.
+// printTimingOutput writes a brief timing summary to w when the output format is a table.
+// It writes the number of resources analyzed, the elapsed time since start, and the
+// resources-per-second rate. If the output format is not table (for example JSON or NDJSON),
+// the function does nothing.
+// Parameters:
+//   - w: destination writer for the timing summary.
+//   - start: start time used to compute elapsed duration.
+//   - resourceCount: number of resources processed; used to compute throughput.
+//   - output: output format name checked to determine whether to emit the summary.
 func printTimingOutput(w io.Writer, start time.Time, resourceCount int, output string) {
 	if engine.OutputFormat(output) != engine.OutputTable {
 		return
@@ -407,7 +425,22 @@ func printTimingOutput(w io.Writer, start time.Time, resourceCount int, output s
 }
 
 // evaluateBudgetStatus checks budget thresholds when currencies are consistent.
-// It returns nil if currencies are mixed or no budget issue is found.
+// evaluateBudgetStatus determines whether a budget exit status should be returned based on the
+// provided cost results and total cost.
+//
+// evaluateBudgetStatus inspects the results' currency consistency, obtains a budget scope filter
+// from the command, renders the budget with the resolved currency and scope, and returns any
+// non-nil exit error produced by the budget check. If multiple currencies are present across
+// results or no budget issue is found, it returns nil.
+//
+// Parameters:
+//  - cmd: the Cobra command providing flags and context for budget rendering and checks.
+//  - results: the collection of cost results to evaluate against the budget.
+//  - totalCost: the aggregated cost to use when rendering and evaluating the budget.
+//
+// Returns:
+//  - an error representing a budget exit status when a budget rule is violated, or nil when
+//    currencies are mixed or no budget issue is detected.
 func evaluateBudgetStatus(
 	cmd *cobra.Command,
 	results []engine.CostResult,

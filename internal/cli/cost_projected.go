@@ -76,7 +76,21 @@ type costProjectedParams struct {
 //	--filter         Repeatable resource filter expressions (e.g., "type=aws:ec2/instance").
 //	--utilization    Utilization rate for sustainability calculations, between 0.0 and 1.0.
 //
-// The command's execution is delegated to executeCostProjected.
+// NewCostProjectedCmd returns a Cobra command configured to calculate projected costs
+// from a Pulumi preview JSON and render the results in table, JSON, or NDJSON formats.
+// The command accepts either an explicit Pulumi preview JSON file or will auto-detect
+// and run a Pulumi preview in the current project when the --pulumi-json flag is omitted.
+//
+// The command registers the following flags:
+//   - --pulumi-json: optional path to a Pulumi preview JSON output (auto-detected if omitted).
+//   - --spec-dir: directory containing pricing specification files.
+//   - --adapter: restricts execution to a single adapter plugin.
+//   - --output: output format ("table", "json", or "ndjson").
+//   - --filter: repeatable resource filter expressions (e.g., "type=aws:ec2/instance").
+//   - --utilization: utilization rate for sustainability calculations (0.0 to 1.0).
+//   - --jobs, -j: number of parallel workers (0 = auto based on CPU count).
+//
+// The returned command is ready to be added to the application's command tree.
 func NewCostProjectedCmd() *cobra.Command {
 	var params costProjectedParams
 
@@ -166,7 +180,20 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
 //   - cmd: the Cobra command providing context and flags (used to read --stack and for command output).
 //   - params: command parameters including planPath, specDir, adapter, output format, filters, and utilization.
 //
-// Returns an error describing the failure when one of the following occurs: utilization is outside the range [0.0, 1.0]; reading the --stack flag fails; loading or resolving resources fails; applying filters fails; opening plugins fails; cost calculation fails; rendering output fails; or the budget check produces an exit error. Returns nil on success.
+// executeCostProjected runs the "projected" cost command: it loads resources (from a Pulumi JSON plan or auto-detected stack), applies filters, loads specs and plugins, computes projected costs (including per-resource errors), renders the output, and evaluates budget status.
+// 
+// The cmd parameter provides the Cobra command and its context/flags. The params argument contains CLI-configured options such as the Pulumi JSON path, spec directory, adapter restriction, output format, resource filters, utilization rate, and number of worker jobs.
+// 
+// On success, it returns nil. On failure it returns an error describing the specific failure, which may occur when:
+// - params.jobs is negative,
+// - params.utilization is outside the range 0.0 to 1.0,
+// - reading the --stack flag fails during auto-detection,
+// - loading or resolving resources fails,
+// - applying resource filters fails,
+// - opening adapter plugins fails,
+// - the cost calculation fails,
+// - rendering the output fails, or
+// - the budget evaluation produces a non-zero exit/error status.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
 	ctx := cmd.Context()
 

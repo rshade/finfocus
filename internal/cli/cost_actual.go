@@ -55,7 +55,18 @@ func defaultToNow(s string) string {
 // resource Created timestamp; when using a preview JSON, --from must be supplied.
 // The command exposes flags for output format, grouping, filtering, adapter selection,
 // showing estimate confidence, and including fallback $0 placeholders for resources
-// with no plugin cost data (--fallback-estimate).
+// NewCostActualCmd creates the "actual" subcommand for fetching actual historical costs.
+//
+// The command retrieves historical costs from cloud provider billing APIs or estimates
+// costs based on Pulumi preview JSON or Pulumi state timestamps. When neither
+// --pulumi-json nor --pulumi-state is provided the current Pulumi project is
+// auto-detected and `pulumi stack export` is used; in that mode the --from date is
+// auto-detected from the earliest resource Created timestamp. Common flags registered
+// include --pulumi-json, --pulumi-state, --from, --to, --adapter, --output, --group-by,
+// --estimate-confidence, --fallback-estimate, --filter, and --jobs. Validation of
+// flag combinations is performed by executeCostActual.
+//
+// It returns a configured *cobra.Command for use on the CLI.
 func NewCostActualCmd() *cobra.Command {
 	var params costActualParams
 
@@ -170,7 +181,19 @@ timestamp if not provided.`,
 //
 // The function returns an error when validation fails, resource loading or mapping fails,
 // filters are invalid, date parsing or validation fails, plugin initialization fails,
-// cost retrieval from the engine fails, or output rendering fails. On success it returns nil.
+// executeCostActual orchestrates the "actual" cost workflow: it loads resources, applies filters,
+// determines the time range, invokes adapter plugins to fetch historical costs, merges recommendations,
+// renders output, evaluates budget status, and records audit information.
+// 
+// The function validates input flags (including non-negative jobs), opens adapter plugins, and constructs
+// an engine request using the provided parameters. It returns an error if any step fails, including:
+// - invalid or mutually exclusive CLI flags,
+// - resource loading or mapping failures,
+// - filter application errors,
+// - time parsing or range validation failures,
+// - plugin initialization or invocation failures when fetching costs,
+// - output rendering errors,
+// - budget evaluation failures.
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
