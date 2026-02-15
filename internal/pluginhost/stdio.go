@@ -2,6 +2,7 @@ package pluginhost
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -137,16 +138,17 @@ func (s *StdioLauncher) Start(
 			Str("operation", "close_plugin_stdio").
 			Msg("closing stdio plugin connection")
 
+		var errs []error
 		if connCloseErr := conn.Close(); connCloseErr != nil {
 			log.Warn().
 				Ctx(ctx).
 				Str("component", "pluginhost").
 				Err(connCloseErr).
 				Msg("error closing gRPC connection")
-			return fmt.Errorf("closing connection: %w", connCloseErr)
+			errs = append(errs, fmt.Errorf("closing connection: %w", connCloseErr))
 		}
 		if listenerCloseErr := listener.Close(); listenerCloseErr != nil {
-			return fmt.Errorf("closing listener: %w", listenerCloseErr)
+			errs = append(errs, fmt.Errorf("closing listener: %w", listenerCloseErr))
 		}
 		if cmd.Process != nil {
 			pid := cmd.Process.Pid
@@ -158,7 +160,7 @@ func (s *StdioLauncher) Start(
 				Int("pid", pid).
 				Msg("stdio plugin process terminated")
 		}
-		return nil
+		return errors.Join(errs...)
 	}
 
 	return conn, closeFn, nil

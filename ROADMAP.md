@@ -15,46 +15,59 @@ guardrails in `CONTEXT.md`.
 
 ## Immediate Focus (v0.3.0 - Install UX, Scale & Pulumi Integration)
 
-- [ ] **Config Architecture**
-  - [ ] Split project-local and user-global `.finfocus/` directories
+- [x] **Config Architecture** *(Completed 2026-02-14)*
+  - [x] Split project-local and user-global `.finfocus/` directories
         ([#548](https://github.com/rshade/finfocus/issues/548))
+        *(Completed 2026-02-14)*
 - [ ] **Install UX**
   - [ ] Install script (`curl | sh`)
         ([#599](https://github.com/rshade/finfocus/issues/599))
-  - [ ] `finfocus setup` one-command bootstrap
+  - [x] `finfocus setup` one-command bootstrap
         ([#598](https://github.com/rshade/finfocus/issues/598))
-  - [ ] `finfocus analyzer install/uninstall` commands
-        ([#597](https://github.com/rshade/finfocus/issues/597))
+        *(Completed 2026-02-15)*
+  - [x] `finfocus analyzer install/uninstall` commands
+        ([#597](https://github.com/rshade/finfocus/issues/597)) *(Completed 2026-02-14)*
   - [ ] Checksum verification for plugin installation
         ([#601](https://github.com/rshade/finfocus/issues/601))
 - [ ] **Scale & Performance**
-  - [ ] Scale benchmarks for cost commands
+  - [x] Scale benchmarks for cost commands
         ([#607](https://github.com/rshade/finfocus/issues/607))
+        *(Completed 2026-02-14)*
   - [ ] `--jobs` flag and timing output for cost commands
         ([#602](https://github.com/rshade/finfocus/issues/602))
   - [ ] Projected cost caching
         ([#600](https://github.com/rshade/finfocus/issues/600))
+  - [ ] Benchmark PR reporting with benchstat regression detection
+        ([#657](https://github.com/rshade/finfocus/issues/657))
+  - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
+        ([#658](https://github.com/rshade/finfocus/issues/658))
 - [ ] **CLI Polish**
-  - [ ] Neo-friendly CLI fixes
+  - [x] Neo-friendly CLI fixes
         ([#611](https://github.com/rshade/finfocus/issues/611))
+        *(Completed 2026-02-14)*
   - [ ] Policy-compatible cost output
         ([#604](https://github.com/rshade/finfocus/issues/604))
 - [ ] **Code Quality & Refactoring**
-  - [ ] Reorder router provider-based region check after feature matching
+  - [x] Reorder router provider-based region check after feature matching
         ([#616](https://github.com/rshade/finfocus/issues/616))
-  - [ ] Add `.Ctx(ctx)` and structured log fields across packages
+        *(Completed 2026-02-14)*
+  - [x] Add `.Ctx(ctx)` and structured log fields across packages
         ([#613](https://github.com/rshade/finfocus/issues/613))
-  - [ ] Add Stack field to CostFlags struct
+        *(Completed 2026-02-14)*
+  - [x] Add Stack field to CostFlags struct
         ([#612](https://github.com/rshade/finfocus/issues/612))
+        *(Completed 2026-02-14)*
   - [ ] Consolidate recommendation count and format helpers (DRY)
         ([#610](https://github.com/rshade/finfocus/issues/610))
-  - [ ] Wire router into cost commands for region-aware plugin selection
+  - [x] Wire router into cost commands for region-aware plugin selection
         ([#590](https://github.com/rshade/finfocus/issues/590))
+        *(Completed 2026-02-14)*
 - [ ] **Testing Improvements**
-  - [ ] Add negative test for waitForPluginBindWithFallback
+  - [x] Add negative test for waitForPluginBindWithFallback
         ([#608](https://github.com/rshade/finfocus/issues/608))
-  - [ ] Fix state_test.go wantVersion skip and delegation fragility
-        ([#606](https://github.com/rshade/finfocus/issues/606))
+        *(Completed 2026-02-14)*
+  - [x] Fix state_test.go wantVersion skip and delegation fragility
+        ([#606](https://github.com/rshade/finfocus/issues/606)) *(Completed 2026-02-14)*
   - [ ] Isolate auto-detection tests with temp directories
         ([#605](https://github.com/rshade/finfocus/issues/605))
 
@@ -67,14 +80,16 @@ guardrails in `CONTEXT.md`.
         ([#637](https://github.com/rshade/finfocus/issues/637))
   - [ ] Add `--explain` flag to `cost projected` for pricing transparency
         ([#636](https://github.com/rshade/finfocus/issues/636))
-- [ ] **Resource Filtering Improvements**
-  - [ ] Filter `pulumi:providers:*` synthetic resources from cost plugin routing
+- [x] **Resource Filtering Improvements** *(Completed 2026-02-14)*
+  - [x] Filter `pulumi:providers:*` synthetic resources from cost plugin routing
         ([#582](https://github.com/rshade/finfocus/issues/582))
-  - [ ] Filter Pulumi component resources from cost plugin routing
+        *(Completed 2026-02-14)*
+  - [x] Filter Pulumi component resources from cost plugin routing
         ([#583](https://github.com/rshade/finfocus/issues/583))
-- [ ] **Unified Cost Dashboard**
-  - [ ] Add `finfocus overview` command — unified cost dashboard with TUI
-        ([#578](https://github.com/rshade/finfocus/issues/578))
+        *(Completed 2026-02-14)*
+- [x] **Unified Cost Dashboard**
+  - [x] Add `finfocus overview` command — unified cost dashboard with TUI
+        ([#578](https://github.com/rshade/finfocus/issues/578)) *(Completed 2026-02-14)*
 - [ ] **Contextual Profiles ("Dev Mode")**
       ([#368](https://github.com/rshade/finfocus/issues/368))
   - [ ] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
@@ -193,9 +208,21 @@ guardrails in `CONTEXT.md`.
 - [ ] **Cost Diff View**
   - [ ] Add cost diff view to `cost projected` command
         ([#576](https://github.com/rshade/finfocus/issues/576))
-- [ ] **Overview Command Enhancements**
+- [ ] **Overview Command Enhancements** *(follow-ups from #578)*
   - [ ] Add `--output json` support to `finfocus overview`
         ([#579](https://github.com/rshade/finfocus/issues/579))
+  - [ ] Add `--force-color` and `--no-color` flags to overview command
+        ([#641](https://github.com/rshade/finfocus/issues/641))
+  - [ ] Interactive pre-flight confirmation prompt for overview command
+        ([#642](https://github.com/rshade/finfocus/issues/642))
+  - [ ] Warning column and `OverviewWarning` type
+        ([#643](https://github.com/rshade/finfocus/issues/643))
+  - [ ] Short flags (`-s`, `-f`, `-a`) for overview command
+        ([#644](https://github.com/rshade/finfocus/issues/644))
+  - [ ] Test coverage for overview enrichment and CLI to 80%+
+        ([#645](https://github.com/rshade/finfocus/issues/645))
+  - [ ] Overview command documentation with screenshots
+        ([#646](https://github.com/rshade/finfocus/issues/646))
 - [ ] **Platform Reliability**
   - [ ] Reimplement plugin installer lock for Windows reliability
         ([#573](https://github.com/rshade/finfocus/issues/573))
@@ -214,6 +241,36 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] **Router Wiring & Resource Filtering** *(Completed 2026-02-14)*
+  - [x] Wire router into cost commands for region-aware plugin selection
+        ([#590](https://github.com/rshade/finfocus/issues/590))
+  - [x] Filter `pulumi:providers:*` synthetic resources from cost plugin
+        routing ([#582](https://github.com/rshade/finfocus/issues/582))
+  - [x] Filter Pulumi component resources from cost plugin routing
+        ([#583](https://github.com/rshade/finfocus/issues/583))
+  - [x] Reorder router provider-based region check after feature matching
+        ([#616](https://github.com/rshade/finfocus/issues/616))
+- [x] **Config, CLI & Refactoring** *(Completed 2026-02-14)*
+  - [x] Split project-local and user-global `.finfocus/` directories
+        ([#548](https://github.com/rshade/finfocus/issues/548))
+  - [x] Neo-friendly CLI fixes
+        ([#611](https://github.com/rshade/finfocus/issues/611))
+  - [x] Add Stack field to CostFlags struct
+        ([#612](https://github.com/rshade/finfocus/issues/612))
+  - [x] Add `.Ctx(ctx)` and structured log fields across packages
+        ([#613](https://github.com/rshade/finfocus/issues/613))
+- [x] **Scale & Testing** *(Completed 2026-02-14)*
+  - [x] Scale benchmarks for cost commands
+        ([#607](https://github.com/rshade/finfocus/issues/607))
+  - [x] Add negative test for waitForPluginBindWithFallback
+        ([#608](https://github.com/rshade/finfocus/issues/608))
+- [x] **Unified Overview & Analyzer Install** *(Completed 2026-02-14)*
+  - [x] Add `finfocus overview` command — unified cost dashboard with TUI
+        ([#578](https://github.com/rshade/finfocus/issues/578))
+  - [x] `finfocus analyzer install/uninstall` commands
+        ([#597](https://github.com/rshade/finfocus/issues/597))
+  - [x] Fix state_test.go wantVersion skip and delegation fragility
+        ([#606](https://github.com/rshade/finfocus/issues/606))
 - [x] **GetPricingSpec Research & Code Quality** *(Completed 2026-02-14)*
   - [x] Evaluate GetPricingSpec RPC usage in core
         ([#465](https://github.com/rshade/finfocus/issues/465))

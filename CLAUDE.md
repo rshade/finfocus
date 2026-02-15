@@ -1129,5 +1129,26 @@ CodeRabbit now:
 
 ## Active Technologies
 
+### Current Stack
+
+- **Language**: Go 1.25.7
+- **CLI**: Cobra v1.10.2
+- **Logging**: zerolog v1.34.0
+- **Plugins**: gRPC v1.79.1, finfocus-spec v0.5.6
+- **TUI**: Bubble Tea v1.3.10, Lip Gloss v1.1.0
+- **Testing**: testify v1.11.1
+- **Terminal**: golang.org/x/term (TTY detection)
+
+### Branch-Specific Notes
+
+| Branch | Additional Technologies | State |
+|--------|------------------------|-------|
+| 590-analyzer-install | os/filepath/runtime, pkg/version | Filesystem (symlinks/copies) |
+| 511-wire-router | (core stack) | Stateless; reads config.yaml |
+| 590-neo-cli-fixes | (core stack) | Stateless CLI |
+| 591-setup-command | golang.org/x/term | Filesystem (dirs, YAML, symlinks) |
+| 508-recommendation-dismissal | (core stack) | Local JSON (dismissed.json) |
+| 223-cost-estimate | Bubble Tea, Lip Gloss | Stateless command design |
+| 509-pulumi-auto-detect | (core stack) | Stateless CLI |
 
 ## Recent Changes
