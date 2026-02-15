@@ -87,8 +87,6 @@ func NewGitHubClient() *GitHubClient {
 	}
 }
 
-// getGitHubToken returns a GitHub authentication token from the GITHUB_TOKEN
-// environment variable. Returns empty string if not set. The token is optional
 // getGitHubToken returns the value of the GITHUB_TOKEN environment variable.
 // It returns an empty string if the variable is not set (clients will make anonymous
 // requests in that case, which may be subject to stricter rate limits).

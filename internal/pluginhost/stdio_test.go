@@ -397,6 +397,7 @@ func TestProxy_GracefulShutdown(t *testing.T) {
 	// Connect to the proxy.
 	conn, dialErr := net.Dial("tcp", listener.Addr().String())
 	require.NoError(t, dialErr)
+	defer conn.Close()
 
 	// Write data through conn -> stdinWriter -> stdinReader.
 	testData := []byte("hello proxy")

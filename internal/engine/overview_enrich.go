@@ -210,14 +210,12 @@ func classifyError(urn string, err error) *OverviewRowError {
 	}
 }
 
-// ExtractProviderFromResourceType extracts the provider name from a resource
-// type string (e.g., "aws:ec2:Instance" -> "aws"). This is an exported wrapper
-// ExtractProviderFromResourceType returns the provider name extracted from resourceType, or an empty string if no provider can be determined.
+// ExtractProviderFromResourceType returns the provider name extracted from resourceType,
+// or an empty string if no provider can be determined.
 func ExtractProviderFromResourceType(resourceType string) string {
 	return extractProviderFromType(resourceType)
 }
 
-// enrichWorker processes row indices from jobs, enriching each row and sending
 // enrichWorker consumes row indices from the jobs channel, enriches each corresponding
 // OverviewRow in place, and optionally sends progress updates; it exits when the jobs
 // channel is closed or the context is cancelled.
@@ -254,10 +252,6 @@ func enrichWorker(
 	}
 }
 
-// EnrichOverviewRows enriches all rows concurrently using a fixed worker pool.
-// The number of workers is bounded by overviewConcurrencyLimit (or the row count
-// if smaller), preventing goroutine-per-row proliferation. Updates are sent on
-// progressChan as each row completes. The channel is closed when all rows are
 // EnrichOverviewRows concurrently enriches each OverviewRow in rows with cost and recommendation data.
 // It runs a fixed-size worker pool (capped by overviewConcurrencyLimit or the number of rows), respects
 // context cancellation, and records any per-row failures in each row's Error field without returning an error.

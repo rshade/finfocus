@@ -243,7 +243,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		return fmt.Errorf("applying filters: %w", err)
 	}
 
-	cfg, specDir := config.New(), params.specDir
+	cfg, specDir := config.GetGlobalConfig(), params.specDir
 	if specDir == "" {
 		specDir = cfg.SpecDir
 	}

@@ -161,7 +161,6 @@ func getPlatformString() string {
 	return fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 }
 
-// handleInstallError processes installation errors and attempts fallback if appropriate.
 // handleInstallError attempts a fallback installation when an initial install fails due to missing
 // platform assets. If fallback is not applicable (the error is not an asset-missing error,
 // no version was requested, or noFallback is true) it returns the original install error wrapped

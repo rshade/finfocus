@@ -47,14 +47,6 @@ func defaultToNow(s string) string {
 	return s
 }
 
-// NewCostActualCmd creates the "actual" subcommand for fetching historical cloud costs
-// or estimating costs from Pulumi state. The command accepts a Pulumi preview JSON
-// (--pulumi-json), a Pulumi state export (--pulumi-state), or auto-detects the Pulumi
-// project in the current directory when both are omitted. When using state or
-// auto-detection, the start date (--from) may be auto-detected from the earliest
-// resource Created timestamp; when using a preview JSON, --from must be supplied.
-// The command exposes flags for output format, grouping, filtering, adapter selection,
-// showing estimate confidence, and including fallback $0 placeholders for resources
 // NewCostActualCmd creates the "actual" subcommand for fetching actual historical costs.
 //
 // The command retrieves historical costs from cloud provider billing APIs or estimates
@@ -65,8 +57,6 @@ func defaultToNow(s string) string {
 // include --pulumi-json, --pulumi-state, --from, --to, --adapter, --output, --group-by,
 // --estimate-confidence, --fallback-estimate, --filter, and --jobs. Validation of
 // flag combinations is performed by executeCostActual.
-//
-// It returns a configured *cobra.Command for use on the CLI.
 func NewCostActualCmd() *cobra.Command {
 	var params costActualParams
 
@@ -158,29 +148,6 @@ timestamp if not provided.`,
 	return cmd
 }
 
-// executeCostActual orchestrates the "actual" cost workflow: it validates CLI flags,
-// loads and filters resources, resolves the date range, opens adapter plugins, requests
-// actual cost data from the engine, renders the output, evaluates budget status (when
-// applicable), and records audit events.
-//
-// Parameters:
-//   - cmd: the Cobra command providing context and CLI flag state.
-//   - params: the parsed costActualParams carrying paths, date strings, grouping, filters,
-//     adapter and output options, and flags such as estimate confidence and fallback-estimate.
-//
-// Returns an error if validation fails, resources cannot be loaded or filtered, the date range
-// cannot be parsed or resolved, plugins cannot be opened, the engine fails to fetch costs, the
-// executeCostActual orchestrates the "actual" cost workflow: it validates input flags,
-// loads and filters resources, resolves the time range, opens adapter plugins, requests
-// actual cost data from the engine, merges recommendations, renders output, and evaluates
-// budget status when appropriate.
-//
-// cmd is the cobra command whose context and flags control execution. params supplies
-// command-specific options such as plan/state paths, time range, adapter, output format,
-// grouping, filters, and estimation flags.
-//
-// The function returns an error when validation fails, resource loading or mapping fails,
-// filters are invalid, date parsing or validation fails, plugin initialization fails,
 // executeCostActual orchestrates the "actual" cost workflow: it loads resources, applies filters,
 // determines the time range, invokes adapter plugins to fetch historical costs, merges recommendations,
 // renders output, evaluates budget status, and records audit information.
@@ -378,8 +345,7 @@ func ValidateDateRange(from, to time.Time) error {
 }
 
 // parseTagFilter parses a group-by specifier for a tag filter and returns the parsed tags and the resulting groupBy.
-// If groupBy is of the form "tag:key=value", it returns a map containing {key: value} and an empty actualGroupBy (indicating tag-based filtering).
-// string (empty when filtering by tag).
+// If groupBy is of the form "tag:key=value", it returns a map containing {key: value} and an empty actualGroupBy.
 func parseTagFilter(groupBy string) (map[string]string, string) {
 	tags := make(map[string]string)
 	actualGroupBy := groupBy
@@ -521,22 +487,6 @@ func buildActualAuditParams(params costActualParams) map[string]string {
 	return auditParams
 }
 
-// loadActualResources loads resource descriptors from one of three sources:
-// a Pulumi state file, a Pulumi preview plan, or by auto-detecting from the
-// current Pulumi project when neither path is provided.
-//
-// The selection is driven by params: if params.statePath is set the state file
-// is used; if params.planPath is set the plan is used; otherwise the function
-// attempts auto-detection and uses the `stack` flag from cmd for project
-// resolution. The audit context is used to record failures encountered while
-// loading or mapping resources.
-//
-// cmd is consulted only for CLI flags necessary during auto-detection.
-// params provides the plan/state paths and other flags relevant to loading.
-// audit is used to log and record load or mapping failures.
-//
-// The function returns a slice of engine.ResourceDescriptor on success.
-// It returns a non-nil error if loading the state or plan fails, if mapping
 // loadActualResources loads resource descriptors for the actual-cost command.
 // It chooses the source based on params:
 // - If params.statePath is set, it loads resources from the given Pulumi state file.
@@ -552,8 +502,6 @@ func buildActualAuditParams(params costActualParams) map[string]string {
 // Returns:
 //   - a slice of engine.ResourceDescriptor on success.
 //   - a non-nil error if loading or mapping fails, if reading the --stack flag fails, or if auto-detection cannot resolve resources.
-//
-// Errors returned when loading from a plan or state are logged and recorded to audit before being returned.
 func loadActualResources(
 	ctx context.Context,
 	cmd *cobra.Command,
@@ -594,15 +542,6 @@ func loadActualResources(
 	return resolveResourcesFromPulumi(ctx, stackFlag, modePulumiExport)
 }
 
-// resolveFromDate returns the RFC3339-formatted start ("from") date to use for cost
-// calculations.
-//
-// If params.fromStr is non-empty it is returned unchanged. If params.statePath is set
-// or both params.planPath and params.statePath are empty (auto-detection mode), the
-// function attempts to determine the earliest resource creation timestamp from
-// resources and returns that timestamp formatted with time.RFC3339. If auto-detection
-// fails, an error is returned advising the caller to provide --from explicitly. In
-// all other cases the function returns an error indicating that a --from date is
 // resolveFromDate determines the RFC3339-formatted start date ("from") to use for the actual cost
 // calculation.
 //
@@ -611,15 +550,6 @@ func loadActualResources(
 // timestamp from resources and returns that timestamp formatted as RFC3339. If auto-detection fails,
 // an error is returned advising to specify --from explicitly. If params.planPath is set and no
 // fromStr was provided, an error is returned indicating that a --from date is required.
-//
-// Parameters:
-//   - ctx: context for logging and cancellation.
-//   - params: command parameters containing fromStr and planPath.
-//   - resources: resource descriptors used for auto-detection when applicable.
-//
-// Returns:
-//   - a string containing the start date formatted with time.RFC3339 on success.
-//   - a non-nil error if auto-detection fails or if a required --from value is missing.
 func resolveFromDate(
 	ctx context.Context,
 	params costActualParams,

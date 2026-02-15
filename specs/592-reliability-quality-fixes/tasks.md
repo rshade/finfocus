@@ -256,6 +256,29 @@ All 5 user stories modify disjoint files and can execute simultaneously:
 
 ---
 
+## Phase 9: Code Quality Refinements (Post-Review Round 2)
+
+**Purpose**: Config caching optimization, cache store lock management refactor, and godoc fix discovered during second code review. All 3 tasks touch different files and are fully parallelizable.
+
+### Implementation for Phase 9
+
+- [X] T039 [P] [US4] Replace `config.New()` with `config.GetGlobalConfig()` in `executeCostActual` (line 256) and `executeCostProjected` (line 246) to avoid redundant config re-reads; the global singleton is already initialized in `root.go`'s `PersistentPreRunE` in `internal/cli/cost_actual.go` and `internal/cli/cost_projected.go`
+- [X] T040 [P] [US4] Extract write-lock revalidation path from `FileStore.Get()` into `deleteExpiredUnderLock(filePath)` helper that uses `defer s.mu.Unlock()` to consolidate four explicit unlock sites into one in `internal/engine/cache/store.go`
+- [X] T041 [P] [US2] Remove duplicated partial doc comment fragment above `getGitHubToken` function (lines 90-91: old two-line fragment preceding the complete replacement comment) in `internal/registry/github.go`
+
+**Checkpoint**: All 3 refinements applied; `make test` and `make lint` pass
+
+---
+
+## Phase 10: Final Validation
+
+**Purpose**: Confirm Phase 9 refinements integrate cleanly
+
+- [X] T042 Run `make test` and verify all tests pass
+- [X] T043 Run `make lint` and verify zero lint errors
+
+---
+
 ## Notes
 
 - [P] tasks = different files, no dependencies
@@ -264,4 +287,5 @@ All 5 user stories modify disjoint files and can execute simultaneously:
 - All 5 user stories touch disjoint file sets: full parallelism possible
 - Phase 7 adds 6 refinement tasks, all targeting different files (full parallelism)
 - Commit after each user story for clean git history
-- Total: 38 tasks (29 original + 6 refinements + 3 validation)
+- Phase 9 adds 3 quality refinement tasks, all targeting different files (full parallelism)
+- Total: 43 tasks (29 original + 6 refinements + 3 validation + 3 quality refinements + 2 final validation)

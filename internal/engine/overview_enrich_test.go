@@ -350,7 +350,7 @@ func TestEnrichOverviewRows_WorkerPoolBound(t *testing.T) {
 	progressChan := make(chan OverviewRowUpdate, rowCount)
 
 	// This should not hang or create unbounded goroutines
-	result := EnrichOverviewRows(ctx, rows, nil, DateRange{
+	result := EnrichOverviewRows(ctx, rows, New(nil, nil), DateRange{
 		Start: time.Now().Add(-24 * time.Hour),
 		End:   time.Now(),
 	}, progressChan)
@@ -367,7 +367,7 @@ func TestEnrichOverviewRows_ClosesProgressChan(t *testing.T) {
 	}
 	progressChan := make(chan OverviewRowUpdate, 10)
 
-	EnrichOverviewRows(ctx, rows, nil, DateRange{
+	EnrichOverviewRows(ctx, rows, New(nil, nil), DateRange{
 		Start: time.Now().Add(-24 * time.Hour),
 		End:   time.Now(),
 	}, progressChan)

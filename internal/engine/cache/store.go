@@ -112,33 +112,40 @@ func (s *FileStore) Get(key string) (*CacheEntry, error) {
 		// This avoids spawning a goroutine that could hold a write lock after Get returns
 		// (goroutine leak when the RLock holder is long gone).
 		s.mu.RUnlock()
-		s.mu.Lock()
-		// Re-check: another goroutine may have refreshed this entry between
-		// releasing the read lock and acquiring the write lock.
-		freshData, readErr := os.ReadFile(filePath)
-		if readErr != nil {
-			// File already removed or unreadable; nothing to delete.
-			s.mu.Unlock()
-			return nil, ErrCacheExpired
-		}
-		var freshEntry CacheEntry
-		if unmarshalErr := json.Unmarshal(freshData, &freshEntry); unmarshalErr != nil {
-			_ = os.Remove(filePath)
-			s.mu.Unlock()
-			return nil, ErrCacheExpired
-		}
-		if freshEntry.IsExpired() {
-			_ = os.Remove(filePath)
-			s.mu.Unlock()
-			return nil, ErrCacheExpired
-		}
-		// Entry was refreshed by another goroutine and is now valid.
-		s.mu.Unlock()
-		return &freshEntry, nil
+		return s.deleteExpiredUnderLock(filePath)
 	}
 
 	s.mu.RUnlock()
 	return &entry, nil
+}
+
+// deleteExpiredUnderLock acquires the write lock, re-reads the cache file at
+// filePath, and deletes it if still expired. If another goroutine refreshed
+// the entry between the read-lock release and this write-lock acquisition,
+// the fresh entry is returned. The write lock is always released via defer.
+func (s *FileStore) deleteExpiredUnderLock(filePath string) (*CacheEntry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	freshData, readErr := os.ReadFile(filePath)
+	if readErr != nil {
+		// File already removed or unreadable; nothing to delete.
+		return nil, ErrCacheExpired
+	}
+
+	var freshEntry CacheEntry
+	if unmarshalErr := json.Unmarshal(freshData, &freshEntry); unmarshalErr != nil {
+		_ = os.Remove(filePath)
+		return nil, ErrCacheExpired
+	}
+
+	if freshEntry.IsExpired() {
+		_ = os.Remove(filePath)
+		return nil, ErrCacheExpired
+	}
+
+	// Entry was refreshed by another goroutine and is now valid.
+	return &freshEntry, nil
 }
 
 // Set stores a cache entry with the given key and data.

@@ -417,7 +417,7 @@ func TestStepInstallPlugins(t *testing.T) {
 		),
 	}
 
-	steps := runner.StepInstallPlugins(context.Background(), tmpDir)
+	steps := runner.StepInstallPlugins(t.Context(), tmpDir)
 
 	require.NotEmpty(t, steps, "should have at least one plugin result")
 	for _, step := range steps {
@@ -439,7 +439,7 @@ func TestStepInstallPlugins_AlreadyInstalled(t *testing.T) {
 	require.NoError(t, os.MkdirAll(pluginDir, cli.DirPermPlugins))
 
 	runner := &cli.SetupRunner{}
-	steps := runner.StepInstallPlugins(context.Background(), tmpDir)
+	steps := runner.StepInstallPlugins(t.Context(), tmpDir)
 
 	require.Len(t, steps, len(cli.DefaultPlugins))
 	assert.Equal(t, cli.StepSuccess, steps[0].Status)
