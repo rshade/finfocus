@@ -113,7 +113,23 @@ func (s *FileStore) Get(key string) (*CacheEntry, error) {
 		// (goroutine leak when the RLock holder is long gone).
 		s.mu.RUnlock()
 		s.mu.Lock()
-		_ = os.Remove(filePath)
+		// Re-check: another goroutine may have refreshed this entry between
+		// releasing the read lock and acquiring the write lock.
+		freshData, readErr := os.ReadFile(filePath)
+		if readErr != nil {
+			// File already removed or unreadable; nothing to delete.
+			s.mu.Unlock()
+			return nil, ErrCacheExpired
+		}
+		var freshEntry CacheEntry
+		if unmarshalErr := json.Unmarshal(freshData, &freshEntry); unmarshalErr != nil {
+			_ = os.Remove(filePath)
+			s.mu.Unlock()
+			return nil, ErrCacheExpired
+		}
+		if freshEntry.IsExpired() {
+			_ = os.Remove(filePath)
+		}
 		s.mu.Unlock()
 		return nil, ErrCacheExpired
 	}

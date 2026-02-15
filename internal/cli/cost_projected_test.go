@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"bytes"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -81,13 +80,7 @@ func TestNewCostProjectedCmd(t *testing.T) {
 func TestCostProjectedWithoutPulumiJson(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
-	origDir, err := os.Getwd()
-	require.NoError(t, err)
-	tmpDir := t.TempDir()
-	require.NoError(t, os.Chdir(tmpDir))
-	t.Cleanup(func() {
-		require.NoError(t, os.Chdir(origDir))
-	})
+	isolateFromPulumiProject(t)
 
 	var buf bytes.Buffer
 	cmd := cli.NewCostProjectedCmd()
@@ -95,7 +88,7 @@ func TestCostProjectedWithoutPulumiJson(t *testing.T) {
 	cmd.SetErr(&buf)
 	cmd.SetArgs([]string{})
 
-	err = cmd.Execute()
+	err := cmd.Execute()
 
 	// Command will error (no Pulumi project in test env), but the error
 	// must NOT be about a required flag.
@@ -214,13 +207,7 @@ func TestStackFlagExists(t *testing.T) {
 func TestStackFlagPassedThrough(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
-	origDir, err := os.Getwd()
-	require.NoError(t, err)
-	tmpDir := t.TempDir()
-	require.NoError(t, os.Chdir(tmpDir))
-	t.Cleanup(func() {
-		require.NoError(t, os.Chdir(origDir))
-	})
+	isolateFromPulumiProject(t)
 
 	root := cli.NewRootCmd("test")
 	root.SetArgs([]string{"cost", "projected", "--stack", "production"})
@@ -229,7 +216,7 @@ func TestStackFlagPassedThrough(t *testing.T) {
 	root.SetOut(&buf)
 	root.SetErr(&buf)
 
-	err = root.Execute()
+	err := root.Execute()
 	// Command errors because auto-detection fails (no pulumi binary or project),
 	// but the --stack flag must be accepted without "unknown flag" error.
 	require.Error(t, err)

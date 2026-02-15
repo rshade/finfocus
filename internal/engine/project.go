@@ -197,7 +197,10 @@ func renderTable(ctx context.Context, writer io.Writer, aggregated *AggregatedRe
 // Parameters:
 //   - w: destination writer for the formatted summary.
 //   - aggregated: aggregated results whose Summary (TotalMonthly, TotalHourly, Currency)
-//     and Resources are used to populate the output.
+//
+// renderSummary writes the COST SUMMARY section to w using values from aggregated.
+// It outputs total monthly and hourly costs with their currency, the total number of resources,
+// and a recommendations count when one or more recommendations are present.
 func renderSummary(w io.Writer, aggregated *AggregatedResults) {
 	fmt.Fprintf(w, "COST SUMMARY\n")
 	fmt.Fprintf(w, "============\n")
@@ -387,7 +390,10 @@ func renderCarbonEquivalencies(ctx context.Context, w io.Writer, sustainTotals m
 // sustainability metrics.
 // Parameters:
 //   - w: destination writer for the rendered table.
-//   - aggregated: aggregated results containing the resources to render.
+//
+// renderResourceDetails writes the "RESOURCE DETAILS" table to w for each resource contained in aggregated.
+// The table includes the columns: Resource, Adapter, Monthly, Hourly, Currency, Recommendations, and Notes.
+// aggregated supplies the aggregated resource entries to render; output is written in tab-separated columns.
 func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
 	fmt.Fprintf(w, "RESOURCE DETAILS\n")
 	fmt.Fprintf(w, "================\n")
@@ -416,7 +422,7 @@ func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
 }
 
 // FormatRecommendationCount returns the recommendation count as a string for table display.
-// Returns "-" when the count is zero so the column stays visually clean.
+// FormatRecommendationCount returns "-" when count is zero; otherwise it returns the decimal string representation of count.
 func FormatRecommendationCount(count int) string {
 	if count == 0 {
 		return "-"
@@ -460,7 +466,11 @@ func formatResourceNotes(result CostResult) string {
 //   - results: slice of CostResult values to render.
 //   - showConfidence: whether to include confidence column.
 //
-// Returns an error if flushing the tabwriter fails.
+// renderActualCostTable writes an actual-cost table to the provided writer using a tabwriter.
+// It writes a recommendations summary when any recommendations exist, selects header columns depending
+// on whether any result contains actual cost data, and renders one row per CostResult. The
+// showConfidence flag controls whether a Confidence column is included. It returns an error if
+// flushing the tabwriter fails.
 func renderActualCostTable(writer io.Writer, results []CostResult, showConfidence bool) error {
 	w := tabwriter.NewWriter(writer, 0, 0, defaultTabPadding, ' ', 0)
 
@@ -561,7 +571,12 @@ func formatResourceName(resourceType, resourceID string) string {
 }
 
 // buildActualCostRowColumns constructs the column values for an actual cost row
-// based on the display options.
+// buildActualCostRowColumns constructs the ordered list of string columns for an actual-cost table row.
+// The returned slice contains columns in this order:
+// Resource, Adapter,
+// then either Total Cost and Period (if hasActualCosts) or Projected Monthly (if not),
+// optionally Confidence (if showConfidence is true),
+// followed by Currency, Recommendations, and Notes.
 func buildActualCostRowColumns(
 	result CostResult,
 	resource, notes string,
@@ -741,7 +756,8 @@ func renderJSONCrossProvider(writer io.Writer, aggregations []CrossProviderAggre
 // renderNDJSONCrossProvider writes each CrossProviderAggregation in aggregations to stdout
 // as newline-delimited JSON (NDJSON). It returns the first encoding error encountered, or
 // renderNDJSONCrossProvider writes each CrossProviderAggregation as a separate NDJSON object to stdout.
-// It returns an error if encoding any aggregation fails.
+// renderNDJSONCrossProvider writes each CrossProviderAggregation in aggregations as a separate JSON object,
+// one per line (NDJSON), to the provided writer. It returns an error if encoding any aggregation fails.
 func renderNDJSONCrossProvider(writer io.Writer, aggregations []CrossProviderAggregation) error {
 	encoder := json.NewEncoder(writer)
 	for _, agg := range aggregations {

@@ -377,9 +377,11 @@ func TestProxy_GracefulShutdown(t *testing.T) {
 	// Create a listener for the proxy.
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
+	defer listener.Close()
 
 	// Create pipes to simulate plugin stdin/stdout.
 	stdinReader, stdinWriter := io.Pipe()
+	defer stdinWriter.Close()
 	stdoutReader, stdoutWriter := io.Pipe()
 
 	launcher := NewStdioLauncher()

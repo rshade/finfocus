@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"runtime"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -245,9 +246,9 @@ func TestGitHubClient_ContextCancellation_DownloadAsset(t *testing.T) {
 
 func TestGitHubClient_ContextPropagation(t *testing.T) {
 	// Verify that context is passed through to HTTP requests
-	requestReceived := false
+	var requestReceived atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		requestReceived = true
+		requestReceived.Store(true)
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"tag_name":"v1.0.0","assets":[]}`))
 	}))
@@ -262,5 +263,5 @@ func TestGitHubClient_ContextPropagation(t *testing.T) {
 
 	_, err := client.GetLatestRelease(ctx, "owner", "repo")
 	require.NoError(t, err)
-	assert.True(t, requestReceived, "HTTP request should have been made")
+	assert.True(t, requestReceived.Load(), "HTTP request should have been made")
 }

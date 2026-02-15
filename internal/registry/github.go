@@ -89,7 +89,9 @@ func NewGitHubClient() *GitHubClient {
 
 // getGitHubToken returns a GitHub authentication token from the GITHUB_TOKEN
 // environment variable. Returns empty string if not set. The token is optional
-// - anonymous requests will work for public repositories but may be rate-limited.
+// getGitHubToken returns the value of the GITHUB_TOKEN environment variable.
+// It returns an empty string if the variable is not set (clients will make anonymous
+// requests in that case, which may be subject to stricter rate limits).
 func getGitHubToken() string {
 	return os.Getenv("GITHUB_TOKEN")
 }
@@ -288,14 +290,29 @@ func (c *GitHubClient) FindReleaseWithFallbackInfo(
 	)
 }
 
+// retryBackoff waits for an exponential backoff duration while respecting
+// context cancellation. It is a no-op for the first attempt (attempt == 0).
+// Returns a non-nil error if the context is cancelled during the wait.
+func retryBackoff(ctx context.Context, attempt int) error {
+	if attempt <= 0 {
+		return nil
+	}
+	backoffDivisor := 2
+	d := time.Duration(1<<attempt) * time.Second / time.Duration(backoffDivisor)
+	select {
+	case <-time.After(d):
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("request cancelled during backoff: %w", ctx.Err())
+	}
+}
+
 // fetchRelease fetches release data with retry logic.
 func (c *GitHubClient) fetchRelease(ctx context.Context, url string) (*GitHubRelease, error) {
 	var lastErr error
 	for attempt := range 3 {
-		if attempt > 0 {
-			// Exponential backoff: 500ms, 1s, 2s
-			backoffDivisor := 2
-			time.Sleep(time.Duration(1<<attempt) * time.Second / time.Duration(backoffDivisor))
+		if err := retryBackoff(ctx, attempt); err != nil {
+			return nil, err
 		}
 
 		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

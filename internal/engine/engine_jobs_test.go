@@ -50,6 +50,12 @@ func TestGetWorkerCount_WithJobsOverride(t *testing.T) {
 			jobCount: 10,
 			autoMode: true,
 		},
+		{
+			name:     "negative jobs triggers auto mode",
+			jobs:     -1,
+			jobCount: 10,
+			autoMode: true,
+		},
 	}
 
 	for _, tt := range tests {
