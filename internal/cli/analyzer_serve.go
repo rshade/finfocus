@@ -137,9 +137,9 @@ func RunAnalyzerServe(cmd *cobra.Command) error {
 	}
 	server := analyzer.NewServer(eng, version)
 
-	// Listen on random port
-	//nolint:gosec,noctx // G102: Intentionally binds to all interfaces for Pulumi plugin protocol
-	listener, err := net.Listen("tcp", ":0")
+	// Listen on random port (localhost only)
+	//nolint:noctx // net.Listen does not accept a context
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		stderrLogger.Error().Err(err).Msg("failed to bind to port")
 		return fmt.Errorf("binding to port: %w", err)

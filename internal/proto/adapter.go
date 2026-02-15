@@ -987,6 +987,7 @@ func (c *clientAdapter) GetProjectedCost(
 ) (*GetProjectedCostResponse, error) {
 	// Convert internal request to proto request
 	var results []*CostResult
+	var firstErr error
 
 	for _, resource := range in.Resources {
 		// Extract SKU and region from properties using intelligent mapping
@@ -1005,7 +1006,9 @@ func (c *clientAdapter) GetProjectedCost(
 
 		resp, err := c.client.GetProjectedCost(ctx, req, opts...)
 		if err != nil {
-			// Continue to next resource on error
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
 
@@ -1043,6 +1046,9 @@ func (c *clientAdapter) GetProjectedCost(
 		results = append(results, result)
 	}
 
+	if len(results) == 0 && firstErr != nil {
+		return &GetProjectedCostResponse{Results: results}, fmt.Errorf("projected cost query failed: %w", firstErr)
+	}
 	return &GetProjectedCostResponse{Results: results}, nil
 }
 
@@ -1053,6 +1059,7 @@ func (c *clientAdapter) GetActualCost(
 ) (*GetActualCostResponse, error) {
 	// Convert internal request to proto request
 	var results []*ActualCostResult
+	var firstErr error
 
 	for _, resourceID := range in.ResourceIDs {
 		// Resolve cloud-specific identifiers from properties
@@ -1076,7 +1083,9 @@ func (c *clientAdapter) GetActualCost(
 
 		resp, err := c.client.GetActualCost(ctx, req, opts...)
 		if err != nil {
-			// Continue to next resource on error
+			if firstErr == nil {
+				firstErr = err
+			}
 			continue
 		}
 
@@ -1085,19 +1094,11 @@ func (c *clientAdapter) GetActualCost(
 			continue
 		}
 
-		// Aggregate total cost from results
-		totalCost := 0.0
-		breakdown := make(map[string]float64)
-
-		for _, result := range resp.GetResults() {
-			totalCost += result.GetCost()
-			if result.GetSource() != "" {
-				breakdown[result.GetSource()] = result.GetCost()
-			}
-		}
+		totalCost, breakdown := totalActualCost(resp.GetResults())
+		currency := actualCostCurrency(resp.GetResults())
 
 		result := &ActualCostResult{
-			Currency:       "USD", // Default to USD if not specified
+			Currency:       currency,
 			TotalCost:      totalCost,
 			CostBreakdown:  breakdown,
 			Sustainability: make(map[string]SustainabilityMetric),
@@ -1108,7 +1109,40 @@ func (c *clientAdapter) GetActualCost(
 		results = append(results, result)
 	}
 
+	if len(results) == 0 && firstErr != nil {
+		return &GetActualCostResponse{Results: results}, fmt.Errorf("actual cost query failed: %w", firstErr)
+	}
 	return &GetActualCostResponse{Results: results}, nil
+}
+
+func totalActualCost(pbcResults []*pbc.ActualCostResult) (float64, map[string]float64) {
+	totalCost := 0.0
+	breakdown := make(map[string]float64)
+	for _, result := range pbcResults {
+		totalCost += result.GetCost()
+		if result.GetSource() != "" {
+			breakdown[result.GetSource()] = result.GetCost()
+		}
+	}
+	return totalCost, breakdown
+}
+
+func actualCostCurrency(pbcResults []*pbc.ActualCostResult) string {
+	currency := "USD"
+	for _, result := range pbcResults {
+		focusRecord := result.GetFocusRecord()
+		if focusRecord == nil {
+			continue
+		}
+		if c := focusRecord.GetBillingCurrency(); c != "" {
+			return c
+		}
+		if c := focusRecord.GetPricingCurrency(); c != "" {
+			currency = c
+			break
+		}
+	}
+	return currency
 }
 
 // aggregateImpactMetrics sums impact metric values by kind across all actual cost results

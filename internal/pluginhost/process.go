@@ -619,13 +619,14 @@ func (p *ProcessLauncher) createCloseFn(
 			Str("operation", "close_plugin").
 			Msg("closing plugin connection")
 
+		var closeErr error
 		if err := conn.Close(); err != nil {
 			log.Warn().
 				Ctx(ctx).
 				Str("component", "pluginhost").
 				Err(err).
 				Msg("error closing gRPC connection")
-			return fmt.Errorf("closing connection: %w", err)
+			closeErr = fmt.Errorf("closing connection: %w", err)
 		}
 		if cmd.Process != nil {
 			pid := cmd.Process.Pid
@@ -637,6 +638,6 @@ func (p *ProcessLauncher) createCloseFn(
 				Int("pid", pid).
 				Msg("plugin process terminated")
 		}
-		return nil
+		return closeErr
 	}
 }
