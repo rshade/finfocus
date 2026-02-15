@@ -442,8 +442,8 @@ func (e *Engine) GetProjectedCost(
 				}
 			}
 
-			// Store successful results in cache
-			if len(resourceResults) > 0 {
+			// Store successful results in cache (skip placeholder-only results)
+			if len(resourceResults) > 0 && !hasOnlyPlaceholderResults(resourceResults) {
 				e.storeProjectedCostCache(ctx, resource, resourceResults)
 			}
 
@@ -643,8 +643,8 @@ func (e *Engine) GetProjectedCostWithErrors(
 				}
 			}
 
-			// Store successful results in cache
-			if len(resourceResults) > 0 {
+			// Store successful results in cache (skip placeholder-only results)
+			if len(resourceResults) > 0 && !hasOnlyPlaceholderResults(resourceResults) {
 				e.storeProjectedCostCache(ctx, resource, resourceResults)
 			}
 
@@ -737,18 +737,16 @@ func (e *Engine) GetActualCostWithOptions(
 		Str("group_by", request.GroupBy).
 		Msg("starting actual cost calculation")
 
-	// Check actual cost cache before processing
+	// Validate resource types before cache lookup
+	if err := validateActualCostResourceTypes(request.Resources); err != nil {
+		return nil, err
+	}
+
+	// Check actual cost cache after validation
 	if cached := e.tryActualCostCache(ctx, request); cached != nil {
 		log.Debug().Ctx(ctx).Str("component", "engine").
 			Msg("returning cached actual cost results")
 		return cached, nil
-	}
-
-	// Validate all resources before processing
-	for i, resource := range request.Resources {
-		if err := resource.Validate(); err != nil {
-			return nil, fmt.Errorf("invalid resource at index %d: %w", i, err)
-		}
 	}
 
 	type job struct {
@@ -976,8 +974,10 @@ func (e *Engine) GetActualCostWithOptions(
 			Msg("some plugins returned errors during actual cost calculation")
 	}
 
-	// Store results in cache
-	e.storeActualCostCache(ctx, request, results)
+	// Store results in cache only when no partial errors occurred
+	if len(partialErrors) == 0 {
+		e.storeActualCostCache(ctx, request, results)
+	}
 
 	log.Info().
 		Ctx(ctx).
@@ -1007,7 +1007,12 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 		errors []ErrorDetail
 	}
 
-	// Check actual cost cache before processing
+	// Validate resource types before cache lookup
+	if err := validateActualCostResourceTypes(request.Resources); err != nil {
+		return nil, err
+	}
+
+	// Check actual cost cache after validation
 	if cached := e.tryActualCostCache(ctx, request); cached != nil {
 		return &CostResultWithErrors{Results: cached, Errors: []ErrorDetail{}}, nil
 	}
@@ -1086,8 +1091,8 @@ func (e *Engine) GetActualCostWithOptionsAndErrors(
 		result.Results = e.GroupResults(result.Results, GroupBy(request.GroupBy))
 	}
 
-	// Store results in cache (cache only results, not errors)
-	e.storeActualCostCache(ctx, request, result.Results)
+	// Store results in cache only when no errors occurred
+	e.storeActualCostCacheIfClean(ctx, request, result)
 
 	return result, nil
 }
@@ -3369,6 +3374,31 @@ func loadExcludedRecommendationIDs(ctx context.Context, existing *config.Dismiss
 // capabilityDismissRecommendations is the capability string for dismiss support.
 const capabilityDismissRecommendations = "dismiss_recommendations"
 
+// validateActualCostResourceTypes checks that all resources in a request have non-empty
+// Type fields. Unlike full Validate(), this skips property key validation because actual
+// cost resources from Pulumi state may contain keys with ':' (e.g., "pulumi:cloudId").
+func validateActualCostResourceTypes(resources []ResourceDescriptor) error {
+	for i, resource := range resources {
+		if resource.Type == "" {
+			return fmt.Errorf("invalid resource at index %d: %w: resource type is required",
+				i, ErrResourceValidation)
+		}
+	}
+	return nil
+}
+
+// hasOnlyPlaceholderResults returns true when every CostResult in the slice is a
+// placeholder (Adapter == "none" or non-nil StructuredError). Caching such results
+// would poison the cache with "no data" entries.
+func hasOnlyPlaceholderResults(results []CostResult) bool {
+	for i := range results {
+		if results[i].Adapter != "none" && results[i].Error == nil {
+			return false
+		}
+	}
+	return true
+}
+
 // generateProjectedCostResourceKey generates a deterministic cache key for a single
 // resource's projected cost query. Uses all resource properties as filters to ensure
 // any property change (e.g., instanceType, region) produces a different cache key.
@@ -3457,6 +3487,8 @@ func (e *Engine) tryProjectedCostCache(ctx context.Context, resource ResourceDes
 	if unmarshalErr := json.Unmarshal(entry.Data, &results); unmarshalErr != nil {
 		log := logging.FromContext(ctx)
 		log.Warn().Ctx(ctx).Err(unmarshalErr).
+			Str("component", "engine").
+			Str("operation", "tryProjectedCostCache:unmarshal").
 			Str("resource_type", resource.Type).
 			Msg("failed to unmarshal cached projected cost")
 		return nil
@@ -3480,14 +3512,22 @@ func (e *Engine) storeProjectedCostCache(ctx context.Context, resource ResourceD
 		return
 	}
 
-	data, err := json.Marshal(results)
-	if err != nil {
+	data, marshalErr := json.Marshal(results)
+	if marshalErr != nil {
+		log := logging.FromContext(ctx)
+		log.Warn().Ctx(ctx).Err(marshalErr).
+			Str("component", "engine").
+			Str("operation", "storeProjectedCostCache:marshal").
+			Str("resource_type", resource.Type).
+			Msg("failed to marshal projected cost results")
 		return
 	}
 
 	if setErr := e.cache.Set(key, data); setErr != nil {
 		log := logging.FromContext(ctx)
 		log.Warn().Ctx(ctx).Err(setErr).
+			Str("component", "engine").
+			Str("operation", "storeProjectedCostCache:set").
 			Str("resource_type", resource.Type).
 			Msg("failed to cache projected cost results")
 	}
@@ -3514,6 +3554,8 @@ func (e *Engine) tryActualCostCache(ctx context.Context, request ActualCostReque
 	if unmarshalErr := json.Unmarshal(entry.Data, &results); unmarshalErr != nil {
 		log := logging.FromContext(ctx)
 		log.Warn().Ctx(ctx).Err(unmarshalErr).
+			Str("component", "engine").
+			Str("operation", "tryActualCostCache:unmarshal").
 			Msg("failed to unmarshal cached actual cost results")
 		return nil
 	}
@@ -3524,6 +3566,16 @@ func (e *Engine) tryActualCostCache(ctx context.Context, request ActualCostReque
 	}
 
 	return results
+}
+
+// storeActualCostCacheIfClean stores actual cost results only when no errors occurred.
+// This prevents caching partial/incorrect results from transient plugin failures.
+func (e *Engine) storeActualCostCacheIfClean(
+	ctx context.Context, request ActualCostRequest, result *CostResultWithErrors,
+) {
+	if len(result.Errors) == 0 {
+		e.storeActualCostCache(ctx, request, result.Results)
+	}
 }
 
 // storeActualCostCache stores actual cost results in the cache.
@@ -3537,14 +3589,21 @@ func (e *Engine) storeActualCostCache(ctx context.Context, request ActualCostReq
 		return
 	}
 
-	data, err := json.Marshal(results)
-	if err != nil {
+	data, marshalErr := json.Marshal(results)
+	if marshalErr != nil {
+		log := logging.FromContext(ctx)
+		log.Warn().Ctx(ctx).Err(marshalErr).
+			Str("component", "engine").
+			Str("operation", "storeActualCostCache:marshal").
+			Msg("failed to marshal actual cost results")
 		return
 	}
 
 	if setErr := e.cache.Set(key, data); setErr != nil {
 		log := logging.FromContext(ctx)
 		log.Warn().Ctx(ctx).Err(setErr).
+			Str("component", "engine").
+			Str("operation", "storeActualCostCache:set").
 			Msg("failed to cache actual cost results")
 	}
 }

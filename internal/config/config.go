@@ -13,8 +13,6 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
-
-	"github.com/rshade/finfocus/internal/engine/cache"
 )
 
 // Duration is a wrapper around time.Duration that supports YAML/JSON parsing.
@@ -215,9 +213,9 @@ func New() *Config {
 		Cost: CostConfig{
 			Cache: CacheConfig{
 				Enabled:    true,
-				TTLSeconds: cache.DefaultTTLSeconds,
+				TTLSeconds: CacheDefaultTTLSeconds,
 				Directory:  filepath.Join(finfocusDir, "cache"),
-				MaxSizeMB:  cache.DefaultCacheMaxSizeMB,
+				MaxSizeMB:  CacheDefaultMaxSizeMB,
 			},
 		},
 
@@ -298,9 +296,9 @@ func NewStrict() (*Config, error) {
 		Cost: CostConfig{
 			Cache: CacheConfig{
 				Enabled:    true,
-				TTLSeconds: cache.DefaultTTLSeconds,
+				TTLSeconds: CacheDefaultTTLSeconds,
 				Directory:  filepath.Join(finfocusDir, "cache"),
-				MaxSizeMB:  cache.DefaultCacheMaxSizeMB,
+				MaxSizeMB:  CacheDefaultMaxSizeMB,
 			},
 		},
 
@@ -731,11 +729,11 @@ func (c *Config) applyEnvOverrides() {
 			c.Cost.Cache.Enabled = e
 		}
 	}
-	if ttl := os.Getenv(cache.EnvTTLSeconds); ttl != "" {
+	if ttl := os.Getenv(CacheEnvTTLSeconds); ttl != "" {
 		if t, err := strconv.Atoi(ttl); err == nil {
 			c.Cost.Cache.TTLSeconds = t
 		}
-	} else if ttlLegacy := os.Getenv(cache.EnvTTLSecondsLegacy); ttlLegacy != "" {
+	} else if ttlLegacy := os.Getenv(CacheEnvTTLSecondsLegacy); ttlLegacy != "" {
 		if t, err := strconv.Atoi(ttlLegacy); err == nil {
 			c.Cost.Cache.TTLSeconds = t
 		}

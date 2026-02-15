@@ -31,8 +31,8 @@ func newMockCache(enabled bool) *mockCache {
 }
 
 func (m *mockCache) Get(key string) (*cache.CacheEntry, error) {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.getCalls++
 
 	if !m.enabled {
@@ -79,87 +79,81 @@ func (m *mockCache) preloadResults(key string, results []CostResult) {
 // --- T009: Tests for generateProjectedCostResourceKey ---
 
 func TestGenerateProjectedCostResourceKey(t *testing.T) {
-	t.Run("deterministic output", func(t *testing.T) {
-		resource := ResourceDescriptor{
-			Type:     "aws:ec2:Instance",
-			Provider: "aws",
-			Properties: map[string]interface{}{
-				"instanceType": "t3.micro",
-				"region":       "us-east-1",
+	tests := []struct {
+		name            string
+		resource        ResourceDescriptor
+		wantErr         bool
+		errContains     string
+		expectEqual     *ResourceDescriptor // if set, key must equal this resource's key
+		expectDifferent *ResourceDescriptor // if set, key must differ from this resource's key
+	}{
+		{
+			name: "deterministic output",
+			resource: ResourceDescriptor{
+				Type: "aws:ec2:Instance", Provider: "aws",
+				Properties: map[string]interface{}{"instanceType": "t3.micro", "region": "us-east-1"},
 			},
-		}
-
-		key1, err := generateProjectedCostResourceKey(resource)
-		require.NoError(t, err)
-		assert.NotEmpty(t, key1)
-
-		key2, err := generateProjectedCostResourceKey(resource)
-		require.NoError(t, err)
-		assert.Equal(t, key1, key2, "same resource should produce same key")
-	})
-
-	t.Run("different properties produce different keys", func(t *testing.T) {
-		resource1 := ResourceDescriptor{
-			Type:     "aws:ec2:Instance",
-			Provider: "aws",
-			Properties: map[string]interface{}{
-				"instanceType": "t3.micro",
+		},
+		{
+			name: "different properties produce different keys",
+			resource: ResourceDescriptor{
+				Type: "aws:ec2:Instance", Provider: "aws",
+				Properties: map[string]interface{}{"instanceType": "t3.large"},
 			},
-		}
-		resource2 := ResourceDescriptor{
-			Type:     "aws:ec2:Instance",
-			Provider: "aws",
-			Properties: map[string]interface{}{
-				"instanceType": "t3.large",
+			expectDifferent: &ResourceDescriptor{
+				Type: "aws:ec2:Instance", Provider: "aws",
+				Properties: map[string]interface{}{"instanceType": "t3.micro"},
 			},
-		}
-
-		key1, err := generateProjectedCostResourceKey(resource1)
-		require.NoError(t, err)
-
-		key2, err := generateProjectedCostResourceKey(resource2)
-		require.NoError(t, err)
-
-		assert.NotEqual(t, key1, key2, "different properties should produce different keys")
-	})
-
-	t.Run("empty Type returns error", func(t *testing.T) {
-		resource := ResourceDescriptor{
-			Provider: "aws",
-		}
-		_, err := generateProjectedCostResourceKey(resource)
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "resource type is required")
-	})
-
-	t.Run("property order independence", func(t *testing.T) {
-		resource1 := ResourceDescriptor{
-			Type:     "aws:ec2:Instance",
-			Provider: "aws",
-			Properties: map[string]interface{}{
-				"a": "1",
-				"b": "2",
-				"c": "3",
+		},
+		{
+			name:        "empty Type returns error",
+			resource:    ResourceDescriptor{Provider: "aws"},
+			wantErr:     true,
+			errContains: "resource type is required",
+		},
+		{
+			name: "property order independence",
+			resource: ResourceDescriptor{
+				Type: "aws:ec2:Instance", Provider: "aws",
+				Properties: map[string]interface{}{"a": "1", "b": "2", "c": "3"},
 			},
-		}
-		resource2 := ResourceDescriptor{
-			Type:     "aws:ec2:Instance",
-			Provider: "aws",
-			Properties: map[string]interface{}{
-				"c": "3",
-				"a": "1",
-				"b": "2",
+			expectEqual: &ResourceDescriptor{
+				Type: "aws:ec2:Instance", Provider: "aws",
+				Properties: map[string]interface{}{"c": "3", "a": "1", "b": "2"},
 			},
-		}
+		},
+	}
 
-		key1, err := generateProjectedCostResourceKey(resource1)
-		require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key, err := generateProjectedCostResourceKey(tt.resource)
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.errContains != "" {
+					assert.Contains(t, err.Error(), tt.errContains)
+				}
+				return
+			}
+			require.NoError(t, err)
+			assert.NotEmpty(t, key)
 
-		key2, err := generateProjectedCostResourceKey(resource2)
-		require.NoError(t, err)
+			// Determinism: same input produces same key
+			key2, err := generateProjectedCostResourceKey(tt.resource)
+			require.NoError(t, err)
+			assert.Equal(t, key, key2, "same resource should produce same key")
 
-		assert.Equal(t, key1, key2, "property order should not affect key")
-	})
+			if tt.expectEqual != nil {
+				otherKey, otherErr := generateProjectedCostResourceKey(*tt.expectEqual)
+				require.NoError(t, otherErr)
+				assert.Equal(t, key, otherKey)
+			}
+			if tt.expectDifferent != nil {
+				otherKey, otherErr := generateProjectedCostResourceKey(*tt.expectDifferent)
+				require.NoError(t, otherErr)
+				assert.NotEqual(t, key, otherKey)
+			}
+		})
+	}
 }
 
 // --- T010: Tests for projected cost cache integration ---
@@ -248,203 +242,159 @@ func TestGenerateActualCostCacheKey(t *testing.T) {
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
-	t.Run("deterministic output", func(t *testing.T) {
-		request := ActualCostRequest{
-			Resources: []ResourceDescriptor{
-				{Type: "aws:ec2:Instance", ID: "i-1"},
-			},
-			From: baseTime,
-			To:   endTime,
-		}
-
-		key1, err := generateActualCostCacheKey(request)
-		require.NoError(t, err)
-		assert.NotEmpty(t, key1)
-
-		key2, err := generateActualCostCacheKey(request)
-		require.NoError(t, err)
-		assert.Equal(t, key1, key2, "same request should produce same key")
-	})
-
-	t.Run("different resource IDs produce different keys", func(t *testing.T) {
-		request1 := ActualCostRequest{
+	baseRequest := func() ActualCostRequest {
+		return ActualCostRequest{
 			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
 			From:      baseTime,
 			To:        endTime,
 		}
-		request2 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-2"}},
-			From:      baseTime,
-			To:        endTime,
-		}
+	}
 
-		key1, err := generateActualCostCacheKey(request1)
-		require.NoError(t, err)
+	tests := []struct {
+		name      string
+		request1  ActualCostRequest
+		request2  ActualCostRequest // zero-value means determinism-only test
+		wantEqual bool
+		reason    string
+	}{
+		{
+			name:      "deterministic output",
+			request1:  baseRequest(),
+			wantEqual: true,
+			reason:    "same request should produce same key",
+		},
+		{
+			name:     "different resource IDs produce different keys",
+			request1: baseRequest(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.Resources = []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-2"}}
+				return r
+			}(),
+			reason: "different resources should produce different keys",
+		},
+		{
+			name:     "different time ranges produce different keys",
+			request1: baseRequest(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.To = time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC)
+				return r
+			}(),
+			reason: "different time ranges should produce different keys",
+		},
+		{
+			name: "different tags produce different keys",
+			request1: func() ActualCostRequest {
+				r := baseRequest()
+				r.Tags = map[string]string{"env": "prod"}
+				return r
+			}(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.Tags = map[string]string{"env": "staging"}
+				return r
+			}(),
+			reason: "different tags should produce different keys",
+		},
+		{
+			name: "tag order independence",
+			request1: func() ActualCostRequest {
+				r := baseRequest()
+				r.Tags = map[string]string{"env": "prod", "team": "infra"}
+				return r
+			}(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.Tags = map[string]string{"team": "infra", "env": "prod"}
+				return r
+			}(),
+			wantEqual: true,
+			reason:    "tag order should not affect key",
+		},
+		{
+			name: "adapter included in key",
+			request1: func() ActualCostRequest {
+				r := baseRequest()
+				r.Adapter = "aws-public"
+				return r
+			}(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.Adapter = "kubecost"
+				return r
+			}(),
+			reason: "different adapters should produce different keys",
+		},
+		{
+			name: "groupBy included in key",
+			request1: func() ActualCostRequest {
+				r := baseRequest()
+				r.GroupBy = "daily"
+				return r
+			}(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.GroupBy = "monthly"
+				return r
+			}(),
+			reason: "different groupBy should produce different keys",
+		},
+		{
+			name: "FallbackEstimate included in key",
+			request1: func() ActualCostRequest {
+				r := baseRequest()
+				r.FallbackEstimate = true
+				return r
+			}(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.FallbackEstimate = false
+				return r
+			}(),
+			reason: "FallbackEstimate should affect key",
+		},
+		{
+			name: "EstimateConfidence excluded from key",
+			request1: func() ActualCostRequest {
+				r := baseRequest()
+				r.EstimateConfidence = true
+				return r
+			}(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.EstimateConfidence = false
+				return r
+			}(),
+			wantEqual: true,
+			reason:    "EstimateConfidence should not affect key",
+		},
+	}
 
-		key2, err := generateActualCostCacheKey(request2)
-		require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			key1, err := generateActualCostCacheKey(tt.request1)
+			require.NoError(t, err)
+			assert.NotEmpty(t, key1)
 
-		assert.NotEqual(t, key1, key2, "different resources should produce different keys")
-	})
+			// Determinism: same input produces same key
+			key1Again, err := generateActualCostCacheKey(tt.request1)
+			require.NoError(t, err)
+			assert.Equal(t, key1, key1Again, "same request should produce same key")
 
-	t.Run("different time ranges produce different keys", func(t *testing.T) {
-		request1 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        endTime,
-		}
-		request2 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        time.Date(2025, 2, 28, 0, 0, 0, 0, time.UTC),
-		}
+			// If request2 is provided (non-zero Resources), compare keys
+			if len(tt.request2.Resources) > 0 {
+				key2, err := generateActualCostCacheKey(tt.request2)
+				require.NoError(t, err)
 
-		key1, err := generateActualCostCacheKey(request1)
-		require.NoError(t, err)
-
-		key2, err := generateActualCostCacheKey(request2)
-		require.NoError(t, err)
-
-		assert.NotEqual(t, key1, key2, "different time ranges should produce different keys")
-	})
-
-	t.Run("different tags produce different keys", func(t *testing.T) {
-		request1 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        endTime,
-			Tags:      map[string]string{"env": "prod"},
-		}
-		request2 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        endTime,
-			Tags:      map[string]string{"env": "staging"},
-		}
-
-		key1, err := generateActualCostCacheKey(request1)
-		require.NoError(t, err)
-
-		key2, err := generateActualCostCacheKey(request2)
-		require.NoError(t, err)
-
-		assert.NotEqual(t, key1, key2, "different tags should produce different keys")
-	})
-
-	t.Run("tag order independence", func(t *testing.T) {
-		request1 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        endTime,
-			Tags:      map[string]string{"env": "prod", "team": "infra"},
-		}
-		request2 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        endTime,
-			Tags:      map[string]string{"team": "infra", "env": "prod"},
-		}
-
-		key1, err := generateActualCostCacheKey(request1)
-		require.NoError(t, err)
-
-		key2, err := generateActualCostCacheKey(request2)
-		require.NoError(t, err)
-
-		assert.Equal(t, key1, key2, "tag order should not affect key")
-	})
-
-	t.Run("adapter included in key", func(t *testing.T) {
-		request1 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        endTime,
-			Adapter:   "aws-public",
-		}
-		request2 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        endTime,
-			Adapter:   "kubecost",
-		}
-
-		key1, err := generateActualCostCacheKey(request1)
-		require.NoError(t, err)
-
-		key2, err := generateActualCostCacheKey(request2)
-		require.NoError(t, err)
-
-		assert.NotEqual(t, key1, key2, "different adapters should produce different keys")
-	})
-
-	t.Run("groupBy included in key", func(t *testing.T) {
-		request1 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        endTime,
-			GroupBy:   "daily",
-		}
-		request2 := ActualCostRequest{
-			Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:      baseTime,
-			To:        endTime,
-			GroupBy:   "monthly",
-		}
-
-		key1, err := generateActualCostCacheKey(request1)
-		require.NoError(t, err)
-
-		key2, err := generateActualCostCacheKey(request2)
-		require.NoError(t, err)
-
-		assert.NotEqual(t, key1, key2, "different groupBy should produce different keys")
-	})
-
-	t.Run("FallbackEstimate included in key", func(t *testing.T) {
-		request1 := ActualCostRequest{
-			Resources:        []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:             baseTime,
-			To:               endTime,
-			FallbackEstimate: true,
-		}
-		request2 := ActualCostRequest{
-			Resources:        []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:             baseTime,
-			To:               endTime,
-			FallbackEstimate: false,
-		}
-
-		key1, err := generateActualCostCacheKey(request1)
-		require.NoError(t, err)
-
-		key2, err := generateActualCostCacheKey(request2)
-		require.NoError(t, err)
-
-		assert.NotEqual(t, key1, key2, "FallbackEstimate should affect key")
-	})
-
-	t.Run("EstimateConfidence excluded from key", func(t *testing.T) {
-		request1 := ActualCostRequest{
-			Resources:          []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:               baseTime,
-			To:                 endTime,
-			EstimateConfidence: true,
-		}
-		request2 := ActualCostRequest{
-			Resources:          []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1"}},
-			From:               baseTime,
-			To:                 endTime,
-			EstimateConfidence: false,
-		}
-
-		key1, err := generateActualCostCacheKey(request1)
-		require.NoError(t, err)
-
-		key2, err := generateActualCostCacheKey(request2)
-		require.NoError(t, err)
-
-		assert.Equal(t, key1, key2, "EstimateConfidence should not affect key")
-	})
+				if tt.wantEqual {
+					assert.Equal(t, key1, key2, tt.reason)
+				} else {
+					assert.NotEqual(t, key1, key2, tt.reason)
+				}
+			}
+		})
+	}
 }
 
 // --- T016: Tests for actual cost cache integration ---
@@ -512,5 +462,28 @@ func TestActualCostCacheIntegration(t *testing.T) {
 		assert.NotContains(t, results.Results[0].Adapter, "(cached)")
 		// Should have stored the result in cache
 		assert.Greater(t, mc.setCalls, 0, "cache miss should store result")
+	})
+
+	t.Run("cache disabled skips all cache operations", func(t *testing.T) {
+		mc := newMockCache(false)
+
+		request := ActualCostRequest{
+			Resources: []ResourceDescriptor{
+				{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"},
+			},
+			From:             baseTime,
+			To:               endTime,
+			FallbackEstimate: true,
+		}
+
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		results, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), request)
+		require.NoError(t, err)
+		require.Len(t, results.Results, 1)
+		assert.NotContains(t, results.Results[0].Adapter, "(cached)")
+		assert.Equal(t, 0, mc.getCalls, "cache disabled should skip Get")
+		assert.Equal(t, 0, mc.setCalls, "cache disabled should skip Set")
 	})
 }

@@ -2,7 +2,6 @@ package cli_test
 
 import (
 	"context"
-	"os"
 	"strconv"
 	"testing"
 
@@ -86,12 +85,13 @@ func TestInitCache(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Setup env var
+			// Setup env vars (always use t.Setenv for proper restore)
 			if tt.envTTL != "" {
 				t.Setenv(cache.EnvTTLSeconds, tt.envTTL)
 			} else {
-				os.Unsetenv(cache.EnvTTLSeconds)
+				t.Setenv(cache.EnvTTLSeconds, "")
 			}
+			t.Setenv(cache.EnvTTLSecondsLegacy, "")
 
 			cmd := newTestCmdWithCacheTTL(tt.flagTTL)
 			// Simulate user explicitly setting the flag
@@ -133,7 +133,7 @@ func TestInitCache_LegacyTTLSecondsEnvVar(t *testing.T) {
 	ctx := context.Background()
 
 	// New env var unset; legacy env var disables caching.
-	os.Unsetenv(cache.EnvTTLSeconds)
+	t.Setenv(cache.EnvTTLSeconds, "")
 	t.Setenv(cache.EnvTTLSecondsLegacy, "0")
 
 	result := cli.InitCache(ctx, cmd)

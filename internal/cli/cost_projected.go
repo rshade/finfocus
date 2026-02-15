@@ -218,7 +218,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	defer cleanup()
 
-	eng := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir))
+	eng := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	resultWithErrors, err := eng.GetProjectedCostWithErrors(ctx, resources)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to calculate projected costs")

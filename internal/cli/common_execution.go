@@ -366,16 +366,24 @@ func resolveResourcesFromPulumi(
 }
 
 // newEngineWithCache creates an Engine, wires the router and an optional cache.Cache.
+// An optional cfg may be passed to reuse an already-loaded configuration; if nil,
+// config.New() is called internally.
 func newEngineWithCache(
 	ctx context.Context,
 	cmd *cobra.Command,
 	clients []*pluginhost.Client,
 	loader engine.SpecLoader,
+	cfgs ...*config.Config,
 ) *engine.Engine {
-	cfg := config.New()
+	var cfg *config.Config
+	if len(cfgs) > 0 && cfgs[0] != nil {
+		cfg = cfgs[0]
+	} else {
+		cfg = config.New()
+	}
 	eng := engine.New(clients, loader).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
-	if cacheStore := InitCache(ctx, cmd); cacheStore != nil {
+	if cacheStore := initCacheFromConfig(ctx, cmd, cfg); cacheStore != nil {
 		eng = eng.WithCache(cacheStore)
 	}
 	return eng
@@ -386,8 +394,13 @@ func newEngineWithCache(
 // Returns nil when caching is disabled (TTL<=0) or initialization fails.
 // When --cache-ttl is explicitly set to 0, caching is disabled regardless of config/env.
 func InitCache(ctx context.Context, cmd *cobra.Command) cache.Cache {
+	return initCacheFromConfig(ctx, cmd, config.New())
+}
+
+// initCacheFromConfig is the internal implementation of InitCache that accepts
+// a pre-loaded config to avoid redundant config.New() calls.
+func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Config) cache.Cache {
 	log := logging.FromContext(ctx)
-	cfg := config.New()
 
 	// Determine cache TTL with precedence: CLI flag > env var > config > default (0)
 	cacheTTL := 0
@@ -410,6 +423,9 @@ func InitCache(ctx context.Context, cmd *cobra.Command) cache.Cache {
 		} else {
 			log.Warn().
 				Ctx(ctx).
+				Err(err).
+				Str("component", "cache").
+				Str("operation", "init").
 				Str("env_var", envName).
 				Str("value", envVal).
 				Msg("invalid cache TTL env var, ignoring")
@@ -422,6 +438,8 @@ func InitCache(ctx context.Context, cmd *cobra.Command) cache.Cache {
 			cacheTTL = flagTTL
 			log.Debug().
 				Ctx(ctx).
+				Str("component", "cache").
+				Str("operation", "init").
 				Int("cache_ttl", cacheTTL).
 				Msg("cache TTL overridden by --cache-ttl flag")
 		}
@@ -435,27 +453,38 @@ func InitCache(ctx context.Context, cmd *cobra.Command) cache.Cache {
 	// Determine cache directory
 	cacheDir := cfg.Cost.Cache.Directory
 	if cacheDir == "" {
-		homeDir, _ := os.UserHomeDir()
-		cacheDir = filepath.Join(homeDir, ".finfocus", "cache")
+		homeDir, homeErr := os.UserHomeDir()
+		if homeErr != nil {
+			log.Warn().
+				Ctx(ctx).
+				Err(homeErr).
+				Str("component", "cache").
+				Str("operation", "init").
+				Msg("failed to determine home directory, using relative cache path")
+			cacheDir = filepath.Join(".finfocus", "cache")
+		} else {
+			cacheDir = filepath.Join(homeDir, ".finfocus", "cache")
+		}
 	}
 
-	// Determine max size
+	// Use configured max size directly (0 means unlimited per FileStore docs)
 	cacheMaxSize := cfg.Cost.Cache.MaxSizeMB
-	if cacheMaxSize == 0 {
-		cacheMaxSize = cache.DefaultCacheMaxSizeMB
-	}
 
 	cacheStore, err := cache.NewFileStore(cacheDir, true, cacheTTL, cacheMaxSize)
 	if err != nil {
 		log.Warn().
 			Ctx(ctx).
 			Err(err).
+			Str("component", "cache").
+			Str("operation", "init").
 			Msg("cache initialization failed, proceeding without cache")
 		return nil
 	}
 
 	log.Debug().
 		Ctx(ctx).
+		Str("component", "cache").
+		Str("operation", "init").
 		Int("cache_ttl", cacheTTL).
 		Str("cache_dir", cacheDir).
 		Msg("cache initialized")
