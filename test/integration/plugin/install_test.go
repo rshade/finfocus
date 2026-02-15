@@ -1,6 +1,7 @@
 package plugin_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -41,7 +42,7 @@ func TestPluginInstall_FromRegistry(t *testing.T) {
 
 	// Use github.com/owner/repo format - the BaseURL redirect handles the actual request
 	specifier := "github.com/example/finfocus-plugin-test"
-	result, err := installer.Install(specifier, opts, nil)
+	result, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "test", result.Name)
@@ -90,7 +91,7 @@ func TestPluginInstall_SpecificVersion(t *testing.T) {
 
 	// Install specific version v1.5.0 (not latest)
 	specifier := "github.com/example/finfocus-plugin-versioned@v1.5.0"
-	result, err := installer.Install(specifier, opts, nil)
+	result, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "versioned", result.Name)
@@ -136,7 +137,7 @@ func TestPluginInstall_FromURL(t *testing.T) {
 		progressMessages = append(progressMessages, msg)
 	}
 
-	result, err := installer.Install(specifier, opts, progress)
+	result, err := installer.Install(context.Background(), specifier, opts, progress)
 
 	require.NoError(t, err)
 	assert.True(t, result.FromURL, "should be marked as URL install")
@@ -171,11 +172,11 @@ func TestPluginInstall_Force(t *testing.T) {
 		NoSave:    true,
 		PluginDir: pluginDir,
 	}
-	result1, err := installer.Install(specifier, opts, nil)
+	result1, err := installer.Install(context.Background(), specifier, opts, nil)
 	require.NoError(t, err)
 
 	// Try to install again without force (should fail)
-	_, err = installer.Install(specifier, opts, nil)
+	_, err = installer.Install(context.Background(), specifier, opts, nil)
 	assert.Error(t, err, "should fail without force flag")
 	assert.Contains(t, err.Error(), "already installed")
 
@@ -185,7 +186,7 @@ func TestPluginInstall_Force(t *testing.T) {
 		NoSave:    true,
 		PluginDir: pluginDir,
 	}
-	result2, err := installer.Install(specifier, optsForce, nil)
+	result2, err := installer.Install(context.Background(), specifier, optsForce, nil)
 	require.NoError(t, err)
 
 	// Both results should have same path
@@ -218,7 +219,7 @@ func TestPluginInstall_NoSave(t *testing.T) {
 		PluginDir: pluginDir,
 	}
 
-	result, err := installer.Install(specifier, opts, nil)
+	result, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "nosave", result.Name)
@@ -253,7 +254,7 @@ func TestPluginInstall_DownloadFailure(t *testing.T) {
 	}
 
 	specifier := "github.com/example/finfocus-plugin-fail-download"
-	_, err := installer.Install(specifier, opts, nil)
+	_, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	assert.Error(t, err, "should fail when download fails")
 }
@@ -283,7 +284,7 @@ func TestPluginInstall_MetadataFailure(t *testing.T) {
 	}
 
 	specifier := "github.com/example/finfocus-plugin-fail-metadata"
-	_, err := installer.Install(specifier, opts, nil)
+	_, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	assert.Error(t, err, "should fail when metadata fetch fails")
 }
@@ -313,7 +314,7 @@ func TestPluginInstall_NonExistentPlugin(t *testing.T) {
 
 	// Try to install a plugin that doesn't exist in the mock registry
 	specifier := "github.com/example/finfocus-plugin-nonexistent"
-	_, err := installer.Install(specifier, opts, nil)
+	_, err := installer.Install(context.Background(), specifier, opts, nil)
 
 	assert.Error(t, err, "should fail for non-existent plugin")
 }
@@ -348,7 +349,7 @@ func TestPluginInstall_ProgressCallback(t *testing.T) {
 		messages = append(messages, msg)
 	}
 
-	_, err := installer.Install(specifier, opts, progress)
+	_, err := installer.Install(context.Background(), specifier, opts, progress)
 	require.NoError(t, err)
 
 	// Verify progress messages were received

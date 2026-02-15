@@ -105,12 +105,16 @@ Common conflicts to watch for:
    - `cost recommendations` - Get cost optimization recommendations with action type filtering
    - `plugin list/validate/install/remove/update/certify` - Plugin management
    - `analyzer serve` - Pulumi Analyzer gRPC server for zero-click cost estimation
+   - **`--jobs`/`-j` flag** (cost projected, cost actual): Override worker concurrency
+     (0 = auto based on NumCPU). Timing output (resources/sec) printed to stderr for
+     table format, suppressed for JSON/NDJSON.
 
 2. **Engine** (`internal/engine/`) - Core cost calculation:
    - Orchestrates between plugins and local specs
    - Output formats: table, JSON, NDJSON
    - Cross-provider aggregation with time-based grouping
    - `hoursPerMonth = 730` for monthly calculations
+   - `WithJobs(n)` builder method overrides worker count (0 = auto)
 
 3. **Plugin Host** (`internal/pluginhost/`) - gRPC plugin management:
    - `ProcessLauncher` (TCP) and `StdioLauncher` (stdin/stdout)

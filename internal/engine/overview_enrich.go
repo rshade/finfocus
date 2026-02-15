@@ -217,9 +217,37 @@ func ExtractProviderFromResourceType(resourceType string) string {
 	return extractProviderFromType(resourceType)
 }
 
-// EnrichOverviewRows enriches all rows concurrently with a semaphore limit.
-// Updates are sent on progressChan as each row completes. The channel is closed
-// when all rows are done. Returns the enriched rows slice.
+// enrichWorker processes row indices from jobs, enriching each row and sending
+// progress updates. It exits when the jobs channel is closed or the context is cancelled.
+func enrichWorker(
+	ctx context.Context,
+	jobs <-chan int,
+	rows []OverviewRow,
+	eng *Engine,
+	dateRange DateRange,
+	progressChan chan<- OverviewRowUpdate,
+) {
+	for idx := range jobs {
+		if ctx.Err() != nil {
+			return
+		}
+
+		EnrichOverviewRow(ctx, &rows[idx], eng, dateRange)
+
+		if progressChan != nil {
+			select {
+			case progressChan <- OverviewRowUpdate{Index: idx, Row: rows[idx]}:
+			case <-ctx.Done():
+			}
+		}
+	}
+}
+
+// EnrichOverviewRows enriches all rows concurrently using a fixed worker pool.
+// The number of workers is bounded by overviewConcurrencyLimit (or the row count
+// if smaller), preventing goroutine-per-row proliferation. Updates are sent on
+// progressChan as each row completes. The channel is closed when all rows are
+// done. Returns the enriched rows slice.
 func EnrichOverviewRows(
 	ctx context.Context,
 	rows []OverviewRow,
@@ -235,41 +263,34 @@ func EnrichOverviewRows(
 		Int("row_count", len(rows)).
 		Msg("starting concurrent row enrichment")
 
-	var wg sync.WaitGroup
-	sem := make(chan struct{}, overviewConcurrencyLimit)
-
-	for i := range rows {
-		wg.Add(1)
-		go func(idx int) {
-			defer wg.Done()
-			select {
-			case sem <- struct{}{}:
-			case <-ctx.Done():
-				return
-			}
-			defer func() { <-sem }()
-
-			if ctx.Err() != nil {
-				return
-			}
-
-			EnrichOverviewRow(ctx, &rows[idx], eng, dateRange)
-
-			if progressChan != nil {
-				select {
-				case progressChan <- OverviewRowUpdate{
-					Index: idx,
-					Row:   rows[idx],
-				}:
-				case <-ctx.Done():
-				}
-			}
-		}(i)
+	numWorkers := overviewConcurrencyLimit
+	if len(rows) < numWorkers {
+		numWorkers = len(rows)
 	}
 
-	// Wait for all goroutines to finish before returning, then close the
-	// progress channel synchronously. A previous implementation used a
-	// separate goroutine for closing, which raced with this wg.Wait().
+	jobs := make(chan int, len(rows))
+	var wg sync.WaitGroup
+
+	// Start fixed number of workers.
+	for range numWorkers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			enrichWorker(ctx, jobs, rows, eng, dateRange, progressChan)
+		}()
+	}
+
+	// Send all jobs to the worker pool.
+	for i := range rows {
+		select {
+		case jobs <- i:
+		case <-ctx.Done():
+		}
+	}
+	close(jobs)
+
+	// Wait for all workers to finish before returning, then close the
+	// progress channel synchronously.
 	wg.Wait()
 	if progressChan != nil {
 		close(progressChan)

@@ -247,16 +247,16 @@ jobs:
         run: |
           DURATION="${{ github.event.inputs.fuzz_duration || '6h' }}"
           echo "Running FuzzJSON for $DURATION"
-          go test -fuzz=FuzzJSON -fuzztime=$DURATION ./internal/ingest || true
-          go test -fuzz=FuzzPulumiPlanParse -fuzztime=$DURATION ./internal/ingest || true
+          go test -fuzz=FuzzJSON -fuzztime=$DURATION ./internal/ingest
+          go test -fuzz=FuzzPulumiPlanParse -fuzztime=$DURATION ./internal/ingest
         timeout-minutes: 420 # 7 hours max
 
       - name: Run deep YAML fuzz test
         run: |
           DURATION="${{ github.event.inputs.fuzz_duration || '6h' }}"
           echo "Running FuzzYAML for $DURATION"
-          go test -fuzz=FuzzYAML -fuzztime=$DURATION ./internal/spec || true
-          go test -fuzz=FuzzSpecFilename -fuzztime=$DURATION ./internal/spec || true
+          go test -fuzz=FuzzYAML -fuzztime=$DURATION ./internal/spec
+          go test -fuzz=FuzzSpecFilename -fuzztime=$DURATION ./internal/spec
         timeout-minutes: 420 # 7 hours max
 
       - name: Save fuzz corpus cache

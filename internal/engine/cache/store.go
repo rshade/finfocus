@@ -67,7 +67,7 @@ func NewFileStore(directory string, enabled bool, ttlSeconds, maxSizeMB int) (*F
 
 // Get retrieves a cache entry by key.
 // Returns ErrCacheNotFound if the entry doesn't exist.
-// Returns ErrCacheExpired if the entry has expired.
+// Returns ErrCacheExpired if the entry has expired (and synchronously deletes the file).
 func (s *FileStore) Get(key string) (*CacheEntry, error) {
 	if !s.enabled {
 		return nil, ErrCacheDisabled
@@ -78,11 +78,11 @@ func (s *FileStore) Get(key string) (*CacheEntry, error) {
 	}
 
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 
 	filePath := s.keyToFilePath(key)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
+		s.mu.RUnlock()
 		if os.IsNotExist(err) {
 			return nil, ErrCacheNotFound
 		}
@@ -91,19 +91,22 @@ func (s *FileStore) Get(key string) (*CacheEntry, error) {
 
 	var entry CacheEntry
 	if unmarshalErr := json.Unmarshal(data, &entry); unmarshalErr != nil {
+		s.mu.RUnlock()
 		return nil, fmt.Errorf("failed to unmarshal cache entry: %w", unmarshalErr)
 	}
 
 	if entry.IsExpired() {
-		// Delete expired entry asynchronously
-		go func() {
-			s.mu.Lock()
-			defer s.mu.Unlock()
-			_ = os.Remove(filePath)
-		}()
+		// Release read lock before acquiring write lock for synchronous deletion.
+		// This avoids spawning a goroutine that could hold a write lock after Get returns
+		// (goroutine leak when the RLock holder is long gone).
+		s.mu.RUnlock()
+		s.mu.Lock()
+		_ = os.Remove(filePath)
+		s.mu.Unlock()
 		return nil, ErrCacheExpired
 	}
 
+	s.mu.RUnlock()
 	return &entry, nil
 }
 

@@ -109,6 +109,7 @@ type Engine struct {
 	cache          *cache.FileStore
 	router         Router                 // Optional router for plugin selection; if nil, queries all plugins
 	dismissalStore *config.DismissalStore // Optional dismissal store; if nil, created on demand
+	jobs           int                    // Override worker count; 0 means auto (default)
 }
 
 // New creates a new Engine with the given plugin clients and spec loader.
@@ -138,6 +139,14 @@ func (e *Engine) WithRouter(router Router) *Engine {
 // This is optional - if not set, a store is created on demand per call.
 func (e *Engine) WithDismissalStore(store *config.DismissalStore) *Engine {
 	e.dismissalStore = store
+	return e
+}
+
+// WithJobs sets an explicit worker count override for concurrent operations.
+// When jobs > 0, this value is used instead of the auto-calculated worker count.
+// When jobs == 0 (default), the auto calculation based on NumCPU is used.
+func (e *Engine) WithJobs(jobs int) *Engine {
+	e.jobs = jobs
 	return e
 }
 
@@ -250,6 +259,13 @@ func (e *Engine) selectPluginMatchesForResource(
 func (e *Engine) getWorkerCount(jobCount int) int {
 	if jobCount == 0 {
 		return 0
+	}
+	if e.jobs > 0 {
+		// Use explicit override, but cap at resource count
+		if e.jobs < jobCount {
+			return e.jobs
+		}
+		return jobCount
 	}
 	numWorkers := runtime.NumCPU() * e.getConcurrencyMultiplier()
 	if jobCount < numWorkers {

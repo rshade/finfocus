@@ -63,7 +63,7 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
 			}
 
 			// Update
-			result, err := installer.Update(name, opts, progress)
+			result, err := installer.Update(cmd.Context(), name, opts, progress)
 			if err != nil {
 				return fmt.Errorf("updating plugin %q: %w", name, err)
 			}

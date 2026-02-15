@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -205,6 +206,7 @@ func isProcessRunning(pid int) bool {
 
 // Install installs a plugin from a specifier (name or URL with optional version).
 func (i *Installer) Install(
+	ctx context.Context,
 	specifier string,
 	opts InstallOptions,
 	progress func(msg string),
@@ -222,13 +224,14 @@ func (i *Installer) Install(
 	defer unlock()
 
 	if spec.IsURL {
-		return i.installFromURL(spec, opts, progress)
+		return i.installFromURL(ctx, spec, opts, progress)
 	}
-	return i.installFromRegistry(spec, opts, progress)
+	return i.installFromRegistry(ctx, spec, opts, progress)
 }
 
 // installFromRegistry installs a plugin from the embedded registry.
 func (i *Installer) installFromRegistry(
+	ctx context.Context,
 	spec *PluginSpecifier,
 	opts InstallOptions,
 	progress func(msg string),
@@ -260,12 +263,12 @@ func (i *Installer) installFromRegistry(
 		if progress != nil {
 			progress(fmt.Sprintf("Fetching release %s for %s...", spec.Version, spec.Name))
 		}
-		release, err = i.client.GetReleaseByTag(owner, repo, spec.Version)
+		release, err = i.client.GetReleaseByTag(ctx, owner, repo, spec.Version)
 	} else {
 		if progress != nil {
 			progress(fmt.Sprintf("Fetching latest release for %s...", spec.Name))
 		}
-		release, err = i.client.GetLatestRelease(owner, repo)
+		release, err = i.client.GetLatestRelease(ctx, owner, repo)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
@@ -276,6 +279,7 @@ func (i *Installer) installFromRegistry(
 
 	// Install the release
 	result, err := i.installRelease(
+		ctx,
 		spec.Name,
 		release,
 		entry.Repository,
@@ -293,6 +297,7 @@ func (i *Installer) installFromRegistry(
 
 // installFromURL installs a plugin directly from a GitHub URL.
 func (i *Installer) installFromURL(
+	ctx context.Context,
 	spec *PluginSpecifier,
 	opts InstallOptions,
 	progress func(msg string),
@@ -311,12 +316,12 @@ func (i *Installer) installFromURL(
 				),
 			)
 		}
-		release, err = i.client.GetReleaseByTag(spec.Owner, spec.Repo, spec.Version)
+		release, err = i.client.GetReleaseByTag(ctx, spec.Owner, spec.Repo, spec.Version)
 	} else {
 		if progress != nil {
 			progress(fmt.Sprintf("Fetching latest release from %s/%s...", spec.Owner, spec.Repo))
 		}
-		release, err = i.client.GetLatestRelease(spec.Owner, spec.Repo)
+		release, err = i.client.GetLatestRelease(ctx, spec.Owner, spec.Repo)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
@@ -324,7 +329,7 @@ func (i *Installer) installFromURL(
 
 	// Install the release (no hints for URL-based installs)
 	repository := fmt.Sprintf("%s/%s", spec.Owner, spec.Repo)
-	result, err := i.installRelease(spec.Name, release, repository, opts, progress, nil)
+	result, err := i.installRelease(ctx, spec.Name, release, repository, opts, progress, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -338,6 +343,7 @@ func (i *Installer) installFromURL(
 //
 //nolint:gocognit,funlen // Complex but necessary installation logic with many steps
 func (i *Installer) installRelease(
+	ctx context.Context,
 	name string,
 	release *GitHubRelease,
 	repository string,
@@ -412,7 +418,8 @@ func (i *Installer) installRelease(
 			progress(fmt.Sprintf("Downloading... %.0f%%", pct))
 		}
 	}
-	if downloadErr := i.client.DownloadAsset(asset.BrowserDownloadURL, tmpPath, downloadProgress); downloadErr != nil {
+	downloadErr := i.client.DownloadAsset(ctx, asset.BrowserDownloadURL, tmpPath, downloadProgress)
+	if downloadErr != nil {
 		return nil, fmt.Errorf("failed to download: %w", downloadErr)
 	}
 
@@ -564,6 +571,7 @@ type UpdateResult struct {
 //
 //nolint:gocognit,funlen // Complex but necessary update logic with version comparison
 func (i *Installer) Update(
+	ctx context.Context,
 	name string,
 	opts UpdateOptions,
 	progress func(msg string),
@@ -593,12 +601,12 @@ func (i *Installer) Update(
 		if progress != nil {
 			progress(fmt.Sprintf("Fetching release %s for %s...", opts.Version, name))
 		}
-		release, err = i.client.GetReleaseByTag(owner, repo, opts.Version)
+		release, err = i.client.GetReleaseByTag(ctx, owner, repo, opts.Version)
 	} else {
 		if progress != nil {
 			progress(fmt.Sprintf("Checking for updates to %s...", name))
 		}
-		release, err = i.client.GetLatestRelease(owner, repo)
+		release, err = i.client.GetLatestRelease(ctx, owner, repo)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
@@ -657,7 +665,7 @@ func (i *Installer) Update(
 	}
 
 	repository := fmt.Sprintf("%s/%s", owner, repo)
-	result, err := i.installRelease(name, release, repository, installOpts, progress, assetHints)
+	result, err := i.installRelease(ctx, name, release, repository, installOpts, progress, assetHints)
 	if err != nil {
 		return nil, err
 	}
