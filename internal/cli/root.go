@@ -91,7 +91,7 @@ func NewRootCmdWithArgs(
 		Bool("skip-version-check", false, "skip plugin spec version compatibility check")
 	cmd.PersistentFlags().
 		Int("cache-ttl", 0, "cache TTL in seconds (0 = use config default, overrides config file and env var)")
-	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd())
+	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
 
 	return cmd
 }

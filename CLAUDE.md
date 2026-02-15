@@ -1084,6 +1084,10 @@ CodeRabbit now:
 - N/A (stateless per-invocation; reads `~/.finfocus/config.yaml`) (511-wire-router)
 - N/A (stateless CLI) (590-neo-cli-fixes)
 - Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), finfocus-spec v0.5.6 (protocol):
+- Go 1.25.7 + cobra v1.10.2 (CLI), golang.org/x/term (TTY detection), zerolog v1.34.0 (logging) (591-setup-command)
+- Filesystem only — directories, YAML config file, symlinks/copies for analyzer (591-setup-command)
+
+- Go 1.25.7 + Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol):
   - zerolog v1.34.0 (logging), testify v1.11.1 (testing) (508-recommendation-dismissal)
   - Bubble Tea v1.3.10 (TUI), Lip Gloss v1.1.0 (styling) (223-cost-estimate)
 - Local JSON file (`~/.finfocus/dismissed.json`) for dismissal state; plugin-side storage delegated to plugins (508-recommendation-dismissal)

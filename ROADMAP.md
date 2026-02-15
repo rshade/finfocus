@@ -23,8 +23,8 @@ guardrails in `CONTEXT.md`.
         ([#599](https://github.com/rshade/finfocus/issues/599))
   - [ ] `finfocus setup` one-command bootstrap
         ([#598](https://github.com/rshade/finfocus/issues/598))
-  - [ ] `finfocus analyzer install/uninstall` commands
-        ([#597](https://github.com/rshade/finfocus/issues/597))
+  - [x] `finfocus analyzer install/uninstall` commands
+        ([#597](https://github.com/rshade/finfocus/issues/597)) *(Completed 2026-02-14)*
   - [ ] Checksum verification for plugin installation
         ([#601](https://github.com/rshade/finfocus/issues/601))
 - [ ] **Scale & Performance**
@@ -53,8 +53,8 @@ guardrails in `CONTEXT.md`.
 - [ ] **Testing Improvements**
   - [ ] Add negative test for waitForPluginBindWithFallback
         ([#608](https://github.com/rshade/finfocus/issues/608))
-  - [ ] Fix state_test.go wantVersion skip and delegation fragility
-        ([#606](https://github.com/rshade/finfocus/issues/606))
+  - [x] Fix state_test.go wantVersion skip and delegation fragility
+        ([#606](https://github.com/rshade/finfocus/issues/606)) *(Completed 2026-02-14)*
   - [ ] Isolate auto-detection tests with temp directories
         ([#605](https://github.com/rshade/finfocus/issues/605))
 
@@ -72,9 +72,9 @@ guardrails in `CONTEXT.md`.
         ([#582](https://github.com/rshade/finfocus/issues/582))
   - [ ] Filter Pulumi component resources from cost plugin routing
         ([#583](https://github.com/rshade/finfocus/issues/583))
-- [ ] **Unified Cost Dashboard**
-  - [ ] Add `finfocus overview` command — unified cost dashboard with TUI
-        ([#578](https://github.com/rshade/finfocus/issues/578))
+- [x] **Unified Cost Dashboard**
+  - [x] Add `finfocus overview` command — unified cost dashboard with TUI
+        ([#578](https://github.com/rshade/finfocus/issues/578)) *(Completed 2026-02-14)*
 - [ ] **Contextual Profiles ("Dev Mode")**
       ([#368](https://github.com/rshade/finfocus/issues/368))
   - [ ] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
@@ -193,9 +193,21 @@ guardrails in `CONTEXT.md`.
 - [ ] **Cost Diff View**
   - [ ] Add cost diff view to `cost projected` command
         ([#576](https://github.com/rshade/finfocus/issues/576))
-- [ ] **Overview Command Enhancements**
+- [ ] **Overview Command Enhancements** *(follow-ups from #578)*
   - [ ] Add `--output json` support to `finfocus overview`
         ([#579](https://github.com/rshade/finfocus/issues/579))
+  - [ ] Add `--force-color` and `--no-color` flags to overview command
+        ([#641](https://github.com/rshade/finfocus/issues/641))
+  - [ ] Interactive pre-flight confirmation prompt for overview command
+        ([#642](https://github.com/rshade/finfocus/issues/642))
+  - [ ] Warning column and `OverviewWarning` type
+        ([#643](https://github.com/rshade/finfocus/issues/643))
+  - [ ] Short flags (`-s`, `-f`, `-a`) for overview command
+        ([#644](https://github.com/rshade/finfocus/issues/644))
+  - [ ] Test coverage for overview enrichment and CLI to 80%+
+        ([#645](https://github.com/rshade/finfocus/issues/645))
+  - [ ] Overview command documentation with screenshots
+        ([#646](https://github.com/rshade/finfocus/issues/646))
 - [ ] **Platform Reliability**
   - [ ] Reimplement plugin installer lock for Windows reliability
         ([#573](https://github.com/rshade/finfocus/issues/573))
@@ -214,6 +226,13 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] **Unified Overview & Analyzer Install** *(Completed 2026-02-14)*
+  - [x] Add `finfocus overview` command — unified cost dashboard with TUI
+        ([#578](https://github.com/rshade/finfocus/issues/578))
+  - [x] `finfocus analyzer install/uninstall` commands
+        ([#597](https://github.com/rshade/finfocus/issues/597))
+  - [x] Fix state_test.go wantVersion skip and delegation fragility
+        ([#606](https://github.com/rshade/finfocus/issues/606))
 - [x] **GetPricingSpec Research & Code Quality** *(Completed 2026-02-14)*
   - [x] Evaluate GetPricingSpec RPC usage in core
         ([#465](https://github.com/rshade/finfocus/issues/465))
