@@ -74,10 +74,10 @@ func initProjectConfig(cmd *cobra.Command, projectDir string, force bool) error 
 		return fmt.Errorf("failed to create project config directory: %w", err)
 	}
 
-	// Save default configuration to project directory
-	cfg := config.New()
-	cfg.SetConfigPath(configPath)
-	if err := cfg.Save(); err != nil {
+	// Write a minimal project skeleton with only comments showing override keys.
+	// Unlike the global config (which writes all defaults), the project config
+	// should contain only overrides — absent keys inherit from ~/.finfocus/config.yaml.
+	if err := config.SaveProjectSkeleton(configPath); err != nil {
 		return fmt.Errorf("failed to save configuration: %w", err)
 	}
 

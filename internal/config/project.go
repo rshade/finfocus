@@ -3,6 +3,7 @@ package config
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -95,6 +96,34 @@ func NewWithProjectDir(ctx context.Context, projectDir string) *Config {
 	}
 
 	return cfgCopy
+}
+
+// projectSkeletonYAML is the minimal template written by SaveProjectSkeleton.
+// It contains only comments explaining the override structure, not actual config.
+const projectSkeletonYAML = `# FinFocus project configuration.
+# Only add keys you want to override from the global ~/.finfocus/config.yaml.
+# Keys absent here inherit from the global config (shallow merge by top-level key).
+#
+# Example overrides:
+# output:
+#   default_format: json
+# cost:
+#   budgets:
+#     global:
+#       amount: 1000
+#       currency: USD
+`
+
+// SaveProjectSkeleton writes a minimal project-level configuration file at the
+// given path. Unlike Config.Save(), which writes the full merged config, this
+// writes only a commented template showing available override keys so that the
+// project config contains overrides rather than a copy of all global defaults.
+func SaveProjectSkeleton(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return fmt.Errorf("creating project config directory: %w", err)
+	}
+
+	return os.WriteFile(path, []byte(projectSkeletonYAML), 0o600)
 }
 
 // toAbsFinfocusDir converts dir to an absolute path and appends ".finfocus".

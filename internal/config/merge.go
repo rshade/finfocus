@@ -47,7 +47,7 @@ func ShallowMergeYAML(target *Config, overlayPath string) error {
 	}
 
 	// Discover which top-level keys are present in the overlay.
-	var overlay map[string]interface{}
+	var overlay map[string]any
 	if err = yaml.Unmarshal(data, &overlay); err != nil {
 		return fmt.Errorf("parsing overlay YAML from %s: %w", overlayPath, err)
 	}
@@ -133,6 +133,10 @@ func unmarshalSection(target *Config, key string, data []byte) error {
 		target.Routing = &v
 		return nil
 	default:
+		// Defensive safety net: callers filter keys against knownTopLevelKeys before
+		// calling unmarshalSection, so this branch is effectively unreachable. It exists
+		// to catch future mismatches if a key is added to knownTopLevelKeys without a
+		// corresponding case here.
 		return fmt.Errorf("unknown config key: %s", key)
 	}
 }

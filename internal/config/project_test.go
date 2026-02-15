@@ -367,16 +367,14 @@ func BenchmarkResolveProjectDir_DeepTree(b *testing.B) {
 
 	b.ResetTimer()
 
-	start := time.Now()
 	for b.Loop() {
 		result := config.ResolveProjectDir(ctx, "", deepDir)
 		if result == "" {
 			b.Fatal("expected non-empty result")
 		}
 	}
-	elapsed := time.Since(start)
 
-	avgPerOp := elapsed / time.Duration(b.N)
+	avgPerOp := b.Elapsed() / time.Duration(b.N)
 	if avgPerOp > 100*time.Millisecond {
 		b.Fatalf("SC-004 violation: average %v per operation exceeds 100ms threshold", avgPerOp)
 	}
