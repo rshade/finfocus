@@ -213,9 +213,11 @@ jobs:
             internal/spec/testdata/fuzz
           key: fuzz-corpus-${{ runner.os }}-${{ github.sha }}
 
-  benchmark:
-    name: Benchmark (Smoke)
+  benchmark-baseline:
+    name: Benchmark Baseline
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -226,15 +228,183 @@ jobs:
           go-version: '1.25.7'
           cache: true
 
-      - name: Run benchmark smoke tests
-        run: |
-          # Run 1K benchmark for regression detection (quick, ~15s)
-          go test -bench=BenchmarkScale1K -benchtime=1x -benchmem ./test/benchmarks/... 2>&1 | grep -E "^(Benchmark|PASS|ok|---)" || true
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
 
-      - name: Run generator benchmarks
+      - name: Run benchmarks
+        env:
+          FINFOCUS_LOG_LEVEL: error
         run: |
-          # Test generator overhead doesn't regress
-          go test -bench=BenchmarkGeneratorOverhead/Small -benchtime=1x -benchmem ./test/benchmarks/... 2>&1 | grep -E "^(Benchmark|PASS|ok|---)" || true
+          set -eo pipefail
+          go test -bench='Benchmark(?!.*100K)' -benchtime=1x -count=5 -benchmem \
+            ./test/benchmarks/... 2>&1 | \
+            ./scripts/ci-benchmark-filter.sh > test/benchmarks/baseline.txt
+
+      - name: Save baseline cache
+        uses: actions/cache/save@v5
+        with:
+          path: test/benchmarks/baseline.txt
+          key: benchmark-baseline-${{ runner.os }}-go1.25.7
+
+  benchmark-compare:
+    name: Benchmark Compare
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: '1.25.7'
+          cache: true
+
+      - name: Install benchstat
+        run: go install golang.org/x/perf/cmd/benchstat@latest
+
+      - name: Restore baseline cache
+        id: baseline
+        uses: actions/cache/restore@v5
+        with:
+          path: test/benchmarks/baseline.txt
+          key: benchmark-baseline-${{ runner.os }}-go1.25.7
+
+      - name: Run benchmarks
+        env:
+          FINFOCUS_LOG_LEVEL: error
+        run: |
+          set -eo pipefail
+          go test -bench='Benchmark(?!.*100K)' -benchtime=1x -count=5 -benchmem \
+            ./test/benchmarks/... 2>&1 | \
+            ./scripts/ci-benchmark-filter.sh > test/benchmarks/current.txt
+
+      - name: Compare with benchstat
+        id: compare
+        if: steps.baseline.outputs.cache-hit == 'true'
+        run: |
+          benchstat test/benchmarks/baseline.txt test/benchmarks/current.txt \
+            > test/benchmarks/comparison.txt 2>&1 || true
+
+          # Parse regression severities from benchstat output
+          # Only positive deltas indicate regressions; negative deltas are improvements
+          REGRESSION_LEVEL="none"
+          ERROR_COUNT=0
+          WARNING_COUNT=0
+          IMPROVED_COUNT=0
+
+          while IFS= read -r line; do
+            if echo "$line" | grep -qE '[+-][0-9]+(\.[0-9]+)?%'; then
+              pct=$(echo "$line" | grep -oE '[+-][0-9]+(\.[0-9]+)?%' | head -1 | tr -d '%')
+              is_error=$(echo "$pct" | awk '{if ($1 > 50.0) print "yes"; else print "no"}')
+              is_warning=$(echo "$pct" | awk '{if ($1 > 20.0 && $1 <= 50.0) print "yes"; else print "no"}')
+              is_improved=$(echo "$pct" | awk '{if ($1 < -20.0) print "yes"; else print "no"}')
+
+              if [ "$is_error" = "yes" ]; then
+                ERROR_COUNT=$((ERROR_COUNT + 1))
+                REGRESSION_LEVEL="error"
+              elif [ "$is_warning" = "yes" ]; then
+                WARNING_COUNT=$((WARNING_COUNT + 1))
+                if [ "$REGRESSION_LEVEL" != "error" ]; then
+                  REGRESSION_LEVEL="warning"
+                fi
+              elif [ "$is_improved" = "yes" ]; then
+                IMPROVED_COUNT=$((IMPROVED_COUNT + 1))
+                if [ "$REGRESSION_LEVEL" = "none" ]; then
+                  REGRESSION_LEVEL="improved"
+                fi
+              fi
+            fi
+          done < test/benchmarks/comparison.txt
+
+          {
+            echo "REGRESSION_LEVEL=$REGRESSION_LEVEL"
+            echo "ERROR_COUNT=$ERROR_COUNT"
+            echo "WARNING_COUNT=$WARNING_COUNT"
+            echo "IMPROVED_COUNT=$IMPROVED_COUNT"
+          } >> "$GITHUB_ENV"
+
+          {
+            echo "COMPARISON_BODY<<BENCHEOF"
+            cat test/benchmarks/comparison.txt
+            echo "BENCHEOF"
+          } >> "$GITHUB_ENV"
+
+      - name: Post PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+
+            let currentResults = '';
+            try {
+              currentResults = fs.readFileSync('test/benchmarks/current.txt', 'utf8');
+            } catch (e) {
+              currentResults = 'Unable to read benchmark results';
+            }
+
+            const baselineHit = '${{ steps.baseline.outputs.cache-hit }}' === 'true';
+            const regressionLevel = process.env.REGRESSION_LEVEL || 'none';
+            const errorCount = parseInt(process.env.ERROR_COUNT || '0');
+            const warningCount = parseInt(process.env.WARNING_COUNT || '0');
+            const improvedCount = parseInt(process.env.IMPROVED_COUNT || '0');
+            const comparisonBody = process.env.COMPARISON_BODY || '';
+
+            let body = '<!-- benchmark-results -->\n## Benchmark Results\n\n';
+
+            if (!baselineHit) {
+              body += '> **Note**: No baseline available yet. Benchmark results will be compared once the main branch baseline is generated.\n\n';
+              body += '<details>\n<summary>Current benchmark results</summary>\n\n';
+              body += '```\n' + currentResults + '\n```\n\n</details>\n';
+            } else {
+              // Severity summary
+              if (regressionLevel === 'error') {
+                body += `> :rotating_light: **${errorCount} benchmark(s) showed >50% regression**\n`;
+                if (warningCount > 0) body += `> :warning: **${warningCount} benchmark(s) showed >20% regression**\n`;
+                if (improvedCount > 0) body += `> :arrow_down: **${improvedCount} benchmark(s) improved**\n`;
+              } else if (regressionLevel === 'warning') {
+                body += `> :warning: **${warningCount} benchmark(s) showed >20% regression**\n`;
+                if (improvedCount > 0) body += `> :arrow_down: **${improvedCount} benchmark(s) improved**\n`;
+              } else if (regressionLevel === 'improved') {
+                body += `> :arrow_down: **${improvedCount} benchmark(s) improved**\n`;
+              } else {
+                body += '> :white_check_mark: All benchmarks within expected range\n';
+              }
+
+              body += '\n```\n' + comparisonBody + '\n```\n\n';
+
+              body += '<details>\n<summary>Full benchmark output</summary>\n\n';
+              body += '```\n' + currentResults + '\n```\n\n</details>\n';
+            }
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const existingComment = comments.find(c =>
+              c.body.includes('<!-- benchmark-results -->')
+            );
+
+            if (existingComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body,
+              });
+            }
 
   build:
     name: Build

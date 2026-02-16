@@ -1142,6 +1142,8 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
+- Go 1.25.7 + GitHub Actions (actions/checkout@v6, actions/setup-go@v6, actions/cache@v5, actions/github-script@v7), golang.org/x/perf/cmd/benchstat (594-ci-benchmark-reporting)
+- GitHub Actions cache (benchmark baseline file) (594-ci-benchmark-reporting)
 
 ### Current Stack
 
