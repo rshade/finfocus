@@ -37,7 +37,8 @@ type Cache interface {
 	InvalidateByPrefix(prefix string) (int, error)
 }
 
-// allBucketNames returns the list of top-level buckets created on database initialization.
+// allBucketNames returns the top-level bucket names used by the cache database.
+// The returned slice contains BucketProjected, BucketActual, and BucketRecommendations.
 func allBucketNames() []string {
 	return []string{BucketProjected, BucketActual, BucketRecommendations}
 }
@@ -80,7 +81,31 @@ type BoltStore struct {
 // ErrCacheDisabled and Set is a no-op.
 // If the database file is locked by another process (timeout 500ms),
 // returns nil, ErrCacheLocked so the caller can degrade gracefully.
-// If the database file is corrupt, it is deleted and recreated.
+// NewBoltStore creates and returns a BoltStore backed by a BoltDB file located
+// in the provided directory.
+//
+// NewBoltStore will:
+// - return a disabled BoltStore when `enabled` is false.
+// - create the directory if it does not exist.
+// - open or create the BoltDB file at "<directory>/cache.db"; if the database is
+//   locked by another process an error is returned, and if the file is detected
+//   as corrupted it will be deleted and recreated.
+// - initialize the required top-level buckets.
+// - run a startup cleanup of expired entries and perform a size check that may
+//   trigger compaction if the DB exceeds `maxSizeMB`.
+//
+// Parameters:
+// - ctx: context used to derive a logger.
+// - directory: filesystem directory to contain the BoltDB file (must be
+//   non-empty).
+// - enabled: if false, returns a disabled store without touching the filesystem.
+// - ttlSeconds: default time-to-live for new cache entries, in seconds.
+// - maxSizeMB: maximum database size in megabytes used to decide compaction.
+//
+// Returns:
+// - *BoltStore on success, or an error if the directory is invalid, directory
+//   creation fails, the database cannot be opened/created, or bucket
+//   initialization fails.
 func NewBoltStore(ctx context.Context, directory string, enabled bool, ttlSeconds, maxSizeMB int) (*BoltStore, error) {
 	logger := logging.FromContext(ctx).With().
 		Str("component", "cache").
@@ -157,7 +182,15 @@ func (s *BoltStore) compactIfOversized() {
 	}
 }
 
-// openBoltDB opens the BoltDB file, handling corruption by deleting and recreating.
+// openBoltDB opens the BoltDB file at dbPath, handling lock and corruption scenarios.
+// It attempts to open the database with a configured timeout. If the database file
+// is locked by another process it logs a warning and returns ErrCacheLocked. If the
+// open fails due to detected corruption the file is removed (unless already missing)
+// and a fresh database is created and returned.
+// Parameters:
+//  - dbPath: filesystem path to the BoltDB file.
+//  - logger: optional logger used to report lock or corruption events.
+// Returns the opened *bolt.DB on success, or a non-nil error describing the failure.
 func openBoltDB(dbPath string, logger *zerolog.Logger) (*bolt.DB, error) {
 	db, err := bolt.Open(dbPath, dbFilePermissions, &bolt.Options{
 		Timeout: dbLockTimeout,
@@ -190,7 +223,9 @@ func openBoltDB(dbPath string, logger *zerolog.Logger) (*bolt.DB, error) {
 	return nil, fmt.Errorf("failed to open cache database: %w", err)
 }
 
-// isCorruptionError checks if the error indicates database corruption.
+// isCorruptionError reports whether err represents a BoltDB corruption condition
+// (specifically `berrors.ErrInvalid`, `berrors.ErrChecksum`, or
+// `berrors.ErrVersionMismatch`). It returns false for a nil error.
 func isCorruptionError(err error) bool {
 	return errors.Is(err, berrors.ErrInvalid) ||
 		errors.Is(err, berrors.ErrChecksum) ||

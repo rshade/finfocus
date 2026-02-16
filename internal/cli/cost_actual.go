@@ -162,7 +162,16 @@ timestamp if not provided.`,
 // - output rendering errors,
 // - budget evaluation failures.
 //
-//nolint:funlen // Complex orchestration function requiring cache lifecycle management.
+// executeCostActual runs the "actual" cost workflow for the CLI, orchestrating resource loading,
+// filtering, time-range resolution, plugin invocation, cost retrieval, rendering, budgeting, and auditing.
+//
+// cmd is the Cobra command being executed and provides the command context and I/O for output.
+// params provides all CLI-controlled options (paths, adapter, time range, grouping, filters, and worker count).
+//
+// The function returns an error when input validation fails, when resources cannot be loaded or filtered,
+// when time parsing or validation fails, when plugins cannot be opened, when fetching actual costs fails,
+// when rendering the output fails, or when budget evaluation fails. On success it logs and audits the results
+// and returns nil.
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)

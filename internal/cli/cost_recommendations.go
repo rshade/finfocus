@@ -157,7 +157,23 @@ Valid action types for filtering:
 // It loads and maps resources from a Pulumi preview JSON, opens adapter plugins, optionally
 // initializes a cache, queries the recommendation engine (with a progress indicator for long
 // runs), merges dismissed/snoozed records when requested, applies action-type filters,
-// sorting, and pagination, then renders the results and records audit metadata.
+// executeCostRecommendations orchestrates fetching cost recommendations from a Pulumi plan,
+// applies optional filters, sorting, and pagination, renders the results to the requested
+// output format, and records audit metadata.
+//
+// It loads and maps resources from the provided Pulumi plan, opens adapter plugins,
+// creates an engine (with optional cache), fetches recommendations, optionally merges
+// dismissed/snoozed items when requested, and then applies action-type filters, sort
+// expressions, and pagination before rendering.
+//
+// Parameters:
+//  - cmd: the Cobra command providing the execution context and I/O handles.
+//  - params: command parameters controlling plan path, adapter, output format, filters,
+//    verbosity, pagination, sorting, and whether to include dismissed recommendations.
+//
+// Returns:
+//  - error if any step fails (resource loading, plugin initialization, recommendation
+//    fetching, filtering/sorting/pagination, or rendering).
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)

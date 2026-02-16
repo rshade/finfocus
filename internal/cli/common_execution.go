@@ -369,7 +369,23 @@ func resolveResourcesFromPulumi(
 // newEngineWithCache creates an Engine, wires the router and an optional cache.Cache.
 // An optional cfg may be passed to reuse an already-loaded configuration; if nil,
 // config.New() is called internally.
-// The returned cleanup function must be called to release the cache database handle.
+// newEngineWithCache creates an Engine configured with the supplied plugin clients and spec loader,
+// wiring an optional router and cache based on the provided configuration.
+// 
+// If a non-nil config is supplied via `cfgs`, it will be used; otherwise a default config is created.
+// The returned cleanup function must be invoked by the caller to release any underlying cache resources
+// (it is a no-op when no cache was created).
+//
+// Parameters:
+//  - ctx: request context used for logging and configuration resolution.
+//  - cmd: Cobra command used to read CLI flags that influence cache initialization.
+//  - clients: plugin host clients used by the Engine.
+//  - loader: specification loader used by the Engine.
+//  - cfgs: optional variadic configuration; the first non-nil entry is used.
+//
+// Returns:
+//  - *engine.Engine: the constructed engine instance.
+//  - func(): a cleanup function that closes the cache store when one was created; calling it is safe and recommended.
 func newEngineWithCache(
 	ctx context.Context,
 	cmd *cobra.Command,
@@ -411,7 +427,22 @@ func InitCache(ctx context.Context, cmd *cobra.Command) cache.Cache {
 }
 
 // initCacheFromConfig is the internal implementation of InitCache that accepts
-// a pre-loaded config to avoid redundant config.New() calls.
+// initCacheFromConfig initializes a cache store using values from the provided
+// configuration, environment, and CLI flags.
+//
+// The cache TTL is resolved with the following precedence: CLI flag "--cache-ttl"
+// (if explicitly set) > environment variable FINFOCUS_CACHE_TTL (or legacy name)
+// > cfg.Cost.Cache.TTLSeconds > default (0). A TTL less than or equal to zero
+// disables caching and causes the function to return nil.
+//
+// The cache directory is resolved via resolveCacheDir with precedence of explicit
+// env var, configured project directory, then a home-directory fallback. The
+// configured max size (cfg.Cost.Cache.MaxSizeMB) is used directly (0 means
+// unlimited).
+//
+// On success, a BoltDB-backed cache store is returned. If initialization fails
+// (including when the cache database is locked), the function logs a warning and
+// returns nil to proceed without caching.
 func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Config) cache.Cache {
 	log := logging.FromContext(ctx)
 
@@ -506,7 +537,7 @@ func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Co
 // env var (cache.EnvCacheDir) → config setting (cfg.Cost.Cache.Directory) →
 // resolved project .finfocus directory from config.GetResolvedProjectDir()
 // (which already returns the full project .finfocus path, so no additional
-// path join is needed) → user home ~/.finfocus fallback.
+// the relative path ".finfocus" is returned.
 func resolveCacheDir(ctx context.Context, cfg *config.Config) string {
 	log := logging.FromContext(ctx)
 	if dir := os.Getenv(cache.EnvCacheDir); dir != "" {
