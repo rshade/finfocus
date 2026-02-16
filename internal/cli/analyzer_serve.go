@@ -41,7 +41,7 @@ func getAnalyzerLogLevel() zerolog.Level {
 // It binds to a random TCP port and prints ONLY the port number to stdout
 // (this is the handshake protocol with Pulumi engine).
 //
-// to stderr.
+// exclusively for the port handshake.
 func NewAnalyzerServeCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "serve",
@@ -77,7 +77,12 @@ type analyzerInfra struct {
 	cleanup func()
 }
 
-// setupAnalyzerInfra creates the analyzer server with engine, plugins, and config.
+// setupAnalyzerInfra creates and returns analyzerInfra configured for the given command and logger.
+// It resolves the project directory, constructs a project-aware config, and builds a spec loader and registry.
+// The function attempts to open plugin clients; if that fails it continues in spec-only mode with nil clients.
+// It then creates an engine (with a router), determines a server version fallback ("0.0.0-dev"), and computes a
+// summary directory (falling back to the global config dir when no project dir is set). The returned analyzerInfra
+// contains the configured analyzer server and an optional cleanup callback for any opened plugin clients.
 func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra {
 	ctx := cmd.Context()
 
@@ -125,7 +130,23 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra
 
 // RunAnalyzerServe starts the Pulumi Analyzer gRPC server, writes the selected
 // listening port to stdout for the Pulumi plugin handshake, and runs until the
-// server is stopped by a termination signal or the command context is canceled.
+// RunAnalyzerServe starts a Pulumi gRPC analyzer server, prints the assigned port
+// number to stdout for the Pulumi plugin handshake, and blocks until shutdown.
+//
+// The provided Cobra command's context is used for cancellation. The function
+// installs signal handlers for SIGINT and SIGTERM and performs a graceful
+// shutdown when a termination signal is received or when the command context is
+// canceled. It also sets the analyzer mode environment variable to indicate
+// analyzer-only operation and may load project-specific configuration and
+// plugins as part of server setup.
+//
+// Parameters:
+//   - cmd: the Cobra command whose context controls lifecycle and cancellation.
+//
+// Returns:
+//   - an error if the server fails to bind to a TCP port, if the listener's
+//     address cannot be determined, or if the gRPC server fails while serving;
+//     returns nil on normal graceful shutdown.
 func RunAnalyzerServe(cmd *cobra.Command) error {
 	// CRITICAL: stdout must be reserved for the port handshake.
 	// Use the project's logging framework which writes to stderr by default.

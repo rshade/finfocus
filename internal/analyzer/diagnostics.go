@@ -121,7 +121,23 @@ func StackSummaryDiagnostic(
 //   - With cost: "Estimated Monthly Cost: $X.XX USD (source: adapter-name)"
 //   - Zero cost with notes: Returns the notes directly
 //
-// appended prefixed by " | ".
+// formatCostMessage constructs a human-readable diagnostic message for a resource's cost,
+// including an estimated monthly cost or fallback notes, appended sustainability metrics,
+// optional carbon equivalency text, formatted recommendations, and an embedded machine-parseable
+// HTML comment containing JSON cost metadata when available.
+// 
+// The message uses the following observable behaviors:
+// - If cost.Monthly > 0, the message begins with an estimated monthly cost showing the amount,
+//   currency, and adapter; otherwise it uses cost.Notes if present, or "Unable to estimate cost".
+// - Sustainability metrics, when present, are appended in a deterministic, sorted order and
+//   may be followed by carbon equivalency text if computable.
+// - Recommendations, when present, are appended prefixed with " | ".
+// - If cost.Monthly is non-zero, a trailing HTML comment embedding JSON metadata is appended.
+//
+// cost contains the values used to build the message (Monthly, Currency, Adapter, Notes,
+// Sustainability, Recommendations).
+//
+// The returned string is the complete formatted message suitable for inclusion in an AnalyzeDiagnostic.
 func formatCostMessage(cost engine.CostResult) string {
 	var message string
 	switch {
@@ -425,7 +441,10 @@ func filterValidRecommendations(recs []engine.Recommendation) []engine.Recommend
 //   - Invalid resource data
 //
 // Per FR-005, all diagnostics use ADVISORY enforcement to never block
-// deployments in MVP mode.
+// WarningDiagnostic creates an advisory analyze diagnostic for non-fatal cost estimation warnings.
+// It associates the diagnostic with the provided resource URN and policy pack version, uses the given message
+// as the diagnostic text, and sets severity to MEDIUM. The returned value is a pointer to the constructed
+// pulumirpc.AnalyzeDiagnostic.
 func WarningDiagnostic(message, urn, version string) *pulumirpc.AnalyzeDiagnostic {
 	return &pulumirpc.AnalyzeDiagnostic{
 		PolicyName:        policyNameCost,
@@ -448,7 +467,20 @@ func WarningDiagnostic(message, urn, version string) *pulumirpc.AnalyzeDiagnosti
 // analyzer never blocks deployments. The config.Analyzer.Enforcement field is reserved
 // for external tooling (CLI exit codes, CI/CD gates) and is not applied here.
 //
-// The diagnostic has no URN since it applies to the entire stack.
+// ThresholdDiagnostic creates a stack-level diagnostic that reports whether the
+// provided total cost exceeds the given threshold.
+// 
+// ThresholdDiagnostic returns an advisory diagnostic with MEDIUM severity when
+// totalCost is less than or equal to threshold, and HIGH severity when
+// totalCost is greater than threshold. The diagnostic message includes the
+// formatted cost, threshold, and currency. The diagnostic has no URN because it
+// applies to the entire stack.
+// 
+// Parameters:
+//   - totalCost: the aggregated monthly cost to evaluate.
+//   - threshold: the monthly cost threshold to compare against.
+//   - currency: the ISO currency code used for formatting the message.
+//   - version: the policy pack version to include in the diagnostic metadata.
 func ThresholdDiagnostic(
 	totalCost, threshold float64,
 	currency, version string,
@@ -498,7 +530,8 @@ type CostMetadata struct {
 
 // FormatCostMetadata returns an HTML comment containing JSON-encoded cost metadata.
 // The format is: <!-- finfocus:cost:{"monthly":X,"currency":"Y","adapter":"Z"} -->
-// Returns an empty string if the metadata has zero monthly cost (internal/zero-cost resources).
+// FormatCostMetadata returns an HTML comment containing the JSON-encoded cost metadata for m.
+// If m.Monthly is zero or the metadata cannot be marshaled to JSON, an empty string is returned.
 func FormatCostMetadata(m CostMetadata) string {
 	if m.Monthly == 0 {
 		return ""
