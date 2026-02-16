@@ -49,19 +49,37 @@ finfocus --version
 finfocus --help
 ```
 
-### Option 2: Download Prebuilt Binary (Coming Soon)
+### Option 2: Install Script (Recommended)
 
-Prebuilt binaries for Linux, macOS, and Windows will be available in GitHub releases.
+The install script automatically detects your platform, downloads the correct
+binary, verifies its checksum, and installs it.
 
 ```bash
-# Download
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-darwin-arm64 -o finfocus
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
+```
 
-# Make executable
-chmod +x finfocus
+Or with `wget`:
 
-# Move to PATH
-sudo mv finfocus /usr/local/bin/
+```bash
+wget -qO- https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
+```
+
+#### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `FINFOCUS_VERSION` | Install a specific version | Latest release |
+| `FINFOCUS_INSTALL_DIR` | Custom install directory | `/usr/local/bin` or `~/.local/bin` |
+| `FINFOCUS_NO_VERIFY` | Skip checksum verification | Unset (verify enabled) |
+
+#### Examples
+
+```bash
+# Install a specific version
+FINFOCUS_VERSION=v0.2.0 curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
+
+# Install to a custom directory
+FINFOCUS_INSTALL_DIR=$HOME/bin curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 ```
 
 ### Option 3: Docker
