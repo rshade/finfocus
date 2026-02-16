@@ -153,11 +153,11 @@ Valid action types for filtering:
 	return cmd
 }
 
-// executeCostRecommendations orchestrates the cost recommendations workflow for the CLI.
-// It loads and maps resources from a Pulumi preview JSON, opens adapter plugins, optionally
-// initializes a cache, queries the recommendation engine (with a progress indicator for long
-// runs), merges dismissed/snoozed records when requested, applies action-type filters,
-// sorting, and pagination, then renders the results and records audit metadata.
+// executeCostRecommendations orchestrates the cost recommendations workflow: it loads
+// resources from a Pulumi plan, opens adapter plugins, initializes a cache, queries the
+// recommendation engine, optionally merges dismissed/snoozed records, applies action-type
+// filters, sorting, and pagination, renders the results, and records audit metadata.
+// It returns an error if any step fails.
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -189,7 +189,8 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	defer cleanup()
 
 	// Create engine with optional cache and router
-	eng := newEngineWithCache(ctx, cmd, clients, nil)
+	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
+	defer cacheCleanup()
 
 	// Fetch recommendations with progress indicator
 	result, err := fetchRecommendationsWithProgress(ctx, cmd, eng, resources)

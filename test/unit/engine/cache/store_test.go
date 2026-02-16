@@ -1,6 +1,7 @@
 package cache_test
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -13,8 +14,8 @@ import (
 	"github.com/rshade/finfocus/internal/engine/cache"
 )
 
-// TestNewFileStore verifies file store creation and directory setup.
-func TestNewFileStore(t *testing.T) {
+// TestNewBoltStore verifies BoltDB store creation and directory setup.
+func TestNewBoltStore(t *testing.T) {
 	tempDir := t.TempDir()
 
 	tests := []struct {
@@ -24,6 +25,7 @@ func TestNewFileStore(t *testing.T) {
 		ttlSeconds int
 		maxSizeMB  int
 		wantErr    bool
+		wantNil    bool
 	}{
 		{
 			name:       "valid enabled store",
@@ -31,7 +33,6 @@ func TestNewFileStore(t *testing.T) {
 			enabled:    true,
 			ttlSeconds: 3600,
 			maxSizeMB:  100,
-			wantErr:    false,
 		},
 		{
 			name:       "disabled store",
@@ -39,7 +40,6 @@ func TestNewFileStore(t *testing.T) {
 			enabled:    false,
 			ttlSeconds: 0,
 			maxSizeMB:  0,
-			wantErr:    false,
 		},
 		{
 			name:       "empty directory with enabled",
@@ -53,7 +53,9 @@ func TestNewFileStore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store, err := cache.NewFileStore(tt.directory, tt.enabled, tt.ttlSeconds, tt.maxSizeMB)
+			store, err := cache.NewBoltStore(
+				context.Background(), tt.directory, tt.enabled, tt.ttlSeconds, tt.maxSizeMB,
+			)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Nil(t, store)
@@ -72,18 +74,19 @@ func TestNewFileStore(t *testing.T) {
 				} else {
 					assert.False(t, store.IsEnabled())
 				}
+				require.NoError(t, store.Close())
 			}
 		})
 	}
 }
 
-// TestFileStore_SetAndGet verifies basic cache set/get operations.
-func TestFileStore_SetAndGet(t *testing.T) {
+// TestBoltStore_SetAndGet verifies basic cache set/get operations.
+func TestBoltStore_SetAndGet(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
+	defer store.Close()
 
 	testData := map[string]string{
 		"user": "alice",
@@ -92,12 +95,14 @@ func TestFileStore_SetAndGet(t *testing.T) {
 	data, err := json.Marshal(testData)
 	require.NoError(t, err)
 
+	key := "projected/aws/ec2:Instance/us-east-1/t3.micro"
+
 	// Set cache entry
-	err = store.Set("test-key", json.RawMessage(data))
+	err = store.Set(key, json.RawMessage(data))
 	require.NoError(t, err)
 
 	// Get cache entry
-	entry, err := store.Get("test-key")
+	entry, err := store.Get(key)
 	require.NoError(t, err)
 	require.NotNil(t, entry)
 
@@ -108,113 +113,109 @@ func TestFileStore_SetAndGet(t *testing.T) {
 	assert.Equal(t, testData, retrieved)
 
 	// Verify entry metadata
-	assert.Equal(t, "test-key", entry.Key)
+	assert.Equal(t, key, entry.Key)
 	assert.Equal(t, 3600, entry.TTLSeconds)
 	assert.False(t, entry.IsExpired())
 }
 
-// TestFileStore_GetNonExistent verifies handling of missing cache entries.
-func TestFileStore_GetNonExistent(t *testing.T) {
+// TestBoltStore_GetNonExistent verifies handling of missing cache entries.
+func TestBoltStore_GetNonExistent(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
+	defer store.Close()
 
-	entry, err := store.Get("nonexistent-key")
+	entry, err := store.Get("projected/nonexistent-key")
 	require.Error(t, err)
 	assert.ErrorIs(t, err, cache.ErrCacheNotFound)
 	assert.Nil(t, entry)
 }
 
-// TestFileStore_TTLExpiration verifies TTL expiration handling.
-func TestFileStore_TTLExpiration(t *testing.T) {
+// TestBoltStore_TTLExpiration verifies TTL expiration handling.
+func TestBoltStore_TTLExpiration(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
 	// Create store with 1-second TTL
-	store, err := cache.NewFileStore(cacheDir, true, 1, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 1, 100)
 	require.NoError(t, err)
+	defer store.Close()
 
 	testData := []byte(`{"test": "data"}`)
+	key := "projected/aws/expiring"
 
 	// Set cache entry with 1-second TTL
-	err = store.Set("expiring-key", json.RawMessage(testData))
+	err = store.Set(key, json.RawMessage(testData))
 	require.NoError(t, err)
 
 	// Immediately retrieve (should succeed)
-	entry, err := store.Get("expiring-key")
+	entry, err := store.Get(key)
 	require.NoError(t, err)
 	require.NotNil(t, entry)
 	assert.False(t, entry.IsExpired())
 
 	// Wait for TTL to expire (1 second + buffer)
-	time.Sleep(1200 * time.Millisecond)
+	time.Sleep(1500 * time.Millisecond)
 
 	// Try to retrieve expired entry
-	entry, err = store.Get("expiring-key")
+	entry, err = store.Get(key)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, cache.ErrCacheExpired)
 	assert.Nil(t, entry)
-
-	// Verify cache file was deleted (async cleanup)
-	time.Sleep(100 * time.Millisecond) // Give async cleanup time to complete
-	_, err = os.Stat(filepath.Join(cacheDir, "expiring-key.json"))
-	assert.True(t, os.IsNotExist(err), "Expired cache file should be deleted")
 }
 
-// TestFileStore_Delete verifies cache entry deletion.
-func TestFileStore_Delete(t *testing.T) {
+// TestBoltStore_Delete verifies cache entry deletion.
+func TestBoltStore_Delete(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
+	defer store.Close()
 
 	testData := []byte(`{"test": "data"}`)
+	key := "projected/aws/delete-test"
 
 	// Set cache entry
-	err = store.Set("delete-key", json.RawMessage(testData))
+	err = store.Set(key, json.RawMessage(testData))
 	require.NoError(t, err)
 
 	// Verify entry exists
-	_, err = store.Get("delete-key")
+	_, err = store.Get(key)
 	require.NoError(t, err)
 
 	// Delete entry
-	err = store.Delete("delete-key")
+	err = store.Delete(key)
 	require.NoError(t, err)
 
 	// Verify entry no longer exists
-	_, err = store.Get("delete-key")
+	_, err = store.Get(key)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, cache.ErrCacheNotFound)
 
 	// Delete again (should be idempotent)
-	err = store.Delete("delete-key")
+	err = store.Delete(key)
 	require.NoError(t, err)
 }
 
-// TestFileStore_Clear verifies clearing all cache entries.
-func TestFileStore_Clear(t *testing.T) {
+// TestBoltStore_Clear verifies clearing all cache entries.
+func TestBoltStore_Clear(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
+	defer store.Close()
 
-	// Set multiple cache entries
-	for i := range 5 {
-		key := filepath.ToSlash(filepath.Join("key", string(rune('0'+i))))
-		data := []byte(`{"index": ` + string(rune('0'+i)) + `}`)
-		err = store.Set(key, json.RawMessage(data))
-		require.NoError(t, err)
-	}
+	data := json.RawMessage(`{"test":true}`)
+
+	// Set entries across buckets
+	require.NoError(t, store.Set("projected/aws/test1", data))
+	require.NoError(t, store.Set("actual/aws/test2/2025-01-01/2025-02-01/abc", data))
+	require.NoError(t, store.Set("recommendations/multi/test3", data))
 
 	// Verify entries exist
 	count, err := store.Count()
 	require.NoError(t, err)
-	assert.Equal(t, 5, count)
+	assert.Equal(t, 3, count)
 
 	// Clear all entries
 	err = store.Clear()
@@ -226,71 +227,37 @@ func TestFileStore_Clear(t *testing.T) {
 	assert.Equal(t, 0, count)
 }
 
-// TestFileStore_CleanupExpired verifies cleanup of expired entries.
-func TestFileStore_CleanupExpired(t *testing.T) {
+// TestBoltStore_Size verifies cache size calculation.
+func TestBoltStore_Size(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 1, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
+	defer store.Close()
 
-	// Set entries that will expire
-	for i := range 3 {
-		key := filepath.ToSlash(filepath.Join("expiring", string(rune('0'+i))))
-		data := []byte(`{"index": ` + string(rune('0'+i)) + `}`)
-		err = store.Set(key, json.RawMessage(data))
-		require.NoError(t, err)
-	}
-
-	// Verify all entries exist
-	count, err := store.Count()
-	require.NoError(t, err)
-	assert.Equal(t, 3, count)
-
-	// Wait for TTL to expire
-	time.Sleep(1200 * time.Millisecond)
-
-	// Run cleanup
-	err = store.CleanupExpired()
-	require.NoError(t, err)
-
-	// Verify all expired entries were removed
-	count, err = store.Count()
-	require.NoError(t, err)
-	assert.Equal(t, 0, count)
-}
-
-// TestFileStore_Size verifies cache size calculation.
-func TestFileStore_Size(t *testing.T) {
-	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
-
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
-	require.NoError(t, err)
-
-	// Initially empty
+	// BoltDB file exists even when empty
 	size, err := store.Size()
 	require.NoError(t, err)
-	assert.Equal(t, int64(0), size)
+	assert.Greater(t, size, int64(0))
 
-	// Set cache entry
+	// Add entry
 	testData := []byte(`{"key": "value", "number": 42}`)
-	err = store.Set("size-key", json.RawMessage(testData))
+	err = store.Set("projected/aws/size-test", json.RawMessage(testData))
 	require.NoError(t, err)
 
-	// Verify size increased
+	// Verify size
 	size, err = store.Size()
 	require.NoError(t, err)
 	assert.Greater(t, size, int64(0))
 }
 
-// TestFileStore_Count verifies cache entry counting.
-func TestFileStore_Count(t *testing.T) {
+// TestBoltStore_Count verifies cache entry counting.
+func TestBoltStore_Count(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
+	defer store.Close()
 
 	// Initially empty
 	count, err := store.Count()
@@ -298,10 +265,11 @@ func TestFileStore_Count(t *testing.T) {
 	assert.Equal(t, 0, count)
 
 	// Add entries
+	data := json.RawMessage(`{"test":true}`)
 	for i := range 10 {
-		key := filepath.ToSlash(filepath.Join("count", string(rune('0'+i))))
-		data := []byte(`{"index": ` + string(rune('0'+i)) + `}`)
-		err = store.Set(key, json.RawMessage(data))
+		key := cache.BuildProjectedKey("aws", "ec2:Instance", "us-east-1",
+			"type-"+string(rune('0'+i)))
+		err = store.Set(key, data)
 		require.NoError(t, err)
 	}
 
@@ -311,44 +279,50 @@ func TestFileStore_Count(t *testing.T) {
 	assert.Equal(t, 10, count)
 }
 
-// TestFileStore_DisabledOperations verifies disabled cache behavior.
-func TestFileStore_DisabledOperations(t *testing.T) {
-	store, err := cache.NewFileStore("", false, 0, 0)
+// TestBoltStore_DisabledOperations verifies disabled cache behavior.
+func TestBoltStore_DisabledOperations(t *testing.T) {
+	store, err := cache.NewBoltStore(context.Background(), "", false, 0, 0)
 	require.NoError(t, err)
 	assert.False(t, store.IsEnabled())
 
 	testData := []byte(`{"test": "data"}`)
 
-	// All operations should return ErrCacheDisabled
-	_, err = store.Get("key")
+	// Get returns ErrCacheDisabled
+	_, err = store.Get("projected/key")
 	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
 
-	err = store.Set("key", json.RawMessage(testData))
+	// Set is no-op when disabled (returns nil, not error)
+	err = store.Set("projected/key", json.RawMessage(testData))
+	assert.NoError(t, err)
+
+	// Delete returns ErrCacheDisabled
+	err = store.Delete("projected/key")
 	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
 
-	err = store.Delete("key")
-	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
-
+	// Clear returns ErrCacheDisabled
 	err = store.Clear()
 	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
 
-	err = store.CleanupExpired()
+	// InvalidateByPrefix returns ErrCacheDisabled
+	_, err = store.InvalidateByPrefix("projected/")
 	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
 
+	// Size returns ErrCacheDisabled
 	_, err = store.Size()
 	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
 
+	// Count returns ErrCacheDisabled
 	_, err = store.Count()
 	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
 }
 
-// TestFileStore_EmptyKeyValidation verifies empty key handling.
-func TestFileStore_EmptyKeyValidation(t *testing.T) {
+// TestBoltStore_EmptyKeyValidation verifies empty key handling.
+func TestBoltStore_EmptyKeyValidation(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
+	defer store.Close()
 
 	testData := []byte(`{"test": "data"}`)
 
@@ -363,26 +337,28 @@ func TestFileStore_EmptyKeyValidation(t *testing.T) {
 	assert.ErrorIs(t, err, cache.ErrInvalidCacheKey)
 }
 
-// TestFileStore_AtomicWrite verifies atomic write operations.
-func TestFileStore_AtomicWrite(t *testing.T) {
+// TestBoltStore_AtomicOverwrite verifies overwrite behavior.
+func TestBoltStore_AtomicOverwrite(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
+	defer store.Close()
+
+	key := "projected/aws/atomic-test"
 
 	// Set initial value
 	data1 := []byte(`{"version": 1}`)
-	err = store.Set("atomic-key", json.RawMessage(data1))
+	err = store.Set(key, json.RawMessage(data1))
 	require.NoError(t, err)
 
 	// Overwrite with new value
 	data2 := []byte(`{"version": 2}`)
-	err = store.Set("atomic-key", json.RawMessage(data2))
+	err = store.Set(key, json.RawMessage(data2))
 	require.NoError(t, err)
 
 	// Verify latest value
-	entry, err := store.Get("atomic-key")
+	entry, err := store.Get(key)
 	require.NoError(t, err)
 	require.NotNil(t, entry)
 
@@ -390,64 +366,20 @@ func TestFileStore_AtomicWrite(t *testing.T) {
 	err = json.Unmarshal(entry.Data, &result)
 	require.NoError(t, err)
 	assert.Equal(t, 2, result["version"])
-
-	// Verify no .tmp files left behind
-	entries, err := os.ReadDir(cacheDir)
-	require.NoError(t, err)
-	for _, e := range entries {
-		assert.NotContains(t, e.Name(), ".tmp", "No temporary files should remain")
-	}
 }
 
-// TestFileStore_KeySanitization verifies special character handling in keys.
-func TestFileStore_KeySanitization(t *testing.T) {
+// TestBoltStore_MultipleEntries verifies handling of multiple entries.
+func TestBoltStore_MultipleEntries(t *testing.T) {
 	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
+	defer store.Close()
 
-	testCases := []string{
-		"key/with/slashes",
-		"key\\with\\backslashes",
-		"key:with:colons",
-		"key/mixed\\chars:here",
-	}
-
-	testData := []byte(`{"test": "data"}`)
-
-	for _, key := range testCases {
-		t.Run(key, func(t *testing.T) {
-			// Set with special characters
-			err := store.Set(key, json.RawMessage(testData))
-			require.NoError(t, err)
-
-			// Get with same key
-			entry, err := store.Get(key)
-			require.NoError(t, err)
-			require.NotNil(t, entry)
-			assert.Equal(t, key, entry.Key)
-
-			// Delete with same key
-			err = store.Delete(key)
-			require.NoError(t, err)
-		})
-	}
-}
-
-// TestFileStore_MultipleEntries verifies concurrent entry handling.
-func TestFileStore_MultipleEntries(t *testing.T) {
-	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
-
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
-	require.NoError(t, err)
-
-	// Set multiple entries with different data
 	entries := map[string][]byte{
-		"user1": []byte(`{"name": "Alice", "age": 30}`),
-		"user2": []byte(`{"name": "Bob", "age": 25}`),
-		"user3": []byte(`{"name": "Charlie", "age": 35}`),
+		"projected/aws/user1":                        []byte(`{"name": "Alice", "age": 30}`),
+		"projected/aws/user2":                        []byte(`{"name": "Bob", "age": 25}`),
+		"actual/aws/user3/2025-01-01/2025-02-01/abc": []byte(`{"name": "Charlie", "age": 35}`),
 	}
 
 	for key, data := range entries {
@@ -455,7 +387,6 @@ func TestFileStore_MultipleEntries(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	// Verify all entries can be retrieved independently
 	for key, expectedData := range entries {
 		entry, err := store.Get(key)
 		require.NoError(t, err)
@@ -464,80 +395,21 @@ func TestFileStore_MultipleEntries(t *testing.T) {
 	}
 }
 
-// TestFileStore_MixedExpiredAndValid verifies handling of mixed cache states.
-func TestFileStore_MixedExpiredAndValid(t *testing.T) {
-	tempDir := t.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
-
-	store, err := cache.NewFileStore(cacheDir, true, 1, 100)
-	require.NoError(t, err)
-
-	// Set entry that will expire soon
-	expiringData := []byte(`{"type": "expiring"}`)
-	err = store.Set("expiring-key", json.RawMessage(expiringData))
-	require.NoError(t, err)
-
-	// Wait for first entry to expire
-	time.Sleep(1200 * time.Millisecond)
-
-	// Set entry with fresh TTL
-	validData := []byte(`{"type": "valid"}`)
-	err = store.Set("valid-key", json.RawMessage(validData))
-	require.NoError(t, err)
-
-	// Run cleanup
-	err = store.CleanupExpired()
-	require.NoError(t, err)
-
-	// Verify expired entry is gone
-	_, err = store.Get("expiring-key")
-	require.Error(t, err)
-	assert.ErrorIs(t, err, cache.ErrCacheNotFound)
-
-	// Verify valid entry remains
-	entry, err := store.Get("valid-key")
-	require.NoError(t, err)
-	require.NotNil(t, entry)
-	assert.JSONEq(t, string(validData), string(entry.Data))
-}
-
-// BenchmarkFileStore_SetAndGet benchmarks cache set and get operations.
-func BenchmarkFileStore_SetAndGet(b *testing.B) {
+// BenchmarkBoltStore_SetAndGet benchmarks cache set and get operations.
+func BenchmarkBoltStore_SetAndGet(b *testing.B) {
 	tempDir := b.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
 
-	store, err := cache.NewFileStore(cacheDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(b, err)
+	defer store.Close()
 
 	testData := []byte(`{"benchmark": "data", "value": 42}`)
+	key := "projected/aws/bench-test"
 
+	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		_ = store.Set("bench-key", json.RawMessage(testData))
-		_, _ = store.Get("bench-key")
-	}
-}
-
-// BenchmarkFileStore_CleanupExpired benchmarks cleanup operations.
-func BenchmarkFileStore_CleanupExpired(b *testing.B) {
-	tempDir := b.TempDir()
-	cacheDir := filepath.Join(tempDir, "cache")
-
-	store, err := cache.NewFileStore(cacheDir, true, 1, 100)
-	require.NoError(b, err)
-
-	// Create 100 entries
-	for i := range 100 {
-		key := filepath.ToSlash(filepath.Join("bench", string(rune('0'+i/10)), string(rune('0'+i%10))))
-		data := []byte(`{"index": ` + string(rune('0'+i%10)) + `}`)
-		_ = store.Set(key, json.RawMessage(data))
-	}
-
-	// Wait for entries to expire
-	time.Sleep(1200 * time.Millisecond)
-
-	b.ResetTimer()
-	for range b.N {
-		_ = store.CleanupExpired()
+		_ = store.Set(key, json.RawMessage(testData))
+		_, _ = store.Get(key)
 	}
 }

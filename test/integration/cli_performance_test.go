@@ -39,8 +39,9 @@ func TestCLIPerformance_1000Items(t *testing.T) {
 
 	// Setup: Create temporary cache directory
 	tmpDir := t.TempDir()
-	cacheStore, err := cache.NewFileStore(tmpDir, true, 3600, 100)
+	cacheStore, err := cache.NewBoltStore(context.Background(), tmpDir, true, 3600, 100)
 	require.NoError(t, err, "failed to create cache store")
+	defer cacheStore.Close()
 
 	// Measure baseline memory usage before processing
 	runtime.GC() // Force garbage collection for accurate baseline
@@ -160,32 +161,12 @@ func TestCLIPerformance_BatchProcessing(t *testing.T) {
 func TestCLIPerformance_CacheEfficiency(t *testing.T) {
 	// Setup cache
 	tmpDir := t.TempDir()
-	cacheStore, err := cache.NewFileStore(tmpDir, true, 3600, 100)
+	cacheStore, err := cache.NewBoltStore(context.Background(), tmpDir, true, 3600, 100)
 	require.NoError(t, err, "failed to create cache store")
+	defer cacheStore.Close()
 
-	// Generate large cache key params
-	keyParams := cache.KeyParams{
-		Operation:     "recommendations",
-		Provider:      "multi",
-		ResourceTypes: []string{"Instance", "Database", "Bucket", "LoadBalancer", "Cache"},
-		Filters: map[string]string{
-			"region": "us-east-1",
-			"env":    "prod",
-		},
-		Pagination: &cache.PaginationKeyParams{
-			Limit:     1000,
-			Offset:    0,
-			SortField: "savings",
-			SortOrder: "desc",
-		},
-	}
-
-	// Generate cache key
-	startKeyGen := time.Now()
-	cacheKey, err := cache.GenerateKey(keyParams)
-	keyGenTime := time.Since(startKeyGen)
-	require.NoError(t, err, "key generation failed")
-	require.Len(t, cacheKey, 64, "cache key should be 64-character SHA256 hash")
+	// Use structured key builder
+	cacheKey := cache.BuildRecommendationsKey([]string{"Instance", "Database", "Bucket", "LoadBalancer", "Cache"})
 
 	// Create test data (1000 recommendations as JSON)
 	testData := make([]map[string]interface{}, 1000)
@@ -220,13 +201,11 @@ func TestCLIPerformance_CacheEfficiency(t *testing.T) {
 
 	// Log performance metrics
 	t.Logf("Cache performance metrics:")
-	t.Logf("  - Key generation: %v", keyGenTime)
 	t.Logf("  - Cache write: %v", writeTime)
 	t.Logf("  - Cache read: %v", readTime)
-	t.Logf("  - Cache key: %s (length: %d)", cacheKey, len(cacheKey))
+	t.Logf("  - Cache key: %s", cacheKey)
 
 	// CACHE PERFORMANCE REQUIREMENTS
-	assert.Less(t, keyGenTime, 10*time.Millisecond, "key generation should be <10ms")
 	assert.Less(t, writeTime, 100*time.Millisecond, "cache write should be <100ms for 1000 items")
 	assert.Less(t, readTime, 50*time.Millisecond, "cache read should be <50ms for 1000 items")
 }

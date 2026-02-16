@@ -147,53 +147,8 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
   # Use custom spec directory
   finfocus cost projected --pulumi-json plan.json --spec-dir ./custom-specs`
 
-// executeCostProjected runs the projected cost calculation for the "projected" command.
-// It validates the utilization value, obtains resource descriptors either from an explicit
-// Pulumi JSON plan or by running a Pulumi preview for the current/selected stack, applies
-// resource filters, loads pricing specs and adapter plugins, computes projected costs
-// (including any per-resource errors), renders the chosen output format, and evaluates
-// budget status when results use a single currency.
-//
-// Parameters:
-//   - cmd: the Cobra command whose context and output stream are used.
-//   - params: configuration for the operation (plan path, spec directory, adapter, output format,
-//     filter expressions, and utilization).
-//
-// Returns an error when validation fails, resources cannot be loaded or filtered, plugins cannot
-// be opened, cost computation fails, rendering fails, or when a budget-related exit condition is
-// executeCostProjected runs the projected cost calculation for the given command and parameters.
-// It loads resources (from a provided Pulumi JSON plan or by auto-detecting a Pulumi project),
-// applies resource filters, computes projected monthly costs with the pricing engine, merges
-// recommendations into resources, renders the cost output, and optionally evaluates and renders
-// budget status.
-//
-// cmd is the Cobra command whose context and flags are used (notably the `--stack` flag when
-// auto-detecting resources). params contains execution options: `planPath`, `specDir`, `adapter`,
-// `output`, `filter`, and `utilization`.
-//
-// It returns an error when validation fails (for example, utilization not between 0.0 and 1.0),
-// when reading flags fails, when resource loading or filtering fails, when plugin initialization or
-// cost computation fails, when rendering fails, or when budget evaluation requests a non-zero exit.
-// executeCostProjected executes the "projected" subcommand: it loads Pulumi resources (from a provided plan or by auto-detection), applies filters, loads pricing specs and adapter plugins, calculates projected costs with recommendations, renders the requested output, and evaluates budget status.
-//
-// Parameters:
-//   - cmd: the Cobra command providing context and flags (used to read --stack and for command output).
-//   - params: command parameters including planPath, specDir, adapter, output format, filters, and utilization.
-//
-// executeCostProjected runs the "projected" cost command: it loads resources (from a Pulumi JSON plan or auto-detected stack), applies filters, loads specs and plugins, computes projected costs (including per-resource errors), renders the output, and evaluates budget status.
-//
-// The cmd parameter provides the Cobra command and its context/flags. The params argument contains CLI-configured options such as the Pulumi JSON path, spec directory, adapter restriction, output format, resource filters, utilization rate, and number of worker jobs.
-//
-// On success, it returns nil. On failure it returns an error describing the specific failure, which may occur when:
-// - params.jobs is negative,
-// - params.utilization is outside the range 0.0 to 1.0,
-// - reading the --stack flag fails during auto-detection,
-// - loading or resolving resources fails,
-// - applying resource filters fails,
-// - opening adapter plugins fails,
-// - the cost calculation fails,
-// - rendering the output fails, or
-// - the budget evaluation produces a non-zero exit/error status.
+// executeCostProjected runs the projected cost calculation pipeline and renders output.
+// It returns an error if any step (validation, loading, calculation, rendering) fails.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
 	ctx := cmd.Context()
 
@@ -254,7 +209,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	defer cleanup()
 
-	eng := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg).WithJobs(params.jobs)
+	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
+	defer cacheCleanup()
+	eng = eng.WithJobs(params.jobs)
 	start := time.Now()
 	resultWithErrors, err := eng.GetProjectedCostWithErrors(ctx, resources)
 	if err != nil {
@@ -274,11 +231,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	log.Info().Ctx(ctx).Str("operation", "cost_projected").Int("result_count", len(resultWithErrors.Results)).
 		Dur("duration_ms", time.Since(audit.start)).Msg("projected cost calculation complete")
 
-	totalCost := 0.0
-	for _, r := range resultWithErrors.Results {
-		totalCost += r.Monthly
-	}
-
+	totalCost := sumMonthlyCosts(resultWithErrors.Results)
 	if budgetErr := evaluateBudgetStatus(cmd, resultWithErrors.Results, totalCost); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return budgetErr

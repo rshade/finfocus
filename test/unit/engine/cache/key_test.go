@@ -2,557 +2,192 @@ package cache_test
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine/cache"
 )
 
-// TestGenerateKey verifies deterministic cache key generation.
-func TestGenerateKey(t *testing.T) {
+// TestBuildProjectedKey verifies structured projected cost key generation.
+func TestBuildProjectedKey(t *testing.T) {
 	tests := []struct {
-		name   string
-		params cache.KeyParams
+		name         string
+		provider     string
+		resourceType string
+		region       string
+		sku          string
+		want         string
 	}{
 		{
-			name: "simple params",
-			params: cache.KeyParams{
-				Operation: "projected_cost",
-				Provider:  "aws",
-			},
+			name:         "full key",
+			provider:     "aws",
+			resourceType: "aws:ec2:Instance",
+			region:       "us-east-1",
+			sku:          "t3.micro",
+			want:         "projected/aws/aws:ec2:Instance/us-east-1/t3.micro",
 		},
 		{
-			name: "with resource types",
-			params: cache.KeyParams{
-				Operation:     "projected_cost",
-				Provider:      "aws",
-				ResourceTypes: []string{"ec2", "rds", "s3"},
-			},
+			name:         "minimal key",
+			provider:     "aws",
+			resourceType: "aws:ec2:Instance",
+			want:         "projected/aws/aws:ec2:Instance/_/_",
 		},
 		{
-			name: "with filters",
-			params: cache.KeyParams{
-				Operation: "actual_cost",
-				Provider:  "gcp",
-				Filters: map[string]string{
-					"region": "us-east-1",
-					"env":    "prod",
-				},
-			},
+			name: "empty provider",
+			want: "projected/_/_/_/_",
 		},
 		{
-			name: "with pagination",
-			params: cache.KeyParams{
-				Operation: "recommendations",
-				Provider:  "azure",
-				Pagination: &cache.PaginationKeyParams{
-					Limit:     20,
-					Offset:    0,
-					SortField: "savings",
-					SortOrder: "desc",
-				},
-			},
-		},
-		{
-			name: "complex params",
-			params: cache.KeyParams{
-				Operation:     "recommendations",
-				Provider:      "aws",
-				ResourceTypes: []string{"ec2", "rds", "s3", "elasticache"},
-				Filters: map[string]string{
-					"region": "us-west-2",
-					"env":    "prod",
-					"team":   "platform",
-				},
-				Pagination: &cache.PaginationKeyParams{
-					Limit:     50,
-					Offset:    100,
-					SortField: "cost",
-					SortOrder: "asc",
-				},
-			},
+			name:     "provider only",
+			provider: "gcp",
+			want:     "projected/gcp/_/_/_",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			key1, err1 := cache.GenerateKey(tt.params)
-			require.NoError(t, err1)
-			require.NotEmpty(t, key1)
-
-			// Generate key again with same params
-			key2, err2 := cache.GenerateKey(tt.params)
-			require.NoError(t, err2)
-			require.NotEmpty(t, key2)
-
-			// Verify keys are identical (deterministic)
-			assert.Equal(t, key1, key2)
-
-			// Verify key is SHA256 hash (64 hex characters)
-			assert.Len(t, key1, 64)
+			key := cache.BuildProjectedKey(tt.provider, tt.resourceType, tt.region, tt.sku)
+			assert.Equal(t, tt.want, key)
 		})
 	}
 }
 
-// TestGenerateKey_Normalization verifies param normalization.
-func TestGenerateKey_Normalization(t *testing.T) {
-	// Test case sensitivity normalization
-	params1 := cache.KeyParams{
-		Operation: "PROJECTED_COST",
-		Provider:  "AWS",
-	}
-
-	params2 := cache.KeyParams{
-		Operation: "projected_cost",
-		Provider:  "aws",
-	}
-
-	key1, err := cache.GenerateKey(params1)
-	require.NoError(t, err)
-
-	key2, err := cache.GenerateKey(params2)
-	require.NoError(t, err)
-
-	// Keys should be identical after normalization
+// TestBuildProjectedKey_Deterministic verifies same inputs produce same key.
+func TestBuildProjectedKey_Deterministic(t *testing.T) {
+	key1 := cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.micro")
+	key2 := cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.micro")
 	assert.Equal(t, key1, key2)
 }
 
-// TestGenerateKey_ResourceTypeOrdering verifies resource type sorting.
-func TestGenerateKey_ResourceTypeOrdering(t *testing.T) {
-	// Different order, same resource types
-	params1 := cache.KeyParams{
-		Operation:     "projected_cost",
-		Provider:      "aws",
-		ResourceTypes: []string{"s3", "ec2", "rds"},
-	}
-
-	params2 := cache.KeyParams{
-		Operation:     "projected_cost",
-		Provider:      "aws",
-		ResourceTypes: []string{"ec2", "rds", "s3"},
-	}
-
-	key1, err := cache.GenerateKey(params1)
-	require.NoError(t, err)
-
-	key2, err := cache.GenerateKey(params2)
-	require.NoError(t, err)
-
-	// Keys should be identical after sorting
-	assert.Equal(t, key1, key2)
-}
-
-// TestGenerateKey_FilterOrdering verifies filter key sorting.
-func TestGenerateKey_FilterOrdering(t *testing.T) {
-	// Same filters, different insertion order
-	params1 := cache.KeyParams{
-		Operation: "actual_cost",
-		Provider:  "aws",
-		Filters: map[string]string{
-			"region": "us-east-1",
-			"env":    "prod",
-			"team":   "platform",
-		},
-	}
-
-	params2 := cache.KeyParams{
-		Operation: "actual_cost",
-		Provider:  "aws",
-		Filters: map[string]string{
-			"team":   "platform",
-			"env":    "prod",
-			"region": "us-east-1",
-		},
-	}
-
-	key1, err := cache.GenerateKey(params1)
-	require.NoError(t, err)
-
-	key2, err := cache.GenerateKey(params2)
-	require.NoError(t, err)
-
-	// Keys should be identical (filter order doesn't matter)
-	assert.Equal(t, key1, key2)
-}
-
-// TestGenerateKey_DifferentParams verifies different params produce different keys.
-func TestGenerateKey_DifferentParams(t *testing.T) {
-	baseParams := cache.KeyParams{
-		Operation: "projected_cost",
-		Provider:  "aws",
-	}
-
-	tests := []struct {
-		name   string
-		modify func(cache.KeyParams) cache.KeyParams
-	}{
-		{
-			name: "different operation",
-			modify: func(p cache.KeyParams) cache.KeyParams {
-				p.Operation = "actual_cost"
-				return p
-			},
-		},
-		{
-			name: "different provider",
-			modify: func(p cache.KeyParams) cache.KeyParams {
-				p.Provider = "gcp"
-				return p
-			},
-		},
-		{
-			name: "added resource types",
-			modify: func(p cache.KeyParams) cache.KeyParams {
-				p.ResourceTypes = []string{"ec2"}
-				return p
-			},
-		},
-		{
-			name: "added filters",
-			modify: func(p cache.KeyParams) cache.KeyParams {
-				p.Filters = map[string]string{"region": "us-east-1"}
-				return p
-			},
-		},
-		{
-			name: "added pagination",
-			modify: func(p cache.KeyParams) cache.KeyParams {
-				p.Pagination = &cache.PaginationKeyParams{Limit: 20}
-				return p
-			},
-		},
-	}
-
-	baseKey, err := cache.GenerateKey(baseParams)
-	require.NoError(t, err)
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			modifiedParams := tt.modify(baseParams)
-			modifiedKey, err := cache.GenerateKey(modifiedParams)
-			require.NoError(t, err)
-
-			// Modified params should produce different key
-			assert.NotEqual(t, baseKey, modifiedKey)
-		})
-	}
-}
-
-// TestGenerateSimpleKey verifies simple key generation.
-func TestGenerateSimpleKey(t *testing.T) {
-	tests := []struct {
-		name             string
-		operation        string
-		provider         string
-		additionalParams []string
-	}{
-		{
-			name:      "basic params",
-			operation: "projected_cost",
-			provider:  "aws",
-		},
-		{
-			name:             "with additional params",
-			operation:        "actual_cost",
-			provider:         "gcp",
-			additionalParams: []string{"us-east-1", "prod"},
-		},
-		{
-			name:             "many additional params",
-			operation:        "recommendations",
-			provider:         "azure",
-			additionalParams: []string{"region1", "env1", "team1", "service1"},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			key1 := cache.GenerateSimpleKey(tt.operation, tt.provider, tt.additionalParams...)
-			require.NotEmpty(t, key1)
-
-			// Generate again with same params
-			key2 := cache.GenerateSimpleKey(tt.operation, tt.provider, tt.additionalParams...)
-			require.NotEmpty(t, key2)
-
-			// Verify deterministic
-			assert.Equal(t, key1, key2)
-
-			// Verify SHA256 hash
-			assert.Len(t, key1, 64)
-		})
-	}
-}
-
-// TestGenerateSimpleKey_OrderMatters verifies order matters in simple keys.
-func TestGenerateSimpleKey_OrderMatters(t *testing.T) {
-	// Different order of additional params
-	key1 := cache.GenerateSimpleKey("recommendations", "aws", "param1", "param2")
-	key2 := cache.GenerateSimpleKey("recommendations", "aws", "param2", "param1")
-
-	// Order matters in simple keys
+// TestBuildProjectedKey_DifferentInputs verifies different inputs produce different keys.
+func TestBuildProjectedKey_DifferentInputs(t *testing.T) {
+	key1 := cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.micro")
+	key2 := cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.large")
 	assert.NotEqual(t, key1, key2)
 }
 
-// TestGenerateKeyFromQuery verifies query-based key generation.
-func TestGenerateKeyFromQuery(t *testing.T) {
+// TestBuildActualKey verifies structured actual cost key generation.
+func TestBuildActualKey(t *testing.T) {
+	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	key := cache.BuildActualKey("aws", []string{"aws:ec2:Instance"}, from, to, nil)
+	assert.Contains(t, key, "actual/aws/aws:ec2:Instance/2025-01-01/2025-01-31")
+}
+
+// TestBuildActualKey_ResourceTypeSorting verifies resource types are sorted for determinism.
+func TestBuildActualKey_ResourceTypeSorting(t *testing.T) {
+	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	key1 := cache.BuildActualKey("aws", []string{"rds", "ec2", "s3"}, from, to, nil)
+	key2 := cache.BuildActualKey("aws", []string{"ec2", "rds", "s3"}, from, to, nil)
+	assert.Equal(t, key1, key2, "resource type order should not affect key")
+}
+
+// TestBuildActualKey_FiltersDeterministic verifies filter order independence.
+func TestBuildActualKey_FiltersDeterministic(t *testing.T) {
+	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	filters1 := map[string]string{"region": "us-east-1", "env": "prod"}
+	filters2 := map[string]string{"env": "prod", "region": "us-east-1"}
+
+	key1 := cache.BuildActualKey("aws", []string{"ec2"}, from, to, filters1)
+	key2 := cache.BuildActualKey("aws", []string{"ec2"}, from, to, filters2)
+	assert.Equal(t, key1, key2, "filter order should not affect key")
+}
+
+// TestBuildActualKey_PositionalAmbiguity verifies that empty provider with non-empty
+// resource types produces a different key than non-empty provider with empty types.
+func TestBuildActualKey_PositionalAmbiguity(t *testing.T) {
+	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	// provider="aws", no resource types
+	key1 := cache.BuildActualKey("aws", nil, from, to, nil)
+	// no provider, resourceTypes=["aws"]
+	key2 := cache.BuildActualKey("", []string{"aws"}, from, to, nil)
+
+	assert.NotEqual(t, key1, key2, "empty provider + types vs provider + empty types must produce distinct keys")
+}
+
+// TestBuildActualKey_DifferentFiltersProduceDifferentKeys verifies filter sensitivity.
+func TestBuildActualKey_DifferentFiltersProduceDifferentKeys(t *testing.T) {
+	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	key1 := cache.BuildActualKey("aws", []string{"ec2"}, from, to, map[string]string{"env": "prod"})
+	key2 := cache.BuildActualKey("aws", []string{"ec2"}, from, to, map[string]string{"env": "staging"})
+	assert.NotEqual(t, key1, key2)
+}
+
+// TestBuildRecommendationsKey verifies recommendation key generation.
+func TestBuildRecommendationsKey(t *testing.T) {
+	key := cache.BuildRecommendationsKey([]string{"ec2", "rds", "s3"})
+	assert.Contains(t, key, "recommendations/multi/")
+}
+
+// TestBuildRecommendationsKey_Sorting verifies resource type sorting.
+func TestBuildRecommendationsKey_Sorting(t *testing.T) {
+	key1 := cache.BuildRecommendationsKey([]string{"s3", "ec2", "rds"})
+	key2 := cache.BuildRecommendationsKey([]string{"ec2", "rds", "s3"})
+	assert.Equal(t, key1, key2, "resource type order should not affect key")
+}
+
+// TestBucketFromKey verifies bucket extraction from structured keys.
+func TestBucketFromKey(t *testing.T) {
 	tests := []struct {
-		name  string
-		query string
+		key  string
+		want string
 	}{
-		{
-			name:  "simple query",
-			query: "SELECT id FROM costs WHERE date > '2024-01-01'",
-		},
-		{
-			name:  "complex query",
-			query: "SELECT provider, SUM(cost) FROM costs WHERE date BETWEEN '2024-01-01' AND '2024-01-31' GROUP BY provider ORDER BY cost DESC",
-		},
-		{
-			name:  "json query",
-			query: `{"operation":"projected_cost","provider":"aws","filters":{"region":"us-east-1"}}`,
-		},
+		{"projected/aws/ec2:Instance/us-east-1/t3.micro", "projected"},
+		{"actual/aws/ec2/2025-01-01/2025-01-31", "actual"},
+		{"recommendations/multi/ec2+rds", "recommendations"},
+		{"nobucket", "nobucket"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			key1 := cache.GenerateKeyFromQuery(tt.query)
-			require.NotEmpty(t, key1)
-
-			// Generate again with same query
-			key2 := cache.GenerateKeyFromQuery(tt.query)
-			require.NotEmpty(t, key2)
-
-			// Verify deterministic
-			assert.Equal(t, key1, key2)
-
-			// Verify SHA256 hash
-			assert.Len(t, key1, 64)
+		t.Run(tt.key, func(t *testing.T) {
+			assert.Equal(t, tt.want, cache.BucketFromKey(tt.key))
 		})
 	}
 }
 
-// TestGenerateKeyFromQuery_SensitiveToWhitespace verifies whitespace sensitivity.
-func TestGenerateKeyFromQuery_SensitiveToWhitespace(t *testing.T) {
-	query1 := "SELECT id FROM costs WHERE date > '2024-01-01'"
-	query2 := "SELECT id FROM costs  WHERE date > '2024-01-01'" // Extra space
+// TestStripBucket verifies bucket prefix removal.
+func TestStripBucket(t *testing.T) {
+	tests := []struct {
+		key  string
+		want string
+	}{
+		{"projected/aws/ec2:Instance", "aws/ec2:Instance"},
+		{"actual/aws/ec2", "aws/ec2"},
+		{"nobucket", "nobucket"},
+	}
 
-	key1 := cache.GenerateKeyFromQuery(query1)
-	key2 := cache.GenerateKeyFromQuery(query2)
-
-	// Different whitespace produces different keys (no normalization)
-	assert.NotEqual(t, key1, key2)
-}
-
-// TestKeyParamsBuilder verifies fluent builder interface.
-func TestKeyParamsBuilder(t *testing.T) {
-	key, err := cache.NewKeyParamsBuilder("recommendations", "aws").
-		WithResourceTypes("ec2", "rds", "s3").
-		WithFilter("region", "us-east-1").
-		WithFilter("env", "prod").
-		WithPagination(20, 0, "savings", "desc").
-		Build()
-
-	require.NoError(t, err)
-	require.NotEmpty(t, key)
-	assert.Len(t, key, 64)
-}
-
-// TestKeyParamsBuilder_BuildParams verifies BuildParams method.
-func TestKeyParamsBuilder_BuildParams(t *testing.T) {
-	builder := cache.NewKeyParamsBuilder("projected_cost", "gcp").
-		WithResourceTypes("compute", "storage").
-		WithFilters(map[string]string{
-			"zone":    "us-central1-a",
-			"project": "my-project",
+	for _, tt := range tests {
+		t.Run(tt.key, func(t *testing.T) {
+			assert.Equal(t, tt.want, cache.StripBucket(tt.key))
 		})
-
-	params := builder.BuildParams()
-
-	assert.Equal(t, "projected_cost", params.Operation)
-	assert.Equal(t, "gcp", params.Provider)
-	assert.ElementsMatch(t, []string{"compute", "storage"}, params.ResourceTypes)
-	assert.Equal(t, "us-central1-a", params.Filters["zone"])
-	assert.Equal(t, "my-project", params.Filters["project"])
-}
-
-// TestKeyParamsBuilder_Chaining verifies method chaining.
-func TestKeyParamsBuilder_Chaining(t *testing.T) {
-	builder := cache.NewKeyParamsBuilder("actual_cost", "azure")
-
-	// All methods should return the builder for chaining
-	result1 := builder.WithResourceTypes("vm")
-	assert.Equal(t, builder, result1)
-
-	result2 := builder.WithFilter("location", "eastus")
-	assert.Equal(t, builder, result2)
-
-	result3 := builder.WithFilters(map[string]string{"tier": "premium"})
-	assert.Equal(t, builder, result3)
-
-	result4 := builder.WithPagination(50, 0, "cost", "asc")
-	assert.Equal(t, builder, result4)
-}
-
-// TestKeyParamsBuilder_EmptyFilters verifies empty filters handling.
-func TestKeyParamsBuilder_EmptyFilters(t *testing.T) {
-	key, err := cache.NewKeyParamsBuilder("projected_cost", "aws").
-		Build()
-
-	require.NoError(t, err)
-	require.NotEmpty(t, key)
-
-	// Should succeed even without filters
-	assert.Len(t, key, 64)
-}
-
-// TestKeyParamsBuilder_WithFiltersMultipleCalls verifies multiple WithFilters calls.
-func TestKeyParamsBuilder_WithFiltersMultipleCalls(t *testing.T) {
-	builder := cache.NewKeyParamsBuilder("recommendations", "aws").
-		WithFilters(map[string]string{"region": "us-east-1"}).
-		WithFilters(map[string]string{"env": "prod"})
-
-	params := builder.BuildParams()
-
-	// Both filters should be present
-	assert.Equal(t, "us-east-1", params.Filters["region"])
-	assert.Equal(t, "prod", params.Filters["env"])
-	assert.Len(t, params.Filters, 2)
-}
-
-// TestKeyCollision verifies different inputs don't produce same key.
-func TestKeyCollision(t *testing.T) {
-	// Generate 100 unique keys with different parameters
-	keys := make(map[string]bool)
-
-	for i := range 100 {
-		params := cache.KeyParams{
-			Operation: "test_operation",
-			Provider:  "test_provider",
-			ResourceTypes: []string{
-				string(rune('a' + i/10)),
-				string(rune('a' + i%10)),
-			},
-			Filters: map[string]string{
-				"iteration": string(rune('0' + i/10)),
-			},
-		}
-
-		key, err := cache.GenerateKey(params)
-		require.NoError(t, err)
-
-		// Check for collision
-		if keys[key] {
-			t.Fatalf("Key collision detected for params %+v", params)
-		}
-		keys[key] = true
 	}
-
-	// All keys should be unique
-	assert.Len(t, keys, 100)
 }
 
-// TestPaginationKeyParams verifies pagination parameter handling.
-func TestPaginationKeyParams(t *testing.T) {
-	params1 := cache.KeyParams{
-		Operation: "recommendations",
-		Provider:  "aws",
-		Pagination: &cache.PaginationKeyParams{
-			Limit:     20,
-			Offset:    0,
-			SortField: "savings",
-			SortOrder: "desc",
-		},
+// BenchmarkBuildProjectedKey benchmarks projected key generation.
+func BenchmarkBuildProjectedKey(b *testing.B) {
+	b.ReportAllocs()
+	for range b.N {
+		cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.micro")
 	}
-
-	params2 := cache.KeyParams{
-		Operation: "recommendations",
-		Provider:  "aws",
-		Pagination: &cache.PaginationKeyParams{
-			Limit:     20,
-			Offset:    20, // Different offset
-			SortField: "savings",
-			SortOrder: "desc",
-		},
-	}
-
-	key1, err := cache.GenerateKey(params1)
-	require.NoError(t, err)
-
-	key2, err := cache.GenerateKey(params2)
-	require.NoError(t, err)
-
-	// Different pagination params should produce different keys
-	assert.NotEqual(t, key1, key2)
 }
 
-// TestSortOrderNormalization verifies sort order normalization.
-func TestSortOrderNormalization(t *testing.T) {
-	params1 := cache.KeyParams{
-		Operation: "recommendations",
-		Provider:  "aws",
-		Pagination: &cache.PaginationKeyParams{
-			SortOrder: "DESC",
-		},
-	}
-
-	params2 := cache.KeyParams{
-		Operation: "recommendations",
-		Provider:  "aws",
-		Pagination: &cache.PaginationKeyParams{
-			SortOrder: "desc",
-		},
-	}
-
-	key1, err := cache.GenerateKey(params1)
-	require.NoError(t, err)
-
-	key2, err := cache.GenerateKey(params2)
-	require.NoError(t, err)
-
-	// Sort order should be normalized (case-insensitive)
-	assert.Equal(t, key1, key2)
-}
-
-// BenchmarkGenerateKey benchmarks key generation.
-func BenchmarkGenerateKey(b *testing.B) {
-	params := cache.KeyParams{
-		Operation:     "recommendations",
-		Provider:      "aws",
-		ResourceTypes: []string{"ec2", "rds", "s3", "elasticache"},
-		Filters: map[string]string{
-			"region": "us-west-2",
-			"env":    "prod",
-			"team":   "platform",
-		},
-		Pagination: &cache.PaginationKeyParams{
-			Limit:     50,
-			Offset:    100,
-			SortField: "cost",
-			SortOrder: "asc",
-		},
-	}
-
+// BenchmarkBuildActualKey benchmarks actual cost key generation.
+func BenchmarkBuildActualKey(b *testing.B) {
+	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+	filters := map[string]string{"region": "us-west-2", "env": "prod"}
+	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		_, _ = cache.GenerateKey(params)
-	}
-}
-
-// BenchmarkGenerateSimpleKey benchmarks simple key generation.
-func BenchmarkGenerateSimpleKey(b *testing.B) {
-	b.ResetTimer()
-	for range b.N {
-		_ = cache.GenerateSimpleKey("recommendations", "aws", "us-east-1", "prod", "platform")
-	}
-}
-
-// BenchmarkGenerateKeyFromQuery benchmarks query-based key generation.
-func BenchmarkGenerateKeyFromQuery(b *testing.B) {
-	query := `SELECT provider, SUM(cost) FROM costs WHERE date BETWEEN '2024-01-01' AND '2024-01-31' GROUP BY provider ORDER BY cost DESC`
-
-	b.ResetTimer()
-	for range b.N {
-		_ = cache.GenerateKeyFromQuery(query)
+		cache.BuildActualKey("aws", []string{"ec2", "rds", "s3"}, from, to, filters)
 	}
 }

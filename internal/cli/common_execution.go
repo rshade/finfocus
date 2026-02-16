@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -368,13 +369,30 @@ func resolveResourcesFromPulumi(
 // newEngineWithCache creates an Engine, wires the router and an optional cache.Cache.
 // An optional cfg may be passed to reuse an already-loaded configuration; if nil,
 // config.New() is called internally.
+// newEngineWithCache creates an Engine configured with the supplied plugin clients and spec loader,
+// wiring an optional router and cache based on the provided configuration.
+//
+// If a non-nil config is supplied via `cfgs`, it will be used; otherwise a default config is created.
+// The returned cleanup function must be invoked by the caller to release any underlying cache resources
+// (it is a no-op when no cache was created).
+//
+// Parameters:
+//   - ctx: request context used for logging and configuration resolution.
+//   - cmd: Cobra command used to read CLI flags that influence cache initialization.
+//   - clients: plugin host clients used by the Engine.
+//   - loader: specification loader used by the Engine.
+//   - cfgs: optional variadic configuration; the first non-nil entry is used.
+//
+// Returns:
+//   - *engine.Engine: the constructed engine instance.
+//   - func(): a cleanup function that closes the cache store when one was created; calling it is safe and recommended.
 func newEngineWithCache(
 	ctx context.Context,
 	cmd *cobra.Command,
 	clients []*pluginhost.Client,
 	loader engine.SpecLoader,
 	cfgs ...*config.Config,
-) *engine.Engine {
+) (*engine.Engine, func()) {
 	var cfg *config.Config
 	if len(cfgs) > 0 && cfgs[0] != nil {
 		cfg = cfgs[0]
@@ -383,10 +401,21 @@ func newEngineWithCache(
 	}
 	eng := engine.New(clients, loader).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
-	if cacheStore := initCacheFromConfig(ctx, cmd, cfg); cacheStore != nil {
+
+	cacheStore := initCacheFromConfig(ctx, cmd, cfg)
+	cacheCleanup := func() {}
+	if cacheStore != nil {
 		eng = eng.WithCache(cacheStore)
+		cacheCleanup = func() {
+			if closeErr := cacheStore.Close(); closeErr != nil {
+				log := logging.FromContext(ctx)
+				log.Warn().Ctx(ctx).Err(closeErr).
+					Str("component", "cache").
+					Msg("failed to close cache store")
+			}
+		}
 	}
-	return eng
+	return eng, cacheCleanup
 }
 
 // InitCache creates a cache.Cache instance based on configuration precedence:
@@ -398,7 +427,22 @@ func InitCache(ctx context.Context, cmd *cobra.Command) cache.Cache {
 }
 
 // initCacheFromConfig is the internal implementation of InitCache that accepts
-// a pre-loaded config to avoid redundant config.New() calls.
+// initCacheFromConfig initializes a cache store using values from the provided
+// configuration, environment, and CLI flags.
+//
+// The cache TTL is resolved with the following precedence: CLI flag "--cache-ttl"
+// (if explicitly set) > environment variable FINFOCUS_CACHE_TTL (or legacy name)
+// > cfg.Cost.Cache.TTLSeconds > default (0). A TTL less than or equal to zero
+// disables caching and causes the function to return nil.
+//
+// The cache directory is resolved via resolveCacheDir with precedence of explicit
+// env var, configured project directory, then a home-directory fallback. The
+// configured max size (cfg.Cost.Cache.MaxSizeMB) is used directly (0 means
+// unlimited).
+//
+// On success, a BoltDB-backed cache store is returned. If initialization fails
+// (including when the cache database is locked), the function logs a warning and
+// returns nil to proceed without caching.
 func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Config) cache.Cache {
 	log := logging.FromContext(ctx)
 
@@ -450,34 +494,31 @@ func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Co
 		return nil
 	}
 
-	// Determine cache directory
-	cacheDir := cfg.Cost.Cache.Directory
-	if cacheDir == "" {
-		homeDir, homeErr := os.UserHomeDir()
-		if homeErr != nil {
-			log.Warn().
-				Ctx(ctx).
-				Err(homeErr).
-				Str("component", "cache").
-				Str("operation", "init").
-				Msg("failed to determine home directory, using relative cache path")
-			cacheDir = filepath.Join(".finfocus", "cache")
-		} else {
-			cacheDir = filepath.Join(homeDir, ".finfocus", "cache")
-		}
-	}
+	// Determine cache directory using project-dir resolution:
+	// 1. FINFOCUS_CACHE_DIR env var (explicit override)
+	// 2. Resolved project dir ({projectDir}/.finfocus/)
+	// 3. ~/.finfocus/ (global fallback)
+	cacheDir := resolveCacheDir(ctx, cfg)
 
-	// Use configured max size directly (0 means unlimited per FileStore docs)
+	// Use configured max size directly (0 means unlimited)
 	cacheMaxSize := cfg.Cost.Cache.MaxSizeMB
 
-	cacheStore, err := cache.NewFileStore(cacheDir, true, cacheTTL, cacheMaxSize)
+	cacheStore, err := cache.NewBoltStore(ctx, cacheDir, true, cacheTTL, cacheMaxSize)
 	if err != nil {
-		log.Warn().
-			Ctx(ctx).
-			Err(err).
-			Str("component", "cache").
-			Str("operation", "init").
-			Msg("cache initialization failed, proceeding without cache")
+		if errors.Is(err, cache.ErrCacheLocked) {
+			log.Warn().
+				Ctx(ctx).
+				Str("component", "cache").
+				Str("operation", "init").
+				Msg("cache database locked, proceeding without cache")
+		} else {
+			log.Warn().
+				Ctx(ctx).
+				Err(err).
+				Str("component", "cache").
+				Str("operation", "init").
+				Msg("cache initialization failed, proceeding without cache")
+		}
 		return nil
 	}
 
@@ -487,17 +528,46 @@ func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Co
 		Str("operation", "init").
 		Int("cache_ttl", cacheTTL).
 		Str("cache_dir", cacheDir).
-		Msg("cache initialized")
+		Msg("cache initialized with BoltDB backend")
 
 	return cacheStore
 }
 
-// extractCurrencyFromResults scans results to find a single canonical currency.
-// It returns the currency code and a boolean indicating if mixed currencies were detected.
-// extractCurrencyFromResults determines a canonical currency from the provided cost
-// results and reports whether multiple distinct currencies were encountered.
-// It returns the chosen currency and a boolean that is `true` if more than one
-// distinct non-empty currency was present in the slice. If no result contains a
+// resolveCacheDir determines the cache directory using the resolution chain:
+// env var (cache.EnvCacheDir) → config setting (cfg.Cost.Cache.Directory) →
+// config.GetResolvedProjectDir(). Note that GetResolvedProjectDir already
+// returns the full project ".finfocus" path, so no extra ".finfocus" segment
+// is appended. If none of these yield a directory, it falls back to ~/.finfocus/cache.
+func resolveCacheDir(ctx context.Context, cfg *config.Config) string {
+	log := logging.FromContext(ctx)
+	if dir := os.Getenv(cache.EnvCacheDir); dir != "" {
+		return dir
+	}
+	if cfg.Cost.Cache.Directory != "" {
+		return cfg.Cost.Cache.Directory
+	}
+	if projectDir := config.GetResolvedProjectDir(); projectDir != "" {
+		return projectDir
+	}
+	homeDir, homeErr := os.UserHomeDir()
+	if homeErr != nil {
+		// Resolve to an absolute path so BoltDB never lands in an unpredictable CWD.
+		abs, absErr := filepath.Abs(".finfocus")
+		if absErr != nil {
+			abs = filepath.Join(os.TempDir(), "finfocus-cache")
+		}
+		log.Warn().
+			Ctx(ctx).
+			Err(homeErr).
+			Str("component", "cache").
+			Str("operation", "init").
+			Str("fallback_path", abs).
+			Msg("failed to determine home directory, using absolute fallback cache path")
+		return abs
+	}
+	return filepath.Join(homeDir, ".finfocus")
+}
+
 // extractCurrencyFromResults determines a canonical currency for a set of cost results.
 // It scans results for the first non-empty currency and returns that currency along with
 // a boolean indicating whether more than one distinct non-empty currency was observed.
@@ -596,4 +666,22 @@ func createRouterForEngine(ctx context.Context, cfg *config.Config, clients []*p
 	}
 
 	return router.NewEngineAdapter(r)
+}
+
+// sumTotalCosts returns the sum of TotalCost across all results.
+func sumTotalCosts(results []engine.CostResult) float64 {
+	total := 0.0
+	for _, r := range results {
+		total += r.TotalCost
+	}
+	return total
+}
+
+// sumMonthlyCosts returns the sum of Monthly across all results.
+func sumMonthlyCosts(results []engine.CostResult) float64 {
+	total := 0.0
+	for _, r := range results {
+		total += r.Monthly
+	}
+	return total
 }

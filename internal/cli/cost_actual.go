@@ -148,19 +148,12 @@ timestamp if not provided.`,
 	return cmd
 }
 
-// executeCostActual orchestrates the "actual" cost workflow: it loads resources, applies filters,
-// determines the time range, invokes adapter plugins to fetch historical costs, merges recommendations,
-// renders output, evaluates budget status, and records audit information.
-//
-// The function validates input flags (including non-negative jobs), opens adapter plugins, and constructs
-// an engine request using the provided parameters. It returns an error if any step fails, including:
-// - invalid or mutually exclusive CLI flags,
-// - resource loading or mapping failures,
-// - filter application errors,
-// - time parsing or range validation failures,
-// - plugin initialization or invocation failures when fetching costs,
-// - output rendering errors,
-// - budget evaluation failures.
+// executeCostActual orchestrates the "actual" cost workflow: it validates input flags,
+// loads and filters resources, resolves the time range, opens adapter plugins, fetches
+// historical costs via the engine, merges recommendations, renders output, evaluates
+// budget status, and records audit information. It returns an error when any step fails
+// (flag validation, resource loading, time parsing, plugin initialization, cost retrieval,
+// rendering, or budget evaluation) and nil on success.
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -219,7 +212,9 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		FallbackEstimate:   params.fallbackEstimate,
 	}
 
-	eng := newEngineWithCache(ctx, cmd, clients, nil).WithJobs(params.jobs)
+	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
+	defer cacheCleanup()
+	eng = eng.WithJobs(params.jobs)
 	start := time.Now()
 	resultWithErrors, err := eng.GetActualCostWithOptionsAndErrors(ctx, request)
 	if err != nil {
@@ -241,11 +236,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	log.Info().Ctx(ctx).Str("operation", "cost_actual").Int("result_count", len(resultWithErrors.Results)).
 		Dur("duration_ms", time.Since(audit.start)).Msg("actual cost calculation complete")
 
-	totalCost := 0.0
-	for _, r := range resultWithErrors.Results {
-		totalCost += r.TotalCost
-	}
-
+	totalCost := sumTotalCosts(resultWithErrors.Results)
 	if budgetErr := evaluateBudgetStatus(cmd, resultWithErrors.Results, totalCost); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return budgetErr

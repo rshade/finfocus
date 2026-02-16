@@ -559,7 +559,7 @@ func TestEdgeCase_UnknownProviderReturnsUnknown(t *testing.T) {
 		resourceType string
 		expected     string
 	}{
-		{"empty_string", "", ""},
+		{"empty_string", "", "unknown"},
 		{"no_colon", "simpleresource", "simpleresource"},
 		{"standard_format", "aws:ec2:Instance", "aws"},
 		{"azure_format", "azure:compute:VirtualMachine", "azure"},
