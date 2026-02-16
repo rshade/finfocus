@@ -281,6 +281,7 @@ func BenchmarkBoltStoreGet(b *testing.B) {
 	_ = store.Set(targetKey, data)
 
 	b.ResetTimer()
+	b.ReportAllocs()
 	for range b.N {
 		_, _ = store.Get(targetKey)
 	}
@@ -555,10 +556,10 @@ func TestBoltStore_Compact(t *testing.T) {
 	// Compact
 	require.NoError(t, store.Compact())
 
-	// Verify remaining entries are intact
+	// Verify remaining entries are intact (100 inserted - 50 deleted = 50 remaining)
 	count, err := store.Count()
 	require.NoError(t, err)
-	assert.Greater(t, count, 0)
+	assert.Equal(t, 50, count)
 }
 
 func TestBoltStore_SingleDatabaseFile(t *testing.T) {

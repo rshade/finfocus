@@ -2851,15 +2851,17 @@ func (e *Engine) GetRecommendationsForResources(
 		return result, nil
 	}
 
+	// Compute cache key once for both read and write paths.
+	recommendationsCacheKey := e.generateRecommendationsCacheKey(resources)
+
 	// Check cache if enabled
 	if e.cache != nil && e.cache.IsEnabled() {
-		cacheKey := e.generateRecommendationsCacheKey(resources)
-		if cachedEntry, cacheErr := e.cache.Get(cacheKey); cacheErr == nil && cachedEntry != nil {
+		if cachedEntry, cacheErr := e.cache.Get(recommendationsCacheKey); cacheErr == nil && cachedEntry != nil {
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").
 				Str("operation", "recommendations.cache.hit").
-				Str("cache_key", cacheKey).
+				Str("cache_key", recommendationsCacheKey).
 				Msg("cache hit for recommendations")
 			var cachedResult RecommendationsResult
 			if unmarshalErr := json.Unmarshal(cachedEntry.Data, &cachedResult); unmarshalErr == nil {
@@ -2921,10 +2923,9 @@ func (e *Engine) GetRecommendationsForResources(
 
 	// Store result in cache if enabled
 	if e.cache != nil && e.cache.IsEnabled() {
-		cacheKey := e.generateRecommendationsCacheKey(resources)
 		resultData, marshalErr := json.Marshal(result)
 		if marshalErr == nil {
-			if setErr := e.cache.Set(cacheKey, json.RawMessage(resultData)); setErr != nil {
+			if setErr := e.cache.Set(recommendationsCacheKey, json.RawMessage(resultData)); setErr != nil {
 				log.Warn().
 					Ctx(ctx).
 					Str("component", "engine").
@@ -2936,7 +2937,7 @@ func (e *Engine) GetRecommendationsForResources(
 					Ctx(ctx).
 					Str("component", "engine").
 					Str("operation", "recommendations.cache.store").
-					Str("cache_key", cacheKey).
+					Str("cache_key", recommendationsCacheKey).
 					Msg("stored recommendations in cache")
 			}
 		}
@@ -3442,6 +3443,12 @@ func generateActualCostCacheKey(request ActualCostRequest) string {
 	}
 
 	// Determine provider from resources.
+	// Uses the first resource's provider when available; defaults to "multi" for
+	// empty or multi-provider requests. This is an approximation — requests
+	// spanning multiple providers will use the first resource's provider in the
+	// key, but uniqueness is still preserved because sorted resourceIDs and
+	// filters (including tags, adapter, groupBy) are hashed into the key via
+	// cache.BuildActualKey.
 	provider := "multi"
 	if len(request.Resources) > 0 && request.Resources[0].Provider != "" {
 		provider = request.Resources[0].Provider
