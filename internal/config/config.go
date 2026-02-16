@@ -818,6 +818,12 @@ func (c *Config) applyEnvOverrides() {
 	if maxCost := os.Getenv("FINFOCUS_MAX_MONTHLY_COST"); maxCost != "" {
 		if cost, err := strconv.ParseFloat(maxCost, 64); err == nil {
 			c.Analyzer.MaxMonthlyCost = cost
+		} else {
+			log.Debug().
+				Str("env_var", "FINFOCUS_MAX_MONTHLY_COST").
+				Str("value", maxCost).
+				Err(err).
+				Msg("failed to parse max monthly cost, using default")
 		}
 	}
 	if enforcement := os.Getenv("FINFOCUS_ENFORCEMENT"); enforcement != "" {

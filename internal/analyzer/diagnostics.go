@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
+	"github.com/rs/zerolog/log"
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/greenops"
@@ -533,12 +534,17 @@ type CostMetadata struct {
 // FormatCostMetadata returns an HTML comment containing the JSON-encoded cost metadata for m.
 // If m.Monthly is zero or the metadata cannot be marshaled to JSON, an empty string is returned.
 func FormatCostMetadata(m CostMetadata) string {
-	if m.Monthly == 0 {
+	if m.Monthly <= 0 {
 		return ""
 	}
 
 	data, err := json.Marshal(m)
 	if err != nil {
+		log.Debug().
+			Err(err).
+			Float64("monthly", m.Monthly).
+			Str("currency", m.Currency).
+			Msg("failed to marshal cost metadata")
 		return ""
 	}
 

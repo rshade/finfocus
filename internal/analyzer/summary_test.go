@@ -229,6 +229,7 @@ func TestWriteCostSummary(t *testing.T) {
 		var readBack CostSummary
 		require.NoError(t, json.Unmarshal(data, &readBack))
 		assert.Equal(t, 200.0, readBack.TotalMonthlyCost)
+		require.Len(t, readBack.Resources, 1)
 		assert.Equal(t, "new", readBack.Resources[0].Name)
 	})
 
@@ -369,5 +370,12 @@ func TestWriteCostSummary(t *testing.T) {
 		for _, field := range []string{"type", "name", "monthly_cost", "currency", "adapter"} {
 			assert.Contains(t, res0, field, "missing required resource field: %s", field)
 		}
+	})
+
+	t.Run("nil summary input", func(t *testing.T) {
+		dir := t.TempDir()
+		err := WriteCostSummary(nil, dir)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "nil summary")
 	})
 }
