@@ -195,7 +195,18 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
 // - rendering the output fails, or
 // - the budget evaluation produces a non-zero exit/error status.
 //
-//nolint:funlen // Complex orchestration function requiring cache lifecycle management.
+// executeCostProjected runs the projected cost calculation flow for the "projected" CLI command.
+// It validates parameters, loads or discovers resources, applies filters, loads plugins and specs,
+// computes projected costs (including per-resource errors), merges recommendations, renders output,
+// evaluates budget status, and records audit/timing information.
+//
+// Parameters:
+//   - cmd: the Cobra command providing the execution context, flags (such as --stack), and output writer.
+//   - params: configuration for the projected run (planPath, specDir, adapter, output, filter, utilization, jobs).
+//
+// Returns:
+//   An error when validation fails, resource loading or filtering fails, plugins/specs cannot be opened,
+//   cost computation or rendering fails, or budget evaluation reports a non-ok status; nil on success.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
 	ctx := cmd.Context()
 

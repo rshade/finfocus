@@ -30,7 +30,9 @@ func isValidBucket(name string) bool {
 // projected cost caching.
 // Format: projected/{provider}/{type}/{region}/{sku}.
 // Empty segments use "_" as a placeholder to ensure fixed-position keys
-// and avoid ambiguity (e.g., ("aws","","us-east-1","") vs ("aws","us-east-1","","")).
+// BuildProjectedKey constructs a human-readable cache key for per-resource projected costs.
+// The key has the form "projected/{provider}/{type}/{region}/{sku}".
+// Any empty segment is replaced with "_" to preserve fixed segment positions (for example, an empty provider becomes "_").
 func BuildProjectedKey(provider, resourceType, region, sku string) string {
 	placeholder := func(s string) string {
 		if s == "" {
@@ -51,7 +53,7 @@ func BuildProjectedKey(provider, resourceType, region, sku string) string {
 // Format: actual/{provider}/{types}/{from}/{to}/{filter-hash}
 // Empty segments use "_" as a placeholder to ensure fixed-position keys
 // and avoid ambiguity (e.g., provider="aws" vs resourceTypes=["aws"]).
-// The filter-hash is a deterministic SHA256 prefix of sorted filter key-value pairs.
+// The resulting key is safe for use as a top-level bucketed cache key.
 func BuildActualKey(provider string, resourceTypes []string, from, to time.Time, filters map[string]string) string {
 	placeholder := func(s string) string {
 		if s == "" {
@@ -86,7 +88,10 @@ func BuildActualKey(provider string, resourceTypes []string, from, to time.Time,
 }
 
 // BuildRecommendationsKey constructs a key for recommendation result caching.
-// Format: recommendations/multi/{sorted-types-hash}.
+// BuildRecommendationsKey returns a cache key for recommendation results for the given resource types.
+// The key has the format "recommendations/multi/{sorted-types-joined-by-+}" where the provided
+// resourceTypes are sorted deterministically and joined with "+" to form the final segment. If
+// resourceTypes is empty, the types segment will be empty.
 func BuildRecommendationsKey(resourceTypes []string) string {
 	sorted := make([]string, len(resourceTypes))
 	copy(sorted, resourceTypes)
@@ -98,7 +103,8 @@ func BuildRecommendationsKey(resourceTypes []string) string {
 
 // BucketFromKey extracts the bucket name from a structured cache key.
 // Returns the first path segment before the first "/".
-// Returns the entire key if there is no "/" separator.
+// BucketFromKey returns the leading bucket name from a cache key by taking the substring
+// before the first '/'. If the key contains no '/', the entire key is returned.
 func BucketFromKey(key string) string {
 	idx := strings.Index(key, "/")
 	if idx < 0 {
@@ -108,7 +114,8 @@ func BucketFromKey(key string) string {
 }
 
 // StripBucket removes the bucket prefix from a key, returning the portion
-// after the first "/". If the key has no "/" separator, returns the key as-is.
+// StripBucket returns the portion of key after the first "/" separator.
+// If key contains no "/", the original key is returned unchanged.
 func StripBucket(key string) string {
 	idx := strings.Index(key, "/")
 	if idx < 0 {
@@ -117,7 +124,9 @@ func StripBucket(key string) string {
 	return key[idx+1:]
 }
 
-// hashFilters produces a short deterministic hash string from a map of filters.
+// hashFilters produces a short deterministic hex string representing the given filters.
+// The filters are canonicalized by sorting keys and concatenating "key=value;" pairs.
+// It returns the first 8 bytes of the SHA-256 digest encoded as 16 lowercase hex characters.
 func hashFilters(filters map[string]string) string {
 	keys := make([]string, 0, len(filters))
 	for k := range filters {

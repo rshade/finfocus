@@ -1930,6 +1930,10 @@ func AggregateResults(results []CostResult) *AggregatedResults {
 	}
 }
 
+// extractProviderFromType extracts the provider prefix from a resource type string.
+// The resource type is expected in the form "provider:..."; it returns the substring
+// before the first colon. If the input is empty or does not contain a provider segment,
+// it returns unknownProvider.
 func extractProviderFromType(resourceType string) string {
 	// Extract provider from resource type like "aws:ec2:Instance" -> "aws"
 	parts := strings.Split(resourceType, ":")
@@ -1940,7 +1944,9 @@ func extractProviderFromType(resourceType string) string {
 }
 
 // extractStringProperty extracts the first non-empty string value from the properties
-// map for any of the given keys. Returns empty string if no key matches.
+// extractStringProperty returns the first non-empty string value found in properties for the supplied keys,
+// checked in the order they are provided. It returns an empty string if none of the keys exist or none map to
+// a non-empty string.
 func extractStringProperty(properties map[string]interface{}, keys ...string) string {
 	for _, key := range keys {
 		if v, ok := properties[key]; ok {
@@ -3407,7 +3413,9 @@ func validateActualCostResourceTypes(resources []ResourceDescriptor) error {
 
 // hasOnlyPlaceholderResults returns true when every CostResult in the slice is a
 // placeholder (Adapter == "none" or non-nil StructuredError). Caching such results
-// would poison the cache with "no data" entries.
+// hasOnlyPlaceholderResults reports whether every CostResult in results is a placeholder.
+// A placeholder is identified by Adapter equal to "none" or by a non-nil Error. It
+// returns true when all entries meet this condition, false if any entry contains real data.
 func hasOnlyPlaceholderResults(results []CostResult) bool {
 	for i := range results {
 		if results[i].Adapter != "none" && results[i].Error == nil {
@@ -3420,7 +3428,19 @@ func hasOnlyPlaceholderResults(results []CostResult) bool {
 // generateProjectedCostResourceKey generates a deterministic cache key for a single
 // resource's projected cost query. Uses structured `/`-separated keys for human-readable
 // debugging and efficient prefix scanning.
-// Format: projected/{provider}/{type}/{region}/{sku}.
+// generateProjectedCostResourceKey builds a deterministic cache key for a projected cost lookup.
+// The key has the format "projected/{provider}/{type}/{region}/{sku}" and is constructed from the
+// resource's Provider, Type, and selected properties.
+// 
+// The function will extract region using the property keys "availabilityZone" or "region" and will
+// extract SKU using "instanceType", "type", or "sku" in that order.
+// 
+// Parameters:
+//   - resource: the ResourceDescriptor to derive the cache key from; its Type and Provider are used.
+//
+// Returns:
+//   - string: the constructed cache key when successful.
+//   - error: returned if resource.Type is empty.
 func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, error) {
 	if resource.Type == "" {
 		return "", errors.New("resource type is required for cache key generation")
@@ -3434,7 +3454,20 @@ func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, erro
 
 // generateActualCostCacheKey generates a deterministic cache key for an actual cost
 // query. Uses structured `/`-separated keys with time ranges and filter hashes.
-// Format: actual/{provider}/{types}/{from}/{to}/{filter-hash}.
+// generateActualCostCacheKey builds a deterministic cache key for an actual cost request.
+// The returned key encodes a prefix of the form "actual/{provider}/{types}/{from}/{to}/{filter-hash}"
+// and incorporates request-level options to ensure uniqueness.
+//
+// The function derives the provider from the first resource's Provider field, or "multi" if none
+// is available. It collects all resource types, and includes a hashed filter map that contains:
+// - fallback_estimate flag
+// - adapter (when set)
+// - group_by (when set)
+// - sorted resource IDs (when present)
+// - all request tags (prefixed with "tag:")
+//
+// The resulting string is suitable for use as a cache key and is deterministic for equivalent
+// request contents.
 func generateActualCostCacheKey(request ActualCostRequest) string {
 	// Collect resource types.
 	resourceTypes := make([]string, 0, len(request.Resources))
