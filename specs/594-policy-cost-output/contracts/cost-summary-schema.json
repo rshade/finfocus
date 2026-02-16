@@ -1,0 +1,97 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "FinFocus Cost Summary",
+  "description": "Structured cost summary written after each AnalyzeStack call",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "timestamp",
+    "stack",
+    "project",
+    "total_monthly_cost",
+    "currency",
+    "resource_count",
+    "resources"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string",
+      "description": "Schema version for forward compatibility",
+      "const": "1"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "RFC 3339 timestamp when summary was generated"
+    },
+    "stack": {
+      "type": "string",
+      "description": "Pulumi stack name"
+    },
+    "project": {
+      "type": "string",
+      "description": "Pulumi project name"
+    },
+    "total_monthly_cost": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Sum of all per-resource monthly costs"
+    },
+    "currency": {
+      "type": "string",
+      "minLength": 3,
+      "maxLength": 3,
+      "description": "ISO 4217 currency code"
+    },
+    "resource_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of resources with cost data"
+    },
+    "mixed_currencies": {
+      "type": "boolean",
+      "description": "True if multiple currencies detected across resources"
+    },
+    "resources": {
+      "type": "array",
+      "description": "Per-resource cost breakdown",
+      "items": {
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "monthly_cost",
+          "currency",
+          "adapter"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Pulumi resource type"
+          },
+          "name": {
+            "type": "string",
+            "description": "Resource name extracted from URN"
+          },
+          "monthly_cost": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Estimated monthly cost"
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3,
+            "description": "ISO 4217 currency code"
+          },
+          "adapter": {
+            "type": "string",
+            "description": "Source of pricing data"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

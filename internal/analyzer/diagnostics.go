@@ -2,11 +2,13 @@ package analyzer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
+	"github.com/rs/zerolog/log"
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/greenops"
@@ -15,10 +17,11 @@ import (
 
 // Policy pack and policy name constants for diagnostic messages.
 const (
-	policyPackName  = "finfocus"
-	policyNameCost  = "cost-estimate"
-	policyNameSum   = "stack-cost-summary"
-	defaultCurrency = "USD"
+	policyPackName      = "finfocus"
+	policyNameCost      = "cost-estimate"
+	policyNameSum       = "stack-cost-summary"
+	policyNameThreshold = "cost-threshold"
+	defaultCurrency     = "USD"
 )
 
 // CostToDiagnostic converts a CostResult to an AnalyzeDiagnostic.
@@ -119,7 +122,23 @@ func StackSummaryDiagnostic(
 //   - With cost: "Estimated Monthly Cost: $X.XX USD (source: adapter-name)"
 //   - Zero cost with notes: Returns the notes directly
 //
-// appended prefixed by " | ".
+// formatCostMessage constructs a human-readable diagnostic message for a resource's cost,
+// including an estimated monthly cost or fallback notes, appended sustainability metrics,
+// optional carbon equivalency text, formatted recommendations, and an embedded machine-parseable
+// HTML comment containing JSON cost metadata when available.
+//
+// The message uses the following observable behaviors:
+//   - If cost.Monthly > 0, the message begins with an estimated monthly cost showing the amount,
+//     currency, and adapter; otherwise it uses cost.Notes if present, or "Unable to estimate cost".
+//   - Sustainability metrics, when present, are appended in a deterministic, sorted order and
+//     may be followed by carbon equivalency text if computable.
+//   - Recommendations, when present, are appended prefixed with " | ".
+//   - If cost.Monthly is non-zero, a trailing HTML comment embedding JSON metadata is appended.
+//
+// cost contains the values used to build the message (Monthly, Currency, Adapter, Notes,
+// Sustainability, Recommendations).
+//
+// The returned string is the complete formatted message suitable for inclusion in an AnalyzeDiagnostic.
 func formatCostMessage(cost engine.CostResult) string {
 	var message string
 	switch {
@@ -164,6 +183,16 @@ func formatCostMessage(cost engine.CostResult) string {
 	// Append recommendations if present (follows sustainability pattern)
 	if recStr := formatRecommendations(cost.Recommendations); recStr != "" {
 		message += " | " + recStr
+	}
+
+	// Append machine-parseable metadata as HTML comment (US3)
+	// Skipped for zero-cost internal resources
+	if metadata := FormatCostMetadata(CostMetadata{
+		Monthly:  cost.Monthly,
+		Currency: cost.Currency,
+		Adapter:  cost.Adapter,
+	}); metadata != "" {
+		message += "\n" + metadata
 	}
 
 	return message
@@ -413,7 +442,10 @@ func filterValidRecommendations(recs []engine.Recommendation) []engine.Recommend
 //   - Invalid resource data
 //
 // Per FR-005, all diagnostics use ADVISORY enforcement to never block
-// deployments in MVP mode.
+// WarningDiagnostic creates an advisory analyze diagnostic for non-fatal cost estimation warnings.
+// It associates the diagnostic with the provided resource URN and policy pack version, uses the given message
+// as the diagnostic text, and sets severity to MEDIUM. The returned value is a pointer to the constructed
+// pulumirpc.AnalyzeDiagnostic.
 func WarningDiagnostic(message, urn, version string) *pulumirpc.AnalyzeDiagnostic {
 	return &pulumirpc.AnalyzeDiagnostic{
 		PolicyName:        policyNameCost,
@@ -425,4 +457,96 @@ func WarningDiagnostic(message, urn, version string) *pulumirpc.AnalyzeDiagnosti
 		Urn:               urn,
 		Severity:          pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
 	}
+}
+
+// ThresholdDiagnostic creates a stack-level diagnostic for cost threshold evaluation.
+//
+// When the total cost is within the threshold, a MEDIUM severity diagnostic is returned.
+// When the threshold is exceeded, a HIGH severity diagnostic is returned.
+//
+// The enforcement level is always ADVISORY per the Pulumi Analyzer contract — the
+// analyzer never blocks deployments. The config.Analyzer.Enforcement field is reserved
+// for external tooling (CLI exit codes, CI/CD gates) and is not applied here.
+//
+// ThresholdDiagnostic creates a stack-level diagnostic that reports whether the
+// provided total cost exceeds the given threshold.
+//
+// ThresholdDiagnostic returns an advisory diagnostic with MEDIUM severity when
+// totalCost is less than or equal to threshold, and HIGH severity when
+// totalCost is greater than threshold. The diagnostic message includes the
+// formatted cost, threshold, and currency. The diagnostic has no URN because it
+// applies to the entire stack.
+//
+// Parameters:
+//   - totalCost: the aggregated monthly cost to evaluate.
+//   - threshold: the monthly cost threshold to compare against.
+//   - currency: the ISO currency code used for formatting the message.
+//   - version: the policy pack version to include in the diagnostic metadata.
+func ThresholdDiagnostic(
+	totalCost, threshold float64,
+	currency, version string,
+) *pulumirpc.AnalyzeDiagnostic {
+	exceeded := totalCost > threshold
+
+	var message string
+	var severity pulumirpc.PolicySeverity
+
+	sym := getCurrencySymbol(currency)
+
+	switch {
+	case !exceeded:
+		message = fmt.Sprintf(
+			"Stack cost %s%.2f %s/mo is within threshold %s%.2f/mo",
+			sym, totalCost, currency, sym, threshold,
+		)
+		severity = pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM
+	default:
+		message = fmt.Sprintf(
+			"Stack cost %s%.2f %s/mo exceeds threshold %s%.2f/mo",
+			sym, totalCost, currency, sym, threshold,
+		)
+		severity = pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH
+	}
+
+	return &pulumirpc.AnalyzeDiagnostic{
+		PolicyName:        policyNameThreshold,
+		PolicyPackName:    policyPackName,
+		PolicyPackVersion: version,
+		Description:       "Cost threshold evaluation",
+		Message:           message,
+		EnforcementLevel:  pulumirpc.EnforcementLevel_ADVISORY,
+		Severity:          severity,
+		// No URN - stack-level diagnostic
+	}
+}
+
+// CostMetadata holds structured cost data for machine-parseable embedding
+// in diagnostic messages. This enables external tooling to extract cost
+// information without parsing human-readable text.
+type CostMetadata struct {
+	Monthly  float64 `json:"monthly"`
+	Currency string  `json:"currency"`
+	Adapter  string  `json:"adapter"`
+}
+
+// FormatCostMetadata returns an HTML comment containing JSON-encoded cost metadata.
+// The format is: <!-- finfocus:cost:{"monthly":X,"currency":"Y","adapter":"Z"} -->
+// FormatCostMetadata returns an HTML comment containing the JSON-encoded cost metadata for m.
+// If m.Monthly is zero or the metadata cannot be marshaled to JSON, an empty string is returned.
+func FormatCostMetadata(m CostMetadata) string {
+	if m.Monthly <= 0 {
+		return ""
+	}
+
+	data, err := json.Marshal(m)
+	if err != nil {
+		log.Debug().
+			Err(err).
+			Float64("monthly", m.Monthly).
+			Str("currency", m.Currency).
+			Msg("failed to marshal cost metadata")
+		return ""
+	}
+
+	return fmt.Sprintf("<!-- finfocus:cost:%s -->", data)
 }

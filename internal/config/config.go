@@ -126,8 +126,10 @@ type LogOutput struct {
 
 // AnalyzerConfig defines analyzer-specific configuration for the Pulumi Analyzer plugin.
 type AnalyzerConfig struct {
-	Timeout AnalyzerTimeout           `yaml:"timeout" json:"timeout"`
-	Plugins map[string]AnalyzerPlugin `yaml:"plugins" json:"plugins"`
+	Timeout        AnalyzerTimeout           `yaml:"timeout"          json:"timeout"`
+	Plugins        map[string]AnalyzerPlugin `yaml:"plugins"          json:"plugins"`
+	MaxMonthlyCost float64                   `yaml:"max_monthly_cost" json:"max_monthly_cost"`
+	Enforcement    string                    `yaml:"enforcement"      json:"enforcement"`
 }
 
 // AnalyzerTimeout defines timeout settings for cost analysis operations.
@@ -175,7 +177,14 @@ func ResolveConfigDir() string {
 }
 
 // New creates a new configuration with defaults.
-// In strict mode (FINFOCUS_CONFIG_STRICT=true), corrupted config files cause a panic.
+// New creates and returns a Config populated with sensible defaults and, if a config file exists,
+// values loaded from that file. It falls back to defaults when the file is missing, applies
+// environment variable overrides, and normalizes analyzer threshold values (e.g., MaxMonthlyCost
+// and Enforcement).
+//
+// In strict mode (when FINFOCUS_CONFIG_STRICT is "true" or "1"), permission errors reading the
+// config file or detection of a corrupted config file cause a panic; otherwise such conditions
+// emit warnings and the defaults are used.
 func New() *Config {
 	finfocusDir := ResolveConfigDir()
 
@@ -208,7 +217,9 @@ func New() *Config {
 				Total:         Duration(defaultTotalTimeout),
 				WarnThreshold: Duration(defaultWarnThresholdTimeout),
 			},
-			Plugins: make(map[string]AnalyzerPlugin),
+			Plugins:        make(map[string]AnalyzerPlugin),
+			MaxMonthlyCost: 0,
+			Enforcement:    "advisory",
 		},
 		Cost: CostConfig{
 			Cache: CacheConfig{
@@ -253,12 +264,16 @@ func New() *Config {
 	// Apply environment variable overrides
 	cfg.applyEnvOverrides()
 
+	// Normalize analyzer threshold values that may have been set by env vars
+	// (e.g., negative FINFOCUS_MAX_MONTHLY_COST or invalid FINFOCUS_ENFORCEMENT)
+	cfg.validateAnalyzerThreshold()
+
 	return cfg
 }
 
 // NewStrict creates a new configuration with strict error handling.
 // It returns an error instead of using defaults if the config file exists but cannot be parsed.
-// It uses ResolveConfigDir() to respect PULUMI_HOME when set.
+// validation failure is returned.
 func NewStrict() (*Config, error) {
 	finfocusDir := ResolveConfigDir()
 
@@ -291,7 +306,9 @@ func NewStrict() (*Config, error) {
 				Total:         Duration(defaultTotalTimeout),
 				WarnThreshold: Duration(defaultWarnThresholdTimeout),
 			},
-			Plugins: make(map[string]AnalyzerPlugin),
+			Plugins:        make(map[string]AnalyzerPlugin),
+			MaxMonthlyCost: 0,
+			Enforcement:    "advisory",
 		},
 		Cost: CostConfig{
 			Cache: CacheConfig{
@@ -463,6 +480,9 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("cost configuration validation failed: %w", err)
 	}
 
+	// Normalize analyzer threshold configuration (logs warnings for invalid values)
+	c.validateAnalyzerThreshold()
+
 	// Validate routing configuration if present
 	if c.Routing != nil {
 		if err := c.Routing.Validate(); err != nil {
@@ -471,6 +491,33 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+// validateAnalyzerThreshold normalizes analyzer cost threshold settings.
+// A threshold < 0 is treated as "no threshold configured" and logs a warning.
+// An unrecognized enforcement mode defaults to "advisory" with a warning.
+func (c *Config) validateAnalyzerThreshold() {
+	if c.Analyzer.MaxMonthlyCost < 0 {
+		log.Warn().
+			Float64("max_monthly_cost", c.Analyzer.MaxMonthlyCost).
+			Msg("negative max_monthly_cost treated as disabled")
+		c.Analyzer.MaxMonthlyCost = 0
+	}
+
+	if c.Analyzer.Enforcement == "" {
+		c.Analyzer.Enforcement = "advisory"
+	} else {
+		validEnforcement := map[string]bool{
+			"advisory":  true,
+			"mandatory": true,
+		}
+		if !validEnforcement[c.Analyzer.Enforcement] {
+			log.Warn().
+				Str("enforcement", c.Analyzer.Enforcement).
+				Msg("unrecognized enforcement mode, defaulting to advisory")
+			c.Analyzer.Enforcement = "advisory"
+		}
+	}
 }
 
 // validateLogging validates logging configuration.
@@ -765,6 +812,22 @@ func (c *Config) applyEnvOverrides() {
 			c.ensureBudgetsConfig()
 			c.Cost.Budgets.Global.ExitCode = &code
 		}
+	}
+
+	// Analyzer threshold overrides
+	if maxCost := os.Getenv("FINFOCUS_MAX_MONTHLY_COST"); maxCost != "" {
+		if cost, err := strconv.ParseFloat(maxCost, 64); err == nil {
+			c.Analyzer.MaxMonthlyCost = cost
+		} else {
+			log.Debug().
+				Str("env_var", "FINFOCUS_MAX_MONTHLY_COST").
+				Str("value", maxCost).
+				Err(err).
+				Msg("failed to parse max monthly cost, using default")
+		}
+	}
+	if enforcement := os.Getenv("FINFOCUS_ENFORCEMENT"); enforcement != "" {
+		c.Analyzer.Enforcement = enforcement
 	}
 
 	// Plugin overrides (FINFOCUS_PLUGIN_<NAME>_<KEY>=value)

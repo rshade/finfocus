@@ -1145,6 +1145,9 @@ CodeRabbit now:
 - Go 1.25.7 + GitHub Actions (actions/checkout@v6, actions/setup-go@v6, actions/cache@v5, actions/github-script@v7), golang.org/x/perf/cmd/benchstat (594-ci-benchmark-reporting)
 - GitHub Actions cache (benchmark baseline file) (594-ci-benchmark-reporting)
 
+- Go 1.25.7 + Pulumi SDK v3.220.0 (EnforcementLevel protobuf), cobra, zerolog, finfocus-spec v0.5.6 (594-policy-cost-output)
+- JSON file (`last-cost-summary.json`) using atomic write pattern (temp file + rename) (594-policy-cost-output)
+
 ### Current Stack
 
 - **Language**: Go 1.25.7
@@ -1167,5 +1170,6 @@ CodeRabbit now:
 | 508-recommendation-dismissal | (core stack) | Local JSON (dismissed.json) |
 | 223-cost-estimate | Bubble Tea, Lip Gloss | Stateless command design |
 | 509-pulumi-auto-detect | (core stack) | Stateless CLI |
+| 594-policy-cost-output | config.Config (AnalyzerConfig), analyzer.CostSummary | Env: `FINFOCUS_MAX_MONTHLY_COST`, `FINFOCUS_ENFORCEMENT`; Config: `analyzer.max_monthly_cost`, `analyzer.enforcement`; Writes `last-cost-summary.json` |
 
 ## Recent Changes
