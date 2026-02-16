@@ -317,12 +317,11 @@ func TestAnalyzer_ThresholdEnforcement(t *testing.T) {
 	assert.Equal(t, "stack-cost-summary", summary.GetPolicyName())
 	assert.Contains(t, summary.GetMessage(), "$7500.00 USD")
 
-	// Verify threshold diagnostic (mandatory mode, exceeded)
+	// Verify threshold diagnostic (advisory-only per analyzer contract)
 	threshold := resp.GetDiagnostics()[1]
 	assert.Equal(t, "cost-threshold", threshold.GetPolicyName())
-	assert.Equal(t, pulumirpc.EnforcementLevel_MANDATORY, threshold.GetEnforcementLevel())
+	assert.Equal(t, pulumirpc.EnforcementLevel_ADVISORY, threshold.GetEnforcementLevel())
 	assert.Contains(t, threshold.GetMessage(), "exceeds threshold")
-	assert.Contains(t, threshold.GetMessage(), "deployment blocked")
 }
 
 // TestAnalyzer_ThresholdAdvisoryMode tests advisory mode does not block deployments.

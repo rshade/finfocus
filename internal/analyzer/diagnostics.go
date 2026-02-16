@@ -444,15 +444,14 @@ func WarningDiagnostic(message, urn, version string) *pulumirpc.AnalyzeDiagnosti
 // ThresholdDiagnostic creates a stack-level diagnostic for cost threshold evaluation.
 //
 // When the total cost is within the threshold, an ADVISORY diagnostic is returned
-// with MEDIUM severity. When the threshold is exceeded, the enforcement mode
-// determines the behavior:
-//   - advisory mode: ADVISORY enforcement with HIGH severity
-//   - mandatory mode: MANDATORY enforcement with HIGH severity (blocks deployment)
+// with MEDIUM severity. When the threshold is exceeded, an ADVISORY diagnostic is
+// returned with HIGH severity. The analyzer never blocks deployments — all enforcement
+// is advisory-only per the Pulumi Analyzer contract.
 //
 // The diagnostic has no URN since it applies to the entire stack.
 func ThresholdDiagnostic(
 	totalCost, threshold float64,
-	currency, enforcement, version string,
+	currency, version string,
 ) *pulumirpc.AnalyzeDiagnostic {
 	exceeded := totalCost > threshold
 
@@ -470,13 +469,6 @@ func ThresholdDiagnostic(
 		)
 		enforcementLevel = pulumirpc.EnforcementLevel_ADVISORY
 		severity = pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM
-	case enforcement == enforcementMandatory:
-		message = fmt.Sprintf(
-			"Stack cost %s%.2f %s/mo exceeds threshold %s%.2f/mo — deployment blocked",
-			sym, totalCost, currency, sym, threshold,
-		)
-		enforcementLevel = pulumirpc.EnforcementLevel_MANDATORY
-		severity = pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH
 	default:
 		message = fmt.Sprintf(
 			"Stack cost %s%.2f %s/mo exceeds threshold %s%.2f/mo",

@@ -75,37 +75,72 @@ func TestNewServer(t *testing.T) {
 func TestServer_WithConfig(t *testing.T) {
 	calc := &mockCostCalculator{}
 
-	t.Run("nil config preserves backward compatibility", func(t *testing.T) {
-		server := NewServer(calc, "1.0.0").WithConfig(nil)
-		require.NotNil(t, server)
-		assert.Nil(t, server.cfg)
-		assert.Equal(t, "1.0.0", server.version)
+	tests := []struct {
+		name                  string
+		cfg                   *config.Config
+		version               string
+		wantNilCfg            bool
+		expectedVersion       string
+		expectedMaxMonthly    float64
+		expectedEnforcement   string
+		wantGetAnalyzerInfoOk bool
+	}{
+		{
+			name:                  "nil config preserves backward compatibility",
+			cfg:                   nil,
+			version:               "1.0.0",
+			wantNilCfg:            true,
+			expectedVersion:       "1.0.0",
+			wantGetAnalyzerInfoOk: true,
+		},
+		{
+			name: "config stored on server",
+			cfg: func() *config.Config {
+				c := &config.Config{}
+				c.Analyzer.MaxMonthlyCost = 5000
+				c.Analyzer.Enforcement = "mandatory"
+				return c
+			}(),
+			version:             "1.0.0",
+			wantNilCfg:          false,
+			expectedVersion:     "1.0.0",
+			expectedMaxMonthly:  5000,
+			expectedEnforcement: "mandatory",
+		},
+		{
+			name:            "chaining works",
+			cfg:             &config.Config{},
+			version:         "2.0.0",
+			wantNilCfg:      false,
+			expectedVersion: "2.0.0",
+		},
+	}
 
-		// Should work normally without config
-		resp, err := server.GetAnalyzerInfo(context.Background(), &emptypb.Empty{})
-		require.NoError(t, err)
-		require.NotNil(t, resp)
-	})
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			server := NewServer(calc, tc.version).WithConfig(tc.cfg)
+			require.NotNil(t, server)
+			assert.Equal(t, tc.expectedVersion, server.version)
 
-	t.Run("config stored on server", func(t *testing.T) {
-		cfg := &config.Config{}
-		cfg.Analyzer.MaxMonthlyCost = 5000
-		cfg.Analyzer.Enforcement = "mandatory"
+			if tc.wantNilCfg {
+				assert.Nil(t, server.cfg)
+			} else {
+				require.NotNil(t, server.cfg)
+				if tc.expectedMaxMonthly > 0 {
+					assert.Equal(t, tc.expectedMaxMonthly, server.cfg.Analyzer.MaxMonthlyCost)
+				}
+				if tc.expectedEnforcement != "" {
+					assert.Equal(t, tc.expectedEnforcement, server.cfg.Analyzer.Enforcement)
+				}
+			}
 
-		server := NewServer(calc, "1.0.0").WithConfig(cfg)
-		require.NotNil(t, server)
-		require.NotNil(t, server.cfg)
-		assert.Equal(t, float64(5000), server.cfg.Analyzer.MaxMonthlyCost)
-		assert.Equal(t, "mandatory", server.cfg.Analyzer.Enforcement)
-	})
-
-	t.Run("chaining works", func(t *testing.T) {
-		cfg := &config.Config{}
-		server := NewServer(calc, "2.0.0").WithConfig(cfg)
-		require.NotNil(t, server)
-		assert.Equal(t, "2.0.0", server.version)
-		assert.NotNil(t, server.cfg)
-	})
+			if tc.wantGetAnalyzerInfoOk {
+				resp, err := server.GetAnalyzerInfo(context.Background(), &emptypb.Empty{})
+				require.NoError(t, err)
+				require.NotNil(t, resp)
+			}
+		})
+	}
 }
 
 func TestServer_AnalyzeStack(t *testing.T) {
@@ -973,10 +1008,9 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 
 		thresholdDiag := resp.GetDiagnostics()[1]
 		assert.Equal(t, policyNameThreshold, thresholdDiag.GetPolicyName())
-		assert.Equal(t, pulumirpc.EnforcementLevel_MANDATORY, thresholdDiag.GetEnforcementLevel())
+		assert.Equal(t, pulumirpc.EnforcementLevel_ADVISORY, thresholdDiag.GetEnforcementLevel())
 		assert.Equal(t, pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH, thresholdDiag.GetSeverity())
 		assert.Contains(t, thresholdDiag.GetMessage(), "exceeds threshold")
-		assert.Contains(t, thresholdDiag.GetMessage(), "deployment blocked")
 	})
 
 	t.Run("within budget confirmation", func(t *testing.T) {

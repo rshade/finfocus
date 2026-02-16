@@ -18,6 +18,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/constants"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/spec"
 )
@@ -85,7 +86,8 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra
 	if cwdErr != nil {
 		logger.Warn().Err(cwdErr).Msg("failed to get CWD, using global config only")
 	}
-	projectDir := config.ResolveProjectDir(ctx, "", cwd)
+	projectDirFlag, _ := cmd.Flags().GetString("project-dir")
+	projectDir := config.ResolveProjectDir(ctx, projectDirFlag, cwd)
 	cfg := config.NewWithProjectDir(ctx, projectDir)
 
 	// Create spec loader and registry
@@ -125,13 +127,12 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra
 // listening port to stdout for the Pulumi plugin handshake, and runs until the
 // server is stopped by a termination signal or the command context is canceled.
 func RunAnalyzerServe(cmd *cobra.Command) error {
-	// CRITICAL: Create a logger that writes ONLY to stderr
-	// stdout must be reserved for the port handshake
-	stderrLogger := zerolog.New(os.Stderr).
-		Level(getAnalyzerLogLevel()).
+	// CRITICAL: stdout must be reserved for the port handshake.
+	// Use the project's logging framework which writes to stderr by default.
+	stderrLogger := logging.FromContext(cmd.Context()).
 		With().
 		Str("component", "analyzer").
-		Timestamp().
+		Str("operation", "serve").
 		Logger()
 
 	// Set environment variable to indicate analyzer mode for plugin suppression

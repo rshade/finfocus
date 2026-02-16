@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"context"
+	"strings"
 	"sync"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
@@ -278,14 +279,18 @@ func (s *Server) AnalyzeStack(
 	// due to different property formats between AnalyzeRequest and AnalyzerResource
 	cachedCosts := s.getCachedCosts()
 
+	// Build cost summary once — used for diagnostics, threshold evaluation, and file output
+	summary := BuildCostSummary(cachedCosts, s.stackName, s.projectName)
+
 	// Build diagnostics list starting with the existing stack summary
 	diagnostics := []*pulumirpc.AnalyzeDiagnostic{
 		StackSummaryDiagnostic(cachedCosts, s.version),
 	}
 
 	// Threshold enforcement (FR-005, FR-006, FR-007)
+	// Derive threshold inputs from the canonical CostSummary to avoid duplication
 	if s.cfg != nil && s.cfg.Analyzer.MaxMonthlyCost > 0 {
-		totalCost, currency, allFailed, mixedCurrencies := s.computeThresholdInputs(cachedCosts)
+		allFailed := len(cachedCosts) > 0 && summary.ResourceCount == 0
 
 		switch {
 		case allFailed:
@@ -293,19 +298,20 @@ func (s *Server) AnalyzeStack(
 			log.Warn().
 				Ctx(ctx).
 				Str("component", "analyzer").
+				Str("operation", "threshold_evaluation").
 				Msg("all resource costs failed, skipping threshold evaluation")
-		case mixedCurrencies:
+		case summary.MixedCurrencies:
 			// FR-013: mixed currencies — skip threshold enforcement
 			log.Warn().
 				Ctx(ctx).
 				Str("component", "analyzer").
+				Str("operation", "threshold_evaluation").
 				Msg("mixed currencies detected, skipping threshold enforcement")
 		default:
 			thresholdDiag := ThresholdDiagnostic(
-				totalCost,
+				summary.TotalMonthlyCost,
 				s.cfg.Analyzer.MaxMonthlyCost,
-				currency,
-				s.cfg.Analyzer.Enforcement,
+				summary.Currency,
 				s.version,
 			)
 			diagnostics = append(diagnostics, thresholdDiag)
@@ -314,7 +320,6 @@ func (s *Server) AnalyzeStack(
 
 	// Write cost summary file (graceful degradation: log warning, don't fail RPC)
 	if s.summaryDir != "" {
-		summary := BuildCostSummary(cachedCosts, s.stackName, s.projectName)
 		if writeErr := WriteCostSummary(summary, s.summaryDir); writeErr != nil {
 			log.Warn().
 				Ctx(ctx).
@@ -329,46 +334,9 @@ func (s *Server) AnalyzeStack(
 	}, nil
 }
 
-// computeThresholdInputs calculates the total cost, dominant currency, and flags
-// for threshold evaluation from cached cost results.
-// It returns:
-//   - totalCost: sum of all resource monthly costs
-//   - currency: the dominant currency across resources
-//   - allFailed: true if all resources have errors (no valid cost data)
-//   - mixedCurrencies: true if multiple currencies are detected
-func (s *Server) computeThresholdInputs(
-	costs []engine.CostResult,
-) (float64, string, bool, bool) {
-	currency := defaultCurrency
-	currencies := make(map[string]bool)
-	var totalCost float64
-	validCount := 0
-
-	for _, c := range costs {
-		// Skip error resources (Notes starting with "ERROR:" or having Error field)
-		if c.Error != nil || isErrorNote(c.Notes) {
-			continue
-		}
-		validCount++
-		totalCost += c.Monthly
-		if c.Currency != "" {
-			currencies[c.Currency] = true
-			currency = c.Currency
-		}
-	}
-
-	allFailed := len(costs) > 0 && validCount == 0
-	mixedCurrencies := len(currencies) > 1
-
-	return totalCost, currency, allFailed, mixedCurrencies
-}
-
 // isErrorNote returns true if the notes string indicates an error result.
 func isErrorNote(notes string) bool {
-	if len(notes) >= 11 && notes[:11] == "VALIDATION:" {
-		return true
-	}
-	return len(notes) >= 6 && notes[:6] == "ERROR:"
+	return strings.HasPrefix(notes, "VALIDATION:") || strings.HasPrefix(notes, "ERROR:")
 }
 
 // GetAnalyzerInfo returns metadata about this analyzer.

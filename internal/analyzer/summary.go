@@ -28,7 +28,7 @@ type CostSummary struct {
 	TotalMonthlyCost float64        `json:"total_monthly_cost"`
 	Currency         string         `json:"currency"`
 	ResourceCount    int            `json:"resource_count"`
-	MixedCurrencies  bool           `json:"mixed_currencies,omitempty"`
+	MixedCurrencies  bool           `json:"mixed_currencies"`
 	Resources        []ResourceCost `json:"resources"`
 }
 
@@ -67,7 +67,10 @@ func BuildCostSummary(costs []engine.CostResult, stack, project string) *CostSum
 
 		if c.Currency != "" {
 			currencies[c.Currency] = true
-			summary.Currency = c.Currency
+			// Set currency only from the first valid resource
+			if len(currencies) == 1 {
+				summary.Currency = c.Currency
+			}
 		}
 
 		summary.Resources = append(summary.Resources, ResourceCost{

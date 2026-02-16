@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -250,7 +251,51 @@ func TestWriteCostSummary(t *testing.T) {
 		require.NoError(t, statErr)
 	})
 
+	t.Run("MkdirAll failure", func(t *testing.T) {
+		// Create a file where a directory is expected — MkdirAll will fail
+		tmpFile := filepath.Join(t.TempDir(), "not-a-dir")
+		require.NoError(t, os.WriteFile(tmpFile, []byte("block"), 0o600))
+
+		summary := &CostSummary{
+			SchemaVersion: "1",
+			Timestamp:     "2025-06-15T10:30:00Z",
+			Currency:      "USD",
+			Resources:     []ResourceCost{},
+		}
+
+		err := WriteCostSummary(summary, filepath.Join(tmpFile, "subdir"))
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "creating summary directory")
+	})
+
+	t.Run("WriteFile failure read-only dir", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("chmod not effective on Windows")
+		}
+
+		dir := t.TempDir()
+		// Make dir read-only so WriteFile fails
+		require.NoError(t, os.Chmod(dir, 0o500))
+		t.Cleanup(func() {
+			_ = os.Chmod(dir, 0o755)
+		})
+
+		summary := &CostSummary{
+			SchemaVersion: "1",
+			Timestamp:     "2025-06-15T10:30:00Z",
+			Currency:      "USD",
+			Resources:     []ResourceCost{},
+		}
+
+		err := WriteCostSummary(summary, dir)
+		require.Error(t, err)
+	})
+
 	t.Run("file permissions 0600", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("permission check not supported on Windows")
+		}
+
 		dir := t.TempDir()
 		summary := &CostSummary{
 			SchemaVersion: "1",
@@ -308,7 +353,7 @@ func TestWriteCostSummary(t *testing.T) {
 		require.NoError(t, json.Unmarshal(data, &raw))
 
 		// All required fields from schema
-		for _, field := range []string{"schema_version", "timestamp", "stack", "project", "total_monthly_cost", "currency", "resource_count", "resources"} {
+		for _, field := range []string{"schema_version", "timestamp", "stack", "project", "total_monthly_cost", "currency", "resource_count", "mixed_currencies", "resources"} {
 			assert.Contains(t, raw, field, "missing required field: %s", field)
 		}
 

@@ -1099,7 +1099,6 @@ func TestThresholdDiagnostic(t *testing.T) {
 		totalCost       float64
 		threshold       float64
 		currency        string
-		enforcement     string
 		version         string
 		wantEnforcement pulumirpc.EnforcementLevel
 		wantSeverity    pulumirpc.PolicySeverity
@@ -1107,11 +1106,10 @@ func TestThresholdDiagnostic(t *testing.T) {
 		wantNotContains []string
 	}{
 		{
-			name:            "within budget advisory",
+			name:            "within budget",
 			totalCost:       3000,
 			threshold:       5000,
 			currency:        "USD",
-			enforcement:     "advisory",
 			version:         "1.0.0",
 			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
 			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
@@ -1119,23 +1117,10 @@ func TestThresholdDiagnostic(t *testing.T) {
 			wantNotContains: []string{"exceeds", "blocked"},
 		},
 		{
-			name:            "within budget mandatory",
-			totalCost:       4999.99,
-			threshold:       5000,
-			currency:        "USD",
-			enforcement:     "mandatory",
-			version:         "1.0.0",
-			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
-			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
-			wantContains:    []string{"within threshold"},
-			wantNotContains: []string{"exceeds", "blocked"},
-		},
-		{
-			name:            "exceeded advisory",
+			name:            "exceeded threshold",
 			totalCost:       7500,
 			threshold:       5000,
 			currency:        "USD",
-			enforcement:     "advisory",
 			version:         "1.0.0",
 			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
 			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH,
@@ -1143,22 +1128,10 @@ func TestThresholdDiagnostic(t *testing.T) {
 			wantNotContains: []string{"blocked"},
 		},
 		{
-			name:            "exceeded mandatory",
-			totalCost:       7500,
-			threshold:       5000,
-			currency:        "USD",
-			enforcement:     "mandatory",
-			version:         "1.0.0",
-			wantEnforcement: pulumirpc.EnforcementLevel_MANDATORY,
-			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH,
-			wantContains:    []string{"$7500.00 USD/mo", "exceeds threshold", "$5000.00/mo", "deployment blocked"},
-		},
-		{
 			name:            "exact threshold is within budget",
 			totalCost:       5000,
 			threshold:       5000,
 			currency:        "USD",
-			enforcement:     "mandatory",
 			version:         "1.0.0",
 			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
 			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
@@ -1169,7 +1142,6 @@ func TestThresholdDiagnostic(t *testing.T) {
 			totalCost:       100,
 			threshold:       200,
 			currency:        "USD",
-			enforcement:     "advisory",
 			version:         "2.3.4",
 			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
 			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
@@ -1178,7 +1150,7 @@ func TestThresholdDiagnostic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			diag := ThresholdDiagnostic(tt.totalCost, tt.threshold, tt.currency, tt.enforcement, tt.version)
+			diag := ThresholdDiagnostic(tt.totalCost, tt.threshold, tt.currency, tt.version)
 
 			require.NotNil(t, diag)
 			assert.Equal(t, "cost-threshold", diag.GetPolicyName())
