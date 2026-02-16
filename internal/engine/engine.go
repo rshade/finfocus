@@ -1939,6 +1939,19 @@ func extractProviderFromType(resourceType string) string {
 	return unknownProvider
 }
 
+// extractStringProperty extracts the first non-empty string value from the properties
+// map for any of the given keys. Returns empty string if no key matches.
+func extractStringProperty(properties map[string]interface{}, keys ...string) string {
+	for _, key := range keys {
+		if v, ok := properties[key]; ok {
+			if s, isStr := v.(string); isStr && s != "" {
+				return s
+			}
+		}
+	}
+	return ""
+}
+
 // FilterResources selects resources that match the provided filter expression.
 // The filter is a single key=value expression (for example "provider=aws" or "tag:env=prod").
 // An empty filter returns the input slice unchanged.
@@ -2824,7 +2837,7 @@ func convertProtoRecommendation(rec *proto.Recommendation) Recommendation {
 // GetRecommendationsForResources fetches cost optimization recommendations for the given resources.
 // For large datasets (>100 resources), it uses batch processing to improve performance and memory usage.
 //
-//nolint:gocognit,funlen // Complex orchestration function with caching and batch processing.
+//nolint:gocognit // Complex orchestration function with caching and batch processing.
 func (e *Engine) GetRecommendationsForResources(
 	ctx context.Context,
 	resources []ResourceDescriptor,
@@ -2839,27 +2852,24 @@ func (e *Engine) GetRecommendationsForResources(
 	}
 
 	// Check cache if enabled
-	//nolint:nestif // Cache lookup requires nested checks for key generation, cache hit, and unmarshaling.
 	if e.cache != nil && e.cache.IsEnabled() {
-		cacheKey, keyErr := e.generateRecommendationsCacheKey(resources)
-		if keyErr == nil {
-			if cachedEntry, cacheErr := e.cache.Get(cacheKey); cacheErr == nil && cachedEntry != nil {
-				log.Debug().
-					Ctx(ctx).
-					Str("component", "engine").
-					Str("cache_key", cacheKey).
-					Msg("cache hit for recommendations")
+		cacheKey := e.generateRecommendationsCacheKey(resources)
+		if cachedEntry, cacheErr := e.cache.Get(cacheKey); cacheErr == nil && cachedEntry != nil {
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("cache_key", cacheKey).
+				Msg("cache hit for recommendations")
 
-				// Unmarshal cached result
-				var cachedResult RecommendationsResult
-				if unmarshalErr := json.Unmarshal(cachedEntry.Data, &cachedResult); unmarshalErr == nil {
-					return &cachedResult, nil
-				}
-				log.Warn().
-					Ctx(ctx).
-					Str("component", "engine").
-					Msg("failed to unmarshal cached recommendations")
+			// Unmarshal cached result
+			var cachedResult RecommendationsResult
+			if unmarshalErr := json.Unmarshal(cachedEntry.Data, &cachedResult); unmarshalErr == nil {
+				return &cachedResult, nil
 			}
+			log.Warn().
+				Ctx(ctx).
+				Str("component", "engine").
+				Msg("failed to unmarshal cached recommendations")
 		}
 	}
 
@@ -2910,25 +2920,22 @@ func (e *Engine) GetRecommendationsForResources(
 	}
 
 	// Store result in cache if enabled
-	//nolint:nestif // Cache storage requires nested checks for key generation, marshaling, and storage.
 	if e.cache != nil && e.cache.IsEnabled() {
-		cacheKey, keyErr := e.generateRecommendationsCacheKey(resources)
-		if keyErr == nil {
-			resultData, marshalErr := json.Marshal(result)
-			if marshalErr == nil {
-				if setErr := e.cache.Set(cacheKey, json.RawMessage(resultData)); setErr != nil {
-					log.Warn().
-						Ctx(ctx).
-						Str("component", "engine").
-						Err(setErr).
-						Msg("failed to store recommendations in cache")
-				} else {
-					log.Debug().
-						Ctx(ctx).
-						Str("component", "engine").
-						Str("cache_key", cacheKey).
-						Msg("stored recommendations in cache")
-				}
+		cacheKey := e.generateRecommendationsCacheKey(resources)
+		resultData, marshalErr := json.Marshal(result)
+		if marshalErr == nil {
+			if setErr := e.cache.Set(cacheKey, json.RawMessage(resultData)); setErr != nil {
+				log.Warn().
+					Ctx(ctx).
+					Str("component", "engine").
+					Err(setErr).
+					Msg("failed to store recommendations in cache")
+			} else {
+				log.Debug().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("cache_key", cacheKey).
+					Msg("stored recommendations in cache")
 			}
 		}
 	}
@@ -2937,25 +2944,13 @@ func (e *Engine) GetRecommendationsForResources(
 }
 
 // generateRecommendationsCacheKey generates a cache key for the given resources.
-func (e *Engine) generateRecommendationsCacheKey(resources []ResourceDescriptor) (string, error) {
-	// Extract resource types for key generation
+// Format: recommendations/multi/{sorted-types}.
+func (e *Engine) generateRecommendationsCacheKey(resources []ResourceDescriptor) string {
 	resourceTypes := make([]string, 0, len(resources))
 	for _, r := range resources {
 		resourceTypes = append(resourceTypes, r.Type)
 	}
-
-	// Build cache key using resource types and operation
-	keyParams := cache.KeyParams{
-		Operation:     "recommendations",
-		Provider:      "multi", // Cross-provider recommendations
-		ResourceTypes: resourceTypes,
-	}
-
-	key, err := cache.GenerateKey(keyParams)
-	if err != nil {
-		return "", fmt.Errorf("generating recommendations cache key: %w", err)
-	}
-	return key, nil
+	return cache.BuildRecommendationsKey(resourceTypes)
 }
 
 // fetchRecommendationsSequential fetches recommendations without batching (for small datasets).
@@ -3420,70 +3415,61 @@ func hasOnlyPlaceholderResults(results []CostResult) bool {
 }
 
 // generateProjectedCostResourceKey generates a deterministic cache key for a single
-// resource's projected cost query. Uses all resource properties as filters to ensure
-// any property change (e.g., instanceType, region) produces a different cache key.
+// resource's projected cost query. Uses structured `/`-separated keys for human-readable
+// debugging and efficient prefix scanning.
+// Format: projected/{provider}/{type}/{region}/{sku}.
 func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, error) {
 	if resource.Type == "" {
 		return "", errors.New("resource type is required for cache key generation")
 	}
 
-	filters := make(map[string]string, len(resource.Properties))
-	for k, v := range resource.Properties {
-		filters[k] = fmt.Sprintf("%v", v)
-	}
+	region := extractStringProperty(resource.Properties, "availabilityZone", "region")
+	sku := extractStringProperty(resource.Properties, "instanceType", "type", "sku")
 
-	return cache.GenerateKey(cache.KeyParams{
-		Operation:     "projected_cost",
-		Provider:      resource.Provider,
-		ResourceTypes: []string{resource.Type},
-		Filters:       filters,
-	})
+	return cache.BuildProjectedKey(resource.Provider, resource.Type, region, sku), nil
 }
 
 // generateActualCostCacheKey generates a deterministic cache key for an actual cost
-// query. Includes time range, tags, adapter, and groupBy but excludes
-// EstimateConfidence (display-only flag that doesn't affect results).
-func generateActualCostCacheKey(request ActualCostRequest) (string, error) {
-	// Collect resource types and stable identifiers.
+// query. Uses structured `/`-separated keys with time ranges and filter hashes.
+// Format: actual/{provider}/{types}/{from}/{to}/{filter-hash}.
+func generateActualCostCacheKey(request ActualCostRequest) string {
+	// Collect resource types.
 	resourceTypes := make([]string, 0, len(request.Resources))
-	resourceIDs := make([]string, 0, len(request.Resources))
 	for _, r := range request.Resources {
 		resourceTypes = append(resourceTypes, r.Type)
-		if r.ID != "" {
-			resourceIDs = append(resourceIDs, r.ID)
-		} else if r.Type != "" {
-			resourceIDs = append(resourceIDs, r.Type)
-		}
 	}
 
+	// Determine provider from resources.
+	provider := "multi"
+	if len(request.Resources) > 0 && request.Resources[0].Provider != "" {
+		provider = request.Resources[0].Provider
+	}
+
+	// Build filters map for hashing (includes tags, adapter, groupBy, etc.).
 	filters := make(map[string]string)
-	filters["from"] = request.From.Format(time.RFC3339)
-	filters["to"] = request.To.Format(time.RFC3339)
 	filters["fallback_estimate"] = strconv.FormatBool(request.FallbackEstimate)
-
-	if len(resourceIDs) > 0 {
-		sort.Strings(resourceIDs)
-		filters["resource_ids"] = strings.Join(resourceIDs, ",")
-	}
-
 	if request.Adapter != "" {
 		filters["adapter"] = request.Adapter
 	}
 	if request.GroupBy != "" {
 		filters["group_by"] = request.GroupBy
 	}
-
-	// Add tags with "tag:" prefix
+	// Include resource IDs in filter hash for determinism.
+	resourceIDs := make([]string, 0, len(request.Resources))
+	for _, r := range request.Resources {
+		if r.ID != "" {
+			resourceIDs = append(resourceIDs, r.ID)
+		}
+	}
+	if len(resourceIDs) > 0 {
+		sort.Strings(resourceIDs)
+		filters["resource_ids"] = strings.Join(resourceIDs, ",")
+	}
 	for k, v := range request.Tags {
 		filters["tag:"+k] = v
 	}
 
-	return cache.GenerateKey(cache.KeyParams{
-		Operation:     "actual_cost",
-		Provider:      "multi",
-		ResourceTypes: resourceTypes,
-		Filters:       filters,
-	})
+	return cache.BuildActualKey(provider, resourceTypes, request.From, request.To, filters)
 }
 
 // tryProjectedCostCache attempts to retrieve cached projected cost results for the
@@ -3560,10 +3546,7 @@ func (e *Engine) tryActualCostCache(ctx context.Context, request ActualCostReque
 		return nil
 	}
 
-	key, err := generateActualCostCacheKey(request)
-	if err != nil {
-		return nil
-	}
+	key := generateActualCostCacheKey(request)
 
 	entry, err := e.cache.Get(key)
 	if err != nil {
@@ -3604,10 +3587,7 @@ func (e *Engine) storeActualCostCache(ctx context.Context, request ActualCostReq
 		return
 	}
 
-	key, err := generateActualCostCacheKey(request)
-	if err != nil {
-		return
-	}
+	key := generateActualCostCacheKey(request)
 
 	data, marshalErr := json.Marshal(results)
 	if marshalErr != nil {

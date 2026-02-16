@@ -93,6 +93,9 @@ func TestInitCache(t *testing.T) {
 			}
 			t.Setenv(cache.EnvTTLSecondsLegacy, "")
 
+			// Use a temp dir for cache to avoid file lock conflicts between parallel tests
+			t.Setenv(cache.EnvCacheDir, t.TempDir())
+
 			cmd := newTestCmdWithCacheTTL(tt.flagTTL)
 			// Simulate user explicitly setting the flag
 			if tt.flagSet {
@@ -107,6 +110,8 @@ func TestInitCache(t *testing.T) {
 			} else {
 				require.NotNil(t, result, tt.wantDesc)
 				assert.True(t, result.IsEnabled(), "returned cache should be enabled")
+				// Close the cache to release the database handle
+				require.NoError(t, result.Close())
 			}
 		})
 	}
@@ -114,7 +119,7 @@ func TestInitCache(t *testing.T) {
 
 func TestInitCache_InitFailureReturnsNilGracefully(t *testing.T) {
 	// Set FINFOCUS_CACHE_DIR to an unwritable path to trigger init failure
-	t.Setenv("FINFOCUS_CACHE_DIR", "/proc/nonexistent/cache")
+	t.Setenv(cache.EnvCacheDir, "/proc/nonexistent/cache")
 	t.Setenv(cache.EnvTTLSeconds, "3600")
 
 	cmd := newTestCmdWithCacheTTL(0)

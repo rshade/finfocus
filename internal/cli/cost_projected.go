@@ -194,6 +194,8 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
 // - the cost calculation fails,
 // - rendering the output fails, or
 // - the budget evaluation produces a non-zero exit/error status.
+//
+//nolint:funlen // Complex orchestration function requiring cache lifecycle management.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
 	ctx := cmd.Context()
 
@@ -254,7 +256,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	defer cleanup()
 
-	eng := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg).WithJobs(params.jobs)
+	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
+	defer cacheCleanup()
+	eng = eng.WithJobs(params.jobs)
 	start := time.Now()
 	resultWithErrors, err := eng.GetProjectedCostWithErrors(ctx, resources)
 	if err != nil {

@@ -161,6 +161,8 @@ timestamp if not provided.`,
 // - plugin initialization or invocation failures when fetching costs,
 // - output rendering errors,
 // - budget evaluation failures.
+//
+//nolint:funlen // Complex orchestration function requiring cache lifecycle management.
 func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
@@ -219,7 +221,9 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		FallbackEstimate:   params.fallbackEstimate,
 	}
 
-	eng := newEngineWithCache(ctx, cmd, clients, nil).WithJobs(params.jobs)
+	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
+	defer cacheCleanup()
+	eng = eng.WithJobs(params.jobs)
 	start := time.Now()
 	resultWithErrors, err := eng.GetActualCostWithOptionsAndErrors(ctx, request)
 	if err != nil {
