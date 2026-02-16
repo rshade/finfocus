@@ -48,31 +48,41 @@ func BuildProjectedKey(provider, resourceType, region, sku string) string {
 }
 
 // BuildActualKey constructs a key for whole-query actual cost caching.
-// Format: actual/{provider}/{type}/{from}/{to}/{filter-hash}
+// Format: actual/{provider}/{types}/{from}/{to}/{filter-hash}
+// Empty segments use "_" as a placeholder to ensure fixed-position keys
+// and avoid ambiguity (e.g., provider="aws" vs resourceTypes=["aws"]).
 // The filter-hash is a deterministic SHA256 prefix of sorted filter key-value pairs.
 func BuildActualKey(provider string, resourceTypes []string, from, to time.Time, filters map[string]string) string {
-	parts := []string{BucketActual}
-	if provider != "" {
-		parts = append(parts, provider)
+	placeholder := func(s string) string {
+		if s == "" {
+			return "_"
+		}
+		return s
 	}
 
 	// Sort resource types for determinism
 	sorted := make([]string, len(resourceTypes))
 	copy(sorted, resourceTypes)
 	sort.Strings(sorted)
+
+	typesSegment := "_"
 	if len(sorted) > 0 {
-		parts = append(parts, strings.Join(sorted, "+"))
+		typesSegment = strings.Join(sorted, "+")
 	}
 
-	parts = append(parts, from.Format("2006-01-02"))
-	parts = append(parts, to.Format("2006-01-02"))
-
-	// Build deterministic filter hash
+	filterSegment := "_"
 	if len(filters) > 0 {
-		parts = append(parts, hashFilters(filters))
+		filterSegment = hashFilters(filters)
 	}
 
-	return strings.Join(parts, "/")
+	return strings.Join([]string{
+		BucketActual,
+		placeholder(provider),
+		typesSegment,
+		from.Format("2006-01-02"),
+		to.Format("2006-01-02"),
+		filterSegment,
+	}, "/")
 }
 
 // BuildRecommendationsKey constructs a key for recommendation result caching.

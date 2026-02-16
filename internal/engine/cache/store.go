@@ -106,10 +106,6 @@ func NewBoltStore(ctx context.Context, directory string, enabled bool, ttlSecond
 	if err != nil {
 		return nil, err
 	}
-	// ErrCacheLocked means lock timeout → graceful degradation
-	if db == nil {
-		return nil, ErrCacheLocked
-	}
 
 	store := &BoltStore{
 		db:         db,

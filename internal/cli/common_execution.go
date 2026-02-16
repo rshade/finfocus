@@ -503,7 +503,10 @@ func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Co
 }
 
 // resolveCacheDir determines the cache directory using the resolution chain:
-// FINFOCUS_CACHE_DIR env > config > project dir > ~/.finfocus/.
+// env var (cache.EnvCacheDir) → config setting (cfg.Cost.Cache.Directory) →
+// resolved project .finfocus directory from config.GetResolvedProjectDir()
+// (which already returns the full project .finfocus path, so no additional
+// path join is needed) → user home ~/.finfocus fallback.
 func resolveCacheDir(ctx context.Context, cfg *config.Config) string {
 	log := logging.FromContext(ctx)
 	if dir := os.Getenv(cache.EnvCacheDir); dir != "" {

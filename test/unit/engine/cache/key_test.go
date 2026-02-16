@@ -98,6 +98,20 @@ func TestBuildActualKey_FiltersDeterministic(t *testing.T) {
 	assert.Equal(t, key1, key2, "filter order should not affect key")
 }
 
+// TestBuildActualKey_PositionalAmbiguity verifies that empty provider with non-empty
+// resource types produces a different key than non-empty provider with empty types.
+func TestBuildActualKey_PositionalAmbiguity(t *testing.T) {
+	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	// provider="aws", no resource types
+	key1 := cache.BuildActualKey("aws", nil, from, to, nil)
+	// no provider, resourceTypes=["aws"]
+	key2 := cache.BuildActualKey("", []string{"aws"}, from, to, nil)
+
+	assert.NotEqual(t, key1, key2, "empty provider + types vs provider + empty types must produce distinct keys")
+}
+
 // TestBuildActualKey_DifferentFiltersProduceDifferentKeys verifies filter sensitivity.
 func TestBuildActualKey_DifferentFiltersProduceDifferentKeys(t *testing.T) {
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
