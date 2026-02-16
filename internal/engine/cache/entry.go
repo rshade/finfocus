@@ -2,7 +2,6 @@ package cache
 
 import (
 	"encoding/json"
-	"errors"
 	"time"
 )
 
@@ -11,7 +10,7 @@ import (
 //
 //nolint:revive // CacheEntry is the canonical name for this exported type.
 type CacheEntry struct {
-	// Key is the cache key (typically SHA256 hash of query parameters).
+	// Key is the cache key (structured, human-readable, `/`-separated).
 	Key string `json:"key"`
 
 	// Data is the cached value (JSON-serializable).
@@ -74,52 +73,41 @@ func (e *CacheEntry) Touch() {
 	e.ExpiresAt = now.Add(time.Duration(e.TTLSeconds) * time.Second)
 }
 
-// MarshalJSON implements json.Marshaler for CacheEntry.
-// Times are formatted as RFC3339 for readability in JSON files.
-func (e *CacheEntry) MarshalJSON() ([]byte, error) {
-	type Alias CacheEntry
-	return json.Marshal(&struct {
-		*Alias
+// cacheEntryJSON is the wire format for CacheEntry stored in BoltDB.
+// Times are stored as Unix timestamps (int64) for efficient storage and comparison.
+type cacheEntryJSON struct {
+	Key        string          `json:"key"`
+	Data       json.RawMessage `json:"data"`
+	CreatedAt  int64           `json:"created_at"`
+	ExpiresAt  int64           `json:"expires_at"`
+	TTLSeconds int             `json:"ttl_seconds"`
+}
 
-		CreatedAt string `json:"created_at"`
-		ExpiresAt string `json:"expires_at"`
-	}{
-		Alias:     (*Alias)(e),
-		CreatedAt: e.CreatedAt.Format(time.RFC3339),
-		ExpiresAt: e.ExpiresAt.Format(time.RFC3339),
+// MarshalJSON implements json.Marshaler for CacheEntry.
+// Times are stored as Unix timestamps (int64) for bbolt storage efficiency.
+func (e *CacheEntry) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&cacheEntryJSON{
+		Key:        e.Key,
+		Data:       e.Data,
+		CreatedAt:  e.CreatedAt.Unix(),
+		ExpiresAt:  e.ExpiresAt.Unix(),
+		TTLSeconds: e.TTLSeconds,
 	})
 }
 
 // UnmarshalJSON implements json.Unmarshaler for CacheEntry.
-// Parses RFC3339 timestamps from JSON files.
+// Parses Unix timestamps from stored data.
 func (e *CacheEntry) UnmarshalJSON(data []byte) error {
-	if e == nil {
-		return errors.New("cannot unmarshal into nil CacheEntry")
-	}
-	type Alias CacheEntry
-	aux := &struct {
-		*Alias
-
-		CreatedAt string `json:"created_at"`
-		ExpiresAt string `json:"expires_at"`
-	}{
-		Alias: (*Alias)(e),
-	}
-
+	var aux cacheEntryJSON
 	if err := json.Unmarshal(data, &aux); err != nil {
 		return err
 	}
 
-	var err error
-	e.CreatedAt, err = time.Parse(time.RFC3339, aux.CreatedAt)
-	if err != nil {
-		return err
-	}
-
-	e.ExpiresAt, err = time.Parse(time.RFC3339, aux.ExpiresAt)
-	if err != nil {
-		return err
-	}
+	e.Key = aux.Key
+	e.Data = aux.Data
+	e.CreatedAt = time.Unix(aux.CreatedAt, 0)
+	e.ExpiresAt = time.Unix(aux.ExpiresAt, 0)
+	e.TTLSeconds = aux.TTLSeconds
 
 	return nil
 }

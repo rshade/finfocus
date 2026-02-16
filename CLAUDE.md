@@ -903,15 +903,21 @@ The engine package orchestrates cost calculations between plugins and specs:
   - Intelligent cost calculation (actual vs projected with time period conversion)
   - Provider extraction from resource types ("aws:ec2:Instance" → "aws")
   - Sorted chronological output for trend analysis
-- **Caching System**:
-  - `cache.Cache` interface (Get, Set, IsEnabled) in `internal/engine/cache/store.go`
-  - `FileStore` implements `Cache` with file-based JSON storage at `~/.finfocus/cache/`
+- **Caching System** (BoltDB backend):
+  - `cache.Cache` interface (Get, Set, IsEnabled, Close, InvalidateByPrefix) in `internal/engine/cache/store.go`
+  - `BoltStore` implements `Cache` with BoltDB (`go.etcd.io/bbolt`) single-file storage
+  - Database file: `{cacheDir}/finfocus.db` (project-local or `~/.finfocus/cache/`)
+  - Three buckets: `projected`, `actual`, `recommendations`
+  - Human-readable structured keys: `projected/{provider}/{type}/{region}/{sku}`
   - Projected costs: per-resource caching (change one resource, only that key invalidates)
   - Actual costs: whole-query caching (key includes time range, tags, adapter, groupBy)
   - Cache hits append ` (cached)` to the Adapter field for visual feedback
+  - Lazy TTL expiration (check-on-read) with startup cleanup
+  - Concurrent reads via `DB.View()`, write coalescing via `DB.Batch()`
+  - Corruption detection and auto-recovery (delete + recreate)
   - `InitCache(ctx, cmd)` in `internal/cli/common_execution.go`: shared helper with
     precedence CLI flag (`--cache-ttl`) > env var (`FINFOCUS_CACHE_TTL`) > config > default
-  - `newEngineWithCache()`: creates Engine and wires optional cache in one call
+  - `newEngineWithCache()` returns `(*Engine, func())` - cleanup function closes the DB
   - All cost commands (`projected`, `actual`, `recommendations`) use `newEngineWithCache()`
 - See `internal/engine/CLAUDE.md` for detailed calculation flows
 
@@ -1142,8 +1148,8 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
-- Go 1.25.7 + GitHub Actions (actions/checkout@v6, actions/setup-go@v6, actions/cache@v5, actions/github-script@v7), golang.org/x/perf/cmd/benchstat (594-ci-benchmark-reporting)
-- GitHub Actions cache (benchmark baseline file) (594-ci-benchmark-reporting)
+- Go 1.25.7 + `go.etcd.io/bbolt` (new), existing deps unchanged (595-boltdb-cache)
+- BoltDB single-file B+tree KV store at `{cacheDir}/finfocus.db` (595-boltdb-cache)
 
 - Go 1.25.7 + Pulumi SDK v3.220.0 (EnforcementLevel protobuf), cobra, zerolog, finfocus-spec v0.5.6 (594-policy-cost-output)
 - JSON file (`last-cost-summary.json`) using atomic write pattern (temp file + rename) (594-policy-cost-output)
@@ -1162,7 +1168,7 @@ CodeRabbit now:
 
 | Branch | Additional Technologies | State |
 |--------|------------------------|-------|
-| 592-engine-caching | `internal/engine/cache` (FileStore, KeyParams, GenerateKey) | File-based JSON cache at `~/.finfocus/cache/` |
+| 595-boltdb-cache | `internal/engine/cache` (BoltStore, structured keys) + `go.etcd.io/bbolt` | BoltDB single-file cache at `{cacheDir}/finfocus.db` |
 | 590-analyzer-install | os/filepath/runtime, pkg/version | Filesystem (symlinks/copies) |
 | 511-wire-router | (core stack) | Stateless; reads config.yaml |
 | 590-neo-cli-fixes | (core stack) | Stateless CLI |
