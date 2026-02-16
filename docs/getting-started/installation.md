@@ -15,7 +15,7 @@ Detailed steps to install FinFocus on your system.
 
 ## Installation Methods
 
-### Option 1: Build from Source (Recommended)
+### Option 1: Build from Source (For Contributors)
 
 #### Step 1: Clone the repository
 
@@ -69,17 +69,22 @@ wget -qO- https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `FINFOCUS_VERSION` | Install a specific version | Latest release |
-| `FINFOCUS_INSTALL_DIR` | Custom install directory | `/usr/local/bin` or `~/.local/bin` |
+| `FINFOCUS_INSTALL_DIR` | Custom install directory | `/usr/local/bin` or `~/bin` |
 | `FINFOCUS_NO_VERIFY` | Skip checksum verification | Unset (verify enabled) |
 
 #### Examples
 
 ```bash
-# Install a specific version
-FINFOCUS_VERSION=v0.2.0 curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
+# Install a specific version (export so the piped shell inherits the variable)
+export FINFOCUS_VERSION=v0.2.0
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
+
+# Or pass the variable inline to the shell that runs the script
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | FINFOCUS_VERSION=v0.2.0 sh
 
 # Install to a custom directory
-FINFOCUS_INSTALL_DIR=$HOME/bin curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
+export FINFOCUS_INSTALL_DIR=$HOME/bin
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 ```
 
 ### Option 3: Docker

@@ -14,7 +14,7 @@ Get FinFocus running and see your first cost estimate in just 5 minutes.
 
 ## Step 1: Install (1 minute)
 
-### Option A: From source (recommended)
+### Option A: From source
 
 ```bash
 git clone https://github.com/rshade/finfocus
