@@ -16,13 +16,11 @@ import (
 
 // Policy pack and policy name constants for diagnostic messages.
 const (
-	policyPackName       = "finfocus"
-	policyNameCost       = "cost-estimate"
-	policyNameSum        = "stack-cost-summary"
-	policyNameThreshold  = "cost-threshold"
-	defaultCurrency      = "USD"
-	enforcementAdvisory  = "advisory"
-	enforcementMandatory = "mandatory"
+	policyPackName      = "finfocus"
+	policyNameCost      = "cost-estimate"
+	policyNameSum       = "stack-cost-summary"
+	policyNameThreshold = "cost-threshold"
+	defaultCurrency     = "USD"
 )
 
 // CostToDiagnostic converts a CostResult to an AnalyzeDiagnostic.

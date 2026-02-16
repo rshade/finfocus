@@ -884,12 +884,15 @@ func TestServer_Analyze_RecommendationFailure(t *testing.T) {
 // T013: AnalyzeStack Threshold Integration Tests (Issue #604)
 // =============================================================================
 
+// resourceDesc describes a resource for threshold integration test helpers.
+type resourceDesc struct {
+	resType string
+	urn     string
+}
+
 func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 	// Helper to populate cost cache via Analyze() calls
-	analyzeResources := func(t *testing.T, server *Server, resources []struct {
-		resType string
-		urn     string
-	}) {
+	analyzeResources := func(t *testing.T, server *Server, resources []resourceDesc) {
 		t.Helper()
 		for _, res := range resources {
 			req := &pulumirpc.AnalyzeRequest{
@@ -909,10 +912,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 		}
 		server := NewServer(calc, "1.0.0") // No WithConfig()
 
-		analyzeResources(t, server, []struct {
-			resType string
-			urn     string
-		}{
+		analyzeResources(t, server, []resourceDesc{
 			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
 		})
 
@@ -934,10 +934,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 		cfg.Analyzer.Enforcement = "advisory"
 		server := NewServer(calc, "1.0.0").WithConfig(cfg)
 
-		analyzeResources(t, server, []struct {
-			resType string
-			urn     string
-		}{
+		analyzeResources(t, server, []resourceDesc{
 			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
 		})
 
@@ -959,10 +956,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 		cfg.Analyzer.Enforcement = "advisory"
 		server := NewServer(calc, "1.0.0").WithConfig(cfg)
 
-		analyzeResources(t, server, []struct {
-			resType string
-			urn     string
-		}{
+		analyzeResources(t, server, []resourceDesc{
 			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
 			{"aws:rds/instance:Instance", "urn:pulumi:dev::app::aws:rds/instance:Instance::db1"},
 		})
@@ -995,10 +989,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 		cfg.Analyzer.Enforcement = "mandatory"
 		server := NewServer(calc, "1.0.0").WithConfig(cfg)
 
-		analyzeResources(t, server, []struct {
-			resType string
-			urn     string
-		}{
+		analyzeResources(t, server, []resourceDesc{
 			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
 		})
 
@@ -1025,10 +1016,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 		cfg.Analyzer.Enforcement = "mandatory"
 		server := NewServer(calc, "1.0.0").WithConfig(cfg)
 
-		analyzeResources(t, server, []struct {
-			resType string
-			urn     string
-		}{
+		analyzeResources(t, server, []resourceDesc{
 			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
 			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web2"},
 		})
@@ -1056,10 +1044,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 		cfg.Analyzer.Enforcement = "mandatory"
 		server := NewServer(calc, "1.0.0").WithConfig(cfg)
 
-		analyzeResources(t, server, []struct {
-			resType string
-			urn     string
-		}{
+		analyzeResources(t, server, []resourceDesc{
 			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
 			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web2"},
 		})
@@ -1096,10 +1081,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 		cfg.Analyzer.Enforcement = "mandatory"
 		server := NewServer(calc, "1.0.0").WithConfig(cfg)
 
-		analyzeResources(t, server, []struct {
-			resType string
-			urn     string
-		}{
+		analyzeResources(t, server, []resourceDesc{
 			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
 			{"aws:rds/instance:Instance", "urn:pulumi:dev::app::aws:rds/instance:Instance::db1"},
 		})
@@ -1148,7 +1130,7 @@ func TestServer_GetAnalyzerInfo_WithThreshold(t *testing.T) {
 		require.Len(t, resp.GetPolicies(), 3)
 		thresholdPolicy := resp.GetPolicies()[2]
 		assert.Equal(t, policyNameThreshold, thresholdPolicy.GetName())
-		assert.Equal(t, pulumirpc.EnforcementLevel_MANDATORY, thresholdPolicy.GetEnforcementLevel())
+		assert.Equal(t, pulumirpc.EnforcementLevel_ADVISORY, thresholdPolicy.GetEnforcementLevel())
 	})
 
 	t.Run("zero threshold no threshold policy", func(t *testing.T) {

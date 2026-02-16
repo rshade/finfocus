@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -93,6 +94,10 @@ func BuildCostSummary(costs []engine.CostResult, stack, project string) *CostSum
 // atomic write pattern (temp file + rename). The directory is created if it
 // does not exist. The output file has permissions 0o600 (owner read/write only).
 func WriteCostSummary(summary *CostSummary, dir string) error {
+	if summary == nil {
+		return errors.New("nil summary")
+	}
+
 	if err := os.MkdirAll(dir, 0o750); err != nil {
 		return fmt.Errorf("creating summary directory: %w", err)
 	}

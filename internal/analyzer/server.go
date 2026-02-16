@@ -324,6 +324,7 @@ func (s *Server) AnalyzeStack(
 			log.Warn().
 				Ctx(ctx).
 				Str("component", "analyzer").
+				Str("operation", "write_cost_summary").
 				Err(writeErr).
 				Msg("failed to write cost summary file")
 		}
@@ -364,15 +365,11 @@ func (s *Server) GetAnalyzerInfo(
 
 	// Register cost-threshold policy when threshold is configured
 	if s.cfg != nil && s.cfg.Analyzer.MaxMonthlyCost > 0 {
-		thresholdEnforcement := pulumirpc.EnforcementLevel_ADVISORY
-		if s.cfg.Analyzer.Enforcement == enforcementMandatory {
-			thresholdEnforcement = pulumirpc.EnforcementLevel_MANDATORY
-		}
 		policies = append(policies, &pulumirpc.PolicyInfo{
 			Name:             policyNameThreshold,
 			DisplayName:      "Cost Threshold",
 			Description:      "Enforces maximum monthly cost threshold for the stack",
-			EnforcementLevel: thresholdEnforcement,
+			EnforcementLevel: pulumirpc.EnforcementLevel_ADVISORY,
 		})
 	}
 

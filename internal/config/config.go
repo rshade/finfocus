@@ -493,7 +493,9 @@ func (c *Config) validateAnalyzerThreshold() {
 		c.Analyzer.MaxMonthlyCost = 0
 	}
 
-	if c.Analyzer.Enforcement != "" {
+	if c.Analyzer.Enforcement == "" {
+		c.Analyzer.Enforcement = "advisory"
+	} else {
 		validEnforcement := map[string]bool{
 			"advisory":  true,
 			"mandatory": true,

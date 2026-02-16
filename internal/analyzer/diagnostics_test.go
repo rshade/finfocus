@@ -1174,6 +1174,14 @@ func TestThresholdDiagnostic(t *testing.T) {
 // T024: FormatCostMetadata Tests (Issue #604)
 // =============================================================================
 
+// extractMetadataJSON extracts the JSON payload from a finfocus cost metadata HTML comment.
+func extractMetadataJSON(t *testing.T, formatted string) string {
+	t.Helper()
+	jsonStr := strings.TrimPrefix(formatted, "<!-- finfocus:cost:")
+	jsonStr = strings.TrimSuffix(jsonStr, " -->")
+	return jsonStr
+}
+
 func TestFormatCostMetadata(t *testing.T) {
 	t.Run("normal cost metadata JSON formatting", func(t *testing.T) {
 		m := CostMetadata{Monthly: 150.0, Currency: "USD", Adapter: "aws-public"}
@@ -1183,10 +1191,8 @@ func TestFormatCostMetadata(t *testing.T) {
 		assert.Contains(t, result, "-->")
 
 		// Extract and parse JSON
-		jsonStr := strings.TrimPrefix(result, "<!-- finfocus:cost:")
-		jsonStr = strings.TrimSuffix(jsonStr, " -->")
 		var parsed CostMetadata
-		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+		require.NoError(t, json.Unmarshal([]byte(extractMetadataJSON(t, result)), &parsed))
 		assert.Equal(t, 150.0, parsed.Monthly)
 		assert.Equal(t, "USD", parsed.Currency)
 		assert.Equal(t, "aws-public", parsed.Adapter)
@@ -1203,11 +1209,8 @@ func TestFormatCostMetadata(t *testing.T) {
 		formatted := FormatCostMetadata(original)
 
 		// Extract JSON from HTML comment
-		jsonStr := strings.TrimPrefix(formatted, "<!-- finfocus:cost:")
-		jsonStr = strings.TrimSuffix(jsonStr, " -->")
-
 		var roundtripped CostMetadata
-		require.NoError(t, json.Unmarshal([]byte(jsonStr), &roundtripped))
+		require.NoError(t, json.Unmarshal([]byte(extractMetadataJSON(t, formatted)), &roundtripped))
 		assert.Equal(t, original, roundtripped)
 	})
 
