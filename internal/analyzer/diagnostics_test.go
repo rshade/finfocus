@@ -1,6 +1,8 @@
 package analyzer
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
@@ -157,7 +159,8 @@ func TestFormatCostMessage(t *testing.T) {
 				Currency: "USD",
 				Adapter:  "vantage",
 			},
-			want: "Estimated Monthly Cost: $25.50 USD (source: vantage)",
+			want: "Estimated Monthly Cost: $25.50 USD (source: vantage)\n" +
+				`<!-- finfocus:cost:{"monthly":25.5,"currency":"USD","adapter":"vantage"} -->`,
 		},
 		{
 			name: "zero cost with notes",
@@ -181,7 +184,8 @@ func TestFormatCostMessage(t *testing.T) {
 				Currency: "USD",
 				Adapter:  "local-spec",
 			},
-			want: "Estimated Monthly Cost: $0.01 USD (source: local-spec)",
+			want: "Estimated Monthly Cost: $0.01 USD (source: local-spec)\n" +
+				`<!-- finfocus:cost:{"monthly":0.01,"currency":"USD","adapter":"local-spec"} -->`,
 		},
 	}
 
@@ -1083,4 +1087,234 @@ func TestFormatCostMessage_LargeCarbon_MillionScaling(t *testing.T) {
 
 	// Should use "million" abbreviation for large values
 	assert.Contains(t, msg, "million")
+}
+
+// =============================================================================
+// Threshold Diagnostic Tests (T012 - Issue #604)
+// =============================================================================
+
+func TestThresholdDiagnostic(t *testing.T) {
+	tests := []struct {
+		name            string
+		totalCost       float64
+		threshold       float64
+		currency        string
+		enforcement     string
+		version         string
+		wantEnforcement pulumirpc.EnforcementLevel
+		wantSeverity    pulumirpc.PolicySeverity
+		wantContains    []string
+		wantNotContains []string
+	}{
+		{
+			name:            "within budget advisory",
+			totalCost:       3000,
+			threshold:       5000,
+			currency:        "USD",
+			enforcement:     "advisory",
+			version:         "1.0.0",
+			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
+			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
+			wantContains:    []string{"$3000.00 USD/mo", "within threshold", "$5000.00/mo"},
+			wantNotContains: []string{"exceeds", "blocked"},
+		},
+		{
+			name:            "within budget mandatory",
+			totalCost:       4999.99,
+			threshold:       5000,
+			currency:        "USD",
+			enforcement:     "mandatory",
+			version:         "1.0.0",
+			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
+			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
+			wantContains:    []string{"within threshold"},
+			wantNotContains: []string{"exceeds", "blocked"},
+		},
+		{
+			name:            "exceeded advisory",
+			totalCost:       7500,
+			threshold:       5000,
+			currency:        "USD",
+			enforcement:     "advisory",
+			version:         "1.0.0",
+			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
+			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH,
+			wantContains:    []string{"$7500.00 USD/mo", "exceeds threshold", "$5000.00/mo"},
+			wantNotContains: []string{"blocked"},
+		},
+		{
+			name:            "exceeded mandatory",
+			totalCost:       7500,
+			threshold:       5000,
+			currency:        "USD",
+			enforcement:     "mandatory",
+			version:         "1.0.0",
+			wantEnforcement: pulumirpc.EnforcementLevel_MANDATORY,
+			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH,
+			wantContains:    []string{"$7500.00 USD/mo", "exceeds threshold", "$5000.00/mo", "deployment blocked"},
+		},
+		{
+			name:            "exact threshold is within budget",
+			totalCost:       5000,
+			threshold:       5000,
+			currency:        "USD",
+			enforcement:     "mandatory",
+			version:         "1.0.0",
+			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
+			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
+			wantContains:    []string{"within threshold"},
+		},
+		{
+			name:            "version propagated",
+			totalCost:       100,
+			threshold:       200,
+			currency:        "USD",
+			enforcement:     "advisory",
+			version:         "2.3.4",
+			wantEnforcement: pulumirpc.EnforcementLevel_ADVISORY,
+			wantSeverity:    pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			diag := ThresholdDiagnostic(tt.totalCost, tt.threshold, tt.currency, tt.enforcement, tt.version)
+
+			require.NotNil(t, diag)
+			assert.Equal(t, "cost-threshold", diag.GetPolicyName())
+			assert.Equal(t, "finfocus", diag.GetPolicyPackName())
+			assert.Equal(t, tt.version, diag.GetPolicyPackVersion())
+			assert.Equal(t, tt.wantEnforcement, diag.GetEnforcementLevel())
+			assert.Equal(t, tt.wantSeverity, diag.GetSeverity())
+			assert.Empty(t, diag.GetUrn(), "threshold diagnostic should have no URN (stack-level)")
+
+			for _, want := range tt.wantContains {
+				assert.Contains(t, diag.GetMessage(), want)
+			}
+			for _, notWant := range tt.wantNotContains {
+				assert.NotContains(t, diag.GetMessage(), notWant)
+			}
+		})
+	}
+}
+
+// =============================================================================
+// T024: FormatCostMetadata Tests (Issue #604)
+// =============================================================================
+
+func TestFormatCostMetadata(t *testing.T) {
+	t.Run("normal cost metadata JSON formatting", func(t *testing.T) {
+		m := CostMetadata{Monthly: 150.0, Currency: "USD", Adapter: "aws-public"}
+		result := FormatCostMetadata(m)
+
+		assert.Contains(t, result, "<!-- finfocus:cost:")
+		assert.Contains(t, result, "-->")
+
+		// Extract and parse JSON
+		jsonStr := strings.TrimPrefix(result, "<!-- finfocus:cost:")
+		jsonStr = strings.TrimSuffix(jsonStr, " -->")
+		var parsed CostMetadata
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+		assert.Equal(t, 150.0, parsed.Monthly)
+		assert.Equal(t, "USD", parsed.Currency)
+		assert.Equal(t, "aws-public", parsed.Adapter)
+	})
+
+	t.Run("zero cost skip", func(t *testing.T) {
+		m := CostMetadata{Monthly: 0, Currency: "USD", Adapter: "none"}
+		result := FormatCostMetadata(m)
+		assert.Empty(t, result, "zero-cost resources should not have metadata")
+	})
+
+	t.Run("metadata parsing roundtrip", func(t *testing.T) {
+		original := CostMetadata{Monthly: 42.99, Currency: "EUR", Adapter: "vantage"}
+		formatted := FormatCostMetadata(original)
+
+		// Extract JSON from HTML comment
+		jsonStr := strings.TrimPrefix(formatted, "<!-- finfocus:cost:")
+		jsonStr = strings.TrimSuffix(jsonStr, " -->")
+
+		var roundtripped CostMetadata
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &roundtripped))
+		assert.Equal(t, original, roundtripped)
+	})
+
+	t.Run("small cost values preserved", func(t *testing.T) {
+		m := CostMetadata{Monthly: 0.01, Currency: "USD", Adapter: "local-spec"}
+		result := FormatCostMetadata(m)
+		assert.NotEmpty(t, result)
+		assert.Contains(t, result, "0.01")
+	})
+}
+
+// =============================================================================
+// T025: formatCostMessage Backward Compatibility Tests (Issue #604)
+// =============================================================================
+
+func TestFormatCostMessage_BackwardCompatibility(t *testing.T) {
+	t.Run("message still starts with existing format", func(t *testing.T) {
+		cost := engine.CostResult{
+			Monthly:  25.50,
+			Currency: "USD",
+			Adapter:  "aws-public",
+		}
+		msg := formatCostMessage(cost)
+
+		// Human-readable portion must start with standard format
+		assert.True(t, strings.HasPrefix(msg, "Estimated Monthly Cost: $25.50 USD"),
+			"message should start with standard cost format")
+	})
+
+	t.Run("metadata appended as last line", func(t *testing.T) {
+		cost := engine.CostResult{
+			Monthly:  100.0,
+			Currency: "USD",
+			Adapter:  "aws-public",
+		}
+		msg := formatCostMessage(cost)
+
+		lines := strings.Split(msg, "\n")
+		require.GreaterOrEqual(t, len(lines), 2, "should have at least 2 lines (message + metadata)")
+
+		// Last line should be the metadata comment
+		lastLine := lines[len(lines)-1]
+		assert.True(t, strings.HasPrefix(lastLine, "<!-- finfocus:cost:"),
+			"last line should be metadata comment")
+		assert.True(t, strings.HasSuffix(lastLine, "-->"),
+			"last line should end with -->")
+	})
+
+	t.Run("human readable portion unchanged", func(t *testing.T) {
+		cost := engine.CostResult{
+			Monthly:  75.0,
+			Currency: "USD",
+			Adapter:  "local-spec",
+		}
+		msg := formatCostMessage(cost)
+
+		// First line should be the human-readable part
+		firstLine := strings.Split(msg, "\n")[0]
+		assert.Equal(t, "Estimated Monthly Cost: $75.00 USD (source: local-spec)", firstLine)
+	})
+
+	t.Run("zero cost internal resource has no metadata", func(t *testing.T) {
+		cost := engine.CostResult{
+			Monthly:  0,
+			Currency: "USD",
+			Notes:    "Internal Pulumi resource (no cloud cost)",
+		}
+		msg := formatCostMessage(cost)
+
+		assert.NotContains(t, msg, "<!-- finfocus:cost:")
+	})
+
+	t.Run("zero cost with notes has no metadata", func(t *testing.T) {
+		cost := engine.CostResult{
+			Monthly: 0,
+			Notes:   "No pricing information available",
+		}
+		msg := formatCostMessage(cost)
+
+		assert.NotContains(t, msg, "<!-- finfocus:cost:")
+	})
 }

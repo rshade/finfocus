@@ -885,6 +885,142 @@ func TestConfig_FINFOCUS_BUDGET_EXIT_ENV_EdgeCases(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// Analyzer Threshold Config Tests (Issue #604 - Policy-Compatible Cost Output)
+// =============================================================================
+
+// T003: Test AnalyzerConfig MaxMonthlyCost and Enforcement field parsing from YAML.
+func TestConfig_AnalyzerThreshold_YAML(t *testing.T) {
+	tmpDir := t.TempDir()
+	configDir := filepath.Join(tmpDir, ".finfocus")
+	require.NoError(t, os.MkdirAll(configDir, 0700))
+
+	configContent := `
+analyzer:
+  max_monthly_cost: 5000.50
+  enforcement: mandatory
+`
+	require.NoError(t, os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(configContent), 0600))
+
+	t.Setenv("HOME", tmpDir)
+	t.Setenv("USERPROFILE", tmpDir)
+
+	cfg := New()
+	assert.Equal(t, 5000.50, cfg.Analyzer.MaxMonthlyCost, "should parse max_monthly_cost from YAML")
+	assert.Equal(t, "mandatory", cfg.Analyzer.Enforcement, "should parse enforcement from YAML")
+}
+
+func TestConfig_AnalyzerThreshold_Defaults(t *testing.T) {
+	stubHome(t)
+	cfg := New()
+
+	assert.Equal(t, float64(0), cfg.Analyzer.MaxMonthlyCost, "default MaxMonthlyCost should be 0 (disabled)")
+	assert.Equal(t, "advisory", cfg.Analyzer.Enforcement, "default enforcement should be advisory")
+}
+
+// T004: Test FINFOCUS_MAX_MONTHLY_COST and FINFOCUS_ENFORCEMENT env var overrides.
+func TestConfig_AnalyzerThreshold_EnvOverrides(t *testing.T) {
+	t.Run("FINFOCUS_MAX_MONTHLY_COST overrides config", func(t *testing.T) {
+		stubHome(t)
+		t.Setenv("FINFOCUS_MAX_MONTHLY_COST", "7500.25")
+
+		cfg := New()
+		assert.Equal(t, 7500.25, cfg.Analyzer.MaxMonthlyCost)
+	})
+
+	t.Run("FINFOCUS_ENFORCEMENT overrides config", func(t *testing.T) {
+		stubHome(t)
+		t.Setenv("FINFOCUS_ENFORCEMENT", "mandatory")
+
+		cfg := New()
+		assert.Equal(t, "mandatory", cfg.Analyzer.Enforcement)
+	})
+
+	t.Run("env vars override YAML values", func(t *testing.T) {
+		tmpDir := t.TempDir()
+		configDir := filepath.Join(tmpDir, ".finfocus")
+		require.NoError(t, os.MkdirAll(configDir, 0700))
+
+		configContent := `
+analyzer:
+  max_monthly_cost: 1000.00
+  enforcement: advisory
+`
+		require.NoError(t, os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(configContent), 0600))
+
+		t.Setenv("HOME", tmpDir)
+		t.Setenv("USERPROFILE", tmpDir)
+		t.Setenv("FINFOCUS_MAX_MONTHLY_COST", "9999.99")
+		t.Setenv("FINFOCUS_ENFORCEMENT", "mandatory")
+
+		cfg := New()
+		assert.Equal(t, 9999.99, cfg.Analyzer.MaxMonthlyCost, "env should override config file")
+		assert.Equal(t, "mandatory", cfg.Analyzer.Enforcement, "env should override config file")
+	})
+
+	t.Run("invalid FINFOCUS_MAX_MONTHLY_COST ignored", func(t *testing.T) {
+		stubHome(t)
+		t.Setenv("FINFOCUS_MAX_MONTHLY_COST", "not-a-number")
+
+		cfg := New()
+		assert.Equal(t, float64(0), cfg.Analyzer.MaxMonthlyCost, "invalid env value should be ignored")
+	})
+}
+
+// T005: Test analyzer config validation (zero threshold, negative threshold, invalid enforcement).
+func TestConfig_AnalyzerThreshold_Validation(t *testing.T) {
+	t.Run("zero threshold passes validation", func(t *testing.T) {
+		stubHome(t)
+		cfg := New()
+		cfg.Analyzer.MaxMonthlyCost = 0
+		err := cfg.Validate()
+		assert.NoError(t, err)
+		assert.Equal(t, float64(0), cfg.Analyzer.MaxMonthlyCost)
+	})
+
+	t.Run("negative threshold normalized to zero", func(t *testing.T) {
+		stubHome(t)
+		cfg := New()
+		cfg.Analyzer.MaxMonthlyCost = -100
+		err := cfg.Validate()
+		assert.NoError(t, err)
+		assert.Equal(t, float64(0), cfg.Analyzer.MaxMonthlyCost, "negative should be treated as disabled")
+	})
+
+	t.Run("invalid enforcement defaults to advisory", func(t *testing.T) {
+		stubHome(t)
+		cfg := New()
+		cfg.Analyzer.Enforcement = "unknown"
+		err := cfg.Validate()
+		assert.NoError(t, err)
+		assert.Equal(t, "advisory", cfg.Analyzer.Enforcement, "invalid enforcement should default to advisory")
+	})
+
+	t.Run("valid enforcement modes accepted", func(t *testing.T) {
+		for _, mode := range []string{"advisory", "mandatory"} {
+			t.Run(mode, func(t *testing.T) {
+				stubHome(t)
+				cfg := New()
+				cfg.Analyzer.Enforcement = mode
+				err := cfg.Validate()
+				assert.NoError(t, err)
+				assert.Equal(t, mode, cfg.Analyzer.Enforcement)
+			})
+		}
+	})
+
+	t.Run("positive threshold passes validation", func(t *testing.T) {
+		stubHome(t)
+		cfg := New()
+		cfg.Analyzer.MaxMonthlyCost = 5000
+		cfg.Analyzer.Enforcement = "mandatory"
+		err := cfg.Validate()
+		assert.NoError(t, err)
+		assert.Equal(t, float64(5000), cfg.Analyzer.MaxMonthlyCost)
+		assert.Equal(t, "mandatory", cfg.Analyzer.Enforcement)
+	})
+}
+
 // T049: Test validation of budget exit codes from environment variables.
 func TestConfig_BudgetExitCode_Validation(t *testing.T) {
 	tests := []struct {

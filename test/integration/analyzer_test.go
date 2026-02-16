@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/rshade/finfocus/internal/analyzer"
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 )
 
@@ -236,6 +237,150 @@ func TestAnalyzer_CancelBehavior(t *testing.T) {
 
 	// Should now be canceled
 	assert.True(t, server.IsCanceled())
+}
+
+// TestAnalyzer_ThresholdEnforcement tests the full analyzer lifecycle with threshold enforcement.
+func TestAnalyzer_ThresholdEnforcement(t *testing.T) {
+	costs := []engine.CostResult{
+		{
+			ResourceType: "aws:ec2/instance:Instance",
+			ResourceID:   "expensive-server",
+			Adapter:      "local-spec",
+			Currency:     "USD",
+			Monthly:      3000.00,
+		},
+		{
+			ResourceType: "aws:rds/instance:Instance",
+			ResourceID:   "big-database",
+			Adapter:      "local-spec",
+			Currency:     "USD",
+			Monthly:      4500.00,
+		},
+	}
+
+	calc := newMockCalculator(costs, nil)
+
+	// Create config with threshold enforcement
+	cfg := &config.Config{}
+	cfg.Analyzer.MaxMonthlyCost = 5000.00
+	cfg.Analyzer.Enforcement = "mandatory"
+
+	server := analyzer.NewServer(calc, "1.0.0-test").
+		WithConfig(cfg).
+		WithSummaryDir(t.TempDir())
+
+	ctx := context.Background()
+
+	// Step 1: Configure stack
+	_, err := server.ConfigureStack(ctx, &pulumirpc.AnalyzerStackConfigureRequest{
+		Stack:   "production",
+		Project: "my-infra",
+		DryRun:  true,
+	})
+	require.NoError(t, err)
+
+	// Step 2: Analyze each resource to populate cost cache
+	resources := []*pulumirpc.AnalyzerResource{
+		{
+			Type: "aws:ec2/instance:Instance",
+			Urn:  "urn:pulumi:production::my-infra::aws:ec2/instance:Instance::expensive-server",
+			Name: "expensive-server",
+		},
+		{
+			Type: "aws:rds/instance:Instance",
+			Urn:  "urn:pulumi:production::my-infra::aws:rds/instance:Instance::big-database",
+			Name: "big-database",
+		},
+	}
+
+	for _, res := range resources {
+		_, err := server.Analyze(ctx, &pulumirpc.AnalyzeRequest{
+			Type: res.GetType(),
+			Urn:  res.GetUrn(),
+			Name: res.GetName(),
+		})
+		require.NoError(t, err)
+	}
+
+	// Step 3: AnalyzeStack - should include threshold diagnostic
+	resp, err := server.AnalyzeStack(ctx, &pulumirpc.AnalyzeStackRequest{
+		Resources: resources,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+
+	// Should have summary + threshold diagnostics
+	require.Len(t, resp.GetDiagnostics(), 2)
+
+	// Verify summary diagnostic
+	summary := resp.GetDiagnostics()[0]
+	assert.Equal(t, "stack-cost-summary", summary.GetPolicyName())
+	assert.Contains(t, summary.GetMessage(), "$7500.00 USD")
+
+	// Verify threshold diagnostic (mandatory mode, exceeded)
+	threshold := resp.GetDiagnostics()[1]
+	assert.Equal(t, "cost-threshold", threshold.GetPolicyName())
+	assert.Equal(t, pulumirpc.EnforcementLevel_MANDATORY, threshold.GetEnforcementLevel())
+	assert.Contains(t, threshold.GetMessage(), "exceeds threshold")
+	assert.Contains(t, threshold.GetMessage(), "deployment blocked")
+}
+
+// TestAnalyzer_ThresholdAdvisoryMode tests advisory mode does not block deployments.
+func TestAnalyzer_ThresholdAdvisoryMode(t *testing.T) {
+	costs := []engine.CostResult{
+		{
+			ResourceType: "aws:ec2/instance:Instance",
+			ResourceID:   "server",
+			Adapter:      "local-spec",
+			Currency:     "USD",
+			Monthly:      6000.00,
+		},
+	}
+
+	calc := newMockCalculator(costs, nil)
+
+	cfg := &config.Config{}
+	cfg.Analyzer.MaxMonthlyCost = 5000.00
+	cfg.Analyzer.Enforcement = "advisory"
+
+	server := analyzer.NewServer(calc, "1.0.0-test").WithConfig(cfg)
+
+	ctx := context.Background()
+
+	// Configure stack
+	_, err := server.ConfigureStack(ctx, &pulumirpc.AnalyzerStackConfigureRequest{
+		Stack:   "staging",
+		Project: "my-app",
+		DryRun:  true,
+	})
+	require.NoError(t, err)
+
+	// Analyze resource
+	_, err = server.Analyze(ctx, &pulumirpc.AnalyzeRequest{
+		Type: "aws:ec2/instance:Instance",
+		Urn:  "urn:pulumi:staging::my-app::aws:ec2/instance:Instance::server",
+		Name: "server",
+	})
+	require.NoError(t, err)
+
+	// AnalyzeStack
+	resp, err := server.AnalyzeStack(ctx, &pulumirpc.AnalyzeStackRequest{
+		Resources: []*pulumirpc.AnalyzerResource{
+			{
+				Type: "aws:ec2/instance:Instance",
+				Urn:  "urn:pulumi:staging::my-app::aws:ec2/instance:Instance::server",
+				Name: "server",
+			},
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, resp.GetDiagnostics(), 2)
+
+	// Threshold diagnostic should be ADVISORY (does not block)
+	threshold := resp.GetDiagnostics()[1]
+	assert.Equal(t, "cost-threshold", threshold.GetPolicyName())
+	assert.Equal(t, pulumirpc.EnforcementLevel_ADVISORY, threshold.GetEnforcementLevel())
+	assert.Contains(t, threshold.GetMessage(), "exceeds threshold")
 }
 
 // TestAnalyzer_LatencyRequirement tests that small stacks complete quickly (SC-003).

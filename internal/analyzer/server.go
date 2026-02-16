@@ -7,6 +7,7 @@ import (
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
 	"google.golang.org/protobuf/types/known/emptypb"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/router"
@@ -81,6 +82,13 @@ type Server struct {
 	costCacheMu sync.RWMutex
 	costCache   map[string]engine.CostResult // resourceID -> CostResult
 
+	// Configuration for threshold enforcement and summary file
+	cfg *config.Config
+
+	// summaryDir is the directory for writing cost summary files.
+	// Set via WithSummaryDir(). If empty, summary file writing is skipped.
+	summaryDir string
+
 	// Cancellation support
 	cancelMu sync.Mutex
 	canceled bool
@@ -104,6 +112,22 @@ func NewServer(calculator CostCalculator, version string) *Server {
 		version:    version,
 		costCache:  make(map[string]engine.CostResult),
 	}
+}
+
+// WithConfig sets the configuration for threshold enforcement and summary file writing.
+// This is a builder method that returns the Server for chaining.
+// If cfg is nil, the server operates without threshold enforcement or summary file writing.
+func (s *Server) WithConfig(cfg *config.Config) *Server {
+	s.cfg = cfg
+	return s
+}
+
+// WithSummaryDir sets the directory where the cost summary file will be written
+// after each AnalyzeStack call. This is a builder method that returns the Server
+// for chaining. If dir is empty, summary file writing is skipped.
+func (s *Server) WithSummaryDir(dir string) *Server {
+	s.summaryDir = dir
+	return s
 }
 
 // cacheCost stores a cost result in the cache for later use by AnalyzeStack.
@@ -244,21 +268,107 @@ func (s *Server) Analyze(
 //
 // All diagnostics use ADVISORY enforcement per FR-005.
 func (s *Server) AnalyzeStack(
-	_ context.Context,
+	ctx context.Context,
 	_ *pulumirpc.AnalyzeStackRequest,
 ) (*pulumirpc.AnalyzeResponse, error) {
+	log := logging.FromContext(ctx)
+
 	// Use costs cached from individual Analyze() calls for accurate summary
 	// This avoids re-querying plugins which may return different results
 	// due to different property formats between AnalyzeRequest and AnalyzerResource
 	cachedCosts := s.getCachedCosts()
 
-	// Only return the stack summary diagnostic
-	// Per-resource diagnostics are already returned by Analyze() calls
-	summary := StackSummaryDiagnostic(cachedCosts, s.version)
+	// Build diagnostics list starting with the existing stack summary
+	diagnostics := []*pulumirpc.AnalyzeDiagnostic{
+		StackSummaryDiagnostic(cachedCosts, s.version),
+	}
+
+	// Threshold enforcement (FR-005, FR-006, FR-007)
+	if s.cfg != nil && s.cfg.Analyzer.MaxMonthlyCost > 0 {
+		totalCost, currency, allFailed, mixedCurrencies := s.computeThresholdInputs(cachedCosts)
+
+		switch {
+		case allFailed:
+			// FR-007 exception: all resources failed, total cost unknown — skip threshold
+			log.Warn().
+				Ctx(ctx).
+				Str("component", "analyzer").
+				Msg("all resource costs failed, skipping threshold evaluation")
+		case mixedCurrencies:
+			// FR-013: mixed currencies — skip threshold enforcement
+			log.Warn().
+				Ctx(ctx).
+				Str("component", "analyzer").
+				Msg("mixed currencies detected, skipping threshold enforcement")
+		default:
+			thresholdDiag := ThresholdDiagnostic(
+				totalCost,
+				s.cfg.Analyzer.MaxMonthlyCost,
+				currency,
+				s.cfg.Analyzer.Enforcement,
+				s.version,
+			)
+			diagnostics = append(diagnostics, thresholdDiag)
+		}
+	}
+
+	// Write cost summary file (graceful degradation: log warning, don't fail RPC)
+	if s.summaryDir != "" {
+		summary := BuildCostSummary(cachedCosts, s.stackName, s.projectName)
+		if writeErr := WriteCostSummary(summary, s.summaryDir); writeErr != nil {
+			log.Warn().
+				Ctx(ctx).
+				Str("component", "analyzer").
+				Err(writeErr).
+				Msg("failed to write cost summary file")
+		}
+	}
 
 	return &pulumirpc.AnalyzeResponse{
-		Diagnostics: []*pulumirpc.AnalyzeDiagnostic{summary},
+		Diagnostics: diagnostics,
 	}, nil
+}
+
+// computeThresholdInputs calculates the total cost, dominant currency, and flags
+// for threshold evaluation from cached cost results.
+// It returns:
+//   - totalCost: sum of all resource monthly costs
+//   - currency: the dominant currency across resources
+//   - allFailed: true if all resources have errors (no valid cost data)
+//   - mixedCurrencies: true if multiple currencies are detected
+func (s *Server) computeThresholdInputs(
+	costs []engine.CostResult,
+) (float64, string, bool, bool) {
+	currency := defaultCurrency
+	currencies := make(map[string]bool)
+	var totalCost float64
+	validCount := 0
+
+	for _, c := range costs {
+		// Skip error resources (Notes starting with "ERROR:" or having Error field)
+		if c.Error != nil || isErrorNote(c.Notes) {
+			continue
+		}
+		validCount++
+		totalCost += c.Monthly
+		if c.Currency != "" {
+			currencies[c.Currency] = true
+			currency = c.Currency
+		}
+	}
+
+	allFailed := len(costs) > 0 && validCount == 0
+	mixedCurrencies := len(currencies) > 1
+
+	return totalCost, currency, allFailed, mixedCurrencies
+}
+
+// isErrorNote returns true if the notes string indicates an error result.
+func isErrorNote(notes string) bool {
+	if len(notes) >= 11 && notes[:11] == "VALIDATION:" {
+		return true
+	}
+	return len(notes) >= 6 && notes[:6] == "ERROR:"
 }
 
 // GetAnalyzerInfo returns metadata about this analyzer.
@@ -269,25 +379,41 @@ func (s *Server) GetAnalyzerInfo(
 	_ context.Context,
 	_ *emptypb.Empty,
 ) (*pulumirpc.AnalyzerInfo, error) {
-	return &pulumirpc.AnalyzerInfo{
-		Name:        policyPackName,
-		DisplayName: analyzerDisplayName,
-		Version:     s.version,
-		Description: analyzerDescription,
-		Policies: []*pulumirpc.PolicyInfo{
-			{
-				Name:             policyNameCost,
-				DisplayName:      "Cost Estimate",
-				Description:      "Provides estimated monthly cost for individual resources",
-				EnforcementLevel: pulumirpc.EnforcementLevel_ADVISORY,
-			},
-			{
-				Name:             policyNameSum,
-				DisplayName:      "Stack Cost Summary",
-				Description:      "Provides total estimated monthly cost across all resources in the stack",
-				EnforcementLevel: pulumirpc.EnforcementLevel_ADVISORY,
-			},
+	policies := []*pulumirpc.PolicyInfo{
+		{
+			Name:             policyNameCost,
+			DisplayName:      "Cost Estimate",
+			Description:      "Provides estimated monthly cost for individual resources",
+			EnforcementLevel: pulumirpc.EnforcementLevel_ADVISORY,
 		},
+		{
+			Name:             policyNameSum,
+			DisplayName:      "Stack Cost Summary",
+			Description:      "Provides total estimated monthly cost across all resources in the stack",
+			EnforcementLevel: pulumirpc.EnforcementLevel_ADVISORY,
+		},
+	}
+
+	// Register cost-threshold policy when threshold is configured
+	if s.cfg != nil && s.cfg.Analyzer.MaxMonthlyCost > 0 {
+		thresholdEnforcement := pulumirpc.EnforcementLevel_ADVISORY
+		if s.cfg.Analyzer.Enforcement == enforcementMandatory {
+			thresholdEnforcement = pulumirpc.EnforcementLevel_MANDATORY
+		}
+		policies = append(policies, &pulumirpc.PolicyInfo{
+			Name:             policyNameThreshold,
+			DisplayName:      "Cost Threshold",
+			Description:      "Enforces maximum monthly cost threshold for the stack",
+			EnforcementLevel: thresholdEnforcement,
+		})
+	}
+
+	return &pulumirpc.AnalyzerInfo{
+		Name:           policyPackName,
+		DisplayName:    analyzerDisplayName,
+		Version:        s.version,
+		Description:    analyzerDescription,
+		Policies:       policies,
 		SupportsConfig: false,
 	}, nil
 }

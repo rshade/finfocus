@@ -2,6 +2,9 @@ package analyzer
 
 import (
 	"context"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -11,6 +14,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/router"
 )
@@ -65,6 +69,43 @@ func TestNewServer(t *testing.T) {
 
 	require.NotNil(t, server)
 	assert.Equal(t, "1.0.0", server.version)
+}
+
+// T006: Test WithConfig builder method preserving backward compatibility.
+func TestServer_WithConfig(t *testing.T) {
+	calc := &mockCostCalculator{}
+
+	t.Run("nil config preserves backward compatibility", func(t *testing.T) {
+		server := NewServer(calc, "1.0.0").WithConfig(nil)
+		require.NotNil(t, server)
+		assert.Nil(t, server.cfg)
+		assert.Equal(t, "1.0.0", server.version)
+
+		// Should work normally without config
+		resp, err := server.GetAnalyzerInfo(context.Background(), &emptypb.Empty{})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	})
+
+	t.Run("config stored on server", func(t *testing.T) {
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 5000
+		cfg.Analyzer.Enforcement = "mandatory"
+
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+		require.NotNil(t, server)
+		require.NotNil(t, server.cfg)
+		assert.Equal(t, float64(5000), server.cfg.Analyzer.MaxMonthlyCost)
+		assert.Equal(t, "mandatory", server.cfg.Analyzer.Enforcement)
+	})
+
+	t.Run("chaining works", func(t *testing.T) {
+		cfg := &config.Config{}
+		server := NewServer(calc, "2.0.0").WithConfig(cfg)
+		require.NotNil(t, server)
+		assert.Equal(t, "2.0.0", server.version)
+		assert.NotNil(t, server.cfg)
+	})
 }
 
 func TestServer_AnalyzeStack(t *testing.T) {
@@ -802,6 +843,390 @@ func TestServer_Analyze_RecommendationFailure(t *testing.T) {
 	diag := resp.GetDiagnostics()[0]
 	assert.Contains(t, diag.GetMessage(), "$100.00 USD")
 	assert.NotContains(t, diag.GetMessage(), "save")
+}
+
+// =============================================================================
+// T013: AnalyzeStack Threshold Integration Tests (Issue #604)
+// =============================================================================
+
+func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
+	// Helper to populate cost cache via Analyze() calls
+	analyzeResources := func(t *testing.T, server *Server, resources []struct {
+		resType string
+		urn     string
+	}) {
+		t.Helper()
+		for _, res := range resources {
+			req := &pulumirpc.AnalyzeRequest{
+				Type: res.resType,
+				Urn:  res.urn,
+			}
+			_, err := server.Analyze(context.Background(), req)
+			require.NoError(t, err)
+		}
+	}
+
+	t.Run("no threshold configured unchanged behavior", func(t *testing.T) {
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 100.0},
+			},
+		}
+		server := NewServer(calc, "1.0.0") // No WithConfig()
+
+		analyzeResources(t, server, []struct {
+			resType string
+			urn     string
+		}{
+			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
+		})
+
+		resp, err := server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+		// Should only have summary diagnostic, no threshold
+		require.Len(t, resp.GetDiagnostics(), 1)
+		assert.Equal(t, policyNameSum, resp.GetDiagnostics()[0].GetPolicyName())
+	})
+
+	t.Run("no threshold configured with config", func(t *testing.T) {
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 100.0},
+			},
+		}
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 0 // Threshold disabled
+		cfg.Analyzer.Enforcement = "advisory"
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+
+		analyzeResources(t, server, []struct {
+			resType string
+			urn     string
+		}{
+			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
+		})
+
+		resp, err := server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+		require.Len(t, resp.GetDiagnostics(), 1)
+		assert.Equal(t, policyNameSum, resp.GetDiagnostics()[0].GetPolicyName())
+	})
+
+	t.Run("threshold exceeded advisory mode", func(t *testing.T) {
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 3000.0},
+				{ResourceType: "aws:rds/instance:Instance", ResourceID: "db1", Currency: "USD", Monthly: 4500.0},
+			},
+		}
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 5000
+		cfg.Analyzer.Enforcement = "advisory"
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+
+		analyzeResources(t, server, []struct {
+			resType string
+			urn     string
+		}{
+			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
+			{"aws:rds/instance:Instance", "urn:pulumi:dev::app::aws:rds/instance:Instance::db1"},
+		})
+
+		resp, err := server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+		// Summary + threshold diagnostic
+		require.Len(t, resp.GetDiagnostics(), 2)
+
+		// First should be summary
+		assert.Equal(t, policyNameSum, resp.GetDiagnostics()[0].GetPolicyName())
+
+		// Second should be threshold
+		thresholdDiag := resp.GetDiagnostics()[1]
+		assert.Equal(t, policyNameThreshold, thresholdDiag.GetPolicyName())
+		assert.Equal(t, pulumirpc.EnforcementLevel_ADVISORY, thresholdDiag.GetEnforcementLevel())
+		assert.Equal(t, pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH, thresholdDiag.GetSeverity())
+		assert.Contains(t, thresholdDiag.GetMessage(), "exceeds threshold")
+		assert.Contains(t, thresholdDiag.GetMessage(), "$7500.00 USD/mo")
+	})
+
+	t.Run("threshold exceeded mandatory mode", func(t *testing.T) {
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 6000.0},
+			},
+		}
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 5000
+		cfg.Analyzer.Enforcement = "mandatory"
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+
+		analyzeResources(t, server, []struct {
+			resType string
+			urn     string
+		}{
+			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
+		})
+
+		resp, err := server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+		require.Len(t, resp.GetDiagnostics(), 2)
+
+		thresholdDiag := resp.GetDiagnostics()[1]
+		assert.Equal(t, policyNameThreshold, thresholdDiag.GetPolicyName())
+		assert.Equal(t, pulumirpc.EnforcementLevel_MANDATORY, thresholdDiag.GetEnforcementLevel())
+		assert.Equal(t, pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH, thresholdDiag.GetSeverity())
+		assert.Contains(t, thresholdDiag.GetMessage(), "exceeds threshold")
+		assert.Contains(t, thresholdDiag.GetMessage(), "deployment blocked")
+	})
+
+	t.Run("within budget confirmation", func(t *testing.T) {
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 2000.0},
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web2", Currency: "USD", Monthly: 1000.0},
+			},
+		}
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 5000
+		cfg.Analyzer.Enforcement = "mandatory"
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+
+		analyzeResources(t, server, []struct {
+			resType string
+			urn     string
+		}{
+			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
+			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web2"},
+		})
+
+		resp, err := server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+		require.Len(t, resp.GetDiagnostics(), 2)
+
+		thresholdDiag := resp.GetDiagnostics()[1]
+		assert.Equal(t, pulumirpc.EnforcementLevel_ADVISORY, thresholdDiag.GetEnforcementLevel())
+		assert.Equal(t, pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM, thresholdDiag.GetSeverity())
+		assert.Contains(t, thresholdDiag.GetMessage(), "within threshold")
+		assert.Contains(t, thresholdDiag.GetMessage(), "$3000.00 USD/mo")
+	})
+
+	t.Run("mixed currencies skip enforcement", func(t *testing.T) {
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 3000.0},
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web2", Currency: "EUR", Monthly: 4000.0},
+			},
+		}
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 5000
+		cfg.Analyzer.Enforcement = "mandatory"
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+
+		analyzeResources(t, server, []struct {
+			resType string
+			urn     string
+		}{
+			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
+			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web2"},
+		})
+
+		resp, err := server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+		// Mixed currencies: only summary, no threshold diagnostic
+		require.Len(t, resp.GetDiagnostics(), 1)
+		assert.Equal(t, policyNameSum, resp.GetDiagnostics()[0].GetPolicyName())
+	})
+
+	t.Run("all resources failed no threshold diagnostic", func(t *testing.T) {
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{
+					ResourceType: "aws:ec2/instance:Instance",
+					ResourceID:   "web1",
+					Currency:     "USD",
+					Monthly:      0,
+					Notes:        "ERROR: Plugin failed",
+					Error:        &engine.StructuredError{Code: "PLUGIN_ERROR", Message: "Plugin failed"},
+				},
+				{
+					ResourceType: "aws:rds/instance:Instance",
+					ResourceID:   "db1",
+					Currency:     "USD",
+					Monthly:      0,
+					Notes:        "VALIDATION: missing required field",
+				},
+			},
+		}
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 5000
+		cfg.Analyzer.Enforcement = "mandatory"
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+
+		analyzeResources(t, server, []struct {
+			resType string
+			urn     string
+		}{
+			{"aws:ec2/instance:Instance", "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1"},
+			{"aws:rds/instance:Instance", "urn:pulumi:dev::app::aws:rds/instance:Instance::db1"},
+		})
+
+		resp, err := server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+		// All resources failed: only summary, threshold skipped (FR-007 exception)
+		require.Len(t, resp.GetDiagnostics(), 1)
+		assert.Equal(t, policyNameSum, resp.GetDiagnostics()[0].GetPolicyName())
+	})
+}
+
+// T013 extension: Test GetAnalyzerInfo with threshold policy registration.
+func TestServer_GetAnalyzerInfo_WithThreshold(t *testing.T) {
+	calc := &mockCostCalculator{}
+
+	t.Run("no config no threshold policy", func(t *testing.T) {
+		server := NewServer(calc, "1.0.0")
+		resp, err := server.GetAnalyzerInfo(context.Background(), &emptypb.Empty{})
+		require.NoError(t, err)
+		require.Len(t, resp.GetPolicies(), 2) // cost-estimate + stack-cost-summary only
+	})
+
+	t.Run("threshold configured advisory", func(t *testing.T) {
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 5000
+		cfg.Analyzer.Enforcement = "advisory"
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+
+		resp, err := server.GetAnalyzerInfo(context.Background(), &emptypb.Empty{})
+		require.NoError(t, err)
+		require.Len(t, resp.GetPolicies(), 3) // +cost-threshold
+		thresholdPolicy := resp.GetPolicies()[2]
+		assert.Equal(t, policyNameThreshold, thresholdPolicy.GetName())
+		assert.Equal(t, pulumirpc.EnforcementLevel_ADVISORY, thresholdPolicy.GetEnforcementLevel())
+	})
+
+	t.Run("threshold configured mandatory", func(t *testing.T) {
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 10000
+		cfg.Analyzer.Enforcement = "mandatory"
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+
+		resp, err := server.GetAnalyzerInfo(context.Background(), &emptypb.Empty{})
+		require.NoError(t, err)
+		require.Len(t, resp.GetPolicies(), 3)
+		thresholdPolicy := resp.GetPolicies()[2]
+		assert.Equal(t, policyNameThreshold, thresholdPolicy.GetName())
+		assert.Equal(t, pulumirpc.EnforcementLevel_MANDATORY, thresholdPolicy.GetEnforcementLevel())
+	})
+
+	t.Run("zero threshold no threshold policy", func(t *testing.T) {
+		cfg := &config.Config{}
+		cfg.Analyzer.MaxMonthlyCost = 0
+		server := NewServer(calc, "1.0.0").WithConfig(cfg)
+
+		resp, err := server.GetAnalyzerInfo(context.Background(), &emptypb.Empty{})
+		require.NoError(t, err)
+		require.Len(t, resp.GetPolicies(), 2) // No threshold policy when 0
+	})
+}
+
+// =============================================================================
+// T019: AnalyzeStack Summary File Integration Tests (Issue #604)
+// =============================================================================
+
+func TestServer_AnalyzeStack_SummaryFileIntegration(t *testing.T) {
+	t.Run("summary file written after successful analysis", func(t *testing.T) {
+		dir := t.TempDir()
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{
+					ResourceType: "aws:ec2/instance:Instance",
+					ResourceID:   "web1",
+					Currency:     "USD",
+					Monthly:      150.0,
+					Adapter:      "aws-public",
+				},
+			},
+		}
+		server := NewServer(calc, "1.0.0").WithSummaryDir(dir)
+
+		// Configure stack context
+		_, err := server.ConfigureStack(context.Background(), &pulumirpc.AnalyzerStackConfigureRequest{
+			Stack:   "dev",
+			Project: "my-infra",
+		})
+		require.NoError(t, err)
+
+		// Analyze resource to populate cache
+		_, err = server.Analyze(context.Background(), &pulumirpc.AnalyzeRequest{
+			Type: "aws:ec2/instance:Instance",
+			Urn:  "urn:pulumi:dev::my-infra::aws:ec2/instance:Instance::web1",
+		})
+		require.NoError(t, err)
+
+		// AnalyzeStack should write summary file
+		_, err = server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+
+		// Verify file exists and has correct content
+		data, readErr := os.ReadFile(filepath.Join(dir, costSummaryFilename))
+		require.NoError(t, readErr)
+
+		var summary CostSummary
+		require.NoError(t, json.Unmarshal(data, &summary))
+		assert.Equal(t, "1", summary.SchemaVersion)
+		assert.Equal(t, "dev", summary.Stack)
+		assert.Equal(t, "my-infra", summary.Project)
+		assert.Equal(t, 150.0, summary.TotalMonthlyCost)
+		assert.Equal(t, "USD", summary.Currency)
+		assert.Equal(t, 1, summary.ResourceCount)
+		require.Len(t, summary.Resources, 1)
+		assert.Equal(t, "web1", summary.Resources[0].Name)
+	})
+
+	t.Run("no summary dir skips write", func(t *testing.T) {
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 100.0},
+			},
+		}
+		server := NewServer(calc, "1.0.0") // No WithSummaryDir
+
+		_, err := server.Analyze(context.Background(), &pulumirpc.AnalyzeRequest{
+			Type: "aws:ec2/instance:Instance",
+			Urn:  "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1",
+		})
+		require.NoError(t, err)
+
+		// Should succeed without writing any file
+		resp, err := server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+	})
+
+	t.Run("write failure does not fail RPC", func(t *testing.T) {
+		// Use a read-only directory to force write failure
+		readOnlyDir := filepath.Join(t.TempDir(), "readonly")
+		require.NoError(t, os.MkdirAll(readOnlyDir, 0o500))
+
+		calc := &mockCostCalculator{
+			results: []engine.CostResult{
+				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 100.0},
+			},
+		}
+		server := NewServer(calc, "1.0.0").WithSummaryDir(readOnlyDir)
+
+		_, err := server.Analyze(context.Background(), &pulumirpc.AnalyzeRequest{
+			Type: "aws:ec2/instance:Instance",
+			Urn:  "urn:pulumi:dev::app::aws:ec2/instance:Instance::web1",
+		})
+		require.NoError(t, err)
+
+		// AnalyzeStack should succeed even if summary write fails
+		resp, err := server.AnalyzeStack(context.Background(), &pulumirpc.AnalyzeStackRequest{})
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		// Should still have the summary diagnostic
+		require.GreaterOrEqual(t, len(resp.GetDiagnostics()), 1)
+	})
 }
 
 func TestServer_AnalyzeStack_SummaryWithRecommendations(t *testing.T) {

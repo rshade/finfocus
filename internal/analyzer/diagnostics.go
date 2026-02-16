@@ -2,6 +2,7 @@ package analyzer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -15,10 +16,13 @@ import (
 
 // Policy pack and policy name constants for diagnostic messages.
 const (
-	policyPackName  = "finfocus"
-	policyNameCost  = "cost-estimate"
-	policyNameSum   = "stack-cost-summary"
-	defaultCurrency = "USD"
+	policyPackName       = "finfocus"
+	policyNameCost       = "cost-estimate"
+	policyNameSum        = "stack-cost-summary"
+	policyNameThreshold  = "cost-threshold"
+	defaultCurrency      = "USD"
+	enforcementAdvisory  = "advisory"
+	enforcementMandatory = "mandatory"
 )
 
 // CostToDiagnostic converts a CostResult to an AnalyzeDiagnostic.
@@ -164,6 +168,16 @@ func formatCostMessage(cost engine.CostResult) string {
 	// Append recommendations if present (follows sustainability pattern)
 	if recStr := formatRecommendations(cost.Recommendations); recStr != "" {
 		message += " | " + recStr
+	}
+
+	// Append machine-parseable metadata as HTML comment (US3)
+	// Skipped for zero-cost internal resources
+	if metadata := FormatCostMetadata(CostMetadata{
+		Monthly:  cost.Monthly,
+		Currency: cost.Currency,
+		Adapter:  cost.Adapter,
+	}); metadata != "" {
+		message += "\n" + metadata
 	}
 
 	return message
@@ -425,4 +439,86 @@ func WarningDiagnostic(message, urn, version string) *pulumirpc.AnalyzeDiagnosti
 		Urn:               urn,
 		Severity:          pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM,
 	}
+}
+
+// ThresholdDiagnostic creates a stack-level diagnostic for cost threshold evaluation.
+//
+// When the total cost is within the threshold, an ADVISORY diagnostic is returned
+// with MEDIUM severity. When the threshold is exceeded, the enforcement mode
+// determines the behavior:
+//   - advisory mode: ADVISORY enforcement with HIGH severity
+//   - mandatory mode: MANDATORY enforcement with HIGH severity (blocks deployment)
+//
+// The diagnostic has no URN since it applies to the entire stack.
+func ThresholdDiagnostic(
+	totalCost, threshold float64,
+	currency, enforcement, version string,
+) *pulumirpc.AnalyzeDiagnostic {
+	exceeded := totalCost > threshold
+
+	var message string
+	var enforcementLevel pulumirpc.EnforcementLevel
+	var severity pulumirpc.PolicySeverity
+
+	sym := getCurrencySymbol(currency)
+
+	switch {
+	case !exceeded:
+		message = fmt.Sprintf(
+			"Stack cost %s%.2f %s/mo is within threshold %s%.2f/mo",
+			sym, totalCost, currency, sym, threshold,
+		)
+		enforcementLevel = pulumirpc.EnforcementLevel_ADVISORY
+		severity = pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM
+	case enforcement == enforcementMandatory:
+		message = fmt.Sprintf(
+			"Stack cost %s%.2f %s/mo exceeds threshold %s%.2f/mo — deployment blocked",
+			sym, totalCost, currency, sym, threshold,
+		)
+		enforcementLevel = pulumirpc.EnforcementLevel_MANDATORY
+		severity = pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH
+	default:
+		message = fmt.Sprintf(
+			"Stack cost %s%.2f %s/mo exceeds threshold %s%.2f/mo",
+			sym, totalCost, currency, sym, threshold,
+		)
+		enforcementLevel = pulumirpc.EnforcementLevel_ADVISORY
+		severity = pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH
+	}
+
+	return &pulumirpc.AnalyzeDiagnostic{
+		PolicyName:        policyNameThreshold,
+		PolicyPackName:    policyPackName,
+		PolicyPackVersion: version,
+		Description:       "Cost threshold evaluation",
+		Message:           message,
+		EnforcementLevel:  enforcementLevel,
+		Severity:          severity,
+		// No URN - stack-level diagnostic
+	}
+}
+
+// CostMetadata holds structured cost data for machine-parseable embedding
+// in diagnostic messages. This enables external tooling to extract cost
+// information without parsing human-readable text.
+type CostMetadata struct {
+	Monthly  float64 `json:"monthly"`
+	Currency string  `json:"currency"`
+	Adapter  string  `json:"adapter"`
+}
+
+// FormatCostMetadata returns an HTML comment containing JSON-encoded cost metadata.
+// The format is: <!-- finfocus:cost:{"monthly":X,"currency":"Y","adapter":"Z"} -->
+// Returns an empty string if the metadata has zero monthly cost (internal/zero-cost resources).
+func FormatCostMetadata(m CostMetadata) string {
+	if m.Monthly == 0 {
+		return ""
+	}
+
+	data, err := json.Marshal(m)
+	if err != nil {
+		return ""
+	}
+
+	return fmt.Sprintf("<!-- finfocus:cost:%s -->", data)
 }
