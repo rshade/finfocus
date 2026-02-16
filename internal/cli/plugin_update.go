@@ -22,7 +22,11 @@ import (
 // result (including name, old/new versions, and path).
 //
 // The command's execution returns an error if the underlying installer fails to perform the
-// update; that error is returned to the caller.
+// NewPluginUpdateCmd returns a *cobra.Command configured to update an installed plugin.
+// The command expects a single positional argument (plugin name) and updates that plugin
+// to the latest version or to a specific version supplied via the --version flag.
+// It supports --dry-run to preview changes and --plugin-dir to override the plugin directory.
+// The command prints progress and summary information and returns an error if the update operation fails.
 func NewPluginUpdateCmd() *cobra.Command {
 	var (
 		dryRun    bool
@@ -63,7 +67,7 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
 			}
 
 			// Update
-			result, err := installer.Update(name, opts, progress)
+			result, err := installer.Update(cmd.Context(), name, opts, progress)
 			if err != nil {
 				return fmt.Errorf("updating plugin %q: %w", name, err)
 			}

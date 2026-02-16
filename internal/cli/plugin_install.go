@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -160,8 +161,24 @@ func getPlatformString() string {
 	return fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH)
 }
 
-// handleInstallError processes installation errors and attempts fallback if appropriate.
-// Returns nil if fallback succeeds, or an appropriate error otherwise.
+// handleInstallError attempts a fallback installation when an initial install fails due to missing
+// platform assets. If fallback is not applicable (the error is not an asset-missing error,
+// no version was requested, or noFallback is true) it returns the original install error wrapped
+// with the plugin specifier. If a fallback is found and succeeds, the result is displayed, optional
+// cleanup is performed, and the function returns nil. If the user interactively declines a fallback
+// the function prints an abort message and returns an "installation aborted" error.
+//
+// cmd is the command used for output and user prompts. installer performs plugin install/remove
+// operations. spec is the parsed plugin specifier for the original request. opts are the install
+// options used for the initial attempt. progress is a callback for progress messages. specifier is
+// the original string passed by the user. installErr is the error produced by the initial install
+// attempt. noFallback disables any fallback attempt. fallbackToLatest enables automatic fallback to
+// the latest compatible version. clean triggers removal of other installed versions after a
+// successful fallback. pluginDir is the directory where plugins are installed.
+//
+// It returns nil if a fallback install succeeds. If fallback is not attempted or fallback fails,
+// it returns the original install error wrapped with the plugin specifier. If the user declines an
+// interactive fallback, it returns an "installation aborted" error.
 func handleInstallError(
 	cmd *cobra.Command,
 	installer *registry.Installer,
@@ -181,7 +198,7 @@ func handleInstallError(
 	}
 
 	// Try to find a fallback version
-	fallbackResult, fallbackErr := handleFallback(cmd, installer, spec, opts, progress, fallbackToLatest)
+	fallbackResult, fallbackErr := handleFallback(cmd.Context(), cmd, installer, spec, opts, progress, fallbackToLatest)
 	if fallbackErr != nil {
 		if errors.Is(fallbackErr, errFallbackDeclined) {
 			cmd.Printf("Installation aborted.\n")
@@ -221,6 +238,12 @@ func handleInstallError(
 //   - --metadata: repeatable key=value pairs attached to the plugin install.
 //
 // The command prints progress, shows a security warning for URL-based installs, and displays a concise install result.
+// NewPluginInstallCmd creates the "install" subcommand for installing plugins from a registry or URL.
+// The command accepts a single plugin specifier argument and configures flags for force reinstall,
+// skipping save, cleaning other versions, custom plugin directory, fallback controls, and repeatable
+// metadata key=value pairs. The command validates the specifier, displays security warnings when
+// appropriate, parses metadata, constructs an installer, attempts installation (with fallback and
+// cleanup behavior controlled by flags), and prints progress and results.
 // It returns the configured *cobra.Command.
 func NewPluginInstallCmd() *cobra.Command {
 	var (
@@ -272,7 +295,7 @@ func NewPluginInstallCmd() *cobra.Command {
 			}
 
 			// Try the initial installation
-			result, err := installer.Install(specifier, opts, progress)
+			result, err := installer.Install(cmd.Context(), specifier, opts, progress)
 			if err != nil {
 				return handleInstallError(
 					cmd, installer, spec, opts, progress,
@@ -348,8 +371,28 @@ var errFallbackDeclined = errors.New("fallback declined")
 // Returns:
 //   - *registry.InstallResult containing details of the installed fallback release when successful.
 //   - error if repository lookup fails, the repository format is invalid, no compatible fallback
-//     is found, the user declines the fallback, or the fallback installation fails.
+//
+// handleFallback attempts to locate and install a compatible fallback release when the requested plugin version
+// has no compatible platform assets.
+// It determines owner/repo and any asset naming hints (from the spec or registry), queries GitHub for a release
+// compatible with the current platform, and then installs that release either automatically (when autoFallback is true)
+// or after prompting the user in an interactive terminal. On success the returned InstallResult is marked as a fallback
+// and RequestedVersion holds the originally requested version.
+//
+// Parameters:
+//   - ctx: request context for network and install operations.
+//   - cmd: Cobra command used to print prompts and messages.
+//   - installer: registry installer used to perform the fallback installation.
+//   - spec: original plugin specifier (may be a registry name or a URL-based spec).
+//   - opts: original install options; selected fields are propagated to the fallback install.
+//   - progress: callback invoked with progress messages during installation.
+//   - autoFallback: when true, perform fallback without interactive confirmation.
+//
+// Returns:
+//   - *registry.InstallResult containing the fallback installation outcome (WasFallback == true) on success.
+//   - error if no compatible release is found, the user declines the fallback (errFallbackDeclined), or the fallback installation fails.
 func handleFallback(
+	ctx context.Context,
 	cmd *cobra.Command,
 	installer *registry.Installer,
 	spec *registry.PluginSpecifier,
@@ -389,7 +432,7 @@ func handleFallback(
 	}
 
 	// Find a release with compatible assets using fallback search
-	info, err := client.FindReleaseWithFallbackInfo(owner, repo, spec.Version, spec.Name, assetHints)
+	info, err := client.FindReleaseWithFallbackInfo(ctx, owner, repo, spec.Version, spec.Name, assetHints)
 	if err != nil {
 		return nil, fmt.Errorf("no compatible version found: %w", err)
 	}
@@ -450,7 +493,7 @@ func handleFallback(
 		Metadata:         opts.Metadata,
 	}
 
-	result, err := installer.Install(fallbackSpecifier, fallbackOpts, progress)
+	result, err := installer.Install(ctx, fallbackSpecifier, fallbackOpts, progress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to install fallback version: %w", err)
 	}

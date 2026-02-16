@@ -329,3 +329,51 @@ func TestEnrichOverviewRows_ConcurrencyLimit(t *testing.T) {
 	// All rows should be processed despite exceeding concurrency limit
 	assert.Len(t, result, overviewConcurrencyLimit+5)
 }
+
+func TestEnrichOverviewRows_WorkerPoolBound(t *testing.T) {
+	// Verify that the fixed worker pool pattern processes many rows
+	// without creating unbounded goroutines. A cancelled context ensures
+	// workers exit immediately without calling EnrichOverviewRow.
+	const rowCount = 50
+	rows := make([]OverviewRow, rowCount)
+	for i := range rows {
+		rows[i] = OverviewRow{
+			URN:    fmt.Sprintf("urn:test:resource:%d", i),
+			Type:   "test:resource:Type",
+			Status: StatusActive,
+		}
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately so workers skip processing
+
+	progressChan := make(chan OverviewRowUpdate, rowCount)
+
+	// This should not hang or create unbounded goroutines
+	result := EnrichOverviewRows(ctx, rows, New(nil, nil), DateRange{
+		Start: time.Now().Add(-24 * time.Hour),
+		End:   time.Now(),
+	}, progressChan)
+
+	assert.Len(t, result, rowCount)
+}
+
+func TestEnrichOverviewRows_ClosesProgressChan(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // Cancel immediately
+
+	rows := []OverviewRow{
+		{URN: "urn:test:1", Type: "test:Type", Status: StatusActive},
+	}
+	progressChan := make(chan OverviewRowUpdate, 10)
+
+	EnrichOverviewRows(ctx, rows, New(nil, nil), DateRange{
+		Start: time.Now().Add(-24 * time.Hour),
+		End:   time.Now(),
+	}, progressChan)
+
+	// progressChan should be closed after EnrichOverviewRows returns.
+	// Receiving from a closed channel returns the zero value and false.
+	_, open := <-progressChan
+	assert.False(t, open, "progress channel should be closed")
+}

@@ -45,6 +45,7 @@ type costProjectedParams struct {
 	output      string
 	filter      []string
 	utilization float64
+	jobs        int
 }
 
 // NewCostProjectedCmd creates the "projected" subcommand for calculating projected costs.
@@ -75,7 +76,21 @@ type costProjectedParams struct {
 //	--filter         Repeatable resource filter expressions (e.g., "type=aws:ec2/instance").
 //	--utilization    Utilization rate for sustainability calculations, between 0.0 and 1.0.
 //
-// The command's execution is delegated to executeCostProjected.
+// NewCostProjectedCmd returns a Cobra command configured to calculate projected costs
+// from a Pulumi preview JSON and render the results in table, JSON, or NDJSON formats.
+// The command accepts either an explicit Pulumi preview JSON file or will auto-detect
+// and run a Pulumi preview in the current project when the --pulumi-json flag is omitted.
+//
+// The command registers the following flags:
+//   - --pulumi-json: optional path to a Pulumi preview JSON output (auto-detected if omitted).
+//   - --spec-dir: directory containing pricing specification files.
+//   - --adapter: restricts execution to a single adapter plugin.
+//   - --output: output format ("table", "json", or "ndjson").
+//   - --filter: repeatable resource filter expressions (e.g., "type=aws:ec2/instance").
+//   - --utilization: utilization rate for sustainability calculations (0.0 to 1.0).
+//   - --jobs, -j: number of parallel workers (0 = auto based on CPU count).
+//
+// The returned command is ready to be added to the application's command tree.
 func NewCostProjectedCmd() *cobra.Command {
 	var params costProjectedParams
 
@@ -105,6 +120,8 @@ Use --stack to target a specific stack during auto-detection.`,
 		"Resource filter expressions (e.g., 'type=aws:ec2/instance')")
 	cmd.Flags().Float64Var(
 		&params.utilization, "utilization", 1.0, "Utilization rate for sustainability calculations (0.0 to 1.0)")
+	cmd.Flags().IntVarP(&params.jobs, "jobs", "j", 0,
+		"Number of parallel workers (0 = auto based on CPU count)")
 
 	return cmd
 }
@@ -163,9 +180,26 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
 //   - cmd: the Cobra command providing context and flags (used to read --stack and for command output).
 //   - params: command parameters including planPath, specDir, adapter, output format, filters, and utilization.
 //
-// Returns an error describing the failure when one of the following occurs: utilization is outside the range [0.0, 1.0]; reading the --stack flag fails; loading or resolving resources fails; applying filters fails; opening plugins fails; cost calculation fails; rendering output fails; or the budget check produces an exit error. Returns nil on success.
+// executeCostProjected runs the "projected" cost command: it loads resources (from a Pulumi JSON plan or auto-detected stack), applies filters, loads specs and plugins, computes projected costs (including per-resource errors), renders the output, and evaluates budget status.
+//
+// The cmd parameter provides the Cobra command and its context/flags. The params argument contains CLI-configured options such as the Pulumi JSON path, spec directory, adapter restriction, output format, resource filters, utilization rate, and number of worker jobs.
+//
+// On success, it returns nil. On failure it returns an error describing the specific failure, which may occur when:
+// - params.jobs is negative,
+// - params.utilization is outside the range 0.0 to 1.0,
+// - reading the --stack flag fails during auto-detection,
+// - loading or resolving resources fails,
+// - applying resource filters fails,
+// - opening adapter plugins fails,
+// - the cost calculation fails,
+// - rendering the output fails, or
+// - the budget evaluation produces a non-zero exit/error status.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
 	ctx := cmd.Context()
+
+	if params.jobs < 0 {
+		return fmt.Errorf("--jobs must be non-negative, got %d", params.jobs)
+	}
 
 	if params.utilization < 0.0 || params.utilization > 1.0 {
 		return fmt.Errorf("utilization must be between 0.0 and 1.0, got %f", params.utilization)
@@ -182,8 +216,10 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	audit := newAuditContext(ctx, "cost projected", auditParams)
 
-	var resources []engine.ResourceDescriptor
-	var err error
+	var (
+		resources []engine.ResourceDescriptor
+		err       error
+	)
 
 	if params.planPath != "" {
 		resources, err = loadAndMapResources(ctx, params.planPath, audit)
@@ -207,7 +243,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		return fmt.Errorf("applying filters: %w", err)
 	}
 
-	cfg, specDir := config.New(), params.specDir
+	cfg, specDir := config.GetGlobalConfig(), params.specDir
 	if specDir == "" {
 		specDir = cfg.SpecDir
 	}
@@ -218,7 +254,8 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	defer cleanup()
 
-	eng := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
+	eng := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg).WithJobs(params.jobs)
+	start := time.Now()
 	resultWithErrors, err := eng.GetProjectedCostWithErrors(ctx, resources)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to calculate projected costs")
@@ -232,6 +269,8 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		return renderErr
 	}
 
+	printTimingOutput(cmd, start, len(resources), params.output)
+
 	log.Info().Ctx(ctx).Str("operation", "cost_projected").Int("result_count", len(resultWithErrors.Results)).
 		Dur("duration_ms", time.Since(audit.start)).Msg("projected cost calculation complete")
 
@@ -240,20 +279,10 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		totalCost += r.Monthly
 	}
 
-	currency, mixedCurrencies := extractCurrencyFromResults(resultWithErrors.Results)
-	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
-
-	// Evaluate and render budget status (T025: Call checkBudgetExit after renderBudgetIfConfigured)
-	// Render budget status only when currencies are consistent
-	if !mixedCurrencies {
-		scopeFilter := getBudgetScopeFilter(cmd)
-
-		budgetResult, budgetErr := renderBudgetWithScope(
-			cmd, resultWithErrors.Results, totalCost, currency, scopeFilter)
-		if exitErr := checkBudgetExitFromResult(cmd, budgetResult, budgetErr); exitErr != nil {
-			return exitErr
-		}
+	if budgetErr := evaluateBudgetStatus(cmd, resultWithErrors.Results, totalCost); budgetErr != nil {
+		audit.logFailure(ctx, budgetErr)
+		return budgetErr
 	}
-
+	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
 	return nil
 }

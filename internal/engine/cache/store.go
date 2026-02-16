@@ -79,7 +79,7 @@ func NewFileStore(directory string, enabled bool, ttlSeconds, maxSizeMB int) (*F
 
 // Get retrieves a cache entry by key.
 // Returns ErrCacheNotFound if the entry doesn't exist.
-// Returns ErrCacheExpired if the entry has expired.
+// Returns ErrCacheExpired if the entry has expired (and synchronously deletes the file).
 func (s *FileStore) Get(key string) (*CacheEntry, error) {
 	if !s.enabled {
 		return nil, ErrCacheDisabled
@@ -90,11 +90,11 @@ func (s *FileStore) Get(key string) (*CacheEntry, error) {
 	}
 
 	s.mu.RLock()
-	defer s.mu.RUnlock()
 
 	filePath := s.keyToFilePath(key)
 	data, err := os.ReadFile(filePath)
 	if err != nil {
+		s.mu.RUnlock()
 		if os.IsNotExist(err) {
 			return nil, ErrCacheNotFound
 		}
@@ -103,20 +103,49 @@ func (s *FileStore) Get(key string) (*CacheEntry, error) {
 
 	var entry CacheEntry
 	if unmarshalErr := json.Unmarshal(data, &entry); unmarshalErr != nil {
+		s.mu.RUnlock()
 		return nil, fmt.Errorf("failed to unmarshal cache entry: %w", unmarshalErr)
 	}
 
 	if entry.IsExpired() {
-		// Delete expired entry asynchronously
-		go func() {
-			s.mu.Lock()
-			defer s.mu.Unlock()
-			_ = os.Remove(filePath)
-		}()
+		// Release read lock before acquiring write lock for synchronous deletion.
+		// This avoids spawning a goroutine that could hold a write lock after Get returns
+		// (goroutine leak when the RLock holder is long gone).
+		s.mu.RUnlock()
+		return s.deleteExpiredUnderLock(filePath)
+	}
+
+	s.mu.RUnlock()
+	return &entry, nil
+}
+
+// deleteExpiredUnderLock acquires the write lock, re-reads the cache file at
+// filePath, and deletes it if still expired. If another goroutine refreshed
+// the entry between the read-lock release and this write-lock acquisition,
+// the fresh entry is returned. The write lock is always released via defer.
+func (s *FileStore) deleteExpiredUnderLock(filePath string) (*CacheEntry, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	freshData, readErr := os.ReadFile(filePath)
+	if readErr != nil {
+		// File already removed or unreadable; nothing to delete.
 		return nil, ErrCacheExpired
 	}
 
-	return &entry, nil
+	var freshEntry CacheEntry
+	if unmarshalErr := json.Unmarshal(freshData, &freshEntry); unmarshalErr != nil {
+		_ = os.Remove(filePath)
+		return nil, ErrCacheExpired
+	}
+
+	if freshEntry.IsExpired() {
+		_ = os.Remove(filePath)
+		return nil, ErrCacheExpired
+	}
+
+	// Entry was refreshed by another goroutine and is now valid.
+	return &freshEntry, nil
 }
 
 // Set stores a cache entry with the given key and data.

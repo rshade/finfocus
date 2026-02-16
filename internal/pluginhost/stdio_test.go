@@ -12,6 +12,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -368,4 +371,65 @@ func (t *testGRPCConn) Close() error {
 
 func (t *testGRPCConn) GetState() interface{} {
 	return "READY"
+}
+
+func TestProxy_GracefulShutdown(t *testing.T) {
+	// Create a listener for the proxy.
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+
+	// Create pipes to simulate plugin stdin/stdout.
+	stdinReader, stdinWriter := io.Pipe()
+	defer stdinWriter.Close()
+	stdoutReader, stdoutWriter := io.Pipe()
+	defer stdoutReader.Close()
+
+	launcher := NewStdioLauncher()
+
+	// Run proxy in background.
+	done := make(chan struct{})
+	go func() {
+		launcher.proxy(listener, stdinWriter, stdoutReader)
+		close(done)
+	}()
+
+	// Connect to the proxy.
+	conn, dialErr := net.Dial("tcp", listener.Addr().String())
+	require.NoError(t, dialErr)
+	defer conn.Close()
+
+	// Write data through conn -> stdinWriter -> stdinReader.
+	testData := []byte("hello proxy")
+	_, writeErr := conn.Write(testData)
+	require.NoError(t, writeErr)
+
+	buf := make([]byte, len(testData))
+	_, readErr := io.ReadFull(stdinReader, buf)
+	require.NoError(t, readErr)
+	assert.Equal(t, testData, buf)
+
+	// Write data through stdoutWriter -> stdoutReader -> conn.
+	_, writeErr = stdoutWriter.Write(testData)
+	require.NoError(t, writeErr)
+
+	buf2 := make([]byte, len(testData))
+	_, readErr = io.ReadFull(conn, buf2)
+	require.NoError(t, readErr)
+	assert.Equal(t, testData, buf2)
+
+	// Close the connection and stdout to trigger shutdown of both copy goroutines.
+	conn.Close()
+	stdoutWriter.Close()
+
+	// Proxy should finish within a reasonable time (both goroutines cleaned up).
+	select {
+	case <-done:
+		// Success - proxy shut down cleanly with WaitGroup coordination.
+	case <-time.After(5 * time.Second):
+		t.Fatal("proxy did not shut down within timeout")
+	}
+
+	// Clean up remaining pipes.
+	stdinReader.Close()
 }

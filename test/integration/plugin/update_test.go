@@ -1,6 +1,7 @@
 package plugin_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -68,7 +69,7 @@ func TestPluginUpdate_ToLatest(t *testing.T) {
 	}
 
 	// Update to latest
-	result, err := installer.Update("updatable", opts, nil)
+	result, err := installer.Update(context.Background(), "updatable", opts, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "updatable", result.Name)
@@ -115,7 +116,7 @@ func TestPluginUpdate_SpecificVersion(t *testing.T) {
 		PluginDir: pluginDir,
 	}
 
-	result, err := installer.Update("specific-update", opts, nil)
+	result, err := installer.Update(context.Background(), "specific-update", opts, nil)
 
 	require.NoError(t, err)
 	assert.Equal(t, "v1.0.0", result.OldVersion)
@@ -160,7 +161,7 @@ func TestPluginUpdate_DryRun(t *testing.T) {
 		progressMessages = append(progressMessages, msg)
 	}
 
-	result, err := installer.Update("dryrun-test", opts, progress)
+	result, err := installer.Update(context.Background(), "dryrun-test", opts, progress)
 
 	require.NoError(t, err)
 	assert.Equal(t, "v1.0.0", result.OldVersion)
@@ -211,7 +212,7 @@ func TestPluginUpdate_AlreadyUpToDate(t *testing.T) {
 		PluginDir: pluginDir,
 	}
 
-	result, err := installer.Update("uptodate", opts, nil)
+	result, err := installer.Update(context.Background(), "uptodate", opts, nil)
 
 	require.NoError(t, err)
 	assert.True(t, result.WasUpToDate, "should report already up to date")
@@ -247,7 +248,7 @@ func TestPluginUpdate_NonExistent(t *testing.T) {
 		PluginDir: pluginDir,
 	}
 
-	_, err := installer.Update("nonexistent", opts, nil)
+	_, err := installer.Update(context.Background(), "nonexistent", opts, nil)
 
 	assert.Error(t, err, "should fail for non-existent plugin")
 	assert.Contains(t, err.Error(), "not installed")
@@ -283,7 +284,7 @@ func TestPluginUpdate_ProgressCallback(t *testing.T) {
 		messages = append(messages, msg)
 	}
 
-	_, err := installer.Update("progress-update", opts, progress)
+	_, err := installer.Update(context.Background(), "progress-update", opts, progress)
 	require.NoError(t, err)
 
 	assert.NotEmpty(t, messages, "should receive progress messages")
@@ -318,7 +319,7 @@ func TestPluginUpdate_RemovesOldVersion(t *testing.T) {
 		PluginDir: pluginDir,
 	}
 
-	result, err := installer.Update("remove-old", opts, nil)
+	result, err := installer.Update(context.Background(), "remove-old", opts, nil)
 	require.NoError(t, err)
 	assert.Equal(t, "v2.0.0", result.NewVersion)
 

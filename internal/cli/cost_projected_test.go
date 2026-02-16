@@ -80,6 +80,8 @@ func TestNewCostProjectedCmd(t *testing.T) {
 func TestCostProjectedWithoutPulumiJson(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
+	isolateFromPulumiProject(t)
+
 	var buf bytes.Buffer
 	cmd := cli.NewCostProjectedCmd()
 	cmd.SetOut(&buf)
@@ -205,6 +207,8 @@ func TestStackFlagExists(t *testing.T) {
 func TestStackFlagPassedThrough(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
+	isolateFromPulumiProject(t)
+
 	root := cli.NewRootCmd("test")
 	root.SetArgs([]string{"cost", "projected", "--stack", "production"})
 
@@ -241,6 +245,35 @@ func TestStackFlagIgnoredWithPulumiJson(t *testing.T) {
 	require.Error(t, err)
 	// Should fail on file loading, not on stack resolution
 	assert.Contains(t, err.Error(), "loading Pulumi plan")
+}
+
+func TestCostProjectedCmd_JobsFlag(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	cmd := cli.NewCostProjectedCmd()
+
+	jobsFlag := cmd.Flags().Lookup("jobs")
+	require.NotNil(t, jobsFlag, "--jobs flag should exist")
+	assert.Equal(t, "int", jobsFlag.Value.Type())
+	assert.Equal(t, "0", jobsFlag.DefValue)
+
+	// Check shorthand
+	jobsShortFlag := cmd.Flags().ShorthandLookup("j")
+	require.NotNil(t, jobsShortFlag, "-j shorthand should exist")
+	assert.Equal(t, "jobs", jobsShortFlag.Name)
+}
+
+func TestCostProjectedCmd_NegativeJobs(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	var buf bytes.Buffer
+	cmd := cli.NewCostProjectedCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--pulumi-json", "test.json", "--jobs", "-1"})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "--jobs must be non-negative")
 }
 
 func TestCostProjectedCmdErrorSummaryDisplay(t *testing.T) {

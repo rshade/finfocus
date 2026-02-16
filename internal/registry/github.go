@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -86,37 +87,35 @@ func NewGitHubClient() *GitHubClient {
 	}
 }
 
-// getGitHubToken returns a GitHub authentication token from the GITHUB_TOKEN
-// environment variable. Returns empty string if not set. The token is optional
-// - anonymous requests will work for public repositories but may be rate-limited.
+// getGitHubToken returns the value of the GITHUB_TOKEN environment variable.
+// It returns an empty string if the variable is not set (clients will make anonymous
+// requests in that case, which may be subject to stricter rate limits).
 func getGitHubToken() string {
 	return os.Getenv("GITHUB_TOKEN")
 }
 
 // GetLatestRelease returns the latest release for a repository.
-func (c *GitHubClient) GetLatestRelease(owner, repo string) (*GitHubRelease, error) {
+func (c *GitHubClient) GetLatestRelease(ctx context.Context, owner, repo string) (*GitHubRelease, error) {
 	url := fmt.Sprintf("%s/repos/%s/%s/releases/latest", c.BaseURL, owner, repo)
-	return c.fetchRelease(url)
+	return c.fetchRelease(ctx, url)
 }
 
 // GetReleaseByTag returns a specific release by tag name.
-func (c *GitHubClient) GetReleaseByTag(owner, repo, tag string) (*GitHubRelease, error) {
+func (c *GitHubClient) GetReleaseByTag(ctx context.Context, owner, repo, tag string) (*GitHubRelease, error) {
 	url := fmt.Sprintf("%s/repos/%s/%s/releases/tags/%s", c.BaseURL, owner, repo, tag)
-	return c.fetchRelease(url)
+	return c.fetchRelease(ctx, url)
 }
 
 // ListStableReleases fetches all releases and returns only stable (non-draft, non-prerelease)
 // releases sorted by creation order (newest first, as returned by GitHub API).
-//
-//nolint:noctx // context not needed for simple HTTP
-func (c *GitHubClient) ListStableReleases(owner, repo string, limit int) ([]GitHubRelease, error) {
+func (c *GitHubClient) ListStableReleases(ctx context.Context, owner, repo string, limit int) ([]GitHubRelease, error) {
 	// Fetch paginated releases (up to limit, max githubMaxPerPage per page)
 	url := fmt.Sprintf(
 		"%s/repos/%s/%s/releases?per_page=%d",
 		c.BaseURL, owner, repo, min(limit, githubMaxPerPage),
 	)
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -176,10 +175,11 @@ func (c *GitHubClient) ListStableReleases(owner, repo string, limit int) ([]GitH
 //
 // Returns the release and asset that matched, or an error if none found.
 func (c *GitHubClient) FindReleaseWithAsset(
+	ctx context.Context,
 	owner, repo, version, projectName string,
 	hints *AssetNamingHints,
 ) (*GitHubRelease, *ReleaseAsset, error) {
-	info, err := c.FindReleaseWithFallbackInfo(owner, repo, version, projectName, hints)
+	info, err := c.FindReleaseWithFallbackInfo(ctx, owner, repo, version, projectName, hints)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -207,6 +207,7 @@ func (c *GitHubClient) FindReleaseWithAsset(
 //
 //nolint:gocognit // Complexity is necessary to handle version lookup, fallback search, and asset matching scenarios
 func (c *GitHubClient) FindReleaseWithFallbackInfo(
+	ctx context.Context,
 	owner, repo, version, projectName string,
 	hints *AssetNamingHints,
 ) (*FallbackInfo, error) {
@@ -218,7 +219,7 @@ func (c *GitHubClient) FindReleaseWithFallbackInfo(
 
 	// If specific version requested, try it first
 	if version != "" {
-		release, err := c.GetReleaseByTag(owner, repo, version)
+		release, err := c.GetReleaseByTag(ctx, owner, repo, version)
 		if err == nil {
 			asset, assetErr := FindPlatformAssetWithHints(release, projectName, hints)
 			if assetErr == nil {
@@ -237,7 +238,7 @@ func (c *GitHubClient) FindReleaseWithFallbackInfo(
 	}
 
 	// Try stable releases as fallback
-	stableReleases, err := c.ListStableReleases(owner, repo, maxFallbackReleases)
+	stableReleases, err := c.ListStableReleases(ctx, owner, repo, maxFallbackReleases)
 	if err != nil {
 		if version != "" {
 			return nil, fmt.Errorf(
@@ -287,19 +288,34 @@ func (c *GitHubClient) FindReleaseWithFallbackInfo(
 	)
 }
 
+// retryBackoff waits for an exponential backoff duration while respecting
+// context cancellation. It is a no-op for the first attempt (attempt == 0).
+// Returns a non-nil error if the context is cancelled during the wait.
+func retryBackoff(ctx context.Context, attempt int) error {
+	if attempt <= 0 {
+		return nil
+	}
+	backoffDivisor := 2
+	d := time.Duration(1<<attempt) * time.Second / time.Duration(backoffDivisor)
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-t.C:
+		return nil
+	case <-ctx.Done():
+		return fmt.Errorf("request cancelled during backoff: %w", ctx.Err())
+	}
+}
+
 // fetchRelease fetches release data with retry logic.
-//
-//nolint:noctx // context not needed for simple HTTP
-func (c *GitHubClient) fetchRelease(url string) (*GitHubRelease, error) {
+func (c *GitHubClient) fetchRelease(ctx context.Context, url string) (*GitHubRelease, error) {
 	var lastErr error
 	for attempt := range 3 {
-		if attempt > 0 {
-			// Exponential backoff: 500ms, 1s, 2s
-			backoffDivisor := 2
-			time.Sleep(time.Duration(1<<attempt) * time.Second / time.Duration(backoffDivisor))
+		if err := retryBackoff(ctx, attempt); err != nil {
+			return nil, err
 		}
 
-		req, err := http.NewRequest(http.MethodGet, url, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
@@ -490,12 +506,13 @@ func matchesAssetPattern(assetName, pattern string) bool {
 
 // DownloadAsset downloads a release asset to a local file.
 //
-//nolint:mnd,noctx // magic numbers for buffer size, context not needed for downloads
+//nolint:mnd // magic numbers for buffer size
 func (c *GitHubClient) DownloadAsset(
+	ctx context.Context,
 	url, destPath string,
 	progress func(downloaded, total int64),
 ) error {
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}

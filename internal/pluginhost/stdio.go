@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"os/exec"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -173,8 +174,30 @@ func (s *StdioLauncher) proxy(listener net.Listener, stdin io.WriteCloser, stdou
 	}
 	defer conn.Close()
 
+	var wg sync.WaitGroup
+	wg.Add(2) //nolint:mnd // Two io.Copy directions
+
+	// conn -> stdin (gRPC requests to plugin)
 	go func() {
+		defer wg.Done()
 		_, _ = io.Copy(stdin, conn)
+		// stdin direction done; close stdout to unblock the other copy
+		_ = stdout.Close()
 	}()
-	_, _ = io.Copy(conn, stdout)
+
+	// stdout -> conn (plugin responses to gRPC)
+	go func() {
+		defer wg.Done()
+		_, _ = io.Copy(conn, stdout)
+		// stdout direction done; close the read side of conn to unblock the other copy.
+		// The type assertion to *net.TCPConn is safe because the listener binds to
+		// TCP on 127.0.0.1:0 (see proxy caller). If the listener type changes to a
+		// non-TCP socket (e.g., Unix domain socket), this assertion will fail and
+		// the peer io.Copy may hang; update accordingly.
+		if tc, ok := conn.(*net.TCPConn); ok {
+			_ = tc.CloseRead()
+		}
+	}()
+
+	wg.Wait()
 }

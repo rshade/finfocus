@@ -179,7 +179,7 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 
 		costStr := fmt.Sprintf("$%.2f", row.Monthly)
 		deltaStr := RenderDelta(row.Delta)
-		recsStr := formatRecsColumn(row.RecommendationCount)
+		recsStr := engine.FormatRecommendationCount(row.RecommendationCount)
 
 		rows[i] = table.Row{
 			row.ResourceName,
@@ -206,7 +206,12 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 	return t
 }
 
-// NewActualCostTable creates a table for actual cost results (using TotalCost).
+// NewActualCostTable creates a table model displaying actual (total) costs for the provided cost results.
+//
+// Each row corresponds to an entry in the `results` slice and shows Resource, Type, Provider, Total Cost,
+// and Recommendations. Total Cost is formatted as USD with two decimal places; Recommendations show the
+// formatted recommendation count. The returned table is configured with a focused state, the given height,
+// and standard header and selected row styles.
 func NewActualCostTable(results []engine.CostResult, height int) table.Model {
 	columns := []table.Column{
 		{Title: "Resource", Width: 40},        //nolint:mnd // Column width.
@@ -220,7 +225,7 @@ func NewActualCostTable(results []engine.CostResult, height int) table.Model {
 	for i, r := range results {
 		row := NewResourceRow(r)
 		costStr := fmt.Sprintf("$%.2f", row.TotalCost)
-		recsStr := formatRecsColumn(row.RecommendationCount)
+		recsStr := engine.FormatRecommendationCount(row.RecommendationCount)
 
 		rows[i] = table.Row{
 			row.ResourceName,
@@ -431,7 +436,13 @@ func renderSustainabilitySection(content *strings.Builder, sustainability map[st
 // recommendations are present. Recommendations are sorted by estimated savings in
 // descending order (FR-009). Each recommendation shows its action type, description,
 // and optional savings. Reasoning entries are rendered as indented warning lines
-// beneath the description (FR-002).
+// renderRecommendationsSection writes a formatted "RECOMMENDATIONS" section into content for the
+// provided recommendations slice. If recommendations is empty the function returns without writing
+// anything. Recommendations are rendered in descending order by EstimatedSavings; each entry is
+// written as "- [<Type>] <Description> (<savings> per month)" when EstimatedSavings is greater than
+// zero, using defaultCurrency if the recommendation's Currency is empty. Each Reasoning line is
+// written on its own indented line and styled with WarningStyle. The section ends with a trailing
+// blank line.
 func renderRecommendationsSection(content *strings.Builder, recommendations []engine.Recommendation) {
 	if len(recommendations) == 0 {
 		return
@@ -466,15 +477,6 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 		}
 	}
 	content.WriteString("\n")
-}
-
-// formatRecsColumn returns the recommendation count as a string for TUI table display.
-// Returns "-" when the count is zero so the column stays visually clean.
-func formatRecsColumn(count int) string {
-	if count == 0 {
-		return "-"
-	}
-	return strconv.Itoa(count)
 }
 
 // aggregateCarbonFromResults extracts and sums carbon_footprint metrics from all results.

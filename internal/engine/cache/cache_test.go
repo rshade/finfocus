@@ -185,11 +185,30 @@ func TestFileStore(t *testing.T) {
 		_, err := shortStore.Get("expired")
 		assert.Equal(t, ErrCacheExpired, err)
 
-		// Wait a bit for async delete
-		time.Sleep(50 * time.Millisecond)
-
 		err = shortStore.CleanupExpired()
 		require.NoError(t, err)
+	})
+
+	t.Run("SynchronousExpiredDeletion", func(t *testing.T) {
+		// Use a dedicated temp dir so other sub-tests don't interfere.
+		syncDir := t.TempDir()
+		syncStore, storeErr := NewFileStore(syncDir, true, 1, 0) // 1 second TTL
+		require.NoError(t, storeErr)
+
+		setErr := syncStore.Set("sync-key", data)
+		require.NoError(t, setErr)
+
+		// Wait for the entry to expire.
+		time.Sleep(2 * time.Second)
+
+		// Get should return ErrCacheExpired.
+		_, getErr := syncStore.Get("sync-key")
+		assert.ErrorIs(t, getErr, ErrCacheExpired)
+
+		// The file should be deleted synchronously (no async goroutine).
+		filePath := syncStore.keyToFilePath("sync-key")
+		_, statErr := os.Stat(filePath)
+		assert.True(t, os.IsNotExist(statErr), "expired cache file should be deleted synchronously")
 	})
 }
 

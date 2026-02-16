@@ -1,8 +1,16 @@
 package registry
 
 import (
+	"context"
+	"net/http"
+	"net/http/httptest"
 	"runtime"
+	"sync/atomic"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewGitHubClient(t *testing.T) {
@@ -152,4 +160,108 @@ func TestConstants(t *testing.T) {
 	if extTarGz != ".tar.gz" {
 		t.Errorf("extTarGz = %v, want .tar.gz", extTarGz)
 	}
+}
+
+func TestGitHubClient_ContextCancellation(t *testing.T) {
+	// Create a slow server that takes too long to respond
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check if context was cancelled
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(10 * time.Second):
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"tag_name":"v1.0.0"}`))
+		}
+	}))
+	defer server.Close()
+
+	client := &GitHubClient{
+		HTTPClient: server.Client(),
+		BaseURL:    server.URL,
+	}
+
+	// Create a context that cancels quickly
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	// The request should fail due to context cancellation
+	_, err := client.GetLatestRelease(ctx, "owner", "repo")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "context")
+}
+
+func TestGitHubClient_ContextCancellation_ListStableReleases(t *testing.T) {
+	// Create a slow server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(10 * time.Second):
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`[]`))
+		}
+	}))
+	defer server.Close()
+
+	client := &GitHubClient{
+		HTTPClient: server.Client(),
+		BaseURL:    server.URL,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	_, err := client.ListStableReleases(ctx, "owner", "repo", 10)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "context")
+}
+
+func TestGitHubClient_ContextCancellation_DownloadAsset(t *testing.T) {
+	// Create a slow server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+			return
+		case <-time.After(10 * time.Second):
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("binary content"))
+		}
+	}))
+	defer server.Close()
+
+	client := &GitHubClient{
+		HTTPClient: server.Client(),
+		BaseURL:    server.URL,
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	destPath := t.TempDir() + "/asset.bin"
+	err := client.DownloadAsset(ctx, server.URL, destPath, nil)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "context")
+}
+
+func TestGitHubClient_ContextPropagation(t *testing.T) {
+	// Verify that context is passed through to HTTP requests
+	var requestReceived atomic.Bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requestReceived.Store(true)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"tag_name":"v1.0.0","assets":[]}`))
+	}))
+	defer server.Close()
+
+	client := &GitHubClient{
+		HTTPClient: server.Client(),
+		BaseURL:    server.URL,
+	}
+
+	ctx := context.Background()
+
+	_, err := client.GetLatestRelease(ctx, "owner", "repo")
+	require.NoError(t, err)
+	assert.True(t, requestReceived.Load(), "HTTP request should have been made")
 }
