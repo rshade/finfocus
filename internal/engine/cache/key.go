@@ -29,21 +29,22 @@ func isValidBucket(name string) bool {
 // BuildProjectedKey constructs a human-readable key for per-resource
 // projected cost caching.
 // Format: projected/{provider}/{type}/{region}/{sku}.
+// Empty segments use "_" as a placeholder to ensure fixed-position keys
+// and avoid ambiguity (e.g., ("aws","","us-east-1","") vs ("aws","us-east-1","","")).
 func BuildProjectedKey(provider, resourceType, region, sku string) string {
-	parts := []string{BucketProjected}
-	if provider != "" {
-		parts = append(parts, provider)
+	placeholder := func(s string) string {
+		if s == "" {
+			return "_"
+		}
+		return s
 	}
-	if resourceType != "" {
-		parts = append(parts, resourceType)
-	}
-	if region != "" {
-		parts = append(parts, region)
-	}
-	if sku != "" {
-		parts = append(parts, sku)
-	}
-	return strings.Join(parts, "/")
+	return strings.Join([]string{
+		BucketProjected,
+		placeholder(provider),
+		placeholder(resourceType),
+		placeholder(region),
+		placeholder(sku),
+	}, "/")
 }
 
 // BuildActualKey constructs a key for whole-query actual cost caching.
@@ -87,7 +88,7 @@ func BuildRecommendationsKey(resourceTypes []string) string {
 
 // BucketFromKey extracts the bucket name from a structured cache key.
 // Returns the first path segment before the first "/".
-// Returns an empty string if the key has no "/" separator.
+// Returns the entire key if there is no "/" separator.
 func BucketFromKey(key string) string {
 	idx := strings.Index(key, "/")
 	if idx < 0 {

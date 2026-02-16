@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -36,20 +37,20 @@ func TestBuildProjectedKey(t *testing.T) {
 			provider: "aws",
 			resType:  "ec2:Instance",
 			sku:      "t3.micro",
-			want:     "projected/aws/ec2:Instance/t3.micro",
+			want:     "projected/aws/ec2:Instance/_/t3.micro",
 		},
 		{
 			name:     "missing sku",
 			provider: "aws",
 			resType:  "ec2:Instance",
 			region:   "us-east-1",
-			want:     "projected/aws/ec2:Instance/us-east-1",
+			want:     "projected/aws/ec2:Instance/us-east-1/_",
 		},
 		{
 			name:     "only provider and type",
 			provider: "gcp",
 			resType:  "compute:Instance",
-			want:     "projected/gcp/compute:Instance",
+			want:     "projected/gcp/compute:Instance/_/_",
 		},
 	}
 
@@ -170,8 +171,8 @@ func TestBoltStore_GetExpired(t *testing.T) {
 	err := store.Set(key, data)
 	require.NoError(t, err)
 
-	// Wait for expiration
-	time.Sleep(2 * time.Second)
+	// Wait for expiration (1s TTL + 200ms buffer)
+	time.Sleep(1200 * time.Millisecond)
 
 	_, err = store.Get(key)
 	assert.ErrorIs(t, err, ErrCacheExpired)
@@ -256,7 +257,7 @@ func TestBoltStore_CacheInterfaceCompliance(t *testing.T) {
 
 func BenchmarkBoltStoreGet(b *testing.B) {
 	dir := b.TempDir()
-	store, err := NewBoltStore(dir, true, 3600, 0)
+	store, err := NewBoltStore(context.Background(), dir, true, 3600, 0)
 	require.NoError(b, err)
 	defer store.Close()
 
@@ -288,15 +289,12 @@ func BenchmarkBoltStoreGet(b *testing.B) {
 // --- T015: Corruption recovery tests ---
 
 func TestBoltStore_CorruptionRecovery(t *testing.T) {
-	dir := t.TempDir()
-	dbPath := filepath.Join(dir, dbFileName)
-
 	t.Run("garbage bytes", func(t *testing.T) {
 		testDir := t.TempDir()
 		garbagePath := filepath.Join(testDir, dbFileName)
 		require.NoError(t, os.WriteFile(garbagePath, []byte("this is not a database"), 0o600))
 
-		store, err := NewBoltStore(testDir, true, 3600, 0)
+		store, err := NewBoltStore(context.Background(), testDir, true, 3600, 0)
 		require.NoError(t, err)
 		require.NotNil(t, store)
 		defer store.Close()
@@ -315,7 +313,7 @@ func TestBoltStore_CorruptionRecovery(t *testing.T) {
 		// Write first 10 bytes of a valid header then truncate
 		require.NoError(t, os.WriteFile(truncPath, make([]byte, 10), 0o600))
 
-		store, err := NewBoltStore(testDir, true, 3600, 0)
+		store, err := NewBoltStore(context.Background(), testDir, true, 3600, 0)
 		require.NoError(t, err)
 		require.NotNil(t, store)
 		defer store.Close()
@@ -326,13 +324,11 @@ func TestBoltStore_CorruptionRecovery(t *testing.T) {
 		zeroPath := filepath.Join(testDir, dbFileName)
 		require.NoError(t, os.WriteFile(zeroPath, []byte{}, 0o600))
 
-		store, err := NewBoltStore(testDir, true, 3600, 0)
+		store, err := NewBoltStore(context.Background(), testDir, true, 3600, 0)
 		require.NoError(t, err)
 		require.NotNil(t, store)
 		defer store.Close()
 	})
-
-	_ = dbPath // used for reference
 }
 
 // --- T016: Concurrent read/write safety ---
@@ -372,7 +368,7 @@ func TestBoltStore_ConcurrentSafety(t *testing.T) {
 	close(errCh)
 
 	for err := range errCh {
-		t.Errorf("concurrent operation error: %v", err)
+		assert.NoError(t, err, "concurrent operation error")
 	}
 }
 
@@ -382,13 +378,13 @@ func TestBoltStore_LockTimeout(t *testing.T) {
 	dir := t.TempDir()
 
 	// Open first store
-	store1, err := NewBoltStore(dir, true, 3600, 0)
+	store1, err := NewBoltStore(context.Background(), dir, true, 3600, 0)
 	require.NoError(t, err)
 	require.NotNil(t, store1)
 	defer store1.Close()
 
 	// Attempt to open second store at same path → should return nil, ErrCacheLocked
-	store2, err := NewBoltStore(dir, true, 3600, 0)
+	store2, err := NewBoltStore(context.Background(), dir, true, 3600, 0)
 	assert.ErrorIs(t, err, ErrCacheLocked)
 	assert.Nil(t, store2)
 
@@ -567,7 +563,7 @@ func TestBoltStore_Compact(t *testing.T) {
 
 func TestBoltStore_SingleDatabaseFile(t *testing.T) {
 	dir := t.TempDir()
-	store, err := NewBoltStore(dir, true, 3600, 0)
+	store, err := NewBoltStore(context.Background(), dir, true, 3600, 0)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -583,7 +579,7 @@ func TestBoltStore_SingleDatabaseFile(t *testing.T) {
 		if e.Name() == dbFileName {
 			foundDB = true
 		} else {
-			t.Errorf("unexpected file in cache dir: %s", e.Name())
+			assert.Failf(t, "unexpected file in cache dir", "%s", e.Name())
 		}
 	}
 	assert.True(t, foundDB, "cache.db should exist")
@@ -599,8 +595,8 @@ func TestBoltStore_CleanupExpired(t *testing.T) {
 	require.NoError(t, store.Set("projected/aws/expire2", data))
 	require.NoError(t, store.Set("projected/aws/expire3", data))
 
-	// Wait for expiration
-	time.Sleep(2 * time.Second)
+	// Wait for expiration (1s TTL + 200ms buffer)
+	time.Sleep(1200 * time.Millisecond)
 
 	count, err := store.CleanupExpired()
 	require.NoError(t, err)
@@ -708,20 +704,20 @@ func TestTTLConfig(t *testing.T) {
 
 func TestNewBoltStore(t *testing.T) {
 	t.Run("disabled", func(t *testing.T) {
-		store, err := NewBoltStore("", false, 0, 0)
+		store, err := NewBoltStore(context.Background(), "", false, 0, 0)
 		require.NoError(t, err)
 		require.NotNil(t, store)
 		assert.False(t, store.IsEnabled())
 	})
 
 	t.Run("empty directory with enabled", func(t *testing.T) {
-		_, err := NewBoltStore("", true, 3600, 100)
+		_, err := NewBoltStore(context.Background(), "", true, 3600, 100)
 		require.Error(t, err)
 	})
 
 	t.Run("valid", func(t *testing.T) {
 		dir := t.TempDir()
-		store, err := NewBoltStore(dir, true, 3600, 100)
+		store, err := NewBoltStore(context.Background(), dir, true, 3600, 100)
 		require.NoError(t, err)
 		require.NotNil(t, store)
 		assert.True(t, store.IsEnabled())
@@ -736,7 +732,7 @@ func TestNewBoltStore(t *testing.T) {
 func newTestStore(t *testing.T, enabled bool, ttl int) *BoltStore {
 	t.Helper()
 	dir := t.TempDir()
-	store, err := NewBoltStore(dir, enabled, ttl, 0)
+	store, err := NewBoltStore(context.Background(), dir, enabled, ttl, 0)
 	require.NoError(t, err)
 	require.NotNil(t, store)
 	t.Cleanup(func() { _ = store.Close() })

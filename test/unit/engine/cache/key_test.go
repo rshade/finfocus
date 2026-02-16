@@ -31,16 +31,16 @@ func TestBuildProjectedKey(t *testing.T) {
 			name:         "minimal key",
 			provider:     "aws",
 			resourceType: "aws:ec2:Instance",
-			want:         "projected/aws/aws:ec2:Instance",
+			want:         "projected/aws/aws:ec2:Instance/_/_",
 		},
 		{
 			name: "empty provider",
-			want: "projected",
+			want: "projected/_/_/_/_",
 		},
 		{
 			name:     "provider only",
 			provider: "gcp",
-			want:     "projected/gcp",
+			want:     "projected/gcp/_/_/_",
 		},
 	}
 
@@ -160,6 +160,7 @@ func TestStripBucket(t *testing.T) {
 
 // BenchmarkBuildProjectedKey benchmarks projected key generation.
 func BenchmarkBuildProjectedKey(b *testing.B) {
+	b.ReportAllocs()
 	for range b.N {
 		cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.micro")
 	}
@@ -170,6 +171,7 @@ func BenchmarkBuildActualKey(b *testing.B) {
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 	filters := map[string]string{"region": "us-west-2", "env": "prod"}
+	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
 		cache.BuildActualKey("aws", []string{"ec2", "rds", "s3"}, from, to, filters)

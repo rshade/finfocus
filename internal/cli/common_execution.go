@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -468,15 +467,15 @@ func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Co
 	// 1. FINFOCUS_CACHE_DIR env var (explicit override)
 	// 2. Resolved project dir ({projectDir}/.finfocus/)
 	// 3. ~/.finfocus/ (global fallback)
-	cacheDir := resolveCacheDir(ctx, cfg, *log)
+	cacheDir := resolveCacheDir(ctx, cfg)
 
 	// Use configured max size directly (0 means unlimited)
 	cacheMaxSize := cfg.Cost.Cache.MaxSizeMB
 
-	cacheStore, err := cache.NewBoltStore(cacheDir, true, cacheTTL, cacheMaxSize)
+	cacheStore, err := cache.NewBoltStore(ctx, cacheDir, true, cacheTTL, cacheMaxSize)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheLocked) {
-			log.Debug().
+			log.Warn().
 				Ctx(ctx).
 				Str("component", "cache").
 				Str("operation", "init").
@@ -503,12 +502,10 @@ func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Co
 	return cacheStore
 }
 
-// extractCurrencyFromResults scans results to find a single canonical currency.
-// It returns the currency code and a boolean indicating if mixed currencies were detected.
-// extractCurrencyFromResults determines a canonical currency from the provided cost
 // resolveCacheDir determines the cache directory using the resolution chain:
 // FINFOCUS_CACHE_DIR env > config > project dir > ~/.finfocus/.
-func resolveCacheDir(ctx context.Context, cfg *config.Config, log zerolog.Logger) string {
+func resolveCacheDir(ctx context.Context, cfg *config.Config) string {
+	log := logging.FromContext(ctx)
 	if dir := os.Getenv(cache.EnvCacheDir); dir != "" {
 		return dir
 	}

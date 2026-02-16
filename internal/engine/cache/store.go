@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -11,9 +12,10 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
-
 	bolt "go.etcd.io/bbolt"
 	berrors "go.etcd.io/bbolt/errors"
+
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // Common cache errors.
@@ -77,10 +79,10 @@ type BoltStore struct {
 // If enabled is false, returns a disabled store where Get returns
 // ErrCacheDisabled and Set is a no-op.
 // If the database file is locked by another process (timeout 500ms),
-// returns nil, nil to signal graceful degradation.
+// returns nil, ErrCacheLocked so the caller can degrade gracefully.
 // If the database file is corrupt, it is deleted and recreated.
-func NewBoltStore(directory string, enabled bool, ttlSeconds, maxSizeMB int) (*BoltStore, error) {
-	logger := zerolog.New(os.Stderr).With().
+func NewBoltStore(ctx context.Context, directory string, enabled bool, ttlSeconds, maxSizeMB int) (*BoltStore, error) {
+	logger := logging.FromContext(ctx).With().
 		Str("component", "cache").
 		Str("backend", "boltdb").
 		Logger()
@@ -291,8 +293,7 @@ func (s *BoltStore) Set(key string, data json.RawMessage) error {
 		return b.Put([]byte(innerKey), entryData)
 	})
 	if err != nil {
-		s.logger.Warn().Err(err).Str("key", key).Msg("cache write failed, skipping")
-		return nil
+		return fmt.Errorf("cache write failed: %w", err)
 	}
 
 	return nil
@@ -458,6 +459,7 @@ func (s *BoltStore) Count() (int, error) {
 }
 
 // Compact rewrites the database to reclaim free pages.
+// It must only be called when no concurrent operations are running (e.g., at startup).
 func (s *BoltStore) Compact() error {
 	if !s.enabled {
 		return ErrCacheDisabled
@@ -572,6 +574,7 @@ func (s *BoltStore) cleanupBucketExpired(bucketName string, now time.Time) (int,
 	}
 
 	// Delete expired keys in a write transaction
+	deleted := 0
 	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
@@ -581,20 +584,30 @@ func (s *BoltStore) cleanupBucketExpired(bucketName string, now time.Time) (int,
 			if delErr := b.Delete(k); delErr != nil {
 				return delErr
 			}
+			deleted++
 		}
 		return nil
 	})
+	if err != nil {
+		return 0, err
+	}
 
-	return len(expiredKeys), err
+	return deleted, nil
 }
 
 // deleteKeyAsync schedules a lazy delete of an expired/corrupt entry via db.Batch().
 func (s *BoltStore) deleteKeyAsync(bucketName, innerKey string) {
-	_ = s.db.Batch(func(tx *bolt.Tx) error {
+	if err := s.db.Batch(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
 			return nil
 		}
 		return b.Delete([]byte(innerKey))
-	})
+	}); err != nil {
+		s.logger.Debug().
+			Err(err).
+			Str("bucket", bucketName).
+			Str("key", innerKey).
+			Msg("async cache key deletion failed")
+	}
 }

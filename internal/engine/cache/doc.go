@@ -5,7 +5,7 @@
 //
 // # Storage
 //
-// The cache is stored in a single BoltDB file (finfocus.db) within the project or global
+// The cache is stored in a single BoltDB file (cache.db) within the project or global
 // cache directory. BoltDB provides atomic transactions, indexed lookups, and reduced disk
 // I/O compared to individual JSON files.
 //
