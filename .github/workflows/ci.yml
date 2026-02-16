@@ -107,6 +107,11 @@ jobs:
           set -euo pipefail
           npx --yes markdownlint-cli@0.45.0 AGENTS.md
 
+      - name: Run ShellCheck
+        run: |
+          sudo apt-get install -y shellcheck
+          shellcheck scripts/install.sh
+
       - name: Run actionlint
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@latest
