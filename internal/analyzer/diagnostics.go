@@ -441,10 +441,12 @@ func WarningDiagnostic(message, urn, version string) *pulumirpc.AnalyzeDiagnosti
 
 // ThresholdDiagnostic creates a stack-level diagnostic for cost threshold evaluation.
 //
-// When the total cost is within the threshold, an ADVISORY diagnostic is returned
-// with MEDIUM severity. When the threshold is exceeded, an ADVISORY diagnostic is
-// returned with HIGH severity. The analyzer never blocks deployments — all enforcement
-// is advisory-only per the Pulumi Analyzer contract.
+// When the total cost is within the threshold, a MEDIUM severity diagnostic is returned.
+// When the threshold is exceeded, a HIGH severity diagnostic is returned.
+//
+// The enforcement level is always ADVISORY per the Pulumi Analyzer contract — the
+// analyzer never blocks deployments. The config.Analyzer.Enforcement field is reserved
+// for external tooling (CLI exit codes, CI/CD gates) and is not applied here.
 //
 // The diagnostic has no URN since it applies to the entire stack.
 func ThresholdDiagnostic(
@@ -454,7 +456,6 @@ func ThresholdDiagnostic(
 	exceeded := totalCost > threshold
 
 	var message string
-	var enforcementLevel pulumirpc.EnforcementLevel
 	var severity pulumirpc.PolicySeverity
 
 	sym := getCurrencySymbol(currency)
@@ -465,14 +466,12 @@ func ThresholdDiagnostic(
 			"Stack cost %s%.2f %s/mo is within threshold %s%.2f/mo",
 			sym, totalCost, currency, sym, threshold,
 		)
-		enforcementLevel = pulumirpc.EnforcementLevel_ADVISORY
 		severity = pulumirpc.PolicySeverity_POLICY_SEVERITY_MEDIUM
 	default:
 		message = fmt.Sprintf(
 			"Stack cost %s%.2f %s/mo exceeds threshold %s%.2f/mo",
 			sym, totalCost, currency, sym, threshold,
 		)
-		enforcementLevel = pulumirpc.EnforcementLevel_ADVISORY
 		severity = pulumirpc.PolicySeverity_POLICY_SEVERITY_HIGH
 	}
 
@@ -482,7 +481,7 @@ func ThresholdDiagnostic(
 		PolicyPackVersion: version,
 		Description:       "Cost threshold evaluation",
 		Message:           message,
-		EnforcementLevel:  enforcementLevel,
+		EnforcementLevel:  pulumirpc.EnforcementLevel_ADVISORY,
 		Severity:          severity,
 		// No URN - stack-level diagnostic
 	}

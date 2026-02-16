@@ -1223,6 +1223,13 @@ func TestServer_AnalyzeStack_SummaryFileIntegration(t *testing.T) {
 		readOnlyDir := filepath.Join(t.TempDir(), "readonly")
 		require.NoError(t, os.MkdirAll(readOnlyDir, 0o500))
 
+		// Skip when running as root — chmod restrictions don't apply
+		if f, err := os.CreateTemp(readOnlyDir, "probe"); err == nil {
+			f.Close()
+			os.Remove(f.Name())
+			t.Skip("skipping: directory write succeeded despite 0o500 permissions (likely running as root)")
+		}
+
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
 				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 100.0},

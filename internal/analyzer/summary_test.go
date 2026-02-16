@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,6 +19,7 @@ import (
 // =============================================================================
 
 func TestBuildCostSummary(t *testing.T) {
+	fixedTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 	t.Run("normal costs", func(t *testing.T) {
 		costs := []engine.CostResult{
 			{
@@ -36,7 +38,7 @@ func TestBuildCostSummary(t *testing.T) {
 			},
 		}
 
-		summary := BuildCostSummary(costs, "dev", "my-infra")
+		summary := BuildCostSummary(costs, "dev", "my-infra", fixedTime)
 
 		assert.Equal(t, costSummarySchemaVersion, summary.SchemaVersion)
 		assert.NotEmpty(t, summary.Timestamp)
@@ -59,7 +61,7 @@ func TestBuildCostSummary(t *testing.T) {
 			{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web2", Currency: "EUR", Monthly: 200.0},
 		}
 
-		summary := BuildCostSummary(costs, "prod", "infra")
+		summary := BuildCostSummary(costs, "prod", "infra", fixedTime)
 
 		assert.True(t, summary.MixedCurrencies)
 		assert.Equal(t, 2, summary.ResourceCount)
@@ -91,7 +93,7 @@ func TestBuildCostSummary(t *testing.T) {
 			},
 		}
 
-		summary := BuildCostSummary(costs, "dev", "infra")
+		summary := BuildCostSummary(costs, "dev", "infra", fixedTime)
 
 		assert.Equal(t, 100.0, summary.TotalMonthlyCost)
 		assert.Equal(t, 1, summary.ResourceCount)
@@ -100,7 +102,7 @@ func TestBuildCostSummary(t *testing.T) {
 	})
 
 	t.Run("empty cost list", func(t *testing.T) {
-		summary := BuildCostSummary([]engine.CostResult{}, "dev", "infra")
+		summary := BuildCostSummary([]engine.CostResult{}, "dev", "infra", fixedTime)
 
 		assert.Equal(t, costSummarySchemaVersion, summary.SchemaVersion)
 		assert.Equal(t, 0.0, summary.TotalMonthlyCost)
@@ -122,7 +124,7 @@ func TestBuildCostSummary(t *testing.T) {
 			{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web3", Currency: "USD", Monthly: 75.0},
 		}
 
-		summary := BuildCostSummary(costs, "dev", "infra")
+		summary := BuildCostSummary(costs, "dev", "infra", fixedTime)
 
 		// All 3 are valid (no errors), all counted
 		assert.Equal(t, 3, summary.ResourceCount)
@@ -131,7 +133,7 @@ func TestBuildCostSummary(t *testing.T) {
 	})
 
 	t.Run("nil cost list", func(t *testing.T) {
-		summary := BuildCostSummary(nil, "dev", "infra")
+		summary := BuildCostSummary(nil, "dev", "infra", fixedTime)
 
 		assert.Equal(t, 0.0, summary.TotalMonthlyCost)
 		assert.Equal(t, 0, summary.ResourceCount)

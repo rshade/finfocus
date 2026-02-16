@@ -257,6 +257,10 @@ func New() *Config {
 	// Apply environment variable overrides
 	cfg.applyEnvOverrides()
 
+	// Normalize analyzer threshold values that may have been set by env vars
+	// (e.g., negative FINFOCUS_MAX_MONTHLY_COST or invalid FINFOCUS_ENFORCEMENT)
+	cfg.validateAnalyzerThreshold()
+
 	return cfg
 }
 

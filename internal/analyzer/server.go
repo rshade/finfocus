@@ -4,6 +4,7 @@ import (
 	"context"
 	"strings"
 	"sync"
+	"time"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -280,7 +281,7 @@ func (s *Server) AnalyzeStack(
 	cachedCosts := s.getCachedCosts()
 
 	// Build cost summary once — used for diagnostics, threshold evaluation, and file output
-	summary := BuildCostSummary(cachedCosts, s.stackName, s.projectName)
+	summary := BuildCostSummary(cachedCosts, s.stackName, s.projectName, time.Time{})
 
 	// Build diagnostics list starting with the existing stack summary
 	diagnostics := []*pulumirpc.AnalyzeDiagnostic{
@@ -363,7 +364,10 @@ func (s *Server) GetAnalyzerInfo(
 		},
 	}
 
-	// Register cost-threshold policy when threshold is configured
+	// Register cost-threshold policy when threshold is configured.
+	// EnforcementLevel is always ADVISORY per the Pulumi Analyzer contract — the
+	// analyzer never blocks deployments. cfg.Analyzer.Enforcement is reserved for
+	// external tooling (CLI exit codes, CI/CD gates) and is not applied here.
 	if s.cfg != nil && s.cfg.Analyzer.MaxMonthlyCost > 0 {
 		policies = append(policies, &pulumirpc.PolicyInfo{
 			Name:             policyNameThreshold,

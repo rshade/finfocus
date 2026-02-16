@@ -45,10 +45,14 @@ type ResourceCost struct {
 // BuildCostSummary aggregates cost results into a CostSummary struct.
 // Error resources (those with non-nil Error field or ERROR:/VALIDATION: prefixed notes)
 // are excluded from the total and resource list. Mixed currencies are detected and flagged.
-func BuildCostSummary(costs []engine.CostResult, stack, project string) *CostSummary {
+// If now is zero, time.Now().UTC() is used for the Timestamp field.
+func BuildCostSummary(costs []engine.CostResult, stack, project string, now time.Time) *CostSummary {
+	if now.IsZero() {
+		now = time.Now().UTC()
+	}
 	summary := &CostSummary{
 		SchemaVersion: costSummarySchemaVersion,
-		Timestamp:     time.Now().UTC().Format(time.RFC3339),
+		Timestamp:     now.UTC().Format(time.RFC3339),
 		Stack:         stack,
 		Project:       project,
 		Currency:      defaultCurrency,
