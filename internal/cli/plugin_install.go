@@ -254,6 +254,7 @@ func NewPluginInstallCmd() *cobra.Command {
 		fallbackToLatest bool
 		noFallback       bool
 		metadata         []string
+		skipChecksum     bool
 	)
 
 	cmd := &cobra.Command{
@@ -288,6 +289,7 @@ func NewPluginInstallCmd() *cobra.Command {
 				FallbackToLatest: fallbackToLatest,
 				NoFallback:       noFallback,
 				Metadata:         metadataMap,
+				SkipChecksum:     skipChecksum,
 			}
 
 			progress := func(msg string) {
@@ -336,6 +338,12 @@ func NewPluginInstallCmd() *cobra.Command {
 		"metadata",
 		nil,
 		"Plugin metadata as key=value pairs (e.g., --metadata=\"region=us-west-2\"); repeatable",
+	)
+	cmd.Flags().BoolVar(
+		&skipChecksum,
+		"skip-checksum",
+		false,
+		"Skip SHA256 checksum verification during installation",
 	)
 
 	// Mark flags as mutually exclusive
@@ -491,6 +499,7 @@ func handleFallback(
 		FallbackToLatest: false, // Don't recurse
 		NoFallback:       true,  // Don't recurse
 		Metadata:         opts.Metadata,
+		SkipChecksum:     opts.SkipChecksum,
 	}
 
 	result, err := installer.Install(ctx, fallbackSpecifier, fallbackOpts, progress)

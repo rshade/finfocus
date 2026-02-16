@@ -174,6 +174,47 @@ Tests use helper functions to create realistic plugin directory structures:
 - `plugin validate` command uses `registry.LoadManifest()`
 - CLI gracefully handles missing plugin directories
 
+## Checksum Verification
+
+The registry package includes SHA256 checksum verification for plugin installations.
+When a GitHub release includes a `checksums.txt` asset, the installer automatically
+verifies the downloaded binary's integrity before extraction.
+
+### Functions (`checksum.go`)
+
+- `VerifyChecksum(filePath, expectedHash string) error` - Computes SHA256 and compares
+- `ParseChecksumsFile(data []byte, assetName string) (string, error)` - Parses SHA256SUMS format
+- `FindChecksumAsset(release *GitHubRelease) *ReleaseAsset` - Finds checksums.txt in release assets
+- `computeSHA256(filePath string) (string, error)` - Internal streaming SHA256 computation
+
+### Sentinel Errors
+
+- `ErrChecksumMismatch` - Hash mismatch (fatal, blocks installation)
+- `ErrAssetNotInChecksums` - Asset not listed in checksums file (warning, continues)
+- `ErrMalformedChecksums` - Checksums file has no valid entries (warning, continues)
+
+### Integration Point
+
+Checksum verification occurs in `installRelease()` after download, before extraction:
+
+```text
+FindPlatformAsset -> Download -> [VERIFY CHECKSUM] -> Extract -> FindBinary -> Validate
+```
+
+### `--skip-checksum` Flag
+
+Both `plugin install` and `plugin update` support `--skip-checksum` to bypass verification.
+The flag flows through `InstallOptions.SkipChecksum` and `UpdateOptions.SkipChecksum`.
+
+### Graceful Degradation
+
+Only a confirmed hash mismatch is fatal. All other issues produce warnings:
+
+- Missing `checksums.txt` asset -> warning, install continues
+- Download failure for checksums -> warning, install continues
+- Malformed checksums content -> warning, install continues
+- Asset not listed in checksums -> warning, install continues
+
 ## Common Usage Patterns
 
 ### Default Registry Creation

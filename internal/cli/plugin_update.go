@@ -29,9 +29,10 @@ import (
 // The command prints progress and summary information and returns an error if the update operation fails.
 func NewPluginUpdateCmd() *cobra.Command {
 	var (
-		dryRun    bool
-		version   string
-		pluginDir string
+		dryRun       bool
+		version      string
+		pluginDir    string
+		skipChecksum bool
 	)
 
 	cmd := &cobra.Command{
@@ -56,9 +57,10 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
 			installer := registry.NewInstaller(pluginDir)
 
 			opts := registry.UpdateOptions{
-				DryRun:    dryRun,
-				Version:   version,
-				PluginDir: pluginDir,
+				DryRun:       dryRun,
+				Version:      version,
+				PluginDir:    pluginDir,
+				SkipChecksum: skipChecksum,
 			}
 
 			// Progress callback
@@ -106,6 +108,12 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
 	cmd.Flags().
 		StringVar(&version, "version", "", "Specific version to update to (default: latest)")
 	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Custom plugin directory")
+	cmd.Flags().BoolVar(
+		&skipChecksum,
+		"skip-checksum",
+		false,
+		"Skip SHA256 checksum verification during update",
+	)
 
 	return cmd
 }

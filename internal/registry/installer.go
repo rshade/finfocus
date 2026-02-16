@@ -26,6 +26,7 @@ type InstallOptions struct {
 	FallbackToLatest bool              // Automatically install latest stable version if requested version lacks assets
 	NoFallback       bool              // Disable fallback behavior entirely (fail if requested version lacks assets)
 	Metadata         map[string]string // User-supplied metadata (e.g., region=us-west-2), stored as plugin.metadata.json
+	SkipChecksum     bool              // SkipChecksum bypasses SHA256 checksum verification during installation
 }
 
 // InstallResult contains the result of a plugin installation.
@@ -389,39 +390,12 @@ func (i *Installer) installRelease(
 		progress(fmt.Sprintf("Downloading %s (%d bytes)...", asset.Name, asset.Size))
 	}
 
-	// Determine extension for temp file
-	pattern := "finfocus-plugin-*"
-	switch {
-	case strings.HasSuffix(asset.Name, extZip):
-		pattern += extZip
-	case strings.HasSuffix(asset.Name, extTarGz):
-		pattern += extTarGz
-	case strings.HasSuffix(asset.Name, ".tgz"):
-		pattern += ".tgz"
-	default:
-		pattern += filepath.Ext(asset.Name)
-	}
-
-	// Create temp file for download
-	tmpFile, err := os.CreateTemp("", pattern)
+	// Download asset and verify checksum
+	tmpPath, cleanupTmp, err := i.downloadAndVerify(ctx, release, asset, opts.SkipChecksum, progress)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
+		return nil, err
 	}
-	tmpPath := tmpFile.Name()
-	_ = tmpFile.Close()
-	defer func() { _ = os.Remove(tmpPath) }()
-
-	// Download asset
-	downloadProgress := func(downloaded, total int64) {
-		if progress != nil && total > 0 {
-			pct := float64(downloaded) / float64(total) * 100 //nolint:mnd // percentage calculation
-			progress(fmt.Sprintf("Downloading... %.0f%%", pct))
-		}
-	}
-	downloadErr := i.client.DownloadAsset(ctx, asset.BrowserDownloadURL, tmpPath, downloadProgress)
-	if downloadErr != nil {
-		return nil, fmt.Errorf("failed to download: %w", downloadErr)
-	}
+	defer cleanupTmp()
 
 	// Create install directory
 	if mkdirErr := os.MkdirAll(installDir, 0750); mkdirErr != nil {
@@ -483,6 +457,173 @@ func (i *Installer) installRelease(
 		Version: version,
 		Path:    installDir,
 	}, nil
+}
+
+// downloadAndVerify downloads the release asset to a temp file, optionally verifies
+// its checksum against the release's checksums.txt, and returns the temp file path
+// along with a cleanup function that removes it. The caller must defer the cleanup.
+func (i *Installer) downloadAndVerify(
+	ctx context.Context,
+	release *GitHubRelease,
+	asset *ReleaseAsset,
+	skipChecksum bool,
+	progress func(msg string),
+) (string, func(), error) {
+	// Determine extension for temp file
+	pattern := "finfocus-plugin-*"
+	switch {
+	case strings.HasSuffix(asset.Name, extZip):
+		pattern += extZip
+	case strings.HasSuffix(asset.Name, extTarGz):
+		pattern += extTarGz
+	case strings.HasSuffix(asset.Name, ".tgz"):
+		pattern += ".tgz"
+	default:
+		pattern += filepath.Ext(asset.Name)
+	}
+
+	// Create temp file for download
+	tmpFile, err := os.CreateTemp("", pattern)
+	if err != nil {
+		return "", func() {}, fmt.Errorf("failed to create temp file: %w", err)
+	}
+	tmpPath := tmpFile.Name()
+	_ = tmpFile.Close()
+	cleanup := func() { _ = os.Remove(tmpPath) }
+
+	// Download asset
+	downloadProgress := func(downloaded, total int64) {
+		if progress != nil && total > 0 {
+			pct := float64(downloaded) / float64(total) * 100 //nolint:mnd // percentage calculation
+			progress(fmt.Sprintf("Downloading... %.0f%%", pct))
+		}
+	}
+	downloadErr := i.client.DownloadAsset(ctx, asset.BrowserDownloadURL, tmpPath, downloadProgress)
+	if downloadErr != nil {
+		cleanup()
+		return "", func() {}, fmt.Errorf("failed to download: %w", downloadErr)
+	}
+
+	// Checksum verification (after download, before extraction)
+	if !skipChecksum {
+		if checksumErr := i.verifyChecksumForRelease(ctx, release, asset, tmpPath, progress); checksumErr != nil {
+			cleanup()
+			return "", func() {}, checksumErr
+		}
+	}
+
+	return tmpPath, cleanup, nil
+}
+
+// checksumWarn emits a progress warning if the callback is non-nil.
+func checksumWarn(progress func(msg string), msg string) {
+	if progress != nil {
+		progress("Warning: " + msg)
+	}
+}
+
+// verifyChecksumForRelease performs checksum verification of a downloaded file against
+// the checksums.txt asset in the release. Only a confirmed hash mismatch returns an
+// error; all other issues (missing checksums.txt, download failures, parse errors,
+// asset not listed) produce warnings and allow installation to proceed.
+func (i *Installer) verifyChecksumForRelease(
+	ctx context.Context,
+	release *GitHubRelease,
+	asset *ReleaseAsset,
+	downloadedFilePath string,
+	progress func(msg string),
+) error {
+	expectedHash, err := i.fetchExpectedHash(ctx, release, asset.Name)
+	if err != nil {
+		// Non-fatal: warn and continue installation
+		checksumWarn(progress, err.Error()+", skipping verification")
+		return nil //nolint:nilerr // intentional: non-fatal checksum lookup errors produce warnings only
+	}
+
+	// This is the only fatal path: a confirmed hash mismatch
+	if verifyErr := VerifyChecksum(ctx, downloadedFilePath, expectedHash); verifyErr != nil {
+		return fmt.Errorf("integrity check failed: %w", verifyErr)
+	}
+
+	if progress != nil {
+		progress("Checksum verified (SHA256)")
+	}
+	return nil
+}
+
+// fetchExpectedHash downloads the checksums.txt from the release and parses it to
+// find the expected hash for the named asset. Returns the hash on success, or a
+// factual error describing what went wrong. The caller decides the policy (e.g.
+// whether to skip verification or abort).
+func (i *Installer) fetchExpectedHash(
+	ctx context.Context,
+	release *GitHubRelease,
+	assetName string,
+) (string, error) {
+	checksumAsset := FindChecksumAsset(release)
+	if checksumAsset == nil {
+		return "", errors.New("checksums.txt not found in release")
+	}
+
+	checksumData, err := i.downloadChecksumAsset(ctx, checksumAsset)
+	if err != nil {
+		return "", err
+	}
+
+	expectedHash, err := ParseChecksumsFile(checksumData, assetName)
+	if err == nil {
+		return expectedHash, nil
+	}
+
+	switch {
+	case errors.Is(err, ErrAssetNotInChecksums):
+		return "", fmt.Errorf("%s not found in checksums file", assetName)
+	case errors.Is(err, ErrMalformedChecksums):
+		return "", errors.New("checksums.txt is malformed")
+	default:
+		return "", fmt.Errorf("failed to parse checksums.txt: %w", err)
+	}
+}
+
+// downloadChecksumAsset downloads the checksums asset to a temp file and returns
+// its content. Returns a descriptive error on failure.
+func (i *Installer) downloadChecksumAsset(
+	ctx context.Context,
+	checksumAsset *ReleaseAsset,
+) ([]byte, error) {
+	checksumTmp, err := os.CreateTemp("", "finfocus-checksums-*")
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to create temp file for checksums: %w",
+			err,
+		)
+	}
+	checksumTmpPath := checksumTmp.Name()
+	_ = checksumTmp.Close()
+	defer func() { _ = os.Remove(checksumTmpPath) }()
+
+	downloadErr := i.client.DownloadAsset(
+		ctx,
+		checksumAsset.BrowserDownloadURL,
+		checksumTmpPath,
+		nil,
+	)
+	if downloadErr != nil {
+		return nil, fmt.Errorf(
+			"failed to download checksums.txt: %w",
+			downloadErr,
+		)
+	}
+
+	data, err := os.ReadFile(checksumTmpPath)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to read checksums.txt: %w",
+			err,
+		)
+	}
+
+	return data, nil
 }
 
 // parseOwnerRepo parses a repository string in the "owner/repo" format and returns
@@ -553,9 +694,10 @@ func findPluginBinary(dir, name string) string {
 
 // UpdateOptions configures plugin update behavior.
 type UpdateOptions struct {
-	DryRun    bool   // Show what would be updated without changes
-	Version   string // Specific version to update to (empty = latest)
-	PluginDir string // Custom plugin directory
+	DryRun       bool   // Show what would be updated without changes
+	Version      string // Specific version to update to (empty = latest)
+	PluginDir    string // Custom plugin directory
+	SkipChecksum bool   // SkipChecksum bypasses SHA256 checksum verification during update
 }
 
 // UpdateResult contains the result of a plugin update.
@@ -659,9 +801,10 @@ func (i *Installer) Update(
 	}
 
 	installOpts := InstallOptions{
-		Force:     true, // Allow overwriting
-		NoSave:    true, // We'll update config ourselves
-		PluginDir: pluginDir,
+		Force:        true, // Allow overwriting
+		NoSave:       true, // We'll update config ourselves
+		PluginDir:    pluginDir,
+		SkipChecksum: opts.SkipChecksum,
 	}
 
 	repository := fmt.Sprintf("%s/%s", owner, repo)

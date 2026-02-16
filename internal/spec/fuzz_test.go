@@ -73,17 +73,23 @@ spec:
   provider: aws`))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		// Recover from panics in the YAML library (e.g., yaml.v3 merge key bugs).
-		// Our goal is to test that our code handles all inputs gracefully;
-		// panics inside third-party libraries are not our fault.
-		defer func() {
-			if r := recover(); r != nil {
-				t.Logf("yaml.Unmarshal panicked (known yaml.v3 issue): %v", r)
-			}
-		}()
-
 		var spec PricingSpec
-		_ = yaml.Unmarshal(data, &spec)
+
+		// Scope the panic recovery to yaml.Unmarshal only so that field access
+		// assertions below are never silently swallowed by recover.
+		unmarshalPanicked := true
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Logf("yaml.Unmarshal panicked (known yaml.v3 issue): %v", r)
+				}
+			}()
+			_ = yaml.Unmarshal(data, &spec)
+			unmarshalPanicked = false
+		}()
+		if unmarshalPanicked {
+			return
+		}
 
 		// If parsing succeeded, verify we can safely access all fields
 		_ = spec.Provider
