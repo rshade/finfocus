@@ -3,8 +3,10 @@ package cache
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -263,21 +265,21 @@ func BenchmarkBoltStoreGet(b *testing.B) {
 
 	data := json.RawMessage(`{"cost":42.50,"currency":"USD"}`)
 
-	// Populate with 10,000 entries across all 3 buckets
+	// Populate with 10,000 entries across all 3 buckets using unique keys per iteration
 	for i := range 3334 {
-		sku := "t3.micro-" + string(rune('A'+i%26)) + string(rune('0'+i%10))
+		sku := fmt.Sprintf("t3.micro-%d", i)
 		_ = store.Set(BuildProjectedKey("aws", "ec2:Instance", "us-east-1", sku), data)
-		filters := map[string]string{"i": string(rune('0' + i%10))}
+		filters := map[string]string{"i": strconv.Itoa(i)}
 		_ = store.Set(BuildActualKey(
-			"aws", []string{"ec2:Instance"},
+			"aws", []string{fmt.Sprintf("ec2:Instance-%d", i)},
 			time.Now(), time.Now().Add(24*time.Hour), filters,
 		), data)
-		recType := []string{"ec2:Instance-" + string(rune('A'+i%26))}
+		recType := []string{fmt.Sprintf("ec2:Instance-%d", i)}
 		_ = store.Set(BuildRecommendationsKey(recType), data)
 	}
 
 	// Target key to lookup
-	targetKey := BuildProjectedKey("aws", "ec2:Instance", "us-east-1", "t3.micro-A0")
+	targetKey := BuildProjectedKey("aws", "ec2:Instance", "us-east-1", "t3.micro-target")
 	_ = store.Set(targetKey, data)
 
 	b.ResetTimer()
@@ -541,20 +543,20 @@ func TestBoltStore_Compact(t *testing.T) {
 
 	// Add entries
 	for i := range 100 {
-		key := BuildProjectedKey("aws", "ec2:Instance", "us-east-1",
-			"type-"+string(rune('A'+i%26))+string(rune('0'+i%10)))
+		sku := fmt.Sprintf("type-%c%d", 'A'+rune(i%26), i%10)
+		key := BuildProjectedKey("aws", "ec2:Instance", "us-east-1", sku)
 		require.NoError(t, store.Set(key, data))
 	}
 
 	// Delete half
 	for i := range 50 {
-		key := BuildProjectedKey("aws", "ec2:Instance", "us-east-1",
-			"type-"+string(rune('A'+i%26))+string(rune('0'+i%10)))
+		sku := fmt.Sprintf("type-%c%d", 'A'+rune(i%26), i%10)
+		key := BuildProjectedKey("aws", "ec2:Instance", "us-east-1", sku)
 		require.NoError(t, store.Delete(key))
 	}
 
 	// Compact
-	require.NoError(t, store.Compact())
+	require.NoError(t, store.compact())
 
 	// Verify remaining entries are intact (100 inserted - 50 deleted = 50 remaining)
 	count, err := store.Count()

@@ -1936,14 +1936,16 @@ func AggregateResults(results []CostResult) *AggregatedResults {
 // it returns unknownProvider.
 func extractProviderFromType(resourceType string) string {
 	// Extract provider from resource type like "aws:ec2:Instance" -> "aws"
-	parts := strings.Split(resourceType, ":")
-	if len(parts) >= 1 {
-		return parts[0]
+	if resourceType == "" {
+		return unknownProvider
 	}
-	return unknownProvider
+	parts := strings.Split(resourceType, ":")
+	if parts[0] == "" {
+		return unknownProvider
+	}
+	return parts[0]
 }
 
-// extractStringProperty extracts the first non-empty string value from the properties
 // extractStringProperty returns the first non-empty string value found in properties for the supplied keys,
 // checked in the order they are provided. It returns an empty string if none of the keys exist or none map to
 // a non-empty string.
@@ -3411,8 +3413,6 @@ func validateActualCostResourceTypes(resources []ResourceDescriptor) error {
 	return nil
 }
 
-// hasOnlyPlaceholderResults returns true when every CostResult in the slice is a
-// placeholder (Adapter == "none" or non-nil StructuredError). Caching such results
 // hasOnlyPlaceholderResults reports whether every CostResult in results is a placeholder.
 // A placeholder is identified by Adapter equal to "none" or by a non-nil Error. It
 // returns true when all entries meet this condition, false if any entry contains real data.
@@ -3425,22 +3425,10 @@ func hasOnlyPlaceholderResults(results []CostResult) bool {
 	return true
 }
 
-// generateProjectedCostResourceKey generates a deterministic cache key for a single
-// resource's projected cost query. Uses structured `/`-separated keys for human-readable
-// debugging and efficient prefix scanning.
 // generateProjectedCostResourceKey builds a deterministic cache key for a projected cost lookup.
-// The key has the format "projected/{provider}/{type}/{region}/{sku}" and is constructed from the
-// resource's Provider, Type, and selected properties.
-// 
-// The function will extract region using the property keys "availabilityZone" or "region" and will
-// extract SKU using "instanceType", "type", or "sku" in that order.
-// 
-// Parameters:
-//   - resource: the ResourceDescriptor to derive the cache key from; its Type and Provider are used.
-//
-// Returns:
-//   - string: the constructed cache key when successful.
-//   - error: returned if resource.Type is empty.
+// The key has the format "projected/{provider}/{type}/{region}/{sku}". Region is extracted from
+// "availabilityZone" or "region"; SKU from "instanceType", "type", or "sku" in that order.
+// Returns an error if resource.Type is empty.
 func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, error) {
 	if resource.Type == "" {
 		return "", errors.New("resource type is required for cache key generation")

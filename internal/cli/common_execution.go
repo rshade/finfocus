@@ -371,21 +371,21 @@ func resolveResourcesFromPulumi(
 // config.New() is called internally.
 // newEngineWithCache creates an Engine configured with the supplied plugin clients and spec loader,
 // wiring an optional router and cache based on the provided configuration.
-// 
+//
 // If a non-nil config is supplied via `cfgs`, it will be used; otherwise a default config is created.
 // The returned cleanup function must be invoked by the caller to release any underlying cache resources
 // (it is a no-op when no cache was created).
 //
 // Parameters:
-//  - ctx: request context used for logging and configuration resolution.
-//  - cmd: Cobra command used to read CLI flags that influence cache initialization.
-//  - clients: plugin host clients used by the Engine.
-//  - loader: specification loader used by the Engine.
-//  - cfgs: optional variadic configuration; the first non-nil entry is used.
+//   - ctx: request context used for logging and configuration resolution.
+//   - cmd: Cobra command used to read CLI flags that influence cache initialization.
+//   - clients: plugin host clients used by the Engine.
+//   - loader: specification loader used by the Engine.
+//   - cfgs: optional variadic configuration; the first non-nil entry is used.
 //
 // Returns:
-//  - *engine.Engine: the constructed engine instance.
-//  - func(): a cleanup function that closes the cache store when one was created; calling it is safe and recommended.
+//   - *engine.Engine: the constructed engine instance.
+//   - func(): a cleanup function that closes the cache store when one was created; calling it is safe and recommended.
 func newEngineWithCache(
 	ctx context.Context,
 	cmd *cobra.Command,
@@ -535,9 +535,9 @@ func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Co
 
 // resolveCacheDir determines the cache directory using the resolution chain:
 // env var (cache.EnvCacheDir) → config setting (cfg.Cost.Cache.Directory) →
-// resolved project .finfocus directory from config.GetResolvedProjectDir()
-// (which already returns the full project .finfocus path, so no additional
-// the relative path ".finfocus" is returned.
+// config.GetResolvedProjectDir(). Note that GetResolvedProjectDir already
+// returns the full project ".finfocus" path, so no extra ".finfocus" segment
+// is appended. If none of these yield a directory, it falls back to ~/.finfocus/cache.
 func resolveCacheDir(ctx context.Context, cfg *config.Config) string {
 	log := logging.FromContext(ctx)
 	if dir := os.Getenv(cache.EnvCacheDir); dir != "" {
@@ -551,20 +551,23 @@ func resolveCacheDir(ctx context.Context, cfg *config.Config) string {
 	}
 	homeDir, homeErr := os.UserHomeDir()
 	if homeErr != nil {
+		// Resolve to an absolute path so BoltDB never lands in an unpredictable CWD.
+		abs, absErr := filepath.Abs(".finfocus")
+		if absErr != nil {
+			abs = filepath.Join(os.TempDir(), "finfocus-cache")
+		}
 		log.Warn().
 			Ctx(ctx).
 			Err(homeErr).
 			Str("component", "cache").
 			Str("operation", "init").
-			Msg("failed to determine home directory, using relative cache path")
-		return ".finfocus"
+			Str("fallback_path", abs).
+			Msg("failed to determine home directory, using absolute fallback cache path")
+		return abs
 	}
 	return filepath.Join(homeDir, ".finfocus")
 }
 
-// results and reports whether multiple distinct currencies were encountered.
-// It returns the chosen currency and a boolean that is `true` if more than one
-// distinct non-empty currency was present in the slice. If no result contains a
 // extractCurrencyFromResults determines a canonical currency for a set of cost results.
 // It scans results for the first non-empty currency and returns that currency along with
 // a boolean indicating whether more than one distinct non-empty currency was observed.
@@ -663,4 +666,22 @@ func createRouterForEngine(ctx context.Context, cfg *config.Config, clients []*p
 	}
 
 	return router.NewEngineAdapter(r)
+}
+
+// sumTotalCosts returns the sum of TotalCost across all results.
+func sumTotalCosts(results []engine.CostResult) float64 {
+	total := 0.0
+	for _, r := range results {
+		total += r.TotalCost
+	}
+	return total
+}
+
+// sumMonthlyCosts returns the sum of Monthly across all results.
+func sumMonthlyCosts(results []engine.CostResult) float64 {
+	total := 0.0
+	for _, r := range results {
+		total += r.Monthly
+	}
+	return total
 }

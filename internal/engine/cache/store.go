@@ -75,37 +75,31 @@ type BoltStore struct {
 	closeErr   error
 }
 
-// NewBoltStore creates a new BoltDB-backed cache store.
-// The database file is stored at {directory}/cache.db.
-// If enabled is false, returns a disabled store where Get returns
-// ErrCacheDisabled and Set is a no-op.
-// If the database file is locked by another process (timeout 500ms),
-// returns nil, ErrCacheLocked so the caller can degrade gracefully.
 // NewBoltStore creates and returns a BoltStore backed by a BoltDB file located
 // in the provided directory.
 //
 // NewBoltStore will:
-// - return a disabled BoltStore when `enabled` is false.
-// - create the directory if it does not exist.
-// - open or create the BoltDB file at "<directory>/cache.db"; if the database is
-//   locked by another process an error is returned, and if the file is detected
-//   as corrupted it will be deleted and recreated.
-// - initialize the required top-level buckets.
-// - run a startup cleanup of expired entries and perform a size check that may
-//   trigger compaction if the DB exceeds `maxSizeMB`.
+//   - return a disabled BoltStore when `enabled` is false.
+//   - create the directory if it does not exist.
+//   - open or create the BoltDB file at "<directory>/cache.db"; if the database is
+//     locked by another process an error is returned, and if the file is detected
+//     as corrupted it will be deleted and recreated.
+//   - initialize the required top-level buckets.
+//   - run a startup cleanup of expired entries and perform a size check that may
+//     trigger compaction if the DB exceeds `maxSizeMB`.
 //
 // Parameters:
-// - ctx: context used to derive a logger.
-// - directory: filesystem directory to contain the BoltDB file (must be
-//   non-empty).
-// - enabled: if false, returns a disabled store without touching the filesystem.
-// - ttlSeconds: default time-to-live for new cache entries, in seconds.
-// - maxSizeMB: maximum database size in megabytes used to decide compaction.
+//   - ctx: context used to derive a logger.
+//   - directory: filesystem directory to contain the BoltDB file (must be
+//     non-empty).
+//   - enabled: if false, returns a disabled store without touching the filesystem.
+//   - ttlSeconds: default time-to-live for new cache entries, in seconds.
+//   - maxSizeMB: maximum database size in megabytes used to decide compaction.
 //
 // Returns:
-// - *BoltStore on success, or an error if the directory is invalid, directory
-//   creation fails, the database cannot be opened/created, or bucket
-//   initialization fails.
+//   - *BoltStore on success, or an error if the directory is invalid, directory
+//     creation fails, the database cannot be opened/created, or bucket
+//     initialization fails.
 func NewBoltStore(ctx context.Context, directory string, enabled bool, ttlSeconds, maxSizeMB int) (*BoltStore, error) {
 	logger := logging.FromContext(ctx).With().
 		Str("component", "cache").
@@ -177,7 +171,7 @@ func (s *BoltStore) compactIfOversized() {
 		Int64("size_bytes", sz).
 		Int("max_size_mb", s.maxSizeMB).
 		Msg("cache file exceeds max size, compacting")
-	if compactErr := s.Compact(); compactErr != nil {
+	if compactErr := s.compact(); compactErr != nil {
 		s.logger.Warn().Err(compactErr).Msg("startup compaction failed")
 	}
 }
@@ -188,8 +182,9 @@ func (s *BoltStore) compactIfOversized() {
 // open fails due to detected corruption the file is removed (unless already missing)
 // and a fresh database is created and returned.
 // Parameters:
-//  - dbPath: filesystem path to the BoltDB file.
-//  - logger: optional logger used to report lock or corruption events.
+//   - dbPath: filesystem path to the BoltDB file.
+//   - logger: optional logger used to report lock or corruption events.
+//
 // Returns the opened *bolt.DB on success, or a non-nil error describing the failure.
 func openBoltDB(dbPath string, logger *zerolog.Logger) (*bolt.DB, error) {
 	db, err := bolt.Open(dbPath, dbFilePermissions, &bolt.Options{
@@ -375,7 +370,10 @@ func (s *BoltStore) InvalidateByPrefix(prefix string) (int, error) {
 			return nil
 		}
 
-		// If the prefix is just the bucket name (no inner prefix), delete all in bucket
+		// StripBucket returns the original prefix unchanged when it contains no bucket
+		// delimiter ("/"), so innerPrefix equals bucketName when the caller passed just
+		// a bare bucket name (e.g. "projected"). In that case we delete every entry in
+		// the bucket rather than attempting a prefix scan with the bucket name itself.
 		if innerPrefix == "" || innerPrefix == bucketName {
 			c := b.Cursor()
 			for k, _ := c.First(); k != nil; k, _ = c.Next() {
@@ -489,9 +487,10 @@ func (s *BoltStore) Count() (int, error) {
 	return total, err
 }
 
-// Compact rewrites the database to reclaim free pages.
-// It must only be called when no concurrent operations are running (e.g., at startup).
-func (s *BoltStore) Compact() error {
+// compact rewrites the database to reclaim free pages.
+// It must only be called when no concurrent operations are running (e.g., at startup
+// via compactIfOversized).
+func (s *BoltStore) compact() error {
 	if !s.enabled {
 		return ErrCacheDisabled
 	}
@@ -570,11 +569,13 @@ func (s *BoltStore) clearAllBuckets() (int, error) {
 	return count, err
 }
 
-// cleanupBucketExpired removes expired entries from a single bucket.
+// cleanupBucketExpired removes expired and corrupt entries from a single bucket.
+// The scan and deletion are performed inside a single Update transaction to avoid
+// a TOCTOU race where a concurrently refreshed entry could be deleted after being
+// re-written between a read-only scan and a separate write pass.
 func (s *BoltStore) cleanupBucketExpired(bucketName string, now time.Time) (int, error) {
-	// First, collect expired keys via a read transaction
-	var expiredKeys [][]byte
-	if err := s.db.View(func(tx *bolt.Tx) error {
+	deleted := 0
+	err := s.db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		if b == nil {
 			return nil
@@ -583,39 +584,19 @@ func (s *BoltStore) cleanupBucketExpired(bucketName string, now time.Time) (int,
 		for k, v := c.First(); k != nil; k, v = c.Next() {
 			var entry CacheEntry
 			if unmarshalErr := json.Unmarshal(v, &entry); unmarshalErr != nil {
-				// Corrupt entry: mark for deletion
-				keyCopy := make([]byte, len(k))
-				copy(keyCopy, k)
-				expiredKeys = append(expiredKeys, keyCopy)
+				// Corrupt entry: delete immediately
+				if delErr := b.Delete(k); delErr != nil {
+					return delErr
+				}
+				deleted++
 				continue
 			}
 			if now.After(entry.ExpiresAt) {
-				keyCopy := make([]byte, len(k))
-				copy(keyCopy, k)
-				expiredKeys = append(expiredKeys, keyCopy)
+				if delErr := b.Delete(k); delErr != nil {
+					return delErr
+				}
+				deleted++
 			}
-		}
-		return nil
-	}); err != nil {
-		return 0, err
-	}
-
-	if len(expiredKeys) == 0 {
-		return 0, nil
-	}
-
-	// Delete expired keys in a write transaction
-	deleted := 0
-	err := s.db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(bucketName))
-		if b == nil {
-			return nil
-		}
-		for _, k := range expiredKeys {
-			if delErr := b.Delete(k); delErr != nil {
-				return delErr
-			}
-			deleted++
 		}
 		return nil
 	})
