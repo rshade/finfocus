@@ -85,6 +85,11 @@ finfocus-demo/
 context.txt
 analysis.md
 
+# Benchmark artifacts (CI-generated, not committed)
+test/benchmarks/baseline.txt
+test/benchmarks/current.txt
+test/benchmarks/comparison.txt
+
 # Build Folders
 dist/
 build/
