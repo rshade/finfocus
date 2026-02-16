@@ -177,7 +177,14 @@ func ResolveConfigDir() string {
 }
 
 // New creates a new configuration with defaults.
-// In strict mode (FINFOCUS_CONFIG_STRICT=true), corrupted config files cause a panic.
+// New creates and returns a Config populated with sensible defaults and, if a config file exists,
+// values loaded from that file. It falls back to defaults when the file is missing, applies
+// environment variable overrides, and normalizes analyzer threshold values (e.g., MaxMonthlyCost
+// and Enforcement).
+//
+// In strict mode (when FINFOCUS_CONFIG_STRICT is "true" or "1"), permission errors reading the
+// config file or detection of a corrupted config file cause a panic; otherwise such conditions
+// emit warnings and the defaults are used.
 func New() *Config {
 	finfocusDir := ResolveConfigDir()
 
@@ -266,7 +273,7 @@ func New() *Config {
 
 // NewStrict creates a new configuration with strict error handling.
 // It returns an error instead of using defaults if the config file exists but cannot be parsed.
-// It uses ResolveConfigDir() to respect PULUMI_HOME when set.
+// validation failure is returned.
 func NewStrict() (*Config, error) {
 	finfocusDir := ResolveConfigDir()
 

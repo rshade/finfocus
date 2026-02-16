@@ -45,7 +45,23 @@ type ResourceCost struct {
 // BuildCostSummary aggregates cost results into a CostSummary struct.
 // Error resources (those with non-nil Error field or ERROR:/VALIDATION: prefixed notes)
 // are excluded from the total and resource list. Mixed currencies are detected and flagged.
-// If now is zero, time.Now().UTC() is used for the Timestamp field.
+// BuildCostSummary aggregates a slice of engine.CostResult into a CostSummary for the given stack and project.
+//
+// BuildCostSummary skips any cost entries that have a non-nil Error or notes that indicate an error, and includes
+// only successful entries in the totals and resource list. The summary's Timestamp is set to the provided `now`
+// or to the current UTC time if `now` is zero. The summary's Currency is taken from the first valid resource that
+// provides one; MixedCurrencies is set to true when multiple currencies are present.
+//
+// Parameters:
+//   - costs: slice of engine.CostResult values to aggregate.
+//   - stack: identifier for the stack being summarized.
+//   - project: project name associated with the summary.
+//   - now: time to use for the summary Timestamp; if zero, current UTC time is used.
+//
+// Returns:
+//
+//	Pointer to a CostSummary containing schema version, timestamp, stack, project, total monthly cost,
+//	currency, resource count, mixed-currencies flag, and per-resource cost entries.
 func BuildCostSummary(costs []engine.CostResult, stack, project string, now time.Time) *CostSummary {
 	if now.IsZero() {
 		now = time.Now().UTC()
@@ -96,7 +112,16 @@ func BuildCostSummary(costs []engine.CostResult, stack, project string, now time
 
 // WriteCostSummary writes the cost summary to the specified directory using an
 // atomic write pattern (temp file + rename). The directory is created if it
-// does not exist. The output file has permissions 0o600 (owner read/write only).
+// WriteCostSummary writes the provided CostSummary as indented JSON to the given directory
+// using an atomic write (temporary file and rename).
+//
+// The function creates the target directory with permissions 0750 if it does not exist,
+// writes the summary to a temporary file with permissions 0600, ensures the file ends
+// with a newline, and renames the temporary file to "last-cost-summary.json".
+//
+// If summary is nil, WriteCostSummary returns an error. It also returns wrapped errors
+// for failures creating the directory, marshaling the summary, writing the temporary file,
+// or renaming the temporary file (the temporary file is removed on rename failure).
 func WriteCostSummary(summary *CostSummary, dir string) error {
 	if summary == nil {
 		return errors.New("nil summary")

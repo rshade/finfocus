@@ -104,7 +104,12 @@ type Server struct {
 //
 // NewServer creates a Server that uses the provided CostCalculator to estimate resource costs.
 // If the provided version is empty, it defaults to "0.0.0-dev". The returned Server has its
-// version set and its internal cost cache initialized.
+// NewServer creates a Server configured with the provided CostCalculator and version.
+// If the provided version is empty, NewServer uses defaultVersion. The server's internal
+// per-resource cost cache is initialized.
+// calculator is the CostCalculator implementation used for cost estimation.
+// version is the plugin version string; pass an empty string to use the fallback default.
+// It returns a pointer to the initialized Server.
 func NewServer(calculator CostCalculator, version string) *Server {
 	if version == "" {
 		version = defaultVersion
@@ -336,7 +341,8 @@ func (s *Server) AnalyzeStack(
 	}, nil
 }
 
-// isErrorNote returns true if the notes string indicates an error result.
+// isErrorNote reports whether the provided notes string indicates an error by starting with
+// the prefix "VALIDATION:" or "ERROR:". It returns true when the notes begin with either prefix, false otherwise.
 func isErrorNote(notes string) bool {
 	return strings.HasPrefix(notes, "VALIDATION:") || strings.HasPrefix(notes, "ERROR:")
 }
