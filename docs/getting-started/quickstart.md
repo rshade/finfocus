@@ -14,7 +14,7 @@ Get FinFocus running and see your first cost estimate in just 5 minutes.
 
 ## Step 1: Install (1 minute)
 
-### Option A: From source (recommended)
+### Option A: From source
 
 ```bash
 git clone https://github.com/rshade/finfocus
@@ -23,12 +23,10 @@ make build
 export PATH="$PWD/bin:$PATH"
 ```
 
-### Option B: Download binary (coming soon)
+### Option B: Install script (recommended)
 
 ```bash
-# Download latest release
-curl -L https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o finfocus
-chmod +x finfocus
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 ```
 
 **Verify installation:**
