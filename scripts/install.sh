@@ -115,7 +115,7 @@ resolve_install_dir() {
   if [ -w "/usr/local/bin" ]; then
     echo "/usr/local/bin"
   else
-    local_bin="${HOME}/bin"
+    local_bin="${HOME}/.local/bin"
     if ! mkdir -p "$local_bin" 2>/dev/null; then
       fail "Failed to create install directory ${local_bin}." \
            "Set FINFOCUS_INSTALL_DIR to specify an alternative directory."
@@ -136,6 +136,20 @@ install_binary() {
   binary="$(find "$TMP_DIR" -type f -name 'finfocus' -print -quit)"
   if [ -z "$binary" ] || [ ! -f "$binary" ]; then
     fail "No 'finfocus' binary found in extracted archive under ${TMP_DIR}."
+  fi
+  # Validate binary is a native executable
+  if type file >/dev/null 2>&1; then
+    file_type="$(file "$binary")"
+    case "$file_type" in
+      *ELF*|*Mach-O*)
+        # Valid native executable
+        ;;
+      *)
+        fail "Found '${binary}' but it is not a native executable:" \
+             "  ${file_type}" \
+             "The archive may be corrupt or contain an unsupported format."
+        ;;
+    esac
   fi
   chmod +x "$binary"
   mv "$binary" "${install_dir}/finfocus"
@@ -163,12 +177,13 @@ verify_checksum() {
   checksums_url="https://github.com/${REPO}/releases/download/${version}/checksums.txt"
   checksums_file="${TMP_DIR}/checksums.txt"
   if ! download "$checksums_url" "$checksums_file"; then
-    fail "Failed to download checksums.txt for verification." \
-         "Set FINFOCUS_NO_VERIFY=1 to skip checksum verification (not recommended)."
+    printf 'WARNING: Failed to download checksums.txt, skipping verification.\n' >&2
+    return 0
   fi
   expected="$(grep -F -m1 " ${archive_name}" "$checksums_file" | cut -d ' ' -f 1)"
   if [ -z "$expected" ]; then
-    fail "Checksum for ${archive_name} not found in checksums.txt."
+    printf 'WARNING: Checksum for %s not found in checksums.txt, skipping verification.\n' "$archive_name" >&2
+    return 0
   fi
   actual="$(hash_sha256 "$archive")"
   if [ "$expected" != "$actual" ]; then

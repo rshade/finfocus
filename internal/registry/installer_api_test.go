@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -684,6 +685,16 @@ func TestInstall_MalformedChecksumsWarns(t *testing.T) {
 
 	require.NoError(t, err, "installation should succeed with malformed checksums")
 	assert.Equal(t, pluginName, result.Name)
+
+	// Verify warning was emitted about malformed checksums
+	found := false
+	for _, msg := range messages {
+		if strings.Contains(msg, "malformed") || strings.Contains(msg, "checksum") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected warning about malformed checksums, got: %v", messages)
 }
 
 func TestInstall_SkipChecksumBypassesVerification(t *testing.T) {
@@ -697,13 +708,13 @@ func TestInstall_SkipChecksumBypassesVerification(t *testing.T) {
 	wrongHash := strings.Repeat("ab", 32)
 	checksumsContent := fmt.Sprintf("%s  %s\n", wrongHash, assetName)
 
-	checksumDownloaded := false
+	var checksumDownloaded atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/download/" + assetName:
 			_, _ = w.Write(archiveData)
 		case "/download/checksums.txt":
-			checksumDownloaded = true
+			checksumDownloaded.Store(true)
 			_, _ = w.Write([]byte(checksumsContent))
 		default:
 			http.NotFound(w, r)
@@ -745,7 +756,7 @@ func TestInstall_SkipChecksumBypassesVerification(t *testing.T) {
 
 	require.NoError(t, err, "installation should succeed with SkipChecksum=true even with wrong hash")
 	assert.Equal(t, pluginName, result.Name)
-	assert.False(t, checksumDownloaded, "checksums.txt should not be downloaded when SkipChecksum is true")
+	assert.False(t, checksumDownloaded.Load(), "checksums.txt should not be downloaded when SkipChecksum is true")
 
 	// Should NOT contain checksum-related messages
 	for _, msg := range messages {

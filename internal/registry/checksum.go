@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
@@ -26,9 +27,9 @@ var (
 const sha256HexLen = 64
 
 // computeSHA256 computes the SHA256 hash of the file at filePath and returns
-// it as a lowercase hexadecimal string. It streams the file content through
-// the hasher via io.Copy to avoid loading the entire file into memory.
-func computeSHA256(filePath string) (string, error) {
+// it as a lowercase hexadecimal string. It reads the file in 32 KB chunks and
+// checks ctx between reads so that long-running hashes can be cancelled.
+func computeSHA256(ctx context.Context, filePath string) (string, error) {
 	f, err := os.Open(filePath)
 	if err != nil {
 		return "", fmt.Errorf("opening file for checksum: %w", err)
@@ -36,8 +37,23 @@ func computeSHA256(filePath string) (string, error) {
 	defer f.Close()
 
 	h := sha256.New()
-	if _, copyErr := io.Copy(h, f); copyErr != nil {
-		return "", fmt.Errorf("computing SHA256: %w", copyErr)
+	buf := make([]byte, 32*1024) //nolint:mnd // 32 KB read buffer
+	for {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return "", fmt.Errorf("computing SHA256: %w", ctxErr)
+		}
+		n, readErr := f.Read(buf)
+		if n > 0 {
+			if _, wErr := h.Write(buf[:n]); wErr != nil {
+				return "", fmt.Errorf("computing SHA256: %w", wErr)
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return "", fmt.Errorf("computing SHA256: %w", readErr)
+		}
 	}
 
 	return hex.EncodeToString(h.Sum(nil)), nil
@@ -47,8 +63,8 @@ func computeSHA256(filePath string) (string, error) {
 // it against expectedHash. The expectedHash is normalized to lowercase before
 // comparison. Returns nil if the hashes match, or an error wrapping
 // ErrChecksumMismatch if they differ.
-func VerifyChecksum(filePath, expectedHash string) error {
-	actual, err := computeSHA256(filePath)
+func VerifyChecksum(ctx context.Context, filePath, expectedHash string) error {
+	actual, err := computeSHA256(ctx, filePath)
 	if err != nil {
 		return err
 	}
@@ -73,7 +89,6 @@ func ParseChecksumsFile(data []byte, assetName string) (string, error) {
 	validEntries := 0
 
 	for _, line := range lines {
-		line = strings.TrimRight(line, "\r")
 		line = strings.TrimSpace(line)
 
 		// Skip blank lines and comments

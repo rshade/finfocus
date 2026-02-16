@@ -1,6 +1,7 @@
 package registry
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"os"
@@ -39,7 +40,7 @@ func TestComputeSHA256(t *testing.T) {
 			tmpFile := filepath.Join(t.TempDir(), "testfile")
 			require.NoError(t, os.WriteFile(tmpFile, tt.content, 0644))
 
-			got, err := computeSHA256(tmpFile)
+			got, err := computeSHA256(context.Background(), tmpFile)
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.errContains != "" {
@@ -58,7 +59,7 @@ func TestComputeSHA256(t *testing.T) {
 }
 
 func TestComputeSHA256_FileNotFound(t *testing.T) {
-	_, err := computeSHA256("/nonexistent/path/file.bin")
+	_, err := computeSHA256(context.Background(), "/nonexistent/path/file.bin")
 	require.Error(t, err)
 }
 
@@ -69,7 +70,7 @@ func TestComputeSHA256_Performance(t *testing.T) {
 	require.NoError(t, os.WriteFile(tmpFile, data, 0644))
 
 	start := time.Now()
-	_, err := computeSHA256(tmpFile)
+	_, err := computeSHA256(context.Background(), tmpFile)
 	duration := time.Since(start)
 
 	require.NoError(t, err)
@@ -87,7 +88,7 @@ func BenchmarkComputeSHA256_50MB(b *testing.B) {
 	b.ResetTimer()
 
 	for b.Loop() {
-		if _, err := computeSHA256(tmpFile); err != nil {
+		if _, err := computeSHA256(context.Background(), tmpFile); err != nil {
 			b.Fatalf("computeSHA256 failed: %v", err)
 		}
 	}
@@ -133,7 +134,7 @@ func TestVerifyChecksum(t *testing.T) {
 			tmpFile := filepath.Join(t.TempDir(), "testfile")
 			require.NoError(t, os.WriteFile(tmpFile, content, 0644))
 
-			err := VerifyChecksum(tmpFile, tt.expectedHash)
+			err := VerifyChecksum(context.Background(), tmpFile, tt.expectedHash)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errContains)
@@ -146,7 +147,7 @@ func TestVerifyChecksum(t *testing.T) {
 }
 
 func TestVerifyChecksum_FileNotFound(t *testing.T) {
-	err := VerifyChecksum("/nonexistent/file", strings.Repeat("ab", 32))
+	err := VerifyChecksum(context.Background(), "/nonexistent/file", strings.Repeat("ab", 32))
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, ErrChecksumMismatch)
 }

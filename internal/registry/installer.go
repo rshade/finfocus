@@ -541,7 +541,7 @@ func (i *Installer) verifyChecksumForRelease(
 	}
 
 	// This is the only fatal path: a confirmed hash mismatch
-	if verifyErr := VerifyChecksum(downloadedFilePath, expectedHash); verifyErr != nil {
+	if verifyErr := VerifyChecksum(ctx, downloadedFilePath, expectedHash); verifyErr != nil {
 		return fmt.Errorf("integrity check failed: %w", verifyErr)
 	}
 
@@ -594,7 +594,7 @@ func (i *Installer) downloadChecksumAsset(
 	checksumTmp, err := os.CreateTemp("", "finfocus-checksums-*")
 	if err != nil {
 		return nil, fmt.Errorf(
-			"failed to create temp file for checksums, skipping verification: %w",
+			"failed to create temp file for checksums: %w",
 			err,
 		)
 	}
@@ -610,7 +610,7 @@ func (i *Installer) downloadChecksumAsset(
 	)
 	if downloadErr != nil {
 		return nil, fmt.Errorf(
-			"failed to download checksums.txt, skipping verification: %w",
+			"failed to download checksums.txt: %w",
 			downloadErr,
 		)
 	}
@@ -618,7 +618,7 @@ func (i *Installer) downloadChecksumAsset(
 	data, err := os.ReadFile(checksumTmpPath)
 	if err != nil {
 		return nil, fmt.Errorf(
-			"failed to read checksums.txt, skipping verification: %w",
+			"failed to read checksums.txt: %w",
 			err,
 		)
 	}
