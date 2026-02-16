@@ -2858,10 +2858,9 @@ func (e *Engine) GetRecommendationsForResources(
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").
+				Str("operation", "recommendations.cache.hit").
 				Str("cache_key", cacheKey).
 				Msg("cache hit for recommendations")
-
-			// Unmarshal cached result
 			var cachedResult RecommendationsResult
 			if unmarshalErr := json.Unmarshal(cachedEntry.Data, &cachedResult); unmarshalErr == nil {
 				return &cachedResult, nil
@@ -2869,6 +2868,7 @@ func (e *Engine) GetRecommendationsForResources(
 			log.Warn().
 				Ctx(ctx).
 				Str("component", "engine").
+				Str("operation", "recommendations.cache.unmarshal_failed").
 				Msg("failed to unmarshal cached recommendations")
 		}
 	}
@@ -2928,12 +2928,14 @@ func (e *Engine) GetRecommendationsForResources(
 				log.Warn().
 					Ctx(ctx).
 					Str("component", "engine").
+					Str("operation", "recommendations.cache.store_failed").
 					Err(setErr).
 					Msg("failed to store recommendations in cache")
 			} else {
 				log.Debug().
 					Ctx(ctx).
 					Str("component", "engine").
+					Str("operation", "recommendations.cache.store").
 					Str("cache_key", cacheKey).
 					Msg("stored recommendations in cache")
 			}

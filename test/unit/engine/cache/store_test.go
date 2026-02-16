@@ -1,6 +1,7 @@
 package cache_test
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -52,7 +53,9 @@ func TestNewBoltStore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			store, err := cache.NewBoltStore(tt.directory, tt.enabled, tt.ttlSeconds, tt.maxSizeMB)
+			store, err := cache.NewBoltStore(
+				context.Background(), tt.directory, tt.enabled, tt.ttlSeconds, tt.maxSizeMB,
+			)
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Nil(t, store)
@@ -81,7 +84,7 @@ func TestNewBoltStore(t *testing.T) {
 func TestBoltStore_SetAndGet(t *testing.T) {
 	tempDir := t.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -119,7 +122,7 @@ func TestBoltStore_SetAndGet(t *testing.T) {
 func TestBoltStore_GetNonExistent(t *testing.T) {
 	tempDir := t.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -134,7 +137,7 @@ func TestBoltStore_TTLExpiration(t *testing.T) {
 	tempDir := t.TempDir()
 
 	// Create store with 1-second TTL
-	store, err := cache.NewBoltStore(tempDir, true, 1, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 1, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -165,7 +168,7 @@ func TestBoltStore_TTLExpiration(t *testing.T) {
 func TestBoltStore_Delete(t *testing.T) {
 	tempDir := t.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -198,7 +201,7 @@ func TestBoltStore_Delete(t *testing.T) {
 func TestBoltStore_Clear(t *testing.T) {
 	tempDir := t.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -228,7 +231,7 @@ func TestBoltStore_Clear(t *testing.T) {
 func TestBoltStore_Size(t *testing.T) {
 	tempDir := t.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -252,7 +255,7 @@ func TestBoltStore_Size(t *testing.T) {
 func TestBoltStore_Count(t *testing.T) {
 	tempDir := t.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -278,7 +281,7 @@ func TestBoltStore_Count(t *testing.T) {
 
 // TestBoltStore_DisabledOperations verifies disabled cache behavior.
 func TestBoltStore_DisabledOperations(t *testing.T) {
-	store, err := cache.NewBoltStore("", false, 0, 0)
+	store, err := cache.NewBoltStore(context.Background(), "", false, 0, 0)
 	require.NoError(t, err)
 	assert.False(t, store.IsEnabled())
 
@@ -317,7 +320,7 @@ func TestBoltStore_DisabledOperations(t *testing.T) {
 func TestBoltStore_EmptyKeyValidation(t *testing.T) {
 	tempDir := t.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -338,7 +341,7 @@ func TestBoltStore_EmptyKeyValidation(t *testing.T) {
 func TestBoltStore_AtomicOverwrite(t *testing.T) {
 	tempDir := t.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -369,7 +372,7 @@ func TestBoltStore_AtomicOverwrite(t *testing.T) {
 func TestBoltStore_MultipleEntries(t *testing.T) {
 	tempDir := t.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(t, err)
 	defer store.Close()
 
@@ -396,13 +399,14 @@ func TestBoltStore_MultipleEntries(t *testing.T) {
 func BenchmarkBoltStore_SetAndGet(b *testing.B) {
 	tempDir := b.TempDir()
 
-	store, err := cache.NewBoltStore(tempDir, true, 3600, 100)
+	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
 	require.NoError(b, err)
 	defer store.Close()
 
 	testData := []byte(`{"benchmark": "data", "value": 42}`)
 	key := "projected/aws/bench-test"
 
+	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
 		_ = store.Set(key, json.RawMessage(testData))

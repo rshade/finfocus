@@ -39,7 +39,7 @@ func TestCLIPerformance_1000Items(t *testing.T) {
 
 	// Setup: Create temporary cache directory
 	tmpDir := t.TempDir()
-	cacheStore, err := cache.NewBoltStore(tmpDir, true, 3600, 100)
+	cacheStore, err := cache.NewBoltStore(context.Background(), tmpDir, true, 3600, 100)
 	require.NoError(t, err, "failed to create cache store")
 	defer cacheStore.Close()
 
@@ -161,7 +161,7 @@ func TestCLIPerformance_BatchProcessing(t *testing.T) {
 func TestCLIPerformance_CacheEfficiency(t *testing.T) {
 	// Setup cache
 	tmpDir := t.TempDir()
-	cacheStore, err := cache.NewBoltStore(tmpDir, true, 3600, 100)
+	cacheStore, err := cache.NewBoltStore(context.Background(), tmpDir, true, 3600, 100)
 	require.NoError(t, err, "failed to create cache store")
 	defer cacheStore.Close()
 

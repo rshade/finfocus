@@ -906,7 +906,7 @@ The engine package orchestrates cost calculations between plugins and specs:
 - **Caching System** (BoltDB backend):
   - `cache.Cache` interface (Get, Set, IsEnabled, Close, InvalidateByPrefix) in `internal/engine/cache/store.go`
   - `BoltStore` implements `Cache` with BoltDB (`go.etcd.io/bbolt`) single-file storage
-  - Database file: `{cacheDir}/finfocus.db` (project-local or `~/.finfocus/cache/`)
+  - Database file: `{cacheDir}/cache.db` (project-local or `~/.finfocus/cache/`)
   - Three buckets: `projected`, `actual`, `recommendations`
   - Human-readable structured keys: `projected/{provider}/{type}/{region}/{sku}`
   - Projected costs: per-resource caching (change one resource, only that key invalidates)
@@ -1149,7 +1149,7 @@ CodeRabbit now:
 
 ## Active Technologies
 - Go 1.25.7 + `go.etcd.io/bbolt` (new), existing deps unchanged (595-boltdb-cache)
-- BoltDB single-file B+tree KV store at `{cacheDir}/finfocus.db` (595-boltdb-cache)
+- BoltDB single-file B+tree KV store at `{cacheDir}/cache.db` (595-boltdb-cache)
 
 - Go 1.25.7 + Pulumi SDK v3.220.0 (EnforcementLevel protobuf), cobra, zerolog, finfocus-spec v0.5.6 (594-policy-cost-output)
 - JSON file (`last-cost-summary.json`) using atomic write pattern (temp file + rename) (594-policy-cost-output)
@@ -1168,7 +1168,7 @@ CodeRabbit now:
 
 | Branch | Additional Technologies | State |
 |--------|------------------------|-------|
-| 595-boltdb-cache | `internal/engine/cache` (BoltStore, structured keys) + `go.etcd.io/bbolt` | BoltDB single-file cache at `{cacheDir}/finfocus.db` |
+| 595-boltdb-cache | `internal/engine/cache` (BoltStore, structured keys) + `go.etcd.io/bbolt` | BoltDB single-file cache at `{cacheDir}/cache.db` |
 | 590-analyzer-install | os/filepath/runtime, pkg/version | Filesystem (symlinks/copies) |
 | 511-wire-router | (core stack) | Stateless; reads config.yaml |
 | 590-neo-cli-fixes | (core stack) | Stateless CLI |
