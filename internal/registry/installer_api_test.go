@@ -5,6 +5,8 @@ import (
 	"archive/zip"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -12,7 +14,11 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/config"
 )
@@ -234,4 +240,516 @@ func createZip(path, filename string, content []byte) error {
 		return err
 	}
 	return nil
+}
+
+// checksumTestEnv holds common test infrastructure for checksum verification tests.
+type checksumTestEnv struct {
+	tmpHome   string
+	pluginDir string
+	installer *Installer
+	client    *GitHubClient
+}
+
+// setupChecksumTest creates the common test infrastructure for all checksum
+// verification tests: resets config, creates temp HOME with .finfocus dir,
+// initializes global config, and returns an environment with a GitHubClient
+// and Installer ready for use. The caller must set client.HTTPClient and
+// client.BaseURL to point at their httptest.Server.
+func setupChecksumTest(t *testing.T) *checksumTestEnv {
+	t.Helper()
+	config.ResetGlobalConfigForTest()
+	tmpHome := t.TempDir()
+	t.Setenv("HOME", tmpHome)
+	_ = os.MkdirAll(filepath.Join(tmpHome, ".finfocus"), 0755)
+	config.InitGlobalConfig()
+
+	client := NewGitHubClient()
+	pluginDir := filepath.Join(tmpHome, "plugins")
+	installer := NewInstallerWithClient(client, pluginDir)
+
+	return &checksumTestEnv{
+		tmpHome:   tmpHome,
+		pluginDir: pluginDir,
+		installer: installer,
+		client:    client,
+	}
+}
+
+// checksumTestAssetName returns the platform-specific asset name for checksum tests.
+func checksumTestAssetName(pluginName, version string) string {
+	ext := ".tar.gz"
+	if runtime.GOOS == "windows" {
+		ext = ".zip"
+	}
+	return fmt.Sprintf("%s_%s_%s_%s%s", pluginName, version, runtime.GOOS, runtime.GOARCH, ext)
+}
+
+// checksumForBytes computes the SHA256 hex string for raw bytes.
+func checksumForBytes(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
+}
+
+func TestInstall_ChecksumVerified(t *testing.T) {
+	env := setupChecksumTest(t)
+
+	pluginName := "checksum-plugin"
+	version := "v1.0.0"
+	assetName := checksumTestAssetName(pluginName, version)
+	archiveData := createMockArchive(t, pluginName)
+	correctHash := checksumForBytes(archiveData)
+	checksumsContent := fmt.Sprintf("%s  %s\n", correctHash, assetName)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/owner/checksum-plugin/releases/tags/" + version:
+			release := GitHubRelease{
+				TagName: version,
+				Name:    version,
+				Assets: []ReleaseAsset{
+					{
+						Name:               assetName,
+						Size:               int64(len(archiveData)),
+						BrowserDownloadURL: "http://" + r.Host + "/download/" + assetName,
+					},
+					{
+						Name:               "checksums.txt",
+						Size:               int64(len(checksumsContent)),
+						BrowserDownloadURL: "http://" + r.Host + "/download/checksums.txt",
+					},
+				},
+			}
+			_ = json.NewEncoder(w).Encode(release)
+		case "/download/" + assetName:
+			_, _ = w.Write(archiveData)
+		case "/download/checksums.txt":
+			_, _ = w.Write([]byte(checksumsContent))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	env.client.HTTPClient = server.Client()
+	env.client.BaseURL = server.URL
+
+	var messages []string
+	progress := func(msg string) {
+		messages = append(messages, msg)
+	}
+
+	result, err := env.installer.installRelease(
+		context.Background(),
+		pluginName,
+		&GitHubRelease{
+			TagName: version,
+			Assets: []ReleaseAsset{
+				{
+					Name:               assetName,
+					Size:               int64(len(archiveData)),
+					BrowserDownloadURL: server.URL + "/download/" + assetName,
+				},
+				{
+					Name:               "checksums.txt",
+					Size:               int64(len(checksumsContent)),
+					BrowserDownloadURL: server.URL + "/download/checksums.txt",
+				},
+			},
+		},
+		"owner/checksum-plugin",
+		InstallOptions{PluginDir: env.pluginDir},
+		progress,
+		nil,
+	)
+
+	require.NoError(t, err)
+	assert.Equal(t, pluginName, result.Name)
+	assert.Equal(t, version, result.Version)
+
+	// Verify "Checksum verified" appeared in progress messages
+	found := false
+	for _, msg := range messages {
+		if strings.Contains(msg, "Checksum verified") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected 'Checksum verified' in progress messages, got: %v", messages)
+}
+
+func TestInstall_ChecksumMismatchBlocksInstallation(t *testing.T) {
+	env := setupChecksumTest(t)
+
+	pluginName := "checksum-plugin"
+	version := "v1.0.0"
+	assetName := checksumTestAssetName(pluginName, version)
+	archiveData := createMockArchive(t, pluginName)
+	wrongHash := strings.Repeat("ab", 32)
+	checksumsContent := fmt.Sprintf("%s  %s\n", wrongHash, assetName)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/download/" + assetName:
+			_, _ = w.Write(archiveData)
+		case "/download/checksums.txt":
+			_, _ = w.Write([]byte(checksumsContent))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	env.client.HTTPClient = server.Client()
+	env.client.BaseURL = server.URL
+
+	_, err := env.installer.installRelease(
+		context.Background(),
+		pluginName,
+		&GitHubRelease{
+			TagName: version,
+			Assets: []ReleaseAsset{
+				{
+					Name:               assetName,
+					Size:               int64(len(archiveData)),
+					BrowserDownloadURL: server.URL + "/download/" + assetName,
+				},
+				{
+					Name:               "checksums.txt",
+					Size:               int64(len(checksumsContent)),
+					BrowserDownloadURL: server.URL + "/download/checksums.txt",
+				},
+			},
+		},
+		"owner/checksum-plugin",
+		InstallOptions{PluginDir: env.pluginDir},
+		nil,
+		nil,
+	)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "checksum mismatch")
+
+	// Verify install directory was NOT created
+	installDir := filepath.Join(env.pluginDir, pluginName, version)
+	_, statErr := os.Stat(installDir)
+	assert.True(t, os.IsNotExist(statErr), "install directory should not exist after checksum mismatch")
+}
+
+func TestInstall_NoChecksumsAssetWarns(t *testing.T) {
+	env := setupChecksumTest(t)
+
+	pluginName := "no-checksum-plugin"
+	version := "v1.0.0"
+	assetName := checksumTestAssetName(pluginName, version)
+	archiveData := createMockArchive(t, pluginName)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/download/"+assetName {
+			_, _ = w.Write(archiveData)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer server.Close()
+
+	env.client.HTTPClient = server.Client()
+	env.client.BaseURL = server.URL
+
+	var messages []string
+	progress := func(msg string) {
+		messages = append(messages, msg)
+	}
+
+	result, err := env.installer.installRelease(
+		context.Background(),
+		pluginName,
+		&GitHubRelease{
+			TagName: version,
+			Assets: []ReleaseAsset{
+				{
+					Name:               assetName,
+					Size:               int64(len(archiveData)),
+					BrowserDownloadURL: server.URL + "/download/" + assetName,
+				},
+				// No checksums.txt asset
+			},
+		},
+		"owner/no-checksum-plugin",
+		InstallOptions{PluginDir: env.pluginDir},
+		progress,
+		nil,
+	)
+
+	require.NoError(t, err, "installation should succeed without checksums.txt")
+	assert.Equal(t, pluginName, result.Name)
+
+	// Verify warning was emitted
+	found := false
+	for _, msg := range messages {
+		if strings.Contains(msg, "checksums.txt not found") || strings.Contains(msg, "skipping verification") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected warning about missing checksums.txt, got: %v", messages)
+}
+
+func TestInstall_ChecksumsAssetNotListed(t *testing.T) {
+	env := setupChecksumTest(t)
+
+	pluginName := "unlisted-plugin"
+	version := "v1.0.0"
+	assetName := checksumTestAssetName(pluginName, version)
+	archiveData := createMockArchive(t, pluginName)
+	// checksums.txt lists a different asset, not the one we're downloading
+	checksumsContent := "abcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890  other-file.tar.gz\n"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/download/" + assetName:
+			_, _ = w.Write(archiveData)
+		case "/download/checksums.txt":
+			_, _ = w.Write([]byte(checksumsContent))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	env.client.HTTPClient = server.Client()
+	env.client.BaseURL = server.URL
+
+	var messages []string
+	progress := func(msg string) {
+		messages = append(messages, msg)
+	}
+
+	result, err := env.installer.installRelease(
+		context.Background(),
+		pluginName,
+		&GitHubRelease{
+			TagName: version,
+			Assets: []ReleaseAsset{
+				{
+					Name:               assetName,
+					Size:               int64(len(archiveData)),
+					BrowserDownloadURL: server.URL + "/download/" + assetName,
+				},
+				{
+					Name:               "checksums.txt",
+					Size:               int64(len(checksumsContent)),
+					BrowserDownloadURL: server.URL + "/download/checksums.txt",
+				},
+			},
+		},
+		"owner/unlisted-plugin",
+		InstallOptions{PluginDir: env.pluginDir},
+		progress,
+		nil,
+	)
+
+	require.NoError(t, err, "installation should succeed when asset not listed in checksums")
+	assert.Equal(t, pluginName, result.Name)
+
+	// Verify warning was emitted
+	found := false
+	for _, msg := range messages {
+		if strings.Contains(msg, "not listed") || strings.Contains(msg, "not found in checksums") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected warning about asset not listed in checksums, got: %v", messages)
+}
+
+func TestInstall_ChecksumsDownloadFails(t *testing.T) {
+	env := setupChecksumTest(t)
+
+	pluginName := "download-fail-plugin"
+	version := "v1.0.0"
+	assetName := checksumTestAssetName(pluginName, version)
+	archiveData := createMockArchive(t, pluginName)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/download/" + assetName:
+			_, _ = w.Write(archiveData)
+		case "/download/checksums.txt":
+			// Simulate server error
+			w.WriteHeader(http.StatusInternalServerError)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	env.client.HTTPClient = server.Client()
+	env.client.BaseURL = server.URL
+
+	var messages []string
+	progress := func(msg string) {
+		messages = append(messages, msg)
+	}
+
+	result, err := env.installer.installRelease(
+		context.Background(),
+		pluginName,
+		&GitHubRelease{
+			TagName: version,
+			Assets: []ReleaseAsset{
+				{
+					Name:               assetName,
+					Size:               int64(len(archiveData)),
+					BrowserDownloadURL: server.URL + "/download/" + assetName,
+				},
+				{
+					Name:               "checksums.txt",
+					Size:               100,
+					BrowserDownloadURL: server.URL + "/download/checksums.txt",
+				},
+			},
+		},
+		"owner/download-fail-plugin",
+		InstallOptions{PluginDir: env.pluginDir},
+		progress,
+		nil,
+	)
+
+	require.NoError(t, err, "installation should succeed when checksums download fails")
+	assert.Equal(t, pluginName, result.Name)
+
+	// Verify warning was emitted about download failure
+	found := false
+	for _, msg := range messages {
+		if strings.Contains(msg, "Warning") && strings.Contains(msg, "checksum") {
+			found = true
+			break
+		}
+	}
+	assert.True(t, found, "expected warning about checksums download failure, got: %v", messages)
+}
+
+func TestInstall_MalformedChecksumsWarns(t *testing.T) {
+	env := setupChecksumTest(t)
+
+	pluginName := "malformed-plugin"
+	version := "v1.0.0"
+	assetName := checksumTestAssetName(pluginName, version)
+	archiveData := createMockArchive(t, pluginName)
+	malformedContent := "this is not a valid checksums file\nno hashes here\n"
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/download/" + assetName:
+			_, _ = w.Write(archiveData)
+		case "/download/checksums.txt":
+			_, _ = w.Write([]byte(malformedContent))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	env.client.HTTPClient = server.Client()
+	env.client.BaseURL = server.URL
+
+	var messages []string
+	progress := func(msg string) {
+		messages = append(messages, msg)
+	}
+
+	result, err := env.installer.installRelease(
+		context.Background(),
+		pluginName,
+		&GitHubRelease{
+			TagName: version,
+			Assets: []ReleaseAsset{
+				{
+					Name:               assetName,
+					Size:               int64(len(archiveData)),
+					BrowserDownloadURL: server.URL + "/download/" + assetName,
+				},
+				{
+					Name:               "checksums.txt",
+					Size:               int64(len(malformedContent)),
+					BrowserDownloadURL: server.URL + "/download/checksums.txt",
+				},
+			},
+		},
+		"owner/malformed-plugin",
+		InstallOptions{PluginDir: env.pluginDir},
+		progress,
+		nil,
+	)
+
+	require.NoError(t, err, "installation should succeed with malformed checksums")
+	assert.Equal(t, pluginName, result.Name)
+}
+
+func TestInstall_SkipChecksumBypassesVerification(t *testing.T) {
+	env := setupChecksumTest(t)
+
+	pluginName := "skip-plugin"
+	version := "v1.0.0"
+	assetName := checksumTestAssetName(pluginName, version)
+	archiveData := createMockArchive(t, pluginName)
+	// Use a wrong hash - but SkipChecksum should bypass verification
+	wrongHash := strings.Repeat("ab", 32)
+	checksumsContent := fmt.Sprintf("%s  %s\n", wrongHash, assetName)
+
+	checksumDownloaded := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/download/" + assetName:
+			_, _ = w.Write(archiveData)
+		case "/download/checksums.txt":
+			checksumDownloaded = true
+			_, _ = w.Write([]byte(checksumsContent))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	env.client.HTTPClient = server.Client()
+	env.client.BaseURL = server.URL
+
+	var messages []string
+	progress := func(msg string) {
+		messages = append(messages, msg)
+	}
+
+	result, err := env.installer.installRelease(
+		context.Background(),
+		pluginName,
+		&GitHubRelease{
+			TagName: version,
+			Assets: []ReleaseAsset{
+				{
+					Name:               assetName,
+					Size:               int64(len(archiveData)),
+					BrowserDownloadURL: server.URL + "/download/" + assetName,
+				},
+				{
+					Name:               "checksums.txt",
+					Size:               int64(len(checksumsContent)),
+					BrowserDownloadURL: server.URL + "/download/checksums.txt",
+				},
+			},
+		},
+		"owner/skip-plugin",
+		InstallOptions{PluginDir: env.pluginDir, SkipChecksum: true},
+		progress,
+		nil,
+	)
+
+	require.NoError(t, err, "installation should succeed with SkipChecksum=true even with wrong hash")
+	assert.Equal(t, pluginName, result.Name)
+	assert.False(t, checksumDownloaded, "checksums.txt should not be downloaded when SkipChecksum is true")
+
+	// Should NOT contain checksum-related messages
+	for _, msg := range messages {
+		assert.NotContains(t, msg, "Checksum verified")
+		assert.NotContains(t, msg, "checksum mismatch")
+	}
 }

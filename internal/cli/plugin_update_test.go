@@ -90,7 +90,7 @@ func TestPluginUpdateCmd_Flags(t *testing.T) {
 	}
 
 	// Check that expected flags exist
-	expectedFlags := []string{"dry-run", "version", "plugin-dir"}
+	expectedFlags := []string{"dry-run", "version", "plugin-dir", "skip-checksum"}
 	for _, flag := range expectedFlags {
 		if pluginCmd.Flags().Lookup(flag) == nil {
 			t.Errorf("expected flag --%s not found", flag)
