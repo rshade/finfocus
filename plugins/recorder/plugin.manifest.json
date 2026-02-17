@@ -9,6 +9,6 @@
   "metadata": {
     "repository": "https://github.com/rshade/finfocus",
     "docs": "https://github.com/rshade/finfocus/tree/main/plugins/recorder",
-    "reference_implementation": true
+    "reference_implementation": "true"
   }
 }

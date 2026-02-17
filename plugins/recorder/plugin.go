@@ -228,7 +228,7 @@ func (p *RecorderPlugin) GetPluginInfo(
 	return &pbc.GetPluginInfoResponse{
 		Name:        "recorder",
 		Version:     "0.1.0",
-		SpecVersion: "0.5.5",
+		SpecVersion: "v0.5.6",
 		Providers: []string{
 			"test",
 		},

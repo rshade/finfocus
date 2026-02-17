@@ -948,16 +948,17 @@ func toStringMap(m map[string]interface{}) map[string]string {
 	return result
 }
 
-// enrichTagsWithSKUAndRegion injects SKU and region entries into tags by resolving them from
-// the provided properties using the given provider and resourceType. Existing entries in tags
-// are preserved and never overwritten; when found, SKU is added under the key "sku" and
-// enrichTagsWithSKUAndRegion injects SKU and region keys into the provided tags map when they
-// can be resolved from the given provider, resourceType, and properties. It stringifies
-// properties before resolution, preserves existing tag keys (does not overwrite), and only
-// adds "sku" or "region" when the resolved values are non-empty.
+// enrichTagsWithSKUAndRegion injects pricing dimensions into the provided tags map so that
+// plugins can validate and price actual cost requests. It resolves SKU and region from the
+// given provider, resourceType, and properties, then also injects "provider" and
+// "resource_type" since the GetActualCostRequest proto has no explicit fields for these
+// (unlike GetProjectedCostRequest which carries them on ResourceDescriptor).
+//
+// Existing entries in tags are preserved and never overwritten. Values are only added when
+// the resolved values are non-empty.
 //
 // Parameters:
-//   - tags: map to be mutated with optional "sku" and "region" entries.
+//   - tags: map to be mutated with optional "sku", "region", "provider", and "resource_type" entries.
 //   - provider: cloud provider identifier (e.g., "aws", "azure") used for resolution.
 //   - resourceType: resource type token used to help determine SKU/region.
 //   - properties: resource properties that are converted to strings and used for resolution.
@@ -976,6 +977,19 @@ func enrichTagsWithSKUAndRegion(
 	if region != "" {
 		if _, exists := tags["region"]; !exists {
 			tags["region"] = region
+		}
+	}
+	// Inject provider and resource_type so plugins can validate and route
+	// actual cost requests. The GetActualCostRequest proto only carries Tags
+	// (no explicit Provider/ResourceType fields like GetProjectedCostRequest).
+	if provider != "" {
+		if _, exists := tags["provider"]; !exists {
+			tags["provider"] = provider
+		}
+	}
+	if resourceType != "" {
+		if _, exists := tags["resource_type"]; !exists {
+			tags["resource_type"] = resourceType
 		}
 	}
 }
