@@ -276,6 +276,7 @@ func EnrichOverviewRows(
 	dateRange DateRange,
 	progressChan chan<- OverviewRowUpdate,
 ) []OverviewRow {
+	enrichStart := time.Now()
 	log := logging.FromContext(ctx)
 	log.Info().
 		Ctx(ctx).
@@ -324,6 +325,7 @@ sendLoop:
 		Str("component", "engine").
 		Str("operation", "enrich_overview_rows").
 		Int("row_count", len(rows)).
+		Int64("elapsed_ms", time.Since(enrichStart).Milliseconds()).
 		Msg("row enrichment complete")
 
 	return rows
