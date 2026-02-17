@@ -115,7 +115,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 1. Validate flags
 	pt := logging.StartPhase(ctx, "cli", "overview", "date_validation")
 	dateRange, err := resolveOverviewDateRange(params.fromStr, params.toStr, time.Now())
-	pt.Done("date_validation")
+	pt.Done(ctx)
 	if err != nil {
 		return fmt.Errorf("invalid date range: %w", err)
 	}
@@ -123,7 +123,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 2. Load Pulumi state and plan (from files or auto-detect)
 	pt = logging.StartPhase(ctx, "cli", "overview", "data_loading")
 	stateResources, planSteps, stackName, err := resolveOverviewData(ctx, params)
-	pt.Done("data_loading")
+	pt.Done(ctx)
 	if err != nil {
 		wrappedErr := fmt.Errorf("resolve overview data: %w", err)
 		audit.logFailure(ctx, wrappedErr)
@@ -133,12 +133,12 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 3. Detect pending changes
 	pt = logging.StartPhase(ctx, "cli", "overview", "change_detection")
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
-	pt.Done("change_detection")
+	pt.Done(ctx)
 
 	// 4. Merge resources
 	pt = logging.StartPhase(ctx, "cli", "overview", "resource_merge")
 	rows, err := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
-	pt.Done("resource_merge")
+	pt.Done(ctx)
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("merging resources: %w", err)
@@ -150,7 +150,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 6. Validate filter keys and apply resource filters
 	pt = logging.StartPhase(ctx, "cli", "overview", "filter_apply")
 	rows, err = validateAndApplyOverviewFilters(rows, params.filter)
-	pt.Done("filter_apply")
+	pt.Done(ctx)
 	if err != nil {
 		return err
 	}
@@ -158,7 +158,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 7. Open plugins
 	pt = logging.StartPhase(ctx, "cli", "overview", "plugin_open")
 	clients, cleanup, err := openPlugins(ctx, params.adapter, audit)
-	pt.Done("plugin_open")
+	pt.Done(ctx)
 	if err != nil {
 		return err
 	}
@@ -169,20 +169,20 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	cfg := config.New()
 	eng := engine.New(clients, nil).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
-	pt.Done("engine_create")
+	pt.Done(ctx)
 
 	// 9. Determine if we should use interactive TUI or plain text
 	isInteractive := shouldUseInteractiveTUI(cmd.OutOrStdout(), params.output, params.plain)
 
 	if isInteractive {
 		// Launch interactive TUI with progressive loading
-		return runInteractiveOverview(ctx, cmd, rows, eng, dateRange, audit)
+		return runInteractiveOverview(ctx, cmd, rows, eng, dateRange, audit, totalStart)
 	}
 
 	// 10. Enrich rows (blocking, for plain text mode)
 	pt = logging.StartPhase(ctx, "cli", "overview", "enrichment")
 	rows = engine.EnrichOverviewRows(ctx, rows, eng, dateRange, nil)
-	pt.Done("enrichment")
+	pt.Done(ctx)
 
 	// 11. Build stack context
 	stackCtx := engine.StackContext{
@@ -262,26 +262,25 @@ func loadOverviewFromAutoDetect(
 
 	// Run pulumi stack export
 	pt := logging.StartPhase(ctx, "pulumi", "overview", "stack_export")
+	defer pt.Done(ctx)
+
 	exportData, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
 		ProjectDir: projectDir,
 		Stack:      resolvedStack,
 	})
 	if exportErr != nil {
-		pt.Done("stack_export")
 		return nil, nil, "", fmt.Errorf("running pulumi stack export: %w", exportErr)
 	}
 	state, parseErr := ingest.ParseStackExportWithContext(ctx, exportData)
 	if parseErr != nil {
-		pt.Done("stack_export")
 		return nil, nil, "", fmt.Errorf("parsing pulumi stack export: %w", parseErr)
 	}
 	stateResources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
-	pt.Done("stack_export")
 
 	// Resolve plan: from file if --pulumi-json provided, otherwise auto-detect
-	pt = logging.StartPhase(ctx, "pulumi", "overview", "preview")
+	ptPreview := logging.StartPhase(ctx, "pulumi", "overview", "preview")
 	planSteps, planErr := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, resolvedStack)
-	pt.Done("preview")
+	ptPreview.Done(ctx)
 	if planErr != nil {
 		return nil, nil, "", planErr
 	}
@@ -557,6 +556,7 @@ func runInteractiveOverview(
 	eng *engine.Engine,
 	dateRange engine.DateRange,
 	audit *auditContext,
+	totalStart time.Time,
 ) error {
 	log := logging.FromContext(ctx)
 
@@ -650,7 +650,15 @@ func runInteractiveOverview(
 		return fmt.Errorf("running TUI: %w", err)
 	}
 
-	// Log success
+	// Log success with timing metrics (consistent with non-interactive path)
+	log.Info().
+		Ctx(ctx).
+		Str("component", "cli").
+		Str("operation", "overview").
+		Int64("total_elapsed_ms", time.Since(totalStart).Milliseconds()).
+		Int("resource_count", len(skeletonRows)).
+		Msg("overview total complete")
+
 	audit.logSuccess(ctx, len(skeletonRows), 0)
 
 	return nil

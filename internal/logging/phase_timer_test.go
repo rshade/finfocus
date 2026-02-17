@@ -14,7 +14,10 @@ import (
 )
 
 func TestStartPhase_ReturnsNonZeroStart(t *testing.T) {
-	ctx := context.Background()
+	var buf bytes.Buffer
+	logger := zerolog.New(&buf).Level(zerolog.DebugLevel)
+	ctx := logger.WithContext(context.Background())
+
 	before := time.Now()
 	pt := StartPhase(ctx, "cli", "overview", "test_phase")
 	after := time.Now()
@@ -26,17 +29,23 @@ func TestStartPhase_ReturnsNonZeroStart(t *testing.T) {
 }
 
 func TestPhaseTimer_Done_DoesNotPanic(t *testing.T) {
-	ctx := context.Background()
+	var buf bytes.Buffer
+	logger := zerolog.New(&buf).Level(zerolog.DebugLevel)
+	ctx := logger.WithContext(context.Background())
+
 	pt := StartPhase(ctx, "cli", "overview", "safe_phase")
 
 	// Should not panic
 	assert.NotPanics(t, func() {
-		pt.Done("safe_phase")
+		pt.Done(ctx)
 	})
 }
 
 func TestPhaseTimer_Elapsed_Positive(t *testing.T) {
-	ctx := context.Background()
+	var buf bytes.Buffer
+	logger := zerolog.New(&buf).Level(zerolog.DebugLevel)
+	ctx := logger.WithContext(context.Background())
+
 	pt := StartPhase(ctx, "engine", "enrich", "test_elapsed")
 
 	time.Sleep(time.Millisecond)
@@ -52,7 +61,7 @@ func TestPhaseTimer_LogFields(t *testing.T) {
 
 	pt := StartPhase(ctx, "cli", "overview", "data_loading")
 	time.Sleep(time.Millisecond)
-	pt.Done("data_loading")
+	pt.Done(ctx)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 	require.Len(t, lines, 2, "should have start and done log entries")
@@ -75,10 +84,10 @@ func TestPhaseTimer_LogFields(t *testing.T) {
 	assert.Equal(t, "info", doneEntry["level"])
 	assert.Equal(t, "overview phase complete", doneEntry["message"])
 
-	// elapsed_ms should be present and non-negative
-	elapsedMS, ok := doneEntry["elapsed_ms"].(float64)
-	require.True(t, ok, "elapsed_ms should be a number")
-	assert.GreaterOrEqual(t, elapsedMS, float64(0))
+	// duration_ms should be present and non-negative
+	durationMS, ok := doneEntry["duration_ms"].(float64)
+	require.True(t, ok, "duration_ms should be a number")
+	assert.GreaterOrEqual(t, durationMS, float64(0))
 }
 
 func TestPhaseTimer_LogFields_DifferentComponents(t *testing.T) {
@@ -87,7 +96,7 @@ func TestPhaseTimer_LogFields_DifferentComponents(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 
 	pt := StartPhase(ctx, "pulumi", "stack_export", "export")
-	pt.Done("export")
+	pt.Done(ctx)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 	require.Len(t, lines, 2)
@@ -107,7 +116,7 @@ func TestPhaseTimer_WithTraceID(t *testing.T) {
 	ctx = ContextWithTraceID(ctx, "test-trace-phase")
 
 	pt := StartPhase(ctx, "cli", "overview", "traced")
-	pt.Done("traced")
+	pt.Done(ctx)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
 	require.Len(t, lines, 2)
