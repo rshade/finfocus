@@ -32,7 +32,7 @@ Create a `PulumiPolicy.yaml` file in that directory. This file tells Pulumi to u
 cat > ~/.finfocus/analyzer/PulumiPolicy.yaml << 'EOF'
 runtime: finfocus
 name: finfocus
-version: 0.1.0
+version: 0.3.0
 EOF
 ```
 
@@ -70,7 +70,7 @@ Once configured, cost estimates will appear as **advisory diagnostics** in your 
 
 ```text
 Policies:
-    finfocus@v0.1.0 (local: ~/.finfocus/analyzer)
+    finfocus@v0.3.0 (local: ~/.finfocus/analyzer)
         - [advisory] [severity: low]  cost-estimate  (aws:ec2/instance:Instance: my-instance)
           Estimated Monthly Cost: $7.50 USD (source: finfocus-plugin-aws)
         - [advisory] [severity: low]  stack-cost-summary  (pulumi:pulumi:Stack: my-stack)

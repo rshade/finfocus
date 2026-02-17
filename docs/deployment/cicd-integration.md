@@ -20,10 +20,7 @@ jobs:
       - uses: actions/checkout@v3
 
       - name: Install FinFocus
-        run: |
-          curl -sL https://github.com/rshade/finfocus/releases/download/v0.1.0/finfocus-linux-amd64 -o finfocus
-          chmod +x finfocus
-          sudo mv finfocus /usr/local/bin/
+        run: curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
 
       - name: Pulumi Preview
         run: pulumi preview --json > plan.json
@@ -40,8 +37,7 @@ jobs:
 estimate_cost:
   stage: test
   script:
-    - curl -sL https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o finfocus
-    - chmod +x finfocus
+    - curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
     - pulumi preview --json > plan.json
     - ./finfocus cost projected --pulumi-json plan.json
 ```

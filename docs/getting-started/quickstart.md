@@ -63,7 +63,7 @@ aws:rds/instance:Instance         aws:rds:Instance  $0.00     USD
 Total: $7.50 USD
 ```
 
-## Step 4: Try JSON Output (1 minute)
+## Step 3: Try JSON Output (1 minute)
 
 ```bash
 finfocus cost projected --pulumi-json plan.json --output json | jq .
@@ -87,7 +87,7 @@ finfocus cost projected --pulumi-json plan.json --output json | jq .
 }
 ```
 
-## Step 5: Try Filtering (1 minute)
+## Step 4: Try Filtering (1 minute)
 
 ```bash
 # Show only EC2 resources
@@ -97,7 +97,7 @@ finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2*"
 finfocus cost projected --pulumi-json plan.json --filter "type=aws:rds*"
 ```
 
-## Step 6: Configure Scoped Budgets (Optional)
+## Step 5: Configure Scoped Budgets (Optional)
 
 Create `~/.finfocus/config.yaml` with hierarchical budgets:
 

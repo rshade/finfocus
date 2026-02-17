@@ -31,38 +31,46 @@ FinFocus is a CLI tool that analyzes Pulumi infrastructure definitions to provid
 
 ### 1. Installation
 
-Download the latest release or build from source:
+**Install script (recommended)** -- auto-detects OS/architecture and downloads the latest release:
 
 ```bash
-# Linux (amd64)
-curl -L https://github.com/rshade/finfocus/releases/download/v0.2.5/finfocus-v0.2.5-linux-amd64.tar.gz -o finfocus.tar.gz
-tar -xzf finfocus.tar.gz
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
+```
 
-# macOS (Apple Silicon)
-curl -L https://github.com/rshade/finfocus/releases/download/v0.2.5/finfocus-v0.2.5-macos-arm64.tar.gz -o finfocus.tar.gz
-tar -xzf finfocus.tar.gz
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
+**Build from source:**
 
-# macOS (Intel)
-curl -L https://github.com/rshade/finfocus/releases/download/v0.2.5/finfocus-v0.2.5-macos-amd64.tar.gz -o finfocus.tar.gz
-tar -xzf finfocus.tar.gz
-chmod +x finfocus
-sudo mv finfocus /usr/local/bin/
-
-# Windows (PowerShell)
-Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.2.5/finfocus-v0.2.5-windows-amd64.zip" -OutFile finfocus.zip
-Expand-Archive finfocus.zip -DestinationPath .
-Move-Item finfocus.exe C:\Windows\System32\
-
-# Or build from source
+```bash
 git clone https://github.com/rshade/finfocus
 cd finfocus
 make build
 ./bin/finfocus --help
 ```
+
+<details>
+<summary>Manual download (pin to a specific version)</summary>
+
+```bash
+# Linux (amd64)
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-linux-amd64.tar.gz -o finfocus.tar.gz
+tar -xzf finfocus.tar.gz
+chmod +x finfocus
+sudo mv finfocus /usr/local/bin/
+
+# macOS (Apple Silicon)
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-macos-arm64.tar.gz -o finfocus.tar.gz
+tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
+
+# macOS (Intel)
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-macos-amd64.tar.gz -o finfocus.tar.gz
+tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
+
+# Windows (PowerShell)
+Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-windows-amd64.zip" -OutFile finfocus.zip
+Expand-Archive finfocus.zip -DestinationPath .
+Move-Item finfocus.exe C:\Windows\System32\
+```
+
+</details>
 
 ### 2. Generate Pulumi Plan
 

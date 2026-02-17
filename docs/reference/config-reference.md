@@ -23,6 +23,73 @@ plugins:
   dir: ~/.finfocus/plugins
 ```
 
+## Configuration Resolution
+
+FinFocus uses a two-tier configuration system where project-local settings
+override user-global defaults.
+
+### Two-Tier Configuration
+
+| Tier | Location | Purpose |
+| --- | --- | --- |
+| **Project-local** | `$PULUMI_PROJECT/.finfocus/config.yaml` | Project-specific budgets, output preferences, plugin config |
+| **User-global** | `~/.finfocus/config.yaml` | Shared defaults across all projects |
+
+### Project-Local Directory Structure
+
+When a Pulumi project is detected, FinFocus creates a `.finfocus/` directory
+alongside `Pulumi.yaml`:
+
+```text
+my-pulumi-project/
+├── Pulumi.yaml
+├── .finfocus/
+│   ├── .gitignore       # Auto-generated, protects user-specific data
+│   ├── config.yaml      # Project budgets, output prefs
+│   └── dismissed.json   # Per-project recommendation dismissals
+```
+
+### Resolution Precedence
+
+**Project-specific settings** (config, dismissals) are resolved in this order:
+
+1. `--project-dir` flag (explicit override)
+2. `FINFOCUS_PROJECT_DIR` environment variable
+3. Walk up from CWD to find `Pulumi.yaml`, then use `$PROJECT/.finfocus/`
+4. Fall back to `~/.finfocus/` (backward compatible)
+
+**Global resources** (plugins, cache, logs) are resolved separately:
+
+1. `FINFOCUS_HOME` environment variable
+2. `PULUMI_HOME/finfocus`
+3. `~/.finfocus/`
+
+### Config Merge Behavior
+
+Project `config.yaml` overrides global `config.yaml` at the **top-level key**
+level (shallow merge). Keys absent in the project config inherit from global
+defaults.
+
+For example, if the global config defines `output` and `logging` sections, and
+the project config only defines `output`, the project `output` section replaces
+the global one entirely while `logging` is inherited from the global config.
+
+```yaml
+# ~/.finfocus/config.yaml (global)
+output:
+  default_format: table
+  precision: 2
+logging:
+  level: info
+
+# my-project/.finfocus/config.yaml (project)
+output:
+  default_format: json
+  precision: 4
+
+# Effective config: output from project, logging from global
+```
+
 ## Sections
 
 ### Output

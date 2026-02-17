@@ -146,8 +146,8 @@ full_rebuild: false
 future: false
 
 # Custom variables
-version: "0.1.0"
-status: "In Development"
+version: "0.3.0"
+status: "Released"
 
 # Navigation (optional, if using custom nav)
 nav_items:

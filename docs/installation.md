@@ -596,9 +596,10 @@ finfocus --version
 
 ```bash
 # Install specific version
-curl -L https://github.com/rshade/finfocus/releases/download/v0.1.0/finfocus-linux-amd64 -o finfocus-v0.1.0
-chmod +x finfocus-v0.1.0
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-linux-amd64.tar.gz -o finfocus-v0.3.0.tar.gz
+tar -xzf finfocus-v0.3.0.tar.gz
+chmod +x finfocus
 
 # Use specific version
-./finfocus-v0.1.0 --version
+./finfocus --version
 ```

@@ -54,7 +54,7 @@ finfocus cost projected --pulumi-json plan.json --high-contrast
 Set environment variables in your shell profile (e.g., `~/.bashrc` or `~/.zshrc`) to make these settings permanent:
 
 ```bash
-export PULUMICOST_PLAIN=1
+export FINFOCUS_PLAIN=1
 # or
 export NO_COLOR=1
 ```
@@ -80,8 +80,8 @@ Environment variables allow you to set preferences globally without typing flags
 | Variable                   | Value         | Description                                                |
 | -------------------------- | ------------- | ---------------------------------------------------------- |
 | `NO_COLOR`                 | `1` or `true` | Standard no-color variable. See [no-color.org][no-color].  |
-| `PULUMICOST_HIGH_CONTRAST` | `1` or `true` | Forces high contrast mode.                                 |
-| `PULUMICOST_PLAIN`         | `1` or `true` | Forces plain text mode.                                    |
+| `FINFOCUS_HIGH_CONTRAST`   | `1` or `true` | Forces high contrast mode.                                 |
+| `FINFOCUS_PLAIN`           | `1` or `true` | Forces plain text mode.                                    |
 
 [no-color]: https://no-color.org
 
@@ -180,5 +180,5 @@ If you need interaction, disable plain mode. If you need accessible interaction,
 ---
 
 **Last Updated**: 2026-01-20
-**FinFocus Version**: v0.1.0
+**FinFocus Version**: v0.3.0
 **Feedback**: [Open an issue](https://github.com/rshade/finfocus/issues/new) to improve accessibility

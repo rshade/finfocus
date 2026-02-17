@@ -43,7 +43,9 @@ Plugins are executable binaries that run as separate processes and communicate o
 - **File permissions**: Use `0700` for `~/.finfocus` directories and `0600` for config files.
 - **Atomic config writes**: Write config updates to a temp file and rename to avoid partial writes.
 - **Source verification**: Only install plugins from trusted sources.
-- **Current limitations**: No binary signature verification or checksum validation yet.
+- **SHA256 checksum verification**: Plugin binaries are verified against SHA256 checksums
+  during installation to ensure integrity and detect tampering. Checksums are published
+  alongside release artifacts.
 
 ## Network Security
 
