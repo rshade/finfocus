@@ -17,6 +17,8 @@ func (m OverviewModel) View() string {
 		return ""
 	case ViewStateError:
 		return fmt.Sprintf("Error: %v\n", m.err)
+	case ViewStateInitializing:
+		return m.renderInitializingView()
 	case ViewStateLoading:
 		return m.renderLoadingView()
 	case ViewStateDetail:
@@ -26,6 +28,20 @@ func (m OverviewModel) View() string {
 	default:
 		return ""
 	}
+}
+
+// renderInitializingView renders the spinner with phase message during the
+// initializing state (before data is available).
+func (m OverviewModel) renderInitializingView() string {
+	spinnerView := ""
+	if m.loadingState != nil {
+		spinnerView = m.loadingState.spinner.View()
+	}
+	msg := m.progressMsg
+	if msg == "" {
+		msg = "Initializing..."
+	}
+	return fmt.Sprintf("\n %s %s\n\n", spinnerView, msg)
 }
 
 // renderLoadingView renders the loading spinner with progress banner.

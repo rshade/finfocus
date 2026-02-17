@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -526,4 +527,121 @@ func TestOverviewModel_EnrichmentIntegration(t *testing.T) {
 	assert.NotNil(t, model.allRows[0].ProjectedCost)
 	assert.NotNil(t, model.allRows[0].ActualCost)
 	assert.Equal(t, 75.0, model.allRows[0].ProjectedCost.MonthlyCost)
+}
+
+// TestOverviewModel_PhaseMsg verifies that OverviewPhaseMsg updates progressMsg.
+func TestOverviewModel_PhaseMsg(t *testing.T) {
+	ctx := context.Background()
+
+	model, _ := NewOverviewModel(ctx, nil, 0)
+	assert.Equal(t, ViewStateInitializing, model.state)
+
+	msg := OverviewPhaseMsg{Phase: "Loading stack state..."}
+	updatedModel, _ := model.Update(msg)
+	model = updatedModel.(OverviewModel)
+
+	assert.Equal(t, "Loading stack state...", model.progressMsg)
+	assert.Equal(t, ViewStateInitializing, model.state) // state unchanged
+}
+
+// TestOverviewModel_DataReadyMsg verifies transition from Initializing to Loading.
+func TestOverviewModel_DataReadyMsg(t *testing.T) {
+	ctx := context.Background()
+
+	model, _ := NewOverviewModel(ctx, nil, 0)
+	assert.Equal(t, ViewStateInitializing, model.state)
+
+	testRows := []engine.OverviewRow{
+		{URN: "urn:test1", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+		{URN: "urn:test2", Type: "aws:s3:Bucket", Status: engine.StatusActive},
+		{URN: "urn:test3", Type: "aws:rds:Instance", Status: engine.StatusActive},
+	}
+
+	msg := OverviewDataReadyMsg{Rows: testRows, TotalCount: 3}
+	updatedModel, _ := model.Update(msg)
+	model = updatedModel.(OverviewModel)
+
+	assert.Equal(t, ViewStateLoading, model.state)
+	assert.Len(t, model.allRows, 3)
+	assert.Equal(t, 3, model.totalCount)
+}
+
+// TestOverviewModel_NilRowsInit verifies nil vs non-nil row initialization.
+func TestOverviewModel_NilRowsInit(t *testing.T) {
+	ctx := context.Background()
+
+	// nil rows → ViewStateInitializing
+	modelInit, _ := NewOverviewModel(ctx, nil, 0)
+	assert.Equal(t, ViewStateInitializing, modelInit.state)
+	assert.NotNil(t, modelInit.allRows, "allRows should be empty slice, not nil")
+	assert.Empty(t, modelInit.allRows)
+
+	// non-nil rows → ViewStateLoading (backward compatibility)
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+	modelLoading, _ := NewOverviewModel(ctx, rows, 5)
+	assert.Equal(t, ViewStateLoading, modelLoading.state)
+	assert.Len(t, modelLoading.allRows, 1)
+	assert.Equal(t, 5, modelLoading.totalCount)
+}
+
+// TestOverviewModel_InitErrorMsg verifies error transitions to ViewStateError.
+func TestOverviewModel_InitErrorMsg(t *testing.T) {
+	ctx := context.Background()
+
+	model, _ := NewOverviewModel(ctx, nil, 0)
+	assert.Equal(t, ViewStateInitializing, model.state)
+
+	testErr := errors.New("no Pulumi project found")
+	msg := OverviewInitErrorMsg{Err: testErr}
+	updatedModel, cmd := model.Update(msg)
+	model = updatedModel.(OverviewModel)
+
+	assert.Equal(t, ViewStateError, model.state)
+	require.Error(t, model.err)
+	assert.Contains(t, model.err.Error(), "no Pulumi project found")
+	assert.NotNil(t, cmd) // Should return tea.Quit
+}
+
+// TestOverviewModel_QuitDuringInitializing verifies q and Ctrl+C quit during init.
+func TestOverviewModel_QuitDuringInitializing(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name string
+		key  tea.KeyMsg
+	}{
+		{"q key", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}},
+		{"ctrl+c", tea.KeyMsg{Type: tea.KeyCtrlC}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model, _ := NewOverviewModel(ctx, nil, 0)
+			assert.Equal(t, ViewStateInitializing, model.state)
+
+			updatedModel, cmd := model.Update(tt.key)
+			model = updatedModel.(OverviewModel)
+
+			assert.Equal(t, ViewStateQuitting, model.state)
+			assert.NotNil(t, cmd) // Should return tea.Quit
+		})
+	}
+}
+
+// TestOverviewModel_WindowResizeDuringInitializing verifies resize during init.
+func TestOverviewModel_WindowResizeDuringInitializing(t *testing.T) {
+	ctx := context.Background()
+
+	model, _ := NewOverviewModel(ctx, nil, 0)
+	assert.Equal(t, ViewStateInitializing, model.state)
+
+	resizeMsg := tea.WindowSizeMsg{Width: 120, Height: 40}
+	updatedModel, _ := model.Update(resizeMsg)
+	model = updatedModel.(OverviewModel)
+
+	assert.Equal(t, 120, model.width)
+	assert.Equal(t, 40, model.height)
+	assert.Equal(t, ViewStateInitializing, model.state) // state unchanged
 }

@@ -120,7 +120,17 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		return fmt.Errorf("invalid date range: %w", err)
 	}
 
-	// 2. Load Pulumi state and plan (from files or auto-detect)
+	// 2. Determine if we should use interactive TUI or plain text (early, before data load)
+	isInteractive := shouldUseInteractiveTUI(cmd.OutOrStdout(), params.output, params.plain)
+
+	if isInteractive {
+		// Launch TUI immediately, load data in background
+		return runInteractiveOverviewWithInit(ctx, cmd, params, dateRange, audit, totalStart)
+	}
+
+	// --- Plain text / non-interactive path (unchanged) ---
+
+	// 3. Load Pulumi state and plan (from files or auto-detect)
 	pt = logging.StartPhase(ctx, "cli", "overview", "data_loading")
 	stateResources, planSteps, stackName, err := resolveOverviewData(ctx, params)
 	pt.Done(ctx)
@@ -130,12 +140,12 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		return wrappedErr
 	}
 
-	// 3. Detect pending changes
+	// 4. Detect pending changes
 	pt = logging.StartPhase(ctx, "cli", "overview", "change_detection")
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	pt.Done(ctx)
 
-	// 4. Merge resources
+	// 5. Merge resources
 	pt = logging.StartPhase(ctx, "cli", "overview", "resource_merge")
 	rows, err := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
 	pt.Done(ctx)
@@ -144,10 +154,10 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		return fmt.Errorf("merging resources: %w", err)
 	}
 
-	// 5. Pre-flight prompt (unless --yes)
+	// 6. Pre-flight prompt (unless --yes)
 	printOverviewSummaryLine(cmd, params.yes, len(rows), hasChanges, changeCount)
 
-	// 6. Validate filter keys and apply resource filters
+	// 7. Validate filter keys and apply resource filters
 	pt = logging.StartPhase(ctx, "cli", "overview", "filter_apply")
 	rows, err = validateAndApplyOverviewFilters(rows, params.filter)
 	pt.Done(ctx)
@@ -155,7 +165,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		return err
 	}
 
-	// 7. Open plugins
+	// 8. Open plugins
 	pt = logging.StartPhase(ctx, "cli", "overview", "plugin_open")
 	clients, cleanup, err := openPlugins(ctx, params.adapter, audit)
 	pt.Done(ctx)
@@ -164,20 +174,12 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	}
 	defer cleanup()
 
-	// 8. Create engine
+	// 9. Create engine
 	pt = logging.StartPhase(ctx, "cli", "overview", "engine_create")
 	cfg := config.New()
 	eng := engine.New(clients, nil).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
 	pt.Done(ctx)
-
-	// 9. Determine if we should use interactive TUI or plain text
-	isInteractive := shouldUseInteractiveTUI(cmd.OutOrStdout(), params.output, params.plain)
-
-	if isInteractive {
-		// Launch interactive TUI with progressive loading
-		return runInteractiveOverview(ctx, cmd, rows, eng, dateRange, audit, totalStart)
-	}
 
 	// 10. Enrich rows (blocking, for plain text mode)
 	pt = logging.StartPhase(ctx, "cli", "overview", "enrichment")
@@ -548,118 +550,187 @@ func shouldUseInteractiveTUI(w io.Writer, outputFormat string, plainFlag bool) b
 	return false
 }
 
-// runInteractiveOverview launches the interactive TUI with progressive loading.
-func runInteractiveOverview(
+// runInteractiveOverviewWithInit launches the TUI immediately (before data
+// loading) and loads data in a background goroutine, sending phase progress
+// messages to keep the user informed. This eliminates the blank-terminal wait.
+func runInteractiveOverviewWithInit(
 	ctx context.Context,
-	_ *cobra.Command,
-	skeletonRows []engine.OverviewRow,
-	eng *engine.Engine,
+	cmd *cobra.Command,
+	params overviewParams,
 	dateRange engine.DateRange,
 	audit *auditContext,
 	totalStart time.Time,
 ) error {
-	log := logging.FromContext(ctx)
-
-	// Copy skeletonRows for the TUI model so the model has its own
-	// independent slice, preventing a data race between OverviewModel.applyFilter
-	// (reads) and EnrichOverviewRows (writes) on the backing array.
-	copiedRows := make([]engine.OverviewRow, len(skeletonRows))
-	copy(copiedRows, skeletonRows)
-
-	// Create TUI model
-	model, _ := tui.NewOverviewModel(ctx, copiedRows, len(copiedRows))
+	// Create TUI model with nil rows → ViewStateInitializing
+	model, _ := tui.NewOverviewModel(ctx, nil, 0)
 
 	// Create Bubble Tea program
 	p := tea.NewProgram(model, tea.WithAltScreen())
 
-	// Derived context so the enrichment goroutine stops when the TUI exits.
+	// Derived context so the background goroutine stops when the TUI exits.
 	enrichCtx, enrichCancel := context.WithCancel(ctx)
+	defer enrichCancel()
 
-	// Start enrichment in background
-	go func() {
-		progressChan := make(chan engine.OverviewRowUpdate, len(skeletonRows))
+	// Channel to pass the plugin cleanup function from background goroutine.
+	cleanupChan := make(chan func(), 1)
 
-		// Launch enrichment goroutines
-		go func() {
-			engine.EnrichOverviewRows(enrichCtx, skeletonRows, eng, dateRange, progressChan)
-		}()
+	// Start data loading and enrichment in background
+	go overviewInitAndEnrich(enrichCtx, ctx, p, params, dateRange, audit, cleanupChan)
 
-		// Bridge progress channel to Bubble Tea messages
-		loadedCount := 0
-		for update := range progressChan {
-			// Stop bridging when the TUI has exited.
-			select {
-			case <-enrichCtx.Done():
-				return
-			default:
-			}
-
-			loadedCount++
-
-			// Send resource loaded message
-			p.Send(tui.OverviewResourceLoadedMsg{
-				Index: update.Index,
-				Row:   update.Row,
-			})
-
-			// Send progress update every 10 resources or at completion
-			if loadedCount%10 == 0 || loadedCount == len(skeletonRows) {
-				p.Send(tui.OverviewLoadingProgressMsg{
-					Loaded: loadedCount,
-					Total:  len(skeletonRows),
-				})
-
-				// Pre-compute percentage to avoid IIFE inside zerolog chain.
-				percent := 0
-				if len(skeletonRows) > 0 {
-					percent = (loadedCount * 100) / len(skeletonRows) //nolint:mnd // Percentage calculation.
-				}
-
-				log.Debug().
-					Ctx(ctx).
-					Str("component", "cli").
-					Str("operation", "overview_tui").
-					Int("loaded", loadedCount).
-					Int("total", len(skeletonRows)).
-					Int("percent", percent).
-					Msg("enrichment progress")
-			}
-		}
-
-		// Send completion message only if context is still active.
-		select {
-		case <-enrichCtx.Done():
-			return
-		default:
-			p.Send(tui.OverviewAllResourcesLoadedMsg{})
-		}
-
-		log.Info().
-			Ctx(ctx).
-			Str("component", "cli").
-			Str("operation", "overview_tui").
-			Int("total_rows", len(skeletonRows)).
-			Msg("enrichment complete")
-	}()
-
-	// Run the TUI
+	// Run the TUI (blocks until user quits or error)
 	_, err := p.Run()
-	enrichCancel() // Stop enrichment goroutine when TUI exits.
+	enrichCancel()
+
+	// Cleanup plugins if they were opened
+	select {
+	case cleanup := <-cleanupChan:
+		if cleanup != nil {
+			cleanup()
+		}
+	default:
+		// Plugins were never opened (early exit or error)
+	}
+
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("running TUI: %w", err)
 	}
 
-	// Log success with timing metrics (consistent with non-interactive path)
+	log := logging.FromContext(ctx)
 	log.Info().
 		Ctx(ctx).
 		Str("component", "cli").
 		Str("operation", "overview").
 		Int64("total_elapsed_ms", time.Since(totalStart).Milliseconds()).
-		Int("resource_count", len(skeletonRows)).
-		Msg("overview total complete")
+		Msg("overview TUI complete")
 
-	audit.logSuccess(ctx, len(skeletonRows), 0)
-
+	audit.logSuccess(ctx, 0, 0)
 	return nil
+}
+
+// overviewInitAndEnrich performs data loading and enrichment in a background
+// goroutine, sending phase progress and data messages to the Bubble Tea program.
+func overviewInitAndEnrich(
+	enrichCtx, logCtx context.Context,
+	p *tea.Program,
+	params overviewParams,
+	dateRange engine.DateRange,
+	audit *auditContext,
+	cleanupChan chan<- func(),
+) {
+	// Phase 1: Load Pulumi state and plan
+	p.Send(tui.OverviewPhaseMsg{Phase: "Loading stack state..."})
+	stateResources, planSteps, _, dataErr := resolveOverviewData(enrichCtx, params)
+	if dataErr != nil {
+		p.Send(tui.OverviewInitErrorMsg{Err: fmt.Errorf("resolve overview data: %w", dataErr)})
+		return
+	}
+
+	// Phase 2: Detect pending changes
+	p.Send(tui.OverviewPhaseMsg{Phase: "Detecting changes..."})
+	engine.DetectPendingChanges(enrichCtx, planSteps)
+
+	// Phase 3: Merge resources
+	p.Send(tui.OverviewPhaseMsg{Phase: "Merging resources..."})
+	rows, mergeErr := engine.MergeResourcesForOverview(enrichCtx, stateResources, planSteps)
+	if mergeErr != nil {
+		p.Send(tui.OverviewInitErrorMsg{Err: fmt.Errorf("merging resources: %w", mergeErr)})
+		return
+	}
+
+	// Apply filters
+	rows, filterErr := validateAndApplyOverviewFilters(rows, params.filter)
+	if filterErr != nil {
+		p.Send(tui.OverviewInitErrorMsg{Err: filterErr})
+		return
+	}
+
+	// Phase 4: Open plugins
+	p.Send(tui.OverviewPhaseMsg{Phase: "Starting cost plugins..."})
+	clients, cleanup, pluginErr := openPlugins(enrichCtx, params.adapter, audit)
+	if pluginErr != nil {
+		p.Send(tui.OverviewInitErrorMsg{Err: pluginErr})
+		return
+	}
+	cleanupChan <- cleanup
+
+	// Phase 5: Create engine
+	p.Send(tui.OverviewPhaseMsg{Phase: "Preparing cost engine..."})
+	cfg := config.New()
+	eng := engine.New(clients, nil).
+		WithRouter(createRouterForEngine(enrichCtx, cfg, clients))
+
+	// Signal data ready → transitions TUI from Initializing to Loading
+	copiedRows := make([]engine.OverviewRow, len(rows))
+	copy(copiedRows, rows)
+	p.Send(tui.OverviewDataReadyMsg{Rows: copiedRows, TotalCount: len(rows)})
+
+	// Phase 6: Enrichment
+	bridgeEnrichmentToTUI(enrichCtx, logCtx, p, rows, eng, dateRange)
+}
+
+// bridgeEnrichmentToTUI runs EnrichOverviewRows and bridges progress updates
+// to the Bubble Tea program via Send().
+func bridgeEnrichmentToTUI(
+	enrichCtx, logCtx context.Context,
+	p *tea.Program,
+	rows []engine.OverviewRow,
+	eng *engine.Engine,
+	dateRange engine.DateRange,
+) {
+	log := logging.FromContext(logCtx)
+
+	progressChan := make(chan engine.OverviewRowUpdate, len(rows))
+	go func() {
+		engine.EnrichOverviewRows(enrichCtx, rows, eng, dateRange, progressChan)
+	}()
+
+	loadedCount := 0
+	for update := range progressChan {
+		select {
+		case <-enrichCtx.Done():
+			return
+		default:
+		}
+
+		loadedCount++
+		p.Send(tui.OverviewResourceLoadedMsg{
+			Index: update.Index,
+			Row:   update.Row,
+		})
+
+		if loadedCount%10 == 0 || loadedCount == len(rows) {
+			p.Send(tui.OverviewLoadingProgressMsg{
+				Loaded: loadedCount,
+				Total:  len(rows),
+			})
+
+			percent := 0
+			if len(rows) > 0 {
+				percent = (loadedCount * 100) / len(rows) //nolint:mnd // Percentage calculation.
+			}
+			log.Debug().
+				Ctx(logCtx).
+				Str("component", "cli").
+				Str("operation", "overview_tui_init").
+				Int("loaded", loadedCount).
+				Int("total", len(rows)).
+				Int("percent", percent).
+				Msg("enrichment progress")
+		}
+	}
+
+	select {
+	case <-enrichCtx.Done():
+		return
+	default:
+		p.Send(tui.OverviewAllResourcesLoadedMsg{})
+	}
+
+	log.Info().
+		Ctx(logCtx).
+		Str("component", "cli").
+		Str("operation", "overview_tui_init").
+		Int("total_rows", len(rows)).
+		Msg("enrichment complete")
 }

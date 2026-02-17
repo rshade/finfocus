@@ -32,6 +32,25 @@ type OverviewLoadingProgressMsg struct {
 // OverviewAllResourcesLoadedMsg is sent when all resources are enriched.
 type OverviewAllResourcesLoadedMsg struct{}
 
+// OverviewPhaseMsg reports which phase of data loading is active.
+// It is sent by the background goroutine to update the initializing spinner text.
+type OverviewPhaseMsg struct {
+	Phase string
+}
+
+// OverviewDataReadyMsg signals that initial data loading is complete and the
+// model should transition from ViewStateInitializing to ViewStateLoading.
+type OverviewDataReadyMsg struct {
+	Rows       []engine.OverviewRow
+	TotalCount int
+}
+
+// OverviewInitErrorMsg signals that initial data loading failed.
+// The TUI transitions to ViewStateError and exits.
+type OverviewInitErrorMsg struct {
+	Err error
+}
+
 // OverviewModel is the Bubble Tea model for the interactive overview dashboard.
 //
 //nolint:recvcheck // Bubble Tea requires value receivers for Init/Update/View interface methods.
@@ -71,13 +90,22 @@ type OverviewModel struct {
 }
 
 // NewOverviewModel creates a new interactive overview model.
+// When skeletonRows is nil, the model starts in ViewStateInitializing
+// (before data is available). When non-nil, it starts in ViewStateLoading
+// (enrichment phase), preserving existing behavior.
 func NewOverviewModel(
 	ctx context.Context,
 	skeletonRows []engine.OverviewRow,
 	totalCount int,
 ) (OverviewModel, tea.Cmd) {
+	initialState := ViewStateLoading
+	if skeletonRows == nil {
+		initialState = ViewStateInitializing
+		skeletonRows = []engine.OverviewRow{}
+	}
+
 	m := OverviewModel{
-		state:       ViewStateLoading,
+		state:       initialState,
 		allRows:     skeletonRows,
 		rows:        skeletonRows,
 		ctx:         ctx,
@@ -121,6 +149,29 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleResourceLoaded(loadedMsg)
 	}
 
+	// Handle phase message (initializing state)
+	if phaseMsg, ok := msg.(OverviewPhaseMsg); ok {
+		m.progressMsg = phaseMsg.Phase
+		return m, nil
+	}
+
+	// Handle data ready (initializing → loading transition)
+	if dataMsg, ok := msg.(OverviewDataReadyMsg); ok {
+		m.allRows = dataMsg.Rows
+		m.rows = dataMsg.Rows
+		m.totalCount = dataMsg.TotalCount
+		m.state = ViewStateLoading
+		m.table = m.buildOverviewTable()
+		return m, nil
+	}
+
+	// Handle init error
+	if errMsg, ok := msg.(OverviewInitErrorMsg); ok {
+		m.state = ViewStateError
+		m.err = errMsg.Err
+		return m, tea.Quit
+	}
+
 	// Handle progress update
 	if progressMsg, ok := msg.(OverviewLoadingProgressMsg); ok {
 		return m.handleLoadingProgress(progressMsg)
@@ -138,6 +189,20 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle state-specific updates
 	switch m.state {
+	case ViewStateInitializing:
+		// Handle quit keys during initialization
+		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+			switch keyMsg.String() {
+			case keyQuit, keyCtrlC:
+				m.state = ViewStateQuitting
+				return m, tea.Quit
+			}
+		}
+		// Forward spinner ticks to keep the spinner animated
+		if m.loadingState != nil {
+			return m, m.loadingState.Update(msg)
+		}
+		return m, nil
 	case ViewStateLoading:
 		return m, nil
 	case ViewStateList:
