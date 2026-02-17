@@ -2623,10 +2623,11 @@ func TestGetActualCostWithErrors_SKURegionInjection(t *testing.T) {
 		}
 
 		req := &GetActualCostRequest{
-			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
-			StartTime:   startTime,
-			EndTime:     endTime,
-			Provider:    "aws",
+			ResourceIDs:  []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:    startTime,
+			EndTime:      endTime,
+			Provider:     "aws",
+			ResourceType: "aws:ec2/instance:Instance",
 			Properties: map[string]interface{}{
 				"pulumi:cloudId": "i-0abc123def456",
 				"instanceType":   "t3.medium",
@@ -2639,7 +2640,9 @@ func TestGetActualCostWithErrors_SKURegionInjection(t *testing.T) {
 		require.Len(t, result.Results, 1)
 		assert.Empty(t, result.Errors)
 
-		// Verify the request was forwarded to the mock
+		// Verify the request was forwarded to the mock with provider preserved.
+		// Tag enrichment (sku, region, provider, resource_type) is verified at the
+		// proto level by TestActualCost_ProtoTagsContainSKUAndRegion.
 		require.NotNil(t, capturedReq)
 		assert.Equal(t, "aws", capturedReq.Provider)
 	})
@@ -2677,6 +2680,7 @@ func TestGetActualCostWithErrors_SKURegionInjection(t *testing.T) {
 		assert.Empty(t, result.Errors)
 		require.NotNil(t, capturedReq)
 		assert.Empty(t, capturedReq.Provider)
+		assert.Empty(t, capturedReq.ResourceType, "resource type should not be set when no provider")
 	})
 
 	t.Run("does not overwrite existing tags", func(t *testing.T) {
@@ -2760,12 +2764,16 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 		assert.Equal(t, "t3.medium", tags["sku"])
 		assert.Contains(t, tags["region"], "us-west-2")
 		assert.Equal(t, "web-server", tags["Name"]) // Original preserved
+		assert.Equal(t, "aws", tags["provider"])
+		assert.Equal(t, "aws:ec2/instance:Instance", tags["resource_type"])
 	})
 
 	t.Run("does not overwrite existing sku/region in tags", func(t *testing.T) {
 		tags := map[string]string{
-			"sku":    "existing-sku",
-			"region": "existing-region",
+			"sku":           "existing-sku",
+			"region":        "existing-region",
+			"provider":      "custom-provider",
+			"resource_type": "custom-type",
 		}
 		props := map[string]interface{}{
 			"instanceType": "t3.medium",
@@ -2776,6 +2784,8 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 
 		assert.Equal(t, "existing-sku", tags["sku"])
 		assert.Equal(t, "existing-region", tags["region"])
+		assert.Equal(t, "custom-provider", tags["provider"])
+		assert.Equal(t, "custom-type", tags["resource_type"])
 	})
 
 	t.Run("extracts region from ARN when no explicit region", func(t *testing.T) {
@@ -2808,10 +2818,14 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 		tags := map[string]string{"Name": "test"}
 		props := map[string]interface{}{}
 
-		enrichTagsWithSKUAndRegion(tags, "aws", "", props)
+		enrichTagsWithSKUAndRegion(tags, "", "", props)
 
 		_, hasSKU := tags["sku"]
 		assert.False(t, hasSKU)
+		_, hasProvider := tags["provider"]
+		assert.False(t, hasProvider, "provider should not be injected when provider arg is empty")
+		_, hasResourceType := tags["resource_type"]
+		assert.False(t, hasResourceType, "resource_type should not be injected when resourceType arg is empty")
 	})
 
 	t.Run("EKS cluster gets SKU from well-known map via resourceType fallback", func(t *testing.T) {
@@ -2823,6 +2837,22 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 		enrichTagsWithSKUAndRegion(tags, "aws", "aws:eks/cluster:Cluster", props)
 
 		assert.Equal(t, "cluster", tags["sku"])
+		assert.Equal(t, "aws", tags["provider"])
+		assert.Equal(t, "aws:eks/cluster:Cluster", tags["resource_type"])
+	})
+
+	t.Run("injects provider and resource_type into empty tags", func(t *testing.T) {
+		tags := map[string]string{}
+		props := map[string]interface{}{}
+
+		enrichTagsWithSKUAndRegion(tags, "azure", "azure:compute:VirtualMachine", props)
+
+		assert.Equal(t, "azure", tags["provider"])
+		assert.Equal(t, "azure:compute:VirtualMachine", tags["resource_type"])
+		_, hasSKU := tags["sku"]
+		assert.False(t, hasSKU, "sku should not be injected without matching properties")
+		_, hasRegion := tags["region"]
+		assert.False(t, hasRegion, "region should not be injected without matching properties")
 	})
 }
 
@@ -2880,10 +2910,11 @@ func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
 		adapter := &clientAdapter{client: mockGRPC}
 
 		req := &GetActualCostRequest{
-			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
-			StartTime:   startTime,
-			EndTime:     endTime,
-			Provider:    "aws",
+			ResourceIDs:  []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:    startTime,
+			EndTime:      endTime,
+			Provider:     "aws",
+			ResourceType: "aws:ec2/instance:Instance",
 			Properties: map[string]interface{}{
 				"pulumi:cloudId":   "i-0abc123def456",
 				"instanceType":     "t3.medium",
@@ -2898,6 +2929,8 @@ func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
 		require.NotNil(t, capturedProtoReq)
 		assert.Equal(t, "t3.medium", capturedProtoReq.GetTags()["sku"])
 		assert.Contains(t, capturedProtoReq.GetTags()["region"], "us-west-2")
+		assert.Equal(t, "aws", capturedProtoReq.GetTags()["provider"])
+		assert.Equal(t, "aws:ec2/instance:Instance", capturedProtoReq.GetTags()["resource_type"])
 	})
 
 	t.Run("proto tags empty when provider is empty", func(t *testing.T) {
@@ -2940,6 +2973,10 @@ func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
 		assert.False(t, hasSKU, "sku should not be injected without a provider")
 		_, hasRegion := capturedProtoReq.GetTags()["region"]
 		assert.False(t, hasRegion, "region should not be injected without a provider")
+		_, hasProvider := capturedProtoReq.GetTags()["provider"]
+		assert.False(t, hasProvider, "provider should not be injected without a provider")
+		_, hasResourceType := capturedProtoReq.GetTags()["resource_type"]
+		assert.False(t, hasResourceType, "resource_type should not be injected without a provider")
 	})
 
 	t.Run("proto tags preserve existing sku and region", func(t *testing.T) {
@@ -2962,17 +2999,20 @@ func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
 		adapter := &clientAdapter{client: mockGRPC}
 
 		req := &GetActualCostRequest{
-			ResourceIDs: []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
-			StartTime:   startTime,
-			EndTime:     endTime,
-			Provider:    "aws",
+			ResourceIDs:  []string{"urn:pulumi:dev::project::aws:ec2/instance:Instance::web"},
+			StartTime:    startTime,
+			EndTime:      endTime,
+			Provider:     "aws",
+			ResourceType: "aws:ec2/instance:Instance",
 			Properties: map[string]interface{}{
 				"pulumi:cloudId":   "i-0abc123def456",
 				"instanceType":     "t3.medium",
 				"availabilityZone": "us-west-2a",
 				"tags": map[string]interface{}{
-					"sku":    "custom-sku",
-					"region": "custom-region",
+					"sku":           "custom-sku",
+					"region":        "custom-region",
+					"provider":      "custom-provider",
+					"resource_type": "custom-type",
 				},
 			},
 		}
@@ -2986,6 +3026,10 @@ func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
 			"existing sku tag should not be overwritten")
 		assert.Equal(t, "custom-region", capturedProtoReq.GetTags()["region"],
 			"existing region tag should not be overwritten")
+		assert.Equal(t, "custom-provider", capturedProtoReq.GetTags()["provider"],
+			"existing provider tag should not be overwritten")
+		assert.Equal(t, "custom-type", capturedProtoReq.GetTags()["resource_type"],
+			"existing resource_type tag should not be overwritten")
 	})
 }
 
