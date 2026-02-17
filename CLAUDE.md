@@ -216,9 +216,6 @@ Shared utilities for recommendation action type handling:
 - `ValidActionTypes() []string` - List of valid action type names (excludes UNSPECIFIED)
 - `MatchesActionType(recType string, types []pbc.RecommendationActionType) bool` - Filter matching
 
-Valid action types: RIGHTSIZE, TERMINATE, PURCHASE_COMMITMENT, ADJUST_REQUESTS, MODIFY,
-DELETE_UNUSED, MIGRATE, CONSOLIDATE, SCHEDULE, REFACTOR, INVESTIGATE, OTHER
-
 ## Documentation
 
 All documentation lives in `docs/` with GitHub Pages deployment.
@@ -826,23 +823,6 @@ conn, err := grpc.DialContext(ctx, addr,
 )
 ```
 
-### Usage in Plugins
-
-```go
-import "github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
-
-// TracingUnaryServerInterceptor extracts trace ID from metadata
-server := grpc.NewServer(
-    grpc.UnaryInterceptor(pluginsdk.TracingUnaryServerInterceptor()),
-)
-
-// In handlers, get trace ID from context
-func (s *Server) GetProjectedCost(ctx context.Context, req *pb.Request) (*pb.Response, error) {
-    traceID := pluginsdk.TraceIDFromContext(ctx)
-    // Use traceID for logging correlation
-}
-```
-
 ## Package-Specific Documentation
 
 ### internal/cli
@@ -864,22 +844,6 @@ priority-based plugin selection when routing config exists. The helper:
 1. Returns `nil` if `cfg` is nil or `cfg.Routing` is nil (no routing configured)
 2. Creates `router.NewRouter(WithClients, WithConfig)` and wraps in `router.NewEngineAdapter()`
 3. On error, logs WARN and returns `nil` (engine falls back to querying all plugins)
-
-**Wired call sites** (9 total):
-
-- `cost_projected.go` - 1 site
-- `cost_actual.go` - 1 site
-- `cost_estimate.go` - 3 sites
-- `cost_recommendations.go` - 1 site
-- `cost_recommendations_dismiss.go` - 1 site (plugin path only; line 301 `engine.New(nil, nil)` is skipped)
-- `overview.go` - 1 site
-- `analyzer_serve.go` - 1 site
-
-**Skipped call sites** (3 total, nil clients, no plugins to route):
-
-- `cost_recommendations_dismiss.go:301` - local-only dismissal
-- `cost_recommendations_history.go:55` - local-only history
-- `cost_recommendations_undismiss.go:62` - local-only undismiss
 
 ### internal/engine
 
@@ -1148,34 +1112,3 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
-- Go 1.25.7 + `go.etcd.io/bbolt` (new), existing deps unchanged (595-boltdb-cache)
-- BoltDB single-file B+tree KV store at `{cacheDir}/cache.db` (595-boltdb-cache)
-
-- Go 1.25.7 + Pulumi SDK v3.220.0 (EnforcementLevel protobuf), cobra, zerolog, finfocus-spec v0.5.6 (594-policy-cost-output)
-- JSON file (`last-cost-summary.json`) using atomic write pattern (temp file + rename) (594-policy-cost-output)
-
-### Current Stack
-
-- **Language**: Go 1.25.7
-- **CLI**: Cobra v1.10.2
-- **Logging**: zerolog v1.34.0
-- **Plugins**: gRPC v1.79.1, finfocus-spec v0.5.6
-- **TUI**: Bubble Tea v1.3.10, Lip Gloss v1.1.0
-- **Testing**: testify v1.11.1
-- **Terminal**: golang.org/x/term (TTY detection)
-
-### Branch-Specific Notes
-
-| Branch | Additional Technologies | State |
-|--------|------------------------|-------|
-| 595-boltdb-cache | `internal/engine/cache` (BoltStore, structured keys) + `go.etcd.io/bbolt` | BoltDB single-file cache at `{cacheDir}/cache.db` |
-| 590-analyzer-install | os/filepath/runtime, pkg/version | Filesystem (symlinks/copies) |
-| 511-wire-router | (core stack) | Stateless; reads config.yaml |
-| 590-neo-cli-fixes | (core stack) | Stateless CLI |
-| 591-setup-command | golang.org/x/term | Filesystem (dirs, YAML, symlinks) |
-| 508-recommendation-dismissal | (core stack) | Local JSON (dismissed.json) |
-| 223-cost-estimate | Bubble Tea, Lip Gloss | Stateless command design |
-| 509-pulumi-auto-detect | (core stack) | Stateless CLI |
-| 594-policy-cost-output | config.Config (AnalyzerConfig), analyzer.CostSummary | Env: `FINFOCUS_MAX_MONTHLY_COST`, `FINFOCUS_ENFORCEMENT`; Config: `analyzer.max_monthly_cost`, `analyzer.enforcement`; Writes `last-cost-summary.json` |
-
-## Recent Changes
