@@ -552,7 +552,7 @@ func resolveCacheDir(ctx context.Context, cfg *config.Config) string {
 	homeDir, homeErr := os.UserHomeDir()
 	if homeErr != nil {
 		// Resolve to an absolute path so BoltDB never lands in an unpredictable CWD.
-		abs, absErr := filepath.Abs(".finfocus")
+		abs, absErr := filepath.Abs(filepath.Join(".finfocus", "cache"))
 		if absErr != nil {
 			abs = filepath.Join(os.TempDir(), "finfocus-cache")
 		}
@@ -565,7 +565,7 @@ func resolveCacheDir(ctx context.Context, cfg *config.Config) string {
 			Msg("failed to determine home directory, using absolute fallback cache path")
 		return abs
 	}
-	return filepath.Join(homeDir, ".finfocus")
+	return filepath.Join(homeDir, ".finfocus", "cache")
 }
 
 // extractCurrencyFromResults determines a canonical currency for a set of cost results.
