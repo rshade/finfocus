@@ -105,6 +105,16 @@ output:
 
 - `dir`: The directory where plugins are installed.
 
+### Cache
+
+Configure the BoltDB-backed cost calculation cache.
+
+- `enabled`: Master switch for caching. Set to `true` to enable. Default: `false`.
+- `ttl_seconds`: Seconds until a cached entry expires. `0` disables expiration.
+  Default: `3600` (1 hour).
+- `directory`: Explicit path for the cache database file. When empty, auto-resolves
+  to the project `.finfocus/` directory or `~/.finfocus/cache/`.
+
 ### Cost & Budgets
 
 Configure budget limits, alerts, and cost calculation preferences.

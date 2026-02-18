@@ -51,23 +51,27 @@ make build
 
 ```bash
 # Linux (amd64)
-curl -L https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-linux-amd64.tar.gz -o finfocus.tar.gz
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.1/finfocus-v0.3.1-linux-amd64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz
 chmod +x finfocus
 sudo mv finfocus /usr/local/bin/
 
 # macOS (Apple Silicon)
-curl -L https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-macos-arm64.tar.gz -o finfocus.tar.gz
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.1/finfocus-v0.3.1-macos-arm64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-macos-amd64.tar.gz -o finfocus.tar.gz
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.1/finfocus-v0.3.1-macos-amd64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
 
-# Windows (PowerShell)
-Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.3.0/finfocus-v0.3.0-windows-amd64.zip" -OutFile finfocus.zip
+# Windows (PowerShell) - installs to a user-local directory, no admin rights required
+Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.3.1/finfocus-v0.3.1-windows-amd64.zip" -OutFile finfocus.zip
 Expand-Archive finfocus.zip -DestinationPath .
-Move-Item finfocus.exe C:\Windows\System32\
+$installDir = "$env:LocalAppData\Programs\finfocus"
+New-Item -ItemType Directory -Force -Path $installDir | Out-Null
+Move-Item finfocus.exe "$installDir\finfocus.exe"
+# Add to PATH for the current session (add to $PROFILE for a permanent effect)
+$env:PATH = "$installDir;$env:PATH"
 ```
 
 </details>

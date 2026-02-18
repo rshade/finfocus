@@ -176,13 +176,13 @@ if err != nil {
 }
 ```
 
-Only use `t.Fatalf` when an error is required for the test to be valid:
+Use `require.Error` when an error is required for the test to be valid:
 
 ```go
+import "github.com/stretchr/testify/require"
+
 _, err := launcher.Start(ctx, "/nonexistent/binary")
-if err == nil {
-    t.Fatalf("expected error for invalid command")
-}
+require.Error(t, err, "expected error for invalid command")
 ```
 
 ## Coverage Requirements

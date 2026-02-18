@@ -44,8 +44,10 @@ Plugins are executable binaries that run as separate processes and communicate o
 - **Atomic config writes**: Write config updates to a temp file and rename to avoid partial writes.
 - **Source verification**: Only install plugins from trusted sources.
 - **SHA256 checksum verification**: Plugin binaries are verified against SHA256 checksums
-  during installation to ensure integrity and detect tampering. Checksums are published
-  alongside release artifacts.
+  stored in `checksums.txt` during installation. When `checksums.txt` is unavailable or
+  cannot be parsed, the installer emits a warning and continues; only a confirmed hash
+  mismatch aborts installation. Use `--skip-checksum` to bypass verification explicitly.
+  Checksums are published alongside release artifacts.
 
 ## Network Security
 

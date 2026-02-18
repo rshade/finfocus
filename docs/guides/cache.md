@@ -102,6 +102,10 @@ Cache settings belong under the `cost.cache` key in either:
 | `ttl_seconds` | integer | `3600`  | No       | Seconds until a cached entry expires. `0` disables.|
 | `directory`   | string  | `""`    | No       | Explicit cache directory path. Empty = auto.       |
 
+> **Note:** When `enabled: true` is set without specifying `ttl_seconds`, the default
+> of 3600 seconds (1 hour) applies automatically. Setting `ttl_seconds: 0` disables
+> expiration even when `enabled: true`.
+
 ### CLI Flag
 
 Override the TTL for a single run without changing config:
@@ -315,5 +319,5 @@ chown -R $USER ~/.finfocus/cache/
 ---
 
 **Last Updated**: 2026-02-17
-**FinFocus Version**: v0.3.0
+**FinFocus Version**: v0.3.1
 **Feedback**: [Open an issue](https://github.com/rshade/finfocus/issues/new) to improve this guide

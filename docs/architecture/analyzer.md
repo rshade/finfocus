@@ -220,4 +220,4 @@ suffixed with any other text.
 - [System Overview](system-overview.md) - High-level architecture
 - [Cost Calculation](cost-calculation.md) - Engine calculation details
 - [Plugin Protocol](plugin-protocol.md) - Plugin gRPC protocol
-- [CLI Reference](../reference/cli-reference.md) - All CLI commands and flags
+- [CLI Reference](../reference/cli-commands.md) - All CLI commands and flags

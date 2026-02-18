@@ -125,7 +125,8 @@ finfocus cost projected --pulumi-json plan.json --no-color
 
 **Explanation:**
 
-This retains the layout (tables, borders) but strips all color codes. This is useful if you want structure but no color distraction.
+This retains the layout (tables, borders) but strips all color codes.
+This is useful if you want structure but no color distraction.
 
 ---
 

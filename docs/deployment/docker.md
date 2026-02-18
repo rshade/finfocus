@@ -23,8 +23,12 @@ docker pull ghcr.io/rshade/finfocus:v0.3.0
 
 ### Build Locally
 
+> **Note:** Local builds require a Dockerfile, which is not yet in the repository.
+> The following commands are provided for reference and will work once Docker support
+> is added. See [the roadmap](../architecture/roadmap.md) for status.
+
 ```bash
-# Build the image
+# Build the image (planned - requires Dockerfile)
 docker build -f docker/Dockerfile -t finfocus:local .
 
 # Run the help command

@@ -4,7 +4,8 @@ title: Vantage Plugin Setup Guide
 description: Step-by-step installation and configuration guide for the FinFocus Vantage plugin
 ---
 
-> **Note:** The Vantage plugin is currently **in development** and not yet available for installation. This documentation is provided for reference and will be updated when the plugin is released.
+> **Note:** The Vantage plugin is currently **in development** and not yet available for installation.
+> This documentation is provided for reference and will be updated when the plugin is released.
 
 This guide walks you through installing and configuring the Vantage plugin for
 FinFocus. Follow these steps to enable multi-cloud cost aggregation using
