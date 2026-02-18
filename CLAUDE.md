@@ -138,6 +138,9 @@ Common conflicts to watch for:
    - Built on Bubble Tea and Lip Gloss
    - Adaptive color schemes (light/dark terminal detection)
    - Reusable progress indicators, styled text, and tables
+   - **ViewState enum**: `Initializing(0)` → `Loading(1)` → `List(2)` → `Detail(3)` → `Quitting(4)` / `Error(5)`
+   - **Overview phase messages**: `OverviewPhaseMsg`, `OverviewDataReadyMsg`, `OverviewInitErrorMsg`
+     for immediate TUI launch with background data loading
 
 ### Data Flow
 
@@ -1112,3 +1115,9 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
+
+- Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss
+
+## Recent Changes
+
+- Added Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss for interactive TUI

@@ -308,6 +308,9 @@ func (m *RecommendationsViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle state-specific updates
 	switch m.state {
+	case ViewStateInitializing:
+		// RecommendationsViewModel does not use the Initializing state; included for exhaustiveness.
+		return m, nil
 	case ViewStateLoading:
 		return m.handleLoadingUpdate(msg)
 	case ViewStateList:
@@ -484,6 +487,9 @@ func (m *RecommendationsViewModel) rebuildList() {
 // View renders the current view.
 func (m *RecommendationsViewModel) View() string {
 	switch m.state {
+	case ViewStateInitializing:
+		// RecommendationsViewModel does not use the Initializing state; included for exhaustiveness.
+		return ""
 	case ViewStateQuitting:
 		return ""
 	case ViewStateError:

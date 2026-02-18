@@ -45,8 +45,10 @@ const (
 type ViewState int
 
 const (
+	// ViewStateInitializing indicates the TUI is shown before data is available.
+	ViewStateInitializing ViewState = iota
 	// ViewStateLoading indicates data is being fetched.
-	ViewStateLoading ViewState = iota
+	ViewStateLoading
 	// ViewStateList shows the resource table.
 	ViewStateList
 	// ViewStateDetail shows details for a single resource.
@@ -219,6 +221,9 @@ func (m *CostViewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle state-specific updates
 	switch m.state {
+	case ViewStateInitializing:
+		// CostViewModel does not use the Initializing state; included for exhaustiveness.
+		return m, nil
 	case ViewStateLoading:
 		return m.handleLoadingUpdate(msg)
 	case ViewStateList:
@@ -383,6 +388,9 @@ func (m *CostViewModel) rebuildTable() {
 // View renders the current view.
 func (m *CostViewModel) View() string {
 	switch m.state {
+	case ViewStateInitializing:
+		// CostViewModel does not use the Initializing state; included for exhaustiveness.
+		return ""
 	case ViewStateQuitting:
 		return ""
 	case ViewStateError:

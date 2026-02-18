@@ -17,6 +17,8 @@ func (m OverviewModel) View() string {
 		return ""
 	case ViewStateError:
 		return fmt.Sprintf("Error: %v\n", m.err)
+	case ViewStateInitializing:
+		return m.renderInitializingView()
 	case ViewStateLoading:
 		return m.renderLoadingView()
 	case ViewStateDetail:
@@ -26,6 +28,20 @@ func (m OverviewModel) View() string {
 	default:
 		return ""
 	}
+}
+
+// renderInitializingView renders the spinner with phase message during the
+// initializing state (before data is available).
+func (m OverviewModel) renderInitializingView() string {
+	spinnerView := ""
+	if m.loadingState != nil {
+		spinnerView = m.loadingState.spinner.View()
+	}
+	msg := m.progressMsg
+	if msg == "" {
+		msg = "Initializing..."
+	}
+	return fmt.Sprintf("\n %s %s\n\n", spinnerView, msg)
 }
 
 // renderLoadingView renders the loading spinner with progress banner.
@@ -82,12 +98,20 @@ func (m OverviewModel) renderListView() string {
 func (m OverviewModel) renderStatusBar() string {
 	sortLabel := m.getSortLabel()
 	filterStatus := ""
+	stackPrefix := ""
+
+	if m.stackName != "" {
+		stackPrefix = fmt.Sprintf("Stack: %s | ", m.stackName)
+	}
 
 	if m.textInput.Value() != "" {
 		filterStatus = fmt.Sprintf(" | Filtered: %d/%d", len(m.rows), len(m.allRows))
 	}
 
-	status := fmt.Sprintf("Sort: %s%s | Press 's' to cycle, '/' to filter, 'q' to quit", sortLabel, filterStatus)
+	status := fmt.Sprintf(
+		"%sSort: %s%s | Press 's' to cycle, '/' to filter, 'q' to quit",
+		stackPrefix, sortLabel, filterStatus,
+	)
 	return SubtleStyle.Render(status)
 }
 
