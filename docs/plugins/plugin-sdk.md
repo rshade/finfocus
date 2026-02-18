@@ -5,7 +5,7 @@ description: Complete API reference for the FinFocus Plugin SDK
 ---
 
 This document provides complete API reference for the FinFocus Plugin SDK
-(`pkg/pluginsdk`). The SDK simplifies plugin development by providing
+(`github.com/rshade/finfocus-spec/sdk/go/pluginsdk`). The SDK simplifies plugin development by providing
 interfaces, helper functions, and utilities for building cost source plugins.
 
 ## Table of Contents
@@ -504,7 +504,7 @@ import (
     "os/signal"
     "syscall"
 
-    "github.com/rshade/finfocus/pkg/pluginsdk"
+    "github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
     pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 

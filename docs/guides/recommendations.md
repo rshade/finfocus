@@ -207,5 +207,5 @@ finfocus cost recommendations --pulumi-json plan.json --output table
 ---
 
 **Last Updated**: 2026-01-20
-**FinFocus Version**: v0.1.0
+**FinFocus Version**: v0.3.0
 **Feedback**: [Open an issue](https://github.com/rshade/finfocus/issues/new) to improve this guide

@@ -253,6 +253,12 @@ See [complete example](../examples/config-budgets/cicd-integration.yaml).
 
 ## Scoped Budgets
 
+> **Note:** FinFocus supports two budget configuration styles. The [Quick Start](#quick-start)
+> examples above use the **flat** format (`cost.budgets.amount`) for simple single-budget
+> setups. The scoped format below uses `cost.budgets.global` with nested `providers`,
+> `tags`, and `types` sections for multi-level budget control. Both are valid; use flat
+> for simplicity or scoped when you need per-provider/tag/type breakdowns.
+
 Define budgets at multiple levels for granular cost control: global, per-provider, per-tag, and per-resource-type.
 
 ### Provider Budgets
@@ -532,5 +538,5 @@ Ensure you have the correct schema directive and your indentation is correct:
 ---
 
 **Last Updated**: 2026-01-27
-**FinFocus Version**: v0.1.0
+**FinFocus Version**: v0.3.0
 **Feedback**: [Open an issue](https://github.com/rshade/finfocus/issues/new) to improve this guide

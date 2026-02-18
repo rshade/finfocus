@@ -17,13 +17,14 @@ jobs:
   estimate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Install FinFocus
         run: |
-          curl -sL https://github.com/rshade/finfocus/releases/download/v0.1.0/finfocus-linux-amd64 -o finfocus
-          chmod +x finfocus
-          sudo mv finfocus /usr/local/bin/
+          curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/v0.3.1/scripts/install.sh \
+            -o install.sh
+          sha256sum --check <(echo "$(curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/v0.3.1/scripts/install.sh.sha256)")
+          sh install.sh
 
       - name: Pulumi Preview
         run: pulumi preview --json > plan.json
@@ -40,8 +41,10 @@ jobs:
 estimate_cost:
   stage: test
   script:
-    - curl -sL https://github.com/rshade/finfocus/releases/latest/download/finfocus-linux-amd64 -o finfocus
-    - chmod +x finfocus
+    - curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/v0.3.1/scripts/install.sh -o install.sh
+    - curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/v0.3.1/scripts/install.sh.sha256 -o install.sh.sha256
+    - sha256sum -c install.sh.sha256
+    - sh install.sh
     - pulumi preview --json > plan.json
-    - ./finfocus cost projected --pulumi-json plan.json
+    - finfocus cost projected --pulumi-json plan.json
 ```

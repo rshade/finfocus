@@ -63,7 +63,7 @@ aws:rds/instance:Instance         aws:rds:Instance  $0.00     USD
 Total: $7.50 USD
 ```
 
-## Step 4: Try JSON Output (1 minute)
+## Step 3: Try JSON Output (1 minute)
 
 ```bash
 finfocus cost projected --pulumi-json plan.json --output json | jq .
@@ -75,29 +75,33 @@ finfocus cost projected --pulumi-json plan.json --output json | jq .
 {
   "summary": {
     "totalMonthly": 7.5,
+    "totalHourly": 0.010,
     "currency": "USD"
   },
   "resources": [
     {
-      "type": "aws:ec2:Instance",
-      "estimatedCost": 7.5,
+      "resourceType": "aws:ec2/instance:Instance",
+      "resourceId": "web-server",
+      "monthly": 7.5,
+      "hourly": 0.010,
+      "adapter": "aws-spec",
       "currency": "USD"
     }
   ]
 }
 ```
 
-## Step 5: Try Filtering (1 minute)
+## Step 4: Try Filtering (1 minute)
 
 ```bash
-# Show only EC2 resources
-finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2*"
+# Show only EC2 resources (substring match)
+finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2"
 
-# Show only database resources
-finfocus cost projected --pulumi-json plan.json --filter "type=aws:rds*"
+# Show only database resources (substring match)
+finfocus cost projected --pulumi-json plan.json --filter "type=aws:rds"
 ```
 
-## Step 6: Configure Scoped Budgets (Optional)
+## Step 5: Configure Scoped Budgets (Optional)
 
 Create `~/.finfocus/config.yaml` with hierarchical budgets:
 
@@ -127,10 +131,15 @@ Then run with budget display:
 ```bash
 finfocus cost projected --pulumi-json plan.json
 
-# Filter by scope
+# Filter by scope category
 finfocus cost projected --pulumi-json plan.json --budget-scope=provider
 finfocus cost projected --pulumi-json plan.json --budget-scope=tag
 finfocus cost projected --pulumi-json plan.json --budget-scope=type
+
+# Filter by specific scope value
+finfocus cost projected --pulumi-json plan.json --budget-scope=provider=aws
+finfocus cost projected --pulumi-json plan.json --budget-scope=tag=team:platform
+finfocus cost projected --pulumi-json plan.json --budget-scope=type=aws:ec2/instance
 ```
 
 ---

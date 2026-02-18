@@ -3,6 +3,9 @@ title: Docker Deployment
 layout: default
 ---
 
+> **Note:** No Dockerfile currently exists in the repository. This guide describes
+> the planned Docker configuration. Container support is on the roadmap.
+
 This guide describes the Docker configuration for building and running
 FinFocus in a containerized environment.
 
@@ -15,13 +18,17 @@ FinFocus in a containerized environment.
 docker pull ghcr.io/rshade/finfocus:latest
 
 # Pull a specific version
-docker pull ghcr.io/rshade/finfocus:v1.0.0
+docker pull ghcr.io/rshade/finfocus:v0.3.0
 ```
 
 ### Build Locally
 
+> **Note:** Local builds require a Dockerfile, which is not yet in the repository.
+> The following commands are provided for reference and will work once Docker support
+> is added. See [the roadmap](../architecture/roadmap.md) for status.
+
 ```bash
-# Build the image
+# Build the image (planned - requires Dockerfile)
 docker build -f docker/Dockerfile -t finfocus:local .
 
 # Run the help command
