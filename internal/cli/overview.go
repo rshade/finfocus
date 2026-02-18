@@ -7,6 +7,7 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -555,7 +556,7 @@ func shouldUseInteractiveTUI(w io.Writer, outputFormat string, plainFlag bool) b
 // messages to keep the user informed. This eliminates the blank-terminal wait.
 func runInteractiveOverviewWithInit(
 	ctx context.Context,
-	cmd *cobra.Command,
+	_ *cobra.Command,
 	params overviewParams,
 	dateRange engine.DateRange,
 	audit *auditContext,
@@ -574,21 +575,27 @@ func runInteractiveOverviewWithInit(
 	// Channel to pass the plugin cleanup function from background goroutine.
 	cleanupChan := make(chan func(), 1)
 
+	// Atomic counter so the background goroutine can report the row count
+	// to the main goroutine for accurate audit logging.
+	var rowCount atomic.Int64
+
 	// Start data loading and enrichment in background
-	go overviewInitAndEnrich(enrichCtx, ctx, p, params, dateRange, audit, cleanupChan)
+	go overviewInitAndEnrich(enrichCtx, ctx, p, params, dateRange, audit, cleanupChan, &rowCount)
 
 	// Run the TUI (blocks until user quits or error)
 	_, err := p.Run()
 	enrichCancel()
 
-	// Cleanup plugins if they were opened
+	// Drain cleanup from the background goroutine with a short timeout.
+	// The goroutine may still be mid-send after enrichCancel(), so we block
+	// briefly to ensure the plugin cleanup callback is not lost.
 	select {
 	case cleanup := <-cleanupChan:
 		if cleanup != nil {
 			cleanup()
 		}
-	default:
-		// Plugins were never opened (early exit or error)
+	case <-time.After(2 * time.Second): //nolint:mnd // Grace period for goroutine to send cleanup.
+		// Plugins were never opened (early exit or error before openPlugins)
 	}
 
 	if err != nil {
@@ -604,7 +611,7 @@ func runInteractiveOverviewWithInit(
 		Int64("total_elapsed_ms", time.Since(totalStart).Milliseconds()).
 		Msg("overview TUI complete")
 
-	audit.logSuccess(ctx, 0, 0)
+	audit.logSuccess(ctx, int(rowCount.Load()), 0)
 	return nil
 }
 
@@ -617,6 +624,7 @@ func overviewInitAndEnrich(
 	dateRange engine.DateRange,
 	audit *auditContext,
 	cleanupChan chan<- func(),
+	rowCount *atomic.Int64,
 ) {
 	// Phase 1: Load Pulumi state and plan
 	p.Send(tui.OverviewPhaseMsg{Phase: "Loading stack state..."})
@@ -627,8 +635,21 @@ func overviewInitAndEnrich(
 	}
 
 	// Phase 2: Detect pending changes
+	// The return values (hasChanges, changeCount) are captured for logging but
+	// not yet propagated to the TUI because the interactive model does not
+	// currently render a pre-flight summary. The plain text path uses them in
+	// printOverviewSummaryLine. When the TUI adds a summary panel, pass these
+	// via a new message type or extend OverviewDataReadyMsg.
 	p.Send(tui.OverviewPhaseMsg{Phase: "Detecting changes..."})
-	engine.DetectPendingChanges(enrichCtx, planSteps)
+	hasChanges, changeCount := engine.DetectPendingChanges(enrichCtx, planSteps)
+	log := logging.FromContext(logCtx)
+	log.Debug().
+		Ctx(logCtx).
+		Str("component", "cli").
+		Str("operation", "overview_tui_init").
+		Bool("has_changes", hasChanges).
+		Int("change_count", changeCount).
+		Msg("pending changes detected")
 
 	// Phase 3: Merge resources
 	p.Send(tui.OverviewPhaseMsg{Phase: "Merging resources..."})
@@ -644,6 +665,7 @@ func overviewInitAndEnrich(
 		p.Send(tui.OverviewInitErrorMsg{Err: filterErr})
 		return
 	}
+	rowCount.Store(int64(len(rows)))
 
 	// Phase 4: Open plugins
 	p.Send(tui.OverviewPhaseMsg{Phase: "Starting cost plugins..."})

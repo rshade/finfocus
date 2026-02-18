@@ -1115,8 +1115,9 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
-- Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss (596-tui-phase-progress)
-- N/A (no new storage) (596-tui-phase-progress)
+
+- Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss
 
 ## Recent Changes
-- 596-tui-phase-progress: Added Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss
+
+- Added Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss for interactive TUI
