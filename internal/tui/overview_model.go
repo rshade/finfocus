@@ -43,6 +43,7 @@ type OverviewPhaseMsg struct {
 type OverviewDataReadyMsg struct {
 	Rows       []engine.OverviewRow
 	TotalCount int
+	StackName  string
 }
 
 // OverviewInitErrorMsg signals that initial data loading failed.
@@ -126,6 +127,11 @@ func NewOverviewModel(
 	return m, m.loadingState.Init()
 }
 
+// Err returns any error that caused the TUI to exit (e.g., init failure).
+func (m OverviewModel) Err() error {
+	return m.err
+}
+
 // Init initializes the model (Bubble Tea interface).
 func (m OverviewModel) Init() tea.Cmd {
 	if m.loadingState != nil {
@@ -157,8 +163,12 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle data ready (initializing → loading transition)
 	if dataMsg, ok := msg.(OverviewDataReadyMsg); ok {
-		m.allRows = dataMsg.Rows
-		m.rows = dataMsg.Rows
+		// Defensive copy: allRows and rows must not share backing arrays
+		// because refreshTable sorts m.rows in-place.
+		m.allRows = make([]engine.OverviewRow, len(dataMsg.Rows))
+		copy(m.allRows, dataMsg.Rows)
+		m.rows = make([]engine.OverviewRow, len(dataMsg.Rows))
+		copy(m.rows, dataMsg.Rows)
 		m.totalCount = dataMsg.TotalCount
 		m.state = ViewStateLoading
 		m.table = m.buildOverviewTable()

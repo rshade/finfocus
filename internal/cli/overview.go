@@ -44,8 +44,9 @@ func NewOverviewCmd() *cobra.Command {
 	var params overviewParams
 
 	cmd := &cobra.Command{
-		Use:   "overview",
-		Short: "Unified stack cost dashboard",
+		Use:     "overview",
+		Aliases: []string{"ov"},
+		Short:   "Unified stack cost dashboard",
 		Long: `Display a unified cost dashboard combining Pulumi state and plan data
 with actual costs, projected costs, drift analysis, and recommendations.
 
@@ -583,7 +584,7 @@ func runInteractiveOverviewWithInit(
 	go overviewInitAndEnrich(enrichCtx, ctx, p, params, dateRange, audit, cleanupChan, &rowCount)
 
 	// Run the TUI (blocks until user quits or error)
-	_, err := p.Run()
+	finalModel, err := p.Run()
 	enrichCancel()
 
 	// Drain cleanup from the background goroutine with a short timeout.
@@ -601,6 +602,15 @@ func runInteractiveOverviewWithInit(
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("running TUI: %w", err)
+	}
+
+	// Check if the TUI exited due to an initialization error. tea.Quit is a
+	// normal termination so p.Run() returns nil; the actual error is stored
+	// in the model's error state.
+	if m, ok := finalModel.(tui.OverviewModel); ok && m.Err() != nil {
+		initErr := m.Err()
+		audit.logFailure(ctx, initErr)
+		return fmt.Errorf("overview initialization: %w", initErr)
 	}
 
 	log := logging.FromContext(ctx)
@@ -628,7 +638,7 @@ func overviewInitAndEnrich(
 ) {
 	// Phase 1: Load Pulumi state and plan
 	p.Send(tui.OverviewPhaseMsg{Phase: "Loading stack state..."})
-	stateResources, planSteps, _, dataErr := resolveOverviewData(enrichCtx, params)
+	stateResources, planSteps, stackName, dataErr := resolveOverviewData(enrichCtx, params)
 	if dataErr != nil {
 		p.Send(tui.OverviewInitErrorMsg{Err: fmt.Errorf("resolve overview data: %w", dataErr)})
 		return
@@ -647,6 +657,7 @@ func overviewInitAndEnrich(
 		Ctx(logCtx).
 		Str("component", "cli").
 		Str("operation", "overview_tui_init").
+		Str("stack", stackName).
 		Bool("has_changes", hasChanges).
 		Int("change_count", changeCount).
 		Msg("pending changes detected")
@@ -685,7 +696,7 @@ func overviewInitAndEnrich(
 	// Signal data ready → transitions TUI from Initializing to Loading
 	copiedRows := make([]engine.OverviewRow, len(rows))
 	copy(copiedRows, rows)
-	p.Send(tui.OverviewDataReadyMsg{Rows: copiedRows, TotalCount: len(rows)})
+	p.Send(tui.OverviewDataReadyMsg{Rows: copiedRows, TotalCount: len(rows), StackName: stackName})
 
 	// Phase 6: Enrichment
 	bridgeEnrichmentToTUI(enrichCtx, logCtx, p, rows, eng, dateRange)
