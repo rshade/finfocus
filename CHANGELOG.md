@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1](https://github.com/rshade/finfocus/compare/v0.3.0...v0.3.1) (2026-02-18)
+
+
+### Added
+
+* **logging:** add PhaseTimer and instrument overview command ([#712](https://github.com/rshade/finfocus/issues/712)) ([f721cb2](https://github.com/rshade/finfocus/commit/f721cb268f4488422b2fd87c84fc7f3c3014ed13))
+
+
+### Fixed
+
+* **cache:** append cache subdirectory to global fallback path ([#700](https://github.com/rshade/finfocus/issues/700)) ([6c3006f](https://github.com/rshade/finfocus/commit/6c3006fea9fdd50c4ae4db51e2b2364b7a45ae41)), closes [#680](https://github.com/rshade/finfocus/issues/680)
+
+
+### Performance
+
+* **tui:** launch TUI immediately with phase progress feedback ([#713](https://github.com/rshade/finfocus/issues/713)) ([2344de6](https://github.com/rshade/finfocus/commit/2344de6de32b6e7216e8bf918dffbed35d10a745))
+
 ## [0.3.0](https://github.com/rshade/finfocus/compare/v0.2.6...v0.3.0) (2026-02-17)
 
 
