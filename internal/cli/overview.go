@@ -581,7 +581,7 @@ func runInteractiveOverviewWithInit(
 	var rowCount atomic.Int64
 
 	// Start data loading and enrichment in background
-	go overviewInitAndEnrich(enrichCtx, ctx, p, params, dateRange, audit, cleanupChan, &rowCount)
+	go overviewInitAndEnrich(enrichCtx, p, params, dateRange, audit, cleanupChan, &rowCount)
 
 	// Run the TUI (blocks until user quits or error)
 	finalModel, err := p.Run()
@@ -628,7 +628,7 @@ func runInteractiveOverviewWithInit(
 // overviewInitAndEnrich performs data loading and enrichment in a background
 // goroutine, sending phase progress and data messages to the Bubble Tea program.
 func overviewInitAndEnrich(
-	enrichCtx, logCtx context.Context,
+	enrichCtx context.Context,
 	p *tea.Program,
 	params overviewParams,
 	dateRange engine.DateRange,
@@ -652,9 +652,9 @@ func overviewInitAndEnrich(
 	// via a new message type or extend OverviewDataReadyMsg.
 	p.Send(tui.OverviewPhaseMsg{Phase: "Detecting changes..."})
 	hasChanges, changeCount := engine.DetectPendingChanges(enrichCtx, planSteps)
-	log := logging.FromContext(logCtx)
+	log := logging.FromContext(enrichCtx)
 	log.Debug().
-		Ctx(logCtx).
+		Ctx(enrichCtx).
 		Str("component", "cli").
 		Str("operation", "overview_tui_init").
 		Str("stack", stackName).
@@ -699,19 +699,19 @@ func overviewInitAndEnrich(
 	p.Send(tui.OverviewDataReadyMsg{Rows: copiedRows, TotalCount: len(rows), StackName: stackName})
 
 	// Phase 6: Enrichment
-	bridgeEnrichmentToTUI(enrichCtx, logCtx, p, rows, eng, dateRange)
+	bridgeEnrichmentToTUI(enrichCtx, p, rows, eng, dateRange)
 }
 
 // bridgeEnrichmentToTUI runs EnrichOverviewRows and bridges progress updates
 // to the Bubble Tea program via Send().
 func bridgeEnrichmentToTUI(
-	enrichCtx, logCtx context.Context,
+	enrichCtx context.Context,
 	p *tea.Program,
 	rows []engine.OverviewRow,
 	eng *engine.Engine,
 	dateRange engine.DateRange,
 ) {
-	log := logging.FromContext(logCtx)
+	log := logging.FromContext(enrichCtx)
 
 	progressChan := make(chan engine.OverviewRowUpdate, len(rows))
 	go func() {
@@ -743,7 +743,7 @@ func bridgeEnrichmentToTUI(
 				percent = (loadedCount * 100) / len(rows) //nolint:mnd // Percentage calculation.
 			}
 			log.Debug().
-				Ctx(logCtx).
+				Ctx(enrichCtx).
 				Str("component", "cli").
 				Str("operation", "overview_tui_init").
 				Int("loaded", loadedCount).
@@ -761,7 +761,7 @@ func bridgeEnrichmentToTUI(
 	}
 
 	log.Info().
-		Ctx(logCtx).
+		Ctx(enrichCtx).
 		Str("component", "cli").
 		Str("operation", "overview_tui_init").
 		Int("total_rows", len(rows)).

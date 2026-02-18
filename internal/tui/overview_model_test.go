@@ -557,13 +557,14 @@ func TestOverviewModel_DataReadyMsg(t *testing.T) {
 		{URN: "urn:test3", Type: "aws:rds:Instance", Status: engine.StatusActive},
 	}
 
-	msg := OverviewDataReadyMsg{Rows: testRows, TotalCount: 3}
+	msg := OverviewDataReadyMsg{Rows: testRows, TotalCount: 3, StackName: "dev"}
 	updatedModel, _ := model.Update(msg)
 	model = updatedModel.(OverviewModel)
 
 	assert.Equal(t, ViewStateLoading, model.state)
 	assert.Len(t, model.allRows, 3)
 	assert.Equal(t, 3, model.totalCount)
+	assert.Equal(t, "dev", model.stackName)
 }
 
 // TestOverviewModel_NilRowsInit verifies nil vs non-nil row initialization.

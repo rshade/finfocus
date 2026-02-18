@@ -57,10 +57,11 @@ type OverviewInitErrorMsg struct {
 //nolint:recvcheck // Bubble Tea requires value receivers for Init/Update/View interface methods.
 type OverviewModel struct {
 	// View state
-	state   ViewState
-	allRows []engine.OverviewRow // All loaded rows (source of truth)
-	rows    []engine.OverviewRow // Filtered/sorted rows
-	ctx     context.Context      // Context for trace ID
+	state     ViewState
+	allRows   []engine.OverviewRow // All loaded rows (source of truth)
+	rows      []engine.OverviewRow // Filtered/sorted rows
+	ctx       context.Context      // Context for trace ID
+	stackName string               // Stack name from data loading
 
 	// Interactive components
 	table     table.Model
@@ -170,6 +171,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.rows = make([]engine.OverviewRow, len(dataMsg.Rows))
 		copy(m.rows, dataMsg.Rows)
 		m.totalCount = dataMsg.TotalCount
+		m.stackName = dataMsg.StackName
 		m.state = ViewStateLoading
 		m.table = m.buildOverviewTable()
 		return m, nil

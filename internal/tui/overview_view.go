@@ -98,12 +98,20 @@ func (m OverviewModel) renderListView() string {
 func (m OverviewModel) renderStatusBar() string {
 	sortLabel := m.getSortLabel()
 	filterStatus := ""
+	stackPrefix := ""
+
+	if m.stackName != "" {
+		stackPrefix = fmt.Sprintf("Stack: %s | ", m.stackName)
+	}
 
 	if m.textInput.Value() != "" {
 		filterStatus = fmt.Sprintf(" | Filtered: %d/%d", len(m.rows), len(m.allRows))
 	}
 
-	status := fmt.Sprintf("Sort: %s%s | Press 's' to cycle, '/' to filter, 'q' to quit", sortLabel, filterStatus)
+	status := fmt.Sprintf(
+		"%sSort: %s%s | Press 's' to cycle, '/' to filter, 'q' to quit",
+		stackPrefix, sortLabel, filterStatus,
+	)
 	return SubtleStyle.Render(status)
 }
 
