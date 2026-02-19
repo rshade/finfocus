@@ -13,9 +13,12 @@ import (
 const overviewConcurrencyLimit = 10
 
 // EnrichOverviewRow enriches a single OverviewRow by fetching actual costs,
-// projected costs, and recommendations from the engine. Partial failures are
-// captured in row.Error; the function never fails to allow batch processing
-// to continue.
+// projected costs, and recommendations from the engine concurrently (up to 3
+// goroutines per call). When used with EnrichOverviewRows' worker pool, the
+// maximum concurrent goroutines is overviewConcurrencyLimit * 3. Partial
+// failures from actual/projected cost are captured in row.Error with actual
+// cost errors taking precedence; recommendation failures are logged but do
+// not set row.Error.
 func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateRange DateRange) {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -33,16 +36,47 @@ func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateR
 		Properties: row.Properties,
 	}
 
+	// Run all three enrichment calls concurrently. Each writes to a
+	// distinct field on the row (ActualCost, ProjectedCost, Recommendations).
+	// Errors are captured in local variables and merged after all goroutines
+	// complete, with actual cost errors taking precedence over projected.
+	var wg sync.WaitGroup
+	var actualErr, projectedErr *OverviewRowError
+
 	// Fetch actual costs (skip for resources being created - they have no history)
 	if row.Status != StatusCreating {
-		enrichActualCost(ctx, row, eng, resource, dateRange)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			actualErr = enrichActualCost(ctx, row, eng, resource, dateRange)
+		}()
 	}
 
-	// Fetch projected costs (useful for resources with pending changes or active resources)
-	enrichProjectedCost(ctx, row, eng, resource)
+	// Fetch projected costs
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		projectedErr = enrichProjectedCost(ctx, row, eng, resource)
+	}()
 
 	// Fetch recommendations
-	enrichRecommendations(ctx, row, eng, resource)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		enrichRecommendations(ctx, row, eng, resource)
+	}()
+
+	// wg.Wait() establishes a happens-before edge: all goroutine writes to
+	// actualErr, projectedErr, and the distinct row fields (ActualCost,
+	// ProjectedCost, Recommendations) are visible after this point.
+	wg.Wait()
+
+	// Merge errors: actual cost error takes precedence (primary data source)
+	if actualErr != nil {
+		row.Error = actualErr
+	} else if projectedErr != nil {
+		row.Error = projectedErr
+	}
 
 	// Calculate cost drift when both actual and projected data exist
 	if row.ActualCost != nil && row.ProjectedCost != nil {
@@ -50,14 +84,17 @@ func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateR
 	}
 }
 
-// enrichActualCost fetches actual cost data for a row.
+// enrichActualCost fetches actual cost data for a row. It writes to
+// row.ActualCost directly and returns any classified error instead of
+// writing to row.Error, enabling the caller to merge errors
+// deterministically when running enrichment calls concurrently.
 func enrichActualCost(
 	ctx context.Context,
 	row *OverviewRow,
 	eng *Engine,
 	resource ResourceDescriptor,
 	dateRange DateRange,
-) {
+) *OverviewRowError {
 	log := logging.FromContext(ctx)
 
 	request := ActualCostRequest{
@@ -73,17 +110,21 @@ func enrichActualCost(
 			Str("urn", row.URN).
 			Err(err).
 			Msg("failed to fetch actual cost")
-		row.Error = classifyError(row.URN, err)
-		return
+		return classifyError(row.URN, err)
 	}
 
 	if result != nil && len(result.Results) > 0 {
 		costResult := result.Results[0]
-		// Skip results with errors
+		// Skip results with errors (plugin responded but can't price this resource)
 		if costResult.Error != nil ||
 			strings.HasPrefix(costResult.Notes, "ERROR:") ||
 			strings.HasPrefix(costResult.Notes, "VALIDATION:") {
-			return
+			log.Debug().
+				Ctx(ctx).
+				Str("urn", row.URN).
+				Str("notes", costResult.Notes).
+				Msg("skipping actual cost result with error")
+			return nil
 		}
 		row.ActualCost = &ActualCostData{
 			MTDCost:  costResult.TotalCost,
@@ -94,10 +135,20 @@ func enrichActualCost(
 			row.ActualCost.Currency = defaultCurrency
 		}
 	}
+
+	return nil
 }
 
-// enrichProjectedCost fetches projected cost data for a row.
-func enrichProjectedCost(ctx context.Context, row *OverviewRow, eng *Engine, resource ResourceDescriptor) {
+// enrichProjectedCost fetches projected cost data for a row. It writes to
+// row.ProjectedCost directly and returns any classified error instead of
+// writing to row.Error, enabling the caller to merge errors
+// deterministically when running enrichment calls concurrently.
+func enrichProjectedCost(
+	ctx context.Context,
+	row *OverviewRow,
+	eng *Engine,
+	resource ResourceDescriptor,
+) *OverviewRowError {
 	log := logging.FromContext(ctx)
 
 	result, err := eng.GetProjectedCostWithErrors(ctx, []ResourceDescriptor{resource})
@@ -107,10 +158,7 @@ func enrichProjectedCost(ctx context.Context, row *OverviewRow, eng *Engine, res
 			Str("urn", row.URN).
 			Err(err).
 			Msg("failed to fetch projected cost")
-		if row.Error == nil {
-			row.Error = classifyError(row.URN, err)
-		}
-		return
+		return classifyError(row.URN, err)
 	}
 
 	if result != nil && len(result.Results) > 0 {
@@ -118,7 +166,12 @@ func enrichProjectedCost(ctx context.Context, row *OverviewRow, eng *Engine, res
 		if costResult.Error != nil ||
 			strings.HasPrefix(costResult.Notes, "ERROR:") ||
 			strings.HasPrefix(costResult.Notes, "VALIDATION:") {
-			return
+			log.Debug().
+				Ctx(ctx).
+				Str("urn", row.URN).
+				Str("notes", costResult.Notes).
+				Msg("skipping projected cost result with error")
+			return nil
 		}
 		row.ProjectedCost = &ProjectedCostData{
 			MonthlyCost: costResult.Monthly,
@@ -128,6 +181,8 @@ func enrichProjectedCost(ctx context.Context, row *OverviewRow, eng *Engine, res
 			row.ProjectedCost.Currency = defaultCurrency
 		}
 	}
+
+	return nil
 }
 
 // enrichRecommendations fetches recommendations for a row.
