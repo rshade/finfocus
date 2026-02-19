@@ -41,7 +41,15 @@ func (m OverviewModel) renderInitializingView() string {
 	if msg == "" {
 		msg = "Initializing..."
 	}
-	return fmt.Sprintf("\n %s %s\n\n", spinnerView, msg)
+	content := lipgloss.JoinHorizontal(lipgloss.Left,
+		spinnerView,
+		" ",
+		InfoStyle.Render(msg),
+	)
+	return lipgloss.NewStyle().
+		Width(m.width-borderPadding).
+		Padding(1, 2). //nolint:mnd // View padding.
+		Render(content)
 }
 
 // renderLoadingView renders the loading spinner with progress banner.
