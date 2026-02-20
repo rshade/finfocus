@@ -47,6 +47,7 @@ func DetectChanges(ctx context.Context, manifestTime string, projectDir string) 
 	if parseErr != nil {
 		log.Warn().
 			Str("component", "changedetect").
+			Str("operation", "parse_manifest_time").
 			Str("manifest_time", manifestTime).
 			Err(parseErr).
 			Msg("failed to parse manifest time; assuming changes likely")
@@ -73,6 +74,7 @@ func DetectChanges(ctx context.Context, manifestTime string, projectDir string) 
 		if statErr != nil {
 			log.Debug().
 				Str("component", "changedetect").
+				Str("operation", "stat_source_file").
 				Str("file", path).
 				Err(statErr).
 				Msg("stat failed; skipping file")
@@ -111,8 +113,11 @@ func pulumiSourceFile(name string) bool {
 	ext := strings.ToLower(filepath.Ext(name))
 	switch ext {
 	case ".ts", ".js", ".mts", ".mjs", // TypeScript / JavaScript
-		".py", // Python
-		".go": // Go
+		".py",   // Python
+		".go",   // Go
+		".cs",   // C# (.NET)
+		".fs",   // F# (.NET)
+		".java": // Java
 		return true
 	}
 

@@ -430,7 +430,7 @@ func (m OverviewModel) handleListKeypress(keyMsg tea.KeyMsg) (tea.Model, tea.Cmd
 		return m, nil
 	case keyP:
 		// Load pending changes on demand when in state-only mode.
-		if !m.isPreviewLoading && !m.previewLoaded && m.previewCmd != nil {
+		if m.isStateOnly && !m.isPreviewLoading && !m.previewLoaded && m.previewCmd != nil {
 			return m, tea.Batch(
 				func() tea.Msg { return OverviewPreviewStartedMsg{} },
 				m.previewCmd,

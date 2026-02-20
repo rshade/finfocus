@@ -23,6 +23,10 @@ import (
 	"github.com/rshade/finfocus/internal/tui"
 )
 
+// fdProvider is implemented by *os.File and other writers that expose a file descriptor.
+// Used to detect whether an output stream is a TTY.
+type fdProvider interface{ Fd() uintptr }
+
 // overviewParams holds the parameters for the overview command.
 type overviewParams struct {
 	pulumiJSON   string
@@ -281,9 +285,8 @@ func loadPlainOverviewData(
 	// TTY without --yes: show prompt so user can choose.
 	// Non-TTY without --yes: state-only (no prompt, no preview).
 	skipPrompt := params.yes
-	type fder interface{ Fd() uintptr }
 	isTTY := false
-	if f, ok := cmd.OutOrStdout().(fder); ok {
+	if f, ok := cmd.OutOrStdout().(fdProvider); ok {
 		isTTY = term.IsTerminal(int(f.Fd()))
 	}
 
@@ -524,7 +527,10 @@ func promptForPreview(w io.Writer, r io.Reader, signal pulumidetect.ChangeSignal
 
 	var line string
 	if _, err := fmt.Fscanln(r, &line); err != nil {
-		// Empty input (just Enter) is treated as Y.
+		// EOF / unexpected-EOF means the user pressed Enter with no input — treat as Y.
+		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+			return false, fmt.Errorf("reading user input: %w", err)
+		}
 		line = ""
 	}
 	line = strings.TrimSpace(strings.ToLower(line))
@@ -673,8 +679,7 @@ func shouldUseInteractiveTUI(w io.Writer, outputFormat string, plainFlag bool) b
 	}
 
 	// Check if the writer has a file descriptor and is a TTY.
-	type fder interface{ Fd() uintptr }
-	if f, ok := w.(fder); ok {
+	if f, ok := w.(fdProvider); ok {
 		return term.IsTerminal(int(f.Fd()))
 	}
 	return false
@@ -815,7 +820,10 @@ func overviewInitAndEnrich(
 	// Decide whether to run pulumi preview now.
 	// In non-interactive (TUI) mode we skip the interactive prompt and rely on --yes
 	// or the conservative heuristic (HasLikelyChanges=true → run preview; false → state-only).
-	runPreviewNow := params.yes || signal.IsFirstDeploy || signal.HasLikelyChanges
+	// When --pulumi-state is provided without --pulumi-json (and without --yes), default to
+	// state-only mode so the user can press 'p' to load pending changes on demand.
+	explicitStateOnly := params.pulumiState != "" && params.pulumiJSON == "" && !params.yes
+	runPreviewNow := !explicitStateOnly && (params.yes || signal.IsFirstDeploy || signal.HasLikelyChanges)
 	isStateOnly := !runPreviewNow
 
 	// Phase 3: Merge resources (from state only when state-first, from state+plan when preview runs).

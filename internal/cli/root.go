@@ -64,23 +64,12 @@ func NewRootCmdWithArgs(
 		// cost dashboard. Outside a Pulumi project, display help as before.
 		// --help is always handled by Cobra before RunE is reached.
 		RunE: func(cmd *cobra.Command, args []string) error {
-			log := logging.FromContext(cmd.Context())
-			if _, err := pulumidetect.FindProject("."); err == nil {
-				log.Debug().
-					Str("component", "cli").
-					Str("operation", "root_default").
-					Msg("Pulumi project detected; delegating to overview")
-				overviewCmd := NewOverviewCmd()
-				overviewCmd.SetOut(cmd.OutOrStdout())
-				overviewCmd.SetErr(cmd.ErrOrStderr())
-				overviewCmd.SetIn(cmd.InOrStdin())
-				if ctx := cmd.Context(); ctx != nil {
-					overviewCmd.SetContext(ctx)
-				}
-				// Suppress root command usage on error: when overview fails the
-				// user should see the overview error message, not root help.
-				cmd.SilenceUsage = true
-				return overviewCmd.RunE(overviewCmd, args)
+			searchDir := projectDirFlag
+			if searchDir == "" {
+				searchDir = "."
+			}
+			if _, err := pulumidetect.FindProject(searchDir); err == nil {
+				return runOverviewDelegation(cmd, args)
 			}
 			return cmd.Help()
 		},
@@ -136,6 +125,34 @@ func NewRootCmdWithArgs(
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
 
 	return cmd
+}
+
+// runOverviewDelegation delegates root command execution to the overview command.
+//
+// We call overviewCmd.RunE directly (not overviewCmd.Execute) because:
+//  1. root's PersistentPreRunE has already run (logging/tracing set up).
+//  2. overview flags use auto-detect defaults; no flag parsing is needed.
+//  3. root's PersistentPostRunE will still run after RunE returns.
+//
+// Caution: any PreRunE/PersistentPreRunE added to NewOverviewCmd() in the
+// future will be skipped by this path.
+func runOverviewDelegation(cmd *cobra.Command, args []string) error {
+	log := logging.FromContext(cmd.Context())
+	log.Debug().
+		Str("component", "cli").
+		Str("operation", "root_default").
+		Msg("Pulumi project detected; delegating to overview")
+	overviewCmd := NewOverviewCmd()
+	overviewCmd.SetOut(cmd.OutOrStdout())
+	overviewCmd.SetErr(cmd.ErrOrStderr())
+	overviewCmd.SetIn(cmd.InOrStdin())
+	if ctx := cmd.Context(); ctx != nil {
+		overviewCmd.SetContext(ctx)
+	}
+	// Suppress root command usage on error: when overview fails the
+	// user should see the overview error message, not root help.
+	cmd.SilenceUsage = true
+	return overviewCmd.RunE(overviewCmd, args)
 }
 
 const rootCmdExample = `  # Calculate projected costs from a Pulumi plan

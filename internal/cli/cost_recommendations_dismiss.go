@@ -333,11 +333,16 @@ func parseSnoozeDate(s string) (time.Time, error) {
 }
 
 // confirmPrompt displays a prompt and reads user confirmation.
+// Returns false on I/O error or if the user declines.
 func confirmPrompt(cmd *cobra.Command, prompt string) bool {
 	cmd.PrintErr(prompt)
 
 	scanner := bufio.NewScanner(cmd.InOrStdin())
 	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			// I/O error reading stdin — treat as cancellation.
+			cmd.PrintErrf("error reading input: %v\n", err)
+		}
 		return false
 	}
 

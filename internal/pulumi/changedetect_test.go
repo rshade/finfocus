@@ -143,18 +143,22 @@ func TestDetectChanges_StatErrorSkipsFile(t *testing.T) {
 	lastDeploy := time.Now().Add(-1 * time.Hour)
 	manifestTime := lastDeploy.UTC().Format(time.RFC3339)
 
-	// Create a file that is newer, then make it unreadable.
+	// Create a real source file that is newer than the last deployment.
 	newer := lastDeploy.Add(10 * time.Minute)
 	writeFileWithMtime(t, tmpDir, "index.ts", newer)
 	writeFileWithMtime(t, tmpDir, "Pulumi.yaml", lastDeploy.Add(-30*time.Minute))
 
-	// Even if stat fails on one file, detection continues with others.
-	// We cannot easily make os.Stat fail on an existing file in a portable way,
-	// so this test verifies the overall function still returns without error.
+	// Create a broken symlink: os.Stat (not os.Lstat) returns an error for broken symlinks,
+	// so this exercises the stat-error skip branch inside DetectChanges.
+	brokenTarget := filepath.Join(tmpDir, "nonexistent-target.ts")
+	brokenLink := filepath.Join(tmpDir, "broken.ts")
+	require.NoError(t, os.Symlink(brokenTarget, brokenLink))
+
+	// Detection should skip the broken symlink and continue; index.ts is newer so
+	// HasLikelyChanges must be true.
 	signal, err := DetectChanges(ctx, manifestTime, tmpDir)
-	require.NoError(t, err)
-	// index.ts is newer so changes should be detected.
-	assert.True(t, signal.HasLikelyChanges)
+	require.NoError(t, err, "stat error on one file should not abort detection")
+	assert.True(t, signal.HasLikelyChanges, "index.ts is newer so changes should be detected")
 }
 
 func TestDetectChanges_MultipleModifiedFiles(t *testing.T) {

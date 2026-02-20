@@ -464,31 +464,15 @@ func TestRootCmd_InPulumiProject(t *testing.T) {
 func TestRootCmd_HelpFlagAlwaysWorks(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
-	tests := []struct {
-		name  string
-		chdir bool // whether to create and enter a temp dir with Pulumi.yaml
-	}{
-		{name: "outside Pulumi project", chdir: false},
-	}
+	var buf bytes.Buffer
+	cmd := cli.NewRootCmd("test-version")
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--help"})
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if tt.chdir {
-				tmpDir := t.TempDir()
-				t.Chdir(tmpDir)
-			}
-
-			var buf bytes.Buffer
-			cmd := cli.NewRootCmd("test-version")
-			cmd.SetOut(&buf)
-			cmd.SetErr(&buf)
-			cmd.SetArgs([]string{"--help"})
-
-			err := cmd.Execute()
-			require.NoError(t, err, "--help should always exit 0")
-			assert.Contains(t, buf.String(), "Available Commands:", "help should list commands")
-		})
-	}
+	err := cmd.Execute()
+	require.NoError(t, err, "--help should always exit 0")
+	assert.Contains(t, buf.String(), "Available Commands:", "help should list commands")
 }
 
 // TestRootCmd_DirectOverviewCallUnchanged verifies that 'finfocus overview' still works

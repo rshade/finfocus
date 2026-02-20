@@ -47,6 +47,18 @@ func MapOperationToStatus(op string) ResourceStatus {
 	}
 }
 
+// stateResourceToRow converts a StateResource to a skeleton OverviewRow with
+// StatusActive. Only call this for custom resources (res.Custom == true).
+func stateResourceToRow(res StateResource) OverviewRow {
+	return OverviewRow{
+		URN:        res.URN,
+		Type:       res.Type,
+		ResourceID: res.ID,
+		Status:     StatusActive,
+		Properties: res.Properties,
+	}
+}
+
 // MergeResourcesForOverview builds skeleton OverviewRow entries by combining
 // current Pulumi state resources with pending plan steps.
 //
@@ -93,18 +105,12 @@ func MergeResourcesForOverview(
 		}
 		seenURNs[res.URN] = struct{}{}
 
-		status := StatusActive
+		row := stateResourceToRow(res)
 		if step, ok := planByURN[res.URN]; ok {
-			status = MapOperationToStatus(step.Op)
+			row.Status = MapOperationToStatus(step.Op)
 		}
 
-		rows = append(rows, OverviewRow{
-			URN:        res.URN,
-			Type:       res.Type,
-			ResourceID: res.ID,
-			Status:     status,
-			Properties: res.Properties,
-		})
+		rows = append(rows, row)
 	}
 
 	// Phase 2: append new resources that appear only in the plan.
@@ -155,13 +161,7 @@ func NewRowsFromState(ctx context.Context, stateResources []StateResource) []Ove
 		if !res.Custom {
 			continue
 		}
-		rows = append(rows, OverviewRow{
-			URN:        res.URN,
-			Type:       res.Type,
-			ResourceID: res.ID,
-			Status:     StatusActive,
-			Properties: res.Properties,
-		})
+		rows = append(rows, stateResourceToRow(res))
 	}
 
 	log.Debug().

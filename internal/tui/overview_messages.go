@@ -1,8 +1,6 @@
 package tui
 
 import (
-	"time"
-
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/rshade/finfocus/internal/engine"
@@ -13,10 +11,8 @@ import (
 type OverviewPreviewStartedMsg struct{}
 
 // OverviewPreviewTickMsg is sent every second while preview is running.
-// The TUI uses it to display an elapsed timer in the header.
-type OverviewPreviewTickMsg struct {
-	Elapsed time.Duration
-}
+// The TUI uses it to trigger an elapsed-time update (computed from m.previewLoadStart).
+type OverviewPreviewTickMsg struct{}
 
 // OverviewChangesReadyMsg is sent when pulumi preview completes.
 // StatusByURN maps Pulumi URN strings to their ResourceStatus (creating/updating/etc.).

@@ -1,9 +1,8 @@
 package tui
 
 import (
-	figure "github.com/common-nighthawk/go-figure"
-
 	"github.com/charmbracelet/lipgloss"
+	figure "github.com/common-nighthawk/go-figure"
 )
 
 const bannerMinWidth = 65
@@ -16,7 +15,7 @@ func RenderBanner(width int) string {
 		fig := figure.NewFigure("FinFocus", "banner", true)
 		title = HeaderStyle.Render(fig.String())
 	} else {
-		title = HeaderStyle.Bold(true).Render("FinFocus")
+		title = HeaderStyle.Render("FinFocus")
 	}
 
 	motif := OKStyle.Render("$ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $ $")

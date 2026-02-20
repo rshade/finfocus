@@ -177,7 +177,7 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 	}
 
 	if err := tw.Flush(); err != nil {
-		return err
+		return fmt.Errorf("flushing table: %w", err)
 	}
 
 	// State-only footnote written after flush so tabwriter alignment does not affect it.
