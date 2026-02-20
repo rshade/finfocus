@@ -131,16 +131,12 @@ func TestEnrichOverviewRow_NoPlugins(t *testing.T) {
 
 	EnrichOverviewRow(ctx, &row, eng, dateRange)
 
-	// With no plugins, the engine still returns placeholder results via spec
-	// fallback, so cost fields are non-nil but contain zero cost values.
-	if row.ActualCost != nil {
-		assert.Equal(t, 0.0, row.ActualCost.MTDCost, "ActualCost MTDCost should be zero with no plugins")
-		assert.Equal(t, "USD", row.ActualCost.Currency, "ActualCost currency should default to USD")
-	}
-	if row.ProjectedCost != nil {
-		assert.Equal(t, 0.0, row.ProjectedCost.MonthlyCost, "ProjectedCost MonthlyCost should be zero with no plugins")
-		assert.Equal(t, "USD", row.ProjectedCost.Currency, "ProjectedCost currency should default to USD")
-	}
+	// With no plugins and no spec loader, the engine returns empty result sets
+	// (len(result.Results) == 0), so the enrichment functions never set
+	// ActualCost or ProjectedCost — both remain nil. This is the expected
+	// behaviour; asserting nil here makes the intent explicit.
+	assert.Nil(t, row.ActualCost, "ActualCost must be nil with no plugins")
+	assert.Nil(t, row.ProjectedCost, "ProjectedCost must be nil with no plugins")
 	assert.Empty(t, row.Recommendations, "Recommendations should be empty with no plugins")
 }
 
@@ -194,6 +190,8 @@ func TestEnrichOverviewRow_CreatingStatus_SkipsActualCost(t *testing.T) {
 
 	// Creating resources should not have actual cost
 	assert.Nil(t, row.ActualCost)
+	// Cost drift requires both actual and projected; skipping actual means no drift.
+	assert.Nil(t, row.CostDrift, "no drift without actual cost")
 }
 
 // ---------------------------------------------------------------------------
@@ -382,9 +380,11 @@ func TestEnrichOverviewRows_ClosesProgressChan(t *testing.T) {
 // Parallel enrichment (sub-call concurrency within EnrichOverviewRow)
 // ---------------------------------------------------------------------------
 
-func TestEnrichOverviewRow_ParallelPopulatesAllFields(t *testing.T) {
-	// Verify that running all three enrichment calls concurrently produces
-	// the same populated fields as the sequential implementation.
+func TestEnrichOverviewRow_ParallelConsistencyNoPlugins(t *testing.T) {
+	// Verify that running all three enrichment sub-calls concurrently does not
+	// introduce data races and leaves the row in a consistent state. With no
+	// plugins or spec loader the cost fields remain nil; the assertions here
+	// confirm safe completion and field preservation, not cost population.
 	ctx := context.Background()
 	eng := New(nil, nil)
 
@@ -416,34 +416,6 @@ func TestEnrichOverviewRow_ParallelPopulatesAllFields(t *testing.T) {
 	assert.Equal(t, StatusActive, row.Status)
 	// Properties must be preserved after concurrent enrichment
 	assert.Equal(t, "t3.micro", row.Properties["instanceType"])
-}
-
-func TestEnrichOverviewRow_CreatingStatus_SkipsActualCostGoroutine(t *testing.T) {
-	// Verify that StatusCreating resources skip actual cost enrichment
-	// entirely (no goroutine launched) while projected cost and
-	// recommendations still run concurrently.
-	ctx := context.Background()
-	eng := New(nil, nil)
-
-	now := time.Now()
-	dateRange := DateRange{
-		Start: now.Add(-24 * time.Hour),
-		End:   now,
-	}
-
-	row := OverviewRow{
-		URN:    "urn:pulumi:prod::app::aws:s3:Bucket::new-bucket",
-		Type:   "aws:s3:Bucket",
-		Status: StatusCreating,
-	}
-
-	EnrichOverviewRow(ctx, &row, eng, dateRange)
-
-	// Creating resources must not have actual cost populated
-	assert.Nil(t, row.ActualCost, "creating resource must skip actual cost")
-	assert.Nil(t, row.Error, "no error expected for creating resource")
-	// Cost drift requires both actual and projected, so it must be nil
-	assert.Nil(t, row.CostDrift, "no drift without actual cost")
 }
 
 func TestEnrichOverviewRow_ErrorMerge_NoErrors(t *testing.T) {
@@ -619,4 +591,172 @@ func TestEnrichProjectedCost_ReturnsNilOnSuccess(t *testing.T) {
 
 	result := enrichProjectedCost(ctx, &row, eng, resource)
 	assert.Nil(t, result, "enrichProjectedCost must return nil when no error occurs")
+}
+
+// ---------------------------------------------------------------------------
+// mockEnricher — lightweight test double for overviewEnricher
+// ---------------------------------------------------------------------------
+
+// mockEnricher implements overviewEnricher with configurable return values.
+type mockEnricher struct {
+	actualResult    *CostResultWithErrors
+	actualErr       error
+	projectedResult *CostResultWithErrors
+	projectedErr    error
+	recommendResult *RecommendationsResult
+	recommendErr    error
+}
+
+func (m *mockEnricher) GetActualCostWithOptionsAndErrors(
+	_ context.Context,
+	_ ActualCostRequest,
+) (*CostResultWithErrors, error) {
+	return m.actualResult, m.actualErr
+}
+
+func (m *mockEnricher) GetProjectedCostWithErrors(
+	_ context.Context,
+	_ []ResourceDescriptor,
+) (*CostResultWithErrors, error) {
+	return m.projectedResult, m.projectedErr
+}
+
+func (m *mockEnricher) GetRecommendationsForResources(
+	_ context.Context,
+	_ []ResourceDescriptor,
+) (*RecommendationsResult, error) {
+	return m.recommendResult, m.recommendErr
+}
+
+// ---------------------------------------------------------------------------
+// Error-precedence tests using mockEnricher
+// ---------------------------------------------------------------------------
+
+func TestEnrichOverviewRow_ErrorPrecedence(t *testing.T) {
+	// Verify the deterministic error-merge logic: actualErr wins over
+	// projectedErr; if only one is non-nil, that one is used; if neither
+	// is non-nil, row.Error remains nil.
+	errActual := errors.New("actual cost fetch failed")
+	errProjected := errors.New("projected cost fetch failed")
+
+	tests := []struct {
+		name         string
+		actualErr    error
+		projectedErr error
+		wantNilErr   bool
+		wantErrMsg   string
+	}{
+		{
+			name:         "actual error only",
+			actualErr:    errActual,
+			projectedErr: nil,
+			wantNilErr:   false,
+			wantErrMsg:   "actual cost fetch failed",
+		},
+		{
+			name:         "projected error only",
+			actualErr:    nil,
+			projectedErr: errProjected,
+			wantNilErr:   false,
+			wantErrMsg:   "projected cost fetch failed",
+		},
+		{
+			name:         "both errors — actual wins",
+			actualErr:    errActual,
+			projectedErr: errProjected,
+			wantNilErr:   false,
+			wantErrMsg:   "actual cost fetch failed",
+		},
+		{
+			name:         "no errors",
+			actualErr:    nil,
+			projectedErr: nil,
+			wantNilErr:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := context.Background()
+			mock := &mockEnricher{
+				actualErr:    tt.actualErr,
+				projectedErr: tt.projectedErr,
+			}
+
+			row := OverviewRow{
+				URN:    "urn:test:error-precedence",
+				Type:   "aws:ec2:Instance",
+				Status: StatusActive,
+			}
+			dateRange := DateRange{
+				Start: time.Now().Add(-24 * time.Hour),
+				End:   time.Now(),
+			}
+
+			enrichOverviewRow(ctx, &row, mock, dateRange)
+
+			if tt.wantNilErr {
+				assert.Nil(t, row.Error, "row.Error must be nil when no enrichment errors occur")
+			} else {
+				require.NotNil(t, row.Error, "row.Error must be set")
+				assert.Contains(t, row.Error.Message, tt.wantErrMsg)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Positive-path CostDrift test using mockEnricher
+// ---------------------------------------------------------------------------
+
+func TestEnrichOverviewRow_CostDrift_ComputedOnCompletion(t *testing.T) {
+	// Verify that CostDrift is computed when both actual and projected costs
+	// are returned by the engine. The mock returns deterministic values so
+	// the expected drift can be calculated exactly.
+	//
+	// Setup: dateRange ends on day 15 of a 30-day month.
+	//   actualMTD   = 50.0
+	//   projected   = 200.0
+	//   extrapolated = 50 * (30/15) = 100.0
+	//   delta        = 100 - 200 = -100.0
+	//   percentDrift = -100/200 * 100 = -50% → abs > 10%, so CostDrift is non-nil.
+	ctx := context.Background()
+
+	// Use a fixed mid-month reference date for determinism.
+	refTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	dateRange := DateRange{
+		Start: refTime.Add(-24 * time.Hour),
+		End:   refTime,
+	}
+
+	mock := &mockEnricher{
+		actualResult: &CostResultWithErrors{
+			Results: []CostResult{{TotalCost: 50.0, Currency: "USD"}},
+		},
+		projectedResult: &CostResultWithErrors{
+			Results: []CostResult{{Monthly: 200.0, Currency: "USD"}},
+		},
+	}
+
+	row := OverviewRow{
+		URN:    "urn:test:drift-computed",
+		Type:   "aws:ec2:Instance",
+		Status: StatusActive,
+	}
+
+	enrichOverviewRow(ctx, &row, mock, dateRange)
+
+	require.NotNil(t, row.ActualCost, "ActualCost must be set by mock")
+	require.NotNil(t, row.ProjectedCost, "ProjectedCost must be set by mock")
+	assert.Equal(t, 50.0, row.ActualCost.MTDCost)
+	assert.Equal(t, 200.0, row.ProjectedCost.MonthlyCost)
+
+	// With day=15, daysInMonth=30, actual=50, projected=200:
+	// percentDrift = -50% which exceeds the 10% warning threshold.
+	require.NotNil(t, row.CostDrift, "CostDrift must be computed when both costs are present")
+	assert.InDelta(t, 100.0, row.CostDrift.ExtrapolatedMonthly, 0.001)
+	assert.InDelta(t, 200.0, row.CostDrift.Projected, 0.001)
+	assert.InDelta(t, -100.0, row.CostDrift.Delta, 0.001)
+	assert.InDelta(t, -50.0, row.CostDrift.PercentDrift, 0.001)
+	assert.True(t, row.CostDrift.IsWarning)
 }

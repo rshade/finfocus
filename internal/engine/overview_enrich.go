@@ -12,6 +12,15 @@ import (
 // overviewConcurrencyLimit is the maximum number of concurrent enrichment goroutines.
 const overviewConcurrencyLimit = 10
 
+// overviewEnricher is the subset of Engine methods used by the enrichment
+// helpers. *Engine satisfies this interface automatically; it exists solely
+// to enable lightweight test doubles without modifying the public API.
+type overviewEnricher interface {
+	GetActualCostWithOptionsAndErrors(ctx context.Context, request ActualCostRequest) (*CostResultWithErrors, error)
+	GetProjectedCostWithErrors(ctx context.Context, resources []ResourceDescriptor) (*CostResultWithErrors, error)
+	GetRecommendationsForResources(ctx context.Context, resources []ResourceDescriptor) (*RecommendationsResult, error)
+}
+
 // EnrichOverviewRow enriches a single OverviewRow by fetching actual costs,
 // projected costs, and recommendations from the engine concurrently (up to 3
 // goroutines per call). When used with EnrichOverviewRows' worker pool, the
@@ -20,6 +29,12 @@ const overviewConcurrencyLimit = 10
 // cost errors taking precedence; recommendation failures are logged but do
 // not set row.Error.
 func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateRange DateRange) {
+	enrichOverviewRow(ctx, row, eng, dateRange)
+}
+
+// enrichOverviewRow is the internal implementation of EnrichOverviewRow that
+// accepts the overviewEnricher interface, enabling test doubles.
+func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnricher, dateRange DateRange) {
 	log := logging.FromContext(ctx)
 	log.Debug().
 		Ctx(ctx).
@@ -91,7 +106,7 @@ func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateR
 func enrichActualCost(
 	ctx context.Context,
 	row *OverviewRow,
-	eng *Engine,
+	eng overviewEnricher,
 	resource ResourceDescriptor,
 	dateRange DateRange,
 ) *OverviewRowError {
@@ -146,7 +161,7 @@ func enrichActualCost(
 func enrichProjectedCost(
 	ctx context.Context,
 	row *OverviewRow,
-	eng *Engine,
+	eng overviewEnricher,
 	resource ResourceDescriptor,
 ) *OverviewRowError {
 	log := logging.FromContext(ctx)
@@ -186,7 +201,7 @@ func enrichProjectedCost(
 }
 
 // enrichRecommendations fetches recommendations for a row.
-func enrichRecommendations(ctx context.Context, row *OverviewRow, eng *Engine, resource ResourceDescriptor) {
+func enrichRecommendations(ctx context.Context, row *OverviewRow, eng overviewEnricher, resource ResourceDescriptor) {
 	log := logging.FromContext(ctx)
 
 	result, err := eng.GetRecommendationsForResources(ctx, []ResourceDescriptor{resource})
