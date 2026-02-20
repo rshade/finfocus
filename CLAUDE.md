@@ -1115,6 +1115,7 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
+- Go 1.25.7 + `github.com/charmbracelet/lipgloss` (already imported in file) (597-tui-init-lipgloss)
 
 - Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss
 
