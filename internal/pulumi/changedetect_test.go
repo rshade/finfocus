@@ -152,9 +152,7 @@ func TestDetectChanges_StatErrorSkipsFile(t *testing.T) {
 	// so this exercises the stat-error skip branch inside DetectChanges.
 	brokenTarget := filepath.Join(tmpDir, "nonexistent-target.ts")
 	brokenLink := filepath.Join(tmpDir, "broken.ts")
-	if err := os.Symlink(brokenTarget, brokenLink); err != nil {
-		t.Skipf("symlinks not available on this platform/environment: %v", err)
-	}
+	require.NoError(t, os.Symlink(brokenTarget, brokenLink))
 
 	// Detection should skip the broken symlink and continue; index.ts is newer so
 	// HasLikelyChanges must be true.

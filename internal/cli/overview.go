@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -550,9 +549,13 @@ func promptForPreview(w io.Writer, r io.Reader, signal pulumidetect.ChangeSignal
 		return false, fmt.Errorf("writing to output: %w", err)
 	}
 
-	line, err := bufio.NewReader(r).ReadString('\n')
-	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
-		return false, fmt.Errorf("reading user input: %w", err)
+	var line string
+	if _, err := fmt.Fscanln(r, &line); err != nil {
+		// EOF / unexpected-EOF means the user pressed Enter with no input — treat as Y.
+		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+			return false, fmt.Errorf("reading user input: %w", err)
+		}
+		line = ""
 	}
 	line = strings.TrimSpace(strings.ToLower(line))
 	return line == "" || line == "y" || line == answerYes, nil

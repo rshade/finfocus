@@ -74,6 +74,7 @@ func buildPlanByURN(planSteps []PlanStep) map[string]PlanStep {
 	return planByURN
 }
 
+
 // MergeResourcesForOverview builds skeleton OverviewRow entries by combining
 // current Pulumi state resources with pending plan steps.
 //

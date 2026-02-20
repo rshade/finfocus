@@ -64,9 +64,7 @@ func NewRootCmdWithArgs(
 		// cost dashboard. Outside a Pulumi project, display help as before.
 		// --help is always handled by Cobra before RunE is reached.
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Use the directory resolved by PersistentPreRunE for consistency.
-			// Fall back to searching from "." if no project dir was resolved.
-			searchDir := config.GetResolvedProjectDir()
+			searchDir := projectDirFlag
 			if searchDir == "" {
 				searchDir = "."
 			}
