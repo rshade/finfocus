@@ -21,9 +21,13 @@ import (
 	"github.com/rshade/finfocus/internal/proto"
 )
 
+// HoursPerMonth is the canonical number of hours in a standard business month
+// used for all monthly cost projections.
+const HoursPerMonth = 730
+
 const (
 	hoursPerDay                 = 24
-	hoursPerMonth               = 730
+	hoursPerMonth               = HoursPerMonth
 	daysPerWeek                 = 7     // Days in a week
 	daysPerMonth                = 30    // Approximate days per month
 	avgDaysPerMonth             = 30.44 // Accurate average days per month for conversions

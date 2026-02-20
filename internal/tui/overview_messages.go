@@ -6,10 +6,6 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 )
 
-// OverviewPreviewStartedMsg is sent when the user presses 'p' to start loading
-// pending changes. The TUI uses it to show the loading indicator.
-type OverviewPreviewStartedMsg struct{}
-
 // OverviewPreviewTickMsg is sent every second while preview is running.
 // The TUI uses it to trigger an elapsed-time update (computed from m.previewLoadStart).
 type OverviewPreviewTickMsg struct{}
@@ -31,6 +27,11 @@ type OverviewChangesReadyMsg struct {
 // preview command for the 'p' key binding. This cannot be embedded in
 // OverviewDataReadyMsg because previewCmd is only built after plugin startup,
 // which happens after initial data loading.
+//
+// DetectErrMsg is a short (≤60 chars) human-readable description of any error
+// that occurred during change detection. When non-empty it is surfaced in the
+// status bar so the user knows why state-only mode is active.
 type OverviewSetStateOnlyMsg struct {
-	PreviewCmd tea.Cmd
+	PreviewCmd   tea.Cmd
+	DetectErrMsg string
 }

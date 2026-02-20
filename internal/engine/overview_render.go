@@ -244,7 +244,12 @@ func formatRecsColumn(row OverviewRow) string {
 	if len(row.Recommendations) == 0 {
 		return "-"
 	}
-	return strconv.Itoa(len(row.Recommendations))
+	active, dismissed := CountRecsActiveAndDismissed(row.Recommendations)
+	total := active + dismissed
+	if dismissed == 0 {
+		return strconv.Itoa(total)
+	}
+	return fmt.Sprintf("%d(-%d)", total, dismissed)
 }
 
 // overviewRowTotals holds aggregated totals from overview rows.
@@ -279,7 +284,9 @@ func aggregateOverviewRows(rows []OverviewRow) (overviewRowTotals, error) {
 			}
 		}
 		for _, rec := range row.Recommendations {
-			t.savings += rec.EstimatedSavings
+			if rec.Status != RecommendationStatusDismissed && rec.Status != RecommendationStatusSnoozed {
+				t.savings += rec.EstimatedSavings
+			}
 		}
 	}
 	if t.currency == "" {

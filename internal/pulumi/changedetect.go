@@ -2,6 +2,7 @@ package pulumi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,6 +37,10 @@ type ChangeSignal struct {
 // projectDir is the directory containing Pulumi.yaml (used to find source files).
 func DetectChanges(ctx context.Context, manifestTime string, projectDir string) (ChangeSignal, error) {
 	log := logging.FromContext(ctx)
+
+	if strings.TrimSpace(projectDir) == "" {
+		return ChangeSignal{}, errors.New("detecting changes: projectDir is required")
+	}
 
 	// 1. Empty manifestTime means the stack has never been deployed.
 	if manifestTime == "" {
@@ -104,8 +109,10 @@ func pulumiSourceFile(name string) bool {
 	}
 
 	// Pulumi.yaml, Pulumi.yml, and Pulumi.*.yaml / Pulumi.*.yml (stack configs).
-	if strings.HasPrefix(name, "Pulumi.") &&
-		(strings.HasSuffix(name, ".yaml") || strings.HasSuffix(name, ".yml")) {
+	// Case-insensitive check handles mixed-case variants (e.g., "PULUMI.YAML").
+	lower := strings.ToLower(name)
+	if strings.HasPrefix(lower, "pulumi.") &&
+		(strings.HasSuffix(lower, ".yaml") || strings.HasSuffix(lower, ".yml")) {
 		return true
 	}
 

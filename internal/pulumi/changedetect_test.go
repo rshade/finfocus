@@ -182,7 +182,9 @@ func TestDetectChanges_MultipleModifiedFiles(t *testing.T) {
 	assert.NotContains(t, signal.ModifiedFiles, "go.mod")
 }
 
-// TestPulumiSourceFile_KnownExtensions exercises all seven pattern groups.
+// TestPulumiSourceFile_KnownExtensions exercises all source file pattern groups
+// handled by pulumiSourceFile: Pulumi YAML stack configs, TypeScript/JavaScript,
+// Python, Go, C# (.NET), F# (.NET), Java, and dependency files.
 func TestPulumiSourceFile_KnownExtensions(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -205,6 +207,11 @@ func TestPulumiSourceFile_KnownExtensions(t *testing.T) {
 		{"Go source .go", "main.go", true},
 		{"go.mod", "go.mod", true},
 		{"go.sum", "go.sum", true},
+		// C# / F# (.NET)
+		{"C# .cs", "Program.cs", true},
+		{"F# .fs", "Main.fs", true},
+		// Java
+		{"Java .java", "Main.java", true},
 		// Python deps
 		{"requirements.txt", "requirements.txt", true},
 		{"Pipfile", "Pipfile", true},
@@ -240,4 +247,31 @@ func TestPulumiSourceFile_UnknownExtension(t *testing.T) {
 			assert.False(t, pulumiSourceFile(name), "should not match: %s", name)
 		})
 	}
+}
+
+// TestPulumiSourceFile_CaseInsensitivePulumiPrefix verifies that mixed-case variants
+// of Pulumi YAML files are recognized.
+func TestPulumiSourceFile_CaseInsensitivePulumiPrefix(t *testing.T) {
+	cases := []struct {
+		filename string
+		want     bool
+	}{
+		{"pulumi.yaml", true},
+		{"pulumi.yml", true},
+		{"PULUMI.yaml", true},
+		{"Pulumi.dev.yaml", true},
+	}
+	for _, c := range cases {
+		t.Run(c.filename, func(t *testing.T) {
+			assert.Equal(t, c.want, pulumiSourceFile(c.filename))
+		})
+	}
+}
+
+// TestDetectChanges_EmptyProjectDir verifies that an empty projectDir returns an error.
+func TestDetectChanges_EmptyProjectDir(t *testing.T) {
+	ctx := context.Background()
+	_, err := DetectChanges(ctx, "2025-01-01T00:00:00Z", "")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "projectDir is required")
 }

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -10,6 +11,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
@@ -204,6 +206,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	pt = logging.StartPhase(ctx, "cli", "overview", "enrichment")
 	rows = engine.EnrichOverviewRows(ctx, rows, eng, dateRange, nil)
 	pt.Done(ctx)
+
+	// 10a. Apply dismissal delta (non-fatal; marks dismissed recs for count badge)
+	rows = applyDismissalDeltaToRows(ctx, rows)
 
 	// 11. Build stack context
 	stackCtx := engine.StackContext{
@@ -537,13 +542,9 @@ func promptForPreview(w io.Writer, r io.Reader, signal pulumidetect.ChangeSignal
 		return false, fmt.Errorf("writing to output: %w", err)
 	}
 
-	var line string
-	if _, err := fmt.Fscanln(r, &line); err != nil {
-		// EOF / unexpected-EOF means the user pressed Enter with no input — treat as Y.
-		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
-			return false, fmt.Errorf("reading user input: %w", err)
-		}
-		line = ""
+	line, err := bufio.NewReader(r).ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return false, fmt.Errorf("reading user input: %w", err)
 	}
 	line = strings.TrimSpace(strings.ToLower(line))
 	return line == "" || line == "y" || line == answerYes, nil
@@ -803,8 +804,13 @@ func overviewInitAndEnrich(
 	log := logging.FromContext(enrichCtx)
 
 	// Pre-check: detect if stack uses passphrase encryption before loading.
-	if err := checkAndPromptPassphrase(enrichCtx, p, params, passphraseChan); err != nil {
-		p.Send(tui.OverviewInitErrorMsg{Err: err})
+	pw, passphraseErr := checkAndPromptPassphrase(enrichCtx, p, params, passphraseChan)
+	if passphraseErr != nil {
+		p.Send(tui.OverviewInitErrorMsg{Err: passphraseErr})
+		return
+	}
+	if applyErr := applyPassphraseEnv(pw); applyErr != nil {
+		p.Send(tui.OverviewInitErrorMsg{Err: applyErr})
 		return
 	}
 
@@ -921,7 +927,7 @@ func overviewInitAndEnrich(
 	// If state-only: update the model's isStateOnly and previewCmd via a SetStateOnlyMsg.
 	// We reuse the existing message pattern to keep it simple.
 	if isStateOnly {
-		p.Send(tui.OverviewSetStateOnlyMsg{PreviewCmd: previewCmd})
+		p.Send(tui.OverviewSetStateOnlyMsg{PreviewCmd: previewCmd, DetectErrMsg: shortErrMsg(detectErr)})
 	}
 
 	// Phase 6: Enrichment.
@@ -956,11 +962,7 @@ func loadStateForOverview(
 func loadPlanForOverview(
 	ctx context.Context, params overviewParams, projectDir, stack string,
 ) ([]engine.PlanStep, error) {
-	steps, err := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, stack)
-	if err != nil {
-		return nil, fmt.Errorf("loading plan: %w", err)
-	}
-	return steps, nil
+	return resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, stack)
 }
 
 // runBackgroundPreview runs pulumi preview in the background and returns an
@@ -995,10 +997,7 @@ func runBackgroundPreview(
 		Msg("background preview completed")
 
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
-	statusByURN := make(map[string]engine.ResourceStatus, len(planSteps))
-	for _, step := range planSteps {
-		statusByURN[step.URN] = engine.MapOperationToStatus(step.Op)
-	}
+	statusByURN := engine.BuildStatusByURN(planSteps)
 	return tui.OverviewChangesReadyMsg{
 		StatusByURN: statusByURN,
 		HasChanges:  hasChanges,
@@ -1006,10 +1005,42 @@ func runBackgroundPreview(
 	}
 }
 
+// applyPassphraseEnv sets PULUMI_CONFIG_PASSPHRASE when pw is non-empty.
+// Callers obtain pw from checkAndPromptPassphrase and call this function so that
+// os.Setenv is never invoked from inside a background goroutine.
+func applyPassphraseEnv(pw string) error {
+	if pw == "" {
+		return nil
+	}
+	if err := os.Setenv("PULUMI_CONFIG_PASSPHRASE", pw); err != nil {
+		return fmt.Errorf("setting PULUMI_CONFIG_PASSPHRASE: %w", err)
+	}
+	return nil
+}
+
+// shortErrMsg returns a short (≤60 char) representation of err suitable for
+// embedding in a TUI status bar. Returns "" when err is nil.
+func shortErrMsg(err error) string {
+	const maxLen = 60
+	if err == nil {
+		return ""
+	}
+	msg := err.Error()
+	if utf8.RuneCountInString(msg) > maxLen {
+		runes := []rune(msg)
+		msg = string(runes[:maxLen])
+	}
+	return msg
+}
+
 // checkAndPromptPassphrase detects if the Pulumi stack uses passphrase encryption.
 // If PULUMI_CONFIG_PASSPHRASE is not set and the stack YAML contains an encryptionsalt,
 // it sends OverviewPassphraseRequiredMsg to the TUI and blocks until the user provides
 // the passphrase (or the context is cancelled).
+//
+// Returns the passphrase string (non-empty when the user entered one) and any error.
+// The caller is responsible for calling os.Setenv with the returned passphrase so that
+// os.Setenv is never called from a background goroutine.
 //
 // If passphrase auto-detection is not possible (e.g. using --pulumi-state files instead
 // of auto-detect, or if the stack YAML cannot be read), the check is silently skipped
@@ -1019,34 +1050,39 @@ func checkAndPromptPassphrase(
 	p *tea.Program,
 	params overviewParams,
 	passphraseChan chan string,
-) error {
+) (string, error) {
 	// Skip if passphrase already set
 	if os.Getenv("PULUMI_CONFIG_PASSPHRASE") != "" {
-		return nil
+		return "", nil
 	}
 
 	// Only auto-detect when not using explicit file flags
 	if params.pulumiState != "" {
-		return nil
+		return "", nil
 	}
 
 	// Locate the project directory and stack name
 	projectDir, stackName, detectErr := detectPulumiProject(ctx, params.stack)
 	if detectErr != nil {
 		// If we can't detect the project, skip (let stack export fail naturally).
-		return nil //nolint:nilerr // Intentional fail-open: passphrase check is best-effort.
+		return "", nil //nolint:nilerr // Intentional fail-open: passphrase check is best-effort.
 	}
 
-	// Read the stack YAML and check for encryptionsalt
+	// Read the stack YAML and check for encryptionsalt.
+	// Try .yaml first, then .yml — Pulumi supports both extensions.
 	stackYAML := filepath.Join(projectDir, "Pulumi."+stackName+".yaml")
 	data, readErr := os.ReadFile(stackYAML)
 	if readErr != nil {
-		// Stack YAML not found or unreadable — skip check, fail open.
-		return nil //nolint:nilerr // Intentional fail-open: passphrase check is best-effort.
+		stackYAML = filepath.Join(projectDir, "Pulumi."+stackName+".yml")
+		data, readErr = os.ReadFile(stackYAML)
+		if readErr != nil {
+			// Stack YAML not found or unreadable — skip check, fail open.
+			return "", nil //nolint:nilerr // Intentional fail-open: passphrase check is best-effort.
+		}
 	}
 
 	if !strings.Contains(string(data), "encryptionsalt:") {
-		return nil
+		return "", nil
 	}
 
 	// Stack is encrypted and no passphrase is set — prompt the user via TUI
@@ -1055,12 +1091,9 @@ func checkAndPromptPassphrase(
 	// Block until the user provides the passphrase or the context is cancelled
 	select {
 	case pw := <-passphraseChan:
-		if setenvErr := os.Setenv("PULUMI_CONFIG_PASSPHRASE", pw); setenvErr != nil {
-			return fmt.Errorf("setting PULUMI_CONFIG_PASSPHRASE: %w", setenvErr)
-		}
-		return nil
+		return pw, nil
 	case <-ctx.Done():
-		return ctx.Err()
+		return "", ctx.Err()
 	}
 }
 
@@ -1078,6 +1111,10 @@ func bridgeEnrichmentToTUI(
 
 	log := logging.FromContext(enrichCtx)
 
+	// Load dismissal store once for the entire enrichment pass.
+	// Non-fatal: if unavailable the delta is simply omitted.
+	dismissalRecords := loadDismissalRecordsForOverview(enrichCtx)
+
 	progressChan := make(chan engine.OverviewRowUpdate, len(rows))
 	go func() {
 		engine.EnrichOverviewRows(enrichCtx, rows, eng, dateRange, progressChan)
@@ -1090,6 +1127,9 @@ func bridgeEnrichmentToTUI(
 			return
 		default:
 		}
+
+		// Apply dismissal delta to the enriched row before sending to TUI.
+		engine.ApplyDismissalDeltaToRow(&update.Row, dismissalRecords)
 
 		loadedCount++
 		p.Send(tui.OverviewResourceLoadedMsg{
@@ -1131,4 +1171,39 @@ func bridgeEnrichmentToTUI(
 		Str("operation", "overview_tui_init").
 		Int("total_rows", len(rows)).
 		Msg("enrichment complete")
+}
+
+// loadDismissalRecordsForOverview loads dismissal records for the overview dismissal
+// delta pass. Returns nil (not an error) when the store is unavailable so that
+// callers can safely skip the delta without aborting the overview.
+func loadDismissalRecordsForOverview(ctx context.Context) map[string]*config.DismissalRecord {
+	log := logging.FromContext(ctx)
+
+	store, err := loadDismissalStore()
+	if err != nil {
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "overview_dismissal_delta").
+			Err(err).
+			Msg("dismissal store unavailable; skipping delta")
+		return nil
+	}
+	return store.GetAllRecords()
+}
+
+// applyDismissalDeltaToRows loads the dismissal store and appends dismissed/snoozed
+// recommendation stubs to each row's Recommendations slice. This enables the count
+// badge to show "N(-M)" when M recs are dismissed without listing them in full.
+// Errors are non-fatal: if the store cannot be loaded, rows are returned unchanged.
+func applyDismissalDeltaToRows(ctx context.Context, rows []engine.OverviewRow) []engine.OverviewRow {
+	records := loadDismissalRecordsForOverview(ctx)
+	if len(records) == 0 {
+		return rows
+	}
+
+	for i := range rows {
+		engine.ApplyDismissalDeltaToRow(&rows[i], records)
+	}
+	return rows
 }

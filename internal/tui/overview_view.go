@@ -11,6 +11,14 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 )
 
+// stateOnlyFootnote returns the footnote appended to the list view when costs
+// are projected from current state without a fresh pulumi preview.
+// It derives the hours-per-month value from engine.HoursPerMonth to stay in
+// sync with the canonical constant used for all cost projections.
+func stateOnlyFootnote() string {
+	return fmt.Sprintf("* projected at current state (%dh/mo)", engine.HoursPerMonth)
+}
+
 // View renders the current view (Bubble Tea interface).
 func (m OverviewModel) View() string {
 	switch m.state {
@@ -45,7 +53,9 @@ func (m OverviewModel) renderInitializingView() string {
 			LabelStyle.Render("Enter PULUMI_CONFIG_PASSPHRASE: ")+m.passphraseInput.View(),
 			SubtleStyle.Render("(hidden — press Enter to continue, Esc to cancel)"),
 		)
-		return lipgloss.JoinVertical(lipgloss.Center, banner, "", prompt, "")
+		bannerW := lipgloss.Width(banner)
+		constrainedPrompt := lipgloss.NewStyle().Width(bannerW).Render(prompt)
+		return lipgloss.JoinVertical(lipgloss.Center, banner, "", constrainedPrompt, "")
 	}
 
 	// Phase checklist
@@ -113,16 +123,16 @@ func (m OverviewModel) renderListView() string {
 	statusBar := m.renderStatusBar()
 	sections = append(sections, statusBar)
 
-	// Footer footnote for state-only mode.
-	if m.isStateOnly && !m.previewLoaded {
-		footnote := SubtleStyle.Render("* projected at current state (730h/mo)")
-		sections = append(sections, footnote)
-	}
-
 	// Filter input (if active)
 	if m.showFilter {
 		filterView := LabelStyle.Render("Filter: ") + m.textInput.View()
 		sections = append(sections, filterView)
+	}
+
+	// Footer footnote for state-only mode (after filter so filter appears above footnote).
+	if m.isStateOnly && !m.previewLoaded {
+		footnote := SubtleStyle.Render(stateOnlyFootnote())
+		sections = append(sections, footnote)
 	}
 
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
@@ -153,9 +163,13 @@ func (m OverviewModel) renderStatusBar() string {
 		)
 	case m.isStateOnly && !m.previewLoaded:
 		// Offer 'p' hint when in state-only mode and preview not loaded.
+		detectFailed := ""
+		if m.detectErrMsg != "" {
+			detectFailed = " (change detection failed)"
+		}
 		status = fmt.Sprintf(
-			"%sSort: %s%s | [p] load pending changes | Press 's' to cycle, '/' to filter, 'q' to quit",
-			stackPrefix, sortLabel, filterStatus,
+			"%sSort: %s%s | [p] load pending changes%s | Press 's' to cycle, '/' to filter, 'q' to quit",
+			stackPrefix, sortLabel, filterStatus, detectFailed,
 		)
 	default:
 		status = fmt.Sprintf(
@@ -278,14 +292,24 @@ func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRow) {
 	content.WriteString("\n\n")
 }
 
-// renderDetailRecommendations writes recommendations to the builder.
+// renderDetailRecommendations writes active (non-dismissed) recommendations to
+// the builder. Dismissed and snoozed recommendations are excluded from the
+// detail view — they are only reflected in the count badge.
 func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRow) {
-	if len(row.Recommendations) == 0 {
+	// Collect active recs only.
+	var active []engine.Recommendation
+	for _, rec := range row.Recommendations {
+		if rec.Status != engine.RecommendationStatusDismissed &&
+			rec.Status != engine.RecommendationStatusSnoozed {
+			active = append(active, rec)
+		}
+	}
+	if len(active) == 0 {
 		return
 	}
 	content.WriteString(HeaderStyle.Render("RECOMMENDATIONS"))
 	content.WriteString("\n")
-	for i, rec := range row.Recommendations {
+	for i, rec := range active {
 		fmt.Fprintf(content, "  %d. %s\n", i+1, rec.Description)
 		content.WriteString(LabelStyle.Render("     Savings: "))
 		content.WriteString(ValueStyle.Render(

@@ -647,26 +647,6 @@ func TestOverviewModel_WindowResizeDuringInitializing(t *testing.T) {
 	assert.Equal(t, ViewStateInitializing, model.state) // state unchanged
 }
 
-// TestOverviewModel_PreviewLoadingState verifies OverviewPreviewStartedMsg sets isPreviewLoading.
-func TestOverviewModel_PreviewLoadingState(t *testing.T) {
-	ctx := context.Background()
-	rows := []engine.OverviewRow{
-		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
-	}
-
-	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
-	model.state = ViewStateList
-	model.isStateOnly = true
-
-	msg := OverviewPreviewStartedMsg{}
-	updatedModel, cmd := model.Update(msg)
-	model = updatedModel.(OverviewModel)
-
-	assert.True(t, model.isPreviewLoading)
-	assert.False(t, model.previewLoadStart.IsZero(), "previewLoadStart should be set")
-	assert.NotNil(t, cmd, "should return tick command")
-}
-
 // TestOverviewModel_PreviewTickUpdatesElapsed verifies OverviewPreviewTickMsg updates previewElapsed.
 func TestOverviewModel_PreviewTickUpdatesElapsed(t *testing.T) {
 	ctx := context.Background()

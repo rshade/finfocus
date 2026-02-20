@@ -59,6 +59,21 @@ func stateResourceToRow(res StateResource) OverviewRow {
 	}
 }
 
+// buildPlanByURN indexes plan steps by URN, keeping only the highest-precedence
+// operation when the same URN appears multiple times (e.g., create-replacement +
+// delete-replaced during a replace).
+func buildPlanByURN(planSteps []PlanStep) map[string]PlanStep {
+	precedence := getOpPrecedence()
+	planByURN := make(map[string]PlanStep, len(planSteps))
+	for _, step := range planSteps {
+		existing, exists := planByURN[step.URN]
+		if !exists || precedence[step.Op] > precedence[existing.Op] {
+			planByURN[step.URN] = step
+		}
+	}
+	return planByURN
+}
+
 // MergeResourcesForOverview builds skeleton OverviewRow entries by combining
 // current Pulumi state resources with pending plan steps.
 //
@@ -84,14 +99,7 @@ func MergeResourcesForOverview(
 		Msg("starting resource merge for overview")
 
 	// Index plan steps by URN for O(1) lookup, using deterministic precedence.
-	precedence := getOpPrecedence()
-	planByURN := make(map[string]PlanStep, len(planSteps))
-	for _, step := range planSteps {
-		existing, exists := planByURN[step.URN]
-		if !exists || precedence[step.Op] > precedence[existing.Op] {
-			planByURN[step.URN] = step
-		}
-	}
+	planByURN := buildPlanByURN(planSteps)
 
 	// Track URNs we have seen from state so we can detect new creates.
 	seenURNs := make(map[string]struct{}, len(stateResources))
@@ -185,16 +193,29 @@ func NewRowsFromState(ctx context.Context, stateResources []StateResource) []Ove
 // TUI. Callers in other contexts must ensure no concurrent reads on rows during
 // this call.
 //
-// Panics if rows is nil.
+// No-op if rows is nil.
 func ApplyChangesToRows(rows []OverviewRow, statusByURN map[string]ResourceStatus) {
 	if rows == nil {
-		panic("ApplyChangesToRows: rows must not be nil")
+		return
 	}
 	for i := range rows {
 		if status, ok := statusByURN[rows[i].URN]; ok {
 			rows[i].Status = status
 		}
 	}
+}
+
+// BuildStatusByURN converts a slice of PlanSteps to a map of URN → ResourceStatus
+// using the same precedence rules as MergeResourcesForOverview. When the same URN
+// appears with multiple operations (e.g., create-replacement + delete-replaced for
+// a replace), the highest-precedence operation wins.
+func BuildStatusByURN(planSteps []PlanStep) map[string]ResourceStatus {
+	planByURN := buildPlanByURN(planSteps)
+	statusByURN := make(map[string]ResourceStatus, len(planByURN))
+	for urn, step := range planByURN {
+		statusByURN[urn] = MapOperationToStatus(step.Op)
+	}
+	return statusByURN
 }
 
 // DetectPendingChanges inspects a set of plan steps and reports whether any

@@ -45,8 +45,8 @@ var phaseNames = []string{
 	"Enriching resources",
 }
 
-// GetPhaseNames returns a copy of the phase name slice.
-// Callers must not modify the returned slice.
+// GetPhaseNames returns a defensive copy of the phaseNames slice.
+// The returned copy is safe to modify without affecting the original phaseNames.
 func GetPhaseNames() []string {
 	names := make([]string, len(phaseNames))
 	copy(names, phaseNames)
@@ -131,6 +131,7 @@ type OverviewModel struct {
 	previewLoaded    bool          // true after OverviewChangesReadyMsg received
 	previewCmd       tea.Cmd       // command that starts background preview (injected at construction)
 	previewElapsed   time.Duration // elapsed time since preview started
+	detectErrMsg     string        // short description of change-detection failure (empty = none)
 }
 
 // NewOverviewModel creates a new interactive overview model.
@@ -279,13 +280,6 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleAllResourcesLoaded()
 	}
 
-	// Handle on-demand preview messages (Issue 3: state-first phased loading).
-	if _, ok := msg.(OverviewPreviewStartedMsg); ok {
-		m.isPreviewLoading = true
-		m.previewLoadStart = time.Now()
-		return m, tickPreviewCmd()
-	}
-
 	if _, ok := msg.(OverviewPreviewTickMsg); ok {
 		if m.isPreviewLoading {
 			// Compute elapsed from previewLoadStart, ignoring the tick's own elapsed.
@@ -309,6 +303,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if setStateMsg, ok := msg.(OverviewSetStateOnlyMsg); ok {
 		m.isStateOnly = true
 		m.previewCmd = setStateMsg.PreviewCmd
+		m.detectErrMsg = setStateMsg.DetectErrMsg
 		m.rebuildTable() // Rebuild to show "Projected*" header.
 		return m, nil
 	}
@@ -403,7 +398,10 @@ func (m OverviewModel) handlePassphraseInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch keyMsg.String() {
 		case keyEnter:
 			if m.passphraseChan != nil {
-				m.passphraseChan <- m.passphraseInput.Value()
+				select {
+				case m.passphraseChan <- m.passphraseInput.Value():
+				default:
+				}
 			}
 			m.passphraseInput.SetValue("")
 			m.showPassphraseInput = false
@@ -449,11 +447,12 @@ func (m OverviewModel) handleListKeypress(keyMsg tea.KeyMsg) (tea.Model, tea.Cmd
 		return m, nil
 	case keyP:
 		// Load pending changes on demand when in state-only mode.
+		// Set isPreviewLoading synchronously so rapid double-presses cannot
+		// pass the guard while the first preview is still starting.
 		if m.isStateOnly && !m.isPreviewLoading && !m.previewLoaded && m.previewCmd != nil {
-			return m, tea.Batch(
-				func() tea.Msg { return OverviewPreviewStartedMsg{} },
-				m.previewCmd,
-			)
+			m.isPreviewLoading = true
+			m.previewLoadStart = time.Now()
+			return m, tea.Batch(m.previewCmd, tickPreviewCmd())
 		}
 		return m, nil
 	case keyEsc:
@@ -586,7 +585,13 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 
 		recsStr := "-"
 		if len(overviewRow.Recommendations) > 0 {
-			recsStr = strconv.Itoa(len(overviewRow.Recommendations))
+			active, dismissed := engine.CountRecsActiveAndDismissed(overviewRow.Recommendations)
+			total := active + dismissed
+			if dismissed == 0 {
+				recsStr = strconv.Itoa(total)
+			} else {
+				recsStr = fmt.Sprintf("%d(-%d)", total, dismissed)
+			}
 		}
 
 		rows[i] = table.Row{

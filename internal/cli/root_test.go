@@ -455,7 +455,9 @@ func TestRootCmd_InPulumiProject(t *testing.T) {
 	// What we assert is that the output does NOT contain "Available Commands:"
 	// which would mean we fell through to help instead of overview.
 	output := buf.String()
-	_ = err // may or may not error depending on environment
+	if err != nil {
+		t.Logf("overview delegation returned error (expected in CI without pulumi): %v", err)
+	}
 	assert.NotContains(t, output, "Available Commands:",
 		"in Pulumi project, should have delegated to overview, not shown help")
 }
