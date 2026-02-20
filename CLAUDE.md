@@ -1122,3 +1122,4 @@ CodeRabbit now:
 ## Recent Changes
 
 - Added Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss for interactive TUI
+- 597-parallelize-enrichment: Parallelized per-row enrichment sub-calls in engine (Go concurrency with sync.WaitGroup)
