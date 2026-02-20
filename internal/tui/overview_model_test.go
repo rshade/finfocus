@@ -30,7 +30,7 @@ func TestNewOverviewModel(t *testing.T) {
 		},
 	}
 
-	model, cmd := NewOverviewModel(ctx, skeletonRows, 2)
+	model, cmd := NewOverviewModel(ctx, skeletonRows, 2, nil, nil)
 
 	assert.Equal(t, ViewStateLoading, model.state)
 	assert.Equal(t, 2, model.totalCount)
@@ -47,7 +47,7 @@ func TestOverviewModel_StateTransitions(t *testing.T) {
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 1)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 1, nil, nil)
 	assert.Equal(t, ViewStateLoading, model.state)
 
 	// Transition: Loading -> List (all resources loaded)
@@ -77,7 +77,7 @@ func TestOverviewModel_ResourceLoadedMsg(t *testing.T) {
 		{URN: "urn:test2", Type: "aws:s3:Bucket", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 2)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 2, nil, nil)
 
 	enrichedRow := engine.OverviewRow{
 		URN:    "urn:test1",
@@ -105,7 +105,7 @@ func TestOverviewModel_LoadingProgressMsg(t *testing.T) {
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 10)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 10, nil, nil)
 
 	msg := OverviewLoadingProgressMsg{Loaded: 5, Total: 10}
 	updatedModel, _ := model.Update(msg)
@@ -124,7 +124,7 @@ func TestOverviewModel_KeyboardNavigation(t *testing.T) {
 		{URN: "urn:test3", Type: "aws:rds:Instance", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 3)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 3, nil, nil)
 	model.state = ViewStateList
 
 	// Initial cursor at row 0
@@ -162,7 +162,7 @@ func TestOverviewModel_SortCycling(t *testing.T) {
 		{URN: "urn:test1", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 1)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 1, nil, nil)
 	model.state = ViewStateList
 
 	assert.Equal(t, SortByCost, model.sortBy)
@@ -198,7 +198,7 @@ func TestOverviewModel_FilterMode(t *testing.T) {
 		{URN: "urn:test:s3", Type: "aws:s3:Bucket", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 2)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 2, nil, nil)
 	model.state = ViewStateList
 
 	assert.False(t, model.showFilter)
@@ -233,7 +233,7 @@ func TestOverviewModel_FilterTextMatching(t *testing.T) {
 		},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 3)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 3, nil, nil)
 	model.state = ViewStateList
 	model.allRows = skeletonRows
 
@@ -270,7 +270,7 @@ func TestOverviewModel_PaginationBoundaries(t *testing.T) {
 		}
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 300)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 300, nil, nil)
 	model.state = ViewStateList
 	model.enablePaginationIfNeeded()
 
@@ -308,7 +308,7 @@ func TestOverviewModel_QuitKeys(t *testing.T) {
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 1)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 1, nil, nil)
 	model.state = ViewStateList
 
 	// Test 'q' key
@@ -334,7 +334,7 @@ func TestOverviewModel_WindowResize(t *testing.T) {
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 1)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 1, nil, nil)
 
 	assert.Equal(t, defaultWidth, model.width)
 	assert.Equal(t, defaultHeight, model.height)
@@ -387,7 +387,7 @@ func TestOverviewModel_GetCost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1)
+			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1, nil, nil)
 			cost := model.getCost(tt.row)
 			assert.Equal(t, tt.expected, cost)
 		})
@@ -419,7 +419,7 @@ func TestOverviewModel_GetDelta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1)
+			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1, nil, nil)
 			delta := model.getDelta(tt.row)
 			assert.Equal(t, tt.expected, delta)
 		})
@@ -436,7 +436,7 @@ func TestOverviewModel_GetVisibleRows(t *testing.T) {
 		rows[i] = engine.OverviewRow{URN: fmt.Sprintf("urn:%d", i), Type: "test", Status: engine.StatusActive}
 	}
 
-	model, _ := NewOverviewModel(ctx, rows, 300)
+	model, _ := NewOverviewModel(ctx, rows, 300, nil, nil)
 	model.allRows = rows
 	model.rows = rows
 	model.enablePaginationIfNeeded()
@@ -463,7 +463,7 @@ func TestOverviewModel_AllResourcesLoadedTransition(t *testing.T) {
 		{URN: "urn:test2", Type: "aws:s3:Bucket", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 2)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 2, nil, nil)
 	assert.Equal(t, ViewStateLoading, model.state)
 
 	// Send completion message
@@ -482,7 +482,7 @@ func TestOverviewModel_InitCmd(t *testing.T) {
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 1)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 1, nil, nil)
 	cmd := model.Init()
 
 	assert.NotNil(t, cmd)
@@ -498,7 +498,7 @@ func TestOverviewModel_EnrichmentIntegration(t *testing.T) {
 		{URN: "urn:test2", Type: "aws:s3:Bucket", Status: engine.StatusActive},
 	}
 
-	model, _ := NewOverviewModel(ctx, skeletonRows, 2)
+	model, _ := NewOverviewModel(ctx, skeletonRows, 2, nil, nil)
 
 	// Simulate progressive enrichment
 	enrichedRow1 := engine.OverviewRow{
@@ -533,7 +533,7 @@ func TestOverviewModel_EnrichmentIntegration(t *testing.T) {
 func TestOverviewModel_PhaseMsg(t *testing.T) {
 	ctx := context.Background()
 
-	model, _ := NewOverviewModel(ctx, nil, 0)
+	model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
 	assert.Equal(t, ViewStateInitializing, model.state)
 
 	msg := OverviewPhaseMsg{Phase: "Loading stack state..."}
@@ -548,7 +548,7 @@ func TestOverviewModel_PhaseMsg(t *testing.T) {
 func TestOverviewModel_DataReadyMsg(t *testing.T) {
 	ctx := context.Background()
 
-	model, _ := NewOverviewModel(ctx, nil, 0)
+	model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
 	assert.Equal(t, ViewStateInitializing, model.state)
 
 	testRows := []engine.OverviewRow{
@@ -572,7 +572,7 @@ func TestOverviewModel_NilRowsInit(t *testing.T) {
 	ctx := context.Background()
 
 	// nil rows → ViewStateInitializing
-	modelInit, _ := NewOverviewModel(ctx, nil, 0)
+	modelInit, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
 	assert.Equal(t, ViewStateInitializing, modelInit.state)
 	assert.NotNil(t, modelInit.allRows, "allRows should be empty slice, not nil")
 	assert.Empty(t, modelInit.allRows)
@@ -581,7 +581,7 @@ func TestOverviewModel_NilRowsInit(t *testing.T) {
 	rows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 	}
-	modelLoading, _ := NewOverviewModel(ctx, rows, 5)
+	modelLoading, _ := NewOverviewModel(ctx, rows, 5, nil, nil)
 	assert.Equal(t, ViewStateLoading, modelLoading.state)
 	assert.Len(t, modelLoading.allRows, 1)
 	assert.Equal(t, 5, modelLoading.totalCount)
@@ -591,7 +591,7 @@ func TestOverviewModel_NilRowsInit(t *testing.T) {
 func TestOverviewModel_InitErrorMsg(t *testing.T) {
 	ctx := context.Background()
 
-	model, _ := NewOverviewModel(ctx, nil, 0)
+	model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
 	assert.Equal(t, ViewStateInitializing, model.state)
 
 	testErr := errors.New("no Pulumi project found")
@@ -619,7 +619,7 @@ func TestOverviewModel_QuitDuringInitializing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			model, _ := NewOverviewModel(ctx, nil, 0)
+			model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
 			assert.Equal(t, ViewStateInitializing, model.state)
 
 			updatedModel, cmd := model.Update(tt.key)
@@ -635,7 +635,7 @@ func TestOverviewModel_QuitDuringInitializing(t *testing.T) {
 func TestOverviewModel_WindowResizeDuringInitializing(t *testing.T) {
 	ctx := context.Background()
 
-	model, _ := NewOverviewModel(ctx, nil, 0)
+	model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
 	assert.Equal(t, ViewStateInitializing, model.state)
 
 	resizeMsg := tea.WindowSizeMsg{Width: 120, Height: 40}
@@ -645,4 +645,175 @@ func TestOverviewModel_WindowResizeDuringInitializing(t *testing.T) {
 	assert.Equal(t, 120, model.width)
 	assert.Equal(t, 40, model.height)
 	assert.Equal(t, ViewStateInitializing, model.state) // state unchanged
+}
+
+// TestOverviewModel_PreviewLoadingState verifies OverviewPreviewStartedMsg sets isPreviewLoading.
+func TestOverviewModel_PreviewLoadingState(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateList
+	model.isStateOnly = true
+
+	msg := OverviewPreviewStartedMsg{}
+	updatedModel, cmd := model.Update(msg)
+	model = updatedModel.(OverviewModel)
+
+	assert.True(t, model.isPreviewLoading)
+	assert.False(t, model.previewLoadStart.IsZero(), "previewLoadStart should be set")
+	assert.NotNil(t, cmd, "should return tick command")
+}
+
+// TestOverviewModel_PreviewTickUpdatesElapsed verifies OverviewPreviewTickMsg updates previewElapsed.
+func TestOverviewModel_PreviewTickUpdatesElapsed(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateList
+	model.isPreviewLoading = true
+	model.previewLoadStart = time.Now().Add(-5 * time.Second)
+
+	msg := OverviewPreviewTickMsg{}
+	updatedModel, cmd := model.Update(msg)
+	model = updatedModel.(OverviewModel)
+
+	assert.GreaterOrEqual(t, model.previewElapsed, 4*time.Second, "elapsed should be ~5s")
+	assert.NotNil(t, cmd, "should re-arm tick while loading")
+}
+
+// TestOverviewModel_PreviewTickNoOpWhenNotLoading verifies tick is no-op when not loading.
+func TestOverviewModel_PreviewTickNoOpWhenNotLoading(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateList
+	model.isPreviewLoading = false
+
+	msg := OverviewPreviewTickMsg{}
+	updatedModel, cmd := model.Update(msg)
+	model = updatedModel.(OverviewModel)
+
+	assert.Nil(t, cmd, "should not re-arm tick when not loading")
+	assert.Equal(t, time.Duration(0), model.previewElapsed, "elapsed should remain zero")
+}
+
+// TestOverviewModel_ChangesReadyClearsStateOnly verifies OverviewChangesReadyMsg clears state-only mode.
+func TestOverviewModel_ChangesReadyClearsStateOnly(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateList
+	model.isStateOnly = true
+	model.isPreviewLoading = true
+	model.allRows = rows
+	model.rows = rows
+
+	msg := OverviewChangesReadyMsg{
+		StatusByURN: map[string]engine.ResourceStatus{},
+		HasChanges:  false,
+		ChangeCount: 0,
+	}
+	updatedModel, _ := model.Update(msg)
+	model = updatedModel.(OverviewModel)
+
+	assert.False(t, model.isPreviewLoading, "isPreviewLoading should be cleared")
+	assert.True(t, model.previewLoaded, "previewLoaded should be set")
+	assert.False(t, model.isStateOnly, "isStateOnly should be cleared")
+}
+
+// TestOverviewModel_PKeyStartsPreview verifies 'p' key returns preview command batch.
+func TestOverviewModel_PKeyStartsPreview(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	previewCmd := func() tea.Msg { return OverviewChangesReadyMsg{} }
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, previewCmd)
+	model.state = ViewStateList
+	model.isStateOnly = true
+	model.allRows = rows
+	model.rows = rows
+
+	pMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}
+	_, cmd := model.Update(pMsg)
+
+	assert.NotNil(t, cmd, "p key in state-only mode should return a batch command")
+}
+
+// TestOverviewModel_PKeyNoOpWhileLoading verifies 'p' key is no-op while preview is loading.
+func TestOverviewModel_PKeyNoOpWhileLoading(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	previewCmd := func() tea.Msg { return OverviewChangesReadyMsg{} }
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, previewCmd)
+	model.state = ViewStateList
+	model.isStateOnly = true
+	model.isPreviewLoading = true // already loading
+	model.allRows = rows
+	model.rows = rows
+
+	pMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}
+	_, cmd := model.Update(pMsg)
+
+	assert.Nil(t, cmd, "p key should be no-op while preview is loading")
+}
+
+// TestOverviewModel_PKeyNoOpAfterLoaded verifies 'p' key is no-op after preview loaded.
+func TestOverviewModel_PKeyNoOpAfterLoaded(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	previewCmd := func() tea.Msg { return OverviewChangesReadyMsg{} }
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, previewCmd)
+	model.state = ViewStateList
+	model.previewLoaded = true // already loaded
+	model.allRows = rows
+	model.rows = rows
+
+	pMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}
+	_, cmd := model.Update(pMsg)
+
+	assert.Nil(t, cmd, "p key should be no-op after preview is already loaded")
+}
+
+// TestOverviewModel_SetStateOnlyMsg verifies OverviewSetStateOnlyMsg sets isStateOnly and previewCmd.
+func TestOverviewModel_SetStateOnlyMsg(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateList
+	model.allRows = rows
+	model.rows = rows
+
+	assert.False(t, model.isStateOnly)
+	assert.Nil(t, model.previewCmd)
+
+	previewCmd := func() tea.Msg { return OverviewChangesReadyMsg{} }
+	msg := OverviewSetStateOnlyMsg{PreviewCmd: previewCmd}
+	updatedModel, _ := model.Update(msg)
+	model = updatedModel.(OverviewModel)
+
+	assert.True(t, model.isStateOnly)
+	assert.NotNil(t, model.previewCmd)
 }

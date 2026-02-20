@@ -305,6 +305,112 @@ func TestMergeResourcesForOverview_NilPropertiesOK(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// NewRowsFromState
+// ---------------------------------------------------------------------------
+
+func TestNewRowsFromState_OnlyCustomResources(t *testing.T) {
+	ctx := context.Background()
+
+	resources := []StateResource{
+		{URN: "urn:provider", Type: "pulumi:providers:aws", Custom: false},
+		{URN: "urn:ec2", Type: "aws:ec2:Instance", ID: "i-123", Custom: true},
+		{URN: "urn:s3", Type: "aws:s3:Bucket", ID: "bucket-abc", Custom: true},
+	}
+	rows := NewRowsFromState(ctx, resources)
+	require.Len(t, rows, 2, "non-custom provider resource should be filtered out")
+	assert.Equal(t, "urn:ec2", rows[0].URN)
+	assert.Equal(t, "urn:s3", rows[1].URN)
+}
+
+func TestNewRowsFromState_PreservesStateOrder(t *testing.T) {
+	ctx := context.Background()
+
+	resources := []StateResource{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true},
+		{URN: "urn:b", Type: "aws:s3:Bucket", Custom: true},
+		{URN: "urn:c", Type: "aws:rds:Instance", Custom: true},
+	}
+	rows := NewRowsFromState(ctx, resources)
+	require.Len(t, rows, 3)
+	assert.Equal(t, "urn:a", rows[0].URN)
+	assert.Equal(t, "urn:b", rows[1].URN)
+	assert.Equal(t, "urn:c", rows[2].URN)
+}
+
+func TestNewRowsFromState_AllStatusActive(t *testing.T) {
+	ctx := context.Background()
+
+	resources := []StateResource{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true},
+		{URN: "urn:b", Type: "aws:s3:Bucket", Custom: true},
+	}
+	rows := NewRowsFromState(ctx, resources)
+	for _, row := range rows {
+		assert.Equal(t, StatusActive, row.Status, "all skeleton rows should have StatusActive")
+	}
+}
+
+func TestNewRowsFromState_SkeletonRowsHaveNilCosts(t *testing.T) {
+	ctx := context.Background()
+
+	rows := NewRowsFromState(ctx, []StateResource{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true},
+	})
+	require.Len(t, rows, 1)
+	assert.Nil(t, rows[0].ActualCost)
+	assert.Nil(t, rows[0].ProjectedCost)
+	assert.Nil(t, rows[0].CostDrift)
+	assert.Nil(t, rows[0].Error)
+	assert.Empty(t, rows[0].Recommendations)
+}
+
+// ---------------------------------------------------------------------------
+// ApplyChangesToRows
+// ---------------------------------------------------------------------------
+
+func TestApplyChangesToRows_UpdatesMatchingURNs(t *testing.T) {
+	rows := []OverviewRow{
+		{URN: "urn:a", Status: StatusActive},
+		{URN: "urn:b", Status: StatusActive},
+	}
+	statusByURN := map[string]ResourceStatus{
+		"urn:a": StatusUpdating,
+	}
+	ApplyChangesToRows(rows, statusByURN)
+	assert.Equal(t, StatusUpdating, rows[0].Status, "urn:a should be updated to StatusUpdating")
+	assert.Equal(t, StatusActive, rows[1].Status, "urn:b not in map should remain StatusActive")
+}
+
+func TestApplyChangesToRows_PreservesUnmatchedRows(t *testing.T) {
+	rows := []OverviewRow{
+		{URN: "urn:a", Status: StatusActive},
+		{URN: "urn:b", Status: StatusActive},
+	}
+	statusByURN := map[string]ResourceStatus{
+		"urn:c": StatusCreating, // URN not in rows
+	}
+	ApplyChangesToRows(rows, statusByURN)
+	assert.Equal(t, StatusActive, rows[0].Status)
+	assert.Equal(t, StatusActive, rows[1].Status)
+}
+
+func TestApplyChangesToRows_EmptyMap(t *testing.T) {
+	rows := []OverviewRow{
+		{URN: "urn:a", Status: StatusDeleting},
+		{URN: "urn:b", Status: StatusUpdating},
+	}
+	ApplyChangesToRows(rows, map[string]ResourceStatus{})
+	assert.Equal(t, StatusDeleting, rows[0].Status, "empty map should leave statuses unchanged")
+	assert.Equal(t, StatusUpdating, rows[1].Status, "empty map should leave statuses unchanged")
+}
+
+func TestApplyChangesToRows_PanicsOnNilRows(t *testing.T) {
+	assert.Panics(t, func() {
+		ApplyChangesToRows(nil, map[string]ResourceStatus{})
+	}, "ApplyChangesToRows should panic on nil rows input")
+}
+
+// ---------------------------------------------------------------------------
 // DetectPendingChanges
 // ---------------------------------------------------------------------------
 

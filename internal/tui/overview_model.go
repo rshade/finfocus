@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/textinput"
@@ -32,11 +33,28 @@ type OverviewLoadingProgressMsg struct {
 // OverviewAllResourcesLoadedMsg is sent when all resources are enriched.
 type OverviewAllResourcesLoadedMsg struct{}
 
+// PhaseNames is the ordered list of loading phases for the checklist display.
+//
+//nolint:gochecknoglobals // Package-level slice used across tui package for phase rendering.
+var PhaseNames = []string{
+	"Loading stack state",
+	"Detecting changes",
+	"Merging resources",
+	"Starting cost plugins",
+	"Preparing cost engine",
+	"Enriching resources",
+}
+
 // OverviewPhaseMsg reports which phase of data loading is active.
 // It is sent by the background goroutine to update the initializing spinner text.
 type OverviewPhaseMsg struct {
-	Phase string
+	Phase string // human-readable label (kept for logging/compat)
+	Index int    // 0-based index into PhaseNames
 }
+
+// OverviewPassphraseRequiredMsg signals that the stack is encrypted
+// and PULUMI_CONFIG_PASSPHRASE must be collected from the user.
+type OverviewPassphraseRequiredMsg struct{}
 
 // OverviewDataReadyMsg signals that initial data loading is complete and the
 // model should transition from ViewStateInitializing to ViewStateLoading.
@@ -87,18 +105,44 @@ type OverviewModel struct {
 	// Loading spinner
 	loadingState *LoadingState
 
+	// Phase checklist tracking
+	currentPhaseIndex int
+
+	// Passphrase prompt (inline TUI input when stack is encrypted)
+	showPassphraseInput bool
+	passphraseInput     textinput.Model
+	passphraseChan      chan<- string
+
 	// Error state
 	err error
+
+	// State-only / on-demand preview fields (Issue 3).
+	isStateOnly      bool          // true when no preview has been loaded yet
+	isPreviewLoading bool          // true while pulumi preview is running in background
+	previewLoadStart time.Time     // when preview started (for elapsed display)
+	previewLoaded    bool          // true after OverviewChangesReadyMsg received
+	previewCmd       tea.Cmd       // command that starts background preview (injected at construction)
+	previewElapsed   time.Duration // elapsed time since preview started
 }
 
 // NewOverviewModel creates a new interactive overview model.
 // When skeletonRows is nil, the model starts in ViewStateInitializing
 // (before data is available). When non-nil, it starts in ViewStateLoading
 // (enrichment phase), preserving existing behavior.
+//
+// passphraseChan is an optional channel used to deliver a PULUMI_CONFIG_PASSPHRASE
+// when the stack uses passphrase encryption. Pass nil if no passphrase check is needed.
+//
+// previewCmd is an optional Bubble Tea command that, when invoked, runs
+// pulumi preview in the background and sends OverviewChangesReadyMsg.
+// Pass nil when preview has already been run before TUI launch or in tests.
+// When non-nil and isStateOnly is true, the user can press 'p' to trigger it.
 func NewOverviewModel(
 	ctx context.Context,
 	skeletonRows []engine.OverviewRow,
 	totalCount int,
+	passphraseChan chan<- string,
+	previewCmd tea.Cmd,
 ) (OverviewModel, tea.Cmd) {
 	initialState := ViewStateLoading
 	if skeletonRows == nil {
@@ -106,18 +150,25 @@ func NewOverviewModel(
 		skeletonRows = []engine.OverviewRow{}
 	}
 
+	pi := textinput.New()
+	pi.EchoMode = textinput.EchoPassword
+	pi.Placeholder = "passphrase"
+
 	m := OverviewModel{
-		state:       initialState,
-		allRows:     skeletonRows,
-		rows:        skeletonRows,
-		ctx:         ctx,
-		totalCount:  totalCount,
-		loadedCount: 0,
-		width:       defaultWidth,
-		height:      defaultHeight,
-		sortBy:      SortByCost,
-		textInput:   newTextInput(),
-		currentPage: 1,
+		state:           initialState,
+		allRows:         skeletonRows,
+		rows:            skeletonRows,
+		ctx:             ctx,
+		totalCount:      totalCount,
+		loadedCount:     0,
+		width:           defaultWidth,
+		height:          defaultHeight,
+		sortBy:          SortByCost,
+		textInput:       newTextInput(),
+		currentPage:     1,
+		passphraseInput: pi,
+		passphraseChan:  passphraseChan,
+		previewCmd:      previewCmd,
 	}
 
 	// Initialize table with skeleton data
@@ -142,6 +193,8 @@ func (m OverviewModel) Init() tea.Cmd {
 }
 
 // Update handles messages and updates the model state (Bubble Tea interface).
+//
+//nolint:funlen,gocognit // Bubble Tea Update dispatches across all message types and view states; extraction would harm readability.
 func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle window resizing
 	if winMsg, ok := msg.(tea.WindowSizeMsg); ok {
@@ -156,9 +209,22 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.handleResourceLoaded(loadedMsg)
 	}
 
+	// Handle passphrase required
+	if _, ok := msg.(OverviewPassphraseRequiredMsg); ok {
+		m.showPassphraseInput = true
+		m.passphraseInput.Focus()
+		return m, textinput.Blink
+	}
+
+	// Handle passphrase input (when prompt is visible, capture all key events)
+	if m.showPassphraseInput {
+		return m.handlePassphraseInput(msg)
+	}
+
 	// Handle phase message (initializing state)
 	if phaseMsg, ok := msg.(OverviewPhaseMsg); ok {
 		m.progressMsg = phaseMsg.Phase
+		m.currentPhaseIndex = phaseMsg.Index
 		return m, nil
 	}
 
@@ -192,6 +258,40 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Handle all resources loaded
 	if _, ok := msg.(OverviewAllResourcesLoadedMsg); ok {
 		return m.handleAllResourcesLoaded()
+	}
+
+	// Handle on-demand preview messages (Issue 3: state-first phased loading).
+	if _, ok := msg.(OverviewPreviewStartedMsg); ok {
+		m.isPreviewLoading = true
+		m.previewLoadStart = time.Now()
+		return m, tickPreviewCmd()
+	}
+
+	if _, ok := msg.(OverviewPreviewTickMsg); ok {
+		if m.isPreviewLoading {
+			// Compute elapsed from previewLoadStart, ignoring the tick's own elapsed.
+			m.previewElapsed = time.Since(m.previewLoadStart)
+			return m, tickPreviewCmd()
+		}
+		return m, nil
+	}
+
+	if changesMsg, ok := msg.(OverviewChangesReadyMsg); ok {
+		m.isPreviewLoading = false
+		m.previewLoaded = true
+		m.isStateOnly = false
+		// Safe: Bubble Tea Update() is single-threaded; no concurrent reads on allRows.
+		engine.ApplyChangesToRows(m.allRows, changesMsg.StatusByURN)
+		m.applyFilter(m.textInput.Value())
+		return m, nil
+	}
+
+	// Handle state-only activation (sent after OverviewDataReadyMsg when no preview ran).
+	if setStateMsg, ok := msg.(OverviewSetStateOnlyMsg); ok {
+		m.isStateOnly = true
+		m.previewCmd = setStateMsg.PreviewCmd
+		m.rebuildTable() // Rebuild to show "Projected*" header.
+		return m, nil
 	}
 
 	// Handle filter input
@@ -275,6 +375,30 @@ func (m OverviewModel) handleFilterInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// handlePassphraseInput handles key events when the passphrase prompt is visible.
+// On Enter: sends the passphrase to passphraseChan and hides the prompt.
+// On Esc or Ctrl+C: quits the TUI (goroutine unblocks via context cancellation).
+// Other keys are forwarded to the text input for character entry.
+func (m OverviewModel) handlePassphraseInput(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		switch keyMsg.String() {
+		case keyEnter:
+			if m.passphraseChan != nil {
+				m.passphraseChan <- m.passphraseInput.Value()
+			}
+			m.passphraseInput.SetValue("")
+			m.showPassphraseInput = false
+			return m, nil
+		case keyCtrlC, keyEsc:
+			m.state = ViewStateQuitting
+			return m, tea.Quit
+		}
+	}
+	var cmd tea.Cmd
+	m.passphraseInput, cmd = m.passphraseInput.Update(msg)
+	return m, cmd
+}
+
 func (m OverviewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	keyMsg, ok := msg.(tea.KeyMsg)
 	if !ok {
@@ -303,6 +427,15 @@ func (m OverviewModel) handleListKeypress(keyMsg tea.KeyMsg) (tea.Model, tea.Cmd
 		return m, textinput.Blink
 	case keyS:
 		m.cycleSort()
+		return m, nil
+	case keyP:
+		// Load pending changes on demand when in state-only mode.
+		if !m.isPreviewLoading && !m.previewLoaded && m.previewCmd != nil {
+			return m, tea.Batch(
+				func() tea.Msg { return OverviewPreviewStartedMsg{} },
+				m.previewCmd,
+			)
+		}
 		return m, nil
 	case keyEsc:
 		if m.textInput.Value() != "" {
@@ -390,15 +523,19 @@ func (m *OverviewModel) rebuildTable() {
 
 // buildOverviewTable creates a new table model with current configuration.
 func (m *OverviewModel) buildOverviewTable() table.Model {
+	projectedHeader := "Projected"
+	if m.isStateOnly && !m.previewLoaded {
+		projectedHeader = "Projected*"
+	}
 	columns := []table.Column{
-		{Title: "Resource", Width: 30},  //nolint:mnd // Column width.
-		{Title: "Type", Width: 20},      //nolint:mnd // Column width.
-		{Title: "Status", Width: 10},    //nolint:mnd // Column width.
-		{Title: "Actual", Width: 12},    //nolint:mnd // Column width.
-		{Title: "Projected", Width: 12}, //nolint:mnd // Column width.
-		{Title: "Delta", Width: 12},     //nolint:mnd // Column width.
-		{Title: "Drift%", Width: 8},     //nolint:mnd // Column width.
-		{Title: "Recs", Width: 4},       //nolint:mnd // Column width.
+		{Title: "Resource", Width: 30},      //nolint:mnd // Column width.
+		{Title: "Type", Width: 20},          //nolint:mnd // Column width.
+		{Title: "Status", Width: 10},        //nolint:mnd // Column width.
+		{Title: "Actual", Width: 12},        //nolint:mnd // Column width.
+		{Title: projectedHeader, Width: 12}, //nolint:mnd // Column width.
+		{Title: "Delta", Width: 12},         //nolint:mnd // Column width.
+		{Title: "Drift%", Width: 8},         //nolint:mnd // Column width.
+		{Title: "Recs", Width: 4},           //nolint:mnd // Column width.
 	}
 
 	visibleRows := m.getVisibleRows()
@@ -578,4 +715,12 @@ func (m *OverviewModel) renderPaginationFooter() string {
 // AllRows returns all loaded rows (for external access).
 func (m *OverviewModel) AllRows() []engine.OverviewRow {
 	return m.allRows
+}
+
+// tickPreviewCmd returns a command that fires OverviewPreviewTickMsg after 1 second.
+// The model computes the actual elapsed from m.previewLoadStart in the handler.
+func tickPreviewCmd() tea.Cmd {
+	return tea.Tick(time.Second, func(_ time.Time) tea.Msg {
+		return OverviewPreviewTickMsg{}
+	})
 }

@@ -133,6 +133,70 @@ func MergeResourcesForOverview(
 	return rows, nil
 }
 
+// NewRowsFromState creates skeleton OverviewRows from state resources only,
+// with no plan data applied. All rows are assigned StatusActive.
+//
+// This is used for Phase 1 (state-first) loading before pulumi preview runs.
+// The rows are structurally identical to those produced by MergeResourcesForOverview
+// and can be enriched and later updated with change status via ApplyChangesToRows.
+//
+// Only custom resources are included — the same filter as MergeResourcesForOverview.
+func NewRowsFromState(ctx context.Context, stateResources []StateResource) []OverviewRow {
+	log := logging.FromContext(ctx)
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("operation", "new_rows_from_state").
+		Int("state_resources", len(stateResources)).
+		Msg("creating skeleton rows from state only")
+
+	rows := make([]OverviewRow, 0, len(stateResources))
+	for _, res := range stateResources {
+		if !res.Custom {
+			continue
+		}
+		rows = append(rows, OverviewRow{
+			URN:        res.URN,
+			Type:       res.Type,
+			ResourceID: res.ID,
+			Status:     StatusActive,
+			Properties: res.Properties,
+		})
+	}
+
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("operation", "new_rows_from_state").
+		Int("total_rows", len(rows)).
+		Msg("skeleton rows from state created")
+
+	return rows
+}
+
+// ApplyChangesToRows updates the Status field of existing OverviewRows in-place
+// using a map of URN → ResourceStatus derived from plan steps.
+// Rows whose URN is not in statusByURN retain their current Status.
+//
+// This is used for Phase 2 when preview completes after initial TUI display.
+//
+// Thread safety: The Bubble Tea Update() method is single-threaded by design,
+// so this function is safe to call from OverviewChangesReadyMsg handling in the
+// TUI. Callers in other contexts must ensure no concurrent reads on rows during
+// this call.
+//
+// Panics if rows is nil.
+func ApplyChangesToRows(rows []OverviewRow, statusByURN map[string]ResourceStatus) {
+	if rows == nil {
+		panic("ApplyChangesToRows: rows must not be nil")
+	}
+	for i := range rows {
+		if status, ok := statusByURN[rows[i].URN]; ok {
+			rows[i].Status = status
+		}
+	}
+}
+
 // DetectPendingChanges inspects a set of plan steps and reports whether any
 // mutating operations are pending, along with the count.
 func DetectPendingChanges(ctx context.Context, planSteps []PlanStep) (bool, int) {

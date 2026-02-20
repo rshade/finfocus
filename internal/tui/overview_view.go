@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 
@@ -30,26 +31,45 @@ func (m OverviewModel) View() string {
 	}
 }
 
-// renderInitializingView renders the spinner with phase message during the
-// initializing state (before data is available).
+// renderInitializingView renders the banner and phase checklist during the
+// initializing state (before data is available). When the passphrase prompt
+// is active it replaces the checklist with an inline password input.
 func (m OverviewModel) renderInitializingView() string {
+	banner := RenderBanner(m.width)
+
+	// Passphrase prompt replaces checklist when active.
+	if m.showPassphraseInput {
+		prompt := lipgloss.JoinVertical(lipgloss.Left,
+			WarningStyle.Render("This stack uses passphrase encryption."),
+			"",
+			LabelStyle.Render("Enter PULUMI_CONFIG_PASSPHRASE: ")+m.passphraseInput.View(),
+			SubtleStyle.Render("(hidden — press Enter to continue, Esc to cancel)"),
+		)
+		return lipgloss.JoinVertical(lipgloss.Center, banner, "", prompt, "")
+	}
+
+	// Phase checklist
 	spinnerView := ""
 	if m.loadingState != nil {
 		spinnerView = m.loadingState.spinner.View()
 	}
-	msg := m.progressMsg
-	if msg == "" {
-		msg = "Initializing..."
+	lines := make([]string, 0, len(PhaseNames))
+	for i, name := range PhaseNames {
+		switch {
+		case i < m.currentPhaseIndex:
+			lines = append(lines, OKStyle.Render("  ✓ "+name))
+		case i == m.currentPhaseIndex:
+			lines = append(lines, InfoStyle.Render("  "+spinnerView+" "+name+"..."))
+		default:
+			lines = append(lines, SubtleStyle.Render("  · "+name))
+		}
 	}
-	content := lipgloss.JoinHorizontal(lipgloss.Left,
-		spinnerView,
-		" ",
-		InfoStyle.Render(msg),
-	)
-	return lipgloss.NewStyle().
+
+	checklist := lipgloss.NewStyle().
 		Width(m.width-borderPadding).
 		Padding(1, 2). //nolint:mnd // View padding.
-		Render(content)
+		Render(strings.Join(lines, "\n"))
+	return lipgloss.JoinVertical(lipgloss.Center, banner, "", checklist, "")
 }
 
 // renderLoadingView renders the loading spinner with progress banner.
@@ -93,6 +113,12 @@ func (m OverviewModel) renderListView() string {
 	statusBar := m.renderStatusBar()
 	sections = append(sections, statusBar)
 
+	// Footer footnote for state-only mode.
+	if m.isStateOnly && !m.previewLoaded {
+		footnote := SubtleStyle.Render("* projected at current state (730h/mo)")
+		sections = append(sections, footnote)
+	}
+
 	// Filter input (if active)
 	if m.showFilter {
 		filterView := LabelStyle.Render("Filter: ") + m.textInput.View()
@@ -102,7 +128,7 @@ func (m OverviewModel) renderListView() string {
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
 
-// renderStatusBar displays current sort field and filter status.
+// renderStatusBar displays current sort field, filter status, and preview hints.
 func (m OverviewModel) renderStatusBar() string {
 	sortLabel := m.getSortLabel()
 	filterStatus := ""
@@ -116,11 +142,37 @@ func (m OverviewModel) renderStatusBar() string {
 		filterStatus = fmt.Sprintf(" | Filtered: %d/%d", len(m.rows), len(m.allRows))
 	}
 
-	status := fmt.Sprintf(
-		"%sSort: %s%s | Press 's' to cycle, '/' to filter, 'q' to quit",
-		stackPrefix, sortLabel, filterStatus,
-	)
+	var status string
+	switch {
+	case m.isPreviewLoading:
+		// Show elapsed timer while preview is loading.
+		elapsed := formatPreviewElapsed(m.previewElapsed)
+		status = fmt.Sprintf(
+			"%sLoading pending changes (%s)%s | Sort: %s | Press 's' to cycle, '/' to filter, 'q' to quit",
+			stackPrefix, elapsed, filterStatus, sortLabel,
+		)
+	case m.isStateOnly && !m.previewLoaded:
+		// Offer 'p' hint when in state-only mode and preview not loaded.
+		status = fmt.Sprintf(
+			"%sSort: %s%s | [p] load pending changes | Press 's' to cycle, '/' to filter, 'q' to quit",
+			stackPrefix, sortLabel, filterStatus,
+		)
+	default:
+		status = fmt.Sprintf(
+			"%sSort: %s%s | Press 's' to cycle, '/' to filter, 'q' to quit",
+			stackPrefix, sortLabel, filterStatus,
+		)
+	}
 	return SubtleStyle.Render(status)
+}
+
+// formatPreviewElapsed formats a duration as M:SS for the elapsed preview timer.
+func formatPreviewElapsed(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	secs := int(d.Seconds())
+	return fmt.Sprintf("%d:%02d", secs/60, secs%60) //nolint:mnd // Time formatting.
 }
 
 // getSortLabel returns the human-readable label for the current sort field.

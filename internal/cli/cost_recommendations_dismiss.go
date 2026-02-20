@@ -342,7 +342,7 @@ func confirmPrompt(cmd *cobra.Command, prompt string) bool {
 	}
 
 	response := strings.TrimSpace(strings.ToLower(scanner.Text()))
-	return response == "y" || response == "yes"
+	return response == "y" || response == answerYes
 }
 
 // mustParseDismissalReason parses a reason string, panicking on error.

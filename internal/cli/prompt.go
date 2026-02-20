@@ -10,6 +10,11 @@ import (
 	"github.com/rshade/finfocus/internal/tui"
 )
 
+const (
+	// answerYes is the canonical "yes" string accepted by user confirmation prompts.
+	answerYes = "yes"
+)
+
 // PromptResult contains the result of a user prompt interaction.
 type PromptResult struct {
 	// Accepted is true if the user accepted the prompt (typed "y" or "Y")
@@ -72,7 +77,7 @@ func ConfirmFallback(
 
 	// Check for acceptance
 	switch strings.ToLower(input) {
-	case "y", "yes":
+	case "y", answerYes:
 		return PromptResult{Accepted: true}
 	default:
 		return PromptResult{Accepted: false}
