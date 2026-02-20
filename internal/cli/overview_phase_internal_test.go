@@ -13,8 +13,8 @@ import (
 // with tui.PhaseNames. If PhaseNames grows or shrinks, this test fails, forcing
 // an explicit update to both the constants and the slice.
 func TestPhaseConstantsAlignWithTUI(t *testing.T) {
-	n := len(tui.PhaseNames)
-	require.Greater(t, n, 0, "tui.PhaseNames must not be empty")
+	n := len(tui.GetPhaseNames())
+	require.Greater(t, n, 0, "tui.GetPhaseNames() must not be empty")
 
 	assert.Less(t, phaseEnrichResources, n,
 		"phaseEnrichResources (%d) must be a valid index into tui.PhaseNames (len=%d)",

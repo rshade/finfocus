@@ -33,16 +33,24 @@ type OverviewLoadingProgressMsg struct {
 // OverviewAllResourcesLoadedMsg is sent when all resources are enriched.
 type OverviewAllResourcesLoadedMsg struct{}
 
-// PhaseNames is the ordered list of loading phases for the checklist display.
+// phaseNames is the ordered list of loading phases for the checklist display.
 //
 //nolint:gochecknoglobals // Package-level slice used across tui package for phase rendering.
-var PhaseNames = []string{
+var phaseNames = []string{
 	"Loading stack state",
 	"Detecting changes",
 	"Merging resources",
 	"Starting cost plugins",
 	"Preparing cost engine",
 	"Enriching resources",
+}
+
+// GetPhaseNames returns a copy of the phase name slice.
+// Callers must not modify the returned slice.
+func GetPhaseNames() []string {
+	names := make([]string, len(phaseNames))
+	copy(names, phaseNames)
+	return names
 }
 
 // OverviewPhaseMsg reports which phase of data loading is active.
@@ -216,9 +224,20 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, textinput.Blink
 	}
 
-	// Handle passphrase input (when prompt is visible, capture all key events)
+	// Handle passphrase input (when prompt is visible, intercept key events only).
+	// Non-key messages (e.g. spinner ticks) are forwarded to both inputs so the
+	// loading animation continues while the user types the passphrase.
 	if m.showPassphraseInput {
-		return m.handlePassphraseInput(msg)
+		if _, isKey := msg.(tea.KeyMsg); isKey {
+			return m.handlePassphraseInput(msg)
+		}
+		var passCmd tea.Cmd
+		m.passphraseInput, passCmd = m.passphraseInput.Update(msg)
+		if m.loadingState != nil {
+			spinCmd := m.loadingState.Update(msg)
+			return m, tea.Batch(passCmd, spinCmd)
+		}
+		return m, passCmd
 	}
 
 	// Handle phase message (initializing state)

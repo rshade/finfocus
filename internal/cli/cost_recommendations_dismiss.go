@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -144,7 +143,7 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 			cmd.PrintErrf("  Note: %s\n", params.note)
 		}
 		cmd.PrintErrln()
-		if !confirmPrompt(cmd, "Continue? [y/N]: ") {
+		if !confirmWithReader(cmd, "Continue? [y/N]: ") {
 			cmd.PrintErrln("Dismissal cancelled.")
 			return nil
 		}
@@ -222,7 +221,7 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 			cmd.PrintErrf("  Note: %s\n", params.note)
 		}
 		cmd.PrintErrln()
-		if !confirmPrompt(cmd, "Continue? [y/N]: ") {
+		if !confirmWithReader(cmd, "Continue? [y/N]: ") {
 			cmd.PrintErrln("Snooze cancelled.")
 			return nil
 		}
@@ -330,24 +329,6 @@ func parseSnoozeDate(s string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("invalid date format %q (expected YYYY-MM-DD or RFC3339)", s)
-}
-
-// confirmPrompt displays a prompt and reads user confirmation.
-// Returns false on I/O error or if the user declines.
-func confirmPrompt(cmd *cobra.Command, prompt string) bool {
-	cmd.PrintErr(prompt)
-
-	scanner := bufio.NewScanner(cmd.InOrStdin())
-	if !scanner.Scan() {
-		if err := scanner.Err(); err != nil {
-			// I/O error reading stdin — treat as cancellation.
-			cmd.PrintErrf("error reading input: %v\n", err)
-		}
-		return false
-	}
-
-	response := strings.TrimSpace(strings.ToLower(scanner.Text()))
-	return response == "y" || response == answerYes
 }
 
 // mustParseDismissalReason parses a reason string, panicking on error.

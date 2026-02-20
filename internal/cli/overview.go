@@ -336,17 +336,17 @@ func loadOverviewFromFiles(
 	return stateResources, planSteps, stackName, nil
 }
 
-// loadOverviewFromAutoDetect discovers the Pulumi project/stack and runs
-// both `pulumi stack export` and `pulumi preview --json` to gather data.
-func loadOverviewFromAutoDetect(
-	ctx context.Context, params overviewParams,
-) ([]engine.StateResource, []engine.PlanStep, string, error) {
-	projectDir, resolvedStack, err := detectPulumiProject(ctx, params.stack)
+// exportStateFromProject auto-detects the Pulumi project, runs `pulumi stack export`,
+// parses the result, and returns the state resources plus metadata.
+// It is shared by loadOverviewFromAutoDetect and loadStateForOverview.
+func exportStateFromProject(
+	ctx context.Context, stack string,
+) ([]engine.StateResource, string, string, string, error) {
+	projectDir, resolvedStack, err := detectPulumiProject(ctx, stack)
 	if err != nil {
-		return nil, nil, "", fmt.Errorf("auto-detecting Pulumi project: %w", err)
+		return nil, "", "", "", fmt.Errorf("auto-detecting Pulumi project: %w", err)
 	}
 
-	// Run pulumi stack export
 	pt := logging.StartPhase(ctx, "pulumi", "overview", "stack_export")
 	defer pt.Done(ctx)
 
@@ -355,13 +355,25 @@ func loadOverviewFromAutoDetect(
 		Stack:      resolvedStack,
 	})
 	if exportErr != nil {
-		return nil, nil, "", fmt.Errorf("running pulumi stack export: %w", exportErr)
+		return nil, "", "", "", fmt.Errorf("running pulumi stack export: %w", exportErr)
 	}
 	state, parseErr := ingest.ParseStackExportWithContext(ctx, exportData)
 	if parseErr != nil {
-		return nil, nil, "", fmt.Errorf("parsing pulumi stack export: %w", parseErr)
+		return nil, "", "", "", fmt.Errorf("parsing pulumi stack export: %w", parseErr)
 	}
-	stateResources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
+	resources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
+	return resources, state.Deployment.Manifest.Time, projectDir, resolvedStack, nil
+}
+
+// loadOverviewFromAutoDetect discovers the Pulumi project/stack and runs
+// both `pulumi stack export` and `pulumi preview --json` to gather data.
+func loadOverviewFromAutoDetect(
+	ctx context.Context, params overviewParams,
+) ([]engine.StateResource, []engine.PlanStep, string, error) {
+	stateResources, _, projectDir, resolvedStack, err := exportStateFromProject(ctx, params.stack)
+	if err != nil {
+		return nil, nil, "", err
+	}
 
 	// Resolve plan: from file if --pulumi-json provided, otherwise auto-detect
 	ptPreview := logging.StartPhase(ctx, "pulumi", "overview", "preview")
@@ -813,8 +825,7 @@ func overviewInitAndEnrich(
 			Str("component", "cli").
 			Str("operation", "overview_tui_init").
 			Err(detectErr).
-			Msg("change detection failed; assuming changes likely")
-		signal = pulumidetect.ChangeSignal{HasLikelyChanges: true}
+			Msg("change detection failed; falling back to state-only mode")
 	}
 
 	// Decide whether to run pulumi preview now.
@@ -825,6 +836,12 @@ func overviewInitAndEnrich(
 	explicitStateOnly := params.pulumiState != "" && params.pulumiJSON == "" && !params.yes
 	runPreviewNow := !explicitStateOnly && (params.yes || signal.IsFirstDeploy || signal.HasLikelyChanges)
 	isStateOnly := !runPreviewNow
+
+	// If change detection failed, fall back to state-only so the user can
+	// decide whether to trigger preview manually with 'p'.
+	if detectErr != nil {
+		isStateOnly = true
+	}
 
 	// Phase 3: Merge resources (from state only when state-first, from state+plan when preview runs).
 	p.Send(tui.OverviewPhaseMsg{Index: phaseMergeResources, Phase: "Merging resources..."})
@@ -931,27 +948,7 @@ func loadStateForOverview(
 	}
 
 	// Auto-detect project and run pulumi stack export.
-	projectDir, resolvedStack, err := detectPulumiProject(ctx, params.stack)
-	if err != nil {
-		return nil, "", "", "", fmt.Errorf("auto-detecting Pulumi project: %w", err)
-	}
-
-	pt := logging.StartPhase(ctx, "pulumi", "overview", "stack_export")
-	defer pt.Done(ctx)
-
-	exportData, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
-		ProjectDir: projectDir,
-		Stack:      resolvedStack,
-	})
-	if exportErr != nil {
-		return nil, "", "", "", fmt.Errorf("running pulumi stack export: %w", exportErr)
-	}
-	state, parseErr := ingest.ParseStackExportWithContext(ctx, exportData)
-	if parseErr != nil {
-		return nil, "", "", "", fmt.Errorf("parsing pulumi stack export: %w", parseErr)
-	}
-	resources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
-	return resources, state.Deployment.Manifest.Time, projectDir, resolvedStack, nil
+	return exportStateFromProject(ctx, params.stack)
 }
 
 // loadPlanForOverview loads plan steps from a file or runs pulumi preview.

@@ -53,8 +53,8 @@ func (m OverviewModel) renderInitializingView() string {
 	if m.loadingState != nil {
 		spinnerView = m.loadingState.spinner.View()
 	}
-	lines := make([]string, 0, len(PhaseNames))
-	for i, name := range PhaseNames {
+	lines := make([]string, 0, len(phaseNames))
+	for i, name := range phaseNames {
 		switch {
 		case i < m.currentPhaseIndex:
 			lines = append(lines, OKStyle.Render("  ✓ "+name))

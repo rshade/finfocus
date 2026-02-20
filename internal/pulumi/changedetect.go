@@ -16,13 +16,13 @@ import (
 // to decide whether to run pulumi preview and what prompt to show.
 type ChangeSignal struct {
 	// HasLikelyChanges is true when source files are newer than the last deployment.
-	HasLikelyChanges bool
+	HasLikelyChanges bool `json:"hasLikelyChanges"`
 	// IsFirstDeploy is true when no deployment timestamp exists in the stack manifest.
 	// An empty stack (never deployed) always has HasLikelyChanges=true.
-	IsFirstDeploy bool
+	IsFirstDeploy bool `json:"isFirstDeploy"`
 	// ModifiedFiles contains the names of files whose mtime exceeded the deployment timestamp.
 	// Populated only when HasLikelyChanges=true and IsFirstDeploy=false.
-	ModifiedFiles []string
+	ModifiedFiles []string `json:"modifiedFiles,omitempty"`
 }
 
 // DetectChanges compares the last deployment timestamp in the Pulumi stack manifest
