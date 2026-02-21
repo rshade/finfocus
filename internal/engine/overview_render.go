@@ -124,11 +124,20 @@ func truncateResource(urn string, maxLen int) string {
 func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContext) error {
 	tw := tabwriter.NewWriter(w, 0, 0, tabwriterPadding, ' ', 0)
 
+	projectedHeader := "PROJECTED"
+	projectedSep := "---------"
+	if stackCtx.IsStateOnly {
+		projectedHeader = "PROJECTED*"
+		projectedSep = "----------"
+	}
+
 	// Header
-	if _, err := fmt.Fprintf(tw, "RESOURCE\tTYPE\tSTATUS\tACTUAL(MTD)\tPROJECTED\tDELTA\tDRIFT%%\tRECS\n"); err != nil {
+	header := "RESOURCE\tTYPE\tSTATUS\tACTUAL(MTD)\t" + projectedHeader + "\tDELTA\tDRIFT%\tRECS\n"
+	if _, err := fmt.Fprint(tw, header); err != nil {
 		return fmt.Errorf("writing header: %w", err)
 	}
-	if _, err := fmt.Fprintf(tw, "--------\t----\t------\t-----------\t---------\t-----\t------\t----\n"); err != nil {
+	sep := "--------\t----\t------\t-----------\t" + projectedSep + "\t-----\t------\t----\n"
+	if _, err := fmt.Fprint(tw, sep); err != nil {
 		return fmt.Errorf("writing separator: %w", err)
 	}
 
@@ -167,7 +176,18 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 		return fmt.Errorf("writing summary: %w", err)
 	}
 
-	return tw.Flush()
+	if err := tw.Flush(); err != nil {
+		return fmt.Errorf("flushing table: %w", err)
+	}
+
+	// State-only footnote written after flush so tabwriter alignment does not affect it.
+	if stackCtx.IsStateOnly {
+		footnote := "* projected at current state (730h/mo) — rerun with --yes to include pending changes"
+		if _, err := fmt.Fprintln(w, footnote); err != nil {
+			return fmt.Errorf("writing state-only footnote: %w", err)
+		}
+	}
+	return nil
 }
 
 func formatActualColumn(row OverviewRow) string {
@@ -224,7 +244,12 @@ func formatRecsColumn(row OverviewRow) string {
 	if len(row.Recommendations) == 0 {
 		return "-"
 	}
-	return strconv.Itoa(len(row.Recommendations))
+	active, dismissed := CountRecsActiveAndDismissed(row.Recommendations)
+	total := active + dismissed
+	if dismissed == 0 {
+		return strconv.Itoa(total)
+	}
+	return fmt.Sprintf("%d(-%d)", total, dismissed)
 }
 
 // overviewRowTotals holds aggregated totals from overview rows.
@@ -259,7 +284,9 @@ func aggregateOverviewRows(rows []OverviewRow) (overviewRowTotals, error) {
 			}
 		}
 		for _, rec := range row.Recommendations {
-			t.savings += rec.EstimatedSavings
+			if rec.Status != RecommendationStatusDismissed && rec.Status != RecommendationStatusSnoozed {
+				t.savings += rec.EstimatedSavings
+			}
 		}
 	}
 	if t.currency == "" {

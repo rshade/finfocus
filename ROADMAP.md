@@ -6,23 +6,38 @@ guardrails in `CONTEXT.md`.
 
 ## Table of Contents
 
-- [Immediate Focus (v0.3.1)](#immediate-focus-v031---overview-performance)
+- [Immediate Focus (v0.3.2)](#immediate-focus-v032---overview-quality--performance)
 - [Near-Term Vision (v0.3.x)](#near-term-vision-v03x---forecasting--profiles)
 - [Future Vision (v0.4.0+)](#future-vision-v040---notifications-integrations--backlog)
 - [Completed Milestones](#completed-milestones)
 - [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
 - [Boundary Safeguards](#boundary-safeguards)
 
-## Immediate Focus (v0.3.1 - Overview Performance)
+## Immediate Focus (v0.3.2 - Overview Quality & Performance)
 
-*Milestone: [v0.3.1](https://github.com/rshade/finfocus/milestone/5) — Performance
-improvements for overview command*
+*v0.3.1 shipped timing instrumentation and immediate TUI launch — this milestone
+continues with TUI quality fixes and the remaining performance pipeline.*
 
+- [ ] **Overview TUI Quality** *(post-v0.3.1 follow-ups)*
+  - [ ] Investigate intermittent $0.00 projected costs in TUI overview
+        ([#723](https://github.com/rshade/finfocus/issues/723))
+  - [ ] Race between enrichment goroutine and plugin cleanup in overview command
+        ([#716](https://github.com/rshade/finfocus/issues/716))
+  - [ ] State guards missing for init-only TUI messages in overview model
+        ([#717](https://github.com/rshade/finfocus/issues/717))
+  - [ ] Audit enriched count inaccurate on early TUI exit
+        ([#720](https://github.com/rshade/finfocus/issues/720))
+  - [ ] Show phase progress lines sequentially and add preview phase
+        ([#714](https://github.com/rshade/finfocus/issues/714))
+  - [ ] Extend table separator line to terminal width in overview TUI
+        ([#718](https://github.com/rshade/finfocus/issues/718))
+  - [ ] Use lipgloss styles in `renderInitializingView` for consistency
+        ([#719](https://github.com/rshade/finfocus/issues/719))
+  - [ ] Extract progress constant and add goroutine comment in overview
+        ([#721](https://github.com/rshade/finfocus/issues/721))
+  - [ ] Verify defensive copy independence in `DataReadyMsg` handler
+        ([#722](https://github.com/rshade/finfocus/issues/722))
 - [ ] **Overview Performance Pipeline**
-  - [ ] Add timing instrumentation to overview command
-        ([#695](https://github.com/rshade/finfocus/issues/695))
-  - [ ] Launch TUI immediately with phase progress feedback
-        ([#689](https://github.com/rshade/finfocus/issues/689))
   - [ ] Parallelize per-row enrichment sub-calls
         ([#694](https://github.com/rshade/finfocus/issues/694))
   - [ ] Parallelize plugin opening in `Registry.Open()`
@@ -34,13 +49,15 @@ improvements for overview command*
   - [ ] Add `--state-only` flag to skip pulumi preview
         ([#690](https://github.com/rshade/finfocus/issues/690))
 - [ ] **BoltDB Cache Stability** *(post-#674 migration fixes)*
-  - [ ] `resolveCacheDir` global fallback places cache.db in wrong directory
-        ([#680](https://github.com/rshade/finfocus/issues/680))
   - [ ] `compact()` leaves store unusable if reopen fails after rename
         ([#681](https://github.com/rshade/finfocus/issues/681))
   - [ ] `BoltStore.Set` returns nil when disabled, inconsistent with other
         methods
         ([#682](https://github.com/rshade/finfocus/issues/682))
+- [ ] **CI Reliability**
+  - [ ] SBOM action fails to attach to releases — missing `contents:write`
+        permission
+        ([#698](https://github.com/rshade/finfocus/issues/698))
 - [ ] **Code Quality Housekeeping**
   - [ ] Fix test data quality issues across cache test files
         ([#683](https://github.com/rshade/finfocus/issues/683))
@@ -213,6 +230,17 @@ improvements for overview command*
 
 ### 2026-Q1
 
+- [x] **v0.3.1: Overview Performance & Docs Audit** *(Released 2026-02-18)*
+  - [x] Add timing instrumentation to overview command
+        ([#695](https://github.com/rshade/finfocus/issues/695))
+  - [x] Launch TUI immediately with phase progress feedback
+        ([#689](https://github.com/rshade/finfocus/issues/689))
+  - [x] Fix `resolveCacheDir` global fallback places cache.db in wrong directory
+        ([#680](https://github.com/rshade/finfocus/issues/680))
+  - [x] Add provider/resource\_type assertions to tag enrichment tests
+        ([#686](https://github.com/rshade/finfocus/issues/686))
+  - [x] Documentation audit fixes for v0.3.0 features, plugin SDK, security
+        ([#702](https://github.com/rshade/finfocus/issues/702)–[#710](https://github.com/rshade/finfocus/issues/710))
 - [x] **Install UX & Integrity** *(Completed 2026-02-16)*
   - [x] Install script (`curl | sh`)
         ([#599](https://github.com/rshade/finfocus/issues/599))

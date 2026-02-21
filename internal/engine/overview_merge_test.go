@@ -305,6 +305,207 @@ func TestMergeResourcesForOverview_NilPropertiesOK(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// NewRowsFromState
+// ---------------------------------------------------------------------------
+
+func TestNewRowsFromState(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name           string
+		input          []StateResource
+		expectLen      int
+		expectURNOrder []string
+		allActive      bool
+		nilCosts       bool
+	}{
+		{
+			name: "only custom resources",
+			input: []StateResource{
+				{URN: "urn:provider", Type: "pulumi:providers:aws", Custom: false},
+				{URN: "urn:ec2", Type: "aws:ec2:Instance", ID: "i-123", Custom: true},
+				{URN: "urn:s3", Type: "aws:s3:Bucket", ID: "bucket-abc", Custom: true},
+			},
+			expectLen:      2,
+			expectURNOrder: []string{"urn:ec2", "urn:s3"},
+			allActive:      true,
+		},
+		{
+			name: "preserves state order",
+			input: []StateResource{
+				{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true},
+				{URN: "urn:b", Type: "aws:s3:Bucket", Custom: true},
+				{URN: "urn:c", Type: "aws:rds:Instance", Custom: true},
+			},
+			expectLen:      3,
+			expectURNOrder: []string{"urn:a", "urn:b", "urn:c"},
+			allActive:      true,
+		},
+		{
+			name: "all skeleton rows have StatusActive",
+			input: []StateResource{
+				{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true},
+				{URN: "urn:b", Type: "aws:s3:Bucket", Custom: true},
+			},
+			expectLen: 2,
+			allActive: true,
+		},
+		{
+			name: "skeleton rows have nil cost fields",
+			input: []StateResource{
+				{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true},
+			},
+			expectLen: 1,
+			nilCosts:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rows := NewRowsFromState(ctx, tt.input)
+			require.Len(t, rows, tt.expectLen)
+			for i, urn := range tt.expectURNOrder {
+				assert.Equal(t, urn, rows[i].URN)
+			}
+			if tt.allActive {
+				for _, row := range rows {
+					assert.Equal(t, StatusActive, row.Status)
+				}
+			}
+			if tt.nilCosts && len(rows) > 0 {
+				assert.Nil(t, rows[0].ActualCost)
+				assert.Nil(t, rows[0].ProjectedCost)
+				assert.Nil(t, rows[0].CostDrift)
+				assert.Nil(t, rows[0].Error)
+				assert.Empty(t, rows[0].Recommendations)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// ApplyChangesToRows
+// ---------------------------------------------------------------------------
+
+func TestApplyChangesToRows(t *testing.T) {
+	t.Run("updates matching URNs", func(t *testing.T) {
+		rows := []OverviewRow{
+			{URN: "urn:a", Status: StatusActive},
+			{URN: "urn:b", Status: StatusActive},
+		}
+		ApplyChangesToRows(rows, map[string]ResourceStatus{"urn:a": StatusUpdating})
+		assert.Equal(t, StatusUpdating, rows[0].Status)
+		assert.Equal(t, StatusActive, rows[1].Status)
+	})
+
+	t.Run("preserves unmatched rows", func(t *testing.T) {
+		rows := []OverviewRow{
+			{URN: "urn:a", Status: StatusActive},
+			{URN: "urn:b", Status: StatusActive},
+		}
+		ApplyChangesToRows(rows, map[string]ResourceStatus{"urn:c": StatusCreating})
+		assert.Equal(t, StatusActive, rows[0].Status)
+		assert.Equal(t, StatusActive, rows[1].Status)
+	})
+
+	t.Run("empty map no-op", func(t *testing.T) {
+		rows := []OverviewRow{
+			{URN: "urn:a", Status: StatusDeleting},
+			{URN: "urn:b", Status: StatusUpdating},
+		}
+		ApplyChangesToRows(rows, map[string]ResourceStatus{})
+		assert.Equal(t, StatusDeleting, rows[0].Status)
+		assert.Equal(t, StatusUpdating, rows[1].Status)
+	})
+
+	t.Run("nil map no-op", func(t *testing.T) {
+		rows := []OverviewRow{
+			{URN: "urn:a", Status: StatusDeleting},
+			{URN: "urn:b", Status: StatusUpdating},
+		}
+		ApplyChangesToRows(rows, nil)
+		assert.Equal(t, StatusDeleting, rows[0].Status)
+		assert.Equal(t, StatusUpdating, rows[1].Status)
+	})
+
+	t.Run("nil rows is a no-op", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			ApplyChangesToRows(nil, map[string]ResourceStatus{})
+		}, "ApplyChangesToRows should be a no-op on nil rows input")
+	})
+}
+
+// ---------------------------------------------------------------------------
+// BuildStatusByURN
+// ---------------------------------------------------------------------------
+
+func TestBuildStatusByURN(t *testing.T) {
+	tests := []struct {
+		name    string
+		steps   []PlanStep
+		wantMap map[string]ResourceStatus
+	}{
+		{
+			name:    "empty steps returns empty map",
+			steps:   nil,
+			wantMap: map[string]ResourceStatus{},
+		},
+		{
+			name: "single step per URN",
+			steps: []PlanStep{
+				{URN: "urn:a", Op: "create", Type: "aws:ec2:Instance"},
+				{URN: "urn:b", Op: "update", Type: "aws:s3:Bucket"},
+				{URN: "urn:c", Op: "delete", Type: "aws:rds:Instance"},
+			},
+			wantMap: map[string]ResourceStatus{
+				"urn:a": StatusCreating,
+				"urn:b": StatusUpdating,
+				"urn:c": StatusDeleting,
+			},
+		},
+		{
+			name: "delete-replaced wins over create-replacement for same URN",
+			steps: []PlanStep{
+				{URN: "urn:a", Op: "create-replacement", Type: "aws:ec2:Instance"},
+				{URN: "urn:a", Op: "delete-replaced", Type: "aws:ec2:Instance"},
+			},
+			wantMap: map[string]ResourceStatus{
+				"urn:a": StatusReplacing,
+			},
+		},
+		{
+			name: "delete wins over create for same URN (highest precedence)",
+			steps: []PlanStep{
+				{URN: "urn:a", Op: "create", Type: "aws:ec2:Instance"},
+				{URN: "urn:a", Op: "delete", Type: "aws:ec2:Instance"},
+			},
+			wantMap: map[string]ResourceStatus{
+				"urn:a": StatusDeleting,
+			},
+		},
+		{
+			name: "replace-family steps result in StatusReplacing",
+			steps: []PlanStep{
+				{URN: "urn:a", Op: "replace", Type: "aws:ec2:Instance"},
+			},
+			wantMap: map[string]ResourceStatus{
+				"urn:a": StatusReplacing,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := BuildStatusByURN(tt.steps)
+			require.Len(t, got, len(tt.wantMap), "map length mismatch")
+			for urn, wantStatus := range tt.wantMap {
+				assert.Equal(t, wantStatus, got[urn], "status mismatch for URN %s", urn)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
 // DetectPendingChanges
 // ---------------------------------------------------------------------------
 

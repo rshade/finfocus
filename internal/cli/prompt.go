@@ -7,7 +7,14 @@ import (
 	"os"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/rshade/finfocus/internal/tui"
+)
+
+const (
+	// answerYes is the canonical "yes" string accepted by user confirmation prompts.
+	answerYes = "yes"
 )
 
 // PromptResult contains the result of a user prompt interaction.
@@ -72,11 +79,30 @@ func ConfirmFallback(
 
 	// Check for acceptance
 	switch strings.ToLower(input) {
-	case "y", "yes":
+	case "y", answerYes:
 		return PromptResult{Accepted: true}
 	default:
 		return PromptResult{Accepted: false}
 	}
+}
+
+// confirmWithReader displays a prompt on cmd's error stream and reads a yes/no
+// confirmation from cmd's stdin. Returns false on I/O error or if the user
+// declines. Accepts "y" or "yes" (case-insensitive) as affirmative.
+func confirmWithReader(cmd *cobra.Command, prompt string) bool {
+	cmd.PrintErr(prompt)
+
+	scanner := bufio.NewScanner(cmd.InOrStdin())
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			// I/O error reading stdin — treat as cancellation.
+			cmd.PrintErrf("error reading input: %v\n", err)
+		}
+		return false
+	}
+
+	response := strings.TrimSpace(strings.ToLower(scanner.Text()))
+	return response == "y" || response == answerYes
 }
 
 // ConfirmFallbackWithStdin is a convenience wrapper that uses os.Stdin as the reader.

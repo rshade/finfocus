@@ -4,11 +4,20 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/rshade/finfocus/internal/engine"
 )
+
+// stateOnlyFootnote returns the footnote appended to the list view when costs
+// are projected from current state without a fresh pulumi preview.
+// It derives the hours-per-month value from engine.HoursPerMonth to stay in
+// sync with the canonical constant used for all cost projections.
+func stateOnlyFootnote() string {
+	return fmt.Sprintf("* projected at current state (%dh/mo)", engine.HoursPerMonth)
+}
 
 // View renders the current view (Bubble Tea interface).
 func (m OverviewModel) View() string {
@@ -30,26 +39,47 @@ func (m OverviewModel) View() string {
 	}
 }
 
-// renderInitializingView renders the spinner with phase message during the
-// initializing state (before data is available).
+// renderInitializingView renders the banner and phase checklist during the
+// initializing state (before data is available). When the passphrase prompt
+// is active it replaces the checklist with an inline password input.
 func (m OverviewModel) renderInitializingView() string {
+	banner := RenderBanner(m.width)
+
+	// Passphrase prompt replaces checklist when active.
+	if m.showPassphraseInput {
+		prompt := lipgloss.JoinVertical(lipgloss.Left,
+			WarningStyle.Render("This stack uses passphrase encryption."),
+			"",
+			LabelStyle.Render("Enter PULUMI_CONFIG_PASSPHRASE: ")+m.passphraseInput.View(),
+			SubtleStyle.Render("(hidden — press Enter to continue, Esc to cancel)"),
+		)
+		bannerW := lipgloss.Width(banner)
+		constrainedPrompt := lipgloss.NewStyle().Width(bannerW).Render(prompt)
+		return lipgloss.JoinVertical(lipgloss.Center, banner, "", constrainedPrompt, "")
+	}
+
+	// Phase checklist
 	spinnerView := ""
 	if m.loadingState != nil {
 		spinnerView = m.loadingState.spinner.View()
 	}
-	msg := m.progressMsg
-	if msg == "" {
-		msg = "Initializing..."
+	lines := make([]string, 0, len(phaseNames))
+	for i, name := range phaseNames {
+		switch {
+		case i < m.currentPhaseIndex:
+			lines = append(lines, OKStyle.Render("  ✓ "+name))
+		case i == m.currentPhaseIndex:
+			lines = append(lines, InfoStyle.Render("  "+spinnerView+" "+name+"..."))
+		default:
+			lines = append(lines, SubtleStyle.Render("  · "+name))
+		}
 	}
-	content := lipgloss.JoinHorizontal(lipgloss.Left,
-		spinnerView,
-		" ",
-		InfoStyle.Render(msg),
-	)
-	return lipgloss.NewStyle().
+
+	checklist := lipgloss.NewStyle().
 		Width(m.width-borderPadding).
 		Padding(1, 2). //nolint:mnd // View padding.
-		Render(content)
+		Render(strings.Join(lines, "\n"))
+	return lipgloss.JoinVertical(lipgloss.Center, banner, "", checklist, "")
 }
 
 // renderLoadingView renders the loading spinner with progress banner.
@@ -99,10 +129,16 @@ func (m OverviewModel) renderListView() string {
 		sections = append(sections, filterView)
 	}
 
+	// Footer footnote for state-only mode (after filter so filter appears above footnote).
+	if m.isStateOnly && !m.previewLoaded {
+		footnote := SubtleStyle.Render(stateOnlyFootnote())
+		sections = append(sections, footnote)
+	}
+
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
 
-// renderStatusBar displays current sort field and filter status.
+// renderStatusBar displays current sort field, filter status, and preview hints.
 func (m OverviewModel) renderStatusBar() string {
 	sortLabel := m.getSortLabel()
 	filterStatus := ""
@@ -116,11 +152,41 @@ func (m OverviewModel) renderStatusBar() string {
 		filterStatus = fmt.Sprintf(" | Filtered: %d/%d", len(m.rows), len(m.allRows))
 	}
 
-	status := fmt.Sprintf(
-		"%sSort: %s%s | Press 's' to cycle, '/' to filter, 'q' to quit",
-		stackPrefix, sortLabel, filterStatus,
-	)
+	var status string
+	switch {
+	case m.isPreviewLoading:
+		// Show elapsed timer while preview is loading.
+		elapsed := formatPreviewElapsed(m.previewElapsed)
+		status = fmt.Sprintf(
+			"%sLoading pending changes (%s)%s | Sort: %s | Press 's' to cycle, '/' to filter, 'q' to quit",
+			stackPrefix, elapsed, filterStatus, sortLabel,
+		)
+	case m.isStateOnly && !m.previewLoaded:
+		// Offer 'p' hint when in state-only mode and preview not loaded.
+		detectFailed := ""
+		if m.detectErrMsg != "" {
+			detectFailed = " (change detection failed)"
+		}
+		status = fmt.Sprintf(
+			"%sSort: %s%s | [p] load pending changes%s | Press 's' to cycle, '/' to filter, 'q' to quit",
+			stackPrefix, sortLabel, filterStatus, detectFailed,
+		)
+	default:
+		status = fmt.Sprintf(
+			"%sSort: %s%s | Press 's' to cycle, '/' to filter, 'q' to quit",
+			stackPrefix, sortLabel, filterStatus,
+		)
+	}
 	return SubtleStyle.Render(status)
+}
+
+// formatPreviewElapsed formats a duration as M:SS for the elapsed preview timer.
+func formatPreviewElapsed(d time.Duration) string {
+	if d < 0 {
+		d = 0
+	}
+	secs := int(d.Seconds())
+	return fmt.Sprintf("%d:%02d", secs/60, secs%60) //nolint:mnd // Time formatting.
 }
 
 // getSortLabel returns the human-readable label for the current sort field.
@@ -226,14 +292,24 @@ func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRow) {
 	content.WriteString("\n\n")
 }
 
-// renderDetailRecommendations writes recommendations to the builder.
+// renderDetailRecommendations writes active (non-dismissed) recommendations to
+// the builder. Dismissed and snoozed recommendations are excluded from the
+// detail view — they are only reflected in the count badge.
 func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRow) {
-	if len(row.Recommendations) == 0 {
+	// Collect active recs only.
+	var active []engine.Recommendation
+	for _, rec := range row.Recommendations {
+		if rec.Status != engine.RecommendationStatusDismissed &&
+			rec.Status != engine.RecommendationStatusSnoozed {
+			active = append(active, rec)
+		}
+	}
+	if len(active) == 0 {
 		return
 	}
 	content.WriteString(HeaderStyle.Render("RECOMMENDATIONS"))
 	content.WriteString("\n")
-	for i, rec := range row.Recommendations {
+	for i, rec := range active {
 		fmt.Fprintf(content, "  %d. %s\n", i+1, rec.Description)
 		content.WriteString(LabelStyle.Render("     Savings: "))
 		content.WriteString(ValueStyle.Render(

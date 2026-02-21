@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -396,4 +398,101 @@ func TestExitCodeBehavior(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestRootCmd_OutsidePulumiProject verifies that running finfocus with no args
+// outside a Pulumi project shows help (exits 0, no overview delegation).
+func TestRootCmd_OutsidePulumiProject(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+
+	// Change to a temp directory that has no Pulumi.yaml in any ancestor.
+	tmpDir := t.TempDir()
+	t.Chdir(tmpDir)
+
+	var buf bytes.Buffer
+	cmd := cli.NewRootCmd("test-version")
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{}) // no args — bare invocation
+
+	err := cmd.Execute()
+	require.NoError(t, err, "outside Pulumi project, bare invocation should show help (exit 0)")
+	output := buf.String()
+	assert.Contains(t, output, "FinFocus", "help output should contain product name")
+	assert.Contains(t, output, "Available Commands:", "help output should list commands")
+}
+
+// TestRootCmd_InPulumiProject verifies that running finfocus with no args
+// inside a Pulumi project directory delegates to the overview command.
+// The overview command will fail to find the Pulumi CLI in the test environment,
+// which confirms delegation happened (the error is from overview, not from help).
+func TestRootCmd_InPulumiProject(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+
+	// Create a temp directory with a minimal Pulumi.yaml so FindProject succeeds.
+	tmpDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "Pulumi.yaml"),
+		[]byte("name: test-project\nruntime: go\n"), 0600))
+	t.Chdir(tmpDir)
+
+	var buf bytes.Buffer
+	cmd := cli.NewRootCmd("test-version")
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{}) // no args — bare invocation
+
+	// Delegation to overview will try to detect the Pulumi project and run
+	// stack export. In the test environment it will fail (no pulumi CLI or
+	// real stack), so an error is expected — but it is an overview error,
+	// not Cobra's "command not found" error.
+	err := cmd.Execute()
+	// Either overview fails (expected) or succeeds — both confirm delegation.
+	// We can't assert success because pulumi CLI may not be present in CI.
+	// What we assert is that the output does NOT contain "Available Commands:"
+	// which would mean we fell through to help instead of overview.
+	output := buf.String()
+	if err != nil {
+		t.Logf("overview delegation returned error (expected in CI without pulumi): %v", err)
+	}
+	assert.NotContains(t, output, "Available Commands:",
+		"in Pulumi project, should have delegated to overview, not shown help")
+}
+
+// TestRootCmd_HelpFlagAlwaysWorks verifies --help shows usage regardless of directory.
+func TestRootCmd_HelpFlagAlwaysWorks(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	var buf bytes.Buffer
+	cmd := cli.NewRootCmd("test-version")
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--help"})
+
+	err := cmd.Execute()
+	require.NoError(t, err, "--help should always exit 0")
+	assert.Contains(t, buf.String(), "Available Commands:", "help should list commands")
+}
+
+// TestRootCmd_DirectOverviewCallUnchanged verifies that 'finfocus overview' still works
+// as a direct subcommand regardless of the working directory.
+func TestRootCmd_DirectOverviewCallUnchanged(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+
+	var buf bytes.Buffer
+	cmd := cli.NewRootCmd("test-version")
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"overview", "--help"})
+
+	err := cmd.Execute()
+	require.NoError(t, err, "'overview --help' should succeed")
+	// Cobra's help output shows the Long description (not Short) when both are set.
+	// The Long description starts with "Display a unified cost dashboard...".
+	assert.Contains(t, buf.String(), "unified cost dashboard",
+		"overview help should describe the overview command")
 }

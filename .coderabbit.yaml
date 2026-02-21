@@ -38,6 +38,7 @@ reviews:
     - '!**/.specify/**'
     - '!**/.claude/**'
     - '!**/.gemini/**'
+    - '!ROADMAP.md'
     - '!**/.opencode/**'
     - '!**/specs/**'
   path_instructions:

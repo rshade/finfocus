@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -144,7 +143,7 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 			cmd.PrintErrf("  Note: %s\n", params.note)
 		}
 		cmd.PrintErrln()
-		if !confirmPrompt(cmd, "Continue? [y/N]: ") {
+		if !confirmWithReader(cmd, "Continue? [y/N]: ") {
 			cmd.PrintErrln("Dismissal cancelled.")
 			return nil
 		}
@@ -222,7 +221,7 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 			cmd.PrintErrf("  Note: %s\n", params.note)
 		}
 		cmd.PrintErrln()
-		if !confirmPrompt(cmd, "Continue? [y/N]: ") {
+		if !confirmWithReader(cmd, "Continue? [y/N]: ") {
 			cmd.PrintErrln("Snooze cancelled.")
 			return nil
 		}
@@ -330,19 +329,6 @@ func parseSnoozeDate(s string) (time.Time, error) {
 	}
 
 	return time.Time{}, fmt.Errorf("invalid date format %q (expected YYYY-MM-DD or RFC3339)", s)
-}
-
-// confirmPrompt displays a prompt and reads user confirmation.
-func confirmPrompt(cmd *cobra.Command, prompt string) bool {
-	cmd.PrintErr(prompt)
-
-	scanner := bufio.NewScanner(cmd.InOrStdin())
-	if !scanner.Scan() {
-		return false
-	}
-
-	response := strings.TrimSpace(strings.ToLower(scanner.Text()))
-	return response == "y" || response == "yes"
 }
 
 // mustParseDismissalReason parses a reason string, panicking on error.

@@ -46,7 +46,7 @@ func executeUndismiss(cmd *cobra.Command, recommendationID string, force bool) e
 	if !force {
 		cmd.PrintErrf("Undismiss recommendation %s?\n", recommendationID)
 		cmd.PrintErrln()
-		if !confirmPrompt(cmd, "Continue? [y/N]: ") {
+		if !confirmWithReader(cmd, "Continue? [y/N]: ") {
 			cmd.PrintErrln("Undismiss cancelled.")
 			return nil
 		}

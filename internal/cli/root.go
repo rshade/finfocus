@@ -11,6 +11,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/migration"
+	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 )
 
 // isTerminal checks if the given file is a terminal.
@@ -58,6 +59,22 @@ func NewRootCmdWithArgs(
 		Long:    "FinFocus: Calculate projected and actual cloud costs via plugins",
 		Version: ver,
 		Example: example,
+		// RunE provides context-aware default behaviour: when the working directory is
+		// inside a Pulumi project, delegate to the overview command for an immediate
+		// cost dashboard. Outside a Pulumi project, display help as before.
+		// --help is always handled by Cobra before RunE is reached.
+		RunE: func(cmd *cobra.Command, args []string) error {
+			// Use the directory resolved by PersistentPreRunE for consistency.
+			// Fall back to searching from "." if no project dir was resolved.
+			searchDir := config.GetResolvedProjectDir()
+			if searchDir == "" {
+				searchDir = "."
+			}
+			if _, err := pulumidetect.FindProject(searchDir); err == nil {
+				return runOverviewDelegation(cmd, args)
+			}
+			return cmd.Help()
+		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			// Validate cache-ttl is non-negative (negative values cause undefined cache expiry behavior)
 			cacheTTL, _ := cmd.Flags().GetInt("cache-ttl")
@@ -110,6 +127,34 @@ func NewRootCmdWithArgs(
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
 
 	return cmd
+}
+
+// runOverviewDelegation delegates root command execution to the overview command.
+//
+// We call overviewCmd.RunE directly (not overviewCmd.Execute) because:
+//  1. root's PersistentPreRunE has already run (logging/tracing set up).
+//  2. overview flags use auto-detect defaults; no flag parsing is needed.
+//  3. root's PersistentPostRunE will still run after RunE returns.
+//
+// Caution: any PreRunE/PersistentPreRunE added to NewOverviewCmd() in the
+// future will be skipped by this path.
+func runOverviewDelegation(cmd *cobra.Command, args []string) error {
+	log := logging.FromContext(cmd.Context())
+	log.Debug().
+		Str("component", "cli").
+		Str("operation", "root_default").
+		Msg("Pulumi project detected; delegating to overview")
+	overviewCmd := NewOverviewCmd()
+	overviewCmd.SetOut(cmd.OutOrStdout())
+	overviewCmd.SetErr(cmd.ErrOrStderr())
+	overviewCmd.SetIn(cmd.InOrStdin())
+	if ctx := cmd.Context(); ctx != nil {
+		overviewCmd.SetContext(ctx)
+	}
+	// Suppress root command usage on error: when overview fails the
+	// user should see the overview error message, not root help.
+	cmd.SilenceUsage = true
+	return overviewCmd.RunE(overviewCmd, args)
 }
 
 const rootCmdExample = `  # Calculate projected costs from a Pulumi plan

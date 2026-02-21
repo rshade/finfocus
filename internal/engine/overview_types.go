@@ -370,6 +370,8 @@ type StackContext struct {
 	TotalResources int       `json:"totalResources"`
 	PendingChanges int       `json:"pendingChanges"`
 	GeneratedAt    time.Time `json:"generatedAt,omitempty"`
+	// IsStateOnly is true when no pulumi preview was run; costs reflect the current state only.
+	IsStateOnly bool `json:"isStateOnly,omitempty"`
 }
 
 // Validate checks that the StackContext fields are well-formed.

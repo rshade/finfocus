@@ -413,6 +413,106 @@ func TestFormatWithCommas(t *testing.T) {
 // formatDriftColumn
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// formatRecsColumn
+// ---------------------------------------------------------------------------
+
+func TestFormatRecsColumn(t *testing.T) {
+	tests := []struct {
+		name string
+		row  OverviewRow
+		want string
+	}{
+		{
+			name: "no_recs",
+			row:  OverviewRow{},
+			want: "-",
+		},
+		{
+			name: "all_active",
+			row: OverviewRow{
+				Recommendations: []Recommendation{
+					{Type: "Right-sizing", Status: RecommendationStatusActive},
+					// A zero-value Status is treated as active by CountRecsActiveAndDismissed:
+					// the else branch increments active for any status that is not
+					// RecommendationStatusDismissed or RecommendationStatusSnoozed.
+					{Type: "Terminate"},
+				},
+			},
+			want: "2",
+		},
+		{
+			name: "one_dismissed",
+			row: OverviewRow{
+				Recommendations: []Recommendation{
+					{Type: "Right-sizing", Status: RecommendationStatusActive},
+					{Type: "Terminate", Status: RecommendationStatusActive},
+					{Type: "Delete Unused", Status: RecommendationStatusDismissed},
+				},
+			},
+			want: "3(-1)",
+		},
+		{
+			name: "one_snoozed",
+			row: OverviewRow{
+				Recommendations: []Recommendation{
+					{Type: "Right-sizing", Status: RecommendationStatusActive},
+					{Type: "Delete Unused", Status: RecommendationStatusSnoozed},
+				},
+			},
+			want: "2(-1)",
+		},
+		{
+			name: "all_dismissed",
+			row: OverviewRow{
+				Recommendations: []Recommendation{
+					{Type: "Right-sizing", Status: RecommendationStatusDismissed},
+					{Type: "Terminate", Status: RecommendationStatusSnoozed},
+				},
+			},
+			want: "2(-2)",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := formatRecsColumn(tt.row)
+			assert.Equal(t, tt.want, result)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// aggregateOverviewRows — savings excludes dismissed recs
+// ---------------------------------------------------------------------------
+
+func TestAggregateOverviewRows_SavingsExcludesDismissed(t *testing.T) {
+	now := time.Now()
+	period := DateRange{Start: now.Add(-24 * time.Hour), End: now}
+
+	rows := []OverviewRow{
+		{
+			URN:    "urn:r1",
+			Type:   "aws:ec2:Instance",
+			Status: StatusActive,
+			ActualCost: &ActualCostData{
+				MTDCost:  100.00,
+				Currency: "USD",
+				Period:   period,
+			},
+			Recommendations: []Recommendation{
+				{Type: "Right-sizing", EstimatedSavings: 30.0, Status: RecommendationStatusActive},
+				{Type: "Terminate", EstimatedSavings: 50.0, Status: RecommendationStatusDismissed},
+				{Type: "Delete", EstimatedSavings: 10.0, Status: RecommendationStatusSnoozed},
+			},
+		},
+	}
+
+	totals, err := aggregateOverviewRows(rows)
+	require.NoError(t, err)
+	// Only active rec savings (30.0) should be included; dismissed (50) and snoozed (10) excluded.
+	assert.Equal(t, 30.0, totals.savings)
+}
+
 func TestFormatDriftColumn(t *testing.T) {
 	tests := []struct {
 		name string
