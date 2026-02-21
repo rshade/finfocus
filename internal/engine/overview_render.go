@@ -182,7 +182,10 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 
 	// State-only footnote written after flush so tabwriter alignment does not affect it.
 	if stackCtx.IsStateOnly {
-		footnote := "* projected at current state (730h/mo) — rerun with --yes to include pending changes"
+		footnote := fmt.Sprintf(
+			"* projected at current state (%dh/mo) — rerun with --yes to include pending changes",
+			HoursPerMonth,
+		)
 		if _, err := fmt.Fprintln(w, footnote); err != nil {
 			return fmt.Errorf("writing state-only footnote: %w", err)
 		}

@@ -25,6 +25,7 @@ type PreviewOptions struct {
 	ProjectDir string        // Directory containing Pulumi.yaml.
 	Stack      string        // Specific stack name (empty = current).
 	Timeout    time.Duration // Max execution time (default: 5 minutes).
+	Passphrase string        // PULUMI_CONFIG_PASSPHRASE injected into subprocess env only.
 }
 
 // ExportOptions configures a Pulumi stack export command execution.
@@ -32,6 +33,7 @@ type ExportOptions struct {
 	ProjectDir string        // Directory containing Pulumi.yaml.
 	Stack      string        // Specific stack name (empty = current).
 	Timeout    time.Duration // Max execution time (default: 60 seconds).
+	Passphrase string        // PULUMI_CONFIG_PASSPHRASE injected into subprocess env only.
 }
 
 // StackInfo represents a single stack from pulumi stack ls --json.
@@ -42,18 +44,28 @@ type StackInfo struct {
 }
 
 // CommandRunner executes an external command and returns its stdout, stderr, and error.
+// extraEnv entries (e.g. "KEY=value") are appended to the subprocess environment only;
+// they do not mutate the parent process environment.
 // This interface enables testing without spawning real subprocesses.
 type CommandRunner interface {
-	Run(ctx context.Context, dir string, name string, args ...string) (stdout []byte, stderr []byte, err error)
+	Run(
+		ctx context.Context,
+		dir string,
+		name string,
+		extraEnv []string,
+		args ...string,
+	) (stdout []byte, stderr []byte, err error)
 }
 
 // execRunner is the default CommandRunner that uses exec.CommandContext.
 type execRunner struct{}
 
-func (r *execRunner) Run(ctx context.Context, dir string, name string, args ...string) ([]byte, []byte, error) {
+func (r *execRunner) Run(
+	ctx context.Context, dir string, name string, extraEnv []string, args ...string,
+) ([]byte, []byte, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
-	cmd.Env = os.Environ()
+	cmd.Env = append(os.Environ(), extraEnv...)
 
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -129,7 +141,7 @@ func GetCurrentStack(ctx context.Context, projectDir string) (string, error) {
 		Str("project_dir", projectDir).
 		Msg("listing Pulumi stacks")
 
-	stdout, stderr, err := Runner.Run(ctx, projectDir, "pulumi", "stack", "ls", "--json")
+	stdout, stderr, err := Runner.Run(ctx, projectDir, "pulumi", nil, "stack", "ls", "--json")
 	if err != nil {
 		return "", fmt.Errorf("running pulumi stack ls: %w: %s", err, strings.TrimSpace(string(stderr)))
 	}
@@ -162,6 +174,7 @@ type pulumiCmdConfig struct {
 	timeout        time.Duration
 	defaultTimeout time.Duration
 	args           []string
+	extraEnv       []string // injected into subprocess env only, never os.Setenv
 	operation      string
 	logMessage     string
 	wrapErr        func(string) error
@@ -219,7 +232,7 @@ func runPulumiCommand(ctx context.Context, cfg pulumiCmdConfig) ([]byte, error) 
 		Str("stack", cfg.stack).
 		Msg(cfg.logMessage)
 
-	stdout, stderr, err := Runner.Run(ctx, cfg.projectDir, "pulumi", args...)
+	stdout, stderr, err := Runner.Run(ctx, cfg.projectDir, "pulumi", cfg.extraEnv, args...)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return nil, fmt.Errorf(
@@ -253,12 +266,17 @@ func runPulumiCommand(ctx context.Context, cfg pulumiCmdConfig) ([]byte, error) 
 // slice. It returns an error if the Pulumi command fails, if the context is canceled, or
 // if the operation exceeds its timeout.
 func Preview(ctx context.Context, opts PreviewOptions) ([]byte, error) {
+	var extraEnv []string
+	if opts.Passphrase != "" {
+		extraEnv = []string{"PULUMI_CONFIG_PASSPHRASE=" + opts.Passphrase}
+	}
 	return runPulumiCommand(ctx, pulumiCmdConfig{
 		projectDir:     opts.ProjectDir,
 		stack:          opts.Stack,
 		timeout:        opts.Timeout,
 		defaultTimeout: DefaultPreviewTimeout,
 		args:           []string{"preview", "--json"},
+		extraEnv:       extraEnv,
 		operation:      "preview",
 		logMessage:     "running pulumi preview --json (this may take a moment)...",
 		wrapErr:        PreviewError,
@@ -274,12 +292,17 @@ func Preview(ctx context.Context, opts PreviewOptions) ([]byte, error) {
 // An error is returned if the Pulumi CLI cannot be found or fails, if the operation times out, or if the
 // provided context is cancelled.
 func StackExport(ctx context.Context, opts ExportOptions) ([]byte, error) {
+	var extraEnv []string
+	if opts.Passphrase != "" {
+		extraEnv = []string{"PULUMI_CONFIG_PASSPHRASE=" + opts.Passphrase}
+	}
 	return runPulumiCommand(ctx, pulumiCmdConfig{
 		projectDir:     opts.ProjectDir,
 		stack:          opts.Stack,
 		timeout:        opts.Timeout,
 		defaultTimeout: DefaultExportTimeout,
 		args:           []string{"stack", "export"},
+		extraEnv:       extraEnv,
 		operation:      "stack export",
 		logMessage:     "running pulumi stack export...",
 		wrapErr:        ExportError,
