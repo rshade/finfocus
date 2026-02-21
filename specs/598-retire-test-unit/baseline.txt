@@ -1,0 +1,45 @@
+# Baseline: Pre-Migration Test State
+# Date: 2026-02-20
+# Branch: 598-retire-test-unit
+
+## make test (go test ./internal/... ./pkg/...) — ALL PASS
+
+Packages previously with NO test coverage from make test (tests were only in test/unit/):
+- internal/cli/pagination  (no test files)
+- internal/engine/batch    (has batch_test.go only, not processor_test.go)
+- internal/engine/cache    (has cache_test.go only, not key_test.go or store_test.go)
+- internal/tui/list        (no test files)
+
+## go test ./test/unit/... — Runs independently but has failures
+
+### Passing packages:
+ok  github.com/rshade/finfocus/test/unit/cli/pagination    0.051s
+ok  github.com/rshade/finfocus/test/unit/engine            0.079s
+ok  github.com/rshade/finfocus/test/unit/engine/batch      0.114s
+ok  github.com/rshade/finfocus/test/unit/engine/cache      2.813s
+ok  github.com/rshade/finfocus/test/unit/ingest            0.064s
+ok  github.com/rshade/finfocus/test/unit/pluginhost        0.102s
+ok  github.com/rshade/finfocus/test/unit/registry          0.098s
+ok  github.com/rshade/finfocus/test/unit/spec              0.065s
+ok  github.com/rshade/finfocus/test/unit/tui/list          0.017s
+
+### Failing packages (stale assertions to fix during migration):
+
+FAIL github.com/rshade/finfocus/test/unit/cli    171.065s
+  - TestCostActualCmd_MissingStartDate: expects "required flag", actual "--from is required when using --pulumi-json"
+  - TestCostProjectedCmd_Success: expects "USD" in Currency field, actual ""
+  - TestCostProjectedCmd_MissingRequiredFlag: expects "required flag", actual "reading --stack flag: flag accessed but not defined: stack"
+  - TestPluginListCmd_VerboseOutput: expects "Executable" in output, actual format changed
+
+FAIL github.com/rshade/finfocus/test/unit/config  0.158s
+  - TestScopedBudget_Validation/invalid_exit_code_(>_255): expected error, got nil
+  - TestScopedBudget_Validation/invalid_exit_code_(<_0): expected error, got nil
+  - TestBudgetsConfig_Validation/duplicate_tag_priorities_generate_warning: stale warning count
+  - TestBudgetsConfig_Validation/full_valid_configuration: unexpected warning count
+  - TestBudgetsConfig_LoadFromFixtures/tag_budgets.yaml: stale warning count
+  - TestBudgetsConfig_LoadFromFixtures/full_scoped.yaml: unexpected warnings
+
+## Key Finding (T002)
+
+test/unit/ runs independently but produces test failures due to stale assertions.
+These failures must be fixed inline during Phase 3 Batch-B migrations (per plan).

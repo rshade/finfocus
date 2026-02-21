@@ -7,10 +7,6 @@ This directory contains the comprehensive testing framework for the FinFocus sys
 ```text
 /test
 ├── README.md             # This file
-├── unit/                 # Unit tests by package
-│   ├── engine/          # Engine package unit tests
-│   ├── config/          # Configuration unit tests
-│   └── spec/            # Spec system unit tests
 ├── integration/         # Cross-component integration tests
 │   ├── plugin/          # Plugin communication tests
 │   └── cli/             # CLI integration tests
@@ -29,19 +25,16 @@ This directory contains the comprehensive testing framework for the FinFocus sys
 
 ## Testing Categories
 
-### Unit Tests (/test/unit/)
+### Unit Tests (colocated with source)
 
-Individual component logic testing:
+Unit tests live alongside the source code they test:
 
-- Engine cost calculation algorithms
+- Path: `internal/[package]/[name]_test.go`
+- Black-box tests (public API only): `package foo_test`
+- White-box tests (access to unexported symbols): `package foo`
+- Run with: `go test ./internal/...` (included in `make test`)
 
-- Configuration management
-
-- Spec system YAML parsing
-
-- JSON parsing and validation
-
-- Error handling paths
+> The `test/unit/` directory was retired; see issue #732 for details.
 
 ### Integration Tests (/test/integration/)
 
@@ -158,16 +151,13 @@ Configurable plugin server for testing:
 ## Running Tests
 
 ```bash
-# All tests (including existing internal package tests)
+# All tests (unit + any additional internal tests)
 make test
 
-# All new test framework tests only
-go test ./test/...
+# Unit tests only (colocated with source)
+go test ./internal/...
 
-# Unit tests only
-go test ./test/unit/...
-
-# Integration tests only  
+# Integration tests only
 go test ./test/integration/...
 
 # End-to-end tests only
@@ -180,21 +170,17 @@ go test -bench=. ./test/benchmarks/...
 go test ./test/mocks/plugin/...
 
 # Coverage report for all tests
-go test -coverprofile=coverage.out ./...
+go test -coverprofile=coverage.out ./internal/... ./pkg/...
 go tool cover -html=coverage.out
 
-# Coverage report for new tests only
-go test -coverprofile=coverage-new.out ./test/...
-go tool cover -html=coverage-new.out
-
 # Run tests with race detection
-go test -race ./test/...
+go test -race ./internal/...
 
 # Run tests with verbose output
-go test -v ./test/...
+go test -v ./internal/...
 
 # Run specific test by name
-go test -run TestEngine_GetProjectedCost ./test/unit/engine/...
+go test -run TestEngine_GetProjectedCost ./internal/engine/...
 
 # Run benchmarks with memory stats
 go test -bench=. -benchmem ./test/benchmarks/...
@@ -207,17 +193,20 @@ go test -timeout=60s ./test/integration/...
 
 ### Unit Tests
 
-Test individual components in isolation:
+Test individual components in isolation (colocated with source):
 
 ```bash
 # Engine unit tests
-go test ./test/unit/engine/...
+go test ./internal/engine/...
 
-# Config unit tests  
-go test ./test/unit/config/...
+# Config unit tests
+go test ./internal/config/...
 
 # Spec unit tests
-go test ./test/unit/spec/...
+go test ./internal/spec/...
+
+# All unit tests
+go test ./internal/...
 ```
 
 ### Integration Tests
