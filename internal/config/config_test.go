@@ -1123,3 +1123,62 @@ func TestConfig_BudgetExitCode_Validation(t *testing.T) {
 		})
 	}
 }
+
+// TestConfigPaths tests all configuration path retrieval functions.
+func TestConfigPaths(t *testing.T) {
+	t.Run("all config paths are accessible", func(t *testing.T) {
+		stubHome(t)
+		configDir, err := GetConfigDir()
+		require.NoError(t, err)
+		pluginDir, err := GetPluginDir()
+		require.NoError(t, err)
+		specDir, err := GetSpecDir()
+		require.NoError(t, err)
+
+		// All paths should be non-empty
+		assert.NotEmpty(t, configDir)
+		assert.NotEmpty(t, pluginDir)
+		assert.NotEmpty(t, specDir)
+
+		// Plugin and spec dirs should be under the resolved config dir
+		assert.Contains(t, pluginDir, configDir)
+		assert.Contains(t, specDir, configDir)
+
+		// Paths should be absolute
+		assert.True(t, filepath.IsAbs(configDir))
+	})
+}
+
+// TestConfigPermissions tests that created directories have correct permissions.
+func TestConfigPermissions(t *testing.T) {
+	t.Run("config directories have correct permissions", func(t *testing.T) {
+		// Create a temporary directory for testing
+		tempDir := t.TempDir()
+
+		// Override the config dir for testing
+		setHomeDir(t, tempDir)
+
+		err := EnsureConfigDir()
+		require.NoError(t, err)
+
+		err = EnsureSubDirs()
+		require.NoError(t, err)
+
+		// Check permissions on created directories
+		configDir := filepath.Join(tempDir, ".finfocus")
+		pluginDir := filepath.Join(tempDir, ".finfocus", "plugins")
+		specDir := filepath.Join(tempDir, ".finfocus", "specs")
+
+		for _, dir := range []string{configDir, pluginDir, specDir} {
+			info, statErr := os.Stat(dir)
+			require.NoError(t, statErr)
+
+			// Should be a directory
+			assert.True(t, info.IsDir())
+
+			// Should have reasonable permissions (readable and writable by owner)
+			mode := info.Mode().Perm()
+			assert.NotEqual(t, 0, mode&0700, "Directory should be readable/writable by owner: %s", dir)
+		}
+	})
+}

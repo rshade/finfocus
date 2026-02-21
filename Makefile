@@ -47,7 +47,7 @@ build:
 	go build $(LDFLAGS) -o bin/$(BINARY) ./cmd/finfocus
 
 # Default test target - runs unit tests only (fast, for CI and local dev)
-# Note: ./test/unit/... excluded as some tests are environment-dependent
+# Unit tests are colocated with source; see test/README.md for details
 test: test-unit
 
 test-unit:

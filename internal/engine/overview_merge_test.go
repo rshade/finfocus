@@ -424,8 +424,8 @@ func TestApplyChangesToRows(t *testing.T) {
 			{URN: "urn:b", Status: StatusUpdating},
 		}
 		ApplyChangesToRows(rows, nil)
-		assert.Equal(t, StatusDeleting, rows[0].Status)
-		assert.Equal(t, StatusUpdating, rows[1].Status)
+		assert.Equal(t, StatusDeleting, rows[0].Status, "nil map should leave statuses unchanged")
+		assert.Equal(t, StatusUpdating, rows[1].Status, "nil map should leave statuses unchanged")
 	})
 
 	t.Run("nil rows is a no-op", func(t *testing.T) {

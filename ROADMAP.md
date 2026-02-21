@@ -31,15 +31,19 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#714](https://github.com/rshade/finfocus/issues/714))
   - [ ] Extend table separator line to terminal width in overview TUI
         ([#718](https://github.com/rshade/finfocus/issues/718))
-  - [ ] Use lipgloss styles in `renderInitializingView` for consistency
-        ([#719](https://github.com/rshade/finfocus/issues/719))
   - [ ] Extract progress constant and add goroutine comment in overview
         ([#721](https://github.com/rshade/finfocus/issues/721))
   - [ ] Verify defensive copy independence in `DataReadyMsg` handler
         ([#722](https://github.com/rshade/finfocus/issues/722))
+  - [ ] Fix classifyError to handle context.Canceled and context.DeadlineExceeded
+        ([#726](https://github.com/rshade/finfocus/issues/726))
+  - [ ] Splash screen — figlet banner, phase checklist, passphrase prompt
+        ([#728](https://github.com/rshade/finfocus/issues/728))
+  - [ ] Display budget status and health in overview command
+        ([#744](https://github.com/rshade/finfocus/issues/744))
+  - [ ] Add cost caching to speed up overview enrichment
+        ([#745](https://github.com/rshade/finfocus/issues/745))
 - [ ] **Overview Performance Pipeline**
-  - [ ] Parallelize per-row enrichment sub-calls
-        ([#694](https://github.com/rshade/finfocus/issues/694))
   - [ ] Parallelize plugin opening in `Registry.Open()`
         ([#693](https://github.com/rshade/finfocus/issues/693))
   - [ ] Start plugin loading concurrently with data loading
@@ -63,6 +67,12 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#683](https://github.com/rshade/finfocus/issues/683))
   - [ ] Clean up duplicate doc comments and extract placeholder helper
         ([#684](https://github.com/rshade/finfocus/issues/684))
+  - [ ] Implement GetPricingSpec and EstimateCost in recorder plugin
+        ([#734](https://github.com/rshade/finfocus/issues/734))
+  - [ ] Fix always-skipped integration tests
+        ([#737](https://github.com/rshade/finfocus/issues/737))
+  - [ ] Fix cli_helper global log suppression masking plugin errors
+        ([#743](https://github.com/rshade/finfocus/issues/743))
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -88,6 +98,21 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 - [ ] **Scale Testing**
   - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
         ([#658](https://github.com/rshade/finfocus/issues/658))
+- [ ] **Integration Test Coverage**
+  - [ ] Add TUI interactive mode integration tests
+        ([#735](https://github.com/rshade/finfocus/issues/735))
+  - [ ] Add cache system integration tests
+        ([#736](https://github.com/rshade/finfocus/issues/736))
+  - [ ] Add concurrency and performance regression tests
+        ([#738](https://github.com/rshade/finfocus/issues/738))
+  - [ ] Add project-local config and config precedence tests
+        ([#739](https://github.com/rshade/finfocus/issues/739))
+  - [ ] Add analyzer concurrency and partial failure tests
+        ([#740](https://github.com/rshade/finfocus/issues/740))
+  - [ ] Resolve nightly build tag fragmentation
+        ([#741](https://github.com/rshade/finfocus/issues/741))
+  - [ ] Add plugin resilience and crash recovery tests
+        ([#742](https://github.com/rshade/finfocus/issues/742))
 - [ ] **Time-Series Forecasting Enhancement**
   - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
         ([#539](https://github.com/rshade/finfocus/issues/539))
@@ -230,6 +255,11 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 ### 2026-Q1
 
+- [x] **v0.3.2 Preview: Performance & TUI Fixes** *(Completed 2026-02-20)*
+  - [x] Use lipgloss styles in `renderInitializingView` for consistency
+        ([#719](https://github.com/rshade/finfocus/issues/719))
+  - [x] Parallelize per-row enrichment sub-calls
+        ([#694](https://github.com/rshade/finfocus/issues/694))
 - [x] **v0.3.1: Overview Performance & Docs Audit** *(Released 2026-02-18)*
   - [x] Add timing instrumentation to overview command
         ([#695](https://github.com/rshade/finfocus/issues/695))

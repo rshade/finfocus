@@ -475,9 +475,19 @@ gh workflow validate .github/workflows/ci.yml
 
 ### Test Directory Structure
 
+Unit tests are colocated with source code in `internal/[package]/[name]_test.go`.
+
 ```text
+internal/
+├── cli/             # CLI tests (cli_test package)
+├── engine/          # Engine tests
+├── config/          # Config tests
+├── ingest/          # Ingestion tests
+├── pluginhost/      # Plugin host tests
+├── pulumi/          # Pulumi detection tests
+└── ...
+
 test/
-├── unit/           # Unit tests by package (engine, config, spec)
 ├── integration/    # Cross-component tests (plugin communication)
 ├── e2e/            # End-to-end tests (separate Go module)
 │   ├── fixtures/   # Pulumi project fixtures for E2E tests
@@ -1117,6 +1127,8 @@ CodeRabbit now:
 ## Active Technologies
 - Go 1.25.7 + `github.com/charmbracelet/lipgloss` (already imported in file) (597-tui-init-lipgloss)
 - Markdown (documentation-only; no Go code changes) + markdownlint-cli2 v0.18.1 (already installed) (598-analyzer-routing-docs)
+- Go 1.25.7 + `github.com/stretchr/testify` (assertions, already a dep) (598-retire-test-unit)
+- N/A — file system only (source migration, no new storage) (598-retire-test-unit)
 
 - Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"google.golang.org/grpc"
@@ -58,11 +59,21 @@ func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client,
 		return nil, fmt.Errorf("getting plugin name: %w", err)
 	}
 
+	// Wrap closeFn with sync.Once to ensure idempotent Close per io.Closer convention
+	var closeOnce sync.Once
+	var onceCloseErr error
+	idempotentClose := func() error {
+		closeOnce.Do(func() {
+			onceCloseErr = closeFn()
+		})
+		return onceCloseErr
+	}
+
 	client := &Client{
 		Name:  nameResp.GetName(),
 		Conn:  conn,
 		API:   api,
-		Close: closeFn,
+		Close: idempotentClose,
 	}
 
 	// Fetch plugin info with timeout

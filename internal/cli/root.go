@@ -64,9 +64,7 @@ func NewRootCmdWithArgs(
 		// cost dashboard. Outside a Pulumi project, display help as before.
 		// --help is always handled by Cobra before RunE is reached.
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// Use the directory resolved by PersistentPreRunE for consistency.
-			// Fall back to searching from "." if no project dir was resolved.
-			searchDir := config.GetResolvedProjectDir()
+			searchDir := projectDirFlag
 			if searchDir == "" {
 				searchDir = "."
 			}
@@ -90,8 +88,9 @@ func NewRootCmdWithArgs(
 					cmd.PrintErrf("Warning: migration check failed: %v\n", err)
 				}
 
-				// Alias reminder - use precomputed pluginMode for consistency with tests
-				if os.Getenv("FINFOCUS_HIDE_ALIAS_HINT") == "" && !pluginMode {
+				// Alias reminder - use injected lookupEnv for test isolation
+				aliasHint, _ := lookupEnv("FINFOCUS_HIDE_ALIAS_HINT")
+				if aliasHint == "" && !pluginMode {
 					msg := "Tip: Add 'alias fin=finfocus' to your shell profile for a shorter command!"
 					cmd.PrintErrln(msg)
 				}

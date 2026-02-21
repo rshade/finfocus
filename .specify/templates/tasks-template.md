@@ -29,6 +29,22 @@ description: "Task list template for feature implementation"
 - **Mobile**: `api/src/`, `ios/src/` or `android/src/`
 - Paths shown below assume single project - adjust based on plan.md structure
 
+## Go Test Path Conventions
+
+Unit tests for Go projects MUST be colocated with source code, not placed in `test/unit/`.
+
+- **Unit tests**: `internal/[package]/[name]_test.go` (colocated with source)
+  - Black-box (public API): `package foo_test`
+  - White-box (unexported access): `package foo`
+  - Run with: `go test ./internal/...`
+- **Integration tests**: `test/integration/` (cross-component, requires running plugins)
+  - Run with: `go test ./test/integration/...`
+- **E2E tests**: `test/e2e/` (requires built binary and external credentials)
+  - Run with: `go test -tags e2e ./test/e2e/...`
+
+> **RETIRED**: `test/unit/` is retired as of issue #732. Do NOT place new Go unit tests
+> there — they will not be discovered by `make test` or CI.
+
 <!-- 
   ============================================================================
   IMPORTANT: The tasks below are SAMPLE TASKS for illustration purposes only.
@@ -157,7 +173,9 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX [P] Documentation updates in docs/
 - [ ] TXXX Code cleanup and refactoring
 - [ ] TXXX Performance optimization across all stories
-- [ ] TXXX [P] Additional unit tests (ensure 80% coverage minimum) in tests/unit/
+- [ ] TXXX [P] Additional unit tests (ensure 80% coverage minimum) colocated in
+  `internal/[package]/[feature]_test.go` (Go standard: `package foo_test` for black-box,
+  `package foo` for white-box)
 - [ ] TXXX Security hardening
 - [ ] TXXX Run quickstart.md validation
 
