@@ -240,10 +240,7 @@ func TestValidatePlugin(t *testing.T) {
 
 // TestPluginValidateCmd_NoPlugins tests validation with no plugins.
 func TestPluginValidateCmd_NoPlugins(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	// Set HOME to temp directory to ensure no plugins are found
-	t.Setenv("HOME", t.TempDir())
+	setupTestEnv(t)
 
 	cmd := cli.NewPluginValidateCmd()
 
@@ -265,7 +262,8 @@ func TestPluginValidateCmd_ValidPlugin(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	// Create temporary plugin directory
 	tempDir := t.TempDir()
-	pluginDir := filepath.Join(tempDir, ".finfocus", "plugins")
+	t.Setenv("FINFOCUS_HOME", tempDir)
+	pluginDir := filepath.Join(tempDir, "plugins")
 	kubecostDir := filepath.Join(pluginDir, "kubecost", "v0.1.0")
 	err := os.MkdirAll(kubecostDir, 0755)
 	require.NoError(t, err)
@@ -274,9 +272,6 @@ func TestPluginValidateCmd_ValidPlugin(t *testing.T) {
 	pluginBinary := filepath.Join(kubecostDir, "finfocus-plugin-kubecost")
 	err = os.WriteFile(pluginBinary, []byte("#!/bin/sh\necho test"), 0755)
 	require.NoError(t, err)
-
-	// Set HOME to temp directory
-	t.Setenv("HOME", tempDir)
 
 	cmd := cli.NewPluginValidateCmd()
 
@@ -297,7 +292,8 @@ func TestPluginValidateCmd_NonExecutable(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	// Create temporary plugin directory
 	tempDir := t.TempDir()
-	pluginDir := filepath.Join(tempDir, ".finfocus", "plugins")
+	t.Setenv("FINFOCUS_HOME", tempDir)
+	pluginDir := filepath.Join(tempDir, "plugins")
 	testDir := filepath.Join(pluginDir, "test-plugin", "v0.1.0")
 	err := os.MkdirAll(testDir, 0755)
 	require.NoError(t, err)
@@ -306,9 +302,6 @@ func TestPluginValidateCmd_NonExecutable(t *testing.T) {
 	pluginBinary := filepath.Join(testDir, "finfocus-plugin-test")
 	err = os.WriteFile(pluginBinary, []byte("#!/bin/sh\necho test"), 0644) // 0644 = not executable
 	require.NoError(t, err)
-
-	// Set HOME to temp directory
-	t.Setenv("HOME", tempDir)
 
 	cmd := cli.NewPluginValidateCmd()
 

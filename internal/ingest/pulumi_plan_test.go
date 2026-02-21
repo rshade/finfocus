@@ -756,6 +756,7 @@ func TestLoadPulumiPlan_MultipleSteps(t *testing.T) {
 	plan, err := ingest.LoadPulumiPlan(path)
 
 	require.NoError(t, err)
+	require.NotNil(t, plan)
 	assert.Len(t, plan.Steps, 3)
 	assert.Equal(t, "create", plan.Steps[0].Op)
 	assert.Equal(t, "update", plan.Steps[1].Op)
@@ -771,6 +772,7 @@ func TestLoadPulumiPlan_EmptyPlan(t *testing.T) {
 	plan, err := ingest.LoadPulumiPlan(path)
 
 	require.NoError(t, err)
+	require.NotNil(t, plan)
 	assert.Empty(t, plan.Steps)
 }
 

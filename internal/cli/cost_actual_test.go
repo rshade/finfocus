@@ -83,6 +83,9 @@ func TestNewCostActualCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.isolate {
+				isolateFromPulumiProject(t)
+			}
 			var buf bytes.Buffer
 			cmd := cli.NewCostActualCmd()
 			cmd.SetOut(&buf)
@@ -714,7 +717,7 @@ func TestCostActualCmd_DefaultEndDate(t *testing.T) {
 	planPath := createTestPlan(t, resources)
 
 	// Use a recent date within the max 366-day range
-	recentDate := time.Now().AddDate(0, -1, 0).Format("2006-01-02") // 1 month ago
+	recentDate, _ := getRecentDateRange()
 
 	cmd := cli.NewCostActualCmd()
 	cmd.SetArgs([]string{
@@ -840,7 +843,7 @@ func TestCostActualCmd_GroupByResource(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results, 0) // No plugins = empty results // Two separate resources
+	assert.Len(t, results, 0) // No plugins = empty results
 }
 
 // TestCostActualCmd_GroupByType tests type-level grouping.
@@ -880,7 +883,7 @@ func TestCostActualCmd_GroupByType(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results, 0) // No plugins = empty results // Aggregated by type
+	assert.Len(t, results, 0) // No plugins = empty results
 }
 
 // TestCostActualCmd_GroupByProvider tests provider-level grouping.
@@ -920,7 +923,7 @@ func TestCostActualCmd_GroupByProvider(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results, 0) // No plugins = empty results // Aggregated by provider (both AWS)
+	assert.Len(t, results, 0) // No plugins = empty results
 }
 
 // TestCostActualCmd_GroupByDaily tests daily grouping.

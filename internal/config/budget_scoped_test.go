@@ -14,7 +14,7 @@ import (
 
 // fixturesDir returns the path to the test fixtures directory.
 func fixturesDir() string {
-	return filepath.Join("..", "..", "fixtures", "budgets")
+	return filepath.Join("..", "..", "test", "fixtures", "budgets")
 }
 
 // loadFixture loads and parses a test fixture file.
@@ -129,9 +129,10 @@ func TestScopedBudget_Validation(t *testing.T) {
 		{
 			name: "invalid exit code (> 255)",
 			budget: &config.ScopedBudget{
-				Amount:   1000.0,
-				Currency: "USD",
-				ExitCode: ptr(256),
+				Amount:          1000.0,
+				Currency:        "USD",
+				ExitOnThreshold: ptr(true),
+				ExitCode:        ptr(256),
 			},
 			wantErr:     true,
 			errContains: "exit code",
@@ -139,9 +140,10 @@ func TestScopedBudget_Validation(t *testing.T) {
 		{
 			name: "invalid exit code (< 0)",
 			budget: &config.ScopedBudget{
-				Amount:   1000.0,
-				Currency: "USD",
-				ExitCode: ptr(-1),
+				Amount:          1000.0,
+				Currency:        "USD",
+				ExitOnThreshold: ptr(true),
+				ExitCode:        ptr(-1),
 			},
 			wantErr:     true,
 			errContains: "exit code",
@@ -526,7 +528,7 @@ func TestBudgetsConfig_Validation(t *testing.T) {
 				},
 			},
 			wantErr:   false,
-			wantWarns: 1,
+			wantWarns: 2, // duplicate priority + tag implementation warning
 		},
 		{
 			name: "invalid tag selector is rejected",
@@ -582,7 +584,8 @@ func TestBudgetsConfig_Validation(t *testing.T) {
 				ExitOnThreshold: true,
 				ExitCode:        ptr(1),
 			},
-			wantErr: false,
+			wantErr:   false,
+			wantWarns: 1, // tag implementation warning
 		},
 	}
 
@@ -742,8 +745,8 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 		cfg := loadFixture(t, "tag_budgets.yaml")
 		warnings, err := cfg.Cost.Budgets.Validate()
 		require.NoError(t, err)
-		// Should have warnings about duplicate priorities (team:platform and team:backend both priority 100)
-		assert.Len(t, warnings, 2) // One for priority 100, one for priority 50
+		// Should have warnings about duplicate priorities + tag implementation warning
+		assert.Len(t, warnings, 3) // priority 100, priority 50, tag implementation
 
 		assert.Len(t, cfg.Cost.Budgets.Tags, 5)
 	})
@@ -762,7 +765,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 		cfg := loadFixture(t, "full_scoped.yaml")
 		warnings, err := cfg.Cost.Budgets.Validate()
 		require.NoError(t, err)
-		assert.Empty(t, warnings)
+		assert.Len(t, warnings, 1) // tag implementation warning
 
 		assert.True(t, cfg.Cost.Budgets.HasGlobalBudget())
 		assert.True(t, cfg.Cost.Budgets.HasScopedBudgets())

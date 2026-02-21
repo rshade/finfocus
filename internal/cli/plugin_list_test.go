@@ -339,8 +339,8 @@ func BenchmarkPluginList(b *testing.B) {
 func TestPluginListCmd_NoPlugins(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	// Set HOME to temp directory to ensure no plugins are found
-	t.Setenv("HOME", t.TempDir())
+	// Set FINFOCUS_HOME to temp directory to ensure no plugins are found
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 
 	cmd := cli.NewPluginListCmd()
 
@@ -362,7 +362,8 @@ func TestPluginListCmd_WithPlugins(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	// Create temporary plugin directory structure
 	tempDir := t.TempDir()
-	pluginDir := filepath.Join(tempDir, ".finfocus", "plugins")
+	t.Setenv("FINFOCUS_HOME", tempDir)
+	pluginDir := filepath.Join(tempDir, "plugins")
 
 	// Create mock plugin directories
 	kubecostDir := filepath.Join(pluginDir, "kubecost", "v0.1.0")
@@ -373,9 +374,6 @@ func TestPluginListCmd_WithPlugins(t *testing.T) {
 	pluginBinary := filepath.Join(kubecostDir, "finfocus-plugin-kubecost")
 	err = os.WriteFile(pluginBinary, []byte("#!/bin/sh\necho test"), 0755)
 	require.NoError(t, err)
-
-	// Set HOME to temp directory
-	t.Setenv("HOME", tempDir)
 
 	cmd := cli.NewPluginListCmd()
 
@@ -396,7 +394,8 @@ func TestPluginListCmd_VerboseOutput(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	// Create temporary plugin directory
 	tempDir := t.TempDir()
-	pluginDir := filepath.Join(tempDir, ".finfocus", "plugins")
+	t.Setenv("FINFOCUS_HOME", tempDir)
+	pluginDir := filepath.Join(tempDir, "plugins")
 	kubecostDir := filepath.Join(pluginDir, "kubecost", "v0.1.0")
 	err := os.MkdirAll(kubecostDir, 0755)
 	require.NoError(t, err)
@@ -405,9 +404,6 @@ func TestPluginListCmd_VerboseOutput(t *testing.T) {
 	pluginBinary := filepath.Join(kubecostDir, "finfocus-plugin-kubecost")
 	err = os.WriteFile(pluginBinary, []byte("#!/bin/sh\necho test"), 0755)
 	require.NoError(t, err)
-
-	// Set HOME
-	t.Setenv("HOME", tempDir)
 
 	cmd := cli.NewPluginListCmd()
 	cmd.SetArgs([]string{"--verbose"})

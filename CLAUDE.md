@@ -475,9 +475,19 @@ gh workflow validate .github/workflows/ci.yml
 
 ### Test Directory Structure
 
+Unit tests are colocated with source code in `internal/[package]/[name]_test.go`.
+
 ```text
+internal/
+├── cli/             # CLI tests (cli_test package)
+├── engine/          # Engine tests
+├── config/          # Config tests
+├── ingest/          # Ingestion tests
+├── pluginhost/      # Plugin host tests
+├── pulumi/          # Pulumi detection tests
+└── ...
+
 test/
-├── unit/           # Unit tests by package (engine, config, spec)
 ├── integration/    # Cross-component tests (plugin communication)
 ├── e2e/            # End-to-end tests (separate Go module)
 │   ├── fixtures/   # Pulumi project fixtures for E2E tests

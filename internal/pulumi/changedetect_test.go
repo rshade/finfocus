@@ -35,12 +35,12 @@ func TestDetectChanges_NoMatchingFiles(t *testing.T) {
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
-	// Only unrecognised files in the directory.
-	past := time.Now().Add(-2 * time.Hour)
-	writeFileWithMtime(t, tmpDir, "README.md", past)
-	writeFileWithMtime(t, tmpDir, ".gitignore", past)
-
+	// Unrecognised files that are NEWER than manifestTime — the only reason
+	// DetectChanges returns no likely changes should be extension filtering.
 	manifestTime := time.Now().Add(-1 * time.Hour).UTC().Format(time.RFC3339)
+	future := time.Now().Add(1 * time.Hour)
+	writeFileWithMtime(t, tmpDir, "README.md", future)
+	writeFileWithMtime(t, tmpDir, ".gitignore", future)
 	signal, err := DetectChanges(ctx, manifestTime, tmpDir)
 	require.NoError(t, err)
 	assert.False(t, signal.HasLikelyChanges, "no recognised source files → no likely changes")
@@ -152,7 +152,9 @@ func TestDetectChanges_StatErrorSkipsFile(t *testing.T) {
 	// so this exercises the stat-error skip branch inside DetectChanges.
 	brokenTarget := filepath.Join(tmpDir, "nonexistent-target.ts")
 	brokenLink := filepath.Join(tmpDir, "broken.ts")
-	require.NoError(t, os.Symlink(brokenTarget, brokenLink))
+	if err := os.Symlink(brokenTarget, brokenLink); err != nil {
+		t.Skipf("skipping: platform cannot create symlinks: %v", err)
+	}
 
 	// Detection should skip the broken symlink and continue; index.ts is newer so
 	// HasLikelyChanges must be true.

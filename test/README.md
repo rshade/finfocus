@@ -1,4 +1,10 @@
-# Testing Framework
+---
+title: Testing Framework
+description: Comprehensive testing framework for the FinFocus system
+layout: default
+---
+
+## Overview
 
 This directory contains the comprehensive testing framework for the FinFocus system.
 

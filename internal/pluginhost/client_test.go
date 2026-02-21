@@ -44,7 +44,11 @@ func (s *mockCostSourceServer) GetPluginInfo(
 	req *pbc.GetPluginInfoRequest,
 ) (*pbc.GetPluginInfoResponse, error) {
 	if s.pluginInfoWait > 0 {
-		time.Sleep(s.pluginInfoWait)
+		select {
+		case <-time.After(s.pluginInfoWait):
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		}
 	}
 	if s.pluginInfoErr != nil {
 		return nil, s.pluginInfoErr
@@ -64,8 +68,8 @@ func (m *grpcMockLauncher) Start(
 ) (*grpc.ClientConn, func() error, error) {
 	conn, err := grpc.NewClient(
 		"passthrough:///bufnet",
-		grpc.WithContextDialer(func(context.Context, string) (net.Conn, error) {
-			return m.listener.Dial()
+		grpc.WithContextDialer(func(ctx context.Context, _ string) (net.Conn, error) {
+			return m.listener.DialContext(ctx)
 		}),
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 	)
@@ -134,6 +138,7 @@ func TestGetPluginInfo_Unimplemented(t *testing.T) {
 
 	// Should NOT fail, but log warning (impl detail)
 	require.NoError(t, err)
+	defer client.Close()
 	assert.Equal(t, "legacy-plugin", client.Name)
 }
 
@@ -154,6 +159,7 @@ func TestGetPluginInfo_Timeout(t *testing.T) {
 	client, err := pluginhost.NewClient(ctx, launcher, "dummy")
 	require.NoError(t, err)
 	require.NotNil(t, client)
+	defer client.Close()
 	assert.Equal(t, "slow-plugin", client.Name)
 	assert.Nil(t, client.Metadata)
 }
@@ -441,7 +447,7 @@ func TestClient_MultipleCloses(t *testing.T) {
 	client, err := pluginhost.NewClient(ctx, mockLauncherInst, "/fake/path")
 	require.NoError(t, err)
 
-	// Call Close() multiple times
+	// Call Close() multiple times — should be idempotent (sync.Once)
 	err1 := client.Close()
 	err2 := client.Close()
 	err3 := client.Close()
@@ -449,7 +455,7 @@ func TestClient_MultipleCloses(t *testing.T) {
 	assert.NoError(t, err1)
 	assert.NoError(t, err2)
 	assert.NoError(t, err3)
-	assert.Equal(t, 3, closeCount, "Close function should be called each time")
+	assert.Equal(t, 1, closeCount, "Close function should be called only once (idempotent)")
 }
 
 // TestClient_ContextCancellation tests behavior when context is cancelled.
@@ -461,10 +467,10 @@ func TestClient_ContextCancellation(t *testing.T) {
 	cancel() // Cancel immediately
 
 	mockLauncherInst := &mockLauncherBasic{
-		startFunc: func(_ context.Context, _ string, _ ...string) (*grpc.ClientConn, func() error, error) {
-			// Launcher should check context
-			if ctx.Err() != nil {
-				return nil, nil, ctx.Err()
+		startFunc: func(startCtx context.Context, _ string, _ ...string) (*grpc.ClientConn, func() error, error) {
+			// Launcher should check the context parameter passed to Start
+			if startCtx.Err() != nil {
+				return nil, nil, startCtx.Err()
 			}
 			conn := helper.Dial()
 			return conn, func() error { return nil }, nil

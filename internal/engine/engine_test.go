@@ -202,27 +202,45 @@ func TestValidateFilter(t *testing.T) {
 }
 
 func TestGetProjectedCostEmpty(t *testing.T) {
-	// Test with no clients and no loader
-	eng := engine.New(nil, nil)
+	t.Run("colon_format", func(t *testing.T) {
+		eng := engine.New(nil, nil)
 
-	results, err := eng.GetProjectedCost(context.Background(), []engine.ResourceDescriptor{
-		{
-			Type: "aws:ec2:Instance",
-			ID:   "i-123",
-		},
+		results, err := eng.GetProjectedCost(context.Background(), []engine.ResourceDescriptor{
+			{
+				Type: "aws:ec2:Instance",
+				ID:   "i-123",
+			},
+		})
+
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+
+		result := results[0]
+		assert.Equal(t, "aws:ec2:Instance", result.ResourceType)
+		assert.Equal(t, "i-123", result.ResourceID)
+		assert.Equal(t, "none", result.Adapter)
+		assert.Equal(t, "USD", result.Currency)
+		assert.InDelta(t, 0.0, result.Monthly, 0.01)
+		assert.InDelta(t, 0.0, result.Hourly, 0.01)
+		assert.Contains(t, result.Notes, "No pricing information available")
 	})
 
-	require.NoError(t, err)
-	require.Len(t, results, 1)
+	t.Run("slash_format", func(t *testing.T) {
+		eng := engine.New(nil, nil)
 
-	result := results[0]
-	assert.Equal(t, "aws:ec2:Instance", result.ResourceType)
-	assert.Equal(t, "i-123", result.ResourceID)
-	assert.Equal(t, "none", result.Adapter)
-	assert.Equal(t, "USD", result.Currency)
-	assert.InDelta(t, 0.0, result.Monthly, 0.01)
-	assert.InDelta(t, 0.0, result.Hourly, 0.01)
-	assert.Contains(t, result.Notes, "No pricing information available")
+		results, err := eng.GetProjectedCost(context.Background(), []engine.ResourceDescriptor{
+			{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+		})
+
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+
+		result := results[0]
+		assert.Equal(t, "none", result.Adapter)
+		assert.Equal(t, 0.0, result.Monthly)
+		assert.Equal(t, 0.0, result.Hourly)
+		assert.Contains(t, result.Notes, "No pricing information available")
+	})
 }
 
 // MockSpecLoader for testing.
@@ -1399,36 +1417,19 @@ func TestGetProjectedCost_MultipleResources(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 3)
 
-	// Verify all resources got results
-	for i, result := range results {
-		assert.Equal(t, resources[i].ID, result.ResourceID)
+	// Build map for order-independent assertions
+	resultsByID := make(map[string]engine.CostResult, len(results))
+	for _, result := range results {
+		resultsByID[result.ResourceID] = result
+	}
+
+	for _, res := range resources {
+		result, ok := resultsByID[res.ID]
+		require.True(t, ok, "expected result for resource %s", res.ID)
 		assert.Equal(t, "test-plugin", result.Adapter)
 		assert.Equal(t, "USD", result.Currency)
 		assert.Greater(t, result.Monthly, 0.0)
 	}
-}
-
-// TestGetProjectedCost_NoPlugin tests fallback when no plugin available.
-func TestGetProjectedCost_NoPlugin(t *testing.T) {
-	// Create engine with no plugins and no spec loader
-	eng := engine.New(nil, nil)
-
-	resources := []engine.ResourceDescriptor{
-		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
-	}
-
-	ctx := context.Background()
-	results, err := eng.GetProjectedCost(ctx, resources)
-
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-
-	// Should return placeholder result with "none" adapter
-	result := results[0]
-	assert.Equal(t, "none", result.Adapter)
-	assert.Equal(t, 0.0, result.Monthly)
-	assert.Equal(t, 0.0, result.Hourly)
-	assert.Contains(t, result.Notes, "No pricing information available")
 }
 
 // TestGetProjectedCost_PluginError tests handling of plugin errors.
@@ -1623,7 +1624,7 @@ func TestGetProjectedCost_MultiCurrency(t *testing.T) {
 	for _, result := range results {
 		currencies[result.Currency] = true
 	}
-	assert.True(t, len(currencies) > 1, "Should have multiple currencies")
+	assert.Greater(t, len(currencies), 1, "Should have multiple currencies")
 }
 
 // TestGetProjectedCost_WithBreakdown tests cost breakdown data.
@@ -1653,9 +1654,6 @@ func TestGetProjectedCost_WithBreakdown(t *testing.T) {
 	assert.NotNil(t, result.Breakdown)
 	// Mock plugin returns unit_price breakdown
 	assert.Contains(t, result.Breakdown, "unit_price")
-
-	// Verify breakdown exists and has values
-	assert.Greater(t, len(result.Breakdown), 0)
 }
 
 // TestGetActualCost_WithPlugin tests actual cost retrieval.

@@ -1127,6 +1127,7 @@ func TestConfig_BudgetExitCode_Validation(t *testing.T) {
 // TestConfigPaths tests all configuration path retrieval functions.
 func TestConfigPaths(t *testing.T) {
 	t.Run("all config paths are accessible", func(t *testing.T) {
+		stubHome(t)
 		configDir, err := GetConfigDir()
 		require.NoError(t, err)
 		pluginDir, err := GetPluginDir()
@@ -1139,12 +1140,12 @@ func TestConfigPaths(t *testing.T) {
 		assert.NotEmpty(t, pluginDir)
 		assert.NotEmpty(t, specDir)
 
-		// Plugin and spec dirs should be under config dir
-		assert.Contains(t, pluginDir, ".finfocus")
-		assert.Contains(t, specDir, ".finfocus")
+		// Plugin and spec dirs should be under the resolved config dir
+		assert.Contains(t, pluginDir, configDir)
+		assert.Contains(t, specDir, configDir)
 
-		// Paths should be absolute or relative
-		assert.True(t, filepath.IsAbs(configDir) || !filepath.IsAbs(configDir))
+		// Paths should be absolute
+		assert.True(t, filepath.IsAbs(configDir))
 	})
 }
 

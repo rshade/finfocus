@@ -550,6 +550,7 @@ func promptForPreview(w io.Writer, r io.Reader, signal pulumidetect.ChangeSignal
 	}
 
 	var line string
+	// Fscanln stops at first whitespace; accepts first word of input (e.g. "yes" from "yes please\n").
 	if _, err := fmt.Fscanln(r, &line); err != nil {
 		// EOF / unexpected-EOF means the user pressed Enter with no input — treat as Y.
 		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {

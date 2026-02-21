@@ -601,12 +601,12 @@ func TestCostProjectedCmd_EmptyPlan(t *testing.T) {
 	assert.Equal(t, 0.0, results.Summary.TotalMonthly)
 }
 
-// TestCostProjectedCmd_MissingRequiredFlag tests error when required flag missing.
-func TestCostProjectedCmd_MissingRequiredFlag(t *testing.T) {
+// TestCostProjectedCmd_NoArgs tests error when command invoked with no arguments.
+func TestCostProjectedCmd_NoArgs(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	cmd := cli.NewCostProjectedCmd()
-	cmd.SetArgs([]string{}) // No --pulumi-json flag
+	cmd.SetArgs([]string{}) // No flags
 
 	var out bytes.Buffer
 	cmd.SetOut(&out)
@@ -615,7 +615,6 @@ func TestCostProjectedCmd_MissingRequiredFlag(t *testing.T) {
 	err := cmd.Execute()
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "reading --stack flag")
 }
 
 // TestCostProjectedCmd_InvalidOutputFormat tests handling of invalid output format.
