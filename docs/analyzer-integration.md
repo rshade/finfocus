@@ -81,6 +81,54 @@ Pulumi internal resources (Stack, providers) are handled specially:
 - Cost: $0.00
 - Message: "Internal Pulumi resource (no cloud cost)"
 
+## Isolating Plugins in Analyzer Mode
+
+When finfocus runs as a Pulumi policy pack, routing configuration is not applied.
+The only supported mechanism for controlling which plugins are loaded is `FINFOCUS_HOME`.
+
+When `FINFOCUS_HOME` is set, finfocus uses `$FINFOCUS_HOME/plugins/` as its entire
+plugin root. Any plugin absent from that directory is never loaded.
+
+> **Warning: Directory-level symlinks are not supported**
+> (issue [#750](https://github.com/rshade/finfocus/issues/750))
+>
+> The registry silently skips directory-level symlinks. If you symlink the entire
+> plugin version directory, the plugin will not be found. Use file-level symlinks
+> (symlink the binary itself) until issue #750 is resolved.
+
+### Step-by-step: create an isolated plugin home
+
+**Step 1**: Create real plugin directories (not symlinks):
+
+```bash
+mkdir -p ~/.finfocus/demo/plugins/aws-public/v0.1.5
+```
+
+**Step 2**: Symlink only the plugin binary (file-level):
+
+```bash
+ln -sf ~/.finfocus/plugins/aws-public/v0.1.5/finfocus-plugin-aws-public-us-east-1 \
+    ~/.finfocus/demo/plugins/aws-public/v0.1.5/finfocus-plugin-aws-public-us-east-1
+```
+
+Repeat Step 1 and Step 2 for each plugin you want to include.
+
+**Step 3**: Run `pulumi preview` with the isolated home:
+
+```bash
+FINFOCUS_HOME=~/.finfocus/demo \
+  pulumi preview --policy-pack /path/to/finfocus-policy-pack
+```
+
+Only the plugins present in `~/.finfocus/demo/plugins/` will be loaded. If the
+directory contains no plugins, finfocus returns zero cost data (it does **not**
+fall back to `~/.finfocus`).
+
+### Environment variable precedence
+
+`FINFOCUS_HOME` takes highest precedence over `PULUMI_HOME/finfocus` and `~/.finfocus`.
+See [Configuration Reference](reference/config-schema.md) for the full precedence order.
+
 ## See Also
 
 - [Analyzer Setup Guide](getting-started/analyzer-setup.md)

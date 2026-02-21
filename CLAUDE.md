@@ -1116,6 +1116,7 @@ CodeRabbit now:
 
 ## Active Technologies
 - Go 1.25.7 + `github.com/charmbracelet/lipgloss` (already imported in file) (597-tui-init-lipgloss)
+- Markdown (documentation-only; no Go code changes) + markdownlint-cli2 v0.18.1 (already installed) (598-analyzer-routing-docs)
 
 - Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss
 
