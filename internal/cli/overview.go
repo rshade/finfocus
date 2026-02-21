@@ -268,7 +268,9 @@ func loadPlainOverviewData(
 	}
 
 	// Auto-detect mode: state-first loading with optional change detection and prompt.
-	stateResources, manifestTime, projectDir, stackName, stateErr := loadStateForOverview(ctx, params)
+	// In plain (non-TUI) mode the passphrase is not prompted; PULUMI_CONFIG_PASSPHRASE
+	// is expected to already be set in the caller's environment.
+	stateResources, manifestTime, projectDir, stackName, stateErr := loadStateForOverview(ctx, params, "")
 	if stateErr != nil {
 		return nil, nil, "", false, stateErr
 	}
@@ -306,7 +308,7 @@ func loadPlainOverviewData(
 	// Non-TTY without --yes: shouldRunPreview remains false → state-only.
 
 	if shouldRunPreview {
-		planSteps, planErr := loadPlanForOverview(ctx, params, projectDir, stackName)
+		planSteps, planErr := loadPlanForOverview(ctx, params, projectDir, stackName, "")
 		if planErr != nil {
 			return nil, nil, stackName, false, planErr
 		}
@@ -343,9 +345,10 @@ func loadOverviewFromFiles(
 
 // exportStateFromProject auto-detects the Pulumi project, runs `pulumi stack export`,
 // parses the result, and returns the state resources plus metadata.
+// passphrase is injected into the subprocess environment only (never os.Setenv).
 // It is shared by loadOverviewFromAutoDetect and loadStateForOverview.
 func exportStateFromProject(
-	ctx context.Context, stack string,
+	ctx context.Context, stack, passphrase string,
 ) ([]engine.StateResource, string, string, string, error) {
 	projectDir, resolvedStack, err := detectPulumiProject(ctx, stack)
 	if err != nil {
@@ -358,6 +361,7 @@ func exportStateFromProject(
 	exportData, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
 		ProjectDir: projectDir,
 		Stack:      resolvedStack,
+		Passphrase: passphrase,
 	})
 	if exportErr != nil {
 		return nil, "", "", "", fmt.Errorf("running pulumi stack export: %w", exportErr)
@@ -372,17 +376,19 @@ func exportStateFromProject(
 
 // loadOverviewFromAutoDetect discovers the Pulumi project/stack and runs
 // both `pulumi stack export` and `pulumi preview --json` to gather data.
+// In the plain (non-TUI) mode no passphrase is prompted; PULUMI_CONFIG_PASSPHRASE
+// is expected to be set in the caller's environment already.
 func loadOverviewFromAutoDetect(
 	ctx context.Context, params overviewParams,
 ) ([]engine.StateResource, []engine.PlanStep, string, error) {
-	stateResources, _, projectDir, resolvedStack, err := exportStateFromProject(ctx, params.stack)
+	stateResources, _, projectDir, resolvedStack, err := exportStateFromProject(ctx, params.stack, "")
 	if err != nil {
 		return nil, nil, "", err
 	}
 
 	// Resolve plan: from file if --pulumi-json provided, otherwise auto-detect
 	ptPreview := logging.StartPhase(ctx, "pulumi", "overview", "preview")
-	planSteps, planErr := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, resolvedStack)
+	planSteps, planErr := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, resolvedStack, "")
 	ptPreview.Done(ctx)
 	if planErr != nil {
 		return nil, nil, "", planErr
@@ -392,8 +398,9 @@ func loadOverviewFromAutoDetect(
 }
 
 // resolveOverviewPlan loads plan steps from a file or runs pulumi preview.
+// passphrase is injected into the subprocess environment only (never os.Setenv).
 func resolveOverviewPlan(
-	ctx context.Context, pulumiJSON, projectDir, stack string,
+	ctx context.Context, pulumiJSON, projectDir, stack, passphrase string,
 ) ([]engine.PlanStep, error) {
 	log := logging.FromContext(ctx)
 
@@ -410,6 +417,7 @@ func resolveOverviewPlan(
 	previewData, err := pulumidetect.Preview(ctx, pulumidetect.PreviewOptions{
 		ProjectDir: projectDir,
 		Stack:      stack,
+		Passphrase: passphrase,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("running pulumi preview: %w", err)
@@ -804,19 +812,17 @@ func overviewInitAndEnrich(
 	log := logging.FromContext(enrichCtx)
 
 	// Pre-check: detect if stack uses passphrase encryption before loading.
+	// The returned passphrase is threaded to Pulumi subprocess calls via
+	// ExportOptions/PreviewOptions.Passphrase and never mutates the process-wide environment.
 	pw, passphraseErr := checkAndPromptPassphrase(enrichCtx, p, params, passphraseChan)
 	if passphraseErr != nil {
 		p.Send(tui.OverviewInitErrorMsg{Err: passphraseErr})
 		return
 	}
-	if applyErr := applyPassphraseEnv(pw); applyErr != nil {
-		p.Send(tui.OverviewInitErrorMsg{Err: applyErr})
-		return
-	}
 
 	// Phase 1: Load Pulumi state only (fast — no preview yet).
 	p.Send(tui.OverviewPhaseMsg{Index: phaseLoadStackState, Phase: "Loading stack state..."})
-	stateResources, manifestTime, projectDir, stackName, stateErr := loadStateForOverview(enrichCtx, params)
+	stateResources, manifestTime, projectDir, stackName, stateErr := loadStateForOverview(enrichCtx, params, pw)
 	if stateErr != nil {
 		p.Send(tui.OverviewInitErrorMsg{Err: fmt.Errorf("resolve overview data: %w", stateErr)})
 		return
@@ -861,7 +867,7 @@ func overviewInitAndEnrich(
 		rows = engine.NewRowsFromState(enrichCtx, stateResources)
 	} else {
 		// Preview path: load plan steps and merge with state.
-		planSteps, planErr := loadPlanForOverview(enrichCtx, params, projectDir, stackName)
+		planSteps, planErr := loadPlanForOverview(enrichCtx, params, projectDir, stackName, pw)
 		if planErr != nil {
 			p.Send(tui.OverviewInitErrorMsg{Err: planErr})
 			return
@@ -914,8 +920,9 @@ func overviewInitAndEnrich(
 		capturedParams := params
 		capturedProjectDir := projectDir
 		capturedStackName := stackName
+		capturedPW := pw
 		previewCmd = func() tea.Msg {
-			return runBackgroundPreview(enrichCtx, capturedParams, capturedProjectDir, capturedStackName)
+			return runBackgroundPreview(enrichCtx, capturedParams, capturedProjectDir, capturedStackName, capturedPW)
 		}
 	}
 
@@ -935,9 +942,10 @@ func overviewInitAndEnrich(
 }
 
 // loadStateForOverview loads Pulumi state only (without preview/plan).
+// passphrase is injected into subprocess env only (never os.Setenv).
 // Returns stateResources, manifestTime, projectDir, stackName, and any error.
 func loadStateForOverview(
-	ctx context.Context, params overviewParams,
+	ctx context.Context, params overviewParams, passphrase string,
 ) ([]engine.StateResource, string, string, string, error) {
 	if params.pulumiState != "" {
 		// Use explicit file path — no manifest time or project dir available.
@@ -954,31 +962,34 @@ func loadStateForOverview(
 	}
 
 	// Auto-detect project and run pulumi stack export.
-	return exportStateFromProject(ctx, params.stack)
+	return exportStateFromProject(ctx, params.stack, passphrase)
 }
 
 // loadPlanForOverview loads plan steps from a file or runs pulumi preview.
+// passphrase is injected into subprocess env only (never os.Setenv).
 // This is the preview-path helper used by overviewInitAndEnrich.
 func loadPlanForOverview(
-	ctx context.Context, params overviewParams, projectDir, stack string,
+	ctx context.Context, params overviewParams, projectDir, stack, passphrase string,
 ) ([]engine.PlanStep, error) {
-	return resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, stack)
+	return resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, stack, passphrase)
 }
 
 // runBackgroundPreview runs pulumi preview in the background and returns an
 // OverviewChangesReadyMsg with the resulting status map. It is used as a
 // tea.Cmd payload for the on-demand 'p' key handler.
+// passphrase is injected into subprocess env only (never os.Setenv).
 // If preview fails, it returns an empty OverviewChangesReadyMsg so the TUI
 // remains usable in state-only mode.
 func runBackgroundPreview(
 	ctx context.Context,
 	params overviewParams,
 	projectDir, stack string,
+	passphrase string,
 ) tui.OverviewChangesReadyMsg {
 	l := logging.FromContext(ctx)
 	previewStart := time.Now()
 
-	planSteps, err := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, stack)
+	planSteps, err := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, stack, passphrase)
 	if err != nil {
 		l.Warn().
 			Ctx(ctx).
@@ -1005,19 +1016,6 @@ func runBackgroundPreview(
 	}
 }
 
-// applyPassphraseEnv sets PULUMI_CONFIG_PASSPHRASE when pw is non-empty.
-// Callers obtain pw from checkAndPromptPassphrase and call this function so that
-// os.Setenv is never invoked from inside a background goroutine.
-func applyPassphraseEnv(pw string) error {
-	if pw == "" {
-		return nil
-	}
-	if err := os.Setenv("PULUMI_CONFIG_PASSPHRASE", pw); err != nil {
-		return fmt.Errorf("setting PULUMI_CONFIG_PASSPHRASE: %w", err)
-	}
-	return nil
-}
-
 // shortErrMsg returns a short (≤60 char) representation of err suitable for
 // embedding in a TUI status bar. Returns "" when err is nil.
 func shortErrMsg(err error) string {
@@ -1039,8 +1037,8 @@ func shortErrMsg(err error) string {
 // the passphrase (or the context is cancelled).
 //
 // Returns the passphrase string (non-empty when the user entered one) and any error.
-// The caller is responsible for calling os.Setenv with the returned passphrase so that
-// os.Setenv is never called from a background goroutine.
+// The returned passphrase is threaded to Pulumi subprocess calls via
+// ExportOptions/PreviewOptions.Passphrase and never mutates the process-wide environment.
 //
 // If passphrase auto-detection is not possible (e.g. using --pulumi-state files instead
 // of auto-detect, or if the stack YAML cannot be read), the check is silently skipped

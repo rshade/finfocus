@@ -18,15 +18,23 @@ type mockRunner struct {
 	stderr []byte
 	err    error
 	// Captured call arguments for verification.
-	lastDir  string
-	lastName string
-	lastArgs []string
+	lastDir      string
+	lastName     string
+	lastArgs     []string
+	lastExtraEnv []string
 }
 
-func (m *mockRunner) Run(_ context.Context, dir string, name string, args ...string) ([]byte, []byte, error) {
+func (m *mockRunner) Run(
+	_ context.Context,
+	dir string,
+	name string,
+	extraEnv []string,
+	args ...string,
+) ([]byte, []byte, error) {
 	m.lastDir = dir
 	m.lastName = name
 	m.lastArgs = args
+	m.lastExtraEnv = extraEnv
 	return m.stdout, m.stderr, m.err
 }
 
@@ -419,4 +427,56 @@ func TestStackExport_ContextCancellation(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "timed out")
+}
+
+// --- Passphrase env injection tests ---
+
+func TestPreview_WithPassphrase_InjectsEnv(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	mock := &mockRunner{stdout: []byte(`{"steps":[]}`)}
+	withMockRunner(t, mock)
+
+	_, err := Preview(context.Background(), PreviewOptions{
+		ProjectDir: "/project",
+		Passphrase: "my-secret",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, mock.lastExtraEnv, "PULUMI_CONFIG_PASSPHRASE=my-secret")
+}
+
+func TestPreview_EmptyPassphrase_NoExtraEnv(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	mock := &mockRunner{stdout: []byte(`{"steps":[]}`)}
+	withMockRunner(t, mock)
+
+	_, err := Preview(context.Background(), PreviewOptions{
+		ProjectDir: "/project",
+	})
+	require.NoError(t, err)
+	assert.Empty(t, mock.lastExtraEnv)
+}
+
+func TestStackExport_WithPassphrase_InjectsEnv(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	mock := &mockRunner{stdout: []byte(`{"version":3}`)}
+	withMockRunner(t, mock)
+
+	_, err := StackExport(context.Background(), ExportOptions{
+		ProjectDir: "/project",
+		Passphrase: "stack-secret",
+	})
+	require.NoError(t, err)
+	assert.Contains(t, mock.lastExtraEnv, "PULUMI_CONFIG_PASSPHRASE=stack-secret")
+}
+
+func TestStackExport_EmptyPassphrase_NoExtraEnv(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	mock := &mockRunner{stdout: []byte(`{"version":3}`)}
+	withMockRunner(t, mock)
+
+	_, err := StackExport(context.Background(), ExportOptions{
+		ProjectDir: "/project",
+	})
+	require.NoError(t, err)
+	assert.Empty(t, mock.lastExtraEnv)
 }
