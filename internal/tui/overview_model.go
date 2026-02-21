@@ -553,7 +553,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		{Title: projectedHeader, Width: 12}, //nolint:mnd // Column width.
 		{Title: "Delta", Width: 12},         //nolint:mnd // Column width.
 		{Title: "Drift%", Width: 8},         //nolint:mnd // Column width.
-		{Title: "Recs", Width: 4},           //nolint:mnd // Column width.
+		{Title: "Recs", Width: 9},           //nolint:mnd // Column width.
 	}
 
 	visibleRows := m.getVisibleRows()
