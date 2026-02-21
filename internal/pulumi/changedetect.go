@@ -51,6 +51,7 @@ func DetectChanges(ctx context.Context, manifestTime string, projectDir string) 
 	lastDeployment, parseErr := time.Parse(time.RFC3339, manifestTime)
 	if parseErr != nil {
 		log.Warn().
+			Ctx(ctx).
 			Str("component", "changedetect").
 			Str("operation", "parse_manifest_time").
 			Str("manifest_time", manifestTime).
@@ -78,6 +79,7 @@ func DetectChanges(ctx context.Context, manifestTime string, projectDir string) 
 		info, statErr := os.Stat(path)
 		if statErr != nil {
 			log.Debug().
+				Ctx(ctx).
 				Str("component", "changedetect").
 				Str("operation", "stat_source_file").
 				Str("file", path).
