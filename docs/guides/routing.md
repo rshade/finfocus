@@ -328,6 +328,19 @@ routing:
 3. If fails and `fallback: true` → try local specs (built-in)
 4. If no specs → return "no cost data available"
 
+> **Note: Routing does not apply in analyzer/policy-pack mode**
+>
+> When finfocus runs as a Pulumi policy pack (`pulumi preview --policy-pack`),
+> routing configuration is **not consulted**. All plugins discovered in the plugin
+> directory are loaded and queried for every resource.
+>
+> Additionally, global plugins (those with `supported_providers: ["*"]`) cannot be
+> excluded via routing even in standard CLI mode — they are always included for all
+> resources.
+>
+> To exclude specific plugins when running as a policy pack, use `FINFOCUS_HOME`
+> isolation. See [Isolating plugins in analyzer mode](../analyzer-integration.md#isolating-plugins-in-analyzer-mode).
+
 ## Validation
 
 ### Eager Validation (Before Deployment)
@@ -669,6 +682,10 @@ Results include which plugin provided the data:
 
 ## Changelog
 
+- **v0.3.1**: Documented analyzer/policy-pack mode limitations
+  - Routing configuration is not applied when running as a Pulumi policy pack
+  - Global plugins (`supported_providers: ["*"]`) cannot be excluded via routing
+  - Added `FINFOCUS_HOME` isolation procedure in Analyzer Integration docs
 - **v0.3.0**: Initial multi-plugin routing release
   - Automatic provider-based routing
   - Declarative pattern/feature/priority configuration
