@@ -123,6 +123,12 @@ func (m OverviewModel) renderListView() string {
 	statusBar := m.renderStatusBar()
 	sections = append(sections, statusBar)
 
+	// Footer footnote for state-only mode.
+	if m.isStateOnly && !m.previewLoaded {
+		footnote := SubtleStyle.Render("* projected at current state (730h/mo)")
+		sections = append(sections, footnote)
+	}
+
 	// Filter input (if active)
 	if m.showFilter {
 		filterView := LabelStyle.Render("Filter: ") + m.textInput.View()
