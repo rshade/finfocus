@@ -152,29 +152,15 @@ func TestLoadPulumiPlan(t *testing.T) {
 			plan, err := ingest.LoadPulumiPlan(tmpFile)
 
 			if tt.wantErr {
-				if err == nil {
-					t.Errorf("LoadPulumiPlan() expected error, got nil")
-					return
-				}
-				if tt.errMsg != "" && !strings.Contains(err.Error(), tt.errMsg) {
-					t.Errorf(
-						"LoadPulumiPlan() error = %v, want error containing %v",
-						err,
-						tt.errMsg,
-					)
+				require.Error(t, err)
+				if tt.errMsg != "" {
+					assert.Contains(t, err.Error(), tt.errMsg)
 				}
 				return
 			}
 
-			if err != nil {
-				t.Errorf("LoadPulumiPlan() unexpected error = %v", err)
-				return
-			}
-
-			if plan == nil {
-				t.Errorf("LoadPulumiPlan() returned nil plan")
-				return
-			}
+			require.NoError(t, err)
+			require.NotNil(t, plan)
 
 			if tt.validate != nil {
 				tt.validate(t, plan)
@@ -186,12 +172,8 @@ func TestLoadPulumiPlan(t *testing.T) {
 func TestLoadPulumiPlan_FileErrors(t *testing.T) {
 	t.Run("nonexistent_file", func(t *testing.T) {
 		_, err := ingest.LoadPulumiPlan("/nonexistent/path/file.json")
-		if err == nil {
-			t.Error("LoadPulumiPlan() expected error for nonexistent file, got nil")
-		}
-		if !strings.Contains(err.Error(), "reading plan file") {
-			t.Errorf("LoadPulumiPlan() error = %v, want error containing 'reading plan file'", err)
-		}
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "reading plan file")
 	})
 }
 
