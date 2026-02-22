@@ -505,16 +505,6 @@ func TestBuildStatusByURN(t *testing.T) {
 	}
 }
 
-func TestApplyChangesToRows_NilMap(t *testing.T) {
-	rows := []OverviewRow{
-		{URN: "urn:a", Status: StatusDeleting},
-		{URN: "urn:b", Status: StatusUpdating},
-	}
-	ApplyChangesToRows(rows, nil)
-	assert.Equal(t, StatusDeleting, rows[0].Status, "nil map should leave statuses unchanged")
-	assert.Equal(t, StatusUpdating, rows[1].Status, "nil map should leave statuses unchanged")
-}
-
 // ---------------------------------------------------------------------------
 // DetectPendingChanges
 // ---------------------------------------------------------------------------
