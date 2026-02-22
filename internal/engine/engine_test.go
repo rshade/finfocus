@@ -1527,13 +1527,20 @@ func TestGetProjectedCost_PartialData(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 2)
 
-	// First resource should have data
-	assert.Equal(t, "test-plugin", results[0].Adapter)
-	assert.Greater(t, results[0].Monthly, 0.0)
+	byID := make(map[string]engine.CostResult, len(results))
+	for _, r := range results {
+		byID[r.ResourceID] = r
+	}
 
-	// Second resource should fall back to "none"
-	assert.Equal(t, "none", results[1].Adapter)
-	assert.Equal(t, 0.0, results[1].Monthly)
+	// EC2 resource should have data from plugin
+	ec2 := byID["i-001"]
+	assert.Equal(t, "test-plugin", ec2.Adapter)
+	assert.Greater(t, ec2.Monthly, 0.0)
+
+	// S3 resource should fall back to "none"
+	s3 := byID["bucket-001"]
+	assert.Equal(t, "none", s3.Adapter)
+	assert.Equal(t, 0.0, s3.Monthly)
 }
 
 // TestGetProjectedCost_HighCost tests high-cost scenario.
