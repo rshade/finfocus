@@ -798,6 +798,26 @@ const (
 	phaseEnrichResources = 5
 )
 
+// resolveIsStateOnly determines whether to operate in state-only mode (no pulumi preview).
+//
+// When params.yes is true the user has explicitly requested a preview; a detection error
+// must NOT override that intent.  When params.yes is false a detection error is a safe
+// signal to fall back to state-only so the user can trigger a preview manually with 'p'.
+func resolveIsStateOnly(params overviewParams, signal pulumidetect.ChangeSignal, detectErr error) bool {
+	explicitStateOnly := params.pulumiState != "" && params.pulumiJSON == "" && !params.yes
+	runPreviewNow := !explicitStateOnly && (params.yes || signal.IsFirstDeploy || signal.HasLikelyChanges)
+	isStateOnly := !runPreviewNow
+
+	// If change detection failed and the user did NOT explicitly request a preview
+	// (--yes), fall back to state-only so the user can decide whether to trigger
+	// preview manually with 'p'.
+	if detectErr != nil && !params.yes {
+		isStateOnly = true
+	}
+
+	return isStateOnly
+}
+
 // overviewInitAndEnrich performs data loading and enrichment in a background
 // goroutine, sending phase progress and data messages to the Bubble Tea program.
 //
@@ -840,8 +860,9 @@ func overviewInitAndEnrich(
 			Ctx(enrichCtx).
 			Str("component", "cli").
 			Str("operation", "overview_tui_init").
+			Bool("yes", params.yes).
 			Err(detectErr).
-			Msg("change detection failed; falling back to state-only mode")
+			Msg("change detection failed; will fall back to state-only unless --yes was set")
 	}
 
 	// Decide whether to run pulumi preview now.
@@ -849,15 +870,7 @@ func overviewInitAndEnrich(
 	// or the conservative heuristic (HasLikelyChanges=true → run preview; false → state-only).
 	// When --pulumi-state is provided without --pulumi-json (and without --yes), default to
 	// state-only mode so the user can press 'p' to load pending changes on demand.
-	explicitStateOnly := params.pulumiState != "" && params.pulumiJSON == "" && !params.yes
-	runPreviewNow := !explicitStateOnly && (params.yes || signal.IsFirstDeploy || signal.HasLikelyChanges)
-	isStateOnly := !runPreviewNow
-
-	// If change detection failed, fall back to state-only so the user can
-	// decide whether to trigger preview manually with 'p'.
-	if detectErr != nil {
-		isStateOnly = true
-	}
+	isStateOnly := resolveIsStateOnly(params, signal, detectErr)
 
 	// Phase 3: Merge resources (from state only when state-first, from state+plan when preview runs).
 	p.Send(tui.OverviewPhaseMsg{Index: phaseMergeResources, Phase: "Merging resources..."})
