@@ -3444,8 +3444,6 @@ func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, erro
 	return cache.BuildProjectedKey(resource.Provider, resource.Type, region, sku), nil
 }
 
-// generateActualCostCacheKey generates a deterministic cache key for an actual cost
-// query. Uses structured `/`-separated keys with time ranges and filter hashes.
 // generateActualCostCacheKey builds a deterministic cache key for an actual cost request.
 // The returned key encodes a prefix of the form "actual/{provider}/{types}/{from}/{to}/{filter-hash}"
 // and incorporates request-level options to ensure uniqueness.
