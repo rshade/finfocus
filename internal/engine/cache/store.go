@@ -530,6 +530,11 @@ func (s *BoltStore) compact() error {
 	// Reopen database
 	db, openErr := bolt.Open(s.dbPath, dbFilePermissions, &bolt.Options{Timeout: dbLockTimeout})
 	if openErr != nil {
+		// Defensively disable the store: s.db is now closed and unusable.
+		// Without this, any subsequent cache operation would attempt to use
+		// the closed DB handle, causing a panic or undefined behavior.
+		s.db = nil
+		s.enabled = false
 		return fmt.Errorf("failed to reopen compacted database: %w", openErr)
 	}
 	s.db = db

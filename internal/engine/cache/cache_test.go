@@ -564,6 +564,42 @@ func TestBoltStore_Compact(t *testing.T) {
 	assert.Equal(t, 50, count)
 }
 
+// TestBoltStore_CompactReopenFailureGracefulDegradation verifies the defensive
+// behavior added to compact(): if reopening the compacted DB fails, the store
+// must be disabled (s.db = nil, s.enabled = false) so that subsequent operations
+// return ErrCacheDisabled instead of panicking on a closed/nil DB handle.
+func TestBoltStore_CompactReopenFailureGracefulDegradation(t *testing.T) {
+	store := newTestStore(t, true, 3600)
+
+	// Confirm store starts enabled.
+	assert.True(t, store.IsEnabled())
+
+	// Simulate the state compact() leaves after a reopen failure with the fix:
+	// the source DB has been closed and the store is disabled defensively.
+	require.NoError(t, store.db.Close())
+	store.db = nil
+	store.enabled = false
+
+	// All cache operations must return ErrCacheDisabled, not panic.
+	_, getErr := store.Get("projected/aws/ec2:Instance/us-east-1/t3.micro")
+	assert.ErrorIs(t, getErr, ErrCacheDisabled)
+
+	setErr := store.Set("projected/aws/ec2:Instance/us-east-1/t3.micro", json.RawMessage(`{}`))
+	assert.ErrorIs(t, setErr, ErrCacheDisabled)
+
+	delErr := store.Delete("projected/aws/ec2:Instance/us-east-1/t3.micro")
+	assert.ErrorIs(t, delErr, ErrCacheDisabled)
+
+	_, countErr := store.Count()
+	assert.ErrorIs(t, countErr, ErrCacheDisabled)
+
+	// compact() on a disabled store returns ErrCacheDisabled too.
+	compactErr := store.compact()
+	assert.ErrorIs(t, compactErr, ErrCacheDisabled)
+
+	assert.False(t, store.IsEnabled())
+}
+
 func TestBoltStore_SingleDatabaseFile(t *testing.T) {
 	dir := t.TempDir()
 	store, err := NewBoltStore(context.Background(), dir, true, 3600, 0)
