@@ -194,11 +194,10 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	}
 	defer cleanup()
 
-	// 9. Create engine
+	// 9. Create engine (with cache support)
 	pt = logging.StartPhase(ctx, "cli", "overview", "engine_create")
-	cfg := config.New()
-	eng := engine.New(clients, nil).
-		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
+	defer cacheCleanup()
 	pt.Done(ctx)
 
 	// 10. Enrich rows (blocking, for plain text mode)
@@ -715,7 +714,7 @@ func shouldUseInteractiveTUI(w io.Writer, outputFormat string, plainFlag bool) b
 // messages to keep the user informed. This eliminates the blank-terminal wait.
 func runInteractiveOverviewWithInit(
 	ctx context.Context,
-	_ *cobra.Command,
+	cmd *cobra.Command,
 	params overviewParams,
 	dateRange engine.DateRange,
 	audit *auditContext,
@@ -744,7 +743,7 @@ func runInteractiveOverviewWithInit(
 	var rowCount atomic.Int64
 
 	// Start data loading and enrichment in background
-	go overviewInitAndEnrich(enrichCtx, p, params, dateRange, audit, cleanupChan, &rowCount, passphraseChan)
+	go overviewInitAndEnrich(enrichCtx, cmd, p, params, dateRange, audit, cleanupChan, &rowCount, passphraseChan)
 
 	// Run the TUI (blocks until user quits or error)
 	finalModel, err := p.Run()
@@ -805,6 +804,7 @@ const (
 //nolint:funlen // Two-phase loading path with change detection and conditional preview.
 func overviewInitAndEnrich(
 	enrichCtx context.Context,
+	cmd *cobra.Command,
 	p *tea.Program,
 	params overviewParams,
 	dateRange engine.DateRange,
@@ -912,11 +912,10 @@ func overviewInitAndEnrich(
 	}
 	cleanupChan <- cleanup
 
-	// Phase 5: Create engine.
+	// Phase 5: Create engine (with cache support).
 	p.Send(tui.OverviewPhaseMsg{Index: phasePrepareEngine, Phase: "Preparing cost engine..."})
-	cfg := config.New()
-	eng := engine.New(clients, nil).
-		WithRouter(createRouterForEngine(enrichCtx, cfg, clients))
+	eng, cacheCleanup := newEngineWithCache(enrichCtx, cmd, clients, nil)
+	defer cacheCleanup()
 
 	// Build the on-demand preview command (only used in state-only mode).
 	var previewCmd tea.Cmd

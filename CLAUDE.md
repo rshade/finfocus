@@ -895,7 +895,8 @@ The engine package orchestrates cost calculations between plugins and specs:
   - `InitCache(ctx, cmd)` in `internal/cli/common_execution.go`: shared helper with
     precedence CLI flag (`--cache-ttl`) > env var (`FINFOCUS_CACHE_TTL`) > config > default
   - `newEngineWithCache()` returns `(*Engine, func())` - cleanup function closes the DB
-  - All cost commands (`projected`, `actual`, `recommendations`) use `newEngineWithCache()`
+  - All cost commands (`projected`, `actual`, `recommendations`, `overview`) use `newEngineWithCache()`
+  - Overview uses `newEngineWithCache` in both plain-text (`executeOverview`) and TUI (`overviewInitAndEnrich`) paths
 - See `internal/engine/CLAUDE.md` for detailed calculation flows
 
 **Error Types for Cross-Provider Aggregation**:
@@ -1131,6 +1132,8 @@ CodeRabbit now:
 - N/A — file system only (source migration, no new storage) (598-retire-test-unit)
 - Go 1.25.7 + `github.com/rshade/finfocus-spec` (pluginsdk, proto types), (599-batch-bug-fixes)
 - N/A (no new persistent storage; BoltDB cache is untouched) (599-batch-bug-fixes)
+- Go 1.25.7 + `github.com/charmbracelet/bubbletea`, `go.etcd.io/bbolt` (via existing cache infrastructure) (600-overview-cache)
+- BoltDB cache (existing `internal/engine/cache/store.go`) (600-overview-cache)
 
 - Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss
 
