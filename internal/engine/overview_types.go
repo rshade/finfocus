@@ -406,8 +406,8 @@ func (s *StackContext) Validate() error {
 // total number of budgets evaluated, and count of critical/exceeded budgets.
 type BudgetHealthSummary struct {
 	OverallHealth string `json:"overallHealth,omitempty"`
-	TotalBudgets  int    `json:"totalBudgets,omitempty"`
-	CriticalCount int    `json:"criticalCount,omitempty"`
+	TotalBudgets  int    `json:"totalBudgets"`
+	CriticalCount int    `json:"criticalCount"`
 }
 
 // OverviewRowUpdate carries a row update on a progress channel, pairing the

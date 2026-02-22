@@ -150,6 +150,11 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	})
 
 	// 1. Validate flags
+	if params.exitCode < config.MinExitCode || params.exitCode > config.MaxExitCode {
+		return fmt.Errorf("--exit-code must be between %d and %d, got %d",
+			config.MinExitCode, config.MaxExitCode, params.exitCode)
+	}
+
 	pt := logging.StartPhase(ctx, "cli", "overview", "date_validation")
 	dateRange, err := resolveOverviewDateRange(params.fromStr, params.toStr, time.Now())
 	pt.Done(ctx)
@@ -251,7 +256,16 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 12. Fetch budget data for JSON output (nil for other formats).
 	var budgetResult *engine.BudgetResult
 	if params.output == "json" {
-		budgetResult, _ = eng.GetBudgets(ctx, nil)
+		var budgetErr error
+		budgetResult, budgetErr = eng.GetBudgets(ctx, nil)
+		if budgetErr != nil {
+			log.Warn().
+				Ctx(ctx).
+				Str("component", "cli").
+				Str("operation", "overview_budget_fetch").
+				Err(budgetErr).
+				Msg("budget fetch failed (non-fatal)")
+		}
 	}
 
 	// 13. Render output (plain text)
@@ -714,6 +728,7 @@ func splitFilter(filter string) []string {
 //   - rows: the overview rows to render.
 //   - stackCtx: contextual metadata about the stack to include in rendered output.
 //   - budgetResult: optional budget data included only for JSON output.
+//
 // Returns an error if rendering fails or if the outputFormat is unsupported.
 func renderOverviewOutput(
 	cmd *cobra.Command,
@@ -728,7 +743,10 @@ func renderOverviewOutput(
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
 	case "json":
-		if renderErr := engine.RenderOverviewAsJSON(cmd.OutOrStdout(), rows, stackCtx, budgetResult); renderErr != nil {
+		renderErr := engine.RenderOverviewAsJSON(
+			cmd.Context(), cmd.OutOrStdout(), rows, stackCtx, budgetResult,
+		)
+		if renderErr != nil {
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
 	case "ndjson":

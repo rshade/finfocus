@@ -63,10 +63,9 @@ type BudgetHealthResult struct {
 	CurrentSpend float64                `json:"currentSpend"`
 }
 
-// healthStatusLabel converts a BudgetHealthStatus enum to its short label
-// healthStatusLabel returns the short string label used in JSON for the given BudgetHealthStatus.
+// HealthStatusLabel converts a BudgetHealthStatus enum to its short label.
 // Labels produced are "OK", "WARNING", "CRITICAL", "EXCEEDED", and "UNKNOWN" for unspecified or unrecognized values.
-func healthStatusLabel(h pbc.BudgetHealthStatus) string {
+func HealthStatusLabel(h pbc.BudgetHealthStatus) string {
 	switch h {
 	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
 		return "OK"
@@ -119,7 +118,7 @@ func (b BudgetHealthResult) MarshalJSON() ([]byte, error) {
 		BudgetID:     b.BudgetID,
 		BudgetName:   b.BudgetName,
 		Provider:     b.Provider,
-		Health:       healthStatusLabel(b.Health),
+		Health:       HealthStatusLabel(b.Health),
 		Utilization:  b.Utilization,
 		Forecasted:   b.Forecasted,
 		Currency:     b.Currency,

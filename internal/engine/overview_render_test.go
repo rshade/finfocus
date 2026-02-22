@@ -2,6 +2,7 @@ package engine
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -568,7 +569,7 @@ func TestRenderOverviewAsJSON_EmptyRows(t *testing.T) {
 		TotalResources: 0,
 	}
 
-	err := RenderOverviewAsJSON(&buf, nil, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -612,7 +613,7 @@ func TestRenderOverviewAsJSON_SingleResource(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -654,7 +655,7 @@ func TestRenderOverviewAsJSON_MetadataFields(t *testing.T) {
 		PendingChanges: 2,
 	}
 
-	err := RenderOverviewAsJSON(&buf, nil, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -709,7 +710,7 @@ func TestRenderOverviewAsJSON_SummaryTotals(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -743,7 +744,7 @@ func TestRenderOverviewAsJSON_CurrencyConsistency(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -787,7 +788,7 @@ func TestRenderOverviewAsJSON_ErrorsArray(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -828,7 +829,7 @@ func TestRenderOverviewAsJSON_Recommendations(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1127,7 +1128,7 @@ func TestRenderOverviewAsJSON_WithBudgets(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx, budgetResult)
+	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, budgetResult)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1190,7 +1191,7 @@ func TestRenderOverviewAsJSON_MultipleBudgets(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, nil, stackCtx, budgetResult)
+	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, budgetResult)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1223,7 +1224,7 @@ func TestRenderOverviewAsJSON_NilBudgetResult(t *testing.T) {
 		TotalResources: 0,
 	}
 
-	err := RenderOverviewAsJSON(&buf, nil, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1251,7 +1252,7 @@ func TestRenderOverviewAsJSON_EmptyBudgetResult(t *testing.T) {
 		Budgets: []*pbc.Budget{},
 	}
 
-	err := RenderOverviewAsJSON(&buf, nil, stackCtx, budgetResult)
+	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, budgetResult)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput

@@ -11,22 +11,10 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 )
 
-// healthBadgeLabel maps a BudgetHealthStatus to its human-readable label such as "OK", "WARNING", "CRITICAL", "EXCEEDED", or "UNKNOWN".
+// healthBadgeLabel returns the human-readable label for a budget health status.
+// It delegates to engine.HealthStatusLabel to maintain a single source of truth.
 func healthBadgeLabel(health pbc.BudgetHealthStatus) string {
-	switch health {
-	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
-		return "OK"
-	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING:
-		return "WARNING"
-	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL:
-		return "CRITICAL"
-	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED:
-		return "EXCEEDED"
-	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED:
-		return "UNKNOWN"
-	default:
-		return "UNKNOWN"
-	}
+	return engine.HealthStatusLabel(health)
 }
 
 // healthBadgeStyle returns the lipgloss style for a budget health status badge.

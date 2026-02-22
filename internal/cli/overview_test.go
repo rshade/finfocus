@@ -367,6 +367,71 @@ func TestNewOverviewCmd_BudgetFlagParsing(t *testing.T) {
 	}
 }
 
+func TestNewOverviewCmd_ExitCodeOutOfRange(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+
+	tmpDir := t.TempDir()
+	statePath := filepath.Join(tmpDir, "state.json")
+	stateJSON := `{"version":3,"deployment":{"manifest":{"time":"2025-01-01T00:00:00Z","magic":"","version":""},"resources":[]}}`
+	require.NoError(t, os.WriteFile(statePath, []byte(stateJSON), 0o600))
+
+	tests := []struct {
+		name        string
+		exitCode    string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "valid exit code 0",
+			exitCode: "0",
+			wantErr:  false,
+		},
+		{
+			name:     "valid exit code 255",
+			exitCode: "255",
+			wantErr:  false,
+		},
+		{
+			name:        "exit code 999 out of range",
+			exitCode:    "999",
+			wantErr:     true,
+			errContains: "--exit-code must be between",
+		},
+		{
+			name:        "exit code -1 out of range",
+			exitCode:    "-1",
+			wantErr:     true,
+			errContains: "--exit-code must be between",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			cmd := cli.NewOverviewCmd()
+			cmd.SetOut(&buf)
+			cmd.SetErr(&buf)
+			cmd.SetArgs([]string{
+				"--pulumi-state", statePath,
+				"--exit-code=" + tt.exitCode,
+				"--yes",
+			})
+
+			err := cmd.Execute()
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errContains)
+			} else if err != nil {
+				// Valid exit-code should not cause an exit-code error;
+				// "opening plugins" is acceptable in test environments.
+				assert.Contains(t, err.Error(), "opening plugins")
+			}
+		})
+	}
+}
+
 func TestNewOverviewCmd_HelpIncludesBudgetFlags(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -414,12 +479,10 @@ func TestNewOverviewCmd_BudgetFlagsWithOtherFlags(t *testing.T) {
 	assert.True(t, yes)
 }
 
-func TestNewOverviewCmd_ExitOnThresholdIgnoredInTTYMode(t *testing.T) {
-	// Verify that shouldUseInteractiveTUI returns true for TTY-like output,
-	// which means the non-TTY budget evaluation path is skipped.
-	// When output is "table" and not --plain and stdout is a TTY,
-	// the TUI path is taken (which displays budget footer visually, no exit code).
-	// We verify this by checking the command routes to TUI for table+non-plain.
+func TestNewOverviewCmd_DefaultsToTableOutput(t *testing.T) {
+	// Verify the default output format is "table", which enables the TUI path
+	// when stdout is a TTY. Budget exit-code evaluation only runs in the
+	// non-TTY (plain) path; the TUI path displays budget status visually.
 	cmd := cli.NewOverviewCmd()
 	err := cmd.ParseFlags([]string{
 		"--exit-on-threshold",
