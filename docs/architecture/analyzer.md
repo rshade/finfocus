@@ -199,15 +199,19 @@ finfocus analyzer serve
 finfocus analyzer serve --debug
 ```
 
-Configure Pulumi to use the analyzer in `Pulumi.yaml`:
+Invoke the analyzer via the `--policy-pack` flag. The binary must be on your PATH:
 
-```yaml
-analyzers:
-  - name: finfocus
+```bash
+export PATH="${HOME}/.finfocus/analyzer:${PATH}"
+pulumi preview --policy-pack ~/.finfocus/analyzer
 ```
 
-Pulumi launches `finfocus analyzer serve` as a subprocess, reads the port from
-stdout, and connects over gRPC for the duration of the preview or update.
+Pulumi finds `pulumi-analyzer-policy-finfocus` by searching PATH, executes it as
+a subprocess, reads the port from stdout, and connects over gRPC for the duration
+of the preview or update.
+
+> **Note:** Adding `analyzers:` to `Pulumi.yaml` does not work for YAML-runtime
+> projects. Use `--policy-pack` with the binary on PATH.
 
 ## Logging
 
