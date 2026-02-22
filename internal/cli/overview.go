@@ -30,17 +30,20 @@ type fdProvider interface{ Fd() uintptr }
 
 // overviewParams holds the parameters for the overview command.
 type overviewParams struct {
-	pulumiJSON   string
-	pulumiState  string
-	stack        string
-	fromStr      string
-	toStr        string
-	adapter      string
-	output       string
-	filter       []string
-	plain        bool
-	yes          bool
-	noPagination bool
+	pulumiJSON      string
+	pulumiState     string
+	stack           string
+	fromStr         string
+	toStr           string
+	adapter         string
+	output          string
+	filter          []string
+	plain           bool
+	yes             bool
+	noPagination    bool
+	exitOnThreshold bool
+	exitCode        int
+	budgetScope     string
 }
 
 // NewOverviewCmd creates the "overview" command that provides a unified
@@ -93,6 +96,12 @@ instead of running Pulumi CLI commands.`,
 	cmd.Flags().BoolVar(&params.plain, "plain", false, "force non-interactive plain text output")
 	cmd.Flags().BoolVarP(&params.yes, "yes", "y", false, "skip confirmation prompts")
 	cmd.Flags().BoolVar(&params.noPagination, "no-pagination", false, "disable pagination (plain mode only)")
+	cmd.Flags().BoolVar(&params.exitOnThreshold, "exit-on-threshold", false,
+		"Exit with non-zero code when budget thresholds are exceeded (non-TTY only)")
+	cmd.Flags().IntVar(&params.exitCode, "exit-code", 1,
+		"Exit code to use when budget thresholds are exceeded (0-255)")
+	cmd.Flags().StringVar(&params.budgetScope, "budget-scope", "",
+		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
 
 	return cmd
 }
@@ -219,11 +228,25 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		IsStateOnly:    isStateOnly,
 	}
 
-	// 12. Render output (plain text)
-	renderErr := renderOverviewOutput(cmd, params.output, rows, stackCtx)
+	// 12. Fetch budget data for JSON output (nil for other formats).
+	var budgetResult *engine.BudgetResult
+	if params.output == "json" {
+		budgetResult, _ = eng.GetBudgets(ctx, nil)
+	}
+
+	// 13. Render output (plain text)
+	renderErr := renderOverviewOutput(cmd, params.output, rows, stackCtx, budgetResult)
 	if renderErr != nil {
 		audit.logFailure(ctx, renderErr)
 		return renderErr
+	}
+
+	// 14. Budget evaluation (non-TTY path only)
+	applyOverviewBudgetFlags(cmd, params)
+	costResults, totalCost := overviewRowsToBudgetInputs(rows)
+	if budgetErr := evaluateBudgetStatus(cmd, costResults, totalCost); budgetErr != nil {
+		audit.logFailure(ctx, budgetErr)
+		return budgetErr
 	}
 
 	log.Info().
@@ -660,11 +683,13 @@ func splitFilter(filter string) []string {
 }
 
 // renderOverviewOutput dispatches to the correct renderer based on the output format.
+// budgetResult is optional and only used for JSON output (included as top-level budgets array).
 func renderOverviewOutput(
 	cmd *cobra.Command,
 	outputFormat string,
 	rows []engine.OverviewRow,
 	stackCtx engine.StackContext,
+	budgetResult *engine.BudgetResult,
 ) error {
 	switch outputFormat {
 	case "table":
@@ -672,7 +697,7 @@ func renderOverviewOutput(
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
 	case "json":
-		if renderErr := engine.RenderOverviewAsJSON(cmd.OutOrStdout(), rows, stackCtx); renderErr != nil {
+		if renderErr := engine.RenderOverviewAsJSON(cmd.OutOrStdout(), rows, stackCtx, budgetResult); renderErr != nil {
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
 	case "ndjson":
@@ -958,6 +983,20 @@ func overviewInitAndEnrich(
 		p.Send(tui.OverviewSetStateOnlyMsg{PreviewCmd: previewCmd, DetectErrMsg: shortErrMsg(detectErr)})
 	}
 
+	// Concurrent budget fetch (non-blocking, independent of enrichment).
+	go func() {
+		budgetResult, budgetErr := eng.GetBudgets(enrichCtx, nil)
+		if budgetErr != nil {
+			log.Warn().
+				Ctx(enrichCtx).
+				Str("component", "cli").
+				Str("operation", "overview_budget_fetch").
+				Err(budgetErr).
+				Msg("budget fetch failed (non-fatal)")
+		}
+		p.Send(tui.BudgetDataReadyMsg{Result: budgetResult, Error: budgetErr})
+	}()
+
 	// Phase 6: Enrichment.
 	bridgeEnrichmentToTUI(enrichCtx, p, rows, eng, dateRange)
 }
@@ -1225,4 +1264,50 @@ func applyDismissalDeltaToRows(ctx context.Context, rows []engine.OverviewRow) [
 		engine.ApplyDismissalDeltaToRow(&rows[i], records)
 	}
 	return rows
+}
+
+// applyOverviewBudgetFlags applies budget-related CLI flag overrides to the
+// global config, matching the pattern used by newCostCmd's PersistentPreRunE.
+// This ensures evaluateBudgetStatus uses the flag values from the overview command.
+func applyOverviewBudgetFlags(cmd *cobra.Command, params overviewParams) {
+	cfg := config.GetGlobalConfig()
+	if cfg == nil {
+		return
+	}
+
+	if cfg.Cost.Budgets == nil {
+		cfg.Cost.Budgets = &config.BudgetsConfig{}
+	}
+	if cfg.Cost.Budgets.Global == nil {
+		cfg.Cost.Budgets.Global = &config.ScopedBudget{}
+	}
+
+	if cmd.Flags().Changed("exit-on-threshold") {
+		cfg.Cost.Budgets.Global.ExitOnThreshold = &params.exitOnThreshold
+	}
+	if cmd.Flags().Changed("exit-code") {
+		cfg.Cost.Budgets.Global.ExitCode = &params.exitCode
+	}
+}
+
+// overviewRowsToBudgetInputs converts enriched OverviewRows to the
+// []engine.CostResult and totalCost that evaluateBudgetStatus expects.
+// It extracts projected cost data from each row, summing MonthlyCost
+// and populating Currency for currency extraction.
+func overviewRowsToBudgetInputs(rows []engine.OverviewRow) ([]engine.CostResult, float64) {
+	var costResults []engine.CostResult
+	var totalCost float64
+	for _, row := range rows {
+		if row.ProjectedCost == nil {
+			continue
+		}
+		totalCost += row.ProjectedCost.MonthlyCost
+		costResults = append(costResults, engine.CostResult{
+			ResourceType: row.Type,
+			ResourceID:   row.URN,
+			Currency:     row.ProjectedCost.Currency,
+			Monthly:      row.ProjectedCost.MonthlyCost,
+		})
+	}
+	return costResults, totalCost
 }

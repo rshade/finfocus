@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+
 	"github.com/rshade/finfocus/internal/engine"
 )
 
@@ -796,4 +798,101 @@ func TestOverviewModel_SetStateOnlyMsg(t *testing.T) {
 
 	assert.True(t, model.isStateOnly)
 	assert.NotNil(t, model.previewCmd)
+}
+
+// TestOverviewModel_BudgetDataReadyMsg verifies BudgetDataReadyMsg handling
+// sets budgetResult, budgetErr, and budgetLoaded for success, error, and nil cases.
+func TestOverviewModel_BudgetDataReadyMsg(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name        string
+		msg         BudgetDataReadyMsg
+		wantLoaded  bool
+		wantResult  bool
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "success with valid result",
+			msg: BudgetDataReadyMsg{
+				Result: &engine.BudgetResult{
+					Budgets: []*pbc.Budget{
+						{
+							Id:   "b1",
+							Name: "Test Budget",
+							Amount: &pbc.BudgetAmount{
+								Limit:    10000,
+								Currency: "USD",
+							},
+							Status: &pbc.BudgetStatus{
+								CurrentSpend:   4500,
+								PercentageUsed: 45,
+								Health:         pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK,
+							},
+						},
+					},
+				},
+				Error: nil,
+			},
+			wantLoaded: true,
+			wantResult: true,
+			wantErr:    false,
+		},
+		{
+			name: "error with nil result",
+			msg: BudgetDataReadyMsg{
+				Result: nil,
+				Error:  errors.New("plugin connection failed"),
+			},
+			wantLoaded:  true,
+			wantResult:  false,
+			wantErr:     true,
+			errContains: "plugin connection failed",
+		},
+		{
+			name: "nil result with nil error",
+			msg: BudgetDataReadyMsg{
+				Result: nil,
+				Error:  nil,
+			},
+			wantLoaded: true,
+			wantResult: false,
+			wantErr:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rows := []engine.OverviewRow{
+				{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+			}
+			model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+
+			// Verify initial state
+			assert.False(t, model.budgetLoaded)
+			assert.Nil(t, model.budgetResult)
+			assert.Nil(t, model.budgetErr)
+
+			// Send BudgetDataReadyMsg
+			updatedModel, _ := model.Update(tt.msg)
+			model = updatedModel.(OverviewModel)
+
+			assert.Equal(t, tt.wantLoaded, model.budgetLoaded)
+
+			if tt.wantResult {
+				require.NotNil(t, model.budgetResult)
+				assert.Equal(t, tt.msg.Result, model.budgetResult)
+			} else {
+				assert.Nil(t, model.budgetResult)
+			}
+
+			if tt.wantErr {
+				require.Error(t, model.budgetErr)
+				assert.Contains(t, model.budgetErr.Error(), tt.errContains)
+			} else {
+				assert.Nil(t, model.budgetErr)
+			}
+		})
+	}
 }

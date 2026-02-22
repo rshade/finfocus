@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -373,15 +374,18 @@ type OverviewSummary struct {
 
 // OverviewJSONOutput is the top-level JSON output structure.
 type OverviewJSONOutput struct {
-	Metadata  OverviewMetadata   `json:"metadata"`
-	Resources []OverviewRow      `json:"resources"`
-	Summary   OverviewSummary    `json:"summary"`
-	Errors    []OverviewRowError `json:"errors"`
+	Metadata  OverviewMetadata     `json:"metadata"`
+	Resources []OverviewRow        `json:"resources"`
+	Summary   OverviewSummary      `json:"summary"`
+	Budgets   []BudgetHealthResult `json:"budgets,omitempty"`
+	Errors    []OverviewRowError   `json:"errors"`
 }
 
 // RenderOverviewAsJSON renders the overview rows as a structured JSON object
-// with metadata, resource array, summary, and errors.
-func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext) error {
+// with metadata, resource array, summary, optional budgets, and errors.
+// budgetResult may be nil; when non-nil its budgets are converted to
+// BudgetHealthResult entries and included in the output.
+func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext, budgetResult *BudgetResult) error {
 	t, err := aggregateOverviewRows(rows)
 	if err != nil {
 		return err
@@ -404,6 +408,12 @@ func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext
 		stackCtx.GeneratedAt = time.Now()
 	}
 
+	// Convert budget data to BudgetHealthResult entries when available.
+	var budgets []BudgetHealthResult
+	if budgetResult != nil && len(budgetResult.Budgets) > 0 {
+		budgets = CalculateBudgetHealthResults(context.Background(), budgetResult.Budgets)
+	}
+
 	// Build output structure
 	output := OverviewJSONOutput{
 		Metadata: OverviewMetadata{
@@ -417,7 +427,8 @@ func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext
 			PotentialSavings: t.savings,
 			Currency:         t.currency,
 		},
-		Errors: errs,
+		Budgets: budgets,
+		Errors:  errs,
 	}
 
 	// Marshal with indentation

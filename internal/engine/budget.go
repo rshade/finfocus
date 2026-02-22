@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -51,15 +52,97 @@ type ExtendedBudgetSummary struct {
 
 // BudgetHealthResult contains health assessment for a single budget.
 type BudgetHealthResult struct {
-	BudgetID     string                 // Budget identifier
-	BudgetName   string                 // Human-readable name
-	Provider     string                 // Source provider (aws-budgets, kubecost, etc.)
-	Health       pbc.BudgetHealthStatus // Calculated health status
-	Utilization  float64                // Current percentage used (0-100+)
-	Forecasted   float64                // Forecasted percentage at period end
-	Currency     string                 // ISO 4217 currency code
-	Limit        float64                // Budget limit amount
-	CurrentSpend float64                // Current spend amount
+	BudgetID     string                 `json:"budgetID"`
+	BudgetName   string                 `json:"budgetName"`
+	Provider     string                 `json:"provider"`
+	Health       pbc.BudgetHealthStatus `json:"-"` // serialized via custom MarshalJSON
+	Utilization  float64                `json:"utilization"`
+	Forecasted   float64                `json:"forecasted"`
+	Currency     string                 `json:"currency"`
+	Limit        float64                `json:"limit"`
+	CurrentSpend float64                `json:"currentSpend"`
+}
+
+// healthStatusLabel converts a BudgetHealthStatus enum to its short label
+// for JSON serialization (OK, WARNING, CRITICAL, EXCEEDED).
+func healthStatusLabel(h pbc.BudgetHealthStatus) string {
+	switch h {
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
+		return "OK"
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING:
+		return "WARNING"
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL:
+		return "CRITICAL"
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED:
+		return "EXCEEDED"
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED:
+		return "UNKNOWN"
+	default:
+		return "UNKNOWN"
+	}
+}
+
+// parseHealthStatusLabel parses a short label back to a BudgetHealthStatus enum.
+func parseHealthStatusLabel(s string) pbc.BudgetHealthStatus {
+	switch s {
+	case "OK":
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK
+	case "WARNING":
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING
+	case "CRITICAL":
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL
+	case "EXCEEDED":
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED
+	default:
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED
+	}
+}
+
+// budgetHealthJSON is the JSON-serializable representation of BudgetHealthResult.
+// It converts the protobuf Health enum to a human-readable string.
+type budgetHealthJSON struct {
+	BudgetID     string  `json:"budgetID"`
+	BudgetName   string  `json:"budgetName"`
+	Provider     string  `json:"provider"`
+	Health       string  `json:"health"`
+	Utilization  float64 `json:"utilization"`
+	Forecasted   float64 `json:"forecasted"`
+	Currency     string  `json:"currency"`
+	Limit        float64 `json:"limit"`
+	CurrentSpend float64 `json:"currentSpend"`
+}
+
+// MarshalJSON implements json.Marshaler, converting Health to a string label.
+func (b BudgetHealthResult) MarshalJSON() ([]byte, error) {
+	return json.Marshal(budgetHealthJSON{
+		BudgetID:     b.BudgetID,
+		BudgetName:   b.BudgetName,
+		Provider:     b.Provider,
+		Health:       healthStatusLabel(b.Health),
+		Utilization:  b.Utilization,
+		Forecasted:   b.Forecasted,
+		Currency:     b.Currency,
+		Limit:        b.Limit,
+		CurrentSpend: b.CurrentSpend,
+	})
+}
+
+// UnmarshalJSON implements json.Unmarshaler, parsing Health from a string label.
+func (b *BudgetHealthResult) UnmarshalJSON(data []byte) error {
+	var raw budgetHealthJSON
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("parsing BudgetHealthResult: %w", err)
+	}
+	b.BudgetID = raw.BudgetID
+	b.BudgetName = raw.BudgetName
+	b.Provider = raw.Provider
+	b.Health = parseHealthStatusLabel(raw.Health)
+	b.Utilization = raw.Utilization
+	b.Forecasted = raw.Forecasted
+	b.Currency = raw.Currency
+	b.Limit = raw.Limit
+	b.CurrentSpend = raw.CurrentSpend
+	return nil
 }
 
 // ThresholdEvaluationResult contains evaluated threshold state.

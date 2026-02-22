@@ -372,6 +372,8 @@ type StackContext struct {
 	GeneratedAt    time.Time `json:"generatedAt,omitempty"`
 	// IsStateOnly is true when no pulumi preview was run; costs reflect the current state only.
 	IsStateOnly bool `json:"isStateOnly,omitempty"`
+	// BudgetHealth provides a stack-level budget health summary for JSON output.
+	BudgetHealth *BudgetHealthSummary `json:"budgetHealth,omitempty"`
 }
 
 // Validate checks that the StackContext fields are well-formed.
@@ -397,6 +399,15 @@ func (s *StackContext) Validate() error {
 			ErrOverviewValidation, s.PendingChanges)
 	}
 	return nil
+}
+
+// BudgetHealthSummary provides a lightweight budget health summary for
+// StackContext JSON serialization. It captures the overall health status,
+// total number of budgets evaluated, and count of critical/exceeded budgets.
+type BudgetHealthSummary struct {
+	OverallHealth string `json:"overallHealth,omitempty"`
+	TotalBudgets  int    `json:"totalBudgets,omitempty"`
+	CriticalCount int    `json:"criticalCount,omitempty"`
 }
 
 // OverviewRowUpdate carries a row update on a progress channel, pairing the
