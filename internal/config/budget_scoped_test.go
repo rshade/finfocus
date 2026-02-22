@@ -151,9 +151,10 @@ func TestScopedBudget_Validation(t *testing.T) {
 		{
 			name: "valid exit code 0 (warning mode)",
 			budget: &config.ScopedBudget{
-				Amount:   1000.0,
-				Currency: "USD",
-				ExitCode: ptr(0),
+				Amount:          1000.0,
+				Currency:        "USD",
+				ExitOnThreshold: ptr(true),
+				ExitCode:        ptr(0),
 			},
 			wantErr: false,
 		},
