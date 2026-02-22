@@ -26,16 +26,18 @@ func isValidBucket(name string) bool {
 	}
 }
 
+// placeholder returns "_" for empty strings to preserve fixed segment positions in cache keys.
+func placeholder(s string) string {
+	if s == "" {
+		return "_"
+	}
+	return s
+}
+
 // BuildProjectedKey constructs a human-readable cache key for per-resource projected costs.
 // The key has the form "projected/{provider}/{type}/{region}/{sku}".
 // Any empty segment is replaced with "_" to preserve fixed segment positions.
 func BuildProjectedKey(provider, resourceType, region, sku string) string {
-	placeholder := func(s string) string {
-		if s == "" {
-			return "_"
-		}
-		return s
-	}
 	return strings.Join([]string{
 		BucketProjected,
 		placeholder(provider),
@@ -51,13 +53,6 @@ func BuildProjectedKey(provider, resourceType, region, sku string) string {
 // and avoid ambiguity (e.g., provider="aws" vs resourceTypes=["aws"]).
 // The resulting key is safe for use as a top-level bucketed cache key.
 func BuildActualKey(provider string, resourceTypes []string, from, to time.Time, filters map[string]string) string {
-	placeholder := func(s string) string {
-		if s == "" {
-			return "_"
-		}
-		return s
-	}
-
 	// Sort resource types for determinism
 	sorted := make([]string, len(resourceTypes))
 	copy(sorted, resourceTypes)
