@@ -27,8 +27,9 @@ The analyzer is invoked automatically by Pulumi during preview. It:
 
 ### Binary Naming Convention
 
-Pulumi looks for `pulumi-analyzer-policy-<runtime>` on PATH or in the specified policy pack directory. Since we use
-`runtime: finfocus` in `PulumiPolicy.yaml`, the binary must be named:
+Pulumi looks for `pulumi-analyzer-policy-<runtime>` on PATH. The binary must be in
+your PATH — having it only in the policy pack directory is not sufficient. Since we
+use `runtime: finfocus` in `PulumiPolicy.yaml`, the binary must be named:
 
 ```text
 pulumi-analyzer-policy-finfocus

@@ -64,6 +64,10 @@ type Config struct {
 	PluginDir string `yaml:"-" json:"-"`
 	SpecDir   string `yaml:"-" json:"-"`
 
+	// PluginDirOverride overrides the computed PluginDir when set via the plugin_dir: config key.
+	// Applied before the FINFOCUS_PLUGIN_DIR env var override, which takes higher precedence.
+	PluginDirOverride string `yaml:"plugin_dir,omitempty" json:"plugin_dir,omitempty"`
+
 	// New comprehensive configuration
 	Output           OutputConfig            `yaml:"output"      json:"output"`
 	Plugins          map[string]PluginConfig `yaml:"plugins"     json:"plugins"`
@@ -261,6 +265,11 @@ func New() *Config {
 		}
 	}
 
+	// Apply YAML plugin_dir override (lower precedence than env var, applied first).
+	if cfg.PluginDirOverride != "" {
+		cfg.PluginDir = cfg.PluginDirOverride
+	}
+
 	// Apply environment variable overrides
 	cfg.applyEnvOverrides()
 
@@ -334,6 +343,11 @@ func NewStrict() (*Config, error) {
 			// Likely a corrupted config file - fail immediately
 			return nil, fmt.Errorf("%w: %w", ErrConfigCorrupted, loadErr)
 		}
+	}
+
+	// Apply YAML plugin_dir override (lower precedence than env var, applied first).
+	if cfg.PluginDirOverride != "" {
+		cfg.PluginDir = cfg.PluginDirOverride
 	}
 
 	// Apply environment variable overrides
@@ -832,6 +846,11 @@ func (c *Config) applyEnvOverrides() {
 
 	// Plugin overrides (FINFOCUS_PLUGIN_<NAME>_<KEY>=value)
 	c.scanPluginEnvironmentVars()
+
+	// Plugin directory override (FINFOCUS_PLUGIN_DIR takes highest precedence, #752).
+	if pluginDir := os.Getenv("FINFOCUS_PLUGIN_DIR"); pluginDir != "" {
+		c.PluginDir = pluginDir
+	}
 }
 
 // applyLegacyEnvOverrides handles backward compatibility for PULUMICOST_ variables.

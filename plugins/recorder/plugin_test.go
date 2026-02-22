@@ -407,3 +407,35 @@ func TestRecorderPlugin_ThreadSafety(t *testing.T) {
 
 	// No panic = thread-safe
 }
+
+// TestGetRecommendations_SummaryNotNil verifies that GetRecommendations always
+// returns a non-nil Summary in the response, regardless of whether mock mode
+// is enabled or disabled. A nil Summary causes flooding of "plugin returned
+// response with nil summary" WARN log entries in the engine (#747).
+func TestGetRecommendations_SummaryNotNil(t *testing.T) {
+	tests := []struct {
+		name         string
+		mockResponse bool
+	}{
+		{name: "mock disabled", mockResponse: false},
+		{name: "mock enabled", mockResponse: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			cfg := &Config{
+				OutputDir:    tmpDir,
+				MockResponse: tt.mockResponse,
+			}
+			plugin := NewRecorderPlugin(cfg, testLogger())
+
+			resp, err := plugin.GetRecommendations(context.Background(), &pbc.GetRecommendationsRequest{})
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.NotNil(t, resp.GetSummary(),
+				"GetRecommendations response must always include a non-nil Summary "+
+					"(mock=%v) to prevent nil summary WARN log flooding (#747)", tt.mockResponse)
+		})
+	}
+}

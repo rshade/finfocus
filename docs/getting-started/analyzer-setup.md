@@ -49,17 +49,21 @@ chmod +x ~/.finfocus/analyzer/pulumi-analyzer-policy-finfocus
 
 ### 4. Enable the Analyzer
 
-To use the analyzer, you must point Pulumi to the policy pack directory during preview or update.
+To use the analyzer, the binary must be on your PATH **and** you must point Pulumi
+to the policy pack directory. Pulumi finds `pulumi-analyzer-policy-finfocus` by
+searching PATH — having the binary only in the policy pack directory is not sufficient.
 
 #### Option A: CLI Flag (Recommended for testing)
 
 ```bash
+export PATH="${HOME}/.finfocus/analyzer:${PATH}"
 pulumi preview --policy-pack ~/.finfocus/analyzer
 ```
 
 #### Option B: Environment Variable (Recommended for CI/CD)
 
 ```bash
+export PATH="${HOME}/.finfocus/analyzer:${PATH}"
 export PULUMI_POLICY_PACK_PATH="$HOME/.finfocus/analyzer"
 pulumi preview
 ```
@@ -81,7 +85,12 @@ Policies:
 
 ### "could not start policy pack"
 
-Ensure the binary name in `~/.finfocus/analyzer/` matches exactly: `pulumi-analyzer-policy-finfocus`.
+Ensure:
+
+1. The binary name in `~/.finfocus/analyzer/` matches exactly: `pulumi-analyzer-policy-finfocus`.
+2. The directory is on your PATH: `export PATH="${HOME}/.finfocus/analyzer:${PATH}"`.
+   Pulumi searches PATH for the analyzer binary — placing it only in the policy pack
+   directory is not sufficient.
 
 ### No cost diagnostics appear
 

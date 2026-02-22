@@ -200,11 +200,21 @@ func (p *RecorderPlugin) GetRecommendations(
 
 		return &pbc.GetRecommendationsResponse{
 			Recommendations: recs,
+			Summary: &pbc.RecommendationSummary{
+				TotalRecommendations:  int32(len(recs)), //nolint:gosec // bounded by maxPageSize
+				TotalEstimatedSavings: 0,
+				Currency:              "USD",
+			},
 		}, nil
 	}
 
 	return &pbc.GetRecommendationsResponse{
 		Recommendations: []*pbc.Recommendation{},
+		Summary: &pbc.RecommendationSummary{
+			TotalRecommendations:  0,
+			TotalEstimatedSavings: 0,
+			Currency:              "USD",
+		},
 	}, nil
 }
 

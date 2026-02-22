@@ -19,8 +19,7 @@ output:
 logging:
   level: info # debug, info, warn, error
 
-plugins:
-  dir: ~/.finfocus/plugins
+plugin_dir: ~/.finfocus/plugins
 ```
 
 ## Configuration Resolution
@@ -101,9 +100,11 @@ output:
 
 - `level`: The verbosity of logs.
 
-### Plugins
+### Plugin Directory
 
-- `dir`: The directory where plugins are installed.
+- `plugin_dir`: Top-level key that overrides the computed plugin installation directory.
+  Equivalent to setting the `FINFOCUS_PLUGIN_DIR` environment variable (env var takes precedence).
+  Example: `plugin_dir: /opt/finfocus/plugins`
 
 ### Cache
 

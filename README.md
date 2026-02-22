@@ -87,19 +87,42 @@ pulumi preview --json > plan.json
 
 ### 3. Unified Overview
 
-See all costs at a glance with the interactive dashboard:
+See all costs at a glance with the interactive dashboard. From inside any Pulumi
+project directory, just run finfocus with no arguments:
 
 ```bash
-# Export state and plan
+finfocus
+```
+
+Or invoke the subcommand directly:
+
+```bash
+finfocus overview
+```
+
+For CI/CD or when you manage the export step yourself:
+
+```bash
+# Pre-export state and plan
 pulumi stack export > state.json
 pulumi preview --json > plan.json
 
-# Launch unified overview
-finfocus overview --pulumi-state state.json --pulumi-json plan.json
-
-# Non-interactive output for CI/CD
-finfocus overview --pulumi-state state.json --output json --yes
+# Launch overview with pre-exported files
+finfocus overview --pulumi-state state.json --pulumi-json plan.json --plain --yes
 ```
+
+Example plain text output:
+
+```text
+Resource                          Type                    Status  Actual(MTD)  Projected   Delta    Drift%  Recs
+my-instance                       aws:ec2/instance:I...   ✓       $12.40       $15.00      $2.60    +8%     2
+my-bucket                         aws:s3/bucket:Bucket    ✓       $0.83        $1.00       $0.17    0%      0
+my-db                             aws:rds/instance:I...   ✓       $48.20       $50.00      $1.80    -3%     1
+
+Total Actual (MTD): $61.43    Projected Monthly: $66.00    Potential Savings: $45.00
+```
+
+Full documentation: [docs/commands/overview.md](docs/commands/overview.md)
 
 ### 4. Calculate Costs
 

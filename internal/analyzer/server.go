@@ -336,6 +336,11 @@ func (s *Server) AnalyzeStack(
 		}
 	}
 
+	// Clear the cost cache after the summary is built and emitted.
+	// This prevents costs from leaking into subsequent stack analyses (e.g., re-runs).
+	// Must happen AFTER reading the cache to ensure the summary reflects all Analyze() calls.
+	s.clearCostCache()
+
 	return &pulumirpc.AnalyzeResponse{
 		Diagnostics: diagnostics,
 	}, nil
@@ -430,10 +435,6 @@ func (s *Server) ConfigureStack(
 	_ context.Context,
 	req *pulumirpc.AnalyzerStackConfigureRequest,
 ) (*pulumirpc.AnalyzerStackConfigureResponse, error) {
-	// Clear the cost cache at the start of a new stack analysis
-	// This ensures we don't carry over costs from previous analyses
-	s.clearCostCache()
-
 	// Store stack context for logging and diagnostic enrichment
 	s.stackName = req.GetStack()
 	s.projectName = req.GetProject()

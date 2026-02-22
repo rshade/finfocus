@@ -379,3 +379,45 @@ func TestWriteCostSummary(t *testing.T) {
 		assert.Contains(t, err.Error(), "nil summary")
 	})
 }
+
+// TestBuildCostSummary_IncludesNonErrorItems validates that BuildCostSummary correctly
+// includes valid cost items (those without errors and without error-prefixed notes)
+// in the ResourceCount and TotalMonthlyCost. This ensures that the secondary filter
+// in BuildCostSummary does not accidentally exclude valid results.
+func TestBuildCostSummary_IncludesNonErrorItems(t *testing.T) {
+	costs := []engine.CostResult{
+		{
+			ResourceType: "aws:ec2/instance:Instance",
+			ResourceID:   "instance-1",
+			Currency:     "USD",
+			Monthly:      12.50,
+			Adapter:      "aws-plugin",
+		},
+		{
+			ResourceType: "aws:rds/instance:Instance",
+			ResourceID:   "db-1",
+			Currency:     "USD",
+			Monthly:      45.00,
+			Adapter:      "aws-plugin",
+		},
+		{
+			ResourceType: "aws:s3/bucket:Bucket",
+			ResourceID:   "bucket-1",
+			Currency:     "USD",
+			Monthly:      0.50,
+			Notes:        "Minimal storage cost",
+			Adapter:      "aws-plugin",
+		},
+	}
+
+	summary := BuildCostSummary(costs, "dev", "myapp", time.Time{})
+
+	require.NotNil(t, summary)
+	assert.Equal(t, 3, summary.ResourceCount,
+		"all 3 valid items must be included in ResourceCount")
+	assert.InDelta(t, 58.00, summary.TotalMonthlyCost, 0.001,
+		"TotalMonthlyCost must sum all valid resource costs")
+	assert.Equal(t, "USD", summary.Currency)
+	assert.False(t, summary.MixedCurrencies)
+	assert.Len(t, summary.Resources, 3)
+}

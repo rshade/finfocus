@@ -4,7 +4,7 @@ title: 5-Minute Quickstart
 description: Get started with FinFocus in 5 minutes
 ---
 
-Get FinFocus running and see your first cost estimate in just 5 minutes.
+Get FinFocus running and see your first cost dashboard in just 5 minutes.
 
 ## Prerequisites
 
@@ -14,7 +14,13 @@ Get FinFocus running and see your first cost estimate in just 5 minutes.
 
 ## Step 1: Install (1 minute)
 
-### Option A: From source
+### Option A: Install script (recommended)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
+```
+
+### Option B: From source
 
 ```bash
 git clone https://github.com/rshade/finfocus
@@ -23,85 +29,64 @@ make build
 export PATH="$PWD/bin:$PATH"
 ```
 
-### Option B: Install script (recommended)
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/rshade/finfocus/main/scripts/install.sh | sh
-```
-
 **Verify installation:**
 
 ```bash
 finfocus --version
 ```
 
-## Step 2: Run FinFocus (1 minute)
+## Step 2: Launch the Overview (1 minute)
 
-The simplest way: just run FinFocus inside your Pulumi project directory.
-It auto-detects the project and runs `pulumi preview --json` for you:
+Navigate into any Pulumi project directory and run finfocus with no arguments:
 
 ```bash
 cd your-pulumi-project
+finfocus
+```
+
+FinFocus auto-detects your project and stack, exports the current state, and
+runs `pulumi preview --json` — then opens an interactive cost dashboard:
+
+```text
+Resource                          Type                    Status  Actual(MTD)  Projected   Recs
+my-instance                       aws:ec2/instance:I...   ✓       $12.40       $15.00      2
+my-bucket                         aws:s3/bucket:Bucket    ✓       $0.83        $1.00       0
+my-db                             aws:rds/instance:I...   ✓       $48.20       $50.00      1
+
+Total Actual (MTD): $61.43    Projected Monthly: $66.00    Potential Savings: $45.00
+```
+
+Press `Enter` on any resource to drill into its cost breakdown and recommendations.
+Press `q` to quit.
+
+> **Tip:** `finfocus overview` and `finfocus ov` are aliases for the same command.
+
+## Step 3: Non-interactive Output (1 minute)
+
+For scripts or CI/CD, use `--plain --yes` to skip the TUI and prompts:
+
+```bash
+# Plain text table
+finfocus overview --plain --yes
+
+# JSON for scripting
+finfocus overview --output json --yes | jq .summary
+
+# Projected costs only (no state required)
 finfocus cost projected
 ```
 
-Alternatively, you can provide the plan file explicitly:
+## Step 4: Filter by Provider or Type (1 minute)
 
 ```bash
-pulumi preview --json > plan.json
-finfocus cost projected --pulumi-json plan.json
+# Only AWS resources
+finfocus overview --filter provider=aws --plain --yes
+
+# Only EC2 instances
+finfocus overview --filter type=aws:ec2/instance:Instance --plain --yes
 ```
 
-**Output:**
-
-```text
-RESOURCE                          TYPE              MONTHLY   CURRENCY
-aws:ec2/instance:Instance         aws:ec2:Instance  $7.50     USD
-aws:s3/bucket:Bucket              aws:s3:Bucket     $0.00     USD
-aws:rds/instance:Instance         aws:rds:Instance  $0.00     USD
-
-Total: $7.50 USD
-```
-
-## Step 3: Try JSON Output (1 minute)
-
-```bash
-finfocus cost projected --pulumi-json plan.json --output json | jq .
-```
-
-**Output:**
-
-```json
-{
-  "summary": {
-    "totalMonthly": 7.5,
-    "totalHourly": 0.010,
-    "currency": "USD"
-  },
-  "resources": [
-    {
-      "resourceType": "aws:ec2/instance:Instance",
-      "resourceId": "web-server",
-      "monthly": 7.5,
-      "hourly": 0.010,
-      "adapter": "aws-spec",
-      "currency": "USD"
-    }
-  ]
-}
-```
-
-## Step 4: Try Filtering (1 minute)
-
-```bash
-# Show only EC2 resources (substring match)
-finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2"
-
-# Show only database resources (substring match)
-finfocus cost projected --pulumi-json plan.json --filter "type=aws:rds"
-```
-
-## Step 5: Configure Scoped Budgets (Optional)
+## Step 5: Set Up Budgets (Optional)
 
 Create `~/.finfocus/config.yaml` with hierarchical budgets:
 
@@ -115,43 +100,26 @@ cost:
     providers:
       aws:
         amount: 3000.00
-      gcp:
-        amount: 2000.00
     tags:
       - selector: 'team:platform'
         priority: 100
         amount: 2000.00
-    types:
-      'aws:ec2/instance':
-        amount: 1000.00
 ```
 
-Then run with budget display:
+Budget status appears automatically in the overview. For projected costs:
 
 ```bash
-finfocus cost projected --pulumi-json plan.json
-
-# Filter by scope category
-finfocus cost projected --pulumi-json plan.json --budget-scope=provider
-finfocus cost projected --pulumi-json plan.json --budget-scope=tag
-finfocus cost projected --pulumi-json plan.json --budget-scope=type
-
-# Filter by specific scope value
-finfocus cost projected --pulumi-json plan.json --budget-scope=provider=aws
-finfocus cost projected --pulumi-json plan.json --budget-scope=tag=team:platform
-finfocus cost projected --pulumi-json plan.json --budget-scope=type=aws:ec2/instance
+finfocus cost projected --budget-scope=provider
+finfocus cost projected --budget-scope=provider=aws
 ```
 
 ---
 
 ## What's Next?
 
-- **Learn more:** [User Guide](../guides/user-guide.md)
-- **Installation details:** [Installation Guide](installation.md)
-- **Setup with Vantage:** [Vantage Plugin Setup](../plugins/vantage/setup.md)
+- **Full overview docs:** [Overview Command](../commands/overview.md)
+- **Analyzer setup:** [Pulumi Analyzer Setup](analyzer-setup.md) — see costs
+  inline during `pulumi preview`
+- **User Guide:** [User Guide](../guides/user-guide.md)
 - **CLI reference:** [CLI Commands](../reference/cli-commands.md)
-- **Examples:** [More Examples](examples/)
-
----
-
-**Congratulations!** You've just run FinFocus! 🎉
+- **Installation details:** [Installation Guide](installation.md)

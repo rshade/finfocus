@@ -588,18 +588,13 @@ func verifyListPluginsResult(
 	wantCount int,
 	wantPlugins []PluginInfo,
 ) {
-	if wantErr && err == nil {
-		t.Error("expected error but got none")
+	t.Helper()
+	if wantErr {
+		require.Error(t, err)
 		return
 	}
-	if !wantErr && err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
-	}
-	if len(plugins) != wantCount {
-		t.Errorf("expected %d plugins, got %d", wantCount, len(plugins))
-		return
-	}
+	require.NoError(t, err)
+	assert.Len(t, plugins, wantCount)
 	if wantPlugins != nil {
 		verifyExpectedPlugins(t, plugins, wantPlugins)
 	}
@@ -762,6 +757,75 @@ func createEdgeCasePluginDir(t *testing.T) string {
 	return dir
 }
 
+// TestListPlugins_SymlinkDiscovery verifies that ListPlugins discovers plugins installed
+// via directory-level symlinks (issue #750). DirEntry.IsDir() returns false for symlinks,
+// so the pre-fix code silently skips symlinked plugin and version directories.
+func TestListPlugins_SymlinkDiscovery(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skipf("os.Symlink may require elevation on Windows; skipping symlink discovery tests")
+	}
+
+	t.Run("symlink at plugin name level is discovered", func(t *testing.T) {
+		root := t.TempDir()
+
+		// Create a real plugin directory structure.
+		realPluginDir := filepath.Join(root, "real-plugin", "v1.0.0")
+		require.NoError(t, os.MkdirAll(realPluginDir, 0755))
+		binPath := filepath.Join(realPluginDir, "real-plugin")
+		require.NoError(t, os.WriteFile(binPath, []byte("#!/bin/sh\necho test"), 0755))
+
+		// Create a symlink at the plugin-name level pointing to the real plugin directory.
+		// <root>/linked-plugin -> <root>/real-plugin
+		linkTarget := filepath.Join(root, "real-plugin")
+		linkName := filepath.Join(root, "linked-plugin")
+		require.NoError(t, os.Symlink(linkTarget, linkName))
+
+		reg := &Registry{root: root, launcher: pluginhost.NewProcessLauncher()}
+		plugins, err := reg.ListPlugins()
+		require.NoError(t, err)
+
+		// Both real-plugin and linked-plugin should be discovered.
+		assert.Len(t, plugins, 2, "expected 2 plugins: one real, one via symlink")
+
+		names := make(map[string]bool)
+		for _, p := range plugins {
+			names[p.Name] = true
+		}
+		assert.True(t, names["real-plugin"], "real-plugin must be discovered")
+		assert.True(t, names["linked-plugin"], "linked-plugin (via symlink) must be discovered")
+	})
+
+	t.Run("symlink at version level is discovered", func(t *testing.T) {
+		root := t.TempDir()
+
+		// Create a real version directory with a binary.
+		realVersionDir := filepath.Join(root, "myplugin", "v1.0.0")
+		require.NoError(t, os.MkdirAll(realVersionDir, 0755))
+		binPath := filepath.Join(realVersionDir, "myplugin")
+		require.NoError(t, os.WriteFile(binPath, []byte("#!/bin/sh\necho test"), 0755))
+
+		// Create a symlink at the version level.
+		// <root>/myplugin/v2.0.0 -> <root>/myplugin/v1.0.0
+		linkTarget := filepath.Join(root, "myplugin", "v1.0.0")
+		linkName := filepath.Join(root, "myplugin", "v2.0.0")
+		require.NoError(t, os.Symlink(linkTarget, linkName))
+
+		reg := &Registry{root: root, launcher: pluginhost.NewProcessLauncher()}
+		plugins, err := reg.ListPlugins()
+		require.NoError(t, err)
+
+		// Both v1.0.0 and v2.0.0 should be discovered.
+		assert.Len(t, plugins, 2, "expected 2 plugin versions: real v1.0.0 and symlinked v2.0.0")
+
+		versions := make(map[string]bool)
+		for _, p := range plugins {
+			versions[p.Version] = true
+		}
+		assert.True(t, versions["v1.0.0"], "v1.0.0 must be discovered")
+		assert.True(t, versions["v2.0.0"], "v2.0.0 (via symlink) must be discovered")
+	})
+}
+
 func createPluginVersion(rootDir, name, version string) error {
 	pluginDir := filepath.Join(rootDir, name, version)
 	if err := os.MkdirAll(pluginDir, 0755); err != nil {
@@ -807,20 +871,13 @@ func verifyRegistryOpenResult(
 	wantErr bool,
 	wantClients int,
 ) {
-	if cleanup != nil {
-		defer cleanup()
+	t.Helper()
+	if wantErr {
+		require.Error(t, err)
+	} else {
+		require.NoError(t, err)
 	}
-	if wantErr && err == nil {
-		t.Error("expected error but got none")
-		return
-	}
-	if !wantErr && err != nil {
-		t.Errorf("unexpected error: %v", err)
-		return
-	}
-	if len(clients) != wantClients {
-		t.Errorf("expected %d clients, got %d", wantClients, len(clients))
-	}
+	assert.Len(t, clients, wantClients)
 	if cleanup != nil {
 		cleanup() // Should not panic
 	}

@@ -35,13 +35,13 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#721](https://github.com/rshade/finfocus/issues/721))
   - [ ] Verify defensive copy independence in `DataReadyMsg` handler
         ([#722](https://github.com/rshade/finfocus/issues/722))
-  - [ ] Fix classifyError to handle context.Canceled and context.DeadlineExceeded
-        ([#726](https://github.com/rshade/finfocus/issues/726))
-  - [ ] Splash screen — figlet banner, phase checklist, passphrase prompt
-        ([#728](https://github.com/rshade/finfocus/issues/728))
+  - [ ] `detectErr` unconditionally overrides `--yes` flag for `isStateOnly` in overview
+        ([#762](https://github.com/rshade/finfocus/issues/762))
+  - [ ] False-positive drift for resources created mid-month in overview
+        ([#760](https://github.com/rshade/finfocus/issues/760))
   - [ ] Display budget status and health in overview command
         ([#744](https://github.com/rshade/finfocus/issues/744))
-  - [ ] Add cost caching to speed up overview enrichment
+  - [ ] Add cost caching to speed up enrichment in overview
         ([#745](https://github.com/rshade/finfocus/issues/745))
 - [ ] **Overview Performance Pipeline**
   - [ ] Parallelize plugin opening in `Registry.Open()`
@@ -67,11 +67,42 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#683](https://github.com/rshade/finfocus/issues/683))
   - [ ] Clean up duplicate doc comments and extract placeholder helper
         ([#684](https://github.com/rshade/finfocus/issues/684))
-  - [ ] Implement GetPricingSpec and EstimateCost in recorder plugin
+- [ ] **Analyzer Quality Fixes** *(post-install UX cluster)*
+  - [ ] AnalyzeStack stack summary always shows $0.00 (0 resources analyzed)
+        ([#746](https://github.com/rshade/finfocus/issues/746))
+  - [ ] Recorder plugin returns nil summary on `GetRecommendations`, flooding diagnostics
+        ([#747](https://github.com/rshade/finfocus/issues/747))
+  - [ ] Analyzer JSON logs appear in `pulumi preview` Diagnostics section
+        ([#748](https://github.com/rshade/finfocus/issues/748))
+  - [ ] Analyzer install creates double-v version directory (`analyzer-finfocus-vv...`)
+        ([#749](https://github.com/rshade/finfocus/issues/749))
+  - [ ] Registry `ListPlugins` silently skips directory-level symlinks
+        ([#750](https://github.com/rshade/finfocus/issues/750))
+  - [ ] `AnalyzerPlugin.Enabled` config field is dead code — never read
+        ([#751](https://github.com/rshade/finfocus/issues/751))
+  - [ ] `FINFOCUS_PLUGIN_DIR` env var documented but not implemented
+        ([#752](https://github.com/rshade/finfocus/issues/752))
+  - [ ] `plugins.dir` config key documented but excluded from YAML parsing
+        ([#753](https://github.com/rshade/finfocus/issues/753))
+  - [ ] `--force` reinstall does not sync policy pack binary, leaving it stale
+        ([#754](https://github.com/rshade/finfocus/issues/754))
+  - [ ] `analyzer install` should setup policy pack directory for `--policy-pack` workflow
+        ([#755](https://github.com/rshade/finfocus/issues/755))
+  - [ ] `analyzer install` should print PATH setup instructions post-install
+        ([#756](https://github.com/rshade/finfocus/issues/756))
+  - [ ] Add `finfocus analyzer check` command for setup verification
+        ([#757](https://github.com/rshade/finfocus/issues/757))
+  - [ ] Fix analyzer-setup.md — PATH requirement and Pulumi.yaml analyzer configuration
+        ([#758](https://github.com/rshade/finfocus/issues/758))
+- [ ] **Engine & Recorder Fixes**
+  - [ ] `classifyError` should handle `context.Canceled` and `context.DeadlineExceeded`
+        ([#726](https://github.com/rshade/finfocus/issues/726))
+  - [ ] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
         ([#734](https://github.com/rshade/finfocus/issues/734))
+- [ ] **Test Infrastructure Fixes**
   - [ ] Fix always-skipped integration tests
         ([#737](https://github.com/rshade/finfocus/issues/737))
-  - [ ] Fix cli_helper global log suppression masking plugin errors
+  - [ ] cli_helper global log suppression masks plugin errors in integration tests
         ([#743](https://github.com/rshade/finfocus/issues/743))
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
@@ -255,11 +286,25 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 ### 2026-Q1
 
-- [x] **v0.3.2 Preview: Performance & TUI Fixes** *(Completed 2026-02-20)*
-  - [x] Use lipgloss styles in `renderInitializingView` for consistency
-        ([#719](https://github.com/rshade/finfocus/issues/719))
+- [x] **Post-v0.3.1 Fixes** *(Completed 2026-02-21)*
+  - [x] feat(tui): splash screen — figlet banner, phase checklist, passphrase prompt
+        ([#728](https://github.com/rshade/finfocus/issues/728))
   - [x] Parallelize per-row enrichment sub-calls
         ([#694](https://github.com/rshade/finfocus/issues/694))
+  - [x] Use lipgloss styles in `renderInitializingView` for consistency
+        ([#719](https://github.com/rshade/finfocus/issues/719))
+  - [x] fix: applyPassphraseEnv uses process-wide `os.Setenv` (not concurrency-safe)
+        ([#761](https://github.com/rshade/finfocus/issues/761))
+  - [x] fix: replace hardcoded "730h/mo" footnote with `engine.HoursPerMonth` constant
+        ([#763](https://github.com/rshade/finfocus/issues/763))
+  - [x] fix: TestDetectChanges\_StatErrorSkipsFile fails on Windows (no symlink privilege guard)
+        ([#764](https://github.com/rshade/finfocus/issues/764))
+  - [x] fix: missing `.Ctx(ctx)` on log calls in changedetect.go loses trace\_id propagation
+        ([#765](https://github.com/rshade/finfocus/issues/765))
+  - [x] fix: "Recs" table column width too narrow for N(-M) dismissed format
+        ([#766](https://github.com/rshade/finfocus/issues/766))
+  - [x] Docs: Document that routing config does not apply in analyzer/policy-pack mode
+        ([#759](https://github.com/rshade/finfocus/issues/759))
 - [x] **v0.3.1: Overview Performance & Docs Audit** *(Released 2026-02-18)*
   - [x] Add timing instrumentation to overview command
         ([#695](https://github.com/rshade/finfocus/issues/695))

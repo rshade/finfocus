@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -1298,4 +1299,67 @@ func TestServer_AnalyzeStack_SummaryWithRecommendations(t *testing.T) {
 
 	summary := resp.GetDiagnostics()[0]
 	assert.Contains(t, summary.GetMessage(), "1 recommendations with $20.00/mo potential savings")
+}
+
+// TestAnalyzeStack_CostAccumulation verifies that costs accumulated during Analyze()
+// calls are preserved through a ConfigureStack() call and correctly reported by
+// AnalyzeStack(). This is the TDD test for the clearCostCache() lifecycle fix.
+//
+// Bug scenario: Pulumi may call ConfigureStack() AFTER Analyze() calls have already
+// populated the cache. The old code cleared the cache in ConfigureStack(), wiping all
+// accumulated costs before AnalyzeStack() could read them.
+func TestAnalyzeStack_CostAccumulation(t *testing.T) {
+	const numResources = 3
+	const costPerResource = 10.0
+
+	// Set up mock calculator with known costs
+	results := make([]engine.CostResult, numResources)
+	analyzeRequests := make([]*pulumirpc.AnalyzeRequest, numResources)
+	for i := range numResources {
+		id := fmt.Sprintf("resource-%d", i)
+		results[i] = engine.CostResult{
+			ResourceType: "aws:ec2/instance:Instance",
+			ResourceID:   id,
+			Currency:     "USD",
+			Monthly:      costPerResource,
+		}
+		analyzeRequests[i] = &pulumirpc.AnalyzeRequest{
+			Type: "aws:ec2/instance:Instance",
+			Urn:  "urn:pulumi:dev::myapp::aws:ec2/instance:Instance::" + id,
+		}
+	}
+
+	calc := &mockCostCalculator{results: results}
+	server := NewServer(calc, "1.0.0")
+
+	// Step 1: Call Analyze N times (simulating Pulumi resource analysis)
+	for _, req := range analyzeRequests {
+		_, err := server.Analyze(context.Background(), req)
+		require.NoError(t, err)
+	}
+
+	// Step 2: Call ConfigureStack (Pulumi may call this after Analyze in practice)
+	// With the old code, this clears the cache — wiping accumulated costs.
+	// With the fix, ConfigureStack no longer clears the cache.
+	configReq := &pulumirpc.AnalyzerStackConfigureRequest{
+		Stack:   "dev",
+		Project: "myapp",
+	}
+	_, err := server.ConfigureStack(context.Background(), configReq)
+	require.NoError(t, err)
+
+	// Step 3: Call AnalyzeStack — must see accumulated costs from Analyze() calls
+	stackReq := &pulumirpc.AnalyzeStackRequest{}
+	resp, err := server.AnalyzeStack(context.Background(), stackReq)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.NotEmpty(t, resp.GetDiagnostics())
+
+	// Step 4: Assert the summary reflects all N resources and non-zero total cost
+	summaryMsg := resp.GetDiagnostics()[0].GetMessage()
+	assert.Contains(t, summaryMsg, fmt.Sprintf("%d resources analyzed", numResources),
+		"AnalyzeStack summary must count all resources accumulated via Analyze()")
+	expectedTotal := float64(numResources) * costPerResource
+	assert.Contains(t, summaryMsg, fmt.Sprintf("$%.2f USD", expectedTotal),
+		"AnalyzeStack summary must sum costs accumulated via Analyze()")
 }

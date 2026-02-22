@@ -10,15 +10,22 @@ costs, projected costs, drift analysis, and recommendations.
 ## Usage
 
 ```bash
-finfocus overview --pulumi-state <file> [options]
+finfocus overview [options]
 ```
+
+All flags are optional. When `--pulumi-state` and `--pulumi-json` are omitted,
+the command auto-detects your Pulumi project and stack from the current directory.
+
+> **Tip:** Running `finfocus` with no arguments inside a Pulumi project directory
+> automatically launches the overview — no subcommand needed.
 
 ## Options
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--pulumi-state` | Path to Pulumi state JSON (required) | - |
-| `--pulumi-json` | Path to Pulumi preview JSON | - |
+| `--pulumi-state` | Path to Pulumi state JSON (skips auto-detection) | Auto-detected |
+| `--pulumi-json` | Path to Pulumi preview JSON (skips auto-detection) | Auto-detected |
+| `--stack` | Pulumi stack name for auto-detection (ignored with `--pulumi-state`/`--pulumi-json`) | Current stack |
 | `--from` | Start date (YYYY-MM-DD or RFC3339) | 1st of current month |
 | `--to` | End date (YYYY-MM-DD or RFC3339) | Now |
 | `--adapter` | Restrict to a specific adapter plugin | All plugins |
@@ -28,16 +35,48 @@ finfocus overview --pulumi-state <file> [options]
 | `--yes`, `-y` | Skip confirmation prompts | false |
 | `--no-pagination` | Disable pagination (plain mode only) | false |
 
+## Auto-Detection
+
+When no `--pulumi-state` or `--pulumi-json` flags are provided, `finfocus overview`
+locates your Pulumi project automatically:
+
+1. Walks up from the current directory to find `Pulumi.yaml`.
+2. Runs `pulumi stack export` to fetch the current state JSON.
+3. Runs `pulumi preview --json` to fetch the pending-change plan.
+4. Uses `--stack` to select a non-default stack (e.g., `--stack production`).
+
+Use `--pulumi-state` / `--pulumi-json` to skip these Pulumi CLI calls and provide
+pre-exported files directly — useful in CI/CD when you manage the export step yourself.
+
 ## Examples
 
-### Interactive dashboard (default)
+### Auto-detect from current directory (recommended)
 
 ```bash
-finfocus overview --pulumi-state state.json
+finfocus overview
+```
+
+Walks up from the current directory to find `Pulumi.yaml`, exports the current
+stack state, and runs `pulumi preview` automatically. Opens an interactive TUI
+with progressive data loading.
+
+### Specific stack with auto-detection
+
+```bash
+finfocus overview --stack production
+```
+
+Same as above but selects the `production` stack instead of the current default.
+
+### Pre-exported files (CI/CD or offline)
+
+```bash
+finfocus overview --pulumi-state state.json --pulumi-json plan.json
 ```
 
 Opens an interactive TUI with progressive data loading. Resources appear as
-they are enriched with cost data.
+they are enriched with cost data. Use this when you manage the `pulumi stack export`
+and `pulumi preview --json` steps yourself.
 
 ### With pending changes from plan
 
@@ -125,11 +164,28 @@ Press Enter on a resource to see a detailed breakdown including:
 
 ### Table (default)
 
-ASCII table with columns: Resource, Type, Status, Actual(MTD), Projected,
-Delta, Drift%, Recs.
+ASCII table with the following columns:
 
-Status icons: check mark (active), + (creating), ~ (updating), - (deleting),
-clockwise arrow (replacing).
+| Column | Description |
+|--------|-------------|
+| `Resource` | Resource name truncated to 40 characters; full URN shown in detail view |
+| `Type` | Pulumi resource type (e.g., `aws:ec2/instance:Instance`) |
+| `Status` | Lifecycle state with an icon prefix (see below) |
+| `Actual(MTD)` | Month-to-date actual spend fetched from your cost adapter plugin |
+| `Projected` | Estimated monthly cost from your pricing plugin |
+| `Delta` | Projected minus Actual(MTD) — positive means projected exceeds actual |
+| `Drift%` | Annualized deviation: how much the extrapolated monthly spend differs from projected |
+| `Recs` | Number of open optimization recommendations (`N(-M)` format where M = dismissed) |
+
+**Status icons:**
+
+| Icon | Status | Meaning |
+|------|--------|---------|
+| ✓ | `active` | Resource exists and is running |
+| `+` | `creating` | Resource will be created by the pending plan |
+| `~` | `updating` | Resource will be updated by the pending plan |
+| `-` | `deleting` | Resource will be deleted by the pending plan |
+| `↻` | `replacing` | Resource will be deleted and re-created |
 
 ### JSON
 
