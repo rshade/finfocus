@@ -356,6 +356,7 @@ func TestOverviewPlainText_CacheHitReturnsProjectedCost(t *testing.T) {
 			"expected plugin error, got: %v", err)
 		_, statErr := os.Stat(filepath.Join(cacheDir, "cache.db"))
 		assert.NoError(t, statErr, "cache.db should exist (engine opened it)")
+		t.Log("plugins unavailable — cache-hit path not verified")
 		return
 	}
 

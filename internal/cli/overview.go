@@ -910,12 +910,17 @@ func overviewInitAndEnrich(
 		p.Send(tui.OverviewInitErrorMsg{Err: pluginErr})
 		return
 	}
-	cleanupChan <- cleanup
-
 	// Phase 5: Create engine (with cache support).
 	p.Send(tui.OverviewPhaseMsg{Index: phasePrepareEngine, Phase: "Preparing cost engine..."})
 	eng, cacheCleanup := newEngineWithCache(enrichCtx, cmd, clients, nil)
-	defer cacheCleanup()
+
+	// Send a combined cleanup to the main goroutine via cleanupChan so both
+	// plugin and cache cleanups are guaranteed to run even if this goroutine
+	// is still mid-flight when the TUI exits and the program terminates.
+	cleanupChan <- func() {
+		cacheCleanup()
+		cleanup()
+	}
 
 	// Build the on-demand preview command (only used in state-only mode).
 	var previewCmd tea.Cmd
