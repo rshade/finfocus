@@ -384,7 +384,20 @@ type OverviewJSONOutput struct {
 // RenderOverviewAsJSON renders the overview rows as a structured JSON object
 // with metadata, resource array, summary, optional budgets, and errors.
 // budgetResult may be nil; when non-nil its budgets are converted to
-// BudgetHealthResult entries and included in the output.
+// RenderOverviewAsJSON builds a JSON representation of the provided overview rows and writes it to w.
+// It produces an object containing metadata, resources, a summary of totals, optional budget health results, and any row errors.
+//
+// RenderOverviewAsJSON ensures the Resources and Errors fields serialize as empty arrays when there are no entries,
+// and it sets GeneratedAt on stackCtx to the current time when it is zero. If a non-nil budgetResult with budgets
+// is provided, those budgets are converted into BudgetHealthResult entries and included in the output.
+//
+// Parameters:
+//   - w: destination writer for the JSON output.
+//   - rows: slice of OverviewRow to include as resources; may be nil (will serialize as an empty array).
+//   - stackCtx: stack context and metadata used in the output; GeneratedAt will be populated with the current time if zero.
+//   - budgetResult: optional budget data; when non-nil and non-empty, converted budgets are included in the `budgets` field.
+//
+// Returns an error if aggregating totals fails or if encoding/writing the JSON output fails.
 func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext, budgetResult *BudgetResult) error {
 	t, err := aggregateOverviewRows(rows)
 	if err != nil {

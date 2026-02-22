@@ -64,7 +64,8 @@ type BudgetHealthResult struct {
 }
 
 // healthStatusLabel converts a BudgetHealthStatus enum to its short label
-// for JSON serialization (OK, WARNING, CRITICAL, EXCEEDED).
+// healthStatusLabel returns the short string label used in JSON for the given BudgetHealthStatus.
+// Labels produced are "OK", "WARNING", "CRITICAL", "EXCEEDED", and "UNKNOWN" for unspecified or unrecognized values.
 func healthStatusLabel(h pbc.BudgetHealthStatus) string {
 	switch h {
 	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
@@ -82,7 +83,7 @@ func healthStatusLabel(h pbc.BudgetHealthStatus) string {
 	}
 }
 
-// parseHealthStatusLabel parses a short label back to a BudgetHealthStatus enum.
+// parseHealthStatusLabel converts a short health label ("OK", "WARNING", "CRITICAL", "EXCEEDED") to the corresponding pbc.BudgetHealthStatus. It returns BUDGET_HEALTH_STATUS_UNSPECIFIED for any unrecognized label.
 func parseHealthStatusLabel(s string) pbc.BudgetHealthStatus {
 	switch s {
 	case "OK":

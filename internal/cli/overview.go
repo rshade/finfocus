@@ -48,7 +48,14 @@ type overviewParams struct {
 
 // NewOverviewCmd creates the "overview" command that provides a unified
 // cost dashboard combining state, plan, actual costs, projected costs,
-// drift, and recommendations.
+// NewOverviewCmd constructs the "overview" Cobra command used to display a unified stack cost dashboard.
+//
+// The command combines Pulumi state and preview data with cost information, drift analysis, and recommendations.
+// It supports auto-detection of the Pulumi project/stack when no explicit files are provided, or explicit
+// --pulumi-state / --pulumi-json inputs. The command is configured with aliases ("ov"), examples, long help
+// text, and flags for date range, adapter, output format, resource filtering, interactive/plain mode, pagination,
+// confirmation behavior, and budget controls (exit-on-threshold, exit-code, budget-scope). The command's
+// execution is delegated to executeOverview.
 func NewOverviewCmd() *cobra.Command {
 	var params overviewParams
 
@@ -115,7 +122,20 @@ instead of running Pulumi CLI commands.`,
 // cmd is the Cobra command being executed; params contains the overview command flags
 // and options. The function returns an error if any step of the pipeline fails.
 //
-//nolint:funlen // Pipeline orchestrator with per-phase timing instrumentation.
+// executeOverview orchestrates the CLI "overview" command workflow and produces the requested output.
+//
+// executeOverview will either launch the interactive TUI or run the non-interactive (plain) pipeline:
+// it validates date range inputs, loads Pulumi state and optionally a preview plan, detects pending
+// changes, merges state and plan into overview rows, applies user filters and dismissal records,
+// enriches rows with cost/usage metadata, renders output in the requested format, and evaluates
+// budgets when configured.
+//
+// cmd is the Cobra command being executed and provides the command context and I/O streams.
+// params contains the parsed CLI options that control data sources, output format, filtering,
+// interactive behavior, and budget-related flags.
+//
+// The function returns an error when validation, data loading, resource merging, enrichment,
+// rendering, or budget evaluation fails.
 func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	totalStart := time.Now()
 	ctx := cmd.Context()
@@ -673,7 +693,9 @@ func matchesOverviewFilters(row engine.OverviewRow, filters []string) bool {
 	return true
 }
 
-// splitFilter splits a "key=value" filter string.
+// splitFilter splits a "key=value" filter string into its key and value.
+// If '=' is present it returns a two-element slice [key, value]; otherwise
+// it returns a single-element slice containing the original string.
 func splitFilter(filter string) []string {
 	left, right, found := strings.Cut(filter, "=")
 	if found {
@@ -683,7 +705,16 @@ func splitFilter(filter string) []string {
 }
 
 // renderOverviewOutput dispatches to the correct renderer based on the output format.
-// budgetResult is optional and only used for JSON output (included as top-level budgets array).
+// renderOverviewOutput renders the provided overview rows using the specified output format to the command's stdout.
+// Supported formats are "table", "json", and "ndjson". When format is "json", the optional budgetResult is included
+// in the top-level budgets array if non-nil.
+// Parameters:
+//   - cmd: used to obtain the output writer (cmd.OutOrStdout()).
+//   - outputFormat: one of "table", "json", or "ndjson" selecting the renderer.
+//   - rows: the overview rows to render.
+//   - stackCtx: contextual metadata about the stack to include in rendered output.
+//   - budgetResult: optional budget data included only for JSON output.
+// Returns an error if rendering fails or if the outputFormat is unsupported.
 func renderOverviewOutput(
 	cmd *cobra.Command,
 	outputFormat string,
@@ -846,7 +877,32 @@ func resolveIsStateOnly(params overviewParams, signal pulumidetect.ChangeSignal,
 // overviewInitAndEnrich performs data loading and enrichment in a background
 // goroutine, sending phase progress and data messages to the Bubble Tea program.
 //
-//nolint:funlen // Two-phase loading path with change detection and conditional preview.
+// overviewInitAndEnrich orchestrates background loading and enrichment of overview data for the TUI.
+// It performs the two-phase flow used by the interactive overview: it detects whether a Pulumi
+// passphrase is required, loads stack state, performs lightweight change detection, optionally
+// loads a preview (plan) and merges state+plan into overview rows, applies user filters, starts
+// cost plugins and an engine, and then streams enrichment progress and results back to the TUI.
+//
+// On success it sends tui.OverviewDataReadyMsg (and, when in state-only mode, tui.OverviewSetStateOnlyMsg)
+// to the provided Bubble Tea program and begins enrichment progress via bridgeEnrichmentToTUI.
+// Concurrently it initiates a non-blocking budget fetch and sends tui.BudgetDataReadyMsg when done.
+// On unrecoverable errors during initialization it sends tui.OverviewInitErrorMsg and returns.
+//
+// Parameters:
+//   - enrichCtx: context for all background work and cancellation.
+//   - cmd: the Cobra command (used for configuration/flags when constructing the engine).
+//   - p: Bubble Tea program used to send TUI messages.
+//   - params: CLI parameters controlling loading behavior (flags, paths, adapter, filters).
+//   - dateRange: date range used for cost enrichment.
+//   - audit: audit context used for plugin/engine initialization and logging.
+//   - cleanupChan: channel to which a combined cleanup function is sent; the receiver must execute it
+//     when the TUI/command exits to release plugins and cache resources.
+//   - rowCount: atomic counter that is set to the number of rows produced after filtering.
+//   - passphraseChan: channel used to receive a Pulumi passphrase if encryption is detected.
+//
+// Note: overviewInitAndEnrich reports initialization and enrichment progress exclusively via Bubble
+// Tea messages; it does not return errors directly. The combined cleanup function sent on cleanupChan
+// must be invoked to ensure plugins and cache are properly cleaned up.
 func overviewInitAndEnrich(
 	enrichCtx context.Context,
 	cmd *cobra.Command,
@@ -1253,7 +1309,7 @@ func loadDismissalRecordsForOverview(ctx context.Context) map[string]*config.Dis
 // applyDismissalDeltaToRows loads the dismissal store and appends dismissed/snoozed
 // recommendation stubs to each row's Recommendations slice. This enables the count
 // badge to show "N(-M)" when M recs are dismissed without listing them in full.
-// Errors are non-fatal: if the store cannot be loaded, rows are returned unchanged.
+// The function is non-fatal and will silently proceed without modifications when dismissal data is unavailable.
 func applyDismissalDeltaToRows(ctx context.Context, rows []engine.OverviewRow) []engine.OverviewRow {
 	records := loadDismissalRecordsForOverview(ctx)
 	if len(records) == 0 {
@@ -1268,7 +1324,11 @@ func applyDismissalDeltaToRows(ctx context.Context, rows []engine.OverviewRow) [
 
 // applyOverviewBudgetFlags applies budget-related CLI flag overrides to the
 // global config, matching the pattern used by newCostCmd's PersistentPreRunE.
-// This ensures evaluateBudgetStatus uses the flag values from the overview command.
+// applyOverviewBudgetFlags applies CLI budget-related flags from the overview command
+// into the global configuration so subsequent budget evaluation uses the command-specified
+// overrides. It ensures the global Budgets and ScopedBudget structures exist, and sets
+// Global.ExitOnThreshold and Global.ExitCode when the corresponding flags were provided.
+// If the global configuration is nil the function is a no-op.
 func applyOverviewBudgetFlags(cmd *cobra.Command, params overviewParams) {
 	cfg := config.GetGlobalConfig()
 	if cfg == nil {
@@ -1293,7 +1353,10 @@ func applyOverviewBudgetFlags(cmd *cobra.Command, params overviewParams) {
 // overviewRowsToBudgetInputs converts enriched OverviewRows to the
 // []engine.CostResult and totalCost that evaluateBudgetStatus expects.
 // It extracts projected cost data from each row, summing MonthlyCost
-// and populating Currency for currency extraction.
+// overviewRowsToBudgetInputs converts a slice of OverviewRow into budget input values.
+// It returns a slice of CostResult entries and the aggregated total projected monthly cost.
+// Rows with a nil ProjectedCost are skipped; each CostResult contains the resource type,
+// resource URN, currency, and the projected monthly cost.
 func overviewRowsToBudgetInputs(rows []engine.OverviewRow) ([]engine.CostResult, float64) {
 	var costResults []engine.CostResult
 	var totalCost float64

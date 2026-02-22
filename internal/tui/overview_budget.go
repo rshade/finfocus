@@ -11,7 +11,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 )
 
-// healthBadgeLabel returns the human-readable label for a budget health status.
+// healthBadgeLabel maps a BudgetHealthStatus to its human-readable label such as "OK", "WARNING", "CRITICAL", "EXCEEDED", or "UNKNOWN".
 func healthBadgeLabel(health pbc.BudgetHealthStatus) string {
 	switch health {
 	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
@@ -50,7 +50,9 @@ func healthBadgeStyle(health pbc.BudgetHealthStatus) lipgloss.Style {
 // It displays a color-coded health badge with aggregated spend/limit
 // information when budget data is available.
 //
-// Returns empty string when budgets are not loaded or no budgets exist.
+// renderBudgetFooter renders the footer for the budget list view, showing a colored health badge and, when possible, an aggregated spend/limit with utilization percentage.
+//
+// If budgets are not loaded, budgetResult is nil, or no budgets exist, it returns an empty string. If multiple currencies are present it returns only the badge prefixed with "Budget: ". When budgets share a single currency it sums current spend and limits across budgets (skipping budgets with nil amount/status or with limit <= 0); if the aggregated limit is <= 0 it returns only the badge. Otherwise it returns a string of the form `Budget: <badge> <spent> / <limit> (X%)` where the amounts are formatted for overview display and the percentage is totalSpend/totalLimit rounded to the nearest integer.
 func renderBudgetFooter(m OverviewModel) string {
 	if !m.budgetLoaded || m.budgetResult == nil || len(m.budgetResult.Budgets) == 0 {
 		return ""
@@ -107,7 +109,12 @@ func renderBudgetFooter(m OverviewModel) string {
 // view. It shows per-budget breakdown with name, limit, current spend,
 // forecasted spend, utilization percentage, health badge, and triggered alerts.
 //
-// Returns empty string when budget data is not loaded or no budgets exist.
+// renderDetailBudgetStatus renders the "BUDGET STATUS" section for the detail view.
+// If budget data is not loaded, unavailable, or contains no budgets, it returns an empty string.
+// For each budget it appends a health badge, the budget name (or ID if name is empty), limit,
+// current spend, an optional forecasted spend (only when > 0), utilization percentage, and any
+// triggered threshold alerts. Currency values are formatted for the overview display. The
+// returned string contains the assembled lines including the section header and spacing.
 func renderDetailBudgetStatus(m OverviewModel) string {
 	if !m.budgetLoaded || m.budgetResult == nil || len(m.budgetResult.Budgets) == 0 {
 		return ""
