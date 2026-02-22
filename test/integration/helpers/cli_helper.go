@@ -28,9 +28,11 @@ type CLIHelper struct {
 func NewCLIHelper(t *testing.T) *CLIHelper {
 	t.Helper()
 
-	// Set zerolog global level to disabled to suppress all logging during tests.
-	// This prevents JSON parsing errors from log output mixing with command output.
-	zerolog.SetGlobalLevel(zerolog.Disabled)
+	// Set zerolog global level to WarnLevel to preserve WARN/ERROR visibility
+	// while suppressing INFO/DEBUG noise. This ensures plugin communication errors
+	// are not silently masked during tests. The filterLogLines function handles
+	// any log output that leaks into stdout.
+	zerolog.SetGlobalLevel(zerolog.WarnLevel)
 
 	// Restore global level after test completes
 	t.Cleanup(func() {

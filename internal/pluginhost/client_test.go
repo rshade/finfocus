@@ -101,117 +101,118 @@ func setupMockServer(_ *testing.T, srv *mockCostSourceServer) (*grpcMockLauncher
 	}
 }
 
-func TestGetPluginInfo_Success(t *testing.T) {
-	// Setup mock server returning valid info
-	srv := &mockCostSourceServer{
-		name: "test-plugin",
-		pluginInfo: &pbc.GetPluginInfoResponse{
-			Version:     "1.0.0",
-			SpecVersion: "0.4.14",
+func TestGetPluginInfo(t *testing.T) {
+	tests := []struct {
+		name          string
+		srv           *mockCostSourceServer
+		strictMode    *bool // nil = don't set env var
+		wantErr       bool
+		wantErrIs     error
+		wantName      string
+		wantNilClient bool
+		wantVersion   string
+		wantNilMeta   bool
+	}{
+		{
+			name: "success",
+			srv: &mockCostSourceServer{
+				name: "test-plugin",
+				pluginInfo: &pbc.GetPluginInfoResponse{
+					Version:     "1.0.0",
+					SpecVersion: "0.4.14",
+				},
+			},
+			wantName:    "test-plugin",
+			wantVersion: "1.0.0",
+		},
+		{
+			name: "unimplemented_graceful_degradation",
+			srv: &mockCostSourceServer{
+				name:          "legacy-plugin",
+				pluginInfoErr: status.Error(codes.Unimplemented, "method not implemented"),
+			},
+			wantName: "legacy-plugin",
+		},
+		{
+			name: "timeout_returns_nil_metadata",
+			srv: &mockCostSourceServer{
+				name:           "slow-plugin",
+				pluginInfoWait: 6 * time.Second,
+				pluginInfo:     &pbc.GetPluginInfoResponse{Version: "1.0.0"},
+			},
+			wantName:    "slow-plugin",
+			wantNilMeta: true,
+		},
+		{
+			name: "strict_mode_blocks_incompatible",
+			srv: &mockCostSourceServer{
+				name: "incompatible-plugin",
+				pluginInfo: &pbc.GetPluginInfoResponse{
+					Version:     "1.0.0",
+					SpecVersion: "99.0.0",
+				},
+			},
+			strictMode:    boolPtr(true),
+			wantErr:       true,
+			wantErrIs:     pluginhost.ErrPluginIncompatible,
+			wantNilClient: true,
+		},
+		{
+			name: "permissive_mode_allows_incompatible",
+			srv: &mockCostSourceServer{
+				name: "incompatible-plugin",
+				pluginInfo: &pbc.GetPluginInfoResponse{
+					Version:     "1.0.0",
+					SpecVersion: "99.0.0",
+				},
+			},
+			strictMode: boolPtr(false),
+			wantName:   "incompatible-plugin",
 		},
 	}
-	launcher, cleanup := setupMockServer(t, srv)
-	defer cleanup()
 
-	// Call NewClient (which triggers GetPluginInfo)
-	ctx := context.Background()
-	client, err := pluginhost.NewClient(ctx, launcher, "dummy")
-	require.NoError(t, err)
-	defer client.Close()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.strictMode != nil {
+				if *tt.strictMode {
+					t.Setenv("FINFOCUS_STRICT_COMPATIBILITY", "true")
+				} else {
+					t.Setenv("FINFOCUS_STRICT_COMPATIBILITY", "false")
+				}
+			}
 
-	// Verify client has stored metadata
-	assert.Equal(t, "test-plugin", client.Name)
-	assert.Equal(t, "1.0.0", client.Metadata.Version)
-}
+			launcher, cleanup := setupMockServer(t, tt.srv)
+			defer cleanup()
 
-func TestGetPluginInfo_Unimplemented(t *testing.T) {
-	// Setup mock server returning Unimplemented for GetPluginInfo
-	srv := &mockCostSourceServer{
-		name:          "legacy-plugin",
-		pluginInfoErr: status.Error(codes.Unimplemented, "method not implemented"),
+			ctx := context.Background()
+			client, err := pluginhost.NewClient(ctx, launcher, "dummy")
+
+			if tt.wantErr {
+				require.Error(t, err)
+				if tt.wantErrIs != nil {
+					assert.ErrorIs(t, err, tt.wantErrIs)
+				}
+				assert.Nil(t, client)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotNil(t, client)
+			defer client.Close()
+
+			assert.Equal(t, tt.wantName, client.Name)
+
+			if tt.wantNilMeta {
+				assert.Nil(t, client.Metadata)
+			} else if tt.wantVersion != "" {
+				require.NotNil(t, client.Metadata)
+				assert.Equal(t, tt.wantVersion, client.Metadata.Version)
+			}
+		})
 	}
-	launcher, cleanup := setupMockServer(t, srv)
-	defer cleanup()
-
-	ctx := context.Background()
-	client, err := pluginhost.NewClient(ctx, launcher, "dummy")
-
-	// Should NOT fail, but log warning (impl detail)
-	require.NoError(t, err)
-	defer client.Close()
-	assert.Equal(t, "legacy-plugin", client.Name)
 }
 
-func TestGetPluginInfo_Timeout(t *testing.T) {
-	// Setup mock server that sleeps longer than timeout
-	srv := &mockCostSourceServer{
-		name:           "slow-plugin",
-		pluginInfoWait: 6 * time.Second, // Timeout is 5s
-		pluginInfo: &pbc.GetPluginInfoResponse{
-			Version: "1.0.0",
-		},
-	}
-	launcher, cleanup := setupMockServer(t, srv)
-	defer cleanup()
-
-	ctx := context.Background()
-	// On timeout, NewClient logs a warning and returns client with nil Metadata
-	client, err := pluginhost.NewClient(ctx, launcher, "dummy")
-	require.NoError(t, err)
-	require.NotNil(t, client)
-	defer client.Close()
-	assert.Equal(t, "slow-plugin", client.Name)
-	assert.Nil(t, client.Metadata)
-}
-
-func TestGetPluginInfo_StrictMode_BlocksIncompatible(t *testing.T) {
-	// Enable strict compatibility mode
-	t.Setenv("FINFOCUS_STRICT_COMPATIBILITY", "true")
-
-	// Setup mock server returning incompatible major version
-	srv := &mockCostSourceServer{
-		name: "incompatible-plugin",
-		pluginInfo: &pbc.GetPluginInfoResponse{
-			Version:     "1.0.0",
-			SpecVersion: "99.0.0", // Major version mismatch
-		},
-	}
-	launcher, cleanup := setupMockServer(t, srv)
-	defer cleanup()
-
-	ctx := context.Background()
-	client, err := pluginhost.NewClient(ctx, launcher, "dummy")
-
-	// In strict mode, incompatible plugins should fail to load
-	require.Error(t, err)
-	assert.ErrorIs(t, err, pluginhost.ErrPluginIncompatible)
-	assert.Nil(t, client)
-}
-
-func TestGetPluginInfo_PermissiveMode_AllowsIncompatible(t *testing.T) {
-	// Ensure strict mode is OFF (default)
-	t.Setenv("FINFOCUS_STRICT_COMPATIBILITY", "false")
-
-	// Setup mock server returning incompatible major version
-	srv := &mockCostSourceServer{
-		name: "incompatible-plugin",
-		pluginInfo: &pbc.GetPluginInfoResponse{
-			Version:     "1.0.0",
-			SpecVersion: "99.0.0", // Major version mismatch
-		},
-	}
-	launcher, cleanup := setupMockServer(t, srv)
-	defer cleanup()
-
-	ctx := context.Background()
-	client, err := pluginhost.NewClient(ctx, launcher, "dummy")
-
-	// In permissive mode (default), incompatible plugins load with warning
-	require.NoError(t, err)
-	require.NotNil(t, client)
-	defer client.Close()
-	assert.Equal(t, "incompatible-plugin", client.Name)
-}
+func boolPtr(b bool) *bool { return &b }
 
 // TestNewClient_Success tests successful client creation with mock plugin.
 func TestNewClient_Success(t *testing.T) {
@@ -230,6 +231,7 @@ func TestNewClient_Success(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, client)
+	defer client.Close()
 	assert.Equal(t, "mock-plugin", client.Name) // Mock plugin returns "mock-plugin"
 	assert.NotNil(t, client.Conn)
 	assert.NotNil(t, client.API)
@@ -352,6 +354,7 @@ func TestClient_APIUsage(t *testing.T) {
 	ctx := context.Background()
 	client, err := pluginhost.NewClient(ctx, mockLauncherInst, "/fake/path")
 	require.NoError(t, err)
+	defer client.Close()
 
 	// Test Name() call
 	nameResp, err := client.API.Name(ctx, &proto.Empty{})

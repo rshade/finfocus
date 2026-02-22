@@ -1126,18 +1126,6 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
-- Go 1.25.7 + `github.com/charmbracelet/lipgloss` (already imported in file) (597-tui-init-lipgloss)
-- Markdown (documentation-only; no Go code changes) + markdownlint-cli2 v0.18.1 (already installed) (598-analyzer-routing-docs)
-- Go 1.25.7 + `github.com/stretchr/testify` (assertions, already a dep) (598-retire-test-unit)
-- N/A — file system only (source migration, no new storage) (598-retire-test-unit)
-- Go 1.25.7 + `github.com/rshade/finfocus-spec` (pluginsdk, proto types), (599-batch-bug-fixes)
-- N/A (no new persistent storage; BoltDB cache is untouched) (599-batch-bug-fixes)
-- Go 1.25.7 + `github.com/charmbracelet/bubbletea`, `go.etcd.io/bbolt` (via existing cache infrastructure) (600-overview-cache)
-- BoltDB cache (existing `internal/engine/cache/store.go`) (600-overview-cache)
-
-- Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss
 
 ## Recent Changes
 
-- Added Go 1.25.7 + Bubble Tea (charmbracelet/bubbletea), Lip Gloss for interactive TUI
-- 597-parallelize-enrichment: Parallelized per-row enrichment sub-calls in engine (Go concurrency with sync.WaitGroup)

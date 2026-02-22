@@ -565,6 +565,11 @@ func TestOverviewModel_DataReadyMsg(t *testing.T) {
 	assert.Len(t, model.allRows, 3)
 	assert.Equal(t, 3, model.totalCount)
 	assert.Equal(t, "dev", model.stackName)
+
+	// Verify defensive copy: mutating the original slice must not affect the model.
+	testRows[0].URN = "mutated"
+	assert.Equal(t, "urn:test1", model.allRows[0].URN,
+		"model.allRows must be independent of the original slice (defensive copy)")
 }
 
 // TestOverviewModel_NilRowsInit verifies nil vs non-nil row initialization.

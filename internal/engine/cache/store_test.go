@@ -3,6 +3,7 @@ package cache_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -268,7 +269,7 @@ func TestBoltStore_Count(t *testing.T) {
 	data := json.RawMessage(`{"test":true}`)
 	for i := range 10 {
 		key := cache.BuildProjectedKey("aws", "ec2:Instance", "us-east-1",
-			"type-"+string(rune('0'+i)))
+			fmt.Sprintf("type-%d", i))
 		err = store.Set(key, data)
 		require.NoError(t, err)
 	}

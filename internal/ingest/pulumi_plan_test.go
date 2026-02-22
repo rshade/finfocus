@@ -47,16 +47,9 @@ func getLoadPulumiPlanTestData() []struct {
 			}`,
 			wantErr: false,
 			validate: func(t *testing.T, plan *ingest.PulumiPlan) {
-				if len(plan.Steps) != 1 {
-					t.Errorf("expected 1 step, got %d", len(plan.Steps))
-				}
-				step := plan.Steps[0]
-				if step.Op != "create" {
-					t.Errorf("expected op 'create', got '%s'", step.Op)
-				}
-				if step.Type != "aws:ec2/instance:Instance" {
-					t.Errorf("expected type 'aws:ec2/instance:Instance', got '%s'", step.Type)
-				}
+				require.Len(t, plan.Steps, 1)
+				assert.Equal(t, "create", plan.Steps[0].Op)
+				assert.Equal(t, "aws:ec2/instance:Instance", plan.Steps[0].Type)
 			},
 		},
 		{
@@ -83,15 +76,9 @@ func getLoadPulumiPlanTestData() []struct {
 			}`,
 			wantErr: false,
 			validate: func(t *testing.T, plan *ingest.PulumiPlan) {
-				if len(plan.Steps) != 2 {
-					t.Errorf("expected 2 steps, got %d", len(plan.Steps))
-				}
-				if plan.Steps[0].Op != "create" {
-					t.Errorf("expected first step op 'create', got '%s'", plan.Steps[0].Op)
-				}
-				if plan.Steps[1].Op != "update" {
-					t.Errorf("expected second step op 'update', got '%s'", plan.Steps[1].Op)
-				}
+				require.Len(t, plan.Steps, 2)
+				assert.Equal(t, "create", plan.Steps[0].Op)
+				assert.Equal(t, "update", plan.Steps[1].Op)
 			},
 		},
 		{
@@ -101,9 +88,7 @@ func getLoadPulumiPlanTestData() []struct {
 			}`,
 			wantErr: false,
 			validate: func(t *testing.T, plan *ingest.PulumiPlan) {
-				if len(plan.Steps) != 0 {
-					t.Errorf("expected 0 steps, got %d", len(plan.Steps))
-				}
+				assert.Empty(t, plan.Steps)
 			},
 		},
 		{
@@ -125,9 +110,7 @@ func getLoadPulumiPlanTestData() []struct {
 			}`,
 			wantErr: false,
 			validate: func(t *testing.T, plan *ingest.PulumiPlan) {
-				if len(plan.Steps) != 0 {
-					t.Errorf("expected 0 steps when steps field missing, got %d", len(plan.Steps))
-				}
+				assert.Empty(t, plan.Steps)
 			},
 		},
 	}
@@ -144,9 +127,7 @@ func TestLoadPulumiPlan(t *testing.T) {
 			tmpFile := filepath.Join(tmpDir, "plan.json")
 
 			err := os.WriteFile(tmpFile, []byte(tt.content), 0644)
-			if err != nil {
-				t.Fatalf("failed to create temp file: %v", err)
-			}
+			require.NoError(t, err)
 
 			// Test LoadPulumiPlan
 			plan, err := ingest.LoadPulumiPlan(tmpFile)
@@ -167,9 +148,7 @@ func TestLoadPulumiPlan(t *testing.T) {
 			}
 		})
 	}
-}
 
-func TestLoadPulumiPlan_FileErrors(t *testing.T) {
 	t.Run("nonexistent_file", func(t *testing.T) {
 		_, err := ingest.LoadPulumiPlan("/nonexistent/path/file.json")
 		require.Error(t, err)
@@ -230,20 +209,9 @@ func getPulumiPlanGetResourcesTestData() []struct {
 			},
 			wantCount: 3, // delete operations should be excluded
 			validate: func(t *testing.T, resources []ingest.PulumiResource) {
-				ops := make(map[string]bool)
 				for _, r := range resources {
-					// Check that we can extract operation from the steps that created these resources
-					for _, step := range []string{"create", "update", "same"} {
-						if strings.Contains(r.URN, step) {
-							ops[step] = true
-						}
-					}
-				}
-				// Should not contain any delete operations
-				for _, r := range resources {
-					if strings.Contains(r.URN, "old") {
-						t.Error("GetResources() should not include deleted resources")
-					}
+					assert.False(t, strings.Contains(r.URN, "old"),
+						"GetResources() should not include deleted resources")
 				}
 			},
 		},
@@ -275,12 +243,8 @@ func getPulumiPlanGetResourcesTestData() []struct {
 				for _, r := range resources {
 					providers[r.Provider] = true
 				}
-				if !providers["aws"] {
-					t.Error("GetResources() should extract 'aws' provider")
-				}
-				if !providers["azure"] {
-					t.Error("GetResources() should extract 'azure' provider")
-				}
+				assert.True(t, providers["aws"], "GetResources() should extract 'aws' provider")
+				assert.True(t, providers["azure"], "GetResources() should extract 'azure' provider")
 			},
 		},
 		{
@@ -307,29 +271,14 @@ func getPulumiPlanGetResourcesTestData() []struct {
 			wantCount: 1,
 			validate: func(t *testing.T, resources []ingest.PulumiResource) {
 				r := resources[0]
+				assert.Equal(t, "t3.micro", r.Inputs["instanceType"])
 
-				// Check string value
-				if r.Inputs["instanceType"] != "t3.micro" {
-					t.Errorf("expected instanceType 't3.micro', got %v", r.Inputs["instanceType"])
-				}
-
-				// Check nested map
 				tags, ok := r.Inputs["tags"].(map[string]interface{})
-				if !ok {
-					t.Error("expected tags to be map[string]interface{}")
-				} else if tags["Name"] != "Web Server" {
-					t.Errorf("expected Name tag 'Web Server', got %v", tags["Name"])
-				}
+				require.True(t, ok, "expected tags to be map[string]interface{}")
+				assert.Equal(t, "Web Server", tags["Name"])
 
-				// Check boolean
-				if r.Inputs["enabled"] != true {
-					t.Errorf("expected enabled true, got %v", r.Inputs["enabled"])
-				}
-
-				// Check number
-				if r.Inputs["count"] != float64(1) {
-					t.Errorf("expected count 1, got %v", r.Inputs["count"])
-				}
+				assert.Equal(t, true, r.Inputs["enabled"])
+				assert.Equal(t, float64(1), r.Inputs["count"])
 			},
 		},
 		{
@@ -366,36 +315,22 @@ func getPulumiPlanGetResourcesTestData() []struct {
 			},
 			wantCount: 3,
 			validate: func(t *testing.T, resources []ingest.PulumiResource) {
-				// Verify that resources are returned in the same order as defined in steps
 				expectedOrder := []string{
 					"urn:pulumi:dev::app::aws:s3/bucket:Bucket::bucket",
 					"urn:pulumi:dev::app::aws:s3/bucketPolicy:BucketPolicy::policy",
 					"urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
 				}
-
 				for i, expected := range expectedOrder {
-					if i < len(resources) && resources[i].URN != expected {
-						t.Errorf(
-							"resource ordering not preserved: expected %s at position %d, got %s",
-							expected,
-							i,
-							resources[i].URN,
-						)
-					}
+					assert.Equal(t, expected, resources[i].URN, "resource ordering not preserved at position %d", i)
 				}
 
-				// Verify that dependency references in properties are preserved
-				policyResource := resources[1]
-				bucketRef, ok := policyResource.Inputs["bucket"].(string)
-				if !ok || !strings.Contains(bucketRef, "bucket.id") {
-					t.Error("dependency reference in bucket policy not preserved")
-				}
+				bucketRef, ok := resources[1].Inputs["bucket"].(string)
+				require.True(t, ok, "bucket input should be a string")
+				assert.Contains(t, bucketRef, "bucket.id", "dependency reference in bucket policy not preserved")
 
-				webResource := resources[2]
-				userData, ok := webResource.Inputs["userData"].(string)
-				if !ok || !strings.Contains(userData, "bucket.id") {
-					t.Error("dependency reference in EC2 user data not preserved")
-				}
+				userData, ok := resources[2].Inputs["userData"].(string)
+				require.True(t, ok, "userData input should be a string")
+				assert.Contains(t, userData, "bucket.id", "dependency reference in EC2 user data not preserved")
 			},
 		},
 		{
@@ -427,17 +362,9 @@ func getPulumiPlanGetResourcesTestData() []struct {
 			wantCount: 1,
 			validate: func(t *testing.T, resources []ingest.PulumiResource) {
 				r := resources[0]
-				// Outputs should be populated from OldState
-				if r.Outputs == nil {
-					t.Error("expected Outputs to be populated from OldState")
-					return
-				}
-				if r.Outputs["size"] != float64(100) {
-					t.Errorf("expected size 100, got %v", r.Outputs["size"])
-				}
-				if r.Outputs["iops"] != float64(3000) {
-					t.Errorf("expected iops 3000, got %v", r.Outputs["iops"])
-				}
+				require.NotNil(t, r.Outputs, "expected Outputs to be populated from OldState")
+				assert.Equal(t, float64(100), r.Outputs["size"])
+				assert.Equal(t, float64(3000), r.Outputs["iops"])
 			},
 		},
 		{
@@ -457,14 +384,8 @@ func getPulumiPlanGetResourcesTestData() []struct {
 			wantCount: 1,
 			validate: func(t *testing.T, resources []ingest.PulumiResource) {
 				r := resources[0]
-				// Create ops have no outputs
-				if r.Outputs != nil {
-					t.Errorf("expected nil Outputs for create op, got %v", r.Outputs)
-				}
-				// Inputs should still be set
-				if r.Inputs["instanceType"] != "t3.micro" {
-					t.Errorf("expected instanceType t3.micro, got %v", r.Inputs["instanceType"])
-				}
+				assert.Nil(t, r.Outputs, "expected nil Outputs for create op")
+				assert.Equal(t, "t3.micro", r.Inputs["instanceType"])
 			},
 		},
 		{
@@ -492,11 +413,8 @@ func getPulumiPlanGetResourcesTestData() []struct {
 			},
 			wantCount: 1,
 			validate: func(t *testing.T, resources []ingest.PulumiResource) {
-				r := resources[0]
-				// Step-level outputs should win over OldState
-				if r.Outputs["publicIp"] != "10.0.0.1" {
-					t.Errorf("expected step-level publicIp 10.0.0.1, got %v", r.Outputs["publicIp"])
-				}
+				assert.Equal(t, "10.0.0.1", resources[0].Outputs["publicIp"],
+					"step-level outputs should win over OldState")
 			},
 		},
 		{
@@ -522,14 +440,8 @@ func getPulumiPlanGetResourcesTestData() []struct {
 			},
 			wantCount: 1,
 			validate: func(t *testing.T, resources []ingest.PulumiResource) {
-				r := resources[0]
-				if r.Outputs == nil {
-					t.Error("expected Outputs for same op with OldState")
-					return
-				}
-				if r.Outputs["arn"] != "arn:aws:s3:::my-assets" {
-					t.Errorf("expected arn from OldState, got %v", r.Outputs["arn"])
-				}
+				require.NotNil(t, resources[0].Outputs, "expected Outputs for same op with OldState")
+				assert.Equal(t, "arn:aws:s3:::my-assets", resources[0].Outputs["arn"])
 			},
 		},
 	}
@@ -542,14 +454,7 @@ func TestPulumiPlan_GetResources(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			resources := tt.plan.GetResources()
-
-			if len(resources) != tt.wantCount {
-				t.Errorf(
-					"GetResources() returned %d resources, want %d",
-					len(resources),
-					tt.wantCount,
-				)
-			}
+			assert.Len(t, resources, tt.wantCount)
 
 			if tt.validate != nil {
 				tt.validate(t, resources)
