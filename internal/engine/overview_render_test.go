@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
 // ---------------------------------------------------------------------------
@@ -566,7 +568,7 @@ func TestRenderOverviewAsJSON_EmptyRows(t *testing.T) {
 		TotalResources: 0,
 	}
 
-	err := RenderOverviewAsJSON(&buf, nil, stackCtx)
+	err := RenderOverviewAsJSON(&buf, nil, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -610,7 +612,7 @@ func TestRenderOverviewAsJSON_SingleResource(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx)
+	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -652,7 +654,7 @@ func TestRenderOverviewAsJSON_MetadataFields(t *testing.T) {
 		PendingChanges: 2,
 	}
 
-	err := RenderOverviewAsJSON(&buf, nil, stackCtx)
+	err := RenderOverviewAsJSON(&buf, nil, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -707,7 +709,7 @@ func TestRenderOverviewAsJSON_SummaryTotals(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx)
+	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -741,7 +743,7 @@ func TestRenderOverviewAsJSON_CurrencyConsistency(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx)
+	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -785,7 +787,7 @@ func TestRenderOverviewAsJSON_ErrorsArray(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx)
+	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -826,7 +828,7 @@ func TestRenderOverviewAsJSON_Recommendations(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(&buf, rows, stackCtx)
+	err := RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1081,4 +1083,300 @@ func TestErrorType_UnmarshalJSON(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// RenderOverviewAsJSON — budget data (US4)
+// ---------------------------------------------------------------------------
+
+func TestRenderOverviewAsJSON_WithBudgets(t *testing.T) {
+	var buf bytes.Buffer
+	now := time.Now()
+	stackCtx := StackContext{
+		StackName:      "prod",
+		TimeWindow:     DateRange{Start: now.Add(-24 * time.Hour), End: now},
+		TotalResources: 1,
+	}
+
+	rows := []OverviewRow{
+		{
+			URN:    "urn:r1",
+			Type:   "aws:ec2:Instance",
+			Status: StatusActive,
+			ProjectedCost: &ProjectedCostData{
+				MonthlyCost: 150.00,
+				Currency:    "USD",
+			},
+		},
+	}
+
+	budgetResult := &BudgetResult{
+		Budgets: []*pbc.Budget{
+			{
+				Id:     "monthly-infra",
+				Name:   "Monthly Infrastructure",
+				Source: "aws-budgets",
+				Amount: &pbc.BudgetAmount{Limit: 10000, Currency: "USD"},
+				Status: &pbc.BudgetStatus{
+					Health:               pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING,
+					PercentageUsed:       85.2,
+					PercentageForecasted: 102.5,
+					CurrentSpend:         8520,
+				},
+			},
+		},
+	}
+
+	err := RenderOverviewAsJSON(&buf, rows, stackCtx, budgetResult)
+	require.NoError(t, err)
+
+	var output OverviewJSONOutput
+	err = json.Unmarshal(buf.Bytes(), &output)
+	require.NoError(t, err)
+
+	// Verify budgets array is present with correct fields
+	require.Len(t, output.Budgets, 1)
+	b := output.Budgets[0]
+	assert.Equal(t, "monthly-infra", b.BudgetID)
+	assert.Equal(t, "Monthly Infrastructure", b.BudgetName)
+	assert.Equal(t, "aws-budgets", b.Provider)
+	assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING, b.Health)
+	assert.InDelta(t, 85.2, b.Utilization, 0.01)
+	assert.InDelta(t, 102.5, b.Forecasted, 0.01)
+	assert.Equal(t, "USD", b.Currency)
+	assert.Equal(t, 10000.0, b.Limit)
+	assert.Equal(t, 8520.0, b.CurrentSpend)
+
+	// Verify health serializes as string in raw JSON
+	rawJSON := buf.String()
+	assert.Contains(t, rawJSON, `"health": "WARNING"`)
+	assert.Contains(t, rawJSON, `"budgetID": "monthly-infra"`)
+}
+
+func TestRenderOverviewAsJSON_MultipleBudgets(t *testing.T) {
+	var buf bytes.Buffer
+	now := time.Now()
+	stackCtx := StackContext{
+		StackName:      "prod",
+		TimeWindow:     DateRange{Start: now.Add(-24 * time.Hour), End: now},
+		TotalResources: 0,
+	}
+
+	budgetResult := &BudgetResult{
+		Budgets: []*pbc.Budget{
+			{
+				Id:     "budget-ok",
+				Name:   "Dev Budget",
+				Source: "aws-budgets",
+				Amount: &pbc.BudgetAmount{Limit: 5000, Currency: "USD"},
+				Status: &pbc.BudgetStatus{
+					Health:         pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK,
+					PercentageUsed: 45.0,
+					CurrentSpend:   2250,
+				},
+			},
+			{
+				Id:     "budget-exceeded",
+				Name:   "Prod Budget",
+				Source: "kubecost",
+				Amount: &pbc.BudgetAmount{Limit: 20000, Currency: "EUR"},
+				Status: &pbc.BudgetStatus{
+					Health:               pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED,
+					PercentageUsed:       110.0,
+					PercentageForecasted: 120.0,
+					CurrentSpend:         22000,
+				},
+			},
+		},
+	}
+
+	err := RenderOverviewAsJSON(&buf, nil, stackCtx, budgetResult)
+	require.NoError(t, err)
+
+	var output OverviewJSONOutput
+	err = json.Unmarshal(buf.Bytes(), &output)
+	require.NoError(t, err)
+
+	require.Len(t, output.Budgets, 2)
+
+	assert.Equal(t, "budget-ok", output.Budgets[0].BudgetID)
+	assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK, output.Budgets[0].Health)
+	assert.Equal(t, "USD", output.Budgets[0].Currency)
+
+	assert.Equal(t, "budget-exceeded", output.Budgets[1].BudgetID)
+	assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED, output.Budgets[1].Health)
+	assert.Equal(t, "EUR", output.Budgets[1].Currency)
+	assert.InDelta(t, 110.0, output.Budgets[1].Utilization, 0.01)
+
+	// Verify raw JSON health strings
+	rawJSON := buf.String()
+	assert.Contains(t, rawJSON, `"health": "OK"`)
+	assert.Contains(t, rawJSON, `"health": "EXCEEDED"`)
+}
+
+func TestRenderOverviewAsJSON_NilBudgetResult(t *testing.T) {
+	var buf bytes.Buffer
+	now := time.Now()
+	stackCtx := StackContext{
+		StackName:      "test",
+		TimeWindow:     DateRange{Start: now.Add(-24 * time.Hour), End: now},
+		TotalResources: 0,
+	}
+
+	err := RenderOverviewAsJSON(&buf, nil, stackCtx, nil)
+	require.NoError(t, err)
+
+	var output OverviewJSONOutput
+	err = json.Unmarshal(buf.Bytes(), &output)
+	require.NoError(t, err)
+
+	// Budgets should be nil/empty (omitted via omitempty)
+	assert.Empty(t, output.Budgets)
+
+	// Verify "budgets" key is NOT present in raw JSON (omitempty)
+	assert.NotContains(t, buf.String(), `"budgets"`)
+}
+
+func TestRenderOverviewAsJSON_EmptyBudgetResult(t *testing.T) {
+	var buf bytes.Buffer
+	now := time.Now()
+	stackCtx := StackContext{
+		StackName:      "test",
+		TimeWindow:     DateRange{Start: now.Add(-24 * time.Hour), End: now},
+		TotalResources: 0,
+	}
+
+	// BudgetResult with empty budgets slice
+	budgetResult := &BudgetResult{
+		Budgets: []*pbc.Budget{},
+	}
+
+	err := RenderOverviewAsJSON(&buf, nil, stackCtx, budgetResult)
+	require.NoError(t, err)
+
+	var output OverviewJSONOutput
+	err = json.Unmarshal(buf.Bytes(), &output)
+	require.NoError(t, err)
+
+	assert.Empty(t, output.Budgets)
+	assert.NotContains(t, buf.String(), `"budgets"`)
+}
+
+func TestRenderOverviewAsNDJSON_ExcludesBudgetData(t *testing.T) {
+	var buf bytes.Buffer
+	rows := []OverviewRow{
+		{URN: "urn:r1", Type: "aws:ec2:Instance", Status: StatusActive},
+		{URN: "urn:r2", Type: "aws:s3:Bucket", Status: StatusCreating},
+	}
+
+	err := RenderOverviewAsNDJSON(&buf, rows)
+	require.NoError(t, err)
+
+	// NDJSON should not contain any budget-related fields
+	output := buf.String()
+	assert.NotContains(t, output, "budget")
+	assert.NotContains(t, output, "Budget")
+
+	// Each line should be a valid OverviewRow
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+	assert.Len(t, lines, 2)
+	for _, line := range lines {
+		var row OverviewRow
+		require.NoError(t, json.Unmarshal([]byte(line), &row))
+	}
+}
+
+// ---------------------------------------------------------------------------
+// BudgetHealthResult JSON Marshaling
+// ---------------------------------------------------------------------------
+
+func TestBudgetHealthResult_MarshalJSON(t *testing.T) {
+	tests := []struct {
+		name       string
+		result     BudgetHealthResult
+		wantHealth string
+	}{
+		{
+			name: "OK health",
+			result: BudgetHealthResult{
+				BudgetID: "b1",
+				Health:   pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK,
+			},
+			wantHealth: "OK",
+		},
+		{
+			name: "WARNING health",
+			result: BudgetHealthResult{
+				BudgetID: "b2",
+				Health:   pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING,
+			},
+			wantHealth: "WARNING",
+		},
+		{
+			name: "CRITICAL health",
+			result: BudgetHealthResult{
+				BudgetID: "b3",
+				Health:   pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL,
+			},
+			wantHealth: "CRITICAL",
+		},
+		{
+			name: "EXCEEDED health",
+			result: BudgetHealthResult{
+				BudgetID: "b4",
+				Health:   pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED,
+			},
+			wantHealth: "EXCEEDED",
+		},
+		{
+			name: "UNSPECIFIED health",
+			result: BudgetHealthResult{
+				BudgetID: "b5",
+				Health:   pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED,
+			},
+			wantHealth: "UNKNOWN",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.result)
+			require.NoError(t, err)
+
+			var raw map[string]interface{}
+			require.NoError(t, json.Unmarshal(data, &raw))
+			assert.Equal(t, tt.wantHealth, raw["health"])
+			assert.Equal(t, tt.result.BudgetID, raw["budgetID"])
+		})
+	}
+}
+
+func TestBudgetHealthResult_RoundTrip(t *testing.T) {
+	original := BudgetHealthResult{
+		BudgetID:     "prod-budget",
+		BudgetName:   "Production Budget",
+		Provider:     "aws-budgets",
+		Health:       pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING,
+		Utilization:  85.5,
+		Forecasted:   95.0,
+		Currency:     "USD",
+		Limit:        10000,
+		CurrentSpend: 8550,
+	}
+
+	data, err := json.Marshal(original)
+	require.NoError(t, err)
+
+	var roundTripped BudgetHealthResult
+	require.NoError(t, json.Unmarshal(data, &roundTripped))
+
+	assert.Equal(t, original.BudgetID, roundTripped.BudgetID)
+	assert.Equal(t, original.BudgetName, roundTripped.BudgetName)
+	assert.Equal(t, original.Provider, roundTripped.Provider)
+	assert.Equal(t, original.Health, roundTripped.Health)
+	assert.Equal(t, original.Utilization, roundTripped.Utilization)
+	assert.Equal(t, original.Forecasted, roundTripped.Forecasted)
+	assert.Equal(t, original.Currency, roundTripped.Currency)
+	assert.Equal(t, original.Limit, roundTripped.Limit)
+	assert.Equal(t, original.CurrentSpend, roundTripped.CurrentSpend)
 }

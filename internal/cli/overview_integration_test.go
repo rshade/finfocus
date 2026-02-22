@@ -421,7 +421,7 @@ func TestIntegration_JSONRender_NoChanges(t *testing.T) {
 
 	// Render JSON
 	var buf bytes.Buffer
-	err = engine.RenderOverviewAsJSON(&buf, rows, stackCtx)
+	err = engine.RenderOverviewAsJSON(&buf, rows, stackCtx, nil)
 	require.NoError(t, err)
 
 	// Verify valid JSON

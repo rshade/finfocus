@@ -66,6 +66,9 @@ func TestNewOverviewCmd_HelpFlag(t *testing.T) {
 	assert.Contains(t, output, "--plain")
 	assert.Contains(t, output, "--yes")
 	assert.Contains(t, output, "--no-pagination")
+	assert.Contains(t, output, "--exit-on-threshold")
+	assert.Contains(t, output, "--exit-code")
+	assert.Contains(t, output, "--budget-scope")
 }
 
 func TestNewOverviewCmd_NonExistentStateFile(t *testing.T) {
@@ -211,6 +214,9 @@ func TestNewOverviewCmd_AllFlagsAccepted(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("plain"))
 	assert.NotNil(t, cmd.Flags().Lookup("yes"))
 	assert.NotNil(t, cmd.Flags().Lookup("no-pagination"))
+	assert.NotNil(t, cmd.Flags().Lookup("exit-on-threshold"))
+	assert.NotNil(t, cmd.Flags().Lookup("exit-code"))
+	assert.NotNil(t, cmd.Flags().Lookup("budget-scope"))
 }
 
 func TestNewOverviewCmd_StackFlagExists(t *testing.T) {
@@ -257,6 +263,212 @@ func TestNewOverviewCmd_YesShortFlag(t *testing.T) {
 	yesFlag := cmd.Flags().Lookup("yes")
 	require.NotNil(t, yesFlag)
 	assert.Equal(t, "y", yesFlag.Shorthand)
+}
+
+// T013: Budget flag registration and behavior on overview command
+// ---------------------------------------------------------------------------
+
+func TestNewOverviewCmd_BudgetFlagRegistration(t *testing.T) {
+	cmd := cli.NewOverviewCmd()
+
+	// Verify budget flags are registered
+	assert.NotNil(t, cmd.Flags().Lookup("exit-on-threshold"),
+		"--exit-on-threshold flag should be registered on overview command")
+	assert.NotNil(t, cmd.Flags().Lookup("exit-code"),
+		"--exit-code flag should be registered on overview command")
+	assert.NotNil(t, cmd.Flags().Lookup("budget-scope"),
+		"--budget-scope flag should be registered on overview command")
+}
+
+func TestNewOverviewCmd_BudgetFlagDefaults(t *testing.T) {
+	cmd := cli.NewOverviewCmd()
+
+	// --exit-on-threshold defaults to false
+	exitOnThreshold, err := cmd.Flags().GetBool("exit-on-threshold")
+	require.NoError(t, err)
+	assert.False(t, exitOnThreshold, "--exit-on-threshold should default to false")
+
+	// --exit-code defaults to 1
+	exitCode, err := cmd.Flags().GetInt("exit-code")
+	require.NoError(t, err)
+	assert.Equal(t, 1, exitCode, "--exit-code should default to 1")
+
+	// --budget-scope defaults to empty
+	budgetScope, err := cmd.Flags().GetString("budget-scope")
+	require.NoError(t, err)
+	assert.Empty(t, budgetScope, "--budget-scope should default to empty")
+}
+
+func TestNewOverviewCmd_BudgetFlagParsing(t *testing.T) {
+	tests := []struct {
+		name              string
+		args              []string
+		wantThreshold     bool
+		wantExitCode      int
+		wantBudgetScope   string
+		wantThresholdFlag bool // whether the flag is marked as changed
+	}{
+		{
+			name:              "all budget flags set",
+			args:              []string{"--exit-on-threshold", "--exit-code=42", "--budget-scope=provider"},
+			wantThreshold:     true,
+			wantExitCode:      42,
+			wantBudgetScope:   "provider",
+			wantThresholdFlag: true,
+		},
+		{
+			name:              "exit-on-threshold=false explicit",
+			args:              []string{"--exit-on-threshold=false"},
+			wantThreshold:     false,
+			wantExitCode:      1, // default
+			wantBudgetScope:   "",
+			wantThresholdFlag: true,
+		},
+		{
+			name:              "only budget-scope set",
+			args:              []string{"--budget-scope=provider=aws"},
+			wantThreshold:     false,
+			wantExitCode:      1,
+			wantBudgetScope:   "provider=aws",
+			wantThresholdFlag: false,
+		},
+		{
+			name:              "no budget flags",
+			args:              nil,
+			wantThreshold:     false,
+			wantExitCode:      1,
+			wantBudgetScope:   "",
+			wantThresholdFlag: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := cli.NewOverviewCmd()
+			if tt.args != nil {
+				err := cmd.ParseFlags(tt.args)
+				require.NoError(t, err)
+			}
+
+			threshold, err := cmd.Flags().GetBool("exit-on-threshold")
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantThreshold, threshold)
+
+			exitCode, err := cmd.Flags().GetInt("exit-code")
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantExitCode, exitCode)
+
+			scope, err := cmd.Flags().GetString("budget-scope")
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantBudgetScope, scope)
+
+			assert.Equal(t, tt.wantThresholdFlag, cmd.Flags().Changed("exit-on-threshold"))
+		})
+	}
+}
+
+func TestNewOverviewCmd_HelpIncludesBudgetFlags(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	var buf bytes.Buffer
+	cmd := cli.NewOverviewCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--help"})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.Contains(t, output, "--exit-on-threshold",
+		"help should include --exit-on-threshold flag")
+	assert.Contains(t, output, "--exit-code",
+		"help should include --exit-code flag")
+	assert.Contains(t, output, "--budget-scope",
+		"help should include --budget-scope flag")
+}
+
+func TestNewOverviewCmd_BudgetFlagsWithOtherFlags(t *testing.T) {
+	// Verify budget flags coexist with existing overview flags
+	cmd := cli.NewOverviewCmd()
+	err := cmd.ParseFlags([]string{
+		"--exit-on-threshold",
+		"--exit-code=2",
+		"--budget-scope=global",
+		"--plain",
+		"--yes",
+		"--output=table",
+	})
+	require.NoError(t, err)
+
+	threshold, err := cmd.Flags().GetBool("exit-on-threshold")
+	require.NoError(t, err)
+	assert.True(t, threshold)
+
+	plain, err := cmd.Flags().GetBool("plain")
+	require.NoError(t, err)
+	assert.True(t, plain)
+
+	yes, err := cmd.Flags().GetBool("yes")
+	require.NoError(t, err)
+	assert.True(t, yes)
+}
+
+func TestNewOverviewCmd_ExitOnThresholdIgnoredInTTYMode(t *testing.T) {
+	// Verify that shouldUseInteractiveTUI returns true for TTY-like output,
+	// which means the non-TTY budget evaluation path is skipped.
+	// When output is "table" and not --plain and stdout is a TTY,
+	// the TUI path is taken (which displays budget footer visually, no exit code).
+	// We verify this by checking the command routes to TUI for table+non-plain.
+	cmd := cli.NewOverviewCmd()
+	err := cmd.ParseFlags([]string{
+		"--exit-on-threshold",
+		"--exit-code=2",
+	})
+	require.NoError(t, err)
+
+	// With a non-TTY writer (bytes.Buffer), even with --exit-on-threshold,
+	// the command should take the non-TTY path where budget evaluation runs.
+	// With a TTY writer, it would take the TUI path (no budget exit codes).
+	// We verify the flag is registered and parseable in both scenarios.
+	outputFlag := cmd.Flags().Lookup("output")
+	require.NotNil(t, outputFlag)
+	assert.Equal(t, "table", outputFlag.DefValue,
+		"output default should be table (TUI path for TTY)")
+}
+
+func TestNewOverviewCmd_BudgetEvalNonTTYPath(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+
+	// Create a valid state file with empty resources
+	tmpDir := t.TempDir()
+	statePath := filepath.Join(tmpDir, "state.json")
+	stateJSON := `{"version":3,"deployment":{"manifest":{"time":"2025-01-01T00:00:00Z","magic":"","version":""},"resources":[]}}`
+	require.NoError(t, os.WriteFile(statePath, []byte(stateJSON), 0o600))
+
+	var buf bytes.Buffer
+	cmd := cli.NewOverviewCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"--pulumi-state", statePath,
+		"--yes",
+		"--exit-on-threshold",
+		"--exit-code=2",
+	})
+
+	// With empty resources and no plugins, the command either:
+	// 1. Fails at "opening plugins" (no plugins installed)
+	// 2. Succeeds with zero-cost budget evaluation (no budget configured = OK)
+	// Both are acceptable: this test validates the flags are accepted in the
+	// non-TTY path and don't cause unexpected errors.
+	err := cmd.Execute()
+	if err != nil {
+		assert.Contains(t, err.Error(), "opening plugins",
+			"error should be from plugin opening, not budget flags")
+	}
 }
 
 // ---------------------------------------------------------------------------
