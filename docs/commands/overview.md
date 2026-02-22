@@ -33,6 +33,7 @@ the command auto-detects your Pulumi project and stack from the current director
 | `--filter` | Resource filters (repeatable) | - |
 | `--plain` | Force non-interactive plain text output | false |
 | `--yes`, `-y` | Skip confirmation prompts | false |
+| `--cache-ttl` | Cache TTL in seconds; 0 disables caching | 0 (disabled) |
 | `--no-pagination` | Disable pagination (plain mode only) | false |
 
 ## Auto-Detection
@@ -115,6 +116,16 @@ One JSON object per line, suitable for streaming processors.
 ```bash
 finfocus overview --pulumi-state state.json --from 2025-01-01 --to 2025-01-31
 ```
+
+### With caching enabled
+
+```bash
+finfocus overview --cache-ttl 300 --pulumi-state state.json
+```
+
+Enables a 5-minute cache. The first run enriches all resources via plugin calls and
+stores results locally. Subsequent runs within the TTL window show `(cached)` in the
+adapter field and complete faster.
 
 ### Filter by provider
 
