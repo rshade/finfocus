@@ -19,8 +19,6 @@ guardrails in `CONTEXT.md`.
 continues with TUI quality fixes and the remaining performance pipeline.*
 
 - [ ] **Overview TUI Quality** *(post-v0.3.1 follow-ups)*
-  - [ ] Investigate intermittent $0.00 projected costs in TUI overview
-        ([#723](https://github.com/rshade/finfocus/issues/723))
   - [ ] Race between enrichment goroutine and plugin cleanup in overview command
         ([#716](https://github.com/rshade/finfocus/issues/716))
   - [ ] State guards missing for init-only TUI messages in overview model
@@ -70,20 +68,6 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 - [ ] **Analyzer Quality Fixes** *(post-install UX cluster)*
   - [ ] AnalyzeStack stack summary always shows $0.00 (0 resources analyzed)
         ([#746](https://github.com/rshade/finfocus/issues/746))
-  - [ ] Recorder plugin returns nil summary on `GetRecommendations`, flooding diagnostics
-        ([#747](https://github.com/rshade/finfocus/issues/747))
-  - [ ] Analyzer JSON logs appear in `pulumi preview` Diagnostics section
-        ([#748](https://github.com/rshade/finfocus/issues/748))
-  - [ ] Analyzer install creates double-v version directory (`analyzer-finfocus-vv...`)
-        ([#749](https://github.com/rshade/finfocus/issues/749))
-  - [ ] Registry `ListPlugins` silently skips directory-level symlinks
-        ([#750](https://github.com/rshade/finfocus/issues/750))
-  - [ ] `AnalyzerPlugin.Enabled` config field is dead code — never read
-        ([#751](https://github.com/rshade/finfocus/issues/751))
-  - [ ] `FINFOCUS_PLUGIN_DIR` env var documented but not implemented
-        ([#752](https://github.com/rshade/finfocus/issues/752))
-  - [ ] `plugins.dir` config key documented but excluded from YAML parsing
-        ([#753](https://github.com/rshade/finfocus/issues/753))
   - [ ] `--force` reinstall does not sync policy pack binary, leaving it stale
         ([#754](https://github.com/rshade/finfocus/issues/754))
   - [ ] `analyzer install` should setup policy pack directory for `--policy-pack` workflow
@@ -99,11 +83,32 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#726](https://github.com/rshade/finfocus/issues/726))
   - [ ] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
         ([#734](https://github.com/rshade/finfocus/issues/734))
+- [ ] **CLI & Change Detection Fixes**
+  - [ ] `FINFOCUS_HIDE_ALIAS_HINT` should use presence-based check, not value-based
+        ([#783](https://github.com/rshade/finfocus/issues/783))
+  - [ ] Recognize `.tsx`, `.jsx`, and `go.work` as Pulumi source files in change detection
+        ([#787](https://github.com/rshade/finfocus/issues/787))
 - [ ] **Test Infrastructure Fixes**
   - [ ] Fix always-skipped integration tests
         ([#737](https://github.com/rshade/finfocus/issues/737))
   - [ ] cli_helper global log suppression masks plugin errors in integration tests
         ([#743](https://github.com/rshade/finfocus/issues/743))
+  - [ ] Make `TestGetProjectedCost_PartialData` order-independent
+        ([#788](https://github.com/rshade/finfocus/issues/788))
+  - [ ] Fix vacuous exit code 0 test in budget\_scoped\_test.go
+        ([#786](https://github.com/rshade/finfocus/issues/786))
+  - [ ] Close plugin clients in `TestNewClient_Success` and `TestClient_APIUsage`
+        ([#785](https://github.com/rshade/finfocus/issues/785))
+  - [ ] `stubHome` should clear `FINFOCUS_HOME` for hermetic config tests
+        ([#784](https://github.com/rshade/finfocus/issues/784))
+  - [ ] Deduplicate env setup and fix fragile assertion in plugin\_validate\_test.go
+        ([#782](https://github.com/rshade/finfocus/issues/782))
+  - [ ] Consolidate 5 `TestGetPluginInfo_*` tests into table-driven
+        ([#776](https://github.com/rshade/finfocus/issues/776))
+  - [ ] Remove duplicate flat tests in `pulumi_plan_test.go`, merge into table-driven
+        ([#775](https://github.com/rshade/finfocus/issues/775))
+  - [ ] Consolidate 4 near-identical cost projected tests into table-driven
+        ([#774](https://github.com/rshade/finfocus/issues/774))
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -286,6 +291,30 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 ### 2026-Q1
 
+- [x] **Batch Bug Fixes** *(Completed 2026-02-22)*
+  - [x] Investigate intermittent $0.00 projected costs in TUI overview
+        ([#723](https://github.com/rshade/finfocus/issues/723))
+  - [x] Recorder plugin returns nil summary on `GetRecommendations`, flooding diagnostics
+        ([#747](https://github.com/rshade/finfocus/issues/747))
+  - [x] Analyzer JSON logs appear in `pulumi preview` Diagnostics section
+        ([#748](https://github.com/rshade/finfocus/issues/748))
+  - [x] Analyzer install creates double-v version directory
+        ([#749](https://github.com/rshade/finfocus/issues/749))
+  - [x] Registry `ListPlugins` silently skips directory-level symlinks
+        ([#750](https://github.com/rshade/finfocus/issues/750))
+  - [x] `AnalyzerPlugin.Enabled` config field is dead code — never read
+        ([#751](https://github.com/rshade/finfocus/issues/751))
+  - [x] `FINFOCUS_PLUGIN_DIR` env var documented but not implemented
+        ([#752](https://github.com/rshade/finfocus/issues/752))
+  - [x] `plugins.dir` config key documented but excluded from YAML parsing
+        ([#753](https://github.com/rshade/finfocus/issues/753))
+- [x] **Test Quality Improvements** *(Completed 2026-02-22)*
+  - [x] Consolidate duplicate flat LoadPulumiPlan tests into table-driven suites
+        ([#791](https://github.com/rshade/finfocus/issues/791))
+  - [x] Add `require.NotNil` guard in `TestLoadPulumiPlan_ComplexInputs`
+        ([#790](https://github.com/rshade/finfocus/issues/790))
+  - [x] Remove duplicate `TestApplyChangesToRows_NilMap` in overview\_merge\_test.go
+        ([#789](https://github.com/rshade/finfocus/issues/789))
 - [x] **Post-v0.3.1 Fixes** *(Completed 2026-02-21)*
   - [x] feat(tui): splash screen — figlet banner, phase checklist, passphrase prompt
         ([#728](https://github.com/rshade/finfocus/issues/728))
