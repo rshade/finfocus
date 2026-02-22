@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -455,8 +456,8 @@ func generateBudgets(n int) []*pbc.Budget {
 	}
 	for i := range n {
 		budgets[i] = &pbc.Budget{
-			Id:     "budget-" + string(rune('0'+i%10)),
-			Name:   "Budget " + string(rune('0'+i%10)),
+			Id:     fmt.Sprintf("budget-%d", i),
+			Name:   fmt.Sprintf("Budget %d", i),
 			Source: "aws-budgets",
 			Amount: &pbc.BudgetAmount{
 				Limit:    1000.0,

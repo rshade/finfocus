@@ -258,11 +258,8 @@ func TestPluginValidateCmd_NoPlugins(t *testing.T) {
 
 // TestPluginValidateCmd_ValidPlugin tests validation with valid plugin.
 func TestPluginValidateCmd_ValidPlugin(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	// Create temporary plugin directory
-	tempDir := t.TempDir()
-	t.Setenv("FINFOCUS_HOME", tempDir)
+	setupTestEnv(t)
+	tempDir := os.Getenv("FINFOCUS_HOME")
 	pluginDir := filepath.Join(tempDir, "plugins")
 	kubecostDir := filepath.Join(pluginDir, "kubecost", "v0.1.0")
 	err := os.MkdirAll(kubecostDir, 0755)
@@ -288,11 +285,8 @@ func TestPluginValidateCmd_ValidPlugin(t *testing.T) {
 
 // TestPluginValidateCmd_NonExecutable tests validation skips non-executable files.
 func TestPluginValidateCmd_NonExecutable(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	// Create temporary plugin directory
-	tempDir := t.TempDir()
-	t.Setenv("FINFOCUS_HOME", tempDir)
+	setupTestEnv(t)
+	tempDir := os.Getenv("FINFOCUS_HOME")
 	pluginDir := filepath.Join(tempDir, "plugins")
 	testDir := filepath.Join(pluginDir, "test-plugin", "v0.1.0")
 	err := os.MkdirAll(testDir, 0755)

@@ -125,7 +125,7 @@ func TestBuildActualKey_DifferentFiltersProduceDifferentKeys(t *testing.T) {
 // TestBuildRecommendationsKey verifies recommendation key generation.
 func TestBuildRecommendationsKey(t *testing.T) {
 	key := cache.BuildRecommendationsKey([]string{"ec2", "rds", "s3"})
-	assert.Contains(t, key, "recommendations/multi/")
+	assert.Equal(t, "recommendations/multi/ec2+rds+s3", key)
 }
 
 // TestBuildRecommendationsKey_Sorting verifies resource type sorting.

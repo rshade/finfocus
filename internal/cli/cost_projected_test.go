@@ -443,138 +443,109 @@ func TestCostProjectedCmd_MultipleResources(t *testing.T) {
 	assert.Len(t, results.Resources, 0) // No plugins/specs = empty
 }
 
-// TestCostProjectedCmd_TableOutput tests table format output.
-func TestCostProjectedCmd_TableOutput(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
+// TestCostProjectedCmd_OutputFormatsAndFilters consolidates tests for table/NDJSON output
+// formats and type/provider filtering into a single table-driven test (#782).
+func TestCostProjectedCmd_OutputFormatsAndFilters(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	resources := []map[string]interface{}{
+
+	tests := []struct {
+		name          string
+		resources     []map[string]interface{}
+		args          []string
+		checkTable    bool     // if true, check for table-specific strings
+		tableContains []string // substrings expected in table output
+		checkNDJSON   bool     // if true, expect empty NDJSON output
+		checkJSON     bool     // if true, unmarshal JSON and check empty resources
+	}{
 		{
-			"type": "aws:ec2/instance:Instance",
-			"urn":  "urn:pulumi:stack::project::aws:ec2/instance:Instance::my-instance",
+			name: "table output",
+			resources: []map[string]interface{}{
+				{
+					"type": "aws:ec2/instance:Instance",
+					"urn":  "urn:pulumi:stack::project::aws:ec2/instance:Instance::my-instance",
+				},
+			},
+			args:          []string{"--output", "table"},
+			checkTable:    true,
+			tableContains: []string{"COST SUMMARY", "Total Monthly Cost"},
+		},
+		{
+			name: "NDJSON output",
+			resources: []map[string]interface{}{
+				{
+					"type": "aws:ec2/instance:Instance",
+					"urn":  "urn:pulumi:stack::project::aws:ec2/instance:Instance::instance-1",
+				},
+				{
+					"type": "aws:s3/bucket:Bucket",
+					"urn":  "urn:pulumi:stack::project::aws:s3/bucket:Bucket::bucket-1",
+				},
+			},
+			args:        []string{"--output", "ndjson"},
+			checkNDJSON: true,
+		},
+		{
+			name: "filter by type",
+			resources: []map[string]interface{}{
+				{
+					"type": "aws:ec2/instance:Instance",
+					"urn":  "urn:pulumi:stack::project::aws:ec2/instance:Instance::instance-1",
+				},
+				{
+					"type": "aws:s3/bucket:Bucket",
+					"urn":  "urn:pulumi:stack::project::aws:s3/bucket:Bucket::bucket-1",
+				},
+			},
+			args:      []string{"--filter", "type=ec2", "--output", "json"},
+			checkJSON: true,
+		},
+		{
+			name: "filter by provider",
+			resources: []map[string]interface{}{
+				{
+					"type": "aws:ec2/instance:Instance",
+					"urn":  "urn:pulumi:stack::project::aws:ec2/instance:Instance::instance-1",
+				},
+				{
+					"type": "azure:compute/virtualMachine:VirtualMachine",
+					"urn":  "urn:pulumi:stack::project::azure:compute/virtualMachine:VirtualMachine::vm-1",
+				},
+			},
+			args:      []string{"--filter", "provider=aws", "--output", "json"},
+			checkJSON: true,
 		},
 	}
 
-	planPath := createTestPlan(t, resources)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			planPath := createTestPlan(t, tt.resources)
 
-	cmd := cli.NewCostProjectedCmd()
-	cmd.SetArgs([]string{"--pulumi-json", planPath, "--output", "table"})
+			cmd := cli.NewCostProjectedCmd()
+			cmd.SetArgs(append([]string{"--pulumi-json", planPath}, tt.args...))
 
-	var out bytes.Buffer
-	cmd.SetOut(&out)
+			var out bytes.Buffer
+			cmd.SetOut(&out)
 
-	err := cmd.Execute()
-	require.NoError(t, err)
+			err := cmd.Execute()
+			require.NoError(t, err)
 
-	output := out.String()
-	assert.Contains(t, output, "COST SUMMARY")
-	assert.Contains(t, output, "Total Monthly Cost")
-}
+			output := out.String()
 
-// TestCostProjectedCmd_NDJSONOutput tests NDJSON format output.
-func TestCostProjectedCmd_NDJSONOutput(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	resources := []map[string]interface{}{
-		{
-			"type": "aws:ec2/instance:Instance",
-			"urn":  "urn:pulumi:stack::project::aws:ec2/instance:Instance::instance-1",
-		},
-		{
-			"type": "aws:s3/bucket:Bucket",
-			"urn":  "urn:pulumi:stack::project::aws:s3/bucket:Bucket::bucket-1",
-		},
+			switch {
+			case tt.checkTable:
+				for _, s := range tt.tableContains {
+					assert.Contains(t, output, s)
+				}
+			case tt.checkNDJSON:
+				assert.Empty(t, output) // No plugins/specs = no NDJSON lines
+			case tt.checkJSON:
+				var results engine.AggregatedResults
+				err = json.Unmarshal(out.Bytes(), &results)
+				require.NoError(t, err)
+				assert.Len(t, results.Resources, 0) // No plugins/specs = empty
+			}
+		})
 	}
-
-	planPath := createTestPlan(t, resources)
-
-	cmd := cli.NewCostProjectedCmd()
-	cmd.SetArgs([]string{"--pulumi-json", planPath, "--output", "ndjson"})
-
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	// Without plugins/specs, NDJSON output is empty (no lines to output)
-	output := out.String()
-	assert.Empty(t, output) // No results = no NDJSON lines
-}
-
-// TestCostProjectedCmd_FilterByType tests resource filtering.
-func TestCostProjectedCmd_FilterByType(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	resources := []map[string]interface{}{
-		{
-			"type": "aws:ec2/instance:Instance",
-			"urn":  "urn:pulumi:stack::project::aws:ec2/instance:Instance::instance-1",
-		},
-		{
-			"type": "aws:s3/bucket:Bucket",
-			"urn":  "urn:pulumi:stack::project::aws:s3/bucket:Bucket::bucket-1",
-		},
-	}
-
-	planPath := createTestPlan(t, resources)
-
-	cmd := cli.NewCostProjectedCmd()
-	cmd.SetArgs([]string{
-		"--pulumi-json", planPath,
-		"--filter", "type=ec2",
-		"--output", "json",
-	})
-
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	var results engine.AggregatedResults
-	err = json.Unmarshal(out.Bytes(), &results)
-	require.NoError(t, err)
-
-	// Should only have EC2 instance after filtering
-	assert.Len(t, results.Resources, 0) // No plugins/specs = empty
-}
-
-// TestCostProjectedCmd_FilterByProvider tests provider-level filtering.
-func TestCostProjectedCmd_FilterByProvider(t *testing.T) {
-	// Set log level to error to avoid cluttering test output with debug logs
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	resources := []map[string]interface{}{
-		{
-			"type": "aws:ec2/instance:Instance",
-			"urn":  "urn:pulumi:stack::project::aws:ec2/instance:Instance::instance-1",
-		},
-		{
-			"type": "azure:compute/virtualMachine:VirtualMachine",
-			"urn":  "urn:pulumi:stack::project::azure:compute/virtualMachine:VirtualMachine::vm-1",
-		},
-	}
-
-	planPath := createTestPlan(t, resources)
-
-	cmd := cli.NewCostProjectedCmd()
-	cmd.SetArgs([]string{
-		"--pulumi-json", planPath,
-		"--filter", "provider=aws",
-		"--output", "json",
-	})
-
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	var results engine.AggregatedResults
-	err = json.Unmarshal(out.Bytes(), &results)
-	require.NoError(t, err)
-
-	// Should only have AWS resources
-	assert.Len(t, results.Resources, 0) // No plugins/specs = empty
 }
 
 // TestCostProjectedCmd_EmptyPlan tests handling of plan with no resources.

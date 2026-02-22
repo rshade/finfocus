@@ -113,7 +113,7 @@ func TestBuildRecommendationsKey(t *testing.T) {
 
 	t.Run("format", func(t *testing.T) {
 		key := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"})
-		assert.Contains(t, key, "recommendations/multi/")
+		assert.Equal(t, "recommendations/multi/ec2:Instance+rds:DBInstance", key)
 	})
 }
 
@@ -352,7 +352,7 @@ func TestBoltStore_ConcurrentSafety(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			key := BuildProjectedKey("aws", "ec2:Instance", "us-east-1",
-				"t3.micro-"+string(rune('A'+idx%26)))
+				fmt.Sprintf("t3.micro-%d", idx))
 			if err := store.Set(key, data); err != nil {
 				errCh <- err
 			}
@@ -362,7 +362,7 @@ func TestBoltStore_ConcurrentSafety(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			key := BuildProjectedKey("aws", "ec2:Instance", "us-east-1",
-				"t3.micro-"+string(rune('A'+idx%26)))
+				fmt.Sprintf("t3.micro-%d", idx))
 			_, _ = store.Get(key) // May return not found, that's fine
 		}(i)
 	}

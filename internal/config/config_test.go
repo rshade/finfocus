@@ -17,7 +17,8 @@ func stubHome(t *testing.T) {
 	t.Helper()
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
-	t.Setenv("USERPROFILE", dir) // Windows
+	t.Setenv("USERPROFILE", dir)  // Windows
+	t.Setenv("FINFOCUS_HOME", "") // Prevent real FINFOCUS_HOME from leaking into tests
 }
 
 func TestConfig_NewAndDefaults(t *testing.T) {
