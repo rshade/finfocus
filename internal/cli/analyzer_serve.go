@@ -19,6 +19,7 @@ import (
 	"github.com/rshade/finfocus/internal/constants"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/registry"
 	"github.com/rshade/finfocus/internal/spec"
 )
@@ -105,6 +106,9 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra
 		logger.Warn().Err(err).Msg("failed to open plugins, continuing with spec-only mode")
 		clients = nil
 	}
+
+	// Filter out plugins that are explicitly disabled in analyzer.plugins config (#751).
+	clients = filterDisabledClients(clients, cfg.Analyzer.Plugins)
 
 	logger.Debug().Int("plugin_count", len(clients)).Msg("plugins loaded")
 
@@ -230,4 +234,24 @@ func RunAnalyzerServe(cmd *cobra.Command) error {
 
 	stderrLogger.Info().Msg("analyzer server stopped")
 	return nil
+}
+
+// filterDisabledClients removes clients whose names are explicitly configured as
+// Enabled: false in the analyzer plugins map. Plugins absent from the map default
+// to enabled for backward compatibility. A nil or empty map passes all clients through.
+func filterDisabledClients(
+	clients []*pluginhost.Client,
+	analyzerPlugins map[string]config.AnalyzerPlugin,
+) []*pluginhost.Client {
+	if len(analyzerPlugins) == 0 {
+		return clients
+	}
+	result := make([]*pluginhost.Client, 0, len(clients))
+	for _, client := range clients {
+		if plugin, ok := analyzerPlugins[client.Name]; ok && !plugin.Enabled {
+			continue // explicitly disabled
+		}
+		result = append(result, client)
+	}
+	return result
 }

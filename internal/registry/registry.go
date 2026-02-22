@@ -49,22 +49,26 @@ func (r *Registry) ListPlugins() ([]PluginInfo, error) {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		pluginPath := filepath.Join(r.root, entry.Name())
+		// Use os.Stat (not entry.IsDir) so symlinks-to-directories are followed (#750).
+		entryInfo, entryStatErr := os.Stat(pluginPath)
+		if entryStatErr != nil || !entryInfo.IsDir() {
 			continue
 		}
 
-		pluginPath := filepath.Join(r.root, entry.Name())
 		versions, versionErr := os.ReadDir(pluginPath)
 		if versionErr != nil {
 			continue
 		}
 
 		for _, version := range versions {
-			if !version.IsDir() {
+			versionPath := filepath.Join(pluginPath, version.Name())
+			// Use os.Stat (not version.IsDir) so symlinks-to-directories are followed (#750).
+			versionInfo, versionStatErr := os.Stat(versionPath)
+			if versionStatErr != nil || !versionInfo.IsDir() {
 				continue
 			}
 
-			versionPath := filepath.Join(pluginPath, version.Name())
 			// Read metadata once and pass to findBinary to avoid duplicate reads.
 			meta, _ := ReadPluginMetadata(versionPath)
 			binPath := r.findBinary(versionPath, meta)

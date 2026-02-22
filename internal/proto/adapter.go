@@ -22,7 +22,9 @@ import (
 )
 
 // ErrEstimateCostNotSupported indicates the EstimateCost RPC is not yet implemented.
-var ErrEstimateCostNotSupported = errors.New("EstimateCost RPC not yet implemented in finfocus-spec v0.5.6")
+var ErrEstimateCostNotSupported = errors.New(
+	"EstimateCost RPC not yet implemented in finfocus-spec v0.5.6",
+)
 
 // ErrPropertiesMultiResource indicates Properties cannot be used with multiple ResourceIDs
 // because each resource requires its own cloud ID, ARN, and tag mappings.
@@ -103,7 +105,7 @@ func GetProjectedCostWithErrors(
 
 	for _, resource := range resources {
 		// Pre-flight validation: construct proto request and validate before gRPC call
-		sku, region := resolveSKUAndRegion(resource.Provider, resource.Type, resource.Properties)
+		sku, region := resolveSKUAndRegion(ctx, resource.Provider, resource.Type, resource.Properties)
 		protoReq := &pbc.GetProjectedCostRequest{
 			Resource: &pbc.ResourceDescriptor{
 				Id:           resource.ID,
@@ -291,7 +293,8 @@ func recordActualCostPluginError(
 ) {
 	// Determine error code: timeout vs generic plugin error
 	errCode := ErrCodePluginError
-	if errors.Is(pluginErr, context.DeadlineExceeded) || status.Code(pluginErr) == codes.DeadlineExceeded {
+	if errors.Is(pluginErr, context.DeadlineExceeded) ||
+		status.Code(pluginErr) == codes.DeadlineExceeded {
 		errCode = ErrCodeTimeoutError
 	}
 
@@ -385,7 +388,7 @@ func GetActualCostWithErrors(
 		// but actual cost requests only carry tags. Enrich tags so plugins like aws-public
 		// can look up costs by instance type / volume type.
 		if req.Provider != "" {
-			enrichTagsWithSKUAndRegion(tags, req.Provider, req.ResourceType, req.Properties)
+			enrichTagsWithSKUAndRegion(ctx, tags, req.Provider, req.ResourceType, req.Properties)
 		}
 
 		// Pre-flight validation: construct proto request and validate before gRPC call
@@ -398,7 +401,15 @@ func GetActualCostWithErrors(
 		}
 
 		if err := pluginsdk.ValidateActualCostRequest(protoReq); err != nil {
-			recordActualCostValidationError(ctx, result, pluginName, req.ResourceType, resourceID, cloudID, err)
+			recordActualCostValidationError(
+				ctx,
+				result,
+				pluginName,
+				req.ResourceType,
+				resourceID,
+				cloudID,
+				err,
+			)
 			continue
 		}
 
@@ -796,7 +807,11 @@ func (c *clientAdapter) DismissRecommendation(
 // Returns:
 //   - sku: the resolved SKU string, or an empty string if none could be determined.
 //   - region: the resolved region string, or an empty string if none could be determined.
-func resolveSKUAndRegion(provider, resourceType string, properties map[string]string) (string, string) {
+func resolveSKUAndRegion(
+	ctx context.Context,
+	provider, resourceType string,
+	properties map[string]string,
+) (string, string) {
 	var sku, region string
 	switch strings.ToLower(provider) {
 	case awsProvider:
@@ -838,6 +853,25 @@ func resolveSKUAndRegion(provider, resourceType string, properties map[string]st
 				region = envReg
 			}
 		}
+	}
+
+	// Debug log when SKU or region is still empty after all extraction attempts (#723).
+	// Use logging.FromContext(ctx) to propagate the trace ID for distributed tracing.
+	if sku == "" || region == "" {
+		keys := make([]string, 0, len(properties))
+		for k := range properties {
+			keys = append(keys, k)
+		}
+		logger := logging.FromContext(ctx)
+		logger.Debug().
+			Ctx(ctx).
+			Str("component", "adapter").
+			Str("provider", provider).
+			Str("resource_type", resourceType).
+			Strs("property_keys", keys).
+			Str("resolved_sku", sku).
+			Str("resolved_region", region).
+			Msg("resolveSKUAndRegion: empty SKU or region after all extraction attempts")
 	}
 
 	return sku, region
@@ -958,17 +992,19 @@ func toStringMap(m map[string]interface{}) map[string]string {
 // the resolved values are non-empty.
 //
 // Parameters:
+//   - ctx: request context for logging and trace ID propagation.
 //   - tags: map to be mutated with optional "sku", "region", "provider", and "resource_type" entries.
 //   - provider: cloud provider identifier (e.g., "aws", "azure") used for resolution.
 //   - resourceType: resource type token used to help determine SKU/region.
 //   - properties: resource properties that are converted to strings and used for resolution.
 func enrichTagsWithSKUAndRegion(
+	ctx context.Context,
 	tags map[string]string,
 	provider, resourceType string,
 	properties map[string]interface{},
 ) {
 	stringProps := toStringMap(properties)
-	sku, region := resolveSKUAndRegion(provider, resourceType, stringProps)
+	sku, region := resolveSKUAndRegion(ctx, provider, resourceType, stringProps)
 	if sku != "" {
 		if _, exists := tags["sku"]; !exists {
 			tags["sku"] = sku
@@ -1005,7 +1041,7 @@ func (c *clientAdapter) GetProjectedCost(
 
 	for _, resource := range in.Resources {
 		// Extract SKU and region from properties using intelligent mapping
-		sku, region := resolveSKUAndRegion(resource.Provider, resource.Type, resource.Properties)
+		sku, region := resolveSKUAndRegion(ctx, resource.Provider, resource.Type, resource.Properties)
 
 		req := &pbc.GetProjectedCostRequest{
 			Resource: &pbc.ResourceDescriptor{
@@ -1061,7 +1097,12 @@ func (c *clientAdapter) GetProjectedCost(
 	}
 
 	if len(results) == 0 && firstErr != nil {
-		return &GetProjectedCostResponse{Results: results}, fmt.Errorf("projected cost query failed: %w", firstErr)
+		return &GetProjectedCostResponse{
+				Results: results,
+			}, fmt.Errorf(
+				"projected cost query failed: %w",
+				firstErr,
+			)
 	}
 	return &GetProjectedCostResponse{Results: results}, nil
 }
@@ -1084,7 +1125,7 @@ func (c *clientAdapter) GetActualCost(
 		// pre-validated path. It is intentionally idempotent — direct callers of
 		// clientAdapter.GetActualCost may not have pre-enriched tags.
 		if in.Provider != "" {
-			enrichTagsWithSKUAndRegion(tags, in.Provider, in.ResourceType, in.Properties)
+			enrichTagsWithSKUAndRegion(ctx, tags, in.Provider, in.ResourceType, in.Properties)
 		}
 
 		req := &pbc.GetActualCostRequest{
@@ -1124,7 +1165,12 @@ func (c *clientAdapter) GetActualCost(
 	}
 
 	if len(results) == 0 && firstErr != nil {
-		return &GetActualCostResponse{Results: results}, fmt.Errorf("actual cost query failed: %w", firstErr)
+		return &GetActualCostResponse{
+				Results: results,
+			}, fmt.Errorf(
+				"actual cost query failed: %w",
+				firstErr,
+			)
 	}
 	return &GetActualCostResponse{Results: results}, nil
 }
@@ -1264,7 +1310,7 @@ func (c *clientAdapter) GetRecommendations(
 
 	// Convert target resources if provided
 	for _, resource := range in.TargetResources {
-		sku, region := resolveSKUAndRegion(resource.Provider, resource.Type, resource.Properties)
+		sku, region := resolveSKUAndRegion(ctx, resource.Provider, resource.Type, resource.Properties)
 		req.TargetResources = append(req.TargetResources, &pbc.ResourceDescriptor{
 			Id:           resource.ID,
 			Provider:     resource.Provider,

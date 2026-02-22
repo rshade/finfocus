@@ -15,7 +15,9 @@ import (
 
 const (
 	// analyzerDirPrefix is the directory name prefix for Pulumi plugin versioned directories.
-	analyzerDirPrefix = "analyzer-finfocus-v"
+	// The version portion (e.g., "v0.3.1") is appended at runtime using normalizeVersion()
+	// to ensure exactly one "v" prefix regardless of the raw version string format.
+	analyzerDirPrefix = "analyzer-finfocus-"
 
 	// analyzerBinaryName is the binary name Pulumi expects inside the plugin directory.
 	analyzerBinaryName = "pulumi-analyzer-finfocus"
@@ -64,6 +66,17 @@ type InstallResult struct {
 	Action string `json:"action"`
 }
 
+// normalizeVersion ensures a version string has exactly one "v" prefix.
+// Production builds embed a v-prefixed version (e.g., "v0.3.1") while dev builds may not
+// (e.g., "0.1.0-dirty"). This function normalizes all forms to "v{semver}" by stripping
+// all leading "v" characters and adding exactly one back:
+//   - "0.3.1"   → "v0.3.1"  (dev build, no prefix)
+//   - "v0.3.1"  → "v0.3.1"  (production build, correct)
+//   - "vv0.3.1" → "v0.3.1"  (malformed double-v, guarded against regression)
+func normalizeVersion(v string) string {
+	return "v" + strings.TrimLeft(v, "v")
+}
+
 // ResolvePulumiPluginDir resolves the Pulumi plugin directory with the following precedence:
 //  1. override (--target-dir flag) if non-empty
 //  2. $PULUMI_HOME/plugins/ if PULUMI_HOME is set
@@ -96,7 +109,13 @@ func IsInstalled(targetDir string) (bool, error) {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() && strings.HasPrefix(entry.Name(), analyzerDirPrefix) {
+		if !strings.HasPrefix(entry.Name(), analyzerDirPrefix) {
+			continue
+		}
+		// Use os.Stat (not entry.IsDir) so symlinks-to-directories are followed (#750).
+		entryPath := filepath.Join(targetDir, entry.Name())
+		info, statErr := os.Stat(entryPath)
+		if statErr == nil && info.IsDir() {
 			return true, nil
 		}
 	}
@@ -120,6 +139,9 @@ func InstalledVersion(targetDir string) (string, error) {
 	for _, entry := range entries {
 		if entry.IsDir() && strings.HasPrefix(entry.Name(), analyzerDirPrefix) {
 			ver := strings.TrimPrefix(entry.Name(), analyzerDirPrefix)
+			// Strip leading "v" to return a bare semver string for consistent comparisons.
+			// Directories are always created with a "v" prefix via normalizeVersion().
+			ver = strings.TrimPrefix(ver, "v")
 			return ver, nil
 		}
 	}
@@ -129,6 +151,7 @@ func InstalledVersion(targetDir string) (string, error) {
 
 // NeedsUpdate compares the installed analyzer version against the current binary version.
 // Returns true if they differ, false if they match or analyzer is not installed.
+// Both versions are normalized (stripped of "v" prefix) before comparison.
 func NeedsUpdate(targetDir string) (bool, error) {
 	installed, err := InstalledVersion(targetDir)
 	if err != nil {
@@ -140,7 +163,8 @@ func NeedsUpdate(targetDir string) (bool, error) {
 	}
 
 	current := version.GetVersion()
-	return installed != current, nil
+	// Normalize both sides: strip "v" prefix so "v0.3.1" and "0.3.1" compare as equal.
+	return strings.TrimPrefix(installed, "v") != strings.TrimPrefix(current, "v"), nil
 }
 
 // Install installs the finfocus binary as a Pulumi analyzer plugin.
@@ -174,16 +198,18 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 
 	if installedVer != "" && !opts.Force {
 		// Already installed - return status
-		binaryPath := filepath.Join(pluginDir, analyzerDirPrefix+installedVer, analyzerBinaryName)
+		// Use normalizeVersion to construct the correct directory path (ensures "v" prefix).
+		binaryPath := filepath.Join(pluginDir, analyzerDirPrefix+normalizeVersion(installedVer), analyzerBinaryName)
 		action := ActionAlreadyCurrent
-		if installedVer != currentVersion {
+		// Normalize both sides before comparing: "v0.3.1" == "0.3.1" after stripping "v"
+		if strings.TrimPrefix(installedVer, "v") != strings.TrimPrefix(currentVersion, "v") {
 			action = ActionUpdateAvailable
 		}
 		return &InstallResult{
 			Installed:      true,
 			Version:        installedVer,
 			Path:           binaryPath,
-			NeedsUpdate:    installedVer != currentVersion,
+			NeedsUpdate:    strings.TrimPrefix(installedVer, "v") != strings.TrimPrefix(currentVersion, "v"),
 			CurrentVersion: currentVersion,
 			Action:         action,
 		}, nil
@@ -207,8 +233,10 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 		}
 	}
 
-	// Create the versioned directory
-	versionedDir := filepath.Join(pluginDir, analyzerDirPrefix+currentVersion)
+	// Create the versioned directory.
+	// normalizeVersion ensures exactly one "v" prefix: "0.3.1" → "v0.3.1", "v0.3.1" → "v0.3.1".
+	// This fixes the double-v bug where "analyzer-finfocus-v" + "v0.3.1" = "analyzer-finfocus-vv0.3.1".
+	versionedDir := filepath.Join(pluginDir, analyzerDirPrefix+normalizeVersion(currentVersion))
 	if mkErr := os.MkdirAll(versionedDir, 0o750); mkErr != nil {
 		return nil, fmt.Errorf("creating plugin directory %s: %w", versionedDir, mkErr)
 	}
@@ -281,11 +309,17 @@ func removeAnalyzerDirs(dir string) error {
 	}
 
 	for _, entry := range entries {
-		if entry.IsDir() && strings.HasPrefix(entry.Name(), analyzerDirPrefix) {
-			fullPath := filepath.Join(dir, entry.Name())
-			if removeErr := os.RemoveAll(fullPath); removeErr != nil {
-				return fmt.Errorf("removing %s: %w", fullPath, removeErr)
-			}
+		if !strings.HasPrefix(entry.Name(), analyzerDirPrefix) {
+			continue
+		}
+		fullPath := filepath.Join(dir, entry.Name())
+		// Use os.Stat (not entry.IsDir) so symlinked analyzer directories are removed (#750).
+		info, statErr := os.Stat(fullPath)
+		if statErr != nil || !info.IsDir() {
+			continue
+		}
+		if removeErr := os.RemoveAll(fullPath); removeErr != nil {
+			return fmt.Errorf("removing %s: %w", fullPath, removeErr)
 		}
 	}
 

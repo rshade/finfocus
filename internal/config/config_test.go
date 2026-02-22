@@ -1182,3 +1182,32 @@ func TestConfigPermissions(t *testing.T) {
 		}
 	})
 }
+
+// TestConfig_FinfocusPluginDirEnvOverride verifies that FINFOCUS_PLUGIN_DIR env var
+// overrides the computed PluginDir in New(). Issue #752.
+func TestConfig_FinfocusPluginDirEnvOverride(t *testing.T) {
+	stubHome(t)
+	t.Setenv("FINFOCUS_PLUGIN_DIR", "/custom/plugin/path")
+
+	cfg := New()
+
+	assert.Equal(t, "/custom/plugin/path", cfg.PluginDir,
+		"FINFOCUS_PLUGIN_DIR must override the computed PluginDir")
+}
+
+// TestConfig_PluginDirYAMLKey verifies that the plugin_dir: top-level YAML key sets
+// cfg.PluginDir when loaded from a config file. Issue #753.
+func TestConfig_PluginDirYAMLKey(t *testing.T) {
+	stubHome(t)
+
+	// Create a config file with plugin_dir set.
+	configDir := filepath.Join(os.Getenv("HOME"), ".finfocus")
+	require.NoError(t, os.MkdirAll(configDir, 0700))
+	configPath := filepath.Join(configDir, "config.yaml")
+	require.NoError(t, os.WriteFile(configPath, []byte("plugin_dir: /yaml/plugin/path\n"), 0644))
+
+	cfg := New()
+
+	assert.Equal(t, "/yaml/plugin/path", cfg.PluginDir,
+		"plugin_dir YAML key must set PluginDir when loaded from config file")
+}

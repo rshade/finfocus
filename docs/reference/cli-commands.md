@@ -9,8 +9,8 @@ Complete command reference for FinFocus.
 ## Commands Overview
 
 ```bash
-finfocus                    # Help
-finfocus overview           # Unified cost dashboard
+finfocus                    # Auto-detects Pulumi project; opens overview if found, otherwise shows help
+finfocus overview           # Unified cost dashboard (alias: ov)
 finfocus cost               # Cost commands
 finfocus cost projected     # Estimate costs from plan
 finfocus cost actual        # Get actual historical costs
@@ -21,6 +21,10 @@ finfocus cost recommendations snooze   # Snooze a recommendation
 finfocus cost recommendations undismiss # Re-enable a dismissed recommendation
 finfocus cost recommendations history  # View recommendation lifecycle history
 finfocus config             # Configuration commands
+finfocus config init        # Initialize configuration file with defaults
+finfocus config set         # Set a configuration value
+finfocus config get         # Get a configuration value
+finfocus config list        # List all configuration values
 finfocus config validate    # Validate routing configuration
 finfocus plugin             # Plugin commands
 finfocus plugin init        # Initialize a new plugin
@@ -33,7 +37,70 @@ finfocus plugin validate    # Validate plugin setup
 finfocus plugin conformance # Run conformance tests
 finfocus plugin certify     # Run certification tests
 finfocus analyzer           # Analyzer commands
+finfocus analyzer install   # Install the Pulumi analyzer plugin
+finfocus analyzer uninstall # Uninstall the Pulumi analyzer plugin
 finfocus analyzer serve     # Start the analyzer gRPC server
+```
+
+## overview
+
+Display a unified cost dashboard combining Pulumi state and plan data with actual
+costs, projected costs, drift analysis, and recommendations.
+
+When run inside a Pulumi project directory without explicit file flags, `finfocus overview`
+auto-detects the project and current stack, then runs `pulumi stack export` and
+`pulumi preview --json` automatically. Running `finfocus` with no arguments has the
+same effect when a Pulumi project is detected.
+
+**Alias:** `ov`
+
+### Usage (overview)
+
+```bash
+finfocus overview [options]
+finfocus ov [options]
+finfocus                    # same as overview when inside a Pulumi project
+```
+
+### Options (overview)
+
+| Flag               | Description                                                             | Default               |
+| ------------------ | ----------------------------------------------------------------------- | --------------------- |
+| `--pulumi-state`   | Path to Pulumi state JSON (skips auto-detection)                        | Auto-detected         |
+| `--pulumi-json`    | Path to Pulumi preview JSON (skips auto-detection)                      | Auto-detected         |
+| `--stack`          | Pulumi stack name for auto-detection (ignored with `--pulumi-state`/`--pulumi-json`) | Current stack |
+| `--from`           | Start date (YYYY-MM-DD or RFC3339)                                      | 1st of current month  |
+| `--to`             | End date (YYYY-MM-DD or RFC3339)                                        | Now                   |
+| `--adapter`        | Restrict to a specific adapter plugin                                   | All plugins           |
+| `--output`         | Output format: `table`, `json`, `ndjson`                                | `table`               |
+| `--filter`         | Resource filters, repeatable                                            | -                     |
+| `--plain`          | Force non-interactive plain text output                                 | false                 |
+| `--yes`, `-y`      | Skip confirmation prompts                                               | false                 |
+| `--no-pagination`  | Disable pagination (plain mode only)                                    | false                 |
+
+### Examples (overview)
+
+```bash
+# Auto-detect from current Pulumi project (recommended)
+finfocus overview
+
+# Same — bare invocation inside a Pulumi project
+finfocus
+
+# Select a non-default stack
+finfocus overview --stack production
+
+# Use pre-exported files
+finfocus overview --pulumi-state state.json --pulumi-json plan.json
+
+# CI/CD: non-interactive JSON output
+finfocus overview --output json --yes
+
+# Filter to a single provider
+finfocus overview --filter provider=aws --plain --yes
+
+# Custom date range
+finfocus overview --from 2026-01-01 --to 2026-01-31 --plain --yes
 ```
 
 ## cost projected
@@ -430,6 +497,121 @@ The interactive TUI mode allows you to:
 - Edit property values inline (press Enter to edit)
 - See live cost updates as you modify properties
 - Press 'q' or Ctrl+C to exit
+
+## config init
+
+Initialize a configuration file with default values. When run inside a Pulumi
+project, creates project-local configuration at `$PROJECT/.finfocus/config.yaml`
+along with a `.gitignore` to protect user-specific data. Use `--global` to force
+global initialization even inside a project.
+
+### Usage (config init)
+
+```bash
+finfocus config init [options]
+```
+
+### Options (config init)
+
+| Flag       | Description                                              | Default |
+| ---------- | -------------------------------------------------------- | ------- |
+| `--global` | Force global config init even inside a Pulumi project   | false   |
+| `--force`  | Overwrite existing configuration file                    | false   |
+
+### Examples (config init)
+
+```bash
+# Create project-local config (inside a Pulumi project)
+finfocus config init
+
+# Create global config
+finfocus config init --global
+
+# Overwrite existing config
+finfocus config init --force
+```
+
+## config set
+
+Set a configuration value using dot notation. Writes to `~/.finfocus/config.yaml`
+(or the project-local config when inside a Pulumi project).
+
+For sensitive values such as API keys, use environment variables instead of
+storing them in config files.
+
+### Usage (config set)
+
+```bash
+finfocus config set <key> <value>
+```
+
+### Examples (config set)
+
+```bash
+# Set output format
+finfocus config set output.default_format json
+
+# Set plugin configuration
+finfocus config set plugins.aws.region us-west-2
+
+# Set logging level
+finfocus config set logging.level debug
+
+# For sensitive values, prefer environment variables
+export FINFOCUS_PLUGIN_AWS_SECRET_KEY="mysecret"
+```
+
+## config get
+
+Get a configuration value using dot notation from `~/.finfocus/config.yaml`.
+
+### Usage (config get)
+
+```bash
+finfocus config get <key>
+```
+
+### Examples (config get)
+
+```bash
+# Get output format
+finfocus config get output.default_format
+
+# Get a plugin section
+finfocus config get plugins.aws
+
+# Get all plugins
+finfocus config get plugins
+
+# Get logging level
+finfocus config get logging.level
+```
+
+## config list
+
+List all configuration values from `~/.finfocus/config.yaml`.
+
+### Usage (config list)
+
+```bash
+finfocus config list [options]
+```
+
+### Options (config list)
+
+| Flag         | Description                      | Default |
+| ------------ | -------------------------------- | ------- |
+| `--format`   | Output format: `yaml` or `json`  | `yaml`  |
+
+### Examples (config list)
+
+```bash
+# List all configuration in YAML format (default)
+finfocus config list
+
+# List all configuration in JSON format
+finfocus config list --format json
+```
 
 ## config validate
 
@@ -829,6 +1011,71 @@ finfocus analyzer serve [options]
 # plugins:
 #   - path: finfocus
 #     args: ["analyzer", "serve"]
+```
+
+## analyzer install
+
+Install the finfocus binary as a Pulumi Analyzer plugin. This replaces the
+manual process of creating the plugin directory, copying the binary, and
+setting permissions.
+
+After installation, the binary on PATH is required for Pulumi to find it:
+
+```bash
+export PATH="${HOME}/.pulumi/plugins/analyzer-finfocus-v<version>:${PATH}"
+```
+
+### Usage (analyzer install)
+
+```bash
+finfocus analyzer install [options]
+```
+
+### Options (analyzer install)
+
+| Flag            | Description                          | Default                   |
+| --------------- | ------------------------------------ | ------------------------- |
+| `--force`       | Overwrite existing installation      | false                     |
+| `--target-dir`  | Override Pulumi plugin directory     | `~/.pulumi/plugins/`      |
+
+### Examples (analyzer install)
+
+```bash
+# Install the analyzer
+finfocus analyzer install
+
+# Force reinstall after upgrading finfocus
+finfocus analyzer install --force
+
+# Install to a custom directory
+finfocus analyzer install --target-dir /opt/pulumi/plugins
+```
+
+## analyzer uninstall
+
+Remove all installed versions of the finfocus Pulumi Analyzer plugin.
+All `analyzer-finfocus-v*` directories are deleted from the plugin directory.
+
+### Usage (analyzer uninstall)
+
+```bash
+finfocus analyzer uninstall [options]
+```
+
+### Options (analyzer uninstall)
+
+| Flag            | Description                       | Default              |
+| --------------- | --------------------------------- | -------------------- |
+| `--target-dir`  | Override Pulumi plugin directory  | `~/.pulumi/plugins/` |
+
+### Examples (analyzer uninstall)
+
+```bash
+# Uninstall the analyzer
+finfocus analyzer uninstall
+
+# Uninstall from a custom directory
+finfocus analyzer uninstall --target-dir /opt/pulumi/plugins
 ```
 
 ## Global Options

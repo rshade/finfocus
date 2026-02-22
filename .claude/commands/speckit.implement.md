@@ -10,6 +10,35 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Batch Processing (Context Window Optimization)
+
+To maintain code quality and reduce CodeRabbit/review issues, this skill processes
+tasks in **batches** to prevent context window bloat from degrading output quality.
+
+**Default batch size**: 5 tasks per invocation.
+
+**Override**: User can pass `--batch N` in arguments (e.g., `/speckit.implement --batch 3`).
+
+**Behavior**:
+
+1. After parsing tasks.md, count **pending** tasks (not marked `[X]` or `[x]`)
+2. If pending tasks exceed the batch size, only process the first N pending tasks
+3. After completing the batch, **STOP** and output:
+
+   ```text
+   --- BATCH COMPLETE ---
+   Processed: [N] tasks ([list task IDs])
+   Remaining: [M] tasks pending
+
+   To continue: Run /clear then /speckit.implement
+   This sheds accumulated context and improves code quality for remaining tasks.
+   ---
+   ```
+
+4. Do NOT continue processing beyond the batch limit
+5. Mark completed tasks as `[X]` in tasks.md before stopping so the next
+   invocation picks up where you left off
+
 ## Outline
 
 1. Run `.specify/scripts/bash/check-prerequisites.sh --json --require-tasks --include-tasks` from repo root and parse FEATURE_DIR and AVAILABLE_DOCS list. All paths must be absolute. For single quotes in args like "I'm Groot", use escape syntax: e.g 'I'\''m Groot' (or double-quote if possible: "I'm Groot").
@@ -102,8 +131,11 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Task dependencies**: Sequential vs parallel execution rules
    - **Task details**: ID, description, file paths, parallel markers [P]
    - **Execution flow**: Order and dependency requirements
+   - **Pending count**: Count tasks NOT marked `[X]`/`[x]` — these are the work queue
+   - **Batch scope**: Take the first N pending tasks (N = batch size, default 5).
+     Report: "Processing batch: tasks [IDs] ([N] of [total pending] remaining)"
 
-6. Execute implementation following the task plan:
+6. Execute implementation following the task plan (batch-limited):
    - **Phase-by-phase execution**: Complete each phase before moving to the next
    - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
@@ -131,7 +163,10 @@ You **MUST** consider the user input before proceeding (if not empty).
    - For parallel tasks [P], continue with successful tasks, report failed ones
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
-   - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+   - **IMPORTANT**: For completed tasks, mark the task as `[X]` in tasks.md immediately
+   - **BATCH LIMIT**: After completing the batch limit (default 5), STOP execution.
+     Mark all completed tasks as `[X]`, then output the batch-complete message
+     from the "Batch Processing" section above. Do NOT continue to the next task.
 
 10. Completion validation:
     - Verify all required tasks are completed

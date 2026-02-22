@@ -797,7 +797,7 @@ func TestExtractSKUFromProperties(t *testing.T) {
 			if tt.provider != "" {
 				provider = tt.provider
 			}
-			sku, region := resolveSKUAndRegion(provider, "", tt.properties)
+			sku, region := resolveSKUAndRegion(context.Background(), provider, "", tt.properties)
 			if sku != tt.expected {
 				t.Errorf("resolveSKUAndRegion(%s) sku = %q, want %q", provider, sku, tt.expected)
 			}
@@ -880,7 +880,7 @@ func TestExtractRegionFromProperties(t *testing.T) {
 				t.Setenv(key, val)
 			}
 
-			sku, region := resolveSKUAndRegion("aws", "", tt.properties)
+			sku, region := resolveSKUAndRegion(context.Background(), "aws", "", tt.properties)
 			if region != tt.expected {
 				t.Errorf("resolveSKUAndRegion() region = %q, want %q", region, tt.expected)
 			}
@@ -1874,7 +1874,7 @@ func TestResolveSKUAndRegion_AWSRegionFallbackScope(t *testing.T) {
 				t.Setenv(key, val)
 			}
 
-			_, region := resolveSKUAndRegion(tt.provider, "", tt.properties)
+			_, region := resolveSKUAndRegion(context.Background(), tt.provider, "", tt.properties)
 			if region != tt.expectedRegion {
 				t.Errorf("resolveSKUAndRegion(%q) region = %q, want %q",
 					tt.provider, region, tt.expectedRegion)
@@ -2759,7 +2759,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 			"availabilityZone": "us-west-2a",
 		}
 
-		enrichTagsWithSKUAndRegion(tags, "aws", "aws:ec2/instance:Instance", props)
+		enrichTagsWithSKUAndRegion(context.Background(), tags, "aws", "aws:ec2/instance:Instance", props)
 
 		assert.Equal(t, "t3.medium", tags["sku"])
 		assert.Contains(t, tags["region"], "us-west-2")
@@ -2780,7 +2780,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 			"region":       "us-east-1",
 		}
 
-		enrichTagsWithSKUAndRegion(tags, "aws", "aws:ec2/instance:Instance", props)
+		enrichTagsWithSKUAndRegion(context.Background(), tags, "aws", "aws:ec2/instance:Instance", props)
 
 		assert.Equal(t, "existing-sku", tags["sku"])
 		assert.Equal(t, "existing-region", tags["region"])
@@ -2795,7 +2795,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 			"pulumi:arn":   "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc",
 		}
 
-		enrichTagsWithSKUAndRegion(tags, "aws", "aws:ec2/instance:Instance", props)
+		enrichTagsWithSKUAndRegion(context.Background(), tags, "aws", "aws:ec2/instance:Instance", props)
 
 		assert.Equal(t, "t3.medium", tags["sku"])
 		assert.Equal(t, "us-east-1", tags["region"])
@@ -2809,7 +2809,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 			"pulumi:arn":       "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc",
 		}
 
-		enrichTagsWithSKUAndRegion(tags, "aws", "aws:ec2/instance:Instance", props)
+		enrichTagsWithSKUAndRegion(context.Background(), tags, "aws", "aws:ec2/instance:Instance", props)
 
 		assert.Contains(t, tags["region"], "us-west-2", "AZ-based region should win over ARN")
 	})
@@ -2818,7 +2818,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 		tags := map[string]string{"Name": "test"}
 		props := map[string]interface{}{}
 
-		enrichTagsWithSKUAndRegion(tags, "", "", props)
+		enrichTagsWithSKUAndRegion(context.Background(), tags, "", "", props)
 
 		_, hasSKU := tags["sku"]
 		assert.False(t, hasSKU)
@@ -2834,7 +2834,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 			"name": "my-cluster",
 		}
 
-		enrichTagsWithSKUAndRegion(tags, "aws", "aws:eks/cluster:Cluster", props)
+		enrichTagsWithSKUAndRegion(context.Background(), tags, "aws", "aws:eks/cluster:Cluster", props)
 
 		assert.Equal(t, "cluster", tags["sku"])
 		assert.Equal(t, "aws", tags["provider"])
@@ -2845,7 +2845,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 		tags := map[string]string{}
 		props := map[string]interface{}{}
 
-		enrichTagsWithSKUAndRegion(tags, "azure", "azure:compute:VirtualMachine", props)
+		enrichTagsWithSKUAndRegion(context.Background(), tags, "azure", "azure:compute:VirtualMachine", props)
 
 		assert.Equal(t, "azure", tags["provider"])
 		assert.Equal(t, "azure:compute:VirtualMachine", tags["resource_type"])
@@ -3345,4 +3345,69 @@ func TestGetActualCostWithErrors_StructuredError_GRPCTimeout(t *testing.T) {
 	assert.Equal(t, ErrCodeTimeoutError, result.Results[0].StructuredError.Code,
 		"gRPC status-wrapped deadline should be classified as TIMEOUT_ERROR")
 	assert.Contains(t, result.Results[0].StructuredError.Message, "deadline exceeded")
+}
+
+// TestResolveSKUAndRegion_EmptyFallback is a regression test for issue #723: intermittent
+// $0.00 projected costs in the TUI overview. It verifies that resolveSKUAndRegion returns
+// empty strings rather than panicking when properties map has no recognisable SKU/region
+// keys, and that the debug log is emitted without error.
+func TestResolveSKUAndRegion_EmptyFallback(t *testing.T) {
+	tests := []struct {
+		name         string
+		provider     string
+		resourceType string
+		properties   map[string]string
+		wantSKU      string
+		wantRegion   string
+	}{
+		{
+			name:         "nil properties returns empty strings",
+			provider:     "aws",
+			resourceType: "aws:ec2/instance:Instance",
+			properties:   nil,
+			wantSKU:      "",
+			wantRegion:   "",
+		},
+		{
+			name:         "empty properties returns empty strings",
+			provider:     "aws",
+			resourceType: "aws:ec2/instance:Instance",
+			properties:   map[string]string{},
+			wantSKU:      "",
+			wantRegion:   "",
+		},
+		{
+			name:         "unrecognised property keys returns empty strings",
+			provider:     "aws",
+			resourceType: "aws:custom/resource:Resource",
+			properties:   map[string]string{"foo": "bar", "baz": "42"},
+			wantSKU:      "",
+			wantRegion:   "",
+		},
+		{
+			name:         "azure with no recognised keys returns empty strings",
+			provider:     "azure",
+			resourceType: "azure:compute/virtualMachine:VirtualMachine",
+			properties:   map[string]string{"name": "my-vm"},
+			wantSKU:      "",
+			wantRegion:   "",
+		},
+		{
+			name:         "gcp with no recognised keys returns empty strings",
+			provider:     "gcp",
+			resourceType: "gcp:compute/instance:Instance",
+			properties:   map[string]string{"name": "my-instance"},
+			wantSKU:      "",
+			wantRegion:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Should not panic and should return empty strings for unrecognised properties.
+			sku, region := resolveSKUAndRegion(context.Background(), tt.provider, tt.resourceType, tt.properties)
+			assert.Equal(t, tt.wantSKU, sku, "unexpected SKU for provider=%s", tt.provider)
+			assert.Equal(t, tt.wantRegion, region, "unexpected region for provider=%s", tt.provider)
+		})
+	}
 }

@@ -195,6 +195,18 @@ func enrichProjectedCost(
 		if row.ProjectedCost.Currency == "" {
 			row.ProjectedCost.Currency = defaultCurrency
 		}
+		// Debug log when projected cost is $0 to help investigate intermittent $0.00 TUI costs (#723).
+		if costResult.Monthly == 0 {
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("operation", "enrich_projected_cost").
+				Str("urn", row.URN).
+				Str("resource_type", row.Type).
+				Str("adapter", costResult.Adapter).
+				Str("notes", costResult.Notes).
+				Msg("projected cost is $0.00: possible missing SKU/region or unpriced resource type")
+		}
 	}
 
 	return nil

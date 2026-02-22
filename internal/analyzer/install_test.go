@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -475,6 +476,86 @@ func TestUninstall_CustomTargetDir(t *testing.T) {
 	installed, checkErr := IsInstalled(customDir)
 	require.NoError(t, checkErr)
 	assert.False(t, installed)
+}
+
+// --- T006: TestInstall_VersionNormalization (TDD - must fail before fix) ---
+
+// TestInstall_VersionNormalization verifies that the analyzer directory name contains
+// exactly one "v" prefix in the version portion, preventing the double-v bug (#749).
+// The directory name format must be "analyzer-finfocus-v{semver}" with exactly one "v".
+func TestInstall_VersionNormalization(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		// We install to a fresh temp dir, then check the created directory name.
+		// The mock version is injected via environment to test all inputs.
+	}{
+		{name: "v-prefixed version (production builds)"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			dir := t.TempDir()
+			ctx := context.Background()
+
+			result, err := Install(ctx, InstallOptions{TargetDir: dir})
+			require.NoError(t, err)
+			require.NotNil(t, result)
+
+			// The versioned directory must contain exactly one "v" prefix in the version.
+			// e.g., "analyzer-finfocus-v0.3.1" is correct, "analyzer-finfocus-vv0.3.1" is wrong.
+			entries, readErr := os.ReadDir(dir)
+			require.NoError(t, readErr)
+
+			var analyzerDir string
+			for _, entry := range entries {
+				if strings.HasPrefix(entry.Name(), "analyzer-finfocus-") {
+					analyzerDir = entry.Name()
+					break
+				}
+			}
+			require.NotEmpty(t, analyzerDir, "expected to find an analyzer-finfocus- directory")
+
+			// Must not contain double-v
+			assert.NotContains(t, analyzerDir, "vv",
+				"directory name must not contain double-v: %s", analyzerDir)
+
+			// Version part must start with exactly one "v"
+			versionPart := strings.TrimPrefix(analyzerDir, "analyzer-finfocus-")
+			assert.True(t, strings.HasPrefix(versionPart, "v"),
+				"version part must start with 'v': %s", versionPart)
+			assert.False(t, strings.HasPrefix(versionPart, "vv"),
+				"version part must not start with 'vv': %s", versionPart)
+		})
+	}
+}
+
+// --- TestNormalizeVersion: unit tests for normalizeVersion ---
+
+// TestNormalizeVersion verifies that normalizeVersion produces exactly one "v" prefix
+// for all input forms, including the double-v regression case (#749).
+func TestNormalizeVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"v0.3.1", "v0.3.1"},            // production: already correct
+		{"0.3.1", "v0.3.1"},             // dev: no prefix
+		{"vv0.3.1", "v0.3.1"},           // regression: double-v bug (#749)
+		{"vvv0.3.1", "v0.3.1"},          // edge: triple-v
+		{"0.1.0-dirty", "v0.1.0-dirty"}, // dev: dirty build
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, normalizeVersion(tt.input))
+		})
+	}
 }
 
 // --- Helper function tests ---

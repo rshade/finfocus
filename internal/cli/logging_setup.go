@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/constants"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
@@ -29,6 +31,15 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	}
 	if envFormat := os.Getenv(pluginsdk.EnvLogFormat); envFormat != "" {
 		loggingCfg.Format = envFormat
+	}
+
+	// When running as a Pulumi Analyzer plugin, redirect all logs to a file so
+	// that JSON log lines do not appear in `pulumi preview`'s Diagnostics output
+	// (#748). This applies even when --debug has cleared loggingCfg.File.
+	if os.Getenv(constants.EnvAnalyzerMode) == "true" {
+		if loggingCfg.File == "" {
+			loggingCfg.File = filepath.Join(config.ResolveConfigDir(), "logs", "analyzer.log")
+		}
 	}
 
 	// Ensure log directory exists after all overrides have been applied.
