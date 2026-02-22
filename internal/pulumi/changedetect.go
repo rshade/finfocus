@@ -104,7 +104,7 @@ func DetectChanges(ctx context.Context, manifestTime string, projectDir string) 
 func pulumiSourceFile(name string) bool {
 	// Exact filename matches for dependency and Go module files.
 	switch name {
-	case "go.mod", "go.sum",
+	case "go.mod", "go.sum", "go.work",
 		"requirements.txt", "Pipfile", "pyproject.toml",
 		"package.json", "package-lock.json", "yarn.lock", "pnpm-lock.yaml":
 		return true
@@ -121,7 +121,7 @@ func pulumiSourceFile(name string) bool {
 	// Extension-based matches for source files.
 	ext := strings.ToLower(filepath.Ext(name))
 	switch ext {
-	case ".ts", ".js", ".mts", ".mjs", // TypeScript / JavaScript
+	case ".ts", ".js", ".mts", ".mjs", ".tsx", ".jsx", // TypeScript / JavaScript
 		".py",   // Python
 		".go",   // Go
 		".cs",   // C# (.NET)

@@ -203,12 +203,15 @@ func TestPulumiSourceFile_KnownExtensions(t *testing.T) {
 		{"JavaScript .js", "index.js", true},
 		{"Module TypeScript .mts", "index.mts", true},
 		{"Module JavaScript .mjs", "index.mjs", true},
+		{"TSX .tsx", "index.tsx", true},
+		{"JSX .jsx", "index.jsx", true},
 		// Python
 		{"Python .py", "main.py", true},
 		// Go
 		{"Go source .go", "main.go", true},
 		{"go.mod", "go.mod", true},
 		{"go.sum", "go.sum", true},
+		{"go.work", "go.work", true},
 		// C# / F# (.NET)
 		{"C# .cs", "Program.cs", true},
 		{"F# .fs", "Main.fs", true},
