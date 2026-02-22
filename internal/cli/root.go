@@ -89,8 +89,8 @@ func NewRootCmdWithArgs(
 				}
 
 				// Alias reminder - use injected lookupEnv for test isolation
-				aliasHint, _ := lookupEnv("FINFOCUS_HIDE_ALIAS_HINT")
-				if aliasHint == "" && !pluginMode {
+				_, hideAlias := lookupEnv("FINFOCUS_HIDE_ALIAS_HINT")
+				if !hideAlias && !pluginMode {
 					msg := "Tip: Add 'alias fin=finfocus' to your shell profile for a shorter command!"
 					cmd.PrintErrln(msg)
 				}
