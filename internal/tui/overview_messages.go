@@ -35,3 +35,12 @@ type OverviewSetStateOnlyMsg struct {
 	PreviewCmd   tea.Cmd
 	DetectErrMsg string
 }
+
+// BudgetDataReadyMsg delivers budget health data from the background fetch
+// goroutine to the TUI model. It is sent once by the budget fetch goroutine
+// in overviewInitAndEnrich(). The TUI stores the result and triggers a
+// re-render of the list view footer and detail view budget section.
+type BudgetDataReadyMsg struct {
+	Result *engine.BudgetResult // Complete budget result (nil on failure)
+	Error  error                // Fetch error (nil on success)
+}

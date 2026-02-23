@@ -132,6 +132,11 @@ type OverviewModel struct {
 	previewCmd       tea.Cmd       // command that starts background preview (injected at construction)
 	previewElapsed   time.Duration // elapsed time since preview started
 	detectErrMsg     string        // short description of change-detection failure (empty = none)
+
+	// Budget health fields (populated by BudgetDataReadyMsg from background goroutine).
+	budgetResult *engine.BudgetResult // Budget data from plugins (nil until loaded)
+	budgetErr    error                // Budget fetch error (nil on success)
+	budgetLoaded bool                 // True after BudgetDataReadyMsg received
 }
 
 // NewOverviewModel creates a new interactive overview model.
@@ -260,6 +265,14 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.stackName = dataMsg.StackName
 		m.state = ViewStateLoading
 		m.table = m.buildOverviewTable()
+		return m, nil
+	}
+
+	// Handle budget data ready (from background fetch goroutine)
+	if budgetMsg, ok := msg.(BudgetDataReadyMsg); ok {
+		m.budgetResult = budgetMsg.Result
+		m.budgetErr = budgetMsg.Error
+		m.budgetLoaded = true
 		return m, nil
 	}
 

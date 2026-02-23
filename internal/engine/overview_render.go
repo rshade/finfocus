@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -373,15 +374,29 @@ type OverviewSummary struct {
 
 // OverviewJSONOutput is the top-level JSON output structure.
 type OverviewJSONOutput struct {
-	Metadata  OverviewMetadata   `json:"metadata"`
-	Resources []OverviewRow      `json:"resources"`
-	Summary   OverviewSummary    `json:"summary"`
-	Errors    []OverviewRowError `json:"errors"`
+	Metadata  OverviewMetadata     `json:"metadata"`
+	Resources []OverviewRow        `json:"resources"`
+	Summary   OverviewSummary      `json:"summary"`
+	Budgets   []BudgetHealthResult `json:"budgets,omitempty"`
+	Errors    []OverviewRowError   `json:"errors"`
 }
 
 // RenderOverviewAsJSON renders the overview rows as a structured JSON object
-// with metadata, resource array, summary, and errors.
-func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext) error {
+// with metadata, resource array, summary, optional budgets, and errors.
+//
+// Parameters:
+//   - ctx: context for logging and tracing; threaded to CalculateBudgetHealthResults.
+//   - w: destination writer for the JSON output.
+//   - rows: slice of OverviewRow to include as resources; may be nil (will serialize as an empty array).
+//   - stackCtx: stack context and metadata used in the output; GeneratedAt will be populated with the current time if zero.
+//   - budgetResult: optional budget data; when non-nil and non-empty, converted budgets are included
+//     in the `budgets` field. May be nil, in which case no budget entries are emitted.
+//
+// Returns an error if aggregating totals fails or if encoding/writing the JSON output fails.
+func RenderOverviewAsJSON(
+	ctx context.Context, w io.Writer, rows []OverviewRow,
+	stackCtx StackContext, budgetResult *BudgetResult,
+) error {
 	t, err := aggregateOverviewRows(rows)
 	if err != nil {
 		return err
@@ -404,6 +419,12 @@ func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext
 		stackCtx.GeneratedAt = time.Now()
 	}
 
+	// Convert budget data to BudgetHealthResult entries when available.
+	var budgets []BudgetHealthResult
+	if budgetResult != nil && len(budgetResult.Budgets) > 0 {
+		budgets = CalculateBudgetHealthResults(ctx, budgetResult.Budgets)
+	}
+
 	// Build output structure
 	output := OverviewJSONOutput{
 		Metadata: OverviewMetadata{
@@ -417,7 +438,8 @@ func RenderOverviewAsJSON(w io.Writer, rows []OverviewRow, stackCtx StackContext
 			PotentialSavings: t.savings,
 			Currency:         t.currency,
 		},
-		Errors: errs,
+		Budgets: budgets,
+		Errors:  errs,
 	}
 
 	// Marshal with indentation

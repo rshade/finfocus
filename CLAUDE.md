@@ -141,6 +141,9 @@ Common conflicts to watch for:
    - **ViewState enum**: `Initializing(0)` → `Loading(1)` → `List(2)` → `Detail(3)` → `Quitting(4)` / `Error(5)`
    - **Overview phase messages**: `OverviewPhaseMsg`, `OverviewDataReadyMsg`, `OverviewInitErrorMsg`
      for immediate TUI launch with background data loading
+   - **Budget integration**: `BudgetDataReadyMsg` delivers async budget health data;
+     `renderBudgetFooter()` and `renderDetailBudgetStatus()` in `overview_budget.go`
+     render health badges (OK/WARNING/CRITICAL/EXCEEDED) in list and detail views
 
 ### Data Flow
 
@@ -848,6 +851,19 @@ The CLI package implements the Cobra-based command-line interface. Key patterns:
 - Support multiple date formats: "2006-01-02", RFC3339
 - See `internal/cli/CLAUDE.md` for detailed CLI architecture and patterns
 
+**Overview Budget Integration** (`overview.go`):
+
+The overview command integrates budget health via two distinct paths:
+
+- **TUI path**: `overviewInitAndEnrich()` launches a concurrent goroutine calling
+  `engine.GetBudgets(ctx, nil)`, sends `tui.BudgetDataReadyMsg` via `p.Send()`.
+  Budget footer appears independently of enrichment progress.
+- **Non-TTY path**: `executeOverview()` aggregates `totalCost` from enriched rows,
+  calls `evaluateBudgetStatus(cmd, costResults, totalCost)` after rendering. Returns
+  `BudgetExitError` when `--exit-on-threshold` is set and thresholds are exceeded.
+- **Budget flags**: `--exit-on-threshold`, `--exit-code`, `--budget-scope` added
+  directly to `NewOverviewCmd()` (overview is top-level, not under `cost`).
+
 **Router Wiring Pattern** (`createRouterForEngine` in `common_execution.go`):
 
 All 9 `engine.New()` call sites that use plugin clients chain
@@ -897,6 +913,13 @@ The engine package orchestrates cost calculations between plugins and specs:
   - `newEngineWithCache()` returns `(*Engine, func())` - cleanup function closes the DB
   - All cost commands (`projected`, `actual`, `recommendations`, `overview`) use `newEngineWithCache()`
   - Overview uses `newEngineWithCache` in both plain-text (`executeOverview`) and TUI (`overviewInitAndEnrich`) paths
+  - All cost commands (`projected`, `actual`, `recommendations`) use `newEngineWithCache()`
+- **Overview Budget Output** (`overview_render.go`, `overview_types.go`):
+  - `BudgetHealthSummary` type in `overview_types.go`: lightweight health summary
+    (`OverallHealth`, `TotalBudgets`, `CriticalCount`) for `StackContext` JSON
+  - `OverviewJSONOutput.Budgets` field: top-level `[]BudgetHealthResult` array in
+    JSON output (omitted when empty); populated via `RenderOverviewAsJSON()`
+  - NDJSON output excludes budget data (stack-scoped, not resource-scoped)
 - See `internal/engine/CLAUDE.md` for detailed calculation flows
 
 **Error Types for Cross-Provider Aggregation**:

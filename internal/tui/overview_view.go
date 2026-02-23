@@ -119,15 +119,14 @@ func (m OverviewModel) renderListView() string {
 		sections = append(sections, m.renderPaginationFooter())
 	}
 
+	// Budget health footer (async-loaded, appears when budget data arrives)
+	if budgetFooter := renderBudgetFooter(m); budgetFooter != "" {
+		sections = append(sections, budgetFooter)
+	}
+
 	// Status bar with sort/filter indicators
 	statusBar := m.renderStatusBar()
 	sections = append(sections, statusBar)
-
-	// Footer footnote for state-only mode.
-	if m.isStateOnly && !m.previewLoaded {
-		footnote := SubtleStyle.Render("* projected at current state (730h/mo)")
-		sections = append(sections, footnote)
-	}
 
 	// Filter input (if active)
 	if m.showFilter {
@@ -239,6 +238,11 @@ func (m OverviewModel) renderDetailView() string {
 	renderDetailCostDrift(&content, row)
 	renderDetailRecommendations(&content, row)
 	renderDetailError(&content, row)
+
+	// Budget status section (async-loaded, appears when budget data arrives)
+	if budgetSection := renderDetailBudgetStatus(m); budgetSection != "" {
+		content.WriteString(budgetSection)
+	}
 
 	content.WriteString(SubtleStyle.Render("\nPress ESC to return"))
 

@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path"
@@ -10,6 +11,7 @@ import (
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 )
 
@@ -24,6 +26,9 @@ var ErrInvalidCurrency = errors.New("invalid currency code")
 
 // ErrInvalidBudget is returned when a budget fails validation.
 var ErrInvalidBudget = errors.New("invalid budget")
+
+// healthLabelUnknown is the display label for UNSPECIFIED or unrecognized health statuses.
+const healthLabelUnknown = "UNKNOWN"
 
 // BudgetFilterOptions contains criteria for filtering budgets.
 type BudgetFilterOptions struct {
@@ -51,15 +56,110 @@ type ExtendedBudgetSummary struct {
 
 // BudgetHealthResult contains health assessment for a single budget.
 type BudgetHealthResult struct {
-	BudgetID     string                 // Budget identifier
-	BudgetName   string                 // Human-readable name
-	Provider     string                 // Source provider (aws-budgets, kubecost, etc.)
-	Health       pbc.BudgetHealthStatus // Calculated health status
-	Utilization  float64                // Current percentage used (0-100+)
-	Forecasted   float64                // Forecasted percentage at period end
-	Currency     string                 // ISO 4217 currency code
-	Limit        float64                // Budget limit amount
-	CurrentSpend float64                // Current spend amount
+	BudgetID     string                 `json:"budgetID"`
+	BudgetName   string                 `json:"budgetName"`
+	Provider     string                 `json:"provider"`
+	Health       pbc.BudgetHealthStatus `json:"-"` // serialized via custom MarshalJSON
+	Utilization  float64                `json:"utilization"`
+	Forecasted   float64                `json:"forecasted"`
+	Currency     string                 `json:"currency"`
+	Limit        float64                `json:"limit"`
+	CurrentSpend float64                `json:"currentSpend"`
+}
+
+// HealthStatusLabel converts a BudgetHealthStatus enum to its short label.
+// Labels produced are "OK", "WARNING", "CRITICAL", "EXCEEDED", and "UNKNOWN" for unspecified or unrecognized values.
+func HealthStatusLabel(h pbc.BudgetHealthStatus) string {
+	switch h {
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
+		return "OK"
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING:
+		return "WARNING"
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL:
+		return "CRITICAL"
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED:
+		return "EXCEEDED"
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED:
+		return healthLabelUnknown
+	default:
+		return healthLabelUnknown
+	}
+}
+
+// parseHealthStatusLabel converts a short health label ("OK", "WARNING", "CRITICAL",
+// "EXCEEDED", "UNKNOWN") to the corresponding pbc.BudgetHealthStatus. It returns
+// BUDGET_HEALTH_STATUS_UNSPECIFIED for empty strings, "UNKNOWN", and any unrecognized label.
+func parseHealthStatusLabel(s string) pbc.BudgetHealthStatus {
+	switch s {
+	case "OK":
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK
+	case "WARNING":
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING
+	case "CRITICAL":
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL
+	case "EXCEEDED":
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED
+	case healthLabelUnknown, "":
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED
+	default:
+		return pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED
+	}
+}
+
+// budgetHealthJSON is the JSON-serializable representation of BudgetHealthResult.
+// It converts the protobuf Health enum to a human-readable string.
+type budgetHealthJSON struct {
+	BudgetID     string  `json:"budgetID"`
+	BudgetName   string  `json:"budgetName"`
+	Provider     string  `json:"provider"`
+	Health       string  `json:"health"`
+	Utilization  float64 `json:"utilization"`
+	Forecasted   float64 `json:"forecasted"`
+	Currency     string  `json:"currency"`
+	Limit        float64 `json:"limit"`
+	CurrentSpend float64 `json:"currentSpend"`
+}
+
+// MarshalJSON implements json.Marshaler, converting Health to a string label.
+func (b BudgetHealthResult) MarshalJSON() ([]byte, error) {
+	return json.Marshal(budgetHealthJSON{
+		BudgetID:     b.BudgetID,
+		BudgetName:   b.BudgetName,
+		Provider:     b.Provider,
+		Health:       HealthStatusLabel(b.Health),
+		Utilization:  b.Utilization,
+		Forecasted:   b.Forecasted,
+		Currency:     b.Currency,
+		Limit:        b.Limit,
+		CurrentSpend: b.CurrentSpend,
+	})
+}
+
+// UnmarshalJSON implements json.Unmarshaler, parsing Health from a string label.
+// Returns an error for unrecognized non-empty health labels to prevent silent data loss.
+func (b *BudgetHealthResult) UnmarshalJSON(data []byte) error {
+	var raw budgetHealthJSON
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return fmt.Errorf("parsing BudgetHealthResult: %w", err)
+	}
+
+	// Validate that the health label is a known value.
+	health := parseHealthStatusLabel(raw.Health)
+	if health == pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED &&
+		raw.Health != "" && raw.Health != healthLabelUnknown {
+		return fmt.Errorf("parsing BudgetHealthResult: unknown health label %q", raw.Health)
+	}
+
+	b.BudgetID = raw.BudgetID
+	b.BudgetName = raw.BudgetName
+	b.Provider = raw.Provider
+	b.Health = health
+	b.Utilization = raw.Utilization
+	b.Forecasted = raw.Forecasted
+	b.Currency = raw.Currency
+	b.Limit = raw.Limit
+	b.CurrentSpend = raw.CurrentSpend
+	return nil
 }
 
 // ThresholdEvaluationResult contains evaluated threshold state.
@@ -70,10 +170,8 @@ type ThresholdEvaluationResult struct {
 	SpendType   string               // "actual" or "forecasted"
 }
 
-// FilterBudgets filters a list of budgets based on the provided criteria.
-// It returns a new slice containing only the matching budgets.
 // FilterBudgets returns the subset of budgets that satisfy the given BudgetFilter.
-// If filter is nil, FilterBudgets returns the original budgets slice unchanged and preserves the original order.
+// If filter is nil, the original budgets slice is returned unchanged.
 func FilterBudgets(budgets []*pbc.Budget, filter *pbc.BudgetFilter) []*pbc.Budget {
 	if filter == nil {
 		return budgets
@@ -495,4 +593,112 @@ func (e *Engine) GetBudgets(ctx context.Context, filter *BudgetFilterOptions) (*
 		Msg("budget retrieval complete")
 
 	return result, nil
+}
+
+// ConfigBudgetToProto converts a config-evaluated BudgetStatus into a pbc.Budget
+// proto suitable for TUI rendering. This bridges the config-based budget evaluation
+// (DefaultBudgetEngine.Evaluate) with the plugin-based proto representation used
+// by the TUI budget footer.
+func ConfigBudgetToProto(status *BudgetStatus, name, id string) *pbc.Budget {
+	if status == nil {
+		return nil
+	}
+
+	health := CalculateBudgetHealthFromPercentage(status.Percentage)
+
+	budget := &pbc.Budget{
+		Id:     id,
+		Name:   name,
+		Source: "config",
+		Amount: &pbc.BudgetAmount{
+			Limit:    status.Budget.Amount,
+			Currency: status.Currency,
+		},
+		Status: &pbc.BudgetStatus{
+			CurrentSpend:         status.CurrentSpend,
+			PercentageUsed:       status.Percentage,
+			ForecastedSpend:      status.ForecastedSpend,
+			PercentageForecasted: status.ForecastPercentage,
+			Health:               health,
+		},
+	}
+
+	// Map config alert thresholds to proto thresholds.
+	for _, alert := range status.Alerts {
+		thresholdType := pbc.ThresholdType_THRESHOLD_TYPE_ACTUAL
+		if alert.Type == config.AlertTypeForecasted {
+			thresholdType = pbc.ThresholdType_THRESHOLD_TYPE_FORECASTED
+		}
+		budget.Thresholds = append(budget.Thresholds, &pbc.BudgetThreshold{
+			Percentage: alert.Threshold,
+			Type:       thresholdType,
+			Triggered:  alert.Status == ThresholdStatusExceeded,
+		})
+	}
+
+	// Apply default thresholds if none were configured.
+	ApplyDefaultThresholds(budget)
+
+	return budget
+}
+
+// BuildConfigBudgetResult evaluates the config-based global budget against a
+// total projected cost and returns a BudgetResult suitable for TUI rendering.
+// Returns nil when no config budget is enabled.
+func BuildConfigBudgetResult(
+	ctx context.Context,
+	budgetsCfg *config.BudgetsConfig,
+	totalProjectedCost float64,
+) *BudgetResult {
+	if budgetsCfg == nil || !budgetsCfg.HasGlobalBudget() {
+		return nil
+	}
+
+	global := budgetsCfg.Global
+	budgetConfig := config.BudgetConfig{
+		Amount:   global.Amount,
+		Currency: global.Currency,
+		Period:   global.Period,
+		Alerts:   global.Alerts,
+	}
+	if global.ExitOnThreshold != nil {
+		budgetConfig.ExitOnThreshold = *global.ExitOnThreshold
+	} else {
+		budgetConfig.ExitOnThreshold = budgetsCfg.ExitOnThreshold
+	}
+	if global.ExitCode != nil {
+		budgetConfig.ExitCode = *global.ExitCode
+	} else if budgetsCfg.ExitCode != nil {
+		budgetConfig.ExitCode = *budgetsCfg.ExitCode
+	}
+
+	// Default currency to USD when not specified but budget is enabled.
+	if budgetConfig.Currency == "" {
+		budgetConfig.Currency = "USD"
+	}
+	currency := budgetConfig.Currency
+
+	eng := NewBudgetEngine()
+	status, err := eng.Evaluate(budgetConfig, totalProjectedCost, currency)
+	if err != nil {
+		log := logging.FromContext(ctx)
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "engine").
+			Str("operation", "BuildConfigBudgetResult").
+			Err(err).
+			Msg("config budget evaluation failed")
+		return nil
+	}
+
+	protoBudget := ConfigBudgetToProto(status, "Global Budget", "config-global")
+	if protoBudget == nil {
+		return nil
+	}
+
+	budgets := []*pbc.Budget{protoBudget}
+	return &BudgetResult{
+		Budgets: budgets,
+		Summary: CalculateExtendedSummary(ctx, budgets),
+	}
 }
