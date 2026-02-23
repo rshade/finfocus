@@ -148,6 +148,14 @@ Unit tests for Go projects MUST be colocated with source code, not placed in `te
 
 ---
 
+## Phase 7: Config-Based Budget Fallback for TUI
+
+**Purpose**: When plugins return no budget data, fall back to config-based budgets using the existing `DefaultBudgetEngine.Evaluate()` and enriched cost data so the TUI budget footer still appears.
+
+- [X] T022 Add `ConfigBudgetToProto` and `BuildConfigBudgetResult` bridge functions to `internal/engine/budget.go`; modify budget goroutine in `overviewInitAndEnrich` (`internal/cli/overview.go`) to use channel-based budget fetch with config fallback after enrichment; add `sumOverviewProjectedCost` helper; add unit tests in `internal/engine/budget_test.go`
+
+---
+
 ## Dependencies and Execution Order
 
 ### Phase Dependencies

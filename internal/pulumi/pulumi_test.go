@@ -431,29 +431,36 @@ func TestStackExport_ContextCancellation(t *testing.T) {
 
 // --- Passphrase env injection tests ---
 
-func TestPreview_WithPassphrase_InjectsEnv(t *testing.T) {
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	mock := &mockRunner{stdout: []byte(`{"steps":[]}`)}
-	withMockRunner(t, mock)
+func TestPreview_PassphraseCases(t *testing.T) {
+	empty := ""
+	secret := "my-secret"
+	tests := []struct {
+		name         string
+		passphrase   *string
+		wantEnvEntry string // expected entry in lastExtraEnv, empty means expect no extra env
+	}{
+		{"non-nil passphrase injects env", &secret, "PULUMI_CONFIG_PASSPHRASE=my-secret"},
+		{"nil passphrase adds no extra env", nil, ""},
+		{"empty passphrase injects empty value", &empty, "PULUMI_CONFIG_PASSPHRASE="},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+			mock := &mockRunner{stdout: []byte(`{"steps":[]}`)}
+			withMockRunner(t, mock)
 
-	_, err := Preview(context.Background(), PreviewOptions{
-		ProjectDir: "/project",
-		Passphrase: "my-secret",
-	})
-	require.NoError(t, err)
-	assert.Contains(t, mock.lastExtraEnv, "PULUMI_CONFIG_PASSPHRASE=my-secret")
-}
-
-func TestPreview_EmptyPassphrase_NoExtraEnv(t *testing.T) {
-	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	mock := &mockRunner{stdout: []byte(`{"steps":[]}`)}
-	withMockRunner(t, mock)
-
-	_, err := Preview(context.Background(), PreviewOptions{
-		ProjectDir: "/project",
-	})
-	require.NoError(t, err)
-	assert.Empty(t, mock.lastExtraEnv)
+			_, err := Preview(context.Background(), PreviewOptions{
+				ProjectDir: "/project",
+				Passphrase: tc.passphrase,
+			})
+			require.NoError(t, err)
+			if tc.wantEnvEntry == "" {
+				assert.Empty(t, mock.lastExtraEnv)
+			} else {
+				assert.Contains(t, mock.lastExtraEnv, tc.wantEnvEntry)
+			}
+		})
+	}
 }
 
 func TestStackExport_WithPassphrase_InjectsEnv(t *testing.T) {
@@ -461,15 +468,16 @@ func TestStackExport_WithPassphrase_InjectsEnv(t *testing.T) {
 	mock := &mockRunner{stdout: []byte(`{"version":3}`)}
 	withMockRunner(t, mock)
 
+	pw := "stack-secret"
 	_, err := StackExport(context.Background(), ExportOptions{
 		ProjectDir: "/project",
-		Passphrase: "stack-secret",
+		Passphrase: &pw,
 	})
 	require.NoError(t, err)
 	assert.Contains(t, mock.lastExtraEnv, "PULUMI_CONFIG_PASSPHRASE=stack-secret")
 }
 
-func TestStackExport_EmptyPassphrase_NoExtraEnv(t *testing.T) {
+func TestStackExport_NilPassphrase_NoExtraEnv(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	mock := &mockRunner{stdout: []byte(`{"version":3}`)}
 	withMockRunner(t, mock)
@@ -479,4 +487,18 @@ func TestStackExport_EmptyPassphrase_NoExtraEnv(t *testing.T) {
 	})
 	require.NoError(t, err)
 	assert.Empty(t, mock.lastExtraEnv)
+}
+
+func TestStackExport_EmptyPassphrase_InjectsEnv(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	mock := &mockRunner{stdout: []byte(`{"version":3}`)}
+	withMockRunner(t, mock)
+
+	pw := ""
+	_, err := StackExport(context.Background(), ExportOptions{
+		ProjectDir: "/project",
+		Passphrase: &pw,
+	})
+	require.NoError(t, err)
+	assert.Contains(t, mock.lastExtraEnv, "PULUMI_CONFIG_PASSPHRASE=")
 }

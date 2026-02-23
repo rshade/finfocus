@@ -46,16 +46,12 @@ type overviewParams struct {
 	budgetScope     string
 }
 
-// NewOverviewCmd creates the "overview" command that provides a unified
-// cost dashboard combining state, plan, actual costs, projected costs,
-// NewOverviewCmd constructs the "overview" Cobra command used to display a unified stack cost dashboard.
-//
-// The command combines Pulumi state and preview data with cost information, drift analysis, and recommendations.
-// It supports auto-detection of the Pulumi project/stack when no explicit files are provided, or explicit
-// --pulumi-state / --pulumi-json inputs. The command is configured with aliases ("ov"), examples, long help
-// text, and flags for date range, adapter, output format, resource filtering, interactive/plain mode, pagination,
-// confirmation behavior, and budget controls (exit-on-threshold, exit-code, budget-scope). The command's
-// execution is delegated to executeOverview.
+// NewOverviewCmd constructs the "overview" Cobra command that displays a unified stack cost
+// dashboard combining Pulumi state and preview data with cost information, drift analysis,
+// and recommendations. It supports auto-detection of the Pulumi project/stack or explicit
+// --pulumi-state / --pulumi-json inputs, and is configured with flags for date range, adapter,
+// output format, resource filtering, interactive/plain mode, pagination, confirmation behavior,
+// and budget controls (exit-on-threshold, exit-code, budget-scope).
 func NewOverviewCmd() *cobra.Command {
 	var params overviewParams
 
@@ -113,29 +109,10 @@ instead of running Pulumi CLI commands.`,
 	return cmd
 }
 
-// executeOverview runs the overview command pipeline. It validates the date range,
-// loads Pulumi state and plan data (from files or via auto-detection), detects pending
-// changes, merges and optionally filters resources, opens plugin clients, constructs an
-// engine with a router, and either launches an interactive TUI or enriches and renders
-// plain output. It records audit events for failures and successes.
-//
-// cmd is the Cobra command being executed; params contains the overview command flags
-// and options. The function returns an error if any step of the pipeline fails.
-//
-// executeOverview orchestrates the CLI "overview" command workflow and produces the requested output.
-//
-// executeOverview will either launch the interactive TUI or run the non-interactive (plain) pipeline:
-// it validates date range inputs, loads Pulumi state and optionally a preview plan, detects pending
-// changes, merges state and plan into overview rows, applies user filters and dismissal records,
-// enriches rows with cost/usage metadata, renders output in the requested format, and evaluates
-// budgets when configured.
-//
-// cmd is the Cobra command being executed and provides the command context and I/O streams.
-// params contains the parsed CLI options that control data sources, output format, filtering,
-// interactive behavior, and budget-related flags.
-//
-// The function returns an error when validation, data loading, resource merging, enrichment,
-// rendering, or budget evaluation fails.
+// executeOverview orchestrates the overview command workflow: it validates the date range,
+// loads Pulumi state and optionally a preview plan, detects pending changes, merges and
+// filters resources, opens plugin clients, constructs an engine, and either launches an
+// interactive TUI or enriches and renders plain output with optional budget evaluation.
 func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	totalStart := time.Now()
 	ctx := cmd.Context()
@@ -172,49 +149,8 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 
 	// --- Plain text / non-interactive path ---
 
-	// 3-5. Load data: state-first for auto-detect, full load for explicit files.
-	pt = logging.StartPhase(ctx, "cli", "overview", "data_loading")
-	stateResources, planSteps, stackName, isStateOnly, err := loadPlainOverviewData(ctx, cmd, params)
-	pt.Done(ctx)
-	if err != nil {
-		wrappedErr := fmt.Errorf("resolve overview data: %w", err)
-		audit.logFailure(ctx, wrappedErr)
-		return wrappedErr
-	}
-
-	// 4. Detect pending changes (skipped in state-only mode).
-	pt = logging.StartPhase(ctx, "cli", "overview", "change_detection")
-	var hasChanges bool
-	var changeCount int
-	if !isStateOnly {
-		hasChanges, changeCount = engine.DetectPendingChanges(ctx, planSteps)
-	}
-	pt.Done(ctx)
-
-	// 5. Merge resources or build rows from state only.
-	pt = logging.StartPhase(ctx, "cli", "overview", "resource_merge")
-	var rows []engine.OverviewRow
-	if isStateOnly {
-		rows = engine.NewRowsFromState(ctx, stateResources)
-	} else {
-		rows, err = engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
-		if err != nil {
-			pt.Done(ctx)
-			audit.logFailure(ctx, err)
-			return fmt.Errorf("merging resources: %w", err)
-		}
-	}
-	pt.Done(ctx)
-
-	// 6. Pre-flight prompt (unless --yes or state-only)
-	if !isStateOnly {
-		printOverviewSummaryLine(cmd, params.yes, len(rows), hasChanges, changeCount)
-	}
-
-	// 7. Validate filter keys and apply resource filters
-	pt = logging.StartPhase(ctx, "cli", "overview", "filter_apply")
-	rows, err = validateAndApplyOverviewFilters(rows, params.filter)
-	pt.Done(ctx)
+	// 3-7. Load, merge, filter data.
+	rows, stackName, hasChanges, changeCount, isStateOnly, err := loadAndProcessPlainOverview(ctx, cmd, params, audit)
 	if err != nil {
 		return err
 	}
@@ -242,45 +178,12 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 10a. Apply dismissal delta (non-fatal; marks dismissed recs for count badge)
 	rows = applyDismissalDeltaToRows(ctx, rows)
 
-	// 11. Build stack context
-	stackCtx := engine.StackContext{
-		StackName:      stackName,
-		TimeWindow:     dateRange,
-		HasChanges:     hasChanges,
-		TotalResources: len(rows),
-		PendingChanges: changeCount,
-		GeneratedAt:    time.Now(),
-		IsStateOnly:    isStateOnly,
-	}
-
-	// 12. Fetch budget data for JSON output (nil for other formats).
-	var budgetResult *engine.BudgetResult
-	if params.output == "json" {
-		var budgetErr error
-		budgetResult, budgetErr = eng.GetBudgets(ctx, nil)
-		if budgetErr != nil {
-			log.Warn().
-				Ctx(ctx).
-				Str("component", "cli").
-				Str("operation", "overview_budget_fetch").
-				Err(budgetErr).
-				Msg("budget fetch failed (non-fatal)")
-		}
-	}
-
-	// 13. Render output (plain text)
-	renderErr := renderOverviewOutput(cmd, params.output, rows, stackCtx, budgetResult)
-	if renderErr != nil {
-		audit.logFailure(ctx, renderErr)
-		return renderErr
-	}
-
-	// 14. Budget evaluation (non-TTY path only)
-	applyOverviewBudgetFlags(cmd, params)
-	costResults, totalCost := overviewRowsToBudgetInputs(rows)
-	if budgetErr := evaluateBudgetStatus(cmd, costResults, totalCost); budgetErr != nil {
-		audit.logFailure(ctx, budgetErr)
-		return budgetErr
+	// 11-14. Build context, render output, evaluate budgets.
+	if finalErr := finalizeOverviewOutput(
+		ctx, cmd, params, rows, eng, dateRange,
+		stackName, hasChanges, changeCount, isStateOnly, audit,
+	); finalErr != nil {
+		return finalErr
 	}
 
 	log.Info().
@@ -306,6 +209,124 @@ func resolveOverviewData(
 	return loadOverviewFromAutoDetect(ctx, params)
 }
 
+// loadAndProcessPlainOverview handles the data loading, change detection, resource merging,
+// pre-flight prompt, and filter application steps for the non-interactive overview pipeline.
+// It returns the prepared rows along with stack metadata needed for rendering.
+func loadAndProcessPlainOverview(
+	ctx context.Context,
+	cmd *cobra.Command,
+	params overviewParams,
+	audit *auditContext,
+) ([]engine.OverviewRow, string, bool, int, bool, error) {
+	pt := logging.StartPhase(ctx, "cli", "overview", "data_loading")
+	stateResources, planSteps, stackName, isStateOnly, err := loadPlainOverviewData(ctx, cmd, params)
+	pt.Done(ctx)
+	if err != nil {
+		wrappedErr := fmt.Errorf("resolve overview data: %w", err)
+		audit.logFailure(ctx, wrappedErr)
+		return nil, "", false, 0, false, wrappedErr
+	}
+
+	// Detect pending changes (skipped in state-only mode).
+	pt = logging.StartPhase(ctx, "cli", "overview", "change_detection")
+	var hasChanges bool
+	var changeCount int
+	if !isStateOnly {
+		hasChanges, changeCount = engine.DetectPendingChanges(ctx, planSteps)
+	}
+	pt.Done(ctx)
+
+	// Merge resources or build rows from state only.
+	pt = logging.StartPhase(ctx, "cli", "overview", "resource_merge")
+	var rows []engine.OverviewRow
+	if isStateOnly {
+		rows = engine.NewRowsFromState(ctx, stateResources)
+	} else {
+		rows, err = engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
+		if err != nil {
+			pt.Done(ctx)
+			audit.logFailure(ctx, err)
+			return nil, "", false, 0, false, fmt.Errorf("merging resources: %w", err)
+		}
+	}
+	pt.Done(ctx)
+
+	// Pre-flight prompt (unless --yes or state-only).
+	if !isStateOnly {
+		printOverviewSummaryLine(cmd, params.yes, len(rows), hasChanges, changeCount)
+	}
+
+	// Validate filter keys and apply resource filters.
+	pt = logging.StartPhase(ctx, "cli", "overview", "filter_apply")
+	rows, err = validateAndApplyOverviewFilters(rows, params.filter)
+	pt.Done(ctx)
+	if err != nil {
+		return nil, "", false, 0, false, err
+	}
+
+	return rows, stackName, hasChanges, changeCount, isStateOnly, nil
+}
+
+// finalizeOverviewOutput builds the stack context, optionally fetches budget data
+// for JSON output, renders the overview, and evaluates budget thresholds.
+func finalizeOverviewOutput(
+	ctx context.Context,
+	cmd *cobra.Command,
+	params overviewParams,
+	rows []engine.OverviewRow,
+	eng *engine.Engine,
+	dateRange engine.DateRange,
+	stackName string,
+	hasChanges bool,
+	changeCount int,
+	isStateOnly bool,
+	audit *auditContext,
+) error {
+	log := logging.FromContext(ctx)
+
+	stackCtx := engine.StackContext{
+		StackName:      stackName,
+		TimeWindow:     dateRange,
+		HasChanges:     hasChanges,
+		TotalResources: len(rows),
+		PendingChanges: changeCount,
+		GeneratedAt:    time.Now(),
+		IsStateOnly:    isStateOnly,
+	}
+
+	// Fetch budget data for JSON output (nil for other formats).
+	var budgetResult *engine.BudgetResult
+	if params.output == "json" {
+		var budgetErr error
+		budgetResult, budgetErr = eng.GetBudgets(ctx, nil)
+		if budgetErr != nil {
+			log.Warn().
+				Ctx(ctx).
+				Str("component", "cli").
+				Str("operation", "overview_budget_fetch").
+				Err(budgetErr).
+				Msg("budget fetch failed (non-fatal)")
+		}
+	}
+
+	// Render output.
+	renderErr := renderOverviewOutput(cmd, params.output, rows, stackCtx, budgetResult)
+	if renderErr != nil {
+		audit.logFailure(ctx, renderErr)
+		return renderErr
+	}
+
+	// Budget evaluation (non-TTY path only).
+	applyOverviewBudgetFlags(cmd, params)
+	costResults, totalCost := overviewRowsToBudgetInputs(rows)
+	if budgetErr := evaluateBudgetStatus(cmd, costResults, totalCost); budgetErr != nil {
+		audit.logFailure(ctx, budgetErr)
+		return budgetErr
+	}
+
+	return nil
+}
+
 // loadPlainOverviewData loads state and plan data for the non-interactive (plain text) mode.
 // For explicit file paths it delegates to resolveOverviewData directly (no change detection).
 // For auto-detect mode it uses state-first loading: it runs change detection and calls
@@ -325,7 +346,7 @@ func loadPlainOverviewData(
 	// Auto-detect mode: state-first loading with optional change detection and prompt.
 	// In plain (non-TUI) mode the passphrase is not prompted; PULUMI_CONFIG_PASSPHRASE
 	// is expected to already be set in the caller's environment.
-	stateResources, manifestTime, projectDir, stackName, stateErr := loadStateForOverview(ctx, params, "")
+	stateResources, manifestTime, projectDir, stackName, stateErr := loadStateForOverview(ctx, params, nil)
 	if stateErr != nil {
 		return nil, nil, "", false, stateErr
 	}
@@ -363,7 +384,7 @@ func loadPlainOverviewData(
 	// Non-TTY without --yes: shouldRunPreview remains false → state-only.
 
 	if shouldRunPreview {
-		planSteps, planErr := loadPlanForOverview(ctx, params, projectDir, stackName, "")
+		planSteps, planErr := loadPlanForOverview(ctx, params, projectDir, stackName, nil)
 		if planErr != nil {
 			return nil, nil, stackName, false, planErr
 		}
@@ -403,7 +424,7 @@ func loadOverviewFromFiles(
 // passphrase is injected into the subprocess environment only (never os.Setenv).
 // It is shared by loadOverviewFromAutoDetect and loadStateForOverview.
 func exportStateFromProject(
-	ctx context.Context, stack, passphrase string,
+	ctx context.Context, stack string, passphrase *string,
 ) ([]engine.StateResource, string, string, string, error) {
 	projectDir, resolvedStack, err := detectPulumiProject(ctx, stack)
 	if err != nil {
@@ -436,14 +457,14 @@ func exportStateFromProject(
 func loadOverviewFromAutoDetect(
 	ctx context.Context, params overviewParams,
 ) ([]engine.StateResource, []engine.PlanStep, string, error) {
-	stateResources, _, projectDir, resolvedStack, err := exportStateFromProject(ctx, params.stack, "")
+	stateResources, _, projectDir, resolvedStack, err := exportStateFromProject(ctx, params.stack, nil)
 	if err != nil {
 		return nil, nil, "", err
 	}
 
 	// Resolve plan: from file if --pulumi-json provided, otherwise auto-detect
 	ptPreview := logging.StartPhase(ctx, "pulumi", "overview", "preview")
-	planSteps, planErr := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, resolvedStack, "")
+	planSteps, planErr := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, resolvedStack, nil)
 	ptPreview.Done(ctx)
 	if planErr != nil {
 		return nil, nil, "", planErr
@@ -455,7 +476,7 @@ func loadOverviewFromAutoDetect(
 // resolveOverviewPlan loads plan steps from a file or runs pulumi preview.
 // passphrase is injected into the subprocess environment only (never os.Setenv).
 func resolveOverviewPlan(
-	ctx context.Context, pulumiJSON, projectDir, stack, passphrase string,
+	ctx context.Context, pulumiJSON, projectDir, stack string, passphrase *string,
 ) ([]engine.PlanStep, error) {
 	log := logging.FromContext(ctx)
 
@@ -718,18 +739,9 @@ func splitFilter(filter string) []string {
 	return []string{filter}
 }
 
-// renderOverviewOutput dispatches to the correct renderer based on the output format.
-// renderOverviewOutput renders the provided overview rows using the specified output format to the command's stdout.
-// Supported formats are "table", "json", and "ndjson". When format is "json", the optional budgetResult is included
-// in the top-level budgets array if non-nil.
-// Parameters:
-//   - cmd: used to obtain the output writer (cmd.OutOrStdout()).
-//   - outputFormat: one of "table", "json", or "ndjson" selecting the renderer.
-//   - rows: the overview rows to render.
-//   - stackCtx: contextual metadata about the stack to include in rendered output.
-//   - budgetResult: optional budget data included only for JSON output.
-//
-// Returns an error if rendering fails or if the outputFormat is unsupported.
+// renderOverviewOutput renders overview rows using the specified output format ("table",
+// "json", or "ndjson") to the command's stdout. When format is "json", the optional
+// budgetResult is included in the top-level budgets array if non-nil.
 func renderOverviewOutput(
 	cmd *cobra.Command,
 	outputFormat string,
@@ -892,35 +904,13 @@ func resolveIsStateOnly(params overviewParams, signal pulumidetect.ChangeSignal,
 	return isStateOnly
 }
 
-// overviewInitAndEnrich performs data loading and enrichment in a background
-// goroutine, sending phase progress and data messages to the Bubble Tea program.
-//
-// overviewInitAndEnrich orchestrates background loading and enrichment of overview data for the TUI.
-// It performs the two-phase flow used by the interactive overview: it detects whether a Pulumi
-// passphrase is required, loads stack state, performs lightweight change detection, optionally
-// loads a preview (plan) and merges state+plan into overview rows, applies user filters, starts
-// cost plugins and an engine, and then streams enrichment progress and results back to the TUI.
-//
-// On success it sends tui.OverviewDataReadyMsg (and, when in state-only mode, tui.OverviewSetStateOnlyMsg)
-// to the provided Bubble Tea program and begins enrichment progress via bridgeEnrichmentToTUI.
-// Concurrently it initiates a non-blocking budget fetch and sends tui.BudgetDataReadyMsg when done.
-// On unrecoverable errors during initialization it sends tui.OverviewInitErrorMsg and returns.
-//
-// Parameters:
-//   - enrichCtx: context for all background work and cancellation.
-//   - cmd: the Cobra command (used for configuration/flags when constructing the engine).
-//   - p: Bubble Tea program used to send TUI messages.
-//   - params: CLI parameters controlling loading behavior (flags, paths, adapter, filters).
-//   - dateRange: date range used for cost enrichment.
-//   - audit: audit context used for plugin/engine initialization and logging.
-//   - cleanupChan: channel to which a combined cleanup function is sent; the receiver must execute it
-//     when the TUI/command exits to release plugins and cache resources.
-//   - rowCount: atomic counter that is set to the number of rows produced after filtering.
-//   - passphraseChan: channel used to receive a Pulumi passphrase if encryption is detected.
-//
-// Note: overviewInitAndEnrich reports initialization and enrichment progress exclusively via Bubble
-// Tea messages; it does not return errors directly. The combined cleanup function sent on cleanupChan
-// must be invoked to ensure plugins and cache are properly cleaned up.
+// overviewInitAndEnrich orchestrates background loading and enrichment of overview data
+// for the TUI. It detects whether a Pulumi passphrase is required, loads stack state,
+// performs change detection, optionally loads a preview plan and merges into overview rows,
+// applies filters, starts cost plugins and an engine, streams enrichment progress back to
+// the TUI, and initiates a concurrent budget fetch. Errors are reported exclusively via
+// Bubble Tea messages (OverviewInitErrorMsg); the combined cleanup function sent on
+// cleanupChan must be invoked to release plugins and cache resources.
 func overviewInitAndEnrich(
 	enrichCtx context.Context,
 	cmd *cobra.Command,
@@ -955,57 +945,24 @@ func overviewInitAndEnrich(
 	p.Send(tui.OverviewPhaseMsg{Index: phaseDetectChanges, Phase: "Detecting changes..."})
 	signal, detectErr := pulumidetect.DetectChanges(enrichCtx, manifestTime, projectDir)
 	if detectErr != nil {
-		log.Warn().
-			Ctx(enrichCtx).
-			Str("component", "cli").
-			Str("operation", "overview_tui_init").
-			Bool("yes", params.yes).
-			Err(detectErr).
+		log.Warn().Ctx(enrichCtx).Err(detectErr).
 			Msg("change detection failed; will fall back to state-only unless --yes was set")
 	}
-
-	// Decide whether to run pulumi preview now.
-	// In non-interactive (TUI) mode we skip the interactive prompt and rely on --yes
-	// or the conservative heuristic (HasLikelyChanges=true → run preview; false → state-only).
-	// When --pulumi-state is provided without --pulumi-json (and without --yes), default to
-	// state-only mode so the user can press 'p' to load pending changes on demand.
 	isStateOnly := resolveIsStateOnly(params, signal, detectErr)
 
 	// Phase 3: Merge resources (from state only when state-first, from state+plan when preview runs).
 	p.Send(tui.OverviewPhaseMsg{Index: phaseMergeResources, Phase: "Merging resources..."})
-
-	var rows []engine.OverviewRow
-	var hasChanges bool
-	var changeCount int
-
-	if isStateOnly {
-		// State-first path: build rows from state with no plan data.
-		rows = engine.NewRowsFromState(enrichCtx, stateResources)
-	} else {
-		// Preview path: load plan steps and merge with state.
-		planSteps, planErr := loadPlanForOverview(enrichCtx, params, projectDir, stackName, pw)
-		if planErr != nil {
-			p.Send(tui.OverviewInitErrorMsg{Err: planErr})
-			return
-		}
-		hasChanges, changeCount = engine.DetectPendingChanges(enrichCtx, planSteps)
-		var mergeErr error
-		rows, mergeErr = engine.MergeResourcesForOverview(enrichCtx, stateResources, planSteps)
-		if mergeErr != nil {
-			p.Send(tui.OverviewInitErrorMsg{Err: fmt.Errorf("merging resources: %w", mergeErr)})
-			return
-		}
+	rows, hasChanges, changeCount, mergePhaseErr := buildOverviewRows(
+		enrichCtx, isStateOnly, stateResources, params, projectDir, stackName, pw,
+	)
+	if mergePhaseErr != nil {
+		p.Send(tui.OverviewInitErrorMsg{Err: mergePhaseErr})
+		return
 	}
 
-	log.Debug().
-		Ctx(enrichCtx).
-		Str("component", "cli").
-		Str("operation", "overview_tui_init").
-		Str("stack", stackName).
-		Bool("has_changes", hasChanges).
-		Int("change_count", changeCount).
-		Bool("is_state_only", isStateOnly).
-		Msg("overview data phase complete")
+	log.Debug().Ctx(enrichCtx).Str("stack", stackName).
+		Bool("has_changes", hasChanges).Int("change_count", changeCount).
+		Bool("is_state_only", isStateOnly).Msg("overview data phase complete")
 
 	// Apply filters.
 	rows, filterErr := validateAndApplyOverviewFilters(rows, params.filter)
@@ -1025,61 +982,132 @@ func overviewInitAndEnrich(
 	// Phase 5: Create engine (with cache support).
 	p.Send(tui.OverviewPhaseMsg{Index: phasePrepareEngine, Phase: "Preparing cost engine..."})
 	eng, cacheCleanup := newEngineWithCache(enrichCtx, cmd, clients, nil)
-
-	// Send a combined cleanup to the main goroutine via cleanupChan so both
-	// plugin and cache cleanups are guaranteed to run even if this goroutine
-	// is still mid-flight when the TUI exits and the program terminates.
-	cleanupChan <- func() {
-		cacheCleanup()
-		cleanup()
-	}
-
-	// Build the on-demand preview command (only used in state-only mode).
-	var previewCmd tea.Cmd
-	if isStateOnly {
-		capturedParams := params
-		capturedProjectDir := projectDir
-		capturedStackName := stackName
-		capturedPW := pw
-		previewCmd = func() tea.Msg {
-			return runBackgroundPreview(enrichCtx, capturedParams, capturedProjectDir, capturedStackName, capturedPW)
-		}
-	}
+	cleanupChan <- func() { cacheCleanup(); cleanup() }
 
 	// Signal data ready → transitions TUI from Initializing to Loading.
 	copiedRows := make([]engine.OverviewRow, len(rows))
 	copy(copiedRows, rows)
 	p.Send(tui.OverviewDataReadyMsg{Rows: copiedRows, TotalCount: len(rows), StackName: stackName})
 
-	// If state-only: update the model's isStateOnly and previewCmd via a SetStateOnlyMsg.
-	// We reuse the existing message pattern to keep it simple.
+	// If state-only: build on-demand preview command and notify TUI.
 	if isStateOnly {
+		previewCmd := buildPreviewCmd(enrichCtx, params, projectDir, stackName, pw)
 		p.Send(tui.OverviewSetStateOnlyMsg{PreviewCmd: previewCmd, DetectErrMsg: shortErrMsg(detectErr)})
 	}
 
-	// Concurrent budget fetch (non-blocking, independent of enrichment).
+	// Concurrent budget fetch via channel so we can apply config fallback
+	// after enrichment completes and total cost is known.
+	budgetChan := launchBudgetFetch(enrichCtx, eng)
+
+	// Phase 6: Enrichment (blocks until all rows enriched).
+	bridgeEnrichmentToTUI(enrichCtx, p, rows, eng, dateRange)
+
+	// After enrichment, drain budget channel and apply config fallback if needed.
+	sendBudgetResultToTUI(enrichCtx, p, budgetChan, rows)
+}
+
+// buildOverviewRows merges state resources with optional plan steps to produce
+// the initial OverviewRow slice. Returns rows, hasChanges, changeCount, and any error.
+func buildOverviewRows(
+	ctx context.Context,
+	isStateOnly bool,
+	stateResources []engine.StateResource,
+	params overviewParams,
+	projectDir, stackName string,
+	pw *string,
+) ([]engine.OverviewRow, bool, int, error) {
+	if isStateOnly {
+		return engine.NewRowsFromState(ctx, stateResources), false, 0, nil
+	}
+	planSteps, planErr := loadPlanForOverview(ctx, params, projectDir, stackName, pw)
+	if planErr != nil {
+		return nil, false, 0, planErr
+	}
+	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
+	rows, mergeErr := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
+	if mergeErr != nil {
+		return nil, false, 0, fmt.Errorf("merging resources: %w", mergeErr)
+	}
+	return rows, hasChanges, changeCount, nil
+}
+
+// buildPreviewCmd creates a Bubble Tea command that runs pulumi preview in the
+// background, used in state-only mode for on-demand preview loading.
+func buildPreviewCmd(
+	ctx context.Context,
+	params overviewParams,
+	projectDir, stackName string,
+	pw *string,
+) tea.Cmd {
+	return func() tea.Msg {
+		return runBackgroundPreview(ctx, params, projectDir, stackName, pw)
+	}
+}
+
+// launchBudgetFetch starts a goroutine to fetch budgets from plugins and
+// returns a channel that will receive the result.
+func launchBudgetFetch(ctx context.Context, eng *engine.Engine) <-chan budgetFetchResult {
+	ch := make(chan budgetFetchResult, 1)
 	go func() {
-		budgetResult, budgetErr := eng.GetBudgets(enrichCtx, nil)
-		if budgetErr != nil {
+		result, err := eng.GetBudgets(ctx, nil)
+		if err != nil {
+			log := logging.FromContext(ctx)
 			log.Warn().
-				Ctx(enrichCtx).
-				Str("component", "cli").
-				Str("operation", "overview_budget_fetch").
-				Err(budgetErr).
+				Str("component", "overview").
+				Str("operation", "launchBudgetFetch").
+				Ctx(ctx).Err(err).
 				Msg("budget fetch failed (non-fatal)")
 		}
-		p.Send(tui.BudgetDataReadyMsg{Result: budgetResult, Error: budgetErr})
+		ch <- budgetFetchResult{result: result, err: err}
 	}()
+	return ch
+}
 
-	// Phase 6: Enrichment.
-	bridgeEnrichmentToTUI(enrichCtx, p, rows, eng, dateRange)
+// budgetFetchResult holds the result of a concurrent budget plugin fetch.
+type budgetFetchResult struct {
+	result *engine.BudgetResult
+	err    error
+}
+
+// sendBudgetResultToTUI drains the budget channel and sends the appropriate
+// BudgetDataReadyMsg to the TUI. If plugins returned budgets, those are used;
+// otherwise config-based budgets are evaluated as a fallback.
+func sendBudgetResultToTUI(
+	ctx context.Context,
+	p *tea.Program,
+	budgetChan <-chan budgetFetchResult,
+	rows []engine.OverviewRow,
+) {
+	select {
+	case <-ctx.Done():
+		return
+	case br := <-budgetChan:
+		if br.result != nil && len(br.result.Budgets) > 0 {
+			p.Send(tui.BudgetDataReadyMsg{Result: br.result, Error: br.err})
+			return
+		}
+		// Fallback: evaluate config-based budget using enriched cost total.
+		cfg := config.GetGlobalConfig()
+		var budgetsCfg *config.BudgetsConfig
+		if cfg != nil {
+			budgetsCfg = cfg.Cost.Budgets
+		}
+		totalCost := sumOverviewProjectedCost(rows)
+		configResult := engine.BuildConfigBudgetResult(ctx, budgetsCfg, totalCost)
+		if configResult != nil {
+			p.Send(tui.BudgetDataReadyMsg{Result: configResult})
+		} else {
+			// No config budget either; send original (possibly empty) result.
+			p.Send(tui.BudgetDataReadyMsg{Result: br.result, Error: br.err})
+		}
+	}
 }
 
 // loadStateForOverview loads Pulumi state only (without preview/plan).
 // passphrase is injected into subprocess env only (never os.Setenv).
 // Returns stateResources, manifestTime, projectDir, stackName, and any error.
 func loadStateForOverview(
-	ctx context.Context, params overviewParams, passphrase string,
+	ctx context.Context, params overviewParams, passphrase *string,
 ) ([]engine.StateResource, string, string, string, error) {
 	if params.pulumiState != "" {
 		// Use explicit file path — no manifest time or project dir available.
@@ -1103,7 +1131,7 @@ func loadStateForOverview(
 // passphrase is injected into subprocess env only (never os.Setenv).
 // This is the preview-path helper used by overviewInitAndEnrich.
 func loadPlanForOverview(
-	ctx context.Context, params overviewParams, projectDir, stack, passphrase string,
+	ctx context.Context, params overviewParams, projectDir, stack string, passphrase *string,
 ) ([]engine.PlanStep, error) {
 	return resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, stack, passphrase)
 }
@@ -1118,7 +1146,7 @@ func runBackgroundPreview(
 	ctx context.Context,
 	params overviewParams,
 	projectDir, stack string,
-	passphrase string,
+	passphrase *string,
 ) tui.OverviewChangesReadyMsg {
 	l := logging.FromContext(ctx)
 	previewStart := time.Now()
@@ -1170,7 +1198,11 @@ func shortErrMsg(err error) string {
 // it sends OverviewPassphraseRequiredMsg to the TUI and blocks until the user provides
 // the passphrase (or the context is cancelled).
 //
-// Returns the passphrase string (non-empty when the user entered one) and any error.
+// Returns a *string passphrase and any error:
+//   - nil    = not provided (subprocess inherits parent env via os.Environ())
+//   - &""    = explicitly empty passphrase (inject PULUMI_CONFIG_PASSPHRASE= into subprocess)
+//   - &"sec" = non-empty passphrase (inject PULUMI_CONFIG_PASSPHRASE=sec)
+//
 // The returned passphrase is threaded to Pulumi subprocess calls via
 // ExportOptions/PreviewOptions.Passphrase and never mutates the process-wide environment.
 //
@@ -1182,22 +1214,50 @@ func checkAndPromptPassphrase(
 	p *tea.Program,
 	params overviewParams,
 	passphraseChan chan string,
-) (string, error) {
-	// Skip if passphrase already set
-	if os.Getenv("PULUMI_CONFIG_PASSPHRASE") != "" {
-		return "", nil
+) (*string, error) {
+	log := logging.FromContext(ctx)
+
+	// Skip if passphrase already set in environment (including empty string).
+	if val, ok := os.LookupEnv("PULUMI_CONFIG_PASSPHRASE"); ok {
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "passphrase_check").
+			Msg("PULUMI_CONFIG_PASSPHRASE is set in environment; using it")
+		return &val, nil
+	}
+
+	// Skip if PULUMI_CONFIG_PASSPHRASE_FILE is set — Pulumi reads the file itself.
+	if _, ok := os.LookupEnv("PULUMI_CONFIG_PASSPHRASE_FILE"); ok {
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "passphrase_check").
+			Msg("PULUMI_CONFIG_PASSPHRASE_FILE is set; letting Pulumi read it")
+		return nil, nil //nolint:nilnil // nil passphrase = not needed, nil error = no failure.
 	}
 
 	// Only auto-detect when not using explicit file flags
 	if params.pulumiState != "" {
-		return "", nil
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "passphrase_check").
+			Msg("using explicit --pulumi-state; skipping passphrase detection")
+		return nil, nil //nolint:nilnil // nil passphrase = not needed, nil error = no failure.
 	}
 
 	// Locate the project directory and stack name
 	projectDir, stackName, detectErr := detectPulumiProject(ctx, params.stack)
 	if detectErr != nil {
 		// If we can't detect the project, skip (let stack export fail naturally).
-		return "", nil //nolint:nilerr // Intentional fail-open: passphrase check is best-effort.
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "passphrase_check").
+			Err(detectErr).
+			Msg("cannot detect project; skipping passphrase check")
+		return nil, nil //nolint:nilnil // Intentional fail-open: passphrase check is best-effort.
 	}
 
 	// Read the stack YAML and check for encryptionsalt.
@@ -1209,12 +1269,18 @@ func checkAndPromptPassphrase(
 		data, readErr = os.ReadFile(stackYAML)
 		if readErr != nil {
 			// Stack YAML not found or unreadable — skip check, fail open.
-			return "", nil //nolint:nilerr // Intentional fail-open: passphrase check is best-effort.
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "cli").
+				Str("operation", "passphrase_check").
+				Err(readErr).
+				Msg("cannot read stack YAML; skipping passphrase check")
+			return nil, nil //nolint:nilnil // Intentional fail-open: passphrase check is best-effort.
 		}
 	}
 
 	if !strings.Contains(string(data), "encryptionsalt:") {
-		return "", nil
+		return nil, nil //nolint:nilnil // nil passphrase = not needed, nil error = no failure.
 	}
 
 	// Stack is encrypted and no passphrase is set — prompt the user via TUI
@@ -1223,9 +1289,9 @@ func checkAndPromptPassphrase(
 	// Block until the user provides the passphrase or the context is cancelled
 	select {
 	case pw := <-passphraseChan:
-		return pw, nil
+		return &pw, nil
 	case <-ctx.Done():
-		return "", ctx.Err()
+		return nil, ctx.Err()
 	}
 }
 
@@ -1340,16 +1406,16 @@ func applyDismissalDeltaToRows(ctx context.Context, rows []engine.OverviewRow) [
 	return rows
 }
 
-// applyOverviewBudgetFlags applies budget-related CLI flag overrides to the
-// global config, matching the pattern used by newCostCmd's PersistentPreRunE.
-// applyOverviewBudgetFlags applies CLI budget-related flags from the overview command
-// into the global configuration so subsequent budget evaluation uses the command-specified
-// overrides. It ensures the global Budgets and ScopedBudget structures exist, and sets
-// Global.ExitOnThreshold and Global.ExitCode when the corresponding flags were provided.
-// If the global configuration is nil the function is a no-op.
+// applyOverviewBudgetFlags applies budget-related CLI flag overrides (exit-on-threshold,
+// exit-code) to the global config, matching the pattern used by newCostCmd's PersistentPreRunE.
+// It is a no-op when the global configuration is nil or no budget flags were changed.
 func applyOverviewBudgetFlags(cmd *cobra.Command, params overviewParams) {
 	cfg := config.GetGlobalConfig()
 	if cfg == nil {
+		return
+	}
+
+	if !cmd.Flags().Changed("exit-on-threshold") && !cmd.Flags().Changed("exit-code") {
 		return
 	}
 
@@ -1368,13 +1434,8 @@ func applyOverviewBudgetFlags(cmd *cobra.Command, params overviewParams) {
 	}
 }
 
-// overviewRowsToBudgetInputs converts enriched OverviewRows to the
-// []engine.CostResult and totalCost that evaluateBudgetStatus expects.
-// It extracts projected cost data from each row, summing MonthlyCost
-// overviewRowsToBudgetInputs converts a slice of OverviewRow into budget input values.
-// It returns a slice of CostResult entries and the aggregated total projected monthly cost.
-// Rows with a nil ProjectedCost are skipped; each CostResult contains the resource type,
-// resource URN, currency, and the projected monthly cost.
+// overviewRowsToBudgetInputs converts enriched OverviewRows to the []engine.CostResult
+// and totalCost that evaluateBudgetStatus expects. Rows with nil ProjectedCost are skipped.
 func overviewRowsToBudgetInputs(rows []engine.OverviewRow) ([]engine.CostResult, float64) {
 	var costResults []engine.CostResult
 	var totalCost float64
@@ -1391,4 +1452,20 @@ func overviewRowsToBudgetInputs(rows []engine.OverviewRow) ([]engine.CostResult,
 		})
 	}
 	return costResults, totalCost
+}
+
+// sumOverviewProjectedCost sums the projected monthly cost across all enriched
+// overview rows. Rows with nil ProjectedCost are skipped.
+//
+// This intentionally duplicates the summation loop in overviewRowsToBudgetInputs because
+// callers in the TUI path (sendBudgetResultToTUI) need only the total cost without
+// allocating a []CostResult slice, while the non-TTY budget evaluation path needs both.
+func sumOverviewProjectedCost(rows []engine.OverviewRow) float64 {
+	var total float64
+	for _, row := range rows {
+		if row.ProjectedCost != nil {
+			total += row.ProjectedCost.MonthlyCost
+		}
+	}
+	return total
 }

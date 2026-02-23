@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"testing"
@@ -10,6 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 func TestFilterBudgets(t *testing.T) {
@@ -1025,6 +1028,456 @@ func BenchmarkMatchesBudgetTagsWithGlob(b *testing.B) {
 	for b.Loop() {
 		_ = matchesBudgetTagsWithGlob(budget, tags)
 	}
+}
+
+// =============================================================================
+// ConfigBudgetToProto Tests
+// =============================================================================
+
+func TestConfigBudgetToProto(t *testing.T) {
+	tests := []struct {
+		name           string
+		status         *BudgetStatus
+		budgetName     string
+		budgetID       string
+		wantNil        bool
+		wantHealth     pbc.BudgetHealthStatus
+		wantPercentage float64
+		wantThresholds int
+	}{
+		{
+			name:    "nil status returns nil",
+			status:  nil,
+			wantNil: true,
+		},
+		{
+			name: "OK status (50% utilization)",
+			status: &BudgetStatus{
+				Budget:             config.BudgetConfig{Amount: 200, Currency: "USD"},
+				CurrentSpend:       100,
+				Percentage:         50,
+				ForecastedSpend:    150,
+				ForecastPercentage: 75,
+				Currency:           "USD",
+				Alerts: []ThresholdStatus{
+					{Threshold: 80, Type: config.AlertTypeActual, Status: ThresholdStatusOK},
+				},
+			},
+			budgetName:     "Global Budget",
+			budgetID:       "config-global",
+			wantHealth:     pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK,
+			wantPercentage: 50,
+			wantThresholds: 1,
+		},
+		{
+			name: "WARNING status (85% utilization)",
+			status: &BudgetStatus{
+				Budget:             config.BudgetConfig{Amount: 200, Currency: "USD"},
+				CurrentSpend:       170,
+				Percentage:         85,
+				ForecastedSpend:    250,
+				ForecastPercentage: 125,
+				Currency:           "USD",
+				Alerts: []ThresholdStatus{
+					{Threshold: 80, Type: config.AlertTypeActual, Status: ThresholdStatusExceeded},
+					{Threshold: 100, Type: config.AlertTypeActual, Status: ThresholdStatusOK},
+				},
+			},
+			budgetName:     "Test Budget",
+			budgetID:       "test-1",
+			wantHealth:     pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING,
+			wantPercentage: 85,
+			wantThresholds: 2,
+		},
+		{
+			name: "EXCEEDED status (120% utilization)",
+			status: &BudgetStatus{
+				Budget:             config.BudgetConfig{Amount: 200, Currency: "EUR"},
+				CurrentSpend:       240,
+				Percentage:         120,
+				ForecastedSpend:    300,
+				ForecastPercentage: 150,
+				Currency:           "EUR",
+				Alerts: []ThresholdStatus{
+					{Threshold: 80, Type: config.AlertTypeActual, Status: ThresholdStatusExceeded},
+					{Threshold: 100, Type: config.AlertTypeActual, Status: ThresholdStatusExceeded},
+				},
+			},
+			budgetName:     "Over Budget",
+			budgetID:       "exceeded-1",
+			wantHealth:     pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED,
+			wantPercentage: 120,
+			wantThresholds: 2,
+		},
+		{
+			name: "no alerts gets default thresholds",
+			status: &BudgetStatus{
+				Budget:       config.BudgetConfig{Amount: 200, Currency: "USD"},
+				CurrentSpend: 50,
+				Percentage:   25,
+				Currency:     "USD",
+				Alerts:       nil,
+			},
+			budgetName:     "No Alerts",
+			budgetID:       "no-alerts",
+			wantHealth:     pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK,
+			wantPercentage: 25,
+			wantThresholds: 3, // DefaultThresholds: 50%, 80%, 100%
+		},
+		{
+			name: "forecasted alert type maps correctly",
+			status: &BudgetStatus{
+				Budget:       config.BudgetConfig{Amount: 200, Currency: "USD"},
+				CurrentSpend: 50,
+				Percentage:   25,
+				Currency:     "USD",
+				Alerts: []ThresholdStatus{
+					{Threshold: 80, Type: config.AlertTypeForecasted, Status: ThresholdStatusOK},
+				},
+			},
+			budgetName:     "Forecast",
+			budgetID:       "forecast-1",
+			wantHealth:     pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK,
+			wantPercentage: 25,
+			wantThresholds: 1,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := ConfigBudgetToProto(tc.status, tc.budgetName, tc.budgetID)
+
+			if tc.wantNil {
+				assert.Nil(t, result)
+				return
+			}
+
+			require.NotNil(t, result)
+			assert.Equal(t, tc.budgetID, result.GetId())
+			assert.Equal(t, tc.budgetName, result.GetName())
+			assert.Equal(t, "config", result.GetSource())
+
+			// Check health
+			require.NotNil(t, result.GetStatus())
+			assert.Equal(t, tc.wantHealth, result.GetStatus().GetHealth())
+			assert.InDelta(t, tc.wantPercentage, result.GetStatus().GetPercentageUsed(), 0.01)
+
+			// Check thresholds
+			assert.Len(t, result.GetThresholds(), tc.wantThresholds)
+
+			// Check amount
+			require.NotNil(t, result.GetAmount())
+			assert.Equal(t, tc.status.Budget.Amount, result.GetAmount().GetLimit())
+			assert.Equal(t, tc.status.Currency, result.GetAmount().GetCurrency())
+		})
+	}
+}
+
+func TestConfigBudgetToProto_ForecastedThresholdType(t *testing.T) {
+	status := &BudgetStatus{
+		Budget:       config.BudgetConfig{Amount: 200, Currency: "USD"},
+		CurrentSpend: 50,
+		Percentage:   25,
+		Currency:     "USD",
+		Alerts: []ThresholdStatus{
+			{Threshold: 80, Type: config.AlertTypeForecasted, Status: ThresholdStatusExceeded},
+		},
+	}
+
+	result := ConfigBudgetToProto(status, "Test", "test-id")
+	require.NotNil(t, result)
+	require.Len(t, result.GetThresholds(), 1)
+	assert.Equal(t, pbc.ThresholdType_THRESHOLD_TYPE_FORECASTED, result.GetThresholds()[0].GetType())
+	assert.True(t, result.GetThresholds()[0].GetTriggered())
+}
+
+// =============================================================================
+// BuildConfigBudgetResult Tests
+// =============================================================================
+
+func TestBuildConfigBudgetResult(t *testing.T) {
+	tests := []struct {
+		name      string
+		cfg       *config.BudgetsConfig
+		totalCost float64
+		wantNil   bool
+		wantCount int
+		wantID    string
+	}{
+		{
+			name:    "nil config returns nil",
+			cfg:     nil,
+			wantNil: true,
+		},
+		{
+			name: "no global budget returns nil",
+			cfg: &config.BudgetsConfig{
+				Global: nil,
+			},
+			wantNil: true,
+		},
+		{
+			name: "disabled budget (amount=0) returns nil",
+			cfg: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					Amount:   0,
+					Currency: "USD",
+				},
+			},
+			wantNil: true,
+		},
+		{
+			name: "valid budget OK scenario",
+			cfg: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					Amount:   200,
+					Currency: "USD",
+				},
+			},
+			totalCost: 50,
+			wantCount: 1,
+			wantID:    "config-global",
+		},
+		{
+			name: "valid budget EXCEEDED scenario",
+			cfg: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					Amount:   100,
+					Currency: "USD",
+				},
+			},
+			totalCost: 150,
+			wantCount: 1,
+			wantID:    "config-global",
+		},
+		{
+			name: "budget with empty currency defaults to USD",
+			cfg: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					Amount:   200,
+					Currency: "",
+				},
+			},
+			totalCost: 50,
+			wantCount: 1,
+			wantID:    "config-global",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			result := BuildConfigBudgetResult(ctx, tc.cfg, tc.totalCost)
+
+			if tc.wantNil {
+				assert.Nil(t, result)
+				return
+			}
+
+			require.NotNil(t, result)
+			assert.Len(t, result.Budgets, tc.wantCount)
+			require.NotNil(t, result.Summary)
+
+			if tc.wantCount > 0 {
+				assert.Equal(t, tc.wantID, result.Budgets[0].GetId())
+				assert.Equal(t, "config", result.Budgets[0].GetSource())
+			}
+		})
+	}
+}
+
+func TestBuildConfigBudgetResult_HealthStatus(t *testing.T) {
+	tests := []struct {
+		name       string
+		amount     float64
+		totalCost  float64
+		wantHealth pbc.BudgetHealthStatus
+	}{
+		{
+			name:       "OK (25%)",
+			amount:     200,
+			totalCost:  50,
+			wantHealth: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK,
+		},
+		{
+			name:       "WARNING (85%)",
+			amount:     200,
+			totalCost:  170,
+			wantHealth: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING,
+		},
+		{
+			name:       "CRITICAL (95%)",
+			amount:     200,
+			totalCost:  190,
+			wantHealth: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL,
+		},
+		{
+			name:       "EXCEEDED (150%)",
+			amount:     200,
+			totalCost:  300,
+			wantHealth: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx := context.Background()
+			cfg := &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					Amount:   tc.amount,
+					Currency: "USD",
+				},
+			}
+
+			result := BuildConfigBudgetResult(ctx, cfg, tc.totalCost)
+			require.NotNil(t, result)
+			require.Len(t, result.Budgets, 1)
+
+			budget := result.Budgets[0]
+			require.NotNil(t, budget.GetStatus())
+			assert.Equal(t, tc.wantHealth, budget.GetStatus().GetHealth())
+		})
+	}
+}
+
+func TestBuildConfigBudgetResult_Summary(t *testing.T) {
+	ctx := context.Background()
+	cfg := &config.BudgetsConfig{
+		Global: &config.ScopedBudget{
+			Amount:   200,
+			Currency: "USD",
+		},
+	}
+
+	result := BuildConfigBudgetResult(ctx, cfg, 50)
+	require.NotNil(t, result)
+	require.NotNil(t, result.Summary)
+
+	assert.Equal(t, int32(1), result.Summary.TotalBudgets)
+	assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK, result.Summary.OverallHealth)
+}
+
+func TestHealthStatusLabel(t *testing.T) {
+	tests := []struct {
+		status pbc.BudgetHealthStatus
+		want   string
+	}{
+		{pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK, "OK"},
+		{pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING, "WARNING"},
+		{pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL, "CRITICAL"},
+		{pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED, "EXCEEDED"},
+		{pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED, "UNKNOWN"},
+		{pbc.BudgetHealthStatus(999), "UNKNOWN"}, // unrecognized enum value
+	}
+	for _, tc := range tests {
+		t.Run(tc.want, func(t *testing.T) {
+			assert.Equal(t, tc.want, HealthStatusLabel(tc.status))
+		})
+	}
+}
+
+func TestParseHealthStatusLabel(t *testing.T) {
+	tests := []struct {
+		label string
+		want  pbc.BudgetHealthStatus
+	}{
+		{"OK", pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK},
+		{"WARNING", pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING},
+		{"CRITICAL", pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL},
+		{"EXCEEDED", pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED},
+		{"UNKNOWN", pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED},
+		{"", pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED},
+		{"GARBAGE", pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED},
+	}
+	for _, tc := range tests {
+		name := tc.label
+		if name == "" {
+			name = "empty"
+		}
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, parseHealthStatusLabel(tc.label))
+		})
+	}
+}
+
+func TestBudgetHealthResultJSONRoundTrip(t *testing.T) {
+	tests := []struct {
+		name       string
+		health     pbc.BudgetHealthStatus
+		wantLabel  string
+		wantHealth pbc.BudgetHealthStatus
+	}{
+		{
+			"OK",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK,
+			"OK",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK,
+		},
+		{
+			"WARNING",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING,
+			"WARNING",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING,
+		},
+		{
+			"CRITICAL",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL,
+			"CRITICAL",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL,
+		},
+		{
+			"EXCEEDED",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED,
+			"EXCEEDED",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED,
+		},
+		{
+			"UNSPECIFIED",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED,
+			"UNKNOWN",
+			pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			original := BudgetHealthResult{
+				BudgetID:     "b-1",
+				BudgetName:   "Test Budget",
+				Provider:     "aws",
+				Health:       tc.health,
+				Utilization:  75.5,
+				Forecasted:   90.0,
+				Currency:     "USD",
+				Limit:        1000,
+				CurrentSpend: 755,
+			}
+
+			data, err := json.Marshal(original)
+			require.NoError(t, err)
+
+			// Verify the serialized health label.
+			var raw map[string]interface{}
+			require.NoError(t, json.Unmarshal(data, &raw))
+			assert.Equal(t, tc.wantLabel, raw["health"])
+
+			// Round-trip: unmarshal back and compare.
+			var restored BudgetHealthResult
+			require.NoError(t, json.Unmarshal(data, &restored))
+			assert.Equal(t, tc.wantHealth, restored.Health)
+			assert.Equal(t, original.BudgetID, restored.BudgetID)
+			assert.Equal(t, original.Utilization, restored.Utilization)
+			assert.Equal(t, original.CurrentSpend, restored.CurrentSpend)
+		})
+	}
+}
+
+func TestBudgetHealthResultUnmarshalJSON_UnknownLabel(t *testing.T) {
+	input := `{"budgetID":"b-1","health":"GARBAGE","utilization":50}`
+	var result BudgetHealthResult
+	err := json.Unmarshal([]byte(input), &result)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown health label")
+	assert.Contains(t, err.Error(), "GARBAGE")
 }
 
 // generateBudgetsWithTags creates n budgets with varying metadata for benchmarking.
