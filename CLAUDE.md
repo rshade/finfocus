@@ -1149,6 +1149,8 @@ CodeRabbit now:
 5. **Integrates with existing CI/CD** tools and workflows
 
 ## Active Technologies
+- Go 1.25.7 (see `go.mod`) + testify (assert/require), BoltDB (bbolt), Bubble Tea (602-integration-test-suite)
+- BoltDB for cache (`cache.db`), YAML for config, JSON for fixtures (602-integration-test-suite)
 
 ## Recent Changes
 

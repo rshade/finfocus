@@ -1,8 +1,8 @@
 //go:build integration
 
-// Package cli_test provides black-box integration tests for the internal/cli package.
-// These tests validate CLI behavior from an external consumer perspective.
-package cli_test
+// Package integration_test provides integration tests for FinFocus.
+// These tests validate cross-package behavior from an external consumer perspective.
+package integration_test
 
 import (
 	"bytes"

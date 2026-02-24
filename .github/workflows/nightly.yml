@@ -102,7 +102,7 @@ jobs:
           FINFOCUS_LOG_FORMAT: text
         run: |
           echo "Running integration tests (including nightly-only tests)..."
-          go test -v -timeout 50m -tags nightly ./test/integration/...
+          go test -v -race -timeout 50m -tags nightly ./test/integration/...
 
       - name: Upload test results
         if: always()
