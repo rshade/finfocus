@@ -194,7 +194,7 @@ func TestBoltStore_Disabled(t *testing.T) {
 	data := json.RawMessage(`{"test":"value"}`)
 
 	err := store.Set("projected/aws/test", data)
-	assert.NoError(t, err) // Set is no-op when disabled
+	assert.ErrorIs(t, err, ErrCacheDisabled)
 
 	_, err = store.Get("projected/aws/test")
 	assert.ErrorIs(t, err, ErrCacheDisabled)

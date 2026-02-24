@@ -296,7 +296,7 @@ func (s *BoltStore) Get(key string) (*CacheEntry, error) {
 // Returns ErrInvalidCacheKey if key is empty.
 func (s *BoltStore) Set(key string, data json.RawMessage) error {
 	if !s.enabled {
-		return nil
+		return ErrCacheDisabled
 	}
 	if key == "" {
 		return ErrInvalidCacheKey
