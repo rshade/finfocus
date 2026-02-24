@@ -742,23 +742,34 @@ func runInteractiveOverviewWithInit(
 	// to the main goroutine for accurate audit logging.
 	var rowCount atomic.Int64
 
+	// enrichDone is closed when the background goroutine exits. The cleanup
+	// path waits on this channel so plugin connections are not torn down while
+	// enrichment gRPC calls are still in flight (see issue #716).
+	enrichDone := make(chan struct{})
+
 	// Start data loading and enrichment in background
-	go overviewInitAndEnrich(enrichCtx, cmd, p, params, dateRange, audit, cleanupChan, &rowCount, passphraseChan)
+	go func() {
+		defer close(enrichDone)
+		overviewInitAndEnrich(enrichCtx, cmd, p, params, dateRange, audit, cleanupChan, &rowCount, passphraseChan)
+	}()
 
 	// Run the TUI (blocks until user quits or error)
 	finalModel, err := p.Run()
 	enrichCancel()
 
-	// Drain cleanup from the background goroutine with a short timeout.
-	// The goroutine may still be mid-send after enrichCancel(), so we block
-	// briefly to ensure the plugin cleanup callback is not lost.
+	// Wait for the enrichment goroutine to finish before closing plugin
+	// connections. This prevents a race where cleanup() tears down gRPC
+	// connections while EnrichOverviewRows still has calls in flight.
+	<-enrichDone
+
+	// Drain cleanup from the background goroutine.
 	select {
 	case cleanup := <-cleanupChan:
 		if cleanup != nil {
 			cleanup()
 		}
-	case <-time.After(2 * time.Second): //nolint:mnd // Grace period for goroutine to send cleanup.
-		// Plugins were never opened (early exit or error before openPlugins)
+	default:
+		// Plugins were never opened (early exit or error before openPlugins).
 	}
 
 	if err != nil {
