@@ -169,6 +169,7 @@ func TestNewOverviewCmd_ValidStateFileEmptyResources(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	tmpDir := t.TempDir()
 	statePath := filepath.Join(tmpDir, "state.json")
@@ -233,6 +234,7 @@ func TestNewOverviewCmd_ExplicitStateStillWorks(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	tmpDir := t.TempDir()
 	statePath := filepath.Join(tmpDir, "state.json")
@@ -371,6 +373,7 @@ func TestNewOverviewCmd_ExitCodeOutOfRange(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	tmpDir := t.TempDir()
 	statePath := filepath.Join(tmpDir, "state.json")
@@ -504,6 +507,7 @@ func TestNewOverviewCmd_BudgetEvalNonTTYPath(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	// Create a valid state file with empty resources
 	tmpDir := t.TempDir()
@@ -553,6 +557,7 @@ func TestOverviewPlainText_CacheHitReturnsProjectedCost(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	tmpDir := t.TempDir()
 

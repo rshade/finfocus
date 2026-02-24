@@ -292,9 +292,9 @@ func TestBoltStore_DisabledOperations(t *testing.T) {
 	_, err = store.Get("projected/key")
 	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
 
-	// Set is no-op when disabled (returns nil, not error)
+	// Set returns ErrCacheDisabled
 	err = store.Set("projected/key", json.RawMessage(testData))
-	assert.NoError(t, err)
+	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
 
 	// Delete returns ErrCacheDisabled
 	err = store.Delete("projected/key")

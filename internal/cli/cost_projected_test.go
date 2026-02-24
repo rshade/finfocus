@@ -332,6 +332,8 @@ func createTestPlan(t *testing.T, resources []map[string]interface{}) string {
 func TestCostProjectedCmd_Success(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",
@@ -410,6 +412,8 @@ func TestCostProjectedCmd_InvalidJSON(t *testing.T) {
 func TestCostProjectedCmd_MultipleResources(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",
@@ -447,6 +451,7 @@ func TestCostProjectedCmd_MultipleResources(t *testing.T) {
 // formats and type/provider filtering into a single table-driven test (#782).
 func TestCostProjectedCmd_OutputFormatsAndFilters(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
 
 	tests := []struct {
 		name          string
@@ -552,6 +557,8 @@ func TestCostProjectedCmd_OutputFormatsAndFilters(t *testing.T) {
 func TestCostProjectedCmd_EmptyPlan(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{}
 	planPath := createTestPlan(t, resources)
 
@@ -618,6 +625,8 @@ func TestCostProjectedCmd_InvalidOutputFormat(t *testing.T) {
 func TestCostProjectedCmd_ComplexResourceProperties(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",
