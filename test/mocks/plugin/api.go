@@ -9,6 +9,8 @@ package plugin
 import (
 	"errors"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/proto"
@@ -33,6 +35,14 @@ type MockConfig struct {
 
 	// LatencyMS specifies simulated latency in milliseconds
 	LatencyMS int
+
+	// SleepDuration specifies a sleep duration intended to exceed context deadlines
+	// for timeout testing. When SleepDuration > 0, it takes precedence over LatencyMS.
+	SleepDuration time.Duration
+
+	// FailForTypes specifies resource types for which GetProjectedCost should return
+	// codes.Internal error. Non-matching types succeed normally.
+	FailForTypes []string
 
 	// PluginVersion specifies the plugin version to return in GetPluginInfo
 	PluginVersion string
@@ -80,8 +90,9 @@ var (
 
 // MockPlugin represents a configurable mock plugin server.
 type MockPlugin struct {
-	config MockConfig
-	mu     sync.RWMutex
+	config    MockConfig
+	mu        sync.RWMutex
+	callCount atomic.Int64
 }
 
 // NewMockPlugin creates a new mock plugin with default configuration.
@@ -153,6 +164,55 @@ func (m *MockPlugin) SetLatency(latencyMS int) {
 	m.config.LatencyMS = latencyMS
 }
 
+// SetSleepDuration configures a sleep duration that takes precedence over LatencyMS.
+// This is intended to exceed context deadlines for timeout testing.
+func (m *MockPlugin) SetSleepDuration(d time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.config.SleepDuration = d
+}
+
+// GetSleepDuration returns the configured sleep duration.
+func (m *MockPlugin) GetSleepDuration() time.Duration {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.config.SleepDuration
+}
+
+// SetFailForTypes configures resource types that should fail with codes.Internal.
+func (m *MockPlugin) SetFailForTypes(types []string) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.config.FailForTypes = types
+}
+
+// ShouldFailForType checks if the given resource type is in the FailForTypes list.
+func (m *MockPlugin) ShouldFailForType(resourceType string) bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	for _, ft := range m.config.FailForTypes {
+		if ft == resourceType {
+			return true
+		}
+	}
+	return false
+}
+
+// IncrementCallCount atomically increments the call counter.
+func (m *MockPlugin) IncrementCallCount() {
+	m.callCount.Add(1)
+}
+
+// GetCallCount returns the current call count.
+func (m *MockPlugin) GetCallCount() int64 {
+	return m.callCount.Load()
+}
+
+// ResetCallCount resets the call counter to zero.
+func (m *MockPlugin) ResetCallCount() {
+	m.callCount.Store(0)
+}
+
 // Reset clears all configuration and returns the mock to its default state.
 // This should be called between tests to ensure isolation.
 func (m *MockPlugin) Reset() {
@@ -165,7 +225,10 @@ func (m *MockPlugin) Reset() {
 		ErrorType:              ErrorNone,
 		ErrorMethod:            "",
 		LatencyMS:              0,
+		SleepDuration:          0,
+		FailForTypes:           nil,
 	}
+	m.callCount.Store(0)
 }
 
 // GetConfig returns the current mock configuration (for testing/debugging).

@@ -168,6 +168,33 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
+      - name: Verify go.mod sync between root and e2e modules
+        run: |
+          ROOT_GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
+          E2E_GO_VERSION=$(grep '^go ' test/e2e/go.mod | awk '{print $2}')
+          if [ "$ROOT_GO_VERSION" != "$E2E_GO_VERSION" ]; then
+            echo "ERROR: Go version mismatch: root=$ROOT_GO_VERSION e2e=$E2E_GO_VERSION"
+            exit 1
+          fi
+          echo "Go version sync OK: $ROOT_GO_VERSION"
+
+          # Compare shared dependency versions
+          SYNC_FAILED=0
+          for DEP in "github.com/rshade/finfocus-spec" "github.com/stretchr/testify"; do
+            ROOT_VER=$(grep "	${DEP} " go.mod | awk '{print $2}' || true)
+            E2E_VER=$(grep "	${DEP} " test/e2e/go.mod | awk '{print $2}' || true)
+            if [ -n "$ROOT_VER" ] && [ -n "$E2E_VER" ] && [ "$ROOT_VER" != "$E2E_VER" ]; then
+              echo "WARNING: ${DEP} version mismatch: root=$ROOT_VER e2e=$E2E_VER"
+              SYNC_FAILED=1
+            elif [ -n "$ROOT_VER" ] && [ -n "$E2E_VER" ]; then
+              echo "${DEP} sync OK: $ROOT_VER"
+            fi
+          done
+          if [ "$SYNC_FAILED" -eq 1 ]; then
+            echo "ERROR: Shared dependency versions are out of sync"
+            exit 1
+          fi
+
   fuzz:
     name: Fuzz Testing (Smoke)
     runs-on: ubuntu-latest

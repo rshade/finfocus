@@ -31,16 +31,8 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#718](https://github.com/rshade/finfocus/issues/718))
   - [ ] Extract progress constant and add goroutine comment in overview
         ([#721](https://github.com/rshade/finfocus/issues/721))
-  - [ ] Verify defensive copy independence in `DataReadyMsg` handler
-        ([#722](https://github.com/rshade/finfocus/issues/722))
-  - [ ] `detectErr` unconditionally overrides `--yes` flag for `isStateOnly` in overview
-        ([#762](https://github.com/rshade/finfocus/issues/762))
   - [ ] False-positive drift for resources created mid-month in overview
         ([#760](https://github.com/rshade/finfocus/issues/760))
-  - [ ] Display budget status and health in overview command
-        ([#744](https://github.com/rshade/finfocus/issues/744))
-  - [ ] Add cost caching to speed up enrichment in overview
-        ([#745](https://github.com/rshade/finfocus/issues/745))
 - [ ] **Overview Performance Pipeline**
   - [ ] Parallelize plugin opening in `Registry.Open()`
         ([#693](https://github.com/rshade/finfocus/issues/693))
@@ -56,15 +48,6 @@ continues with TUI quality fixes and the remaining performance pipeline.*
   - [ ] `BoltStore.Set` returns nil when disabled, inconsistent with other
         methods
         ([#682](https://github.com/rshade/finfocus/issues/682))
-- [ ] **CI Reliability**
-  - [ ] SBOM action fails to attach to releases — missing `contents:write`
-        permission
-        ([#698](https://github.com/rshade/finfocus/issues/698))
-- [ ] **Code Quality Housekeeping**
-  - [ ] Fix test data quality issues across cache test files
-        ([#683](https://github.com/rshade/finfocus/issues/683))
-  - [ ] Clean up duplicate doc comments and extract placeholder helper
-        ([#684](https://github.com/rshade/finfocus/issues/684))
 - [ ] **Analyzer Quality Fixes** *(post-install UX cluster)*
   - [ ] AnalyzeStack stack summary always shows $0.00 (0 resources analyzed)
         ([#746](https://github.com/rshade/finfocus/issues/746))
@@ -76,39 +59,14 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#756](https://github.com/rshade/finfocus/issues/756))
   - [ ] Add `finfocus analyzer check` command for setup verification
         ([#757](https://github.com/rshade/finfocus/issues/757))
-  - [ ] Fix analyzer-setup.md — PATH requirement and Pulumi.yaml analyzer configuration
-        ([#758](https://github.com/rshade/finfocus/issues/758))
 - [ ] **Engine & Recorder Fixes**
   - [ ] `classifyError` should handle `context.Canceled` and `context.DeadlineExceeded`
         ([#726](https://github.com/rshade/finfocus/issues/726))
   - [ ] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
         ([#734](https://github.com/rshade/finfocus/issues/734))
-- [ ] **CLI & Change Detection Fixes**
-  - [ ] `FINFOCUS_HIDE_ALIAS_HINT` should use presence-based check, not value-based
-        ([#783](https://github.com/rshade/finfocus/issues/783))
-  - [ ] Recognize `.tsx`, `.jsx`, and `go.work` as Pulumi source files in change detection
-        ([#787](https://github.com/rshade/finfocus/issues/787))
-- [ ] **Test Infrastructure Fixes**
-  - [ ] Fix always-skipped integration tests
-        ([#737](https://github.com/rshade/finfocus/issues/737))
-  - [ ] cli_helper global log suppression masks plugin errors in integration tests
-        ([#743](https://github.com/rshade/finfocus/issues/743))
-  - [ ] Make `TestGetProjectedCost_PartialData` order-independent
-        ([#788](https://github.com/rshade/finfocus/issues/788))
-  - [ ] Fix vacuous exit code 0 test in budget\_scoped\_test.go
-        ([#786](https://github.com/rshade/finfocus/issues/786))
-  - [ ] Close plugin clients in `TestNewClient_Success` and `TestClient_APIUsage`
-        ([#785](https://github.com/rshade/finfocus/issues/785))
-  - [ ] `stubHome` should clear `FINFOCUS_HOME` for hermetic config tests
-        ([#784](https://github.com/rshade/finfocus/issues/784))
-  - [ ] Deduplicate env setup and fix fragile assertion in plugin\_validate\_test.go
-        ([#782](https://github.com/rshade/finfocus/issues/782))
-  - [ ] Consolidate 5 `TestGetPluginInfo_*` tests into table-driven
-        ([#776](https://github.com/rshade/finfocus/issues/776))
-  - [ ] Remove duplicate flat tests in `pulumi_plan_test.go`, merge into table-driven
-        ([#775](https://github.com/rshade/finfocus/issues/775))
-  - [ ] Consolidate 4 near-identical cost projected tests into table-driven
-        ([#774](https://github.com/rshade/finfocus/issues/774))
+- [ ] **Test Reliability**
+  - [ ] CLI tests leak real `~/.finfocus` config causing JSON parse failures
+        ([#809](https://github.com/rshade/finfocus/issues/809))
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -273,6 +231,10 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#645](https://github.com/rshade/finfocus/issues/645))
   - [ ] Overview command documentation with screenshots
         ([#646](https://github.com/rshade/finfocus/issues/646))
+- [ ] **Config Refactoring**
+  - [ ] Thread budget flag overrides explicitly instead of mutating global
+        config singleton
+        ([#808](https://github.com/rshade/finfocus/issues/808))
 - [ ] **Platform Reliability**
   - [ ] Reimplement plugin installer lock for Windows reliability
         ([#573](https://github.com/rshade/finfocus/issues/573))
@@ -291,6 +253,50 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 ### 2026-Q1
 
+- [x] **Overview Enrichment & Budget Display** *(Completed 2026-02-22/23)*
+  - [x] Display budget status and health in overview command
+        ([#744](https://github.com/rshade/finfocus/issues/744))
+  - [x] Add cost caching to speed up enrichment in overview
+        ([#745](https://github.com/rshade/finfocus/issues/745))
+  - [x] `detectErr` unconditionally overrides `--yes` flag for `isStateOnly` in overview
+        ([#762](https://github.com/rshade/finfocus/issues/762))
+  - [x] Verify defensive copy independence in `DataReadyMsg` handler
+        ([#722](https://github.com/rshade/finfocus/issues/722))
+- [x] **CLI & Change Detection Fixes** *(Completed 2026-02-22)*
+  - [x] `FINFOCUS_HIDE_ALIAS_HINT` should use presence-based check, not value-based
+        ([#783](https://github.com/rshade/finfocus/issues/783))
+  - [x] Recognize `.tsx`, `.jsx`, and `go.work` as Pulumi source files in change detection
+        ([#787](https://github.com/rshade/finfocus/issues/787))
+- [x] **CI & Code Quality Housekeeping** *(Completed 2026-02-22)*
+  - [x] SBOM action fails to attach to releases — missing `contents:write` permission
+        ([#698](https://github.com/rshade/finfocus/issues/698))
+  - [x] Fix test data quality issues across cache test files
+        ([#683](https://github.com/rshade/finfocus/issues/683))
+  - [x] Clean up duplicate doc comments and extract placeholder helper
+        ([#684](https://github.com/rshade/finfocus/issues/684))
+  - [x] Fix analyzer-setup.md — PATH requirement and Pulumi.yaml analyzer configuration
+        ([#758](https://github.com/rshade/finfocus/issues/758))
+- [x] **Test Infrastructure Sweep** *(Completed 2026-02-22)*
+  - [x] Fix always-skipped integration tests
+        ([#737](https://github.com/rshade/finfocus/issues/737))
+  - [x] cli\_helper global log suppression masks plugin errors in integration tests
+        ([#743](https://github.com/rshade/finfocus/issues/743))
+  - [x] Make `TestGetProjectedCost_PartialData` order-independent
+        ([#788](https://github.com/rshade/finfocus/issues/788))
+  - [x] Fix vacuous exit code 0 test in budget\_scoped\_test.go
+        ([#786](https://github.com/rshade/finfocus/issues/786))
+  - [x] Close plugin clients in `TestNewClient_Success` and `TestClient_APIUsage`
+        ([#785](https://github.com/rshade/finfocus/issues/785))
+  - [x] `stubHome` should clear `FINFOCUS_HOME` for hermetic config tests
+        ([#784](https://github.com/rshade/finfocus/issues/784))
+  - [x] Deduplicate env setup and fix fragile assertion in plugin\_validate\_test.go
+        ([#782](https://github.com/rshade/finfocus/issues/782))
+  - [x] Consolidate 5 `TestGetPluginInfo_*` tests into table-driven
+        ([#776](https://github.com/rshade/finfocus/issues/776))
+  - [x] Remove duplicate flat tests in `pulumi_plan_test.go`, merge into table-driven
+        ([#775](https://github.com/rshade/finfocus/issues/775))
+  - [x] Consolidate 4 near-identical cost projected tests into table-driven
+        ([#774](https://github.com/rshade/finfocus/issues/774))
 - [x] **Batch Bug Fixes** *(Completed 2026-02-22)*
   - [x] Investigate intermittent $0.00 projected costs in TUI overview
         ([#723](https://github.com/rshade/finfocus/issues/723))

@@ -1,5 +1,17 @@
 //go:build nightly
 
+// Nightly Justification:
+//
+// These tests MUST remain in the nightly build tag because they:
+// (1) Build the finfocus CLI binary via "go build", which requires the full Go
+//     toolchain and takes 10-30 seconds per binary compilation.
+// (2) Spawn subprocesses via exec.Command that exercise the built binary, adding
+//     process management overhead and potential for flakiness on resource-constrained
+//     CI runners.
+// (3) External dependencies: Go toolchain for binary build, filesystem for binary
+//     output and audit log file I/O, environment variable injection for config paths.
+// (4) Approximate execution time: 10-30s per test due to binary compilation.
+
 package integration_test
 
 import (

@@ -68,10 +68,18 @@ func (s *mockServer) GetProjectedCost(
 	_ context.Context,
 	req *pbc.GetProjectedCostRequest,
 ) (*pbc.GetProjectedCostResponse, error) {
-	// Simulate latency if configured
-	latency := s.plugin.GetLatency()
-	if latency > 0 {
-		time.Sleep(time.Duration(latency) * time.Millisecond)
+	// Increment call counter
+	s.plugin.IncrementCallCount()
+
+	// SleepDuration takes precedence over LatencyMS
+	sleepDur := s.plugin.GetSleepDuration()
+	if sleepDur > 0 {
+		time.Sleep(sleepDur)
+	} else {
+		latency := s.plugin.GetLatency()
+		if latency > 0 {
+			time.Sleep(time.Duration(latency) * time.Millisecond)
+		}
 	}
 
 	// Check for error injection
@@ -79,8 +87,13 @@ func (s *mockServer) GetProjectedCost(
 		return nil, toGRPCError(err)
 	}
 
-	// Look up configured response for this resource type
+	// Check for selective type failures
 	resourceType := req.GetResource().GetResourceType()
+	if s.plugin.ShouldFailForType(resourceType) {
+		return nil, status.Errorf(codes.Internal, "mock plugin: simulated failure for resource type %s", resourceType)
+	}
+
+	// Look up configured response for this resource type
 	configuredResult, found := s.plugin.GetProjectedResponse(resourceType)
 
 	if !found {

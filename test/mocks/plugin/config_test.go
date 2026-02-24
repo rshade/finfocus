@@ -1,7 +1,9 @@
 package plugin_test
 
 import (
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -312,4 +314,129 @@ func TestResponseIsolation(t *testing.T) {
 	assert.Equal(t, projectedResponse, config.ProjectedCostResponses["test:type:A"])
 	assert.Equal(t, actualResponse, config.ActualCostResponses["test:type:A"])
 	assert.NotEqual(t, projectedResponse.MonthlyCost, actualResponse.TotalCost)
+}
+
+// TestSleepDuration verifies SleepDuration field behavior.
+func TestSleepDuration(t *testing.T) {
+	t.Run("default is zero", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		assert.Equal(t, time.Duration(0), mock.GetSleepDuration())
+	})
+
+	t.Run("set and get", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.SetSleepDuration(15 * time.Second)
+		assert.Equal(t, 15*time.Second, mock.GetSleepDuration())
+	})
+
+	t.Run("reset clears sleep duration", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.SetSleepDuration(5 * time.Second)
+		require.Equal(t, 5*time.Second, mock.GetSleepDuration())
+
+		mock.Reset()
+		assert.Equal(t, time.Duration(0), mock.GetSleepDuration())
+	})
+
+	t.Run("configure sets sleep duration", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.Configure(plugin.MockConfig{
+			ProjectedCostResponses: make(map[string]*proto.CostResult),
+			ActualCostResponses:    make(map[string]*proto.ActualCostResult),
+			SleepDuration:          3 * time.Second,
+		})
+		assert.Equal(t, 3*time.Second, mock.GetSleepDuration())
+	})
+}
+
+// TestFailForTypes verifies FailForTypes selective failure behavior.
+func TestFailForTypes(t *testing.T) {
+	t.Run("default does not fail", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		assert.False(t, mock.ShouldFailForType("aws:ec2/instance:Instance"))
+	})
+
+	t.Run("fails for configured types", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.SetFailForTypes([]string{"aws:ec2/instance:Instance", "aws:rds/instance:Instance"})
+
+		assert.True(t, mock.ShouldFailForType("aws:ec2/instance:Instance"))
+		assert.True(t, mock.ShouldFailForType("aws:rds/instance:Instance"))
+	})
+
+	t.Run("succeeds for non-matching types", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.SetFailForTypes([]string{"aws:ec2/instance:Instance"})
+
+		assert.False(t, mock.ShouldFailForType("aws:s3/bucket:Bucket"))
+		assert.False(t, mock.ShouldFailForType("aws:lambda/function:Function"))
+	})
+
+	t.Run("reset clears fail for types", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.SetFailForTypes([]string{"aws:ec2/instance:Instance"})
+		require.True(t, mock.ShouldFailForType("aws:ec2/instance:Instance"))
+
+		mock.Reset()
+		assert.False(t, mock.ShouldFailForType("aws:ec2/instance:Instance"))
+	})
+
+	t.Run("empty list does not fail", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.SetFailForTypes([]string{})
+		assert.False(t, mock.ShouldFailForType("aws:ec2/instance:Instance"))
+	})
+}
+
+// TestCallCount verifies thread-safe call counting behavior.
+func TestCallCount(t *testing.T) {
+	t.Run("default is zero", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		assert.Equal(t, int64(0), mock.GetCallCount())
+	})
+
+	t.Run("increments correctly", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.IncrementCallCount()
+		mock.IncrementCallCount()
+		mock.IncrementCallCount()
+		assert.Equal(t, int64(3), mock.GetCallCount())
+	})
+
+	t.Run("reset clears count", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.IncrementCallCount()
+		mock.IncrementCallCount()
+		require.Equal(t, int64(2), mock.GetCallCount())
+
+		mock.ResetCallCount()
+		assert.Equal(t, int64(0), mock.GetCallCount())
+	})
+
+	t.Run("thread safety with concurrent increments", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		const goroutines = 100
+
+		var wg sync.WaitGroup
+		wg.Add(goroutines)
+		for range goroutines {
+			go func() {
+				defer wg.Done()
+				mock.IncrementCallCount()
+			}()
+		}
+		wg.Wait()
+
+		assert.Equal(t, int64(goroutines), mock.GetCallCount())
+	})
+
+	t.Run("full reset clears call count", func(t *testing.T) {
+		mock := plugin.NewMockPlugin()
+		mock.IncrementCallCount()
+		mock.IncrementCallCount()
+		require.Equal(t, int64(2), mock.GetCallCount())
+
+		mock.Reset()
+		assert.Equal(t, int64(0), mock.GetCallCount())
+	})
 }
