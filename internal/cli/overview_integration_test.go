@@ -202,6 +202,7 @@ func TestIntegration_OverviewCommand_StateOnly(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	td := testdataDir(t)
 
@@ -226,6 +227,7 @@ func TestIntegration_OverviewCommand_StateAndPlan(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	td := testdataDir(t)
 
@@ -251,6 +253,7 @@ func TestIntegration_OverviewCommand_JSONOutput(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	td := testdataDir(t)
 
@@ -275,6 +278,7 @@ func TestIntegration_OverviewCommand_NDJSONOutput(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	td := testdataDir(t)
 
@@ -299,6 +303,7 @@ func TestIntegration_OverviewCommand_InvalidOutput(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	td := testdataDir(t)
 
@@ -369,6 +374,7 @@ func TestIntegration_OverviewCommand_FilterFlag(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+	isolateConfig(t)
 
 	td := testdataDir(t)
 

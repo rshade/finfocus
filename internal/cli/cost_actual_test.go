@@ -3,7 +3,6 @@ package cli_test
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"testing"
 	"time"
 
@@ -13,17 +12,6 @@ import (
 	"github.com/rshade/finfocus/internal/cli"
 	"github.com/rshade/finfocus/internal/engine"
 )
-
-// isolateFromPulumiProject changes the working directory to a temp dir so
-// tests are not influenced by a Pulumi.yaml in the repository tree. The
-// original directory is restored via t.Cleanup.
-func isolateFromPulumiProject(t *testing.T) {
-	t.Helper()
-	oldwd, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(t.TempDir()))
-	t.Cleanup(func() { _ = os.Chdir(oldwd) })
-}
 
 func TestNewCostActualCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
@@ -635,6 +623,7 @@ func getShortDateRange() (string, string) {
 func TestCostActualCmd_Success(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
 
 	resources := []map[string]interface{}{
 		{
@@ -707,6 +696,8 @@ func TestCostActualCmd_MissingStartDate(t *testing.T) {
 func TestCostActualCmd_DefaultEndDate(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",
@@ -775,6 +766,8 @@ func TestCostActualCmd_InvalidDateFormat(t *testing.T) {
 func TestCostActualCmd_RFC3339DateFormat(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",
@@ -810,6 +803,8 @@ func TestCostActualCmd_RFC3339DateFormat(t *testing.T) {
 func TestCostActualCmd_GroupByResource(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",
@@ -850,6 +845,8 @@ func TestCostActualCmd_GroupByResource(t *testing.T) {
 func TestCostActualCmd_GroupByType(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",
@@ -890,6 +887,8 @@ func TestCostActualCmd_GroupByType(t *testing.T) {
 func TestCostActualCmd_GroupByProvider(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",
@@ -997,6 +996,8 @@ func TestCostActualCmd_TableOutput(t *testing.T) {
 func TestCostActualCmd_NDJSONOutput(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",
@@ -1034,6 +1035,8 @@ func TestCostActualCmd_NDJSONOutput(t *testing.T) {
 func TestCostActualCmd_AdapterFilter(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	isolateConfig(t)
+
 	resources := []map[string]interface{}{
 		{
 			"type": "aws:ec2/instance:Instance",

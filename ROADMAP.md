@@ -19,8 +19,6 @@ guardrails in `CONTEXT.md`.
 continues with TUI quality fixes and the remaining performance pipeline.*
 
 - [ ] **Overview TUI Quality** *(post-v0.3.1 follow-ups)*
-  - [ ] Race between enrichment goroutine and plugin cleanup in overview command
-        ([#716](https://github.com/rshade/finfocus/issues/716))
   - [ ] State guards missing for init-only TUI messages in overview model
         ([#717](https://github.com/rshade/finfocus/issues/717))
   - [ ] Audit enriched count inaccurate on early TUI exit
@@ -92,21 +90,6 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 - [ ] **Scale Testing**
   - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
         ([#658](https://github.com/rshade/finfocus/issues/658))
-- [ ] **Integration Test Coverage**
-  - [ ] Add TUI interactive mode integration tests
-        ([#735](https://github.com/rshade/finfocus/issues/735))
-  - [ ] Add cache system integration tests
-        ([#736](https://github.com/rshade/finfocus/issues/736))
-  - [ ] Add concurrency and performance regression tests
-        ([#738](https://github.com/rshade/finfocus/issues/738))
-  - [ ] Add project-local config and config precedence tests
-        ([#739](https://github.com/rshade/finfocus/issues/739))
-  - [ ] Add analyzer concurrency and partial failure tests
-        ([#740](https://github.com/rshade/finfocus/issues/740))
-  - [ ] Resolve nightly build tag fragmentation
-        ([#741](https://github.com/rshade/finfocus/issues/741))
-  - [ ] Add plugin resilience and crash recovery tests
-        ([#742](https://github.com/rshade/finfocus/issues/742))
 - [ ] **Time-Series Forecasting Enhancement**
   - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
         ([#539](https://github.com/rshade/finfocus/issues/539))
@@ -253,6 +236,23 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 ### 2026-Q1
 
+- [x] **Integration Test Coverage** *(Completed 2026-02-24)*
+  - [x] Add TUI interactive mode integration tests
+        ([#735](https://github.com/rshade/finfocus/issues/735))
+  - [x] Add cache system integration tests
+        ([#736](https://github.com/rshade/finfocus/issues/736))
+  - [x] Add concurrency and performance regression tests
+        ([#738](https://github.com/rshade/finfocus/issues/738))
+  - [x] Add project-local config and config precedence tests
+        ([#739](https://github.com/rshade/finfocus/issues/739))
+  - [x] Add analyzer concurrency and partial failure tests
+        ([#740](https://github.com/rshade/finfocus/issues/740))
+  - [x] Resolve nightly build tag fragmentation
+        ([#741](https://github.com/rshade/finfocus/issues/741))
+  - [x] Add plugin resilience and crash recovery tests
+        ([#742](https://github.com/rshade/finfocus/issues/742))
+- [x] Wait for enrichment goroutine before plugin cleanup in overview
+      ([#716](https://github.com/rshade/finfocus/issues/716))
 - [x] **Overview Enrichment & Budget Display** *(Completed 2026-02-22/23)*
   - [x] Display budget status and health in overview command
         ([#744](https://github.com/rshade/finfocus/issues/744))
