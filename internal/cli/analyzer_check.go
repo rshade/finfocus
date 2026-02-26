@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"text/tabwriter"
 
 	"github.com/spf13/cobra"
 
@@ -71,7 +72,7 @@ func runAnalyzerCheck(ctx context.Context, cmd *cobra.Command, outputFormat stri
 }
 
 func renderCheckJSON(cmd *cobra.Command, report *analyzer.CheckReport) error {
-	data, err := json.Marshal(report)
+	data, err := json.MarshalIndent(report, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshaling check report: %w", err)
 	}
@@ -81,13 +82,16 @@ func renderCheckJSON(cmd *cobra.Command, report *analyzer.CheckReport) error {
 
 func renderCheckTable(cmd *cobra.Command, report *analyzer.CheckReport) {
 	cmd.Println("Analyzer check results:")
+
+	w := tabwriter.NewWriter(cmd.OutOrStdout(), 0, 0, tabPadding, ' ', 0)
 	for _, check := range report.Checks {
 		status := strings.ToUpper(check.Status)
-		cmd.Printf("  %-24s %-6s %s\n", check.DisplayName, status, check.Message)
+		fmt.Fprintf(w, "  %s\t%s\t%s\n", check.DisplayName, status, check.Message)
 		if check.Remediation != "" {
-			cmd.Printf("    Remediation: %s\n", check.Remediation)
+			fmt.Fprintf(w, "    Remediation: %s\n", check.Remediation)
 		}
 	}
+	_ = w.Flush()
 
 	if report.AllPass {
 		cmd.Println("All checks passed.")

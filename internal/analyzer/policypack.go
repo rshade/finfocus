@@ -57,7 +57,7 @@ func ResolvePolicyPackDir() (string, error) {
 }
 
 // WritePulumiPolicyYAML writes the PulumiPolicy.yaml configuration file to the given directory.
-// The directory must already exist. The file is written with 0644 permissions.
+// The directory must already exist. The file is written with 0600 permissions.
 func WritePulumiPolicyYAML(dir string) error {
 	cfg := defaultPolicyPackConfig()
 
@@ -109,6 +109,8 @@ func SetupPolicyPack(ctx context.Context, execPath string) (string, string, erro
 		if removeErr := os.Remove(binaryPath); removeErr != nil {
 			return "", "", fmt.Errorf("removing existing binary reference: %w", removeErr)
 		}
+	} else if !os.IsNotExist(statErr) {
+		return "", "", fmt.Errorf("checking existing binary reference: %w", statErr)
 	}
 
 	method, linkErr := linkOrCopy(ctx, execPath, binaryPath)

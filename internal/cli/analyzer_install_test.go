@@ -160,9 +160,16 @@ func TestAnalyzerInstallCmd_PrintsPATHInstructions(t *testing.T) {
 	output := buf.String()
 	policyPackDir := filepath.Join(finfocusHome, "analyzer")
 
+	// Generic message should appear regardless of OS
 	assert.Contains(t, output, "To use the analyzer with pulumi preview")
-	assert.Contains(t, output, "export PATH=\""+policyPackDir+":$PATH\"")
-	assert.Contains(t, output, "pulumi preview --policy-pack "+policyPackDir)
+	assert.Contains(t, output, "pulumi preview --policy-pack \""+policyPackDir+"\"")
+
+	// PATH instruction format depends on OS
+	if runtime.GOOS == "windows" {
+		assert.Contains(t, output, "$env:PATH")
+	} else {
+		assert.Contains(t, output, "export PATH=\""+policyPackDir+":$PATH\"")
+	}
 }
 
 func TestAnalyzerInstallCmd_NoPATHOnNoOp(t *testing.T) {

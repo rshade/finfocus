@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -45,9 +47,10 @@ type CheckReport struct {
 }
 
 // RunChecks executes analyzer setup checks in order and returns a report.
+// Callers must provide a non-nil context.
 func RunChecks(ctx context.Context) (*CheckReport, error) {
 	if ctx == nil {
-		ctx = context.Background()
+		return nil, errors.New("RunChecks requires a non-nil context")
 	}
 
 	results := make([]CheckResult, 0, checkReportSize)
@@ -192,13 +195,24 @@ func checkBinaryInPATH() CheckResult {
 		if resolveErr != nil {
 			policyPackDir = "~/.finfocus/analyzer"
 		}
+		var remediation string
+		if runtime.GOOS == goosWindows {
+			remediation = fmt.Sprintf(
+				"Add the policy pack directory to PATH:\n"+
+					"  PowerShell:  $env:PATH = \"%s;$env:PATH\"\n"+
+					"  Permanent:   [Environment]::SetEnvironmentVariable('PATH', '%s;' + "+
+					"[Environment]::GetEnvironmentVariable('PATH', 'User'), 'User')",
+				policyPackDir, policyPackDir)
+		} else {
+			remediation = fmt.Sprintf("Add the policy pack directory to PATH:\nexport PATH=\"%s:$PATH\"",
+				policyPackDir)
+		}
 		return CheckResult{
 			Name:        "binary_in_path",
 			DisplayName: "Analyzer binary in PATH",
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("binary %q is not in PATH", policyPackBinaryName),
-			Remediation: fmt.Sprintf("Add the policy pack directory to PATH:\nexport PATH=\"%s:$PATH\"",
-				policyPackDir),
+			Remediation: remediation,
 		}
 	}
 
@@ -262,6 +276,11 @@ func checkGRPCSmokeTest(ctx context.Context) CheckResult {
 
 	port, portErr := readServePort(smokeCtx, stdout)
 	if portErr != nil {
+		// Stop the subprocess and wait for cmd.Wait() to complete before reading
+		// stderr. The exec goroutine writes to the stderr buffer concurrently
+		// until Wait returns; reading it earlier triggers a data race.
+		stopCommand(cancel, cmd, waitDone)
+
 		msg := fmt.Sprintf("failed to read analyzer serve port: %v", portErr)
 		if stderrStr := strings.TrimSpace(stderr.String()); stderrStr != "" {
 			msg = fmt.Sprintf("%s (stderr: %s)", msg, firstLine(stderrStr))
@@ -291,10 +310,8 @@ func checkGRPCSmokeTest(ctx context.Context) CheckResult {
 	}()
 
 	client := pulumirpc.NewAnalyzerClient(conn)
-	rpcCtx, rpcCancel := context.WithTimeout(smokeCtx, checkTimeout)
-	defer rpcCancel()
 
-	if _, rpcErr := client.GetAnalyzerInfo(rpcCtx, &emptypb.Empty{}); rpcErr != nil {
+	if _, rpcErr := client.GetAnalyzerInfo(smokeCtx, &emptypb.Empty{}); rpcErr != nil {
 		return CheckResult{
 			Name:        "grpc_smoke_test",
 			DisplayName: "gRPC smoke test",
@@ -352,6 +369,10 @@ func readServePort(ctx context.Context, reader io.Reader) (int, error) {
 	}
 }
 
+// stopCommand cancels the context and kills the subprocess. The 1-second
+// time.After provides a brief grace period for cmd.Wait() to return after
+// SIGKILL; child processes are expected to exit promptly, so a longer timeout
+// is unnecessary. The select prevents indefinite blocking if Wait never returns.
 func stopCommand(cancel context.CancelFunc, cmd *exec.Cmd, waitDone <-chan error) {
 	cancel()
 	if cmd.Process != nil {

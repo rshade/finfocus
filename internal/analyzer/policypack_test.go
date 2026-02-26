@@ -83,7 +83,8 @@ func TestWritePulumiPolicyYAML_Idempotent(t *testing.T) {
 
 // T009 continued - Verify WritePulumiPolicyYAML fails on nonexistent directory.
 func TestWritePulumiPolicyYAML_NonexistentDir(t *testing.T) {
-	err := WritePulumiPolicyYAML("/nonexistent/path/that/does/not/exist")
+	nonexistentDir := filepath.Join(t.TempDir(), "nonexistent", "path", "that", "does", "not", "exist")
+	err := WritePulumiPolicyYAML(nonexistentDir)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), pulumiPolicyFilename)
 }
@@ -161,7 +162,9 @@ func TestSetupPolicyPack_Idempotent(t *testing.T) {
 // Since runtime.GOOS cannot be mocked, we test the copyFile path directly
 // which is the code path used on Windows.
 func TestSetupPolicyPack_WindowsCopy(t *testing.T) {
+	t.Parallel()
 	t.Run("copyBinary_creates_valid_copy", func(t *testing.T) {
+		t.Parallel()
 		srcDir := t.TempDir()
 		dstDir := t.TempDir()
 
@@ -186,14 +189,17 @@ func TestSetupPolicyPack_WindowsCopy(t *testing.T) {
 	})
 
 	t.Run("copyBinary_source_not_found", func(t *testing.T) {
+		t.Parallel()
 		dstPath := filepath.Join(t.TempDir(), policyPackBinaryName)
-		err := copyBinary("/nonexistent/source/binary", dstPath)
+		nonexistentSrc := filepath.Join(t.TempDir(), "nonexistent_source", "binary")
+		err := copyBinary(nonexistentSrc, dstPath)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "opening source")
 	})
 
 	t.Run("policyPackBinaryPath_returns_correct_name", func(t *testing.T) {
-		dir := "/some/policy/pack"
+		t.Parallel()
+		dir := filepath.Join(t.TempDir(), "policy", "pack")
 		path := policyPackBinaryPath(dir)
 		assert.Contains(t, path, policyPackBinaryName)
 		assert.True(t, filepath.IsAbs(path))

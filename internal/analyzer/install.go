@@ -214,14 +214,25 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 		if strings.TrimPrefix(installedVer, "v") != strings.TrimPrefix(currentVersion, "v") {
 			action = ActionUpdateAvailable
 		}
-		return &InstallResult{
+		result := &InstallResult{
 			Installed:      true,
 			Version:        installedVer,
 			Path:           binaryPath,
 			NeedsUpdate:    strings.TrimPrefix(installedVer, "v") != strings.TrimPrefix(currentVersion, "v"),
 			CurrentVersion: currentVersion,
 			Action:         action,
-		}, nil
+		}
+
+		// Ensure policy pack is bootstrapped even on no-op installs
+		execPath, execErr := os.Executable()
+		if execErr == nil {
+			if resolved, resolveErr := filepath.EvalSymlinks(execPath); resolveErr == nil {
+				execPath = resolved
+			}
+			setupPolicyPackForInstall(ctx, result, execPath, false)
+		}
+
+		return result, nil
 	}
 
 	// Resolve the current binary path
@@ -340,6 +351,8 @@ func syncPolicyPackBinary(ctx context.Context, execPath, policyPackDir string) e
 		if removeErr := os.Remove(binaryPath); removeErr != nil {
 			return fmt.Errorf("removing old policy pack binary: %w", removeErr)
 		}
+	} else if !os.IsNotExist(statErr) {
+		return fmt.Errorf("lstat %s: %w", binaryPath, statErr)
 	}
 
 	_, linkErr := linkOrCopy(ctx, execPath, binaryPath)
