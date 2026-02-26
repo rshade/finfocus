@@ -37,6 +37,7 @@ Thumbs.db
 # Test coverage
 *.out
 coverage.txt
+coverage/
 
 # Temporary files
 *.bak
@@ -48,6 +49,8 @@ coverage.txt
 *.zip
 *.tar.gz
 *.tar
+yarn.lock
+pnpm-lock.yaml
 
 # Keep these files as-is
 Makefile

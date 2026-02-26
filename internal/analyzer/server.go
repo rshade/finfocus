@@ -201,6 +201,16 @@ func (s *Server) Analyze(
 	// Calculate costs using the engine
 	costs, calcErr := s.calculator.GetProjectedCost(ctx, []engine.ResourceDescriptor{resource})
 	if calcErr != nil {
+		// Cache a zero-cost error result so AnalyzeStack can see that the resource
+		// was attempted. Without this, failed resources are invisible to the stack summary.
+		errResult := engine.CostResult{
+			ResourceType: resourceType,
+			ResourceID:   resourceID,
+			Currency:     "USD",
+			Notes:        "ERROR: " + calcErr.Error(),
+		}
+		s.cacheCost(resourceID, errResult)
+
 		// Return a warning diagnostic if cost calculation fails.
 		// We intentionally return nil error because we want to continue preview
 		// with a warning diagnostic rather than failing the analysis.

@@ -296,7 +296,7 @@ func finalizeOverviewOutput(
 
 	// Fetch budget data for JSON output (nil for other formats).
 	var budgetResult *engine.BudgetResult
-	if params.output == "json" {
+	if params.output == outputFormatJSON {
 		var budgetErr error
 		budgetResult, budgetErr = eng.GetBudgets(ctx, nil)
 		if budgetErr != nil {
@@ -750,11 +750,11 @@ func renderOverviewOutput(
 	budgetResult *engine.BudgetResult,
 ) error {
 	switch outputFormat {
-	case "table":
+	case outputFormatTable:
 		if renderErr := engine.RenderOverviewAsTable(cmd.OutOrStdout(), rows, stackCtx); renderErr != nil {
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
-	case "json":
+	case outputFormatJSON:
 		renderErr := engine.RenderOverviewAsJSON(
 			cmd.Context(), cmd.OutOrStdout(), rows, stackCtx, budgetResult,
 		)

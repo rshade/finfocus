@@ -19,6 +19,9 @@ const (
 	// to ensure exactly one "v" prefix regardless of the raw version string format.
 	analyzerDirPrefix = "analyzer-finfocus-"
 
+	// goosWindows is the runtime.GOOS value for Windows.
+	goosWindows = "windows"
+
 	// analyzerBinaryName is the binary name Pulumi expects inside the plugin directory.
 	analyzerBinaryName = "pulumi-analyzer-finfocus"
 
@@ -64,6 +67,12 @@ type InstallResult struct {
 
 	// Action describes what happened: "installed", "already_current", or "update_available".
 	Action string `json:"action"`
+
+	// PolicyPackDir is the path to the policy pack directory (empty if not set up).
+	PolicyPackDir string `json:"policy_pack_dir,omitempty"`
+
+	// PolicyPackMethod is "symlink" or "copy" for the policy pack binary.
+	PolicyPackMethod string `json:"policy_pack_method,omitempty"`
 }
 
 // normalizeVersion ensures a version string has exactly one "v" prefix.
@@ -258,7 +267,7 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 		Str("version", currentVersion).
 		Msg("analyzer installed")
 
-	return &InstallResult{
+	result := &InstallResult{
 		Installed:      true,
 		Version:        currentVersion,
 		Path:           targetPath,
@@ -266,7 +275,79 @@ func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {
 		NeedsUpdate:    false,
 		CurrentVersion: currentVersion,
 		Action:         ActionInstalled,
-	}, nil
+	}
+
+	setupPolicyPackForInstall(ctx, result, execPath, opts.Force)
+
+	return result, nil
+}
+
+// setupPolicyPackForInstall sets up the policy pack directory and optionally syncs
+// the binary on force installs. Results are stored in the InstallResult.
+func setupPolicyPackForInstall(ctx context.Context, result *InstallResult, execPath string, force bool) {
+	log := logging.FromContext(ctx)
+
+	ppDir, ppMethod, ppErr := SetupPolicyPack(ctx, execPath)
+	if ppErr != nil {
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "analyzer").
+			Str("operation", "install").
+			Err(ppErr).
+			Msg("failed to set up policy pack directory")
+	} else {
+		result.PolicyPackDir = ppDir
+		result.PolicyPackMethod = ppMethod
+	}
+
+	if force {
+		maybeSyncPolicyPack(ctx, execPath)
+	}
+}
+
+// maybeSyncPolicyPack syncs the policy pack binary if the directory exists.
+// Errors are logged as warnings but do not fail the overall install.
+func maybeSyncPolicyPack(ctx context.Context, execPath string) {
+	log := logging.FromContext(ctx)
+
+	ppDir, resolveErr := ResolvePolicyPackDir()
+	if resolveErr != nil {
+		return
+	}
+
+	if _, statErr := os.Stat(ppDir); statErr != nil {
+		return
+	}
+
+	if syncErr := syncPolicyPackBinary(ctx, execPath, ppDir); syncErr != nil {
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "analyzer").
+			Str("operation", "install").
+			Err(syncErr).
+			Msg("failed to sync policy pack binary")
+	}
+}
+
+// syncPolicyPackBinary removes the old binary reference in the policy pack directory
+// and creates a new one pointing to the given executable path. This keeps the policy
+// pack binary in sync with the Pulumi plugin binary after a --force reinstall.
+func syncPolicyPackBinary(ctx context.Context, execPath, policyPackDir string) error {
+	binaryPath := filepath.Join(policyPackDir, policyPackBinaryName)
+
+	// Remove existing binary reference
+	if _, statErr := os.Lstat(binaryPath); statErr == nil {
+		if removeErr := os.Remove(binaryPath); removeErr != nil {
+			return fmt.Errorf("removing old policy pack binary: %w", removeErr)
+		}
+	}
+
+	_, linkErr := linkOrCopy(ctx, execPath, binaryPath)
+	if linkErr != nil {
+		return fmt.Errorf("creating policy pack binary reference: %w", linkErr)
+	}
+
+	return nil
 }
 
 // Uninstall removes all analyzer-finfocus-v* directories from the plugin directory.
@@ -330,7 +411,7 @@ func removeAnalyzerDirs(dir string) error {
 // On Unix, if the symlink fails (e.g., cross-device), it falls back to a copy.
 // Returns the method used ("symlink" or "copy").
 func linkOrCopy(ctx context.Context, src, dst string) (string, error) {
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == goosWindows {
 		if err := copyFile(src, dst); err != nil {
 			return "", err
 		}

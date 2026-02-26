@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AnalyzerCheckReport",
+  "description": "Output schema for finfocus analyzer check --output json",
+  "type": "object",
+  "required": ["checks", "all_pass"],
+  "properties": {
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "display_name", "status", "message"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": ["policy_pack_dir", "pulumi_policy_yaml", "binary_in_path", "grpc_smoke_test"],
+            "description": "Machine-readable check identifier"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Human-readable check name"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pass", "fail", "skip"],
+            "description": "Check outcome"
+          },
+          "message": {
+            "type": "string",
+            "description": "Detail message about the check outcome"
+          },
+          "remediation": {
+            "type": "string",
+            "description": "Actionable fix instruction (present only when status is fail)"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "all_pass": {
+      "type": "boolean",
+      "description": "True when every check has status pass"
+    }
+  },
+  "additionalProperties": false
+}

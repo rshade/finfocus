@@ -143,6 +143,54 @@ func TestNewAnalyzerInstallCmd_TargetDirPropagation(t *testing.T) {
 	assert.Contains(t, output, customDir)
 }
 
+func TestAnalyzerInstallCmd_PrintsPATHInstructions(t *testing.T) {
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+
+	cmd := cli.NewAnalyzerInstallCmd()
+	var buf bytes.Buffer
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--target-dir", dir})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	output := buf.String()
+	policyPackDir := filepath.Join(finfocusHome, "analyzer")
+
+	assert.Contains(t, output, "To use the analyzer with pulumi preview")
+	assert.Contains(t, output, "export PATH=\""+policyPackDir+":$PATH\"")
+	assert.Contains(t, output, "pulumi preview --policy-pack "+policyPackDir)
+}
+
+func TestAnalyzerInstallCmd_NoPATHOnNoOp(t *testing.T) {
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+
+	installCmd := cli.NewAnalyzerInstallCmd()
+	installCmd.SetOut(&bytes.Buffer{})
+	installCmd.SetErr(&bytes.Buffer{})
+	installCmd.SetArgs([]string{"--target-dir", dir})
+	require.NoError(t, installCmd.Execute())
+
+	noopCmd := cli.NewAnalyzerInstallCmd()
+	var buf bytes.Buffer
+	noopCmd.SetOut(&buf)
+	noopCmd.SetErr(&buf)
+	noopCmd.SetArgs([]string{"--target-dir", dir})
+
+	err := noopCmd.Execute()
+	require.NoError(t, err)
+
+	output := buf.String()
+	assert.NotContains(t, output, "To use the analyzer with pulumi preview")
+	assert.NotContains(t, output, "export PATH=")
+	assert.NotContains(t, output, "pulumi preview --policy-pack")
+}
+
 func TestNewAnalyzerInstallCmd_ErrorOnInvalidDir(t *testing.T) {
 	t.Parallel()
 	if runtime.GOOS == "windows" {

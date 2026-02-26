@@ -3,6 +3,7 @@ package analyzer
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -250,8 +251,8 @@ func TestServer_AnalyzeStack(t *testing.T) {
 			wantStackDiagCount:   1, // Summary only
 			wantAnalyzeContains:  []string{"Unsupported resource type"},
 			wantStackContains: []string{
-				"0 resources analyzed",
-			}, // Zero cost resources don't count as "analyzed"
+				"1 resources analyzed",
+			}, // All non-error resources counted (including zero-cost)
 		},
 	}
 
@@ -808,10 +809,9 @@ func TestServer_AnalyzeStack_InternalPulumiTypes(t *testing.T) {
 	summary := stackResp.GetDiagnostics()[0]
 	assert.Equal(t, "stack-cost-summary", summary.GetPolicyName())
 	// Summary should include the real resource cost ($10.00)
-	// Only resources with Monthly > 0 are counted in "resources analyzed"
-	// Internal types have $0.00 cost so they don't increment the analyzed count
+	// All non-error resources are counted in "resources analyzed" (including zero-cost internal types)
 	assert.Contains(t, summary.GetMessage(), "$10.00 USD")
-	assert.Contains(t, summary.GetMessage(), "1 resources analyzed")
+	assert.Contains(t, summary.GetMessage(), "3 resources analyzed")
 }
 
 func TestServer_Analyze_WithRecommendations(t *testing.T) {
@@ -1362,4 +1362,92 @@ func TestAnalyzeStack_CostAccumulation(t *testing.T) {
 	expectedTotal := float64(numResources) * costPerResource
 	assert.Contains(t, summaryMsg, fmt.Sprintf("$%.2f USD", expectedTotal),
 		"AnalyzeStack summary must sum costs accumulated via Analyze()")
+}
+
+// T003 [US1] - Verify that when GetProjectedCost returns an error, a zero-cost error result
+// is still cached for AnalyzeStack visibility.
+func TestAnalyze_CachesErrorCosts(t *testing.T) {
+	calc := &mockCostCalculator{
+		err: errors.New("plugin connection refused"),
+	}
+	server := NewServer(calc, "1.0.0")
+	ctx := context.Background()
+
+	req := &pulumirpc.AnalyzeRequest{
+		Type: "aws:ec2/instance:Instance",
+		Urn:  "urn:pulumi:dev::myapp::aws:ec2/instance:Instance::webserver",
+	}
+
+	resp, err := server.Analyze(ctx, req)
+	require.NoError(t, err) // Should not return error (returns warning diagnostic)
+	require.NotNil(t, resp)
+	assert.Len(t, resp.GetDiagnostics(), 1)
+
+	// The key assertion: error cost should be cached for AnalyzeStack visibility
+	cached := server.getCachedCosts()
+	require.Len(t, cached, 1, "error cost should be cached for AnalyzeStack visibility")
+	assert.Equal(t, float64(0), cached[0].Monthly)
+	assert.Contains(t, cached[0].Notes, "ERROR:")
+}
+
+// T004 [US1] - Verify that a stack with 3 successful and 2 error resources reports
+// correct total and "3 resources analyzed" in the stack summary.
+func TestAnalyzeStack_MixedSuccessAndError(t *testing.T) {
+	successResults := []engine.CostResult{
+		{
+			ResourceType: "aws:ec2/instance:Instance",
+			ResourceID:   "web1", Monthly: 50.00,
+			Currency: "USD", Adapter: "aws-plugin",
+		},
+		{
+			ResourceType: "aws:rds/instance:Instance",
+			ResourceID:   "db1", Monthly: 100.00,
+			Currency: "USD", Adapter: "aws-plugin",
+		},
+		{
+			ResourceType: "aws:s3/bucket:Bucket",
+			ResourceID:   "bucket1", Monthly: 25.00,
+			Currency: "USD", Adapter: "aws-plugin",
+		},
+	}
+	calc := &mockCostCalculator{results: successResults}
+	server := NewServer(calc, "1.0.0")
+	ctx := context.Background()
+
+	// Analyze 3 successful resources
+	for _, r := range successResults {
+		_, err := server.Analyze(ctx, &pulumirpc.AnalyzeRequest{
+			Type: r.ResourceType,
+			Urn:  fmt.Sprintf("urn:pulumi:dev::myapp::%s::%s", r.ResourceType, r.ResourceID),
+		})
+		require.NoError(t, err)
+	}
+
+	// Manually cache 2 error results (simulates caching that T006 will implement)
+	server.cacheCost("fn1", engine.CostResult{
+		ResourceType: "aws:lambda/function:Function",
+		ResourceID:   "fn1",
+		Monthly:      0,
+		Currency:     "USD",
+		Notes:        "ERROR: plugin connection refused",
+	})
+	server.cacheCost("table1", engine.CostResult{
+		ResourceType: "aws:dynamodb/table:Table",
+		ResourceID:   "table1",
+		Monthly:      0,
+		Currency:     "USD",
+		Notes:        "VALIDATION: Missing required field",
+	})
+
+	// AnalyzeStack should produce a summary using the cache
+	resp, err := server.AnalyzeStack(ctx, &pulumirpc.AnalyzeStackRequest{})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.GreaterOrEqual(t, len(resp.GetDiagnostics()), 1)
+
+	summaryMsg := resp.GetDiagnostics()[0].GetMessage()
+	// Total should be $175.00 (sum of 3 successful resources only)
+	assert.Contains(t, summaryMsg, "$175.00")
+	// Should report 3 resources analyzed (excludes error resources)
+	assert.Contains(t, summaryMsg, "3 resources analyzed")
 }

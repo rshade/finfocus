@@ -533,6 +533,58 @@ func TestInstall_VersionNormalization(t *testing.T) {
 	}
 }
 
+// --- T012: TestInstall_SetsPolicyPackResult ---
+
+// TestInstall_SetsPolicyPackResult verifies that after a fresh install,
+// InstallResult has PolicyPackDir and PolicyPackMethod populated.
+func TestInstall_SetsPolicyPackResult(t *testing.T) {
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+	ctx := context.Background()
+
+	result, err := Install(ctx, InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(t, ActionInstalled, result.Action)
+	assert.NotEmpty(t, result.PolicyPackDir, "PolicyPackDir should be populated after install")
+	assert.NotEmpty(t, result.PolicyPackMethod, "PolicyPackMethod should be populated after install")
+
+	// Verify the policy pack directory actually exists
+	_, statErr := os.Stat(result.PolicyPackDir)
+	require.NoError(t, statErr, "policy pack directory should exist")
+
+	// Verify PulumiPolicy.yaml exists in the policy pack dir
+	_, statErr = os.Stat(filepath.Join(result.PolicyPackDir, "PulumiPolicy.yaml"))
+	require.NoError(t, statErr, "PulumiPolicy.yaml should exist in policy pack dir")
+
+	// Method should be symlink or copy
+	assert.Contains(t, []string{"symlink", "copy"}, result.PolicyPackMethod)
+}
+
+// TestInstall_AlreadyCurrent_NoPolicyPack verifies that already-current status
+// does not set PolicyPackDir (no action taken).
+func TestInstall_AlreadyCurrent_NoPolicyPack(t *testing.T) {
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+	ctx := context.Background()
+
+	// First install
+	_, err := Install(ctx, InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+
+	// Second install - already current, no policy pack setup
+	result, err := Install(ctx, InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.Equal(t, ActionAlreadyCurrent, result.Action)
+	assert.Empty(t, result.PolicyPackDir, "PolicyPackDir should be empty for no-op installs")
+	assert.Empty(t, result.PolicyPackMethod, "PolicyPackMethod should be empty for no-op installs")
+}
+
 // --- TestNormalizeVersion: unit tests for normalizeVersion ---
 
 // TestNormalizeVersion verifies that normalizeVersion produces exactly one "v" prefix
@@ -644,6 +696,148 @@ func TestCopyFile_DestinationCreationFailure(t *testing.T) {
 	err := copyFile(srcFile, dstFile)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "creating destination")
+}
+
+// --- T017: TestInstall_ForceSyncsPolicyPack ---
+
+// TestInstall_ForceSyncsPolicyPack verifies that --force updates the policy pack
+// binary when the policy pack directory already exists.
+func TestInstall_ForceSyncsPolicyPack(t *testing.T) {
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+	ctx := context.Background()
+
+	// First install creates the policy pack directory
+	result1, err := Install(ctx, InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+	require.NotNil(t, result1)
+	assert.NotEmpty(t, result1.PolicyPackDir, "first install should create policy pack")
+
+	// Verify the policy pack binary exists
+	ppBinaryPath := filepath.Join(result1.PolicyPackDir, policyPackBinaryName)
+	_, statErr := os.Lstat(ppBinaryPath)
+	require.NoError(t, statErr, "policy pack binary should exist after first install")
+
+	// Record the original binary info for comparison
+	origInfo, err := os.Lstat(ppBinaryPath)
+	require.NoError(t, err)
+
+	// Force reinstall should update both locations
+	result2, err := Install(ctx, InstallOptions{TargetDir: dir, Force: true})
+	require.NoError(t, err)
+	require.NotNil(t, result2)
+	assert.Equal(t, ActionInstalled, result2.Action)
+
+	// Verify the policy pack binary was updated (re-created)
+	newInfo, err := os.Lstat(ppBinaryPath)
+	require.NoError(t, err)
+
+	// The binary should be re-created (different ModTime or same content, but it was replaced)
+	// We verify by checking the file still exists and is valid
+	assert.Equal(t, origInfo.Mode().Type(), newInfo.Mode().Type(),
+		"binary type should remain the same (symlink or regular)")
+}
+
+// --- T018: TestInstall_ForceSkipsMissingPolicyPack ---
+
+// TestInstall_ForceSkipsMissingPolicyPack verifies that --force does not error
+// when the policy pack directory does not exist.
+func TestInstall_ForceSkipsMissingPolicyPack(t *testing.T) {
+	dir := t.TempDir()
+	// Use a FINFOCUS_HOME where the analyzer subdirectory does NOT exist
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+	ctx := context.Background()
+
+	// First install creates the policy pack dir
+	_, err := Install(ctx, InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+
+	// Remove the policy pack directory to simulate it not existing
+	ppDir := filepath.Join(finfocusHome, "analyzer")
+	require.NoError(t, os.RemoveAll(ppDir))
+
+	// Force reinstall should not error even though policy pack dir is gone
+	result, err := Install(ctx, InstallOptions{TargetDir: dir, Force: true})
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.Equal(t, ActionInstalled, result.Action)
+}
+
+// --- T019: TestInstall_ForceSyncFailureWarns ---
+
+// TestInstall_ForceSyncFailureWarns verifies that a policy pack sync failure
+// produces a warning but does not fail the overall install.
+func TestInstall_ForceSyncFailureWarns(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Unix permission test")
+	}
+
+	dir := t.TempDir()
+	finfocusHome := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", finfocusHome)
+	ctx := context.Background()
+
+	// First install to create policy pack directory
+	result1, err := Install(ctx, InstallOptions{TargetDir: dir})
+	require.NoError(t, err)
+	require.NotEmpty(t, result1.PolicyPackDir)
+
+	// Make the policy pack directory read-only so sync will fail
+	ppDir := filepath.Join(finfocusHome, "analyzer")
+	require.NoError(t, os.Chmod(ppDir, 0o555))
+	t.Cleanup(func() {
+		_ = os.Chmod(ppDir, 0o755)
+	})
+
+	// Force reinstall should succeed overall, even though policy pack sync fails
+	result2, err := Install(ctx, InstallOptions{TargetDir: dir, Force: true})
+	require.NoError(t, err, "install should succeed even when policy pack sync fails")
+	require.NotNil(t, result2)
+	assert.Equal(t, ActionInstalled, result2.Action)
+}
+
+// --- T020: syncPolicyPackBinary unit tests ---
+
+func TestSyncPolicyPackBinary(t *testing.T) {
+	t.Parallel()
+
+	t.Run("replaces existing binary", func(t *testing.T) {
+		t.Parallel()
+		ppDir := t.TempDir()
+		srcDir := t.TempDir()
+
+		// Create a source binary
+		srcBinary := filepath.Join(srcDir, "finfocus-new")
+		require.NoError(t, os.WriteFile(srcBinary, []byte("new-version"), 0o755))
+
+		// Create an existing old binary in the policy pack dir
+		oldBinary := filepath.Join(ppDir, policyPackBinaryName)
+		require.NoError(t, os.WriteFile(oldBinary, []byte("old-version"), 0o755))
+
+		err := syncPolicyPackBinary(context.Background(), srcBinary, ppDir)
+		require.NoError(t, err)
+
+		// Verify the binary was replaced
+		_, statErr := os.Lstat(filepath.Join(ppDir, policyPackBinaryName))
+		require.NoError(t, statErr, "binary should exist after sync")
+	})
+
+	t.Run("creates binary when none exists", func(t *testing.T) {
+		t.Parallel()
+		ppDir := t.TempDir()
+		srcDir := t.TempDir()
+
+		srcBinary := filepath.Join(srcDir, "finfocus")
+		require.NoError(t, os.WriteFile(srcBinary, []byte("binary-content"), 0o755))
+
+		err := syncPolicyPackBinary(context.Background(), srcBinary, ppDir)
+		require.NoError(t, err)
+
+		_, statErr := os.Lstat(filepath.Join(ppDir, policyPackBinaryName))
+		require.NoError(t, statErr, "binary should be created")
+	})
 }
 
 func TestRemoveAnalyzerDirs(t *testing.T) {
