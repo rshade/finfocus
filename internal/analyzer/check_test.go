@@ -20,24 +20,26 @@ func TestCheckPolicyPackDir_Pass(t *testing.T) {
 	ppDir := filepath.Join(finfocusHome, policyPackDirName)
 	require.NoError(t, os.MkdirAll(ppDir, 0o755))
 
-	result := checkPolicyPackDir()
+	result, resolvedDir := checkPolicyPackDir()
 
 	assert.Equal(t, "policy_pack_dir", result.Name)
 	assert.Equal(t, "pass", result.Status)
 	assert.Contains(t, result.Message, ppDir)
 	assert.Empty(t, result.Remediation)
+	assert.Equal(t, ppDir, resolvedDir)
 }
 
 func TestCheckPolicyPackDir_Fail(t *testing.T) {
 	finfocusHome := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", finfocusHome)
 
-	result := checkPolicyPackDir()
+	result, resolvedDir := checkPolicyPackDir()
 
 	assert.Equal(t, "policy_pack_dir", result.Name)
 	assert.Equal(t, "fail", result.Status)
 	assert.Contains(t, result.Message, "not found")
 	assert.Contains(t, result.Remediation, "finfocus analyzer install")
+	assert.Empty(t, resolvedDir)
 }
 
 func TestCheckPulumiPolicyYAML_Pass(t *testing.T) {

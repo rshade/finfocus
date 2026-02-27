@@ -55,7 +55,7 @@ func RunChecks(ctx context.Context) (*CheckReport, error) {
 
 	results := make([]CheckResult, 0, checkReportSize)
 
-	policyDirResult := checkPolicyPackDir()
+	policyDirResult, policyPackDir := checkPolicyPackDir()
 	results = append(results, policyDirResult)
 	if policyDirResult.Status != checkStatusPass {
 		results = append(results,
@@ -67,11 +67,6 @@ func RunChecks(ctx context.Context) (*CheckReport, error) {
 				"skipped because policy pack directory check failed"),
 		)
 		return &CheckReport{Checks: results, AllPass: false}, nil
-	}
-
-	policyPackDir, err := ResolvePolicyPackDir()
-	if err != nil {
-		return nil, fmt.Errorf("resolving policy pack directory: %w", err)
 	}
 
 	policyYAMLResult := checkPulumiPolicyYAML(policyPackDir)
@@ -105,7 +100,7 @@ func RunChecks(ctx context.Context) (*CheckReport, error) {
 	}, nil
 }
 
-func checkPolicyPackDir() CheckResult {
+func checkPolicyPackDir() (CheckResult, string) {
 	dir, err := ResolvePolicyPackDir()
 	if err != nil {
 		return CheckResult{
@@ -114,7 +109,7 @@ func checkPolicyPackDir() CheckResult {
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("failed to resolve policy pack directory: %v", err),
 			Remediation: "Set FINFOCUS_HOME to a valid directory and run: finfocus analyzer install",
-		}
+		}, ""
 	}
 
 	info, statErr := os.Stat(dir)
@@ -125,7 +120,7 @@ func checkPolicyPackDir() CheckResult {
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("policy pack directory not found: %s", dir),
 			Remediation: "Run: finfocus analyzer install",
-		}
+		}, ""
 	}
 	if !info.IsDir() {
 		return CheckResult{
@@ -134,7 +129,7 @@ func checkPolicyPackDir() CheckResult {
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("policy pack path is not a directory: %s", dir),
 			Remediation: "Remove the file and run: finfocus analyzer install",
-		}
+		}, ""
 	}
 
 	return CheckResult{
@@ -142,7 +137,7 @@ func checkPolicyPackDir() CheckResult {
 		DisplayName: "Policy pack directory",
 		Status:      checkStatusPass,
 		Message:     fmt.Sprintf("directory exists: %s", dir),
-	}
+	}, dir
 }
 
 func checkPulumiPolicyYAML(dir string) CheckResult {
