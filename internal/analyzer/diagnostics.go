@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
 	"github.com/rs/zerolog/log"
@@ -64,39 +65,25 @@ func CostToDiagnostic(
 // StackSummaryDiagnostic creates a stack-level cost summary diagnostic.
 //
 // This diagnostic provides an aggregated view of all resource costs:
-//   - Total monthly cost across all resources
-//   - Count of resources successfully analyzed
+//   - Total monthly cost across all non-error resources
+//   - Count of resources successfully analyzed (excludes error resources)
 //   - Currency (defaults to USD)
 //
-// StackSummaryDiagnostic creates a stack-level AnalyzeDiagnostic that summarizes the total
-// estimated monthly cost across the provided CostResult values.
-//
-// The `costs` slice is aggregated to compute the total monthly cost, the currency (defaults
-// to "USD" if unspecified), and the count of resources with a positive monthly estimate.
-// The `version` parameter is used as the PolicyPackVersion on the returned diagnostic.
-//
-// It returns an *pulumirpc.AnalyzeDiagnostic representing a stack-level cost summary
-// (no URN), with EnforcementLevel set to ADVISORY and a low policy severity.
+// The function delegates to BuildCostSummary for aggregation to ensure
+// consistency between the diagnostic message and the cost summary file.
+// Error resources (with ERROR:/VALIDATION: prefixed notes or non-nil Error)
+// are excluded from totals, matching BuildCostSummary behavior.
 func StackSummaryDiagnostic(
 	costs []engine.CostResult,
 	version string,
 ) *pulumirpc.AnalyzeDiagnostic {
-	var totalMonthly float64
-	currency := defaultCurrency
-	analyzed := 0
-
-	for _, c := range costs {
-		totalMonthly += c.Monthly
-		if c.Currency != "" {
-			currency = c.Currency
-		}
-		if c.Monthly > 0 {
-			analyzed++
-		}
-	}
+	// Use BuildCostSummary for consistent aggregation logic.
+	// This ensures the stack summary diagnostic matches the cost summary file
+	// by excluding error resources and counting all non-error resources.
+	summary := BuildCostSummary(costs, "", "", time.Time{})
 
 	message := fmt.Sprintf("Total Estimated Monthly Cost: $%.2f %s (%d resources analyzed)",
-		totalMonthly, currency, analyzed)
+		summary.TotalMonthlyCost, summary.Currency, summary.ResourceCount)
 
 	// Append recommendation summary if any recommendations exist
 	recAgg := AggregateRecommendations(costs)

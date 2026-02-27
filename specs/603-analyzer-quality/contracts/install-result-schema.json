@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AnalyzerInstallResult",
+  "description": "Extended install result including policy pack information",
+  "type": "object",
+  "required": ["installed", "needs_update", "action"],
+  "properties": {
+    "installed": {
+      "type": "boolean",
+      "description": "Whether the analyzer is currently installed"
+    },
+    "version": {
+      "type": "string",
+      "description": "Installed analyzer version (empty if not installed)"
+    },
+    "path": {
+      "type": "string",
+      "description": "Full filesystem path to the installed binary"
+    },
+    "method": {
+      "type": "string",
+      "enum": ["symlink", "copy"],
+      "description": "Installation method for the Pulumi plugin binary"
+    },
+    "needs_update": {
+      "type": "boolean",
+      "description": "True when installed version differs from current binary"
+    },
+    "current_version": {
+      "type": "string",
+      "description": "Version of the running finfocus binary"
+    },
+    "action": {
+      "type": "string",
+      "enum": ["installed", "already_current", "update_available"],
+      "description": "What happened during the install"
+    },
+    "policy_pack_dir": {
+      "type": "string",
+      "description": "Path to the policy pack directory (empty if not set up)"
+    },
+    "policy_pack_method": {
+      "type": "string",
+      "enum": ["symlink", "copy"],
+      "description": "Installation method for the policy pack binary"
+    }
+  },
+  "additionalProperties": false
+}

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/spf13/cobra"
 
@@ -53,6 +54,18 @@ naming convention so that Pulumi can discover it automatically.`,
 				cmd.Printf("  Version: v%s\n", result.Version)
 				cmd.Printf("  Path: %s\n", result.Path)
 				cmd.Printf("  Method: %s\n", result.Method)
+				if result.PolicyPackDir != "" {
+					cmd.Printf("  Policy pack: %s\n", result.PolicyPackDir)
+					cmd.Printf("  Policy pack method: %s\n", result.PolicyPackMethod)
+					cmd.Printf("\nTo use the analyzer with pulumi preview:\n")
+					if runtime.GOOS == "windows" {
+						cmd.Printf("\n  PowerShell:  $env:PATH = \"%s;$env:PATH\"\n", result.PolicyPackDir)
+					} else {
+						cmd.Printf("\n  export PATH=\"%s:$PATH\"\n", result.PolicyPackDir)
+					}
+					cmd.Printf("\nThen run:\n")
+					cmd.Printf("\n  pulumi preview --policy-pack \"%s\"\n", result.PolicyPackDir)
+				}
 			case analyzer.ActionUpdateAvailable:
 				cmd.Printf("Analyzer already installed at v%s\n", result.Version)
 				cmd.Printf("  Path: %s\n", result.Path)

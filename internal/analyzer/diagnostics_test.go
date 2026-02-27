@@ -2,8 +2,10 @@ package analyzer
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"
 	"github.com/stretchr/testify/assert"
@@ -111,7 +113,7 @@ func TestStackSummaryDiagnostic(t *testing.T) {
 			},
 			version:      "0.1.0",
 			wantTotal:    "$30.00 USD",
-			wantAnalyzed: "2 resources analyzed",
+			wantAnalyzed: "3 resources analyzed", // All non-error resources counted (including zero-cost)
 		},
 		{
 			name:         "empty costs",
@@ -219,7 +221,8 @@ func TestCostToDiagnostic_EnforcementLevel(t *testing.T) {
 }
 
 func TestStackSummaryDiagnostic_CurrencyHandling(t *testing.T) {
-	// Test that currency is properly extracted from results
+	// Test that currency is properly extracted from results.
+	// BuildCostSummary uses the first non-empty currency encountered.
 	costs := []engine.CostResult{
 		{Monthly: 10.00, Currency: ""},
 		{Monthly: 20.00, Currency: "EUR"},
@@ -228,8 +231,77 @@ func TestStackSummaryDiagnostic_CurrencyHandling(t *testing.T) {
 
 	diag := StackSummaryDiagnostic(costs, "0.1.0")
 
-	// Should use the last non-empty currency
-	assert.Contains(t, diag.GetMessage(), "USD")
+	// Should use the first non-empty currency (via BuildCostSummary)
+	assert.Contains(t, diag.GetMessage(), "EUR")
+}
+
+// T001 [US1] - Verify StackSummaryDiagnostic and BuildCostSummary produce consistent totals.
+func TestStackSummaryDiagnostic_MatchesBuildCostSummary(t *testing.T) {
+	costs := []engine.CostResult{
+		{
+			ResourceType: "aws:ec2/instance:Instance",
+			ResourceID:   "web1", Monthly: 50.00,
+			Currency: "USD", Adapter: "aws-plugin",
+		},
+		{
+			ResourceType: "aws:rds/instance:Instance",
+			ResourceID:   "db1", Monthly: 100.00,
+			Currency: "USD", Adapter: "aws-plugin",
+		},
+		{
+			ResourceType: "aws:s3/bucket:Bucket",
+			ResourceID:   "bucket1", Monthly: 0,
+			Currency: "USD",
+			Notes:    "Internal Pulumi resource (no cloud cost)",
+		},
+	}
+
+	diag := StackSummaryDiagnostic(costs, "1.0.0")
+	summary := BuildCostSummary(
+		costs, "test-stack", "test-project", time.Time{},
+	)
+
+	require.NotNil(t, diag)
+	require.NotNil(t, summary)
+
+	// Diagnostic must match BuildCostSummary totals exactly
+	expectedTotal := fmt.Sprintf("$%.2f", summary.TotalMonthlyCost)
+	expectedCount := fmt.Sprintf("%d resources analyzed", summary.ResourceCount)
+	assert.Contains(t, diag.GetMessage(), expectedTotal)
+	assert.Contains(t, diag.GetMessage(), expectedCount)
+}
+
+// T002 [US1] - Verify error resources (ERROR:/VALIDATION: prefix) are excluded from summary.
+func TestStackSummaryDiagnostic_ExcludesErrors(t *testing.T) {
+	costs := []engine.CostResult{
+		{
+			ResourceType: "aws:ec2/instance:Instance",
+			ResourceID:   "web1", Monthly: 50.00, Currency: "USD",
+		},
+		{
+			ResourceType: "aws:rds/instance:Instance",
+			ResourceID:   "db1", Monthly: 30.00, Currency: "USD",
+			Notes: "ERROR: plugin returned stale cached data",
+		},
+		{
+			ResourceType: "aws:lambda/function:Function",
+			ResourceID:   "fn1", Monthly: 0, Currency: "USD",
+			Notes: "VALIDATION: Missing SKU",
+		},
+		{
+			ResourceType: "aws:s3/bucket:Bucket",
+			ResourceID:   "bucket1", Monthly: 25.00, Currency: "USD",
+		},
+	}
+
+	diag := StackSummaryDiagnostic(costs, "1.0.0")
+	require.NotNil(t, diag)
+
+	// Should only sum non-error resources: $50.00 + $25.00 = $75.00
+	// (db1 with ERROR: and fn1 with VALIDATION: prefix should be excluded)
+	assert.Contains(t, diag.GetMessage(), "$75.00")
+	// Should count 2 successful resources (web1 and bucket1), not 4
+	assert.Contains(t, diag.GetMessage(), "2 resources analyzed")
 }
 
 // Phase 5 (US3) - Warning Diagnostic Tests

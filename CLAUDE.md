@@ -27,6 +27,11 @@ make validate      # go mod tidy, go vet
 make clean         # Remove build artifacts
 make run           # Build and run with --help
 make dev           # Build and run without args
+make docs-lint     # Lint markdown docs
+make docs-build    # Build Jekyll site
+make docs-serve    # Serve docs at http://localhost:4000/finfocus/
+make build-recorder    # Build recorder plugin to bin/finfocus-plugin-recorder
+make install-recorder  # Build and install recorder to ~/.finfocus/plugins/recorder/0.1.0/
 ```
 
 ### Single Package/Test Commands
@@ -46,6 +51,14 @@ go tool cover -html=coverage.out        # View in browser
 ./bin/finfocus plugin validate
 ```
 
+### Troubleshooting
+
+```bash
+pkill golangci-lint || true             # Fix parallel linting conflicts
+GOOS=linux GOARCH=amd64 make build      # Test release build locally
+gh workflow validate .github/workflows/ci.yml  # Validate workflow syntax
+```
+
 ### Test Requirements
 
 - **Unit tests**: Must achieve 80% coverage minimum
@@ -54,15 +67,6 @@ go tool cover -html=coverage.out        # View in browser
 - **Performance regressions**: Must be detected via benchmarks
 - **Integration scenarios**: Must include plugin communication flows
 - **End-to-end workflows**: Must test complete CLI usage
-
-### CI/CD Integration
-
-The existing CI/CD pipeline automatically runs all tests including the new framework:
-
-- Unit tests with coverage reporting
-- Integration tests with timeout handling
-- Linting and security scanning
-- Cross-platform build verification
 
 **Never complete a project without running:**
 
@@ -89,106 +93,30 @@ If any runtime instruction conflicts with a constitution principle:
 2. **Use `/speckit.revisit`** - Document the conflict for prevention
 3. **Never compromise** - Principle VI forbids TODOs/stubs regardless of mode
 
-Common conflicts to watch for:
-
-- Learning mode may suggest "mark with TODO" → Constitution forbids TODOs
-- Explanatory mode may suggest placeholders → Constitution forbids stubs
-- Any mode suggesting deferred implementation → Constitution requires completeness
-
 ## Architecture
 
-### Core Components
+Core components and their directories:
 
-1. **CLI Layer** (`internal/cli/`) - Cobra-based commands:
-   - `cost projected` - Estimate costs from Pulumi preview JSON
-   - `cost actual` - Fetch historical costs with time ranges/grouping
-   - `cost recommendations` - Get cost optimization recommendations with action type filtering
-   - `plugin list/validate/install/remove/update/certify` - Plugin management
-   - `analyzer serve` - Pulumi Analyzer gRPC server for zero-click cost estimation
-   - **`--jobs`/`-j` flag** (cost projected, cost actual): Override worker concurrency
-     (0 = auto based on NumCPU). Timing output (resources/sec) printed to stderr for
-     table format, suppressed for JSON/NDJSON.
+1. **CLI** (`internal/cli/`) - Cobra commands: cost projected/actual/recommendations, plugin management, analyzer
+2. **Engine** (`internal/engine/`) - Cost calculation orchestration, output rendering (table/JSON/NDJSON)
+3. **Plugin Host** (`internal/pluginhost/`) - gRPC plugin lifecycle (launch, connect, cleanup)
+4. **Registry** (`internal/registry/`) - Plugin discovery in `~/.finfocus/plugins/<name>/<version>/`
+5. **Ingestion** (`internal/ingest/`) - Pulumi plan JSON parsing
+6. **Analyzer** (`internal/analyzer/`) - Pulumi Analyzer gRPC protocol for zero-click cost estimation
+7. **TUI** (`internal/tui/`) - Bubble Tea terminal UI components
+8. **Router** (`internal/router/`) - Intelligent plugin routing with priority and fallback
+9. **Config** (`internal/config/`) - Two-tier configuration (project-local overrides global)
 
-2. **Engine** (`internal/engine/`) - Core cost calculation:
-   - Orchestrates between plugins and local specs
-   - Output formats: table, JSON, NDJSON
-   - Cross-provider aggregation with time-based grouping
-   - `hoursPerMonth = 730` for monthly calculations
-   - `WithJobs(n)` builder method overrides worker count (0 = auto)
+### Configuration Resolution
 
-3. **Plugin Host** (`internal/pluginhost/`) - gRPC plugin management:
-   - `ProcessLauncher` (TCP) and `StdioLauncher` (stdin/stdout)
-   - 10-second timeout with 100ms retry delays
-   - Always call `cmd.Wait()` after `Kill()` to prevent zombies
-
-4. **Registry** (`internal/registry/`) - Plugin discovery:
-   - Scans `~/.finfocus/plugins/<name>/<version>/`
-   - Optional `plugin.manifest.json` validation
-
-5. **Ingestion** (`internal/ingest/`) - Pulumi plan parsing:
-   - Converts `pulumi preview --json` to resource descriptors
-   - **CRITICAL**: Must inspect `newState` to extract `Inputs` correctly
-
-6. **Analyzer** (`internal/analyzer/`) - Pulumi Analyzer protocol:
-   - Implements `pulumirpc.AnalyzerServer` for zero-click cost estimation
-   - ADVISORY enforcement (never blocks deployments)
-   - Prints ONLY port number to stdout (Pulumi handshake protocol)
-
-7. **TUI** (`internal/tui/`) - Shared Terminal UI components:
-   - Built on Bubble Tea and Lip Gloss
-   - Adaptive color schemes (light/dark terminal detection)
-   - Reusable progress indicators, styled text, and tables
-   - **ViewState enum**: `Initializing(0)` → `Loading(1)` → `List(2)` → `Detail(3)` → `Quitting(4)` / `Error(5)`
-   - **Overview phase messages**: `OverviewPhaseMsg`, `OverviewDataReadyMsg`, `OverviewInitErrorMsg`
-     for immediate TUI launch with background data loading
-   - **Budget integration**: `BudgetDataReadyMsg` delivers async budget health data;
-     `renderBudgetFooter()` and `renderDetailBudgetStatus()` in `overview_budget.go`
-     render health badges (OK/WARNING/CRITICAL/EXCEEDED) in list and detail views
-
-### Data Flow
-
-```text
-Pulumi JSON → Ingestion → Resource Descriptors → Engine
-                                                    ↓
-                                        Plugins (gRPC) or Local Specs
-                                                    ↓
-                                              Cost Results → Output Rendering
-```
-
-### Configuration Resolution (Two-Tier)
-
-FinFocus uses a two-tier configuration system: project-local overrides user-global defaults.
-
-**Project-Local** (`$PULUMI_PROJECT/.finfocus/`): project-specific settings
-
-```text
-my-pulumi-project/
-├── Pulumi.yaml
-├── .finfocus/
-│   ├── .gitignore       # Auto-generated, protects user-specific data
-│   ├── config.yaml      # Project budgets, output prefs, plugin config
-│   └── dismissed.json   # Per-project recommendation dismissals
-```
-
-**User-Global** (`~/.finfocus/`): shared resources
-
-```text
-~/.finfocus/
-├── plugins/             # Plugin binaries (shared across projects)
-├── cache/               # Cost calculation cache
-├── logs/                # Log files
-├── config.yaml          # Global defaults
-└── dismissed.json       # Fallback dismissals (no project context)
-```
-
-**Resolution Precedence** for project-specific settings (config, dismissals):
+**Project-specific settings** (config, dismissals) precedence:
 
 1. `--project-dir` flag (explicit override)
 2. `FINFOCUS_PROJECT_DIR` env var
 3. Walk up from CWD to find `Pulumi.yaml`, use `$PROJECT/.finfocus/`
 4. Fall back to `~/.finfocus/` (backward compatible)
 
-**Resolution Precedence** for global resources (plugins, cache, logs):
+**Global resources** (plugins, cache, logs) precedence:
 
 1. `FINFOCUS_HOME` env var
 2. `PULUMI_HOME/finfocus`
@@ -197,109 +125,19 @@ my-pulumi-project/
 **Config Merge**: Project `config.yaml` overrides global at the **top-level key** level
 (shallow merge). Keys absent in project config inherit from global defaults.
 
-**Key Functions** (`internal/config/`):
-
-- `ResolveProjectDir(ctx, flagValue, startDir)` - discovers project `.finfocus/` directory
-- `NewWithProjectDir(ctx, projectDir)` - loads global config then shallow-merges project overlay
-- `ShallowMergeYAML(target, overlayPath)` - applies top-level key replacement
-- `EnsureGitignore(dir)` - creates `.gitignore` in project `.finfocus/` directory
-- `InitGlobalConfigWithProject(ctx, projectDir)` - initializes global singleton with project merge
-
-### Plugin Communication
-
-Plugins communicate via gRPC using protocol buffers from `finfocus-spec`:
-
-- `Name()` - Plugin identification
-
-### Action Type Utilities (`internal/proto/action_types.go`)
-
-Shared utilities for recommendation action type handling:
-
-- `ActionTypeLabel(at pbc.RecommendationActionType) string` - Human-readable label for display
-- `ActionTypeLabelFromString(actionType string) string` - Label from string (for stored values)
-- `ParseActionType(s string) (pbc.RecommendationActionType, error)` - Parse single action type
-- `ParseActionTypeFilter(filter string) ([]pbc.RecommendationActionType, error)` - Parse comma-separated filter
-- `ValidActionTypes() []string` - List of valid action type names (excludes UNSPECIFIED)
-- `MatchesActionType(recType string, types []pbc.RecommendationActionType) bool` - Filter matching
-
-## Documentation
-
-All documentation lives in `docs/` with GitHub Pages deployment.
-
-### Commands
-
-```bash
-make docs-lint     # Lint markdown
-make docs-build    # Build Jekyll site
-make docs-serve    # Serve at http://localhost:4000/finfocus/
-make docs-validate # Validate structure
-```
-
-### Structure
-
-```text
-docs/
-├── guides/           # Audience-specific (User, Developer, Architect, Business)
-├── getting-started/  # Quickstart, installation, examples
-├── architecture/     # System design, core concepts, roadmap
-├── plugins/          # Plugin development, SDK, per-plugin docs
-├── reference/        # CLI, API, configuration, error codes
-├── deployment/       # Installation, Docker, CI/CD, security
-└── support/          # FAQ, troubleshooting, contributing
-```
-
-### Key Files
-
-- `docs/README.md` - Documentation hub with navigation
-- `docs/llms.txt` - Machine-readable index for AI tools
-- `docs/_config.yml` - Jekyll configuration
-
 ## Key Patterns
 
-### CLI Package (`internal/cli/`)
+### CLI Conventions
 
 - Use `RunE` not `Run` for error handling
 - Use `cmd.Printf()` for output (not `fmt.Printf()`)
 - Defer cleanup functions immediately after obtaining resources
 - Support multiple date formats: "2006-01-02", RFC3339
 
-### Pre-Flight Request Validation (`internal/proto/`)
+### Pre-Flight Request Validation
 
-The adapter layer validates requests using `pluginsdk` validation functions
-before making gRPC calls to plugins. This catches malformed requests early
-with actionable error messages.
-
-**Validation Pattern**:
-
-```go
-// Pre-flight validation: construct proto request and validate before gRPC call
-protoReq := &pbc.GetProjectedCostRequest{
-    Resource: &pbc.ResourceDescriptor{
-        Provider:     resource.Provider,
-        ResourceType: resource.Type,
-        Sku:          sku,
-        Region:       region,
-    },
-}
-
-if err := pluginsdk.ValidateProjectedCostRequest(protoReq); err != nil {
-    log := logging.FromContext(ctx)
-    log.Warn().
-        Str("resource_type", resource.Type).
-        Err(err).
-        Msg("pre-flight validation failed")
-
-    // Return placeholder result with VALIDATION: prefix
-    result.Results = append(result.Results, &CostResult{
-        Currency:    "USD",
-        MonthlyCost: 0,
-        Notes:       fmt.Sprintf("VALIDATION: %v", err),
-    })
-    continue  // Skip plugin call for this resource
-}
-```
-
-**Key Points**:
+The adapter layer (`internal/proto/`) validates requests using `pluginsdk` validation
+before gRPC calls. Key points:
 
 - Validation happens in `GetProjectedCostWithErrors()` and `GetActualCostWithErrors()`
 - Uses "VALIDATION:" prefix to distinguish from plugin errors ("ERROR:")
@@ -307,204 +145,23 @@ if err := pluginsdk.ValidateProjectedCostRequest(protoReq); err != nil {
 - Returns placeholder CostResult with $0 cost and descriptive Notes
 - Invalid resources are skipped; valid resources still call the plugin
 
-### Logging (Zerolog)
-
-FinFocus uses zerolog for structured logging with distributed tracing support.
-
-#### Enabling Debug Output
+### Logging
 
 ```bash
-# CLI flag
+# Enable debug output
 finfocus cost projected --debug --pulumi-json plan.json
-
-# Environment variable
 export FINFOCUS_LOG_LEVEL=debug
 export FINFOCUS_LOG_FORMAT=json    # json or console
 export FINFOCUS_TRACE_ID=external-trace-123  # inject external trace ID
 ```
 
-#### Configuration Precedence
-
-1. CLI flags (`--debug`)
-2. Environment variables (`FINFOCUS_LOG_LEVEL`)
-3. Config file (`~/.finfocus/config.yaml`)
-4. Default (info level, console format)
-
-#### Logging Patterns for Developers
-
-```go
-// Get logger from context (preferred - includes trace_id)
-log := logging.FromContext(ctx)
-log.Debug().
-    Ctx(ctx).
-    Str("component", "engine").
-    Str("operation", "get_projected_cost").
-    Int("resource_count", len(resources)).
-    Msg("starting projected cost calculation")
-
-// Create component sub-logger
-logger = logging.ComponentLogger(logger, "registry")
-
-// Log with duration
-start := time.Now()
-// ... operation ...
-log.Info().
-    Ctx(ctx).
-    Dur("duration_ms", time.Since(start)).
-    Msg("operation complete")
-```
-
-#### Standard Log Fields
-
-| Field         | Purpose             | Example                      |
-| ------------- | ------------------- | ---------------------------- |
-| `trace_id`    | Request correlation | "01HQ7X2J3K4M5N6P7Q8R9S0T1U" |
-| `component`   | Package identifier  | "cli", "engine", "registry"  |
-| `operation`   | Current operation   | "get_projected_cost"         |
-| `duration_ms` | Operation timing    | 245                          |
-
-#### Log Levels
-
-- **TRACE**: Property extraction, detailed calculations
-- **DEBUG**: Function entry/exit, retries, intermediate values
-- **INFO**: High-level operations (command start/end)
-- **WARN**: Recoverable issues (fallbacks, deprecations)
-- **ERROR**: Failures needing attention
-
-#### Trace ID Management
-
-```go
-// Generate trace ID at entry point (usually in CLI PersistentPreRunE)
-traceID := logging.GetOrGenerateTraceID(ctx)
-ctx = logging.ContextWithTraceID(ctx, traceID)
-
-// TracingHook automatically injects trace_id when using .Ctx(ctx)
-```
-
-## CI/CD Pipeline
-
-Complete CI/CD pipeline setup with GitHub Actions for automated testing, building, and release management.
-
-### CI Pipeline (.github/workflows/ci.yml)
-
-Triggered on pull requests and pushes to main branch:
-
-**Test Job:**
-
-- Go 1.25.7 setup with caching
-- Unit tests with race detection and coverage reporting
-- Coverage threshold check (minimum 61%)
-- Artifacts uploaded for coverage reports
-
-**Lint Job:**
-
-- golangci-lint with project-specific configuration
-- Security scanning with gosec included
-- Timeout set to 5 minutes
-
-**Security Job:**
-
-- govulncheck for dependency vulnerability scanning
-- Checks for known vulnerabilities in Go dependencies
-
-**Validation Job:**
-
-- gofmt formatting checks
-- go mod tidy verification
-- go vet static analysis
-
-**Build Job:**
-
-- Cross-platform builds (Linux, macOS, Windows)
-- Support for amd64 and arm64 architectures
-- Build artifacts uploaded with proper naming
-
-### Release Pipeline (.github/workflows/release.yml)
-
-Triggered on version tags (v\*):
-
-**Multi-Platform Binaries:**
-
-- Linux: amd64, arm64
-- macOS: amd64, arm64
-- Windows: amd64
-- Naming convention: `finfocus-v{version}-{os}-{arch}`
-
-**Release Features:**
-
-- Automatic changelog generation from git history
-- SHA256 checksums for all binaries
-- GitHub Release creation with proper metadata
-- Asset upload with verification instructions
-- Pre-release detection for tags containing hyphens
-
-### Quality Gates
-
-**Code Quality:**
-
-- golangci-lint with essential linters (errcheck, govet, staticcheck, gosec, etc.)
-- Security scanning integrated into CI pipeline
-- Formatting and import organization enforced
-
-**Coverage Requirements:**
-
-- Minimum 20% code coverage (adjustable as project matures)
-- Coverage reports generated and uploaded as artifacts
-- Automatic threshold validation in CI
-
-**Build Verification:**
-
-- Cross-platform compilation verification
-- Binary naming consistency
-- Version information embedded in binaries
-
-### Troubleshooting Commands
-
-```bash
-# Fix parallel linting conflicts
-pkill golangci-lint || true
-
-# Check coverage details
-go tool cover -html=coverage.out
-
-# Test release build locally
-GOOS=linux GOARCH=amd64 make build
-
-# Validate workflow syntax
-gh workflow validate .github/workflows/ci.yml
-```
+Precedence: CLI flags (`--debug`) > env vars > config file > default (info, console).
 
 ## Testing
-
-### Test Directory Structure
-
-Unit tests are colocated with source code in `internal/[package]/[name]_test.go`.
-
-```text
-internal/
-├── cli/             # CLI tests (cli_test package)
-├── engine/          # Engine tests
-├── config/          # Config tests
-├── ingest/          # Ingestion tests
-├── pluginhost/      # Plugin host tests
-├── pulumi/          # Pulumi detection tests
-└── ...
-
-test/
-├── integration/    # Cross-component tests (plugin communication)
-├── e2e/            # End-to-end tests (separate Go module)
-│   ├── fixtures/   # Pulumi project fixtures for E2E tests
-│   └── ...
-├── fixtures/       # General test data (plans, specs, configs, responses)
-├── mocks/          # Mock implementations (plugin server)
-└── benchmarks/     # Performance tests
-```
 
 ### E2E Testing
 
 **Location**: `test/e2e/` (separate Go module)
-
-**Project Fixtures**: `test/e2e/fixtures/` (Real Pulumi projects)
 
 **Prerequisites**: AWS session or profile configured, Pulumi CLI, `make build`
 
@@ -517,184 +174,50 @@ make test-e2e
 **CRITICAL**: E2E tests MUST call actual finfocus CLI binary.
 Never simulate cost values or stub CLI execution.
 
-**Actual cost integration coverage**: `test/e2e/actual_cost_test.go` (build tag `integration`) runs `finfocus cost actual` against static Pulumi state fixtures and validates JSON output structure and edge cases.
-
 ### Expected Failure Test Patterns
 
-**IMPORTANT**: Tests that intentionally create failing plugin scenarios (e.g., mock
-plugins that exit immediately, nonexistent binaries, timeout scenarios) must follow
+**IMPORTANT**: Tests that intentionally create failing plugin scenarios must follow
 these patterns to avoid false CI failures:
 
-**Pattern for Expected Errors**:
-
-```go
-// CORRECT: Use t.Logf() for expected failures - test passes
-client, err := pluginhost.NewClient(ctx, launcher, mockPlugin)
-if client != nil {
-    client.Close()
-}
-if err != nil {
-    t.Logf("Expected failure (handled): %v", err)  // Informational, not a failure
-}
-
-// INCORRECT: Using t.Errorf() would cause CI to fail
-if err != nil {
-    t.Errorf("Failed: %v", err)  // DON'T DO THIS for expected errors
-}
-```
-
-**Pattern for Required Errors**:
-
-```go
-// When an error MUST occur for the test to pass
-_, err := launcher.Start(ctx, "/nonexistent/command")
-if err == nil {
-    t.Fatalf("expected error for invalid command")  // Only fail if NO error
-}
-if !strings.Contains(err.Error(), "starting plugin") {
-    t.Errorf("unexpected error: %v", err)  // Fail for WRONG error type
-}
-```
-
-**Test Types That Use Expected Failures**:
-
-- `TestIntegration_ProcessLauncherWithClient` - Tests mock plugin startup
-- `TestIntegration_StdioLauncherWithClient` - Tests stdio communication
-- `TestIntegration_ConcurrentClients` - Concurrent mock plugin handling
-- `TestIntegration_RapidCreateDestroy` - Rapid teardown scenarios
-- `TestIntegration_ErrorRecovery` - Various error conditions
-
-**Common Expected Error Types**:
-
-- `context deadline exceeded` - Timeout waiting for plugin
-- `connection refused` - Plugin not listening on port
-- `broken pipe` / `EOF` - Plugin crashed or disconnected
-- `no such file or directory` - Plugin binary not found
-
-**CI Troubleshooting**:
+- **Expected errors**: Use `t.Logf()` (informational, test passes), NOT `t.Errorf()`
+- **Required errors**: Use `t.Fatalf("expected error")` only if error is absent
+- **Common expected errors**: `context deadline exceeded`, `connection refused`,
+  `broken pipe`/`EOF`, `no such file or directory`
 
 If CI shows these errors in logs but tests are marked PASS, the behavior is correct.
-Tests log these messages with `t.Logf()` for debugging visibility while passing.
-Only investigate if tests actually FAIL (exit code 1) with these messages.
+Only investigate if tests actually FAIL (exit code 1).
 
-### Error Path Testing Guidelines
+### Error Path Testing
 
-**When writing new code, always include tests for error conditions:**
+When writing new code, always include tests for error conditions:
 
-1. **Test every error return**: If a function can return an error, write a test that
-   triggers that error path
-2. **Validate error messages**: Use `assert.Contains(t, err.Error(), "expected text")`
-   to ensure errors are descriptive and actionable
-3. **Test boundary conditions**: Empty inputs, nil pointers, invalid ranges, malformed data
-4. **Test partial failures**: What happens when one item in a batch fails?
-5. **Test resource cleanup**: Verify cleanup runs even when errors occur (defer patterns)
-
-**Table-driven error tests pattern**:
-
-```go
-func TestFunction_Errors(t *testing.T) {
-    tests := []struct {
-        name        string
-        input       string
-        wantErr     bool
-        errContains string
-    }{
-        {"empty input", "", true, "input required"},
-        {"invalid format", "bad", true, "invalid format"},
-        {"valid input", "good", false, ""},
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            err := Function(tt.input)
-            if tt.wantErr {
-                require.Error(t, err)
-                assert.Contains(t, err.Error(), tt.errContains)
-            } else {
-                require.NoError(t, err)
-            }
-        })
-    }
-}
-```
-
-**Priority error paths to test**:
-
-- File I/O errors (missing files, permission denied, disk full)
-- Network errors (connection refused, timeout, DNS failure)
-- Validation errors (invalid input, out of range, type mismatch)
-- Resource exhaustion (memory, file handles, goroutines)
-- Concurrent access errors (race conditions, deadlocks)
+1. Test every error return path
+2. Validate error messages with `assert.Contains(t, err.Error(), "expected text")`
+3. Test boundary conditions: empty inputs, nil pointers, invalid ranges
+4. Test partial failures in batch operations
+5. Test resource cleanup runs even when errors occur (defer patterns)
 
 ### Testify Assertion Standards
 
 **CRITICAL**: All Go tests MUST use testify's `require` and `assert` packages.
 NEVER use manual `if x != y { t.Errorf(...) }` patterns.
 
-**Required Imports**:
+**`require.*`** (stops test on failure): Setup operations, error checks where
+continuing would panic, non-nil checks before use.
 
-```go
-import (
-    "github.com/stretchr/testify/assert"
-    "github.com/stretchr/testify/require"
-)
-```
+**`assert.*`** (continues on failure): Value comparisons, multiple property
+checks, non-critical validations.
 
-**When to Use `require.*` (stops test on failure)**:
-
-- Setup operations that must succeed for test to be valid
-- Error checks where continuing would cause panics or misleading failures
-- Non-nil checks for required objects before using them
-- File/directory creation in test setup
-
-```go
-// Setup must succeed - use require
-require.NoError(t, os.MkdirAll(dir, 0755))
-require.NoError(t, os.WriteFile(path, data, 0644))
-
-// Must have result before checking properties
-result, err := SomeFunction()
-require.NoError(t, err)
-require.NotNil(t, result)
-```
-
-**When to Use `assert.*` (continues test on failure)**:
-
-- Value comparisons after setup is complete
-- Multiple property checks on a result
-- Non-critical validations where seeing all failures is helpful
-
-```go
-// Value assertions - use assert
-assert.Equal(t, "expected", result.Name)
-assert.Len(t, result.Items, 3)
-assert.Contains(t, result.Message, "success")
-assert.True(t, result.IsValid)
-```
-
-**Common Assertion Conversions**:
-
-| Manual Pattern                                   | Testify Replacement           |
-| ------------------------------------------------ | ----------------------------- |
-| `if err != nil { t.Fatal(err) }`                 | `require.NoError(t, err)`     |
-| `if err == nil { t.Error("expected error") }`    | `require.Error(t, err)`       |
-| `if x != y { t.Errorf("got %v, want %v", x, y) }`| `assert.Equal(t, y, x)`       |
-| `if len(x) != n { t.Errorf(...) }`               | `assert.Len(t, x, n)`         |
-| `if !strings.Contains(s, sub) { t.Errorf(...) }` | `assert.Contains(t, s, sub)`  |
-| `if x == nil { t.Fatal("nil") }`                 | `require.NotNil(t, x)`        |
-
-**Error Message Validation**:
-
-```go
-// Check error exists AND contains expected message
-err := SomeFunction(invalidInput)
-require.Error(t, err)
-assert.Contains(t, err.Error(), "invalid input")
-```
+| Manual Pattern | Testify Replacement |
+| --- | --- |
+| `if err != nil { t.Fatal(err) }` | `require.NoError(t, err)` |
+| `if err == nil { t.Error("expected error") }` | `require.Error(t, err)` |
+| `if x != y { t.Errorf("got %v, want %v", x, y) }` | `assert.Equal(t, y, x)` |
+| `if len(x) != n { t.Errorf(...) }` | `assert.Len(t, x, n)` |
+| `if !strings.Contains(s, sub) { t.Errorf(...) }` | `assert.Contains(t, s, sub)` |
+| `if x == nil { t.Fatal("nil") }` | `require.NotNil(t, x)` |
 
 ### Local Plugin Development
-
-To debug plugin issues during Core development:
 
 1. Clone the plugin repository (e.g., `finfocus-plugin-aws-public`)
 2. Modify the plugin code (add logging, fix type mapping)
@@ -704,7 +227,7 @@ To debug plugin issues during Core development:
 
 ## Important Files
 
-- `cmd/finfocus/main.go` - CLI entry point (uses `errors.As` to extract `BudgetExitError.ExitCode` for semantic exit codes: 0=success, 1=error, 2=budget exceeded)
+- `cmd/finfocus/main.go` - CLI entry point (semantic exit codes: 0=success, 1=error, 2=budget exceeded)
 - `internal/engine/engine.go` - Core orchestration
 - `internal/pluginhost/host.go` - Plugin client management
 - `internal/ingest/pulumi_plan.go` - Pulumi plan parsing
@@ -753,404 +276,77 @@ FinFocus operates across three repositories:
 
 Cross-repo changes follow the protocol in `.specify/memory/constitution.md`.
 
-## Dependencies
+## Common Error Types
 
-Key dependencies (see `go.mod` for versions):
+- `ErrNoCostData`: No cost data available for a resource
+- `ErrMixedCurrencies`: Multiple currencies detected in cross-provider aggregation
+- `ErrInvalidGroupBy`: Invalid grouping type used for time-based aggregation
+- `ErrEmptyResults`: Attempted aggregation on empty results
+- `ErrInvalidDateRange`: Invalid date range (end date before start date)
+- `ErrResourceValidation`: Internal resource validation failed
+- `ErrConfigCorrupted`: Configuration file is malformed
 
-- `github.com/spf13/cobra` - CLI framework
-- `google.golang.org/grpc` - Plugin communication
-- `github.com/rs/zerolog` - Structured logging
-- `github.com/rshade/finfocus-spec` - Protocol definitions and pluginsdk
-- `github.com/pulumi/pulumi/sdk/v3` - Pulumi SDK for Analyzer (v3.210.0+)
-- `github.com/charmbracelet/bubbletea` - TUI framework
-- `github.com/charmbracelet/lipgloss` - TUI styling
-- `golang.org/x/term` - Terminal detection utilities
+Structured error codes for JSON/NDJSON output: `PLUGIN_ERROR`, `VALIDATION_ERROR`,
+`TIMEOUT_ERROR`, `NO_COST_DATA` (see `internal/engine/types.go`).
 
-## Environment Variable Constants (pluginsdk)
+## Recorder Plugin
 
-FinFocus uses standardized environment variable constants from `pluginsdk` for
-consistency between core and plugins.
-
-### Available Constants
-
-```go
-import "github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
-
-// Plugin communication
-pluginsdk.EnvPort        // "FINFOCUS_PLUGIN_PORT" - Primary port for gRPC (Note: "PORT" is NOT set)
-
-// Logging configuration
-pluginsdk.EnvLogLevel    // "FINFOCUS_LOG_LEVEL" - Log verbosity
-pluginsdk.EnvLogFormat   // "FINFOCUS_LOG_FORMAT" - Log format (json/text)
-pluginsdk.EnvLogFile     // "FINFOCUS_LOG_FILE" - Log file path
-
-// Distributed tracing
-pluginsdk.EnvTraceID     // "FINFOCUS_TRACE_ID" - Trace ID for request correlation
-```
-
-### Usage Patterns
-
-**Setting environment variables (core → plugin):**
-
-```go
-cmd.Env = append(os.Environ(),
-    fmt.Sprintf("%s=%d", pluginsdk.EnvPort, port),
-)
-// Note: PORT is NOT set (issue #232) - plugins use --port flag or pluginsdk.GetPort()
-```
-
-**Reading environment variables (in tests):**
-
-```go
-os.Setenv(pluginsdk.EnvLogLevel, "debug")
-defer os.Unsetenv(pluginsdk.EnvLogLevel)
-```
-
-**Note**: Config-specific variables like `FINFOCUS_OUTPUT_FORMAT` and
-`FINFOCUS_CONFIG_STRICT` are NOT in pluginsdk as they are core-specific.
-
-## gRPC Metadata Keys (pluginsdk)
-
-FinFocus uses standardized gRPC metadata keys for distributed tracing across
-plugin boundaries.
-
-### Available Constants
-
-| Constant | Value | Description |
-|----------|-------|-------------|
-| `pluginsdk.TraceIDMetadataKey` | `"x-finfocus-trace-id"` | gRPC metadata key for trace ID propagation |
-
-### Trace ID Propagation Flow
-
-1. **Core (client-side)**: `TraceInterceptor()` in `internal/pluginhost/grpc.go`
-   injects the trace ID from context into outgoing gRPC metadata
-2. **Plugins (server-side)**: `TracingUnaryServerInterceptor()` from pluginsdk
-   extracts the trace ID from incoming metadata and adds it to the context
-
-### Usage in Core
-
-```go
-import "github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
-
-// TraceInterceptor automatically uses pluginsdk.TraceIDMetadataKey
-// to inject trace IDs into outgoing gRPC calls
-conn, err := grpc.DialContext(ctx, addr,
-    grpc.WithUnaryInterceptor(pluginhost.TraceInterceptor()),
-)
-```
-
-## Package-Specific Documentation
-
-### internal/cli
-
-The CLI package implements the Cobra-based command-line interface. Key patterns:
-
-- Use `RunE` not `Run` for error handling
-- Always use `cmd.Printf()` for output (not `fmt.Printf()`)
-- Defer cleanup functions immediately after obtaining resources
-- Support multiple date formats: "2006-01-02", RFC3339
-- See `internal/cli/CLAUDE.md` for detailed CLI architecture and patterns
-
-**Overview Budget Integration** (`overview.go`):
-
-The overview command integrates budget health via two distinct paths:
-
-- **TUI path**: `overviewInitAndEnrich()` launches a concurrent goroutine calling
-  `engine.GetBudgets(ctx, nil)`, sends `tui.BudgetDataReadyMsg` via `p.Send()`.
-  Budget footer appears independently of enrichment progress.
-- **Non-TTY path**: `executeOverview()` aggregates `totalCost` from enriched rows,
-  calls `evaluateBudgetStatus(cmd, costResults, totalCost)` after rendering. Returns
-  `BudgetExitError` when `--exit-on-threshold` is set and thresholds are exceeded.
-- **Budget flags**: `--exit-on-threshold`, `--exit-code`, `--budget-scope` added
-  directly to `NewOverviewCmd()` (overview is top-level, not under `cost`).
-
-**Router Wiring Pattern** (`createRouterForEngine` in `common_execution.go`):
-
-All 9 `engine.New()` call sites that use plugin clients chain
-`.WithRouter(createRouterForEngine(ctx, cfg, clients))` to enable region-aware,
-priority-based plugin selection when routing config exists. The helper:
-
-1. Returns `nil` if `cfg` is nil or `cfg.Routing` is nil (no routing configured)
-2. Creates `router.NewRouter(WithClients, WithConfig)` and wraps in `router.NewEngineAdapter()`
-3. On error, logs WARN and returns `nil` (engine falls back to querying all plugins)
-
-### internal/engine
-
-The engine package orchestrates cost calculations between plugins and specs:
-
-- Tries plugins first, falls back to local YAML specs
-- Supports three output formats: table, JSON, NDJSON
-- Uses `hoursPerMonth = 730` for monthly calculations
-- Always returns some result, even if placeholder
-- **Actual Cost Pipeline Features**:
-  - `GetActualCostWithOptions()` - Advanced querying with time ranges and filters
-  - Resource filtering with `matchesTags()` helper for tag-based filtering
-  - Cost aggregation logic for daily/monthly breakdowns
-  - Grouping support (resource, type, provider, date)
-  - Multiple date format parsing ("2006-01-02", RFC3339)
-- **Cross-Provider Aggregation Features**:
-  - `CreateCrossProviderAggregation()` - Time-based multi-provider cost analysis
-  - Currency validation system with `ErrMixedCurrencies` protection
-  - Advanced input validation (empty results, invalid date ranges, grouping types)
-  - GroupBy type safety with `IsValid()`, `IsTimeBasedGrouping()`, `String()` methods
-  - Intelligent cost calculation (actual vs projected with time period conversion)
-  - Provider extraction from resource types ("aws:ec2:Instance" → "aws")
-  - Sorted chronological output for trend analysis
-- **Caching System** (BoltDB backend):
-  - `cache.Cache` interface (Get, Set, IsEnabled, Close, InvalidateByPrefix) in `internal/engine/cache/store.go`
-  - `BoltStore` implements `Cache` with BoltDB (`go.etcd.io/bbolt`) single-file storage
-  - Database file: `{cacheDir}/cache.db` (project-local or `~/.finfocus/cache/`)
-  - Three buckets: `projected`, `actual`, `recommendations`
-  - Human-readable structured keys: `projected/{provider}/{type}/{region}/{sku}`
-  - Projected costs: per-resource caching (change one resource, only that key invalidates)
-  - Actual costs: whole-query caching (key includes time range, tags, adapter, groupBy)
-  - Cache hits append ` (cached)` to the Adapter field for visual feedback
-  - Lazy TTL expiration (check-on-read) with startup cleanup
-  - Concurrent reads via `DB.View()`, write coalescing via `DB.Batch()`
-  - Corruption detection and auto-recovery (delete + recreate)
-  - `InitCache(ctx, cmd)` in `internal/cli/common_execution.go`: shared helper with
-    precedence CLI flag (`--cache-ttl`) > env var (`FINFOCUS_CACHE_TTL`) > config > default
-  - `newEngineWithCache()` returns `(*Engine, func())` - cleanup function closes the DB
-  - All cost commands (`projected`, `actual`, `recommendations`, `overview`) use `newEngineWithCache()`
-  - Overview uses `newEngineWithCache` in both plain-text (`executeOverview`) and TUI (`overviewInitAndEnrich`) paths
-  - All cost commands (`projected`, `actual`, `recommendations`) use `newEngineWithCache()`
-- **Overview Budget Output** (`overview_render.go`, `overview_types.go`):
-  - `BudgetHealthSummary` type in `overview_types.go`: lightweight health summary
-    (`OverallHealth`, `TotalBudgets`, `CriticalCount`) for `StackContext` JSON
-  - `OverviewJSONOutput.Budgets` field: top-level `[]BudgetHealthResult` array in
-    JSON output (omitted when empty); populated via `RenderOverviewAsJSON()`
-  - NDJSON output excludes budget data (stack-scoped, not resource-scoped)
-- See `internal/engine/CLAUDE.md` for detailed calculation flows
-
-**Error Types for Cross-Provider Aggregation**:
-
-- `ErrMixedCurrencies`: Different currencies detected (USD vs EUR)
-- `ErrInvalidGroupBy`: Non-time-based grouping used for cross-provider aggregation
-- `ErrEmptyResults`: Empty or nil results provided for aggregation
-- `ErrInvalidDateRange`: EndDate before StartDate in cost results
-
-### internal/pluginhost
-
-The pluginhost package manages plugin communication via gRPC:
-
-- Two launcher types: ProcessLauncher (TCP) and StdioLauncher (stdin/stdout)
-- 10-second timeout with 100ms retry delays
-- Platform-specific binary detection (Unix permissions vs Windows .exe)
-- Always call `cmd.Wait()` after `Kill()` to prevent zombies
-- See `internal/pluginhost/CLAUDE.md` for detailed plugin lifecycle
-
-### internal/registry
-
-The registry package handles plugin discovery and lifecycle:
-
-- Scans `~/.finfocus/plugins/<name>/<version>/` structure
-- Optional `plugin.manifest.json` validation
-- Graceful handling of missing directories and invalid binaries
-- Platform-specific executable detection
-- See `internal/registry/CLAUDE.md` for detailed discovery patterns
-
-### internal/analyzer
-
-The analyzer package implements the Pulumi Analyzer gRPC protocol for zero-click cost estimation during `pulumi preview`:
-
-- **Server**: Implements `pulumirpc.AnalyzerServer` interface with `AnalyzeStack`, `Handshake`, `ConfigureStack`, `Cancel`, `GetAnalyzerInfo`, `GetPluginInfo` RPCs
-- **Resource Mapping**: Converts `pulumirpc.AnalyzerResource` to `engine.ResourceDescriptor` for cost calculation
-- **Diagnostics**: Generates `pulumirpc.AnalyzeDiagnostic` from cost results with ADVISORY enforcement (never blocks deployments)
-- **Graceful Degradation**: Errors produce warning diagnostics, preview continues even if cost calculation fails
-
-**Key Components**:
-
-- `Server` - gRPC server implementing Pulumi Analyzer protocol
-- `MapResource/MapResources` - Convert Pulumi resources to internal format
-- `CostToDiagnostic` - Convert cost results to Pulumi diagnostics
-- `StackSummaryDiagnostic` - Aggregate stack-level cost summary
-- `WarningDiagnostic` - Generate warning for error conditions
-
-**CLI Integration**:
-
-- `finfocus analyzer serve` - Starts gRPC server on random TCP port
-- Prints ONLY port number to stdout (Pulumi handshake protocol)
-- All logging goes to stderr exclusively
-- Graceful shutdown on SIGINT/SIGTERM
-
-**Protocol Requirements**:
-
-- Port handshake: Server prints port to stdout, Pulumi engine connects
-- Stack configuration: Engine sends stack/project context before analysis
-- Resource analysis: Engine sends resources, analyzer returns diagnostics
-- Cancellation: Engine can request analysis cancellation
-
-**Testing**:
-
-```bash
-# Run analyzer unit tests
-go test ./internal/analyzer/...
-
-# Run integration tests
-go test ./test/integration/...
-
-# Check coverage (target: 80%, achieved: 92.7%)
-go test -coverprofile=coverage.out ./internal/analyzer/...
-go tool cover -func=coverage.out
-```
-
-### plugins/recorder (Reference Plugin)
-
-The recorder plugin is a reference implementation demonstrating how to build a FinFocus plugin using the pluginsdk v0.4.6. It captures all gRPC requests to JSON files and optionally returns mock cost responses.
-
-**Location**: `plugins/recorder/`
-
-**Purpose**:
-
-- Developer tool for inspecting Core-to-plugin data shapes
-- Reference implementation for pluginsdk patterns
-- Contract testing support for integration tests
-
-**Key Files**:
-
-- `plugins/recorder/plugin.go` - Main plugin implementation with CostSourceService
-
-**Build Commands**:
-
-```bash
-make build-recorder    # Build to bin/finfocus-plugin-recorder
-make install-recorder  # Build and install to ~/.finfocus/plugins/recorder/0.1.0/
-```
-
-**Configuration (Environment Variables)**:
+Reference plugin for inspecting Core-to-plugin data shapes and contract testing.
 
 | Variable | Default | Description |
 | --- | --- | --- |
 | `FINFOCUS_RECORDER_OUTPUT_DIR` | `./recorded_data` | Directory for recorded JSON files |
 | `FINFOCUS_RECORDER_MOCK_RESPONSE` | `false` | Enable randomized mock responses |
 
-**Usage Examples**:
+## Package-Specific Gotchas
 
-```bash
-# Record requests to inspect data shapes
-export FINFOCUS_RECORDER_OUTPUT_DIR=./debug
-./bin/finfocus cost projected --pulumi-json plan.json
-cat ./debug/*.json | jq .
+Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 
-# Enable mock mode for testing
-export FINFOCUS_RECORDER_MOCK_RESPONSE=true
-./bin/finfocus cost projected --pulumi-json plan.json
-```
+### Plugin Host (`internal/pluginhost/`)
 
-**Recorded File Format**:
+- **Port allocation**: Uses allocate→hold→release→bind pattern. Race window between
+  release and plugin bind is mitigated by `StartWithRetry`
+- **Zombie prevention**: Always call `cmd.Wait()` after `cmd.Process.Kill()`
+- **`PORT` env var removed**: Core does NOT set `PORT` (avoids Cloud Run conflicts).
+  Plugins must use `--port` flag or `FINFOCUS_PLUGIN_PORT`
 
-```json
-{
-  "timestamp": "2025-12-11T14:30:52Z",
-  "method": "GetProjectedCost",
-  "requestId": "01JEK7X2J3K4M5N6P7Q8R9S1T2",
-  "request": { /* protobuf request as JSON */ }
-}
-```
+### CLI (`internal/cli/`)
 
-**Testing**:
+- **`analyzer serve` stdout**: Prints ONLY the port number to stdout (Pulumi handshake
+  protocol). ALL logging must go to stderr exclusively
+- **DismissalStore**: Uses `GetResolvedProjectDir()` → project `dismissed.json`;
+  falls back to `~/.finfocus/dismissed.json`
+- **`config init`**: Without `--global`, inside a Pulumi project creates
+  `$PROJECT/.finfocus/config.yaml` + `.gitignore`. Outside Pulumi project → global init
 
-```bash
-go test ./plugins/recorder/...                      # Unit tests
-go test ./test/integration/recorder_test.go         # Integration tests
-go test -bench=BenchmarkRecorder ./plugins/recorder/...  # Performance (<10ms overhead)
-```
+### Registry (`internal/registry/`)
 
-**Implementation Patterns Demonstrated**:
+- **Region-specific binaries**: When `plugin.metadata.json` has a `region` key, registry
+  looks for `finfocus-plugin-<name>-<region>` first, then falls back to standard names
+- **Checksum verification**: Only a confirmed hash mismatch is fatal. Missing
+  `checksums.txt`, download failures, or unlisted assets produce warnings and continue
+- **`--skip-checksum`** flag available on `plugin install` and `plugin update`
 
-- `pluginsdk.BasePlugin` embedding with wildcard provider matcher
-- Request validation using pluginsdk v0.4.6+ helpers
-- `protojson.Marshal` for human-readable JSON serialization
-- ULID for time-ordered, collision-free filenames
-- Graceful shutdown with context cancellation
-- Thread-safe recording with `sync.Mutex`
-- Zerolog structured logging
+### Router (`internal/router/`)
 
-## Common Error Types
+- **Fallback chain**: `$0.00` cost is a VALID result (does NOT trigger fallback).
+  Only nil/empty results trigger fallback to the next plugin
+- **Priority**: Lower number = higher priority
+- **No config = no routing**: `createRouterForEngine()` returns nil if no routing config;
+  engine falls back to querying all plugins
 
-- `ErrNoCostData`: No cost data available for a resource.
-- `ErrMixedCurrencies`: Multiple currencies detected in cross-provider aggregation.
-- `ErrInvalidGroupBy`: Invalid grouping type used for time-based aggregation.
-- `ErrEmptyResults`: Attempted aggregation on empty results.
-- `ErrInvalidDateRange`: Invalid date range (end date before start date).
-- `ErrResourceValidation`: Internal resource validation failed.
-- `ErrConfigCorrupted`: Configuration file is malformed.
+### Engine (`internal/engine/`)
 
-### Structured Error Codes (JSON/NDJSON output)
+- **`hoursPerMonth = 730`** for monthly cost calculations
+- **Budget health thresholds**: OK (<80%), WARNING (80-89%), CRITICAL (90-100%),
+  EXCEEDED (>100%). Aggregation uses worst-case status
+- **Cache hits**: Append ` (cached)` to the Adapter field for visual feedback
+- **Cache corruption**: Auto-detected and auto-recovered (delete + recreate)
 
-When JSON or NDJSON output is used, `CostResult` may include a `StructuredError` object
-with a stable error code for programmatic consumption by AI agents:
+### GitHub Actions (`.github/workflows/`)
 
-| Constant | Code | Origin |
-|---|---|---|
-| `ErrCodePluginError` | `PLUGIN_ERROR` | gRPC call to plugin failed |
-| `ErrCodeValidationError` | `VALIDATION_ERROR` | Pre-flight request validation failed |
-| `ErrCodeTimeoutError` | `TIMEOUT_ERROR` | `context.DeadlineExceeded` from plugin |
-| `ErrCodeNoCostData` | `NO_COST_DATA` | No pricing information available |
-
-**StructuredError type** (defined in `internal/engine/types.go` and `internal/proto/adapter.go`):
-
-```go
-type StructuredError struct {
-    Code         string `json:"code"`
-    Message      string `json:"message"`
-    ResourceType string `json:"resourceType"`
-}
-```
-
-When `CostResult.Error` is non-nil, callers should prefer the structured `Error` field
-for programmatic error handling. The `Notes` field may still contain legacy `ERROR:` or
-`VALIDATION:` prefixes for backward compatibility with table/overview rendering (the
-adapter in `internal/proto/adapter.go` populates both fields). Error detection in
-table/overview code checks `result.Error != nil` in addition to prefix-based checks
-to support both structured and legacy error consumption.
-
-## CodeRabbit Configuration
-
-### Setup
-
-The repository includes a comprehensive `.coderabbit.yaml` configuration optimized for Go development with the following key settings:
-
-**PR Blocking Configuration:**
-
-- `fail_commit_status: true` - Blocks PR merging on critical issues
-- `request_changes_workflow: true` - Formally requests changes for issues
-- `profile: assertive` - Uses stricter analysis profile
-
-**Comment Management:**
-
-- `auto_reply: true` - Enables automatic comment responses
-- `abort_on_close: true` - Stops processing when PR is closed
-- `auto_incremental_review: true` - Reviews new commits automatically
-
-**Go-Specific Settings:**
-
-- Custom path instructions for `**/*.go` files focusing on Go best practices
-- Enhanced test review instructions for `**/*_test.go` files
-- Enabled golangci-lint, gitleaks, yamllint, and markdownlint
-- Docstring and unit test generation enabled
-
-**Tool Configuration:**
-
-- `golangci-lint: enabled: false` - Integrates with project's existing linting
-- `markdownlint: enabled: true` - Validates documentation
-- `gitleaks: enabled: true` - Scans for secrets
-- `actionlint: enabled: true` - Validates GitHub Actions
-- `semgrep: enabled: true` - Advanced security analysis
-
-### Usage
-
-CodeRabbit now:
-
-1. **Blocks PRs** with critical issues by setting commit status to failed
-2. **Updates comments** automatically on new commits
-3. **Resolves outdated comments** when issues are fixed
-4. **Provides detailed Go-specific feedback** on code quality
-5. **Integrates with existing CI/CD** tools and workflows
-
-## Active Technologies
-- Go 1.25.7 (see `go.mod`) + testify (assert/require), BoltDB (bbolt), Bubble Tea (602-integration-test-suite)
-- BoltDB for cache (`cache.db`), YAML for config, JSON for fixtures (602-integration-test-suite)
+- **OpenCode Action** (`sst/opencode/github@dev`) ONLY works with `issue_comment` events.
+  For other triggers, use CLI installation
+- **`/opencode-review-fix`** comment on a PR triggers automatic fix of all review issues
 
 ## Recent Changes
-

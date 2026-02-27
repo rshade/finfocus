@@ -41,8 +41,6 @@ continues with TUI quality fixes and the remaining performance pipeline.*
   - [ ] Add `--state-only` flag to skip pulumi preview
         ([#690](https://github.com/rshade/finfocus/issues/690))
 - [ ] **BoltDB Cache Stability** *(post-#674 migration fixes)*
-  - [ ] `compact()` leaves store unusable if reopen fails after rename
-        ([#681](https://github.com/rshade/finfocus/issues/681))
   - [ ] `BoltStore.Set` returns nil when disabled, inconsistent with other
         methods
         ([#682](https://github.com/rshade/finfocus/issues/682))
@@ -62,9 +60,6 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#726](https://github.com/rshade/finfocus/issues/726))
   - [ ] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
         ([#734](https://github.com/rshade/finfocus/issues/734))
-- [ ] **Test Reliability**
-  - [ ] CLI tests leak real `~/.finfocus` config causing JSON parse failures
-        ([#809](https://github.com/rshade/finfocus/issues/809))
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -236,6 +231,10 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 ### 2026-Q1
 
+- [x] `compact()` leaves store unusable if reopen fails after rename
+      ([#681](https://github.com/rshade/finfocus/issues/681))
+- [x] CLI tests leak real `~/.finfocus` config causing JSON parse failures
+      ([#809](https://github.com/rshade/finfocus/issues/809))
 - [x] **Integration Test Coverage** *(Completed 2026-02-24)*
   - [x] Add TUI interactive mode integration tests
         ([#735](https://github.com/rshade/finfocus/issues/735))

@@ -24,6 +24,11 @@ func TestNewAnalyzerCmd(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, serveCmd)
 	assert.Equal(t, "serve", serveCmd.Use)
+
+	checkCmd, _, err := cmd.Find([]string{"check"})
+	require.NoError(t, err)
+	require.NotNil(t, checkCmd)
+	assert.Equal(t, "check", checkCmd.Use)
 }
 
 func TestNewAnalyzerServeCmd(t *testing.T) {

@@ -17,15 +17,19 @@ func NewAnalyzerCmd() *cobra.Command {
 The analyzer plugin provides cost estimation during pulumi preview operations.
 It communicates with the Pulumi engine via gRPC and returns cost diagnostics
 that appear in the CLI output.`,
-		Example: `  # Start the analyzer server (used by Pulumi engine)
-  finfocus analyzer serve
+		Example: `  # Install analyzer plugin and policy pack
+  finfocus analyzer install
 
-  # Start with debug logging
+  # Verify analyzer setup
+  finfocus analyzer check
+
+  # Start the analyzer server (used by Pulumi engine)
   finfocus analyzer serve --debug`,
 	}
 
 	cmd.AddCommand(NewAnalyzerServeCmd())
 	cmd.AddCommand(NewAnalyzerInstallCmd())
+	cmd.AddCommand(NewAnalyzerCheckCmd())
 	cmd.AddCommand(NewAnalyzerUninstallCmd())
 
 	return cmd
