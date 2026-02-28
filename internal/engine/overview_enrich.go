@@ -235,33 +235,15 @@ func enrichRecommendations(ctx context.Context, row *OverviewRow, eng overviewEn
 // enrichCostDrift calculates cost drift for a row that has both actual and projected costs.
 // It uses the dateRange end time to determine the day-of-month and days-in-month, which
 // ensures correct drift for historical queries rather than always using the current date.
-//
-// When row.CreatedAt is non-nil and falls within the billing window (after dateRange.Start),
-// the function uses the number of days since creation as the extrapolation denominator
-// instead of the day-of-month. This prevents false-positive drift for resources created
-// to calculate drift.
 func enrichCostDrift(row *OverviewRow, dateRange DateRange) {
 	refTime := dateRange.End
 	dayOfMonth := refTime.Day()
 	daysInMonth := daysInCurrentMonth(refTime)
 
-	denominator := dayOfMonth
-
-	// If the resource was created within this billing window, use days since
-	// creation as the denominator to avoid false-positive drift warnings.
-	if row.CreatedAt != nil && row.CreatedAt.After(dateRange.Start) {
-		daysSinceCreation := int(refTime.Sub(*row.CreatedAt).Hours()/hoursPerDay) + 1
-		if daysSinceCreation < driftMinDay {
-			// Too few days of data since creation — suppress drift entirely.
-			return
-		}
-		denominator = daysSinceCreation
-	}
-
 	drift, err := CalculateCostDrift(
 		row.ActualCost.MTDCost,
 		row.ProjectedCost.MonthlyCost,
-		denominator,
+		dayOfMonth,
 		daysInMonth,
 	)
 	if err != nil {
