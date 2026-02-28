@@ -26,6 +26,9 @@ finfocus config set         # Set a configuration value
 finfocus config get         # Get a configuration value
 finfocus config list        # List all configuration values
 finfocus config validate    # Validate routing configuration
+finfocus config routes      # Routing inspection commands
+finfocus config routes list # Show effective routing rules
+finfocus config routes test # Simulate plugin selection for a resource type
 finfocus plugin             # Plugin commands
 finfocus plugin init        # Initialize a new plugin
 finfocus plugin install     # Install a plugin
@@ -656,6 +659,68 @@ finfocus config validate
 # Warnings:
 #   - aws-public: feature 'Carbon' not supported by plugin
 #   - eks-costs: duplicate plugin configuration found
+```
+
+## config routes list
+
+Display effective plugin routing rules.
+
+### Usage (config routes list)
+
+```bash
+finfocus config routes list [--output table|json]
+```
+
+### Options (config routes list)
+
+| Flag | Description | Default |
+| ---- | ----------- | ------- |
+| `--output` | Output format: `table` or `json` | `table` |
+
+### Examples (config routes list)
+
+```bash
+# Show routing as a table
+finfocus config routes list
+
+# Show routing in JSON
+finfocus config routes list --output json
+```
+
+## config routes test
+
+Simulate plugin selection for a resource type and view match reasons.
+
+### Usage (config routes test)
+
+```bash
+finfocus config routes test <resource-type> [region] [--output table|json]
+```
+
+### Arguments (config routes test)
+
+| Argument | Required | Description |
+| -------- | -------- | ----------- |
+| `resource-type` | Yes | Pulumi type token (for example `aws:ec2:Instance`) |
+| `region` | No | Region hint (for example `us-east-1`) |
+
+### Options (config routes test)
+
+| Flag | Description | Default |
+| ---- | ----------- | ------- |
+| `--output` | Output format: `table` or `json` | `table` |
+
+### Examples (config routes test)
+
+```bash
+# Test routing for a type
+finfocus config routes test aws:ec2:Instance
+
+# Include region in match context
+finfocus config routes test aws:ec2:Instance us-east-1
+
+# JSON output for scripts
+finfocus config routes test aws:ec2:Instance --output json
 ```
 
 ## plugin init

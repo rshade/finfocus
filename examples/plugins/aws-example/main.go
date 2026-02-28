@@ -5,10 +5,14 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -18,6 +22,8 @@ import (
 const (
 	defaultRegion           = "us-east-1"
 	defaultInstanceType     = "t3.micro"
+	defaultRootVolumeType   = "gp2"
+	defaultRootVolumeSizeGB = 8.0
 	defaultS3StorageClass   = "STANDARD"
 	defaultRDSInstanceClass = "db.t3.micro"
 	defaultRDSEngine        = "mysql"
@@ -39,6 +45,16 @@ const (
 	priceS3Glacier     = 0.004
 	priceS3DeepArchive = 0.00099
 
+	priceEBSGP2      = 0.10
+	priceEBSGP3      = 0.08
+	priceEBSIO1      = 0.125
+	priceEBSIO2      = 0.125
+	priceEBSST1      = 0.045
+	priceEBSSC1      = 0.015
+	priceEBSIOPSUnit = 0.065
+
+	kvPairParts = 2
+
 	priceRDST3Micro  = 0.017
 	priceRDST3Small  = 0.034
 	priceRDST3Medium = 0.068
@@ -59,6 +75,7 @@ type AWSExamplePlugin struct {
 
 	ec2Prices            map[string]float64
 	ec2RegionMultipliers map[string]float64
+	ebsVolumePrices      map[string]float64
 	s3Prices             map[string]float64
 	rdsPrices            map[string]float64
 	rdsEngineMultipliers map[string]float64
@@ -95,6 +112,14 @@ func NewAWSExamplePlugin() *AWSExamplePlugin {
 			"us-west-2":      multiplierRegionUS,
 			"eu-west-1":      multiplierRegionEUWest,
 			"ap-southeast-1": multiplierRegionAPSE,
+		},
+		ebsVolumePrices: map[string]float64{
+			"gp2": priceEBSGP2,
+			"gp3": priceEBSGP3,
+			"io1": priceEBSIO1,
+			"io2": priceEBSIO2,
+			"st1": priceEBSST1,
+			"sc1": priceEBSSC1,
 		},
 		s3Prices: map[string]float64{
 			"STANDARD":     priceS3Standard,
@@ -142,8 +167,7 @@ func (p *AWSExamplePlugin) GetProjectedCost(
 
 	switch resource.GetResourceType() {
 	case "aws:ec2:Instance":
-		unitPrice = p.calculateEC2Cost(resource)
-		billingDetail = "EC2 instance hourly cost"
+		unitPrice, billingDetail = p.calculateEC2Cost(resource)
 	case "aws:s3:Bucket":
 		unitPrice = p.calculateS3Cost(resource)
 		billingDetail = "S3 storage monthly cost per GB"
@@ -169,8 +193,8 @@ func (p *AWSExamplePlugin) GetActualCost(
 	return nil, pluginsdk.NoDataError(req.GetResourceId())
 }
 
-// calculateEC2Cost calculates EC2 instance cost based on instance type and region.
-func (p *AWSExamplePlugin) calculateEC2Cost(resource *pbc.ResourceDescriptor) float64 {
+// calculateEC2Cost calculates EC2 instance hourly cost including root EBS storage.
+func (p *AWSExamplePlugin) calculateEC2Cost(resource *pbc.ResourceDescriptor) (float64, string) {
 	tags := resource.GetTags()
 	if tags == nil {
 		tags = map[string]string{}
@@ -181,9 +205,9 @@ func (p *AWSExamplePlugin) calculateEC2Cost(resource *pbc.ResourceDescriptor) fl
 		instanceType = defaultInstanceType
 	}
 
-	price, hasPrice := p.ec2Prices[instanceType]
+	computeHourly, hasPrice := p.ec2Prices[instanceType]
 	if !hasPrice {
-		price = priceT3Micro
+		computeHourly = priceT3Micro
 	}
 
 	region := tags["region"]
@@ -192,10 +216,131 @@ func (p *AWSExamplePlugin) calculateEC2Cost(resource *pbc.ResourceDescriptor) fl
 	}
 
 	if multiplier, hasMultiplier := p.ec2RegionMultipliers[region]; hasMultiplier {
-		price *= multiplier
+		computeHourly *= multiplier
 	}
 
-	return price
+	rootMonthly := p.calculateRootVolumeMonthlyCost(tags, region)
+	rootHourly := rootMonthly / float64(pluginsdk.HoursPerMonth)
+	totalHourly := computeHourly + rootHourly
+
+	billingDetail := fmt.Sprintf(
+		"EC2 instance hourly cost (compute=$%.4f/hr, rootVolume=$%.2f/mo)",
+		computeHourly,
+		rootMonthly,
+	)
+
+	return totalHourly, billingDetail
+}
+
+// calculateRootVolumeMonthlyCost calculates monthly EBS root volume cost from tags.
+func (p *AWSExamplePlugin) calculateRootVolumeMonthlyCost(tags map[string]string, region string) float64 {
+	volumeType := defaultRootVolumeType
+	volumeSizeGB := defaultRootVolumeSizeGB
+	iops := 0.0
+
+	volumeType, volumeSizeGB, iops = applyRootBlockDefaults(tags, volumeType, volumeSizeGB, iops)
+
+	if volumeTypeTag := strings.ToLower(tags["rootVolumeType"]); volumeTypeTag != "" {
+		volumeType = volumeTypeTag
+	}
+	if volumeSizeTag := parsePositiveFloat(tags["rootVolumeSize"]); volumeSizeTag > 0 {
+		volumeSizeGB = volumeSizeTag
+	}
+	if iopsTag := parsePositiveFloat(tags["rootVolumeIops"]); iopsTag > 0 {
+		iops = iopsTag
+	}
+
+	perGBMonthly, hasPrice := p.ebsVolumePrices[volumeType]
+	if !hasPrice {
+		perGBMonthly = priceEBSGP2
+	}
+
+	monthly := perGBMonthly * volumeSizeGB
+	if volumeType == "io1" || volumeType == "io2" {
+		monthly += iops * priceEBSIOPSUnit
+	}
+
+	if multiplier, hasMultiplier := p.ec2RegionMultipliers[region]; hasMultiplier {
+		monthly *= multiplier
+	}
+
+	return monthly
+}
+
+func applyRootBlockDefaults(
+	tags map[string]string, volumeType string, volumeSizeGB, iops float64,
+) (string, float64, float64) {
+	rootBlock := tags["rootBlockDevice"]
+	if rootBlock == "" {
+		return volumeType, volumeSizeGB, iops
+	}
+	rootFields, ok := parseRootBlockDevice(rootBlock)
+	if !ok {
+		return volumeType, volumeSizeGB, iops
+	}
+	if parsedType := strings.ToLower(rootFields["volumeType"]); parsedType != "" {
+		volumeType = parsedType
+	}
+	if parsedSize := parsePositiveFloat(rootFields["volumeSize"]); parsedSize > 0 {
+		volumeSizeGB = parsedSize
+	}
+	iops = parsePositiveFloat(rootFields["iops"])
+	return volumeType, volumeSizeGB, iops
+}
+
+func parseRootBlockDevice(raw string) (map[string]string, bool) {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return nil, false
+	}
+
+	// Try JSON format first (e.g., {"volumeType":"gp3","volumeSize":"100"}).
+	if strings.HasPrefix(trimmed, "{") {
+		var jsonMap map[string]interface{}
+		if err := json.Unmarshal([]byte(trimmed), &jsonMap); err == nil && len(jsonMap) > 0 {
+			fields := make(map[string]string, len(jsonMap))
+			for k, v := range jsonMap {
+				fields[k] = fmt.Sprintf("%v", v)
+			}
+			return fields, true
+		}
+	}
+
+	// Fall back to Go-style map[key:val ...] format.
+	if !strings.HasPrefix(trimmed, "map[") || !strings.HasSuffix(trimmed, "]") {
+		return nil, false
+	}
+
+	body := strings.TrimSuffix(strings.TrimPrefix(trimmed, "map["), "]")
+	if body == "" {
+		return nil, false
+	}
+
+	fields := make(map[string]string)
+	for _, token := range strings.Fields(body) {
+		parts := strings.SplitN(token, ":", kvPairParts)
+		if len(parts) != kvPairParts {
+			continue
+		}
+		fields[parts[0]] = parts[1]
+	}
+
+	if len(fields) == 0 {
+		return nil, false
+	}
+	return fields, true
+}
+
+func parsePositiveFloat(raw string) float64 {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return 0
+	}
+	value, err := strconv.ParseFloat(trimmed, 64)
+	if err != nil || value <= 0 {
+		return 0
+	}
+	return value
 }
 
 // calculateS3Cost calculates S3 storage cost (per GB monthly).

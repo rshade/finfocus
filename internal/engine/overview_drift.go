@@ -15,6 +15,10 @@ const driftPercentMultiplier = 100.0
 // defaultDaysPerMonth is used for extrapolation in delta calculations.
 const defaultDaysPerMonth = 30.0
 
+// standardProjectedDaysPerMonth converts the canonical 730h projected pricing
+// basis into day units for drift normalization.
+const standardProjectedDaysPerMonth = float64(HoursPerMonth) / float64(hoursPerDay)
+
 // CalculateCostDrift computes the cost drift between extrapolated actual spend
 // and projected monthly cost.
 //
@@ -28,12 +32,15 @@ const defaultDaysPerMonth = 30.0
 //
 // Parameters:
 //   - actualMTD: the month-to-date actual cost.
-//   - projected: the projected monthly cost.
+//   - projected: the projected monthly cost (730h standard month basis).
 //   - dayOfMonth: the current day of the month (1-based).
 //   - daysInMonth: total days in the current month (28-31).
 func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth int) (*CostDriftData, error) {
 	if dayOfMonth < driftMinDay {
 		return nil, fmt.Errorf("%w: insufficient data (day %d of month)", ErrOverviewValidation, dayOfMonth)
+	}
+	if daysInMonth <= 0 {
+		return nil, fmt.Errorf("%w: invalid daysInMonth %d", ErrOverviewValidation, daysInMonth)
 	}
 
 	// Edge cases where drift is not meaningful.
@@ -49,9 +56,13 @@ func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth in
 		return nil, nil //nolint:nilnil // nil,nil is intentional: no drift data, no error.
 	}
 
+	// The projected value is based on a canonical 730h month. Normalize it to
+	// the current calendar month before comparison so drift math compares like
+	// with like across 28/29/30/31 day months.
+	projectedForCalendarMonth := projected * (float64(daysInMonth) / standardProjectedDaysPerMonth)
 	extrapolated := actualMTD * (float64(daysInMonth) / float64(dayOfMonth))
-	delta := extrapolated - projected
-	percentDrift := (delta / projected) * driftPercentMultiplier
+	delta := extrapolated - projectedForCalendarMonth
+	percentDrift := (delta / projectedForCalendarMonth) * driftPercentMultiplier
 
 	if math.Abs(percentDrift) <= driftWarningThreshold {
 		return nil, nil //nolint:nilnil // nil,nil is intentional: drift below threshold, no error.
@@ -59,7 +70,7 @@ func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth in
 
 	return &CostDriftData{
 		ExtrapolatedMonthly: extrapolated,
-		Projected:           projected,
+		Projected:           projectedForCalendarMonth,
 		Delta:               delta,
 		PercentDrift:        percentDrift,
 		IsWarning:           true,
