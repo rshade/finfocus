@@ -3,10 +3,12 @@ package cli
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rshade/finfocus/internal/ingest"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/tui"
 )
@@ -97,4 +99,43 @@ func TestPhaseConstantsAlignWithTUI(t *testing.T) {
 		"phaseEnrichResources should be the last phase index; update the constant if PhaseNames changed")
 	assert.Equal(t, 0, phaseLoadStackState,
 		"phaseLoadStackState should be the first phase index")
+}
+
+// ---------------------------------------------------------------------------
+// convertStateResources — CreatedAt propagation
+// ---------------------------------------------------------------------------
+
+func TestConvertStateResources_CreatedAtPreserved(t *testing.T) {
+	createdAt := time.Date(2025, 2, 13, 10, 0, 0, 0, time.UTC)
+
+	resources := []ingest.StackExportResource{
+		{
+			URN:     "urn:pulumi:prod::app::aws:ebs:Volume::data",
+			Type:    "aws:ebs:Volume",
+			ID:      "vol-abc123",
+			Custom:  true,
+			Created: &createdAt,
+		},
+	}
+
+	result := convertStateResources(resources)
+	require.Len(t, result, 1)
+	require.NotNil(t, result[0].CreatedAt)
+	assert.Equal(t, createdAt, *result[0].CreatedAt)
+}
+
+func TestConvertStateResources_NilCreatedAtOK(t *testing.T) {
+	resources := []ingest.StackExportResource{
+		{
+			URN:     "urn:pulumi:prod::app::aws:ec2:Instance::web",
+			Type:    "aws:ec2:Instance",
+			ID:      "i-abc123",
+			Custom:  true,
+			Created: nil,
+		},
+	}
+
+	result := convertStateResources(resources)
+	require.Len(t, result, 1)
+	assert.Nil(t, result[0].CreatedAt)
 }

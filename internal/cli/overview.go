@@ -562,12 +562,18 @@ func resolveOverviewDateRange(fromStr, toStr string, now time.Time) (engine.Date
 func convertStateResources(resources []ingest.StackExportResource) []engine.StateResource {
 	result := make([]engine.StateResource, len(resources))
 	for i, r := range resources {
+		var createdAt *time.Time
+		if r.Created != nil {
+			t := *r.Created // copy value to avoid aliasing the ingest layer's pointer
+			createdAt = &t
+		}
 		result[i] = engine.StateResource{
 			URN:        r.URN,
 			Type:       r.Type,
 			ID:         r.ID,
 			Custom:     r.Custom,
 			Properties: ingest.MergeProperties(r.Outputs, r.Inputs),
+			CreatedAt:  createdAt,
 		}
 	}
 	return result

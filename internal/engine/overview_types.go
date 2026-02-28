@@ -306,6 +306,10 @@ type OverviewRow struct {
 	Recommendations []Recommendation       `json:"recommendations,omitempty"`
 	CostDrift       *CostDriftData         `json:"costDrift,omitempty"`
 	Error           *OverviewRowError      `json:"error,omitempty"`
+	// CreatedAt tracks when the resource was first added to Pulumi state.
+	// Used by enrichCostDrift to correct extrapolation for mid-month resources.
+	// Nil for resources from Pulumi < v3.60.0 or plan-only resources.
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 }
 
 // Validate checks that the OverviewRow fields are well-formed. It validates
@@ -426,6 +430,11 @@ type StateResource struct {
 	ID         string                 `json:"id,omitempty"`
 	Custom     bool                   `json:"custom,omitempty"`
 	Properties map[string]interface{} `json:"properties,omitempty"`
+	// CreatedAt tracks when the resource was first added to Pulumi state.
+	// Available since Pulumi v3.60.0; nil for older state files.
+	// JSON key is "createdAt" (not "created" as in the Pulumi state format);
+	// conversion happens in cli.convertStateResources.
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
 }
 
 // PlanStep represents a step from a Pulumi plan for overview merging.

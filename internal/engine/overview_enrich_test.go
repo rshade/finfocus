@@ -733,6 +733,232 @@ func TestEnrichOverviewRow_ErrorPrecedence(t *testing.T) {
 // Positive-path CostDrift test using mockEnricher
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// enrichCostDrift — mid-month CreatedAt scenarios
+// ---------------------------------------------------------------------------
+
+func TestEnrichCostDrift_MidMonthCreatedAt(t *testing.T) {
+	// Resource created on Feb 13 of a 28-day month, dateRange ends Feb 20.
+	// actualMTD = 0.42 (7 days of billing), projected = 1.60.
+	//
+	// Without CreatedAt fix: denominator = 20, extrapolated = 0.42 * (28/20) = 0.588,
+	//   drift = (0.588 - 1.60) / 1.60 = -63.25% → false positive!
+	// With fix: denominator = 7 (days since creation), extrapolated = 0.42 * (28/7) = 1.68,
+	//   drift = (1.68 - 1.60) / 1.60 = +5.0% → below threshold, no drift warning.
+	refTime := time.Date(2025, 2, 20, 12, 0, 0, 0, time.UTC)
+	createdAt := time.Date(2025, 2, 13, 10, 0, 0, 0, time.UTC)
+	dateRange := DateRange{
+		Start: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
+		End:   refTime,
+	}
+
+	row := OverviewRow{
+		URN:           "urn:pulumi:prod::app::aws:ebs:Volume::data",
+		Type:          "aws:ebs:Volume",
+		Status:        StatusActive,
+		ActualCost:    &ActualCostData{MTDCost: 0.42, Currency: "USD", Period: dateRange},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 1.60, Currency: "USD"},
+		CreatedAt:     &createdAt,
+	}
+
+	enrichCostDrift(&row, dateRange)
+
+	// With correct denominator (7 days), extrapolated = 0.42 * (28/7) = 1.68
+	// drift = (1.68 - 1.60) / 1.60 = 5.0% — below 10% threshold.
+	assert.Nil(t, row.CostDrift, "mid-month resource should not trigger false-positive drift")
+}
+
+func TestEnrichCostDrift_NilCreatedAt_UsesExistingBehavior(t *testing.T) {
+	// When CreatedAt is nil, enrichCostDrift should use dayOfMonth as before.
+	refTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	dateRange := DateRange{
+		Start: time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+		End:   refTime,
+	}
+
+	row := OverviewRow{
+		URN:           "urn:pulumi:prod::app::aws:ec2:Instance::web",
+		Type:          "aws:ec2:Instance",
+		Status:        StatusActive,
+		ActualCost:    &ActualCostData{MTDCost: 50.0, Currency: "USD", Period: dateRange},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 200.0, Currency: "USD"},
+		CreatedAt:     nil,
+	}
+
+	enrichCostDrift(&row, dateRange)
+
+	// dayOfMonth=15, daysInMonth=30 → extrapolated = 50 * (30/15) = 100
+	// drift = (100 - 200) / 200 = -50% → exceeds threshold.
+	require.NotNil(t, row.CostDrift)
+	assert.InDelta(t, -50.0, row.CostDrift.PercentDrift, 1.0)
+	assert.True(t, row.CostDrift.IsWarning)
+}
+
+func TestEnrichCostDrift_CreatedAtBeforeDateRangeStart(t *testing.T) {
+	// When CreatedAt is before dateRange.Start, treat as full-month resource.
+	refTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	createdAt := time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC) // Created last month
+	dateRange := DateRange{
+		Start: time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+		End:   refTime,
+	}
+
+	row := OverviewRow{
+		URN:           "urn:pulumi:prod::app::aws:ec2:Instance::old",
+		Type:          "aws:ec2:Instance",
+		Status:        StatusActive,
+		ActualCost:    &ActualCostData{MTDCost: 50.0, Currency: "USD", Period: dateRange},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 200.0, Currency: "USD"},
+		CreatedAt:     &createdAt,
+	}
+
+	enrichCostDrift(&row, dateRange)
+
+	// CreatedAt is before dateRange.Start → uses dayOfMonth=15 as denominator.
+	// Same as nil CreatedAt case: extrapolated = 100, drift = -50%.
+	require.NotNil(t, row.CostDrift)
+	assert.InDelta(t, -50.0, row.CostDrift.PercentDrift, 1.0)
+	assert.True(t, row.CostDrift.IsWarning)
+}
+
+func TestEnrichCostDrift_CreatedAtWithinFirst2Days_SuppressesDrift(t *testing.T) {
+	// When a resource was created less than driftMinDay (3) days ago,
+	// drift should be suppressed entirely.
+	refTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	createdAt := time.Date(2025, 6, 14, 10, 0, 0, 0, time.UTC) // Created yesterday
+	dateRange := DateRange{
+		Start: time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+		End:   refTime,
+	}
+
+	row := OverviewRow{
+		URN:           "urn:pulumi:prod::app::aws:ec2:Instance::brand-new",
+		Type:          "aws:ec2:Instance",
+		Status:        StatusActive,
+		ActualCost:    &ActualCostData{MTDCost: 5.0, Currency: "USD", Period: dateRange},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 100.0, Currency: "USD"},
+		CreatedAt:     &createdAt,
+	}
+
+	enrichCostDrift(&row, dateRange)
+
+	// daysSinceCreation = 2 (< driftMinDay=3) → drift suppressed.
+	assert.Nil(t, row.CostDrift, "drift must be suppressed for resources with < 3 days of data")
+}
+
+func TestEnrichCostDrift_CreatedAtExactlyOnDateRangeStart(t *testing.T) {
+	// When CreatedAt equals dateRange.Start exactly, After() returns false,
+	// so it should use the standard dayOfMonth denominator.
+	refTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	createdAt := time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC) // Exactly on window start
+	dateRange := DateRange{
+		Start: time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+		End:   refTime,
+	}
+
+	row := OverviewRow{
+		URN:           "urn:pulumi:prod::app::aws:ec2:Instance::start-of-month",
+		Type:          "aws:ec2:Instance",
+		Status:        StatusActive,
+		ActualCost:    &ActualCostData{MTDCost: 50.0, Currency: "USD", Period: dateRange},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 200.0, Currency: "USD"},
+		CreatedAt:     &createdAt,
+	}
+
+	enrichCostDrift(&row, dateRange)
+
+	// CreatedAt == dateRange.Start → After() is false → uses dayOfMonth=15.
+	// Same as nil case: extrapolated = 100, drift = -50%.
+	require.NotNil(t, row.CostDrift)
+	assert.InDelta(t, -50.0, row.CostDrift.PercentDrift, 1.0)
+}
+
+func TestEnrichCostDrift_MidMonthCreatedAt_LargeDrift(t *testing.T) {
+	// A mid-month resource with genuinely high drift should still report it.
+	// Resource created day 10 00:00, refTime day 20 00:00 → daysSinceCreation = 11.
+	refTime := time.Date(2025, 6, 20, 0, 0, 0, 0, time.UTC)
+	createdAt := time.Date(2025, 6, 10, 0, 0, 0, 0, time.UTC)
+	dateRange := DateRange{
+		Start: time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+		End:   refTime,
+	}
+
+	row := OverviewRow{
+		URN:           "urn:pulumi:prod::app::aws:ec2:Instance::expensive",
+		Type:          "aws:ec2:Instance",
+		Status:        StatusActive,
+		ActualCost:    &ActualCostData{MTDCost: 100.0, Currency: "USD", Period: dateRange},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 50.0, Currency: "USD"},
+		CreatedAt:     &createdAt,
+	}
+
+	enrichCostDrift(&row, dateRange)
+
+	// daysSinceCreation = int(10*24/24) + 1 = 11, daysInMonth = 30
+	// extrapolated = 100 * (30/11) ≈ 272.73
+	// drift = (272.73 - 50) / 50 * 100 ≈ 445.45% → genuine drift, should be reported.
+	require.NotNil(t, row.CostDrift, "genuine drift should still be reported for mid-month resources")
+	assert.InDelta(t, 445.5, row.CostDrift.PercentDrift, 1.0)
+	assert.True(t, row.CostDrift.IsWarning)
+}
+
+func TestEnrichCostDrift_CreatedAtEqualsRefTime_SuppressesDrift(t *testing.T) {
+	// When CreatedAt equals refTime exactly, Before(refTime) is false,
+	// so the mid-month path is skipped and dayOfMonth is used as denominator.
+	// However, daysSinceCreation would be 1 (< driftMinDay), so even if the
+	// guard were entered, drift would be suppressed. This test verifies the
+	// guard clause prevents entry entirely.
+	refTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	createdAt := refTime // exactly at the reference time
+	dateRange := DateRange{
+		Start: time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+		End:   refTime,
+	}
+
+	row := OverviewRow{
+		URN:           "urn:pulumi:prod::app::aws:ec2:Instance::just-created",
+		Type:          "aws:ec2:Instance",
+		Status:        StatusActive,
+		ActualCost:    &ActualCostData{MTDCost: 50.0, Currency: "USD", Period: dateRange},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 200.0, Currency: "USD"},
+		CreatedAt:     &createdAt,
+	}
+
+	enrichCostDrift(&row, dateRange)
+
+	// CreatedAt == refTime → Before(refTime) is false → uses dayOfMonth=15.
+	// extrapolated = 50 * (30/15) = 100, drift = (100-200)/200 = -50%.
+	require.NotNil(t, row.CostDrift)
+	assert.InDelta(t, -50.0, row.CostDrift.PercentDrift, 1.0)
+}
+
+func TestEnrichCostDrift_FutureCreatedAt_UseDayOfMonth(t *testing.T) {
+	// When CreatedAt is in the future (after refTime), the mid-month path
+	// must not be entered. This guards against clock skew or corrupted state.
+	refTime := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
+	createdAt := time.Date(2025, 6, 20, 0, 0, 0, 0, time.UTC) // future
+	dateRange := DateRange{
+		Start: time.Date(2025, 6, 1, 0, 0, 0, 0, time.UTC),
+		End:   refTime,
+	}
+
+	row := OverviewRow{
+		URN:           "urn:pulumi:prod::app::aws:ec2:Instance::future",
+		Type:          "aws:ec2:Instance",
+		Status:        StatusActive,
+		ActualCost:    &ActualCostData{MTDCost: 50.0, Currency: "USD", Period: dateRange},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 200.0, Currency: "USD"},
+		CreatedAt:     &createdAt,
+	}
+
+	enrichCostDrift(&row, dateRange)
+
+	// CreatedAt is after refTime → Before(refTime) is false → uses dayOfMonth=15.
+	// extrapolated = 50 * (30/15) = 100, drift = -50%.
+	require.NotNil(t, row.CostDrift)
+	assert.InDelta(t, -50.0, row.CostDrift.PercentDrift, 1.0)
+}
+
 func TestEnrichOverviewRow_CostDrift_ComputedOnCompletion(t *testing.T) {
 	// Verify that CostDrift is computed when both actual and projected costs
 	// are returned by the engine. The mock returns deterministic values so

@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -381,6 +382,56 @@ func TestNewRowsFromState(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMergeResourcesForOverview_CreatedAtPreserved(t *testing.T) {
+	ctx := context.Background()
+	createdAt := time.Date(2025, 2, 13, 10, 0, 0, 0, time.UTC)
+
+	rows, err := MergeResourcesForOverview(ctx,
+		[]StateResource{
+			{
+				URN:       "urn:a",
+				Type:      "aws:ec2:Instance",
+				ID:        "i-abc123",
+				Custom:    true,
+				CreatedAt: &createdAt,
+			},
+		},
+		nil,
+	)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.NotNil(t, rows[0].CreatedAt)
+	assert.Equal(t, createdAt, *rows[0].CreatedAt)
+}
+
+func TestMergeResourcesForOverview_NilCreatedAtOK(t *testing.T) {
+	ctx := context.Background()
+
+	rows, err := MergeResourcesForOverview(ctx,
+		[]StateResource{
+			{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true, CreatedAt: nil},
+		},
+		nil,
+	)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Nil(t, rows[0].CreatedAt)
+}
+
+func TestNewRowsFromState_CreatedAtPreserved(t *testing.T) {
+	ctx := context.Background()
+	createdAt := time.Date(2025, 6, 10, 0, 0, 0, 0, time.UTC)
+
+	rows := NewRowsFromState(ctx, []StateResource{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true, CreatedAt: &createdAt},
+		{URN: "urn:b", Type: "aws:s3:Bucket", Custom: true, CreatedAt: nil},
+	})
+	require.Len(t, rows, 2)
+	require.NotNil(t, rows[0].CreatedAt)
+	assert.Equal(t, createdAt, *rows[0].CreatedAt)
+	assert.Nil(t, rows[1].CreatedAt)
 }
 
 // ---------------------------------------------------------------------------
