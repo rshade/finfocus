@@ -6,30 +6,25 @@ guardrails in `CONTEXT.md`.
 
 ## Table of Contents
 
-- [Immediate Focus (v0.3.2)](#immediate-focus-v032---overview-quality--performance)
+- [Immediate Focus (v0.3.2)](#immediate-focus-v032---targeted-fixes)
 - [Near-Term Vision (v0.3.x)](#near-term-vision-v03x---forecasting--profiles)
 - [Future Vision (v0.4.0+)](#future-vision-v040---notifications-integrations--backlog)
 - [Completed Milestones](#completed-milestones)
 - [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
 - [Boundary Safeguards](#boundary-safeguards)
 
-## Immediate Focus (v0.3.2 - Overview Quality & Performance)
+## Immediate Focus (v0.3.2 - Targeted Fixes)
 
-*v0.3.1 shipped timing instrumentation and immediate TUI launch — this milestone
-continues with TUI quality fixes and the remaining performance pipeline.*
+*Scoped patch release with two targeted fixes before cutting v0.3.2.*
 
-- [ ] **Overview TUI Quality** *(post-v0.3.1 follow-ups)*
-  - [ ] State guards missing for init-only TUI messages in overview model
-        ([#717](https://github.com/rshade/finfocus/issues/717)) [S]
-  - [ ] Audit enriched count inaccurate on early TUI exit
-        ([#720](https://github.com/rshade/finfocus/issues/720)) [S]
-  - [ ] Show phase progress lines sequentially and add preview phase
-        ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
-  - [ ] Extract progress constant and add goroutine comment in overview
-        ([#721](https://github.com/rshade/finfocus/issues/721)) [S]
-  - [ ] False-positive drift for resources created mid-month in overview
-        ([#760](https://github.com/rshade/finfocus/issues/760)) [M]
-- [ ] **Overview Performance Pipeline**
+- [ ] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
+      ([#734](https://github.com/rshade/finfocus/issues/734)) [M]
+- [ ] False-positive drift for resources created mid-month in overview
+      ([#760](https://github.com/rshade/finfocus/issues/760)) [M]
+
+## Near-Term Vision (v0.3.x - Forecasting & Profiles)
+
+- [ ] **Overview Performance Pipeline** *(deferred from v0.3.2)*
   - [ ] Parallelize plugin opening in `Registry.Open()`
         ([#693](https://github.com/rshade/finfocus/issues/693)) [M]
   - [ ] Start plugin loading concurrently with data loading
@@ -38,12 +33,9 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#691](https://github.com/rshade/finfocus/issues/691)) [M]
   - [ ] Add `--state-only` flag to skip pulumi preview
         ([#690](https://github.com/rshade/finfocus/issues/690)) [M]
-- [ ] **Engine & Recorder Fixes**
-  - [ ] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
-        ([#734](https://github.com/rshade/finfocus/issues/734)) [M]
-
-## Near-Term Vision (v0.3.x - Forecasting & Profiles)
-
+- [ ] **Overview TUI Quality** *(deferred from v0.3.2)*
+  - [ ] Show phase progress lines sequentially and add preview phase
+        ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
 - [ ] **Pricing Transparency** *(follow-up to #465 research)*
   - [ ] Plugin-provided GetPricingSpec as fallback before local YAML specs
         ([#638](https://github.com/rshade/finfocus/issues/638)) [L]
@@ -214,6 +206,13 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 ### 2026-Q1
 
+- [x] **Overview TUI Quality Fixes** *(Completed 2026-02-28)*
+  - [x] State guards missing for init-only TUI messages in overview model
+        ([#717](https://github.com/rshade/finfocus/issues/717))
+  - [x] Audit enriched count inaccurate on early TUI exit
+        ([#720](https://github.com/rshade/finfocus/issues/720))
+  - [x] Extract progress constant and add goroutine comment in overview
+        ([#721](https://github.com/rshade/finfocus/issues/721))
 - [x] **TUI & Engine Fixes** *(Completed 2026-02-28)*
   - [x] Extend table separator line to terminal width in overview TUI
         ([#718](https://github.com/rshade/finfocus/issues/718))
