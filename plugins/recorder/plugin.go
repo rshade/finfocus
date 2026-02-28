@@ -273,6 +273,52 @@ func (p *RecorderPlugin) Supports(
 	}, nil
 }
 
+// GetPricingSpec returns the pricing specification for a resource.
+// The recorder plugin returns an empty response since it does not provide real pricing data.
+func (p *RecorderPlugin) GetPricingSpec(
+	_ context.Context, req *pbc.GetPricingSpecRequest,
+) (*pbc.GetPricingSpecResponse, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if req == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "request is required")
+	}
+
+	if err := p.recorder.RecordRequest("GetPricingSpec", req); err != nil {
+		p.logger.Warn().Err(err).Msg("failed to record request")
+	}
+
+	return &pbc.GetPricingSpecResponse{}, nil
+}
+
+// EstimateCost returns a cost estimate for a resource.
+// When mock responses are enabled, it generates randomized cost data;
+// otherwise it returns a zero-cost response.
+func (p *RecorderPlugin) EstimateCost(
+	_ context.Context, req *pbc.EstimateCostRequest,
+) (*pbc.EstimateCostResponse, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if req == nil {
+		return nil, status.Errorf(codes.InvalidArgument, "request is required")
+	}
+
+	if err := p.recorder.RecordRequest("EstimateCost", req); err != nil {
+		p.logger.Warn().Err(err).Msg("failed to record request")
+	}
+
+	if p.mocker != nil {
+		return p.mocker.CreateEstimateCostResponse(), nil
+	}
+
+	return &pbc.EstimateCostResponse{
+		CostMonthly: 0.0,
+		Currency:    "USD",
+	}, nil
+}
+
 // Shutdown performs graceful shutdown of the plugin.
 // It flushes any pending writes and releases resources.
 func (p *RecorderPlugin) Shutdown() {
