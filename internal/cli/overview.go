@@ -824,8 +824,8 @@ func runInteractiveOverviewWithInit(
 	// Channel to pass the plugin cleanup function from background goroutine.
 	cleanupChan := make(chan func(), 1)
 
-	// Atomic counter so the background goroutine can report the row count
-	// to the main goroutine for accurate audit logging.
+	// Atomic counter incremented per enriched row so the audit log reflects
+	// actual progress even on early TUI exit.
 	var rowCount atomic.Int64
 
 	// enrichDone is closed when the background goroutine exits. The cleanup
@@ -981,8 +981,6 @@ func overviewInitAndEnrich(
 		p.Send(tui.OverviewInitErrorMsg{Err: filterErr})
 		return
 	}
-	rowCount.Store(int64(len(rows)))
-
 	// Phase 4: Open plugins.
 	p.Send(tui.OverviewPhaseMsg{Index: phaseStartPlugins, Phase: "Starting cost plugins..."})
 	clients, cleanup, pluginErr := openPlugins(enrichCtx, params.adapter, audit)
@@ -1011,7 +1009,7 @@ func overviewInitAndEnrich(
 	budgetChan := launchBudgetFetch(enrichCtx, eng)
 
 	// Phase 6: Enrichment (blocks until all rows enriched).
-	bridgeEnrichmentToTUI(enrichCtx, p, rows, eng, dateRange)
+	bridgeEnrichmentToTUI(enrichCtx, p, rows, eng, dateRange, rowCount)
 
 	// After enrichment, drain budget channel and apply config fallback if needed.
 	sendBudgetResultToTUI(enrichCtx, p, budgetChan, rows)
@@ -1314,6 +1312,7 @@ func bridgeEnrichmentToTUI(
 	rows []engine.OverviewRow,
 	eng *engine.Engine,
 	dateRange engine.DateRange,
+	rowCount *atomic.Int64,
 ) {
 	// Phase 6: Enriching resources
 	p.Send(tui.OverviewPhaseMsg{Index: phaseEnrichResources, Phase: "Enriching resources..."})
@@ -1340,6 +1339,7 @@ func bridgeEnrichmentToTUI(
 		// Apply dismissal delta to the enriched row before sending to TUI.
 		engine.ApplyDismissalDeltaToRow(&update.Row, dismissalRecords)
 
+		rowCount.Add(1)
 		loadedCount++
 		p.Send(tui.OverviewResourceLoadedMsg{
 			Index: update.Index,
