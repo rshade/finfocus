@@ -89,13 +89,13 @@ instead of running Pulumi CLI commands.`,
 
 	cmd.Flags().StringVar(&params.pulumiJSON, "pulumi-json", "", "path to Pulumi preview JSON")
 	cmd.Flags().StringVar(&params.pulumiState, "pulumi-state", "", "path to Pulumi state JSON")
-	cmd.Flags().StringVar(&params.stack, "stack", "",
+	cmd.Flags().StringVarP(&params.stack, "stack", "s", "",
 		"Pulumi stack name for auto-detection (ignored with --pulumi-state/--pulumi-json)")
 	cmd.Flags().StringVar(&params.fromStr, "from", "", "start date (YYYY-MM-DD or RFC3339)")
 	cmd.Flags().StringVar(&params.toStr, "to", "", "end date (YYYY-MM-DD or RFC3339, defaults to now)")
-	cmd.Flags().StringVar(&params.adapter, "adapter", "", "restrict to a specific adapter plugin")
+	cmd.Flags().StringVarP(&params.adapter, "adapter", "a", "", "restrict to a specific adapter plugin")
 	cmd.Flags().StringVar(&params.output, "output", "table", "output format (table, json, ndjson)")
-	cmd.Flags().StringSliceVar(&params.filter, "filter", nil, "resource filters")
+	cmd.Flags().StringSliceVarP(&params.filter, "filter", "f", nil, "resource filters")
 	cmd.Flags().BoolVar(&params.plain, "plain", false, "force non-interactive plain text output")
 	cmd.Flags().BoolVarP(&params.yes, "yes", "y", false, "skip confirmation prompts")
 	cmd.Flags().BoolVar(&params.noPagination, "no-pagination", false, "disable pagination (plain mode only)")
