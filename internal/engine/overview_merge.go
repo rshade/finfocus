@@ -56,6 +56,7 @@ func stateResourceToRow(res StateResource) OverviewRow {
 		ResourceID: res.ID,
 		Status:     StatusActive,
 		Properties: res.Properties,
+		CreatedAt:  res.CreatedAt,
 	}
 }
 
