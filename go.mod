@@ -8,7 +8,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/oklog/ulid/v2 v2.1.1
-	github.com/pulumi/pulumi/sdk/v3 v3.223.0
+	github.com/pulumi/pulumi/sdk/v3 v3.224.0
 	github.com/rs/zerolog v1.34.0
 	github.com/rshade/finfocus-spec v0.5.6
 	github.com/spf13/cobra v1.10.2
@@ -63,5 +63,5 @@ require (
 	go.yaml.in/yaml/v2 v2.4.3 // indirect
 	golang.org/x/net v0.51.0 // indirect
 	golang.org/x/sys v0.41.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260128011058-8636f8732409 // indirect
 )
