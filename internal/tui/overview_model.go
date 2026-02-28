@@ -282,6 +282,9 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle data ready (initializing → loading transition)
 	if dataMsg, ok := msg.(OverviewDataReadyMsg); ok {
+		if m.state != ViewStateInitializing {
+			return m, nil // Ignore stale message
+		}
 		// Defensive copy: allRows and rows must not share backing arrays
 		// because refreshTable sorts m.rows in-place.
 		m.allRows = make([]engine.OverviewRow, len(dataMsg.Rows))
@@ -305,6 +308,9 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle init error
 	if errMsg, ok := msg.(OverviewInitErrorMsg); ok {
+		if m.state != ViewStateInitializing {
+			return m, nil // Ignore stale message
+		}
 		m.state = ViewStateError
 		m.err = errMsg.Err
 		return m, tea.Quit
