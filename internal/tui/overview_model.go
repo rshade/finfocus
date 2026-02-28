@@ -18,6 +18,23 @@ import (
 // maxOverviewResourcesPerPage is the pagination threshold.
 const maxOverviewResourcesPerPage = 250
 
+// Column width constants for the overview table.
+// All columns except Resource have fixed widths; Resource absorbs extra terminal width.
+const (
+	colWidthType      = 20
+	colWidthStatus    = 10
+	colWidthActual    = 12
+	colWidthProjected = 12
+	colWidthDelta     = 12
+	colWidthDrift     = 8
+	colWidthRecs      = 9
+	// fixedColumnsTotal is the sum of all non-Resource column widths.
+	fixedColumnsTotal = colWidthType + colWidthStatus + colWidthActual +
+		colWidthProjected + colWidthDelta + colWidthDrift + colWidthRecs
+	// minResourceColWidth is the minimum width for the Resource column.
+	minResourceColWidth = 30
+)
+
 // OverviewResourceLoadedMsg is sent when a single resource's data is enriched.
 type OverviewResourceLoadedMsg struct {
 	Index int
@@ -196,6 +213,16 @@ func NewOverviewModel(
 // Err returns any error that caused the TUI to exit (e.g., init failure).
 func (m OverviewModel) Err() error {
 	return m.err
+}
+
+// resourceColumnWidth returns the dynamic width for the Resource column.
+// It expands to fill available terminal width, with a minimum of minResourceColWidth.
+func (m *OverviewModel) resourceColumnWidth() int {
+	available := m.width - fixedColumnsTotal - borderPadding
+	if available < minResourceColWidth {
+		return minResourceColWidth
+	}
+	return available
 }
 
 // Init initializes the model (Bubble Tea interface).
@@ -558,22 +585,23 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 	if m.isStateOnly && !m.previewLoaded {
 		projectedHeader = "Projected*"
 	}
+	resourceWidth := m.resourceColumnWidth()
 	columns := []table.Column{
-		{Title: "Resource", Width: 30},      //nolint:mnd // Column width.
-		{Title: "Type", Width: 20},          //nolint:mnd // Column width.
-		{Title: "Status", Width: 10},        //nolint:mnd // Column width.
-		{Title: "Actual", Width: 12},        //nolint:mnd // Column width.
-		{Title: projectedHeader, Width: 12}, //nolint:mnd // Column width.
-		{Title: "Delta", Width: 12},         //nolint:mnd // Column width.
-		{Title: "Drift%", Width: 8},         //nolint:mnd // Column width.
-		{Title: "Recs", Width: 9},           //nolint:mnd // Column width.
+		{Title: "Resource", Width: resourceWidth},
+		{Title: "Type", Width: colWidthType},
+		{Title: "Status", Width: colWidthStatus},
+		{Title: "Actual", Width: colWidthActual},
+		{Title: projectedHeader, Width: colWidthProjected},
+		{Title: "Delta", Width: colWidthDelta},
+		{Title: "Drift%", Width: colWidthDrift},
+		{Title: "Recs", Width: colWidthRecs},
 	}
 
 	visibleRows := m.getVisibleRows()
 	rows := make([]table.Row, len(visibleRows))
 
 	for i, overviewRow := range visibleRows {
-		resourceName := truncateResourceName(overviewRow.URN)
+		resourceName := truncateResourceName(overviewRow.URN, resourceWidth)
 		statusStr := overviewRow.Status.String()
 
 		actualStr := "-"
@@ -639,9 +667,8 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 	return t
 }
 
-// truncateResourceName shortens a URN for display.
-func truncateResourceName(urn string) string {
-	const maxLen = 30
+// truncateResourceName shortens a URN for display within the given maxLen.
+func truncateResourceName(urn string, maxLen int) string {
 	if urn == "" {
 		return urn
 	}
@@ -655,7 +682,8 @@ func truncateResourceName(urn string) string {
 	if len(name) <= maxLen {
 		return name
 	}
-	return name[:maxLen-3] + "..."
+	const ellipsis = 3
+	return name[:maxLen-ellipsis] + "..."
 }
 
 // applyFilter filters rows based on text input. It always calls refreshTable
