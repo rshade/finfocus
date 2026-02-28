@@ -893,6 +893,10 @@ const (
 	phaseStartPlugins    = 3
 	phasePrepareEngine   = 4
 	phaseEnrichResources = 5
+
+	// progressReportInterval controls how often enrichment progress is
+	// reported to the TUI (every N rows).
+	progressReportInterval = 10
 )
 
 // resolveIsStateOnly determines whether to operate in state-only mode (no pulumi preview).
@@ -1324,6 +1328,9 @@ func bridgeEnrichmentToTUI(
 	dismissalRecords := loadDismissalRecordsForOverview(enrichCtx)
 
 	progressChan := make(chan engine.OverviewRowUpdate, len(rows))
+	// EnrichOverviewRows runs in its own goroutine so the TUI event loop
+	// stays responsive. p.Send is safe to call concurrently — Bubble Tea's
+	// Send selects on p.ctx.Done(), so it returns promptly during shutdown.
 	go func() {
 		engine.EnrichOverviewRows(enrichCtx, rows, eng, dateRange, progressChan)
 	}()
@@ -1346,7 +1353,7 @@ func bridgeEnrichmentToTUI(
 			Row:   update.Row,
 		})
 
-		if loadedCount%10 == 0 || loadedCount == len(rows) {
+		if loadedCount%progressReportInterval == 0 || loadedCount == len(rows) {
 			p.Send(tui.OverviewLoadingProgressMsg{
 				Loaded: loadedCount,
 				Total:  len(rows),
