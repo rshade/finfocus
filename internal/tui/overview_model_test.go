@@ -721,7 +721,7 @@ func TestOverviewModel_DataReadyMsg_StaleIgnored(t *testing.T) {
 		{URN: "urn:original", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 	}
 	model, _ := NewOverviewModel(ctx, initialRows, 1, nil, nil)
-	assert.Equal(t, ViewStateLoading, model.state)
+	require.Equal(t, ViewStateLoading, model.state)
 
 	// Send a stale DataReadyMsg — should be ignored.
 	staleMsg := OverviewDataReadyMsg{
@@ -740,6 +740,33 @@ func TestOverviewModel_DataReadyMsg_StaleIgnored(t *testing.T) {
 	assert.Nil(t, cmd, "no command should be returned")
 }
 
+// TestOverviewModel_DataReadyMsg_StaleIgnored_ViewStateList verifies that a stale
+// OverviewDataReadyMsg arriving when the model is in ViewStateList is also ignored.
+func TestOverviewModel_DataReadyMsg_StaleIgnored_ViewStateList(t *testing.T) {
+	ctx := context.Background()
+
+	initialRows := []engine.OverviewRow{
+		{URN: "urn:original", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+	model, _ := NewOverviewModel(ctx, initialRows, 1, nil, nil)
+	model.state = ViewStateList
+
+	staleMsg := OverviewDataReadyMsg{
+		Rows:       []engine.OverviewRow{{URN: "urn:stale", Type: "aws:s3:Bucket"}},
+		TotalCount: 99,
+		StackName:  "stale-stack",
+	}
+	updatedModel, cmd := model.Update(staleMsg)
+	model = updatedModel.(OverviewModel)
+
+	assert.Equal(t, ViewStateList, model.state, "state should remain ViewStateList")
+	assert.Len(t, model.allRows, 1, "allRows should not be overwritten")
+	assert.Equal(t, "urn:original", model.allRows[0].URN)
+	assert.Equal(t, 1, model.totalCount, "totalCount should not change")
+	assert.Empty(t, model.stackName, "stackName should not be set")
+	assert.Nil(t, cmd, "no command should be returned")
+}
+
 // TestOverviewModel_InitErrorMsg_StaleIgnored verifies that a stale OverviewInitErrorMsg
 // arriving after the model has left ViewStateInitializing is ignored.
 func TestOverviewModel_InitErrorMsg_StaleIgnored(t *testing.T) {
@@ -750,7 +777,7 @@ func TestOverviewModel_InitErrorMsg_StaleIgnored(t *testing.T) {
 		{URN: "urn:original", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 	}
 	model, _ := NewOverviewModel(ctx, initialRows, 1, nil, nil)
-	assert.Equal(t, ViewStateLoading, model.state)
+	require.Equal(t, ViewStateLoading, model.state)
 
 	// Send a stale InitErrorMsg — should be ignored.
 	staleMsg := OverviewInitErrorMsg{Err: errors.New("stale error")}
