@@ -349,6 +349,105 @@ func TestOverviewModel_WindowResize(t *testing.T) {
 	assert.Equal(t, 40, model.height)
 }
 
+// TestOverviewModel_ResourceColumnWidth verifies dynamic resource column sizing.
+func TestOverviewModel_ResourceColumnWidth(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	tests := []struct {
+		name     string
+		width    int
+		expected int
+	}{
+		{
+			name:     "default 80 width",
+			width:    defaultWidth,
+			expected: minResourceColWidth,
+		},
+		{
+			name:     "wide terminal 160",
+			width:    160,
+			expected: 160 - fixedColumnsTotal - borderPadding,
+		},
+		{
+			name:     "narrow terminal clamps to minimum",
+			width:    50,
+			expected: minResourceColWidth,
+		},
+		{
+			name:     "exact breakpoint",
+			width:    fixedColumnsTotal + borderPadding + minResourceColWidth,
+			expected: minResourceColWidth,
+		},
+		{
+			name:     "one above breakpoint",
+			width:    fixedColumnsTotal + borderPadding + minResourceColWidth + 1,
+			expected: minResourceColWidth + 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+			model.width = tt.width
+			assert.Equal(t, tt.expected, model.resourceColumnWidth())
+		})
+	}
+}
+
+// TestTruncateResourceName verifies URN truncation with dynamic max length.
+func TestTruncateResourceName(t *testing.T) {
+	tests := []struct {
+		name     string
+		urn      string
+		maxLen   int
+		expected string
+	}{
+		{
+			name:     "empty URN",
+			urn:      "",
+			maxLen:   30,
+			expected: "",
+		},
+		{
+			name:     "short URN within limit",
+			urn:      "short-name",
+			maxLen:   30,
+			expected: "short-name",
+		},
+		{
+			name:     "long URN extracts last component",
+			urn:      "urn:pulumi:stack::project::aws:ec2:Instance::my-instance",
+			maxLen:   30,
+			expected: "my-instance",
+		},
+		{
+			name:     "last component exceeds maxLen",
+			urn:      "urn:pulumi:stack::project::aws:ec2:Instance::this-is-a-very-long-resource-name-that-exceeds",
+			maxLen:   30,
+			expected: "this-is-a-very-long-resourc...",
+		},
+		{
+			name:     "wider terminal allows more characters",
+			urn:      "urn:pulumi:stack::project::aws:ec2:Instance::this-is-a-very-long-resource-name-that-exceeds",
+			maxLen:   50,
+			expected: "this-is-a-very-long-resource-name-that-exceeds",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := truncateResourceName(tt.urn, tt.maxLen)
+			assert.Equal(t, tt.expected, result)
+			if tt.urn != "" {
+				assert.LessOrEqual(t, len(result), tt.maxLen)
+			}
+		})
+	}
+}
+
 // TestOverviewModel_GetCost verifies cost extraction for sorting.
 func TestOverviewModel_GetCost(t *testing.T) {
 	ctx := context.Background()
