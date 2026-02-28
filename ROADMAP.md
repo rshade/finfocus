@@ -25,8 +25,6 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#720](https://github.com/rshade/finfocus/issues/720)) [S]
   - [ ] Show phase progress lines sequentially and add preview phase
         ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
-  - [ ] Extend table separator line to terminal width in overview TUI
-        ([#718](https://github.com/rshade/finfocus/issues/718)) [S]
   - [ ] Extract progress constant and add goroutine comment in overview
         ([#721](https://github.com/rshade/finfocus/issues/721)) [S]
   - [ ] False-positive drift for resources created mid-month in overview
@@ -40,13 +38,7 @@ continues with TUI quality fixes and the remaining performance pipeline.*
         ([#691](https://github.com/rshade/finfocus/issues/691)) [M]
   - [ ] Add `--state-only` flag to skip pulumi preview
         ([#690](https://github.com/rshade/finfocus/issues/690)) [M]
-- [x] **BoltDB Cache Stability** *(post-#674 migration fixes)*
-  - [x] `BoltStore.Set` returns nil when disabled, inconsistent with other
-        methods
-        ([#682](https://github.com/rshade/finfocus/issues/682)) [S]
 - [ ] **Engine & Recorder Fixes**
-  - [ ] `classifyError` should handle `context.Canceled` and `context.DeadlineExceeded`
-        ([#726](https://github.com/rshade/finfocus/issues/726)) [S]
   - [ ] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
         ([#734](https://github.com/rshade/finfocus/issues/734)) [M]
 
@@ -123,6 +115,8 @@ continues with TUI quality fixes and the remaining performance pipeline.*
   - [ ] Upgrade to Bubble Tea v2, Lip Gloss v2, Bubbles v2 (after stable
         release)
         ([#552](https://github.com/rshade/finfocus/issues/552)) [L]
+  - [ ] Upgrade charmbracelet dependencies to v2 (detailed migration plan)
+        ([#827](https://github.com/rshade/finfocus/issues/827)) [L]
   - *Blocked: Bubble Tea v2 must exit release candidate status*
 - [ ] **Cache Architecture Improvements**
   - [ ] Add optional LRU in-memory cache layer to complement BoltStore
@@ -220,6 +214,16 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 ### 2026-Q1
 
+- [x] **TUI & Engine Fixes** *(Completed 2026-02-28)*
+  - [x] Extend table separator line to terminal width in overview TUI
+        ([#718](https://github.com/rshade/finfocus/issues/718))
+  - [x] `classifyError` should handle `context.Canceled` and
+        `context.DeadlineExceeded`
+        ([#726](https://github.com/rshade/finfocus/issues/726))
+- [x] **BoltDB Cache Stability** *(post-#674 migration fixes)*
+  - [x] `BoltStore.Set` returns nil when disabled, inconsistent with other
+        methods
+        ([#682](https://github.com/rshade/finfocus/issues/682))
 - [x] **Analyzer Quality Fixes** *(Completed 2026-02-27)*
   - [x] Eliminate duplicate `ResolvePolicyPackDir` call in `RunChecks`
         ([#822](https://github.com/rshade/finfocus/issues/822))
