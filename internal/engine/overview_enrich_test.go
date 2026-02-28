@@ -59,6 +59,30 @@ func TestClassifyError(t *testing.T) {
 			wantRetry: true,
 		},
 		{
+			name:      "context_canceled",
+			err:       context.Canceled,
+			wantType:  ErrorTypeNetwork,
+			wantRetry: true,
+		},
+		{
+			name:      "context_deadline_exceeded",
+			err:       context.DeadlineExceeded,
+			wantType:  ErrorTypeNetwork,
+			wantRetry: true,
+		},
+		{
+			name:      "wrapped_context_canceled",
+			err:       fmt.Errorf("plugin call failed: %w", context.Canceled),
+			wantType:  ErrorTypeNetwork,
+			wantRetry: true,
+		},
+		{
+			name:      "wrapped_context_deadline_exceeded",
+			err:       fmt.Errorf("plugin call failed: %w", context.DeadlineExceeded),
+			wantType:  ErrorTypeNetwork,
+			wantRetry: true,
+		},
+		{
 			name:      "unknown_error",
 			err:       errors.New("something unexpected happened"),
 			wantType:  ErrorTypeUnknown,

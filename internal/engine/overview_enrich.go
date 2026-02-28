@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"sync"
 	"time"
@@ -266,14 +267,22 @@ func classifyError(urn string, err error) *OverviewRowError {
 	msg := err.Error()
 	errType := ErrorTypeUnknown
 
-	lower := strings.ToLower(msg)
+	// Check sentinel errors first (typed checks are more reliable than substring matching).
+	// context.Canceled and context.DeadlineExceeded use "canceled" and "deadline" which
+	// don't match the existing substring patterns ("timeout", "connection", "network").
 	switch {
-	case strings.Contains(lower, "auth") || strings.Contains(lower, "permission") || strings.Contains(lower, "forbidden"):
-		errType = ErrorTypeAuth
-	case strings.Contains(lower, "connection") || strings.Contains(lower, "network") || strings.Contains(lower, "timeout"):
+	case errors.Is(err, context.Canceled), errors.Is(err, context.DeadlineExceeded):
 		errType = ErrorTypeNetwork
-	case strings.Contains(lower, "rate") || strings.Contains(lower, "throttle") || strings.Contains(lower, "too many"):
-		errType = ErrorTypeRateLimit
+	default:
+		lower := strings.ToLower(msg)
+		switch {
+		case strings.Contains(lower, "auth") || strings.Contains(lower, "permission") || strings.Contains(lower, "forbidden"):
+			errType = ErrorTypeAuth
+		case strings.Contains(lower, "connection") || strings.Contains(lower, "network") || strings.Contains(lower, "timeout"):
+			errType = ErrorTypeNetwork
+		case strings.Contains(lower, "rate") || strings.Contains(lower, "throttle") || strings.Contains(lower, "too many"):
+			errType = ErrorTypeRateLimit
+		}
 	}
 
 	// Truncate message if too long (rune-safe to avoid splitting multi-byte characters)
