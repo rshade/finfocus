@@ -20,60 +20,49 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 - [ ] **Overview TUI Quality** *(post-v0.3.1 follow-ups)*
   - [ ] State guards missing for init-only TUI messages in overview model
-        ([#717](https://github.com/rshade/finfocus/issues/717))
+        ([#717](https://github.com/rshade/finfocus/issues/717)) [S]
   - [ ] Audit enriched count inaccurate on early TUI exit
-        ([#720](https://github.com/rshade/finfocus/issues/720))
+        ([#720](https://github.com/rshade/finfocus/issues/720)) [S]
   - [ ] Show phase progress lines sequentially and add preview phase
-        ([#714](https://github.com/rshade/finfocus/issues/714))
+        ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
   - [ ] Extend table separator line to terminal width in overview TUI
-        ([#718](https://github.com/rshade/finfocus/issues/718))
+        ([#718](https://github.com/rshade/finfocus/issues/718)) [S]
   - [ ] Extract progress constant and add goroutine comment in overview
-        ([#721](https://github.com/rshade/finfocus/issues/721))
+        ([#721](https://github.com/rshade/finfocus/issues/721)) [S]
   - [ ] False-positive drift for resources created mid-month in overview
-        ([#760](https://github.com/rshade/finfocus/issues/760))
+        ([#760](https://github.com/rshade/finfocus/issues/760)) [M]
 - [ ] **Overview Performance Pipeline**
   - [ ] Parallelize plugin opening in `Registry.Open()`
-        ([#693](https://github.com/rshade/finfocus/issues/693))
+        ([#693](https://github.com/rshade/finfocus/issues/693)) [M]
   - [ ] Start plugin loading concurrently with data loading
-        ([#692](https://github.com/rshade/finfocus/issues/692))
+        ([#692](https://github.com/rshade/finfocus/issues/692)) [M]
   - [ ] Parallelize stack export and pulumi preview
-        ([#691](https://github.com/rshade/finfocus/issues/691))
+        ([#691](https://github.com/rshade/finfocus/issues/691)) [M]
   - [ ] Add `--state-only` flag to skip pulumi preview
-        ([#690](https://github.com/rshade/finfocus/issues/690))
-- [ ] **BoltDB Cache Stability** *(post-#674 migration fixes)*
-  - [ ] `BoltStore.Set` returns nil when disabled, inconsistent with other
+        ([#690](https://github.com/rshade/finfocus/issues/690)) [M]
+- [x] **BoltDB Cache Stability** *(post-#674 migration fixes)*
+  - [x] `BoltStore.Set` returns nil when disabled, inconsistent with other
         methods
-        ([#682](https://github.com/rshade/finfocus/issues/682))
-- [ ] **Analyzer Quality Fixes** *(post-install UX cluster)*
-  - [ ] AnalyzeStack stack summary always shows $0.00 (0 resources analyzed)
-        ([#746](https://github.com/rshade/finfocus/issues/746))
-  - [ ] `--force` reinstall does not sync policy pack binary, leaving it stale
-        ([#754](https://github.com/rshade/finfocus/issues/754))
-  - [ ] `analyzer install` should setup policy pack directory for `--policy-pack` workflow
-        ([#755](https://github.com/rshade/finfocus/issues/755))
-  - [ ] `analyzer install` should print PATH setup instructions post-install
-        ([#756](https://github.com/rshade/finfocus/issues/756))
-  - [ ] Add `finfocus analyzer check` command for setup verification
-        ([#757](https://github.com/rshade/finfocus/issues/757))
+        ([#682](https://github.com/rshade/finfocus/issues/682)) [S]
 - [ ] **Engine & Recorder Fixes**
   - [ ] `classifyError` should handle `context.Canceled` and `context.DeadlineExceeded`
-        ([#726](https://github.com/rshade/finfocus/issues/726))
+        ([#726](https://github.com/rshade/finfocus/issues/726)) [S]
   - [ ] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
-        ([#734](https://github.com/rshade/finfocus/issues/734))
+        ([#734](https://github.com/rshade/finfocus/issues/734)) [M]
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
 - [ ] **Pricing Transparency** *(follow-up to #465 research)*
   - [ ] Plugin-provided GetPricingSpec as fallback before local YAML specs
-        ([#638](https://github.com/rshade/finfocus/issues/638))
+        ([#638](https://github.com/rshade/finfocus/issues/638)) [L]
   - [ ] Enrich cost estimate with GetPricingSpec discovery data
-        ([#637](https://github.com/rshade/finfocus/issues/637))
+        ([#637](https://github.com/rshade/finfocus/issues/637)) [M]
   - [ ] Add `--explain` flag to `cost projected` for pricing transparency
-        ([#636](https://github.com/rshade/finfocus/issues/636))
+        ([#636](https://github.com/rshade/finfocus/issues/636)) [M]
   - [ ] Add `--show-breakdown` and `--show-confidence` flags to cost commands
-        ([#685](https://github.com/rshade/finfocus/issues/685))
+        ([#685](https://github.com/rshade/finfocus/issues/685)) [M]
 - [ ] **Contextual Profiles ("Dev Mode")**
-      ([#368](https://github.com/rshade/finfocus/issues/368))
+      ([#368](https://github.com/rshade/finfocus/issues/368)) [L]
   - [ ] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
         to plugins
   - [ ] Configuration: Allow default profile definition in `finfocus.yaml`
@@ -81,15 +70,15 @@ continues with TUI quality fixes and the remaining performance pipeline.*
     finfocus-spec v0.5.5 — core-only implementation
 - [ ] **Routing CLI Tools**
   - [ ] Add `config routes list` and `config routes test` CLI commands
-        ([#687](https://github.com/rshade/finfocus/issues/687))
+        ([#687](https://github.com/rshade/finfocus/issues/687)) [M]
 - [ ] **Scale Testing**
   - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
-        ([#658](https://github.com/rshade/finfocus/issues/658))
+        ([#658](https://github.com/rshade/finfocus/issues/658)) [M]
 - [ ] **Time-Series Forecasting Enhancement**
   - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
-        ([#539](https://github.com/rshade/finfocus/issues/539))
+        ([#539](https://github.com/rshade/finfocus/issues/539)) [L]
 - [ ] **Forecasting & Projections ("Cost Time Machine")**
-      ([#364](https://github.com/rshade/finfocus/issues/364))
+      ([#364](https://github.com/rshade/finfocus/issues/364)) [L]
   - [ ] Projection Math Engine (Linear/Exponential extrapolation)
   - [ ] TUI: ASCII Line Chart visualization for 6-12 month forecasts
   - *Status: Spec primitives available (GrowthType/GrowthRate)*
@@ -97,71 +86,71 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 ## Future Vision (v0.4.0+ - Notifications, Integrations & Backlog)
 
 - [ ] **Governance Overrides ("YOLO Mode")**
-      ([#365](https://github.com/rshade/finfocus/issues/365))
+      ([#365](https://github.com/rshade/finfocus/issues/365)) [M]
   - [ ] CLI: Implement `--yolo` / `--force` flag to bypass budget gates
   - [ ] UX: "Warning Mode" UI styles for bypassed runs
   - *Blocked:* Requires `BypassReason` enum in
     [finfocus-spec](https://github.com/rshade/finfocus-spec) (not yet defined)
 - [ ] **External Notifications**
   - [ ] Webhook and email notifications for budget alerts
-        ([#220](https://github.com/rshade/finfocus/issues/220))
+        ([#220](https://github.com/rshade/finfocus/issues/220)) [L]
   - *Note:* Requires external service integration to maintain core
     statelessness per CONTEXT.md boundaries
 - [ ] **Recommendation Lifecycle Enhancements** *(spec-first)*
   - [ ] Add `include_dismissed` field to GetRecommendationsRequest
-        ([#545](https://github.com/rshade/finfocus/issues/545))
+        ([#545](https://github.com/rshade/finfocus/issues/545)) [S]
   - [ ] Add GetRecommendationHistory RPC to CostSourceService
-        ([#546](https://github.com/rshade/finfocus/issues/546))
+        ([#546](https://github.com/rshade/finfocus/issues/546)) [M]
 - [ ] **Cost Time Machine** *(depends on #548)*
   - [ ] Phase 1 — MVP: `cost history collect` + `view --plain` with
         asciigraph and bbolt storage
-        ([#549](https://github.com/rshade/finfocus/issues/549))
+        ([#549](https://github.com/rshade/finfocus/issues/549)) [L]
   - [ ] Phase 2 — Interactive TUI: ntcharts TimeSeriesLineChart with
         pan/zoom, provider split, budget overlay
-        ([#550](https://github.com/rshade/finfocus/issues/550))
+        ([#550](https://github.com/rshade/finfocus/issues/550)) [L]
   - [ ] Phase 3 — Export & Sparklines: JSON/CSV/NDJSON export + inline
         sparkline indicators
-        ([#551](https://github.com/rshade/finfocus/issues/551))
+        ([#551](https://github.com/rshade/finfocus/issues/551)) [M]
   - [ ] Cost history diff: resource-level change attribution
-        ([#554](https://github.com/rshade/finfocus/issues/554))
+        ([#554](https://github.com/rshade/finfocus/issues/554)) [L]
   - [ ] Prune & retention policy
-        ([#555](https://github.com/rshade/finfocus/issues/555))
+        ([#555](https://github.com/rshade/finfocus/issues/555)) [M]
   - [ ] Mixed-currency snapshot handling
-        ([#556](https://github.com/rshade/finfocus/issues/556))
+        ([#556](https://github.com/rshade/finfocus/issues/556)) [M]
   - [ ] CI/CD automation recipes (documentation)
-        ([#553](https://github.com/rshade/finfocus/issues/553))
+        ([#553](https://github.com/rshade/finfocus/issues/553)) [S]
 - [ ] **Bubble Tea v2 Upgrade**
   - [ ] Upgrade to Bubble Tea v2, Lip Gloss v2, Bubbles v2 (after stable
         release)
-        ([#552](https://github.com/rshade/finfocus/issues/552))
+        ([#552](https://github.com/rshade/finfocus/issues/552)) [L]
   - *Blocked: Bubble Tea v2 must exit release candidate status*
 - [ ] **Cache Architecture Improvements**
   - [ ] Add optional LRU in-memory cache layer to complement BoltStore
-        ([#495](https://github.com/rshade/finfocus/issues/495))
-- [ ] TUI Lazy Loading & Error Recovery (#483) *Deferred from TUI Phase 7*
-- [ ] Plugin integrity verification strategy (#164)
-- [ ] Accessibility options (--no-color, --plain, high contrast) (#224)
-- [ ] Configuration validation with helpful error messages (#223)
+        ([#495](https://github.com/rshade/finfocus/issues/495)) [M]
+- [ ] TUI Lazy Loading & Error Recovery (#483) [L] *Deferred from TUI Phase 7*
+- [ ] Plugin integrity verification strategy (#164) [M]
+- [ ] Accessibility options (--no-color, --plain, high contrast) (#224) [M]
+- [ ] Configuration validation with helpful error messages (#223) [M]
 - [ ] **Plugin Generator Enhancements** *(Deprioritized — solo plugin dev)*
-  - [ ] Update Plugin Generator Templates for spec v0.5.x (#248)
-  - [ ] Generate Docker support files (#456)
-  - [ ] Generate documentation templates (#457)
-  - [ ] Add GetPluginInfo and Supports to calculator template (#458)
-  - [ ] Add health endpoint to generated main.go (#459)
-  - [ ] Enhanced Makefile template with new targets (#460)
-  - [ ] Add new CLI flags for generation control (#461)
-  - [ ] Generate standardized GitHub workflow files (#462)
-  - [ ] Generate .golangci-lint.yml configuration (#493)
+  - [ ] Update Plugin Generator Templates for spec v0.5.x (#248) [M]
+  - [ ] Generate Docker support files (#456) [S]
+  - [ ] Generate documentation templates (#457) [S]
+  - [ ] Add GetPluginInfo and Supports to calculator template (#458) [S]
+  - [ ] Add health endpoint to generated main.go (#459) [S]
+  - [ ] Enhanced Makefile template with new targets (#460) [S]
+  - [ ] Add new CLI flags for generation control (#461) [S]
+  - [ ] Generate standardized GitHub workflow files (#462) [S]
+  - [ ] Generate .golangci-lint.yml configuration (#493) [S]
 - [ ] Use registry-based plugin install for cross-repo integration tests
-      ([#517](https://github.com/rshade/finfocus/issues/517))
-- [ ] Plugin developer upgrade command for SDK migrations (#270) — *Research*
+      ([#517](https://github.com/rshade/finfocus/issues/517)) [M]
+- [ ] Plugin developer upgrade command for SDK migrations (#270) [L] — *Research*
 - [ ] **Dependency Visualization ("Blast Radius")**
-      ([#366](https://github.com/rshade/finfocus/issues/366))
+      ([#366](https://github.com/rshade/finfocus/issues/366)) [L]
   - [ ] TUI: Interactive Dependency Tree view (consuming Lineage Metadata)
   - *Cross-Repo:* Consumes `CostAllocationLineage`/`ParentResourceID` from
     [finfocus-spec](https://github.com/rshade/finfocus-spec)
 - [ ] **Spot Market Advisor**
-      ([#367](https://github.com/rshade/finfocus/issues/367))
+      ([#367](https://github.com/rshade/finfocus/issues/367)) [L]
   - [ ] TUI: Highlight Spot savings in Cyan; show Risk Icon
   - [ ] Display "Savings vs On-Demand" percentage
   - *Cross-Repo:* Requires `PricingTier`/`SpotRisk` enums in
@@ -170,7 +159,7 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 - [ ] **Carbon Footprint Estimation**
   - [ ] Carbon footprint estimation plugin using Cloud Carbon Footprint
         methodology
-        ([#688](https://github.com/rshade/finfocus/issues/688))
+        ([#688](https://github.com/rshade/finfocus/issues/688)) [L]
 - [ ] **Mixed-Currency Aggregation Strategy (MCP Alignment)**
   - *Objective*: Implement core-level grouping for multi-currency stacks to
     support the [finfocus-mcp Mixed-Currency
@@ -193,29 +182,29 @@ continues with TUI quality fixes and the remaining performance pipeline.*
     correctly in a GitHub comment using only data from the `CostResult` array.
 - [ ] **Cost Diff View**
   - [ ] Add cost diff view to `cost projected` command
-        ([#576](https://github.com/rshade/finfocus/issues/576))
+        ([#576](https://github.com/rshade/finfocus/issues/576)) [M]
 - [ ] **Overview Command Enhancements** *(follow-ups from #578)*
   - [ ] Add `--output json` support to `finfocus overview`
-        ([#579](https://github.com/rshade/finfocus/issues/579))
+        ([#579](https://github.com/rshade/finfocus/issues/579)) [M]
   - [ ] Add `--force-color` and `--no-color` flags to overview command
-        ([#641](https://github.com/rshade/finfocus/issues/641))
+        ([#641](https://github.com/rshade/finfocus/issues/641)) [S]
   - [ ] Interactive pre-flight confirmation prompt for overview command
-        ([#642](https://github.com/rshade/finfocus/issues/642))
+        ([#642](https://github.com/rshade/finfocus/issues/642)) [S]
   - [ ] Warning column and `OverviewWarning` type
-        ([#643](https://github.com/rshade/finfocus/issues/643))
+        ([#643](https://github.com/rshade/finfocus/issues/643)) [M]
   - [ ] Short flags (`-s`, `-f`, `-a`) for overview command
-        ([#644](https://github.com/rshade/finfocus/issues/644))
+        ([#644](https://github.com/rshade/finfocus/issues/644)) [S]
   - [ ] Test coverage for overview enrichment and CLI to 80%+
-        ([#645](https://github.com/rshade/finfocus/issues/645))
+        ([#645](https://github.com/rshade/finfocus/issues/645)) [L]
   - [ ] Overview command documentation with screenshots
-        ([#646](https://github.com/rshade/finfocus/issues/646))
+        ([#646](https://github.com/rshade/finfocus/issues/646)) [M]
 - [ ] **Config Refactoring**
   - [ ] Thread budget flag overrides explicitly instead of mutating global
         config singleton
-        ([#808](https://github.com/rshade/finfocus/issues/808))
+        ([#808](https://github.com/rshade/finfocus/issues/808)) [M]
 - [ ] **Platform Reliability**
   - [ ] Reimplement plugin installer lock for Windows reliability
-        ([#573](https://github.com/rshade/finfocus/issues/573))
+        ([#573](https://github.com/rshade/finfocus/issues/573)) [M]
 - [ ] **Stateless Cost-Policy Linting**
   - *Objective*: Prevent accidental cost overruns by flagging resources that
     exceed organizational informational thresholds.
@@ -231,6 +220,19 @@ continues with TUI quality fixes and the remaining performance pipeline.*
 
 ### 2026-Q1
 
+- [x] **Analyzer Quality Fixes** *(Completed 2026-02-27)*
+  - [x] Eliminate duplicate `ResolvePolicyPackDir` call in `RunChecks`
+        ([#822](https://github.com/rshade/finfocus/issues/822))
+  - [x] AnalyzeStack stack summary always shows $0.00 (0 resources analyzed)
+        ([#746](https://github.com/rshade/finfocus/issues/746))
+  - [x] `--force` reinstall does not sync policy pack binary, leaving it stale
+        ([#754](https://github.com/rshade/finfocus/issues/754))
+  - [x] `analyzer install` should setup policy pack directory for `--policy-pack` workflow
+        ([#755](https://github.com/rshade/finfocus/issues/755))
+  - [x] `analyzer install` should print PATH setup instructions post-install
+        ([#756](https://github.com/rshade/finfocus/issues/756))
+  - [x] Add `finfocus analyzer check` command for setup verification
+        ([#757](https://github.com/rshade/finfocus/issues/757))
 - [x] `compact()` leaves store unusable if reopen fails after rename
       ([#681](https://github.com/rshade/finfocus/issues/681))
 - [x] CLI tests leak real `~/.finfocus` config causing JSON parse failures
