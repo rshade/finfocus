@@ -69,7 +69,7 @@ jobs:
           gocover-cobertura < coverage.out > coverage.xml
 
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: |
@@ -482,7 +482,7 @@ jobs:
           eval go build "${LDFLAGS}" -o "dist/${RECORDER_NAME}-${GOOS}-${GOARCH}" ./plugins/recorder/cmd
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: finfocus-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/finfocus*

@@ -106,7 +106,7 @@ jobs:
 
       - name: Upload test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-results
           path: |
@@ -159,7 +159,7 @@ jobs:
 
       - name: Upload E2E test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: e2e-test-results
           path: |
@@ -211,7 +211,7 @@ jobs:
 
       - name: Upload Analyzer E2E test results
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: analyzer-e2e-test-results
           path: |
@@ -269,7 +269,7 @@ jobs:
           key: fuzz-corpus-deep-${{ runner.os }}-${{ github.sha }}
 
       - name: Upload fuzz corpus artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         if: always()
         with:
           name: fuzz-corpus-${{ github.run_id }}
@@ -356,7 +356,7 @@ jobs:
           go test -bench=. -benchmem -benchtime=3s ./test/benchmarks/... 2>&1 | tee benchmark-results.txt
 
       - name: Upload benchmark results
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: benchmark-results-${{ github.run_id }}
           path: benchmark-results.txt
