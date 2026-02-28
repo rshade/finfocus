@@ -267,6 +267,25 @@ func TestNewOverviewCmd_YesShortFlag(t *testing.T) {
 	assert.Equal(t, "y", yesFlag.Shorthand)
 }
 
+func TestNewOverviewCmd_ShortFlags(t *testing.T) {
+	cmd := cli.NewOverviewCmd()
+
+	tests := []struct {
+		long  string
+		short string
+	}{
+		{"stack", "s"},
+		{"filter", "f"},
+		{"adapter", "a"},
+	}
+
+	for _, tt := range tests {
+		flag := cmd.Flags().Lookup(tt.long)
+		require.NotNil(t, flag, "--%s flag should be registered", tt.long)
+		assert.Equal(t, tt.short, flag.Shorthand, "--%s should have short flag -%s", tt.long, tt.short)
+	}
+}
+
 // T013: Budget flag registration and behavior on overview command
 // ---------------------------------------------------------------------------
 
