@@ -307,7 +307,7 @@ func newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "config", Short: "Configuration management commands"}
 	cmd.AddCommand(
 		NewConfigInitCmd(), NewConfigSetCmd(), NewConfigGetCmd(),
-		NewConfigListCmd(), NewConfigValidateCmd(),
+		NewConfigListCmd(), NewConfigValidateCmd(), NewConfigRoutesCmd(),
 	)
 	return cmd
 }

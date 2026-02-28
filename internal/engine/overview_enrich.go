@@ -237,33 +237,32 @@ func enrichRecommendations(ctx context.Context, row *OverviewRow, eng overviewEn
 // ensures correct drift for historical queries rather than always using the current date.
 //
 // When row.CreatedAt is non-nil and falls within the billing window (after dateRange.Start),
-// the function uses the number of days since creation as the extrapolation denominator
-// instead of the day-of-month. This prevents false-positive drift for resources created
-// mid-month that have not yet accumulated a full month of billing data.
+// the function uses days since creation as the extrapolation denominator and enforces a
+// minimum-data guard. This avoids treating pre-creation days as zero spend and prevents
+// false negative drift for resources created mid-month.
 func enrichCostDrift(row *OverviewRow, dateRange DateRange) {
 	refTime := dateRange.End
 	dayOfMonth := refTime.Day()
 	daysInMonth := daysInCurrentMonth(refTime)
 
-	denominator := dayOfMonth
-
-	// If the resource was created within this billing window, use days since
-	// creation as the denominator to avoid false-positive drift warnings.
+	// If the resource was created within this billing window, require at least
+	// driftMinDay days of history before attempting drift calculations.
 	if row.CreatedAt != nil && row.CreatedAt.After(dateRange.Start) && row.CreatedAt.Before(refTime) {
-		// +1 for inclusive counting: matches dayOfMonth semantics where day 1
-		// means "the current day has started (possibly partially)".
-		daysSinceCreation := int(refTime.Sub(*row.CreatedAt).Hours()/hoursPerDay) + 1
+		// Use calendar-day math (UTC midnights) to avoid DST miscounting.
+		refDate := time.Date(refTime.Year(), refTime.Month(), refTime.Day(), 0, 0, 0, 0, time.UTC)
+		createdDate := time.Date(row.CreatedAt.Year(), row.CreatedAt.Month(), row.CreatedAt.Day(), 0, 0, 0, 0, time.UTC)
+		daysSinceCreation := int(refDate.Sub(createdDate).Hours()/hoursPerDay) + 1
 		if daysSinceCreation < driftMinDay {
 			// Too few days of data since creation — suppress drift entirely.
 			return
 		}
-		denominator = daysSinceCreation
+		dayOfMonth = daysSinceCreation
 	}
 
 	drift, err := CalculateCostDrift(
 		row.ActualCost.MTDCost,
 		row.ProjectedCost.MonthlyCost,
-		denominator,
+		dayOfMonth,
 		daysInMonth,
 	)
 	if err != nil {

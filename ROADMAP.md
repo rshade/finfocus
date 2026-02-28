@@ -15,10 +15,8 @@ guardrails in `CONTEXT.md`.
 
 ## Immediate Focus (v0.3.2 - Targeted Fixes)
 
-*Scoped patch release with two targeted fixes before cutting v0.3.2.*
+*Scoped patch release targeting the remaining drift fix before cutting v0.3.2.*
 
-- [ ] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
-      ([#734](https://github.com/rshade/finfocus/issues/734)) [M]
 - [ ] False-positive drift for resources created mid-month in overview
       ([#760](https://github.com/rshade/finfocus/issues/760)) [M]
 
@@ -178,8 +176,6 @@ guardrails in `CONTEXT.md`.
         ([#642](https://github.com/rshade/finfocus/issues/642)) [S]
   - [ ] Warning column and `OverviewWarning` type
         ([#643](https://github.com/rshade/finfocus/issues/643)) [M]
-  - [ ] Short flags (`-s`, `-f`, `-a`) for overview command
-        ([#644](https://github.com/rshade/finfocus/issues/644)) [S]
   - [ ] Test coverage for overview enrichment and CLI to 80%+
         ([#645](https://github.com/rshade/finfocus/issues/645)) [L]
   - [ ] Overview command documentation with screenshots
@@ -206,6 +202,10 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
+      ([#734](https://github.com/rshade/finfocus/issues/734))
+- [x] Short flags (`-s`, `-f`, `-a`) for overview command
+      ([#644](https://github.com/rshade/finfocus/issues/644))
 - [x] **Overview TUI Quality Fixes** *(Completed 2026-02-28)*
   - [x] State guards missing for init-only TUI messages in overview model
         ([#717](https://github.com/rshade/finfocus/issues/717))
