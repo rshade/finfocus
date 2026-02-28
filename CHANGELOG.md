@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.2](https://github.com/rshade/finfocus/compare/v0.3.1...v0.3.2) (2026-02-28)
+
+
+### Added
+
+* **analyzer:** add check command, setup and stack summary ([#819](https://github.com/rshade/finfocus/issues/819)) ([353d2fa](https://github.com/rshade/finfocus/commit/353d2fa40ea0e75704dacfa5ab988dd50bc5fa86))
+* **cli:** add short flags (-s, -f, -a) to overview command ([#836](https://github.com/rshade/finfocus/issues/836)) ([486125b](https://github.com/rshade/finfocus/commit/486125b127aea628c24dc9628ac937a1abb45a96)), closes [#644](https://github.com/rshade/finfocus/issues/644)
+* **cli:** wire BoltDB cache into overview command ([#798](https://github.com/rshade/finfocus/issues/798)) ([4e75cd3](https://github.com/rshade/finfocus/commit/4e75cd3d961410cd74c2c0ab48f46204aea91cc5)), closes [#745](https://github.com/rshade/finfocus/issues/745)
+* **overview:** display budget status and health in overview command ([#806](https://github.com/rshade/finfocus/issues/806)) ([a2565f7](https://github.com/rshade/finfocus/commit/a2565f7e82d5f5539ac5bcb6a8a6508b8f00f684))
+* **overview:** state-first loading, splash screen, context-aware root ([410df5c](https://github.com/rshade/finfocus/commit/410df5ca9865234fe372b6451e839389719d923a)), closes [#728](https://github.com/rshade/finfocus/issues/728)
+* **overview:** state-first loading, splash screen, context-aware root ([#730](https://github.com/rshade/finfocus/issues/730)) ([a63ef5e](https://github.com/rshade/finfocus/commit/a63ef5e6fa3a775293bde1fb3c0c76e99ebabc74))
+* **pulumi:** recognize .tsx, .jsx, and go.work as Pulumi source files ([#799](https://github.com/rshade/finfocus/issues/799)) ([4917712](https://github.com/rshade/finfocus/commit/49177128bb6c8e143c56afd140c14f04980c355a)), closes [#787](https://github.com/rshade/finfocus/issues/787)
+* **tui:** make table separator line extend to terminal width ([#828](https://github.com/rshade/finfocus/issues/828)) ([cd1fa7c](https://github.com/rshade/finfocus/commit/cd1fa7c88afd81a03bca4ae81a78ad47d002ede7)), closes [#718](https://github.com/rshade/finfocus/issues/718)
+* **tui:** use lipgloss styles in renderInitializingView ([#729](https://github.com/rshade/finfocus/issues/729)) ([930e53f](https://github.com/rshade/finfocus/commit/930e53f8d3844e50593758b7d4691faea434f3ce)), closes [#719](https://github.com/rshade/finfocus/issues/719)
+
+
+### Fixed
+
+* **analyzer:** eliminate duplicate ResolvePolicyPackDir call in RunChecks ([#823](https://github.com/rshade/finfocus/issues/823)) ([a12cb8a](https://github.com/rshade/finfocus/commit/a12cb8accbf72ab25a3e39d6feea0c13c2d6354d)), closes [#822](https://github.com/rshade/finfocus/issues/822)
+* batch bug fixes for [#723](https://github.com/rshade/finfocus/issues/723), [#747](https://github.com/rshade/finfocus/issues/747), [#748](https://github.com/rshade/finfocus/issues/748), [#749](https://github.com/rshade/finfocus/issues/749), [#750](https://github.com/rshade/finfocus/issues/750), [#751](https://github.com/rshade/finfocus/issues/751), [#752](https://github.com/rshade/finfocus/issues/752), [#753](https://github.com/rshade/finfocus/issues/753) ([#792](https://github.com/rshade/finfocus/issues/792)) ([e62b00f](https://github.com/rshade/finfocus/commit/e62b00fd4f60409df173750911f731158b48bfdb))
+* **cli:** isolate CLI tests from real ~/.finfocus config and plugins ([#816](https://github.com/rshade/finfocus/issues/816)) ([d04da71](https://github.com/rshade/finfocus/commit/d04da71a56317e917c493656e82712395ebdf3c0)), closes [#809](https://github.com/rshade/finfocus/issues/809)
+* **cli:** thread passphrase via subprocess env, not process-wide os.Setenv ([#770](https://github.com/rshade/finfocus/issues/770)) ([fb30a33](https://github.com/rshade/finfocus/commit/fb30a33d6d10c58c9ee3a9204d321f5e4810c5c0)), closes [#761](https://github.com/rshade/finfocus/issues/761) [#763](https://github.com/rshade/finfocus/issues/763) [#764](https://github.com/rshade/finfocus/issues/764)
+* **cli:** track enriched row count incrementally for accurate audit ([#830](https://github.com/rshade/finfocus/issues/830)) ([d33018b](https://github.com/rshade/finfocus/commit/d33018bcad398696b145b028fbbbe03c2bffdea6)), closes [#720](https://github.com/rshade/finfocus/issues/720)
+* **cli:** wait for enrichment goroutine before plugin cleanup in overview ([#813](https://github.com/rshade/finfocus/issues/813)) ([178d5e2](https://github.com/rshade/finfocus/commit/178d5e217fd56b06e289cb1cb96eceec82019c15)), closes [#716](https://github.com/rshade/finfocus/issues/716)
+* **deps:** update module github.com/pulumi/pulumi/sdk/v3 to v3.223.0 ([#779](https://github.com/rshade/finfocus/issues/779)) ([316a2f9](https://github.com/rshade/finfocus/commit/316a2f9faaf9a531699a35aa45a16c25d089738d))
+* disable store on compact() reopen failure to prevent panic ([#817](https://github.com/rshade/finfocus/issues/817)) ([ef86d8e](https://github.com/rshade/finfocus/commit/ef86d8e3c74e30b57796fe356da787bb1dd3c5a5))
+* **engine:** handle context.Canceled and context.DeadlineExceeded in classifyError ([#826](https://github.com/rshade/finfocus/issues/826)) ([05b30de](https://github.com/rshade/finfocus/commit/05b30dee08164cb471ce93bc65f3b22b35ee33e2)), closes [#726](https://github.com/rshade/finfocus/issues/726)
+* fixing review issues ([11bcf4f](https://github.com/rshade/finfocus/commit/11bcf4f4dcee0d400dbed290ce42c36b98883e71))
+* **logging:** add .Ctx(ctx) to log calls in changedetect.go ([#769](https://github.com/rshade/finfocus/issues/769)) ([ed39ee8](https://github.com/rshade/finfocus/commit/ed39ee87c6d9dc337c5ce1a62412893b8ad83023)), closes [#765](https://github.com/rshade/finfocus/issues/765)
+* **overview:** correct drift extrapolation for mid-month resources ([#832](https://github.com/rshade/finfocus/issues/832)) ([fcd5530](https://github.com/rshade/finfocus/commit/fcd55307ac66451dd55948b217e8b1937186e5e7)), closes [#760](https://github.com/rshade/finfocus/issues/760)
+* **recorder:** implement GetPricingSpec and EstimateCost methods ([#834](https://github.com/rshade/finfocus/issues/834)) ([1d0b889](https://github.com/rshade/finfocus/commit/1d0b889ac9559cf3848b342a741d1d31e6a90cde)), closes [#734](https://github.com/rshade/finfocus/issues/734)
+* respect --yes flag when change detection fails in overview TUI ([#803](https://github.com/rshade/finfocus/issues/803)) ([9cc333d](https://github.com/rshade/finfocus/commit/9cc333dbaef5a2a96cc253b7331493133c4198d2)), closes [#762](https://github.com/rshade/finfocus/issues/762)
+* review issues ([#767](https://github.com/rshade/finfocus/issues/767)) ([4763af2](https://github.com/rshade/finfocus/commit/4763af2d948d6a5bb86333b4c5d819b83832ab07))
+* **test:** remove duplicate nil-map test and grant Claude push access ([#796](https://github.com/rshade/finfocus/issues/796)) ([0adeb1c](https://github.com/rshade/finfocus/commit/0adeb1c345d40ebb44bd6f2711d0987798acc53e)), closes [#789](https://github.com/rshade/finfocus/issues/789)
+* **tui:** add state guards for init-only messages in overview model ([#829](https://github.com/rshade/finfocus/issues/829)) ([77105ac](https://github.com/rshade/finfocus/commit/77105ac026b9cfe17dab4c9a6eeb54496ab5d6b9))
+* **tui:** widen Recs column to show N(-M) dismissed format ([6262b55](https://github.com/rshade/finfocus/commit/6262b555aff81ff7f33a3725910cc6d3aa1145c5))
+* **tui:** widen Recs column to show N(-M) dismissed format ([887995b](https://github.com/rshade/finfocus/commit/887995b85824401a9c448a92a650544695f4f2a9)), closes [#766](https://github.com/rshade/finfocus/issues/766)
+* use presence-based check for FINFOCUS_HIDE_ALIAS_HINT ([#802](https://github.com/rshade/finfocus/issues/802)) ([2e45dd2](https://github.com/rshade/finfocus/commit/2e45dd2b6aab94df4554d8c22aeaf57382d88d65)), closes [#783](https://github.com/rshade/finfocus/issues/783)
+
+
+### Performance
+
+* **engine:** parallelize per-row enrichment sub-calls ([#727](https://github.com/rshade/finfocus/issues/727)) ([2acbefb](https://github.com/rshade/finfocus/commit/2acbefb55eebdf1a0e03f1bc440628022c6f73c1))
+
+
+### Changed
+
+* **cli:** extract progress constant and add goroutine comment in overview ([#831](https://github.com/rshade/finfocus/issues/831)) ([276b550](https://github.com/rshade/finfocus/commit/276b550e235b0bdd36765aa80dd20061e10725f0)), closes [#721](https://github.com/rshade/finfocus/issues/721)
+
+
+### Documentation
+
+* fix incorrect analyzers: in Pulumi.yaml claim in architecture doc ([#804](https://github.com/rshade/finfocus/issues/804)) ([7c75efc](https://github.com/rshade/finfocus/commit/7c75efcfd6b660cd41943e1535b3006f4ef04207)), closes [#758](https://github.com/rshade/finfocus/issues/758)
+* **routing:** document routing limits in analyzer/policy-pack mode ([#771](https://github.com/rshade/finfocus/issues/771)) ([2cc58ce](https://github.com/rshade/finfocus/commit/2cc58ce59e8a3170c9fb1ad381bb2348c684fcd6)), closes [#759](https://github.com/rshade/finfocus/issues/759)
+* v0.3.0 documentation audit fixes ([#711](https://github.com/rshade/finfocus/issues/711)) ([d4a71dc](https://github.com/rshade/finfocus/commit/d4a71dc5cfcd1041e7db1f9a842cb3e56f28f57d))
+
 ## [0.3.1](https://github.com/rshade/finfocus/compare/v0.3.0...v0.3.1) (2026-02-18)
 
 
