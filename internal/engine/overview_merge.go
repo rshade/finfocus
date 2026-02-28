@@ -48,7 +48,9 @@ func MapOperationToStatus(op string) ResourceStatus {
 }
 
 // stateResourceToRow converts a StateResource to a skeleton OverviewRow with
-// StatusActive. Only call this for custom resources (res.Custom == true).
+// stateResourceToRow converts a StateResource into an OverviewRow representing the current state.
+// It sets the row's Status to StatusActive and copies URN, Type, ResourceID, Properties, and CreatedAt.
+// Only use this for custom resources (res.Custom == true).
 func stateResourceToRow(res StateResource) OverviewRow {
 	return OverviewRow{
 		URN:        res.URN,
@@ -56,6 +58,7 @@ func stateResourceToRow(res StateResource) OverviewRow {
 		ResourceID: res.ID,
 		Status:     StatusActive,
 		Properties: res.Properties,
+		CreatedAt:  res.CreatedAt,
 	}
 }
 
