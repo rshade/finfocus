@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -250,7 +250,7 @@ func TestRecommendationsViewModel_LoadingView(t *testing.T) {
 			return nil, nil
 		})
 
-		output := model.View()
+		output := model.View().Content
 		// RenderLoading includes the spinner and message
 		assert.Contains(t, output, "Querying cost data from plugins...")
 	})
@@ -266,7 +266,7 @@ func TestRecommendationsViewModel_LoadingView(t *testing.T) {
 		updatedModel, _ := model.Update(loadingMsg)
 		m := updatedModel.(*RecommendationsViewModel)
 
-		output := m.View()
+		output := m.View().Content
 		assert.Contains(t, output, "Error:")
 	})
 
@@ -275,7 +275,7 @@ func TestRecommendationsViewModel_LoadingView(t *testing.T) {
 		model.state = ViewStateQuitting
 
 		output := model.View()
-		assert.Empty(t, output)
+		assert.Empty(t, output.Content)
 	})
 }
 
@@ -459,7 +459,7 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		assert.Equal(t, ViewStateList, model.state)
 
 		// Simulate Enter key
-		msg := tea.KeyMsg{Type: tea.KeyEnter}
+		msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 		updatedModel, _ := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
@@ -473,7 +473,7 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		// Selection is managed by VirtualListModel
 
 		// Simulate Escape key
-		msg := tea.KeyMsg{Type: tea.KeyEscape}
+		msg := tea.KeyPressMsg{Code: tea.KeyEscape}
 		updatedModel, _ := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
@@ -484,7 +484,7 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		model := NewRecommendationsViewModel(recs)
 
 		// Simulate q key
-		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+		msg := tea.KeyPressMsg{Text: "q"}
 		updatedModel, cmd := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
@@ -497,7 +497,7 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		model := NewRecommendationsViewModel(recs)
 
 		// Simulate Ctrl+C
-		msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+		msg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 		updatedModel, cmd := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
@@ -510,7 +510,7 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		model.state = ViewStateDetail
 
 		// Simulate Ctrl+C
-		msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+		msg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 		updatedModel, cmd := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
@@ -523,7 +523,7 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		assert.False(t, model.showFilter)
 
 		// Simulate / key
-		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+		msg := tea.KeyPressMsg{Text: "/"}
 		updatedModel, _ := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
@@ -535,7 +535,7 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		initialSort := model.sortBy
 
 		// Simulate s key
-		msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
+		msg := tea.KeyPressMsg{Text: "s"}
 		updatedModel, _ := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
@@ -548,7 +548,7 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		model.applyFilter()
 
 		// Simulate Escape key to clear filter
-		msg := tea.KeyMsg{Type: tea.KeyEscape}
+		msg := tea.KeyPressMsg{Code: tea.KeyEscape}
 		updatedModel, _ := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
@@ -588,7 +588,7 @@ func TestRecommendationsViewModel_ViewStates(t *testing.T) {
 			model.virtualList.SetSelected(0)
 		}
 
-		output := model.View()
+		output := model.View().Content
 		assert.Contains(t, output, "r1")
 		assert.Contains(t, output, "RIGHTSIZE")
 	})
@@ -600,7 +600,7 @@ func TestRecommendationsViewModel_ViewStates(t *testing.T) {
 			model.virtualList.SetSelected(999) // Out of bounds (will be capped by VirtualListModel)
 		}
 
-		output := model.View()
+		output := model.View().Content
 		// VirtualListModel caps selection to valid range, so we'll still see valid data
 		assert.Contains(t, output, "r1")
 	})
@@ -652,7 +652,7 @@ func TestRecommendationsViewModel_EmptyRecommendations(t *testing.T) {
 	t.Run("enter on empty list does nothing", func(t *testing.T) {
 		model := NewRecommendationsViewModel([]engine.Recommendation{})
 
-		msg := tea.KeyMsg{Type: tea.KeyEnter}
+		msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 		updatedModel, _ := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
@@ -666,7 +666,7 @@ func TestRecommendationsViewModel_EmptyRecommendations(t *testing.T) {
 		})
 		model.showFilter = true
 
-		output := model.View()
+		output := model.View().Content
 		assert.Contains(t, output, "Filter:")
 	})
 }

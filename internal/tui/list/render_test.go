@@ -27,7 +27,7 @@ func TestVirtualListModel_ViewRendersOnlyVisibleRows(t *testing.T) {
 	// Viewport height of 20 means only ~20 rows should be rendered
 	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
-	view := model.View()
+	view := model.View().Content
 
 	// Count rendered lines
 	lines := strings.Split(view, "\n")
@@ -57,13 +57,13 @@ func TestVirtualListModel_ViewUpdatesWithScroll(t *testing.T) {
 	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	// Initial view
-	viewBefore := model.View()
+	viewBefore := model.View().Content
 
 	// Scroll to middle
 	model.SetSelected(50)
 
 	// View should change
-	viewAfter := model.View()
+	viewAfter := model.View().Content
 
 	assert.NotEqual(t, viewBefore, viewAfter, "View should change after scrolling")
 }
@@ -85,7 +85,7 @@ func TestVirtualListModel_ViewWithBuffer(t *testing.T) {
 	// Select item in middle
 	model.SetSelected(50)
 
-	view := model.View()
+	view := model.View().Content
 
 	// Should render more than just the 10 visible items (includes buffer)
 	lines := strings.Split(view, "\n")
@@ -117,7 +117,7 @@ func TestVirtualListModel_ViewSelectedMarker(t *testing.T) {
 	// Select second item
 	model.SetSelected(1)
 
-	view := model.View()
+	view := model.View().Content
 
 	// View should contain the selected marker for "banana"
 	assert.Contains(t, view, "> banana", "Selected item should have marker")
@@ -133,7 +133,7 @@ func TestVirtualListModel_ViewEmptyList(t *testing.T) {
 
 	model := listview.NewVirtualListModel([]string{}, 20, 80, renderFunc)
 
-	view := model.View()
+	view := model.View().Content
 
 	// Empty view should return empty string or minimal content
 	assert.Equal(t, "", view, "Empty list should produce empty view")
@@ -154,7 +154,7 @@ func TestVirtualListModel_ViewPerformance(t *testing.T) {
 	model := listview.NewVirtualListModel(items, 20, 80, renderFunc)
 
 	// Render view (should be fast since it only renders visible rows)
-	view := model.View()
+	view := model.View().Content
 
 	// Count rendered lines
 	lines := strings.Split(view, "\n")
@@ -218,7 +218,7 @@ func TestVirtualListModel_ViewBoundaryConditions(t *testing.T) {
 			model.SetSelected(tt.selected)
 
 			// Should not panic
-			view := model.View()
+			view := model.View().Content
 
 			// Should produce some output
 			assert.NotEmpty(t, view, "Should produce non-empty view")

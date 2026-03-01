@@ -2,12 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"image/color"
 	"io"
 	"slices"
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
 
@@ -669,7 +670,7 @@ func healthStatusLabel(health pbc.BudgetHealthStatus) string {
 }
 
 // healthStatusColor returns the appropriate color for a health status.
-func healthStatusColor(health pbc.BudgetHealthStatus) lipgloss.Color {
+func healthStatusColor(health pbc.BudgetHealthStatus) color.Color {
 	switch health {
 	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
 		return progressOKColor()

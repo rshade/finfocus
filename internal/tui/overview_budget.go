@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 

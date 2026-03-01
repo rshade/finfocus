@@ -3,7 +3,7 @@ package listview_test
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -110,7 +110,7 @@ func TestVirtualListModel_ScrollBoundaries(t *testing.T) {
 		{
 			name: "down from start",
 			action: func() tea.Msg {
-				return tea.KeyMsg{Type: tea.KeyDown}
+				return tea.KeyPressMsg{Code: tea.KeyDown}
 			},
 			expectSelected: 1,
 			expectInBounds: true,
@@ -119,7 +119,7 @@ func TestVirtualListModel_ScrollBoundaries(t *testing.T) {
 			name: "up at start stays at 0",
 			action: func() tea.Msg {
 				model.SetSelected(0)
-				return tea.KeyMsg{Type: tea.KeyUp}
+				return tea.KeyPressMsg{Code: tea.KeyUp}
 			},
 			expectSelected: 0,
 			expectInBounds: true,
@@ -156,43 +156,43 @@ func TestVirtualListModel_SelectionLogic(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		key           tea.KeyMsg
+		key           tea.KeyPressMsg
 		initialIndex  int
 		expectedIndex int
 	}{
 		{
 			name:          "down arrow moves forward",
-			key:           tea.KeyMsg{Type: tea.KeyDown},
+			key:           tea.KeyPressMsg{Code: tea.KeyDown},
 			initialIndex:  5,
 			expectedIndex: 6,
 		},
 		{
 			name:          "up arrow moves backward",
-			key:           tea.KeyMsg{Type: tea.KeyUp},
+			key:           tea.KeyPressMsg{Code: tea.KeyUp},
 			initialIndex:  10,
 			expectedIndex: 9,
 		},
 		{
 			name:          "j key moves forward",
-			key:           tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}},
+			key:           tea.KeyPressMsg{Text: "j"},
 			initialIndex:  5,
 			expectedIndex: 6,
 		},
 		{
 			name:          "k key moves backward",
-			key:           tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}},
+			key:           tea.KeyPressMsg{Text: "k"},
 			initialIndex:  10,
 			expectedIndex: 9,
 		},
 		{
 			name:          "home key goes to start",
-			key:           tea.KeyMsg{Type: tea.KeyHome},
+			key:           tea.KeyPressMsg{Code: tea.KeyHome},
 			initialIndex:  25,
 			expectedIndex: 0,
 		},
 		{
 			name:          "end key goes to last",
-			key:           tea.KeyMsg{Type: tea.KeyEnd},
+			key:           tea.KeyPressMsg{Code: tea.KeyEnd},
 			initialIndex:  5,
 			expectedIndex: 49,
 		},
@@ -222,31 +222,31 @@ func TestVirtualListModel_PageUpDown(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		key           tea.KeyMsg
+		key           tea.KeyPressMsg
 		initialIndex  int
 		expectedIndex int
 	}{
 		{
 			name:          "page down moves viewport height",
-			key:           tea.KeyMsg{Type: tea.KeyPgDown},
+			key:           tea.KeyPressMsg{Code: tea.KeyPgDown},
 			initialIndex:  10,
 			expectedIndex: 30, // +20 (viewport height)
 		},
 		{
 			name:          "page up moves viewport height",
-			key:           tea.KeyMsg{Type: tea.KeyPgUp},
+			key:           tea.KeyPressMsg{Code: tea.KeyPgUp},
 			initialIndex:  50,
 			expectedIndex: 30, // -20 (viewport height)
 		},
 		{
 			name:          "page down at end caps to last",
-			key:           tea.KeyMsg{Type: tea.KeyPgDown},
+			key:           tea.KeyPressMsg{Code: tea.KeyPgDown},
 			initialIndex:  90,
 			expectedIndex: 99, // Capped to last item
 		},
 		{
 			name:          "page up at start caps to first",
-			key:           tea.KeyMsg{Type: tea.KeyPgUp},
+			key:           tea.KeyPressMsg{Code: tea.KeyPgUp},
 			initialIndex:  5,
 			expectedIndex: 0, // Capped to first item
 		},
@@ -296,10 +296,10 @@ func TestVirtualListModel_EmptyList(t *testing.T) {
 	assert.Equal(t, 0, model.VisibleTo())
 
 	// Verify navigation doesn't panic with empty list
-	_, cmd := model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	_, cmd := model.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	require.Nil(t, cmd)
 
-	_, cmd = model.Update(tea.KeyMsg{Type: tea.KeyUp})
+	_, cmd = model.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 	require.Nil(t, cmd)
 }
 
@@ -315,10 +315,10 @@ func TestVirtualListModel_SingleItem(t *testing.T) {
 	assert.Equal(t, 0, model.Selected())
 
 	// Navigation should keep selection at 0
-	_, _ = model.Update(tea.KeyMsg{Type: tea.KeyDown})
+	_, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 	assert.Equal(t, 0, model.Selected())
 
-	_, _ = model.Update(tea.KeyMsg{Type: tea.KeyUp})
+	_, _ = model.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 	assert.Equal(t, 0, model.Selected())
 }
 

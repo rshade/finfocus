@@ -1,9 +1,9 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
 // LoadingState tracks the progress of plugin queries.
@@ -15,11 +15,11 @@ type LoadingState struct {
 
 // NewLoadingState creates a new loading state with spinner.
 func NewLoadingState() *LoadingState {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(ColorSpinner)
 	return &LoadingState{
-		spinner: s,
+		spinner: spinner.New(
+			spinner.WithSpinner(spinner.Dot),
+			spinner.WithStyle(lipgloss.NewStyle().Foreground(ColorSpinner)),
+		),
 		message: "Querying cost data from plugins...",
 	}
 }

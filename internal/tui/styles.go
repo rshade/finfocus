@@ -1,6 +1,6 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
 
 // Text styles provide consistent formatting for different text elements.
 // These styles automatically adapt to terminal capabilities and NO_COLOR settings.

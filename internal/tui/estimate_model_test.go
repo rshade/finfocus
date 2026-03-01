@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -134,7 +134,7 @@ func TestEstimateModel_Update(t *testing.T) {
 		}
 
 		model := NewEstimateModel(ctx, resource, nil)
-		newModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}})
+		newModel, cmd := model.Update(tea.KeyPressMsg{Text: "q"})
 
 		updatedModel := newModel.(*EstimateModel)
 		assert.Equal(t, EstimateStateQuitting, updatedModel.state)
@@ -153,7 +153,7 @@ func TestEstimateModel_Update(t *testing.T) {
 		}
 
 		model := NewEstimateModel(ctx, resource, nil)
-		newModel, cmd := model.Update(tea.KeyMsg{Type: tea.KeyCtrlC})
+		newModel, cmd := model.Update(tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl})
 
 		updatedModel := newModel.(*EstimateModel)
 		assert.Equal(t, EstimateStateQuitting, updatedModel.state)
@@ -176,12 +176,12 @@ func TestEstimateModel_Update(t *testing.T) {
 		assert.Equal(t, 0, model.focusedRow)
 
 		// Move down
-		newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyDown})
+		newModel, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyDown})
 		updatedModel := newModel.(*EstimateModel)
 		assert.Equal(t, 1, updatedModel.focusedRow)
 
 		// Move up
-		newModel, _ = updatedModel.Update(tea.KeyMsg{Type: tea.KeyUp})
+		newModel, _ = updatedModel.Update(tea.KeyPressMsg{Code: tea.KeyUp})
 		updatedModel = newModel.(*EstimateModel)
 		assert.Equal(t, 0, updatedModel.focusedRow)
 	})
@@ -200,7 +200,7 @@ func TestEstimateModel_Update(t *testing.T) {
 		model := NewEstimateModel(ctx, resource, nil)
 		assert.False(t, model.editMode)
 
-		newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		newModel, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		updatedModel := newModel.(*EstimateModel)
 		assert.True(t, updatedModel.editMode)
 	})
@@ -220,7 +220,7 @@ func TestEstimateModel_Update(t *testing.T) {
 		model.editMode = true
 		model.editBuffer = "m5.large"
 
-		newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyEsc})
+		newModel, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
 		updatedModel := newModel.(*EstimateModel)
 		assert.False(t, updatedModel.editMode)
 		assert.Empty(t, updatedModel.editBuffer)
@@ -260,7 +260,7 @@ func TestEstimateModel_View(t *testing.T) {
 		}
 
 		model := NewEstimateModel(ctx, resource, nil)
-		view := model.View()
+		view := model.View().Content
 
 		assert.Contains(t, view, "What-If")
 		assert.Contains(t, view, "ec2:Instance")
@@ -279,7 +279,7 @@ func TestEstimateModel_View(t *testing.T) {
 
 		model := NewEstimateModel(ctx, resource, nil)
 		model.loading = true
-		view := model.View()
+		view := model.View().Content
 
 		assert.Contains(t, view, "Calculating")
 	})
@@ -298,7 +298,7 @@ func TestEstimateModel_View(t *testing.T) {
 		model := NewEstimateModel(ctx, resource, nil)
 		model.state = EstimateStateError
 		model.err = assert.AnError
-		view := model.View()
+		view := model.View().Content
 
 		assert.Contains(t, view, "Error")
 	})
@@ -318,7 +318,7 @@ func TestEstimateModel_View(t *testing.T) {
 		model.state = EstimateStateQuitting
 		view := model.View()
 
-		assert.Empty(t, view)
+		assert.Empty(t, view.Content)
 	})
 }
 
@@ -340,7 +340,7 @@ func TestEstimateModel_PropertyEditing(t *testing.T) {
 		model.editMode = true
 		model.editBuffer = "m5.large"
 
-		newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyEnter})
+		newModel, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
 		updatedModel := newModel.(*EstimateModel)
 
 		assert.False(t, updatedModel.editMode)
@@ -363,12 +363,12 @@ func TestEstimateModel_PropertyEditing(t *testing.T) {
 		model.editBuffer = ""
 
 		// Type 'm'
-		newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'m'}})
+		newModel, _ := model.Update(tea.KeyPressMsg{Text: "m"})
 		updatedModel := newModel.(*EstimateModel)
 		assert.Equal(t, "m", updatedModel.editBuffer)
 
 		// Type '5'
-		newModel, _ = updatedModel.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'5'}})
+		newModel, _ = updatedModel.Update(tea.KeyPressMsg{Text: "5"})
 		updatedModel = newModel.(*EstimateModel)
 		assert.Equal(t, "m5", updatedModel.editBuffer)
 	})
@@ -388,7 +388,7 @@ func TestEstimateModel_PropertyEditing(t *testing.T) {
 		model.editMode = true
 		model.editBuffer = "m5.large"
 
-		newModel, _ := model.Update(tea.KeyMsg{Type: tea.KeyBackspace})
+		newModel, _ := model.Update(tea.KeyPressMsg{Code: tea.KeyBackspace})
 		updatedModel := newModel.(*EstimateModel)
 		assert.Equal(t, "m5.larg", updatedModel.editBuffer)
 	})

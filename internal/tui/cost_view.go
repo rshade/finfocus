@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/table"
+	"charm.land/bubbles/v2/table"
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/greenops"

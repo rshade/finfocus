@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -821,7 +821,7 @@ func runInteractiveOverviewWithInit(
 	model, _ := tui.NewOverviewModel(ctx, nil, 0, passphraseChan, nil)
 
 	// Create Bubble Tea program
-	p := tea.NewProgram(model, tea.WithAltScreen())
+	p := tea.NewProgram(model)
 
 	// Derived context so the background goroutine stops when the TUI exits.
 	enrichCtx, enrichCancel := context.WithCancel(ctx)

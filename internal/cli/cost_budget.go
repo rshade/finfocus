@@ -3,11 +3,12 @@ package cli
 import (
 	"context"
 	"fmt"
+	"image/color"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 	"golang.org/x/text/language"
@@ -37,29 +38,29 @@ const (
 	thresholdPercent80  = 80
 )
 
-// boxBorderColor returns the lipgloss.Color used for budget box borders.
-func boxBorderColor() lipgloss.Color { return lipgloss.Color("240") }
+// boxBorderColor returns the color used for budget box borders.
+func boxBorderColor() color.Color { return lipgloss.Color("240") }
 
-// boxTitleColor returns the Lip Gloss color used for budget box titles.
-func boxTitleColor() lipgloss.Color { return lipgloss.Color("39") }
+// boxTitleColor returns the color used for budget box titles.
+func boxTitleColor() color.Color { return lipgloss.Color("39") }
 
-// colorWarning returns the lipgloss color used for warning-level (approaching) budget states.
-func colorWarning() lipgloss.Color { return lipgloss.Color("214") }
+// colorWarning returns the color used for warning-level (approaching) budget states.
+func colorWarning() color.Color { return lipgloss.Color("214") }
 
-// colorApproaching returns the Lip Gloss color used to style alerts and progress indicators when a budget is approaching its threshold.
-func colorApproaching() lipgloss.Color { return lipgloss.Color("220") }
+// colorApproaching returns the color used to style alerts and progress indicators when a budget is approaching its threshold.
+func colorApproaching() color.Color { return lipgloss.Color("220") }
 
 // progressOKColor returns the color used for progress bars that indicate an OK (below warning) budget level.
-func progressOKColor() lipgloss.Color { return lipgloss.Color("42") }
+func progressOKColor() color.Color { return lipgloss.Color("42") }
 
-// progressWarningColor returns the lipgloss.Color used to represent a warning state in the progress bar.
+// progressWarningColor returns the color used to represent a warning state in the progress bar.
 // It is retained for completeness and may be unused in the current presentation logic.
 //
 //nolint:unused // Retained for future use and API completeness
-func progressWarningColor() lipgloss.Color { return lipgloss.Color("214") }
+func progressWarningColor() color.Color { return lipgloss.Color("214") }
 
-// progressExceededColor returns the Lip Gloss color used for progress bars and alerts when a budget has been exceeded.
-func progressExceededColor() lipgloss.Color { return lipgloss.Color("196") }
+// progressExceededColor returns the color used for progress bars and alerts when a budget has been exceeded.
+func progressExceededColor() color.Color { return lipgloss.Color("196") }
 
 // RenderBudgetStatus renders the budget status to the writer.
 // It automatically detects if the output is a TTY and renders appropriately:
@@ -260,7 +261,7 @@ func renderProgressBar(status *engine.BudgetStatus, width int) string {
 
 // determineProgressBarColor chooses a progress bar color based on the percentage of budget used.
 // It returns the exceeded color for percentages >= 100%, a warning color for percentages >= 80% and < 100%, and the OK color for percentages < 80%.
-func determineProgressBarColor(percentage float64) lipgloss.Color {
+func determineProgressBarColor(percentage float64) color.Color {
 	switch {
 	case percentage >= thresholdPercent100:
 		return progressExceededColor()

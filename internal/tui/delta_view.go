@@ -2,10 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
 )
@@ -37,25 +38,25 @@ func RenderEstimateDelta(delta float64) string {
 	rounded := math.Round(delta*centsMultiplier) / centsMultiplier
 
 	var icon, sign string
-	var color lipgloss.Color
+	var fg color.Color
 
 	switch {
 	case rounded > 0:
 		icon = IconArrowUp
 		sign = "+"
-		color = ColorWarning
+		fg = ColorWarning
 	case rounded < 0:
 		icon = IconArrowDown
 		sign = ""
-		color = ColorOK
+		fg = ColorOK
 	default:
 		icon = IconArrowRight
 		sign = ""
-		color = ColorMuted
+		fg = ColorMuted
 	}
 
 	formatted := fmt.Sprintf("$%.2f", math.Abs(rounded))
-	style := lipgloss.NewStyle().Foreground(color).Bold(true)
+	style := lipgloss.NewStyle().Foreground(fg).Bold(true)
 	return style.Render(fmt.Sprintf("%s%s %s", sign, formatted, icon))
 }
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"sort"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
 )
@@ -191,7 +191,7 @@ func (m *EstimateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case estimateRecalculateMsg:
 		return m.handleRecalculateComplete(msg)
 
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKeyMsg(msg)
 	}
 
@@ -199,25 +199,19 @@ func (m *EstimateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // handleKeyMsg processes keyboard input.
-//
-//nolint:exhaustive // Only handling relevant key types for estimate TUI navigation.
-func (m *EstimateModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m *EstimateModel) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	// Handle edit mode separately
 	if m.editMode {
 		return m.handleEditModeKey(msg)
 	}
 
-	switch msg.Type {
-	case tea.KeyCtrlC:
+	// Handle ctrl+c (no Code constant in v2, uses modifier)
+	if msg.String() == "ctrl+c" {
 		m.state = EstimateStateQuitting
 		return m, tea.Quit
+	}
 
-	case tea.KeyRunes:
-		if string(msg.Runes) == "q" {
-			m.state = EstimateStateQuitting
-			return m, tea.Quit
-		}
-
+	switch msg.Code {
 	case tea.KeyUp:
 		if m.focusedRow > 0 {
 			m.focusedRow--
@@ -237,19 +231,23 @@ func (m *EstimateModel) handleKeyMsg(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tea.KeyEsc:
+	case tea.KeyEscape:
 		// Clear any pending changes
 		return m, nil
+
+	default:
+		if msg.Text == "q" {
+			m.state = EstimateStateQuitting
+			return m, tea.Quit
+		}
 	}
 
 	return m, nil
 }
 
 // handleEditModeKey processes keyboard input while editing a property.
-//
-//nolint:exhaustive // Only handling relevant key types for text editing.
-func (m *EstimateModel) handleEditModeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	switch msg.Type {
+func (m *EstimateModel) handleEditModeKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	switch msg.Code {
 	case tea.KeyEnter:
 		// Commit the edit
 		if m.focusedRow < len(m.properties) {
@@ -263,7 +261,7 @@ func (m *EstimateModel) handleEditModeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tea.KeyEsc:
+	case tea.KeyEscape:
 		// Cancel the edit
 		m.editMode = false
 		m.editBuffer = ""
@@ -276,12 +274,12 @@ func (m *EstimateModel) handleEditModeKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
-	case tea.KeyRunes:
-		m.editBuffer += string(msg.Runes)
+	default:
+		if msg.Text != "" {
+			m.editBuffer += msg.Text
+		}
 		return m, nil
 	}
-
-	return m, nil
 }
 
 // triggerRecalculation creates a command to recalculate costs.
@@ -325,23 +323,23 @@ func (m *EstimateModel) handleRecalculateComplete(msg estimateRecalculateMsg) (t
 }
 
 // View renders the current view.
-func (m *EstimateModel) View() string {
+func (m *EstimateModel) View() tea.View {
 	switch m.state {
 	case EstimateStateQuitting:
-		return ""
+		return tea.NewView("")
 
 	case EstimateStateError:
-		return fmt.Sprintf("Error: %v\n\nPress q to quit.", m.err)
+		return tea.NewView(fmt.Sprintf("Error: %v\n\nPress q to quit.", m.err))
 
 	case EstimateStateEditing, EstimateStateCalculating:
 		// Handled below
 	}
 
 	if m.loading {
-		return RenderLoadingIndicator()
+		return tea.NewView(RenderLoadingIndicator())
 	}
 
-	return m.renderEditingView()
+	return tea.NewView(m.renderEditingView())
 }
 
 // renderEditingView renders the main editing interface.
