@@ -29,4 +29,75 @@ func TestNewTable(t *testing.T) {
 	// to determine the viewport height.
 	assert.Equal(t, height-1, tbl.Height())
 	assert.True(t, tbl.Focused())
+	// bubbles/v2 viewport requires non-zero width to render rows.
+	assert.Equal(t, 10+defaultCellPadding, tbl.Width())
+}
+
+func TestTableWidthFromColumns(t *testing.T) {
+	tests := []struct {
+		name    string
+		columns []table.Column
+		want    int
+	}{
+		{
+			name:    "single column",
+			columns: []table.Column{{Title: "A", Width: 10}},
+			want:    12, // 10 + 2 padding
+		},
+		{
+			name: "multiple columns",
+			columns: []table.Column{
+				{Title: "A", Width: 10},
+				{Title: "B", Width: 20},
+				{Title: "C", Width: 5},
+			},
+			want: 41, // (10+2) + (20+2) + (5+2)
+		},
+		{
+			name:    "empty columns",
+			columns: []table.Column{},
+			want:    0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tableWidthFromColumns(tt.columns))
+		})
+	}
+}
+
+func TestTablePaddingForColumns(t *testing.T) {
+	tests := []struct {
+		name        string
+		columnCount int
+		want        int
+	}{
+		{
+			name:        "no columns",
+			columnCount: 0,
+			want:        0,
+		},
+		{
+			name:        "single column",
+			columnCount: 1,
+			want:        defaultCellPadding,
+		},
+		{
+			name:        "multiple columns",
+			columnCount: 8,
+			want:        8 * defaultCellPadding,
+		},
+		{
+			name:        "negative count",
+			columnCount: -1,
+			want:        0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tablePaddingForColumns(tt.columnCount))
+		})
+	}
 }

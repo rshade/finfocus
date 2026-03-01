@@ -4,10 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -362,29 +365,24 @@ func TestOverviewModel_ResourceColumnWidth(t *testing.T) {
 		expected int
 	}{
 		{
-			name:     "default 80 width",
+			name:     "narrow terminal falls back to compact width",
 			width:    defaultWidth,
-			expected: minResourceColWidth,
+			expected: minCompactColWidth,
+		},
+		{
+			name:     "medium terminal 120",
+			width:    120,
+			expected: 21,
 		},
 		{
 			name:     "wide terminal 160",
 			width:    160,
-			expected: 160 - fixedColumnsTotal - borderPadding,
+			expected: 61,
 		},
 		{
-			name:     "narrow terminal clamps to minimum",
-			width:    50,
-			expected: minResourceColWidth,
-		},
-		{
-			name:     "exact breakpoint",
-			width:    fixedColumnsTotal + borderPadding + minResourceColWidth,
-			expected: minResourceColWidth,
-		},
-		{
-			name:     "one above breakpoint",
-			width:    fixedColumnsTotal + borderPadding + minResourceColWidth + 1,
-			expected: minResourceColWidth + 1,
+			name:     "very wide terminal keeps preferred minimum and adds extra",
+			width:    220,
+			expected: 121,
 		},
 	}
 
@@ -395,6 +393,214 @@ func TestOverviewModel_ResourceColumnWidth(t *testing.T) {
 			assert.Equal(t, tt.expected, model.resourceColumnWidth())
 		})
 	}
+}
+
+// TestOverviewModel_TypeColumnWidth verifies dynamic type column sizing.
+func TestOverviewModel_TypeColumnWidth(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+	}
+
+	tests := []struct {
+		name     string
+		width    int
+		expected int
+	}{
+		{
+			name:     "narrow terminal falls back to compact width",
+			width:    defaultWidth,
+			expected: minCompactColWidth,
+		},
+		{
+			name:     "medium terminal 120",
+			width:    120,
+			expected: 16,
+		},
+		{
+			name:     "wide terminal 160",
+			width:    160,
+			expected: 16,
+		},
+		{
+			name:     "very wide terminal keeps preferred minimum and adds extra",
+			width:    220,
+			expected: 16,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+			model.width = tt.width
+			assert.Equal(t, tt.expected, model.typeColumnWidth())
+		})
+	}
+}
+
+// TestOverviewModel_BuildOverviewTable_WidthBudget verifies table width
+// accounting includes default cell padding and fits the viewport when possible.
+func TestOverviewModel_BuildOverviewTable_WidthBudget(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{URN: "urn:test", Type: "aws:ec2/instance:Instance", Status: engine.StatusActive},
+	}
+
+	tests := []struct {
+		name       string
+		width      int
+		expectFits bool
+	}{
+		{
+			name:       "100 width fits",
+			width:      100,
+			expectFits: true,
+		},
+		{
+			name:       "120 width fits",
+			width:      120,
+			expectFits: true,
+		},
+		{
+			name:       "160 width fits",
+			width:      160,
+			expectFits: true,
+		},
+		{
+			name:       "very narrow width cannot fully fit fixed columns",
+			width:      80,
+			expectFits: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+			model.width = tt.width
+			tableModel := model.buildOverviewTable()
+			usableWidth := tt.width - borderPadding
+
+			if tt.expectFits {
+				assert.LessOrEqual(t, tableModel.Width(), usableWidth)
+				assert.Equal(t, usableWidth, tableModel.Width())
+			} else {
+				assert.Greater(t, tableModel.Width(), usableWidth)
+			}
+		})
+	}
+}
+
+// TestOverviewModel_BuildOverviewTable_StatusAndDelta verifies status icon
+// rendering and delta fallback formatting in table rows.
+func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
+	ctx := context.Background()
+
+	tests := []struct {
+		name      string
+		row       engine.OverviewRow
+		wantDelta string
+	}{
+		{
+			name: "delta falls back to projected minus actual",
+			row: engine.OverviewRow{
+				URN:    "urn:test",
+				Type:   "aws:ec2/instance:Instance",
+				Status: engine.StatusReplacing,
+				ActualCost: &engine.ActualCostData{
+					MTDCost: 50.00,
+				},
+				ProjectedCost: &engine.ProjectedCostData{
+					MonthlyCost: 100.00,
+				},
+			},
+			wantDelta: engine.FormatOverviewDelta(50.00),
+		},
+		{
+			name: "delta uses cost drift when available",
+			row: engine.OverviewRow{
+				URN:    "urn:test",
+				Type:   "aws:ec2/instance:Instance",
+				Status: engine.StatusReplacing,
+				ActualCost: &engine.ActualCostData{
+					MTDCost: 50.00,
+				},
+				ProjectedCost: &engine.ProjectedCostData{
+					MonthlyCost: 100.00,
+				},
+				CostDrift: &engine.CostDriftData{
+					Delta: -12.50,
+				},
+			},
+			wantDelta: engine.FormatOverviewDelta(-12.50),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1, nil, nil)
+			model.width = 160
+			tableModel := model.buildOverviewTable()
+
+			tableRows := tableModel.Rows()
+			require.Len(t, tableRows, 1)
+			require.Len(t, tableRows[0], 8)
+
+			assert.Equal(t, fmt.Sprintf("%s %s", engine.StatusIcon(tt.row.Status), tt.row.Status.String()), tableRows[0][2])
+			assert.Equal(t, tt.wantDelta, tableRows[0][5])
+		})
+	}
+}
+
+// TestOverviewModel_BuildOverviewTable_PrioritizesLongType verifies type width
+// can expand to fit common Pulumi resource type strings when space allows.
+func TestOverviewModel_BuildOverviewTable_PrioritizesLongType(t *testing.T) {
+	ctx := context.Background()
+	row := engine.OverviewRow{
+		URN:    "demo-instance-large",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusActive,
+	}
+
+	model, _ := NewOverviewModel(ctx, []engine.OverviewRow{row}, 1, nil, nil)
+	model.width = 130
+
+	// With this width budget and row data, the full type should fit without truncation.
+	assert.Equal(t, utf8.RuneCountInString(row.Type), model.typeColumnWidth())
+
+	view := model.buildOverviewTable().View()
+	assert.Contains(t, view, row.Type)
+}
+
+// TestOverviewModel_BuildOverviewTable_HeaderLineWidthMatchesRows verifies that
+// header text/border and row content share the same rendered width budget.
+func TestOverviewModel_BuildOverviewTable_HeaderLineWidthMatchesRows(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{
+			URN:    "demo-instance-large",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusReplacing,
+			ActualCost: &engine.ActualCostData{
+				MTDCost: 0.69,
+			},
+			ProjectedCost: &engine.ProjectedCostData{
+				MonthlyCost: 60.74,
+			},
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.width = 122
+	view := model.buildOverviewTable().View()
+	lines := strings.Split(strings.TrimRight(view, "\n"), "\n")
+	require.GreaterOrEqual(t, len(lines), 3, "expected header, border, and at least one row")
+
+	headerWidth := ansi.StringWidth(ansi.Strip(lines[0]))
+	borderWidth := ansi.StringWidth(ansi.Strip(lines[1]))
+	rowWidth := ansi.StringWidth(ansi.Strip(lines[2]))
+
+	assert.Equal(t, rowWidth, headerWidth, "header text line should align with row width")
+	assert.Equal(t, rowWidth, borderWidth, "header border line should align with row width")
 }
 
 // TestTruncateResourceName verifies URN truncation with dynamic max length.

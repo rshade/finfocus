@@ -85,6 +85,10 @@ func TestStyleDefinitions(t *testing.T) {
 		if TableHeaderStyle.GetForeground() != ColorHeader {
 			t.Error("TableHeaderStyle should have header color")
 		}
+		top, right, bottom, left := TableHeaderStyle.GetPadding()
+		if top != 0 || right != 1 || bottom != 0 || left != 1 {
+			t.Error("TableHeaderStyle should preserve default horizontal cell padding")
+		}
 	})
 
 	t.Run("TableSelectedStyle", func(t *testing.T) {

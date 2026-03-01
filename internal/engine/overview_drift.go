@@ -34,28 +34,29 @@ const standardProjectedDaysPerMonth = float64(HoursPerMonth) / float64(hoursPerD
 //   - actualMTD: the month-to-date actual cost.
 //   - projected: the projected monthly cost (730h standard month basis).
 //   - dayOfMonth: the current day of the month (1-based).
+//
 // CalculateCostDrift computes the cost drift between an extrapolated month-to-date actual spend
 // and the projected monthly cost normalized to the current calendar month.
 //
 // Parameters:
-//  - actualMTD: month-to-date actual cost for the resource.
-//  - projected: projected monthly cost expressed on the package's canonical month basis.
-//  - dayOfMonth: current day of the month (1-31); used to extrapolate actualMTD to a full month.
-//  - daysInMonth: total days in the current calendar month (28-31); used to normalize the projection.
+//   - actualMTD: month-to-date actual cost for the resource.
+//   - projected: projected monthly cost expressed on the package's canonical month basis.
+//   - dayOfMonth: current day of the month (1-31); used to extrapolate actualMTD to a full month.
+//   - daysInMonth: total days in the current calendar month (28-31); used to normalize the projection.
 //
 // Return values and error conditions:
-//  - Returns (*CostDriftData, nil) when a meaningful drift is detected and its magnitude exceeds the
-//    configured warning threshold. The returned CostDriftData contains the extrapolated monthly actual,
-//    the projection normalized to the calendar month, the delta (extrapolated − projected), the percent
-//    drift, and IsWarning set to true.
-//  - Returns (nil, nil) when no meaningful drift can be determined, including:
-//      * both actualMTD and projected are zero,
-//      * projected is zero but actualMTD > 0 (deleted resource),
-//      * actualMTD is zero but projected > 0 (new resource),
-//      * or the computed percent drift is within the warning threshold.
-//  - Returns (nil, error) with ErrOverviewValidation when input validation fails:
-//      * dayOfMonth < driftMinDay (insufficient data to extrapolate), or
-//      * daysInMonth <= 0 (invalid month length).
+//   - Returns (*CostDriftData, nil) when a meaningful drift is detected and its magnitude exceeds the
+//     configured warning threshold. The returned CostDriftData contains the extrapolated monthly actual,
+//     the projection normalized to the calendar month, the delta (extrapolated − projected), the percent
+//     drift, and IsWarning set to true.
+//   - Returns (nil, nil) when no meaningful drift can be determined, including:
+//   - both actualMTD and projected are zero,
+//   - projected is zero but actualMTD > 0 (deleted resource),
+//   - actualMTD is zero but projected > 0 (new resource),
+//   - or the computed percent drift is within the warning threshold.
+//   - Returns (nil, error) with ErrOverviewValidation when input validation fails:
+//   - dayOfMonth < driftMinDay (insufficient data to extrapolate), or
+//   - daysInMonth <= 0 (invalid month length).
 func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth int) (*CostDriftData, error) {
 	if dayOfMonth < driftMinDay {
 		return nil, fmt.Errorf("%w: insufficient data (day %d of month)", ErrOverviewValidation, dayOfMonth)
