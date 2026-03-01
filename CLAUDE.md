@@ -361,5 +361,5 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 - Bubble Tea v2 (`charm.land/bubbletea/v2 v2.0.0`) (604-charm-v2-upgrade)
 - Bubbles v2 (`charm.land/bubbles/v2 v2.0.0`) (604-charm-v2-upgrade)
 - Lip Gloss v2 (`charm.land/lipgloss/v2 v2.0.0`) (604-charm-v2-upgrade)
-  commands using cobra, tabwriter, and Viper config parsing.
+- CLI commands using Cobra, tabwriter, and Viper for config parsing
 

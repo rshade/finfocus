@@ -160,16 +160,16 @@ func TestConfigRoutesListJSON(t *testing.T) {
 	assert.Equal(t, "global", output.Source)
 	require.Len(t, output.Rules, 3)
 
-	rulesByPlugin := make(map[string]cli.RouteRuleOutput, len(output.Rules))
-	for _, r := range output.Rules {
-		rulesByPlugin[r.Plugin] = r
-	}
-	assert.Contains(t, rulesByPlugin, "aws-public")
-	assert.Contains(t, rulesByPlugin, "aws-ce")
-	assert.Contains(t, rulesByPlugin, "recorder")
-	assert.Equal(t, 10, rulesByPlugin["aws-public"].Priority)
-	assert.Equal(t, []string{"ProjectedCosts"}, rulesByPlugin["aws-public"].Features)
-	assert.Equal(t, []string{"glob:aws:ec2:*"}, rulesByPlugin["aws-public"].Patterns)
+	// Assert priority-descending order in JSON output (consistent with table rendering).
+	require.Equal(t, "aws-public", output.Rules[0].Plugin, "highest priority plugin first")
+	require.Equal(t, 10, output.Rules[0].Priority)
+	require.Equal(t, "aws-ce", output.Rules[1].Plugin, "second priority plugin")
+	require.Equal(t, 5, output.Rules[1].Priority)
+	require.Equal(t, "recorder", output.Rules[2].Plugin, "lowest priority plugin last")
+	require.Equal(t, 1, output.Rules[2].Priority)
+
+	assert.Equal(t, []string{"ProjectedCosts"}, output.Rules[0].Features)
+	assert.Equal(t, []string{"glob:aws:ec2:*"}, output.Rules[0].Patterns)
 }
 
 func TestConfigRoutesListAutomaticJSON(t *testing.T) {

@@ -506,6 +506,9 @@ func renderRoutesListJSON(cmd *cobra.Command, routing *config.RoutingConfig, con
 				Fallback: p.FallbackEnabled(),
 			})
 		}
+		sort.SliceStable(output.Rules, func(i, j int) bool {
+			return output.Rules[i].Priority > output.Rules[j].Priority
+		})
 	}
 
 	data, err := json.MarshalIndent(output, "", "  ")

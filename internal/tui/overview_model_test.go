@@ -545,7 +545,10 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 			require.Len(t, tableRows, 1)
 			require.Len(t, tableRows[0], 8)
 
-			assert.Equal(t, fmt.Sprintf("%s %s", engine.StatusIcon(tt.row.Status), tt.row.Status.String()), tableRows[0][2])
+			expectedStatus := fmt.Sprintf(
+				"%s %s", engine.StatusIcon(tt.row.Status), tt.row.Status.String(),
+			)
+			assert.Equal(t, expectedStatus, tableRows[0][2])
 			assert.Equal(t, tt.wantDelta, tableRows[0][5])
 		})
 	}

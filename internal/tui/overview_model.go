@@ -249,7 +249,7 @@ func (m *OverviewModel) variableColumnWidths() (int, int) {
 	if available < minResourceColWidth+minTypeColWidth {
 		// Terminal too narrow for minimum target widths; split proportionally
 		// while preserving at least one character per column.
-		resourceWidth := (available + 1) / 2
+		resourceWidth := (available + 1) / 2 //nolint:mnd // Splitting available width between 2 variable columns.
 		typeWidth := available - resourceWidth
 		if resourceWidth < minCompactColWidth {
 			resourceWidth = minCompactColWidth

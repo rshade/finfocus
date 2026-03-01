@@ -286,7 +286,9 @@ func applyRootBlockDefaults(
 	if parsedSize := parsePositiveFloat(rootFields["volumeSize"]); parsedSize > 0 {
 		volumeSizeGB = parsedSize
 	}
-	iops = parsePositiveFloat(rootFields["iops"])
+	if parsedIops := parsePositiveFloat(rootFields["iops"]); parsedIops > 0 {
+		iops = parsedIops
+	}
 	return volumeType, volumeSizeGB, iops
 }
 
