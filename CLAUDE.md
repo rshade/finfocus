@@ -350,3 +350,12 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 - **`/opencode-review-fix`** comment on a PR triggers automatic fix of all review issues
 
 ## Recent Changes
+
+- 604-charm-v2-upgrade: Added Go 1.25.7 (see `go.mod`)
+
+## Active Technologies
+
+- Go 1.25.7 (see `go.mod`) (604-charm-v2-upgrade)
+- Bubble Tea v2 (`charm.land/bubbletea/v2 v2.0.0`) (604-charm-v2-upgrade)
+- Bubbles v2 (`charm.land/bubbles/v2 v2.0.0`) (604-charm-v2-upgrade)
+- Lip Gloss v2 (`charm.land/lipgloss/v2 v2.0.0`) (604-charm-v2-upgrade)

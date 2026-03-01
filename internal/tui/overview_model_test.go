@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -59,13 +59,13 @@ func TestOverviewModel_StateTransitions(t *testing.T) {
 	assert.Equal(t, ViewStateList, model.state)
 
 	// Transition: List -> Detail (Enter key)
-	keyMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	keyMsg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	updatedModel, _ = model.Update(keyMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, ViewStateDetail, model.state)
 
 	// Transition: Detail -> List (Esc key)
-	escMsg := tea.KeyMsg{Type: tea.KeyEscape}
+	escMsg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	updatedModel, _ = model.Update(escMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, ViewStateList, model.state)
@@ -133,25 +133,25 @@ func TestOverviewModel_KeyboardNavigation(t *testing.T) {
 	assert.Equal(t, 0, model.table.Cursor())
 
 	// Down arrow
-	downMsg := tea.KeyMsg{Type: tea.KeyDown}
+	downMsg := tea.KeyPressMsg{Code: tea.KeyDown}
 	updatedModel, _ := model.Update(downMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, 1, model.table.Cursor())
 
 	// 'j' key (vim-style down)
-	jMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}}
+	jMsg := tea.KeyPressMsg{Text: "j"}
 	updatedModel, _ = model.Update(jMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, 2, model.table.Cursor())
 
 	// 'k' key (vim-style up)
-	kMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}}
+	kMsg := tea.KeyPressMsg{Text: "k"}
 	updatedModel, _ = model.Update(kMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, 1, model.table.Cursor())
 
 	// Up arrow
-	upMsg := tea.KeyMsg{Type: tea.KeyUp}
+	upMsg := tea.KeyPressMsg{Code: tea.KeyUp}
 	updatedModel, _ = model.Update(upMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, 0, model.table.Cursor())
@@ -169,7 +169,7 @@ func TestOverviewModel_SortCycling(t *testing.T) {
 
 	assert.Equal(t, SortByCost, model.sortBy)
 
-	sMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
+	sMsg := tea.KeyPressMsg{Text: "s"}
 
 	// Cycle: Cost -> Name
 	updatedModel, _ := model.Update(sMsg)
@@ -206,13 +206,13 @@ func TestOverviewModel_FilterMode(t *testing.T) {
 	assert.False(t, model.showFilter)
 
 	// Enter filter mode with '/'
-	slashMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	slashMsg := tea.KeyPressMsg{Text: "/"}
 	updatedModel, _ := model.Update(slashMsg)
 	model = updatedModel.(OverviewModel)
 	assert.True(t, model.showFilter)
 
 	// Exit filter mode with Esc
-	escMsg := tea.KeyMsg{Type: tea.KeyEscape}
+	escMsg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	updatedModel, _ = model.Update(escMsg)
 	model = updatedModel.(OverviewModel)
 	assert.False(t, model.showFilter)
@@ -281,13 +281,13 @@ func TestOverviewModel_PaginationBoundaries(t *testing.T) {
 	assert.Equal(t, 2, model.totalPages) // 300 rows / 250 per page = 2 pages
 
 	// PgUp at first page (should stay at page 1)
-	pgUpMsg := tea.KeyMsg{Type: tea.KeyPgUp}
+	pgUpMsg := tea.KeyPressMsg{Code: tea.KeyPgUp}
 	updatedModel, _ := model.Update(pgUpMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, 1, model.currentPage)
 
 	// PgDn to page 2
-	pgDnMsg := tea.KeyMsg{Type: tea.KeyPgDown}
+	pgDnMsg := tea.KeyPressMsg{Code: tea.KeyPgDown}
 	updatedModel, _ = model.Update(pgDnMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, 2, model.currentPage)
@@ -314,7 +314,7 @@ func TestOverviewModel_QuitKeys(t *testing.T) {
 	model.state = ViewStateList
 
 	// Test 'q' key
-	qMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	qMsg := tea.KeyPressMsg{Text: "q"}
 	updatedModel, cmd := model.Update(qMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, ViewStateQuitting, model.state)
@@ -322,7 +322,7 @@ func TestOverviewModel_QuitKeys(t *testing.T) {
 
 	// Reset and test Ctrl+C
 	model.state = ViewStateList
-	ctrlCMsg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	ctrlCMsg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	updatedModel, cmd = model.Update(ctrlCMsg)
 	model = updatedModel.(OverviewModel)
 	assert.Equal(t, ViewStateQuitting, model.state)
@@ -795,10 +795,10 @@ func TestOverviewModel_QuitDuringInitializing(t *testing.T) {
 
 	tests := []struct {
 		name string
-		key  tea.KeyMsg
+		key  tea.KeyPressMsg
 	}{
-		{"q key", tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}},
-		{"ctrl+c", tea.KeyMsg{Type: tea.KeyCtrlC}},
+		{"q key", tea.KeyPressMsg{Text: "q"}},
+		{"ctrl+c", tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}},
 	}
 
 	for _, tt := range tests {
@@ -911,7 +911,7 @@ func TestOverviewModel_PKeyStartsPreview(t *testing.T) {
 	model.allRows = rows
 	model.rows = rows
 
-	pMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}
+	pMsg := tea.KeyPressMsg{Text: "p"}
 	_, cmd := model.Update(pMsg)
 
 	assert.NotNil(t, cmd, "p key in state-only mode should return a batch command")
@@ -932,7 +932,7 @@ func TestOverviewModel_PKeyNoOpWhileLoading(t *testing.T) {
 	model.allRows = rows
 	model.rows = rows
 
-	pMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}
+	pMsg := tea.KeyPressMsg{Text: "p"}
 	_, cmd := model.Update(pMsg)
 
 	assert.Nil(t, cmd, "p key should be no-op while preview is loading")
@@ -952,7 +952,7 @@ func TestOverviewModel_PKeyNoOpAfterLoaded(t *testing.T) {
 	model.allRows = rows
 	model.rows = rows
 
-	pMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'p'}}
+	pMsg := tea.KeyPressMsg{Text: "p"}
 	_, cmd := model.Update(pMsg)
 
 	assert.Nil(t, cmd, "p key should be no-op after preview is already loaded")

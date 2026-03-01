@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -23,14 +23,14 @@ func TestCostViewModel_Update(t *testing.T) {
 
 	// Test navigation (Down).
 	m.table.SetCursor(0)
-	msg := tea.KeyMsg{Type: tea.KeyDown}
+	msg := tea.KeyPressMsg{Code: tea.KeyDown}
 	updatedM, _ := m.Update(msg)
 	m, ok := updatedM.(*CostViewModel)
 	require.True(t, ok)
 	assert.Equal(t, 1, m.table.Cursor())
 
 	// Test Enter (Go to Detail).
-	msg = tea.KeyMsg{Type: tea.KeyEnter}
+	msg = tea.KeyPressMsg{Code: tea.KeyEnter}
 	updatedM, _ = m.Update(msg)
 	m, ok = updatedM.(*CostViewModel)
 	require.True(t, ok)
@@ -38,14 +38,14 @@ func TestCostViewModel_Update(t *testing.T) {
 	assert.Equal(t, 1, m.selected)
 
 	// Test Esc (Back to List).
-	msg = tea.KeyMsg{Type: tea.KeyEsc}
+	msg = tea.KeyPressMsg{Code: tea.KeyEscape}
 	updatedM, _ = m.Update(msg)
 	m, ok = updatedM.(*CostViewModel)
 	require.True(t, ok)
 	assert.Equal(t, ViewStateList, m.state)
 
 	// Test Quit.
-	msg = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	msg = tea.KeyPressMsg{Text: "q"}
 	updatedM, _ = m.Update(msg)
 	m, ok = updatedM.(*CostViewModel)
 	require.True(t, ok)
@@ -134,7 +134,7 @@ func TestCostViewModel_ErrorState(t *testing.T) {
 	m.state = ViewStateError
 
 	// Verify error is displayed in view.
-	view := m.View()
+	view := m.View().Content
 	assert.Contains(t, view, "Error:")
 }
 
@@ -249,7 +249,7 @@ func TestCostViewModel_HandleFilterInput(t *testing.T) {
 	m.textInput.Focus()
 
 	// Test Enter key closes filter.
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	updatedM, _ := m.Update(msg)
 	model := updatedM.(*CostViewModel)
 	assert.False(t, model.showFilter)
@@ -257,7 +257,7 @@ func TestCostViewModel_HandleFilterInput(t *testing.T) {
 	// Reactivate and test Esc key.
 	model.showFilter = true
 	model.textInput.Focus()
-	msg = tea.KeyMsg{Type: tea.KeyEsc}
+	msg = tea.KeyPressMsg{Code: tea.KeyEscape}
 	updatedM, _ = model.Update(msg)
 	model = updatedM.(*CostViewModel)
 	assert.False(t, model.showFilter)
@@ -269,7 +269,7 @@ func TestCostViewModel_HandleListUpdate_ActivateFilter(t *testing.T) {
 	})
 
 	// Press / to activate filter.
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+	msg := tea.KeyPressMsg{Text: "/"}
 	updatedM, _ := m.Update(msg)
 	model := updatedM.(*CostViewModel)
 	assert.True(t, model.showFilter)
@@ -284,7 +284,7 @@ func TestCostViewModel_HandleListUpdate_CycleSort(t *testing.T) {
 	initial := m.sortBy
 
 	// Press 's' to cycle sort.
-	msg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
+	msg := tea.KeyPressMsg{Text: "s"}
 	updatedM, _ := m.Update(msg)
 	model := updatedM.(*CostViewModel)
 	assert.NotEqual(t, initial, model.sortBy)
@@ -300,7 +300,7 @@ func TestCostViewModel_HandleListUpdate_ClearFilter(t *testing.T) {
 	m.applyFilter()
 
 	// Press Esc to clear filter.
-	msg := tea.KeyMsg{Type: tea.KeyEsc}
+	msg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	updatedM, _ := m.Update(msg)
 	model := updatedM.(*CostViewModel)
 	assert.Empty(t, model.textInput.Value())
@@ -313,7 +313,7 @@ func TestCostViewModel_HandleListUpdate_EnterOnAggregation(t *testing.T) {
 	m := NewCostViewModelFromActual(context.Background(), results, engine.GroupByMonthly)
 
 	// Press Enter on aggregation view should do nothing.
-	msg := tea.KeyMsg{Type: tea.KeyEnter}
+	msg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	updatedM, _ := m.Update(msg)
 	model := updatedM.(*CostViewModel)
 	// Should stay in list state (no detail view for aggregations).
@@ -324,14 +324,14 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 	t.Run("quitting state returns empty", func(t *testing.T) {
 		m := NewCostViewModel(context.Background(), []engine.CostResult{})
 		m.state = ViewStateQuitting
-		assert.Empty(t, m.View())
+		assert.Empty(t, m.View().Content)
 	})
 
 	t.Run("loading state returns loading view", func(t *testing.T) {
 		m := NewCostViewModelWithLoading(context.Background(), func() ([]engine.CostResult, error) {
 			return nil, nil
 		})
-		view := m.View()
+		view := m.View().Content
 		assert.Contains(t, view, "Querying")
 	})
 
@@ -342,7 +342,7 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 		m.state = ViewStateDetail
 		m.selected = 0
 		m.width = 80
-		view := m.View()
+		view := m.View().Content
 		assert.Contains(t, view, "RESOURCE DETAIL")
 	})
 
@@ -350,7 +350,7 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 		m := NewCostViewModel(context.Background(), []engine.CostResult{})
 		m.state = ViewStateDetail
 		m.selected = 99
-		view := m.View()
+		view := m.View().Content
 		assert.Contains(t, view, "out of bounds")
 	})
 
@@ -359,7 +359,7 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 			{ResourceType: "aws:ec2", Monthly: 50.0},
 		})
 		m.width = 80
-		view := m.View()
+		view := m.View().Content
 		assert.Contains(t, view, "COST SUMMARY")
 	})
 
@@ -369,7 +369,7 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 		})
 		m.width = 80
 		m.showFilter = true
-		view := m.View()
+		view := m.View().Content
 		assert.Contains(t, view, "Filter:")
 	})
 }
@@ -416,7 +416,7 @@ func TestCostViewModel_HandleLoadingUpdate(t *testing.T) {
 	})
 
 	// Test that loading update returns a command.
-	msg := tea.KeyMsg{Type: tea.KeyDown}
+	msg := tea.KeyPressMsg{Code: tea.KeyDown}
 	updatedM, cmd := m.Update(msg)
 	_ = updatedM
 	// In loading state, key messages are passed to loading spinner.
@@ -427,7 +427,7 @@ func TestCostViewModel_CtrlC(t *testing.T) {
 	m := NewCostViewModel(context.Background(), []engine.CostResult{})
 
 	// Test Ctrl+C quits.
-	msg := tea.KeyMsg{Type: tea.KeyCtrlC}
+	msg := tea.KeyPressMsg{Code: 'c', Mod: tea.ModCtrl}
 	updatedM, cmd := m.Update(msg)
 	model := updatedM.(*CostViewModel)
 	assert.Equal(t, ViewStateQuitting, model.state)

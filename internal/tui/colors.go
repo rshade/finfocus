@@ -1,9 +1,11 @@
 package tui
 
-import "github.com/charmbracelet/lipgloss"
+import "charm.land/lipgloss/v2"
 
 // Status colors.
-const (
+//
+//nolint:gochecknoglobals // Immutable color lookup values; var required because lipgloss.Color() returns color.Color interface.
+var (
 	ColorOK       = lipgloss.Color("82")  // #5fd700 - Green
 	ColorWarning  = lipgloss.Color("208") // #ff8700 - Orange
 	ColorCritical = lipgloss.Color("196") // #ff0000 - Red
@@ -11,7 +13,9 @@ const (
 )
 
 // UI element colors.
-const (
+//
+//nolint:gochecknoglobals // Immutable color lookup values; var required because lipgloss.Color() returns color.Color interface.
+var (
 	ColorHeader     = lipgloss.Color("99")  // #875fff - Purple
 	ColorLabel      = lipgloss.Color("245") // #8a8a8a - Gray
 	ColorValue      = lipgloss.Color("255") // #eeeeee - White
@@ -24,7 +28,9 @@ const (
 )
 
 // Priority colors.
-const (
+//
+//nolint:gochecknoglobals // Immutable color lookup values; var required because lipgloss.Color() returns color.Color interface.
+var (
 	ColorPriorityCritical = ColorCritical
 	ColorPriorityHigh     = ColorWarning
 	ColorPriorityMedium   = lipgloss.Color("226") // #ffff00 - Yellow

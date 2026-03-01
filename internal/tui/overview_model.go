@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
+	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
 )
@@ -261,7 +261,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Non-key messages (e.g. spinner ticks) are forwarded to both inputs so the
 	// loading animation continues while the user types the passphrase.
 	if m.showPassphraseInput {
-		if _, isKey := msg.(tea.KeyMsg); isKey {
+		if _, isKey := msg.(tea.KeyPressMsg); isKey {
 			return m.handlePassphraseInput(msg)
 		}
 		var passCmd tea.Cmd
@@ -363,7 +363,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case ViewStateInitializing:
 		// Handle quit keys during initialization
-		if keyMsg, ok := msg.(tea.KeyMsg); ok {
+		if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 			switch keyMsg.String() {
 			case keyQuit, keyCtrlC:
 				m.state = ViewStateQuitting
@@ -421,7 +421,7 @@ func (m OverviewModel) handleAllResourcesLoaded() (tea.Model, tea.Cmd) {
 }
 
 func (m OverviewModel) handleFilterInput(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case keyEnter, keyEsc:
 			m.showFilter = false
@@ -440,7 +440,7 @@ func (m OverviewModel) handleFilterInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 // On Esc or Ctrl+C: quits the TUI (goroutine unblocks via context cancellation).
 // Other keys are forwarded to the text input for character entry.
 func (m OverviewModel) handlePassphraseInput(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case keyEnter:
 			if m.passphraseChan != nil {
@@ -463,7 +463,7 @@ func (m OverviewModel) handlePassphraseInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m OverviewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	keyMsg, ok := msg.(tea.KeyMsg)
+	keyMsg, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		var cmd tea.Cmd
 		m.table, cmd = m.table.Update(msg)
@@ -473,7 +473,7 @@ func (m OverviewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m.handleListKeypress(keyMsg)
 }
 
-func (m OverviewModel) handleListKeypress(keyMsg tea.KeyMsg) (tea.Model, tea.Cmd) {
+func (m OverviewModel) handleListKeypress(keyMsg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch keyMsg.String() {
 	case keyQuit, keyCtrlC:
 		m.state = ViewStateQuitting
@@ -535,7 +535,7 @@ func (m OverviewModel) absoluteIndex(cursor int) int {
 }
 
 func (m OverviewModel) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case keyQuit, keyCtrlC:
 			m.state = ViewStateQuitting

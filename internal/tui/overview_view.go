@@ -6,7 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/charmbracelet/lipgloss"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
 )
@@ -20,23 +21,27 @@ func stateOnlyFootnote() string {
 }
 
 // View renders the current view (Bubble Tea interface).
-func (m OverviewModel) View() string {
+func (m OverviewModel) View() tea.View {
+	var content string
 	switch m.state {
 	case ViewStateQuitting:
-		return ""
+		content = ""
 	case ViewStateError:
-		return fmt.Sprintf("Error: %v\n", m.err)
+		content = fmt.Sprintf("Error: %v\n", m.err)
 	case ViewStateInitializing:
-		return m.renderInitializingView()
+		content = m.renderInitializingView()
 	case ViewStateLoading:
-		return m.renderLoadingView()
+		content = m.renderLoadingView()
 	case ViewStateDetail:
-		return m.renderDetailView()
+		content = m.renderDetailView()
 	case ViewStateList:
-		return m.renderListView()
+		content = m.renderListView()
 	default:
-		return ""
+		content = ""
 	}
+	v := tea.NewView(content)
+	v.AltScreen = true
+	return v
 }
 
 // renderInitializingView renders the banner and phase checklist during the

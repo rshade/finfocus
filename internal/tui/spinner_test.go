@@ -3,7 +3,7 @@ package tui
 import (
 	"testing"
 
-	"github.com/charmbracelet/bubbles/spinner"
+	"charm.land/bubbles/v2/spinner"
 	"github.com/stretchr/testify/assert"
 )
 

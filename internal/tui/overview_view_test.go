@@ -21,7 +21,7 @@ func TestOverviewView_InitializingRender(t *testing.T) {
 	// Set a phase message
 	model.progressMsg = "Loading stack state..."
 
-	output := model.View()
+	output := model.View().Content
 	assert.Contains(t, output, "Loading stack state...")
 	// Should not contain table elements
 	assert.NotContains(t, output, "Resource")
@@ -35,7 +35,7 @@ func TestOverviewView_InitializingDefaultMsg(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
 	model.progressMsg = ""
 
-	output := model.View()
+	output := model.View().Content
 	// Phase checklist is always shown; first phase is always "Loading stack state..."
 	assert.Contains(t, output, "Loading stack state")
 }
@@ -48,7 +48,7 @@ func TestOverviewView_ErrorStateRender(t *testing.T) {
 	model.state = ViewStateError
 	model.err = assert.AnError
 
-	output := model.View()
+	output := model.View().Content
 	assert.Contains(t, output, assert.AnError.Error())
 }
 

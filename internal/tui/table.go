@@ -1,7 +1,7 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/table"
+	"charm.land/bubbles/v2/table"
 )
 
 // DefaultTableStyles returns a table.Styles with standardized header and selection styles applied.

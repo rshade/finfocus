@@ -86,7 +86,7 @@
 // # Dependencies
 //
 // This package depends on:
-//   - github.com/charmbracelet/lipgloss for styling
-//   - github.com/charmbracelet/bubbles for UI components
+//   - charm.land/lipgloss/v2 for styling
+//   - charm.land/bubbles/v2 for UI components
 //   - golang.org/x/term for terminal detection
 package tui

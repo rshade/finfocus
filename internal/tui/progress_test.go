@@ -3,6 +3,8 @@ package tui
 import (
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestDefaultProgressBar(t *testing.T) {
@@ -85,10 +87,8 @@ func TestProgressBarRender_CustomCharacters(t *testing.T) {
 
 	result := pb.Render(60) // 60% of 5 = 3 filled
 
-	expected := "■■■□□"
-	if result != expected {
-		t.Errorf("Expected %q, got %q", expected, result)
-	}
+	// Result includes ANSI color codes from lipgloss styling
+	assert.Contains(t, result, "■■■□□")
 }
 
 func TestProgressBarRender_PercentageDisplay(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -21,7 +21,7 @@ import (
 // contains the expected substring.
 func viewContains(t *testing.T, model tui.OverviewModel, substr string) {
 	t.Helper()
-	view := model.View()
+	view := model.View().Content
 	assert.Contains(t, view, substr,
 		"expected View() to contain %q, got:\n%s", substr, truncateView(view))
 }
@@ -30,7 +30,7 @@ func viewContains(t *testing.T, model tui.OverviewModel, substr string) {
 // does NOT contain the expected substring.
 func viewNotContains(t *testing.T, model tui.OverviewModel, substr string) {
 	t.Helper()
-	view := model.View()
+	view := model.View().Content
 	assert.NotContains(t, view, substr,
 		"expected View() NOT to contain %q, got:\n%s", substr, truncateView(view))
 }
@@ -57,7 +57,7 @@ func updateModel(t *testing.T, model tui.OverviewModel, msg tea.Msg) (tui.Overvi
 // isInInitializingState checks if the model's View() output indicates
 // the Initializing state (contains phase checklist content).
 func isInInitializingState(model tui.OverviewModel) bool {
-	view := model.View()
+	view := model.View().Content
 	// Initializing view contains the phase checklist items
 	return strings.Contains(view, "Loading stack state") ||
 		strings.Contains(view, "Detecting changes") ||
@@ -66,31 +66,31 @@ func isInInitializingState(model tui.OverviewModel) bool {
 
 // isInLoadingState checks if the model's View() output indicates the Loading state.
 func isInLoadingState(model tui.OverviewModel) bool {
-	view := model.View()
+	view := model.View().Content
 	return strings.Contains(view, "Loading...")
 }
 
 // isInListState checks if the model's View() output indicates the List state.
 func isInListState(model tui.OverviewModel) bool {
-	view := model.View()
+	view := model.View().Content
 	return strings.Contains(view, "Sort:")
 }
 
 // isInDetailState checks if the model's View() output indicates the Detail state.
 func isInDetailState(model tui.OverviewModel) bool {
-	view := model.View()
+	view := model.View().Content
 	return strings.Contains(view, "RESOURCE DETAIL")
 }
 
 // isInErrorState checks if the model's View() output indicates the Error state.
 func isInErrorState(model tui.OverviewModel) bool {
-	view := model.View()
+	view := model.View().Content
 	return strings.HasPrefix(view, "Error:")
 }
 
 // isInQuittingState checks if the model's View() output indicates the Quitting state.
 func isInQuittingState(model tui.OverviewModel) bool {
-	return model.View() == ""
+	return model.View().Content == ""
 }
 
 // newTestRows creates a slice of OverviewRow for testing with the given count.
@@ -234,25 +234,25 @@ func TestTUI_KeyboardNavigation(t *testing.T) {
 	require.True(t, isInListState(model), "model should be in List state")
 
 	// Test: Down arrow key moves cursor (model stays in List state)
-	downMsg := tea.KeyMsg{Type: tea.KeyDown}
+	downMsg := tea.KeyPressMsg{Code: tea.KeyDown}
 	model, _ = updateModel(t, model, downMsg)
 	assert.True(t, isInListState(model), "model should remain in List state after Down key")
 
 	// Test: Enter key transitions to Detail state
-	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	enterMsg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	model, _ = updateModel(t, model, enterMsg)
 	assert.True(t, isInDetailState(model), "model should transition to Detail state after Enter")
 	viewContains(t, model, "RESOURCE DETAIL")
 	viewContains(t, model, "Press ESC to return")
 
 	// Test: Escape key returns to List state
-	escMsg := tea.KeyMsg{Type: tea.KeyEscape}
+	escMsg := tea.KeyPressMsg{Code: tea.KeyEscape}
 	model, _ = updateModel(t, model, escMsg)
 	assert.True(t, isInListState(model), "model should return to List state after Escape")
 	viewNotContains(t, model, "RESOURCE DETAIL")
 
 	// Test: 'q' key triggers quit
-	qMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'q'}}
+	qMsg := tea.KeyPressMsg{Text: "q"}
 	model, cmd := updateModel(t, model, qMsg)
 	assert.True(t, isInQuittingState(model), "model should transition to Quitting after 'q'")
 	assert.NotNil(t, cmd, "'q' key should return a tea.Quit command")

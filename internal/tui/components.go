@@ -2,10 +2,11 @@ package tui
 
 import (
 	"fmt"
+	"image/color"
 	"math"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
 
 	"github.com/rshade/finfocus/internal/proto"
 )
@@ -52,28 +53,28 @@ func RenderStatus(status string) string {
 	status = strings.ToUpper(status)
 
 	var icon, text string
-	var color lipgloss.Color
+	var fg color.Color
 
 	switch status {
 	case StatusOK, StatusSuccess:
 		icon = IconOK
 		text = StatusOK
-		color = ColorOK
+		fg = ColorOK
 	case StatusWarning:
 		icon = IconWarning
 		text = StatusWarning
-		color = ColorWarning
+		fg = ColorWarning
 	case StatusCritical, StatusExceeded:
 		icon = IconCritical
 		text = StatusCritical
-		color = ColorCritical
+		fg = ColorCritical
 	default:
 		icon = IconPending
 		text = strings.ToLower(status)
-		color = ColorMuted
+		fg = ColorMuted
 	}
 
-	style := lipgloss.NewStyle().Foreground(color).Bold(true)
+	style := lipgloss.NewStyle().Foreground(fg).Bold(true)
 	return style.Render(fmt.Sprintf("%s %s", icon, text))
 }
 
@@ -91,25 +92,25 @@ func RenderDelta(delta float64) string {
 	rounded := math.Round(delta*centsMultiplier) / centsMultiplier
 
 	var icon, sign string
-	var color lipgloss.Color
+	var fg color.Color
 
 	switch {
 	case rounded > 0:
 		icon = IconArrowUp
 		sign = "+"
-		color = ColorWarning
+		fg = ColorWarning
 	case rounded < 0:
 		icon = IconArrowDown
 		sign = ""
-		color = ColorOK
+		fg = ColorOK
 	default:
 		icon = IconArrowRight
 		sign = ""
-		color = ColorMuted
+		fg = ColorMuted
 	}
 
 	formatted := FormatMoneyShort(rounded)
-	style := lipgloss.NewStyle().Foreground(color).Bold(true)
+	style := lipgloss.NewStyle().Foreground(fg).Bold(true)
 	return style.Render(fmt.Sprintf("%s%s %s", sign, formatted, icon))
 }
 
@@ -118,32 +119,32 @@ func RenderPriority(priority string) string {
 	priority = strings.ToUpper(priority)
 
 	var icon, text string
-	var color lipgloss.Color
+	var fg color.Color
 
 	switch priority {
 	case PriorityCritical:
 		icon = IconCritical
 		text = PriorityCritical
-		color = ColorPriorityCritical
+		fg = ColorPriorityCritical
 	case PriorityHigh:
 		icon = IconWarning
 		text = PriorityHigh
-		color = ColorPriorityHigh
+		fg = ColorPriorityHigh
 	case PriorityMedium:
 		icon = IconProgress
 		text = PriorityMedium
-		color = ColorPriorityMedium
+		fg = ColorPriorityMedium
 	case PriorityLow:
 		icon = IconOK
 		text = PriorityLow
-		color = ColorPriorityLow
+		fg = ColorPriorityLow
 	default:
 		icon = IconPending
 		text = strings.ToLower(priority)
-		color = ColorMuted
+		fg = ColorMuted
 	}
 
-	style := lipgloss.NewStyle().Foreground(color).Bold(true)
+	style := lipgloss.NewStyle().Foreground(fg).Bold(true)
 	return style.Render(fmt.Sprintf("%s %s", icon, text))
 }
 

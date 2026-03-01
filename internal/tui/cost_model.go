@@ -6,10 +6,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/table"
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/bubbles/v2/table"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
 )
@@ -121,7 +121,7 @@ func newTextInput() textinput.Model {
 	ti := textinput.New()
 	ti.Placeholder = "Filter resources..."
 	ti.CharLimit = filterInputCharLimit
-	ti.Width = filterInputWidth
+	ti.SetWidth(filterInputWidth)
 	return ti
 }
 
@@ -251,7 +251,7 @@ func (m *CostViewModel) handleLoadingComplete(msg loadingCompleteMsg) (tea.Model
 }
 
 func (m *CostViewModel) handleFilterInput(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case keyEnter, keyEsc:
 			m.showFilter = false
@@ -270,7 +270,7 @@ func (m *CostViewModel) handleLoadingUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *CostViewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case keyQuit, keyCtrlC:
 			m.state = ViewStateQuitting
@@ -303,7 +303,7 @@ func (m *CostViewModel) handleListUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *CostViewModel) handleGenericUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyMsg); ok {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
 		case keyQuit, keyCtrlC:
 			m.state = ViewStateQuitting
@@ -387,26 +387,26 @@ func (m *CostViewModel) rebuildTable() {
 }
 
 // View renders the current view.
-func (m *CostViewModel) View() string {
+func (m *CostViewModel) View() tea.View {
 	switch m.state {
 	case ViewStateInitializing:
 		// CostViewModel does not use the Initializing state; included for exhaustiveness.
-		return ""
+		return tea.NewView("")
 	case ViewStateQuitting:
-		return ""
+		return tea.NewView("")
 	case ViewStateError:
-		return fmt.Sprintf("Error: %v\n", m.err)
+		return tea.NewView(fmt.Sprintf("Error: %v\n", m.err))
 	case ViewStateLoading:
-		return RenderLoading(m.loading)
+		return tea.NewView(RenderLoading(m.loading))
 	case ViewStateDetail:
 		if m.selected >= 0 && m.selected < len(m.results) {
-			return RenderDetailView(m.results[m.selected], m.width)
+			return tea.NewView(RenderDetailView(m.results[m.selected], m.width))
 		}
-		return msgSelectedOutOfBounds
+		return tea.NewView(msgSelectedOutOfBounds)
 	case ViewStateList:
-		return m.renderListView()
+		return tea.NewView(m.renderListView())
 	default:
-		return ""
+		return tea.NewView("")
 	}
 }
 

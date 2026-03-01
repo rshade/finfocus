@@ -3,7 +3,7 @@ package integration_test
 import (
 	"testing"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -38,7 +38,7 @@ func TestVirtualScrolling_LargeDataset(t *testing.T) {
 	model = updatedModel.(*tui.RecommendationsViewModel)
 
 	// Render the view (should only render visible portion)
-	view := model.View()
+	view := model.View().Content
 	assert.NotEmpty(t, view)
 
 	// View should contain the summary
@@ -81,47 +81,47 @@ func TestVirtualScrolling_NavigationKeys(t *testing.T) {
 
 	tests := []struct {
 		name        string
-		key         tea.KeyMsg
+		key         tea.KeyPressMsg
 		description string
 	}{
 		{
 			name:        "down arrow navigation",
-			key:         tea.KeyMsg{Type: tea.KeyDown},
+			key:         tea.KeyPressMsg{Code: tea.KeyDown},
 			description: "Should move selection down",
 		},
 		{
 			name:        "up arrow navigation",
-			key:         tea.KeyMsg{Type: tea.KeyUp},
+			key:         tea.KeyPressMsg{Code: tea.KeyUp},
 			description: "Should move selection up",
 		},
 		{
 			name:        "j key navigation",
-			key:         tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'j'}},
+			key:         tea.KeyPressMsg{Text: "j"},
 			description: "Should move selection down (vim)",
 		},
 		{
 			name:        "k key navigation",
-			key:         tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'k'}},
+			key:         tea.KeyPressMsg{Text: "k"},
 			description: "Should move selection up (vim)",
 		},
 		{
 			name:        "page down navigation",
-			key:         tea.KeyMsg{Type: tea.KeyPgDown},
+			key:         tea.KeyPressMsg{Code: tea.KeyPgDown},
 			description: "Should jump down one page",
 		},
 		{
 			name:        "page up navigation",
-			key:         tea.KeyMsg{Type: tea.KeyPgUp},
+			key:         tea.KeyPressMsg{Code: tea.KeyPgUp},
 			description: "Should jump up one page",
 		},
 		{
 			name:        "home key navigation",
-			key:         tea.KeyMsg{Type: tea.KeyHome},
+			key:         tea.KeyPressMsg{Code: tea.KeyHome},
 			description: "Should jump to start",
 		},
 		{
 			name:        "end key navigation",
-			key:         tea.KeyMsg{Type: tea.KeyEnd},
+			key:         tea.KeyPressMsg{Code: tea.KeyEnd},
 			description: "Should jump to end",
 		},
 	}
@@ -136,7 +136,7 @@ func TestVirtualScrolling_NavigationKeys(t *testing.T) {
 			require.NotNil(t, model)
 
 			// Verify view can be rendered
-			view := model.View()
+			view := model.View().Content
 			assert.NotEmpty(t, view)
 
 			// Cmd may be nil or a valid command
@@ -190,24 +190,24 @@ func TestVirtualScrolling_SortingAndFiltering(t *testing.T) {
 
 	t.Run("sort cycle works with virtual list", func(t *testing.T) {
 		// Press 's' to cycle sort
-		sortMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'s'}}
+		sortMsg := tea.KeyPressMsg{Text: "s"}
 		updatedModel, _ := model.Update(sortMsg)
 		model = updatedModel.(*tui.RecommendationsViewModel)
 
 		// View should still render
-		view := model.View()
+		view := model.View().Content
 		assert.NotEmpty(t, view)
 		assert.Contains(t, view, "RECOMMENDATIONS SUMMARY")
 	})
 
 	t.Run("filter works with virtual list", func(t *testing.T) {
 		// Press '/' to activate filter
-		filterMsg := tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{'/'}}
+		filterMsg := tea.KeyPressMsg{Text: "/"}
 		updatedModel, _ := model.Update(filterMsg)
 		model = updatedModel.(*tui.RecommendationsViewModel)
 
 		// View should show filter input
-		view := model.View()
+		view := model.View().Content
 		assert.Contains(t, view, "Filter:")
 	})
 }
@@ -233,12 +233,12 @@ func TestVirtualScrolling_DetailView(t *testing.T) {
 	model = updatedModel.(*tui.RecommendationsViewModel)
 
 	// Press Enter to view details
-	enterMsg := tea.KeyMsg{Type: tea.KeyEnter}
+	enterMsg := tea.KeyPressMsg{Code: tea.KeyEnter}
 	updatedModel, _ = model.Update(enterMsg)
 	model = updatedModel.(*tui.RecommendationsViewModel)
 
 	// View should show detail page
-	view := model.View()
+	view := model.View().Content
 	assert.Contains(t, view, "RECOMMENDATION DETAIL")
 	assert.Contains(t, view, "test-resource")
 	assert.Contains(t, view, "RIGHTSIZE")
@@ -255,7 +255,7 @@ func TestVirtualScrolling_EmptyList(t *testing.T) {
 	model = updatedModel.(*tui.RecommendationsViewModel)
 
 	// View should render empty state
-	view := model.View()
+	view := model.View().Content
 	assert.Contains(t, view, "RECOMMENDATIONS SUMMARY")
 	assert.Contains(t, view, "0 recommendations")
 }
@@ -285,17 +285,17 @@ func TestVirtualScrolling_Performance(t *testing.T) {
 
 	// Render view multiple times to verify consistent performance
 	for i := 0; i < 10; i++ {
-		view := model.View()
+		view := model.View().Content
 		assert.NotEmpty(t, view)
 
 		// Navigate down
-		downMsg := tea.KeyMsg{Type: tea.KeyDown}
+		downMsg := tea.KeyPressMsg{Code: tea.KeyDown}
 		updatedModel, _ = model.Update(downMsg)
 		model = updatedModel.(*tui.RecommendationsViewModel)
 	}
 
 	// Final view should still be valid
-	finalView := model.View()
+	finalView := model.View().Content
 	assert.NotEmpty(t, finalView)
 	assert.Contains(t, finalView, "RECOMMENDATIONS SUMMARY")
 	assert.Contains(t, finalView, "10000 recommendations")

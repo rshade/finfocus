@@ -3,7 +3,7 @@ package listview
 import (
 	"strings"
 
-	tea "github.com/charmbracelet/bubbletea"
+	tea "charm.land/bubbletea/v2"
 )
 
 // defaultBufferSize is the number of extra rows to render above/below viewport for smooth scrolling.
@@ -72,7 +72,7 @@ func (m *VirtualListModel[T]) Init() tea.Cmd {
 // Update handles keyboard and resize messages.
 func (m *VirtualListModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case tea.KeyMsg:
+	case tea.KeyPressMsg:
 		return m.handleKeyMsg(msg), nil
 	case tea.WindowSizeMsg:
 		m.height = msg.Height
@@ -85,14 +85,12 @@ func (m *VirtualListModel[T]) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // handleKeyMsg processes keyboard input for navigation.
-//
-//nolint:gocognit,exhaustive // Key handling inherently requires multiple branches for different navigation keys.
-func (m *VirtualListModel[T]) handleKeyMsg(msg tea.KeyMsg) tea.Model {
+func (m *VirtualListModel[T]) handleKeyMsg(msg tea.KeyPressMsg) tea.Model {
 	if len(m.items) == 0 {
 		return m
 	}
 
-	switch msg.Type {
+	switch msg.Code {
 	case tea.KeyUp:
 		if m.selected > 0 {
 			m.selected--
@@ -127,25 +125,20 @@ func (m *VirtualListModel[T]) handleKeyMsg(msg tea.KeyMsg) tea.Model {
 		m.selected = len(m.items) - 1
 		m.updateVisibleRange()
 
-	case tea.KeyRunes:
-		// Handle vim-style navigation
-		if len(msg.Runes) > 0 {
-			switch msg.Runes[0] {
-			case 'j':
-				if m.selected < len(m.items)-1 {
-					m.selected++
-					m.updateVisibleRange()
-				}
-			case 'k':
-				if m.selected > 0 {
-					m.selected--
-					m.updateVisibleRange()
-				}
+	default:
+		// Handle vim-style navigation via text input
+		switch msg.Text {
+		case "j":
+			if m.selected < len(m.items)-1 {
+				m.selected++
+				m.updateVisibleRange()
+			}
+		case "k":
+			if m.selected > 0 {
+				m.selected--
+				m.updateVisibleRange()
 			}
 		}
-
-	default:
-		// Ignore other key types (Ctrl combinations, function keys, etc.)
 	}
 
 	return m
@@ -188,9 +181,9 @@ func (m *VirtualListModel[T]) updateVisibleRange() {
 }
 
 // View renders the visible portion of the list with buffer.
-func (m *VirtualListModel[T]) View() string {
+func (m *VirtualListModel[T]) View() tea.View {
 	if len(m.items) == 0 {
-		return ""
+		return tea.NewView("")
 	}
 
 	// Calculate render range with buffer for smooth scrolling
@@ -218,7 +211,7 @@ func (m *VirtualListModel[T]) View() string {
 		content = content[:len(content)-1]
 	}
 
-	return content
+	return tea.NewView(content)
 }
 
 // ItemCount returns the total number of items in the list.
