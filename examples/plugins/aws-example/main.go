@@ -81,7 +81,9 @@ type AWSExamplePlugin struct {
 	rdsEngineMultipliers map[string]float64
 }
 
-// NewAWSExamplePlugin registers support for aws:ec2:Instance, aws:s3:Bucket, and aws:rds:Instance resources.
+// NewAWSExamplePlugin creates and returns an AWSExamplePlugin preconfigured with supported provider and resource types and populated pricing and multiplier tables for EC2, EBS, S3, and RDS.
+// The plugin registers the "aws" provider and adds support for the resource types "aws:ec2:Instance", "aws:s3:Bucket", and "aws:rds:Instance".
+// It returns a pointer to an AWSExamplePlugin with in-memory price maps and region/engine multipliers initialized.
 func NewAWSExamplePlugin() *AWSExamplePlugin {
 	base := pluginsdk.NewBasePlugin("aws-example")
 

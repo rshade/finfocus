@@ -302,7 +302,10 @@ func newPluginCmd() *cobra.Command {
 	return cmd
 }
 
-// newConfigCmd creates the config command group with configuration subcommands.
+// newConfigCmd returns a Cobra command for the "config" command group.
+// The command exposes subcommands for managing configuration: init, set,
+// get, list, validate, and routes. The returned *cobra.Command is ready to
+// be attached to the CLI command tree.
 func newConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "config", Short: "Configuration management commands"}
 	cmd.AddCommand(
