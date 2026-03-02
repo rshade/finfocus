@@ -2,6 +2,8 @@ package tui
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStyleDefinitions(t *testing.T) {
@@ -85,6 +87,11 @@ func TestStyleDefinitions(t *testing.T) {
 		if TableHeaderStyle.GetForeground() != ColorHeader {
 			t.Error("TableHeaderStyle should have header color")
 		}
+		top, right, bottom, left := TableHeaderStyle.GetPadding()
+		assert.Equal(t, 0, top, "TableHeaderStyle top padding")
+		assert.Equal(t, 1, right, "TableHeaderStyle right padding")
+		assert.Equal(t, 0, bottom, "TableHeaderStyle bottom padding")
+		assert.Equal(t, 1, left, "TableHeaderStyle left padding")
 	})
 
 	t.Run("TableSelectedStyle", func(t *testing.T) {

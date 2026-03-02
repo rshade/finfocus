@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"charm.land/bubbles/v2/table"
 	"charm.land/bubbles/v2/textinput"
@@ -21,18 +22,25 @@ const maxOverviewResourcesPerPage = 250
 // Column width constants for the overview table.
 // All columns except Resource have fixed widths; Resource absorbs extra terminal width.
 const (
+	// colWidthType is the preferred width for the Type column when space allows.
 	colWidthType      = 20
-	colWidthStatus    = 10
+	colWidthStatus    = 12
 	colWidthActual    = 12
 	colWidthProjected = 12
 	colWidthDelta     = 12
 	colWidthDrift     = 8
 	colWidthRecs      = 9
-	// fixedColumnsTotal is the sum of all non-Resource column widths.
-	fixedColumnsTotal = colWidthType + colWidthStatus + colWidthActual +
+	// fixedOverviewColumnsTotal is the sum of fixed columns excluding Resource and Type.
+	fixedOverviewColumnsTotal = colWidthStatus + colWidthActual +
 		colWidthProjected + colWidthDelta + colWidthDrift + colWidthRecs
+	// overviewColumnCount is the number of columns in the overview table.
+	overviewColumnCount = 8
 	// minResourceColWidth is the minimum width for the Resource column.
-	minResourceColWidth = 30
+	minResourceColWidth = 12
+	// minTypeColWidth is the minimum width for the Type column.
+	minTypeColWidth = 12
+	// minCompactColWidth is the minimum width when the terminal is too narrow.
+	minCompactColWidth = 1
 )
 
 // OverviewResourceLoadedMsg is sent when a single resource's data is enriched.
@@ -215,14 +223,100 @@ func (m OverviewModel) Err() error {
 	return m.err
 }
 
-// resourceColumnWidth returns the dynamic width for the Resource column.
-// It expands to fill available terminal width, with a minimum of minResourceColWidth.
+// resourceColumnWidth returns the computed width for the Resource column.
 func (m *OverviewModel) resourceColumnWidth() int {
-	available := m.width - fixedColumnsTotal - borderPadding
-	if available < minResourceColWidth {
-		return minResourceColWidth
+	resourceWidth, _ := m.variableColumnWidths()
+	return resourceWidth
+}
+
+// typeColumnWidth returns the computed width for the Type column.
+func (m *OverviewModel) typeColumnWidth() int {
+	_, typeWidth := m.variableColumnWidths()
+	return typeWidth
+}
+
+// variableColumnWidths calculates widths for Resource and Type using the
+// available table width budget after fixed columns and cell padding.
+func (m *OverviewModel) variableColumnWidths() (int, int) {
+	available := m.width - borderPadding - tablePaddingForColumns(overviewColumnCount) - fixedOverviewColumnsTotal
+	if available <= 0 {
+		return minCompactColWidth, minCompactColWidth
 	}
-	return available
+	if available == 1 {
+		return minCompactColWidth, minCompactColWidth
+	}
+
+	if available < minResourceColWidth+minTypeColWidth {
+		// Terminal too narrow for minimum target widths; split proportionally
+		// while preserving at least one character per column.
+		resourceWidth := (available + 1) / 2 //nolint:mnd // Splitting available width between 2 variable columns.
+		typeWidth := available - resourceWidth
+		if resourceWidth < minCompactColWidth {
+			resourceWidth = minCompactColWidth
+		}
+		if typeWidth < minCompactColWidth {
+			typeWidth = minCompactColWidth
+		}
+		return resourceWidth, typeWidth
+	}
+
+	resourceTarget, typeTarget := m.targetVariableColumnWidths()
+	targetTotal := resourceTarget + typeTarget
+	if targetTotal <= available {
+		// Assign any remaining width to Resource to avoid ragged table width.
+		return resourceTarget + (available - targetTotal), typeTarget
+	}
+
+	overflow := targetTotal - available
+	resourceSlack := resourceTarget - minResourceColWidth
+	typeSlack := typeTarget - minTypeColWidth
+	totalSlack := resourceSlack + typeSlack
+	if totalSlack <= 0 {
+		return minResourceColWidth, minTypeColWidth
+	}
+
+	reduceResource := (overflow * resourceSlack) / totalSlack
+	if reduceResource > resourceSlack {
+		reduceResource = resourceSlack
+	}
+	reduceType := overflow - reduceResource
+	if reduceType > typeSlack {
+		extra := reduceType - typeSlack
+		reduceType = typeSlack
+		reduceResource += extra
+	}
+	if reduceResource > resourceSlack {
+		extra := reduceResource - resourceSlack
+		reduceResource = resourceSlack
+		reduceType += extra
+	}
+
+	resourceWidth := resourceTarget - reduceResource
+	typeWidth := typeTarget - reduceType
+	if resourceWidth < minResourceColWidth {
+		resourceWidth = minResourceColWidth
+	}
+	if typeWidth < minTypeColWidth {
+		typeWidth = minTypeColWidth
+	}
+	return resourceWidth, typeWidth
+}
+
+// targetVariableColumnWidths computes desired widths for Resource and Type
+// based on visible data.
+func (m *OverviewModel) targetVariableColumnWidths() (int, int) {
+	resourceTarget := minResourceColWidth
+	typeTarget := minTypeColWidth
+
+	resourceTarget = max(resourceTarget, utf8.RuneCountInString("Resource"))
+	typeTarget = max(typeTarget, utf8.RuneCountInString("Type"))
+
+	for _, row := range m.getVisibleRows() {
+		resourceName := resourceDisplayName(row.URN)
+		resourceTarget = max(resourceTarget, utf8.RuneCountInString(resourceName))
+		typeTarget = max(typeTarget, utf8.RuneCountInString(row.Type))
+	}
+	return resourceTarget, typeTarget
 }
 
 // Init initializes the model (Bubble Tea interface).
@@ -592,9 +686,10 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		projectedHeader = "Projected*"
 	}
 	resourceWidth := m.resourceColumnWidth()
+	typeWidth := m.typeColumnWidth()
 	columns := []table.Column{
 		{Title: "Resource", Width: resourceWidth},
-		{Title: "Type", Width: colWidthType},
+		{Title: "Type", Width: typeWidth},
 		{Title: "Status", Width: colWidthStatus},
 		{Title: "Actual", Width: colWidthActual},
 		{Title: projectedHeader, Width: colWidthProjected},
@@ -608,7 +703,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 
 	for i, overviewRow := range visibleRows {
 		resourceName := truncateResourceName(overviewRow.URN, resourceWidth)
-		statusStr := overviewRow.Status.String()
+		statusStr := fmt.Sprintf("%s %s", engine.StatusIcon(overviewRow.Status), overviewRow.Status.String())
 
 		actualStr := "-"
 		if overviewRow.ActualCost != nil {
@@ -620,10 +715,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 			projectedStr = fmt.Sprintf("$%.2f", overviewRow.ProjectedCost.MonthlyCost)
 		}
 
-		deltaStr := "-"
-		if overviewRow.CostDrift != nil {
-			deltaStr = fmt.Sprintf("$%.2f", overviewRow.CostDrift.Delta)
-		}
+		deltaStr := formatOverviewDeltaCell(overviewRow)
 
 		driftPctStr := "-"
 		if overviewRow.CostDrift != nil {
@@ -663,6 +755,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(availableHeight),
+		table.WithWidth(tableWidthFromColumns(columns)),
 	)
 
 	s := table.DefaultStyles()
@@ -673,23 +766,53 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 	return t
 }
 
+// formatOverviewDeltaCell formats delta for table display. It prefers drift
+// delta when available and otherwise falls back to projected-actual.
+func formatOverviewDeltaCell(row engine.OverviewRow) string {
+	if row.CostDrift != nil {
+		return engine.FormatOverviewDelta(row.CostDrift.Delta)
+	}
+	if row.ProjectedCost == nil && row.ActualCost == nil {
+		return "-"
+	}
+
+	projected := 0.0
+	if row.ProjectedCost != nil {
+		projected = row.ProjectedCost.MonthlyCost
+	}
+	actual := 0.0
+	if row.ActualCost != nil {
+		actual = row.ActualCost.MTDCost
+	}
+
+	return engine.FormatOverviewDelta(projected - actual)
+}
+
 // truncateResourceName shortens a URN for display within the given maxLen.
+// It operates on rune counts to avoid splitting multibyte UTF-8 characters.
 func truncateResourceName(urn string, maxLen int) string {
-	if urn == "" {
-		return urn
+	name := resourceDisplayName(urn)
+	if maxLen <= 0 {
+		return ""
 	}
-	if len(urn) <= maxLen {
-		return urn
-	}
-	// Extract resource name from URN (last component).
-	// strings.Split always returns at least one element so no length check needed.
-	parts := strings.Split(urn, "::")
-	name := parts[len(parts)-1]
-	if len(name) <= maxLen {
+	runes := []rune(name)
+	if len(runes) <= maxLen {
 		return name
 	}
 	const ellipsis = 3
-	return name[:maxLen-ellipsis] + "..."
+	if maxLen <= ellipsis {
+		return string(runes[:maxLen])
+	}
+	return string(runes[:maxLen-ellipsis]) + "..."
+}
+
+// resourceDisplayName extracts the rightmost URN component for display.
+func resourceDisplayName(urn string) string {
+	if urn == "" {
+		return urn
+	}
+	parts := strings.Split(urn, "::")
+	return parts[len(parts)-1]
 }
 
 // applyFilter filters rows based on text input. It always calls refreshTable

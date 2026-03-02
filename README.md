@@ -281,6 +281,12 @@ finfocus config list [--format json|yaml]
 
 # Validate configuration
 finfocus config validate [--verbose]
+
+# Inspect effective routing configuration
+finfocus config routes list [--output table|json]
+
+# Simulate plugin routing for a resource type
+finfocus config routes test aws:ec2:Instance [region] [--output table|json]
 ```
 
 ## Multi-Plugin Routing

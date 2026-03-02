@@ -196,6 +196,7 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(height),
+		table.WithWidth(tableWidthFromColumns(columns)),
 	)
 
 	s := table.DefaultStyles()
@@ -241,6 +242,7 @@ func NewActualCostTable(results []engine.CostResult, height int) table.Model {
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(height),
+		table.WithWidth(tableWidthFromColumns(columns)),
 	)
 
 	s := table.DefaultStyles()
@@ -279,6 +281,7 @@ func NewAggregationTable(aggs []engine.CrossProviderAggregation, height int) tab
 		table.WithRows(rows),
 		table.WithFocused(true),
 		table.WithHeight(height),
+		table.WithWidth(tableWidthFromColumns(columns)),
 	)
 
 	s := table.DefaultStyles()

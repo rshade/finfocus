@@ -8,6 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// computeActualMTDForDrift returns the actualMTD value that would produce the
+// given percent drift for the specified parameters, accounting for the
+// standardProjectedDaysPerMonth normalization.
+func computeActualMTDForDrift(projected, targetPercentDrift float64, dayOfMonth, daysInMonth int) float64 {
+	projectedNorm := projected * (float64(daysInMonth) / standardProjectedDaysPerMonth)
+	extrapolated := projectedNorm * (1 + targetPercentDrift/driftPercentMultiplier)
+	return extrapolated * float64(dayOfMonth) / float64(daysInMonth)
+}
+
 // ---------------------------------------------------------------------------
 // CalculateCostDrift
 // ---------------------------------------------------------------------------
@@ -44,6 +53,51 @@ func TestCalculateCostDrift(t *testing.T) {
 			errContains: "insufficient data (day 2 of month)",
 		},
 		{
+			name:        "daysInMonth zero returns error",
+			actualMTD:   100,
+			projected:   100,
+			dayOfMonth:  3,
+			daysInMonth: 0,
+			wantErr:     true,
+			errContains: "invalid daysInMonth 0 (must be 28..31)",
+		},
+		{
+			name:        "daysInMonth negative returns error",
+			actualMTD:   100,
+			projected:   100,
+			dayOfMonth:  3,
+			daysInMonth: -5,
+			wantErr:     true,
+			errContains: "invalid daysInMonth -5 (must be 28..31)",
+		},
+		{
+			name:        "daysInMonth 27 returns error",
+			actualMTD:   100,
+			projected:   100,
+			dayOfMonth:  3,
+			daysInMonth: 27,
+			wantErr:     true,
+			errContains: "invalid daysInMonth 27 (must be 28..31)",
+		},
+		{
+			name:        "daysInMonth exceeds 31 returns error",
+			actualMTD:   100,
+			projected:   100,
+			dayOfMonth:  3,
+			daysInMonth: 32,
+			wantErr:     true,
+			errContains: "invalid daysInMonth 32 (must be 28..31)",
+		},
+		{
+			name:        "dayOfMonth exceeds daysInMonth returns error",
+			actualMTD:   100,
+			projected:   100,
+			dayOfMonth:  30,
+			daysInMonth: 28,
+			wantErr:     true,
+			errContains: "dayOfMonth 30 exceeds daysInMonth 28",
+		},
+		{
 			name:        "both zero returns nil",
 			actualMTD:   0,
 			projected:   0,
@@ -76,17 +130,17 @@ func TestCalculateCostDrift(t *testing.T) {
 			wantDrift:   false,
 		},
 		{
-			name:        "drift exactly at 10% threshold returns nil",
-			actualMTD:   55,  // extrapolated = 55 * (30/15) = 110
-			projected:   100, // delta = 10, percent = 10%
+			name:        "drift just below 10% threshold returns nil",
+			actualMTD:   computeActualMTDForDrift(100, 9.9, 15, 30),
+			projected:   100,
 			dayOfMonth:  15,
 			daysInMonth: 30,
 			wantDrift:   false,
 		},
 		{
 			name:        "drift just above 10% threshold returns data",
-			actualMTD:   55.5, // extrapolated = 55.5 * (30/15) = 111
-			projected:   100,  // delta = 11, percent = 11%
+			actualMTD:   computeActualMTDForDrift(100, 11.0, 15, 30),
+			projected:   100,
 			dayOfMonth:  15,
 			daysInMonth: 30,
 			wantDrift:   true,
@@ -96,11 +150,11 @@ func TestCalculateCostDrift(t *testing.T) {
 		{
 			name:        "large positive drift",
 			actualMTD:   100, // extrapolated = 100 * (30/10) = 300
-			projected:   100, // delta = 200, percent = 200%
+			projected:   100, // projected is normalized to calendar month before drift comparison
 			dayOfMonth:  10,
 			daysInMonth: 30,
 			wantDrift:   true,
-			wantPercent: 200.0,
+			wantPercent: 204.17,
 			wantWarning: true,
 		},
 		{
@@ -116,11 +170,11 @@ func TestCalculateCostDrift(t *testing.T) {
 		{
 			name:        "february 28 day month",
 			actualMTD:   140, // extrapolated = 140 * (28/14) = 280
-			projected:   200, // delta = 80, percent = 40%
+			projected:   200, // projected is normalized from 730h/month to 28-day month
 			dayOfMonth:  14,
 			daysInMonth: 28,
 			wantDrift:   true,
-			wantPercent: 40.0,
+			wantPercent: 52.08,
 			wantWarning: true,
 		},
 		{
@@ -134,11 +188,11 @@ func TestCalculateCostDrift(t *testing.T) {
 		{
 			name:        "day 3 minimum usable day",
 			actualMTD:   30,  // extrapolated = 30 * (30/3) = 300
-			projected:   100, // delta = 200, percent = 200%
+			projected:   100, // projected is normalized to calendar month before drift comparison
 			dayOfMonth:  3,
 			daysInMonth: 30,
 			wantDrift:   true,
-			wantPercent: 200.0,
+			wantPercent: 204.17,
 			wantWarning: true,
 		},
 	}
@@ -165,7 +219,8 @@ func TestCalculateCostDrift(t *testing.T) {
 			assert.InDelta(t, tt.wantPercent, drift.PercentDrift, 1.0,
 				"PercentDrift should be approximately %.1f%%", tt.wantPercent)
 			assert.Equal(t, tt.wantWarning, drift.IsWarning)
-			assert.Equal(t, tt.projected, drift.Projected)
+			expectedProjected := tt.projected * (float64(tt.daysInMonth) / standardProjectedDaysPerMonth)
+			assert.InDelta(t, expectedProjected, drift.Projected, 0.001)
 			assert.Greater(t, drift.ExtrapolatedMonthly, 0.0)
 
 			// Verify the delta computation is consistent.
@@ -179,7 +234,9 @@ func TestCalculateCostDrift(t *testing.T) {
 }
 
 func TestCalculateCostDrift_ExtrapolationAccuracy(t *testing.T) {
-	// Verify the extrapolation formula: extrapolated = actualMTD * (daysInMonth / dayOfMonth)
+	// Verify extrapolation and projected normalization formulas:
+	//   extrapolated = actualMTD * (daysInMonth / dayOfMonth)
+	//   projected_for_month = projected * (daysInMonth / standardProjectedDaysPerMonth)
 	drift, err := CalculateCostDrift(150, 100, 10, 30)
 	require.NoError(t, err)
 	require.NotNil(t, drift)
@@ -187,11 +244,50 @@ func TestCalculateCostDrift_ExtrapolationAccuracy(t *testing.T) {
 	expectedExtrapolated := 150.0 * (30.0 / 10.0) // = 450
 	assert.InDelta(t, expectedExtrapolated, drift.ExtrapolatedMonthly, 0.001)
 
-	expectedDelta := 450.0 - 100.0 // = 350
+	expectedProjected := 100.0 * (30.0 / standardProjectedDaysPerMonth)
+	assert.InDelta(t, expectedProjected, drift.Projected, 0.001)
+
+	expectedDelta := 450.0 - expectedProjected
 	assert.InDelta(t, expectedDelta, drift.Delta, 0.001)
 
-	expectedPercent := (350.0 / 100.0) * 100.0 // = 350%
+	expectedPercent := (expectedDelta / expectedProjected) * 100.0
 	assert.InDelta(t, expectedPercent, drift.PercentDrift, 0.001)
+}
+
+func TestCalculateCostDrift_MonthLengthNormalization(t *testing.T) {
+	projected := 100.0
+	tests := []struct {
+		name        string
+		dayOfMonth  int
+		daysInMonth int
+	}{
+		{
+			name:        "february_28_day_mid_month",
+			dayOfMonth:  15,
+			daysInMonth: 28,
+		},
+		{
+			name:        "february_28_day_end_of_month",
+			dayOfMonth:  28,
+			daysInMonth: 28,
+		},
+		{
+			name:        "leap_february_end_of_month",
+			dayOfMonth:  29,
+			daysInMonth: 29,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			projectedForCalendarMonth := projected * (float64(tt.daysInMonth) / standardProjectedDaysPerMonth)
+			actualMTD := projectedForCalendarMonth * (float64(tt.dayOfMonth) / float64(tt.daysInMonth))
+
+			drift, err := CalculateCostDrift(actualMTD, projected, tt.dayOfMonth, tt.daysInMonth)
+			require.NoError(t, err)
+			assert.Nil(t, drift, "drift should be suppressed when run-rate exactly matches normalized projection")
+		})
+	}
 }
 
 // ---------------------------------------------------------------------------

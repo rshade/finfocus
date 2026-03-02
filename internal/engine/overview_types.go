@@ -307,7 +307,8 @@ type OverviewRow struct {
 	CostDrift       *CostDriftData         `json:"costDrift,omitempty"`
 	Error           *OverviewRowError      `json:"error,omitempty"`
 	// CreatedAt tracks when the resource was first added to Pulumi state.
-	// Used by enrichCostDrift to correct extrapolation for mid-month resources.
+	// Used by enrichCostDrift to suppress drift for very new resources with
+	// insufficient data points in the current billing window.
 	// Nil for resources from Pulumi < v3.60.0 or plan-only resources.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
 }

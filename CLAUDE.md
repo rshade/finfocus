@@ -318,6 +318,8 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   falls back to `~/.finfocus/dismissed.json`
 - **`config init`**: Without `--global`, inside a Pulumi project creates
   `$PROJECT/.finfocus/config.yaml` + `.gitignore`. Outside Pulumi project → global init
+- **`config routes`**: `config routes list` shows effective routing source/path;
+  `config routes test <type> [region]` simulates per-feature plugin selection without loading plugin binaries
 
 ### Registry (`internal/registry/`)
 
@@ -331,7 +333,7 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 
 - **Fallback chain**: `$0.00` cost is a VALID result (does NOT trigger fallback).
   Only nil/empty results trigger fallback to the next plugin
-- **Priority**: Lower number = higher priority
+- **Priority**: Higher number = higher priority (sorted descending by `sortByPriority`)
 - **No config = no routing**: `createRouterForEngine()` returns nil if no routing config;
   engine falls back to querying all plugins
 
@@ -359,3 +361,5 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 - Bubble Tea v2 (`charm.land/bubbletea/v2 v2.0.0`) (604-charm-v2-upgrade)
 - Bubbles v2 (`charm.land/bubbles/v2 v2.0.0`) (604-charm-v2-upgrade)
 - Lip Gloss v2 (`charm.land/lipgloss/v2 v2.0.0`) (604-charm-v2-upgrade)
+- CLI commands using Cobra, tabwriter, and Viper for config parsing
+

@@ -15,25 +15,42 @@ const driftPercentMultiplier = 100.0
 // defaultDaysPerMonth is used for extrapolation in delta calculations.
 const defaultDaysPerMonth = 30.0
 
-// CalculateCostDrift computes the cost drift between extrapolated actual spend
-// and projected monthly cost.
-//
-// It returns a non-nil CostDriftData only when the absolute percent drift
-// exceeds the warning threshold (10%). In all other cases it returns nil.
-//
-// Special cases:
-//   - dayOfMonth <= 2: returns nil and an error (insufficient data).
-//   - Both actual and projected are zero: returns nil, nil (nothing to compare).
-//   - Only one side is zero (new or deleted resource): returns nil, nil.
+// standardProjectedDaysPerMonth converts the canonical 730h projected pricing
+// basis into day units for drift normalization.
+const standardProjectedDaysPerMonth = float64(HoursPerMonth) / float64(hoursPerDay)
+
+// CalculateCostDrift computes the cost drift between an extrapolated month-to-date actual spend
+// and the projected monthly cost normalized to the current calendar month.
 //
 // Parameters:
-//   - actualMTD: the month-to-date actual cost.
-//   - projected: the projected monthly cost.
-//   - dayOfMonth: the current day of the month (1-based).
-//   - daysInMonth: total days in the current month (28-31).
+//   - actualMTD: month-to-date actual cost for the resource.
+//   - projected: projected monthly cost expressed on the package's canonical month basis.
+//   - dayOfMonth: current day of the month (1-31); used to extrapolate actualMTD to a full month.
+//   - daysInMonth: total days in the current calendar month (28-31); used to normalize the projection.
+//
+// Return values:
+//   - (*CostDriftData, nil) when drift exceeds the warning threshold (10%).
+//   - (nil, nil) when drift is not meaningful: both sides zero, one side zero
+//     (new/deleted resource), or drift within the warning threshold.
+//   - (nil, error) with ErrOverviewValidation when inputs are invalid:
+//     dayOfMonth < driftMinDay, daysInMonth outside 28..31, or dayOfMonth > daysInMonth.
 func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth int) (*CostDriftData, error) {
 	if dayOfMonth < driftMinDay {
 		return nil, fmt.Errorf("%w: insufficient data (day %d of month)", ErrOverviewValidation, dayOfMonth)
+	}
+	const minCalendarDays = 28
+	const maxCalendarDays = 31
+	if daysInMonth < minCalendarDays || daysInMonth > maxCalendarDays {
+		return nil, fmt.Errorf(
+			"%w: invalid daysInMonth %d (must be %d..%d)",
+			ErrOverviewValidation, daysInMonth, minCalendarDays, maxCalendarDays,
+		)
+	}
+	if dayOfMonth > daysInMonth {
+		return nil, fmt.Errorf(
+			"%w: dayOfMonth %d exceeds daysInMonth %d",
+			ErrOverviewValidation, dayOfMonth, daysInMonth,
+		)
 	}
 
 	// Edge cases where drift is not meaningful.
@@ -49,9 +66,13 @@ func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth in
 		return nil, nil //nolint:nilnil // nil,nil is intentional: no drift data, no error.
 	}
 
+	// The projected value is based on a canonical 730h month. Normalize it to
+	// the current calendar month before comparison so drift math compares like
+	// with like across 28/29/30/31 day months.
+	projectedForCalendarMonth := projected * (float64(daysInMonth) / standardProjectedDaysPerMonth)
 	extrapolated := actualMTD * (float64(daysInMonth) / float64(dayOfMonth))
-	delta := extrapolated - projected
-	percentDrift := (delta / projected) * driftPercentMultiplier
+	delta := extrapolated - projectedForCalendarMonth
+	percentDrift := (delta / projectedForCalendarMonth) * driftPercentMultiplier
 
 	if math.Abs(percentDrift) <= driftWarningThreshold {
 		return nil, nil //nolint:nilnil // nil,nil is intentional: drift below threshold, no error.
@@ -59,7 +80,7 @@ func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth in
 
 	return &CostDriftData{
 		ExtrapolatedMonthly: extrapolated,
-		Projected:           projected,
+		Projected:           projectedForCalendarMonth,
 		Delta:               delta,
 		PercentDrift:        percentDrift,
 		IsWarning:           true,
