@@ -7,10 +7,11 @@ require (
 	charm.land/bubbletea/v2 v2.0.0
 	charm.land/lipgloss/v2 v2.0.0
 	github.com/Masterminds/semver/v3 v3.4.0
+	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/pulumi/pulumi/sdk/v3 v3.224.0
 	github.com/rs/zerolog v1.34.0
-	github.com/rshade/finfocus-spec v0.5.6
+	github.com/rshade/finfocus-spec v0.5.7
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/term v0.40.0
@@ -34,7 +35,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.2 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260205113103-524a6607adb8 // indirect
-	github.com/charmbracelet/x/ansi v0.11.6 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect

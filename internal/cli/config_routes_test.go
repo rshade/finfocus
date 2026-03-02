@@ -308,6 +308,27 @@ func TestConfigRoutesTestAutomatic(t *testing.T) {
 	assert.Contains(t, output, "would be queried")
 }
 
+func TestConfigRoutesTestAutomaticJSON(t *testing.T) {
+	setupConfigRoutesTest(t)
+
+	routesCmd, buf := newTestConfigRoutesCmd(t)
+	routesCmd.SetArgs([]string{"test", "aws:ec2:Instance", "--output", "json"})
+
+	err := routesCmd.Execute()
+	require.NoError(t, err)
+
+	var output map[string]interface{}
+	require.NoError(t, json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &output))
+
+	assert.Equal(t, "automatic", output["mode"])
+	assert.Equal(t, "aws:ec2:Instance", output["resource_type"])
+	assert.Equal(t, "aws", output["provider"])
+
+	matches, ok := output["matches"].([]interface{})
+	require.True(t, ok, "matches must be an array")
+	assert.Empty(t, matches)
+}
+
 func TestConfigRoutesTestJSON(t *testing.T) {
 	setupConfigRoutesTest(t)
 

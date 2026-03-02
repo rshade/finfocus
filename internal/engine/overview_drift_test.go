@@ -59,7 +59,7 @@ func TestCalculateCostDrift(t *testing.T) {
 			dayOfMonth:  3,
 			daysInMonth: 0,
 			wantErr:     true,
-			errContains: "invalid daysInMonth 0",
+			errContains: "invalid daysInMonth 0 (must be 28..31)",
 		},
 		{
 			name:        "daysInMonth negative returns error",
@@ -68,7 +68,16 @@ func TestCalculateCostDrift(t *testing.T) {
 			dayOfMonth:  3,
 			daysInMonth: -5,
 			wantErr:     true,
-			errContains: "invalid daysInMonth -5",
+			errContains: "invalid daysInMonth -5 (must be 28..31)",
+		},
+		{
+			name:        "daysInMonth 27 returns error",
+			actualMTD:   100,
+			projected:   100,
+			dayOfMonth:  3,
+			daysInMonth: 27,
+			wantErr:     true,
+			errContains: "invalid daysInMonth 27 (must be 28..31)",
 		},
 		{
 			name:        "daysInMonth exceeds 31 returns error",
@@ -77,7 +86,7 @@ func TestCalculateCostDrift(t *testing.T) {
 			dayOfMonth:  3,
 			daysInMonth: 32,
 			wantErr:     true,
-			errContains: "invalid daysInMonth 32",
+			errContains: "invalid daysInMonth 32 (must be 28..31)",
 		},
 		{
 			name:        "dayOfMonth exceeds daysInMonth returns error",

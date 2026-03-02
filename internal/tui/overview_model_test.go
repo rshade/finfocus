@@ -516,6 +516,15 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 			wantDelta: engine.FormatOverviewDelta(50.00),
 		},
 		{
+			name: "no-cost delta shows dash",
+			row: engine.OverviewRow{
+				URN:    "urn:test",
+				Type:   "aws:ec2/instance:Instance",
+				Status: engine.StatusActive,
+			},
+			wantDelta: "-",
+		},
+		{
 			name: "delta uses cost drift when available",
 			row: engine.OverviewRow{
 				URN:    "urn:test",

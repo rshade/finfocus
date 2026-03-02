@@ -3113,6 +3113,12 @@ func (m *mockPbcCostSourceServiceClient) GetBudgets(
 	return &pbc.GetBudgetsResponse{}, nil
 }
 
+func (m *mockPbcCostSourceServiceClient) BatchCost(
+	_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption,
+) (*pbc.BatchCostResponse, error) {
+	return &pbc.BatchCostResponse{}, nil
+}
+
 func TestClientAdapter_GetActualCost_EmptyPluginResponse(t *testing.T) {
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	endTime := time.Now().Unix()

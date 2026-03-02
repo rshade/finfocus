@@ -77,15 +77,13 @@ func validateOutputFormat(format string) error {
 func loadRoutingContext(ctx context.Context) (*config.Config, string) {
 	projectDir := config.GetResolvedProjectDir()
 	source := "global"
-	if projectDir != "" {
-		source = "project"
-	}
 
 	cfg := config.NewWithProjectDir(ctx, projectDir)
 
 	if projectDir != "" {
 		projectCfgPath := filepath.Join(projectDir, "config.yaml")
 		if _, err := os.Stat(projectCfgPath); err == nil {
+			source = "project"
 			cfg.SetConfigPath(projectCfgPath)
 		}
 	}
@@ -225,17 +223,17 @@ func runConfigRoutesTest(cmd *cobra.Command, args []string, outputFormat string)
 				nil,
 			)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "Plugin selection for %s (provider: %s", resourceType, provider)
+		cmd.Printf("Plugin selection for %s (provider: %s", resourceType, provider)
 		if region != "" {
-			fmt.Fprintf(cmd.OutOrStdout(), ", region: %s", region)
+			cmd.Printf(", region: %s", region)
 		}
-		fmt.Fprintln(cmd.OutOrStdout(), "):")
-		fmt.Fprintln(cmd.OutOrStdout(), "No routing configured (automatic mode)")
-		fmt.Fprintf(cmd.OutOrStdout(), "All provider-matching plugins for %q would be queried.\n", provider)
+		cmd.Println("):")
+		cmd.Println("No routing configured (automatic mode)")
+		cmd.Printf("All provider-matching plugins for %q would be queried.\n", provider)
 		return nil
 	}
 
-	matches, featureMatches, err := simulatePluginSelection(cfg.Routing, resourceType, region, provider)
+	matches, featureMatches, err := simulatePluginSelection(cmd.Context(), cfg.Routing, resourceType, region, provider)
 	if err != nil {
 		return err
 	}
@@ -281,6 +279,7 @@ func buildSyntheticClients(routing *config.RoutingConfig) []*pluginhost.Client {
 }
 
 func simulatePluginSelection(
+	ctx context.Context,
 	routing *config.RoutingConfig,
 	resourceType, region, provider string,
 ) ([]router.PluginMatch, map[string]router.PluginMatch, error) {
@@ -306,7 +305,7 @@ func simulatePluginSelection(
 	seen := make(map[string]struct{})
 	uniqueMatches := make([]router.PluginMatch, 0)
 	for _, feature := range router.ValidFeatureNames() {
-		matches := rt.SelectPlugins(context.Background(), resource, feature)
+		matches := rt.SelectPlugins(ctx, resource, feature)
 		if len(matches) > 0 {
 			featureMatches[feature] = matches[0]
 		}

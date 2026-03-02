@@ -33,16 +33,17 @@ const standardProjectedDaysPerMonth = float64(HoursPerMonth) / float64(hoursPerD
 //   - (nil, nil) when drift is not meaningful: both sides zero, one side zero
 //     (new/deleted resource), or drift within the warning threshold.
 //   - (nil, error) with ErrOverviewValidation when inputs are invalid:
-//     dayOfMonth < driftMinDay, daysInMonth outside 1..31, or dayOfMonth > daysInMonth.
+//     dayOfMonth < driftMinDay, daysInMonth outside 28..31, or dayOfMonth > daysInMonth.
 func CalculateCostDrift(actualMTD, projected float64, dayOfMonth, daysInMonth int) (*CostDriftData, error) {
 	if dayOfMonth < driftMinDay {
 		return nil, fmt.Errorf("%w: insufficient data (day %d of month)", ErrOverviewValidation, dayOfMonth)
 	}
+	const minCalendarDays = 28
 	const maxCalendarDays = 31
-	if daysInMonth <= 0 || daysInMonth > maxCalendarDays {
+	if daysInMonth < minCalendarDays || daysInMonth > maxCalendarDays {
 		return nil, fmt.Errorf(
-			"%w: invalid daysInMonth %d (must be 1..%d)",
-			ErrOverviewValidation, daysInMonth, maxCalendarDays,
+			"%w: invalid daysInMonth %d (must be %d..%d)",
+			ErrOverviewValidation, daysInMonth, minCalendarDays, maxCalendarDays,
 		)
 	}
 	if dayOfMonth > daysInMonth {

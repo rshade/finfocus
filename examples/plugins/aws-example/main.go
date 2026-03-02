@@ -292,6 +292,23 @@ func applyRootBlockDefaults(
 	return volumeType, volumeSizeGB, iops
 }
 
+// normalizeBlockDeviceKey maps common key variants to the canonical camelCase
+// form expected by downstream consumers (volumeType, volumeSize, iops).
+func normalizeBlockDeviceKey(key string) string {
+	canonical := map[string]string{
+		"volumetype":  "volumeType",
+		"volume_type": "volumeType",
+		"volumesize":  "volumeSize",
+		"volume_size": "volumeSize",
+		"iops":        "iops",
+	}
+	trimmed := strings.TrimSpace(key)
+	if mapped, ok := canonical[strings.ToLower(trimmed)]; ok {
+		return mapped
+	}
+	return trimmed
+}
+
 func parseRootBlockDevice(raw string) (map[string]string, bool) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
@@ -304,7 +321,7 @@ func parseRootBlockDevice(raw string) (map[string]string, bool) {
 		if err := json.Unmarshal([]byte(trimmed), &jsonMap); err == nil && len(jsonMap) > 0 {
 			fields := make(map[string]string, len(jsonMap))
 			for k, v := range jsonMap {
-				fields[k] = fmt.Sprintf("%v", v)
+				fields[normalizeBlockDeviceKey(k)] = fmt.Sprintf("%v", v)
 			}
 			return fields, true
 		}
@@ -326,7 +343,7 @@ func parseRootBlockDevice(raw string) (map[string]string, bool) {
 		if len(parts) != kvPairParts {
 			continue
 		}
-		fields[parts[0]] = parts[1]
+		fields[normalizeBlockDeviceKey(parts[0])] = parts[1]
 	}
 
 	if len(fields) == 0 {

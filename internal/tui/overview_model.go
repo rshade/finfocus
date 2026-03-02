@@ -789,19 +789,21 @@ func formatOverviewDeltaCell(row engine.OverviewRow) string {
 }
 
 // truncateResourceName shortens a URN for display within the given maxLen.
+// It operates on rune counts to avoid splitting multibyte UTF-8 characters.
 func truncateResourceName(urn string, maxLen int) string {
 	name := resourceDisplayName(urn)
 	if maxLen <= 0 {
 		return ""
 	}
-	if len(name) <= maxLen {
+	runes := []rune(name)
+	if len(runes) <= maxLen {
 		return name
 	}
 	const ellipsis = 3
 	if maxLen <= ellipsis {
-		return name[:maxLen]
+		return string(runes[:maxLen])
 	}
-	return name[:maxLen-ellipsis] + "..."
+	return string(runes[:maxLen-ellipsis]) + "..."
 }
 
 // resourceDisplayName extracts the rightmost URN component for display.
