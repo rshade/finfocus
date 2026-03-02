@@ -169,6 +169,49 @@ func getExtrapolatedActual(row OverviewRow, dayOfMonth int) float64 {
 	return mtd * (defaultDaysPerMonth / float64(dayOfMonth))
 }
 
+// CalculateRowDelta computes a per-row cost delta for display purposes.
+//
+// For resources with pending changes (updating, replacing, creating, deleting),
+// the delta represents the cost impact of the change using the same logic as
+// CalculateProjectedDelta: projected minus extrapolated actual.
+//
+// For active resources, CostDrift.Delta is used if available.
+//
+// Returns (delta, true) when a meaningful delta can be computed, or (0, false)
+// when no delta is available (e.g., active resource without drift data).
+func CalculateRowDelta(row OverviewRow, dayOfMonth int) (float64, bool) {
+	switch row.Status { //nolint:exhaustive // StatusActive handled in default.
+	case StatusUpdating, StatusReplacing:
+		projected := getProjectedMonthlyCost(row)
+		actual := getExtrapolatedActual(row, dayOfMonth)
+		if projected == 0 && actual == 0 {
+			return 0, false
+		}
+		return projected - actual, true
+
+	case StatusCreating:
+		projected := getProjectedMonthlyCost(row)
+		if projected == 0 {
+			return 0, false
+		}
+		return projected, true
+
+	case StatusDeleting:
+		actual := getExtrapolatedActual(row, dayOfMonth)
+		if actual == 0 {
+			return 0, false
+		}
+		return -actual, true
+
+	default:
+		// Active resources: use drift delta if available.
+		if row.CostDrift != nil {
+			return row.CostDrift.Delta, true
+		}
+		return 0, false
+	}
+}
+
 // pickCurrency returns the first non-empty currency found in a row's cost data.
 func pickCurrency(row OverviewRow) string {
 	if row.ProjectedCost != nil && row.ProjectedCost.Currency != "" {

@@ -498,3 +498,93 @@ func TestCalculateProjectedDelta_MathConsistency(t *testing.T) {
 	assert.True(t, math.Abs(delta) < 1.0,
 		"creating and deleting same-cost resource should net close to zero, got %.2f", delta)
 }
+
+// ---------------------------------------------------------------------------
+// CalculateRowDelta
+// ---------------------------------------------------------------------------
+
+func TestCalculateRowDelta_UpdatingResource(t *testing.T) {
+	row := OverviewRow{
+		Status:        StatusUpdating,
+		ActualCost:    &ActualCostData{MTDCost: 50},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 100},
+	}
+	// Day 15: extrapolated = 50 * (30/15) = 100; delta = 100 - 100 = 0
+	delta, ok := CalculateRowDelta(row, 15)
+	require.True(t, ok)
+	assert.InDelta(t, 0.0, delta, 0.01)
+}
+
+func TestCalculateRowDelta_ReplacingResource(t *testing.T) {
+	row := OverviewRow{
+		Status:        StatusReplacing,
+		ActualCost:    &ActualCostData{MTDCost: 30},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 100},
+	}
+	// Day 15: extrapolated = 30 * (30/15) = 60; delta = 100 - 60 = 40
+	delta, ok := CalculateRowDelta(row, 15)
+	require.True(t, ok)
+	assert.InDelta(t, 40.0, delta, 0.01)
+}
+
+func TestCalculateRowDelta_CreatingResource(t *testing.T) {
+	row := OverviewRow{
+		Status:        StatusCreating,
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 75},
+	}
+	delta, ok := CalculateRowDelta(row, 15)
+	require.True(t, ok)
+	assert.InDelta(t, 75.0, delta, 0.01)
+}
+
+func TestCalculateRowDelta_DeletingResource(t *testing.T) {
+	row := OverviewRow{
+		Status:     StatusDeleting,
+		ActualCost: &ActualCostData{MTDCost: 50},
+	}
+	// Day 15: extrapolated = 50 * (30/15) = 100; delta = -100
+	delta, ok := CalculateRowDelta(row, 15)
+	require.True(t, ok)
+	assert.InDelta(t, -100.0, delta, 0.01)
+}
+
+func TestCalculateRowDelta_ActiveWithDrift(t *testing.T) {
+	row := OverviewRow{
+		Status:    StatusActive,
+		CostDrift: &CostDriftData{Delta: -25.0},
+	}
+	delta, ok := CalculateRowDelta(row, 15)
+	require.True(t, ok)
+	assert.InDelta(t, -25.0, delta, 0.01)
+}
+
+func TestCalculateRowDelta_ActiveWithoutDrift(t *testing.T) {
+	row := OverviewRow{
+		Status:        StatusActive,
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 100},
+		ActualCost:    &ActualCostData{MTDCost: 50},
+	}
+	_, ok := CalculateRowDelta(row, 15)
+	assert.False(t, ok, "active without drift should return false")
+}
+
+func TestCalculateRowDelta_NoCostData(t *testing.T) {
+	row := OverviewRow{
+		Status: StatusUpdating,
+	}
+	_, ok := CalculateRowDelta(row, 15)
+	assert.False(t, ok, "no cost data should return false")
+}
+
+func TestCalculateRowDelta_EarlyMonth(t *testing.T) {
+	row := OverviewRow{
+		Status:        StatusReplacing,
+		ActualCost:    &ActualCostData{MTDCost: 2},
+		ProjectedCost: &ProjectedCostData{MonthlyCost: 60},
+	}
+	// Day 1 (< driftMinDay=3): uses raw MTD, not extrapolated.
+	// delta = 60 - 2 = 58
+	delta, ok := CalculateRowDelta(row, 1)
+	require.True(t, ok)
+	assert.InDelta(t, 58.0, delta, 0.01)
+}

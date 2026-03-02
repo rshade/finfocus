@@ -2,11 +2,13 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -580,6 +582,8 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 }
 
 // convertPlanSteps converts ingest.PulumiStep to engine.PlanStep.
+// For update/replace operations, it also extracts property diffs
+// by comparing OldState.Inputs to NewState.Inputs.
 func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 	result := make([]engine.PlanStep, len(steps))
 	for i, s := range steps {
@@ -588,8 +592,76 @@ func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 			Op:   s.Op,
 			Type: s.Type,
 		}
+		switch s.Op {
+		case "update", "replace", "create-replacement":
+			result[i].PropertyDiffs = diffInputs(s.OldState, s.NewState)
+		}
 	}
 	return result
+}
+
+// diffInputs compares OldState.Inputs and NewState.Inputs from a Pulumi step
+// and returns a sorted slice of PropertyDiff for keys whose values differ.
+func diffInputs(oldState, newState *ingest.PulumiState) []engine.PropertyDiff {
+	if oldState == nil || newState == nil {
+		return nil
+	}
+	oldInputs := oldState.Inputs
+	newInputs := newState.Inputs
+	if len(oldInputs) == 0 && len(newInputs) == 0 {
+		return nil
+	}
+
+	// Collect all keys from both maps.
+	keys := make(map[string]struct{}, len(oldInputs)+len(newInputs))
+	for k := range oldInputs {
+		keys[k] = struct{}{}
+	}
+	for k := range newInputs {
+		keys[k] = struct{}{}
+	}
+
+	var diffs []engine.PropertyDiff
+	for k := range keys {
+		// Skip internal Pulumi metadata keys (e.g., __defaults).
+		if strings.HasPrefix(k, "__") {
+			continue
+		}
+		oldVal := formatDiffValue(oldInputs[k])
+		newVal := formatDiffValue(newInputs[k])
+		if oldVal != newVal {
+			diffs = append(diffs, engine.PropertyDiff{
+				Key:      k,
+				OldValue: oldVal,
+				NewValue: newVal,
+			})
+		}
+	}
+
+	sort.Slice(diffs, func(i, j int) bool {
+		return diffs[i].Key < diffs[j].Key
+	})
+	return diffs
+}
+
+// formatDiffValue converts a property value to a human-readable string.
+// Simple types use fmt.Sprintf; complex types (maps, slices) use compact JSON.
+func formatDiffValue(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	switch val := v.(type) {
+	case string:
+		return val
+	case bool, float64, int, int64:
+		return fmt.Sprintf("%v", val)
+	default:
+		data, err := json.Marshal(val)
+		if err != nil {
+			return fmt.Sprintf("%v", val)
+		}
+		return string(data)
+	}
 }
 
 // promptForPreview displays a one-line prompt asking the user whether to run
@@ -1190,10 +1262,12 @@ func runBackgroundPreview(
 
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	statusByURN := engine.BuildStatusByURN(planSteps)
+	propertyDiffsByURN := engine.BuildPropertyDiffsByURN(planSteps)
 	return tui.OverviewChangesReadyMsg{
-		StatusByURN: statusByURN,
-		HasChanges:  hasChanges,
-		ChangeCount: changeCount,
+		StatusByURN:        statusByURN,
+		PropertyDiffsByURN: propertyDiffsByURN,
+		HasChanges:         hasChanges,
+		ChangeCount:        changeCount,
 	}
 }
 

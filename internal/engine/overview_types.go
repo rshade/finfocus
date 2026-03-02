@@ -306,6 +306,7 @@ type OverviewRow struct {
 	Recommendations []Recommendation       `json:"recommendations,omitempty"`
 	CostDrift       *CostDriftData         `json:"costDrift,omitempty"`
 	Error           *OverviewRowError      `json:"error,omitempty"`
+	PropertyDiffs   []PropertyDiff         `json:"propertyDiffs,omitempty"`
 	// CreatedAt tracks when the resource was first added to Pulumi state.
 	// Used by enrichCostDrift to suppress drift for very new resources with
 	// insufficient data points in the current billing window.
@@ -438,11 +439,21 @@ type StateResource struct {
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
 }
 
+// PropertyDiff represents a single property change from a Pulumi plan.
+// It captures the before and after values for a property that differs
+// between OldState.Inputs and NewState.Inputs in an update or replace operation.
+type PropertyDiff struct {
+	Key      string `json:"key"`
+	OldValue string `json:"oldValue"`
+	NewValue string `json:"newValue"`
+}
+
 // PlanStep represents a step from a Pulumi plan for overview merging.
 // This is a lightweight projection of ingest.PulumiStep to avoid an
 // import cycle (ingest already imports engine).
 type PlanStep struct {
-	URN  string `json:"urn,omitempty"`
-	Op   string `json:"op,omitempty"`
-	Type string `json:"type,omitempty"`
+	URN           string         `json:"urn,omitempty"`
+	Op            string         `json:"op,omitempty"`
+	Type          string         `json:"type,omitempty"`
+	PropertyDiffs []PropertyDiff `json:"propertyDiffs,omitempty"`
 }

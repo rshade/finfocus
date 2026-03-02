@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -717,4 +718,90 @@ func TestStackContext_Validate(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// PropertyDiff JSON serialization
+// ---------------------------------------------------------------------------
+
+func TestPropertyDiff_JSONRoundTrip(t *testing.T) {
+	diff := PropertyDiff{
+		Key:      "instanceType",
+		OldValue: "t3.medium",
+		NewValue: "t3.large",
+	}
+
+	data, err := json.Marshal(diff)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"key":"instanceType"`)
+	assert.Contains(t, string(data), `"oldValue":"t3.medium"`)
+	assert.Contains(t, string(data), `"newValue":"t3.large"`)
+
+	var parsed PropertyDiff
+	require.NoError(t, json.Unmarshal(data, &parsed))
+	assert.Equal(t, diff, parsed)
+}
+
+func TestPlanStep_PropertyDiffsOmittedWhenEmpty(t *testing.T) {
+	step := PlanStep{
+		URN:  "urn:test",
+		Op:   "create",
+		Type: "aws:ec2:Instance",
+	}
+
+	data, err := json.Marshal(step)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "propertyDiffs")
+}
+
+func TestPlanStep_PropertyDiffsIncludedWhenPresent(t *testing.T) {
+	step := PlanStep{
+		URN:  "urn:test",
+		Op:   "update",
+		Type: "aws:ec2:Instance",
+		PropertyDiffs: []PropertyDiff{
+			{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
+		},
+	}
+
+	data, err := json.Marshal(step)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "propertyDiffs")
+
+	var parsed PlanStep
+	require.NoError(t, json.Unmarshal(data, &parsed))
+	require.Len(t, parsed.PropertyDiffs, 1)
+	assert.Equal(t, "instanceType", parsed.PropertyDiffs[0].Key)
+}
+
+func TestOverviewRow_PropertyDiffsOmittedWhenEmpty(t *testing.T) {
+	row := OverviewRow{
+		URN:    "urn:test",
+		Type:   "aws:ec2:Instance",
+		Status: StatusUpdating,
+	}
+
+	data, err := json.Marshal(row)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "propertyDiffs")
+}
+
+func TestOverviewRow_PropertyDiffsIncludedWhenPresent(t *testing.T) {
+	row := OverviewRow{
+		URN:    "urn:test",
+		Type:   "aws:ec2:Instance",
+		Status: StatusUpdating,
+		PropertyDiffs: []PropertyDiff{
+			{Key: "ami", OldValue: "ami-old", NewValue: "ami-new"},
+		},
+	}
+
+	data, err := json.Marshal(row)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "propertyDiffs")
+
+	var parsed OverviewRow
+	require.NoError(t, json.Unmarshal(data, &parsed))
+	require.Len(t, parsed.PropertyDiffs, 1)
+	assert.Equal(t, "ami", parsed.PropertyDiffs[0].Key)
 }

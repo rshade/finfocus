@@ -435,6 +435,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isStateOnly = false
 		// Safe: Bubble Tea Update() is single-threaded; no concurrent reads on allRows.
 		engine.ApplyChangesToRows(m.allRows, changesMsg.StatusByURN)
+		engine.ApplyPropertyDiffsToRows(m.allRows, changesMsg.PropertyDiffsByURN)
 		m.applyFilter(m.textInput.Value())
 		return m, nil
 	}
@@ -766,26 +767,18 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 	return t
 }
 
-// formatOverviewDeltaCell formats delta for table display. It prefers drift
-// delta when available and otherwise falls back to projected-actual.
+// formatOverviewDeltaCell formats delta for table display.
+//
+// For resources with pending changes, it computes the cost impact using
+// projected minus extrapolated actual (same logic as CalculateProjectedDelta).
+// For active resources, it uses CostDrift.Delta when available.
+// Returns "-" when no meaningful delta can be computed.
 func formatOverviewDeltaCell(row engine.OverviewRow) string {
-	if row.CostDrift != nil {
-		return engine.FormatOverviewDelta(row.CostDrift.Delta)
-	}
-	if row.ProjectedCost == nil && row.ActualCost == nil {
+	delta, ok := engine.CalculateRowDelta(row, time.Now().Day())
+	if !ok {
 		return "-"
 	}
-
-	projected := 0.0
-	if row.ProjectedCost != nil {
-		projected = row.ProjectedCost.MonthlyCost
-	}
-	actual := 0.0
-	if row.ActualCost != nil {
-		actual = row.ActualCost.MTDCost
-	}
-
-	return engine.FormatOverviewDelta(projected - actual)
+	return engine.FormatOverviewDelta(delta)
 }
 
 // truncateResourceName shortens a URN for display within the given maxLen.

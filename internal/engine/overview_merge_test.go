@@ -626,3 +626,126 @@ func TestDetectPendingChanges(t *testing.T) {
 		})
 	}
 }
+
+// ---------------------------------------------------------------------------
+// MergeResourcesForOverview — PropertyDiffs propagation
+// ---------------------------------------------------------------------------
+
+func TestMergeResourcesForOverview_PropertyDiffs(t *testing.T) {
+	ctx := context.Background()
+
+	stateResources := []StateResource{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2:Instance::web",
+			Type:   "aws:ec2:Instance",
+			ID:     "i-123",
+			Custom: true,
+		},
+	}
+	planSteps := []PlanStep{
+		{
+			URN:  "urn:pulumi:stack::proj::aws:ec2:Instance::web",
+			Op:   "update",
+			Type: "aws:ec2:Instance",
+			PropertyDiffs: []PropertyDiff{
+				{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
+			},
+		},
+	}
+
+	rows, err := MergeResourcesForOverview(ctx, stateResources, planSteps)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, StatusUpdating, rows[0].Status)
+	require.Len(t, rows[0].PropertyDiffs, 1)
+	assert.Equal(t, "instanceType", rows[0].PropertyDiffs[0].Key)
+	assert.Equal(t, "t3.medium", rows[0].PropertyDiffs[0].OldValue)
+	assert.Equal(t, "t3.large", rows[0].PropertyDiffs[0].NewValue)
+}
+
+func TestMergeResourcesForOverview_NoDiffsForCreate(t *testing.T) {
+	ctx := context.Background()
+
+	planSteps := []PlanStep{
+		{
+			URN:  "urn:pulumi:stack::proj::aws:ec2:Instance::web",
+			Op:   "create",
+			Type: "aws:ec2:Instance",
+		},
+	}
+
+	rows, err := MergeResourcesForOverview(ctx, nil, planSteps)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Empty(t, rows[0].PropertyDiffs)
+}
+
+// ---------------------------------------------------------------------------
+// ApplyPropertyDiffsToRows
+// ---------------------------------------------------------------------------
+
+func TestApplyPropertyDiffsToRows(t *testing.T) {
+	rows := []OverviewRow{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Status: StatusUpdating},
+		{URN: "urn:b", Type: "aws:s3:Bucket", Status: StatusActive},
+	}
+
+	diffsByURN := map[string][]PropertyDiff{
+		"urn:a": {
+			{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
+		},
+	}
+
+	ApplyPropertyDiffsToRows(rows, diffsByURN)
+
+	require.Len(t, rows[0].PropertyDiffs, 1)
+	assert.Equal(t, "instanceType", rows[0].PropertyDiffs[0].Key)
+	assert.Empty(t, rows[1].PropertyDiffs)
+}
+
+func TestApplyPropertyDiffsToRows_NilRows(t *testing.T) {
+	// Should not panic.
+	ApplyPropertyDiffsToRows(nil, map[string][]PropertyDiff{
+		"urn:a": {{Key: "k", OldValue: "old", NewValue: "new"}},
+	})
+}
+
+func TestApplyPropertyDiffsToRows_NilMap(t *testing.T) {
+	rows := []OverviewRow{
+		{URN: "urn:a", Type: "aws:ec2:Instance"},
+	}
+	ApplyPropertyDiffsToRows(rows, nil)
+	assert.Empty(t, rows[0].PropertyDiffs)
+}
+
+// ---------------------------------------------------------------------------
+// BuildPropertyDiffsByURN
+// ---------------------------------------------------------------------------
+
+func TestBuildPropertyDiffsByURN(t *testing.T) {
+	steps := []PlanStep{
+		{
+			URN:  "urn:a",
+			Op:   "update",
+			Type: "aws:ec2:Instance",
+			PropertyDiffs: []PropertyDiff{
+				{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
+			},
+		},
+		{
+			URN:  "urn:b",
+			Op:   "create",
+			Type: "aws:s3:Bucket",
+		},
+	}
+
+	result := BuildPropertyDiffsByURN(steps)
+	require.Len(t, result, 1)
+	require.Contains(t, result, "urn:a")
+	assert.Len(t, result["urn:a"], 1)
+}
+
+func TestBuildPropertyDiffsByURN_EmptySteps(t *testing.T) {
+	result := BuildPropertyDiffsByURN(nil)
+	assert.Empty(t, result)
+}

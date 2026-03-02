@@ -501,7 +501,7 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 		wantDelta string
 	}{
 		{
-			name: "delta falls back to projected minus actual",
+			name: "replacing resource shows extrapolated delta",
 			row: engine.OverviewRow{
 				URN:    "urn:test",
 				Type:   "aws:ec2/instance:Instance",
@@ -513,10 +513,12 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 					MonthlyCost: 100.00,
 				},
 			},
-			wantDelta: engine.FormatOverviewDelta(50.00),
+			// Delta = projected - extrapolatedActual; exact value depends on
+			// day of month but it should NOT be "-".
+			wantDelta: "", // non-empty check below
 		},
 		{
-			name: "no-cost delta shows dash",
+			name: "active resource without drift shows dash",
 			row: engine.OverviewRow{
 				URN:    "urn:test",
 				Type:   "aws:ec2/instance:Instance",
@@ -525,11 +527,11 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 			wantDelta: "-",
 		},
 		{
-			name: "delta uses cost drift when available",
+			name: "active resource uses drift delta",
 			row: engine.OverviewRow{
 				URN:    "urn:test",
 				Type:   "aws:ec2/instance:Instance",
-				Status: engine.StatusReplacing,
+				Status: engine.StatusActive,
 				ActualCost: &engine.ActualCostData{
 					MTDCost: 50.00,
 				},
@@ -558,7 +560,13 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 				"%s %s", engine.StatusIcon(tt.row.Status), tt.row.Status.String(),
 			)
 			assert.Equal(t, expectedStatus, tableRows[0][2])
-			assert.Equal(t, tt.wantDelta, tableRows[0][5])
+			if tt.wantDelta == "" {
+				// Empty wantDelta means "should be a real delta, not dash".
+				assert.NotEqual(t, "-", tableRows[0][5],
+					"replacing resource with costs should show a delta")
+			} else {
+				assert.Equal(t, tt.wantDelta, tableRows[0][5])
+			}
 		})
 	}
 }

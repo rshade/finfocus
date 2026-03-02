@@ -154,3 +154,127 @@ func TestRenderFootnote_LoadedHidesAsterisk(t *testing.T) {
 	output := model.renderListView()
 	assert.NotContains(t, output, "projected at current state")
 }
+
+// ---------------------------------------------------------------------------
+// renderDetailPropertyChanges
+// ---------------------------------------------------------------------------
+
+func TestRenderDetailView_ShowsPropertyChanges(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusUpdating,
+			PropertyDiffs: []engine.PropertyDiff{
+				{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
+				{Key: "rootBlockDevice", OldValue: "20", NewValue: "50"},
+			},
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.Contains(t, output, "PROPERTY CHANGES")
+	assert.Contains(t, output, "instanceType")
+	assert.Contains(t, output, "t3.medium")
+	assert.Contains(t, output, "t3.large")
+	assert.Contains(t, output, "rootBlockDevice")
+	assert.Contains(t, output, "\u2192") // arrow character
+}
+
+func TestRenderDetailView_NoPropertyChanges(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusActive,
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.NotContains(t, output, "PROPERTY CHANGES")
+}
+
+func TestRenderDetailView_PropertyChangesWithNoneValues(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusUpdating,
+			PropertyDiffs: []engine.PropertyDiff{
+				{Key: "newTag", OldValue: "", NewValue: "my-tag"},
+			},
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.Contains(t, output, "PROPERTY CHANGES")
+	assert.Contains(t, output, "(none)")
+	assert.Contains(t, output, "my-tag")
+}
+
+func TestRenderDetailPropertyChanges_EmptySlice(t *testing.T) {
+	var content strings.Builder
+	row := engine.OverviewRow{
+		PropertyDiffs: []engine.PropertyDiff{},
+	}
+	renderDetailPropertyChanges(&content, row)
+	assert.Empty(t, content.String())
+}
+
+func TestTruncateDiffValue(t *testing.T) {
+	assert.Equal(t, "short", truncateDiffValue("short"))
+	assert.Equal(t, "", truncateDiffValue(""))
+
+	long := strings.Repeat("x", 60)
+	result := truncateDiffValue(long)
+	assert.Len(t, result, maxDiffValueLen)
+	assert.True(t, strings.HasSuffix(result, "..."))
+}
+
+func TestRenderDetailView_TruncatesLongValues(t *testing.T) {
+	ctx := context.Background()
+	longValue := strings.Repeat("a", 80)
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusUpdating,
+			PropertyDiffs: []engine.PropertyDiff{
+				{Key: "tags", OldValue: longValue, NewValue: "short"},
+			},
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.Contains(t, output, "PROPERTY CHANGES")
+	// The long value should be truncated, not appear in full.
+	assert.NotContains(t, output, longValue)
+	assert.Contains(t, output, "...")
+}

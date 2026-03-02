@@ -17,8 +17,17 @@ guardrails in `CONTEXT.md`.
 
 *v0.3.2 released 2026-02-28.*
 
-- [ ] Upgrade finfocus-spec from v0.5.6 to v0.5.7
-      ([#844](https://github.com/rshade/finfocus/issues/844)) [S]
+- [ ] Recognize `PLUGIN_CAPABILITY_BATCH_COST` in capability routing
+      and plugin list
+      ([#848](https://github.com/rshade/finfocus/issues/848)) [S]
+- [ ] Consume `expires_at` caching hints from plugin cost responses
+      ([#845](https://github.com/rshade/finfocus/issues/845)) [M]
+- [ ] Implement EstimateCost RPC consumer (remove stub)
+      ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
+- [ ] Add `--state-only` flag to skip pulumi preview
+      ([#690](https://github.com/rshade/finfocus/issues/690)) [M]
+- [ ] Implement BatchCost RPC consumer for multi-resource queries
+      ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -29,8 +38,6 @@ guardrails in `CONTEXT.md`.
         ([#692](https://github.com/rshade/finfocus/issues/692)) [M]
   - [ ] Parallelize stack export and pulumi preview
         ([#691](https://github.com/rshade/finfocus/issues/691)) [M]
-  - [ ] Add `--state-only` flag to skip pulumi preview
-        ([#690](https://github.com/rshade/finfocus/issues/690)) [M]
 - [ ] **Overview TUI Quality** *(deferred from v0.3.2)*
   - [ ] Show phase progress lines sequentially and add preview phase
         ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
@@ -50,22 +57,11 @@ guardrails in `CONTEXT.md`.
   - [ ] Configuration: Allow default profile definition in `finfocus.yaml`
   - *Spec ready:* `UsageProfile` enum (PROD/DEV/BURST) available in
     finfocus-spec v0.5.5 — core-only implementation
-- [ ] **Routing CLI Tools**
-  - [ ] Add `config routes list` and `config routes test` CLI commands
-        ([#687](https://github.com/rshade/finfocus/issues/687)) [M]
 - [ ] **Scale Testing**
   - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
         ([#658](https://github.com/rshade/finfocus/issues/658)) [M]
-- [ ] **Spec v0.5.7 Features** *(blocked by #844)*
-  - [ ] Consume `expires_at` caching hints from plugin cost responses
-        ([#845](https://github.com/rshade/finfocus/issues/845)) [M]
-  - [ ] Implement BatchCost RPC consumer for multi-resource queries
-        ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
-  - [ ] Implement EstimateCost RPC consumer (remove stub)
-        ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
-  - [ ] Recognize `PLUGIN_CAPABILITY_BATCH_COST` in capability routing
-        and plugin list
-        ([#848](https://github.com/rshade/finfocus/issues/848)) [S]
+- [ ] **Spec v0.5.7 Features**
+  - *All v0.5.7 consumer items promoted to Immediate Focus*
 - [ ] **Time-Series Forecasting Enhancement**
   - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
         ([#539](https://github.com/rshade/finfocus/issues/539)) [L]
@@ -205,6 +201,12 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] Upgrade finfocus-spec from v0.5.6 to v0.5.7
+      ([#844](https://github.com/rshade/finfocus/issues/844)) [S]
+      *(Completed 2026-03-02)*
+- [x] Add `config routes list` and `config routes test` CLI commands
+      ([#687](https://github.com/rshade/finfocus/issues/687)) [M]
+      *(Completed 2026-03-02)*
 - [x] **Bubble Tea v2 Upgrade** *(Completed 2026-03-01)*
   - [x] Upgrade to Bubble Tea v2, Lip Gloss v2, Bubbles v2
         ([#552](https://github.com/rshade/finfocus/issues/552))

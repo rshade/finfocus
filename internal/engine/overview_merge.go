@@ -117,6 +117,7 @@ func MergeResourcesForOverview(
 		row := stateResourceToRow(res)
 		if step, ok := planByURN[res.URN]; ok {
 			row.Status = MapOperationToStatus(step.Op)
+			row.PropertyDiffs = step.PropertyDiffs
 		}
 
 		rows = append(rows, row)
@@ -204,6 +205,39 @@ func ApplyChangesToRows(rows []OverviewRow, statusByURN map[string]ResourceStatu
 			rows[i].Status = status
 		}
 	}
+}
+
+// ApplyPropertyDiffsToRows updates the PropertyDiffs field of existing OverviewRows
+// in-place using a map of URN → []PropertyDiff derived from plan steps.
+// Rows whose URN is not in diffsByURN retain their current PropertyDiffs.
+//
+// This is used alongside ApplyChangesToRows for Phase 2 when preview completes
+// after initial TUI display.
+//
+// No-op if rows is nil.
+func ApplyPropertyDiffsToRows(rows []OverviewRow, diffsByURN map[string][]PropertyDiff) {
+	if rows == nil {
+		return
+	}
+	for i := range rows {
+		if diffs, ok := diffsByURN[rows[i].URN]; ok {
+			rows[i].PropertyDiffs = diffs
+		}
+	}
+}
+
+// BuildPropertyDiffsByURN converts a slice of PlanSteps to a map of URN → []PropertyDiff
+// using the same precedence rules as BuildStatusByURN. When the same URN appears with
+// multiple operations, the highest-precedence operation's diffs win.
+func BuildPropertyDiffsByURN(planSteps []PlanStep) map[string][]PropertyDiff {
+	planByURN := buildPlanByURN(planSteps)
+	diffsByURN := make(map[string][]PropertyDiff, len(planByURN))
+	for urn, step := range planByURN {
+		if len(step.PropertyDiffs) > 0 {
+			diffsByURN[urn] = step.PropertyDiffs
+		}
+	}
+	return diffsByURN
 }
 
 // BuildStatusByURN converts a slice of PlanSteps to a map of URN → ResourceStatus

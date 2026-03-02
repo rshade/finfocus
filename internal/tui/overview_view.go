@@ -237,6 +237,9 @@ func (m OverviewModel) renderDetailView() string {
 	content.WriteString(ValueStyle.Render(row.Status.String()))
 	content.WriteString("\n\n")
 
+	// Property changes (why the delta)
+	renderDetailPropertyChanges(&content, row)
+
 	// Cost sections
 	renderDetailActualCost(&content, row)
 	renderDetailProjectedCost(&content, row)
@@ -344,6 +347,55 @@ func renderDetailError(content *strings.Builder, row engine.OverviewRow) {
 	content.WriteString(CriticalStyle.Render(fmt.Sprintf("  Type: %s\n", row.Error.ErrorType.String())))
 	content.WriteString(CriticalStyle.Render(fmt.Sprintf("  Message: %s\n", row.Error.Message)))
 	content.WriteString("\n")
+}
+
+// maxDiffValueLen is the maximum display length for a property diff value.
+// Values longer than this are truncated with an ellipsis.
+const maxDiffValueLen = 40
+
+// renderDetailPropertyChanges writes the property changes section to the builder.
+// Only rendered when the resource has property diffs (update/replace operations).
+func renderDetailPropertyChanges(content *strings.Builder, row engine.OverviewRow) {
+	if len(row.PropertyDiffs) == 0 {
+		return
+	}
+	content.WriteString(HeaderStyle.Render("PROPERTY CHANGES"))
+	content.WriteString("\n")
+
+	// Find the longest key for alignment.
+	maxKeyLen := 0
+	for _, d := range row.PropertyDiffs {
+		if len(d.Key) > maxKeyLen {
+			maxKeyLen = len(d.Key)
+		}
+	}
+
+	changeStyle := lipgloss.NewStyle().Foreground(ColorHighlight).Bold(true)
+	for _, d := range row.PropertyDiffs {
+		padded := fmt.Sprintf("%-*s", maxKeyLen, d.Key)
+		oldVal := truncateDiffValue(d.OldValue)
+		if oldVal == "" {
+			oldVal = "(none)"
+		}
+		newVal := truncateDiffValue(d.NewValue)
+		if newVal == "" {
+			newVal = "(none)"
+		}
+		content.WriteString(LabelStyle.Render(fmt.Sprintf("  %s: ", padded)))
+		content.WriteString(ValueStyle.Render(oldVal))
+		content.WriteString(ValueStyle.Render(" \u2192 "))
+		content.WriteString(changeStyle.Render(newVal))
+		content.WriteString("\n")
+	}
+	content.WriteString("\n")
+}
+
+// truncateDiffValue shortens a property diff value if it exceeds maxDiffValueLen.
+func truncateDiffValue(s string) string {
+	if len(s) <= maxDiffValueLen {
+		return s
+	}
+	return s[:maxDiffValueLen-3] + "..."
 }
 
 // renderBreakdown writes a cost breakdown map to the builder.
