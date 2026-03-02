@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -562,8 +563,10 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 			assert.Equal(t, expectedStatus, tableRows[0][2])
 			if tt.wantDelta == "" {
 				// Empty wantDelta means "should be a real delta, not dash".
-				assert.NotEqual(t, "-", tableRows[0][5],
-					"replacing resource with costs should show a delta")
+				// Verify the value has a currency-delta shape: +$N.NN or -$N.NN.
+				deltaRe := regexp.MustCompile(`^[+-]\$[\d,]+\.\d{2}$`)
+				assert.Regexp(t, deltaRe, tableRows[0][5],
+					"replacing resource with costs should show a currency delta")
 			} else {
 				assert.Equal(t, tt.wantDelta, tableRows[0][5])
 			}

@@ -627,15 +627,23 @@ func diffInputs(oldState, newState *ingest.PulumiState) []engine.PropertyDiff {
 		if strings.HasPrefix(k, "__") {
 			continue
 		}
-		oldVal := formatDiffValue(oldInputs[k])
-		newVal := formatDiffValue(newInputs[k])
-		if oldVal != newVal {
-			diffs = append(diffs, engine.PropertyDiff{
-				Key:      k,
-				OldValue: oldVal,
-				NewValue: newVal,
-			})
+		rawOld := oldInputs[k]
+		rawNew := newInputs[k]
+		// Detect diffs using raw values to catch nil-vs-"" and type differences
+		// that formatDiffValue would collapse to the same string.
+		if rawOld == nil && rawNew == nil {
+			continue
 		}
+		oldDisplay := formatDiffValue(rawOld)
+		newDisplay := formatDiffValue(rawNew)
+		if rawOld != nil && rawNew != nil && oldDisplay == newDisplay {
+			continue
+		}
+		diffs = append(diffs, engine.PropertyDiff{
+			Key:      k,
+			OldValue: oldDisplay,
+			NewValue: newDisplay,
+		})
 	}
 
 	sort.Slice(diffs, func(i, j int) bool {

@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -362,17 +363,23 @@ func renderDetailPropertyChanges(content *strings.Builder, row engine.OverviewRo
 	content.WriteString(HeaderStyle.Render("PROPERTY CHANGES"))
 	content.WriteString("\n")
 
-	// Find the longest key for alignment.
+	// Find the longest key (in runes) for alignment.
 	maxKeyLen := 0
 	for _, d := range row.PropertyDiffs {
-		if len(d.Key) > maxKeyLen {
-			maxKeyLen = len(d.Key)
+		if n := utf8.RuneCountInString(d.Key); n > maxKeyLen {
+			maxKeyLen = n
 		}
 	}
 
 	changeStyle := lipgloss.NewStyle().Foreground(ColorHighlight).Bold(true)
 	for _, d := range row.PropertyDiffs {
-		padded := fmt.Sprintf("%-*s", maxKeyLen, d.Key)
+		// Pad using rune count to align correctly with multi-byte characters.
+		keyRunes := []rune(d.Key)
+		pad := maxKeyLen - len(keyRunes)
+		padded := d.Key
+		if pad > 0 {
+			padded += strings.Repeat(" ", pad)
+		}
 		oldVal := truncateDiffValue(d.OldValue)
 		if oldVal == "" {
 			oldVal = "(none)"
@@ -390,12 +397,15 @@ func renderDetailPropertyChanges(content *strings.Builder, row engine.OverviewRo
 	content.WriteString("\n")
 }
 
-// truncateDiffValue shortens a property diff value if it exceeds maxDiffValueLen.
+// truncateDiffValue shortens a property diff value if it exceeds maxDiffValueLen runes.
+// Uses rune-based slicing to avoid splitting multi-byte UTF-8 characters.
 func truncateDiffValue(s string) string {
-	if len(s) <= maxDiffValueLen {
+	runes := []rune(s)
+	if len(runes) <= maxDiffValueLen {
 		return s
 	}
-	return s[:maxDiffValueLen-3] + "..."
+	const ellipsis = 3
+	return string(runes[:maxDiffValueLen-ellipsis]) + "..."
 }
 
 // renderBreakdown writes a cost breakdown map to the builder.

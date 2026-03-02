@@ -101,6 +101,9 @@ func MergeResourcesForOverview(
 
 	// Index plan steps by URN for O(1) lookup, using deterministic precedence.
 	planByURN := buildPlanByURN(planSteps)
+	// Build diffs separately — status precedence (delete-replaced > create-replacement)
+	// differs from diff precedence (create-replacement carries the diffs).
+	diffsByURN := BuildPropertyDiffsByURN(planSteps)
 
 	// Track URNs we have seen from state so we can detect new creates.
 	seenURNs := make(map[string]struct{}, len(stateResources))
@@ -117,7 +120,9 @@ func MergeResourcesForOverview(
 		row := stateResourceToRow(res)
 		if step, ok := planByURN[res.URN]; ok {
 			row.Status = MapOperationToStatus(step.Op)
-			row.PropertyDiffs = step.PropertyDiffs
+		}
+		if diffs, ok := diffsByURN[res.URN]; ok {
+			row.PropertyDiffs = diffs
 		}
 
 		rows = append(rows, row)
@@ -226,15 +231,19 @@ func ApplyPropertyDiffsToRows(rows []OverviewRow, diffsByURN map[string][]Proper
 	}
 }
 
-// BuildPropertyDiffsByURN converts a slice of PlanSteps to a map of URN → []PropertyDiff
-// using the same precedence rules as BuildStatusByURN. When the same URN appears with
-// multiple operations, the highest-precedence operation's diffs win.
+// BuildPropertyDiffsByURN converts a slice of PlanSteps to a map of URN → []PropertyDiff.
+// Unlike BuildStatusByURN, this uses diff-specific precedence: for a replace flow
+// (create-replacement + delete-replaced), the create-replacement step carries the
+// PropertyDiffs while delete-replaced has none. Using the status precedence
+// (which favors delete-replaced) would silently drop diffs. Instead, we keep
+// the first non-empty PropertyDiffs found for each URN.
 func BuildPropertyDiffsByURN(planSteps []PlanStep) map[string][]PropertyDiff {
-	planByURN := buildPlanByURN(planSteps)
-	diffsByURN := make(map[string][]PropertyDiff, len(planByURN))
-	for urn, step := range planByURN {
+	diffsByURN := make(map[string][]PropertyDiff)
+	for _, step := range planSteps {
 		if len(step.PropertyDiffs) > 0 {
-			diffsByURN[urn] = step.PropertyDiffs
+			if _, exists := diffsByURN[step.URN]; !exists {
+				diffsByURN[step.URN] = step.PropertyDiffs
+			}
 		}
 	}
 	return diffsByURN

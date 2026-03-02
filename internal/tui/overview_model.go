@@ -845,12 +845,14 @@ func (m *OverviewModel) getCost(row engine.OverviewRow) float64 {
 	return 0.0
 }
 
-// getDelta returns the drift delta for sorting.
+// getDelta returns the delta for sorting, using the same status-aware logic
+// as formatOverviewDeltaCell to keep display and sort order consistent.
 func (m *OverviewModel) getDelta(row engine.OverviewRow) float64 {
-	if row.CostDrift != nil {
-		return row.CostDrift.Delta
+	delta, ok := engine.CalculateRowDelta(row, time.Now().Day())
+	if !ok {
+		return 0.0
 	}
-	return 0.0
+	return delta
 }
 
 // enablePaginationIfNeeded checks if pagination should be enabled and clamps

@@ -742,66 +742,92 @@ func TestPropertyDiff_JSONRoundTrip(t *testing.T) {
 	assert.Equal(t, diff, parsed)
 }
 
-func TestPlanStep_PropertyDiffsOmittedWhenEmpty(t *testing.T) {
-	step := PlanStep{
-		URN:  "urn:test",
-		Op:   "create",
-		Type: "aws:ec2:Instance",
-	}
-
-	data, err := json.Marshal(step)
-	require.NoError(t, err)
-	assert.NotContains(t, string(data), "propertyDiffs")
-}
-
-func TestPlanStep_PropertyDiffsIncludedWhenPresent(t *testing.T) {
-	step := PlanStep{
-		URN:  "urn:test",
-		Op:   "update",
-		Type: "aws:ec2:Instance",
-		PropertyDiffs: []PropertyDiff{
-			{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
+func TestPropertyDiffs_JSONPresence(t *testing.T) {
+	tests := []struct {
+		name            string
+		structType      string // "PlanStep" or "OverviewRow"
+		fixture         interface{}
+		wantPresent     bool
+		expectedDiffKey string // checked only when wantPresent is true
+	}{
+		{
+			name:       "PlanStep omits propertyDiffs when empty",
+			structType: "PlanStep",
+			fixture: PlanStep{
+				URN:  "urn:test",
+				Op:   "create",
+				Type: "aws:ec2:Instance",
+			},
+			wantPresent: false,
+		},
+		{
+			name:       "PlanStep includes propertyDiffs when present",
+			structType: "PlanStep",
+			fixture: PlanStep{
+				URN:  "urn:test",
+				Op:   "update",
+				Type: "aws:ec2:Instance",
+				PropertyDiffs: []PropertyDiff{
+					{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
+				},
+			},
+			wantPresent:     true,
+			expectedDiffKey: "instanceType",
+		},
+		{
+			name:       "OverviewRow omits propertyDiffs when empty",
+			structType: "OverviewRow",
+			fixture: OverviewRow{
+				URN:    "urn:test",
+				Type:   "aws:ec2:Instance",
+				Status: StatusUpdating,
+			},
+			wantPresent: false,
+		},
+		{
+			name:       "OverviewRow includes propertyDiffs when present",
+			structType: "OverviewRow",
+			fixture: OverviewRow{
+				URN:    "urn:test",
+				Type:   "aws:ec2:Instance",
+				Status: StatusUpdating,
+				PropertyDiffs: []PropertyDiff{
+					{Key: "ami", OldValue: "ami-old", NewValue: "ami-new"},
+				},
+			},
+			wantPresent:     true,
+			expectedDiffKey: "ami",
 		},
 	}
 
-	data, err := json.Marshal(step)
-	require.NoError(t, err)
-	assert.Contains(t, string(data), "propertyDiffs")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.fixture)
+			require.NoError(t, err)
 
-	var parsed PlanStep
-	require.NoError(t, json.Unmarshal(data, &parsed))
-	require.Len(t, parsed.PropertyDiffs, 1)
-	assert.Equal(t, "instanceType", parsed.PropertyDiffs[0].Key)
-}
+			if tt.wantPresent {
+				assert.Contains(t, string(data), "propertyDiffs")
+			} else {
+				assert.NotContains(t, string(data), "propertyDiffs")
+			}
 
-func TestOverviewRow_PropertyDiffsOmittedWhenEmpty(t *testing.T) {
-	row := OverviewRow{
-		URN:    "urn:test",
-		Type:   "aws:ec2:Instance",
-		Status: StatusUpdating,
+			if !tt.wantPresent {
+				return
+			}
+
+			// Round-trip: unmarshal and verify diff key.
+			switch tt.structType {
+			case "PlanStep":
+				var parsed PlanStep
+				require.NoError(t, json.Unmarshal(data, &parsed))
+				require.Len(t, parsed.PropertyDiffs, 1)
+				assert.Equal(t, tt.expectedDiffKey, parsed.PropertyDiffs[0].Key)
+			case "OverviewRow":
+				var parsed OverviewRow
+				require.NoError(t, json.Unmarshal(data, &parsed))
+				require.Len(t, parsed.PropertyDiffs, 1)
+				assert.Equal(t, tt.expectedDiffKey, parsed.PropertyDiffs[0].Key)
+			}
+		})
 	}
-
-	data, err := json.Marshal(row)
-	require.NoError(t, err)
-	assert.NotContains(t, string(data), "propertyDiffs")
-}
-
-func TestOverviewRow_PropertyDiffsIncludedWhenPresent(t *testing.T) {
-	row := OverviewRow{
-		URN:    "urn:test",
-		Type:   "aws:ec2:Instance",
-		Status: StatusUpdating,
-		PropertyDiffs: []PropertyDiff{
-			{Key: "ami", OldValue: "ami-old", NewValue: "ami-new"},
-		},
-	}
-
-	data, err := json.Marshal(row)
-	require.NoError(t, err)
-	assert.Contains(t, string(data), "propertyDiffs")
-
-	var parsed OverviewRow
-	require.NoError(t, json.Unmarshal(data, &parsed))
-	require.Len(t, parsed.PropertyDiffs, 1)
-	assert.Equal(t, "ami", parsed.PropertyDiffs[0].Key)
 }
