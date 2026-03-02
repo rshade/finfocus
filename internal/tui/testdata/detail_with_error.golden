@@ -1,0 +1,14 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:rds/instance:Instance::database                            │
+│ Type:   aws:rds/instance:Instance                                                              │
+│ Status: active                                                                                 │
+│                                                                                                │
+│ ERROR                                                                                          │
+│   Type: network                                                                                │
+│                  Message: connection refused: dial tcp 10.0.1.5:443: i/o timeout               │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

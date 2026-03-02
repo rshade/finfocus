@@ -208,25 +208,21 @@ func formatProjectedColumn(row OverviewRow) string {
 	return FormatOverviewCurrency(row.ProjectedCost.MonthlyCost)
 }
 
-// formatDeltaColumn formats the delta column. When CostDrift is available its
-// pre-computed Delta is used for consistency with the TUI's buildOverviewTable.
-// Otherwise falls back to Projected - MTD Actual.
+// formatDeltaColumn formats the delta column using CalculateRowDelta for
+// consistency with the TUI table. This ensures the ASCII renderer uses the
+// same status-aware extrapolation logic as the interactive view.
 func formatDeltaColumn(row OverviewRow) string {
-	if row.CostDrift != nil {
-		return FormatOverviewDelta(row.CostDrift.Delta)
-	}
-	if row.ProjectedCost == nil && row.ActualCost == nil {
+	return formatDeltaColumnForDay(row, time.Now().Day())
+}
+
+// formatDeltaColumnForDay is the testable core of formatDeltaColumn.
+// It accepts a fixed dayOfMonth to allow deterministic golden file tests.
+func formatDeltaColumnForDay(row OverviewRow, dayOfMonth int) string {
+	delta, ok := CalculateRowDelta(row, dayOfMonth)
+	if !ok {
 		return "-"
 	}
-	projected := 0.0
-	if row.ProjectedCost != nil {
-		projected = row.ProjectedCost.MonthlyCost
-	}
-	actual := 0.0
-	if row.ActualCost != nil {
-		actual = row.ActualCost.MTDCost
-	}
-	return FormatOverviewDelta(projected - actual)
+	return FormatOverviewDelta(delta)
 }
 
 func formatDriftColumn(row OverviewRow) string {

@@ -1,0 +1,22 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-server                          │
+│ Type:   aws:ec2/instance:Instance                                                              │
+│ Status: active                                                                                 │
+│                                                                                                │
+│ ACTUAL COST (MTD)                                                                              │
+│   Total: $75.50                                                                                │
+│   Breakdown:                                                                                   │
+│                 compute: $60.00                                                                │
+│     storage: $15.50                                                                            │
+│                                                                                                │
+│ PROJECTED COST (Monthly)                                                                       │
+│   Total: $150.00                                                                               │
+│   Breakdown:                                                                                   │
+│                 compute: $120.00                                                               │
+│     storage: $30.00                                                                            │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

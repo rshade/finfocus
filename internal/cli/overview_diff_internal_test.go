@@ -223,6 +223,32 @@ func TestDiffInputs_ComplexValues(t *testing.T) {
 	assert.Contains(t, diffs[0].NewValue, "prod")
 }
 
+func TestDiffInputs_TypeOnlyChange(t *testing.T) {
+	// Regression: type-only changes (e.g., string "1" → float64 1) must be
+	// detected as diffs, even though formatDiffValue produces the same string.
+	oldS := &ingest.PulumiState{
+		Inputs: map[string]interface{}{
+			"count":   "1",
+			"enabled": "true",
+		},
+	}
+	newS := &ingest.PulumiState{
+		Inputs: map[string]interface{}{
+			"count":   float64(1),
+			"enabled": true,
+		},
+	}
+	diffs := diffInputs(oldS, newS)
+	require.Len(t, diffs, 2)
+	// Sorted by key: "count" then "enabled".
+	assert.Equal(t, "count", diffs[0].Key)
+	assert.Equal(t, "1", diffs[0].OldValue)
+	assert.Equal(t, "1", diffs[0].NewValue)
+	assert.Equal(t, "enabled", diffs[1].Key)
+	assert.Equal(t, "true", diffs[1].OldValue)
+	assert.Equal(t, "true", diffs[1].NewValue)
+}
+
 func TestDiffInputs_SkipsInternalKeys(t *testing.T) {
 	oldS := &ingest.PulumiState{
 		Inputs: map[string]interface{}{

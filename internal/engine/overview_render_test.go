@@ -516,6 +516,71 @@ func TestAggregateOverviewRows_SavingsExcludesDismissed(t *testing.T) {
 	assert.Equal(t, 30.0, totals.savings)
 }
 
+func TestFormatDeltaColumn_UsesExtrapolatedActual(t *testing.T) {
+	now := time.Now()
+	period := DateRange{Start: now.Add(-24 * time.Hour), End: now}
+
+	// A replacing resource: formatDeltaColumn now delegates to CalculateRowDelta
+	// which uses GetExtrapolatedActual instead of raw MTD.
+	row := OverviewRow{
+		URN:    "urn:replacing-resource",
+		Type:   "aws:ec2:Instance",
+		Status: StatusReplacing,
+		ActualCost: &ActualCostData{
+			MTDCost:  15.00,
+			Currency: "USD",
+			Period:   period,
+		},
+		ProjectedCost: &ProjectedCostData{
+			MonthlyCost: 50.00,
+			Currency:    "USD",
+		},
+	}
+
+	result := formatDeltaColumn(row)
+
+	// Compute the expected delta using the same logic as CalculateRowDelta.
+	dayOfMonth := time.Now().Day()
+	expectedDelta, ok := CalculateRowDelta(row, dayOfMonth)
+	require.True(t, ok)
+	expected := FormatOverviewDelta(expectedDelta)
+	assert.Equal(t, expected, result)
+}
+
+func TestFormatDeltaColumn_ActiveWithNoDrift(t *testing.T) {
+	row := OverviewRow{
+		URN:    "urn:active-no-drift",
+		Type:   "aws:ec2:Instance",
+		Status: StatusActive,
+		ActualCost: &ActualCostData{
+			MTDCost:  100.00,
+			Currency: "USD",
+		},
+		ProjectedCost: &ProjectedCostData{
+			MonthlyCost: 300.00,
+			Currency:    "USD",
+		},
+	}
+
+	result := formatDeltaColumn(row)
+	assert.Equal(t, "-", result, "active resource without CostDrift should show dash")
+}
+
+func TestFormatDeltaColumn_CreatingResource(t *testing.T) {
+	row := OverviewRow{
+		URN:    "urn:creating-resource",
+		Type:   "aws:s3:Bucket",
+		Status: StatusCreating,
+		ProjectedCost: &ProjectedCostData{
+			MonthlyCost: 25.00,
+			Currency:    "USD",
+		},
+	}
+
+	result := formatDeltaColumn(row)
+	assert.Equal(t, "+$25.00", result)
+}
+
 func TestFormatDriftColumn(t *testing.T) {
 	tests := []struct {
 		name string

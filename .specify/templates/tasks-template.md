@@ -8,7 +8,10 @@ description: "Task list template for feature implementation"
 **Input**: Design documents from `/specs/[###-feature-name]/`
 **Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
 
-**Tests**: Per Constitution Principle II (Test-Driven Development), tests are MANDATORY and must be written BEFORE implementation. All code changes must maintain minimum 80% test coverage (95% for critical paths).
+**Tests**: Per Constitution Principle II (Test-Driven Development), tests are
+MANDATORY and must be written BEFORE implementation. All code changes must
+maintain minimum 80% test coverage (95% for critical paths). TUI changes
+MUST include golden file snapshot tests and visual render verification.
 
 **Completeness**: Per Constitution Principle VI (Implementation Completeness), all tasks MUST be fully implemented. Stub functions, placeholders, and TODO comments are strictly forbidden.
 

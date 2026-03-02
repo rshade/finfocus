@@ -1,0 +1,20 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::data-lake                                │
+│ Type:   aws:s3/bucket:Bucket                                                                   │
+│ Status: creating                                                                               │
+│                                                                                                │
+│ PROJECTED COST (Monthly)                                                                       │
+│   Total: $33.87                                                                                │
+│   Breakdown:                                                                                   │
+│                 requests: $8.87                                                                │
+│     storage: $25.00                                                                            │
+│                                                                                                │
+│ COST IMPACT                                                                                    │
+│   New Monthly Cost: $33.87                                                                     │
+│   Delta:                  +$33.87                                                              │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

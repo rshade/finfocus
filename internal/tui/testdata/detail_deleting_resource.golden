@@ -1,0 +1,17 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:ec2/instance:Instance::legacy                              │
+│ Type:   aws:ec2/instance:Instance                                                              │
+│ Status: deleting                                                                               │
+│                                                                                                │
+│ ACTUAL COST (MTD)                                                                              │
+│   Total: $45.00                                                                                │
+│                                                                                                │
+│ COST IMPACT                                                                                    │
+│   Current (est. monthly): $90.00                                                               │
+│   Delta:                  -$90.00                                                              │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

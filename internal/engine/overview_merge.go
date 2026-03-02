@@ -122,7 +122,7 @@ func MergeResourcesForOverview(
 			row.Status = MapOperationToStatus(step.Op)
 		}
 		if diffs, ok := diffsByURN[res.URN]; ok {
-			row.PropertyDiffs = diffs
+			row.PropertyDiffs = append([]PropertyDiff(nil), diffs...)
 		}
 
 		rows = append(rows, row)
@@ -226,7 +226,7 @@ func ApplyPropertyDiffsToRows(rows []OverviewRow, diffsByURN map[string][]Proper
 	}
 	for i := range rows {
 		if diffs, ok := diffsByURN[rows[i].URN]; ok {
-			rows[i].PropertyDiffs = diffs
+			rows[i].PropertyDiffs = append([]PropertyDiff(nil), diffs...)
 		}
 	}
 }

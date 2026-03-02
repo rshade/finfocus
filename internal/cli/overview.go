@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"sync/atomic"
@@ -629,16 +630,14 @@ func diffInputs(oldState, newState *ingest.PulumiState) []engine.PropertyDiff {
 		}
 		rawOld := oldInputs[k]
 		rawNew := newInputs[k]
-		// Detect diffs using raw values to catch nil-vs-"" and type differences
-		// that formatDiffValue would collapse to the same string.
-		if rawOld == nil && rawNew == nil {
+		// Use reflect.DeepEqual on raw values to catch type-only changes
+		// (e.g., string "1" vs float64 1) that formatDiffValue would
+		// collapse to the same display string.
+		if reflect.DeepEqual(rawOld, rawNew) {
 			continue
 		}
 		oldDisplay := formatDiffValue(rawOld)
 		newDisplay := formatDiffValue(rawNew)
-		if rawOld != nil && rawNew != nil && oldDisplay == newDisplay {
-			continue
-		}
 		diffs = append(diffs, engine.PropertyDiff{
 			Key:      k,
 			OldValue: oldDisplay,

@@ -106,22 +106,22 @@ func CalculateProjectedDelta(rows []OverviewRow, currentDayOfMonth int) (float64
 	for _, row := range rows {
 		switch row.Status { //nolint:exhaustive // StatusActive is intentionally skipped (no delta).
 		case StatusUpdating:
-			projected := getProjectedMonthlyCost(row)
-			actual := getExtrapolatedActual(row, currentDayOfMonth)
+			projected := GetProjectedMonthlyCost(row)
+			actual := GetExtrapolatedActual(row, currentDayOfMonth)
 			if currency == "" {
 				currency = pickCurrency(row)
 			}
 			delta += projected - actual
 
 		case StatusCreating:
-			projected := getProjectedMonthlyCost(row)
+			projected := GetProjectedMonthlyCost(row)
 			if currency == "" {
 				currency = pickCurrency(row)
 			}
 			delta += projected
 
 		case StatusDeleting:
-			actual := getExtrapolatedActual(row, currentDayOfMonth)
+			actual := GetExtrapolatedActual(row, currentDayOfMonth)
 			if currency == "" {
 				currency = pickCurrency(row)
 			}
@@ -129,8 +129,8 @@ func CalculateProjectedDelta(rows []OverviewRow, currentDayOfMonth int) (float64
 
 		case StatusReplacing:
 			// Replace is delete + create; net effect is projected - actual.
-			projected := getProjectedMonthlyCost(row)
-			actual := getExtrapolatedActual(row, currentDayOfMonth)
+			projected := GetProjectedMonthlyCost(row)
+			actual := GetExtrapolatedActual(row, currentDayOfMonth)
 			if currency == "" {
 				currency = pickCurrency(row)
 			}
@@ -140,15 +140,15 @@ func CalculateProjectedDelta(rows []OverviewRow, currentDayOfMonth int) (float64
 	return delta, currency
 }
 
-// getProjectedMonthlyCost safely extracts the projected monthly cost from a row.
-func getProjectedMonthlyCost(row OverviewRow) float64 {
+// GetProjectedMonthlyCost safely extracts the projected monthly cost from a row.
+func GetProjectedMonthlyCost(row OverviewRow) float64 {
 	if row.ProjectedCost == nil {
 		return 0
 	}
 	return row.ProjectedCost.MonthlyCost
 }
 
-// getExtrapolatedActual extrapolates the MTD actual cost to a full month.
+// GetExtrapolatedActual extrapolates the MTD actual cost to a full month.
 // If the day of month is too early for reliable extrapolation, returns the
 // raw MTD cost.
 //
@@ -157,7 +157,7 @@ func getProjectedMonthlyCost(row OverviewRow) float64 {
 // This is intentional: delta calculations use a standardised month length for
 // consistent comparisons, while drift calculations use calendar-accurate
 // month length for precision.
-func getExtrapolatedActual(row OverviewRow, dayOfMonth int) float64 {
+func GetExtrapolatedActual(row OverviewRow, dayOfMonth int) float64 {
 	if row.ActualCost == nil {
 		return 0
 	}
@@ -182,22 +182,22 @@ func getExtrapolatedActual(row OverviewRow, dayOfMonth int) float64 {
 func CalculateRowDelta(row OverviewRow, dayOfMonth int) (float64, bool) {
 	switch row.Status { //nolint:exhaustive // StatusActive handled in default.
 	case StatusUpdating, StatusReplacing:
-		projected := getProjectedMonthlyCost(row)
-		actual := getExtrapolatedActual(row, dayOfMonth)
+		projected := GetProjectedMonthlyCost(row)
+		actual := GetExtrapolatedActual(row, dayOfMonth)
 		if projected == 0 && actual == 0 {
 			return 0, false
 		}
 		return projected - actual, true
 
 	case StatusCreating:
-		projected := getProjectedMonthlyCost(row)
+		projected := GetProjectedMonthlyCost(row)
 		if projected == 0 {
 			return 0, false
 		}
 		return projected, true
 
 	case StatusDeleting:
-		actual := getExtrapolatedActual(row, dayOfMonth)
+		actual := GetExtrapolatedActual(row, dayOfMonth)
 		if actual == 0 {
 			return 0, false
 		}

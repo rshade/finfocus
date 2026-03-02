@@ -278,3 +278,149 @@ func TestRenderDetailView_TruncatesLongValues(t *testing.T) {
 	assert.NotContains(t, output, longValue)
 	assert.Contains(t, output, "...")
 }
+
+// ---------------------------------------------------------------------------
+// renderDetailCostImpact
+// ---------------------------------------------------------------------------
+
+func TestRenderDetailCostImpact_ReplacingResource(t *testing.T) {
+	now := time.Now()
+	period := engine.DateRange{Start: now.Add(-24 * time.Hour), End: now}
+
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusReplacing,
+		ActualCost: &engine.ActualCostData{
+			MTDCost:  25.35,
+			Currency: "USD",
+			Period:   period,
+		},
+		ProjectedCost: &engine.ProjectedCostData{
+			MonthlyCost: 33.87,
+			Currency:    "USD",
+		},
+	}
+
+	renderDetailCostImpact(&content, row)
+	output := content.String()
+
+	assert.Contains(t, output, "COST IMPACT")
+	assert.Contains(t, output, "Current (est. monthly)")
+	assert.Contains(t, output, "After Change")
+	assert.Contains(t, output, "$33.87")
+	assert.Contains(t, output, "Delta")
+}
+
+func TestRenderDetailCostImpact_CreatingResource(t *testing.T) {
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:s3:Bucket::data",
+		Type:   "aws:s3:Bucket",
+		Status: engine.StatusCreating,
+		ProjectedCost: &engine.ProjectedCostData{
+			MonthlyCost: 33.87,
+			Currency:    "USD",
+		},
+	}
+
+	renderDetailCostImpact(&content, row)
+	output := content.String()
+
+	assert.Contains(t, output, "COST IMPACT")
+	assert.Contains(t, output, "New Monthly Cost")
+	assert.Contains(t, output, "$33.87")
+	assert.Contains(t, output, "Delta")
+	assert.Contains(t, output, "+$33.87")
+}
+
+func TestRenderDetailCostImpact_DeletingResource(t *testing.T) {
+	now := time.Now()
+	period := engine.DateRange{Start: now.Add(-24 * time.Hour), End: now}
+
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::old",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusDeleting,
+		ActualCost: &engine.ActualCostData{
+			MTDCost:  25.35,
+			Currency: "USD",
+			Period:   period,
+		},
+	}
+
+	renderDetailCostImpact(&content, row)
+	output := content.String()
+
+	assert.Contains(t, output, "COST IMPACT")
+	assert.Contains(t, output, "Current (est. monthly)")
+	assert.Contains(t, output, "Delta")
+	assert.Contains(t, output, "-$")
+}
+
+func TestRenderDetailCostImpact_ActiveResource(t *testing.T) {
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusActive,
+		ProjectedCost: &engine.ProjectedCostData{
+			MonthlyCost: 100.00,
+			Currency:    "USD",
+		},
+	}
+
+	renderDetailCostImpact(&content, row)
+	assert.Empty(t, content.String(), "active resources should not show COST IMPACT")
+}
+
+func TestRenderDetailCostImpact_NoCostData(t *testing.T) {
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusReplacing,
+		// No ActualCost or ProjectedCost — CalculateRowDelta returns false.
+	}
+
+	renderDetailCostImpact(&content, row)
+	assert.Empty(t, content.String(), "no cost data should not show COST IMPACT")
+}
+
+func TestRenderDetailView_ShowsCostImpact(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now()
+	period := engine.DateRange{Start: now.Add(-24 * time.Hour), End: now}
+
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusUpdating,
+			ActualCost: &engine.ActualCostData{
+				MTDCost:  50.00,
+				Currency: "USD",
+				Period:   period,
+			},
+			ProjectedCost: &engine.ProjectedCostData{
+				MonthlyCost: 150.00,
+				Currency:    "USD",
+			},
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.Contains(t, output, "COST IMPACT")
+	assert.Contains(t, output, "Current (est. monthly)")
+	assert.Contains(t, output, "After Change")
+	assert.Contains(t, output, "$150.00")
+	assert.Contains(t, output, "Delta")
+}

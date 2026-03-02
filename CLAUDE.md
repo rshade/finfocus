@@ -159,6 +159,18 @@ Precedence: CLI flags (`--debug`) > env vars > config file > default (info, cons
 
 ## Testing
 
+### TUI Visual Verification
+
+After modifying `internal/tui/` code, ALWAYS:
+
+1. Render the affected view and read the full output (not just test pass/fail)
+2. Verify column alignment, section ordering, and data population visually
+3. Run golden file tests: `go test -run TestGolden ./internal/tui/...`
+4. Regenerate golden files if layout intentionally changed:
+   `UPDATE_GOLDEN=1 go test -run TestGolden ./internal/tui/...`
+
+String-only assertions (`assert.Contains`) are NOT sufficient for TUI testing.
+
 ### E2E Testing
 
 **Location**: `test/e2e/` (separate Go module)

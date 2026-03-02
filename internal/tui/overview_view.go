@@ -218,6 +218,12 @@ func (m OverviewModel) getSortLabel() string {
 
 // renderDetailView renders the detail view for a selected resource.
 func (m OverviewModel) renderDetailView() string {
+	return m.renderDetailViewForDay(time.Now().Day())
+}
+
+// renderDetailViewForDay is the testable core of renderDetailView.
+// It accepts a fixed dayOfMonth so golden file tests produce deterministic output.
+func (m OverviewModel) renderDetailViewForDay(dayOfMonth int) string {
 	if m.selected < 0 || m.selected >= len(m.rows) {
 		return msgSelectedOutOfBounds
 	}
@@ -244,6 +250,7 @@ func (m OverviewModel) renderDetailView() string {
 	// Cost sections
 	renderDetailActualCost(&content, row)
 	renderDetailProjectedCost(&content, row)
+	renderDetailCostImpactForDay(&content, row, dayOfMonth)
 	renderDetailCostDrift(&content, row)
 	renderDetailRecommendations(&content, row)
 	renderDetailError(&content, row)
@@ -284,6 +291,63 @@ func renderDetailProjectedCost(content *strings.Builder, row engine.OverviewRow)
 	content.WriteString("\n")
 	renderBreakdown(content, row.ProjectedCost.Breakdown)
 	content.WriteString("\n")
+}
+
+// renderDetailCostImpact writes the cost impact section for resources with
+// pending changes (updating, replacing, creating, deleting). For active
+// resources this section is not shown — drift covers that case.
+func renderDetailCostImpact(content *strings.Builder, row engine.OverviewRow) {
+	renderDetailCostImpactForDay(content, row, time.Now().Day())
+}
+
+// renderDetailCostImpactForDay is the testable core of renderDetailCostImpact.
+// It accepts a fixed dayOfMonth to allow deterministic golden file tests.
+func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewRow, dayOfMonth int) {
+	if row.Status == engine.StatusActive {
+		return
+	}
+
+	delta, ok := engine.CalculateRowDelta(row, dayOfMonth)
+	if !ok {
+		return
+	}
+
+	content.WriteString(HeaderStyle.Render("COST IMPACT"))
+	content.WriteString("\n")
+
+	switch row.Status { //nolint:exhaustive // StatusActive already returned above.
+	case engine.StatusUpdating, engine.StatusReplacing:
+		current := engine.GetExtrapolatedActual(row, dayOfMonth)
+		projected := engine.GetProjectedMonthlyCost(row)
+		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
+		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))
+		content.WriteString("\n")
+		content.WriteString(LabelStyle.Render("  After Change:           "))
+		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(projected)))
+		content.WriteString("\n")
+
+	case engine.StatusCreating:
+		projected := engine.GetProjectedMonthlyCost(row)
+		content.WriteString(LabelStyle.Render("  New Monthly Cost: "))
+		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(projected)))
+		content.WriteString("\n")
+
+	case engine.StatusDeleting:
+		current := engine.GetExtrapolatedActual(row, dayOfMonth)
+		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
+		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))
+		content.WriteString("\n")
+	}
+
+	content.WriteString(LabelStyle.Render("  Delta:                  "))
+	deltaStyle := ValueStyle
+	if delta > 0 {
+		deltaStyle = WarningStyle
+	} else if delta < 0 {
+		deltaStyle = OKStyle
+	}
+	content.WriteString(deltaStyle.Render(engine.FormatOverviewDelta(delta)))
+	content.WriteString("\n\n")
 }
 
 // renderDetailCostDrift writes cost drift details to the builder.

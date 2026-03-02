@@ -827,6 +827,8 @@ func TestPropertyDiffs_JSONPresence(t *testing.T) {
 				require.NoError(t, json.Unmarshal(data, &parsed))
 				require.Len(t, parsed.PropertyDiffs, 1)
 				assert.Equal(t, tt.expectedDiffKey, parsed.PropertyDiffs[0].Key)
+			default:
+				require.FailNow(t, "unknown structType: %s", tt.structType)
 			}
 		})
 	}

@@ -745,6 +745,32 @@ func TestBuildPropertyDiffsByURN(t *testing.T) {
 	assert.Len(t, result["urn:a"], 1)
 }
 
+func TestBuildPropertyDiffsByURN_ReplaceFlowEdgeCase(t *testing.T) {
+	expectedDiffs := []PropertyDiff{
+		{Key: "subnetId", OldValue: "subnet-aaa", NewValue: "subnet-bbb"},
+	}
+
+	t.Run("delete-replaced first then create-replacement", func(t *testing.T) {
+		steps := []PlanStep{
+			{URN: "urn:x", Op: "delete-replaced", Type: "aws:ec2:Instance"},
+			{URN: "urn:x", Op: "create-replacement", Type: "aws:ec2:Instance", PropertyDiffs: expectedDiffs},
+		}
+		result := BuildPropertyDiffsByURN(steps)
+		require.Contains(t, result, "urn:x")
+		assert.Equal(t, expectedDiffs, result["urn:x"])
+	})
+
+	t.Run("create-replacement first then delete-replaced", func(t *testing.T) {
+		steps := []PlanStep{
+			{URN: "urn:x", Op: "create-replacement", Type: "aws:ec2:Instance", PropertyDiffs: expectedDiffs},
+			{URN: "urn:x", Op: "delete-replaced", Type: "aws:ec2:Instance"},
+		}
+		result := BuildPropertyDiffsByURN(steps)
+		require.Contains(t, result, "urn:x")
+		assert.Equal(t, expectedDiffs, result["urn:x"])
+	})
+}
+
 func TestBuildPropertyDiffsByURN_EmptySteps(t *testing.T) {
 	result := BuildPropertyDiffsByURN(nil)
 	assert.Empty(t, result)
