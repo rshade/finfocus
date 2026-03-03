@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.3](https://github.com/rshade/finfocus/compare/v0.3.2...v0.3.3) (2026-03-03)
+
+
+### Added
+
+* **cli:** add config routes list and config routes test commands ([#840](https://github.com/rshade/finfocus/issues/840)) ([fa07e73](https://github.com/rshade/finfocus/commit/fa07e732cdefb27179b213b10a4f518d64f35198))
+* **deps:** upgrade charmbracelet dependencies to v2 ([#843](https://github.com/rshade/finfocus/issues/843)) ([a1b8a97](https://github.com/rshade/finfocus/commit/a1b8a9758653dcd7dbab6dd1f56dc04d69e893af)), closes [#827](https://github.com/rshade/finfocus/issues/827)
+* **tui:** show property changes in overview detail view ([#852](https://github.com/rshade/finfocus/issues/852)) ([ce24612](https://github.com/rshade/finfocus/commit/ce246122f810fbc910d814c51dcbd50ea8a57b6d))
+
+
+### Fixed
+
+* **deps:** update module github.com/pulumi/pulumi/sdk/v3 to v3.224.0 ([#838](https://github.com/rshade/finfocus/issues/838)) ([d60afce](https://github.com/rshade/finfocus/commit/d60afce5d45c19079a37a0788b5451ffd9a2d11b))
+* **deps:** update module github.com/rshade/finfocus-spec to v0.5.7 ([#849](https://github.com/rshade/finfocus/issues/849)) ([e0713cd](https://github.com/rshade/finfocus/commit/e0713cdd00a2f1e859076e094c75a38d4b0f3407))
+
 ## [0.3.2](https://github.com/rshade/finfocus/compare/v0.3.1...v0.3.2) (2026-02-28)
 
 
