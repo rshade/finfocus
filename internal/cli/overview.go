@@ -2,11 +2,14 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
+	"sort"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -112,7 +115,21 @@ instead of running Pulumi CLI commands.`,
 // executeOverview orchestrates the overview command workflow: it validates the date range,
 // loads Pulumi state and optionally a preview plan, detects pending changes, merges and
 // filters resources, opens plugin clients, constructs an engine, and either launches an
-// interactive TUI or enriches and renders plain output with optional budget evaluation.
+// executeOverview orchestrates the workflow for the "overview" command.
+// It validates flags and date range, selects interactive TUI or plain output mode,
+// loads and processes Pulumi state and plan data, opens plugins, creates the pricing
+// engine, enriches rows with pricing and metadata, applies dismissal and computed
+// deltas, renders the final output (table/json/ndjson), evaluates budgets, and
+// records audit and timing metrics.
+// It returns a non-nil error for invalid flags or date ranges and for failures in
+// any subsequent step such as data loading, plugin initialization, engine creation,
+// enrichment, rendering, or budget evaluation.
+//
+// cmd provides the Cobra command context and IO streams.
+// params supplies command-specific options (data sources, output format, filters,
+// budget flags, and interactive/plain controls).
+//
+// The function logs success to the audit context and returns nil on successful completion.
 func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	totalStart := time.Now()
 	ctx := cmd.Context()
@@ -178,6 +195,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 10a. Apply dismissal delta (non-fatal; marks dismissed recs for count badge)
 	rows = applyDismissalDeltaToRows(ctx, rows)
 
+	// 10b. Pre-compute per-row deltas so all renderers read the same values.
+	engine.PopulateComputedDeltas(rows, time.Now().Day())
+
 	// 11-14. Build context, render output, evaluate budgets.
 	if finalErr := finalizeOverviewOutput(
 		ctx, cmd, params, rows, eng, dateRange,
@@ -211,7 +231,18 @@ func resolveOverviewData(
 
 // loadAndProcessPlainOverview handles the data loading, change detection, resource merging,
 // pre-flight prompt, and filter application steps for the non-interactive overview pipeline.
-// It returns the prepared rows along with stack metadata needed for rendering.
+// loadAndProcessPlainOverview loads Pulumi state/plan for plain (non-TUI) mode, detects pending changes
+// when a plan is available, merges state and plan into overview rows (or builds rows from state when
+// running state-only), optionally prints a pre-flight summary, and applies resource filters.
+//
+// ctx is the request context. cmd is used for printing the pre-flight summary. params controls input
+// sources, output format, filters, and prompt behavior. audit receives failure events when operations fail.
+//
+// The function returns the prepared overview rows, the resolved stack name, a boolean indicating whether
+// there are pending changes, the number of detected changes, a boolean indicating whether processing was
+// state-only (no preview/plan applied), and an error.
+//
+// Errors are returned if resolving input data fails, merging resources fails, or filter validation/application fails.
 func loadAndProcessPlainOverview(
 	ctx context.Context,
 	cmd *cobra.Command,
@@ -251,8 +282,8 @@ func loadAndProcessPlainOverview(
 	}
 	pt.Done(ctx)
 
-	// Pre-flight prompt (unless --yes or state-only).
-	if !isStateOnly {
+	// Pre-flight prompt (unless --yes, state-only, or non-table output).
+	if !isStateOnly && params.output == outputFormatTable {
 		printOverviewSummaryLine(cmd, params.yes, len(rows), hasChanges, changeCount)
 	}
 
@@ -268,7 +299,24 @@ func loadAndProcessPlainOverview(
 }
 
 // finalizeOverviewOutput builds the stack context, optionally fetches budget data
-// for JSON output, renders the overview, and evaluates budget thresholds.
+// finalizeOverviewOutput finalizes rendering of the overview and performs budget evaluation for the provided rows.
+// It renders output in the format specified by params and, when applicable, fetches budgets to include in JSON output.
+// After rendering, it applies any budget-related flags, converts rows into budget inputs, and evaluates budget thresholds.
+//
+// Parameters:
+//  - ctx: request context used for logging and cancellation.
+//  - cmd: Cobra command used to read flag state for budget-related overrides.
+//  - params: overview command parameters controlling output format and budget flags.
+//  - rows: prepared overview rows to render and evaluate for cost/budgets.
+//  - eng: engine instance used to fetch budgets (non-fatal) when producing JSON output.
+//  - dateRange: time window covered by the overview, applied to the stack context.
+//  - stackName: name of the Pulumi stack represented by the overview.
+//  - hasChanges: whether detected plan changes exist for the stack.
+//  - changeCount: number of pending changes detected.
+//  - isStateOnly: true when the overview was produced from state without a preview plan.
+//  - audit: audit context used to record failures.
+//
+// Returns an error when rendering fails or when budget evaluation fails; budget fetch failures are logged and treated as non-fatal.
 func finalizeOverviewOutput(
 	ctx context.Context,
 	cmd *cobra.Command,
@@ -319,7 +367,7 @@ func finalizeOverviewOutput(
 	// Budget evaluation (non-TTY path only).
 	applyOverviewBudgetFlags(cmd, params)
 	costResults, totalCost := overviewRowsToBudgetInputs(rows)
-	if budgetErr := evaluateBudgetStatus(cmd, costResults, totalCost); budgetErr != nil {
+	if budgetErr := evaluateBudgetStatusWithoutRender(cmd, costResults, totalCost); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return budgetErr
 	}
@@ -558,7 +606,10 @@ func resolveOverviewDateRange(fromStr, toStr string, now time.Time) (engine.Date
 	return engine.DateRange{Start: from, End: to}, nil
 }
 
-// convertStateResources converts ingest.StackExportResource to engine.StateResource.
+// convertStateResources converts a slice of ingest.StackExportResource into a slice of
+// engine.StateResource. For each resource it preserves URN, Type, ID, Custom, and the
+// Created timestamp (if present), merges Outputs and Inputs into Properties, and
+// returns the resulting slice in the same order as the input.
 func convertStateResources(resources []ingest.StackExportResource) []engine.StateResource {
 	result := make([]engine.StateResource, len(resources))
 	for i, r := range resources {
@@ -580,6 +631,17 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 }
 
 // convertPlanSteps converts ingest.PulumiStep to engine.PlanStep.
+// For update/replace operations, it also extracts property diffs
+// convertPlanSteps converts a slice of ingest.PulumiStep into a slice of
+// engine.PlanStep suitable for downstream processing and UI rendering.
+// For steps with operations "create", "update", "replace", or
+// "create-replacement" the returned PlanStep.ProjectedProperties is populated
+// from the step's old and new state. For operations "update", "replace", or
+// "create-replacement" the returned PlanStep.PropertyDiffs is populated by
+// comparing OldState.Inputs to NewState.Inputs.
+//
+// The returned slice preserves the input order and has the same length as
+// the provided steps slice.
 func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 	result := make([]engine.PlanStep, len(steps))
 	for i, s := range steps {
@@ -588,8 +650,201 @@ func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 			Op:   s.Op,
 			Type: s.Type,
 		}
+		switch s.Op {
+		case "create", "update", "replace", "create-replacement":
+			result[i].ProjectedProperties = projectedPropertiesFromStep(s)
+		}
+		switch s.Op {
+		case "update", "replace", "create-replacement":
+			result[i].PropertyDiffs = diffInputs(s.OldState, s.NewState)
+		}
 	}
 	return result
+}
+
+// diffInputs compares OldState.Inputs and NewState.Inputs from a Pulumi step
+// diffInputs compares the Inputs maps of oldState and newState and returns a sorted
+// slice of engine.PropertyDiff for each key whose presence or value differs.
+// It treats a key present in one state and absent in the other as a difference.
+// Keys beginning with "__" are ignored. Values in the returned diffs are formatted
+// for display (empty string for nil); the result is sorted by key.
+// If either state is nil or there are no differences, diffInputs returns nil.
+func diffInputs(oldState, newState *ingest.PulumiState) []engine.PropertyDiff {
+	if oldState == nil || newState == nil {
+		return nil
+	}
+	oldInputs := oldState.Inputs
+	newInputs := newState.Inputs
+	if len(oldInputs) == 0 && len(newInputs) == 0 {
+		return nil
+	}
+
+	// Collect all keys from both maps.
+	keys := make(map[string]struct{}, len(oldInputs)+len(newInputs))
+	for k := range oldInputs {
+		keys[k] = struct{}{}
+	}
+	for k := range newInputs {
+		keys[k] = struct{}{}
+	}
+
+	var diffs []engine.PropertyDiff
+	for k := range keys {
+		// Skip internal Pulumi metadata keys (e.g., __defaults).
+		if strings.HasPrefix(k, "__") {
+			continue
+		}
+		rawOld, oldOK := oldInputs[k]
+		rawNew, newOK := newInputs[k]
+		// Presence-aware comparison: a key existing in one map but not
+		// the other is always a diff, even if the value is nil.
+		if oldOK == newOK && reflect.DeepEqual(rawOld, rawNew) {
+			continue
+		}
+		oldDisplay := formatDiffValue(rawOld)
+		newDisplay := formatDiffValue(rawNew)
+		diffs = append(diffs, engine.PropertyDiff{
+			Key:      k,
+			OldValue: oldDisplay,
+			NewValue: newDisplay,
+		})
+	}
+
+	sort.Slice(diffs, func(i, j int) bool {
+		return diffs[i].Key < diffs[j].Key
+	})
+	return diffs
+}
+
+// projectedPropertiesFromStep builds pricing properties for projected-cost calls
+// by deep-merging old state with new inputs:
+//
+//	deepMerge(oldStateMerged, newState.inputs)
+//
+// This preserves unchanged state-derived fields while applying intended preview
+// projectedPropertiesFromStep builds the set of projected resource properties to use for pricing
+// by merging the resource's previous state (outputs and inputs) with the new inputs present
+// on the plan step, preferring values from the new inputs when conflicts occur.
+//
+// The step parameter is the Pulumi plan step containing optional OldState, NewState and
+// inline Inputs. The function returns a map of merged properties, or nil if the result is
+// empty.
+func projectedPropertiesFromStep(step ingest.PulumiStep) map[string]interface{} {
+	var oldMerged map[string]interface{}
+	if step.OldState != nil {
+		oldMerged = ingest.MergeProperties(step.OldState.Outputs, step.OldState.Inputs)
+	}
+
+	var newInputs map[string]interface{}
+	switch {
+	case step.NewState != nil && len(step.NewState.Inputs) > 0:
+		newInputs = step.NewState.Inputs
+	case len(step.Inputs) > 0:
+		newInputs = step.Inputs
+	}
+
+	merged := deepMergeProperties(oldMerged, newInputs)
+	if len(merged) == 0 {
+		return nil
+	}
+	return merged
+}
+
+// deepMergeProperties recursively merges two maps and returns a fresh map.
+// Nested map[string]interface{} values are merged; all other override values
+// deepMergeProperties recursively merges the `base` and `override` maps and returns a new map.
+//
+// deepMergeProperties returns a deep copy that contains all keys from `base` with values
+// overridden by `override` where present. When a value for a key is a map in both inputs,
+// those nested maps are merged recursively; for all other types the value from `override`
+// replaces the value from `base`. The function does not modify the input maps.
+//
+// If both `base` and `override` are empty, the function returns nil.
+func deepMergeProperties(base, override map[string]interface{}) map[string]interface{} {
+	if len(base) == 0 && len(override) == 0 {
+		return nil
+	}
+	out := deepCopyProperties(base)
+	if out == nil {
+		out = make(map[string]interface{}, len(override))
+	}
+	for k, v := range override {
+		existing, exists := out[k]
+		out[k] = deepMergeValue(exists, existing, v)
+	}
+	return out
+}
+
+// deepMergeValue returns a deep-copied value representing the merge of baseValue and
+// overrideValue for a single key. If exists is false, it returns a deep copy of
+// overrideValue. If both baseValue and overrideValue are maps, it returns a recursively
+// merged map; otherwise it returns a deep copy of overrideValue.
+func deepMergeValue(exists bool, baseValue, overrideValue interface{}) interface{} {
+	if !exists {
+		return deepCopyAny(overrideValue)
+	}
+	baseMap, baseIsMap := baseValue.(map[string]interface{})
+	overrideMap, overrideIsMap := overrideValue.(map[string]interface{})
+	if baseIsMap && overrideIsMap {
+		return deepMergeProperties(baseMap, overrideMap)
+	}
+	return deepCopyAny(overrideValue)
+}
+
+// deepCopyProperties returns a deep copy of the input map, recursively copying nested maps and slices.
+// It returns nil if the input is empty or nil.
+func deepCopyProperties(in map[string]interface{}) map[string]interface{} {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]interface{}, len(in))
+	for k, v := range in {
+		out[k] = deepCopyAny(v)
+	}
+	return out
+}
+
+// deepCopyAny recursively deep-copies maps and slices of generic JSON-like values.
+// For a value of type map[string]interface{} it returns a deep copy produced by
+// deepCopyProperties. For a value of type []interface{} it returns a new slice
+// with each element deep-copied. For all other types the original value is
+// returned unchanged.
+func deepCopyAny(v interface{}) interface{} {
+	switch t := v.(type) {
+	case map[string]interface{}:
+		return deepCopyProperties(t)
+	case []interface{}:
+		out := make([]interface{}, len(t))
+		for i := range t {
+			out[i] = deepCopyAny(t[i])
+		}
+		return out
+	default:
+		return t
+	}
+}
+
+// formatDiffValue converts a property value to a human-readable string.
+// formatDiffValue returns a human-readable string representation of v.
+// For nil it returns an empty string. For strings it returns the string value.
+// For booleans and numeric types it returns their default formatted form.
+// For other types (maps, slices, structs, etc.) it returns compact JSON; if JSON marshaling fails it falls back to fmt.Sprintf on the value.
+func formatDiffValue(v interface{}) string {
+	if v == nil {
+		return ""
+	}
+	switch val := v.(type) {
+	case string:
+		return val
+	case bool, float64, int, int64:
+		return fmt.Sprintf("%v", val)
+	default:
+		data, err := json.Marshal(val)
+		if err != nil {
+			return fmt.Sprintf("%v", val)
+		}
+		return string(data)
+	}
 }
 
 // promptForPreview displays a one-line prompt asking the user whether to run
@@ -1160,7 +1415,7 @@ func loadPlanForOverview(
 // tea.Cmd payload for the on-demand 'p' key handler.
 // passphrase is injected into subprocess env only (never os.Setenv).
 // If preview fails, it returns an empty OverviewChangesReadyMsg so the TUI
-// remains usable in state-only mode.
+// that the caller should remain in state-only mode.
 func runBackgroundPreview(
 	ctx context.Context,
 	params overviewParams,
@@ -1190,10 +1445,14 @@ func runBackgroundPreview(
 
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	statusByURN := engine.BuildStatusByURN(planSteps)
+	propertyDiffsByURN := engine.BuildPropertyDiffsByURN(planSteps)
+	projectedPropsByURN := engine.BuildProjectedPropertiesByURN(planSteps)
 	return tui.OverviewChangesReadyMsg{
-		StatusByURN: statusByURN,
-		HasChanges:  hasChanges,
-		ChangeCount: changeCount,
+		StatusByURN:         statusByURN,
+		PropertyDiffsByURN:  propertyDiffsByURN,
+		ProjectedPropsByURN: projectedPropsByURN,
+		HasChanges:          hasChanges,
+		ChangeCount:         changeCount,
 	}
 }
 
@@ -1315,7 +1574,25 @@ func checkAndPromptPassphrase(
 }
 
 // bridgeEnrichmentToTUI runs EnrichOverviewRows and bridges progress updates
-// to the Bubble Tea program via Send().
+// bridgeEnrichmentToTUI coordinates enrichment of overview rows and streams progress/results
+// to the Bubble Tea program.
+//
+// bridgeEnrichmentToTUI loads dismissal records, runs resource enrichment in the background,
+// applies dismissal deltas and computed deltas to each enriched row, and sends per-row
+// and aggregate progress messages to the provided Bubble Tea program until all rows are processed
+// or the context is cancelled.
+//
+// Parameters:
+//  - enrichCtx: context used to cancel or observe enrichment work.
+//  - p: Bubble Tea program to which progress and result messages are sent.
+//  - rows: initial slice of overview rows to enrich.
+//  - eng: engine used to perform enrichment and cost calculations.
+//  - dateRange: date range used for enrichment (e.g., cost projection window).
+//  - rowCount: atomic counter that is incremented for each processed row.
+//
+// This function does not return a value; it terminates when enrichment completes or when
+// enrichCtx is done. Error conditions encountered during enrichment or dismissal-loading
+// are handled non-fatally and communicated via logs and TUI messages rather than returned.
 func bridgeEnrichmentToTUI(
 	enrichCtx context.Context,
 	p *tea.Program,
@@ -1351,6 +1628,12 @@ func bridgeEnrichmentToTUI(
 
 		// Apply dismissal delta to the enriched row before sending to TUI.
 		engine.ApplyDismissalDeltaToRow(&update.Row, dismissalRecords)
+
+		// Pre-compute per-row delta so TUI reads the same value as CLI renderers.
+		if d, ok := engine.CalculateRowDelta(update.Row, time.Now().Day()); ok {
+			val := d
+			update.Row.ComputedDelta = &val
+		}
 
 		rowCount.Add(1)
 		loadedCount++

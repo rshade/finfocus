@@ -604,7 +604,18 @@ func extractCurrencyFromResults(results []engine.CostResult) (string, bool) {
 // printTimingOutput writes a brief timing summary to stderr via cmd when the output
 // format is a table. It writes the number of resources analyzed, the elapsed time
 // since start, and the resources-per-second rate. If the output format is not table
-// (for example JSON or NDJSON), the function does nothing.
+// printTimingOutput writes a brief timing summary to the command's stderr when the output
+// format is a table.
+//
+// The summary includes the number of analyzed resources, elapsed time in seconds, and
+// resources per second. If the provided output format is not the table format (for
+// example JSON or NDJSON), the function does nothing.
+//
+// Parameters:
+//  - cmd: the Cobra command used to print to stderr.
+//  - start: the start time from which elapsed time is measured.
+//  - resourceCount: the number of resources that were analyzed.
+//  - output: the output format identifier; only the table format triggers printing.
 func printTimingOutput(cmd *cobra.Command, start time.Time, resourceCount int, output string) {
 	if engine.OutputFormat(output) != engine.OutputTable {
 		return
@@ -618,22 +629,63 @@ func printTimingOutput(cmd *cobra.Command, start time.Time, resourceCount int, o
 		resourceCount, elapsed.Seconds(), throughput)
 }
 
-// evaluateBudgetStatus checks budget thresholds when all results share the same
-// currency. It extracts the currency, obtains a scope filter from cmd via
-// getBudgetScopeFilter, calls renderBudgetWithScope to produce a budgetResult,
-// and returns any exit error from checkBudgetExitFromResult. Returns nil when
-// currencies are mixed or no budget violation is detected.
+// evaluateBudgetStatus evaluates budget state for the provided cost results and total cost and renders budget status output to the given Cobra command.
+// cmd is the Cobra command used for output and context.
+// results is the slice of per-resource cost results to evaluate.
+// totalCost is the aggregate cost used when evaluating budgets.
+// It returns an error if budget evaluation or rendering fails, or nil on success.
 func evaluateBudgetStatus(
 	cmd *cobra.Command,
 	results []engine.CostResult,
 	totalCost float64,
 ) error {
+	return evaluateBudgetStatusWithRender(cmd, results, totalCost, true)
+}
+
+// evaluateBudgetStatusWithoutRender evaluates budgets for exit-code behavior
+// evaluateBudgetStatusWithoutRender evaluates budget status for the provided results and total cost
+// without rendering any output to the command. cmd supplies command context used for evaluation.
+// It returns an error if the budget evaluation fails; if currencies are mixed or no budget applies,
+// the function returns nil.
+func evaluateBudgetStatusWithoutRender(
+	cmd *cobra.Command,
+	results []engine.CostResult,
+	totalCost float64,
+) error {
+	return evaluateBudgetStatusWithRender(cmd, results, totalCost, false)
+}
+
+// evaluateBudgetStatusWithRender evaluates budget status for the given cost results and optionally renders human-readable output.
+// It selects a canonical currency from results and returns immediately if multiple distinct currencies are present.
+// If render is true, the function renders budget output using the scope filter derived from cmd; otherwise it evaluates budget status without rendering.
+// Parameters:
+//   - cmd: the Cobra command providing CLI flags and context used to derive budgeting scope.
+//   - results: slice of cost results to evaluate against configured budgets.
+//   - totalCost: precomputed total cost corresponding to results.
+//   - render: when true, produce rendered budget output; when false, perform evaluation only.
+// Returns an error if the budget check indicates an exit condition or if downstream budget processing fails.
+func evaluateBudgetStatusWithRender(
+	cmd *cobra.Command,
+	results []engine.CostResult,
+	totalCost float64,
+	render bool,
+) error {
 	currency, mixedCurrencies := extractCurrencyFromResults(results)
 	if mixedCurrencies {
 		return nil
 	}
-	scopeFilter := getBudgetScopeFilter(cmd)
-	budgetResult, budgetErr := renderBudgetWithScope(cmd, results, totalCost, currency, scopeFilter)
+
+	var (
+		budgetResult *BudgetRenderResult
+		budgetErr    error
+	)
+	if render {
+		scopeFilter := getBudgetScopeFilter(cmd)
+		budgetResult, budgetErr = renderBudgetWithScope(cmd, results, totalCost, currency, scopeFilter)
+	} else {
+		budgetResult, budgetErr = evaluateBudgetWithScope(cmd, results, totalCost, currency)
+	}
+
 	return checkBudgetExitFromResult(cmd, budgetResult, budgetErr)
 }
 

@@ -15,7 +15,23 @@ import (
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
-// setupLogging configures logging based on config file, environment, and CLI flags.
+// setupLogging configures the logging subsystem for the given Cobra command.
+// It finalizes logging settings from configuration, environment, and CLI flags,
+// creates the logger(s), and attaches logging-related values to the command's context.
+//
+// The function may print non-fatal warnings to the command's stderr if it cannot
+// create the log directory or cannot open the plugin log file. It also sets a
+// package-level logger and stores the audit logger and (when applicable) a
+// plugin log file handle and path in the command context.
+//
+// Parameters:
+//  - cmd: the Cobra command whose flags and stderr are used for configuration
+//    and to which the augmented context will be attached.
+//
+// Returns:
+//  - logging.LogPathResult containing the resolved log file path, whether a
+//    file is in use, any fallback information, and a plugin log file handle when
+//    opened.
 func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	loggingCfg := config.GetLoggingConfig()
 
@@ -52,10 +68,12 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	result := logging.NewLoggerWithPath(loggingCfg.ToLoggingConfig())
 	logger = logging.ComponentLogger(result.Logger, "cli")
 
-	if result.UsingFile {
-		logging.PrintLogPathMessage(cmd.ErrOrStderr(), result.FilePath)
-	} else if result.FallbackUsed {
-		logging.PrintFallbackWarning(cmd.ErrOrStderr(), result.FallbackReason)
+	if !suppressAuxOutputFromContext(cmd.Context()) {
+		if result.UsingFile {
+			logging.PrintLogPathMessage(cmd.ErrOrStderr(), result.FilePath)
+		} else if result.FallbackUsed {
+			logging.PrintFallbackWarning(cmd.ErrOrStderr(), result.FallbackReason)
+		}
 	}
 
 	skipVersionCheck, _ := cmd.Flags().GetBool("skip-version-check")

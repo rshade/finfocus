@@ -31,7 +31,17 @@ func NewRootCmd(ver string) *cobra.Command {
 }
 
 // NewRootCmdWithArgs creates the root command with explicit args and env lookup for testability.
-// This allows tests to inject custom args and environment variables.
+// NewRootCmdWithArgs creates the root Cobra command for the FinFocus CLI and allows
+// injection of command-line arguments and an environment lookup function for testing.
+// 
+// ver is the version string embedded in the command. args are the CLI arguments used
+// to detect plugin mode and auxiliary-output suppression. lookupEnv is used to read
+// environment variables (injected for test isolation).
+//
+// The returned command is preconfigured with persistent flags, subcommands, and
+// lifecycle hooks (pre-run/post-run) that initialize configuration, logging, and
+// project resolution. When executed inside a Pulumi project, the command delegates
+// execution to the overview command; outside a Pulumi project it displays help.
 func NewRootCmdWithArgs(
 	ver string,
 	args []string,
@@ -74,6 +84,9 @@ func NewRootCmdWithArgs(
 			return cmd.Help()
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			suppressAuxOutput := shouldSuppressAuxiliaryOutput(args)
+			cmd.SetContext(contextWithSuppressAuxOutput(cmd.Context(), suppressAuxOutput))
+
 			// Validate cache-ttl is non-negative (negative values cause undefined cache expiry behavior)
 			cacheTTL, _ := cmd.Flags().GetInt("cache-ttl")
 			if cacheTTL < 0 {
@@ -90,7 +103,7 @@ func NewRootCmdWithArgs(
 
 				// Alias reminder - use injected lookupEnv for test isolation
 				_, hideAlias := lookupEnv("FINFOCUS_HIDE_ALIAS_HINT")
-				if !hideAlias && !pluginMode {
+				if !hideAlias && !pluginMode && !suppressAuxOutput {
 					msg := "Tip: Add 'alias fin=finfocus' to your shell profile for a shorter command!"
 					cmd.PrintErrln(msg)
 				}

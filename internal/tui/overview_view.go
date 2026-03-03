@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -217,6 +218,12 @@ func (m OverviewModel) getSortLabel() string {
 
 // renderDetailView renders the detail view for a selected resource.
 func (m OverviewModel) renderDetailView() string {
+	return m.renderDetailViewForDay(time.Now().Day())
+}
+
+// renderDetailViewForDay is the testable core of renderDetailView.
+// It accepts a fixed dayOfMonth so golden file tests produce deterministic output.
+func (m OverviewModel) renderDetailViewForDay(dayOfMonth int) string {
 	if m.selected < 0 || m.selected >= len(m.rows) {
 		return msgSelectedOutOfBounds
 	}
@@ -237,9 +244,13 @@ func (m OverviewModel) renderDetailView() string {
 	content.WriteString(ValueStyle.Render(row.Status.String()))
 	content.WriteString("\n\n")
 
+	// Property changes (why the delta)
+	renderDetailPropertyChanges(&content, row)
+
 	// Cost sections
 	renderDetailActualCost(&content, row)
 	renderDetailProjectedCost(&content, row)
+	renderDetailCostImpactForDay(&content, row, dayOfMonth)
 	renderDetailCostDrift(&content, row)
 	renderDetailRecommendations(&content, row)
 	renderDetailError(&content, row)
@@ -268,7 +279,9 @@ func renderDetailActualCost(content *strings.Builder, row engine.OverviewRow) {
 	content.WriteString("\n")
 }
 
-// renderDetailProjectedCost writes projected cost details to the builder.
+// renderDetailProjectedCost writes the projected monthly cost and its breakdown for the given
+// overview row to the provided string builder. If the row's ProjectedCost is nil, the function
+// does nothing.
 func renderDetailProjectedCost(content *strings.Builder, row engine.OverviewRow) {
 	if row.ProjectedCost == nil {
 		return
@@ -282,7 +295,67 @@ func renderDetailProjectedCost(content *strings.Builder, row engine.OverviewRow)
 	content.WriteString("\n")
 }
 
-// renderDetailCostDrift writes cost drift details to the builder.
+// renderDetailCostImpactForDay writes the cost impact section for resources with
+// pending changes (updating, replacing, creating, deleting). For active
+// resources this section is not shown — drift covers that case.
+//
+// It accepts a fixed dayOfMonth for the sub-line extrapolation display;
+//   - dayOfMonth: the day of month used for extrapolating actuals when estimating monthly costs.
+func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewRow, dayOfMonth int) {
+	if row.Status == engine.StatusActive {
+		return
+	}
+
+	if row.ComputedDelta == nil {
+		return
+	}
+	delta := *row.ComputedDelta
+
+	content.WriteString(HeaderStyle.Render("COST IMPACT"))
+	content.WriteString("\n")
+
+	switch row.Status { //nolint:exhaustive // StatusActive already returned above.
+	case engine.StatusUpdating, engine.StatusReplacing:
+		current := engine.ForceExtrapolateActual(row, dayOfMonth)
+		if baseline, ok := engine.GetBaselineProjectedMonthlyCost(row); ok {
+			current = baseline
+		}
+		projected := engine.GetProjectedMonthlyCost(row)
+		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
+		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))
+		content.WriteString("\n")
+		content.WriteString(LabelStyle.Render("  After Change:           "))
+		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(projected)))
+		content.WriteString("\n")
+
+	case engine.StatusCreating:
+		projected := engine.GetProjectedMonthlyCost(row)
+		content.WriteString(LabelStyle.Render("  New Monthly Cost: "))
+		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(projected)))
+		content.WriteString("\n")
+
+	case engine.StatusDeleting:
+		current := engine.GetExtrapolatedActual(row, dayOfMonth)
+		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
+		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))
+		content.WriteString("\n")
+	}
+
+	content.WriteString(LabelStyle.Render("  Delta:                  "))
+	deltaStyle := ValueStyle
+	if delta > 0 {
+		deltaStyle = WarningStyle
+	} else if delta < 0 {
+		deltaStyle = OKStyle
+	}
+	content.WriteString(deltaStyle.Render(engine.FormatOverviewDelta(delta)))
+	content.WriteString("\n\n")
+}
+
+// renderDetailCostDrift writes the "COST DRIFT" section for the given overview row into the provided string builder.
+// If the row has no CostDrift data, the function returns without writing anything.
+// The section includes Extrapolated Monthly, Projected, Delta (formatted as currency), and the Drift percentage.
+// When CostDrift.IsWarning is true, the drift percentage is rendered with the warning style; otherwise it uses the normal value style.
 func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRow) {
 	if row.CostDrift == nil {
 		return
@@ -309,7 +382,11 @@ func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRow) {
 
 // renderDetailRecommendations writes active (non-dismissed) recommendations to
 // the builder. Dismissed and snoozed recommendations are excluded from the
-// detail view — they are only reflected in the count badge.
+// renderDetailRecommendations writes a "RECOMMENDATIONS" section into content containing
+// only active recommendations from the provided overview row.
+// It excludes recommendations with status Dismissed or Snoozed and, for each active
+// recommendation, writes a numbered entry with its description and the formatted
+// estimated savings. The function appends a trailing blank line and does not return a value.
 func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRow) {
 	// Collect active recs only.
 	var active []engine.Recommendation
@@ -328,13 +405,16 @@ func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRo
 		fmt.Fprintf(content, "  %d. %s\n", i+1, rec.Description)
 		content.WriteString(LabelStyle.Render("     Savings: "))
 		content.WriteString(ValueStyle.Render(
-			engine.FormatOverviewCurrency(rec.EstimatedSavings) + "\n",
+			engine.FormatOverviewCurrency(rec.EstimatedSavings),
 		))
+		content.WriteString("\n")
 	}
 	content.WriteString("\n")
 }
 
-// renderDetailError writes error details to the builder.
+// renderDetailError writes an "ERROR" section for the provided row into the content builder.
+// If row.Error is nil, it does nothing. When present, it appends a header and the error type and
+// message, each rendered with CriticalStyle, followed by a trailing newline.
 func renderDetailError(content *strings.Builder, row engine.OverviewRow) {
 	if row.Error == nil {
 		return
@@ -346,8 +426,79 @@ func renderDetailError(content *strings.Builder, row engine.OverviewRow) {
 	content.WriteString("\n")
 }
 
+// maxDiffValueLen is the maximum display length for a property diff value.
+// Values longer than this are truncated with an ellipsis.
+const maxDiffValueLen = 40
+
+// renderDetailPropertyChanges writes the property changes section to the builder.
+// renderDetailPropertyChanges writes a "PROPERTY CHANGES" section into content for the
+// given row when the row contains property diffs. It aligns keys using rune-aware
+// padding, truncates long values to the display limit and replaces empty values with
+// "(none)". Each diff line contains the padded key, the old value, an arrow, and the
+// new value with highlight styling. A blank line is appended after the section.
+//
+// Parameters:
+//   - content: destination builder to which the section is written.
+//   - row: the overview row whose PropertyDiffs will be rendered.
+func renderDetailPropertyChanges(content *strings.Builder, row engine.OverviewRow) {
+	if len(row.PropertyDiffs) == 0 {
+		return
+	}
+	content.WriteString(HeaderStyle.Render("PROPERTY CHANGES"))
+	content.WriteString("\n")
+
+	// Find the longest key (in runes) for alignment.
+	maxKeyLen := 0
+	for _, d := range row.PropertyDiffs {
+		if n := utf8.RuneCountInString(d.Key); n > maxKeyLen {
+			maxKeyLen = n
+		}
+	}
+
+	changeStyle := lipgloss.NewStyle().Foreground(ColorHighlight).Bold(true)
+	for _, d := range row.PropertyDiffs {
+		// Pad using rune count to align correctly with multi-byte characters.
+		keyRunes := []rune(d.Key)
+		pad := maxKeyLen - len(keyRunes)
+		padded := d.Key
+		if pad > 0 {
+			padded += strings.Repeat(" ", pad)
+		}
+		oldVal := truncateDiffValue(d.OldValue)
+		if oldVal == "" {
+			oldVal = "(none)"
+		}
+		newVal := truncateDiffValue(d.NewValue)
+		if newVal == "" {
+			newVal = "(none)"
+		}
+		content.WriteString(LabelStyle.Render(fmt.Sprintf("  %s: ", padded)))
+		content.WriteString(ValueStyle.Render(oldVal))
+		content.WriteString(ValueStyle.Render(" \u2192 "))
+		content.WriteString(changeStyle.Render(newVal))
+		content.WriteString("\n")
+	}
+	content.WriteString("\n")
+}
+
+// truncateDiffValue shortens a property diff value if it exceeds maxDiffValueLen runes.
+// truncateDiffValue truncates s to at most maxDiffValueLen runes, preserving whole UTF-8 runes.
+// If s is shorter than or equal to maxDiffValueLen it is returned unchanged.
+// When truncation is necessary the function keeps the first (maxDiffValueLen - 3) runes and appends "..." so the result is exactly maxDiffValueLen runes long.
+func truncateDiffValue(s string) string {
+	runes := []rune(s)
+	if len(runes) <= maxDiffValueLen {
+		return s
+	}
+	const ellipsis = 3
+	return string(runes[:maxDiffValueLen-ellipsis]) + "..."
+}
+
 // renderBreakdown writes a cost breakdown map to the builder.
-// Keys are sorted for deterministic output.
+// renderBreakdown appends a "Breakdown:" section to content for a non-empty
+// breakdown map, listing each category and its formatted currency value.
+// If breakdown is empty the function does nothing. Keys are sorted to ensure
+// deterministic output; values are formatted with engine.FormatOverviewCurrency.
 func renderBreakdown(content *strings.Builder, breakdown map[string]float64) {
 	if len(breakdown) == 0 {
 		return

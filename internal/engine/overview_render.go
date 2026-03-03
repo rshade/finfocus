@@ -201,6 +201,8 @@ func formatActualColumn(row OverviewRow) string {
 	return FormatOverviewCurrency(row.ActualCost.MTDCost)
 }
 
+// formatProjectedColumn returns the projected monthly cost for the given overview row formatted for display.
+// If the row has no projected cost it returns "-" otherwise it returns the amount as a currency string (e.g., "$1,234.56").
 func formatProjectedColumn(row OverviewRow) string {
 	if row.ProjectedCost == nil {
 		return "-"
@@ -208,27 +210,22 @@ func formatProjectedColumn(row OverviewRow) string {
 	return FormatOverviewCurrency(row.ProjectedCost.MonthlyCost)
 }
 
-// formatDeltaColumn formats the delta column. When CostDrift is available its
-// pre-computed Delta is used for consistency with the TUI's buildOverviewTable.
-// Otherwise falls back to Projected - MTD Actual.
+// formatDeltaColumn reads the pre-computed ComputedDelta from the row.
+// formatDeltaColumn returns the formatted delta for the given OverviewRow.
+// If the row's ComputedDelta is nil it returns "-".
+// Otherwise it returns the delta as a signed currency string (for example, "+$1,234.56").
 func formatDeltaColumn(row OverviewRow) string {
-	if row.CostDrift != nil {
-		return FormatOverviewDelta(row.CostDrift.Delta)
-	}
-	if row.ProjectedCost == nil && row.ActualCost == nil {
+	if row.ComputedDelta == nil {
 		return "-"
 	}
-	projected := 0.0
-	if row.ProjectedCost != nil {
-		projected = row.ProjectedCost.MonthlyCost
-	}
-	actual := 0.0
-	if row.ActualCost != nil {
-		actual = row.ActualCost.MTDCost
-	}
-	return FormatOverviewDelta(projected - actual)
+	return FormatOverviewDelta(*row.ComputedDelta)
 }
 
+// formatDriftColumn formats the cost drift value for an overview row's drift column.
+// If the row has no CostDrift, it returns "-". Otherwise it formats the percent
+// drift with no fractional digits, prefixing a "+" for positive values and no
+// sign for negative values, and appends a warning symbol ("⚠") when IsWarning is true. 
+// row is the overview row being formatted.
 func formatDriftColumn(row OverviewRow) string {
 	if row.CostDrift == nil {
 		return "-"
@@ -314,7 +311,18 @@ func checkCurrency(current *string, next string) error {
 	return nil
 }
 
-// renderSummaryFooter writes the summary line at the bottom of the table.
+// renderSummaryFooter writes the summary and optional footer lines for the overview table.
+// It aggregates totals from the provided rows, sums pre-computed per-row deltas for the
+// summary delta, and writes the SUMMARY line plus optional potential-savings and pending-changes
+// lines to the provided tabwriter.
+//
+// Parameters:
+//  - tw: tabwriter to write formatted table footer lines to.
+//  - rows: overview rows to aggregate for totals and to sum pre-computed deltas.
+//  - stackCtx: stack context supplying stack name, resource count, and change metadata.
+//
+// Returns an error if aggregation of rows fails (for example, due to mixed currencies) or
+// if any write to the tabwriter fails.
 func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx StackContext) error {
 	if _, err := fmt.Fprintf(tw, "\t\t\t\t\t\t\t\n"); err != nil {
 		return err
@@ -325,7 +333,13 @@ func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx Stac
 		return aggErr
 	}
 
-	totalDelta := t.projected - t.actual
+	// Sum pre-computed per-row deltas for a consistent summary.
+	var totalDelta float64
+	for _, row := range rows {
+		if row.ComputedDelta != nil {
+			totalDelta += *row.ComputedDelta
+		}
+	}
 
 	if _, writeErr := fmt.Fprintf(tw, "SUMMARY\t%s\t%d resources\t%s\t%s\t%s\t\t\n",
 		stackCtx.StackName,
@@ -392,6 +406,17 @@ type OverviewJSONOutput struct {
 //   - budgetResult: optional budget data; when non-nil and non-empty, converted budgets are included
 //     in the `budgets` field. May be nil, in which case no budget entries are emitted.
 //
+// RenderOverviewAsJSON writes the provided overview rows, metadata, summary, budgets,
+// and errors as an indented JSON object to w.
+//
+// The output includes metadata (promoting the provided StackContext), the list of
+// resources (always serialized as an array, not null), a summary of totals computed
+// from the rows, optional budget health results, and any row-level errors.
+//
+// If stackCtx.GeneratedAt is zero it is set to the current time before serialization.
+// If budgetResult is non-nil and contains budgets, they are converted to
+// BudgetHealthResult entries via CalculateBudgetHealthResults.
+//
 // Returns an error if aggregating totals fails or if encoding/writing the JSON output fails.
 func RenderOverviewAsJSON(
 	ctx context.Context, w io.Writer, rows []OverviewRow,
@@ -425,6 +450,14 @@ func RenderOverviewAsJSON(
 		budgets = CalculateBudgetHealthResults(ctx, budgetResult.Budgets)
 	}
 
+	// Sum pre-computed per-row deltas for a consistent summary.
+	var totalDelta float64
+	for _, row := range resources {
+		if row.ComputedDelta != nil {
+			totalDelta += *row.ComputedDelta
+		}
+	}
+
 	// Build output structure
 	output := OverviewJSONOutput{
 		Metadata: OverviewMetadata{
@@ -434,7 +467,7 @@ func RenderOverviewAsJSON(
 		Summary: OverviewSummary{
 			TotalActualMTD:   t.actual,
 			ProjectedMonthly: t.projected,
-			ProjectedDelta:   t.projected - t.actual,
+			ProjectedDelta:   totalDelta,
 			PotentialSavings: t.savings,
 			Currency:         t.currency,
 		},
@@ -453,7 +486,13 @@ func RenderOverviewAsJSON(
 }
 
 // RenderOverviewAsNDJSON renders each overview row as a separate JSON line
-// with no metadata wrapper or summary.
+// with no metadata wrapper or summary. ComputedDelta must be populated
+// RenderOverviewAsNDJSON writes each OverviewRow as a single JSON object per line to w using NDJSON (newline-delimited JSON).
+//
+// w is the destination writer for the NDJSON output.
+// rows is the slice of OverviewRow values to serialize; an empty slice produces no output.
+//
+// It returns an error if marshaling any row to JSON fails or if writing a line to w fails.
 func RenderOverviewAsNDJSON(w io.Writer, rows []OverviewRow) error {
 	for _, row := range rows {
 		data, marshalErr := json.Marshal(row)

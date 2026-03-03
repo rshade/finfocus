@@ -381,7 +381,11 @@ func calculateBoxWidth(termWidth int) int {
 
 // calculateProgressBarWidth returns the width available for the progress bar given the containing box width.
 // It subtracts barPaddingWidth from boxWidth and then clamps the result to be at least minProgressBarWidth
+// calculateProgressBarWidth computes the width available for the progress bar inside a box.
+// It subtracts the horizontal padding, then clamps the result to be at least minProgressBarWidth
 // and at most progressBarWidth.
+// boxWidth is the total inner width of the containing box in characters.
+// The function returns the resulting progress bar width in characters.
 func calculateProgressBarWidth(boxWidth int) int {
 	barWidth := boxWidth - barPaddingWidth
 	barWidth = max(barWidth, minProgressBarWidth)
@@ -389,23 +393,15 @@ func calculateProgressBarWidth(boxWidth int) int {
 	return barWidth
 }
 
-// renderBudgetIfConfigured checks if a budget is configured and renders status if so.
-// It evaluates the current spend against the configured budget and displays the result.
-// renderBudgetIfConfigured checks whether a budget is configured in the global
-// configuration and, if so, evaluates the configured budgets against the
-// provided totalCost and currency and renders the resulting budget status to
-// the command's stdout.
+// evaluateBudgetIfConfigured checks whether a global budget is configured and,
+// if so, evaluates it against totalCost/currency without rendering any output.
+// evaluateBudgetIfConfigured evaluates the global (legacy) budget configuration against the provided total cost and currency.
+// It returns the computed BudgetStatus when a global budget is configured, (nil, nil) when no global budget is configured,
+// and a non-nil error if evaluation fails (for example, due to currency mismatch).
 //
-// cmd is the cobra command used for output. totalCost is the current total
-// cost to evaluate. currency is the currency code used for evaluation.
-//
-// If no global configuration exists or no budget is configured, renderBudgetIfConfigured
-// does nothing and returns (nil, nil). It returns an error if budget evaluation fails
-// or if rendering the budget status fails. A blank line is printed to the
-// command output immediately before the rendered status when a budget is shown.
-//
-// The returned BudgetStatus can be used for exit code evaluation.
-func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency string) (*engine.BudgetStatus, error) {
+// totalCost is the total cost value to evaluate against the configured budget.
+// currency is the ISO currency code associated with totalCost.
+func evaluateBudgetIfConfigured(totalCost float64, currency string) (*engine.BudgetStatus, error) {
 	// Get the global configuration
 	cfg := config.GetGlobalConfig()
 	if cfg == nil || !cfg.Cost.HasBudget() {
@@ -446,6 +442,22 @@ func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency st
 		return nil, fmt.Errorf("evaluating budget: %w", err)
 	}
 
+	return status, nil
+}
+
+// renderBudgetIfConfigured evaluates and renders global budget status when configured.
+// renderBudgetIfConfigured evaluates the configured global budget (if any) and, when present,
+// renders the resulting BudgetStatus to the command's output.
+// It prints a blank line before the rendered status.
+// If no budget is configured the function returns (nil, nil).
+// If evaluation fails the evaluation error is returned.
+// If rendering fails the evaluated status and the render error are returned.
+func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency string) (*engine.BudgetStatus, error) {
+	status, err := evaluateBudgetIfConfigured(totalCost, currency)
+	if err != nil || status == nil {
+		return status, err
+	}
+
 	// Add a blank line before budget status
 	cmd.Println()
 
@@ -470,7 +482,23 @@ type BudgetRenderResult struct {
 // It automatically detects which configuration style is in use and renders appropriately.
 // The scopeFilter parameter is only used when scoped budgets are configured.
 //
-// This is the main entry point for budget rendering in cost commands.
+// renderBudgetWithScope evaluates and renders configured budgets for a cost command,
+// honoring scoped (provider/tag/type) budgets when present and falling back to legacy global budgets.
+//
+// If no global configuration is available, renderBudgetWithScope returns (nil, nil).
+// When scoped budgets are configured, it invokes scoped budget rendering and populates
+// the ScopedResult field of the returned BudgetRenderResult. When scoped budgets are not
+// configured, it invokes legacy budget rendering and populates the LegacyStatus field.
+//
+// Parameters:
+//  - cmd: the Cobra command used for output and flags.
+//  - costs: per-scope cost results used when rendering scoped budgets.
+//  - totalCost: the aggregated cost used for legacy/global budget rendering.
+//  - currency: ISO currency code associated with totalCost.
+//  - scopeFilter: optional filter limiting which scopes are rendered for scoped budgets.
+//
+// Returns a BudgetRenderResult containing either ScopedResult or LegacyStatus, and an error
+// if evaluation or rendering of the selected budget type fails.
 func renderBudgetWithScope(
 	cmd *cobra.Command,
 	costs []engine.CostResult,
@@ -502,8 +530,59 @@ func renderBudgetWithScope(
 	return &BudgetRenderResult{LegacyStatus: status}, nil
 }
 
+// evaluateBudgetWithScope evaluates budgets without rendering output.
+// evaluateBudgetWithScope evaluates configured budgets without performing any rendering.
+// It inspects the global configuration and returns a BudgetRenderResult describing the
+// evaluated scoped or legacy budget state.
+//
+// If no global config exists this returns (nil, nil).
+// If scoped budgets are configured this evaluates scoped budgets using the provided
+// command context and costs and returns a BudgetRenderResult with ScopedResult set.
+// Otherwise it evaluates the legacy/global budget using totalCost and currency and
+// returns a BudgetRenderResult with LegacyStatus set.
+//
+// Parameters:
+//   cmd - the cobra command context passed to scoped evaluators.
+//   costs - slice of cost results used for scoped budget evaluation.
+//   totalCost - total cost used for legacy/global budget evaluation.
+//   currency - currency code used for legacy/global budget evaluation.
+//
+// Returns a BudgetRenderResult populated for either scoped or legacy budgets, or a
+// non-nil error if legacy budget evaluation fails.
+func evaluateBudgetWithScope(
+	cmd *cobra.Command,
+	costs []engine.CostResult,
+	totalCost float64,
+	currency string,
+) (*BudgetRenderResult, error) {
+	cfg := config.GetGlobalConfig()
+	if cfg == nil {
+		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no config
+	}
+
+	budgetsCfg := cfg.Cost.Budgets
+	if budgetsCfg != nil && budgetsCfg.HasScopedBudgets() {
+		result := evaluateScopedBudgetIfConfigured(cmd, costs)
+		return &BudgetRenderResult{ScopedResult: result}, nil
+	}
+
+	status, err := evaluateBudgetIfConfigured(totalCost, currency)
+	if err != nil {
+		return nil, err
+	}
+	return &BudgetRenderResult{LegacyStatus: status}, nil
+}
+
 // checkBudgetExitFromResult evaluates whether the CLI should exit based on budget result.
-// It handles both legacy and scoped budget results.
+// checkBudgetExitFromResult determines whether the CLI should exit based on a previously
+// evaluated budget result or an evaluation error.
+//
+// If evalErr is non-nil the error is propagated via checkBudgetExit to produce a BudgetExitError.
+// If result is nil the function delegates to checkBudgetExit with no status (no exit).
+// If result contains a legacy budget status it delegates to checkBudgetExit for legacy handling.
+// If result contains a scoped budget result with any critical budgets it delegates to
+// checkScopedBudgetExit to determine exit conditions for scoped budgets.
+// Returns a BudgetExitError when an exit should occur, or nil otherwise.
 func checkBudgetExitFromResult(cmd *cobra.Command, result *BudgetRenderResult, evalErr error) error {
 	// Handle evaluation errors first - propagate them consistently
 	if evalErr != nil {
@@ -526,7 +605,20 @@ func checkBudgetExitFromResult(cmd *cobra.Command, result *BudgetRenderResult, e
 	return nil
 }
 
-// checkScopedBudgetExit checks whether any critical/exceeded scoped budget should trigger a non-zero exit.
+// checkScopedBudgetExit examines a scoped budget evaluation and returns a BudgetExitError
+// when any critical or exceeded scope is configured to cause a non-zero process exit.
+// It inspects the global budget configuration to determine each scope's effective
+// ExitOnThreshold and ExitCode behavior.
+//
+// Parameters:
+//  - cmd: the Cobra command used to read the debug flag and print debug diagnostics.
+//  - scopedResult: the scoped budget evaluation containing all scope statuses.
+//
+// Returns:
+//  - *BudgetExitError when at least one critical/exceeded scope should trigger exit,
+//    with ExitCode set to the effective exit code and Reason describing the condition.
+//  - nil when no exit should occur, when configuration is absent, or when no scope
+//    meets the exit criteria.
 func checkScopedBudgetExit(cmd *cobra.Command, scopedResult *engine.ScopedBudgetResult) error {
 	isDebug := cmd.Flag("debug") != nil && cmd.Flag("debug").Changed
 	reason := fmt.Sprintf("budget exceeded: %d critical scope(s)", len(scopedResult.CriticalScopes))
@@ -565,34 +657,35 @@ func checkScopedBudgetExit(cmd *cobra.Command, scopedResult *engine.ScopedBudget
 	return nil
 }
 
-// renderScopedBudgetIfConfigured renders scoped budget status if configured.
-// It uses the hierarchical budget configuration with provider, tag, and type scopes.
-// The scopeFilter parameter controls which scopes are displayed.
+// evaluateScopedBudgetIfConfigured evaluates scoped budgets without rendering output.
+// evaluateScopedBudgetIfConfigured evaluates scoped budgets (provider/tag/type) using the global configuration.
+// It checks the global config and budgets settings; if scoped budgets are enabled it allocates costs and evaluates
+// all scopes using the command's context. If scoped budgets are not configured or no global config exists, it
+// returns nil.
 //
-// This function is used when scoped budgets (provider/tag/type) are configured.
-// For global-only budgets, use renderBudgetIfConfigured instead.
+// cmd is the Cobra command whose context is used for evaluation.
+// costs contains the cost results to be allocated and evaluated.
 //
-// Returns the ScopedBudgetResult for exit code evaluation, or nil if no budgets configured.
-func renderScopedBudgetIfConfigured(
+// It returns an engine.ScopedBudgetResult with the evaluation outcomes, or nil when no scoped budgets are configured.
+func evaluateScopedBudgetIfConfigured(
 	cmd *cobra.Command,
 	costs []engine.CostResult,
-	scopeFilter string,
-) (*engine.ScopedBudgetResult, error) {
+) *engine.ScopedBudgetResult {
 	cfg := config.GetGlobalConfig()
 	if cfg == nil {
-		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no config
+		return nil
 	}
 
 	// Get budgets configuration
 	budgetsCfg := cfg.Cost.Budgets
 	if budgetsCfg == nil || !budgetsCfg.IsEnabled() {
-		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no budget configured
+		return nil
 	}
 
 	// Check if we have scoped budgets (provider/tag/type)
 	if !budgetsCfg.HasScopedBudgets() {
 		// Fall back to legacy rendering for global-only budgets
-		return nil, nil //nolint:nilnil // use legacy renderBudgetIfConfigured instead
+		return nil
 	}
 
 	// Create scoped budget evaluator
@@ -600,6 +693,36 @@ func renderScopedBudgetIfConfigured(
 
 	// Allocate costs and evaluate all scopes
 	result := evaluateScopedBudgets(cmd.Context(), eval, budgetsCfg, costs)
+
+	return result
+}
+
+// renderScopedBudgetIfConfigured renders scoped budget status if configured.
+// It uses the hierarchical budget configuration with provider, tag, and type scopes.
+// The scopeFilter parameter controls which scopes are displayed.
+//
+// This function is used when scoped budgets (provider/tag/type) are configured.
+// For global-only budgets, use renderBudgetIfConfigured instead.
+//
+// renderScopedBudgetIfConfigured evaluates scoped budgets and, if any are configured,
+// renders their status to the command output.
+// It returns the ScopedBudgetResult used for later exit-code decisions, or `nil, nil`
+// when no scoped budgets are configured. If rendering fails it returns the result
+// together with the render error.
+//
+// Parameters:
+//  - cmd: the cobra command whose output is used for rendering.
+//  - costs: evaluated cost results to feed into the scoped budget evaluation.
+//  - scopeFilter: optional filter string to restrict which scopes are rendered.
+func renderScopedBudgetIfConfigured(
+	cmd *cobra.Command,
+	costs []engine.CostResult,
+	scopeFilter string,
+) (*engine.ScopedBudgetResult, error) {
+	result := evaluateScopedBudgetIfConfigured(cmd, costs)
+	if result == nil {
+		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no scoped budget configured
+	}
 
 	// Add a blank line before budget status
 	cmd.Println()

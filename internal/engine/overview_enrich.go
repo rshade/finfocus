@@ -23,9 +23,10 @@ type overviewEnricher interface {
 }
 
 // EnrichOverviewRow enriches a single OverviewRow by fetching actual costs,
-// projected costs, and recommendations from the engine concurrently (up to 3
-// goroutines per call). When used with EnrichOverviewRows' worker pool, the
-// maximum concurrent goroutines is overviewConcurrencyLimit * 3. Partial
+// projected costs, and recommendations from the engine concurrently (up to 4
+// goroutines per call for updating/replacing rows). When used with
+// EnrichOverviewRows' worker pool, the maximum concurrent goroutines is
+// approximately overviewConcurrencyLimit * 4. Partial
 // failures from actual/projected cost are captured in row.Error with actual
 // cost errors taking precedence; recommendation failures are logged but do
 // not set row.Error.
@@ -34,7 +35,20 @@ func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateR
 }
 
 // enrichOverviewRow is the internal implementation of EnrichOverviewRow that
-// accepts the overviewEnricher interface, enabling test doubles.
+// enrichOverviewRow enriches a single OverviewRow by fetching cost and recommendation data and updating the row in place.
+// 
+// It concurrently obtains actual cost (when the resource is not in StatusCreating), projected cost (using the row's
+// projected properties if present), an optional baseline projected cost (when the row is StatusUpdating or StatusReplacing),
+// and recommendations. The function writes populated values to the row's ActualCost, ProjectedCost, BaselineProjectedCost,
+// and Recommendations fields as available, and sets row.Error when a non-fatal enrichment error occurs (actual cost errors
+// take precedence over projected cost errors). When both actual and projected costs are present, it computes and sets cost
+// drift on the row using the provided dateRange.
+// 
+// Parameters:
+//   - ctx: the request context used for cancellation and logging.
+//   - row: pointer to the OverviewRow to enrich; this function mutates the row.
+//   - eng: an overviewEnricher implementation (injected to allow test doubles).
+//   - dateRange: the billing date range used for actual cost calculations.
 func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnricher, dateRange DateRange) {
 	log := logging.FromContext(ctx)
 	log.Debug().
@@ -51,9 +65,15 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 		Provider:   extractProviderFromType(row.Type),
 		Properties: row.Properties,
 	}
+	projectedResource := ResourceDescriptor{
+		Type:       row.Type,
+		ID:         row.URN,
+		Provider:   resource.Provider,
+		Properties: projectedPropertiesForRow(*row),
+	}
 
-	// Run all three enrichment calls concurrently. Each writes to a
-	// distinct field on the row (ActualCost, ProjectedCost, Recommendations).
+	// Run enrichment calls concurrently. Each writes to a distinct field on the
+	// row (ActualCost, ProjectedCost, BaselineProjectedCost, Recommendations).
 	// Errors are captured in local variables and merged after all goroutines
 	// complete, with actual cost errors taking precedence over projected.
 	var wg sync.WaitGroup
@@ -72,8 +92,19 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		projectedErr = enrichProjectedCost(ctx, row, eng, resource)
+		projectedErr = enrichProjectedCost(ctx, row, eng, projectedResource)
 	}()
+
+	// For updates/replacements, also fetch projected cost at current-state
+	// properties. Delta math can then use projected(new) - projected(current),
+	// avoiding month-to-date extrapolation noise for unchanged pricing.
+	if row.Status == StatusUpdating || row.Status == StatusReplacing {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			enrichBaselineProjectedCost(ctx, row, eng, resource)
+		}()
+	}
 
 	// Fetch recommendations
 	wg.Add(1)
@@ -84,7 +115,8 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 
 	// wg.Wait() establishes a happens-before edge: all goroutine writes to
 	// actualErr, projectedErr, and the distinct row fields (ActualCost,
-	// ProjectedCost, Recommendations) are visible after this point.
+	// ProjectedCost, BaselineProjectedCost, Recommendations) are visible after
+	// this point.
 	wg.Wait()
 
 	// Merge errors: actual cost error takes precedence (primary data source)
@@ -97,6 +129,63 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 	// Calculate cost drift when both actual and projected data exist
 	if row.ActualCost != nil && row.ProjectedCost != nil {
 		enrichCostDrift(row, dateRange)
+	}
+}
+
+// projectedPropertiesForRow returns the projected properties from the given OverviewRow if they are present; otherwise it returns the row's current properties.
+func projectedPropertiesForRow(row OverviewRow) map[string]interface{} {
+	if len(row.ProjectedProperties) > 0 {
+		return row.ProjectedProperties
+	}
+	return row.Properties
+}
+
+// enrichBaselineProjectedCost fetches projected cost using current-state
+// properties and stores it in row.BaselineProjectedCost. Failures are logged
+// enrichBaselineProjectedCost fetches and populates row.BaselineProjectedCost using the provided resource's current-state properties.
+// 
+// If fetching fails the error is logged at debug level and treated as non-fatal; the function returns without modifying the row.
+// The function ignores empty results and any per-result failures — specifically when the per-result Error is non-nil or Notes begins with
+// "ERROR:" or "VALIDATION:". When a valid result is present, it sets MonthlyCost from the result and uses the result Currency,
+// falling back to the package defaultCurrency if the currency is empty.
+//
+// Parameters:
+//   - ctx: request context used for the enrichment call and logging.
+//   - row: pointer to the OverviewRow to populate with baseline projected cost.
+//   - eng: overviewEnricher used to obtain projected cost results.
+//   - resource: ResourceDescriptor describing the resource whose baseline projection to fetch.
+func enrichBaselineProjectedCost(
+	ctx context.Context,
+	row *OverviewRow,
+	eng overviewEnricher,
+	resource ResourceDescriptor,
+) {
+	log := logging.FromContext(ctx)
+
+	result, err := eng.GetProjectedCostWithErrors(ctx, []ResourceDescriptor{resource})
+	if err != nil {
+		log.Debug().
+			Ctx(ctx).
+			Str("urn", row.URN).
+			Err(err).
+			Msg("failed to fetch baseline projected cost")
+		return
+	}
+	if result == nil || len(result.Results) == 0 {
+		return
+	}
+	costResult := result.Results[0]
+	if costResult.Error != nil ||
+		strings.HasPrefix(costResult.Notes, "ERROR:") ||
+		strings.HasPrefix(costResult.Notes, "VALIDATION:") {
+		return
+	}
+	row.BaselineProjectedCost = &ProjectedCostData{
+		MonthlyCost: costResult.Monthly,
+		Currency:    costResult.Currency,
+	}
+	if row.BaselineProjectedCost.Currency == "" {
+		row.BaselineProjectedCost.Currency = defaultCurrency
 	}
 }
 
@@ -213,7 +302,9 @@ func enrichProjectedCost(
 	return nil
 }
 
-// enrichRecommendations fetches recommendations for a row.
+// enrichRecommendations fetches recommendations for the provided resource and attaches them to the OverviewRow.
+// If the engine returns recommendations, they are stored in row.Recommendations.
+// On error the function logs a warning and returns without setting row.Error, since recommendations are optional.
 func enrichRecommendations(ctx context.Context, row *OverviewRow, eng overviewEnricher, resource ResourceDescriptor) {
 	log := logging.FromContext(ctx)
 
@@ -233,36 +324,21 @@ func enrichRecommendations(ctx context.Context, row *OverviewRow, eng overviewEn
 }
 
 // enrichCostDrift calculates cost drift for a row that has both actual and projected costs.
-// It uses the dateRange end time to determine the day-of-month and days-in-month, which
-// ensures correct drift for historical queries rather than always using the current date.
+// It uses the elapsed runtime window (fractional days) between an effective start time and
+// dateRange.End as the extrapolation denominator.
 //
-// When row.CreatedAt is non-nil and falls within the billing window (after dateRange.Start),
-// the function uses days since creation as the extrapolation denominator and enforces a
-// minimum-data guard. This avoids treating pre-creation days as zero spend and prevents
-// false negative drift for resources created mid-month.
+// Effective start time is dateRange.Start unless CreatedAt is within the window, in which
+// case CreatedAt is used. This avoids treating pre-creation time as zero spend and fixes
+// If there is insufficient data to calculate drift, the function leaves row.CostDrift unchanged.
 func enrichCostDrift(row *OverviewRow, dateRange DateRange) {
 	refTime := dateRange.End
-	dayOfMonth := refTime.Day()
 	daysInMonth := daysInCurrentMonth(refTime)
+	elapsedDays := driftElapsedDays(dateRange.Start, refTime, row.CreatedAt)
 
-	// If the resource was created within this billing window, require at least
-	// driftMinDay days of history before attempting drift calculations.
-	if row.CreatedAt != nil && row.CreatedAt.After(dateRange.Start) && row.CreatedAt.Before(refTime) {
-		// Use calendar-day math (UTC midnights) to avoid DST miscounting.
-		refDate := time.Date(refTime.Year(), refTime.Month(), refTime.Day(), 0, 0, 0, 0, time.UTC)
-		createdDate := time.Date(row.CreatedAt.Year(), row.CreatedAt.Month(), row.CreatedAt.Day(), 0, 0, 0, 0, time.UTC)
-		daysSinceCreation := int(refDate.Sub(createdDate).Hours()/hoursPerDay) + 1
-		if daysSinceCreation < driftMinDay {
-			// Too few days of data since creation — suppress drift entirely.
-			return
-		}
-		dayOfMonth = daysSinceCreation
-	}
-
-	drift, err := CalculateCostDrift(
+	drift, err := CalculateCostDriftWithElapsedDays(
 		row.ActualCost.MTDCost,
 		row.ProjectedCost.MonthlyCost,
-		dayOfMonth,
+		elapsedDays,
 		daysInMonth,
 	)
 	if err != nil {
@@ -270,6 +346,20 @@ func enrichCostDrift(row *OverviewRow, dateRange DateRange) {
 		return
 	}
 	row.CostDrift = drift
+}
+
+// driftElapsedDays returns the elapsed time in days used for drift math.
+// It uses windowStart unless createdAt is within the window and before refTime.
+//   - createdAt: optional creation time that may shorten the interval if it lies within (windowStart, refTime).
+func driftElapsedDays(windowStart, refTime time.Time, createdAt *time.Time) float64 {
+	effectiveStart := windowStart
+	if createdAt != nil && createdAt.After(effectiveStart) && createdAt.Before(refTime) {
+		effectiveStart = *createdAt
+	}
+	if !effectiveStart.Before(refTime) {
+		return 0
+	}
+	return refTime.Sub(effectiveStart).Hours() / hoursPerDay
 }
 
 // daysInCurrentMonth returns the number of days in the month of the given time.
