@@ -1452,23 +1452,18 @@ func checkAndPromptPassphrase(
 		return nil, nil //nolint:nilnil // Intentional fail-open: passphrase check is best-effort.
 	}
 
-	// Read the stack YAML and check for encryptionsalt.
-	// Try .yaml first, then .yml — Pulumi supports both extensions.
-	stackYAML := filepath.Join(projectDir, "Pulumi."+stackName+".yaml")
-	data, readErr := os.ReadFile(stackYAML)
+	// Read stack settings and check for encryptionsalt.
+	// Uses short stack name fallback for fully-qualified stack refs (org/project/stack).
+	data, readErr := readStackSettingsFile(projectDir, stackName)
 	if readErr != nil {
-		stackYAML = filepath.Join(projectDir, "Pulumi."+stackName+".yml")
-		data, readErr = os.ReadFile(stackYAML)
-		if readErr != nil {
-			// Stack YAML not found or unreadable — skip check, fail open.
-			log.Debug().
-				Ctx(ctx).
-				Str("component", "cli").
-				Str("operation", "passphrase_check").
-				Err(readErr).
-				Msg("cannot read stack YAML; skipping passphrase check")
-			return nil, nil //nolint:nilnil // Intentional fail-open: passphrase check is best-effort.
-		}
+		// Stack settings file not found or unreadable — skip check, fail open.
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "cli").
+			Str("operation", "passphrase_check").
+			Err(readErr).
+			Msg("cannot read stack YAML; skipping passphrase check")
+		return nil, nil //nolint:nilnil // Intentional fail-open: passphrase check is best-effort.
 	}
 
 	if !strings.Contains(string(data), "encryptionsalt:") {
@@ -1485,6 +1480,60 @@ func checkAndPromptPassphrase(
 	case <-ctx.Done():
 		return nil, ctx.Err()
 	}
+}
+
+// stackSettingsNameCandidates returns candidate stack settings names in lookup order.
+// For fully-qualified stack references (org/project/stack), it tries the short
+// stack name first, then the original value.
+func stackSettingsNameCandidates(stackName string) []string {
+	trimmed := strings.TrimSpace(stackName)
+	if trimmed == "" {
+		return nil
+	}
+
+	candidates := []string{trimmed}
+	if idx := strings.LastIndexAny(trimmed, `/\`); idx >= 0 && idx < len(trimmed)-1 {
+		candidates = append([]string{trimmed[idx+1:]}, candidates...)
+	}
+
+	seen := make(map[string]struct{}, len(candidates))
+	out := make([]string, 0, len(candidates))
+	for _, c := range candidates {
+		if c == "" {
+			continue
+		}
+		if _, ok := seen[c]; ok {
+			continue
+		}
+		seen[c] = struct{}{}
+		out = append(out, c)
+	}
+	return out
+}
+
+// readStackSettingsFile reads Pulumi stack settings from projectDir using stackName.
+// It checks Pulumi.<stack>.yaml then Pulumi.<stack>.yml for each candidate name.
+func readStackSettingsFile(projectDir, stackName string) ([]byte, error) {
+	candidates := stackSettingsNameCandidates(stackName)
+	if len(candidates) == 0 {
+		return nil, errors.New("stack name is required")
+	}
+
+	var lastErr error
+	for _, candidate := range candidates {
+		for _, ext := range []string{".yaml", ".yml"} {
+			path := filepath.Join(projectDir, "Pulumi."+candidate+ext)
+			data, err := os.ReadFile(path)
+			if err == nil {
+				return data, nil
+			}
+			lastErr = err
+		}
+	}
+	if lastErr == nil {
+		lastErr = os.ErrNotExist
+	}
+	return nil, lastErr
 }
 
 // bridgeEnrichmentToTUI runs EnrichOverviewRows and bridges progress updates

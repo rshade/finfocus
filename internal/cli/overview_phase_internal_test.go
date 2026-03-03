@@ -1,10 +1,16 @@
 package cli
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -12,6 +18,37 @@ import (
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/tui"
 )
+
+type testNoopModel struct{}
+
+func (testNoopModel) Init() tea.Cmd { return nil }
+
+func (m testNoopModel) Update(_ tea.Msg) (tea.Model, tea.Cmd) { return m, nil }
+
+func (testNoopModel) View() tea.View { return tea.NewView("") }
+
+type stackLSMockRunner struct {
+	t      *testing.T
+	calls  int
+	stack  string
+	stderr []byte
+}
+
+func (m *stackLSMockRunner) Run(
+	_ context.Context,
+	_ string,
+	name string,
+	_ []string,
+	args ...string,
+) ([]byte, []byte, error) {
+	m.calls++
+	require.Equal(m.t, "pulumi", name)
+	if len(args) >= 3 && args[0] == "stack" && args[1] == "ls" && args[2] == "--json" {
+		out := fmt.Sprintf(`[{"name":"%s","current":true}]`, m.stack)
+		return []byte(out), nil, nil
+	}
+	return nil, m.stderr, fmt.Errorf("unexpected pulumi args: %v", args)
+}
 
 // TestResolveIsStateOnly verifies that detectErr does not override --yes, and that
 // without --yes a detection error correctly forces state-only mode.
@@ -138,4 +175,85 @@ func TestConvertStateResources_NilCreatedAtOK(t *testing.T) {
 	result := convertStateResources(resources)
 	require.Len(t, result, 1)
 	assert.Nil(t, result[0].CreatedAt)
+}
+
+func TestStackSettingsNameCandidates_QualifiedStack(t *testing.T) {
+	candidates := stackSettingsNameCandidates("acme/infra/dev")
+	require.Equal(t, []string{"dev", "acme/infra/dev"}, candidates)
+}
+
+func TestReadStackSettingsFile_QualifiedStackUsesShortName(t *testing.T) {
+	tmpDir := t.TempDir()
+	want := "encryptionsalt: v1:abc123\n"
+	require.NoError(
+		t,
+		os.WriteFile(filepath.Join(tmpDir, "Pulumi.dev.yaml"), []byte(want), 0o600),
+	)
+
+	got, err := readStackSettingsFile(tmpDir, "acme/infra/dev")
+	require.NoError(t, err)
+	assert.Equal(t, want, string(got))
+}
+
+func TestCheckAndPromptPassphrase_QualifiedStackEndToEnd(t *testing.T) {
+	// Ensure passphrase env vars are truly unset; empty values still count as "set".
+	unsetEnv := func(key string) {
+		orig, ok := os.LookupEnv(key)
+		require.NoError(t, os.Unsetenv(key))
+		t.Cleanup(func() {
+			if ok {
+				_ = os.Setenv(key, orig)
+			} else {
+				_ = os.Unsetenv(key)
+			}
+		})
+	}
+	unsetEnv("PULUMI_CONFIG_PASSPHRASE")
+	unsetEnv("PULUMI_CONFIG_PASSPHRASE_FILE")
+
+	tmpDir := t.TempDir()
+	origDir, err := os.Getwd()
+	require.NoError(t, err)
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+	// Make FindBinary() succeed without depending on a system Pulumi install.
+	fakePulumi := filepath.Join(tmpDir, "pulumi")
+	require.NoError(t, os.WriteFile(fakePulumi, []byte("#!/bin/sh\nexit 0\n"), 0o755))
+	t.Setenv("PATH", tmpDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	// Make FindProject() and passphrase detection use local fixture files.
+	require.NoError(
+		t,
+		os.WriteFile(filepath.Join(tmpDir, "Pulumi.yaml"), []byte("name: test\nruntime: yaml\n"), 0o600),
+	)
+	require.NoError(
+		t,
+		os.WriteFile(filepath.Join(tmpDir, "Pulumi.dev.yaml"), []byte("encryptionsalt: v1:abc123\n"), 0o600),
+	)
+
+	origRunner := pulumidetect.Runner
+	mockRunner := &stackLSMockRunner{t: t, stack: "acme/infra/dev"}
+	pulumidetect.Runner = mockRunner
+	t.Cleanup(func() { pulumidetect.Runner = origRunner })
+
+	// Use a canceled program context so p.Send() is non-blocking in tests.
+	progCtx, cancelProgram := context.WithCancel(context.Background())
+	cancelProgram()
+	p := tea.NewProgram(
+		testNoopModel{},
+		tea.WithContext(progCtx),
+		tea.WithoutRenderer(),
+		tea.WithInput(nil),
+		tea.WithOutput(io.Discard),
+	)
+
+	passphraseChan := make(chan string, 1)
+	passphraseChan <- "stack-secret"
+
+	pw, err := checkAndPromptPassphrase(context.Background(), p, overviewParams{}, passphraseChan)
+	require.NoError(t, err)
+	require.NotNil(t, pw)
+	assert.Equal(t, "stack-secret", *pw)
+	assert.GreaterOrEqual(t, mockRunner.calls, 1)
 }

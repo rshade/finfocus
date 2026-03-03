@@ -22,8 +22,6 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	debug, _ := cmd.Flags().GetBool("debug")
 	if debug {
 		loggingCfg.Level = "debug"
-		loggingCfg.Format = "console"
-		loggingCfg.File = ""
 	}
 
 	if envLevel := os.Getenv(pluginsdk.EnvLogLevel); envLevel != "" && !debug {
@@ -35,7 +33,7 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 
 	// When running as a Pulumi Analyzer plugin, redirect all logs to a file so
 	// that JSON log lines do not appear in `pulumi preview`'s Diagnostics output
-	// (#748). This applies even when --debug has cleared loggingCfg.File.
+	// (#748). This applies even when no log file is configured.
 	if os.Getenv(constants.EnvAnalyzerMode) == "true" {
 		if loggingCfg.File == "" {
 			loggingCfg.File = filepath.Join(config.ResolveConfigDir(), "logs", "analyzer.log")
@@ -68,7 +66,7 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 
 	// When logging to a file, open a second append-mode handle for plugin I/O.
 	// Plugin stderr/stdout will be redirected here to keep the terminal clean.
-	// In debug mode (no file), plugins continue writing to stderr for visibility.
+	// When no file is configured, plugins continue writing to stderr.
 	if result.UsingFile {
 		pluginLogFile, err := os.OpenFile(result.FilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {

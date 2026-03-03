@@ -6,16 +6,16 @@ guardrails in `CONTEXT.md`.
 
 ## Table of Contents
 
-- [Immediate Focus (v0.3.3)](#immediate-focus-v033)
+- [Immediate Focus (v0.3.4)](#immediate-focus-v034)
 - [Near-Term Vision (v0.3.x)](#near-term-vision-v03x---forecasting--profiles)
 - [Future Vision (v0.4.0+)](#future-vision-v040---notifications-integrations--backlog)
 - [Completed Milestones](#completed-milestones)
 - [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
 - [Boundary Safeguards](#boundary-safeguards)
 
-## Immediate Focus (v0.3.3)
+## Immediate Focus (v0.3.4)
 
-*v0.3.2 released 2026-02-28.*
+*v0.3.3 released 2026-03-03.*
 
 - [ ] Recognize `PLUGIN_CAPABILITY_BATCH_COST` in capability routing
       and plugin list
@@ -28,6 +28,8 @@ guardrails in `CONTEXT.md`.
       ([#690](https://github.com/rshade/finfocus/issues/690)) [M]
 - [ ] Implement BatchCost RPC consumer for multi-resource queries
       ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
+- [ ] Clarify budget status visibility in overview output modes
+      ([#855](https://github.com/rshade/finfocus/issues/855)) [S]
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -41,6 +43,8 @@ guardrails in `CONTEXT.md`.
 - [ ] **Overview TUI Quality** *(deferred from v0.3.2)*
   - [ ] Show phase progress lines sequentially and add preview phase
         ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
+  - [ ] Refactor overview to compute-once-render-many architecture
+        ([#853](https://github.com/rshade/finfocus/issues/853)) [L]
 - [ ] **Pricing Transparency** *(follow-up to #465 research)*
   - [ ] Plugin-provided GetPricingSpec as fallback before local YAML specs
         ([#638](https://github.com/rshade/finfocus/issues/638)) [L]
@@ -201,6 +205,9 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] Show property changes in overview detail view
+      ([#852](https://github.com/rshade/finfocus/issues/852)) [M]
+      *(Completed 2026-03-03)*
 - [x] Upgrade finfocus-spec from v0.5.6 to v0.5.7
       ([#844](https://github.com/rshade/finfocus/issues/844)) [S]
       *(Completed 2026-03-02)*
