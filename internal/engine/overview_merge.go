@@ -242,7 +242,10 @@ func BuildPropertyDiffsByURN(planSteps []PlanStep) map[string][]PropertyDiff {
 	for _, step := range planSteps {
 		if len(step.PropertyDiffs) > 0 {
 			if _, exists := diffsByURN[step.URN]; !exists {
-				diffsByURN[step.URN] = step.PropertyDiffs
+				// Copy the slice to avoid aliasing the original backing array.
+				copied := make([]PropertyDiff, len(step.PropertyDiffs))
+				copy(copied, step.PropertyDiffs)
+				diffsByURN[step.URN] = copied
 			}
 		}
 	}

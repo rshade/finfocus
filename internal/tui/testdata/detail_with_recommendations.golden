@@ -14,7 +14,7 @@
 │ RECOMMENDATIONS                                                                                │
 │   1. Downsize from m5.2xlarge to m5.large based on CPU utilization (avg 12%)                   │
 │      Savings: $150.00                                                                          │
-│          2. Purchase 1-year reserved instance for 30% savings                                  │
+│   2. Purchase 1-year reserved instance for 30% savings                                         │
 │      Savings: $120.00                                                                          │
 │                                                                                                │
 │                                                                                                │

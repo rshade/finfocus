@@ -396,8 +396,9 @@ func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRo
 		fmt.Fprintf(content, "  %d. %s\n", i+1, rec.Description)
 		content.WriteString(LabelStyle.Render("     Savings: "))
 		content.WriteString(ValueStyle.Render(
-			engine.FormatOverviewCurrency(rec.EstimatedSavings) + "\n",
+			engine.FormatOverviewCurrency(rec.EstimatedSavings),
 		))
+		content.WriteString("\n")
 	}
 	content.WriteString("\n")
 }

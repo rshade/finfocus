@@ -761,6 +761,17 @@ func TestPropertyDiffs_JSONPresence(t *testing.T) {
 			wantPresent: false,
 		},
 		{
+			name:       "PlanStep omits propertyDiffs when non-nil empty slice",
+			structType: "PlanStep",
+			fixture: PlanStep{
+				URN:           "urn:test",
+				Op:            "create",
+				Type:          "aws:ec2:Instance",
+				PropertyDiffs: []PropertyDiff{},
+			},
+			wantPresent: false,
+		},
+		{
 			name:       "PlanStep includes propertyDiffs when present",
 			structType: "PlanStep",
 			fixture: PlanStep{
@@ -781,6 +792,17 @@ func TestPropertyDiffs_JSONPresence(t *testing.T) {
 				URN:    "urn:test",
 				Type:   "aws:ec2:Instance",
 				Status: StatusUpdating,
+			},
+			wantPresent: false,
+		},
+		{
+			name:       "OverviewRow omits propertyDiffs when non-nil empty slice",
+			structType: "OverviewRow",
+			fixture: OverviewRow{
+				URN:           "urn:test",
+				Type:          "aws:ec2:Instance",
+				Status:        StatusUpdating,
+				PropertyDiffs: []PropertyDiff{},
 			},
 			wantPresent: false,
 		},

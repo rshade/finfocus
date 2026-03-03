@@ -537,11 +537,12 @@ func TestFormatDeltaColumn_UsesExtrapolatedActual(t *testing.T) {
 		},
 	}
 
-	result := formatDeltaColumn(row)
+	// Use a fixed day to avoid midnight flakes where time.Now().Day()
+	// could differ between formatDeltaColumn and this assertion.
+	const fixedDay = 15
+	result := formatDeltaColumnForDay(row, fixedDay)
 
-	// Compute the expected delta using the same logic as CalculateRowDelta.
-	dayOfMonth := time.Now().Day()
-	expectedDelta, ok := CalculateRowDelta(row, dayOfMonth)
+	expectedDelta, ok := CalculateRowDelta(row, fixedDay)
 	require.True(t, ok)
 	expected := FormatOverviewDelta(expectedDelta)
 	assert.Equal(t, expected, result)

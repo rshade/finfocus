@@ -628,12 +628,11 @@ func diffInputs(oldState, newState *ingest.PulumiState) []engine.PropertyDiff {
 		if strings.HasPrefix(k, "__") {
 			continue
 		}
-		rawOld := oldInputs[k]
-		rawNew := newInputs[k]
-		// Use reflect.DeepEqual on raw values to catch type-only changes
-		// (e.g., string "1" vs float64 1) that formatDiffValue would
-		// collapse to the same display string.
-		if reflect.DeepEqual(rawOld, rawNew) {
+		rawOld, oldOK := oldInputs[k]
+		rawNew, newOK := newInputs[k]
+		// Presence-aware comparison: a key existing in one map but not
+		// the other is always a diff, even if the value is nil.
+		if oldOK == newOK && reflect.DeepEqual(rawOld, rawNew) {
 			continue
 		}
 		oldDisplay := formatDiffValue(rawOld)
