@@ -650,6 +650,13 @@ func TestMergeResourcesForOverview_PropertyDiffs(t *testing.T) {
 			PropertyDiffs: []PropertyDiff{
 				{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
 			},
+			ProjectedProperties: map[string]interface{}{
+				"instanceType": "t3.large",
+				"region":       "us-east-1",
+				"tags": map[string]interface{}{
+					"Name": "web",
+				},
+			},
 		},
 	}
 
@@ -661,6 +668,12 @@ func TestMergeResourcesForOverview_PropertyDiffs(t *testing.T) {
 	assert.Equal(t, "instanceType", rows[0].PropertyDiffs[0].Key)
 	assert.Equal(t, "t3.medium", rows[0].PropertyDiffs[0].OldValue)
 	assert.Equal(t, "t3.large", rows[0].PropertyDiffs[0].NewValue)
+	require.NotNil(t, rows[0].ProjectedProperties)
+	assert.Equal(t, "t3.large", rows[0].ProjectedProperties["instanceType"])
+	assert.Equal(t, "us-east-1", rows[0].ProjectedProperties["region"])
+	tags, ok := rows[0].ProjectedProperties["tags"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "web", tags["Name"])
 }
 
 func TestMergeResourcesForOverview_NoDiffsForCreate(t *testing.T) {
@@ -716,6 +729,28 @@ func TestApplyPropertyDiffsToRows_NilMap(t *testing.T) {
 	}
 	ApplyPropertyDiffsToRows(rows, nil)
 	assert.Empty(t, rows[0].PropertyDiffs)
+}
+
+func TestApplyProjectedPropertiesToRows(t *testing.T) {
+	rows := []OverviewRow{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Status: StatusUpdating},
+		{URN: "urn:b", Type: "aws:s3:Bucket", Status: StatusActive},
+	}
+
+	propsByURN := map[string]map[string]interface{}{
+		"urn:a": {
+			"instanceType": "t3.large",
+			"tags": map[string]interface{}{
+				"Name": "web",
+			},
+		},
+	}
+
+	ApplyProjectedPropertiesToRows(rows, propsByURN)
+
+	require.NotNil(t, rows[0].ProjectedProperties)
+	assert.Equal(t, "t3.large", rows[0].ProjectedProperties["instanceType"])
+	assert.Nil(t, rows[1].ProjectedProperties)
 }
 
 // ---------------------------------------------------------------------------
@@ -774,4 +809,50 @@ func TestBuildPropertyDiffsByURN_ReplaceFlowEdgeCase(t *testing.T) {
 func TestBuildPropertyDiffsByURN_EmptySteps(t *testing.T) {
 	result := BuildPropertyDiffsByURN(nil)
 	assert.Empty(t, result)
+}
+
+func TestBuildProjectedPropertiesByURN(t *testing.T) {
+	steps := []PlanStep{
+		{
+			URN: "urn:a",
+			Op:  "update",
+			ProjectedProperties: map[string]interface{}{
+				"instanceType": "t3.large",
+			},
+		},
+		{
+			URN: "urn:b",
+			Op:  "update",
+		},
+	}
+
+	result := BuildProjectedPropertiesByURN(steps)
+	require.Len(t, result, 1)
+	assert.Equal(t, "t3.large", result["urn:a"]["instanceType"])
+}
+
+func TestBuildProjectedPropertiesByURN_ReplaceFlowEdgeCase(t *testing.T) {
+	props := map[string]interface{}{
+		"instanceType": "t3.large",
+	}
+
+	t.Run("delete-replaced first then create-replacement", func(t *testing.T) {
+		steps := []PlanStep{
+			{URN: "urn:x", Op: "delete-replaced"},
+			{URN: "urn:x", Op: "create-replacement", ProjectedProperties: props},
+		}
+		result := BuildProjectedPropertiesByURN(steps)
+		require.Contains(t, result, "urn:x")
+		assert.Equal(t, "t3.large", result["urn:x"]["instanceType"])
+	})
+
+	t.Run("create-replacement first then delete-replaced", func(t *testing.T) {
+		steps := []PlanStep{
+			{URN: "urn:x", Op: "create-replacement", ProjectedProperties: props},
+			{URN: "urn:x", Op: "delete-replaced"},
+		}
+		result := BuildProjectedPropertiesByURN(steps)
+		require.Contains(t, result, "urn:x")
+		assert.Equal(t, "t3.large", result["urn:x"]["instanceType"])
+	})
 }

@@ -20,6 +20,8 @@ const goldenWidth = 100
 // fixed width for deterministic golden file output.
 func newGoldenModel(t *testing.T, rows []engine.OverviewRow) OverviewModel {
 	t.Helper()
+	// Pre-populate ComputedDelta with a fixed day for deterministic output.
+	engine.PopulateComputedDeltas(rows, goldenDayOfMonth)
 	ctx := context.Background()
 	model, _ := NewOverviewModel(ctx, rows, len(rows), nil, nil)
 	model.state = ViewStateDetail

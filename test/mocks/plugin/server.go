@@ -184,6 +184,24 @@ func (s *mockServer) GetBudgets(
 	}, nil
 }
 
+// Supports implements the Supports RPC method.
+func (s *mockServer) Supports(
+	_ context.Context, _ *pbc.SupportsRequest,
+) (*pbc.SupportsResponse, error) {
+	// Check for error injection
+	if err := s.plugin.ShouldInjectError("Supports"); err != nil {
+		return nil, toGRPCError(err)
+	}
+
+	if s.plugin.GetSupportsAll() {
+		return &pbc.SupportsResponse{Supported: true}, nil
+	}
+	return &pbc.SupportsResponse{
+		Supported: false,
+		Reason:    "mock plugin: not configured to support this resource",
+	}, nil
+}
+
 // RegisterServer registers the mock server with a gRPC server instance.
 func (s *mockServer) RegisterServer(grpcServer *grpc.Server) {
 	pbc.RegisterCostSourceServiceServer(grpcServer, s)

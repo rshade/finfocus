@@ -296,17 +296,30 @@ func (e *OverviewRowError) Validate() error {
 // Each row combines state, plan, actual costs, projected costs, drift, and
 // recommendations for a resource.
 type OverviewRow struct {
-	URN             string                 `json:"urn"`
-	Type            string                 `json:"type"`
-	ResourceID      string                 `json:"resourceId,omitempty"`
-	Status          ResourceStatus         `json:"status"`
-	Properties      map[string]interface{} `json:"properties,omitempty"`
-	ActualCost      *ActualCostData        `json:"actualCost,omitempty"`
-	ProjectedCost   *ProjectedCostData     `json:"projectedCost,omitempty"`
-	Recommendations []Recommendation       `json:"recommendations,omitempty"`
-	CostDrift       *CostDriftData         `json:"costDrift,omitempty"`
-	Error           *OverviewRowError      `json:"error,omitempty"`
-	PropertyDiffs   []PropertyDiff         `json:"propertyDiffs,omitempty"`
+	URN        string                 `json:"urn"`
+	Type       string                 `json:"type"`
+	ResourceID string                 `json:"resourceId,omitempty"`
+	Status     ResourceStatus         `json:"status"`
+	Properties map[string]interface{} `json:"properties,omitempty"`
+	// ProjectedProperties stores preview-merged properties used for projected
+	// cost calls (deep-merge of old state and new inputs). Actual cost calls
+	// continue to use Properties from current state.
+	ProjectedProperties map[string]interface{} `json:"projectedProperties,omitempty"`
+	ActualCost          *ActualCostData        `json:"actualCost,omitempty"`
+	ProjectedCost       *ProjectedCostData     `json:"projectedCost,omitempty"`
+	// BaselineProjectedCost captures projected monthly cost using current-state
+	// properties (before pending changes). It is internal to delta math and is
+	// intentionally omitted from serialized output.
+	BaselineProjectedCost *ProjectedCostData `json:"-"`
+	Recommendations       []Recommendation   `json:"recommendations,omitempty"`
+	CostDrift             *CostDriftData     `json:"costDrift,omitempty"`
+	Error                 *OverviewRowError  `json:"error,omitempty"`
+	PropertyDiffs         []PropertyDiff     `json:"propertyDiffs,omitempty"`
+	// ComputedDelta is the per-row cost delta populated by PopulateComputedDeltas
+	// after enrichment, before any rendering. All renderers (table, JSON, NDJSON,
+	// TUI) read this value instead of computing deltas independently.
+	// Nil when no meaningful delta exists (e.g., active resource without drift).
+	ComputedDelta *float64 `json:"delta,omitempty"`
 	// CreatedAt tracks when the resource was first added to Pulumi state.
 	// Used by enrichCostDrift to suppress drift for very new resources with
 	// insufficient data points in the current billing window.
@@ -456,4 +469,7 @@ type PlanStep struct {
 	Op            string         `json:"op,omitempty"`
 	Type          string         `json:"type,omitempty"`
 	PropertyDiffs []PropertyDiff `json:"propertyDiffs,omitempty"`
+	// ProjectedProperties carries preview properties (deep-merge of old state
+	// and new inputs) used to price pending changes accurately.
+	ProjectedProperties map[string]interface{} `json:"projectedProperties,omitempty"`
 }

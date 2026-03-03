@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"os"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -441,6 +443,56 @@ func TestCreateRouterForEngine_EmptyClients(t *testing.T) {
 	ctx := context.Background()
 	result := createRouterForEngine(ctx, &config.Config{}, []*pluginhost.Client{})
 	assert.Nil(t, result, "no routing config should return nil regardless of clients")
+}
+
+func TestEvaluateBudgetStatusWithoutRender_SuppressesBudgetOutput(t *testing.T) {
+	config.SetGlobalConfig(&config.Config{
+		Cost: config.CostConfig{
+			Budgets: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					Amount:   1000.0,
+					Currency: "USD",
+				},
+			},
+		},
+	})
+	t.Cleanup(config.ResetGlobalConfigForTest)
+
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetContext(context.Background())
+
+	results := []engine.CostResult{{Monthly: 125.0, Currency: "USD"}}
+	err := evaluateBudgetStatusWithoutRender(cmd, results, 125.0)
+	require.NoError(t, err)
+	assert.Empty(t, out.String(), "silent budget evaluation should not render budget text")
+}
+
+func TestEvaluateBudgetStatus_RendersBudgetOutput(t *testing.T) {
+	config.SetGlobalConfig(&config.Config{
+		Cost: config.CostConfig{
+			Budgets: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
+					Amount:   1000.0,
+					Currency: "USD",
+				},
+			},
+		},
+	})
+	t.Cleanup(config.ResetGlobalConfigForTest)
+
+	cmd := &cobra.Command{}
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetContext(context.Background())
+
+	results := []engine.CostResult{{Monthly: 125.0, Currency: "USD"}}
+	err := evaluateBudgetStatus(cmd, results, 125.0)
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), "BUDGET STATUS")
 }
 
 func BenchmarkCreateRouterForEngine(b *testing.B) {

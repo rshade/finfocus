@@ -74,6 +74,9 @@ func NewRootCmdWithArgs(
 			return cmd.Help()
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+			suppressAuxOutput := shouldSuppressAuxiliaryOutput(args)
+			cmd.SetContext(contextWithSuppressAuxOutput(cmd.Context(), suppressAuxOutput))
+
 			// Validate cache-ttl is non-negative (negative values cause undefined cache expiry behavior)
 			cacheTTL, _ := cmd.Flags().GetInt("cache-ttl")
 			if cacheTTL < 0 {
@@ -90,7 +93,7 @@ func NewRootCmdWithArgs(
 
 				// Alias reminder - use injected lookupEnv for test isolation
 				_, hideAlias := lookupEnv("FINFOCUS_HIDE_ALIAS_HINT")
-				if !hideAlias && !pluginMode {
+				if !hideAlias && !pluginMode && !suppressAuxOutput {
 					msg := "Tip: Add 'alias fin=finfocus' to your shell profile for a shorter command!"
 					cmd.PrintErrln(msg)
 				}

@@ -109,6 +109,8 @@ func TestConvertPlanSteps_CreateNoDiffs(t *testing.T) {
 	result := convertPlanSteps(steps)
 	require.Len(t, result, 1)
 	assert.Empty(t, result[0].PropertyDiffs)
+	require.NotNil(t, result[0].ProjectedProperties)
+	assert.Equal(t, "t3.large", result[0].ProjectedProperties["instanceType"])
 }
 
 func TestConvertPlanSteps_DeleteNoDiffs(t *testing.T) {
@@ -265,6 +267,47 @@ func TestDiffInputs_SkipsInternalKeys(t *testing.T) {
 	diffs := diffInputs(oldS, newS)
 	require.Len(t, diffs, 1)
 	assert.Equal(t, "instanceType", diffs[0].Key, "__defaults should be filtered out")
+}
+
+func TestConvertPlanSteps_ProjectedProperties_DeepMergeOldAndNewInputs(t *testing.T) {
+	steps := []ingest.PulumiStep{
+		{
+			URN:  "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Op:   "replace",
+			Type: "aws:ec2/instance:Instance",
+			OldState: &ingest.PulumiState{
+				Inputs: map[string]interface{}{
+					"instanceType": "t3.medium",
+					"tags": map[string]interface{}{
+						"Name": "web-old",
+						"Team": "platform",
+					},
+				},
+				Outputs: map[string]interface{}{
+					"region": "us-east-1",
+				},
+			},
+			NewState: &ingest.PulumiState{
+				Inputs: map[string]interface{}{
+					"instanceType": "t3.large",
+					"tags": map[string]interface{}{
+						"Name": "web-new",
+					},
+				},
+			},
+		},
+	}
+
+	result := convertPlanSteps(steps)
+	require.Len(t, result, 1)
+	props := result[0].ProjectedProperties
+	require.NotNil(t, props)
+	assert.Equal(t, "t3.large", props["instanceType"])
+	assert.Equal(t, "us-east-1", props["region"])
+	tags, ok := props["tags"].(map[string]interface{})
+	require.True(t, ok)
+	assert.Equal(t, "web-new", tags["Name"])
+	assert.Equal(t, "platform", tags["Team"])
 }
 
 // ---------------------------------------------------------------------------

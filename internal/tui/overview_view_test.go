@@ -301,9 +301,15 @@ func TestRenderDetailCostImpact_ReplacingResource(t *testing.T) {
 			MonthlyCost: 33.87,
 			Currency:    "USD",
 		},
+		PropertyDiffs: []engine.PropertyDiff{{Key: "ami", OldValue: "ami-old", NewValue: "ami-new"}},
 	}
 
-	renderDetailCostImpact(&content, row)
+	// Pre-populate ComputedDelta (matches production flow).
+	rows := []engine.OverviewRow{row}
+	engine.PopulateComputedDeltas(rows, 15)
+	row = rows[0]
+
+	renderDetailCostImpactForDay(&content, row, 15)
 	output := content.String()
 
 	assert.Contains(t, output, "COST IMPACT")
@@ -325,7 +331,12 @@ func TestRenderDetailCostImpact_CreatingResource(t *testing.T) {
 		},
 	}
 
-	renderDetailCostImpact(&content, row)
+	// Pre-populate ComputedDelta (matches production flow).
+	rows := []engine.OverviewRow{row}
+	engine.PopulateComputedDeltas(rows, 15)
+	row = rows[0]
+
+	renderDetailCostImpactForDay(&content, row, 15)
 	output := content.String()
 
 	assert.Contains(t, output, "COST IMPACT")
@@ -351,7 +362,13 @@ func TestRenderDetailCostImpact_DeletingResource(t *testing.T) {
 		},
 	}
 
-	renderDetailCostImpact(&content, row)
+	// Pre-populate ComputedDelta (matches production flow).
+	rows := []engine.OverviewRow{row}
+	engine.PopulateComputedDeltas(rows, 15)
+	row = rows[0]
+
+	// Use fixed day >= driftMinDay to ensure extrapolation is valid.
+	renderDetailCostImpactForDay(&content, row, 15)
 	output := content.String()
 
 	assert.Contains(t, output, "COST IMPACT")
@@ -372,7 +389,7 @@ func TestRenderDetailCostImpact_ActiveResource(t *testing.T) {
 		},
 	}
 
-	renderDetailCostImpact(&content, row)
+	renderDetailCostImpactForDay(&content, row, 15)
 	assert.Empty(t, content.String(), "active resources should not show COST IMPACT")
 }
 
@@ -385,7 +402,7 @@ func TestRenderDetailCostImpact_NoCostData(t *testing.T) {
 		// No ActualCost or ProjectedCost — CalculateRowDelta returns false.
 	}
 
-	renderDetailCostImpact(&content, row)
+	renderDetailCostImpactForDay(&content, row, 15)
 	assert.Empty(t, content.String(), "no cost data should not show COST IMPACT")
 }
 
@@ -408,8 +425,12 @@ func TestRenderDetailView_ShowsCostImpact(t *testing.T) {
 				MonthlyCost: 150.00,
 				Currency:    "USD",
 			},
+			PropertyDiffs: []engine.PropertyDiff{{Key: "instanceType", OldValue: "t3.small", NewValue: "t3.large"}},
 		},
 	}
+
+	// Pre-populate ComputedDelta (matches production flow).
+	engine.PopulateComputedDeltas(rows, 15)
 
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 	model.state = ViewStateDetail

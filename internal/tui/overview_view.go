@@ -293,31 +293,31 @@ func renderDetailProjectedCost(content *strings.Builder, row engine.OverviewRow)
 	content.WriteString("\n")
 }
 
-// renderDetailCostImpact writes the cost impact section for resources with
+// renderDetailCostImpactForDay writes the cost impact section for resources with
 // pending changes (updating, replacing, creating, deleting). For active
 // resources this section is not shown — drift covers that case.
-func renderDetailCostImpact(content *strings.Builder, row engine.OverviewRow) {
-	renderDetailCostImpactForDay(content, row, time.Now().Day())
-}
-
-// renderDetailCostImpactForDay is the testable core of renderDetailCostImpact.
-// It accepts a fixed dayOfMonth to allow deterministic golden file tests.
+//
+// It accepts a fixed dayOfMonth for the sub-line extrapolation display;
+// the delta value itself is read from the pre-computed ComputedDelta field.
 func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewRow, dayOfMonth int) {
 	if row.Status == engine.StatusActive {
 		return
 	}
 
-	delta, ok := engine.CalculateRowDelta(row, dayOfMonth)
-	if !ok {
+	if row.ComputedDelta == nil {
 		return
 	}
+	delta := *row.ComputedDelta
 
 	content.WriteString(HeaderStyle.Render("COST IMPACT"))
 	content.WriteString("\n")
 
 	switch row.Status { //nolint:exhaustive // StatusActive already returned above.
 	case engine.StatusUpdating, engine.StatusReplacing:
-		current := engine.GetExtrapolatedActual(row, dayOfMonth)
+		current := engine.ForceExtrapolateActual(row, dayOfMonth)
+		if baseline, ok := engine.GetBaselineProjectedMonthlyCost(row); ok {
+			current = baseline
+		}
 		projected := engine.GetProjectedMonthlyCost(row)
 		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
 		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))

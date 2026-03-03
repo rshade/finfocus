@@ -508,15 +508,15 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 				Type:   "aws:ec2/instance:Instance",
 				Status: engine.StatusReplacing,
 				ActualCost: &engine.ActualCostData{
-					MTDCost: 50.00,
+					MTDCost: 30.00,
 				},
 				ProjectedCost: &engine.ProjectedCostData{
 					MonthlyCost: 100.00,
 				},
+				PropertyDiffs: []engine.PropertyDiff{{Key: "ami", OldValue: "ami-old", NewValue: "ami-new"}},
 			},
-			// Delta = projected - extrapolatedActual; exact value depends on
-			// day of month but it should NOT be "-".
-			wantDelta: "", // non-empty check below
+			// At day 15: extrapolated = 30 * (30/15) = 60; delta = 100 - 60 = +40.
+			wantDelta: "", // non-empty check below (expects +$40.00 matching regex)
 		},
 		{
 			name: "active resource without drift shows dash",
@@ -549,7 +549,11 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1, nil, nil)
+			// Pre-populate ComputedDelta (matches production flow).
+			rows := []engine.OverviewRow{tt.row}
+			engine.PopulateComputedDeltas(rows, 15)
+
+			model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 			model.width = 160
 			tableModel := model.buildOverviewTable()
 
@@ -749,8 +753,12 @@ func TestOverviewModel_GetDelta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1, nil, nil)
-			delta := model.getDelta(tt.row)
+			// Pre-populate ComputedDelta (matches production flow).
+			rows := []engine.OverviewRow{tt.row}
+			engine.PopulateComputedDeltas(rows, 15)
+
+			model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+			delta := model.getDelta(rows[0])
 			assert.Equal(t, tt.expected, delta)
 		})
 	}

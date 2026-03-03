@@ -181,6 +181,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 10a. Apply dismissal delta (non-fatal; marks dismissed recs for count badge)
 	rows = applyDismissalDeltaToRows(ctx, rows)
 
+	// 10b. Pre-compute per-row deltas so all renderers read the same values.
+	engine.PopulateComputedDeltas(rows, time.Now().Day())
+
 	// 11-14. Build context, render output, evaluate budgets.
 	if finalErr := finalizeOverviewOutput(
 		ctx, cmd, params, rows, eng, dateRange,
@@ -254,8 +257,8 @@ func loadAndProcessPlainOverview(
 	}
 	pt.Done(ctx)
 
-	// Pre-flight prompt (unless --yes or state-only).
-	if !isStateOnly {
+	// Pre-flight prompt (unless --yes, state-only, or non-table output).
+	if !isStateOnly && params.output == outputFormatTable {
 		printOverviewSummaryLine(cmd, params.yes, len(rows), hasChanges, changeCount)
 	}
 
@@ -322,7 +325,7 @@ func finalizeOverviewOutput(
 	// Budget evaluation (non-TTY path only).
 	applyOverviewBudgetFlags(cmd, params)
 	costResults, totalCost := overviewRowsToBudgetInputs(rows)
-	if budgetErr := evaluateBudgetStatus(cmd, costResults, totalCost); budgetErr != nil {
+	if budgetErr := evaluateBudgetStatusWithoutRender(cmd, costResults, totalCost); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return budgetErr
 	}
@@ -594,6 +597,10 @@ func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 			Type: s.Type,
 		}
 		switch s.Op {
+		case "create", "update", "replace", "create-replacement":
+			result[i].ProjectedProperties = projectedPropertiesFromStep(s)
+		}
+		switch s.Op {
 		case "update", "replace", "create-replacement":
 			result[i].PropertyDiffs = diffInputs(s.OldState, s.NewState)
 		}
@@ -648,6 +655,90 @@ func diffInputs(oldState, newState *ingest.PulumiState) []engine.PropertyDiff {
 		return diffs[i].Key < diffs[j].Key
 	})
 	return diffs
+}
+
+// projectedPropertiesFromStep builds pricing properties for projected-cost calls
+// by deep-merging old state with new inputs:
+//
+//	deepMerge(oldStateMerged, newState.inputs)
+//
+// This preserves unchanged state-derived fields while applying intended preview
+// changes, avoiding mispricing from "new inputs only" payloads.
+func projectedPropertiesFromStep(step ingest.PulumiStep) map[string]interface{} {
+	var oldMerged map[string]interface{}
+	if step.OldState != nil {
+		oldMerged = ingest.MergeProperties(step.OldState.Outputs, step.OldState.Inputs)
+	}
+
+	var newInputs map[string]interface{}
+	switch {
+	case step.NewState != nil && len(step.NewState.Inputs) > 0:
+		newInputs = step.NewState.Inputs
+	case len(step.Inputs) > 0:
+		newInputs = step.Inputs
+	}
+
+	merged := deepMergeProperties(oldMerged, newInputs)
+	if len(merged) == 0 {
+		return nil
+	}
+	return merged
+}
+
+// deepMergeProperties recursively merges two maps and returns a fresh map.
+// Nested map[string]interface{} values are merged; all other override values
+// replace the base value.
+func deepMergeProperties(base, override map[string]interface{}) map[string]interface{} {
+	if len(base) == 0 && len(override) == 0 {
+		return nil
+	}
+	out := deepCopyProperties(base)
+	if out == nil {
+		out = make(map[string]interface{}, len(override))
+	}
+	for k, v := range override {
+		existing, exists := out[k]
+		out[k] = deepMergeValue(exists, existing, v)
+	}
+	return out
+}
+
+func deepMergeValue(exists bool, baseValue, overrideValue interface{}) interface{} {
+	if !exists {
+		return deepCopyAny(overrideValue)
+	}
+	baseMap, baseIsMap := baseValue.(map[string]interface{})
+	overrideMap, overrideIsMap := overrideValue.(map[string]interface{})
+	if baseIsMap && overrideIsMap {
+		return deepMergeProperties(baseMap, overrideMap)
+	}
+	return deepCopyAny(overrideValue)
+}
+
+func deepCopyProperties(in map[string]interface{}) map[string]interface{} {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]interface{}, len(in))
+	for k, v := range in {
+		out[k] = deepCopyAny(v)
+	}
+	return out
+}
+
+func deepCopyAny(v interface{}) interface{} {
+	switch t := v.(type) {
+	case map[string]interface{}:
+		return deepCopyProperties(t)
+	case []interface{}:
+		out := make([]interface{}, len(t))
+		for i := range t {
+			out[i] = deepCopyAny(t[i])
+		}
+		return out
+	default:
+		return t
+	}
 }
 
 // formatDiffValue converts a property value to a human-readable string.
@@ -1269,11 +1360,13 @@ func runBackgroundPreview(
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	statusByURN := engine.BuildStatusByURN(planSteps)
 	propertyDiffsByURN := engine.BuildPropertyDiffsByURN(planSteps)
+	projectedPropsByURN := engine.BuildProjectedPropertiesByURN(planSteps)
 	return tui.OverviewChangesReadyMsg{
-		StatusByURN:        statusByURN,
-		PropertyDiffsByURN: propertyDiffsByURN,
-		HasChanges:         hasChanges,
-		ChangeCount:        changeCount,
+		StatusByURN:         statusByURN,
+		PropertyDiffsByURN:  propertyDiffsByURN,
+		ProjectedPropsByURN: projectedPropsByURN,
+		HasChanges:          hasChanges,
+		ChangeCount:         changeCount,
 	}
 }
 
@@ -1431,6 +1524,12 @@ func bridgeEnrichmentToTUI(
 
 		// Apply dismissal delta to the enriched row before sending to TUI.
 		engine.ApplyDismissalDeltaToRow(&update.Row, dismissalRecords)
+
+		// Pre-compute per-row delta so TUI reads the same value as CLI renderers.
+		if d, ok := engine.CalculateRowDelta(update.Row, time.Now().Day()); ok {
+			val := d
+			update.Row.ComputedDelta = &val
+		}
 
 		rowCount.Add(1)
 		loadedCount++

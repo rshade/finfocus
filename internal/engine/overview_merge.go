@@ -104,6 +104,7 @@ func MergeResourcesForOverview(
 	// Build diffs separately — status precedence (delete-replaced > create-replacement)
 	// differs from diff precedence (create-replacement carries the diffs).
 	diffsByURN := BuildPropertyDiffsByURN(planSteps)
+	projectedPropsByURN := BuildProjectedPropertiesByURN(planSteps)
 
 	// Track URNs we have seen from state so we can detect new creates.
 	seenURNs := make(map[string]struct{}, len(stateResources))
@@ -124,6 +125,9 @@ func MergeResourcesForOverview(
 		if diffs, ok := diffsByURN[res.URN]; ok {
 			row.PropertyDiffs = append([]PropertyDiff(nil), diffs...)
 		}
+		if props, ok := projectedPropsByURN[res.URN]; ok {
+			row.ProjectedProperties = cloneProperties(props)
+		}
 
 		rows = append(rows, row)
 	}
@@ -137,11 +141,18 @@ func MergeResourcesForOverview(
 			continue
 		}
 		seenURNs[step.URN] = struct{}{}
-		rows = append(rows, OverviewRow{
+		row := OverviewRow{
 			URN:    step.URN,
 			Type:   step.Type,
 			Status: StatusCreating,
-		})
+		}
+		if props, ok := projectedPropsByURN[step.URN]; ok {
+			row.ProjectedProperties = cloneProperties(props)
+			// Create rows are plan-only, so use projected properties as the base
+			// resource properties for enrichment and recommendation requests.
+			row.Properties = cloneProperties(props)
+		}
+		rows = append(rows, row)
 	}
 
 	log.Debug().
@@ -231,6 +242,23 @@ func ApplyPropertyDiffsToRows(rows []OverviewRow, diffsByURN map[string][]Proper
 	}
 }
 
+// ApplyProjectedPropertiesToRows updates the ProjectedProperties field of
+// existing OverviewRows in-place using a map of URN → projected properties
+// derived from plan steps. Rows whose URN is not in projectedPropsByURN retain
+// their current ProjectedProperties.
+//
+// No-op if rows is nil.
+func ApplyProjectedPropertiesToRows(rows []OverviewRow, projectedPropsByURN map[string]map[string]interface{}) {
+	if rows == nil {
+		return
+	}
+	for i := range rows {
+		if props, ok := projectedPropsByURN[rows[i].URN]; ok {
+			rows[i].ProjectedProperties = cloneProperties(props)
+		}
+	}
+}
+
 // BuildPropertyDiffsByURN converts a slice of PlanSteps to a map of URN → []PropertyDiff.
 // Unlike BuildStatusByURN, this uses diff-specific precedence: for a replace flow
 // (create-replacement + delete-replaced), the create-replacement step carries the
@@ -250,6 +278,49 @@ func BuildPropertyDiffsByURN(planSteps []PlanStep) map[string][]PropertyDiff {
 		}
 	}
 	return diffsByURN
+}
+
+// BuildProjectedPropertiesByURN converts a slice of PlanSteps to a map of URN
+// → projected properties. For replace flows where multiple operations may
+// appear for the same URN, the first non-empty projected properties are kept.
+func BuildProjectedPropertiesByURN(planSteps []PlanStep) map[string]map[string]interface{} {
+	propsByURN := make(map[string]map[string]interface{})
+	for _, step := range planSteps {
+		if len(step.ProjectedProperties) == 0 {
+			continue
+		}
+		if _, exists := propsByURN[step.URN]; exists {
+			continue
+		}
+		propsByURN[step.URN] = cloneProperties(step.ProjectedProperties)
+	}
+	return propsByURN
+}
+
+func cloneProperties(in map[string]interface{}) map[string]interface{} {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string]interface{}, len(in))
+	for k, v := range in {
+		out[k] = cloneAny(v)
+	}
+	return out
+}
+
+func cloneAny(v interface{}) interface{} {
+	switch t := v.(type) {
+	case map[string]interface{}:
+		return cloneProperties(t)
+	case []interface{}:
+		out := make([]interface{}, len(t))
+		for i := range t {
+			out[i] = cloneAny(t[i])
+		}
+		return out
+	default:
+		return t
+	}
 }
 
 // BuildStatusByURN converts a slice of PlanSteps to a map of URN → ResourceStatus

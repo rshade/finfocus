@@ -56,6 +56,11 @@ type mockCostSourceClient struct {
 		in *DismissRecommendationRequest,
 		opts ...grpc.CallOption,
 	) (*DismissRecommendationResponse, error)
+	supportsFunc func(
+		ctx context.Context,
+		in *pbc.SupportsRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.SupportsResponse, error)
 }
 
 func (m *mockCostSourceClient) Name(
@@ -144,6 +149,17 @@ func (m *mockCostSourceClient) DismissRecommendation(
 		return m.dismissRecommendationFunc(ctx, in, opts...)
 	}
 	return &DismissRecommendationResponse{Success: true}, nil
+}
+
+func (m *mockCostSourceClient) Supports(
+	ctx context.Context,
+	in *pbc.SupportsRequest,
+	opts ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	if m.supportsFunc != nil {
+		return m.supportsFunc(ctx, in, opts...)
+	}
+	return &pbc.SupportsResponse{Supported: true}, nil
 }
 
 // T020: Unit test for DryRun wrapper.

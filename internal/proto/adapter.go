@@ -698,6 +698,11 @@ type CostSourceClient interface {
 		in *DismissRecommendationRequest,
 		opts ...grpc.CallOption,
 	) (*DismissRecommendationResponse, error)
+	Supports(
+		ctx context.Context,
+		in *pbc.SupportsRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.SupportsResponse, error)
 }
 
 // NewCostSourceClient creates a new cost source client using the real proto client.
@@ -785,6 +790,14 @@ func (c *clientAdapter) DismissRecommendation(
 	}
 
 	return result, nil
+}
+
+func (c *clientAdapter) Supports(
+	ctx context.Context,
+	in *pbc.SupportsRequest,
+	opts ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	return c.client.Supports(ctx, in, opts...)
 }
 
 // resolveSKUAndRegion determines the SKU and region for a resource using provider-specific

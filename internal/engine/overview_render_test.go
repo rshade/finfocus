@@ -250,6 +250,8 @@ func TestRenderOverviewAsTable_DriftWarning(t *testing.T) {
 		},
 	}
 
+	PopulateComputedDeltas(rows, 15)
+
 	err := RenderOverviewAsTable(&buf, rows, stackCtx)
 	require.NoError(t, err)
 
@@ -516,12 +518,11 @@ func TestAggregateOverviewRows_SavingsExcludesDismissed(t *testing.T) {
 	assert.Equal(t, 30.0, totals.savings)
 }
 
-func TestFormatDeltaColumn_UsesExtrapolatedActual(t *testing.T) {
+func TestFormatDeltaColumn_UsesPreComputedDelta(t *testing.T) {
+	// Pre-compute delta via PopulateComputedDeltas, then verify formatDeltaColumn reads it.
 	now := time.Now()
 	period := DateRange{Start: now.Add(-24 * time.Hour), End: now}
 
-	// A replacing resource: formatDeltaColumn now delegates to CalculateRowDelta
-	// which uses GetExtrapolatedActual instead of raw MTD.
 	row := OverviewRow{
 		URN:    "urn:replacing-resource",
 		Type:   "aws:ec2:Instance",
@@ -535,12 +536,14 @@ func TestFormatDeltaColumn_UsesExtrapolatedActual(t *testing.T) {
 			MonthlyCost: 50.00,
 			Currency:    "USD",
 		},
+		PropertyDiffs: []PropertyDiff{{Key: "instanceType", OldValue: "t3.small", NewValue: "t3.large"}},
 	}
 
-	// Use a fixed day to avoid midnight flakes where time.Now().Day()
-	// could differ between formatDeltaColumn and this assertion.
 	const fixedDay = 15
-	result := formatDeltaColumnForDay(row, fixedDay)
+	rows := []OverviewRow{row}
+	PopulateComputedDeltas(rows, fixedDay)
+
+	result := formatDeltaColumn(rows[0])
 
 	expectedDelta, ok := CalculateRowDelta(row, fixedDay)
 	require.True(t, ok)
@@ -549,6 +552,7 @@ func TestFormatDeltaColumn_UsesExtrapolatedActual(t *testing.T) {
 }
 
 func TestFormatDeltaColumn_ActiveWithNoDrift(t *testing.T) {
+	// Active without drift → ComputedDelta is nil → dash.
 	row := OverviewRow{
 		URN:    "urn:active-no-drift",
 		Type:   "aws:ec2:Instance",
@@ -568,6 +572,7 @@ func TestFormatDeltaColumn_ActiveWithNoDrift(t *testing.T) {
 }
 
 func TestFormatDeltaColumn_CreatingResource(t *testing.T) {
+	// Pre-populate ComputedDelta before calling formatDeltaColumn.
 	row := OverviewRow{
 		URN:    "urn:creating-resource",
 		Type:   "aws:s3:Bucket",
@@ -578,7 +583,10 @@ func TestFormatDeltaColumn_CreatingResource(t *testing.T) {
 		},
 	}
 
-	result := formatDeltaColumn(row)
+	rows := []OverviewRow{row}
+	PopulateComputedDeltas(rows, 15)
+
+	result := formatDeltaColumn(rows[0])
 	assert.Equal(t, "+$25.00", result)
 }
 
@@ -702,10 +710,11 @@ func TestRenderOverviewAsJSON_SingleResource(t *testing.T) {
 	assert.NotNil(t, res.ProjectedCost)
 	assert.Equal(t, 150.00, res.ProjectedCost.MonthlyCost)
 
-	// Verify summary
+	// Verify summary — all-active rows produce zero delta because
+	// CalculateProjectedDelta only counts pending-change statuses.
 	assert.Equal(t, 45.67, output.Summary.TotalActualMTD)
 	assert.Equal(t, 150.00, output.Summary.ProjectedMonthly)
-	assert.InDelta(t, 104.33, output.Summary.ProjectedDelta, 0.01)
+	assert.Equal(t, 0.0, output.Summary.ProjectedDelta)
 	assert.Equal(t, "USD", output.Summary.Currency)
 }
 
@@ -785,7 +794,114 @@ func TestRenderOverviewAsJSON_SummaryTotals(t *testing.T) {
 
 	assert.Equal(t, 300.00, output.Summary.TotalActualMTD)
 	assert.Equal(t, 800.00, output.Summary.ProjectedMonthly)
-	assert.Equal(t, 500.00, output.Summary.ProjectedDelta)
+	// All-active rows: CalculateProjectedDelta returns 0 (no pending changes).
+	assert.Equal(t, 0.0, output.Summary.ProjectedDelta)
+}
+
+func TestRenderOverviewAsJSON_PerRowDeltaAndSummary(t *testing.T) {
+	var buf bytes.Buffer
+	now := time.Now()
+	stackCtx := StackContext{
+		StackName:      "prod",
+		TimeWindow:     DateRange{Start: now.Add(-24 * time.Hour), End: now},
+		HasChanges:     true,
+		TotalResources: 4,
+		PendingChanges: 3,
+	}
+
+	rows := []OverviewRow{
+		{
+			URN:    "urn:active",
+			Type:   "aws:ec2:Instance",
+			Status: StatusActive,
+			ActualCost: &ActualCostData{
+				MTDCost:  100.00,
+				Currency: "USD",
+				Period:   stackCtx.TimeWindow,
+			},
+			ProjectedCost: &ProjectedCostData{
+				MonthlyCost: 300.00,
+				Currency:    "USD",
+			},
+		},
+		{
+			URN:    "urn:creating",
+			Type:   "aws:s3:Bucket",
+			Status: StatusCreating,
+			ProjectedCost: &ProjectedCostData{
+				MonthlyCost: 50.00,
+				Currency:    "USD",
+			},
+		},
+		{
+			URN:    "urn:updating",
+			Type:   "aws:rds:Instance",
+			Status: StatusUpdating,
+			ActualCost: &ActualCostData{
+				MTDCost:  60.00,
+				Currency: "USD",
+				Period:   stackCtx.TimeWindow,
+			},
+			ProjectedCost: &ProjectedCostData{
+				MonthlyCost: 200.00,
+				Currency:    "USD",
+			},
+			PropertyDiffs: []PropertyDiff{{Key: "instanceClass", OldValue: "db.t3.small", NewValue: "db.t3.large"}},
+		},
+		{
+			URN:    "urn:deleting",
+			Type:   "aws:lambda:Function",
+			Status: StatusDeleting,
+			ActualCost: &ActualCostData{
+				MTDCost:  30.00,
+				Currency: "USD",
+				Period:   stackCtx.TimeWindow,
+			},
+		},
+	}
+
+	// Pre-populate ComputedDelta before rendering (matches production flow).
+	dayOfMonth := time.Now().Day()
+	PopulateComputedDeltas(rows, dayOfMonth)
+
+	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
+	require.NoError(t, err)
+
+	var output OverviewJSONOutput
+	err = json.Unmarshal(buf.Bytes(), &output)
+	require.NoError(t, err)
+
+	// Active resource: no pending change, no drift → no delta.
+	assert.Nil(t, output.Resources[0].ComputedDelta,
+		"active resource without drift should have nil delta")
+
+	// Creating resource: delta = +projected.
+	require.NotNil(t, output.Resources[1].ComputedDelta,
+		"creating resource should have computed delta")
+	assert.Equal(t, 50.0, *output.Resources[1].ComputedDelta)
+
+	// Updating resource with PropertyDiffs: delta = projected - extrapolated actual.
+	require.NotNil(t, output.Resources[2].ComputedDelta,
+		"updating resource with PropertyDiffs should have computed delta")
+	expectedUpdating, ok := CalculateRowDelta(rows[2], dayOfMonth)
+	require.True(t, ok)
+	assert.InDelta(t, expectedUpdating, *output.Resources[2].ComputedDelta, 0.01)
+
+	// Deleting resource: delta = -extrapolated actual.
+	require.NotNil(t, output.Resources[3].ComputedDelta,
+		"deleting resource should have computed delta")
+	expectedDeleting, ok := CalculateRowDelta(rows[3], dayOfMonth)
+	require.True(t, ok)
+	assert.InDelta(t, expectedDeleting, *output.Resources[3].ComputedDelta, 0.01)
+
+	// Summary delta = sum of per-row ComputedDelta values.
+	var expectedTotal float64
+	for _, row := range rows {
+		if row.ComputedDelta != nil {
+			expectedTotal += *row.ComputedDelta
+		}
+	}
+	assert.InDelta(t, expectedTotal, output.Summary.ProjectedDelta, 0.01)
 }
 
 func TestRenderOverviewAsJSON_CurrencyConsistency(t *testing.T) {
