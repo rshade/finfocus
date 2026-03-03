@@ -49,6 +49,10 @@ type MockConfig struct {
 
 	// PluginSpecVersion specifies the spec version to return in GetPluginInfo
 	PluginSpecVersion string
+
+	// SupportsAll when true, Supports() returns {Supported: true} for all resource types.
+	// When false (default), Supports() returns {Supported: false} with a reason.
+	SupportsAll bool
 }
 
 // ErrorType represents different types of errors the mock can simulate.
@@ -105,6 +109,7 @@ func NewMockPlugin() *MockPlugin {
 			ErrorType:              ErrorNone,
 			ErrorMethod:            "",
 			LatencyMS:              0,
+			SupportsAll:            true,
 		},
 	}
 }
@@ -227,6 +232,7 @@ func (m *MockPlugin) Reset() {
 		LatencyMS:              0,
 		SleepDuration:          0,
 		FailForTypes:           nil,
+		SupportsAll:            true,
 	}
 	m.callCount.Store(0)
 }
@@ -266,6 +272,20 @@ func (m *MockPlugin) GetBudgetsResponse() []*pbc.Budget {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return m.config.BudgetsResponse
+}
+
+// SetSupportsAll configures whether Supports() returns true for all resource types.
+func (m *MockPlugin) SetSupportsAll(supports bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.config.SupportsAll = supports
+}
+
+// GetSupportsAll returns whether Supports() is configured to return true.
+func (m *MockPlugin) GetSupportsAll() bool {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.config.SupportsAll
 }
 
 // ShouldInjectError determines if an error should be injected for the given method.

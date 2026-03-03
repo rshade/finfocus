@@ -1,4 +1,33 @@
 <!--
+Sync Impact Report - Constitution v1.6.0 (TUI Visual Verification)
+===================================================================
+
+Version Change: 1.5.0 → 1.6.0
+Change Type: Expanded guidance (MINOR)
+
+Changes Made:
+- Expanded Principle II (TDD) with TUI Visual Verification requirements
+- Added golden file snapshot testing requirement for TUI views
+- Added TUI Verification quality gate
+- Clarified that string-contains assertions alone are insufficient for TUI
+
+Rationale:
+- TUI bugs (offset columns, missing data, broken layouts) repeatedly
+  escaped string-only test assertions
+- Golden file snapshots catch layout regressions that keyword checks miss
+- Render-and-inspect workflow catches visual issues before merge
+
+Templates Requiring Updates:
+- .specify/templates/plan-template.md (Updated Constitution Check)
+- .specify/templates/tasks-template.md (Updated Principle II reference)
+
+Follow-up TODOs:
+- None
+
+Date: 2026-03-02
+
+---
+
 Sync Impact Report - Constitution v1.5.0 (Documentation Integrity)
 ================================================================
 
@@ -154,6 +183,19 @@ minimum 80% test coverage. Critical paths (CLI entry points, cost calculation
 engine, plugin communication) MUST achieve 95% coverage. Tests MUST pass in
 CI before any pull request merges.
 
+**TUI Visual Verification**: Changes to terminal UI code (`internal/tui/`)
+MUST include rendered output verification beyond string-contains assertions:
+
+1. **Render and Inspect**: TUI changes MUST be verified by rendering the
+   affected view and inspecting the full output for layout correctness
+   (column alignment, section ordering, data population).
+2. **Golden File Snapshots**: Key TUI views MUST maintain golden file
+   snapshots (`*.golden`) that capture the complete rendered output.
+   Layout regressions are caught by diff comparison against these files.
+3. **String Assertions Insufficient**: `assert.Contains(output, "keyword")`
+   alone does NOT satisfy TUI test requirements. It verifies content
+   existence but not layout, ordering, or visual correctness.
+
 **Rationale**: Ensures reliability in cost calculations where accuracy is
 paramount. TDD prevents regressions and serves as living documentation of
 system behavior.
@@ -237,6 +279,8 @@ All pull requests MUST pass the following automated checks before merging:
 - **Formatting**: All Go code formatted with `gofmt` and `goimports`
 - **Documentation**: Markdown linting passes (`markdownlint-cli2`)
 - **Docstring Coverage**: Minimum 80% Go package and exported symbol documentation
+- **TUI Verification**: Changes to `internal/tui/` must include golden file
+  snapshot tests. Regenerate with `UPDATE_GOLDEN=1 go test ./internal/tui/...`
 - **Cross-Platform Build**: Successful compilation on Linux, macOS, Windows
 
 ### Linting Protocol
@@ -324,4 +368,4 @@ When using the Pulumi SDK (`github.com/pulumi/pulumi/sdk/v3`):
 - Earlier versions may have different package structures or missing types
 - This ensures compatibility with the current Pulumi Analyzer protocol
 
-**Version**: 1.5.0 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-01-27
+**Version**: 1.6.0 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-03-02

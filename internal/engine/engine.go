@@ -13,6 +13,8 @@ import (
 	"sync"
 	"time"
 
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine/batch"
 	"github.com/rshade/finfocus/internal/engine/cache"
@@ -114,6 +116,8 @@ type Engine struct {
 	router         Router                 // Optional router for plugin selection; if nil, queries all plugins
 	dismissalStore *config.DismissalStore // Optional dismissal store; if nil, created on demand
 	jobs           int                    // Override worker count; 0 means auto (default)
+	supportsCache  map[string]bool        // Cache for Supports() results, keyed by "plugin:resourceType:feature"
+	supportsMu     sync.RWMutex           // Guards supportsCache
 }
 
 // New creates a new Engine with the given plugin clients and spec loader.
@@ -167,6 +171,77 @@ func (e *Engine) getConcurrencyMultiplier() int {
 	return defaultConcurrencyMultiplier
 }
 
+// checkPluginSupports calls the plugin's Supports() RPC to check if it
+// supports the given resource type for the requested feature. Returns true
+// if the plugin supports it, or if the RPC call fails (fail-open to avoid
+// breaking plugins that don't implement Supports yet).
+func (e *Engine) checkPluginSupports(
+	ctx context.Context,
+	client *pluginhost.Client,
+	resourceType string,
+	feature string,
+) bool {
+	cacheKey := client.Name + ":" + resourceType + ":" + feature
+
+	e.supportsMu.RLock()
+	if result, ok := e.supportsCache[cacheKey]; ok {
+		e.supportsMu.RUnlock()
+		return result
+	}
+	e.supportsMu.RUnlock()
+
+	resp, err := client.API.Supports(ctx, &pbc.SupportsRequest{
+		Resource: &pbc.ResourceDescriptor{ResourceType: resourceType},
+	})
+	if err != nil {
+		// Fail-open: if plugin doesn't implement Supports() or RPC fails,
+		// assume it supports the feature (backward compatible).
+		e.cacheSupportsResult(cacheKey, true)
+		return true
+	}
+
+	supported := resp.GetSupported()
+	if !supported {
+		log := logging.FromContext(ctx)
+		log.Debug().
+			Str("component", "engine").
+			Str("plugin", client.Name).
+			Str("resource_type", resourceType).
+			Str("feature", feature).
+			Str("reason", resp.GetReason()).
+			Msg("plugin does not support feature, skipping")
+	}
+	e.cacheSupportsResult(cacheKey, supported)
+	return supported
+}
+
+// cacheSupportsResult stores a Supports() result in the engine's cache.
+func (e *Engine) cacheSupportsResult(key string, supported bool) {
+	e.supportsMu.Lock()
+	defer e.supportsMu.Unlock()
+	if e.supportsCache == nil {
+		e.supportsCache = make(map[string]bool)
+	}
+	e.supportsCache[key] = supported
+}
+
+// filterUnsupportedPlugins removes plugins that declare they don't support
+// the given resource type for the requested feature via the Supports() RPC.
+func (e *Engine) filterUnsupportedPlugins(
+	ctx context.Context,
+	matches []PluginMatch,
+	resourceType string,
+	feature string,
+) []PluginMatch {
+	filtered := make([]PluginMatch, 0, len(matches))
+	for _, match := range matches {
+		if e.checkPluginSupports(ctx, match.Client, resourceType, feature) {
+			filtered = append(filtered, match)
+		}
+	}
+	return filtered
+}
+
 // selectPluginMatchesForResource returns the full PluginMatch list for a resource.
 // This includes fallback configuration and priority information for each plugin.
 //
@@ -215,7 +290,7 @@ func (e *Engine) selectPluginMatchesForResource(
 				Source:      "automatic",
 			}
 		}
-		return matches
+		return e.filterUnsupportedPlugins(ctx, matches, resource.Type, feature)
 	}
 
 	// Use router for intelligent plugin selection
@@ -250,7 +325,7 @@ func (e *Engine) selectPluginMatchesForResource(
 				Source:      "automatic",
 			}
 		}
-		return fallbackMatches
+		return e.filterUnsupportedPlugins(ctx, fallbackMatches, resource.Type, feature)
 	}
 
 	log.Debug().
@@ -261,7 +336,7 @@ func (e *Engine) selectPluginMatchesForResource(
 		Int("matched_count", len(matches)).
 		Msg("router selected plugins")
 
-	return matches
+	return e.filterUnsupportedPlugins(ctx, matches, resource.Type, feature)
 }
 
 func (e *Engine) getWorkerCount(jobCount int) int {
@@ -416,6 +491,7 @@ func (e *Engine) GetProjectedCost(
 						Float64("monthly_cost", result.Monthly).
 						Msg("plugin returned cost data")
 					resourceResults = append(resourceResults, *result)
+					break // Use first successful result, matching actual cost behavior
 				}
 			}
 
@@ -635,6 +711,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 				if pluginResult != nil {
 					engineResult := *pluginResult
 					resourceResults = append(resourceResults, engineResult)
+					break // Use first successful result, matching actual cost behavior
 				}
 			}
 

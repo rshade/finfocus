@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"path/filepath"
 	"testing"
@@ -88,5 +89,48 @@ func TestSetupLogging_AnalyzerModeRedirect(t *testing.T) {
 		require.NoError(t, result.Close())
 		assert.NoFileExists(t, analyzerLog,
 			"analyzer.log must not be created in normal mode")
+	})
+}
+
+// TestSetupLogging_LogPathMessageSuppression verifies structured output mode can
+// suppress the "Logging to:" helper line while still using file logging.
+func TestSetupLogging_LogPathMessageSuppression(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+	t.Setenv(constants.EnvAnalyzerMode, "")
+
+	logPath := filepath.Join(tmpDir, "logs", "finfocus.log")
+	config.SetGlobalConfig(&config.Config{
+		Logging: config.LoggingConfig{
+			Level:  "info",
+			Format: "json",
+			File:   logPath,
+		},
+	})
+	t.Cleanup(config.ResetGlobalConfigForTest)
+
+	t.Run("default emits log path helper", func(t *testing.T) {
+		cmd := newTestLoggingCmd()
+		var errBuf bytes.Buffer
+		cmd.SetErr(&errBuf)
+
+		result := setupLogging(cmd)
+		defer func() { _ = result.Close() }()
+
+		require.True(t, result.UsingFile)
+		assert.Contains(t, errBuf.String(), "Logging to:")
+	})
+
+	t.Run("suppressed context hides log path helper", func(t *testing.T) {
+		cmd := newTestLoggingCmd()
+		cmd.SetContext(contextWithSuppressAuxOutput(context.Background(), true))
+		var errBuf bytes.Buffer
+		cmd.SetErr(&errBuf)
+
+		result := setupLogging(cmd)
+		defer func() { _ = result.Close() }()
+
+		require.True(t, result.UsingFile)
+		assert.NotContains(t, errBuf.String(), "Logging to:")
 	})
 }

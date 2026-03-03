@@ -154,3 +154,294 @@ func TestRenderFootnote_LoadedHidesAsterisk(t *testing.T) {
 	output := model.renderListView()
 	assert.NotContains(t, output, "projected at current state")
 }
+
+// ---------------------------------------------------------------------------
+// renderDetailPropertyChanges
+// ---------------------------------------------------------------------------
+
+func TestRenderDetailView_ShowsPropertyChanges(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusUpdating,
+			PropertyDiffs: []engine.PropertyDiff{
+				{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
+				{Key: "rootBlockDevice", OldValue: "20", NewValue: "50"},
+			},
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.Contains(t, output, "PROPERTY CHANGES")
+	assert.Contains(t, output, "instanceType")
+	assert.Contains(t, output, "t3.medium")
+	assert.Contains(t, output, "t3.large")
+	assert.Contains(t, output, "rootBlockDevice")
+	assert.Contains(t, output, "\u2192") // arrow character
+}
+
+func TestRenderDetailView_NoPropertyChanges(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusActive,
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.NotContains(t, output, "PROPERTY CHANGES")
+}
+
+func TestRenderDetailView_PropertyChangesWithNoneValues(t *testing.T) {
+	ctx := context.Background()
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusUpdating,
+			PropertyDiffs: []engine.PropertyDiff{
+				{Key: "newTag", OldValue: "", NewValue: "my-tag"},
+			},
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.Contains(t, output, "PROPERTY CHANGES")
+	assert.Contains(t, output, "(none)")
+	assert.Contains(t, output, "my-tag")
+}
+
+func TestRenderDetailPropertyChanges_EmptySlice(t *testing.T) {
+	var content strings.Builder
+	row := engine.OverviewRow{
+		PropertyDiffs: []engine.PropertyDiff{},
+	}
+	renderDetailPropertyChanges(&content, row)
+	assert.Empty(t, content.String())
+}
+
+func TestTruncateDiffValue(t *testing.T) {
+	assert.Equal(t, "short", truncateDiffValue("short"))
+	assert.Equal(t, "", truncateDiffValue(""))
+
+	long := strings.Repeat("x", 60)
+	result := truncateDiffValue(long)
+	assert.Len(t, result, maxDiffValueLen)
+	assert.True(t, strings.HasSuffix(result, "..."))
+}
+
+func TestRenderDetailView_TruncatesLongValues(t *testing.T) {
+	ctx := context.Background()
+	longValue := strings.Repeat("a", 80)
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusUpdating,
+			PropertyDiffs: []engine.PropertyDiff{
+				{Key: "tags", OldValue: longValue, NewValue: "short"},
+			},
+		},
+	}
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.Contains(t, output, "PROPERTY CHANGES")
+	// The long value should be truncated, not appear in full.
+	assert.NotContains(t, output, longValue)
+	assert.Contains(t, output, "...")
+}
+
+// ---------------------------------------------------------------------------
+// renderDetailCostImpact
+// ---------------------------------------------------------------------------
+
+func TestRenderDetailCostImpact_ReplacingResource(t *testing.T) {
+	now := time.Now()
+	period := engine.DateRange{Start: now.Add(-24 * time.Hour), End: now}
+
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusReplacing,
+		ActualCost: &engine.ActualCostData{
+			MTDCost:  25.35,
+			Currency: "USD",
+			Period:   period,
+		},
+		ProjectedCost: &engine.ProjectedCostData{
+			MonthlyCost: 33.87,
+			Currency:    "USD",
+		},
+		PropertyDiffs: []engine.PropertyDiff{{Key: "ami", OldValue: "ami-old", NewValue: "ami-new"}},
+	}
+
+	// Pre-populate ComputedDelta (matches production flow).
+	rows := []engine.OverviewRow{row}
+	engine.PopulateComputedDeltas(rows, 15)
+	row = rows[0]
+
+	renderDetailCostImpactForDay(&content, row, 15)
+	output := content.String()
+
+	assert.Contains(t, output, "COST IMPACT")
+	assert.Contains(t, output, "Current (est. monthly)")
+	assert.Contains(t, output, "After Change")
+	assert.Contains(t, output, "$33.87")
+	assert.Contains(t, output, "Delta")
+}
+
+func TestRenderDetailCostImpact_CreatingResource(t *testing.T) {
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:s3:Bucket::data",
+		Type:   "aws:s3:Bucket",
+		Status: engine.StatusCreating,
+		ProjectedCost: &engine.ProjectedCostData{
+			MonthlyCost: 33.87,
+			Currency:    "USD",
+		},
+	}
+
+	// Pre-populate ComputedDelta (matches production flow).
+	rows := []engine.OverviewRow{row}
+	engine.PopulateComputedDeltas(rows, 15)
+	row = rows[0]
+
+	renderDetailCostImpactForDay(&content, row, 15)
+	output := content.String()
+
+	assert.Contains(t, output, "COST IMPACT")
+	assert.Contains(t, output, "New Monthly Cost")
+	assert.Contains(t, output, "$33.87")
+	assert.Contains(t, output, "Delta")
+	assert.Contains(t, output, "+$33.87")
+}
+
+func TestRenderDetailCostImpact_DeletingResource(t *testing.T) {
+	now := time.Now()
+	period := engine.DateRange{Start: now.Add(-24 * time.Hour), End: now}
+
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::old",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusDeleting,
+		ActualCost: &engine.ActualCostData{
+			MTDCost:  25.35,
+			Currency: "USD",
+			Period:   period,
+		},
+	}
+
+	// Pre-populate ComputedDelta (matches production flow).
+	rows := []engine.OverviewRow{row}
+	engine.PopulateComputedDeltas(rows, 15)
+	row = rows[0]
+
+	// Use fixed day >= driftMinDay to ensure extrapolation is valid.
+	renderDetailCostImpactForDay(&content, row, 15)
+	output := content.String()
+
+	assert.Contains(t, output, "COST IMPACT")
+	assert.Contains(t, output, "Current (est. monthly)")
+	assert.Contains(t, output, "Delta")
+	assert.Contains(t, output, "-$")
+}
+
+func TestRenderDetailCostImpact_ActiveResource(t *testing.T) {
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusActive,
+		ProjectedCost: &engine.ProjectedCostData{
+			MonthlyCost: 100.00,
+			Currency:    "USD",
+		},
+	}
+
+	renderDetailCostImpactForDay(&content, row, 15)
+	assert.Empty(t, content.String(), "active resources should not show COST IMPACT")
+}
+
+func TestRenderDetailCostImpact_NoCostData(t *testing.T) {
+	var content strings.Builder
+	row := engine.OverviewRow{
+		URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+		Type:   "aws:ec2/instance:Instance",
+		Status: engine.StatusReplacing,
+		// No ActualCost or ProjectedCost — CalculateRowDelta returns false.
+	}
+
+	renderDetailCostImpactForDay(&content, row, 15)
+	assert.Empty(t, content.String(), "no cost data should not show COST IMPACT")
+}
+
+func TestRenderDetailView_ShowsCostImpact(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now()
+	period := engine.DateRange{Start: now.Add(-24 * time.Hour), End: now}
+
+	rows := []engine.OverviewRow{
+		{
+			URN:    "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
+			Type:   "aws:ec2/instance:Instance",
+			Status: engine.StatusUpdating,
+			ActualCost: &engine.ActualCostData{
+				MTDCost:  50.00,
+				Currency: "USD",
+				Period:   period,
+			},
+			ProjectedCost: &engine.ProjectedCostData{
+				MonthlyCost: 150.00,
+				Currency:    "USD",
+			},
+			PropertyDiffs: []engine.PropertyDiff{{Key: "instanceType", OldValue: "t3.small", NewValue: "t3.large"}},
+		},
+	}
+
+	// Pre-populate ComputedDelta (matches production flow).
+	engine.PopulateComputedDeltas(rows, 15)
+
+	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
+	model.state = ViewStateDetail
+	model.selected = 0
+	model.allRows = rows
+	model.rows = rows
+
+	output := model.View().Content
+	assert.Contains(t, output, "COST IMPACT")
+	assert.Contains(t, output, "Current (est. monthly)")
+	assert.Contains(t, output, "After Change")
+	assert.Contains(t, output, "$150.00")
+	assert.Contains(t, output, "Delta")
+}

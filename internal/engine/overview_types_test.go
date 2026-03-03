@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -714,6 +715,142 @@ func TestStackContext_Validate(t *testing.T) {
 				assert.ErrorIs(t, err, ErrOverviewValidation)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// PropertyDiff JSON serialization
+// ---------------------------------------------------------------------------
+
+func TestPropertyDiff_JSONRoundTrip(t *testing.T) {
+	diff := PropertyDiff{
+		Key:      "instanceType",
+		OldValue: "t3.medium",
+		NewValue: "t3.large",
+	}
+
+	data, err := json.Marshal(diff)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"key":"instanceType"`)
+	assert.Contains(t, string(data), `"oldValue":"t3.medium"`)
+	assert.Contains(t, string(data), `"newValue":"t3.large"`)
+
+	var parsed PropertyDiff
+	require.NoError(t, json.Unmarshal(data, &parsed))
+	assert.Equal(t, diff, parsed)
+}
+
+func TestPropertyDiffs_JSONPresence(t *testing.T) {
+	tests := []struct {
+		name            string
+		structType      string // "PlanStep" or "OverviewRow"
+		fixture         interface{}
+		wantPresent     bool
+		expectedDiffKey string // checked only when wantPresent is true
+	}{
+		{
+			name:       "PlanStep omits propertyDiffs when empty",
+			structType: "PlanStep",
+			fixture: PlanStep{
+				URN:  "urn:test",
+				Op:   "create",
+				Type: "aws:ec2:Instance",
+			},
+			wantPresent: false,
+		},
+		{
+			name:       "PlanStep omits propertyDiffs when non-nil empty slice",
+			structType: "PlanStep",
+			fixture: PlanStep{
+				URN:           "urn:test",
+				Op:            "create",
+				Type:          "aws:ec2:Instance",
+				PropertyDiffs: []PropertyDiff{},
+			},
+			wantPresent: false,
+		},
+		{
+			name:       "PlanStep includes propertyDiffs when present",
+			structType: "PlanStep",
+			fixture: PlanStep{
+				URN:  "urn:test",
+				Op:   "update",
+				Type: "aws:ec2:Instance",
+				PropertyDiffs: []PropertyDiff{
+					{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
+				},
+			},
+			wantPresent:     true,
+			expectedDiffKey: "instanceType",
+		},
+		{
+			name:       "OverviewRow omits propertyDiffs when empty",
+			structType: "OverviewRow",
+			fixture: OverviewRow{
+				URN:    "urn:test",
+				Type:   "aws:ec2:Instance",
+				Status: StatusUpdating,
+			},
+			wantPresent: false,
+		},
+		{
+			name:       "OverviewRow omits propertyDiffs when non-nil empty slice",
+			structType: "OverviewRow",
+			fixture: OverviewRow{
+				URN:           "urn:test",
+				Type:          "aws:ec2:Instance",
+				Status:        StatusUpdating,
+				PropertyDiffs: []PropertyDiff{},
+			},
+			wantPresent: false,
+		},
+		{
+			name:       "OverviewRow includes propertyDiffs when present",
+			structType: "OverviewRow",
+			fixture: OverviewRow{
+				URN:    "urn:test",
+				Type:   "aws:ec2:Instance",
+				Status: StatusUpdating,
+				PropertyDiffs: []PropertyDiff{
+					{Key: "ami", OldValue: "ami-old", NewValue: "ami-new"},
+				},
+			},
+			wantPresent:     true,
+			expectedDiffKey: "ami",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data, err := json.Marshal(tt.fixture)
+			require.NoError(t, err)
+
+			if tt.wantPresent {
+				assert.Contains(t, string(data), "propertyDiffs")
+			} else {
+				assert.NotContains(t, string(data), "propertyDiffs")
+			}
+
+			if !tt.wantPresent {
+				return
+			}
+
+			// Round-trip: unmarshal and verify diff key.
+			switch tt.structType {
+			case "PlanStep":
+				var parsed PlanStep
+				require.NoError(t, json.Unmarshal(data, &parsed))
+				require.Len(t, parsed.PropertyDiffs, 1)
+				assert.Equal(t, tt.expectedDiffKey, parsed.PropertyDiffs[0].Key)
+			case "OverviewRow":
+				var parsed OverviewRow
+				require.NoError(t, json.Unmarshal(data, &parsed))
+				require.Len(t, parsed.PropertyDiffs, 1)
+				assert.Equal(t, tt.expectedDiffKey, parsed.PropertyDiffs[0].Key)
+			default:
+				require.FailNow(t, "unknown structType: %s", tt.structType)
 			}
 		})
 	}

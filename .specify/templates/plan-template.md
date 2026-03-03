@@ -34,7 +34,8 @@
 Verify compliance with PulumiCost Core Constitution (`.specify/memory/constitution.md`):
 
 - [ ] **Plugin-First Architecture**: Is this feature implemented as a plugin or orchestration logic?
-- [ ] **Test-Driven Development**: Are tests planned before implementation? (80% minimum coverage)
+- [ ] **Test-Driven Development**: Are tests planned before implementation?
+  (80% min coverage; TUI changes require golden file snapshots)
 - [ ] **Cross-Platform Compatibility**: Will this work on Linux, macOS, Windows?
 - [ ] **Documentation Integrity**: Are README and docs/ planned for update with verified sync?
 - [ ] **Protocol Stability**: Do protocol changes follow semantic versioning?

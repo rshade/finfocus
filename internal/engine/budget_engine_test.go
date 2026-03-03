@@ -89,6 +89,14 @@ func (m *mockCostSourceClient) DismissRecommendation(
 	return &proto.DismissRecommendationResponse{Success: true}, nil
 }
 
+func (m *mockCostSourceClient) Supports(
+	_ context.Context,
+	_ *pbc.SupportsRequest,
+	_ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	return &pbc.SupportsResponse{Supported: true}, nil
+}
+
 func TestEngine_GetBudgets(t *testing.T) {
 	ctx := context.Background()
 

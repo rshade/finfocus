@@ -1,0 +1,25 @@
+╭────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ RESOURCE DETAIL                                                                                │
+│                                                                                                │
+│ URN:    urn:pulumi:prod::myapp::aws:ec2/instance:Instance::api-server                          │
+│ Type:   aws:ec2/instance:Instance                                                              │
+│ Status: replacing                                                                              │
+│                                                                                                │
+│ PROPERTY CHANGES                                                                               │
+│   ami         : ami-old12345 → ami-new67890                                                    │
+│   instanceType: t3.small → t3.xlarge                                                           │
+│                                                                                                │
+│ ACTUAL COST (MTD)                                                                              │
+│   Total: $30.00                                                                                │
+│                                                                                                │
+│ PROJECTED COST (Monthly)                                                                       │
+│   Total: $120.00                                                                               │
+│                                                                                                │
+│ COST IMPACT                                                                                    │
+│   Current (est. monthly): $60.00                                                               │
+│   After Change:           $120.00                                                              │
+│   Delta:                  +$60.00                                                              │
+│                                                                                                │
+│                                                                                                │
+│ Press ESC to return                                                                            │
+╰────────────────────────────────────────────────────────────────────────────────────────────────╯

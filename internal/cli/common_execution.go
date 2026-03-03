@@ -618,22 +618,48 @@ func printTimingOutput(cmd *cobra.Command, start time.Time, resourceCount int, o
 		resourceCount, elapsed.Seconds(), throughput)
 }
 
-// evaluateBudgetStatus checks budget thresholds when all results share the same
-// currency. It extracts the currency, obtains a scope filter from cmd via
-// getBudgetScopeFilter, calls renderBudgetWithScope to produce a budgetResult,
-// and returns any exit error from checkBudgetExitFromResult. Returns nil when
-// currencies are mixed or no budget violation is detected.
+// evaluateBudgetStatus evaluates budgets and renders budget status output.
 func evaluateBudgetStatus(
 	cmd *cobra.Command,
 	results []engine.CostResult,
 	totalCost float64,
 ) error {
+	return evaluateBudgetStatusWithRender(cmd, results, totalCost, true)
+}
+
+// evaluateBudgetStatusWithoutRender evaluates budgets for exit-code behavior
+// without rendering budget status output.
+func evaluateBudgetStatusWithoutRender(
+	cmd *cobra.Command,
+	results []engine.CostResult,
+	totalCost float64,
+) error {
+	return evaluateBudgetStatusWithRender(cmd, results, totalCost, false)
+}
+
+// evaluateBudgetStatusWithRender evaluates budgets and optionally renders status output.
+func evaluateBudgetStatusWithRender(
+	cmd *cobra.Command,
+	results []engine.CostResult,
+	totalCost float64,
+	render bool,
+) error {
 	currency, mixedCurrencies := extractCurrencyFromResults(results)
 	if mixedCurrencies {
 		return nil
 	}
-	scopeFilter := getBudgetScopeFilter(cmd)
-	budgetResult, budgetErr := renderBudgetWithScope(cmd, results, totalCost, currency, scopeFilter)
+
+	var (
+		budgetResult *BudgetRenderResult
+		budgetErr    error
+	)
+	if render {
+		scopeFilter := getBudgetScopeFilter(cmd)
+		budgetResult, budgetErr = renderBudgetWithScope(cmd, results, totalCost, currency, scopeFilter)
+	} else {
+		budgetResult, budgetErr = evaluateBudgetWithScope(cmd, results, totalCost, currency)
+	}
+
 	return checkBudgetExitFromResult(cmd, budgetResult, budgetErr)
 }
 

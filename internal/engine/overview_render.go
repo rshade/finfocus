@@ -208,25 +208,13 @@ func formatProjectedColumn(row OverviewRow) string {
 	return FormatOverviewCurrency(row.ProjectedCost.MonthlyCost)
 }
 
-// formatDeltaColumn formats the delta column. When CostDrift is available its
-// pre-computed Delta is used for consistency with the TUI's buildOverviewTable.
-// Otherwise falls back to Projected - MTD Actual.
+// formatDeltaColumn reads the pre-computed ComputedDelta from the row.
+// PopulateComputedDeltas must be called before rendering.
 func formatDeltaColumn(row OverviewRow) string {
-	if row.CostDrift != nil {
-		return FormatOverviewDelta(row.CostDrift.Delta)
-	}
-	if row.ProjectedCost == nil && row.ActualCost == nil {
+	if row.ComputedDelta == nil {
 		return "-"
 	}
-	projected := 0.0
-	if row.ProjectedCost != nil {
-		projected = row.ProjectedCost.MonthlyCost
-	}
-	actual := 0.0
-	if row.ActualCost != nil {
-		actual = row.ActualCost.MTDCost
-	}
-	return FormatOverviewDelta(projected - actual)
+	return FormatOverviewDelta(*row.ComputedDelta)
 }
 
 func formatDriftColumn(row OverviewRow) string {
@@ -325,7 +313,13 @@ func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx Stac
 		return aggErr
 	}
 
-	totalDelta := t.projected - t.actual
+	// Sum pre-computed per-row deltas for a consistent summary.
+	var totalDelta float64
+	for _, row := range rows {
+		if row.ComputedDelta != nil {
+			totalDelta += *row.ComputedDelta
+		}
+	}
 
 	if _, writeErr := fmt.Fprintf(tw, "SUMMARY\t%s\t%d resources\t%s\t%s\t%s\t\t\n",
 		stackCtx.StackName,
@@ -425,6 +419,14 @@ func RenderOverviewAsJSON(
 		budgets = CalculateBudgetHealthResults(ctx, budgetResult.Budgets)
 	}
 
+	// Sum pre-computed per-row deltas for a consistent summary.
+	var totalDelta float64
+	for _, row := range resources {
+		if row.ComputedDelta != nil {
+			totalDelta += *row.ComputedDelta
+		}
+	}
+
 	// Build output structure
 	output := OverviewJSONOutput{
 		Metadata: OverviewMetadata{
@@ -434,7 +436,7 @@ func RenderOverviewAsJSON(
 		Summary: OverviewSummary{
 			TotalActualMTD:   t.actual,
 			ProjectedMonthly: t.projected,
-			ProjectedDelta:   t.projected - t.actual,
+			ProjectedDelta:   totalDelta,
 			PotentialSavings: t.savings,
 			Currency:         t.currency,
 		},
@@ -453,7 +455,8 @@ func RenderOverviewAsJSON(
 }
 
 // RenderOverviewAsNDJSON renders each overview row as a separate JSON line
-// with no metadata wrapper or summary.
+// with no metadata wrapper or summary. ComputedDelta must be populated
+// before calling this function (via PopulateComputedDeltas).
 func RenderOverviewAsNDJSON(w io.Writer, rows []OverviewRow) error {
 	for _, row := range rows {
 		data, marshalErr := json.Marshal(row)

@@ -17,9 +17,11 @@ type OverviewPreviewTickMsg struct{}
 // If preview failed, StatusByURN is empty and HasChanges is false; the error
 // is logged by the sender. The TUI remains usable in state-only mode.
 type OverviewChangesReadyMsg struct {
-	StatusByURN map[string]engine.ResourceStatus
-	HasChanges  bool
-	ChangeCount int
+	StatusByURN         map[string]engine.ResourceStatus
+	PropertyDiffsByURN  map[string][]engine.PropertyDiff
+	ProjectedPropsByURN map[string]map[string]interface{}
+	HasChanges          bool
+	ChangeCount         int
 }
 
 // OverviewSetStateOnlyMsg is sent after OverviewDataReadyMsg when state-only

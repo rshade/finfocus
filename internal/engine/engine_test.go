@@ -1462,7 +1462,8 @@ func TestGetProjectedCost_PluginError(t *testing.T) {
 	assert.Equal(t, "none", result.Adapter)
 }
 
-// TestGetProjectedCost_MultiPluginSupport tests multiple plugins.
+// TestGetProjectedCost_MultiPluginSupport tests multiple plugins — only the first
+// successful result should be used (break on first success, matching actual cost behavior).
 func TestGetProjectedCost_MultiPluginSupport(t *testing.T) {
 	// Create first plugin
 	helper1 := plugin.NewTestHelper(t)
@@ -1492,15 +1493,11 @@ func TestGetProjectedCost_MultiPluginSupport(t *testing.T) {
 	results, err := eng.GetProjectedCost(ctx, resources)
 
 	require.NoError(t, err)
-	require.Len(t, results, 2) // Should get results from both plugins
+	require.Len(t, results, 1) // Only first successful plugin result is used
 
-	// Verify both plugins contributed
-	adapters := make(map[string]bool)
-	for _, result := range results {
-		adapters[result.Adapter] = true
-	}
-	assert.True(t, adapters["plugin1"])
-	assert.True(t, adapters["plugin2"])
+	// Verify only the first plugin contributed
+	assert.Equal(t, "plugin1", results[0].Adapter)
+	assert.Equal(t, 10.0, results[0].Monthly)
 }
 
 // TestGetProjectedCost_PartialData tests scenario with missing data for some resources.
@@ -1764,4 +1761,182 @@ func TestGetActualCost_TimeRange(t *testing.T) {
 	// Verify monthly projection is calculated
 	assert.Greater(t, result.Monthly, 0.0)
 	assert.Greater(t, result.Hourly, 0.0)
+}
+
+// TestGetProjectedCost_SupportsFilterUnsupported tests that plugins declaring
+// Supported=false via Supports() RPC are filtered out of plugin selection.
+func TestGetProjectedCost_SupportsFilterUnsupported(t *testing.T) {
+	// Create supporting plugin (default: SupportsAll=true)
+	helperSupported := plugin.NewTestHelper(t)
+	helperSupported.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
+		plugin.QuickResponse("USD", 10.0, 0.014))
+
+	// Create non-supporting plugin (e.g., recorder)
+	helperUnsupported := plugin.NewTestHelper(t)
+	helperUnsupported.Plugin().SetSupportsAll(false)
+	// Also configure a $0 response to verify it doesn't contaminate
+	helperUnsupported.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
+		plugin.QuickResponse("USD", 0.0, 0.0))
+
+	connSupported := helperSupported.Dial()
+	connUnsupported := helperUnsupported.Dial()
+
+	// Put unsupported plugin first to prove filtering works regardless of order
+	clients := []*pluginhost.Client{
+		{Name: "recorder", API: proto.NewCostSourceClient(connUnsupported)},
+		{Name: "aws-public", API: proto.NewCostSourceClient(connSupported)},
+	}
+
+	eng := engine.New(clients, nil)
+
+	resources := []engine.ResourceDescriptor{
+		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+	}
+
+	ctx := context.Background()
+	results, err := eng.GetProjectedCost(ctx, resources)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	// Only the supported plugin's result should be used
+	assert.Equal(t, "aws-public", results[0].Adapter)
+	assert.Equal(t, 10.0, results[0].Monthly)
+}
+
+// TestGetProjectedCost_SupportsFailOpen tests that if a plugin's Supports()
+// RPC fails (e.g., unimplemented), the plugin is still included (fail-open).
+func TestGetProjectedCost_SupportsFailOpen(t *testing.T) {
+	// Default mock server uses UnimplementedCostSourceServiceServer, which
+	// returns Unimplemented for Supports(). The engine should treat this as
+	// "supports everything" (fail-open for backward compatibility).
+	helper := plugin.NewTestHelper(t)
+	helper.Plugin().SetSupportsAll(true)
+	helper.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
+		plugin.QuickResponse("USD", 10.0, 0.014))
+
+	conn := helper.Dial()
+	client := &pluginhost.Client{
+		Name: "test-plugin",
+		API:  proto.NewCostSourceClient(conn),
+	}
+
+	eng := engine.New([]*pluginhost.Client{client}, nil)
+
+	resources := []engine.ResourceDescriptor{
+		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+	}
+
+	ctx := context.Background()
+	results, err := eng.GetProjectedCost(ctx, resources)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, "test-plugin", results[0].Adapter)
+	assert.Equal(t, 10.0, results[0].Monthly)
+}
+
+// TestGetProjectedCost_AllUnsupported tests that when all plugins declare
+// Supported=false, the engine falls back to spec or no-cost-data result.
+func TestGetProjectedCost_AllUnsupported(t *testing.T) {
+	helper := plugin.NewTestHelper(t)
+	helper.Plugin().SetSupportsAll(false)
+	helper.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
+		plugin.QuickResponse("USD", 0.0, 0.0))
+
+	conn := helper.Dial()
+	client := &pluginhost.Client{
+		Name: "recorder",
+		API:  proto.NewCostSourceClient(conn),
+	}
+
+	eng := engine.New([]*pluginhost.Client{client}, nil)
+
+	resources := []engine.ResourceDescriptor{
+		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+	}
+
+	ctx := context.Background()
+	results, err := eng.GetProjectedCost(ctx, resources)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	// Should fall back to "none" adapter with no pricing info
+	assert.Equal(t, "none", results[0].Adapter)
+	assert.Contains(t, results[0].Notes, "No pricing information available")
+}
+
+// TestGetProjectedCost_BreakOnFirstSuccess tests that the projected cost loop
+// stops after the first successful plugin result.
+func TestGetProjectedCost_BreakOnFirstSuccess(t *testing.T) {
+	// Create two plugins, both support the resource
+	helper1 := plugin.NewTestHelper(t)
+	helper1.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
+		plugin.QuickResponse("USD", 10.0, 0.014))
+
+	helper2 := plugin.NewTestHelper(t)
+	helper2.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
+		plugin.QuickResponse("USD", 999.0, 1.369))
+
+	conn1 := helper1.Dial()
+	conn2 := helper2.Dial()
+
+	clients := []*pluginhost.Client{
+		{Name: "plugin1", API: proto.NewCostSourceClient(conn1)},
+		{Name: "plugin2", API: proto.NewCostSourceClient(conn2)},
+	}
+
+	eng := engine.New(clients, nil)
+
+	resources := []engine.ResourceDescriptor{
+		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+	}
+
+	ctx := context.Background()
+	results, err := eng.GetProjectedCost(ctx, resources)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1) // Only first result, not both
+
+	// First plugin wins
+	assert.Equal(t, "plugin1", results[0].Adapter)
+	assert.Equal(t, 10.0, results[0].Monthly)
+}
+
+// TestGetProjectedCost_FallbackOnFirstPluginError tests that when the first
+// plugin fails, the engine falls back to the next plugin.
+func TestGetProjectedCost_FallbackOnFirstPluginError(t *testing.T) {
+	// First plugin has error injection
+	helper1 := plugin.NewTestHelper(t)
+	helper1.Plugin().SetError("GetProjectedCost", plugin.ErrorUnavailable)
+
+	// Second plugin works
+	helper2 := plugin.NewTestHelper(t)
+	helper2.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
+		plugin.QuickResponse("USD", 12.0, 0.016))
+
+	conn1 := helper1.Dial()
+	conn2 := helper2.Dial()
+
+	clients := []*pluginhost.Client{
+		{Name: "plugin1", API: proto.NewCostSourceClient(conn1)},
+		{Name: "plugin2", API: proto.NewCostSourceClient(conn2)},
+	}
+
+	eng := engine.New(clients, nil)
+
+	resources := []engine.ResourceDescriptor{
+		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+	}
+
+	ctx := context.Background()
+	results, err := eng.GetProjectedCost(ctx, resources)
+
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	// Second plugin should provide the result (fallback from first)
+	assert.Equal(t, "plugin2", results[0].Adapter)
+	assert.Equal(t, 12.0, results[0].Monthly)
 }

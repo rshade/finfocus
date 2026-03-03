@@ -159,6 +159,18 @@ Precedence: CLI flags (`--debug`) > env vars > config file > default (info, cons
 
 ## Testing
 
+### TUI Visual Verification
+
+After modifying `internal/tui/` code, ALWAYS:
+
+1. Render the affected view and read the full output (not just test pass/fail)
+2. Verify column alignment, section ordering, and data population visually
+3. Run golden file tests: `go test -run TestGolden ./internal/tui/...`
+4. Regenerate golden files if layout intentionally changed:
+   `UPDATE_GOLDEN=1 go test -run TestGolden ./internal/tui/...`
+
+String-only assertions (`assert.Contains`) are NOT sufficient for TUI testing.
+
 ### E2E Testing
 
 **Location**: `test/e2e/` (separate Go module)
@@ -345,6 +357,96 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 - **Cache hits**: Append ` (cached)` to the Adapter field for visual feedback
 - **Cache corruption**: Auto-detected and auto-recovered (delete + recreate)
 
+### Overview Field Semantics (`internal/engine/overview_*.go`)
+
+Understanding what each field *means* prevents the most common overview bugs.
+Every field on `OverviewRow` has a specific temporal basis, population rule,
+and set of valid comparisons. Violating these invariants produces subtle bugs
+(misleading deltas, nonsensical drift, UI garbage).
+
+#### Cost Fields — Temporal Basis
+
+| Field | Struct | Temporal Basis | Unit | Source |
+| --- | --- | --- | --- | --- |
+| `MTDCost` | `ActualCostData` | Partial month (day 1 → today) | Dollars spent so far | Actual cost plugin |
+| `MonthlyCost` | `ProjectedCostData` | Full canonical month (730h) | Dollars if run all month | Projected cost plugin |
+| `ExtrapolatedMonthly` | `CostDriftData` | Full calendar month (28-31d) | Projected from MTD trend | Calculated by `CalculateCostDrift` |
+| `Delta` | `CostDriftData` | Full calendar month | ExtrapolatedMonthly - Projected | Calculated by `CalculateCostDrift` |
+
+**Key rule**: `MTDCost` and `MonthlyCost` are **different units**. You cannot
+subtract one from the other. To compare them, you must first extrapolate
+`MTDCost` to a full month using `getExtrapolatedActual()` (30-day standard)
+or `CalculateCostDrift()` (calendar-accurate).
+
+#### When Fields Are Nil vs Populated
+
+Fields start nil after merge and get populated during enrichment. What gets
+populated depends on the resource's `Status`:
+
+| Status | `ActualCost` | `ProjectedCost` | `CostDrift` | `PropertyDiffs` |
+| --- | --- | --- | --- | --- |
+| Active | Yes (has billing history) | Yes (current config) | Maybe (nil if < 10% or day < 3) | No (no changes) |
+| Updating | Yes (still running) | Yes (new config pricing) | Maybe | Yes (what changed) |
+| Replacing | Yes (old resource billing) | Yes (new resource pricing) | Maybe | Yes (what changed) |
+| Creating | No (doesn't exist yet) | Yes (new resource pricing) | No (no history) | No |
+| Deleting | Yes (still running) | No (will be removed) | No (no projection) | No |
+
+This table is the **source of truth** for which cost computations are valid
+per status. If a formula assumes a field is non-nil, check this table first.
+
+#### Delta Column — What It Means Per Status
+
+The "Delta" TUI column answers: "how will this change affect my monthly bill?"
+Use `CalculateRowDelta()` — it encodes status-aware logic:
+
+| Status | Delta Formula | Meaning |
+| --- | --- | --- |
+| Updating/Replacing | `projected - extrapolatedActual` | Cost impact of the config change |
+| Creating | `+projected` | New cost being added |
+| Deleting | `-extrapolatedActual` | Cost being removed |
+| Active (with drift) | `CostDrift.Delta` | How much actual spend deviates from projection |
+| Active (no drift) | `-` (no delta shown) | Spend is tracking projection (< 10% off) |
+
+#### Extrapolation — Two Methods, Intentionally Different
+
+| Function | Month Basis | Used For |
+| --- | --- | --- |
+| `getExtrapolatedActual()` | 30-day standard | Delta calculations (consistent cross-month) |
+| `CalculateCostDrift()` | Calendar days (28-31) | Drift % (calendar-accurate precision) |
+
+Do not unify these. Delta uses 30-day for stable comparisons across months.
+Drift uses calendar days because a February drift % must account for 28 days.
+
+#### Drift Nil Cases
+
+`CostDrift` is nil (not populated) in these cases — all intentional:
+
+- **Day 1-2 of month** (`driftMinDay = 3`): insufficient data
+- **Drift < 10%** (`driftWarningThreshold`): not significant enough to show
+- **New resource** (has projected, no actual): nothing to extrapolate from
+- **Deleted resource** (has actual, no projected): nothing to compare against
+- **Recently created** (`CreatedAt` within billing window, < 3 days old)
+
+Code must always handle `row.CostDrift == nil` as a normal case, not an error.
+
+#### Pulumi Plan Data — What to Filter
+
+`PulumiStep.OldState.Inputs` and `NewState.Inputs` contain both user-specified
+properties and Pulumi internal metadata. When displaying to users:
+
+- **Filter keys prefixed with `__`** (e.g., `__defaults`, `__provider`) —
+  these are Pulumi SDK internals, not user properties
+- **Truncate values** in TUI to prevent wrapping (max 40 chars via
+  `truncateDiffValue()`) — Pulumi inputs can contain large arrays/objects
+- **PropertyDiff data flow**: Plan JSON → `diffInputs()` (CLI) →
+  `PlanStep.PropertyDiffs` → merge → `OverviewRow.PropertyDiffs` → TUI view
+
+#### State-Only Mode
+
+When no preview is provided, overview shows state resources with `*` footnote
+on projected costs. The `p` key triggers on-demand preview; when it completes,
+`ApplyChangesToRows()` and `ApplyPropertyDiffsToRows()` update rows in-place.
+
 ### GitHub Actions (`.github/workflows/`)
 
 - **OpenCode Action** (`sst/opencode/github@dev`) ONLY works with `issue_comment` events.
@@ -362,4 +464,3 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 - Bubbles v2 (`charm.land/bubbles/v2 v2.0.0`) (604-charm-v2-upgrade)
 - Lip Gloss v2 (`charm.land/lipgloss/v2 v2.0.0`) (604-charm-v2-upgrade)
 - CLI commands using Cobra, tabwriter, and Viper for config parsing
-

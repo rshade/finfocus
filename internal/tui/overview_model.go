@@ -435,6 +435,10 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.isStateOnly = false
 		// Safe: Bubble Tea Update() is single-threaded; no concurrent reads on allRows.
 		engine.ApplyChangesToRows(m.allRows, changesMsg.StatusByURN)
+		engine.ApplyPropertyDiffsToRows(m.allRows, changesMsg.PropertyDiffsByURN)
+		engine.ApplyProjectedPropertiesToRows(m.allRows, changesMsg.ProjectedPropsByURN)
+		// Recompute deltas after status/property changes.
+		engine.PopulateComputedDeltas(m.allRows, time.Now().Day())
 		m.applyFilter(m.textInput.Value())
 		return m, nil
 	}
@@ -766,26 +770,13 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 	return t
 }
 
-// formatOverviewDeltaCell formats delta for table display. It prefers drift
-// delta when available and otherwise falls back to projected-actual.
+// formatOverviewDeltaCell reads the pre-computed ComputedDelta from the row.
+// PopulateComputedDeltas must be called before rendering.
 func formatOverviewDeltaCell(row engine.OverviewRow) string {
-	if row.CostDrift != nil {
-		return engine.FormatOverviewDelta(row.CostDrift.Delta)
-	}
-	if row.ProjectedCost == nil && row.ActualCost == nil {
+	if row.ComputedDelta == nil {
 		return "-"
 	}
-
-	projected := 0.0
-	if row.ProjectedCost != nil {
-		projected = row.ProjectedCost.MonthlyCost
-	}
-	actual := 0.0
-	if row.ActualCost != nil {
-		actual = row.ActualCost.MTDCost
-	}
-
-	return engine.FormatOverviewDelta(projected - actual)
+	return engine.FormatOverviewDelta(*row.ComputedDelta)
 }
 
 // truncateResourceName shortens a URN for display within the given maxLen.
@@ -852,12 +843,13 @@ func (m *OverviewModel) getCost(row engine.OverviewRow) float64 {
 	return 0.0
 }
 
-// getDelta returns the drift delta for sorting.
+// getDelta returns the delta for sorting, reading the pre-computed
+// ComputedDelta to keep display and sort order consistent.
 func (m *OverviewModel) getDelta(row engine.OverviewRow) float64 {
-	if row.CostDrift != nil {
-		return row.CostDrift.Delta
+	if row.ComputedDelta == nil {
+		return 0.0
 	}
-	return 0.0
+	return *row.ComputedDelta
 }
 
 // enablePaginationIfNeeded checks if pagination should be enabled and clamps

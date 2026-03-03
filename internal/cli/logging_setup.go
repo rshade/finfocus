@@ -52,10 +52,12 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	result := logging.NewLoggerWithPath(loggingCfg.ToLoggingConfig())
 	logger = logging.ComponentLogger(result.Logger, "cli")
 
-	if result.UsingFile {
-		logging.PrintLogPathMessage(cmd.ErrOrStderr(), result.FilePath)
-	} else if result.FallbackUsed {
-		logging.PrintFallbackWarning(cmd.ErrOrStderr(), result.FallbackReason)
+	if !suppressAuxOutputFromContext(cmd.Context()) {
+		if result.UsingFile {
+			logging.PrintLogPathMessage(cmd.ErrOrStderr(), result.FilePath)
+		} else if result.FallbackUsed {
+			logging.PrintFallbackWarning(cmd.ErrOrStderr(), result.FallbackReason)
+		}
 	}
 
 	skipVersionCheck, _ := cmd.Flags().GetBool("skip-version-check")
