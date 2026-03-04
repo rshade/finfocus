@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/rshade/finfocus/internal/logging"
@@ -77,6 +78,28 @@ func (r *execRunner) Run(
 
 // Runner is the package-level CommandRunner. Replace in tests with a mock.
 var Runner CommandRunner = &execRunner{} //nolint:gochecknoglobals // Required for test injection
+var runnerMu sync.Mutex                  //nolint:gochecknoglobals // Guards package-level Runner access.
+
+func getRunner() CommandRunner {
+	runnerMu.Lock()
+	defer runnerMu.Unlock()
+	return Runner
+}
+
+func setRunner(r CommandRunner) {
+	runnerMu.Lock()
+	defer runnerMu.Unlock()
+	Runner = r
+}
+
+// SetRunnerForTest replaces Runner with r and returns a function that restores
+// the original. Callers should defer (or t.Cleanup) the returned function.
+// This avoids cross-package reassignment of the Runner variable.
+func SetRunnerForTest(r CommandRunner) func() {
+	orig := getRunner()
+	setRunner(r)
+	return func() { setRunner(orig) }
+}
 
 // FindBinary locates the `pulumi` executable using the system PATH and returns its full path.
 // If the executable cannot be found, it returns the error produced by NotFoundError.
@@ -127,7 +150,7 @@ func GetCurrentStack(ctx context.Context, projectDir string) (string, error) {
 		Str("project_dir", projectDir).
 		Msg("listing Pulumi stacks")
 
-	stdout, stderr, err := Runner.Run(ctx, projectDir, "pulumi", nil, "stack", "ls", "--json")
+	stdout, stderr, err := getRunner().Run(ctx, projectDir, "pulumi", nil, "stack", "ls", "--json")
 	if err != nil {
 		return "", fmt.Errorf("running pulumi stack ls: %w: %s", err, strings.TrimSpace(string(stderr)))
 	}
@@ -193,7 +216,7 @@ func runPulumiCommand(ctx context.Context, cfg pulumiCmdConfig) ([]byte, error) 
 		Str("stack", cfg.stack).
 		Msg(cfg.logMessage)
 
-	stdout, stderr, err := Runner.Run(ctx, cfg.projectDir, "pulumi", cfg.extraEnv, args...)
+	stdout, stderr, err := getRunner().Run(ctx, cfg.projectDir, "pulumi", cfg.extraEnv, args...)
 	if err != nil {
 		if ctx.Err() == context.DeadlineExceeded {
 			return nil, fmt.Errorf(

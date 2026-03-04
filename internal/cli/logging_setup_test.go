@@ -134,3 +134,32 @@ func TestSetupLogging_LogPathMessageSuppression(t *testing.T) {
 		assert.NotContains(t, errBuf.String(), "Logging to:")
 	})
 }
+
+// TestSetupLogging_DebugPreservesFileOutput verifies that --debug raises log
+// level without forcing logs off the configured file sink.
+func TestSetupLogging_DebugPreservesFileOutput(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+	t.Setenv("FINFOCUS_ANALYZER_MODE", "")
+	logPath := filepath.Join(tmpDir, "logs", "finfocus.log")
+	config.SetGlobalConfig(&config.Config{
+		Logging: config.LoggingConfig{
+			Level:  "info",
+			Format: "json",
+			File:   logPath,
+		},
+	})
+	t.Cleanup(config.ResetGlobalConfigForTest)
+
+	cmd := newTestLoggingCmd()
+	require.NoError(t, cmd.PersistentFlags().Set("debug", "true"))
+	var errBuf bytes.Buffer
+	cmd.SetErr(&errBuf)
+
+	result := setupLogging(cmd)
+	defer func() { _ = result.Close() }()
+
+	require.True(t, result.UsingFile)
+	assert.Equal(t, logPath, result.FilePath)
+	assert.Contains(t, errBuf.String(), "Logging to:")
+}

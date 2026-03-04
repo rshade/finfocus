@@ -39,14 +39,11 @@ func (m *mockRunner) Run(
 }
 
 // withMockRunner replaces the package-level Runner with a mock and restores it
-// on cleanup. WARNING: This helper swaps a global variable without synchronization
-// and must NOT be used from tests that call t.Parallel(). For parallel-safe testing,
-// prefer dependency injection (pass a Runner into the code under test).
+// on cleanup. This still mutates global package state, so tests that use this
+// helper must not run in parallel with each other.
 func withMockRunner(t *testing.T, m *mockRunner) {
 	t.Helper()
-	orig := Runner
-	Runner = m
-	t.Cleanup(func() { Runner = orig })
+	t.Cleanup(SetRunnerForTest(m))
 }
 
 // --- T002: FindBinary tests ---
