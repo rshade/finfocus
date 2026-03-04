@@ -20,6 +20,7 @@ func TestIsValidFeature(t *testing.T) {
 		{"Carbon", "Carbon", true},
 		{"DryRun", "DryRun", true},
 		{"Budgets", "Budgets", true},
+		{"BatchCost", "BatchCost", true},
 
 		// Invalid features (case-sensitive)
 		{"lowercase projected", "projectedcosts", false},
@@ -43,7 +44,7 @@ func TestIsValidFeature(t *testing.T) {
 func TestValidFeatures(t *testing.T) {
 	features := ValidFeatures()
 
-	require.Len(t, features, 6, "should have 6 valid features")
+	require.Len(t, features, 7, "should have 7 valid features")
 
 	expected := []Feature{
 		FeatureProjectedCosts,
@@ -52,6 +53,7 @@ func TestValidFeatures(t *testing.T) {
 		FeatureCarbon,
 		FeatureDryRun,
 		FeatureBudgets,
+		FeatureBatchCost,
 	}
 
 	assert.Equal(t, expected, features)
@@ -60,7 +62,7 @@ func TestValidFeatures(t *testing.T) {
 func TestValidFeatureNames(t *testing.T) {
 	names := ValidFeatureNames()
 
-	require.Len(t, names, 6)
+	require.Len(t, names, 7)
 
 	expected := []string{
 		"ProjectedCosts",
@@ -69,6 +71,7 @@ func TestValidFeatureNames(t *testing.T) {
 		"Carbon",
 		"DryRun",
 		"Budgets",
+		"BatchCost",
 	}
 
 	assert.Equal(t, expected, names)
@@ -115,6 +118,7 @@ func TestFeatureFromMethod(t *testing.T) {
 		{"GetBudgets", "GetBudgets", FeatureBudgets, true},
 		{"GetBudgetHealth", "GetBudgetHealth", FeatureBudgets, true},
 		{"EvaluateBudgetAlert", "EvaluateBudgetAlert", FeatureBudgets, true},
+		{"BatchCost", "BatchCost", FeatureBatchCost, true},
 
 		// Invalid method mappings
 		{"empty", "", "", false},

@@ -455,6 +455,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 ## Recent Changes
 
+- 605-batch-cost-capability: Added batch cost capability to router feature mapping
 - 604-charm-v2-upgrade: Added Go 1.25.8 (see `go.mod`)
 
 ## Active Technologies
@@ -463,4 +464,5 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 - Bubble Tea v2 (`charm.land/bubbletea/v2 v2.0.0`) (604-charm-v2-upgrade)
 - Bubbles v2 (`charm.land/bubbles/v2 v2.0.0`) (604-charm-v2-upgrade)
 - Lip Gloss v2 (`charm.land/lipgloss/v2 v2.0.0`) (604-charm-v2-upgrade)
+- finfocus-spec v0.5.7+ with BATCH_COST capability (605-batch-cost-capability)
 - CLI commands using Cobra, tabwriter, and Viper for config parsing

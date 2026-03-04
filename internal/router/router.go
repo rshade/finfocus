@@ -493,6 +493,8 @@ func capabilityEnumFromFeature(feature Feature) (pbc.PluginCapability, bool) {
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_DRY_RUN, true
 	case FeatureBudgets:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS, true
+	case FeatureBatchCost:
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, true
 	default:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED, false
 	}
@@ -512,6 +514,8 @@ func capabilityEnumFromString(capability string) (pbc.PluginCapability, bool) {
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_DRY_RUN, true
 	case "Budgets", "budgets":
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_BUDGETS, true
+	case "BatchCost", "batch_cost":
+		return pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, true
 	default:
 		return pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED, false
 	}
