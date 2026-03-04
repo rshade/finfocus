@@ -139,6 +139,8 @@ func TestSetupLogging_LogPathMessageSuppression(t *testing.T) {
 // level without forcing logs off the configured file sink.
 func TestSetupLogging_DebugPreservesFileOutput(t *testing.T) {
 	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+	t.Setenv("FINFOCUS_ANALYZER_MODE", "")
 	logPath := filepath.Join(tmpDir, "logs", "finfocus.log")
 	config.SetGlobalConfig(&config.Config{
 		Logging: config.LoggingConfig{

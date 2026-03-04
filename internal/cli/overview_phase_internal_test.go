@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -18,6 +19,8 @@ import (
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/tui"
 )
+
+const goosWindows = "windows"
 
 type testNoopModel struct{}
 
@@ -182,6 +185,11 @@ func TestStackSettingsNameCandidates_QualifiedStack(t *testing.T) {
 	require.Equal(t, []string{"dev", "acme/infra/dev"}, candidates)
 }
 
+func TestStackSettingsNameCandidates_QualifiedStack_Windows(t *testing.T) {
+	candidates := stackSettingsNameCandidates(`acme\infra\dev`)
+	require.Equal(t, []string{"dev", `acme\infra\dev`}, candidates)
+}
+
 func TestReadStackSettingsFile_QualifiedStackUsesShortName(t *testing.T) {
 	tmpDir := t.TempDir()
 	want := "encryptionsalt: v1:abc123\n"
@@ -218,7 +226,11 @@ func TestCheckAndPromptPassphrase_QualifiedStackEndToEnd(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
 	// Make FindBinary() succeed without depending on a system Pulumi install.
-	fakePulumi := filepath.Join(tmpDir, "pulumi")
+	pulumiName := "pulumi"
+	if runtime.GOOS == goosWindows {
+		pulumiName += ".exe"
+	}
+	fakePulumi := filepath.Join(tmpDir, pulumiName)
 	require.NoError(t, os.WriteFile(fakePulumi, []byte("#!/bin/sh\nexit 0\n"), 0o755))
 	t.Setenv("PATH", tmpDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
@@ -232,10 +244,8 @@ func TestCheckAndPromptPassphrase_QualifiedStackEndToEnd(t *testing.T) {
 		os.WriteFile(filepath.Join(tmpDir, "Pulumi.dev.yaml"), []byte("encryptionsalt: v1:abc123\n"), 0o600),
 	)
 
-	origRunner := pulumidetect.Runner
 	mockRunner := &stackLSMockRunner{t: t, stack: "acme/infra/dev"}
-	pulumidetect.Runner = mockRunner
-	t.Cleanup(func() { pulumidetect.Runner = origRunner })
+	t.Cleanup(pulumidetect.SetRunnerForTest(mockRunner))
 
 	// Use a canceled program context so p.Send() is non-blocking in tests.
 	progCtx, cancelProgram := context.WithCancel(context.Background())
