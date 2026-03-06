@@ -12,7 +12,7 @@ HTTP handling (#654), test infrastructure (#605), code quality (#610), and CI wo
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: Cobra v1.10.2 (CLI), gRPC v1.79.1 (plugins), zerolog v1.34.0 (logging), testify v1.11.1 (testing)
 **Storage**: Local filesystem (cache files at `~/.finfocus/cache/`), no database
 **Testing**: `go test` with testify assertions, `make test` / `make test-race`

@@ -81,6 +81,6 @@ go test -v -tags nightly ./test/integration/...
 
 ## Prerequisites
 
-- Go 1.25.7+ installed
+- Go 1.25.8+ installed
 - `make build` completed (for binary-dependent tests)
 - No cloud credentials needed (all tests use mock plugins)

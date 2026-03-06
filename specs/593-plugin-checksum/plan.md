@@ -18,7 +18,7 @@ the download pipeline, and a new `--skip-checksum` flag in `plugin_install.go`.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: `crypto/sha256` (stdlib), `encoding/hex` (stdlib), existing
 `internal/registry` package (`GitHubClient`, `Installer`, `GitHubRelease`)
 **Storage**: N/A (verification is transient, no persistent state)

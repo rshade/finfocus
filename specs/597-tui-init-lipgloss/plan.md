@@ -11,7 +11,7 @@ This is a single-function change to `internal/tui/overview_view.go` with two new
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: `github.com/charmbracelet/lipgloss` (already imported in file)
 **Storage**: N/A
 **Testing**: `go test` + `github.com/stretchr/testify` (assert/require)

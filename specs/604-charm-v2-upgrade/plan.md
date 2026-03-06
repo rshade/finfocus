@@ -14,7 +14,7 @@ field access patterns (getter/setter methods for width/height). The migration to
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7 (see `go.mod`)
+**Language/Version**: Go 1.25.8 (see `go.mod`)
 **Primary Dependencies**:
 
 - `charm.land/bubbletea/v2` (from `github.com/charmbracelet/bubbletea v1.3.10`)

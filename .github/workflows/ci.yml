@@ -12,7 +12,7 @@ permissions:
   checks: write
 
 env:
-  GO_VERSION: '1.25.7'
+  GO_VERSION: '1.25.8'
   # Bypass Go proxy for rshade modules - fetch directly from GitHub
   GOPRIVATE: github.com/rshade/*
 

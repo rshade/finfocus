@@ -9,7 +9,7 @@ Replace the current smoke-only benchmark job in `ci.yml` (lines 213-234) with a 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: GitHub Actions (actions/checkout@v6, actions/setup-go@v6, actions/cache@v5, actions/github-script@v7), golang.org/x/perf/cmd/benchstat
 **Storage**: GitHub Actions cache (benchmark baseline file)
 **Testing**: `go test -bench` with benchstat for statistical comparison

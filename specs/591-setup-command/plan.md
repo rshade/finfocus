@@ -15,7 +15,7 @@ download) produce warnings without blocking subsequent steps.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: cobra v1.10.2 (CLI), golang.org/x/term (TTY detection), zerolog v1.34.0 (logging)
 **Storage**: Filesystem only — directories, YAML config file, symlinks/copies for analyzer
 **Testing**: go test with testify (assert/require), t.TempDir() for isolation

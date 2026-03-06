@@ -112,4 +112,4 @@ make test-e2e
 | `charmbracelet/lipgloss` | v1.1.0 | TUI styling |
 | `stretchr/testify` | v1.11.1 | Test assertions |
 
-Go version: **1.25.7** (see `go.mod`)
+Go version: **1.25.8** (see `go.mod`)

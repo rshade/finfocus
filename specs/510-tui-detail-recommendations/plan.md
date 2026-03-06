@@ -18,7 +18,7 @@ for users to switch to a separate recommendations command. The implementation in
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: `bubbletea` v1.3.10, `lipgloss` v1.1.0, `finfocus-spec`
 v0.5.5, `zerolog` v1.34.0, `testify` v1.11.1
 **Storage**: N/A (no new persistence)

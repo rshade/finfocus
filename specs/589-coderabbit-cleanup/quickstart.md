@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Go 1.25.7
+- Go 1.25.8
 - Node.js (for `npx prettier` and `npx markdownlint-cli`)
 - `golangci-lint` installed
 

@@ -14,7 +14,7 @@ precedence) after all goroutines complete.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: `sync` (stdlib), zerolog (logging)
 **Storage**: N/A (no storage changes)
 **Testing**: `go test -race`, testify (assert/require)

@@ -13,7 +13,7 @@ and preserve existing table output behavior.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol)
 **Storage**: N/A (stateless CLI)
 **Testing**: `go test` with testify v1.11.1

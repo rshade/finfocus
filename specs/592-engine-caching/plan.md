@@ -12,7 +12,7 @@ and renaming the cache env var to `FINFOCUS_CACHE_TTL`.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: `internal/engine/cache` (FileStore, KeyParams, GenerateKey)
 **Storage**: File-based JSON cache at `~/.finfocus/cache/`
 **Testing**: `go test` with testify (`require`/`assert`), table-driven tests

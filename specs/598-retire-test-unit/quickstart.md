@@ -6,7 +6,7 @@ This guide shows how to verify the migration is complete and correct.
 
 ## Prerequisites
 
-- Go 1.25.7 installed
+- Go 1.25.8 installed
 - Repository cloned and dependencies fetched (`go mod download`)
 - `make` available
 

@@ -335,7 +335,7 @@ justification comments, create nightly CI workflow, and add go.mod sync check.
   (3) Approximate execution time (10-30s per test due to binary compilation)
 - [x] T036 [P] [US6] Create `.github/workflows/nightly.yml` — GitHub Actions workflow
   triggered by `schedule` (cron: `0 3 * * *` UTC) and `workflow_dispatch` (manual),
-  running on `ubuntu-latest`, checking out `main` branch, setting up Go 1.25.7,
+  running on `ubuntu-latest`, checking out `main` branch, setting up Go 1.25.8,
   running `go test -v -tags nightly -race -timeout 15m ./test/integration/...`, with
   proper caching of Go modules and build artifacts
 - [x] T037 [P] [US6] Add go.mod sync verification step to `.github/workflows/ci.yml` —

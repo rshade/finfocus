@@ -15,7 +15,7 @@ CLI helper rather than creating new frameworks.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7 (see `go.mod`)
+**Language/Version**: Go 1.25.8 (see `go.mod`)
 **Primary Dependencies**: testify (assert/require), BoltDB (bbolt), Bubble Tea
 (bubbletea), zerolog, cobra, gRPC, Pulumi SDK v3.210.0+
 **Storage**: BoltDB for cache (`cache.db`), YAML for config, JSON for fixtures

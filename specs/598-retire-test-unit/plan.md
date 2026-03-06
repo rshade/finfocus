@@ -14,7 +14,7 @@ Makefile changes required.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: `github.com/stretchr/testify` (assertions, already a dep)
 **Storage**: N/A — file system only (source migration, no new storage)
 **Testing**: `go test ./internal/... ./pkg/...` via `make test` and `make test-race`

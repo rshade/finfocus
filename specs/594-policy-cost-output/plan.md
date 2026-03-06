@@ -9,7 +9,7 @@ Enable cost-based policy enforcement by extending the analyzer to: (1) write a s
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: Pulumi SDK v3.220.0 (EnforcementLevel protobuf), cobra, zerolog, finfocus-spec v0.5.6
 **Storage**: JSON file (`last-cost-summary.json`) using atomic write pattern (temp file + rename)
 **Testing**: `go test` with testify (assert/require), 80% minimum coverage
