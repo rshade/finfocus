@@ -4,19 +4,19 @@ go 1.25.7
 
 require (
 	charm.land/bubbles/v2 v2.0.0
-	charm.land/bubbletea/v2 v2.0.0
+	charm.land/bubbletea/v2 v2.0.1
 	charm.land/lipgloss/v2 v2.0.0
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/charmbracelet/x/ansi v0.11.6
 	github.com/oklog/ulid/v2 v2.1.1
-	github.com/pulumi/pulumi/sdk/v3 v3.224.0
+	github.com/pulumi/pulumi/sdk/v3 v3.225.1
 	github.com/rs/zerolog v1.34.0
 	github.com/rshade/finfocus-spec v0.5.7
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/term v0.40.0
 	golang.org/x/text v0.34.0
-	google.golang.org/grpc v1.79.1
+	google.golang.org/grpc v1.79.2
 	google.golang.org/protobuf v1.36.11
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -24,7 +24,7 @@ require (
 require (
 	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be // no tagged release; pinned to last known-good commit
 	go.etcd.io/bbolt v1.4.3
-	golang.org/x/sync v0.19.0
+	golang.org/x/sync v0.20.0
 )
 
 require (
