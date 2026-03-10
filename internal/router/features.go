@@ -29,10 +29,13 @@ const (
 
 	// FeatureBudgets enables budget tracking and alerts.
 	FeatureBudgets Feature = "Budgets"
+
+	// FeatureBatchCost enables batch cost queries across multiple resources.
+	FeatureBatchCost Feature = "BatchCost"
 )
 
 // ValidFeatures returns all supported Feature values (ProjectedCosts, ActualCosts,
-// Recommendations, Carbon, DryRun, Budgets).
+// Recommendations, Carbon, DryRun, Budgets, BatchCost).
 func ValidFeatures() []Feature {
 	return []Feature{
 		FeatureProjectedCosts,
@@ -41,6 +44,7 @@ func ValidFeatures() []Feature {
 		FeatureCarbon,
 		FeatureDryRun,
 		FeatureBudgets,
+		FeatureBatchCost,
 	}
 }
 
@@ -105,6 +109,7 @@ var methodToFeature = map[string]Feature{
 	"GetBudgets":          FeatureBudgets,
 	"GetBudgetHealth":     FeatureBudgets,
 	"EvaluateBudgetAlert": FeatureBudgets,
+	"BatchCost":           FeatureBatchCost,
 }
 
 // FeatureFromMethod returns the Feature corresponding to a gRPC method name.

@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
@@ -472,6 +473,30 @@ func TestSelectPlugins_InternalPulumiTypeFiltering(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			matches := router.SelectPlugins(ctx, tt.resource, "ProjectedCosts")
 			assert.Len(t, matches, tt.wantMatches)
+		})
+	}
+}
+
+func TestCapabilityEnumFromFeature_BatchCost(t *testing.T) {
+	capability, ok := capabilityEnumFromFeature(FeatureBatchCost)
+	require.True(t, ok)
+	assert.Equal(t, pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, capability)
+}
+
+func TestCapabilityEnumFromString_BatchCost(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"PascalCase", "BatchCost"},
+		{"snake_case", "batch_cost"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			capability, ok := capabilityEnumFromString(tt.input)
+			require.True(t, ok)
+			assert.Equal(t, pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, capability)
 		})
 	}
 }
