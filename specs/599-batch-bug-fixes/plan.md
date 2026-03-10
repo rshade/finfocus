@@ -12,7 +12,7 @@ implementable and testable. The largest fixes are the AnalyzeStack zero-cost bug
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: `github.com/rshade/finfocus-spec` (pluginsdk, proto types),
 `github.com/rs/zerolog` (logging), `github.com/spf13/cobra` (CLI), `google.golang.org/grpc`
 **Storage**: N/A (no new persistent storage; BoltDB cache is untouched)

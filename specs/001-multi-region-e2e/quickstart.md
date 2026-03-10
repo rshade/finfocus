@@ -2,7 +2,7 @@
 
 **Audience**: Developers implementing or running multi-region E2E tests
 **Time to Complete**: 15-20 minutes
-**Prerequisites**: Go 1.25.7, FinFocus built locally, AWS credentials configured
+**Prerequisites**: Go 1.25.8, FinFocus built locally, AWS credentials configured
 
 ## Overview
 

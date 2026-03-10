@@ -13,7 +13,7 @@ types, and moving the TUI launch before `resolveOverviewData()`.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: Bubble Tea (charmbracelet/bubbletea), Lip Gloss
 (charmbracelet/lipgloss), Cobra (spf13/cobra)
 **Storage**: N/A (no new storage)

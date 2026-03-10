@@ -9,7 +9,7 @@ Wire the existing `internal/router/` package into all CLI cost commands so that 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.6 (protocol), zerolog v1.34.0 (logging)
 **Storage**: N/A (stateless per-invocation; reads `~/.finfocus/config.yaml`)
 **Testing**: testify v1.11.1, `go test`, `make test`, `make lint`

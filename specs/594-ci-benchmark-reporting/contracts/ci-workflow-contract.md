@@ -19,7 +19,7 @@ This contract defines the two benchmark jobs that replace the existing `benchmar
 ### Baseline Steps
 
 1. Checkout code (actions/checkout@v6)
-2. Setup Go 1.25.7 (actions/setup-go@v6, cache: true)
+2. Setup Go 1.25.8 (actions/setup-go@v6, cache: true)
 3. Install benchstat (`go install golang.org/x/perf/cmd/benchstat@latest`)
 4. Run benchmarks with filter:
    - Env: `FINFOCUS_LOG_LEVEL=error`
@@ -28,7 +28,7 @@ This contract defines the two benchmark jobs that replace the existing `benchmar
    - Output: `test/benchmarks/baseline.txt`
 5. Save cache (actions/cache/save@v5):
    - Path: `test/benchmarks/baseline.txt`
-   - Key: `benchmark-baseline-${{ runner.os }}-go1.25.7`
+   - Key: `benchmark-baseline-${{ runner.os }}-go1.25.8`
 
 ### Baseline Outputs
 
@@ -53,10 +53,10 @@ This contract defines the two benchmark jobs that replace the existing `benchmar
 ### Compare Steps
 
 1. Checkout code (actions/checkout@v6)
-2. Setup Go 1.25.7 (actions/setup-go@v6, cache: true)
+2. Setup Go 1.25.8 (actions/setup-go@v6, cache: true)
 3. Install benchstat
 4. Restore baseline cache (actions/cache/restore@v5):
-   - Key: `benchmark-baseline-${{ runner.os }}-go1.25.7`
+   - Key: `benchmark-baseline-${{ runner.os }}-go1.25.8`
    - Step output: `steps.baseline.outputs.cache-hit`
 5. Run benchmarks with filter (same parameters as baseline):
    - Output: `test/benchmarks/current.txt`

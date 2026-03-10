@@ -87,7 +87,7 @@ if err := pluginsdk.ValidateProjectedCostRequest(protoReq); err != nil {
 
 ### Go Standards
 
-- **Go Version**: 1.25.7
+- **Go Version**: 1.25.8
 - **Imports**: Standard library → third-party → internal packages (enforced by `goimports` in golangci-lint)
 - **Error Handling**: Wrap with `%w`: `fmt.Errorf("operation failed: %w", err)`. Sentinel errors: `var ErrName = errors.New("description")`
 - **Logging**: Use `internal/logging` with `logging.FromContext(ctx)`. Include `component` and `operation` fields. Use `Debug` for flow, `Info` for milestones, `Warn` for recoverable issues.

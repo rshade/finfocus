@@ -29,7 +29,7 @@
 
 ## R3: GitHub Actions Cache Strategy for Baseline
 
-**Decision**: Use `actions/cache/save@v5` on main push and `actions/cache/restore@v5` on PR, with a fixed cache key `benchmark-baseline-${{ runner.os }}-go1.25.7`.
+**Decision**: Use `actions/cache/save@v5` on main push and `actions/cache/restore@v5` on PR, with a fixed cache key `benchmark-baseline-${{ runner.os }}-go1.25.8`.
 
 **Rationale**: A fixed key ensures PRs always compare against the latest main baseline. Each main push overwrites the cache entry. Cache eviction (GitHub's 10GB repo limit, 7-day retention) is handled gracefully — if the baseline is missing, the PR job posts an informational comment.
 

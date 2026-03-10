@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Go 1.25.7+
+- Go 1.25.8+
 - `go.etcd.io/bbolt` dependency added to `go.mod`
 
 ## Basic Usage

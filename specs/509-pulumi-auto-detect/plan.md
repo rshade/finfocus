@@ -9,7 +9,7 @@ When `--pulumi-json` and `--pulumi-state` flags are omitted from `finfocus cost 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: Cobra v1.10.2 (CLI), zerolog v1.34.0 (logging), testify v1.11.1 (testing). No new dependencies.
 **Storage**: N/A (stateless CLI invocation)
 **Testing**: `go test` with testify, `make test`, `make lint`

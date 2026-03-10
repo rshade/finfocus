@@ -17,7 +17,7 @@ adds minimal new types.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7 (see `go.mod`)
+**Language/Version**: Go 1.25.8 (see `go.mod`)
 **Primary Dependencies**: Cobra (CLI), gRPC (Pulumi protocol), zerolog (logging),
 Pulumi SDK v3 (Analyzer RPC types), testify (testing)
 **Storage**: Filesystem — `~/.finfocus/analyzer/` (policy pack), `~/.pulumi/plugins/`

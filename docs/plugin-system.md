@@ -267,7 +267,7 @@ export AWS_REGION="us-west-2"
 
 #### Prerequisites
 
-- **Go**: Version 1.25.7 or later
+- **Go**: Version 1.25.8 or later
 - **Protocol Buffers**: For gRPC service definitions
 - **finfocus-spec**: Protocol definitions repository
 
@@ -507,7 +507,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: '1.25.7'
+          go-version: '1.25.8'
 
       - name: Build binaries
         run: |

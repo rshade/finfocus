@@ -47,7 +47,7 @@ finfocus setup
 ## Expected Output (TTY)
 
 ```text
-FinFocus v0.3.0 (go1.25.7)
+FinFocus v0.3.0 (go1.25.8)
 ✓ Pulumi CLI detected (v3.210.0)
 ✓ Created ~/.finfocus/
 ✓ Created ~/.finfocus/plugins/
@@ -63,7 +63,7 @@ Setup complete! Run 'finfocus cost projected --pulumi-json plan.json' to get sta
 ## Expected Output (non-interactive)
 
 ```text
-FinFocus v0.3.0 (go1.25.7)
+FinFocus v0.3.0 (go1.25.8)
 [OK] Pulumi CLI detected (v3.210.0)
 [OK] Created /home/ci/.finfocus/
 [OK] Created /home/ci/.finfocus/plugins/
@@ -79,7 +79,7 @@ Setup complete! Run 'finfocus cost projected --pulumi-json plan.json' to get sta
 ## Idempotent Re-Run Output
 
 ```text
-FinFocus v0.3.0 (go1.25.7)
+FinFocus v0.3.0 (go1.25.8)
 ✓ Pulumi CLI detected (v3.210.0)
 ✓ Directory exists: ~/.finfocus/
 ✓ Directory exists: ~/.finfocus/plugins/

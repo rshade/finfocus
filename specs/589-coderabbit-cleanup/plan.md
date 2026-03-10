@@ -9,7 +9,7 @@ Resolve follow-up items from CodeRabbit review on the Pulumi auto-detect PR (#50
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: Cobra v1.10.2 (CLI), zerolog v1.34.0 (logging), testify v1.11.1 (testing)
 **Storage**: N/A (no storage changes)
 **Testing**: `go test` with testify assertions, `make test` and `make lint`

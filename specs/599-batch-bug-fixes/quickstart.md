@@ -5,7 +5,7 @@
 
 ## Prerequisites
 
-- Go 1.25.7+
+- Go 1.25.8+
 - `make build` producing `bin/finfocus`
 - `finfocus plugin install aws-public` for integration testing
 - `make install-recorder` for recorder plugin tests

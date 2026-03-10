@@ -9,7 +9,7 @@ Implement recommendation lifecycle management (dismiss, snooze, undismiss, histo
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: Cobra v1.10.2 (CLI), gRPC v1.78.0 (plugins), finfocus-spec v0.5.5 (protocol), zerolog v1.34.0 (logging), testify v1.11.1 (testing)
 **Storage**: Local JSON file (`~/.finfocus/dismissed.json`) for dismissal state; plugin-side storage delegated to plugins
 **Testing**: `go test` with testify assertions, table-driven tests, mock plugin patterns

@@ -13,7 +13,7 @@ scope-aware cost allocation in the engine, and provides a grouped CLI display wi
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: github.com/spf13/cobra, github.com/rs/zerolog, gopkg.in/yaml.v3
 **Storage**: ~/.finfocus/config.yaml (YAML file-based configuration)
 **Testing**: go test with testify (80% minimum, 95% critical paths)

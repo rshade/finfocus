@@ -14,7 +14,7 @@ independently to the overview command definition.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: Bubble Tea (charmbracelet/bubbletea), Lip Gloss (charmbracelet/lipgloss), Cobra (spf13/cobra), finfocus-spec (pluginsdk, proto types)
 **Storage**: N/A (no new persistent storage; reads from existing plugin gRPC + config)
 **Testing**: `go test` with testify (assert/require), table-driven tests

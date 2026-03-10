@@ -11,7 +11,7 @@ cost estimates, users will see them during `pulumi preview`.
 
 ## Prerequisites
 
-- Go 1.25.7+
+- Go 1.25.8+
 - Pulumi CLI installed
 - FinFocus binary built (`make build`)
 - A cost plugin that returns recommendations (e.g., aws-public with

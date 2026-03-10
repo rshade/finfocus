@@ -17,7 +17,7 @@ runtime behavior.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: cobra (CLI framework), tabwriter (table formatting),
 encoding/json (JSON output), internal/router, internal/config, internal/pluginhost
 **Storage**: N/A (read-only config file access)

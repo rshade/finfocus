@@ -9,7 +9,7 @@
 
 A text file containing benchstat-compatible benchmark output from the `main` branch.
 
-**Location**: GitHub Actions cache (key: `benchmark-baseline-Linux-go1.25.7`)
+**Location**: GitHub Actions cache (key: `benchmark-baseline-Linux-go1.25.8`)
 **Local path**: `test/benchmarks/baseline.txt` (cached artifact, not committed)
 
 **Format** (benchstat-compatible Go test output):

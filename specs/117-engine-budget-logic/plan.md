@@ -7,7 +7,7 @@
 
 ## Technical Context
 
-**Language/Framework**: Go 1.25.7
+**Language/Framework**: Go 1.25.8
 **Existing Components**:
 - `internal/engine/`: Core engine logic.
 - `github.com/rshade/finfocus-spec`: Proto definitions (v0.5.2).

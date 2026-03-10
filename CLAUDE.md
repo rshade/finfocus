@@ -77,7 +77,7 @@ make lint    # Run linting
 
 ## Go Version
 
-**Project Go Version**: 1.25.7 (see `go.mod`)
+**Project Go Version**: 1.25.8 (see `go.mod`)
 
 **CRITICAL**: Before claiming any Go version "doesn't exist" or suggesting version
 changes, verify on <https://go.dev/dl/> first.
@@ -455,11 +455,11 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 ## Recent Changes
 
-- 604-charm-v2-upgrade: Added Go 1.25.7 (see `go.mod`)
+- 604-charm-v2-upgrade: Added Go 1.25.8 (see `go.mod`)
 
 ## Active Technologies
 
-- Go 1.25.7 (see `go.mod`) (604-charm-v2-upgrade)
+- Go 1.25.8 (see `go.mod`) (604-charm-v2-upgrade)
 - Bubble Tea v2 (`charm.land/bubbletea/v2 v2.0.0`) (604-charm-v2-upgrade)
 - Bubbles v2 (`charm.land/bubbles/v2 v2.0.0`) (604-charm-v2-upgrade)
 - Lip Gloss v2 (`charm.land/lipgloss/v2 v2.0.0`) (604-charm-v2-upgrade)

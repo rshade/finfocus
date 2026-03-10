@@ -10,7 +10,7 @@ Replace the 4-step manual Pulumi Analyzer installation process with `finfocus an
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: cobra (CLI), os/filepath/runtime (platform detection), pkg/version (version info)
 **Storage**: Filesystem only (symlinks on Unix, file copies on Windows)
 **Testing**: go test with testify (assert/require), filesystem-based tests with t.TempDir()

@@ -9,7 +9,7 @@ Extend the `BudgetFilterOptions` struct to support tag-based filtering via a `Ta
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: github.com/spf13/cobra (CLI), github.com/rshade/finfocus-spec (proto), path (glob matching)
 **Storage**: N/A (filtering in-memory)
 **Testing**: go test with testify (assert/require), table-driven tests

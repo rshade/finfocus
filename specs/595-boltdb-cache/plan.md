@@ -10,7 +10,7 @@ Replace the unreleased JSON file-based cache (`FileStore`) with a BoltDB (`go.et
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.25.8
 **Primary Dependencies**: `go.etcd.io/bbolt` (new), existing deps unchanged
 **Storage**: BoltDB single-file B+tree KV store at `{projectDir}/.finfocus/cache.db`
 **Testing**: `go test` with `testify/assert` and `testify/require`

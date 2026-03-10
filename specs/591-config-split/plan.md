@@ -14,7 +14,7 @@ enhancement for project-local setup with `.gitignore` generation.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7 (see `go.mod`)
+**Language/Version**: Go 1.25.8 (see `go.mod`)
 **Primary Dependencies**: Cobra v1.10.2 (CLI), zerolog v1.34.0 (logging),
 finfocus-spec v0.5.6 (protocol), gopkg.in/yaml.v3 (config parsing)
 **Storage**: YAML (`config.yaml`) + JSON (`dismissed.json`) on local filesystem
