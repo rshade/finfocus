@@ -1,0 +1,30 @@
+{
+  "schema_version": "1.0",
+  "extensions": {
+    "status": {
+      "version": "1.0.0",
+      "source": "local",
+      "manifest_hash": "sha256:4f781a455eb20d76a0b6215fba11b4c825cacd053269b060f4fafacef2813a64",
+      "enabled": true,
+      "registered_commands": {
+        "claude": [
+          "speckit.status.check",
+          "speckit.status"
+        ],
+        "gemini": [
+          "speckit.status.check",
+          "speckit.status"
+        ],
+        "copilot": [
+          "speckit.status.check",
+          "speckit.status"
+        ],
+        "opencode": [
+          "speckit.status.check",
+          "speckit.status"
+        ]
+      },
+      "installed_at": "2026-03-13T02:35:22.548957+00:00"
+    }
+  }
+}

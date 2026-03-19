@@ -2,6 +2,7 @@ package cache
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"time"
@@ -161,6 +162,36 @@ func FormatDuration(d time.Duration) string {
 		return fmt.Sprintf("%dd", days)
 	}
 	return fmt.Sprintf("%dd%dh", days, hours)
+}
+
+// CalculatePluginTTL determines the cache TTL from a plugin's expires_at hint.
+//
+// Returns:
+//   - ttlSeconds: The TTL to use (0 if skip is true)
+//   - skip: true if the result should not be cached (past expiration)
+//   - capped: true if the TTL was capped at MaxTTLSeconds
+//
+// Behavior:
+//   - nil expiresAt → returns (defaultTTL, false, false)
+//   - past/current expiresAt → returns (0, true, false)
+//   - future expiresAt within MaxTTLSeconds → returns (remaining seconds, false, false)
+//   - future expiresAt exceeding MaxTTLSeconds → returns (MaxTTLSeconds, false, true)
+func CalculatePluginTTL(expiresAt *time.Time, defaultTTL int) (int, bool, bool) {
+	if expiresAt == nil {
+		return defaultTTL, false, false
+	}
+
+	remaining := time.Until(*expiresAt)
+	if remaining <= 0 {
+		return 0, true, false
+	}
+
+	seconds := int(math.Ceil(remaining.Seconds()))
+	if seconds > MaxTTLSeconds {
+		return MaxTTLSeconds, false, true
+	}
+
+	return seconds, false, false
 }
 
 // ParseTTL parses a TTL string in various formats:

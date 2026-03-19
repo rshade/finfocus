@@ -194,7 +194,7 @@ func (w *RecorderWorkflow) CopyRecordedRequestsToTestdata(targetDir string) erro
 		}
 
 		targetPath := filepath.Join(testdataDir, filepath.Base(req.Path))
-		if writeErr := os.WriteFile(targetPath, content, 0600); writeErr != nil {
+		if writeErr := os.WriteFile(targetPath, content, 0600); writeErr != nil { //nolint:gosec // G703: path built from filepath.Join+filepath.Base, no traversal
 			return fmt.Errorf("writing recorded request %s: %w", targetPath, writeErr)
 		}
 		w.logger.Debug().Str("from", req.Path).Str("to", targetPath).Msg("copied recorded request")

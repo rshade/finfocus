@@ -23,6 +23,7 @@ var (
 	ErrCacheNotFound   = errors.New("cache entry not found")
 	ErrCacheExpired    = errors.New("cache entry expired")
 	ErrInvalidCacheKey = errors.New("cache key cannot be empty")
+	ErrInvalidCacheTTL = errors.New("cache TTL out of range")
 	ErrCacheDisabled   = errors.New("cache is disabled")
 	ErrCacheLocked     = errors.New("cache database locked by another process")
 )
@@ -32,6 +33,7 @@ var (
 type Cache interface {
 	Get(key string) (*CacheEntry, error)
 	Set(key string, data json.RawMessage) error
+	SetWithTTL(key string, data json.RawMessage, ttlSeconds int) error
 	IsEnabled() bool
 	Close() error
 	InvalidateByPrefix(prefix string) (int, error)
@@ -289,23 +291,34 @@ func (s *BoltStore) Get(key string) (*CacheEntry, error) {
 	return &entry, nil
 }
 
-// Set stores a cache entry with the given key and data.
+// Set stores a cache entry with the given key and data using the store's default TTL.
 // The key format determines which bucket the entry is stored in.
 // Concurrent calls are batched for efficiency via db.Batch().
 // Returns ErrCacheDisabled if caching is disabled.
 // Returns ErrInvalidCacheKey if key is empty.
 func (s *BoltStore) Set(key string, data json.RawMessage) error {
+	return s.SetWithTTL(key, data, s.ttlSeconds)
+}
+
+// SetWithTTL stores a cache entry with a caller-specified TTL instead of the store default.
+// Used when a plugin provides an expires_at hint that should override the default TTL.
+// Returns ErrCacheDisabled if caching is disabled.
+// Returns ErrInvalidCacheKey if key is empty.
+func (s *BoltStore) SetWithTTL(key string, data json.RawMessage, ttlSeconds int) error {
 	if !s.enabled {
 		return ErrCacheDisabled
 	}
 	if key == "" {
 		return ErrInvalidCacheKey
 	}
+	if ttlSeconds <= 0 || ttlSeconds > MaxTTLSeconds {
+		return fmt.Errorf("%w: got %d, want 1..%d", ErrInvalidCacheTTL, ttlSeconds, MaxTTLSeconds)
+	}
 
 	bucketName := BucketFromKey(key)
 	innerKey := StripBucket(key)
 
-	entry := NewCacheEntry(key, data, s.ttlSeconds)
+	entry := NewCacheEntry(key, data, ttlSeconds)
 	entryData, marshalErr := json.Marshal(entry)
 	if marshalErr != nil {
 		return fmt.Errorf("failed to marshal cache entry: %w", marshalErr)

@@ -4,7 +4,7 @@ COMMIT=$(shell git rev-parse HEAD)
 BUILD_DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 GOLANGCI_LINT?=$(HOME)/go/bin/golangci-lint
-GOLANGCI_LINT_VERSION?=2.9.0
+GOLANGCI_LINT_VERSION?=2.11.4
 MARKDOWNLINT?=markdownlint
 MARKDOWNLINT_CLI2?=markdownlint-cli2
 MARKDOWNLINT_FILES?=AGENTS.md

@@ -766,6 +766,132 @@ func TestNewBoltStore(t *testing.T) {
 	})
 }
 
+// --- T002: SetWithTTL tests ---
+
+func TestBoltStore_SetWithTTL(t *testing.T) {
+	t.Run("stores entry with custom TTL", func(t *testing.T) {
+		store := newTestStore(t, true, 3600)
+		data := json.RawMessage(`{"custom":"ttl"}`)
+		key := "projected/aws/ec2:Instance/us-east-1/t3.micro"
+
+		err := store.SetWithTTL(key, data, 7200)
+		require.NoError(t, err)
+
+		entry, err := store.Get(key)
+		require.NoError(t, err)
+		assert.JSONEq(t, string(data), string(entry.Data))
+		assert.Equal(t, 7200, entry.TTLSeconds)
+	})
+
+	t.Run("entry expires at correct time", func(t *testing.T) {
+		store := newTestStore(t, true, 3600) // default is 1h
+		data := json.RawMessage(`{"expire":"test"}`)
+		key := "projected/aws/ec2:Instance/us-east-1/t3.micro"
+
+		// Use 1-second TTL
+		err := store.SetWithTTL(key, data, 1)
+		require.NoError(t, err)
+
+		// Entry should be valid immediately
+		entry, err := store.Get(key)
+		require.NoError(t, err)
+		assert.False(t, entry.IsExpired())
+
+		// Wait for expiration
+		time.Sleep(1200 * time.Millisecond)
+
+		_, err = store.Get(key)
+		assert.ErrorIs(t, err, ErrCacheExpired)
+	})
+
+	t.Run("validates key is non-empty", func(t *testing.T) {
+		store := newTestStore(t, true, 3600)
+		err := store.SetWithTTL("", json.RawMessage(`{}`), 3600)
+		assert.ErrorIs(t, err, ErrInvalidCacheKey)
+	})
+
+	t.Run("returns error when cache disabled", func(t *testing.T) {
+		store := newTestStore(t, false, 0)
+		err := store.SetWithTTL("projected/aws/test", json.RawMessage(`{}`), 3600)
+		assert.ErrorIs(t, err, ErrCacheDisabled)
+	})
+
+	t.Run("interface compliance", func(t *testing.T) {
+		store := newTestStore(t, true, 3600)
+		var c Cache = store
+		data := json.RawMessage(`{"interface":"test"}`)
+		require.NoError(t, c.SetWithTTL("projected/test/ttl", data, 1800))
+
+		entry, err := c.Get("projected/test/ttl")
+		require.NoError(t, err)
+		assert.Equal(t, 1800, entry.TTLSeconds)
+	})
+
+	t.Run("rejects zero ttl", func(t *testing.T) {
+		store := newTestStore(t, true, 3600)
+		err := store.SetWithTTL("projected/test/zero", json.RawMessage(`{}`), 0)
+		assert.ErrorIs(t, err, ErrInvalidCacheTTL)
+	})
+
+	t.Run("rejects negative ttl", func(t *testing.T) {
+		store := newTestStore(t, true, 3600)
+		err := store.SetWithTTL("projected/test/neg", json.RawMessage(`{}`), -1)
+		assert.ErrorIs(t, err, ErrInvalidCacheTTL)
+	})
+
+	t.Run("rejects ttl exceeding max", func(t *testing.T) {
+		store := newTestStore(t, true, 3600)
+		err := store.SetWithTTL("projected/test/big", json.RawMessage(`{}`), MaxTTLSeconds+1)
+		assert.ErrorIs(t, err, ErrInvalidCacheTTL)
+	})
+}
+
+// T030: Benchmark for SetWithTTL to validate SC-005 (< 10ms).
+func BenchmarkSetWithTTL(b *testing.B) {
+	dir := b.TempDir()
+	store, err := NewBoltStore(context.Background(), dir, true, 3600, 0)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer store.Close()
+
+	data := json.RawMessage(`{"cost":42.0,"currency":"USD"}`)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		key := "projected/aws/ec2:Instance/us-east-1/t3.micro/" + strconv.Itoa(i)
+		if setErr := store.SetWithTTL(key, data, 1800); setErr != nil {
+			b.Fatal(setErr)
+		}
+	}
+}
+
+func BenchmarkSetWithTTL_GetRoundTrip(b *testing.B) {
+	dir := b.TempDir()
+	store, err := NewBoltStore(context.Background(), dir, true, 3600, 0)
+	if err != nil {
+		b.Fatal(err)
+	}
+	defer store.Close()
+
+	data := json.RawMessage(`{"cost":42.0,"currency":"USD"}`)
+	key := "projected/aws/ec2:Instance/us-east-1/t3.micro/roundtrip"
+	if setErr := store.SetWithTTL(key, data, 7200); setErr != nil {
+		b.Fatal(setErr)
+	}
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		entry, getErr := store.Get(key)
+		if getErr != nil {
+			b.Fatal(getErr)
+		}
+		if entry.TTLSeconds != 7200 {
+			b.Fatalf("expected TTL 7200, got %d", entry.TTLSeconds)
+		}
+	}
+}
+
 // --- Helper functions ---
 
 func newTestStore(t *testing.T, enabled bool, ttl int) *BoltStore {

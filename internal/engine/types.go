@@ -242,6 +242,12 @@ type CostResult struct {
 	// MEDIUM: Runtime-based estimate from Pulumi timestamps
 	// LOW: Imported resource (timestamp may be inaccurate)
 	Confidence Confidence `json:"confidence,omitempty"`
+
+	// ExpiresAt is a caching hint from the plugin indicating when this cost data
+	// becomes stale. When non-nil, the engine uses it to calculate a custom cache
+	// TTL via cache.CalculatePluginTTL instead of the store default. Nil means
+	// the plugin did not provide a hint and the default TTL applies.
+	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
 }
 
 // ErrorDetail captures information about a failed resource cost calculation.
@@ -272,18 +278,14 @@ func (c *CostResultWithErrors) ErrorSummary() string {
 	}
 
 	var summary strings.Builder
-	summary.WriteString(fmt.Sprintf("%d resource(s) failed:\n", len(c.Errors)))
+	fmt.Fprintf(&summary, "%d resource(s) failed:\n", len(c.Errors))
 
 	for i, err := range c.Errors {
 		if i >= maxErrorsToDisplay {
-			summary.WriteString(
-				fmt.Sprintf("  ... and %d more errors\n", len(c.Errors)-maxErrorsToDisplay),
-			)
+			fmt.Fprintf(&summary, "  ... and %d more errors\n", len(c.Errors)-maxErrorsToDisplay)
 			break
 		}
-		summary.WriteString(
-			fmt.Sprintf("  - %s (%s): %v\n", err.ResourceType, err.ResourceID, err.Error),
-		)
+		fmt.Fprintf(&summary, "  - %s (%s): %v\n", err.ResourceType, err.ResourceID, err.Error)
 	}
 
 	return summary.String()

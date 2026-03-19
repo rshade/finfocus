@@ -362,7 +362,7 @@ func RenderDetailView(resource engine.CostResult, width int) string {
 		sort.Strings(keys)
 
 		for _, k := range keys {
-			content.WriteString(fmt.Sprintf("- %s: $%.4f\n", k, resource.Breakdown[k]))
+			fmt.Fprintf(&content, "- %s: $%.4f\n", k, resource.Breakdown[k])
 		}
 		content.WriteString("\n")
 	}

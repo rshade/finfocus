@@ -29,7 +29,6 @@
       "min_spec_version": "0.1.0",
       "asset_hints": {
         "asset_prefix": "finfocus-plugin-aws-public",
-        "default_region": "us-east-1",
         "version_prefix": false
       }
     }

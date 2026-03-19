@@ -1467,6 +1467,8 @@ func (e *Engine) getProjectedCostFromPlugin(
 			Sustainability: make(map[string]SustainabilityMetric),
 		}
 
+		engineResult.ExpiresAt = result.ExpiresAt
+
 		// Map proto StructuredError to engine StructuredError
 		if result.StructuredError != nil {
 			engineResult.Error = &StructuredError{
@@ -1649,6 +1651,7 @@ func (e *Engine) getActualCostFromPlugin(
 		StartDate:  from,
 		EndDate:    to,
 		CostPeriod: FormatPeriod(from, to),
+		ExpiresAt:  result.ExpiresAt,
 	}, nil
 }
 
@@ -3638,14 +3641,13 @@ func (e *Engine) storeProjectedCostCache(ctx context.Context, resource ResourceD
 		return
 	}
 
-	if setErr := e.cache.Set(key, data); setErr != nil {
-		log := logging.FromContext(ctx)
-		log.Warn().Ctx(ctx).Err(setErr).
-			Str("component", "engine").
-			Str("operation", "storeProjectedCostCache:set").
-			Str("resource_type", resource.Type).
-			Msg("failed to cache projected cost results")
+	// Use first result's ExpiresAt for projected cost (single resource per cache key)
+	var expiresAt *time.Time
+	if len(results) > 0 {
+		expiresAt = results[0].ExpiresAt
 	}
+
+	e.storeCacheEntry(ctx, key, data, expiresAt, "storeProjectedCostCache")
 }
 
 // tryActualCostCache attempts to retrieve cached actual cost results for the given
@@ -3708,11 +3710,75 @@ func (e *Engine) storeActualCostCache(ctx context.Context, request ActualCostReq
 		return
 	}
 
-	if setErr := e.cache.Set(key, data); setErr != nil {
+	// Use earliest ExpiresAt across all results (conservative: shortest TTL wins).
+	// When the batch is mixed (some nil, some past), only consider future timestamps
+	// to prevent one stale result from skipping caching for results with no hint.
+	// When ALL timestamps are past, the earliest past value is used (triggering skip).
+	var earliest *time.Time
+	hasNilExpiry := false
+	for i := range results {
+		if results[i].ExpiresAt == nil {
+			hasNilExpiry = true
+		} else if earliest == nil || results[i].ExpiresAt.Before(*earliest) {
+			earliest = results[i].ExpiresAt
+		}
+	}
+	// If batch mixes nil-expiry results with a past-only earliest, ignore the
+	// past timestamp so nil-expiry results can still benefit from default TTL.
+	if hasNilExpiry && earliest != nil && time.Until(*earliest) <= 0 {
+		earliest = nil
+	}
+
+	e.storeCacheEntry(ctx, key, data, earliest, "storeActualCostCache")
+}
+
+// storeCacheEntry stores data in the cache, using plugin TTL hints when present.
+// When expiresAt is nil, uses the store's default TTL via Set().
+// When expiresAt is in the past, skips caching entirely.
+// When expiresAt is in the future, uses SetWithTTL() with the calculated TTL.
+func (e *Engine) storeCacheEntry(
+	ctx context.Context, key string, data json.RawMessage,
+	expiresAt *time.Time, operation string,
+) {
+	if expiresAt == nil {
+		if setErr := e.cache.Set(key, data); setErr != nil {
+			log := logging.FromContext(ctx)
+			log.Warn().Ctx(ctx).Err(setErr).
+				Str("component", "engine").
+				Str("operation", operation+":set").
+				Msg("failed to cache cost results")
+		}
+		return
+	}
+
+	ttlSeconds, skip, capped := cache.CalculatePluginTTL(expiresAt, 0)
+	if skip {
 		log := logging.FromContext(ctx)
+		log.Debug().Ctx(ctx).
+			Str("component", "engine").
+			Str("operation", operation).
+			Msg("caching skipped: plugin expires_at is in the past")
+		return
+	}
+
+	log := logging.FromContext(ctx)
+	if capped {
+		log.Warn().Ctx(ctx).
+			Str("component", "engine").
+			Str("operation", operation).
+			Int("capped_ttl_seconds", ttlSeconds).
+			Msg("plugin TTL capped at maximum")
+	}
+	log.Debug().Ctx(ctx).
+		Str("component", "engine").
+		Str("operation", operation).
+		Int("plugin_ttl_seconds", ttlSeconds).
+		Msg("using plugin TTL hint")
+
+	if setErr := e.cache.SetWithTTL(key, data, ttlSeconds); setErr != nil {
 		log.Warn().Ctx(ctx).Err(setErr).
 			Str("component", "engine").
-			Str("operation", "storeActualCostCache:set").
-			Msg("failed to cache actual cost results")
+			Str("operation", operation+":setWithTTL").
+			Msg("failed to cache cost results with plugin TTL")
 	}
 }
