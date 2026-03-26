@@ -376,7 +376,7 @@ func loadPlainOverviewData(
 	skipPrompt := params.yes
 	isTTY := false
 	if f, ok := cmd.OutOrStdout().(fdProvider); ok {
-		isTTY = term.IsTerminal(int(f.Fd()))
+		isTTY = term.IsTerminal(int(f.Fd())) //nolint:gosec // G115: fd value fits in int
 	}
 
 	var shouldRunPreview bool
@@ -965,7 +965,7 @@ func shouldUseInteractiveTUI(w io.Writer, outputFormat string, plainFlag bool) b
 
 	// Check if the writer has a file descriptor and is a TTY.
 	if f, ok := w.(fdProvider); ok {
-		return term.IsTerminal(int(f.Fd()))
+		return term.IsTerminal(int(f.Fd())) //nolint:gosec // G115: fd value fits in int
 	}
 	return false
 }

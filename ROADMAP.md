@@ -167,6 +167,24 @@ guardrails in `CONTEXT.md`.
     returned by the orchestration layer.
   - *Success Criteria*: A valid GFM document is generated that renders
     correctly in a GitHub comment using only data from the `CostResult` array.
+- [ ] **Agent Skills** *(co-located, tool-dependent)*
+  - [ ] `finfocus-install` — Install CLI, detect cloud providers, install
+        matching plugins, run `config init`, validate setup [M]
+  - [ ] `finfocus-analyzer-setup` — Install and configure Pulumi Analyzer
+        integration for inline cost display during `pulumi preview` [S]
+  - [ ] `plugin-manage` — Discover, install, update, validate, and
+        troubleshoot finfocus plugins via gRPC protocol [M]
+  - [ ] `finfocus-routing` — Configure intelligent plugin routing with
+        priority, pattern matching, and fallback rules [S]
+  - [ ] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
+        BoltDB cache issues, and zero-cost results [M]
+  - *Format:* Agent Skills spec (SKILL.md + references/), installable via
+    `npx skills add rshade/finfocus -s <name>`
+  - *Generic cost workflow skills (cost-check, cost-drift, cost-optimize,
+    budget-setup) live in
+    [rshade/agent-skills](https://github.com/rshade/agent-skills)
+    as multi-tool skills — see
+    [Split-Tier Placement consensus](https://github.com/rshade/agent-skills/blob/main/PUNCHLIST.md)*
 - [ ] **Cost Diff View**
   - [ ] Add cost diff view to `cost projected` command
         ([#576](https://github.com/rshade/finfocus/issues/576)) [M]

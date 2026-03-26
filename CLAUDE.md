@@ -356,6 +356,11 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   EXCEEDED (>100%). Aggregation uses worst-case status
 - **Cache hits**: Append ` (cached)` to the Adapter field for visual feedback
 - **Cache corruption**: Auto-detected and auto-recovered (delete + recreate)
+- **Plugin TTL hints**: Plugins can set `expires_at` on responses to control per-entry
+  cache TTL. The engine extracts `ExpiresAt` from `CostResult`, calls
+  `cache.CalculatePluginTTL()`, and uses `SetWithTTL()` when a plugin hint is present.
+  Past timestamps skip caching entirely. TTLs exceeding `MaxTTLSeconds` (604800 = 7 days)
+  are capped. Debug logs record TTL overrides; warn logs record caps and skips
 
 ### Overview Field Semantics (`internal/engine/overview_*.go`)
 
@@ -454,15 +459,12 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 - **`/opencode-review-fix`** comment on a PR triggers automatic fix of all review issues
 
 ## Recent Changes
+- 606-cache-expires-at: Added Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (provides `expires_at` proto fields), BoltDB (cache storage), zerolog (logging)
 
 - 605-batch-cost-capability: Added batch cost capability to router feature mapping
 - 604-charm-v2-upgrade: Added Go 1.25.8 (see `go.mod`)
 
 ## Active Technologies
+- Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (provides `expires_at` proto fields), BoltDB (cache storage), zerolog (logging) (606-cache-expires-at)
+- BoltDB (`cache.db`) — no structural changes needed; `CacheEntry` already has per-entry `ExpiresAt`/`TTLSeconds` (606-cache-expires-at)
 
-- Go 1.25.8 (see `go.mod`) (604-charm-v2-upgrade)
-- Bubble Tea v2 (`charm.land/bubbletea/v2 v2.0.0`) (604-charm-v2-upgrade)
-- Bubbles v2 (`charm.land/bubbles/v2 v2.0.0`) (604-charm-v2-upgrade)
-- Lip Gloss v2 (`charm.land/lipgloss/v2 v2.0.0`) (604-charm-v2-upgrade)
-- finfocus-spec v0.5.7+ with BATCH_COST capability (605-batch-cost-capability)
-- CLI commands using Cobra, tabwriter, and Viper for config parsing

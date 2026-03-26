@@ -565,8 +565,8 @@ func NewRecommendationsTable(recs []engine.Recommendation, height int) string {
 		if len(desc) > recDescTruncateLen {
 			desc = desc[:recDescTruncateLen] + "..."
 		}
-		_, _ = result.WriteString(fmt.Sprintf("%s | %s | %s | %s\n",
-			rec.ResourceID, rec.Type, savings, desc))
+		fmt.Fprintf(&result, "%s | %s | %s | %s\n",
+			rec.ResourceID, rec.Type, savings, desc)
 	}
 	return result.String()
 }
@@ -585,8 +585,8 @@ func RenderRecommendationsSummaryTUI(summary *RecommendationsSummary, _ int) str
 	var sb strings.Builder
 	_, _ = sb.WriteString("RECOMMENDATIONS SUMMARY\n")
 	_, _ = sb.WriteString("=======================\n")
-	_, _ = sb.WriteString(fmt.Sprintf("Total: %d recommendations\n", summary.TotalCount))
-	_, _ = sb.WriteString(fmt.Sprintf("Potential Savings: %s%.2f\n", getCurrencySymbol(currency), summary.TotalSavings))
+	fmt.Fprintf(&sb, "Total: %d recommendations\n", summary.TotalCount)
+	fmt.Fprintf(&sb, "Potential Savings: %s%.2f\n", getCurrencySymbol(currency), summary.TotalSavings)
 
 	if len(summary.CountByAction) > 0 {
 		_, _ = sb.WriteString("\nBy Action Type:\n")
@@ -602,7 +602,7 @@ func RenderRecommendationsSummaryTUI(summary *RecommendationsSummary, _ int) str
 		for _, actionType := range actionTypes {
 			count := summary.CountByAction[actionType]
 			savings := summary.SavingsByAction[actionType]
-			_, _ = sb.WriteString(fmt.Sprintf("  %s: %d (%s%.2f)\n", actionType, count, currencySymbol, savings))
+			fmt.Fprintf(&sb, "  %s: %d (%s%.2f)\n", actionType, count, currencySymbol, savings)
 		}
 	}
 
@@ -621,11 +621,11 @@ func RenderRecommendationDetail(rec engine.Recommendation, width int) string {
 	var sb strings.Builder
 	_, _ = sb.WriteString("RECOMMENDATION DETAIL\n")
 	_, _ = sb.WriteString("=====================\n\n")
-	_, _ = sb.WriteString(fmt.Sprintf("Resource:    %s\n", rec.ResourceID))
-	_, _ = sb.WriteString(fmt.Sprintf("Action Type: %s\n", rec.Type))
-	_, _ = sb.WriteString(fmt.Sprintf("Savings:     %s%.2f %s\n",
-		getCurrencySymbol(currency), rec.EstimatedSavings, currency))
-	_, _ = sb.WriteString(fmt.Sprintf("Description: %s\n", rec.Description))
+	fmt.Fprintf(&sb, "Resource:    %s\n", rec.ResourceID)
+	fmt.Fprintf(&sb, "Action Type: %s\n", rec.Type)
+	fmt.Fprintf(&sb, "Savings:     %s%.2f %s\n",
+		getCurrencySymbol(currency), rec.EstimatedSavings, currency)
+	fmt.Fprintf(&sb, "Description: %s\n", rec.Description)
 	_, _ = sb.WriteString("\n[Esc] Back to list  [q] Quit")
 
 	return sb.String()

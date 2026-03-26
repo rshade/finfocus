@@ -109,19 +109,19 @@ func renderDetailBudgetStatus(m OverviewModel) string {
 			name = b.GetId()
 		}
 
-		content.WriteString(fmt.Sprintf("  %s  %s\n", badge, LabelStyle.Render(name)))
-		content.WriteString(fmt.Sprintf("    Limit:       %s\n",
-			ValueStyle.Render(engine.FormatOverviewCurrency(amount.GetLimit()))))
-		content.WriteString(fmt.Sprintf("    Spend:       %s\n",
-			ValueStyle.Render(engine.FormatOverviewCurrency(status.GetCurrentSpend()))))
+		fmt.Fprintf(&content, "  %s  %s\n", badge, LabelStyle.Render(name))
+		fmt.Fprintf(&content, "    Limit:       %s\n",
+			ValueStyle.Render(engine.FormatOverviewCurrency(amount.GetLimit())))
+		fmt.Fprintf(&content, "    Spend:       %s\n",
+			ValueStyle.Render(engine.FormatOverviewCurrency(status.GetCurrentSpend())))
 
 		if status.GetForecastedSpend() > 0 {
-			content.WriteString(fmt.Sprintf("    Forecasted:  %s\n",
-				ValueStyle.Render(engine.FormatOverviewCurrency(status.GetForecastedSpend()))))
+			fmt.Fprintf(&content, "    Forecasted:  %s\n",
+				ValueStyle.Render(engine.FormatOverviewCurrency(status.GetForecastedSpend())))
 		}
 
-		content.WriteString(fmt.Sprintf("    Utilization: %s\n",
-			ValueStyle.Render(fmt.Sprintf("%.1f%%", status.GetPercentageUsed()))))
+		fmt.Fprintf(&content, "    Utilization: %s\n",
+			ValueStyle.Render(fmt.Sprintf("%.1f%%", status.GetPercentageUsed())))
 
 		// Show triggered threshold alerts.
 		for _, threshold := range b.GetThresholds() {
@@ -130,11 +130,11 @@ func renderDetailBudgetStatus(m OverviewModel) string {
 				if threshold.GetPercentage() >= 100 { //nolint:mnd // 100% threshold.
 					alertStyle = CriticalStyle
 				}
-				content.WriteString(fmt.Sprintf("    %s %.0f%% threshold triggered (%s)\n",
+				fmt.Fprintf(&content, "    %s %.0f%% threshold triggered (%s)\n",
 					alertStyle.Render("ALERT:"),
 					threshold.GetPercentage(),
 					threshold.GetType().String(),
-				))
+				)
 			}
 		}
 

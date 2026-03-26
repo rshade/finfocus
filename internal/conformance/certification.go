@@ -55,17 +55,17 @@ func (r *CertificationReport) GenerateMarkdown() string {
 
 	var sb strings.Builder
 	sb.WriteString("# FinFocus Plugin Certification\n\n")
-	sb.WriteString(fmt.Sprintf("**Plugin**: %s\n", r.PluginName))
-	sb.WriteString(fmt.Sprintf("**Version**: %s\n", r.PluginVersion))
-	sb.WriteString(fmt.Sprintf("**Status**: %s\n", status))
-	sb.WriteString(fmt.Sprintf("**Date**: %s\n\n", r.CertifiedAt.Format(time.RFC1123)))
+	fmt.Fprintf(&sb, "**Plugin**: %s\n", r.PluginName)
+	fmt.Fprintf(&sb, "**Version**: %s\n", r.PluginVersion)
+	fmt.Fprintf(&sb, "**Status**: %s\n", status)
+	fmt.Fprintf(&sb, "**Date**: %s\n\n", r.CertifiedAt.Format(time.RFC1123))
 
 	sb.WriteString("## Summary\n\n")
-	sb.WriteString(fmt.Sprintf("- Total Tests: %d\n", r.SuiteSummary.Total))
-	sb.WriteString(fmt.Sprintf("- Passed: %d\n", r.SuiteSummary.Passed))
-	sb.WriteString(fmt.Sprintf("- Failed: %d\n", r.SuiteSummary.Failed))
-	sb.WriteString(fmt.Sprintf("- Errors: %d\n", r.SuiteSummary.Errors))
-	sb.WriteString(fmt.Sprintf("- Skipped: %d\n\n", r.SuiteSummary.Skipped))
+	fmt.Fprintf(&sb, "- Total Tests: %d\n", r.SuiteSummary.Total)
+	fmt.Fprintf(&sb, "- Passed: %d\n", r.SuiteSummary.Passed)
+	fmt.Fprintf(&sb, "- Failed: %d\n", r.SuiteSummary.Failed)
+	fmt.Fprintf(&sb, "- Errors: %d\n", r.SuiteSummary.Errors)
+	fmt.Fprintf(&sb, "- Skipped: %d\n\n", r.SuiteSummary.Skipped)
 
 	if len(r.Issues) > 0 {
 		sb.WriteString("## Issues\n\n")

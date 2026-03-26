@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/awsutil"
@@ -3058,6 +3059,11 @@ type mockPbcCostSourceServiceClient struct {
 		in *pbc.GetActualCostRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.GetActualCostResponse, error)
+	getProjectedCostFunc func(
+		ctx context.Context,
+		in *pbc.GetProjectedCostRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.GetProjectedCostResponse, error)
 }
 
 func (m *mockPbcCostSourceServiceClient) Name(
@@ -3082,8 +3088,11 @@ func (m *mockPbcCostSourceServiceClient) GetActualCost(
 }
 
 func (m *mockPbcCostSourceServiceClient) GetProjectedCost(
-	_ context.Context, _ *pbc.GetProjectedCostRequest, _ ...grpc.CallOption,
+	ctx context.Context, in *pbc.GetProjectedCostRequest, opts ...grpc.CallOption,
 ) (*pbc.GetProjectedCostResponse, error) {
+	if m.getProjectedCostFunc != nil {
+		return m.getProjectedCostFunc(ctx, in, opts...)
+	}
 	return &pbc.GetProjectedCostResponse{}, nil
 }
 
@@ -3197,6 +3206,33 @@ func TestAppendActualCostResults_DeepCopy(t *testing.T) {
 
 	// Verify the original was NOT mutated
 	assert.Equal(t, 100.0, originalBreakdown["Compute"], "Original CostBreakdown should not be mutated")
+}
+
+func TestAppendActualCostResults_ExpiresAtPropagated(t *testing.T) {
+	expiresAt := time.Now().Add(2 * time.Hour)
+	actualResults := []*ActualCostResult{
+		{
+			Currency:       "USD",
+			TotalCost:      50.0,
+			CostBreakdown:  map[string]float64{"Compute": 50.0},
+			Sustainability: map[string]SustainabilityMetric{},
+			ExpiresAt:      &expiresAt,
+		},
+		{
+			Currency:       "USD",
+			TotalCost:      30.0,
+			CostBreakdown:  map[string]float64{"Storage": 30.0},
+			Sustainability: map[string]SustainabilityMetric{},
+		},
+	}
+	result := &CostResultWithErrors{Results: []*CostResult{}}
+
+	appendActualCostResults(result, actualResults)
+
+	require.Len(t, result.Results, 2)
+	require.NotNil(t, result.Results[0].ExpiresAt, "ExpiresAt should be propagated")
+	assert.Equal(t, expiresAt, *result.Results[0].ExpiresAt)
+	assert.Nil(t, result.Results[1].ExpiresAt, "nil ExpiresAt should remain nil")
 }
 
 // T008: Test that StructuredError is populated for validation failures.
@@ -3432,4 +3468,179 @@ func TestResolveSKUAndRegion_EmptyFallback(t *testing.T) {
 			assert.Equal(t, tt.wantRegion, region, "unexpected region for provider=%s", tt.provider)
 		})
 	}
+}
+
+// T006: Tests for ExpiresAt extraction in clientAdapter.GetProjectedCost.
+func TestClientAdapter_GetProjectedCost_ExpiresAt(t *testing.T) {
+	t.Run("ExpiresAt populated when proto response has expires_at", func(t *testing.T) {
+		futureTime := time.Now().Add(24 * time.Hour)
+
+		mockGRPC := &mockPbcCostSourceServiceClient{
+			getProjectedCostFunc: func(
+				_ context.Context,
+				_ *pbc.GetProjectedCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.GetProjectedCostResponse, error) {
+				return &pbc.GetProjectedCostResponse{
+					CostPerMonth:  42.0,
+					Currency:      "USD",
+					UnitPrice:     0.058,
+					BillingDetail: "on-demand",
+					ExpiresAt:     timestamppb.New(futureTime),
+				}, nil
+			},
+		}
+
+		adapter := &clientAdapter{client: mockGRPC}
+
+		req := &GetProjectedCostRequest{
+			Resources: []*ResourceDescriptor{
+				{Type: "aws:ec2:Instance", ID: "i-abc", Provider: "aws"},
+			},
+		}
+
+		resp, err := adapter.GetProjectedCost(context.Background(), req)
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 1)
+		require.NotNil(t, resp.Results[0].ExpiresAt, "ExpiresAt should be populated")
+		assert.WithinDuration(t, futureTime, *resp.Results[0].ExpiresAt, time.Second)
+	})
+
+	t.Run("ExpiresAt nil when proto response has no expires_at", func(t *testing.T) {
+		mockGRPC := &mockPbcCostSourceServiceClient{
+			getProjectedCostFunc: func(
+				_ context.Context,
+				_ *pbc.GetProjectedCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.GetProjectedCostResponse, error) {
+				return &pbc.GetProjectedCostResponse{
+					CostPerMonth: 10.0,
+					Currency:     "USD",
+				}, nil
+			},
+		}
+
+		adapter := &clientAdapter{client: mockGRPC}
+
+		req := &GetProjectedCostRequest{
+			Resources: []*ResourceDescriptor{
+				{Type: "aws:ec2:Instance", ID: "i-def", Provider: "aws"},
+			},
+		}
+
+		resp, err := adapter.GetProjectedCost(context.Background(), req)
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 1)
+		assert.Nil(t, resp.Results[0].ExpiresAt, "ExpiresAt should be nil when unset")
+	})
+}
+
+// T007: Tests for ExpiresAt extraction in clientAdapter.GetActualCost.
+func TestClientAdapter_GetActualCost_ExpiresAt(t *testing.T) {
+	startTime := time.Now().Add(-24 * time.Hour).Unix()
+	endTime := time.Now().Unix()
+
+	t.Run("ExpiresAt populated from earliest expires_at across batch", func(t *testing.T) {
+		earlier := time.Now().Add(1 * time.Hour)
+		later := time.Now().Add(24 * time.Hour)
+
+		mockGRPC := &mockPbcCostSourceServiceClient{
+			getActualCostFunc: func(
+				_ context.Context,
+				_ *pbc.GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.GetActualCostResponse, error) {
+				return &pbc.GetActualCostResponse{
+					Results: []*pbc.ActualCostResult{
+						{Cost: 50.0, Source: "source-a", ExpiresAt: timestamppb.New(later)},
+						{Cost: 30.0, Source: "source-b", ExpiresAt: timestamppb.New(earlier)},
+					},
+				}, nil
+			},
+		}
+
+		adapter := &clientAdapter{client: mockGRPC}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::proj::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Provider:    "aws",
+			Properties:  map[string]interface{}{"pulumi:cloudId": "i-123"},
+		}
+
+		resp, err := adapter.GetActualCost(context.Background(), req)
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 1)
+		require.NotNil(t, resp.Results[0].ExpiresAt, "ExpiresAt should be populated")
+		assert.WithinDuration(t, earlier, *resp.Results[0].ExpiresAt, time.Second,
+			"should use earliest expires_at across batch")
+	})
+
+	t.Run("ExpiresAt nil when no results have expires_at", func(t *testing.T) {
+		mockGRPC := &mockPbcCostSourceServiceClient{
+			getActualCostFunc: func(
+				_ context.Context,
+				_ *pbc.GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.GetActualCostResponse, error) {
+				return &pbc.GetActualCostResponse{
+					Results: []*pbc.ActualCostResult{
+						{Cost: 100.0, Source: "mock"},
+					},
+				}, nil
+			},
+		}
+
+		adapter := &clientAdapter{client: mockGRPC}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::proj::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Provider:    "aws",
+			Properties:  map[string]interface{}{"pulumi:cloudId": "i-456"},
+		}
+
+		resp, err := adapter.GetActualCost(context.Background(), req)
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 1)
+		assert.Nil(t, resp.Results[0].ExpiresAt, "ExpiresAt should be nil when unset")
+	})
+
+	t.Run("ExpiresAt uses only non-nil timestamps from batch", func(t *testing.T) {
+		onlyTS := time.Now().Add(6 * time.Hour)
+
+		mockGRPC := &mockPbcCostSourceServiceClient{
+			getActualCostFunc: func(
+				_ context.Context,
+				_ *pbc.GetActualCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.GetActualCostResponse, error) {
+				return &pbc.GetActualCostResponse{
+					Results: []*pbc.ActualCostResult{
+						{Cost: 40.0, Source: "source-a"},
+						{Cost: 60.0, Source: "source-b", ExpiresAt: timestamppb.New(onlyTS)},
+					},
+				}, nil
+			},
+		}
+
+		adapter := &clientAdapter{client: mockGRPC}
+
+		req := &GetActualCostRequest{
+			ResourceIDs: []string{"urn:pulumi:dev::proj::aws:ec2/instance:Instance::web"},
+			StartTime:   startTime,
+			EndTime:     endTime,
+			Provider:    "aws",
+			Properties:  map[string]interface{}{"pulumi:cloudId": "i-789"},
+		}
+
+		resp, err := adapter.GetActualCost(context.Background(), req)
+		require.NoError(t, err)
+		require.Len(t, resp.Results, 1)
+		require.NotNil(t, resp.Results[0].ExpiresAt)
+		assert.WithinDuration(t, onlyTS, *resp.Results[0].ExpiresAt, time.Second,
+			"should use the only non-nil expires_at")
+	})
 }

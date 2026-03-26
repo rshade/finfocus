@@ -73,18 +73,14 @@ func (c *CostResultWithErrors) ErrorSummary() string {
 	}
 
 	var summary strings.Builder
-	summary.WriteString(fmt.Sprintf("%d resource(s) failed:\n", len(c.Errors)))
+	fmt.Fprintf(&summary, "%d resource(s) failed:\n", len(c.Errors))
 
 	for i, err := range c.Errors {
 		if i >= maxErrorsToDisplay {
-			summary.WriteString(
-				fmt.Sprintf("  ... and %d more errors\n", len(c.Errors)-maxErrorsToDisplay),
-			)
+			fmt.Fprintf(&summary, "  ... and %d more errors\n", len(c.Errors)-maxErrorsToDisplay)
 			break
 		}
-		summary.WriteString(
-			fmt.Sprintf("  - %s (%s): %v\n", err.ResourceType, err.ResourceID, err.Error),
-		)
+		fmt.Fprintf(&summary, "  - %s (%s): %v\n", err.ResourceType, err.ResourceID, err.Error)
 	}
 
 	return summary.String()
@@ -335,6 +331,10 @@ func appendActualCostResults(result *CostResultWithErrors, actualResults []*Actu
 			CostBreakdown:  make(map[string]float64, len(actual.CostBreakdown)),
 			Sustainability: make(map[string]SustainabilityMetric),
 		}
+		if actual.ExpiresAt != nil {
+			t := *actual.ExpiresAt
+			costResult.ExpiresAt = &t
+		}
 
 		for k, v := range actual.CostBreakdown {
 			costResult.CostBreakdown[k] = v
@@ -484,6 +484,7 @@ type CostResult struct {
 	CostBreakdown   map[string]float64
 	Sustainability  map[string]SustainabilityMetric
 	StructuredError *StructuredError `json:"structuredError,omitempty"`
+	ExpiresAt       *time.Time
 }
 
 // SustainabilityMetric represents a single sustainability impact measurement.
@@ -524,6 +525,7 @@ type ActualCostResult struct {
 	TotalCost      float64
 	CostBreakdown  map[string]float64
 	Sustainability map[string]SustainabilityMetric
+	ExpiresAt      *time.Time
 }
 
 // GetActualCostResponse contains the results of actual cost queries.
@@ -1086,6 +1088,12 @@ func (c *clientAdapter) GetProjectedCost(
 			Sustainability: make(map[string]SustainabilityMetric),
 		}
 
+		// Extract plugin caching hint
+		if ts := resp.GetExpiresAt(); ts != nil {
+			t := ts.AsTime()
+			result.ExpiresAt = &t
+		}
+
 		// Map impact metrics
 		for _, metric := range resp.GetImpactMetrics() {
 			var key string
@@ -1172,6 +1180,8 @@ func (c *clientAdapter) GetActualCost(
 			Sustainability: make(map[string]SustainabilityMetric),
 		}
 
+		result.ExpiresAt = earliestExpiresAt(resp.GetResults())
+
 		// Aggregate impact metrics (summing values for same kind across results)
 		aggregateImpactMetrics(result, resp.GetResults())
 		results = append(results, result)
@@ -1186,6 +1196,21 @@ func (c *clientAdapter) GetActualCost(
 			)
 	}
 	return &GetActualCostResponse{Results: results}, nil
+}
+
+// earliestExpiresAt returns the earliest non-nil expires_at timestamp from a
+// batch of actual cost results. Returns nil when no result has an expires_at set.
+func earliestExpiresAt(pbcResults []*pbc.ActualCostResult) *time.Time {
+	var earliest *time.Time
+	for _, r := range pbcResults {
+		if ts := r.GetExpiresAt(); ts != nil {
+			t := ts.AsTime()
+			if earliest == nil || t.Before(*earliest) {
+				earliest = &t
+			}
+		}
+	}
+	return earliest
 }
 
 func totalActualCost(pbcResults []*pbc.ActualCostResult) (float64, map[string]float64) {

@@ -1,12 +1,14 @@
 package engine
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -15,12 +17,14 @@ import (
 
 // mockCache implements cache.Cache for testing.
 type mockCache struct {
-	mu       sync.RWMutex
-	store    map[string]*cache.CacheEntry
-	enabled  bool
-	setCalls int
-	getCalls int
-	setErr   error
+	mu         sync.RWMutex
+	store      map[string]*cache.CacheEntry
+	enabled    bool
+	setCalls   int
+	setWithTTL int
+	getCalls   int
+	setErr     error
+	lastTTL    int
 }
 
 func newMockCache(enabled bool) *mockCache {
@@ -63,6 +67,25 @@ func (m *mockCache) Set(key string, data json.RawMessage) error {
 		return m.setErr
 	}
 	m.store[key] = cache.NewCacheEntry(key, data, 3600)
+	return nil
+}
+
+func (m *mockCache) SetWithTTL(key string, data json.RawMessage, ttlSeconds int) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.setWithTTL++
+	m.lastTTL = ttlSeconds
+
+	if !m.enabled {
+		return cache.ErrCacheDisabled
+	}
+	if key == "" {
+		return cache.ErrInvalidCacheKey
+	}
+	if m.setErr != nil {
+		return m.setErr
+	}
+	m.store[key] = cache.NewCacheEntry(key, data, ttlSeconds)
 	return nil
 }
 
@@ -461,5 +484,464 @@ func TestActualCostCacheIntegration(t *testing.T) {
 		assert.NotContains(t, results.Results[0].Adapter, "(cached)")
 		assert.Equal(t, 0, mc.getCalls, "cache disabled should skip Get")
 		assert.Equal(t, 0, mc.setCalls, "cache disabled should skip Set")
+	})
+}
+
+// T008: Tests for storeProjectedCostCache TTL override when ExpiresAt is set.
+func TestStoreProjectedCostCache_TTLOverride(t *testing.T) {
+	t.Run("SetWithTTL called when ExpiresAt is set", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		futureTime := time.Now().Add(2 * time.Hour)
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-ttl-test",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      15.0,
+				ExpiresAt:    &futureTime,
+			},
+		}
+
+		eng.storeProjectedCostCache(context.Background(), resource, results)
+
+		assert.Equal(t, 1, mc.setWithTTL, "SetWithTTL should be called when ExpiresAt is set")
+		assert.Equal(t, 0, mc.setCalls, "Set should not be called when ExpiresAt is set")
+		assert.InDelta(t, 7200, mc.lastTTL, 5, "TTL should be ~2 hours in seconds")
+	})
+
+	t.Run("Set called with default TTL when ExpiresAt is nil", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-no-ttl",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      20.0,
+			},
+		}
+
+		eng.storeProjectedCostCache(context.Background(), resource, results)
+
+		assert.Equal(t, 1, mc.setCalls, "Set should be called when ExpiresAt is nil")
+		assert.Equal(t, 0, mc.setWithTTL, "SetWithTTL should not be called when ExpiresAt is nil")
+	})
+
+	t.Run("SetWithTTL error logs warning without panic", func(t *testing.T) {
+		mc := newMockCache(true)
+		mc.setErr = assert.AnError
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		ctx, buf := ctxWithLogBuffer(zerolog.WarnLevel)
+		futureTime := time.Now().Add(2 * time.Hour)
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-err-test",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      15.0,
+				ExpiresAt:    &futureTime,
+			},
+		}
+
+		eng.storeProjectedCostCache(ctx, resource, results)
+
+		logOutput := buf.String()
+		assert.Contains(t, logOutput, "failed to cache cost results with plugin TTL")
+		assert.Equal(t, 1, mc.setWithTTL, "SetWithTTL should have been called")
+	})
+}
+
+// T019: Tests for skip-caching when projected cost ExpiresAt is in the past.
+func TestStoreProjectedCostCache_SkipPastExpiry(t *testing.T) {
+	t.Run("neither Set nor SetWithTTL called when ExpiresAt is in the past", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		pastTime := time.Now().Add(-1 * time.Hour)
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-past",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      15.0,
+				ExpiresAt:    &pastTime,
+			},
+		}
+
+		eng.storeProjectedCostCache(context.Background(), resource, results)
+
+		assert.Equal(t, 0, mc.setCalls, "Set should not be called for past ExpiresAt")
+		assert.Equal(t, 0, mc.setWithTTL, "SetWithTTL should not be called for past ExpiresAt")
+	})
+}
+
+// T020: Tests for skip-caching when all actual cost results have past ExpiresAt.
+func TestStoreActualCostCache_SkipPastExpiry(t *testing.T) {
+	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	t.Run("neither Set nor SetWithTTL called when all results have past ExpiresAt", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		pastTime1 := time.Now().Add(-2 * time.Hour)
+		pastTime2 := time.Now().Add(-30 * time.Minute)
+		request := ActualCostRequest{
+			Resources: []ResourceDescriptor{
+				{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"},
+			},
+			From: baseTime,
+			To:   endTime,
+		}
+		results := []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Currency:     "USD",
+				TotalCost:    100.0,
+				ExpiresAt:    &pastTime1,
+			},
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Currency:     "USD",
+				TotalCost:    50.0,
+				ExpiresAt:    &pastTime2,
+			},
+		}
+
+		eng.storeActualCostCache(context.Background(), request, results)
+
+		assert.Equal(t, 0, mc.setCalls, "Set should not be called for past ExpiresAt")
+		assert.Equal(t, 0, mc.setWithTTL, "SetWithTTL should not be called for past ExpiresAt")
+	})
+
+	t.Run("mixed {nil, past} batch uses default TTL via Set", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		pastTime := time.Now().Add(-1 * time.Hour)
+		request := ActualCostRequest{
+			Resources: []ResourceDescriptor{
+				{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"},
+			},
+			From: baseTime,
+			To:   endTime,
+		}
+		results := []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Currency:     "USD",
+				TotalCost:    100.0,
+				ExpiresAt:    nil,
+			},
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Currency:     "USD",
+				TotalCost:    50.0,
+				ExpiresAt:    &pastTime,
+			},
+		}
+
+		eng.storeActualCostCache(context.Background(), request, results)
+
+		assert.Equal(t, 1, mc.setCalls, "Set should be called for mixed {nil, past} batch (default TTL)")
+		assert.Equal(t, 0, mc.setWithTTL, "SetWithTTL should not be called for mixed {nil, past} batch")
+	})
+}
+
+// T021: Tests for cache-disabled edge case — expires_at hints are irrelevant.
+func TestStoreCache_DisabledIgnoresExpiresAt(t *testing.T) {
+	t.Run("projected: cache disabled ignores ExpiresAt entirely", func(t *testing.T) {
+		mc := newMockCache(false)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		futureTime := time.Now().Add(2 * time.Hour)
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-disabled",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      15.0,
+				ExpiresAt:    &futureTime,
+			},
+		}
+
+		eng.storeProjectedCostCache(context.Background(), resource, results)
+
+		assert.Equal(t, 0, mc.setCalls, "Set should not be called when cache disabled")
+		assert.Equal(t, 0, mc.setWithTTL, "SetWithTTL should not be called when cache disabled")
+	})
+
+	t.Run("actual: cache disabled ignores ExpiresAt entirely", func(t *testing.T) {
+		mc := newMockCache(false)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		futureTime := time.Now().Add(2 * time.Hour)
+		request := ActualCostRequest{
+			Resources: []ResourceDescriptor{
+				{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"},
+			},
+			From: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
+			To:   time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC),
+		}
+		results := []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Currency:     "USD",
+				TotalCost:    100.0,
+				ExpiresAt:    &futureTime,
+			},
+		}
+
+		eng.storeActualCostCache(context.Background(), request, results)
+
+		assert.Equal(t, 0, mc.setCalls, "Set should not be called when cache disabled")
+		assert.Equal(t, 0, mc.setWithTTL, "SetWithTTL should not be called when cache disabled")
+	})
+}
+
+// T009: Tests for storeActualCostCache TTL override when ExpiresAt is set.
+func TestStoreActualCostCache_TTLOverride(t *testing.T) {
+	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	endTime := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
+
+	t.Run("SetWithTTL called with earliest TTL from batch", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		earlierExpiry := time.Now().Add(30 * time.Minute)
+		laterExpiry := time.Now().Add(12 * time.Hour)
+		request := ActualCostRequest{
+			Resources: []ResourceDescriptor{
+				{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"},
+			},
+			From: baseTime,
+			To:   endTime,
+		}
+		results := []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Currency:     "USD",
+				TotalCost:    100.0,
+				ExpiresAt:    &laterExpiry,
+			},
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Currency:     "USD",
+				TotalCost:    50.0,
+				ExpiresAt:    &earlierExpiry,
+			},
+		}
+
+		eng.storeActualCostCache(context.Background(), request, results)
+
+		assert.Equal(t, 1, mc.setWithTTL, "SetWithTTL should be called when ExpiresAt is set")
+		assert.Equal(t, 0, mc.setCalls, "Set should not be called when ExpiresAt is set")
+		assert.InDelta(t, 1800, mc.lastTTL, 5, "TTL should be ~30 minutes (earliest)")
+	})
+
+	t.Run("Set called with default when no ExpiresAt", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		request := ActualCostRequest{
+			Resources: []ResourceDescriptor{
+				{Type: "aws:ec2:Instance", ID: "i-2", Provider: "aws"},
+			},
+			From: baseTime,
+			To:   endTime,
+		}
+		results := []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-2",
+				Currency:     "USD",
+				TotalCost:    75.0,
+			},
+		}
+
+		eng.storeActualCostCache(context.Background(), request, results)
+
+		assert.Equal(t, 1, mc.setCalls, "Set should be called when no ExpiresAt")
+		assert.Equal(t, 0, mc.setWithTTL, "SetWithTTL should not be called when no ExpiresAt")
+	})
+}
+
+// ctxWithLogBuffer returns a context with a zerolog logger writing to a buffer,
+// and the buffer for inspection.
+func ctxWithLogBuffer(level zerolog.Level) (context.Context, *bytes.Buffer) {
+	var buf bytes.Buffer
+	logger := zerolog.New(&buf).Level(level).With().Logger()
+	return logger.WithContext(context.Background()), &buf
+}
+
+// T023: Tests for debug logging when plugin TTL differs from default.
+func TestStoreProjectedCostCache_DebugLog_TTLOverride(t *testing.T) {
+	t.Run("debug log emitted when plugin TTL differs from default", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		ctx, buf := ctxWithLogBuffer(zerolog.DebugLevel)
+		futureTime := time.Now().Add(2 * time.Hour)
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-log-test",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      15.0,
+				ExpiresAt:    &futureTime,
+			},
+		}
+
+		eng.storeProjectedCostCache(ctx, resource, results)
+
+		logOutput := buf.String()
+		assert.Contains(t, logOutput, "using plugin TTL hint", "should log TTL override")
+		assert.Contains(t, logOutput, "storeProjectedCostCache", "should include operation")
+	})
+}
+
+// T024: Tests for debug logging when caching is skipped due to past ExpiresAt.
+func TestStoreProjectedCostCache_DebugLog_SkipCache(t *testing.T) {
+	t.Run("debug log emitted when caching skipped for past ExpiresAt", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		ctx, buf := ctxWithLogBuffer(zerolog.DebugLevel)
+		pastTime := time.Now().Add(-1 * time.Hour)
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-skip-test",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      15.0,
+				ExpiresAt:    &pastTime,
+			},
+		}
+
+		eng.storeProjectedCostCache(ctx, resource, results)
+
+		logOutput := buf.String()
+		assert.Contains(t, logOutput, "caching skipped", "should log skip reason")
+		assert.Contains(t, logOutput, "past", "should mention past expiration")
+	})
+}
+
+// T025: Tests for warning logging when CalculatePluginTTL caps at MaxTTLSeconds.
+func TestStoreProjectedCostCache_WarnLog_TTLCapped(t *testing.T) {
+	t.Run("warn log emitted when plugin TTL is capped at max", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		ctx, buf := ctxWithLogBuffer(zerolog.DebugLevel)
+		// Exceed MaxTTLSeconds (604800 = 7 days)
+		farFuture := time.Now().Add(30 * 24 * time.Hour)
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-cap-test",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      15.0,
+				ExpiresAt:    &farFuture,
+			},
+		}
+
+		eng.storeProjectedCostCache(ctx, resource, results)
+
+		logOutput := buf.String()
+		assert.Contains(t, logOutput, "plugin TTL capped", "should warn about cap")
+		assert.Contains(t, logOutput, "warn", "should be warn level")
+	})
+
+	t.Run("no warn when expires_at is exactly MaxTTLSeconds", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		ctx, buf := ctxWithLogBuffer(zerolog.DebugLevel)
+		exactMax := time.Now().Add(time.Duration(cache.MaxTTLSeconds) * time.Second)
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-exact-max",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      15.0,
+				ExpiresAt:    &exactMax,
+			},
+		}
+
+		eng.storeProjectedCostCache(ctx, resource, results)
+
+		logOutput := buf.String()
+		assert.NotContains(t, logOutput, "plugin TTL capped", "exact max should not trigger cap warning")
+		assert.Equal(t, 1, mc.setWithTTL, "SetWithTTL should be called")
 	})
 }

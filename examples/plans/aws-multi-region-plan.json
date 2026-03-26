@@ -1,0 +1,55 @@
+{
+  "steps": [
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::my-app::aws:ec2/instance:Instance::web-server-west",
+      "type": "aws:ec2/instance:Instance",
+      "provider": "urn:pulumi:dev::my-app::pulumi:providers:aws::default_1_0_0::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "inputs": {
+        "ami": "ami-0c02fb55956c7d316",
+        "instanceType": "t3.micro",
+        "tags": {
+          "Name": "Web Server West",
+          "Environment": "dev"
+        },
+        "availabilityZone": "us-west-2a",
+        "keyName": "my-key"
+      },
+      "outputs": {}
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::my-app::aws:ec2/instance:Instance::web-server-east",
+      "type": "aws:ec2/instance:Instance",
+      "provider": "urn:pulumi:dev::my-app::pulumi:providers:aws::default_1_0_0::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "inputs": {
+        "ami": "ami-0abcdef1234567890",
+        "instanceType": "t3.large",
+        "tags": {
+          "Name": "Web Server East",
+          "Environment": "dev"
+        },
+        "availabilityZone": "us-east-1a",
+        "keyName": "my-key"
+      },
+      "outputs": {}
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::my-app::aws:ec2/instance:Instance::api-server-east",
+      "type": "aws:ec2/instance:Instance",
+      "provider": "urn:pulumi:dev::my-app::pulumi:providers:aws::default_1_0_0::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "inputs": {
+        "ami": "ami-0abcdef1234567890",
+        "instanceType": "m5.large",
+        "tags": {
+          "Name": "API Server East",
+          "Environment": "dev"
+        },
+        "availabilityZone": "us-east-1b",
+        "keyName": "my-key"
+      },
+      "outputs": {}
+    }
+  ]
+}
