@@ -10,6 +10,7 @@ gem 'jekyll-theme-minimal', '~> 0.2'
 # Jekyll plugins
 gem 'jekyll-include-cache', '~> 0.2'
 gem 'jekyll-sitemap', '~> 1.4'
+gem 'jekyll-seo-tag', '~> 2.8'
 
 # Markdown processing
 gem 'kramdown', '~> 2.4'

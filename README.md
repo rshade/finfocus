@@ -4,13 +4,25 @@
 
 
 [![CI](https://github.com/rshade/finfocus/actions/workflows/ci.yml/badge.svg)](https://github.com/rshade/finfocus/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-61%25-yellow)](https://github.com/rshade/finfocus/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/rshade/finfocus/graph/badge.svg)](https://codecov.io/gh/rshade/finfocus)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rshade/finfocus)](https://goreportcard.com/report/github.com/rshade/finfocus)
+[![Go Version](https://img.shields.io/github/go-mod/go-version/rshade/finfocus)](https://github.com/rshade/finfocus/blob/main/go.mod)
+[![Release](https://img.shields.io/github/v/release/rshade/finfocus)](https://github.com/rshade/finfocus/releases/latest)
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
 
 **Cloud cost analysis for Pulumi infrastructure** - Calculate projected and actual infrastructure costs without modifying your Pulumi programs.
 
 FinFocus is a CLI tool that analyzes Pulumi infrastructure definitions to provide accurate cost estimates, budget enforcement, and historical cost tracking through a flexible plugin-based architecture.
+
+## Why FinFocus?
+
+Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but have no visibility into what it will cost until the bill arrives. FinFocus closes that gap:
+
+- **Shift-left on costs** — See projected costs *before* you deploy, directly from `pulumi preview` output
+- **No code changes required** — Works with any existing Pulumi project via JSON export
+- **Budget guardrails** — Enforce spending limits in CI/CD pipelines with non-zero exit codes
+- **Plugin architecture** — Swap pricing sources without changing your workflow
+- **Single dashboard** — Interactive TUI combining actual spend, projected costs, drift analysis, and recommendations
 
 ## Key Features
 
@@ -51,21 +63,21 @@ make build
 
 ```bash
 # Linux (amd64)
-curl -L https://github.com/rshade/finfocus/releases/download/v0.3.1/finfocus-v0.3.1-linux-amd64.tar.gz -o finfocus.tar.gz
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-linux-amd64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz
 chmod +x finfocus
 sudo mv finfocus /usr/local/bin/
 
 # macOS (Apple Silicon)
-curl -L https://github.com/rshade/finfocus/releases/download/v0.3.1/finfocus-v0.3.1-macos-arm64.tar.gz -o finfocus.tar.gz
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-macos-arm64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/rshade/finfocus/releases/download/v0.3.1/finfocus-v0.3.1-macos-amd64.tar.gz -o finfocus.tar.gz
+curl -L https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-macos-amd64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
 
 # Windows (PowerShell) - installs to a user-local directory, no admin rights required
-Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.3.1/finfocus-v0.3.1-windows-amd64.zip" -OutFile finfocus.zip
+Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-windows-amd64.zip" -OutFile finfocus.zip
 Expand-Archive finfocus.zip -DestinationPath .
 $installDir = "$env:LocalAppData\Programs\finfocus"
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
