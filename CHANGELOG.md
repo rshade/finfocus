@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.4](https://github.com/rshade/finfocus/compare/v0.3.3...v0.3.4) (2026-03-26)
+
+
+### Added
+
+* **cache:** consume expires_at caching hints from plugin cost responses ([#893](https://github.com/rshade/finfocus/issues/893)) ([b3979b8](https://github.com/rshade/finfocus/commit/b3979b8edec2a289476e6c3ead475f58b0514a7b))
+* **router:** add BatchCost feature to capability routing ([#859](https://github.com/rshade/finfocus/issues/859)) ([648a11c](https://github.com/rshade/finfocus/commit/648a11c5844520feb8a0e41451c1982dd6aced24)), closes [#848](https://github.com/rshade/finfocus/issues/848)
+
+
+### Fixed
+
+* **cli:** preserve file sink on --debug and support qualified stack names ([#857](https://github.com/rshade/finfocus/issues/857)) ([c664f40](https://github.com/rshade/finfocus/commit/c664f404330abeff03634d5e15980b892e5d67a5))
+* **deps:** update go dependencies ([#871](https://github.com/rshade/finfocus/issues/871)) ([07dd143](https://github.com/rshade/finfocus/commit/07dd1436956e80accc47f7812d5dfd21495bd458))
+* **deps:** update go dependencies ([#884](https://github.com/rshade/finfocus/issues/884)) ([ce794c4](https://github.com/rshade/finfocus/commit/ce794c4baf6dfbc73e0b588cf6d08d9fccd98c13))
+
+
+### Documentation
+
+* update README badges, SEO metadata, and version references to v0.3.3 ([#907](https://github.com/rshade/finfocus/issues/907)) ([e9bc3c0](https://github.com/rshade/finfocus/commit/e9bc3c011fe49a895bbf1fa5bccf989f6112f30e))
+
 ## [0.3.3](https://github.com/rshade/finfocus/compare/v0.3.2...v0.3.3) (2026-03-03)
 
 
