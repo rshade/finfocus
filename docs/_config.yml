@@ -63,6 +63,7 @@ exclude:
 plugins:
   - jekyll-include-cache
   - jekyll-sitemap
+  - jekyll-seo-tag
 
 # Google Analytics (optional, uncomment to enable)
 # google_analytics_id: UA-XXXXXXXXX-X
@@ -146,7 +147,7 @@ full_rebuild: false
 future: false
 
 # Custom variables
-version: "0.3.0"
+version: "0.3.3"
 status: "Released"
 
 # Navigation (optional, if using custom nav)

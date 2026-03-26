@@ -138,6 +138,6 @@ The greenops package converts carbon footprint metrics (kg CO2e) to human-readab
 
 ---
 
-**Last Updated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-**This file is automatically updated by GitHub Actions.**
+**Last Updated:** 2026-03-25
+**Update this file when documentation structure changes.**
 
