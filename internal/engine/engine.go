@@ -3752,8 +3752,8 @@ func (e *Engine) storeCacheEntry(
 	}
 
 	ttlSeconds, skip, capped := cache.CalculatePluginTTL(expiresAt, 0)
+	log := logging.FromContext(ctx)
 	if skip {
-		log := logging.FromContext(ctx)
 		log.Debug().Ctx(ctx).
 			Str("component", "engine").
 			Str("operation", operation).
@@ -3761,7 +3761,6 @@ func (e *Engine) storeCacheEntry(
 		return
 	}
 
-	log := logging.FromContext(ctx)
 	if capped {
 		log.Warn().Ctx(ctx).
 			Str("component", "engine").

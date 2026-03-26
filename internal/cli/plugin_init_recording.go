@@ -87,7 +87,11 @@ func (w *RecorderWorkflow) SetFixtureDirectory(path string) {
 	w.session.FixtureDir = path
 }
 
-func (w *RecorderWorkflow) RunWithRecorder(ctx context.Context, planPath, statePath string, recordFixtures bool) error {
+func (w *RecorderWorkflow) RunWithRecorder(
+	ctx context.Context,
+	planPath, statePath string,
+	recordFixtures bool,
+) error {
 	if !recordFixtures {
 		w.logger.Debug().Msg("fixture recording disabled")
 		return nil
@@ -108,8 +112,16 @@ func (w *RecorderWorkflow) RunWithRecorder(ctx context.Context, planPath, stateP
 	}{
 		{"GetProjectedCost", "finfocus", []string{"cost", "projected", "--pulumi-json", planPath}},
 		// Fixed date "2025-01-01" ensures deterministic fixture generation for tests
-		{"GetActualCost", "finfocus", []string{"cost", "actual", "--pulumi-state", statePath, "--from", "2025-01-01"}},
-		{"GetRecommendations", "finfocus", []string{"cost", "recommendations", "--pulumi-json", planPath}},
+		{
+			"GetActualCost",
+			"finfocus",
+			[]string{"cost", "actual", "--pulumi-state", statePath, "--from", "2025-01-01"},
+		},
+		{
+			"GetRecommendations",
+			"finfocus",
+			[]string{"cost", "recommendations", "--pulumi-json", planPath},
+		},
 	}
 
 	for _, rt := range recordedTypes {
@@ -144,7 +156,10 @@ func (w *RecorderWorkflow) RunWithRecorder(ctx context.Context, planPath, stateP
 				Path:      reqPath,
 				Timestamp: time.Now(),
 			})
-			w.logger.Info().Str("type", rt.name).Str("path", reqPath).Msg("recorded request captured")
+			w.logger.Info().
+				Str("type", rt.name).
+				Str("path", reqPath).
+				Msg("recorded request captured")
 		}
 	}
 
@@ -194,7 +209,8 @@ func (w *RecorderWorkflow) CopyRecordedRequestsToTestdata(targetDir string) erro
 		}
 
 		targetPath := filepath.Join(testdataDir, filepath.Base(req.Path))
-		if writeErr := os.WriteFile(targetPath, content, 0600); writeErr != nil { //nolint:gosec // G703: path built from filepath.Join+filepath.Base, no traversal
+		//nolint:gosec // G703: path built from filepath.Join+filepath.Base, no traversal
+		if writeErr := os.WriteFile(targetPath, content, 0600); writeErr != nil {
 			return fmt.Errorf("writing recorded request %s: %w", targetPath, writeErr)
 		}
 		w.logger.Debug().Str("from", req.Path).Str("to", targetPath).Msg("copied recorded request")
@@ -211,7 +227,10 @@ func (w *RecorderWorkflow) CopyRecordedRequestsToTestdata(targetDir string) erro
 func (w *RecorderWorkflow) ValidateRecordings() error {
 	if len(w.session.Recorded) == 0 {
 		if len(w.session.Errors) > 0 {
-			return fmt.Errorf("recording failed with errors: %s", strings.Join(w.session.Errors, "; "))
+			return fmt.Errorf(
+				"recording failed with errors: %s",
+				strings.Join(w.session.Errors, "; "),
+			)
 		}
 		return errors.New("no requests were recorded")
 	}

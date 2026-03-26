@@ -644,6 +644,42 @@ func TestStoreActualCostCache_SkipPastExpiry(t *testing.T) {
 		assert.Equal(t, 0, mc.setCalls, "Set should not be called for past ExpiresAt")
 		assert.Equal(t, 0, mc.setWithTTL, "SetWithTTL should not be called for past ExpiresAt")
 	})
+
+	t.Run("mixed {nil, past} batch uses default TTL via Set", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		pastTime := time.Now().Add(-1 * time.Hour)
+		request := ActualCostRequest{
+			Resources: []ResourceDescriptor{
+				{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"},
+			},
+			From: baseTime,
+			To:   endTime,
+		}
+		results := []CostResult{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Currency:     "USD",
+				TotalCost:    100.0,
+				ExpiresAt:    nil,
+			},
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-1",
+				Currency:     "USD",
+				TotalCost:    50.0,
+				ExpiresAt:    &pastTime,
+			},
+		}
+
+		eng.storeActualCostCache(context.Background(), request, results)
+
+		assert.Equal(t, 1, mc.setCalls, "Set should be called for mixed {nil, past} batch (default TTL)")
+		assert.Equal(t, 0, mc.setWithTTL, "SetWithTTL should not be called for mixed {nil, past} batch")
+	})
 }
 
 // T021: Tests for cache-disabled edge case — expires_at hints are irrelevant.
@@ -878,5 +914,34 @@ func TestStoreProjectedCostCache_WarnLog_TTLCapped(t *testing.T) {
 		logOutput := buf.String()
 		assert.Contains(t, logOutput, "plugin TTL capped", "should warn about cap")
 		assert.Contains(t, logOutput, "warn", "should be warn level")
+	})
+
+	t.Run("no warn when expires_at is exactly MaxTTLSeconds", func(t *testing.T) {
+		mc := newMockCache(true)
+		eng := New(nil, nil)
+		eng.cache = mc
+
+		ctx, buf := ctxWithLogBuffer(zerolog.DebugLevel)
+		exactMax := time.Now().Add(time.Duration(cache.MaxTTLSeconds) * time.Second)
+		resource := ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       "i-exact-max",
+			Provider: "aws",
+		}
+		results := []CostResult{
+			{
+				ResourceType: resource.Type,
+				ResourceID:   resource.ID,
+				Currency:     "USD",
+				Monthly:      15.0,
+				ExpiresAt:    &exactMax,
+			},
+		}
+
+		eng.storeProjectedCostCache(ctx, resource, results)
+
+		logOutput := buf.String()
+		assert.NotContains(t, logOutput, "plugin TTL capped", "exact max should not trigger cap warning")
+		assert.Equal(t, 1, mc.setWithTTL, "SetWithTTL should be called")
 	})
 }

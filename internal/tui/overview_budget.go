@@ -131,10 +131,10 @@ func renderDetailBudgetStatus(m OverviewModel) string {
 					alertStyle = CriticalStyle
 				}
 				fmt.Fprintf(&content, "    %s %.0f%% threshold triggered (%s)\n",
-				alertStyle.Render("ALERT:"),
-				threshold.GetPercentage(),
-				threshold.GetType().String(),
-			)
+					alertStyle.Render("ALERT:"),
+					threshold.GetPercentage(),
+					threshold.GetType().String(),
+				)
 			}
 		}
 

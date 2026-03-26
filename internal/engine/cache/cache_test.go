@@ -858,7 +858,7 @@ func BenchmarkSetWithTTL(b *testing.B) {
 	data := json.RawMessage(`{"cost":42.0,"currency":"USD"}`)
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for i := range b.N {
 		key := "projected/aws/ec2:Instance/us-east-1/t3.micro/" + strconv.Itoa(i)
 		if setErr := store.SetWithTTL(key, data, 1800); setErr != nil {
 			b.Fatal(setErr)
@@ -881,7 +881,7 @@ func BenchmarkSetWithTTL_GetRoundTrip(b *testing.B) {
 	}
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		entry, getErr := store.Get(key)
 		if getErr != nil {
 			b.Fatal(getErr)
