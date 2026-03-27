@@ -66,6 +66,16 @@ reviews:
         - Review Makefile for proper targets and dependencies
         - Ensure commands are properly formatted and safe
         - Check for proper variable usage
+    - path: "agent-skills/**/*.md"
+      instructions: |
+        These are Claude Code agent skill files, NOT docs-site pages.
+        SKILL.md files use skill frontmatter (name + description), not docs
+        frontmatter (title/description/layout). The H1 heading is the content
+        title, not a duplicate of frontmatter.
+        Reference files (references/*.md) are plain markdown consumed by
+        agents — they do not require YAML frontmatter.
+        Do NOT flag missing title/layout frontmatter or duplicate H1 headings
+        in these files.
     - path: "**/*.md"
       instructions: |
         Please ensure documentation is clear and up-to-date.

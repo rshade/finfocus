@@ -17,11 +17,6 @@ guardrails in `CONTEXT.md`.
 
 *v0.3.3 released 2026-03-03.*
 
-- [ ] Recognize `PLUGIN_CAPABILITY_BATCH_COST` in capability routing
-      and plugin list
-      ([#848](https://github.com/rshade/finfocus/issues/848)) [S]
-- [ ] Consume `expires_at` caching hints from plugin cost responses
-      ([#845](https://github.com/rshade/finfocus/issues/845)) [M]
 - [ ] Implement EstimateCost RPC consumer (remove stub)
       ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
 - [ ] Add `--state-only` flag to skip pulumi preview
@@ -169,15 +164,23 @@ guardrails in `CONTEXT.md`.
     correctly in a GitHub comment using only data from the `CostResult` array.
 - [ ] **Agent Skills** *(co-located, tool-dependent)*
   - [ ] `finfocus-install` — Install CLI, detect cloud providers, install
-        matching plugins, run `config init`, validate setup [M]
+        matching plugins, run `config init`, validate setup
+        ([#909](https://github.com/rshade/finfocus/issues/909)) [M]
   - [ ] `finfocus-analyzer-setup` — Install and configure Pulumi Analyzer
-        integration for inline cost display during `pulumi preview` [S]
+        integration for inline cost display during `pulumi preview`
+        ([#910](https://github.com/rshade/finfocus/issues/910)) [S]
   - [ ] `plugin-manage` — Discover, install, update, validate, and
-        troubleshoot finfocus plugins via gRPC protocol [M]
+        troubleshoot finfocus plugins via gRPC protocol
+        ([#911](https://github.com/rshade/finfocus/issues/911)) [M]
   - [ ] `finfocus-routing` — Configure intelligent plugin routing with
-        priority, pattern matching, and fallback rules [S]
+        priority, pattern matching, and fallback rules
+        ([#912](https://github.com/rshade/finfocus/issues/912)) [S]
   - [ ] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
-        BoltDB cache issues, and zero-cost results [M]
+        BoltDB cache issues, and zero-cost results
+        ([#913](https://github.com/rshade/finfocus/issues/913)) [M]
+  - [ ] `finfocus-budget` — Configure, monitor, and troubleshoot budget
+        thresholds with scoped rules, health tracking, and CI/CD exit codes
+        ([#914](https://github.com/rshade/finfocus/issues/914)) [M]
   - *Format:* Agent Skills spec (SKILL.md + references/), installable via
     `npx skills add rshade/finfocus -s <name>`
   - *Generic cost workflow skills (cost-check, cost-drift, cost-optimize,
@@ -223,6 +226,16 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] Update aws-public plugin to install router by default
+      ([#895](https://github.com/rshade/finfocus/issues/895)) [S]
+      *(Completed 2026-03-26)*
+- [x] Consume `expires_at` caching hints from plugin cost responses
+      ([#845](https://github.com/rshade/finfocus/issues/845)) [M]
+      *(Completed 2026-03-26)*
+- [x] Recognize `PLUGIN_CAPABILITY_BATCH_COST` in capability routing
+      and plugin list
+      ([#848](https://github.com/rshade/finfocus/issues/848)) [S]
+      *(Completed 2026-03-10)*
 - [x] Show property changes in overview detail view
       ([#852](https://github.com/rshade/finfocus/issues/852)) [M]
       *(Completed 2026-03-03)*

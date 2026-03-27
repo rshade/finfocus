@@ -288,6 +288,15 @@ FinFocus operates across three repositories:
 
 Cross-repo changes follow the protocol in `.specify/memory/constitution.md`.
 
+### Agent Skills Placement
+
+- **Tool-specific skills** (`finfocus-install`, `finfocus-diagnose`, etc.) → live in
+  `rshade/finfocus` under `agent-skills/` — these are product skills tightly coupled to
+  finfocus CLI commands, file paths, and architecture
+- **Generic cost workflow skills** (`cost-check`, `cost-drift`, `cost-optimize`,
+  `budget-setup`) → live in `rshade/agent-skills` as multi-tool skills not tied to any
+  specific cost tool
+
 ## Common Error Types
 
 - `ErrNoCostData`: No cost data available for a resource

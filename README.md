@@ -471,10 +471,25 @@ We welcome contributions! See our development documentation:
 
 Apache-2.0 - See [LICENSE](LICENSE) for details.
 
+## Agent Skills
+
+FinFocus ships [agent skills](agent-skills/) for AI coding assistants
+(Claude Code, Gemini CLI, etc.) that automate common workflows:
+
+| Skill | Description |
+|-------|-------------|
+| [finfocus-install](agent-skills/finfocus-install/) | Install CLI, detect providers, setup plugins and config |
+| [finfocus-analyzer-setup](agent-skills/finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation |
+| [finfocus-routing](agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
+
+See [agent-skills/README.md](agent-skills/README.md) for the full list and
+planned skills.
+
 ## Related Projects
 
 - [finfocus-spec](https://github.com/rshade/finfocus-spec) - Protocol definitions and schemas
 - [finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public) - AWS public pricing plugin
+- [agent-skills](https://github.com/rshade/agent-skills) - Generic cost workflow skills (multi-tool)
 
 ---
 
