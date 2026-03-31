@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5](https://github.com/rshade/finfocus/compare/v0.3.4...v0.3.5) (2026-03-31)
+
+
+### Added
+
+* **skills:** add agent skills for install, analyzer-setup, and routing ([#915](https://github.com/rshade/finfocus/issues/915)) ([7ac01d4](https://github.com/rshade/finfocus/commit/7ac01d48a83b329f7d1e21a51581ecdc3aa5b198)), closes [#909](https://github.com/rshade/finfocus/issues/909) [#910](https://github.com/rshade/finfocus/issues/910) [#912](https://github.com/rshade/finfocus/issues/912)
+
+
+### Fixed
+
+* **deps:** update go dependencies ([#927](https://github.com/rshade/finfocus/issues/927)) ([0ffa540](https://github.com/rshade/finfocus/commit/0ffa540219fcb9c68f693d1da9194cc2cc5078f2))
+
+
+### Performance
+
+* **cli:** add --state-only flag to skip pulumi preview ([#933](https://github.com/rshade/finfocus/issues/933)) ([2c27c39](https://github.com/rshade/finfocus/commit/2c27c39db2b52d3e73d3d8e4b8f5c2ec72ba9053)), closes [#690](https://github.com/rshade/finfocus/issues/690)
+
+
+### Documentation
+
+* clarify budget status visibility in overview output modes ([#932](https://github.com/rshade/finfocus/issues/932)) ([6fc93b3](https://github.com/rshade/finfocus/commit/6fc93b3953cccaffdb1efc7bb310f0a70ab1b53b)), closes [#855](https://github.com/rshade/finfocus/issues/855)
+
 ## [0.3.4](https://github.com/rshade/finfocus/compare/v0.3.3...v0.3.4) (2026-03-26)
 
 
