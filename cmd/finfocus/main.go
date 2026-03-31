@@ -1,3 +1,6 @@
+// Copyright 2025-2026 Richard Shade. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See LICENSE for details.
+
 // Package main provides the finfocus CLI tool for calculating cloud infrastructure costs.
 // It supports both projected costs from Pulumi infrastructure definitions and actual historical
 // costs from cloud provider APIs via a plugin-based architecture.
