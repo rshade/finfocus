@@ -69,6 +69,38 @@ func TestNewOverviewCmd_HelpFlag(t *testing.T) {
 	assert.Contains(t, output, "--exit-on-threshold")
 	assert.Contains(t, output, "--exit-code")
 	assert.Contains(t, output, "--budget-scope")
+	assert.Contains(t, output, "--state-only")
+}
+
+func TestNewOverviewCmd_StateOnlyMutualExclusion(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	var buf bytes.Buffer
+	cmd := cli.NewOverviewCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--state-only", "--pulumi-json", "plan.json", "--yes"})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "state-only")
+	assert.Contains(t, err.Error(), "pulumi-json")
+}
+
+func TestNewOverviewCmd_StateOnlyWithPulumiState(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Setenv("FINFOCUS_HIDE_ALIAS_HINT", "1")
+
+	var buf bytes.Buffer
+	cmd := cli.NewOverviewCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{"--state-only", "--pulumi-state", "/nonexistent/state.json", "--yes"})
+
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "mutually exclusive")
 }
 
 func TestNewOverviewCmd_NonExistentStateFile(t *testing.T) {

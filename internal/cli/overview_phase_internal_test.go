@@ -115,6 +115,27 @@ func TestResolveIsStateOnly(t *testing.T) {
 			detectErr:   noErr,
 			wantIsState: false,
 		},
+		{
+			name:        "stateOnly flag: no signal, no error → state-only",
+			params:      overviewParams{stateOnly: true},
+			signal:      pulumidetect.ChangeSignal{},
+			detectErr:   noErr,
+			wantIsState: true,
+		},
+		{
+			name:        "stateOnly flag: overrides HasLikelyChanges",
+			params:      overviewParams{stateOnly: true},
+			signal:      pulumidetect.ChangeSignal{HasLikelyChanges: true},
+			detectErr:   noErr,
+			wantIsState: true,
+		},
+		{
+			name:        "stateOnly flag: overrides yes=true",
+			params:      overviewParams{stateOnly: true, yes: true},
+			signal:      pulumidetect.ChangeSignal{},
+			detectErr:   noErr,
+			wantIsState: true,
+		},
 	}
 
 	for _, tt := range tests {

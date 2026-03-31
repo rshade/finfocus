@@ -468,12 +468,12 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 - **`/opencode-review-fix`** comment on a PR triggers automatic fix of all review issues
 
 ## Recent Changes
+- 607-state-only-flag: Added Go 1.25.8 (see `go.mod`) + Cobra (CLI framework), Bubble Tea (TUI), zerolog (logging)
 - 606-cache-expires-at: Added Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (provides `expires_at` proto fields), BoltDB (cache storage), zerolog (logging)
 
 - 605-batch-cost-capability: Added batch cost capability to router feature mapping
-- 604-charm-v2-upgrade: Added Go 1.25.8 (see `go.mod`)
 
 ## Active Technologies
-- Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (provides `expires_at` proto fields), BoltDB (cache storage), zerolog (logging) (606-cache-expires-at)
-- BoltDB (`cache.db`) — no structural changes needed; `CacheEntry` already has per-entry `ExpiresAt`/`TTLSeconds` (606-cache-expires-at)
+- Go 1.25.8 (see `go.mod`) + Cobra (CLI framework), Bubble Tea (TUI), zerolog (logging) (607-state-only-flag)
+- N/A (no storage changes) (607-state-only-flag)
 
