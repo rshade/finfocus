@@ -17,7 +17,11 @@ This document defines the technical guardrails and architectural scope of the `f
 ## Technical Boundaries ("Hard No's")
 To maintain its role as a lightweight orchestrator, the following are explicitly **out of scope**:
 *   **Direct Cloud API Calls**: The core engine MUST NOT call cloud provider pricing APIs (e.g., AWS Price List API) or usage APIs directly. All provider-specific logic belongs in plugins.
-*   **Persistent State**: The tool is stateless. It MUST NOT require a database, local cache, or persistent filesystem beyond the ephemeral execution of a command.
+*   **Required Persistent State**: The core execution model is stateless — every command MUST produce correct results without any prior local state. However, finfocus uses **optional local persistence** (BoltDB) as a performance and accuracy aid:
+    *   **Cost cache** (`~/.finfocus/cache/cache.db`): Avoids redundant plugin queries. Safe to delete; results rebuild on next run.
+    *   **Resource history** (`~/.finfocus/history/history.db`): Tracks resource identity across billing periods for accurate month-long actual cost queries. Safe to delete; accuracy degrades for past periods but current queries still function.
+    *   **Recommendation dismissals** (`dismissed.json`): Persists user dismissal decisions.
+    *   The distinction: finfocus **functions correctly** without any persisted state, just with **degraded performance** (no cache) or **reduced accuracy** (no history for replaced/destroyed resources). No persistent state is a hard prerequisite for any command to succeed.
 *   **Infrastructure Management**: It is a "read-only" tool. While it may invoke `pulumi` CLI commands (like `state export`) to read infrastructure definitions, it MUST NOT perform `pulumi up`, `pulumi destroy`, or any operation that modifies cloud state.
 *   **Baked-in Provider Logic**: The core engine MUST NOT contain hardcoded logic for specific cloud services (e.g., "how to calculate S3 pricing"). This logic is strictly delegated to plugins or YAML specs.
 *   **Financial Accounting**: The tool handles cost *estimation* and *projection*. It is NOT a ledger, invoice matching system, or tax calculation engine.

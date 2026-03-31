@@ -68,6 +68,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | Page                                          | Purpose                                  |
 | --------------------------------------------- | ---------------------------------------- |
 | [Budget Configuration](guides/budgets.md)     | Configure budgets, alerts, and thresholds |
+| [Resource History](guides/resource-history.md) | Track resource identity for accurate costs |
 | [Recommendations](guides/recommendations.md)  | Use cost optimization recommendations    |
 | [Accessibility](guides/accessibility.md)      | Configure colors, contrast, and TUI      |
 
@@ -192,6 +193,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 - [Quickstart](getting-started/quickstart.md)
 - [User Guide](guides/user-guide.md)
 - [Budgets & Alerts](guides/budgets.md)
+- [Resource History & Cost Tags](guides/resource-history.md)
 - [Cost Recommendations](guides/recommendations.md)
 - [Accessibility Options](guides/accessibility.md)
 - [CLI Commands](reference/cli-commands.md)
