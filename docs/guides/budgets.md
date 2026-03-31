@@ -472,6 +472,24 @@ Overall Health: CRITICAL
 
 ---
 
+## Budget Visibility in Overview
+
+The `finfocus overview` command shows budget status differently per output mode:
+
+- **Interactive TUI**: Budget footer with health badge loads asynchronously below
+  the resource table. Press Enter on a resource for per-budget detail with forecasts
+  and triggered alerts.
+- **JSON** (`--output json`): Full budget data in the top-level `budgets` array.
+- **NDJSON** (`--output ndjson`): Budgets are excluded — NDJSON is resource-scoped
+  and budgets are stack-scoped.
+- **Plain** (`--plain`): Budget status is not rendered in the table. Use
+  `--exit-on-threshold` for CI/CD enforcement.
+
+See [overview command — Budget Status](../commands/overview.md#budget-status) for
+the complete visibility matrix and flag reference.
+
+---
+
 ## Troubleshooting
 
 Common issues and solutions for budget configuration.
@@ -524,6 +542,7 @@ Ensure you have the correct schema directive and your indentation is correct:
 
 **CLI Reference:**
 
+- [overview](../commands/overview.md) - Unified cost dashboard with budget status
 - [cost projected](../reference/cli-commands.md#cost-projected) - Estimate projected costs
 - [cost recommendations](../reference/cli-commands.md#cost-recommendations) - Display recommendations
 
@@ -537,6 +556,6 @@ Ensure you have the correct schema directive and your indentation is correct:
 
 ---
 
-**Last Updated**: 2026-01-27
-**FinFocus Version**: v0.3.0
+**Last Updated**: 2026-03-30
+**FinFocus Version**: v0.3.4
 **Feedback**: [Open an issue](https://github.com/rshade/finfocus/issues/new) to improve this guide

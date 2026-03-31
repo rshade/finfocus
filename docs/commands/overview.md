@@ -35,6 +35,9 @@ the command auto-detects your Pulumi project and stack from the current director
 | `--yes`, `-y` | Skip confirmation prompts | false |
 | `--cache-ttl` | Cache TTL in seconds; 0 disables caching | 0 (disabled) |
 | `--no-pagination` | Disable pagination (plain mode only) | false |
+| `--exit-on-threshold` | Exit non-zero when budget threshold exceeded | false |
+| `--exit-code` | Exit code for threshold breach (0-255) | 1 |
+| `--budget-scope` | Filter budget scopes: global, provider, tag, type | All |
 
 ## Auto-Detection
 
@@ -171,6 +174,36 @@ Press Enter on a resource to see a detailed breakdown including:
 - Cost drift analysis with extrapolation
 - Optimization recommendations with estimated savings
 
+## Budget Status
+
+The overview command displays budget health information differently depending on
+the output mode.
+
+### Visibility by Output Mode
+
+| Mode | Budget Shown | Details |
+|------|-------------|---------|
+| Interactive TUI | Footer bar + detail view | Color-coded health badge, spend/limit, utilization %. Press Enter for per-budget breakdown with forecasts and triggered alerts |
+| Plain (`--plain`) | Not rendered | Budget enforcement available via `--exit-on-threshold` |
+| JSON (`--output json`) | `budgets` array in output | Full budget health objects with utilization, forecasted spend, triggered thresholds |
+| NDJSON (`--output ndjson`) | Not included | NDJSON is resource-scoped; budgets are stack-scoped |
+
+### Budget Flags
+
+| Flag | Description | Applies To |
+|------|-------------|-----------|
+| `--exit-on-threshold` | Exit non-zero when budget threshold exceeded | Plain, JSON |
+| `--exit-code` | Exit code when threshold exceeded (0-255) | Plain, JSON |
+| `--budget-scope` | Filter budget scopes (global, provider, tag, type) | All modes |
+
+### Why is budget status missing in plain or NDJSON mode?
+
+Plain mode focuses on the resource table for piping and CI/CD use. Use
+`--exit-on-threshold` for budget enforcement in non-interactive environments.
+NDJSON emits one object per resource and budgets are stack-scoped, so they
+do not fit the per-line streaming model. Use `--output json` or the interactive
+TUI to see full budget details.
+
 ## Output formats
 
 ### Table (default)
@@ -221,6 +254,16 @@ Structured JSON object:
     "potentialSavings": 500.00,
     "currency": "USD"
   },
+  "budgets": [
+    {
+      "budgetID": "global",
+      "health": "WARNING",
+      "utilization": 85.2,
+      "limit": 5000.00,
+      "currentSpend": 4260.00,
+      "forecastedSpend": 5800.00
+    }
+  ],
   "errors": [ ... ]
 }
 ```
