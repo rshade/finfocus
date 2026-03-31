@@ -37,6 +37,7 @@ the command auto-detects your Pulumi project and stack from the current director
 | `--no-pagination` | Disable pagination (plain mode only) | false |
 | `--exit-on-threshold` | Exit non-zero when budget threshold exceeded | false |
 | `--exit-code` | Exit code for threshold breach (0-255) | 1 |
+| `--state-only` | Skip pulumi preview (faster, no pending change detection) | false |
 | `--budget-scope` | Filter budget scopes: global, provider, tag, type | All |
 
 ## Auto-Detection
@@ -63,6 +64,16 @@ finfocus overview
 Walks up from the current directory to find `Pulumi.yaml`, exports the current
 stack state, and runs `pulumi preview` automatically. Opens an interactive TUI
 with progressive data loading.
+
+### Cost-only overview (skip preview)
+
+```bash
+finfocus overview --state-only
+```
+
+Skips `pulumi preview` entirely, reducing overview time from ~18s to ~3s. Shows
+cost data from the current stack state without detecting pending infrastructure
+changes. In the TUI, the `p` key is still available to run preview on demand.
 
 ### Specific stack with auto-detection
 

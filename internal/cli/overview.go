@@ -47,6 +47,7 @@ type overviewParams struct {
 	exitOnThreshold bool
 	exitCode        int
 	budgetScope     string
+	stateOnly       bool
 }
 
 // NewOverviewCmd constructs the "overview" Cobra command that displays a unified stack cost
@@ -84,7 +85,10 @@ instead of running Pulumi CLI commands.`,
   finfocus overview --from 2025-01-01 --to 2025-01-31
 
   # Non-interactive plain text output
-  finfocus overview --plain --yes`,
+  finfocus overview --plain --yes
+
+  # Fast cost-only overview (skip pulumi preview)
+  finfocus overview --state-only`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return executeOverview(cmd, params)
 		},
@@ -108,6 +112,9 @@ instead of running Pulumi CLI commands.`,
 		"Exit code to use when budget thresholds are exceeded (0-255)")
 	cmd.Flags().StringVar(&params.budgetScope, "budget-scope", "",
 		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
+	cmd.Flags().BoolVar(&params.stateOnly, "state-only", false,
+		"skip pulumi preview (faster, but won't detect pending changes)")
+	cmd.MarkFlagsMutuallyExclusive("state-only", "pulumi-json")
 
 	return cmd
 }
@@ -345,8 +352,17 @@ func loadPlainOverviewData(
 ) ([]engine.StateResource, []engine.PlanStep, string, bool, error) {
 	if params.pulumiState != "" || params.pulumiJSON != "" {
 		// Explicit files provided: load both directly, bypass change detection.
+		// Propagate stateOnly so the caller uses NewRowsFromState when --state-only --pulumi-state is used.
 		sr, ps, sn, err := resolveOverviewData(ctx, params)
-		return sr, ps, sn, false, err
+		return sr, ps, sn, params.stateOnly, err
+	}
+
+	if params.stateOnly {
+		stateResources, _, _, stackName, stateErr := loadStateForOverview(ctx, params, nil)
+		if stateErr != nil {
+			return nil, nil, "", false, stateErr
+		}
+		return stateResources, nil, stackName, true, nil
 	}
 
 	// Auto-detect mode: state-first loading with optional change detection and prompt.
@@ -1080,6 +1096,9 @@ const (
 // must NOT override that intent.  When params.yes is false a detection error is a safe
 // signal to fall back to state-only so the user can trigger a preview manually with 'p'.
 func resolveIsStateOnly(params overviewParams, signal pulumidetect.ChangeSignal, detectErr error) bool {
+	if params.stateOnly {
+		return true
+	}
 	explicitStateOnly := params.pulumiState != "" && params.pulumiJSON == "" && !params.yes
 	runPreviewNow := !explicitStateOnly && (params.yes || signal.IsFirstDeploy || signal.HasLikelyChanges)
 	isStateOnly := !runPreviewNow
@@ -1132,13 +1151,22 @@ func overviewInitAndEnrich(
 	}
 
 	// Phase 2: Lightweight change detection from the already-parsed manifest.
-	p.Send(tui.OverviewPhaseMsg{Index: phaseDetectChanges, Phase: "Detecting changes..."})
-	signal, detectErr := pulumidetect.DetectChanges(enrichCtx, manifestTime, projectDir)
-	if detectErr != nil {
-		log.Warn().Ctx(enrichCtx).Err(detectErr).
-			Msg("change detection failed; will fall back to state-only unless --yes was set")
+	var isStateOnly bool
+	var detectErr error
+	if params.stateOnly {
+		log.Info().Ctx(enrichCtx).Msg("--state-only: skipping change detection")
+		p.Send(tui.OverviewPhaseMsg{Index: phaseDetectChanges, Phase: "Skipping change detection (--state-only)..."})
+		isStateOnly = true
+	} else {
+		p.Send(tui.OverviewPhaseMsg{Index: phaseDetectChanges, Phase: "Detecting changes..."})
+		signal, dErr := pulumidetect.DetectChanges(enrichCtx, manifestTime, projectDir)
+		detectErr = dErr
+		if detectErr != nil {
+			log.Warn().Ctx(enrichCtx).Err(detectErr).
+				Msg("change detection failed; will fall back to state-only unless --yes was set")
+		}
+		isStateOnly = resolveIsStateOnly(params, signal, detectErr)
 	}
-	isStateOnly := resolveIsStateOnly(params, signal, detectErr)
 
 	// Phase 3: Merge resources (from state only when state-first, from state+plan when preview runs).
 	p.Send(tui.OverviewPhaseMsg{Index: phaseMergeResources, Phase: "Merging resources..."})
