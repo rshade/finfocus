@@ -1,4 +1,37 @@
 <!--
+Sync Impact Report - Constitution v1.7.0 (Optional Persistence Model)
+=====================================================================
+
+Version Change: 1.6.0 → 1.7.0
+Change Type: New architectural guidance section (MINOR)
+
+Changes Made:
+- Added "Persistence Model" section documenting optional BoltDB stores
+- Aligned with CONTEXT.md update that replaced the "stateless" hard no
+  with nuanced "optional local persistence" model
+- Clarifies: core execution is stateless, persistence is a performance
+  and accuracy aid, no command requires prior state to succeed
+- Documents three stores: cost cache, resource history, dismissals
+
+Rationale:
+- CONTEXT.md was updated to acknowledge existing BoltDB cache and
+  planned Resource History Store (#934)
+- Constitution must reflect that persistence is permitted as an
+  optional aid while core statelessness is preserved
+- Prevents confusion about whether cache/history features violate
+  architectural boundaries
+
+Templates Requiring Updates:
+- ✅ .specify/templates/plan-template.md (Added Persistence Model check)
+- ✅ .specify/templates/tasks-template.md (No changes needed)
+
+Follow-up TODOs:
+- None
+
+Date: 2026-03-30
+
+---
+
 Sync Impact Report - Constitution v1.6.0 (TUI Visual Verification)
 ===================================================================
 
@@ -314,6 +347,41 @@ FinFocus (formerly PulumiCost) operates as a three-repository ecosystem:
 - Core MUST NOT depend on specific plugin implementations
 - Spec MUST remain independent (no external dependencies)
 
+## Persistence Model
+
+The core execution model is **stateless** — every command MUST produce
+correct results without any prior local state. However, finfocus uses
+**optional local persistence** (BoltDB) as a performance and accuracy aid.
+
+### Permitted Stores
+
+| Store | Path | Purpose | Delete-Safe? |
+|-------|------|---------|-------------|
+| Cost cache | `~/.finfocus/cache/cache.db` | Avoids redundant plugin queries | Yes — rebuilds on next run |
+| Resource history | `~/.finfocus/history/history.db` | Tracks resource identity across billing periods | Yes — accuracy degrades for past periods |
+| Recommendation dismissals | `~/.finfocus/dismissed.json` | Persists user dismissal decisions | Yes — dismissals reset |
+
+### Constraints
+
+1. **No command MUST require prior state to succeed.** Deleting all BoltDB
+   stores and JSON files MUST NOT cause any finfocus command to error.
+   Results may be slower (no cache) or less accurate (no history for
+   replaced/destroyed resources), but the command MUST complete.
+2. **Persistence is opt-out, not opt-in.** Stores are enabled by default
+   for the best user experience. Users MAY disable them via configuration
+   (`cost.history.enabled: false`, `cost.cache.ttl_seconds: 0`).
+3. **New persistent stores MUST be documented** in both CONTEXT.md and
+   this constitution before implementation.
+4. **Stores MUST handle corruption gracefully.** A corrupted BoltDB file
+   MUST be auto-detected, deleted, and recreated — never causing a
+   command failure.
+
+**Rationale**: Infrastructure CLI tools run in diverse environments
+(developer laptops, CI containers, ephemeral runners). Stateless core
+execution ensures finfocus works everywhere. Optional persistence rewards
+long-running environments with better performance and accuracy without
+penalizing ephemeral ones.
+
 ## Governance
 
 This constitution supersedes all other development practices and conventions.
@@ -368,4 +436,4 @@ When using the Pulumi SDK (`github.com/pulumi/pulumi/sdk/v3`):
 - Earlier versions may have different package structures or missing types
 - This ensures compatibility with the current Pulumi Analyzer protocol
 
-**Version**: 1.6.0 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-03-02
+**Version**: 1.7.0 | **Ratified**: 2025-11-06 | **Last Amended**: 2026-03-30

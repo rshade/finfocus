@@ -40,6 +40,8 @@ Verify compliance with PulumiCost Core Constitution (`.specify/memory/constituti
 - [ ] **Documentation Integrity**: Are README and docs/ planned for update with verified sync?
 - [ ] **Protocol Stability**: Do protocol changes follow semantic versioning?
 - [ ] **Implementation Completeness**: Is the feature fully implemented without stubs or TODOs?
+- [ ] **Persistence Model**: If adding persistent state, is it optional (commands work without it)?
+  Does it handle corruption gracefully? Is it documented in CONTEXT.md and constitution?
 - [ ] **Quality Gates**: Are all CI checks (tests, lint, security) passing?
 - [ ] **Multi-Repo Coordination**: Are cross-repo dependencies documented?
 

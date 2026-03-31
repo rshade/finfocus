@@ -2,7 +2,6 @@
 
 *Cloud cost analysis for Pulumi infrastructure*
 
-
 [![CI](https://github.com/rshade/finfocus/actions/workflows/ci.yml/badge.svg)](https://github.com/rshade/finfocus/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/rshade/finfocus/graph/badge.svg)](https://codecov.io/gh/rshade/finfocus)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rshade/finfocus)](https://goreportcard.com/report/github.com/rshade/finfocus)
@@ -251,6 +250,247 @@ export FINFOCUS_PLUGIN_AZURE_SUBSCRIPTION_ID="your-subscription-id"
 
 The naming convention is: `FINFOCUS_PLUGIN_<PLUGIN_NAME>_<KEY_NAME>` in uppercase.
 
+### Cost Allocation Tags
+
+For accurate month-long cost tracking — especially when resources are replaced
+or destroyed mid-month — FinFocus can query cloud billing APIs by **resource
+tags**. This requires your Pulumi-managed resources to carry consistent tags.
+
+> **Why this matters**: When a resource is replaced (e.g., EC2 instance swap),
+> the old cloud ID disappears from Pulumi state. Without tags, FinFocus can
+> only see costs for the *current* resource. With tags like `pulumi:project`
+> on both the old and new resources, billing APIs return the full month's costs.
+>
+> **Important**: Pulumi does **not** automatically tag cloud resources with
+> `pulumi:project` or `pulumi:stack`. These are stack-level metadata only.
+> You must explicitly configure resource tagging using one of the methods below.
+
+<details>
+<summary><strong>AWS — Provider Default Tags</strong></summary>
+
+**Option A: Stack configuration (static values)**
+
+```yaml
+# Pulumi.dev.yaml
+config:
+  aws:defaultTags:
+    tags:
+      pulumi:project: my-app
+      pulumi:stack: dev
+      Environment: development
+      CostCenter: "12345"
+```
+
+**Option B: Explicit provider in code (dynamic values)**
+
+TypeScript:
+
+```typescript
+const provider = new aws.Provider("tagged", {
+  defaultTags: {
+    tags: {
+      "pulumi:project": pulumi.getProject(),
+      "pulumi:stack": pulumi.getStack(),
+      "Environment": "dev",
+    },
+  },
+});
+
+// Use this provider for all resources
+const bucket = new aws.s3.Bucket("data", {}, { provider });
+```
+
+Go:
+
+```go
+provider, _ := aws.NewProvider(ctx, "tagged", &aws.ProviderArgs{
+    DefaultTags: &aws.ProviderDefaultTagsArgs{
+        Tags: pulumi.StringMap{
+            "pulumi:project": pulumi.String(ctx.Project()),
+            "pulumi:stack":   pulumi.String(ctx.Stack()),
+            "Environment":    pulumi.String("dev"),
+        },
+    },
+})
+
+// Use this provider for all resources
+bucket, _ := s3.NewBucket(ctx, "data", nil, pulumi.Provider(provider))
+```
+
+Python:
+
+```python
+provider = aws.Provider("tagged", default_tags={
+    "tags": {
+        "pulumi:project": pulumi.get_project(),
+        "pulumi:stack": pulumi.get_stack(),
+        "Environment": "dev",
+    },
+})
+
+# Use this provider for all resources
+bucket = aws.s3.Bucket("data", opts=pulumi.ResourceOptions(provider=provider))
+```
+
+**After tagging**: Activate `pulumi:project` and `pulumi:stack` as
+[Cost Allocation Tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/cost-alloc-tags.html)
+in the AWS Billing Console. Tags take ~24 hours to appear in Cost Explorer.
+
+</details>
+
+<details>
+<summary><strong>GCP — Provider Default Labels</strong></summary>
+
+> GCP labels must be lowercase with hyphens/underscores only (no colons).
+> Use `pulumi_project` instead of `pulumi:project`.
+
+**Option A: Stack configuration**
+
+```yaml
+# Pulumi.dev.yaml
+config:
+  gcp:defaultLabels:
+    pulumi_project: my-app
+    pulumi_stack: dev
+    environment: development
+    cost_center: "12345"
+```
+
+**Option B: Explicit provider in code**
+
+TypeScript:
+
+```typescript
+const provider = new gcp.Provider("tagged", {
+  defaultLabels: {
+    pulumi_project: pulumi.getProject(),
+    pulumi_stack: pulumi.getStack(),
+    environment: "dev",
+  },
+});
+```
+
+Go:
+
+```go
+provider, _ := gcp.NewProvider(ctx, "tagged", &gcp.ProviderArgs{
+    DefaultLabels: pulumi.StringMap{
+        "pulumi_project": pulumi.String(ctx.Project()),
+        "pulumi_stack":   pulumi.String(ctx.Stack()),
+        "environment":    pulumi.String("dev"),
+    },
+})
+```
+
+Python:
+
+```python
+provider = gcp.Provider("tagged", default_labels={
+    "pulumi_project": pulumi.get_project(),
+    "pulumi_stack": pulumi.get_stack(),
+    "environment": "dev",
+})
+```
+
+> **Note**: GCP v8.0+ automatically adds the `goog-pulumi-provisioned` label
+> to all resources. Opt out with `gcp:addPulumiAttributionLabel = false`.
+
+</details>
+
+<details>
+<summary><strong>Azure — Stack Transformations</strong></summary>
+
+Azure Native does not have a provider-level `defaultTags` option. Use a
+stack transformation to inject tags into all taggable resources:
+
+TypeScript:
+
+```typescript
+pulumi.runtime.registerStackTransformation((args) => {
+  if (args.props["tags"] !== undefined) {
+    args.props["tags"] = {
+      ...args.props["tags"],
+      "pulumi:project": pulumi.getProject(),
+      "pulumi:stack": pulumi.getStack(),
+      "Environment": "dev",
+    };
+  }
+  return { props: args.props, opts: args.opts };
+});
+```
+
+Go:
+
+```go
+ctx.RegisterStackTransformation(func(args *pulumi.ResourceTransformationArgs) *pulumi.ResourceTransformationResult {
+    if tags, ok := args.Props["tags"]; ok {
+        if tagMap, ok := tags.(pulumi.StringMap); ok {
+            tagMap["pulumi:project"] = pulumi.String(ctx.Project())
+            tagMap["pulumi:stack"] = pulumi.String(ctx.Stack())
+            tagMap["Environment"] = pulumi.String("dev")
+            args.Props["tags"] = tagMap
+        }
+    }
+    return &pulumi.ResourceTransformationResult{Props: args.Props, Opts: args.Opts}
+})
+```
+
+Python:
+
+```python
+def auto_tags(args: pulumi.ResourceTransformationArgs):
+    if "tags" in args.props:
+        args.props["tags"] = {
+            **args.props["tags"],
+            "pulumi:project": pulumi.get_project(),
+            "pulumi:stack": pulumi.get_stack(),
+            "Environment": "dev",
+        }
+    return pulumi.ResourceTransformationResult(args.props, args.opts)
+
+pulumi.runtime.register_stack_transformation(auto_tags)
+```
+
+</details>
+
+**FinFocus configuration** for tag-based cost queries:
+
+```yaml
+# ~/.finfocus/config.yaml
+cost:
+  allocation:
+    enabled: true
+    tags:
+      - "pulumi:project"
+      - "pulumi:stack"
+      - "Environment"
+      - "CostCenter"
+```
+
+### Resource History
+
+FinFocus maintains a resource history database (`~/.finfocus/history/history.db`)
+that tracks which cloud resource IDs existed over time. This enables accurate
+month-long cost queries even when resources are replaced or destroyed mid-month.
+
+**How it works**: Every time FinFocus runs, it snapshots the current state of your
+resources. Over time, this builds a timeline of all cloud IDs each logical resource
+has had. When you query actual costs for a full month, FinFocus queries billing APIs
+for *all* historical IDs — not just the current one.
+
+> **Important**: Unlike the cache (`cache.db`), the history database is **not safe
+> to delete**. Deleting it loses the resource identity timeline, reducing cost
+> accuracy for past periods. Back up `~/.finfocus/history/` if you back up your
+> infrastructure configuration.
+
+```yaml
+# ~/.finfocus/config.yaml
+cost:
+  history:
+    enabled: true          # default: true
+    retention_days: 90     # how long to keep entries (default: 90)
+```
+
 ## Advanced Usage
 
 ### Resource Filtering
@@ -443,6 +683,7 @@ Complete documentation is available in the [docs/](docs/) directory:
 
 - **👤 End Users**: [User Guide](docs/guides/user-guide.md) - How to install and use FinFocus
 - **💰 Budgets**: [Budget Guide](docs/guides/budgets.md) - Configure alerts and thresholds
+- **📜 Resource History**: [Resource History Guide](docs/guides/resource-history.md) - Accurate month-long costs
 - **💡 Recommendations**: [Recommendations Guide](docs/guides/recommendations.md) - Optimization insights
 - **♿ Accessibility**: [Accessibility Guide](docs/guides/accessibility.md) - UI configuration
 - **🛠️ Engineers**: [Developer Guide](docs/guides/developer-guide.md) - How to extend and contribute
