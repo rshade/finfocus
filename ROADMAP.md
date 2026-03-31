@@ -6,25 +6,23 @@ guardrails in `CONTEXT.md`.
 
 ## Table of Contents
 
-- [Immediate Focus (v0.3.4)](#immediate-focus-v034)
+- [Immediate Focus (v0.3.6)](#immediate-focus-v036)
 - [Near-Term Vision (v0.3.x)](#near-term-vision-v03x---forecasting--profiles)
 - [Future Vision (v0.4.0+)](#future-vision-v040---notifications-integrations--backlog)
 - [Completed Milestones](#completed-milestones)
 - [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
 - [Boundary Safeguards](#boundary-safeguards)
 
-## Immediate Focus (v0.3.4)
+## Immediate Focus (v0.3.6)
 
-*v0.3.3 released 2026-03-03.*
+*v0.3.5 released 2026-03-30.*
 
 - [ ] Implement EstimateCost RPC consumer (remove stub)
       ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
-- [ ] Add `--state-only` flag to skip pulumi preview
-      ([#690](https://github.com/rshade/finfocus/issues/690)) [M]
 - [ ] Implement BatchCost RPC consumer for multi-resource queries
       ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
-- [ ] Clarify budget status visibility in overview output modes
-      ([#855](https://github.com/rshade/finfocus/issues/855)) [S]
+- [ ] Resource History Store with Layered Cost Attribution
+      ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -162,19 +160,13 @@ guardrails in `CONTEXT.md`.
     returned by the orchestration layer.
   - *Success Criteria*: A valid GFM document is generated that renders
     correctly in a GitHub comment using only data from the `CostResult` array.
+- [ ] **Pulumi Cloud API Integration** *(depends on #934)*
+  - [ ] Pulumi Cloud API Integration for Historical State Snapshots
+        ([#935](https://github.com/rshade/finfocus/issues/935)) [L]
 - [ ] **Agent Skills** *(co-located, tool-dependent)*
-  - [ ] `finfocus-install` — Install CLI, detect cloud providers, install
-        matching plugins, run `config init`, validate setup
-        ([#909](https://github.com/rshade/finfocus/issues/909)) [M]
-  - [ ] `finfocus-analyzer-setup` — Install and configure Pulumi Analyzer
-        integration for inline cost display during `pulumi preview`
-        ([#910](https://github.com/rshade/finfocus/issues/910)) [S]
   - [ ] `plugin-manage` — Discover, install, update, validate, and
         troubleshoot finfocus plugins via gRPC protocol
         ([#911](https://github.com/rshade/finfocus/issues/911)) [M]
-  - [ ] `finfocus-routing` — Configure intelligent plugin routing with
-        priority, pattern matching, and fallback rules
-        ([#912](https://github.com/rshade/finfocus/issues/912)) [S]
   - [ ] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
         BoltDB cache issues, and zero-cost results
         ([#913](https://github.com/rshade/finfocus/issues/913)) [M]
@@ -226,6 +218,19 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q1
 
+- [x] Add `--state-only` flag to skip pulumi preview
+      ([#690](https://github.com/rshade/finfocus/issues/690)) [M]
+      *(Completed 2026-03-31)*
+- [x] Clarify budget status visibility in overview output modes
+      ([#855](https://github.com/rshade/finfocus/issues/855)) [S]
+      *(Completed 2026-03-31)*
+- [x] **Agent Skills (Batch)** *(Completed 2026-03-27)*
+  - [x] `finfocus-install` — Automated CLI and plugin setup
+        ([#909](https://github.com/rshade/finfocus/issues/909)) [M]
+  - [x] `finfocus-analyzer-setup` — Pulumi Analyzer integration
+        ([#910](https://github.com/rshade/finfocus/issues/910)) [S]
+  - [x] `finfocus-routing` — Intelligent plugin routing configuration
+        ([#912](https://github.com/rshade/finfocus/issues/912)) [S]
 - [x] Update aws-public plugin to install router by default
       ([#895](https://github.com/rshade/finfocus/issues/895)) [S]
       *(Completed 2026-03-26)*
