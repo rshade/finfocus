@@ -1,6 +1,5 @@
 ---
 title: Code of Conduct
-layout: default
 ---
 
 ## Our Pledge

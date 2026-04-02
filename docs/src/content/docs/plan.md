@@ -1,9 +1,17 @@
 ---
 title: Documentation Architecture Plan
+description: Historical documentation architecture plan from the Jekyll era, now superseded by Astro Starlight.
 ---
 **Last Updated:** 2025-10-29
-**Status:** In Development
+**Status:** Deprecated (Historical Reference)
 **Audience:** Technical Content Architects, Product Managers, Stakeholders
+
+> **Note:** This plan was written for the original Jekyll-based documentation site.
+> The project has since migrated to [Astro Starlight](https://starlight.astro.build/).
+> The current site configuration lives in
+> [`docs/astro.config.mjs`](https://github.com/rshade/finfocus/blob/main/docs/astro.config.mjs).
+> This document is retained as a historical reference for the content strategy and
+> audience analysis, which remain relevant.
 
 ---
 

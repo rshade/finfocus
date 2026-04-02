@@ -1,5 +1,6 @@
 ---
 title: Contributing
+description: Development setup, guidelines, and workflow for contributing to FinFocus.
 ---
 
 
@@ -24,7 +25,7 @@ feedback.
 This project is licensed under the **Apache License 2.0**.
 
 By contributing to FinFocus Core, you agree that your contributions will be
-licensed under the same terms. See the [LICENSE](LICENSE) file for the full
+licensed under the same terms. See the [LICENSE](https://github.com/rshade/finfocus/blob/main/LICENSE) file for the full
 license text.
 
 ## Contribution Types
@@ -223,7 +224,7 @@ All specifications, plans, and templates are stored in the `.specify/` directory
     └── checklist-template.md
 ```
 
-**Important**: Review [.specify/memory/constitution.md](.specify/memory/constitution.md)
+**Important**: Review [.specify/memory/constitution.md](https://github.com/rshade/finfocus/blob/main/.specify/memory/constitution.md)
 before starting any feature work. It defines the core principles and quality
 gates that all contributions must follow.
 
@@ -275,7 +276,7 @@ make validate  # Module and vet checks must pass
 
 ### Test Requirements
 
-For detailed testing instructions, see the [Testing Guide](../testing/guide.md).
+For detailed testing instructions, see the [Testing Guide](../../testing/guide/).
 
 - Write tests before implementation (TDD approach)
 - Include tests for all new code paths
@@ -440,7 +441,7 @@ FinFocus operates as a three-repository ecosystem:
 [plugin]: https://github.com/rshade/finfocus-plugin
 
 Cross-repository changes require coordination. See the
-[constitution](.specify/memory/constitution.md) for the cross-repo change
+[constitution](https://github.com/rshade/finfocus/blob/main/.specify/memory/constitution.md) for the cross-repo change
 protocol.
 
 ## Issue Labels and Decision Tracking
@@ -484,9 +485,9 @@ gh issue list --repo rshade/finfocus --state closed --label decision
 
 ### Documentation
 
-- [Developer Guide](../guides/developer-guide.md) - Complete developer docs
-- [Architecture](../architecture/) - System design and diagrams
-- [Plugin Development](../plugins/plugin-development.md) - Building plugins
+- [Developer Guide](../../guides/developer-guide/) - Complete developer docs
+- [Architecture](../../architecture/) - System design and diagrams
+- [Plugin Development](../../plugins/plugin-development/) - Building plugins
 
 ### Support Channels
 

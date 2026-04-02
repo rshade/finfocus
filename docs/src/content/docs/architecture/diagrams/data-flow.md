@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Data Flow Diagram
 description: Sequence diagram showing how data flows from Pulumi through FinFocus to plugins and external APIs
 ---

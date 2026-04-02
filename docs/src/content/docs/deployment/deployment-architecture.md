@@ -1,7 +1,6 @@
 ---
 title: Deployment Architecture Diagram
 description: Reference deployment architecture for FinFocus environments
-layout: default
 ---
 
 This diagram summarizes how FinFocus is deployed across workstations, CI/CD, and containers.

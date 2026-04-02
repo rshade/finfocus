@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Developer Guide
 description: Complete guide for engineers - extend FinFocus and build plugins
 ---

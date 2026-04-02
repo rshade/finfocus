@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Plugin Lifecycle Diagram
 description: State diagram showing plugin discovery, startup, communication, and shutdown phases
 ---

@@ -1,5 +1,6 @@
 ---
 title: Installation Guide
+description: Complete installation instructions for FinFocus across platforms and deployment scenarios.
 ---
 Complete installation instructions for FinFocus Core across different platforms and deployment scenarios.
 

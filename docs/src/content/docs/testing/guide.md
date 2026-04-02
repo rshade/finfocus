@@ -1,7 +1,6 @@
 ---
 title: Testing Guide
 description: Comprehensive guide to testing in FinFocus Core
-layout: default
 ---
 
 This guide covers the testing philosophy, strategy, and practical commands for

@@ -1,5 +1,6 @@
 ---
 title: Kubecost Plugin (Planned)
+description: Planned Kubecost integration for Kubernetes cost allocation.
 ---
 Kubernetes-native cost allocation and visibility.
 

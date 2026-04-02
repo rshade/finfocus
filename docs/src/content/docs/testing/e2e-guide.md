@@ -1,5 +1,4 @@
 ---
-layout: default
 title: E2E Testing Guide
 description: How to configure, run, and troubleshoot FinFocus end-to-end tests.
 parent: Testing

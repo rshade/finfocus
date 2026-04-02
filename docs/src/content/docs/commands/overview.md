@@ -1,5 +1,4 @@
 ---
-layout: default
 title: overview Command
 description: Unified cost dashboard combining state, plan, actual costs, projected costs, drift, and recommendations
 ---

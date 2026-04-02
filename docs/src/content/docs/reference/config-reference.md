@@ -1,7 +1,6 @@
 ---
 title: Configuration Reference
 description: Configuration options for FinFocus Core
-layout: default
 ---
 
 FinFocus is configured via a configuration file (default:

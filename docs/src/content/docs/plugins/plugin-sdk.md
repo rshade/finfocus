@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Plugin SDK Reference
 description: Complete API reference for the FinFocus Plugin SDK
 ---

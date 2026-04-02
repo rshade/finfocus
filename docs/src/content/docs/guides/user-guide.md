@@ -1,5 +1,4 @@
 ---
-layout: default
 title: User Guide
 description: Complete guide for end users - install, configure, and use FinFocus
 ---

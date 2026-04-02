@@ -1,5 +1,6 @@
 ---
 title: Plugin Certification
+description: Plugin certification process and quality standards for FinFocus.
 ---
 Certification ensures that a FinFocus plugin is fully compatible with the
 core engine and meets quality standards.

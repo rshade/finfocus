@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Frequently Asked Questions
 description: Common questions and answers about FinFocus
 ---

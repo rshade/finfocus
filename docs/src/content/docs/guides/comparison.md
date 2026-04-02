@@ -1,6 +1,5 @@
 ---
 title: Competitive Comparison
-layout: default
 ---
 
 FinFocus is designed specifically for the Pulumi ecosystem, offering unique advantages over generic cost estimation tools.

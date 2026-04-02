@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Plugin Ecosystem
 parent: Architecture
 nav_order: 2

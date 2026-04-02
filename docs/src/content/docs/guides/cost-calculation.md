@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Cost Calculations
 description: How cost calculations are computed and configured.
 parent: Guides

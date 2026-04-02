@@ -1,7 +1,6 @@
 ---
 title: Error Codes
 description: Reference for FinFocus error codes
-layout: default
 ---
 
 This page lists common error codes and messages returned by FinFocus.

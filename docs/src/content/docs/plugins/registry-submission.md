@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Plugin Registry Submission
 description: How to add your plugin to the FinFocus registry
 ---

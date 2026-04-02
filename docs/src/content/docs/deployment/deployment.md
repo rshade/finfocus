@@ -1,6 +1,5 @@
 ---
 title: Deployment Overview
-layout: default
 ---
 
 FinFocus can be deployed on developer workstations, in CI/CD pipelines, or within

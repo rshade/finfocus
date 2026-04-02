@@ -33,7 +33,7 @@ export default defineConfig({
             type: 'module',
           },
           content: `
-            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.14.0/dist/mermaid.esm.min.mjs';
             mermaid.initialize({ startOnLoad: false, theme: 'dark' });
 
             function renderMermaid() {

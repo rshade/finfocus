@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Troubleshooting Guide
 description: Common issues and solutions
 ---

@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Table of Contents
 description: Complete navigation guide for FinFocus documentation
 ---

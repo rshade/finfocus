@@ -1,7 +1,6 @@
 ---
 title: Pulumi Analyzer Integration
 description: Technical details of the FinFocus analyzer gRPC integration
-layout: default
 ---
 
 FinFocus integrates with Pulumi's analyzer framework to provide real-time cost

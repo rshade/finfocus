@@ -1,5 +1,6 @@
 ---
 title: Roadmap
+description: Strategic roadmap for FinFocus development milestones and planned features.
 ---
 
 
@@ -597,7 +598,7 @@ guardrails in `CONTEXT.md`.
 
 ## Boundary Safeguards
 
-*Sourced from [CONTEXT.md](CONTEXT.md) — these are architectural hard no's.*
+*Sourced from [CONTEXT.md](https://github.com/rshade/finfocus/blob/main/CONTEXT.md) — these are architectural hard no's.*
 
 - **No Direct Cloud API Calls**: The core engine MUST NOT call cloud provider
   pricing or usage APIs directly. All provider-specific logic belongs in

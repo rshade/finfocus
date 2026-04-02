@@ -1,5 +1,4 @@
 ---
-layout: default
 title: GreenOps Carbon Equivalencies
 description: User guide for carbon emission equivalencies
 parent: Guides

@@ -1,7 +1,6 @@
 ---
 title: Multi-Region E2E Testing Guide
 description: Comprehensive guide for running and maintaining multi-region E2E tests that validate cost calculations across AWS regions
-layout: default
 ---
 
 ## Overview

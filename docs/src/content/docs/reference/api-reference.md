@@ -1,5 +1,4 @@
 ---
-layout: default
 title: API Reference
 description: Complete gRPC API reference for FinFocus plugin protocol
 ---

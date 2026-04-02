@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Core Concepts
 description: Key concepts and terminology used in FinFocus
 ---

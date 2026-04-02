@@ -1,5 +1,6 @@
 ---
 title: E2E Test Setup
+description: Set up your environment for running end-to-end tests against real cloud providers.
 ---
 This guide explains how to set up your environment for running End-to-End
 (E2E) tests against real cloud providers.

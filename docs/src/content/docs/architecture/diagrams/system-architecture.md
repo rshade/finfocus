@@ -1,5 +1,4 @@
 ---
-layout: default
 title: System Architecture Diagram
 description: High-level component architecture of FinFocus showing all major components and their relationships
 ---

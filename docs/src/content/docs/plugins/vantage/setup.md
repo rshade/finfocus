@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Vantage Plugin Setup Guide
 description: Step-by-step installation and configuration guide for the FinFocus Vantage plugin
 ---

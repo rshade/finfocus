@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Business Value
 description: Cost visibility, ROI, and competitive advantages of FinFocus
 ---

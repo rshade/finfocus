@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Troubleshooting
 description: Solutions for common FinFocus installation, configuration, and runtime issues.
 parent: Guides

@@ -1,6 +1,5 @@
 ---
 title: Deployment Troubleshooting
-layout: default
 ---
 
 If you encounter issues deploying FinFocus, please refer to our comprehensive troubleshooting guide.

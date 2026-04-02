@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Vantage Plugin Features
 description: Supported cloud providers, cost types, limitations, and roadmap for the FinFocus Vantage plugin
 ---

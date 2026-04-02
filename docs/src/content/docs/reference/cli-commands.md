@@ -1,5 +1,4 @@
 ---
-layout: default
 title: CLI Commands Reference
 description: Complete reference for all FinFocus CLI commands
 ---

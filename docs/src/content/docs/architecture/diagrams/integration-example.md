@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Integration Example Diagram
 description: End-to-end example showing Pulumi to FinFocus to Vantage API integration
 ---

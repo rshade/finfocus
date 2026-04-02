@@ -194,20 +194,45 @@ docs-sync:
 	@mkdir -p docs/src/content/docs/support docs/src/content/docs/architecture
 	@echo "---" > docs/src/content/docs/support/contributing.md
 	@echo "title: Contributing" >> docs/src/content/docs/support/contributing.md
+	@echo "description: Development setup, guidelines, and workflow for contributing to FinFocus." >> docs/src/content/docs/support/contributing.md
 	@echo "---" >> docs/src/content/docs/support/contributing.md
 	@echo "" >> docs/src/content/docs/support/contributing.md
-	@cat CONTRIBUTING.md | sed 's|docs/|../|g' | sed '/^# /d' >> docs/src/content/docs/support/contributing.md
+	@cat CONTRIBUTING.md | sed -E \
+		-e '/^# /d' \
+		-e 's|\(docs/([^)]*)/README\.md\)|(../../\1/)|g' \
+		-e 's|\(docs/README\.md\)|(../../)|g' \
+		-e 's|\(docs/([^)]*)\.md#([^)]*)\)|(../../\1/#\2)|g' \
+		-e 's|\(docs/([^)]*)\.md\)|(../../\1/)|g' \
+		-e 's|\(docs/([^)]+/)\)|(../../\1)|g' \
+		-e 's|\(docs/\)|(../../)|g' \
+		-e 's|\(\.specify/([^)]*)\)|(https://github.com/rshade/finfocus/blob/main/.specify/\1)|g' \
+		-e 's|\(LICENSE\)|(https://github.com/rshade/finfocus/blob/main/LICENSE)|g' \
+		>> docs/src/content/docs/support/contributing.md
 	@echo "---" > docs/src/content/docs/architecture/roadmap.md
 	@echo "title: Roadmap" >> docs/src/content/docs/architecture/roadmap.md
+	@echo "description: Strategic roadmap for FinFocus development milestones and planned features." >> docs/src/content/docs/architecture/roadmap.md
 	@echo "---" >> docs/src/content/docs/architecture/roadmap.md
 	@echo "" >> docs/src/content/docs/architecture/roadmap.md
-	@cat ROADMAP.md | sed '/^# /d' >> docs/src/content/docs/architecture/roadmap.md
+	@cat ROADMAP.md | sed -E \
+		-e '/^# /d' \
+		-e 's|\(CONTEXT\.md\)|(https://github.com/rshade/finfocus/blob/main/CONTEXT.md)|g' \
+		>> docs/src/content/docs/architecture/roadmap.md
 	@echo "---" > docs/src/content/docs/README.md
 	@echo "title: Project README" >> docs/src/content/docs/README.md
+	@echo "description: Cloud cost analysis for Pulumi infrastructure with projected costs, budgets, and plugin architecture." >> docs/src/content/docs/README.md
 	@echo "---" >> docs/src/content/docs/README.md
 	@echo "" >> docs/src/content/docs/README.md
 	@echo "<!-- markdownlint-disable MD013 -->" >> docs/src/content/docs/README.md
-	@cat README.md | sed '/^# /d' >> docs/src/content/docs/README.md
+	@cat README.md | sed -E \
+		-e '/^# /d' \
+		-e 's|\(docs/([^)]*)/README\.md\)|(../\1/)|g' \
+		-e 's|\(docs/README\.md\)|(../)|g' \
+		-e 's|\(docs/([^)]*)\.md#([^)]*)\)|(../\1/#\2)|g' \
+		-e 's|\(docs/([^)]*)\.md\)|(../\1/)|g' \
+		-e 's|\(docs/([^)]+/)\)|(../\1)|g' \
+		-e 's|\(docs/\)|(../)|g' \
+		-e 's|\(CONTRIBUTING\.md\)|(../support/contributing/)|g' \
+		>> docs/src/content/docs/README.md
 	@echo "Documentation synced."
 
 .PHONY: docs-serve

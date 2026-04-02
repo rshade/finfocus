@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Vantage Plugin Troubleshooting
 description: Common issues, solutions, and support paths for the FinFocus Vantage plugin
 ---

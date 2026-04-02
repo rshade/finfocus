@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Prerequisites
 description: System requirements and dependencies for FinFocus
 ---

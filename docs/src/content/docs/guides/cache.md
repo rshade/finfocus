@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Cache Configuration Guide
 description: Configure the BoltDB cost cache to speed up repeated cost queries in FinFocus.
 ---

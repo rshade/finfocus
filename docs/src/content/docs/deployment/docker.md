@@ -1,6 +1,5 @@
 ---
 title: Docker Deployment
-layout: default
 ---
 
 > **Note:** No Dockerfile currently exists in the repository. This guide describes

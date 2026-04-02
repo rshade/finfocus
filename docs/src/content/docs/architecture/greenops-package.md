@@ -1,5 +1,4 @@
 ---
-layout: default
 title: GreenOps Package Architecture
 description: Internal greenops package for carbon equivalency calculations
 parent: Architecture

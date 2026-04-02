@@ -1,7 +1,6 @@
 ---
 title: 'Plugin Routing Configuration Guide'
 description: 'Comprehensive guide to multi-plugin routing configuration for FinFocus cost calculation'
-layout: default
 ---
 
 **Feature**: Multi-Plugin Routing | **Status**: Stable | **Since**: v0.3.0

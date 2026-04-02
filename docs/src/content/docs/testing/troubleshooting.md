@@ -1,7 +1,6 @@
 ---
 title: Testing Troubleshooting
 description: Troubleshooting guide for common testing issues
-layout: default
 ---
 
 ## Common Issues

@@ -1,5 +1,4 @@
 ---
-layout: default
 title: 5-Minute Quickstart
 description: Get started with FinFocus in 5 minutes
 ---

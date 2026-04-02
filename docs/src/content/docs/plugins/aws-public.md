@@ -1,5 +1,4 @@
 ---
-layout: default
 title: AWS Public Plugin
 description: Default fallback plugin for estimating AWS costs using public list pricing.
 parent: Plugins

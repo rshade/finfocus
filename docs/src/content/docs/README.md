@@ -1,5 +1,6 @@
 ---
 title: Project README
+description: Cloud cost analysis for Pulumi infrastructure with projected costs, budgets, and plugin architecture.
 ---
 
 <!-- markdownlint-disable MD013 -->
@@ -29,14 +30,14 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 
 ## Key Features
 
-- **🔭 [Unified Overview](docs/commands/overview.md)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
-- **📊 [Projected Costs](docs/reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
-- **💰 [Budgets & Alerts](docs/guides/budgets.md)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
-- **💡 [Recommendations](docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
-- **♿ [Accessibility](docs/guides/accessibility.md)**: High-contrast, plain text, and adaptive terminal UI modes
-- **💰 [Actual Costs](docs/reference/cli-commands.md#cost-actual)**: Track historical spending with detailed breakdowns
-- **🔌 [Plugin-Based](docs/plugins/README.md)**: Extensible architecture supporting multiple cost data sources
-- **🧪 [E2E Testing](docs/testing/e2e-guide.md)**: Comprehensive guide for validating infrastructure costs against real cloud resources
+- **🔭 [Unified Overview](../commands/overview/)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
+- **📊 [Projected Costs](../reference/cli-commands/#cost-projected)**: Estimate monthly costs before deploying infrastructure
+- **💰 [Budgets & Alerts](../guides/budgets/)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
+- **💡 [Recommendations](../guides/recommendations/)**: Actionable cost optimization insights and savings opportunities
+- **♿ [Accessibility](../guides/accessibility/)**: High-contrast, plain text, and adaptive terminal UI modes
+- **💰 [Actual Costs](../reference/cli-commands/#cost-actual)**: Track historical spending with detailed breakdowns
+- **🔌 [Plugin-Based](../plugins/)**: Extensible architecture supporting multiple cost data sources
+- **🧪 [E2E Testing](../testing/e2e-guide/)**: Comprehensive guide for validating infrastructure costs against real cloud resources
 - **📈 Advanced Analytics**: Resource grouping, filtering, and aggregation
 - **📱 Multiple Formats**: Table, JSON, and NDJSON output options
 - **🔍 Smart Filtering**: Filter by resource type, tags, or custom expressions
@@ -130,7 +131,7 @@ my-db                             aws:rds/instance:I...   ✓       $48.20      
 Total Actual (MTD): $61.43    Projected Monthly: $66.00    Potential Savings: $45.00
 ```
 
-Full documentation: [docs/commands/overview.md](docs/commands/overview.md)
+Full documentation: [docs/commands/overview.md](../commands/overview/)
 
 ### 4. Calculate Costs
 
@@ -224,7 +225,7 @@ cost:
         type: forecasted
 ```
 
-See [Budget Guide](docs/guides/budgets.md) for full configuration details.
+See [Budget Guide](../guides/budgets/) for full configuration details.
 
 ### Environment Variables for Secrets
 
@@ -577,7 +578,7 @@ finfocus config validate
 #
 ```
 
-See the [Routing Configuration Guide](docs/guides/routing.md) for detailed examples and troubleshooting.
+See the [Routing Configuration Guide](../guides/routing/) for detailed examples and troubleshooting.
 
 ## Plugin Management
 
@@ -628,32 +629,32 @@ export FINFOCUS_LOG_FORMAT=json    # json or console
 
 ## Documentation
 
-Complete documentation is available in the [docs/](docs/) directory:
+Complete documentation is available in the [docs/](../) directory:
 
-- **👤 End Users**: [User Guide](docs/guides/user-guide.md) - How to install and use FinFocus
-- **💰 Budgets**: [Budget Guide](docs/guides/budgets.md) - Configure alerts and thresholds
-- **📜 Resource History**: [Resource History Guide](docs/guides/resource-history.md) - Accurate month-long costs
-- **💡 Recommendations**: [Recommendations Guide](docs/guides/recommendations.md) - Optimization insights
-- **♿ Accessibility**: [Accessibility Guide](docs/guides/accessibility.md) - UI configuration
-- **🛠️ Engineers**: [Developer Guide](docs/guides/developer-guide.md) - How to extend and contribute
-- **🏗️ Architects**: [Architect Guide](docs/guides/architect-guide.md) - System design and integration
-- **🧪 E2E Testers**: [E2E Testing Guide](docs/testing/e2e-guide.md) - Setup and execution
-- **💼 Business/CEO**: [Business Value](docs/guides/business-value.md) - ROI and competitive advantage
+- **👤 End Users**: [User Guide](../guides/user-guide/) - How to install and use FinFocus
+- **💰 Budgets**: [Budget Guide](../guides/budgets/) - Configure alerts and thresholds
+- **📜 Resource History**: [Resource History Guide](../guides/resource-history/) - Accurate month-long costs
+- **💡 Recommendations**: [Recommendations Guide](../guides/recommendations/) - Optimization insights
+- **♿ Accessibility**: [Accessibility Guide](../guides/accessibility/) - UI configuration
+- **🛠️ Engineers**: [Developer Guide](../guides/developer-guide/) - How to extend and contribute
+- **🏗️ Architects**: [Architect Guide](../guides/architect-guide/) - System design and integration
+- **🧪 E2E Testers**: [E2E Testing Guide](../testing/e2e-guide/) - Setup and execution
+- **💼 Business/CEO**: [Business Value](../guides/business-value/) - ROI and competitive advantage
 
 **Quick Links:**
 
-- [🚀 5-Minute Quickstart](docs/getting-started/quickstart.md)
-- [📖 Full Documentation Index](docs/README.md)
-- [🔌 Available Plugins](docs/plugins/) - AWS Public Pricing and more
-- [🛠️ Plugin Development](docs/plugins/plugin-development.md)
-- [🏗️ System Architecture](docs/architecture/system-overview.md)
-- [💬 FAQ & Support](docs/support/faq.md)
+- [🚀 5-Minute Quickstart](../getting-started/quickstart/)
+- [📖 Full Documentation Index](../)
+- [🔌 Available Plugins](../plugins/) - AWS Public Pricing and more
+- [🛠️ Plugin Development](../plugins/plugin-development/)
+- [🏗️ System Architecture](../architecture/system-overview/)
+- [💬 FAQ & Support](../support/faq/)
 
 ## Contributing
 
 We welcome contributions! See our development documentation:
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Development setup and guidelines
+- [CONTRIBUTING.md](../support/contributing/) - Development setup and guidelines
 - [CLAUDE.md](CLAUDE.md) - AI assistant development context
 - [Architecture Documentation](internal/) - Internal package documentation
 

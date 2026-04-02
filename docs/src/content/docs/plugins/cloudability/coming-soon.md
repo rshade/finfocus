@@ -1,5 +1,6 @@
 ---
 title: Cloudability Plugin (Future)
+description: Planned Cloudability integration for enterprise cost visibility.
 ---
 Enterprise cloud cost visibility and management.
 

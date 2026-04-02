@@ -1,6 +1,5 @@
 ---
 title: Security
-layout: default
 ---
 
 FinFocus is designed to keep cost data and credentials local, with clear boundaries between

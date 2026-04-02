@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Plugin Development Checklist
 description: Complete checklist for plugin implementation and deployment
 ---

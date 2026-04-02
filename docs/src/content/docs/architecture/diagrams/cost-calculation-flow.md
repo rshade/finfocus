@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Cost Calculation Flow Diagram
 description: Flowchart showing resource ingestion, plugin queries, aggregation, and output rendering
 ---

@@ -1,7 +1,6 @@
 ---
 title: Analyzer Setup
 description: Setting up FinFocus as a Pulumi Analyzer Policy Pack
-layout: default
 ---
 
 FinFocus integrates with Pulumi's analyzer framework as a **Policy Pack**. This allows you to see real-time cost

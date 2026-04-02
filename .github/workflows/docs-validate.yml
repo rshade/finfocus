@@ -97,16 +97,35 @@ jobs:
 
       - name: Validate YAML frontmatter
         run: |
-          find docs/src/content/docs -type f -name "*.md" | \
+          errors=0
+          find docs/src/content/docs -type f -name "*.md" | sort | \
           while IFS= read -r file; do
-            # Check if file starts with ---
-            if head -1 "$file" | grep -q "^---"; then
-              echo "✓ Frontmatter found in: $file"
+            if ! head -1 "$file" | grep -q "^---$"; then
+              echo "✗ $file: missing opening --- fence"
+              errors=$((errors + 1))
+              continue
+            fi
+            fm=$(awk 'NR==1{next} /^---$/{exit} {print}' "$file")
+            if ! awk 'NR==1{next} /^---$/{found=1; exit} END{exit !found}' "$file"; then
+              echo "✗ $file: missing closing --- fence"
+              errors=$((errors + 1))
+              continue
+            fi
+            if ! echo "$fm" | grep -q "^title:"; then
+              echo "✗ $file: missing required 'title' field"
+              errors=$((errors + 1))
             else
-              echo "⚠ No frontmatter in: $file"
+              echo "✓ $file"
+            fi
+            if ! echo "$fm" | grep -q "^description:"; then
+              echo "  ⚠ $file: missing recommended 'description' field"
             fi
           done
-        continue-on-error: true
+          if [ "$errors" -gt 0 ]; then
+            echo "❌ $errors frontmatter errors found"
+            exit 1
+          fi
+          echo "✓ All frontmatter validated"
 
   structure:
     runs-on: ubuntu-latest
@@ -156,17 +175,26 @@ jobs:
             "docs/src/content/docs/reference"
             "docs/src/content/docs/deployment"
             "docs/src/content/docs/support"
+            "docs/src/content/docs/commands"
+            "docs/src/content/docs/examples"
+            "docs/src/content/docs/schemas"
+            "docs/src/content/docs/testing"
           )
 
+          missing=0
           for dir in "${required_dirs[@]}"; do
             if [ -d "$dir" ]; then
               echo "✓ $dir/"
             else
-              echo "⚠ Creating missing directory: $dir"
-              mkdir -p "$dir"
-              echo "# Coming Soon" > "$dir/README.md"
+              echo "✗ Missing: $dir/"
+              missing=$((missing + 1))
             fi
           done
+
+          if [ $missing -gt 0 ]; then
+            echo "❌ $missing required directories missing"
+            exit 1
+          fi
           echo "✓ Documentation directory structure validated"
 
   llms-txt:

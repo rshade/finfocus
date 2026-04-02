@@ -1,5 +1,4 @@
 ---
-layout: default
 title: System Overview
 description: High-level architecture and design of FinFocus cost calculation system
 ---

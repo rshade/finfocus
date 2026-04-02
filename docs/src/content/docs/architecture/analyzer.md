@@ -1,7 +1,6 @@
 ---
 title: Analyzer Architecture
 description: Architecture of the FinFocus Pulumi Analyzer integration for zero-click cost estimation
-layout: default
 ---
 
 FinFocus integrates with the Pulumi engine via the Pulumi Analyzer gRPC protocol,

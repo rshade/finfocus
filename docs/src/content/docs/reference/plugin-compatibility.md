@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Plugin Compatibility
 description: Capability matrix for official FinFocus plugins.
 parent: Reference

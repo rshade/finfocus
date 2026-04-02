@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Plugin Protocol Specification
 description: Complete gRPC protocol specification for FinFocus cost source plugins
 ---

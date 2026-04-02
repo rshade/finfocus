@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Accessibility Features Guide
 description: Configure FinFocus for optimal readability with high-contrast, no-color, and plain text modes.
 ---

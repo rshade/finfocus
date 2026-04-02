@@ -1,6 +1,5 @@
 ---
 title: Support Channels
-layout: default
 ---
 
 We offer several ways to get help with FinFocus.

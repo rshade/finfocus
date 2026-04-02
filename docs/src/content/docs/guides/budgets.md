@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Budget Configuration Guide
 description: Configure cost budgets, alerts, and thresholds to prevent cloud cost overruns in FinFocus.
 ---

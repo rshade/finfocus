@@ -1,7 +1,6 @@
 ---
 title: Vantage Plugin
 description: Cost visibility platform integration for multi-cloud cost aggregation
-layout: default
 ---
 
 Cost visibility platform integration for multi-cloud cost aggregation.

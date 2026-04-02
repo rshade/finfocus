@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Plugin Examples and Patterns
 description: Common code patterns and real-world plugin implementations
 ---

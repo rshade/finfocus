@@ -1,7 +1,6 @@
 ---
 title: Environment Variables
 description: Environment variables for FinFocus Core
-layout: default
 ---
 
 FinFocus supports configuration via environment variables.

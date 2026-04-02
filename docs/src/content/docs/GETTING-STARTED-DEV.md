@@ -6,8 +6,7 @@ This guide helps developers set up their local environment to work on FinFocus d
 ## Prerequisites
 
 - Git
-- Ruby 3.2+ (for Jekyll)
-- Node.js 18+ (for npm tools)
+- Node.js 20+ (for Astro)
 - Make
 
 ## Quick Setup
@@ -21,31 +20,23 @@ cd finfocus
 
 ### 2. Install Documentation Tools
 
-#### Ruby Dependencies (for Jekyll)
+#### Node Dependencies (for Astro)
 
 ```bash
 cd docs
-bundle install
-cd ..
-```
-
-#### Node Dependencies (for npm tools)
-
-```bash
 npm install
+cd ..
 ```
 
 ### 3. Verify Setup
 
 ```bash
-# Check Ruby/Jekyll
-ruby --version
-bundle --version
-cd docs && bundle exec jekyll --version && cd ..
-
 # Check Node/npm
 node --version
 npm --version
+
+# Check Astro
+cd docs && npx astro --version && cd ..
 
 # Test build
 make docs-build
@@ -56,17 +47,17 @@ make docs-serve
 
 ### Local Preview
 
-Serve documentation locally on http://localhost:4000/finfocus/:
+Serve documentation locally on http://localhost:4321/finfocus/:
 
 ```bash
 make docs-serve
 ```
 
-Or directly with Jekyll:
+Or directly with npm:
 
 ```bash
 cd docs
-bundle exec jekyll serve --host 0.0.0.0
+npm run dev
 cd ..
 ```
 
@@ -160,7 +151,6 @@ git push origin docs/my-feature
 
    ```yaml
    ---
-   layout: default
    title: My Guide Title
    description: Brief description for search
    ---
@@ -233,68 +223,57 @@ npm run docs:format
 
 ```text
 docs/
-├── README.md                    # Documentation home
-├── _config.yml                 # Jekyll configuration
-├── _includes/                  # Reusable components
-├── _layouts/                   # Page layouts
-├── guides/                      # Audience guides
-├── getting-started/            # Quick start guides
-├── architecture/               # Architecture docs
-├── plugins/                    # Plugin docs
-├── reference/                  # API reference
-├── deployment/                 # Operations
-└── support/                    # Help & community
-
-scripts/
-├── update-llms-txt.sh          # Update documentation index
-└── validate-frontmatter.sh     # Validate YAML frontmatter
+├── package.json                 # Node.js dependencies
+├── astro.config.mjs            # Astro/Starlight configuration
+├── tsconfig.json               # TypeScript configuration
+├── public/                     # Static assets (images, etc.)
+│   └── screenshots/            # UI screenshots
+├── src/
+│   └── content/
+│       └── docs/               # Documentation content
+│           ├── getting-started/ # Quick start guides
+│           ├── guides/         # Audience guides
+│           ├── architecture/   # Architecture docs
+│           ├── plugins/        # Plugin docs
+│           ├── reference/      # API reference
+│           ├── deployment/     # Operations
+│           └── support/        # Help & community
+└── .markdownlint-cli2.jsonc    # Markdown linting config
 ```
 
 ## Troubleshooting
 
-### Bundle Install Fails
-
-**Issue:** Ruby version mismatch or gem conflicts
-
-**Solution:**
-
-```bash
-# Update gems
-bundle update
-
-# Or reinstall
-rm Gemfile.lock
-bundle install
-```
-
-### Jekyll Serve Not Working
-
-**Issue:** Port already in use or Jekyll won't start
-
-**Solution:**
-
-```bash
-# Kill existing process
-pkill -f jekyll
-
-# Try different port
-cd docs && bundle exec jekyll serve --port 5000 --host 0.0.0.0
-```
-
 ### npm Install Fails
 
-**Issue:** Node version too old or permission issues
+**Issue:** Node version too old or dependency conflicts
 
 **Solution:**
 
 ```bash
 # Update Node
-nvm install 18
-nvm use 18
+nvm install 20
+nvm use 20
 
-# Clear npm cache
-npm cache clean --force
+# Clear cache and reinstall
+cd docs
+rm -rf node_modules package-lock.json
 npm install
+cd ..
+```
+
+### Astro Dev Server Not Working
+
+**Issue:** Port already in use or build errors
+
+**Solution:**
+
+```bash
+# Try different port
+cd docs && npx astro dev --port 5000
+
+# Clear Astro cache
+rm -rf docs/.astro docs/dist
+cd docs && npm run dev
 ```
 
 ### Linting Errors
@@ -333,7 +312,7 @@ npm run docs:format
 
 - Test all code examples
 - Verify all links work
-- Preview on http://localhost:4000/finfocus/
+- Preview on http://localhost:4321/finfocus/
 
 ### Frontmatter
 
@@ -341,7 +320,6 @@ All content pages should have:
 
 ```yaml
 ---
-layout: default
 title: Page Title
 description: Short description for search results
 ---
@@ -372,7 +350,7 @@ git commit -m "msg"         # Commit
 ## Getting Help
 
 - **Markdown issues**: Check [CommonMark spec](https://spec.commonmark.org/)
-- **Jekyll issues**: See [Jekyll docs](https://jekyllrb.com/docs/)
+- **Astro issues**: See [Astro docs](https://docs.astro.build/) and [Starlight docs](https://starlight.astro.build/)
 - **Google Style**: Check [Google Developer Style Guide](https://developers.google.com/style)
 - **Questions**: Open [GitHub Discussion](https://github.com/rshade/finfocus/discussions)
 

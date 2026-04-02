@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Recommendations Guide
 description: Explore and apply cost optimization recommendations from cloud providers using FinFocus.
 ---

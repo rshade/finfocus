@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Installation Guide
 description: Detailed installation instructions for FinFocus
 ---

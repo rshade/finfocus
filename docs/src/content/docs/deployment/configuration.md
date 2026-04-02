@@ -1,6 +1,5 @@
 ---
 title: Deployment Configuration
-layout: default
 ---
 
 Use this guide to configure FinFocus across local, CI/CD, and containerized deployments.

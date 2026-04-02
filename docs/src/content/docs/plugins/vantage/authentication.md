@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Vantage Plugin Authentication
 description: API key management and security best practices for the FinFocus Vantage plugin
 ---

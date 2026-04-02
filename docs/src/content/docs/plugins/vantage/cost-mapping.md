@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Vantage Plugin Cost Mapping
 description: How Vantage costs map to FinFocus resources, tag transformation, and data processing details
 ---

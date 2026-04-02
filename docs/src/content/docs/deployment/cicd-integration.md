@@ -1,7 +1,6 @@
 ---
 title: CI/CD Integration
 description: Integrating FinFocus into CI/CD pipelines
-layout: default
 ---
 
 You can run FinFocus in your CI/CD pipeline to enforce cost policies

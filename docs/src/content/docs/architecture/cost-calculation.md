@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Cost Calculation Algorithms
 description: Detailed cost calculation algorithms, aggregation logic, and examples
 ---

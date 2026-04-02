@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Resource History Guide
 description: How FinFocus tracks resource identity over time for accurate month-long cost queries.
 ---

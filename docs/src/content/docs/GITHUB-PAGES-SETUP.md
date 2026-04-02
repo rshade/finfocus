@@ -5,8 +5,9 @@ This document explains how to set up GitHub Pages for FinFocus documentation.
 
 ## Overview
 
-FinFocus documentation is deployed to GitHub Pages from the `docs/` directory using Jekyll.
-This guide shows how to configure the repository for automatic deployment.
+FinFocus documentation is deployed to GitHub Pages from the `docs/` directory using
+Astro Starlight with a Node.js-based build pipeline. This guide shows how to configure
+the repository for automatic deployment.
 
 ## Prerequisites
 
@@ -85,9 +86,9 @@ Check the workflow logs:
 
 Common issues:
 
-- Missing Ruby dependencies: Run `bundle install`
-- Jekyll build errors: Check `_config.yml` syntax
-- Link errors: Run `make docs-validate` locally
+- Missing dependencies: Run `cd docs && npm ci`
+- Astro build errors: Check `astro.config.mjs` syntax and `package.json` scripts
+- Link errors: Run `make docs-lint` locally
 
 ### Pages Not Updating
 
@@ -105,8 +106,8 @@ If automatic deployment fails, you can deploy manually:
 ```bash
 # Build locally
 cd docs
-bundle install
-bundle exec jekyll build
+npm ci
+npm run build
 
 # Upload to GitHub Pages (requires authentication)
 # Note: This is rarely needed - use workflows instead
@@ -149,16 +150,17 @@ git push origin main
 
 ### Key Files
 
-- **docs/\_config.yml** - Jekyll configuration
-- **docs/Gemfile** - Ruby dependencies
-- **docs/.markdownlintrc.json** - Markdown linting
+- **docs/package.json** - Node.js dependencies
+- **docs/astro.config.mjs** - Astro/Starlight configuration
+- **docs/tsconfig.json** - TypeScript configuration
+- **docs/.markdownlint-cli2.jsonc** - Markdown linting
 - **.github/workflows/docs-build-deploy.yml** - Deployment workflow
 
 ### Modify Configuration
 
-To change Jekyll configuration:
+To change site configuration:
 
-1. Edit `docs/_config.yml`
+1. Edit `docs/astro.config.mjs` or `docs/package.json`
 2. Test locally: `make docs-serve`
 3. Push to main (triggers rebuild)
 
@@ -167,7 +169,8 @@ To change Jekyll configuration:
 ## Reference
 
 - [GitHub Pages Documentation](https://docs.github.com/en/pages)
-- [Jekyll Documentation](https://jekyllrb.com/docs/)
+- [Astro Documentation](https://docs.astro.build/)
+- [Starlight Documentation](https://starlight.astro.build/)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 
 ---

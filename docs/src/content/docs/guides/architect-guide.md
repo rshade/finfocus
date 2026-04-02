@@ -1,5 +1,4 @@
 ---
-layout: default
 title: Architect Guide
 description: System design and integration guide for software architects
 ---
