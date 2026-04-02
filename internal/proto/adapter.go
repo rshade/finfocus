@@ -22,6 +22,19 @@ import (
 	"github.com/rshade/finfocus/internal/skus"
 )
 
+// Sustainability metric key constants used in impact metric mapping.
+const (
+	metricKeyCarbonFootprint   = "carbon_footprint"
+	metricKeyEnergyConsumption = "energy_consumption"
+	metricKeyWaterUsage        = "water_usage"
+	metricKeyUnspecified       = "unspecified"
+)
+
+// ErrEstimateCostNotSupported indicates the EstimateCost RPC is not yet implemented.
+var ErrEstimateCostNotSupported = errors.New(
+	"EstimateCost RPC not yet implemented in finfocus-spec v0.5.6",
+)
+
 // ErrPropertiesMultiResource indicates Properties cannot be used with multiple ResourceIDs
 // because each resource requires its own cloud ID, ARN, and tag mappings.
 var ErrPropertiesMultiResource = errors.New(
@@ -656,6 +669,23 @@ type DismissRecommendationResponse struct {
 	RecommendationID string
 }
 
+// BatchMappedResult holds the mapped result for a single resource from a BatchCost response.
+// For projected queries, Result is populated. For actual queries, ActualResult is populated.
+// Skip is true when the plugin reports the resource type as unsupported.
+type BatchMappedResult struct {
+	// Result holds the projected cost result (nil if error, skip, or actual query).
+	Result *CostResult
+
+	// ActualResult holds the actual cost result (nil if error, skip, or projected query).
+	ActualResult *ActualCostResult
+
+	// Err holds a per-resource error from the plugin (nil on success or skip).
+	Err error
+
+	// Skip is true when ResourceError.ResourceTypeUnsupported is set.
+	Skip bool
+}
+
 // CostSourceClient wraps the generated gRPC client from finfocus-spec.
 //
 //nolint:dupl // Mock implementation in adapter_test.go intentionally mirrors this interface.
@@ -706,6 +736,11 @@ type CostSourceClient interface {
 		in *pbc.EstimateCostRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.EstimateCostResponse, error)
+	BatchCost(
+		ctx context.Context,
+		in *pbc.BatchCostRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.BatchCostResponse, error)
 }
 
 // NewCostSourceClient creates a new cost source client using the real proto client.
@@ -811,26 +846,156 @@ func (c *clientAdapter) EstimateCost(
 	return c.client.EstimateCost(ctx, in, opts...)
 }
 
-// resolveSKUAndRegion determines the SKU and region for a resource using provider-specific
-// extraction logic. For AWS it attempts AWS-specific SKU extraction, falls back to common
-// property names, then to well-known SKU mappings; the region is taken from properties, the
-// ARN, or the AWS_REGION/AWS_DEFAULT_REGION environment variables. For Azure and GCP it uses
-// their respective extractors. Other providers use generic extraction. Both return values may
-// resolveSKUAndRegion determines the SKU and region for a resource based on its provider, type, and stringified properties.
-//
-// resolveSKUAndRegion examines provider-specific fields and fallbacks to derive a SKU and a region for pricing/enrichment.
-// For AWS it attempts AWS-specific SKU/region extraction, parses region from an ARN when present, and finally falls back to well-known SKU mappings.
-// For Azure and GCP it uses provider-specific extractors. For other providers it uses generic SKU and region extractors.
-// If the region remains empty for AWS resources, the function will also consult AWS environment variables `AWS_REGION` and `AWS_DEFAULT_REGION`.
-//
-// Parameters:
-//   - provider: cloud provider identifier (e.g., "aws", "azure", "gcp").
-//   - resourceType: the resource type token used for well-known SKU resolution when direct extraction fails.
-//   - properties: map of stringified resource properties used by extractors (keys like ARN, tags, sku fields).
-//
-// Returns:
-//   - sku: the resolved SKU string, or an empty string if none could be determined.
-//   - region: the resolved region string, or an empty string if none could be determined.
+func (c *clientAdapter) BatchCost(
+	ctx context.Context,
+	in *pbc.BatchCostRequest,
+	opts ...grpc.CallOption,
+) (*pbc.BatchCostResponse, error) {
+	return c.client.BatchCost(ctx, in, opts...)
+}
+
+// MapBatchProjectedResults maps a BatchCostResponse to a slice of BatchMappedResult for
+// projected cost queries. Each ResourceCostResult is mapped to either a CostResult (on
+// success), an error (on ResourceError), or a skip (on ResourceTypeUnsupported). Nil
+// CostData produces a nil Result to signal fallback.
+func MapBatchProjectedResults(resp *pbc.BatchCostResponse) []BatchMappedResult {
+	results := make([]BatchMappedResult, len(resp.GetResults()))
+	for i, rcr := range resp.GetResults() {
+		if resErr := rcr.GetError(); resErr != nil {
+			if resErr.GetResourceTypeUnsupported() {
+				results[i] = BatchMappedResult{Skip: true}
+			} else {
+				results[i] = BatchMappedResult{
+					Err: fmt.Errorf("resource %s: %s (code %d)",
+						rcr.GetResource().GetResourceType(),
+						resErr.GetMessage(),
+						resErr.GetCode()),
+				}
+			}
+			continue
+		}
+
+		costData := rcr.GetCostData()
+		if costData == nil {
+			// nil CostData signals fallback — not an error.
+			results[i] = BatchMappedResult{}
+			continue
+		}
+
+		projResp := costData.GetProjectedCost()
+		if projResp == nil {
+			// CostData present but no projected cost variant — treat as nil result.
+			results[i] = BatchMappedResult{}
+			continue
+		}
+
+		result := &CostResult{
+			Currency:    projResp.GetCurrency(),
+			MonthlyCost: projResp.GetCostPerMonth(),
+			HourlyCost:  projResp.GetUnitPrice(),
+			Notes:       projResp.GetBillingDetail(),
+			CostBreakdown: map[string]float64{
+				"unit_price": projResp.GetUnitPrice(),
+			},
+			Sustainability: make(map[string]SustainabilityMetric),
+		}
+
+		if ts := projResp.GetExpiresAt(); ts != nil {
+			t := ts.AsTime()
+			result.ExpiresAt = &t
+		}
+
+		for _, metric := range projResp.GetImpactMetrics() {
+			var key string
+			switch metric.GetKind() {
+			case pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT:
+				key = metricKeyCarbonFootprint
+			case pbc.MetricKind_METRIC_KIND_ENERGY_CONSUMPTION:
+				key = metricKeyEnergyConsumption
+			case pbc.MetricKind_METRIC_KIND_WATER_USAGE:
+				key = metricKeyWaterUsage
+			case pbc.MetricKind_METRIC_KIND_UNSPECIFIED:
+				key = metricKeyUnspecified
+			default:
+				key = strings.ToLower(metric.GetKind().String())
+			}
+			result.Sustainability[key] = SustainabilityMetric{
+				Value: metric.GetValue(),
+				Unit:  metric.GetUnit(),
+			}
+		}
+
+		results[i] = BatchMappedResult{Result: result}
+	}
+	return results
+}
+
+// MapBatchActualResults maps a BatchCostResponse to a slice of BatchMappedResult for
+// actual cost queries. Each ResourceCostResult is mapped to either an ActualCostResult
+// (on success), an error (on ResourceError), or a skip (on ResourceTypeUnsupported).
+func MapBatchActualResults(resp *pbc.BatchCostResponse) []BatchMappedResult {
+	results := make([]BatchMappedResult, len(resp.GetResults()))
+	for i, rcr := range resp.GetResults() {
+		if resErr := rcr.GetError(); resErr != nil {
+			if resErr.GetResourceTypeUnsupported() {
+				results[i] = BatchMappedResult{Skip: true}
+			} else {
+				results[i] = BatchMappedResult{
+					Err: fmt.Errorf("resource %s: %s (code %d)",
+						rcr.GetResource().GetResourceType(),
+						resErr.GetMessage(),
+						resErr.GetCode()),
+				}
+			}
+			continue
+		}
+
+		costData := rcr.GetCostData()
+		if costData == nil {
+			results[i] = BatchMappedResult{}
+			continue
+		}
+
+		actualData := costData.GetActualCost()
+		if actualData == nil {
+			results[i] = BatchMappedResult{}
+			continue
+		}
+
+		pbcResults := actualData.GetResults()
+		if len(pbcResults) == 0 {
+			results[i] = BatchMappedResult{}
+			continue
+		}
+
+		totalCost, breakdown := totalActualCost(pbcResults)
+		currency := actualCostCurrency(pbcResults)
+
+		result := &ActualCostResult{
+			Currency:       currency,
+			TotalCost:      totalCost,
+			CostBreakdown:  breakdown,
+			Sustainability: make(map[string]SustainabilityMetric),
+			ExpiresAt:      earliestExpiresAt(pbcResults),
+		}
+
+		aggregateImpactMetrics(result, pbcResults)
+		results[i] = BatchMappedResult{ActualResult: result}
+	}
+	return results
+}
+
+// ResolveSKUAndRegion is the exported entry point for resolveSKUAndRegion,
+// enabling cross-package access from the engine's batch cost path.
+// See resolveSKUAndRegion for full behavior documentation.
+func ResolveSKUAndRegion(
+	ctx context.Context,
+	provider, resourceType string,
+	properties map[string]string,
+) (string, string) {
+	return resolveSKUAndRegion(ctx, provider, resourceType, properties)
+}
+
 func resolveSKUAndRegion(
 	ctx context.Context,
 	provider, resourceType string,
@@ -1108,13 +1273,13 @@ func (c *clientAdapter) GetProjectedCost(
 			var key string
 			switch metric.GetKind() {
 			case pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT:
-				key = "carbon_footprint"
+				key = metricKeyCarbonFootprint
 			case pbc.MetricKind_METRIC_KIND_ENERGY_CONSUMPTION:
-				key = "energy_consumption"
+				key = metricKeyEnergyConsumption
 			case pbc.MetricKind_METRIC_KIND_WATER_USAGE:
-				key = "water_usage"
+				key = metricKeyWaterUsage
 			case pbc.MetricKind_METRIC_KIND_UNSPECIFIED:
-				key = "unspecified"
+				key = metricKeyUnspecified
 			default:
 				key = strings.ToLower(metric.GetKind().String())
 			}
@@ -1264,13 +1429,13 @@ func aggregateImpactMetrics(result *ActualCostResult, pbcResults []*pbc.ActualCo
 			var key string
 			switch metric.GetKind() {
 			case pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT:
-				key = "carbon_footprint"
+				key = metricKeyCarbonFootprint
 			case pbc.MetricKind_METRIC_KIND_ENERGY_CONSUMPTION:
-				key = "energy_consumption"
+				key = metricKeyEnergyConsumption
 			case pbc.MetricKind_METRIC_KIND_WATER_USAGE:
-				key = "water_usage"
+				key = metricKeyWaterUsage
 			case pbc.MetricKind_METRIC_KIND_UNSPECIFIED:
-				key = "unspecified"
+				key = metricKeyUnspecified
 			default:
 				key = strings.ToLower(metric.GetKind().String())
 			}

@@ -68,6 +68,11 @@ type mockCostSourceClient struct {
 		in *pbc.EstimateCostRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.EstimateCostResponse, error)
+	batchCostFunc func(
+		ctx context.Context,
+		in *pbc.BatchCostRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.BatchCostResponse, error)
 }
 
 func (m *mockCostSourceClient) Name(
@@ -178,6 +183,17 @@ func (m *mockCostSourceClient) EstimateCost(
 		return m.estimateCostFunc(ctx, in, opts...)
 	}
 	return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
+}
+
+func (m *mockCostSourceClient) BatchCost(
+	ctx context.Context,
+	in *pbc.BatchCostRequest,
+	opts ...grpc.CallOption,
+) (*pbc.BatchCostResponse, error) {
+	if m.batchCostFunc != nil {
+		return m.batchCostFunc(ctx, in, opts...)
+	}
+	return &pbc.BatchCostResponse{}, nil
 }
 
 // T020: Unit test for DryRun wrapper.
@@ -3693,4 +3709,460 @@ func TestBuildEstimateCostRequest_NilProperties(t *testing.T) {
 	assert.Equal(t, "aws:ec2/instance:Instance", req.GetResourceType())
 	require.NotNil(t, req.GetAttributes())
 	assert.Empty(t, req.GetAttributes().AsMap())
+}
+
+// T001: Unit tests for clientAdapter.BatchCost pass-through delegation.
+func TestClientAdapterBatchCost(t *testing.T) {
+	t.Run("passes request and returns response", func(t *testing.T) {
+		expectedResp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{
+						Id:           "res-1",
+						ResourceType: "aws:ec2:Instance",
+					},
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ProjectedCost{
+								ProjectedCost: &pbc.GetProjectedCostResponse{
+									Currency:     "USD",
+									CostPerMonth: 100.0,
+								},
+							},
+						},
+					},
+				},
+			},
+			MaxBatchSize: 50,
+		}
+
+		var capturedReq *pbc.BatchCostRequest
+		mock := &mockCostSourceClient{
+			batchCostFunc: func(
+				_ context.Context,
+				in *pbc.BatchCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.BatchCostResponse, error) {
+				capturedReq = in
+				return expectedResp, nil
+			},
+		}
+
+		req := &pbc.BatchCostRequest{
+			Resources: []*pbc.ResourceDescriptor{
+				{Id: "res-1", ResourceType: "aws:ec2:Instance"},
+			},
+			QueryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED,
+		}
+
+		resp, err := mock.BatchCost(context.Background(), req)
+		require.NoError(t, err)
+		assert.Equal(t, expectedResp, resp)
+		require.NotNil(t, capturedReq)
+		assert.Equal(t, req.GetQueryType(), capturedReq.GetQueryType())
+		require.Len(t, capturedReq.GetResources(), 1)
+		assert.Equal(t, "res-1", capturedReq.GetResources()[0].GetId())
+	})
+
+	t.Run("propagates error", func(t *testing.T) {
+		mock := &mockCostSourceClient{
+			batchCostFunc: func(
+				_ context.Context,
+				_ *pbc.BatchCostRequest,
+				_ ...grpc.CallOption,
+			) (*pbc.BatchCostResponse, error) {
+				return nil, status.Error(codes.Unimplemented, "not implemented")
+			},
+		}
+
+		resp, err := mock.BatchCost(context.Background(), &pbc.BatchCostRequest{})
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Equal(t, codes.Unimplemented, status.Code(err))
+	})
+}
+
+// T002: Unit tests for MapBatchProjectedResults.
+func TestMapBatchProjectedResults(t *testing.T) {
+	t.Run("all success with 3 resources", func(t *testing.T) {
+		expiresAt := time.Now().Add(2 * time.Hour)
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1", ResourceType: "aws:ec2:Instance"},
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ProjectedCost{
+								ProjectedCost: &pbc.GetProjectedCostResponse{
+									Currency:      "USD",
+									CostPerMonth:  100.0,
+									UnitPrice:     0.137,
+									BillingDetail: "on-demand",
+									ExpiresAt:     timestamppb.New(expiresAt),
+									ImpactMetrics: []*pbc.ImpactMetric{
+										{Kind: pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT, Value: 1.5, Unit: "kgCO2e"},
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r2", ResourceType: "aws:s3:Bucket"},
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ProjectedCost{
+								ProjectedCost: &pbc.GetProjectedCostResponse{
+									Currency:     "USD",
+									CostPerMonth: 5.0,
+									UnitPrice:    0.023,
+								},
+							},
+						},
+					},
+				},
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r3", ResourceType: "aws:rds:Instance"},
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ProjectedCost{
+								ProjectedCost: &pbc.GetProjectedCostResponse{
+									Currency:     "EUR",
+									CostPerMonth: 200.0,
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		mapped := MapBatchProjectedResults(resp)
+		require.Len(t, mapped, 3)
+
+		// First resource — full mapping
+		assert.NotNil(t, mapped[0].Result)
+		assert.Nil(t, mapped[0].Err)
+		assert.False(t, mapped[0].Skip)
+		assert.Equal(t, "USD", mapped[0].Result.Currency)
+		assert.InDelta(t, 100.0, mapped[0].Result.MonthlyCost, 0.001)
+		assert.InDelta(t, 0.137, mapped[0].Result.HourlyCost, 0.001)
+		assert.Equal(t, "on-demand", mapped[0].Result.Notes)
+		require.NotNil(t, mapped[0].Result.ExpiresAt)
+		assert.WithinDuration(t, expiresAt, *mapped[0].Result.ExpiresAt, time.Second)
+		assert.InDelta(t, 1.5, mapped[0].Result.Sustainability["carbon_footprint"].Value, 0.001)
+		assert.Equal(t, "kgCO2e", mapped[0].Result.Sustainability["carbon_footprint"].Unit)
+
+		// Second resource — no ExpiresAt
+		assert.NotNil(t, mapped[1].Result)
+		assert.Equal(t, "USD", mapped[1].Result.Currency)
+		assert.InDelta(t, 5.0, mapped[1].Result.MonthlyCost, 0.001)
+		assert.Nil(t, mapped[1].Result.ExpiresAt)
+
+		// Third resource — different currency
+		assert.NotNil(t, mapped[2].Result)
+		assert.Equal(t, "EUR", mapped[2].Result.Currency)
+		assert.InDelta(t, 200.0, mapped[2].Result.MonthlyCost, 0.001)
+	})
+
+	t.Run("all errors", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1", ResourceType: "aws:ec2:Instance"},
+					Result: &pbc.ResourceCostResult_Error{
+						Error: &pbc.ResourceError{
+							Code:    13,
+							Message: "internal error",
+						},
+					},
+				},
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r2", ResourceType: "aws:s3:Bucket"},
+					Result: &pbc.ResourceCostResult_Error{
+						Error: &pbc.ResourceError{
+							Code:    5,
+							Message: "not found",
+						},
+					},
+				},
+			},
+		}
+
+		mapped := MapBatchProjectedResults(resp)
+		require.Len(t, mapped, 2)
+
+		assert.Nil(t, mapped[0].Result)
+		assert.Error(t, mapped[0].Err)
+		assert.Contains(t, mapped[0].Err.Error(), "internal error")
+		assert.Contains(t, mapped[0].Err.Error(), "aws:ec2:Instance")
+		assert.False(t, mapped[0].Skip)
+
+		assert.Nil(t, mapped[1].Result)
+		assert.Error(t, mapped[1].Err)
+		assert.Contains(t, mapped[1].Err.Error(), "not found")
+	})
+
+	t.Run("mixed success and error", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1", ResourceType: "aws:ec2:Instance"},
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ProjectedCost{
+								ProjectedCost: &pbc.GetProjectedCostResponse{
+									Currency:     "USD",
+									CostPerMonth: 50.0,
+								},
+							},
+						},
+					},
+				},
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r2", ResourceType: "aws:lambda:Function"},
+					Result: &pbc.ResourceCostResult_Error{
+						Error: &pbc.ResourceError{
+							Code:    13,
+							Message: "pricing not available",
+						},
+					},
+				},
+			},
+		}
+
+		mapped := MapBatchProjectedResults(resp)
+		require.Len(t, mapped, 2)
+
+		assert.NotNil(t, mapped[0].Result)
+		assert.InDelta(t, 50.0, mapped[0].Result.MonthlyCost, 0.001)
+
+		assert.Nil(t, mapped[1].Result)
+		assert.Error(t, mapped[1].Err)
+	})
+
+	t.Run("empty response", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{}
+		mapped := MapBatchProjectedResults(resp)
+		assert.Empty(t, mapped)
+	})
+
+	t.Run("nil CostData triggers fallback", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1", ResourceType: "aws:ec2:Instance"},
+					Result:   &pbc.ResourceCostResult_CostData{CostData: nil},
+				},
+			},
+		}
+
+		mapped := MapBatchProjectedResults(resp)
+		require.Len(t, mapped, 1)
+		assert.Nil(t, mapped[0].Result)
+		assert.Nil(t, mapped[0].Err)
+		assert.False(t, mapped[0].Skip)
+	})
+
+	t.Run("ExpiresAt extraction", func(t *testing.T) {
+		expiresAt := time.Now().Add(4 * time.Hour)
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1"},
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ProjectedCost{
+								ProjectedCost: &pbc.GetProjectedCostResponse{
+									Currency:     "USD",
+									CostPerMonth: 10.0,
+									ExpiresAt:    timestamppb.New(expiresAt),
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		mapped := MapBatchProjectedResults(resp)
+		require.Len(t, mapped, 1)
+		require.NotNil(t, mapped[0].Result)
+		require.NotNil(t, mapped[0].Result.ExpiresAt)
+		assert.WithinDuration(t, expiresAt, *mapped[0].Result.ExpiresAt, time.Second)
+	})
+
+	t.Run("resource_type_unsupported skip", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1", ResourceType: "custom:resource:Type"},
+					Result: &pbc.ResourceCostResult_Error{
+						Error: &pbc.ResourceError{
+							Code:                    3,
+							Message:                 "unsupported resource type",
+							ResourceTypeUnsupported: true,
+						},
+					},
+				},
+			},
+		}
+
+		mapped := MapBatchProjectedResults(resp)
+		require.Len(t, mapped, 1)
+		assert.True(t, mapped[0].Skip)
+		assert.Nil(t, mapped[0].Result)
+		assert.Nil(t, mapped[0].Err)
+	})
+}
+
+// T003: Unit tests for MapBatchActualResults.
+func TestMapBatchActualResults(t *testing.T) {
+	t.Run("all success with ActualCostData", func(t *testing.T) {
+		expiresAt := time.Now().Add(1 * time.Hour)
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1", ResourceType: "aws:ec2:Instance"},
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ActualCost{
+								ActualCost: &pbc.ActualCostData{
+									Results: []*pbc.ActualCostResult{
+										{Cost: 45.0, Source: "aws-ce", ExpiresAt: timestamppb.New(expiresAt)},
+										{Cost: 15.0, Source: "aws-cur"},
+									},
+								},
+							},
+						},
+					},
+				},
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r2", ResourceType: "aws:s3:Bucket"},
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ActualCost{
+								ActualCost: &pbc.ActualCostData{
+									Results: []*pbc.ActualCostResult{
+										{Cost: 3.50, Source: "aws-ce"},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		mapped := MapBatchActualResults(resp)
+		require.Len(t, mapped, 2)
+
+		// First resource — aggregated from two results
+		require.NotNil(t, mapped[0].ActualResult)
+		assert.InDelta(t, 60.0, mapped[0].ActualResult.TotalCost, 0.001)
+		assert.InDelta(t, 45.0, mapped[0].ActualResult.CostBreakdown["aws-ce"], 0.001)
+		assert.InDelta(t, 15.0, mapped[0].ActualResult.CostBreakdown["aws-cur"], 0.001)
+		require.NotNil(t, mapped[0].ActualResult.ExpiresAt)
+		assert.WithinDuration(t, expiresAt, *mapped[0].ActualResult.ExpiresAt, time.Second)
+		assert.Nil(t, mapped[0].Err)
+		assert.False(t, mapped[0].Skip)
+
+		// Second resource
+		require.NotNil(t, mapped[1].ActualResult)
+		assert.InDelta(t, 3.50, mapped[1].ActualResult.TotalCost, 0.001)
+	})
+
+	t.Run("ResourceError with ResourceTypeUnsupported", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1", ResourceType: "custom:Type"},
+					Result: &pbc.ResourceCostResult_Error{
+						Error: &pbc.ResourceError{
+							Code:                    3,
+							Message:                 "unsupported",
+							ResourceTypeUnsupported: true,
+						},
+					},
+				},
+			},
+		}
+
+		mapped := MapBatchActualResults(resp)
+		require.Len(t, mapped, 1)
+		assert.True(t, mapped[0].Skip)
+		assert.Nil(t, mapped[0].ActualResult)
+		assert.Nil(t, mapped[0].Err)
+	})
+
+	t.Run("ResourceError without ResourceTypeUnsupported", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1", ResourceType: "aws:ec2:Instance"},
+					Result: &pbc.ResourceCostResult_Error{
+						Error: &pbc.ResourceError{
+							Code:    13,
+							Message: "billing API error",
+						},
+					},
+				},
+			},
+		}
+
+		mapped := MapBatchActualResults(resp)
+		require.Len(t, mapped, 1)
+		assert.Error(t, mapped[0].Err)
+		assert.Contains(t, mapped[0].Err.Error(), "billing API error")
+		assert.Contains(t, mapped[0].Err.Error(), "aws:ec2:Instance")
+		assert.Nil(t, mapped[0].ActualResult)
+	})
+
+	t.Run("empty results array", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{}
+		mapped := MapBatchActualResults(resp)
+		assert.Empty(t, mapped)
+	})
+
+	t.Run("nil CostData", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1"},
+					Result:   &pbc.ResourceCostResult_CostData{CostData: nil},
+				},
+			},
+		}
+
+		mapped := MapBatchActualResults(resp)
+		require.Len(t, mapped, 1)
+		assert.Nil(t, mapped[0].ActualResult)
+		assert.Nil(t, mapped[0].Err)
+		assert.False(t, mapped[0].Skip)
+	})
+
+	t.Run("ActualCostData with empty results", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1"},
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ActualCost{
+								ActualCost: &pbc.ActualCostData{
+									Results: []*pbc.ActualCostResult{},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		mapped := MapBatchActualResults(resp)
+		require.Len(t, mapped, 1)
+		// Empty actual cost results → nil ActualResult (fallback)
+		assert.Nil(t, mapped[0].ActualResult)
+		assert.Nil(t, mapped[0].Err)
+	})
 }

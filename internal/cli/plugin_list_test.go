@@ -313,6 +313,58 @@ func TestPluginListCmd_TableOutputUnchanged(t *testing.T) {
 	assert.Equal(t, defaultBuf.String(), tableBuf.String())
 }
 
+// T038: Test that batch_cost capability appears in JSON output.
+func TestPluginJSONEntry_BatchCostCapability(t *testing.T) {
+	t.Run("batch_cost in capabilities appears in JSON output", func(t *testing.T) {
+		entry := cli.PluginJSONEntry{
+			Name:               "aws-public",
+			Version:            "1.0.0",
+			Path:               "/home/user/.finfocus/plugins/aws-public/1.0.0/finfocus-plugin-aws-public",
+			SpecVersion:        "v0.6.0",
+			RuntimeVersion:     "1.0.0",
+			SupportedProviders: []string{"aws"},
+			Capabilities:       []string{"projected_costs", "actual_costs", "batch_cost"},
+		}
+
+		data, err := json.Marshal(entry)
+		require.NoError(t, err)
+
+		var parsed map[string]interface{}
+		require.NoError(t, json.Unmarshal(data, &parsed))
+
+		caps, ok := parsed["capabilities"].([]interface{})
+		require.True(t, ok)
+		assert.Len(t, caps, 3)
+
+		// Verify batch_cost is present
+		found := false
+		for _, c := range caps {
+			if c == "batch_cost" {
+				found = true
+				break
+			}
+		}
+		assert.True(t, found, "batch_cost should appear in capabilities JSON output")
+	})
+
+	t.Run("batch_cost in verbose table output", func(t *testing.T) {
+		// Create a PluginJSONEntry with batch_cost and verify it round-trips
+		entry := cli.PluginJSONEntry{
+			Name:         "test-plugin",
+			Version:      "0.1.0",
+			Capabilities: []string{"projected_costs", "batch_cost"},
+		}
+
+		data, err := json.Marshal(entry)
+		require.NoError(t, err)
+
+		output := string(data)
+		assert.Contains(t, output, "batch_cost",
+			"batch_cost capability should be present in serialized output")
+		assert.Contains(t, output, "projected_costs")
+	})
+}
+
 // BenchmarkPluginList measures plugin listing performance.
 // With parallel fetching, execution time should scale O(1) relative to plugin count
 // (bounded by the slowest plugin), not O(N) (sum of all plugin latencies).

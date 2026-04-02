@@ -107,6 +107,14 @@ func (m *mockTagFilterClient) EstimateCost(
 	return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
 }
 
+func (m *mockTagFilterClient) BatchCost(
+	_ context.Context,
+	_ *pbc.BatchCostRequest,
+	_ ...grpc.CallOption,
+) (*pbc.BatchCostResponse, error) {
+	return &pbc.BatchCostResponse{}, nil
+}
+
 // TestBudgetTagFilter_EndToEnd tests tag-based budget filtering (Issue #222).
 func TestBudgetTagFilter_EndToEnd(t *testing.T) {
 	ctx := context.Background()

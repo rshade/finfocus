@@ -16,6 +16,8 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/protobuf/types/known/timestamppb"
+
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -371,7 +373,7 @@ func (e *Engine) getWorkerCount(jobCount int) int {
 
 // GetProjectedCost calculates projected costs for the given resources using plugins or specs.
 //
-//nolint:gocognit,funlen // Comprehensive cost calculation requires multiple nested conditions and fallbacks.
+//nolint:gocognit,gocyclo,cyclop,nestif,funlen // Comprehensive cost calculation with batch and per-resource paths.
 func (e *Engine) GetProjectedCost(
 	ctx context.Context,
 	resources []ResourceDescriptor,
@@ -411,13 +413,100 @@ func (e *Engine) GetProjectedCost(
 		results []CostResult
 	}
 
-	numWorkers := e.getWorkerCount(len(resources))
-	if numWorkers == 0 {
+	batchHandled := make(map[int][]CostResult) // index → results for batch-handled resources
+
+	if e.hasBatchCapableClient() {
+		batchGroups := e.groupResourcesByPlugin(ctx, resources)
+		for _, pluginBatch := range batchGroups {
+			if !pluginBatch.hasBatch {
+				continue // Non-batch plugins go through per-resource worker pool
+			}
+
+			// Pre-check cache: separate cached from uncached
+			var uncached []indexedResource
+			for _, ir := range pluginBatch.resources {
+				if cached := e.tryProjectedCostCache(ctx, ir.resource); cached != nil {
+					batchHandled[ir.index] = cached
+					continue
+				}
+				uncached = append(uncached, ir)
+			}
+
+			if len(uncached) == 0 {
+				continue
+			}
+
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("operation", "batch_projected_cost").
+				Str("plugin", pluginBatch.plugin.Name).
+				Int("total_resources", len(pluginBatch.resources)).
+				Int("cached", len(pluginBatch.resources)-len(uncached)).
+				Int("uncached", len(uncached)).
+				Msg("executing batch projected cost")
+
+			batchResults, batchErr := e.executeBatchForPlugin(
+				ctx, pluginBatch.plugin, uncached,
+				batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+			)
+			if batchErr != nil {
+				// Batch-level error: fall back to per-resource worker pool for all resources
+				log.Warn().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("plugin", pluginBatch.plugin.Name).
+					Err(batchErr).
+					Int("resource_count", len(uncached)).
+					Msg("batch cost failed, falling back to per-resource queries")
+				continue
+			}
+
+			// Process batch results: successful results are stored and marked handled;
+			// errors and skips fall through to the per-resource worker pool.
+			for _, br := range batchResults {
+				if br.skip {
+					log.Warn().
+						Ctx(ctx).
+						Str("component", "engine").
+						Str("resource_type", resources[br.index].Type).
+						Str("resource_id", resources[br.index].ID).
+						Msg("resource type unsupported in batch, skipping")
+					// Leave unhandled — falls through to per-resource worker pool
+					// (same behavior as per-resource validation skip)
+					continue
+				}
+				if br.err != nil {
+					log.Warn().
+						Ctx(ctx).
+						Str("component", "engine").
+						Str("resource_type", resources[br.index].Type).
+						Str("resource_id", resources[br.index].ID).
+						Err(br.err).
+						Msg("per-resource error in batch result")
+					// Leave unhandled so per-resource worker pool can retry
+					continue
+				}
+				if br.result != nil {
+					costResults := []CostResult{*br.result}
+					if !hasOnlyPlaceholderResults(costResults) {
+						e.storeProjectedCostCache(ctx, resources[br.index], costResults)
+					}
+					batchHandled[br.index] = costResults
+				}
+			}
+		}
+	}
+
+	remainingCount := len(resources) - len(batchHandled)
+
+	numWorkers := e.getWorkerCount(remainingCount)
+	if numWorkers == 0 && len(batchHandled) == 0 {
 		return []CostResult{}, nil
 	}
 
-	jobs := make(chan job, len(resources))
-	resultsChan := make(chan workerResult, len(resources))
+	jobs := make(chan job, remainingCount)
+	resultsChan := make(chan workerResult, remainingCount)
 	var wg sync.WaitGroup
 
 	// Worker function
@@ -564,14 +653,18 @@ func (e *Engine) GetProjectedCost(
 	}
 
 	// Start workers
-	for range numWorkers {
-		wg.Add(1)
-		go worker()
+	if numWorkers > 0 {
+		for range numWorkers {
+			wg.Add(1)
+			go worker()
+		}
 	}
 
-	// Submit jobs
+	// Submit only non-batch-handled resources as jobs
 	for i, resource := range resources {
-		jobs <- job{index: i, resource: resource}
+		if _, handled := batchHandled[i]; !handled {
+			jobs <- job{index: i, resource: resource}
+		}
 	}
 	close(jobs)
 
@@ -581,10 +674,17 @@ func (e *Engine) GetProjectedCost(
 		close(resultsChan)
 	}()
 
-	// Collect results
+	// Collect worker results
 	var collectedResults []workerResult
 	for res := range resultsChan {
 		collectedResults = append(collectedResults, res)
+	}
+
+	// Merge batch-handled results into collected results
+	for idx, batchRes := range batchHandled {
+		if batchRes != nil {
+			collectedResults = append(collectedResults, workerResult{index: idx, results: batchRes})
+		}
 	}
 
 	if ctx.Err() != nil {
@@ -825,7 +925,7 @@ func (e *Engine) GetActualCost(
 
 // GetActualCostWithOptions retrieves actual costs with advanced filtering, grouping, and time range options.
 //
-//nolint:funlen,gocognit // Comprehensive logging and cost calculation pipeline requires additional complexity.
+//nolint:funlen,gocognit,gocyclo,cyclop,nestif // Comprehensive cost calculation with batch and per-resource paths.
 func (e *Engine) GetActualCostWithOptions(
 	ctx context.Context,
 	request ActualCostRequest,
@@ -873,13 +973,78 @@ func (e *Engine) GetActualCostWithOptions(
 		partialError error
 	}
 
-	numWorkers := e.getWorkerCount(len(request.Resources))
-	if numWorkers == 0 {
+	batchHandled := make(map[int]*CostResult) // index → result for batch-handled resources
+
+	if e.hasBatchCapableClient() {
+		batchGroups := e.groupResourcesByPlugin(ctx, request.Resources)
+		for _, pb := range batchGroups {
+			if !pb.hasBatch {
+				continue // Non-batch plugins go through per-resource worker pool
+			}
+
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("operation", "batch_actual_cost").
+				Str("plugin", pb.plugin.Name).
+				Int("resource_count", len(pb.resources)).
+				Msg("executing batch actual cost")
+
+			batchResults, batchErr := e.executeBatchForPlugin(
+				ctx, pb.plugin, pb.resources,
+				batchOptions{
+					queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL,
+					start:     timestamppb.New(request.From),
+					end:       timestamppb.New(request.To),
+				},
+			)
+			if batchErr != nil {
+				// Batch-level error: fall back to per-resource worker pool
+				log.Warn().
+					Ctx(ctx).
+					Str("component", "engine").
+					Str("plugin", pb.plugin.Name).
+					Err(batchErr).
+					Int("resource_count", len(pb.resources)).
+					Msg("batch actual cost failed, falling back to per-resource queries")
+				continue
+			}
+
+			for _, br := range batchResults {
+				if br.skip {
+					log.Warn().
+						Ctx(ctx).
+						Str("component", "engine").
+						Str("resource_type", request.Resources[br.index].Type).
+						Msg("resource type unsupported in batch actual cost, skipping")
+					// Leave unhandled — falls through to per-resource worker pool
+					continue
+				}
+				if br.err != nil {
+					log.Warn().
+						Ctx(ctx).
+						Str("component", "engine").
+						Str("resource_type", request.Resources[br.index].Type).
+						Err(br.err).
+						Msg("per-resource error in batch actual cost result")
+					continue // Leave unhandled for per-resource fallback
+				}
+				if br.actualResult != nil {
+					batchHandled[br.index] = br.actualResult
+				}
+			}
+		}
+	}
+
+	remainingCount := len(request.Resources) - len(batchHandled)
+
+	numWorkers := e.getWorkerCount(remainingCount)
+	if numWorkers == 0 && len(batchHandled) == 0 {
 		return []CostResult{}, nil
 	}
 
-	jobs := make(chan job, len(request.Resources))
-	resultsChan := make(chan workerResult, len(request.Resources))
+	jobs := make(chan job, remainingCount)
+	resultsChan := make(chan workerResult, remainingCount)
 	var wg sync.WaitGroup
 
 	worker := func() {
@@ -1021,13 +1186,19 @@ func (e *Engine) GetActualCostWithOptions(
 		}
 	}
 
-	for range numWorkers {
-		wg.Add(1)
-		go worker()
+	// Start workers
+	if numWorkers > 0 {
+		for range numWorkers {
+			wg.Add(1)
+			go worker()
+		}
 	}
 
+	// Submit only non-batch-handled resources as jobs
 	for i, resource := range request.Resources {
-		jobs <- job{index: i, resource: resource}
+		if _, handled := batchHandled[i]; !handled {
+			jobs <- job{index: i, resource: resource}
+		}
 	}
 	close(jobs)
 
@@ -1043,6 +1214,13 @@ func (e *Engine) GetActualCostWithOptions(
 		collectedResults = append(collectedResults, res)
 		if res.partialError != nil {
 			partialErrors = append(partialErrors, res.partialError)
+		}
+	}
+
+	// Merge batch-handled results into collected results
+	for idx, batchRes := range batchHandled {
+		if batchRes != nil {
+			collectedResults = append(collectedResults, workerResult{index: idx, result: batchRes})
 		}
 	}
 

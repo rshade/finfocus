@@ -35,6 +35,7 @@ service CostSourceService {
       returns (GetProjectedCostResponse);
   rpc GetPricingSpec(GetPricingSpecRequest)
       returns (GetPricingSpecResponse);
+  rpc BatchCost(BatchCostRequest) returns (BatchCostResponse);
 }
 ```
 

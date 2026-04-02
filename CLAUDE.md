@@ -469,6 +469,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 ## Recent Changes
 
+- 608-batch-cost-consumer: Added Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging)
 - 608-resource-history-store: Added Go 1.25.8 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`).
 - 608-estimate-cost-rpc: Added Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions), gRPC, Cobra, zerolog
 - 607-state-only-flag: Added Go 1.25.8 (see `go.mod`) + Cobra (CLI framework), Bubble Tea (TUI), zerolog (logging)
@@ -476,6 +477,8 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 ## Active Technologies
 
+- Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging) (608-batch-cost-consumer)
+- BoltDB cost cache (`~/.finfocus/cache/cache.db`) — batch results cached per-resource independently (608-batch-cost-consumer)
 - Go 1.25.8 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`) (608-resource-history-store)
 - BoltDB at `~/.finfocus/history/history.db` (separate from cache) (608-resource-history-store)
 - Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions), gRPC, Cobra, zerolog (608-estimate-cost-rpc)
