@@ -72,6 +72,7 @@ docs/assets/logo.png
 # NPM/Node artifacts
 node_modules/
 package-lock.json
+!docs/package-lock.json
 npm-debug.log*
 yarn-error.log*
 

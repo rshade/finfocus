@@ -38,8 +38,9 @@ jobs:
           npx markdownlint-cli2 \
             --config docs/.markdownlint-cli2.jsonc \
             'docs/**/*.md' \
-            --ignore 'docs/_site/**' \
-            --ignore 'docs/node_modules/**'
+            '#docs/dist/**' \
+            '#docs/node_modules/**' \
+            '#docs/.astro/**'
         continue-on-error: true
 
       - name: Check markdown formatting
@@ -69,7 +70,7 @@ jobs:
 
       - name: Check links in documentation
         run: |
-          find docs -type f -name "*.md" ! -path "docs/_site/*" ! -path "docs/node_modules/*" | \
+          find docs -type f -name "*.md" ! -path "docs/dist/*" ! -path "docs/node_modules/*" ! -path "docs/.astro/*" | \
           while IFS= read -r file; do
             echo "Checking links in: $file"
             npx markdown-link-check \
@@ -96,16 +97,34 @@ jobs:
 
       - name: Validate YAML frontmatter
         run: |
-          find docs -type f -name "*.md" ! -path "docs/_site/*" | \
+          errors=0
           while IFS= read -r file; do
-            # Check if file starts with ---
-            if head -1 "$file" | grep -q "^---"; then
-              echo "✓ Frontmatter found in: $file"
-            else
-              echo "⚠ No frontmatter in: $file"
+            if ! head -1 "$file" | grep -q "^---$"; then
+              echo "✗ $file: missing opening --- fence"
+              errors=$((errors + 1))
+              continue
             fi
-          done
-        continue-on-error: true
+            fm=$(awk 'NR==1{next} /^---$/{exit} {print}' "$file")
+            if ! awk 'NR==1{next} /^---$/{found=1; exit} END{exit !found}' "$file"; then
+              echo "✗ $file: missing closing --- fence"
+              errors=$((errors + 1))
+              continue
+            fi
+            if ! echo "$fm" | grep -q "^title:"; then
+              echo "✗ $file: missing required 'title' field"
+              errors=$((errors + 1))
+            else
+              echo "✓ $file"
+            fi
+            if ! echo "$fm" | grep -q "^description:"; then
+              echo "  ⚠ $file: missing recommended 'description' field"
+            fi
+          done < <(find docs/src/content/docs -type f -name "*.md" | sort)
+          if [ "$errors" -gt 0 ]; then
+            echo "❌ $errors frontmatter errors found"
+            exit 1
+          fi
+          echo "✓ All frontmatter validated"
 
   structure:
     runs-on: ubuntu-latest
@@ -121,10 +140,11 @@ jobs:
       - name: Check for required files
         run: |
           required_files=(
-            "docs/README.md"
-            "docs/plan.md"
-            "docs/llms.txt"
-            "docs/_config.yml"
+            "docs/src/content/docs/README.md"
+            "docs/src/content/docs/plan.md"
+            "docs/src/content/docs/llms.txt"
+            "docs/package.json"
+            "docs/astro.config.mjs"
             "docs/.markdownlint-cli2.jsonc"
           )
 
@@ -147,24 +167,33 @@ jobs:
       - name: Validate directory structure
         run: |
           required_dirs=(
-            "docs/guides"
-            "docs/getting-started"
-            "docs/architecture"
-            "docs/plugins"
-            "docs/reference"
-            "docs/deployment"
-            "docs/support"
+            "docs/src/content/docs/guides"
+            "docs/src/content/docs/getting-started"
+            "docs/src/content/docs/architecture"
+            "docs/src/content/docs/plugins"
+            "docs/src/content/docs/reference"
+            "docs/src/content/docs/deployment"
+            "docs/src/content/docs/support"
+            "docs/src/content/docs/commands"
+            "docs/src/content/docs/examples"
+            "docs/src/content/docs/schemas"
+            "docs/src/content/docs/testing"
           )
 
+          missing=0
           for dir in "${required_dirs[@]}"; do
             if [ -d "$dir" ]; then
               echo "✓ $dir/"
             else
-              echo "⚠ Creating missing directory: $dir"
-              mkdir -p "$dir"
-              echo "# Coming Soon" > "$dir/README.md"
+              echo "✗ Missing: $dir/"
+              missing=$((missing + 1))
             fi
           done
+
+          if [ $missing -gt 0 ]; then
+            echo "❌ $missing required directories missing"
+            exit 1
+          fi
           echo "✓ Documentation directory structure validated"
 
   llms-txt:
@@ -180,13 +209,13 @@ jobs:
 
       - name: Check llms.txt exists and is updated
         run: |
-          if [ ! -f "docs/llms.txt" ]; then
-            echo "❌ docs/llms.txt not found"
+          if [ ! -f "docs/src/content/docs/llms.txt" ]; then
+            echo "❌ docs/src/content/docs/llms.txt not found"
             exit 1
           fi
 
           # Check that llms.txt has recent update timestamp
-          if grep -q "Last Updated:" docs/llms.txt; then
+          if grep -q "Last Updated:" docs/src/content/docs/llms.txt; then
             echo "✓ llms.txt has update timestamp"
           else
             echo "⚠ llms.txt missing update timestamp"
@@ -200,7 +229,7 @@ jobs:
           )
 
           for section in "${required_sections[@]}"; do
-            if grep -q "$section" docs/llms.txt; then
+            if grep -q "$section" docs/src/content/docs/llms.txt; then
               echo "✓ Found section: $section"
             else
               echo "⚠ Missing section: $section"

@@ -1,0 +1,617 @@
+---
+title: Roadmap
+description: Strategic roadmap for FinFocus development milestones and planned features.
+---
+
+
+This roadmap maps 1:1 with tracked work in GitHub Issues. It outlines the
+evolution of `finfocus` while strictly adhering to the technical
+guardrails in `CONTEXT.md`.
+
+## Table of Contents
+
+- [Immediate Focus (v0.3.6)](#immediate-focus-v036)
+- [Near-Term Vision (v0.3.x)](#near-term-vision-v03x---forecasting--profiles)
+- [Future Vision (v0.4.0+)](#future-vision-v040---notifications-integrations--backlog)
+- [Completed Milestones](#completed-milestones)
+- [Cross-Repository Feature Matrix](#cross-repository-feature-matrix)
+- [Boundary Safeguards](#boundary-safeguards)
+
+## Immediate Focus (v0.3.6)
+
+*v0.3.5 released 2026-03-30.*
+
+- [ ] Implement EstimateCost RPC consumer (remove stub)
+      ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
+- [ ] Implement BatchCost RPC consumer for multi-resource queries
+      ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
+- [ ] Resource History Store with Layered Cost Attribution
+      ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
+
+## Near-Term Vision (v0.3.x - Forecasting & Profiles)
+
+- [ ] **Overview Performance Pipeline** *(deferred from v0.3.2)*
+  - [ ] Parallelize plugin opening in `Registry.Open()`
+        ([#693](https://github.com/rshade/finfocus/issues/693)) [M]
+  - [ ] Start plugin loading concurrently with data loading
+        ([#692](https://github.com/rshade/finfocus/issues/692)) [M]
+  - [ ] Parallelize stack export and pulumi preview
+        ([#691](https://github.com/rshade/finfocus/issues/691)) [M]
+- [ ] **Overview TUI Quality** *(deferred from v0.3.2)*
+  - [ ] Show phase progress lines sequentially and add preview phase
+        ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
+  - [ ] Refactor overview to compute-once-render-many architecture
+        ([#853](https://github.com/rshade/finfocus/issues/853)) [L]
+- [ ] **Pricing Transparency** *(follow-up to #465 research)*
+  - [ ] Plugin-provided GetPricingSpec as fallback before local YAML specs
+        ([#638](https://github.com/rshade/finfocus/issues/638)) [L]
+  - [ ] Enrich cost estimate with GetPricingSpec discovery data
+        ([#637](https://github.com/rshade/finfocus/issues/637)) [M]
+  - [ ] Add `--explain` flag to `cost projected` for pricing transparency
+        ([#636](https://github.com/rshade/finfocus/issues/636)) [M]
+  - [ ] Add `--show-breakdown` and `--show-confidence` flags to cost commands
+        ([#685](https://github.com/rshade/finfocus/issues/685)) [M]
+- [ ] **Contextual Profiles ("Dev Mode")**
+      ([#368](https://github.com/rshade/finfocus/issues/368)) [L]
+  - [ ] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
+        to plugins
+  - [ ] Configuration: Allow default profile definition in `finfocus.yaml`
+  - *Spec ready:* `UsageProfile` enum (PROD/DEV/BURST) available in
+    finfocus-spec v0.5.5 — core-only implementation
+- [ ] **Scale Testing**
+  - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
+        ([#658](https://github.com/rshade/finfocus/issues/658)) [M]
+- [ ] **Spec v0.5.7 Features**
+  - *All v0.5.7 consumer items promoted to Immediate Focus*
+- [ ] **Time-Series Forecasting Enhancement**
+  - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
+        ([#539](https://github.com/rshade/finfocus/issues/539)) [L]
+- [ ] **Forecasting & Projections ("Cost Time Machine")**
+      ([#364](https://github.com/rshade/finfocus/issues/364)) [L]
+  - [ ] Projection Math Engine (Linear/Exponential extrapolation)
+  - [ ] TUI: ASCII Line Chart visualization for 6-12 month forecasts
+  - *Status: Spec primitives available (GrowthType/GrowthRate)*
+
+## Future Vision (v0.4.0+ - Notifications, Integrations & Backlog)
+
+- [ ] **Governance Overrides ("YOLO Mode")**
+      ([#365](https://github.com/rshade/finfocus/issues/365)) [M]
+  - [ ] CLI: Implement `--yolo` / `--force` flag to bypass budget gates
+  - [ ] UX: "Warning Mode" UI styles for bypassed runs
+  - *Blocked:* Requires `BypassReason` enum in
+    [finfocus-spec](https://github.com/rshade/finfocus-spec) (not yet defined)
+- [ ] **External Notifications**
+  - [ ] Webhook and email notifications for budget alerts
+        ([#220](https://github.com/rshade/finfocus/issues/220)) [L]
+  - *Note:* Requires external service integration to maintain core
+    statelessness per CONTEXT.md boundaries
+- [ ] **Recommendation Lifecycle Enhancements** *(spec-first)*
+  - [ ] Add `include_dismissed` field to GetRecommendationsRequest
+        ([#545](https://github.com/rshade/finfocus/issues/545)) [S]
+  - [ ] Add GetRecommendationHistory RPC to CostSourceService
+        ([#546](https://github.com/rshade/finfocus/issues/546)) [M]
+- [ ] **Cost Time Machine** *(depends on #548)*
+  - [ ] Phase 1 — MVP: `cost history collect` + `view --plain` with
+        asciigraph and bbolt storage
+        ([#549](https://github.com/rshade/finfocus/issues/549)) [L]
+  - [ ] Phase 2 — Interactive TUI: ntcharts TimeSeriesLineChart with
+        pan/zoom, provider split, budget overlay
+        ([#550](https://github.com/rshade/finfocus/issues/550)) [L]
+  - [ ] Phase 3 — Export & Sparklines: JSON/CSV/NDJSON export + inline
+        sparkline indicators
+        ([#551](https://github.com/rshade/finfocus/issues/551)) [M]
+  - [ ] Cost history diff: resource-level change attribution
+        ([#554](https://github.com/rshade/finfocus/issues/554)) [L]
+  - [ ] Prune & retention policy
+        ([#555](https://github.com/rshade/finfocus/issues/555)) [M]
+  - [ ] Mixed-currency snapshot handling
+        ([#556](https://github.com/rshade/finfocus/issues/556)) [M]
+  - [ ] CI/CD automation recipes (documentation)
+        ([#553](https://github.com/rshade/finfocus/issues/553)) [S]
+- [ ] **Cache Architecture Improvements**
+  - [ ] Add optional LRU in-memory cache layer to complement BoltStore
+        ([#495](https://github.com/rshade/finfocus/issues/495)) [M]
+- [ ] TUI Lazy Loading & Error Recovery (#483) [L] *Deferred from TUI Phase 7*
+- [ ] Plugin integrity verification strategy (#164) [M]
+- [ ] Accessibility options (--no-color, --plain, high contrast) (#224) [M]
+- [ ] Configuration validation with helpful error messages (#223) [M]
+- [ ] **Plugin Generator Enhancements** *(Deprioritized — solo plugin dev)*
+  - [ ] Update Plugin Generator Templates for spec v0.5.x (#248) [M]
+  - [ ] Generate Docker support files (#456) [S]
+  - [ ] Generate documentation templates (#457) [S]
+  - [ ] Add GetPluginInfo and Supports to calculator template (#458) [S]
+  - [ ] Add health endpoint to generated main.go (#459) [S]
+  - [ ] Enhanced Makefile template with new targets (#460) [S]
+  - [ ] Add new CLI flags for generation control (#461) [S]
+  - [ ] Generate standardized GitHub workflow files (#462) [S]
+  - [ ] Generate .golangci-lint.yml configuration (#493) [S]
+- [ ] Use registry-based plugin install for cross-repo integration tests
+      ([#517](https://github.com/rshade/finfocus/issues/517)) [M]
+- [ ] Plugin developer upgrade command for SDK migrations (#270) [L] — *Research*
+- [ ] **Dependency Visualization ("Blast Radius")**
+      ([#366](https://github.com/rshade/finfocus/issues/366)) [L]
+  - [ ] TUI: Interactive Dependency Tree view (consuming Lineage Metadata)
+  - *Cross-Repo:* Consumes `CostAllocationLineage`/`ParentResourceID` from
+    [finfocus-spec](https://github.com/rshade/finfocus-spec)
+- [ ] **Spot Market Advisor**
+      ([#367](https://github.com/rshade/finfocus/issues/367)) [L]
+  - [ ] TUI: Highlight Spot savings in Cyan; show Risk Icon
+  - [ ] Display "Savings vs On-Demand" percentage
+  - *Cross-Repo:* Requires `PricingTier`/`SpotRisk` enums in
+    [finfocus-spec](https://github.com/rshade/finfocus-spec); CE plugin
+    implements `DescribeSpotPriceHistory`
+- [ ] **Carbon Footprint Estimation**
+  - [ ] Carbon footprint estimation plugin using Cloud Carbon Footprint
+        methodology
+        ([#688](https://github.com/rshade/finfocus/issues/688)) [L]
+- [ ] **Mixed-Currency Aggregation Strategy (MCP Alignment)**
+  - *Objective*: Implement core-level grouping for multi-currency stacks to
+    support the [finfocus-mcp Mixed-Currency
+    Research](https://github.com/rshade/finfocus-mcp/blob/main/ROADMAP.md#1-mixed-currency-aggregation-strategy).
+  - *Technical Approach*: Enhance `CostResult` aggregation logic to preserve
+    currency codes and provide structured groupings for downstream consumers
+    (CLI, TUI, MCP).
+  - *Success Criteria*: Orchestrator returns grouped results by currency when
+    multi-region/multi-currency resources are encountered.
+- [ ] **Markdown "Cost-Change" Report & CI/CD Bridge**
+  - *Objective*: Enable automated PR feedback by providing a Git-native
+    visualization of cost deltas.
+  - *Technical Approach*: Implement a new `OutputFormatter` that translates
+    `CostResult` maps into GFM (GitHub Flavored Markdown) using collapsible
+    `<details>` tags for per-resource breakdowns.
+  - *Anti-Guess Boundary*: The engine MUST NOT calculate the delta itself if
+    it isn't already provided by the input source; it strictly formats data
+    returned by the orchestration layer.
+  - *Success Criteria*: A valid GFM document is generated that renders
+    correctly in a GitHub comment using only data from the `CostResult` array.
+- [ ] **Pulumi Cloud API Integration** *(depends on #934)*
+  - [ ] Pulumi Cloud API Integration for Historical State Snapshots
+        ([#935](https://github.com/rshade/finfocus/issues/935)) [L]
+- [ ] **Agent Skills** *(co-located, tool-dependent)*
+  - [ ] `plugin-manage` — Discover, install, update, validate, and
+        troubleshoot finfocus plugins via gRPC protocol
+        ([#911](https://github.com/rshade/finfocus/issues/911)) [M]
+  - [ ] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
+        BoltDB cache issues, and zero-cost results
+        ([#913](https://github.com/rshade/finfocus/issues/913)) [M]
+  - [ ] `finfocus-budget` — Configure, monitor, and troubleshoot budget
+        thresholds with scoped rules, health tracking, and CI/CD exit codes
+        ([#914](https://github.com/rshade/finfocus/issues/914)) [M]
+  - *Format:* Agent Skills spec (SKILL.md + references/), installable via
+    `npx skills add rshade/finfocus -s <name>`
+  - *Generic cost workflow skills (cost-check, cost-drift, cost-optimize,
+    budget-setup) live in
+    [rshade/agent-skills](https://github.com/rshade/agent-skills)
+    as multi-tool skills — see
+    [Split-Tier Placement consensus](https://github.com/rshade/agent-skills/blob/main/PUNCHLIST.md)*
+- [ ] **Cost Diff View**
+  - [ ] Add cost diff view to `cost projected` command
+        ([#576](https://github.com/rshade/finfocus/issues/576)) [M]
+- [ ] **Overview Command Enhancements** *(follow-ups from #578)*
+  - [ ] Add `--output json` support to `finfocus overview`
+        ([#579](https://github.com/rshade/finfocus/issues/579)) [M]
+  - [ ] Add `--force-color` and `--no-color` flags to overview command
+        ([#641](https://github.com/rshade/finfocus/issues/641)) [S]
+  - [ ] Interactive pre-flight confirmation prompt for overview command
+        ([#642](https://github.com/rshade/finfocus/issues/642)) [S]
+  - [ ] Warning column and `OverviewWarning` type
+        ([#643](https://github.com/rshade/finfocus/issues/643)) [M]
+  - [ ] Test coverage for overview enrichment and CLI to 80%+
+        ([#645](https://github.com/rshade/finfocus/issues/645)) [L]
+  - [ ] Overview command documentation with screenshots
+        ([#646](https://github.com/rshade/finfocus/issues/646)) [M]
+- [ ] **Config Refactoring**
+  - [ ] Thread budget flag overrides explicitly instead of mutating global
+        config singleton
+        ([#808](https://github.com/rshade/finfocus/issues/808)) [M]
+- [ ] **Platform Reliability**
+  - [ ] Reimplement plugin installer lock for Windows reliability
+        ([#573](https://github.com/rshade/finfocus/issues/573)) [M]
+- [ ] **Stateless Cost-Policy Linting**
+  - *Objective*: Prevent accidental cost overruns by flagging resources that
+    exceed organizational informational thresholds.
+  - *Technical Approach*: Compare the `Monthly` field of a `CostResult`
+    against a static threshold defined in a local `policy.yaml`.
+  - *Anti-Guess Boundary*: This is a comparison-only feature; the core MUST
+    NOT attempt to "optimize" or "suggest remediation" for the resource
+    configuration.
+  - *Success Criteria*: The CLI produces a "Policy Violated" diagnostic when
+    a plugin-returned cost exceeds the user-defined threshold.
+
+## Completed Milestones
+
+### 2026-Q1
+
+- [x] Add `--state-only` flag to skip pulumi preview
+      ([#690](https://github.com/rshade/finfocus/issues/690)) [M]
+      *(Completed 2026-03-31)*
+- [x] Clarify budget status visibility in overview output modes
+      ([#855](https://github.com/rshade/finfocus/issues/855)) [S]
+      *(Completed 2026-03-31)*
+- [x] **Agent Skills (Batch)** *(Completed 2026-03-27)*
+  - [x] `finfocus-install` — Automated CLI and plugin setup
+        ([#909](https://github.com/rshade/finfocus/issues/909)) [M]
+  - [x] `finfocus-analyzer-setup` — Pulumi Analyzer integration
+        ([#910](https://github.com/rshade/finfocus/issues/910)) [S]
+  - [x] `finfocus-routing` — Intelligent plugin routing configuration
+        ([#912](https://github.com/rshade/finfocus/issues/912)) [S]
+- [x] Update aws-public plugin to install router by default
+      ([#895](https://github.com/rshade/finfocus/issues/895)) [S]
+      *(Completed 2026-03-26)*
+- [x] Consume `expires_at` caching hints from plugin cost responses
+      ([#845](https://github.com/rshade/finfocus/issues/845)) [M]
+      *(Completed 2026-03-26)*
+- [x] Recognize `PLUGIN_CAPABILITY_BATCH_COST` in capability routing
+      and plugin list
+      ([#848](https://github.com/rshade/finfocus/issues/848)) [S]
+      *(Completed 2026-03-10)*
+- [x] Show property changes in overview detail view
+      ([#852](https://github.com/rshade/finfocus/issues/852)) [M]
+      *(Completed 2026-03-03)*
+- [x] Upgrade finfocus-spec from v0.5.6 to v0.5.7
+      ([#844](https://github.com/rshade/finfocus/issues/844)) [S]
+      *(Completed 2026-03-02)*
+- [x] Add `config routes list` and `config routes test` CLI commands
+      ([#687](https://github.com/rshade/finfocus/issues/687)) [M]
+      *(Completed 2026-03-02)*
+- [x] **Bubble Tea v2 Upgrade** *(Completed 2026-03-01)*
+  - [x] Upgrade to Bubble Tea v2, Lip Gloss v2, Bubbles v2
+        ([#552](https://github.com/rshade/finfocus/issues/552))
+  - [x] Upgrade charmbracelet dependencies to v2 (detailed migration plan)
+        ([#827](https://github.com/rshade/finfocus/issues/827))
+- [x] False-positive drift for resources created mid-month in overview
+      ([#760](https://github.com/rshade/finfocus/issues/760))
+- [x] Implement `GetPricingSpec` and `EstimateCost` methods on RecorderPlugin
+      ([#734](https://github.com/rshade/finfocus/issues/734))
+- [x] Short flags (`-s`, `-f`, `-a`) for overview command
+      ([#644](https://github.com/rshade/finfocus/issues/644))
+- [x] **Overview TUI Quality Fixes** *(Completed 2026-02-28)*
+  - [x] State guards missing for init-only TUI messages in overview model
+        ([#717](https://github.com/rshade/finfocus/issues/717))
+  - [x] Audit enriched count inaccurate on early TUI exit
+        ([#720](https://github.com/rshade/finfocus/issues/720))
+  - [x] Extract progress constant and add goroutine comment in overview
+        ([#721](https://github.com/rshade/finfocus/issues/721))
+- [x] **TUI & Engine Fixes** *(Completed 2026-02-28)*
+  - [x] Extend table separator line to terminal width in overview TUI
+        ([#718](https://github.com/rshade/finfocus/issues/718))
+  - [x] `classifyError` should handle `context.Canceled` and
+        `context.DeadlineExceeded`
+        ([#726](https://github.com/rshade/finfocus/issues/726))
+- [x] **BoltDB Cache Stability** *(post-#674 migration fixes)*
+  - [x] `BoltStore.Set` returns nil when disabled, inconsistent with other
+        methods
+        ([#682](https://github.com/rshade/finfocus/issues/682))
+- [x] **Analyzer Quality Fixes** *(Completed 2026-02-27)*
+  - [x] Eliminate duplicate `ResolvePolicyPackDir` call in `RunChecks`
+        ([#822](https://github.com/rshade/finfocus/issues/822))
+  - [x] AnalyzeStack stack summary always shows $0.00 (0 resources analyzed)
+        ([#746](https://github.com/rshade/finfocus/issues/746))
+  - [x] `--force` reinstall does not sync policy pack binary, leaving it stale
+        ([#754](https://github.com/rshade/finfocus/issues/754))
+  - [x] `analyzer install` should setup policy pack directory for `--policy-pack` workflow
+        ([#755](https://github.com/rshade/finfocus/issues/755))
+  - [x] `analyzer install` should print PATH setup instructions post-install
+        ([#756](https://github.com/rshade/finfocus/issues/756))
+  - [x] Add `finfocus analyzer check` command for setup verification
+        ([#757](https://github.com/rshade/finfocus/issues/757))
+- [x] `compact()` leaves store unusable if reopen fails after rename
+      ([#681](https://github.com/rshade/finfocus/issues/681))
+- [x] CLI tests leak real `~/.finfocus` config causing JSON parse failures
+      ([#809](https://github.com/rshade/finfocus/issues/809))
+- [x] **Integration Test Coverage** *(Completed 2026-02-24)*
+  - [x] Add TUI interactive mode integration tests
+        ([#735](https://github.com/rshade/finfocus/issues/735))
+  - [x] Add cache system integration tests
+        ([#736](https://github.com/rshade/finfocus/issues/736))
+  - [x] Add concurrency and performance regression tests
+        ([#738](https://github.com/rshade/finfocus/issues/738))
+  - [x] Add project-local config and config precedence tests
+        ([#739](https://github.com/rshade/finfocus/issues/739))
+  - [x] Add analyzer concurrency and partial failure tests
+        ([#740](https://github.com/rshade/finfocus/issues/740))
+  - [x] Resolve nightly build tag fragmentation
+        ([#741](https://github.com/rshade/finfocus/issues/741))
+  - [x] Add plugin resilience and crash recovery tests
+        ([#742](https://github.com/rshade/finfocus/issues/742))
+- [x] Wait for enrichment goroutine before plugin cleanup in overview
+      ([#716](https://github.com/rshade/finfocus/issues/716))
+- [x] **Overview Enrichment & Budget Display** *(Completed 2026-02-22/23)*
+  - [x] Display budget status and health in overview command
+        ([#744](https://github.com/rshade/finfocus/issues/744))
+  - [x] Add cost caching to speed up enrichment in overview
+        ([#745](https://github.com/rshade/finfocus/issues/745))
+  - [x] `detectErr` unconditionally overrides `--yes` flag for `isStateOnly` in overview
+        ([#762](https://github.com/rshade/finfocus/issues/762))
+  - [x] Verify defensive copy independence in `DataReadyMsg` handler
+        ([#722](https://github.com/rshade/finfocus/issues/722))
+- [x] **CLI & Change Detection Fixes** *(Completed 2026-02-22)*
+  - [x] `FINFOCUS_HIDE_ALIAS_HINT` should use presence-based check, not value-based
+        ([#783](https://github.com/rshade/finfocus/issues/783))
+  - [x] Recognize `.tsx`, `.jsx`, and `go.work` as Pulumi source files in change detection
+        ([#787](https://github.com/rshade/finfocus/issues/787))
+- [x] **CI & Code Quality Housekeeping** *(Completed 2026-02-22)*
+  - [x] SBOM action fails to attach to releases — missing `contents:write` permission
+        ([#698](https://github.com/rshade/finfocus/issues/698))
+  - [x] Fix test data quality issues across cache test files
+        ([#683](https://github.com/rshade/finfocus/issues/683))
+  - [x] Clean up duplicate doc comments and extract placeholder helper
+        ([#684](https://github.com/rshade/finfocus/issues/684))
+  - [x] Fix analyzer-setup.md — PATH requirement and Pulumi.yaml analyzer configuration
+        ([#758](https://github.com/rshade/finfocus/issues/758))
+- [x] **Test Infrastructure Sweep** *(Completed 2026-02-22)*
+  - [x] Fix always-skipped integration tests
+        ([#737](https://github.com/rshade/finfocus/issues/737))
+  - [x] cli\_helper global log suppression masks plugin errors in integration tests
+        ([#743](https://github.com/rshade/finfocus/issues/743))
+  - [x] Make `TestGetProjectedCost_PartialData` order-independent
+        ([#788](https://github.com/rshade/finfocus/issues/788))
+  - [x] Fix vacuous exit code 0 test in budget\_scoped\_test.go
+        ([#786](https://github.com/rshade/finfocus/issues/786))
+  - [x] Close plugin clients in `TestNewClient_Success` and `TestClient_APIUsage`
+        ([#785](https://github.com/rshade/finfocus/issues/785))
+  - [x] `stubHome` should clear `FINFOCUS_HOME` for hermetic config tests
+        ([#784](https://github.com/rshade/finfocus/issues/784))
+  - [x] Deduplicate env setup and fix fragile assertion in plugin\_validate\_test.go
+        ([#782](https://github.com/rshade/finfocus/issues/782))
+  - [x] Consolidate 5 `TestGetPluginInfo_*` tests into table-driven
+        ([#776](https://github.com/rshade/finfocus/issues/776))
+  - [x] Remove duplicate flat tests in `pulumi_plan_test.go`, merge into table-driven
+        ([#775](https://github.com/rshade/finfocus/issues/775))
+  - [x] Consolidate 4 near-identical cost projected tests into table-driven
+        ([#774](https://github.com/rshade/finfocus/issues/774))
+- [x] **Batch Bug Fixes** *(Completed 2026-02-22)*
+  - [x] Investigate intermittent $0.00 projected costs in TUI overview
+        ([#723](https://github.com/rshade/finfocus/issues/723))
+  - [x] Recorder plugin returns nil summary on `GetRecommendations`, flooding diagnostics
+        ([#747](https://github.com/rshade/finfocus/issues/747))
+  - [x] Analyzer JSON logs appear in `pulumi preview` Diagnostics section
+        ([#748](https://github.com/rshade/finfocus/issues/748))
+  - [x] Analyzer install creates double-v version directory
+        ([#749](https://github.com/rshade/finfocus/issues/749))
+  - [x] Registry `ListPlugins` silently skips directory-level symlinks
+        ([#750](https://github.com/rshade/finfocus/issues/750))
+  - [x] `AnalyzerPlugin.Enabled` config field is dead code — never read
+        ([#751](https://github.com/rshade/finfocus/issues/751))
+  - [x] `FINFOCUS_PLUGIN_DIR` env var documented but not implemented
+        ([#752](https://github.com/rshade/finfocus/issues/752))
+  - [x] `plugins.dir` config key documented but excluded from YAML parsing
+        ([#753](https://github.com/rshade/finfocus/issues/753))
+- [x] **Test Quality Improvements** *(Completed 2026-02-22)*
+  - [x] Consolidate duplicate flat LoadPulumiPlan tests into table-driven suites
+        ([#791](https://github.com/rshade/finfocus/issues/791))
+  - [x] Add `require.NotNil` guard in `TestLoadPulumiPlan_ComplexInputs`
+        ([#790](https://github.com/rshade/finfocus/issues/790))
+  - [x] Remove duplicate `TestApplyChangesToRows_NilMap` in overview\_merge\_test.go
+        ([#789](https://github.com/rshade/finfocus/issues/789))
+- [x] **Post-v0.3.1 Fixes** *(Completed 2026-02-21)*
+  - [x] feat(tui): splash screen — figlet banner, phase checklist, passphrase prompt
+        ([#728](https://github.com/rshade/finfocus/issues/728))
+  - [x] Parallelize per-row enrichment sub-calls
+        ([#694](https://github.com/rshade/finfocus/issues/694))
+  - [x] Use lipgloss styles in `renderInitializingView` for consistency
+        ([#719](https://github.com/rshade/finfocus/issues/719))
+  - [x] fix: applyPassphraseEnv uses process-wide `os.Setenv` (not concurrency-safe)
+        ([#761](https://github.com/rshade/finfocus/issues/761))
+  - [x] fix: replace hardcoded "730h/mo" footnote with `engine.HoursPerMonth` constant
+        ([#763](https://github.com/rshade/finfocus/issues/763))
+  - [x] fix: TestDetectChanges\_StatErrorSkipsFile fails on Windows (no symlink privilege guard)
+        ([#764](https://github.com/rshade/finfocus/issues/764))
+  - [x] fix: missing `.Ctx(ctx)` on log calls in changedetect.go loses trace\_id propagation
+        ([#765](https://github.com/rshade/finfocus/issues/765))
+  - [x] fix: "Recs" table column width too narrow for N(-M) dismissed format
+        ([#766](https://github.com/rshade/finfocus/issues/766))
+  - [x] Docs: Document that routing config does not apply in analyzer/policy-pack mode
+        ([#759](https://github.com/rshade/finfocus/issues/759))
+- [x] **v0.3.1: Overview Performance & Docs Audit** *(Released 2026-02-18)*
+  - [x] Add timing instrumentation to overview command
+        ([#695](https://github.com/rshade/finfocus/issues/695))
+  - [x] Launch TUI immediately with phase progress feedback
+        ([#689](https://github.com/rshade/finfocus/issues/689))
+  - [x] Fix `resolveCacheDir` global fallback places cache.db in wrong directory
+        ([#680](https://github.com/rshade/finfocus/issues/680))
+  - [x] Add provider/resource\_type assertions to tag enrichment tests
+        ([#686](https://github.com/rshade/finfocus/issues/686))
+  - [x] Documentation audit fixes for v0.3.0 features, plugin SDK, security
+        ([#702](https://github.com/rshade/finfocus/issues/702)–[#710](https://github.com/rshade/finfocus/issues/710))
+- [x] **Install UX & Integrity** *(Completed 2026-02-16)*
+  - [x] Install script (`curl | sh`)
+        ([#599](https://github.com/rshade/finfocus/issues/599))
+  - [x] Checksum verification for plugin installation
+        ([#601](https://github.com/rshade/finfocus/issues/601))
+- [x] **Scale, Performance & Caching** *(Completed 2026-02-16)*
+  - [x] `--jobs` flag and timing output for cost commands
+        ([#602](https://github.com/rshade/finfocus/issues/602))
+  - [x] Projected cost caching
+        ([#600](https://github.com/rshade/finfocus/issues/600))
+  - [x] Benchmark PR reporting with benchstat regression detection
+        ([#657](https://github.com/rshade/finfocus/issues/657))
+  - [x] Extract Cache interface and refactor FileStore
+        ([#541](https://github.com/rshade/finfocus/issues/541))
+  - [x] Add caching to GetActualCost with 1-hour TTL
+        ([#542](https://github.com/rshade/finfocus/issues/542))
+  - [x] Add caching to GetProjectedCost with SHA-based keys
+        ([#543](https://github.com/rshade/finfocus/issues/543))
+  - [x] Transition persistent cache from JSON to BoltDB (bbolt)
+        ([#674](https://github.com/rshade/finfocus/issues/674))
+        *(Completed 2026-02-16)*
+- [x] **CLI Polish & Code Quality** *(Completed 2026-02-16)*
+  - [x] Policy-compatible cost output
+        ([#604](https://github.com/rshade/finfocus/issues/604))
+  - [x] Consolidate recommendation count and format helpers (DRY)
+        ([#610](https://github.com/rshade/finfocus/issues/610))
+  - [x] Isolate auto-detection tests with temp directories
+        ([#605](https://github.com/rshade/finfocus/issues/605))
+- [x] **Router Wiring & Resource Filtering** *(Completed 2026-02-14)*
+  - [x] Wire router into cost commands for region-aware plugin selection
+        ([#590](https://github.com/rshade/finfocus/issues/590))
+  - [x] Filter `pulumi:providers:*` synthetic resources from cost plugin
+        routing ([#582](https://github.com/rshade/finfocus/issues/582))
+  - [x] Filter Pulumi component resources from cost plugin routing
+        ([#583](https://github.com/rshade/finfocus/issues/583))
+  - [x] Reorder router provider-based region check after feature matching
+        ([#616](https://github.com/rshade/finfocus/issues/616))
+- [x] **Config, CLI & Refactoring** *(Completed 2026-02-14)*
+  - [x] Split project-local and user-global `.finfocus/` directories
+        ([#548](https://github.com/rshade/finfocus/issues/548))
+  - [x] Neo-friendly CLI fixes
+        ([#611](https://github.com/rshade/finfocus/issues/611))
+  - [x] Add Stack field to CostFlags struct
+        ([#612](https://github.com/rshade/finfocus/issues/612))
+  - [x] Add `.Ctx(ctx)` and structured log fields across packages
+        ([#613](https://github.com/rshade/finfocus/issues/613))
+- [x] **Scale & Testing** *(Completed 2026-02-14)*
+  - [x] Scale benchmarks for cost commands
+        ([#607](https://github.com/rshade/finfocus/issues/607))
+  - [x] Add negative test for waitForPluginBindWithFallback
+        ([#608](https://github.com/rshade/finfocus/issues/608))
+- [x] **Unified Overview & Analyzer Install** *(Completed 2026-02-14)*
+  - [x] Add `finfocus overview` command — unified cost dashboard with TUI
+        ([#578](https://github.com/rshade/finfocus/issues/578))
+  - [x] `finfocus analyzer install/uninstall` commands
+        ([#597](https://github.com/rshade/finfocus/issues/597))
+  - [x] Fix state_test.go wantVersion skip and delegation fragility
+        ([#606](https://github.com/rshade/finfocus/issues/606))
+- [x] **GetPricingSpec Research & Code Quality** *(Completed 2026-02-14)*
+  - [x] Evaluate GetPricingSpec RPC usage in core
+        ([#465](https://github.com/rshade/finfocus/issues/465))
+  - [x] Support GCP zone normalization in normalizeToRegion
+        ([#615](https://github.com/rshade/finfocus/issues/615), PR #631)
+  - [x] Wrap errors from MapResources, MapStateResources, and
+        resolveOverviewData
+        ([#609](https://github.com/rshade/finfocus/issues/609))
+  - [x] Use comma-ok idiom for altMap assertions
+        ([#603](https://github.com/rshade/finfocus/issues/603), PR #630)
+  - [x] CodeRabbit follow-up cleanup from auto-detect PR
+        ([#589](https://github.com/rshade/finfocus/issues/589))
+  - [x] Deep copy CostBreakdown in appendActualCostResults to prevent
+        source mutation
+        ([#614](https://github.com/rshade/finfocus/issues/614))
+  - [x] Phantom $0 results from empty plugin responses
+        ([#595](https://github.com/rshade/finfocus/issues/595))
+  - [x] Recorder plugin should not declare ACTUAL_COSTS capability
+        ([#596](https://github.com/rshade/finfocus/issues/596), PR #628)
+- [x] **Bug Fixes & Stability** *(Completed 2026-02-14)*
+  - [x] Fall back to filesystem discovery for plugin removal
+        ([#592](https://github.com/rshade/finfocus/issues/592), PR #621)
+  - [x] Auto-create log directory before opening log file
+        ([#591](https://github.com/rshade/finfocus/issues/591), PR #618)
+  - [x] Move EnsureLogDir() after debug/env overrides
+        ([#617](https://github.com/rshade/finfocus/issues/617))
+- [x] **Pulumi Auto-Detection** *(Completed 2026-02-13)*
+  - [x] Automatic Pulumi project detection for cost commands
+        ([#581](https://github.com/rshade/finfocus/issues/581), PR #586)
+- [x] **TUI & Documentation Polish** *(Completed 2026-02-13)*
+  - [x] Display recommendations in resource detail view for cost
+        projected/actual
+        ([#575](https://github.com/rshade/finfocus/issues/575))
+  - [x] Document aws-public projected cost gaps for diff support
+        ([#577](https://github.com/rshade/finfocus/issues/577))
+- [x] **v0.3.0: Intelligence & Analysis** *(Completed)*
+  - [x] Add `cost estimate` command for scenario modeling
+        ([#463](https://github.com/rshade/finfocus/issues/463), PR #538)
+  - [x] Docs formatting & validation.go fix (PR #507 follow-up)
+        ([#533](https://github.com/rshade/finfocus/issues/533))
+  - [x] Recommendation dismissal and lifecycle management
+        ([#464](https://github.com/rshade/finfocus/issues/464), PR #557)
+- [x] **v0.2.6: Routing & Budget Enhancements** *(Released 2026-02-02)*
+  - [x] Intelligent Multi-Plugin Routing with feature-based plugin selection
+        ([#410](https://github.com/rshade/finfocus/issues/410), PR #507)
+  - [x] Flexible budget scoping (per-provider, per-type, per-tag)
+        ([#221](https://github.com/rshade/finfocus/issues/221), PR #509)
+  - [x] Sustainability metrics integration in Engine & TUI (#302)
+  - [x] GreenOps carbon emission equivalency calculations
+        ([#303](https://github.com/rshade/finfocus/issues/303), PR #515)
+  - [x] Tag-based budget filtering
+        ([#532](https://github.com/rshade/finfocus/issues/532), PR #535)
+- [x] **v0.2.5: Testing & Stability** *(Released 2026-01-30)*
+  - [x] Multi-region E2E testing support (#185, PR #485)
+  - [x] Pagination and NDJSON streaming for CI/CD integration (#225, PR #488)
+  - [x] Exit codes for budget threshold violations
+        ([#219](https://github.com/rshade/finfocus/issues/219))
+  - [x] Budget health calculation & threshold alerting (#267, PR #494)
+  - [x] Provider filtering & summary aggregation for Budgets (#263, PR #494)
+- [x] **v0.2.4: Final Polish** *(Released 2026-01-21)*
+  - [x] Dynamic Data Recording via Integration Plans (#275)
+  - [x] Harden Nightly Analysis Workflow security and reliability (#325)
+  - [x] Documentation for TUI features, budgets, and recommendations (#226)
+  - [x] Budget status display in CLI (#217, PR #466)
+- [x] **v0.2.1-v0.2.3: Polish & DX Improvements** *(Released 2026-01-17
+      through 2026-01-19)*
+  - [x] Add `--estimate-confidence` flag for actual cost transparency (#333)
+  - [x] Implement GetPluginInfo consumer-side requirements (#376)
+  - [x] Parallel plugin metadata fetching in plugin list command (#408)
+  - [x] Cross-Repository Integration Test Workflow (#236)
+  - [x] Upgrade cost commands to enhanced TUI (#218)
+  - [x] Plugin robustness: strict mode, config handlers, metadata
+        fallback (#435, #434, #432, #431)
+  - [x] Fallback to latest stable version when asset missing (#430)
+  - [x] Budget filtering and summary aggregation logic (#446)
+  - [x] Replace manual assertions with testify (#429)
+  - [x] Plugin installer: remove old versions during install (#237)
+  - [x] E2E test for actual cost command (#334)
+  - [x] Set up AWS test account and infrastructure (#181)
+  - [x] Fuzzing seeds, benchmarks, and validation improvements (#326)
+  - [x] Documentation updates (#182, #349-#353, #454)
+- [x] **v0.2.0: State-Based Costs & Plugin Maturity** *(Released 2026-01-16)*
+  - [x] State-based actual cost estimation for `cost actual` (#380, #382)
+  - [x] Plugin info and dry-run discovery (#398)
+  - [x] Ecosystem rebrand to FinFocus (#415)
+- [x] **v0.1.3-v0.1.4: Analyzer & Recommendations** *(Released 2025-12-27
+      through 2026-01-10)*
+  - [x] Core Analyzer implementation (#245, #229)
+  - [x] E2E testing with Pulumi Automation API (#177, #238)
+  - [x] Comprehensive E2E tests for Analyzer integration (#228)
+  - [x] Add recommendations to analyzer diagnostics (#321)
+  - [x] Shared TUI package with Bubble Tea (#222, #258)
+  - [x] E2E and Conformance test reliability fixes (#323)
+  - [x] AWS fallback scope and non-deterministic output fixes (#324)
+
+### 2025-Q4
+
+- [x] **v0.1.0-v0.1.2: Foundation & Observability** *(Released 2025-11-26
+      through 2025-12-03)*
+  - [x] Initial CLI & gRPC Plugin System (#163, #15)
+  - [x] Standardized SDK & Interceptors (#188, #189, #191)
+  - [x] Zerolog Integration & Structured Logging (#170, #206)
+  - [x] Engine Test Coverage Completion (#202, #207)
+  - [x] Plugin Ecosystem Maturity (#201, #215)
+  - [x] Support for `Supports()` gRPC handler (#160, #165)
+  - [x] CLI Filter Flag (#203)
+  - [x] Test Infrastructure Hardening (#200)
+
+## Cross-Repository Feature Matrix
+
+| Feature | spec | core | aws-public | aws-ce |
+| ------- | ---- | ---- | ---------- | ------ |
+| Cost Time Machine | GrowthType | history collect/view | GrowthHint | Historical |
+| YOLO Mode | BypassReason (missing) | --yolo flag | N/A | N/A |
+| Blast Radius | Lineage | Impact Tree | Parent/child | N/A |
+| GreenOps Receipt | CarbonFootprint | Converter | CCF Math | N/A |
+| Spot Market Advisor | PricingTier | Cyan style | N/A | SpotHistory |
+| Dev Mode | UsageProfile (v0.5.5) | --profile | Burstable | IOPS warn |
+| What-If Analysis | EstimateCost | cost estimate | PropertyDelta | N/A |
+| Rec Lifecycle | DismissRecommendation | dismiss/snooze | Dismiss | N/A |
+| Auto-Detect | N/A | pulumi detect | N/A | N/A |
+| Resource Filter | N/A | provider/component filter | N/A | N/A |
+| Pricing Transparency | GetPricingSpec | --explain + fallback | PricingSpec | N/A |
+
+## Boundary Safeguards
+
+*Sourced from [CONTEXT.md](https://github.com/rshade/finfocus/blob/main/CONTEXT.md) — these are architectural hard no's.*
+
+- **No Direct Cloud API Calls**: The core engine MUST NOT call cloud provider
+  pricing or usage APIs directly. All provider-specific logic belongs in
+  plugins.
+- **Minimal Persistent State**: The tool is primarily stateless. Local
+  persistence (config, dismissed.json, history DBs) is user-initiated and
+  optional — never required for core command execution.
+- **Read-Only Infrastructure**: FinFocus MUST NOT perform `pulumi up`,
+  `pulumi destroy`, or any operation that modifies cloud state. It reads
+  infrastructure definitions only.
+- **No Baked-in Provider Logic**: The core engine MUST NOT contain hardcoded
+  logic for specific cloud services. This logic is strictly delegated to
+  plugins or YAML specs.
+- **No Financial Accounting**: The tool handles cost *estimation* and
+  *projection*. It is NOT a ledger, invoice matching system, or tax
+  calculation engine.

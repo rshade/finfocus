@@ -46,6 +46,8 @@
         "td",
         "details",
         "summary",
+        "Card",
+        "CardGrid"
       ],
     },
     "MD034": false,
@@ -61,5 +63,5 @@
     "MD047": true,
     "MD060": false,
   },
-  "ignores": ["node_modules", "_site"],
+  "ignores": ["node_modules", "dist", ".astro"],
 }

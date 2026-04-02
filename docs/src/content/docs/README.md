@@ -1,4 +1,9 @@
-# FinFocus
+---
+title: Project README
+description: Cloud cost analysis for Pulumi infrastructure with projected costs, budgets, and plugin architecture.
+---
+
+<!-- markdownlint-disable MD013 -->
 
 *Cloud cost analysis for Pulumi infrastructure*
 
@@ -7,7 +12,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/rshade/finfocus)](https://goreportcard.com/report/github.com/rshade/finfocus)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/rshade/finfocus)](https://github.com/rshade/finfocus/blob/main/go.mod)
 [![Release](https://img.shields.io/github/v/release/rshade/finfocus)](https://github.com/rshade/finfocus/releases/latest)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://github.com/rshade/finfocus/blob/main/LICENSE)
 
 **Cloud cost analysis for Pulumi infrastructure** - Calculate projected and actual infrastructure costs without modifying your Pulumi programs.
 
@@ -25,14 +30,14 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 
 ## Key Features
 
-- **🔭 [Unified Overview](docs/commands/overview.md)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
-- **📊 [Projected Costs](docs/reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
-- **💰 [Budgets & Alerts](docs/guides/budgets.md)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
-- **💡 [Recommendations](docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
-- **♿ [Accessibility](docs/guides/accessibility.md)**: High-contrast, plain text, and adaptive terminal UI modes
-- **💰 [Actual Costs](docs/reference/cli-commands.md#cost-actual)**: Track historical spending with detailed breakdowns
-- **🔌 [Plugin-Based](docs/plugins/README.md)**: Extensible architecture supporting multiple cost data sources
-- **🧪 [E2E Testing](docs/testing/e2e-guide.md)**: Comprehensive guide for validating infrastructure costs against real cloud resources
+- **🔭 [Unified Overview](../commands/overview/)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
+- **📊 [Projected Costs](../reference/cli-commands/#cost-projected)**: Estimate monthly costs before deploying infrastructure
+- **💰 [Budgets & Alerts](../guides/budgets/)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
+- **💡 [Recommendations](../guides/recommendations/)**: Actionable cost optimization insights and savings opportunities
+- **♿ [Accessibility](../guides/accessibility/)**: High-contrast, plain text, and adaptive terminal UI modes
+- **💰 [Actual Costs](../reference/cli-commands/#cost-actual)**: Track historical spending with detailed breakdowns
+- **🔌 [Plugin-Based](../plugins/)**: Extensible architecture supporting multiple cost data sources
+- **🧪 [E2E Testing](../testing/e2e-guide/)**: Comprehensive guide for validating infrastructure costs against real cloud resources
 - **📈 Advanced Analytics**: Resource grouping, filtering, and aggregation
 - **📱 Multiple Formats**: Table, JSON, and NDJSON output options
 - **🔍 Smart Filtering**: Filter by resource type, tags, or custom expressions
@@ -61,17 +66,14 @@ make build
 <summary>Manual download (pin to a specific version)</summary>
 
 ```bash
-# Linux (amd64)
 curl -L https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-linux-amd64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz
 chmod +x finfocus
 sudo mv finfocus /usr/local/bin/
 
-# macOS (Apple Silicon)
 curl -L https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-macos-arm64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
 
-# macOS (Intel)
 curl -L https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-macos-amd64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
 ```
@@ -116,11 +118,9 @@ finfocus overview
 For CI/CD or when you manage the export step yourself:
 
 ```bash
-# Pre-export state and plan
 pulumi stack export > state.json
 pulumi preview --json > plan.json
 
-# Launch overview with pre-exported files
 finfocus overview --pulumi-state state.json --pulumi-json plan.json --plain --yes
 ```
 
@@ -135,7 +135,7 @@ my-db                             aws:rds/instance:I...   ✓       $48.20      
 Total Actual (MTD): $61.43    Projected Monthly: $66.00    Potential Savings: $45.00
 ```
 
-Full documentation: [docs/commands/overview.md](docs/commands/overview.md)
+Full documentation: [docs/commands/overview.md](../commands/overview/)
 
 ### 4. Calculate Costs
 
@@ -148,17 +148,12 @@ finfocus cost projected --pulumi-json plan.json
 **Check Budget** - Verify if plan fits within budget:
 
 ```bash
-# Configure budget in ~/.finfocus/config.yaml (see Configuration section)
-# Then check projected cost against budget
 finfocus cost projected --pulumi-json plan.json
 
-# Exit with non-zero code if budget exceeded (CI/CD integration)
 finfocus cost projected --pulumi-json plan.json --exit-on-threshold
 
-# Custom exit code (default: 1)
 finfocus cost projected --pulumi-json plan.json --exit-on-threshold --exit-code 2
 
-# Filter budget scope (global, provider:<name>, tag:<key>=<value>, type:<resource-type>)
 finfocus cost projected --pulumi-json plan.json --budget-scope "provider:aws"
 ```
 
@@ -223,7 +218,6 @@ FinFocus is configured via `~/.finfocus/config.yaml`.
 ### Budget Configuration
 
 ```yaml
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
 cost:
   budgets:
     amount: 500.00
@@ -235,18 +229,16 @@ cost:
         type: forecasted
 ```
 
-See [Budget Guide](docs/guides/budgets.md) for full configuration details.
+See [Budget Guide](../guides/budgets/) for full configuration details.
 
 ### Environment Variables for Secrets
 
 For sensitive values like API keys and credentials, use environment variables:
 
 ```bash
-# AWS credentials (for aws-public and aws-ce plugins)
 export FINFOCUS_PLUGIN_AWS_ACCESS_KEY_ID="your-access-key"
 export FINFOCUS_PLUGIN_AWS_SECRET_ACCESS_KEY="your-secret-key"
 
-# Azure credentials (for azure-public plugin)
 export FINFOCUS_PLUGIN_AZURE_SUBSCRIPTION_ID="your-subscription-id"
 ```
 
@@ -273,7 +265,6 @@ tags**. This requires your Pulumi-managed resources to carry consistent tags.
 **Option A: Stack configuration (static values)**
 
 ```yaml
-# Pulumi.dev.yaml
 config:
   aws:defaultTags:
     tags:
@@ -330,7 +321,6 @@ provider = aws.Provider("tagged", default_tags={
     },
 })
 
-# Use this provider for all resources
 bucket = aws.s3.Bucket("data", opts=pulumi.ResourceOptions(provider=provider))
 ```
 
@@ -349,7 +339,6 @@ in the AWS Billing Console. Tags take ~24 hours to appear in Cost Explorer.
 **Option A: Stack configuration**
 
 ```yaml
-# Pulumi.dev.yaml
 config:
   gcp:defaultLabels:
     pulumi_project: my-app
@@ -458,7 +447,6 @@ pulumi.runtime.register_stack_transformation(auto_tags)
 **FinFocus configuration** for tag-based cost queries:
 
 ```yaml
-# ~/.finfocus/config.yaml
 cost:
   allocation:
     enabled: true
@@ -486,7 +474,6 @@ for *all* historical IDs — not just the current one.
 > infrastructure configuration.
 
 ```yaml
-# ~/.finfocus/config.yaml
 cost:
   history:
     enabled: true          # default: true
@@ -498,20 +485,16 @@ cost:
 ### Resource Filtering
 
 ```bash
-# Filter by resource type
 finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2/instance"
 ```
 
 ### Output Formats
 
 ```bash
-# Table format (default)
 finfocus cost projected --pulumi-json plan.json --output table
 
-# JSON for API integration
 finfocus cost projected --pulumi-json plan.json --output json
 
-# NDJSON for streaming/pipeline processing
 finfocus cost projected --pulumi-json plan.json --output ndjson
 ```
 
@@ -520,26 +503,19 @@ finfocus cost projected --pulumi-json plan.json --output ndjson
 FinFocus provides commands to manage configuration:
 
 ```bash
-# Initialize configuration (creates ~/.finfocus/config.yaml)
 finfocus config init [--force]
 
-# Set configuration values
 finfocus config set cost.budgets.amount 500.00
 finfocus config set output.format json
 
-# Get configuration values
 finfocus config get cost.budgets.amount
 
-# List all configuration
 finfocus config list [--format json|yaml]
 
-# Validate configuration
 finfocus config validate [--verbose]
 
-# Inspect effective routing configuration
 finfocus config routes list [--output table|json]
 
-# Simulate plugin routing for a resource type
 finfocus config routes test aws:ec2:Instance [region] [--output table|json]
 ```
 
@@ -552,20 +528,12 @@ FinFocus intelligently routes resources to appropriate plugins based on provider
 Resources automatically route to plugins based on their supported providers:
 
 ```bash
-# Install multiple plugins
 finfocus plugin install aws-public
 finfocus plugin install gcp-public
 
-# View plugin capabilities
 finfocus plugin list --verbose
-# NAME        VERSION  PROVIDERS  CAPABILITIES                  SPEC    PATH
-# aws-public  1.0.0    aws        ProjectedCosts, ActualCosts   0.5.5   ~/.finfocus/plugins/aws-public/1.0.0/...
-# gcp-public  1.0.0    gcp        ProjectedCosts, ActualCosts   0.5.5   ~/.finfocus/plugins/gcp-public/1.0.0/...
 
-# Cost calculation automatically routes resources
 finfocus cost projected --pulumi-json plan.json
-# AWS resources → aws-public
-# GCP resources → gcp-public
 ```
 
 ### Declarative Routing (Advanced Configuration)
@@ -610,39 +578,26 @@ routing:
 ```bash
 finfocus config validate
 
-# Output (success):
-# ✓ Configuration valid
 #
-# Discovered plugins:
-#   aws-ce: Recommendations (priority: 20)
-#   aws-public: ProjectedCosts, ActualCosts (priority: 10)
 #
-# Routing rules:
-#   aws:eks:* → eks-costs (pattern)
-#   aws:* → aws-public (provider)
 ```
 
-See the [Routing Configuration Guide](docs/guides/routing.md) for detailed examples and troubleshooting.
+See the [Routing Configuration Guide](../guides/routing/) for detailed examples and troubleshooting.
 
 ## Plugin Management
 
 ### List & Install Plugins
 
 ```bash
-# List installed plugins
 finfocus plugin list
 
-# List with detailed capabilities
 finfocus plugin list --verbose
 
-# Install plugins
 finfocus plugin install aws-public
 finfocus plugin install vantage
 
-# Inspect plugin capabilities
 finfocus plugin inspect aws-public
 
-# Validate plugin installation
 finfocus plugin validate
 ```
 
@@ -660,7 +615,6 @@ finfocus plugin validate
 FinFocus provides zero-click cost estimation during `pulumi preview` via the Pulumi Analyzer protocol:
 
 ```bash
-# Start the analyzer server (prints port to stdout for Pulumi handshake)
 finfocus analyzer serve [--debug]
 ```
 
@@ -671,48 +625,46 @@ When integrated with Pulumi, costs are automatically calculated and displayed as
 Enable debug output for troubleshooting:
 
 ```bash
-# Global debug flag
 finfocus --debug cost projected --pulumi-json plan.json
 
-# Environment variable
 export FINFOCUS_LOG_LEVEL=debug
 export FINFOCUS_LOG_FORMAT=json    # json or console
 ```
 
 ## Documentation
 
-Complete documentation is available in the [docs/](docs/) directory:
+Complete documentation is available in the [docs/](../) directory:
 
-- **👤 End Users**: [User Guide](docs/guides/user-guide.md) - How to install and use FinFocus
-- **💰 Budgets**: [Budget Guide](docs/guides/budgets.md) - Configure alerts and thresholds
-- **📜 Resource History**: [Resource History Guide](docs/guides/resource-history.md) - Accurate month-long costs
-- **💡 Recommendations**: [Recommendations Guide](docs/guides/recommendations.md) - Optimization insights
-- **♿ Accessibility**: [Accessibility Guide](docs/guides/accessibility.md) - UI configuration
-- **🛠️ Engineers**: [Developer Guide](docs/guides/developer-guide.md) - How to extend and contribute
-- **🏗️ Architects**: [Architect Guide](docs/guides/architect-guide.md) - System design and integration
-- **🧪 E2E Testers**: [E2E Testing Guide](docs/testing/e2e-guide.md) - Setup and execution
-- **💼 Business/CEO**: [Business Value](docs/guides/business-value.md) - ROI and competitive advantage
+- **👤 End Users**: [User Guide](../guides/user-guide/) - How to install and use FinFocus
+- **💰 Budgets**: [Budget Guide](../guides/budgets/) - Configure alerts and thresholds
+- **📜 Resource History**: [Resource History Guide](../guides/resource-history/) - Accurate month-long costs
+- **💡 Recommendations**: [Recommendations Guide](../guides/recommendations/) - Optimization insights
+- **♿ Accessibility**: [Accessibility Guide](../guides/accessibility/) - UI configuration
+- **🛠️ Engineers**: [Developer Guide](../guides/developer-guide/) - How to extend and contribute
+- **🏗️ Architects**: [Architect Guide](../guides/architect-guide/) - System design and integration
+- **🧪 E2E Testers**: [E2E Testing Guide](../testing/e2e-guide/) - Setup and execution
+- **💼 Business/CEO**: [Business Value](../guides/business-value/) - ROI and competitive advantage
 
 **Quick Links:**
 
-- [🚀 5-Minute Quickstart](docs/getting-started/quickstart.md)
-- [📖 Full Documentation Index](docs/README.md)
-- [🔌 Available Plugins](docs/plugins/) - AWS Public Pricing and more
-- [🛠️ Plugin Development](docs/plugins/plugin-development.md)
-- [🏗️ System Architecture](docs/architecture/system-overview.md)
-- [💬 FAQ & Support](docs/support/faq.md)
+- [🚀 5-Minute Quickstart](../getting-started/quickstart/)
+- [📖 Full Documentation Index](../)
+- [🔌 Available Plugins](../plugins/) - AWS Public Pricing and more
+- [🛠️ Plugin Development](../plugins/plugin-development/)
+- [🏗️ System Architecture](../architecture/system-overview/)
+- [💬 FAQ & Support](../support/faq/)
 
 ## Contributing
 
 We welcome contributions! See our development documentation:
 
-- [CONTRIBUTING.md](CONTRIBUTING.md) - Development setup and guidelines
+- [CONTRIBUTING.md](../support/contributing/) - Development setup and guidelines
 - [CLAUDE.md](CLAUDE.md) - AI assistant development context
 - [Architecture Documentation](internal/) - Internal package documentation
 
 ## License
 
-Apache-2.0 - See [LICENSE](LICENSE) for details.
+Apache-2.0 - See [LICENSE](https://github.com/rshade/finfocus/blob/main/LICENSE) for details.
 
 ## Agent Skills
 

@@ -1,4 +1,8 @@
-# Contributing to FinFocus Core
+---
+title: Contributing
+description: Development setup, guidelines, and workflow for contributing to FinFocus.
+---
+
 
 Thank you for your interest in contributing to FinFocus Core! This document
 provides guidelines and instructions for contributing code, documentation, and
@@ -21,7 +25,7 @@ feedback.
 This project is licensed under the **Apache License 2.0**.
 
 By contributing to FinFocus Core, you agree that your contributions will be
-licensed under the same terms. See the [LICENSE](LICENSE) file for the full
+licensed under the same terms. See the [LICENSE](https://github.com/rshade/finfocus/blob/main/LICENSE) file for the full
 license text.
 
 ## Contribution Types
@@ -77,7 +81,6 @@ Download from [go.dev/dl](https://go.dev/dl/)
 **Install golangci-lint:**
 
 ```bash
-# Download and install golangci-lint
 LINT_URL="https://raw.githubusercontent.com/golangci/golangci-lint"
 curl -sSfL "${LINT_URL}/HEAD/install.sh" | sh -s -- -b "$HOME/go/bin" v2.11.4
 ```
@@ -91,17 +94,13 @@ npm install -g markdownlint-cli@0.45.0
 ### Clone and Build
 
 ```bash
-# Clone the repository
 git clone https://github.com/rshade/finfocus.git
 cd finfocus
 
-# Download dependencies
 go mod download
 
-# Build the binary
 make build
 
-# Verify the build
 ./bin/finfocus --help
 ```
 
@@ -135,7 +134,6 @@ Run `make help` for a complete list. All available targets:
 ### Verifying Your Setup
 
 ```bash
-# All of these should pass before you begin development
 make build      # Should complete without errors
 make test       # All tests should pass
 make lint       # No linting errors
@@ -158,10 +156,8 @@ are properly designed before implementation.
 ### Installing SpecKit
 
 ```bash
-# Install with uv (recommended)
 uv tool install specify-cli --from git+https://github.com/github/spec-kit.git
 
-# Or install with pipx
 pipx install git+https://github.com/github/spec-kit.git
 ```
 
@@ -228,7 +224,7 @@ All specifications, plans, and templates are stored in the `.specify/` directory
     └── checklist-template.md
 ```
 
-**Important**: Review [.specify/memory/constitution.md](.specify/memory/constitution.md)
+**Important**: Review [.specify/memory/constitution.md](https://github.com/rshade/finfocus/blob/main/.specify/memory/constitution.md)
 before starting any feature work. It defines the core principles and quality
 gates that all contributions must follow.
 
@@ -280,7 +276,7 @@ make validate  # Module and vet checks must pass
 
 ### Test Requirements
 
-For detailed testing instructions, see the [Testing Guide](docs/testing/guide.md).
+For detailed testing instructions, see the [Testing Guide](../../testing/guide/).
 
 - Write tests before implementation (TDD approach)
 - Include tests for all new code paths
@@ -293,13 +289,10 @@ For detailed testing instructions, see the [Testing Guide](docs/testing/guide.md
 FinFocus uses Go's native fuzzing (Go 1.25+) to test parser resilience:
 
 ```bash
-# Run JSON parser fuzz test (30 seconds)
 go test -fuzz=FuzzJSON$ -fuzztime=30s ./internal/ingest
 
-# Run YAML parser fuzz test (30 seconds)
 go test -fuzz=FuzzYAML$ -fuzztime=30s ./internal/spec
 
-# Run all fuzz tests in a package
 go test -fuzz=. -fuzztime=30s ./internal/ingest
 ```
 
@@ -327,13 +320,10 @@ interesting inputs discovered during fuzzing to these directories.
 FinFocus includes performance benchmarks for scalability testing:
 
 ```bash
-# Run all benchmarks
 go test -bench=. -benchmem ./test/benchmarks/...
 
-# Run specific scale benchmarks
 go test -bench=BenchmarkScale -benchmem ./test/benchmarks/...
 
-# Run with specific iteration count
 go test -bench=BenchmarkScale1K -benchtime=10x -benchmem ./test/benchmarks/...
 ```
 
@@ -451,7 +441,7 @@ FinFocus operates as a three-repository ecosystem:
 [plugin]: https://github.com/rshade/finfocus-plugin
 
 Cross-repository changes require coordination. See the
-[constitution](.specify/memory/constitution.md) for the cross-repo change
+[constitution](https://github.com/rshade/finfocus/blob/main/.specify/memory/constitution.md) for the cross-repo change
 protocol.
 
 ## Issue Labels and Decision Tracking
@@ -471,11 +461,8 @@ Decision Records (ADRs) without the overhead of separate markdown files.
 **Finding past decisions:**
 
 ```bash
-# Search all documented decisions
 gh issue list --repo rshade/finfocus --state closed --label decision
 
-# Or via GitHub UI
-# Issues → Closed → Filter by "decision" label
 ```
 
 **Why this matters:**
@@ -498,9 +485,9 @@ gh issue list --repo rshade/finfocus --state closed --label decision
 
 ### Documentation
 
-- [Developer Guide](docs/guides/developer-guide.md) - Complete developer docs
-- [Architecture](docs/architecture/) - System design and diagrams
-- [Plugin Development](docs/plugins/plugin-development.md) - Building plugins
+- [Developer Guide](../../guides/developer-guide/) - Complete developer docs
+- [Architecture](../../architecture/) - System design and diagrams
+- [Plugin Development](../../plugins/plugin-development/) - Building plugins
 
 ### Support Channels
 
