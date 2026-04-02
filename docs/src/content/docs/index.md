@@ -4,8 +4,6 @@ description: Cost visibility for Pulumi infrastructure. Calculate projected and 
 template: splash
 hero:
   tagline: Cost visibility for Pulumi infrastructure. Calculate projected and actual costs.
-  image:
-    file: ../../assets/logo-readme.png
   actions:
     - text: Get Started
       link: /finfocus/getting-started/quickstart/
