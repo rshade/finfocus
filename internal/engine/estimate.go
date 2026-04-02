@@ -4,14 +4,38 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
+	"math"
+	"strings"
 	"time"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
+)
+
+// combinedDeltaProperty is the sentinel name used for multi-property deltas
+// where per-property attribution is not possible.
+const combinedDeltaProperty = "combined"
+
+var (
+	// errNilEstimateResponse indicates a plugin returned a nil EstimateCostResponse.
+	errNilEstimateResponse = errors.New("plugin returned nil EstimateCost response")
+
+	// errNegativeEstimateCost indicates a plugin returned a negative CostMonthly value.
+	errNegativeEstimateCost = errors.New("plugin returned negative EstimateCost cost")
+
+	// errNonFiniteEstimateCost indicates a plugin returned NaN or Inf for CostMonthly.
+	errNonFiniteEstimateCost = errors.New("plugin returned non-finite EstimateCost cost (NaN or Inf)")
+
+	// errEmptyEstimateCurrency indicates a plugin returned an empty currency string.
+	errEmptyEstimateCurrency = errors.New("plugin returned empty currency in EstimateCost response")
+
+	// errCurrencyMismatch indicates baseline and modified responses have different currencies.
+	errCurrencyMismatch = errors.New("currency mismatch between baseline and modified EstimateCost responses")
 )
 
 // EstimateCost performs what-if cost analysis with property overrides.
@@ -64,6 +88,11 @@ func (e *Engine) EstimateCost(
 		return nil, err
 	}
 
+	// Validate that at least one property override is provided
+	if len(request.PropertyOverrides) == 0 {
+		return nil, errors.New("property overrides are required for cost estimation")
+	}
+
 	// Try EstimateCost RPC on available plugins
 	for _, client := range e.clients {
 		log.Debug().
@@ -72,10 +101,7 @@ func (e *Engine) EstimateCost(
 			Str("plugin", client.Name).
 			Msg("attempting EstimateCost RPC")
 
-		// Apply per-resource timeout for plugin calls
-		resourceCtx, resourceCancel := context.WithTimeout(ctx, perResourceTimeout)
-		result, err := e.tryEstimateCostRPC(resourceCtx, client, request)
-		resourceCancel()
+		result, err := e.tryEstimateCostRPC(ctx, client, request)
 
 		if err != nil {
 			// Check if the error is Unimplemented - if so, try fallback
@@ -159,40 +185,132 @@ func (e *Engine) EstimateCost(
 	return result, nil
 }
 
+// validateEstimateResponse checks that a plugin's EstimateCostResponse is usable.
+func validateEstimateResponse(resp *pbc.EstimateCostResponse) error {
+	if resp == nil {
+		return errNilEstimateResponse
+	}
+	cost := resp.GetCostMonthly()
+	if math.IsNaN(cost) || math.IsInf(cost, 0) {
+		return errNonFiniteEstimateCost
+	}
+	if cost < 0 {
+		return errNegativeEstimateCost
+	}
+	if resp.GetCurrency() == "" {
+		return errEmptyEstimateCurrency
+	}
+	return nil
+}
+
 // tryEstimateCostRPC attempts to call the EstimateCost RPC on a plugin.
+// It calls the RPC twice: once with original properties (baseline) and once
+// with overrides applied (modified), then computes deltas.
 func (e *Engine) tryEstimateCostRPC(
-	_ context.Context,
-	_ *pluginhost.Client,
-	_ *EstimateRequest,
+	ctx context.Context,
+	client *pluginhost.Client,
+	request *EstimateRequest,
 ) (*EstimateResult, error) {
-	// The EstimateCost RPC is not yet defined in finfocus-spec v0.5.6
-	// When the RPC is added to the spec, this method should:
-	// 1. Build the proto request using proto.BuildEstimateCostRequest
-	// 2. Call client.API.EstimateCost(ctx, protoReq)
-	// 3. Convert the response to EstimateResult
-	return nil, status.Error(codes.Unimplemented, "EstimateCost RPC not yet implemented in plugins")
+	log := logging.FromContext(ctx)
+	resourceType := request.Resource.Type
+
+	baselineReq, err := proto.BuildEstimateCostRequest(resourceType, request.Resource.Properties)
+	if err != nil {
+		return nil, fmt.Errorf("build baseline request: %w", err)
+	}
+
+	baselineCtx, baselineCancel := context.WithTimeout(ctx, perResourceTimeout)
+	baselineResp, err := client.API.EstimateCost(baselineCtx, baselineReq)
+	baselineCancel()
+	if err != nil {
+		return nil, err
+	}
+
+	if err = validateEstimateResponse(baselineResp); err != nil {
+		log.Warn().Str("plugin", client.Name).Err(err).Msg("invalid baseline response")
+		return nil, err
+	}
+
+	modifiedProps := mergePropertiesWithOverrides(request.Resource.Properties, request.PropertyOverrides)
+
+	modifiedReq, err := proto.BuildEstimateCostRequest(resourceType, modifiedProps)
+	if err != nil {
+		return nil, fmt.Errorf("build modified request: %w", err)
+	}
+
+	modifiedCtx, modifiedCancel := context.WithTimeout(ctx, perResourceTimeout)
+	modifiedResp, err := client.API.EstimateCost(modifiedCtx, modifiedReq)
+	modifiedCancel()
+	if err != nil {
+		return nil, err
+	}
+
+	if err = validateEstimateResponse(modifiedResp); err != nil {
+		log.Warn().Str("plugin", client.Name).Err(err).Msg("invalid modified response")
+		return nil, err
+	}
+
+	// Guard against cross-currency delta computation
+	if baselineResp.GetCurrency() != modifiedResp.GetCurrency() {
+		log.Warn().
+			Str("plugin", client.Name).
+			Str("baseline_currency", baselineResp.GetCurrency()).
+			Str("modified_currency", modifiedResp.GetCurrency()).
+			Msg("currency mismatch between baseline and modified responses")
+		return nil, errCurrencyMismatch
+	}
+
+	baseline := estimateResponseToCostResult(baselineResp, request.Resource)
+	modified := estimateResponseToCostResult(modifiedResp, request.Resource)
+	totalChange := modified.Monthly - baseline.Monthly
+
+	return &EstimateResult{
+		Resource:     request.Resource,
+		Baseline:     baseline,
+		Modified:     modified,
+		TotalChange:  totalChange,
+		Deltas:       buildCostDeltas(request.PropertyOverrides, request.Resource.Properties, totalChange),
+		UsedFallback: false,
+	}, nil
+}
+
+// estimateResponseToCostResult converts a pbc.EstimateCostResponse to an engine CostResult.
+func estimateResponseToCostResult(resp *pbc.EstimateCostResponse, resource *ResourceDescriptor) *CostResult {
+	currency := resp.GetCurrency()
+	if currency == "" {
+		currency = defaultCurrency
+	}
+
+	monthly := resp.GetCostMonthly()
+	hourly := monthly / hoursPerMonth
+
+	var notes []string
+	if resp.GetPricingCategory() != pbc.FocusPricingCategory_FOCUS_PRICING_CATEGORY_UNSPECIFIED {
+		notes = append(notes, "Pricing: "+resp.GetPricingCategory().String())
+	}
+	if resp.GetSpotInterruptionRiskScore() > 0 {
+		notes = append(notes, fmt.Sprintf("Spot risk: %.2f", resp.GetSpotInterruptionRiskScore()))
+	}
+
+	return &CostResult{
+		ResourceType: resource.Type,
+		ResourceID:   resource.ID,
+		Currency:     currency,
+		Monthly:      monthly,
+		Hourly:       hourly,
+		Notes:        strings.Join(notes, "; "),
+	}
 }
 
 // estimateCostFallback calculates cost estimation using two GetProjectedCost calls.
-//
-// This fallback strategy:
-// 1. Calls GetProjectedCost with original properties -> baseline
-// 2. Merges property overrides into resource properties
-// 3. Calls GetProjectedCost with modified properties -> modified
-// 4. Calculates the delta
-//
-// Note: When multiple properties are overridden simultaneously, the fallback
-// cannot provide accurate per-property delta breakdown. In this case, it reports
-// a single "combined" delta representing the total change.
-//
-//nolint:funlen // Function has clear sections for baseline, modified, and delta calculations.
+// When multiple properties are overridden simultaneously, it reports a single
+// "combined" delta since per-property attribution is not possible via this path.
 func (e *Engine) estimateCostFallback(
 	ctx context.Context,
 	request *EstimateRequest,
 ) (*EstimateResult, error) {
 	log := logging.FromContext(ctx)
 
-	// Get baseline cost with original properties
 	baselineResources := []ResourceDescriptor{*request.Resource}
 	baselineResults, err := e.GetProjectedCost(ctx, baselineResources)
 	if err != nil {
@@ -213,23 +331,13 @@ func (e *Engine) estimateCostFallback(
 		}
 	}
 
-	// Create modified resource with overrides applied
-	// IMPORTANT: Deep copy the properties map to avoid modifying the original
 	modifiedResource := *request.Resource
-	modifiedResource.Properties = make(map[string]interface{})
-	for key, value := range request.Resource.Properties {
-		modifiedResource.Properties[key] = value
-	}
-	for key, value := range request.PropertyOverrides {
-		modifiedResource.Properties[key] = value
-	}
+	modifiedResource.Properties = mergePropertiesWithOverrides(request.Resource.Properties, request.PropertyOverrides)
 
-	// Validate the modified resource to ensure overrides don't violate constraints
 	if validateErr := modifiedResource.Validate(); validateErr != nil {
 		return nil, fmt.Errorf("modified resource validation failed: %w", validateErr)
 	}
 
-	// Get modified cost with overrides applied
 	modifiedResources := []ResourceDescriptor{modifiedResource}
 	modifiedResults, err := e.GetProjectedCost(ctx, modifiedResources)
 	if err != nil {
@@ -250,37 +358,7 @@ func (e *Engine) estimateCostFallback(
 		}
 	}
 
-	// Calculate total change
 	totalChange := modified.Monthly - baseline.Monthly
-
-	// Build deltas - for fallback, we can only report a combined delta
-	var deltas []CostDelta
-	if len(request.PropertyOverrides) == 1 {
-		// Single property change - we can attribute the delta to it
-		for key, newValue := range request.PropertyOverrides {
-			// Get original value from the ORIGINAL resource (not modified)
-			originalValue := ""
-			if request.Resource.Properties != nil {
-				if v, ok := request.Resource.Properties[key]; ok {
-					originalValue = formatPropertyValue(v)
-				}
-			}
-			deltas = append(deltas, CostDelta{
-				Property:      key,
-				OriginalValue: originalValue,
-				NewValue:      newValue,
-				CostChange:    totalChange,
-			})
-		}
-	} else if len(request.PropertyOverrides) > 1 {
-		// Multiple properties - report as combined
-		deltas = append(deltas, CostDelta{
-			Property:      "combined",
-			OriginalValue: "",
-			NewValue:      "",
-			CostChange:    totalChange,
-		})
-	}
 
 	log.Debug().
 		Ctx(ctx).
@@ -295,25 +373,52 @@ func (e *Engine) estimateCostFallback(
 		Baseline:     baseline,
 		Modified:     modified,
 		TotalChange:  totalChange,
-		Deltas:       deltas,
+		Deltas:       buildCostDeltas(request.PropertyOverrides, request.Resource.Properties, totalChange),
 		UsedFallback: true,
 	}, nil
 }
 
-// formatPropertyValue converts a property value to a string representation.
-func formatPropertyValue(v interface{}) string {
-	switch val := v.(type) {
-	case string:
-		return val
-	case int:
-		return strconv.Itoa(val)
-	case int64:
-		return strconv.FormatInt(val, 10)
-	case float64:
-		return fmt.Sprintf("%g", val)
-	case bool:
-		return strconv.FormatBool(val)
-	default:
-		return fmt.Sprintf("%v", v)
+// mergePropertiesWithOverrides creates a shallow copy of properties with string
+// overrides applied. The returned map is safe to mutate without affecting the originals.
+func mergePropertiesWithOverrides(
+	properties map[string]any,
+	overrides map[string]string,
+) map[string]any {
+	merged := make(map[string]any, len(properties)+len(overrides))
+	for k, v := range properties {
+		merged[k] = v
 	}
+	for k, v := range overrides {
+		merged[k] = v
+	}
+	return merged
+}
+
+// buildCostDeltas constructs per-property delta entries from overrides and a total cost change.
+// Single-override requests get an attributed delta; multi-override requests get a "combined" entry.
+func buildCostDeltas(
+	overrides map[string]string,
+	originalProperties map[string]any,
+	totalChange float64,
+) []CostDelta {
+	if len(overrides) == 1 {
+		for key, newValue := range overrides {
+			originalValue := ""
+			if originalProperties != nil {
+				if v, ok := originalProperties[key]; ok {
+					originalValue = ConvertValueToString(v)
+				}
+			}
+			return []CostDelta{{
+				Property:      key,
+				OriginalValue: originalValue,
+				NewValue:      newValue,
+				CostChange:    totalChange,
+			}}
+		}
+	}
+	if len(overrides) > 1 {
+		return []CostDelta{{Property: combinedDeltaProperty, CostChange: totalChange}}
+	}
+	return nil
 }

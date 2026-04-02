@@ -8,6 +8,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
@@ -95,6 +97,14 @@ func (m *mockCostSourceClient) Supports(
 	_ ...grpc.CallOption,
 ) (*pbc.SupportsResponse, error) {
 	return &pbc.SupportsResponse{Supported: true}, nil
+}
+
+func (m *mockCostSourceClient) EstimateCost(
+	_ context.Context,
+	_ *pbc.EstimateCostRequest,
+	_ ...grpc.CallOption,
+) (*pbc.EstimateCostResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
 }
 
 func TestEngine_GetBudgets(t *testing.T) {

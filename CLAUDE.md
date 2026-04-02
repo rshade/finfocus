@@ -470,6 +470,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 ## Recent Changes
 
 - 608-resource-history-store: Added Go 1.25.8 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`).
+- 608-estimate-cost-rpc: Added Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions), gRPC, Cobra, zerolog
 - 607-state-only-flag: Added Go 1.25.8 (see `go.mod`) + Cobra (CLI framework), Bubble Tea (TUI), zerolog (logging)
 - 606-cache-expires-at: Added Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (provides `expires_at` proto fields), BoltDB (cache storage), zerolog (logging)
 
@@ -477,4 +478,6 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 - Go 1.25.8 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`) (608-resource-history-store)
 - BoltDB at `~/.finfocus/history/history.db` (separate from cache) (608-resource-history-store)
+- Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions), gRPC, Cobra, zerolog (608-estimate-cost-rpc)
+- N/A (no new persistent state) (608-estimate-cost-rpc)
 
