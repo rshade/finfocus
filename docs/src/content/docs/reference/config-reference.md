@@ -115,6 +115,55 @@ Configure the BoltDB-backed cost calculation cache.
 - `directory`: Explicit path for the cache database file. When empty, auto-resolves
   to the project `.finfocus/` directory or `~/.finfocus/cache/`.
 
+### Resource History
+
+Configure the BoltDB-backed resource history store that tracks cloud resource
+identity across replacements and deletions. The history store enables accurate
+full-month cost reporting by remembering all cloud IDs a resource has ever had.
+
+> **Important**: Unlike the cache, the history database contains persistent data
+> that cannot be regenerated. Deleting `history.db` causes accuracy degradation
+> for past billing periods.
+
+| Option | Type | Default | Env Var | Description |
+| --- | --- | --- | --- | --- |
+| `cost.history.enabled` | bool | `true` | `FINFOCUS_HISTORY_ENABLED` | Master switch for resource history tracking. When disabled, all history operations are no-ops and commands fall back to current-state-only behavior. |
+| `cost.history.retention_days` | int | `90` | `FINFOCUS_HISTORY_RETENTION_DAYS` | Days before stale entries are removed. Entries with `LastSeen` older than this window are cleaned up on startup. |
+| `cost.history.directory` | string | `~/.finfocus/history` | `FINFOCUS_HISTORY_DIR` | Override the history database directory. When empty, auto-resolves to `~/.finfocus/history/`. |
+
+#### Example: History Configuration
+
+```yaml
+cost:
+  history:
+    enabled: true
+    retention_days: 90
+    directory: ""  # uses default ~/.finfocus/history
+```
+
+### Cost Allocation
+
+Configure tag-based cost attribution for resources that lack direct billing
+identity. This is a Layer 2 feature — the configuration is validated and stored,
+but the tag-based query logic is deferred to a future milestone.
+
+| Option | Type | Default | Description |
+| --- | --- | --- | --- |
+| `cost.allocation.enabled` | bool | `false` | Will enable tag-based cost attribution fallback. The configuration is validated and stored now; tag-based query logic will be applied in a future milestone. |
+| `cost.allocation.tags` | string list | `[]` | Tag keys that will be used for billing API queries (e.g., `pulumi:project`, `aws:createdBy`). Each key must be non-empty and at most 128 characters. Validated on load but not yet applied for attribution. |
+
+#### Example: Allocation Configuration
+
+```yaml
+cost:
+  allocation:
+    enabled: true
+    tags:
+      - "pulumi:project"
+      - "aws:createdBy"
+      - "team"
+```
+
 ### Cost & Budgets
 
 Configure budget limits, alerts, and cost calculation preferences.

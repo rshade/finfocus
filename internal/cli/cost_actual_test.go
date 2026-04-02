@@ -11,6 +11,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/cli"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/history"
 )
 
 func TestNewCostActualCmd(t *testing.T) {
@@ -1068,4 +1069,162 @@ func TestCostActualCmd_AdapterFilter(t *testing.T) {
 
 	// Should succeed even without the specified adapter
 	assert.Len(t, results, 0) // No plugins = empty results
+}
+
+// T016: Tests for MergeHistoricalResources merge logic.
+
+func TestMergeHistoricalResources_NoHistory(t *testing.T) {
+	current := []engine.ResourceDescriptor{
+		{
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-current",
+			},
+		},
+	}
+
+	result := cli.MergeHistoricalResources(current, nil)
+	assert.Len(t, result, 1)
+	assert.Equal(t, "i-current", result[0].Properties["pulumi:cloudId"])
+}
+
+func TestMergeHistoricalResources_EmptyHistory(t *testing.T) {
+	current := []engine.ResourceDescriptor{
+		{
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-current",
+			},
+		},
+	}
+
+	result := cli.MergeHistoricalResources(current, []history.HistoricalResource{})
+	assert.Len(t, result, 1)
+}
+
+func TestMergeHistoricalResources_AddsHistoricalCloudIDs(t *testing.T) {
+	current := []engine.ResourceDescriptor{
+		{
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-new",
+			},
+		},
+	}
+
+	historical := []history.HistoricalResource{
+		{
+			URN:      "urn:pulumi:aws:ec2:instance:Web",
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			CloudIDs: []string{"i-old", "i-new"},
+		},
+	}
+
+	result := cli.MergeHistoricalResources(current, historical)
+
+	// Should have 2: original i-new + historical i-old
+	require.Len(t, result, 2)
+
+	// First should be the original
+	assert.Equal(t, "i-new", result[0].Properties["pulumi:cloudId"])
+
+	// Second should be the historical cloud ID
+	assert.Equal(t, "i-old", result[1].Properties["pulumi:cloudId"])
+	assert.Equal(t, "aws:ec2/instance:Instance", result[1].Type)
+	assert.Equal(t, "aws", result[1].Provider)
+}
+
+func TestMergeHistoricalResources_DeduplicatesExisting(t *testing.T) {
+	current := []engine.ResourceDescriptor{
+		{
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-12345",
+			},
+		},
+	}
+
+	historical := []history.HistoricalResource{
+		{
+			URN:      "urn:pulumi:aws:ec2:instance:Web",
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			CloudIDs: []string{"i-12345"}, // same as current
+		},
+	}
+
+	result := cli.MergeHistoricalResources(current, historical)
+
+	// Should NOT duplicate — i-12345 already exists
+	assert.Len(t, result, 1)
+	assert.Equal(t, "i-12345", result[0].Properties["pulumi:cloudId"])
+}
+
+func TestMergeHistoricalResources_TwoHistoricalCloudIDs(t *testing.T) {
+	// Resource replaced mid-month: old i-aaa, new i-bbb
+	// Current state only has i-bbb
+	current := []engine.ResourceDescriptor{
+		{
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-bbb",
+			},
+		},
+	}
+
+	historical := []history.HistoricalResource{
+		{
+			URN:      "urn:pulumi:aws:ec2:instance:Web",
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			CloudIDs: []string{"i-aaa", "i-bbb"},
+		},
+	}
+
+	result := cli.MergeHistoricalResources(current, historical)
+
+	// Should have 2: original i-bbb + historical i-aaa
+	require.Len(t, result, 2)
+
+	cloudIDs := make(map[string]bool)
+	for _, r := range result {
+		if cid, ok := r.Properties["pulumi:cloudId"].(string); ok {
+			cloudIDs[cid] = true
+		}
+	}
+	assert.True(t, cloudIDs["i-aaa"])
+	assert.True(t, cloudIDs["i-bbb"])
+}
+
+func TestMergeHistoricalResources_NilHistoryStoreNoRegression(t *testing.T) {
+	// Without history store (nil historical slice), behavior unchanged
+	current := []engine.ResourceDescriptor{
+		{
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-original",
+			},
+		},
+		{
+			Type:     "aws:s3/bucket:Bucket",
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "my-bucket",
+			},
+		},
+	}
+
+	result := cli.MergeHistoricalResources(current, nil)
+
+	// No change — nil history means no merge
+	require.Len(t, result, 2)
+	assert.Equal(t, "i-original", result[0].Properties["pulumi:cloudId"])
+	assert.Equal(t, "my-bucket", result[1].Properties["pulumi:cloudId"])
 }

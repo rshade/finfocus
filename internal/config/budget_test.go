@@ -667,6 +667,263 @@ func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
 	}
 }
 
+// T006: Tests for HistoryConfig and AllocationConfig YAML deserialization.
+
+func TestHistoryConfig_YAMLDefaults(t *testing.T) {
+	yamlData := `
+cost:
+  history: {}
+`
+	var cfg struct {
+		Cost CostConfig `yaml:"cost"`
+	}
+
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	require.NoError(t, err)
+
+	assert.False(t, cfg.Cost.History.Enabled, "zero value when omitted")
+	assert.Equal(t, 0, cfg.Cost.History.RetentionDays, "zero value when omitted")
+	assert.Equal(t, "", cfg.Cost.History.Directory, "empty when omitted")
+}
+
+func TestHistoryConfig_YAMLExplicitValues(t *testing.T) {
+	yamlData := `
+cost:
+  history:
+    enabled: true
+    retention_days: 180
+    directory: /tmp/custom-history
+`
+	var cfg struct {
+		Cost CostConfig `yaml:"cost"`
+	}
+
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	require.NoError(t, err)
+
+	assert.True(t, cfg.Cost.History.Enabled)
+	assert.Equal(t, 180, cfg.Cost.History.RetentionDays)
+	assert.Equal(t, "/tmp/custom-history", cfg.Cost.History.Directory)
+}
+
+func TestHistoryConfig_NestedUnderCost(t *testing.T) {
+	yamlData := `
+cost:
+  history:
+    enabled: true
+    retention_days: 90
+  cache:
+    enabled: true
+    ttl_seconds: 3600
+`
+	var cfg struct {
+		Cost CostConfig `yaml:"cost"`
+	}
+
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	require.NoError(t, err)
+
+	assert.True(t, cfg.Cost.History.Enabled)
+	assert.Equal(t, 90, cfg.Cost.History.RetentionDays)
+	assert.True(t, cfg.Cost.Cache.Enabled)
+	assert.Equal(t, 3600, cfg.Cost.Cache.TTLSeconds)
+}
+
+func TestHistoryConfig_YAMLRoundTrip(t *testing.T) {
+	original := CostConfig{
+		History: HistoryConfig{
+			Enabled:       true,
+			RetentionDays: 120,
+			Directory:     "/var/data/history",
+		},
+	}
+
+	data, err := yaml.Marshal(original)
+	require.NoError(t, err)
+
+	var parsed CostConfig
+	err = yaml.Unmarshal(data, &parsed)
+	require.NoError(t, err)
+
+	assert.Equal(t, original.History.Enabled, parsed.History.Enabled)
+	assert.Equal(t, original.History.RetentionDays, parsed.History.RetentionDays)
+	assert.Equal(t, original.History.Directory, parsed.History.Directory)
+}
+
+func TestAllocationConfig_YAMLDefaults(t *testing.T) {
+	yamlData := `
+cost:
+  allocation: {}
+`
+	var cfg struct {
+		Cost CostConfig `yaml:"cost"`
+	}
+
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	require.NoError(t, err)
+
+	assert.False(t, cfg.Cost.Allocation.Enabled, "zero value when omitted")
+	assert.Empty(t, cfg.Cost.Allocation.Tags, "empty when omitted")
+}
+
+func TestAllocationConfig_YAMLExplicitValues(t *testing.T) {
+	yamlData := `
+cost:
+  allocation:
+    enabled: true
+    tags:
+      - pulumi:project
+      - env
+      - team
+`
+	var cfg struct {
+		Cost CostConfig `yaml:"cost"`
+	}
+
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	require.NoError(t, err)
+
+	assert.True(t, cfg.Cost.Allocation.Enabled)
+	require.Len(t, cfg.Cost.Allocation.Tags, 3)
+	assert.Equal(t, "pulumi:project", cfg.Cost.Allocation.Tags[0])
+	assert.Equal(t, "env", cfg.Cost.Allocation.Tags[1])
+	assert.Equal(t, "team", cfg.Cost.Allocation.Tags[2])
+}
+
+func TestAllocationConfig_NestedUnderCost(t *testing.T) {
+	yamlData := `
+cost:
+  allocation:
+    enabled: true
+    tags:
+      - pulumi:project
+  history:
+    enabled: true
+    retention_days: 90
+`
+	var cfg struct {
+		Cost CostConfig `yaml:"cost"`
+	}
+
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	require.NoError(t, err)
+
+	assert.True(t, cfg.Cost.Allocation.Enabled)
+	require.Len(t, cfg.Cost.Allocation.Tags, 1)
+	assert.Equal(t, "pulumi:project", cfg.Cost.Allocation.Tags[0])
+	assert.True(t, cfg.Cost.History.Enabled)
+	assert.Equal(t, 90, cfg.Cost.History.RetentionDays)
+}
+
+func TestAllocationConfig_YAMLRoundTrip(t *testing.T) {
+	original := CostConfig{
+		Allocation: AllocationConfig{
+			Enabled: true,
+			Tags:    []string{"pulumi:project", "env"},
+		},
+	}
+
+	data, err := yaml.Marshal(original)
+	require.NoError(t, err)
+
+	var parsed CostConfig
+	err = yaml.Unmarshal(data, &parsed)
+	require.NoError(t, err)
+
+	assert.Equal(t, original.Allocation.Enabled, parsed.Allocation.Enabled)
+	assert.Equal(t, original.Allocation.Tags, parsed.Allocation.Tags)
+}
+
+func TestHistoryConfig_DefaultConstants(t *testing.T) {
+	assert.Equal(t, 90, HistoryDefaultRetentionDays)
+	assert.True(t, HistoryDefaultEnabled)
+	assert.False(t, AllocationDefaultEnabled)
+}
+
+// ---------------------------------------------------------------------------
+// T038: AllocationConfig validation tests
+// ---------------------------------------------------------------------------
+
+func TestAllocationConfig_Validate_ValidWithTags(t *testing.T) {
+	cfg := AllocationConfig{
+		Enabled: true,
+		Tags:    []string{"pulumi:project", "env", "team"},
+	}
+	err := cfg.Validate()
+	require.NoError(t, err)
+}
+
+func TestAllocationConfig_Validate_DisabledEmptyTags(t *testing.T) {
+	cfg := AllocationConfig{
+		Enabled: false,
+		Tags:    nil,
+	}
+	err := cfg.Validate()
+	require.NoError(t, err, "disabled config with empty tags should be valid")
+}
+
+func TestAllocationConfig_Validate_EnabledEmptyTags(t *testing.T) {
+	cfg := AllocationConfig{
+		Enabled: true,
+		Tags:    nil,
+	}
+	err := cfg.Validate()
+	require.NoError(t, err, "enabled with empty tags is valid (warning-only)")
+}
+
+func TestAllocationConfig_Validate_EmptyTagKey(t *testing.T) {
+	cfg := AllocationConfig{
+		Enabled: true,
+		Tags:    []string{"valid", ""},
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "tag key at index 1 is empty")
+}
+
+func TestAllocationConfig_Validate_TagKeyTooLong(t *testing.T) {
+	longKey := string(make([]byte, 129))
+	for i := range longKey {
+		longKey = longKey[:i] + "a" + longKey[i+1:]
+	}
+	cfg := AllocationConfig{
+		Enabled: true,
+		Tags:    []string{longKey},
+	}
+	err := cfg.Validate()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "exceeds maximum length of 128")
+}
+
+func TestAllocationConfig_Validate_TagsPreservedThroughYAML(t *testing.T) {
+	yamlData := `
+enabled: true
+tags:
+  - pulumi:project
+  - cost-center
+  - team
+`
+	var cfg AllocationConfig
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	require.NoError(t, err)
+
+	require.NoError(t, cfg.Validate())
+	assert.True(t, cfg.Enabled)
+	require.Len(t, cfg.Tags, 3)
+	assert.Equal(t, "pulumi:project", cfg.Tags[0])
+	assert.Equal(t, "cost-center", cfg.Tags[1])
+	assert.Equal(t, "team", cfg.Tags[2])
+}
+
+func TestAllocationConfig_Validate_DisabledWithInvalidTags(t *testing.T) {
+	cfg := AllocationConfig{
+		Enabled: false,
+		Tags:    []string{"valid", ""},
+	}
+	err := cfg.Validate()
+	require.NoError(t, err, "disabled config should skip tag validation")
+}
+
 // Test YAML parsing with exit code fields.
 func TestBudgetConfig_YAMLParsing_ExitCode(t *testing.T) {
 	yamlData := `
