@@ -74,8 +74,10 @@ tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin
 # macOS (Intel)
 curl -L https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-macos-amd64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
+```
 
-# Windows (PowerShell) - installs to a user-local directory, no admin rights required
+```powershell
+# Windows - installs to a user-local directory, no admin rights required
 Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-windows-amd64.zip" -OutFile finfocus.zip
 Expand-Archive finfocus.zip -DestinationPath .
 $installDir = "$env:LocalAppData\Programs\finfocus"

@@ -1,5 +1,6 @@
 ---
 title: Developer Setup Guide
+description: Set up your local environment to work on FinFocus documentation with Node.js and Astro.
 ---
 This guide helps developers set up their local environment to work on FinFocus documentation.
 

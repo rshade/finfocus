@@ -12,7 +12,7 @@ description: Cloud cost analysis for Pulumi infrastructure with projected costs,
 [![Go Report Card](https://goreportcard.com/badge/github.com/rshade/finfocus)](https://goreportcard.com/report/github.com/rshade/finfocus)
 [![Go Version](https://img.shields.io/github/go-mod/go-version/rshade/finfocus)](https://github.com/rshade/finfocus/blob/main/go.mod)
 [![Release](https://img.shields.io/github/v/release/rshade/finfocus)](https://github.com/rshade/finfocus/releases/latest)
-[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](https://github.com/rshade/finfocus/blob/main/LICENSE)
 
 **Cloud cost analysis for Pulumi infrastructure** - Calculate projected and actual infrastructure costs without modifying your Pulumi programs.
 
@@ -76,12 +76,16 @@ tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin
 
 curl -L https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-macos-amd64.tar.gz -o finfocus.tar.gz
 tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin/
+```
 
+```powershell
+# Windows - installs to a user-local directory, no admin rights required
 Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-windows-amd64.zip" -OutFile finfocus.zip
 Expand-Archive finfocus.zip -DestinationPath .
 $installDir = "$env:LocalAppData\Programs\finfocus"
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 Move-Item finfocus.exe "$installDir\finfocus.exe"
+# Add to PATH for the current session (add to $PROFILE for a permanent effect)
 $env:PATH = "$installDir;$env:PATH"
 ```
 
@@ -660,7 +664,7 @@ We welcome contributions! See our development documentation:
 
 ## License
 
-Apache-2.0 - See [LICENSE](LICENSE) for details.
+Apache-2.0 - See [LICENSE](https://github.com/rshade/finfocus/blob/main/LICENSE) for details.
 
 ## Agent Skills
 

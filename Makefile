@@ -232,6 +232,7 @@ docs-sync:
 		-e 's|\(docs/([^)]+/)\)|(../\1)|g' \
 		-e 's|\(docs/\)|(../)|g' \
 		-e 's|\(CONTRIBUTING\.md\)|(../support/contributing/)|g' \
+		-e 's|\(LICENSE\)|(https://github.com/rshade/finfocus/blob/main/LICENSE)|g' \
 		>> docs/src/content/docs/README.md
 	@echo "Documentation synced."
 
@@ -249,7 +250,7 @@ docs-build: docs-sync
 	@echo "Documentation built to docs/dist/"
 
 .PHONY: docs-validate
-docs-validate: docs-lint
+docs-validate: docs-sync docs-lint
 	@echo "Validating documentation structure..."
 	@test -f docs/src/content/docs/README.md || (echo "Missing: docs/src/content/docs/README.md"; exit 1)
 	@test -f docs/src/content/docs/plan.md || (echo "Missing: docs/src/content/docs/plan.md"; exit 1)

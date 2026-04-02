@@ -43,7 +43,7 @@ jobs:
         run: npm ci
 
       - name: Sync documentation
-        run: make docs-sync || echo "make docs-sync not found or failed, continuing..."
+        run: make docs-sync
 
       - name: Build Astro site
         working-directory: ./docs

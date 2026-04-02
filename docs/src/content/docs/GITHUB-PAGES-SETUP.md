@@ -1,5 +1,6 @@
 ---
 title: GitHub Pages Setup Guide
+description: Configure GitHub Pages deployment for FinFocus documentation using Astro Starlight.
 ---
 This document explains how to set up GitHub Pages for FinFocus documentation.
 
