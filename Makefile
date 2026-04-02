@@ -182,7 +182,7 @@ docs-lint:
 	@command -v markdownlint-cli2 >/dev/null 2>&1 || \
 		(echo "markdownlint-cli2 not found. Install with:"; \
 		echo "  npm install -g markdownlint-cli2"; exit 1)
-	markdownlint-cli2 --config docs/.markdownlint-cli2.jsonc 'docs/**/*.md' --ignore 'docs/_site/**'
+	markdownlint-cli2 --config docs/.markdownlint-cli2.jsonc 'docs/**/*.md' '#docs/dist/**' '#docs/.astro/**' '#docs/node_modules/**'
 	@echo "Documentation linting complete."
 
 .PHONY: docs-sync
@@ -190,40 +190,46 @@ docs-sync:
 	@echo "Syncing root documentation..."
 	@test -f CONTRIBUTING.md || (echo "Error: CONTRIBUTING.md not found"; exit 1)
 	@test -f ROADMAP.md || (echo "Error: ROADMAP.md not found"; exit 1)
-	@echo "---" > docs/support/contributing.md
-	@echo "title: Contributing" >> docs/support/contributing.md
-	@echo "layout: default" >> docs/support/contributing.md
-	@echo "---" >> docs/support/contributing.md
-	@echo "" >> docs/support/contributing.md
-	@cat CONTRIBUTING.md | sed 's|docs/|../|g' >> docs/support/contributing.md
-	@echo "---" > docs/architecture/roadmap.md
-	@echo "title: Roadmap" >> docs/architecture/roadmap.md
-	@echo "layout: default" >> docs/architecture/roadmap.md
-	@echo "---" >> docs/architecture/roadmap.md
-	@echo "" >> docs/architecture/roadmap.md
-	@cat ROADMAP.md >> docs/architecture/roadmap.md
+	@test -f README.md || (echo "Error: README.md not found"; exit 1)
+	@mkdir -p docs/src/content/docs/support docs/src/content/docs/architecture
+	@echo "---" > docs/src/content/docs/support/contributing.md
+	@echo "title: Contributing" >> docs/src/content/docs/support/contributing.md
+	@echo "---" >> docs/src/content/docs/support/contributing.md
+	@echo "" >> docs/src/content/docs/support/contributing.md
+	@cat CONTRIBUTING.md | sed 's|docs/|../|g' | sed '/^# /d' >> docs/src/content/docs/support/contributing.md
+	@echo "---" > docs/src/content/docs/architecture/roadmap.md
+	@echo "title: Roadmap" >> docs/src/content/docs/architecture/roadmap.md
+	@echo "---" >> docs/src/content/docs/architecture/roadmap.md
+	@echo "" >> docs/src/content/docs/architecture/roadmap.md
+	@cat ROADMAP.md | sed '/^# /d' >> docs/src/content/docs/architecture/roadmap.md
+	@echo "---" > docs/src/content/docs/README.md
+	@echo "title: Project README" >> docs/src/content/docs/README.md
+	@echo "---" >> docs/src/content/docs/README.md
+	@echo "" >> docs/src/content/docs/README.md
+	@echo "<!-- markdownlint-disable MD013 -->" >> docs/src/content/docs/README.md
+	@cat README.md | sed '/^# /d' >> docs/src/content/docs/README.md
 	@echo "Documentation synced."
 
 .PHONY: docs-serve
 docs-serve: docs-sync
-	@echo "Serving documentation locally at http://localhost:4000/finfocus"
-	@cd docs && bundle install > /dev/null 2>&1
-	@cd docs && bundle exec jekyll serve --host 0.0.0.0
+	@echo "Serving documentation locally at http://localhost:4321/finfocus/"
+	@cd docs && npm ci > /dev/null 2>&1
+	@cd docs && npm run dev
 
 .PHONY: docs-build
 docs-build: docs-sync
 	@echo "Building documentation site..."
-	@cd docs && bundle install > /dev/null 2>&1
-	@cd docs && bundle exec jekyll build
-	@echo "Documentation built to docs/_site/"
+	@cd docs && npm ci > /dev/null 2>&1
+	@cd docs && npm run build
+	@echo "Documentation built to docs/dist/"
 
 .PHONY: docs-validate
 docs-validate: docs-lint
 	@echo "Validating documentation structure..."
-	@test -f docs/README.md || (echo "Missing: docs/README.md"; exit 1)
-	@test -f docs/plan.md || (echo "Missing: docs/plan.md"; exit 1)
-	@test -f docs/llms.txt || (echo "Missing: docs/llms.txt"; exit 1)
-	@test -f docs/_config.yml || (echo "Missing: docs/_config.yml"; exit 1)
+	@test -f docs/src/content/docs/README.md || (echo "Missing: docs/src/content/docs/README.md"; exit 1)
+	@test -f docs/src/content/docs/plan.md || (echo "Missing: docs/src/content/docs/plan.md"; exit 1)
+	@test -f docs/src/content/docs/llms.txt || (echo "Missing: docs/src/content/docs/llms.txt"; exit 1)
+	@test -f docs/astro.config.mjs || (echo "Missing: docs/astro.config.mjs"; exit 1)
 	@test -f docs/.markdownlint-cli2.jsonc || (echo "Missing: docs/.markdownlint-cli2.jsonc"; exit 1)
 	@echo "All required documentation files present"
 	@echo "Documentation validation passed"
