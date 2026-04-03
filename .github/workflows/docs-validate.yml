@@ -9,6 +9,9 @@ on:
     paths:
       - 'docs/**'
 
+permissions:
+  contents: read
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -37,7 +40,7 @@ jobs:
         run: |
           npx markdownlint-cli2 \
             --config docs/.markdownlint-cli2.jsonc \
-            'docs/**/*.md' \
+            'docs/**/*.md' 'docs/**/*.mdx' \
             '#docs/dist/**' \
             '#docs/node_modules/**' \
             '#docs/.astro/**'
@@ -45,7 +48,7 @@ jobs:
 
       - name: Check markdown formatting
         run: |
-          npx prettier --check 'docs/**/*.md' \
+          npx prettier --check 'docs/**/*.md' 'docs/**/*.mdx' \
             --ignore-path docs/.gitignore
         continue-on-error: true
 
@@ -70,7 +73,7 @@ jobs:
 
       - name: Check links in documentation
         run: |
-          find docs -type f -name "*.md" ! -path "docs/dist/*" ! -path "docs/node_modules/*" ! -path "docs/.astro/*" | \
+          find docs -type f \( -name "*.md" -o -name "*.mdx" \) ! -path "docs/dist/*" ! -path "docs/node_modules/*" ! -path "docs/.astro/*" | \
           while IFS= read -r file; do
             echo "Checking links in: $file"
             npx markdown-link-check \
@@ -119,7 +122,7 @@ jobs:
             if ! echo "$fm" | grep -q "^description:"; then
               echo "  ⚠ $file: missing recommended 'description' field"
             fi
-          done < <(find docs/src/content/docs -type f -name "*.md" | sort)
+          done < <(find docs/src/content/docs -type f \( -name "*.md" -o -name "*.mdx" \) | sort)
           if [ "$errors" -gt 0 ]; then
             echo "❌ $errors frontmatter errors found"
             exit 1
