@@ -48,17 +48,17 @@ func TestHistoryReader_GetResourcesForPeriod_Basic(t *testing.T) {
 		},
 	}
 
-	err = store.UpsertBatch(entries)
-	require.NoError(t, err)
-
-	logger := zerolog.New(io.Discard)
-	reader := history.NewReader(store, logger)
-
 	stack := history.StackContext{
 		Organization: "test-org",
 		Project:      "test-proj",
 		Stack:        "test-stack",
 	}
+
+	err = store.UpsertBatch(stack.Hash(), entries)
+	require.NoError(t, err)
+
+	logger := zerolog.New(io.Discard)
+	reader := history.NewReader(store, logger)
 
 	results, err := reader.GetResourcesForPeriod(stack, now-10800, now+3600)
 	require.NoError(t, err)
@@ -105,17 +105,17 @@ func TestHistoryReader_GetResourcesForPeriod_TimeFilter(t *testing.T) {
 		},
 	}
 
-	err = store.UpsertBatch(entries)
-	require.NoError(t, err)
-
-	logger := zerolog.New(io.Discard)
-	reader := history.NewReader(store, logger)
-
 	stack := history.StackContext{
 		Organization: "test-org",
 		Project:      "test-proj",
 		Stack:        "test-stack",
 	}
+
+	err = store.UpsertBatch(stack.Hash(), entries)
+	require.NoError(t, err)
+
+	logger := zerolog.New(io.Discard)
+	reader := history.NewReader(store, logger)
 
 	// Query with time range that only includes the second entry
 	results, err := reader.GetResourcesForPeriod(stack, now-1000, now+1000)
@@ -171,17 +171,17 @@ func TestHistoryReader_GetResourcesForPeriod_GroupsCloudIDs(t *testing.T) {
 		},
 	}
 
-	err = store.UpsertBatch(entries)
-	require.NoError(t, err)
-
-	logger := zerolog.New(io.Discard)
-	reader := history.NewReader(store, logger)
-
 	stack := history.StackContext{
 		Organization: "test-org",
 		Project:      "test-proj",
 		Stack:        "test-stack",
 	}
+
+	err = store.UpsertBatch(stack.Hash(), entries)
+	require.NoError(t, err)
+
+	logger := zerolog.New(io.Discard)
+	reader := history.NewReader(store, logger)
 
 	results, err := reader.GetResourcesForPeriod(stack, now-15000, now+1000)
 	require.NoError(t, err)

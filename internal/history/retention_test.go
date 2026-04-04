@@ -38,16 +38,10 @@ func TestCleanupExpired_RemovesOldEntries(t *testing.T) {
 	oldTimestamp := time.Now().Add(-120 * 24 * time.Hour).Unix()
 	entry := newTestEntryWithTime("urn:pulumi:aws:ec2:instance:test", "i-old123", oldTimestamp)
 
-	err = store.Upsert(entry)
+	err = store.Upsert("testhash", entry)
 	require.NoError(t, err)
 
-	stackCtx := history.StackContext{
-		Organization: "org",
-		Project:      "proj",
-		Stack:        "dev",
-	}
-
-	allBefore, err := store.GetAllForStack(stackCtx.Hash(), 0, time.Now().Unix())
+	allBefore, err := store.GetAllForStack("testhash", 0, time.Now().Unix())
 	require.NoError(t, err)
 	assert.Len(t, allBefore, 1, "entry should exist before cleanup")
 
@@ -55,7 +49,7 @@ func TestCleanupExpired_RemovesOldEntries(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, count, "cleanup should remove 1 entry")
 
-	allAfter, err := store.GetAllForStack(stackCtx.Hash(), 0, time.Now().Unix())
+	allAfter, err := store.GetAllForStack("testhash", 0, time.Now().Unix())
 	require.NoError(t, err)
 	assert.Len(t, allAfter, 0, "entry should be removed after cleanup")
 }
@@ -73,16 +67,10 @@ func TestCleanupExpired_KeepsRecentEntries(t *testing.T) {
 	recentTimestamp := time.Now().Unix()
 	entry := newTestEntryWithTime("urn:pulumi:aws:ec2:instance:test", "i-recent123", recentTimestamp)
 
-	err = store.Upsert(entry)
+	err = store.Upsert("testhash", entry)
 	require.NoError(t, err)
 
-	stackCtx := history.StackContext{
-		Organization: "org",
-		Project:      "proj",
-		Stack:        "dev",
-	}
-
-	allBefore, err := store.GetAllForStack(stackCtx.Hash(), 0, time.Now().Unix())
+	allBefore, err := store.GetAllForStack("testhash", 0, time.Now().Unix())
 	require.NoError(t, err)
 	assert.Len(t, allBefore, 1, "entry should exist before cleanup")
 
@@ -90,13 +78,14 @@ func TestCleanupExpired_KeepsRecentEntries(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, count, "cleanup should not remove any entries")
 
-	allAfter, err := store.GetAllForStack(stackCtx.Hash(), 0, time.Now().Unix())
+	allAfter, err := store.GetAllForStack("testhash", 0, time.Now().Unix())
 	require.NoError(t, err)
 	assert.Len(t, allAfter, 1, "entry should remain after cleanup")
 }
 
-// TestCleanupExpired_BoundaryExact verifies that entries at the exact boundary
-// (90 days ago) are kept, not removed.
+// TestCleanupExpired_BoundaryExact verifies that entries just inside the
+// retention window (90 days ago + 1 second) are kept, not removed.
+// Uses a 1-second buffer to avoid TOCTOU flakiness from separate time.Now() calls.
 func TestCleanupExpired_BoundaryExact(t *testing.T) {
 	ctx := context.Background()
 	tempDir := t.TempDir()
@@ -105,19 +94,16 @@ func TestCleanupExpired_BoundaryExact(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	boundaryTimestamp := time.Now().Add(-90 * 24 * time.Hour).Unix()
+	// Place the entry 1 second inside the retention window to avoid
+	// flakiness from time.Now() drift between entry creation and cleanup.
+	now := time.Now()
+	boundaryTimestamp := now.Add(-90*24*time.Hour + 1*time.Second).Unix()
 	entry := newTestEntryWithTime("urn:pulumi:aws:ec2:instance:test", "i-boundary123", boundaryTimestamp)
 
-	err = store.Upsert(entry)
+	err = store.Upsert("testhash", entry)
 	require.NoError(t, err)
 
-	stackCtx := history.StackContext{
-		Organization: "org",
-		Project:      "proj",
-		Stack:        "dev",
-	}
-
-	allBefore, err := store.GetAllForStack(stackCtx.Hash(), 0, time.Now().Unix())
+	allBefore, err := store.GetAllForStack("testhash", 0, now.Unix())
 	require.NoError(t, err)
 	assert.Len(t, allBefore, 1, "entry should exist before cleanup")
 
@@ -125,7 +111,7 @@ func TestCleanupExpired_BoundaryExact(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, count, "cleanup should not remove entry at boundary")
 
-	allAfter, err := store.GetAllForStack(stackCtx.Hash(), 0, time.Now().Unix())
+	allAfter, err := store.GetAllForStack("testhash", 0, now.Unix())
 	require.NoError(t, err)
 	assert.Len(t, allAfter, 1, "entry at boundary should be kept")
 }
@@ -149,24 +135,18 @@ func TestCleanupExpired_ReturnsCorrectCount(t *testing.T) {
 	recentEntry1 := newTestEntryWithTime("urn:pulumi:aws:ec2:instance:recent1", "i-recent1", recentTimestamp)
 	recentEntry2 := newTestEntryWithTime("urn:pulumi:aws:ec2:instance:recent2", "i-recent2", recentTimestamp)
 
-	err = store.Upsert(oldEntry1)
+	err = store.Upsert("testhash", oldEntry1)
 	require.NoError(t, err)
-	err = store.Upsert(oldEntry2)
+	err = store.Upsert("testhash", oldEntry2)
 	require.NoError(t, err)
-	err = store.Upsert(oldEntry3)
+	err = store.Upsert("testhash", oldEntry3)
 	require.NoError(t, err)
-	err = store.Upsert(recentEntry1)
+	err = store.Upsert("testhash", recentEntry1)
 	require.NoError(t, err)
-	err = store.Upsert(recentEntry2)
+	err = store.Upsert("testhash", recentEntry2)
 	require.NoError(t, err)
 
-	stackCtx := history.StackContext{
-		Organization: "org",
-		Project:      "proj",
-		Stack:        "dev",
-	}
-
-	allBefore, err := store.GetAllForStack(stackCtx.Hash(), 0, time.Now().Unix())
+	allBefore, err := store.GetAllForStack("testhash", 0, time.Now().Unix())
 	require.NoError(t, err)
 	assert.Len(t, allBefore, 5, "all 5 entries should exist before cleanup")
 
@@ -174,7 +154,7 @@ func TestCleanupExpired_ReturnsCorrectCount(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 3, count, "cleanup should remove 3 old entries")
 
-	allAfter, err := store.GetAllForStack(stackCtx.Hash(), 0, time.Now().Unix())
+	allAfter, err := store.GetAllForStack("testhash", 0, time.Now().Unix())
 	require.NoError(t, err)
 	assert.Len(t, allAfter, 2, "only 2 recent entries should remain")
 }

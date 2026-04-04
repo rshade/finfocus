@@ -258,6 +258,9 @@ func (s *Server) Analyze(
 	// Calculate costs using the engine
 	costs, calcErr := s.calculator.GetProjectedCost(ctx, []engine.ResourceDescriptor{resource})
 	if calcErr != nil {
+		// Record analyzer event even on failure so history captures the cloud ID.
+		s.recordAnalyzerEvent(ctx, req)
+
 		// Cache a zero-cost error result so AnalyzeStack can see that the resource
 		// was attempted. Without this, failed resources are invisible to the stack summary.
 		errResult := engine.CostResult{

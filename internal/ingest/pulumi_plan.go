@@ -151,9 +151,9 @@ func (p *PulumiPlan) GetResourcesWithContext(ctx context.Context) []PulumiResour
 		switch step.Op {
 		case "create", "update", "same":
 			resources = append(resources, extractForwardResource(step))
-		case "replace":
+		case "replace", "create-replacement":
 			resources = append(resources, extractReplaceResource(step))
-		case "delete":
+		case "delete", "delete-replaced":
 			resources = append(resources, extractDeleteResource(step))
 		default:
 			skippedOps = append(skippedOps, step.Op)
@@ -181,15 +181,18 @@ func (p *PulumiPlan) GetResourcesWithContext(ctx context.Context) []PulumiResour
 }
 
 // extractForwardResource extracts a resource from a create/update/same step.
+// Prefers NewState fields over top-level step fields, falling back to step-level
+// and URN-derived values when NewState is nil or its fields are empty.
 func extractForwardResource(step PulumiStep) PulumiResource {
 	resType := step.Type
 	inputs := step.Inputs
 
+	// Prefer NewState as source of truth (richer data from engine).
 	if step.NewState != nil {
-		if resType == "" {
+		if step.NewState.Type != "" {
 			resType = step.NewState.Type
 		}
-		if inputs == nil {
+		if step.NewState.Inputs != nil {
 			inputs = step.NewState.Inputs
 		}
 	}
@@ -216,17 +219,18 @@ func extractForwardResource(step PulumiStep) PulumiResource {
 	return res
 }
 
-// extractReplaceResource extracts a resource from a replace step.
-// Uses NewState for inputs (the replacement resource), populates both OldID and NewID.
+// extractReplaceResource extracts a resource from a replace or create-replacement step.
+// Prefers NewState for type/inputs (the replacement resource), populates both OldID and NewID.
 func extractReplaceResource(step PulumiStep) PulumiResource {
 	resType := step.Type
 	inputs := step.Inputs
 
+	// Prefer NewState as source of truth (richer data from engine).
 	if step.NewState != nil {
-		if resType == "" {
+		if step.NewState.Type != "" {
 			resType = step.NewState.Type
 		}
-		if inputs == nil {
+		if step.NewState.Inputs != nil {
 			inputs = step.NewState.Inputs
 		}
 	}
@@ -253,17 +257,18 @@ func extractReplaceResource(step PulumiStep) PulumiResource {
 	return res
 }
 
-// extractDeleteResource extracts a resource from a delete step.
-// Uses OldState for type/inputs (the resource being removed), populates OldID.
+// extractDeleteResource extracts a resource from a delete or delete-replaced step.
+// Prefers OldState for type/inputs (the resource being removed), populates OldID.
 func extractDeleteResource(step PulumiStep) PulumiResource {
 	resType := step.Type
 	inputs := step.Inputs
 
+	// Prefer OldState as source of truth for deletions (richer data from engine).
 	if step.OldState != nil {
-		if resType == "" {
+		if step.OldState.Type != "" {
 			resType = step.OldState.Type
 		}
-		if inputs == nil {
+		if step.OldState.Inputs != nil {
 			inputs = step.OldState.Inputs
 		}
 	}

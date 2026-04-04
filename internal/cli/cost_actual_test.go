@@ -1228,3 +1228,36 @@ func TestMergeHistoricalResources_NilHistoryStoreNoRegression(t *testing.T) {
 	assert.Equal(t, "i-original", result[0].Properties["pulumi:cloudId"])
 	assert.Equal(t, "my-bucket", result[1].Properties["pulumi:cloudId"])
 }
+
+func TestMergeHistoricalResources_CollisionDifferentProviders(t *testing.T) {
+	// Two different resources (different URNs/providers) with the same cloud ID.
+	// Both should be preserved — deduplication should be (URN, CloudID) scoped.
+	current := []engine.ResourceDescriptor{
+		{
+			ID:       "urn:pulumi:aws:ec2:instance:Web",
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-shared-id",
+			},
+		},
+	}
+
+	historical := []history.HistoricalResource{
+		{
+			URN:      "urn:pulumi:azure:compute:vm:Web",
+			Type:     "azure:compute/virtualMachine:VirtualMachine",
+			Provider: "azure",
+			CloudIDs: []string{"i-shared-id"},
+		},
+	}
+
+	result := cli.MergeHistoricalResources(current, historical)
+
+	// Should have 2: both resources with same cloud ID but different URNs are preserved
+	require.Len(t, result, 2)
+	assert.Equal(t, "i-shared-id", result[0].Properties["pulumi:cloudId"])
+	assert.Equal(t, "i-shared-id", result[1].Properties["pulumi:cloudId"])
+	assert.Equal(t, "aws", result[0].Provider)
+	assert.Equal(t, "azure", result[1].Provider)
+}

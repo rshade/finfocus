@@ -54,14 +54,10 @@ func TestNewBoltStore_Disabled(t *testing.T) {
 	assert.False(t, store.IsEnabled())
 
 	entry := newTestEntry("urn:pulumi:aws::resource", "i-12345")
-	err = store.Upsert(entry)
+	err = store.Upsert("testhash", entry)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 	urnHash := history.URNHash(entry.URN)
 
 	results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix())
@@ -104,14 +100,10 @@ func TestBoltStore_Upsert_NewEntry(t *testing.T) {
 	defer store.Close()
 
 	entry := newTestEntry("urn:pulumi:aws:ec2:instance:MyInstance", "i-12345")
-	err = store.Upsert(entry)
+	err = store.Upsert("testhash", entry)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "my-org",
-		Project:      "my-proj",
-		Stack:        "my-stack",
-	}.Hash()
+	stackHash := "testhash"
 	urnHash := history.URNHash(entry.URN)
 
 	results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
@@ -144,7 +136,7 @@ func TestBoltStore_Upsert_UpdateLastSeen(t *testing.T) {
 		Tags:      map[string]string{},
 	}
 
-	err = store.Upsert(entry1)
+	err = store.Upsert("testhash", entry1)
 	require.NoError(t, err)
 
 	laterTime := now + 3600
@@ -159,14 +151,10 @@ func TestBoltStore_Upsert_UpdateLastSeen(t *testing.T) {
 		Tags:      map[string]string{},
 	}
 
-	err = store.Upsert(entry2)
+	err = store.Upsert("testhash", entry2)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "my-org",
-		Project:      "my-proj",
-		Stack:        "my-stack",
-	}.Hash()
+	stackHash := "testhash"
 	urnHash := history.URNHash(entry1.URN)
 
 	results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, laterTime+3600)
@@ -208,17 +196,13 @@ func TestBoltStore_Upsert_DifferentCloudID(t *testing.T) {
 		Tags:      map[string]string{},
 	}
 
-	err = store.Upsert(entry1)
+	err = store.Upsert("testhash", entry1)
 	require.NoError(t, err)
 
-	err = store.Upsert(entry2)
+	err = store.Upsert("testhash", entry2)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "my-org",
-		Project:      "my-proj",
-		Stack:        "my-stack",
-	}.Hash()
+	stackHash := "testhash"
 	urnHash := history.URNHash(entry1.URN)
 
 	results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, now+3600)
@@ -289,14 +273,10 @@ func TestBoltStore_UpsertBatch(t *testing.T) {
 		},
 	}
 
-	err = store.UpsertBatch(entries)
+	err = store.UpsertBatch("testhash", entries)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	for _, entry := range entries {
 		urnHash := history.URNHash(entry.URN)
@@ -347,14 +327,10 @@ func TestBoltStore_GetCloudIDsForURN_TimeFilter(t *testing.T) {
 		},
 	}
 
-	err = store.UpsertBatch(entries)
+	err = store.UpsertBatch("testhash", entries)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 	urnHash := history.URNHash("urn:pulumi:aws:ec2:instance:MyInstance")
 
 	results, err := store.GetCloudIDsForURN(stackHash, urnHash, now-3000, now+1000)
@@ -406,14 +382,10 @@ func TestBoltStore_GetAllForStack(t *testing.T) {
 		},
 	}
 
-	err = store.UpsertBatch(entries)
+	err = store.UpsertBatch("testhash", entries)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	results, err := store.GetAllForStack(stackHash, 0, now+3600)
 	require.NoError(t, err)
@@ -468,14 +440,10 @@ func TestBoltStore_GetAllForStack_TimeFilter(t *testing.T) {
 		},
 	}
 
-	err = store.UpsertBatch(entries)
+	err = store.UpsertBatch("testhash", entries)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	results, err := store.GetAllForStack(stackHash, now-3000, now+1000)
 	require.NoError(t, err)
@@ -498,7 +466,7 @@ func TestBoltStore_CorruptionRecovery(t *testing.T) {
 	require.NoError(t, err)
 
 	entry := newTestEntry("urn:pulumi:aws:ec2:instance:MyInstance", "i-12345")
-	err = store.Upsert(entry)
+	err = store.Upsert("testhash", entry)
 	require.NoError(t, err)
 
 	err = store.Close()
@@ -583,17 +551,13 @@ func TestBoltStore_SameCloudID_DifferentURNs(t *testing.T) {
 		Source:    history.SourceStateSnapshot,
 	}
 
-	err = store.Upsert(entry1)
+	err = store.Upsert("testhash", entry1)
 	require.NoError(t, err)
 
-	err = store.Upsert(entry2)
+	err = store.Upsert("testhash", entry2)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	urnHash1 := history.URNHash(entry1.URN)
 	results1, err := store.GetCloudIDsForURN(stackHash, urnHash1, 0, now+3600)
@@ -615,11 +579,7 @@ func TestBoltStore_GetDeletedResources_Empty(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	now := time.Now().Unix()
 	results, err := store.GetDeletedResources(stackHash, map[string]bool{}, now-10000, now+3600)
@@ -655,14 +615,10 @@ func TestBoltStore_GetDeletedResources_WithCurrent(t *testing.T) {
 		Source:    history.SourceStateSnapshot,
 	}
 
-	err = store.UpsertBatch([]history.ResourceHistoryEntry{entry1, entry2})
+	err = store.UpsertBatch("testhash", []history.ResourceHistoryEntry{entry1, entry2})
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	urnHash1 := history.URNHash(entry1.URN)
 	currentURNHashes := map[string]bool{
@@ -707,18 +663,14 @@ func TestBoltStore_CleanupExpired(t *testing.T) {
 		},
 	}
 
-	err = store.UpsertBatch(entries)
+	err = store.UpsertBatch("testhash", entries)
 	require.NoError(t, err)
 
 	count, err := store.CleanupExpired(7)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	results, err := store.GetAllForStack(stackHash, 0, now+3600)
 	require.NoError(t, err)
@@ -738,14 +690,10 @@ func TestBoltStore_Disabled_UpsertBatch_NoOp(t *testing.T) {
 		newTestEntry("urn:pulumi:aws:ec2:instance:Instance2", "i-10002"),
 	}
 
-	err = store.UpsertBatch(entries)
+	err = store.UpsertBatch("testhash", entries)
 	require.NoError(t, err)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	results, err := store.GetAllForStack(stackHash, 0, time.Now().Unix()+3600)
 	require.NoError(t, err)
@@ -806,7 +754,7 @@ func BenchmarkBoltStore_UpsertBatch(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		if err := store.UpsertBatch(entries); err != nil {
+		if err := store.UpsertBatch("testhash", entries); err != nil {
 			b.Fatalf("UpsertBatch failed: %v", err)
 		}
 	}
@@ -834,15 +782,11 @@ func BenchmarkBoltStore_GetAllForStack(b *testing.B) {
 			Source:    history.SourceStateSnapshot,
 		}
 	}
-	if err := store.UpsertBatch(entries); err != nil {
+	if err := store.UpsertBatch("testhash", entries); err != nil {
 		b.Fatalf("setup UpsertBatch failed: %v", err)
 	}
 
-	stackHash := history.StackContext{
-		Organization: "bench-org",
-		Project:      "bench-proj",
-		Stack:        "bench-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	b.ResetTimer()
 	for b.Loop() {
@@ -878,14 +822,14 @@ func TestBoltStore_GetDeletedResources_ReturnsDeletedOnly(t *testing.T) {
 		FirstSeen: now - 3600, LastSeen: now, Source: history.SourceStateSnapshot,
 		Tags: map[string]string{},
 	}
-	require.NoError(t, store.UpsertBatch([]history.ResourceHistoryEntry{webEntry, dbEntry}))
+	require.NoError(t, store.UpsertBatch("testhash", []history.ResourceHistoryEntry{webEntry, dbEntry}))
 
 	// Current state has "web" but NOT "db" → "db" is deleted
 	currentURNHashes := map[string]bool{
 		history.URNHash(webEntry.URN): true,
 	}
 
-	results, getErr := store.GetDeletedResources("", currentURNHashes, now-7200, now+3600)
+	results, getErr := store.GetDeletedResources("testhash", currentURNHashes, now-7200, now+3600)
 	require.NoError(t, getErr)
 	require.Len(t, results, 1, "only the deleted resource should be returned")
 	assert.Equal(t, "db-abc", results[0].CloudID)
@@ -906,14 +850,14 @@ func TestBoltStore_GetDeletedResources_ExcludesCurrentResources(t *testing.T) {
 		FirstSeen: now - 3600, LastSeen: now, Source: history.SourceStateSnapshot,
 		Tags: map[string]string{},
 	}
-	require.NoError(t, store.Upsert(entry))
+	require.NoError(t, store.Upsert("testhash", entry))
 
 	// Resource IS in current state → should be excluded
 	currentURNHashes := map[string]bool{
 		history.URNHash(entry.URN): true,
 	}
 
-	results, getErr := store.GetDeletedResources("", currentURNHashes, now-7200, now+3600)
+	results, getErr := store.GetDeletedResources("testhash", currentURNHashes, now-7200, now+3600)
 	require.NoError(t, getErr)
 	assert.Empty(t, results, "current resources should be excluded")
 }
@@ -941,13 +885,13 @@ func TestBoltStore_GetDeletedResources_TimeRangeFilter(t *testing.T) {
 		FirstSeen: now - 3600, LastSeen: now, Source: history.SourceStateSnapshot,
 		Tags: map[string]string{},
 	}
-	require.NoError(t, store.UpsertBatch([]history.ResourceHistoryEntry{oldEntry, recentEntry}))
+	require.NoError(t, store.UpsertBatch("testhash", []history.ResourceHistoryEntry{oldEntry, recentEntry}))
 
 	// Neither in current state → both are deleted
 	currentURNHashes := map[string]bool{}
 
 	// Query only the last 24 hours
-	results, getErr := store.GetDeletedResources("", currentURNHashes, now-86400, now+3600)
+	results, getErr := store.GetDeletedResources("testhash", currentURNHashes, now-86400, now+3600)
 	require.NoError(t, getErr)
 	require.Len(t, results, 1, "only the resource within time range should be returned")
 	assert.Equal(t, "i-recent", results[0].CloudID)
@@ -961,7 +905,7 @@ func TestBoltStore_GetDeletedResources_EmptyStore(t *testing.T) {
 	defer store.Close()
 
 	now := time.Now().Unix()
-	results, getErr := store.GetDeletedResources("", map[string]bool{}, now-3600, now+3600)
+	results, getErr := store.GetDeletedResources("testhash", map[string]bool{}, now-3600, now+3600)
 	require.NoError(t, getErr)
 	assert.Empty(t, results, "empty store should return empty results")
 }
@@ -1109,18 +1053,14 @@ func TestBoltStore_CleanupExpired_WithTags(t *testing.T) {
 		},
 	}
 
-	err = store.UpsertBatch(entries)
+	err = store.UpsertBatch("testhash", entries)
 	require.NoError(t, err)
 
 	count, cleanErr := store.CleanupExpired(7)
 	require.NoError(t, cleanErr)
 	assert.Equal(t, 1, count)
 
-	stackHash := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}.Hash()
+	stackHash := "testhash"
 
 	remaining, getErr := store.GetAllForStack(stackHash, 0, now+3600)
 	require.NoError(t, getErr)

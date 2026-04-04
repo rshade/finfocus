@@ -28,7 +28,13 @@ func (s *BoltStore) cleanupExpiredEntries(retentionDays int) (int, error) {
 		deleted = s.deleteExpiredFromBucket(historyBucket, cutoff, expiredURNHashes)
 
 		if len(expiredURNHashes) > 0 {
-			s.cleanupExpiredTags(tx, expiredURNHashes)
+			// Only purge tags for URNs that have zero remaining entries.
+			// A URN may have both expired and retained entries (different
+			// cloud IDs); removing tags for retained entries would be wrong.
+			purgeable := s.filterFullyExpiredURNs(historyBucket, expiredURNHashes)
+			if len(purgeable) > 0 {
+				s.cleanupExpiredTags(tx, purgeable)
+			}
 		}
 
 		return nil
@@ -76,6 +82,34 @@ func (s *BoltStore) deleteExpiredFromBucket(
 	}
 
 	return deleted
+}
+
+// filterFullyExpiredURNs returns the subset of expiredURNHashes that have
+// zero remaining entries in the history bucket. URN hashes that still have
+// at least one retained entry are excluded so their tags are preserved.
+func (s *BoltStore) filterFullyExpiredURNs(
+	historyBucket *bolt.Bucket, expiredURNHashes map[string]bool,
+) map[string]bool {
+	purgeable := make(map[string]bool, len(expiredURNHashes))
+	for urnHash := range expiredURNHashes {
+		purgeable[urnHash] = true
+	}
+
+	c := historyBucket.Cursor()
+	for k, _ := c.First(); k != nil; k, _ = c.Next() {
+		keyStr := string(k)
+		slashIdx := strings.Index(keyStr, "/")
+		if slashIdx < 0 {
+			continue
+		}
+		keyURNHash := keyStr[:slashIdx]
+		if purgeable[keyURNHash] {
+			// This URN still has at least one retained entry — don't purge tags.
+			delete(purgeable, keyURNHash)
+		}
+	}
+
+	return purgeable
 }
 
 // cleanupExpiredTags removes tag entries whose URN hash is in the expired set.

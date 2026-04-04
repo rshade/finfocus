@@ -41,9 +41,12 @@ const (
 // Store defines the interface for resource history persistence.
 // It follows the same optional-dependency pattern as cache.Cache.
 // When nil or disabled, callers degrade gracefully to current behavior.
+//
+// All write and read methods accept a stackHash parameter to scope entries
+// per Pulumi stack. Use StackContext.Hash() to obtain the stackHash.
 type Store interface {
-	Upsert(entry ResourceHistoryEntry) error
-	UpsertBatch(entries []ResourceHistoryEntry) error
+	Upsert(stackHash string, entry ResourceHistoryEntry) error
+	UpsertBatch(stackHash string, entries []ResourceHistoryEntry) error
 	GetCloudIDsForURN(stackHash, urnHash string, from, to int64) ([]ResourceHistoryEntry, error)
 	GetAllForStack(stackHash string, from, to int64) ([]ResourceHistoryEntry, error)
 	GetDeletedResources(
@@ -170,26 +173,27 @@ func (s *BoltStore) initBuckets() error {
 
 // Upsert records a single resource observation.
 // If the (URN, CloudID) pair already exists for this stack, only LastSeen is updated.
-func (s *BoltStore) Upsert(entry ResourceHistoryEntry) error {
+// The stackHash scopes entries per Pulumi stack.
+func (s *BoltStore) Upsert(stackHash string, entry ResourceHistoryEntry) error {
 	if !s.enabled {
 		return nil
 	}
 
 	return s.db.Batch(func(tx *bolt.Tx) error {
-		return s.upsertInTx(tx, entry)
+		return s.upsertInTx(tx, stackHash, entry)
 	})
 }
 
 // UpsertBatch records multiple resource observations atomically using db.Batch()
-// for coalesced writes.
-func (s *BoltStore) UpsertBatch(entries []ResourceHistoryEntry) error {
+// for coalesced writes. The stackHash scopes entries per Pulumi stack.
+func (s *BoltStore) UpsertBatch(stackHash string, entries []ResourceHistoryEntry) error {
 	if !s.enabled {
 		return nil
 	}
 
 	return s.db.Batch(func(tx *bolt.Tx) error {
 		for i := range entries {
-			if err := s.upsertInTx(tx, entries[i]); err != nil {
+			if err := s.upsertInTx(tx, stackHash, entries[i]); err != nil {
 				return err
 			}
 		}
@@ -198,15 +202,15 @@ func (s *BoltStore) UpsertBatch(entries []ResourceHistoryEntry) error {
 }
 
 // upsertInTx performs a single upsert within a transaction.
-// Key format: {urn_hash}/{cloud_id}. Stack-scoping is handled by the writer layer.
-func (s *BoltStore) upsertInTx(tx *bolt.Tx, entry ResourceHistoryEntry) error {
+// Key format: {stackHash}/{urnHash}/{cloudID} via BuildHistoryKey.
+func (s *BoltStore) upsertInTx(tx *bolt.Tx, stackHash string, entry ResourceHistoryEntry) error {
 	b := tx.Bucket([]byte(BucketResourceHistory))
 	if b == nil {
 		return fmt.Errorf("bucket %q does not exist", BucketResourceHistory)
 	}
 
 	urnHash := URNHash(entry.URN)
-	key := urnHash + "/" + entry.CloudID
+	key := BuildHistoryKey(stackHash, urnHash, entry.CloudID)
 
 	if updated, err := s.tryUpdateExisting(b, key, entry); err != nil {
 		return err
@@ -223,7 +227,7 @@ func (s *BoltStore) upsertInTx(tx *bolt.Tx, entry ResourceHistoryEntry) error {
 		return putErr
 	}
 
-	s.upsertTags(tx, entry, urnHash)
+	s.upsertTags(tx, stackHash, entry, urnHash)
 	return nil
 }
 
@@ -277,7 +281,7 @@ func (s *BoltStore) tryUpdateExisting(
 }
 
 // upsertTags updates the resource_tags bucket for tag-based lookups.
-func (s *BoltStore) upsertTags(tx *bolt.Tx, entry ResourceHistoryEntry, urnHash string) {
+func (s *BoltStore) upsertTags(tx *bolt.Tx, stackHash string, entry ResourceHistoryEntry, urnHash string) {
 	if len(entry.Tags) == 0 {
 		return
 	}
@@ -288,7 +292,7 @@ func (s *BoltStore) upsertTags(tx *bolt.Tx, entry ResourceHistoryEntry, urnHash 
 	}
 
 	for tagKey, tagValue := range entry.Tags {
-		tagKeyStr := tagKey + ":" + tagValue + "/" + urnHash
+		tagKeyStr := BuildTagKey(stackHash, tagKey, tagValue, urnHash)
 		tagEntry := map[string]any{
 			"tag_key":    tagKey,
 			"tag_value":  tagValue,
@@ -299,23 +303,29 @@ func (s *BoltStore) upsertTags(tx *bolt.Tx, entry ResourceHistoryEntry, urnHash 
 		}
 		tagData, tagMarshalErr := json.Marshal(tagEntry)
 		if tagMarshalErr != nil {
+			s.logger.Debug().Err(tagMarshalErr).
+				Str("tag_key", tagKey).Str("tag_value", tagValue).Str("urn_hash", urnHash).
+				Msg("failed to marshal tag entry")
 			continue
 		}
-		_ = tagBucket.Put([]byte(tagKeyStr), tagData)
+		if putErr := tagBucket.Put([]byte(tagKeyStr), tagData); putErr != nil {
+			s.logger.Debug().Err(putErr).
+				Str("tag_key", tagKey).Str("tag_value", tagValue).Str("urn_hash", urnHash).
+				Msg("failed to store tag entry")
+		}
 	}
 }
 
 // GetCloudIDsForURN returns all cloud IDs ever observed for a URN,
 // filtered to entries where [FirstSeen, LastSeen] overlaps [from, to].
-// The stackHash parameter is accepted for interface compatibility but
-// not used as a key prefix — stack-scoping is handled by the writer layer.
-func (s *BoltStore) GetCloudIDsForURN(_, urnHash string, from, to int64) ([]ResourceHistoryEntry, error) {
+// Results are scoped to the given stackHash.
+func (s *BoltStore) GetCloudIDsForURN(stackHash, urnHash string, from, to int64) ([]ResourceHistoryEntry, error) {
 	if !s.enabled {
 		return nil, nil
 	}
 
 	var results []ResourceHistoryEntry
-	prefix := []byte(urnHash + "/")
+	prefix := []byte(stackHash + "/" + urnHash + "/")
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BucketResourceHistory))
@@ -343,13 +353,14 @@ func (s *BoltStore) GetCloudIDsForURN(_, urnHash string, from, to int64) ([]Reso
 
 // GetAllForStack returns all history entries for a stack,
 // filtered to entries where [FirstSeen, LastSeen] overlaps [from, to].
-// The stackHash parameter is accepted for interface compatibility.
-func (s *BoltStore) GetAllForStack(_ string, from, to int64) ([]ResourceHistoryEntry, error) {
+// Results are scoped to the given stackHash via key prefix scan.
+func (s *BoltStore) GetAllForStack(stackHash string, from, to int64) ([]ResourceHistoryEntry, error) {
 	if !s.enabled {
 		return nil, nil
 	}
 
 	var results []ResourceHistoryEntry
+	prefix := []byte(stackHash + "/")
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BucketResourceHistory))
@@ -358,7 +369,7 @@ func (s *BoltStore) GetAllForStack(_ string, from, to int64) ([]ResourceHistoryE
 		}
 
 		c := b.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
+		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
 			var entry ResourceHistoryEntry
 			if unmarshalErr := json.Unmarshal(v, &entry); unmarshalErr != nil {
 				s.logger.Debug().Err(unmarshalErr).Str("key", string(k)).Msg("skipping corrupt entry")
@@ -377,9 +388,9 @@ func (s *BoltStore) GetAllForStack(_ string, from, to int64) ([]ResourceHistoryE
 
 // GetDeletedResources returns history entries that exist in the store
 // but are NOT in the provided set of current URN hashes.
-// The stackHash parameter is accepted for interface compatibility.
+// Results are scoped to the given stackHash via key prefix scan.
 func (s *BoltStore) GetDeletedResources(
-	_ string, currentURNHashes map[string]bool, from, to int64,
+	stackHash string, currentURNHashes map[string]bool, from, to int64,
 ) ([]ResourceHistoryEntry, error) {
 	if !s.enabled {
 		return nil, nil
@@ -387,6 +398,7 @@ func (s *BoltStore) GetDeletedResources(
 
 	var results []ResourceHistoryEntry
 	seen := make(map[string]bool)
+	prefix := []byte(stackHash + "/")
 
 	err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(BucketResourceHistory))
@@ -395,7 +407,7 @@ func (s *BoltStore) GetDeletedResources(
 		}
 
 		c := b.Cursor()
-		for k, v := c.First(); k != nil; k, v = c.Next() {
+		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
 			var entry ResourceHistoryEntry
 			if unmarshalErr := json.Unmarshal(v, &entry); unmarshalErr != nil {
 				continue

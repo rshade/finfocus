@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"strings"
 )
 
 // StackContext contains the identity of a Pulumi stack.
@@ -14,9 +15,15 @@ type StackContext struct {
 }
 
 // Hash returns a 16-character hex hash of the stack context.
-// The hash is computed from the string "{Organization}/{Project}/{Stack}".
+// The stack is canonicalized to "org/project/stack" form before hashing
+// so that equivalent stacks (e.g. "dev" vs "org/project/dev") produce
+// identical hashes.
 func (sc StackContext) Hash() string {
-	s := fmt.Sprintf("%s/%s/%s", sc.Organization, sc.Project, sc.Stack)
+	stack := sc.Stack
+	if stack != "" && !strings.Contains(stack, "/") {
+		stack = fmt.Sprintf("%s/%s/%s", sc.Organization, sc.Project, stack)
+	}
+	s := fmt.Sprintf("%s/%s/%s", sc.Organization, sc.Project, stack)
 	h := sha256.Sum256([]byte(s))
 	return hex.EncodeToString(h[:])[0:16]
 }

@@ -1412,6 +1412,12 @@ func runBackgroundPreview(
 		Dur("dur", time.Since(previewStart)).
 		Msg("background preview completed")
 
+	// Record plan lineage to history store (fire-and-forget).
+	cfg := config.New()
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg)
+	recordHistoryPlanLineage(ctx, historyStore, planSteps)
+	historyCleanup()
+
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	statusByURN := engine.BuildStatusByURN(planSteps)
 	propertyDiffsByURN := engine.BuildPropertyDiffsByURN(planSteps)

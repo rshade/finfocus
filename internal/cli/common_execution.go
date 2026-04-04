@@ -822,7 +822,8 @@ func convertEnginePlanStepsToHistoryPlanSteps(steps []engine.PlanStep) []history
 }
 
 // detectHistoryStackContext attempts to detect the Pulumi project and stack
-// for history scoping. Returns a zero-value StackContext if detection fails.
+// for history scoping. Returns a zero-value StackContext if either project
+// name or stack cannot be fully resolved (avoids partial contexts).
 func detectHistoryStackContext(ctx context.Context) history.StackContext {
 	log := logging.FromContext(ctx)
 
@@ -834,15 +835,24 @@ func detectHistoryStackContext(ctx context.Context) history.StackContext {
 		return history.StackContext{}
 	}
 
+	projectName, nameErr := pulumidetect.GetProjectName(projectDir)
+	if nameErr != nil {
+		log.Debug().Ctx(ctx).Err(nameErr).
+			Str("component", "history").
+			Msg("could not read Pulumi project name, using empty stack context")
+		return history.StackContext{}
+	}
+
 	stack, stackErr := pulumidetect.GetCurrentStack(ctx, projectDir)
-	if stackErr != nil {
+	if stackErr != nil || stack == "" {
 		log.Debug().Ctx(ctx).Err(stackErr).
 			Str("component", "history").
-			Msg("could not detect current stack")
+			Msg("could not detect current stack, using empty stack context")
+		return history.StackContext{}
 	}
 
 	return history.StackContext{
-		Project: filepath.Base(projectDir),
+		Project: projectName,
 		Stack:   stack,
 	}
 }
@@ -867,13 +877,8 @@ func initHistoryFromConfig(ctx context.Context, cfg *config.Config) (history.Sto
 	if cfg.Cost.History.RetentionDays > 0 {
 		retentionDays = cfg.Cost.History.RetentionDays
 	}
-	// Apply default: history is enabled unless explicitly disabled in config.
-	// When History.Enabled is the zero value (false) and no history-specific
-	// fields are set, use the compile-time default (HistoryDefaultEnabled=true).
-	enabled := cfg.Cost.History.Enabled
-	if !enabled && cfg.Cost.History.RetentionDays == 0 && cfg.Cost.History.Directory == "" {
-		enabled = config.HistoryDefaultEnabled
-	}
+	// Use IsEnabled() which handles nil (omitted) vs explicit false correctly.
+	enabled := cfg.Cost.History.IsEnabled()
 
 	// Override with env vars
 	if envEnabled := os.Getenv(config.HistoryEnvEnabled); envEnabled != "" {

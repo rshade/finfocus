@@ -71,7 +71,7 @@ func NewWriter(store Store, logger zerolog.Logger) *Writer {
 // Resources with empty CloudID are skipped (logged at debug level).
 // If the store is nil or disabled, this is a no-op.
 // Errors during store operations are logged as warnings but not propagated (fire-and-forget).
-func (w *Writer) RecordStateSnapshot(_ StackContext, resources []StateResource) {
+func (w *Writer) RecordStateSnapshot(stackCtx StackContext, resources []StateResource) {
 	if w.store == nil || !w.store.IsEnabled() {
 		return
 	}
@@ -105,7 +105,7 @@ func (w *Writer) RecordStateSnapshot(_ StackContext, resources []StateResource) 
 		return
 	}
 
-	if err := w.store.UpsertBatch(entries); err != nil {
+	if err := w.store.UpsertBatch(stackCtx.Hash(), entries); err != nil {
 		w.logger.Warn().Err(err).Int("count", len(entries)).Msg("failed to record state snapshot")
 	}
 }
@@ -116,7 +116,7 @@ func (w *Writer) RecordStateSnapshot(_ StackContext, resources []StateResource) 
 // Steps where both cloud IDs are empty are skipped.
 // If the store is nil or disabled, this is a no-op.
 // Errors are logged as warnings but not propagated (fire-and-forget).
-func (w *Writer) RecordPlanLineage(_ StackContext, steps []PlanStep) {
+func (w *Writer) RecordPlanLineage(stackCtx StackContext, steps []PlanStep) {
 	if w.store == nil || !w.store.IsEnabled() {
 		return
 	}
@@ -157,7 +157,7 @@ func (w *Writer) RecordPlanLineage(_ StackContext, steps []PlanStep) {
 		return
 	}
 
-	if err := w.store.UpsertBatch(entries); err != nil {
+	if err := w.store.UpsertBatch(stackCtx.Hash(), entries); err != nil {
 		w.logger.Warn().Err(err).Int("count", len(entries)).Msg("failed to record plan lineage")
 	}
 }
@@ -168,7 +168,7 @@ func (w *Writer) RecordPlanLineage(_ StackContext, steps []PlanStep) {
 // no concrete cloud identity to track.
 // If the store is nil or disabled, this is a no-op.
 // Errors are logged as warnings but not propagated (fire-and-forget).
-func (w *Writer) RecordAnalyzerEvent(_ StackContext, event AnalyzerResource) {
+func (w *Writer) RecordAnalyzerEvent(stackCtx StackContext, event AnalyzerResource) {
 	if w.store == nil || !w.store.IsEnabled() {
 		return
 	}
@@ -192,7 +192,7 @@ func (w *Writer) RecordAnalyzerEvent(_ StackContext, event AnalyzerResource) {
 		Tags:      make(map[string]string),
 	}
 
-	if err := w.store.Upsert(entry); err != nil {
+	if err := w.store.Upsert(stackCtx.Hash(), entry); err != nil {
 		w.logger.Warn().Err(err).
 			Str("urn", event.URN).
 			Str("cloud_id", event.CloudID).

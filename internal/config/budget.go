@@ -202,13 +202,31 @@ const (
 // HistoryConfig defines resource history tracking behavior.
 type HistoryConfig struct {
 	// Enabled controls whether history tracking is active (default: true).
-	Enabled bool `yaml:"enabled" json:"enabled"`
+	// Pointer type distinguishes explicit false from omitted (nil = use default).
+	Enabled *bool `yaml:"enabled" json:"enabled"`
 
 	// RetentionDays is the number of days before stale entries are removed (default: 90).
 	RetentionDays int `yaml:"retention_days" json:"retention_days"`
 
 	// Directory overrides the history directory path (default: ~/.finfocus/history).
 	Directory string `yaml:"directory,omitempty" json:"directory,omitempty"`
+}
+
+// IsEnabled returns whether history is enabled, respecting explicit false vs omitted.
+func (h HistoryConfig) IsEnabled() bool {
+	if h.Enabled == nil {
+		return HistoryDefaultEnabled
+	}
+	return *h.Enabled
+}
+
+// Validate checks if the history configuration is valid.
+// Returns an error for non-positive RetentionDays when explicitly set.
+func (h HistoryConfig) Validate() error {
+	if h.RetentionDays < 0 {
+		return fmt.Errorf("history retention_days must be non-negative, got %d", h.RetentionDays)
+	}
+	return nil
 }
 
 // Allocation validation limits.
@@ -290,6 +308,10 @@ func (c CostConfig) Validate() error {
 			return fmt.Errorf("budgets: %w", err)
 		}
 		// Warnings are non-fatal and available via GetBudgetsWarnings()
+	}
+
+	if err := c.History.Validate(); err != nil {
+		return fmt.Errorf("history: %w", err)
 	}
 
 	if err := c.Allocation.Validate(); err != nil {

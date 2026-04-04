@@ -188,13 +188,6 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 
 	recordDescriptorHistory(ctx, historyStore, resources)
 
-	resources, err = ApplyFilters(ctx, resources, params.filter)
-	if err != nil {
-		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
-		audit.logFailure(ctx, err)
-		return fmt.Errorf("applying filters: %w", err)
-	}
-
 	fromStr, err := resolveFromDate(ctx, params, resources)
 	if err != nil {
 		return err
@@ -207,7 +200,16 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		return fmt.Errorf("parsing time range: %w", err)
 	}
 
+	// Enrich with historical resources before filtering so merged entries
+	// are also subject to filter criteria.
 	resources = enrichWithHistoricalResources(ctx, historyStore, resources, from, to)
+
+	resources, err = ApplyFilters(ctx, resources, params.filter)
+	if err != nil {
+		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
+		audit.logFailure(ctx, err)
+		return fmt.Errorf("applying filters: %w", err)
+	}
 
 	request := buildActualCostRequest(params, resources, from, to)
 	start := time.Now()
@@ -740,12 +742,15 @@ func MergeHistoricalResources(
 		return current
 	}
 
-	// Build set of existing cloud IDs for deduplication
+	// Build set of existing (provider, cloudID) pairs for deduplication.
+	// Keyed by "provider|cloudID" composite to avoid collisions when different
+	// providers happen to share the same cloud ID string while still deduplicating
+	// same-provider entries correctly.
 	existingCloudIDs := make(map[string]bool)
 	for i := range current {
 		if cloudID, ok := current[i].Properties["pulumi:cloudId"]; ok {
 			if idStr, isStr := cloudID.(string); isStr {
-				existingCloudIDs[idStr] = true
+				existingCloudIDs[current[i].Provider+"|"+idStr] = true
 			}
 		}
 	}
@@ -755,11 +760,12 @@ func MergeHistoricalResources(
 
 	for _, hr := range historical {
 		for _, cloudID := range hr.CloudIDs {
-			if existingCloudIDs[cloudID] {
+			compositeKey := hr.Provider + "|" + cloudID
+			if existingCloudIDs[compositeKey] {
 				continue
 			}
 
-			existingCloudIDs[cloudID] = true
+			existingCloudIDs[compositeKey] = true
 			merged = append(merged, engine.ResourceDescriptor{
 				ID:       hr.URN,
 				Type:     hr.Type,
