@@ -35,6 +35,7 @@ service CostSourceService {
       returns (GetProjectedCostResponse);
   rpc GetPricingSpec(GetPricingSpecRequest)
       returns (GetPricingSpecResponse);
+  rpc BatchCost(BatchCostRequest) returns (BatchCostResponse);
 }
 ```
 
@@ -479,6 +480,138 @@ grpcurl -plaintext -d '{
     "description": "AWS EC2 t3.micro instance",
     "source": "vantage"
   }
+}
+```
+
+---
+
+### BatchCost
+
+Calculates cost for multiple resources in a single RPC call. This is an
+optional capability — plugins that do not implement it will return
+`UNIMPLEMENTED`, and the core falls back to per-resource cost calls.
+
+**Method:** `BatchCost(BatchCostRequest) BatchCostResponse`
+
+**Request:**
+
+```protobuf
+message BatchCostRequest {
+  repeated ResourceDescriptor resources = 1;
+  CostQueryType query_type = 2;
+  google.protobuf.Timestamp start = 3;
+  google.protobuf.Timestamp end = 4;
+}
+
+enum CostQueryType {
+  COST_QUERY_TYPE_UNSPECIFIED = 0;
+  COST_QUERY_TYPE_PROJECTED = 1;
+  COST_QUERY_TYPE_ACTUAL = 2;
+}
+```
+
+**Fields:**
+
+- `resources` (repeated ResourceDescriptor) - Resources to calculate costs
+  for
+- `query_type` (CostQueryType) - Whether to return projected or actual cost
+  data
+- `start` (Timestamp) - Start of time range (actual cost queries only)
+- `end` (Timestamp) - End of time range (actual cost queries only)
+
+**Response:**
+
+```protobuf
+message BatchCostResponse {
+  repeated ResourceCostResult results = 1;
+  int32 max_batch_size = 2;
+}
+
+message ResourceCostResult {
+  ResourceDescriptor resource = 1;
+  oneof result {
+    CostData cost_data = 2;
+    ResourceError error = 3;
+  }
+}
+
+message CostData {
+  oneof data {
+    GetProjectedCostResponse projected_cost = 1;
+    ActualCostData actual_cost = 2;
+  }
+}
+```
+
+**Fields (BatchCostResponse):**
+
+- `results` (repeated ResourceCostResult) - Per-resource results in the
+  same order as the request
+- `max_batch_size` (int32) - Optional hint for the maximum number of
+  resources the plugin can handle in a single batch; the core re-chunks
+  remaining resources when this is set
+
+**Fields (ResourceCostResult):**
+
+- `resource` (ResourceDescriptor) - The resource this result corresponds to
+- `cost_data` (CostData) - Cost data on success (projected or actual
+  depending on `query_type`)
+- `error` (ResourceError) - Per-resource error (e.g., unsupported type)
+
+**Example:**
+
+```bash
+# Request
+grpcurl -plaintext -d '{
+  "resources": [
+    {
+      "provider": "aws",
+      "resource_type": "ec2",
+      "sku": "t3.micro",
+      "region": "us-east-1"
+    },
+    {
+      "provider": "aws",
+      "resource_type": "s3",
+      "region": "us-east-1"
+    }
+  ],
+  "query_type": "COST_QUERY_TYPE_PROJECTED"
+}' localhost:50051 \
+  finfocus.v1.CostSourceService/BatchCost
+
+# Response
+{
+  "results": [
+    {
+      "resource": {
+        "provider": "aws",
+        "resource_type": "ec2",
+        "sku": "t3.micro",
+        "region": "us-east-1"
+      },
+      "costData": {
+        "projectedCost": {
+          "currency": "USD",
+          "costPerMonth": 7.592
+        }
+      }
+    },
+    {
+      "resource": {
+        "provider": "aws",
+        "resource_type": "s3",
+        "region": "us-east-1"
+      },
+      "costData": {
+        "projectedCost": {
+          "currency": "USD",
+          "costPerMonth": 0.023
+        }
+      }
+    }
+  ],
+  "maxBatchSize": 100
 }
 ```
 

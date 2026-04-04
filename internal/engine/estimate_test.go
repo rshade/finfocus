@@ -87,6 +87,12 @@ func (m *estimateMockPlugin) EstimateCost(
 	return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
 }
 
+func (m *estimateMockPlugin) BatchCost(
+	_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption,
+) (*pbc.BatchCostResponse, error) {
+	return &pbc.BatchCostResponse{}, nil
+}
+
 // errNoSpec is a sentinel error for missing specs in tests.
 var errNoSpec = errors.New("no spec available")
 

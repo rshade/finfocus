@@ -211,6 +211,7 @@ func TestConvertCapabilities(t *testing.T) {
 				pbc.PluginCapability_PLUGIN_CAPABILITY_PRICING_SPEC,
 				pbc.PluginCapability_PLUGIN_CAPABILITY_ESTIMATE_COST,
 				pbc.PluginCapability_PLUGIN_CAPABILITY_DISMISS_RECOMMENDATIONS,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST,
 			},
 			expected: []string{
 				"projected_costs",
@@ -224,6 +225,16 @@ func TestConvertCapabilities(t *testing.T) {
 				"pricing_spec",
 				"estimate_cost",
 				"dismiss_recommendations",
+				"batch_cost",
+			},
+		},
+		{
+			name: "BatchCostOnly",
+			input: []pbc.PluginCapability{
+				pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST,
+			},
+			expected: []string{
+				"batch_cost",
 			},
 		},
 		{

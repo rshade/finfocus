@@ -142,11 +142,13 @@ cat > ~/.finfocus/plugins/kubecost/1.0.0/plugin.manifest.json << EOF
   "name": "kubecost",
   "version": "1.0.0",
   "binary": "finfocus-kubecost",
-  "supports": ["projected_cost", "actual_cost"],
+  "supports": ["projected_cost", "actual_cost", "batch_cost"],
   "description": "Kubecost integration for Kubernetes cost analysis"
 }
 EOF
 ```
+
+> **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
 
 #### Package Manager Installation (Future)
 
@@ -535,7 +537,7 @@ Optional `plugin.manifest.json` file provides metadata:
   "version": "1.0.0",
   "description": "MyCloud cost integration plugin",
   "binary": "finfocus-mycloud",
-  "supports": ["projected_cost", "actual_cost"],
+  "supports": ["projected_cost", "actual_cost", "batch_cost"],
   "author": "Your Name",
   "homepage": "https://github.com/yourusername/finfocus-plugin-mycloud",
   "config": {
@@ -545,6 +547,8 @@ Optional `plugin.manifest.json` file provides metadata:
   }
 }
 ```
+
+> **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
 
 ### Authentication
 

@@ -33,8 +33,15 @@ service CostSourceService {
       returns (GetProjectedCostResponse);
   rpc GetPricingSpec(GetPricingSpecRequest)
       returns (GetPricingSpecResponse);
+  rpc BatchCost(BatchCostRequest) returns (BatchCostResponse);
 }
 ```
+
+The `BatchCost` RPC is OPTIONAL. Plugins that support it report
+`PLUGIN_CAPABILITY_BATCH_COST` in their capabilities. When supported,
+finfocus core sends multiple resource descriptors in a single RPC call
+instead of N individual calls, reducing round-trips for large stacks.
+Plugins that do not implement `BatchCost` are queried per-resource as before.
 
 ### ObservabilityService
 

@@ -107,6 +107,14 @@ func (m *mockCostSourceClient) EstimateCost(
 	return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
 }
 
+func (m *mockCostSourceClient) BatchCost(
+	_ context.Context,
+	_ *pbc.BatchCostRequest,
+	_ ...grpc.CallOption,
+) (*pbc.BatchCostResponse, error) {
+	return nil, errors.New("unexpected BatchCost call in budget tests")
+}
+
 func TestEngine_GetBudgets(t *testing.T) {
 	ctx := context.Background()
 
