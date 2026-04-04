@@ -210,7 +210,7 @@ func (e *Engine) executeBatchForPlugin(
 				Msg("adjusting chunk size based on plugin hint")
 			chunkSize = int(resp.GetMaxBatchSize())
 			// Re-chunk remaining resources with the new size
-			remaining := resources[0:0] // empty but typed
+			remaining := make([]indexedResource, 0)
 			for _, futureChunk := range chunks[chunkIdx+1:] {
 				remaining = append(remaining, futureChunk...)
 			}

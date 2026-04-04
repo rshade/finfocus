@@ -148,6 +148,8 @@ cat > ~/.finfocus/plugins/kubecost/1.0.0/plugin.manifest.json << EOF
 EOF
 ```
 
+> **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
+
 #### Package Manager Installation (Future)
 
 ```bash
@@ -545,6 +547,8 @@ Optional `plugin.manifest.json` file provides metadata:
   }
 }
 ```
+
+> **Note:** `batch_cost` is optional; when not implemented, the core falls back to per-resource cost calls.
 
 ### Authentication
 

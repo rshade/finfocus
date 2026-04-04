@@ -982,16 +982,36 @@ func (e *Engine) GetActualCostWithOptions(
 				continue // Non-batch plugins go through per-resource worker pool
 			}
 
+			// Apply adapter filter: skip plugins not matching explicit adapter selection
+			if request.Adapter != "" && pb.plugin.Name != request.Adapter {
+				continue
+			}
+
+			// Apply tag filter: only include resources matching request tags
+			batchResources := pb.resources
+			if len(request.Tags) > 0 {
+				var filtered []indexedResource
+				for _, ir := range pb.resources {
+					if MatchesTags(ir.resource, request.Tags) {
+						filtered = append(filtered, ir)
+					}
+				}
+				if len(filtered) == 0 {
+					continue
+				}
+				batchResources = filtered
+			}
+
 			log.Debug().
 				Ctx(ctx).
 				Str("component", "engine").
 				Str("operation", "batch_actual_cost").
 				Str("plugin", pb.plugin.Name).
-				Int("resource_count", len(pb.resources)).
+				Int("resource_count", len(batchResources)).
 				Msg("executing batch actual cost")
 
 			batchResults, batchErr := e.executeBatchForPlugin(
-				ctx, pb.plugin, pb.resources,
+				ctx, pb.plugin, batchResources,
 				batchOptions{
 					queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL,
 					start:     timestamppb.New(request.From),

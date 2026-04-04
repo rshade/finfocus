@@ -3097,6 +3097,11 @@ type mockPbcCostSourceServiceClient struct {
 		in *pbc.GetProjectedCostRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.GetProjectedCostResponse, error)
+	batchCostFunc func(
+		ctx context.Context,
+		in *pbc.BatchCostRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.BatchCostResponse, error)
 }
 
 func (m *mockPbcCostSourceServiceClient) Name(
@@ -3172,8 +3177,11 @@ func (m *mockPbcCostSourceServiceClient) GetBudgets(
 }
 
 func (m *mockPbcCostSourceServiceClient) BatchCost(
-	_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption,
+	ctx context.Context, in *pbc.BatchCostRequest, opts ...grpc.CallOption,
 ) (*pbc.BatchCostResponse, error) {
+	if m.batchCostFunc != nil {
+		return m.batchCostFunc(ctx, in, opts...)
+	}
 	return &pbc.BatchCostResponse{}, nil
 }
 
@@ -3737,7 +3745,7 @@ func TestClientAdapterBatchCost(t *testing.T) {
 		}
 
 		var capturedReq *pbc.BatchCostRequest
-		mock := &mockCostSourceClient{
+		mockGRPC := &mockPbcCostSourceServiceClient{
 			batchCostFunc: func(
 				_ context.Context,
 				in *pbc.BatchCostRequest,
@@ -3748,6 +3756,8 @@ func TestClientAdapterBatchCost(t *testing.T) {
 			},
 		}
 
+		adapter := &clientAdapter{client: mockGRPC}
+
 		req := &pbc.BatchCostRequest{
 			Resources: []*pbc.ResourceDescriptor{
 				{Id: "res-1", ResourceType: "aws:ec2:Instance"},
@@ -3755,7 +3765,7 @@ func TestClientAdapterBatchCost(t *testing.T) {
 			QueryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED,
 		}
 
-		resp, err := mock.BatchCost(context.Background(), req)
+		resp, err := adapter.BatchCost(context.Background(), req)
 		require.NoError(t, err)
 		assert.Equal(t, expectedResp, resp)
 		require.NotNil(t, capturedReq)
@@ -3765,7 +3775,7 @@ func TestClientAdapterBatchCost(t *testing.T) {
 	})
 
 	t.Run("propagates error", func(t *testing.T) {
-		mock := &mockCostSourceClient{
+		mockGRPC := &mockPbcCostSourceServiceClient{
 			batchCostFunc: func(
 				_ context.Context,
 				_ *pbc.BatchCostRequest,
@@ -3775,7 +3785,9 @@ func TestClientAdapterBatchCost(t *testing.T) {
 			},
 		}
 
-		resp, err := mock.BatchCost(context.Background(), &pbc.BatchCostRequest{})
+		adapter := &clientAdapter{client: mockGRPC}
+
+		resp, err := adapter.BatchCost(context.Background(), &pbc.BatchCostRequest{})
 		require.Error(t, err)
 		assert.Nil(t, resp)
 		assert.Equal(t, codes.Unimplemented, status.Code(err))
@@ -3964,6 +3976,23 @@ func TestMapBatchProjectedResults(t *testing.T) {
 		assert.False(t, mapped[0].Skip)
 	})
 
+	t.Run("CostData present but projected cost nil triggers fallback", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1", ResourceType: "aws:ec2:Instance"},
+					Result:   &pbc.ResourceCostResult_CostData{CostData: &pbc.CostData{}},
+				},
+			},
+		}
+
+		mapped := MapBatchProjectedResults(resp)
+		require.Len(t, mapped, 1)
+		assert.Nil(t, mapped[0].Result)
+		assert.Nil(t, mapped[0].Err)
+		assert.False(t, mapped[0].Skip)
+	})
+
 	t.Run("ExpiresAt extraction", func(t *testing.T) {
 		expiresAt := time.Now().Add(4 * time.Hour)
 		resp := &pbc.BatchCostResponse{
@@ -4130,6 +4159,23 @@ func TestMapBatchActualResults(t *testing.T) {
 				{
 					Resource: &pbc.ResourceDescriptor{Id: "r1"},
 					Result:   &pbc.ResourceCostResult_CostData{CostData: nil},
+				},
+			},
+		}
+
+		mapped := MapBatchActualResults(resp)
+		require.Len(t, mapped, 1)
+		assert.Nil(t, mapped[0].ActualResult)
+		assert.Nil(t, mapped[0].Err)
+		assert.False(t, mapped[0].Skip)
+	})
+
+	t.Run("CostData present but actual cost nil triggers fallback", func(t *testing.T) {
+		resp := &pbc.BatchCostResponse{
+			Results: []*pbc.ResourceCostResult{
+				{
+					Resource: &pbc.ResourceDescriptor{Id: "r1"},
+					Result:   &pbc.ResourceCostResult_CostData{CostData: &pbc.CostData{}},
 				},
 			},
 		}

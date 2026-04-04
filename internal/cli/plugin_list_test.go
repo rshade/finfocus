@@ -347,7 +347,7 @@ func TestPluginJSONEntry_BatchCostCapability(t *testing.T) {
 		assert.True(t, found, "batch_cost should appear in capabilities JSON output")
 	})
 
-	t.Run("batch_cost in verbose table output", func(t *testing.T) {
+	t.Run("batch_cost in JSON serialization", func(t *testing.T) {
 		// Create a PluginJSONEntry with batch_cost and verify it round-trips
 		entry := cli.PluginJSONEntry{
 			Name:         "test-plugin",

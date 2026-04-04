@@ -112,7 +112,7 @@ func (m *mockCostSourceClient) BatchCost(
 	_ *pbc.BatchCostRequest,
 	_ ...grpc.CallOption,
 ) (*pbc.BatchCostResponse, error) {
-	return &pbc.BatchCostResponse{}, nil
+	return nil, errors.New("unexpected BatchCost call in budget tests")
 }
 
 func TestEngine_GetBudgets(t *testing.T) {
