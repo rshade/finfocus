@@ -18,6 +18,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/constants"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/registry"
@@ -126,9 +127,26 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra
 		summaryDir = config.ResolveConfigDir()
 	}
 
+	// Initialize history store for recording analyzer events (cloud IDs).
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg)
+	var historyWriter *history.Writer
+	if historyStore != nil && historyStore.IsEnabled() {
+		historyWriter = history.NewWriter(historyStore, logger)
+	}
+
+	combinedCleanup := func() {
+		historyCleanup()
+		if cleanup != nil {
+			cleanup()
+		}
+	}
+
 	return analyzerInfra{
-		server:  analyzer.NewServer(eng, version).WithConfig(cfg).WithSummaryDir(summaryDir),
-		cleanup: cleanup,
+		server: analyzer.NewServer(eng, version).
+			WithConfig(cfg).
+			WithSummaryDir(summaryDir).
+			WithHistoryWriter(historyWriter),
+		cleanup: combinedCleanup,
 	}
 }
 

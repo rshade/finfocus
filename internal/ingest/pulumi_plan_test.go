@@ -185,8 +185,12 @@ func getPulumiPlanGetResourcesTestData() []struct {
 						Op:   "delete",
 						URN:  "urn:pulumi:dev::app::aws:s3/bucket:Bucket::old",
 						Type: "aws:s3/bucket:Bucket",
-						Inputs: map[string]interface{}{
-							"bucket": "old-bucket",
+						OldState: &ingest.PulumiState{
+							ID:   "old-bucket-id",
+							Type: "aws:s3/bucket:Bucket",
+							Inputs: map[string]interface{}{
+								"bucket": "old-bucket",
+							},
 						},
 					},
 					{
@@ -207,12 +211,18 @@ func getPulumiPlanGetResourcesTestData() []struct {
 					},
 				},
 			},
-			wantCount: 3, // delete operations should be excluded
+			wantCount: 4, // all operations including delete are now extracted
 			validate: func(t *testing.T, resources []ingest.PulumiResource) {
+				// Verify delete resource has OldID populated
+				var foundDelete bool
 				for _, r := range resources {
-					assert.False(t, strings.Contains(r.URN, "old"),
-						"GetResources() should not include deleted resources")
+					if strings.Contains(r.URN, "old") {
+						foundDelete = true
+						assert.Equal(t, "old-bucket-id", r.OldID,
+							"delete resource should have OldID populated")
+					}
 				}
+				assert.True(t, foundDelete, "delete resource should be included")
 			},
 		},
 		{
@@ -555,6 +565,108 @@ func TestParsePulumiPlan(t *testing.T) {
 			}
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// T029: PulumiState.ID field deserialization
+// ---------------------------------------------------------------------------
+
+func TestPulumiState_IDField_OldAndNewState(t *testing.T) {
+	data := []byte(`{
+		"steps": [
+			{
+				"op": "replace",
+				"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+				"type": "aws:ec2/instance:Instance",
+				"oldState": {
+					"id": "i-old-abc123",
+					"type": "aws:ec2/instance:Instance",
+					"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+					"inputs": {"instanceType": "t3.micro"}
+				},
+				"newState": {
+					"id": "i-new-def456",
+					"type": "aws:ec2/instance:Instance",
+					"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+					"inputs": {"instanceType": "t3.large"}
+				}
+			}
+		]
+	}`)
+
+	plan, err := ingest.ParsePulumiPlan(data)
+	require.NoError(t, err)
+	require.Len(t, plan.Steps, 1)
+
+	step := plan.Steps[0]
+	assert.Equal(t, "replace", step.Op)
+	require.NotNil(t, step.OldState, "oldState should be deserialized")
+	require.NotNil(t, step.NewState, "newState should be deserialized")
+	assert.Equal(t, "i-old-abc123", step.OldState.ID, "oldState.id should be deserialized")
+	assert.Equal(t, "i-new-def456", step.NewState.ID, "newState.id should be deserialized")
+}
+
+func TestPulumiState_IDField_MissingID(t *testing.T) {
+	data := []byte(`{
+		"steps": [
+			{
+				"op": "create",
+				"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+				"type": "aws:ec2/instance:Instance",
+				"newState": {
+					"type": "aws:ec2/instance:Instance",
+					"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+					"inputs": {"instanceType": "t3.micro"}
+				}
+			}
+		]
+	}`)
+
+	plan, err := ingest.ParsePulumiPlan(data)
+	require.NoError(t, err)
+	require.Len(t, plan.Steps, 1)
+
+	step := plan.Steps[0]
+	require.NotNil(t, step.NewState)
+	assert.Empty(t, step.NewState.ID, "missing id field should result in empty string")
+}
+
+func TestPulumiState_IDField_ReplaceProducesBothIDs(t *testing.T) {
+	data := []byte(`{
+		"steps": [
+			{
+				"op": "replace",
+				"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+				"type": "aws:ec2/instance:Instance",
+				"oldState": {
+					"id": "i-replaced-old",
+					"type": "aws:ec2/instance:Instance",
+					"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+					"inputs": {}
+				},
+				"newState": {
+					"id": "i-replaced-new",
+					"type": "aws:ec2/instance:Instance",
+					"urn": "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+					"inputs": {}
+				}
+			}
+		]
+	}`)
+
+	plan, err := ingest.ParsePulumiPlan(data)
+	require.NoError(t, err)
+	require.Len(t, plan.Steps, 1)
+
+	step := plan.Steps[0]
+	require.NotNil(t, step.OldState)
+	require.NotNil(t, step.NewState)
+
+	// Both IDs should be non-empty and different
+	assert.NotEmpty(t, step.OldState.ID)
+	assert.NotEmpty(t, step.NewState.ID)
+	assert.NotEqual(t, step.OldState.ID, step.NewState.ID,
+		"replace operation should produce different old and new cloud IDs")
 }
 
 // TestLoadPulumiPlan_DelegationEquivalence verifies that LoadPulumiPlan and

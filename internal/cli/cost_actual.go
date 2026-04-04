@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
 )
@@ -158,12 +160,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
 
-	if params.jobs < 0 {
-		return fmt.Errorf("--jobs must be non-negative, got %d", params.jobs)
-	}
-
-	// Validate mutually exclusive flags
-	if err := validateActualInputFlags(params); err != nil {
+	if err := validateActualParams(params); err != nil {
 		return err
 	}
 
@@ -179,12 +176,17 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		return err
 	}
 
-	resources, err = ApplyFilters(ctx, resources, params.filter)
+	clients, cleanup, err := openPlugins(ctx, params.adapter, audit)
 	if err != nil {
-		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
-		audit.logFailure(ctx, err)
-		return fmt.Errorf("applying filters: %w", err)
+		return err
 	}
+	defer cleanup()
+
+	eng, historyStore, combinedCleanup := newEngineWithCacheAndHistory(ctx, cmd, clients, nil)
+	defer combinedCleanup()
+	eng = eng.WithJobs(params.jobs)
+
+	recordDescriptorHistory(ctx, historyStore, resources)
 
 	fromStr, err := resolveFromDate(ctx, params, resources)
 	if err != nil {
@@ -198,23 +200,18 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		return fmt.Errorf("parsing time range: %w", err)
 	}
 
-	clients, cleanup, err := openPlugins(ctx, params.adapter, audit)
+	// Enrich with historical resources before filtering so merged entries
+	// are also subject to filter criteria.
+	resources = enrichWithHistoricalResources(ctx, historyStore, resources, from, to)
+
+	resources, err = ApplyFilters(ctx, resources, params.filter)
 	if err != nil {
-		return err
-	}
-	defer cleanup()
-
-	tags, actualGroupBy := parseTagFilter(params.groupBy)
-	request := engine.ActualCostRequest{
-		Resources: resources, From: from, To: to,
-		Adapter: params.adapter, GroupBy: actualGroupBy, Tags: tags,
-		EstimateConfidence: params.estimateConfidence,
-		FallbackEstimate:   params.fallbackEstimate,
+		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
+		audit.logFailure(ctx, err)
+		return fmt.Errorf("applying filters: %w", err)
 	}
 
-	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
-	defer cacheCleanup()
-	eng = eng.WithJobs(params.jobs)
+	request := buildActualCostRequest(params, resources, from, to)
 	start := time.Now()
 	resultWithErrors, err := eng.GetActualCostWithOptionsAndErrors(ctx, request)
 	if err != nil {
@@ -226,7 +223,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	fetchAndMergeRecommendations(ctx, eng, resources, resultWithErrors.Results)
 
 	if renderErr := RenderActualCostOutput(
-		ctx, cmd, params.output, resultWithErrors, actualGroupBy, params.estimateConfidence,
+		ctx, cmd, params.output, resultWithErrors, request.GroupBy, params.estimateConfidence,
 	); renderErr != nil {
 		return renderErr
 	}
@@ -388,6 +385,14 @@ func renderActualCostOutput(
 	}
 
 	return engine.RenderActualCostResults(writer, outputFormat, results, estimateConfidence)
+}
+
+// validateActualParams validates all parameters for the actual cost command.
+func validateActualParams(params costActualParams) error {
+	if params.jobs < 0 {
+		return fmt.Errorf("--jobs must be non-negative, got %d", params.jobs)
+	}
+	return validateActualInputFlags(params)
 }
 
 // validateActualInputFlags validates the combinations of CLI input flags used by the
@@ -574,4 +579,203 @@ func resolveFromDate(
 
 	// This shouldn't happen due to validation, but handle gracefully
 	return "", errors.New("--from date is required")
+}
+
+// buildActualCostRequest constructs an ActualCostRequest from the resolved parameters.
+func buildActualCostRequest(
+	params costActualParams,
+	resources []engine.ResourceDescriptor,
+	from, to time.Time,
+) engine.ActualCostRequest {
+	tags, actualGroupBy := parseTagFilter(params.groupBy)
+	return engine.ActualCostRequest{
+		Resources:          resources,
+		From:               from,
+		To:                 to,
+		Adapter:            params.adapter,
+		GroupBy:            actualGroupBy,
+		Tags:               tags,
+		EstimateConfidence: params.estimateConfidence,
+		FallbackEstimate:   params.fallbackEstimate,
+	}
+}
+
+// recordDescriptorHistory records engine ResourceDescriptors to the history store
+// (fire-and-forget). Skips when store is nil or disabled.
+func recordDescriptorHistory(ctx context.Context, store history.Store, resources []engine.ResourceDescriptor) {
+	if store == nil || !store.IsEnabled() {
+		return
+	}
+	stackCtx := detectHistoryStackContext(ctx)
+	writer := history.NewWriter(store, *logging.FromContext(ctx))
+	stateResources := convertDescriptorsToHistoryState(resources)
+	writer.RecordStateSnapshot(stackCtx, stateResources)
+}
+
+// enrichWithHistoricalResources queries the history store for historical and
+// deleted cloud IDs within the date range and merges them into the resource
+// list. Returns resources unchanged if history is nil or disabled.
+func enrichWithHistoricalResources(
+	ctx context.Context,
+	store history.Store,
+	resources []engine.ResourceDescriptor,
+	from, to time.Time,
+) []engine.ResourceDescriptor {
+	if store == nil || !store.IsEnabled() {
+		return resources
+	}
+	log := logging.FromContext(ctx)
+
+	// Capture current URN hashes before merging historical entries so
+	// GetDeletedResources correctly identifies resources no longer in state.
+	currentURNHashes := buildCurrentURNHashSet(resources)
+
+	stackCtx := detectHistoryStackContext(ctx)
+	reader := history.NewReader(store, *log)
+	historical, histErr := reader.GetResourcesForPeriod(stackCtx, from.Unix(), to.Unix())
+	if histErr != nil {
+		log.Warn().Ctx(ctx).Err(histErr).
+			Str("component", "history").
+			Msg("failed to query historical resources, continuing without history")
+	} else if len(historical) > 0 {
+		resources = MergeHistoricalResources(resources, historical)
+		log.Debug().Ctx(ctx).
+			Str("component", "history").
+			Int("historical_resources", len(historical)).
+			Int("total_resources", len(resources)).
+			Msg("merged historical cloud IDs into resource list")
+	}
+
+	// Also include deleted resources (in history but not in current state).
+	deleted, delErr := store.GetDeletedResources(
+		stackCtx.Hash(), currentURNHashes, from.Unix(), to.Unix(),
+	)
+	if delErr != nil {
+		log.Warn().Ctx(ctx).Err(delErr).
+			Str("component", "history").
+			Msg("failed to query deleted resources, continuing without them")
+	} else if len(deleted) > 0 {
+		deletedHistorical := entriesToHistoricalResources(deleted)
+		resources = MergeHistoricalResources(resources, deletedHistorical)
+		log.Debug().Ctx(ctx).
+			Str("component", "history").
+			Int("deleted_resources", len(deleted)).
+			Int("total_resources", len(resources)).
+			Msg("merged deleted resource cloud IDs into resource list")
+	}
+
+	return resources
+}
+
+// buildCurrentURNHashSet builds a set of URN hashes from the current
+// ResourceDescriptor list, used to identify deleted resources.
+func buildCurrentURNHashSet(resources []engine.ResourceDescriptor) map[string]bool {
+	hashes := make(map[string]bool, len(resources))
+	for _, r := range resources {
+		if r.ID != "" {
+			hashes[history.URNHash(r.ID)] = true
+		}
+	}
+	return hashes
+}
+
+// entriesToHistoricalResources converts raw history entries into
+// HistoricalResource structs suitable for MergeHistoricalResources.
+func entriesToHistoricalResources(entries []history.ResourceHistoryEntry) []history.HistoricalResource {
+	grouped := make(map[string]*history.HistoricalResource)
+	for _, e := range entries {
+		hr, exists := grouped[e.URN]
+		if !exists {
+			hr = &history.HistoricalResource{
+				URN:      e.URN,
+				Type:     e.Type,
+				Provider: e.Provider,
+				CloudIDs: []string{},
+				Tags:     make(map[string]string),
+			}
+			grouped[e.URN] = hr
+		}
+		if !slices.Contains(hr.CloudIDs, e.CloudID) {
+			hr.CloudIDs = append(hr.CloudIDs, e.CloudID)
+		}
+	}
+	result := make([]history.HistoricalResource, 0, len(grouped))
+	for _, hr := range grouped {
+		result = append(result, *hr)
+	}
+	return result
+}
+
+// convertDescriptorsToHistoryState converts engine ResourceDescriptors to
+// history StateResources for recording to the history store.
+func convertDescriptorsToHistoryState(resources []engine.ResourceDescriptor) []history.StateResource {
+	result := make([]history.StateResource, 0, len(resources))
+	for _, r := range resources {
+		cloudID, _ := r.Properties["pulumi:cloudId"].(string)
+		if cloudID == "" {
+			continue
+		}
+		result = append(result, history.StateResource{
+			URN:      r.ID,
+			CloudID:  cloudID,
+			Type:     r.Type,
+			Provider: r.Provider,
+		})
+	}
+	return result
+}
+
+// MergeHistoricalResources enriches a current ResourceDescriptor list with
+// historical cloud IDs from the history store. For each HistoricalResource,
+// it creates a new ResourceDescriptor per cloud ID that is not already present
+// in the current list. This ensures billing queries include costs from replaced
+// or deleted resources.
+//
+// The function preserves the engine's single-cloud-ID-per-resource invariant:
+// a resource replaced mid-month produces TWO ResourceDescriptors (one per
+// cloud ID), each flowing through the existing adapter pipeline unchanged.
+func MergeHistoricalResources(
+	current []engine.ResourceDescriptor,
+	historical []history.HistoricalResource,
+) []engine.ResourceDescriptor {
+	if len(historical) == 0 {
+		return current
+	}
+
+	// Build set of existing (provider, cloudID) pairs for deduplication.
+	// Keyed by "provider|cloudID" composite to avoid collisions when different
+	// providers happen to share the same cloud ID string while still deduplicating
+	// same-provider entries correctly.
+	existingCloudIDs := make(map[string]bool)
+	for i := range current {
+		if cloudID, ok := current[i].Properties["pulumi:cloudId"]; ok {
+			if idStr, isStr := cloudID.(string); isStr {
+				existingCloudIDs[current[i].Provider+"|"+idStr] = true
+			}
+		}
+	}
+
+	merged := make([]engine.ResourceDescriptor, 0, len(current)+len(historical))
+	merged = append(merged, current...)
+
+	for _, hr := range historical {
+		for _, cloudID := range hr.CloudIDs {
+			compositeKey := hr.Provider + "|" + cloudID
+			if existingCloudIDs[compositeKey] {
+				continue
+			}
+
+			existingCloudIDs[compositeKey] = true
+			merged = append(merged, engine.ResourceDescriptor{
+				ID:       hr.URN,
+				Type:     hr.Type,
+				Provider: hr.Provider,
+				Properties: map[string]interface{}{
+					"pulumi:cloudId": cloudID,
+				},
+			})
+		}
+	}
+
+	return merged
 }

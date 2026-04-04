@@ -33,6 +33,7 @@ type PulumiStep struct {
 
 // PulumiState represents the state of a resource in a Pulumi step.
 type PulumiState struct {
+	ID       string                 `json:"id,omitempty"`
 	Type     string                 `json:"type"`
 	URN      string                 `json:"urn"`
 	Inputs   map[string]interface{} `json:"inputs"`
@@ -47,6 +48,8 @@ type PulumiResource struct {
 	Provider string
 	Inputs   map[string]interface{}
 	Outputs  map[string]interface{}
+	OldID    string // Cloud ID from OldState (populated for replace/delete ops)
+	NewID    string // Cloud ID from NewState (populated for replace/create ops)
 }
 
 // ParsePulumiPlan parses a Pulumi plan from JSON bytes.
@@ -136,49 +139,34 @@ func (p *PulumiPlan) GetResources() []PulumiResource {
 }
 
 // GetResourcesWithContext extracts all resources from the Pulumi plan steps with logging context.
+// It processes create, update, same, replace, and delete operations.
+// For replace/delete ops, OldID is populated from OldState.ID.
+// For replace/create ops, NewID is populated from NewState.ID.
 func (p *PulumiPlan) GetResourcesWithContext(ctx context.Context) []PulumiResource {
 	log := logging.FromContext(ctx)
 	var resources []PulumiResource
 	var skippedOps []string
 
 	for _, step := range p.Steps {
-		//nolint:nestif // Complexity is acceptable for this resource extraction logic
-		if step.Op == "create" || step.Op == "update" || step.Op == "same" {
-			resType := step.Type
-			inputs := step.Inputs
-
-			// Prioritize NewState for Create/Update operations if available
-			if step.NewState != nil {
-				if resType == "" {
-					resType = step.NewState.Type
-				}
-				if inputs == nil {
-					inputs = step.NewState.Inputs
-				}
-			}
-
-			if resType == "" {
-				resType = extractTypeFromURN(step.URN)
-			}
-
-			resources = append(resources, PulumiResource{
-				Type:     resType,
-				URN:      step.URN,
-				Provider: extractProviderFromURN(step.URN),
-				Inputs:   inputs,
-				Outputs:  resolveStepOutputs(step),
-			})
-			log.Debug().
-				Ctx(ctx).
-				Str("component", "ingest").
-				Str("resource_type", step.Type).
-				Str("extracted_type", resType).
-				Str("operation", step.Op).
-				Str("urn", step.URN).
-				Msg("extracted resource from plan")
-		} else {
+		switch step.Op {
+		case "create", "update", "same":
+			resources = append(resources, extractForwardResource(step))
+		case "replace", "create-replacement":
+			resources = append(resources, extractReplaceResource(step))
+		case "delete", "delete-replaced":
+			resources = append(resources, extractDeleteResource(step))
+		default:
 			skippedOps = append(skippedOps, step.Op)
+			continue
 		}
+
+		log.Debug().
+			Ctx(ctx).
+			Str("component", "ingest").
+			Str("resource_type", step.Type).
+			Str("operation", step.Op).
+			Str("urn", step.URN).
+			Msg("extracted resource from plan")
 	}
 
 	log.Debug().
@@ -190,6 +178,118 @@ func (p *PulumiPlan) GetResourcesWithContext(ctx context.Context) []PulumiResour
 		Msg("resource extraction complete")
 
 	return resources
+}
+
+// extractForwardResource extracts a resource from a create/update/same step.
+// Prefers NewState fields over top-level step fields, falling back to step-level
+// and URN-derived values when NewState is nil or its fields are empty.
+func extractForwardResource(step PulumiStep) PulumiResource {
+	resType := step.Type
+	inputs := step.Inputs
+
+	// Prefer NewState as source of truth (richer data from engine).
+	if step.NewState != nil {
+		if step.NewState.Type != "" {
+			resType = step.NewState.Type
+		}
+		if step.NewState.Inputs != nil {
+			inputs = step.NewState.Inputs
+		}
+	}
+
+	if resType == "" {
+		resType = extractTypeFromURN(step.URN)
+	}
+
+	res := PulumiResource{
+		Type:     resType,
+		URN:      step.URN,
+		Provider: extractProviderFromURN(step.URN),
+		Inputs:   inputs,
+		Outputs:  resolveStepOutputs(step),
+	}
+
+	if step.NewState != nil {
+		res.NewID = step.NewState.ID
+	}
+	if step.OldState != nil {
+		res.OldID = step.OldState.ID
+	}
+
+	return res
+}
+
+// extractReplaceResource extracts a resource from a replace or create-replacement step.
+// Prefers NewState for type/inputs (the replacement resource), populates both OldID and NewID.
+func extractReplaceResource(step PulumiStep) PulumiResource {
+	resType := step.Type
+	inputs := step.Inputs
+
+	// Prefer NewState as source of truth (richer data from engine).
+	if step.NewState != nil {
+		if step.NewState.Type != "" {
+			resType = step.NewState.Type
+		}
+		if step.NewState.Inputs != nil {
+			inputs = step.NewState.Inputs
+		}
+	}
+
+	if resType == "" {
+		resType = extractTypeFromURN(step.URN)
+	}
+
+	res := PulumiResource{
+		Type:     resType,
+		URN:      step.URN,
+		Provider: extractProviderFromURN(step.URN),
+		Inputs:   inputs,
+		Outputs:  resolveStepOutputs(step),
+	}
+
+	if step.OldState != nil {
+		res.OldID = step.OldState.ID
+	}
+	if step.NewState != nil {
+		res.NewID = step.NewState.ID
+	}
+
+	return res
+}
+
+// extractDeleteResource extracts a resource from a delete or delete-replaced step.
+// Prefers OldState for type/inputs (the resource being removed), populates OldID.
+func extractDeleteResource(step PulumiStep) PulumiResource {
+	resType := step.Type
+	inputs := step.Inputs
+
+	// Prefer OldState as source of truth for deletions (richer data from engine).
+	if step.OldState != nil {
+		if step.OldState.Type != "" {
+			resType = step.OldState.Type
+		}
+		if step.OldState.Inputs != nil {
+			inputs = step.OldState.Inputs
+		}
+	}
+
+	if resType == "" {
+		resType = extractTypeFromURN(step.URN)
+	}
+
+	res := PulumiResource{
+		Type:     resType,
+		URN:      step.URN,
+		Provider: extractProviderFromURN(step.URN),
+		Inputs:   inputs,
+		Outputs:  resolveStepOutputs(step),
+	}
+
+	if step.OldState != nil {
+		res.OldID = step.OldState.ID
+	}
+
+	return res
 }
 
 // resolveStepOutputs picks the best available Outputs for a step.

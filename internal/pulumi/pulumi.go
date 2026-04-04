@@ -12,6 +12,8 @@ import (
 	"sync"
 	"time"
 
+	"gopkg.in/yaml.v3"
+
 	"github.com/rshade/finfocus/internal/logging"
 )
 
@@ -136,6 +138,34 @@ func FindProject(dir string) (string, error) {
 		}
 		current = parent
 	}
+}
+
+// pulumiProjectFile is the minimal structure of Pulumi.yaml/Pulumi.yml needed
+// to extract the project name.
+type pulumiProjectFile struct {
+	Name string `yaml:"name"`
+}
+
+// GetProjectName reads the project name from the Pulumi.yaml (or Pulumi.yml)
+// file in the given directory. Returns empty string and error if the file
+// cannot be read or parsed, or if the name field is empty.
+func GetProjectName(projectDir string) (string, error) {
+	for _, name := range []string{"Pulumi.yaml", "Pulumi.yml"} {
+		candidate := filepath.Join(projectDir, name)
+		data, err := os.ReadFile(candidate)
+		if err != nil {
+			continue
+		}
+		var proj pulumiProjectFile
+		if yamlErr := yaml.Unmarshal(data, &proj); yamlErr != nil {
+			return "", fmt.Errorf("parsing %s: %w", name, yamlErr)
+		}
+		if proj.Name == "" {
+			return "", fmt.Errorf("%s has no 'name' field", name)
+		}
+		return proj.Name, nil
+	}
+	return "", fmt.Errorf("no Pulumi.yaml or Pulumi.yml found in %s", projectDir)
 }
 
 // GetCurrentStack returns the name of the currently selected Pulumi stack for the project

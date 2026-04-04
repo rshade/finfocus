@@ -468,12 +468,13 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 - **`/opencode-review-fix`** comment on a PR triggers automatic fix of all review issues
 
 ## Recent Changes
+
+- 608-resource-history-store: Added Go 1.25.8 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`).
 - 607-state-only-flag: Added Go 1.25.8 (see `go.mod`) + Cobra (CLI framework), Bubble Tea (TUI), zerolog (logging)
 - 606-cache-expires-at: Added Go 1.25.8 (see `go.mod`) + finfocus-spec v0.6.0 (provides `expires_at` proto fields), BoltDB (cache storage), zerolog (logging)
 
-- 605-batch-cost-capability: Added batch cost capability to router feature mapping
-
 ## Active Technologies
-- Go 1.25.8 (see `go.mod`) + Cobra (CLI framework), Bubble Tea (TUI), zerolog (logging) (607-state-only-flag)
-- N/A (no storage changes) (607-state-only-flag)
+
+- Go 1.25.8 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`) (608-resource-history-store)
+- BoltDB at `~/.finfocus/history/history.db` (separate from cache) (608-resource-history-store)
 

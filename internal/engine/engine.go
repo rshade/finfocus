@@ -21,6 +21,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine/batch"
 	"github.com/rshade/finfocus/internal/engine/cache"
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
@@ -116,6 +117,7 @@ type Engine struct {
 	clients        []*pluginhost.Client
 	loader         SpecLoader
 	cache          cache.Cache
+	history        history.Store          // Optional history store; if nil, no history tracking
 	router         Router                 // Optional router for plugin selection; if nil, queries all plugins
 	dismissalStore *config.DismissalStore // Optional dismissal store; if nil, created on demand
 	jobs           int                    // Override worker count; 0 means auto (default)
@@ -136,6 +138,13 @@ func New(clients []*pluginhost.Client, loader SpecLoader) *Engine {
 // This is optional - if not set, no caching will be performed.
 func (e *Engine) WithCache(cacheStore cache.Cache) *Engine {
 	e.cache = cacheStore
+	return e
+}
+
+// WithHistory sets the history store for the engine.
+// This is optional - if not set, no resource history tracking will be performed.
+func (e *Engine) WithHistory(store history.Store) *Engine {
+	e.history = store
 	return e
 }
 

@@ -23,6 +23,35 @@ guardrails in `CONTEXT.md`.
       ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
 - [ ] Resource History Store with Layered Cost Attribution
       ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
+- [ ] **Resource History Store — Code Review Follow-ups** *(from #934 PR review)*
+  - [ ] Fix double-prefixing in `StackContext.Hash`
+        ([#966](https://github.com/rshade/finfocus/issues/966)) [S]
+  - [ ] Extract correct URN hash segment in `filterFullyExpiredURNs`
+        ([#968](https://github.com/rshade/finfocus/issues/968)) [S]
+  - [ ] Capture analyzer resource properties and extract tags into history
+        ([#955](https://github.com/rshade/finfocus/issues/955)) [S]
+  - [ ] Populate tags in `convertDescriptorsToHistoryState`
+        ([#956](https://github.com/rshade/finfocus/issues/956)) [S]
+  - [ ] Copy tags in `convertEngineStateToHistoryState`
+        ([#957](https://github.com/rshade/finfocus/issues/957)) [S]
+  - [ ] Return success indicator from `detectHistoryStackContext`
+        ([#958](https://github.com/rshade/finfocus/issues/958)) [S]
+  - [ ] Reuse loaded config in overview `initHistoryFromConfig` calls
+        ([#959](https://github.com/rshade/finfocus/issues/959)) [S]
+  - [ ] Use pointer type for `HistoryConfig.RetentionDays`
+        ([#960](https://github.com/rshade/finfocus/issues/960)) [S]
+  - [ ] Only ignore missing-file errors in `GetProjectName`
+        ([#961](https://github.com/rshade/finfocus/issues/961)) [S]
+  - [ ] Track newest entry per URN hash in `GetDeletedResources`
+        ([#962](https://github.com/rshade/finfocus/issues/962)) [S]
+  - [ ] Set `enabled=false` on `BoltStore.Close`
+        ([#963](https://github.com/rshade/finfocus/issues/963)) [S]
+  - [ ] Merge tag timestamps instead of overwriting in `upsertTags`
+        ([#964](https://github.com/rshade/finfocus/issues/964)) [S]
+  - [ ] Fix `newTestEntryWithTime` to ensure `FirstSeen <= LastSeen`
+        ([#965](https://github.com/rshade/finfocus/issues/965)) [S]
+  - [ ] Escape delimiters in `BuildTagKey`
+        ([#967](https://github.com/rshade/finfocus/issues/967)) [S]
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 

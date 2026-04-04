@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,6 +15,8 @@ import (
 	"github.com/rshade/finfocus/internal/cli"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/engine/cache"
+	"github.com/rshade/finfocus/internal/history"
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // ---------------------------------------------------------------------------
@@ -707,4 +710,109 @@ func TestOverviewPlainText_CacheHitReturnsProjectedCost(t *testing.T) {
 	assert.InDelta(t, 42.50, row.ProjectedCost.MonthlyCost, 0.01,
 		"projected cost should match cached value")
 	assert.Equal(t, "USD", row.ProjectedCost.Currency)
+}
+
+// ---------------------------------------------------------------------------
+// T023: History snapshot recording for overview
+// ---------------------------------------------------------------------------
+
+// TestOverviewHistoryRecordStateSnapshot verifies that state resources are
+// recorded to the history store when the writer processes them (simulating
+// what the overview command does after LoadStackExportWithContext).
+func TestOverviewHistoryRecordStateSnapshot(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
+	require.NoError(t, err)
+	defer store.Close()
+
+	writer := history.NewWriter(store, *logging.FromContext(ctx))
+
+	stackCtx := history.StackContext{
+		Project: "test-project",
+		Stack:   "dev",
+	}
+
+	resources := []history.StateResource{
+		{
+			URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+			CloudID:  "i-abc123",
+			Type:     "aws:ec2/instance:Instance",
+			Provider: "aws",
+			Tags:     map[string]string{"env": "dev"},
+		},
+		{
+			URN:      "urn:pulumi:dev::app::aws:s3/bucket:Bucket::data",
+			CloudID:  "my-bucket",
+			Type:     "aws:s3/bucket:Bucket",
+			Provider: "aws",
+			Tags:     map[string]string{"env": "dev"},
+		},
+	}
+
+	writer.RecordStateSnapshot(stackCtx, resources)
+
+	// Verify entries were recorded
+	now := time.Now().Unix()
+	entries, getErr := store.GetAllForStack(stackCtx.Hash(), now-3600, now+3600)
+	require.NoError(t, getErr)
+	assert.Len(t, entries, 2, "expected 2 entries recorded to history store")
+}
+
+// TestOverviewHistoryWriteFailureDoesNotBlock verifies that a history write
+// failure does not block the overview command's workflow (fire-and-forget).
+func TestOverviewHistoryWriteFailureDoesNotBlock(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
+	require.NoError(t, err)
+
+	// Close the store to simulate a failure scenario
+	require.NoError(t, store.Close())
+
+	writer := history.NewWriter(store, *logging.FromContext(ctx))
+
+	stackCtx := history.StackContext{Project: "test", Stack: "dev"}
+	resources := []history.StateResource{
+		{URN: "urn:test", CloudID: "id-1", Type: "aws:ec2:Instance", Provider: "aws"},
+	}
+
+	// RecordStateSnapshot is fire-and-forget — no error to check
+	writer.RecordStateSnapshot(stackCtx, resources)
+}
+
+// TestOverviewHistoryDisabledStoreNoWrite verifies that a disabled history
+// store results in no write attempt.
+func TestOverviewHistoryDisabledStoreNoWrite(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	ctx := context.Background()
+	tmpDir := t.TempDir()
+
+	store, err := history.NewBoltStore(ctx, tmpDir, false, 90)
+	require.NoError(t, err)
+	defer store.Close()
+
+	assert.False(t, store.IsEnabled())
+
+	writer := history.NewWriter(store, *logging.FromContext(ctx))
+
+	stackCtx := history.StackContext{Project: "test", Stack: "dev"}
+	resources := []history.StateResource{
+		{URN: "urn:test", CloudID: "id-1", Type: "aws:ec2:Instance", Provider: "aws"},
+	}
+
+	writer.RecordStateSnapshot(stackCtx, resources)
+
+	// Verify nothing was written to the disabled store
+	now := time.Now().Unix()
+	entries, getErr := store.GetAllForStack(stackCtx.Hash(), now-3600, now+3600)
+	require.NoError(t, getErr)
+	assert.Empty(t, entries, "disabled store should not record any entries")
 }

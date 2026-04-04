@@ -240,6 +240,15 @@ func loadAndProcessPlainOverview(
 		return nil, "", false, 0, false, wrappedErr
 	}
 
+	// Record state resources and plan lineage to history store (fire-and-forget).
+	cfg := config.New()
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg)
+	defer historyCleanup()
+	recordHistorySnapshot(ctx, historyStore, stateResources)
+	if !isStateOnly {
+		recordHistoryPlanLineage(ctx, historyStore, planSteps)
+	}
+
 	// Detect pending changes (skipped in state-only mode).
 	pt = logging.StartPhase(ctx, "cli", "overview", "change_detection")
 	var hasChanges bool
@@ -619,6 +628,12 @@ func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 		switch s.Op {
 		case "update", "replace", "create-replacement":
 			result[i].PropertyDiffs = diffInputs(s.OldState, s.NewState)
+		}
+		if s.OldState != nil {
+			result[i].OldCloudID = s.OldState.ID
+		}
+		if s.NewState != nil {
+			result[i].NewCloudID = s.NewState.ID
 		}
 	}
 	return result
@@ -1150,6 +1165,12 @@ func overviewInitAndEnrich(
 		return
 	}
 
+	// Record state resources to history store (fire-and-forget).
+	cfg := config.New()
+	historyStore, historyCleanup := initHistoryFromConfig(enrichCtx, cfg)
+	defer historyCleanup()
+	recordHistorySnapshot(enrichCtx, historyStore, stateResources)
+
 	// Phase 2: Lightweight change detection from the already-parsed manifest.
 	var isStateOnly bool
 	var detectErr error
@@ -1170,12 +1191,17 @@ func overviewInitAndEnrich(
 
 	// Phase 3: Merge resources (from state only when state-first, from state+plan when preview runs).
 	p.Send(tui.OverviewPhaseMsg{Index: phaseMergeResources, Phase: "Merging resources..."})
-	rows, hasChanges, changeCount, mergePhaseErr := buildOverviewRows(
+	rows, planSteps, hasChanges, changeCount, mergePhaseErr := buildOverviewRows(
 		enrichCtx, isStateOnly, stateResources, params, projectDir, stackName, pw,
 	)
 	if mergePhaseErr != nil {
 		p.Send(tui.OverviewInitErrorMsg{Err: mergePhaseErr})
 		return
+	}
+
+	// Record plan lineage to history store (fire-and-forget).
+	if !isStateOnly && len(planSteps) > 0 {
+		recordHistoryPlanLineage(enrichCtx, historyStore, planSteps)
 	}
 
 	log.Debug().Ctx(enrichCtx).Str("stack", stackName).
@@ -1223,7 +1249,8 @@ func overviewInitAndEnrich(
 }
 
 // buildOverviewRows merges state resources with optional plan steps to produce
-// the initial OverviewRow slice. Returns rows, hasChanges, changeCount, and any error.
+// the initial OverviewRow slice. Returns rows, planSteps, hasChanges, changeCount, and any error.
+// planSteps is non-nil only when a preview was run (isStateOnly=false).
 func buildOverviewRows(
 	ctx context.Context,
 	isStateOnly bool,
@@ -1231,20 +1258,20 @@ func buildOverviewRows(
 	params overviewParams,
 	projectDir, stackName string,
 	pw *string,
-) ([]engine.OverviewRow, bool, int, error) {
+) ([]engine.OverviewRow, []engine.PlanStep, bool, int, error) {
 	if isStateOnly {
-		return engine.NewRowsFromState(ctx, stateResources), false, 0, nil
+		return engine.NewRowsFromState(ctx, stateResources), nil, false, 0, nil
 	}
 	planSteps, planErr := loadPlanForOverview(ctx, params, projectDir, stackName, pw)
 	if planErr != nil {
-		return nil, false, 0, planErr
+		return nil, nil, false, 0, planErr
 	}
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	rows, mergeErr := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
 	if mergeErr != nil {
-		return nil, false, 0, fmt.Errorf("merging resources: %w", mergeErr)
+		return nil, nil, false, 0, fmt.Errorf("merging resources: %w", mergeErr)
 	}
-	return rows, hasChanges, changeCount, nil
+	return rows, planSteps, hasChanges, changeCount, nil
 }
 
 // buildPreviewCmd creates a Bubble Tea command that runs pulumi preview in the
@@ -1384,6 +1411,12 @@ func runBackgroundPreview(
 		Str("operation", "phased_loading").
 		Dur("dur", time.Since(previewStart)).
 		Msg("background preview completed")
+
+	// Record plan lineage to history store (fire-and-forget).
+	cfg := config.New()
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg)
+	recordHistoryPlanLineage(ctx, historyStore, planSteps)
+	historyCleanup()
 
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	statusByURN := engine.BuildStatusByURN(planSteps)

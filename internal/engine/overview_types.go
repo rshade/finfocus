@@ -472,4 +472,8 @@ type PlanStep struct {
 	// ProjectedProperties carries preview properties (deep-merge of old state
 	// and new inputs) used to price pending changes accurately.
 	ProjectedProperties map[string]interface{} `json:"projectedProperties,omitempty"`
+	// OldCloudID is the cloud resource ID from OldState (populated for replace/delete ops).
+	OldCloudID string `json:"oldCloudId,omitempty"`
+	// NewCloudID is the cloud resource ID from NewState (populated for replace/create ops).
+	NewCloudID string `json:"newCloudId,omitempty"`
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/router"
 )
@@ -91,6 +92,10 @@ type Server struct {
 	// Set via WithSummaryDir(). If empty, summary file writing is skipped.
 	summaryDir string
 
+	// historyWriter records analyzer events to the resource history store.
+	// Set via WithHistoryWriter(). If nil, history recording is skipped.
+	historyWriter *history.Writer
+
 	// Cancellation support
 	cancelMu sync.Mutex
 	canceled bool
@@ -135,6 +140,58 @@ func (s *Server) WithConfig(cfg *config.Config) *Server {
 func (s *Server) WithSummaryDir(dir string) *Server {
 	s.summaryDir = dir
 	return s
+}
+
+// WithHistoryWriter sets the history writer for recording analyzer events.
+// This is a builder method that returns the Server for chaining.
+// If writer is nil, history recording is skipped.
+func (s *Server) WithHistoryWriter(writer *history.Writer) *Server {
+	s.historyWriter = writer
+	return s
+}
+
+// recordAnalyzerEvent records a resource observation from the Analyze RPC
+// to the history store. When DryRun is false, the cloud ID is extracted from
+// the resource properties. Fire-and-forget: errors are logged but not propagated.
+func (s *Server) recordAnalyzerEvent(ctx context.Context, req *pulumirpc.AnalyzeRequest) {
+	log := logging.FromContext(ctx)
+
+	if s.historyWriter == nil {
+		log.Debug().Msg("recordAnalyzerEvent: history writer is nil, skipping")
+		return
+	}
+
+	var cloudID string
+	if !s.dryRun {
+		props := structToMap(req.GetProperties())
+		if id, ok := props["id"].(string); ok && id != "" {
+			cloudID = id
+		}
+	} else {
+		log.Debug().Str("urn", req.GetUrn()).Msg("recordAnalyzerEvent: dry run, omitting cloud ID")
+	}
+
+	stackCtx := history.StackContext{
+		Organization: s.organization,
+		Project:      s.projectName,
+		Stack:        s.stackName,
+	}
+
+	provider := ""
+	resourceType := req.GetType()
+	if idx := strings.IndexByte(resourceType, ':'); idx > 0 {
+		provider = resourceType[:idx]
+	}
+
+	event := history.AnalyzerResource{
+		URN:      req.GetUrn(),
+		Type:     resourceType,
+		Provider: provider,
+		CloudID:  cloudID,
+	}
+
+	log.Debug().Str("urn", event.URN).Str("cloud_id", event.CloudID).Msg("recordAnalyzerEvent: recording")
+	s.historyWriter.RecordAnalyzerEvent(stackCtx, event)
 }
 
 // cacheCost stores a cost result in the cache for later use by AnalyzeStack.
@@ -201,6 +258,9 @@ func (s *Server) Analyze(
 	// Calculate costs using the engine
 	costs, calcErr := s.calculator.GetProjectedCost(ctx, []engine.ResourceDescriptor{resource})
 	if calcErr != nil {
+		// Record analyzer event even on failure so history captures the cloud ID.
+		s.recordAnalyzerEvent(ctx, req)
+
 		// Cache a zero-cost error result so AnalyzeStack can see that the resource
 		// was attempted. Without this, failed resources are invisible to the stack summary.
 		errResult := engine.CostResult{
@@ -268,6 +328,9 @@ func (s *Server) Analyze(
 		s.cacheCost(resourceID, cost)
 		diagnostics = append(diagnostics, CostToDiagnostic(cost, req.GetUrn(), s.version))
 	}
+
+	// Record analyzer event to history store (fire-and-forget).
+	s.recordAnalyzerEvent(ctx, req)
 
 	return &pulumirpc.AnalyzeResponse{
 		Diagnostics: diagnostics,

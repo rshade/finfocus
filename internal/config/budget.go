@@ -192,6 +192,79 @@ func (b BudgetConfig) GetForecastedAlerts() []AlertConfig {
 	return alerts
 }
 
+// History configuration defaults.
+const (
+	HistoryDefaultRetentionDays = 90
+	HistoryDefaultEnabled       = true
+	AllocationDefaultEnabled    = false
+)
+
+// HistoryConfig defines resource history tracking behavior.
+type HistoryConfig struct {
+	// Enabled controls whether history tracking is active (default: true).
+	// Pointer type distinguishes explicit false from omitted (nil = use default).
+	Enabled *bool `yaml:"enabled" json:"enabled"`
+
+	// RetentionDays is the number of days before stale entries are removed (default: 90).
+	RetentionDays int `yaml:"retention_days" json:"retention_days"`
+
+	// Directory overrides the history directory path (default: ~/.finfocus/history).
+	Directory string `yaml:"directory,omitempty" json:"directory,omitempty"`
+}
+
+// IsEnabled returns whether history is enabled, respecting explicit false vs omitted.
+func (h HistoryConfig) IsEnabled() bool {
+	if h.Enabled == nil {
+		return HistoryDefaultEnabled
+	}
+	return *h.Enabled
+}
+
+// Validate checks if the history configuration is valid.
+// Returns an error for non-positive RetentionDays when explicitly set.
+func (h HistoryConfig) Validate() error {
+	if h.RetentionDays < 0 {
+		return fmt.Errorf("history retention_days must be non-negative, got %d", h.RetentionDays)
+	}
+	return nil
+}
+
+// Allocation validation limits.
+const (
+	MaxAllocationTagKeyLength = 128
+)
+
+// AllocationConfig defines tag-based cost attribution settings.
+type AllocationConfig struct {
+	// Enabled controls whether tag-based fallback is active (default: false).
+	Enabled bool `yaml:"enabled" json:"enabled"`
+
+	// Tags lists the tag keys to use for billing API queries.
+	Tags []string `yaml:"tags,omitempty" json:"tags,omitempty"`
+}
+
+// Validate checks if the allocation configuration is valid.
+// When disabled, tag validation is skipped.
+// When enabled with empty tags, validation passes (caller may log a warning).
+// Tag keys must be non-empty and at most 128 characters.
+func (a AllocationConfig) Validate() error {
+	if !a.Enabled {
+		return nil
+	}
+
+	for i, tag := range a.Tags {
+		if tag == "" {
+			return fmt.Errorf("tag key at index %d is empty", i)
+		}
+		if len(tag) > MaxAllocationTagKeyLength {
+			return fmt.Errorf("tag key at index %d exceeds maximum length of %d characters: got %d",
+				i, MaxAllocationTagKeyLength, len(tag))
+		}
+	}
+
+	return nil
+}
+
 // CostConfig holds cost-related configuration settings including budgets and caching.
 // It groups all cost management features under a single configuration section.
 type CostConfig struct {
@@ -201,6 +274,12 @@ type CostConfig struct {
 
 	// Cache contains the cache configuration for query result caching.
 	Cache CacheConfig `yaml:"cache,omitempty" json:"cache,omitempty"`
+
+	// History contains the resource history tracking configuration.
+	History HistoryConfig `yaml:"history" json:"history"`
+
+	// Allocation contains the tag-based cost attribution configuration.
+	Allocation AllocationConfig `yaml:"allocation" json:"allocation"`
 }
 
 // CacheConfig defines caching behavior for query results.
@@ -229,6 +308,14 @@ func (c CostConfig) Validate() error {
 			return fmt.Errorf("budgets: %w", err)
 		}
 		// Warnings are non-fatal and available via GetBudgetsWarnings()
+	}
+
+	if err := c.History.Validate(); err != nil {
+		return fmt.Errorf("history: %w", err)
+	}
+
+	if err := c.Allocation.Validate(); err != nil {
+		return fmt.Errorf("allocation: %w", err)
 	}
 
 	return nil
