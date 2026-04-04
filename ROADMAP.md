@@ -19,10 +19,22 @@ guardrails in `CONTEXT.md`.
 
 - [ ] Implement EstimateCost RPC consumer (remove stub)
       ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
+- [ ] **EstimateCost RPC — Code Review Follow-ups** *(from #847 PR review)*
+  - [ ] Add test for modified-response validation fallback path
+        ([#970](https://github.com/rshade/finfocus/issues/970)) [S]
+  - [ ] Fix type loss in `mergePropertiesWithOverrides` (overrides written as
+        strings)
+        ([#971](https://github.com/rshade/finfocus/issues/971)) [M]
+  - [ ] Add missing `.Ctx(ctx)` and component fields to `tryEstimateCostRPC`
+        warning logs
+        ([#972](https://github.com/rshade/finfocus/issues/972)) [S]
+  - [ ] Add test for `BuildEstimateCostRequest` `structpb.NewStruct` error path
+        ([#973](https://github.com/rshade/finfocus/issues/973)) [S]
 - [ ] Implement BatchCost RPC consumer for multi-resource queries
       ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
-- [ ] Resource History Store with Layered Cost Attribution
+- [x] Resource History Store with Layered Cost Attribution
       ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
+      *(Completed 2026-04-04)*
 - [ ] **Resource History Store — Code Review Follow-ups** *(from #934 PR review)*
   - [ ] Fix double-prefixing in `StackContext.Hash`
         ([#966](https://github.com/rshade/finfocus/issues/966)) [S]
@@ -244,6 +256,12 @@ guardrails in `CONTEXT.md`.
     a plugin-returned cost exceeds the user-defined threshold.
 
 ## Completed Milestones
+
+### 2026-Q2
+
+- [x] Resource History Store with Layered Cost Attribution
+      ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
+      *(Completed 2026-04-04)*
 
 ### 2026-Q1
 

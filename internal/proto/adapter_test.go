@@ -13,6 +13,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -62,6 +63,11 @@ type mockCostSourceClient struct {
 		in *pbc.SupportsRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.SupportsResponse, error)
+	estimateCostFunc func(
+		ctx context.Context,
+		in *pbc.EstimateCostRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.EstimateCostResponse, error)
 }
 
 func (m *mockCostSourceClient) Name(
@@ -161,6 +167,17 @@ func (m *mockCostSourceClient) Supports(
 		return m.supportsFunc(ctx, in, opts...)
 	}
 	return &pbc.SupportsResponse{Supported: true}, nil
+}
+
+func (m *mockCostSourceClient) EstimateCost(
+	ctx context.Context,
+	in *pbc.EstimateCostRequest,
+	opts ...grpc.CallOption,
+) (*pbc.EstimateCostResponse, error) {
+	if m.estimateCostFunc != nil {
+		return m.estimateCostFunc(ctx, in, opts...)
+	}
+	return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
 }
 
 // T020: Unit test for DryRun wrapper.
@@ -3643,4 +3660,37 @@ func TestClientAdapter_GetActualCost_ExpiresAt(t *testing.T) {
 		assert.WithinDuration(t, onlyTS, *resp.Results[0].ExpiresAt, time.Second,
 			"should use the only non-nil expires_at")
 	})
+}
+
+func TestBuildEstimateCostRequest_ValidResource(t *testing.T) {
+	properties := map[string]any{
+		"instanceType": "m5.large",
+		"region":       "us-east-1",
+	}
+
+	req, err := BuildEstimateCostRequest("aws:ec2/instance:Instance", properties)
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	assert.Equal(t, "aws:ec2/instance:Instance", req.GetResourceType())
+	require.NotNil(t, req.GetAttributes())
+
+	expected, err := structpb.NewStruct(properties)
+	require.NoError(t, err)
+	assert.Equal(t, expected.AsMap(), req.GetAttributes().AsMap())
+}
+
+func TestBuildEstimateCostRequest_EmptyType(t *testing.T) {
+	req, err := BuildEstimateCostRequest("", map[string]any{"key": "val"})
+	require.Error(t, err)
+	assert.Nil(t, req)
+	assert.Contains(t, err.Error(), "resource type must not be empty")
+}
+
+func TestBuildEstimateCostRequest_NilProperties(t *testing.T) {
+	req, err := BuildEstimateCostRequest("aws:ec2/instance:Instance", nil)
+	require.NoError(t, err)
+	require.NotNil(t, req)
+	assert.Equal(t, "aws:ec2/instance:Instance", req.GetResourceType())
+	require.NotNil(t, req.GetAttributes())
+	assert.Empty(t, req.GetAttributes().AsMap())
 }

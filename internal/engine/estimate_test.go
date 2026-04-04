@@ -3,12 +3,89 @@ package engine
 import (
 	"context"
 	"errors"
+	"math"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
+
+// estimateMockPlugin implements proto.CostSourceClient with a configurable
+// EstimateCost function for testing tryEstimateCostRPC.
+type estimateMockPlugin struct {
+	estimateCostFunc func(ctx context.Context, in *pbc.EstimateCostRequest, opts ...grpc.CallOption) (*pbc.EstimateCostResponse, error)
+}
+
+func (m *estimateMockPlugin) Name(
+	_ context.Context, _ *proto.Empty, _ ...grpc.CallOption,
+) (*proto.NameResponse, error) {
+	return &proto.NameResponse{Name: "estimate-mock"}, nil
+}
+
+func (m *estimateMockPlugin) GetProjectedCost(
+	_ context.Context, _ *proto.GetProjectedCostRequest, _ ...grpc.CallOption,
+) (*proto.GetProjectedCostResponse, error) {
+	return &proto.GetProjectedCostResponse{}, nil
+}
+
+func (m *estimateMockPlugin) GetActualCost(
+	_ context.Context, _ *proto.GetActualCostRequest, _ ...grpc.CallOption,
+) (*proto.GetActualCostResponse, error) {
+	return &proto.GetActualCostResponse{}, nil
+}
+
+func (m *estimateMockPlugin) GetRecommendations(
+	_ context.Context, _ *proto.GetRecommendationsRequest, _ ...grpc.CallOption,
+) (*proto.GetRecommendationsResponse, error) {
+	return &proto.GetRecommendationsResponse{}, nil
+}
+
+func (m *estimateMockPlugin) GetPluginInfo(
+	_ context.Context, _ *proto.Empty, _ ...grpc.CallOption,
+) (*pbc.GetPluginInfoResponse, error) {
+	return &pbc.GetPluginInfoResponse{}, nil
+}
+
+func (m *estimateMockPlugin) DryRun(
+	_ context.Context, _ *pbc.DryRunRequest, _ ...grpc.CallOption,
+) (*pbc.DryRunResponse, error) {
+	return &pbc.DryRunResponse{}, nil
+}
+
+func (m *estimateMockPlugin) GetBudgets(
+	_ context.Context, _ *pbc.GetBudgetsRequest, _ ...grpc.CallOption,
+) (*pbc.GetBudgetsResponse, error) {
+	return &pbc.GetBudgetsResponse{}, nil
+}
+
+func (m *estimateMockPlugin) DismissRecommendation(
+	_ context.Context, _ *proto.DismissRecommendationRequest, _ ...grpc.CallOption,
+) (*proto.DismissRecommendationResponse, error) {
+	return &proto.DismissRecommendationResponse{Success: true}, nil
+}
+
+func (m *estimateMockPlugin) Supports(
+	_ context.Context, _ *pbc.SupportsRequest, _ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	return &pbc.SupportsResponse{Supported: true}, nil
+}
+
+func (m *estimateMockPlugin) EstimateCost(
+	ctx context.Context, in *pbc.EstimateCostRequest, opts ...grpc.CallOption,
+) (*pbc.EstimateCostResponse, error) {
+	if m.estimateCostFunc != nil {
+		return m.estimateCostFunc(ctx, in, opts...)
+	}
+	return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
+}
 
 // errNoSpec is a sentinel error for missing specs in tests.
 var errNoSpec = errors.New("no spec available")
@@ -78,12 +155,11 @@ func TestEstimateCost_Fallback(t *testing.T) {
 		require.NotNil(t, result)
 
 		assert.True(t, result.UsedFallback)
-		// Multiple overrides should result in a "combined" delta
 		assert.Len(t, result.Deltas, 1)
-		assert.Equal(t, "combined", result.Deltas[0].Property)
+		assert.Equal(t, combinedDeltaProperty, result.Deltas[0].Property)
 	})
 
-	t.Run("no property overrides", func(t *testing.T) {
+	t.Run("no property overrides returns validation error", func(t *testing.T) {
 		engine := New(nil, &mockSpecLoader{})
 
 		request := &EstimateRequest{
@@ -99,13 +175,9 @@ func TestEstimateCost_Fallback(t *testing.T) {
 		}
 
 		result, err := engine.EstimateCost(context.Background(), request)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-
-		// With no overrides, baseline and modified should be the same
-		assert.Equal(t, result.Baseline.Monthly, result.Modified.Monthly)
-		assert.Equal(t, 0.0, result.TotalChange)
-		assert.Empty(t, result.Deltas)
+		require.Error(t, err)
+		assert.Nil(t, result)
+		assert.Contains(t, err.Error(), "property overrides")
 	})
 }
 
@@ -131,61 +203,6 @@ func TestEstimateCost_ResourceValidation(t *testing.T) {
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "resource type is required")
 	})
-}
-
-// TestEstimateCost_TotalChange tests that TotalChange is correctly calculated.
-func TestEstimateCost_TotalChange(t *testing.T) {
-	t.Run("total change equals modified minus baseline", func(t *testing.T) {
-		engine := New(nil, &mockSpecLoader{})
-
-		request := &EstimateRequest{
-			Resource: &ResourceDescriptor{
-				Provider: "aws",
-				Type:     "aws:ec2:Instance",
-				ID:       "i-123",
-				Properties: map[string]interface{}{
-					"instanceType": "t3.micro",
-				},
-			},
-			PropertyOverrides: map[string]string{
-				"instanceType": "m5.large",
-			},
-		}
-
-		result, err := engine.EstimateCost(context.Background(), request)
-		require.NoError(t, err)
-		require.NotNil(t, result)
-
-		// TotalChange should be Modified.Monthly - Baseline.Monthly
-		expectedChange := result.Modified.Monthly - result.Baseline.Monthly
-		assert.Equal(t, expectedChange, result.TotalChange)
-	})
-}
-
-// TestFormatPropertyValue tests the property value formatting helper.
-func TestFormatPropertyValue(t *testing.T) {
-	tests := []struct {
-		name     string
-		value    interface{}
-		expected string
-	}{
-		{"string value", "t3.micro", "t3.micro"},
-		{"int value", 42, "42"},
-		{"int64 value", int64(1000), "1000"},
-		{"float64 value", 3.14, "3.14"},
-		{"bool true", true, "true"},
-		{"bool false", false, "false"},
-		{"nil value", nil, "<nil>"},
-		{"slice value", []string{"a", "b"}, "[a b]"},
-		{"map value", map[string]string{"key": "val"}, "map[key:val]"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatPropertyValue(tt.value)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
 }
 
 // TestEstimateCost_Context tests context cancellation handling.
@@ -308,8 +325,8 @@ func BenchmarkEstimateCost_MultipleOverrides(b *testing.B) {
 	}
 }
 
-// BenchmarkEstimateCost_NoOverrides benchmarks baseline-only estimation (no property changes).
-func BenchmarkEstimateCost_NoOverrides(b *testing.B) {
+// BenchmarkEstimateCost_MinimalOverride benchmarks estimation with a single minimal property change.
+func BenchmarkEstimateCost_MinimalOverride(b *testing.B) {
 	engine := New(nil, &mockSpecLoader{})
 
 	request := &EstimateRequest{
@@ -321,7 +338,9 @@ func BenchmarkEstimateCost_NoOverrides(b *testing.B) {
 				"instanceType": "t3.micro",
 			},
 		},
-		PropertyOverrides: map[string]string{},
+		PropertyOverrides: map[string]string{
+			"instanceType": "t3.small",
+		},
 	}
 
 	b.ResetTimer()
@@ -380,4 +399,496 @@ func TestEstimateCost_PerformanceWithin5Seconds(t *testing.T) {
 	slowPercentage := float64(slowCount) / float64(iterations) * 100
 	assert.LessOrEqual(t, slowPercentage, 10.0,
 		"more than 10%% of requests exceeded 5 second SLA")
+}
+
+// TestTryEstimateCostRPC_Success verifies the RPC path returns correct baseline/modified
+// costs and TotalChange when the plugin implements EstimateCost.
+func TestTryEstimateCostRPC_Success(t *testing.T) {
+	callCount := 0
+	var firstRequest, secondRequest *pbc.EstimateCostRequest
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, in *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			callCount++
+			// First call = baseline (original properties), second = modified
+			if callCount == 1 {
+				firstRequest = in
+				return &pbc.EstimateCostResponse{
+					Currency:    "USD",
+					CostMonthly: 10.0,
+				}, nil
+			}
+			secondRequest = in
+			return &pbc.EstimateCostResponse{
+				Currency:    "USD",
+				CostMonthly: 25.0,
+			}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-123",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.False(t, result.UsedFallback, "should NOT use fallback when RPC succeeds")
+	assert.Equal(t, 2, callCount, "should call EstimateCost twice (baseline + modified)")
+	require.NotNil(t, result.Baseline)
+	require.NotNil(t, result.Modified)
+	assert.Equal(t, 10.0, result.Baseline.Monthly)
+	assert.Equal(t, 25.0, result.Modified.Monthly)
+	assert.InDelta(t, 15.0, result.TotalChange, 0.001)
+
+	// Verify baseline request carries original properties
+	require.NotNil(t, firstRequest, "baseline request should have been captured")
+	require.NotNil(t, firstRequest.GetAttributes(), "baseline request should have attributes")
+	baselineAttrs := firstRequest.GetAttributes().AsMap()
+	assert.Equal(t, "t3.micro", baselineAttrs["instanceType"],
+		"baseline request should contain original instanceType")
+
+	// Verify modified request carries merged overrides
+	require.NotNil(t, secondRequest, "modified request should have been captured")
+	require.NotNil(t, secondRequest.GetAttributes(), "modified request should have attributes")
+	modifiedAttrs := secondRequest.GetAttributes().AsMap()
+	assert.Equal(t, "m5.large", modifiedAttrs["instanceType"],
+		"modified request should contain overridden instanceType")
+}
+
+// TestTryEstimateCostRPC_SinglePropertyDelta verifies that a single override
+// produces one CostDelta entry with the correct property name and cost change.
+func TestTryEstimateCostRPC_SinglePropertyDelta(t *testing.T) {
+	callCount := 0
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			callCount++
+			if callCount == 1 {
+				return &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: 50.0}, nil
+			}
+			return &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: 120.0}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-456",
+			Properties: map[string]interface{}{"instanceType": "t3.small"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.xlarge"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	require.Len(t, result.Deltas, 1)
+	assert.Equal(t, "instanceType", result.Deltas[0].Property)
+	assert.Equal(t, "t3.small", result.Deltas[0].OriginalValue)
+	assert.Equal(t, "m5.xlarge", result.Deltas[0].NewValue)
+	assert.InDelta(t, 70.0, result.Deltas[0].CostChange, 0.001)
+}
+
+// TestTryEstimateCostRPC_MultiPropertyCombinedDelta verifies that multiple
+// overrides produce a single "combined" delta entry.
+func TestTryEstimateCostRPC_MultiPropertyCombinedDelta(t *testing.T) {
+	callCount := 0
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			callCount++
+			if callCount == 1 {
+				return &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: 30.0}, nil
+			}
+			return &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: 80.0}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-789",
+			Properties: map[string]interface{}{"instanceType": "t3.micro", "volumeSize": 8},
+		},
+		PropertyOverrides: map[string]string{
+			"instanceType": "m5.large",
+			"volumeSize":   "100",
+		},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	require.Len(t, result.Deltas, 1)
+	assert.Equal(t, combinedDeltaProperty, result.Deltas[0].Property)
+	assert.InDelta(t, 50.0, result.Deltas[0].CostChange, 0.001)
+}
+
+// TestTryEstimateCostRPC_NilResponse verifies that a nil response from the
+// plugin causes an error (not a panic).
+func TestTryEstimateCostRPC_NilResponse(t *testing.T) {
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			// Simulate a plugin returning a nil response (no proto, no error).
+			// validateEstimateResponse catches this and returns errNilEstimateResponse.
+			var resp *pbc.EstimateCostResponse
+			return resp, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-nil",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	// nil response should cause the plugin to be skipped (error logged),
+	// falling through to fallback
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.UsedFallback, "nil RPC response should trigger fallback")
+}
+
+// TestTryEstimateCostRPC_NegativeCost verifies that a negative CostMonthly
+// from the plugin causes the RPC result to be rejected.
+func TestTryEstimateCostRPC_NegativeCost(t *testing.T) {
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			return &pbc.EstimateCostResponse{
+				Currency:    "USD",
+				CostMonthly: -5.0,
+			}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-neg",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	// Negative cost should cause the plugin to be skipped, falling to fallback
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.UsedFallback, "negative cost should trigger fallback")
+}
+
+// TestTryEstimateCostRPC_EmptyCurrency verifies that an empty currency
+// in the plugin response causes RPC rejection and engine falls back.
+func TestTryEstimateCostRPC_EmptyCurrency(t *testing.T) {
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			return &pbc.EstimateCostResponse{
+				Currency:    "",
+				CostMonthly: 10.0,
+			}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-empty-cur",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.UsedFallback, "empty currency should cause RPC rejection and fallback")
+}
+
+// TestTryEstimateCostRPC_CurrencyPassthrough verifies that a non-USD currency
+// from the plugin is preserved without conversion.
+func TestTryEstimateCostRPC_CurrencyPassthrough(t *testing.T) {
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			return &pbc.EstimateCostResponse{
+				Currency:    "EUR",
+				CostMonthly: 10.0,
+			}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-eur",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.False(t, result.UsedFallback)
+	assert.Equal(t, "EUR", result.Baseline.Currency)
+	assert.Equal(t, "EUR", result.Modified.Currency)
+}
+
+// TestTryEstimateCostRPC_NilExpiresAt verifies that ExpiresAt remains nil
+// since the EstimateCostResponse proto lacks an expires_at field.
+func TestTryEstimateCostRPC_NilExpiresAt(t *testing.T) {
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			return &pbc.EstimateCostResponse{
+				Currency:    "USD",
+				CostMonthly: 10.0,
+			}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-exp",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.False(t, result.UsedFallback)
+	assert.Nil(t, result.Baseline.ExpiresAt, "ExpiresAt should be nil: EstimateCostResponse proto lacks expires_at")
+	assert.Nil(t, result.Modified.ExpiresAt, "ExpiresAt should be nil: EstimateCostResponse proto lacks expires_at")
+}
+
+// TestEstimateCost_FallbackOnUnimplemented verifies that when a plugin returns
+// Unimplemented for EstimateCost, the engine falls back to double-GetProjectedCost
+// and sets UsedFallback = true.
+func TestEstimateCost_FallbackOnUnimplemented(t *testing.T) {
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "unimpl-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-fallback",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.True(t, result.UsedFallback, "should use fallback when plugin returns Unimplemented")
+	require.NotNil(t, result.Baseline)
+	require.NotNil(t, result.Modified)
+	require.Len(t, result.Deltas, 1)
+	assert.Equal(t, "instanceType", result.Deltas[0].Property)
+}
+
+// TestEstimateCost_MultiPlugin_FirstUnimplemented verifies that when the first
+// plugin returns Unimplemented but the second implements the RPC, the engine
+// uses the second plugin's response with UsedFallback = false.
+func TestEstimateCost_MultiPlugin_FirstUnimplemented(t *testing.T) {
+	unimplMock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
+		},
+	}
+
+	callCount := 0
+	implMock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			callCount++
+			if callCount == 1 {
+				return &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: 20.0}, nil
+			}
+			return &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: 45.0}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{
+		{Name: "unimpl-plugin", API: unimplMock},
+		{Name: "impl-plugin", API: implMock},
+	}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-multi",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.False(t, result.UsedFallback, "should NOT use fallback when second plugin implements RPC")
+	assert.Equal(t, 2, callCount, "second plugin should be called twice (baseline + modified)")
+	require.NotNil(t, result.Baseline)
+	require.NotNil(t, result.Modified)
+	assert.Equal(t, 20.0, result.Baseline.Monthly)
+	assert.Equal(t, 45.0, result.Modified.Monthly)
+	assert.InDelta(t, 25.0, result.TotalChange, 0.001)
+}
+
+// TestValidateEstimateResponse_NaN verifies that NaN CostMonthly is rejected.
+func TestValidateEstimateResponse_NaN(t *testing.T) {
+	resp := &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: math.NaN()}
+	err := validateEstimateResponse(resp)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errNonFiniteEstimateCost)
+}
+
+// TestValidateEstimateResponse_Inf verifies that Inf CostMonthly is rejected.
+func TestValidateEstimateResponse_Inf(t *testing.T) {
+	resp := &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: math.Inf(1)}
+	err := validateEstimateResponse(resp)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errNonFiniteEstimateCost)
+}
+
+// TestValidateEstimateResponse_NegativeInf verifies that -Inf CostMonthly is rejected.
+func TestValidateEstimateResponse_NegativeInf(t *testing.T) {
+	resp := &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: math.Inf(-1)}
+	err := validateEstimateResponse(resp)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errNonFiniteEstimateCost)
+}
+
+// TestValidateEstimateResponse_EmptyCurrency verifies that empty currency is rejected.
+func TestValidateEstimateResponse_EmptyCurrency(t *testing.T) {
+	resp := &pbc.EstimateCostResponse{Currency: "", CostMonthly: 10.0}
+	err := validateEstimateResponse(resp)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, errEmptyEstimateCurrency)
+}
+
+// TestValidateEstimateResponse_Valid verifies that a valid response passes.
+func TestValidateEstimateResponse_Valid(t *testing.T) {
+	resp := &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: 10.0}
+	err := validateEstimateResponse(resp)
+	require.NoError(t, err)
+}
+
+// TestTryEstimateCostRPC_NaNFallsBackToFallback verifies that NaN CostMonthly
+// from a plugin causes RPC rejection and engine falls back.
+func TestTryEstimateCostRPC_NaNFallsBackToFallback(t *testing.T) {
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			return &pbc.EstimateCostResponse{
+				Currency:    "USD",
+				CostMonthly: math.NaN(),
+			}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-nan",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.UsedFallback, "NaN response should cause fallback")
+}
+
+// TestTryEstimateCostRPC_CurrencyMismatchFallsBack verifies that differing
+// currencies between baseline and modified responses cause fallback.
+func TestTryEstimateCostRPC_CurrencyMismatchFallsBack(t *testing.T) {
+	callCount := 0
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			callCount++
+			if callCount == 1 {
+				return &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: 10.0}, nil
+			}
+			return &pbc.EstimateCostResponse{Currency: "EUR", CostMonthly: 9.0}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-mismatch",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.UsedFallback, "currency mismatch should cause fallback")
 }

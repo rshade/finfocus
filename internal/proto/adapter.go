@@ -11,6 +11,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -19,11 +20,6 @@ import (
 	"github.com/rshade/finfocus/internal/awsutil"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/skus"
-)
-
-// ErrEstimateCostNotSupported indicates the EstimateCost RPC is not yet implemented.
-var ErrEstimateCostNotSupported = errors.New(
-	"EstimateCost RPC not yet implemented in finfocus-spec v0.5.6",
 )
 
 // ErrPropertiesMultiResource indicates Properties cannot be used with multiple ResourceIDs
@@ -705,6 +701,11 @@ type CostSourceClient interface {
 		in *pbc.SupportsRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.SupportsResponse, error)
+	EstimateCost(
+		ctx context.Context,
+		in *pbc.EstimateCostRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.EstimateCostResponse, error)
 }
 
 // NewCostSourceClient creates a new cost source client using the real proto client.
@@ -800,6 +801,14 @@ func (c *clientAdapter) Supports(
 	opts ...grpc.CallOption,
 ) (*pbc.SupportsResponse, error) {
 	return c.client.Supports(ctx, in, opts...)
+}
+
+func (c *clientAdapter) EstimateCost(
+	ctx context.Context,
+	in *pbc.EstimateCostRequest,
+	opts ...grpc.CallOption,
+) (*pbc.EstimateCostResponse, error) {
+	return c.client.EstimateCost(ctx, in, opts...)
 }
 
 // resolveSKUAndRegion determines the SKU and region for a resource using provider-specific
@@ -1274,63 +1283,28 @@ func aggregateImpactMetrics(result *ActualCostResult, pbcResults []*pbc.ActualCo
 	}
 }
 
-// EstimateCostRequest represents the internal request for what-if cost estimation.
-type EstimateCostRequest struct {
-	// Resource is the base resource descriptor
-	Resource *ResourceDescriptor `json:"resource,omitempty"`
-
-	// PropertyOverrides are the changes to evaluate
-	PropertyOverrides map[string]string `json:"propertyOverrides,omitempty"`
-
-	// UsageProfile optionally provides context (dev, prod, etc.)
-	UsageProfile string `json:"usageProfile,omitempty"`
-}
-
-// EstimateCostResponse contains the results of a cost estimation.
-type EstimateCostResponse struct {
-	// Baseline is the cost with original properties
-	Baseline *CostResult `json:"baseline,omitempty"`
-
-	// Modified is the cost with property overrides applied
-	Modified *CostResult `json:"modified,omitempty"`
-
-	// Deltas contains per-property cost impact breakdown
-	Deltas []*CostDelta `json:"deltas,omitempty"`
-}
-
-// CostDelta represents the cost impact of a single property change.
-type CostDelta struct {
-	// Property is the name of the property that was changed
-	Property string `json:"property"`
-
-	// OriginalValue is the value before the change
-	OriginalValue string `json:"originalValue"`
-
-	// NewValue is the value after the change
-	NewValue string `json:"newValue"`
-
-	// CostChange is the monthly cost difference
-	// Positive = increase, negative = savings
-	CostChange float64 `json:"costChange"`
-}
-
-// BuildEstimateCostRequest constructs an EstimateCostRequest proto message.
-//
-// This is the adapter layer function that converts engine-level types to
-// proto-level types for gRPC communication with plugins.
-//
-// Parameters:
-//   - resource: The ResourceDescriptor to estimate costs for
-//   - overrides: Property overrides to apply for the modified calculation
-//
-// Returns:
-//   - *EstimateCostRequest: The internal request (nil when RPC not implemented)
-//   - error: ErrEstimateCostNotSupported until the RPC is implemented
+// BuildEstimateCostRequest constructs a pbc.EstimateCostRequest proto message.
+// Called twice per estimation: once for baseline properties, once for modified.
 func BuildEstimateCostRequest(
-	_ *ResourceDescriptor,
-	_ map[string]string,
-) (*EstimateCostRequest, error) {
-	return nil, ErrEstimateCostNotSupported
+	resourceType string,
+	properties map[string]any,
+) (*pbc.EstimateCostRequest, error) {
+	if resourceType == "" {
+		return nil, errors.New("resource type must not be empty")
+	}
+
+	if properties == nil {
+		properties = map[string]any{}
+	}
+	attrs, err := structpb.NewStruct(properties)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert properties to proto struct: %w", err)
+	}
+
+	return &pbc.EstimateCostRequest{
+		ResourceType: resourceType,
+		Attributes:   attrs,
+	}, nil
 }
 
 func (c *clientAdapter) GetRecommendations(
