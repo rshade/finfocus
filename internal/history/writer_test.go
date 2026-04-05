@@ -590,7 +590,7 @@ func TestHistoryWriter_RecordAnalyzerEvent_DisabledStore(t *testing.T) {
 // Tag extraction from analyzer event properties
 // ---------------------------------------------------------------------------
 
-func TestHistoryWriter_RecordAnalyzerEvent_ExtractsTagsFromProperties(t *testing.T) {
+func TestHistoryWriter_RecordAnalyzerEvent_TagExtraction(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -606,146 +606,103 @@ func TestHistoryWriter_RecordAnalyzerEvent_ExtractsTagsFromProperties(t *testing
 		Stack:        "test-stack",
 	}
 
-	event := history.AnalyzerResource{
-		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
-		Type:     "aws:ec2/instance:Instance",
-		Provider: "aws",
-		CloudID:  "i-tagged-123",
-		Properties: map[string]any{
-			"instanceType": "t3.micro",
-			"tags": map[string]any{
-				"Name": "web-server",
-				"env":  "prod",
+	tests := []struct {
+		name         string
+		cloudID      string
+		properties   map[string]any
+		expectedTags map[string]string
+	}{
+		{
+			name:    "tags as map[string]any with string values",
+			cloudID: "i-tagged-123",
+			properties: map[string]any{
+				"instanceType": "t3.micro",
+				"tags": map[string]any{
+					"Name": "web-server",
+					"env":  "prod",
+				},
 			},
+			expectedTags: map[string]string{"Name": "web-server", "env": "prod"},
+		},
+		{
+			name:    "tagsAll precedence over tags",
+			cloudID: "i-tagsall-456",
+			properties: map[string]any{
+				"tags": map[string]any{
+					"Name": "from-tags",
+				},
+				"tagsAll": map[string]any{
+					"Name":       "from-tagsAll",
+					"managed-by": "pulumi",
+				},
+			},
+			expectedTags: map[string]string{"Name": "from-tagsAll", "managed-by": "pulumi"},
+		},
+		{
+			name:         "empty properties produces no tags",
+			cloudID:      "i-empty-789",
+			properties:   nil,
+			expectedTags: map[string]string{},
+		},
+		{
+			name:    "properties without tag keys",
+			cloudID: "i-notags-000",
+			properties: map[string]any{
+				"instanceType":     "t3.micro",
+				"availabilityZone": "us-east-1a",
+			},
+			expectedTags: map[string]string{},
+		},
+		{
+			name:    "tags as map[string]string",
+			cloudID: "i-strmap-111",
+			properties: map[string]any{
+				"tags": map[string]string{
+					"Team":    "platform",
+					"Project": "finfocus",
+				},
+			},
+			expectedTags: map[string]string{"Team": "platform", "Project": "finfocus"},
+		},
+		{
+			name:    "tags with non-string values use fmt.Sprintf",
+			cloudID: "i-mixed-222",
+			properties: map[string]any{
+				"tags": map[string]any{
+					"enabled": true,
+					"count":   42,
+					"name":    "ok",
+				},
+			},
+			expectedTags: map[string]string{"enabled": "true", "count": "42", "name": "ok"},
 		},
 	}
 
-	writer.RecordAnalyzerEvent(stackCtx, event)
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			urn := "urn:pulumi:dev::app::aws:ec2/instance:Instance::" + tc.cloudID
 
-	stackHash := stackCtx.Hash()
-	urnHash := history.URNHash(event.URN)
-	results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
-	require.NoError(t, err)
-	require.Len(t, results, 1)
+			event := history.AnalyzerResource{
+				URN:        urn,
+				Type:       "aws:ec2/instance:Instance",
+				Provider:   "aws",
+				CloudID:    tc.cloudID,
+				Properties: tc.properties,
+			}
 
-	entry := results[0]
-	assert.Equal(t, "web-server", entry.Tags["Name"])
-	assert.Equal(t, "prod", entry.Tags["env"])
-	assert.Len(t, entry.Tags, 2)
-}
+			writer.RecordAnalyzerEvent(stackCtx, event)
 
-func TestHistoryWriter_RecordAnalyzerEvent_PrefersTagsAllOverTags(t *testing.T) {
-	tmpDir := t.TempDir()
-	ctx := context.Background()
-	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
-	require.NoError(t, err)
-	defer store.Close()
+			stackHash := stackCtx.Hash()
+			urnHash := history.URNHash(urn)
+			results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
+			require.NoError(t, err)
+			require.Len(t, results, 1)
 
-	logger := zerolog.New(zerolog.NewConsoleWriter())
-	writer := history.NewWriter(store, logger)
-
-	stackCtx := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
+			entry := results[0]
+			assert.Len(t, entry.Tags, len(tc.expectedTags))
+			for k, v := range tc.expectedTags {
+				assert.Equal(t, v, entry.Tags[k], "tag %q mismatch", k)
+			}
+		})
 	}
-
-	event := history.AnalyzerResource{
-		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
-		Type:     "aws:ec2/instance:Instance",
-		Provider: "aws",
-		CloudID:  "i-tagsall-456",
-		Properties: map[string]any{
-			"tags": map[string]any{
-				"Name": "from-tags",
-			},
-			"tagsAll": map[string]any{
-				"Name":       "from-tagsAll",
-				"managed-by": "pulumi",
-			},
-		},
-	}
-
-	writer.RecordAnalyzerEvent(stackCtx, event)
-
-	stackHash := stackCtx.Hash()
-	urnHash := history.URNHash(event.URN)
-	results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-
-	entry := results[0]
-	assert.Equal(t, "from-tagsAll", entry.Tags["Name"], "tagsAll should take precedence over tags")
-	assert.Equal(t, "pulumi", entry.Tags["managed-by"])
-	assert.Len(t, entry.Tags, 2)
-}
-
-func TestHistoryWriter_RecordAnalyzerEvent_EmptyPropertiesNoTags(t *testing.T) {
-	tmpDir := t.TempDir()
-	ctx := context.Background()
-	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
-	require.NoError(t, err)
-	defer store.Close()
-
-	logger := zerolog.New(zerolog.NewConsoleWriter())
-	writer := history.NewWriter(store, logger)
-
-	stackCtx := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}
-
-	event := history.AnalyzerResource{
-		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::empty",
-		Type:     "aws:ec2/instance:Instance",
-		Provider: "aws",
-		CloudID:  "i-empty-789",
-	}
-
-	writer.RecordAnalyzerEvent(stackCtx, event)
-
-	stackHash := stackCtx.Hash()
-	urnHash := history.URNHash(event.URN)
-	results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	assert.Empty(t, results[0].Tags)
-}
-
-func TestHistoryWriter_RecordAnalyzerEvent_PropertiesWithoutTagKeys(t *testing.T) {
-	tmpDir := t.TempDir()
-	ctx := context.Background()
-	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
-	require.NoError(t, err)
-	defer store.Close()
-
-	logger := zerolog.New(zerolog.NewConsoleWriter())
-	writer := history.NewWriter(store, logger)
-
-	stackCtx := history.StackContext{
-		Organization: "test-org",
-		Project:      "test-proj",
-		Stack:        "test-stack",
-	}
-
-	event := history.AnalyzerResource{
-		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::notags",
-		Type:     "aws:ec2/instance:Instance",
-		Provider: "aws",
-		CloudID:  "i-notags-000",
-		Properties: map[string]any{
-			"instanceType":     "t3.micro",
-			"availabilityZone": "us-east-1a",
-		},
-	}
-
-	writer.RecordAnalyzerEvent(stackCtx, event)
-
-	stackHash := stackCtx.Hash()
-	urnHash := history.URNHash(event.URN)
-	results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
-	require.NoError(t, err)
-	require.Len(t, results, 1)
-	assert.Empty(t, results[0].Tags)
 }
