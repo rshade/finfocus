@@ -161,9 +161,10 @@ func (s *Server) recordAnalyzerEvent(ctx context.Context, req *pulumirpc.Analyze
 		return
 	}
 
+	props := structToMap(req.GetProperties())
+
 	var cloudID string
 	if !s.dryRun {
-		props := structToMap(req.GetProperties())
 		if id, ok := props["id"].(string); ok && id != "" {
 			cloudID = id
 		}
@@ -184,10 +185,11 @@ func (s *Server) recordAnalyzerEvent(ctx context.Context, req *pulumirpc.Analyze
 	}
 
 	event := history.AnalyzerResource{
-		URN:      req.GetUrn(),
-		Type:     resourceType,
-		Provider: provider,
-		CloudID:  cloudID,
+		URN:        req.GetUrn(),
+		Type:       resourceType,
+		Provider:   provider,
+		CloudID:    cloudID,
+		Properties: props,
 	}
 
 	log.Debug().Str("urn", event.URN).Str("cloud_id", event.CloudID).Msg("recordAnalyzerEvent: recording")
