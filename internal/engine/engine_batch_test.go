@@ -170,110 +170,124 @@ func makeInvalidIndexedResource(index int, id string) indexedResource {
 	}
 }
 
-func TestBuildBatchCostRequest_ProjectedValidation(t *testing.T) {
-	resources := []indexedResource{
-		makeValidIndexedResource(0, "i-valid-0"),
-		makeInvalidIndexedResource(1, "i-invalid-1"),
-		makeValidIndexedResource(2, "i-valid-2"),
-	}
-
-	opts := batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED}
-	built := buildBatchCostRequest(context.Background(), resources, opts)
-
-	// Valid resources included in request
-	require.NotNil(t, built.request)
-	assert.Len(t, built.request.GetResources(), 2)
-	assert.Len(t, built.validResources, 2)
-	assert.Equal(t, 0, built.validResources[0].index)
-	assert.Equal(t, 2, built.validResources[1].index)
-
-	// Invalid resource produces placeholder
-	require.Len(t, built.invalidResults, 1)
-	inv := built.invalidResults[0]
-	assert.Equal(t, 1, inv.index)
-	require.NotNil(t, inv.result)
-	assert.Nil(t, inv.actualResult)
-	assert.Equal(t, "USD", inv.result.Currency)
-	assert.InDelta(t, 0.0, inv.result.Monthly, 0.001)
-	assert.Contains(t, inv.result.Notes, "VALIDATION:")
-	require.NotNil(t, inv.result.Error)
-	assert.Equal(t, ErrCodeValidationError, inv.result.Error.Code)
-	assert.Equal(t, "aws:ec2:Instance", inv.result.Error.ResourceType)
-}
-
-func TestBuildBatchCostRequest_ActualValidation(t *testing.T) {
+func TestBuildBatchCostRequest_Validation_Table(t *testing.T) {
 	now := timestamppb.Now()
 	start := timestamppb.New(now.AsTime().Add(-24 * time.Hour))
 
-	// For actual cost, ValidateActualCostRequest checks resource_id, start, end.
-	// An empty ID triggers ErrActualCostResourceIDEmpty.
-	invalidActual := indexedResource{
+	// invalidActualResource has a valid provider/SKU but empty ID, which fails
+	// actual cost validation (ErrActualCostResourceIDEmpty).
+	invalidActualResource := indexedResource{
 		index: 1,
 		resource: ResourceDescriptor{
 			Type:       "aws:ec2:Instance",
-			ID:         "", // empty ID fails actual cost validation
+			ID:         "",
 			Provider:   "aws",
 			Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
 		},
 	}
 
-	resources := []indexedResource{
-		makeValidIndexedResource(0, "i-valid-0"),
-		invalidActual,
+	tests := []struct {
+		name             string
+		resources        []indexedResource
+		opts             batchOptions
+		wantRequestNil   bool
+		wantValidLen     int
+		wantValidIndices []int // expected original indices of valid resources
+		wantInvalidLen   int
+		wantInvalidField string // "result" or "actualResult" — which field holds the placeholder
+	}{
+		{
+			name: "projected mixed valid and invalid",
+			resources: []indexedResource{
+				makeValidIndexedResource(0, "i-valid-0"),
+				makeInvalidIndexedResource(1, "i-invalid-1"),
+				makeValidIndexedResource(2, "i-valid-2"),
+			},
+			opts:             batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+			wantValidLen:     2,
+			wantValidIndices: []int{0, 2},
+			wantInvalidLen:   1,
+			wantInvalidField: "result",
+		},
+		{
+			name: "actual with empty ID fails validation",
+			resources: []indexedResource{
+				makeValidIndexedResource(0, "i-valid-0"),
+				invalidActualResource,
+			},
+			opts:             batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL, start: start, end: now},
+			wantValidLen:     1,
+			wantValidIndices: []int{0},
+			wantInvalidLen:   1,
+			wantInvalidField: "actualResult",
+		},
+		{
+			name: "all invalid produces nil request",
+			resources: []indexedResource{
+				makeInvalidIndexedResource(0, "i-bad-0"),
+				makeInvalidIndexedResource(1, "i-bad-1"),
+			},
+			opts:             batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+			wantRequestNil:   true,
+			wantValidLen:     0,
+			wantValidIndices: nil,
+			wantInvalidLen:   2,
+			wantInvalidField: "result",
+		},
+		{
+			name: "all valid produces zero invalid results",
+			resources: []indexedResource{
+				makeValidIndexedResource(0, "i-ok-0"),
+				makeValidIndexedResource(1, "i-ok-1"),
+				makeValidIndexedResource(2, "i-ok-2"),
+			},
+			opts:           batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+			wantValidLen:   3,
+			wantInvalidLen: 0,
+		},
 	}
 
-	opts := batchOptions{
-		queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL,
-		start:     start,
-		end:       now,
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			built := buildBatchCostRequest(context.Background(), tc.resources, tc.opts)
+
+			// Request presence
+			if tc.wantRequestNil {
+				assert.Nil(t, built.request)
+			} else {
+				require.NotNil(t, built.request)
+				assert.Len(t, built.request.GetResources(), tc.wantValidLen)
+			}
+
+			// Valid resources
+			assert.Len(t, built.validResources, tc.wantValidLen)
+			for i, wantIdx := range tc.wantValidIndices {
+				assert.Equal(t, wantIdx, built.validResources[i].index)
+			}
+
+			// Invalid results
+			assert.Len(t, built.invalidResults, tc.wantInvalidLen)
+			for _, inv := range built.invalidResults {
+				switch tc.wantInvalidField {
+				case "result":
+					require.NotNil(t, inv.result)
+					assert.Nil(t, inv.actualResult)
+					assert.Equal(t, "USD", inv.result.Currency)
+					assert.InDelta(t, 0.0, inv.result.Monthly, 0.001)
+					assert.Contains(t, inv.result.Notes, "VALIDATION:")
+					require.NotNil(t, inv.result.Error)
+					assert.Equal(t, ErrCodeValidationError, inv.result.Error.Code)
+				case "actualResult":
+					assert.Nil(t, inv.result)
+					require.NotNil(t, inv.actualResult)
+					assert.Equal(t, "USD", inv.actualResult.Currency)
+					assert.Contains(t, inv.actualResult.Notes, "VALIDATION:")
+					require.NotNil(t, inv.actualResult.Error)
+					assert.Equal(t, ErrCodeValidationError, inv.actualResult.Error.Code)
+				}
+			}
+		})
 	}
-	built := buildBatchCostRequest(context.Background(), resources, opts)
-
-	require.NotNil(t, built.request)
-	assert.Len(t, built.request.GetResources(), 1)
-	assert.Len(t, built.validResources, 1)
-
-	// Actual path populates actualResult, not result
-	require.Len(t, built.invalidResults, 1)
-	inv := built.invalidResults[0]
-	assert.Nil(t, inv.result)
-	require.NotNil(t, inv.actualResult)
-	assert.Equal(t, "USD", inv.actualResult.Currency)
-	assert.Contains(t, inv.actualResult.Notes, "VALIDATION:")
-	require.NotNil(t, inv.actualResult.Error)
-	assert.Equal(t, ErrCodeValidationError, inv.actualResult.Error.Code)
-}
-
-func TestBuildBatchCostRequest_AllInvalid(t *testing.T) {
-	resources := []indexedResource{
-		makeInvalidIndexedResource(0, "i-bad-0"),
-		makeInvalidIndexedResource(1, "i-bad-1"),
-	}
-
-	opts := batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED}
-	built := buildBatchCostRequest(context.Background(), resources, opts)
-
-	assert.Nil(t, built.request)
-	assert.Empty(t, built.validResources)
-	assert.Len(t, built.invalidResults, 2)
-	assert.Equal(t, 0, built.invalidResults[0].index)
-	assert.Equal(t, 1, built.invalidResults[1].index)
-}
-
-func TestBuildBatchCostRequest_AllValid(t *testing.T) {
-	resources := []indexedResource{
-		makeValidIndexedResource(0, "i-ok-0"),
-		makeValidIndexedResource(1, "i-ok-1"),
-		makeValidIndexedResource(2, "i-ok-2"),
-	}
-
-	opts := batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED}
-	built := buildBatchCostRequest(context.Background(), resources, opts)
-
-	require.NotNil(t, built.request)
-	assert.Len(t, built.request.GetResources(), 3)
-	assert.Len(t, built.validResources, 3)
-	assert.Empty(t, built.invalidResults)
 }
 
 func TestExecuteBatchForPlugin_ValidationSkipsRPC(t *testing.T) {
@@ -307,8 +321,12 @@ func TestExecuteBatchForPlugin_ValidationSkipsRPC(t *testing.T) {
 }
 
 func TestExecuteBatchForPlugin_MixedValidation(t *testing.T) {
+	var capturedReq *pbc.BatchCostRequest
 	mockAPI := &mockBatchCostSourceClient{
+		// Return ID-specific costs so assertions can verify correct request→result mapping.
+		// Position i in the request gets CostPerMonth = 10*(i+1), UnitPrice = (i+1)*0.01.
 		batchCostFunc: func(_ context.Context, req *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			capturedReq = req
 			results := make([]*pbc.ResourceCostResult, len(req.GetResources()))
 			for i, res := range req.GetResources() {
 				results[i] = &pbc.ResourceCostResult{
@@ -318,8 +336,8 @@ func TestExecuteBatchForPlugin_MixedValidation(t *testing.T) {
 							Data: &pbc.CostData_ProjectedCost{
 								ProjectedCost: &pbc.GetProjectedCostResponse{
 									Currency:     "USD",
-									CostPerMonth: 25.0,
-									UnitPrice:    0.034,
+									CostPerMonth: float64(10 * (i + 1)),
+									UnitPrice:    float64(i+1) * 0.01,
 								},
 							},
 						},
@@ -344,26 +362,33 @@ func TestExecuteBatchForPlugin_MixedValidation(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 4)
 
+	// Verify only valid resource IDs were sent in the batch request
+	require.NotNil(t, capturedReq)
+	require.Len(t, capturedReq.GetResources(), 2)
+	assert.Equal(t, "i-valid-0", capturedReq.GetResources()[0].GetId())
+	assert.Equal(t, "i-valid-2", capturedReq.GetResources()[1].GetId())
+
 	// Build a map of index -> result for easier assertions
 	byIndex := make(map[int]batchResult)
 	for _, r := range results {
 		byIndex[r.index] = r
 	}
 
-	// Valid resources got real results
+	// Valid resources got ID-specific results (position 0 → 10.0, position 1 → 20.0)
 	r0 := byIndex[0]
 	require.NotNil(t, r0.result)
-	assert.InDelta(t, 25.0, r0.result.Monthly, 0.001)
+	assert.InDelta(t, 10.0, r0.result.Monthly, 0.001)
 	assert.Empty(t, r0.result.Notes)
 
 	r2 := byIndex[2]
 	require.NotNil(t, r2.result)
-	assert.InDelta(t, 25.0, r2.result.Monthly, 0.001)
+	assert.InDelta(t, 20.0, r2.result.Monthly, 0.001)
 
 	// Invalid resources got validation placeholders
 	r1 := byIndex[1]
 	require.NotNil(t, r1.result)
 	assert.Contains(t, r1.result.Notes, "VALIDATION:")
+	require.NotNil(t, r1.result.Error)
 	assert.Equal(t, ErrCodeValidationError, r1.result.Error.Code)
 
 	r3 := byIndex[3]
