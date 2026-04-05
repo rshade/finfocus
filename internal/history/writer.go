@@ -1,6 +1,7 @@
 package history
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -50,6 +51,42 @@ func copyTags(src map[string]string) map[string]string {
 		dst[k] = v
 	}
 	return dst
+}
+
+// extractTagsFromProperties extracts a flat tag map from a resource properties map.
+// It checks "tagsAll" first (AWS complete tag set including default tags), then "tags".
+// Returns an empty map when properties is nil or contains no recognised tag keys.
+func extractTagsFromProperties(properties map[string]any) map[string]string {
+	if properties == nil {
+		return make(map[string]string)
+	}
+
+	for _, key := range []string{"tagsAll", "tags"} {
+		v, found := properties[key]
+		if !found {
+			continue
+		}
+		switch m := v.(type) {
+		case map[string]any:
+			tags := make(map[string]string, len(m))
+			for k, val := range m {
+				if s, ok := val.(string); ok {
+					tags[k] = s
+				} else {
+					tags[k] = fmt.Sprintf("%v", val)
+				}
+			}
+			return tags
+		case map[string]string:
+			tags := make(map[string]string, len(m))
+			for k, val := range m {
+				tags[k] = val
+			}
+			return tags
+		}
+	}
+
+	return make(map[string]string)
 }
 
 // Writer converts domain events into history store entries.
@@ -189,7 +226,7 @@ func (w *Writer) RecordAnalyzerEvent(stackCtx StackContext, event AnalyzerResour
 		FirstSeen: now,
 		LastSeen:  now,
 		Source:    SourceAnalyzerEvent,
-		Tags:      make(map[string]string),
+		Tags:      extractTagsFromProperties(event.Properties),
 	}
 
 	if err := w.store.Upsert(stackCtx.Hash(), entry); err != nil {
