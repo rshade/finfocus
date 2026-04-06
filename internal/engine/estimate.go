@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -378,8 +379,41 @@ func (e *Engine) estimateCostFallback(
 	}, nil
 }
 
-// mergePropertiesWithOverrides creates a shallow copy of properties with string
-// overrides applied. The returned map is safe to mutate without affecting the originals.
+// coerceOverrideValue attempts to convert an override string to match the type
+// of the original property value. If the original is nil or the parse fails,
+// the raw string is returned unchanged.
+func coerceOverrideValue(override string, original any) any {
+	if original == nil {
+		return override
+	}
+
+	switch original.(type) {
+	case float64:
+		if v, err := strconv.ParseFloat(override, 64); err == nil {
+			return v
+		}
+	case int:
+		if v, err := strconv.Atoi(override); err == nil {
+			return v
+		}
+	case int64:
+		if v, err := strconv.ParseInt(override, 10, 64); err == nil {
+			return v
+		}
+	case bool:
+		if v, err := strconv.ParseBool(override); err == nil {
+			return v
+		}
+	}
+
+	return override
+}
+
+// mergePropertiesWithOverrides creates a shallow copy of properties with
+// overrides applied. Override values are coerced to match the original
+// property's type when possible (float64, int, int64, bool). New keys
+// that do not exist in properties remain as strings. The returned map
+// is safe to mutate without affecting the originals.
 func mergePropertiesWithOverrides(
 	properties map[string]any,
 	overrides map[string]string,
@@ -389,7 +423,7 @@ func mergePropertiesWithOverrides(
 		merged[k] = v
 	}
 	for k, v := range overrides {
-		merged[k] = v
+		merged[k] = coerceOverrideValue(v, properties[k])
 	}
 	return merged
 }

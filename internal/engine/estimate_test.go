@@ -898,3 +898,130 @@ func TestTryEstimateCostRPC_CurrencyMismatchFallsBack(t *testing.T) {
 	require.NotNil(t, result)
 	assert.True(t, result.UsedFallback, "currency mismatch should cause fallback")
 }
+
+func TestCoerceOverrideValue(t *testing.T) {
+	tests := []struct {
+		name     string
+		override string
+		original any
+		expected any
+	}{
+		{"float64 integer string", "100", float64(8), float64(100)},
+		{"float64 decimal string", "3.14", float64(2.0), float64(3.14)},
+		{"float64 invalid string", "m5.large", float64(8), "m5.large"},
+		{"int coercion", "42", int(10), int(42)},
+		{"int invalid string", "abc", int(10), "abc"},
+		{"int64 coercion", "999", int64(100), int64(999)},
+		{"int64 invalid string", "nope", int64(100), "nope"},
+		{"bool true", "true", false, true},
+		{"bool false", "false", true, false},
+		{"bool numeric 1", "1", false, true},
+		{"bool invalid", "maybe", true, "maybe"},
+		{"string original", "new", "old", "new"},
+		{"nil original", "value", nil, "value"},
+		{"map original", "value", map[string]any{"k": "v"}, "value"},
+		{"slice original", "value", []any{1, 2}, "value"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := coerceOverrideValue(tt.override, tt.original)
+			assert.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+func TestMergePropertiesWithOverrides(t *testing.T) {
+	t.Run("override preserves float64 type", func(t *testing.T) {
+		properties := map[string]any{"volumeSize": float64(8)}
+		overrides := map[string]string{"volumeSize": "100"}
+
+		merged := mergePropertiesWithOverrides(properties, overrides)
+
+		require.Contains(t, merged, "volumeSize")
+		assert.IsType(t, float64(0), merged["volumeSize"])
+		assert.Equal(t, float64(100), merged["volumeSize"])
+	})
+
+	t.Run("override preserves bool type", func(t *testing.T) {
+		properties := map[string]any{"enabled": true}
+		overrides := map[string]string{"enabled": "false"}
+
+		merged := mergePropertiesWithOverrides(properties, overrides)
+
+		assert.IsType(t, false, merged["enabled"])
+		assert.Equal(t, false, merged["enabled"])
+	})
+
+	t.Run("override preserves string type", func(t *testing.T) {
+		properties := map[string]any{"instanceType": "t3.micro"}
+		overrides := map[string]string{"instanceType": "m5.large"}
+
+		merged := mergePropertiesWithOverrides(properties, overrides)
+
+		assert.Equal(t, "m5.large", merged["instanceType"])
+	})
+
+	t.Run("new key stays string", func(t *testing.T) {
+		properties := map[string]any{"existing": float64(1)}
+		overrides := map[string]string{"newKey": "value"}
+
+		merged := mergePropertiesWithOverrides(properties, overrides)
+
+		assert.Equal(t, "value", merged["newKey"])
+		assert.Equal(t, float64(1), merged["existing"])
+	})
+
+	t.Run("unparseable override stays string", func(t *testing.T) {
+		properties := map[string]any{"count": float64(5)}
+		overrides := map[string]string{"count": "many"}
+
+		merged := mergePropertiesWithOverrides(properties, overrides)
+
+		assert.Equal(t, "many", merged["count"])
+	})
+
+	t.Run("nil properties does not panic", func(t *testing.T) {
+		overrides := map[string]string{"key": "val"}
+
+		merged := mergePropertiesWithOverrides(nil, overrides)
+
+		assert.Equal(t, "val", merged["key"])
+	})
+
+	t.Run("empty overrides preserves originals", func(t *testing.T) {
+		properties := map[string]any{"a": float64(1)}
+
+		merged := mergePropertiesWithOverrides(properties, map[string]string{})
+
+		assert.Equal(t, float64(1), merged["a"])
+	})
+
+	t.Run("mixed types all preserved", func(t *testing.T) {
+		properties := map[string]any{
+			"num":  float64(8),
+			"flag": true,
+			"name": "foo",
+		}
+		overrides := map[string]string{
+			"num":  "16",
+			"flag": "false",
+			"name": "bar",
+		}
+
+		merged := mergePropertiesWithOverrides(properties, overrides)
+
+		assert.Equal(t, float64(16), merged["num"])
+		assert.Equal(t, false, merged["flag"])
+		assert.Equal(t, "bar", merged["name"])
+	})
+
+	t.Run("original map not mutated", func(t *testing.T) {
+		properties := map[string]any{"x": float64(1)}
+		overrides := map[string]string{"x": "2"}
+
+		_ = mergePropertiesWithOverrides(properties, overrides)
+
+		assert.Equal(t, float64(1), properties["x"])
+	})
+}
