@@ -10,6 +10,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/logging"
@@ -168,7 +169,20 @@ func (e *Engine) executeBatchForPlugin(
 			return nil, fmt.Errorf("batch cost cancelled for plugin %s: %w", plugin.Name, ctx.Err())
 		}
 
-		req := buildBatchCostRequest(ctx, chunk, opts)
+		built := buildBatchCostRequest(ctx, chunk, opts)
+		allResults = append(allResults, built.invalidResults...)
+
+		if built.request == nil {
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("operation", "execute_batch").
+				Str("plugin", plugin.Name).
+				Int("chunk_index", chunkIdx).
+				Int("invalid_count", len(built.invalidResults)).
+				Msg("all resources in chunk failed validation, skipping batch RPC")
+			continue
+		}
 
 		log.Debug().
 			Ctx(ctx).
@@ -176,11 +190,12 @@ func (e *Engine) executeBatchForPlugin(
 			Str("operation", "execute_batch").
 			Str("plugin", plugin.Name).
 			Int("chunk_index", chunkIdx).
-			Int("chunk_size", len(chunk)).
+			Int("chunk_size", len(built.validResources)).
 			Int("total_chunks", len(chunks)).
+			Int("skipped_invalid", len(built.invalidResults)).
 			Msg("sending batch cost request")
 
-		resp, err := plugin.API.BatchCost(ctx, req)
+		resp, err := plugin.API.BatchCost(ctx, built.request)
 		if err != nil {
 			// On DeadlineExceeded: if the parent context is still valid, the error is
 			// batch-specific and the caller can fall back to per-resource queries.
@@ -192,11 +207,11 @@ func (e *Engine) executeBatchForPlugin(
 			return nil, fmt.Errorf("batch cost RPC failed for plugin %s: %w", plugin.Name, err)
 		}
 
-		// Validate response count matches request
-		if len(resp.GetResults()) != len(chunk) {
+		// Validate response count matches request (only validated resources were sent)
+		if len(resp.GetResults()) != len(built.validResources) {
 			return nil, fmt.Errorf(
 				"batch response count mismatch from plugin %s: got %d, expected %d",
-				plugin.Name, len(resp.GetResults()), len(chunk),
+				plugin.Name, len(resp.GetResults()), len(built.validResources),
 			)
 		}
 
@@ -229,15 +244,17 @@ func (e *Engine) executeBatchForPlugin(
 
 		for i, m := range mapped {
 			br := batchResult{
-				index: chunk[i].index,
+				index: built.validResources[i].index,
 				skip:  m.Skip,
 				err:   m.Err,
 			}
 			if m.Result != nil {
-				br.result = mapProtoCostResultToEngine(chunk[i].resource, plugin.Name, m.Result)
+				br.result = mapProtoCostResultToEngine(built.validResources[i].resource, plugin.Name, m.Result)
 			}
 			if m.ActualResult != nil {
-				br.actualResult = mapProtoActualCostResultToEngine(chunk[i].resource, plugin.Name, m.ActualResult)
+				br.actualResult = mapProtoActualCostResultToEngine(
+					built.validResources[i].resource, plugin.Name, m.ActualResult,
+				)
 			}
 			allResults = append(allResults, br)
 		}
@@ -245,10 +262,34 @@ func (e *Engine) executeBatchForPlugin(
 	return allResults, nil
 }
 
-// buildBatchCostRequest constructs a proto BatchCostRequest from indexed resources.
-func buildBatchCostRequest(ctx context.Context, resources []indexedResource, opts batchOptions) *pbc.BatchCostRequest {
-	protoResources := make([]*pbc.ResourceDescriptor, len(resources))
-	for i, ir := range resources {
+// buildBatchResult holds the output of buildBatchCostRequest: a valid BatchCostRequest
+// (possibly nil if all resources failed validation), the filtered valid resources for
+// result-index mapping, and pre-validated failure placeholders for invalid resources.
+type buildBatchResult struct {
+	// request is the BatchCostRequest containing only validated resources (nil if all failed).
+	request *pbc.BatchCostRequest
+	// validResources are the resources included in the request, preserving the 1:1 positional
+	// mapping with request.Resources for result reassembly.
+	validResources []indexedResource
+	// invalidResults are $0/VALIDATION placeholder results for resources that failed pre-flight
+	// validation, matching the non-batch adapter behavior.
+	invalidResults []batchResult
+}
+
+// buildBatchCostRequest constructs a proto BatchCostRequest from indexed resources, validating
+// each resource before inclusion. Invalid resources are excluded from the request and returned
+// as pre-validated $0/VALIDATION placeholder results matching the non-batch adapter behavior.
+func buildBatchCostRequest(
+	ctx context.Context, resources []indexedResource, opts batchOptions,
+) buildBatchResult {
+	log := logging.FromContext(ctx)
+	var (
+		protoResources []*pbc.ResourceDescriptor
+		validResources []indexedResource
+		invalidResults []batchResult
+	)
+
+	for _, ir := range resources {
 		props := ConvertToProto(ir.resource.Properties)
 		sku, region := proto.ResolveSKUAndRegion(
 			ctx,
@@ -256,7 +297,7 @@ func buildBatchCostRequest(ctx context.Context, resources []indexedResource, opt
 			ir.resource.Type,
 			props,
 		)
-		protoResources[i] = &pbc.ResourceDescriptor{
+		descriptor := &pbc.ResourceDescriptor{
 			Id:           ir.resource.ID,
 			Provider:     ir.resource.Provider,
 			ResourceType: ir.resource.Type,
@@ -264,15 +305,83 @@ func buildBatchCostRequest(ctx context.Context, resources []indexedResource, opt
 			Region:       region,
 			Tags:         props,
 		}
+
+		// Pre-flight validation using the same pluginsdk validators as the non-batch path
+		if err := validateBatchResource(descriptor, opts); err != nil {
+			log.Warn().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("operation", "build_batch_cost_request").
+				Str("resource_type", ir.resource.Type).
+				Str("resource_id", ir.resource.ID).
+				Err(err).
+				Msg("pre-flight validation failed, excluding from batch")
+
+			invalidResults = append(invalidResults, newValidationBatchResult(
+				ir, err, opts.queryType,
+			))
+			continue
+		}
+
+		protoResources = append(protoResources, descriptor)
+		validResources = append(validResources, ir)
 	}
 
-	return &pbc.BatchCostRequest{
-		Resources: protoResources,
-		QueryType: opts.queryType,
-		Start:     opts.start,
-		End:       opts.end,
-		DryRun:    false,
+	if len(protoResources) == 0 {
+		return buildBatchResult{invalidResults: invalidResults}
 	}
+
+	return buildBatchResult{
+		request: &pbc.BatchCostRequest{
+			Resources: protoResources,
+			QueryType: opts.queryType,
+			Start:     opts.start,
+			End:       opts.end,
+		},
+		validResources: validResources,
+		invalidResults: invalidResults,
+	}
+}
+
+// validateBatchResource validates a single resource descriptor against the pluginsdk validators.
+// It constructs a temporary request wrapper matching the query type to reuse the same validation
+// logic as the non-batch adapter path.
+func validateBatchResource(descriptor *pbc.ResourceDescriptor, opts batchOptions) error {
+	if opts.queryType == pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
+		return pluginsdk.ValidateActualCostRequest(&pbc.GetActualCostRequest{
+			ResourceId: descriptor.GetId(),
+			Start:      opts.start,
+			End:        opts.end,
+			Tags:       descriptor.GetTags(),
+		})
+	}
+	return pluginsdk.ValidateProjectedCostRequest(&pbc.GetProjectedCostRequest{
+		Resource: descriptor,
+	})
+}
+
+// newValidationBatchResult creates a batchResult with a $0/VALIDATION placeholder matching
+// the non-batch adapter behavior. For projected queries it populates result; for actual
+// queries it populates actualResult.
+func newValidationBatchResult(ir indexedResource, validationErr error, queryType pbc.CostQueryType) batchResult {
+	br := batchResult{index: ir.index}
+	placeholder := &CostResult{
+		ResourceType: ir.resource.Type,
+		ResourceID:   ir.resource.ID,
+		Currency:     "USD",
+		Notes:        fmt.Sprintf("VALIDATION: %v", validationErr),
+		Error: &StructuredError{
+			Code:         ErrCodeValidationError,
+			Message:      validationErr.Error(),
+			ResourceType: ir.resource.Type,
+		},
+	}
+	if queryType == pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
+		br.actualResult = placeholder
+	} else {
+		br.result = placeholder
+	}
+	return br
 }
 
 // mapProtoCostResultToEngine converts a proto CostResult to an engine CostResult.

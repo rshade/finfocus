@@ -122,6 +122,7 @@ func makeNonBatchClient(name string, api proto.CostSourceClient) *pluginhost.Cli
 }
 
 // makeTestResources creates n test resources with aws:ec2:Instance type.
+// Resources include instanceType and availabilityZone so they pass pluginsdk validation.
 func makeTestResources(n int) []ResourceDescriptor {
 	resources := make([]ResourceDescriptor, n)
 	for i := range n {
@@ -130,11 +131,269 @@ func makeTestResources(n int) []ResourceDescriptor {
 			ID:       fmt.Sprintf("i-%03d", i),
 			Provider: "aws",
 			Properties: map[string]interface{}{
-				"instanceType": "t3.micro",
+				"instanceType":     "t3.micro",
+				"availabilityZone": "us-east-1a",
 			},
 		}
 	}
 	return resources
+}
+
+// makeValidResource creates an indexedResource that passes pluginsdk validation
+// (has provider, type, SKU via instanceType, and region via availabilityZone).
+func makeValidIndexedResource(index int, id string) indexedResource {
+	return indexedResource{
+		index: index,
+		resource: ResourceDescriptor{
+			Type:     "aws:ec2:Instance",
+			ID:       id,
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"instanceType":     "t3.micro",
+				"availabilityZone": "us-east-1a",
+			},
+		},
+	}
+}
+
+// makeInvalidIndexedResource creates an indexedResource that fails projected validation
+// (empty provider triggers ErrProjectedCostProviderEmpty).
+func makeInvalidIndexedResource(index int, id string) indexedResource {
+	return indexedResource{
+		index: index,
+		resource: ResourceDescriptor{
+			Type:       "aws:ec2:Instance",
+			ID:         id,
+			Provider:   "",
+			Properties: map[string]interface{}{},
+		},
+	}
+}
+
+func TestBuildBatchCostRequest_Validation_Table(t *testing.T) {
+	now := timestamppb.Now()
+	start := timestamppb.New(now.AsTime().Add(-24 * time.Hour))
+
+	// invalidActualResource has a valid provider/SKU but empty ID, which fails
+	// actual cost validation (ErrActualCostResourceIDEmpty).
+	invalidActualResource := indexedResource{
+		index: 1,
+		resource: ResourceDescriptor{
+			Type:       "aws:ec2:Instance",
+			ID:         "",
+			Provider:   "aws",
+			Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
+		},
+	}
+
+	tests := []struct {
+		name             string
+		resources        []indexedResource
+		opts             batchOptions
+		wantRequestNil   bool
+		wantValidLen     int
+		wantValidIndices []int // expected original indices of valid resources
+		wantInvalidLen   int
+		wantInvalidField string // "result" or "actualResult" — which field holds the placeholder
+	}{
+		{
+			name: "projected mixed valid and invalid",
+			resources: []indexedResource{
+				makeValidIndexedResource(0, "i-valid-0"),
+				makeInvalidIndexedResource(1, "i-invalid-1"),
+				makeValidIndexedResource(2, "i-valid-2"),
+			},
+			opts:             batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+			wantValidLen:     2,
+			wantValidIndices: []int{0, 2},
+			wantInvalidLen:   1,
+			wantInvalidField: "result",
+		},
+		{
+			name: "actual with empty ID fails validation",
+			resources: []indexedResource{
+				makeValidIndexedResource(0, "i-valid-0"),
+				invalidActualResource,
+			},
+			opts:             batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL, start: start, end: now},
+			wantValidLen:     1,
+			wantValidIndices: []int{0},
+			wantInvalidLen:   1,
+			wantInvalidField: "actualResult",
+		},
+		{
+			name: "all invalid produces nil request",
+			resources: []indexedResource{
+				makeInvalidIndexedResource(0, "i-bad-0"),
+				makeInvalidIndexedResource(1, "i-bad-1"),
+			},
+			opts:             batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+			wantRequestNil:   true,
+			wantValidLen:     0,
+			wantValidIndices: nil,
+			wantInvalidLen:   2,
+			wantInvalidField: "result",
+		},
+		{
+			name: "all valid produces zero invalid results",
+			resources: []indexedResource{
+				makeValidIndexedResource(0, "i-ok-0"),
+				makeValidIndexedResource(1, "i-ok-1"),
+				makeValidIndexedResource(2, "i-ok-2"),
+			},
+			opts:           batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+			wantValidLen:   3,
+			wantInvalidLen: 0,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			built := buildBatchCostRequest(context.Background(), tc.resources, tc.opts)
+
+			// Request presence
+			if tc.wantRequestNil {
+				assert.Nil(t, built.request)
+			} else {
+				require.NotNil(t, built.request)
+				assert.Len(t, built.request.GetResources(), tc.wantValidLen)
+			}
+
+			// Valid resources
+			assert.Len(t, built.validResources, tc.wantValidLen)
+			for i, wantIdx := range tc.wantValidIndices {
+				assert.Equal(t, wantIdx, built.validResources[i].index)
+			}
+
+			// Invalid results
+			assert.Len(t, built.invalidResults, tc.wantInvalidLen)
+			for _, inv := range built.invalidResults {
+				switch tc.wantInvalidField {
+				case "result":
+					require.NotNil(t, inv.result)
+					assert.Nil(t, inv.actualResult)
+					assert.Equal(t, "USD", inv.result.Currency)
+					assert.InDelta(t, 0.0, inv.result.Monthly, 0.001)
+					assert.Contains(t, inv.result.Notes, "VALIDATION:")
+					require.NotNil(t, inv.result.Error)
+					assert.Equal(t, ErrCodeValidationError, inv.result.Error.Code)
+				case "actualResult":
+					assert.Nil(t, inv.result)
+					require.NotNil(t, inv.actualResult)
+					assert.Equal(t, "USD", inv.actualResult.Currency)
+					assert.Contains(t, inv.actualResult.Notes, "VALIDATION:")
+					require.NotNil(t, inv.actualResult.Error)
+					assert.Equal(t, ErrCodeValidationError, inv.actualResult.Error.Code)
+				}
+			}
+		})
+	}
+}
+
+func TestExecuteBatchForPlugin_ValidationSkipsRPC(t *testing.T) {
+	batchCalled := false
+	mockAPI := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			batchCalled = true
+			return &pbc.BatchCostResponse{}, nil
+		},
+	}
+	client := makeBatchCapableClient("test-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+
+	// All resources invalid (empty provider)
+	resources := []indexedResource{
+		makeInvalidIndexedResource(0, "i-bad-0"),
+		makeInvalidIndexedResource(1, "i-bad-1"),
+	}
+
+	opts := batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED}
+	results, err := eng.executeBatchForPlugin(context.Background(), client, resources, opts)
+	require.NoError(t, err)
+	assert.False(t, batchCalled, "BatchCost RPC should not be called when all resources fail validation")
+
+	// All results are validation placeholders
+	require.Len(t, results, 2)
+	for _, r := range results {
+		require.NotNil(t, r.result)
+		assert.Contains(t, r.result.Notes, "VALIDATION:")
+	}
+}
+
+func TestExecuteBatchForPlugin_MixedValidation(t *testing.T) {
+	var capturedReq *pbc.BatchCostRequest
+	mockAPI := &mockBatchCostSourceClient{
+		// Return ID-specific costs so assertions can verify correct request→result mapping.
+		// Position i in the request gets CostPerMonth = 10*(i+1), UnitPrice = (i+1)*0.01.
+		batchCostFunc: func(_ context.Context, req *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			capturedReq = req
+			results := make([]*pbc.ResourceCostResult, len(req.GetResources()))
+			for i, res := range req.GetResources() {
+				results[i] = &pbc.ResourceCostResult{
+					Resource: res,
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ProjectedCost{
+								ProjectedCost: &pbc.GetProjectedCostResponse{
+									Currency:     "USD",
+									CostPerMonth: float64(10 * (i + 1)),
+									UnitPrice:    float64(i+1) * 0.01,
+								},
+							},
+						},
+					},
+				}
+			}
+			return &pbc.BatchCostResponse{Results: results}, nil
+		},
+	}
+	client := makeBatchCapableClient("test-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+
+	resources := []indexedResource{
+		makeValidIndexedResource(0, "i-valid-0"),
+		makeInvalidIndexedResource(1, "i-invalid-1"),
+		makeValidIndexedResource(2, "i-valid-2"),
+		makeInvalidIndexedResource(3, "i-invalid-3"),
+	}
+
+	opts := batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED}
+	results, err := eng.executeBatchForPlugin(context.Background(), client, resources, opts)
+	require.NoError(t, err)
+	require.Len(t, results, 4)
+
+	// Verify only valid resource IDs were sent in the batch request
+	require.NotNil(t, capturedReq)
+	require.Len(t, capturedReq.GetResources(), 2)
+	assert.Equal(t, "i-valid-0", capturedReq.GetResources()[0].GetId())
+	assert.Equal(t, "i-valid-2", capturedReq.GetResources()[1].GetId())
+
+	// Build a map of index -> result for easier assertions
+	byIndex := make(map[int]batchResult)
+	for _, r := range results {
+		byIndex[r.index] = r
+	}
+
+	// Valid resources got ID-specific results (position 0 → 10.0, position 1 → 20.0)
+	r0 := byIndex[0]
+	require.NotNil(t, r0.result)
+	assert.InDelta(t, 10.0, r0.result.Monthly, 0.001)
+	assert.Empty(t, r0.result.Notes)
+
+	r2 := byIndex[2]
+	require.NotNil(t, r2.result)
+	assert.InDelta(t, 20.0, r2.result.Monthly, 0.001)
+
+	// Invalid resources got validation placeholders
+	r1 := byIndex[1]
+	require.NotNil(t, r1.result)
+	assert.Contains(t, r1.result.Notes, "VALIDATION:")
+	require.NotNil(t, r1.result.Error)
+	assert.Equal(t, ErrCodeValidationError, r1.result.Error.Code)
+
+	r3 := byIndex[3]
+	require.NotNil(t, r3.result)
+	assert.Contains(t, r3.result.Notes, "VALIDATION:")
 }
 
 // T011: Unit tests for chunkResources.
@@ -224,7 +483,7 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 				Type:       "aws:ec2:Instance",
 				ID:         "i-1",
 				Provider:   "aws",
-				Properties: map[string]interface{}{"instanceType": "t3.micro"},
+				Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
 			},
 			{
 				Type:       "azure:compute:VirtualMachine",
@@ -254,7 +513,7 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 				Type:       "aws:ec2:Instance",
 				ID:         "i-1",
 				Provider:   "aws",
-				Properties: map[string]interface{}{"instanceType": "t3.micro"},
+				Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
 			},
 			{Type: "pulumi:pulumi:Stack", ID: "stack", Provider: "pulumi", Properties: map[string]interface{}{}},
 			{Type: "pulumi:providers:aws", ID: "provider", Provider: "pulumi", Properties: map[string]interface{}{}},
@@ -331,7 +590,7 @@ func TestExecuteBatchForPlugin(t *testing.T) {
 					Type:       "aws:ec2:Instance",
 					ID:         fmt.Sprintf("i-%d", i),
 					Provider:   "aws",
-					Properties: map[string]interface{}{"instanceType": "t3.micro"},
+					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
 				},
 			}
 		}
@@ -397,7 +656,7 @@ func TestExecuteBatchForPlugin(t *testing.T) {
 					Type:       "aws:ec2:Instance",
 					ID:         "i-0",
 					Provider:   "aws",
-					Properties: map[string]interface{}{"instanceType": "t3.micro"},
+					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
 				},
 			},
 		}
@@ -465,7 +724,7 @@ func TestExecuteBatchForPlugin(t *testing.T) {
 					Type:       "aws:ec2:Instance",
 					ID:         fmt.Sprintf("i-%d", i),
 					Provider:   "aws",
-					Properties: map[string]interface{}{"instanceType": "t3.micro"},
+					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
 				},
 			}
 		}
@@ -515,7 +774,7 @@ func TestExecuteBatchForPlugin(t *testing.T) {
 					Type:       "aws:ec2:Instance",
 					ID:         fmt.Sprintf("i-%d", i),
 					Provider:   "aws",
-					Properties: map[string]interface{}{"instanceType": "t3.micro"},
+					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
 				},
 			}
 		}
@@ -672,7 +931,8 @@ func makeUniqueTestResources(n int) []ResourceDescriptor {
 			ID:       fmt.Sprintf("i-%03d", i),
 			Provider: "aws",
 			Properties: map[string]interface{}{
-				"instanceType": fmt.Sprintf("t3.sku%d", i), // unique SKU per resource
+				"instanceType":     fmt.Sprintf("t3.sku%d", i), // unique SKU per resource
+				"availabilityZone": "us-east-1a",
 			},
 		}
 	}
