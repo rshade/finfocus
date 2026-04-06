@@ -19,12 +19,11 @@ type StackContext struct {
 // so that equivalent stacks (e.g. "dev" vs "org/project/dev") produce
 // identical hashes.
 func (sc StackContext) Hash() string {
-	stack := sc.Stack
-	if stack != "" && !strings.Contains(stack, "/") {
-		stack = fmt.Sprintf("%s/%s/%s", sc.Organization, sc.Project, stack)
+	canonical := sc.Stack
+	if canonical != "" && !strings.Contains(canonical, "/") {
+		canonical = fmt.Sprintf("%s/%s/%s", sc.Organization, sc.Project, canonical)
 	}
-	s := fmt.Sprintf("%s/%s/%s", sc.Organization, sc.Project, stack)
-	h := sha256.Sum256([]byte(s))
+	h := sha256.Sum256([]byte(canonical))
 	return hex.EncodeToString(h[:])[0:16]
 }
 
