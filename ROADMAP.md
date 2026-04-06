@@ -17,8 +17,9 @@ guardrails in `CONTEXT.md`.
 
 *v0.3.5 released 2026-03-30.*
 
-- [ ] Implement EstimateCost RPC consumer (remove stub)
+- [x] Implement EstimateCost RPC consumer (remove stub)
       ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
+      *(Completed 2026-04-04)*
 - [ ] **EstimateCost RPC — Code Review Follow-ups** *(from #847 PR review)*
   - [ ] Add test for modified-response validation fallback path
         ([#970](https://github.com/rshade/finfocus/issues/970)) [S]
@@ -30,8 +31,28 @@ guardrails in `CONTEXT.md`.
         ([#972](https://github.com/rshade/finfocus/issues/972)) [S]
   - [ ] Add test for `BuildEstimateCostRequest` `structpb.NewStruct` error path
         ([#973](https://github.com/rshade/finfocus/issues/973)) [S]
-- [ ] Implement BatchCost RPC consumer for multi-resource queries
+- [x] Implement BatchCost RPC consumer for multi-resource queries
       ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
+      *(Completed 2026-04-04)*
+- [ ] **BatchCost RPC — Code Review Follow-ups** *(from #846 PR review)*
+  - [x] Add per-resource validation to batch cost requests
+        ([#983](https://github.com/rshade/finfocus/issues/983)) [M]
+        *(Completed 2026-04-06)*
+  - [x] buildBatchCostRequest should validate resources before batching
+        ([#980](https://github.com/rshade/finfocus/issues/980)) [M]
+        *(Completed 2026-04-06)*
+  - [ ] executeBatchForPlugin for-range over chunks skips re-chunked tail
+        ([#978](https://github.com/rshade/finfocus/issues/978)) [M]
+  - [ ] Add per-chunk timeout for BatchCost RPC calls
+        ([#979](https://github.com/rshade/finfocus/issues/979)) [S]
+  - [ ] batch actual cost mapper drops rate fields
+        ([#974](https://github.com/rshade/finfocus/issues/974)) [M]
+  - [ ] budget\_health\_test mock BatchCost should return error
+        ([#975](https://github.com/rshade/finfocus/issues/975)) [S]
+  - [ ] budget\_tag\_filter\_test mock BatchCost should return error
+        ([#976](https://github.com/rshade/finfocus/issues/976)) [S]
+  - [ ] Document ActualCostData and ResourceError protobuf messages
+        ([#977](https://github.com/rshade/finfocus/issues/977)) [S]
 - [x] Resource History Store with Layered Cost Attribution
       ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
       *(Completed 2026-04-04)*
@@ -40,8 +61,9 @@ guardrails in `CONTEXT.md`.
         ([#966](https://github.com/rshade/finfocus/issues/966)) [S]
   - [ ] Extract correct URN hash segment in `filterFullyExpiredURNs`
         ([#968](https://github.com/rshade/finfocus/issues/968)) [S]
-  - [ ] Capture analyzer resource properties and extract tags into history
+  - [x] Capture analyzer resource properties and extract tags into history
         ([#955](https://github.com/rshade/finfocus/issues/955)) [S]
+        *(Completed 2026-04-05)*
   - [ ] Populate tags in `convertDescriptorsToHistoryState`
         ([#956](https://github.com/rshade/finfocus/issues/956)) [S]
   - [ ] Copy tags in `convertEngineStateToHistoryState`
@@ -259,9 +281,24 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q2
 
+- [x] Implement BatchCost RPC consumer for multi-resource queries
+      ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
+      *(Completed 2026-04-04)*
+- [x] Implement EstimateCost RPC consumer (remove stub)
+      ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
+      *(Completed 2026-04-04)*
 - [x] Resource History Store with Layered Cost Attribution
       ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
       *(Completed 2026-04-04)*
+- [x] Capture analyzer resource properties and extract tags into history
+      ([#955](https://github.com/rshade/finfocus/issues/955)) [S]
+      *(Completed 2026-04-05)*
+- [x] buildBatchCostRequest should validate resources before batching
+      ([#980](https://github.com/rshade/finfocus/issues/980)) [M]
+      *(Completed 2026-04-06)*
+- [x] Add per-resource validation to batch cost requests
+      ([#983](https://github.com/rshade/finfocus/issues/983)) [M]
+      *(Completed 2026-04-06)*
 
 ### 2026-Q1
 
