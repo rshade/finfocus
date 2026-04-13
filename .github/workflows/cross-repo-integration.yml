@@ -114,7 +114,7 @@ jobs:
     if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && failure()
     steps:
       - name: Create failure issue
-        uses: actions/github-script@v8
+        uses: actions/github-script@v9
         with:
           script: |
             const title = `Cross-repo integration failure - ${new Date().toISOString().split('T')[0]}`;
