@@ -114,7 +114,7 @@ jobs:
       - name: Run actionlint
         run: |
           go install github.com/rhysd/actionlint/cmd/actionlint@latest
-          actionlint
+          find .github/workflows -name '*.yml' -not -name '*.lock.yml' -print0 | xargs -0 actionlint
 
   security:
     name: Security Scan

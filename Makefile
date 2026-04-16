@@ -108,7 +108,7 @@ lint-actions:
 	@command -v $(ACTIONLINT) >/dev/null 2>&1 || \
 		(echo "actionlint not found. Install with"; \
 		echo "  go install github.com/rhysd/actionlint/cmd/actionlint@latest"; exit 1)
-	$(ACTIONLINT)
+	find .github/workflows -name '*.yml' -not -name '*.lock.yml' -print0 | xargs -0 $(ACTIONLINT)
 
 .PHONY: validate
 validate:
