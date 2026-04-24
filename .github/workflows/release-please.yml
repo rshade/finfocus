@@ -15,7 +15,7 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4.4.1
+      - uses: googleapis/release-please-action@v5
         with:
           # Use PAT to allow release events to trigger other workflows (e.g., GoReleaser)
           # GITHUB_TOKEN events don't trigger other workflows by design
