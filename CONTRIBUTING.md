@@ -13,6 +13,7 @@ feedback.
 - [Minor Bug Fixes](#minor-bug-fixes)
 - [Quality Requirements](#quality-requirements)
 - [Submitting Changes](#submitting-changes)
+- [Agentic Workflows](#agentic-workflows)
 - [Issue Labels and Decision Tracking](#issue-labels-and-decision-tracking)
 - [Getting Help](#getting-help)
 
@@ -435,6 +436,50 @@ analysis workflow:
   - **Pinned Dependencies**: Uses specific versions of CLI tools and actions.
   - **Timeouts**: Enforces a 59-minute execution limit to prevent resource exhaustion.
   - **Error Handling**: Fails explicitly on any command error to avoid silent failures.
+
+### Agentic Workflows
+
+The repository uses [GitHub Agentic Workflows (gh-aw)](https://github.com/github/gh-aw)
+to automate common maintenance tasks. These workflows run on schedules or are
+triggered by slash commands in pull request comments.
+
+#### Daily Scheduled Workflows
+
+| Workflow | Description |
+| -------- | ----------- |
+| `daily-doc-updater` | Scans merged PRs and updates documentation to reflect new features and changes. |
+| `daily-malicious-code-scan` | Reviews code changes from the last 3 days for suspicious or malicious patterns. |
+| `code-simplifier` | Analyzes recently modified code and opens PRs with readability improvements while preserving behavior. |
+| `issue-arborist` | Links related open issues as sub-issues to improve organization. |
+| `sub-issue-closer` | Automatically closes a parent issue when all of its sub-issues are resolved. |
+| `audit-workflows` | Audits all agentic workflow runs from the last 24 hours and surfaces errors or improvement opportunities. |
+
+#### Weekly Scheduled Workflows
+
+| Workflow | Description |
+| -------- | ----------- |
+| `weekly-issue-summary` | Posts a weekly summary of issue activity including trends and insights every Monday. |
+
+#### Dependency Management Workflows
+
+| Workflow | Description |
+| -------- | ----------- |
+| `dependabot-pr-bundler` | Groups compatible Dependabot updates into a single PR, runs tests, and creates a draft PR with the bundled changes. |
+
+#### On-Demand Slash Commands
+
+These workflows are triggered by a maintainer comment on a pull request:
+
+| Command | Description |
+| ------- | ----------- |
+| `/pr-fix` | Analyzes failing CI checks in a PR, identifies the root cause, implements fixes, and pushes a corrected commit to the branch. |
+| `/mergefest` | Merges the `main` branch into the current PR branch to resolve conflicts or bring it up to date. |
+
+#### CI Failure Investigation
+
+| Workflow | Description |
+| -------- | ----------- |
+| `ci-doctor` | Triggers automatically when a monitored workflow fails and performs deep log analysis to surface root causes and remediation steps. |
 
 ## Project Architecture
 
