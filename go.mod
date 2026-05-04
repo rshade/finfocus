@@ -9,7 +9,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.4.0
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/oklog/ulid/v2 v2.1.1
-	github.com/pulumi/pulumi/sdk/v3 v3.232.0
+	github.com/pulumi/pulumi/sdk/v3 v3.234.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/finfocus-spec v0.6.0
 	github.com/spf13/cobra v1.10.2
