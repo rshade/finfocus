@@ -131,7 +131,7 @@ jobs:
           cache: true
 
       - name: Install Pulumi CLI
-        uses: pulumi/actions@v6
+        uses: pulumi/actions@v7
         with:
           pulumi-version: latest
 
@@ -184,7 +184,7 @@ jobs:
           cache: true
 
       - name: Install Pulumi CLI
-        uses: pulumi/actions@v6
+        uses: pulumi/actions@v7
         with:
           pulumi-version: latest
 
