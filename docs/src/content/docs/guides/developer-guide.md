@@ -661,7 +661,7 @@ Users install plugins to: `~/.finfocus/plugins/<name>/<version>/`
 ### Docker Deployment
 
 ```dockerfile
-FROM golang:1.25.8 as builder
+FROM golang:1.26.3 as builder
 WORKDIR /app
 COPY . .
 RUN make build
