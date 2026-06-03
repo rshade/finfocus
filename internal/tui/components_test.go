@@ -50,7 +50,7 @@ func TestRenderDelta(t *testing.T) {
 		{"Positive delta with decimals", 10.99, "+$10.99 ↑"},
 		{"Negative delta", -15.75, "-$15.75 ↓"},
 		{"Zero delta", 0.0, "$0.00 →"},
-		{"Zero delta negative", -0.0, "$0.00 →"},
+		{"Zero delta negative", 0.0, "$0.00 →"},
 		{"Small positive", 0.01, "+$0.01 ↑"},
 		{"Small negative", -0.01, "-$0.01 ↓"},
 		{"Large positive", 1234.56, "+$1,234.56 ↑"},

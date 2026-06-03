@@ -289,7 +289,7 @@ func TestLoadManifest_EmptyMetadata(t *testing.T) {
 
 	require.NoError(t, err)
 	// Empty map might be nil or empty depending on JSON marshaling
-	assert.True(t, manifest.Metadata == nil || len(manifest.Metadata) == 0)
+	assert.Empty(t, manifest.Metadata)
 }
 
 // Helper functions

@@ -330,8 +330,6 @@ func TestClient_Fields(t *testing.T) {
 
 	// Verify API field
 	assert.NotNil(t, client.API)
-	_, ok := client.API.(proto.CostSourceClient)
-	assert.True(t, ok, "API should implement CostSourceClient")
 
 	// Verify Close field
 	assert.NotNil(t, client.Close)

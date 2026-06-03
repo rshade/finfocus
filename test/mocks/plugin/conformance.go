@@ -73,7 +73,7 @@ func (p *ConformancePlugin) Name(ctx context.Context, _ *pbc.NameRequest) (*pbc.
 
 // GetProjectedCost implements the GetProjectedCost RPC method per the protocol specification.
 func (p *ConformancePlugin) GetProjectedCost(
-	ctx context.Context,
+	_ context.Context,
 	req *pbc.GetProjectedCostRequest,
 ) (*pbc.GetProjectedCostResponse, error) {
 	// Validate request first, before method error/latency simulation

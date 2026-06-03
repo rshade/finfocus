@@ -925,7 +925,7 @@ func TestStackSummaryDiagnostic_NoRecommendations(t *testing.T) {
 
 func TestFormatRecommendations_NilSlice(t *testing.T) {
 	// T024: Test nil Recommendations slice handling
-	var recs []engine.Recommendation = nil
+	var recs []engine.Recommendation
 	result := formatRecommendations(recs)
 	assert.Equal(t, "", result, "nil recommendations should return empty string")
 }
@@ -1039,7 +1039,7 @@ func TestAggregateRecommendations_EmptyCosts(t *testing.T) {
 
 func TestAggregateRecommendations_NilCosts(t *testing.T) {
 	// Test aggregation with nil costs slice
-	var costs []engine.CostResult = nil
+	var costs []engine.CostResult
 	agg := AggregateRecommendations(costs)
 
 	assert.Equal(t, 0, agg.Count)

@@ -23,8 +23,7 @@ func TestTraceInterceptor_ReturnsUnaryClientInterceptor(t *testing.T) {
 // T036: Test that interceptor is of correct type.
 func TestTraceInterceptor_CorrectType(t *testing.T) {
 	interceptor := TraceInterceptor()
-	// Type assertion should succeed
-	var _ grpc.UnaryClientInterceptor = interceptor
+	assert.NotNil(t, interceptor)
 }
 
 // T037: Unit test for trace ID metadata injection.

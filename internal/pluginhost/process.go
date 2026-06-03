@@ -45,7 +45,6 @@ const (
 // getPluginBindTimeout returns the timeout for plugin binding, with increased timeout in CI environments.
 func getPluginBindTimeout() time.Duration {
 	// Increase timeout in CI environments where resources may be constrained
-	//nolint:goconst // "true" is used in multiple contexts, not worth a constant
 	if os.Getenv("CI") == "true" {
 		return ciPluginBindTimeout
 	}

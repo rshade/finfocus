@@ -65,8 +65,8 @@ submit a pull request directly.
 
 | Tool             | Version    | Purpose             |
 | ---------------- | ---------- | ------------------- |
-| Go               | 1.25.8+    | Core development    |
-| golangci-lint    | v2.11.4    | Go linting          |
+| Go               | 1.26.4+    | Core development    |
+| golangci-lint    | v2.12.2    | Go linting          |
 | markdownlint-cli | v0.45.0    | Markdown linting    |
 | Git              | Latest     | Version control     |
 | Make             | Latest     | Build automation    |
@@ -81,8 +81,7 @@ Download from [go.dev/dl](https://go.dev/dl/)
 **Install golangci-lint:**
 
 ```bash
-LINT_URL="https://raw.githubusercontent.com/golangci/golangci-lint"
-curl -sSfL "${LINT_URL}/HEAD/install.sh" | sh -s -- -b "$HOME/go/bin" v2.11.4
+curl -sSfL "https://golangci-lint.run/install.sh" | sh -s -- -b "$HOME/go/bin" v2.12.2
 ```
 
 **Install markdownlint-cli:**
@@ -286,7 +285,7 @@ For detailed testing instructions, see the [Testing Guide](../../testing/guide/)
 
 ### Running Fuzz Tests
 
-FinFocus uses Go's native fuzzing (Go 1.25+) to test parser resilience:
+FinFocus uses Go's native fuzzing (Go 1.26+) to test parser resilience:
 
 ```bash
 go test -fuzz=FuzzJSON$ -fuzztime=30s ./internal/ingest

@@ -62,7 +62,8 @@ func StartMockServerTCP() (*MockServer, error) {
 // StartMockServerTCPWithPlugin creates a TCP mock server with a pre-configured plugin.
 func StartMockServerTCPWithPlugin(plugin *MockPlugin) (*MockServer, error) {
 	// Listen on random available port
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listenConfig := net.ListenConfig{}
+	listener, err := listenConfig.Listen(context.Background(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %w", err)
 	}
@@ -95,6 +96,8 @@ func (s *MockServer) Address() string {
 
 // Dial creates a gRPC client connection to the mock server.
 // The connection should be closed when no longer needed.
+//
+//nolint:staticcheck // SA1019: migrate deprecated grpc dial helpers in https://github.com/rshade/finfocus/issues/1213.
 func (s *MockServer) Dial(ctx context.Context) (*grpc.ClientConn, error) {
 	if s.address == "bufnet" {
 		// Use bufconn dialer for in-memory testing

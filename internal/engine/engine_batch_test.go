@@ -543,9 +543,10 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 		require.NotEmpty(t, groups)
 		for _, batch := range groups {
 			// Verify hasBatch is set based on the actual client's capabilities
-			if batch.plugin.Name == "batch-plugin" {
+			switch batch.plugin.Name {
+			case "batch-plugin":
 				assert.True(t, batch.hasBatch)
-			} else if batch.plugin.Name == "legacy-plugin" {
+			case "legacy-plugin":
 				assert.False(t, batch.hasBatch)
 			}
 		}
@@ -1144,8 +1145,8 @@ func TestBatchMixedSuccessError(t *testing.T) {
 			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
 				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
 				for i, res := range in.GetResources() {
-					switch {
-					case i == 2:
+					switch i {
+					case 2:
 						// Resource error: internal failure
 						results[i] = &pbc.ResourceCostResult{
 							Resource: res,
@@ -1156,7 +1157,7 @@ func TestBatchMixedSuccessError(t *testing.T) {
 								},
 							},
 						}
-					case i == 5:
+					case 5:
 						// Resource error: unavailable
 						results[i] = &pbc.ResourceCostResult{
 							Resource: res,
@@ -1167,7 +1168,7 @@ func TestBatchMixedSuccessError(t *testing.T) {
 								},
 							},
 						}
-					case i == 8:
+					case 8:
 						// Resource error: resource type unsupported
 						results[i] = &pbc.ResourceCostResult{
 							Resource: res,
