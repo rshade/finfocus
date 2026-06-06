@@ -70,7 +70,7 @@ func DetectOutputMode(forceColor, noColor, plain bool) OutputMode {
 	}
 
 	// Check if stdout is connected to a terminal.
-	if !term.IsTerminal(int(os.Stdout.Fd())) { //nolint:gosec // G115: fd value fits in int
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
 		return OutputModePlain
 	}
 
@@ -104,7 +104,7 @@ func DetectOutputMode(forceColor, noColor, plain bool) OutputMode {
 //	    // Output is being redirected, use plain text
 //	}
 func IsTTY() bool {
-	return term.IsTerminal(int(os.Stdout.Fd())) //nolint:gosec // G115: fd value fits in int
+	return term.IsTerminal(int(os.Stdout.Fd()))
 }
 
 // TerminalWidth returns the current terminal width in characters.
@@ -119,7 +119,7 @@ func IsTTY() bool {
 //   - 80: Traditional terminal width
 //   - 120-160: Modern wide terminals
 func TerminalWidth() int {
-	width, _, err := term.GetSize(int(os.Stdout.Fd())) //nolint:gosec // G115: fd value fits in int
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {
 		return DefaultTerminalWidth
 	}

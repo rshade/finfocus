@@ -283,7 +283,7 @@ func fetchRecommendationsWithProgress(
 	spinnerWg.Wait()
 
 	// Clear progress line if it was shown
-	if term.IsTerminal(int(os.Stderr.Fd())) { //nolint:gosec // G115: fd value fits in int
+	if term.IsTerminal(int(os.Stderr.Fd())) {
 		fmt.Fprint(cmd.ErrOrStderr(), "\r\033[K")
 	}
 
@@ -1014,7 +1014,7 @@ func showProgressIndicator(
 	}
 
 	// Only show progress if stderr is a terminal
-	if !term.IsTerminal(int(os.Stderr.Fd())) { //nolint:gosec // G115: fd value fits in int
+	if !term.IsTerminal(int(os.Stderr.Fd())) {
 		return
 	}
 

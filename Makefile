@@ -4,7 +4,7 @@ COMMIT=$(shell git rev-parse HEAD)
 BUILD_DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 GOLANGCI_LINT?=$(HOME)/go/bin/golangci-lint
-GOLANGCI_LINT_VERSION?=2.11.4
+GOLANGCI_LINT_VERSION?=2.12.2
 MARKDOWNLINT?=markdownlint
 MARKDOWNLINT_CLI2?=markdownlint-cli2
 MARKDOWNLINT_FILES?=AGENTS.md
@@ -93,7 +93,7 @@ lint:
 	@echo "Running golangci-lint (expected version $(GOLANGCI_LINT_VERSION))..."
 	@$(GOLANGCI_LINT) --version | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "golangci-lint $(GOLANGCI_LINT_VERSION) required. Install with"; \
-		echo "  curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$HOME/go/bin v$(GOLANGCI_LINT_VERSION)"; exit 1)
+		echo "  curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $$HOME/go/bin v$(GOLANGCI_LINT_VERSION)"; exit 1)
 	$(GOLANGCI_LINT) run --allow-parallel-runners
 	@echo "Running markdownlint..."
 	@command -v $(MARKDOWNLINT) >/dev/null 2>&1 || \
@@ -128,7 +128,7 @@ ensure-golangci-lint:
 	@echo "==> golangci-lint $(GOLANGCI_LINT_VERSION)"
 	@$(GOLANGCI_LINT) --version 2>/dev/null | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "    Installing golangci-lint v$(GOLANGCI_LINT_VERSION)..." && \
-		curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $$HOME/go/bin v$(GOLANGCI_LINT_VERSION))
+		curl -sSfL https://golangci-lint.run/install.sh | sh -s -- -b $$HOME/go/bin v$(GOLANGCI_LINT_VERSION))
 	@echo "    OK"
 
 .PHONY: ensure-markdownlint

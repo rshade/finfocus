@@ -37,12 +37,8 @@ func TestMainComponents(t *testing.T) {
 
 	t.Run("cli root command", func(t *testing.T) {
 		root := cli.NewRootCmd(version.GetVersion())
-		if root == nil {
-			t.Error("expected root command to be non-nil")
-		}
-		if root.Use == "" {
-			t.Error("expected root command to have a use string")
-		}
+		require.NotNil(t, root)
+		assert.NotEmpty(t, root.Use)
 	})
 }
 

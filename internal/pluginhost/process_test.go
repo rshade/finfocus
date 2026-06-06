@@ -1044,7 +1044,7 @@ func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 	buf := &lockedBuffer{}
-	_, _ = buf.Write([]byte(fmt.Sprintf("%d\n", stdoutPort)))
+	_, _ = fmt.Fprintf(buf, "%d\n", stdoutPort)
 
 	gotPort, err := launcher.waitForPluginBindWithFallback(ctx, unboundPort, buf, "/fake/plugin")
 	require.NoError(t, err)
@@ -1066,7 +1066,7 @@ func TestWaitForPluginBindWithFallback_BothPortsFail(t *testing.T) {
 	defer cancel()
 
 	buf := &lockedBuffer{}
-	_, _ = buf.Write([]byte(fmt.Sprintf("%d\n", unboundPort2)))
+	_, _ = fmt.Fprintf(buf, "%d\n", unboundPort2)
 
 	_, err := launcher.waitForPluginBindWithFallback(ctx, unboundPort1, buf, "/fake/plugin")
 	require.Error(t, err)

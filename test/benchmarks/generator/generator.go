@@ -109,6 +109,7 @@ func GeneratePlan(config BenchmarkConfig) (SyntheticPlan, error) {
 		return SyntheticPlan{}, fmt.Errorf("invalid config: %w", err)
 	}
 
+	//nolint:gosec // G404: deterministic benchmark fixture data is not security-sensitive.
 	rng := rand.New(rand.NewPCG(uint64(config.Seed), uint64(config.Seed)))
 	plan := SyntheticPlan{
 		Resources: make([]SyntheticResource, 0, config.ResourceCount),

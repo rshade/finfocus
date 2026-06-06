@@ -16,7 +16,7 @@ import (
 
 // isTerminal checks if the given file is a terminal.
 func isTerminal(f *os.File) bool {
-	return term.IsTerminal(int(f.Fd())) //nolint:gosec // G115: fd value fits in int
+	return term.IsTerminal(int(f.Fd()))
 }
 
 // logger is the package-level logger for CLI operations.

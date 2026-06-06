@@ -1,14 +1,14 @@
 # This file is licensed under the terms of the MIT license https://opensource.org/license/mit
-# Copyright (c) 2021-2025 Marat Reymers
+# Copyright (c) 2021-2025 Marat Reimers
 
-## Golden config for golangci-lint v2.5.0
+## Golden config for golangci-lint v2.12.2
 #
 # This is the best config for golangci-lint based on my experience and opinion.
 # It is very strict, but not extremely strict.
 # Feel free to adapt it to suit your needs.
-# If this config helps you, please consider keeping a link to this file (see the next comment).
+# If this config helps you, please consider keeping a link to this repo (see the next comment).
 
-# Based on https://gist.github.com/maratori/47a4d00457a92aa426dbd48a18776322
+# Based on https://github.com/maratori/golangci-lint-config
 
 version: "2"
 
@@ -73,8 +73,8 @@ linters:
     - goconst # finds repeated strings that could be replaced by a constant
     - gocritic # provides diagnostics that check for bugs, performance and style issues
     - gocyclo # computes and checks the cyclomatic complexity of functions
+    - godoclint # checks Golang's documentation practice
     - godot # checks if comments end in a period
-    - godoclint # ensures package and exported symbols have well-formed doc comments
     - gomoddirectives # manages the use of 'replace', 'retract', and 'excludes' directives in go.mod
     - goprintffuncname # checks that printf-like functions are named with f at the end
     - gosec # inspects source code for security problems
@@ -82,11 +82,11 @@ linters:
     - iface # checks the incorrect use of interfaces, helping developers avoid interface pollution
     - ineffassign # detects when assignments to existing variables are not used
     - intrange # finds places where for loops could make use of an integer range
-    - iotamixing # detects mixed iota enumerations that can hide bugs
-    - loggercheck # checks key value pairs for common logger libraries (kitlog,klog,logr,zap)
+    - iotamixing # checks if iotas are being used in const blocks with other non-iota declarations
     - makezero # finds slice declarations with non-zero initial length
     - mirror # reports wrong mirror patterns of bytes/strings usage
     - mnd # detects magic numbers
+    - modernize # suggests simplifications to Go code, using modern language and library features
     - musttag # enforces field tags in (un)marshaled structs
     - nakedret # finds naked returns in functions greater than a specified function length
     - nestif # reports deeply nested if statements
@@ -97,17 +97,13 @@ linters:
     - nolintlint # reports ill-formed or insufficient nolint directives
     - nonamedreturns # reports all named returns
     - nosprintfhostport # checks for misuse of Sprintf to construct a host with port in a URL
+    - paralleltest # detects missing usage of t.Parallel() method in your Go test
     - perfsprint # checks that fmt.Sprintf can be replaced with a faster alternative
     - predeclared # finds code that shadows one of Go's predeclared identifiers
-    - promlinter # checks Prometheus metrics naming via promlint
     - protogetter # reports direct reads from proto message fields when getters should be used
     - reassign # checks that package variables are not reassigned
     - recvcheck # checks for receiver type consistency
     - revive # fast, configurable, extensible, flexible, and beautiful linter for Go, drop-in replacement of golint
-    - rowserrcheck # checks whether Err of rows is checked successfully
-    - sloglint # ensure consistent code style when using log/slog
-    - spancheck # checks for mistakes with OpenTelemetry/Census spans
-    - sqlclosecheck # checks that sql.Rows and sql.Stmt are closed
     - staticcheck # is a go vet on steroids, applying a ton of static analysis checks
     - testableexamples # checks if examples are testable (have an expected output)
     - testifylint # checks usage of github.com/stretchr/testify
@@ -115,12 +111,13 @@ linters:
     - tparallel # detects inappropriate usage of t.Parallel() method in your Go test codes
     - unconvert # removes unnecessary type conversions
     - unparam # reports unused function parameters
-    - unqueryvet # reports unsafe query construction in database/sql usages
+    - unqueryvet # detects SELECT * in SQL queries and SQL builders, encouraging explicit column selection
     - unused # checks for unused constants, variables, functions and types
     - usestdlibvars # detects the possibility to use variables/constants from the Go standard library
     - usetesting # reports uses of functions with replacement inside the testing package
     - wastedassign # finds wasted assignment statements
     - whitespace # detects leading and trailing whitespace
+    - zerologlint # detects the wrong usage of zerolog that a user forgets to dispatch zerolog.Event
 
     ## you may want to enable
     #- arangolint # opinionated best practices for arangodb client
@@ -137,8 +134,6 @@ linters:
     #- tagalign # checks that struct tags are well aligned
     #- varnamelen # [great idea, but too many false positives] checks that the length of a variable's name matches its scope
     #- wrapcheck # checks that errors returned from external packages are wrapped
-    #- zerologlint # detects the wrong usage of zerolog that a user forgets to dispatch zerolog.Event
-
     ## disabled
     #- containedctx # detects struct contained context.Context field
     #- contextcheck # [too many false positives] checks the function whether use a non-inherited context
@@ -147,7 +142,7 @@ linters:
     #- err113 # [too strict] checks the errors handling expressions
     #- errchkjson # [don't see profit + I'm against of omitting errors like in the first example https://github.com/breml/errchkjson] checks types passed to the json encoding functions. Reports unsupported types and optionally reports occasions, where the check for the returned error can be omitted
     #- forcetypeassert # [replaced by errcheck] finds forced type assertions
-    #- gomodguard # [use more powerful depguard] allow and block lists linter for direct Go module dependencies
+    #- gomodguard_v2: [use more powerful depguard] allow and blocklist linter for direct Go module dependencies
     #- gosmopolitan # reports certain i18n/l10n anti-patterns in your Go codebase
     #- grouper # analyzes expression groups
     #- importas # enforces consistent import aliases
@@ -155,10 +150,8 @@ linters:
     #- maintidx # measures the maintainability index of each function
     #- misspell # [useless] finds commonly misspelled English words in comments
     #- nlreturn # [too strict and mostly code is not more readable] checks for a new line before return and branch statements to increase code clarity
-    #- paralleltest # [too many false positives] detects missing usage of t.Parallel() method in your Go test
     #- tagliatelle # checks the struct tags
     #- thelper # detects golang test helpers without t.Helper() call and checks the consistency of test helpers
-    #- wsl # [too strict and mostly code is not more readable] whitespace linter forces you to use empty lines
     #- wsl_v5 # [too strict and mostly code is not more readable] add or remove empty lines
 
   # All settings can be found here https://github.com/golangci/golangci-lint/blob/HEAD/.golangci.reference.yml
@@ -218,7 +211,7 @@ linters:
             - "!**/main.go"
           deny:
             - pkg: log$
-              desc: Use log/slog instead, see https://go.dev/blog/slog
+              desc: Use github.com/rshade/finfocus/internal/logging instead
 
     embeddedstructfieldcheck:
       # Checks that sync.Mutex and sync.RWMutex are not used as embedded fields.
@@ -239,8 +232,12 @@ linters:
         - map
 
     exhaustruct:
-      # List of regular expressions to exclude struct packages and their names from checks.
-      # Regular expressions must match complete canonical struct package/name/structname.
+      # List of regular expressions to match type names that should be excluded from processing.
+      # Anonymous structs can be matched by '<anonymous>' alias.
+      # Has precedence over `include`.
+      # Each regular expression must match the full type name, including package path.
+      # For example, to match type `net/http.Cookie` regular expression should be `.*/http\.Cookie`,
+      # but not `http\.Cookie`.
       # Default: []
       exclude:
         # std libs
@@ -266,6 +263,9 @@ linters:
         - ^golang.org/x/tools/go/analysis.Analyzer$
         - ^google.golang.org/protobuf/.+Options$
         - ^gopkg.in/yaml.v3.Node$
+      # Allows empty structures in return statements.
+      # Default: false
+      allow-empty-returns: true
 
     funcorder:
       # Checks if the exported methods of a structure are placed before the non-exported ones.
@@ -305,6 +305,18 @@ linters:
           # Whether to skip (*x).method() calls where x is a pointer receiver.
           # Default: true
           skipRecvDeref: false
+
+    godoclint:
+      # List of rules to enable in addition to the default set.
+      # Default: empty
+      enable:
+        # Assert no unused link in godocs.
+        # https://github.com/godoc-lint/godoc-lint?tab=readme-ov-file#no-unused-link
+        - no-unused-link
+        # Require proper doc links to standard library declarations where applicable.
+        # https://github.com/godoc-lint/godoc-lint?tab=readme-ov-file#require-stdlib-doclink
+        # TODO: add stdlib doc links in https://github.com/rshade/finfocus/issues/1211.
+        # - require-stdlib-doclink
 
     govet:
       # Enable all analyzers.
@@ -375,30 +387,6 @@ linters:
       patterns:
         - ".*"
 
-    rowserrcheck:
-      # database/sql is always checked.
-      # Default: []
-      packages:
-        - github.com/jmoiron/sqlx
-
-    sloglint:
-      # Enforce not using global loggers.
-      # Values:
-      # - "": disabled
-      # - "all": report all global loggers
-      # - "default": report only the default slog logger
-      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#no-global
-      # Default: ""
-      no-global: all
-      # Enforce using methods that accept a context.
-      # Values:
-      # - "": disabled
-      # - "all": report all contextless calls
-      # - "scope": report only if a context exists in the scope of the outermost function
-      # https://github.com/go-simpler/sloglint?tab=readme-ov-file#context-only
-      # Default: ""
-      context: scope
-
     staticcheck:
       # SAxxxx checks in https://staticcheck.dev/docs/configuration/options/#checks
       # Example (to disable some checks): [ "all", "-SA1000", "-SA1001"]
@@ -443,46 +431,58 @@ linters:
       - text: 'comment on exported \S+ \S+ should be of the form ".+"'
         source: '// ?(nolint|TODO)'
         linters: [ revive, staticcheck ]
-      - path: 'pkg/version/'
-        text: 'var-naming: avoid package names that conflict with Go standard library package names'
-        linters: [ revive ]
+      - text: 'shadow: declaration of ".+" shadows declaration'
+        linters:
+          # TODO: audit strict shadow findings in https://github.com/rshade/finfocus/issues/1209.
+          - govet
+      - text: 'unusedwrite: unused write to field .+'
+        linters:
+          # TODO: audit fixture field writes in https://github.com/rshade/finfocus/issues/1212.
+          - govet
+      - text: "unused-parameter: parameter '.+' seems to be unused"
+        path: '_test\.go'
+        linters:
+          # TODO: clean test double parameters in https://github.com/rshade/finfocus/issues/1210.
+          - revive
+      - path: '^internal/(cli|config|logging)/'
+        linters:
+          # TODO: normalize repeated local constants in https://github.com/rshade/finfocus/issues/1203.
+          - goconst
+      - path: '^internal/(analyzer|conformance|engine|pluginhost|proto|pulumi|registry|router|skus|spec|tui)/'
+        linters:
+          # TODO: normalize repeated domain constants in https://github.com/rshade/finfocus/issues/1204.
+          - goconst
+      - path: '^(plugins/recorder|test/)'
+        linters:
+          # TODO: clean fixture constants and magic numbers in https://github.com/rshade/finfocus/issues/1205.
+          - goconst
+          - mnd
+      - path: '.*'
+        linters:
+          # TODO: apply Go modernization rules incrementally in https://github.com/rshade/finfocus/issues/1208.
+          - intrange
+          - modernize
       - path: '_test\.go'
         linters:
           - bodyclose
           - dupl
           - errcheck
           - funlen
+          # TODO: migrate high-complexity tests in https://github.com/rshade/finfocus/issues/1199.
           - gocognit
           - goconst
           - gosec
-          - govet
-          - intrange
-          - mnd
           - noctx
-          - revive
-          - staticcheck
-          - testableexamples
+          # TODO: audit test isolation before enabling in https://github.com/rshade/finfocus/issues/1198.
+          - paralleltest
+          # TODO: adopt stricter assertion helpers in https://github.com/rshade/finfocus/issues/1206.
           - testifylint
+          # TODO: migrate same-package tests in https://github.com/rshade/finfocus/issues/1197.
           - testpackage
+          # TODO: migrate process-state test helpers in https://github.com/rshade/finfocus/issues/1207.
           - usetesting
           - wrapcheck
-      - path: 'test/'
+      - path: '^test/mocks/plugin/examples_test\.go$'
         linters:
-          - bodyclose
-          - dupl
-          - errcheck
-          - funlen
-          - gocognit
-          - goconst
-          - gosec
-          - govet
-          - intrange
-          - mnd
-          - noctx
-          - revive
-          - staticcheck
+          # TODO: add deterministic example output in https://github.com/rshade/finfocus/issues/1200.
           - testableexamples
-          - testifylint
-          - testpackage
-          - usetesting
-          - wrapcheck

@@ -354,13 +354,13 @@ func currencySymbol(currency string) string {
 func getTerminalWidth(w io.Writer) int {
 	// Try to detect if the writer is an *os.File with a file descriptor
 	if f, ok := w.(*os.File); ok {
-		width, _, err := term.GetSize(int(f.Fd())) //nolint:gosec // G115: fd value fits in int
+		width, _, err := term.GetSize(int(f.Fd()))
 		if err == nil && width > 0 {
 			return width
 		}
 	}
 	// Fallback: try os.Stdout as a last resort
-	width, _, err := term.GetSize(int(os.Stdout.Fd())) //nolint:gosec // G115: fd value fits in int
+	width, _, err := term.GetSize(int(os.Stdout.Fd()))
 	if err != nil || width <= 0 {
 		return defaultBoxWidth + boxPaddingWidth
 	}

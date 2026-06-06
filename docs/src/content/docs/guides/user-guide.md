@@ -43,7 +43,7 @@ FinFocus is a command-line tool that calculates cloud infrastructure costs from 
 ### Prerequisites
 
 - **Pulumi CLI** installed and working
-- **Go 1.25.8+** (if building from source)
+- **Go 1.26.4+** (if building from source)
 - **Cloud credentials** configured (AWS, Azure, GCP, etc.)
 
 ### Option 1: Download Binary (Recommended)

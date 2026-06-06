@@ -33,7 +33,7 @@ type pulumiPlan struct {
 func GenerateSyntheticPlan(t *testing.T, count int, resourceTypes []string) string {
 	t.Helper()
 
-	require.Greater(t, count, 0, "resource count must be positive")
+	require.Positive(t, count, "resource count must be positive")
 	require.NotEmpty(t, resourceTypes, "resource types must not be empty")
 
 	steps := make([]pulumiStep, 0, count)
@@ -65,7 +65,7 @@ func GenerateSyntheticPlan(t *testing.T, count int, resourceTypes []string) stri
 
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, "synthetic-plan.json")
-	err = os.WriteFile(filePath, data, 0o644)
+	err = os.WriteFile(filePath, data, 0o600)
 	require.NoError(t, err, "failed to write synthetic plan file")
 
 	return filePath

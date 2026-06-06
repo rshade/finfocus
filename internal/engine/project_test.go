@@ -499,7 +499,7 @@ func TestRenderBreakdowns_DeterministicOrder(t *testing.T) {
 	gcpIdx := strings.Index(output, "gcp:")
 	if awsIdx == -1 || azureIdx == -1 || gcpIdx == -1 {
 		t.Error("Expected all providers to be present in output")
-	} else if !(awsIdx < azureIdx && azureIdx < gcpIdx) {
+	} else if awsIdx >= azureIdx || azureIdx >= gcpIdx {
 		t.Error("Providers not in alphabetical order (aws, azure, gcp)")
 	}
 
@@ -510,7 +510,7 @@ func TestRenderBreakdowns_DeterministicOrder(t *testing.T) {
 	storageIdx := strings.Index(output, "storage:")
 	if computeIdx == -1 || ec2Idx == -1 || rdsIdx == -1 || storageIdx == -1 {
 		t.Error("Expected all services to be present in output")
-	} else if !(computeIdx < ec2Idx && ec2Idx < rdsIdx && rdsIdx < storageIdx) {
+	} else if computeIdx >= ec2Idx || ec2Idx >= rdsIdx || rdsIdx >= storageIdx {
 		t.Error("Services not in alphabetical order (compute, ec2, rds, storage)")
 	}
 
@@ -519,7 +519,7 @@ func TestRenderBreakdowns_DeterministicOrder(t *testing.T) {
 	localSpecIdx := strings.Index(output, "local-spec:")
 	if kubecostIdx == -1 || localSpecIdx == -1 {
 		t.Error("Expected all adapters to be present in output")
-	} else if !(kubecostIdx < localSpecIdx) {
+	} else if kubecostIdx >= localSpecIdx {
 		t.Error("Adapters not in alphabetical order (kubecost, local-spec)")
 	}
 }

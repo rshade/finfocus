@@ -22,7 +22,7 @@ building plugins or contributing to the core project.
 
 ### Prerequisites
 
-- Go 1.25.8+ (for core development)
+- Go 1.26.4+ (for core development)
 - Git
 - Make
 - Node.js 18+ (for documentation tools)
@@ -536,7 +536,7 @@ finfocus cost actual --pulumi-json examples/plans/multi-provider-plan.json \
 
 ### Fuzz Testing
 
-FinFocus uses Go's native fuzzing (Go 1.25+) for parser resilience testing:
+FinFocus uses Go's native fuzzing (Go 1.26+) for parser resilience testing:
 
 ```bash
 # JSON parser fuzzing
@@ -661,7 +661,7 @@ Users install plugins to: `~/.finfocus/plugins/<name>/<version>/`
 ### Docker Deployment
 
 ```dockerfile
-FROM golang:1.26.3 as builder
+FROM golang:1.26.4 as builder
 WORKDIR /app
 COPY . .
 RUN make build

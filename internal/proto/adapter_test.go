@@ -1010,7 +1010,7 @@ func TestGetRecommendationsRequest_Creation(t *testing.T) {
 			name:    "empty request",
 			request: GetRecommendationsRequest{},
 			validate: func(t *testing.T, req GetRecommendationsRequest) {
-				if req.TargetResources != nil && len(req.TargetResources) != 0 {
+				if len(req.TargetResources) != 0 {
 					t.Errorf("TargetResources should be nil or empty, got %v", req.TargetResources)
 				}
 			},
