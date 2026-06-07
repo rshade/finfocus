@@ -266,9 +266,7 @@ func TestPluginValidateCmd_ValidPlugin(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create valid executable
-	pluginBinary := filepath.Join(kubecostDir, "finfocus-plugin-kubecost")
-	err = os.WriteFile(pluginBinary, []byte("#!/bin/sh\necho test"), 0755)
-	require.NoError(t, err)
+	createMockPluginBinary(t, kubecostDir, "finfocus-plugin-kubecost")
 
 	cmd := cli.NewPluginValidateCmd()
 

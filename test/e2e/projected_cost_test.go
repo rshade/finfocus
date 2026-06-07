@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os/exec"
@@ -25,7 +26,7 @@ func TestE2E_ProjectedCost(t *testing.T) {
 	require.FileExists(t, planPath)
 
 	// Run command
-	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
+	cmd := newCommand(context.Background(), binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
 	output, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError

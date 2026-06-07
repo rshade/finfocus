@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -118,8 +120,12 @@ func TestInitCache(t *testing.T) {
 }
 
 func TestInitCache_InitFailureReturnsNilGracefully(t *testing.T) {
-	// Set FINFOCUS_CACHE_DIR to an unwritable path to trigger init failure
-	t.Setenv(cache.EnvCacheDir, "/proc/nonexistent/cache")
+	// Point FINFOCUS_CACHE_DIR at a path nested under a regular FILE so that
+	// directory creation fails on every platform (/proc/... only fails on
+	// Linux; on Windows it is a creatable relative path).
+	blockingFile := filepath.Join(t.TempDir(), "blocking")
+	require.NoError(t, os.WriteFile(blockingFile, []byte("block"), 0o600))
+	t.Setenv(cache.EnvCacheDir, filepath.Join(blockingFile, "cache"))
 	t.Setenv(cache.EnvTTLSeconds, "3600")
 
 	cmd := newTestCmdWithCacheTTL(0)

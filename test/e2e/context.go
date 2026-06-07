@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -208,7 +207,7 @@ func (tc *TestContext) RunFinFocus(ctx context.Context) (float64, error) {
 	tc.T.Logf("Running finfocus at %s with preview JSON %s", binaryPath, tc.PreviewJSON)
 
 	// Run finfocus cost projected --pulumi-json <preview.json> --output json
-	cmd := exec.CommandContext(ctx, binaryPath, "cost", "projected", "--pulumi-json", tc.PreviewJSON, "--output", "json")
+	cmd := newCommand(ctx, binaryPath, "cost", "projected", "--pulumi-json", tc.PreviewJSON, "--output", "json")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -325,7 +324,7 @@ func (tc *TestContext) runCmd(ctx context.Context, dir string, name string, args
 }
 
 func (tc *TestContext) runCmdWithEnv(ctx context.Context, dir string, env []string, name string, args ...string) error {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := newCommand(ctx, name, args...)
 	cmd.Dir = dir
 	cmd.Env = os.Environ() // Start with full current environment
 	for _, e := range tc.AWSEnv {
@@ -351,7 +350,7 @@ func (tc *TestContext) runCmdWithEnv(ctx context.Context, dir string, env []stri
 }
 
 func (tc *TestContext) runCmdOutput(ctx context.Context, dir string, env []string, name string, args ...string) ([]byte, error) {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := newCommand(ctx, name, args...)
 	cmd.Dir = dir
 
 	cmd.Env = os.Environ() // Start with full current environment

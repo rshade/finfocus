@@ -1,3 +1,4 @@
 *.golden text eol=lf
+testdata/overview/golden/** text eol=lf
 
 .github/workflows/*.lock.yml linguist-generated=true merge=ours

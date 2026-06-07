@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"context"
 	"crypto/rand"
 	"fmt"
 	"os"
@@ -11,6 +12,21 @@ import (
 
 	"github.com/oklog/ulid/v2"
 )
+
+// cmdWaitDelay bounds how long exec.Cmd.Wait drains stdout/stderr after the
+// process exits. Orphaned plugin subprocesses can inherit these pipes and keep
+// them open indefinitely (see issue #1231); without WaitDelay a single leaked
+// plugin hangs the test until the go test timeout (observed: 99+ minutes).
+const cmdWaitDelay = 30 * time.Second
+
+// newCommand creates an exec.Cmd with WaitDelay set so tests fail fast with
+// real output instead of hanging when a child process leaks the command's
+// stdout/stderr pipes. All E2E command execution should go through this.
+func newCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.WaitDelay = cmdWaitDelay
+	return cmd
+}
 
 // LogComparisonReport logs the comparison report to the test logger.
 func LogComparisonReport(t *testing.T, report ComparisonReport) {

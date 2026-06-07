@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os/exec"
@@ -23,7 +24,7 @@ func TestE2E_Output_NDJSON(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run with NDJSON output
-	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "ndjson")
+	cmd := newCommand(context.Background(), binary, "cost", "projected", "--pulumi-json", planPath, "--output", "ndjson")
 	output, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError

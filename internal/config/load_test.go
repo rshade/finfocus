@@ -3,6 +3,7 @@ package config_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -184,7 +185,11 @@ func TestSave_CreatesFile(t *testing.T) {
 	require.NoError(t, err)
 	info, err := os.Stat(configPath)
 	require.NoError(t, err)
-	assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+	// Windows has no Unix permission bits (Stat reports 0666/0444), so the
+	// permission check only applies on Unix-like systems.
+	if runtime.GOOS != "windows" {
+		assert.Equal(t, os.FileMode(0600), info.Mode().Perm())
+	}
 }
 
 // TestSaveLoad_RoundTrip tests save and load cycle preserves configuration.

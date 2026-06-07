@@ -133,7 +133,7 @@ func runActualCostCommand(ctx context.Context, t *testing.T, stateFile string) (
 		return nil, fmt.Errorf("finfocus binary not found")
 	}
 
-	cmd := exec.CommandContext(ctx, binary, "cost", "actual", "--state-file", stateFile, "--output", "json")
+	cmd := newCommand(ctx, binary, "cost", "actual", "--state-file", stateFile, "--output", "json")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Check if context was cancelled

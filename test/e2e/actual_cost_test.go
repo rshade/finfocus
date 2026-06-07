@@ -12,7 +12,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -33,7 +32,7 @@ func runFinFocusCommand(t *testing.T, binary string, args ...string) []map[strin
 	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, binary, args...)
+	cmd := newCommand(ctx, binary, args...)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -13,6 +14,18 @@ import (
 
 	"github.com/rshade/finfocus/internal/cli"
 )
+
+// createMockPluginBinary writes a mock plugin executable named name into dir,
+// appending .exe on Windows so the registry's executable detection (which
+// requires the .exe extension there) discovers it.
+func createMockPluginBinary(t *testing.T, dir, name string) {
+	t.Helper()
+
+	if runtime.GOOS == "windows" {
+		name += ".exe"
+	}
+	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\necho test"), 0o755))
+}
 
 func TestNewPluginListCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
@@ -423,9 +436,7 @@ func TestPluginListCmd_WithPlugins(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create mock plugin binary
-	pluginBinary := filepath.Join(kubecostDir, "finfocus-plugin-kubecost")
-	err = os.WriteFile(pluginBinary, []byte("#!/bin/sh\necho test"), 0755)
-	require.NoError(t, err)
+	createMockPluginBinary(t, kubecostDir, "finfocus-plugin-kubecost")
 
 	cmd := cli.NewPluginListCmd()
 
@@ -453,9 +464,7 @@ func TestPluginListCmd_VerboseOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create plugin binary
-	pluginBinary := filepath.Join(kubecostDir, "finfocus-plugin-kubecost")
-	err = os.WriteFile(pluginBinary, []byte("#!/bin/sh\necho test"), 0755)
-	require.NoError(t, err)
+	createMockPluginBinary(t, kubecostDir, "finfocus-plugin-kubecost")
 
 	cmd := cli.NewPluginListCmd()
 	cmd.SetArgs([]string{"--verbose"})

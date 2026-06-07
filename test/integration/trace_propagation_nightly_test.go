@@ -25,10 +25,64 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+// readFinFocusLog returns the contents of the default finfocus log file under
+// the given FINFOCUS_HOME directory, or "" if it does not exist. The CLI logs
+// to $FINFOCUS_HOME/logs/finfocus.log by default (not stderr), so trace
+// assertions must inspect the log file in addition to captured stdout/stderr.
+func readFinFocusLog(t *testing.T, finfocusHome string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(finfocusHome, "logs", "finfocus.log"))
+	if err != nil {
+		return ""
+	}
+	return string(data)
+}
+
+func isolatedFinFocusEnv(t *testing.T, finfocusHome string, extra ...string) []string {
+	t.Helper()
+
+	require.NoError(t, os.MkdirAll(finfocusHome, 0o700))
+	tempHome := filepath.Dir(finfocusHome)
+	env := sanitizedTraceTestEnv()
+	env = append(env,
+		"HOME="+tempHome,
+		"USERPROFILE="+tempHome,
+		"FINFOCUS_HOME="+finfocusHome,
+		"PULUMI_HOME=",
+	)
+	env = append(env, extra...)
+	return env
+}
+
+func sanitizedTraceTestEnv() []string {
+	env := make([]string, 0, len(os.Environ()))
+	for _, entry := range os.Environ() {
+		key, _, ok := strings.Cut(entry, "=")
+		if !ok || shouldDropTraceTestEnv(key) {
+			continue
+		}
+		env = append(env, entry)
+	}
+	return env
+}
+
+func shouldDropTraceTestEnv(key string) bool {
+	switch key {
+	case "HOME", "USERPROFILE", "PULUMI_HOME":
+		return true
+	default:
+		return strings.HasPrefix(key, "FINFOCUS_") ||
+			strings.HasPrefix(key, "PULUMICOST_")
+	}
+}
 
 // TestTracePropagation_TraceIDInDebugOutput verifies that trace IDs appear
 // in debug output when the CLI binary is run with --debug flag.
@@ -36,6 +90,10 @@ func TestTracePropagation_TraceIDInDebugOutput(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
 	}
+
+	// Isolated FINFOCUS_HOME so the log file location is known and no user
+	// config or plugins interfere.
+	finfocusHome := filepath.Join(t.TempDir(), ".finfocus")
 
 	// Build the CLI binary
 	cmd := exec.Command("go", "build", "-o", "../../bin/finfocus-test", "../../cmd/finfocus")
@@ -47,14 +105,16 @@ func TestTracePropagation_TraceIDInDebugOutput(t *testing.T) {
 	// Run with debug flag to capture trace ID in output
 	cmd = exec.Command("../../bin/finfocus-test", "cost", "projected", "--debug",
 		"--pulumi-json", "../../examples/plans/aws-simple-plan.json")
+	cmd.Env = isolatedFinFocusEnv(t, finfocusHome)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
 
 	_ = cmd.Run() // Don't check error as cost calculation may fail without plugins
 
-	// Check that trace ID appears in debug output
-	combined := stdout.String() + stderr.String()
+	// The CLI logs to $FINFOCUS_HOME/logs/finfocus.log by default, so check the
+	// log file as well as captured stdout/stderr.
+	combined := stdout.String() + stderr.String() + readFinFocusLog(t, finfocusHome)
 
 	// Trace ID should be in OpenTelemetry format (32 hex characters)
 	assert.Contains(t, combined, "trace_id", "debug output should contain trace_id field")
@@ -67,9 +127,9 @@ func TestTracePropagation_ConsistentTraceID(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
-	// Create isolated HOME directory to ensure no plugins are found
-	// Plugins have their own trace ID generation which would cause mismatches
-	tempHome := t.TempDir()
+	// Create isolated FINFOCUS_HOME directory to ensure no plugins are found.
+	// Plugins have their own trace ID generation which would cause mismatches.
+	finfocusHome := filepath.Join(t.TempDir(), ".finfocus")
 
 	// Build the CLI binary
 	cmd := exec.Command("go", "build", "-o", "../../bin/finfocus-test", "../../cmd/finfocus")
@@ -81,7 +141,7 @@ func TestTracePropagation_ConsistentTraceID(t *testing.T) {
 	// Run with debug flag and force JSON format for parseable output
 	cmd = exec.Command("../../bin/finfocus-test", "cost", "projected", "--debug",
 		"--pulumi-json", "../../examples/plans/aws-simple-plan.json")
-	cmd.Env = append(os.Environ(), "FINFOCUS_LOG_FORMAT=json", "HOME="+tempHome)
+	cmd.Env = isolatedFinFocusEnv(t, finfocusHome, "FINFOCUS_LOG_FORMAT=json")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -119,6 +179,10 @@ func TestTracePropagation_ExternalTraceIDFlow(t *testing.T) {
 		t.Skip("skipping integration test in short mode")
 	}
 
+	// Isolated FINFOCUS_HOME so the log file location is known and no user
+	// config or plugins interfere.
+	finfocusHome := filepath.Join(t.TempDir(), ".finfocus")
+
 	// Build the CLI binary
 	cmd := exec.Command("go", "build", "-o", "../../bin/finfocus-test", "../../cmd/finfocus")
 	output, err := cmd.CombinedOutput()
@@ -133,7 +197,7 @@ func TestTracePropagation_ExternalTraceIDFlow(t *testing.T) {
 	// Force JSON format via env var (--debug sets console format, we override with env)
 	cmd = exec.Command("../../bin/finfocus-test", "cost", "projected", "--debug",
 		"--pulumi-json", "../../examples/plans/aws-simple-plan.json")
-	cmd.Env = append(os.Environ(),
+	cmd.Env = isolatedFinFocusEnv(t, finfocusHome,
 		"FINFOCUS_TRACE_ID="+externalTraceID,
 		"FINFOCUS_LOG_FORMAT=json", // Force JSON format for parsing
 	)
@@ -143,9 +207,15 @@ func TestTracePropagation_ExternalTraceIDFlow(t *testing.T) {
 
 	_ = cmd.Run()
 
-	// Parse JSON log lines from stderr
+	// Parse JSON log lines from stderr and from the default log file: the CLI
+	// logs to $FINFOCUS_HOME/logs/finfocus.log by default, so the trace-bearing
+	// events land there rather than on stderr
+	logLines := append(
+		bytes.Split(stderr.Bytes(), []byte("\n")),
+		bytes.Split([]byte(readFinFocusLog(t, finfocusHome)), []byte("\n"))...,
+	)
 	var foundExternalTraceID bool
-	for _, line := range bytes.Split(stderr.Bytes(), []byte("\n")) {
+	for _, line := range logLines {
 		if len(line) == 0 {
 			continue
 		}

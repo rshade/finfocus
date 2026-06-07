@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -182,10 +183,14 @@ func TestSetupPolicyPack_WindowsCopy(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, content, copiedContent)
 
-		// Verify executable permissions preserved
-		fi, err := os.Stat(dstPath)
-		require.NoError(t, err)
-		assert.True(t, fi.Mode()&0o111 != 0, "copy should preserve executable permissions")
+		// Verify executable permissions preserved. Windows has no Unix
+		// permission bits (os.FileInfo.Mode reports 0666/0444 there), so the
+		// check only applies on Unix-like systems.
+		if runtime.GOOS != "windows" {
+			fi, err := os.Stat(dstPath)
+			require.NoError(t, err)
+			assert.True(t, fi.Mode()&0o111 != 0, "copy should preserve executable permissions")
+		}
 	})
 
 	t.Run("copyBinary_source_not_found", func(t *testing.T) {

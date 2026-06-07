@@ -4,7 +4,7 @@
 package e2e
 
 import (
-	"os/exec"
+	"context"
 	"path/filepath"
 	"testing"
 
@@ -20,7 +20,7 @@ func TestE2E_Output_Table(t *testing.T) {
 	require.NoError(t, err)
 
 	// Run with table output (default)
-	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "table")
+	cmd := newCommand(context.Background(), binary, "cost", "projected", "--pulumi-json", planPath, "--output", "table")
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err)
 

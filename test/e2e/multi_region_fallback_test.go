@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -335,7 +336,7 @@ func runProjectedCostCommandWithFallback(t *testing.T, planPath string) ([]CostR
 	binary := findFinFocusBinary()
 	require.NotEmpty(t, binary, "finfocus binary not found")
 
-	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
+	cmd := newCommand(context.Background(), binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Check if error indicates fallback occurred

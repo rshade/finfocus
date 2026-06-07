@@ -4,6 +4,7 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"os/exec"
@@ -21,7 +22,7 @@ func TestE2E_AWS_ProjectedCost(t *testing.T) {
 	planPath, err := filepath.Abs("../fixtures/plans/aws/simple.json")
 	require.NoError(t, err)
 
-	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
+	cmd := newCommand(context.Background(), binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
 	output, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError
