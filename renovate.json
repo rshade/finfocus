@@ -1,10 +1,16 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
-    "config:recommended",
     "config:recommended"
   ],
   "packageRules": [
+    {
+      "description": "gh-aw generates .github/workflows/*.lock.yml via 'gh aw compile'. Their pinned action SHAs and container tags are managed by gh-aw (recompiling bumps them), so Renovate must not touch them: edits would be reverted on the next compile and can break the gh-aw integrity manifest.",
+      "matchFileNames": [
+        ".github/workflows/*.lock.yml"
+      ],
+      "enabled": false
+    },
     {
       "matchManagers": [
         "gomod"

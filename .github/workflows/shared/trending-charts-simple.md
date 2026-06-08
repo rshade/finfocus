@@ -4,7 +4,7 @@
 
 tools:
   cache-memory:
-    key: trending-data-${{ github.workflow }}-${{ github.run_id }}
+    key: trending-data-${{ github.workflow }}
   bash:
     - "*"
 

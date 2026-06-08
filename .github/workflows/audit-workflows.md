@@ -9,7 +9,7 @@ permissions:
   issues: read
   pull-requests: read
 tracker-id: audit-workflows-daily
-engine: claude
+engine: copilot
 tools:
   agentic-workflows:
   timeout: 300
