@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"os/exec"
 	"slices"
 	"strings"
 	"testing"
@@ -243,7 +242,7 @@ func GetLoadedPlugins(t *testing.T) ([]PluginInfo, error) {
 	t.Helper()
 
 	binaryPath := findFinFocusBinary()
-	cmd := exec.Command(binaryPath, "plugin", "list")
+	cmd := newCommand(context.Background(), binaryPath, "plugin", "list")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {

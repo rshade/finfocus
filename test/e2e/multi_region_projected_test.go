@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -115,7 +114,7 @@ func runProjectedCostCommand(t *testing.T, planPath string, timeout time.Duratio
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
+	cmd := newCommand(ctx, binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// Check if context was cancelled/timed out

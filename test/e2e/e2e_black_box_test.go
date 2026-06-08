@@ -4,8 +4,8 @@
 package e2e
 
 import (
+	"context"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -24,7 +24,7 @@ func TestCLIExecution(t *testing.T) {
 	}
 
 	// Run help command as a basic smoke test
-	cmd := exec.Command(binaryPath, "--help")
+	cmd := newCommand(context.Background(), binaryPath, "--help")
 	output, err := cmd.CombinedOutput()
 	require.NoError(t, err, "Failed to run CLI help command")
 	require.Contains(t, string(output), "Usage:", "Help output should contain 'Usage:'")

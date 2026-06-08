@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"strings"
 	"testing"
 )
@@ -41,7 +40,7 @@ func findFinFocusBinaryForPlugin() string {
 func (pm *PluginManager) InstallPlugin(ctx context.Context, name string) error {
 	pm.T.Logf("Installing plugin: %s", name)
 
-	cmd := exec.CommandContext(ctx, pm.BinaryPath, "plugin", "install", name, "--force")
+	cmd := newCommand(ctx, pm.BinaryPath, "plugin", "install", name, "--force")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -62,7 +61,7 @@ func (pm *PluginManager) InstallPlugin(ctx context.Context, name string) error {
 func (pm *PluginManager) RemovePlugin(ctx context.Context, name string) error {
 	pm.T.Logf("Removing plugin: %s", name)
 
-	cmd := exec.CommandContext(ctx, pm.BinaryPath, "plugin", "remove", name, "-y")
+	cmd := newCommand(ctx, pm.BinaryPath, "plugin", "remove", name, "-y")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
@@ -80,7 +79,7 @@ func (pm *PluginManager) RemovePlugin(ctx context.Context, name string) error {
 
 // IsPluginInstalled checks if a plugin is installed.
 func (pm *PluginManager) IsPluginInstalled(ctx context.Context, name string) bool {
-	cmd := exec.CommandContext(ctx, pm.BinaryPath, "plugin", "list")
+	cmd := newCommand(ctx, pm.BinaryPath, "plugin", "list")
 	var stdout bytes.Buffer
 	cmd.Stdout = &stdout
 
@@ -94,7 +93,7 @@ func (pm *PluginManager) IsPluginInstalled(ctx context.Context, name string) boo
 
 // ListPlugins returns the output of plugin list command.
 func (pm *PluginManager) ListPlugins(ctx context.Context) (string, error) {
-	cmd := exec.CommandContext(ctx, pm.BinaryPath, "plugin", "list")
+	cmd := newCommand(ctx, pm.BinaryPath, "plugin", "list")
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr

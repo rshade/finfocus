@@ -24,9 +24,11 @@ on:
         default: 'true'
         type: boolean
       fuzz_duration:
-        description: 'Fuzz testing duration (e.g., 1h, 6h)'
+        # Applied per fuzz target (4 targets total). Keep 4x duration + setup
+        # under GitHub's 360-minute job limit or the job is cancelled.
+        description: 'Fuzz duration per target, 4 targets total (e.g., 30m, 1h)'
         required: false
-        default: '6h'
+        default: '1h'
 
 permissions:
   contents: read
@@ -222,6 +224,9 @@ jobs:
   deep-fuzz:
     name: Deep Fuzz Testing
     runs-on: ubuntu-latest
+    # GitHub-hosted runners hard-cap jobs at 360 minutes. 4 fuzz targets at the
+    # default 1h each plus setup/corpus overhead must stay under that cap.
+    timeout-minutes: 350
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -244,20 +249,22 @@ jobs:
             fuzz-corpus-${{ runner.os }}-
 
       - name: Run deep JSON fuzz test
+        env:
+          DURATION: ${{ github.event.inputs.fuzz_duration || '1h' }}
         run: |
-          DURATION="${{ github.event.inputs.fuzz_duration || '6h' }}"
           echo "Running FuzzJSON for $DURATION"
-          go test -fuzz=FuzzJSON -fuzztime=$DURATION ./internal/ingest
-          go test -fuzz=FuzzPulumiPlanParse -fuzztime=$DURATION ./internal/ingest
-        timeout-minutes: 420 # 7 hours max
+          go test -fuzz=FuzzJSON -fuzztime="$DURATION" ./internal/ingest
+          go test -fuzz=FuzzPulumiPlanParse -fuzztime="$DURATION" ./internal/ingest
+        timeout-minutes: 170 # 2 targets x 1h default + corpus overhead
 
       - name: Run deep YAML fuzz test
+        env:
+          DURATION: ${{ github.event.inputs.fuzz_duration || '1h' }}
         run: |
-          DURATION="${{ github.event.inputs.fuzz_duration || '6h' }}"
           echo "Running FuzzYAML for $DURATION"
-          go test -fuzz=FuzzYAML -fuzztime=$DURATION ./internal/spec
-          go test -fuzz=FuzzSpecFilename -fuzztime=$DURATION ./internal/spec
-        timeout-minutes: 420 # 7 hours max
+          go test -fuzz=FuzzYAML -fuzztime="$DURATION" ./internal/spec
+          go test -fuzz=FuzzSpecFilename -fuzztime="$DURATION" ./internal/spec
+        timeout-minutes: 170 # 2 targets x 1h default + corpus overhead
 
       - name: Save fuzz corpus cache
         uses: actions/cache/save@v5
@@ -512,28 +519,31 @@ jobs:
         uses: actions/github-script@v9
         with:
           script: |
-            const title = `Nightly test failure - ${new Date().toISOString().split('T')[0]}`;
+            const today = new Date().toISOString().split('T')[0];
+            const title = `Nightly test failure - ${today}`;
             const runUrl = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
 
-            // Check if an issue already exists for today
+            // Dedup against ANY open nightly-failure issue (not just today's) so a
+            // chronic failure accumulates comments on one issue instead of filing
+            // a duplicate every day (see #1227 for why this matters).
             const existingIssues = await github.rest.issues.listForRepo({
               owner: context.repo.owner,
               repo: context.repo.repo,
               labels: 'nightly-failure',
-              state: 'open'
+              state: 'open',
+              sort: 'created',
+              direction: 'desc'
             });
 
-            const todayIssue = existingIssues.data.find(issue =>
-              issue.title.includes(new Date().toISOString().split('T')[0])
-            );
+            const openIssue = existingIssues.data[0];
 
-            if (todayIssue) {
-              // Add comment to existing issue
+            if (openIssue) {
+              // Add comment to the most recent open issue
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                issue_number: todayIssue.number,
-                body: `Another nightly run failed: ${runUrl}`
+                issue_number: openIssue.number,
+                body: `Nightly run failed on ${today}: ${runUrl}`
               });
             } else {
               // Create new issue

@@ -4,8 +4,8 @@
 package e2e
 
 import (
+	"context"
 	"encoding/json"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -19,7 +19,7 @@ func TestE2E_Azure_ProjectedCost(t *testing.T) {
 	planPath, err := filepath.Abs("../fixtures/plans/azure/simple.json")
 	require.NoError(t, err)
 
-	cmd := exec.Command(binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
+	cmd := newCommand(context.Background(), binary, "cost", "projected", "--pulumi-json", planPath, "--output", "json")
 	output, err := cmd.Output()
 	require.NoError(t, err)
 

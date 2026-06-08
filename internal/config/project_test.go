@@ -116,19 +116,22 @@ func TestResolveProjectDir_FlagWithFinfocusSuffix(t *testing.T) {
 	t.Setenv("FINFOCUS_PROJECT_DIR", "")
 
 	// User passes a path that already ends with .finfocus —
-	// should NOT double-append.
-	got := config.ResolveProjectDir(context.Background(), "/my/project/.finfocus", "")
+	// should NOT double-append. Built from t.TempDir() so the expectation
+	// survives Windows drive letters and path separators.
+	projectDir := filepath.Join(t.TempDir(), "project", ".finfocus")
+	got := config.ResolveProjectDir(context.Background(), projectDir, "")
 
-	assert.Equal(t, "/my/project/.finfocus", got)
+	assert.Equal(t, projectDir, got)
 	assert.True(t, filepath.IsAbs(got))
 }
 
 func TestResolveProjectDir_EnvWithFinfocusSuffix(t *testing.T) {
-	t.Setenv("FINFOCUS_PROJECT_DIR", "/other/project/.finfocus")
+	projectDir := filepath.Join(t.TempDir(), "project", ".finfocus")
+	t.Setenv("FINFOCUS_PROJECT_DIR", projectDir)
 
 	got := config.ResolveProjectDir(context.Background(), "", "")
 
-	assert.Equal(t, "/other/project/.finfocus", got)
+	assert.Equal(t, projectDir, got)
 	assert.True(t, filepath.IsAbs(got))
 }
 
@@ -137,9 +140,10 @@ func TestResolveProjectDir_InvalidFlagPath(t *testing.T) {
 
 	// Even a non-existent path should be returned (ResolveProjectDir is read-only,
 	// it does not check existence).
-	got := config.ResolveProjectDir(context.Background(), "/nonexistent/path/to/project", "")
+	base := filepath.Join(t.TempDir(), "nonexistent", "path", "to", "project")
+	got := config.ResolveProjectDir(context.Background(), base, "")
 
-	assert.Equal(t, filepath.Join("/nonexistent/path/to/project", ".finfocus"), got)
+	assert.Equal(t, filepath.Join(base, ".finfocus"), got)
 	assert.True(t, filepath.IsAbs(got))
 }
 

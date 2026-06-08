@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -77,12 +78,23 @@ func TestCheckBinaryInPATH_Fail(t *testing.T) {
 	assert.Equal(t, "binary_in_path", result.Name)
 	assert.Equal(t, "fail", result.Status)
 	assert.Contains(t, result.Message, policyPackBinaryName)
-	assert.Contains(t, result.Remediation, "export PATH=")
+	// Remediation is shell-specific: PowerShell syntax on Windows, POSIX export elsewhere
+	if runtime.GOOS == "windows" {
+		assert.Contains(t, result.Remediation, "$env:PATH")
+	} else {
+		assert.Contains(t, result.Remediation, "export PATH=")
+	}
 }
 
 func TestCheckBinaryInPATH_Pass(t *testing.T) {
 	binDir := t.TempDir()
-	binPath := filepath.Join(binDir, policyPackBinaryName)
+	// exec.LookPath on Windows only resolves files with a PATHEXT extension,
+	// so the fixture needs an .exe suffix there
+	binaryName := policyPackBinaryName
+	if runtime.GOOS == "windows" {
+		binaryName += ".exe"
+	}
+	binPath := filepath.Join(binDir, binaryName)
 	require.NoError(t, os.WriteFile(binPath, []byte("#!/bin/sh\necho ok"), 0o755))
 	t.Setenv("PATH", binDir)
 

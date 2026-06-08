@@ -25,7 +25,7 @@ func TestE2E_Errors_MissingFile(t *testing.T) {
 	require.NotEmpty(t, binary)
 
 	// Run with non-existent file
-	cmd := exec.CommandContext(ctx, binary, "cost", "projected", "--pulumi-json", "nonexistent.json")
+	cmd := newCommand(ctx, binary, "cost", "projected", "--pulumi-json", "nonexistent.json")
 	output, err := cmd.CombinedOutput()
 
 	// Verify timeout didn't fire
@@ -47,7 +47,7 @@ func TestE2E_Errors_InvalidFormat(t *testing.T) {
 	require.NotEmpty(t, binary)
 
 	// Run with invalid format (--pulumi-json required to reach format validation)
-	cmd := exec.CommandContext(ctx, binary, "cost", "projected",
+	cmd := newCommand(ctx, binary, "cost", "projected",
 		"--pulumi-json", os.DevNull, "--output", "invalid")
 	output, err := cmd.CombinedOutput()
 

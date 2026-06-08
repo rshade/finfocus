@@ -58,10 +58,12 @@ func assertGoldenFile(t *testing.T, goldenPath string, actual string) {
 
 	expected, err := os.ReadFile(goldenPath)
 	require.NoError(t, err)
+	// Normalize CRLF so the comparison survives Windows checkouts where git
+	// converts golden .txt files to CRLF line endings.
 	assert.Equal(
 		t,
-		string(expected),
-		actual,
+		strings.ReplaceAll(string(expected), "\r\n", "\n"),
+		strings.ReplaceAll(actual, "\r\n", "\n"),
 		"output does not match golden file %s (run with UPDATE_GOLDEN=1 to regenerate)",
 		goldenPath,
 	)
