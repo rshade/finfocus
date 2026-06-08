@@ -23,9 +23,6 @@ guardrails in `CONTEXT.md`.
 - [ ] **EstimateCost RPC — Code Review Follow-ups** *(from #847 PR review)*
   - [ ] Add test for modified-response validation fallback path
         ([#970](https://github.com/rshade/finfocus/issues/970)) [S]
-  - [ ] Fix type loss in `mergePropertiesWithOverrides` (overrides written as
-        strings)
-        ([#971](https://github.com/rshade/finfocus/issues/971)) [M]
   - [ ] Add missing `.Ctx(ctx)` and component fields to `tryEstimateCostRPC`
         warning logs
         ([#972](https://github.com/rshade/finfocus/issues/972)) [S]
@@ -57,8 +54,6 @@ guardrails in `CONTEXT.md`.
       ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
       *(Completed 2026-04-04)*
 - [ ] **Resource History Store — Code Review Follow-ups** *(from #934 PR review)*
-  - [ ] Fix double-prefixing in `StackContext.Hash`
-        ([#966](https://github.com/rshade/finfocus/issues/966)) [S]
   - [ ] Extract correct URN hash segment in `filterFullyExpiredURNs`
         ([#968](https://github.com/rshade/finfocus/issues/968)) [S]
   - [x] Capture analyzer resource properties and extract tags into history
@@ -130,6 +125,10 @@ guardrails in `CONTEXT.md`.
   - [ ] Projection Math Engine (Linear/Exponential extrapolation)
   - [ ] TUI: ASCII Line Chart visualization for 6-12 month forecasts
   - *Status: Spec primitives available (GrowthType/GrowthRate)*
+- [ ] **Platform Reliability** *(reliability bug — tied to nightly E2E
+      stabilization)*
+  - [ ] Plugins can outlive Core and hold inherited stdout/stderr pipes
+        ([#1231](https://github.com/rshade/finfocus/issues/1231)) [M]
 
 ## Future Vision (v0.4.0+ - Notifications, Integrations & Backlog)
 
@@ -276,6 +275,39 @@ guardrails in `CONTEXT.md`.
     configuration.
   - *Success Criteria*: The CLI produces a "Policy Violated" diagnostic when
     a plugin-returned cost exceeds the user-defined threshold.
+- [ ] **Lint & Test Modernization** *(incremental tech-debt — golangci-lint
+      rule adoption across the test suite)*
+  - [ ] Migrate internal package tests to external test packages
+        ([#1197](https://github.com/rshade/finfocus/issues/1197)) [L]
+  - [ ] Apply Go modernization lint rules incrementally
+        ([#1208](https://github.com/rshade/finfocus/issues/1208)) [L]
+  - [ ] Adopt paralleltest safely across isolated tests
+        ([#1198](https://github.com/rshade/finfocus/issues/1198)) [M]
+  - [ ] Refactor high-complexity tests flagged by gocognit
+        ([#1199](https://github.com/rshade/finfocus/issues/1199)) [M]
+  - [ ] Make mock plugin examples testable
+        ([#1200](https://github.com/rshade/finfocus/issues/1200)) [M]
+  - [ ] Normalize CLI, config, and logging constants flagged by goconst
+        ([#1203](https://github.com/rshade/finfocus/issues/1203)) [M]
+  - [ ] Normalize engine, router, proto, and analyzer constants flagged by
+        goconst
+        ([#1204](https://github.com/rshade/finfocus/issues/1204)) [M]
+  - [ ] Adopt stricter testifylint assertions across tests
+        ([#1206](https://github.com/rshade/finfocus/issues/1206)) [M]
+  - [ ] Adopt usetesting helpers for env, tempdir, and cwd tests
+        ([#1207](https://github.com/rshade/finfocus/issues/1207)) [M]
+  - [ ] Audit govet shadow analyzer findings
+        ([#1209](https://github.com/rshade/finfocus/issues/1209)) [M]
+  - [ ] Audit govet unusedwrite findings in tests and fixtures
+        ([#1212](https://github.com/rshade/finfocus/issues/1212)) [M]
+  - [ ] Migrate mock plugin gRPC helpers off deprecated `DialContext`
+        ([#1213](https://github.com/rshade/finfocus/issues/1213)) [M]
+  - [ ] Clean fixture and benchmark constants flagged by goconst and mnd
+        ([#1205](https://github.com/rshade/finfocus/issues/1205)) [S]
+  - [ ] Clean revive unused-parameter findings in test doubles
+        ([#1210](https://github.com/rshade/finfocus/issues/1210)) [S]
+  - [ ] Add stdlib doc links for godoclint
+        ([#1211](https://github.com/rshade/finfocus/issues/1211)) [S]
 
 ## Completed Milestones
 
@@ -298,6 +330,13 @@ guardrails in `CONTEXT.md`.
       *(Completed 2026-04-06)*
 - [x] Add per-resource validation to batch cost requests
       ([#983](https://github.com/rshade/finfocus/issues/983)) [M]
+      *(Completed 2026-04-06)*
+- [x] Fix type loss in `mergePropertiesWithOverrides` (overrides written as
+      strings)
+      ([#971](https://github.com/rshade/finfocus/issues/971)) [M]
+      *(Completed 2026-04-06)*
+- [x] Fix double-prefixing in `StackContext.Hash`
+      ([#966](https://github.com/rshade/finfocus/issues/966)) [S]
       *(Completed 2026-04-06)*
 
 ### 2026-Q1
