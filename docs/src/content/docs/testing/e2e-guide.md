@@ -130,3 +130,32 @@ E2E tests can be slow due to cloud resource provisioning. If tests timeout, try 
 ```bash
 go test -timeout 30m ./test/e2e/...
 ```
+
+### Subprocess Hangs (Leaked Plugin Processes)
+
+Plugin subprocesses can outlive a test and hold inherited `stdout`/`stderr` pipes open, causing `cmd.Wait()` to block
+indefinitely. All E2E command execution uses a `newCommand` helper that sets `exec.Cmd.WaitDelay` (30 seconds) so a
+leaked subprocess fails fast with real output instead of hanging the runner.
+
+If a test still hangs, check for orphaned plugin processes:
+
+```bash
+# List any lingering finfocus plugin processes
+ps aux | grep finfocus-plugin
+```
+
+### Windows Cross-Platform Notes
+
+The E2E and unit test suite is designed to run on Linux, macOS, and Windows. Key platform-aware behaviors:
+
+- Plugin binaries use the `.exe` suffix on Windows (handled automatically by `exec.LookPath`).
+- Home directory detection uses `USERPROFILE` on Windows (`os.UserHomeDir` resolves correctly).
+- Golden file comparisons normalize CRLF line endings on Windows checkouts.
+- Permission-bit assertions (Unix `chmod` modes) are skipped on Windows where they are not applicable.
+
+### Integration Test Log Isolation
+
+Trace integration tests set an isolated `FINFOCUS_HOME` directory (via `t.TempDir()`) to prevent tests from reading or
+writing the real `~/.finfocus/` directory. Log assertions inspect both the captured `stderr` **and** the log file at
+`$FINFOCUS_HOME/logs/finfocus.log`, because the CLI routes structured logs to the log file by default rather than
+`stderr`.
