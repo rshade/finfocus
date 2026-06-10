@@ -4,7 +4,7 @@
 
 tools:
   cache-memory:
-    key: trending-data-${{ github.workflow }}
+    key: trending-data-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
   bash:
     - "*"
 
@@ -14,29 +14,24 @@ network:
     - python
 
 safe-outputs:
-  upload-artifact:
-    max-uploads: 5
-    retention-days: 30
-    skip-archive: true
-    allowed-paths:
-      - "**/*.png"
-      - "**/*.jpg"
-      - "**/*.svg"
+  upload-asset:
+    max: 5
+    allowed-exts: [.png, .jpg, .jpeg, .svg]
 
 steps:
   - name: Setup Python environment
     run: |
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
       # Create a virtual environment for proper package isolation (avoids --break-system-packages)
-      if [ ! -d /tmp/gh-aw/venv ]; then
-        python3 -m venv /tmp/gh-aw/venv
+      if [ ! -d /tmp/gh-aw/agent/venv ]; then
+        python3 -m venv /tmp/gh-aw/agent/venv
       fi
-      echo "/tmp/gh-aw/venv/bin" >> "$GITHUB_PATH"
-      /tmp/gh-aw/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
+      echo "/tmp/gh-aw/agent/venv/bin" >> "$GITHUB_PATH"
+      /tmp/gh-aw/agent/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
 
   - name: Upload source files and data
     if: always()
-    uses: actions/upload-artifact@v7
+    uses: actions/upload-artifact@v7.0.1
     with:
       name: trending-source-and-data
       path: |
@@ -81,9 +76,9 @@ plt.tight_layout()
 plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
 ```
 
-## Upload Charts (skip-archive)
+## Upload Charts
 
-Chart images are uploaded individually via the `upload_artifact` safe-output tool with `skip-archive: true`. This stores each image as an individual file and returns a direct artifact URL, enabling inline rendering in issues, discussions, and pull requests.
+Chart images are uploaded individually via the `upload_asset` safe-output tool. This returns a persistent asset URL for inline rendering in issues, discussions, and pull requests.
 
 ### Step 1: Generate Chart
 
@@ -91,25 +86,25 @@ Chart images are uploaded individually via the `upload_artifact` safe-output too
 plt.savefig('/tmp/gh-aw/python/charts/trend.png', dpi=300, bbox_inches='tight')
 ```
 
-### Step 2: Upload as Artifact
+### Step 2: Upload as Asset
 
-Call the `upload_artifact` tool for each chart image:
+Call the `upload_asset` tool for each chart image:
 
 ```json
-{ "type": "upload_artifact", "path": "/tmp/gh-aw/python/charts/trend.png" }
+{ "type": "upload_asset", "path": "/tmp/gh-aw/python/charts/trend.png" }
 ```
 
-The tool returns `slot_N_artifact_url` with a direct link to the uploaded image.
+The tool returns a direct URL to the uploaded image.
 
 ### Step 3: Embed in Markdown
 
-Use the returned artifact URL to render the chart inline:
+Use the returned asset URL to render the chart inline:
 
 ```markdown
-![Trend Chart](ARTIFACT_URL_FROM_SLOT_N)
+![Trend Chart](ASSET_URL_FROM_UPLOAD)
 ```
 
-> **Note**: Up to 5 chart images can be uploaded per run. Artifact URLs require GitHub authentication to access.
+> **Note**: Up to 5 chart images can be uploaded per run.
 
 ## Best Practices
 
