@@ -1,16 +1,23 @@
 ---
+emoji: "🔀"
 name: Mergefest
 description: Automatically merges the main branch into pull request branches when invoked with /mergefest command
 on:
   slash_command:
+    strategy: centralized
     name: mergefest
     events: [pull_request_comment]
 permissions:
   contents: read
   pull-requests: read
   actions: read
-engine: copilot
+engine:
+  id: copilot
+  copilot-sdk: true
+imports:
+  - shared/otlp.md
 tools:
+  cli-proxy: true
   bash:
     - "git fetch"
     - "git checkout"
@@ -35,6 +42,7 @@ tools:
     - "grep"
   edit:
   github:
+    mode: gh-proxy
     toolsets: [pull_requests, repos]
 safe-outputs:
   push-to-pull-request-branch:
@@ -47,11 +55,13 @@ steps:
       git config user.email "github-actions[bot]@users.noreply.github.com"
       
       # Create .gitignore to exclude workflow YAML files
-      cat > /tmp/merge-gitignore << 'EOF'
+      cat > /tmp/gh-aw/agent/merge-gitignore << 'EOF'
       # Exclude all .yml files in .github/workflows/
       .github/workflows/*.yml
       EOF
-source: github/gh-aw/.github/workflows/mergefest.md@ce1794953e0ec42adc41b6fca05e02ab49ee21c3
+
+
+source: github/gh-aw/.github/workflows/mergefest.md@05fab00ffacfaf079f6007d4309d7e37e56b3fd8
 ---
 
 # Mergefest - Merge Main into Pull Request Branch
@@ -348,8 +358,4 @@ Merged `<BASE_BRANCH>` into `<PR_BRANCH>`
 [Any important notes about the merge, conflicts, or excluded files]
 ```
 
-**Important**: If no action is needed after completing your analysis, you **MUST** call the `noop` safe-output tool with a brief explanation. Failing to call any safe-output tool is the most common cause of safe-output workflow failures.
-
-```json
-{"noop": {"message": "No action needed: [brief explanation of what was analyzed and why]"}}
-```
+{{#runtime-import shared/noop-reminder.md}}
