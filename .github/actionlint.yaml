@@ -1,0 +1,9 @@
+# gh aw generates .github/workflows/agentics-maintenance.yml with an empty
+# choice option (operation: '') that is semantically required (scheduled-run
+# sentinel), but actionlint's syntax-check rejects empty strings. Suppress that
+# one error on that one generated file. (upstream gh-aw generator/validator
+# inconsistency.)
+paths:
+  .github/workflows/agentics-maintenance.yml:
+    ignore:
+      - 'string should not be empty'
