@@ -254,7 +254,7 @@ docs-validate: docs-sync docs-lint
 	@echo "Validating documentation structure..."
 	@test -f docs/src/content/docs/README.md || (echo "Missing: docs/src/content/docs/README.md"; exit 1)
 	@test -f docs/src/content/docs/plan.md || (echo "Missing: docs/src/content/docs/plan.md"; exit 1)
-	@test -f docs/src/content/docs/llms.txt || (echo "Missing: docs/src/content/docs/llms.txt"; exit 1)
+	@bash scripts/validate-llms-txt.sh
 	@test -f docs/astro.config.mjs || (echo "Missing: docs/astro.config.mjs"; exit 1)
 	@test -f docs/.markdownlint-cli2.jsonc || (echo "Missing: docs/.markdownlint-cli2.jsonc"; exit 1)
 	@echo "All required documentation files present"

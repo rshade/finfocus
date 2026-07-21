@@ -11,6 +11,7 @@ export default defineConfig({
     starlight({
       title: 'FinFocus Documentation',
       description: 'Cost visibility for Pulumi infrastructure.',
+      customCss: ['./src/styles/theme-bridge.css'],
       social: [
         {
           icon: 'github',
@@ -34,7 +35,7 @@ export default defineConfig({
             type: 'module',
           },
           content: `
-            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.14.0/dist/mermaid.esm.min.mjs';
+            import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11.15.0/dist/mermaid.esm.min.mjs';
             mermaid.initialize({ startOnLoad: false, theme: 'dark' });
 
             function renderMermaid() {
@@ -66,57 +67,47 @@ export default defineConfig({
         {
           label: 'Getting Started',
           collapsed: false,
-          autogenerate: { directory: 'getting-started' },
+          items: [{ autogenerate: { directory: 'getting-started' } }],
         },
         {
           label: 'Guides',
           collapsed: false,
-          autogenerate: { directory: 'guides' },
+          items: [{ autogenerate: { directory: 'guides' } }],
         },
         {
           label: 'Architecture',
           collapsed: false,
-          autogenerate: { directory: 'architecture' },
+          items: [{ autogenerate: { directory: 'architecture' } }],
         },
         {
           label: 'Plugins',
           collapsed: false,
-          autogenerate: { directory: 'plugins' },
+          items: [{ autogenerate: { directory: 'plugins' } }],
         },
         {
           label: 'Reference',
           collapsed: true,
-          autogenerate: { directory: 'reference' },
+          items: [{ autogenerate: { directory: 'reference', collapsed: true } }],
         },
         {
           label: 'Deployment',
           collapsed: true,
-          autogenerate: { directory: 'deployment' },
+          items: [{ autogenerate: { directory: 'deployment', collapsed: true } }],
         },
         {
           label: 'Support',
           collapsed: true,
-          autogenerate: { directory: 'support' },
+          items: [{ autogenerate: { directory: 'support', collapsed: true } }],
         },
         {
           label: 'Commands',
           collapsed: true,
-          autogenerate: { directory: 'commands' },
-        },
-        {
-          label: 'Examples',
-          collapsed: true,
-          autogenerate: { directory: 'examples' },
-        },
-        {
-          label: 'Schemas',
-          collapsed: true,
-          autogenerate: { directory: 'schemas' },
+          items: [{ autogenerate: { directory: 'commands', collapsed: true } }],
         },
         {
           label: 'Testing',
           collapsed: true,
-          autogenerate: { directory: 'testing' },
+          items: [{ autogenerate: { directory: 'testing', collapsed: true } }],
         },
         {
           label: 'Project',

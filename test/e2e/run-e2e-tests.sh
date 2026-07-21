@@ -40,13 +40,13 @@ fi
 
 # Check for Go
 if ! command -v go &> /dev/null; then
-    echo -e "${RED}ERROR: Go not found. Please install Go 1.26.4+${NC}"
+    echo -e "${RED}ERROR: Go not found. Please install Go 1.26.5+${NC}"
     exit 1
 fi
 
-# Validate Go version >= 1.26.4
+# Validate Go version >= 1.26.5
 GO_VERSION=$(go version | grep -oP 'go(\d+\.\d+(\.\d+)?)' | sed 's/go//')
-REQUIRED_VERSION="1.26.4"
+REQUIRED_VERSION="1.26.5"
 
 version_ge() {
     printf '%s\n%s\n' "$2" "$1" | sort -V -C

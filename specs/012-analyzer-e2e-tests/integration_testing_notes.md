@@ -48,9 +48,9 @@ pulumi preview --policy-pack /path/to/policy-pack
 
 ### Test Session: 2025-12-09
 
-**Binary Location**: `/mnt/c/GitHub/go/src/github.com/rshade/finfocus/bin/finfocus`
+**Binary Location**: `$GOPATH/src/github.com/rshade/finfocus/bin/finfocus`
 
-**Test Project**: `/mnt/c/GitHub/go/src/github.com/rshade/finfocus/test/e2e/projects/analyzer`
+**Test Project**: `$GOPATH/src/github.com/rshade/finfocus/test/e2e/projects/analyzer`
 
 #### Test 1: Binary Name Detection
 

@@ -145,7 +145,7 @@ jobs:
           required_files=(
             "docs/src/content/docs/README.md"
             "docs/src/content/docs/plan.md"
-            "docs/src/content/docs/llms.txt"
+            "docs/public/llms.txt"
             "docs/package.json"
             "docs/astro.config.mjs"
             "docs/.markdownlint-cli2.jsonc"
@@ -211,33 +211,7 @@ jobs:
         run: make docs-sync
 
       - name: Check llms.txt exists and is updated
-        run: |
-          if [ ! -f "docs/src/content/docs/llms.txt" ]; then
-            echo "❌ docs/src/content/docs/llms.txt not found"
-            exit 1
-          fi
-
-          # Check that llms.txt has recent update timestamp
-          if grep -q "Last Updated:" docs/src/content/docs/llms.txt; then
-            echo "✓ llms.txt has update timestamp"
-          else
-            echo "⚠ llms.txt missing update timestamp"
-          fi
-
-          # Check that llms.txt references main documentation
-          required_sections=(
-            "Quick Navigation"
-            "Complete Documentation Map"
-            "Key Concepts"
-          )
-
-          for section in "${required_sections[@]}"; do
-            if grep -q "$section" docs/src/content/docs/llms.txt; then
-              echo "✓ Found section: $section"
-            else
-              echo "⚠ Missing section: $section"
-            fi
-          done
+        run: bash scripts/validate-llms-txt.sh
 
   validation-summary:
     runs-on: ubuntu-latest

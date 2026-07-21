@@ -325,7 +325,7 @@ Flags:
 
 ## References
 
-- Pulumi Analyzer Protocol: `/mnt/c/GitHub/go/src/github.com/pulumi/pulumi/proto/pulumi/analyzer.proto`
-- Pulumi SDK Implementation: `/mnt/c/GitHub/go/src/github.com/pulumi/pulumi/sdk/go/common/resource/plugin/analyzer_plugin.go`
-- FinFocus Spec Protocol: `/mnt/c/GitHub/go/src/github.com/rshade/finfocus-spec/proto/finfocus/v1/costsource.proto`
-- Existing Engine: `/mnt/c/GitHub/go/src/worktrees/analyzer-plugin/internal/engine/engine.go`
+- Pulumi Analyzer Protocol: `$GOPATH/src/github.com/pulumi/pulumi/proto/pulumi/analyzer.proto`
+- Pulumi SDK Implementation: `$GOPATH/src/github.com/pulumi/pulumi/sdk/go/common/resource/plugin/analyzer_plugin.go`
+- FinFocus Spec Protocol: `$GOPATH/src/github.com/rshade/finfocus-spec/proto/finfocus/v1/costsource.proto`
+- Existing Engine: `$GOPATH/src/worktrees/analyzer-plugin/internal/engine/engine.go`
