@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.6](https://github.com/rshade/finfocus/compare/v0.3.5...v0.3.6) (2026-07-23)
+
+
+### Added
+
+* **engine:** add per-resource validation to batch cost requests ([#983](https://github.com/rshade/finfocus/issues/983)) ([ee2d1b2](https://github.com/rshade/finfocus/commit/ee2d1b2dadfa734e16e3556008a04304dacafcdf))
+* **engine:** add resource history store with BoltDB persistence ([#942](https://github.com/rshade/finfocus/issues/942)) ([82b1c75](https://github.com/rshade/finfocus/commit/82b1c75db3156e537f732efe8cdcbc7450843206))
+* **engine:** implement BatchCost RPC consumer for multi-resource que… ([#969](https://github.com/rshade/finfocus/issues/969)) ([176b470](https://github.com/rshade/finfocus/commit/176b4707caf850bb0842eb9557f5723ef7192a96))
+* **engine:** implement EstimateCost RPC consumer ([#941](https://github.com/rshade/finfocus/issues/941)) ([e5ce12f](https://github.com/rshade/finfocus/commit/e5ce12fd47e987ddb312000c3705659ea6f0dd63)), closes [#847](https://github.com/rshade/finfocus/issues/847)
+
+
+### Fixed
+
+* adding logo-readme.png ([#945](https://github.com/rshade/finfocus/issues/945)) ([c24123e](https://github.com/rshade/finfocus/commit/c24123e9ba94aa65fa47d973e43a530c55fa2ad7))
+* **ci:** stabilize chronically failing nightly test suite ([#1234](https://github.com/rshade/finfocus/issues/1234)) ([c135893](https://github.com/rshade/finfocus/commit/c1358937d564e73f9ffefaa4a20b947e453e3681)), closes [#1227](https://github.com/rshade/finfocus/issues/1227)
+* **deps:** update go dependencies ([#1034](https://github.com/rshade/finfocus/issues/1034)) ([fb78b4c](https://github.com/rshade/finfocus/commit/fb78b4c3227e825930d75b2d239c6d8c4eeea594))
+* **deps:** update go dependencies ([#1324](https://github.com/rshade/finfocus/issues/1324)) ([f2ee805](https://github.com/rshade/finfocus/commit/f2ee8050717dcf86c9bf6705d34ad5a09b301de6))
+* **deps:** update go dependencies ([#1343](https://github.com/rshade/finfocus/issues/1343)) ([05fb450](https://github.com/rshade/finfocus/commit/05fb45047fbda3c5802b4249fb07e48763585a3e))
+* **deps:** update go dependencies ([#946](https://github.com/rshade/finfocus/issues/946)) ([b70ee13](https://github.com/rshade/finfocus/commit/b70ee133332096cdbd527d895572043a9650b050))
+* **deps:** update module golang.org/x/term to v0.42.0 ([#1006](https://github.com/rshade/finfocus/issues/1006)) ([90df589](https://github.com/rshade/finfocus/commit/90df589144e70985518de0774838995fae63f77c))
+* **docs:** render homepage cards as Starlight components ([#952](https://github.com/rshade/finfocus/issues/952)) ([235c45d](https://github.com/rshade/finfocus/commit/235c45d4f951e1f8310edc7be87be75ed04a3467))
+* **engine:** preserve original property types in mergePropertiesWithOverrides ([#989](https://github.com/rshade/finfocus/issues/989)) ([e3383e6](https://github.com/rshade/finfocus/commit/e3383e6c6be608682b402766c5c7ec8e2cd36867)), closes [#971](https://github.com/rshade/finfocus/issues/971)
+* **history:** capture analyzer resource properties and extract tags i… ([#981](https://github.com/rshade/finfocus/issues/981)) ([fb48776](https://github.com/rshade/finfocus/commit/fb48776dde4462c4f1d7132f3d351613b79a7c07))
+* **history:** fix double-prefixing in StackContext.Hash ([#988](https://github.com/rshade/finfocus/issues/988)) ([022c8b8](https://github.com/rshade/finfocus/commit/022c8b890d3c7e75dc073b6f751ad1bcb353c298)), closes [#966](https://github.com/rshade/finfocus/issues/966)
+
+
+### Documentation
+
+* amend constitution to v1.7.0 (optional persistence model) ([#936](https://github.com/rshade/finfocus/issues/936)) ([764cf4d](https://github.com/rshade/finfocus/commit/764cf4da48bf1a36f26f74811bf1e1fbc164e09d))
+* **contributing:** document 11 agentic workflows added in [#1037](https://github.com/rshade/finfocus/issues/1037) ([#1043](https://github.com/rshade/finfocus/issues/1043)) ([de6a18d](https://github.com/rshade/finfocus/commit/de6a18dbdcf60f7cd9a2287e9a885ae4626b65d4))
+* **site:** migrate documentation from jekyll to astro starlight ([#944](https://github.com/rshade/finfocus/issues/944)) ([64926ab](https://github.com/rshade/finfocus/commit/64926ab2282051502bf554044f491765abd3ee0f))
+* sync roadmap and update E2E guide for 2026-06-08 ([#1253](https://github.com/rshade/finfocus/issues/1253)) ([b04a9e2](https://github.com/rshade/finfocus/commit/b04a9e2312226726735c51c418b112f2dd83916a))
+* update Docker Go build image version to 1.26.3 ([#1117](https://github.com/rshade/finfocus/issues/1117)) ([afec367](https://github.com/rshade/finfocus/commit/afec367746f5fc260c086e43f104642699cf623e))
+* update Go toolchain version to 1.26.3 in examples ([#1114](https://github.com/rshade/finfocus/issues/1114)) ([79b6b43](https://github.com/rshade/finfocus/commit/79b6b43aef57f97b150199dd03da0ae4ba59b823))
+* update sitemap ([#1295](https://github.com/rshade/finfocus/issues/1295)) ([3cc9421](https://github.com/rshade/finfocus/commit/3cc9421e3b746543140d990592ffdcbb7472152d))
+
 ## [0.3.5](https://github.com/rshade/finfocus/compare/v0.3.4...v0.3.5) (2026-03-31)
 
 
