@@ -22,7 +22,7 @@ building plugins or contributing to the core project.
 
 ### Prerequisites
 
-- Go 1.26.4+ (for core development)
+- Go 1.26.5+ (for core development)
 - Git
 - Make
 - Node.js 18+ (for documentation tools)
@@ -661,7 +661,7 @@ Users install plugins to: `~/.finfocus/plugins/<name>/<version>/`
 ### Docker Deployment
 
 ```dockerfile
-FROM golang:1.26.4 as builder
+FROM golang:1.26.5 as builder
 WORKDIR /app
 COPY . .
 RUN make build

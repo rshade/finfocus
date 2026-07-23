@@ -7,7 +7,7 @@
 
 **Decision**: finfocus-spec v0.5.5 fully supports dismissal. No spec upgrade needed.
 
-**Rationale**: Confirmed in Go module cache at `/mnt/c/GitHub/go/pkg/mod/github.com/rshade/finfocus-spec@v0.5.5/sdk/go/proto/finfocus/v1/`:
+**Rationale**: Confirmed in Go module cache at `$GOPATH/pkg/mod/github.com/rshade/finfocus-spec@v0.5.5/sdk/go/proto/finfocus/v1/`:
 
 - `DismissRecommendation` RPC exists in `costsource_grpc.pb.go`
 - `DismissRecommendationRequest` has fields: `RecommendationId`, `Reason` (DismissalReason enum), `CustomReason`, `ExpiresAt` (timestamppb.Timestamp), `DismissedBy`

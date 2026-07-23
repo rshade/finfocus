@@ -1,52 +1,82 @@
 #!/bin/bash
 # Update llms.txt with current documentation structure
 # This script is run by GitHub Actions after documentation changes
+#
+# llms.txt is served publicly at ${BASE_URL}/llms.txt, so every link it emits
+# must be a deployed Starlight URL. Repository-relative paths do not resolve
+# for the LLM clients that consume this file.
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-LLMS_FILE="$PROJECT_ROOT/docs/llms.txt"
+CONTENT_DIR="$PROJECT_ROOT/docs/src/content/docs"
+LLMS_FILE="$PROJECT_ROOT/docs/public/llms.txt"
+BASE_URL="https://rshade.github.io/finfocus"
+
+if [ ! -d "$CONTENT_DIR" ]; then
+    echo "ERROR: content directory not found: $CONTENT_DIR" >&2
+    exit 1
+fi
 
 echo "Updating documentation index in $LLMS_FILE..."
 
-# Create temporary file
-TEMP_FILE=$(mktemp)
+# Convert a content file path into its deployed Starlight URL.
+# Starlight lowercases slugs and drops the extension; index becomes the root.
+to_url() {
+    local rel="$1" slug
+    slug="$(printf '%s' "${rel%.*}" | tr '[:upper:]' '[:lower:]')"
+    [ "$slug" = "index" ] && slug=""
+    printf '%s/%s' "$BASE_URL" "${slug:+$slug/}"
+}
 
-# Write header
-cat > "$TEMP_FILE" << 'EOF'
+# Read the frontmatter title, falling back to the slug when absent.
+to_title() {
+    local file="$1" title
+    title="$(sed -n '2,/^---$/{s/^title:[[:space:]]*//p}' "$file" | head -1)"
+    title="${title%\"}"; title="${title#\"}"
+    title="${title%\'}"; title="${title#\'}"
+    printf '%s' "$title"
+}
+
+TEMP_FILE=$(mktemp)
+trap 'rm -f "$TEMP_FILE"' EXIT
+
+cat > "$TEMP_FILE" << EOF
 # FinFocus Documentation Index (LLM-Friendly)
 
 This file provides a machine-readable index of all FinFocus documentation.
 Use this as context when answering questions about FinFocus.
 
+All links are deployed documentation URLs and resolve directly.
+
 ## Quick Navigation
 
 ### For End Users
-- Getting Started: docs/getting-started/quickstart.md
-- Installation: docs/getting-started/installation.md
-- CLI Reference: docs/reference/cli-commands.md
-- Troubleshooting: docs/support/troubleshooting.md
-- FAQ: docs/support/faq.md
+- Getting Started: $BASE_URL/getting-started/quickstart/
+- Installation: $BASE_URL/getting-started/installation/
+- CLI Reference: $BASE_URL/reference/cli-commands/
+- Troubleshooting: $BASE_URL/support/troubleshooting/
+- FAQ: $BASE_URL/support/faq/
 
 ### For Plugin Developers
-- Plugin Development Guide: docs/plugins/plugin-development.md
-- Plugin SDK Reference: docs/plugins/plugin-sdk.md
-- Vantage Plugin Example: docs/plugins/vantage/README.md
-- Plugin Examples: docs/plugins/plugin-examples.md
-- Vantage Setup: docs/plugins/vantage/setup.md
+- Plugin Development Guide: $BASE_URL/plugins/plugin-development/
+- Plugin SDK Reference: $BASE_URL/plugins/plugin-sdk/
+- Vantage Plugin Example: $BASE_URL/plugins/vantage/readme/
+- Plugin Examples: $BASE_URL/plugins/plugin-examples/
+- Vantage Setup: $BASE_URL/plugins/vantage/setup/
 
 ### For Software Architects
-- System Architecture: docs/architecture/system-overview.md
-- Plugin Protocol: docs/architecture/plugin-protocol.md
-- Cost Calculation: docs/architecture/cost-calculation.md
-- Deployment Guide: docs/deployment/deployment.md
-- Security Best Practices: docs/deployment/security.md
+- System Architecture: $BASE_URL/architecture/system-overview/
+- Plugin Protocol: $BASE_URL/architecture/plugin-protocol/
+- Cost Calculation: $BASE_URL/architecture/cost-calculation/
+- Deployment Guide: $BASE_URL/deployment/deployment/
+- Security Best Practices: $BASE_URL/deployment/security/
 
 ### For Business/Product
-- Business Value: docs/guides/business-value.md
-- Comparison: docs/guides/comparison.md
-- Roadmap: docs/architecture/roadmap.md
+- Business Value: $BASE_URL/guides/business-value/
+- Comparison: $BASE_URL/guides/comparison/
+- Roadmap: $BASE_URL/architecture/roadmap/
 
 ---
 
@@ -54,19 +84,16 @@ Use this as context when answering questions about FinFocus.
 
 EOF
 
-# Find all markdown files and add them to the index
-find "$PROJECT_ROOT/docs" -type f -name "*.md" ! -path "*/_site/*" ! -path "*/node_modules/*" ! -name "llms.txt" | sort | while read file; do
-    # Get relative path from docs directory
-    rel_path="${file#$PROJECT_ROOT/}"
-    # Get filename for display
-    filename=$(basename "$file")
-    # Get directory for categorization
-    dir=$(dirname "$rel_path" | sed 's|docs/||')
+doc_count=0
+while IFS= read -r file; do
+    rel="${file#"$CONTENT_DIR"/}"
+    url="$(to_url "$rel")"
+    title="$(to_title "$file")"
+    [ -n "$title" ] || title="${rel%.*}"
+    echo "- [$title]($url)" >> "$TEMP_FILE"
+    doc_count=$((doc_count + 1))
+done < <(find "$CONTENT_DIR" -type f \( -name "*.md" -o -name "*.mdx" \) | sort)
 
-    echo "- [$filename]($rel_path)" >> "$TEMP_FILE"
-done
-
-# Add footer
 cat >> "$TEMP_FILE" << 'EOF'
 
 ## Key Concepts
@@ -110,23 +137,25 @@ Combining costs from multiple resources and/or plugins.
 
 ### For AI Assistants
 - Use this as context when answering questions about FinFocus
-- Reference specific docs by their file paths
+- Reference specific docs by their deployed URLs
 - Point users to the most relevant documentation
 
 ### For Documentation Maintainers
-- Use this as a checklist for completeness
+- Regenerate with: ./scripts/update-llms-txt.sh
 - Update when creating new documentation
 - Validate that llms.txt matches actual file structure
 
 ---
 
-**Last Updated:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-**This file is automatically updated by GitHub Actions.**
-
 EOF
 
-# Replace the old llms.txt with the new one
+cat >> "$TEMP_FILE" << EOF
+**Last Updated:** $(date -u +"%Y-%m-%d")
+**This file is generated by scripts/update-llms-txt.sh.**
+EOF
+
 mv "$TEMP_FILE" "$LLMS_FILE"
+trap - EXIT
 
 echo "✓ Documentation index updated successfully"
-echo "✓ Updated $(find "$PROJECT_ROOT/docs" -type f -name "*.md" ! -path "*/_site/*" ! -path "*/node_modules/*" ! -name "llms.txt" | wc -l) documentation files"
+echo "✓ Indexed $doc_count documentation files"

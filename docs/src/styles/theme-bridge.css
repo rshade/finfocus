@@ -1,0 +1,20 @@
+/*
+ * theme-bridge.css — maps shared rshade-theme tokens onto Starlight's
+ * `--sl-*` design variables. tokens.css intentionally ships zero `--sl-*`
+ * vars (it is also consumed by the non-Starlight blog), so this bridge is
+ * where finfocus adopts the shared fonts + accent ramp. See docs/theme
+ * (rshade-theme submodule) for the token source of truth.
+ */
+@import "../../theme/tokens.css";
+
+:root {
+  --sl-font: var(--font-sans);
+  --sl-font-mono: var(--font-mono);
+}
+
+:root,
+:root[data-theme="light"] {
+  --sl-color-accent-low: var(--color-accent-soft);
+  --sl-color-accent: var(--color-accent);
+  --sl-color-accent-high: var(--color-accent-hover);
+}

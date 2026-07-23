@@ -14,7 +14,7 @@ This research document provides comprehensive findings on the FinFocus documenta
 
 ### 1.1 Jekyll Configuration Analysis
 
-**File:** `/mnt/c/GitHub/go/src/worktrees/fix-errors/docs/_config.yml`
+**File:** `$GOPATH/src/worktrees/fix-errors/docs/_config.yml`
 
 **Key Configuration Settings:**
 
@@ -126,7 +126,7 @@ plugins:
 
 ### 2.1 Markdownlint Configuration
 
-**Primary Config:** `/mnt/c/GitHub/go/src/worktrees/fix-errors/docs/.markdownlint-cli2.jsonc`
+**Primary Config:** `$GOPATH/src/worktrees/fix-errors/docs/.markdownlint-cli2.jsonc`
 
 **Key Rules:**
 
@@ -143,7 +143,7 @@ plugins:
 | MD046 | `style: "fenced"` | Use fenced code blocks (```) not indented |
 | MD047 | `true` | Files must end with newline |
 
-**Root Config:** `/mnt/c/GitHub/go/src/worktrees/fix-errors/.markdownlint.json`
+**Root Config:** `$GOPATH/src/worktrees/fix-errors/.markdownlint.json`
 
 ```json
 {
@@ -394,7 +394,7 @@ For detailed setup instructions, refer to the
 
 ### 4.1 Directory Structure Analysis
 
-**Assets Location:** `/mnt/c/GitHub/go/src/worktrees/fix-errors/docs/assets/`
+**Assets Location:** `$GOPATH/src/worktrees/fix-errors/docs/assets/`
 
 **Current Structure:**
 
@@ -1167,13 +1167,13 @@ For IDE autocomplete and validation, add this comment to your config file:
 
 ### Documentation Files Analyzed
 
-- `/mnt/c/GitHub/go/src/worktrees/fix-errors/docs/_config.yml`
-- `/mnt/c/GitHub/go/src/worktrees/fix-errors/docs/guides/user-guide.md`
-- `/mnt/c/GitHub/go/src/worktrees/fix-errors/docs/guides/developer-guide.md`
-- `/mnt/c/GitHub/go/src/worktrees/fix-errors/docs/guides/architect-guide.md`
-- `/mnt/c/GitHub/go/src/worktrees/fix-errors/docs/TABLE-OF-CONTENTS.md`
-- `/mnt/c/GitHub/go/src/worktrees/fix-errors/.markdownlint.json`
-- `/mnt/c/GitHub/go/src/worktrees/fix-errors/docs/.markdownlint-cli2.jsonc`
+- `$GOPATH/src/worktrees/fix-errors/docs/_config.yml`
+- `$GOPATH/src/worktrees/fix-errors/docs/guides/user-guide.md`
+- `$GOPATH/src/worktrees/fix-errors/docs/guides/developer-guide.md`
+- `$GOPATH/src/worktrees/fix-errors/docs/guides/architect-guide.md`
+- `$GOPATH/src/worktrees/fix-errors/docs/TABLE-OF-CONTENTS.md`
+- `$GOPATH/src/worktrees/fix-errors/.markdownlint.json`
+- `$GOPATH/src/worktrees/fix-errors/docs/.markdownlint-cli2.jsonc`
 
 ### External Resources Consulted
 

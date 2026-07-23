@@ -41,7 +41,7 @@ For actual costs (with plugins), you need:
 - **Azure:** Azure credentials or service principal
 - **GCP:** GCP service account
 
-### Optional: Go 1.26.4+ (for building from source)
+### Optional: Go 1.26.5+ (for building from source)
 
 ```bash
 # Check if installed

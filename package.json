@@ -4,21 +4,21 @@
   "description": "Documentation tooling and build scripts for FinFocus",
   "private": true,
   "scripts": {
-    "docs:lint": "markdownlint-cli2 --config docs/.markdownlint-cli2.jsonc 'docs/**/*.md' --ignore 'docs/_site/**'",
+    "docs:lint": "markdownlint-cli2 --config docs/.markdownlint-cli2.jsonc 'docs/**/*.md' '#docs/_site/**' '#docs/dist/**' '#docs/.astro/**' '#docs/node_modules/**'",
     "docs:format": "prettier --write 'docs/**/*.md'",
     "docs:check-format": "prettier --check 'docs/**/*.md'",
     "docs:link-check": "node scripts/check-links.js",
     "lint": "npm run docs:lint && npm run docs:check-format"
   },
   "devDependencies": {
-    "@commitlint/cli": "^20.1.0",
-    "@commitlint/config-conventional": "^20.2.0",
-    "markdown-link-check": "^3.11.2",
-    "markdownlint-cli2": "^0.22.0",
-    "prettier": "^3.1.0"
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "markdown-link-check": "^3.14.2",
+    "markdownlint-cli2": "^0.23.1",
+    "prettier": "^3.8.4"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=22.12.0"
   },
   "keywords": [
     "finops",

@@ -1,0 +1,182 @@
+# FinFocus Documentation Index (LLM-Friendly)
+
+This file provides a machine-readable index of all FinFocus documentation.
+Use this as context when answering questions about FinFocus.
+
+All links are deployed documentation URLs and resolve directly.
+
+## Quick Navigation
+
+### For End Users
+- Getting Started: https://rshade.github.io/finfocus/getting-started/quickstart/
+- Installation: https://rshade.github.io/finfocus/getting-started/installation/
+- CLI Reference: https://rshade.github.io/finfocus/reference/cli-commands/
+- Troubleshooting: https://rshade.github.io/finfocus/support/troubleshooting/
+- FAQ: https://rshade.github.io/finfocus/support/faq/
+
+### For Plugin Developers
+- Plugin Development Guide: https://rshade.github.io/finfocus/plugins/plugin-development/
+- Plugin SDK Reference: https://rshade.github.io/finfocus/plugins/plugin-sdk/
+- Vantage Plugin Example: https://rshade.github.io/finfocus/plugins/vantage/readme/
+- Plugin Examples: https://rshade.github.io/finfocus/plugins/plugin-examples/
+- Vantage Setup: https://rshade.github.io/finfocus/plugins/vantage/setup/
+
+### For Software Architects
+- System Architecture: https://rshade.github.io/finfocus/architecture/system-overview/
+- Plugin Protocol: https://rshade.github.io/finfocus/architecture/plugin-protocol/
+- Cost Calculation: https://rshade.github.io/finfocus/architecture/cost-calculation/
+- Deployment Guide: https://rshade.github.io/finfocus/deployment/deployment/
+- Security Best Practices: https://rshade.github.io/finfocus/deployment/security/
+
+### For Business/Product
+- Business Value: https://rshade.github.io/finfocus/guides/business-value/
+- Comparison: https://rshade.github.io/finfocus/guides/comparison/
+- Roadmap: https://rshade.github.io/finfocus/architecture/roadmap/
+
+---
+
+## Complete Documentation Map
+
+- [Developer Setup Guide](https://rshade.github.io/finfocus/getting-started-dev/)
+- [GitHub Pages Setup Guide](https://rshade.github.io/finfocus/github-pages-setup/)
+- [Project README](https://rshade.github.io/finfocus/readme/)
+- [Table of Contents](https://rshade.github.io/finfocus/table-of-contents/)
+- [Pulumi Analyzer Integration](https://rshade.github.io/finfocus/analyzer-integration/)
+- [Architecture & System Design](https://rshade.github.io/finfocus/architecture/readme/)
+- [Analyzer Architecture](https://rshade.github.io/finfocus/architecture/analyzer/)
+- [Core Concepts](https://rshade.github.io/finfocus/architecture/core-concepts/)
+- [Cost Calculation Algorithms](https://rshade.github.io/finfocus/architecture/cost-calculation/)
+- [Architecture Diagrams](https://rshade.github.io/finfocus/architecture/diagrams/readme/)
+- [Cost Calculation Flow Diagram](https://rshade.github.io/finfocus/architecture/diagrams/cost-calculation-flow/)
+- [Data Flow Diagram](https://rshade.github.io/finfocus/architecture/diagrams/data-flow/)
+- [Integration Example Diagram](https://rshade.github.io/finfocus/architecture/diagrams/integration-example/)
+- [Plugin Lifecycle Diagram](https://rshade.github.io/finfocus/architecture/diagrams/plugin-lifecycle/)
+- [System Architecture Diagram](https://rshade.github.io/finfocus/architecture/diagrams/system-architecture/)
+- [GreenOps Package Architecture](https://rshade.github.io/finfocus/architecture/greenops-package/)
+- [Plugin Ecosystem](https://rshade.github.io/finfocus/architecture/plugin-ecosystem/)
+- [Plugin Protocol Specification](https://rshade.github.io/finfocus/architecture/plugin-protocol/)
+- [Roadmap](https://rshade.github.io/finfocus/architecture/roadmap/)
+- [System Overview](https://rshade.github.io/finfocus/architecture/system-overview/)
+- [overview Command](https://rshade.github.io/finfocus/commands/overview/)
+- [Cost Calculations Guide](https://rshade.github.io/finfocus/cost-calculations/)
+- [CI/CD Integration](https://rshade.github.io/finfocus/deployment/cicd-integration/)
+- [Deployment Configuration](https://rshade.github.io/finfocus/deployment/configuration/)
+- [Deployment Architecture Diagram](https://rshade.github.io/finfocus/deployment/deployment-architecture/)
+- [Deployment Overview](https://rshade.github.io/finfocus/deployment/deployment/)
+- [Docker Deployment](https://rshade.github.io/finfocus/deployment/docker/)
+- [Security](https://rshade.github.io/finfocus/deployment/security/)
+- [Deployment Troubleshooting](https://rshade.github.io/finfocus/deployment/troubleshooting/)
+- [Getting Started with FinFocus](https://rshade.github.io/finfocus/getting-started/readme/)
+- [Analyzer Setup](https://rshade.github.io/finfocus/getting-started/analyzer-setup/)
+- [Installation Guide](https://rshade.github.io/finfocus/getting-started/installation/)
+- [Prerequisites](https://rshade.github.io/finfocus/getting-started/prerequisites/)
+- [5-Minute Quickstart](https://rshade.github.io/finfocus/getting-started/quickstart/)
+- [Audience-Specific Guides](https://rshade.github.io/finfocus/guides/readme/)
+- [Accessibility Features Guide](https://rshade.github.io/finfocus/guides/accessibility/)
+- [Architect Guide](https://rshade.github.io/finfocus/guides/architect-guide/)
+- [Budget Health & Forecasting Guide](https://rshade.github.io/finfocus/guides/budget-health/)
+- [Budget Configuration Guide](https://rshade.github.io/finfocus/guides/budgets/)
+- [Business Value](https://rshade.github.io/finfocus/guides/business-value/)
+- [Cache Configuration Guide](https://rshade.github.io/finfocus/guides/cache/)
+- [Competitive Comparison](https://rshade.github.io/finfocus/guides/comparison/)
+- [Cost Calculations](https://rshade.github.io/finfocus/guides/cost-calculation/)
+- [Developer Guide](https://rshade.github.io/finfocus/guides/developer-guide/)
+- [GreenOps Carbon Equivalencies](https://rshade.github.io/finfocus/guides/greenops-equivalencies/)
+- [Recommendations Guide](https://rshade.github.io/finfocus/guides/recommendations/)
+- [Resource History Guide](https://rshade.github.io/finfocus/guides/resource-history/)
+- [Plugin Routing Configuration Guide](https://rshade.github.io/finfocus/guides/routing/)
+- [Troubleshooting](https://rshade.github.io/finfocus/guides/troubleshooting/)
+- [User Guide](https://rshade.github.io/finfocus/guides/user-guide/)
+- [FinFocus Documentation](https://rshade.github.io/finfocus/)
+- [Installation Guide](https://rshade.github.io/finfocus/installation/)
+- [Documentation Architecture Plan](https://rshade.github.io/finfocus/plan/)
+- [Plugin System Guide](https://rshade.github.io/finfocus/plugin-system/)
+- [AWS Public Plugin](https://rshade.github.io/finfocus/plugins/aws-public/)
+- [Plugin Certification](https://rshade.github.io/finfocus/plugins/certification/)
+- [Cloudability Plugin (Future)](https://rshade.github.io/finfocus/plugins/cloudability/coming-soon/)
+- [E2E Test Setup](https://rshade.github.io/finfocus/plugins/e2e-setup/)
+- [Flexera Plugin (Future)](https://rshade.github.io/finfocus/plugins/flexera/coming-soon/)
+- [Kubecost Plugin (Planned)](https://rshade.github.io/finfocus/plugins/kubecost/coming-soon/)
+- [Plugin Development Checklist](https://rshade.github.io/finfocus/plugins/plugin-checklist/)
+- [Plugin Development Guide](https://rshade.github.io/finfocus/plugins/plugin-development/)
+- [Plugin Examples and Patterns](https://rshade.github.io/finfocus/plugins/plugin-examples/)
+- [Plugin SDK Reference](https://rshade.github.io/finfocus/plugins/plugin-sdk/)
+- [Plugin Registry Submission](https://rshade.github.io/finfocus/plugins/registry-submission/)
+- [Plugin Troubleshooting](https://rshade.github.io/finfocus/plugins/troubleshooting/)
+- [Vantage Plugin](https://rshade.github.io/finfocus/plugins/vantage/readme/)
+- [Vantage Plugin Authentication](https://rshade.github.io/finfocus/plugins/vantage/authentication/)
+- [Vantage Plugin Cost Mapping](https://rshade.github.io/finfocus/plugins/vantage/cost-mapping/)
+- [Vantage Plugin Features](https://rshade.github.io/finfocus/plugins/vantage/features/)
+- [Vantage Plugin Setup Guide](https://rshade.github.io/finfocus/plugins/vantage/setup/)
+- [Vantage Plugin Troubleshooting](https://rshade.github.io/finfocus/plugins/vantage/troubleshooting/)
+- [API Reference](https://rshade.github.io/finfocus/reference/api-reference/)
+- [CLI Commands Reference](https://rshade.github.io/finfocus/reference/cli-commands/)
+- [Configuration Reference](https://rshade.github.io/finfocus/reference/config-reference/)
+- [Environment Variables](https://rshade.github.io/finfocus/reference/environment-variables/)
+- [Error Codes](https://rshade.github.io/finfocus/reference/error-codes/)
+- [Plugin Compatibility](https://rshade.github.io/finfocus/reference/plugin-compatibility/)
+- [Code of Conduct](https://rshade.github.io/finfocus/support/code-of-conduct/)
+- [Contributing](https://rshade.github.io/finfocus/support/contributing/)
+- [Frequently Asked Questions](https://rshade.github.io/finfocus/support/faq/)
+- [Support Channels](https://rshade.github.io/finfocus/support/support-channels/)
+- [Troubleshooting Guide](https://rshade.github.io/finfocus/support/troubleshooting/)
+- [E2E Testing Guide](https://rshade.github.io/finfocus/testing/e2e-guide/)
+- [Testing Guide](https://rshade.github.io/finfocus/testing/guide/)
+- [Multi-Region E2E Testing Guide](https://rshade.github.io/finfocus/testing/multi-region-e2e/)
+- [Testing Troubleshooting](https://rshade.github.io/finfocus/testing/troubleshooting/)
+- [Troubleshooting Guide](https://rshade.github.io/finfocus/troubleshooting/)
+- [FinFocus User Guide](https://rshade.github.io/finfocus/user-guide/)
+
+## Key Concepts
+
+### FinFocus
+CLI tool for calculating cloud infrastructure costs from Pulumi definitions.
+
+**Three Cost Types:**
+1. **Projected Costs** - Estimated costs from Pulumi preview
+2. **Actual Costs** - Historical costs from cloud provider APIs
+3. **Cost Changes** - Difference between current and previous states
+
+### Resource
+Representation of cloud infrastructure element.
+
+### Plugin
+External service integration for cost data.
+
+### Cost Aggregation
+Combining costs from multiple resources and/or plugins.
+
+---
+
+## Documentation Maintenance
+
+### Regular Updates
+- Monthly: Review llms.txt, update plugin status
+- Quarterly: Update architecture diagrams, verify examples
+- On Release: Update version, new features, roadmap
+- On Plugin Status Change: Update plugin docs and status
+
+### Quality Standards
+- All code examples tested
+- Links validated monthly (automated)
+- Screenshots updated with UI changes
+- API reference stays in sync with code
+
+---
+
+## How to Use This File
+
+### For AI Assistants
+- Use this as context when answering questions about FinFocus
+- Reference specific docs by their deployed URLs
+- Point users to the most relevant documentation
+
+### For Documentation Maintainers
+- Regenerate with: ./scripts/update-llms-txt.sh
+- Update when creating new documentation
+- Validate that llms.txt matches actual file structure
+
+---
+
+**Last Updated:** 2026-07-22
+**This file is generated by scripts/update-llms-txt.sh.**
