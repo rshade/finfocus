@@ -14,7 +14,7 @@ entirely; excessively long TTLs are capped at 7 days.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.8 (see `go.mod`)
+**Language/Version**: Go 1.27.1 (see `go.mod`)
 **Primary Dependencies**: finfocus-spec v0.5.7 (provides `expires_at` proto fields), BoltDB (cache storage), zerolog (logging)
 **Storage**: BoltDB (`cache.db`) — no structural changes needed; `CacheEntry` already has per-entry `ExpiresAt`/`TTLSeconds`
 **Testing**: `go test` with testify `require`/`assert`; table-driven tests; 80% coverage minimum

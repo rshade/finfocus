@@ -720,6 +720,7 @@ func convertDescriptorsToHistoryState(resources []engine.ResourceDescriptor) []h
 			CloudID:  cloudID,
 			Type:     r.Type,
 			Provider: r.Provider,
+			Tags:     history.ExtractTagsFromProperties(r.Properties),
 		})
 	}
 	return result

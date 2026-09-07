@@ -1,6 +1,6 @@
 module github.com/rshade/finfocus
 
-go 1.26.5
+go 1.27.1
 
 require (
 	charm.land/bubbles/v2 v2.1.1
@@ -8,23 +8,20 @@ require (
 	charm.land/lipgloss/v2 v2.0.5
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/charmbracelet/x/ansi v0.11.7
+	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be // no tagged release; pinned to last known-good commit
 	github.com/oklog/ulid/v2 v2.1.1
 	github.com/pulumi/pulumi/sdk/v3 v3.250.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/finfocus-spec v0.6.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/term v0.44.0
-	golang.org/x/text v0.39.0
-	google.golang.org/grpc v1.82.0
-	google.golang.org/protobuf v1.36.11
-	gopkg.in/yaml.v3 v3.0.1
-)
-
-require (
-	github.com/common-nighthawk/go-figure v0.0.0-20210622060536-734e95fb86be // no tagged release; pinned to last known-good commit
 	go.etcd.io/bbolt v1.5.0
 	golang.org/x/sync v0.21.0
+	golang.org/x/term v0.44.0
+	golang.org/x/text v0.39.0
+	google.golang.org/grpc v1.82.1
+	google.golang.org/protobuf v1.36.11
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

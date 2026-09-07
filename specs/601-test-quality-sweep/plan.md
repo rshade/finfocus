@@ -13,7 +13,7 @@ code modifications.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.8
+**Language/Version**: Go 1.27.1
 **Primary Dependencies**: `github.com/stretchr/testify` (assertions, already a dep)
 **Storage**: N/A (test-only changes, no persistent storage)
 **Testing**: `go test`, `make test`, `make lint`

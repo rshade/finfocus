@@ -13,7 +13,7 @@ functions need updating.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.7
+**Language/Version**: Go 1.27.1
 **Primary Dependencies**: finfocus-spec v0.5.7+ (proto definitions with
 `PLUGIN_CAPABILITY_BATCH_COST = 12`)
 **Storage**: N/A

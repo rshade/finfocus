@@ -29,8 +29,6 @@ var DefaultPlugins = []string{
 }
 
 // StepStatus represents the outcome of a single setup step.
-//
-//nolint:recvcheck // UnmarshalJSON requires pointer receiver; String/MarshalJSON use value receivers.
 type StepStatus int
 
 const (

@@ -5,7 +5,7 @@
 
 ## Prerequisites
 
-- Go 1.25.8 (see `go.mod`)
+- Go 1.27.1 (see `go.mod`)
 - finfocus-spec v0.6.0 already in `go.mod`
 - Familiarity with `internal/engine/engine.go` worker pool pattern
 - Familiarity with `internal/proto/adapter.go` mapping patterns

@@ -13,7 +13,7 @@ logic rather than introducing new downstream behavior.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.8 (see `go.mod`)
+**Language/Version**: Go 1.27.1 (see `go.mod`)
 **Primary Dependencies**: Cobra (CLI framework), Bubble Tea (TUI), zerolog (logging)
 **Storage**: N/A (no storage changes)
 **Testing**: `go test` with testify (assert/require), table-driven tests

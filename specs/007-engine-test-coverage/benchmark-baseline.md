@@ -2,7 +2,7 @@
 
 **Date**: 2025-12-02
 **System**: Intel Core i7-6600U @ 2.60GHz, Linux
-**Go Version**: 1.25.8
+**Go Version**: 1.27.1
 
 ## Summary
 

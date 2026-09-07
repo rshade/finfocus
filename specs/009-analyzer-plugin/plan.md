@@ -18,7 +18,7 @@ Implement the Pulumi Analyzer plugin interface (`pulumirpc.Analyzer`) to enable 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.8
+**Language/Version**: Go 1.27.1
 **Primary Dependencies**:
 
 - `google.golang.org/grpc v1.77.0` - gRPC server implementation

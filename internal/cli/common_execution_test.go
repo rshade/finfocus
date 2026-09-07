@@ -549,3 +549,138 @@ func TestOpenPlugins_NilAudit_NoPanic(t *testing.T) {
 		cleanup()
 	}
 }
+
+func TestConvertDescriptorsToHistoryState_Tags(t *testing.T) {
+	tests := []struct {
+		name      string
+		resources []engine.ResourceDescriptor
+		wantTags  []map[string]string
+	}{
+		{
+			name: "descriptor with tags populates Tags",
+			resources: []engine.ResourceDescriptor{
+				{
+					ID:       "urn:pulumi:aws:ec2:instance:Web",
+					Type:     "aws:ec2/instance:Instance",
+					Provider: "aws",
+					Properties: map[string]interface{}{
+						"pulumi:cloudId": "i-0abc123",
+						"tags": map[string]interface{}{
+							"Name":        "web-server",
+							"Environment": "prod",
+						},
+					},
+				},
+			},
+			wantTags: []map[string]string{
+				{"Name": "web-server", "Environment": "prod"},
+			},
+		},
+		{
+			name: "tagsAll takes precedence over tags",
+			resources: []engine.ResourceDescriptor{
+				{
+					ID:       "urn:pulumi:aws:ec2:instance:Web",
+					Type:     "aws:ec2/instance:Instance",
+					Provider: "aws",
+					Properties: map[string]interface{}{
+						"pulumi:cloudId": "i-0abc123",
+						"tags":           map[string]interface{}{"Name": "web-server"},
+						"tagsAll": map[string]interface{}{
+							"Name":        "web-server",
+							"Environment": "prod",
+						},
+					},
+				},
+			},
+			wantTags: []map[string]string{
+				{"Name": "web-server", "Environment": "prod"},
+			},
+		},
+		{
+			name: "descriptor without tags produces empty map",
+			resources: []engine.ResourceDescriptor{
+				{
+					ID:       "urn:pulumi:aws:ec2:instance:Web",
+					Type:     "aws:ec2/instance:Instance",
+					Provider: "aws",
+					Properties: map[string]interface{}{
+						"pulumi:cloudId": "i-0abc123",
+					},
+				},
+			},
+			wantTags: []map[string]string{{}},
+		},
+		{
+			name: "descriptor without cloudID is skipped",
+			resources: []engine.ResourceDescriptor{
+				{
+					ID:       "urn:pulumi:aws:ec2:instance:Web",
+					Type:     "aws:ec2/instance:Instance",
+					Provider: "aws",
+				},
+			},
+			wantTags: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertDescriptorsToHistoryState(tt.resources)
+			require.Len(t, result, len(tt.wantTags))
+			for i, want := range tt.wantTags {
+				assert.Equal(t, want, result[i].Tags)
+				assert.NotNil(t, result[i].Tags)
+			}
+		})
+	}
+}
+
+func TestConvertEngineStateToHistoryState_Tags(t *testing.T) {
+	tests := []struct {
+		name      string
+		resources []engine.StateResource
+		wantTags  []map[string]string
+	}{
+		{
+			name: "resource with tags populates Tags",
+			resources: []engine.StateResource{
+				{
+					URN:  "urn:pulumi:aws:ec2:instance:Web",
+					ID:   "i-0abc123",
+					Type: "aws:ec2/instance:Instance",
+					Properties: map[string]interface{}{
+						"tags": map[string]interface{}{
+							"Name": "web-server",
+						},
+					},
+				},
+			},
+			wantTags: []map[string]string{
+				{"Name": "web-server"},
+			},
+		},
+		{
+			name: "resource without tags produces empty map",
+			resources: []engine.StateResource{
+				{
+					URN:  "urn:pulumi:aws:ec2:instance:Web",
+					ID:   "i-0abc123",
+					Type: "aws:ec2/instance:Instance",
+				},
+			},
+			wantTags: []map[string]string{{}},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := convertEngineStateToHistoryState(tt.resources)
+			require.Len(t, result, len(tt.wantTags))
+			for i, want := range tt.wantTags {
+				assert.Equal(t, want, result[i].Tags)
+				assert.NotNil(t, result[i].Tags)
+			}
+		})
+	}
+}

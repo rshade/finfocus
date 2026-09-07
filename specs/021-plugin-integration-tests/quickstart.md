@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Go 1.25.8 or later
+- Go 1.27.1 or later
 - Make (optional, but recommended)
 
 ## Running the Tests

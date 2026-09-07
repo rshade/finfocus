@@ -24,8 +24,6 @@ const driftWarningThreshold = 10.0
 var ErrOverviewValidation = errors.New("overview validation failed")
 
 // ResourceStatus represents the lifecycle state of a resource in the overview.
-//
-//nolint:recvcheck // UnmarshalJSON requires pointer receiver; String/MarshalJSON use value receivers.
 type ResourceStatus int
 
 const (
@@ -93,8 +91,6 @@ func isValidResourceStatus(s ResourceStatus) bool {
 }
 
 // ErrorType categorises the kind of error encountered for a resource.
-//
-//nolint:recvcheck // UnmarshalJSON requires pointer receiver; String/MarshalJSON use value receivers.
 type ErrorType int
 
 const (
