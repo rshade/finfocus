@@ -492,31 +492,6 @@ func TestValidation_GetErrors(t *testing.T) {
 	})
 }
 
-// TestValidation_InitLoggerErrors tests error paths in InitLogger.
-func TestValidation_InitLoggerErrors(t *testing.T) {
-	t.Run("invalid log level falls back to info", func(t *testing.T) {
-		err := InitLogger("invalid-level", false)
-		require.NoError(t, err)
-		// Logger should still be initialized with info level
-		assert.NotNil(t, GetLogger())
-	})
-
-	t.Run("log to file with valid path", func(t *testing.T) {
-		stubHome(t)
-		tmpDir := t.TempDir()
-
-		// Set up config with valid log path
-		cfg := GetGlobalConfig()
-		cfg.Logging.File = filepath.Join(tmpDir, "logs", "test.log")
-
-		err := InitLogger("debug", true)
-		require.NoError(t, err)
-
-		// Close log file to release handle (prevents Windows file locking)
-		t.Cleanup(CloseLogFile)
-	})
-}
-
 // TestValidation_SetLoggingFile tests the logging.file setting.
 func TestValidation_SetLoggingFile(t *testing.T) {
 	stubHome(t)

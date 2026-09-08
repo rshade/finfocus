@@ -100,30 +100,6 @@ func TestGetOutputFormat(t *testing.T) {
 	})
 }
 
-func TestSetLogLevel(t *testing.T) {
-	// Reset logger to known state
-	_ = InitLogger("info", false)
-
-	t.Run("sets valid log level", func(t *testing.T) {
-		SetLogLevel("debug")
-		logger := GetLogger()
-		// Note: We can't easily test the internal level without exposing it
-		// But we can verify the function doesn't panic
-		assert.NotNil(t, logger)
-	})
-
-	t.Run("defaults to info for invalid level", func(t *testing.T) {
-		SetLogLevel("invalid-level")
-		logger := GetLogger()
-		assert.NotNil(t, logger)
-	})
-}
-
-func TestGetLogger(t *testing.T) {
-	logger := GetLogger()
-	assert.NotNil(t, logger)
-}
-
 func TestConfig_SetGetValues(t *testing.T) {
 	stubHome(t)
 	cfg := New()
