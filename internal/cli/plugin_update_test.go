@@ -1,9 +1,11 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/rshade/ax-go/axtest"
 
 	"github.com/rshade/finfocus/internal/cli"
 )
@@ -13,16 +15,13 @@ func TestPluginUpdateCmd_Help(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	rootCmd := cli.NewRootCmd("test")
 
-	var stdout bytes.Buffer
-	rootCmd.SetOut(&stdout)
-	rootCmd.SetArgs([]string{"plugin", "update", "--help"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "update", "--help"})
 
-	err := rootCmd.Execute()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if result.ExitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", result.ExitCode)
 	}
 
-	output := stdout.String()
+	output := string(result.Stdout)
 
 	// Check for expected content
 	expectedStrings := []string{
@@ -44,16 +43,13 @@ func TestPluginUpdateCmd_NoArgs(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	rootCmd := cli.NewRootCmd("test")
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs([]string{"plugin", "update"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "update"})
 
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error when no plugin specified")
 	}
 
-	errOutput := stderr.String()
+	errOutput := string(result.Stderr)
 	if !strings.Contains(errOutput, "accepts 1 arg") {
 		t.Errorf("expected 'accepts 1 arg' error, got: %s", errOutput)
 	}
@@ -68,12 +64,9 @@ func TestPluginUpdateCmd_NotInstalled(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs([]string{"plugin", "update", "nonexistent-plugin"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "update", "nonexistent-plugin"})
 
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error for non-installed plugin")
 	}
 }
@@ -90,7 +83,8 @@ func TestPluginUpdateCmd_Flags(t *testing.T) {
 	}
 
 	// Check that expected flags exist
-	expectedFlags := []string{"dry-run", "version", "plugin-dir", "skip-checksum"}
+	// Note: --dry-run is now a global flag, not a local command flag
+	expectedFlags := []string{"version", "plugin-dir", "skip-checksum"}
 	for _, flag := range expectedFlags {
 		if pluginCmd.Flags().Lookup(flag) == nil {
 			t.Errorf("expected flag --%s not found", flag)
@@ -106,13 +100,10 @@ func TestPluginUpdateCmd_DryRun(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs([]string{"plugin", "update", "test-plugin", "--dry-run"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "update", "test-plugin", "--dry-run"})
 
 	// Should still error because plugin not installed
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error for non-installed plugin even with dry-run")
 	}
 }
@@ -125,13 +116,15 @@ func TestPluginUpdateCmd_VersionFlag(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs([]string{"plugin", "update", "test-plugin", "--version", "v2.0.0"})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "update", "test-plugin", "--version", "v2.0.0"},
+	)
 
 	// Should error because plugin not installed
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error for non-installed plugin")
 	}
 }
@@ -144,13 +137,15 @@ func TestPluginUpdateCmd_PluginDirFlag(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs([]string{"plugin", "update", "test-plugin", "--plugin-dir", tmpDir})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "update", "test-plugin", "--plugin-dir", tmpDir},
+	)
 
 	// Should error because plugin not installed
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error for non-installed plugin")
 	}
 }
@@ -163,11 +158,7 @@ func TestPluginUpdateCmd_AllFlagsCombined(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	rootCmd.SetOut(&stdout)
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs(
+	result := axtest.Run(context.Background(), t, rootCmd,
 		[]string{
 			"plugin",
 			"update",
@@ -181,8 +172,7 @@ func TestPluginUpdateCmd_AllFlagsCombined(t *testing.T) {
 	)
 
 	// Should error because plugin not installed
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error for non-installed plugin")
 	}
 }

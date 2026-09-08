@@ -1,11 +1,12 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -61,14 +62,9 @@ func TestPluginCertifyCmd_RequiresArg(t *testing.T) {
 	require.NotNil(t, certifyCmd)
 
 	// Execute without argument should fail
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "certify"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "certify"})
 
-	err = rootCmd.Execute()
-
-	assert.Error(t, err)
+	assert.NotEqual(t, 0, result.ExitCode)
 	// Cobra should report missing argument
 }
 
@@ -83,15 +79,15 @@ func TestPluginCertifyCmd_InvalidMode(t *testing.T) {
 
 	rootCmd := cli.NewRootCmd("test")
 
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "certify", "--mode", "invalid", pluginPath})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "certify", "--mode", "invalid", pluginPath},
+	)
 
-	err = rootCmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid mode")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "invalid mode")
 }
 
 func TestPluginCertifyCmd_InvalidTimeout(t *testing.T) {
@@ -105,15 +101,15 @@ func TestPluginCertifyCmd_InvalidTimeout(t *testing.T) {
 
 	rootCmd := cli.NewRootCmd("test")
 
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "certify", "--timeout", "invalid", pluginPath})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "certify", "--timeout", "invalid", pluginPath},
+	)
 
-	err = rootCmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid timeout")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "invalid timeout")
 }
 
 func TestPluginCertifyCmd_PluginNotFound(t *testing.T) {
@@ -121,15 +117,10 @@ func TestPluginCertifyCmd_PluginNotFound(t *testing.T) {
 
 	rootCmd := cli.NewRootCmd("test")
 
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "certify", "/nonexistent/plugin"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "certify", "/nonexistent/plugin"})
 
-	err := rootCmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "plugin not found")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "plugin not found")
 }
 
 func TestPluginCertifyCmd_CommandRegistered(t *testing.T) {

@@ -1,9 +1,11 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"strings"
 	"testing"
+
+	"github.com/rshade/ax-go/axtest"
 
 	"github.com/rshade/finfocus/internal/cli"
 )
@@ -13,16 +15,13 @@ func TestPluginInstallCmd_Help(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	rootCmd := cli.NewRootCmd("test")
 
-	var stdout bytes.Buffer
-	rootCmd.SetOut(&stdout)
-	rootCmd.SetArgs([]string{"plugin", "install", "--help"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "install", "--help"})
 
-	err := rootCmd.Execute()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if result.ExitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", result.ExitCode)
 	}
 
-	output := stdout.String()
+	output := string(result.Stdout)
 
 	// Check for expected content
 	expectedStrings := []string{
@@ -46,16 +45,13 @@ func TestPluginInstallCmd_NoArgs(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	rootCmd := cli.NewRootCmd("test")
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs([]string{"plugin", "install"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "install"})
 
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error when no plugin specified")
 	}
 
-	errOutput := stderr.String()
+	errOutput := string(result.Stderr)
 	if !strings.Contains(errOutput, "accepts 1 arg") {
 		t.Errorf("expected 'accepts 1 arg' error, got: %s", errOutput)
 	}
@@ -66,12 +62,9 @@ func TestPluginInstallCmd_InvalidPlugin(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	rootCmd := cli.NewRootCmd("test")
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs([]string{"plugin", "install", "nonexistent-plugin-xyz"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "install", "nonexistent-plugin-xyz"})
 
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error for non-existent plugin")
 	}
 }
@@ -81,12 +74,9 @@ func TestPluginInstallCmd_InvalidGitHubURL(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	rootCmd := cli.NewRootCmd("test")
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs([]string{"plugin", "install", "github.com/invalid"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "install", "github.com/invalid"})
 
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error for invalid GitHub URL")
 	}
 }
@@ -121,16 +111,13 @@ func TestPluginInstallCmd_Examples(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	rootCmd := cli.NewRootCmd("test")
 
-	var stdout bytes.Buffer
-	rootCmd.SetOut(&stdout)
-	rootCmd.SetArgs([]string{"plugin", "install", "--help"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "install", "--help"})
 
-	err := rootCmd.Execute()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
+	if result.ExitCode != 0 {
+		t.Fatalf("unexpected exit code: %d", result.ExitCode)
 	}
 
-	output := stdout.String()
+	output := string(result.Stdout)
 
 	// Check for example commands
 	examples := []string{
@@ -156,16 +143,15 @@ func TestPluginInstallCmd_URLSecurityWarning(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	var stdout bytes.Buffer
-	var stderr bytes.Buffer
-	rootCmd.SetOut(&stdout)
-	rootCmd.SetErr(&stderr)
 	// Install from URL - this will fail but we can test it reaches the security warning code
-	rootCmd.SetArgs([]string{"plugin", "install", "github.com/owner/repo", "--plugin-dir", tmpDir})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "install", "github.com/owner/repo", "--plugin-dir", tmpDir},
+	)
 
-	_ = rootCmd.Execute() // Error expected - we just want to exercise the code path
-
-	output := stdout.String()
+	output := string(result.Stdout)
 	// Check for security warning for URL-based installs
 	if !strings.Contains(output, "Installing from URL") {
 		t.Errorf("expected URL security warning, got: %s", output)
@@ -180,18 +166,15 @@ func TestPluginInstallCmd_RegistryPluginNotFound(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
-	rootCmd.SetArgs(
+	result := axtest.Run(context.Background(), t, rootCmd,
 		[]string{"plugin", "install", "nonexistent-registry-plugin", "--plugin-dir", tmpDir},
 	)
 
-	err := rootCmd.Execute()
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error for non-existent registry plugin")
 	}
 
-	errOutput := err.Error()
+	errOutput := string(result.Stderr)
 	if !strings.Contains(errOutput, "not found") {
 		t.Errorf("expected 'not found' error, got: %s", errOutput)
 	}
@@ -205,14 +188,16 @@ func TestPluginInstallCmd_VersionSpecified(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("HOME", tmpDir)
 
-	var stderr bytes.Buffer
-	rootCmd.SetErr(&stderr)
 	// Try to install with version - will fail but tests the code path
-	rootCmd.SetArgs([]string{"plugin", "install", "kubecost@v999.0.0", "--plugin-dir", tmpDir})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "install", "kubecost@v999.0.0", "--plugin-dir", tmpDir},
+	)
 
-	err := rootCmd.Execute()
 	// Error expected (version doesn't exist) but we exercised the code path
-	if err == nil {
+	if result.ExitCode == 0 {
 		t.Error("expected error for non-existent version")
 	}
 }

@@ -1,9 +1,10 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -28,38 +29,23 @@ func TestPluginInstallCmd_FallbackFlags(t *testing.T) {
 	})
 
 	t.Run("flags are mutually exclusive", func(t *testing.T) {
-		cmd := cli.NewPluginInstallCmd()
-
-		// Set both flags
-		require.NoError(t, cmd.Flags().Set("fallback-to-latest", "true"))
-		require.NoError(t, cmd.Flags().Set("no-fallback", "true"))
-
-		// Manually set args to prevent "requires exactly 1 arg" error
-		cmd.SetArgs([]string{"test-plugin@v1.0.0"})
-
-		// Capture error output
-		var errBuf bytes.Buffer
-		cmd.SetErr(&errBuf)
-		cmd.SetOut(&bytes.Buffer{})
+		root := cli.NewRootCmd("test-version")
+		result := axtest.Run(context.Background(), t, root,
+			[]string{"plugin", "install", "test-plugin@v1.0.0", "--fallback-to-latest", "--no-fallback"})
 
 		// Execute should fail due to mutual exclusivity
-		err := cmd.Execute()
-		require.Error(t, err)
+		require.NotEqual(t, 0, result.ExitCode)
 
-		// Cobra's mutual exclusion error message
-		assert.Contains(t, err.Error(), "none of the others can be")
+		// Cobra's mutual exclusion error message should be in stderr
+		stderr := string(result.Stderr)
+		assert.Contains(t, stderr, "none of the others can be")
 	})
 
 	t.Run("help text includes fallback examples", func(t *testing.T) {
-		cmd := cli.NewPluginInstallCmd()
+		root := cli.NewRootCmd("test-version")
+		result := axtest.Run(context.Background(), t, root, []string{"plugin", "install", "--help"})
 
-		var outBuf bytes.Buffer
-		cmd.SetOut(&outBuf)
-		cmd.SetArgs([]string{"--help"})
-
-		_ = cmd.Execute()
-
-		output := outBuf.String()
+		output := string(result.Stdout)
 		assert.Contains(t, output, "--fallback-to-latest")
 		assert.Contains(t, output, "--no-fallback")
 		assert.Contains(t, output, "Auto-fallback to latest stable")
@@ -217,19 +203,13 @@ func TestPluginInstallCmd_MutualExclusivity_Detailed(t *testing.T) {
 	})
 
 	t.Run("both flags together causes error on execute", func(t *testing.T) {
-		cmd := cli.NewPluginInstallCmd()
+		root := cli.NewRootCmd("test-version")
+		result := axtest.Run(context.Background(), t, root,
+			[]string{"plugin", "install", "test-plugin", "--fallback-to-latest", "--no-fallback"})
 
-		// Both flags can be set (Cobra validates on Execute)
-		require.NoError(t, cmd.Flags().Set("fallback-to-latest", "true"))
-		require.NoError(t, cmd.Flags().Set("no-fallback", "true"))
-
-		cmd.SetArgs([]string{"test-plugin"})
-		var outBuf, errBuf bytes.Buffer
-		cmd.SetOut(&outBuf)
-		cmd.SetErr(&errBuf)
-
-		err := cmd.Execute()
-		require.Error(t, err, "Execute should fail when both flags are set")
-		assert.Contains(t, err.Error(), "none of the others can be")
+		// Execute should fail when both flags are set
+		require.NotEqual(t, 0, result.ExitCode)
+		stderr := string(result.Stderr)
+		assert.Contains(t, stderr, "none of the others can be")
 	})
 }

@@ -2,10 +2,12 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -46,20 +48,16 @@ func TestConfigInit_InsidePulumiProject(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", globalDir)
 
 	// Execute config init through the root command
-	var buf bytes.Buffer
 	cmd := cli.NewRootCmd("test")
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"config", "init"})
+	result := axtest.Run(context.Background(), t, cmd, []string{"config", "init"})
 
-	err := cmd.Execute()
-	require.NoError(t, err, "config init should succeed inside a Pulumi project")
+	require.Equal(t, 0, result.ExitCode, "config init should succeed inside a Pulumi project")
 
-	output := buf.String()
+	output := string(result.Stdout)
 	assert.Contains(t, output, "Configuration initialized at")
 
 	// Verify project-local config.yaml was created
-	configPath := filepath.Join(tmpDir, ".finfocus", "config.yaml")
+	configPath := filepath.Join(tmpDir, ".finfocus", "config.hujson")
 	_, statErr := os.Stat(configPath)
 	require.NoError(t, statErr, ".finfocus/config.yaml should exist")
 
@@ -102,14 +100,10 @@ func TestConfigInit_ExistingGitignorePreserved(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", globalDir)
 
 	// Execute config init with --force (should overwrite config.yaml but NOT .gitignore)
-	var buf bytes.Buffer
 	cmd := cli.NewRootCmd("test")
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"config", "init", "--force"})
+	result := axtest.Run(context.Background(), t, cmd, []string{"config", "init", "--force"})
 
-	err := cmd.Execute()
-	require.NoError(t, err, "config init --force should succeed")
+	require.Equal(t, 0, result.ExitCode, "config init --force should succeed")
 
 	// Verify .gitignore was NOT overwritten
 	gitignoreData, readErr := os.ReadFile(gitignorePath)
@@ -137,25 +131,21 @@ func TestConfigInit_GlobalFlag(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", globalDir)
 
 	// Execute config init with --global flag
-	var buf bytes.Buffer
 	cmd := cli.NewRootCmd("test")
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"config", "init", "--global"})
+	result := axtest.Run(context.Background(), t, cmd, []string{"config", "init", "--global"})
 
-	err := cmd.Execute()
-	require.NoError(t, err, "config init --global should succeed")
+	require.Equal(t, 0, result.ExitCode, "config init --global should succeed")
 
-	output := buf.String()
+	output := string(result.Stdout)
 	assert.Contains(t, output, "Configuration initialized successfully")
 
 	// Verify global config was created in FINFOCUS_HOME
-	globalConfigPath := filepath.Join(globalDir, "config.yaml")
+	globalConfigPath := filepath.Join(globalDir, "config.hujson")
 	_, statErr := os.Stat(globalConfigPath)
 	require.NoError(t, statErr, "global config.yaml should exist in FINFOCUS_HOME")
 
 	// Verify NO project-local config was created
-	projectConfigPath := filepath.Join(tmpDir, ".finfocus", "config.yaml")
+	projectConfigPath := filepath.Join(tmpDir, ".finfocus", "config.hujson")
 	_, statErr = os.Stat(projectConfigPath)
 	assert.True(t, os.IsNotExist(statErr),
 		"project-local config.yaml should NOT exist when --global is used")
@@ -187,7 +177,7 @@ func TestConfigInit_OutsidePulumiProject(t *testing.T) {
 		"should show global init message when outside Pulumi project")
 
 	// Verify global config was created
-	globalConfigPath := filepath.Join(globalDir, "config.yaml")
+	globalConfigPath := filepath.Join(globalDir, "config.hujson")
 	_, statErr := os.Stat(globalConfigPath)
 	require.NoError(t, statErr, "global config.yaml should be created when outside Pulumi project")
 }
@@ -207,7 +197,7 @@ func TestConfigInit_ForceOverwritesConfig(t *testing.T) {
 	finfocusDir := filepath.Join(tmpDir, ".finfocus")
 	require.NoError(t, os.MkdirAll(finfocusDir, 0o750))
 
-	existingConfig := filepath.Join(finfocusDir, "config.yaml")
+	existingConfig := filepath.Join(finfocusDir, "config.hujson")
 	originalContent := "# old config\noutput:\n  default_format: json\n"
 	require.NoError(t, os.WriteFile(existingConfig, []byte(originalContent), 0o644))
 
@@ -219,16 +209,12 @@ func TestConfigInit_ForceOverwritesConfig(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", globalDir)
 
 	// Execute config init with --force
-	var buf bytes.Buffer
 	cmd := cli.NewRootCmd("test")
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"config", "init", "--force"})
+	result := axtest.Run(context.Background(), t, cmd, []string{"config", "init", "--force"})
 
-	err := cmd.Execute()
-	require.NoError(t, err, "config init --force should succeed")
+	require.Equal(t, 0, result.ExitCode, "config init --force should succeed")
 
-	output := buf.String()
+	output := string(result.Stdout)
 	assert.Contains(t, output, "Configuration initialized at")
 
 	// Verify config.yaml was overwritten (content should differ from original)

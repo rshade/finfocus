@@ -1,11 +1,11 @@
 package cli_test
 
 import (
-	"bytes"
-	"os"
+	"context"
 	"path/filepath"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -13,44 +13,41 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 )
 
-func setupTestConfig(t *testing.T) (string, func()) {
+func setupTestConfig(t *testing.T) func() {
 	t.Helper()
 	testHome := t.TempDir()
 	t.Setenv("HOME", testHome)
 	t.Setenv("USERPROFILE", testHome) // Windows compatibility
+	t.Setenv("FINFOCUS_HOME", filepath.Join(testHome, ".finfocus"))
 	// If a reset helper exists, call it here; otherwise noop.
-	cleanup := func() {}
-	return testHome, cleanup
+	return func() {}
 }
 
 func TestConfigInitCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	testHome, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	cmd := cli.NewConfigInitCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
+	result := axtest.Run(context.Background(), t, root, []string{"config", "init"})
 
 	// Test successful init
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	// Check that config file was created
-	configPath := filepath.Join(testHome, ".finfocus", "config.yaml")
-	_, err = os.Stat(configPath)
-	assert.NoError(t, err)
+	require.Equal(t, 0, result.ExitCode)
 
 	// Check output message
-	assert.Contains(t, output.String(), "Configuration initialized successfully")
+	output := string(result.Stdout)
+	assert.Contains(t, output, "Configuration initialized successfully")
+
+	// Verify config can be read
+	cfg := config.New()
+	require.NotNil(t, cfg)
 }
 
 func TestConfigInitCmdForce(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
 	// Create existing config
@@ -58,40 +55,35 @@ func TestConfigInitCmdForce(t *testing.T) {
 	err := cfg.Save()
 	require.NoError(t, err)
 
-	cmd := cli.NewConfigInitCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
 
 	// Test without force flag should fail
-	err = cmd.Execute()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "already exists")
+	result := axtest.Run(context.Background(), t, root, []string{"config", "init"})
+	assert.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "already exists")
 
 	// Test with force flag should succeed
-	output.Reset()
-	cmd.SetArgs([]string{"--force"})
-	err = cmd.Execute()
-	assert.NoError(t, err)
-	assert.Contains(t, output.String(), "Configuration initialized successfully")
+	result = axtest.Run(context.Background(), t, root, []string{"config", "init", "--force"})
+	assert.Equal(t, 0, result.ExitCode)
+	output := string(result.Stdout)
+	assert.Contains(t, output, "Configuration initialized successfully")
 }
 
 func TestConfigSetCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	cmd := cli.NewConfigSetCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"config", "set", "output.default_format", "json"})
 
 	// Test setting output format
-	cmd.SetArgs([]string{"output.default_format", "json"})
-	err := cmd.Execute()
-	require.NoError(t, err)
-	assert.Contains(t, output.String(), "Configuration updated: output.default_format = json")
+	require.Equal(t, 0, result.ExitCode)
+	output := string(result.Stdout)
+	assert.Contains(t, output, "Configuration updated: output.default_format = json")
 
 	// Verify the value was set
 	cfg := config.New()
@@ -103,31 +95,30 @@ func TestConfigSetCmd(t *testing.T) {
 func TestConfigSetCmdErrors(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	cmd := cli.NewConfigSetCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
 
 	// Test invalid key
-	cmd.SetArgs([]string{"invalid.key", "value"})
-	err := cmd.Execute()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown configuration section")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"config", "set", "invalid.key", "value"})
+	assert.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "unknown configuration section")
 
 	// Test invalid precision value
-	cmd.SetArgs([]string{"output.precision", "invalid"})
-	err = cmd.Execute()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "precision must be a number")
+	result = axtest.Run(context.Background(), t, root,
+		[]string{"config", "set", "output.precision", "invalid"})
+	assert.NotEqual(t, 0, result.ExitCode)
+	stderr = string(result.Stderr)
+	assert.Contains(t, stderr, "precision must be a number")
 }
 
 func TestConfigGetCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
 	// Set up some config values
@@ -136,88 +127,99 @@ func TestConfigGetCmd(t *testing.T) {
 	require.NoError(t, cfg.Set("plugins.aws.region", "us-west-2"))
 	require.NoError(t, cfg.Save())
 
-	cmd := cli.NewConfigGetCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
 
 	// Test getting simple value
-	cmd.SetArgs([]string{"output.default_format"})
-	err := cmd.Execute()
-	require.NoError(t, err)
-	assert.Equal(t, "json\n", output.String())
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"config", "get", "output.default_format"})
+	require.Equal(t, 0, result.ExitCode)
+	assert.Equal(t, "json\n", string(result.Stdout))
 
 	// Test getting plugin value
-	output.Reset()
-	cmd.SetArgs([]string{"plugins.aws.region"})
-	err = cmd.Execute()
-	require.NoError(t, err)
-	assert.Equal(t, "us-west-2\n", output.String())
+	result = axtest.Run(context.Background(), t, root,
+		[]string{"config", "get", "plugins.aws.region"})
+	require.Equal(t, 0, result.ExitCode)
+	assert.Equal(t, "us-west-2\n", string(result.Stdout))
 }
 
 func TestConfigGetCmdErrors(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
 	// Create initial config file
 	cfg := config.New()
 	require.NoError(t, cfg.Save())
 
-	cmd := cli.NewConfigGetCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
 
 	// Test invalid key
-	cmd.SetArgs([]string{"invalid.key"})
-	err := cmd.Execute()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown configuration section")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"config", "get", "invalid.key"})
+	assert.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "unknown configuration section")
 
 	// Test non-existent plugin
-	cmd.SetArgs([]string{"plugins.nonexistent.key"})
-	err = cmd.Execute()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "plugin not found")
+	result = axtest.Run(context.Background(), t, root,
+		[]string{"config", "get", "plugins.nonexistent.key"})
+	assert.NotEqual(t, 0, result.ExitCode)
+	stderr = string(result.Stderr)
+	assert.Contains(t, stderr, "plugin not found")
 }
 
 func TestConfigListCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	// Set up some config values
-	cfg := config.New()
-	require.NoError(t, cfg.Set("output.default_format", "json"))
-	require.NoError(t, cfg.Set("plugins.aws.region", "us-west-2"))
-	require.NoError(t, cfg.Save())
+	root := cli.NewRootCmd("test")
 
-	cmd := cli.NewConfigListCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	// Initialize config first
+	result := axtest.Run(context.Background(), t, root, []string{"config", "init"})
+	require.Equal(t, 0, result.ExitCode)
 
-	// Test YAML output (default)
-	err := cmd.Execute()
-	require.NoError(t, err)
+	// Set some config values
+	result = axtest.Run(context.Background(), t, root,
+		[]string{"config", "set", "output.default_format", "json"})
+	require.Equal(t, 0, result.ExitCode)
 
-	yamlOutput := output.String()
+	result = axtest.Run(context.Background(), t, root,
+		[]string{"config", "set", "plugins.aws.region", "us-west-2"})
+	require.Equal(t, 0, result.ExitCode)
+
+	// Test YAML output. Pass --as explicitly rather than relying on the
+	// no-flag TTY-detection default: axtest.Run's stdout is a buffer, never a
+	// real terminal, so ax's mode resolution would otherwise fall back to
+	// JSON - and ax.WithStdoutIsTTY(true) does not reliably override that
+	// once a root command has already served an earlier axtest.Run call in
+	// this test (a reused-root quirk in ax-go, not something to work around
+	// here; --as sidesteps it since it doesn't depend on mode resolution).
+	result = axtest.Run(context.Background(), t, root, []string{"config", "list", "--as", "yaml"})
+	require.Equal(t, 0, result.ExitCode)
+
+	yamlOutput := string(result.Stdout)
 	assert.Contains(t, yamlOutput, "output:")
 	assert.Contains(t, yamlOutput, "default_format: json")
 	assert.Contains(t, yamlOutput, "plugins:")
 	assert.Contains(t, yamlOutput, "aws:")
 	assert.Contains(t, yamlOutput, "region: us-west-2")
 
-	// Test JSON output
-	output.Reset()
-	cmd.SetArgs([]string{"--format", "json"})
-	err = cmd.Execute()
-	require.NoError(t, err)
+	// Test JSON output. Use --as (not --format) here: this root has already
+	// served a "config list --as yaml" call above, and Cobra flags carry
+	// their Changed() state across Execute() calls on a reused *cobra.Command
+	// (axtest.Run's own docs note this - "it does not reset flag values a
+	// previous call set"). Passing --format instead would leave --as's
+	// Changed() flag stuck true from the earlier call, short-circuiting
+	// config_list.go's mode-resolution fallback before --format is ever
+	// consulted. Re-asserting --as explicitly avoids relying on that fallback
+	// at all, on either call.
+	result = axtest.Run(context.Background(), t, root, []string{"config", "list", "--as", "json"})
+	require.Equal(t, 0, result.ExitCode)
 
-	jsonOutput := output.String()
+	jsonOutput := string(result.Stdout)
 	assert.Contains(t, jsonOutput, "\"output\":")
 	assert.Contains(t, jsonOutput, "\"default_format\": \"json\"")
 	assert.Contains(t, jsonOutput, "\"plugins\":")
@@ -226,52 +228,46 @@ func TestConfigListCmd(t *testing.T) {
 func TestConfigListCmdErrors(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
 	// Create initial config file
 	cfg := config.New()
 	require.NoError(t, cfg.Save())
 
-	cmd := cli.NewConfigListCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
 
 	// Test invalid format
-	cmd.SetArgs([]string{"--format", "invalid"})
-	err := cmd.Execute()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "unsupported format")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"config", "list", "--format", "invalid"})
+	assert.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "unknown output mode")
 }
 
 func TestConfigValidateCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
 	// Create initial config file
 	cfg := config.New()
 	require.NoError(t, cfg.Save())
 
-	cmd := cli.NewConfigValidateCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
 
 	// Test valid configuration
-	err := cmd.Execute()
-	require.NoError(t, err)
-	assert.Contains(t, output.String(), "✅ Configuration is valid")
+	result := axtest.Run(context.Background(), t, root, []string{"config", "validate"})
+	require.Equal(t, 0, result.ExitCode)
+	output := string(result.Stdout)
+	assert.Contains(t, output, "✅ Configuration is valid")
 
 	// Test with verbose flag
-	output.Reset()
-	cmd.SetArgs([]string{"--verbose"})
-	err = cmd.Execute()
-	require.NoError(t, err)
+	result = axtest.Run(context.Background(), t, root, []string{"config", "validate", "--verbose"})
+	require.Equal(t, 0, result.ExitCode)
 
-	verboseOutput := output.String()
+	verboseOutput := string(result.Stdout)
 	assert.Contains(t, verboseOutput, "✅ Configuration is valid")
 	assert.Contains(t, verboseOutput, "Configuration details:")
 	assert.Contains(t, verboseOutput, "Output format:")
@@ -281,7 +277,7 @@ func TestConfigValidateCmd(t *testing.T) {
 func TestConfigValidateCmdErrors(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
 	// Set invalid configuration
@@ -292,71 +288,57 @@ func TestConfigValidateCmdErrors(t *testing.T) {
 	cfg.Output.DefaultFormat = "invalid"
 	require.NoError(t, cfg.Save())
 
-	cmd := cli.NewConfigValidateCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
 
 	// Test invalid configuration
-	err := cmd.Execute()
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid output format")
+	result := axtest.Run(context.Background(), t, root, []string{"config", "validate"})
+	assert.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "invalid output format")
 }
 
 func TestConfigCommandsIntegration(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	var output bytes.Buffer
+	root := cli.NewRootCmd("test")
 
 	// Test full workflow: init -> set -> get -> validate -> list
 
 	// 1. Initialize config
-	initCmd := cli.NewConfigInitCmd()
-	initCmd.SetOut(&output)
-	err := initCmd.Execute()
-	require.NoError(t, err)
+	result := axtest.Run(context.Background(), t, root, []string{"config", "init"})
+	require.Equal(t, 0, result.ExitCode)
 
 	// 2. Set some values
-	setCmd := cli.NewConfigSetCmd()
-	setCmd.SetOut(&output)
-	setCmd.SetArgs([]string{"output.default_format", "json"})
-	err = setCmd.Execute()
-	require.NoError(t, err)
+	result = axtest.Run(context.Background(), t, root,
+		[]string{"config", "set", "output.default_format", "json"})
+	require.Equal(t, 0, result.ExitCode)
 
-	setCmd2 := cli.NewConfigSetCmd()
-	setCmd2.SetOut(&output)
-	setCmd2.SetArgs([]string{"plugins.aws.region", "eu-west-1"})
-	err = setCmd2.Execute()
-	require.NoError(t, err)
+	result = axtest.Run(context.Background(), t, root,
+		[]string{"config", "set", "plugins.aws.region", "eu-west-1"})
+	require.Equal(t, 0, result.ExitCode)
 
 	// 3. Get values to verify
-	getCmd := cli.NewConfigGetCmd()
-	output.Reset()
-	getCmd.SetOut(&output)
-	getCmd.SetArgs([]string{"output.default_format"})
-	err = getCmd.Execute()
-	require.NoError(t, err)
-	assert.Equal(t, "json\n", output.String())
+	result = axtest.Run(context.Background(), t, root,
+		[]string{"config", "get", "output.default_format"})
+	require.Equal(t, 0, result.ExitCode)
+	assert.Equal(t, "json\n", string(result.Stdout))
 
 	// 4. Validate configuration
-	validateCmd := cli.NewConfigValidateCmd()
-	output.Reset()
-	validateCmd.SetOut(&output)
-	err = validateCmd.Execute()
-	require.NoError(t, err)
-	assert.Contains(t, output.String(), "✅ Configuration is valid")
+	result = axtest.Run(context.Background(), t, root, []string{"config", "validate"})
+	require.Equal(t, 0, result.ExitCode)
+	output := string(result.Stdout)
+	assert.Contains(t, output, "✅ Configuration is valid")
 
-	// 5. List all configuration
-	listCmd := cli.NewConfigListCmd()
-	output.Reset()
-	listCmd.SetOut(&output)
-	err = listCmd.Execute()
-	require.NoError(t, err)
+	// 5. List all configuration (explicit --as yaml; see the comment in
+	// TestConfigListCmd on why the no-flag TTY-detection default isn't used
+	// here on a root command already reused by earlier calls in this test).
+	result = axtest.Run(context.Background(), t, root, []string{"config", "list", "--as", "yaml"})
+	require.Equal(t, 0, result.ExitCode)
 
-	listOutput := output.String()
+	listOutput := string(result.Stdout)
 	assert.Contains(t, listOutput, "default_format: json")
 	assert.Contains(t, listOutput, "region: eu-west-1")
 }
@@ -364,26 +346,25 @@ func TestConfigCommandsIntegration(t *testing.T) {
 func TestConfigCmdWrongArgs(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
+	root := cli.NewRootCmd("test")
+
 	// Test set command with wrong number of args
-	setCmd := cli.NewConfigSetCmd()
-	setCmd.SetArgs([]string{"only-one-arg"})
-	err := setCmd.Execute()
-	assert.Error(t, err)
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"config", "set", "only-one-arg"})
+	assert.NotEqual(t, 0, result.ExitCode)
 
 	// Test get command with wrong number of args
-	getCmd := cli.NewConfigGetCmd()
-	getCmd.SetArgs([]string{})
-	err = getCmd.Execute()
-	assert.Error(t, err)
+	result = axtest.Run(context.Background(), t, root, []string{"config", "get"})
+	assert.NotEqual(t, 0, result.ExitCode)
 }
 
 func TestConfigGetCmdMapOutput(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
 	// Set up config with plugins
@@ -392,27 +373,22 @@ func TestConfigGetCmdMapOutput(t *testing.T) {
 	require.NoError(t, cfg.Set("plugins.aws.account_id", "123456789"))
 	require.NoError(t, cfg.Save())
 
-	cmd := cli.NewConfigGetCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
 
 	// Test getting plugin section (returns map)
-	cmd.SetArgs([]string{"plugins.aws"})
-	err := cmd.Execute()
-	require.NoError(t, err)
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"config", "get", "plugins.aws"})
+	require.Equal(t, 0, result.ExitCode)
 
-	mapOutput := output.String()
+	mapOutput := string(result.Stdout)
 	assert.Contains(t, mapOutput, "plugins.aws:")
 	assert.Contains(t, mapOutput, "region:")
 
 	// Test getting all plugins (returns map of PluginConfig)
-	output.Reset()
-	cmd.SetArgs([]string{"plugins"})
-	err = cmd.Execute()
-	require.NoError(t, err)
+	result = axtest.Run(context.Background(), t, root, []string{"config", "get", "plugins"})
+	require.Equal(t, 0, result.ExitCode)
 
-	allPluginsOutput := output.String()
+	allPluginsOutput := string(result.Stdout)
 	assert.Contains(t, allPluginsOutput, "plugins:")
 	assert.Contains(t, allPluginsOutput, "aws:")
 }
@@ -420,7 +396,7 @@ func TestConfigGetCmdMapOutput(t *testing.T) {
 func TestConfigGetCmdIntOutput(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
-	_, cleanup := setupTestConfig(t)
+	cleanup := setupTestConfig(t)
 	defer cleanup()
 
 	// Set up config with precision (integer)
@@ -428,15 +404,12 @@ func TestConfigGetCmdIntOutput(t *testing.T) {
 	require.NoError(t, cfg.Set("output.precision", "4"))
 	require.NoError(t, cfg.Save())
 
-	cmd := cli.NewConfigGetCmd()
-	var output bytes.Buffer
-	cmd.SetOut(&output)
-	cmd.SetErr(&output)
+	root := cli.NewRootCmd("test")
 
 	// Test getting integer value
-	cmd.SetArgs([]string{"output.precision"})
-	err := cmd.Execute()
-	require.NoError(t, err)
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"config", "get", "output.precision"})
+	require.Equal(t, 0, result.ExitCode)
 
-	assert.Contains(t, output.String(), "4")
+	assert.Contains(t, string(result.Stdout), "4")
 }

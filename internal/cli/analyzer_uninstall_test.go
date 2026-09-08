@@ -1,12 +1,13 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -17,25 +18,17 @@ func TestNewAnalyzerUninstallCmd_RemovesInstallation(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
+	root := cli.NewRootCmd("test-version")
 
 	// Install first
-	installCmd := cli.NewAnalyzerInstallCmd()
-	installCmd.SetOut(&bytes.Buffer{})
-	installCmd.SetErr(&bytes.Buffer{})
-	installCmd.SetArgs([]string{"--target-dir", dir})
-	require.NoError(t, installCmd.Execute())
+	result1 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result1.ExitCode)
 
 	// Uninstall
-	cmd := cli.NewAnalyzerUninstallCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--target-dir", dir})
+	result2 := axtest.Run(context.Background(), t, root, []string{"analyzer", "uninstall", "--target-dir", dir})
+	require.Equal(t, 0, result2.ExitCode)
 
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	output := buf.String()
+	output := string(result2.Stdout)
 	assert.Contains(t, output, "Analyzer uninstalled successfully")
 	assert.Contains(t, output, "Removed:")
 }
@@ -44,17 +37,12 @@ func TestNewAnalyzerUninstallCmd_NotInstalled(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	cmd := cli.NewAnalyzerUninstallCmd()
+	root := cli.NewRootCmd("test-version")
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--target-dir", dir})
+	result := axtest.Run(context.Background(), t, root, []string{"analyzer", "uninstall", "--target-dir", dir})
+	require.Equal(t, 0, result.ExitCode)
 
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	output := buf.String()
+	output := string(result.Stdout)
 	assert.Contains(t, output, "Analyzer is not installed")
 }
 
@@ -72,25 +60,17 @@ func TestNewAnalyzerUninstallCmd_TargetDirPropagation(t *testing.T) {
 	t.Parallel()
 
 	customDir := filepath.Join(t.TempDir(), "custom-location")
+	root := cli.NewRootCmd("test-version")
 
 	// Install first
-	installCmd := cli.NewAnalyzerInstallCmd()
-	installCmd.SetOut(&bytes.Buffer{})
-	installCmd.SetErr(&bytes.Buffer{})
-	installCmd.SetArgs([]string{"--target-dir", customDir})
-	require.NoError(t, installCmd.Execute())
+	result1 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", customDir})
+	require.Equal(t, 0, result1.ExitCode)
 
 	// Uninstall from custom dir
-	cmd := cli.NewAnalyzerUninstallCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--target-dir", customDir})
+	result2 := axtest.Run(context.Background(), t, root, []string{"analyzer", "uninstall", "--target-dir", customDir})
+	require.Equal(t, 0, result2.ExitCode)
 
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	output := buf.String()
+	output := string(result2.Stdout)
 	assert.Contains(t, output, "Analyzer uninstalled successfully")
 
 	// Verify directory is empty of analyzer dirs

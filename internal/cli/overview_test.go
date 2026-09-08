@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -665,11 +666,8 @@ func TestOverviewPlainText_CacheHitReturnsProjectedCost(t *testing.T) {
 	require.NoError(t, store.Close())
 
 	// 3. Run the overview command via root cmd (--cache-ttl is a persistent root flag).
-	var buf, errBuf bytes.Buffer
 	root := cli.NewRootCmd("test")
-	root.SetOut(&buf)
-	root.SetErr(&errBuf)
-	root.SetArgs([]string{
+	result := axtest.Run(context.Background(), t, root, []string{
 		"overview",
 		"--pulumi-state", statePath,
 		"--cache-ttl", "3600",
@@ -678,16 +676,15 @@ func TestOverviewPlainText_CacheHitReturnsProjectedCost(t *testing.T) {
 		"--output", "json",
 	})
 
-	err := root.Execute()
 	// The command may fail at "opening plugins" if no plugins are installed.
 	// That failure occurs AFTER engine creation, so the cache is still wired.
 	// If it fails at plugins, we verify the cache DB was at least opened.
-	if err != nil {
+	if result.ExitCode != 0 {
 		// If the error is about plugins, that's expected - the test still
 		// validates that the command accepts --cache-ttl without error up
 		// to the plugin-opening phase. Verify cache DB was created.
-		assert.Contains(t, err.Error(), "opening plugins",
-			"expected plugin error, got: %v", err)
+		assert.Contains(t, string(result.Stderr), "opening plugins",
+			"expected plugin error, got exit code: %d", result.ExitCode)
 		_, statErr := os.Stat(filepath.Join(cacheDir, "cache.db"))
 		assert.NoError(t, statErr, "cache.db should exist (engine opened it)")
 		t.Log("plugins unavailable — cache-hit path not verified")
@@ -696,8 +693,8 @@ func TestOverviewPlainText_CacheHitReturnsProjectedCost(t *testing.T) {
 
 	// 4. Parse the JSON output and verify projected cost came from cache.
 	var output engine.OverviewJSONOutput
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &output),
-		"failed to parse JSON output: %s", buf.String())
+	require.NoError(t, json.Unmarshal(result.Stdout, &output),
+		"failed to parse JSON output: %s", string(result.Stdout))
 
 	require.Len(t, output.Resources, 1, "expected 1 resource in output")
 	row := output.Resources[0]

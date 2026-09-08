@@ -2,11 +2,13 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -214,18 +216,13 @@ func TestStackFlagPassedThrough(t *testing.T) {
 	isolateFromPulumiProject(t)
 
 	root := cli.NewRootCmd("test")
-	root.SetArgs([]string{"cost", "projected", "--stack", "production"})
+	result := axtest.Run(context.Background(), t, root, []string{"cost", "projected", "--stack", "production"})
 
-	var buf bytes.Buffer
-	root.SetOut(&buf)
-	root.SetErr(&buf)
-
-	err := root.Execute()
 	// Command errors because auto-detection fails (no pulumi binary or project),
 	// but the --stack flag must be accepted without "unknown flag" error.
-	require.Error(t, err)
-	assert.NotContains(t, err.Error(), "unknown flag")
-	assert.NotContains(t, err.Error(), "unknown shorthand flag")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.NotContains(t, string(result.Stderr), "unknown flag")
+	assert.NotContains(t, string(result.Stderr), "unknown shorthand flag")
 }
 
 // TestStackFlagIgnoredWithPulumiJson verifies that --stack is ignored when
@@ -235,20 +232,15 @@ func TestStackFlagIgnoredWithPulumiJson(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	root := cli.NewRootCmd("test")
-	root.SetArgs([]string{
+	result := axtest.Run(context.Background(), t, root, []string{
 		"cost", "projected",
 		"--pulumi-json", "nonexistent.json",
 		"--stack", "production",
 	})
 
-	var buf bytes.Buffer
-	root.SetOut(&buf)
-	root.SetErr(&buf)
-
-	err := root.Execute()
-	require.Error(t, err)
+	assert.NotEqual(t, 0, result.ExitCode)
 	// Should fail on file loading, not on stack resolution
-	assert.Contains(t, err.Error(), "loading Pulumi plan")
+	assert.Contains(t, string(result.Stderr), "loading Pulumi plan")
 }
 
 func TestCostProjectedCmd_JobsFlag(t *testing.T) {

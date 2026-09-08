@@ -1,10 +1,12 @@
 package cli_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/cli"
@@ -78,26 +80,26 @@ func TestPluginInitValidation(t *testing.T) {
 			tc.opts.Name = tc.args[0]
 			tc.opts.Force = true
 
-			// Create command via Cobra and capture output
-			cmd := cli.NewPluginInitCmd()
-			args := []string{
+			// Create command via full root tree
+			root := cli.NewRootCmd("test")
+			cmdArgs := []string{
+				"plugin", "init",
 				tc.args[0],
 				"--author", tc.opts.Author,
 				"--output-dir", tmpDir,
 				"--force",
 			}
 			if len(tc.opts.Providers) > 0 {
-				args = append(args, "--providers", tc.opts.Providers[0])
+				cmdArgs = append(cmdArgs, "--providers", tc.opts.Providers[0])
 			}
-			cmd.SetArgs(args)
 
-			err := cmd.Execute()
+			result := axtest.Run(context.Background(), t, root, cmdArgs)
 
-			if tc.expectErr && err == nil {
-				t.Errorf("Expected error, got none")
+			if tc.expectErr && result.ExitCode == 0 {
+				t.Errorf("Expected error (non-zero exit code), got exit code 0")
 			}
-			if !tc.expectErr && err != nil {
-				t.Errorf("Expected no error, got: %v", err)
+			if !tc.expectErr && result.ExitCode != 0 {
+				t.Errorf("Expected no error, got exit code %d: %s", result.ExitCode, string(result.Stderr))
 			}
 		})
 	}
@@ -118,9 +120,10 @@ func TestPluginInitProjectGeneration(t *testing.T) {
 
 	cmd := &cobra.Command{
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cli.RunPluginInit(cmd, opts)
+			return cli.RunPluginInit(cmd.Context(), cmd, opts)
 		},
 	}
+	cmd.SetContext(context.Background())
 
 	err := cmd.RunE(cmd, []string{"test-plugin"})
 	if err != nil {
@@ -192,9 +195,10 @@ func TestPluginInitForceOverwrite(t *testing.T) {
 
 	cmd := &cobra.Command{
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cli.RunPluginInit(cmd, opts)
+			return cli.RunPluginInit(cmd.Context(), cmd, opts)
 		},
 	}
+	cmd.SetContext(context.Background())
 
 	// Should fail without force
 	err = cmd.RunE(cmd, []string{"test-plugin"})

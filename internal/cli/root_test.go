@@ -1,11 +1,12 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -81,20 +82,15 @@ func TestNewRootCmd(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
 			cmd := cli.NewRootCmd("test-version")
-			cmd.SetOut(&buf)
-			cmd.SetErr(&buf)
-			cmd.SetArgs(tt.args)
-
-			err := cmd.Execute()
+			result := axtest.Run(context.Background(), t, cmd, tt.args)
 
 			if tt.expectError {
-				require.Error(t, err)
+				require.NotEqual(t, 0, result.ExitCode)
 			} else {
-				require.NoError(t, err)
+				require.Equal(t, 0, result.ExitCode)
 				if tt.checkOutput != nil {
-					tt.checkOutput(t, buf.String())
+					tt.checkOutput(t, string(result.Stdout))
 				}
 			}
 		})
@@ -145,6 +141,11 @@ func TestRootCmdStructure(t *testing.T) {
 	validateCmd, _, err := cmd.Find([]string{"plugin", "validate"})
 	require.NoError(t, err)
 	assert.NotNil(t, validateCmd)
+
+	// Check that mcp-server subcommand exists
+	mcpServerCmd, _, err := cmd.Find([]string{"mcp-server"})
+	require.NoError(t, err)
+	assert.NotNil(t, mcpServerCmd)
 }
 
 func TestRootCmdFlags(t *testing.T) {
@@ -159,12 +160,9 @@ func TestRootCmdFlags(t *testing.T) {
 	assert.Equal(t, "false", debugFlag.DefValue)
 
 	// Check version flag is available
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetArgs([]string{"--version"})
-	err := cmd.Execute()
-	require.NoError(t, err)
-	assert.Contains(t, buf.String(), "test-version")
+	result := axtest.Run(context.Background(), t, cmd, []string{"--version"})
+	require.Equal(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stdout), "test-version")
 }
 
 // TestRootCmdPluginMode tests that the root command correctly detects plugin mode
@@ -267,16 +265,12 @@ func TestRootCmdPluginModeHelpOutput(t *testing.T) {
 		return "", false
 	}
 
-	var buf bytes.Buffer
 	cmd := cli.NewRootCmdWithArgs("test-version", []string{"/usr/bin/finfocus"}, lookupEnv)
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--help"})
 
-	err := cmd.Execute()
-	require.NoError(t, err)
+	result := axtest.Run(context.Background(), t, cmd, []string{"--help"})
+	require.Equal(t, 0, result.ExitCode)
 
-	output := buf.String()
+	output := string(result.Stdout)
 	assert.Contains(t, output, "pulumi plugin run tool cost", "Help should show plugin usage")
 	assert.Contains(t, output, "pulumi plugin run tool cost -- cost projected", "Examples should use plugin syntax")
 }
@@ -301,46 +295,39 @@ func TestRootCmdProjectDirFlag(t *testing.T) {
 	})
 
 	t.Run("flag available on cost subcommand via help", func(t *testing.T) {
-		var buf bytes.Buffer
 		cmd := cli.NewRootCmd("test-version")
-		cmd.SetOut(&buf)
-		cmd.SetErr(&buf)
-		cmd.SetArgs([]string{"cost", "--project-dir", "/some/path", "--help"})
+		result := axtest.Run(context.Background(), t, cmd, []string{"cost", "--project-dir", "/some/path", "--help"})
 
-		err := cmd.Execute()
-		require.NoError(t, err, "cost --project-dir /some/path --help should succeed")
+		require.Equal(t, 0, result.ExitCode, "cost --project-dir /some/path --help should succeed")
 
-		output := buf.String()
+		output := string(result.Stdout)
 		assert.Contains(t, output, "Cost calculation commands",
 			"cost help output should be displayed")
 	})
 
 	t.Run("flag available on config subcommand via help", func(t *testing.T) {
-		var buf bytes.Buffer
 		cmd := cli.NewRootCmd("test-version")
-		cmd.SetOut(&buf)
-		cmd.SetErr(&buf)
-		cmd.SetArgs([]string{"config", "--project-dir", "/another/path", "--help"})
+		result := axtest.Run(
+			context.Background(),
+			t,
+			cmd,
+			[]string{"config", "--project-dir", "/another/path", "--help"},
+		)
 
-		err := cmd.Execute()
-		require.NoError(t, err, "config --project-dir /another/path --help should succeed")
+		require.Equal(t, 0, result.ExitCode, "config --project-dir /another/path --help should succeed")
 
-		output := buf.String()
+		output := string(result.Stdout)
 		assert.Contains(t, output, "Configuration management commands",
 			"config help output should be displayed")
 	})
 
 	t.Run("flag appears in root help output", func(t *testing.T) {
-		var buf bytes.Buffer
 		cmd := cli.NewRootCmd("test-version")
-		cmd.SetOut(&buf)
-		cmd.SetErr(&buf)
-		cmd.SetArgs([]string{"--help"})
+		result := axtest.Run(context.Background(), t, cmd, []string{"--help"})
 
-		err := cmd.Execute()
-		require.NoError(t, err)
+		require.Equal(t, 0, result.ExitCode)
 
-		output := buf.String()
+		output := string(result.Stdout)
 		assert.Contains(t, output, "--project-dir",
 			"root help should mention --project-dir flag")
 	})
@@ -383,18 +370,13 @@ func TestExitCodeBehavior(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
 			cmd := cli.NewRootCmd("test-version")
-			cmd.SetOut(&buf)
-			cmd.SetErr(&buf)
-			cmd.SetArgs(tt.args)
-
-			err := cmd.Execute()
+			result := axtest.Run(context.Background(), t, cmd, tt.args)
 
 			if tt.expectError {
-				require.Error(t, err, "Command should return error for exit code 1")
+				require.NotEqual(t, 0, result.ExitCode, "Command should return non-zero exit code for exit code 1")
 			} else {
-				require.NoError(t, err, "Command should return nil for exit code 0")
+				require.Equal(t, 0, result.ExitCode, "Command should return zero exit code for exit code 0")
 			}
 		})
 	}
@@ -411,15 +393,11 @@ func TestRootCmd_OutsidePulumiProject(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Chdir(tmpDir)
 
-	var buf bytes.Buffer
 	cmd := cli.NewRootCmd("test-version")
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{}) // no args — bare invocation
+	result := axtest.Run(context.Background(), t, cmd, []string{}) // no args — bare invocation
 
-	err := cmd.Execute()
-	require.NoError(t, err, "outside Pulumi project, bare invocation should show help (exit 0)")
-	output := buf.String()
+	require.Equal(t, 0, result.ExitCode, "outside Pulumi project, bare invocation should show help (exit 0)")
+	output := string(result.Stdout)
 	assert.Contains(t, output, "FinFocus", "help output should contain product name")
 	assert.Contains(t, output, "Available Commands:", "help output should list commands")
 }
@@ -439,24 +417,20 @@ func TestRootCmd_InPulumiProject(t *testing.T) {
 		[]byte("name: test-project\nruntime: go\n"), 0600))
 	t.Chdir(tmpDir)
 
-	var buf bytes.Buffer
 	cmd := cli.NewRootCmd("test-version")
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{}) // no args — bare invocation
+	result := axtest.Run(context.Background(), t, cmd, []string{}) // no args — bare invocation
 
 	// Delegation to overview will try to detect the Pulumi project and run
 	// stack export. In the test environment it will fail (no pulumi CLI or
 	// real stack), so an error is expected — but it is an overview error,
 	// not Cobra's "command not found" error.
-	err := cmd.Execute()
 	// Either overview fails (expected) or succeeds — both confirm delegation.
 	// We can't assert success because pulumi CLI may not be present in CI.
 	// What we assert is that the output does NOT contain "Available Commands:"
 	// which would mean we fell through to help instead of overview.
-	output := buf.String()
-	if err != nil {
-		t.Logf("overview delegation returned error (expected in CI without pulumi): %v", err)
+	output := string(result.Stdout)
+	if result.ExitCode != 0 {
+		t.Logf("overview delegation returned non-zero exit code (expected in CI without pulumi): %d", result.ExitCode)
 	}
 	assert.NotContains(t, output, "Available Commands:",
 		"in Pulumi project, should have delegated to overview, not shown help")
@@ -466,15 +440,11 @@ func TestRootCmd_InPulumiProject(t *testing.T) {
 func TestRootCmd_HelpFlagAlwaysWorks(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
-	var buf bytes.Buffer
 	cmd := cli.NewRootCmd("test-version")
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--help"})
+	result := axtest.Run(context.Background(), t, cmd, []string{"--help"})
 
-	err := cmd.Execute()
-	require.NoError(t, err, "--help should always exit 0")
-	assert.Contains(t, buf.String(), "Available Commands:", "help should list commands")
+	require.Equal(t, 0, result.ExitCode, "--help should always exit 0")
+	assert.Contains(t, string(result.Stdout), "Available Commands:", "help should list commands")
 }
 
 // TestRootCmd_DirectOverviewCallUnchanged verifies that 'finfocus overview' still works
@@ -483,16 +453,12 @@ func TestRootCmd_DirectOverviewCallUnchanged(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
 
-	var buf bytes.Buffer
 	cmd := cli.NewRootCmd("test-version")
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"overview", "--help"})
+	result := axtest.Run(context.Background(), t, cmd, []string{"overview", "--help"})
 
-	err := cmd.Execute()
-	require.NoError(t, err, "'overview --help' should succeed")
+	require.Equal(t, 0, result.ExitCode, "'overview --help' should succeed")
 	// Cobra's help output shows the Long description (not Short) when both are set.
 	// The Long description starts with "Display a unified cost dashboard...".
-	assert.Contains(t, buf.String(), "unified cost dashboard",
+	assert.Contains(t, string(result.Stdout), "unified cost dashboard",
 		"overview help should describe the overview command")
 }

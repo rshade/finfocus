@@ -1,12 +1,13 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -48,15 +49,15 @@ func TestCLIIntegration(t *testing.T) {
 		command     string
 		args        []string
 		expectError bool
-		checkOutput func(t *testing.T, output string, err error)
+		checkOutput func(t *testing.T, result axtest.Result)
 	}{
 		{
 			name:    "cost projected basic",
 			command: "cost",
 			args:    []string{"projected", "--pulumi-json", planPath},
-			checkOutput: func(t *testing.T, _ string, err error) {
+			checkOutput: func(t *testing.T, result axtest.Result) {
 				// Should not error, even if no plugins are available
-				require.NoError(t, err)
+				require.Equal(t, 0, result.ExitCode)
 				// Command should complete successfully
 			},
 		},
@@ -70,8 +71,8 @@ func TestCLIIntegration(t *testing.T) {
 				"--filter",
 				"type=aws:ec2/instance",
 			},
-			checkOutput: func(t *testing.T, _ string, err error) {
-				require.NoError(t, err)
+			checkOutput: func(t *testing.T, result axtest.Result) {
+				require.Equal(t, 0, result.ExitCode)
 				// Command should complete successfully
 			},
 		},
@@ -79,8 +80,8 @@ func TestCLIIntegration(t *testing.T) {
 			name:    "cost projected with json output",
 			command: "cost",
 			args:    []string{"projected", "--pulumi-json", planPath, "--output", "json"},
-			checkOutput: func(t *testing.T, _ string, err error) {
-				require.NoError(t, err)
+			checkOutput: func(t *testing.T, result axtest.Result) {
+				require.Equal(t, 0, result.ExitCode)
 				// Should produce valid output for JSON format
 			},
 		},
@@ -88,9 +89,9 @@ func TestCLIIntegration(t *testing.T) {
 			name:    "cost actual basic",
 			command: "cost",
 			args:    []string{"actual", "--pulumi-json", planPath, "--from", "2025-12-01", "--to", "2025-12-31"},
-			checkOutput: func(t *testing.T, _ string, err error) {
+			checkOutput: func(t *testing.T, result axtest.Result) {
 				// Should succeed with explicit date range
-				require.NoError(t, err)
+				require.Equal(t, 0, result.ExitCode)
 				// Command should complete successfully
 			},
 		},
@@ -106,8 +107,8 @@ func TestCLIIntegration(t *testing.T) {
 				"--to",
 				"2026-01-02",
 			},
-			checkOutput: func(t *testing.T, _ string, err error) {
-				require.NoError(t, err)
+			checkOutput: func(t *testing.T, result axtest.Result) {
+				require.Equal(t, 0, result.ExitCode)
 				// Command should complete successfully
 			},
 		},
@@ -125,8 +126,8 @@ func TestCLIIntegration(t *testing.T) {
 				"--group-by",
 				"type",
 			},
-			checkOutput: func(t *testing.T, _ string, err error) {
-				require.NoError(t, err)
+			checkOutput: func(t *testing.T, result axtest.Result) {
+				require.Equal(t, 0, result.ExitCode)
 				// Command should complete successfully
 			},
 		},
@@ -134,8 +135,8 @@ func TestCLIIntegration(t *testing.T) {
 			name:    "plugin list",
 			command: "plugin",
 			args:    []string{"list"},
-			checkOutput: func(t *testing.T, _ string, err error) {
-				require.NoError(t, err)
+			checkOutput: func(t *testing.T, result axtest.Result) {
+				require.Equal(t, 0, result.ExitCode)
 				// Command should succeed (no error check for specific output since it prints to different streams)
 			},
 		},
@@ -143,8 +144,8 @@ func TestCLIIntegration(t *testing.T) {
 			name:    "plugin list verbose",
 			command: "plugin",
 			args:    []string{"list", "--verbose"},
-			checkOutput: func(t *testing.T, _ string, err error) {
-				require.NoError(t, err)
+			checkOutput: func(t *testing.T, result axtest.Result) {
+				require.Equal(t, 0, result.ExitCode)
 				// Command should succeed
 			},
 		},
@@ -152,8 +153,8 @@ func TestCLIIntegration(t *testing.T) {
 			name:    "plugin validate",
 			command: "plugin",
 			args:    []string{"validate"},
-			checkOutput: func(t *testing.T, _ string, err error) {
-				require.NoError(t, err)
+			checkOutput: func(t *testing.T, result axtest.Result) {
+				require.Equal(t, 0, result.ExitCode)
 				// Command should succeed
 			},
 		},
@@ -161,25 +162,21 @@ func TestCLIIntegration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
 			cmd := cli.NewRootCmd("test-version")
-			cmd.SetOut(&buf)
-			cmd.SetErr(&buf)
 
 			// Build full args
 			args := []string{tt.command}
 			args = append(args, tt.args...)
-			cmd.SetArgs(args)
 
-			execErr := cmd.Execute()
+			result := axtest.Run(context.Background(), t, cmd, args)
 
 			switch {
 			case tt.checkOutput != nil:
-				tt.checkOutput(t, buf.String(), execErr)
+				tt.checkOutput(t, result)
 			case tt.expectError:
-				require.Error(t, execErr)
+				require.NotEqual(t, 0, result.ExitCode)
 			default:
-				require.NoError(t, execErr)
+				require.Equal(t, 0, result.ExitCode)
 			}
 		})
 	}
@@ -195,32 +192,32 @@ func TestErrorHandlingEdgeCases(t *testing.T) {
 		name        string
 		args        []string
 		expectError bool
-		errorCheck  func(t *testing.T, err error)
+		errorCheck  func(t *testing.T, result axtest.Result)
 	}{
 		{
 			name:        "no flags triggers auto-detection for projected",
 			args:        []string{"cost", "projected"},
 			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
+			errorCheck: func(t *testing.T, result axtest.Result) {
 				// Auto-detection kicks in but fails (no Pulumi project in test env).
 				// The error must NOT be about a required flag.
-				assert.NotContains(t, err.Error(), "required flag")
+				assert.NotContains(t, string(result.Stderr), "required flag")
 			},
 		},
 		{
 			name:        "missing required from for actual",
 			args:        []string{"cost", "actual", "--pulumi-json", "test.json"},
 			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "--from is required when using --pulumi-json")
+			errorCheck: func(t *testing.T, result axtest.Result) {
+				assert.Contains(t, string(result.Stderr), "--from is required when using --pulumi-json")
 			},
 		},
 		{
 			name:        "nonexistent pulumi plan file",
 			args:        []string{"cost", "projected", "--pulumi-json", "/nonexistent/file.json"},
 			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "loading Pulumi plan")
+			errorCheck: func(t *testing.T, result axtest.Result) {
+				assert.Contains(t, string(result.Stderr), "loading Pulumi plan")
 			},
 		},
 		{
@@ -234,53 +231,48 @@ func TestErrorHandlingEdgeCases(t *testing.T) {
 				"invalid-date",
 			},
 			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "loading Pulumi plan")
+			errorCheck: func(t *testing.T, result axtest.Result) {
+				assert.Contains(t, string(result.Stderr), "loading Pulumi plan")
 			},
 		},
 		{
 			name:        "unknown command",
 			args:        []string{"unknown-command"},
 			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "unknown command")
+			errorCheck: func(t *testing.T, result axtest.Result) {
+				assert.Contains(t, string(result.Stderr), "unknown command")
 			},
 		},
 		{
 			name:        "unknown flag",
 			args:        []string{"cost", "projected", "--unknown-flag", "value"},
 			expectError: true,
-			errorCheck: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "unknown flag")
+			errorCheck: func(t *testing.T, result axtest.Result) {
+				assert.Contains(t, string(result.Stderr), "unknown flag")
 			},
 		},
 		{
 			name:        "plugin validate specific nonexistent plugin",
 			args:        []string{"plugin", "validate", "--plugin", "nonexistent-plugin"},
 			expectError: true, // Plugin not found returns an error
-			errorCheck: func(t *testing.T, err error) {
-				assert.Contains(t, err.Error(), "plugin 'nonexistent-plugin' not found")
+			errorCheck: func(t *testing.T, result axtest.Result) {
+				assert.Contains(t, string(result.Stderr), "plugin 'nonexistent-plugin' not found")
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var buf bytes.Buffer
 			cmd := cli.NewRootCmd("test-version")
-			cmd.SetOut(&buf)
-			cmd.SetErr(&buf)
-			cmd.SetArgs(tt.args)
-
-			err := cmd.Execute()
+			result := axtest.Run(context.Background(), t, cmd, tt.args)
 
 			if tt.expectError {
-				require.Error(t, err)
+				require.NotEqual(t, 0, result.ExitCode)
 				if tt.errorCheck != nil {
-					tt.errorCheck(t, err)
+					tt.errorCheck(t, result)
 				}
 			} else {
-				require.NoError(t, err)
+				require.Equal(t, 0, result.ExitCode)
 			}
 		})
 	}
@@ -391,26 +383,18 @@ func TestOutputFormats(t *testing.T) {
 
 	for _, format := range formats {
 		t.Run("projected_output_"+format, func(t *testing.T) {
-			var buf bytes.Buffer
 			cmd := cli.NewRootCmd("test-version")
-			cmd.SetOut(&buf)
-			cmd.SetErr(&buf)
-			cmd.SetArgs(
+			result := axtest.Run(context.Background(), t, cmd,
 				[]string{"cost", "projected", "--pulumi-json", planPath, "--output", format},
 			)
 
-			execErr := cmd.Execute()
-			require.NoError(t, execErr)
+			require.Equal(t, 0, result.ExitCode)
 			// Should succeed
-			require.NoError(t, execErr)
 		})
 
 		t.Run("actual_output_"+format, func(t *testing.T) {
-			var buf bytes.Buffer
 			cmd := cli.NewRootCmd("test-version")
-			cmd.SetOut(&buf)
-			cmd.SetErr(&buf)
-			cmd.SetArgs(
+			result := axtest.Run(context.Background(), t, cmd,
 				[]string{
 					"cost",
 					"actual",
@@ -425,10 +409,8 @@ func TestOutputFormats(t *testing.T) {
 				},
 			)
 
-			execErr := cmd.Execute()
-			require.NoError(t, execErr)
+			require.Equal(t, 0, result.ExitCode)
 			// Should succeed
-			require.NoError(t, execErr)
 		})
 	}
 }
@@ -456,11 +438,8 @@ func TestFlagCombinations(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("projected_all_flags", func(t *testing.T) {
-		var buf bytes.Buffer
 		cmd := cli.NewRootCmd("test-version")
-		cmd.SetOut(&buf)
-		cmd.SetErr(&buf)
-		cmd.SetArgs([]string{
+		result := axtest.Run(context.Background(), t, cmd, []string{
 			"cost", "projected",
 			"--pulumi-json", planPath,
 			"--output", "json",
@@ -468,16 +447,12 @@ func TestFlagCombinations(t *testing.T) {
 			"--adapter", "test-adapter",
 		})
 
-		execErr := cmd.Execute()
-		require.NoError(t, execErr)
+		require.Equal(t, 0, result.ExitCode)
 	})
 
 	t.Run("actual_all_flags", func(t *testing.T) {
-		var buf bytes.Buffer
 		cmd := cli.NewRootCmd("test-version")
-		cmd.SetOut(&buf)
-		cmd.SetErr(&buf)
-		cmd.SetArgs([]string{
+		result := axtest.Run(context.Background(), t, cmd, []string{
 			"cost", "actual",
 			"--pulumi-json", planPath,
 			"--from", "2025-12-01",
@@ -487,22 +462,17 @@ func TestFlagCombinations(t *testing.T) {
 			"--adapter", "test-adapter",
 		})
 
-		execErr := cmd.Execute()
-		require.NoError(t, execErr)
+		require.Equal(t, 0, result.ExitCode)
 	})
 
 	t.Run("global_debug_flag", func(t *testing.T) {
-		var buf bytes.Buffer
 		cmd := cli.NewRootCmd("test-version")
-		cmd.SetOut(&buf)
-		cmd.SetErr(&buf)
-		cmd.SetArgs([]string{
+		result := axtest.Run(context.Background(), t, cmd, []string{
 			"--debug",
 			"cost", "projected",
 			"--pulumi-json", planPath,
 		})
 
-		execErr := cmd.Execute()
-		require.NoError(t, execErr)
+		require.Equal(t, 0, result.ExitCode)
 	})
 }
