@@ -148,7 +148,7 @@ finfocus cost projected --pulumi-json plan.json
 **Check Budget** - Verify if plan fits within budget:
 
 ```bash
-# Configure budget in ~/.finfocus/config.yaml (see Configuration section)
+# Configure budget in ~/.finfocus/config.hujson (see Configuration section)
 # Then check projected cost against budget
 finfocus cost projected --pulumi-json plan.json
 
@@ -218,7 +218,7 @@ FinFocus uses plugins to fetch cost data from various sources:
 
 ## Configuration
 
-FinFocus is configured via `~/.finfocus/config.yaml`.
+FinFocus is configured via `~/.finfocus/config.hujson`. Configuration files use Hujson format (JSON with `//` comments and trailing commas allowed). Legacy `config.yaml` files are automatically migrated to Hujson format on first read.
 
 ### Budget Configuration
 
@@ -458,7 +458,7 @@ pulumi.runtime.register_stack_transformation(auto_tags)
 **FinFocus configuration** for tag-based cost queries:
 
 ```yaml
-# ~/.finfocus/config.yaml
+# ~/.finfocus/config.hujson
 cost:
   allocation:
     enabled: true
@@ -486,7 +486,7 @@ for *all* historical IDs — not just the current one.
 > infrastructure configuration.
 
 ```yaml
-# ~/.finfocus/config.yaml
+# ~/.finfocus/config.hujson
 cost:
   history:
     enabled: true          # default: true
@@ -520,7 +520,7 @@ finfocus cost projected --pulumi-json plan.json --output ndjson
 FinFocus provides commands to manage configuration:
 
 ```bash
-# Initialize configuration (creates ~/.finfocus/config.yaml)
+# Initialize configuration (creates ~/.finfocus/config.hujson)
 finfocus config init [--force]
 
 # Set configuration values
@@ -531,7 +531,7 @@ finfocus config set output.format json
 finfocus config get cost.budgets.amount
 
 # List all configuration
-finfocus config list [--format json|yaml]
+finfocus config list [--as json|yaml]
 
 # Validate configuration
 finfocus config validate [--verbose]
@@ -570,7 +570,7 @@ finfocus cost projected --pulumi-json plan.json
 
 ### Declarative Routing (Advanced Configuration)
 
-For advanced control, configure plugin routing in `~/.finfocus/config.yaml`:
+For advanced control, configure plugin routing in `~/.finfocus/config.hujson`:
 
 ```yaml
 routing:
@@ -677,6 +677,46 @@ finfocus --debug cost projected --pulumi-json plan.json
 # Environment variable
 export FINFOCUS_LOG_LEVEL=debug
 export FINFOCUS_LOG_FORMAT=json    # json or console
+```
+
+## Agentic CLI Features
+
+FinFocus supports agent and tooling integration through several features:
+
+### Global Flags
+
+All commands support these global flags for programmatic integration:
+
+- **`--format json|human`**: Output format selection (JSON for machine consumption, human for terminal)
+- **`--dry-run`**: Preview changes without making them (affects: `plugin install/update/remove`, `analyzer install/uninstall`, `config init/set`, recommendation operations)
+- **`--yes`**: Skip all confirmation prompts (equivalent to approving interactive operations)
+- **`--idempotency-key`**: Opaque retry-deduplication key for distributed systems
+
+### Machine Discoverability
+
+FinFocus can be introspected by agents and tools:
+
+```bash
+# Emit command schema in AX format (default)
+finfocus __schema
+
+# Emit command schema in MCP format
+finfocus __schema --as=mcp
+```
+
+### Model Context Protocol (MCP) Server
+
+Expose the entire CLI as a live MCP server for integration with LLMs and agents:
+
+```bash
+# Serve over stdio (default, suitable for Claude integration)
+finfocus mcp-server
+
+# Serve over HTTP (loopback-only by default)
+finfocus mcp-server --transport=http --addr=127.0.0.1:8080
+
+# Serve over HTTP from any address (requires explicit opt-in)
+finfocus mcp-server --transport=http --addr=0.0.0.0:8080 --allow-non-loopback
 ```
 
 ## Documentation

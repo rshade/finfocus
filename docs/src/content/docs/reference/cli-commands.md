@@ -612,7 +612,7 @@ finfocus config list [options]
 finfocus config list
 
 # List all configuration in JSON format
-finfocus config list --format json
+finfocus config list --as json
 ```
 
 ## config validate

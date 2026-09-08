@@ -122,8 +122,8 @@ Core components and their directories:
 2. `PULUMI_HOME/finfocus`
 3. `~/.finfocus/`
 
-**Config Merge**: Project `config.yaml` overrides global at the **top-level key** level
-(shallow merge). Keys absent in project config inherit from global defaults.
+**Config Merge**: Project `config.hujson` overrides global `config.hujson` at the **top-level key** level
+(shallow merge). Keys absent in project config inherit from global defaults. Legacy `config.yaml` files are auto-migrated to Hujson format on first read.
 
 ## Key Patterns
 
@@ -156,6 +156,21 @@ export FINFOCUS_TRACE_ID=external-trace-123  # inject external trace ID
 ```
 
 Precedence: CLI flags (`--debug`) > env vars > config file > default (info, console).
+
+### Global Agentic Flags
+
+The following flags are automatically mounted by `ax.Execute` on all commands:
+
+- **`--format json|human`**: Output format for machine vs human consumption (JSON for agent/tooling, human for terminal). When set to `json`, some commands automatically output machine-readable JSON. Defaults to auto-detection via TTY.
+- **`--dry-run`**: Preview changes without making them (skip real side effects). Affects mutating commands: `plugin install/update/remove`, `analyzer install/uninstall`, `config init/set`, and recommendation operations (dismiss/snooze/undismiss).
+- **`--yes`**: Skip confirmation prompts (equivalent to `-y` or `--force` on individual commands). Automatically confirms operations that normally require user approval.
+- **`--idempotency-key string`**: Opaque retry-deduplication key for preventing duplicate-create operations in distributed systems.
+- **`--debug`**: Enable debug logging (also available as persistent flag for CLI-specific control).
+
+Additionally, the following utility commands are available:
+
+- **`__schema [--as=ax|mcp]`**: Emit machine-discoverability schema in AX (default) or MCP format for tool discovery.
+- **`mcp-server [--transport=stdio|http] [--addr] [--allow-non-loopback]`**: Expose the entire CLI as a live Model Context Protocol server.
 
 ## Testing
 
@@ -239,7 +254,12 @@ checks, non-critical validations.
 
 ## Important Files
 
-- `cmd/finfocus/main.go` - CLI entry point (semantic exit codes: 0=success, 1=error, 2=budget exceeded)
+- `cmd/finfocus/main.go` - CLI entry point, routed through `ax.Execute` (ax-go). Exit codes:
+  0=success, 1=generic/internal error (ax `ExitInternal`), and a user-configurable code (default 1,
+  0-255 via `cost --exit-code`/`--exit-on-threshold`) for budget-exceeded, preserved through
+  `ax.Execute` via `internal/cli.toAxExitError`. `ax.ExitValidation`(2)/`ExitNetwork`(3)/`ExitAuth`(4)
+  are reserved additively for new error classifications (see `internal/logging/errors.go`), not
+  retrofitted onto existing exit-1 paths.
 - `internal/engine/engine.go` - Core orchestration
 - `internal/pluginhost/host.go` - Plugin client management
 - `internal/ingest/pulumi_plan.go` - Pulumi plan parsing
@@ -338,7 +358,7 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 - **DismissalStore**: Uses `GetResolvedProjectDir()` → project `dismissed.json`;
   falls back to `~/.finfocus/dismissed.json`
 - **`config init`**: Without `--global`, inside a Pulumi project creates
-  `$PROJECT/.finfocus/config.yaml` + `.gitignore`. Outside Pulumi project → global init
+  `$PROJECT/.finfocus/config.hujson` + `.gitignore`. Outside Pulumi project → global init
 - **`config routes`**: `config routes list` shows effective routing source/path;
   `config routes test <type> [region]` simulates per-feature plugin selection without loading plugin binaries
 
