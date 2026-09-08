@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/rs/zerolog"
+	"github.com/rshade/ax-go/mcp"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -127,6 +128,7 @@ func NewRootCmdWithArgs(
 	cmd.PersistentFlags().StringVar(&projectDirFlag, "project-dir", "",
 		"explicit Pulumi project directory for config resolution")
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
+	cmd.AddCommand(mcp.NewCommand(cmd, mcp.WithVersion(ver)))
 
 	return cmd
 }
