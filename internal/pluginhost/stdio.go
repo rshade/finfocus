@@ -14,6 +14,8 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/rshade/ax-go"
+
 	"github.com/rshade/finfocus/internal/constants"
 	"github.com/rshade/finfocus/internal/logging"
 )
@@ -108,7 +110,7 @@ func (s *StdioLauncher) Start(
 
 	address := listener.Addr().String()
 
-	conn, err := grpc.NewClient(address,
+	conn, err := ax.GRPCDial(ctx, address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(TraceInterceptor()))
 	if err != nil {

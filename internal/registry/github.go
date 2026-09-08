@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rshade/ax-go"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -79,11 +80,9 @@ type GitHubClient struct {
 func NewGitHubClient() *GitHubClient {
 	token := getGitHubToken()
 	return &GitHubClient{
-		HTTPClient: &http.Client{
-			Timeout: downloadTimeout,
-		},
-		BaseURL: "https://api.github.com",
-		token:   token,
+		HTTPClient: ax.NewHTTPClient(ax.WithHTTPTimeout(downloadTimeout)),
+		BaseURL:    "https://api.github.com",
+		token:      token,
 	}
 }
 

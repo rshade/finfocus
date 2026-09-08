@@ -173,7 +173,7 @@ func TestProcessLauncher_CreateCloseFn(t *testing.T) {
 	}
 	defer listener.Close()
 
-	conn, err := launcher.tryConnect(listener.Addr().String())
+	conn, err := launcher.tryConnect(context.Background(), listener.Addr().String())
 	if err != nil {
 		cmd.Process.Kill()
 		t.Fatalf("failed to create test connection: %v", err)
@@ -214,7 +214,7 @@ func TestProcessLauncher_TryConnect(t *testing.T) {
 	address := listener.Addr().String()
 
 	// Test successful connection
-	conn, err := launcher.tryConnect(address)
+	conn, err := launcher.tryConnect(context.Background(), address)
 	if err != nil {
 		t.Errorf("tryConnect failed: %v", err)
 	} else {
@@ -222,7 +222,7 @@ func TestProcessLauncher_TryConnect(t *testing.T) {
 	}
 
 	// Test connection to non-existent port (use a high port that's likely unavailable)
-	_, err = launcher.tryConnect("127.0.0.1:65534")
+	_, err = launcher.tryConnect(context.Background(), "127.0.0.1:65534")
 	if err == nil {
 		t.Log("Note: Port 65534 might be available on this system - connection succeeded")
 		// Don't fail as port availability varies by system
@@ -239,7 +239,7 @@ func TestProcessLauncher_IsConnectionReady(t *testing.T) {
 	}
 	defer listener.Close()
 
-	conn, err := launcher.tryConnect(listener.Addr().String())
+	conn, err := launcher.tryConnect(context.Background(), listener.Addr().String())
 	if err != nil {
 		t.Fatalf("failed to create test connection: %v", err)
 	}

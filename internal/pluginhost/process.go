@@ -19,6 +19,8 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/rshade/ax-go"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus/internal/constants"
 	"github.com/rshade/finfocus/internal/logging"
@@ -563,7 +565,7 @@ func (p *ProcessLauncher) connectToPlugin(
 			return nil, fmt.Errorf("timeout connecting to plugin: %w", connCtx.Err())
 		}
 
-		conn, err := p.tryConnect(address)
+		conn, err := p.tryConnect(connCtx, address)
 		if err != nil {
 			time.Sleep(connectionDelay)
 			continue
@@ -578,8 +580,8 @@ func (p *ProcessLauncher) connectToPlugin(
 	}
 }
 
-func (p *ProcessLauncher) tryConnect(address string) (*grpc.ClientConn, error) {
-	return grpc.NewClient(address,
+func (p *ProcessLauncher) tryConnect(ctx context.Context, address string) (*grpc.ClientConn, error) {
+	return ax.GRPCDial(ctx, address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
 		grpc.WithUnaryInterceptor(TraceInterceptor()))
 }
