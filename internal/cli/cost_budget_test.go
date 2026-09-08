@@ -2,8 +2,11 @@ package cli
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"testing"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -492,4 +495,59 @@ func TestCostCmd_NilGlobalConfig(t *testing.T) {
 	// PersistentPreRunE should not panic or error with nil config
 	err = cmd.PersistentPreRunE(cmd, []string{})
 	assert.NoError(t, err, "should handle nil global config gracefully")
+}
+
+// TestToAxExitError verifies that toAxExitError preserves a BudgetExitError's
+// user-configured exit code (set via --exit-code, 0-255) through ax.ErrorExitCode,
+// the same resolution ax.Execute uses at the top of the process. This replaces
+// cmd/finfocus's former TestExtractBudgetExitCode now that exit-code resolution
+// happens inside ax.Execute rather than in main().
+func TestToAxExitError(t *testing.T) {
+	tests := []struct {
+		name         string
+		err          error
+		wantExitCode int
+		wantIsBudget bool
+	}{
+		{
+			name:         "BudgetExitError with exit code 2",
+			err:          &BudgetExitError{ExitCode: 2, Reason: "budget exceeded"},
+			wantExitCode: 2,
+			wantIsBudget: true,
+		},
+		{
+			name:         "BudgetExitError with exit code 42",
+			err:          &BudgetExitError{ExitCode: 42, Reason: "over limit"},
+			wantExitCode: 42,
+			wantIsBudget: true,
+		},
+		{
+			name:         "wrapped BudgetExitError",
+			err:          errors.Join(errors.New("outer"), &BudgetExitError{ExitCode: 3, Reason: "wrapped budget"}),
+			wantExitCode: 3,
+			wantIsBudget: true,
+		},
+		{
+			name:         "non-BudgetExitError falls through unchanged",
+			err:          errors.New("generic error"),
+			wantExitCode: ax.ExitInternal,
+			wantIsBudget: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			converted := toAxExitError(context.Background(), tt.err)
+			assert.Equal(t, tt.wantExitCode, ax.ErrorExitCode(converted))
+
+			var budgetErr *BudgetExitError
+			isBudget := errors.As(converted, &budgetErr)
+			assert.Equal(t, tt.wantIsBudget, isBudget,
+				"original *BudgetExitError should remain reachable via errors.As for backward compatibility")
+
+			if !tt.wantIsBudget {
+				assert.Same(t, tt.err, converted, "non-budget errors must pass through unchanged")
+			}
+		})
+	}
 }
