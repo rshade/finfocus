@@ -115,9 +115,9 @@ func TestSaveInstalledPlugins(t *testing.T) {
 	}
 
 	// Verify file was created
-	configPath := filepath.Join(tmpDir, ".finfocus", "config.yaml")
+	configPath := filepath.Join(tmpDir, ".finfocus", "config.hujson")
 	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		t.Error("config.yaml was not created")
+		t.Error("config.hujson was not created")
 	}
 
 	// Load and verify

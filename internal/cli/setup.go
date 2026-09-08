@@ -510,7 +510,7 @@ func StepCreateDirectories(baseDir string) []StepResult {
 
 // StepInitConfig initializes the default config file if one does not exist.
 func StepInitConfig(baseDir string) StepResult {
-	configPath := filepath.Join(baseDir, "config.yaml")
+	configPath := filepath.Join(baseDir, "config.hujson")
 
 	if _, err := os.Stat(configPath); err == nil {
 		return StepResult{

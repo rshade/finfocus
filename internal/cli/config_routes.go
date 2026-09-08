@@ -81,7 +81,14 @@ func loadRoutingContext(ctx context.Context) (*config.Config, string) {
 	cfg := config.NewWithProjectDir(ctx, projectDir)
 
 	if projectDir != "" {
-		projectCfgPath := filepath.Join(projectDir, "config.yaml")
+		projectCfgPath := filepath.Join(projectDir, "config.hujson")
+		if _, err := os.Stat(projectCfgPath); err != nil {
+			// Fall back to the legacy filename for projects not yet migrated.
+			legacyCfgPath := filepath.Join(projectDir, "config.yaml")
+			if _, legacyErr := os.Stat(legacyCfgPath); legacyErr == nil {
+				projectCfgPath = legacyCfgPath
+			}
+		}
 		if _, err := os.Stat(projectCfgPath); err == nil {
 			source = "project"
 			cfg.SetConfigPath(projectCfgPath)

@@ -77,10 +77,18 @@ func NewWithProjectDir(ctx context.Context, projectDir string) *Config {
 		return cfg
 	}
 
-	overlayPath := filepath.Join(projectDir, "config.yaml")
+	overlayPath := filepath.Join(projectDir, "config.hujson")
+
+	// Check if project config exists (new format or legacy format)
 	if _, err := os.Stat(overlayPath); err != nil {
-		// Missing project config is not an error — use global defaults.
-		return cfg
+		// New format doesn't exist, check for legacy YAML
+		legacyPath := filepath.Join(projectDir, "config.yaml")
+		if _, legacyErr := os.Stat(legacyPath); legacyErr != nil {
+			// Neither format exists - use global defaults
+			return cfg
+		}
+		// Legacy format exists, use it as overlay
+		overlayPath = legacyPath
 	}
 
 	cfgCopy := New()
@@ -98,20 +106,27 @@ func NewWithProjectDir(ctx context.Context, projectDir string) *Config {
 	return cfgCopy
 }
 
-// projectSkeletonYAML is the minimal template written by SaveProjectSkeleton.
+// projectSkeletonHujson is the minimal template written by SaveProjectSkeleton.
 // It contains only comments explaining the override structure, not actual config.
-const projectSkeletonYAML = `# FinFocus project configuration.
-# Only add keys you want to override from the global ~/.finfocus/config.yaml.
-# Keys absent here inherit from the global config (shallow merge by top-level key).
-#
-# Example overrides:
-# output:
-#   default_format: json
-# cost:
-#   budgets:
-#     global:
-#       amount: 1000
-#       currency: USD
+// Uses Hujson format to allow comments in the config file.
+const projectSkeletonHujson = `{
+  // FinFocus project configuration.
+  // Only add keys you want to override from the global ~/.finfocus/config.hujson.
+  // Keys absent here inherit from the global config (shallow merge by top-level key).
+  //
+  // Example overrides:
+  // "output": {
+  //   "default_format": "json"
+  // },
+  // "cost": {
+  //   "budgets": {
+  //     "global": {
+  //       "amount": 1000,
+  //       "currency": "USD"
+  //     }
+  //   }
+  // }
+}
 `
 
 // SaveProjectSkeleton writes a minimal project-level configuration file at the
@@ -123,7 +138,7 @@ func SaveProjectSkeleton(path string) error {
 		return fmt.Errorf("creating project config directory: %w", err)
 	}
 
-	return os.WriteFile(path, []byte(projectSkeletonYAML), 0o600)
+	return os.WriteFile(path, []byte(projectSkeletonHujson), 0o600)
 }
 
 // toAbsFinfocusDir converts dir to an absolute path and appends ".finfocus".

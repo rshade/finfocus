@@ -174,7 +174,7 @@ func TestSave_CreatesDirectory(t *testing.T) {
 func TestSave_CreatesFile(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
-	configPath := filepath.Join(finfocusDir, "config.yaml")
+	configPath := filepath.Join(finfocusDir, "config.hujson")
 
 	cfg := config.New()
 	cfg.Output.DefaultFormat = "json"

@@ -1,6 +1,8 @@
 package config
 
 import (
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -10,6 +12,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog/log"
+	"github.com/rshade/ax-go"
 	"gopkg.in/yaml.v3"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -35,6 +38,25 @@ func (d *Duration) UnmarshalYAML(value *yaml.Node) error {
 // MarshalYAML implements yaml.Marshaler for Duration.
 func (d Duration) MarshalYAML() (interface{}, error) {
 	return time.Duration(d).String(), nil
+}
+
+// UnmarshalJSON implements json.Unmarshaler for Duration.
+func (d *Duration) UnmarshalJSON(data []byte) error {
+	var s string
+	if err := json.Unmarshal(data, &s); err != nil {
+		return fmt.Errorf("invalid duration JSON: %w", err)
+	}
+	parsed, err := time.ParseDuration(s)
+	if err != nil {
+		return fmt.Errorf("invalid duration %q: %w", s, err)
+	}
+	*d = Duration(parsed)
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler for Duration.
+func (d Duration) MarshalJSON() ([]byte, error) {
+	return json.Marshal(time.Duration(d).String())
 }
 
 // Duration returns the underlying time.Duration value.
@@ -99,6 +121,23 @@ type OutputConfig struct {
 // PluginConfig defines plugin-specific configuration.
 type PluginConfig struct {
 	Config map[string]interface{} `yaml:",inline" json:",inline"`
+}
+
+// UnmarshalJSON implements json.Unmarshaler for PluginConfig.
+// It treats the entire JSON object as the Config map (simulating the YAML inline behavior).
+func (pc *PluginConfig) UnmarshalJSON(data []byte) error {
+	var m map[string]interface{}
+	if err := json.Unmarshal(data, &m); err != nil {
+		return err
+	}
+	pc.Config = m
+	return nil
+}
+
+// MarshalJSON implements json.Marshaler for PluginConfig.
+// It marshals the Config map directly (simulating the YAML inline behavior).
+func (pc PluginConfig) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pc.Config)
 }
 
 // LoggingConfig defines logging preferences.
@@ -232,7 +271,7 @@ func New() *Config {
 			},
 		},
 
-		configPath: filepath.Join(finfocusDir, "config.yaml"),
+		configPath: filepath.Join(finfocusDir, "config.hujson"),
 	}
 
 	// Check for strict mode
@@ -326,7 +365,7 @@ func NewStrict() (*Config, error) {
 			},
 		},
 
-		configPath: filepath.Join(finfocusDir, "config.yaml"),
+		configPath: filepath.Join(finfocusDir, "config.hujson"),
 	}
 
 	// Load from file with strict error handling
@@ -369,29 +408,95 @@ func (c *Config) ConfigPath() string {
 	return c.configPath
 }
 
-// Load loads configuration from the config file.
-func (c *Config) Load() error {
-	data, err := os.ReadFile(c.configPath)
+// migrateFromLegacyYAML checks for a legacy .yaml config file and migrates it to .hujson format.
+// If the new .hujson file doesn't exist but a legacy .yaml file does, it reads the YAML,
+// parses it into a map to preserve the original structure, and writes it as fresh JSON to the new path.
+// The legacy .yaml file is left in place (not deleted).
+// Returns an error only if a legacy file exists but is corrupted.
+func migrateFromLegacyYAML(configPath string) error {
+	if _, err := os.Stat(configPath); err == nil {
+		// New file exists, no migration needed
+		return nil
+	}
+
+	dir := filepath.Dir(configPath)
+	legacyPath := filepath.Join(dir, "config.yaml")
+
+	if _, err := os.Stat(legacyPath); err != nil {
+		// Legacy file doesn't exist either, that's fine
+		return nil //nolint:nilerr // Returning nil is intentional when legacy file doesn't exist
+	}
+
+	data, err := os.ReadFile(legacyPath)
 	if err != nil {
+		return fmt.Errorf("reading legacy YAML config: %w", err)
+	}
+
+	var yamlMap map[string]interface{}
+	if err := yaml.Unmarshal(data, &yamlMap); err != nil {
+		return fmt.Errorf("parsing corrupted legacy YAML config: %w", err)
+	}
+
+	jsonData, err := json.MarshalIndent(yamlMap, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshaling config to JSON: %w", err)
+	}
+
+	// Write to new .hujson path atomically (temp file + rename), matching Save()'s convention.
+	tmpPath := configPath + ".tmp"
+	if err := os.WriteFile(tmpPath, jsonData, 0600); err != nil {
+		return fmt.Errorf("writing new config file: %w", err)
+	}
+	if err := os.Rename(tmpPath, configPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("renaming migrated config file: %w", err)
+	}
+
+	return nil
+}
+
+// Load loads configuration from the config file.
+// It attempts to load from the .hujson file, and if it doesn't exist,
+// checks for a legacy .yaml file and migrates it automatically.
+// Returns an error if the config file cannot be parsed or if a legacy
+// file exists but is corrupted.
+func (c *Config) Load() error {
+	if err := migrateFromLegacyYAML(c.configPath); err != nil {
 		return err
 	}
 
-	return yaml.Unmarshal(data, c)
+	file, err := os.Open(c.configPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	return ax.ParseConfig(context.Background(), file, c)
 }
 
-// Save saves the current configuration to the config file.
+// Save saves the current configuration to the config file using JSON format.
+// It creates the directory if needed and performs an atomic write using a temp file.
 func (c *Config) Save() error {
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(c.configPath), 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	data, err := yaml.Marshal(c)
+	data, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	return os.WriteFile(c.configPath, data, 0600)
+	tmpPath := c.configPath + ".tmp"
+	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
+		return fmt.Errorf("failed to write config: %w", err)
+	}
+	if err := os.Rename(tmpPath, c.configPath); err != nil {
+		_ = os.Remove(tmpPath)
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	return nil
 }
 
 // Set sets a configuration value using dot notation.
