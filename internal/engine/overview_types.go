@@ -384,7 +384,7 @@ type StackContext struct {
 	HasChanges     bool      `json:"hasChanges"`
 	TotalResources int       `json:"totalResources"`
 	PendingChanges int       `json:"pendingChanges"`
-	GeneratedAt    time.Time `json:"generatedAt,omitempty"`
+	GeneratedAt    time.Time `json:"generatedAt,omitempty" ax:"nondeterministic"`
 	// IsStateOnly is true when no pulumi preview was run; costs reflect the current state only.
 	IsStateOnly bool `json:"isStateOnly,omitempty"`
 	// BudgetHealth provides a stack-level budget health summary for JSON output.

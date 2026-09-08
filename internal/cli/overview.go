@@ -16,6 +16,7 @@ import (
 	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -115,6 +116,10 @@ instead of running Pulumi CLI commands.`,
 	cmd.Flags().BoolVar(&params.stateOnly, "state-only", false,
 		"skip pulumi preview (faster, but won't detect pending changes)")
 	cmd.MarkFlagsMutuallyExclusive("state-only", "pulumi-json")
+
+	// StackContext.GeneratedAt (embedded via OverviewMetadata) varies between
+	// otherwise-identical runs; tell __schema not to expect byte-identical output.
+	ax.WithNonDeterministicFields[engine.OverviewJSONOutput](cmd)
 
 	return cmd
 }
@@ -343,7 +348,7 @@ func finalizeOverviewOutput(
 	costResults, totalCost := overviewRowsToBudgetInputs(rows)
 	if budgetErr := evaluateBudgetStatusWithoutRender(cmd, costResults, totalCost); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
-		return budgetErr
+		return toAxExitError(ctx, budgetErr)
 	}
 
 	return nil
