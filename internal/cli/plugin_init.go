@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -613,7 +614,7 @@ This command creates a new directory structure for plugin development including:
   finfocus plugin init my-plugin --author "Your Name" --providers aws --output-dir /path/to/plugins`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			opts.Name = args[0]
-			return RunPluginInit(cmd, &opts)
+			return RunPluginInit(cmd.Context(), cmd, &opts)
 		},
 	}
 
@@ -653,7 +654,7 @@ This command creates a new directory structure for plugin development including:
 // It returns an error if validation fails (invalid name or no providers), if the
 // project directory cannot be created, if file generation fails, or if the optional
 // fixture recording workflow fails when the Strict option is set.
-func RunPluginInit(cmd *cobra.Command, opts *PluginInitOptions) error {
+func RunPluginInit(ctx context.Context, cmd *cobra.Command, opts *PluginInitOptions) error {
 	// Validate plugin name
 	if !IsValidPluginName(opts.Name) {
 		return fmt.Errorf(
@@ -678,7 +679,7 @@ func RunPluginInit(cmd *cobra.Command, opts *PluginInitOptions) error {
 	cmd.Printf("Author: %s\n", opts.Author)
 	cmd.Printf("Supported providers: %s\n", strings.Join(opts.Providers, ", "))
 
-	// Generate project files
+	// Create generator for use in both rehearse and commit
 	generator := &projectGenerator{
 		name:       opts.Name,
 		author:     opts.Author,
@@ -687,49 +688,83 @@ func RunPluginInit(cmd *cobra.Command, opts *PluginInitOptions) error {
 		cmd:        cmd,
 	}
 
-	if err := generator.generateAll(); err != nil {
-		return fmt.Errorf("generating project files: %w", err)
+	// Rehearse: report the files that would be created
+	rehearse := func(_ context.Context) error {
+		cmd.Printf("\nWould create plugin project structure at %s\n", projectDir)
+		cmd.Printf("  - cmd/plugin/\n")
+		cmd.Printf("  - internal/pricing/\n")
+		cmd.Printf("  - internal/client/\n")
+		cmd.Printf("  - examples/\n")
+		cmd.Printf("  - bin/\n")
+		if opts.RecordFixtures {
+			cmd.Printf("  - testdata/recorded_requests/\n")
+		}
+		return nil
 	}
 
-	// Run fixture recording workflow if enabled
-	if opts.RecordFixtures {
-		cmd.Printf("\n📦 Setting up recorded fixtures...\n")
-
-		loggerPtr := logging.FromContext(cmd.Context())
-		if loggerPtr == nil {
-			// Fallback to a visible console logger if context doesn't have one
-			consoleWriter := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
-			logger := zerolog.New(consoleWriter).With().Timestamp().Logger()
-			logger.Warn().Msg("context logger not available, using fallback console logger")
-			loggerPtr = &logger
+	// Commit: actually generate the files
+	commit := func(ctx2 context.Context) error {
+		if err := generator.generateAll(); err != nil {
+			return fmt.Errorf("generating project files: %w", err)
 		}
 
-		if recordErr := runRecordingWorkflow(cmd.Context(), cmd, *loggerPtr, opts, projectDir); recordErr != nil {
-			if opts.Strict {
-				return fmt.Errorf("recording workflow failed: %w", recordErr)
+		if opts.RecordFixtures {
+			if err := recordPluginInitFixtures(ctx2, cmd, opts, projectDir); err != nil {
+				return err
 			}
-			cmd.Printf("⚠️  Recording workflow failed: %v\n", recordErr)
-			cmd.Printf("   Plugin initialized but without recorded fixtures.\n")
 		}
+
+		cmd.Printf("\n✅ Plugin project initialized successfully!\n\n")
+		cmd.Printf("Next steps:\n")
+		cmd.Printf("1. cd %s\n", projectDir)
+		cmd.Printf("2. go mod tidy\n")
+		cmd.Printf("3. make build\n")
+		cmd.Printf("4. Edit internal/pricing/calculator.go to implement your pricing logic\n")
+		cmd.Printf("5. Edit internal/client/client.go to implement your cloud provider client\n\n")
+
+		if opts.RecordFixtures {
+			testdataDir := filepath.Join(projectDir, "testdata", "recorded_requests")
+			if _, err := os.Stat(testdataDir); err == nil {
+				cmd.Printf("Recorded fixtures available at: %s\n", testdataDir)
+			}
+		}
+
+		cmd.Printf("For more information, see the README.md file in your project.\n")
+
+		return nil
 	}
 
-	cmd.Printf("\n✅ Plugin project initialized successfully!\n\n")
-	cmd.Printf("Next steps:\n")
-	cmd.Printf("1. cd %s\n", projectDir)
-	cmd.Printf("2. go mod tidy\n")
-	cmd.Printf("3. make build\n")
-	cmd.Printf("4. Edit internal/pricing/calculator.go to implement your pricing logic\n")
-	cmd.Printf("5. Edit internal/client/client.go to implement your cloud provider client\n\n")
+	return ax.Perform(ctx, rehearse, commit)
+}
 
-	if opts.RecordFixtures {
-		testdataDir := filepath.Join(projectDir, "testdata", "recorded_requests")
-		if _, err := os.Stat(testdataDir); err == nil {
-			cmd.Printf("Recorded fixtures available at: %s\n", testdataDir)
-		}
+// recordPluginInitFixtures runs the fixture-recording workflow for a newly
+// generated plugin project, extracted from RunPluginInit's commit path to
+// keep its cognitive complexity manageable. In non-strict mode a recording
+// failure is reported but does not fail the overall init.
+func recordPluginInitFixtures(
+	ctx context.Context,
+	cmd *cobra.Command,
+	opts *PluginInitOptions,
+	projectDir string,
+) error {
+	cmd.Printf("\n📦 Setting up recorded fixtures...\n")
+
+	loggerPtr := logging.FromContext(ctx)
+	if loggerPtr == nil {
+		// Fallback to a visible console logger if context doesn't have one
+		consoleWriter := zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}
+		logger := zerolog.New(consoleWriter).With().Timestamp().Logger()
+		logger.Warn().Msg("context logger not available, using fallback console logger")
+		loggerPtr = &logger
 	}
 
-	cmd.Printf("For more information, see the README.md file in your project.\n")
-
+	if recordErr := runRecordingWorkflow(ctx, cmd, *loggerPtr, opts, projectDir); recordErr != nil {
+		if opts.Strict {
+			return fmt.Errorf("recording workflow failed: %w", recordErr)
+		}
+		cmd.Printf("⚠️  Recording workflow failed: %v\n", recordErr)
+		cmd.Printf("   Plugin initialized but without recorded fixtures.\n")
+	}
 	return nil
 }
 

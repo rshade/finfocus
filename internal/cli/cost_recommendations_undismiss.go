@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/engine"
@@ -42,14 +44,31 @@ func executeUndismiss(cmd *cobra.Command, recommendationID string, force bool) e
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
 
-	// Confirmation prompt
-	if !force {
+	// Unify --force and global --yes
+	ctx = ax.WithApproval(ctx, force || ax.ApprovalFromContext(ctx))
+
+	// Get confirmation status
+	confirmSubject := fmt.Sprintf("undismiss recommendation %s", recommendationID)
+	outcome, confirmErr := ax.Confirm(ctx, confirmSubject)
+	if confirmErr != nil {
+		return confirmErr
+	}
+
+	// Handle confirmation outcomes
+	switch outcome {
+	case ax.ConfirmationBlocked:
+		// ax.Confirm returned a ready error - just propagate it
+		return confirmErr
+	case ax.ConfirmationPromptRequired:
+		// Need to do interactive prompt
 		cmd.PrintErrf("Undismiss recommendation %s?\n", recommendationID)
 		cmd.PrintErrln()
 		if !confirmWithReader(cmd, "Continue? [y/N]: ") {
 			cmd.PrintErrln("Undismiss cancelled.")
 			return nil
 		}
+	case ax.ConfirmationApproved:
+		// Already approved, proceed
 	}
 
 	// Load dismissal store
@@ -61,26 +80,31 @@ func executeUndismiss(cmd *cobra.Command, recommendationID string, force bool) e
 	// Create engine (no plugins needed for undismiss)
 	eng := engine.New(nil, nil)
 
-	// Execute undismiss
-	result, err := eng.UndismissRecommendation(ctx, store, recommendationID)
-	if err != nil {
-		return fmt.Errorf("undismissing recommendation: %w", err)
+	// Commit: execute the undismiss (wrapping in ax.Perform for dry-run support)
+	commit := func(ctx2 context.Context) error {
+		// Execute undismiss
+		result, err := eng.UndismissRecommendation(ctx2, store, recommendationID)
+		if err != nil {
+			return fmt.Errorf("undismissing recommendation: %w", err)
+		}
+
+		// Render result
+		if result.WasDismissed {
+			cmd.Printf("Recommendation %s has been undismissed.\n", result.RecommendationID)
+		} else {
+			cmd.Printf("Recommendation %s was not dismissed.\n", result.RecommendationID)
+		}
+
+		log.Info().
+			Ctx(ctx2).
+			Str("component", "cli").
+			Str("operation", "undismiss").
+			Str("recommendation_id", recommendationID).
+			Bool("was_dismissed", result.WasDismissed).
+			Msg("undismiss complete")
+
+		return nil
 	}
 
-	// Render result
-	if result.WasDismissed {
-		cmd.Printf("Recommendation %s has been undismissed.\n", result.RecommendationID)
-	} else {
-		cmd.Printf("Recommendation %s was not dismissed.\n", result.RecommendationID)
-	}
-
-	log.Info().
-		Ctx(ctx).
-		Str("component", "cli").
-		Str("operation", "undismiss").
-		Str("recommendation_id", recommendationID).
-		Bool("was_dismissed", result.WasDismissed).
-		Msg("undismiss complete")
-
-	return nil
+	return ax.Perform(ctx, nil, commit)
 }

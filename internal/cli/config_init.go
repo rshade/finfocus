@@ -1,11 +1,13 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -13,8 +15,8 @@ import (
 
 // NewConfigInitCmd creates the config init command for initializing configuration.
 // When run inside a Pulumi project (without --global), it creates a project-local
-// .finfocus/ directory with config.yaml and .gitignore. Otherwise, it creates the
-// global ~/.finfocus/config.yaml.
+// .finfocus/ directory with config.hujson and .gitignore. Otherwise, it creates the
+// global ~/.finfocus/config.hujson.
 func NewConfigInitCmd() *cobra.Command {
 	var (
 		force  bool
@@ -27,7 +29,7 @@ func NewConfigInitCmd() *cobra.Command {
 		Long: `Creates a new configuration file with default values.
 
 When run inside a Pulumi project, creates project-local configuration at
-$PROJECT/.finfocus/config.yaml with a .gitignore to protect user-specific data.
+$PROJECT/.finfocus/config.hujson with a .gitignore to protect user-specific data.
 Use --global to force global configuration initialization even inside a project.`,
 		Example: `  # Create project-local configuration (inside a Pulumi project)
   finfocus config init
@@ -38,13 +40,14 @@ Use --global to force global configuration initialization even inside a project.
   # Create configuration, overwriting existing
   finfocus config init --force`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
 			projectDir := config.GetResolvedProjectDir()
 
 			if projectDir != "" && !global {
-				return initProjectConfig(cmd, projectDir, force)
+				return initProjectConfig(ctx, cmd, projectDir, force)
 			}
 
-			return initGlobalConfig(cmd, force)
+			return initGlobalConfig(ctx, cmd, force)
 		},
 	}
 
@@ -54,9 +57,9 @@ Use --global to force global configuration initialization even inside a project.
 	return cmd
 }
 
-// initProjectConfig creates project-local config at projectDir/config.yaml with .gitignore.
-func initProjectConfig(cmd *cobra.Command, projectDir string, force bool) error {
-	configPath := filepath.Join(projectDir, "config.yaml")
+// initProjectConfig creates project-local config at projectDir/config.hujson with .gitignore.
+func initProjectConfig(ctx context.Context, cmd *cobra.Command, projectDir string, force bool) error {
+	configPath := filepath.Join(projectDir, "config.hujson")
 
 	// Check if config already exists and force isn't set
 	if !force {
@@ -69,34 +72,46 @@ func initProjectConfig(cmd *cobra.Command, projectDir string, force bool) error 
 		}
 	}
 
-	// Ensure the project .finfocus/ directory exists
-	if err := os.MkdirAll(projectDir, 0o750); err != nil {
-		return fmt.Errorf("failed to create project config directory: %w", err)
+	// Rehearse: report what would be written
+	rehearse := func(_ context.Context) error {
+		cmd.Printf("Would create configuration at %s\n", configPath)
+		cmd.Printf("  (with .gitignore to protect user-specific data)\n")
+		return nil
 	}
 
-	// Write a minimal project skeleton with only comments showing override keys.
-	// Unlike the global config (which writes all defaults), the project config
-	// should contain only overrides — absent keys inherit from ~/.finfocus/config.yaml.
-	if err := config.SaveProjectSkeleton(configPath); err != nil {
-		return fmt.Errorf("failed to save configuration: %w", err)
+	// Commit: actually create the config
+	commit := func(_ context.Context) error {
+		// Ensure the project .finfocus/ directory exists
+		if err := os.MkdirAll(projectDir, 0o750); err != nil {
+			return fmt.Errorf("failed to create project config directory: %w", err)
+		}
+
+		// Write a minimal project skeleton with only comments showing override keys.
+		// Unlike the global config (which writes all defaults), the project config
+		// should contain only overrides — absent keys inherit from ~/.finfocus/config.hujson.
+		if err := config.SaveProjectSkeleton(configPath); err != nil {
+			return fmt.Errorf("failed to save configuration: %w", err)
+		}
+
+		// Create .gitignore (never overwrites existing)
+		created, err := config.EnsureGitignore(projectDir)
+		if err != nil {
+			return fmt.Errorf("failed to create .gitignore: %w", err)
+		}
+
+		cmd.Printf("Configuration initialized at %s\n", configPath)
+		if created {
+			cmd.Printf("Created .gitignore to protect user-specific data\n")
+		}
+
+		return nil
 	}
 
-	// Create .gitignore (never overwrites existing)
-	created, err := config.EnsureGitignore(projectDir)
-	if err != nil {
-		return fmt.Errorf("failed to create .gitignore: %w", err)
-	}
-
-	cmd.Printf("Configuration initialized at %s\n", configPath)
-	if created {
-		cmd.Printf("Created .gitignore to protect user-specific data\n")
-	}
-
-	return nil
+	return ax.Perform(ctx, rehearse, commit)
 }
 
-// initGlobalConfig creates global config at ~/.finfocus/config.yaml.
-func initGlobalConfig(cmd *cobra.Command, force bool) error {
+// initGlobalConfig creates global config at ~/.finfocus/config.hujson.
+func initGlobalConfig(ctx context.Context, cmd *cobra.Command, force bool) error {
 	cfg := config.New()
 
 	// Check if config already exists and force isn't set
@@ -108,13 +123,24 @@ func initGlobalConfig(cmd *cobra.Command, force bool) error {
 		}
 	}
 
-	// Save the default configuration
-	if err := cfg.Save(); err != nil {
-		return fmt.Errorf("failed to save configuration: %w", err)
+	// Rehearse: report what would be created
+	rehearse := func(_ context.Context) error {
+		cmd.Printf("Would create configuration at %s\n", cfg.ConfigPath())
+		return nil
 	}
 
-	cmd.Printf("Configuration initialized successfully\n")
-	cmd.Printf("Configuration file: %s\n", cfg.ConfigPath())
+	// Commit: actually create the config
+	commit := func(_ context.Context) error {
+		// Save the default configuration
+		if err := cfg.Save(); err != nil {
+			return fmt.Errorf("failed to save configuration: %w", err)
+		}
 
-	return nil
+		cmd.Printf("Configuration initialized successfully\n")
+		cmd.Printf("Configuration file: %s\n", cfg.ConfigPath())
+
+		return nil
+	}
+
+	return ax.Perform(ctx, rehearse, commit)
 }

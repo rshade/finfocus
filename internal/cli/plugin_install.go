@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/registry"
@@ -264,54 +265,16 @@ func NewPluginInstallCmd() *cobra.Command {
 		Example: pluginInstallExample,
 		Args:    cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			specifier := args[0]
-
-			// Show security warning for URL installs
-			spec, err := registry.ParsePluginSpecifier(specifier)
-			if err != nil {
-				return fmt.Errorf("parsing plugin specifier %q: %w", specifier, err)
-			}
-
-			displaySecurityWarning(cmd, spec)
-
-			// Parse --metadata flags into map
-			metadataMap, metadataWarnings := parseMetadataFlags(metadata)
-			for _, w := range metadataWarnings {
-				cmd.Printf("Warning: %s\n", w)
-			}
-
-			// Create installer and install
-			installer := registry.NewInstaller(pluginDir)
-			opts := registry.InstallOptions{
-				Force:            force,
-				NoSave:           noSave,
-				PluginDir:        pluginDir,
-				FallbackToLatest: fallbackToLatest,
-				NoFallback:       noFallback,
-				Metadata:         metadataMap,
-				SkipChecksum:     skipChecksum,
-			}
-
-			progress := func(msg string) {
-				cmd.Printf("%s\n", msg)
-			}
-
-			// Try the initial installation
-			result, err := installer.Install(cmd.Context(), specifier, opts, progress)
-			if err != nil {
-				return handleInstallError(
-					cmd, installer, spec, opts, progress,
-					specifier, err, noFallback, fallbackToLatest, clean, pluginDir,
-				)
-			}
-
-			displayInstallResult(cmd, result)
-
-			if clean {
-				handleCleanup(cmd, installer, result, pluginDir, progress)
-			}
-
-			return nil
+			return runPluginInstall(cmd, args[0], pluginInstallParams{
+				force:            force,
+				noSave:           noSave,
+				pluginDir:        pluginDir,
+				clean:            clean,
+				fallbackToLatest: fallbackToLatest,
+				noFallback:       noFallback,
+				metadata:         metadata,
+				skipChecksum:     skipChecksum,
+			})
 		},
 	}
 
@@ -350,6 +313,90 @@ func NewPluginInstallCmd() *cobra.Command {
 	cmd.MarkFlagsMutuallyExclusive("fallback-to-latest", "no-fallback")
 
 	return cmd
+}
+
+// pluginInstallParams holds the flag values NewPluginInstallCmd collects,
+// passed through to runPluginInstall.
+type pluginInstallParams struct {
+	force            bool
+	noSave           bool
+	pluginDir        string
+	clean            bool
+	fallbackToLatest bool
+	noFallback       bool
+	metadata         []string
+	skipChecksum     bool
+}
+
+// runPluginInstall performs the "plugin install" command: it resolves the
+// plugin specifier, warns on URL installs, and installs the plugin, honoring
+// --dry-run via ax.Perform (rehearse validates without writing; commit
+// performs the real install).
+func runPluginInstall(cmd *cobra.Command, specifier string, p pluginInstallParams) error {
+	ctx := cmd.Context()
+
+	spec, err := registry.ParsePluginSpecifier(specifier)
+	if err != nil {
+		return fmt.Errorf("parsing plugin specifier %q: %w", specifier, err)
+	}
+
+	displaySecurityWarning(cmd, spec)
+
+	metadataMap, metadataWarnings := parseMetadataFlags(p.metadata)
+	for _, w := range metadataWarnings {
+		cmd.Printf("Warning: %s\n", w)
+	}
+
+	installer := registry.NewInstaller(p.pluginDir)
+	opts := registry.InstallOptions{
+		Force:            p.force,
+		NoSave:           p.noSave,
+		PluginDir:        p.pluginDir,
+		FallbackToLatest: p.fallbackToLatest,
+		NoFallback:       p.noFallback,
+		Metadata:         metadataMap,
+		SkipChecksum:     p.skipChecksum,
+	}
+
+	progress := func(msg string) {
+		cmd.Printf("%s\n", msg)
+	}
+
+	// Rehearse: resolve metadata and validate compatibility without installing
+	rehearse := func(_ context.Context) error {
+		cmd.Printf("Would install plugin %s\n", specifier)
+		if p.force {
+			cmd.Printf("  (will overwrite existing installation)\n")
+		}
+		if !p.noSave {
+			cmd.Printf("  (will add to config)\n")
+		}
+		if p.clean {
+			cmd.Printf("  (will remove other versions)\n")
+		}
+		return nil
+	}
+
+	// Commit: actually install the plugin
+	commit := func(ctx2 context.Context) error {
+		result, err := installer.Install(ctx2, specifier, opts, progress)
+		if err != nil {
+			return handleInstallError(
+				cmd, installer, spec, opts, progress,
+				specifier, err, p.noFallback, p.fallbackToLatest, p.clean, p.pluginDir,
+			)
+		}
+
+		displayInstallResult(cmd, result)
+
+		if p.clean {
+			handleCleanup(cmd, installer, result, p.pluginDir, progress)
+		}
+
+		return nil
+	}
+
+	return ax.Perform(ctx, rehearse, commit)
 }
 
 // errFallbackDeclined is returned when the user declines fallback in interactive mode.

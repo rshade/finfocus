@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -134,9 +135,24 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 		return errors.New("--note is required when reason is 'other'")
 	}
 
-	// Confirmation prompt
-	if !params.force {
-		reasonLabel := proto.DismissalReasonLabel(mustParseDismissalReason(params.reason))
+	// Unify --force and global --yes
+	ctx = ax.WithApproval(ctx, params.force || ax.ApprovalFromContext(ctx))
+
+	// Get confirmation status
+	reasonLabel := proto.DismissalReasonLabel(mustParseDismissalReason(params.reason))
+	confirmSubject := fmt.Sprintf("dismiss recommendation %s (%s)", recommendationID, reasonLabel)
+	outcome, confirmErr := ax.Confirm(ctx, confirmSubject)
+	if confirmErr != nil {
+		return confirmErr
+	}
+
+	// Handle confirmation outcomes
+	switch outcome {
+	case ax.ConfirmationBlocked:
+		// ax.Confirm returned a ready error - just propagate it
+		return confirmErr
+	case ax.ConfirmationPromptRequired:
+		// Need to do interactive prompt
 		cmd.PrintErrf("Dismiss recommendation %s?\n", recommendationID)
 		cmd.PrintErrf("  Reason: %s\n", reasonLabel)
 		if params.note != "" {
@@ -147,6 +163,8 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 			cmd.PrintErrln("Dismissal cancelled.")
 			return nil
 		}
+	case ax.ConfirmationApproved:
+		// Already approved, proceed
 	}
 
 	// Build dismiss request
@@ -169,25 +187,30 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 	}
 	defer cleanup()
 
-	// Execute dismissal
-	result, err := eng.DismissRecommendation(ctx, store, req)
-	if err != nil {
-		return fmt.Errorf("dismissing recommendation: %w", err)
+	// Commit: execute the dismissal (wrapping in ax.Perform for dry-run support)
+	commit := func(ctx2 context.Context) error {
+		// Execute dismissal
+		result, err := eng.DismissRecommendation(ctx2, store, req)
+		if err != nil {
+			return fmt.Errorf("dismissing recommendation: %w", err)
+		}
+
+		// Render result
+		renderDismissResult(cmd, result)
+
+		log.Info().
+			Ctx(ctx2).
+			Str("component", "cli").
+			Str("operation", "dismiss").
+			Str("recommendation_id", recommendationID).
+			Bool("plugin_dismissed", result.PluginDismissed).
+			Bool("local_persisted", result.LocalPersisted).
+			Msg("recommendation dismissed")
+
+		return nil
 	}
 
-	// Render result
-	renderDismissResult(cmd, result)
-
-	log.Info().
-		Ctx(ctx).
-		Str("component", "cli").
-		Str("operation", "dismiss").
-		Str("recommendation_id", recommendationID).
-		Bool("plugin_dismissed", result.PluginDismissed).
-		Bool("local_persisted", result.LocalPersisted).
-		Msg("recommendation dismissed")
-
-	return nil
+	return ax.Perform(ctx, nil, commit)
 }
 
 // executeSnooze handles the snooze subcommand logic.
@@ -211,9 +234,24 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 		return fmt.Errorf("invalid reason: %w", reasonErr)
 	}
 
-	// Confirmation prompt
-	if !params.force {
-		reasonLabel := proto.DismissalReasonLabel(mustParseDismissalReason(params.reason))
+	// Unify --force and global --yes
+	ctx = ax.WithApproval(ctx, params.force || ax.ApprovalFromContext(ctx))
+
+	// Get confirmation status
+	reasonLabel := proto.DismissalReasonLabel(mustParseDismissalReason(params.reason))
+	confirmSubject := fmt.Sprintf("snooze recommendation %s until %s", recommendationID, expiresAt.Format("2006-01-02"))
+	outcome, confirmErr := ax.Confirm(ctx, confirmSubject)
+	if confirmErr != nil {
+		return confirmErr
+	}
+
+	// Handle confirmation outcomes
+	switch outcome {
+	case ax.ConfirmationBlocked:
+		// ax.Confirm returned a ready error - just propagate it
+		return confirmErr
+	case ax.ConfirmationPromptRequired:
+		// Need to do interactive prompt
 		cmd.PrintErrf("Snooze recommendation %s?\n", recommendationID)
 		cmd.PrintErrf("  Until: %s\n", expiresAt.Format("2006-01-02"))
 		cmd.PrintErrf("  Reason: %s\n", reasonLabel)
@@ -225,6 +263,8 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 			cmd.PrintErrln("Snooze cancelled.")
 			return nil
 		}
+	case ax.ConfirmationApproved:
+		// Already approved, proceed
 	}
 
 	// Build dismiss request with expiry
@@ -248,25 +288,30 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 	}
 	defer cleanup()
 
-	// Execute snooze (dismiss with expiry)
-	result, err := eng.DismissRecommendation(ctx, store, req)
-	if err != nil {
-		return fmt.Errorf("snoozing recommendation: %w", err)
+	// Commit: execute the snooze (wrapping in ax.Perform for dry-run support)
+	commit := func(ctx2 context.Context) error {
+		// Execute snooze (dismiss with expiry)
+		result, err := eng.DismissRecommendation(ctx2, store, req)
+		if err != nil {
+			return fmt.Errorf("snoozing recommendation: %w", err)
+		}
+
+		// Render result
+		renderSnoozeResult(cmd, result, expiresAt)
+
+		log.Info().
+			Ctx(ctx2).
+			Str("component", "cli").
+			Str("operation", "snooze").
+			Str("recommendation_id", recommendationID).
+			Str("until", expiresAt.Format(time.RFC3339)).
+			Bool("plugin_dismissed", result.PluginDismissed).
+			Msg("recommendation snoozed")
+
+		return nil
 	}
 
-	// Render result
-	renderSnoozeResult(cmd, result, expiresAt)
-
-	log.Info().
-		Ctx(ctx).
-		Str("component", "cli").
-		Str("operation", "snooze").
-		Str("recommendation_id", recommendationID).
-		Str("until", expiresAt.Format(time.RFC3339)).
-		Bool("plugin_dismissed", result.PluginDismissed).
-		Msg("recommendation snoozed")
-
-	return nil
+	return ax.Perform(ctx, nil, commit)
 }
 
 // loadDismissalStore creates and loads the dismissal store.

@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/analyzer"
@@ -43,42 +45,56 @@ naming convention so that Pulumi can discover it automatically.`,
 				TargetDir: targetDir,
 			}
 
-			result, err := analyzer.Install(ctx, opts)
-			if err != nil {
-				return fmt.Errorf("install analyzer: %w", err)
-			}
-
-			switch result.Action {
-			case analyzer.ActionInstalled:
-				cmd.Printf("Analyzer installed successfully\n")
-				cmd.Printf("  Version: v%s\n", result.Version)
-				cmd.Printf("  Path: %s\n", result.Path)
-				cmd.Printf("  Method: %s\n", result.Method)
-				if result.PolicyPackDir != "" {
-					cmd.Printf("  Policy pack: %s\n", result.PolicyPackDir)
-					cmd.Printf("  Policy pack method: %s\n", result.PolicyPackMethod)
-					cmd.Printf("\nTo use the analyzer with pulumi preview:\n")
-					if runtime.GOOS == "windows" {
-						cmd.Printf("\n  PowerShell:  $env:PATH = \"%s;$env:PATH\"\n", result.PolicyPackDir)
-					} else {
-						cmd.Printf("\n  export PATH=\"%s:$PATH\"\n", result.PolicyPackDir)
-					}
-					cmd.Printf("\nThen run:\n")
-					cmd.Printf("\n  pulumi preview --policy-pack \"%s\"\n", result.PolicyPackDir)
+			// Rehearse: validate what would be done
+			rehearse := func(_ context.Context) error {
+				cmd.Printf("Would install Pulumi analyzer plugin\n")
+				if force {
+					cmd.Printf("  (will overwrite existing installation)\n")
 				}
-			case analyzer.ActionUpdateAvailable:
-				cmd.Printf("Analyzer already installed at v%s\n", result.Version)
-				cmd.Printf("  Path: %s\n", result.Path)
-				cmd.Printf("  Current finfocus version: v%s\n", result.CurrentVersion)
-				cmd.Printf("  Use --force to upgrade\n")
-			default:
-				// analyzer.ActionAlreadyCurrent
-				cmd.Printf("Analyzer already installed at v%s\n", result.Version)
-				cmd.Printf("  Path: %s\n", result.Path)
-				cmd.Printf("  Use --force to reinstall\n")
+				return nil
 			}
 
-			return nil
+			// Commit: actually install the analyzer
+			commit := func(ctx2 context.Context) error {
+				result, err := analyzer.Install(ctx2, opts)
+				if err != nil {
+					return fmt.Errorf("install analyzer: %w", err)
+				}
+
+				switch result.Action {
+				case analyzer.ActionInstalled:
+					cmd.Printf("Analyzer installed successfully\n")
+					cmd.Printf("  Version: v%s\n", result.Version)
+					cmd.Printf("  Path: %s\n", result.Path)
+					cmd.Printf("  Method: %s\n", result.Method)
+					if result.PolicyPackDir != "" {
+						cmd.Printf("  Policy pack: %s\n", result.PolicyPackDir)
+						cmd.Printf("  Policy pack method: %s\n", result.PolicyPackMethod)
+						cmd.Printf("\nTo use the analyzer with pulumi preview:\n")
+						if runtime.GOOS == "windows" {
+							cmd.Printf("\n  PowerShell:  $env:PATH = \"%s;$env:PATH\"\n", result.PolicyPackDir)
+						} else {
+							cmd.Printf("\n  export PATH=\"%s:$PATH\"\n", result.PolicyPackDir)
+						}
+						cmd.Printf("\nThen run:\n")
+						cmd.Printf("\n  pulumi preview --policy-pack \"%s\"\n", result.PolicyPackDir)
+					}
+				case analyzer.ActionUpdateAvailable:
+					cmd.Printf("Analyzer already installed at v%s\n", result.Version)
+					cmd.Printf("  Path: %s\n", result.Path)
+					cmd.Printf("  Current finfocus version: v%s\n", result.CurrentVersion)
+					cmd.Printf("  Use --force to upgrade\n")
+				default:
+					// analyzer.ActionAlreadyCurrent
+					cmd.Printf("Analyzer already installed at v%s\n", result.Version)
+					cmd.Printf("  Path: %s\n", result.Path)
+					cmd.Printf("  Use --force to reinstall\n")
+				}
+
+				return nil
+			}
+
+			return ax.Perform(ctx, rehearse, commit)
 		},
 	}
 

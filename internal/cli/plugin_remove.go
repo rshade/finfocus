@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/registry"
@@ -37,6 +39,7 @@ This will delete the plugin files and remove it from the configuration.`,
   finfocus plugin uninstall kubecost`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			name := args[0]
 
 			// Create installer
@@ -52,14 +55,27 @@ This will delete the plugin files and remove it from the configuration.`,
 				cmd.Printf("%s\n", msg)
 			}
 
-			// Remove
-			if err := installer.Remove(name, opts, progress); err != nil {
-				return fmt.Errorf("removing plugin %q: %w", name, err)
+			// Rehearse: report which files would be deleted
+			rehearse := func(_ context.Context) error {
+				cmd.Printf("Would remove plugin %q\n", name)
+				if !keepConfig {
+					cmd.Printf("  (plugin entry will also be removed from config)\n")
+				}
+				return nil
 			}
 
-			cmd.Printf("\n✓ Plugin %s removed successfully\n", name)
+			// Commit: actually remove the plugin
+			commit := func(_ context.Context) error {
+				if err := installer.Remove(name, opts, progress); err != nil {
+					return fmt.Errorf("removing plugin %q: %w", name, err)
+				}
 
-			return nil
+				cmd.Printf("\n✓ Plugin %s removed successfully\n", name)
+
+				return nil
+			}
+
+			return ax.Perform(ctx, rehearse, commit)
 		},
 	}
 
