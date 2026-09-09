@@ -293,7 +293,7 @@ func TestStepInitConfig(t *testing.T) {
 	assert.Contains(t, step.Message, "Initialized config")
 
 	// Verify the config file was created
-	configPath := filepath.Join(tmpDir, "config.yaml")
+	configPath := filepath.Join(tmpDir, "config.hujson")
 	assert.FileExists(t, configPath)
 }
 
@@ -303,7 +303,7 @@ func TestStepInitConfig_AlreadyExists(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
 	// Create a custom config
-	configPath := filepath.Join(tmpDir, "config.yaml")
+	configPath := filepath.Join(tmpDir, "config.hujson")
 	customContent := []byte("custom: true\n")
 	require.NoError(t, os.WriteFile(configPath, customContent, 0o600))
 
@@ -462,7 +462,7 @@ func TestSetupIdempotency(t *testing.T) {
 	assert.Contains(t, output1, "Setup complete!")
 
 	// Capture config content after first run
-	configPath := filepath.Join(tmpDir, "config.yaml")
+	configPath := filepath.Join(tmpDir, "config.hujson")
 	configData1, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 
@@ -526,7 +526,7 @@ func TestSetupSkipAnalyzer(t *testing.T) {
 	assert.NotContains(t, output, "Skipped plugin installation", "plugins should not be skipped")
 	// Directories and config should still be created
 	assert.DirExists(t, filepath.Join(tmpDir, "plugins"))
-	assert.FileExists(t, filepath.Join(tmpDir, "config.yaml"))
+	assert.FileExists(t, filepath.Join(tmpDir, "config.hujson"))
 }
 
 // TestSetupSkipPlugins verifies the --skip-plugins flag in isolation.
@@ -572,7 +572,7 @@ func TestSetupCombinedSkipFlags(t *testing.T) {
 	// Directories and config should still be created
 	assert.DirExists(t, tmpDir)
 	assert.DirExists(t, filepath.Join(tmpDir, "plugins"))
-	assert.FileExists(t, filepath.Join(tmpDir, "config.yaml"))
+	assert.FileExists(t, filepath.Join(tmpDir, "config.hujson"))
 }
 
 // --- US5 Custom Home Directory Tests ---
@@ -596,7 +596,7 @@ func TestSetupFinfocusHome(t *testing.T) {
 	assert.DirExists(t, filepath.Join(customDir, "plugins"))
 	assert.DirExists(t, filepath.Join(customDir, "cache"))
 	assert.DirExists(t, filepath.Join(customDir, "logs"))
-	assert.FileExists(t, filepath.Join(customDir, "config.yaml"))
+	assert.FileExists(t, filepath.Join(customDir, "config.hujson"))
 }
 
 // TestSetupPulumiHome verifies PULUMI_HOME fallback (when FINFOCUS_HOME is not set).
@@ -642,7 +642,7 @@ func TestSetupPartialExisting(t *testing.T) {
 	// All expected resources should exist
 	assert.DirExists(t, filepath.Join(tmpDir, "cache"))
 	assert.DirExists(t, filepath.Join(tmpDir, "logs"))
-	assert.FileExists(t, filepath.Join(tmpDir, "config.yaml"))
+	assert.FileExists(t, filepath.Join(tmpDir, "config.hujson"))
 }
 
 // TestSetupExitCodeWithWarnings verifies exit 0 when only warnings occur.

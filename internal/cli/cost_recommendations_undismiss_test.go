@@ -1,9 +1,10 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -35,17 +36,10 @@ func TestUndismissCmd_Flags(t *testing.T) {
 
 // T022: Test undismiss requires recommendation-id positional arg.
 func TestUndismissCmd_RequiresRecommendationID(t *testing.T) {
-	cmd := cli.NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
-
-	// Try to execute undismiss without recommendation ID
-	cmd.SetArgs([]string{"undismiss"})
-	err := cmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "accepts 1 arg")
+	root := cli.NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root, []string{"cost", "recommendations", "undismiss"})
+	require.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "accepts 1 arg")
 }
 
 // T022: Test --force flag parsing.

@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/registry"
@@ -29,7 +31,6 @@ import (
 // The command prints progress and summary information and returns an error if the update operation fails.
 func NewPluginUpdateCmd() *cobra.Command {
 	var (
-		dryRun       bool
 		version      string
 		pluginDir    string
 		skipChecksum bool
@@ -47,64 +48,14 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
   # Update to specific version
   finfocus plugin update kubecost --version v2.0.0
 
-  # Check what would be updated without making changes
+  # Preview update without making changes
   finfocus plugin update kubecost --dry-run`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			name := args[0]
-
-			// Create installer
-			installer := registry.NewInstaller(pluginDir)
-
-			opts := registry.UpdateOptions{
-				DryRun:       dryRun,
-				Version:      version,
-				PluginDir:    pluginDir,
-				SkipChecksum: skipChecksum,
-			}
-
-			// Progress callback
-			progress := func(msg string) {
-				cmd.Printf("%s\n", msg)
-			}
-
-			// Update
-			result, err := installer.Update(cmd.Context(), name, opts, progress)
-			if err != nil {
-				return fmt.Errorf("updating plugin %q: %w", name, err)
-			}
-
-			if result.WasUpToDate {
-				cmd.Printf(
-					"\n✓ Plugin %s is already up to date (%s)\n",
-					result.Name,
-					result.OldVersion,
-				)
-				return nil
-			}
-
-			if dryRun {
-				cmd.Printf(
-					"\n→ Would update %s from %s to %s\n",
-					result.Name,
-					result.OldVersion,
-					result.NewVersion,
-				)
-				return nil
-			}
-
-			cmd.Printf("\n✓ Plugin updated successfully\n")
-			cmd.Printf("  Name:        %s\n", result.Name)
-			cmd.Printf("  Old version: %s\n", result.OldVersion)
-			cmd.Printf("  New version: %s\n", result.NewVersion)
-			cmd.Printf("  Path:        %s\n", result.Path)
-
-			return nil
+			return runPluginUpdate(cmd, args[0], version, pluginDir, skipChecksum)
 		},
 	}
 
-	cmd.Flags().
-		BoolVar(&dryRun, "dry-run", false, "Show what would be updated without making changes")
 	cmd.Flags().
 		StringVar(&version, "version", "", "Specific version to update to (default: latest)")
 	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Custom plugin directory")
@@ -116,4 +67,64 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
 	)
 
 	return cmd
+}
+
+// runPluginUpdate performs the "plugin update" command: it resolves the
+// target version and updates the plugin, honoring --dry-run via ax.Perform
+// (rehearse reports what would change; commit performs the real update).
+func runPluginUpdate(cmd *cobra.Command, name, version, pluginDir string, skipChecksum bool) error {
+	ctx := cmd.Context()
+	dryRun := ax.DryRunFromContext(ctx)
+
+	installer := registry.NewInstaller(pluginDir)
+
+	opts := registry.UpdateOptions{
+		DryRun:       dryRun,
+		Version:      version,
+		PluginDir:    pluginDir,
+		SkipChecksum: skipChecksum,
+	}
+
+	progress := func(msg string) {
+		cmd.Printf("%s\n", msg)
+	}
+
+	// Rehearse: resolve the version and check compatibility without updating
+	rehearse := func(ctx2 context.Context) error {
+		result, err := installer.Update(ctx2, name, opts, progress)
+		if err != nil {
+			return fmt.Errorf("updating plugin %q: %w", name, err)
+		}
+
+		if result.WasUpToDate {
+			cmd.Printf("\n✓ Plugin %s is already up to date (%s)\n", result.Name, result.OldVersion)
+			return nil
+		}
+
+		cmd.Printf("\n→ Would update %s from %s to %s\n", result.Name, result.OldVersion, result.NewVersion)
+		return nil
+	}
+
+	// Commit: actually update the plugin
+	commit := func(ctx2 context.Context) error {
+		result, err := installer.Update(ctx2, name, opts, progress)
+		if err != nil {
+			return fmt.Errorf("updating plugin %q: %w", name, err)
+		}
+
+		if result.WasUpToDate {
+			cmd.Printf("\n✓ Plugin %s is already up to date (%s)\n", result.Name, result.OldVersion)
+			return nil
+		}
+
+		cmd.Printf("\n✓ Plugin updated successfully\n")
+		cmd.Printf("  Name:        %s\n", result.Name)
+		cmd.Printf("  Old version: %s\n", result.OldVersion)
+		cmd.Printf("  New version: %s\n", result.NewVersion)
+		cmd.Printf("  Path:        %s\n", result.Path)
+
+		return nil
+	}
+
+	return ax.Perform(ctx, rehearse, commit)
 }

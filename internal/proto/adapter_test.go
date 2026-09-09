@@ -3185,6 +3185,12 @@ func (m *mockPbcCostSourceServiceClient) BatchCost(
 	return &pbc.BatchCostResponse{}, nil
 }
 
+func (m *mockPbcCostSourceServiceClient) ResolveResourceTypes(
+	_ context.Context, _ *pbc.ResolveResourceTypesRequest, _ ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	return &pbc.ResolveResourceTypesResponse{}, nil
+}
+
 func TestClientAdapter_GetActualCost_EmptyPluginResponse(t *testing.T) {
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	endTime := time.Now().Unix()

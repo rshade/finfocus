@@ -220,7 +220,7 @@ func TestConfigRoutesListProjectLocal(t *testing.T) {
 
 	projectFinfocusDir := filepath.Join(t.TempDir(), ".finfocus")
 	projectCfg := config.New()
-	projectCfg.SetConfigPath(filepath.Join(projectFinfocusDir, "config.yaml"))
+	projectCfg.SetConfigPath(filepath.Join(projectFinfocusDir, "config.hujson"))
 	projectCfg.Routing = buildStandardRoutingConfig()
 	require.NoError(t, projectCfg.Save())
 
@@ -236,8 +236,8 @@ func TestConfigRoutesListProjectLocal(t *testing.T) {
 
 	output := buf.String()
 	assert.Contains(t, output, "(project)")
-	assert.Contains(t, output, filepath.Join(projectFinfocusDir, "config.yaml"))
-	assert.NotContains(t, output, filepath.Join(testHome, ".finfocus", "config.yaml"))
+	assert.Contains(t, output, filepath.Join(projectFinfocusDir, "config.hujson"))
+	assert.NotContains(t, output, filepath.Join(testHome, ".finfocus", "config.hujson"))
 }
 
 func TestConfigRoutesTestTable(t *testing.T) {

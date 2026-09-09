@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/analyzer"
@@ -49,16 +51,31 @@ versions of the analyzer.`,
 			// Get version before removing for output
 			ver, _ := analyzer.InstalledVersion(pluginDir)
 
-			if uninstallErr := analyzer.Uninstall(ctx, pluginDir); uninstallErr != nil {
-				return fmt.Errorf("uninstall analyzer: %w", uninstallErr)
+			// Rehearse: report what would be removed
+			rehearse := func(_ context.Context) error {
+				cmd.Printf("Would uninstall analyzer")
+				if ver != "" {
+					cmd.Printf(" v%s", ver)
+				}
+				cmd.Printf("\n")
+				return nil
 			}
 
-			cmd.Printf("Analyzer uninstalled successfully\n")
-			if ver != "" {
-				cmd.Printf("  Removed: v%s\n", ver)
+			// Commit: actually uninstall
+			commit := func(ctx2 context.Context) error {
+				if uninstallErr := analyzer.Uninstall(ctx2, pluginDir); uninstallErr != nil {
+					return fmt.Errorf("uninstall analyzer: %w", uninstallErr)
+				}
+
+				cmd.Printf("Analyzer uninstalled successfully\n")
+				if ver != "" {
+					cmd.Printf("  Removed: v%s\n", ver)
+				}
+
+				return nil
 			}
 
-			return nil
+			return ax.Perform(ctx, rehearse, commit)
 		},
 	}
 

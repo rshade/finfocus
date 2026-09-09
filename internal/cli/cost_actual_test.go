@@ -2,10 +2,12 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -468,15 +470,11 @@ func TestStackFlagExistsOnActual(t *testing.T) {
 	require.NotNil(t, stackFlag, "--stack flag should be on cost parent command")
 
 	// Verify it's accepted on actual subcommand
-	root.SetArgs([]string{"cost", "actual", "--stack", "production"})
-	var buf bytes.Buffer
-	root.SetOut(&buf)
-	root.SetErr(&buf)
+	result := axtest.Run(context.Background(), t, root, []string{"cost", "actual", "--stack", "production"})
 
-	execErr := root.Execute()
 	// Should fail from auto-detection, not unknown flag
-	require.Error(t, execErr)
-	assert.NotContains(t, execErr.Error(), "unknown flag")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.NotContains(t, string(result.Stderr), "unknown flag")
 }
 
 // TestStackFlagIgnoredWithPulumiStateOnActual verifies --stack is ignored when
@@ -485,19 +483,14 @@ func TestStackFlagIgnoredWithPulumiStateOnActual(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	root := cli.NewRootCmd("test")
-	root.SetArgs([]string{
+	result := axtest.Run(context.Background(), t, root, []string{
 		"cost", "actual",
 		"--pulumi-state", "../../test/fixtures/state/valid-state.json",
 		"--stack", "production",
 	})
 
-	var buf bytes.Buffer
-	root.SetOut(&buf)
-	root.SetErr(&buf)
-
-	err := root.Execute()
 	// Should succeed (state file exists and is valid), proving --stack was ignored
-	require.NoError(t, err)
+	require.Equal(t, 0, result.ExitCode)
 }
 
 func TestCostActualCmd_JobsFlag(t *testing.T) {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,7 +9,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// InstalledPlugin represents an installed plugin entry in config.yaml.
+// InstalledPlugin represents an installed plugin entry in config file.
 type InstalledPlugin struct {
 	Name    string `yaml:"name"    json:"name"`
 	URL     string `yaml:"url"     json:"url"`
@@ -20,25 +21,51 @@ type InstalledPluginsConfig struct {
 	InstalledPlugins []InstalledPlugin `yaml:"installed_plugins" json:"installed_plugins"`
 }
 
-// pluginsConfigPath returns the full path to the plugins configuration file at
-// $HOME/.finfocus/config.yaml. It returns an error if the current user's home
-// directory cannot be determined.
-func pluginsConfigPath() (string, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return "", fmt.Errorf("failed to get home directory: %w", err)
-	}
-	return filepath.Join(homeDir, ".finfocus", "config.yaml"), nil
+// pluginsConfigPath returns the full path to the plugins configuration file
+// following the same precedence as ResolveConfigDir(): FINFOCUS_HOME, PULUMI_HOME/finfocus, or ~/.finfocus.
+func pluginsConfigPath() string {
+	configDir := ResolveConfigDir()
+	return filepath.Join(configDir, "config.hujson")
 }
 
 // LoadInstalledPlugins loads the list of installed plugins from the config file.
-// It returns an empty list if the file does not exist, or an error if the YAML cannot be parsed.
+// It returns an empty list if the file does not exist, or an error if the JSON/Hujson cannot be parsed.
+//
+//nolint:gocognit,nestif // Function necessarily complex due to handling new format with legacy format fallback
 func LoadInstalledPlugins() ([]InstalledPlugin, error) {
-	configPath, err := pluginsConfigPath()
-	if err != nil {
-		return nil, err
+	configPath := pluginsConfigPath()
+
+	// Check if new format exists, and if not, try legacy format
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		// Check for legacy .yaml file
+		legacyPath := filepath.Join(filepath.Dir(configPath), "config.yaml")
+		if _, legacyErr := os.Stat(legacyPath); legacyErr == nil {
+			// Legacy file exists, try to read it
+			data, readErr := os.ReadFile(legacyPath)
+			if readErr != nil {
+				if os.IsNotExist(readErr) {
+					return []InstalledPlugin{}, nil
+				}
+				return nil, fmt.Errorf("failed to read legacy config: %w", readErr)
+			}
+
+			// Try to parse as JSON first, then YAML as fallback
+			var cfg InstalledPluginsConfig
+			if err := json.Unmarshal(data, &cfg); err != nil {
+				// JSON failed, try YAML
+				if err := yaml.Unmarshal(data, &cfg); err != nil {
+					// Both JSON and YAML failed - this is an error
+					return nil, fmt.Errorf("failed to parse legacy config: %w", err)
+				}
+			}
+			return cfg.InstalledPlugins, nil
+		}
+
+		// No file found at all
+		return []InstalledPlugin{}, nil
 	}
 
+	// Read the new format file
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -48,7 +75,7 @@ func LoadInstalledPlugins() ([]InstalledPlugin, error) {
 	}
 
 	var cfg InstalledPluginsConfig
-	if unmarshalErr := yaml.Unmarshal(data, &cfg); unmarshalErr != nil {
+	if unmarshalErr := json.Unmarshal(data, &cfg); unmarshalErr != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", unmarshalErr)
 	}
 
@@ -59,23 +86,19 @@ func LoadInstalledPlugins() ([]InstalledPlugin, error) {
 // It ensures the config directory exists, preserves other top-level config keys, updates the
 // `installed_plugins` entry, and performs an atomic write to the config file.
 // The `plugins` parameter is the full list of plugins to persist.
-// It returns an error if the config path cannot be determined, if marshaling or file operations fail.
+// It returns an error if marshaling or file operations fail.
 func SaveInstalledPlugins(plugins []InstalledPlugin) error {
-	configPath, err := pluginsConfigPath()
-	if err != nil {
-		return err
-	}
+	configPath := pluginsConfigPath()
 
 	// Ensure directory exists
-	err = os.MkdirAll(filepath.Dir(configPath), 0700)
-	if err != nil {
+	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
 	// Load existing config to preserve other settings
 	var fullConfig map[string]interface{}
 	if existingData, readErr := os.ReadFile(configPath); readErr == nil {
-		if unmarshalErr := yaml.Unmarshal(existingData, &fullConfig); unmarshalErr != nil {
+		if unmarshalErr := json.Unmarshal(existingData, &fullConfig); unmarshalErr != nil {
 			fullConfig = make(map[string]interface{})
 		}
 	}
@@ -86,8 +109,8 @@ func SaveInstalledPlugins(plugins []InstalledPlugin) error {
 	// Update installed_plugins
 	fullConfig["installed_plugins"] = plugins
 
-	// Marshal and save
-	data, err := yaml.Marshal(fullConfig)
+	// Marshal to JSON
+	data, err := json.MarshalIndent(fullConfig, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
@@ -199,11 +222,9 @@ func GetMissingPlugins() ([]InstalledPlugin, error) {
 		return nil, err
 	}
 
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get home directory: %w", err)
-	}
-	pluginsDir := filepath.Join(homeDir, ".finfocus", "plugins")
+	// Use ResolveConfigDir to determine the finfocus directory
+	configDir := ResolveConfigDir()
+	pluginsDir := filepath.Join(configDir, "plugins")
 
 	var missing []InstalledPlugin
 	for _, p := range plugins {

@@ -1,11 +1,12 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -68,15 +69,10 @@ func TestPluginConformanceCmd_RequiresArg(t *testing.T) {
 	require.NotNil(t, conformanceCmd)
 
 	// Execute without argument should fail
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "conformance"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "conformance"})
 
-	err = rootCmd.Execute()
-
-	assert.Error(t, err)
-	// Cobra should report missing argument
+	assert.NotEqual(t, 0, result.ExitCode)
+	// axtest.Run should indicate missing argument failure
 }
 
 func TestPluginConformanceCmd_InvalidMode(t *testing.T) {
@@ -90,15 +86,15 @@ func TestPluginConformanceCmd_InvalidMode(t *testing.T) {
 
 	rootCmd := cli.NewRootCmd("test")
 
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "conformance", "--mode", "invalid", pluginPath})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "conformance", "--mode", "invalid", pluginPath},
+	)
 
-	err = rootCmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid mode")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "invalid mode")
 }
 
 func TestPluginConformanceCmd_InvalidVerbosity(t *testing.T) {
@@ -112,15 +108,15 @@ func TestPluginConformanceCmd_InvalidVerbosity(t *testing.T) {
 
 	rootCmd := cli.NewRootCmd("test")
 
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "conformance", "--verbosity", "invalid", pluginPath})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "conformance", "--verbosity", "invalid", pluginPath},
+	)
 
-	err = rootCmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid verbosity")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "invalid verbosity")
 }
 
 func TestPluginConformanceCmd_InvalidOutput(t *testing.T) {
@@ -134,15 +130,15 @@ func TestPluginConformanceCmd_InvalidOutput(t *testing.T) {
 
 	rootCmd := cli.NewRootCmd("test")
 
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "conformance", "--output", "invalid", pluginPath})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "conformance", "--output", "invalid", pluginPath},
+	)
 
-	err = rootCmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid output format")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "invalid output format")
 }
 
 func TestPluginConformanceCmd_InvalidTimeout(t *testing.T) {
@@ -156,15 +152,15 @@ func TestPluginConformanceCmd_InvalidTimeout(t *testing.T) {
 
 	rootCmd := cli.NewRootCmd("test")
 
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "conformance", "--timeout", "invalid", pluginPath})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "conformance", "--timeout", "invalid", pluginPath},
+	)
 
-	err = rootCmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid timeout")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "invalid timeout")
 }
 
 func TestPluginConformanceCmd_InvalidCategory(t *testing.T) {
@@ -178,15 +174,15 @@ func TestPluginConformanceCmd_InvalidCategory(t *testing.T) {
 
 	rootCmd := cli.NewRootCmd("test")
 
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "conformance", "--category", "invalid", pluginPath})
+	result := axtest.Run(
+		context.Background(),
+		t,
+		rootCmd,
+		[]string{"plugin", "conformance", "--category", "invalid", pluginPath},
+	)
 
-	err = rootCmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid category")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "invalid category")
 }
 
 func TestPluginConformanceCmd_PluginNotFound(t *testing.T) {
@@ -194,15 +190,10 @@ func TestPluginConformanceCmd_PluginNotFound(t *testing.T) {
 
 	rootCmd := cli.NewRootCmd("test")
 
-	var outBuf, errBuf bytes.Buffer
-	rootCmd.SetOut(&outBuf)
-	rootCmd.SetErr(&errBuf)
-	rootCmd.SetArgs([]string{"plugin", "conformance", "/nonexistent/plugin"})
+	result := axtest.Run(context.Background(), t, rootCmd, []string{"plugin", "conformance", "/nonexistent/plugin"})
 
-	err := rootCmd.Execute()
-
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "plugin not found")
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "plugin not found")
 }
 
 func TestPluginConformanceCmd_CommandRegistered(t *testing.T) {

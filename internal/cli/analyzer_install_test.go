@@ -1,12 +1,13 @@
 package cli_test
 
 import (
-	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -18,17 +19,12 @@ func TestNewAnalyzerInstallCmd_FreshInstall(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
-	cmd := cli.NewAnalyzerInstallCmd()
+	root := cli.NewRootCmd("test-version")
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--target-dir", dir})
+	result := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result.ExitCode)
 
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	output := buf.String()
+	output := string(result.Stdout)
 	assert.Contains(t, output, "Analyzer installed successfully")
 	assert.Contains(t, output, "Version: v"+version.GetVersion())
 	assert.Contains(t, output, "Path:")
@@ -39,25 +35,17 @@ func TestNewAnalyzerInstallCmd_AlreadyInstalled_SameVersion(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
+	root := cli.NewRootCmd("test-version")
 
 	// Install first
-	cmd1 := cli.NewAnalyzerInstallCmd()
-	cmd1.SetOut(&bytes.Buffer{})
-	cmd1.SetErr(&bytes.Buffer{})
-	cmd1.SetArgs([]string{"--target-dir", dir})
-	require.NoError(t, cmd1.Execute())
+	result1 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result1.ExitCode)
 
 	// Install again
-	cmd2 := cli.NewAnalyzerInstallCmd()
-	var buf bytes.Buffer
-	cmd2.SetOut(&buf)
-	cmd2.SetErr(&buf)
-	cmd2.SetArgs([]string{"--target-dir", dir})
+	result2 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result2.ExitCode)
 
-	err := cmd2.Execute()
-	require.NoError(t, err)
-
-	output := buf.String()
+	output := string(result2.Stdout)
 	assert.Contains(t, output, "Analyzer already installed")
 	assert.Contains(t, output, "Use --force to reinstall")
 }
@@ -70,16 +58,11 @@ func TestNewAnalyzerInstallCmd_AlreadyInstalled_DifferentVersion(t *testing.T) {
 	// Simulate old version
 	require.NoError(t, os.MkdirAll(filepath.Join(dir, "analyzer-finfocus-v0.0.1"), 0o755))
 
-	cmd := cli.NewAnalyzerInstallCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--target-dir", dir})
+	root := cli.NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result.ExitCode)
 
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	output := buf.String()
+	output := string(result.Stdout)
 	assert.Contains(t, output, "Analyzer already installed at v0.0.1")
 	assert.Contains(t, output, "Current finfocus version: v"+version.GetVersion())
 	assert.Contains(t, output, "Use --force to upgrade")
@@ -97,16 +80,11 @@ func TestNewAnalyzerInstallCmd_ForceReinstall(t *testing.T) {
 	// referenceable from this external _test package). Keep in sync manually.
 	require.NoError(t, os.WriteFile(filepath.Join(oldDir, "pulumi-analyzer-finfocus"), []byte("old"), 0o755))
 
-	cmd := cli.NewAnalyzerInstallCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--target-dir", dir, "--force"})
+	root := cli.NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir, "--force"})
+	require.Equal(t, 0, result.ExitCode)
 
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	output := buf.String()
+	output := string(result.Stdout)
 	assert.Contains(t, output, "Analyzer installed successfully")
 }
 
@@ -129,17 +107,12 @@ func TestNewAnalyzerInstallCmd_TargetDirPropagation(t *testing.T) {
 	t.Parallel()
 
 	customDir := filepath.Join(t.TempDir(), "custom-location")
-	cmd := cli.NewAnalyzerInstallCmd()
+	root := cli.NewRootCmd("test-version")
 
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--target-dir", customDir})
+	result := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", customDir})
+	require.Equal(t, 0, result.ExitCode)
 
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	output := buf.String()
+	output := string(result.Stdout)
 	assert.Contains(t, output, customDir)
 }
 
@@ -148,16 +121,11 @@ func TestAnalyzerInstallCmd_PrintsPATHInstructions(t *testing.T) {
 	finfocusHome := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", finfocusHome)
 
-	cmd := cli.NewAnalyzerInstallCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--target-dir", dir})
+	root := cli.NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result.ExitCode)
 
-	err := cmd.Execute()
-	require.NoError(t, err)
-
-	output := buf.String()
+	output := string(result.Stdout)
 	policyPackDir := filepath.Join(finfocusHome, "analyzer")
 
 	// Generic message should appear regardless of OS
@@ -177,22 +145,17 @@ func TestAnalyzerInstallCmd_NoPATHOnNoOp(t *testing.T) {
 	finfocusHome := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", finfocusHome)
 
-	installCmd := cli.NewAnalyzerInstallCmd()
-	installCmd.SetOut(&bytes.Buffer{})
-	installCmd.SetErr(&bytes.Buffer{})
-	installCmd.SetArgs([]string{"--target-dir", dir})
-	require.NoError(t, installCmd.Execute())
+	root := cli.NewRootCmd("test-version")
 
-	noopCmd := cli.NewAnalyzerInstallCmd()
-	var buf bytes.Buffer
-	noopCmd.SetOut(&buf)
-	noopCmd.SetErr(&buf)
-	noopCmd.SetArgs([]string{"--target-dir", dir})
+	// First install
+	result1 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result1.ExitCode)
 
-	err := noopCmd.Execute()
-	require.NoError(t, err)
+	// Second install (no-op)
+	result2 := axtest.Run(context.Background(), t, root, []string{"analyzer", "install", "--target-dir", dir})
+	require.Equal(t, 0, result2.ExitCode)
 
-	output := buf.String()
+	output := string(result2.Stdout)
 	assert.NotContains(t, output, "To use the analyzer with pulumi preview")
 	assert.NotContains(t, output, "export PATH=")
 	assert.NotContains(t, output, "pulumi preview --policy-pack")
@@ -212,13 +175,13 @@ func TestNewAnalyzerInstallCmd_ErrorOnInvalidDir(t *testing.T) {
 		_ = os.Chmod(readOnlyDir, 0o755)
 	})
 
-	cmd := cli.NewAnalyzerInstallCmd()
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	cmd.SetErr(&buf)
-	cmd.SetArgs([]string{"--target-dir", filepath.Join(readOnlyDir, "nested")})
-
-	err := cmd.Execute()
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "install analyzer")
+	root := cli.NewRootCmd("test-version")
+	result := axtest.Run(
+		context.Background(),
+		t,
+		root,
+		[]string{"analyzer", "install", "--target-dir", filepath.Join(readOnlyDir, "nested")},
+	)
+	require.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "install analyzer")
 }

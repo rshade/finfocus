@@ -293,7 +293,7 @@ func estimateResponseToCostResult(resp *pbc.EstimateCostResponse, resource *Reso
 		notes = append(notes, fmt.Sprintf("Spot risk: %.2f", resp.GetSpotInterruptionRiskScore()))
 	}
 
-	return &CostResult{
+	result := &CostResult{
 		ResourceType: resource.Type,
 		ResourceID:   resource.ID,
 		Currency:     currency,
@@ -301,6 +301,13 @@ func estimateResponseToCostResult(resp *pbc.EstimateCostResponse, resource *Reso
 		Hourly:       hourly,
 		Notes:        strings.Join(notes, "; "),
 	}
+
+	if ts := resp.GetExpiresAt(); ts != nil {
+		expiresAt := ts.AsTime()
+		result.ExpiresAt = &expiresAt
+	}
+
+	return result
 }
 
 // estimateCostFallback calculates cost estimation using two GetProjectedCost calls.

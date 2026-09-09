@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/rshade/ax-go"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
 )
@@ -79,11 +80,9 @@ type GitHubClient struct {
 func NewGitHubClient() *GitHubClient {
 	token := getGitHubToken()
 	return &GitHubClient{
-		HTTPClient: &http.Client{
-			Timeout: downloadTimeout,
-		},
-		BaseURL: "https://api.github.com",
-		token:   token,
+		HTTPClient: ax.NewHTTPClient(ax.WithHTTPTimeout(downloadTimeout)),
+		BaseURL:    "https://api.github.com",
+		token:      token,
 	}
 }
 
@@ -307,10 +306,14 @@ func retryBackoff(ctx context.Context, attempt int) error {
 	}
 }
 
+// maxFetchReleaseAttempts is the number of retry attempts fetchRelease makes
+// before giving up.
+const maxFetchReleaseAttempts = 3
+
 // fetchRelease fetches release data with retry logic.
 func (c *GitHubClient) fetchRelease(ctx context.Context, url string) (*GitHubRelease, error) {
 	var lastErr error
-	for attempt := range 3 {
+	for attempt := range maxFetchReleaseAttempts {
 		if err := retryBackoff(ctx, attempt); err != nil {
 			return nil, err
 		}
@@ -359,7 +362,7 @@ func (c *GitHubClient) fetchRelease(ctx context.Context, url string) (*GitHubRel
 		_ = resp.Body.Close()
 		return &release, nil
 	}
-	return nil, fmt.Errorf("failed after 3 attempts: %w", lastErr)
+	return nil, fmt.Errorf("failed after %d attempts: %w", maxFetchReleaseAttempts, lastErr)
 }
 
 // FindPlatformAsset locates the release asset matching the current OS and architecture for the given project.

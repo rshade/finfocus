@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/pluginhost"
@@ -679,7 +680,7 @@ func TestTryEstimateCostRPC_CurrencyPassthrough(t *testing.T) {
 }
 
 // TestTryEstimateCostRPC_NilExpiresAt verifies that ExpiresAt remains nil
-// since the EstimateCostResponse proto lacks an expires_at field.
+// when the plugin doesn't set expires_at on the EstimateCostResponse.
 func TestTryEstimateCostRPC_NilExpiresAt(t *testing.T) {
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
@@ -708,8 +709,47 @@ func TestTryEstimateCostRPC_NilExpiresAt(t *testing.T) {
 	require.NotNil(t, result)
 
 	assert.False(t, result.UsedFallback)
-	assert.Nil(t, result.Baseline.ExpiresAt, "ExpiresAt should be nil: EstimateCostResponse proto lacks expires_at")
-	assert.Nil(t, result.Modified.ExpiresAt, "ExpiresAt should be nil: EstimateCostResponse proto lacks expires_at")
+	assert.Nil(t, result.Baseline.ExpiresAt, "ExpiresAt should be nil: response did not set expires_at")
+	assert.Nil(t, result.Modified.ExpiresAt, "ExpiresAt should be nil: response did not set expires_at")
+}
+
+// TestTryEstimateCostRPC_PopulatedExpiresAt verifies that ExpiresAt is
+// extracted from the EstimateCostResponse's expires_at cache hint (added in
+// finfocus-spec v0.6.1) onto both the baseline and modified CostResult.
+func TestTryEstimateCostRPC_PopulatedExpiresAt(t *testing.T) {
+	expiry := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			return &pbc.EstimateCostResponse{
+				Currency:    "USD",
+				CostMonthly: 10.0,
+				ExpiresAt:   timestamppb.New(expiry),
+			}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-exp-set",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+
+	assert.False(t, result.UsedFallback)
+	require.NotNil(t, result.Baseline.ExpiresAt)
+	require.NotNil(t, result.Modified.ExpiresAt)
+	assert.True(t, expiry.Equal(*result.Baseline.ExpiresAt))
+	assert.True(t, expiry.Equal(*result.Modified.ExpiresAt))
 }
 
 // TestEstimateCost_FallbackOnUnimplemented verifies that when a plugin returns

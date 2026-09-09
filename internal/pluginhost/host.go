@@ -196,6 +196,8 @@ func ConvertCapabilities(caps []pbc.PluginCapability) []string {
 			result = append(result, "dismiss_recommendations")
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST:
 			result = append(result, "batch_cost")
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_RESOLVE_RESOURCE_TYPES:
+			result = append(result, "resolve_resource_types")
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED:
 			// Skip unspecified - not a real capability
 			continue

@@ -48,7 +48,7 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 	}
 
 	result := logging.NewLoggerWithPath(loggingCfg.ToLoggingConfig())
-	logger = logging.ComponentLogger(result.Logger, "cli")
+	logger := logging.ComponentLogger(result.Logger, "cli")
 
 	if !suppressAuxOutputFromContext(cmd.Context()) {
 		if result.UsingFile {

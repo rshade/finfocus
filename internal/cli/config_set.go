@@ -1,8 +1,10 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -13,7 +15,7 @@ func NewConfigSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set <key> <value>",
 		Short: "Set a configuration value",
-		Long: `Sets a configuration value using dot notation. The configuration will be saved to ~/.finfocus/config.yaml.
+		Long: `Sets a configuration value using dot notation. The configuration will be saved to ~/.finfocus/config.hujson.
 
 For sensitive values like API keys or credentials, use environment variables instead:
   export FINFOCUS_PLUGIN_AWS_SECRET_KEY="mysecret"
@@ -35,12 +37,13 @@ For sensitive values like API keys or credentials, use environment variables ins
   export FINFOCUS_PLUGIN_AWS_SECRET_KEY="mysecret"`,
 		Args: cobra.ExactArgs(2), //nolint:mnd // Exactly 2 args: key and value
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			key := args[0]
 			value := args[1]
 
 			cfg := config.New()
 
-			// Set the value
+			// Set the value in memory
 			if err := cfg.Set(key, value); err != nil {
 				return fmt.Errorf("failed to set config value: %w", err)
 			}
@@ -50,14 +53,24 @@ For sensitive values like API keys or credentials, use environment variables ins
 				return fmt.Errorf("configuration validation failed: %w", err)
 			}
 
-			// Save the configuration
-			if err := cfg.Save(); err != nil {
-				return fmt.Errorf("failed to save config: %w", err)
+			// Rehearse: report what would be set
+			rehearse := func(_ context.Context) error {
+				cmd.Printf("Would set: %s = %s\n", key, value)
+				return nil
 			}
 
-			cmd.Printf("Configuration updated: %s = %s\n", key, value)
+			// Commit: save the configuration
+			commit := func(_ context.Context) error {
+				if err := cfg.Save(); err != nil {
+					return fmt.Errorf("failed to save config: %w", err)
+				}
 
-			return nil
+				cmd.Printf("Configuration updated: %s = %s\n", key, value)
+
+				return nil
+			}
+
+			return ax.Perform(ctx, rehearse, commit)
 		},
 	}
 

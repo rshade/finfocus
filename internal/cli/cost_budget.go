@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"image/color"
 	"io"
@@ -13,6 +14,8 @@ import (
 	"golang.org/x/term"
 	"golang.org/x/text/language"
 	"golang.org/x/text/message"
+
+	"github.com/rshade/ax-go"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
@@ -812,6 +815,22 @@ type BudgetExitError struct {
 
 func (e *BudgetExitError) Error() string {
 	return e.Reason
+}
+
+// toAxExitError converts a *BudgetExitError into an *ax.Error carrying the same
+// user-configured exit code (0-255, set via the --exit-code flag), so the code
+// survives ax.Execute's exit-code resolution instead of being forced into ax's
+// default ExitInternal bucket. Non-budget errors are returned unchanged. The
+// original *BudgetExitError is preserved as the cause, so existing callers doing
+// errors.As(err, &budgetErr) against the command's returned error keep working.
+func toAxExitError(ctx context.Context, err error) error {
+	var budgetErr *BudgetExitError
+	if !errors.As(err, &budgetErr) {
+		return err
+	}
+	return ax.NewError(ctx, "budget_exceeded", budgetErr.Reason,
+		ax.WithErrorExitCode(budgetErr.ExitCode),
+		ax.WithErrorCause(budgetErr))
 }
 
 // checkBudgetExit evaluates whether the CLI should exit based on budget status.

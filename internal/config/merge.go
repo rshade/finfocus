@@ -1,14 +1,18 @@
 package config
 
 import (
+	"bytes"
+	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 
+	"github.com/rshade/ax-go"
 	"gopkg.in/yaml.v3"
 )
 
-// Top-level YAML config key names used for shallow merge.
+// Top-level config key names used for shallow merge.
 const (
 	keyOutput     = "output"
 	keyPlugins    = "plugins"
@@ -33,23 +37,38 @@ var knownTopLevelKeys = map[string]bool{
 	keyRouting:    true,
 }
 
-// ShallowMergeYAML loads a YAML file and merges its top-level keys onto
-// the target Config. Keys present in the overlay replace entire sections
-// in the target. Keys absent in the overlay are left unchanged.
+// ShallowMergeYAML loads a Hujson/JSON file (or legacy YAML for backward compatibility)
+// and merges its top-level keys onto the target Config. Keys present in the overlay
+// replace entire sections in the target. Keys absent in the overlay are left unchanged.
 func ShallowMergeYAML(target *Config, overlayPath string) error {
 	if target == nil {
 		return errors.New("nil target *Config in ShallowMergeYAML")
 	}
 
+	// Read the overlay file
 	data, err := os.ReadFile(overlayPath)
 	if err != nil {
 		return fmt.Errorf("reading overlay file %s: %w", overlayPath, err)
 	}
 
-	// Discover which top-level keys are present in the overlay.
-	var overlay map[string]any
-	if err = yaml.Unmarshal(data, &overlay); err != nil {
-		return fmt.Errorf("parsing overlay YAML from %s: %w", overlayPath, err)
+	// Try to parse as Hujson/JSON first (ax.ParseConfig strips comments and
+	// trailing commas before delegating to encoding/json, so a genuine Hujson
+	// overlay - like the skeleton SaveProjectSkeleton writes - parses here;
+	// plain json.Unmarshal would reject its "//" comments outright).
+	var overlay map[string]json.RawMessage
+	if err := ax.ParseConfig(context.Background(), bytes.NewReader(data), &overlay); err != nil {
+		// Hujson/JSON parsing failed, try YAML as fallback for legacy files
+		var yamlOverlay map[string]interface{}
+		if yamlErr := yaml.Unmarshal(data, &yamlOverlay); yamlErr != nil {
+			return fmt.Errorf("parsing overlay file from %s (tried Hujson and YAML): %w", overlayPath, yamlErr)
+		}
+		// Convert YAML map to JSON RawMessage map
+		overlay = make(map[string]json.RawMessage)
+		for key, value := range yamlOverlay {
+			if jsonBytes, marshalErr := json.Marshal(value); marshalErr == nil {
+				overlay[key] = jsonBytes
+			}
+		}
 	}
 
 	// Empty or comment-only file: nothing to merge.
@@ -57,19 +76,12 @@ func ShallowMergeYAML(target *Config, overlayPath string) error {
 		return nil
 	}
 
-	for key, value := range overlay {
+	for key, rawValue := range overlay {
 		if !knownTopLevelKeys[key] {
 			continue
 		}
 
-		// Re-marshal the single section so we can unmarshal it onto the
-		// strongly-typed target field.
-		sectionBytes, marshalErr := yaml.Marshal(value)
-		if marshalErr != nil {
-			return fmt.Errorf("re-marshalling overlay section %q: %w", key, marshalErr)
-		}
-
-		if err = unmarshalSection(target, key, sectionBytes); err != nil {
+		if err = unmarshalSection(target, key, rawValue); err != nil {
 			return fmt.Errorf("applying overlay section %q: %w", key, err)
 		}
 	}
@@ -77,57 +89,57 @@ func ShallowMergeYAML(target *Config, overlayPath string) error {
 	return nil
 }
 
-// unmarshalSection unmarshals raw YAML bytes into the correct field of target
+// unmarshalSection unmarshals raw JSON bytes into the correct field of target
 // based on the given key name. Each section is unmarshalled into a fresh
-// zero-value to ensure complete replacement (yaml.Unmarshal merges into
+// zero-value to ensure complete replacement (json.Unmarshal merges into
 // existing maps, which would violate shallow-merge semantics).
 func unmarshalSection(target *Config, key string, data []byte) error {
 	switch key {
 	case keyOutput:
 		var v OutputConfig
-		if err := yaml.Unmarshal(data, &v); err != nil {
+		if err := json.Unmarshal(data, &v); err != nil {
 			return err
 		}
 		target.Output = v
 		return nil
 	case keyPlugins:
 		var v map[string]PluginConfig
-		if err := yaml.Unmarshal(data, &v); err != nil {
+		if err := json.Unmarshal(data, &v); err != nil {
 			return err
 		}
 		target.Plugins = v
 		return nil
 	case keyLogging:
 		var v LoggingConfig
-		if err := yaml.Unmarshal(data, &v); err != nil {
+		if err := json.Unmarshal(data, &v); err != nil {
 			return err
 		}
 		target.Logging = v
 		return nil
 	case keyAnalyzer:
 		var v AnalyzerConfig
-		if err := yaml.Unmarshal(data, &v); err != nil {
+		if err := json.Unmarshal(data, &v); err != nil {
 			return err
 		}
 		target.Analyzer = v
 		return nil
 	case keyPluginHost:
 		var v PluginHostConfig
-		if err := yaml.Unmarshal(data, &v); err != nil {
+		if err := json.Unmarshal(data, &v); err != nil {
 			return err
 		}
 		target.PluginHostConfig = v
 		return nil
 	case keyCost:
 		var v CostConfig
-		if err := yaml.Unmarshal(data, &v); err != nil {
+		if err := json.Unmarshal(data, &v); err != nil {
 			return err
 		}
 		target.Cost = v
 		return nil
 	case keyRouting:
 		var v RoutingConfig
-		if err := yaml.Unmarshal(data, &v); err != nil {
+		if err := json.Unmarshal(data, &v); err != nil {
 			return err
 		}
 		target.Routing = &v

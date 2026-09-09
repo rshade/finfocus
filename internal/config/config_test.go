@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -98,30 +99,6 @@ func TestGetOutputFormat(t *testing.T) {
 		result := GetOutputFormat("")
 		assert.Equal(t, "table", result)
 	})
-}
-
-func TestSetLogLevel(t *testing.T) {
-	// Reset logger to known state
-	_ = InitLogger("info", false)
-
-	t.Run("sets valid log level", func(t *testing.T) {
-		SetLogLevel("debug")
-		logger := GetLogger()
-		// Note: We can't easily test the internal level without exposing it
-		// But we can verify the function doesn't panic
-		assert.NotNil(t, logger)
-	})
-
-	t.Run("defaults to info for invalid level", func(t *testing.T) {
-		SetLogLevel("invalid-level")
-		logger := GetLogger()
-		assert.NotNil(t, logger)
-	})
-}
-
-func TestGetLogger(t *testing.T) {
-	logger := GetLogger()
-	assert.NotNil(t, logger)
 }
 
 func TestConfig_SetGetValues(t *testing.T) {
@@ -1211,4 +1188,66 @@ func TestConfig_PluginDirYAMLKey(t *testing.T) {
 
 	assert.Equal(t, "/yaml/plugin/path", cfg.PluginDir,
 		"plugin_dir YAML key must set PluginDir when loaded from config file")
+}
+
+// TestMigrateFromLegacyYAML covers migrateFromLegacyYAML's branches directly:
+// new-file-exists no-op, neither-file-exists no-op, a successful migration
+// that preserves the legacy file, and the corrupted-legacy-YAML error path.
+func TestMigrateFromLegacyYAML(t *testing.T) {
+	t.Run("new file already exists is a no-op", func(t *testing.T) {
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "config.hujson")
+		require.NoError(t, os.WriteFile(configPath, []byte(`{"foo": "bar"}`), 0600))
+
+		err := migrateFromLegacyYAML(configPath)
+
+		require.NoError(t, err)
+		data, readErr := os.ReadFile(configPath)
+		require.NoError(t, readErr)
+		assert.JSONEq(t, `{"foo": "bar"}`, string(data), "existing new-format file must be left untouched")
+	})
+
+	t.Run("neither file exists is a no-op", func(t *testing.T) {
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "config.hujson")
+
+		err := migrateFromLegacyYAML(configPath)
+
+		require.NoError(t, err)
+		_, statErr := os.Stat(configPath)
+		assert.True(t, os.IsNotExist(statErr), "no config file should be created when neither exists")
+	})
+
+	t.Run("valid legacy YAML is migrated and preserved", func(t *testing.T) {
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "config.hujson")
+		legacyPath := filepath.Join(dir, "config.yaml")
+		require.NoError(t, os.WriteFile(legacyPath, []byte("plugin_dir: /legacy/plugins\n"), 0600))
+
+		err := migrateFromLegacyYAML(configPath)
+		require.NoError(t, err)
+
+		migrated, readErr := os.ReadFile(configPath)
+		require.NoError(t, readErr)
+		var got map[string]interface{}
+		require.NoError(t, json.Unmarshal(migrated, &got))
+		assert.Equal(t, "/legacy/plugins", got["plugin_dir"])
+
+		_, legacyStatErr := os.Stat(legacyPath)
+		assert.NoError(t, legacyStatErr, "legacy YAML file must be left in place, not deleted")
+	})
+
+	t.Run("corrupted legacy YAML returns an error", func(t *testing.T) {
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "config.hujson")
+		legacyPath := filepath.Join(dir, "config.yaml")
+		require.NoError(t, os.WriteFile(legacyPath, []byte("plugin_dir: [unterminated\n"), 0600))
+
+		err := migrateFromLegacyYAML(configPath)
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "parsing corrupted legacy YAML config")
+		_, statErr := os.Stat(configPath)
+		assert.True(t, os.IsNotExist(statErr), "no new config file should be written when migration fails")
+	})
 }

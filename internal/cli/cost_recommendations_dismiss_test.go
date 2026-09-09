@@ -1,10 +1,11 @@
 package cli
 
 import (
-	"bytes"
+	"context"
 	"testing"
 	"time"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -59,63 +60,47 @@ func TestDismissCmd_Flags(t *testing.T) {
 
 // T008: Test dismiss requires reason flag.
 func TestDismissCmd_RequiresReason(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
+	root := NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"cost", "recommendations", "dismiss", "rec-123"})
 
-	// Try to execute dismiss without reason
-	cmd.SetArgs([]string{"dismiss", "rec-123"})
-	err := cmd.Execute()
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "reason")
+	require.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "reason")
 }
 
 // T008: Test dismiss requires recommendation-id positional arg.
 func TestDismissCmd_RequiresRecommendationID(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
+	root := NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"cost", "recommendations", "dismiss", "--reason", "business-constraint"})
 
-	// Try to execute dismiss without recommendation ID
-	cmd.SetArgs([]string{"dismiss", "--reason", "business-constraint"})
-	err := cmd.Execute()
-
-	require.Error(t, err)
+	require.NotEqual(t, 0, result.ExitCode)
 	// Should fail due to missing positional arg
-	assert.Contains(t, err.Error(), "accepts 1 arg")
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "accepts 1 arg")
 }
 
 // T008: Test "other" reason requires --note.
 func TestDismissCmd_OtherRequiresNote(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
+	root := NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"cost", "recommendations", "dismiss", "rec-123", "--reason", "other", "--force"})
 
-	// Execute dismiss with "other" reason but no note
-	cmd.SetArgs([]string{"dismiss", "rec-123", "--reason", "other", "--force"})
-	err := cmd.Execute()
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "note")
+	require.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "note")
 }
 
 // T008: Test invalid reason validation.
 func TestDismissCmd_InvalidReason(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
+	root := NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"cost", "recommendations", "dismiss", "rec-123", "--reason", "invalid-reason", "--force"})
 
-	// Execute dismiss with invalid reason
-	cmd.SetArgs([]string{"dismiss", "rec-123", "--reason", "invalid-reason", "--force"})
-	err := cmd.Execute()
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid reason")
+	require.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "invalid reason")
 }
 
 // T008: Test all valid reasons are accepted (parsing only).
@@ -132,18 +117,14 @@ func TestDismissCmd_ValidReasons(t *testing.T) {
 
 	for _, reason := range validReasons {
 		t.Run(reason, func(t *testing.T) {
-			cmd := NewCostRecommendationsCmd()
-			var outBuf, errBuf bytes.Buffer
-			cmd.SetOut(&outBuf)
-			cmd.SetErr(&errBuf)
-
-			// Execute with valid reason (will fail later due to no store, but parsing should work)
-			cmd.SetArgs([]string{"dismiss", "rec-123", "--reason", reason, "--force"})
-			err := cmd.Execute()
+			root := NewRootCmd("test-version")
+			result := axtest.Run(context.Background(), t, root,
+				[]string{"cost", "recommendations", "dismiss", "rec-123", "--reason", reason, "--force"})
 
 			// Should not fail with "invalid reason" - may fail later with store error
-			if err != nil {
-				assert.NotContains(t, err.Error(), "invalid reason",
+			if result.ExitCode != 0 {
+				stderr := string(result.Stderr)
+				assert.NotContains(t, stderr, "invalid reason",
 					"reason %s should be valid", reason)
 			}
 		})
@@ -209,68 +190,55 @@ func TestSnoozeCmd_Flags(t *testing.T) {
 
 // T015: Test snooze requires --until flag.
 func TestSnoozeCmd_RequiresUntil(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
+	root := NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"cost", "recommendations", "snooze", "rec-123"})
 
-	// Try to execute snooze without until
-	cmd.SetArgs([]string{"snooze", "rec-123"})
-	err := cmd.Execute()
-
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "until")
+	require.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "until")
 }
 
 // T015: Test snooze validates future date (FR-012).
 func TestSnoozeCmd_RejectsPastDate(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
-
 	// Use a date in the past
 	pastDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-	cmd.SetArgs([]string{"snooze", "rec-123", "--until", pastDate, "--force"})
-	err := cmd.Execute()
+	root := NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"cost", "recommendations", "snooze", "rec-123", "--until", pastDate, "--force"})
 
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "future")
+	require.NotEqual(t, 0, result.ExitCode)
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "future")
 }
 
 // T015: Test snooze accepts YYYY-MM-DD format.
 func TestSnoozeCmd_AcceptsYYYYMMDD(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
-
 	// Use valid future date in YYYY-MM-DD format
 	futureDate := time.Now().AddDate(0, 1, 0).Format("2006-01-02")
-	cmd.SetArgs([]string{"snooze", "rec-123", "--until", futureDate, "--force"})
-	err := cmd.Execute()
+	root := NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"cost", "recommendations", "snooze", "rec-123", "--until", futureDate, "--force"})
 
 	// May fail with store error, but should not fail with date parsing error
-	if err != nil {
-		assert.NotContains(t, err.Error(), "parsing time")
+	if result.ExitCode != 0 {
+		stderr := string(result.Stderr)
+		assert.NotContains(t, stderr, "parsing time")
 	}
 }
 
 // T015: Test snooze accepts RFC3339 format.
 func TestSnoozeCmd_AcceptsRFC3339(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
-
 	// Use valid future date in RFC3339 format
 	futureDate := time.Now().AddDate(0, 1, 0).Format(time.RFC3339)
-	cmd.SetArgs([]string{"snooze", "rec-123", "--until", futureDate, "--force"})
-	err := cmd.Execute()
+	root := NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"cost", "recommendations", "snooze", "rec-123", "--until", futureDate, "--force"})
 
 	// May fail with store error, but should not fail with date parsing error
-	if err != nil {
-		assert.NotContains(t, err.Error(), "parsing time")
+	if result.ExitCode != 0 {
+		stderr := string(result.Stderr)
+		assert.NotContains(t, stderr, "parsing time")
 	}
 }
 
@@ -316,16 +284,12 @@ func TestSnoozeCmd_ResnoozeAllowed_CLIParsing(t *testing.T) {
 
 // T015: Test snooze rejects invalid date format.
 func TestSnoozeCmd_RejectsInvalidDateFormat(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
-	var outBuf, errBuf bytes.Buffer
-	cmd.SetOut(&outBuf)
-	cmd.SetErr(&errBuf)
+	root := NewRootCmd("test-version")
+	result := axtest.Run(context.Background(), t, root,
+		[]string{"cost", "recommendations", "snooze", "rec-123", "--until", "not-a-date", "--force"})
 
-	// Use invalid date format
-	cmd.SetArgs([]string{"snooze", "rec-123", "--until", "not-a-date", "--force"})
-	err := cmd.Execute()
-
-	require.Error(t, err)
+	require.NotEqual(t, 0, result.ExitCode)
 	// Should fail with date format error
-	assert.Contains(t, err.Error(), "invalid date format")
+	stderr := string(result.Stderr)
+	assert.Contains(t, stderr, "invalid date format")
 }

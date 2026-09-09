@@ -510,7 +510,7 @@ finfocus config set output.format json
 
 finfocus config get cost.budgets.amount
 
-finfocus config list [--format json|yaml]
+finfocus config list [--as json|yaml]
 
 finfocus config validate [--verbose]
 

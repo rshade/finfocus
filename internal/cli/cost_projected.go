@@ -206,7 +206,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	totalCost := sumMonthlyCosts(resultWithErrors.Results)
 	if budgetErr := evaluateBudgetStatus(cmd, resultWithErrors.Results, totalCost); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
-		return budgetErr
+		return toAxExitError(ctx, budgetErr)
 	}
 	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
 	return nil
