@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Go 1.25.8+ (see `go.mod`)
+- Go 1.27.1+ (see `go.mod`)
 - Existing BoltDB dependency (`go.etcd.io/bbolt`) already in `go.mod`
 - Familiarity with `internal/engine/cache/store.go` (reference implementation)
 

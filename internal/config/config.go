@@ -16,8 +16,6 @@ import (
 )
 
 // Duration is a wrapper around time.Duration that supports YAML/JSON parsing.
-//
-//nolint:recvcheck // MarshalYAML returns value, UnmarshalYAML needs pointer - this is standard YAML pattern
 type Duration time.Duration
 
 // UnmarshalYAML implements yaml.Unmarshaler for Duration.

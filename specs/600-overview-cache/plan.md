@@ -12,7 +12,7 @@ is needed; this is a wiring-only change.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.8
+**Language/Version**: Go 1.27.1
 **Primary Dependencies**: `github.com/charmbracelet/bubbletea`, `go.etcd.io/bbolt` (via existing cache infrastructure)
 **Storage**: BoltDB cache (existing `internal/engine/cache/store.go`)
 **Testing**: `go test` with `testify/assert` and `testify/require`

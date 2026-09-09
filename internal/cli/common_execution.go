@@ -766,6 +766,7 @@ func convertEngineStateToHistoryState(resources []engine.StateResource) []histor
 			CloudID:  r.ID,
 			Type:     r.Type,
 			Provider: extractProviderFromType(r.Type),
+			Tags:     history.ExtractTagsFromProperties(r.Properties),
 		})
 	}
 	return result

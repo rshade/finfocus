@@ -14,7 +14,7 @@ twice per estimation.
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.8 (see `go.mod`)
+**Language/Version**: Go 1.27.1 (see `go.mod`)
 **Primary Dependencies**: finfocus-spec v0.6.0 (proto definitions), gRPC, Cobra, zerolog
 **Storage**: N/A (no new persistent state)
 **Testing**: `go test` with testify assertions, mocked gRPC clients

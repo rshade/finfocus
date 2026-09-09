@@ -17,7 +17,7 @@ lineage, analyzer events) and one enhanced read path (actual cost queries).
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.8 (see `go.mod`)
+**Language/Version**: Go 1.27.1 (see `go.mod`)
 **Primary Dependencies**: BoltDB (`go.etcd.io/bbolt` — already in `go.mod`),
 Cobra, zerolog
 **Storage**: BoltDB at `~/.finfocus/history/history.db` (separate from cache)

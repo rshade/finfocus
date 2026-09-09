@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Go 1.25.8+
+- Go 1.27.1+
 - `make build` succeeds
 - At least one plugin installed (for plugin list testing)
 

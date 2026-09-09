@@ -9,7 +9,7 @@ Implement the BatchCost RPC consumer in finfocus core to send multiple resource 
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.8 (see `go.mod`)
+**Language/Version**: Go 1.27.1 (see `go.mod`)
 **Primary Dependencies**: finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging)
 **Storage**: BoltDB cost cache (`~/.finfocus/cache/cache.db`) — batch results cached per-resource independently
 **Testing**: Go testing with testify (`require`/`assert`), table-driven tests, mock gRPC clients

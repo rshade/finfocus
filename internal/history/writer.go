@@ -53,10 +53,10 @@ func copyTags(src map[string]string) map[string]string {
 	return dst
 }
 
-// extractTagsFromProperties extracts a flat tag map from a resource properties map.
+// ExtractTagsFromProperties extracts a flat tag map from a resource properties map.
 // It checks "tagsAll" first (AWS complete tag set including default tags), then "tags".
 // Returns an empty map when properties is nil or contains no recognised tag keys.
-func extractTagsFromProperties(properties map[string]any) map[string]string {
+func ExtractTagsFromProperties(properties map[string]any) map[string]string {
 	if properties == nil {
 		return make(map[string]string)
 	}
@@ -226,7 +226,7 @@ func (w *Writer) RecordAnalyzerEvent(stackCtx StackContext, event AnalyzerResour
 		FirstSeen: now,
 		LastSeen:  now,
 		Source:    SourceAnalyzerEvent,
-		Tags:      extractTagsFromProperties(event.Properties),
+		Tags:      ExtractTagsFromProperties(event.Properties),
 	}
 
 	if err := w.store.Upsert(stackCtx.Hash(), entry); err != nil {

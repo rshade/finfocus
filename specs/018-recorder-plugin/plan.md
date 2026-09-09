@@ -11,7 +11,7 @@ Implement a reference "Recorder" plugin within finfocus-core that captures all g
 
 ## Technical Context
 
-**Language/Version**: Go 1.25.8
+**Language/Version**: Go 1.27.1
 **Primary Dependencies**:
 
 - `github.com/rshade/finfocus-spec v0.4.6+` (pluginsdk, protobuf definitions)

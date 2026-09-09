@@ -10,7 +10,7 @@ when serving a FinFocus plugin.
 
 ## Prerequisites
 
-- Go 1.25.8+
+- Go 1.27.1+
 - `github.com/rshade/finfocus-spec/sdk/go/pluginsdk` v0.2.0+
 
 ## Basic Usage

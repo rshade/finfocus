@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-- Go 1.25.8 installed
+- Go 1.27.1 installed
 - Repository cloned and on `592-reliability-quality-fixes` branch
 - `make build` succeeds
 

@@ -33,7 +33,7 @@ This is a reference implementation of a FinFocus plugin for AWS cost calculation
 
 ### Prerequisites
 
-- Go 1.26.5+
+- Go 1.27.1+
 - FinFocus Core development environment
 
 ### Build the Plugin

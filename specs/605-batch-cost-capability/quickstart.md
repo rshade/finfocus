@@ -6,7 +6,7 @@
 ## Prerequisites
 
 - finfocus-spec v0.5.7+ dependency upgraded (issue #844)
-- Go 1.25.7+
+- Go 1.27.1+
 
 ## Implementation Steps
 

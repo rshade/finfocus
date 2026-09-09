@@ -1293,11 +1293,11 @@ func (c *clientAdapter) GetProjectedCost(
 
 	if len(results) == 0 && firstErr != nil {
 		return &GetProjectedCostResponse{
-				Results: results,
-			}, fmt.Errorf(
-				"projected cost query failed: %w",
-				firstErr,
-			)
+			Results: results,
+		}, fmt.Errorf(
+			"projected cost query failed: %w",
+			firstErr,
+		)
 	}
 	return &GetProjectedCostResponse{Results: results}, nil
 }
@@ -1363,11 +1363,11 @@ func (c *clientAdapter) GetActualCost(
 
 	if len(results) == 0 && firstErr != nil {
 		return &GetActualCostResponse{
-				Results: results,
-			}, fmt.Errorf(
-				"actual cost query failed: %w",
-				firstErr,
-			)
+			Results: results,
+		}, fmt.Errorf(
+			"actual cost query failed: %w",
+			firstErr,
+		)
 	}
 	return &GetActualCostResponse{Results: results}, nil
 }
