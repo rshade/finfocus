@@ -15,7 +15,7 @@ func NewConfigSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set <key> <value>",
 		Short: "Set a configuration value",
-		Long: `Sets a configuration value using dot notation. The configuration will be saved to ~/.finfocus/config.yaml.
+		Long: `Sets a configuration value using dot notation. The configuration will be saved to ~/.finfocus/config.hujson.
 
 For sensitive values like API keys or credentials, use environment variables instead:
   export FINFOCUS_PLUGIN_AWS_SECRET_KEY="mysecret"

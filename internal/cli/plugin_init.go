@@ -829,7 +829,7 @@ func (g *projectGenerator) generateGoMod() error {
 go 1.27.1
 
 require (
-	github.com/rshade/finfocus-spec v0.4.1
+	github.com/rshade/finfocus-spec v0.6.1
 	google.golang.org/grpc v1.77.0
 )
 `, g.name)

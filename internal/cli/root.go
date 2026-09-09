@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rs/zerolog"
 	"github.com/rshade/ax-go/mcp"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -19,9 +18,6 @@ import (
 func isTerminal(f *os.File) bool {
 	return term.IsTerminal(int(f.Fd()))
 }
-
-// logger is the package-level logger for CLI operations.
-var logger zerolog.Logger //nolint:gochecknoglobals // Required for zerolog context integration
 
 // NewRootCmd creates the root Cobra command for the finfocus CLI.
 // It wires up logging, tracing, audit logging, and subcommands (cost, plugin, config, analyzer, overview, setup).

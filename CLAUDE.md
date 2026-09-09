@@ -258,8 +258,8 @@ checks, non-critical validations.
   0=success, 1=generic/internal error (ax `ExitInternal`), and a user-configurable code (default 1,
   0-255 via `cost --exit-code`/`--exit-on-threshold`) for budget-exceeded, preserved through
   `ax.Execute` via `internal/cli.toAxExitError`. `ax.ExitValidation`(2)/`ExitNetwork`(3)/`ExitAuth`(4)
-  are reserved additively for new error classifications (see `internal/logging/errors.go`), not
-  retrofitted onto existing exit-1 paths.
+  are ax-go's own reserved exit codes for new error classifications, not yet used anywhere in
+  finfocus, and not retrofitted onto existing exit-1 paths.
 - `internal/engine/engine.go` - Core orchestration
 - `internal/pluginhost/host.go` - Plugin client management
 - `internal/ingest/pulumi_plan.go` - Pulumi plan parsing

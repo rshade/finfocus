@@ -13,7 +13,7 @@ require (
 	github.com/pulumi/pulumi/sdk/v3 v3.250.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.6.0
-	github.com/rshade/finfocus-spec v0.6.0
+	github.com/rshade/finfocus-spec v0.6.1
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	go.etcd.io/bbolt v1.5.0
