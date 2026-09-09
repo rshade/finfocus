@@ -1,0 +1,8 @@
+{
+  // Preserve application extensions and installed plugin records when saving.
+  "custom": {"enabled": true},
+  "output": {"default_format": "json", "precision": 4},
+  "installed_plugins": [
+    {"name": "test-plugin", "url": "https://example.com/plugin", "version": "v1.0.0"},
+  ],
+}

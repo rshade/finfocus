@@ -65,9 +65,14 @@ func ShallowMergeYAML(target *Config, overlayPath string) error {
 		// Convert YAML map to JSON RawMessage map
 		overlay = make(map[string]json.RawMessage)
 		for key, value := range yamlOverlay {
-			if jsonBytes, marshalErr := json.Marshal(value); marshalErr == nil {
-				overlay[key] = jsonBytes
+			if !knownTopLevelKeys[key] {
+				continue
 			}
+			jsonBytes, marshalErr := json.Marshal(value)
+			if marshalErr != nil {
+				return fmt.Errorf("converting overlay section %q to JSON: %w", key, marshalErr)
+			}
+			overlay[key] = jsonBytes
 		}
 	}
 

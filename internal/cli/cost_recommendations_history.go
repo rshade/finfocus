@@ -45,6 +45,15 @@ func executeHistory(cmd *cobra.Command, recommendationID string, output string) 
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
 
+	// Validate before loading any state: a recommendation with no recorded
+	// history returns early below, which would otherwise let an invalid
+	// --output value exit 0 silently.
+	switch output {
+	case outputFormatTable, outputFormatJSON, outputFormatNDJSON:
+	default:
+		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", output)
+	}
+
 	// Load dismissal store
 	store, err := loadDismissalStore()
 	if err != nil {
@@ -82,6 +91,8 @@ func executeHistory(cmd *cobra.Command, recommendationID string, output string) 
 	case outputFormatTable:
 		return renderHistoryTable(cmd, recommendationID, events)
 	default:
+		// Unreachable: the check at the top of this function rejects anything
+		// else. Fail closed if a format is allowed there without a render arm.
 		return fmt.Errorf("unsupported output format: %s", output)
 	}
 }

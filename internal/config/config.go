@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -100,8 +101,11 @@ type Config struct {
 	// If nil, automatic provider-based routing is used (FR-023 backward compatibility).
 	Routing *RoutingConfig `yaml:"routing,omitempty" json:"routing,omitempty"`
 
+	InstalledPlugins []InstalledPlugin `yaml:"installed_plugins,omitempty" json:"installed_plugins,omitempty"`
+
 	// Internal fields
 	configPath string
+	extraKeys  map[string]json.RawMessage
 }
 
 // PluginHostConfig defines plugin host behavior settings.
@@ -128,7 +132,10 @@ type PluginConfig struct {
 func (pc *PluginConfig) UnmarshalJSON(data []byte) error {
 	var m map[string]interface{}
 	if err := json.Unmarshal(data, &m); err != nil {
-		return err
+		return fmt.Errorf("parsing plugins configuration section: %w", err)
+	}
+	if m == nil {
+		m = make(map[string]interface{})
 	}
 	pc.Config = m
 	return nil
@@ -137,6 +144,9 @@ func (pc *PluginConfig) UnmarshalJSON(data []byte) error {
 // MarshalJSON implements json.Marshaler for PluginConfig.
 // It marshals the Config map directly (simulating the YAML inline behavior).
 func (pc PluginConfig) MarshalJSON() ([]byte, error) {
+	if pc.Config == nil {
+		return json.Marshal(map[string]interface{}{})
+	}
 	return json.Marshal(pc.Config)
 }
 
@@ -281,9 +291,9 @@ func New() *Config {
 	// Load from file if exists
 	if err := cfg.Load(); err != nil {
 		switch {
-		case os.IsNotExist(err):
+		case errors.Is(err, fs.ErrNotExist):
 			// Config file doesn't exist - this is fine, use defaults
-		case os.IsPermission(err):
+		case errors.Is(err, fs.ErrPermission):
 			// Permission error - warn but continue (or fail in strict mode)
 			if strictMode {
 				panic(fmt.Sprintf("STRICT MODE: Permission denied reading config file: %v", err))
@@ -371,9 +381,9 @@ func NewStrict() (*Config, error) {
 	// Load from file with strict error handling
 	if loadErr := cfg.Load(); loadErr != nil {
 		switch {
-		case os.IsNotExist(loadErr):
+		case errors.Is(loadErr, fs.ErrNotExist):
 			// Config file doesn't exist - this is fine, use defaults
-		case os.IsPermission(loadErr):
+		case errors.Is(loadErr, fs.ErrPermission):
 			// Permission error - fail immediately
 			return nil, fmt.Errorf("permission denied reading config file: %w", loadErr)
 		default:
@@ -396,6 +406,41 @@ func NewStrict() (*Config, error) {
 	}
 
 	return cfg, nil
+}
+
+// UnmarshalJSON preserves unrecognized top-level keys for subsequent saves.
+func (c *Config) UnmarshalJSON(data []byte) error {
+	type plainConfig Config
+	if err := json.Unmarshal(data, (*plainConfig)(c)); err != nil {
+		return err
+	}
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(data, &keys); err != nil {
+		return err
+	}
+	for _, key := range []string{"output", "plugins", "logging", "analyzer", "plugin_host",
+		"cost", "routing", "plugin_dir", "installed_plugins"} {
+		delete(keys, key)
+	}
+	c.extraKeys = keys
+	return nil
+}
+
+// MarshalJSON includes unrecognized top-level keys retained while loading.
+func (c *Config) MarshalJSON() ([]byte, error) {
+	type plainConfig Config
+	data, err := json.Marshal(plainConfig(*c))
+	if err != nil {
+		return nil, err
+	}
+	var keys map[string]json.RawMessage
+	if err := json.Unmarshal(data, &keys); err != nil {
+		return nil, err
+	}
+	for key, value := range c.extraKeys {
+		keys[key] = value
+	}
+	return json.Marshal(keys)
 }
 
 // SetConfigPath overrides the config file path used by Load and Save.
@@ -423,8 +468,10 @@ func migrateFromLegacyYAML(configPath string) error {
 	legacyPath := filepath.Join(dir, "config.yaml")
 
 	if _, err := os.Stat(legacyPath); err != nil {
-		// Legacy file doesn't exist either, that's fine
-		return nil //nolint:nilerr // Returning nil is intentional when legacy file doesn't exist
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
+		return fmt.Errorf("checking legacy YAML config: %w", err)
 	}
 
 	data, err := os.ReadFile(legacyPath)
@@ -461,37 +508,54 @@ func migrateFromLegacyYAML(configPath string) error {
 // Returns an error if the config file cannot be parsed or if a legacy
 // file exists but is corrupted.
 func (c *Config) Load() error {
-	if err := migrateFromLegacyYAML(c.configPath); err != nil {
+	return loadConfig(c.configPath, c)
+}
+
+// loadConfig reads either format through the shared migration path.
+func loadConfig(configPath string, dst interface{}) error {
+	if err := migrateFromLegacyYAML(configPath); err != nil {
 		return err
 	}
 
-	file, err := os.Open(c.configPath)
+	file, err := os.Open(configPath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	return ax.ParseConfig(context.Background(), file, c)
+	var data json.RawMessage
+	if err := ax.ParseConfig(context.Background(), file, &data); err != nil {
+		return err
+	}
+	if err := json.Unmarshal(data, dst); err != nil {
+		return fmt.Errorf("parsing configuration: %w", err)
+	}
+	return nil
 }
 
 // Save saves the current configuration to the config file using JSON format.
 // It creates the directory if needed and performs an atomic write using a temp file.
 func (c *Config) Save() error {
+	return saveConfig(c.configPath, c)
+}
+
+// saveConfig atomically writes a configuration document as JSON.
+func saveConfig(configPath string, cfg interface{}) error {
 	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(c.configPath), 0700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
 	}
 
-	data, err := json.MarshalIndent(c, "", "  ")
+	data, err := json.MarshalIndent(cfg, "", "  ")
 	if err != nil {
 		return fmt.Errorf("failed to marshal config: %w", err)
 	}
 
-	tmpPath := c.configPath + ".tmp"
+	tmpPath := configPath + ".tmp"
 	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
-	if err := os.Rename(tmpPath, c.configPath); err != nil {
+	if err := os.Rename(tmpPath, configPath); err != nil {
 		_ = os.Remove(tmpPath)
 		return fmt.Errorf("failed to save config: %w", err)
 	}
@@ -997,7 +1061,7 @@ func (c *Config) applyLegacyEnvOverrides() {
 		if c.Plugins == nil {
 			c.Plugins = make(map[string]PluginConfig)
 		}
-		if _, exists := c.Plugins[pluginName]; !exists {
+		if c.Plugins[pluginName].Config == nil {
 			c.Plugins[pluginName] = PluginConfig{Config: make(map[string]interface{})}
 		}
 		c.Plugins[pluginName].Config[configKey] = value
@@ -1034,7 +1098,7 @@ func (c *Config) scanPluginEnvironmentVars() {
 			c.Plugins = make(map[string]PluginConfig)
 		}
 
-		if _, exists := c.Plugins[pluginName]; !exists {
+		if c.Plugins[pluginName].Config == nil {
 			c.Plugins[pluginName] = PluginConfig{Config: make(map[string]interface{})}
 		}
 
@@ -1076,7 +1140,7 @@ func (c *Config) setPluginValue(parts []string, value string) error {
 		c.Plugins = make(map[string]PluginConfig)
 	}
 
-	if _, exists := c.Plugins[pluginName]; !exists {
+	if c.Plugins[pluginName].Config == nil {
 		c.Plugins[pluginName] = PluginConfig{Config: make(map[string]interface{})}
 	}
 

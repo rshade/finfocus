@@ -9,6 +9,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // findSubcommandLocal finds a subcommand by name in a cobra.Command.
@@ -117,6 +119,7 @@ func TestDismissCmd_ValidReasons(t *testing.T) {
 
 	for _, reason := range validReasons {
 		t.Run(reason, func(t *testing.T) {
+			t.Setenv("FINFOCUS_HOME", t.TempDir())
 			root := NewRootCmd("test-version")
 			result := axtest.Run(context.Background(), t, root,
 				[]string{"cost", "recommendations", "dismiss", "rec-123", "--reason", reason, "--force"})
@@ -214,6 +217,7 @@ func TestSnoozeCmd_RejectsPastDate(t *testing.T) {
 
 // T015: Test snooze accepts YYYY-MM-DD format.
 func TestSnoozeCmd_AcceptsYYYYMMDD(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	// Use valid future date in YYYY-MM-DD format
 	futureDate := time.Now().AddDate(0, 1, 0).Format("2006-01-02")
 	root := NewRootCmd("test-version")
@@ -229,6 +233,7 @@ func TestSnoozeCmd_AcceptsYYYYMMDD(t *testing.T) {
 
 // T015: Test snooze accepts RFC3339 format.
 func TestSnoozeCmd_AcceptsRFC3339(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	// Use valid future date in RFC3339 format
 	futureDate := time.Now().AddDate(0, 1, 0).Format(time.RFC3339)
 	root := NewRootCmd("test-version")
@@ -292,4 +297,36 @@ func TestSnoozeCmd_RejectsInvalidDateFormat(t *testing.T) {
 	// Should fail with date format error
 	stderr := string(result.Stderr)
 	assert.Contains(t, stderr, "invalid date format")
+}
+
+func TestRecommendationChangesDryRun(t *testing.T) {
+	until := time.Now().AddDate(0, 1, 0).Format("2006-01-02")
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{
+			name: "dismiss",
+			args: []string{"cost", "recommendations", "dismiss", "rec-preview", "--reason", "not-applicable"},
+			want: "Would dismiss recommendation rec-preview",
+		},
+		{
+			name: "snooze",
+			args: []string{"cost", "recommendations", "snooze", "rec-preview", "--until", until},
+			want: "Would snooze recommendation rec-preview until " + until,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("FINFOCUS_HOME", t.TempDir())
+			tt.args = append(tt.args, "--force", "--dry-run")
+			result := axtest.Run(context.Background(), t, NewRootCmd("test"), tt.args)
+			require.Zero(t, result.ExitCode, string(result.Stderr))
+			assert.Contains(t, string(result.Stdout), tt.want)
+			store, err := config.NewDismissalStore("")
+			require.NoError(t, err)
+			assert.NoFileExists(t, store.FilePath())
+		})
+	}
 }

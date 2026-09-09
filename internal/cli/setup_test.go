@@ -295,6 +295,11 @@ func TestStepInitConfig(t *testing.T) {
 	// Verify the config file was created
 	configPath := filepath.Join(tmpDir, "config.hujson")
 	assert.FileExists(t, configPath)
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	var saved config.Config
+	require.NoError(t, json.Unmarshal(data, &saved))
+	assert.Equal(t, "table", saved.Output.DefaultFormat)
 }
 
 // TestStepInitConfig_AlreadyExists verifies config is not overwritten.
@@ -304,7 +309,8 @@ func TestStepInitConfig_AlreadyExists(t *testing.T) {
 
 	// Create a custom config
 	configPath := filepath.Join(tmpDir, "config.hujson")
-	customContent := []byte("custom: true\n")
+	customContent, readErr := os.ReadFile("../../testdata/config/preserved.hujson")
+	require.NoError(t, readErr)
 	require.NoError(t, os.WriteFile(configPath, customContent, 0o600))
 
 	step := cli.StepInitConfig(config.ResolveConfigDir())
@@ -720,4 +726,33 @@ func TestSetupFullRun(t *testing.T) {
 
 	// Should end with summary
 	assert.Contains(t, output, "Setup complete!")
+}
+
+func TestStepInitConfigPreservesLegacyKeys(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", dir)
+	legacy := []byte(`output:
+  default_format: json
+custom:
+  enabled: true
+installed_plugins:
+  - name: test-plugin
+    version: v1.0.0
+`)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.yaml"), legacy, 0600))
+
+	step := cli.StepInitConfig(dir)
+	require.NoError(t, step.Err)
+	assert.Equal(t, cli.StepSuccess, step.Status)
+	data, err := os.ReadFile(filepath.Join(dir, "config.hujson"))
+	require.NoError(t, err)
+	var saved map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(data, &saved))
+	assert.JSONEq(t, `{"enabled":true}`, string(saved["custom"]))
+	var plugins []config.InstalledPlugin
+	require.NoError(t, json.Unmarshal(saved["installed_plugins"], &plugins))
+	assert.Equal(t, []config.InstalledPlugin{{Name: "test-plugin", Version: "v1.0.0"}}, plugins)
+	cfg, err := config.NewStrict()
+	require.NoError(t, err)
+	assert.Equal(t, "json", cfg.Output.DefaultFormat)
 }

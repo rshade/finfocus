@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
@@ -35,9 +36,13 @@ func NewConfigListCmd() *cobra.Command {
   # --format json (the global agent-mode flag) also selects JSON style
   finfocus config list --format json`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+			if ctx == nil {
+				ctx = context.Background()
+			}
 			style := as
 			if !cmd.Flags().Changed("as") {
-				if mode, ok := ax.ModeFromContext(cmd.Context()); ok && mode == ax.ModeJSON {
+				if mode, ok := ax.ModeFromContext(ctx); ok && mode == ax.ModeJSON {
 					style = outputFormatJSON
 				}
 			}
@@ -72,7 +77,7 @@ func NewConfigListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&as, "as", "yaml", "output style (yaml, json)")
+	cmd.Flags().StringVarP(&as, "as", "f", "yaml", "output style (yaml, json)")
 
 	return cmd
 }

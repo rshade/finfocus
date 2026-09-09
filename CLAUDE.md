@@ -361,6 +361,19 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `$PROJECT/.finfocus/config.hujson` + `.gitignore`. Outside Pulumi project → global init
 - **`config routes`**: `config routes list` shows effective routing source/path;
   `config routes test <type> [region]` simulates per-feature plugin selection without loading plugin binaries
+- **Unit tests leak into the real `~/.finfocus`**: any test that executes a
+  mutating command (`dismiss`, `snooze`, `config set`) writes to the developer's
+  and the CI runner's actual home unless it sets
+  `t.Setenv("FINFOCUS_HOME", t.TempDir())`. `NewDismissalStore("")` falls back to
+  `ResolveConfigDir()`, which honors `FINFOCUS_HOME` first. This has produced
+  tests that pass *only* because a sibling test seeded the shared store — green
+  as a package, red when run alone. Detect with
+  `HOME=$(mktemp -d) go test -run TestName ./internal/cli/`; a test that fails
+  in isolation but passes in the package is order-dependent, not flaky
+- **Validate `--output` before loading state**: commands that early-return on an
+  empty result (e.g. history's `len(events) == 0`) must reject an unknown format
+  *first*, or an invalid `--output` silently exits 0. See `config_routes.go`,
+  `analyzer_check.go`, `plugin_list.go` for the up-front pattern
 
 ### Registry (`internal/registry/`)
 
@@ -480,6 +493,25 @@ properties and Pulumi internal metadata. When displaying to users:
 When no preview is provided, overview shows state resources with `*` footnote
 on projected costs. The `p` key triggers on-demand preview; when it completes,
 `ApplyChangesToRows()` and `ApplyPropertyDiffsToRows()` update rows in-place.
+
+### Integration Tests (`test/integration/`)
+
+- **The CLI helper must go through `ax.Execute`**: `helpers.CLIHelper.Execute`
+  runs commands via `ax.Execute`, the same entry point as `cmd/finfocus`. Calling
+  `cli.NewRootCmd().Execute()` directly does NOT mount the persistent agentic flags
+  (`--format`, `--dry-run`, `--yes`, `--idempotency-key`), so those flags fail with
+  "unknown flag" in integration tests while working in production and in unit tests
+  (which use `axtest.Run`). `ax.Execute` returns an exit code rather than an error,
+  so the helper converts non-zero codes back into an error from stderr
+- **Many integration tests do not isolate `HOME`**: tests that call
+  `helpers.NewCLIHelper(t)` without `WithEnv` read the developer's real
+  `~/.finfocus/config.hujson`. A local `cost.budgets` entry injects a "BUDGET STATUS"
+  banner into JSON/NDJSON output and fails ~48 tests locally. These pass in CI only
+  because the runner's HOME is empty. Always diff the integration failure *set*
+  against a pre-change baseline rather than comparing failure counts
+- **`config.yaml` fixtures are intentional**: most `config.yaml` references in
+  `test/integration/` write legacy YAML as *input* to exercise auto-migration. Only
+  assertions that `config init` *creates* a file should expect `config.hujson`
 
 ### GitHub Actions (`.github/workflows/`)
 

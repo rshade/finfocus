@@ -522,7 +522,12 @@ func StepInitConfig(baseDir string) StepResult {
 	}
 
 	cfg := config.New()
-	if err := cfg.Save(); err != nil {
+	cfg.SetConfigPath(configPath)
+	err := cfg.Load()
+	if err == nil || os.IsNotExist(err) {
+		err = cfg.Save()
+	}
+	if err != nil {
 		return StepResult{
 			Name:     "Config initialization",
 			Status:   StepError,
