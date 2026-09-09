@@ -481,6 +481,25 @@ When no preview is provided, overview shows state resources with `*` footnote
 on projected costs. The `p` key triggers on-demand preview; when it completes,
 `ApplyChangesToRows()` and `ApplyPropertyDiffsToRows()` update rows in-place.
 
+### Integration Tests (`test/integration/`)
+
+- **The CLI helper must go through `ax.Execute`**: `helpers.CLIHelper.Execute`
+  runs commands via `ax.Execute`, the same entry point as `cmd/finfocus`. Calling
+  `cli.NewRootCmd().Execute()` directly does NOT mount the persistent agentic flags
+  (`--format`, `--dry-run`, `--yes`, `--idempotency-key`), so those flags fail with
+  "unknown flag" in integration tests while working in production and in unit tests
+  (which use `axtest.Run`). `ax.Execute` returns an exit code rather than an error,
+  so the helper converts non-zero codes back into an error from stderr
+- **Many integration tests do not isolate `HOME`**: tests that call
+  `helpers.NewCLIHelper(t)` without `WithEnv` read the developer's real
+  `~/.finfocus/config.hujson`. A local `cost.budgets` entry injects a "BUDGET STATUS"
+  banner into JSON/NDJSON output and fails ~48 tests locally. These pass in CI only
+  because the runner's HOME is empty. Always diff the integration failure *set*
+  against a pre-change baseline rather than comparing failure counts
+- **`config.yaml` fixtures are intentional**: most `config.yaml` references in
+  `test/integration/` write legacy YAML as *input* to exercise auto-migration. Only
+  assertions that `config init` *creates* a file should expect `config.hujson`
+
 ### GitHub Actions (`.github/workflows/`)
 
 - **OpenCode Action** (`sst/opencode/github@dev`) ONLY works with `issue_comment` events.

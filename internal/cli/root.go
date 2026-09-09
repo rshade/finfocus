@@ -232,11 +232,11 @@ func newCostCmd() *cobra.Command {
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Call root command's PersistentPreRunE to ensure logging/tracing is set up.
 			// Cobra child commands override parent's PersistentPreRunE, so we must call explicitly.
-			// Navigate to the root command to avoid recursion. We pass root itself as the command
-			// to prevent Cobra from traversing back through the parent chain.
+			// Invoke the root hook directly with the executing command so global flags
+			// and context values (including dry-run) reach the subcommand.
 			root := cmd.Root()
 			if root != nil && root.PersistentPreRunE != nil && root != cmd {
-				if err := root.PersistentPreRunE(root, args); err != nil {
+				if err := root.PersistentPreRunE(cmd, args); err != nil {
 					return err
 				}
 			}

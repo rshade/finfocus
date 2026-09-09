@@ -2,7 +2,10 @@ package helpers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"io"
 	"os"
 	"strings"
@@ -11,6 +14,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/ax-go"
 
 	"github.com/rshade/finfocus/internal/cli"
 )
@@ -68,6 +73,14 @@ func filterLogLines(output string) string {
 
 // Execute runs a CLI command with the given arguments.
 // Returns the stdout output and any error.
+//
+// Commands run through ax.Execute, the same entry point cmd/finfocus uses, so
+// the persistent agentic flags ax mounts on the root command (--format,
+// --dry-run, --yes, --idempotency-key) are available here exactly as they are
+// in production. ax.Execute reports failure as a non-zero exit code and writes
+// an ax.Error envelope to stderr rather than returning an error, so the exit
+// code is converted back into an error for callers.
+//
 // Note: Output is filtered to remove log lines from plugin processes that may
 // write to stderr (which gets captured by the test runner).
 func (h *CLIHelper) Execute(args ...string) (string, error) {
@@ -79,18 +92,35 @@ func (h *CLIHelper) Execute(args ...string) (string, error) {
 
 	// Create root command
 	h.cmd = cli.NewRootCmd("test-version")
-	h.cmd.SetOut(h.stdout)
-	h.cmd.SetErr(h.stderr)
 	h.cmd.SetArgs(args)
 
-	// Execute command
-	err := h.cmd.Execute()
+	exitCode := ax.Execute(
+		context.Background(),
+		h.cmd,
+		ax.WithVersion("test-version"),
+		ax.WithStdout(h.stdout),
+		ax.WithStderr(h.stderr),
+	)
 
 	// Filter log lines from output - plugin processes may write logs to stderr
 	// which can appear in stdout when captured by the test framework
 	output := filterLogLines(h.stdout.String())
 
-	return output, err
+	if exitCode != ax.ExitSuccess {
+		return output, commandError(exitCode, h.stderr.String())
+	}
+
+	return output, nil
+}
+
+// commandError rebuilds an error from the ax.Error envelope ax.Execute wrote to
+// stderr, so callers asserting on error text see the command's own diagnostics.
+func commandError(exitCode int, stderr string) error {
+	message := strings.TrimSpace(filterLogLines(stderr))
+	if message == "" {
+		return fmt.Errorf("command failed with exit code %d", exitCode)
+	}
+	return errors.New(message)
 }
 
 // ExecuteOrFail runs a CLI command and fails the test if it returns an error.

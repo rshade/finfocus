@@ -181,6 +181,7 @@ func getPlatformString() string {
 // it returns the original install error wrapped with the plugin specifier. If the user declines an
 // interactive fallback, it returns an "installation aborted" error.
 func handleInstallError(
+	ctx context.Context,
 	cmd *cobra.Command,
 	installer *registry.Installer,
 	spec *registry.PluginSpecifier,
@@ -199,7 +200,7 @@ func handleInstallError(
 	}
 
 	// Try to find a fallback version
-	fallbackResult, fallbackErr := handleFallback(cmd.Context(), cmd, installer, spec, opts, progress, fallbackToLatest)
+	fallbackResult, fallbackErr := handleFallback(ctx, cmd, installer, spec, opts, progress, fallbackToLatest)
 	if fallbackErr != nil {
 		if errors.Is(fallbackErr, errFallbackDeclined) {
 			cmd.Printf("Installation aborted.\n")
@@ -368,7 +369,7 @@ func runPluginInstall(cmd *cobra.Command, specifier string, p pluginInstallParam
 		result, err := installer.Install(ctx2, specifier, opts, progress)
 		if err != nil {
 			return handleInstallError(
-				cmd, installer, spec, opts, progress,
+				ctx2, cmd, installer, spec, opts, progress,
 				specifier, err, p.noFallback, p.fallbackToLatest, p.clean, p.pluginDir,
 			)
 		}

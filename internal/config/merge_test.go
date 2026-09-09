@@ -457,48 +457,65 @@ analyzer:
 	assert.Equal(t, "secret", p.Env["API_KEY"])
 }
 
-// TestShallowMergeYAML_HujsonCommentOnlySkeleton verifies that the literal
-// project skeleton content SaveProjectSkeleton writes (real Hujson: a JSON
-// object containing only "//" comments) merges successfully rather than
-// erroring out. Plain encoding/json.Unmarshal rejects "//" comments outright,
-// and YAML doesn't recognize them as comments either (YAML uses "#") - both
-// naive parse attempts fail on this exact content, so this guards against a
-// regression where every project using the stock skeleton silently falls
-// back to global-only config with just a warning logged.
-func TestShallowMergeYAML_HujsonCommentOnlySkeleton(t *testing.T) {
-	dir := t.TempDir()
-	skeletonPath := filepath.Join(dir, "config.hujson")
-	require.NoError(t, config.SaveProjectSkeleton(skeletonPath))
-
-	target := newDefaultTarget()
-	err := config.ShallowMergeYAML(target, skeletonPath)
-	require.NoError(t, err, "the stock project skeleton (comments only) must merge cleanly")
-
-	// A comment-only skeleton has no real keys, so the target must be
-	// untouched relative to its defaults.
-	assert.Equal(t, "table", target.Output.DefaultFormat)
-}
-
-// TestShallowMergeYAML_HujsonWithRealOverride verifies a Hujson overlay that
-// mixes a real override with "//" comments - not just the all-comments
-// skeleton case above - parses via the Hujson path (not the YAML fallback).
-func TestShallowMergeYAML_HujsonWithRealOverride(t *testing.T) {
-	dir := t.TempDir()
-	overlayPath := filepath.Join(dir, "config.hujson")
-	content := `{
+func TestShallowMergeYAML_Hujson(t *testing.T) {
+	tests := []struct {
+		name          string
+		content       string
+		skeleton      bool
+		wantFormat    string
+		wantPrecision int
+		wantErr       bool
+		errContains   string
+	}{
+		{name: "comment-only skeleton", skeleton: true, wantFormat: "table", wantPrecision: 2},
+		{
+			name: "real override with comments and trailing commas",
+			content: `{
   // Override the output format for this project.
   "output": {
     "default_format": "json",
     "precision": 4,
   },
 }
-`
-	require.NoError(t, os.WriteFile(overlayPath, []byte(content), 0600))
-
-	target := newDefaultTarget()
-	err := config.ShallowMergeYAML(target, overlayPath)
-	require.NoError(t, err)
-
-	assert.Equal(t, "json", target.Output.DefaultFormat)
-	assert.Equal(t, 4, target.Output.Precision)
+`,
+			wantFormat: "json", wantPrecision: 4,
+		},
+		{
+			name:        "invalid section",
+			content:     `{"output": "invalid"}`,
+			wantErr:     true,
+			errContains: `applying overlay section "output"`,
+		},
+		{
+			name:        "known YAML section cannot convert",
+			content:     "plugins:\n  aws:\n    value: .nan\n",
+			wantErr:     true,
+			errContains: `converting overlay section "plugins" to JSON`,
+		},
+		{
+			name:          "unknown YAML section ignored before conversion",
+			content:       "unknown:\n  value: .nan\n",
+			wantFormat:    "table",
+			wantPrecision: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			overlayPath := filepath.Join(t.TempDir(), "config.hujson")
+			if tt.skeleton {
+				require.NoError(t, config.SaveProjectSkeleton(overlayPath))
+			} else {
+				require.NoError(t, os.WriteFile(overlayPath, []byte(tt.content), 0600))
+			}
+			target := newDefaultTarget()
+			err := config.ShallowMergeYAML(target, overlayPath)
+			if tt.wantErr {
+				require.ErrorContains(t, err, tt.errContains)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantFormat, target.Output.DefaultFormat)
+			assert.Equal(t, tt.wantPrecision, target.Output.Precision)
+		})
+	}
 }

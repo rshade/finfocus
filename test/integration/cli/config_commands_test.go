@@ -24,7 +24,7 @@ func TestConfigInit_CreateNewConfig(t *testing.T) {
 		assert.Contains(t, output, "Configuration initialized")
 
 		// Verify config file was created
-		configPath := filepath.Join(tempHome, ".finfocus", "config.yaml")
+		configPath := filepath.Join(tempHome, ".finfocus", "config.hujson")
 		assert.FileExists(t, configPath)
 	})
 }

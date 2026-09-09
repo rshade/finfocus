@@ -203,29 +203,39 @@ func TestProcessLauncher_CreateCloseFn(t *testing.T) {
 
 func TestProcessLauncher_TryConnect(t *testing.T) {
 	launcher := NewProcessLauncher()
-
-	// Create a test server
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("failed to create test listener: %v", err)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, listener.Close()) })
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	tests := []struct {
+		name    string
+		ctx     context.Context
+		address string
+		wantErr error
+	}{
+		{name: "available port", ctx: context.Background(), address: listener.Addr().String()},
+		// gRPC creates clients lazily; an unavailable port does not fail creation.
+		{name: "unavailable port", ctx: context.Background(), address: "127.0.0.1:65534"},
+		{name: "canceled context", ctx: canceledCtx, address: listener.Addr().String(), wantErr: context.Canceled},
 	}
-	defer listener.Close()
-
-	address := listener.Addr().String()
-
-	// Test successful connection
-	conn, err := launcher.tryConnect(context.Background(), address)
-	if err != nil {
-		t.Errorf("tryConnect failed: %v", err)
-	} else {
-		conn.Close()
-	}
-
-	// Test connection to non-existent port (use a high port that's likely unavailable)
-	_, err = launcher.tryConnect(context.Background(), "127.0.0.1:65534")
-	if err == nil {
-		t.Log("Note: Port 65534 might be available on this system - connection succeeded")
-		// Don't fail as port availability varies by system
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			start := time.Now()
+			conn, err := launcher.tryConnect(tt.ctx, tt.address)
+			if conn != nil {
+				t.Cleanup(func() { require.NoError(t, conn.Close()) })
+			}
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				assert.Nil(t, conn)
+				assert.Less(t, time.Since(start), time.Second)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, conn)
+		})
 	}
 }
 
