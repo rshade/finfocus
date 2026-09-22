@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/term"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
@@ -518,7 +519,8 @@ func (p *ProcessLauncher) startPlugin(
 	}
 
 	// Determine where plugin stdout/stderr should go.
-	// Priority: file logging (always capture) > analyzer mode (discard) > default (stderr)
+	// Priority: file logging (always capture) > analyzer mode (discard) >
+	// default (stderr passthrough when interactive, discard otherwise)
 	var stdoutBuf lockedBuffer
 	pluginWriter := logging.PluginLogWriterFromContext(ctx)
 
@@ -538,12 +540,28 @@ func (p *ProcessLauncher) startPlugin(
 		cmd.Stderr = io.Discard
 		cmd.Stdout = io.MultiWriter(io.Discard, &stdoutBuf)
 	default:
-		// Fallback (debug mode or no file logging): plugin output goes to stderr.
-		cmd.Stderr = os.Stderr
-		cmd.Stdout = io.MultiWriter(os.Stderr, &stdoutBuf)
+		// Fallback (debug mode or no file logging): pass plugin output through to
+		// Core's stderr only when it is an interactive terminal. When stderr is a
+		// pipe (tests, CI, process supervisors), an orphaned plugin holding the
+		// inherited FD would block the parent's Wait() pipe-drain phase
+		// indefinitely (issue #1231).
+		stderrW := resolveStderrPassthrough(os.Stderr)
+		cmd.Stderr = stderrW
+		cmd.Stdout = io.MultiWriter(stderrW, &stdoutBuf)
 	}
 	// Set WaitDelay before Start to avoid race condition with watchCtx goroutine
 	cmd.WaitDelay = processWaitDelay
+
+	// Place the plugin in its own process group (with Pdeathsig on Linux) so
+	// plugins cannot outlive Core, and kill the whole group when the launch
+	// context is canceled (issue #1231).
+	configureProcessGroup(cmd)
+	cmd.Cancel = func() error {
+		if err := killProcessGroup(cmd); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			return err
+		}
+		return nil
+	}
 
 	if err := cmd.Start(); err != nil {
 		return nil, nil, fmt.Errorf("starting plugin: %w", err)
@@ -600,9 +618,22 @@ func (p *ProcessLauncher) isConnectionReady(ctx context.Context, conn *grpc.Clie
 	return newState == connectivity.Ready
 }
 
+// resolveStderrPassthrough returns the writer for plugin stderr/stdout in
+// fallback mode (no plugin log writer configured, analyzer mode off). Plugin
+// output is passed through to Core's stderr only when stderr is an interactive
+// terminal; otherwise it is discarded so an orphaned plugin cannot hold an
+// inherited pipe open and block a parent process in Wait()'s pipe-drain phase
+// (issue #1231).
+func resolveStderrPassthrough(stderr *os.File) io.Writer {
+	if stderr != nil && term.IsTerminal(int(stderr.Fd())) {
+		return stderr
+	}
+	return io.Discard
+}
+
 func (p *ProcessLauncher) killProcess(cmd *exec.Cmd) {
 	if cmd != nil && cmd.Process != nil {
-		_ = cmd.Process.Kill()
+		_ = killProcessGroup(cmd)
 		_ = cmd.Wait()
 	}
 }
@@ -631,7 +662,7 @@ func (p *ProcessLauncher) createCloseFn(
 		}
 		if cmd.Process != nil {
 			pid := cmd.Process.Pid
-			_ = cmd.Process.Kill()
+			_ = killProcessGroup(cmd)
 			_ = cmd.Wait()
 			log.Debug().
 				Ctx(ctx).

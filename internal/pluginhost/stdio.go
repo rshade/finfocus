@@ -70,7 +70,8 @@ func (s *StdioLauncher) Start(
 	}
 
 	// Determine where plugin stderr should go.
-	// Priority: file logging (always capture) > analyzer mode (discard) > default (stderr)
+	// Priority: file logging (always capture) > analyzer mode (discard) >
+	// default (stderr passthrough when interactive, discard otherwise)
 	pluginWriter := logging.PluginLogWriterFromContext(ctx)
 
 	switch {
@@ -87,10 +88,24 @@ func (s *StdioLauncher) Start(
 			Msg("suppressing plugin stderr output in analyzer mode (no log file configured)")
 		cmd.Stderr = io.Discard
 	default:
-		cmd.Stderr = os.Stderr
+		// Only inherit Core's stderr when it is an interactive terminal; when
+		// stderr is a pipe, an orphaned plugin would hold it open and block the
+		// parent's Wait() indefinitely (issue #1231).
+		cmd.Stderr = resolveStderrPassthrough(os.Stderr)
 	}
 	// Set WaitDelay before Start to avoid race condition with watchCtx goroutine
 	cmd.WaitDelay = stdioWaitDelay
+
+	// Place the plugin in its own process group (with Pdeathsig on Linux) so
+	// plugins cannot outlive Core, and kill the whole group when the launch
+	// context is canceled (issue #1231).
+	configureProcessGroup(cmd)
+	cmd.Cancel = func() error {
+		if err := killProcessGroup(cmd); err != nil && !errors.Is(err, os.ErrProcessDone) {
+			return err
+		}
+		return nil
+	}
 
 	if startErr := cmd.Start(); startErr != nil {
 		return nil, nil, fmt.Errorf("starting plugin: %w", startErr)
@@ -100,7 +115,7 @@ func (s *StdioLauncher) Start(
 	listener, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
 	if err != nil {
 		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
+			_ = killProcessGroup(cmd)
 			_ = cmd.Wait()
 		}
 		return nil, nil, fmt.Errorf("creating proxy listener: %w", err)
@@ -120,7 +135,7 @@ func (s *StdioLauncher) Start(
 			Err(err).
 			Msg("failed to create gRPC client")
 		if cmd.Process != nil {
-			_ = cmd.Process.Kill()
+			_ = killProcessGroup(cmd)
 			_ = cmd.Wait()
 		}
 		_ = listener.Close()
@@ -155,7 +170,7 @@ func (s *StdioLauncher) Start(
 		}
 		if cmd.Process != nil {
 			pid := cmd.Process.Pid
-			_ = cmd.Process.Kill()
+			_ = killProcessGroup(cmd)
 			_ = cmd.Wait()
 			log.Debug().
 				Ctx(ctx).
