@@ -152,3 +152,25 @@ func TestProviderMatches(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractProviderFromTypeTerraformTypes(t *testing.T) {
+	tests := []struct {
+		name         string
+		resourceType string
+		want         string
+	}{
+		{"pulumi token unchanged", "aws:ec2/instance:Instance", "aws"},
+		{"pulumi providers unchanged", "pulumi:providers:aws", "pulumi"},
+		{"terraform aws", "aws_instance", "aws"},
+		{"terraform azure", "azurerm_linux_virtual_machine", "azurerm"},
+		{"terraform random", "random_pet", "random"},
+		{"no colon no underscore", "kubernetes", "kubernetes"},
+		{"empty", "", ProviderUnknown},
+		{"leading colon", ":foo", ProviderUnknown},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ExtractProviderFromType(tt.resourceType))
+		})
+	}
+}
