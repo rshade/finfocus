@@ -119,17 +119,32 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
   # Use custom spec directory
   finfocus cost projected --pulumi-json plan.json --spec-dir ./custom-specs`
 
-// executeCostProjected runs the projected cost calculation pipeline and renders output.
-// It returns an error if any step (validation, loading, calculation, rendering) fails.
-func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
-	ctx := cmd.Context()
-
+// validateCostProjectedParams validates the projected cost command parameters
+// before any expensive work begins (plan loading, plugin startup) so invalid
+// input fails fast.
+func validateCostProjectedParams(params costProjectedParams) error {
 	if params.jobs < 0 {
 		return fmt.Errorf("--jobs must be non-negative, got %d", params.jobs)
 	}
 
 	if params.utilization < 0.0 || params.utilization > 1.0 {
 		return fmt.Errorf("utilization must be between 0.0 and 1.0, got %f", params.utilization)
+	}
+
+	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.output))) {
+		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
+	}
+
+	return nil
+}
+
+// executeCostProjected runs the projected cost calculation pipeline and renders output.
+// It returns an error if any step (validation, loading, calculation, rendering) fails.
+func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
+	ctx := cmd.Context()
+
+	if err := validateCostProjectedParams(params); err != nil {
+		return err
 	}
 	ctx = context.WithValue(ctx, engine.ContextKeyUtilization, params.utilization)
 

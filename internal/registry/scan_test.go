@@ -192,10 +192,15 @@ func TestListPlugins_MultipleBinariesInVersionDir(t *testing.T) {
 	err := os.MkdirAll(versionDir, 0755)
 	require.NoError(t, err)
 
-	// Create multiple executable files
-	createExecutable(t, filepath.Join(versionDir, "binary1"))
-	createExecutable(t, filepath.Join(versionDir, "binary2"))
-	createExecutable(t, filepath.Join(versionDir, "binary3"))
+	// Create multiple executable files. Windows only recognizes .exe files as
+	// executables, so append the extension there (same pattern as createPlugin).
+	ext := ""
+	if runtime.GOOS == "windows" {
+		ext = ".exe"
+	}
+	createExecutable(t, filepath.Join(versionDir, "binary1"+ext))
+	createExecutable(t, filepath.Join(versionDir, "binary2"+ext))
+	createExecutable(t, filepath.Join(versionDir, "binary3"+ext))
 
 	reg := registry.NewDefault()
 	plugins, err := reg.ListPlugins()
