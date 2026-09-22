@@ -280,7 +280,19 @@ func (s *BoltStore) tryUpdateExisting(
 	return true, b.Put([]byte(key), data)
 }
 
+// tagRecord is the stored shape of a resource_tags bucket entry.
+type tagRecord struct {
+	TagKey    string `json:"tag_key"`
+	TagValue  string `json:"tag_value"`
+	URNHash   string `json:"urn_hash"`
+	CloudID   string `json:"cloud_id"`
+	FirstSeen int64  `json:"first_seen"`
+	LastSeen  int64  `json:"last_seen"`
+}
+
 // upsertTags updates the resource_tags bucket for tag-based lookups.
+// Existing tag records are merged rather than overwritten: first_seen keeps
+// the earliest observation and last_seen the latest.
 func (s *BoltStore) upsertTags(tx *bolt.Tx, stackHash string, entry ResourceHistoryEntry, urnHash string) {
 	if len(entry.Tags) == 0 {
 		return
@@ -293,14 +305,28 @@ func (s *BoltStore) upsertTags(tx *bolt.Tx, stackHash string, entry ResourceHist
 
 	for tagKey, tagValue := range entry.Tags {
 		tagKeyStr := BuildTagKey(stackHash, tagKey, tagValue, urnHash)
-		tagEntry := map[string]any{
-			"tag_key":    tagKey,
-			"tag_value":  tagValue,
-			"urn_hash":   urnHash,
-			"cloud_id":   entry.CloudID,
-			"first_seen": entry.FirstSeen,
-			"last_seen":  entry.LastSeen,
+		tagEntry := tagRecord{
+			TagKey:    tagKey,
+			TagValue:  tagValue,
+			URNHash:   urnHash,
+			CloudID:   entry.CloudID,
+			FirstSeen: entry.FirstSeen,
+			LastSeen:  entry.LastSeen,
 		}
+
+		if existing := tagBucket.Get([]byte(tagKeyStr)); existing != nil {
+			var prev tagRecord
+			if unmarshalErr := json.Unmarshal(existing, &prev); unmarshalErr != nil {
+				s.logger.Debug().Err(unmarshalErr).
+					Str("tag_key", tagKey).Str("tag_value", tagValue).Str("urn_hash", urnHash).
+					Msg("failed to unmarshal existing tag entry, overwriting")
+			} else {
+				tagEntry = prev
+				tagEntry.FirstSeen = min(prev.FirstSeen, entry.FirstSeen)
+				tagEntry.LastSeen = max(prev.LastSeen, entry.LastSeen)
+			}
+		}
+
 		tagData, tagMarshalErr := json.Marshal(tagEntry)
 		if tagMarshalErr != nil {
 			s.logger.Debug().Err(tagMarshalErr).
