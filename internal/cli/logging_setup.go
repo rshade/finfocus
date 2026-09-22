@@ -66,7 +66,9 @@ func setupLogging(cmd *cobra.Command) logging.LogPathResult {
 
 	// When logging to a file, open a second append-mode handle for plugin I/O.
 	// Plugin stderr/stdout will be redirected here to keep the terminal clean.
-	// When no file is configured, plugins continue writing to stderr.
+	// When no file is configured, plugins write to stderr only when it is an
+	// interactive terminal; otherwise their output is discarded so orphaned
+	// plugins cannot hold inherited pipes open (issue #1231).
 	if result.UsingFile {
 		pluginLogFile, err := os.OpenFile(result.FilePath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0600)
 		if err != nil {

@@ -1134,8 +1134,10 @@ func TestProcessLauncher_StartPlugin_FallbackToStderr(t *testing.T) {
 		t.Skip("shell script not supported on Windows")
 	}
 
-	// When no plugin log writer is in context (debug mode), plugin output should go to os.Stderr.
-	// We can't easily capture os.Stderr in a test, but we verify no panic and cmd.Stderr == os.Stderr.
+	// When no plugin log writer is in context (debug mode), plugin output goes to
+	// os.Stderr only when it is an interactive terminal; otherwise it is discarded
+	// (issue #1231). We can't easily control os.Stderr's terminal-ness in a test,
+	// so we verify no panic and no error in either case.
 	script := createScript(t, `#!/bin/bash
 for arg in "$@"; do
     if [[ $arg == --port=* ]]; then
