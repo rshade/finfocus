@@ -499,3 +499,67 @@ func TestStackExport_EmptyPassphrase_InjectsEnv(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, mock.lastExtraEnv, "PULUMI_CONFIG_PASSPHRASE=")
 }
+
+// --- GetProjectName tests ---
+
+func TestGetProjectName_ValidYaml(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte("name: my-project\n"), 0644))
+
+	name, err := GetProjectName(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "my-project", name)
+}
+
+func TestGetProjectName_FallsBackToYml(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yml"), []byte("name: yml-project\n"), 0644))
+
+	name, err := GetProjectName(dir)
+	require.NoError(t, err)
+	assert.Equal(t, "yml-project", name)
+}
+
+func TestGetProjectName_NoFiles(t *testing.T) {
+	dir := t.TempDir()
+
+	_, err := GetProjectName(dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no Pulumi.yaml or Pulumi.yml found")
+}
+
+func TestGetProjectName_EmptyDir(t *testing.T) {
+	_, err := GetProjectName("")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "project directory must not be empty")
+}
+
+func TestGetProjectName_PermissionError(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root; permission checks are not enforced")
+	}
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte("name: secret\n"), 0000))
+
+	_, err := GetProjectName(dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), filepath.Join(dir, "Pulumi.yaml"))
+}
+
+func TestGetProjectName_InvalidYaml(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte(":\tbad"), 0644))
+
+	_, err := GetProjectName(dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "parsing")
+}
+
+func TestGetProjectName_MissingNameField(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte("runtime: go\n"), 0644))
+
+	_, err := GetProjectName(dir)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "has no 'name' field")
+}
