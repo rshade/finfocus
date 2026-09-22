@@ -80,6 +80,9 @@ const (
 	// pluginGoVersion is the Go version written to the generated go.mod and
 	// used as the builder image tag in the generated Dockerfile.
 	pluginGoVersion = "1.27.1"
+	// pluginInitVersion is the initial semantic version assigned to generated
+	// plugins (manifest, Makefile install target).
+	pluginInitVersion = "0.1.0"
 )
 
 const pluginReadmeTemplate = `# {{NAME}}
@@ -1751,26 +1754,39 @@ func (c *Client) GetSupportedRegions(ctx context.Context) ([]string, error) {
 	return g.writeFile("internal/client/client.go", content)
 }
 
-func (g *projectGenerator) generateMakefile() error {
-	content := fmt.Sprintf(`# Makefile for %s plugin
+// pluginMakefileTemplate is the Makefile generated for new plugin projects.
+// The {{DOCKER_PHONY}}, {{DOCKER_HELP}}, and {{DOCKER_TARGETS}} tokens are
+// replaced with the Docker targets when Docker support is enabled.
+const pluginMakefileTemplate = `# Makefile for {{NAME}} plugin
 
-.PHONY: build test clean lint help install
+.PHONY: build test test-integration test-all clean lint help install develop \
+        build-debug cover fmt deps ensure security{{DOCKER_PHONY}}
 
 # Variables
-PLUGIN_NAME = %s
+PLUGIN_NAME = {{NAME}}
 BINARY_NAME = finfocus-plugin-$(PLUGIN_NAME)
 BUILD_DIR = bin
 CMD_DIR = cmd/plugin
+VERSION = {{VERSION}}
 
 # Default target
 help:
 	@echo "Available commands:"
-	@echo "  build     - Build the plugin binary"
-	@echo "  test      - Run tests"
-	@echo "  clean     - Clean build artifacts"
-	@echo "  lint      - Run linters"
-	@echo "  install   - Install plugin to local registry"
-	@echo "  help      - Show this help"
+	@echo "  build            - Build the plugin binary"
+	@echo "  test             - Run unit tests"
+	@echo "  test-integration - Run integration tests"
+	@echo "  test-all         - Run all tests"
+	@echo "  clean            - Clean build artifacts"
+	@echo "  lint             - Run linters"
+	@echo "  install          - Install plugin to local registry"
+	@echo "  develop          - Set up development environment"
+	@echo "  build-debug      - Build with debug info"
+{{DOCKER_HELP}}	@echo "  cover            - Generate coverage report"
+	@echo "  fmt              - Format code"
+	@echo "  deps             - Update dependencies"
+	@echo "  ensure           - Alias for deps"
+	@echo "  security         - Run security vulnerability check"
+	@echo "  help             - Show this help"
 
 # Build the plugin binary
 build:
@@ -1779,17 +1795,28 @@ build:
 	@go build -o $(BUILD_DIR)/$(BINARY_NAME) ./$(CMD_DIR)
 	@echo "✅ Plugin built: $(BUILD_DIR)/$(BINARY_NAME)"
 
-# Run tests
+# Run unit tests
 test:
 	@echo "Running tests..."
 	@go test -v ./...
 
+# Run integration tests
+test-integration:
+	@echo "Running integration tests..."
+	@go test -v -tags=integration ./...
+	@echo "✅ Integration tests complete"
+
+# Run all tests
+test-all: test test-integration
+	@echo "✅ All tests complete"
+
 # Run tests with coverage
-test-coverage:
-	@echo "Running tests with coverage..."
+cover:
+	@echo "Generating coverage report..."
 	@go test -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report: coverage.html"
+	@go tool cover -func=coverage.out | tail -1
 
 # Clean build artifacts
 clean:
@@ -1807,10 +1834,16 @@ lint:
 # Install plugin to local registry
 install: build
 	@echo "Installing plugin to local registry..."
-	@mkdir -p ~/.finfocus/plugins/$(PLUGIN_NAME)/1.0.0
-	@cp $(BUILD_DIR)/$(BINARY_NAME) ~/.finfocus/plugins/$(PLUGIN_NAME)/1.0.0/
-	@cp manifest.yaml ~/.finfocus/plugins/$(PLUGIN_NAME)/1.0.0/plugin.manifest.json
-	@echo "✅ Plugin installed to ~/.finfocus/plugins/$(PLUGIN_NAME)/1.0.0/"
+	@mkdir -p ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)
+	@cp $(BUILD_DIR)/$(BINARY_NAME) ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/
+	@cp manifest.yaml ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/plugin.manifest.json
+	@echo "✅ Plugin installed to ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/"
+
+# Development setup
+develop: deps
+	@echo "Development environment ready"
+	@echo "Run 'make build' to build the plugin"
+	@echo "Run 'make test' to run tests"
 
 # Development build with debug info
 build-debug:
@@ -1832,14 +1865,62 @@ deps:
 	@go mod download
 	@echo "✅ Dependencies updated"
 
+# Ensure dependencies (alias)
+ensure: deps
+
 # Check for security vulnerabilities
 security:
 	@echo "Checking for security vulnerabilities..."
 	@govulncheck ./...
 	@echo "✅ Security check complete"
-`, g.name, g.name)
+{{DOCKER_TARGETS}}`
 
-	return g.writeFile("Makefile", content)
+// pluginMakefileDockerTargets holds the docker-build and docker-run targets
+// appended to the generated Makefile when Docker support is enabled.
+const pluginMakefileDockerTargets = `
+# Docker build
+docker-build:
+	@echo "Building Docker image..."
+	docker build -t $(PLUGIN_NAME):local -f docker/Dockerfile .
+	@echo "✅ Docker image built: $(PLUGIN_NAME):local"
+
+# Docker run
+docker-run:
+	@echo "Running Docker container..."
+	docker run -p 8080:8080 -p 8081:8081 \
+		-e FINFOCUS_PLUGIN_HEALTH_ENDPOINT=true \
+		$(PLUGIN_NAME):local
+`
+
+// renderMakefile renders the Makefile template for the named plugin,
+// conditionally including the Docker targets when withDocker is true.
+func renderMakefile(name string, withDocker bool) string {
+	dockerPhony := ""
+	dockerHelp := ""
+	dockerTargets := ""
+	if withDocker {
+		dockerPhony = " \\\n        docker-build docker-run"
+		dockerHelp = "\t@echo \"  docker-build     - Build Docker image\"\n" +
+			"\t@echo \"  docker-run       - Run Docker container\"\n"
+		dockerTargets = "\n" + pluginMakefileDockerTargets
+	}
+
+	replacements := map[string]string{
+		"{{NAME}}":           name,
+		"{{VERSION}}":        pluginInitVersion,
+		"{{DOCKER_PHONY}}":   dockerPhony,
+		"{{DOCKER_HELP}}":    dockerHelp,
+		"{{DOCKER_TARGETS}}": dockerTargets,
+	}
+	content := pluginMakefileTemplate
+	for token, value := range replacements {
+		content = strings.ReplaceAll(content, token, value)
+	}
+	return content
+}
+
+func (g *projectGenerator) generateMakefile() error {
+	return g.writeFile("Makefile", renderMakefile(g.name, g.withDocker))
 }
 
 func (g *projectGenerator) generateReadme() error {

@@ -598,3 +598,58 @@ func TestPluginInitNoDocs(t *testing.T) {
 	_, err := os.Stat(filepath.Join(tmpDir, "test-plugin", "docs"))
 	assert.True(t, os.IsNotExist(err))
 }
+
+func TestPluginInitEnhancedMakefile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	makefile, err := os.ReadFile(filepath.Join(tmpDir, "test-plugin", "Makefile"))
+	require.NoError(t, err)
+	content := string(makefile)
+
+	for _, target := range []string{
+		"build:", "test:", "test-integration:", "test-all:", "clean:", "lint:",
+		"install:", "develop:", "build-debug:", "docker-build:", "docker-run:",
+		"cover:", "fmt:", "deps:", "ensure:", "security:", "help:",
+	} {
+		assert.Contains(t, content, target)
+	}
+	assert.Contains(t, content, "VERSION = 0.1.0")
+	assert.Contains(t, content, "~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/")
+	assert.Contains(t, content, "docker build -t $(PLUGIN_NAME):local -f docker/Dockerfile .")
+	assert.NotContains(t, content, "{{NAME}}")
+}
+
+func TestPluginInitMakefileNoDocker(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	makefile, err := os.ReadFile(filepath.Join(tmpDir, "test-plugin", "Makefile"))
+	require.NoError(t, err)
+	content := string(makefile)
+
+	assert.NotContains(t, content, "docker-build:")
+	assert.NotContains(t, content, "docker-run:")
+	assert.Contains(t, content, "build:")
+}
