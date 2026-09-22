@@ -756,6 +756,72 @@ func TestExecuteBatchForPlugin(t *testing.T) {
 		assert.Equal(t, 2, callCount)
 	})
 
+	t.Run("re-chunked tail spanning multiple future chunks is fully processed", func(t *testing.T) {
+		var chunkSizes []int
+		mockAPI := &mockBatchCostSourceClient{
+			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+				chunkSizes = append(chunkSizes, len(in.GetResources()))
+				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+				for i, res := range in.GetResources() {
+					results[i] = &pbc.ResourceCostResult{
+						Resource: res,
+						Result: &pbc.ResourceCostResult_CostData{
+							CostData: &pbc.CostData{
+								Data: &pbc.CostData_ProjectedCost{
+									ProjectedCost: &pbc.GetProjectedCostResponse{
+										Currency:     "USD",
+										CostPerMonth: 10.0,
+									},
+								},
+							},
+						},
+					}
+				}
+				resp := &pbc.BatchCostResponse{Results: results}
+				// First response hints at smaller batch size
+				if len(chunkSizes) == 1 {
+					resp.MaxBatchSize = 50
+				}
+				return resp, nil
+			},
+		}
+		client := makeBatchCapableClient("test-plugin", mockAPI)
+		eng := New([]*pluginhost.Client{client}, nil)
+
+		// 250 resources: initial chunks are [100, 100, 50]. After the first call hints
+		// MaxBatchSize=50, the remaining 150 resources must be re-chunked into
+		// [50, 50, 50] and all of them processed — a for-range loop would skip the tail.
+		resources := make([]indexedResource, 250)
+		for i := range 250 {
+			resources[i] = indexedResource{
+				index: i,
+				resource: ResourceDescriptor{
+					Type:       "aws:ec2:Instance",
+					ID:         fmt.Sprintf("i-%d", i),
+					Provider:   "aws",
+					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
+				},
+			}
+		}
+
+		results, err := eng.executeBatchForPlugin(
+			context.Background(), client, resources,
+			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+		)
+		require.NoError(t, err)
+		assert.Len(t, results, 250)
+
+		// Every resource index must be present exactly once
+		seen := make(map[int]bool, 250)
+		for _, br := range results {
+			seen[br.index] = true
+		}
+		assert.Len(t, seen, 250)
+
+		// Calls: 100 (initial), then re-chunked tail at max_batch_size=50 → 50+50+50
+		assert.Equal(t, []int{100, 50, 50, 50}, chunkSizes)
+	})
+
 	t.Run("response count mismatch returns error", func(t *testing.T) {
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {

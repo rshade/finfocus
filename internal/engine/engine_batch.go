@@ -165,7 +165,11 @@ func (e *Engine) executeBatchForPlugin(
 	allResults := make([]batchResult, 0, len(resources))
 
 	chunks := chunkResources(resources, chunkSize)
-	for chunkIdx, chunk := range chunks {
+	// Index-controlled loop (not for-range): when a plugin hints a smaller MaxBatchSize,
+	// the remaining resources are re-chunked and appended to chunks. A for-range header
+	// captures the slice length at loop start, so appended tail chunks would never run.
+	for chunkIdx := 0; chunkIdx < len(chunks); chunkIdx++ {
+		chunk := chunks[chunkIdx]
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("batch cost cancelled for plugin %s: %w", plugin.Name, ctx.Err())
 		}
