@@ -734,17 +734,34 @@ finfocus plugin init <plugin-name> --author <name> --providers <list> [options]
 
 ### Options (plugin init)
 
-| Flag          | Description                             | Default    |
-| ------------- | --------------------------------------- | ---------- |
-| `--author`    | Author name for the plugin              | (required) |
-| `--providers` | Comma-separated list of cloud providers | (required) |
-| `--help`      | Show help                               |            |
+| Flag            | Description                                                  | Default    |
+| --------------- | ------------------------------------------------------------ | ---------- |
+| `--author`      | Author name for the plugin                                   | (required) |
+| `--providers`   | Comma-separated list of cloud providers                      | (required) |
+| `--output-dir`  | Output directory for the plugin project                      | `.`        |
+| `--force`       | Overwrite existing files if the directory exists             | `false`    |
+| `--with-docker` | Generate Docker support files                                | `true`     |
+| `--with-docs`   | Generate documentation templates                             | `true`     |
+| `--with-health` | Include health endpoint code                                 | `true`     |
+| `--minimal`     | Generate minimal scaffold only (overrides `--with-*` flags)  | `false`    |
+| `--no-docker`   | Skip Docker files (alias for `--with-docker=false`)          | `false`    |
+| `--no-docs`     | Skip documentation (alias for `--with-docs=false`)           | `false`    |
+| `--no-health`   | Skip health endpoint (alias for `--with-health=false`)       | `false`    |
+| `--docker-only` | Generate only Docker files (for existing projects)           | `false`    |
+| `--with-claude-review` | Generate a Claude Code review workflow                | `false`    |
+| `--help`        | Show help                                                    |            |
 
 ### Examples (plugin init)
 
 ```bash
 # Initialize a new AWS plugin
 finfocus plugin init my-aws-plugin --author "Your Name" --providers aws
+
+# Minimal scaffold without Docker, docs, or health endpoint
+finfocus plugin init my-plugin --author "Your Name" --providers aws --minimal
+
+# Without Docker support
+finfocus plugin init my-plugin --author "Your Name" --providers aws --no-docker
 ```
 
 ## plugin install

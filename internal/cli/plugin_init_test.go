@@ -274,11 +274,12 @@ func TestPluginInitDockerFilesGenerated(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	opts := &cli.PluginInitOptions{
-		Name:      "test-plugin",
-		Author:    "Test Author",
-		Providers: []string{"aws"},
-		OutputDir: tmpDir,
-		Force:     true,
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
 	}
 	runPluginInitForTest(t, opts)
 
@@ -350,4 +351,391 @@ func TestPluginInitDockerOnly(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 	_, err = os.Stat(filepath.Join(projectDir, "cmd", "plugin", "main.go"))
 	assert.True(t, os.IsNotExist(err))
+}
+
+func TestPluginInitShouldGenerateFlags(t *testing.T) {
+	testCases := []struct {
+		name       string
+		opts       cli.PluginInitOptions
+		wantDocker bool
+		wantDocs   bool
+		wantHealth bool
+	}{
+		{
+			name:       "full generation by default",
+			opts:       cli.PluginInitOptions{WithDocker: true, WithDocs: true, WithHealth: true},
+			wantDocker: true,
+			wantDocs:   true,
+			wantHealth: true,
+		},
+		{
+			name:       "with-docker=false skips docker",
+			opts:       cli.PluginInitOptions{WithDocs: true, WithHealth: true},
+			wantDocker: false,
+			wantDocs:   true,
+			wantHealth: true,
+		},
+		{
+			name:       "no-docker alias skips docker",
+			opts:       cli.PluginInitOptions{WithDocker: true, WithDocs: true, WithHealth: true, NoDocker: true},
+			wantDocker: false,
+			wantDocs:   true,
+			wantHealth: true,
+		},
+		{
+			name:       "no-docs alias skips docs",
+			opts:       cli.PluginInitOptions{WithDocker: true, WithDocs: true, WithHealth: true, NoDocs: true},
+			wantDocker: true,
+			wantDocs:   false,
+			wantHealth: true,
+		},
+		{
+			name:       "no-health alias skips health",
+			opts:       cli.PluginInitOptions{WithDocker: true, WithDocs: true, WithHealth: true, NoHealth: true},
+			wantDocker: true,
+			wantDocs:   true,
+			wantHealth: false,
+		},
+		{
+			name: "minimal overrides with-* flags",
+			opts: cli.PluginInitOptions{
+				WithDocker: true,
+				WithDocs:   true,
+				WithHealth: true,
+				Minimal:    true,
+			},
+			wantDocker: false,
+			wantDocs:   false,
+			wantHealth: false,
+		},
+		{
+			name:       "docker-only always generates docker",
+			opts:       cli.PluginInitOptions{Minimal: true, DockerOnly: true},
+			wantDocker: true,
+			wantDocs:   false,
+			wantHealth: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.wantDocker, tc.opts.ShouldGenerateDocker())
+			assert.Equal(t, tc.wantDocs, tc.opts.ShouldGenerateDocs())
+			assert.Equal(t, tc.wantHealth, tc.opts.ShouldGenerateHealth())
+		})
+	}
+}
+
+func TestPluginInitMinimal(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+		Minimal:    true,
+	}
+	runPluginInitForTest(t, opts)
+
+	projectDir := filepath.Join(tmpDir, "test-plugin")
+
+	// Standard scaffolding still generated
+	_, err := os.Stat(filepath.Join(projectDir, "go.mod"))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(projectDir, "cmd", "plugin", "main.go"))
+	require.NoError(t, err)
+
+	// Docker files skipped despite --with-docker=true
+	_, err = os.Stat(filepath.Join(projectDir, "docker", "Dockerfile"))
+	assert.True(t, os.IsNotExist(err))
+	_, err = os.Stat(filepath.Join(projectDir, ".dockerignore"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestPluginInitCalculatorRPCMethods(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws", "azure"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	projectDir := filepath.Join(tmpDir, "test-plugin")
+
+	calculator, err := os.ReadFile(filepath.Join(projectDir, "internal", "pricing", "calculator.go"))
+	require.NoError(t, err)
+	assert.Contains(t, string(calculator), "PluginVersion = \"0.1.0\"")
+	assert.Contains(t, string(calculator), "SpecVersion")
+	assert.Contains(t, string(calculator), "func (c *Calculator) GetPluginInfo(")
+	assert.Contains(t, string(calculator), "func (c *Calculator) Supports(")
+	assert.Contains(t, string(calculator), "pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS")
+	assert.Contains(t, string(calculator), "pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS")
+	assert.Contains(t, string(calculator), "\"aws\", \"azure\"")
+
+	calculatorTest, err := os.ReadFile(filepath.Join(projectDir, "internal", "pricing", "calculator_test.go"))
+	require.NoError(t, err)
+	assert.Contains(t, string(calculatorTest), "func TestGetPluginInfo(t *testing.T)")
+	assert.Contains(t, string(calculatorTest), "func TestSupports(t *testing.T)")
+	assert.Contains(t, string(calculatorTest), "assert.Contains(t, resp.Providers, \"aws\")")
+	assert.Contains(t, string(calculatorTest), "{\"aws supported\", \"aws\", true}")
+}
+
+func TestPluginInitHealthEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	mainGo, err := os.ReadFile(filepath.Join(tmpDir, "test-plugin", "cmd", "plugin", "main.go"))
+	require.NoError(t, err)
+	assert.Contains(t, string(mainGo), "func startHealthServer(")
+	assert.Contains(t, string(mainGo), `mux.HandleFunc("/health"`)
+	assert.Contains(t, string(mainGo), `mux.HandleFunc("/ready"`)
+	assert.Contains(t, string(mainGo), "FINFOCUS_PLUGIN_HEALTH_ENDPOINT")
+	assert.Contains(t, string(mainGo), "FINFOCUS_PLUGIN_HEALTH_PORT")
+	assert.Contains(t, string(mainGo), "pricing.PluginVersion")
+}
+
+func TestPluginInitNoHealth(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+		NoHealth:   true,
+	}
+	runPluginInitForTest(t, opts)
+
+	mainGo, err := os.ReadFile(filepath.Join(tmpDir, "test-plugin", "cmd", "plugin", "main.go"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(mainGo), "startHealthServer")
+	assert.NotContains(t, string(mainGo), "/health")
+}
+
+func TestPluginInitDocsGenerated(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	projectDir := filepath.Join(tmpDir, "test-plugin")
+
+	for _, file := range []string{"docs/api.md", "docs/configuration.md", "docs/deployment.md"} {
+		_, err := os.Stat(filepath.Join(projectDir, file))
+		require.NoError(t, err, "expected docs file %s", file)
+	}
+
+	apiDoc, err := os.ReadFile(filepath.Join(projectDir, "docs", "api.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(apiDoc), "# test-plugin Plugin API Reference")
+	assert.Contains(t, string(apiDoc), "FinFocus plugin for test-plugin")
+	assert.Contains(t, string(apiDoc), "`GetPluginInfoRequest`")
+	assert.NotContains(t, string(apiDoc), "{{PLUGIN_NAME}}")
+	assert.NotContains(t, string(apiDoc), "{{BACKTICK}}")
+
+	configDoc, err := os.ReadFile(filepath.Join(projectDir, "docs", "configuration.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(configDoc), "FINFOCUS_PLUGIN_HEALTH_PORT")
+
+	deployDoc, err := os.ReadFile(filepath.Join(projectDir, "docs", "deployment.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(deployDoc), "docker run -p 8080:8080 -p 8081:8081 test-plugin:local")
+	assert.Contains(t, string(deployDoc), "```yaml")
+}
+
+func TestPluginInitNoDocs(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+		NoDocs:     true,
+	}
+	runPluginInitForTest(t, opts)
+
+	_, err := os.Stat(filepath.Join(tmpDir, "test-plugin", "docs"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestPluginInitEnhancedMakefile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	makefile, err := os.ReadFile(filepath.Join(tmpDir, "test-plugin", "Makefile"))
+	require.NoError(t, err)
+	content := string(makefile)
+
+	for _, target := range []string{
+		"build:", "test:", "test-integration:", "test-all:", "clean:", "lint:",
+		"install:", "develop:", "build-debug:", "docker-build:", "docker-run:",
+		"cover:", "fmt:", "deps:", "ensure:", "security:", "help:",
+	} {
+		assert.Contains(t, content, target)
+	}
+	assert.Contains(t, content, "VERSION = 0.1.0")
+	assert.Contains(t, content, "~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/")
+	assert.Contains(t, content, "docker build -t $(PLUGIN_NAME):local -f docker/Dockerfile .")
+	assert.NotContains(t, content, "{{NAME}}")
+}
+
+func TestPluginInitMakefileNoDocker(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	makefile, err := os.ReadFile(filepath.Join(tmpDir, "test-plugin", "Makefile"))
+	require.NoError(t, err)
+	content := string(makefile)
+
+	assert.NotContains(t, content, "docker-build:")
+	assert.NotContains(t, content, "docker-run:")
+	assert.Contains(t, content, "build:")
+}
+
+func TestPluginInitWorkflows(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	workflowsDir := filepath.Join(tmpDir, "test-plugin", ".github", "workflows")
+
+	for _, file := range []string{"ci.yml", "release.yml", "release-please.yml", "docker.yml"} {
+		_, err := os.Stat(filepath.Join(workflowsDir, file))
+		require.NoError(t, err, "expected workflow %s", file)
+	}
+
+	// Claude review workflow not generated without --with-claude-review
+	_, err := os.Stat(filepath.Join(workflowsDir, "claude-code-review.yml"))
+	assert.True(t, os.IsNotExist(err))
+
+	ci, err := os.ReadFile(filepath.Join(workflowsDir, "ci.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(ci), "go-version: '1.27.1'")
+	assert.NotContains(t, string(ci), "{{GO_VERSION}}")
+	assert.Contains(t, string(ci), "golangci/golangci-lint-action@v7")
+
+	docker, err := os.ReadFile(filepath.Join(workflowsDir, "docker.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(docker), "IMAGE_NAME: ${{ github.repository }}")
+	assert.Contains(t, string(docker), "type=semver,pattern={{version}}")
+	assert.Contains(t, string(docker), "file: docker/Dockerfile")
+}
+
+func TestPluginInitWorkflowsNoDocker(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	workflowsDir := filepath.Join(tmpDir, "test-plugin", ".github", "workflows")
+
+	for _, file := range []string{"ci.yml", "release.yml", "release-please.yml"} {
+		_, err := os.Stat(filepath.Join(workflowsDir, file))
+		require.NoError(t, err, "expected workflow %s", file)
+	}
+
+	_, err := os.Stat(filepath.Join(workflowsDir, "docker.yml"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestPluginInitClaudeReviewWorkflow(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:             "test-plugin",
+		Author:           "Test Author",
+		Providers:        []string{"aws"},
+		OutputDir:        tmpDir,
+		Force:            true,
+		WithDocker:       true,
+		WithDocs:         true,
+		WithHealth:       true,
+		WithClaudeReview: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	claude, err := os.ReadFile(
+		filepath.Join(tmpDir, "test-plugin", ".github", "workflows", "claude-code-review.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(claude), "anthropics/claude-code-action@v1")
 }
