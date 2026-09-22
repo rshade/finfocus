@@ -25,7 +25,8 @@ import (
 
 // mockBatchCostSourceClient implements proto.CostSourceClient for batch testing.
 type mockBatchCostSourceClient struct {
-	batchCostFunc func(ctx context.Context, in *pbc.BatchCostRequest, opts ...grpc.CallOption) (*pbc.BatchCostResponse, error)
+	batchCostFunc     func(ctx context.Context, in *pbc.BatchCostRequest, opts ...grpc.CallOption) (*pbc.BatchCostResponse, error)
+	getActualCostFunc func(ctx context.Context, in *proto.GetActualCostRequest, opts ...grpc.CallOption) (*proto.GetActualCostResponse, error)
 }
 
 func (m *mockBatchCostSourceClient) Name(
@@ -41,8 +42,11 @@ func (m *mockBatchCostSourceClient) GetProjectedCost(
 }
 
 func (m *mockBatchCostSourceClient) GetActualCost(
-	_ context.Context, _ *proto.GetActualCostRequest, _ ...grpc.CallOption,
+	ctx context.Context, in *proto.GetActualCostRequest, opts ...grpc.CallOption,
 ) (*proto.GetActualCostResponse, error) {
+	if m.getActualCostFunc != nil {
+		return m.getActualCostFunc(ctx, in, opts...)
+	}
 	return &proto.GetActualCostResponse{}, nil
 }
 
@@ -682,6 +686,17 @@ func TestExecuteBatchForPlugin(t *testing.T) {
 		// Verify actual result mapped
 		require.NotNil(t, results[0].actualResult)
 		assert.InDelta(t, 5.0, results[0].actualResult.TotalCost, 0.001)
+
+		// Verify rate fields derived from the request time window (24h)
+		from, to := start.AsTime(), end.AsTime()
+		assert.InDelta(t, 5.0*avgDaysPerMonth/1.0, results[0].actualResult.Monthly, 0.001)
+		assert.InDelta(t, 5.0/24.0, results[0].actualResult.Hourly, 0.001)
+		require.Len(t, results[0].actualResult.DailyCosts, 1)
+		assert.InDelta(t, 5.0, results[0].actualResult.DailyCosts[0], 0.001)
+		assert.Equal(t, FormatPeriod(from, to), results[0].actualResult.CostPeriod)
+		assert.Equal(t, from, results[0].actualResult.StartDate)
+		assert.Equal(t, to, results[0].actualResult.EndDate)
+		assert.Contains(t, results[0].actualResult.Notes, "Actual cost from")
 	})
 
 	t.Run("multi-chunk with max_batch_size adjustment", func(t *testing.T) {
@@ -739,6 +754,72 @@ func TestExecuteBatchForPlugin(t *testing.T) {
 		// First chunk = 100, then remaining 50 re-chunked at max_batch_size=50 → 1 more chunk
 		// Total: 2 calls (100 + 50)
 		assert.Equal(t, 2, callCount)
+	})
+
+	t.Run("re-chunked tail spanning multiple future chunks is fully processed", func(t *testing.T) {
+		var chunkSizes []int
+		mockAPI := &mockBatchCostSourceClient{
+			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+				chunkSizes = append(chunkSizes, len(in.GetResources()))
+				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+				for i, res := range in.GetResources() {
+					results[i] = &pbc.ResourceCostResult{
+						Resource: res,
+						Result: &pbc.ResourceCostResult_CostData{
+							CostData: &pbc.CostData{
+								Data: &pbc.CostData_ProjectedCost{
+									ProjectedCost: &pbc.GetProjectedCostResponse{
+										Currency:     "USD",
+										CostPerMonth: 10.0,
+									},
+								},
+							},
+						},
+					}
+				}
+				resp := &pbc.BatchCostResponse{Results: results}
+				// First response hints at smaller batch size
+				if len(chunkSizes) == 1 {
+					resp.MaxBatchSize = 50
+				}
+				return resp, nil
+			},
+		}
+		client := makeBatchCapableClient("test-plugin", mockAPI)
+		eng := New([]*pluginhost.Client{client}, nil)
+
+		// 250 resources: initial chunks are [100, 100, 50]. After the first call hints
+		// MaxBatchSize=50, the remaining 150 resources must be re-chunked into
+		// [50, 50, 50] and all of them processed — a for-range loop would skip the tail.
+		resources := make([]indexedResource, 250)
+		for i := range 250 {
+			resources[i] = indexedResource{
+				index: i,
+				resource: ResourceDescriptor{
+					Type:       "aws:ec2:Instance",
+					ID:         fmt.Sprintf("i-%d", i),
+					Provider:   "aws",
+					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
+				},
+			}
+		}
+
+		results, err := eng.executeBatchForPlugin(
+			context.Background(), client, resources,
+			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+		)
+		require.NoError(t, err)
+		assert.Len(t, results, 250)
+
+		// Every resource index must be present exactly once
+		seen := make(map[int]bool, 250)
+		for _, br := range results {
+			seen[br.index] = true
+		}
+		assert.Len(t, seen, 250)
+
+		// Calls: 100 (initial), then re-chunked tail at max_batch_size=50 → 50+50+50
+		assert.Equal(t, []int{100, 50, 50, 50}, chunkSizes)
 	})
 
 	t.Run("response count mismatch returns error", func(t *testing.T) {
@@ -1514,7 +1595,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 				"requests": 12.5,
 			},
 		}
-		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result)
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, time.Time{}, time.Time{})
 		assert.Equal(t, "aws:s3:Bucket", engineResult.ResourceType)
 		assert.Equal(t, "my-bucket", engineResult.ResourceID)
 		assert.Equal(t, "cost-plugin", engineResult.Adapter)
@@ -1532,7 +1613,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 				"water": {Value: 5.0, Unit: "gallons"},
 			},
 		}
-		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result)
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, time.Time{}, time.Time{})
 		require.Len(t, engineResult.Sustainability, 1)
 		assert.InDelta(t, 5.0, engineResult.Sustainability["water"].Value, 0.001)
 		assert.Equal(t, "gallons", engineResult.Sustainability["water"].Unit)
@@ -1545,8 +1626,220 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 			TotalCost: 75.0,
 			ExpiresAt: &expiry,
 		}
-		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result)
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, time.Time{}, time.Time{})
 		require.NotNil(t, engineResult.ExpiresAt)
 		assert.Equal(t, expiry, *engineResult.ExpiresAt)
+	})
+
+	t.Run("zero time window leaves rate fields empty", func(t *testing.T) {
+		result := &proto.ActualCostResult{
+			Currency:  "USD",
+			TotalCost: 42.50,
+		}
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, time.Time{}, time.Time{})
+		assert.Zero(t, engineResult.Monthly)
+		assert.Zero(t, engineResult.Hourly)
+		assert.Empty(t, engineResult.DailyCosts)
+		assert.Empty(t, engineResult.Notes)
+		assert.True(t, engineResult.StartDate.IsZero())
+		assert.True(t, engineResult.EndDate.IsZero())
+		assert.Empty(t, engineResult.CostPeriod)
+	})
+
+	t.Run("rate fields derived from time window", func(t *testing.T) {
+		from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+		to := time.Date(2026, 3, 8, 0, 0, 0, 0, time.UTC) // 7-day window
+		result := &proto.ActualCostResult{
+			Currency:  "USD",
+			TotalCost: 70.0,
+		}
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, from, to)
+
+		// 7-day window: monthly = 70 * 30.44 / 7, hourly = 70 / (7*24)
+		assert.InDelta(t, 70.0*avgDaysPerMonth/7.0, engineResult.Monthly, 0.001)
+		assert.InDelta(t, 70.0/(7*24), engineResult.Hourly, 0.001)
+		require.Len(t, engineResult.DailyCosts, 7)
+		for _, dc := range engineResult.DailyCosts {
+			assert.InDelta(t, 10.0, dc, 0.001)
+		}
+		assert.Equal(t, "Actual cost from 2026-03-01 to 2026-03-08", engineResult.Notes)
+		assert.Equal(t, from, engineResult.StartDate)
+		assert.Equal(t, to, engineResult.EndDate)
+		assert.Equal(t, FormatPeriod(from, to), engineResult.CostPeriod)
+	})
+
+	t.Run("sub-day window projects monthly from hourly rate", func(t *testing.T) {
+		from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+		to := from.Add(12 * time.Hour)
+		result := &proto.ActualCostResult{
+			Currency:  "USD",
+			TotalCost: 10.0,
+		}
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, from, to)
+
+		assert.InDelta(t, (10.0/12.0)*hoursPerMonth, engineResult.Monthly, 0.001)
+		assert.InDelta(t, 10.0/12.0, engineResult.Hourly, 0.001)
+		assert.Empty(t, engineResult.DailyCosts)
+	})
+}
+
+// TestMapProtoActualCostResultToEngine_ParityWithPerResourcePath verifies the batch
+// actual-cost mapper derives the same rate fields as the non-batch path
+// (getActualCostFromPlugin) for the same time window and total cost.
+func TestMapProtoActualCostResultToEngine_ParityWithPerResourcePath(t *testing.T) {
+	resource := ResourceDescriptor{
+		Type:     "aws:ec2:Instance",
+		ID:       "i-parity",
+		Provider: "aws",
+	}
+	from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 3, 8, 0, 0, 0, 0, time.UTC)
+	const totalCost = 70.0
+
+	// Batch path
+	batch := mapProtoActualCostResultToEngine(resource, "parity-plugin",
+		&proto.ActualCostResult{Currency: "USD", TotalCost: totalCost}, from, to)
+
+	// Non-batch path via a mock plugin
+	mockAPI := &mockBatchCostSourceClient{
+		getActualCostFunc: func(_ context.Context, _ *proto.GetActualCostRequest, _ ...grpc.CallOption) (*proto.GetActualCostResponse, error) {
+			return &proto.GetActualCostResponse{
+				Results: []*proto.ActualCostResult{{Currency: "USD", TotalCost: totalCost}},
+			}, nil
+		},
+	}
+	client := makeBatchCapableClient("parity-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+
+	single, err := eng.getActualCostFromPlugin(context.Background(), client, resource, from, to)
+	require.NoError(t, err)
+
+	assert.Equal(t, single.Monthly, batch.Monthly)
+	assert.Equal(t, single.Hourly, batch.Hourly)
+	assert.Equal(t, single.DailyCosts, batch.DailyCosts)
+	assert.Equal(t, single.Notes, batch.Notes)
+	assert.Equal(t, single.StartDate, batch.StartDate)
+	assert.Equal(t, single.EndDate, batch.EndDate)
+	assert.Equal(t, single.CostPeriod, batch.CostPeriod)
+	assert.Equal(t, single.TotalCost, batch.TotalCost)
+	assert.Equal(t, single.Currency, batch.Currency)
+}
+
+// TestBatchChunkTimeout covers the per-chunk BatchCost RPC timeout computation:
+// scaling by resource count, clamping to min/max, and capping by the parent
+// context's remaining deadline.
+func TestBatchChunkTimeout(t *testing.T) {
+	t.Run("no parent deadline", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			resourceCount int
+			want          time.Duration
+		}{
+			{"zero resources clamps to min", 0, minBatchTimeout},
+			{"one resource", 1, perResourceTimeout},
+			{"twelve resources at max", 12, maxBatchTimeout},
+			{"large chunk clamps to max", 100, maxBatchTimeout},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				assert.Equal(t, tt.want, batchChunkTimeout(context.Background(), tt.resourceCount))
+			})
+		}
+	})
+
+	t.Run("parent deadline sooner than chunk timeout", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		got := batchChunkTimeout(ctx, 100)
+		assert.LessOrEqual(t, got, 1*time.Second)
+		assert.Greater(t, got, 500*time.Millisecond)
+	})
+
+	t.Run("parent deadline later than chunk timeout", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
+		assert.Equal(t, perResourceTimeout, batchChunkTimeout(ctx, 1))
+	})
+}
+
+// TestBatchChunkTimeoutAppliedToRPC verifies executeBatchForPlugin bounds each
+// BatchCost RPC with a per-chunk deadline capped by the parent context's deadline.
+func TestBatchChunkTimeoutAppliedToRPC(t *testing.T) {
+	newMockAPI := func(capturedDeadline *time.Time, hasDeadline *bool) *mockBatchCostSourceClient {
+		return &mockBatchCostSourceClient{
+			batchCostFunc: func(ctx context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+				*capturedDeadline, *hasDeadline = ctx.Deadline()
+				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+				for i, res := range in.GetResources() {
+					results[i] = &pbc.ResourceCostResult{
+						Resource: res,
+						Result: &pbc.ResourceCostResult_CostData{
+							CostData: &pbc.CostData{
+								Data: &pbc.CostData_ProjectedCost{
+									ProjectedCost: &pbc.GetProjectedCostResponse{
+										Currency:     "USD",
+										CostPerMonth: 10.0,
+									},
+								},
+							},
+						},
+					}
+				}
+				return &pbc.BatchCostResponse{Results: results}, nil
+			},
+		}
+	}
+	resources := []indexedResource{
+		{
+			index: 0,
+			resource: ResourceDescriptor{
+				Type:       "aws:ec2:Instance",
+				ID:         "i-0",
+				Provider:   "aws",
+				Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
+			},
+		},
+	}
+
+	t.Run("batch cost call carries per-chunk deadline", func(t *testing.T) {
+		var (
+			deadline    time.Time
+			hasDeadline bool
+		)
+		client := makeBatchCapableClient("test-plugin", newMockAPI(&deadline, &hasDeadline))
+		eng := New([]*pluginhost.Client{client}, nil)
+
+		_, err := eng.executeBatchForPlugin(
+			context.Background(), client, resources,
+			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+		)
+		require.NoError(t, err)
+		require.True(t, hasDeadline, "BatchCost call must carry a deadline")
+		remaining := time.Until(deadline)
+		assert.LessOrEqual(t, remaining, perResourceTimeout) // 1 resource → 5s timeout
+		assert.Greater(t, remaining, perResourceTimeout-time.Second)
+	})
+
+	t.Run("chunk deadline capped by parent deadline", func(t *testing.T) {
+		var (
+			deadline    time.Time
+			hasDeadline bool
+		)
+		client := makeBatchCapableClient("test-plugin", newMockAPI(&deadline, &hasDeadline))
+		eng := New([]*pluginhost.Client{client}, nil)
+
+		parentDeadline := time.Now().Add(1 * time.Second)
+		ctx, cancel := context.WithDeadline(context.Background(), parentDeadline)
+		defer cancel()
+
+		_, err := eng.executeBatchForPlugin(
+			ctx, client, resources,
+			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+		)
+		require.NoError(t, err)
+		require.True(t, hasDeadline)
+		assert.LessOrEqual(t, time.Until(deadline), time.Until(parentDeadline)+50*time.Millisecond)
 	})
 }

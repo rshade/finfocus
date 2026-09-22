@@ -1818,32 +1818,7 @@ func (e *Engine) getActualCostFromPlugin(
 	}
 
 	result := resp.Results[0]
-	totalHours := to.Sub(from).Hours()
-	totalDays := int(totalHours / hoursPerDay)
-
-	// Calculate daily costs if we have breakdown data
-	var dailyCosts []float64
-	if totalDays > 0 {
-		dailyCosts = make([]float64, totalDays)
-		avgDaily := result.TotalCost / float64(totalDays)
-		for i := range dailyCosts {
-			dailyCosts[i] = avgDaily
-		}
-	}
-
-	// Calculate monthly projection, avoiding divide by zero
-	var monthlyRate float64
-	var hourlyRate float64
-	if totalDays > 0 {
-		monthlyRate = result.TotalCost * avgDaysPerMonth / float64(totalDays)
-	} else if totalHours > 0 {
-		// If less than a day, project based on hourly rate
-		monthlyRate = (result.TotalCost / totalHours) * hoursPerMonth
-	}
-
-	if totalHours > 0 {
-		hourlyRate = result.TotalCost / totalHours
-	}
+	monthlyRate, hourlyRate, dailyCosts, notes := deriveActualCostWindow(result.TotalCost, from, to)
 
 	return &CostResult{
 		ResourceType: resource.Type,
@@ -1854,17 +1829,55 @@ func (e *Engine) getActualCostFromPlugin(
 		Hourly:       hourlyRate,
 		TotalCost:    result.TotalCost,
 		DailyCosts:   dailyCosts,
-		Notes: fmt.Sprintf(
-			"Actual cost from %s to %s",
-			from.Format("2006-01-02"),
-			to.Format("2006-01-02"),
-		),
-		Breakdown:  result.CostBreakdown,
-		StartDate:  from,
-		EndDate:    to,
-		CostPeriod: FormatPeriod(from, to),
-		ExpiresAt:  result.ExpiresAt,
+		Notes:        notes,
+		Breakdown:    result.CostBreakdown,
+		StartDate:    from,
+		EndDate:      to,
+		CostPeriod:   FormatPeriod(from, to),
+		ExpiresAt:    result.ExpiresAt,
 	}, nil
+}
+
+// deriveActualCostWindow computes the rate fields (Monthly, Hourly, DailyCosts) and the
+// human-readable Notes for an actual cost result over the [from, to] time window.
+// It is shared by the per-resource and batch actual-cost paths so both produce
+// identical derived fields.
+func deriveActualCostWindow(
+	totalCost float64, from, to time.Time,
+) (float64, float64, []float64, string) {
+	totalHours := to.Sub(from).Hours()
+	totalDays := int(totalHours / hoursPerDay)
+
+	// Calculate daily costs if we have breakdown data
+	var dailyCosts []float64
+	if totalDays > 0 {
+		dailyCosts = make([]float64, totalDays)
+		avgDaily := totalCost / float64(totalDays)
+		for i := range dailyCosts {
+			dailyCosts[i] = avgDaily
+		}
+	}
+
+	// Calculate monthly projection, avoiding divide by zero
+	var monthly float64
+	if totalDays > 0 {
+		monthly = totalCost * avgDaysPerMonth / float64(totalDays)
+	} else if totalHours > 0 {
+		// If less than a day, project based on hourly rate
+		monthly = (totalCost / totalHours) * hoursPerMonth
+	}
+
+	var hourly float64
+	if totalHours > 0 {
+		hourly = totalCost / totalHours
+	}
+
+	notes := fmt.Sprintf(
+		"Actual cost from %s to %s",
+		from.Format("2006-01-02"),
+		to.Format("2006-01-02"),
+	)
+	return monthly, hourly, dailyCosts, notes
 }
 
 // ConvertToProto converts a map[string]interface{} to map[string]string for gRPC.

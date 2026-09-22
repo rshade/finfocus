@@ -165,7 +165,11 @@ func (e *Engine) executeBatchForPlugin(
 	allResults := make([]batchResult, 0, len(resources))
 
 	chunks := chunkResources(resources, chunkSize)
-	for chunkIdx, chunk := range chunks {
+	// Index-controlled loop (not for-range): when a plugin hints a smaller MaxBatchSize,
+	// the remaining resources are re-chunked and appended to chunks. A for-range header
+	// captures the slice length at loop start, so appended tail chunks would never run.
+	for chunkIdx := 0; chunkIdx < len(chunks); chunkIdx++ {
+		chunk := chunks[chunkIdx]
 		if ctx.Err() != nil {
 			return nil, fmt.Errorf("batch cost cancelled for plugin %s: %w", plugin.Name, ctx.Err())
 		}
@@ -196,7 +200,7 @@ func (e *Engine) executeBatchForPlugin(
 			Int("skipped_invalid", len(built.invalidResults)).
 			Msg("sending batch cost request")
 
-		chunkCtx, chunkCancel := context.WithTimeout(ctx, batchChunkTimeout(len(built.validResources)))
+		chunkCtx, chunkCancel := context.WithTimeout(ctx, batchChunkTimeout(ctx, len(built.validResources)))
 		resp, err := plugin.API.BatchCost(chunkCtx, built.request)
 		chunkCancel()
 		if err != nil {
@@ -237,6 +241,15 @@ func (e *Engine) executeBatchForPlugin(
 			}
 		}
 
+		// Resolve the request time window for actual-cost rate derivation
+		var from, to time.Time
+		if opts.start != nil {
+			from = opts.start.AsTime()
+		}
+		if opts.end != nil {
+			to = opts.end.AsTime()
+		}
+
 		// Map results based on query type
 		var mapped []proto.BatchMappedResult
 		if opts.queryType == pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
@@ -256,7 +269,7 @@ func (e *Engine) executeBatchForPlugin(
 			}
 			if m.ActualResult != nil {
 				br.actualResult = mapProtoActualCostResultToEngine(
-					built.validResources[i].resource, plugin.Name, m.ActualResult,
+					built.validResources[i].resource, plugin.Name, m.ActualResult, from, to,
 				)
 			}
 			allResults = append(allResults, br)
@@ -425,11 +438,14 @@ func mapProtoCostResultToEngine(
 }
 
 // mapProtoActualCostResultToEngine converts a proto ActualCostResult to an engine CostResult
-// for the actual cost path.
+// for the actual cost path. When a non-zero request time window ([from, to]) is provided,
+// the rate fields (Monthly, Hourly, DailyCosts), Notes, StartDate, EndDate, and CostPeriod
+// are derived with the same logic as the per-resource path (getActualCostFromPlugin).
 func mapProtoActualCostResultToEngine(
 	resource ResourceDescriptor,
 	pluginName string,
 	result *proto.ActualCostResult,
+	from, to time.Time,
 ) *CostResult {
 	engineResult := &CostResult{
 		ResourceType:   resource.Type,
@@ -443,6 +459,17 @@ func mapProtoActualCostResultToEngine(
 
 	engineResult.ExpiresAt = result.ExpiresAt
 
+	if !from.IsZero() && !to.IsZero() {
+		monthly, hourly, dailyCosts, notes := deriveActualCostWindow(result.TotalCost, from, to)
+		engineResult.Monthly = monthly
+		engineResult.Hourly = hourly
+		engineResult.DailyCosts = dailyCosts
+		engineResult.Notes = notes
+		engineResult.StartDate = from
+		engineResult.EndDate = to
+		engineResult.CostPeriod = FormatPeriod(from, to)
+	}
+
 	for k, v := range result.Sustainability {
 		engineResult.Sustainability[k] = SustainabilityMetric{
 			Value: v.Value,
@@ -452,15 +479,23 @@ func mapProtoActualCostResultToEngine(
 	return engineResult
 }
 
-// batchChunkTimeout returns a per-chunk timeout scaled by the number of
-// resources, clamped between minBatchTimeout and maxBatchTimeout.
-func batchChunkTimeout(resourceCount int) time.Duration {
+// batchChunkTimeout returns the per-chunk BatchCost RPC timeout for a chunk with
+// resourceCount resources. It scales with the chunk size, is clamped between
+// minBatchTimeout and maxBatchTimeout, and is further capped by the parent
+// context's remaining deadline so a single slow chunk cannot consume the entire
+// request budget.
+func batchChunkTimeout(ctx context.Context, resourceCount int) time.Duration {
 	t := perResourceTimeout * time.Duration(resourceCount)
 	if t < minBatchTimeout {
-		return minBatchTimeout
+		t = minBatchTimeout
 	}
 	if t > maxBatchTimeout {
-		return maxBatchTimeout
+		t = maxBatchTimeout
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining < t {
+			t = remaining
+		}
 	}
 	return t
 }
