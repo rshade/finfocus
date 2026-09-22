@@ -1105,28 +1105,29 @@ func main() {
 	return g.writeFile("cmd/plugin/main.go", content)
 }
 
-func (g *projectGenerator) generatePlugin() error {
-	providersStr := strings.Join(g.providers, `", "`)
-	content := fmt.Sprintf(`package pricing
+// pluginCalculatorTemplate is the internal/pricing/calculator.go template
+// generated for new plugin projects.
+const pluginCalculatorTemplate = `package pricing
 
 import (
 	"context"
+	"fmt"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 )
 
-// Calculator implements the FinFocus plugin interface for %s.
+// Calculator implements the FinFocus plugin interface for {{NAME}}.
 type Calculator struct {
 	*pluginsdk.BasePlugin
 }
 
-// NewCalculator creates a new %s cost calculator plugin.
+// NewCalculator creates a new {{NAME}} cost calculator plugin.
 func NewCalculator() *Calculator {
-	base := pluginsdk.NewBasePlugin("%s")
-	
+	base := pluginsdk.NewBasePlugin("{{NAME}}")
+
 	// Configure supported providers
-	providers := []string{"%s"}
+	providers := []string{"{{PROVIDERS_LIST}}"}
 	for _, provider := range providers {
 		base.Matcher().AddProvider(provider)
 	}
@@ -1134,6 +1135,59 @@ func NewCalculator() *Calculator {
 	return &Calculator{
 		BasePlugin: base,
 	}
+}
+
+// Plugin version constants.
+const (
+	// PluginVersion is the semantic version of this plugin.
+	PluginVersion = "0.1.0"
+	// SpecVersion is the finfocus-spec protocol version this plugin was compiled against.
+	SpecVersion = "0.6.1"
+)
+
+// GetPluginInfo returns metadata about this plugin for discovery and compatibility verification.
+func (c *Calculator) GetPluginInfo(_ context.Context, _ *pbc.GetPluginInfoRequest) (*pbc.GetPluginInfoResponse, error) {
+	return &pbc.GetPluginInfoResponse{
+		Name:        "{{NAME}}",
+		Version:     PluginVersion,
+		SpecVersion: SpecVersion,
+		Providers:   []string{"{{PROVIDERS_LIST}}"},
+		Capabilities: []pbc.PluginCapability{
+			pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
+			pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS,
+		},
+		Metadata: map[string]string{
+			"description": "FinFocus plugin for {{NAME}}",
+			"author":      "{{AUTHOR}}",
+		},
+	}, nil
+}
+
+// Supports checks if a resource type is supported by this plugin.
+func (c *Calculator) Supports(_ context.Context, req *pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
+	resource := req.GetResource()
+	if resource == nil {
+		return &pbc.SupportsResponse{
+			Supported: false,
+			Reason:    "resource descriptor is required",
+		}, nil
+	}
+
+	// Check if the provider is supported
+	if !c.Matcher().Supports(resource) {
+		return &pbc.SupportsResponse{
+			Supported: false,
+			Reason:    fmt.Sprintf("provider '%s' not supported", resource.GetProvider()),
+		}, nil
+	}
+
+	return &pbc.SupportsResponse{
+		Supported: true,
+		Capabilities: map[string]bool{
+			"projected_costs": true,
+			"actual_costs":    true,
+		},
+	}, nil
 }
 
 // GetProjectedCost calculates projected costs for resources.
@@ -1195,9 +1249,28 @@ func (c *Calculator) calculateEC2InstanceCost(resource *pbc.ResourceDescriptor) 
 		return 0.0104 // fallback
 	}
 }
-`, g.name, g.name, g.name, providersStr)
+`
 
-	return g.writeFile("internal/pricing/calculator.go", content)
+// renderCalculator renders the calculator.go template by substituting the
+// plugin name, author, and provider list tokens.
+func renderCalculator(name, author string, providers []string) string {
+	replacements := map[string]string{
+		"{{NAME}}":           name,
+		"{{AUTHOR}}":         author,
+		"{{PROVIDERS_LIST}}": strings.Join(providers, `", "`),
+	}
+	content := pluginCalculatorTemplate
+	for token, value := range replacements {
+		content = strings.ReplaceAll(content, token, value)
+	}
+	return content
+}
+
+func (g *projectGenerator) generatePlugin() error {
+	return g.writeFile(
+		"internal/pricing/calculator.go",
+		renderCalculator(g.name, g.author, g.providers),
+	)
 }
 
 func (g *projectGenerator) generatePricingCalculator() error {
@@ -1452,20 +1525,57 @@ func (g *projectGenerator) generateReadme() error {
 	return g.writeFile("README.md", content)
 }
 
-func (g *projectGenerator) generateTests() error {
-	content := fmt.Sprintf(`package pricing
+// pluginCalculatorTestTemplate is the internal/pricing/calculator_test.go
+// template generated for new plugin projects.
+const pluginCalculatorTestTemplate = `package pricing
 
 import (
+	"context"
 	"testing"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCalculatorName(t *testing.T) {
 	plugin := NewCalculator()
 	testPlugin := pluginsdk.NewTestPlugin(t, plugin)
-	testPlugin.TestName("%s")
+	testPlugin.TestName("{{NAME}}")
+}
+
+func TestGetPluginInfo(t *testing.T) {
+	calc := NewCalculator()
+	resp, err := calc.GetPluginInfo(context.Background(), &pbc.GetPluginInfoRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, "{{NAME}}", resp.Name)
+	assert.Equal(t, PluginVersion, resp.Version)
+	assert.Equal(t, SpecVersion, resp.SpecVersion)
+{{INFO_PROVIDER_ASSERTS}}
+}
+
+func TestSupports(t *testing.T) {
+	calc := NewCalculator()
+
+	tests := []struct {
+		name     string
+		provider string
+		want     bool
+	}{
+{{SUPPORTS_CASES}}
+		{"unknown not supported", "unknown", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := calc.Supports(context.Background(), &pbc.SupportsRequest{
+				Resource: &pbc.ResourceDescriptor{Provider: tt.provider},
+			})
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, resp.Supported)
+		})
+	}
 }
 
 func TestProjectedCostSupported(t *testing.T) {
@@ -1484,11 +1594,11 @@ func TestProjectedCostSupported(t *testing.T) {
 	}
 
 	if resp.Currency != "USD" {
-		t.Errorf("Expected currency USD, got %%s", resp.Currency)
+		t.Errorf("Expected currency USD, got %s", resp.Currency)
 	}
 
 	if resp.UnitPrice <= 0 {
-		t.Errorf("Expected positive unit price, got %%f", resp.UnitPrice)
+		t.Errorf("Expected positive unit price, got %f", resp.UnitPrice)
 	}
 }
 
@@ -1536,14 +1646,42 @@ func TestEC2InstancePricing(t *testing.T) {
 
 			cost := calculator.calculateEC2InstanceCost(resource)
 			if cost != tc.expectedCost {
-				t.Errorf("Expected cost %%f for %%s, got %%f", tc.expectedCost, tc.instanceType, cost)
+				t.Errorf("Expected cost %f for %s, got %f", tc.expectedCost, tc.instanceType, cost)
 			}
 		})
 	}
 }
-`, g.name)
+`
 
-	return g.writeFile("internal/pricing/calculator_test.go", content)
+// renderCalculatorTest renders the calculator_test.go template, expanding the
+// per-provider assertions and test cases for the configured providers.
+func renderCalculatorTest(name string, providers []string) string {
+	var infoProviderAsserts []string
+	var supportsCases []string
+	for _, provider := range providers {
+		infoProviderAsserts = append(infoProviderAsserts,
+			fmt.Sprintf("\tassert.Contains(t, resp.Providers, %q)", provider))
+		supportsCases = append(supportsCases,
+			fmt.Sprintf("\t\t{%q, %q, true},", provider+" supported", provider))
+	}
+
+	replacements := map[string]string{
+		"{{NAME}}":                  name,
+		"{{INFO_PROVIDER_ASSERTS}}": strings.Join(infoProviderAsserts, "\n"),
+		"{{SUPPORTS_CASES}}":        strings.Join(supportsCases, "\n"),
+	}
+	content := pluginCalculatorTestTemplate
+	for token, value := range replacements {
+		content = strings.ReplaceAll(content, token, value)
+	}
+	return content
+}
+
+func (g *projectGenerator) generateTests() error {
+	return g.writeFile(
+		"internal/pricing/calculator_test.go",
+		renderCalculatorTest(g.name, g.providers),
+	)
 }
 
 func (g *projectGenerator) generateIssues() error {

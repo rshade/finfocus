@@ -456,3 +456,38 @@ func TestPluginInitMinimal(t *testing.T) {
 	_, err = os.Stat(filepath.Join(projectDir, ".dockerignore"))
 	assert.True(t, os.IsNotExist(err))
 }
+
+func TestPluginInitCalculatorRPCMethods(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws", "azure"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	projectDir := filepath.Join(tmpDir, "test-plugin")
+
+	calculator, err := os.ReadFile(filepath.Join(projectDir, "internal", "pricing", "calculator.go"))
+	require.NoError(t, err)
+	assert.Contains(t, string(calculator), "PluginVersion = \"0.1.0\"")
+	assert.Contains(t, string(calculator), "SpecVersion")
+	assert.Contains(t, string(calculator), "func (c *Calculator) GetPluginInfo(")
+	assert.Contains(t, string(calculator), "func (c *Calculator) Supports(")
+	assert.Contains(t, string(calculator), "pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS")
+	assert.Contains(t, string(calculator), "pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS")
+	assert.Contains(t, string(calculator), "\"aws\", \"azure\"")
+
+	calculatorTest, err := os.ReadFile(filepath.Join(projectDir, "internal", "pricing", "calculator_test.go"))
+	require.NoError(t, err)
+	assert.Contains(t, string(calculatorTest), "func TestGetPluginInfo(t *testing.T)")
+	assert.Contains(t, string(calculatorTest), "func TestSupports(t *testing.T)")
+	assert.Contains(t, string(calculatorTest), "assert.Contains(t, resp.Providers, \"aws\")")
+	assert.Contains(t, string(calculatorTest), "{\"aws supported\", \"aws\", true}")
+}
