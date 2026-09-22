@@ -149,8 +149,13 @@ type pulumiProjectFile struct {
 
 // GetProjectName reads the project name from the Pulumi.yaml (or Pulumi.yml)
 // file in the given directory. Returns empty string and error if the file
-// cannot be read or parsed, or if the name field is empty.
+// cannot be read or parsed, or if the name field is empty. Only missing-file
+// errors are ignored (the loop tries the next candidate); permission and IO
+// errors are returned with the candidate path.
 func GetProjectName(projectDir string) (string, error) {
+	if strings.TrimSpace(projectDir) == "" {
+		return "", errors.New("project directory must not be empty")
+	}
 	for _, name := range []string{"Pulumi.yaml", "Pulumi.yml"} {
 		candidate := filepath.Join(projectDir, name)
 		data, err := os.ReadFile(candidate)
@@ -158,14 +163,14 @@ func GetProjectName(projectDir string) (string, error) {
 			if errors.Is(err, os.ErrNotExist) {
 				continue
 			}
-			return "", fmt.Errorf("reading %s: %w", name, err)
+			return "", fmt.Errorf("reading %s: %w", candidate, err)
 		}
 		var proj pulumiProjectFile
 		if yamlErr := yaml.Unmarshal(data, &proj); yamlErr != nil {
-			return "", fmt.Errorf("parsing %s: %w", name, yamlErr)
+			return "", fmt.Errorf("parsing %s: %w", candidate, yamlErr)
 		}
 		if proj.Name == "" {
-			return "", fmt.Errorf("%s has no 'name' field", name)
+			return "", fmt.Errorf("%s has no 'name' field", candidate)
 		}
 		return proj.Name, nil
 	}
