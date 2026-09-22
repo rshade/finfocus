@@ -274,11 +274,12 @@ func TestPluginInitDockerFilesGenerated(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	opts := &cli.PluginInitOptions{
-		Name:      "test-plugin",
-		Author:    "Test Author",
-		Providers: []string{"aws"},
-		OutputDir: tmpDir,
-		Force:     true,
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
 	}
 	runPluginInitForTest(t, opts)
 
@@ -349,5 +350,109 @@ func TestPluginInitDockerOnly(t *testing.T) {
 	_, err = os.Stat(filepath.Join(projectDir, "go.mod"))
 	assert.True(t, os.IsNotExist(err))
 	_, err = os.Stat(filepath.Join(projectDir, "cmd", "plugin", "main.go"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestPluginInitShouldGenerateFlags(t *testing.T) {
+	testCases := []struct {
+		name       string
+		opts       cli.PluginInitOptions
+		wantDocker bool
+		wantDocs   bool
+		wantHealth bool
+	}{
+		{
+			name:       "full generation by default",
+			opts:       cli.PluginInitOptions{WithDocker: true, WithDocs: true, WithHealth: true},
+			wantDocker: true,
+			wantDocs:   true,
+			wantHealth: true,
+		},
+		{
+			name:       "with-docker=false skips docker",
+			opts:       cli.PluginInitOptions{WithDocs: true, WithHealth: true},
+			wantDocker: false,
+			wantDocs:   true,
+			wantHealth: true,
+		},
+		{
+			name:       "no-docker alias skips docker",
+			opts:       cli.PluginInitOptions{WithDocker: true, WithDocs: true, WithHealth: true, NoDocker: true},
+			wantDocker: false,
+			wantDocs:   true,
+			wantHealth: true,
+		},
+		{
+			name:       "no-docs alias skips docs",
+			opts:       cli.PluginInitOptions{WithDocker: true, WithDocs: true, WithHealth: true, NoDocs: true},
+			wantDocker: true,
+			wantDocs:   false,
+			wantHealth: true,
+		},
+		{
+			name:       "no-health alias skips health",
+			opts:       cli.PluginInitOptions{WithDocker: true, WithDocs: true, WithHealth: true, NoHealth: true},
+			wantDocker: true,
+			wantDocs:   true,
+			wantHealth: false,
+		},
+		{
+			name: "minimal overrides with-* flags",
+			opts: cli.PluginInitOptions{
+				WithDocker: true,
+				WithDocs:   true,
+				WithHealth: true,
+				Minimal:    true,
+			},
+			wantDocker: false,
+			wantDocs:   false,
+			wantHealth: false,
+		},
+		{
+			name:       "docker-only always generates docker",
+			opts:       cli.PluginInitOptions{Minimal: true, DockerOnly: true},
+			wantDocker: true,
+			wantDocs:   false,
+			wantHealth: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.wantDocker, tc.opts.ShouldGenerateDocker())
+			assert.Equal(t, tc.wantDocs, tc.opts.ShouldGenerateDocs())
+			assert.Equal(t, tc.wantHealth, tc.opts.ShouldGenerateHealth())
+		})
+	}
+}
+
+func TestPluginInitMinimal(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+		Minimal:    true,
+	}
+	runPluginInitForTest(t, opts)
+
+	projectDir := filepath.Join(tmpDir, "test-plugin")
+
+	// Standard scaffolding still generated
+	_, err := os.Stat(filepath.Join(projectDir, "go.mod"))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(projectDir, "cmd", "plugin", "main.go"))
+	require.NoError(t, err)
+
+	// Docker files skipped despite --with-docker=true
+	_, err = os.Stat(filepath.Join(projectDir, "docker", "Dockerfile"))
+	assert.True(t, os.IsNotExist(err))
+	_, err = os.Stat(filepath.Join(projectDir, ".dockerignore"))
 	assert.True(t, os.IsNotExist(err))
 }
