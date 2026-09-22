@@ -9,6 +9,7 @@ import (
 	"github.com/rshade/ax-go/axtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/cli"
 )
@@ -252,4 +253,101 @@ func TestIsValidPluginName(t *testing.T) {
 			}
 		})
 	}
+}
+
+func runPluginInitForTest(t *testing.T, opts *cli.PluginInitOptions) {
+	t.Helper()
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	cmd := &cobra.Command{
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return cli.RunPluginInit(cmd.Context(), cmd, opts)
+		},
+	}
+	cmd.SetContext(context.Background())
+
+	err := cmd.RunE(cmd, []string{opts.Name})
+	require.NoError(t, err)
+}
+
+func TestPluginInitDockerFilesGenerated(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:      "test-plugin",
+		Author:    "Test Author",
+		Providers: []string{"aws"},
+		OutputDir: tmpDir,
+		Force:     true,
+	}
+	runPluginInitForTest(t, opts)
+
+	projectDir := filepath.Join(tmpDir, "test-plugin")
+
+	dockerfile, err := os.ReadFile(filepath.Join(projectDir, "docker", "Dockerfile"))
+	require.NoError(t, err)
+	assert.Contains(t, string(dockerfile), "FROM golang:")
+	assert.Contains(t, string(dockerfile), "AS builder")
+	assert.Contains(t, string(dockerfile), "adduser -D -u 65532")
+	assert.Contains(t, string(dockerfile), "HEALTHCHECK")
+	assert.NotContains(t, string(dockerfile), "{{GO_VERSION}}")
+
+	dockerignore, err := os.ReadFile(filepath.Join(projectDir, ".dockerignore"))
+	require.NoError(t, err)
+	assert.Contains(t, string(dockerignore), "bin/")
+	assert.Contains(t, string(dockerignore), ".git")
+}
+
+func TestPluginInitNoDocker(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:      "test-plugin",
+		Author:    "Test Author",
+		Providers: []string{"aws"},
+		OutputDir: tmpDir,
+		Force:     true,
+		NoDocker:  true,
+	}
+	runPluginInitForTest(t, opts)
+
+	projectDir := filepath.Join(tmpDir, "test-plugin")
+
+	// Standard files still generated
+	_, err := os.Stat(filepath.Join(projectDir, "go.mod"))
+	require.NoError(t, err)
+
+	// Docker files skipped
+	_, err = os.Stat(filepath.Join(projectDir, "docker", "Dockerfile"))
+	assert.True(t, os.IsNotExist(err))
+	_, err = os.Stat(filepath.Join(projectDir, ".dockerignore"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestPluginInitDockerOnly(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Pre-existing project directory (docker-only targets existing projects)
+	projectDir := filepath.Join(tmpDir, "test-plugin")
+	require.NoError(t, os.MkdirAll(projectDir, 0o750))
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		DockerOnly: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	// Docker files generated
+	_, err := os.Stat(filepath.Join(projectDir, "docker", "Dockerfile"))
+	require.NoError(t, err)
+	_, err = os.Stat(filepath.Join(projectDir, ".dockerignore"))
+	require.NoError(t, err)
+
+	// Standard scaffolding skipped
+	_, err = os.Stat(filepath.Join(projectDir, "go.mod"))
+	assert.True(t, os.IsNotExist(err))
+	_, err = os.Stat(filepath.Join(projectDir, "cmd", "plugin", "main.go"))
+	assert.True(t, os.IsNotExist(err))
 }

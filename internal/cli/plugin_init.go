@@ -29,11 +29,16 @@ type PluginInitOptions struct {
 	FixtureVersion string
 	Offline        bool
 	Strict         bool
+	NoDocker       bool
+	DockerOnly     bool
 }
 
 const (
 	pluginDirPerm  os.FileMode = 0o750
 	pluginFilePerm os.FileMode = 0o640
+	// pluginGoVersion is the Go version written to the generated go.mod and
+	// used as the builder image tag in the generated Dockerfile.
+	pluginGoVersion = "1.27.1"
 )
 
 const pluginReadmeTemplate = `# {{NAME}}
@@ -424,6 +429,87 @@ EOF
 {{CODE_BLOCK_END}}
 `
 
+// pluginDockerfileTemplate is a multi-stage Dockerfile for the generated plugin.
+// The {{GO_VERSION}} token is replaced with the Go version from the generated go.mod.
+const pluginDockerfileTemplate = `# Build stage
+FROM golang:{{GO_VERSION}}-alpine AS builder
+
+WORKDIR /app
+
+# Install build dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Copy go mod files first for better caching
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the binary
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+    -ldflags="-w -s -X main.version=${VERSION:-dev}" \
+    -o /plugin ./cmd/plugin
+
+# Runtime stage
+FROM alpine:3.19
+
+# Install runtime dependencies
+RUN apk add --no-cache ca-certificates tzdata
+
+# Create non-root user (uid 65532 is standard for distroless)
+RUN adduser -D -u 65532 -g "" plugin
+USER plugin
+
+WORKDIR /app
+
+# Copy binary from builder
+COPY --from=builder /plugin /app/plugin
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8081/health || exit 1
+
+# Environment defaults
+ENV FINFOCUS_PLUGIN_PORT=8080
+ENV FINFOCUS_PLUGIN_HEALTH_ENDPOINT=true
+ENV FINFOCUS_PLUGIN_HEALTH_PORT=8081
+
+EXPOSE 8080 8081
+
+ENTRYPOINT ["/app/plugin"]
+`
+
+// pluginDockerignoreTemplate keeps Docker build contexts small for generated plugins.
+const pluginDockerignoreTemplate = `# Git
+.git
+.gitignore
+
+# Build artifacts
+bin/
+coverage.out
+coverage.html
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Specs and drafts
+specs/
+issue_drafts/
+
+# Test artifacts
+test/
+*_test.go
+`
+
 // runRecordingWorkflow resolves fixtures, downloads required plan and state fixtures,
 // executes a recording workflow for each provider in opts, validates the recordings,
 // and copies recorded requests into the project's testdata/recorded_requests directory.
@@ -556,6 +642,12 @@ func renderIssues(providers []string) string {
 	return content
 }
 
+// renderDockerfile renders the Dockerfile template by substituting the
+// {{GO_VERSION}} token with the Go version used in the generated go.mod.
+func renderDockerfile(goVersion string) string {
+	return strings.ReplaceAll(pluginDockerfileTemplate, "{{GO_VERSION}}", goVersion)
+}
+
 func renderReadme(name string, providers []string) string {
 	quotedName := fmt.Sprintf("%q", name)
 	replacements := map[string]string{
@@ -631,6 +723,9 @@ This command creates a new directory structure for plugin development including:
 		"Use local fixtures without network access")
 	cmd.Flags().BoolVar(&opts.Strict, "strict", false,
 		"Fail initialization if recording workflow encounters errors")
+	cmd.Flags().BoolVar(&opts.NoDocker, "no-docker", false, "Skip Docker file generation")
+	cmd.Flags().BoolVar(&opts.DockerOnly, "docker-only", false,
+		"Generate only Docker files (for adding to an existing project)")
 
 	_ = cmd.MarkFlagRequired("author")
 	_ = cmd.MarkFlagRequired("providers")
@@ -668,9 +763,11 @@ func RunPluginInit(ctx context.Context, cmd *cobra.Command, opts *PluginInitOpti
 		return errors.New("at least one provider must be specified")
 	}
 
-	// Create project directory
+	// Create project directory. With --docker-only the directory is expected to
+	// already exist (adding Docker support to an existing project), so the
+	// "already exists" check is skipped.
 	projectDir := filepath.Join(opts.OutputDir, opts.Name)
-	if err := createProjectDirectory(projectDir, opts.Force); err != nil {
+	if err := createProjectDirectory(projectDir, opts.Force || opts.DockerOnly); err != nil {
 		return fmt.Errorf("creating project directory: %w", err)
 	}
 
@@ -686,19 +783,13 @@ func RunPluginInit(ctx context.Context, cmd *cobra.Command, opts *PluginInitOpti
 		providers:  opts.Providers,
 		projectDir: projectDir,
 		cmd:        cmd,
+		noDocker:   opts.NoDocker,
+		dockerOnly: opts.DockerOnly,
 	}
 
 	// Rehearse: report the files that would be created
 	rehearse := func(_ context.Context) error {
-		cmd.Printf("\nWould create plugin project structure at %s\n", projectDir)
-		cmd.Printf("  - cmd/plugin/\n")
-		cmd.Printf("  - internal/pricing/\n")
-		cmd.Printf("  - internal/client/\n")
-		cmd.Printf("  - examples/\n")
-		cmd.Printf("  - bin/\n")
-		if opts.RecordFixtures {
-			cmd.Printf("  - testdata/recorded_requests/\n")
-		}
+		printPluginInitRehearse(cmd, opts, projectDir)
 		return nil
 	}
 
@@ -735,6 +826,26 @@ func RunPluginInit(ctx context.Context, cmd *cobra.Command, opts *PluginInitOpti
 	}
 
 	return ax.Perform(ctx, rehearse, commit)
+}
+
+// printPluginInitRehearse prints the project structure that RunPluginInit
+// would create, honoring the Docker-related options.
+func printPluginInitRehearse(cmd *cobra.Command, opts *PluginInitOptions, projectDir string) {
+	cmd.Printf("\nWould create plugin project structure at %s\n", projectDir)
+	if !opts.DockerOnly {
+		cmd.Printf("  - cmd/plugin/\n")
+		cmd.Printf("  - internal/pricing/\n")
+		cmd.Printf("  - internal/client/\n")
+		cmd.Printf("  - examples/\n")
+		cmd.Printf("  - bin/\n")
+		if opts.RecordFixtures {
+			cmd.Printf("  - testdata/recorded_requests/\n")
+		}
+	}
+	if !opts.NoDocker {
+		cmd.Printf("  - docker/Dockerfile\n")
+		cmd.Printf("  - .dockerignore\n")
+	}
 }
 
 // recordPluginInitFixtures runs the fixture-recording workflow for a newly
@@ -774,6 +885,8 @@ type projectGenerator struct {
 	providers  []string
 	projectDir string
 	cmd        *cobra.Command
+	noDocker   bool
+	dockerOnly bool
 }
 
 func (g *projectGenerator) generateAll() error {
@@ -792,6 +905,24 @@ func (g *projectGenerator) generateAll() error {
 		{"Generating README.md", g.generateReadme},
 		{"Generating example tests", g.generateTests},
 		{"Generating issues.md", g.generateIssues},
+	}
+
+	if g.dockerOnly {
+		// Only generate Docker support files (for existing projects).
+		steps = nil
+	}
+
+	if g.dockerOnly || !g.noDocker {
+		steps = append(steps,
+			struct {
+				name string
+				fn   func() error
+			}{"Generating Dockerfile", g.generateDockerfile},
+			struct {
+				name string
+				fn   func() error
+			}{"Generating .dockerignore", g.generateDockerignore},
+		)
 	}
 
 	for _, step := range steps {
@@ -826,15 +957,25 @@ func (g *projectGenerator) createDirectories() error {
 func (g *projectGenerator) generateGoMod() error {
 	content := fmt.Sprintf(`module github.com/example/%s
 
-go 1.27.1
+go %s
 
 require (
 	github.com/rshade/finfocus-spec v0.6.1
 	google.golang.org/grpc v1.77.0
 )
-`, g.name)
+`, g.name, pluginGoVersion)
 
 	return g.writeFile("go.mod", content)
+}
+
+// generateDockerfile writes a multi-stage docker/Dockerfile using the Go
+// version from the generated go.mod as the builder image tag.
+func (g *projectGenerator) generateDockerfile() error {
+	return g.writeFile("docker/Dockerfile", renderDockerfile(pluginGoVersion))
+}
+
+func (g *projectGenerator) generateDockerignore() error {
+	return g.writeFile(".dockerignore", pluginDockerignoreTemplate)
 }
 
 func (g *projectGenerator) generateManifest() error {
