@@ -206,7 +206,8 @@ type HistoryConfig struct {
 	Enabled *bool `yaml:"enabled" json:"enabled"`
 
 	// RetentionDays is the number of days before stale entries are removed (default: 90).
-	RetentionDays int `yaml:"retention_days" json:"retention_days"`
+	// Pointer type distinguishes explicit zero from omitted (nil = use default).
+	RetentionDays *int `yaml:"retention_days" json:"retention_days"`
 
 	// Directory overrides the history directory path (default: ~/.finfocus/history).
 	Directory string `yaml:"directory,omitempty" json:"directory,omitempty"`
@@ -220,11 +221,19 @@ func (h HistoryConfig) IsEnabled() bool {
 	return *h.Enabled
 }
 
+// GetRetentionDays returns the retention period, defaulting to 90 when omitted.
+func (h HistoryConfig) GetRetentionDays() int {
+	if h.RetentionDays == nil {
+		return HistoryDefaultRetentionDays
+	}
+	return *h.RetentionDays
+}
+
 // Validate checks if the history configuration is valid.
 // Returns an error for non-positive RetentionDays when explicitly set.
 func (h HistoryConfig) Validate() error {
-	if h.RetentionDays < 0 {
-		return fmt.Errorf("history retention_days must be non-negative, got %d", h.RetentionDays)
+	if h.RetentionDays != nil && *h.RetentionDays <= 0 {
+		return fmt.Errorf("history retention_days must be positive when set, got %d", *h.RetentionDays)
 	}
 	return nil
 }

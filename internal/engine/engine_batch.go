@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -152,7 +153,7 @@ func (e *Engine) groupResourcesByPlugin(
 // max_batch_size. It maps results back to batchResult entries preserving original indices.
 // On batch-level gRPC errors, it returns the error for the caller to handle fallback.
 //
-//nolint:gocognit // Batch processing with chunking, re-chunking, and result mapping requires this complexity.
+//nolint:gocognit,funlen // Batch processing with chunking, re-chunking, and result mapping requires this complexity.
 func (e *Engine) executeBatchForPlugin(
 	ctx context.Context,
 	plugin *pluginhost.Client,
@@ -195,7 +196,9 @@ func (e *Engine) executeBatchForPlugin(
 			Int("skipped_invalid", len(built.invalidResults)).
 			Msg("sending batch cost request")
 
-		resp, err := plugin.API.BatchCost(ctx, built.request)
+		chunkCtx, chunkCancel := context.WithTimeout(ctx, batchChunkTimeout(len(built.validResources)))
+		resp, err := plugin.API.BatchCost(chunkCtx, built.request)
+		chunkCancel()
 		if err != nil {
 			// On DeadlineExceeded: if the parent context is still valid, the error is
 			// batch-specific and the caller can fall back to per-resource queries.
@@ -447,4 +450,17 @@ func mapProtoActualCostResultToEngine(
 		}
 	}
 	return engineResult
+}
+
+// batchChunkTimeout returns a per-chunk timeout scaled by the number of
+// resources, clamped between minBatchTimeout and maxBatchTimeout.
+func batchChunkTimeout(resourceCount int) time.Duration {
+	t := perResourceTimeout * time.Duration(resourceCount)
+	if t < minBatchTimeout {
+		return minBatchTimeout
+	}
+	if t > maxBatchTimeout {
+		return maxBatchTimeout
+	}
+	return t
 }

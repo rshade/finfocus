@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"net/url"
 	"strings"
 )
 
@@ -40,7 +41,11 @@ func BuildHistoryKey(stackHash, urnHash, cloudID string) string {
 }
 
 // BuildTagKey returns a composite key for a resource tag entry.
-// The key has the format "{stackHash}/{tagKey}:{tagValue}/{urnHash}".
+// The key has the format "{stackHash}/{escapedTagKey}:{escapedTagValue}/{urnHash}".
+// Tag key and value are URL-path-escaped to prevent ambiguity when they
+// contain the ":" or "/" delimiters.
+// Migration note: entries written before this change used unescaped
+// tag keys/values and will not match queries using the new format.
 func BuildTagKey(stackHash, tagKey, tagValue, urnHash string) string {
-	return fmt.Sprintf("%s/%s:%s/%s", stackHash, tagKey, tagValue, urnHash)
+	return fmt.Sprintf("%s/%s:%s/%s", stackHash, url.PathEscape(tagKey), url.PathEscape(tagValue), urnHash)
 }

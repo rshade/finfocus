@@ -606,7 +606,10 @@ func recordDescriptorHistory(ctx context.Context, store history.Store, resources
 	if store == nil || !store.IsEnabled() {
 		return
 	}
-	stackCtx := detectHistoryStackContext(ctx)
+	stackCtx, ok := detectHistoryStackContext(ctx)
+	if !ok {
+		return
+	}
 	writer := history.NewWriter(store, *logging.FromContext(ctx))
 	stateResources := convertDescriptorsToHistoryState(resources)
 	writer.RecordStateSnapshot(stackCtx, stateResources)
@@ -630,7 +633,10 @@ func enrichWithHistoricalResources(
 	// GetDeletedResources correctly identifies resources no longer in state.
 	currentURNHashes := buildCurrentURNHashSet(resources)
 
-	stackCtx := detectHistoryStackContext(ctx)
+	stackCtx, ok := detectHistoryStackContext(ctx)
+	if !ok {
+		return resources
+	}
 	reader := history.NewReader(store, *log)
 	historical, histErr := reader.GetResourcesForPeriod(stackCtx, from.Unix(), to.Unix())
 	if histErr != nil {

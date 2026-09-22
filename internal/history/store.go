@@ -389,6 +389,7 @@ func (s *BoltStore) GetAllForStack(stackHash string, from, to int64) ([]Resource
 // GetDeletedResources returns history entries that exist in the store
 // but are NOT in the provided set of current URN hashes.
 // Results are scoped to the given stackHash via key prefix scan.
+// When multiple entries share a URN, the entry with the newest LastSeen is kept.
 func (s *BoltStore) GetDeletedResources(
 	stackHash string, currentURNHashes map[string]bool, from, to int64,
 ) ([]ResourceHistoryEntry, error) {
@@ -397,7 +398,8 @@ func (s *BoltStore) GetDeletedResources(
 	}
 
 	var results []ResourceHistoryEntry
-	seen := make(map[string]bool)
+	seenLastSeen := make(map[string]int64) // urnHash -> highest LastSeen
+	seenIndex := make(map[string]int)      // urnHash -> index in results
 	prefix := []byte(stackHash + "/")
 
 	err := s.db.View(func(tx *bolt.Tx) error {
@@ -408,22 +410,20 @@ func (s *BoltStore) GetDeletedResources(
 
 		c := b.Cursor()
 		for k, v := c.Seek(prefix); k != nil && bytes.HasPrefix(k, prefix); k, v = c.Next() {
-			var entry ResourceHistoryEntry
-			if unmarshalErr := json.Unmarshal(v, &entry); unmarshalErr != nil {
+			entry, ok := decodeDeletedEntry(v, currentURNHashes, from, to)
+			if !ok {
 				continue
 			}
-
-			entryURNHash := URNHash(entry.URN)
-			if currentURNHashes[entryURNHash] {
+			urnHash := URNHash(entry.URN)
+			prev, exists := seenLastSeen[urnHash]
+			if exists && entry.LastSeen <= prev {
 				continue
 			}
-
-			if !overlaps(entry.FirstSeen, entry.LastSeen, from, to) {
-				continue
-			}
-
-			if !seen[entryURNHash] {
-				seen[entryURNHash] = true
+			seenLastSeen[urnHash] = entry.LastSeen
+			if exists {
+				results[seenIndex[urnHash]] = entry
+			} else {
+				seenIndex[urnHash] = len(results)
 				results = append(results, entry)
 			}
 		}
@@ -431,6 +431,21 @@ func (s *BoltStore) GetDeletedResources(
 	})
 
 	return results, err
+}
+
+// decodeDeletedEntry unmarshals and filters a history entry. Returns false if
+// the entry is malformed, belongs to a current URN, or falls outside the range.
+func decodeDeletedEntry(
+	v []byte, currentURNs map[string]bool, from, to int64,
+) (ResourceHistoryEntry, bool) {
+	var entry ResourceHistoryEntry
+	if err := json.Unmarshal(v, &entry); err != nil {
+		return entry, false
+	}
+	if currentURNs[URNHash(entry.URN)] || !overlaps(entry.FirstSeen, entry.LastSeen, from, to) {
+		return entry, false
+	}
+	return entry, true
 }
 
 // CleanupExpired removes entries with LastSeen older than the retention window.
@@ -452,6 +467,7 @@ func (s *BoltStore) IsEnabled() bool {
 // Close releases resources. Safe to call multiple times.
 func (s *BoltStore) Close() error {
 	s.closeOnce.Do(func() {
+		s.enabled = false
 		if s.db != nil {
 			s.closeErr = s.db.Close()
 		}

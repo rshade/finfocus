@@ -8,7 +8,15 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-const secondsPerDay = 24 * 3600
+const (
+	secondsPerDay = 24 * 3600
+
+	// historyKeySegments is the expected number of segments in a history key
+	// formatted as "{stackHash}/{urnHash}/{cloudID}".
+	historyKeySegments = 3
+	// urnHashSegmentIndex is the index of the URN hash in a split history key.
+	urnHashSegmentIndex = 1
+)
 
 // cleanupExpiredEntries removes entries with LastSeen older than the retention
 // window from both resource_history and resource_tags buckets.
@@ -98,11 +106,12 @@ func (s *BoltStore) filterFullyExpiredURNs(
 	c := historyBucket.Cursor()
 	for k, _ := c.First(); k != nil; k, _ = c.Next() {
 		keyStr := string(k)
-		slashIdx := strings.Index(keyStr, "/")
-		if slashIdx < 0 {
+		// Key format: "{stackHash}/{urnHash}/{cloudID}" — extract the middle segment.
+		parts := strings.SplitN(keyStr, "/", historyKeySegments)
+		if len(parts) <= urnHashSegmentIndex {
 			continue
 		}
-		keyURNHash := keyStr[:slashIdx]
+		keyURNHash := parts[urnHashSegmentIndex]
 		if purgeable[keyURNHash] {
 			// This URN still has at least one retained entry — don't purge tags.
 			delete(purgeable, keyURNHash)

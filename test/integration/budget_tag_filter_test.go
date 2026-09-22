@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -112,7 +113,7 @@ func (m *mockTagFilterClient) BatchCost(
 	_ *pbc.BatchCostRequest,
 	_ ...grpc.CallOption,
 ) (*pbc.BatchCostResponse, error) {
-	return &pbc.BatchCostResponse{}, nil
+	return nil, errors.New("unexpected BatchCost call in tag filter tests")
 }
 
 // TestBudgetTagFilter_EndToEnd tests tag-based budget filtering (Issue #222).

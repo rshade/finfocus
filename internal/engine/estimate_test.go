@@ -1083,3 +1083,45 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 		assert.Equal(t, float64(1), properties["x"])
 	})
 }
+
+// TestTryEstimateCostRPC_ModifiedResponseInvalid verifies that a valid baseline
+// followed by an invalid modified response (negative cost) triggers fallback.
+func TestTryEstimateCostRPC_ModifiedResponseInvalid(t *testing.T) {
+	callCount := 0
+	mock := &estimateMockPlugin{
+		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+			callCount++
+			if callCount == 1 {
+				// Baseline: valid response
+				return &pbc.EstimateCostResponse{
+					Currency:    "USD",
+					CostMonthly: 100.0,
+				}, nil
+			}
+			// Modified: invalid (negative cost)
+			return &pbc.EstimateCostResponse{
+				Currency:    "USD",
+				CostMonthly: -1.0,
+			}, nil
+		},
+	}
+
+	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+	eng := New(clients, &mockSpecLoader{})
+
+	request := &EstimateRequest{
+		Resource: &ResourceDescriptor{
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			ID:         "i-modified-invalid",
+			Properties: map[string]interface{}{"instanceType": "t3.micro"},
+		},
+		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+	}
+
+	result, err := eng.EstimateCost(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	assert.True(t, result.UsedFallback, "invalid modified response should trigger fallback")
+	assert.Equal(t, 2, callCount, "both baseline and modified RPC calls should be made")
+}

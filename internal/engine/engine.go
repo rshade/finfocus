@@ -73,6 +73,8 @@ const (
 	// Timeout constants for engine operations.
 	defaultQueryTimeout = 60 * time.Second // Overall query timeout.
 	perResourceTimeout  = 5 * time.Second  // Per-resource calculation timeout.
+	minBatchTimeout     = perResourceTimeout
+	maxBatchTimeout     = 60 * time.Second
 )
 
 var (
