@@ -555,8 +555,10 @@ message CostData {
 
 - `resource` (ResourceDescriptor) - The resource this result corresponds to
 - `cost_data` (CostData) - Cost data on success (projected or actual
-  depending on `query_type`)
-- `error` (ResourceError) - Per-resource error (e.g., unsupported type)
+  depending on `query_type`); see [ActualCostData](#actualcostdata) for the
+  actual cost payload
+- `error` (ResourceError) - Per-resource error (e.g., unsupported type); see
+  [ResourceError](#resourceerror)
 
 **Example:**
 
@@ -749,6 +751,87 @@ enum ErrorCategory {
   ERROR_CATEGORY_TRANSIENT = 1;
   ERROR_CATEGORY_PERMANENT = 2;
   ERROR_CATEGORY_CONFIGURATION = 3;
+}
+```
+
+### ActualCostData
+
+Wraps actual cost results for a single resource within a batch response.
+Used in the `actual_cost` field of `CostData` (see [BatchCost](#batchcost))
+when `query_type` is `COST_QUERY_TYPE_ACTUAL`.
+
+```protobuf
+message ActualCostData {
+  repeated ActualCostResult results = 1;
+  FallbackHint fallback_hint = 2;
+  string next_page_token = 3;
+  int32 total_count = 4;
+}
+```
+
+**Fields:**
+
+- `results` (repeated ActualCostResult) - Required. Cost data points for the
+  requested time range
+- `fallback_hint` (FallbackHint) - Optional hint for the host on whether to
+  try other plugins for this resource (e.g.,
+  `FALLBACK_HINT_RECOMMENDED`)
+- `next_page_token` (string) - Optional pagination token. If non-empty, more
+  results are available for this resource via the per-resource `GetActualCost`
+  RPC. The token is opaque: clients MUST NOT parse, validate, or construct it
+- `total_count` (int32) - Optional total number of cost data points available
+  for this resource
+
+**Example:**
+
+```json
+{
+  "results": [
+    {
+      "timestamp": "2024-01-15T00:00:00Z",
+      "cost": 3.21,
+      "usage_amount": 24.0,
+      "usage_unit": "hour",
+      "source": "vantage"
+    }
+  ],
+  "fallback_hint": "FALLBACK_HINT_NONE",
+  "next_page_token": "",
+  "total_count": 1
+}
+```
+
+### ResourceError
+
+Structured error information for a single resource failure within a batch.
+Per-resource errors do not cause the entire batch RPC to fail; they appear in
+the `error` field of `ResourceCostResult` (see [BatchCost](#batchcost)).
+
+```protobuf
+message ResourceError {
+  int32 code = 1;
+  string message = 2;
+  bool resource_type_unsupported = 3;
+}
+```
+
+**Fields:**
+
+- `code` (int32) - Required. gRPC-compatible status code from
+  `google.rpc.Code`. Common values: `INVALID_ARGUMENT` (3), `NOT_FOUND` (5),
+  `UNIMPLEMENTED` (12), `INTERNAL` (13). Must not be `OK` (0) — the presence
+  of `ResourceError` implies a non-OK status
+- `message` (string) - Required. Human-readable error description
+- `resource_type_unsupported` (bool) - Optional. True when the error is
+  specifically because the resource type is unsupported
+
+**Example:**
+
+```json
+{
+  "code": 12,
+  "message": "resource type s3 not supported by this plugin",
+  "resource_type_unsupported": true
 }
 ```
 
