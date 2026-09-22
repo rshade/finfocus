@@ -228,7 +228,12 @@ func (e *Engine) tryEstimateCostRPC(
 	}
 
 	if err = validateEstimateResponse(baselineResp); err != nil {
-		log.Warn().Str("plugin", client.Name).Err(err).Msg("invalid baseline response")
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "engine").
+			Str("plugin", client.Name).
+			Err(err).
+			Msg("invalid baseline response")
 		return nil, err
 	}
 
@@ -247,13 +252,20 @@ func (e *Engine) tryEstimateCostRPC(
 	}
 
 	if err = validateEstimateResponse(modifiedResp); err != nil {
-		log.Warn().Str("plugin", client.Name).Err(err).Msg("invalid modified response")
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "engine").
+			Str("plugin", client.Name).
+			Err(err).
+			Msg("invalid modified response")
 		return nil, err
 	}
 
 	// Guard against cross-currency delta computation
 	if baselineResp.GetCurrency() != modifiedResp.GetCurrency() {
 		log.Warn().
+			Ctx(ctx).
+			Str("component", "engine").
 			Str("plugin", client.Name).
 			Str("baseline_currency", baselineResp.GetCurrency()).
 			Str("modified_currency", modifiedResp.GetCurrency()).

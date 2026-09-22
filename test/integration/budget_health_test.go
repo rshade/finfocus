@@ -2,6 +2,7 @@ package integration_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -113,7 +114,7 @@ func (m *mockCostSourceClient) BatchCost(
 	_ *pbc.BatchCostRequest,
 	_ ...grpc.CallOption,
 ) (*pbc.BatchCostResponse, error) {
-	return &pbc.BatchCostResponse{}, nil
+	return nil, errors.New("unexpected BatchCost call in budget tests")
 }
 
 func TestBudgetHealth_EndToEnd(t *testing.T) {

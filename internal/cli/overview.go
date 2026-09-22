@@ -49,6 +49,7 @@ type overviewParams struct {
 	exitCode        int
 	budgetScope     string
 	stateOnly       bool
+	cfg             *config.Config
 }
 
 // NewOverviewCmd constructs the "overview" Cobra command that displays a unified stack cost
@@ -140,6 +141,11 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		"pulumi_json":  params.pulumiJSON,
 		"output":       params.output,
 	})
+
+	// Load config once and share across all history operations.
+	if params.cfg == nil {
+		params.cfg = config.New()
+	}
 
 	// 1. Validate flags
 	if params.exitCode < config.MinExitCode || params.exitCode > config.MaxExitCode {
@@ -246,8 +252,7 @@ func loadAndProcessPlainOverview(
 	}
 
 	// Record state resources and plan lineage to history store (fire-and-forget).
-	cfg := config.New()
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg)
 	defer historyCleanup()
 	recordHistorySnapshot(ctx, historyStore, stateResources)
 	if !isStateOnly {
@@ -1171,8 +1176,7 @@ func overviewInitAndEnrich(
 	}
 
 	// Record state resources to history store (fire-and-forget).
-	cfg := config.New()
-	historyStore, historyCleanup := initHistoryFromConfig(enrichCtx, cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(enrichCtx, params.cfg)
 	defer historyCleanup()
 	recordHistorySnapshot(enrichCtx, historyStore, stateResources)
 
@@ -1418,8 +1422,7 @@ func runBackgroundPreview(
 		Msg("background preview completed")
 
 	// Record plan lineage to history store (fire-and-forget).
-	cfg := config.New()
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg)
 	recordHistoryPlanLineage(ctx, historyStore, planSteps)
 	historyCleanup()
 

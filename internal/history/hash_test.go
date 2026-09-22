@@ -3,6 +3,7 @@ package history
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -128,4 +129,25 @@ func TestBuildHistoryKey(t *testing.T) {
 func TestBuildTagKey(t *testing.T) {
 	key := BuildTagKey("stackhash", "env", "prod", "urnhash")
 	assert.Equal(t, "stackhash/env:prod/urnhash", key)
+}
+
+func TestStackContextHash_DifferentStacksDifferentHashes(t *testing.T) {
+	sc1 := StackContext{Organization: "org", Project: "proj", Stack: "dev"}
+	sc2 := StackContext{Organization: "org", Project: "proj", Stack: "prod"}
+
+	assert.NotEqual(t, sc1.Hash(), sc2.Hash(),
+		"different stacks should produce different hashes")
+}
+
+func TestBuildTagKey_EscapesDelimiters(t *testing.T) {
+	key := BuildTagKey("stackhash", "env:name", "prod/us", "urnhash")
+
+	// Escaped delimiters should not create ambiguity with the key structure.
+	// The key uses "/" to separate segments and ":" between tagKey:tagValue.
+	parts := strings.SplitN(key, "/", 3)
+	require.Len(t, parts, 3, "key should have exactly 3 slash-separated segments")
+	assert.Equal(t, "stackhash", parts[0])
+	assert.Equal(t, "urnhash", parts[2])
+	// Middle segment should contain the escaped key:value pair.
+	assert.Contains(t, parts[1], ":")
 }

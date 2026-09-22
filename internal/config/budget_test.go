@@ -682,7 +682,7 @@ cost:
 	require.NoError(t, err)
 
 	assert.Nil(t, cfg.Cost.History.Enabled, "nil when omitted")
-	assert.Equal(t, 0, cfg.Cost.History.RetentionDays, "zero value when omitted")
+	assert.Nil(t, cfg.Cost.History.RetentionDays, "nil when omitted")
 	assert.Equal(t, "", cfg.Cost.History.Directory, "empty when omitted")
 }
 
@@ -703,7 +703,8 @@ cost:
 
 	require.NotNil(t, cfg.Cost.History.Enabled)
 	assert.True(t, *cfg.Cost.History.Enabled)
-	assert.Equal(t, 180, cfg.Cost.History.RetentionDays)
+	require.NotNil(t, cfg.Cost.History.RetentionDays)
+	assert.Equal(t, 180, *cfg.Cost.History.RetentionDays)
 	assert.Equal(t, "/tmp/custom-history", cfg.Cost.History.Directory)
 }
 
@@ -726,17 +727,19 @@ cost:
 
 	require.NotNil(t, cfg.Cost.History.Enabled)
 	assert.True(t, *cfg.Cost.History.Enabled)
-	assert.Equal(t, 90, cfg.Cost.History.RetentionDays)
+	require.NotNil(t, cfg.Cost.History.RetentionDays)
+	assert.Equal(t, 90, *cfg.Cost.History.RetentionDays)
 	assert.True(t, cfg.Cost.Cache.Enabled)
 	assert.Equal(t, 3600, cfg.Cost.Cache.TTLSeconds)
 }
 
 func TestHistoryConfig_YAMLRoundTrip(t *testing.T) {
 	boolTrue := true
+	retentionDays := 120
 	original := CostConfig{
 		History: HistoryConfig{
 			Enabled:       &boolTrue,
-			RetentionDays: 120,
+			RetentionDays: &retentionDays,
 			Directory:     "/var/data/history",
 		},
 	}
@@ -750,7 +753,8 @@ func TestHistoryConfig_YAMLRoundTrip(t *testing.T) {
 
 	require.NotNil(t, parsed.History.Enabled)
 	assert.Equal(t, *original.History.Enabled, *parsed.History.Enabled)
-	assert.Equal(t, original.History.RetentionDays, parsed.History.RetentionDays)
+	require.NotNil(t, parsed.History.RetentionDays)
+	assert.Equal(t, *original.History.RetentionDays, *parsed.History.RetentionDays)
 	assert.Equal(t, original.History.Directory, parsed.History.Directory)
 }
 
@@ -817,7 +821,8 @@ cost:
 	assert.Equal(t, "pulumi:project", cfg.Cost.Allocation.Tags[0])
 	require.NotNil(t, cfg.Cost.History.Enabled)
 	assert.True(t, *cfg.Cost.History.Enabled)
-	assert.Equal(t, 90, cfg.Cost.History.RetentionDays)
+	require.NotNil(t, cfg.Cost.History.RetentionDays)
+	assert.Equal(t, 90, *cfg.Cost.History.RetentionDays)
 }
 
 func TestAllocationConfig_YAMLRoundTrip(t *testing.T) {

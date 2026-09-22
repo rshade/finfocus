@@ -29,6 +29,63 @@ func newTestEntry(urn, cloudID string) history.ResourceHistoryEntry {
 	}
 }
 
+func TestBoltStore_GetDeletedResources_ReturnsNewestEntry(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
+	require.NoError(t, err)
+	defer store.Close()
+
+	now := time.Now().Unix()
+	stackHash := "testhash"
+	urn := "urn:pulumi:dev::proj::aws:ec2/instance:Instance::myvm"
+
+	// Insert an older entry for the same URN with a different cloud ID.
+	older := history.ResourceHistoryEntry{
+		URN: urn, CloudID: "i-old", Type: "aws:ec2/instance:Instance",
+		Provider: "aws", FirstSeen: now - 7200, LastSeen: now - 3600,
+		Source: history.SourceStateSnapshot, Tags: map[string]string{},
+	}
+	require.NoError(t, store.Upsert(stackHash, older))
+
+	// Insert a newer entry for the same URN with a different cloud ID.
+	newer := history.ResourceHistoryEntry{
+		URN: urn, CloudID: "i-new", Type: "aws:ec2/instance:Instance",
+		Provider: "aws", FirstSeen: now - 1800, LastSeen: now,
+		Source: history.SourceStateSnapshot, Tags: map[string]string{},
+	}
+	require.NoError(t, store.Upsert(stackHash, newer))
+
+	// The URN is not in current state, so both entries are "deleted".
+	results, getErr := store.GetDeletedResources(stackHash, map[string]bool{}, 0, now+3600)
+	require.NoError(t, getErr)
+	require.Len(t, results, 1, "should deduplicate to one entry per URN")
+	assert.Equal(t, "i-new", results[0].CloudID, "should keep the newest entry")
+	assert.Equal(t, now, results[0].LastSeen, "should have the newest LastSeen")
+}
+
+func TestBoltStore_Close_SetsEnabledFalse(t *testing.T) {
+	tmpDir := t.TempDir()
+	ctx := context.Background()
+
+	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
+	require.NoError(t, err)
+
+	assert.True(t, store.IsEnabled(), "should be enabled before close")
+
+	require.NoError(t, store.Close())
+	assert.False(t, store.IsEnabled(), "should be disabled after close")
+
+	// Operations on a closed store should no-op without error.
+	entry := newTestEntry("urn:test", "i-123")
+	assert.NoError(t, store.Upsert("hash", entry))
+
+	results, getErr := store.GetAllForStack("hash", 0, time.Now().Unix())
+	assert.NoError(t, getErr)
+	assert.Nil(t, results)
+}
+
 func TestNewBoltStore_Enabled(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()

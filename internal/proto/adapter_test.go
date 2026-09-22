@@ -3725,6 +3725,16 @@ func TestBuildEstimateCostRequest_NilProperties(t *testing.T) {
 	assert.Empty(t, req.GetAttributes().AsMap())
 }
 
+func TestBuildEstimateCostRequest_UnsupportedPropertyType(t *testing.T) {
+	properties := map[string]any{
+		"badField": make(chan int),
+	}
+	req, err := BuildEstimateCostRequest("aws:ec2/instance:Instance", properties)
+	require.Error(t, err)
+	assert.Nil(t, req)
+	assert.Contains(t, err.Error(), "failed to convert properties to proto struct")
+}
+
 // T001: Unit tests for clientAdapter.BatchCost pass-through delegation.
 func TestClientAdapterBatchCost(t *testing.T) {
 	t.Run("passes request and returns response", func(t *testing.T) {

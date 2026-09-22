@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -154,7 +155,10 @@ func GetProjectName(projectDir string) (string, error) {
 		candidate := filepath.Join(projectDir, name)
 		data, err := os.ReadFile(candidate)
 		if err != nil {
-			continue
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			return "", fmt.Errorf("reading %s: %w", name, err)
 		}
 		var proj pulumiProjectFile
 		if yamlErr := yaml.Unmarshal(data, &proj); yamlErr != nil {

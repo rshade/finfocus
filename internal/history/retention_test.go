@@ -12,13 +12,12 @@ import (
 )
 
 func newTestEntryWithTime(urn, cloudID string, lastSeen int64) history.ResourceHistoryEntry {
-	now := time.Now().Unix()
 	return history.ResourceHistoryEntry{
 		URN:       urn,
 		CloudID:   cloudID,
 		Type:      "aws:ec2/instance:Instance",
 		Provider:  "aws",
-		FirstSeen: now - 86400,
+		FirstSeen: lastSeen - 86400,
 		LastSeen:  lastSeen,
 		Source:    history.SourceStateSnapshot,
 		Tags:      make(map[string]string),

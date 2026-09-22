@@ -778,8 +778,11 @@ func recordHistorySnapshot(ctx context.Context, store history.Store, resources [
 	if store == nil || !store.IsEnabled() {
 		return
 	}
+	stackCtx, ok := detectHistoryStackContext(ctx)
+	if !ok {
+		return
+	}
 	log := logging.FromContext(ctx)
-	stackCtx := detectHistoryStackContext(ctx)
 	writer := history.NewWriter(store, *log)
 	stateResources := convertEngineStateToHistoryState(resources)
 	writer.RecordStateSnapshot(stackCtx, stateResources)
@@ -792,8 +795,11 @@ func recordHistoryPlanLineage(ctx context.Context, store history.Store, planStep
 	if store == nil || !store.IsEnabled() {
 		return
 	}
+	stackCtx, ok := detectHistoryStackContext(ctx)
+	if !ok {
+		return
+	}
 	log := logging.FromContext(ctx)
-	stackCtx := detectHistoryStackContext(ctx)
 	writer := history.NewWriter(store, *log)
 	historySteps := convertEnginePlanStepsToHistoryPlanSteps(planSteps)
 	if len(historySteps) > 0 {
@@ -823,9 +829,10 @@ func convertEnginePlanStepsToHistoryPlanSteps(steps []engine.PlanStep) []history
 }
 
 // detectHistoryStackContext attempts to detect the Pulumi project and stack
-// for history scoping. Returns a zero-value StackContext if either project
-// name or stack cannot be fully resolved (avoids partial contexts).
-func detectHistoryStackContext(ctx context.Context) history.StackContext {
+// for history scoping. Returns false if either project name or stack cannot
+// be fully resolved, so callers can skip history operations rather than
+// recording under a meaningless zero-value hash.
+func detectHistoryStackContext(ctx context.Context) (history.StackContext, bool) {
 	log := logging.FromContext(ctx)
 
 	projectDir, err := pulumidetect.FindProject(".")
@@ -833,7 +840,7 @@ func detectHistoryStackContext(ctx context.Context) history.StackContext {
 		log.Debug().Ctx(ctx).
 			Str("component", "history").
 			Msg("no Pulumi project detected, using empty stack context for history")
-		return history.StackContext{}
+		return history.StackContext{}, false
 	}
 
 	projectName, nameErr := pulumidetect.GetProjectName(projectDir)
@@ -841,7 +848,7 @@ func detectHistoryStackContext(ctx context.Context) history.StackContext {
 		log.Debug().Ctx(ctx).Err(nameErr).
 			Str("component", "history").
 			Msg("could not read Pulumi project name, using empty stack context")
-		return history.StackContext{}
+		return history.StackContext{}, false
 	}
 
 	stack, stackErr := pulumidetect.GetCurrentStack(ctx, projectDir)
@@ -849,13 +856,13 @@ func detectHistoryStackContext(ctx context.Context) history.StackContext {
 		log.Debug().Ctx(ctx).Err(stackErr).
 			Str("component", "history").
 			Msg("could not detect current stack, using empty stack context")
-		return history.StackContext{}
+		return history.StackContext{}, false
 	}
 
 	return history.StackContext{
 		Project: projectName,
 		Stack:   stack,
-	}
+	}, true
 }
 
 // initHistoryFromConfig initializes a history store using values from the
@@ -872,12 +879,7 @@ func initHistoryFromConfig(ctx context.Context, cfg *config.Config) (history.Sto
 	log := logging.FromContext(ctx)
 	noopCleanup := func() {}
 
-	retentionDays := config.HistoryDefaultRetentionDays
-
-	// Start with config values
-	if cfg.Cost.History.RetentionDays > 0 {
-		retentionDays = cfg.Cost.History.RetentionDays
-	}
+	retentionDays := cfg.Cost.History.GetRetentionDays()
 	// Use IsEnabled() which handles nil (omitted) vs explicit false correctly.
 	enabled := cfg.Cost.History.IsEnabled()
 
