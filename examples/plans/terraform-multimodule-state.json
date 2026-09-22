@@ -1,0 +1,59 @@
+{
+  "version": 4,
+  "terraform_version": "1.9.0",
+  "serial": 3,
+  "lineage": "22222222-3333-4444-5555-666666666666",
+  "resources": [
+    {
+      "module": "module.networking",
+      "mode": "managed",
+      "type": "aws_subnet",
+      "name": "public",
+      "each": "count",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": 0,
+          "attributes": {
+            "id": "subnet-0",
+            "availability_zone": "us-east-1a",
+            "cidr_block": "10.0.0.0/24"
+          }
+        },
+        {
+          "index_key": 1,
+          "attributes": {
+            "id": "subnet-1",
+            "availability_zone": "us-east-1b",
+            "cidr_block": "10.0.1.0/24"
+          }
+        }
+      ]
+    },
+    {
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "replica",
+      "each": "map",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "index_key": "us-east-1",
+          "attributes": {
+            "id": "i-0east",
+            "instance_type": "t3.small",
+            "availability_zone": "us-east-1a"
+          }
+        },
+        {
+          "index_key": "us-west-2",
+          "attributes": {
+            "id": "i-0west",
+            "instance_type": "t3.small",
+            "availability_zone": "us-west-2a"
+          }
+        }
+      ]
+    }
+  ]
+}
