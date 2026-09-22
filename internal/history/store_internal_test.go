@@ -113,3 +113,38 @@ func TestBoltStore_UpsertTags_CorruptExistingOverwritten(t *testing.T) {
 	assert.Equal(t, now, rec.LastSeen)
 	assert.Equal(t, "i-2", rec.CloudID)
 }
+
+func TestCleanupExpired_PreservesTagsForPartiallyExpiredURN(t *testing.T) {
+	ctx := context.Background()
+	store, err := NewBoltStore(ctx, t.TempDir(), true, 365)
+	require.NoError(t, err)
+	defer store.Close()
+
+	now := time.Now().Unix()
+	stackHash := "testhash"
+	urn := "urn:pulumi:dev::proj::aws:ec2/instance:Instance::partial"
+	tagKeyStr := BuildTagKey(stackHash, "env", "prod", URNHash(urn))
+
+	// Same URN observed under two cloud IDs: one expired, one retained.
+	expired := ResourceHistoryEntry{
+		URN: urn, CloudID: "i-old", Type: "aws:ec2/instance:Instance",
+		Provider: "aws", FirstSeen: now - 120*24*3600, LastSeen: now - 120*24*3600,
+		Source: SourceStateSnapshot, Tags: map[string]string{"env": "prod"},
+	}
+	retained := ResourceHistoryEntry{
+		URN: urn, CloudID: "i-new", Type: "aws:ec2/instance:Instance",
+		Provider: "aws", FirstSeen: now - 3600, LastSeen: now,
+		Source: SourceStateSnapshot, Tags: map[string]string{"env": "prod"},
+	}
+	require.NoError(t, store.UpsertBatch(stackHash, []ResourceHistoryEntry{expired, retained}))
+
+	count, err := store.CleanupExpired(90)
+	require.NoError(t, err)
+	assert.Equal(t, 1, count, "only the expired entry should be removed")
+
+	// The URN still has a retained entry, so its tag record must survive cleanup.
+	rec, found := readTagRecord(t, store, tagKeyStr)
+	assert.True(t, found, "tag record should be preserved for a URN with retained entries")
+	assert.Equal(t, now-120*24*3600, rec.FirstSeen)
+	assert.Equal(t, now, rec.LastSeen)
+}
