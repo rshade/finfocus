@@ -691,9 +691,20 @@ func TestCacheEntry(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, entry.Key, decoded.Key)
 		assert.Equal(t, entry.TTLSeconds, decoded.TTLSeconds)
-		// Compare to second precision (Unix timestamps)
-		assert.Equal(t, entry.CreatedAt.Unix(), decoded.CreatedAt.Unix())
-		assert.Equal(t, entry.ExpiresAt.Unix(), decoded.ExpiresAt.Unix())
+		// Round-trip must preserve sub-second precision; truncating to whole
+		// seconds can expire a 1s-TTL entry almost immediately (CI flake).
+		assert.Equal(t, entry.CreatedAt.UnixNano(), decoded.CreatedAt.UnixNano())
+		assert.Equal(t, entry.ExpiresAt.UnixNano(), decoded.ExpiresAt.UnixNano())
+	})
+
+	t.Run("JSON_Legacy_Second_Precision_Timestamps", func(t *testing.T) {
+		// Entries written before the wire format stored nanoseconds must still
+		// decode correctly.
+		legacy := `{"key":"k","data":{},"created_at":1750000000,"expires_at":1750003600,"ttl_seconds":3600}`
+		var decoded CacheEntry
+		require.NoError(t, json.Unmarshal([]byte(legacy), &decoded))
+		assert.Equal(t, int64(1750000000), decoded.CreatedAt.Unix())
+		assert.Equal(t, int64(1750003600), decoded.ExpiresAt.Unix())
 	})
 }
 

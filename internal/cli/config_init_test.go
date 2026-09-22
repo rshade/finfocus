@@ -28,7 +28,7 @@ func setupConfigInitTest(t *testing.T) {
 }
 
 // TestConfigInit_InsidePulumiProject verifies that running "config init" inside
-// a directory containing Pulumi.yaml creates project-local .finfocus/config.yaml
+// a directory containing Pulumi.yaml creates project-local .finfocus/config.hujson
 // and .finfocus/.gitignore.
 func TestConfigInit_InsidePulumiProject(t *testing.T) {
 	setupConfigInitTest(t)
@@ -56,10 +56,10 @@ func TestConfigInit_InsidePulumiProject(t *testing.T) {
 	output := string(result.Stdout)
 	assert.Contains(t, output, "Configuration initialized at")
 
-	// Verify project-local config.yaml was created
+	// Verify project-local config.hujson was created
 	configPath := filepath.Join(tmpDir, ".finfocus", "config.hujson")
 	_, statErr := os.Stat(configPath)
-	require.NoError(t, statErr, ".finfocus/config.yaml should exist")
+	require.NoError(t, statErr, ".finfocus/config.hujson should exist")
 
 	// Verify .gitignore was created
 	gitignorePath := filepath.Join(tmpDir, ".finfocus", ".gitignore")
@@ -99,7 +99,7 @@ func TestConfigInit_ExistingGitignorePreserved(t *testing.T) {
 	globalDir := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", globalDir)
 
-	// Execute config init with --force (should overwrite config.yaml but NOT .gitignore)
+	// Execute config init with --force (should overwrite config.hujson but NOT .gitignore)
 	cmd := cli.NewRootCmd("test")
 	result := axtest.Run(context.Background(), t, cmd, []string{"config", "init", "--force"})
 
@@ -142,13 +142,13 @@ func TestConfigInit_GlobalFlag(t *testing.T) {
 	// Verify global config was created in FINFOCUS_HOME
 	globalConfigPath := filepath.Join(globalDir, "config.hujson")
 	_, statErr := os.Stat(globalConfigPath)
-	require.NoError(t, statErr, "global config.yaml should exist in FINFOCUS_HOME")
+	require.NoError(t, statErr, "global config.hujson should exist in FINFOCUS_HOME")
 
 	// Verify NO project-local config was created
 	projectConfigPath := filepath.Join(tmpDir, ".finfocus", "config.hujson")
 	_, statErr = os.Stat(projectConfigPath)
 	assert.True(t, os.IsNotExist(statErr),
-		"project-local config.yaml should NOT exist when --global is used")
+		"project-local config.hujson should NOT exist when --global is used")
 }
 
 // TestConfigInit_OutsidePulumiProject verifies that running "config init" outside
@@ -179,11 +179,11 @@ func TestConfigInit_OutsidePulumiProject(t *testing.T) {
 	// Verify global config was created
 	globalConfigPath := filepath.Join(globalDir, "config.hujson")
 	_, statErr := os.Stat(globalConfigPath)
-	require.NoError(t, statErr, "global config.yaml should be created when outside Pulumi project")
+	require.NoError(t, statErr, "global config.hujson should be created when outside Pulumi project")
 }
 
 // TestConfigInit_ForceOverwritesConfig verifies that running "config init --force"
-// overwrites an existing config.yaml file with fresh defaults.
+// overwrites an existing config.hujson file with fresh defaults.
 func TestConfigInit_ForceOverwritesConfig(t *testing.T) {
 	setupConfigInitTest(t)
 
@@ -193,7 +193,7 @@ func TestConfigInit_ForceOverwritesConfig(t *testing.T) {
 	pulumiYAML := filepath.Join(tmpDir, "Pulumi.yaml")
 	require.NoError(t, os.WriteFile(pulumiYAML, []byte("name: test-project\nruntime: go\n"), 0o644))
 
-	// Create existing config.yaml with custom content
+	// Create existing config.hujson with custom content
 	finfocusDir := filepath.Join(tmpDir, ".finfocus")
 	require.NoError(t, os.MkdirAll(finfocusDir, 0o750))
 
@@ -217,10 +217,29 @@ func TestConfigInit_ForceOverwritesConfig(t *testing.T) {
 	output := string(result.Stdout)
 	assert.Contains(t, output, "Configuration initialized at")
 
-	// Verify config.yaml was overwritten (content should differ from original)
+	// Verify config.hujson was overwritten (content should differ from original)
 	newContent, readErr := os.ReadFile(existingConfig)
 	require.NoError(t, readErr)
 	assert.NotEqual(t, originalContent, string(newContent),
-		"config.yaml should be overwritten with new default content")
-	assert.NotEmpty(t, string(newContent), "config.yaml should not be empty after force init")
+		"config.hujson should be overwritten with new default content")
+	assert.NotEmpty(t, string(newContent), "config.hujson should not be empty after force init")
+}
+
+func TestConfigInit_LegacyProjectConfigPreserved(t *testing.T) {
+	setupConfigInitTest(t)
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	projectDir := t.TempDir()
+	config.SetResolvedProjectDir(projectDir)
+	legacyPath := filepath.Join(projectDir, "config.yaml")
+	content := []byte("output:\n  default_format: json\n")
+	require.NoError(t, os.WriteFile(legacyPath, content, 0600))
+
+	cmd := cli.NewConfigInitCmd()
+	cmd.SetContext(context.Background())
+	err := cmd.RunE(cmd, nil)
+	require.ErrorContains(t, err, "configuration file already exists")
+	assert.NoFileExists(t, filepath.Join(projectDir, "config.hujson"))
+	got, err := os.ReadFile(legacyPath)
+	require.NoError(t, err)
+	assert.Equal(t, content, got)
 }

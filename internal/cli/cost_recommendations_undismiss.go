@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/rshade/ax-go"
@@ -57,8 +58,11 @@ func executeUndismiss(cmd *cobra.Command, recommendationID string, force bool) e
 	// Handle confirmation outcomes
 	switch outcome {
 	case ax.ConfirmationBlocked:
-		// ax.Confirm returned a ready error - just propagate it
-		return confirmErr
+		// ax.Confirm pairs Blocked with a non-nil error, which the check above
+		// already returned, so this branch is unreachable today. Fail closed if
+		// that contract ever changes: returning confirmErr here would be nil and
+		// would skip the mutation while exiting 0.
+		return errors.New("confirmation required: re-run with --yes")
 	case ax.ConfirmationPromptRequired:
 		// Need to do interactive prompt
 		cmd.PrintErrf("Undismiss recommendation %s?\n", recommendationID)
@@ -106,5 +110,10 @@ func executeUndismiss(cmd *cobra.Command, recommendationID string, force bool) e
 		return nil
 	}
 
-	return ax.Perform(ctx, nil, commit)
+	rehearse := func(_ context.Context) error {
+		cmd.Printf("Would %s\n", confirmSubject)
+		return nil
+	}
+
+	return ax.Perform(ctx, rehearse, commit)
 }

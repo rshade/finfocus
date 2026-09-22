@@ -1,11 +1,16 @@
 package config
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
+	"github.com/rshade/ax-go"
 	"gopkg.in/yaml.v3"
 )
 
@@ -75,7 +80,7 @@ func LoadInstalledPlugins() ([]InstalledPlugin, error) {
 	}
 
 	var cfg InstalledPluginsConfig
-	if unmarshalErr := json.Unmarshal(data, &cfg); unmarshalErr != nil {
+	if unmarshalErr := ax.ParseConfig(context.Background(), bytes.NewReader(data), &cfg); unmarshalErr != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", unmarshalErr)
 	}
 
@@ -89,44 +94,15 @@ func LoadInstalledPlugins() ([]InstalledPlugin, error) {
 // It returns an error if marshaling or file operations fail.
 func SaveInstalledPlugins(plugins []InstalledPlugin) error {
 	configPath := pluginsConfigPath()
-
-	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
+	var cfg map[string]interface{}
+	if err := loadConfig(configPath, &cfg); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("failed to load config: %w", err)
 	}
-
-	// Load existing config to preserve other settings
-	var fullConfig map[string]interface{}
-	if existingData, readErr := os.ReadFile(configPath); readErr == nil {
-		if unmarshalErr := json.Unmarshal(existingData, &fullConfig); unmarshalErr != nil {
-			fullConfig = make(map[string]interface{})
-		}
+	if cfg == nil {
+		cfg = make(map[string]interface{})
 	}
-	if fullConfig == nil {
-		fullConfig = make(map[string]interface{})
-	}
-
-	// Update installed_plugins
-	fullConfig["installed_plugins"] = plugins
-
-	// Marshal to JSON
-	data, err := json.MarshalIndent(fullConfig, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed to marshal config: %w", err)
-	}
-
-	// Write to temp file first, then rename (atomic write)
-	tmpPath := configPath + ".tmp"
-	if writeErr := os.WriteFile(tmpPath, data, 0600); writeErr != nil {
-		return fmt.Errorf("failed to write config: %w", writeErr)
-	}
-
-	if renameErr := os.Rename(tmpPath, configPath); renameErr != nil {
-		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to save config: %w", renameErr)
-	}
-
-	return nil
+	cfg["installed_plugins"] = plugins
+	return saveConfig(configPath, cfg)
 }
 
 // AddInstalledPlugin adds or updates the given plugin in the installed plugins configuration.
@@ -222,9 +198,8 @@ func GetMissingPlugins() ([]InstalledPlugin, error) {
 		return nil, err
 	}
 
-	// Use ResolveConfigDir to determine the finfocus directory
-	configDir := ResolveConfigDir()
-	pluginsDir := filepath.Join(configDir, "plugins")
+	// Use the resolved plugin directory, including config and environment overrides.
+	pluginsDir := New().PluginDir
 
 	var missing []InstalledPlugin
 	for _, p := range plugins {

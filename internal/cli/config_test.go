@@ -1,10 +1,13 @@
 package cli_test
 
 import (
+	"bytes"
 	"context"
+	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/rshade/ax-go"
 	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -29,8 +32,7 @@ func TestConfigInitCmd(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	root := cli.NewRootCmd("test")
-	result := axtest.Run(context.Background(), t, root, []string{"config", "init"})
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "init"})
 
 	// Test successful init
 	require.Equal(t, 0, result.ExitCode)
@@ -41,7 +43,10 @@ func TestConfigInitCmd(t *testing.T) {
 
 	// Verify config can be read
 	cfg := config.New()
-	require.NotNil(t, cfg)
+	_, err := os.Stat(cfg.ConfigPath())
+	require.NoError(t, err)
+	require.NoError(t, cfg.Load())
+	assert.Equal(t, "table", cfg.Output.DefaultFormat)
 }
 
 func TestConfigInitCmdForce(t *testing.T) {
@@ -55,16 +60,14 @@ func TestConfigInitCmdForce(t *testing.T) {
 	err := cfg.Save()
 	require.NoError(t, err)
 
-	root := cli.NewRootCmd("test")
-
 	// Test without force flag should fail
-	result := axtest.Run(context.Background(), t, root, []string{"config", "init"})
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "init"})
 	assert.NotEqual(t, 0, result.ExitCode)
 	stderr := string(result.Stderr)
 	assert.Contains(t, stderr, "already exists")
 
 	// Test with force flag should succeed
-	result = axtest.Run(context.Background(), t, root, []string{"config", "init", "--force"})
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "init", "--force"})
 	assert.Equal(t, 0, result.ExitCode)
 	output := string(result.Stdout)
 	assert.Contains(t, output, "Configuration initialized successfully")
@@ -76,8 +79,7 @@ func TestConfigSetCmd(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	root := cli.NewRootCmd("test")
-	result := axtest.Run(context.Background(), t, root,
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "set", "output.default_format", "json"})
 
 	// Test setting output format
@@ -98,17 +100,15 @@ func TestConfigSetCmdErrors(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	root := cli.NewRootCmd("test")
-
 	// Test invalid key
-	result := axtest.Run(context.Background(), t, root,
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "set", "invalid.key", "value"})
 	assert.NotEqual(t, 0, result.ExitCode)
 	stderr := string(result.Stderr)
 	assert.Contains(t, stderr, "unknown configuration section")
 
 	// Test invalid precision value
-	result = axtest.Run(context.Background(), t, root,
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "set", "output.precision", "invalid"})
 	assert.NotEqual(t, 0, result.ExitCode)
 	stderr = string(result.Stderr)
@@ -127,16 +127,14 @@ func TestConfigGetCmd(t *testing.T) {
 	require.NoError(t, cfg.Set("plugins.aws.region", "us-west-2"))
 	require.NoError(t, cfg.Save())
 
-	root := cli.NewRootCmd("test")
-
 	// Test getting simple value
-	result := axtest.Run(context.Background(), t, root,
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "get", "output.default_format"})
 	require.Equal(t, 0, result.ExitCode)
 	assert.Equal(t, "json\n", string(result.Stdout))
 
 	// Test getting plugin value
-	result = axtest.Run(context.Background(), t, root,
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "get", "plugins.aws.region"})
 	require.Equal(t, 0, result.ExitCode)
 	assert.Equal(t, "us-west-2\n", string(result.Stdout))
@@ -152,17 +150,15 @@ func TestConfigGetCmdErrors(t *testing.T) {
 	cfg := config.New()
 	require.NoError(t, cfg.Save())
 
-	root := cli.NewRootCmd("test")
-
 	// Test invalid key
-	result := axtest.Run(context.Background(), t, root,
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "get", "invalid.key"})
 	assert.NotEqual(t, 0, result.ExitCode)
 	stderr := string(result.Stderr)
 	assert.Contains(t, stderr, "unknown configuration section")
 
 	// Test non-existent plugin
-	result = axtest.Run(context.Background(), t, root,
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "get", "plugins.nonexistent.key"})
 	assert.NotEqual(t, 0, result.ExitCode)
 	stderr = string(result.Stderr)
@@ -175,29 +171,22 @@ func TestConfigListCmd(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	root := cli.NewRootCmd("test")
-
 	// Initialize config first
-	result := axtest.Run(context.Background(), t, root, []string{"config", "init"})
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "init"})
 	require.Equal(t, 0, result.ExitCode)
 
 	// Set some config values
-	result = axtest.Run(context.Background(), t, root,
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "set", "output.default_format", "json"})
 	require.Equal(t, 0, result.ExitCode)
 
-	result = axtest.Run(context.Background(), t, root,
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "set", "plugins.aws.region", "us-west-2"})
 	require.Equal(t, 0, result.ExitCode)
 
-	// Test YAML output. Pass --as explicitly rather than relying on the
-	// no-flag TTY-detection default: axtest.Run's stdout is a buffer, never a
-	// real terminal, so ax's mode resolution would otherwise fall back to
-	// JSON - and ax.WithStdoutIsTTY(true) does not reliably override that
-	// once a root command has already served an earlier axtest.Run call in
-	// this test (a reused-root quirk in ax-go, not something to work around
-	// here; --as sidesteps it since it doesn't depend on mode resolution).
-	result = axtest.Run(context.Background(), t, root, []string{"config", "list", "--as", "yaml"})
+	// Test the default output style on a terminal.
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "list"}, ax.WithStdoutIsTTY(true))
 	require.Equal(t, 0, result.ExitCode)
 
 	yamlOutput := string(result.Stdout)
@@ -207,16 +196,9 @@ func TestConfigListCmd(t *testing.T) {
 	assert.Contains(t, yamlOutput, "aws:")
 	assert.Contains(t, yamlOutput, "region: us-west-2")
 
-	// Test JSON output. Use --as (not --format) here: this root has already
-	// served a "config list --as yaml" call above, and Cobra flags carry
-	// their Changed() state across Execute() calls on a reused *cobra.Command
-	// (axtest.Run's own docs note this - "it does not reset flag values a
-	// previous call set"). Passing --format instead would leave --as's
-	// Changed() flag stuck true from the earlier call, short-circuiting
-	// config_list.go's mode-resolution fallback before --format is ever
-	// consulted. Re-asserting --as explicitly avoids relying on that fallback
-	// at all, on either call.
-	result = axtest.Run(context.Background(), t, root, []string{"config", "list", "--as", "json"})
+	// Test JSON output selected by the global mode flag.
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "list", "--format", "json"})
 	require.Equal(t, 0, result.ExitCode)
 
 	jsonOutput := string(result.Stdout)
@@ -235,10 +217,8 @@ func TestConfigListCmdErrors(t *testing.T) {
 	cfg := config.New()
 	require.NoError(t, cfg.Save())
 
-	root := cli.NewRootCmd("test")
-
 	// Test invalid format
-	result := axtest.Run(context.Background(), t, root,
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "list", "--format", "invalid"})
 	assert.NotEqual(t, 0, result.ExitCode)
 	stderr := string(result.Stderr)
@@ -255,16 +235,14 @@ func TestConfigValidateCmd(t *testing.T) {
 	cfg := config.New()
 	require.NoError(t, cfg.Save())
 
-	root := cli.NewRootCmd("test")
-
 	// Test valid configuration
-	result := axtest.Run(context.Background(), t, root, []string{"config", "validate"})
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "validate"})
 	require.Equal(t, 0, result.ExitCode)
 	output := string(result.Stdout)
 	assert.Contains(t, output, "✅ Configuration is valid")
 
 	// Test with verbose flag
-	result = axtest.Run(context.Background(), t, root, []string{"config", "validate", "--verbose"})
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "validate", "--verbose"})
 	require.Equal(t, 0, result.ExitCode)
 
 	verboseOutput := string(result.Stdout)
@@ -288,10 +266,8 @@ func TestConfigValidateCmdErrors(t *testing.T) {
 	cfg.Output.DefaultFormat = "invalid"
 	require.NoError(t, cfg.Save())
 
-	root := cli.NewRootCmd("test")
-
 	// Test invalid configuration
-	result := axtest.Run(context.Background(), t, root, []string{"config", "validate"})
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "validate"})
 	assert.NotEqual(t, 0, result.ExitCode)
 	stderr := string(result.Stderr)
 	assert.Contains(t, stderr, "invalid output format")
@@ -303,39 +279,36 @@ func TestConfigCommandsIntegration(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	root := cli.NewRootCmd("test")
-
 	// Test full workflow: init -> set -> get -> validate -> list
 
 	// 1. Initialize config
-	result := axtest.Run(context.Background(), t, root, []string{"config", "init"})
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "init"})
 	require.Equal(t, 0, result.ExitCode)
 
 	// 2. Set some values
-	result = axtest.Run(context.Background(), t, root,
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "set", "output.default_format", "json"})
 	require.Equal(t, 0, result.ExitCode)
 
-	result = axtest.Run(context.Background(), t, root,
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "set", "plugins.aws.region", "eu-west-1"})
 	require.Equal(t, 0, result.ExitCode)
 
 	// 3. Get values to verify
-	result = axtest.Run(context.Background(), t, root,
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "get", "output.default_format"})
 	require.Equal(t, 0, result.ExitCode)
 	assert.Equal(t, "json\n", string(result.Stdout))
 
 	// 4. Validate configuration
-	result = axtest.Run(context.Background(), t, root, []string{"config", "validate"})
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "validate"})
 	require.Equal(t, 0, result.ExitCode)
 	output := string(result.Stdout)
 	assert.Contains(t, output, "✅ Configuration is valid")
 
-	// 5. List all configuration (explicit --as yaml; see the comment in
-	// TestConfigListCmd on why the no-flag TTY-detection default isn't used
-	// here on a root command already reused by earlier calls in this test).
-	result = axtest.Run(context.Background(), t, root, []string{"config", "list", "--as", "yaml"})
+	// 5. List all configuration using the default terminal style.
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "list"}, ax.WithStdoutIsTTY(true))
 	require.Equal(t, 0, result.ExitCode)
 
 	listOutput := string(result.Stdout)
@@ -349,15 +322,13 @@ func TestConfigCmdWrongArgs(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()
 
-	root := cli.NewRootCmd("test")
-
 	// Test set command with wrong number of args
-	result := axtest.Run(context.Background(), t, root,
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "set", "only-one-arg"})
 	assert.NotEqual(t, 0, result.ExitCode)
 
 	// Test get command with wrong number of args
-	result = axtest.Run(context.Background(), t, root, []string{"config", "get"})
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "get"})
 	assert.NotEqual(t, 0, result.ExitCode)
 }
 
@@ -373,10 +344,8 @@ func TestConfigGetCmdMapOutput(t *testing.T) {
 	require.NoError(t, cfg.Set("plugins.aws.account_id", "123456789"))
 	require.NoError(t, cfg.Save())
 
-	root := cli.NewRootCmd("test")
-
 	// Test getting plugin section (returns map)
-	result := axtest.Run(context.Background(), t, root,
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "get", "plugins.aws"})
 	require.Equal(t, 0, result.ExitCode)
 
@@ -385,7 +354,7 @@ func TestConfigGetCmdMapOutput(t *testing.T) {
 	assert.Contains(t, mapOutput, "region:")
 
 	// Test getting all plugins (returns map of PluginConfig)
-	result = axtest.Run(context.Background(), t, root, []string{"config", "get", "plugins"})
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "get", "plugins"})
 	require.Equal(t, 0, result.ExitCode)
 
 	allPluginsOutput := string(result.Stdout)
@@ -404,12 +373,25 @@ func TestConfigGetCmdIntOutput(t *testing.T) {
 	require.NoError(t, cfg.Set("output.precision", "4"))
 	require.NoError(t, cfg.Save())
 
-	root := cli.NewRootCmd("test")
-
 	// Test getting integer value
-	result := axtest.Run(context.Background(), t, root,
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
 		[]string{"config", "get", "output.precision"})
 	require.Equal(t, 0, result.ExitCode)
 
 	assert.Contains(t, string(result.Stdout), "4")
+}
+
+func TestConfigListCmdDirectRun(t *testing.T) {
+	cleanup := setupTestConfig(t)
+	defer cleanup()
+	cmd := cli.NewConfigListCmd()
+	var output bytes.Buffer
+	cmd.SetOut(&output)
+	require.NoError(t, cmd.RunE(cmd, nil))
+	assert.Contains(t, output.String(), "output:")
+
+	require.NoError(t, cmd.Flags().Parse([]string{"-f", "json"}))
+	output.Reset()
+	require.NoError(t, cmd.RunE(cmd, nil))
+	assert.Contains(t, output.String(), `"output":`)
 }

@@ -713,43 +713,61 @@ func TestTryEstimateCostRPC_NilExpiresAt(t *testing.T) {
 	assert.Nil(t, result.Modified.ExpiresAt, "ExpiresAt should be nil: response did not set expires_at")
 }
 
-// TestTryEstimateCostRPC_PopulatedExpiresAt verifies that ExpiresAt is
-// extracted from the EstimateCostResponse's expires_at cache hint (added in
-// finfocus-spec v0.6.1) onto both the baseline and modified CostResult.
-func TestTryEstimateCostRPC_PopulatedExpiresAt(t *testing.T) {
+// TestTryEstimateCostRPC_ExpiresAt verifies that only valid cache hints propagate.
+func TestTryEstimateCostRPC_ExpiresAt(t *testing.T) {
 	expiry := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
-	mock := &estimateMockPlugin{
-		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
-			return &pbc.EstimateCostResponse{
-				Currency:    "USD",
-				CostMonthly: 10.0,
-				ExpiresAt:   timestamppb.New(expiry),
-			}, nil
-		},
+	tests := []struct {
+		name       string
+		expiresAt  *timestamppb.Timestamp
+		wantExpiry bool
+	}{
+		{name: "valid", expiresAt: timestamppb.New(expiry), wantExpiry: true},
+		{name: "absent"},
+		{name: "seconds out of range", expiresAt: &timestamppb.Timestamp{Seconds: 253402300800}},
+		{name: "negative nanos", expiresAt: &timestamppb.Timestamp{Nanos: -1}},
+		{name: "nanos out of range", expiresAt: &timestamppb.Timestamp{Nanos: 1000000000}},
 	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mock := &estimateMockPlugin{
+				estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
+					return &pbc.EstimateCostResponse{
+						Currency:    "USD",
+						CostMonthly: 10.0,
+						ExpiresAt:   tt.expiresAt,
+					}, nil
+				},
+			}
 
-	clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
-	eng := New(clients, &mockSpecLoader{})
+			clients := []*pluginhost.Client{{Name: "test-plugin", API: mock}}
+			eng := New(clients, &mockSpecLoader{})
 
-	request := &EstimateRequest{
-		Resource: &ResourceDescriptor{
-			Provider:   "aws",
-			Type:       "aws:ec2/instance:Instance",
-			ID:         "i-exp-set",
-			Properties: map[string]interface{}{"instanceType": "t3.micro"},
-		},
-		PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+			request := &EstimateRequest{
+				Resource: &ResourceDescriptor{
+					Provider:   "aws",
+					Type:       "aws:ec2/instance:Instance",
+					ID:         "i-exp-set",
+					Properties: map[string]interface{}{"instanceType": "t3.micro"},
+				},
+				PropertyOverrides: map[string]string{"instanceType": "m5.large"},
+			}
+
+			result, err := eng.EstimateCost(context.Background(), request)
+			require.NoError(t, err)
+			require.NotNil(t, result)
+
+			assert.False(t, result.UsedFallback)
+			if tt.wantExpiry {
+				require.NotNil(t, result.Baseline.ExpiresAt)
+				require.NotNil(t, result.Modified.ExpiresAt)
+				assert.True(t, expiry.Equal(*result.Baseline.ExpiresAt))
+				assert.True(t, expiry.Equal(*result.Modified.ExpiresAt))
+			} else {
+				assert.Nil(t, result.Baseline.ExpiresAt)
+				assert.Nil(t, result.Modified.ExpiresAt)
+			}
+		})
 	}
-
-	result, err := eng.EstimateCost(context.Background(), request)
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	assert.False(t, result.UsedFallback)
-	require.NotNil(t, result.Baseline.ExpiresAt)
-	require.NotNil(t, result.Modified.ExpiresAt)
-	assert.True(t, expiry.Equal(*result.Baseline.ExpiresAt))
-	assert.True(t, expiry.Equal(*result.Modified.ExpiresAt))
 }
 
 // TestEstimateCost_FallbackOnUnimplemented verifies that when a plugin returns

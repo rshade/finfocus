@@ -149,8 +149,11 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 	// Handle confirmation outcomes
 	switch outcome {
 	case ax.ConfirmationBlocked:
-		// ax.Confirm returned a ready error - just propagate it
-		return confirmErr
+		// ax.Confirm pairs Blocked with a non-nil error, which the check above
+		// already returned, so this branch is unreachable today. Fail closed if
+		// that contract ever changes: returning confirmErr here would be nil and
+		// would skip the mutation while exiting 0.
+		return errors.New("confirmation required: re-run with --yes")
 	case ax.ConfirmationPromptRequired:
 		// Need to do interactive prompt
 		cmd.PrintErrf("Dismiss recommendation %s?\n", recommendationID)
@@ -210,7 +213,12 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 		return nil
 	}
 
-	return ax.Perform(ctx, nil, commit)
+	rehearse := func(_ context.Context) error {
+		cmd.Printf("Would %s\n", confirmSubject)
+		return nil
+	}
+
+	return ax.Perform(ctx, rehearse, commit)
 }
 
 // executeSnooze handles the snooze subcommand logic.
@@ -248,8 +256,11 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 	// Handle confirmation outcomes
 	switch outcome {
 	case ax.ConfirmationBlocked:
-		// ax.Confirm returned a ready error - just propagate it
-		return confirmErr
+		// ax.Confirm pairs Blocked with a non-nil error, which the check above
+		// already returned, so this branch is unreachable today. Fail closed if
+		// that contract ever changes: returning confirmErr here would be nil and
+		// would skip the mutation while exiting 0.
+		return errors.New("confirmation required: re-run with --yes")
 	case ax.ConfirmationPromptRequired:
 		// Need to do interactive prompt
 		cmd.PrintErrf("Snooze recommendation %s?\n", recommendationID)
@@ -311,7 +322,12 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 		return nil
 	}
 
-	return ax.Perform(ctx, nil, commit)
+	rehearse := func(_ context.Context) error {
+		cmd.Printf("Would %s\n", confirmSubject)
+		return nil
+	}
+
+	return ax.Perform(ctx, rehearse, commit)
 }
 
 // loadDismissalStore creates and loads the dismissal store.

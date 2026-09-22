@@ -8,6 +8,7 @@ import (
 
 	"github.com/rshade/ax-go/axtest"
 	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/rshade/finfocus/internal/cli"
 )
@@ -30,10 +31,11 @@ func TestPluginInitValidation(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	testCases := []struct {
-		name      string
-		args      []string
-		opts      cli.PluginInitOptions
-		expectErr bool
+		name        string
+		args        []string
+		opts        cli.PluginInitOptions
+		wantErr     bool
+		errContains string
 	}{
 		{
 			name: "valid plugin name",
@@ -42,7 +44,7 @@ func TestPluginInitValidation(t *testing.T) {
 				Author:    "Test Author",
 				Providers: []string{"aws"},
 			},
-			expectErr: false,
+			wantErr: false,
 		},
 		{
 			name: "invalid plugin name with uppercase",
@@ -51,7 +53,8 @@ func TestPluginInitValidation(t *testing.T) {
 				Author:    "Test Author",
 				Providers: []string{"aws"},
 			},
-			expectErr: true,
+			wantErr:     true,
+			errContains: "invalid plugin name",
 		},
 		{
 			name: "invalid plugin name with underscore",
@@ -60,7 +63,8 @@ func TestPluginInitValidation(t *testing.T) {
 				Author:    "Test Author",
 				Providers: []string{"aws"},
 			},
-			expectErr: true,
+			wantErr:     true,
+			errContains: "invalid plugin name",
 		},
 		{
 			name: "empty providers",
@@ -69,7 +73,8 @@ func TestPluginInitValidation(t *testing.T) {
 				Author:    "Test Author",
 				Providers: []string{},
 			},
-			expectErr: true,
+			wantErr:     true,
+			errContains: "providers",
 		},
 	}
 
@@ -95,11 +100,11 @@ func TestPluginInitValidation(t *testing.T) {
 
 			result := axtest.Run(context.Background(), t, root, cmdArgs)
 
-			if tc.expectErr && result.ExitCode == 0 {
-				t.Errorf("Expected error (non-zero exit code), got exit code 0")
-			}
-			if !tc.expectErr && result.ExitCode != 0 {
-				t.Errorf("Expected no error, got exit code %d: %s", result.ExitCode, string(result.Stderr))
+			if tc.wantErr {
+				assert.NotZero(t, result.ExitCode)
+				assert.Contains(t, string(result.Stderr), tc.errContains)
+			} else {
+				assert.Zero(t, result.ExitCode, string(result.Stderr))
 			}
 		})
 	}

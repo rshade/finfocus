@@ -2,8 +2,11 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -1237,6 +1240,30 @@ func TestMigrateFromLegacyYAML(t *testing.T) {
 		assert.NoError(t, legacyStatErr, "legacy YAML file must be left in place, not deleted")
 	})
 
+	t.Run("unreadable legacy YAML returns permission error", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows does not enforce Unix permission bits")
+		}
+		if os.Geteuid() == 0 {
+			t.Skip("root can read files regardless of permission bits")
+		}
+		dir := t.TempDir()
+		configPath := filepath.Join(dir, "config.hujson")
+		legacyPath := filepath.Join(dir, "config.yaml")
+		require.NoError(t, os.WriteFile(legacyPath, []byte("output: {}\n"), 0600))
+		t.Cleanup(func() { require.NoError(t, os.Chmod(legacyPath, 0600)) })
+		require.NoError(t, os.Chmod(legacyPath, 0000))
+
+		err := migrateFromLegacyYAML(configPath)
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, fs.ErrPermission))
+		assert.NoFileExists(t, configPath)
+		t.Setenv("FINFOCUS_HOME", dir)
+		_, err = NewStrict()
+		assert.ErrorIs(t, err, fs.ErrPermission)
+		assert.NotErrorIs(t, err, ErrConfigCorrupted)
+	})
+
 	t.Run("corrupted legacy YAML returns an error", func(t *testing.T) {
 		dir := t.TempDir()
 		configPath := filepath.Join(dir, "config.hujson")
@@ -1250,4 +1277,32 @@ func TestMigrateFromLegacyYAML(t *testing.T) {
 		_, statErr := os.Stat(configPath)
 		assert.True(t, os.IsNotExist(statErr), "no new config file should be written when migration fails")
 	})
+}
+
+func TestPluginConfigJSON(t *testing.T) {
+	for _, input := range []string{`{}`, `null`, `{"region":"us-east-1"}`} {
+		t.Run(input, func(t *testing.T) {
+			var plugin PluginConfig
+			require.NoError(t, json.Unmarshal([]byte(input), &plugin))
+			require.NotNil(t, plugin.Config)
+			cfg := &Config{Plugins: map[string]PluginConfig{"aws": plugin}}
+			require.NoError(t, cfg.Set("plugins.aws.region", "us-west-2"))
+			assert.Equal(t, "us-west-2", cfg.Plugins["aws"].Config["region"])
+		})
+	}
+	data, err := json.Marshal(PluginConfig{})
+	require.NoError(t, err)
+	assert.JSONEq(t, `{}`, string(data))
+	cfg := &Config{Plugins: map[string]PluginConfig{"aws": {}}}
+	require.NoError(t, cfg.Set("plugins.aws.region", "us-west-2"))
+	assert.Equal(t, "us-west-2", cfg.Plugins["aws"].Config["region"])
+
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	require.NoError(t, os.WriteFile(filepath.Join(ResolveConfigDir(), "config.hujson"),
+		[]byte(`{"plugins":{"aws":42}}`), 0600))
+	_, err = NewStrict()
+	require.ErrorIs(t, err, ErrConfigCorrupted)
+	assert.ErrorContains(t, err, "plugins configuration section")
+	var typeErr *json.UnmarshalTypeError
+	assert.ErrorAs(t, err, &typeErr)
 }

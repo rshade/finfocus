@@ -125,6 +125,10 @@ func TestHistoryCmd_NoPluginConnectionRequired(t *testing.T) {
 
 // T026: Test history invalid output format.
 func TestHistoryCmd_InvalidOutputFormat(t *testing.T) {
+	// Isolate the dismissal store so the result never depends on state left in
+	// the real ~/.finfocus by other tests or by the developer's own runs.
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+
 	cmd := cli.NewCostRecommendationsCmd()
 	var outBuf, errBuf bytes.Buffer
 	cmd.SetOut(&outBuf)
@@ -134,9 +138,8 @@ func TestHistoryCmd_InvalidOutputFormat(t *testing.T) {
 	cmd.SetArgs([]string{"history", "rec-123", "--output", "xml"})
 	err := cmd.Execute()
 
-	// May fail with store error first, or with unsupported format error
-	// Either way, an error is expected since "xml" is not a valid format
+	// The format is rejected before any state is loaded, so this holds even
+	// though rec-123 has no recorded history in the isolated store.
 	require.Error(t, err, "invalid output format 'xml' should produce an error")
-	// The error could be about unsupported format or store loading (unit test env),
-	// either indicates the command did not silently succeed with an invalid format.
+	assert.Contains(t, err.Error(), "unsupported output format: xml")
 }

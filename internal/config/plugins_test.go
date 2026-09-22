@@ -1,11 +1,13 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
 )
@@ -116,9 +118,8 @@ func TestSaveInstalledPlugins(t *testing.T) {
 
 	// Verify file was created
 	configPath := filepath.Join(tmpDir, ".finfocus", "config.hujson")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		t.Error("config.hujson was not created")
-	}
+	_, err = os.Stat(configPath)
+	require.NoError(t, err)
 
 	// Load and verify
 	loaded, err := LoadInstalledPlugins()
@@ -315,7 +316,81 @@ func TestLoadInstalledPluginsInvalidYAML(t *testing.T) {
 	}
 
 	_, err := LoadInstalledPlugins()
-	if err == nil {
-		t.Error("expected error for invalid YAML")
+	require.Error(t, err, "expected error for invalid YAML")
+}
+
+func TestSaveInstalledPluginsPreservesConfig(t *testing.T) {
+	fixture, err := os.ReadFile("../../testdata/config/preserved.hujson")
+	require.NoError(t, err)
+	tests := []struct {
+		name        string
+		fileName    string
+		data        []byte
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name: "legacy", fileName: "config.yaml",
+			data: []byte("output:\n  default_format: json\n  precision: 4\ncustom:\n  enabled: true\n"),
+		},
+		{name: "hujson", fileName: "config.hujson", data: fixture},
+		{
+			name: "corrupted", fileName: "config.hujson", data: []byte("{invalid"),
+			wantErr: true, errContains: "failed to load config",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("FINFOCUS_HOME", dir)
+			path := filepath.Join(dir, tt.fileName)
+			data := tt.data
+			require.NoError(t, os.WriteFile(path, data, 0600))
+			plugins := []InstalledPlugin{{Name: "updated", Version: "v2.0.0"}}
+			err = SaveInstalledPlugins(plugins)
+			if tt.wantErr {
+				require.ErrorContains(t, err, tt.errContains)
+				got, readErr := os.ReadFile(path)
+				require.NoError(t, readErr)
+				assert.Equal(t, data, got)
+				return
+			}
+			require.NoError(t, err)
+			loaded, err := LoadInstalledPlugins()
+			require.NoError(t, err)
+			assert.Equal(t, plugins, loaded)
+			saved, err := os.ReadFile(filepath.Join(dir, "config.hujson"))
+			require.NoError(t, err)
+			var values map[string]json.RawMessage
+			require.NoError(t, json.Unmarshal(saved, &values))
+			assert.JSONEq(t, `{"enabled":true}`, string(values["custom"]))
+			assert.JSONEq(t, `{"default_format":"json","precision":4}`, string(values["output"]))
+		})
+	}
+}
+
+func TestGetMissingPluginsDirectoryOverrides(t *testing.T) {
+	for _, source := range []string{"default", "config", "environment"} {
+		t.Run(source, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("FINFOCUS_HOME", dir)
+			t.Setenv("FINFOCUS_PLUGIN_DIR", "")
+			cfg := New()
+			pluginsDir := cfg.PluginDir
+			if source != "default" {
+				pluginsDir = t.TempDir()
+				cfg.PluginDirOverride = pluginsDir
+			}
+			if source == "environment" {
+				cfg.PluginDirOverride = t.TempDir()
+				t.Setenv("FINFOCUS_PLUGIN_DIR", pluginsDir)
+			}
+			cfg.InstalledPlugins = []InstalledPlugin{{Name: "present", Version: "v1"}, {Name: "missing", Version: "v1"}}
+			require.NoError(t, cfg.Save())
+			require.NoError(t, os.MkdirAll(filepath.Join(pluginsDir, "present", "v1"), 0700))
+			missing, err := GetMissingPlugins()
+			require.NoError(t, err)
+			assert.Equal(t, cfg.InstalledPlugins[1:], missing)
+		})
 	}
 }

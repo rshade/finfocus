@@ -63,12 +63,14 @@ func initProjectConfig(ctx context.Context, cmd *cobra.Command, projectDir strin
 
 	// Check if config already exists and force isn't set
 	if !force {
-		_, err := os.Stat(configPath)
-		if err == nil {
-			return errors.New("configuration file already exists, use --force to overwrite")
-		}
-		if !os.IsNotExist(err) {
-			return fmt.Errorf("cannot access config path %s: %w", configPath, err)
+		for _, path := range []string{configPath, filepath.Join(projectDir, "config.yaml")} {
+			_, err := os.Stat(path)
+			if err == nil {
+				return errors.New("configuration file already exists, use --force to overwrite")
+			}
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("cannot access config path %s: %w", path, err)
+			}
 		}
 	}
 

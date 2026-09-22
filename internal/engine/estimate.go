@@ -302,7 +302,7 @@ func estimateResponseToCostResult(resp *pbc.EstimateCostResponse, resource *Reso
 		Notes:        strings.Join(notes, "; "),
 	}
 
-	if ts := resp.GetExpiresAt(); ts != nil {
+	if ts := resp.GetExpiresAt(); ts.IsValid() {
 		expiresAt := ts.AsTime()
 		result.ExpiresAt = &expiresAt
 	}
