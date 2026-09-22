@@ -538,3 +538,63 @@ func TestPluginInitNoHealth(t *testing.T) {
 	assert.NotContains(t, string(mainGo), "startHealthServer")
 	assert.NotContains(t, string(mainGo), "/health")
 }
+
+func TestPluginInitDocsGenerated(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	projectDir := filepath.Join(tmpDir, "test-plugin")
+
+	for _, file := range []string{"docs/api.md", "docs/configuration.md", "docs/deployment.md"} {
+		_, err := os.Stat(filepath.Join(projectDir, file))
+		require.NoError(t, err, "expected docs file %s", file)
+	}
+
+	apiDoc, err := os.ReadFile(filepath.Join(projectDir, "docs", "api.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(apiDoc), "# test-plugin Plugin API Reference")
+	assert.Contains(t, string(apiDoc), "FinFocus plugin for test-plugin")
+	assert.Contains(t, string(apiDoc), "`GetPluginInfoRequest`")
+	assert.NotContains(t, string(apiDoc), "{{PLUGIN_NAME}}")
+	assert.NotContains(t, string(apiDoc), "{{BACKTICK}}")
+
+	configDoc, err := os.ReadFile(filepath.Join(projectDir, "docs", "configuration.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(configDoc), "FINFOCUS_PLUGIN_HEALTH_PORT")
+
+	deployDoc, err := os.ReadFile(filepath.Join(projectDir, "docs", "deployment.md"))
+	require.NoError(t, err)
+	assert.Contains(t, string(deployDoc), "docker run -p 8080:8080 -p 8081:8081 test-plugin:local")
+	assert.Contains(t, string(deployDoc), "```yaml")
+}
+
+func TestPluginInitNoDocs(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+		NoDocs:     true,
+	}
+	runPluginInitForTest(t, opts)
+
+	_, err := os.Stat(filepath.Join(tmpDir, "test-plugin", "docs"))
+	assert.True(t, os.IsNotExist(err))
+}

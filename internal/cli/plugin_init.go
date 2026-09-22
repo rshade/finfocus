@@ -551,6 +551,170 @@ test/
 *_test.go
 `
 
+// pluginDocsAPITemplate is the generated docs/api.md gRPC API reference.
+const pluginDocsAPITemplate = `# {{PLUGIN_NAME}} Plugin API Reference
+
+## Overview
+
+{{PLUGIN_DESCRIPTION}}
+
+## RPC Methods
+
+### GetPluginInfo
+
+Returns plugin metadata for discovery and compatibility verification.
+
+**Request:** {{BACKTICK}}GetPluginInfoRequest{{BACKTICK}} (empty)
+
+**Response:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| name | string | Plugin name |
+| version | string | Plugin version |
+| spec_version | string | finfocus-spec version |
+| providers | []string | Supported providers |
+| capabilities | []PluginCapability | Plugin capabilities |
+
+### Supports
+
+Validates if a resource type is supported by this plugin.
+
+**Request:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| resource | ResourceDescriptor | Resource to check |
+
+**Response:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| supported | bool | Whether resource is supported |
+| reason | string | Explanation if not supported |
+
+### GetActualCost
+
+Retrieves historical costs.
+
+**Request:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| resource_id | string | Resource identifier |
+| start | Timestamp | Query start time |
+| end | Timestamp | Query end time |
+
+### GetProjectedCost
+
+Retrieves projected/estimated costs.
+
+**Request:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| resource | ResourceDescriptor | Resource to estimate |
+
+## Error Codes
+
+| Code | Description |
+|------|-------------|
+| ERROR_CODE_INVALID_TIME_RANGE | Invalid time range specified |
+| ERROR_CODE_INVALID_CREDENTIALS | Credentials invalid |
+| ERROR_CODE_SERVICE_UNAVAILABLE | Backend service unavailable |
+`
+
+// pluginDocsConfigurationTemplate is the generated docs/configuration.md
+// environment variable reference.
+const pluginDocsConfigurationTemplate = `# Configuration Reference
+
+## Environment Variables
+
+### Plugin Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| FINFOCUS_PLUGIN_PORT | 8080 | gRPC server port |
+| FINFOCUS_LOG_LEVEL | info | Log level |
+| FINFOCUS_LOG_FILE | - | Log file path |
+| FINFOCUS_PLUGIN_HEALTH_ENDPOINT | false | Enable health endpoint |
+| FINFOCUS_PLUGIN_HEALTH_PORT | 8081 | Health server port |
+
+### Provider-Specific Configuration
+
+<!-- Add your provider-specific environment variables here -->
+
+## CLI Flags
+
+| Flag | Description |
+|------|-------------|
+| --port | Override gRPC server port |
+`
+
+// pluginDocsDeploymentTemplate is the generated docs/deployment.md
+// installation and deployment guide.
+const pluginDocsDeploymentTemplate = `# Deployment Guide
+
+## Local Installation
+
+{{CODE_BLOCK_START}}bash
+# Build from source
+make build
+
+# Install to plugin directory
+make install
+{{CODE_BLOCK_END}}
+
+## Docker Deployment
+
+{{CODE_BLOCK_START}}bash
+# Build image
+make docker-build
+
+# Run container
+docker run -p 8080:8080 -p 8081:8081 {{PLUGIN_NAME}}:local
+{{CODE_BLOCK_END}}
+
+## Kubernetes Deployment
+
+{{CODE_BLOCK_START}}yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{PLUGIN_NAME}}
+spec:
+  replicas: 1
+  template:
+    spec:
+      containers:
+      - name: plugin
+        image: {{PLUGIN_NAME}}:latest
+        ports:
+        - containerPort: 8080
+        - containerPort: 8081
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8081
+{{CODE_BLOCK_END}}
+`
+
+// renderDocTokens substitutes the shared placeholder tokens used by the
+// generated docs/ markdown templates.
+func renderDocTokens(content, name string) string {
+	replacements := map[string]string{
+		"{{PLUGIN_NAME}}":        name,
+		"{{PLUGIN_DESCRIPTION}}": fmt.Sprintf("FinFocus plugin for %s", name),
+		"{{BACKTICK}}":           "`",
+		"{{CODE_BLOCK_START}}":   "```",
+		"{{CODE_BLOCK_END}}":     "```",
+	}
+	for token, value := range replacements {
+		content = strings.ReplaceAll(content, token, value)
+	}
+	return content
+}
+
 // runRecordingWorkflow resolves fixtures, downloads required plan and state fixtures,
 // executes a recording workflow for each provider in opts, validates the recordings,
 // and copies recorded requests into the project's testdata/recorded_requests directory.
@@ -835,6 +999,7 @@ func RunPluginInit(ctx context.Context, cmd *cobra.Command, opts *PluginInitOpti
 		projectDir: projectDir,
 		cmd:        cmd,
 		withDocker: opts.ShouldGenerateDocker(),
+		withDocs:   opts.ShouldGenerateDocs(),
 		withHealth: opts.ShouldGenerateHealth(),
 		dockerOnly: opts.DockerOnly,
 	}
@@ -941,6 +1106,7 @@ type projectGenerator struct {
 	projectDir string
 	cmd        *cobra.Command
 	withDocker bool
+	withDocs   bool
 	withHealth bool
 	dockerOnly bool
 }
@@ -966,6 +1132,15 @@ func (g *projectGenerator) generateAll() error {
 	if g.dockerOnly {
 		// Only generate Docker support files (for existing projects).
 		steps = nil
+	}
+
+	if !g.dockerOnly && g.withDocs {
+		steps = append(steps,
+			struct {
+				name string
+				fn   func() error
+			}{"Generating documentation", g.generateDocs},
+		)
 	}
 
 	if g.dockerOnly || g.withDocker {
@@ -1032,6 +1207,26 @@ func (g *projectGenerator) generateDockerfile() error {
 
 func (g *projectGenerator) generateDockerignore() error {
 	return g.writeFile(".dockerignore", pluginDockerignoreTemplate)
+}
+
+// generateDocs writes the docs/ markdown templates (API reference,
+// configuration reference, and deployment guide).
+func (g *projectGenerator) generateDocs() error {
+	files := []struct {
+		path     string
+		template string
+	}{
+		{"docs/api.md", pluginDocsAPITemplate},
+		{"docs/configuration.md", pluginDocsConfigurationTemplate},
+		{"docs/deployment.md", pluginDocsDeploymentTemplate},
+	}
+
+	for _, file := range files {
+		if err := g.writeFile(file.path, renderDocTokens(file.template, g.name)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *projectGenerator) generateManifest() error {
