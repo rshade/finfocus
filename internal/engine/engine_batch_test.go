@@ -1724,3 +1724,122 @@ func TestMapProtoActualCostResultToEngine_ParityWithPerResourcePath(t *testing.T
 	assert.Equal(t, single.TotalCost, batch.TotalCost)
 	assert.Equal(t, single.Currency, batch.Currency)
 }
+
+// TestBatchChunkTimeout covers the per-chunk BatchCost RPC timeout computation:
+// scaling by resource count, clamping to min/max, and capping by the parent
+// context's remaining deadline.
+func TestBatchChunkTimeout(t *testing.T) {
+	t.Run("no parent deadline", func(t *testing.T) {
+		tests := []struct {
+			name          string
+			resourceCount int
+			want          time.Duration
+		}{
+			{"zero resources clamps to min", 0, minBatchTimeout},
+			{"one resource", 1, perResourceTimeout},
+			{"twelve resources at max", 12, maxBatchTimeout},
+			{"large chunk clamps to max", 100, maxBatchTimeout},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				assert.Equal(t, tt.want, batchChunkTimeout(context.Background(), tt.resourceCount))
+			})
+		}
+	})
+
+	t.Run("parent deadline sooner than chunk timeout", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+		defer cancel()
+
+		got := batchChunkTimeout(ctx, 100)
+		assert.LessOrEqual(t, got, 1*time.Second)
+		assert.Greater(t, got, 500*time.Millisecond)
+	})
+
+	t.Run("parent deadline later than chunk timeout", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+
+		assert.Equal(t, perResourceTimeout, batchChunkTimeout(ctx, 1))
+	})
+}
+
+// TestBatchChunkTimeoutAppliedToRPC verifies executeBatchForPlugin bounds each
+// BatchCost RPC with a per-chunk deadline capped by the parent context's deadline.
+func TestBatchChunkTimeoutAppliedToRPC(t *testing.T) {
+	newMockAPI := func(capturedDeadline *time.Time, hasDeadline *bool) *mockBatchCostSourceClient {
+		return &mockBatchCostSourceClient{
+			batchCostFunc: func(ctx context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+				*capturedDeadline, *hasDeadline = ctx.Deadline()
+				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+				for i, res := range in.GetResources() {
+					results[i] = &pbc.ResourceCostResult{
+						Resource: res,
+						Result: &pbc.ResourceCostResult_CostData{
+							CostData: &pbc.CostData{
+								Data: &pbc.CostData_ProjectedCost{
+									ProjectedCost: &pbc.GetProjectedCostResponse{
+										Currency:     "USD",
+										CostPerMonth: 10.0,
+									},
+								},
+							},
+						},
+					}
+				}
+				return &pbc.BatchCostResponse{Results: results}, nil
+			},
+		}
+	}
+	resources := []indexedResource{
+		{
+			index: 0,
+			resource: ResourceDescriptor{
+				Type:       "aws:ec2:Instance",
+				ID:         "i-0",
+				Provider:   "aws",
+				Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
+			},
+		},
+	}
+
+	t.Run("batch cost call carries per-chunk deadline", func(t *testing.T) {
+		var (
+			deadline    time.Time
+			hasDeadline bool
+		)
+		client := makeBatchCapableClient("test-plugin", newMockAPI(&deadline, &hasDeadline))
+		eng := New([]*pluginhost.Client{client}, nil)
+
+		_, err := eng.executeBatchForPlugin(
+			context.Background(), client, resources,
+			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+		)
+		require.NoError(t, err)
+		require.True(t, hasDeadline, "BatchCost call must carry a deadline")
+		remaining := time.Until(deadline)
+		assert.LessOrEqual(t, remaining, perResourceTimeout) // 1 resource → 5s timeout
+		assert.Greater(t, remaining, perResourceTimeout-time.Second)
+	})
+
+	t.Run("chunk deadline capped by parent deadline", func(t *testing.T) {
+		var (
+			deadline    time.Time
+			hasDeadline bool
+		)
+		client := makeBatchCapableClient("test-plugin", newMockAPI(&deadline, &hasDeadline))
+		eng := New([]*pluginhost.Client{client}, nil)
+
+		parentDeadline := time.Now().Add(1 * time.Second)
+		ctx, cancel := context.WithDeadline(context.Background(), parentDeadline)
+		defer cancel()
+
+		_, err := eng.executeBatchForPlugin(
+			ctx, client, resources,
+			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+		)
+		require.NoError(t, err)
+		require.True(t, hasDeadline)
+		assert.LessOrEqual(t, time.Until(deadline), time.Until(parentDeadline)+50*time.Millisecond)
+	})
+}

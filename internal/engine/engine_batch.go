@@ -200,7 +200,7 @@ func (e *Engine) executeBatchForPlugin(
 			Int("skipped_invalid", len(built.invalidResults)).
 			Msg("sending batch cost request")
 
-		chunkCtx, chunkCancel := context.WithTimeout(ctx, batchChunkTimeout(len(built.validResources)))
+		chunkCtx, chunkCancel := context.WithTimeout(ctx, batchChunkTimeout(ctx, len(built.validResources)))
 		resp, err := plugin.API.BatchCost(chunkCtx, built.request)
 		chunkCancel()
 		if err != nil {
@@ -479,15 +479,23 @@ func mapProtoActualCostResultToEngine(
 	return engineResult
 }
 
-// batchChunkTimeout returns a per-chunk timeout scaled by the number of
-// resources, clamped between minBatchTimeout and maxBatchTimeout.
-func batchChunkTimeout(resourceCount int) time.Duration {
+// batchChunkTimeout returns the per-chunk BatchCost RPC timeout for a chunk with
+// resourceCount resources. It scales with the chunk size, is clamped between
+// minBatchTimeout and maxBatchTimeout, and is further capped by the parent
+// context's remaining deadline so a single slow chunk cannot consume the entire
+// request budget.
+func batchChunkTimeout(ctx context.Context, resourceCount int) time.Duration {
 	t := perResourceTimeout * time.Duration(resourceCount)
 	if t < minBatchTimeout {
-		return minBatchTimeout
+		t = minBatchTimeout
 	}
 	if t > maxBatchTimeout {
-		return maxBatchTimeout
+		t = maxBatchTimeout
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining < t {
+			t = remaining
+		}
 	}
 	return t
 }
