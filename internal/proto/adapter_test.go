@@ -73,6 +73,11 @@ type mockCostSourceClient struct {
 		in *pbc.BatchCostRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.BatchCostResponse, error)
+	resolveResourceTypesFunc func(
+		ctx context.Context,
+		in *pbc.ResolveResourceTypesRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.ResolveResourceTypesResponse, error)
 }
 
 func (m *mockCostSourceClient) Name(
@@ -194,6 +199,17 @@ func (m *mockCostSourceClient) BatchCost(
 		return m.batchCostFunc(ctx, in, opts...)
 	}
 	return &pbc.BatchCostResponse{}, nil
+}
+
+func (m *mockCostSourceClient) ResolveResourceTypes(
+	ctx context.Context,
+	in *pbc.ResolveResourceTypesRequest,
+	opts ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	if m.resolveResourceTypesFunc != nil {
+		return m.resolveResourceTypesFunc(ctx, in, opts...)
+	}
+	return &pbc.ResolveResourceTypesResponse{}, nil
 }
 
 // T020: Unit test for DryRun wrapper.
@@ -4238,4 +4254,35 @@ func TestMapBatchActualResults(t *testing.T) {
 		assert.Nil(t, mapped[0].ActualResult)
 		assert.Nil(t, mapped[0].Err)
 	})
+}
+
+type stubPBCCostSourceClient struct {
+	pbc.CostSourceServiceClient
+	gotTypes []string
+}
+
+func (s *stubPBCCostSourceClient) ResolveResourceTypes(
+	_ context.Context, in *pbc.ResolveResourceTypesRequest, _ ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	s.gotTypes = in.GetSourceTypes()
+	return &pbc.ResolveResourceTypesResponse{
+		Mappings: map[string]*pbc.ResourceTypeMapping{
+			"aws_instance": {PulumiToken: "aws:ec2/instance:Instance", Supported: true},
+		},
+	}, nil
+}
+
+func TestClientAdapterResolveResourceTypes(t *testing.T) {
+	stub := &stubPBCCostSourceClient{}
+	adapter := &clientAdapter{client: stub}
+
+	resp, err := adapter.ResolveResourceTypes(context.Background(), &pbc.ResolveResourceTypesRequest{
+		SourceTypes:  []string{"aws_instance"},
+		SourceFormat: pbc.SourceFormat_SOURCE_FORMAT_TERRAFORM,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "aws:ec2/instance:Instance", resp.GetMappings()["aws_instance"].GetPulumiToken())
+	assert.True(t, resp.GetMappings()["aws_instance"].GetSupported())
+	assert.Equal(t, []string{"aws_instance"}, stub.gotTypes)
 }

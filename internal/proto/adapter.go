@@ -741,6 +741,11 @@ type CostSourceClient interface {
 		in *pbc.BatchCostRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.BatchCostResponse, error)
+	ResolveResourceTypes(
+		ctx context.Context,
+		in *pbc.ResolveResourceTypesRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.ResolveResourceTypesResponse, error)
 }
 
 // NewCostSourceClient creates a new cost source client using the real proto client.
@@ -852,6 +857,14 @@ func (c *clientAdapter) BatchCost(
 	opts ...grpc.CallOption,
 ) (*pbc.BatchCostResponse, error) {
 	return c.client.BatchCost(ctx, in, opts...)
+}
+
+func (c *clientAdapter) ResolveResourceTypes(
+	ctx context.Context,
+	in *pbc.ResolveResourceTypesRequest,
+	opts ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	return c.client.ResolveResourceTypes(ctx, in, opts...)
 }
 
 // MapBatchProjectedResults maps a BatchCostResponse to a slice of BatchMappedResult for
