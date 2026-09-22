@@ -7,9 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strconv"
 	"strings"
-	"syscall"
 
 	"github.com/rshade/finfocus/internal/config"
 )
@@ -104,105 +102,6 @@ func NewInstallerWithClient(client *GitHubClient, pluginDir string) *Installer {
 		client:    client,
 		pluginDir: pluginDir,
 	}
-}
-
-// acquireLock attempts to acquire a file-based lock for the specified plugin name.
-// It returns a function to release the lock, or an error if the lock cannot be acquired.
-// If a stale lock is detected (the owning process is no longer running), it is
-// automatically removed before acquiring a new lock.
-func (i *Installer) acquireLock(name string) (func(), error) {
-	// Ensure plugin base directory exists
-	if err := os.MkdirAll(i.pluginDir, 0750); err != nil {
-		return nil, fmt.Errorf("failed to create plugin directory: %w", err)
-	}
-
-	lockPath := filepath.Join(i.pluginDir, name+".lock")
-
-	file, err := tryCreateLockFile(lockPath, name)
-	if err != nil {
-		return nil, err
-	}
-
-	// Write our PID to the lock file for stale lock detection
-	_, _ = file.WriteString(strconv.Itoa(os.Getpid()))
-	_ = file.Close()
-
-	return func() {
-		_ = os.Remove(lockPath)
-	}, nil
-}
-
-// tryCreateLockFile attempts to create an exclusive lock file.
-// If the lock file exists and is stale, it removes the stale lock and retries.
-func tryCreateLockFile(lockPath, name string) (*os.File, error) {
-	file, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err == nil {
-		return file, nil
-	}
-
-	if !os.IsExist(err) {
-		return nil, fmt.Errorf("failed to create lock file: %w", err)
-	}
-
-	// Lock file exists - check if it's stale
-	if !isLockStale(lockPath) {
-		return nil, fmt.Errorf(
-			"plugin %q is currently being modified by another process (lock file %s exists)",
-			name, lockPath)
-	}
-
-	// Remove stale lock and try again
-	_ = os.Remove(lockPath)
-	file, err = os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create lock file after removing stale lock: %w", err)
-	}
-	return file, nil
-}
-
-// isLockStale checks if a lock file is stale by reading the PID from it
-// and checking if that process is still running.
-func isLockStale(lockPath string) bool {
-	data, err := os.ReadFile(lockPath)
-	if err != nil {
-		// Can't read the file - assume not stale to be safe
-		return false
-	}
-
-	pidStr := strings.TrimSpace(string(data))
-	if pidStr == "" {
-		// Empty lock file (legacy or corrupt) - treat as stale
-		return true
-	}
-
-	pid, err := strconv.Atoi(pidStr)
-	if err != nil {
-		// Invalid PID - treat as stale
-		return true
-	}
-
-	// Check if process is still running
-	return !isProcessRunning(pid)
-}
-
-// isProcessRunning checks if a process with the given PID is still running.
-func isProcessRunning(pid int) bool {
-	process, err := os.FindProcess(pid)
-	if err != nil {
-		return false
-	}
-
-	// On Unix, FindProcess always succeeds, so we need to send signal 0 to check
-	// if the process actually exists. On Windows, FindProcess fails if the
-	// process doesn't exist.
-	if runtime.GOOS == osWindows {
-		// On Windows, if we got here, the process exists
-		return true
-	}
-
-	// On Unix, send signal 0 to check if process exists
-	err = process.Signal(syscall.Signal(0))
-	return err == nil
 }
 
 // Install installs a plugin from a specifier (name or URL with optional version).
