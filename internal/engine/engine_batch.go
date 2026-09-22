@@ -237,6 +237,15 @@ func (e *Engine) executeBatchForPlugin(
 			}
 		}
 
+		// Resolve the request time window for actual-cost rate derivation
+		var from, to time.Time
+		if opts.start != nil {
+			from = opts.start.AsTime()
+		}
+		if opts.end != nil {
+			to = opts.end.AsTime()
+		}
+
 		// Map results based on query type
 		var mapped []proto.BatchMappedResult
 		if opts.queryType == pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
@@ -256,7 +265,7 @@ func (e *Engine) executeBatchForPlugin(
 			}
 			if m.ActualResult != nil {
 				br.actualResult = mapProtoActualCostResultToEngine(
-					built.validResources[i].resource, plugin.Name, m.ActualResult,
+					built.validResources[i].resource, plugin.Name, m.ActualResult, from, to,
 				)
 			}
 			allResults = append(allResults, br)
@@ -425,11 +434,14 @@ func mapProtoCostResultToEngine(
 }
 
 // mapProtoActualCostResultToEngine converts a proto ActualCostResult to an engine CostResult
-// for the actual cost path.
+// for the actual cost path. When a non-zero request time window ([from, to]) is provided,
+// the rate fields (Monthly, Hourly, DailyCosts), Notes, StartDate, EndDate, and CostPeriod
+// are derived with the same logic as the per-resource path (getActualCostFromPlugin).
 func mapProtoActualCostResultToEngine(
 	resource ResourceDescriptor,
 	pluginName string,
 	result *proto.ActualCostResult,
+	from, to time.Time,
 ) *CostResult {
 	engineResult := &CostResult{
 		ResourceType:   resource.Type,
@@ -442,6 +454,17 @@ func mapProtoActualCostResultToEngine(
 	}
 
 	engineResult.ExpiresAt = result.ExpiresAt
+
+	if !from.IsZero() && !to.IsZero() {
+		monthly, hourly, dailyCosts, notes := deriveActualCostWindow(result.TotalCost, from, to)
+		engineResult.Monthly = monthly
+		engineResult.Hourly = hourly
+		engineResult.DailyCosts = dailyCosts
+		engineResult.Notes = notes
+		engineResult.StartDate = from
+		engineResult.EndDate = to
+		engineResult.CostPeriod = FormatPeriod(from, to)
+	}
 
 	for k, v := range result.Sustainability {
 		engineResult.Sustainability[k] = SustainabilityMetric{

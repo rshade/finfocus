@@ -25,7 +25,8 @@ import (
 
 // mockBatchCostSourceClient implements proto.CostSourceClient for batch testing.
 type mockBatchCostSourceClient struct {
-	batchCostFunc func(ctx context.Context, in *pbc.BatchCostRequest, opts ...grpc.CallOption) (*pbc.BatchCostResponse, error)
+	batchCostFunc     func(ctx context.Context, in *pbc.BatchCostRequest, opts ...grpc.CallOption) (*pbc.BatchCostResponse, error)
+	getActualCostFunc func(ctx context.Context, in *proto.GetActualCostRequest, opts ...grpc.CallOption) (*proto.GetActualCostResponse, error)
 }
 
 func (m *mockBatchCostSourceClient) Name(
@@ -41,8 +42,11 @@ func (m *mockBatchCostSourceClient) GetProjectedCost(
 }
 
 func (m *mockBatchCostSourceClient) GetActualCost(
-	_ context.Context, _ *proto.GetActualCostRequest, _ ...grpc.CallOption,
+	ctx context.Context, in *proto.GetActualCostRequest, opts ...grpc.CallOption,
 ) (*proto.GetActualCostResponse, error) {
+	if m.getActualCostFunc != nil {
+		return m.getActualCostFunc(ctx, in, opts...)
+	}
 	return &proto.GetActualCostResponse{}, nil
 }
 
@@ -682,6 +686,17 @@ func TestExecuteBatchForPlugin(t *testing.T) {
 		// Verify actual result mapped
 		require.NotNil(t, results[0].actualResult)
 		assert.InDelta(t, 5.0, results[0].actualResult.TotalCost, 0.001)
+
+		// Verify rate fields derived from the request time window (24h)
+		from, to := start.AsTime(), end.AsTime()
+		assert.InDelta(t, 5.0*avgDaysPerMonth/1.0, results[0].actualResult.Monthly, 0.001)
+		assert.InDelta(t, 5.0/24.0, results[0].actualResult.Hourly, 0.001)
+		require.Len(t, results[0].actualResult.DailyCosts, 1)
+		assert.InDelta(t, 5.0, results[0].actualResult.DailyCosts[0], 0.001)
+		assert.Equal(t, FormatPeriod(from, to), results[0].actualResult.CostPeriod)
+		assert.Equal(t, from, results[0].actualResult.StartDate)
+		assert.Equal(t, to, results[0].actualResult.EndDate)
+		assert.Contains(t, results[0].actualResult.Notes, "Actual cost from")
 	})
 
 	t.Run("multi-chunk with max_batch_size adjustment", func(t *testing.T) {
@@ -1514,7 +1529,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 				"requests": 12.5,
 			},
 		}
-		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result)
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, time.Time{}, time.Time{})
 		assert.Equal(t, "aws:s3:Bucket", engineResult.ResourceType)
 		assert.Equal(t, "my-bucket", engineResult.ResourceID)
 		assert.Equal(t, "cost-plugin", engineResult.Adapter)
@@ -1532,7 +1547,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 				"water": {Value: 5.0, Unit: "gallons"},
 			},
 		}
-		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result)
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, time.Time{}, time.Time{})
 		require.Len(t, engineResult.Sustainability, 1)
 		assert.InDelta(t, 5.0, engineResult.Sustainability["water"].Value, 0.001)
 		assert.Equal(t, "gallons", engineResult.Sustainability["water"].Unit)
@@ -1545,8 +1560,101 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 			TotalCost: 75.0,
 			ExpiresAt: &expiry,
 		}
-		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result)
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, time.Time{}, time.Time{})
 		require.NotNil(t, engineResult.ExpiresAt)
 		assert.Equal(t, expiry, *engineResult.ExpiresAt)
 	})
+
+	t.Run("zero time window leaves rate fields empty", func(t *testing.T) {
+		result := &proto.ActualCostResult{
+			Currency:  "USD",
+			TotalCost: 42.50,
+		}
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, time.Time{}, time.Time{})
+		assert.Zero(t, engineResult.Monthly)
+		assert.Zero(t, engineResult.Hourly)
+		assert.Empty(t, engineResult.DailyCosts)
+		assert.Empty(t, engineResult.Notes)
+		assert.True(t, engineResult.StartDate.IsZero())
+		assert.True(t, engineResult.EndDate.IsZero())
+		assert.Empty(t, engineResult.CostPeriod)
+	})
+
+	t.Run("rate fields derived from time window", func(t *testing.T) {
+		from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+		to := time.Date(2026, 3, 8, 0, 0, 0, 0, time.UTC) // 7-day window
+		result := &proto.ActualCostResult{
+			Currency:  "USD",
+			TotalCost: 70.0,
+		}
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, from, to)
+
+		// 7-day window: monthly = 70 * 30.44 / 7, hourly = 70 / (7*24)
+		assert.InDelta(t, 70.0*avgDaysPerMonth/7.0, engineResult.Monthly, 0.001)
+		assert.InDelta(t, 70.0/(7*24), engineResult.Hourly, 0.001)
+		require.Len(t, engineResult.DailyCosts, 7)
+		for _, dc := range engineResult.DailyCosts {
+			assert.InDelta(t, 10.0, dc, 0.001)
+		}
+		assert.Equal(t, "Actual cost from 2026-03-01 to 2026-03-08", engineResult.Notes)
+		assert.Equal(t, from, engineResult.StartDate)
+		assert.Equal(t, to, engineResult.EndDate)
+		assert.Equal(t, FormatPeriod(from, to), engineResult.CostPeriod)
+	})
+
+	t.Run("sub-day window projects monthly from hourly rate", func(t *testing.T) {
+		from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+		to := from.Add(12 * time.Hour)
+		result := &proto.ActualCostResult{
+			Currency:  "USD",
+			TotalCost: 10.0,
+		}
+		engineResult := mapProtoActualCostResultToEngine(resource, "cost-plugin", result, from, to)
+
+		assert.InDelta(t, (10.0/12.0)*hoursPerMonth, engineResult.Monthly, 0.001)
+		assert.InDelta(t, 10.0/12.0, engineResult.Hourly, 0.001)
+		assert.Empty(t, engineResult.DailyCosts)
+	})
+}
+
+// TestMapProtoActualCostResultToEngine_ParityWithPerResourcePath verifies the batch
+// actual-cost mapper derives the same rate fields as the non-batch path
+// (getActualCostFromPlugin) for the same time window and total cost.
+func TestMapProtoActualCostResultToEngine_ParityWithPerResourcePath(t *testing.T) {
+	resource := ResourceDescriptor{
+		Type:     "aws:ec2:Instance",
+		ID:       "i-parity",
+		Provider: "aws",
+	}
+	from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2026, 3, 8, 0, 0, 0, 0, time.UTC)
+	const totalCost = 70.0
+
+	// Batch path
+	batch := mapProtoActualCostResultToEngine(resource, "parity-plugin",
+		&proto.ActualCostResult{Currency: "USD", TotalCost: totalCost}, from, to)
+
+	// Non-batch path via a mock plugin
+	mockAPI := &mockBatchCostSourceClient{
+		getActualCostFunc: func(_ context.Context, _ *proto.GetActualCostRequest, _ ...grpc.CallOption) (*proto.GetActualCostResponse, error) {
+			return &proto.GetActualCostResponse{
+				Results: []*proto.ActualCostResult{{Currency: "USD", TotalCost: totalCost}},
+			}, nil
+		},
+	}
+	client := makeBatchCapableClient("parity-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+
+	single, err := eng.getActualCostFromPlugin(context.Background(), client, resource, from, to)
+	require.NoError(t, err)
+
+	assert.Equal(t, single.Monthly, batch.Monthly)
+	assert.Equal(t, single.Hourly, batch.Hourly)
+	assert.Equal(t, single.DailyCosts, batch.DailyCosts)
+	assert.Equal(t, single.Notes, batch.Notes)
+	assert.Equal(t, single.StartDate, batch.StartDate)
+	assert.Equal(t, single.EndDate, batch.EndDate)
+	assert.Equal(t, single.CostPeriod, batch.CostPeriod)
+	assert.Equal(t, single.TotalCost, batch.TotalCost)
+	assert.Equal(t, single.Currency, batch.Currency)
 }
