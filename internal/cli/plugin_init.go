@@ -20,23 +20,24 @@ import (
 
 // PluginInitOptions contains configuration options for plugin initialization.
 type PluginInitOptions struct {
-	Name           string
-	Author         string
-	Providers      []string
-	OutputDir      string
-	Force          bool
-	RecordFixtures bool
-	FixtureVersion string
-	Offline        bool
-	Strict         bool
-	NoDocker       bool
-	DockerOnly     bool
-	WithDocker     bool
-	WithDocs       bool
-	WithHealth     bool
-	Minimal        bool
-	NoDocs         bool
-	NoHealth       bool
+	Name             string
+	Author           string
+	Providers        []string
+	OutputDir        string
+	Force            bool
+	RecordFixtures   bool
+	FixtureVersion   string
+	Offline          bool
+	Strict           bool
+	NoDocker         bool
+	DockerOnly       bool
+	WithDocker       bool
+	WithDocs         bool
+	WithHealth       bool
+	Minimal          bool
+	NoDocs           bool
+	NoHealth         bool
+	WithClaudeReview bool
 }
 
 // ShouldGenerateDocker reports whether Docker support files should be
@@ -718,6 +719,194 @@ func renderDocTokens(content, name string) string {
 	return content
 }
 
+// pluginWorkflowCITemplate is the generated .github/workflows/ci.yml.
+const pluginWorkflowCITemplate = `name: CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '{{GO_VERSION}}'
+          cache: true
+      - uses: golangci/golangci-lint-action@v7
+        with:
+          version: v2.6.2
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '{{GO_VERSION}}'
+          cache: true
+      - name: Run tests
+        run: go test -v -race ./...
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '{{GO_VERSION}}'
+          cache: true
+      - name: Build
+        run: make build
+`
+
+// pluginWorkflowReleaseTemplate is the generated .github/workflows/release.yml.
+const pluginWorkflowReleaseTemplate = `name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '{{GO_VERSION}}'
+          cache: true
+
+      - uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+`
+
+// pluginWorkflowReleasePleaseTemplate is the generated
+// .github/workflows/release-please.yml.
+const pluginWorkflowReleasePleaseTemplate = `name: Release Please
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        with:
+          release-type: go
+`
+
+// pluginWorkflowDockerTemplate is the generated .github/workflows/docker.yml,
+// only written when Docker support is enabled.
+const pluginWorkflowDockerTemplate = `name: Docker
+
+on:
+  push:
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64,linux/arm64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+`
+
+// pluginWorkflowClaudeReviewTemplate is the generated
+// .github/workflows/claude-code-review.yml, only written when
+// --with-claude-review is passed.
+const pluginWorkflowClaudeReviewTemplate = `name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  claude-code-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anthropics/claude-code-action@v1
+`
+
+// renderWorkflow substitutes the {{GO_VERSION}} token in a workflow template
+// with the Go version used in the generated go.mod.
+func renderWorkflow(template string) string {
+	return strings.ReplaceAll(template, "{{GO_VERSION}}", pluginGoVersion)
+}
+
 // runRecordingWorkflow resolves fixtures, downloads required plan and state fixtures,
 // executes a recording workflow for each provider in opts, validates the recordings,
 // and copies recorded requests into the project's testdata/recorded_requests directory.
@@ -944,6 +1133,8 @@ This command creates a new directory structure for plugin development including:
 		"Skip documentation generation (alias for --with-docs=false)")
 	cmd.Flags().BoolVar(&opts.NoHealth, "no-health", false,
 		"Skip health endpoint generation (alias for --with-health=false)")
+	cmd.Flags().BoolVar(&opts.WithClaudeReview, "with-claude-review", false,
+		"Generate a Claude Code review workflow")
 
 	_ = cmd.MarkFlagRequired("author")
 	_ = cmd.MarkFlagRequired("providers")
@@ -1005,6 +1196,8 @@ func RunPluginInit(ctx context.Context, cmd *cobra.Command, opts *PluginInitOpti
 		withDocs:   opts.ShouldGenerateDocs(),
 		withHealth: opts.ShouldGenerateHealth(),
 		dockerOnly: opts.DockerOnly,
+
+		withClaudeReview: opts.WithClaudeReview,
 	}
 
 	// Rehearse: report the files that would be created
@@ -1061,6 +1254,7 @@ func printPluginInitRehearse(cmd *cobra.Command, opts *PluginInitOptions, projec
 		if opts.RecordFixtures {
 			cmd.Printf("  - testdata/recorded_requests/\n")
 		}
+		cmd.Printf("  - .github/workflows/\n")
 	}
 	if opts.ShouldGenerateDocs() {
 		cmd.Printf("  - docs/\n")
@@ -1112,6 +1306,8 @@ type projectGenerator struct {
 	withDocs   bool
 	withHealth bool
 	dockerOnly bool
+
+	withClaudeReview bool
 }
 
 func (g *projectGenerator) generateAll() error {
@@ -1130,6 +1326,7 @@ func (g *projectGenerator) generateAll() error {
 		{"Generating README.md", g.generateReadme},
 		{"Generating example tests", g.generateTests},
 		{"Generating issues.md", g.generateIssues},
+		{"Generating GitHub workflows", g.generateWorkflows},
 	}
 
 	if g.dockerOnly {
@@ -2090,6 +2287,40 @@ func (g *projectGenerator) generateTests() error {
 func (g *projectGenerator) generateIssues() error {
 	content := renderIssues(g.providers)
 	return g.writeFile("issues.md", content)
+}
+
+// generateWorkflows writes the standardized GitHub workflow files. The CI,
+// release, and release-please workflows are always generated; docker.yml is
+// only written when Docker support is enabled, and claude-code-review.yml
+// only when --with-claude-review is passed.
+func (g *projectGenerator) generateWorkflows() error {
+	files := []struct {
+		path     string
+		template string
+	}{
+		{".github/workflows/ci.yml", pluginWorkflowCITemplate},
+		{".github/workflows/release.yml", pluginWorkflowReleaseTemplate},
+		{".github/workflows/release-please.yml", pluginWorkflowReleasePleaseTemplate},
+	}
+	if g.withDocker {
+		files = append(files, struct {
+			path     string
+			template string
+		}{".github/workflows/docker.yml", pluginWorkflowDockerTemplate})
+	}
+	if g.withClaudeReview {
+		files = append(files, struct {
+			path     string
+			template string
+		}{".github/workflows/claude-code-review.yml", pluginWorkflowClaudeReviewTemplate})
+	}
+
+	for _, file := range files {
+		if err := g.writeFile(file.path, renderWorkflow(file.template)); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (g *projectGenerator) writeFile(relativePath, content string) error {

@@ -748,6 +748,7 @@ finfocus plugin init <plugin-name> --author <name> --providers <list> [options]
 | `--no-docs`     | Skip documentation (alias for `--with-docs=false`)           | `false`    |
 | `--no-health`   | Skip health endpoint (alias for `--with-health=false`)       | `false`    |
 | `--docker-only` | Generate only Docker files (for existing projects)           | `false`    |
+| `--with-claude-review` | Generate a Claude Code review workflow                | `false`    |
 | `--help`        | Show help                                                    |            |
 
 ### Examples (plugin init)

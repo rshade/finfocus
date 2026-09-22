@@ -653,3 +653,89 @@ func TestPluginInitMakefileNoDocker(t *testing.T) {
 	assert.NotContains(t, content, "docker-run:")
 	assert.Contains(t, content, "build:")
 }
+
+func TestPluginInitWorkflows(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	workflowsDir := filepath.Join(tmpDir, "test-plugin", ".github", "workflows")
+
+	for _, file := range []string{"ci.yml", "release.yml", "release-please.yml", "docker.yml"} {
+		_, err := os.Stat(filepath.Join(workflowsDir, file))
+		require.NoError(t, err, "expected workflow %s", file)
+	}
+
+	// Claude review workflow not generated without --with-claude-review
+	_, err := os.Stat(filepath.Join(workflowsDir, "claude-code-review.yml"))
+	assert.True(t, os.IsNotExist(err))
+
+	ci, err := os.ReadFile(filepath.Join(workflowsDir, "ci.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(ci), "go-version: '1.27.1'")
+	assert.NotContains(t, string(ci), "{{GO_VERSION}}")
+	assert.Contains(t, string(ci), "golangci/golangci-lint-action@v7")
+
+	docker, err := os.ReadFile(filepath.Join(workflowsDir, "docker.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(docker), "IMAGE_NAME: ${{ github.repository }}")
+	assert.Contains(t, string(docker), "type=semver,pattern={{version}}")
+	assert.Contains(t, string(docker), "file: docker/Dockerfile")
+}
+
+func TestPluginInitWorkflowsNoDocker(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	workflowsDir := filepath.Join(tmpDir, "test-plugin", ".github", "workflows")
+
+	for _, file := range []string{"ci.yml", "release.yml", "release-please.yml"} {
+		_, err := os.Stat(filepath.Join(workflowsDir, file))
+		require.NoError(t, err, "expected workflow %s", file)
+	}
+
+	_, err := os.Stat(filepath.Join(workflowsDir, "docker.yml"))
+	assert.True(t, os.IsNotExist(err))
+}
+
+func TestPluginInitClaudeReviewWorkflow(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:             "test-plugin",
+		Author:           "Test Author",
+		Providers:        []string{"aws"},
+		OutputDir:        tmpDir,
+		Force:            true,
+		WithDocker:       true,
+		WithDocs:         true,
+		WithHealth:       true,
+		WithClaudeReview: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	claude, err := os.ReadFile(
+		filepath.Join(tmpDir, "test-plugin", ".github", "workflows", "claude-code-review.yml"))
+	require.NoError(t, err)
+	assert.Contains(t, string(claude), "anthropics/claude-code-action@v1")
+}
