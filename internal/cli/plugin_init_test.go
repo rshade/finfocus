@@ -491,3 +491,50 @@ func TestPluginInitCalculatorRPCMethods(t *testing.T) {
 	assert.Contains(t, string(calculatorTest), "assert.Contains(t, resp.Providers, \"aws\")")
 	assert.Contains(t, string(calculatorTest), "{\"aws supported\", \"aws\", true}")
 }
+
+func TestPluginInitHealthEndpoint(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+	}
+	runPluginInitForTest(t, opts)
+
+	mainGo, err := os.ReadFile(filepath.Join(tmpDir, "test-plugin", "cmd", "plugin", "main.go"))
+	require.NoError(t, err)
+	assert.Contains(t, string(mainGo), "func startHealthServer(")
+	assert.Contains(t, string(mainGo), `mux.HandleFunc("/health"`)
+	assert.Contains(t, string(mainGo), `mux.HandleFunc("/ready"`)
+	assert.Contains(t, string(mainGo), "FINFOCUS_PLUGIN_HEALTH_ENDPOINT")
+	assert.Contains(t, string(mainGo), "FINFOCUS_PLUGIN_HEALTH_PORT")
+	assert.Contains(t, string(mainGo), "pricing.PluginVersion")
+}
+
+func TestPluginInitNoHealth(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:       "test-plugin",
+		Author:     "Test Author",
+		Providers:  []string{"aws"},
+		OutputDir:  tmpDir,
+		Force:      true,
+		WithDocker: true,
+		WithDocs:   true,
+		WithHealth: true,
+		NoHealth:   true,
+	}
+	runPluginInitForTest(t, opts)
+
+	mainGo, err := os.ReadFile(filepath.Join(tmpDir, "test-plugin", "cmd", "plugin", "main.go"))
+	require.NoError(t, err)
+	assert.NotContains(t, string(mainGo), "startHealthServer")
+	assert.NotContains(t, string(mainGo), "/health")
+}

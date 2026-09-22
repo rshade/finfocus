@@ -835,6 +835,7 @@ func RunPluginInit(ctx context.Context, cmd *cobra.Command, opts *PluginInitOpti
 		projectDir: projectDir,
 		cmd:        cmd,
 		withDocker: opts.ShouldGenerateDocker(),
+		withHealth: opts.ShouldGenerateHealth(),
 		dockerOnly: opts.DockerOnly,
 	}
 
@@ -940,6 +941,7 @@ type projectGenerator struct {
 	projectDir string
 	cmd        *cobra.Command
 	withDocker bool
+	withHealth bool
 	dockerOnly bool
 }
 
@@ -1058,7 +1060,132 @@ func (g *projectGenerator) generateManifest() error {
 	return pluginsdk.SaveManifest(filepath.Join(g.projectDir, "manifest.json"), manifest)
 }
 
+// pluginMainHealthTemplate is the cmd/plugin/main.go template used when the
+// health endpoint is enabled. It adds an HTTP server exposing /health and
+// /ready for container orchestration, toggled at runtime by
+// FINFOCUS_PLUGIN_HEALTH_ENDPOINT / FINFOCUS_PLUGIN_HEALTH_PORT.
+const pluginMainHealthTemplate = `package main
+
+import (
+	"context"
+	"encoding/json"
+	"flag"
+	"net/http"
+	"os"
+	"os/signal"
+	"strings"
+	"syscall"
+
+	"github.com/rs/zerolog"
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+
+	"github.com/example/%s/internal/pricing"
+)
+
+func main() {
+	flag.Parse()
+
+	logWriter := pluginsdk.NewLogWriter()
+	level := parseLogLevel(pluginsdk.GetLogLevel())
+	logger := pluginsdk.NewPluginLogger("%s", pricing.PluginVersion, level, logWriter)
+
+	port := pluginsdk.ParsePortFlag()
+	if port == 0 {
+		port = pluginsdk.GetPort()
+	}
+
+	plugin := pricing.NewCalculator()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		logger.Info().Msg("Received interrupt signal, shutting down...")
+		cancel()
+	}()
+
+	// Start health endpoint if enabled
+	if healthEnabled := os.Getenv("FINFOCUS_PLUGIN_HEALTH_ENDPOINT"); healthEnabled == "true" {
+		healthPort := os.Getenv("FINFOCUS_PLUGIN_HEALTH_PORT")
+		if healthPort == "" {
+			healthPort = "8081"
+		}
+		go startHealthServer(logger, healthPort)
+	}
+
+	config := pluginsdk.ServeConfig{
+		Plugin: plugin,
+		Port:   port,
+	}
+
+	logger.Info().Str("plugin_name", plugin.Name()).Int("port", port).Msg("Starting plugin")
+	if err := pluginsdk.Serve(ctx, config); err != nil {
+		logger.Error().Err(err).Msg("Failed to serve plugin")
+		return
+	}
+}
+
+func parseLogLevel(levelStr string) zerolog.Level {
+	switch strings.ToLower(levelStr) {
+	case "trace":
+		return zerolog.TraceLevel
+	case "debug":
+		return zerolog.DebugLevel
+	case "info", "":
+		return zerolog.InfoLevel
+	case "warn", "warning":
+		return zerolog.WarnLevel
+	case "error":
+		return zerolog.ErrorLevel
+	case "fatal":
+		return zerolog.FatalLevel
+	case "panic":
+		return zerolog.PanicLevel
+	default:
+		return zerolog.InfoLevel
+	}
+}
+
+// startHealthServer starts an HTTP server for health checks.
+func startHealthServer(logger zerolog.Logger, port string) {
+	mux := http.NewServeMux()
+
+	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		response := map[string]string{
+			"status":  "healthy",
+			"plugin":  "%s",
+			"version": pricing.PluginVersion,
+		}
+		json.NewEncoder(w).Encode(response)
+	})
+
+	mux.HandleFunc("/ready", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{"status": "ready"})
+	})
+
+	addr := ":" + port
+	logger.Info().Str("address", addr).Msg("Starting health check server")
+
+	server := &http.Server{Addr: addr, Handler: mux}
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Error().Err(err).Msg("Health server failed")
+	}
+}
+`
+
 func (g *projectGenerator) generateMainGo() error {
+	if g.withHealth {
+		content := fmt.Sprintf(pluginMainHealthTemplate, g.name, g.name, g.name)
+		return g.writeFile("cmd/plugin/main.go", content)
+	}
+
 	content := fmt.Sprintf(`package main
 
 import (
