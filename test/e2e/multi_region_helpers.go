@@ -242,15 +242,22 @@ func GetLoadedPlugins(t *testing.T) ([]PluginInfo, error) {
 	t.Helper()
 
 	binaryPath := findFinFocusBinary()
-	cmd := newCommand(context.Background(), binaryPath, "plugin", "list")
+	cmd := newCommand(context.Background(), binaryPath, "plugin", "list", "--output", "json")
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list plugins: %w (output: %s)", err, string(output))
 	}
 
+	// The CLI writes a "Logging to: <path>" notice to stdout before the JSON
+	// payload, so slice the output starting at the first JSON array.
+	jsonOutput := output
+	if idx := strings.Index(string(output), "["); idx >= 0 {
+		jsonOutput = output[idx:]
+	}
+
 	var plugins []PluginInfo
-	if err := json.Unmarshal(output, &plugins); err != nil {
+	if err := json.Unmarshal(jsonOutput, &plugins); err != nil {
 		// Try parsing as a different format if JSON unmarshaling fails
 		// The plugin list might not be in JSON format yet
 		return parsePluginListText(string(output)), nil
@@ -266,15 +273,19 @@ func parsePluginListText(output string) []PluginInfo {
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 
 	for _, line := range lines {
-		// Skip header lines and empty lines
-		if strings.HasPrefix(line, "NAME") || strings.TrimSpace(line) == "" {
+		// Skip empty lines, the "Logging to:" notice, the header row, and the
+		// dashed separator row of the table output.
+		if strings.TrimSpace(line) == "" ||
+			strings.HasPrefix(line, "Logging to:") ||
+			strings.HasPrefix(line, "NAME") ||
+			strings.EqualFold(strings.TrimSpace(line), "Name Version Providers") {
 			continue
 		}
 
 		// Parse plugin information from text output
 		// Expected format: "NAME    VERSION    PATH"
 		fields := strings.Fields(line)
-		if len(fields) >= 3 {
+		if len(fields) >= 3 && strings.Trim(fields[0], "-") != "" {
 			plugins = append(plugins, PluginInfo{
 				Name:    fields[0],
 				Version: fields[1],

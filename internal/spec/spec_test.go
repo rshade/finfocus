@@ -4,6 +4,7 @@ package spec_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -325,6 +326,12 @@ region: us-east-1
 // TestSpecErrorHandling tests error handling for file permissions and malformed YAML.
 func TestSpecErrorHandling(t *testing.T) {
 	t.Run("handles file permission errors", func(t *testing.T) {
+		// File permission bits are not enforced on Windows, so reads succeed
+		// regardless of the mode; skip there.
+		if runtime.GOOS == "windows" {
+			t.Skip("Skipping file permission test on Windows")
+		}
+
 		// Create a temporary directory for specs
 		tempDir := t.TempDir()
 		specDir := filepath.Join(tempDir, "specs")
