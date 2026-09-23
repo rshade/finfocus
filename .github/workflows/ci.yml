@@ -209,7 +209,7 @@ jobs:
           cache: true
 
       - name: Restore fuzz corpus cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             internal/ingest/testdata/fuzz
@@ -233,7 +233,7 @@ jobs:
           go test -fuzz=FuzzSpecFilename -fuzztime=30s -timeout=90s ./internal/spec
 
       - name: Save fuzz corpus cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: always()
         with:
           path: |
@@ -266,7 +266,7 @@ jobs:
             ./scripts/ci-benchmark-filter.sh > test/benchmarks/baseline.txt
 
       - name: Save baseline cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: test/benchmarks/baseline.txt
           key: benchmark-baseline-${{ runner.os }}-go${{ env.GO_VERSION }}
@@ -293,7 +293,7 @@ jobs:
 
       - name: Restore baseline cache
         id: baseline
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: test/benchmarks/baseline.txt
           key: benchmark-baseline-${{ runner.os }}-go${{ env.GO_VERSION }}

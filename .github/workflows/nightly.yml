@@ -238,7 +238,7 @@ jobs:
           cache: true
 
       - name: Restore fuzz corpus cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: |
             internal/ingest/testdata/fuzz
@@ -267,7 +267,7 @@ jobs:
         timeout-minutes: 170 # 2 targets x 1h default + corpus overhead
 
       - name: Save fuzz corpus cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         if: always()
         with:
           path: |
