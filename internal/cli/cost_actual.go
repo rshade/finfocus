@@ -30,6 +30,7 @@ const (
 type costActualParams struct {
 	planPath           string // Path to Pulumi preview JSON (mutually exclusive with statePath)
 	statePath          string // Path to Pulumi state JSON (mutually exclusive with planPath)
+	terraformState     string // Path to Terraform state file (mutually exclusive with planPath/statePath)
 	estimateConfidence bool   // Show confidence level for cost estimates
 	fallbackEstimate   bool   // Include $0 placeholders for resources with no plugin data
 	adapter            string
@@ -117,6 +118,8 @@ timestamp if not provided.`,
 		StringVar(&params.planPath, "pulumi-json", "", "Path to Pulumi preview JSON output")
 	cmd.Flags().
 		StringVar(&params.statePath, "pulumi-state", "", "Path to Pulumi state JSON from 'pulumi stack export'")
+	cmd.Flags().
+		StringVar(&params.terraformState, "terraform-state", "", "Path to a Terraform state file (mutually exclusive with --pulumi-json/--pulumi-state)")
 	cmd.Flags().StringVar(
 		&params.fromStr, "from", "", "Start date (YYYY-MM-DD or RFC3339, auto-detected with --pulumi-state)",
 	)
@@ -182,9 +185,17 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	}
 	defer cleanup()
 
-	eng, historyStore, _, combinedCleanup := newEngineWithCacheAndHistory(ctx, cmd, clients, nil)
+	eng, historyStore, cacheStore, combinedCleanup := newEngineWithCacheAndHistory(ctx, cmd, clients, nil)
 	defer combinedCleanup()
 	eng = eng.WithJobs(params.jobs)
+
+	if params.terraformState != "" {
+		resources, err = resolveResourceTypes(ctx, clients, cacheStore, resources)
+		if err != nil {
+			audit.logFailure(ctx, err)
+			return fmt.Errorf("resolving terraform resource types: %w", err)
+		}
+	}
 
 	recordDescriptorHistory(ctx, historyStore, resources)
 
@@ -398,24 +409,39 @@ func validateActualParams(params costActualParams) error {
 // validateActualInputFlags validates the combinations of CLI input flags used by the
 // "actual" cost command, ensuring mutual exclusivity and required options.
 //
-// Returns an error if both --pulumi-json and --pulumi-state are provided at the same
-// time, or if --pulumi-json is supplied without an explicit --from date. When neither
-// is provided, auto-detection is permitted and --from is optional.
+// Returns an error if more than one of --pulumi-json, --pulumi-state, and
+// --terraform-state is provided at the same time, if --pulumi-json is supplied
+// without an explicit --from date, or if --terraform-state is supplied without
+// --from (Terraform state carries no timestamps to auto-detect it from). When
+// no input flag is provided, auto-detection is permitted and --from is optional.
 func validateActualInputFlags(params costActualParams) error {
 	hasPlan := params.planPath != ""
 	hasState := params.statePath != ""
+	hasTerraform := params.terraformState != ""
 
 	// Check mutual exclusivity
-	if hasPlan && hasState {
-		return errors.New("--pulumi-json and --pulumi-state are mutually exclusive; use only one")
+	inputCount := 0
+	for _, set := range []bool{hasPlan, hasState, hasTerraform} {
+		if set {
+			inputCount++
+		}
+	}
+	if inputCount > 1 {
+		return errors.New(
+			"--pulumi-json, --pulumi-state, and --terraform-state are mutually exclusive; use only one")
 	}
 
-	// Neither provided is valid: auto-detection will be attempted
 	// When using --pulumi-json, --from is required
 	if hasPlan && params.fromStr == "" {
 		return errors.New("--from is required when using --pulumi-json")
 	}
 
+	// Terraform state carries no timestamps, so --from cannot be auto-detected
+	if hasTerraform && params.fromStr == "" {
+		return errors.New("--from is required when using --terraform-state")
+	}
+
+	// Neither provided is valid: auto-detection will be attempted
 	// When using --pulumi-state or auto-detection, --from is optional (auto-detected from timestamps)
 
 	return nil
@@ -485,6 +511,7 @@ func buildActualAuditParams(params costActualParams) map[string]string {
 
 // loadActualResources loads resource descriptors for the actual-cost command.
 // It chooses the source based on params:
+// - If params.terraformState is set, it loads and maps resources from the given Terraform state file.
 // - If params.statePath is set, it loads resources from the given Pulumi state file.
 // - If params.planPath is set, it loads and maps resources from the given Pulumi plan JSON.
 // - Otherwise it auto-detects resources from the current Pulumi project, using the value of the command's --stack flag.
@@ -505,6 +532,10 @@ func loadActualResources(
 	audit *auditContext,
 ) ([]engine.ResourceDescriptor, error) {
 	log := logging.FromContext(ctx)
+
+	if params.terraformState != "" {
+		return loadAndMapTerraformResources(ctx, params.terraformState, audit)
+	}
 
 	if params.statePath != "" {
 		return loadResourcesFromState(ctx, params.statePath, audit)

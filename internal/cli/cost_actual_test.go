@@ -1254,3 +1254,41 @@ func TestMergeHistoricalResources_CollisionDifferentProviders(t *testing.T) {
 	assert.Equal(t, "aws", result[0].Provider)
 	assert.Equal(t, "azure", result[1].Provider)
 }
+
+func TestCostActualTerraformStateFlagValidation(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	tests := []struct {
+		name     string
+		args     []string
+		errorMsg string
+	}{
+		{
+			name:     "terraform-state with pulumi-state is mutually exclusive",
+			args:     []string{"--terraform-state", "t.tfstate", "--pulumi-state", "s.json"},
+			errorMsg: "mutually exclusive",
+		},
+		{
+			name:     "terraform-state with pulumi-json is mutually exclusive",
+			args:     []string{"--terraform-state", "t.tfstate", "--pulumi-json", "p.json", "--from", "2025-01-01"},
+			errorMsg: "mutually exclusive",
+		},
+		{
+			name:     "terraform-state requires from",
+			args:     []string{"--terraform-state", "t.tfstate"},
+			errorMsg: "--from is required when using --terraform-state",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			cmd := cli.NewCostActualCmd()
+			cmd.SetOut(&buf)
+			cmd.SetErr(&buf)
+			cmd.SetArgs(tt.args)
+
+			err := cmd.Execute()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errorMsg)
+		})
+	}
+}
