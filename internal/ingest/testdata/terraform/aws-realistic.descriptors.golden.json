@@ -1,0 +1,166 @@
+[
+  {
+    "id": "aws_db_instance.main",
+    "type": "aws_db_instance",
+    "provider": "aws",
+    "properties": {
+      "allocatedStorage": 20,
+      "availabilityZone": "us-east-1a",
+      "engine": "postgres",
+      "engineVersion": "16.3",
+      "instanceClass": "db.t3.micro",
+      "iops": 0,
+      "multiAz": false,
+      "region": "us-east-1",
+      "storageType": "gp3",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_dynamodb_table.sessions",
+    "type": "aws_dynamodb_table",
+    "provider": "aws",
+    "properties": {
+      "billingMode": "PAY_PER_REQUEST",
+      "region": "us-east-1",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_ebs_volume.data",
+    "type": "aws_ebs_volume",
+    "provider": "aws",
+    "properties": {
+      "availabilityZone": "us-east-1a",
+      "iops": 3000,
+      "region": "us-east-1",
+      "size": 100,
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]",
+      "throughput": 0,
+      "type": "gp3"
+    }
+  },
+  {
+    "id": "aws_iam_role.app",
+    "type": "aws_iam_role",
+    "provider": "aws",
+    "properties": {
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_instance.web",
+    "type": "aws_instance",
+    "provider": "aws",
+    "properties": {
+      "availabilityZone": "us-east-1a",
+      "instanceType": "t3.micro",
+      "region": "us-east-1",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_instance.worker[\"large\"]",
+    "type": "aws_instance",
+    "provider": "aws",
+    "properties": {
+      "availabilityZone": "us-east-1a",
+      "instanceType": "c5.xlarge",
+      "region": "us-east-1",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_instance.worker[\"small\"]",
+    "type": "aws_instance",
+    "provider": "aws",
+    "properties": {
+      "availabilityZone": "us-east-1a",
+      "instanceType": "t3.small",
+      "region": "us-east-1",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_s3_bucket.assets",
+    "type": "aws_s3_bucket",
+    "provider": "aws",
+    "properties": {
+      "region": "us-east-1",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_security_group.web",
+    "type": "aws_security_group",
+    "provider": "aws",
+    "properties": {
+      "region": "us-east-1",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_subnet.a",
+    "type": "aws_subnet",
+    "provider": "aws",
+    "properties": {
+      "availabilityZone": "us-east-1a",
+      "region": "us-east-1",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_volume_attachment.data",
+    "type": "aws_volume_attachment",
+    "provider": "aws",
+    "properties": {
+      "region": "us-east-1",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "aws_vpc.main",
+    "type": "aws_vpc",
+    "provider": "aws",
+    "properties": {
+      "region": "us-east-1",
+      "terraform:module": "",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "module.app.aws_instance.app[0]",
+    "type": "aws_instance",
+    "provider": "aws",
+    "properties": {
+      "availabilityZone": "us-east-1a",
+      "instanceType": "m5.large",
+      "region": "us-east-1",
+      "terraform:module": "module.app",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  },
+  {
+    "id": "module.app.aws_instance.app[1]",
+    "type": "aws_instance",
+    "provider": "aws",
+    "properties": {
+      "availabilityZone": "us-east-1a",
+      "instanceType": "m5.large",
+      "region": "us-east-1",
+      "terraform:module": "module.app",
+      "terraform:provider": "provider[\"registry.opentofu.org/hashicorp/aws\"]"
+    }
+  }
+]

@@ -1,0 +1,495 @@
+{
+  "finfocus": {
+    "resources": [
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_db_instance"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_db_instance.main",
+        "resourceType": "aws_db_instance",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_dynamodb_table"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_dynamodb_table.sessions",
+        "resourceType": "aws_dynamodb_table",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_ebs_volume"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_ebs_volume.data",
+        "resourceType": "aws_ebs_volume",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_iam_role"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_iam_role.app",
+        "resourceType": "aws_iam_role",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_instance"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_instance.web",
+        "resourceType": "aws_instance",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_instance"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_instance.worker[\"large\"]",
+        "resourceType": "aws_instance",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_instance"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_instance.worker[\"small\"]",
+        "resourceType": "aws_instance",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_s3_bucket"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_s3_bucket.assets",
+        "resourceType": "aws_s3_bucket",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_security_group"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_security_group.web",
+        "resourceType": "aws_security_group",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_subnet"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_subnet.a",
+        "resourceType": "aws_subnet",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_volume_attachment"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_volume_attachment.data",
+        "resourceType": "aws_volume_attachment",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_vpc"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "aws_vpc.main",
+        "resourceType": "aws_vpc",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_instance"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "module.app.aws_instance.app[0]",
+        "resourceType": "aws_instance",
+        "startDate": "<normalized>"
+      },
+      {
+        "adapter": "none",
+        "breakdown": null,
+        "currency": "USD",
+        "endDate": "<normalized>",
+        "error": {
+          "code": "NO_COST_DATA",
+          "message": "No pricing information available",
+          "resourceType": "aws_instance"
+        },
+        "hourly": 0,
+        "monthly": 0,
+        "notes": "No pricing information available",
+        "resourceId": "module.app.aws_instance.app[1]",
+        "resourceType": "aws_instance",
+        "startDate": "<normalized>"
+      }
+    ],
+    "summary": {
+      "byAdapter": {
+        "none": 0
+      },
+      "byService": {
+        "default": 0
+      },
+      "currency": "USD",
+      "resources": [
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_db_instance"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_db_instance.main",
+          "resourceType": "aws_db_instance",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_dynamodb_table"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_dynamodb_table.sessions",
+          "resourceType": "aws_dynamodb_table",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_ebs_volume"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_ebs_volume.data",
+          "resourceType": "aws_ebs_volume",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_iam_role"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_iam_role.app",
+          "resourceType": "aws_iam_role",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_instance"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_instance.web",
+          "resourceType": "aws_instance",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_instance"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_instance.worker[\"large\"]",
+          "resourceType": "aws_instance",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_instance"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_instance.worker[\"small\"]",
+          "resourceType": "aws_instance",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_s3_bucket"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_s3_bucket.assets",
+          "resourceType": "aws_s3_bucket",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_security_group"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_security_group.web",
+          "resourceType": "aws_security_group",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_subnet"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_subnet.a",
+          "resourceType": "aws_subnet",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_volume_attachment"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_volume_attachment.data",
+          "resourceType": "aws_volume_attachment",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_vpc"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "aws_vpc.main",
+          "resourceType": "aws_vpc",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_instance"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "module.app.aws_instance.app[0]",
+          "resourceType": "aws_instance",
+          "startDate": "<normalized>"
+        },
+        {
+          "adapter": "none",
+          "breakdown": null,
+          "currency": "USD",
+          "endDate": "<normalized>",
+          "error": {
+            "code": "NO_COST_DATA",
+            "message": "No pricing information available",
+            "resourceType": "aws_instance"
+          },
+          "hourly": 0,
+          "monthly": 0,
+          "notes": "No pricing information available",
+          "resourceId": "module.app.aws_instance.app[1]",
+          "resourceType": "aws_instance",
+          "startDate": "<normalized>"
+        }
+      ],
+      "totalHourly": 0,
+      "totalMonthly": 0
+    }
+  }
+}
