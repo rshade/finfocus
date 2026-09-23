@@ -5,6 +5,72 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.7](https://github.com/rshade/finfocus/compare/v0.3.6...v0.3.7) (2026-09-23)
+
+
+### Added
+
+* add --terraform-state flag to cost actual ([eed9bb5](https://github.com/rshade/finfocus/commit/eed9bb57d02930ba9a793c4e060a63c5152b826e))
+* add --terraform-state flag to cost projected ([832765a](https://github.com/rshade/finfocus/commit/832765a2afc103cbdc2aabceaffd1899731e41ae))
+* add resolve_types cache bucket for type resolution results ([dfe4271](https://github.com/rshade/finfocus/commit/dfe4271a291352327bad19c4ea59be09b7a453f0))
+* add terraform resource mapper ([ded0444](https://github.com/rshade/finfocus/commit/ded0444eb3d3bb4eeebae6c265db455e9682b22d))
+* add terraform state ingestion (--terraform-state) ([a4ea717](https://github.com/rshade/finfocus/commit/a4ea717c15d5034ccf6eac78c8e63d7dedad9f80))
+* add terraform state v4 parser ([e96dec4](https://github.com/rshade/finfocus/commit/e96dec4dd482da934fa70e3ecc5cd7920a4862c0))
+* **cli:** add generation-control flags to plugin init ([f91684c](https://github.com/rshade/finfocus/commit/f91684ce9beec07d9a3e7d05824e99ebed781653)), closes [#461](https://github.com/rshade/finfocus/issues/461)
+* **cli:** add GetPluginInfo and Supports to plugin init calculator template ([c7e3ff9](https://github.com/rshade/finfocus/commit/c7e3ff9903b3aecef5a9375490871b5fe88c3d63)), closes [#458](https://github.com/rshade/finfocus/issues/458)
+* **cli:** add health endpoint to generated plugin main.go ([e7522ec](https://github.com/rshade/finfocus/commit/e7522ecd2410911b683c1d2dd6581f56aa159ad8)), closes [#459](https://github.com/rshade/finfocus/issues/459)
+* **cli:** enhance generated plugin Makefile targets ([3ffb85d](https://github.com/rshade/finfocus/commit/3ffb85dfaa9d17fc81e67993e37a305a8a1eff95)), closes [#460](https://github.com/rshade/finfocus/issues/460)
+* **cli:** generate Docker support files in plugin init ([#1476](https://github.com/rshade/finfocus/issues/1476)) ([25e04ff](https://github.com/rshade/finfocus/commit/25e04ff0f19eee0699614a5a571869a2a8f3d094)), closes [#456](https://github.com/rshade/finfocus/issues/456)
+* **cli:** generate docs templates in plugin init ([f0cade2](https://github.com/rshade/finfocus/commit/f0cade20eea3fd1328302243f9c603a8ad3e8b28)), closes [#457](https://github.com/rshade/finfocus/issues/457)
+* **cli:** generate standardized GitHub workflows in plugin init ([07dbcfa](https://github.com/rshade/finfocus/commit/07dbcfa261a5ac43d62eebc9c8066d7645f44319)), closes [#462](https://github.com/rshade/finfocus/issues/462)
+* **cli:** plugin init generation flags, health endpoint, docs, workflows ([698b669](https://github.com/rshade/finfocus/commit/698b669496b9375a11abcb727890f116927d326b))
+* **engine:** cap per-chunk batch timeout by parent deadline ([65c0317](https://github.com/rshade/finfocus/commit/65c0317460d294ed88028b56e9267b1398613acc)), closes [#979](https://github.com/rshade/finfocus/issues/979)
+* expose ResolveResourceTypes on the internal cost source client ([6da7f60](https://github.com/rshade/finfocus/commit/6da7f60357697240b3ea58e1a47e315b6634ea40))
+* extract provider from terraform-style type strings ([80cfa3c](https://github.com/rshade/finfocus/commit/80cfa3ce11880d1a8848356dcbdc0eb1d8cf59a6))
+* resolve terraform resource types via plugins with cache and fallback ([4eef66d](https://github.com/rshade/finfocus/commit/4eef66dde557e33aac2b276409d83d8c118e04a6))
+
+
+### Fixed
+
+* add ResolveResourceTypes to CostSourceClient test mocks ([1b835e8](https://github.com/rshade/finfocus/commit/1b835e880217de720696a49fb4f6211c4d4cfc87))
+* apply terraform type resolution after filtering in cost actual ([e0479ce](https://github.com/rshade/finfocus/commit/e0479cef50de4495479998d0bb05ac05bef7cae8))
+* **cli,pulumi:** cli-history tags group ([#956](https://github.com/rshade/finfocus/issues/956)-[#961](https://github.com/rshade/finfocus/issues/961)) ([19c871e](https://github.com/rshade/finfocus/commit/19c871ec084c8cfb78f038c680699b88237f8d7e))
+* **cli:** address CodeRabbit review findings and unblock red CI on main ([#1469](https://github.com/rshade/finfocus/issues/1469)) ([d1b67c9](https://github.com/rshade/finfocus/commit/d1b67c94c52d329da888432eacfea4e6224aa0a4))
+* clone properties map when applying terraform property mappings ([8de98a9](https://github.com/rshade/finfocus/commit/8de98a932facdf6371f480dabc4040e6b29ca143))
+* **deps:** pin google.golang.org/grpc to v1.83.2 for GO-2026-6443 ([1140a03](https://github.com/rshade/finfocus/commit/1140a0311a28a8bacf7fa8de1cf82b065fe6b330)), closes [#1506](https://github.com/rshade/finfocus/issues/1506)
+* **deps:** update dependency @astrojs/starlight to ^0.42.0 ([#1496](https://github.com/rshade/finfocus/issues/1496)) ([190c5b1](https://github.com/rshade/finfocus/commit/190c5b132f06b0a8564332b75b46c45a0724418d))
+* **deps:** update dependency mermaid to v12 ([#1504](https://github.com/rshade/finfocus/issues/1504)) ([97f2c02](https://github.com/rshade/finfocus/commit/97f2c02ac6751e1da736cc21cfb6198c6b9f35dc))
+* **deps:** update dependency sharp to ^0.35.0 ([#1497](https://github.com/rshade/finfocus/issues/1497)) ([3c8a3f1](https://github.com/rshade/finfocus/commit/3c8a3f11ace0398a7acb89ea084953837e366d3e))
+* **deps:** update go dependencies ([#1498](https://github.com/rshade/finfocus/issues/1498)) ([558ea22](https://github.com/rshade/finfocus/commit/558ea22e02520576c9c45d89deeeaa2470c42218))
+* **engine:** batch cost mapper fields, re-chunked tail, per-chunk timeout ([dc2468e](https://github.com/rshade/finfocus/commit/dc2468e7358fb8afa028e8a47f23512bc4b9e0e8))
+* **engine:** group terraform resource types by provider prefix ([90fe595](https://github.com/rshade/finfocus/commit/90fe5952043a1e3a9f2eb5ec0cbbaefff09b18ca)), closes [#1506](https://github.com/rshade/finfocus/issues/1506)
+* **engine:** populate rate fields in batch actual cost mapper ([321f343](https://github.com/rshade/finfocus/commit/321f343e424e958d76c111e062b85634b42576ec)), closes [#974](https://github.com/rshade/finfocus/issues/974)
+* **engine:** process re-chunked tail in executeBatchForPlugin ([b262b37](https://github.com/rshade/finfocus/commit/b262b37b2e8de1b9d72d9fab012ba9d11d112ff4)), closes [#978](https://github.com/rshade/finfocus/issues/978)
+* **history:** harden stack detection, retention config, and batch timeouts ([#1474](https://github.com/rshade/finfocus/issues/1474)) ([e5fe5c4](https://github.com/rshade/finfocus/commit/e5fe5c46c1248902c30b113b2caa1d2b9d118c40))
+* **history:** history store fixes — tag timestamp merge, retention regression test ([e068159](https://github.com/rshade/finfocus/commit/e06815958a187c92b7b296786f3fdfb0941e0b93))
+* **history:** merge tag timestamps instead of overwriting in upsertTags ([d2d4588](https://github.com/rshade/finfocus/commit/d2d4588821ce445988cd7fb2498c983c0eb64a6f)), closes [#964](https://github.com/rshade/finfocus/issues/964)
+* honor property_mappings for camelCased terraform properties ([3237d8d](https://github.com/rshade/finfocus/commit/3237d8d449435808dc4aba48946c58683fa50c3d))
+* **pluginhost:** stop plugins outliving Core and holding inherited pipes ([#1231](https://github.com/rshade/finfocus/issues/1231)) ([#1478](https://github.com/rshade/finfocus/issues/1478)) ([e28b6d0](https://github.com/rshade/finfocus/commit/e28b6d0c40c9cea4bcc6033cc4b00669ba16f774))
+* **pulumi:** only ignore missing-file errors in GetProjectName ([1c0c54f](https://github.com/rshade/finfocus/commit/1c0c54f09ee90863b25b56d146412ba05ee64984)), closes [#961](https://github.com/rshade/finfocus/issues/961)
+* reimplement plugin installer lock for Windows reliability ([487bec4](https://github.com/rshade/finfocus/commit/487bec4fbe0e121a9e9a0fcf9929f8043e138037))
+* reimplement plugin installer lock for Windows reliability ([91f4b64](https://github.com/rshade/finfocus/commit/91f4b6482b587b7aec6fae19e8edfe00db19e398)), closes [#573](https://github.com/rshade/finfocus/issues/573)
+* resolve golangci-lint findings in terraform state ingestion code ([d6f66e0](https://github.com/rshade/finfocus/commit/d6f66e007a844a38a3256342364822afb1372c9f))
+* resolve nightly test failures from 2026-06-08 run ([fcf7b27](https://github.com/rshade/finfocus/commit/fcf7b278b362aaa3a10ef6a9b3efc50386816302))
+* resolve nightly test failures from 2026-06-08 run ([58926be](https://github.com/rshade/finfocus/commit/58926be7682de186501292816fc28ab74fa07d68)), closes [#1247](https://github.com/rshade/finfocus/issues/1247)
+
+
+### Changed
+
+* clean up terraform state loading and type resolution ([4c23da3](https://github.com/rshade/finfocus/commit/4c23da3f1bb6ee782b74f327a5a0eeb3e32c9fd3))
+
+
+### Documentation
+
+* document --terraform-state flag and retire superseded tf design docs ([7ffa281](https://github.com/rshade/finfocus/commit/7ffa281e1a4eceb00345afca07384971823fefc1))
+* document ActualCostData and ResourceError protobuf messages ([e2287f3](https://github.com/rshade/finfocus/commit/e2287f361801bbaee3bb69022c8e38942a06e09d))
+* document ActualCostData and ResourceError protobuf messages ([6ce7434](https://github.com/rshade/finfocus/commit/6ce7434749e6fc8e4d8fba1f1d69b5f4bcd98438)), closes [#977](https://github.com/rshade/finfocus/issues/977)
+* fix markdownlint MD032 in finfocus-spec-changes.md ([18883a7](https://github.com/rshade/finfocus/commit/18883a7414350d1035f6bd5258fb5ef1e017d5d5))
+
 ## [0.3.6](https://github.com/rshade/finfocus/compare/v0.3.5...v0.3.6) (2026-07-23)
 
 
