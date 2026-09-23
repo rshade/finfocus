@@ -12,6 +12,16 @@
       "enabled": false
     },
     {
+      "description": "grpc v1.84.0 is affected by GO-2026-6443 (fixed in v1.82.2/v1.83.2, no fixed v1.84.x yet). Skip it so automerge does not reintroduce the vulnerability; v1.84.1+ remains allowed.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchPackageNames": [
+        "google.golang.org/grpc"
+      ],
+      "allowedVersions": "!/^v?1\\.84\\.0$/"
+    },
+    {
       "matchManagers": [
         "gomod"
       ],
