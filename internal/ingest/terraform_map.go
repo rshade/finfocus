@@ -105,9 +105,9 @@ func terraformAddress(r TerraformStateResource, inst TerraformStateInstance) str
 	return sb.String()
 }
 
-// snakeToCamel converts a snake_case key to camelCase ("instance_type" ->
+// SnakeToCamel converts a snake_case key to camelCase ("instance_type" ->
 // "instanceType"). Keys without underscores are returned unchanged.
-func snakeToCamel(s string) string {
+func SnakeToCamel(s string) string {
 	parts := strings.Split(s, "_")
 	for i := 1; i < len(parts); i++ {
 		if parts[i] == "" {
@@ -123,7 +123,7 @@ func snakeToCamel(s string) string {
 func convertKeysRecursive(m map[string]interface{}) map[string]interface{} {
 	out := make(map[string]interface{}, len(m))
 	for k, v := range m {
-		out[snakeToCamel(k)] = convertValueRecursive(v)
+		out[SnakeToCamel(k)] = convertValueRecursive(v)
 	}
 	return out
 }

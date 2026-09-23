@@ -8,6 +8,7 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/engine/cache"
+	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/router"
@@ -167,7 +168,9 @@ func cacheResolvedTypes(
 
 // applyTypeMappings returns a copy of resources with raw TF types replaced by
 // their resolved Pulumi tokens; property mappings are applied by copying the
-// property map and adding camelCase aliases alongside the original keys.
+// property map and adding the Pulumi-key alias. The raw snake_case key is
+// checked first, then its camelCase form, because the Terraform mapper already
+// camelCased every key at ingestion.
 func applyTypeMappings(
 	resources []engine.ResourceDescriptor,
 	mappings map[string]cachedTypeMapping,
@@ -192,6 +195,10 @@ func applyTypeMappings(
 		}
 		for tfKey, pulumiKey := range m.PropertyMappings {
 			if v, exists := props[tfKey]; exists {
+				props[pulumiKey] = v
+				continue
+			}
+			if v, exists := props[ingest.SnakeToCamel(tfKey)]; exists {
 				props[pulumiKey] = v
 			}
 		}

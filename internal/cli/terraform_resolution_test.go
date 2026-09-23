@@ -13,6 +13,7 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/engine/cache"
+	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
 )
@@ -112,6 +113,49 @@ func TestResolveResourceTypes_PropertyMappings(t *testing.T) {
 	}
 
 	out := resolveResourceTypes(context.Background(), clients, nil, in)
+	assert.Equal(t, "gp3", out[0].Properties["volumeType"])
+}
+
+func TestResolveResourceTypes_PropertyMappingsRealFlow(t *testing.T) {
+	// Real data flow: MapTerraformResources camelCases attribute keys at
+	// ingestion, so the plugin's snake_case mapping key only matches via the
+	// camelCase fallback in applyTypeMappings.
+	tfResources := []ingest.TerraformStateResource{
+		{
+			Mode:     "managed",
+			Type:     "aws_ebs_volume",
+			Name:     "data",
+			Provider: `provider["registry.terraform.io/hashicorp/aws"]`,
+			Instances: []ingest.TerraformStateInstance{
+				{
+					Attributes: map[string]interface{}{
+						"id":          "vol-0123456789abcdef0",
+						"volume_type": "gp3",
+						"size":        float64(100),
+					},
+				},
+			},
+		},
+	}
+	in, err := ingest.MapTerraformResources(tfResources)
+	require.NoError(t, err)
+	require.Len(t, in, 1)
+	require.Equal(t, "gp3", in[0].Properties["volumeType"])
+
+	stub := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{
+		Mappings: map[string]*pbc.ResourceTypeMapping{
+			"aws_ebs_volume": {
+				PulumiToken:      "aws:ebs/volume:Volume",
+				Supported:        true,
+				PropertyMappings: map[string]string{"volume_type": "diskType"},
+			},
+		},
+	}}
+	clients := []*pluginhost.Client{newResolverTestClient(true, stub)}
+
+	out := resolveResourceTypes(context.Background(), clients, nil, in)
+	assert.Equal(t, "aws:ebs/volume:Volume", out[0].Type)
+	assert.Equal(t, "gp3", out[0].Properties["diskType"])
 	assert.Equal(t, "gp3", out[0].Properties["volumeType"])
 }
 
