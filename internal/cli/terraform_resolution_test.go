@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -150,4 +151,31 @@ func TestResolveResourceTypes_CacheRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, stub2.calls)
 	assert.Equal(t, "aws:ec2/instance:Instance", out2[0].Type)
+}
+
+func TestResolveResourceTypes_InputNotMutated(t *testing.T) {
+	stub := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{
+		Mappings: map[string]*pbc.ResourceTypeMapping{
+			"aws_instance": {
+				PulumiToken:      "aws:ec2/instance:Instance",
+				Supported:        true,
+				PropertyMappings: map[string]string{"volume_type": "volumeType"},
+			},
+		},
+	}}
+	clients := []*pluginhost.Client{newResolverTestClient(true, stub)}
+	in := []engine.ResourceDescriptor{
+		{Type: "aws_instance", ID: "aws_instance.web", Provider: "aws",
+			Properties: map[string]interface{}{"volume_type": "gp3"}},
+	}
+	propsSnapshot := maps.Clone(in[0].Properties)
+
+	out, err := resolveResourceTypes(context.Background(), clients, nil, in)
+	require.NoError(t, err)
+	assert.Equal(t, "aws:ec2/instance:Instance", out[0].Type)
+	assert.Equal(t, "gp3", out[0].Properties["volumeType"])
+
+	// The caller's input descriptors must be untouched.
+	assert.Equal(t, "aws_instance", in[0].Type)
+	assert.Equal(t, propsSnapshot, in[0].Properties)
 }

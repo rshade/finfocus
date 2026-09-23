@@ -123,11 +123,19 @@ func resolveResourceTypes(
 			continue
 		}
 		out[i].Type = m.PulumiToken
+		if len(m.PropertyMappings) == 0 {
+			continue
+		}
+		props := make(map[string]interface{}, len(out[i].Properties)+len(m.PropertyMappings))
+		for k, v := range out[i].Properties {
+			props[k] = v
+		}
 		for tfKey, pulumiKey := range m.PropertyMappings {
-			if v, exists := out[i].Properties[tfKey]; exists {
-				out[i].Properties[pulumiKey] = v
+			if v, exists := props[tfKey]; exists {
+				props[pulumiKey] = v
 			}
 		}
+		out[i].Properties = props
 	}
 	return out, nil
 }
