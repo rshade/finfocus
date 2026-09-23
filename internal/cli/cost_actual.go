@@ -189,8 +189,6 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	defer combinedCleanup()
 	eng = eng.WithJobs(params.jobs)
 
-	resources = maybeResolveTerraformTypes(ctx, clients, cacheStore, resources, params.terraformState)
-
 	recordDescriptorHistory(ctx, historyStore, resources)
 
 	fromStr, err := resolveFromDate(ctx, params, resources)
@@ -215,6 +213,11 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("applying filters: %w", err)
 	}
+
+	// Resolve raw Terraform types to Pulumi tokens after filtering so
+	// --filter type=aws_instance matches raw TF types, consistent with
+	// cost projected.
+	resources = maybeResolveTerraformTypes(ctx, clients, cacheStore, resources, params.terraformState)
 
 	request := buildActualCostRequest(params, resources, from, to)
 	start := time.Now()
