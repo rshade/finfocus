@@ -94,6 +94,12 @@ func (m *estimateMockPlugin) BatchCost(
 	return &pbc.BatchCostResponse{}, nil
 }
 
+func (m *estimateMockPlugin) ResolveResourceTypes(
+	_ context.Context, _ *pbc.ResolveResourceTypesRequest, _ ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	return &pbc.ResolveResourceTypesResponse{}, nil
+}
+
 // errNoSpec is a sentinel error for missing specs in tests.
 var errNoSpec = errors.New("no spec available")
 

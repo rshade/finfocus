@@ -25,8 +25,9 @@ import (
 
 // mockBatchCostSourceClient implements proto.CostSourceClient for batch testing.
 type mockBatchCostSourceClient struct {
-	batchCostFunc     func(ctx context.Context, in *pbc.BatchCostRequest, opts ...grpc.CallOption) (*pbc.BatchCostResponse, error)
-	getActualCostFunc func(ctx context.Context, in *proto.GetActualCostRequest, opts ...grpc.CallOption) (*proto.GetActualCostResponse, error)
+	batchCostFunc            func(ctx context.Context, in *pbc.BatchCostRequest, opts ...grpc.CallOption) (*pbc.BatchCostResponse, error)
+	getActualCostFunc        func(ctx context.Context, in *proto.GetActualCostRequest, opts ...grpc.CallOption) (*proto.GetActualCostResponse, error)
+	resolveResourceTypesFunc func(ctx context.Context, in *pbc.ResolveResourceTypesRequest, opts ...grpc.CallOption) (*pbc.ResolveResourceTypesResponse, error)
 }
 
 func (m *mockBatchCostSourceClient) Name(
@@ -99,6 +100,15 @@ func (m *mockBatchCostSourceClient) BatchCost(
 		return m.batchCostFunc(ctx, in, opts...)
 	}
 	return &pbc.BatchCostResponse{}, nil
+}
+
+func (m *mockBatchCostSourceClient) ResolveResourceTypes(
+	ctx context.Context, in *pbc.ResolveResourceTypesRequest, opts ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	if m.resolveResourceTypesFunc != nil {
+		return m.resolveResourceTypesFunc(ctx, in, opts...)
+	}
+	return &pbc.ResolveResourceTypesResponse{}, nil
 }
 
 // makeBatchCapableClient creates a pluginhost.Client with batch_cost capability.
