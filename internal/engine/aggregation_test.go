@@ -564,6 +564,13 @@ func TestEdgeCase_UnknownProviderReturnsUnknown(t *testing.T) {
 		{"standard_format", "aws:ec2:Instance", "aws"},
 		{"azure_format", "azure:compute:VirtualMachine", "azure"},
 		{"gcp_format", "gcp:compute:Instance", "gcp"},
+		{"leading_colon", ":ec2:Instance", "unknown"},
+		{"terraform_aws", "aws_instance", "aws"},
+		{"terraform_multi_underscore", "aws_ebs_volume", "aws"},
+		{"terraform_azurerm", "azurerm_linux_virtual_machine", "azurerm"},
+		{"terraform_google", "google_compute_instance", "google"},
+		{"leading_underscore", "_instance", "_instance"},
+		{"pulumi_type_with_underscore", "aws:ec2/vpc_endpoint:VpcEndpoint", "aws"},
 	}
 
 	for _, tt := range tests {

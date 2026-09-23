@@ -2240,19 +2240,25 @@ func AggregateResults(results []CostResult) *AggregatedResults {
 }
 
 // extractProviderFromType extracts the provider prefix from a resource type string.
-// The resource type is expected in the form "provider:..."; it returns the substring
-// before the first colon. If the input is empty or does not contain a provider segment,
-// it returns unknownProvider.
+// Pulumi-style types ("aws:ec2/instance:Instance") yield the substring before the
+// first colon; Terraform-style types ("aws_instance") yield the substring before the
+// first underscore. An empty input or empty leading segment returns unknownProvider.
 func extractProviderFromType(resourceType string) string {
-	// Extract provider from resource type like "aws:ec2:Instance" -> "aws"
 	if resourceType == "" {
 		return unknownProvider
 	}
-	parts := strings.Split(resourceType, ":")
-	if parts[0] == "" {
-		return unknownProvider
+	if idx := strings.Index(resourceType, ":"); idx >= 0 {
+		if idx == 0 {
+			return unknownProvider
+		}
+		return resourceType[:idx]
 	}
-	return parts[0]
+	// Unresolved Terraform types carry no colon: "aws_instance" -> "aws".
+	// Mirrors router.ExtractProviderFromType, which engine cannot import (cycle).
+	if idx := strings.Index(resourceType, "_"); idx > 0 {
+		return resourceType[:idx]
+	}
+	return resourceType
 }
 
 // extractStringProperty returns the first non-empty string value found in properties for the supplied keys,
