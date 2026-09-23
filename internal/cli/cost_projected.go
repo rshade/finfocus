@@ -161,9 +161,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	log.Debug().Ctx(ctx).Str("operation", "cost_projected").Str("plan_path", params.planPath).
 		Msg("starting projected cost calculation")
 
-	audit, auditParams := newCostProjectedAudit(ctx, params)
+	audit := newCostProjectedAudit(ctx, params)
 
-	resources, err := loadProjectedResources(ctx, cmd, params, audit, auditParams)
+	resources, err := loadProjectedResources(ctx, cmd, params, audit)
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return err
@@ -190,7 +190,8 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	defer cacheCleanup()
 	eng = eng.WithJobs(params.jobs)
-	resources = maybeResolveTerraformTypes(ctx, clients, cacheStore, resources, params.terraformState)
+	// No-op for Pulumi-sourced resources; see resolveResourceTypes.
+	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
 	start := time.Now()
 	resultWithErrors, err := eng.GetProjectedCostWithErrors(ctx, resources)
 	if err != nil {
@@ -220,28 +221,33 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 }
 
 // newCostProjectedAudit creates the audit context for the projected-cost
-// command. It returns the audit context along with the params map, which is
-// shared by reference and mutated later when auto-detection is used.
-func newCostProjectedAudit(ctx context.Context, params costProjectedParams) (*auditContext, map[string]string) {
-	auditParams := map[string]string{"pulumi_json": params.planPath, "output": params.output}
+// command, recording the input source selected by params: the Terraform state
+// path, the Pulumi plan path, or "auto-detect" when neither flag is set.
+func newCostProjectedAudit(ctx context.Context, params costProjectedParams) *auditContext {
+	auditParams := map[string]string{"output": params.output}
+	switch {
+	case params.terraformState != "":
+		auditParams["terraform_state"] = params.terraformState
+	case params.planPath != "":
+		auditParams["pulumi_json"] = params.planPath
+	default:
+		auditParams["pulumi_json"] = "auto-detect"
+	}
 	if len(params.filter) > 0 {
 		auditParams["filter"] = strings.Join(params.filter, ",")
 	}
-	return newAuditContext(ctx, "cost projected", auditParams), auditParams
+	return newAuditContext(ctx, "cost projected", auditParams)
 }
 
 // loadProjectedResources loads resource descriptors for the projected-cost
 // command from the source selected by params: a Terraform state file
 // (--terraform-state), a Pulumi preview JSON (--pulumi-json), or an
-// auto-detected Pulumi preview in the current project. The auto-detect branch
-// records "auto-detect" in auditParams, which the audit context shares by
-// reference.
+// auto-detected Pulumi preview in the current project.
 func loadProjectedResources(
 	ctx context.Context,
 	cmd *cobra.Command,
 	params costProjectedParams,
 	audit *auditContext,
-	auditParams map[string]string,
 ) ([]engine.ResourceDescriptor, error) {
 	switch {
 	case params.terraformState != "":
@@ -249,7 +255,6 @@ func loadProjectedResources(
 	case params.planPath != "":
 		return loadAndMapResources(ctx, params.planPath, audit)
 	default:
-		auditParams["pulumi_json"] = "auto-detect"
 		stackFlag, err := cmd.Flags().GetString("stack")
 		if err != nil {
 			return nil, fmt.Errorf("reading --stack flag: %w", err)

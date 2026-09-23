@@ -22,19 +22,20 @@ const capabilityResolveResourceTypes = "resolve_resource_types"
 const sourceFormatTerraform = "terraform"
 
 // cachedTypeMapping is the JSON shape stored in the resolve_types cache bucket.
+// Only fields the resolution pipeline consumes are persisted.
 type cachedTypeMapping struct {
 	PulumiToken      string            `json:"pulumi_token"`
-	Supported        bool              `json:"supported"`
 	PropertyMappings map[string]string `json:"property_mappings,omitempty"`
 }
 
 // resolveResourceTypes resolves Terraform type strings on the given
 // descriptors to Pulumi tokens via plugins advertising the
 // resolve_resource_types capability. Descriptors whose Type already contains a
-// colon (Pulumi tokens) are untouched. Plugins without the capability, and RPC
-// failures, leave the raw TF type in place (fallback mode) — the adapter's
-// SKU/region extraction still works off the camelCased properties. Results are
-// cached in store (may be nil; entries use the 7-day max TTL).
+// colon (Pulumi tokens) are untouched, so Pulumi-sourced input is a no-op.
+// Plugins without the capability, and RPC failures, leave the raw TF type in
+// place (fallback mode) — the adapter's SKU/region extraction still works off
+// the camelCased properties. Results are cached in store (may be nil; entries
+// use the 7-day max TTL).
 func resolveResourceTypes(
 	ctx context.Context,
 	clients []*pluginhost.Client,
@@ -49,21 +50,6 @@ func resolveResourceTypes(
 	mappings := loadCachedTypeMappings(store, tfTypes)
 	resolveTypesViaPlugins(ctx, clients, store, tfTypes, mappings)
 	return applyTypeMappings(resources, mappings)
-}
-
-// maybeResolveTerraformTypes resolves raw Terraform types to Pulumi tokens
-// when terraformState is non-empty; otherwise it returns resources unchanged.
-func maybeResolveTerraformTypes(
-	ctx context.Context,
-	clients []*pluginhost.Client,
-	store cache.Cache,
-	resources []engine.ResourceDescriptor,
-	terraformState string,
-) []engine.ResourceDescriptor {
-	if terraformState == "" {
-		return resources
-	}
-	return resolveResourceTypes(ctx, clients, store, resources)
 }
 
 // loadCachedTypeMappings reads cached type mappings for the given TF types
@@ -146,7 +132,6 @@ func cacheResolvedTypes(
 		}
 		cm := cachedTypeMapping{
 			PulumiToken:      mapping.GetPulumiToken(),
-			Supported:        mapping.GetSupported(),
 			PropertyMappings: mapping.GetPropertyMappings(),
 		}
 		mappings[t] = cm

@@ -216,8 +216,8 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 
 	// Resolve raw Terraform types to Pulumi tokens after filtering so
 	// --filter type=aws_instance matches raw TF types, consistent with
-	// cost projected.
-	resources = maybeResolveTerraformTypes(ctx, clients, cacheStore, resources, params.terraformState)
+	// cost projected. No-op for Pulumi-sourced resources.
+	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
 
 	request := buildActualCostRequest(params, resources, from, to)
 	start := time.Now()

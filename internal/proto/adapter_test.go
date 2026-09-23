@@ -2379,6 +2379,28 @@ func TestResolveActualCostIdentifiers(t *testing.T) {
 			wantARN:     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
 			wantTagsLen: 0,
 		},
+		{
+			name:       "terraform namespace identifiers",
+			resourceID: "aws_instance.web",
+			properties: map[string]interface{}{
+				"terraform:cloudId": "i-0abc123def456",
+				"terraform:arn":     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			},
+			wantCloudID: "i-0abc123def456",
+			wantARN:     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			wantTagsLen: 0,
+		},
+		{
+			name:       "pulumi namespace preferred over terraform",
+			resourceID: "aws_instance.web",
+			properties: map[string]interface{}{
+				"pulumi:cloudId":    "i-from-pulumi",
+				"terraform:cloudId": "i-from-terraform",
+			},
+			wantCloudID: "i-from-pulumi",
+			wantARN:     "",
+			wantTagsLen: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2862,6 +2884,19 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 		}
 
 		enrichTagsWithSKUAndRegion(context.Background(), tags, "aws", "aws:ec2/instance:Instance", props)
+
+		assert.Equal(t, "t3.medium", tags["sku"])
+		assert.Equal(t, "us-east-1", tags["region"])
+	})
+
+	t.Run("extracts region from terraform ARN when no explicit region", func(t *testing.T) {
+		tags := map[string]string{"Name": "web-server"}
+		props := map[string]interface{}{
+			"instanceType":  "t3.medium",
+			"terraform:arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc",
+		}
+
+		enrichTagsWithSKUAndRegion(context.Background(), tags, "aws", "aws_instance", props)
 
 		assert.Equal(t, "t3.medium", tags["sku"])
 		assert.Equal(t, "us-east-1", tags["region"])

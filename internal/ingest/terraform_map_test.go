@@ -26,9 +26,11 @@ func TestMapTerraformResource_Simple(t *testing.T) {
 	assert.Equal(t, "us-east-1a", desc.Properties["availabilityZone"])
 	assert.Equal(t, "aws_instance.web", desc.Properties["terraform:id"])
 	assert.Equal(t, "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123", desc.Properties["terraform:arn"])
-	// pulumi: keys are required for actual-cost identifier resolution.
-	assert.Equal(t, "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123", desc.Properties["pulumi:arn"])
-	assert.Equal(t, "i-0abc123", desc.Properties["pulumi:cloudId"])
+	// Cloud identifiers stay in the terraform: namespace; the proto adapter
+	// reads both namespaces (see propCloudIDKeys/propARNKeys).
+	assert.Equal(t, "i-0abc123", desc.Properties["terraform:cloudId"])
+	assert.NotContains(t, desc.Properties, "pulumi:arn")
+	assert.NotContains(t, desc.Properties, "pulumi:cloudId")
 	assert.Equal(t, `provider["registry.terraform.io/hashicorp/aws"]`, desc.Properties["terraform:provider"])
 }
 

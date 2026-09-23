@@ -47,11 +47,15 @@ const (
 	// awsProvider is the AWS provider name constant.
 	awsProvider = "aws"
 
-	// Cloud identifier property keys injected by ingest.MapStateResource.
-	// Duplicated here because proto cannot import ingest (circular dependency via engine).
-	// Must stay in sync with ingest.PropertyPulumiCloudID / PropertyPulumiARN.
-	propCloudID = "pulumi:cloudId"
-	propARN     = "pulumi:arn"
+	// Cloud identifier property keys injected by the ingest mappers, one pair
+	// per source format. Duplicated here because proto cannot import ingest
+	// (circular dependency via engine). Must stay in sync with
+	// ingest.PropertyPulumiCloudID / PropertyPulumiARN and
+	// ingest.PropertyTerraformCloudID / PropertyTerraformARN.
+	propCloudIDPulumi    = "pulumi:cloudId"
+	propCloudIDTerraform = "terraform:cloudId"
+	propARNPulumi        = "pulumi:arn"
+	propARNTerraform     = "terraform:arn"
 )
 
 // ErrorDetail captures information about a failed resource cost calculation.
@@ -1030,7 +1034,7 @@ func resolveSKUAndRegion(
 		region = mapping.ExtractAWSRegion(properties)
 		if region == "" {
 			// Fallback: parse region from ARN (arn:aws:service:region:account:...)
-			region = awsutil.RegionFromARN(properties[propARN])
+			region = awsutil.RegionFromARN(firstNonEmptyValue(properties, propARNPulumi, propARNTerraform))
 		}
 	case "azure", "azure-native":
 		sku = mapping.ExtractAzureSKU(properties)
@@ -1097,23 +1101,39 @@ func resolveActualCostIdentifiers(
 	}
 
 	// Use cloud ID if available (e.g., "i-0abc123", "db-instance-primary")
-	if v, ok := properties[propCloudID]; ok {
-		if s, isStr := v.(string); isStr && s != "" {
-			cloudID = s
-		}
+	if s := firstNonEmptyProperty(properties, propCloudIDPulumi, propCloudIDTerraform); s != "" {
+		cloudID = s
 	}
 
 	// Extract ARN from properties
-	if v, ok := properties[propARN]; ok {
-		if s, isStr := v.(string); isStr && s != "" {
-			arn = s
-		}
-	}
+	arn = firstNonEmptyProperty(properties, propARNPulumi, propARNTerraform)
 
 	// Extract tags from properties (prefer tagsAll for AWS completeness)
 	tags = extractResourceTags(properties)
 
 	return cloudID, arn, tags
+}
+
+// firstNonEmptyProperty returns the first non-empty string value among
+// properties[k] for keys in lookup order, or "" when none match.
+func firstNonEmptyProperty(properties map[string]interface{}, keys ...string) string {
+	for _, k := range keys {
+		if s, ok := properties[k].(string); ok && s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+// firstNonEmptyValue returns the first non-empty string among m[k] for keys
+// in lookup order, or "" when none match.
+func firstNonEmptyValue(m map[string]string, keys ...string) string {
+	for _, k := range keys {
+		if m[k] != "" {
+			return m[k]
+		}
+	}
+	return ""
 }
 
 // extractResourceTags extracts a flat map[string]string of tags from resource properties.

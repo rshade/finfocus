@@ -13,6 +13,9 @@ const (
 	PropertyTerraformID = "terraform:id"
 	// PropertyTerraformARN is the cloud ARN from the instance attributes, when present.
 	PropertyTerraformARN = "terraform:arn"
+	// PropertyTerraformCloudID is the cloud-provider resource ID from the
+	// instance attributes (e.g. "i-0abc123"), when present.
+	PropertyTerraformCloudID = "terraform:cloudId"
 	// PropertyTerraformModule is the module address the resource belongs to, when present.
 	PropertyTerraformModule = "terraform:module"
 	// PropertyTerraformProvider is the raw provider reference string from state.
@@ -57,11 +60,9 @@ func MapTerraformResource(
 	props[PropertyTerraformProvider] = resource.Provider
 	if arn, ok := instance.Attributes["arn"].(string); ok && arn != "" {
 		props[PropertyTerraformARN] = arn
-		// Actual-cost identifier resolution reads the pulumi: namespace.
-		props[PropertyPulumiARN] = arn
 	}
 	if id, ok := instance.Attributes["id"].(string); ok && id != "" {
-		props[PropertyPulumiCloudID] = id
+		props[PropertyTerraformCloudID] = id
 	}
 
 	return engine.ResourceDescriptor{
