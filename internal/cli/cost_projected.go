@@ -161,29 +161,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	log.Debug().Ctx(ctx).Str("operation", "cost_projected").Str("plan_path", params.planPath).
 		Msg("starting projected cost calculation")
 
-	auditParams := map[string]string{"pulumi_json": params.planPath, "output": params.output}
-	if len(params.filter) > 0 {
-		auditParams["filter"] = strings.Join(params.filter, ",")
-	}
-	audit := newAuditContext(ctx, "cost projected", auditParams)
+	audit, auditParams := newCostProjectedAudit(ctx, params)
 
-	var (
-		resources []engine.ResourceDescriptor
-		err       error
-	)
-
-	if params.terraformState != "" {
-		resources, err = loadAndMapTerraformResources(ctx, params.terraformState, audit)
-	} else if params.planPath != "" {
-		resources, err = loadAndMapResources(ctx, params.planPath, audit)
-	} else {
-		auditParams["pulumi_json"] = "auto-detect"
-		stackFlag, flagErr := cmd.Flags().GetString("stack")
-		if flagErr != nil {
-			return fmt.Errorf("reading --stack flag: %w", flagErr)
-		}
-		resources, err = resolveResourcesFromPulumi(ctx, stackFlag, modePulumiPreview)
-	}
+	resources, err := loadProjectedResources(ctx, cmd, params, audit, auditParams)
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return err
@@ -210,13 +190,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	defer cacheCleanup()
 	eng = eng.WithJobs(params.jobs)
-	if params.terraformState != "" {
-		resources, err = resolveResourceTypes(ctx, clients, cacheStore, resources)
-		if err != nil {
-			audit.logFailure(ctx, err)
-			return fmt.Errorf("resolving terraform resource types: %w", err)
-		}
-	}
+	resources = maybeResolveTerraformTypes(ctx, clients, cacheStore, resources, params.terraformState)
 	start := time.Now()
 	resultWithErrors, err := eng.GetProjectedCostWithErrors(ctx, resources)
 	if err != nil {
@@ -243,4 +217,43 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
 	return nil
+}
+
+// newCostProjectedAudit creates the audit context for the projected-cost
+// command. It returns the audit context along with the params map, which is
+// shared by reference and mutated later when auto-detection is used.
+func newCostProjectedAudit(ctx context.Context, params costProjectedParams) (*auditContext, map[string]string) {
+	auditParams := map[string]string{"pulumi_json": params.planPath, "output": params.output}
+	if len(params.filter) > 0 {
+		auditParams["filter"] = strings.Join(params.filter, ",")
+	}
+	return newAuditContext(ctx, "cost projected", auditParams), auditParams
+}
+
+// loadProjectedResources loads resource descriptors for the projected-cost
+// command from the source selected by params: a Terraform state file
+// (--terraform-state), a Pulumi preview JSON (--pulumi-json), or an
+// auto-detected Pulumi preview in the current project. The auto-detect branch
+// records "auto-detect" in auditParams, which the audit context shares by
+// reference.
+func loadProjectedResources(
+	ctx context.Context,
+	cmd *cobra.Command,
+	params costProjectedParams,
+	audit *auditContext,
+	auditParams map[string]string,
+) ([]engine.ResourceDescriptor, error) {
+	switch {
+	case params.terraformState != "":
+		return loadAndMapTerraformResources(ctx, params.terraformState, audit)
+	case params.planPath != "":
+		return loadAndMapResources(ctx, params.planPath, audit)
+	default:
+		auditParams["pulumi_json"] = "auto-detect"
+		stackFlag, err := cmd.Flags().GetString("stack")
+		if err != nil {
+			return nil, fmt.Errorf("reading --stack flag: %w", err)
+		}
+		return resolveResourcesFromPulumi(ctx, stackFlag, modePulumiPreview)
+	}
 }

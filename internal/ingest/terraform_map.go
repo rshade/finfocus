@@ -41,7 +41,10 @@ func MapTerraformResources(resources []TerraformStateResource) ([]engine.Resourc
 // layer. Property keys are converted snake_case -> camelCase recursively.
 // The Provider field is the type prefix before the first underscore, which
 // the adapter's SKU/region extraction relies on.
-func MapTerraformResource(resource TerraformStateResource, instance TerraformStateInstance) (engine.ResourceDescriptor, error) {
+func MapTerraformResource(
+	resource TerraformStateResource,
+	instance TerraformStateInstance,
+) (engine.ResourceDescriptor, error) {
 	provider := extractTerraformProvider(resource.Type)
 	if provider == "" {
 		return engine.ResourceDescriptor{}, fmt.Errorf("cannot derive provider from terraform type %q", resource.Type)

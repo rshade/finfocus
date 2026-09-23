@@ -189,13 +189,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	defer combinedCleanup()
 	eng = eng.WithJobs(params.jobs)
 
-	if params.terraformState != "" {
-		resources, err = resolveResourceTypes(ctx, clients, cacheStore, resources)
-		if err != nil {
-			audit.logFailure(ctx, err)
-			return fmt.Errorf("resolving terraform resource types: %w", err)
-		}
-	}
+	resources = maybeResolveTerraformTypes(ctx, clients, cacheStore, resources, params.terraformState)
 
 	recordDescriptorHistory(ctx, historyStore, resources)
 

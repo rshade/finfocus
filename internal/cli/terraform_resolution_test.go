@@ -19,6 +19,7 @@ import (
 
 type stubResolverClient struct {
 	proto.CostSourceClient
+
 	calls int
 	resp  *pbc.ResolveResourceTypesResponse
 	err   error
@@ -65,8 +66,7 @@ func TestResolveResourceTypes_WithCapability(t *testing.T) {
 	}}
 	clients := []*pluginhost.Client{newResolverTestClient(true, stub)}
 
-	out, err := resolveResourceTypes(context.Background(), clients, nil, tfDescriptors())
-	require.NoError(t, err)
+	out := resolveResourceTypes(context.Background(), clients, nil, tfDescriptors())
 	assert.Equal(t, 1, stub.calls)
 	assert.Equal(t, "aws:ec2/instance:Instance", out[0].Type)
 	assert.Equal(t, "aws:s3/bucket:Bucket", out[1].Type)
@@ -76,8 +76,7 @@ func TestResolveResourceTypes_FallbackNoCapability(t *testing.T) {
 	stub := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{}}
 	clients := []*pluginhost.Client{newResolverTestClient(false, stub)}
 
-	out, err := resolveResourceTypes(context.Background(), clients, nil, tfDescriptors())
-	require.NoError(t, err)
+	out := resolveResourceTypes(context.Background(), clients, nil, tfDescriptors())
 	assert.Equal(t, 0, stub.calls)
 	assert.Equal(t, "aws_instance", out[0].Type)
 	assert.Equal(t, "aws_s3_bucket", out[1].Type)
@@ -91,8 +90,7 @@ func TestResolveResourceTypes_PulumiTokensUntouched(t *testing.T) {
 			Properties: map[string]interface{}{}},
 	}
 
-	out, err := resolveResourceTypes(context.Background(), clients, nil, in)
-	require.NoError(t, err)
+	out := resolveResourceTypes(context.Background(), clients, nil, in)
 	assert.Equal(t, 0, stub.calls)
 	assert.Equal(t, "aws:ec2/instance:Instance", out[0].Type)
 }
@@ -113,8 +111,7 @@ func TestResolveResourceTypes_PropertyMappings(t *testing.T) {
 			Properties: map[string]interface{}{"volume_type": "gp3"}},
 	}
 
-	out, err := resolveResourceTypes(context.Background(), clients, nil, in)
-	require.NoError(t, err)
+	out := resolveResourceTypes(context.Background(), clients, nil, in)
 	assert.Equal(t, "gp3", out[0].Properties["volumeType"])
 }
 
@@ -122,8 +119,7 @@ func TestResolveResourceTypes_RPCErrorFallsBack(t *testing.T) {
 	stub := &stubResolverClient{err: errors.New("boom")}
 	clients := []*pluginhost.Client{newResolverTestClient(true, stub)}
 
-	out, err := resolveResourceTypes(context.Background(), clients, nil, tfDescriptors())
-	require.NoError(t, err)
+	out := resolveResourceTypes(context.Background(), clients, nil, tfDescriptors())
 	assert.Equal(t, "aws_instance", out[0].Type)
 }
 
@@ -139,16 +135,14 @@ func TestResolveResourceTypes_CacheRoundTrip(t *testing.T) {
 		},
 	}}
 	clients1 := []*pluginhost.Client{newResolverTestClient(true, stub1)}
-	out1, err := resolveResourceTypes(context.Background(), clients1, store, tfDescriptors())
-	require.NoError(t, err)
+	out1 := resolveResourceTypes(context.Background(), clients1, store, tfDescriptors())
 	assert.Equal(t, 1, stub1.calls)
 	assert.Equal(t, "aws:ec2/instance:Instance", out1[0].Type)
 
 	// Second run with a fresh stub: results must come from the cache, not the RPC.
 	stub2 := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{}}
 	clients2 := []*pluginhost.Client{newResolverTestClient(true, stub2)}
-	out2, err := resolveResourceTypes(context.Background(), clients2, store, tfDescriptors())
-	require.NoError(t, err)
+	out2 := resolveResourceTypes(context.Background(), clients2, store, tfDescriptors())
 	assert.Equal(t, 0, stub2.calls)
 	assert.Equal(t, "aws:ec2/instance:Instance", out2[0].Type)
 }
@@ -170,8 +164,7 @@ func TestResolveResourceTypes_InputNotMutated(t *testing.T) {
 	}
 	propsSnapshot := maps.Clone(in[0].Properties)
 
-	out, err := resolveResourceTypes(context.Background(), clients, nil, in)
-	require.NoError(t, err)
+	out := resolveResourceTypes(context.Background(), clients, nil, in)
 	assert.Equal(t, "aws:ec2/instance:Instance", out[0].Type)
 	assert.Equal(t, "gp3", out[0].Properties["volumeType"])
 

@@ -39,28 +39,65 @@ func resolveResourceTypes(
 	clients []*pluginhost.Client,
 	store cache.Cache,
 	resources []engine.ResourceDescriptor,
-) ([]engine.ResourceDescriptor, error) {
-	log := logging.FromContext(ctx)
-
+) []engine.ResourceDescriptor {
 	tfTypes := uniqueTerraformTypes(resources)
 	if len(tfTypes) == 0 {
-		return resources, nil
+		return resources
 	}
 
+	mappings := loadCachedTypeMappings(store, tfTypes)
+	resolveTypesViaPlugins(ctx, clients, store, tfTypes, mappings)
+	return applyTypeMappings(resources, mappings)
+}
+
+// maybeResolveTerraformTypes resolves raw Terraform types to Pulumi tokens
+// when terraformState is non-empty; otherwise it returns resources unchanged.
+func maybeResolveTerraformTypes(
+	ctx context.Context,
+	clients []*pluginhost.Client,
+	store cache.Cache,
+	resources []engine.ResourceDescriptor,
+	terraformState string,
+) []engine.ResourceDescriptor {
+	if terraformState == "" {
+		return resources
+	}
+	return resolveResourceTypes(ctx, clients, store, resources)
+}
+
+// loadCachedTypeMappings reads cached type mappings for the given TF types
+// from store, returning only entries with a non-empty Pulumi token. A nil or
+// disabled store yields an empty map.
+func loadCachedTypeMappings(store cache.Cache, tfTypes []string) map[string]cachedTypeMapping {
 	mappings := make(map[string]cachedTypeMapping, len(tfTypes))
-	if store != nil && store.IsEnabled() {
-		for _, t := range tfTypes {
-			key := cache.BuildResolveTypesKey(sourceFormatTerraform, t)
-			entry, err := store.Get(key)
-			if err != nil {
-				continue
-			}
-			var m cachedTypeMapping
-			if json.Unmarshal(entry.Data, &m) == nil && m.PulumiToken != "" {
-				mappings[t] = m
-			}
+	if store == nil || !store.IsEnabled() {
+		return mappings
+	}
+	for _, t := range tfTypes {
+		key := cache.BuildResolveTypesKey(sourceFormatTerraform, t)
+		entry, err := store.Get(key)
+		if err != nil {
+			continue
+		}
+		var m cachedTypeMapping
+		if json.Unmarshal(entry.Data, &m) == nil && m.PulumiToken != "" {
+			mappings[t] = m
 		}
 	}
+	return mappings
+}
+
+// resolveTypesViaPlugins fans out ResolveResourceTypes RPCs to plugins
+// advertising the capability, one call per provider, skipping types already
+// present in mappings. Successful results are stored in mappings and cached.
+func resolveTypesViaPlugins(
+	ctx context.Context,
+	clients []*pluginhost.Client,
+	store cache.Cache,
+	tfTypes []string,
+	mappings map[string]cachedTypeMapping,
+) {
+	log := logging.FromContext(ctx)
 
 	byProvider := make(map[string][]string)
 	for _, t := range tfTypes {
@@ -87,31 +124,54 @@ func resolveResourceTypes(
 				Msg("ResolveResourceTypes failed; falling back to raw terraform types")
 			continue
 		}
-		for _, t := range types {
-			mapping, ok := resp.GetMappings()[t]
-			if !ok || mapping.GetPulumiToken() == "" {
-				continue
-			}
-			cm := cachedTypeMapping{
-				PulumiToken:      mapping.GetPulumiToken(),
-				Supported:        mapping.GetSupported(),
-				PropertyMappings: mapping.GetPropertyMappings(),
-			}
-			mappings[t] = cm
-			if store != nil && store.IsEnabled() {
-				data, marshalErr := json.Marshal(cm)
-				if marshalErr == nil {
-					if setErr := store.SetWithTTL(
-						cache.BuildResolveTypesKey(sourceFormatTerraform, t), data, cache.MaxTTLSeconds,
-					); setErr != nil {
-						log.Warn().Ctx(ctx).Err(setErr).Str("source_type", t).
-							Msg("failed to cache type resolution result")
-					}
-				}
-			}
+		cacheResolvedTypes(ctx, store, types, resp, mappings)
+	}
+}
+
+// cacheResolvedTypes merges the RPC response mappings for types into mappings
+// and persists them to store (best-effort; failures are logged and skipped).
+func cacheResolvedTypes(
+	ctx context.Context,
+	store cache.Cache,
+	types []string,
+	resp *pbc.ResolveResourceTypesResponse,
+	mappings map[string]cachedTypeMapping,
+) {
+	log := logging.FromContext(ctx)
+	for _, t := range types {
+		mapping, ok := resp.GetMappings()[t]
+		if !ok || mapping.GetPulumiToken() == "" {
+			continue
+		}
+		cm := cachedTypeMapping{
+			PulumiToken:      mapping.GetPulumiToken(),
+			Supported:        mapping.GetSupported(),
+			PropertyMappings: mapping.GetPropertyMappings(),
+		}
+		mappings[t] = cm
+		if store == nil || !store.IsEnabled() {
+			continue
+		}
+		data, marshalErr := json.Marshal(cm)
+		if marshalErr != nil {
+			continue
+		}
+		if setErr := store.SetWithTTL(
+			cache.BuildResolveTypesKey(sourceFormatTerraform, t), data, cache.MaxTTLSeconds,
+		); setErr != nil {
+			log.Warn().Ctx(ctx).Err(setErr).Str("source_type", t).
+				Msg("failed to cache type resolution result")
 		}
 	}
+}
 
+// applyTypeMappings returns a copy of resources with raw TF types replaced by
+// their resolved Pulumi tokens; property mappings are applied by copying the
+// property map and adding camelCase aliases alongside the original keys.
+func applyTypeMappings(
+	resources []engine.ResourceDescriptor,
+	mappings map[string]cachedTypeMapping,
+) []engine.ResourceDescriptor {
 	out := make([]engine.ResourceDescriptor, len(resources))
 	copy(out, resources)
 	for i := range out {
@@ -137,7 +197,7 @@ func resolveResourceTypes(
 		}
 		out[i].Properties = props
 	}
-	return out, nil
+	return out
 }
 
 // uniqueTerraformTypes returns the distinct colon-less (raw TF) type strings

@@ -4258,6 +4258,7 @@ func TestMapBatchActualResults(t *testing.T) {
 
 type stubPBCCostSourceClient struct {
 	pbc.CostSourceServiceClient
+
 	gotTypes []string
 }
 
