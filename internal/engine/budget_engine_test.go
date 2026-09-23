@@ -115,6 +115,14 @@ func (m *mockCostSourceClient) BatchCost(
 	return nil, errors.New("unexpected BatchCost call in budget tests")
 }
 
+func (m *mockCostSourceClient) ResolveResourceTypes(
+	_ context.Context,
+	_ *pbc.ResolveResourceTypesRequest,
+	_ ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	return &pbc.ResolveResourceTypesResponse{}, nil
+}
+
 func TestEngine_GetBudgets(t *testing.T) {
 	ctx := context.Background()
 

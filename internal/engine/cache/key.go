@@ -14,12 +14,13 @@ const (
 	BucketProjected       = "projected"
 	BucketActual          = "actual"
 	BucketRecommendations = "recommendations"
+	BucketResolveTypes    = "resolve_types"
 )
 
 // isValidBucket reports whether the given name is a recognized top-level bucket.
 func isValidBucket(name string) bool {
 	switch name {
-	case BucketProjected, BucketActual, BucketRecommendations:
+	case BucketProjected, BucketActual, BucketRecommendations, BucketResolveTypes:
 		return true
 	default:
 		return false
@@ -134,4 +135,15 @@ func hashFilters(filters map[string]string) string {
 
 	h := sha256.Sum256([]byte(sb.String()))
 	return hex.EncodeToString(h[:8]) // 16 hex chars
+}
+
+// BuildResolveTypesKey constructs a cache key for IaC type-resolution results.
+// The key has the form "resolve_types/{format}/{source_type}".
+// Empty segments use "_" as a placeholder (consistent with sibling builders).
+func BuildResolveTypesKey(sourceFormat, sourceType string) string {
+	return strings.Join([]string{
+		BucketResolveTypes,
+		placeholder(sourceFormat),
+		placeholder(sourceType),
+	}, "/")
 }

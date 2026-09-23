@@ -1,0 +1,39 @@
+{
+  "version": 4,
+  "terraform_version": "1.9.0",
+  "serial": 7,
+  "lineage": "33333333-4444-5555-6666-777777777777",
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "web",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "attributes": {
+            "id": "i-0new",
+            "instance_type": "t3.micro",
+            "availability_zone": "us-east-1a"
+          }
+        },
+        {
+          "deposed": "deadbeef",
+          "attributes": {
+            "id": "i-0old",
+            "instance_type": "t3.micro",
+            "availability_zone": "us-east-1a"
+          }
+        },
+        {
+          "status": "tainted",
+          "attributes": {
+            "id": "i-0tainted",
+            "instance_type": "t3.micro",
+            "availability_zone": "us-east-1a"
+          }
+        }
+      ]
+    }
+  ]
+}

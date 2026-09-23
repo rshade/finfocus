@@ -121,6 +121,7 @@ finfocus cost projected [options]
 | Flag            | Description                                                       | Default  |
 | --------------- | ----------------------------------------------------------------- | -------- |
 | `--pulumi-json` | Path to Pulumi preview JSON (optional; auto-detected if omitted)  |          |
+| `--terraform-state` | Path to a Terraform state file (mutually exclusive with `--pulumi-json`) |          |
 | `--stack`       | Pulumi stack name for auto-detection (ignored with --pulumi-json) |          |
 | `--filter`      | Filter resources (tag:key=value, type=\*)                         | None     |
 | `--output`      | Output format: table, json, ndjson                                | table    |
@@ -148,6 +149,26 @@ finfocus cost projected --pulumi-json plan.json --filter "type=aws:ec2*"
 # NDJSON for pipelines
 finfocus cost projected --pulumi-json plan.json --output ndjson
 ```
+
+### Terraform state
+
+`--terraform-state` parses a Terraform state v4 file (`terraform.tfstate`) and
+prices every managed resource as-is — the state represents current
+infrastructure, so there are no create/update/delete deltas.
+
+Caveats:
+
+- Resource IDs use the Terraform address format (e.g.
+  `module.networking.aws_instance.web[0]`). These are unique within a single
+  state file, not globally across state files.
+- Type resolution to Pulumi tokens requires a plugin advertising the
+  `resolve_resource_types` capability. Without it, FinFocus falls back to raw
+  Terraform types and mechanical property conversion; resources that cannot be
+  priced show `$0.00 / no cost data`.
+- Encrypted state (e.g. OpenTofu state encryption) is not decrypted. Run
+  `tofu state pull` (or the Terraform equivalent) to obtain plaintext state
+  first.
+- Deposed (create-before-destroy leftover) and tainted instances are excluded.
 
 ## cost recommendations
 
@@ -349,6 +370,7 @@ finfocus cost actual [options]
 | ----------------------- | --------------------------------------------------------------------------- | ------- |
 | `--pulumi-json`         | Path to Pulumi preview JSON (mutually exclusive with --pulumi-state)        |         |
 | `--pulumi-state`        | Path to Pulumi state JSON from `pulumi stack export`                        |         |
+| `--terraform-state`     | Path to a Terraform state file (requires `--from`; mutually exclusive with `--pulumi-json`/`--pulumi-state`) |         |
 | `--stack`               | Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state) |         |
 | `--from`                | Start date (YYYY-MM-DD or RFC3339; auto-detected from state if omitted)     |         |
 | `--to`                  | End date (YYYY-MM-DD or RFC3339)                                            | Now     |

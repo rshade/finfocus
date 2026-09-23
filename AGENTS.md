@@ -33,6 +33,8 @@ layout: "docs"
 
 ### Build, Lint, and Test Commands
 
+- `make tools`: Install the toolchain pinned in `mise.toml` (single source of
+  truth for tool versions; run `mise install` directly if preferred).
 - `make build`: Build the `finfocus` binary into `bin/` with version metadata.
 - `make run` / `make dev`: Build then run the CLI; `make inspect` launches MCP inspector.
 - `make test` | `make test-race`: Run unit tests (optionally with race detector).
@@ -141,6 +143,8 @@ Use `require.*` for setup failures and nil checks, `assert.*` for value comparis
 
 - Go 1.27.1 with `github.com/Masterminds/semver/v3` and finfocus plugin SDK.
 - charmbracelet/lipgloss v1.0.0 and golang.org/x/term v0.37.0.
+- Tool versions (Go, golangci-lint, node, markdownlint, actionlint, shellcheck,
+  govulncheck, specify-cli) are pinned in `mise.toml`; run `make tools` to install.
 - Plugin directory: `~/.finfocus/plugins/<plugin-name>/<version>/`.
 
 ### Cursor/Copilot Rules

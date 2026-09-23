@@ -1,8 +1,51 @@
+# Single source of truth for this repo's tool versions — local dev and CI read
+# the same pins from here. Install everything with `mise install` (or
+# `make tools`); the Makefile remains the task runner (`make help`).
+#
+# Bumping a version is a one-line edit here, but keep the sync notes below
+# honest: where another file pins the same tool, change both together.
+
 [tools]
+
+# ---------------------------------------------------------------- build & test
+
+# Keep in sync with the `go` directive in go.mod.
 go = "1.27.1"
+
+# Same pin as GOLANGCI_LINT_VERSION in the Makefile; change both together.
 golangci-lint = "2.13.2"
+
+# ------------------------------------------------------------------ docs & lint
+
+# Node is here to provide the npm backend that installs the markdownlint CLIs
+# below and to build the docs site (docs/).
 node = "24"
-actionlint = "1.7.12"
-shellcheck = "0.11.0"
+
+# Same pin as the `ensure-markdownlint` target in the Makefile.
 "npm:markdownlint-cli" = "0.45.0"
-"go:golang.org/x/vuln/cmd/govulncheck" = "1.7.0"
+
+# `make docs-lint` invokes markdownlint-cli2 against docs/**/*.md with
+# docs/.markdownlint-cli2.jsonc. The Makefile's ensure-markdownlint-cli2
+# installs latest; this pin is what agents and editors should resolve.
+"npm:markdownlint-cli2" = "0.23.3"
+
+# `make lint-actions` runs actionlint on the GitHub workflows.
+actionlint = "1.7.12"
+
+# Lints the shell snippets embedded in CI workflows and scripts/.
+shellcheck = "0.11.0"
+
+# ---------------------------------------------------------------------- security
+
+"go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
+
+# ------------------------------------------------------------------- spec & editor
+
+# Spec Kit CLI: drives the .specify/ workflow (/specify, /plan, /tasks).
+# Installed through mise's pipx backend, so this one also needs a Python
+# available to mise.
+"pipx:specify-cli" = "1.0.8"
+
+# Editor/agent-only pin: no make target invokes gopls, but a coding agent
+# working in this checkout gets the same language server the maintainers do.
+"go:golang.org/x/tools/gopls" = "0.23.0"

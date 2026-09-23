@@ -17,6 +17,7 @@ FinFocus Core is a CLI tool and plugin host system for calculating cloud infrast
 ## Build Commands
 
 ```bash
+make tools         # Install toolchain pinned in mise.toml (first-time setup)
 make build         # Build binary to bin/finfocus
 make test          # Run unit tests (default, fast)
 make test-race     # Run with race detector

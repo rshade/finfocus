@@ -1,0 +1,37 @@
+{
+  "version": 4,
+  "terraform_version": "1.9.0",
+  "serial": 2,
+  "lineage": "44444444-5555-6666-7777-888888888888",
+  "resources": [
+    {
+      "mode": "managed",
+      "type": "aws_instance",
+      "name": "db",
+      "provider": "provider[\"registry.terraform.io/hashicorp/aws\"]",
+      "instances": [
+        {
+          "attributes": {
+            "id": "i-0db",
+            "arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-0db",
+            "instance_type": "m5.large",
+            "availability_zone": "us-east-1a",
+            "root_block_device": {
+              "volume_type": "gp3",
+              "volume_size": 100,
+              "iops": 3000
+            },
+            "ebs_block_device": [
+              {
+                "device_name": "/dev/sdf",
+                "volume_size": 50,
+                "volume_type": "gp3"
+              }
+            ],
+            "tags_all": { "Name": "db", "env": "prod" }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -63,5 +63,5 @@
     "MD047": true,
     "MD060": false,
   },
-  "ignores": ["node_modules", "dist", ".astro"],
+  "ignores": ["node_modules", "dist", ".astro", "docs/superpowers"],
 }

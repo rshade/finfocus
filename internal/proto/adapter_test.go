@@ -73,6 +73,11 @@ type mockCostSourceClient struct {
 		in *pbc.BatchCostRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.BatchCostResponse, error)
+	resolveResourceTypesFunc func(
+		ctx context.Context,
+		in *pbc.ResolveResourceTypesRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.ResolveResourceTypesResponse, error)
 }
 
 func (m *mockCostSourceClient) Name(
@@ -194,6 +199,17 @@ func (m *mockCostSourceClient) BatchCost(
 		return m.batchCostFunc(ctx, in, opts...)
 	}
 	return &pbc.BatchCostResponse{}, nil
+}
+
+func (m *mockCostSourceClient) ResolveResourceTypes(
+	ctx context.Context,
+	in *pbc.ResolveResourceTypesRequest,
+	opts ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	if m.resolveResourceTypesFunc != nil {
+		return m.resolveResourceTypesFunc(ctx, in, opts...)
+	}
+	return &pbc.ResolveResourceTypesResponse{}, nil
 }
 
 // T020: Unit test for DryRun wrapper.
@@ -2363,6 +2379,28 @@ func TestResolveActualCostIdentifiers(t *testing.T) {
 			wantARN:     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
 			wantTagsLen: 0,
 		},
+		{
+			name:       "terraform namespace identifiers",
+			resourceID: "aws_instance.web",
+			properties: map[string]interface{}{
+				"terraform:cloudId": "i-0abc123def456",
+				"terraform:arn":     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			},
+			wantCloudID: "i-0abc123def456",
+			wantARN:     "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc123def456",
+			wantTagsLen: 0,
+		},
+		{
+			name:       "pulumi namespace preferred over terraform",
+			resourceID: "aws_instance.web",
+			properties: map[string]interface{}{
+				"pulumi:cloudId":    "i-from-pulumi",
+				"terraform:cloudId": "i-from-terraform",
+			},
+			wantCloudID: "i-from-pulumi",
+			wantARN:     "",
+			wantTagsLen: 0,
+		},
 	}
 
 	for _, tt := range tests {
@@ -2846,6 +2884,19 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 		}
 
 		enrichTagsWithSKUAndRegion(context.Background(), tags, "aws", "aws:ec2/instance:Instance", props)
+
+		assert.Equal(t, "t3.medium", tags["sku"])
+		assert.Equal(t, "us-east-1", tags["region"])
+	})
+
+	t.Run("extracts region from terraform ARN when no explicit region", func(t *testing.T) {
+		tags := map[string]string{"Name": "web-server"}
+		props := map[string]interface{}{
+			"instanceType":  "t3.medium",
+			"terraform:arn": "arn:aws:ec2:us-east-1:123456789012:instance/i-0abc",
+		}
+
+		enrichTagsWithSKUAndRegion(context.Background(), tags, "aws", "aws_instance", props)
 
 		assert.Equal(t, "t3.medium", tags["sku"])
 		assert.Equal(t, "us-east-1", tags["region"])
@@ -4238,4 +4289,36 @@ func TestMapBatchActualResults(t *testing.T) {
 		assert.Nil(t, mapped[0].ActualResult)
 		assert.Nil(t, mapped[0].Err)
 	})
+}
+
+type stubPBCCostSourceClient struct {
+	pbc.CostSourceServiceClient
+
+	gotTypes []string
+}
+
+func (s *stubPBCCostSourceClient) ResolveResourceTypes(
+	_ context.Context, in *pbc.ResolveResourceTypesRequest, _ ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	s.gotTypes = in.GetSourceTypes()
+	return &pbc.ResolveResourceTypesResponse{
+		Mappings: map[string]*pbc.ResourceTypeMapping{
+			"aws_instance": {PulumiToken: "aws:ec2/instance:Instance", Supported: true},
+		},
+	}, nil
+}
+
+func TestClientAdapterResolveResourceTypes(t *testing.T) {
+	stub := &stubPBCCostSourceClient{}
+	adapter := &clientAdapter{client: stub}
+
+	resp, err := adapter.ResolveResourceTypes(context.Background(), &pbc.ResolveResourceTypesRequest{
+		SourceTypes:  []string{"aws_instance"},
+		SourceFormat: pbc.SourceFormat_SOURCE_FORMAT_TERRAFORM,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "aws:ec2/instance:Instance", resp.GetMappings()["aws_instance"].GetPulumiToken())
+	assert.True(t, resp.GetMappings()["aws_instance"].GetSupported())
+	assert.Equal(t, []string{"aws_instance"}, stub.gotTypes)
 }

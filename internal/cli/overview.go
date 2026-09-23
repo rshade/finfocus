@@ -187,7 +187,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 
 	// 9. Create engine (with cache support)
 	pt = logging.StartPhase(ctx, "cli", "overview", "engine_create")
-	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
+	eng, _, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
 	defer cacheCleanup()
 	pt.Done(ctx)
 
@@ -1232,7 +1232,7 @@ func overviewInitAndEnrich(
 	}
 	// Phase 5: Create engine (with cache support).
 	p.Send(tui.OverviewPhaseMsg{Index: phasePrepareEngine, Phase: "Preparing cost engine..."})
-	eng, cacheCleanup := newEngineWithCache(enrichCtx, cmd, clients, nil)
+	eng, _, cacheCleanup := newEngineWithCache(enrichCtx, cmd, clients, nil)
 	cleanupChan <- func() { cacheCleanup(); cleanup() }
 
 	// Signal data ready → transitions TUI from Initializing to Loading.

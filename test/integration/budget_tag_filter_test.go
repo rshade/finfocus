@@ -116,6 +116,14 @@ func (m *mockTagFilterClient) BatchCost(
 	return nil, errors.New("unexpected BatchCost call in tag filter tests")
 }
 
+func (m *mockTagFilterClient) ResolveResourceTypes(
+	_ context.Context,
+	_ *pbc.ResolveResourceTypesRequest,
+	_ ...grpc.CallOption,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	return &pbc.ResolveResourceTypesResponse{}, nil
+}
+
 // TestBudgetTagFilter_EndToEnd tests tag-based budget filtering (Issue #222).
 func TestBudgetTagFilter_EndToEnd(t *testing.T) {
 	ctx := context.Background()

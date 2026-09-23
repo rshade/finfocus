@@ -43,6 +43,9 @@ testdata/
 ## Commands
 
 ```bash
+# Setup (install toolchain pinned in mise.toml)
+make tools
+
 # Build
 make build
 

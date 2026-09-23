@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -39,13 +40,14 @@ func displayErrorSummary(
 
 // costProjectedParams holds the parameters for the projected cost command execution.
 type costProjectedParams struct {
-	planPath    string
-	specDir     string
-	adapter     string
-	output      string
-	filter      []string
-	utilization float64
-	jobs        int
+	planPath       string
+	terraformState string
+	specDir        string
+	adapter        string
+	output         string
+	filter         []string
+	utilization    float64
+	jobs           int
 }
 
 // NewCostProjectedCmd returns a Cobra command configured to calculate projected costs
@@ -55,6 +57,7 @@ type costProjectedParams struct {
 //
 // The command registers the following flags:
 //   - --pulumi-json: optional path to a Pulumi preview JSON output (auto-detected if omitted).
+//   - --terraform-state: optional path to a Terraform state file (mutually exclusive with --pulumi-json).
 //   - --spec-dir: directory containing pricing specification files.
 //   - --adapter: restricts execution to a single adapter plugin.
 //   - --output: output format ("table", "json", or "ndjson").
@@ -84,6 +87,8 @@ Use --stack to target a specific stack during auto-detection.`,
 	// automatic Pulumi project detection via FindProject + preview.
 	cmd.Flags().StringVar(&params.planPath, "pulumi-json", "",
 		"Path to Pulumi preview JSON output (optional; auto-detected from Pulumi project if omitted)")
+	cmd.Flags().StringVar(&params.terraformState, "terraform-state", "",
+		"Path to a Terraform state file (terraform.tfstate); mutually exclusive with --pulumi-json")
 	cmd.Flags().StringVar(&params.specDir, "spec-dir", "", "Directory containing pricing spec files")
 	cmd.Flags().StringVar(&params.adapter, "adapter", "", "Use only the specified adapter plugin")
 	cmd.Flags().StringVar(
@@ -127,6 +132,10 @@ func validateCostProjectedParams(params costProjectedParams) error {
 		return fmt.Errorf("--jobs must be non-negative, got %d", params.jobs)
 	}
 
+	if params.terraformState != "" && params.planPath != "" {
+		return errors.New("--terraform-state and --pulumi-json are mutually exclusive; use only one")
+	}
+
 	if params.utilization < 0.0 || params.utilization > 1.0 {
 		return fmt.Errorf("utilization must be between 0.0 and 1.0, got %f", params.utilization)
 	}
@@ -152,27 +161,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	log.Debug().Ctx(ctx).Str("operation", "cost_projected").Str("plan_path", params.planPath).
 		Msg("starting projected cost calculation")
 
-	auditParams := map[string]string{"pulumi_json": params.planPath, "output": params.output}
-	if len(params.filter) > 0 {
-		auditParams["filter"] = strings.Join(params.filter, ",")
-	}
-	audit := newAuditContext(ctx, "cost projected", auditParams)
+	audit := newCostProjectedAudit(ctx, params)
 
-	var (
-		resources []engine.ResourceDescriptor
-		err       error
-	)
-
-	if params.planPath != "" {
-		resources, err = loadAndMapResources(ctx, params.planPath, audit)
-	} else {
-		auditParams["pulumi_json"] = "auto-detect"
-		stackFlag, flagErr := cmd.Flags().GetString("stack")
-		if flagErr != nil {
-			return fmt.Errorf("reading --stack flag: %w", flagErr)
-		}
-		resources, err = resolveResourcesFromPulumi(ctx, stackFlag, modePulumiPreview)
-	}
+	resources, err := loadProjectedResources(ctx, cmd, params, audit)
 	if err != nil {
 		audit.logFailure(ctx, err)
 		return err
@@ -196,9 +187,11 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	defer cleanup()
 
-	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
+	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	defer cacheCleanup()
 	eng = eng.WithJobs(params.jobs)
+	// No-op for Pulumi-sourced resources; see resolveResourceTypes.
+	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
 	start := time.Now()
 	resultWithErrors, err := eng.GetProjectedCostWithErrors(ctx, resources)
 	if err != nil {
@@ -225,4 +218,47 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	}
 	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
 	return nil
+}
+
+// newCostProjectedAudit creates the audit context for the projected-cost
+// command, recording the input source selected by params: the Terraform state
+// path, the Pulumi plan path, or "auto-detect" when neither flag is set.
+func newCostProjectedAudit(ctx context.Context, params costProjectedParams) *auditContext {
+	auditParams := map[string]string{"output": params.output}
+	switch {
+	case params.terraformState != "":
+		auditParams["terraform_state"] = params.terraformState
+	case params.planPath != "":
+		auditParams["pulumi_json"] = params.planPath
+	default:
+		auditParams["pulumi_json"] = "auto-detect"
+	}
+	if len(params.filter) > 0 {
+		auditParams["filter"] = strings.Join(params.filter, ",")
+	}
+	return newAuditContext(ctx, "cost projected", auditParams)
+}
+
+// loadProjectedResources loads resource descriptors for the projected-cost
+// command from the source selected by params: a Terraform state file
+// (--terraform-state), a Pulumi preview JSON (--pulumi-json), or an
+// auto-detected Pulumi preview in the current project.
+func loadProjectedResources(
+	ctx context.Context,
+	cmd *cobra.Command,
+	params costProjectedParams,
+	audit *auditContext,
+) ([]engine.ResourceDescriptor, error) {
+	switch {
+	case params.terraformState != "":
+		return loadAndMapTerraformResources(ctx, params.terraformState, audit)
+	case params.planPath != "":
+		return loadAndMapResources(ctx, params.planPath, audit)
+	default:
+		stackFlag, err := cmd.Flags().GetString("stack")
+		if err != nil {
+			return nil, fmt.Errorf("reading --stack flag: %w", err)
+		}
+		return resolveResourcesFromPulumi(ctx, stackFlag, modePulumiPreview)
+	}
 }

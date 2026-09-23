@@ -1,10 +1,13 @@
 package cache_test
 
 import (
+	"context"
+	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine/cache"
 )
@@ -190,4 +193,26 @@ func BenchmarkBuildActualKey(b *testing.B) {
 	for range b.N {
 		cache.BuildActualKey("aws", []string{"ec2", "rds", "s3"}, from, to, filters)
 	}
+}
+
+func TestBuildResolveTypesKey(t *testing.T) {
+	assert.Equal(t, "resolve_types/terraform/aws_instance",
+		cache.BuildResolveTypesKey("terraform", "aws_instance"))
+	assert.Equal(t, "resolve_types/cloudformation/AWS::EC2::Instance",
+		cache.BuildResolveTypesKey("cloudformation", "AWS::EC2::Instance"))
+}
+
+func TestResolveTypesBucketRoundTrip(t *testing.T) {
+	store, err := cache.NewBoltStore(context.Background(), t.TempDir(), true, 3600, 0)
+	require.NoError(t, err)
+	defer store.Close()
+
+	key := cache.BuildResolveTypesKey("terraform", "aws_instance")
+	require.NoError(t, store.SetWithTTL(key,
+		json.RawMessage(`{"pulumi_token":"aws:ec2/instance:Instance","supported":true}`), cache.MaxTTLSeconds))
+
+	entry, err := store.Get(key)
+	require.NoError(t, err)
+	assert.Equal(t, key, entry.Key)
+	assert.Contains(t, string(entry.Data), "aws:ec2/instance:Instance")
 }

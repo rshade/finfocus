@@ -119,6 +119,10 @@ validate:
 	go vet ./...
 	@echo "Validation complete."
 
+.PHONY: tools
+tools: ## Install the toolchain pinned in mise.toml
+	mise install
+
 .PHONY: ensure
 ensure: ensure-golangci-lint ensure-markdownlint ensure-markdownlint-cli2 ensure-actionlint
 	@echo "All dev tools are ready."
@@ -278,6 +282,7 @@ help:
 	@echo "  lint             - Run Go + Markdown linters"
 	@echo "  lint-actions     - Run actionlint on GitHub workflows"
 	@echo "  validate         - Run validation (go mod tidy, go vet)"
+	@echo "  tools            - Install toolchain pinned in mise.toml (mise install)"
 	@echo "  ensure           - Install all required dev tools"
 	@echo "  clean            - Clean build artifacts"
 	@echo "  run              - Build and run with --help"
