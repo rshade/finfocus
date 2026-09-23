@@ -1,0 +1,17 @@
+{
+  "name": "Spec Kit Status",
+  "id": "status",
+  "description": "Show workflow status, artifact completeness, and recommended next action for speckit feature branches",
+  "author": "rshade",
+  "version": "1.0.0",
+  "download_url": "https://github.com/rshade/spec-kit-status/archive/refs/tags/v1.0.0.zip",
+  "repository": "https://github.com/rshade/spec-kit-status",
+  "license": "MIT",
+  "requires": { "speckit_version": ">=0.1.0" },
+  "provides": { "commands": 1, "hooks": 0 },
+  "tags": ["status", "workflow", "dashboard"],
+  "verified": false,
+  "created_at": "2026-03-08T00:00:00Z",
+  "updated_at": "2026-03-08T00:00:00Z",
+  "statistics": { "downloads": 0, "stars": 0 }
+}

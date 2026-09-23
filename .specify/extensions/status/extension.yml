@@ -1,0 +1,27 @@
+schema_version: "1.0"
+
+extension:
+  id: "status"
+  name: "Spec Kit Status"
+  version: "1.0.0"
+  description: "Show workflow status, artifact completeness, and recommended next action for speckit feature branches"
+  author: "rshade"
+  repository: "https://github.com/rshade/spec-kit-status"
+  license: "MIT"
+  homepage: "https://github.com/rshade/spec-kit-status"
+
+requires:
+  speckit_version: ">=0.1.0"
+
+provides:
+  commands:
+    - name: "speckit.status.check"
+      file: "commands/status.md"
+      description: "Show current speckit workflow status and recommended next action"
+      read_only: true
+      aliases: ["speckit.status"]
+
+tags:
+  - "status"
+  - "workflow"
+  - "dashboard"
