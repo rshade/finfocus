@@ -37,13 +37,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout finfocus (core)
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           path: core
           ref: ${{ github.event.inputs.core_ref || github.sha }}
 
       - name: Checkout finfocus-plugin-aws-public
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           repository: rshade/finfocus-plugin-aws-public
           path: plugin-aws
