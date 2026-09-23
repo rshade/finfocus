@@ -22,7 +22,7 @@ golangci-lint = "2.13.2"
 node = "24"
 
 # Same pin as the `ensure-markdownlint` target in the Makefile.
-"npm:markdownlint-cli" = "0.45.0"
+"npm:markdownlint-cli" = "0.49.1"
 
 # `make docs-lint` invokes markdownlint-cli2 against docs/**/*.md with
 # docs/.markdownlint-cli2.jsonc. The Makefile's ensure-markdownlint-cli2
