@@ -223,6 +223,7 @@ func NewServerWithRegistry(plugin Plugin, registry *TypeRegistry) *Server
 ```
 
 This means plugin authors can choose:
+
 - **Direct interface**: Implement `ResolveResourceTypesProvider` for full control
 - **Registry shortcut**: Pass a `TypeRegistry` to the server constructor, SDK handles the RPC
 
@@ -291,6 +292,7 @@ with or without the new RPC. Step 3 requires step 1 (spec release with new proto
 ### Version Bump
 
 These changes warrant a **minor version bump** of finfocus-spec (e.g., v0.7.0):
+
 - New RPC (additive, non-breaking)
 - New enum (additive)
 - New capability value (additive)
