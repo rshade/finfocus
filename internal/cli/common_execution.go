@@ -100,6 +100,47 @@ func loadAndMapResources(
 	return resources, nil
 }
 
+// loadAndMapTerraformResources loads a Terraform state file from statePath and
+// returns its managed resources mapped to ResourceDescriptors. Type resolution
+// to Pulumi tokens happens separately via resolveResourceTypes once plugin
+// clients are available. If loading or mapping fails the error is logged,
+// audit.logFailure is invoked when audit is non-nil, and a wrapped error is
+// returned. The audit parameter may be nil.
+func loadAndMapTerraformResources(
+	ctx context.Context,
+	statePath string,
+	audit *auditContext,
+) ([]engine.ResourceDescriptor, error) {
+	log := logging.FromContext(ctx)
+
+	state, err := ingest.LoadTerraformState(statePath)
+	if err != nil {
+		log.Error().Ctx(ctx).Err(err).Str("state_path", statePath).Msg("failed to load terraform state")
+		if audit != nil {
+			audit.logFailure(ctx, err)
+		}
+		return nil, fmt.Errorf("loading terraform state: %w", err)
+	}
+
+	managed := state.GetManagedResources()
+	if len(managed) == 0 {
+		log.Warn().Ctx(ctx).Str("state_path", statePath).Msg("no managed resources found in terraform state")
+		return []engine.ResourceDescriptor{}, nil
+	}
+
+	resources, err := ingest.MapTerraformResources(managed)
+	if err != nil {
+		log.Error().Ctx(ctx).Err(err).Str("state_path", statePath).Msg("failed to map terraform resources")
+		if audit != nil {
+			audit.logFailure(ctx, err)
+		}
+		return nil, fmt.Errorf("mapping terraform resources: %w", err)
+	}
+	log.Debug().Ctx(ctx).Int("resource_count", len(resources)).Msg("resources loaded from terraform state")
+
+	return resources, nil
+}
+
 // openPlugins opens the requested adapter plugins and returns the plugin clients,
 // a cleanup function to release plugin resources, and an error if opening fails.
 // The ctx is used for plugin initialization and cancellation. The adapter string
@@ -387,6 +428,7 @@ func resolveResourcesFromPulumi(
 //
 // Returns:
 //   - *engine.Engine: the constructed engine instance.
+//   - cache.Cache: the cache store (nil when caching is disabled).
 //   - func(): a cleanup function that closes the cache store when one was created; calling it is safe and recommended.
 func newEngineWithCache(
 	ctx context.Context,
@@ -394,7 +436,7 @@ func newEngineWithCache(
 	clients []*pluginhost.Client,
 	loader engine.SpecLoader,
 	cfgs ...*config.Config,
-) (*engine.Engine, func()) {
+) (*engine.Engine, cache.Cache, func()) {
 	var cfg *config.Config
 	if len(cfgs) > 0 && cfgs[0] != nil {
 		cfg = cfgs[0]
@@ -417,11 +459,12 @@ func newEngineWithCache(
 			}
 		}
 	}
-	return eng, cacheCleanup
+	return eng, cacheStore, cacheCleanup
 }
 
 // newEngineWithCacheAndHistory creates an Engine configured with cache and history store.
-// It returns the engine, the history store (may be nil), and a combined cleanup function.
+// It returns the engine, the history store (may be nil), the cache store (may be nil),
+// and a combined cleanup function.
 // The history store is returned separately so callers can use it for read/write operations.
 func newEngineWithCacheAndHistory(
 	ctx context.Context,
@@ -429,7 +472,7 @@ func newEngineWithCacheAndHistory(
 	clients []*pluginhost.Client,
 	loader engine.SpecLoader,
 	cfgs ...*config.Config,
-) (*engine.Engine, history.Store, func()) {
+) (*engine.Engine, history.Store, cache.Cache, func()) {
 	var cfg *config.Config
 	if len(cfgs) > 0 && cfgs[0] != nil {
 		cfg = cfgs[0]
@@ -437,7 +480,7 @@ func newEngineWithCacheAndHistory(
 		cfg = config.New()
 	}
 
-	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, loader, cfg)
+	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, loader, cfg)
 
 	historyStore, historyCleanup := initHistoryFromConfig(ctx, cfg)
 
@@ -446,7 +489,7 @@ func newEngineWithCacheAndHistory(
 		cacheCleanup()
 	}
 
-	return eng, historyStore, combinedCleanup
+	return eng, historyStore, cacheStore, combinedCleanup
 }
 
 // InitCache creates a cache.Cache instance based on configuration precedence:

@@ -179,3 +179,13 @@ func TestResolveResourceTypes_InputNotMutated(t *testing.T) {
 	assert.Equal(t, "aws_instance", in[0].Type)
 	assert.Equal(t, propsSnapshot, in[0].Properties)
 }
+
+func TestLoadAndMapTerraformResources(t *testing.T) {
+	resources, err := loadAndMapTerraformResources(
+		context.Background(), "../../examples/plans/terraform-simple-state.json", nil)
+	require.NoError(t, err)
+	require.Len(t, resources, 2)
+	assert.Equal(t, "aws_instance.web", resources[0].ID)
+	assert.Equal(t, "aws", resources[0].Provider)
+	assert.Equal(t, "aws_s3_bucket.assets", resources[1].ID)
+}

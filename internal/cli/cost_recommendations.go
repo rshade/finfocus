@@ -189,7 +189,7 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	defer cleanup()
 
 	// Create engine with optional cache and router
-	eng, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
+	eng, _, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
 	defer cacheCleanup()
 
 	// Fetch recommendations with progress indicator

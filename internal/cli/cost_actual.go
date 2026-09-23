@@ -182,7 +182,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	}
 	defer cleanup()
 
-	eng, historyStore, combinedCleanup := newEngineWithCacheAndHistory(ctx, cmd, clients, nil)
+	eng, historyStore, _, combinedCleanup := newEngineWithCacheAndHistory(ctx, cmd, clients, nil)
 	defer combinedCleanup()
 	eng = eng.WithJobs(params.jobs)
 

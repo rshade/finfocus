@@ -656,3 +656,64 @@ func TestCostProjectedCmd_ComplexResourceProperties(t *testing.T) {
 
 	assert.Len(t, results.Resources, 0) // No plugins/specs = empty
 }
+
+func TestCostProjectedTerraformStateFlagValidation(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	tests := []struct {
+		name     string
+		args     []string
+		errorMsg string
+	}{
+		{
+			name:     "terraform-state with pulumi-json is mutually exclusive",
+			args:     []string{"--terraform-state", "t.tfstate", "--pulumi-json", "p.json"},
+			errorMsg: "mutually exclusive",
+		},
+		{
+			name:     "terraform-state missing file",
+			args:     []string{"--terraform-state", "missing.tfstate"},
+			errorMsg: "loading terraform state",
+		},
+		{
+			name: "terraform-state encrypted",
+			args: []string{
+				"--terraform-state", "../../examples/plans/terraform-encrypted-state.json",
+			},
+			errorMsg: "encrypted",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			cmd := cli.NewCostProjectedCmd()
+			cmd.SetOut(&buf)
+			cmd.SetErr(&buf)
+			cmd.SetArgs(tt.args)
+
+			err := cmd.Execute()
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.errorMsg)
+		})
+	}
+}
+
+func TestCostProjectedTerraformStateEndToEnd(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	t.Setenv("FINFOCUS_CACHE_TTL", "0")
+	var buf bytes.Buffer
+	cmd := cli.NewCostProjectedCmd()
+	cmd.SetOut(&buf)
+	cmd.SetErr(&buf)
+	cmd.SetArgs([]string{
+		"--terraform-state", "../../examples/plans/terraform-simple-state.json",
+		// No such plugin exists, so the registry deterministically opens zero
+		// clients and every resource lands at $0 / no-cost-data.
+		"--adapter", "finfocus-plugin-nonexistent",
+		"--output", "json",
+	})
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), "aws_instance.web")
+	assert.Contains(t, buf.String(), "aws_s3_bucket.assets")
+}
