@@ -144,6 +144,14 @@ func (s *mcpSession) send(msg map[string]any) {
 // request sends a JSON-RPC request and returns the result of its response.
 func (s *mcpSession) request(method string, params map[string]any) json.RawMessage {
 	s.t.Helper()
+	result, rpcErr := s.exchange(method, params)
+	require.Empty(s.t, rpcErr, "JSON-RPC error for %s", method)
+	return result
+}
+
+// exchange sends a JSON-RPC request and returns its response's result and error.
+func (s *mcpSession) exchange(method string, params map[string]any) (json.RawMessage, json.RawMessage) {
+	s.t.Helper()
 	id := s.nextID
 	s.nextID++
 	s.send(map[string]any{"jsonrpc": "2.0", "id": id, "method": method, "params": params})
@@ -159,12 +167,11 @@ func (s *mcpSession) request(method string, params map[string]any) json.RawMessa
 		if resp.ID == nil || *resp.ID != id {
 			continue
 		}
-		require.Empty(s.t, resp.Error, "JSON-RPC error for %s", method)
-		return resp.Result
+		return resp.Result, resp.Error
 	}
 	require.FailNow(s.t, "MCP server closed stdout", "method %s; err %v; stderr:\n%s",
 		method, s.stdout.Err(), s.stderr.String())
-	return nil
+	return nil, nil
 }
 
 func (s *mcpSession) toolNames() []string {
@@ -181,10 +188,8 @@ func (s *mcpSession) toolNames() []string {
 	names := make([]string, 0, len(list.Tools))
 	for _, tool := range list.Tools {
 		names = append(names, tool.Name)
-		if tool.Name != "finfocus" {
-			assert.NotContains(s.t, tool.InputSchema.Properties, "mcp",
-				"--mcp is root-local and must not be an argument of %s", tool.Name)
-		}
+		assert.NotContains(s.t, tool.InputSchema.Properties, "mcp",
+			"--mcp is root-local and must not be an argument of %s", tool.Name)
 	}
 	sort.Strings(names)
 	return names
@@ -364,7 +369,7 @@ func TestMCPServer_SequentialCallsInOneSession(t *testing.T) {
 //
 // No tool on the current surface is confirmation-gated: every command that uses
 // ax.Confirm (recommendations dismiss/snooze/undismiss) takes a positional
-// recommendation ID, which the ax-go v0.6.0 live server cannot pass, so those
+// recommendation ID, which the ax-go live server cannot pass, so those
 // commands are not tools. This test asserts they stay off the tool list.
 func TestMCPServer_MutatingToolHonorsDryRun(t *testing.T) {
 	env := newMCPTestEnv(t)
@@ -395,9 +400,10 @@ func TestMCPServer_MutatingToolHonorsDryRun(t *testing.T) {
 	assert.Equal(t, configPath, action.Path)
 	assert.NoFileExists(t, configPath, "dry-run must not write the config file")
 
-	root := session.callTool("finfocus", map[string]any{"mcp": true})
-	assert.True(t, root.isError, "the root tool must refuse to run, so --mcp cannot recurse")
-	assert.Contains(t, root.text, "validation_error")
+	_, rootErr := session.exchange("tools/call",
+		map[string]any{"name": "finfocus", "arguments": map[string]any{"mcp": true}})
+	require.NotEmpty(t, rootErr, "the excluded root must not be callable, so --mcp cannot recurse")
+	assert.Contains(t, string(rootErr), `unknown tool \"finfocus\"`)
 
 	session.close()
 }

@@ -167,16 +167,15 @@ These commands are never exposed as tools:
 
 | Command            | Reason                                                              |
 | ------------------ | ------------------------------------------------------------------- |
+| `finfocus` (root)  | Opens the interactive overview dashboard; use `finfocus-overview`   |
 | `analyzer serve`   | Long-running Pulumi handshake that would block the server           |
 | `setup`            | Interactive first-run wizard                                        |
 | `plugin init`      | Scaffolds a plugin project; a developer action, not a query         |
+| `help` and command groups | `help`, `cost`, `plugin`, `config`, and other groups only print usage |
 | Positional-arg commands | For example `plugin install <name>`, `config set <key> <value>`, and `cost recommendations dismiss <id>`. MCP tool calls can pass flags only |
 
-The tool list still contains the `finfocus` root tool, the `finfocus-help`
-tool, and the command-group tools (`finfocus-cost`, `finfocus-plugin`, and
-others). These return usage text or an error. Calling the `finfocus` root tool
-returns a `validation_error`. A future release removes them from the tool
-list.
+Calling an excluded command's tool name fails the same way as any unknown
+tool. The excluded commands still appear in `finfocus --help`.
 
 ## Migrating from finfocus-mcp
 
