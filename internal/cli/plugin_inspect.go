@@ -51,6 +51,7 @@ func runPluginInspect(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to get json flag: %w", err)
 	}
+	jsonOutput = resolveJSONFlag(cmd, "json", jsonOutput)
 	version, err := cmd.Flags().GetString("version")
 	if err != nil {
 		return fmt.Errorf("failed to get version flag: %w", err)

@@ -704,12 +704,16 @@ finfocus __schema
 finfocus __schema --as=mcp
 ```
 
-### Model Context Protocol (MCP) Server
+### Use finfocus from an AI assistant (MCP)
 
-Expose the entire CLI as a live MCP server for integration with LLMs and agents:
+FinFocus has a built-in Model Context Protocol (MCP) server. MCP clients such
+as Claude Code and Claude Desktop can call finfocus commands as tools, for
+example `finfocus-cost-projected` and `finfocus-plugin-list`. Tool calls
+return JSON.
 
 ```bash
-# Serve over stdio (default, suitable for Claude integration)
+# Serve over stdio (what MCP clients launch); the two forms are equivalent
+finfocus --mcp
 finfocus mcp-server
 
 # Serve over HTTP (loopback-only by default)
@@ -718,6 +722,27 @@ finfocus mcp-server --transport=http --addr=127.0.0.1:8080
 # Serve over HTTP from any address (requires explicit opt-in)
 finfocus mcp-server --transport=http --addr=0.0.0.0:8080 --allow-non-loopback
 ```
+
+Register it with Claude Code:
+
+```bash
+claude mcp add finfocus -- finfocus --mcp
+```
+
+Or add it to Claude Desktop's `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "finfocus": { "command": "/path/to/finfocus", "args": ["--mcp"] }
+  }
+}
+```
+
+The built-in server replaces the standalone `finfocus-mcp` (formerly
+`pulumicost-mcp`) server. See the
+[MCP guide](docs/src/content/docs/guides/mcp.md) for the tool list, output and
+safety arguments, and the mapping from the old server's tools.
 
 ## Documentation
 

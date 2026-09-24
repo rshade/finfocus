@@ -564,3 +564,16 @@ func TestLogPathResult_SetPluginLogFile_ClosedOnClose(t *testing.T) {
 	_, err = pluginFile.WriteString("test")
 	assert.Error(t, err, "plugin file should be closed")
 }
+
+func TestLogPathResult_CloseIsIdempotent(t *testing.T) {
+	logPath := filepath.Join(t.TempDir(), "logs", "finfocus.log")
+	result := NewLoggerWithPath(Config{Level: "info", Format: "json", Output: "file", File: logPath})
+	require.True(t, result.UsingFile)
+
+	pluginLog, err := os.OpenFile(logPath, os.O_APPEND|os.O_WRONLY, 0o600)
+	require.NoError(t, err)
+	result.SetPluginLogFile(pluginLog)
+
+	require.NoError(t, result.Close())
+	require.NoError(t, result.Close(), "a second Close must not report file already closed")
+}

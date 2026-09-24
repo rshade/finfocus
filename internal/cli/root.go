@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rshade/ax-go/mcp"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
@@ -35,7 +34,7 @@ func NewRootCmdWithArgs(
 	lookupEnv func(string) (string, bool),
 ) *cobra.Command {
 	var (
-		logResult      *logging.LogPathResult
+		lifecycle      commandLifecycle
 		projectDirFlag string
 	)
 
@@ -61,17 +60,13 @@ func NewRootCmdWithArgs(
 		// cost dashboard. Outside a Pulumi project, display help as before.
 		// --help is always handled by Cobra before RunE is reached.
 		RunE: func(cmd *cobra.Command, args []string) error {
-			searchDir := projectDirFlag
-			if searchDir == "" {
-				searchDir = "."
+			if lifecycle.hostsMCP(cmd) {
+				return lifecycle.runRootMCP(cmd, ver)
 			}
-			if _, err := pulumidetect.FindProject(searchDir); err == nil {
-				return runOverviewDelegation(cmd, args)
-			}
-			return cmd.Help()
+			return runRootDefault(cmd, args, projectDirFlag)
 		},
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
-			suppressAuxOutput := shouldSuppressAuxiliaryOutput(args)
+			suppressAuxOutput := suppressAuxiliaryOutput(cmd, args)
 			cmd.SetContext(contextWithSuppressAuxOutput(cmd.Context(), suppressAuxOutput))
 
 			// Validate cache-ttl is non-negative (negative values cause undefined cache expiry behavior)
@@ -80,9 +75,10 @@ func NewRootCmdWithArgs(
 				return fmt.Errorf("cache-ttl must be >= 0, got %d", cacheTTL)
 			}
 
-			// Check for migration if in interactive terminal
+			// Check for migration if in interactive terminal. Never for MCP: stdin and
+			// stdout carry the protocol, so a prompt would corrupt the session.
 			_, skipMigration := lookupEnv("FINFOCUS_SKIP_MIGRATION_CHECK")
-			if isTerminal(os.Stdin) && !skipMigration {
+			if isTerminal(os.Stdin) && !skipMigration && !lifecycle.hostsMCP(cmd) {
 				if err := migration.RunMigration(cmd.OutOrStdout(), cmd.InOrStdin()); err != nil {
 					// We log the error but don't fail the command as migration is best-effort
 					cmd.PrintErrf("Warning: migration check failed: %v\n", err)
@@ -107,12 +103,11 @@ func NewRootCmdWithArgs(
 			// Initialize global config with project overlay
 			config.InitGlobalConfigWithProject(cmd.Context(), resolvedDir)
 
-			result := setupLogging(cmd)
-			logResult = &result
+			lifecycle.startLogging(cmd)
 			return nil
 		},
-		PersistentPostRunE: func(cmd *cobra.Command, _ []string) error {
-			return cleanupLogging(cmd, logResult)
+		PersistentPostRunE: func(_ *cobra.Command, _ []string) error {
+			return lifecycle.stopLogging()
 		},
 	}
 
@@ -123,10 +118,25 @@ func NewRootCmdWithArgs(
 		Int("cache-ttl", 0, "cache TTL in seconds (0 = use config default, overrides config file and env var)")
 	cmd.PersistentFlags().StringVar(&projectDirFlag, "project-dir", "",
 		"explicit Pulumi project directory for config resolution")
+	cmd.Flags().Bool(mcpFlag, false,
+		"serve finfocus as a Model Context Protocol server over stdio (alias for mcp-server)")
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
-	cmd.AddCommand(mcp.NewCommand(cmd, mcp.WithVersion(ver)))
+	cmd.AddCommand(newMCPServerCmd(cmd, ver, &lifecycle), newSchemaCmd(cmd, ver))
 
 	return cmd
+}
+
+// runRootDefault delegates to the overview command inside a Pulumi project
+// (searched from projectDir, or the working directory) and prints help otherwise.
+func runRootDefault(cmd *cobra.Command, args []string, projectDir string) error {
+	searchDir := projectDir
+	if searchDir == "" {
+		searchDir = "."
+	}
+	if _, err := pulumidetect.FindProject(searchDir); err == nil {
+		return runOverviewDelegation(cmd, args)
+	}
+	return cmd.Help()
 }
 
 // runOverviewDelegation delegates root command execution to the overview command.

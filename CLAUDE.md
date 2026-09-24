@@ -172,6 +172,7 @@ Additionally, the following utility commands are available:
 
 - **`__schema [--as=ax|mcp]`**: Emit machine-discoverability schema in AX (default) or MCP format for tool discovery.
 - **`mcp-server [--transport=stdio|http] [--addr] [--allow-non-loopback]`**: Expose the entire CLI as a live Model Context Protocol server.
+- **`--mcp`** (root-local flag): stdio alias for `mcp-server`; same tool list. User docs: `docs/src/content/docs/guides/mcp.md`.
 
 ## Testing
 
@@ -495,6 +496,40 @@ When no preview is provided, overview shows state resources with `*` footnote
 on projected costs. The `p` key triggers on-demand preview; when it completes,
 `ApplyChangesToRows()` and `ApplyPropertyDiffsToRows()` update rows in-place.
 
+### MCP Server (`internal/cli/mcp.go`, `internal/cli/output_mode.go`)
+
+- **Per-call lifecycle**: ax-go's dispatcher re-executes the *shared* root once
+  per `tools/call` (nested `ExecuteContext`), so root `PersistentPreRunE`/
+  `PersistentPostRunE` run per call. `commandLifecycle.serving` marks dispatched
+  calls: they reuse the server's `loggingSession` via `attach` and never close
+  it. Opening/closing logging per call previously leaked handles and ended in
+  `close .../finfocus.log: file already closed`. `loggingSession.Close` is
+  idempotent. Config resolution still runs per call
+- **Serialized dispatch**: one mutex covers every call, so a blocking command
+  stalls the whole server. That is why `analyzer serve` is excluded
+- **Output resolver**: `resolveOutputFormat` gives an explicitly set `--output`
+  first priority, then `--format` (the dispatcher injects `json` on every call),
+  then `AGENT_MODE`, resolved via `ax.ResolveMode(..., stdoutIsTTY=true)`, else the
+  flag default. It deliberately ignores `ax.ModeFromContext` and TTY detection:
+  those report JSON whenever stdout is piped, which would flip redirected human
+  output. New commands with an output flag must call it,
+  and commands without one should emit JSON when `machineOutputRequested(cmd)`
+- **Flag stickiness**: the dispatcher resets flag values *and* `Changed` per
+  call, but only on a real server. Nested `ExecuteContext` in unit tests does
+  not reset, so assert cross-call `--output` behavior in the integration test
+- **Interim exclusion**: `withMCPExclusions` sets `Hidden` on `mcpExcludedCommands`
+  leaves (and positional-arg leaves) only while an MCP tool list is built
+  (`mcp-server`, `--mcp`, `__schema --as=mcp`), then restores it. Never hide a
+  root/group: ax-go prunes the whole subtree. Root, `help`, and groups stay
+  listed until the ax-go `mcp.Exclude` release; the root tool returns a
+  validation error while serving so `--mcp` cannot recurse
+- **Tool allow-list golden**: `internal/cli/testdata/mcp/tools.golden` pins the
+  tool list for both the static schema (unit) and live `tools/list` of both
+  entry points (`test/integration/mcp_server_test.go`). A new command must make
+  an expose-or-exclude decision; regenerate with `UPDATE_GOLDEN=1`
+- **Version**: the MCP handshake rejects `dev`/`unknown` versions, so binaries
+  built for MCP tests need `-ldflags -X .../pkg/version.version=...`
+
 ### Integration Tests (`test/integration/`)
 
 - **The CLI helper must go through `ax.Execute`**: `helpers.CLIHelper.Execute`
@@ -506,10 +541,11 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   so the helper converts non-zero codes back into an error from stderr
 - **Many integration tests do not isolate `HOME`**: tests that call
   `helpers.NewCLIHelper(t)` without `WithEnv` read the developer's real
-  `~/.finfocus/config.hujson`. A local `cost.budgets` entry injects a "BUDGET STATUS"
-  banner into JSON/NDJSON output and fails ~48 tests locally. These pass in CI only
-  because the runner's HOME is empty. Always diff the integration failure *set*
-  against a pre-change baseline rather than comparing failure counts
+  `~/.finfocus/config.hujson`, so local config can change their results. (A local
+  `cost.budgets` entry used to inject a "BUDGET STATUS" banner into JSON/NDJSON
+  output and fail ~57 tests locally; the banner now renders only for table output.)
+  Always diff the integration failure *set* against a pre-change baseline rather
+  than comparing failure counts
 - **`config.yaml` fixtures are intentional**: most `config.yaml` references in
   `test/integration/` write legacy YAML as *input* to exercise auto-migration. Only
   assertions that `config init` *creates* a file should expect `config.hujson`

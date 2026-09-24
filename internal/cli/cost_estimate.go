@@ -275,6 +275,11 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	log := logging.FromContext(ctx)
 	start := time.Now()
 
+	params.Output = resolveOutputFormat(cmd, "output", params.Output)
+	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.Output))) {
+		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.Output)
+	}
+
 	// Validate flags
 	if err := ValidateEstimateFlags(&params); err != nil {
 		return err

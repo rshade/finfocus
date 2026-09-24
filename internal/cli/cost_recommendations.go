@@ -161,6 +161,10 @@ Valid action types for filtering:
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
+	params.output = resolveOutputFormat(cmd, "output", params.output)
+	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.output))) {
+		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
+	}
 
 	log.Debug().Ctx(ctx).Str("operation", "cost_recommendations").Str("plan_path", params.planPath).
 		Msg("starting recommendations fetch")
