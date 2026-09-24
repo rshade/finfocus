@@ -111,9 +111,19 @@ func setupLogging(cmd *cobra.Command) *loggingSession {
 // attach decorates cmd's context with the session's logger, plugin log writer,
 // and audit logger, plus the per-invocation trace ID and skip-version-check value.
 func (s *loggingSession) attach(cmd *cobra.Command) {
+	s.attachWithTrace(cmd, logging.GetOrGenerateTraceID(cmd.Context()))
+}
+
+// attachCall attaches the session to a dispatched MCP tools/call. The call's
+// context inherits the server's trace ID, so it is ignored: each call gets a
+// fresh ID unless FINFOCUS_TRACE_ID injects one externally.
+func (s *loggingSession) attachCall(cmd *cobra.Command) {
+	s.attachWithTrace(cmd, logging.GetOrGenerateTraceID(context.Background()))
+}
+
+func (s *loggingSession) attachWithTrace(cmd *cobra.Command, traceID string) {
 	skipVersionCheck, _ := cmd.Flags().GetBool("skip-version-check")
 	ctx := context.WithValue(cmd.Context(), pluginhost.SkipVersionCheckKey, skipVersionCheck)
-	traceID := logging.GetOrGenerateTraceID(ctx)
 	ctx = logging.ContextWithTraceID(ctx, traceID)
 	ctx = s.logger.WithContext(ctx)
 

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/constants"
 	"github.com/rshade/finfocus/internal/logging"
@@ -215,4 +216,46 @@ func TestLoggingSession_AttachReusesHandles(t *testing.T) {
 	assert.Empty(t, errBuf.String(), "attach must not print the log path again")
 	assert.Equal(t, session.FilePath, logging.PluginLogPathFromContext(call.Context()))
 	assert.NotEmpty(t, logging.TraceIDFromContext(call.Context()))
+}
+
+// TestLoggingSession_AttachCallTraceIDs verifies sequential dispatched MCP calls
+// get distinct trace IDs instead of inheriting the server's, while an external
+// FINFOCUS_TRACE_ID still applies to every call.
+func TestLoggingSession_AttachCallTraceIDs(t *testing.T) {
+	tests := []struct {
+		name          string
+		externalTrace string
+	}{
+		{name: "fresh ID per call", externalTrace: ""},
+		{name: "external ID preserved", externalTrace: "external-trace-123"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("FINFOCUS_HOME", t.TempDir())
+			t.Setenv(constants.EnvAnalyzerMode, "")
+			t.Setenv(pluginsdk.EnvTraceID, tc.externalTrace)
+			config.SetGlobalConfig(minimalLoggingConfig())
+			t.Cleanup(config.ResetGlobalConfigForTest)
+
+			server := newTestLoggingCmd()
+			session := setupLogging(server)
+			t.Cleanup(func() { _ = session.Close() })
+			serverTrace := logging.TraceIDFromContext(server.Context())
+
+			call := newTestLoggingCmd()
+			call.SetContext(server.Context())
+			seen := map[string]bool{}
+			for range 3 {
+				session.attachCall(call)
+				seen[logging.TraceIDFromContext(call.Context())] = true
+			}
+
+			if tc.externalTrace != "" {
+				assert.Equal(t, map[string]bool{tc.externalTrace: true}, seen)
+				return
+			}
+			assert.Len(t, seen, 3, "each dispatched call must get its own trace ID")
+			assert.NotContains(t, seen, serverTrace, "calls must not inherit the server's trace ID")
+		})
+	}
 }

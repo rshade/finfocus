@@ -279,6 +279,12 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.Output))) {
 		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.Output)
 	}
+	// A TUI would take over the stream an agent or MCP client reads JSON from.
+	if params.Interactive && machineOutputRequested(cmd) {
+		return errors.New(
+			"--interactive is not available when machine output is requested (--format json or AGENT_MODE)",
+		)
+	}
 
 	// Validate flags
 	if err := ValidateEstimateFlags(&params); err != nil {
