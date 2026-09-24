@@ -120,7 +120,7 @@ func (lc *commandLifecycle) runRootMCP(cmd *cobra.Command, ver string) error {
 // dispatched MCP tools/call reuses the server's session instead.
 func (lc *commandLifecycle) startLogging(cmd *cobra.Command) {
 	if lc.serving && lc.session != nil {
-		lc.session.attach(cmd)
+		lc.session.attachCall(cmd)
 		return
 	}
 	lc.session = setupLogging(cmd)

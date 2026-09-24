@@ -234,6 +234,7 @@ docs-sync:
 	@echo "<!-- markdownlint-disable MD013 -->" >> docs/src/content/docs/README.md
 	@cat README.md | sed -E \
 		-e '/^# /d' \
+		-e 's|\(docs/src/content/docs/([^)#]*)\.md(#[^)]*)?\)|(../\1/\2)|g' \
 		-e 's|\(docs/([^)]*)/README\.md\)|(../\1/)|g' \
 		-e 's|\(docs/README\.md\)|(../)|g' \
 		-e 's|\(docs/([^)]*)\.md#([^)]*)\)|(../\1/#\2)|g' \

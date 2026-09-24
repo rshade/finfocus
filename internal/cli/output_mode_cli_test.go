@@ -118,6 +118,34 @@ func TestInvalidOutputRejectedBeforeLoadingState(t *testing.T) {
 	}
 }
 
+// TestInteractiveEstimateRejectedInMachineMode verifies cost estimate refuses to
+// launch its TUI when machine output is requested, since the TUI would take over
+// the stream an agent or MCP client reads JSON from.
+func TestInteractiveEstimateRejectedInMachineMode(t *testing.T) {
+	tests := []struct {
+		name      string
+		agentMode string
+		args      []string
+	}{
+		{name: "format json", args: []string{"--format", "json"}},
+		{name: "AGENT_MODE", agentMode: "1"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("FINFOCUS_HOME", t.TempDir())
+			t.Setenv("AGENT_MODE", tc.agentMode)
+
+			args := append([]string{
+				"cost", "estimate", "--interactive", "--provider", "aws", "--resource-type", "ec2:Instance",
+			}, tc.args...)
+			result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), args)
+			require.NotEqual(t, 0, result.ExitCode)
+			assert.Contains(t, string(result.Stderr), "--interactive is not available")
+		})
+	}
+}
+
 // TestPipedOutputRequiresExplicitMachineSignal verifies that a piped (non-TTY)
 // invocation keeps its human default unless --format json or AGENT_MODE asks for
 // JSON. config list therefore prints YAML when piped, as it did before ax-go.

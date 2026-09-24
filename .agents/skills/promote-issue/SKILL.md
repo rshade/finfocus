@@ -22,9 +22,10 @@ sync labels repo-wide.
 ## Preconditions
 
 - `gh` CLI authenticated for `rshade/finfocus`.
-- Repo root has `ROADMAP.md` and `CONTEXT.md`. If either is missing, skip the
-  file-update steps below and limit yourself to label flips — say so in the
-  summary.
+- Repo root has `ROADMAP.md` and `CONTEXT.md`. If either is missing, skip every
+  file-update step below and limit yourself to label flips — say so in the
+  summary. The "Deliberately empty" escape hatch only writes ROADMAP.md, so it
+  is unavailable in this case: do not offer it.
 - Read `CONTEXT.md` first. Any candidate that would cross a CONTEXT.md boundary
   must be flagged, not silently promoted.
 
@@ -32,13 +33,18 @@ sync labels repo-wide.
 
 ```bash
 # Phase labels: roadmap/current | roadmap/next | roadmap/future (mutually exclusive)
-gh issue list --state open --label roadmap/next --limit 100 \
+gh issue list --state open --label roadmap/next --limit 1000 \
   --json number,title,labels,body,milestone
-gh issue list --state open --label roadmap/future --limit 100 \
+gh issue list --state open --label roadmap/future --limit 1000 \
   --json number,title,labels,body,milestone
-# Cross-check what is already in flight
-gh issue list --state open --label roadmap/current --limit 100 --json number,title
+# Cross-check what is already in flight; labels feed the composition_required score
+gh issue list --state open --label roadmap/current --limit 1000 --json number,title,labels
 ```
+
+If any query returns exactly its `--limit` of issues, the result may be
+truncated. Rerun it with a higher limit; if it is still capped, report the
+truncation in the summary and do not present the ranking as covering the whole
+backlog.
 
 Excluded from candidacy (never present them):
 
@@ -46,6 +52,9 @@ Excluded from candidacy (never present them):
 - `roadmap/exclude` — dominant; if it coexists with a phase label, report the
   conflict and leave it to the operator.
 - Already `roadmap/current` (already in flight; listed only for WIP context).
+- More than one phase label (for example both `roadmap/next` and
+  `roadmap/future`, so it appears in two queries). Report the conflict once and
+  leave the issue out of ranking until the operator fixes its labels.
 
 ## Step 2 — Parse `roadmap-meta`
 
@@ -116,7 +125,8 @@ Selection mode:
 - If everything is suppressed, present the blocked reasons and the escape hatch
   only.
 
-Always append the escape hatch as the final option:
+When ROADMAP.md and CONTEXT.md both exist, append the escape hatch as the final
+option:
 
 - **Label:** "Deliberately empty (release in flight)"
 - **Description:** "Records 'paused' state. Resume promotion on next run."
@@ -135,8 +145,9 @@ Always append the escape hatch as the final option:
 2. **Candidate(s) selected:** for each, flip labels and update the roadmap:
 
    ```bash
-   gh issue edit <n> --add-label roadmap/current --remove-label roadmap/next
-   # or --remove-label roadmap/future, whichever it carried
+   # Remove every other phase label so the issue carries exactly one
+   gh issue edit <n> --add-label roadmap/current \
+     --remove-label roadmap/next --remove-label roadmap/future
    ```
 
    Move each entry from its current ROADMAP.md section into "Immediate Focus",
