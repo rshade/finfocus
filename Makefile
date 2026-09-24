@@ -183,7 +183,7 @@ dev: build
 inspect: build ## Launch the MCP Inspector for interactive testing
 	@echo "Starting MCP Inspector for $(BINARY)..."
 	@echo "Open the URL shown below in your browser to interact with the MCP server"
-	npx @modelcontextprotocol/inspector $$(realpath bin/$(BINARY))
+	npx @modelcontextprotocol/inspector $$(realpath bin/$(BINARY)) --mcp
 
 .PHONY: docs-lint
 docs-lint:
@@ -234,6 +234,7 @@ docs-sync:
 	@echo "<!-- markdownlint-disable MD013 -->" >> docs/src/content/docs/README.md
 	@cat README.md | sed -E \
 		-e '/^# /d' \
+		-e 's|\(docs/src/content/docs/([^)#]*)\.md(#[^)]*)?\)|(../\1/\2)|g' \
 		-e 's|\(docs/([^)]*)/README\.md\)|(../\1/)|g' \
 		-e 's|\(docs/README\.md\)|(../)|g' \
 		-e 's|\(docs/([^)]*)\.md#([^)]*)\)|(../\1/#\2)|g' \

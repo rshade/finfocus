@@ -704,6 +704,19 @@ func evaluateBudgetStatus(
 	return evaluateBudgetStatusWithRender(cmd, results, totalCost, true)
 }
 
+// evaluateBudgetStatusForOutput evaluates budgets and renders the budget status
+// banner only for table output: the banner is human text, and appending it to a
+// JSON/NDJSON payload would make the payload unparseable.
+func evaluateBudgetStatusForOutput(
+	cmd *cobra.Command,
+	results []engine.CostResult,
+	totalCost float64,
+	output string,
+) error {
+	render := engine.OutputFormat(config.GetOutputFormat(output)) == engine.OutputTable
+	return evaluateBudgetStatusWithRender(cmd, results, totalCost, render)
+}
+
 // evaluateBudgetStatusWithoutRender evaluates budgets for exit-code behavior
 // without rendering budget status output.
 func evaluateBudgetStatusWithoutRender(

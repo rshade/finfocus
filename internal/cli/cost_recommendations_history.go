@@ -44,6 +44,7 @@ This operates on local state only and does not require plugin connections.`,
 func executeHistory(cmd *cobra.Command, recommendationID string, output string) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
+	output = resolveOutputFormat(cmd, "output", output)
 
 	// Validate before loading any state: a recommendation with no recorded
 	// history returns early below, which would otherwise let an invalid
@@ -69,7 +70,7 @@ func executeHistory(cmd *cobra.Command, recommendationID string, output string) 
 		return fmt.Errorf("getting recommendation history: %w", err)
 	}
 
-	if len(events) == 0 {
+	if len(events) == 0 && output == outputFormatTable {
 		cmd.Printf("No history found for recommendation %s.\n", recommendationID)
 		return nil
 	}
@@ -159,6 +160,9 @@ func renderHistoryNDJSON(cmd *cobra.Command, recommendationID string, events []c
 
 // renderHistoryJSON renders lifecycle events as JSON.
 func renderHistoryJSON(cmd *cobra.Command, recommendationID string, events []config.LifecycleEvent) error {
+	if events == nil {
+		events = []config.LifecycleEvent{}
+	}
 	output := historyJSONOutput{
 		RecommendationID: recommendationID,
 		Events:           events,

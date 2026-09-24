@@ -44,6 +44,9 @@ versions of the analyzer.`,
 			}
 
 			if !installed {
+				if machineOutputRequested(cmd) {
+					return writeJSON(cmd, actionResult{Action: "not_installed", DryRun: ax.DryRunFromContext(ctx)})
+				}
 				cmd.Printf("Analyzer is not installed\n")
 				return nil
 			}
@@ -53,12 +56,7 @@ versions of the analyzer.`,
 
 			// Rehearse: report what would be removed
 			rehearse := func(_ context.Context) error {
-				cmd.Printf("Would uninstall analyzer")
-				if ver != "" {
-					cmd.Printf(" v%s", ver)
-				}
-				cmd.Printf("\n")
-				return nil
+				return reportAnalyzerUninstall(cmd, pluginDir, ver, true)
 			}
 
 			// Commit: actually uninstall
@@ -67,12 +65,7 @@ versions of the analyzer.`,
 					return fmt.Errorf("uninstall analyzer: %w", uninstallErr)
 				}
 
-				cmd.Printf("Analyzer uninstalled successfully\n")
-				if ver != "" {
-					cmd.Printf("  Removed: v%s\n", ver)
-				}
-
-				return nil
+				return reportAnalyzerUninstall(cmd, pluginDir, ver, false)
 			}
 
 			return ax.Perform(ctx, rehearse, commit)
@@ -82,4 +75,29 @@ versions of the analyzer.`,
 	cmd.Flags().StringVar(&targetDir, "target-dir", "", "Override Pulumi plugin directory")
 
 	return cmd
+}
+
+// reportAnalyzerUninstall reports a rehearsed (dryRun) or completed uninstall of
+// analyzer version ver from pluginDir, as JSON in machine mode.
+func reportAnalyzerUninstall(cmd *cobra.Command, pluginDir, ver string, dryRun bool) error {
+	if machineOutputRequested(cmd) {
+		action := "uninstalled"
+		if dryRun {
+			action = "would_uninstall"
+		}
+		return writeJSON(cmd, actionResult{Action: action, DryRun: dryRun, Path: pluginDir, Version: ver})
+	}
+	if dryRun {
+		cmd.Printf("Would uninstall analyzer")
+		if ver != "" {
+			cmd.Printf(" v%s", ver)
+		}
+		cmd.Printf("\n")
+		return nil
+	}
+	cmd.Printf("Analyzer uninstalled successfully\n")
+	if ver != "" {
+		cmd.Printf("  Removed: v%s\n", ver)
+	}
+	return nil
 }

@@ -131,20 +131,21 @@ func (r *LogPathResult) SetPluginLogFile(f *os.File) {
 }
 
 // Close releases any resources held by the logger (e.g., file handles).
+// Closed handles are released, so calling Close again is a no-op.
 func (r *LogPathResult) Close() error {
+	var pluginErr, fileErr error
 	if r.pluginLogFile != nil {
-		if err := r.pluginLogFile.Close(); err != nil {
-			// Still try to close the main file
-			if r.file != nil {
-				_ = r.file.Close()
-			}
-			return err
-		}
+		pluginErr = r.pluginLogFile.Close()
+		r.pluginLogFile = nil
 	}
 	if r.file != nil {
-		return r.file.Close()
+		fileErr = r.file.Close()
+		r.file = nil
 	}
-	return nil
+	if pluginErr != nil {
+		return pluginErr
+	}
+	return fileErr
 }
 
 // NewLogger creates a logger configured according to cfg.

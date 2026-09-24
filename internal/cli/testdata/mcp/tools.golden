@@ -1,0 +1,14 @@
+finfocus-analyzer-check
+finfocus-analyzer-install
+finfocus-analyzer-uninstall
+finfocus-config-init
+finfocus-config-list
+finfocus-config-routes-list
+finfocus-config-validate
+finfocus-cost-actual
+finfocus-cost-estimate
+finfocus-cost-projected
+finfocus-cost-recommendations
+finfocus-overview
+finfocus-plugin-list
+finfocus-plugin-validate

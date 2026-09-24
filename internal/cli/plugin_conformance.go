@@ -94,6 +94,7 @@ func runPluginConformanceCmd(
 	filter string,
 ) error {
 	ctx := cmd.Context()
+	output = resolveOutputFormat(cmd, "output", output)
 
 	// Validate inputs and create suite config
 	cfg, err := buildSuiteConfig(ctx, pluginPath, mode, verbosity, timeout, categories, filter)
