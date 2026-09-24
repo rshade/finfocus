@@ -122,6 +122,7 @@ func NewRootCmdWithArgs(
 		"serve finfocus as a Model Context Protocol server over stdio (alias for mcp-server)")
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
 	cmd.AddCommand(newMCPServerCmd(cmd, ver, &lifecycle), newSchemaCmd(cmd, ver))
+	applyMCPExclusions(cmd)
 
 	return cmd
 }

@@ -23,8 +23,8 @@ func stubMCPServe(t *testing.T, serve func(ctx context.Context, root *cobra.Comm
 }
 
 // TestMCPFlagServesInsteadOfOverview verifies that root --mcp routes to the MCP
-// serve function with the exclusions applied, even inside a Pulumi project where
-// the bare root command would otherwise delegate to the overview dashboard.
+// serve function, even inside a Pulumi project where the bare root command would
+// otherwise delegate to the overview dashboard.
 func TestMCPFlagServesInsteadOfOverview(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
@@ -36,33 +36,30 @@ func TestMCPFlagServesInsteadOfOverview(t *testing.T) {
 	var (
 		calls         int
 		servedVersion string
-		hiddenWhile   map[string]bool
 	)
-	stubMCPServe(t, func(_ context.Context, root *cobra.Command, ver string) error {
+	stubMCPServe(t, func(_ context.Context, _ *cobra.Command, ver string) error {
 		calls++
 		servedVersion = ver
-		hiddenWhile = map[string]bool{}
-		for _, exclusion := range mcpExcludedCommands {
-			cmd := findSubcommand(root, exclusion.path)
-			require.NotNil(t, cmd, "excluded command %v must exist", exclusion.path)
-			hiddenWhile[cmd.CommandPath()] = cmd.Hidden
-		}
 		return nil
 	})
 
-	root := NewRootCmd("v1.2.3")
-	result := axtest.Run(context.Background(), t, root, []string{"--mcp"})
+	result := axtest.Run(context.Background(), t, NewRootCmd("v1.2.3"), []string{"--mcp"})
 	require.Equal(t, 0, result.ExitCode, "stderr: %s", result.Stderr)
 
 	assert.Equal(t, 1, calls, "--mcp must call the serve function exactly once")
 	assert.Equal(t, "v1.2.3", servedVersion)
 	assert.Empty(t, result.Stdout, "--mcp must not render the overview")
-	for path, hidden := range hiddenWhile {
-		assert.True(t, hidden, "%s must be hidden while serving", path)
-	}
+}
+
+// TestMCPExcludedCommandsExist guards the exclusion table against drift: a
+// renamed or removed command would otherwise make mcp.Exclude a silent no-op.
+func TestMCPExcludedCommandsExist(t *testing.T) {
+	root := NewRootCmd("test")
 	for _, exclusion := range mcpExcludedCommands {
-		assert.False(t, findSubcommand(root, exclusion.path).Hidden,
-			"%v must be visible again after serving", exclusion.path)
+		cmd := findSubcommand(root, exclusion.path)
+		require.NotNil(t, cmd, "excluded command %v must exist", exclusion.path)
+		assert.False(t, cmd.Hidden, "%v must stay visible in --help", exclusion.path)
+		assert.NotEmpty(t, exclusion.reason, "%v needs a documented reason", exclusion.path)
 	}
 }
 

@@ -55,6 +55,7 @@ func TestMCPSchemaToolAllowList(t *testing.T) {
 	sort.Strings(names)
 
 	for _, excluded := range []string{
+		"finfocus", "finfocus-help", "finfocus-cost", "finfocus-plugin",
 		"finfocus-analyzer-serve", "finfocus-setup", "finfocus-plugin-init",
 	} {
 		assert.NotContains(t, names, excluded)
@@ -63,9 +64,8 @@ func TestMCPSchemaToolAllowList(t *testing.T) {
 	assertGoldenFile(t, mcpToolsGoldenPath(t), strings.Join(names, "\n")+"\n")
 }
 
-// TestMCPExclusionsDoNotAffectHelpOrAXSchema verifies the interim exclusions
-// only apply while an MCP tool list is built: the commands stay documented in
-// --help and in the AX schema.
+// TestMCPExclusionsDoNotAffectHelpOrAXSchema verifies that MCP exclusions leave
+// the commands documented in --help and in the AX schema.
 func TestMCPExclusionsDoNotAffectHelpOrAXSchema(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 

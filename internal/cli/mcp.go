@@ -30,17 +30,17 @@ type mcpExclusion struct {
 	reason string
 }
 
-// mcpExcludedCommands are the leaf commands withheld from the MCP tool list.
-//
-// Interim mechanism for ax-go v0.6.0: exclusion is done by setting Hidden on
-// these leaves only while an MCP tool list is being built, because ax-go prunes
-// a hidden command's whole subtree. The root command, Cobra's help command, and
-// pure group commands therefore cannot be excluded this way and remain listed
-// until finfocus adopts ax-go's node-only mcp.Exclude annotation, at which point
-// this list becomes mcp.Exclude calls and withMCPExclusions goes away.
+// mcpExcludedCommands are the commands withheld from the MCP tool list via
+// ax-go's node-only mcp.Exclude: each stays in --help and __schema --as=ax, and
+// its subcommands remain tools. Cobra's help command and pure group commands
+// need no entry; ax-go skips them itself.
 //
 //nolint:gochecknoglobals // Immutable exclusion policy table.
 var mcpExcludedCommands = []mcpExclusion{
+	{
+		path:   nil,
+		reason: "opens the interactive overview dashboard, and with --mcp would start a server inside a tool call",
+	},
 	{
 		path:   []string{"analyzer", "serve"},
 		reason: "long-running Pulumi gRPC handshake; it would block the serialized MCP dispatcher forever",
@@ -91,7 +91,7 @@ func newSchemaCmd(root *cobra.Command, ver string) *cobra.Command {
 	emit := cmd.RunE
 	cmd.RunE = func(c *cobra.Command, args []string) error {
 		if as, _ := c.Flags().GetString("as"); as == "mcp" {
-			return withMCPExclusions(root, func() error { return emit(c, args) })
+			return withPositionalCommandsHidden(root, func() error { return emit(c, args) })
 		}
 		return emit(c, args)
 	}
@@ -135,36 +135,32 @@ func (lc *commandLifecycle) stopLogging() error {
 	return lc.session.Close()
 }
 
-// serveMCP runs serve with the MCP exclusions applied and the lifecycle marked
-// as serving, so dispatched calls share the already-open logging session.
+// serveMCP runs serve with the lifecycle marked as serving, so dispatched calls
+// share the already-open logging session.
 func (lc *commandLifecycle) serveMCP(root *cobra.Command, serve func() error) error {
 	lc.serving = true
 	defer func() { lc.serving = false }()
-	return withMCPExclusions(root, serve)
+	return withPositionalCommandsHidden(root, serve)
 }
 
-// withMCPExclusions hides every command that must not be an MCP tool while fn
-// runs and restores the original Hidden values afterwards, so normal --help
-// output is never affected.
-//
-// Besides mcpExcludedCommands it hides leaf commands whose Args validator
-// rejects an empty argument list: the live server already drops those (an MCP
-// call cannot supply positional arguments), and hiding them here makes the
+// applyMCPExclusions marks every mcpExcludedCommands entry with mcp.Exclude.
+func applyMCPExclusions(root *cobra.Command) {
+	for _, exclusion := range mcpExcludedCommands {
+		mcp.Exclude(findSubcommand(root, exclusion.path))
+	}
+}
+
+// withPositionalCommandsHidden hides leaf commands whose Args validator rejects
+// an empty argument list while fn runs, then restores their Hidden values so
+// --help is never affected. The live server already drops those commands (an
+// MCP call cannot supply positional arguments); hiding them here keeps the
 // static __schema --as=mcp list identical to the live tools/list.
-func withMCPExclusions(root *cobra.Command, fn func() error) error {
+func withPositionalCommandsHidden(root *cobra.Command, fn func() error) error {
 	var hidden []*cobra.Command
-	hide := func(cmd *cobra.Command) {
-		if cmd != nil && !cmd.Hidden {
+	walkCommands(root, func(cmd *cobra.Command) {
+		if !cmd.Hidden && !cmd.HasSubCommands() && cmd.Args != nil && cmd.Args(cmd, []string{}) != nil {
 			cmd.Hidden = true
 			hidden = append(hidden, cmd)
-		}
-	}
-	for _, exclusion := range mcpExcludedCommands {
-		hide(findSubcommand(root, exclusion.path))
-	}
-	walkCommands(root, func(cmd *cobra.Command) {
-		if !cmd.HasSubCommands() && cmd.Args != nil && cmd.Args(cmd, []string{}) != nil {
-			hide(cmd)
 		}
 	})
 	defer func() {
@@ -215,9 +211,10 @@ func isMCPEntryPoint(cmd *cobra.Command) bool {
 	return serve
 }
 
-// errRootNotATool is returned when an MCP client calls the root command, which
-// would otherwise open the overview dashboard or, with --mcp, start a server
-// inside a tool call.
+// errRootNotATool is returned if the root command runs while serving. The root
+// is excluded via mcp.Exclude, so MCP clients cannot call it; this guard keeps
+// any nested execution from opening the overview dashboard or, with --mcp,
+// starting a server inside a tool call.
 func errRootNotATool(ctx context.Context) error {
 	return ax.NewError(ctx, "validation_error",
 		"the finfocus root command is not callable as an MCP tool; call a subcommand tool such as finfocus-overview",

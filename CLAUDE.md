@@ -517,12 +517,13 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 - **Flag stickiness**: the dispatcher resets flag values *and* `Changed` per
   call, but only on a real server. Nested `ExecuteContext` in unit tests does
   not reset, so assert cross-call `--output` behavior in the integration test
-- **Interim exclusion**: `withMCPExclusions` sets `Hidden` on `mcpExcludedCommands`
-  leaves (and positional-arg leaves) only while an MCP tool list is built
-  (`mcp-server`, `--mcp`, `__schema --as=mcp`), then restores it. Never hide a
-  root/group: ax-go prunes the whole subtree. Root, `help`, and groups stay
-  listed until the ax-go `mcp.Exclude` release; the root tool returns a
-  validation error while serving so `--mcp` cannot recurse
+- **Exclusion**: `applyMCPExclusions` marks `mcpExcludedCommands` (root,
+  `analyzer serve`, `setup`, `plugin init`) with ax-go's node-only `mcp.Exclude`
+  at tree build time; they stay in `--help`. ax-go (v0.7.0+) skips `help` and
+  non-runnable groups itself. Never use `Hidden` to exclude a root/group: ax-go
+  prunes the whole subtree. `withPositionalCommandsHidden` still hides
+  positional-arg leaves while an MCP tool list is built so the static
+  `__schema --as=mcp` matches the live server, which cannot pass positional args
 - **Tool allow-list golden**: `internal/cli/testdata/mcp/tools.golden` pins the
   tool list for both the static schema (unit) and live `tools/list` of both
   entry points (`test/integration/mcp_server_test.go`). A new command must make
