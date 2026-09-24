@@ -141,11 +141,12 @@ including plugin names, features, patterns, and fallback status.`,
 
 // runConfigRoutesList executes the config routes list command logic.
 func runConfigRoutesList(cmd *cobra.Command, outputFormat string) error {
-	cfg, source := loadRoutingContext(cmd.Context())
-
+	outputFormat = resolveOutputFormat(cmd, "output", outputFormat)
 	if err := validateOutputFormat(outputFormat); err != nil {
 		return err
 	}
+
+	cfg, source := loadRoutingContext(cmd.Context())
 
 	if cfg.Routing == nil {
 		if outputFormat == outputFormatJSON {
@@ -205,11 +206,12 @@ synthetic plugin metadata to show which plugin would be selected per feature.`,
 }
 
 func runConfigRoutesTest(cmd *cobra.Command, args []string, outputFormat string) error {
-	cfg, _ := loadRoutingContext(cmd.Context())
-
+	outputFormat = resolveOutputFormat(cmd, "output", outputFormat)
 	if err := validateOutputFormat(outputFormat); err != nil {
 		return err
 	}
+
+	cfg, _ := loadRoutingContext(cmd.Context())
 
 	resourceType := args[0]
 	region := ""

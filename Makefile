@@ -183,7 +183,7 @@ dev: build
 inspect: build ## Launch the MCP Inspector for interactive testing
 	@echo "Starting MCP Inspector for $(BINARY)..."
 	@echo "Open the URL shown below in your browser to interact with the MCP server"
-	npx @modelcontextprotocol/inspector $$(realpath bin/$(BINARY))
+	npx @modelcontextprotocol/inspector $$(realpath bin/$(BINARY)) --mcp
 
 .PHONY: docs-lint
 docs-lint:

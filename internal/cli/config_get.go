@@ -46,6 +46,10 @@ and will not appear in configuration files.`,
 				return fmt.Errorf("failed to get config value: %w", err)
 			}
 
+			if machineOutputRequested(cmd) {
+				return writeJSON(cmd, map[string]any{"key": key, "value": value})
+			}
+
 			// Format and output the value
 			formatAndPrintValue(cmd, key, value)
 

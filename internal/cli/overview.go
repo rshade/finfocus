@@ -136,6 +136,12 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		ctx = context.Background()
 	}
 	log := logging.FromContext(ctx)
+	params.output = resolveOutputFormat(cmd, "output", params.output)
+	switch params.output {
+	case outputFormatTable, outputFormatJSON, outputFormatNDJSON:
+	default:
+		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
+	}
 	audit := newAuditContext(ctx, "overview", map[string]string{
 		"pulumi_state": params.pulumiState,
 		"pulumi_json":  params.pulumiJSON,

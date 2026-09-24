@@ -47,7 +47,9 @@ This includes:
 }
 
 // runConfigValidate validates the application's configuration and reports results to cmd.
-// It validates both general and routing configuration; when routing yields warnings it emits a separating blank line before the success message.
+// It validates both general and routing configuration. Human output prints any routing
+// warnings, a blank separator line, and the success message; with --format json it writes
+// a single JSON object ({"valid": true, "warnings": [...]}) instead.
 // cmd is used for CLI output. If verbose is true, detailed configuration information is printed.
 // It returns an error when validation fails.
 func runConfigValidate(cmd *cobra.Command, verbose bool) error {
@@ -59,12 +61,20 @@ func runConfigValidate(cmd *cobra.Command, verbose bool) error {
 	}
 
 	// Validate routing configuration if present
-	hasRoutingWarnings, err := validateRoutingConfig(cmd, cfg)
+	warnings, err := validateRoutingConfig(cmd, cfg)
 	if err != nil {
 		return err
 	}
 
-	if hasRoutingWarnings {
+	if machineOutputRequested(cmd) {
+		return renderConfigValidateJSON(cmd, warnings)
+	}
+
+	if len(warnings) > 0 {
+		cmd.Println("Routing configuration warnings:")
+		for _, w := range warnings {
+			cmd.Printf("  - %s\n", w)
+		}
 		cmd.Println()
 	}
 	cmd.Printf("✅ Configuration is valid\n")
@@ -76,19 +86,31 @@ func runConfigValidate(cmd *cobra.Command, verbose bool) error {
 	return nil
 }
 
-// validateRoutingConfig validates the routing configuration against available plugins.
-// validateRoutingConfig validates routing-related configuration and reports any issues to the provided command output.
-// It checks routing rules against available plugin clients and prints errors or warnings to the command's output streams.
+// configValidateJSON is the machine-readable result of a successful config validate.
+type configValidateJSON struct {
+	Valid    bool     `json:"valid"`
+	Warnings []string `json:"warnings"`
+}
+
+// renderConfigValidateJSON writes the successful validation result as JSON.
+func renderConfigValidateJSON(cmd *cobra.Command, warnings []string) error {
+	if warnings == nil {
+		warnings = []string{}
+	}
+	return writeJSON(cmd, configValidateJSON{Valid: true, Warnings: warnings})
+}
+
+// validateRoutingConfig validates routing-related configuration against the available plugins.
+// Errors are reported to the command's stderr and returned as a non-nil error.
 //
-// cmd is the Cobra command used for printing validation messages and for deriving a context when loading plugins.
+// cmd is the Cobra command used for printing validation errors and for deriving a context when loading plugins.
 // cfg is the loaded configuration to validate; if cfg.Routing is nil the function performs no validation.
 //
-// It returns true if routing validation produced warnings, false otherwise. It returns a non-nil error when validation
-// produced one or more errors. When plugin loading fails the function emits a warning and proceeds with validation
-// without plugin clients.
-func validateRoutingConfig(cmd *cobra.Command, cfg *config.Config) (bool, error) {
+// It returns the routing warning messages (nil when there are none). When plugin loading fails the function
+// emits a warning to stderr and proceeds with validation without plugin clients.
+func validateRoutingConfig(cmd *cobra.Command, cfg *config.Config) ([]string, error) {
 	if cfg.Routing == nil {
-		return false, nil
+		return nil, nil
 	}
 
 	// Get plugin clients for validation
@@ -113,18 +135,14 @@ func validateRoutingConfig(cmd *cobra.Command, cfg *config.Config) (bool, error)
 		for _, e := range result.Errors {
 			cmd.PrintErrf("  - %s\n", e.Error())
 		}
-		return false, fmt.Errorf("routing configuration has %d error(s)", len(result.Errors))
+		return nil, fmt.Errorf("routing configuration has %d error(s)", len(result.Errors))
 	}
 
 	if result.HasWarnings() {
-		cmd.Println("Routing configuration warnings:")
-		for _, w := range result.WarningMessages() {
-			cmd.Printf("  - %s\n", w)
-		}
-		return true, nil
+		return result.WarningMessages(), nil
 	}
 
-	return false, nil
+	return nil, nil
 }
 
 // printVerboseDetails prints detailed configuration information to the command's output.

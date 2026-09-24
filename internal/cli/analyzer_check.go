@@ -48,20 +48,22 @@ Checks include:
 }
 
 func runAnalyzerCheck(ctx context.Context, cmd *cobra.Command, outputFormat string) error {
+	outputFormat = resolveOutputFormat(cmd, "output", outputFormat)
+	if outputFormat != outputFormatTable && outputFormat != outputFormatJSON {
+		return fmt.Errorf("unsupported output format: %s (supported: table, json)", outputFormat)
+	}
+
 	report, err := runAnalyzerChecks(ctx)
 	if err != nil {
 		return fmt.Errorf("running analyzer checks: %w", err)
 	}
 
-	switch outputFormat {
-	case "json":
+	if outputFormat == outputFormatJSON {
 		if renderErr := renderCheckJSON(cmd, report); renderErr != nil {
 			return renderErr
 		}
-	case "table":
+	} else {
 		renderCheckTable(cmd, report)
-	default:
-		return fmt.Errorf("unsupported output format: %s (supported: table, json)", outputFormat)
 	}
 
 	if !report.AllPass {

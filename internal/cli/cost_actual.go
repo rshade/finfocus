@@ -110,7 +110,9 @@ timestamp if not provided.`,
   # Show confidence levels for cost estimates (useful for imported resources)
   finfocus cost actual --pulumi-state state.json --estimate-confidence`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return executeCostActual(cmd, params)
+			run := params
+			run.output = resolveOutputFormat(cmd, "output", params.output)
+			return executeCostActual(cmd, run)
 		},
 	}
 
@@ -242,7 +244,9 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		Dur("duration_ms", time.Since(audit.start)).Msg("actual cost calculation complete")
 
 	totalCost := sumTotalCosts(resultWithErrors.Results)
-	if budgetErr := evaluateBudgetStatus(cmd, resultWithErrors.Results, totalCost); budgetErr != nil {
+	if budgetErr := evaluateBudgetStatusForOutput(
+		cmd, resultWithErrors.Results, totalCost, params.output,
+	); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return toAxExitError(ctx, budgetErr)
 	}
@@ -399,6 +403,9 @@ func renderActualCostOutput(
 func validateActualParams(params costActualParams) error {
 	if params.jobs < 0 {
 		return fmt.Errorf("--jobs must be non-negative, got %d", params.jobs)
+	}
+	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.output))) {
+		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
 	}
 	return validateActualInputFlags(params)
 }

@@ -116,6 +116,7 @@ func ValidatePlugin(_ context.Context, plugin registry.PluginInfo) error {
 //     there are no plugins to validate and no specific target was requested.
 func runPluginValidateCmd(cmd *cobra.Command, targetPlugin string) error {
 	ctx := context.Background()
+	jsonOutput := machineOutputRequested(cmd)
 
 	cfg := config.New()
 	if _, err := os.Stat(cfg.PluginDir); os.IsNotExist(err) {
@@ -124,6 +125,9 @@ func runPluginValidateCmd(cmd *cobra.Command, targetPlugin string) error {
 				"plugin '%s' not found: plugin directory does not exist",
 				targetPlugin,
 			)
+		}
+		if jsonOutput {
+			return renderPluginValidationJSON(cmd, nil)
 		}
 		cmd.Printf("Plugin directory does not exist: %s\n", cfg.PluginDir)
 		cmd.Println("No plugins to validate.")
@@ -140,6 +144,9 @@ func runPluginValidateCmd(cmd *cobra.Command, targetPlugin string) error {
 		if targetPlugin != "" {
 			return fmt.Errorf("plugin '%s' not found: no plugins installed", targetPlugin)
 		}
+		if jsonOutput {
+			return renderPluginValidationJSON(cmd, nil)
+		}
 		cmd.Println("No plugins found to validate.")
 		return nil
 	}
@@ -149,6 +156,9 @@ func runPluginValidateCmd(cmd *cobra.Command, targetPlugin string) error {
 		return err
 	}
 
+	if jsonOutput {
+		return runValidationJSON(ctx, cmd, plugins)
+	}
 	return runValidation(ctx, cmd, plugins)
 }
 
@@ -240,4 +250,64 @@ func validateSinglePlugin(
 
 	cmd.Println("OK")
 	return true
+}
+
+// pluginValidationResult is the machine-readable validation outcome for one plugin.
+type pluginValidationResult struct {
+	Name    string `json:"name"`
+	Version string `json:"version"`
+	Path    string `json:"path"`
+	Valid   bool   `json:"valid"`
+	Error   string `json:"error,omitempty"`
+}
+
+// pluginValidationReport is the machine-readable result of plugin validate.
+type pluginValidationReport struct {
+	Plugins    []pluginValidationResult `json:"plugins"`
+	ValidCount int                      `json:"valid_count"`
+	Total      int                      `json:"total"`
+}
+
+// runValidationJSON validates plugins and writes a single JSON report instead of
+// per-plugin progress lines. Like runValidation it returns ErrPluginValidationFailed
+// when any plugin fails.
+func runValidationJSON(ctx context.Context, cmd *cobra.Command, plugins []registry.PluginInfo) error {
+	results := make([]pluginValidationResult, 0, len(plugins))
+	for _, plugin := range plugins {
+		result := pluginValidationResult{
+			Name:    plugin.Name,
+			Version: plugin.Version,
+			Path:    plugin.Path,
+			Valid:   true,
+		}
+		if err := ValidatePlugin(ctx, plugin); err != nil {
+			result.Valid = false
+			result.Error = err.Error()
+		}
+		results = append(results, result)
+	}
+	if err := renderPluginValidationJSON(cmd, results); err != nil {
+		return err
+	}
+	for _, result := range results {
+		if !result.Valid {
+			return ErrPluginValidationFailed
+		}
+	}
+	return nil
+}
+
+// renderPluginValidationJSON writes the validation report; nil results render as an
+// empty plugin list.
+func renderPluginValidationJSON(cmd *cobra.Command, results []pluginValidationResult) error {
+	report := pluginValidationReport{Plugins: results, Total: len(results)}
+	if report.Plugins == nil {
+		report.Plugins = []pluginValidationResult{}
+	}
+	for _, result := range results {
+		if result.Valid {
+			report.ValidCount++
+		}
+	}
+	return writeJSON(cmd, report)
 }

@@ -3,7 +3,6 @@ package cli
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -50,16 +49,14 @@ func NewPluginListCmd() *cobra.Command {
   # List plugins as JSON for machine consumption
   finfocus plugin list --output json`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			if output != outputFormatTable && output != outputFormatJSON {
-				return fmt.Errorf("unsupported output format: %s (supported: table, json)", output)
+			format := resolveOutputFormat(cmd, "output", output)
+			if format != outputFormatTable && format != outputFormatJSON {
+				return fmt.Errorf("unsupported output format: %s (supported: table, json)", format)
 			}
 			if available {
-				if output == outputFormatJSON {
-					return errors.New("--output json is not supported with --available")
-				}
-				return runPluginListAvailable(cmd)
+				return runPluginListAvailable(cmd, format)
 			}
-			return runPluginListCmd(cmd, verbose, output)
+			return runPluginListCmd(cmd, verbose, format)
 		},
 	}
 
@@ -70,17 +67,25 @@ func NewPluginListCmd() *cobra.Command {
 	return cmd
 }
 
-// runPluginListAvailable lists plugins available in the registry and writes a tabulated
-// table (Name, Description, Repository, Security) to the command's output.
+// runPluginListAvailable lists plugins available in the registry. With JSON output it
+// writes the registry entries as a JSON array (an empty array when there are none);
+// otherwise it writes a tabulated table (Name, Description, Repository, Security).
 //
 // If the registry cannot be loaded the function returns an error wrapping the underlying
-// cause. If no entries exist the function prints "No plugins available in registry."
-// to the command output and returns nil. For entries with an empty security level the
-// security column defaults to "community".
-func runPluginListAvailable(cmd *cobra.Command) error {
+// cause. If no entries exist the table form prints "No plugins available in registry."
+// and returns nil. For entries with an empty security level the security column
+// defaults to "community".
+func runPluginListAvailable(cmd *cobra.Command, output string) error {
 	entries, err := registry.GetAllPluginEntries()
 	if err != nil {
 		return fmt.Errorf("loading registry: %w", err)
+	}
+
+	if output == outputFormatJSON {
+		if entries == nil {
+			entries = []registry.RegistryEntry{}
+		}
+		return writeJSON(cmd, entries)
 	}
 
 	if len(entries) == 0 {

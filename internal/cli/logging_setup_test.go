@@ -12,6 +12,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/constants"
+	"github.com/rshade/finfocus/internal/logging"
 )
 
 // newTestLoggingCmd builds a minimal cobra.Command with the flags that setupLogging
@@ -162,4 +163,56 @@ func TestSetupLogging_DebugPreservesFileOutput(t *testing.T) {
 	require.True(t, result.UsingFile)
 	assert.Equal(t, logPath, result.FilePath)
 	assert.Contains(t, errBuf.String(), "Logging to:")
+}
+
+// TestLoggingSession_CloseIsIdempotent verifies a session that owns open log and
+// audit files can be closed repeatedly. An MCP server used to close the same
+// handle twice and fail with "file already closed".
+func TestLoggingSession_CloseIsIdempotent(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+	t.Setenv(constants.EnvAnalyzerMode, "")
+	config.SetGlobalConfig(&config.Config{
+		Logging: config.LoggingConfig{
+			Level:  "info",
+			Format: "json",
+			File:   filepath.Join(tmpDir, "logs", "finfocus.log"),
+			Audit:  config.AuditConfig{Enabled: true, File: filepath.Join(tmpDir, "logs", "audit.log")},
+		},
+	})
+	t.Cleanup(config.ResetGlobalConfigForTest)
+
+	session := setupLogging(newTestLoggingCmd())
+	require.True(t, session.UsingFile)
+
+	require.NoError(t, session.Close())
+	require.NoError(t, session.Close())
+}
+
+// TestLoggingSession_AttachReusesHandles verifies attach decorates another
+// command's context with the same session without opening new files.
+func TestLoggingSession_AttachReusesHandles(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+	t.Setenv(constants.EnvAnalyzerMode, "")
+	config.SetGlobalConfig(&config.Config{
+		Logging: config.LoggingConfig{
+			Level:  "info",
+			Format: "json",
+			File:   filepath.Join(tmpDir, "logs", "finfocus.log"),
+		},
+	})
+	t.Cleanup(config.ResetGlobalConfigForTest)
+
+	session := setupLogging(newTestLoggingCmd())
+	t.Cleanup(func() { _ = session.Close() })
+
+	call := newTestLoggingCmd()
+	var errBuf bytes.Buffer
+	call.SetErr(&errBuf)
+	session.attach(call)
+
+	assert.Empty(t, errBuf.String(), "attach must not print the log path again")
+	assert.Equal(t, session.FilePath, logging.PluginLogPathFromContext(call.Context()))
+	assert.NotEmpty(t, logging.TraceIDFromContext(call.Context()))
 }

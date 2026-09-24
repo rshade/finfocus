@@ -151,6 +151,7 @@ func validateCostProjectedParams(params costProjectedParams) error {
 // It returns an error if any step (validation, loading, calculation, rendering) fails.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
 	ctx := cmd.Context()
+	params.output = resolveOutputFormat(cmd, "output", params.output)
 
 	if err := validateCostProjectedParams(params); err != nil {
 		return err
@@ -212,7 +213,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		Dur("duration_ms", time.Since(audit.start)).Msg("projected cost calculation complete")
 
 	totalCost := sumMonthlyCosts(resultWithErrors.Results)
-	if budgetErr := evaluateBudgetStatus(cmd, resultWithErrors.Results, totalCost); budgetErr != nil {
+	if budgetErr := evaluateBudgetStatusForOutput(
+		cmd, resultWithErrors.Results, totalCost, params.output,
+	); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return toAxExitError(ctx, budgetErr)
 	}

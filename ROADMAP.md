@@ -203,9 +203,9 @@ guardrails in `CONTEXT.md`.
         methodology
         ([#688](https://github.com/rshade/finfocus/issues/688)) [L]
 - [ ] **Mixed-Currency Aggregation Strategy (MCP Alignment)**
-  - *Objective*: Implement core-level grouping for multi-currency stacks to
-    support the [finfocus-mcp Mixed-Currency
-    Research](https://github.com/rshade/finfocus-mcp/blob/main/ROADMAP.md#1-mixed-currency-aggregation-strategy).
+  - *Objective*: Implement core-level grouping for multi-currency stacks so
+    MCP clients of the built-in server (`finfocus --mcp` /
+    `finfocus mcp-server`) receive structured per-currency results.
   - *Technical Approach*: Enhance `CostResult` aggregation logic to preserve
     currency codes and provide structured groupings for downstream consumers
     (CLI, TUI, MCP).

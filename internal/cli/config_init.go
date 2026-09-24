@@ -76,6 +76,9 @@ func initProjectConfig(ctx context.Context, cmd *cobra.Command, projectDir strin
 
 	// Rehearse: report what would be written
 	rehearse := func(_ context.Context) error {
+		if machineOutputRequested(cmd) {
+			return writeJSON(cmd, actionResult{Action: "would_create", DryRun: true, Path: configPath})
+		}
 		cmd.Printf("Would create configuration at %s\n", configPath)
 		cmd.Printf("  (with .gitignore to protect user-specific data)\n")
 		return nil
@@ -101,12 +104,7 @@ func initProjectConfig(ctx context.Context, cmd *cobra.Command, projectDir strin
 			return fmt.Errorf("failed to create .gitignore: %w", err)
 		}
 
-		cmd.Printf("Configuration initialized at %s\n", configPath)
-		if created {
-			cmd.Printf("Created .gitignore to protect user-specific data\n")
-		}
-
-		return nil
+		return reportProjectConfigCreated(cmd, configPath, created)
 	}
 
 	return ax.Perform(ctx, rehearse, commit)
@@ -127,6 +125,9 @@ func initGlobalConfig(ctx context.Context, cmd *cobra.Command, force bool) error
 
 	// Rehearse: report what would be created
 	rehearse := func(_ context.Context) error {
+		if machineOutputRequested(cmd) {
+			return writeJSON(cmd, actionResult{Action: "would_create", DryRun: true, Path: cfg.ConfigPath()})
+		}
 		cmd.Printf("Would create configuration at %s\n", cfg.ConfigPath())
 		return nil
 	}
@@ -138,6 +139,9 @@ func initGlobalConfig(ctx context.Context, cmd *cobra.Command, force bool) error
 			return fmt.Errorf("failed to save configuration: %w", err)
 		}
 
+		if machineOutputRequested(cmd) {
+			return writeJSON(cmd, actionResult{Action: "created", Path: cfg.ConfigPath()})
+		}
 		cmd.Printf("Configuration initialized successfully\n")
 		cmd.Printf("Configuration file: %s\n", cfg.ConfigPath())
 
@@ -145,4 +149,17 @@ func initGlobalConfig(ctx context.Context, cmd *cobra.Command, force bool) error
 	}
 
 	return ax.Perform(ctx, rehearse, commit)
+}
+
+// reportProjectConfigCreated reports a newly written project config, noting
+// whether a .gitignore was created alongside it.
+func reportProjectConfigCreated(cmd *cobra.Command, configPath string, gitignoreCreated bool) error {
+	if machineOutputRequested(cmd) {
+		return writeJSON(cmd, actionResult{Action: "created", Path: configPath})
+	}
+	cmd.Printf("Configuration initialized at %s\n", configPath)
+	if gitignoreCreated {
+		cmd.Printf("Created .gitignore to protect user-specific data\n")
+	}
+	return nil
 }
