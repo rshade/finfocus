@@ -82,6 +82,11 @@ test-e2e:
 	@echo "Running E2E tests..."
 	./test/e2e/run-e2e-tests.sh $(TEST_ARGS)
 
+# Regenerate the real Terraform state goldens (requires docker + mise; no cloud access)
+.PHONY: gen-terraform-goldens
+gen-terraform-goldens:
+	./scripts/gen-terraform-goldens.sh
+
 # Run all tests (unit + integration, excludes E2E which requires special setup)
 .PHONY: test-all
 test-all:
@@ -279,6 +284,7 @@ help:
 	@echo "  test-integration-plugin - Run plugin integration tests"
 	@echo "  test-e2e         - Run E2E tests (requires AWS credentials)"
 	@echo "  test-all         - Run all tests except E2E"
+	@echo "  gen-terraform-goldens - Regenerate real Terraform state goldens (docker + mise)"
 	@echo "  lint             - Run Go + Markdown linters"
 	@echo "  lint-actions     - Run actionlint on GitHub workflows"
 	@echo "  validate         - Run validation (go mod tidy, go vet)"

@@ -61,9 +61,14 @@ func StartMockServerTCP() (*MockServer, error) {
 
 // StartMockServerTCPWithPlugin creates a TCP mock server with a pre-configured plugin.
 func StartMockServerTCPWithPlugin(plugin *MockPlugin) (*MockServer, error) {
-	// Listen on random available port
+	return StartMockServerTCPAt(plugin, "127.0.0.1:0")
+}
+
+// StartMockServerTCPAt starts a TCP mock server with a pre-configured plugin on
+// addr, e.g. the "127.0.0.1:<port>" the plugin host assigns via --port.
+func StartMockServerTCPAt(plugin *MockPlugin, addr string) (*MockServer, error) {
 	listenConfig := net.ListenConfig{}
-	listener, err := listenConfig.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	listener, err := listenConfig.Listen(context.Background(), "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to listen: %w", err)
 	}

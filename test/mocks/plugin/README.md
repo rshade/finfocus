@@ -186,6 +186,28 @@ func TestActualCost(t *testing.T) {
 }
 ```
 
+### Terraform Type Resolution
+
+The mock implements `ResolveResourceTypes`. `ConfigureTerraformResolver`
+advertises the `aws` provider and the `resolve_resource_types` capability
+through `GetPluginInfo`. Requested types without a configured mapping are
+left out of the response, which simulates partial resolution.
+
+```go
+func TestResolve(t *testing.T) {
+    helper := plugin.NewTestHelper(t)
+    helper.Plugin().ConfigureTerraformResolver(plugin.AWSTerraformTypeMappings())
+    helper.Plugin().SetError("ResolveResourceTypes", plugin.ErrorUnavailable) // optional
+
+    // Resolve against the server, then check the call count
+    _ = helper.Plugin().GetResolveCallCount()
+}
+```
+
+`StartMockServerTCPAt(plugin, "127.0.0.1:<port>")` serves the mock on a fixed
+address. `test/integration/terraform_resolver_plugin_test.go` uses it to run
+the mock as a real plugin process on the `--port` the plugin host assigns.
+
 ## Reset Between Tests
 
 The TestHelper automatically handles cleanup, but if you're managing the plugin manually:
@@ -250,6 +272,7 @@ func TestEngineWithMockPlugin(t *testing.T) {
 ### Plugin Not Responding
 
 If your test hangs, check:
+
 - Did you call `Dial()` before the test timeout?
 - Is the server started before dialing?
 - Did you configure a response for the resource type you're querying?
@@ -257,6 +280,7 @@ If your test hangs, check:
 ### No Response Configured Error
 
 If you get "mock plugin: no response configured for resource":
+
 - The resource type doesn't match any configured response
 - Use `ConfigureScenario` or `SetProjectedCostResponse` to add it
 - Check the exact resource type string (case-sensitive)
@@ -264,6 +288,7 @@ If you get "mock plugin: no response configured for resource":
 ### Tests Interfering
 
 If tests affect each other:
+
 - Use `helper.Reset()` between test cases
 - Each test should get its own TestHelper instance
 - Don't share MockPlugin instances across tests
@@ -283,6 +308,8 @@ If tests affect each other:
 - `SetProjectedCost(type, monthly, hourly)` - Quick response setup
 - `SetError(method, errorType)` - Inject errors
 - `SetLatency(ms)` - Add simulated latency
+- `ConfigureTerraformResolver(mappings)` - Advertise and serve `ResolveResourceTypes`
+- `SetResolveResourceTypesHook(fn)` - Observe each `ResolveResourceTypes` request
 - `Reset()` - Clear all configuration
 
 ### Scenarios
@@ -305,6 +332,7 @@ If tests affect each other:
 See the test files in this package for comprehensive usage examples:
 
 ### Runnable Examples
+
 - `examples_test.go` - 18 runnable examples demonstrating all mock plugin features:
   - Basic usage and custom responses
   - All 5 scenarios (Success, PartialData, HighCost, ZeroCost, MultiCurrency)
@@ -316,6 +344,7 @@ See the test files in this package for comprehensive usage examples:
   - Dynamic configuration changes during tests
 
 ### Test Coverage (Phase 4 - Mock Plugin Enhancement)
+
 - `config_test.go` - 15 tests for response configuration and scenarios
 - `errors_test.go` - 21 tests for error injection capabilities
 - `perf_test.go` - 17 tests for performance simulation and latency

@@ -53,6 +53,17 @@ type MockConfig struct {
 	// SupportsAll when true, Supports() returns {Supported: true} for all resource types.
 	// When false (default), Supports() returns {Supported: false} with a reason.
 	SupportsAll bool
+
+	// Providers is returned as GetPluginInfo.providers (e.g. ["aws"]).
+	Providers []string
+
+	// Capabilities is returned as GetPluginInfo.capabilities.
+	Capabilities []pbc.PluginCapability
+
+	// ResourceTypeMappings maps source resource types (e.g. "aws_instance") to
+	// the ResolveResourceTypes response entry. Requested types without an entry
+	// are omitted from the response, simulating partial resolution.
+	ResourceTypeMappings map[string]*pbc.ResourceTypeMapping
 }
 
 // ErrorType represents different types of errors the mock can simulate.
@@ -94,9 +105,11 @@ var (
 
 // MockPlugin represents a configurable mock plugin server.
 type MockPlugin struct {
-	config    MockConfig
-	mu        sync.RWMutex
-	callCount atomic.Int64
+	config           MockConfig
+	mu               sync.RWMutex
+	callCount        atomic.Int64
+	resolveCallCount atomic.Int64
+	resolveHook      func(*pbc.ResolveResourceTypesRequest)
 }
 
 // NewMockPlugin creates a new mock plugin with default configuration.
@@ -235,6 +248,56 @@ func (m *MockPlugin) Reset() {
 		SupportsAll:            true,
 	}
 	m.callCount.Store(0)
+	m.resolveCallCount.Store(0)
+	m.resolveHook = nil
+}
+
+// SetResourceTypeMappings configures the ResolveResourceTypes response entries
+// keyed by source resource type.
+func (m *MockPlugin) SetResourceTypeMappings(mappings map[string]*pbc.ResourceTypeMapping) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.config.ResourceTypeMappings = mappings
+}
+
+// SetPluginInfo configures the providers and capabilities advertised by GetPluginInfo.
+func (m *MockPlugin) SetPluginInfo(providers []string, capabilities []pbc.PluginCapability) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.config.Providers = providers
+	m.config.Capabilities = capabilities
+}
+
+// SetResolveResourceTypesHook registers a callback invoked with every
+// ResolveResourceTypes request, e.g. to record calls from a plugin process.
+func (m *MockPlugin) SetResolveResourceTypesHook(hook func(*pbc.ResolveResourceTypesRequest)) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.resolveHook = hook
+}
+
+// GetResolveCallCount returns how many ResolveResourceTypes calls were received.
+func (m *MockPlugin) GetResolveCallCount() int64 {
+	return m.resolveCallCount.Load()
+}
+
+// recordResolveCall counts a ResolveResourceTypes call and runs the hook, if any.
+func (m *MockPlugin) recordResolveCall(req *pbc.ResolveResourceTypesRequest) {
+	m.resolveCallCount.Add(1)
+	m.mu.RLock()
+	hook := m.resolveHook
+	m.mu.RUnlock()
+	if hook != nil {
+		hook(req)
+	}
+}
+
+// GetResourceTypeMapping returns the configured mapping for a source resource type.
+func (m *MockPlugin) GetResourceTypeMapping(sourceType string) (*pbc.ResourceTypeMapping, bool) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	mapping, ok := m.config.ResourceTypeMappings[sourceType]
+	return mapping, ok
 }
 
 // GetConfig returns the current mock configuration (for testing/debugging).

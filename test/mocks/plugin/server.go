@@ -58,9 +58,32 @@ func (s *mockServer) GetPluginInfo(_ context.Context, _ *pbc.GetPluginInfoReques
 
 	config := s.plugin.GetConfig()
 	return &pbc.GetPluginInfoResponse{
-		Version:     config.PluginVersion,
-		SpecVersion: config.PluginSpecVersion,
+		Version:      config.PluginVersion,
+		SpecVersion:  config.PluginSpecVersion,
+		Providers:    config.Providers,
+		Capabilities: config.Capabilities,
 	}, nil
+}
+
+// ResolveResourceTypes implements the ResolveResourceTypes RPC method. Only
+// requested types with a configured mapping are returned.
+func (s *mockServer) ResolveResourceTypes(
+	_ context.Context,
+	req *pbc.ResolveResourceTypesRequest,
+) (*pbc.ResolveResourceTypesResponse, error) {
+	s.plugin.recordResolveCall(req)
+
+	if err := s.plugin.ShouldInjectError("ResolveResourceTypes"); err != nil {
+		return nil, toGRPCError(err)
+	}
+
+	mappings := make(map[string]*pbc.ResourceTypeMapping, len(req.GetSourceTypes()))
+	for _, sourceType := range req.GetSourceTypes() {
+		if mapping, ok := s.plugin.GetResourceTypeMapping(sourceType); ok {
+			mappings[sourceType] = mapping
+		}
+	}
+	return &pbc.ResolveResourceTypesResponse{Mappings: mappings}, nil
 }
 
 // GetProjectedCost implements the GetProjectedCost RPC method.
