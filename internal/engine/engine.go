@@ -18,6 +18,7 @@ import (
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -125,7 +126,7 @@ type Engine struct {
 	router         Router                 // Optional router for plugin selection; if nil, queries all plugins
 	dismissalStore *config.DismissalStore // Optional dismissal store; if nil, created on demand
 	jobs           int                    // Override worker count; 0 means auto (default)
-	supportsCache  map[string]bool        // Cache for Supports() results, keyed by "plugin:resourceType:feature"
+	supportsCache  map[string]bool        // Cache for Supports() results, keyed by "client:provider:type:region:sku:feature"
 	supportsMu     sync.RWMutex           // Guards supportsCache
 }
 
@@ -188,16 +189,24 @@ func (e *Engine) getConcurrencyMultiplier() int {
 }
 
 // checkPluginSupports calls the plugin's Supports() RPC to check if it
-// supports the given resource type for the requested feature. Returns true
-// if the plugin supports it, or if the RPC call fails (fail-open to avoid
-// breaking plugins that don't implement Supports yet).
+// supports the given resource (provider, type, SKU, and region) for the
+// requested feature. Returns true if the plugin supports it, or if the RPC
+// call fails (fail-open covers plugins built on finfocus-spec SDKs older than
+// v0.6.2 that don't implement Supports yet, and RPC failures). It also fails
+// open when the plugin is built on finfocus-spec v0.6.2+ but never registered
+// a SupportsProvider: the SDK itself then answers Supported:false with
+// pluginsdk.DefaultSupportsNotImplementedReason (see sdk.go), which is not a
+// real capability decision and previously caused such plugins to be silently
+// dropped from every resource they'd have otherwise served.
 func (e *Engine) checkPluginSupports(
 	ctx context.Context,
 	client *pluginhost.Client,
-	resourceType string,
+	resource ResourceDescriptor,
 	feature string,
 ) bool {
-	cacheKey := client.Name + ":" + resourceType + ":" + feature
+	props := ConvertToProto(resource.Properties)
+	sku, region := proto.ResolveSKUAndRegion(ctx, resource.Provider, resource.Type, props)
+	cacheKey := strings.Join([]string{client.Name, resource.Provider, resource.Type, region, sku, feature}, ":")
 
 	e.supportsMu.RLock()
 	if result, ok := e.supportsCache[cacheKey]; ok {
@@ -207,7 +216,13 @@ func (e *Engine) checkPluginSupports(
 	e.supportsMu.RUnlock()
 
 	resp, err := client.API.Supports(ctx, &pbc.SupportsRequest{
-		Resource: &pbc.ResourceDescriptor{ResourceType: resourceType},
+		Resource: &pbc.ResourceDescriptor{
+			Provider:     resource.Provider,
+			ResourceType: resource.Type,
+			Sku:          sku,
+			Region:       region,
+			Tags:         props,
+		},
 	})
 	if err != nil {
 		// Fail-open: if plugin doesn't implement Supports() or RPC fails,
@@ -217,12 +232,25 @@ func (e *Engine) checkPluginSupports(
 	}
 
 	supported := resp.GetSupported()
-	if !supported {
-		log := logging.FromContext(ctx)
+	log := logging.FromContext(ctx)
+	if !supported && resp.GetReason() == pluginsdk.DefaultSupportsNotImplementedReason {
+		// The plugin never implemented SupportsProvider; the SDK's generic
+		// fallback answered on its behalf. Fail open rather than treat that
+		// as a genuine "does not support" answer.
 		log.Debug().
 			Str("component", "engine").
 			Str("plugin", client.Name).
-			Str("resource_type", resourceType).
+			Str("resource_type", resource.Type).
+			Str("resource_region", region).
+			Str("feature", feature).
+			Msg("plugin has no Supports implementation, failing open")
+		supported = true
+	} else if !supported {
+		log.Debug().
+			Str("component", "engine").
+			Str("plugin", client.Name).
+			Str("resource_type", resource.Type).
+			Str("resource_region", region).
 			Str("feature", feature).
 			Str("reason", resp.GetReason()).
 			Msg("plugin does not support feature, skipping")
@@ -242,16 +270,17 @@ func (e *Engine) cacheSupportsResult(key string, supported bool) {
 }
 
 // filterUnsupportedPlugins removes plugins that declare they don't support
-// the given resource type for the requested feature via the Supports() RPC.
+// the given resource (provider, type, SKU, and region) for the requested
+// feature via the Supports() RPC.
 func (e *Engine) filterUnsupportedPlugins(
 	ctx context.Context,
 	matches []PluginMatch,
-	resourceType string,
+	resource ResourceDescriptor,
 	feature string,
 ) []PluginMatch {
 	filtered := make([]PluginMatch, 0, len(matches))
 	for _, match := range matches {
-		if e.checkPluginSupports(ctx, match.Client, resourceType, feature) {
+		if e.checkPluginSupports(ctx, match.Client, resource, feature) {
 			filtered = append(filtered, match)
 		}
 	}
@@ -306,7 +335,7 @@ func (e *Engine) selectPluginMatchesForResource(
 				Source:      "automatic",
 			}
 		}
-		return e.filterUnsupportedPlugins(ctx, matches, resource.Type, feature)
+		return e.filterUnsupportedPlugins(ctx, matches, resource, feature)
 	}
 
 	// Use router for intelligent plugin selection
@@ -341,7 +370,7 @@ func (e *Engine) selectPluginMatchesForResource(
 				Source:      "automatic",
 			}
 		}
-		return e.filterUnsupportedPlugins(ctx, fallbackMatches, resource.Type, feature)
+		return e.filterUnsupportedPlugins(ctx, fallbackMatches, resource, feature)
 	}
 
 	log.Debug().
@@ -352,7 +381,7 @@ func (e *Engine) selectPluginMatchesForResource(
 		Int("matched_count", len(matches)).
 		Msg("router selected plugins")
 
-	return e.filterUnsupportedPlugins(ctx, matches, resource.Type, feature)
+	return e.filterUnsupportedPlugins(ctx, matches, resource, feature)
 }
 
 func (e *Engine) getWorkerCount(jobCount int) int {
