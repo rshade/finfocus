@@ -5,12 +5,12 @@ package kubernetes
 
 import (
 	"context"
+	"fmt"
 	"maps"
-	"slices"
-	"strings"
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/labels"
 	k8s "k8s.io/client-go/kubernetes"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -70,10 +70,14 @@ func (p *Plugin) GetStats(ctx context.Context, req *pbc.GetStatsRequest) (*pbc.G
 	selector := maps.Clone(req.GetSelector())
 	ns := selector["namespace"]
 	delete(selector, "namespace")
+	sel, err := labelSelector(selector)
+	if err != nil {
+		return nil, status.Error(codes.InvalidArgument, fmt.Sprintf("invalid label selector: %v", err))
+	}
 	return usage.Collect(ctx, cluster.Client, usage.Options{
 		Cluster:       cluster.Context,
 		Namespace:     ns,
-		LabelSelector: labelSelector(selector),
+		LabelSelector: sel,
 		APIServerHost: cluster.Host,
 	})
 }
@@ -88,12 +92,14 @@ func (p *Plugin) Supports(_ context.Context, _ *pbc.SupportsRequest) (*pbc.Suppo
 	return &pbc.SupportsResponse{Supported: false, Reason: "kubernetes plugin provides usage and allocation only"}, nil
 }
 
-// labelSelector renders key=value pairs in sorted order as a Kubernetes label selector.
-func labelSelector(m map[string]string) string {
-	keys := slices.Sorted(maps.Keys(m))
-	parts := make([]string, 0, len(keys))
-	for _, k := range keys {
-		parts = append(parts, k+"="+m[k])
+// labelSelector renders key=value pairs in sorted order as a Kubernetes label
+// selector, validating every key and value client-side. It returns an error
+// naming the offending key rather than silently emitting a selector string
+// corrupted by unescaped `,` or `=` in a value.
+func labelSelector(m map[string]string) (string, error) {
+	selector, err := labels.ValidatedSelectorFromSet(labels.Set(m))
+	if err != nil {
+		return "", err
 	}
-	return strings.Join(parts, ",")
+	return selector.String(), nil
 }

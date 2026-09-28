@@ -74,6 +74,10 @@ comes from the `GetStatsRequest` the host sends (`plugin.go`):
 - **Label filters**: every other key in `GetStatsRequest.selector` is
   treated as an exact-match pod label filter (`key=value`, ANDed together
   in sorted order) and passed straight through to the pods `List` call.
+  Keys and values are validated client-side before the call; an invalid
+  key or value (for example, one containing `,` or `=`) returns an
+  `InvalidArgument` error naming the offending key instead of silently
+  producing a corrupted selector.
 
 The host is what fills in `scope` and `selector`, not the plugin itself.
 
