@@ -461,7 +461,7 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
-          VERSION=$(git describe --tags --always --dirty)
+          VERSION=$(git describe --tags --match 'v[0-9]*' --always --dirty)
           COMMIT=$(git rev-parse HEAD)
           BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           LDFLAGS="-ldflags \"-X 'github.com/rshade/finfocus/pkg/version.version=${VERSION}' -X 'github.com/rshade/finfocus/pkg/version.gitCommit=${COMMIT}' -X 'github.com/rshade/finfocus/pkg/version.buildDate=${BUILD_DATE}'\""

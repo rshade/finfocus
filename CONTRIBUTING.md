@@ -420,6 +420,39 @@ All pull requests must pass:
 - Documentation validation
 - Cross-platform builds (Linux, macOS, Windows)
 
+### Releases
+
+#### Monorepo plugin releases
+
+Plugins shipped from this monorepo (under `plugins/<name>/`) release
+independently from the CLI, using a `<plugin>-vX.Y.Z` tag format (for
+example, `kubernetes-v0.1.0`) rather than the CLI's bare `vX.Y.Z` tags:
+
+- Each plugin has its own `release-please` component so its changelog and
+  version bump are tracked separately from the CLI.
+- `.github/workflows/release-monorepo-plugin.yml` builds and uploads release
+  archives (`scripts/release-plugin-assets.sh`) for a published `<plugin>-v*`
+  release; the CLI's `goreleaser.yml` and `nightly.yml` release-triggered jobs
+  are guarded to skip these tags.
+- The plugin's registry entry needs **both** `tag_prefix` set (for example,
+  `"kubernetes-"`) so the installer can resolve prefixed tags to a canonical
+  version, **and** `asset_hints.asset_prefix` set (for example,
+  `"finfocus-plugin-kubernetes"`). Without `asset_prefix` the installer falls
+  back to looking for assets named `<plugin>_v…` and never matches the
+  `finfocus-plugin-<plugin>_v…` archives that
+  `release-monorepo-plugin.yml`/`scripts/release-plugin-assets.sh` produce.
+- Monorepo plugin names (and thus `tag_prefix` values) must not start with
+  `v`. The CLI's own release workflows distinguish a bare CLI tag from a
+  plugin tag with `startsWith(tag, 'v')`; a plugin prefix starting with `v`
+  (e.g. `vantage-v0.1.0`) would defeat that guard, so
+  `ValidateRegistryEntry` rejects it.
+- A published `<plugin>-vX.Y.Z` release is never allowed to become the
+  repo's "Latest" release (that slot must stay on the newest CLI `vX.Y.Z`
+  release, since `scripts/install.sh` and `plugin_init_fixtures.go` read
+  `/releases/latest`). `release-monorepo-plugin.yml` unmarks the plugin
+  release as latest and re-marks the newest stable CLI release after
+  uploading assets.
+
 ### Automated Nightly Failure Analysis
 
 To assist with debugging, the project employs an automated nightly failure

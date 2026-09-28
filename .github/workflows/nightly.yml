@@ -45,6 +45,7 @@ jobs:
   cross-platform-tests:
     name: Tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
     strategy:
       fail-fast: false
       matrix:
@@ -224,6 +225,7 @@ jobs:
   deep-fuzz:
     name: Deep Fuzz Testing
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
     # GitHub-hosted runners hard-cap jobs at 360 minutes. 4 fuzz targets at the
     # default 1h each plus setup/corpus overhead must stay under that cap.
     timeout-minutes: 350
@@ -289,6 +291,7 @@ jobs:
   cross-platform-builds:
     name: Build (${{ matrix.os }}-${{ matrix.goarch }})
     runs-on: ${{ matrix.os }}
+    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
     strategy:
       fail-fast: false
       matrix:
@@ -324,7 +327,7 @@ jobs:
           GOARCH: ${{ matrix.goarch }}
         shell: bash
         run: |
-          VERSION=$(git describe --tags --always --dirty)
+          VERSION=$(git describe --tags --match 'v[0-9]*' --always --dirty)
           COMMIT=$(git rev-parse HEAD)
           BUILD_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
@@ -348,6 +351,7 @@ jobs:
   benchmarks:
     name: Performance Benchmarks
     runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v') }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -374,7 +378,7 @@ jobs:
     name: AWS E2E Cleanup
     runs-on: ubuntu-latest
     needs: [integration, e2e, analyzer-e2e]
-    if: always()
+    if: ${{ always() && (github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')) }}
     steps:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v6

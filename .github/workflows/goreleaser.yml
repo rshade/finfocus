@@ -23,13 +23,16 @@ env:
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    if: ${{ startsWith(inputs.tag || github.event.release.tag_name, 'v') }}
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
     steps:
       # 1. Checkout the code at the tag
       - name: Checkout
         uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          ref: ${{ inputs.tag || github.event.release.tag_name }}
+          ref: ${{ env.TAG }}
 
       # 2. Setup Go
       - name: Set up Go
@@ -37,7 +40,16 @@ jobs:
         with:
           go-version: '1.27.1'
 
-      # 3. Run GoReleaser
+      # 3. Resolve the CLI-only tag range so GoReleaser never picks up a
+      #    monorepo plugin tag (e.g. kubernetes-v0.1.0) as current/previous.
+      - name: Resolve GoReleaser tag range
+        id: tags
+        run: |
+          previous=$(git describe --tags --match 'v[0-9]*' --abbrev=0 "$TAG^" 2>/dev/null || true)
+          echo "current=$TAG" >> "$GITHUB_OUTPUT"
+          echo "previous=$previous" >> "$GITHUB_OUTPUT"
+
+      # 4. Run GoReleaser
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v7
         with:
@@ -46,3 +58,5 @@ jobs:
           args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_CURRENT_TAG: ${{ steps.tags.outputs.current }}
+          GORELEASER_PREVIOUS_TAG: ${{ steps.tags.outputs.previous }}
