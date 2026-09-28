@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.8](https://github.com/rshade/finfocus/compare/v0.3.7...v0.3.8) (2026-09-28)
+
+
+### Added
+
+* **registry:** install and update monorepo plugins by tag prefix ([c588699](https://github.com/rshade/finfocus/commit/c588699c2724ec4926694f870ffcb3da3a513157))
+
+
+### Fixed
+
+* **engine:** send provider, region, and SKU in plugin Supports checks ([952c01f](https://github.com/rshade/finfocus/commit/952c01f22f8e7062b2b9a0288a6a0d867902b62f))
+* **release:** bootstrap the kubernetes component's release history ([4c75d49](https://github.com/rshade/finfocus/commit/4c75d4904bd284220070a54330221ea89aca3c4e))
+
+
+### Documentation
+
+* **plans:** add Kubernetes cost allocation design, plans, and issue drafts ([162268d](https://github.com/rshade/finfocus/commit/162268d14554a73d624d7405347b9d9b9b861619))
+* **roadmap:** add Kubernetes cost allocation follow-ups ([e1497cb](https://github.com/rshade/finfocus/commit/e1497cbcd357be4d189d7f9609b84f4d7b99982c))
+
 ## [0.3.7](https://github.com/rshade/finfocus/compare/v0.3.6...v0.3.7) (2026-09-23)
 
 
