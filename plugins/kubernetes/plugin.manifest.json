@@ -1,0 +1,13 @@
+{
+  "name": "kubernetes",
+  "version": "0.1.0",
+  "description": "Kubernetes workload usage (run-rate) and cost allocation by namespace, controller, pod, and label",
+  "author": "FinFocus Team",
+  "supported_providers": ["kubernetes"],
+  "protocols": ["grpc"],
+  "binary": "finfocus-plugin-kubernetes",
+  "metadata": {
+    "repository": "https://github.com/rshade/finfocus",
+    "docs": "https://github.com/rshade/finfocus/tree/main/plugins/kubernetes"
+  }
+}
