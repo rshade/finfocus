@@ -52,6 +52,9 @@ jobs:
         run: |
           go test -v -race ./test/integration/...
 
+      - name: Run kubernetes plugin tests
+        run: make test-kubernetes
+
       - name: Check overall coverage threshold
         run: |
           chmod +x scripts/check-coverage.sh
@@ -101,6 +104,16 @@ jobs:
         with:
           version: v2.13.2
           args: --timeout=5m
+
+      - name: Run golangci-lint (kubernetes plugin)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.13.2
+          args: --timeout=5m
+          working-directory: plugins/kubernetes
+
+      - name: Check plugin boundaries
+        run: make check-plugin-boundaries
 
       - name: Run markdownlint
         shell: bash
@@ -168,32 +181,37 @@ jobs:
       - name: Run go vet
         run: go vet ./...
 
-      - name: Verify go.mod sync between root and e2e modules
+      - name: Verify go.mod sync between root and nested modules
         run: |
           ROOT_GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
-          E2E_GO_VERSION=$(grep '^go ' test/e2e/go.mod | awk '{print $2}')
-          if [ "$ROOT_GO_VERSION" != "$E2E_GO_VERSION" ]; then
-            echo "ERROR: Go version mismatch: root=$ROOT_GO_VERSION e2e=$E2E_GO_VERSION"
-            exit 1
-          fi
-          echo "Go version sync OK: $ROOT_GO_VERSION"
-
-          # Compare shared dependency versions
           SYNC_FAILED=0
-          for DEP in "github.com/rshade/finfocus-spec" "github.com/stretchr/testify"; do
-            ROOT_VER=$(grep "	${DEP} " go.mod | awk '{print $2}' || true)
-            E2E_VER=$(grep "	${DEP} " test/e2e/go.mod | awk '{print $2}' || true)
-            if [ -n "$ROOT_VER" ] && [ -n "$E2E_VER" ] && [ "$ROOT_VER" != "$E2E_VER" ]; then
-              echo "WARNING: ${DEP} version mismatch: root=$ROOT_VER e2e=$E2E_VER"
-              SYNC_FAILED=1
-            elif [ -n "$ROOT_VER" ] && [ -n "$E2E_VER" ]; then
-              echo "${DEP} sync OK: $ROOT_VER"
+          for MOD in test/e2e/go.mod plugins/kubernetes/go.mod; do
+            MOD_GO_VERSION=$(grep '^go ' "$MOD" | awk '{print $2}')
+            if [ "$ROOT_GO_VERSION" != "$MOD_GO_VERSION" ]; then
+              echo "ERROR: Go version mismatch: root=$ROOT_GO_VERSION $MOD=$MOD_GO_VERSION"
+              exit 1
             fi
+            echo "Go version sync OK ($MOD): $MOD_GO_VERSION"
+
+            # Compare shared dependency versions
+            for DEP in "github.com/rshade/finfocus-spec" "github.com/stretchr/testify"; do
+              ROOT_VER=$(grep "	${DEP} " go.mod | awk '{print $2}' || true)
+              MOD_VER=$(grep "	${DEP} " "$MOD" | awk '{print $2}' || true)
+              if [ -n "$ROOT_VER" ] && [ -n "$MOD_VER" ] && [ "$ROOT_VER" != "$MOD_VER" ]; then
+                echo "WARNING: ${DEP} version mismatch: root=$ROOT_VER $MOD=$MOD_VER"
+                SYNC_FAILED=1
+              elif [ -n "$ROOT_VER" ] && [ -n "$MOD_VER" ]; then
+                echo "${DEP} sync OK ($MOD): $ROOT_VER"
+              fi
+            done
           done
           if [ "$SYNC_FAILED" -eq 1 ]; then
             echo "ERROR: Shared dependency versions are out of sync"
             exit 1
           fi
+
+      - name: Check plugins/kubernetes go.mod tidy
+        run: go -C plugins/kubernetes mod tidy -diff
 
   fuzz:
     name: Fuzz Testing (Smoke)
@@ -480,6 +498,12 @@ jobs:
             RECORDER_NAME="${RECORDER_NAME}.exe"
           fi
           eval go build "${LDFLAGS}" -o "dist/${RECORDER_NAME}-${GOOS}-${GOARCH}" ./plugins/recorder/cmd
+
+      - name: Build kubernetes plugin
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: make build-kubernetes
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7

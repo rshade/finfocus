@@ -48,13 +48,54 @@ install-recorder: build-recorder
 	@echo "Recorder plugin installed successfully."
 	@echo "Verify with: finfocus plugin list"
 
+KUBERNETES_PLUGIN_DIR=plugins/kubernetes
+KUBERNETES_VERSION=$(shell jq -r '."plugins/kubernetes" // "0.0.0"' .release-please-manifest.json)
+KUBERNETES_INSTALL_DIR=$(HOME)/.finfocus/plugins/kubernetes/v$(KUBERNETES_VERSION)
+
+.PHONY: build-kubernetes
+build-kubernetes:
+	@mkdir -p bin
+	go -C $(KUBERNETES_PLUGIN_DIR) build -ldflags "-X main.version=v$(KUBERNETES_VERSION)" \
+		-o $(CURDIR)/bin/finfocus-plugin-kubernetes ./cmd
+
+.PHONY: install-kubernetes
+install-kubernetes: build-kubernetes
+	@command -v jq >/dev/null 2>&1 || { \
+		echo "install-kubernetes requires jq to stamp the installed plugin manifest version; install jq and retry" >&2; \
+		exit 1; \
+	}
+	@if [ -z "$(KUBERNETES_VERSION)" ]; then \
+		echo "install-kubernetes: KUBERNETES_VERSION resolved empty (check jq and .release-please-manifest.json)" >&2; \
+		exit 1; \
+	fi
+	@mkdir -p $(KUBERNETES_INSTALL_DIR)
+	cp bin/finfocus-plugin-kubernetes $(KUBERNETES_INSTALL_DIR)/
+	jq --arg v "v$(KUBERNETES_VERSION)" '.version = $$v' \
+		$(KUBERNETES_PLUGIN_DIR)/plugin.manifest.json > $(KUBERNETES_INSTALL_DIR)/plugin.manifest.json
+	chmod 644 $(KUBERNETES_INSTALL_DIR)/plugin.manifest.json
+	@echo "Verify with: finfocus plugin list"
+
+.PHONY: test-kubernetes
+test-kubernetes:
+	go -C $(KUBERNETES_PLUGIN_DIR) test -race ./...
+
+.PHONY: lint-kubernetes
+lint-kubernetes:
+	cd $(KUBERNETES_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
+
+.PHONY: check-plugin-boundaries
+check-plugin-boundaries:
+	@if go -C $(KUBERNETES_PLUGIN_DIR) list -deps ./... | grep -E '^github.com/rshade/finfocus/(internal|pkg)(/|$$)'; then \
+		echo "plugins/kubernetes must not import finfocus core packages" >&2; exit 1; fi
+	@echo "plugin boundaries OK"
+
 .PHONY: build-all
-build-all: build build-recorder build-plugin
+build-all: build build-recorder build-plugin build-kubernetes
 
 # Default test target - runs unit tests only (fast, for CI and local dev)
 # Unit tests are colocated with source; see test/README.md for details
 .PHONY: test
-test: test-unit
+test: test-unit test-kubernetes
 
 .PHONY: test-unit
 test-unit:
@@ -94,7 +135,7 @@ test-all:
 	go test -v -timeout 15m ./internal/... ./pkg/... ./test/integration/...
 
 .PHONY: lint
-lint:
+lint: lint-kubernetes check-plugin-boundaries
 	@echo "Running golangci-lint (expected version $(GOLANGCI_LINT_VERSION))..."
 	@$(GOLANGCI_LINT) --version | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "golangci-lint $(GOLANGCI_LINT_VERSION) required. Install with"; \
@@ -277,9 +318,12 @@ help:
 	@echo "  build-recorder   - Build the recorder plugin"
 	@echo "  build-plugin     - Build Pulumi tool plugin (pulumi-tool-finfocus)"
 	@echo "  install-recorder - Build and install recorder plugin to ~/.finfocus/plugins/"
+	@echo "  build-kubernetes - Build the kubernetes plugin"
+	@echo "  install-kubernetes - Build and install kubernetes plugin to ~/.finfocus/plugins/"
 	@echo "  build-all        - Build binary and all plugins"
 	@echo "  test             - Run unit tests (fast, default)"
 	@echo "  test-unit        - Run unit tests only"
+	@echo "  test-kubernetes  - Run kubernetes plugin module tests"
 	@echo "  test-race        - Run unit tests with race detector"
 	@echo "  test-integration - Run integration tests (slower)"
 	@echo "  test-integration-plugin - Run plugin integration tests"
@@ -287,6 +331,8 @@ help:
 	@echo "  test-all         - Run all tests except E2E"
 	@echo "  gen-terraform-goldens - Regenerate real Terraform state goldens (docker + mise)"
 	@echo "  lint             - Run Go + Markdown linters"
+	@echo "  lint-kubernetes  - Run golangci-lint on the kubernetes plugin module"
+	@echo "  check-plugin-boundaries - Verify plugins/kubernetes does not import finfocus core packages"
 	@echo "  lint-actions     - Run actionlint on GitHub workflows"
 	@echo "  validate         - Run validation (go mod tidy, go vet)"
 	@echo "  tools            - Install toolchain pinned in mise.toml (mise install)"
