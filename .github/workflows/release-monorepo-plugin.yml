@@ -1,0 +1,68 @@
+name: Release monorepo plugin
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Plugin release tag, e.g. kubernetes-v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-monorepo-plugin-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      # Bypass Go proxy for rshade modules - fetch directly from GitHub
+      GOPRIVATE: github.com/rshade/*
+    if: ${{ !startsWith(inputs.tag || github.event.release.tag_name, 'v') }}
+    steps:
+      - name: Parse tag
+        id: parse
+        run: |
+          if [[ ! $TAG =~ ^([a-uw-z0-9][a-z0-9-]*)-(v[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.]+)?(\+[0-9A-Za-z.]+)?)$ ]]; then
+            echo "not a monorepo plugin tag: $TAG" >&2
+            exit 1
+          fi
+          echo "plugin=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          echo "version=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ env.TAG }}
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.1'
+      - name: Build assets
+        env:
+          PLUGIN: ${{ steps.parse.outputs.plugin }}
+          VERSION: ${{ steps.parse.outputs.version }}
+        run: |
+          test -d "plugins/$PLUGIN/cmd" || { echo "plugins/$PLUGIN/cmd not found" >&2; exit 1; }
+          ./scripts/release-plugin-assets.sh "plugins/$PLUGIN" ./cmd \
+            "finfocus-plugin-$PLUGIN" "$VERSION" dist
+      - name: Upload assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "$TAG" dist/* --clobber
+      - name: Restore CLI release as GitHub latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release edit "$TAG" --latest=false
+          latest_cli=$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 \
+            --json tagName,isLatest,createdAt \
+            --jq '[.[] | select(.tagName | test("^v[0-9]"))] | sort_by(.createdAt) | last | .tagName // empty')
+          if [[ -z "$latest_cli" ]]; then
+            echo "no stable CLI release (tag matching ^v[0-9]) found to restore as latest" >&2
+            exit 1
+          fi
+          gh release edit "$latest_cli" --latest

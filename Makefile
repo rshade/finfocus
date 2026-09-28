@@ -1,5 +1,5 @@
 BINARY=finfocus
-VERSION?=$(shell git describe --tags --always --dirty)
+VERSION?=$(shell git describe --tags --match 'v[0-9]*' --always --dirty)
 COMMIT=$(shell git rev-parse HEAD)
 BUILD_DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
