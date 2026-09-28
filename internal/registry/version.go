@@ -99,3 +99,32 @@ func IsValidVersion(version string) bool {
 	_, err := semver.NewVersion(version)
 	return err == nil
 }
+
+// CanonicalVersion strips a monorepo tag prefix, turning "kubernetes-v0.1.0"
+// into "v0.1.0". Tags without the prefix are returned unchanged.
+func CanonicalVersion(tag, prefix string) string {
+	if prefix == "" {
+		return tag
+	}
+	return strings.TrimPrefix(tag, prefix)
+}
+
+// ReleaseTag converts a user-supplied version into the release tag to fetch.
+// With a prefix, "0.1.0" and "v0.1.0" both become "<prefix>v0.1.0".
+func ReleaseTag(version, prefix string) string {
+	if prefix == "" || strings.HasPrefix(version, prefix) {
+		return version
+	}
+	if !strings.HasPrefix(version, "v") {
+		version = "v" + version
+	}
+	return prefix + version
+}
+
+// tagPrefixOf returns the tag prefix carried by h, or "" when h is nil.
+func tagPrefixOf(h *AssetNamingHints) string {
+	if h == nil {
+		return ""
+	}
+	return h.TagPrefix
+}

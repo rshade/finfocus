@@ -384,6 +384,12 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 - **Checksum verification**: Only a confirmed hash mismatch is fatal. Missing
   `checksums.txt`, download failures, or unlisted assets produce warnings and continue
 - **`--skip-checksum`** flag available on `plugin install` and `plugin update`
+- **Monorepo plugins (`tag_prefix`)**: an entry with `tag_prefix: "kubernetes-"` installs
+  from `rshade/finfocus` tags like `kubernetes-v0.1.0`. "Latest" is the highest semver among
+  prefixed stable releases (scans 100), never `/releases/latest`; install dir, asset names, and
+  recorded version use the *canonical* version (`v0.1.0`, via `CanonicalVersion`). The entry
+  also needs `asset_hints.asset_prefix`, and prefixes must not start with `v` (CLI workflows
+  treat `v*` tags as CLI releases)
 
 ### Router (`internal/router/`)
 

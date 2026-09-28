@@ -44,16 +44,19 @@ type Installer struct {
 	pluginDir string
 }
 
-// convertToAssetNamingHints converts registry asset hints to the GitHub client format.
-func convertToAssetNamingHints(hints *RegistryAssetHints) *AssetNamingHints {
-	if hints == nil {
+// HintsForEntry builds asset naming hints from a registry entry.
+// It returns nil when the entry carries no hints and no tag prefix.
+func HintsForEntry(entry *RegistryEntry) *AssetNamingHints {
+	if entry == nil || (entry.AssetHints == nil && entry.TagPrefix == "") {
 		return nil
 	}
-	return &AssetNamingHints{
-		AssetPrefix:   hints.AssetPrefix,
-		Region:        hints.DefaultRegion,
-		VersionPrefix: hints.VersionPrefix,
+	h := &AssetNamingHints{TagPrefix: entry.TagPrefix}
+	if entry.AssetHints != nil {
+		h.AssetPrefix = entry.AssetHints.AssetPrefix
+		h.Region = entry.AssetHints.DefaultRegion
+		h.VersionPrefix = entry.AssetHints.VersionPrefix
 	}
+	return h
 }
 
 // NewInstaller creates a new Installer configured to install plugins into pluginDir.
@@ -157,25 +160,21 @@ func (i *Installer) installFromRegistry(
 		return nil, err
 	}
 
+	// Convert registry hints to asset hints
+	assetHints := HintsForEntry(entry)
+
 	// Get release
-	var release *GitHubRelease
 	if spec.Version != "" {
 		if progress != nil {
 			progress(fmt.Sprintf("Fetching release %s for %s...", spec.Version, spec.Name))
 		}
-		release, err = i.client.GetReleaseByTag(ctx, owner, repo, spec.Version)
-	} else {
-		if progress != nil {
-			progress(fmt.Sprintf("Fetching latest release for %s...", spec.Name))
-		}
-		release, err = i.client.GetLatestRelease(ctx, owner, repo)
+	} else if progress != nil {
+		progress(fmt.Sprintf("Fetching latest release for %s...", spec.Name))
 	}
+	release, err := i.fetchRelease(ctx, owner, repo, spec.Version, assetHints)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
-
-	// Convert registry hints to asset hints
-	assetHints := convertToAssetNamingHints(entry.AssetHints)
 
 	// Install the release
 	result, err := i.installRelease(
@@ -193,6 +192,25 @@ func (i *Installer) installFromRegistry(
 
 	result.Repository = entry.Repository
 	return result, nil
+}
+
+// fetchRelease resolves the release to install: an explicit version (prefixed
+// when the plugin ships from a monorepo), the newest prefixed release, or the
+// repository's latest release.
+func (i *Installer) fetchRelease(
+	ctx context.Context,
+	owner, repo, version string,
+	hints *AssetNamingHints,
+) (*GitHubRelease, error) {
+	prefix := tagPrefixOf(hints)
+	switch {
+	case version != "":
+		return i.client.GetReleaseByTag(ctx, owner, repo, ReleaseTag(version, prefix))
+	case prefix != "":
+		return i.client.GetLatestReleaseWithPrefix(ctx, owner, repo, prefix)
+	default:
+		return i.client.GetLatestRelease(ctx, owner, repo)
+	}
 }
 
 // installFromURL installs a plugin directly from a GitHub URL.
@@ -251,7 +269,7 @@ func (i *Installer) installRelease(
 	progress func(msg string),
 	hints *AssetNamingHints,
 ) (*InstallResult, error) {
-	version := release.TagName
+	version := CanonicalVersion(release.TagName, tagPrefixOf(hints))
 
 	// Determine plugin directory
 	pluginDir := i.pluginDir
@@ -637,23 +655,19 @@ func (i *Installer) Update(
 	}
 
 	// Get target version
-	var release *GitHubRelease
 	if opts.Version != "" {
 		if progress != nil {
 			progress(fmt.Sprintf("Fetching release %s for %s...", opts.Version, name))
 		}
-		release, err = i.client.GetReleaseByTag(ctx, owner, repo, opts.Version)
-	} else {
-		if progress != nil {
-			progress(fmt.Sprintf("Checking for updates to %s...", name))
-		}
-		release, err = i.client.GetLatestRelease(ctx, owner, repo)
+	} else if progress != nil {
+		progress(fmt.Sprintf("Checking for updates to %s...", name))
 	}
+	release, err := i.fetchRelease(ctx, owner, repo, opts.Version, assetHints)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
 
-	newVersion := release.TagName
+	newVersion := CanonicalVersion(release.TagName, tagPrefixOf(assetHints))
 	oldVersion := installed.Version
 
 	// Compare versions
@@ -748,7 +762,7 @@ func (i *Installer) resolvePluginSource(
 		if parseErr != nil {
 			return "", "", nil, parseErr
 		}
-		hints := convertToAssetNamingHints(entry.AssetHints)
+		hints := HintsForEntry(entry)
 		return owner, repo, hints, nil
 	}
 

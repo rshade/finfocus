@@ -464,13 +464,7 @@ func handleFallback(
 		owner, repo = parts[0], parts[1]
 
 		// Get asset hints from registry entry
-		if entry.AssetHints != nil {
-			assetHints = &registry.AssetNamingHints{
-				AssetPrefix:   entry.AssetHints.AssetPrefix,
-				Region:        entry.AssetHints.DefaultRegion,
-				VersionPrefix: entry.AssetHints.VersionPrefix,
-			}
-		}
+		assetHints = registry.HintsForEntry(entry)
 	}
 
 	// Find a release with compatible assets using fallback search

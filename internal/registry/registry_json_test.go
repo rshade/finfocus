@@ -2,7 +2,22 @@ package registry
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
+
+var allowedRegistryCapabilities = map[string]bool{ //nolint:gochecknoglobals // test fixture
+	"projected":       true,
+	"actual":          true,
+	"cost_retrieval":  true,
+	"cost_projection": true,
+	"pricing_specs":   true,
+	"recommendations": true,
+	"usage_stats":     true,
+	"allocation":      true,
+}
+
+func isAllowedRegistryCapability(c string) bool { return allowedRegistryCapabilities[c] }
 
 // TestRegistryJSONValid ensures the embedded registry.json is always valid.
 // This test prevents invalid registry entries from passing CI.
@@ -70,17 +85,9 @@ func validateRegistryEntryComplete(t *testing.T, name string, entry RegistryEntr
 	}
 
 	// Capabilities must be valid if specified
-	validCapabilities := map[string]bool{
-		"projected":       true,
-		"actual":          true,
-		"cost_retrieval":  true,
-		"cost_projection": true,
-		"pricing_specs":   true,
-		"recommendations": true,
-	}
 	for _, cap := range entry.Capabilities {
-		if !validCapabilities[cap] {
-			t.Errorf("invalid capability: %s (add to validCapabilities if intentional)", cap)
+		if !isAllowedRegistryCapability(cap) {
+			t.Errorf("invalid capability: %s (add to allowedRegistryCapabilities if intentional)", cap)
 		}
 	}
 
@@ -101,6 +108,14 @@ func validateRegistryEntryComplete(t *testing.T, name string, entry RegistryEntr
 	if entry.MinSpecVersion != "" && !IsValidVersion(entry.MinSpecVersion) {
 		t.Errorf("invalid min_spec_version: %s", entry.MinSpecVersion)
 	}
+}
+
+// TestRegistryCapabilities_AllowUsageAndAllocation verifies usage_stats and allocation are allowed capabilities.
+func TestRegistryCapabilities_AllowUsageAndAllocation(t *testing.T) {
+	for _, c := range []string{"usage_stats", "allocation"} {
+		assert.True(t, isAllowedRegistryCapability(c), c)
+	}
+	assert.False(t, isAllowedRegistryCapability("teleport"))
 }
 
 // TestRegistryJSONPluginNames ensures plugin names follow conventions.

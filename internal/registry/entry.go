@@ -22,6 +22,9 @@ type RegistryEntry struct {
 	SecurityLevel      string              `json:"security_level"`
 	MinSpecVersion     string              `json:"min_spec_version"`
 	AssetHints         *RegistryAssetHints `json:"asset_hints,omitempty"`
+	// TagPrefix marks a plugin released from a monorepo under prefixed tags,
+	// e.g. "kubernetes-" for tag "kubernetes-v0.1.0". Empty for single-plugin repos.
+	TagPrefix string `json:"tag_prefix,omitempty"`
 }
 
 // RegistryAssetHints provides hints for asset naming conventions specific to a plugin.
@@ -50,6 +53,11 @@ type PluginSpecifier struct {
 var (
 	repoPattern   = regexp.MustCompile(`^[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+$`)
 	githubPattern = regexp.MustCompile(`^github\.com/([a-zA-Z0-9_-]+)/([a-zA-Z0-9_-]+)$`)
+	// tagPrefixPattern excludes prefixes starting with "v" so a monorepo
+	// plugin tag (e.g. "vantage-v0.1.0") can never be mistaken for a
+	// bare CLI tag by the `startsWith(tag, 'v')` guards in the release
+	// workflows.
+	tagPrefixPattern = regexp.MustCompile(`^[a-uw-z0-9][a-z0-9-]*-$`)
 )
 
 // ValidateRegistryEntry checks that the required fields of a RegistryEntry are present and well-formed.
@@ -87,6 +95,10 @@ func ValidateRegistryEntry(entry RegistryEntry) error {
 			entry.Name,
 			entry.SecurityLevel,
 		)
+	}
+	if entry.TagPrefix != "" && !tagPrefixPattern.MatchString(entry.TagPrefix) {
+		return fmt.Errorf("invalid tag_prefix %q for %s: must match %s",
+			entry.TagPrefix, entry.Name, tagPrefixPattern.String())
 	}
 	return nil
 }
