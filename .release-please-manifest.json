@@ -1,4 +1,4 @@
 {
-  ".": "0.3.7",
-  "plugins/kubernetes": "0.0.0"
+  ".": "0.3.8",
+  "plugins/kubernetes": "0.1.0"
 }
