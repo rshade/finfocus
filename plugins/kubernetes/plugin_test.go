@@ -2,6 +2,7 @@ package kubernetes
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,6 +46,77 @@ func TestGetStats_ValidResponse(t *testing.T) {
 		&pbc.GetStatsRequest{Selector: map[string]string{"namespace": "a", "app": "web"}})
 	require.NoError(t, err)
 	require.NoError(t, plugintesting.ValidateStatsResponse(resp))
+}
+
+func TestGetStats_InvalidSelectorValue(t *testing.T) {
+	_, err := New(fakeClusters(t)).GetStats(context.Background(),
+		&pbc.GetStatsRequest{Selector: map[string]string{"team": "a,other-label=x"}})
+	require.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
+	assert.Contains(t, err.Error(), "team")
+}
+
+func TestLabelSelector(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   map[string]string
+		want    string
+		wantErr bool
+		errKey  string
+	}{
+		{
+			name:  "nil map",
+			input: nil,
+			want:  "",
+		},
+		{
+			name:  "empty map",
+			input: map[string]string{},
+			want:  "",
+		},
+		{
+			name:  "valid multi-key selector is sorted",
+			input: map[string]string{"tier": "backend", "app": "web"},
+			want:  "app=web,tier=backend",
+		},
+		{
+			name:    "value containing comma is rejected",
+			input:   map[string]string{"team": "a,other-label=x"},
+			wantErr: true,
+			errKey:  "team",
+		},
+		{
+			name:    "value containing equals is rejected",
+			input:   map[string]string{"team": "a=b"},
+			wantErr: true,
+			errKey:  "team",
+		},
+		{
+			name:    "invalid key is rejected",
+			input:   map[string]string{"bad key!!": "v"},
+			wantErr: true,
+			errKey:  "bad key!!",
+		},
+		{
+			name:    "over-long value is rejected",
+			input:   map[string]string{"team": strings.Repeat("a", 64)},
+			wantErr: true,
+			errKey:  "team",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := labelSelector(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.errKey)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 func TestInfo_ExplicitCapabilitiesOnly(t *testing.T) {
