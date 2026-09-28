@@ -170,9 +170,10 @@ is an EKS Fargate virtual node and is skipped from collection entirely —
 see [Limitations](#limitations).
 
 **EKS control plane**: when `usage.Options.APIServerHost` is set and matches
-the EKS API server hostname pattern (`*.<region>.eks.amazonaws.com`), the
-cluster's control plane is added as a priceable `aws:eks/cluster:Cluster`
-resource, priced separately from the nodes.
+the EKS API server hostname pattern (`*.<region>.eks.amazonaws.com`, or
+`*.<region>.eks.amazonaws.com.cn` in the China partition), the cluster's
+control plane is added as a priceable `aws:eks/cluster:Cluster` resource,
+priced separately from the nodes.
 
 ## Allocation Policy
 

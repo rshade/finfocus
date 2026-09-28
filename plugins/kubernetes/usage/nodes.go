@@ -29,7 +29,7 @@ const (
 //nolint:gochecknoglobals // Zero-allocation lookup table and compiled regex, both read-only after init.
 var (
 	providerSchemes = map[string]string{"aws": providerAWS, "gce": "gcp", "azure": "azure"}
-	eksHostPattern  = regexp.MustCompile(`\.([a-z]{2}(?:-[a-z]+)+-\d)\.eks\.amazonaws\.com(?::\d+)?/?$`)
+	eksHostPattern  = regexp.MustCompile(`\.([a-z]{2}(?:-[a-z]+)+-\d)\.eks\.amazonaws\.com(?:\.cn)?(?::\d+)?/?$`)
 )
 
 // IsFargate reports whether the node is an EKS Fargate virtual node.
