@@ -82,6 +82,33 @@ guardrails in `CONTEXT.md`.
   - [ ] Escape delimiters in `BuildTagKey`
         ([#967](https://github.com/rshade/finfocus/issues/967)) [S]
 
+- [ ] **Kubernetes Cost Allocation — Release & Follow-ups** *(from the
+      612-k8s-cost-allocation work; plugin in `plugins/kubernetes/`)*
+  - [ ] Validate label selector keys and values before querying the API server
+        ([#1516](https://github.com/rshade/finfocus/issues/1516)) [S]
+  - [ ] Registry entry for the kubernetes plugin after the first
+        `kubernetes-v0.1.0` release
+        ([#1534](https://github.com/rshade/finfocus/issues/1534)) [S]
+  - [ ] Convert the Kubernetes cost-allocation docs to Spec Kit (produces the
+        `cost cluster` feature folder)
+        ([#1523](https://github.com/rshade/finfocus/issues/1523)) [M]
+  - [ ] `finfocus cost cluster` command — usage/allocator pipeline, `--group-by`,
+        table/JSON/NDJSON, MCP tool, kind E2E
+        ([#1528](https://github.com/rshade/finfocus/issues/1528)) [L]
+  - [ ] **Code Review Follow-ups** *(from #1522 PR review)*
+    - [ ] Surface plugin `Supports` decline reasons when no plugin serves a
+        resource
+        ([#1515](https://github.com/rshade/finfocus/issues/1515)) [M]
+    - [ ] Map BadRequest/Invalid and in-flight context errors to precise gRPC
+        codes
+        ([#1517](https://github.com/rshade/finfocus/issues/1517)) [S]
+    - [ ] Account for pod-level `spec.resources` requests
+        ([#1518](https://github.com/rshade/finfocus/issues/1518)) [S]
+    - [ ] Emit valid Pulumi type tokens for GCP and Azure nodes
+        ([#1519](https://github.com/rshade/finfocus/issues/1519)) [S]
+    - [ ] Detect China-partition EKS API server hosts
+        ([#1520](https://github.com/rshade/finfocus/issues/1520)) [S]
+
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
 - [ ] **Overview Performance Pipeline** *(deferred from v0.3.2)*
@@ -129,6 +156,25 @@ guardrails in `CONTEXT.md`.
       stabilization)*
   - [ ] Plugins can outlive Core and hold inherited stdout/stderr pipes
         ([#1231](https://github.com/rshade/finfocus/issues/1231)) [M]
+
+- [ ] **Kubernetes Cost Allocation — Pulumi Integration**
+  - [ ] Projected cost for Kubernetes workloads declared in a Pulumi program
+        (Deployment/StatefulSet/DaemonSet/Job/CronJob)
+        ([#1525](https://github.com/rshade/finfocus/issues/1525)) [L]
+  - [ ] `finfocus overview` expansion of Kubernetes clusters in the stack
+        ([#1526](https://github.com/rshade/finfocus/issues/1526)) [L]
+  - [ ] Link allocated workloads back to Pulumi URNs
+        ([#1527](https://github.com/rshade/finfocus/issues/1527)) [M]
+- [ ] **Kubernetes Cost Allocation — Usage & Pricing**
+  - [ ] Prometheus usage source plugin — historical actuals, kind CI
+        ([#1529](https://github.com/rshade/finfocus/issues/1529)) [L]
+  - [ ] Price pods running on EKS Fargate
+        ([#1532](https://github.com/rshade/finfocus/issues/1532)) [M]
+  - [ ] Idle "share" and shared-workload redistribution (allocator policy v2)
+        ([#1533](https://github.com/rshade/finfocus/issues/1533)) [M]
+  - *Cross-Repo:* [rshade/finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public)
+    spot pricing for EC2 nodes ([#406](https://github.com/rshade/finfocus-plugin-aws-public/issues/406)) and the finfocus-spec v0.6.2 bump
+    ([#407](https://github.com/rshade/finfocus-plugin-aws-public/issues/407)), which must wait for the finfocus v0.3.8 release
 
 ## Future Vision (v0.4.0+ - Notifications, Integrations & Backlog)
 
@@ -308,6 +354,12 @@ guardrails in `CONTEXT.md`.
         ([#1210](https://github.com/rshade/finfocus/issues/1210)) [S]
   - [ ] Add stdlib doc links for godoclint
         ([#1211](https://github.com/rshade/finfocus/issues/1211)) [S]
+
+- [ ] **Kubernetes Cost Allocation — Additional Usage Sources**
+  - [ ] Datadog usage source plugin
+        ([#1530](https://github.com/rshade/finfocus/issues/1530)) [L]
+  - [ ] OpenCost plugin returning pre-allocated rows
+        ([#1531](https://github.com/rshade/finfocus/issues/1531)) [M]
 
 ## Completed Milestones
 
@@ -714,6 +766,7 @@ guardrails in `CONTEXT.md`.
 | Auto-Detect | N/A | pulumi detect | N/A | N/A |
 | Resource Filter | N/A | provider/component filter | N/A | N/A |
 | Pricing Transparency | GetPricingSpec | --explain + fallback | PricingSpec | N/A |
+| K8s Cost Allocation | UsageSource/Allocator (v0.6.2) | kubernetes plugin, cost cluster | Spot pricing (#406) | N/A |
 
 ## Boundary Safeguards
 
