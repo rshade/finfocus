@@ -213,6 +213,8 @@ func TestConvertCapabilities(t *testing.T) {
 				pbc.PluginCapability_PLUGIN_CAPABILITY_DISMISS_RECOMMENDATIONS,
 				pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST,
 				pbc.PluginCapability_PLUGIN_CAPABILITY_RESOLVE_RESOURCE_TYPES,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS,
+				pbc.PluginCapability_PLUGIN_CAPABILITY_ALLOCATION,
 			},
 			expected: []string{
 				"projected_costs",
@@ -228,6 +230,26 @@ func TestConvertCapabilities(t *testing.T) {
 				"dismiss_recommendations",
 				"batch_cost",
 				"resolve_resource_types",
+				"usage_stats",
+				"allocation",
+			},
+		},
+		{
+			name: "UsageStatsOnly",
+			input: []pbc.PluginCapability{
+				pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS,
+			},
+			expected: []string{
+				"usage_stats",
+			},
+		},
+		{
+			name: "AllocationOnly",
+			input: []pbc.PluginCapability{
+				pbc.PluginCapability_PLUGIN_CAPABILITY_ALLOCATION,
+			},
+			expected: []string{
+				"allocation",
 			},
 		},
 		{
