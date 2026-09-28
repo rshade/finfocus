@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/rshade/ax-go"
 	"golang.org/x/text/cases"
 	"golang.org/x/text/language"
@@ -161,6 +162,51 @@ func (c *GitHubClient) ListStableReleases(ctx context.Context, owner, repo strin
 	return stableReleases, nil
 }
 
+// prefixedReleaseScan bounds how many recent stable releases are searched for
+// a monorepo plugin's tags; core releases are interleaved with plugin releases.
+const prefixedReleaseScan = 100
+
+// selectLatestByPrefix returns the release with the highest semver among tags
+// carrying prefix. Tags whose remainder is not semver are ignored.
+func selectLatestByPrefix(releases []GitHubRelease, prefix string) (*GitHubRelease, error) {
+	var best *GitHubRelease
+	var bestVer *semver.Version
+	for i := range releases {
+		tag := releases[i].TagName
+		if !strings.HasPrefix(tag, prefix) {
+			continue
+		}
+		v, err := semver.NewVersion(strings.TrimPrefix(CanonicalVersion(tag, prefix), "v"))
+		if err != nil {
+			continue
+		}
+		if bestVer == nil || v.GreaterThan(bestVer) {
+			best, bestVer = &releases[i], v
+		}
+	}
+	if best == nil {
+		return nil, fmt.Errorf("no stable release with tag prefix %q found", prefix)
+	}
+	return best, nil
+}
+
+// GetLatestReleaseWithPrefix finds the newest (by semver) stable release whose
+// tag starts with prefix, for plugins released from a monorepo.
+func (c *GitHubClient) GetLatestReleaseWithPrefix(
+	ctx context.Context,
+	owner, repo, prefix string,
+) (*GitHubRelease, error) {
+	releases, err := c.ListStableReleases(ctx, owner, repo, prefixedReleaseScan)
+	if err != nil {
+		return nil, err
+	}
+	release, err := selectLatestByPrefix(releases, prefix)
+	if err != nil {
+		return nil, fmt.Errorf("%s/%s: %w", owner, repo, err)
+	}
+	return release, nil
+}
+
 // FindReleaseWithAsset attempts to find a release with a matching platform asset.
 // If version is specified, it first tries that exact version. If no asset is found
 // for the requested version, or if version is empty, it falls back to searching
@@ -212,13 +258,19 @@ func (c *GitHubClient) FindReleaseWithFallbackInfo(
 ) (*FallbackInfo, error) {
 	const maxFallbackReleases = 10
 
+	prefix := tagPrefixOf(hints)
+	scan := maxFallbackReleases
+	if prefix != "" {
+		scan = prefixedReleaseScan
+	}
+
 	info := &FallbackInfo{
 		RequestedVersion: version,
 	}
 
 	// If specific version requested, try it first
 	if version != "" {
-		release, err := c.GetReleaseByTag(ctx, owner, repo, version)
+		release, err := c.GetReleaseByTag(ctx, owner, repo, ReleaseTag(version, prefix))
 		if err == nil {
 			asset, assetErr := FindPlatformAssetWithHints(release, projectName, hints)
 			if assetErr == nil {
@@ -237,7 +289,7 @@ func (c *GitHubClient) FindReleaseWithFallbackInfo(
 	}
 
 	// Try stable releases as fallback
-	stableReleases, err := c.ListStableReleases(ctx, owner, repo, maxFallbackReleases)
+	stableReleases, err := c.ListStableReleases(ctx, owner, repo, scan)
 	if err != nil {
 		if version != "" {
 			return nil, fmt.Errorf(
@@ -255,13 +307,17 @@ func (c *GitHubClient) FindReleaseWithFallbackInfo(
 	// Try each stable release until we find one with a matching asset
 	var lastAssetErr error
 	for i := range stableReleases {
+		if prefix != "" && !strings.HasPrefix(stableReleases[i].TagName, prefix) {
+			continue
+		}
 		release := &stableReleases[i]
 		asset, assetErr := FindPlatformAssetWithHints(release, projectName, hints)
 		if assetErr == nil {
 			info.Release = release
 			info.Asset = asset
 			// It's a fallback if we had a specific version requested and got a different one
-			info.WasFallback = version != "" && release.TagName != version
+			info.WasFallback = version != "" &&
+				CanonicalVersion(release.TagName, prefix) != CanonicalVersion(ReleaseTag(version, prefix), prefix)
 			if !info.WasFallback && version == "" {
 				// When no version specified, check if this was the "latest" release
 				// If we're iterating through stable releases, first one is latest
@@ -387,6 +443,8 @@ type AssetNamingHints struct {
 	Region string
 	// VersionPrefix if false, version in asset name has no "v" prefix
 	VersionPrefix bool
+	// TagPrefix is stripped from release tags to obtain the canonical version.
+	TagPrefix string
 }
 
 // FindPlatformAssetWithHints locates the release asset with custom naming hints.
@@ -404,7 +462,7 @@ func FindPlatformAssetWithHints(
 		ext = extZip
 	}
 
-	version := release.TagName
+	version := CanonicalVersion(release.TagName, tagPrefixOf(hints))
 
 	// Build list of patterns to try (in order of preference)
 	patterns := buildAssetPatterns(projectName, version, goos, goarch, ext, hints)

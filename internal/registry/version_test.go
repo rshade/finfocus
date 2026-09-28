@@ -129,3 +129,57 @@ func TestIsValidVersion(t *testing.T) {
 		})
 	}
 }
+
+func TestCanonicalVersion(t *testing.T) {
+	tests := []struct {
+		name, tag, prefix, want string
+	}{
+		{"no prefix passes through", "v1.2.3", "", "v1.2.3"},
+		{"prefix stripped", "kubernetes-v0.1.0", "kubernetes-", "v0.1.0"},
+		{"prefix absent leaves tag", "v0.3.7", "kubernetes-", "v0.3.7"},
+		{"other plugin prefix untouched", "prometheus-v0.1.0", "kubernetes-", "prometheus-v0.1.0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, CanonicalVersion(tt.tag, tt.prefix))
+		})
+	}
+}
+
+func TestReleaseTag(t *testing.T) {
+	tests := []struct {
+		name, version, prefix, want string
+	}{
+		{"no prefix passes through", "v1.0.0", "", "v1.0.0"},
+		{"bare v version gets prefix", "v0.1.0", "kubernetes-", "kubernetes-v0.1.0"},
+		{"bare semver gets v and prefix", "0.1.0", "kubernetes-", "kubernetes-v0.1.0"},
+		{"already prefixed kept", "kubernetes-v0.1.0", "kubernetes-", "kubernetes-v0.1.0"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, ReleaseTag(tt.version, tt.prefix))
+		})
+	}
+}
+
+func TestHintsForEntry(t *testing.T) {
+	assert.Nil(t, HintsForEntry(&RegistryEntry{Name: "x"}))
+
+	h := HintsForEntry(&RegistryEntry{Name: "kubernetes", TagPrefix: "kubernetes-"})
+	require.NotNil(t, h)
+	assert.Equal(t, "kubernetes-", h.TagPrefix)
+
+	h = HintsForEntry(&RegistryEntry{
+		Name:       "aws-public",
+		AssetHints: &RegistryAssetHints{AssetPrefix: "finfocus-plugin-aws-public", DefaultRegion: "us-east-1"},
+	})
+	require.NotNil(t, h)
+	assert.Equal(t, "finfocus-plugin-aws-public", h.AssetPrefix)
+	assert.Equal(t, "us-east-1", h.Region)
+	assert.Empty(t, h.TagPrefix)
+}
+
+func TestTagPrefixOf(t *testing.T) {
+	assert.Empty(t, tagPrefixOf(nil))
+	assert.Equal(t, "kubernetes-", tagPrefixOf(&AssetNamingHints{TagPrefix: "kubernetes-"}))
+}

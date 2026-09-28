@@ -85,6 +85,22 @@ func TestValidateRegistryEntry(t *testing.T) {
 	}
 }
 
+func TestValidateRegistryEntry_TagPrefix(t *testing.T) {
+	base := RegistryEntry{Name: "kubernetes", Repository: "rshade/finfocus"}
+	for _, p := range []string{"", "kubernetes-", "k8s-alloc-"} {
+		e := base
+		e.TagPrefix = p
+		assert.NoError(t, ValidateRegistryEntry(e), "prefix %q", p)
+	}
+	for _, p := range []string{"kubernetes", "Kubernetes-", "-", "kube/", "v", "vantage-", "v1-"} {
+		e := base
+		e.TagPrefix = p
+		err := ValidateRegistryEntry(e)
+		require.Error(t, err, "prefix %q", p)
+		assert.Contains(t, err.Error(), "tag_prefix")
+	}
+}
+
 func TestParsePluginSpecifier(t *testing.T) {
 	tests := []struct {
 		name        string
