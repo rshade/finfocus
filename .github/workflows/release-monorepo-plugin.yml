@@ -47,7 +47,7 @@ jobs:
           VERSION: ${{ steps.parse.outputs.version }}
         run: |
           test -d "plugins/$PLUGIN/cmd" || { echo "plugins/$PLUGIN/cmd not found" >&2; exit 1; }
-          ./scripts/release-plugin-assets.sh "plugins/$PLUGIN" ./cmd \
+          bash ./scripts/release-plugin-assets.sh "plugins/$PLUGIN" ./cmd \
             "finfocus-plugin-$PLUGIN" "$VERSION" dist
       - name: Upload assets
         env:
