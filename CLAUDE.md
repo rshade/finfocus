@@ -411,6 +411,15 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `cache.CalculatePluginTTL()`, and uses `SetWithTTL()` when a plugin hint is present.
   Past timestamps skip caching entirely. TTLs exceeding `MaxTTLSeconds` (604800 = 7 days)
   are capped. Debug logs record TTL overrides; warn logs record caps and skips
+- `checkPluginSupports` sends provider, type, SKU, and region, and caches per
+  client+provider+type+region+sku+feature (SKU is part of the key: a first SKU-less
+  resource in a region must not poison the cached answer for every other SKU there);
+  plugins on finfocus-spec ≥ v0.6.2 answer `Supports` for real, so a region-bound plugin
+  (aws-public) declines other regions instead of being called and failing. A plugin that
+  never implements `SupportsProvider` gets the SDK's generic fallback response
+  (`Supported:false`, `Reason: pluginsdk.DefaultSupportsNotImplementedReason`); the engine
+  treats that reason as fail-open (cached `true`), same as an RPC error, so such a plugin
+  isn't silently dropped from routing
 
 ### Overview Field Semantics (`internal/engine/overview_*.go`)
 
