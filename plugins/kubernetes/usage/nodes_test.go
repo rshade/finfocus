@@ -62,7 +62,22 @@ func TestControlPlaneDescriptor(t *testing.T) {
 	assert.Equal(t, "prod", d.GetId())
 	assert.Equal(t, "cluster", d.GetTags()["kind"])
 
-	for _, host := range []string{"", "https://127.0.0.1:6443", "https://kind-control-plane:6443"} {
+	for host, region := range map[string]string{
+		"https://X.gr7.us-east-1.eks.amazonaws.com:443/":     "us-east-1",
+		"https://X.gr7.us-gov-west-1.eks.amazonaws.com":      "us-gov-west-1",
+		"https://X.gr7.cn-north-1.eks.amazonaws.com.cn":      "cn-north-1",
+		"https://X.yl4.cn-northwest-1.eks.amazonaws.com.cn/": "cn-northwest-1",
+		"https://X.yl4.cn-north-1.eks.amazonaws.com.cn:443":  "cn-north-1",
+	} {
+		d, ok := ControlPlaneDescriptor(host, "x")
+		require.True(t, ok, host)
+		assert.Equal(t, region, d.GetRegion(), host)
+	}
+
+	for _, host := range []string{
+		"", "https://127.0.0.1:6443", "https://kind-control-plane:6443",
+		"https://X.gr7.us-east-1.eks.amazonaws.com.evil.example",
+	} {
 		_, ok := ControlPlaneDescriptor(host, "x")
 		assert.False(t, ok, host)
 	}
