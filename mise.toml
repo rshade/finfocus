@@ -35,6 +35,11 @@ actionlint = "1.7.12"
 # Lints the shell snippets embedded in CI workflows and scripts/.
 shellcheck = "0.11.0"
 
+# The Makefile reads the kubernetes plugin version from
+# .release-please-manifest.json and stamps it into the installed manifest
+# (KUBERNETES_VERSION, install-kubernetes).
+jq = "1.8.2"
+
 # ---------------------------------------------------------------------- security
 
 "go:golang.org/x/vuln/cmd/govulncheck" = "1.8.0"
