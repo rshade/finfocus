@@ -337,8 +337,8 @@ func TestBoltStore_UpsertBatch(t *testing.T) {
 
 	for _, entry := range entries {
 		urnHash := history.URNHash(entry.URN)
-		results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, now+3600)
-		require.NoError(t, err)
+		results, getErr := store.GetCloudIDsForURN(stackHash, urnHash, 0, now+3600)
+		require.NoError(t, getErr)
 		assert.Len(t, results, 1)
 		assert.Equal(t, entry.CloudID, results[0].CloudID)
 	}
@@ -563,16 +563,16 @@ func TestBoltStore_LockTimeout(t *testing.T) {
 		ctx2, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		store2, err := history.NewBoltStore(ctx2, tmpDir, true, 90)
-		if err == nil {
+		store2, lockErr := history.NewBoltStore(ctx2, tmpDir, true, 90)
+		if lockErr == nil {
 			defer store2.Close()
 		}
-		done <- err
+		done <- lockErr
 	}()
 
 	select {
-	case err := <-done:
-		assert.Error(t, err, "second store should fail to acquire lock")
+	case lockErr := <-done:
+		assert.Error(t, lockErr, "second store should fail to acquire lock")
 	case <-time.After(10 * time.Second):
 		t.Fatal("lock acquisition should timeout within 10 seconds")
 	}
@@ -811,8 +811,8 @@ func BenchmarkBoltStore_UpsertBatch(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		if err := store.UpsertBatch("testhash", entries); err != nil {
-			b.Fatalf("UpsertBatch failed: %v", err)
+		if upsertErr := store.UpsertBatch("testhash", entries); upsertErr != nil {
+			b.Fatalf("UpsertBatch failed: %v", upsertErr)
 		}
 	}
 }
@@ -839,16 +839,16 @@ func BenchmarkBoltStore_GetAllForStack(b *testing.B) {
 			Source:    history.SourceStateSnapshot,
 		}
 	}
-	if err := store.UpsertBatch("testhash", entries); err != nil {
-		b.Fatalf("setup UpsertBatch failed: %v", err)
+	if upsertErr := store.UpsertBatch("testhash", entries); upsertErr != nil {
+		b.Fatalf("setup UpsertBatch failed: %v", upsertErr)
 	}
 
 	stackHash := "testhash"
 
 	b.ResetTimer()
 	for b.Loop() {
-		if _, err := store.GetAllForStack(stackHash, now-7200, now+3600); err != nil {
-			b.Fatalf("GetAllForStack failed: %v", err)
+		if _, getErr := store.GetAllForStack(stackHash, now-7200, now+3600); getErr != nil {
+			b.Fatalf("GetAllForStack failed: %v", getErr)
 		}
 	}
 }

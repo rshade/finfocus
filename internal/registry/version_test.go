@@ -51,8 +51,8 @@ func TestSatisfiesConstraint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
-			got, err := SatisfiesConstraint(tt.version, constraint)
-			require.NoError(t, err)
+			got, satErr := SatisfiesConstraint(tt.version, constraint)
+			require.NoError(t, satErr)
 			assert.Equal(t, tt.want, got, "SatisfiesConstraint(%q)", tt.version)
 		})
 	}

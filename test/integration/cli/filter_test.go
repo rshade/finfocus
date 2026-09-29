@@ -37,8 +37,8 @@ func TestProjectedCost_FilterByType(t *testing.T) {
 	// Verify filtered results
 	assert.NotEmpty(t, resources, "Expected matches for filter: type=aws:ec2/instance:Instance. Output: %s", output)
 	for _, r := range resources {
-		res, ok := r.(map[string]any)
-		require.True(t, ok, "expected resource to be an object")
+		res, resOK := r.(map[string]any)
+		require.True(t, resOK, "expected resource to be an object")
 		assert.Equal(t, "aws:ec2/instance:Instance", res["resourceType"])
 	}
 }
@@ -66,8 +66,8 @@ func TestProjectedCost_FilterByTypeSubstring(t *testing.T) {
 	require.True(t, ok, "expected resources to be an array")
 	assert.NotEmpty(t, resources)
 	for _, r := range resources {
-		res, ok := r.(map[string]any)
-		require.True(t, ok, "expected resource to be an object")
+		res, resOK := r.(map[string]any)
+		require.True(t, resOK, "expected resource to be an object")
 		assert.Contains(t, res["resourceType"], "Bucket")
 	}
 }
@@ -95,10 +95,10 @@ func TestProjectedCost_FilterByProvider(t *testing.T) {
 	require.True(t, ok, "expected resources to be an array")
 	assert.NotEmpty(t, resources)
 	for _, r := range resources {
-		res, ok := r.(map[string]any)
-		require.True(t, ok, "expected resource to be an object")
-		typeStr, ok := res["resourceType"].(string)
-		require.True(t, ok, "expected resourceType to be a string")
+		res, resOK := r.(map[string]any)
+		require.True(t, resOK, "expected resource to be an object")
+		typeStr, typeOK := res["resourceType"].(string)
+		require.True(t, typeOK, "expected resourceType to be a string")
 		assert.Contains(t, typeStr, "azure")
 	}
 }

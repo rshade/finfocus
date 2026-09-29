@@ -31,9 +31,9 @@ type Options struct {
 // Collect lists nodes, pods, ReplicaSets, and Jobs and returns run-rate usage.
 func Collect(ctx context.Context, cs kubernetes.Interface, opts Options) (*pbc.GetStatsResponse, error) {
 	nodes, err := listAll(ctx, "nodes", "", func(o metav1.ListOptions) ([]corev1.Node, string, error) {
-		l, err := cs.CoreV1().Nodes().List(ctx, o)
-		if err != nil {
-			return nil, "", err
+		l, listErr := cs.CoreV1().Nodes().List(ctx, o)
+		if listErr != nil {
+			return nil, "", listErr
 		}
 		return l.Items, l.Continue, nil
 	}, metav1.ListOptions{})
@@ -41,9 +41,9 @@ func Collect(ctx context.Context, cs kubernetes.Interface, opts Options) (*pbc.G
 		return nil, err
 	}
 	pods, err := listAll(ctx, "pods", opts.Namespace, func(o metav1.ListOptions) ([]corev1.Pod, string, error) {
-		l, err := cs.CoreV1().Pods(opts.Namespace).List(ctx, o)
-		if err != nil {
-			return nil, "", err
+		l, listErr := cs.CoreV1().Pods(opts.Namespace).List(ctx, o)
+		if listErr != nil {
+			return nil, "", listErr
 		}
 		return l.Items, l.Continue, nil
 	}, metav1.ListOptions{LabelSelector: opts.LabelSelector})
@@ -55,9 +55,9 @@ func Collect(ctx context.Context, cs kubernetes.Interface, opts Options) (*pbc.G
 		"replicasets",
 		opts.Namespace,
 		func(o metav1.ListOptions) ([]appsv1.ReplicaSet, string, error) {
-			l, err := cs.AppsV1().ReplicaSets(opts.Namespace).List(ctx, o)
-			if err != nil {
-				return nil, "", err
+			l, listErr := cs.AppsV1().ReplicaSets(opts.Namespace).List(ctx, o)
+			if listErr != nil {
+				return nil, "", listErr
 			}
 			return l.Items, l.Continue, nil
 		},
@@ -67,9 +67,9 @@ func Collect(ctx context.Context, cs kubernetes.Interface, opts Options) (*pbc.G
 		return nil, err
 	}
 	jobs, err := listAll(ctx, "jobs", opts.Namespace, func(o metav1.ListOptions) ([]batchv1.Job, string, error) {
-		l, err := cs.BatchV1().Jobs(opts.Namespace).List(ctx, o)
-		if err != nil {
-			return nil, "", err
+		l, listErr := cs.BatchV1().Jobs(opts.Namespace).List(ctx, o)
+		if listErr != nil {
+			return nil, "", listErr
 		}
 		return l.Items, l.Continue, nil
 	}, metav1.ListOptions{})

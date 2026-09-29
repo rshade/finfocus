@@ -217,8 +217,8 @@ func createTestTarGz(t *testing.T, path string, files map[string]string) {
 			Size: int64(len(content)),
 		}
 		require.NoError(t, tw.WriteHeader(hdr))
-		_, err := tw.Write([]byte(content))
-		require.NoError(t, err)
+		_, writeErr := tw.Write([]byte(content))
+		require.NoError(t, writeErr)
 	}
 }
 
@@ -234,9 +234,9 @@ func createTestZip(t *testing.T, path string, files map[string]string) {
 	defer zw.Close()
 
 	for name, content := range files {
-		w, err := zw.Create(name)
-		require.NoError(t, err)
-		_, err = w.Write([]byte(content))
-		require.NoError(t, err)
+		w, createErr := zw.Create(name)
+		require.NoError(t, createErr)
+		_, writeErr := w.Write([]byte(content))
+		require.NoError(t, writeErr)
 	}
 }

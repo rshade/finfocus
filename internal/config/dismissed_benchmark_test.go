@@ -68,13 +68,13 @@ func createBenchmarkStore(b *testing.B, dir string) *config.DismissalStore {
 			},
 		}
 
-		if err := store.Set(record); err != nil {
-			b.Fatalf("setting record %d: %v", i, err)
+		if setErr := store.Set(record); setErr != nil {
+			b.Fatalf("setting record %d: %v", i, setErr)
 		}
 	}
 
-	if err := store.Save(); err != nil {
-		b.Fatalf("saving store: %v", err)
+	if saveErr := store.Save(); saveErr != nil {
+		b.Fatalf("saving store: %v", saveErr)
 	}
 
 	return store
@@ -92,8 +92,8 @@ func BenchmarkDismissalStore_Load_1000(b *testing.B) {
 		if err != nil {
 			b.Fatal(err)
 		}
-		if err := s.Load(); err != nil {
-			b.Fatal(err)
+		if loadErr := s.Load(); loadErr != nil {
+			b.Fatal(loadErr)
 		}
 	}
 }

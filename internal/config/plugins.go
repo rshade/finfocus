@@ -56,11 +56,11 @@ func LoadInstalledPlugins() ([]InstalledPlugin, error) {
 
 			// Try to parse as JSON first, then YAML as fallback
 			var cfg InstalledPluginsConfig
-			if err := json.Unmarshal(data, &cfg); err != nil {
+			if jsonErr := json.Unmarshal(data, &cfg); jsonErr != nil {
 				// JSON failed, try YAML
-				if err := yaml.Unmarshal(data, &cfg); err != nil {
+				if yamlErr := yaml.Unmarshal(data, &cfg); yamlErr != nil {
 					// Both JSON and YAML failed - this is an error
-					return nil, fmt.Errorf("failed to parse legacy config: %w", err)
+					return nil, fmt.Errorf("failed to parse legacy config: %w", yamlErr)
 				}
 			}
 			return cfg.InstalledPlugins, nil

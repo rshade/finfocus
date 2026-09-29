@@ -675,8 +675,8 @@ func TestCacheEntry(t *testing.T) {
 	})
 
 	t.Run("JSON_Unix_Timestamps", func(t *testing.T) {
-		entry := NewCacheEntry(key, data, ttl)
-		encoded, err := json.Marshal(entry)
+		tsEntry := NewCacheEntry(key, data, ttl)
+		encoded, err := json.Marshal(tsEntry)
 		require.NoError(t, err)
 
 		// Verify Unix timestamp format (should be int64, not string)
@@ -689,12 +689,12 @@ func TestCacheEntry(t *testing.T) {
 		var decoded CacheEntry
 		err = json.Unmarshal(encoded, &decoded)
 		require.NoError(t, err)
-		assert.Equal(t, entry.Key, decoded.Key)
-		assert.Equal(t, entry.TTLSeconds, decoded.TTLSeconds)
+		assert.Equal(t, tsEntry.Key, decoded.Key)
+		assert.Equal(t, tsEntry.TTLSeconds, decoded.TTLSeconds)
 		// Round-trip must preserve sub-second precision; truncating to whole
 		// seconds can expire a 1s-TTL entry almost immediately (CI flake).
-		assert.Equal(t, entry.CreatedAt.UnixNano(), decoded.CreatedAt.UnixNano())
-		assert.Equal(t, entry.ExpiresAt.UnixNano(), decoded.ExpiresAt.UnixNano())
+		assert.Equal(t, tsEntry.CreatedAt.UnixNano(), decoded.CreatedAt.UnixNano())
+		assert.Equal(t, tsEntry.ExpiresAt.UnixNano(), decoded.ExpiresAt.UnixNano())
 	})
 
 	t.Run("JSON_Legacy_Second_Precision_Timestamps", func(t *testing.T) {

@@ -547,7 +547,7 @@ func TestDismissalStore_ConcurrentAccess(t *testing.T) {
 				now := time.Now()
 
 				// Concurrent Set
-				err := store.Set(&DismissalRecord{
+				setErr := store.Set(&DismissalRecord{
 					RecommendationID: recID,
 					Status:           StatusDismissed,
 					Reason:           "BUSINESS_CONSTRAINT",
@@ -556,7 +556,7 @@ func TestDismissalStore_ConcurrentAccess(t *testing.T) {
 						{Action: ActionDismissed, Reason: "BUSINESS_CONSTRAINT", Timestamp: now},
 					},
 				})
-				assert.NoError(t, err)
+				assert.NoError(t, setErr)
 
 				// Concurrent Get
 				_, _ = store.Get(recID)

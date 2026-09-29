@@ -39,8 +39,8 @@ func TestNDJSONStreaming_HeadTermination(t *testing.T) {
 		cmd2 := exec.Command("head", "-n", "5")
 
 		// Connect pipe
-		r, w, err := os.Pipe()
-		require.NoError(t, err, "failed to create pipe")
+		r, w, pipeErr := os.Pipe()
+		require.NoError(t, pipeErr, "failed to create pipe")
 		cmd1.Stdout = w
 		cmd2.Stdin = r
 
@@ -76,8 +76,8 @@ func TestNDJSONStreaming_HeadTermination(t *testing.T) {
 		cmd1 := exec.Command(binPath, "cost", "recommendations", "--pulumi-json", planPath, "--output", "ndjson")
 		cmd2 := exec.Command("head", "-n", "1")
 
-		r, w, err := os.Pipe()
-		require.NoError(t, err, "failed to create pipe")
+		r, w, pipeErr := os.Pipe()
+		require.NoError(t, pipeErr, "failed to create pipe")
 		cmd1.Stdout = w
 		cmd2.Stdin = r
 
@@ -130,7 +130,7 @@ func TestNDJSONStreaming_JQProcessing(t *testing.T) {
 	binPath := filepath.Join("..", "..", "bin", "finfocus")
 
 	// Check if jq is available
-	if _, err := exec.LookPath("jq"); err != nil {
+	if _, lookPathErr := exec.LookPath("jq"); lookPathErr != nil {
 		t.Skip("jq not available, skipping jq integration test")
 		return
 	}
@@ -140,8 +140,8 @@ func TestNDJSONStreaming_JQProcessing(t *testing.T) {
 		cmd1 := exec.Command(binPath, "cost", "recommendations", "--pulumi-json", planPath, "--output", "ndjson")
 		cmd2 := exec.Command("jq", "-c", ".")
 
-		r, w, err := os.Pipe()
-		require.NoError(t, err, "failed to create pipe")
+		r, w, pipeErr := os.Pipe()
+		require.NoError(t, pipeErr, "failed to create pipe")
 		cmd1.Stdout = w
 		cmd2.Stdin = r
 
@@ -179,8 +179,8 @@ func TestNDJSONStreaming_JQProcessing(t *testing.T) {
 				line := scanner.Text()
 				if line != "" {
 					var jsonObj map[string]interface{}
-					err := json.Unmarshal([]byte(line), &jsonObj)
-					assert.NoError(t, err, "line %d should be valid JSON", lineNum)
+					unmarshalErr := json.Unmarshal([]byte(line), &jsonObj)
+					assert.NoError(t, unmarshalErr, "line %d should be valid JSON", lineNum)
 				}
 			}
 		}
@@ -192,8 +192,8 @@ func TestNDJSONStreaming_JQProcessing(t *testing.T) {
 		cmd1 := exec.Command(binPath, "cost", "recommendations", "--pulumi-json", planPath, "--output", "ndjson")
 		cmd2 := exec.Command("jq", "-c", ".type // .resource_id")
 
-		r, w, err := os.Pipe()
-		require.NoError(t, err, "failed to create pipe")
+		r, w, pipeErr := os.Pipe()
+		require.NoError(t, pipeErr, "failed to create pipe")
 		cmd1.Stdout = w
 		cmd2.Stdin = r
 
@@ -245,9 +245,9 @@ func TestNDJSONStreaming_NoBuffering(t *testing.T) {
 	t.Run("lines appear immediately", func(t *testing.T) {
 		cmd := exec.Command(binPath, "cost", "recommendations", "--pulumi-json", planPath, "--output", "ndjson")
 
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			t.Fatalf("failed to get stdout pipe: %v", err)
+		stdout, pipeErr := cmd.StdoutPipe()
+		if pipeErr != nil {
+			t.Fatalf("failed to get stdout pipe: %v", pipeErr)
 		}
 
 		err = cmd.Start()
@@ -268,8 +268,8 @@ func TestNDJSONStreaming_NoBuffering(t *testing.T) {
 		if gotFirstLine {
 			firstLine := scanner.Text()
 			var summary map[string]interface{}
-			err := json.Unmarshal([]byte(firstLine), &summary)
-			assert.NoError(t, err, "first line should be valid JSON")
+			unmarshalErr := json.Unmarshal([]byte(firstLine), &summary)
+			assert.NoError(t, unmarshalErr, "first line should be valid JSON")
 			assert.Equal(t, "summary", summary["type"], "first line should be summary")
 		}
 	})
@@ -293,10 +293,10 @@ func TestNDJSONStreaming_NoPaginationMetadata(t *testing.T) {
 	t.Run("summary has no pagination metadata", func(t *testing.T) {
 		cmd := exec.Command(binPath, "cost", "recommendations", "--pulumi-json", planPath, "--output", "ndjson")
 
-		out, err := cmd.Output()
-		if err != nil {
+		out, cmdErr := cmd.Output()
+		if cmdErr != nil {
 			var exitErr *exec.ExitError
-			if errors.As(err, &exitErr) {
+			if errors.As(cmdErr, &exitErr) {
 				t.Logf("command stderr: %s", exitErr.Stderr)
 			}
 			t.Skip("finfocus binary not available or command failed, skipping test")
@@ -307,8 +307,8 @@ func TestNDJSONStreaming_NoPaginationMetadata(t *testing.T) {
 		scanner := bufio.NewScanner(bytes.NewReader(out))
 		if scanner.Scan() {
 			var summary map[string]interface{}
-			err := json.Unmarshal(scanner.Bytes(), &summary)
-			require.NoError(t, err)
+			unmarshalErr := json.Unmarshal(scanner.Bytes(), &summary)
+			require.NoError(t, unmarshalErr)
 
 			// Verify no pagination field in streaming mode
 			_, hasPagination := summary["pagination"]

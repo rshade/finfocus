@@ -18,8 +18,8 @@ func LoadJSON(filename string, target interface{}) error {
 		return err
 	}
 
-	if err := json.Unmarshal(data, target); err != nil {
-		return fmt.Errorf("failed to unmarshal JSON from %s: %w", filename, err)
+	if unmarshalErr := json.Unmarshal(data, target); unmarshalErr != nil {
+		return fmt.Errorf("failed to unmarshal JSON from %s: %w", filename, unmarshalErr)
 	}
 
 	return nil
@@ -33,8 +33,8 @@ func LoadYAML(filename string, target interface{}) error {
 		return err
 	}
 
-	if err := yaml.Unmarshal(data, target); err != nil {
-		return fmt.Errorf("failed to unmarshal YAML from %s: %w", filename, err)
+	if unmarshalErr := yaml.Unmarshal(data, target); unmarshalErr != nil {
+		return fmt.Errorf("failed to unmarshal YAML from %s: %w", filename, unmarshalErr)
 	}
 
 	return nil
@@ -90,7 +90,7 @@ func GetFixturesDir() string {
 	dir := cwd
 	for {
 		fixturesPath := filepath.Join(dir, "test", "fixtures")
-		if _, err := os.Stat(fixturesPath); err == nil {
+		if _, statErr := os.Stat(fixturesPath); statErr == nil {
 			return fixturesPath
 		}
 

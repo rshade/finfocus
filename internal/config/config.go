@@ -434,8 +434,8 @@ func (c *Config) MarshalJSON() ([]byte, error) {
 		return nil, err
 	}
 	var keys map[string]json.RawMessage
-	if err := json.Unmarshal(data, &keys); err != nil {
-		return nil, err
+	if unmarshalErr := json.Unmarshal(data, &keys); unmarshalErr != nil {
+		return nil, unmarshalErr
 	}
 	for key, value := range c.extraKeys {
 		keys[key] = value
@@ -480,8 +480,8 @@ func migrateFromLegacyYAML(configPath string) error {
 	}
 
 	var yamlMap map[string]interface{}
-	if err := yaml.Unmarshal(data, &yamlMap); err != nil {
-		return fmt.Errorf("parsing corrupted legacy YAML config: %w", err)
+	if unmarshalErr := yaml.Unmarshal(data, &yamlMap); unmarshalErr != nil {
+		return fmt.Errorf("parsing corrupted legacy YAML config: %w", unmarshalErr)
 	}
 
 	jsonData, err := json.MarshalIndent(yamlMap, "", "  ")
@@ -491,12 +491,12 @@ func migrateFromLegacyYAML(configPath string) error {
 
 	// Write to new .hujson path atomically (temp file + rename), matching Save()'s convention.
 	tmpPath := configPath + ".tmp"
-	if err := os.WriteFile(tmpPath, jsonData, 0600); err != nil {
-		return fmt.Errorf("writing new config file: %w", err)
+	if writeErr := os.WriteFile(tmpPath, jsonData, 0600); writeErr != nil {
+		return fmt.Errorf("writing new config file: %w", writeErr)
 	}
-	if err := os.Rename(tmpPath, configPath); err != nil {
+	if renameErr := os.Rename(tmpPath, configPath); renameErr != nil {
 		_ = os.Remove(tmpPath)
-		return fmt.Errorf("renaming migrated config file: %w", err)
+		return fmt.Errorf("renaming migrated config file: %w", renameErr)
 	}
 
 	return nil
@@ -524,11 +524,11 @@ func loadConfig(configPath string, dst interface{}) error {
 	defer file.Close()
 
 	var data json.RawMessage
-	if err := ax.ParseConfig(context.Background(), file, &data); err != nil {
-		return err
+	if parseErr := ax.ParseConfig(context.Background(), file, &data); parseErr != nil {
+		return parseErr
 	}
-	if err := json.Unmarshal(data, dst); err != nil {
-		return fmt.Errorf("parsing configuration: %w", err)
+	if unmarshalErr := json.Unmarshal(data, dst); unmarshalErr != nil {
+		return fmt.Errorf("parsing configuration: %w", unmarshalErr)
 	}
 	return nil
 }
@@ -552,12 +552,12 @@ func saveConfig(configPath string, cfg interface{}) error {
 	}
 
 	tmpPath := configPath + ".tmp"
-	if err := os.WriteFile(tmpPath, data, 0600); err != nil {
-		return fmt.Errorf("failed to write config: %w", err)
+	if writeErr := os.WriteFile(tmpPath, data, 0600); writeErr != nil {
+		return fmt.Errorf("failed to write config: %w", writeErr)
 	}
-	if err := os.Rename(tmpPath, configPath); err != nil {
+	if renameErr := os.Rename(tmpPath, configPath); renameErr != nil {
 		_ = os.Remove(tmpPath)
-		return fmt.Errorf("failed to save config: %w", err)
+		return fmt.Errorf("failed to save config: %w", renameErr)
 	}
 
 	return nil

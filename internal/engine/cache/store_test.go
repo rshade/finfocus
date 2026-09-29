@@ -70,8 +70,8 @@ func TestNewBoltStore(t *testing.T) {
 					assert.True(t, store.IsEnabled())
 
 					// Verify directory was created
-					_, err := os.Stat(tt.directory)
-					require.NoError(t, err)
+					_, statErr := os.Stat(tt.directory)
+					require.NoError(t, statErr)
 				} else {
 					assert.False(t, store.IsEnabled())
 				}
@@ -384,13 +384,13 @@ func TestBoltStore_MultipleEntries(t *testing.T) {
 	}
 
 	for key, data := range entries {
-		err := store.Set(key, json.RawMessage(data))
-		require.NoError(t, err)
+		setErr := store.Set(key, json.RawMessage(data))
+		require.NoError(t, setErr)
 	}
 
 	for key, expectedData := range entries {
-		entry, err := store.Get(key)
-		require.NoError(t, err)
+		entry, getErr := store.Get(key)
+		require.NoError(t, getErr)
 		require.NotNil(t, entry)
 		assert.JSONEq(t, string(expectedData), string(entry.Data))
 	}

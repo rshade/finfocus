@@ -366,11 +366,11 @@ func runPluginInstall(cmd *cobra.Command, specifier string, p pluginInstallParam
 
 	// Commit: actually install the plugin
 	commit := func(ctx2 context.Context) error {
-		result, err := installer.Install(ctx2, specifier, opts, progress)
-		if err != nil {
+		result, installErr := installer.Install(ctx2, specifier, opts, progress)
+		if installErr != nil {
 			return handleInstallError(
 				ctx2, cmd, installer, spec, opts, progress,
-				specifier, err, p.noFallback, p.fallbackToLatest, p.clean, p.pluginDir,
+				specifier, installErr, p.noFallback, p.fallbackToLatest, p.clean, p.pluginDir,
 			)
 		}
 

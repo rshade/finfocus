@@ -223,17 +223,17 @@ func TestProcessLauncher_TryConnect(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			start := time.Now()
-			conn, err := launcher.tryConnect(tt.ctx, tt.address)
+			conn, connectErr := launcher.tryConnect(tt.ctx, tt.address)
 			if conn != nil {
 				t.Cleanup(func() { require.NoError(t, conn.Close()) })
 			}
 			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr)
+				require.ErrorIs(t, connectErr, tt.wantErr)
 				assert.Nil(t, conn)
 				assert.Less(t, time.Since(start), time.Second)
 				return
 			}
-			require.NoError(t, err)
+			require.NoError(t, connectErr)
 			require.NotNil(t, conn)
 		})
 	}
@@ -420,8 +420,8 @@ func TestProcessLauncher_AllocatePortWithListener(t *testing.T) {
 	}
 
 	// Release the listener
-	if err := launcher.releasePortListener(port); err != nil {
-		t.Errorf("releasePortListener failed: %v", err)
+	if releaseErr := launcher.releasePortListener(port); releaseErr != nil {
+		t.Errorf("releasePortListener failed: %v", releaseErr)
 	}
 
 	// Now port should be available
@@ -470,8 +470,8 @@ func TestProcessLauncher_ConcurrentPortAllocation(t *testing.T) {
 			time.Sleep(10 * time.Millisecond)
 
 			// Release
-			if err := launcher.releasePortListener(port); err != nil {
-				errs <- fmt.Errorf("release %d failed: %w", idx, err)
+			if releaseErr := launcher.releasePortListener(port); releaseErr != nil {
+				errs <- fmt.Errorf("release %d failed: %w", idx, releaseErr)
 				return
 			}
 
@@ -535,8 +535,8 @@ func TestProcessLauncher_WaitForPluginBind_Timeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to allocate port: %v", err)
 	}
-	if err := launcher.releasePortListener(port); err != nil {
-		t.Fatalf("failed to release port: %v", err)
+	if releaseErr := launcher.releasePortListener(port); releaseErr != nil {
+		t.Fatalf("failed to release port: %v", releaseErr)
 	}
 
 	bindCtx, cancel := context.WithTimeout(ctx, 300*time.Millisecond)
@@ -563,8 +563,8 @@ func TestProcessLauncher_WaitForPluginBind_DelayedBind(t *testing.T) {
 	}
 
 	// Release so we can bind later
-	if err := launcher.releasePortListener(port); err != nil {
-		t.Fatalf("failed to release port: %v", err)
+	if releaseErr := launcher.releasePortListener(port); releaseErr != nil {
+		t.Fatalf("failed to release port: %v", releaseErr)
 	}
 
 	// Start waiting in a goroutine
@@ -588,9 +588,9 @@ func TestProcessLauncher_WaitForPluginBind_DelayedBind(t *testing.T) {
 
 	// Wait for waitForPluginBind to complete
 	select {
-	case err := <-waitDone:
-		if err != nil {
-			t.Errorf("waitForPluginBind failed after delayed bind: %v", err)
+	case waitErr := <-waitDone:
+		if waitErr != nil {
+			t.Errorf("waitForPluginBind failed after delayed bind: %v", waitErr)
 		}
 	case <-time.After(2 * time.Second):
 		t.Error("waitForPluginBind did not complete after plugin bound")
@@ -713,8 +713,8 @@ func TestProcessLauncher_DoubleRelease(t *testing.T) {
 	}
 
 	// First release should succeed
-	if err := launcher.releasePortListener(port); err != nil {
-		t.Errorf("first release failed: %v", err)
+	if releaseErr := launcher.releasePortListener(port); releaseErr != nil {
+		t.Errorf("first release failed: %v", releaseErr)
 	}
 
 	// Second release should fail
@@ -777,8 +777,8 @@ func TestProcessLauncher_StartPluginEnvironment(t *testing.T) {
 	}
 
 	// Release the port so the mock script can bind
-	if err := launcher.releasePortListener(port); err != nil {
-		t.Fatalf("failed to release port: %v", err)
+	if releaseErr := launcher.releasePortListener(port); releaseErr != nil {
+		t.Fatalf("failed to release port: %v", releaseErr)
 	}
 
 	// Create the command manually to capture output (startPlugin sets Stdout to os.Stderr)
@@ -796,8 +796,8 @@ func TestProcessLauncher_StartPluginEnvironment(t *testing.T) {
 	cmd.Stderr = &stderr
 
 	// Start the process
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("failed to start plugin: %v", err)
+	if startErr := cmd.Start(); startErr != nil {
+		t.Fatalf("failed to start plugin: %v", startErr)
 	}
 	defer launcher.killProcess(cmd)
 
@@ -811,18 +811,18 @@ func TestProcessLauncher_StartPluginEnvironment(t *testing.T) {
 	}()
 
 	select {
-	case err := <-done:
+	case waitErr := <-done:
 		// Process completed
 		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+		if errors.As(waitErr, &exitErr) {
 			// Process exited with non-zero code
 			stdoutStr := stdout.String()
 			stderrStr := stderr.String()
 			t.Fatalf("plugin process failed with exit code %d\nstdout: %s\nstderr: %s",
 				exitErr.ExitCode(), stdoutStr, stderrStr)
 		}
-		if err != nil {
-			t.Fatalf("failed to wait for plugin process: %v", err)
+		if waitErr != nil {
+			t.Fatalf("failed to wait for plugin process: %v", waitErr)
 		}
 
 		// Process succeeded - validate output is clean (no error messages) and contains expected env vars
@@ -915,8 +915,8 @@ func TestProcessLauncher_GuidanceLoggingOnBindFailure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to allocate port: %v", err)
 	}
-	if err := launcher.releasePortListener(port); err != nil {
-		t.Fatalf("failed to release port: %v", err)
+	if releaseErr := launcher.releasePortListener(port); releaseErr != nil {
+		t.Fatalf("failed to release port: %v", releaseErr)
 	}
 
 	// Create a very short timeout context to trigger bind failure

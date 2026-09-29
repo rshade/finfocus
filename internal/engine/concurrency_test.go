@@ -95,12 +95,12 @@ func TestEngineConcurrency(t *testing.T) {
 					},
 				}
 
-				results, err := eng.GetProjectedCost(ctx, resources)
+				results, projectedErr := eng.GetProjectedCost(ctx, resources)
 
 				// Assertions inside goroutine might panic test, better to collect errors
 				// But for race detection, just running the code is the main goal
-				if err != nil {
-					t.Errorf("GetProjectedCost error: %v", err)
+				if projectedErr != nil {
+					t.Errorf("GetProjectedCost error: %v", projectedErr)
 					return
 				}
 				if len(results) != 1 {
@@ -132,10 +132,10 @@ func TestEngineConcurrency(t *testing.T) {
 					To:   time.Now(),
 				}
 
-				results, err := eng.GetActualCostWithOptions(ctx, req)
+				results, actualErr := eng.GetActualCostWithOptions(ctx, req)
 
-				if err != nil {
-					t.Errorf("GetActualCost error: %v", err)
+				if actualErr != nil {
+					t.Errorf("GetActualCost error: %v", actualErr)
 					return
 				}
 				if len(results) != 1 {

@@ -349,8 +349,8 @@ func TestServer_AnalyzeStack_WithProperties(t *testing.T) {
 			Urn:        resource.GetUrn(),
 			Properties: resource.GetProperties(),
 		}
-		_, err := server.Analyze(context.Background(), analyzeReq)
-		require.NoError(t, err)
+		_, analyzeErr := server.Analyze(context.Background(), analyzeReq)
+		require.NoError(t, analyzeErr)
 	}
 
 	req := &pulumirpc.AnalyzeStackRequest{Resources: resources}

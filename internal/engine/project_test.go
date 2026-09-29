@@ -633,8 +633,8 @@ func TestRenderActualCostResultsWithConfidenceJSON(t *testing.T) {
 
 	// Parse JSON to verify confidence field
 	var parsed []CostResult
-	if err := json.Unmarshal([]byte(output), &parsed); err != nil {
-		t.Fatalf("Failed to parse JSON output: %v", err)
+	if unmarshalErr := json.Unmarshal([]byte(output), &parsed); unmarshalErr != nil {
+		t.Fatalf("Failed to parse JSON output: %v", unmarshalErr)
 	}
 
 	if len(parsed) != 2 {

@@ -430,10 +430,6 @@ linters:
       - text: 'comment on exported \S+ \S+ should be of the form ".+"'
         source: '// ?(nolint|TODO)'
         linters: [ revive, staticcheck ]
-      - text: 'shadow: declaration of ".+" shadows declaration'
-        linters:
-          # TODO: audit strict shadow findings in https://github.com/rshade/finfocus/issues/1209.
-          - govet
       - path: '.*'
         linters:
           # TODO: apply Go modernization rules incrementally in https://github.com/rshade/finfocus/issues/1208.

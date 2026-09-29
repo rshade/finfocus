@@ -104,7 +104,7 @@ func TestInstall_FromRegistry(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		binaryPath += ".exe"
 	}
-	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
+	if _, statErr := os.Stat(binaryPath); os.IsNotExist(statErr) {
 		t.Errorf("Binary not found at %s", binaryPath)
 	}
 
@@ -152,7 +152,7 @@ func TestRemove(t *testing.T) {
 	}
 
 	// Verify directory gone
-	if _, err := os.Stat(installPath); !os.IsNotExist(err) {
+	if _, statErr := os.Stat(installPath); !os.IsNotExist(statErr) {
 		t.Error("Plugin directory still exists")
 	}
 
@@ -214,11 +214,11 @@ func createTarGz(path, filename string, content []byte) error {
 		Mode: 0755,
 		Size: int64(len(content)),
 	}
-	if err := tw.WriteHeader(hdr); err != nil {
-		return err
+	if writeErr := tw.WriteHeader(hdr); writeErr != nil {
+		return writeErr
 	}
-	if _, err := tw.Write(content); err != nil {
-		return err
+	if _, writeErr := tw.Write(content); writeErr != nil {
+		return writeErr
 	}
 	return nil
 }
@@ -237,8 +237,8 @@ func createZip(path, filename string, content []byte) error {
 	if err != nil {
 		return err
 	}
-	if _, err := w.Write(content); err != nil {
-		return err
+	if _, writeErr := w.Write(content); writeErr != nil {
+		return writeErr
 	}
 	return nil
 }

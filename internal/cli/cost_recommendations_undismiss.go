@@ -87,9 +87,9 @@ func executeUndismiss(cmd *cobra.Command, recommendationID string, force bool) e
 	// Commit: execute the undismiss (wrapping in ax.Perform for dry-run support)
 	commit := func(ctx2 context.Context) error {
 		// Execute undismiss
-		result, err := eng.UndismissRecommendation(ctx2, store, recommendationID)
-		if err != nil {
-			return fmt.Errorf("undismissing recommendation: %w", err)
+		result, undismissErr := eng.UndismissRecommendation(ctx2, store, recommendationID)
+		if undismissErr != nil {
+			return fmt.Errorf("undismissing recommendation: %w", undismissErr)
 		}
 
 		// Render result
