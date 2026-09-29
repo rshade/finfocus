@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/proto"
 	"github.com/rshade/finfocus/test/mocks/plugin"
@@ -205,19 +206,19 @@ func TestErrorConstants(t *testing.T) {
 // TestErrorMessagesExist verifies error messages are defined for all error types.
 func TestErrorMessagesExist(t *testing.T) {
 	// Verify error variables exist and have messages
-	assert.NotNil(t, plugin.ErrMockTimeout)
+	require.Error(t, plugin.ErrMockTimeout)
 	assert.Contains(t, plugin.ErrMockTimeout.Error(), "timeout")
 
-	assert.NotNil(t, plugin.ErrMockProtocol)
+	require.Error(t, plugin.ErrMockProtocol)
 	assert.Contains(t, plugin.ErrMockProtocol.Error(), "protocol")
 
-	assert.NotNil(t, plugin.ErrMockInvalidData)
+	require.Error(t, plugin.ErrMockInvalidData)
 	assert.Contains(t, plugin.ErrMockInvalidData.Error(), "invalid")
 
-	assert.NotNil(t, plugin.ErrMockUnavailable)
+	require.Error(t, plugin.ErrMockUnavailable)
 	assert.Contains(t, plugin.ErrMockUnavailable.Error(), "unavailable")
 
-	assert.NotNil(t, plugin.ErrMockNotConfigured)
+	require.Error(t, plugin.ErrMockNotConfigured)
 	assert.Contains(t, plugin.ErrMockNotConfigured.Error(), "no response configured")
 }
 

@@ -174,7 +174,7 @@ func TestDiffInputs_AddedKey(t *testing.T) {
 	diffs := diffInputs(oldS, newS)
 	require.Len(t, diffs, 1)
 	assert.Equal(t, "key", diffs[0].Key)
-	assert.Equal(t, "", diffs[0].OldValue)
+	assert.Empty(t, diffs[0].OldValue)
 	assert.Equal(t, "value", diffs[0].NewValue)
 }
 
@@ -185,7 +185,7 @@ func TestDiffInputs_RemovedKey(t *testing.T) {
 	require.Len(t, diffs, 1)
 	assert.Equal(t, "key", diffs[0].Key)
 	assert.Equal(t, "value", diffs[0].OldValue)
-	assert.Equal(t, "", diffs[0].NewValue)
+	assert.Empty(t, diffs[0].NewValue)
 }
 
 func TestDiffInputs_SortedByKey(t *testing.T) {

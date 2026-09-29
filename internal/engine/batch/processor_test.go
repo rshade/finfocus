@@ -250,7 +250,7 @@ func TestProcess_ErrorHandling(t *testing.T) {
 
 	err = p.Process(ctx, items, callback)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, testErr)
+	require.ErrorIs(t, err, testErr)
 	assert.Contains(t, err.Error(), "batch 2 failed")
 
 	// Verify processing stopped after batch 2 (batches 0, 1, 2 processed)
@@ -290,7 +290,7 @@ func TestProcess_ContextCancellation(t *testing.T) {
 
 	err = p.Process(ctx, items, callback)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, context.Canceled)
 
 	// Verify processing stopped after cancellation (batches 0, 1, 2 processed)
 	mu.Lock()

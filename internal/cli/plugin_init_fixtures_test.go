@@ -159,7 +159,7 @@ func TestInitialization(t *testing.T) {
 				logger := zerolog.New(zerolog.NewTestWriter(t))
 				resolver := NewFixtureResolver(logger, true, "v1.0", "/test/path")
 
-				assert.Equal(t, true, resolver.offlineMode)
+				assert.True(t, resolver.offlineMode)
 				assert.Equal(t, "v1.0", resolver.fixtureVersion)
 				assert.Equal(t, "/test/path", resolver.localBasePath)
 			},

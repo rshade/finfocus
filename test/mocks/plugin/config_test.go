@@ -110,15 +110,15 @@ func TestScenarioZeroCost(t *testing.T) {
 	// Verify S3 bucket is free
 	s3Response := config.ProjectedCostResponses["aws:s3/bucket:Bucket"]
 	require.NotNil(t, s3Response)
-	assert.Equal(t, 0.0, s3Response.MonthlyCost)
-	assert.Equal(t, 0.0, s3Response.HourlyCost)
+	assert.InDelta(t, 0.0, s3Response.MonthlyCost, 1e-9)
+	assert.InDelta(t, 0.0, s3Response.HourlyCost, 1e-9)
 	assert.NotEmpty(t, s3Response.Notes, "Should have notes explaining zero cost")
 
 	// Verify Lambda is free
 	lambdaResponse := config.ProjectedCostResponses["aws:lambda/function:Function"]
 	require.NotNil(t, lambdaResponse)
-	assert.Equal(t, 0.0, lambdaResponse.MonthlyCost)
-	assert.Equal(t, 0.0, lambdaResponse.HourlyCost)
+	assert.InDelta(t, 0.0, lambdaResponse.MonthlyCost, 1e-9)
+	assert.InDelta(t, 0.0, lambdaResponse.HourlyCost, 1e-9)
 }
 
 // TestScenarioMultiCurrency verifies mixed currency scenario.
@@ -179,7 +179,7 @@ func TestConfigureActualCostScenario(t *testing.T) {
 	actualResponse := config.ActualCostResponses["resource-456"]
 	require.NotNil(t, actualResponse)
 	assert.Equal(t, "USD", actualResponse.Currency)
-	assert.Equal(t, 150.00, actualResponse.TotalCost)
+	assert.InDelta(t, 150.00, actualResponse.TotalCost, 1e-9)
 	assert.Equal(t, breakdown, actualResponse.CostBreakdown)
 }
 
@@ -255,10 +255,10 @@ func TestQuickResponse(t *testing.T) {
 
 	require.NotNil(t, response)
 	assert.Equal(t, "USD", response.Currency)
-	assert.Equal(t, 100.00, response.MonthlyCost)
-	assert.Equal(t, 0.137, response.HourlyCost)
+	assert.InDelta(t, 100.00, response.MonthlyCost, 1e-9)
+	assert.InDelta(t, 0.137, response.HourlyCost, 1e-9)
 	assert.Contains(t, response.CostBreakdown, "total")
-	assert.Equal(t, 100.00, response.CostBreakdown["total"])
+	assert.InDelta(t, 100.00, response.CostBreakdown["total"], 1e-9)
 }
 
 // TestQuickActualResponse verifies helper function for actual cost responses.
@@ -267,9 +267,9 @@ func TestQuickActualResponse(t *testing.T) {
 
 	require.NotNil(t, response)
 	assert.Equal(t, "EUR", response.Currency)
-	assert.Equal(t, 250.50, response.TotalCost)
+	assert.InDelta(t, 250.50, response.TotalCost, 1e-9)
 	assert.Contains(t, response.CostBreakdown, "total")
-	assert.Equal(t, 250.50, response.CostBreakdown["total"])
+	assert.InDelta(t, 250.50, response.CostBreakdown["total"], 1e-9)
 }
 
 // TestMultipleScenarioChanges verifies scenario can be changed multiple times.
@@ -293,7 +293,7 @@ func TestMultipleScenarioChanges(t *testing.T) {
 	mock.ConfigureScenario(plugin.ScenarioZeroCost)
 	config = mock.GetConfig()
 	s3Response := config.ProjectedCostResponses["aws:s3/bucket:Bucket"]
-	assert.Equal(t, 0.0, s3Response.MonthlyCost)
+	assert.InDelta(t, 0.0, s3Response.MonthlyCost, 1e-9)
 }
 
 // TestResponseIsolation verifies responses don't interfere with each other.

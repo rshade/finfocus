@@ -40,7 +40,7 @@ func TestVirtualListModel_ViewRendersOnlyVisibleRows(t *testing.T) {
 
 	// Should render approximately viewport height (20), not all 1000 items
 	assert.LessOrEqual(t, nonEmptyLines, 25, "Should render ~20 rows, not all 1000")
-	assert.Greater(t, nonEmptyLines, 0, "Should render at least some rows")
+	assert.Positive(t, nonEmptyLines, "Should render at least some rows")
 }
 
 // TestVirtualListModel_ViewUpdatesWithScroll tests that view updates when scrolling.
@@ -136,7 +136,7 @@ func TestVirtualListModel_ViewEmptyList(t *testing.T) {
 	view := model.View().Content
 
 	// Empty view should return empty string or minimal content
-	assert.Equal(t, "", view, "Empty list should produce empty view")
+	assert.Empty(t, view, "Empty list should produce empty view")
 }
 
 // TestVirtualListModel_ViewPerformance tests rendering performance with large lists.

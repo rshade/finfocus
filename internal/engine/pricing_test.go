@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
@@ -39,7 +40,7 @@ func TestGetDefaultMonthlyByType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got := getDefaultMonthlyByType(tt.resourceType)
-			assert.Equal(t, tt.expected, got)
+			assert.InDelta(t, tt.expected, got, 1e-9)
 		})
 	}
 }
@@ -111,7 +112,7 @@ func TestGetStorageSize(t *testing.T) {
 			size, found := getStorageSize(res)
 			assert.Equal(t, tt.wantFound, found)
 			if found {
-				assert.Equal(t, tt.wantSize, size)
+				assert.InDelta(t, tt.wantSize, size, 1e-9)
 			}
 		})
 	}
@@ -237,8 +238,8 @@ func TestGetActualCost_Wrapper(t *testing.T) {
 	results, err := e.GetActualCost(context.Background(), resources, from, to)
 
 	// Should return a result (fallback placeholder) and no error
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Len(t, results, 1)
 	assert.Equal(t, "none", results[0].Adapter)
-	assert.Equal(t, 0.0, results[0].TotalCost)
+	assert.InDelta(t, 0.0, results[0].TotalCost, 1e-9)
 }

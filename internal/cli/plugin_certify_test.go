@@ -46,7 +46,7 @@ func TestPluginCertifyCmd_FlagDefaults(t *testing.T) {
 
 	cmd := cli.NewPluginCertifyCmd()
 
-	assert.Equal(t, "", cmd.Flags().Lookup("output").DefValue)
+	assert.Empty(t, cmd.Flags().Lookup("output").DefValue)
 	assert.Equal(t, "tcp", cmd.Flags().Lookup("mode").DefValue)
 	assert.Equal(t, "10m", cmd.Flags().Lookup("timeout").DefValue)
 }

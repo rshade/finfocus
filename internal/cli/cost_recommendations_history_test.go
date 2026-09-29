@@ -44,7 +44,7 @@ func TestHistoryCmd_RequiresRecommendationID(t *testing.T) {
 	cmd.SetArgs([]string{"history"})
 	err := cmd.Execute()
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "accepts 1 arg")
 }
 

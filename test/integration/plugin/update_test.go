@@ -250,7 +250,7 @@ func TestPluginUpdate_NonExistent(t *testing.T) {
 
 	_, err := installer.Update(context.Background(), "nonexistent", opts, nil)
 
-	assert.Error(t, err, "should fail for non-existent plugin")
+	require.Error(t, err, "should fail for non-existent plugin")
 	assert.Contains(t, err.Error(), "not installed")
 }
 

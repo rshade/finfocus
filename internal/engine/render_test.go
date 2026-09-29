@@ -82,8 +82,8 @@ func TestRenderResults_JSONFormat(t *testing.T) {
 
 	// Verify structure
 	aggregated := wrapper.FinFocus
-	assert.Equal(t, 7.30, aggregated.Summary.TotalMonthly)
-	assert.Equal(t, 0.01, aggregated.Summary.TotalHourly)
+	assert.InDelta(t, 7.30, aggregated.Summary.TotalMonthly, 1e-9)
+	assert.InDelta(t, 0.01, aggregated.Summary.TotalHourly, 1e-9)
 	assert.Equal(t, "USD", aggregated.Summary.Currency)
 	assert.Len(t, aggregated.Resources, 1)
 	assert.Equal(t, "i-001", aggregated.Resources[0].ResourceID)
@@ -218,9 +218,9 @@ func TestRenderResults_WithBreakdown(t *testing.T) {
 	require.NoError(t, err)
 
 	aggregated := wrapper.FinFocus
-	assert.Equal(t, 2, len(aggregated.Resources[0].Breakdown))
-	assert.Equal(t, 3.0, aggregated.Resources[0].Breakdown["compute"])
-	assert.Equal(t, 2.0, aggregated.Resources[0].Breakdown["requests"])
+	assert.Len(t, aggregated.Resources[0].Breakdown, 2)
+	assert.InDelta(t, 3.0, aggregated.Resources[0].Breakdown["compute"], 1e-9)
+	assert.InDelta(t, 2.0, aggregated.Resources[0].Breakdown["requests"], 1e-9)
 }
 
 // TestRenderActualCostResults_TableFormat tests actual cost table rendering.
@@ -270,7 +270,7 @@ func TestRenderActualCostResults_JSONFormat(t *testing.T) {
 	err = json.Unmarshal([]byte(output), &rendered)
 	require.NoError(t, err)
 	assert.Len(t, rendered, 1)
-	assert.Equal(t, 100.0, rendered[0].TotalCost)
+	assert.InDelta(t, 100.0, rendered[0].TotalCost, 1e-9)
 }
 
 // TestRenderActualCostResults_NDJSONFormat tests actual cost NDJSON rendering.

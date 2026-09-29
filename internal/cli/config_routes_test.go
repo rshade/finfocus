@@ -188,7 +188,7 @@ func TestConfigRoutesListAutomaticJSON(t *testing.T) {
 	assert.NotEmpty(t, output.ConfigPath)
 	assert.Equal(t, "global", output.Source)
 	require.NotNil(t, output.Rules)
-	assert.Len(t, output.Rules, 0)
+	assert.Empty(t, output.Rules)
 }
 
 func TestConfigRoutesListEmptyPlugins(t *testing.T) {

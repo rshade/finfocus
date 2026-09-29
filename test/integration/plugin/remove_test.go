@@ -149,7 +149,7 @@ func TestPluginRemove_NonExistent(t *testing.T) {
 
 	err := installer.Remove("nonexistent-plugin", opts, nil)
 
-	assert.Error(t, err, "should fail for non-existent plugin")
+	require.Error(t, err, "should fail for non-existent plugin")
 	assert.Contains(t, err.Error(), "not installed")
 }
 

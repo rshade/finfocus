@@ -258,7 +258,7 @@ func TestNewOverviewCmd_StackFlagExists(t *testing.T) {
 	cmd := cli.NewOverviewCmd()
 	stackFlag := cmd.Flags().Lookup("stack")
 	require.NotNil(t, stackFlag)
-	assert.Equal(t, "", stackFlag.DefValue)
+	assert.Empty(t, stackFlag.DefValue)
 	assert.Contains(t, stackFlag.Usage, "Pulumi stack name")
 }
 
@@ -682,7 +682,7 @@ func TestOverviewPlainText_CacheHitReturnsProjectedCost(t *testing.T) {
 		assert.Contains(t, string(result.Stderr), "opening plugins",
 			"expected plugin error, got exit code: %d", result.ExitCode)
 		_, statErr := os.Stat(filepath.Join(cacheDir, "cache.db"))
-		assert.NoError(t, statErr, "cache.db should exist (engine opened it)")
+		require.NoError(t, statErr, "cache.db should exist (engine opened it)")
 		t.Log("plugins unavailable — cache-hit path not verified")
 		return
 	}

@@ -134,7 +134,7 @@ func TestListLatestPlugins_FSErrors(t *testing.T) {
 	plugins, _, err := reg.ListLatestPlugins()
 	require.NoError(t, err)
 
-	assert.Len(t, plugins, 0, "expected 0 plugins from unreadable dir")
+	assert.Empty(t, plugins, "expected 0 plugins from unreadable dir")
 }
 
 func TestListLatestPlugins_BinaryValidation(t *testing.T) {
@@ -222,7 +222,7 @@ func TestRegistry_Open_WithWarnings(t *testing.T) {
 	}
 
 	require.NoError(t, err, "Open failed")
-	assert.Len(t, clients, 0, "Expected 0 clients (mock fails)")
+	assert.Empty(t, clients, "Expected 0 clients (mock fails)")
 
 	// Verify it attempted to launch valid plugins
 	// Expected valid plugins: "prerelease-test", "invalid-ver-test" (names from createEdgeCasePluginDir)

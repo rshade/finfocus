@@ -263,7 +263,7 @@ func TestFilter_AllOutputFormats(t *testing.T) {
 				// renderJSON wraps results in {"finfocus": ...}
 				var wrapper map[string]any
 				err = json.Unmarshal([]byte(output), &wrapper)
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				result, ok := wrapper["finfocus"].(map[string]any)
 				require.True(t, ok, "expected finfocus wrapper")
 				resources, ok := result["resources"].([]any)

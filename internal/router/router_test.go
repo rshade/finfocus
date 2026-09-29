@@ -250,7 +250,7 @@ func TestSelectPlugins_FeatureFiltering(t *testing.T) {
 
 	t.Run("Unknown feature matches neither", func(t *testing.T) {
 		matches := router.SelectPlugins(ctx, resource, "Carbon")
-		require.Len(t, matches, 0)
+		require.Empty(t, matches)
 	})
 }
 

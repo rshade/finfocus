@@ -1081,8 +1081,8 @@ func TestEnrichOverviewRow_CostDrift_ComputedOnCompletion(t *testing.T) {
 
 	require.NotNil(t, row.ActualCost, "ActualCost must be set by mock")
 	require.NotNil(t, row.ProjectedCost, "ProjectedCost must be set by mock")
-	assert.Equal(t, 50.0, row.ActualCost.MTDCost)
-	assert.Equal(t, 200.0, row.ProjectedCost.MonthlyCost)
+	assert.InDelta(t, 50.0, row.ActualCost.MTDCost, 1e-9)
+	assert.InDelta(t, 200.0, row.ProjectedCost.MonthlyCost, 1e-9)
 
 	// With elapsedDays=15, daysInMonth=30, actual=50, projected=200:
 	// percentDrift ≈ -49.31% which exceeds the 10% warning threshold.

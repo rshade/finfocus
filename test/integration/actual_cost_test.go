@@ -79,7 +79,7 @@ func TestStateBasedActualCost_NoTimestamps(t *testing.T) {
 
 	// Should fail to find earliest timestamp
 	_, findErr := engine.FindEarliestCreatedTimestamp(resources)
-	assert.Error(t, findErr)
+	require.Error(t, findErr)
 	assert.ErrorIs(t, findErr, engine.ErrNoTimestampedResources)
 }
 
@@ -303,7 +303,7 @@ func TestMultiProviderAggregation_LoadAndMapResources(t *testing.T) {
 	}
 
 	// Should have AWS, Azure, and GCP providers
-	assert.True(t, len(providers) >= 3, "expected at least 3 providers, got %d", len(providers))
+	assert.GreaterOrEqual(t, len(providers), 3, "expected at least 3 providers, got %d", len(providers))
 }
 
 // TestMultiProviderAggregation_CrossProviderCostCalculation tests cross-provider cost aggregation.
@@ -346,7 +346,7 @@ func TestMultiProviderAggregation_CrossProviderCostCalculation(t *testing.T) {
 
 	agg := aggregations[0]
 	assert.Equal(t, "2025-12-01", agg.Period)
-	assert.Equal(t, 325.0, agg.Total) // 100 + 150 + 75
+	assert.InDelta(t, 325.0, agg.Total, 1e-9) // 100 + 150 + 75
 	assert.Equal(t, "USD", agg.Currency)
 
 	// Verify all providers are represented
@@ -354,9 +354,9 @@ func TestMultiProviderAggregation_CrossProviderCostCalculation(t *testing.T) {
 	assert.Contains(t, agg.Providers, "azure-native")
 	assert.Contains(t, agg.Providers, "gcp")
 
-	assert.Equal(t, 100.0, agg.Providers["aws"])
-	assert.Equal(t, 150.0, agg.Providers["azure-native"])
-	assert.Equal(t, 75.0, agg.Providers["gcp"])
+	assert.InDelta(t, 100.0, agg.Providers["aws"], 1e-9)
+	assert.InDelta(t, 150.0, agg.Providers["azure-native"], 1e-9)
+	assert.InDelta(t, 75.0, agg.Providers["gcp"], 1e-9)
 }
 
 // TestMultiProviderAggregation_MonthlyGrouping tests monthly aggregation across providers.
@@ -398,6 +398,6 @@ func TestMultiProviderAggregation_MonthlyGrouping(t *testing.T) {
 
 	agg := aggregations[0]
 	assert.Equal(t, "2025-12", agg.Period)
-	assert.Equal(t, 10075.0, agg.Total) // 3100 + 4650 + 2325
+	assert.InDelta(t, 10075.0, agg.Total, 1e-9) // 3100 + 4650 + 2325
 	assert.Equal(t, "USD", agg.Currency)
 }

@@ -558,7 +558,7 @@ func TestLogPathResult_SetPluginLogFile_ClosedOnClose(t *testing.T) {
 
 	// Verify both files are closed by attempting to write (should fail)
 	_, err = mainFile.WriteString("test")
-	assert.Error(t, err, "main file should be closed")
+	require.Error(t, err, "main file should be closed")
 	_, err = pluginFile.WriteString("test")
 	assert.Error(t, err, "plugin file should be closed")
 }

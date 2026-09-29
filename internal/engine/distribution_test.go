@@ -21,9 +21,9 @@ func TestDistributeDailyCosts_DailyGrouping(t *testing.T) {
 	distributeDailyCosts(periods, result, "aws", GroupByDaily)
 
 	assert.Len(t, periods, 3)
-	assert.Equal(t, 10.0, periods["2024-01-15"]["aws"])
-	assert.Equal(t, 20.0, periods["2024-01-16"]["aws"])
-	assert.Equal(t, 30.0, periods["2024-01-17"]["aws"])
+	assert.InDelta(t, 10.0, periods["2024-01-15"]["aws"], 1e-9)
+	assert.InDelta(t, 20.0, periods["2024-01-16"]["aws"], 1e-9)
+	assert.InDelta(t, 30.0, periods["2024-01-17"]["aws"], 1e-9)
 }
 
 // TestDistributeDailyCosts_MonthlyGrouping verifies costs are grouped by month.
@@ -41,7 +41,7 @@ func TestDistributeDailyCosts_MonthlyGrouping(t *testing.T) {
 
 	// Jan 28-31 = 4 days, all in January
 	assert.Len(t, periods, 1)
-	assert.Equal(t, 20.0, periods["2024-01"]["aws"])
+	assert.InDelta(t, 20.0, periods["2024-01"]["aws"], 1e-9)
 }
 
 // TestDistributeDailyCosts_CrossMonthBoundary verifies correct distribution across month boundaries.
@@ -58,8 +58,8 @@ func TestDistributeDailyCosts_CrossMonthBoundary(t *testing.T) {
 	distributeDailyCosts(periods, result, "azure", GroupByMonthly)
 
 	assert.Len(t, periods, 2)
-	assert.Equal(t, 20.0, periods["2024-01"]["azure"]) // Jan 30 + 31
-	assert.Equal(t, 20.0, periods["2024-02"]["azure"]) // Feb 1 + 2
+	assert.InDelta(t, 20.0, periods["2024-01"]["azure"], 1e-9) // Jan 30 + 31
+	assert.InDelta(t, 20.0, periods["2024-02"]["azure"], 1e-9) // Feb 1 + 2
 }
 
 // TestDistributeDailyCosts_EmptyDailyCosts verifies no entries are added for empty array.
@@ -73,7 +73,7 @@ func TestDistributeDailyCosts_EmptyDailyCosts(t *testing.T) {
 
 	distributeDailyCosts(periods, result, "gcp", GroupByDaily)
 
-	assert.Len(t, periods, 0)
+	assert.Empty(t, periods)
 }
 
 // TestDistributeDailyCosts_MultipleProviders verifies costs accumulate per provider.
@@ -96,6 +96,6 @@ func TestDistributeDailyCosts_MultipleProviders(t *testing.T) {
 	distributeDailyCosts(periods, azureResult, "azure", GroupByDaily)
 
 	assert.Len(t, periods, 1)
-	assert.Equal(t, 100.0, periods["2024-01-01"]["aws"])
-	assert.Equal(t, 50.0, periods["2024-01-01"]["azure"])
+	assert.InDelta(t, 100.0, periods["2024-01-01"]["aws"], 1e-9)
+	assert.InDelta(t, 50.0, periods["2024-01-01"]["azure"], 1e-9)
 }

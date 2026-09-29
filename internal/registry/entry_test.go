@@ -90,7 +90,7 @@ func TestValidateRegistryEntry_TagPrefix(t *testing.T) {
 	for _, p := range []string{"", "kubernetes-", "k8s-alloc-"} {
 		e := base
 		e.TagPrefix = p
-		assert.NoError(t, ValidateRegistryEntry(e), "prefix %q", p)
+		require.NoError(t, ValidateRegistryEntry(e), "prefix %q", p)
 	}
 	for _, p := range []string{"kubernetes", "Kubernetes-", "-", "kube/", "v", "vantage-", "v1-"} {
 		e := base

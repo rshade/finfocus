@@ -34,7 +34,7 @@ alerts:
 
 	// Verify budget config
 	assert.True(t, budgetCfg.IsEnabled())
-	assert.Equal(t, 1000.0, budgetCfg.Amount)
+	assert.InDelta(t, 1000.0, budgetCfg.Amount, 1e-9)
 	assert.Equal(t, "USD", budgetCfg.Currency)
 	assert.Equal(t, "monthly", budgetCfg.Period)
 	assert.Len(t, budgetCfg.Alerts, 3)
@@ -70,7 +70,7 @@ budgets:
 	assert.True(t, costCfg.HasBudget())
 	require.NotNil(t, costCfg.Budgets)
 	require.NotNil(t, costCfg.Budgets.Global)
-	assert.Equal(t, 1000.0, costCfg.Budgets.Global.Amount)
+	assert.InDelta(t, 1000.0, costCfg.Budgets.Global.Amount, 1e-9)
 	assert.Equal(t, "USD", costCfg.Budgets.Global.Currency)
 }
 
@@ -141,7 +141,7 @@ func TestBudgetEngine_EvaluationIntegration(t *testing.T) {
 			require.NoError(t, err)
 			require.NotNil(t, status)
 
-			assert.Equal(t, tc.wantPercentage, status.Percentage)
+			assert.InDelta(t, tc.wantPercentage, status.Percentage, 1e-9)
 			assert.Equal(t, tc.wantExceeded, status.HasExceededAlerts())
 			assert.Len(t, status.Alerts, tc.wantAlertCount)
 		})
@@ -343,7 +343,7 @@ func TestBudgetRendering_OverBudget(t *testing.T) {
 
 	// Progress bar should be capped at 100%
 	cappedPercent := status.CappedPercentage()
-	assert.Equal(t, 100.0, cappedPercent)
+	assert.InDelta(t, 100.0, cappedPercent, 1e-9)
 }
 
 // TestBudgetRendering_NilStatus tests nil status handling.

@@ -106,7 +106,7 @@ func TestCalculate(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.errType != nil {
-					assert.ErrorIs(t, err, tt.errType)
+					require.ErrorIs(t, err, tt.errType)
 				}
 				assert.True(t, got.IsEmpty, "IsEmpty should be true on error")
 				return

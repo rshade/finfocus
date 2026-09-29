@@ -54,7 +54,7 @@ func TestNewCostRecommendationsCmd_RequiredFlags(t *testing.T) {
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pulumi-json")
 }
 
@@ -274,7 +274,7 @@ func TestCostRecommendationsCmd_UnsupportedOutputFormat(t *testing.T) {
 	cmd.SetArgs([]string{"--pulumi-json", planPath, "--output", "invalid"})
 	err = cmd.Execute()
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported output format")
 }
 
@@ -343,7 +343,7 @@ func TestCostRecommendationsCmd_InvalidActionTypeFilterError(t *testing.T) {
 	err = cmd.Execute()
 
 	// Should error with invalid action type
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid action type")
 
 	// Error message should list valid types
@@ -375,7 +375,7 @@ func TestCostRecommendationsCmd_EmptyActionTypeFilter(t *testing.T) {
 	err = cmd.Execute()
 
 	// Should error with empty filter value
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid action type filter")
 }
 
@@ -455,9 +455,9 @@ func TestSortRecommendationsBySavings_EqualValues(t *testing.T) {
 
 	require.Len(t, sorted, 3)
 	// All should have same savings
-	assert.Equal(t, 50.00, sorted[0].EstimatedSavings)
-	assert.Equal(t, 50.00, sorted[1].EstimatedSavings)
-	assert.Equal(t, 50.00, sorted[2].EstimatedSavings)
+	assert.InDelta(t, 50.00, sorted[0].EstimatedSavings, 1e-9)
+	assert.InDelta(t, 50.00, sorted[1].EstimatedSavings, 1e-9)
+	assert.InDelta(t, 50.00, sorted[2].EstimatedSavings, 1e-9)
 }
 
 // ============================================================================
@@ -758,21 +758,21 @@ func TestRenderRecommendationsJSON_WithSummary(t *testing.T) {
 	require.True(t, ok, "summary field should exist and be an object")
 
 	// Verify summary fields
-	assert.Equal(t, float64(3), summary["total_count"])
-	assert.Equal(t, float64(270), summary["total_savings"])
+	assert.InDelta(t, float64(3), summary["total_count"], 1e-9)
+	assert.InDelta(t, float64(270), summary["total_savings"], 1e-9)
 	assert.Equal(t, "USD", summary["currency"])
 
 	// Verify count_by_action_type breakdown
 	countByAction, ok := summary["count_by_action_type"].(map[string]interface{})
 	require.True(t, ok, "count_by_action_type should exist")
-	assert.Equal(t, float64(2), countByAction["RIGHTSIZE"])
-	assert.Equal(t, float64(1), countByAction["TERMINATE"])
+	assert.InDelta(t, float64(2), countByAction["RIGHTSIZE"], 1e-9)
+	assert.InDelta(t, float64(1), countByAction["TERMINATE"], 1e-9)
 
 	// Verify savings_by_action_type breakdown
 	savingsByAction, ok := summary["savings_by_action_type"].(map[string]interface{})
 	require.True(t, ok, "savings_by_action_type should exist")
-	assert.Equal(t, float64(180), savingsByAction["RIGHTSIZE"]) // 100 + 80
-	assert.Equal(t, float64(90), savingsByAction["TERMINATE"])
+	assert.InDelta(t, float64(180), savingsByAction["RIGHTSIZE"], 1e-9) // 100 + 80
+	assert.InDelta(t, float64(90), savingsByAction["TERMINATE"], 1e-9)
 
 	// Verify recommendations array still exists
 	recommendations, ok := output["recommendations"].([]interface{})
@@ -802,14 +802,14 @@ func TestRenderRecommendationsNDJSON_WithSummary(t *testing.T) {
 
 	// Verify it's a summary line (has type: "summary")
 	assert.Equal(t, "summary", summary["type"])
-	assert.Equal(t, float64(2), summary["total_count"])
-	assert.Equal(t, float64(190), summary["total_savings"])
+	assert.InDelta(t, float64(2), summary["total_count"], 1e-9)
+	assert.InDelta(t, float64(190), summary["total_savings"], 1e-9)
 
 	// Verify count_by_action_type exists
 	countByAction, ok := summary["count_by_action_type"].(map[string]interface{})
 	require.True(t, ok, "count_by_action_type should exist")
-	assert.Equal(t, float64(1), countByAction["RIGHTSIZE"])
-	assert.Equal(t, float64(1), countByAction["TERMINATE"])
+	assert.InDelta(t, float64(1), countByAction["RIGHTSIZE"], 1e-9)
+	assert.InDelta(t, float64(1), countByAction["TERMINATE"], 1e-9)
 
 	// Remaining lines should be recommendations
 	for i := 1; i < len(lines); i++ {
@@ -960,12 +960,12 @@ func TestMergeDismissedRecommendations(t *testing.T) {
 			dismissedCount++
 			assert.Equal(t, "aws:ec2:web-server", rec.ResourceID)
 			assert.Equal(t, "RIGHTSIZE", rec.Type)
-			assert.Equal(t, 45.00, rec.EstimatedSavings)
+			assert.InDelta(t, 45.00, rec.EstimatedSavings, 1e-9)
 		case "Snoozed":
 			snoozedCount++
 			assert.Equal(t, "aws:rds:idle-db", rec.ResourceID)
 			assert.Equal(t, "TERMINATE", rec.Type)
-			assert.Equal(t, 120.00, rec.EstimatedSavings)
+			assert.InDelta(t, 120.00, rec.EstimatedSavings, 1e-9)
 		default:
 			activeCount++
 		}

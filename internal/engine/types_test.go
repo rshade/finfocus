@@ -2,7 +2,6 @@ package engine
 
 import (
 	"encoding/json"
-	"errors"
 	"testing"
 	"time"
 
@@ -140,9 +139,9 @@ func TestCostResult(t *testing.T) {
 	assert.Equal(t, "i-123456", cr.ResourceID)
 	assert.Equal(t, "kubecost", cr.Adapter)
 	assert.Equal(t, "USD", cr.Currency)
-	assert.Equal(t, 100.50, cr.Monthly)
-	assert.Equal(t, 0.1377, cr.Hourly)
-	assert.Equal(t, 100.50, cr.TotalCost)
+	assert.InDelta(t, 100.50, cr.Monthly, 1e-9)
+	assert.InDelta(t, 0.1377, cr.Hourly, 1e-9)
+	assert.InDelta(t, 100.50, cr.TotalCost, 1e-9)
 	assert.Len(t, cr.Breakdown, 2)
 	assert.Len(t, cr.DailyCosts, 3)
 	assert.Equal(t, "monthly", cr.CostPeriod)
@@ -151,8 +150,8 @@ func TestCostResult(t *testing.T) {
 	assert.False(t, cr.EndDate.IsZero(), "EndDate should not be zero")
 
 	// Verify breakdown
-	assert.Equal(t, 80.00, cr.Breakdown["compute"])
-	assert.Equal(t, 20.50, cr.Breakdown["storage"])
+	assert.InDelta(t, 80.00, cr.Breakdown["compute"], 1e-9)
+	assert.InDelta(t, 20.50, cr.Breakdown["storage"], 1e-9)
 }
 
 // Test CrossProviderAggregation.
@@ -169,21 +168,21 @@ func TestCrossProviderAggregation(t *testing.T) {
 	}
 
 	assert.Equal(t, "2024-01-15", agg.Period)
-	assert.Equal(t, 525.75, agg.Total)
+	assert.InDelta(t, 525.75, agg.Total, 1e-9)
 	assert.Equal(t, "USD", agg.Currency)
 	assert.Len(t, agg.Providers, 3)
 
 	// Verify provider costs
-	assert.Equal(t, 250.00, agg.Providers["aws"])
-	assert.Equal(t, 180.50, agg.Providers["azure"])
-	assert.Equal(t, 95.25, agg.Providers["gcp"])
+	assert.InDelta(t, 250.00, agg.Providers["aws"], 1e-9)
+	assert.InDelta(t, 180.50, agg.Providers["azure"], 1e-9)
+	assert.InDelta(t, 95.25, agg.Providers["gcp"], 1e-9)
 
 	// Verify total matches sum
 	var sum float64
 	for _, cost := range agg.Providers {
 		sum += cost
 	}
-	assert.Equal(t, agg.Total, sum, "Provider sum should equal Total")
+	assert.InDelta(t, agg.Total, sum, 1e-9, "Provider sum should equal Total")
 }
 
 // Test error types.
@@ -201,7 +200,7 @@ func TestErrorTypes(t *testing.T) {
 
 	for _, tt := range errTests {
 		t.Run(tt.name, func(t *testing.T) {
-			require.NotNil(t, tt.err, "Error should not be nil")
+			require.Error(t, tt.err, "Error should not be nil")
 			assert.NotEmpty(t, tt.err.Error(), "Error message should not be empty")
 		})
 	}
@@ -280,7 +279,7 @@ func TestErrorDetail_Fields(t *testing.T) {
 	assert.Equal(t, "aws:ec2:Instance", detail.ResourceType)
 	assert.Equal(t, "i-1234567890abcdef0", detail.ResourceID)
 	assert.Equal(t, "test-plugin", detail.PluginName)
-	assert.True(t, errors.Is(detail.Error, ErrNoCostData), "Error should be ErrNoCostData")
+	require.ErrorIs(t, detail.Error, ErrNoCostData, "Error should be ErrNoCostData")
 	assert.True(t, detail.Timestamp.Equal(timestamp), "Timestamp mismatch")
 }
 
@@ -321,9 +320,9 @@ func TestEstimateResult(t *testing.T) {
 		}
 
 		assert.Equal(t, "ec2:Instance", result.Resource.Type)
-		assert.Equal(t, 8.32, result.Baseline.Monthly)
-		assert.Equal(t, 83.22, result.Modified.Monthly)
-		assert.Equal(t, 74.90, result.TotalChange)
+		assert.InDelta(t, 8.32, result.Baseline.Monthly, 1e-9)
+		assert.InDelta(t, 83.22, result.Modified.Monthly, 1e-9)
+		assert.InDelta(t, 74.90, result.TotalChange, 1e-9)
 		assert.Len(t, result.Deltas, 1)
 		assert.False(t, result.UsedFallback)
 	})
@@ -373,7 +372,7 @@ func TestEstimateResult(t *testing.T) {
 
 		assert.Nil(t, result.Baseline)
 		assert.Nil(t, result.Modified)
-		assert.Equal(t, 0.0, result.TotalChange)
+		assert.InDelta(t, 0.0, result.TotalChange, 1e-9)
 	})
 
 	t.Run("multiple deltas", func(t *testing.T) {
@@ -431,7 +430,7 @@ func TestCostDelta(t *testing.T) {
 		assert.Equal(t, "instanceType", delta.Property)
 		assert.Equal(t, "t3.micro", delta.OriginalValue)
 		assert.Equal(t, "m5.large", delta.NewValue)
-		assert.Equal(t, 65.70, delta.CostChange)
+		assert.InDelta(t, 65.70, delta.CostChange, 1e-9)
 	})
 
 	t.Run("cost decrease (savings)", func(t *testing.T) {
@@ -453,7 +452,7 @@ func TestCostDelta(t *testing.T) {
 			CostChange:    0.0,
 		}
 
-		assert.Equal(t, 0.0, delta.CostChange)
+		assert.InDelta(t, 0.0, delta.CostChange, 1e-9)
 	})
 
 	t.Run("combined delta", func(t *testing.T) {
@@ -631,7 +630,7 @@ func TestConvertProtoRecommendationReasoning(t *testing.T) {
 			assert.Equal(t, tt.wantResourceID, engineRec.ResourceID)
 			assert.Equal(t, tt.wantType, engineRec.Type)
 			assert.Equal(t, tt.wantDescription, engineRec.Description)
-			assert.Equal(t, tt.wantSavings, engineRec.EstimatedSavings)
+			assert.InDelta(t, tt.wantSavings, engineRec.EstimatedSavings, 1e-9)
 			assert.Equal(t, tt.wantCurrency, engineRec.Currency)
 
 			if tt.wantReasoningLen == -1 {

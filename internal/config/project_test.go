@@ -290,7 +290,7 @@ func TestNewWithProjectDir_PreservesGlobalPaths(t *testing.T) {
 	// Verify the project config was actually merged.
 	require.NotNil(t, cfg.Cost.Budgets)
 	require.NotNil(t, cfg.Cost.Budgets.Global)
-	assert.Equal(t, float64(2000), cfg.Cost.Budgets.Global.Amount)
+	assert.InDelta(t, float64(2000), cfg.Cost.Budgets.Global.Amount, 1e-9)
 
 	// Also verify via GetPluginDir/GetSpecDir which read from FINFOCUS_HOME.
 	pluginDir, err := config.GetPluginDir()

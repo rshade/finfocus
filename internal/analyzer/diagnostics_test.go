@@ -927,14 +927,14 @@ func TestFormatRecommendations_NilSlice(t *testing.T) {
 	// T024: Test nil Recommendations slice handling
 	var recs []engine.Recommendation
 	result := formatRecommendations(recs)
-	assert.Equal(t, "", result, "nil recommendations should return empty string")
+	assert.Empty(t, result, "nil recommendations should return empty string")
 }
 
 func TestFormatRecommendations_EmptySlice(t *testing.T) {
 	// T025: Test empty Recommendations slice handling
 	recs := []engine.Recommendation{}
 	result := formatRecommendations(recs)
-	assert.Equal(t, "", result, "empty recommendations should return empty string")
+	assert.Empty(t, result, "empty recommendations should return empty string")
 }
 
 func TestFormatRecommendation_ZeroSavings(t *testing.T) {
@@ -1032,7 +1032,7 @@ func TestAggregateRecommendations_EmptyCosts(t *testing.T) {
 	agg := AggregateRecommendations(costs)
 
 	assert.Equal(t, 0, agg.Count)
-	assert.Equal(t, 0.0, agg.TotalSavings)
+	assert.InDelta(t, 0.0, agg.TotalSavings, 1e-9)
 	assert.Equal(t, "USD", agg.Currency) // Default
 	assert.False(t, agg.MixedCurrencies)
 }
@@ -1043,7 +1043,7 @@ func TestAggregateRecommendations_NilCosts(t *testing.T) {
 	agg := AggregateRecommendations(costs)
 
 	assert.Equal(t, 0, agg.Count)
-	assert.Equal(t, 0.0, agg.TotalSavings)
+	assert.InDelta(t, 0.0, agg.TotalSavings, 1e-9)
 	assert.Equal(t, "USD", agg.Currency) // Default
 	assert.False(t, agg.MixedCurrencies)
 }
@@ -1265,7 +1265,7 @@ func TestFormatCostMetadata(t *testing.T) {
 		// Extract and parse JSON
 		var parsed CostMetadata
 		require.NoError(t, json.Unmarshal([]byte(extractMetadataJSON(t, result)), &parsed))
-		assert.Equal(t, 150.0, parsed.Monthly)
+		assert.InDelta(t, 150.0, parsed.Monthly, 1e-9)
 		assert.Equal(t, "USD", parsed.Currency)
 		assert.Equal(t, "aws-public", parsed.Adapter)
 	})

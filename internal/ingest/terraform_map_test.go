@@ -68,7 +68,7 @@ func TestMapTerraformResource_NestedBlocks(t *testing.T) {
 	root, ok := desc.Properties["rootBlockDevice"].(map[string]interface{})
 	require.True(t, ok, "root_block_device should convert to rootBlockDevice map")
 	assert.Equal(t, "gp3", root["volumeType"])
-	assert.Equal(t, float64(100), root["volumeSize"])
+	assert.InDelta(t, float64(100), root["volumeSize"], 1e-9)
 
 	ebs, ok := desc.Properties["ebsBlockDevice"].([]interface{})
 	require.True(t, ok, "ebs_block_device should convert to ebsBlockDevice array")
@@ -76,7 +76,7 @@ func TestMapTerraformResource_NestedBlocks(t *testing.T) {
 	first, ok := ebs[0].(map[string]interface{})
 	require.True(t, ok)
 	assert.Equal(t, "/dev/sdf", first["deviceName"])
-	assert.Equal(t, float64(50), first["volumeSize"])
+	assert.InDelta(t, float64(50), first["volumeSize"], 1e-9)
 
 	tags, ok := desc.Properties["tagsAll"].(map[string]interface{})
 	require.True(t, ok)

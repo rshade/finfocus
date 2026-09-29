@@ -44,14 +44,14 @@ func TestBuildCostSummary(t *testing.T) {
 		assert.NotEmpty(t, summary.Timestamp)
 		assert.Equal(t, "dev", summary.Stack)
 		assert.Equal(t, "my-infra", summary.Project)
-		assert.Equal(t, 350.0, summary.TotalMonthlyCost)
+		assert.InDelta(t, 350.0, summary.TotalMonthlyCost, 1e-9)
 		assert.Equal(t, "USD", summary.Currency)
 		assert.Equal(t, 2, summary.ResourceCount)
 		assert.False(t, summary.MixedCurrencies)
 		require.Len(t, summary.Resources, 2)
 		assert.Equal(t, "aws:ec2/instance:Instance", summary.Resources[0].Type)
 		assert.Equal(t, "web1", summary.Resources[0].Name)
-		assert.Equal(t, 100.0, summary.Resources[0].MonthlyCost)
+		assert.InDelta(t, 100.0, summary.Resources[0].MonthlyCost, 1e-9)
 		assert.Equal(t, "aws-public", summary.Resources[0].Adapter)
 	})
 
@@ -95,7 +95,7 @@ func TestBuildCostSummary(t *testing.T) {
 
 		summary := BuildCostSummary(costs, "dev", "infra", fixedTime)
 
-		assert.Equal(t, 100.0, summary.TotalMonthlyCost)
+		assert.InDelta(t, 100.0, summary.TotalMonthlyCost, 1e-9)
 		assert.Equal(t, 1, summary.ResourceCount)
 		require.Len(t, summary.Resources, 1)
 		assert.Equal(t, "web1", summary.Resources[0].Name)
@@ -105,7 +105,7 @@ func TestBuildCostSummary(t *testing.T) {
 		summary := BuildCostSummary([]engine.CostResult{}, "dev", "infra", fixedTime)
 
 		assert.Equal(t, costSummarySchemaVersion, summary.SchemaVersion)
-		assert.Equal(t, 0.0, summary.TotalMonthlyCost)
+		assert.InDelta(t, 0.0, summary.TotalMonthlyCost, 1e-9)
 		assert.Equal(t, "USD", summary.Currency)
 		assert.Equal(t, 0, summary.ResourceCount)
 		assert.False(t, summary.MixedCurrencies)
@@ -129,13 +129,13 @@ func TestBuildCostSummary(t *testing.T) {
 		// All 3 are valid (no errors), all counted
 		assert.Equal(t, 3, summary.ResourceCount)
 		require.Len(t, summary.Resources, 3)
-		assert.Equal(t, 125.0, summary.TotalMonthlyCost)
+		assert.InDelta(t, 125.0, summary.TotalMonthlyCost, 1e-9)
 	})
 
 	t.Run("nil cost list", func(t *testing.T) {
 		summary := BuildCostSummary(nil, "dev", "infra", fixedTime)
 
-		assert.Equal(t, 0.0, summary.TotalMonthlyCost)
+		assert.InDelta(t, 0.0, summary.TotalMonthlyCost, 1e-9)
 		assert.Equal(t, 0, summary.ResourceCount)
 		assert.Empty(t, summary.Resources)
 	})
@@ -186,7 +186,7 @@ func TestWriteCostSummary(t *testing.T) {
 		assert.Equal(t, "1", readBack.SchemaVersion)
 		assert.Equal(t, "dev", readBack.Stack)
 		assert.Equal(t, "my-infra", readBack.Project)
-		assert.Equal(t, 1250.50, readBack.TotalMonthlyCost)
+		assert.InDelta(t, 1250.50, readBack.TotalMonthlyCost, 1e-9)
 		assert.Equal(t, "USD", readBack.Currency)
 		assert.Equal(t, 2, readBack.ResourceCount)
 		require.Len(t, readBack.Resources, 2)
@@ -228,7 +228,7 @@ func TestWriteCostSummary(t *testing.T) {
 
 		var readBack CostSummary
 		require.NoError(t, json.Unmarshal(data, &readBack))
-		assert.Equal(t, 200.0, readBack.TotalMonthlyCost)
+		assert.InDelta(t, 200.0, readBack.TotalMonthlyCost, 1e-9)
 		require.Len(t, readBack.Resources, 1)
 		assert.Equal(t, "new", readBack.Resources[0].Name)
 	})

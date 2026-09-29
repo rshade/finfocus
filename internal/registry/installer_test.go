@@ -284,7 +284,7 @@ func TestInstallerLock(t *testing.T) {
 
 	// Try to acquire lock second time - should fail
 	unlock2, err := installer.acquireLock(name)
-	assert.Error(t, err, "Expected error when acquiring already held lock")
+	require.Error(t, err, "Expected error when acquiring already held lock")
 	if unlock2 != nil {
 		unlock2()
 	}
@@ -465,7 +465,7 @@ func TestRemoveOtherVersions(t *testing.T) {
 			assert.Len(t, result.RemovedVersions, tt.wantRemoved)
 
 			if tt.wantBytesFreed {
-				assert.Greater(t, result.BytesFreed, int64(0), "expected bytes freed to be > 0")
+				assert.Positive(t, result.BytesFreed, "expected bytes freed to be > 0")
 			}
 
 			assert.Equal(t, tt.pluginName, result.PluginName)
@@ -589,7 +589,7 @@ func TestInstallerLockConcurrent(t *testing.T) {
 	wg.Wait()
 
 	// At least one goroutine should have acquired the lock
-	assert.Greater(t, successCount.Load(), int32(0), "Expected at least one goroutine to acquire the lock")
+	assert.Positive(t, successCount.Load(), "Expected at least one goroutine to acquire the lock")
 
 	// All goroutines should have either succeeded or failed
 	total := successCount.Load() + errorCount.Load()

@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -268,7 +267,7 @@ func TestValidateRoutingConfig(t *testing.T) {
 					t,
 					len(result.Errors),
 					minCount,
-					fmt.Sprintf("expected at least %d errors, got %d", minCount, len(result.Errors)),
+					"expected at least %d errors, got %d", minCount, len(result.Errors),
 				)
 			}
 

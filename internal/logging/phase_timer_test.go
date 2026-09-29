@@ -51,7 +51,7 @@ func TestPhaseTimer_Elapsed_Positive(t *testing.T) {
 	time.Sleep(time.Millisecond)
 	elapsed := pt.Elapsed()
 
-	assert.Greater(t, elapsed.Nanoseconds(), int64(0))
+	assert.Positive(t, elapsed.Nanoseconds())
 }
 
 func TestPhaseTimer_LogFields(t *testing.T) {

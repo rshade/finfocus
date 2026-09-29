@@ -64,7 +64,7 @@ func TestApplyDismissalDeltaToRow_DismissedRecAppended(t *testing.T) {
 	assert.Equal(t, "i-123", rec.ResourceID)
 	assert.Equal(t, "Right-sizing", rec.Type)
 	assert.Equal(t, "Downsize to t3.small", rec.Description)
-	assert.Equal(t, 20.0, rec.EstimatedSavings)
+	assert.InDelta(t, 20.0, rec.EstimatedSavings, 1e-9)
 	assert.Equal(t, "USD", rec.Currency)
 }
 

@@ -177,8 +177,8 @@ func TestInvalidSortField(t *testing.T) {
 	t.Run("empty sort field", func(t *testing.T) {
 		// Empty field is valid (no sorting) - ParseSort handles this
 		field, order, err := pagination.ParseSort("")
-		assert.NoError(t, err, "empty sort field should be valid (no sorting)")
-		assert.Equal(t, "", field)
+		require.NoError(t, err, "empty sort field should be valid (no sorting)")
+		assert.Empty(t, field)
 		assert.Equal(t, "asc", order, "default order should be asc")
 	})
 

@@ -3,7 +3,6 @@ package engine
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"strconv"
 	"testing"
 
@@ -290,7 +289,7 @@ func TestValidateCurrencyExported(t *testing.T) {
 			err := ValidateCurrency(tc.currency)
 			if tc.wantErr {
 				require.Error(t, err)
-				assert.True(t, errors.Is(err, ErrInvalidCurrency), "expected ErrInvalidCurrency")
+				require.ErrorIs(t, err, ErrInvalidCurrency, "expected ErrInvalidCurrency")
 				assert.Contains(t, err.Error(), tc.errContains)
 			} else {
 				require.NoError(t, err)
@@ -1167,7 +1166,7 @@ func TestConfigBudgetToProto(t *testing.T) {
 
 			// Check amount
 			require.NotNil(t, result.GetAmount())
-			assert.Equal(t, tc.status.Budget.Amount, result.GetAmount().GetLimit())
+			assert.InDelta(t, tc.status.Budget.Amount, result.GetAmount().GetLimit(), 1e-9)
 			assert.Equal(t, tc.status.Currency, result.GetAmount().GetCurrency())
 		})
 	}
@@ -1465,8 +1464,8 @@ func TestBudgetHealthResultJSONRoundTrip(t *testing.T) {
 			require.NoError(t, json.Unmarshal(data, &restored))
 			assert.Equal(t, tc.wantHealth, restored.Health)
 			assert.Equal(t, original.BudgetID, restored.BudgetID)
-			assert.Equal(t, original.Utilization, restored.Utilization)
-			assert.Equal(t, original.CurrentSpend, restored.CurrentSpend)
+			assert.InDelta(t, original.Utilization, restored.Utilization, 1e-9)
+			assert.InDelta(t, original.CurrentSpend, restored.CurrentSpend, 1e-9)
 		})
 	}
 }

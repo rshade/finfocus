@@ -58,7 +58,7 @@ func TestProcessor_Process(t *testing.T) {
 		}
 
 		err := p.Process(context.Background(), items, callback)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Contains(t, err.Error(), "batch 1 failed")
 	})
 
@@ -76,7 +76,7 @@ func TestProcessor_Process(t *testing.T) {
 
 	t.Run("InvalidBatchSize", func(t *testing.T) {
 		_, err := NewProcessor[int](0)
-		assert.Error(t, err)
+		require.Error(t, err)
 		_, err = NewProcessor[int](2000)
 		assert.Error(t, err)
 	})
@@ -88,16 +88,16 @@ func TestProgress(t *testing.T) {
 	batchSize := 10
 	p := NewProgress(totalItems, totalBatches, batchSize)
 
-	assert.Equal(t, 0.0, p.PercentComplete())
+	assert.InDelta(t, 0.0, p.PercentComplete(), 1e-9)
 	assert.False(t, p.IsComplete())
 
 	p.AddProcessed(10)
-	assert.Equal(t, 10.0, p.PercentComplete())
+	assert.InDelta(t, 10.0, p.PercentComplete(), 1e-9)
 	assert.Equal(t, 10, p.ProcessedItems)
 	assert.Equal(t, 1, p.ProcessedBatches)
 
 	p.AddProcessed(90)
-	assert.Equal(t, 100.0, p.PercentComplete())
+	assert.InDelta(t, 100.0, p.PercentComplete(), 1e-9)
 	assert.True(t, p.IsComplete())
 
 	t.Run("Estimates", func(t *testing.T) {

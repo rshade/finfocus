@@ -3,7 +3,6 @@ package logging_test
 import (
 	"bytes"
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -34,7 +33,7 @@ func TestAuditEntry_Struct(t *testing.T) {
 	assert.Equal(t, 100*time.Millisecond, entry.Duration)
 	assert.True(t, entry.Success)
 	assert.Equal(t, 5, entry.ResultCount)
-	assert.Equal(t, 123.45, entry.TotalCost)
+	assert.InDelta(t, 123.45, entry.TotalCost, 1e-9)
 	assert.Empty(t, entry.Error)
 }
 
@@ -358,8 +357,8 @@ func TestAuditEntry_Builder(t *testing.T) {
 	assert.Equal(t, "/tmp/plan.json", entry.Parameters["file"])
 	assert.True(t, entry.Success)
 	assert.Equal(t, 5, entry.ResultCount)
-	assert.Equal(t, 100.50, entry.TotalCost)
-	assert.True(t, entry.Duration >= 10*time.Millisecond)
+	assert.InDelta(t, 100.50, entry.TotalCost, 1e-9)
+	assert.GreaterOrEqual(t, entry.Duration, 10*time.Millisecond)
 }
 
 // Test builder with error.
@@ -421,5 +420,5 @@ func TestAuditLogger_NilContext(t *testing.T) {
 	}
 
 	auditLogger.Log(ctx, entry)
-	assert.True(t, strings.Contains(buf.String(), "test"))
+	assert.Contains(t, buf.String(), "test")
 }

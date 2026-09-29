@@ -174,7 +174,7 @@ func TestRenderStyledBudget(t *testing.T) {
 
 	var buf bytes.Buffer
 	err := renderStyledBudget(&buf, status)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.NotEmpty(t, buf.String())
 
 	// Verify key data is present in output

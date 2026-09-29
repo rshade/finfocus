@@ -53,9 +53,9 @@ func TestPluginConformanceCmd_FlagDefaults(t *testing.T) {
 	assert.Equal(t, "tcp", cmd.Flags().Lookup("mode").DefValue)
 	assert.Equal(t, "normal", cmd.Flags().Lookup("verbosity").DefValue)
 	assert.Equal(t, "table", cmd.Flags().Lookup("output").DefValue)
-	assert.Equal(t, "", cmd.Flags().Lookup("output-file").DefValue)
+	assert.Empty(t, cmd.Flags().Lookup("output-file").DefValue)
 	assert.Equal(t, "5m", cmd.Flags().Lookup("timeout").DefValue)
-	assert.Equal(t, "", cmd.Flags().Lookup("filter").DefValue)
+	assert.Empty(t, cmd.Flags().Lookup("filter").DefValue)
 }
 
 func TestPluginConformanceCmd_RequiresArg(t *testing.T) {

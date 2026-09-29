@@ -187,7 +187,7 @@ func TestRecommendationSorter_EmptySlice(t *testing.T) {
 	sorter := pagination.NewRecommendationSorter()
 	sorted := sorter.Sort(recommendations, "savings", "desc")
 
-	assert.Len(t, sorted, 0)
+	assert.Empty(t, sorted)
 }
 
 // TestRecommendationSorter_SingleItem verifies sorting single-item slice.

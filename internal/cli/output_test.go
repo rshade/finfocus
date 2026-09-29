@@ -126,7 +126,7 @@ func TestNDJSONEncoder_EmptyList(t *testing.T) {
 		// First line should be summary with 0 count
 		if lineCount == 1 {
 			assert.Equal(t, "summary", jsonObj["type"])
-			assert.Equal(t, float64(0), jsonObj["total_count"])
+			assert.InDelta(t, float64(0), jsonObj["total_count"], 1e-9)
 		}
 	}
 
@@ -230,7 +230,7 @@ func TestNDJSONEncoder_ValidJSONOnEachLine(t *testing.T) {
 		// Each line must be valid JSON
 		var jsonObj map[string]interface{}
 		unmarshalErr := json.Unmarshal([]byte(line), &jsonObj)
-		assert.NoError(t, unmarshalErr, "line %d should be valid JSON: %s", lineNum, line)
+		require.NoError(t, unmarshalErr, "line %d should be valid JSON: %s", lineNum, line)
 
 		// Verify no trailing commas or invalid JSON
 		assert.NotEmpty(t, jsonObj, "line %d should parse to non-empty object", lineNum)
@@ -272,15 +272,15 @@ func TestNDJSONEncoder_SummaryStructure(t *testing.T) {
 
 	// Verify summary structure
 	assert.Equal(t, "summary", summary["type"])
-	assert.Equal(t, float64(2), summary["total_count"])
-	assert.Equal(t, float64(150.0), summary["total_savings"])
+	assert.InDelta(t, float64(2), summary["total_count"], 1e-9)
+	assert.InDelta(t, float64(150.0), summary["total_savings"], 1e-9)
 	assert.Equal(t, "USD", summary["currency"])
 
 	// Verify count_by_action_type exists
 	countByAction, ok := summary["count_by_action_type"].(map[string]interface{})
 	require.True(t, ok, "count_by_action_type should be a map")
-	assert.Equal(t, float64(1), countByAction["RIGHTSIZE"])
-	assert.Equal(t, float64(1), countByAction["TERMINATE"])
+	assert.InDelta(t, float64(1), countByAction["RIGHTSIZE"], 1e-9)
+	assert.InDelta(t, float64(1), countByAction["TERMINATE"], 1e-9)
 }
 
 // TestNDJSONEncoder_RecommendationStructure tests the structure of recommendation lines.
@@ -312,7 +312,7 @@ func TestNDJSONEncoder_RecommendationStructure(t *testing.T) {
 	assert.Equal(t, "aws:ec2:Instance/i-0abc123", rec["resource_id"])
 	assert.Equal(t, "RIGHTSIZE", rec["action_type"])
 	assert.Equal(t, "Consider downsizing", rec["description"])
-	assert.Equal(t, float64(87.60), rec["estimated_savings"])
+	assert.InDelta(t, float64(87.60), rec["estimated_savings"], 1e-9)
 	assert.Equal(t, "USD", rec["currency"])
 
 	// Should NOT have a "type" field (that's only for summary)

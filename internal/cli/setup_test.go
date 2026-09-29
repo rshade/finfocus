@@ -405,7 +405,7 @@ func TestStepInstallAnalyzer(t *testing.T) {
 		assert.Equal(t, cli.StepWarning, step.Status)
 		assert.Contains(t, step.Message, "Failed to install analyzer")
 		assert.Contains(t, step.Message, "plugin dir not found")
-		assert.NotNil(t, step.Err)
+		assert.Error(t, step.Err)
 	})
 }
 

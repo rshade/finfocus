@@ -35,7 +35,7 @@ func TestReadPluginMetadata_NotFound(t *testing.T) {
 	dir := t.TempDir()
 
 	got, err := ReadPluginMetadata(dir)
-	assert.ErrorIs(t, err, ErrMetadataNotFound)
+	require.ErrorIs(t, err, ErrMetadataNotFound)
 	assert.Nil(t, got)
 }
 
@@ -46,7 +46,7 @@ func TestReadPluginMetadata_InvalidJSON(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, []byte("not json"), 0640))
 
 	_, err := ReadPluginMetadata(dir)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "parsing metadata file")
 }
 

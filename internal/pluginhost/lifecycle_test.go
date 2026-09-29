@@ -61,7 +61,7 @@ func TestProcessLauncher_NonExistentBinary(t *testing.T) {
 
 	conn, closeFn, err := launcher.Start(ctx, "/nonexistent/plugin")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, conn)
 	assert.Nil(t, closeFn)
 	assert.Contains(t, err.Error(), "starting plugin")
@@ -86,7 +86,7 @@ func TestProcessLauncher_NonExecutableBinary(t *testing.T) {
 
 	conn, closeFn, err := launcher.Start(ctx, pluginPath)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, conn)
 	assert.Nil(t, closeFn)
 }
@@ -108,7 +108,7 @@ func TestProcessLauncher_ContextCancellation(t *testing.T) {
 	conn, closeFn, err := launcher.Start(ctx, pluginPath)
 
 	// Should timeout
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, conn)
 	assert.Nil(t, closeFn)
 	assert.Contains(t, err.Error(), "timeout")
@@ -132,7 +132,7 @@ func TestProcessLauncher_Cleanup(t *testing.T) {
 
 	// Close immediately
 	err = closeFn()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify connection is closed
 	state := conn.GetState()
@@ -211,7 +211,7 @@ func TestStdioLauncher_NonExistentBinary(t *testing.T) {
 
 	conn, closeFn, err := launcher.Start(ctx, "/nonexistent/plugin")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, conn)
 	assert.Nil(t, closeFn)
 	assert.Contains(t, err.Error(), "starting plugin")
@@ -235,7 +235,7 @@ func TestStdioLauncher_Cleanup(t *testing.T) {
 
 	// Close immediately
 	err = closeFn()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Verify connection is closed
 	state := conn.GetState()

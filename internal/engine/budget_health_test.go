@@ -370,11 +370,11 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 				assert.Equal(t, "Production Budget", r.BudgetName)
 				assert.Equal(t, "aws-budgets", r.Provider)
 				assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING, r.Health)
-				assert.Equal(t, 85.5, r.Utilization)
-				assert.Equal(t, 95.0, r.Forecasted)
+				assert.InDelta(t, 85.5, r.Utilization, 1e-9)
+				assert.InDelta(t, 95.0, r.Forecasted, 1e-9)
 				assert.Equal(t, "USD", r.Currency)
-				assert.Equal(t, 1000.0, r.Limit)
-				assert.Equal(t, 855.0, r.CurrentSpend)
+				assert.InDelta(t, 1000.0, r.Limit, 1e-9)
+				assert.InDelta(t, 855.0, r.CurrentSpend, 1e-9)
 			},
 		},
 		{
@@ -396,8 +396,8 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 			checkFunc: func(t *testing.T, results []BudgetHealthResult) {
 				require.Len(t, results, 1)
 				r := results[0]
-				assert.Equal(t, "", r.Currency)
-				assert.Equal(t, 0.0, r.Limit)
+				assert.Empty(t, r.Currency)
+				assert.InDelta(t, 0.0, r.Limit, 1e-9)
 			},
 		},
 		{
@@ -416,9 +416,9 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 				require.Len(t, results, 1)
 				r := results[0]
 				assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED, r.Health)
-				assert.Equal(t, 0.0, r.Utilization)
-				assert.Equal(t, 0.0, r.Forecasted)
-				assert.Equal(t, 0.0, r.CurrentSpend)
+				assert.InDelta(t, 0.0, r.Utilization, 1e-9)
+				assert.InDelta(t, 0.0, r.Forecasted, 1e-9)
+				assert.InDelta(t, 0.0, r.CurrentSpend, 1e-9)
 			},
 		},
 	}
@@ -436,9 +436,9 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 
 // TestHealthThresholdConstants verifies the threshold constants match spec.
 func TestHealthThresholdConstants(t *testing.T) {
-	assert.Equal(t, 80.0, HealthThresholdWarning)
-	assert.Equal(t, 90.0, HealthThresholdCritical)
-	assert.Equal(t, 100.0, HealthThresholdExceeded)
+	assert.InDelta(t, 80.0, HealthThresholdWarning, 1e-9)
+	assert.InDelta(t, 90.0, HealthThresholdCritical, 1e-9)
+	assert.InDelta(t, 100.0, HealthThresholdExceeded, 1e-9)
 }
 
 // =============================================================================

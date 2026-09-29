@@ -360,7 +360,7 @@ func TestInstall_SymlinkMethod_Unix(t *testing.T) {
 	// Verify it's actually a symlink
 	fi, err := os.Lstat(result.Path)
 	require.NoError(t, err)
-	assert.True(t, fi.Mode()&os.ModeSymlink != 0)
+	assert.NotEqual(t, 0, fi.Mode()&os.ModeSymlink)
 }
 
 func TestInstall_MkdirAllFailure(t *testing.T) {
@@ -660,7 +660,7 @@ func TestCopyFile(t *testing.T) {
 	fi, err := os.Stat(dstFile)
 	require.NoError(t, err)
 	if runtime.GOOS != "windows" {
-		assert.True(t, fi.Mode()&0o111 != 0, "expected executable permissions")
+		assert.NotEqual(t, 0, fi.Mode()&0o111, "expected executable permissions")
 	}
 }
 

@@ -66,7 +66,7 @@ providers:
 			assert.Contains(t, allocation.AllocatedScopes, "provider:aws")
 			awsTotalCost += res.cost
 		}
-		assert.Equal(t, 3500.0, awsTotalCost)
+		assert.InDelta(t, 3500.0, awsTotalCost, 1e-9)
 
 		// Step 5: Calculate provider budget status
 		awsBudget := eval.GetProviderBudget("aws")
@@ -78,8 +78,8 @@ providers:
 		// At 3500/5000 = 70%, health should be OK
 		assert.Equal(t, engine.ScopeTypeProvider, awsStatus.ScopeType)
 		assert.Equal(t, "aws", awsStatus.ScopeKey)
-		assert.Equal(t, 3500.0, awsStatus.CurrentSpend)
-		assert.Equal(t, 70.0, awsStatus.Percentage)
+		assert.InDelta(t, 3500.0, awsStatus.CurrentSpend, 1e-9)
+		assert.InDelta(t, 70.0, awsStatus.Percentage, 1e-9)
 		assert.False(t, awsStatus.IsOverBudget())
 	})
 
@@ -98,7 +98,7 @@ providers:
 		require.NotNil(t, awsBudget)
 
 		status := engine.CalculateProviderBudgetStatus("aws", awsBudget, 850.0)
-		assert.Equal(t, 85.0, status.Percentage)
+		assert.InDelta(t, 85.0, status.Percentage, 1e-9)
 		// 85% should be WARNING (between 80% and 90%)
 		assert.False(t, status.IsOverBudget())
 	})
@@ -118,7 +118,7 @@ providers:
 		require.NotNil(t, gcpBudget)
 
 		status := engine.CalculateProviderBudgetStatus("gcp", gcpBudget, 1500.0)
-		assert.Equal(t, 150.0, status.Percentage)
+		assert.InDelta(t, 150.0, status.Percentage, 1e-9)
 		assert.True(t, status.IsOverBudget())
 	})
 
@@ -147,7 +147,7 @@ providers:
 
 		// Verify each provider's budget sees only its costs
 		awsStatus := engine.CalculateProviderBudgetStatus("aws", eval.GetProviderBudget("aws"), 1000.0)
-		assert.Equal(t, 20.0, awsStatus.Percentage) // 1000/5000 = 20%
+		assert.InDelta(t, 20.0, awsStatus.Percentage, 1e-9) // 1000/5000 = 20%
 
 		gcpStatus := engine.CalculateProviderBudgetStatus("gcp", eval.GetProviderBudget("gcp"), 500.0)
 		assert.InDelta(t, 16.67, gcpStatus.Percentage, 0.01) // 500/3000 ≈ 16.67%
@@ -372,14 +372,14 @@ exit_code: 2
 
 		// Validate structure
 		require.NotNil(t, cfg.Global)
-		assert.Equal(t, 10000.0, cfg.Global.Amount)
+		assert.InDelta(t, 10000.0, cfg.Global.Amount, 1e-9)
 		assert.Equal(t, "USD", cfg.Global.Currency)
 		assert.Len(t, cfg.Global.Alerts, 3)
 
 		// Validate providers
 		assert.Len(t, cfg.Providers, 2)
-		assert.Equal(t, 5000.0, cfg.Providers["aws"].Amount)
-		assert.Equal(t, 3000.0, cfg.Providers["gcp"].Amount)
+		assert.InDelta(t, 5000.0, cfg.Providers["aws"].Amount, 1e-9)
+		assert.InDelta(t, 3000.0, cfg.Providers["gcp"].Amount, 1e-9)
 
 		// Validate tags
 		assert.Len(t, cfg.Tags, 2)
@@ -388,7 +388,7 @@ exit_code: 2
 
 		// Validate types
 		assert.Len(t, cfg.Types, 1)
-		assert.Equal(t, 1000.0, cfg.Types["aws:ec2/instance"].Amount)
+		assert.InDelta(t, 1000.0, cfg.Types["aws:ec2/instance"].Amount, 1e-9)
 
 		// Validate exit settings
 		assert.True(t, cfg.ExitOnThreshold)
@@ -557,32 +557,32 @@ types:
 		// Step 7: Verify results
 		// Global: 4800/10000 = 48% (OK)
 		require.NotNil(t, result.Global)
-		assert.Equal(t, 4800.0, result.Global.CurrentSpend)
+		assert.InDelta(t, 4800.0, result.Global.CurrentSpend, 1e-9)
 		assert.InDelta(t, 48.0, result.Global.Percentage, 0.1)
 
 		// AWS: 3300/5000 = 66% (OK)
 		awsStatus := result.ByProvider["aws"]
 		require.NotNil(t, awsStatus)
-		assert.Equal(t, 3300.0, awsStatus.CurrentSpend)
+		assert.InDelta(t, 3300.0, awsStatus.CurrentSpend, 1e-9)
 		assert.InDelta(t, 66.0, awsStatus.Percentage, 0.1)
 
 		// GCP: 1500/3000 = 50% (OK)
 		gcpStatus := result.ByProvider["gcp"]
 		require.NotNil(t, gcpStatus)
-		assert.Equal(t, 1500.0, gcpStatus.CurrentSpend)
+		assert.InDelta(t, 1500.0, gcpStatus.CurrentSpend, 1e-9)
 		assert.InDelta(t, 50.0, gcpStatus.Percentage, 0.1)
 
 		// EC2 instances: 1300/1000 = 130% (EXCEEDED)
 		ec2Status := result.ByType["aws:ec2/instance"]
 		require.NotNil(t, ec2Status)
-		assert.Equal(t, 1300.0, ec2Status.CurrentSpend)
+		assert.InDelta(t, 1300.0, ec2Status.CurrentSpend, 1e-9)
 		assert.InDelta(t, 130.0, ec2Status.Percentage, 0.1)
 		assert.True(t, ec2Status.IsOverBudget())
 
 		// RDS instances: 2000/2500 = 80% (WARNING)
 		rdsStatus := result.ByType["aws:rds/instance"]
 		require.NotNil(t, rdsStatus)
-		assert.Equal(t, 2000.0, rdsStatus.CurrentSpend)
+		assert.InDelta(t, 2000.0, rdsStatus.CurrentSpend, 1e-9)
 		assert.InDelta(t, 80.0, rdsStatus.Percentage, 0.1)
 
 		// Overall health should be EXCEEDED (worst wins)
@@ -625,9 +625,9 @@ types:
 
 		// Step 3: Verify types are parsed correctly
 		assert.Len(t, budgetsCfg.Types, 3)
-		assert.Equal(t, 2000.0, budgetsCfg.Types["aws:ec2/instance"].Amount)
-		assert.Equal(t, 3000.0, budgetsCfg.Types["aws:rds/instance"].Amount)
-		assert.Equal(t, 1500.0, budgetsCfg.Types["gcp:compute/instance"].Amount)
+		assert.InDelta(t, 2000.0, budgetsCfg.Types["aws:ec2/instance"].Amount, 1e-9)
+		assert.InDelta(t, 3000.0, budgetsCfg.Types["aws:rds/instance"].Amount, 1e-9)
+		assert.InDelta(t, 1500.0, budgetsCfg.Types["gcp:compute/instance"].Amount, 1e-9)
 
 		// Step 4: Create evaluator
 		eval := engine.NewScopedBudgetEvaluator(&budgetsCfg)
@@ -636,11 +636,11 @@ types:
 		// Step 5: Test type budget lookups
 		ec2Budget := eval.GetTypeBudget("aws:ec2/instance")
 		require.NotNil(t, ec2Budget)
-		assert.Equal(t, 2000.0, ec2Budget.Amount)
+		assert.InDelta(t, 2000.0, ec2Budget.Amount, 1e-9)
 
 		rdsBudget := eval.GetTypeBudget("aws:rds/instance")
 		require.NotNil(t, rdsBudget)
-		assert.Equal(t, 3000.0, rdsBudget.Amount)
+		assert.InDelta(t, 3000.0, rdsBudget.Amount, 1e-9)
 
 		// Unconfigured type returns nil
 		assert.Nil(t, eval.GetTypeBudget("aws:lambda/function"))
@@ -657,8 +657,8 @@ types:
 		require.NotNil(t, ec2Status)
 		assert.Equal(t, engine.ScopeTypeType, ec2Status.ScopeType)
 		assert.Equal(t, "aws:ec2/instance", ec2Status.ScopeKey)
-		assert.Equal(t, 1700.0, ec2Status.CurrentSpend)
-		assert.Equal(t, 85.0, ec2Status.Percentage) // 1700/2000 = 85%
+		assert.InDelta(t, 1700.0, ec2Status.CurrentSpend, 1e-9)
+		assert.InDelta(t, 85.0, ec2Status.Percentage, 1e-9) // 1700/2000 = 85%
 		assert.False(t, ec2Status.IsOverBudget())
 	})
 
@@ -689,7 +689,7 @@ types:
 			eval.GetTypeBudget("aws:ec2/instance"),
 			500.0,
 		)
-		assert.Equal(t, 25.0, ec2Status.Percentage) // 500/2000 = 25%
+		assert.InDelta(t, 25.0, ec2Status.Percentage, 1e-9) // 500/2000 = 25%
 
 		rdsStatus := engine.CalculateTypeBudgetStatus(
 			"aws:rds/instance",
@@ -713,7 +713,7 @@ types:
 
 		// 1500/1000 = 150% - EXCEEDED
 		status := engine.CalculateTypeBudgetStatus("aws:ec2/instance", ec2Budget, 1500.0)
-		assert.Equal(t, 150.0, status.Percentage)
+		assert.InDelta(t, 150.0, status.Percentage, 1e-9)
 		assert.True(t, status.IsOverBudget())
 	})
 
@@ -752,11 +752,11 @@ types:
 		// Both provider and type budgets should be available
 		awsBudget := eval.GetProviderBudget("aws")
 		require.NotNil(t, awsBudget)
-		assert.Equal(t, 5000.0, awsBudget.Amount)
+		assert.InDelta(t, 5000.0, awsBudget.Amount, 1e-9)
 
 		ec2Budget := eval.GetTypeBudget("aws:ec2/instance")
 		require.NotNil(t, ec2Budget)
-		assert.Equal(t, 1000.0, ec2Budget.Amount)
+		assert.InDelta(t, 1000.0, ec2Budget.Amount, 1e-9)
 
 		// Resource cost can be allocated to both scopes
 		providerAlloc := eval.AllocateCostToProvider(ctx, "aws:ec2/instance", 500.0)

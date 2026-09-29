@@ -118,7 +118,7 @@ func TestCalculateForecastedPercentage(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			result := CalculateForecastedPercentage(tc.forecasted, tc.limit)
-			assert.Equal(t, tc.expected, result)
+			assert.InDelta(t, tc.expected, result, 1e-9)
 		})
 	}
 }

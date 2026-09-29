@@ -241,7 +241,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		assert.Equal(t, "i-abc123", record.LastKnown.ResourceID)
 		assert.Equal(t, "RIGHTSIZE", record.LastKnown.Type)
 		assert.Equal(t, "Resize instance to t3.small", record.LastKnown.Description)
-		assert.Equal(t, 25.50, record.LastKnown.EstimatedSavings)
+		assert.InDelta(t, 25.50, record.LastKnown.EstimatedSavings, 1e-9)
 		assert.Equal(t, "USD", record.LastKnown.Currency)
 	})
 

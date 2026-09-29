@@ -18,15 +18,15 @@ func TestDefaultThresholds(t *testing.T) {
 	require.Len(t, defaults, 3)
 
 	// Verify 50% ACTUAL
-	assert.Equal(t, DefaultThreshold50, defaults[0].GetPercentage())
+	assert.InDelta(t, DefaultThreshold50, defaults[0].GetPercentage(), 1e-9)
 	assert.Equal(t, pbc.ThresholdType_THRESHOLD_TYPE_ACTUAL, defaults[0].GetType())
 
 	// Verify 80% ACTUAL
-	assert.Equal(t, DefaultThreshold80, defaults[1].GetPercentage())
+	assert.InDelta(t, DefaultThreshold80, defaults[1].GetPercentage(), 1e-9)
 	assert.Equal(t, pbc.ThresholdType_THRESHOLD_TYPE_ACTUAL, defaults[1].GetType())
 
 	// Verify 100% ACTUAL
-	assert.Equal(t, DefaultThreshold100, defaults[2].GetPercentage())
+	assert.InDelta(t, DefaultThreshold100, defaults[2].GetPercentage(), 1e-9)
 	assert.Equal(t, pbc.ThresholdType_THRESHOLD_TYPE_ACTUAL, defaults[2].GetType())
 }
 
@@ -84,7 +84,7 @@ func TestApplyDefaultThresholds(t *testing.T) {
 			}
 			if tc.shouldModify {
 				assert.Len(t, result.GetThresholds(), tc.expectedCount)
-				assert.Equal(t, DefaultThreshold50, result.GetThresholds()[0].GetPercentage())
+				assert.InDelta(t, DefaultThreshold50, result.GetThresholds()[0].GetPercentage(), 1e-9)
 			} else {
 				assert.Equal(t, tc.budget.GetThresholds(), result.GetThresholds())
 			}
@@ -131,7 +131,7 @@ func TestEvaluateThresholds(t *testing.T) {
 			checkFunc: func(t *testing.T, results []ThresholdEvaluationResult) {
 				// 50% Actual -> Triggered
 				assert.True(t, results[0].Triggered)
-				assert.Equal(t, 50.0, results[0].Threshold.GetPercentage())
+				assert.InDelta(t, 50.0, results[0].Threshold.GetPercentage(), 1e-9)
 				assert.NotZero(t, results[0].TriggeredAt)
 
 				// Others not triggered
@@ -160,7 +160,7 @@ func TestEvaluateThresholds(t *testing.T) {
 
 				// Forecasted 110%
 				assert.True(t, results[3].Triggered)
-				assert.Equal(t, 110.0, results[3].Threshold.GetPercentage())
+				assert.InDelta(t, 110.0, results[3].Threshold.GetPercentage(), 1e-9)
 				assert.Equal(t, "forecasted", results[3].SpendType)
 			},
 		},

@@ -2,7 +2,6 @@ package config
 
 import (
 	"encoding/json"
-	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -79,7 +78,7 @@ func TestConfig_NewStrict(t *testing.T) {
 
 		// NewStrict should fail with corrupted config
 		cfg, err := NewStrict()
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, cfg)
 		assert.Contains(t, err.Error(), "corrupted")
 	})
@@ -162,32 +161,32 @@ func TestConfig_SetErrors(t *testing.T) {
 
 	// Invalid section
 	err := cfg.Set("invalid.key", "value")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown configuration section")
 
 	// Invalid output key
 	err = cfg.Set("output.invalid", "value")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown output setting")
 
 	// Invalid precision value
 	err = cfg.Set("output.precision", "invalid")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "precision must be a number")
 
 	// Invalid plugin key format
 	err = cfg.Set("plugins.aws", "value")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "plugin key must be in format")
 
 	// Invalid plugin_host key
 	err = cfg.Set("plugin_host.invalid", "true")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown plugin_host setting")
 
 	// Invalid plugin_host strict_compatibility value
 	err = cfg.Set("plugin_host.strict_compatibility", "not-a-bool")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "strict_compatibility must be a boolean")
 }
 
@@ -197,22 +196,22 @@ func TestConfig_GetErrors(t *testing.T) {
 
 	// Unknown section
 	_, err := cfg.Get("invalid.key")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown configuration section")
 
 	// Unknown output key
 	_, err = cfg.Get("output.invalid")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown output setting")
 
 	// Unknown plugin
 	_, err = cfg.Get("plugins.nonexistent.key")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "plugin not found")
 
 	// Unknown plugin_host key
 	_, err = cfg.Get("plugin_host.invalid")
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown plugin_host setting")
 }
 
@@ -222,26 +221,26 @@ func TestConfig_Validation(t *testing.T) {
 
 	// Valid configuration should pass
 	err := cfg.Validate()
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Invalid output format
 	cfg.Output.DefaultFormat = "invalid"
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid output format")
 
 	// Reset and test invalid precision
 	cfg.Output.DefaultFormat = "table"
 	cfg.Output.Precision = -1
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid precision")
 
 	// Reset and test invalid log level
 	cfg.Output.Precision = 2
 	cfg.Logging.Level = "invalid"
 	err = cfg.Validate()
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid log level")
 }
 
@@ -278,7 +277,7 @@ func TestConfig_SaveLoad(t *testing.T) {
 	assert.Equal(t, cfg.Output.Precision, cfg2.Output.Precision)
 	assert.Equal(t, cfg.Logging.Level, cfg2.Logging.Level)
 	assert.Equal(t, cfg.Logging.File, cfg2.Logging.File)
-	assert.Equal(t, len(cfg.Plugins), len(cfg2.Plugins))
+	assert.Len(t, cfg2.Plugins, len(cfg.Plugins))
 
 	awsConfig, exists := cfg2.Plugins["aws"]
 	assert.True(t, exists)
@@ -645,7 +644,7 @@ func TestResolveConfigDir(t *testing.T) {
 
 		dir := ResolveConfigDir()
 		// Should not return empty string or root directory - should use CWD fallback
-		assert.NotEqual(t, "", dir)
+		assert.NotEmpty(t, dir)
 		assert.NotEqual(t, "/", dir)
 		assert.NotEqual(t, "\\", dir)
 		assert.Contains(t, dir, ".finfocus")
@@ -746,7 +745,7 @@ cost:
 	assert.Equal(t, 5, *cfg.Cost.Budgets.Global.ExitCode,
 		"env should override config file exit_code")
 	// Config file values should still be loaded for non-overridden fields
-	assert.Equal(t, 1000.0, cfg.Cost.Budgets.Global.Amount,
+	assert.InDelta(t, 1000.0, cfg.Cost.Budgets.Global.Amount, 1e-9,
 		"config file budget amount should still be loaded")
 }
 
@@ -1010,10 +1009,10 @@ analyzer:
 
 			if tc.validate {
 				err := cfg.Validate()
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 
-			assert.Equal(t, tc.expectedMaxMonthly, cfg.Analyzer.MaxMonthlyCost)
+			assert.InDelta(t, tc.expectedMaxMonthly, cfg.Analyzer.MaxMonthlyCost, 1e-9)
 			assert.Equal(t, tc.expectedEnforcement, cfg.Analyzer.Enforcement)
 		})
 	}
@@ -1245,11 +1244,11 @@ func TestMigrateFromLegacyYAML(t *testing.T) {
 
 		err := migrateFromLegacyYAML(configPath)
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, fs.ErrPermission))
+		require.ErrorIs(t, err, fs.ErrPermission)
 		assert.NoFileExists(t, configPath)
 		t.Setenv("FINFOCUS_HOME", dir)
 		_, err = NewStrict()
-		assert.ErrorIs(t, err, fs.ErrPermission)
+		require.ErrorIs(t, err, fs.ErrPermission)
 		assert.NotErrorIs(t, err, ErrConfigCorrupted)
 	})
 
@@ -1291,7 +1290,7 @@ func TestPluginConfigJSON(t *testing.T) {
 		[]byte(`{"plugins":{"aws":42}}`), 0600))
 	_, err = NewStrict()
 	require.ErrorIs(t, err, ErrConfigCorrupted)
-	assert.ErrorContains(t, err, "plugins configuration section")
+	require.ErrorContains(t, err, "plugins configuration section")
 	var typeErr *json.UnmarshalTypeError
 	assert.ErrorAs(t, err, &typeErr)
 }

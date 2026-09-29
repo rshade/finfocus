@@ -232,7 +232,7 @@ func TestCostViewModel_HandleLoadingComplete(t *testing.T) {
 		updatedM, cmd := m.Update(msg)
 		model := updatedM.(*CostViewModel)
 		assert.Equal(t, ViewStateError, model.state)
-		assert.NotNil(t, model.err)
+		require.Error(t, model.err)
 		assert.NotNil(t, cmd) // tea.Quit command.
 	})
 }
@@ -394,7 +394,7 @@ func TestCostViewModel_SortAllFields(t *testing.T) {
 		m.sortBy = SortByDelta
 		m.applySort()
 		// Highest delta first: 10.0.
-		assert.Equal(t, float64(10.0), m.results[0].Delta)
+		assert.InDelta(t, float64(10.0), m.results[0].Delta, 1e-9)
 	})
 
 	t.Run("sort actual costs", func(t *testing.T) {
@@ -406,7 +406,7 @@ func TestCostViewModel_SortAllFields(t *testing.T) {
 		m.sortBy = SortByCost
 		m.applySort()
 		// Highest cost first.
-		assert.Equal(t, float64(200.0), m.results[0].TotalCost)
+		assert.InDelta(t, float64(200.0), m.results[0].TotalCost, 1e-9)
 	})
 }
 

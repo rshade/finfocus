@@ -1724,14 +1724,14 @@ func TestMapProtoActualCostResultToEngine_ParityWithPerResourcePath(t *testing.T
 	single, err := eng.getActualCostFromPlugin(context.Background(), client, resource, from, to)
 	require.NoError(t, err)
 
-	assert.Equal(t, single.Monthly, batch.Monthly)
-	assert.Equal(t, single.Hourly, batch.Hourly)
+	assert.InDelta(t, single.Monthly, batch.Monthly, 1e-9)
+	assert.InDelta(t, single.Hourly, batch.Hourly, 1e-9)
 	assert.Equal(t, single.DailyCosts, batch.DailyCosts)
 	assert.Equal(t, single.Notes, batch.Notes)
 	assert.Equal(t, single.StartDate, batch.StartDate)
 	assert.Equal(t, single.EndDate, batch.EndDate)
 	assert.Equal(t, single.CostPeriod, batch.CostPeriod)
-	assert.Equal(t, single.TotalCost, batch.TotalCost)
+	assert.InDelta(t, single.TotalCost, batch.TotalCost, 1e-9)
 	assert.Equal(t, single.Currency, batch.Currency)
 }
 

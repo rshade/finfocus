@@ -236,7 +236,7 @@ func TestZeroCostNoFallback(t *testing.T) {
 	// The engine determines what constitutes an "empty result".
 	// $0 cost is explicitly NOT an empty result (F-007).
 
-	t.Run("semantic documentation", func(t *testing.T) {
+	t.Run("semantic documentation", func(_ *testing.T) {
 		// A $0 cost result is a valid result:
 		// - Free-tier resources return $0
 		// - Spot instances with no charge return $0
@@ -249,7 +249,6 @@ func TestZeroCostNoFallback(t *testing.T) {
 
 		// The router doesn't distinguish - it provides the fallback config.
 		// The engine makes the decision based on result type.
-		assert.True(t, true, "semantic test documents behavior")
 	})
 }
 

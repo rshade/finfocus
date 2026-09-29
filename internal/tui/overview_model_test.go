@@ -101,7 +101,7 @@ func TestOverviewModel_ResourceLoadedMsg(t *testing.T) {
 
 	assert.Equal(t, 1, model.loadedCount)
 	assert.NotNil(t, model.allRows[0].ProjectedCost)
-	assert.Equal(t, 123.45, model.allRows[0].ProjectedCost.MonthlyCost)
+	assert.InDelta(t, 123.45, model.allRows[0].ProjectedCost.MonthlyCost, 1e-9)
 }
 
 // TestOverviewModel_LoadingProgressMsg verifies progress updates.
@@ -723,7 +723,7 @@ func TestOverviewModel_GetCost(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1, nil, nil)
 			cost := model.getCost(tt.row)
-			assert.Equal(t, tt.expected, cost)
+			assert.InDelta(t, tt.expected, cost, 1e-9)
 		})
 	}
 }
@@ -759,7 +759,7 @@ func TestOverviewModel_GetDelta(t *testing.T) {
 
 			model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 			delta := model.getDelta(rows[0])
-			assert.Equal(t, tt.expected, delta)
+			assert.InDelta(t, tt.expected, delta, 1e-9)
 		})
 	}
 }
@@ -864,7 +864,7 @@ func TestOverviewModel_EnrichmentIntegration(t *testing.T) {
 	assert.Equal(t, 1, model.loadedCount)
 	assert.NotNil(t, model.allRows[0].ProjectedCost)
 	assert.NotNil(t, model.allRows[0].ActualCost)
-	assert.Equal(t, 75.0, model.allRows[0].ProjectedCost.MonthlyCost)
+	assert.InDelta(t, 75.0, model.allRows[0].ProjectedCost.MonthlyCost, 1e-9)
 }
 
 // TestOverviewModel_PhaseMsg verifies that OverviewPhaseMsg updates progressMsg.
@@ -1022,7 +1022,7 @@ func TestOverviewModel_InitErrorMsg_StaleIgnored(t *testing.T) {
 	model = updatedModel.(OverviewModel)
 
 	assert.Equal(t, ViewStateLoading, model.state, "state should not change to error")
-	assert.NoError(t, model.err, "error should not be set")
+	require.NoError(t, model.err, "error should not be set")
 	assert.Nil(t, cmd, "no command should be returned (no tea.Quit)")
 }
 
@@ -1291,7 +1291,7 @@ func TestOverviewModel_BudgetDataReadyMsg(t *testing.T) {
 			// Verify initial state
 			assert.False(t, model.budgetLoaded)
 			assert.Nil(t, model.budgetResult)
-			assert.Nil(t, model.budgetErr)
+			require.NoError(t, model.budgetErr)
 
 			// Send BudgetDataReadyMsg
 			updatedModel, _ := model.Update(tt.msg)
@@ -1310,7 +1310,7 @@ func TestOverviewModel_BudgetDataReadyMsg(t *testing.T) {
 				require.Error(t, model.budgetErr)
 				assert.Contains(t, model.budgetErr.Error(), tt.errContains)
 			} else {
-				assert.Nil(t, model.budgetErr)
+				assert.NoError(t, model.budgetErr)
 			}
 		})
 	}

@@ -221,7 +221,7 @@ func TestParseActionType(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := proto.ParseActionType(tt.input)
 			if tt.expectError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), "invalid action type")
 			} else {
 				require.NoError(t, err)

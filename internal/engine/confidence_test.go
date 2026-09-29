@@ -9,10 +9,10 @@ import (
 // TestConfidenceConstants validates that confidence level constants are defined.
 func TestConfidenceConstants(t *testing.T) {
 	// Verify constants exist and have expected values
-	assert.Equal(t, Confidence("high"), ConfidenceHigh)
-	assert.Equal(t, Confidence("medium"), ConfidenceMedium)
-	assert.Equal(t, Confidence("low"), ConfidenceLow)
-	assert.Equal(t, Confidence(""), ConfidenceUnknown)
+	assert.Equal(t, ConfidenceHigh, Confidence("high"))
+	assert.Equal(t, ConfidenceMedium, Confidence("medium"))
+	assert.Equal(t, ConfidenceLow, Confidence("low"))
+	assert.Equal(t, ConfidenceUnknown, Confidence(""))
 }
 
 // TestConfidenceIsValid tests the IsValid method on Confidence type.
