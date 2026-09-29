@@ -25,6 +25,14 @@ func sidecar(cpu, mem string) corev1.Container {
 	return c
 }
 
+func podResources(cpu, mem string) *corev1.ResourceRequirements {
+	return &corev1.ResourceRequirements{
+		Requests: corev1.ResourceList{ //nolint:exhaustive // fixture only sets cpu/memory requests
+			corev1.ResourceCPU: resource.MustParse(cpu), corev1.ResourceMemory: resource.MustParse(mem),
+		},
+	}
+}
+
 func TestEffectiveRequests(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -59,6 +67,69 @@ func TestEffectiveRequests(t *testing.T) {
 			1.5,
 		},
 		{"no requests is zero", corev1.PodSpec{Containers: []corev1.Container{{}}}, 0, 0},
+		{
+			"pod-level requests with no container requests",
+			corev1.PodSpec{
+				Resources:  podResources("1", "2Gi"),
+				Containers: []corev1.Container{{}, {}},
+			},
+			1,
+			2,
+		},
+		{
+			"pod-level requests replace container sum",
+			corev1.PodSpec{
+				Resources:  podResources("4", "8Gi"),
+				Containers: []corev1.Container{ctr("250m", "1Gi"), ctr("250m", "1Gi")},
+			},
+			4,
+			8,
+		},
+		{
+			"pod-level requests replace smaller container sum",
+			corev1.PodSpec{
+				Resources:  podResources("100m", "128Mi"),
+				Containers: []corev1.Container{ctr("1", "1Gi")},
+			},
+			0.1,
+			0.125,
+		},
+		{
+			"pod-level requests replace init peak and sidecar sum",
+			corev1.PodSpec{
+				Resources:      podResources("3", "6Gi"),
+				InitContainers: []corev1.Container{sidecar("500m", "1Gi"), ctr("5", "10Gi")},
+				Containers:     []corev1.Container{ctr("100m", "128Mi")},
+			},
+			3,
+			6,
+		},
+		{
+			"pod-level requests per resource, unset resource falls back to containers",
+			corev1.PodSpec{
+				Resources: &corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{ //nolint:exhaustive // fixture only sets a cpu request
+						corev1.ResourceCPU: resource.MustParse("2"),
+					},
+				},
+				Containers: []corev1.Container{ctr("250m", "1Gi"), ctr("250m", "1Gi")},
+			},
+			2,
+			2,
+		},
+		{
+			"pod-level requests plus overhead",
+			corev1.PodSpec{
+				Resources:  podResources("1", "1Gi"),
+				Containers: []corev1.Container{ctr("500m", "1Gi")},
+				Overhead: corev1.ResourceList{ //nolint:exhaustive // fixture only sets cpu/memory overhead
+					corev1.ResourceCPU:    resource.MustParse("250m"),
+					corev1.ResourceMemory: resource.MustParse("512Mi"),
+				},
+			},
+			1.25,
+			1.5,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
