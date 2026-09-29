@@ -271,8 +271,8 @@ func TestAllocate_DeterministicOrder(t *testing.T) {
 	require.NoError(t, err)
 	assertValidAllocation(t, req, first)
 	for i := 0; i < 5; i++ {
-		again, err := Allocate(req)
-		require.NoError(t, err)
+		again, allocErr := Allocate(req)
+		require.NoError(t, allocErr)
 		require.Len(t, again.GetRows(), len(first.GetRows()))
 		for j := range first.GetRows() {
 			assert.Equal(t, first.GetRows()[j].GetSubject(), again.GetRows()[j].GetSubject())

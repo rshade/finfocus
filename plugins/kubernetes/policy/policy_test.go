@@ -11,11 +11,11 @@ func TestDecode_EmptyInputsYieldDefaults(t *testing.T) {
 	_, defDigest, err := Defaults().Canonical()
 	require.NoError(t, err)
 	for _, in := range []string{"", "  ", "{}", `{"version": 1}`} {
-		p, err := Decode([]byte(in))
-		require.NoError(t, err, "input %q", in)
+		p, decodeErr := Decode([]byte(in))
+		require.NoError(t, decodeErr, "input %q", in)
 		assert.Equal(t, Defaults(), p, "input %q", in)
-		_, d, err := p.Canonical()
-		require.NoError(t, err)
+		_, d, canonErr := p.Canonical()
+		require.NoError(t, canonErr)
 		assert.Equal(t, defDigest, d, "input %q must digest like defaults", in)
 	}
 }
