@@ -356,6 +356,19 @@ func TestInstallerLockInvalidPID(t *testing.T) {
 	unlock()
 }
 
+// setupPluginVersions creates a temp dir containing one subdirectory per
+// version for the plugin, each with a marker binary file.
+func setupPluginVersions(t *testing.T, pluginName string, versions ...string) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, v := range versions {
+		vPath := filepath.Join(dir, pluginName, v)
+		require.NoError(t, os.MkdirAll(vPath, 0755))
+		require.NoError(t, os.WriteFile(filepath.Join(vPath, "binary"), []byte("test content"), 0755))
+	}
+	return dir
+}
+
 func TestRemoveOtherVersions(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -369,20 +382,8 @@ func TestRemoveOtherVersions(t *testing.T) {
 		{
 			name: "removes other versions, keeps specified",
 			setupDir: func(t *testing.T) string {
-				dir := t.TempDir()
-				// Create multiple versions
-				for _, v := range []string{"v1.0.0", "v1.1.0", "v2.0.0"} {
-					vPath := filepath.Join(dir, "test-plugin", v)
-					if err := os.MkdirAll(vPath, 0755); err != nil {
-						t.Fatal(err)
-					}
-					// Add a file to track size
-					binPath := filepath.Join(vPath, "binary")
-					if err := os.WriteFile(binPath, []byte("test content"), 0755); err != nil {
-						t.Fatal(err)
-					}
-				}
-				return dir
+				// Create multiple versions, each with a file to track size
+				return setupPluginVersions(t, "test-plugin", "v1.0.0", "v1.1.0", "v2.0.0")
 			},
 			pluginName:     "test-plugin",
 			keepVersion:    "v2.0.0",
@@ -392,12 +393,7 @@ func TestRemoveOtherVersions(t *testing.T) {
 		{
 			name: "no versions to remove",
 			setupDir: func(t *testing.T) string {
-				dir := t.TempDir()
-				vPath := filepath.Join(dir, "test-plugin", "v1.0.0")
-				if err := os.MkdirAll(vPath, 0755); err != nil {
-					t.Fatal(err)
-				}
-				return dir
+				return setupPluginVersions(t, "test-plugin", "v1.0.0")
 			},
 			pluginName:  "test-plugin",
 			keepVersion: "v1.0.0",
@@ -415,21 +411,11 @@ func TestRemoveOtherVersions(t *testing.T) {
 		{
 			name: "skips non-directory entries",
 			setupDir: func(t *testing.T) string {
-				dir := t.TempDir()
-				pluginPath := filepath.Join(dir, "test-plugin")
-				if err := os.MkdirAll(pluginPath, 0755); err != nil {
-					t.Fatal(err)
-				}
-				// Create a version directory
-				vPath := filepath.Join(pluginPath, "v1.0.0")
-				if err := os.MkdirAll(vPath, 0755); err != nil {
-					t.Fatal(err)
-				}
+				dir := setupPluginVersions(t, "test-plugin", "v1.0.0")
 				// Create a lock file (non-directory)
+				pluginPath := filepath.Join(dir, "test-plugin")
 				lockPath := filepath.Join(pluginPath, "test-plugin.lock")
-				if err := os.WriteFile(lockPath, []byte("lock"), 0600); err != nil {
-					t.Fatal(err)
-				}
+				require.NoError(t, os.WriteFile(lockPath, []byte("lock"), 0600))
 				return dir
 			},
 			pluginName:  "test-plugin",

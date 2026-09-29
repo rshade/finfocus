@@ -1,102 +1,54 @@
 package tui
 
 import (
+	"image/color"
 	"testing"
 
+	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
 )
 
+// TestStyleDefinitions verifies that styles are properly initialized with
+// correct properties. We test style properties rather than rendered output
+// since lipgloss may not apply ANSI codes in test environments.
 func TestStyleDefinitions(t *testing.T) {
-	// Test that styles are properly initialized with correct properties
-	// Note: We test style properties rather than rendered output since
-	// lipgloss may not apply ANSI codes in test environments
+	tests := []struct {
+		name      string
+		style     lipgloss.Style
+		wantBold  bool
+		wantColor color.Color
+	}{
+		{name: "HeaderStyle", style: HeaderStyle, wantBold: true, wantColor: ColorHeader},
+		{name: "LabelStyle", style: LabelStyle, wantColor: ColorLabel},
+		{name: "ValueStyle", style: ValueStyle, wantColor: ColorValue},
+		{name: "OKStyle", style: OKStyle, wantBold: true, wantColor: ColorOK},
+		{name: "WarningStyle", style: WarningStyle, wantBold: true, wantColor: ColorWarning},
+		{name: "CriticalStyle", style: CriticalStyle, wantBold: true, wantColor: ColorCritical},
+		{name: "InfoStyle", style: InfoStyle, wantBold: true, wantColor: ColorInfo},
+		{name: "TableHeaderStyle", style: TableHeaderStyle, wantBold: true, wantColor: ColorHeader},
+		{name: "TableSelectedStyle", style: TableSelectedStyle, wantColor: ColorHighlight},
+	}
 
-	// Text styles
-	t.Run("HeaderStyle", func(t *testing.T) {
-		if !HeaderStyle.GetBold() {
-			t.Error("HeaderStyle should be bold")
-		}
-		if HeaderStyle.GetForeground() != ColorHeader {
-			t.Error("HeaderStyle should have header color")
-		}
-	})
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.wantBold, tt.style.GetBold(), "bold")
+			assert.Equal(t, tt.wantColor, tt.style.GetForeground(), "foreground color")
+		})
+	}
+}
 
-	t.Run("LabelStyle", func(t *testing.T) {
-		if LabelStyle.GetForeground() != ColorLabel {
-			t.Error("LabelStyle should have label color")
-		}
-	})
-
-	t.Run("ValueStyle", func(t *testing.T) {
-		if ValueStyle.GetForeground() != ColorValue {
-			t.Error("ValueStyle should have value color")
-		}
-	})
-
-	// Status styles
-	t.Run("OKStyle", func(t *testing.T) {
-		if !OKStyle.GetBold() {
-			t.Error("OKStyle should be bold")
-		}
-		if OKStyle.GetForeground() != ColorOK {
-			t.Error("OKStyle should have OK color")
-		}
-	})
-
-	t.Run("WarningStyle", func(t *testing.T) {
-		if !WarningStyle.GetBold() {
-			t.Error("WarningStyle should be bold")
-		}
-		if WarningStyle.GetForeground() != ColorWarning {
-			t.Error("WarningStyle should have warning color")
-		}
-	})
-
-	t.Run("CriticalStyle", func(t *testing.T) {
-		if !CriticalStyle.GetBold() {
-			t.Error("CriticalStyle should be bold")
-		}
-		if CriticalStyle.GetForeground() != ColorCritical {
-			t.Error("CriticalStyle should have critical color")
-		}
-	})
-
-	t.Run("InfoStyle", func(t *testing.T) {
-		if !InfoStyle.GetBold() {
-			t.Error("InfoStyle should be bold")
-		}
-		if InfoStyle.GetForeground() != ColorInfo {
-			t.Error("InfoStyle should have info color")
-		}
-	})
-
-	// Container styles
+func TestStyleDefinitions_Padding(t *testing.T) {
 	t.Run("BoxStyle", func(t *testing.T) {
-		// BoxStyle should have padding (returns top, right, bottom, left)
+		// BoxStyle should have padding (returns top, right, bottom, left).
 		top, right, bottom, left := BoxStyle.GetPadding()
-		if top+right+bottom+left == 0 {
-			t.Error("BoxStyle should have padding")
-		}
+		assert.NotZero(t, top+right+bottom+left, "BoxStyle should have padding")
 	})
 
-	// Table styles
 	t.Run("TableHeaderStyle", func(t *testing.T) {
-		if !TableHeaderStyle.GetBold() {
-			t.Error("TableHeaderStyle should be bold")
-		}
-		if TableHeaderStyle.GetForeground() != ColorHeader {
-			t.Error("TableHeaderStyle should have header color")
-		}
 		top, right, bottom, left := TableHeaderStyle.GetPadding()
 		assert.Equal(t, 0, top, "TableHeaderStyle top padding")
 		assert.Equal(t, 1, right, "TableHeaderStyle right padding")
 		assert.Equal(t, 0, bottom, "TableHeaderStyle bottom padding")
 		assert.Equal(t, 1, left, "TableHeaderStyle left padding")
-	})
-
-	t.Run("TableSelectedStyle", func(t *testing.T) {
-		if TableSelectedStyle.GetForeground() != ColorHighlight {
-			t.Error("TableSelectedStyle should have highlight color")
-		}
 	})
 }

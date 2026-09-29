@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -81,7 +82,26 @@ func TestEngineConcurrency(t *testing.T) {
 	var wg sync.WaitGroup
 	start := time.Now()
 
-	// Run concurrent projected cost requests
+	runConcurrentProjectedCosts(ctx, t, eng, resourceType, &wg, concurrency, iterations)
+	runConcurrentActualCosts(ctx, t, eng, resourceType, &wg, concurrency, iterations)
+
+	wg.Wait()
+	duration := time.Since(start)
+	t.Logf("Processed %d requests in %v (%.2f req/s)",
+		concurrency*iterations*2, duration, float64(concurrency*iterations*2)/duration.Seconds())
+}
+
+// runConcurrentProjectedCosts spawns concurrency goroutines that each issue
+// iterations projected cost requests against the engine. Assertions inside
+// goroutines must not use require (FailNow is not goroutine-safe).
+func runConcurrentProjectedCosts(
+	ctx context.Context,
+	t *testing.T,
+	eng *engine.Engine,
+	resourceType string,
+	wg *sync.WaitGroup,
+	concurrency, iterations int,
+) {
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func(id int) {
@@ -96,25 +116,29 @@ func TestEngineConcurrency(t *testing.T) {
 				}
 
 				results, projectedErr := eng.GetProjectedCost(ctx, resources)
-
-				// Assertions inside goroutine might panic test, better to collect errors
-				// But for race detection, just running the code is the main goal
-				if projectedErr != nil {
-					t.Errorf("GetProjectedCost error: %v", projectedErr)
+				if !assert.NoError(t, projectedErr, "GetProjectedCost error") {
 					return
 				}
-				if len(results) != 1 {
-					t.Errorf("Expected 1 result, got %d", len(results))
+				if !assert.Len(t, results, 1, "projected cost results") {
 					return
 				}
-				if results[0].Monthly != 100.0 {
-					t.Errorf("Expected monthly 100.0, got %f", results[0].Monthly)
-				}
+				assert.InDelta(t, 100.0, results[0].Monthly, 1e-9, "monthly cost")
 			}
 		}(i)
 	}
+}
 
-	// Run concurrent actual cost requests
+// runConcurrentActualCosts spawns concurrency goroutines that each issue
+// iterations actual cost requests against the engine. Assertions inside
+// goroutines must not use require (FailNow is not goroutine-safe).
+func runConcurrentActualCosts(
+	ctx context.Context,
+	t *testing.T,
+	eng *engine.Engine,
+	resourceType string,
+	wg *sync.WaitGroup,
+	concurrency, iterations int,
+) {
 	wg.Add(concurrency)
 	for i := 0; i < concurrency; i++ {
 		go func() {
@@ -133,26 +157,16 @@ func TestEngineConcurrency(t *testing.T) {
 				}
 
 				results, actualErr := eng.GetActualCostWithOptions(ctx, req)
-
-				if actualErr != nil {
-					t.Errorf("GetActualCost error: %v", actualErr)
+				if !assert.NoError(t, actualErr, "GetActualCost error") {
 					return
 				}
-				if len(results) != 1 {
-					t.Errorf("Expected 1 result, got %d", len(results))
+				if !assert.Len(t, results, 1, "actual cost results") {
 					return
 				}
-				if results[0].TotalCost != 50.0 {
-					t.Errorf("Expected total cost 50.0, got %f", results[0].TotalCost)
-				}
+				assert.InDelta(t, 50.0, results[0].TotalCost, 1e-9, "total cost")
 			}
 		}()
 	}
-
-	wg.Wait()
-	duration := time.Since(start)
-	t.Logf("Processed %d requests in %v (%.2f req/s)",
-		concurrency*iterations*2, duration, float64(concurrency*iterations*2)/duration.Seconds())
 }
 
 func TestEngineConcurrency_SharedState(t *testing.T) {

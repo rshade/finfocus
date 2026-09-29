@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"sync"
 	"testing"
@@ -204,124 +205,152 @@ type MockRegistryConfig struct {
 	FailMetadata bool
 }
 
+// mockArtifactStore caches generated plugin archives by asset name.
+type mockArtifactStore struct {
+	mu        sync.Mutex
+	artifacts map[string][]byte
+}
+
+func newMockArtifactStore() *mockArtifactStore {
+	return &mockArtifactStore{artifacts: make(map[string][]byte)}
+}
+
+// getOrCreate returns the asset name and size for the plugin release on the
+// current platform, generating the archive on first use.
+func (s *mockArtifactStore) getOrCreate(t *testing.T, pluginName, tagName string) (string, int64) {
+	t.Helper()
+
+	ext := "tar.gz"
+	if runtime.GOOS == "windows" {
+		ext = "zip"
+	}
+	assetName := fmt.Sprintf("%s_%s_%s_%s.%s", pluginName, tagName, runtime.GOOS, runtime.GOARCH, ext)
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.artifacts[assetName]; !exists {
+		s.artifacts[assetName] = CreateTestPluginArchive(t, pluginName, tagName, runtime.GOOS, runtime.GOARCH)
+	}
+	return assetName, int64(len(s.artifacts[assetName]))
+}
+
+// serveDownload writes the artifact for a /download/{filename} request.
+func (s *mockArtifactStore) serveDownload(w http.ResponseWriter, r *http.Request) {
+	filename := strings.TrimPrefix(r.URL.Path, "/download/")
+	s.mu.Lock()
+	content, ok := s.artifacts[filename]
+	s.mu.Unlock()
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	w.Header().Set("Content-Type", "application/octet-stream")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(content)
+}
+
+// newMockRelease creates a release with a single asset for the current platform.
+// The asset name matches what the installer's FindPlatformAssetWithHints looks for.
+func newMockRelease(t *testing.T, store *mockArtifactStore, pluginName, tagName, serverURL string) MockRelease {
+	t.Helper()
+
+	assetName, size := store.getOrCreate(t, pluginName, tagName)
+	return MockRelease{
+		TagName: tagName,
+		Assets: []MockAsset{
+			{
+				Name:               assetName,
+				BrowserDownloadURL: serverURL + "/download/" + assetName,
+				Size:               size,
+			},
+		},
+	}
+}
+
+// parsePluginRequest extracts the plugin name from a GitHub-style request path
+// (/repos/{owner}/{repo}/releases/...) and resolves its configured versions.
+func parsePluginRequest(plugins map[string][]string, path string) (string, []string, bool) {
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	if len(parts) < 4 {
+		return "", nil, false
+	}
+	// Extract plugin name from repo (e.g., "finfocus-plugin-test" -> "test")
+	pluginName := strings.TrimPrefix(parts[2], "finfocus-plugin-")
+	versions, exists := plugins[pluginName]
+	if !exists || len(versions) == 0 {
+		return "", nil, false
+	}
+	return pluginName, versions, true
+}
+
+// releaseTag returns the trailing tag from a /releases/tags/{tag} path.
+func releaseTag(path string) string {
+	parts := strings.Split(path, "/")
+	return parts[len(parts)-1]
+}
+
 // StartMockRegistryWithConfig creates a configurable mock registry server.
 // It allows testing various scenarios like multiple versions, download failures, etc.
 func StartMockRegistryWithConfig(t *testing.T, cfg MockRegistryConfig) (*httptest.Server, func()) {
 	t.Helper()
 
-	// Track created artifacts to serve them later
-	var mu sync.Mutex
-	artifacts := make(map[string][]byte)
+	server := httptest.NewServer(&configMockRegistry{t: t, cfg: cfg, store: newMockArtifactStore()})
+	return server, server.Close
+}
 
-	// Helper to create a release response for a specific plugin/version
-	createReleaseForPlugin := func(pluginName, tagName, serverURL string) MockRelease {
-		osName := runtime.GOOS
-		arch := runtime.GOARCH
-		ext := "tar.gz"
-		if osName == "windows" {
-			ext = "zip"
+// configMockRegistry serves GitHub-style release and download responses
+// according to MockRegistryConfig.
+type configMockRegistry struct {
+	t     *testing.T
+	cfg   MockRegistryConfig
+	store *mockArtifactStore
+}
+
+func (m *configMockRegistry) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/download/") {
+		if m.cfg.FailDownload {
+			http.Error(w, "simulated download failure", http.StatusInternalServerError)
+			return
 		}
-
-		// Asset name uses just the plugin name (e.g., "test_v1.0.0_linux_amd64.tar.gz")
-		// This matches what the installer's FindPlatformAssetWithHints looks for
-		assetName := fmt.Sprintf("%s_%s_%s_%s.%s", pluginName, tagName, osName, arch, ext)
-		downloadPath := fmt.Sprintf("/download/%s", assetName)
-
-		mu.Lock()
-		// Create artifact if it doesn't exist
-		if _, exists := artifacts[assetName]; !exists {
-			content := CreateTestPluginArchive(t, pluginName, tagName, osName, arch)
-			artifacts[assetName] = content
-		}
-		artifactSize := int64(len(artifacts[assetName]))
-		mu.Unlock()
-
-		return MockRelease{
-			TagName: tagName,
-			Assets: []MockAsset{
-				{
-					Name:               assetName,
-					BrowserDownloadURL: serverURL + downloadPath,
-					Size:               artifactSize,
-				},
-			},
-		}
+		m.store.serveDownload(w, r)
+		return
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Handle download requests
-		if strings.HasPrefix(r.URL.Path, "/download/") {
-			if cfg.FailDownload {
-				http.Error(w, "simulated download failure", http.StatusInternalServerError)
-				return
-			}
-			filename := strings.TrimPrefix(r.URL.Path, "/download/")
-			mu.Lock()
-			content, ok := artifacts[filename]
-			mu.Unlock()
-			if ok {
-				w.Header().Set("Content-Type", "application/octet-stream")
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write(content)
-				return
-			}
-			http.NotFound(w, r)
-			return
-		}
+	if m.cfg.FailMetadata {
+		http.Error(w, "simulated metadata failure", http.StatusInternalServerError)
+		return
+	}
 
-		if cfg.FailMetadata {
-			http.Error(w, "simulated metadata failure", http.StatusInternalServerError)
-			return
-		}
-
-		// Parse owner/repo from path: /repos/{owner}/{repo}/releases/...
-		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-		if len(parts) < 4 {
-			http.NotFound(w, r)
-			return
-		}
-
-		// Extract plugin name from repo (e.g., "finfocus-plugin-test" -> "test")
-		repo := parts[2]
-		pluginName := strings.TrimPrefix(repo, "finfocus-plugin-")
-
-		// Get versions for this plugin
-		versions, exists := cfg.Plugins[pluginName]
-		if !exists || len(versions) == 0 {
-			http.NotFound(w, r)
-			return
-		}
-
-		// Handle release metadata requests
-		if strings.Contains(r.URL.Path, "/releases/latest") {
-			release := createReleaseForPlugin(pluginName, versions[0], "http://"+r.Host)
-			_ = json.NewEncoder(w).Encode(release)
-			return
-		}
-
-		if strings.Contains(r.URL.Path, "/releases/tags/") {
-			tag := parts[len(parts)-1]
-			// Verify this version exists
-			found := false
-			for _, v := range versions {
-				if v == tag {
-					found = true
-					break
-				}
-			}
-			if !found {
-				http.NotFound(w, r)
-				return
-			}
-			release := createReleaseForPlugin(pluginName, tag, "http://"+r.Host)
-			_ = json.NewEncoder(w).Encode(release)
-			return
-		}
-
+	pluginName, versions, ok := parsePluginRequest(m.cfg.Plugins, r.URL.Path)
+	if !ok {
 		http.NotFound(w, r)
-	}))
+		return
+	}
 
-	return server, server.Close
+	m.serveRelease(w, r, pluginName, versions)
+}
+
+func (m *configMockRegistry) serveRelease(
+	w http.ResponseWriter,
+	r *http.Request,
+	pluginName string,
+	versions []string,
+) {
+	serverURL := "http://" + r.Host
+
+	switch {
+	case strings.Contains(r.URL.Path, "/releases/latest"):
+		_ = json.NewEncoder(w).Encode(newMockRelease(m.t, m.store, pluginName, versions[0], serverURL))
+	case strings.Contains(r.URL.Path, "/releases/tags/"):
+		tag := releaseTag(r.URL.Path)
+		if !slices.Contains(versions, tag) {
+			http.NotFound(w, r)
+			return
+		}
+		_ = json.NewEncoder(w).Encode(newMockRelease(m.t, m.store, pluginName, tag, serverURL))
+	default:
+		http.NotFound(w, r)
+	}
 }
 
 // setupTestPluginDir creates a temporary plugin directory for testing.

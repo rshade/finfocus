@@ -373,119 +373,95 @@ func TestCostResultWithErrors_HasErrors(t *testing.T) {
 
 // T006: Unit test for ErrorSummary() output format.
 func TestCostResultWithErrors_ErrorSummary(t *testing.T) {
-	t.Run("no errors returns empty string", func(t *testing.T) {
-		result := &CostResultWithErrors{
-			Results: []*CostResult{},
-			Errors:  []ErrorDetail{},
-		}
+	t.Run("no errors returns empty string", testErrorSummaryNoErrors)
+	t.Run("single error", testErrorSummarySingleError)
+	t.Run("multiple errors up to 5", testErrorSummaryMultipleErrors)
+	t.Run("more than 5 errors truncates", testErrorSummaryTruncates)
+}
 
-		if summary := result.ErrorSummary(); summary != "" {
-			t.Errorf("ErrorSummary() = %q, want empty string", summary)
-		}
-	})
+// makeErrorDetails builds n ErrorDetail entries with sequential resource IDs.
+func makeErrorDetails(n int) []ErrorDetail {
+	details := make([]ErrorDetail, 0, n)
+	for i := 0; i < n; i++ {
+		details = append(details, ErrorDetail{
+			ResourceType: "aws:ec2:Instance",
+			ResourceID:   fmt.Sprintf("i-%d", i),
+			PluginName:   "test-plugin",
+			Error:        errors.New("error"),
+			Timestamp:    time.Now(),
+		})
+	}
+	return details
+}
 
-	t.Run("single error", func(t *testing.T) {
-		result := &CostResultWithErrors{
-			Results: []*CostResult{},
-			Errors: []ErrorDetail{
-				{
-					ResourceType: "aws:ec2:Instance",
-					ResourceID:   "i-123",
-					PluginName:   "test-plugin",
-					Error:        errors.New("connection refused"),
-					Timestamp:    time.Now(),
-				},
+func testErrorSummaryNoErrors(t *testing.T) {
+	result := &CostResultWithErrors{
+		Results: []*CostResult{},
+		Errors:  []ErrorDetail{},
+	}
+
+	assert.Empty(t, result.ErrorSummary(), "ErrorSummary() should be empty")
+}
+
+func testErrorSummarySingleError(t *testing.T) {
+	result := &CostResultWithErrors{
+		Results: []*CostResult{},
+		Errors: []ErrorDetail{
+			{
+				ResourceType: "aws:ec2:Instance",
+				ResourceID:   "i-123",
+				PluginName:   "test-plugin",
+				Error:        errors.New("connection refused"),
+				Timestamp:    time.Now(),
 			},
-		}
+		},
+	}
 
-		summary := result.ErrorSummary()
+	summary := result.ErrorSummary()
 
-		if !strings.Contains(summary, "1 resource(s) failed") {
-			t.Errorf("ErrorSummary() should contain '1 resource(s) failed', got %q", summary)
-		}
-		if !strings.Contains(summary, "aws:ec2:Instance") {
-			t.Errorf("ErrorSummary() should contain resource type, got %q", summary)
-		}
-		if !strings.Contains(summary, "i-123") {
-			t.Errorf("ErrorSummary() should contain resource ID, got %q", summary)
-		}
-		if !strings.Contains(summary, "connection refused") {
-			t.Errorf("ErrorSummary() should contain error message, got %q", summary)
-		}
-	})
+	assert.Contains(t, summary, "1 resource(s) failed")
+	assert.Contains(t, summary, "aws:ec2:Instance")
+	assert.Contains(t, summary, "i-123")
+	assert.Contains(t, summary, "connection refused")
+}
 
-	t.Run("multiple errors up to 5", func(t *testing.T) {
-		result := &CostResultWithErrors{
-			Results: []*CostResult{},
-			Errors:  []ErrorDetail{},
-		}
+func testErrorSummaryMultipleErrors(t *testing.T) {
+	result := &CostResultWithErrors{
+		Results: []*CostResult{},
+		Errors:  makeErrorDetails(3),
+	}
 
-		// Add 3 errors
-		for i := 0; i < 3; i++ {
-			result.Errors = append(result.Errors, ErrorDetail{
-				ResourceType: "aws:ec2:Instance",
-				ResourceID:   fmt.Sprintf("i-%d", i),
-				PluginName:   "test-plugin",
-				Error:        errors.New("error"),
-				Timestamp:    time.Now(),
-			})
-		}
+	summary := result.ErrorSummary()
 
-		summary := result.ErrorSummary()
+	assert.Contains(t, summary, "3 resource(s) failed")
+	// All 3 should be listed
+	for i := 0; i < 3; i++ {
+		assert.Contains(t, summary, fmt.Sprintf("i-%d", i), "should list resource i-%d", i)
+	}
+}
 
-		if !strings.Contains(summary, "3 resource(s) failed") {
-			t.Errorf("ErrorSummary() should contain '3 resource(s) failed', got %q", summary)
-		}
-		// All 3 should be listed
-		for i := 0; i < 3; i++ {
-			if !strings.Contains(summary, fmt.Sprintf("i-%d", i)) {
-				t.Errorf("ErrorSummary() should contain resource i-%d, got %q", i, summary)
-			}
-		}
-	})
+func testErrorSummaryTruncates(t *testing.T) {
+	result := &CostResultWithErrors{
+		Results: []*CostResult{},
+		Errors:  makeErrorDetails(10),
+	}
 
-	t.Run("more than 5 errors truncates", func(t *testing.T) {
-		result := &CostResultWithErrors{
-			Results: []*CostResult{},
-			Errors:  []ErrorDetail{},
-		}
+	summary := result.ErrorSummary()
 
-		// Add 10 errors
-		for i := 0; i < 10; i++ {
-			result.Errors = append(result.Errors, ErrorDetail{
-				ResourceType: "aws:ec2:Instance",
-				ResourceID:   fmt.Sprintf("i-%d", i),
-				PluginName:   "test-plugin",
-				Error:        errors.New("error"),
-				Timestamp:    time.Now(),
-			})
-		}
-
-		summary := result.ErrorSummary()
-
-		if !strings.Contains(summary, "10 resource(s) failed") {
-			t.Errorf("ErrorSummary() should contain '10 resource(s) failed', got %q", summary)
-		}
-		// Should show first 5
-		for i := 0; i < 5; i++ {
-			if !strings.Contains(summary, fmt.Sprintf("i-%d", i)) {
-				t.Errorf("ErrorSummary() should contain resource i-%d, got %q", i, summary)
-			}
-		}
-		// Should indicate truncation
-		if !strings.Contains(summary, "and 5 more") {
-			t.Errorf("ErrorSummary() should indicate '... and 5 more errors', got %q", summary)
-		}
-	})
+	assert.Contains(t, summary, "10 resource(s) failed")
+	// Should show first 5
+	for i := 0; i < 5; i++ {
+		assert.Contains(t, summary, fmt.Sprintf("i-%d", i), "should list resource i-%d", i)
+	}
+	// Should indicate truncation
+	assert.Contains(t, summary, "and 5 more")
 }
 
 // T011: Unit test for GetProjectedCost error tracking (plugin errors, not validation errors).
 func TestGetProjectedCostWithErrors(t *testing.T) {
 	t.Run("tracks errors for failed resources", func(t *testing.T) {
-		callCount := 0
 		mockClient := &mockCostSourceClient{
 			getProjectedFunc: func(_ context.Context, in *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
-				callCount++
 				// Fail for the second resource
 				if len(in.Resources) > 0 && in.Resources[0].Type == "aws:rds:Instance" {
 					return nil, errors.New("connection refused")
@@ -519,34 +495,17 @@ func TestGetProjectedCostWithErrors(t *testing.T) {
 		)
 
 		// Should have 3 results (2 success + 1 placeholder for error)
-		if len(result.Results) != 3 {
-			t.Errorf("Results length = %d, want 3", len(result.Results))
-		}
+		assert.Len(t, result.Results, 3)
 
-		// Should have 1 error
-		if len(result.Errors) != 1 {
-			t.Errorf("Errors length = %d, want 1", len(result.Errors))
-		}
-
-		// Error should be tracked
-		if !result.HasErrors() {
-			t.Error("HasErrors() should return true")
-		}
-
-		// Error details should be correct
-		if result.Errors[0].ResourceType != "aws:rds:Instance" {
-			t.Errorf(
-				"Error ResourceType = %s, want aws:rds:Instance",
-				result.Errors[0].ResourceType,
-			)
-		}
+		// Should have 1 error, tracked with correct details
+		require.Len(t, result.Errors, 1)
+		assert.True(t, result.HasErrors())
+		assert.Equal(t, "aws:rds:Instance", result.Errors[0].ResourceType)
 
 		// Placeholder result should have ERROR in Notes
 		for _, r := range result.Results {
 			if r.Notes != "" && strings.Contains(r.Notes, "ERROR") {
-				if !strings.Contains(r.Notes, "connection refused") {
-					t.Errorf("Error result Notes should contain error message, got %q", r.Notes)
-				}
+				assert.Contains(t, r.Notes, "connection refused")
 			}
 		}
 	})
@@ -1120,172 +1079,137 @@ func TestGetRecommendationsResponse_Creation(t *testing.T) {
 
 // T043: Unit test for clientAdapter.GetRecommendations method.
 func TestClientAdapter_GetRecommendations(t *testing.T) {
-	t.Run("successful recommendations query", func(t *testing.T) {
-		mockClient := &mockCostSourceClient{
-			getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
-				return &GetRecommendationsResponse{
-					Recommendations: []*Recommendation{
-						{
-							ID:          "rec-123",
-							Category:    "COST",
-							ActionType:  "RIGHTSIZE",
-							Description: "Switch to t3.small to save $15/mo",
-							Source:      "aws",
-							ResourceID:  "i-1234567890abcdef0",
-							Impact: &RecommendationImpact{
-								EstimatedSavings: 15.00,
-								Currency:         "USD",
-							},
-						},
-					},
-				}, nil
-			},
-		}
+	t.Run("successful recommendations query", testGetRecommendationsSuccess)
+	t.Run("query with no recommendations available", testGetRecommendationsEmpty)
+	t.Run("query with error", testGetRecommendationsError)
+	t.Run("query with pagination", testGetRecommendationsPagination)
+	t.Run("default mock returns empty recommendations", testGetRecommendationsDefaultMock)
+}
 
-		req := &GetRecommendationsRequest{
-			TargetResources: []*ResourceDescriptor{
-				{
-					Type:     "aws:ec2:Instance",
-					Provider: "aws",
-					Properties: map[string]string{
-						"instanceType": "t3.xlarge",
+func testGetRecommendationsSuccess(t *testing.T) {
+	mockClient := &mockCostSourceClient{
+		getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
+			return &GetRecommendationsResponse{
+				Recommendations: []*Recommendation{
+					{
+						ID:          "rec-123",
+						Category:    "COST",
+						ActionType:  "RIGHTSIZE",
+						Description: "Switch to t3.small to save $15/mo",
+						Source:      "aws",
+						ResourceID:  "i-1234567890abcdef0",
+						Impact: &RecommendationImpact{
+							EstimatedSavings: 15.00,
+							Currency:         "USD",
+						},
 					},
 				},
+			}, nil
+		},
+	}
+
+	req := &GetRecommendationsRequest{
+		TargetResources: []*ResourceDescriptor{
+			{
+				Type:     "aws:ec2:Instance",
+				Provider: "aws",
+				Properties: map[string]string{
+					"instanceType": "t3.xlarge",
+				},
 			},
-		}
+		},
+	}
 
-		resp, err := mockClient.GetRecommendations(context.Background(), req)
-		if err != nil {
-			t.Fatalf("GetRecommendations() error = %v", err)
-		}
+	resp, err := mockClient.GetRecommendations(context.Background(), req)
+	require.NoError(t, err)
+	require.Len(t, resp.Recommendations, 1)
 
-		if len(resp.Recommendations) != 1 {
-			t.Errorf("Recommendations length = %d, want 1", len(resp.Recommendations))
-		}
+	rec := resp.Recommendations[0]
+	assert.Equal(t, "rec-123", rec.ID)
+	assert.Equal(t, "Switch to t3.small to save $15/mo", rec.Description)
+	assert.Equal(t, 15.00, rec.Impact.EstimatedSavings)
+}
 
-		rec := resp.Recommendations[0]
-		if rec.ID != "rec-123" {
-			t.Errorf("Recommendation ID = %s, want rec-123", rec.ID)
-		}
-		if rec.Description != "Switch to t3.small to save $15/mo" {
-			t.Errorf("Description = %s, want 'Switch to t3.small to save $15/mo'", rec.Description)
-		}
-		if rec.Impact.EstimatedSavings != 15.00 {
-			t.Errorf("EstimatedSavings = %f, want 15.00", rec.Impact.EstimatedSavings)
-		}
-	})
+func testGetRecommendationsEmpty(t *testing.T) {
+	mockClient := &mockCostSourceClient{
+		getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
+			return &GetRecommendationsResponse{
+				Recommendations: []*Recommendation{},
+			}, nil
+		},
+	}
 
-	t.Run("query with no recommendations available", func(t *testing.T) {
-		mockClient := &mockCostSourceClient{
-			getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
-				return &GetRecommendationsResponse{
-					Recommendations: []*Recommendation{},
-				}, nil
-			},
-		}
+	req := &GetRecommendationsRequest{
+		TargetResources: []*ResourceDescriptor{
+			{Type: "aws:s3:Bucket", Provider: "aws"},
+		},
+	}
 
-		req := &GetRecommendationsRequest{
-			TargetResources: []*ResourceDescriptor{
-				{Type: "aws:s3:Bucket", Provider: "aws"},
-			},
-		}
+	resp, err := mockClient.GetRecommendations(context.Background(), req)
+	require.NoError(t, err)
+	assert.Empty(t, resp.Recommendations)
+}
 
-		resp, err := mockClient.GetRecommendations(context.Background(), req)
-		if err != nil {
-			t.Fatalf("GetRecommendations() error = %v", err)
-		}
+func testGetRecommendationsError(t *testing.T) {
+	mockClient := &mockCostSourceClient{
+		getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
+			return nil, errors.New("service unavailable")
+		},
+	}
 
-		if len(resp.Recommendations) != 0 {
-			t.Errorf("Recommendations length = %d, want 0", len(resp.Recommendations))
-		}
-	})
+	resp, err := mockClient.GetRecommendations(context.Background(), &GetRecommendationsRequest{})
 
-	t.Run("query with error", func(t *testing.T) {
-		mockClient := &mockCostSourceClient{
-			getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
-				return nil, errors.New("service unavailable")
-			},
-		}
+	require.Error(t, err)
+	assert.Nil(t, resp, "response should be nil on error")
+	assert.Contains(t, err.Error(), "service unavailable")
+}
 
-		req := &GetRecommendationsRequest{}
-		resp, err := mockClient.GetRecommendations(context.Background(), req)
-
-		if err == nil {
-			t.Error("GetRecommendations() expected error, got nil")
-		}
-		if resp != nil {
-			t.Errorf("Response should be nil on error, got %v", resp)
-		}
-		if !strings.Contains(err.Error(), "service unavailable") {
-			t.Errorf("Error should contain 'service unavailable', got %v", err)
-		}
-	})
-
-	t.Run("query with pagination", func(t *testing.T) {
-		callCount := 0
-		mockClient := &mockCostSourceClient{
-			getRecommendationsFunc: func(_ context.Context, in *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
-				callCount++
-				if in.PageToken == "" {
-					return &GetRecommendationsResponse{
-						Recommendations: []*Recommendation{
-							{ID: "rec-1"},
-							{ID: "rec-2"},
-						},
-						NextPageToken: "page-2",
-					}, nil
-				}
+func testGetRecommendationsPagination(t *testing.T) {
+	callCount := 0
+	mockClient := &mockCostSourceClient{
+		getRecommendationsFunc: func(_ context.Context, in *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
+			callCount++
+			if in.PageToken == "" {
 				return &GetRecommendationsResponse{
 					Recommendations: []*Recommendation{
-						{ID: "rec-3"},
+						{ID: "rec-1"},
+						{ID: "rec-2"},
 					},
-					NextPageToken: "",
+					NextPageToken: "page-2",
 				}, nil
-			},
-		}
+			}
+			return &GetRecommendationsResponse{
+				Recommendations: []*Recommendation{
+					{ID: "rec-3"},
+				},
+				NextPageToken: "",
+			}, nil
+		},
+	}
 
-		// First page
-		resp, err := mockClient.GetRecommendations(context.Background(), &GetRecommendationsRequest{})
-		if err != nil {
-			t.Fatalf("First page error = %v", err)
-		}
-		if len(resp.Recommendations) != 2 {
-			t.Errorf("First page recommendations = %d, want 2", len(resp.Recommendations))
-		}
-		if resp.NextPageToken != "page-2" {
-			t.Errorf("NextPageToken = %s, want page-2", resp.NextPageToken)
-		}
+	// First page
+	resp, err := mockClient.GetRecommendations(context.Background(), &GetRecommendationsRequest{})
+	require.NoError(t, err, "first page")
+	assert.Len(t, resp.Recommendations, 2, "first page recommendations")
+	assert.Equal(t, "page-2", resp.NextPageToken)
 
-		// Second page
-		resp, err = mockClient.GetRecommendations(context.Background(), &GetRecommendationsRequest{
-			PageToken: "page-2",
-		})
-		if err != nil {
-			t.Fatalf("Second page error = %v", err)
-		}
-		if len(resp.Recommendations) != 1 {
-			t.Errorf("Second page recommendations = %d, want 1", len(resp.Recommendations))
-		}
-		if resp.NextPageToken != "" {
-			t.Errorf("NextPageToken should be empty on last page, got %s", resp.NextPageToken)
-		}
-
-		if callCount != 2 {
-			t.Errorf("Expected 2 calls, got %d", callCount)
-		}
+	// Second page
+	resp, err = mockClient.GetRecommendations(context.Background(), &GetRecommendationsRequest{
+		PageToken: "page-2",
 	})
+	require.NoError(t, err, "second page")
+	assert.Len(t, resp.Recommendations, 1, "second page recommendations")
+	assert.Empty(t, resp.NextPageToken, "NextPageToken should be empty on last page")
 
-	t.Run("default mock returns empty recommendations", func(t *testing.T) {
-		mockClient := &mockCostSourceClient{} // No function set
+	assert.Equal(t, 2, callCount)
+}
 
-		resp, err := mockClient.GetRecommendations(context.Background(), &GetRecommendationsRequest{})
-		if err != nil {
-			t.Fatalf("GetRecommendations() error = %v", err)
-		}
-		if len(resp.Recommendations) != 0 {
-			t.Errorf("Default mock should return empty recommendations, got %d", len(resp.Recommendations))
-		}
-	})
+func testGetRecommendationsDefaultMock(t *testing.T) {
+	mockClient := &mockCostSourceClient{} // No function set
+
+	resp, err := mockClient.GetRecommendations(context.Background(), &GetRecommendationsRequest{})
+	require.NoError(t, err)
+	assert.Empty(t, resp.Recommendations, "default mock should return empty recommendations")
 }
 
 // T031: Test that Recommendation struct correctly stores ActionType for all 11 action types.

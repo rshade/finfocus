@@ -256,21 +256,13 @@ func TestJSONMarshaling(t *testing.T) {
 		}
 
 		data, err := json.Marshal(result)
-		if err != nil {
-			t.Fatalf("Failed to marshal CostResult: %v", err)
-		}
+		require.NoError(t, err, "marshal CostResult")
 
 		var unmarshaled CostResult
-		if err = json.Unmarshal(data, &unmarshaled); err != nil {
-			t.Fatalf("Failed to unmarshal CostResult: %v", err)
-		}
+		require.NoError(t, json.Unmarshal(data, &unmarshaled), "unmarshal CostResult")
 
-		if unmarshaled.ResourceType != result.ResourceType {
-			t.Errorf("ResourceType = %q, want %q", unmarshaled.ResourceType, result.ResourceType)
-		}
-		if unmarshaled.Monthly != result.Monthly {
-			t.Errorf("Monthly = %f, want %f", unmarshaled.Monthly, result.Monthly)
-		}
+		assert.Equal(t, result.ResourceType, unmarshaled.ResourceType)
+		assert.InDelta(t, result.Monthly, unmarshaled.Monthly, 1e-9)
 	})
 
 	t.Run("CrossProviderAggregation marshals to JSON", func(t *testing.T) {
@@ -282,28 +274,14 @@ func TestJSONMarshaling(t *testing.T) {
 		}
 
 		data, err := json.Marshal(agg)
-		if err != nil {
-			t.Fatalf("Failed to marshal CrossProviderAggregation: %v", err)
-		}
+		require.NoError(t, err, "marshal CrossProviderAggregation")
 
 		var unmarshaled CrossProviderAggregation
-		if err = json.Unmarshal(data, &unmarshaled); err != nil {
-			t.Fatalf("Failed to unmarshal CrossProviderAggregation: %v", err)
-		}
+		require.NoError(t, json.Unmarshal(data, &unmarshaled), "unmarshal CrossProviderAggregation")
 
-		if unmarshaled.Period != agg.Period {
-			t.Errorf("Period = %q, want %q", unmarshaled.Period, agg.Period)
-		}
-		if unmarshaled.Total != agg.Total {
-			t.Errorf("Total = %f, want %f", unmarshaled.Total, agg.Total)
-		}
-		if len(unmarshaled.Providers) != len(agg.Providers) {
-			t.Errorf(
-				"Providers length = %d, want %d",
-				len(unmarshaled.Providers),
-				len(agg.Providers),
-			)
-		}
+		assert.Equal(t, agg.Period, unmarshaled.Period)
+		assert.InDelta(t, agg.Total, unmarshaled.Total, 1e-9)
+		assert.Len(t, unmarshaled.Providers, len(agg.Providers))
 	})
 
 	t.Run("AggregatedResults marshals to JSON", func(t *testing.T) {
@@ -322,22 +300,12 @@ func TestJSONMarshaling(t *testing.T) {
 		}
 
 		data, err := json.Marshal(aggregated)
-		if err != nil {
-			t.Fatalf("Failed to marshal AggregatedResults: %v", err)
-		}
+		require.NoError(t, err, "marshal AggregatedResults")
 
 		var unmarshaled AggregatedResults
-		if err = json.Unmarshal(data, &unmarshaled); err != nil {
-			t.Fatalf("Failed to unmarshal AggregatedResults: %v", err)
-		}
+		require.NoError(t, json.Unmarshal(data, &unmarshaled), "unmarshal AggregatedResults")
 
-		if unmarshaled.Summary.TotalMonthly != aggregated.Summary.TotalMonthly {
-			t.Errorf(
-				"TotalMonthly = %f, want %f",
-				unmarshaled.Summary.TotalMonthly,
-				aggregated.Summary.TotalMonthly,
-			)
-		}
+		assert.InDelta(t, aggregated.Summary.TotalMonthly, unmarshaled.Summary.TotalMonthly, 1e-9)
 	})
 }
 

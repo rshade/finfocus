@@ -651,78 +651,38 @@ func TestCreateCrossProviderAggregation(t *testing.T) {
 			result, err := engine.CreateCrossProviderAggregation(tt.results, tt.groupBy)
 
 			if tt.expectError {
-				if err == nil {
-					t.Errorf("Expected error, but got none")
-				}
+				assert.Error(t, err, "expected an error")
 				return
 			}
+			require.NoError(t, err)
+			require.Len(t, result, len(tt.expected), "aggregation count")
 
-			if err != nil {
-				t.Errorf("Unexpected error: %v", err)
-				return
-			}
-
-			if tt.expected == nil {
-				if result != nil {
-					t.Errorf("Expected nil result, got %v", result)
-				}
-				return
-			}
-
-			if len(result) != len(tt.expected) {
-				t.Errorf("Expected %d aggregations, got %d", len(tt.expected), len(result))
-				return
-			}
-
-			// Convert to map for easier comparison
-			resultMap := make(map[string]engine.CrossProviderAggregation)
-			for _, agg := range result {
-				resultMap[agg.Period] = agg
-			}
-
-			for _, expected := range tt.expected {
-				actual, exists := resultMap[expected.Period]
-				if !exists {
-					t.Errorf("Expected period %s not found in results", expected.Period)
-					continue
-				}
-
-				if actual.Total != expected.Total {
-					t.Errorf(
-						"Period %s: expected total %.2f, got %.2f",
-						expected.Period,
-						expected.Total,
-						actual.Total,
-					)
-				}
-
-				if actual.Currency != expected.Currency {
-					t.Errorf(
-						"Period %s: expected currency %s, got %s",
-						expected.Period,
-						expected.Currency,
-						actual.Currency,
-					)
-				}
-
-				for provider, expectedCost := range expected.Providers {
-					actualCost, providerExists := actual.Providers[provider]
-					if !providerExists {
-						t.Errorf(
-							"Period %s: expected provider %s not found",
-							expected.Period,
-							provider,
-						)
-						continue
-					}
-
-					if actualCost != expectedCost {
-						t.Errorf("Period %s, provider %s: expected cost %.2f, got %.2f",
-							expected.Period, provider, expectedCost, actualCost)
-					}
-				}
-			}
+			assertCrossProviderAggregations(t, tt.expected, result)
 		})
+	}
+}
+
+// assertCrossProviderAggregations compares actual aggregations to the expected
+// ones, keyed by period.
+func assertCrossProviderAggregations(
+	t *testing.T,
+	expected, actual []engine.CrossProviderAggregation,
+) {
+	t.Helper()
+
+	actualByPeriod := make(map[string]engine.CrossProviderAggregation, len(actual))
+	for _, agg := range actual {
+		actualByPeriod[agg.Period] = agg
+	}
+
+	for _, exp := range expected {
+		agg, exists := actualByPeriod[exp.Period]
+		if !assert.True(t, exists, "expected period %s not found in results", exp.Period) {
+			continue
+		}
+		assert.InDelta(t, exp.Total, agg.Total, 1e-9, "period %s total", exp.Period)
+		assert.Equal(t, exp.Currency, agg.Currency, "period %s currency", exp.Period)
+		assert.Equal(t, exp.Providers, agg.Providers, "period %s providers", exp.Period)
 	}
 }
 

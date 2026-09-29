@@ -184,6 +184,33 @@ func makeInvalidIndexedResource(index int, id string) indexedResource {
 	}
 }
 
+// makeValidIndexedResources creates n validation-passing indexed resources.
+func makeValidIndexedResources(n int) []indexedResource {
+	resources := make([]indexedResource, n)
+	for i := range n {
+		resources[i] = makeValidIndexedResource(i, fmt.Sprintf("i-%d", i))
+	}
+	return resources
+}
+
+// projectedBatchResult builds a projected-cost batch response entry for one resource.
+func projectedBatchResult(res *pbc.ResourceDescriptor, monthly, unitPrice float64) *pbc.ResourceCostResult {
+	return &pbc.ResourceCostResult{
+		Resource: res,
+		Result: &pbc.ResourceCostResult_CostData{
+			CostData: &pbc.CostData{
+				Data: &pbc.CostData_ProjectedCost{
+					ProjectedCost: &pbc.GetProjectedCostResponse{
+						Currency:     "USD",
+						CostPerMonth: monthly,
+						UnitPrice:    unitPrice,
+					},
+				},
+			},
+		},
+	}
+}
+
 func TestBuildBatchCostRequest_Validation_Table(t *testing.T) {
 	now := timestamppb.Now()
 	start := timestamppb.New(now.AsTime().Add(-24 * time.Hour))
@@ -569,315 +596,208 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 
 // T013: Unit tests for executeBatchForPlugin.
 func TestExecuteBatchForPlugin(t *testing.T) {
-	t.Run("single chunk success with projected query", func(t *testing.T) {
-		var capturedReq *pbc.BatchCostRequest
-		mockAPI := &mockBatchCostSourceClient{
-			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
-				capturedReq = in
-				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
-				for i, res := range in.GetResources() {
-					results[i] = &pbc.ResourceCostResult{
-						Resource: res,
-						Result: &pbc.ResourceCostResult_CostData{
-							CostData: &pbc.CostData{
-								Data: &pbc.CostData_ProjectedCost{
-									ProjectedCost: &pbc.GetProjectedCostResponse{
-										Currency:     "USD",
-										CostPerMonth: float64(10 * (i + 1)),
-										UnitPrice:    float64(i+1) * 0.01,
-									},
-								},
-							},
-						},
-					}
-				}
-				return &pbc.BatchCostResponse{Results: results}, nil
-			},
-		}
-		client := makeBatchCapableClient("test-plugin", mockAPI)
-		eng := New([]*pluginhost.Client{client}, nil)
+	t.Run("single chunk success with projected query", testBatchSingleChunkProjected)
+	t.Run("actual query type with date range", testBatchActualQueryDateRange)
+	t.Run("multi-chunk with max_batch_size adjustment", testBatchMultiChunkMaxBatchSize)
+	t.Run("re-chunked tail spanning multiple future chunks is fully processed", testBatchRechunkedTail)
+	t.Run("response count mismatch returns error", testBatchResponseCountMismatch)
+}
 
-		resources := make([]indexedResource, 3)
-		for i := range 3 {
-			resources[i] = indexedResource{
-				index: i,
-				resource: ResourceDescriptor{
-					Type:       "aws:ec2:Instance",
-					ID:         fmt.Sprintf("i-%d", i),
-					Provider:   "aws",
-					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
-				},
+func testBatchSingleChunkProjected(t *testing.T) {
+	var capturedReq *pbc.BatchCostRequest
+	mockAPI := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			capturedReq = in
+			results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+			for i, res := range in.GetResources() {
+				results[i] = projectedBatchResult(res, float64(10*(i+1)), float64(i+1)*0.01)
 			}
-		}
+			return &pbc.BatchCostResponse{Results: results}, nil
+		},
+	}
+	client := makeBatchCapableClient("test-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
 
-		results, err := eng.executeBatchForPlugin(
-			context.Background(), client, resources,
-			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
-		)
-		require.NoError(t, err)
-		require.Len(t, results, 3)
+	results, err := eng.executeBatchForPlugin(
+		context.Background(), client, makeValidIndexedResources(3),
+		batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+	)
+	require.NoError(t, err)
+	require.Len(t, results, 3)
 
-		// Verify query type was passed correctly
-		require.NotNil(t, capturedReq)
-		assert.Equal(t, pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED, capturedReq.GetQueryType())
-		assert.False(t, capturedReq.GetDryRun())
+	// Verify query type was passed correctly
+	require.NotNil(t, capturedReq)
+	assert.Equal(t, pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED, capturedReq.GetQueryType())
+	assert.False(t, capturedReq.GetDryRun())
 
-		// Verify results mapped correctly
-		for i, br := range results {
-			assert.Equal(t, i, br.index)
-			require.NotNil(t, br.result)
-			assert.InDelta(t, float64(10*(i+1)), br.result.Monthly, 0.001)
-			assert.Equal(t, "test-plugin", br.result.Adapter)
-			assert.Equal(t, "aws:ec2:Instance", br.result.ResourceType)
-		}
-	})
+	// Verify results mapped correctly
+	for i, br := range results {
+		assert.Equal(t, i, br.index)
+		require.NotNil(t, br.result)
+		assert.InDelta(t, float64(10*(i+1)), br.result.Monthly, 0.001)
+		assert.Equal(t, "test-plugin", br.result.Adapter)
+		assert.Equal(t, "aws:ec2:Instance", br.result.ResourceType)
+	}
+}
 
-	t.Run("actual query type with date range", func(t *testing.T) {
-		var capturedReq *pbc.BatchCostRequest
-		now := time.Now()
-		start := timestamppb.New(now.Add(-24 * time.Hour))
-		end := timestamppb.New(now)
+func testBatchActualQueryDateRange(t *testing.T) {
+	var capturedReq *pbc.BatchCostRequest
+	now := time.Now()
+	start := timestamppb.New(now.Add(-24 * time.Hour))
+	end := timestamppb.New(now)
 
-		mockAPI := &mockBatchCostSourceClient{
-			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
-				capturedReq = in
-				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
-				for i, res := range in.GetResources() {
-					results[i] = &pbc.ResourceCostResult{
-						Resource: res,
-						Result: &pbc.ResourceCostResult_CostData{
-							CostData: &pbc.CostData{
-								Data: &pbc.CostData_ActualCost{
-									ActualCost: &pbc.ActualCostData{
-										Results: []*pbc.ActualCostResult{
-											{Cost: float64(i+1) * 5.0, Source: "aws-ce"},
-										},
-									},
-								},
-							},
-						},
-					}
-				}
-				return &pbc.BatchCostResponse{Results: results}, nil
-			},
-		}
-		client := makeBatchCapableClient("test-plugin", mockAPI)
-		eng := New([]*pluginhost.Client{client}, nil)
-
-		resources := []indexedResource{
-			{
-				index: 0,
-				resource: ResourceDescriptor{
-					Type:       "aws:ec2:Instance",
-					ID:         "i-0",
-					Provider:   "aws",
-					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
-				},
-			},
-		}
-
-		results, err := eng.executeBatchForPlugin(
-			context.Background(), client, resources,
-			batchOptions{
-				queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL,
-				start:     start,
-				end:       end,
-			},
-		)
-		require.NoError(t, err)
-		require.Len(t, results, 1)
-
-		// Verify actual query parameters
-		require.NotNil(t, capturedReq)
-		assert.Equal(t, pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL, capturedReq.GetQueryType())
-		assert.NotNil(t, capturedReq.GetStart())
-		assert.NotNil(t, capturedReq.GetEnd())
-
-		// Verify actual result mapped
-		require.NotNil(t, results[0].actualResult)
-		assert.InDelta(t, 5.0, results[0].actualResult.TotalCost, 0.001)
-
-		// Verify rate fields derived from the request time window (24h)
-		from, to := start.AsTime(), end.AsTime()
-		assert.InDelta(t, 5.0*avgDaysPerMonth/1.0, results[0].actualResult.Monthly, 0.001)
-		assert.InDelta(t, 5.0/24.0, results[0].actualResult.Hourly, 0.001)
-		require.Len(t, results[0].actualResult.DailyCosts, 1)
-		assert.InDelta(t, 5.0, results[0].actualResult.DailyCosts[0], 0.001)
-		assert.Equal(t, FormatPeriod(from, to), results[0].actualResult.CostPeriod)
-		assert.Equal(t, from, results[0].actualResult.StartDate)
-		assert.Equal(t, to, results[0].actualResult.EndDate)
-		assert.Contains(t, results[0].actualResult.Notes, "Actual cost from")
-	})
-
-	t.Run("multi-chunk with max_batch_size adjustment", func(t *testing.T) {
-		callCount := 0
-		mockAPI := &mockBatchCostSourceClient{
-			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
-				callCount++
-				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
-				for i, res := range in.GetResources() {
-					results[i] = &pbc.ResourceCostResult{
-						Resource: res,
-						Result: &pbc.ResourceCostResult_CostData{
-							CostData: &pbc.CostData{
-								Data: &pbc.CostData_ProjectedCost{
-									ProjectedCost: &pbc.GetProjectedCostResponse{
-										Currency:     "USD",
-										CostPerMonth: 10.0,
-									},
-								},
-							},
-						},
-					}
-				}
-				resp := &pbc.BatchCostResponse{Results: results}
-				// First response hints at smaller batch size
-				if callCount == 1 {
-					resp.MaxBatchSize = 50
-				}
-				return resp, nil
-			},
-		}
-		client := makeBatchCapableClient("test-plugin", mockAPI)
-		eng := New([]*pluginhost.Client{client}, nil)
-
-		// Create 150 resources which will be initially chunked at 100
-		resources := make([]indexedResource, 150)
-		for i := range 150 {
-			resources[i] = indexedResource{
-				index: i,
-				resource: ResourceDescriptor{
-					Type:       "aws:ec2:Instance",
-					ID:         fmt.Sprintf("i-%d", i),
-					Provider:   "aws",
-					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
-				},
-			}
-		}
-
-		results, err := eng.executeBatchForPlugin(
-			context.Background(), client, resources,
-			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
-		)
-		require.NoError(t, err)
-		assert.Len(t, results, 150)
-		// First chunk = 100, then remaining 50 re-chunked at max_batch_size=50 → 1 more chunk
-		// Total: 2 calls (100 + 50)
-		assert.Equal(t, 2, callCount)
-	})
-
-	t.Run("re-chunked tail spanning multiple future chunks is fully processed", func(t *testing.T) {
-		var chunkSizes []int
-		mockAPI := &mockBatchCostSourceClient{
-			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
-				chunkSizes = append(chunkSizes, len(in.GetResources()))
-				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
-				for i, res := range in.GetResources() {
-					results[i] = &pbc.ResourceCostResult{
-						Resource: res,
-						Result: &pbc.ResourceCostResult_CostData{
-							CostData: &pbc.CostData{
-								Data: &pbc.CostData_ProjectedCost{
-									ProjectedCost: &pbc.GetProjectedCostResponse{
-										Currency:     "USD",
-										CostPerMonth: 10.0,
-									},
-								},
-							},
-						},
-					}
-				}
-				resp := &pbc.BatchCostResponse{Results: results}
-				// First response hints at smaller batch size
-				if len(chunkSizes) == 1 {
-					resp.MaxBatchSize = 50
-				}
-				return resp, nil
-			},
-		}
-		client := makeBatchCapableClient("test-plugin", mockAPI)
-		eng := New([]*pluginhost.Client{client}, nil)
-
-		// 250 resources: initial chunks are [100, 100, 50]. After the first call hints
-		// MaxBatchSize=50, the remaining 150 resources must be re-chunked into
-		// [50, 50, 50] and all of them processed — a for-range loop would skip the tail.
-		resources := make([]indexedResource, 250)
-		for i := range 250 {
-			resources[i] = indexedResource{
-				index: i,
-				resource: ResourceDescriptor{
-					Type:       "aws:ec2:Instance",
-					ID:         fmt.Sprintf("i-%d", i),
-					Provider:   "aws",
-					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
-				},
-			}
-		}
-
-		results, err := eng.executeBatchForPlugin(
-			context.Background(), client, resources,
-			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
-		)
-		require.NoError(t, err)
-		assert.Len(t, results, 250)
-
-		// Every resource index must be present exactly once
-		seen := make(map[int]bool, 250)
-		for _, br := range results {
-			seen[br.index] = true
-		}
-		assert.Len(t, seen, 250)
-
-		// Calls: 100 (initial), then re-chunked tail at max_batch_size=50 → 50+50+50
-		assert.Equal(t, []int{100, 50, 50, 50}, chunkSizes)
-	})
-
-	t.Run("response count mismatch returns error", func(t *testing.T) {
-		mockAPI := &mockBatchCostSourceClient{
-			batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
-				// Return fewer results than requested
-				return &pbc.BatchCostResponse{
-					Results: []*pbc.ResourceCostResult{
-						{
-							Resource: &pbc.ResourceDescriptor{Id: "r1"},
-							Result: &pbc.ResourceCostResult_CostData{
-								CostData: &pbc.CostData{
-									Data: &pbc.CostData_ProjectedCost{
-										ProjectedCost: &pbc.GetProjectedCostResponse{
-											Currency:     "USD",
-											CostPerMonth: 10.0,
-										},
+	mockAPI := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			capturedReq = in
+			results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+			for i, res := range in.GetResources() {
+				results[i] = &pbc.ResourceCostResult{
+					Resource: res,
+					Result: &pbc.ResourceCostResult_CostData{
+						CostData: &pbc.CostData{
+							Data: &pbc.CostData_ActualCost{
+								ActualCost: &pbc.ActualCostData{
+									Results: []*pbc.ActualCostResult{
+										{Cost: float64(i+1) * 5.0, Source: "aws-ce"},
 									},
 								},
 							},
 						},
 					},
-				}, nil
-			},
-		}
-		client := makeBatchCapableClient("test-plugin", mockAPI)
-		eng := New([]*pluginhost.Client{client}, nil)
-
-		resources := make([]indexedResource, 3)
-		for i := range 3 {
-			resources[i] = indexedResource{
-				index: i,
-				resource: ResourceDescriptor{
-					Type:       "aws:ec2:Instance",
-					ID:         fmt.Sprintf("i-%d", i),
-					Provider:   "aws",
-					Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": "us-east-1a"},
-				},
+				}
 			}
-		}
+			return &pbc.BatchCostResponse{Results: results}, nil
+		},
+	}
+	client := makeBatchCapableClient("test-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
 
-		_, err := eng.executeBatchForPlugin(
-			context.Background(), client, resources,
-			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
-		)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "count mismatch")
-	})
+	results, err := eng.executeBatchForPlugin(
+		context.Background(), client, makeValidIndexedResources(1),
+		batchOptions{
+			queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL,
+			start:     start,
+			end:       end,
+		},
+	)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	// Verify actual query parameters
+	require.NotNil(t, capturedReq)
+	assert.Equal(t, pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL, capturedReq.GetQueryType())
+	assert.NotNil(t, capturedReq.GetStart())
+	assert.NotNil(t, capturedReq.GetEnd())
+
+	// Verify actual result mapped
+	require.NotNil(t, results[0].actualResult)
+	assert.InDelta(t, 5.0, results[0].actualResult.TotalCost, 0.001)
+
+	// Verify rate fields derived from the request time window (24h)
+	from, to := start.AsTime(), end.AsTime()
+	assert.InDelta(t, 5.0*avgDaysPerMonth/1.0, results[0].actualResult.Monthly, 0.001)
+	assert.InDelta(t, 5.0/24.0, results[0].actualResult.Hourly, 0.001)
+	require.Len(t, results[0].actualResult.DailyCosts, 1)
+	assert.InDelta(t, 5.0, results[0].actualResult.DailyCosts[0], 0.001)
+	assert.Equal(t, FormatPeriod(from, to), results[0].actualResult.CostPeriod)
+	assert.Equal(t, from, results[0].actualResult.StartDate)
+	assert.Equal(t, to, results[0].actualResult.EndDate)
+	assert.Contains(t, results[0].actualResult.Notes, "Actual cost from")
+}
+
+func testBatchMultiChunkMaxBatchSize(t *testing.T) {
+	callCount := 0
+	mockAPI := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			callCount++
+			results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+			for i, res := range in.GetResources() {
+				results[i] = projectedBatchResult(res, 10.0, 0)
+			}
+			resp := &pbc.BatchCostResponse{Results: results}
+			// First response hints at smaller batch size
+			if callCount == 1 {
+				resp.MaxBatchSize = 50
+			}
+			return resp, nil
+		},
+	}
+	client := makeBatchCapableClient("test-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+
+	// Create 150 resources which will be initially chunked at 100
+	results, err := eng.executeBatchForPlugin(
+		context.Background(), client, makeValidIndexedResources(150),
+		batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+	)
+	require.NoError(t, err)
+	assert.Len(t, results, 150)
+	// First chunk = 100, then remaining 50 re-chunked at max_batch_size=50 → 1 more chunk
+	// Total: 2 calls (100 + 50)
+	assert.Equal(t, 2, callCount)
+}
+
+func testBatchRechunkedTail(t *testing.T) {
+	var chunkSizes []int
+	mockAPI := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			chunkSizes = append(chunkSizes, len(in.GetResources()))
+			results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+			for i, res := range in.GetResources() {
+				results[i] = projectedBatchResult(res, 10.0, 0)
+			}
+			resp := &pbc.BatchCostResponse{Results: results}
+			// First response hints at smaller batch size
+			if len(chunkSizes) == 1 {
+				resp.MaxBatchSize = 50
+			}
+			return resp, nil
+		},
+	}
+	client := makeBatchCapableClient("test-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+
+	// 250 resources: initial chunks are [100, 100, 50]. After the first call hints
+	// MaxBatchSize=50, the remaining 150 resources must be re-chunked into
+	// [50, 50, 50] and all of them processed — a for-range loop would skip the tail.
+	results, err := eng.executeBatchForPlugin(
+		context.Background(), client, makeValidIndexedResources(250),
+		batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+	)
+	require.NoError(t, err)
+	assert.Len(t, results, 250)
+
+	// Every resource index must be present exactly once
+	seen := make(map[int]bool, 250)
+	for _, br := range results {
+		seen[br.index] = true
+	}
+	assert.Len(t, seen, 250)
+
+	// Calls: 100 (initial), then re-chunked tail at max_batch_size=50 → 50+50+50
+	assert.Equal(t, []int{100, 50, 50, 50}, chunkSizes)
+}
+
+func testBatchResponseCountMismatch(t *testing.T) {
+	mockAPI := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			// Return fewer results than requested
+			return &pbc.BatchCostResponse{
+				Results: []*pbc.ResourceCostResult{
+					projectedBatchResult(&pbc.ResourceDescriptor{Id: "r1"}, 10.0, 0),
+				},
+			}, nil
+		},
+	}
+	client := makeBatchCapableClient("test-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+
+	_, err := eng.executeBatchForPlugin(
+		context.Background(), client, makeValidIndexedResources(3),
+		batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED},
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "count mismatch")
 }
 
 // T014: Integration test for batch path in GetProjectedCost.

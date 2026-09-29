@@ -3,6 +3,7 @@ package integration
 import (
 	"context"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -416,8 +417,34 @@ func TestFullScopedBudgetStatus_EndToEnd(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("complete multi-scope budget evaluation", func(t *testing.T) {
-		// Step 1: Parse comprehensive YAML configuration
-		configYAML := `
+		// Step 1-2: Parse and validate comprehensive YAML configuration
+		budgetsCfg := parseFullScopedBudgetConfig(t)
+
+		// Step 3: Create evaluator
+		eval := engine.NewScopedBudgetEvaluator(budgetsCfg)
+		require.NotNil(t, eval)
+
+		// Step 4: Allocate costs for multiple resources
+		spend := allocateScopedCosts(ctx, t, eval, []scopedCostResource{
+			{resourceType: "aws:ec2/instance", tags: map[string]string{"team": "platform", "env": "prod"}, cost: 800.0},
+			{resourceType: "aws:ec2/instance", tags: map[string]string{"team": "platform"}, cost: 500.0},
+			{resourceType: "aws:rds/instance", tags: map[string]string{"env": "prod"}, cost: 2000.0},
+			{resourceType: "gcp:compute/instance", tags: map[string]string{"team": "platform"}, cost: 1500.0},
+		})
+
+		// Step 5-6: Build ScopedBudgetResult with overall health and critical scopes
+		result := buildScopedBudgetResult(budgetsCfg, spend)
+
+		// Step 7: Verify results
+		assertFullScopedBudgetResult(t, result)
+	})
+}
+
+// parseFullScopedBudgetConfig parses and validates the multi-scope budget YAML fixture.
+func parseFullScopedBudgetConfig(t *testing.T) *config.BudgetsConfig {
+	t.Helper()
+
+	configYAML := `
 global:
   amount: 10000
   currency: USD
@@ -446,151 +473,160 @@ types:
     amount: 2500
     currency: USD
 `
-		var budgetsCfg config.BudgetsConfig
-		err := yaml.Unmarshal([]byte(configYAML), &budgetsCfg)
-		require.NoError(t, err)
+	var budgetsCfg config.BudgetsConfig
+	require.NoError(t, yaml.Unmarshal([]byte(configYAML), &budgetsCfg))
 
-		// Step 2: Validate configuration
-		warnings, err := budgetsCfg.Validate()
-		require.NoError(t, err)
+	warnings, err := budgetsCfg.Validate()
+	require.NoError(t, err)
 
-		// Expect warning about tag allocation not being fully implemented
-		// Tests manually pass tags to AllocateCosts(), but real CLI doesn't extract tags from CostResult
-		require.Len(t, warnings, 1, "should have exactly one warning about tag allocation")
-		assert.Contains(
-			t,
-			warnings[0],
-			"tag-based budgets are configured but tag allocation is not yet fully implemented",
-		)
-		assert.Contains(t, warnings[0], "tag budgets will show $0 spend until tag data is available")
+	// Expect warning about tag allocation not being fully implemented
+	// Tests manually pass tags to AllocateCosts(), but real CLI doesn't extract tags from CostResult
+	require.Len(t, warnings, 1, "should have exactly one warning about tag allocation")
+	assert.Contains(
+		t,
+		warnings[0],
+		"tag-based budgets are configured but tag allocation is not yet fully implemented",
+	)
+	assert.Contains(t, warnings[0], "tag budgets will show $0 spend until tag data is available")
 
-		// Step 3: Create evaluator
-		eval := engine.NewScopedBudgetEvaluator(&budgetsCfg)
-		require.NotNil(t, eval)
+	return &budgetsCfg
+}
 
-		// Step 4: Allocate costs for multiple resources
-		resources := []struct {
-			resourceType string
-			tags         map[string]string
-			cost         float64
-		}{
-			{"aws:ec2/instance", map[string]string{"team": "platform", "env": "prod"}, 800.0},
-			{"aws:ec2/instance", map[string]string{"team": "platform"}, 500.0},
-			{"aws:rds/instance", map[string]string{"env": "prod"}, 2000.0},
-			{"gcp:compute/instance", map[string]string{"team": "platform"}, 1500.0},
+// scopedCostResource describes one resource's cost for multi-scope budget tests.
+type scopedCostResource struct {
+	resourceType string
+	tags         map[string]string
+	cost         float64
+}
+
+// scopedSpend tracks accumulated spend per budget scope.
+type scopedSpend struct {
+	global    float64
+	providers map[string]float64
+	tags      map[string]float64
+	types     map[string]float64
+}
+
+// allocateScopedCosts allocates each resource's cost and accumulates spend per scope.
+func allocateScopedCosts(
+	ctx context.Context,
+	t *testing.T,
+	eval *engine.ScopedBudgetEvaluator,
+	resources []scopedCostResource,
+) *scopedSpend {
+	t.Helper()
+
+	spend := &scopedSpend{
+		providers: map[string]float64{},
+		tags:      map[string]float64{},
+		types:     map[string]float64{},
+	}
+
+	for _, res := range resources {
+		allocation := eval.AllocateCosts(ctx, res.resourceType, res.tags, res.cost)
+		require.NotNil(t, allocation)
+
+		if slices.Contains(allocation.AllocatedScopes, "global") {
+			spend.global += res.cost
 		}
 
-		// Track allocations and total spend per scope
-		globalSpend := 0.0
-		providerSpend := map[string]float64{}
-		tagSpend := map[string]float64{}
-		typeSpend := map[string]float64{}
-
-		for _, res := range resources {
-			allocation := eval.AllocateCosts(ctx, res.resourceType, res.tags, res.cost)
-			require.NotNil(t, allocation)
-
-			// Track global spend
-			if slices.Contains(allocation.AllocatedScopes, "global") {
-				globalSpend += res.cost
+		for _, scope := range allocation.AllocatedScopes {
+			if provider, ok := strings.CutPrefix(scope, "provider:"); ok {
+				spend.providers[provider] += res.cost
 			}
-
-			// Track provider spend
-			for _, scope := range allocation.AllocatedScopes {
-				if len(scope) > len("provider:") && scope[:len("provider:")] == "provider:" {
-					provider := scope[len("provider:"):]
-					providerSpend[provider] += res.cost
-				}
-				if len(scope) > len("tag:") && scope[:len("tag:")] == "tag:" {
-					tag := scope[len("tag:"):]
-					tagSpend[tag] += res.cost
-				}
-				if len(scope) > len("type:") && scope[:len("type:")] == "type:" {
-					resType := scope[len("type:"):]
-					typeSpend[resType] += res.cost
-				}
+			if tag, ok := strings.CutPrefix(scope, "tag:"); ok {
+				spend.tags[tag] += res.cost
 			}
-		}
-
-		// Step 5: Build ScopedBudgetResult
-		result := &engine.ScopedBudgetResult{
-			ByProvider: make(map[string]*engine.ScopedBudgetStatus),
-			ByTag:      make([]*engine.ScopedBudgetStatus, 0),
-			ByType:     make(map[string]*engine.ScopedBudgetStatus),
-		}
-
-		// Calculate global status
-		if budgetsCfg.Global != nil {
-			result.Global = &engine.ScopedBudgetStatus{
-				ScopeType:    engine.ScopeTypeGlobal,
-				Budget:       *budgetsCfg.Global,
-				CurrentSpend: globalSpend,
-				Percentage:   globalSpend / budgetsCfg.Global.Amount * 100,
-				Health:       engine.CalculateHealthFromPercentage(globalSpend / budgetsCfg.Global.Amount * 100),
-				Currency:     budgetsCfg.Global.Currency,
+			if resType, ok := strings.CutPrefix(scope, "type:"); ok {
+				spend.types[resType] += res.cost
 			}
 		}
+	}
 
-		// Calculate provider statuses
-		for provider, budget := range budgetsCfg.Providers {
-			spend := providerSpend[provider]
-			result.ByProvider[provider] = engine.CalculateProviderBudgetStatus(provider, budget, spend)
+	return spend
+}
+
+// buildScopedBudgetResult computes per-scope statuses, overall health, and
+// critical scopes from accumulated spend.
+func buildScopedBudgetResult(
+	budgetsCfg *config.BudgetsConfig,
+	spend *scopedSpend,
+) *engine.ScopedBudgetResult {
+	result := &engine.ScopedBudgetResult{
+		ByProvider: make(map[string]*engine.ScopedBudgetStatus),
+		ByTag:      make([]*engine.ScopedBudgetStatus, 0),
+		ByType:     make(map[string]*engine.ScopedBudgetStatus),
+	}
+
+	if budgetsCfg.Global != nil {
+		result.Global = &engine.ScopedBudgetStatus{
+			ScopeType:    engine.ScopeTypeGlobal,
+			Budget:       *budgetsCfg.Global,
+			CurrentSpend: spend.global,
+			Percentage:   spend.global / budgetsCfg.Global.Amount * 100,
+			Health:       engine.CalculateHealthFromPercentage(spend.global / budgetsCfg.Global.Amount * 100),
+			Currency:     budgetsCfg.Global.Currency,
 		}
+	}
 
-		// Calculate tag statuses
-		for i := range budgetsCfg.Tags {
-			tagBudget := &budgetsCfg.Tags[i]
-			spend := tagSpend[tagBudget.Selector]
-			result.ByTag = append(result.ByTag, engine.CalculateTagBudgetStatus(tagBudget, spend))
-		}
+	for provider, budget := range budgetsCfg.Providers {
+		result.ByProvider[provider] = engine.CalculateProviderBudgetStatus(provider, budget, spend.providers[provider])
+	}
 
-		// Calculate type statuses
-		for resType, budget := range budgetsCfg.Types {
-			spend := typeSpend[resType]
-			result.ByType[resType] = engine.CalculateTypeBudgetStatus(resType, budget, spend)
-		}
+	for i := range budgetsCfg.Tags {
+		tagBudget := &budgetsCfg.Tags[i]
+		result.ByTag = append(result.ByTag, engine.CalculateTagBudgetStatus(tagBudget, spend.tags[tagBudget.Selector]))
+	}
 
-		// Step 6: Calculate overall health and critical scopes
-		result.OverallHealth = engine.CalculateOverallHealth(result)
-		result.CriticalScopes = engine.IdentifyCriticalScopes(result)
+	for resType, budget := range budgetsCfg.Types {
+		result.ByType[resType] = engine.CalculateTypeBudgetStatus(resType, budget, spend.types[resType])
+	}
 
-		// Step 7: Verify results
-		// Global: 4800/10000 = 48% (OK)
-		require.NotNil(t, result.Global)
-		assert.InDelta(t, 4800.0, result.Global.CurrentSpend, 1e-9)
-		assert.InDelta(t, 48.0, result.Global.Percentage, 0.1)
+	result.OverallHealth = engine.CalculateOverallHealth(result)
+	result.CriticalScopes = engine.IdentifyCriticalScopes(result)
+	return result
+}
 
-		// AWS: 3300/5000 = 66% (OK)
-		awsStatus := result.ByProvider["aws"]
-		require.NotNil(t, awsStatus)
-		assert.InDelta(t, 3300.0, awsStatus.CurrentSpend, 1e-9)
-		assert.InDelta(t, 66.0, awsStatus.Percentage, 0.1)
+// assertFullScopedBudgetResult verifies the expected spend, percentages, and
+// health for the full multi-scope budget fixture.
+func assertFullScopedBudgetResult(t *testing.T, result *engine.ScopedBudgetResult) {
+	t.Helper()
 
-		// GCP: 1500/3000 = 50% (OK)
-		gcpStatus := result.ByProvider["gcp"]
-		require.NotNil(t, gcpStatus)
-		assert.InDelta(t, 1500.0, gcpStatus.CurrentSpend, 1e-9)
-		assert.InDelta(t, 50.0, gcpStatus.Percentage, 0.1)
+	// Global: 4800/10000 = 48% (OK)
+	require.NotNil(t, result.Global)
+	assert.InDelta(t, 4800.0, result.Global.CurrentSpend, 1e-9)
+	assert.InDelta(t, 48.0, result.Global.Percentage, 0.1)
 
-		// EC2 instances: 1300/1000 = 130% (EXCEEDED)
-		ec2Status := result.ByType["aws:ec2/instance"]
-		require.NotNil(t, ec2Status)
-		assert.InDelta(t, 1300.0, ec2Status.CurrentSpend, 1e-9)
-		assert.InDelta(t, 130.0, ec2Status.Percentage, 0.1)
-		assert.True(t, ec2Status.IsOverBudget())
+	// AWS: 3300/5000 = 66% (OK)
+	awsStatus := result.ByProvider["aws"]
+	require.NotNil(t, awsStatus)
+	assert.InDelta(t, 3300.0, awsStatus.CurrentSpend, 1e-9)
+	assert.InDelta(t, 66.0, awsStatus.Percentage, 0.1)
 
-		// RDS instances: 2000/2500 = 80% (WARNING)
-		rdsStatus := result.ByType["aws:rds/instance"]
-		require.NotNil(t, rdsStatus)
-		assert.InDelta(t, 2000.0, rdsStatus.CurrentSpend, 1e-9)
-		assert.InDelta(t, 80.0, rdsStatus.Percentage, 0.1)
+	// GCP: 1500/3000 = 50% (OK)
+	gcpStatus := result.ByProvider["gcp"]
+	require.NotNil(t, gcpStatus)
+	assert.InDelta(t, 1500.0, gcpStatus.CurrentSpend, 1e-9)
+	assert.InDelta(t, 50.0, gcpStatus.Percentage, 0.1)
 
-		// Overall health should be EXCEEDED (worst wins)
-		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED, result.OverallHealth)
+	// EC2 instances: 1300/1000 = 130% (EXCEEDED)
+	ec2Status := result.ByType["aws:ec2/instance"]
+	require.NotNil(t, ec2Status)
+	assert.InDelta(t, 1300.0, ec2Status.CurrentSpend, 1e-9)
+	assert.InDelta(t, 130.0, ec2Status.Percentage, 0.1)
+	assert.True(t, ec2Status.IsOverBudget())
 
-		// Critical scopes should include EC2 type
-		assert.Contains(t, result.CriticalScopes, "type:aws:ec2/instance")
-	})
+	// RDS instances: 2000/2500 = 80% (WARNING)
+	rdsStatus := result.ByType["aws:rds/instance"]
+	require.NotNil(t, rdsStatus)
+	assert.InDelta(t, 2000.0, rdsStatus.CurrentSpend, 1e-9)
+	assert.InDelta(t, 80.0, rdsStatus.Percentage, 0.1)
+
+	// Overall health should be EXCEEDED (worst wins)
+	assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED, result.OverallHealth)
+
+	// Critical scopes should include EC2 type
+	assert.Contains(t, result.CriticalScopes, "type:aws:ec2/instance")
 }
 
 // TestTypeBudget_EndToEnd tests resource type budget flow from config to evaluation (T046).

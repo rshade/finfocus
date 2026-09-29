@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -140,9 +141,7 @@ func TestGeneratePlan(t *testing.T) {
 			name:   "generates correct resource count",
 			config: PresetSmall,
 			checkPlan: func(t *testing.T, plan SyntheticPlan) {
-				if len(plan.Resources) != PresetSmall.ResourceCount {
-					t.Errorf("expected %d resources, got %d", PresetSmall.ResourceCount, len(plan.Resources))
-				}
+				assert.Len(t, plan.Resources, PresetSmall.ResourceCount)
 			},
 		},
 		{
@@ -171,15 +170,10 @@ func TestGeneratePlan(t *testing.T) {
 					Seed:            12345,
 				})
 				require.NoError(t, err)
+				require.Len(t, plan2.Resources, len(plan.Resources))
 				for i := range plan.Resources {
-					if plan.Resources[i].Name != plan2.Resources[i].Name {
-						t.Errorf("resource %d name mismatch: %s vs %s",
-							i, plan.Resources[i].Name, plan2.Resources[i].Name)
-					}
-					if plan.Resources[i].Type != plan2.Resources[i].Type {
-						t.Errorf("resource %d type mismatch: %s vs %s",
-							i, plan.Resources[i].Type, plan2.Resources[i].Type)
-					}
+					assert.Equal(t, plan.Resources[i].Name, plan2.Resources[i].Name, "resource %d name", i)
+					assert.Equal(t, plan.Resources[i].Type, plan2.Resources[i].Type, "resource %d type", i)
 				}
 			},
 		},
@@ -192,14 +186,8 @@ func TestGeneratePlan(t *testing.T) {
 				Seed:            42,
 			},
 			checkPlan: func(t *testing.T, plan SyntheticPlan) {
-				validTypes := make(map[string]bool)
-				for _, rt := range resourceTypes {
-					validTypes[rt] = true
-				}
 				for _, r := range plan.Resources {
-					if !validTypes[r.Type] {
-						t.Errorf("invalid resource type: %s", r.Type)
-					}
+					assert.Contains(t, resourceTypes, r.Type, "invalid resource type")
 				}
 			},
 		},
@@ -219,12 +207,8 @@ func TestGeneratePlan(t *testing.T) {
 				for i, r := range plan.Resources {
 					for _, dep := range r.DependsOn {
 						depIdx, ok := nameToIdx[dep]
-						if !ok {
-							t.Errorf("resource %d references unknown dependency: %s", i, dep)
-						}
-						if depIdx >= i {
-							t.Errorf("resource %d references later resource %d as dependency", i, depIdx)
-						}
+						require.True(t, ok, "resource %d references unknown dependency: %s", i, dep)
+						assert.Less(t, depIdx, i, "resource %d references later resource as dependency", i)
 					}
 				}
 			},
@@ -239,9 +223,7 @@ func TestGeneratePlan(t *testing.T) {
 			},
 			checkPlan: func(t *testing.T, plan SyntheticPlan) {
 				for _, r := range plan.Resources {
-					if len(r.DependsOn) > 0 {
-						t.Errorf("expected no dependencies with ratio 0.0, got %v", r.DependsOn)
-					}
+					assert.Empty(t, r.DependsOn, "expected no dependencies with ratio 0.0")
 				}
 			},
 		},
@@ -250,11 +232,12 @@ func TestGeneratePlan(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			plan, err := GeneratePlan(tt.config)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GeneratePlan() error = %v, wantErr %v", err, tt.wantErr)
+			if tt.wantErr {
+				assert.Error(t, err)
 				return
 			}
-			if tt.checkPlan != nil && err == nil {
+			require.NoError(t, err)
+			if tt.checkPlan != nil {
 				tt.checkPlan(t, plan)
 			}
 		})

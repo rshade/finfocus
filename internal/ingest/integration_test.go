@@ -3,8 +3,10 @@ package ingest_test
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
@@ -249,69 +251,55 @@ func TestResourceTypeMappingIntegration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create temporary file with plan content
-			tmpDir := t.TempDir()
-			tmpFile := filepath.Join(tmpDir, "plan.json")
-
-			err := os.WriteFile(tmpFile, []byte(tt.planContent), 0644)
-			if err != nil {
-				t.Fatalf("failed to create temp file: %v", err)
-			}
-
 			// Test the complete pipeline: Load -> GetResources -> MapResources
-			plan, err := ingest.LoadPulumiPlan(tmpFile)
-			if err != nil {
-				t.Fatalf("LoadPulumiPlan() failed: %v", err)
-			}
-
-			pulumiResources := plan.GetResources()
-			descriptors, err := ingest.MapResources(pulumiResources)
-			if err != nil {
-				t.Fatalf("MapResources() failed: %v", err)
-			}
-
-			// Validate the resource mappings
-			if len(descriptors) != len(tt.expected) {
-				t.Fatalf(
-					"expected %d resource descriptors, got %d",
-					len(tt.expected),
-					len(descriptors),
-				)
-			}
+			descriptors := loadPlanDescriptors(t, tt.planContent)
+			require.Len(t, descriptors, len(tt.expected), "resource descriptor count")
 
 			for i, expected := range tt.expected {
-				descriptor := descriptors[i]
-
-				// Validate resource type mapping
-				if descriptor.Type != expected.OriginalType {
-					t.Errorf("resource %d: expected type %s, got %s",
-						i, expected.OriginalType, descriptor.Type)
-				}
-
-				// Validate provider extraction
-				if descriptor.Provider != expected.ExpectedProvider {
-					t.Errorf("resource %d: expected provider %s, got %s",
-						i, expected.ExpectedProvider, descriptor.Provider)
-				}
-
-				// Validate that required properties are preserved
-				for _, prop := range expected.RequiredProperties {
-					if _, exists := descriptor.Properties[prop]; !exists {
-						t.Errorf("resource %d (%s): missing required property %s",
-							i, expected.Description, prop)
-					}
-				}
-
-				// Validate that URN is preserved as ID
-				expectedURNSubstring := expected.ExpectedProvider + ":" +
-					extractResourceServiceType(expected.OriginalType)
-				if !strings.Contains(descriptor.ID, expectedURNSubstring) {
-					t.Errorf("resource %d: ID should contain %s, got %s",
-						i, expectedURNSubstring, descriptor.ID)
-				}
+				assertResourceMapping(t, i, expected, descriptors[i])
 			}
 		})
 	}
+}
+
+// loadPlanDescriptors writes planContent to a temp file and runs the complete
+// pipeline: LoadPulumiPlan -> GetResources -> MapResources.
+func loadPlanDescriptors(t *testing.T, planContent string) []engine.ResourceDescriptor {
+	t.Helper()
+
+	tmpFile := filepath.Join(t.TempDir(), "plan.json")
+	require.NoError(t, os.WriteFile(tmpFile, []byte(planContent), 0644), "create temp plan file")
+
+	plan, err := ingest.LoadPulumiPlan(tmpFile)
+	require.NoError(t, err, "LoadPulumiPlan() failed")
+
+	descriptors, err := ingest.MapResources(plan.GetResources())
+	require.NoError(t, err, "MapResources() failed")
+	return descriptors
+}
+
+// assertResourceMapping validates one mapped descriptor against its expectation.
+func assertResourceMapping(
+	t *testing.T,
+	i int,
+	expected ResourceMappingExpectation,
+	descriptor engine.ResourceDescriptor,
+) {
+	t.Helper()
+
+	assert.Equal(t, expected.OriginalType, descriptor.Type, "resource %d type", i)
+	assert.Equal(t, expected.ExpectedProvider, descriptor.Provider, "resource %d provider", i)
+
+	// Validate that required properties are preserved
+	for _, prop := range expected.RequiredProperties {
+		assert.Contains(t, descriptor.Properties, prop,
+			"resource %d (%s): missing required property", i, expected.Description)
+	}
+
+	// Validate that URN is preserved as ID
+	expectedURNSubstring := expected.ExpectedProvider + ":" +
+		extractResourceServiceType(expected.OriginalType)
+	assert.Contains(t, descriptor.ID, expectedURNSubstring, "resource %d ID", i)
 }
 
 // getEdgeCaseTestData returns test data for edge case integration tests.
