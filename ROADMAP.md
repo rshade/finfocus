@@ -17,97 +17,61 @@ guardrails in `CONTEXT.md`.
 
 *v0.3.5 released 2026-03-30.*
 
-- [x] Implement EstimateCost RPC consumer (remove stub)
-      ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
-      *(Completed 2026-04-04)*
-- [ ] **EstimateCost RPC — Code Review Follow-ups** *(from #847 PR review)*
-  - [ ] Add test for modified-response validation fallback path
-        ([#970](https://github.com/rshade/finfocus/issues/970)) [S]
-  - [ ] Add missing `.Ctx(ctx)` and component fields to `tryEstimateCostRPC`
-        warning logs
-        ([#972](https://github.com/rshade/finfocus/issues/972)) [S]
-  - [ ] Add test for `BuildEstimateCostRequest` `structpb.NewStruct` error path
-        ([#973](https://github.com/rshade/finfocus/issues/973)) [S]
-- [x] Implement BatchCost RPC consumer for multi-resource queries
-      ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
-      *(Completed 2026-04-04)*
-- [ ] **BatchCost RPC — Code Review Follow-ups** *(from #846 PR review)*
-  - [x] Add per-resource validation to batch cost requests
-        ([#983](https://github.com/rshade/finfocus/issues/983)) [M]
-        *(Completed 2026-04-06)*
-  - [x] buildBatchCostRequest should validate resources before batching
-        ([#980](https://github.com/rshade/finfocus/issues/980)) [M]
-        *(Completed 2026-04-06)*
-  - [ ] executeBatchForPlugin for-range over chunks skips re-chunked tail
-        ([#978](https://github.com/rshade/finfocus/issues/978)) [M]
-  - [ ] Add per-chunk timeout for BatchCost RPC calls
-        ([#979](https://github.com/rshade/finfocus/issues/979)) [S]
-  - [ ] batch actual cost mapper drops rate fields
-        ([#974](https://github.com/rshade/finfocus/issues/974)) [M]
-  - [ ] budget\_health\_test mock BatchCost should return error
-        ([#975](https://github.com/rshade/finfocus/issues/975)) [S]
-  - [ ] budget\_tag\_filter\_test mock BatchCost should return error
-        ([#976](https://github.com/rshade/finfocus/issues/976)) [S]
-  - [ ] Document ActualCostData and ResourceError protobuf messages
-        ([#977](https://github.com/rshade/finfocus/issues/977)) [S]
-- [x] Resource History Store with Layered Cost Attribution
-      ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
-      *(Completed 2026-04-04)*
-- [ ] **Resource History Store — Code Review Follow-ups** *(from #934 PR review)*
-  - [ ] Extract correct URN hash segment in `filterFullyExpiredURNs`
-        ([#968](https://github.com/rshade/finfocus/issues/968)) [S]
-  - [x] Capture analyzer resource properties and extract tags into history
-        ([#955](https://github.com/rshade/finfocus/issues/955)) [S]
-        *(Completed 2026-04-05)*
-  - [ ] Populate tags in `convertDescriptorsToHistoryState`
-        ([#956](https://github.com/rshade/finfocus/issues/956)) [S]
-  - [ ] Copy tags in `convertEngineStateToHistoryState`
-        ([#957](https://github.com/rshade/finfocus/issues/957)) [S]
-  - [ ] Return success indicator from `detectHistoryStackContext`
-        ([#958](https://github.com/rshade/finfocus/issues/958)) [S]
-  - [ ] Reuse loaded config in overview `initHistoryFromConfig` calls
-        ([#959](https://github.com/rshade/finfocus/issues/959)) [S]
-  - [ ] Use pointer type for `HistoryConfig.RetentionDays`
-        ([#960](https://github.com/rshade/finfocus/issues/960)) [S]
-  - [ ] Only ignore missing-file errors in `GetProjectName`
-        ([#961](https://github.com/rshade/finfocus/issues/961)) [S]
-  - [ ] Track newest entry per URN hash in `GetDeletedResources`
-        ([#962](https://github.com/rshade/finfocus/issues/962)) [S]
-  - [ ] Set `enabled=false` on `BoltStore.Close`
-        ([#963](https://github.com/rshade/finfocus/issues/963)) [S]
-  - [ ] Merge tag timestamps instead of overwriting in `upsertTags`
-        ([#964](https://github.com/rshade/finfocus/issues/964)) [S]
-  - [ ] Fix `newTestEntryWithTime` to ensure `FirstSeen <= LastSeen`
-        ([#965](https://github.com/rshade/finfocus/issues/965)) [S]
-  - [ ] Escape delimiters in `BuildTagKey`
-        ([#967](https://github.com/rshade/finfocus/issues/967)) [S]
+- [ ] **Bug Queue** *(every open `bug` issue; worked from `roadmap/current`)*
+  - [ ] Fail open on the SDK's default `Supports` response and send provider/region
+        ([#1512](https://github.com/rshade/finfocus/issues/1512)) [S] *(cross-repo)*
+  - [ ] Map BadRequest/Invalid and in-flight context errors to precise gRPC codes
+        ([#1517](https://github.com/rshade/finfocus/issues/1517)) [S]
+  - [ ] Account for pod-level `spec.resources` requests in `EffectiveRequests`
+        ([#1518](https://github.com/rshade/finfocus/issues/1518)) [S]
+  - [ ] Emit valid Pulumi resource type tokens for GCP and Azure nodes
+        ([#1519](https://github.com/rshade/finfocus/issues/1519)) [S]
+  - [ ] terraform-state v0.3.7 smoke-test findings
+        ([#1506](https://github.com/rshade/finfocus/issues/1506)) [M]
 
 - [ ] **Kubernetes Cost Allocation — Release & Follow-ups** *(from the
       612-k8s-cost-allocation work; plugin in `plugins/kubernetes/`)*
-  - [ ] Validate label selector keys and values before querying the API server
-        ([#1516](https://github.com/rshade/finfocus/issues/1516)) [S]
-  - [ ] Registry entry for the kubernetes plugin after the first
-        `kubernetes-v0.1.0` release
+  - [ ] Registry entry for the kubernetes plugin after the first `kubernetes-v0.1.0` release
         ([#1534](https://github.com/rshade/finfocus/issues/1534)) [S]
-  - [ ] Convert the Kubernetes cost-allocation docs to Spec Kit (produces the
-        `cost cluster` feature folder)
+  - [ ] Convert the Kubernetes cost-allocation docs to Spec Kit (produces the `cost cluster` feature folder)
         ([#1523](https://github.com/rshade/finfocus/issues/1523)) [M]
-  - [ ] `finfocus cost cluster` command — usage/allocator pipeline, `--group-by`,
-        table/JSON/NDJSON, MCP tool, kind E2E
+  - [ ] `finfocus cost cluster` command — usage/allocator pipeline, `--group-by`, table/JSON/NDJSON, MCP tool, kind E2E
         ([#1528](https://github.com/rshade/finfocus/issues/1528)) [L]
-  - [ ] **Code Review Follow-ups** *(from #1522 PR review)*
-    - [ ] Surface plugin `Supports` decline reasons when no plugin serves a
-        resource
+  - [ ] Surface plugin `Supports` decline reasons when no plugin serves a resource *(from #1522 PR review)*
         ([#1515](https://github.com/rshade/finfocus/issues/1515)) [M]
-    - [ ] Map BadRequest/Invalid and in-flight context errors to precise gRPC
-        codes
-        ([#1517](https://github.com/rshade/finfocus/issues/1517)) [S]
-    - [ ] Account for pod-level `spec.resources` requests
-        ([#1518](https://github.com/rshade/finfocus/issues/1518)) [S]
-    - [ ] Emit valid Pulumi type tokens for GCP and Azure nodes
-        ([#1519](https://github.com/rshade/finfocus/issues/1519)) [S]
-    - [ ] Detect China-partition EKS API server hosts
-        ([#1520](https://github.com/rshade/finfocus/issues/1520)) [S]
+
+- [ ] **Lint & Test Modernization** *(incremental tech-debt — golangci-lint
+      rule adoption across the test suite; promoted 2026-09-23)*
+  - [ ] Migrate internal package tests to external test packages
+        ([#1197](https://github.com/rshade/finfocus/issues/1197)) [L]
+  - [ ] Apply Go modernization lint rules incrementally
+        ([#1208](https://github.com/rshade/finfocus/issues/1208)) [L]
+  - [ ] Adopt paralleltest safely across isolated tests
+        ([#1198](https://github.com/rshade/finfocus/issues/1198)) [M]
+  - [ ] Refactor high-complexity tests flagged by gocognit
+        ([#1199](https://github.com/rshade/finfocus/issues/1199)) [M]
+  - [ ] Make mock plugin examples testable
+        ([#1200](https://github.com/rshade/finfocus/issues/1200)) [M]
+  - [ ] Normalize CLI, config, and logging constants flagged by goconst
+        ([#1203](https://github.com/rshade/finfocus/issues/1203)) [M]
+  - [ ] Normalize engine, router, proto, and analyzer constants flagged by goconst
+        ([#1204](https://github.com/rshade/finfocus/issues/1204)) [M]
+  - [ ] Adopt stricter testifylint assertions across tests
+        ([#1206](https://github.com/rshade/finfocus/issues/1206)) [M]
+  - [ ] Adopt usetesting helpers for env, tempdir, and cwd tests
+        ([#1207](https://github.com/rshade/finfocus/issues/1207)) [M]
+  - [ ] Audit govet shadow analyzer findings
+        ([#1209](https://github.com/rshade/finfocus/issues/1209)) [M]
+  - [ ] Audit govet unusedwrite findings in tests and fixtures
+        ([#1212](https://github.com/rshade/finfocus/issues/1212)) [M]
+  - [ ] Migrate mock plugin gRPC helpers off deprecated `DialContext`
+        ([#1213](https://github.com/rshade/finfocus/issues/1213)) [M]
+  - [ ] Clean fixture and benchmark constants flagged by goconst and mnd
+        ([#1205](https://github.com/rshade/finfocus/issues/1205)) [S]
+  - [ ] Clean revive unused-parameter findings in test doubles
+        ([#1210](https://github.com/rshade/finfocus/issues/1210)) [S]
+  - [ ] Add stdlib doc links for godoclint
+        ([#1211](https://github.com/rshade/finfocus/issues/1211)) [S]
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -152,10 +116,6 @@ guardrails in `CONTEXT.md`.
   - [ ] Projection Math Engine (Linear/Exponential extrapolation)
   - [ ] TUI: ASCII Line Chart visualization for 6-12 month forecasts
   - *Status: Spec primitives available (GrowthType/GrowthRate)*
-- [ ] **Platform Reliability** *(reliability bug — tied to nightly E2E
-      stabilization)*
-  - [ ] Plugins can outlive Core and hold inherited stdout/stderr pipes
-        ([#1231](https://github.com/rshade/finfocus/issues/1231)) [M]
 
 - [ ] **Kubernetes Cost Allocation — Pulumi Integration**
   - [ ] Projected cost for Kubernetes workloads declared in a Pulumi program
@@ -221,13 +181,6 @@ guardrails in `CONTEXT.md`.
 - [ ] Configuration validation with helpful error messages (#223) [M]
 - [ ] **Plugin Generator Enhancements** *(Deprioritized — solo plugin dev)*
   - [ ] Update Plugin Generator Templates for spec v0.5.x (#248) [M]
-  - [ ] Generate Docker support files (#456) [S]
-  - [ ] Generate documentation templates (#457) [S]
-  - [ ] Add GetPluginInfo and Supports to calculator template (#458) [S]
-  - [ ] Add health endpoint to generated main.go (#459) [S]
-  - [ ] Enhanced Makefile template with new targets (#460) [S]
-  - [ ] Add new CLI flags for generation control (#461) [S]
-  - [ ] Generate standardized GitHub workflow files (#462) [S]
   - [ ] Generate .golangci-lint.yml configuration (#493) [S]
 - [ ] Use registry-based plugin install for cross-repo integration tests
       ([#517](https://github.com/rshade/finfocus/issues/517)) [M]
@@ -308,9 +261,6 @@ guardrails in `CONTEXT.md`.
   - [ ] Thread budget flag overrides explicitly instead of mutating global
         config singleton
         ([#808](https://github.com/rshade/finfocus/issues/808)) [M]
-- [ ] **Platform Reliability**
-  - [ ] Reimplement plugin installer lock for Windows reliability
-        ([#573](https://github.com/rshade/finfocus/issues/573)) [M]
 - [ ] **Stateless Cost-Policy Linting**
   - *Objective*: Prevent accidental cost overruns by flagging resources that
     exceed organizational informational thresholds.
@@ -321,47 +271,83 @@ guardrails in `CONTEXT.md`.
     configuration.
   - *Success Criteria*: The CLI produces a "Policy Violated" diagnostic when
     a plugin-returned cost exceeds the user-defined threshold.
-- [ ] **Lint & Test Modernization** *(incremental tech-debt — golangci-lint
-      rule adoption across the test suite)*
-  - [ ] Migrate internal package tests to external test packages
-        ([#1197](https://github.com/rshade/finfocus/issues/1197)) [L]
-  - [ ] Apply Go modernization lint rules incrementally
-        ([#1208](https://github.com/rshade/finfocus/issues/1208)) [L]
-  - [ ] Adopt paralleltest safely across isolated tests
-        ([#1198](https://github.com/rshade/finfocus/issues/1198)) [M]
-  - [ ] Refactor high-complexity tests flagged by gocognit
-        ([#1199](https://github.com/rshade/finfocus/issues/1199)) [M]
-  - [ ] Make mock plugin examples testable
-        ([#1200](https://github.com/rshade/finfocus/issues/1200)) [M]
-  - [ ] Normalize CLI, config, and logging constants flagged by goconst
-        ([#1203](https://github.com/rshade/finfocus/issues/1203)) [M]
-  - [ ] Normalize engine, router, proto, and analyzer constants flagged by
-        goconst
-        ([#1204](https://github.com/rshade/finfocus/issues/1204)) [M]
-  - [ ] Adopt stricter testifylint assertions across tests
-        ([#1206](https://github.com/rshade/finfocus/issues/1206)) [M]
-  - [ ] Adopt usetesting helpers for env, tempdir, and cwd tests
-        ([#1207](https://github.com/rshade/finfocus/issues/1207)) [M]
-  - [ ] Audit govet shadow analyzer findings
-        ([#1209](https://github.com/rshade/finfocus/issues/1209)) [M]
-  - [ ] Audit govet unusedwrite findings in tests and fixtures
-        ([#1212](https://github.com/rshade/finfocus/issues/1212)) [M]
-  - [ ] Migrate mock plugin gRPC helpers off deprecated `DialContext`
-        ([#1213](https://github.com/rshade/finfocus/issues/1213)) [M]
-  - [ ] Clean fixture and benchmark constants flagged by goconst and mnd
-        ([#1205](https://github.com/rshade/finfocus/issues/1205)) [S]
-  - [ ] Clean revive unused-parameter findings in test doubles
-        ([#1210](https://github.com/rshade/finfocus/issues/1210)) [S]
-  - [ ] Add stdlib doc links for godoclint
-        ([#1211](https://github.com/rshade/finfocus/issues/1211)) [S]
-
 - [ ] **Kubernetes Cost Allocation — Additional Usage Sources**
   - [ ] Datadog usage source plugin
         ([#1530](https://github.com/rshade/finfocus/issues/1530)) [L]
   - [ ] OpenCost plugin returning pre-allocated rows
         ([#1531](https://github.com/rshade/finfocus/issues/1531)) [M]
+- [ ] **Plugin Host Pooling** *(cross-repo)*
+  - [ ] Pool opted-in plugins and pass per-request credentials
+        ([#1539](https://github.com/rshade/finfocus/issues/1539)) [L]
 
 ## Completed Milestones
+
+### 2026-Q3
+
+- [x] #1520 `kubernetes`: match China-partition EKS API server hosts.
+      Closed 2026-09-28. [S]
+- [x] #1516 `kubernetes`: validate label selector keys and values.
+      Closed 2026-09-28. [S]
+- [x] #1231 `pluginhost`: stop plugins holding inherited stdout/stderr pipes.
+      Closed 2026-09-22. [M]
+- [x] #979 `engine`: add per-chunk timeout for BatchCost RPC calls.
+      Closed 2026-09-22. [S]
+- [x] #978 `engine`: executeBatchForPlugin skipped the re-chunked tail.
+      Closed 2026-09-22. [M]
+- [x] #977 `docs`: document ActualCostData and ResourceError messages.
+      Closed 2026-09-22. [S]
+- [x] #976 `engine`: budget_tag_filter_test mock BatchCost returns error.
+      Closed 2026-09-22. [S]
+- [x] #975 `engine`: budget_health_test mock BatchCost returns error.
+      Closed 2026-09-22. [S]
+- [x] #974 `engine`: batch actual cost mapper kept rate fields.
+      Closed 2026-09-22. [M]
+- [x] #973 `engine`: test BuildEstimateCostRequest structpb error path.
+      Closed 2026-09-22. [S]
+- [x] #972 `engine`: add Ctx and component fields to tryEstimateCostRPC logs.
+      Closed 2026-09-22. [S]
+- [x] #970 `engine`: test modified-response validation fallback path.
+      Closed 2026-09-22. [S]
+- [x] #968 `history`: extract correct URN hash in filterFullyExpiredURNs.
+      Closed 2026-09-22. [S]
+- [x] #967 `history`: escape delimiters in BuildTagKey.
+      Closed 2026-09-22. [S]
+- [x] #965 `history`: newTestEntryWithTime keeps FirstSeen <= LastSeen.
+      Closed 2026-09-22. [S]
+- [x] #964 `history`: merge tag timestamps in upsertTags.
+      Closed 2026-09-22. [S]
+- [x] #963 `history`: set enabled=false on BoltStore.Close.
+      Closed 2026-09-22. [S]
+- [x] #962 `history`: track newest entry per URN hash in GetDeletedResources.
+      Closed 2026-09-22. [S]
+- [x] #961 `pulumi`: only ignore missing-file errors in GetProjectName.
+      Closed 2026-09-22. [S]
+- [x] #960 `config`: use pointer type for HistoryConfig.RetentionDays.
+      Closed 2026-09-22. [S]
+- [x] #959 `cli`: reuse loaded config in overview initHistoryFromConfig.
+      Closed 2026-09-22. [S]
+- [x] #958 `cli`: return success indicator from detectHistoryStackContext.
+      Closed 2026-09-22. [S]
+- [x] #957 `cli`: copy tags in convertEngineStateToHistoryState.
+      Closed 2026-09-22. [S]
+- [x] #956 `cli`: populate tags in convertDescriptorsToHistoryState.
+      Closed 2026-09-22. [S]
+- [x] #573 `registry`: reimplement plugin installer lock for Windows.
+      Closed 2026-09-22. [M]
+- [x] #462 `plugin-init`: generate standardized GitHub workflow files.
+      Closed 2026-09-22. [S]
+- [x] #461 `plugin-init`: add CLI flags for generation control.
+      Closed 2026-09-22. [S]
+- [x] #460 `plugin-init`: enhanced Makefile template targets.
+      Closed 2026-09-22. [S]
+- [x] #459 `plugin-init`: add health endpoint to generated main.go.
+      Closed 2026-09-22. [S]
+- [x] #458 `plugin-init`: add GetPluginInfo and Supports to calculator template.
+      Closed 2026-09-22. [S]
+- [x] #457 `plugin-init`: generate documentation templates.
+      Closed 2026-09-22. [S]
+- [x] #456 `plugin-init`: generate Docker support files.
+      Closed 2026-09-22. [S]
 
 ### 2026-Q2
 
