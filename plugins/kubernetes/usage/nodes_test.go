@@ -38,6 +38,30 @@ func TestNodeDescriptor(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, "spot", d.GetTags()["capacity_type"])
 
+	gcpLabels := map[string]string{
+		"node.kubernetes.io/instance-type": "e2-standard-4",
+		"topology.kubernetes.io/region":    "us-central1",
+	}
+	d, ok = NodeDescriptor(mkNode("gke-n1", "gce://proj/us-central1-a/gke-n1", gcpLabels))
+	require.True(t, ok)
+	assert.Equal(t, "gcp", d.GetProvider())
+	assert.Equal(t, "gcp:compute/instance:Instance", d.GetResourceType())
+	assert.Equal(t, "e2-standard-4", d.GetSku())
+	assert.Equal(t, "us-central1", d.GetRegion())
+
+	azureLabels := map[string]string{
+		"node.kubernetes.io/instance-type": "Standard_D4s_v5",
+		"topology.kubernetes.io/region":    "eastus",
+	}
+	azureID := "azure:///subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/aks-n1"
+	d, ok = NodeDescriptor(mkNode("aks-n1", azureID, azureLabels))
+	require.True(t, ok)
+	assert.Equal(t, "azure", d.GetProvider())
+	assert.Equal(t, "azure-native:compute:VirtualMachine", d.GetResourceType())
+	assert.Equal(t, "Standard_D4s_v5", d.GetSku())
+	assert.Equal(t, "eastus", d.GetRegion())
+	assert.Equal(t, "on-demand", d.GetTags()["capacity_type"])
+
 	kind := map[string]string{"finfocus.dev/provider": "aws"}
 	for k, v := range std {
 		kind[k] = v

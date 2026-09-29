@@ -20,7 +20,9 @@ const (
 	labelKarpenterCap    = "karpenter.sh/capacity-type"
 	labelEKSComputeType  = "eks.amazonaws.com/compute-type"
 
-	providerAWS = "aws"
+	providerAWS   = "aws"
+	providerGCP   = "gcp"
+	providerAzure = "azure"
 
 	capacitySpot     = "spot"
 	capacityOnDemand = "on-demand"
@@ -28,7 +30,7 @@ const (
 
 //nolint:gochecknoglobals // Zero-allocation lookup table and compiled regex, both read-only after init.
 var (
-	providerSchemes = map[string]string{"aws": providerAWS, "gce": "gcp", "azure": "azure"}
+	providerSchemes = map[string]string{"aws": providerAWS, "gce": providerGCP, "azure": providerAzure}
 	eksHostPattern  = regexp.MustCompile(`\.([a-z]{2}(?:-[a-z]+)+-\d)\.eks\.amazonaws\.com(?:\.cn)?(?::\d+)?/?$`)
 )
 
@@ -38,7 +40,9 @@ func IsFargate(n *corev1.Node) bool {
 }
 
 // NodeDescriptor maps a node to a priceable descriptor. It returns false when
-// the provider, instance type, or region cannot be determined.
+// the provider, instance type, or region cannot be determined. ResourceType is
+// a Pulumi resource type token specific to the provider: aws:ec2/instance:Instance,
+// gcp:compute/instance:Instance, or azure-native:compute:VirtualMachine.
 func NodeDescriptor(n *corev1.Node) (*pbc.ResourceDescriptor, bool) {
 	provider := n.Labels[labelProvider]
 	if provider == "" {
@@ -50,9 +54,20 @@ func NodeDescriptor(n *corev1.Node) (*pbc.ResourceDescriptor, bool) {
 	if provider == "" || sku == "" || region == "" {
 		return nil, false
 	}
-	resourceType := provider + ":compute/instance"
-	if provider == providerAWS {
+	// ResourceType must be a real Pulumi resource type token
+	// (provider:module[/submodule]:TypeName) so pricing plugins can match it.
+	// Azure uses the azure-native provider token; the legacy azure provider's
+	// azure:compute/virtualMachine:VirtualMachine token is a possible follow-up.
+	var resourceType string
+	switch provider {
+	case providerAWS:
 		resourceType = "aws:ec2/instance:Instance"
+	case providerGCP:
+		resourceType = "gcp:compute/instance:Instance"
+	case providerAzure:
+		resourceType = "azure-native:compute:VirtualMachine"
+	default:
+		resourceType = provider + ":compute/instance"
 	}
 	capacity := capacityOnDemand
 	if strings.EqualFold(n.Labels[labelEKSCapacity], capacitySpot) ||
