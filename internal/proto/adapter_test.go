@@ -216,7 +216,7 @@ func (m *mockCostSourceClient) ResolveResourceTypes(
 func TestDryRun(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		mockClient := &mockCostSourceClient{
-			dryRunFunc: func(ctx context.Context, in *pbc.DryRunRequest, opts ...grpc.CallOption) (*pbc.DryRunResponse, error) {
+			dryRunFunc: func(_ context.Context, _ *pbc.DryRunRequest, _ ...grpc.CallOption) (*pbc.DryRunResponse, error) {
 				return &pbc.DryRunResponse{
 					FieldMappings: []*pbc.FieldMapping{
 						{
@@ -238,7 +238,7 @@ func TestDryRun(t *testing.T) {
 
 	t.Run("Unimplemented", func(t *testing.T) {
 		mockClient := &mockCostSourceClient{
-			dryRunFunc: func(ctx context.Context, in *pbc.DryRunRequest, opts ...grpc.CallOption) (*pbc.DryRunResponse, error) {
+			dryRunFunc: func(_ context.Context, _ *pbc.DryRunRequest, _ ...grpc.CallOption) (*pbc.DryRunResponse, error) {
 				return nil, errors.New("unimplemented")
 			},
 		}
@@ -249,7 +249,7 @@ func TestDryRun(t *testing.T) {
 
 	t.Run("InvalidResource", func(t *testing.T) {
 		mockClient := &mockCostSourceClient{
-			dryRunFunc: func(ctx context.Context, in *pbc.DryRunRequest, opts ...grpc.CallOption) (*pbc.DryRunResponse, error) {
+			dryRunFunc: func(_ context.Context, _ *pbc.DryRunRequest, _ ...grpc.CallOption) (*pbc.DryRunResponse, error) {
 				return nil, errors.New("invalid resource type")
 			},
 		}
@@ -484,7 +484,7 @@ func TestGetProjectedCostWithErrors(t *testing.T) {
 	t.Run("tracks errors for failed resources", func(t *testing.T) {
 		callCount := 0
 		mockClient := &mockCostSourceClient{
-			getProjectedFunc: func(ctx context.Context, in *GetProjectedCostRequest, opts ...grpc.CallOption) (*GetProjectedCostResponse, error) {
+			getProjectedFunc: func(_ context.Context, in *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
 				callCount++
 				// Fail for the second resource
 				if len(in.Resources) > 0 && in.Resources[0].Type == "aws:rds:Instance" {
@@ -556,7 +556,7 @@ func TestGetProjectedCostWithErrors(t *testing.T) {
 func TestGetActualCostWithErrors(t *testing.T) {
 	t.Run("tracks errors for failed resources", func(t *testing.T) {
 		mockClient := &mockCostSourceClient{
-			getActualFunc: func(ctx context.Context, in *GetActualCostRequest, opts ...grpc.CallOption) (*GetActualCostResponse, error) {
+			getActualFunc: func(_ context.Context, in *GetActualCostRequest, _ ...grpc.CallOption) (*GetActualCostResponse, error) {
 				// Fail for the second resource ID
 				if len(in.ResourceIDs) > 0 && in.ResourceIDs[0] == "failed-resource" {
 					return nil, errors.New("timeout")
@@ -659,9 +659,9 @@ func TestNewCostSourceClient(t *testing.T) {
 
 // Test clientAdapter.Name method.
 func TestClientAdapter_Name(t *testing.T) {
-	t.Run("successful name call", func(t *testing.T) {
+	t.Run("successful name call", func(_ *testing.T) {
 		mockClient := &mockCostSourceClient{
-			nameFunc: func(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameResponse, error) {
+			nameFunc: func(_ context.Context, _ *Empty, _ ...grpc.CallOption) (*NameResponse, error) {
 				return &NameResponse{Name: "mock-plugin-name"}, nil
 			},
 		}
@@ -674,9 +674,9 @@ func TestClientAdapter_Name(t *testing.T) {
 		_ = adapter    // Avoid unused variable error
 	})
 
-	t.Run("name call with error", func(t *testing.T) {
+	t.Run("name call with error", func(_ *testing.T) {
 		mockClient := &mockCostSourceClient{
-			nameFunc: func(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameResponse, error) {
+			nameFunc: func(_ context.Context, _ *Empty, _ ...grpc.CallOption) (*NameResponse, error) {
 				return nil, errors.New("grpc error")
 			},
 		}
@@ -1127,7 +1127,7 @@ func TestGetRecommendationsResponse_Creation(t *testing.T) {
 func TestClientAdapter_GetRecommendations(t *testing.T) {
 	t.Run("successful recommendations query", func(t *testing.T) {
 		mockClient := &mockCostSourceClient{
-			getRecommendationsFunc: func(ctx context.Context, in *GetRecommendationsRequest, opts ...grpc.CallOption) (*GetRecommendationsResponse, error) {
+			getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
 				return &GetRecommendationsResponse{
 					Recommendations: []*Recommendation{
 						{
@@ -1182,7 +1182,7 @@ func TestClientAdapter_GetRecommendations(t *testing.T) {
 
 	t.Run("query with no recommendations available", func(t *testing.T) {
 		mockClient := &mockCostSourceClient{
-			getRecommendationsFunc: func(ctx context.Context, in *GetRecommendationsRequest, opts ...grpc.CallOption) (*GetRecommendationsResponse, error) {
+			getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
 				return &GetRecommendationsResponse{
 					Recommendations: []*Recommendation{},
 				}, nil
@@ -1207,7 +1207,7 @@ func TestClientAdapter_GetRecommendations(t *testing.T) {
 
 	t.Run("query with error", func(t *testing.T) {
 		mockClient := &mockCostSourceClient{
-			getRecommendationsFunc: func(ctx context.Context, in *GetRecommendationsRequest, opts ...grpc.CallOption) (*GetRecommendationsResponse, error) {
+			getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
 				return nil, errors.New("service unavailable")
 			},
 		}
@@ -1229,7 +1229,7 @@ func TestClientAdapter_GetRecommendations(t *testing.T) {
 	t.Run("query with pagination", func(t *testing.T) {
 		callCount := 0
 		mockClient := &mockCostSourceClient{
-			getRecommendationsFunc: func(ctx context.Context, in *GetRecommendationsRequest, opts ...grpc.CallOption) (*GetRecommendationsResponse, error) {
+			getRecommendationsFunc: func(_ context.Context, in *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
 				callCount++
 				if in.PageToken == "" {
 					return &GetRecommendationsResponse{
@@ -1539,9 +1539,9 @@ func TestGetProjectedCost_ValidationFailure_EmptyProvider(t *testing.T) {
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getProjectedFunc: func(
-			ctx context.Context,
-			in *GetProjectedCostRequest,
-			opts ...grpc.CallOption,
+			_ context.Context,
+			_ *GetProjectedCostRequest,
+			_ ...grpc.CallOption,
 		) (*GetProjectedCostResponse, error) {
 			callCount++
 			return &GetProjectedCostResponse{
@@ -1601,9 +1601,9 @@ func TestGetProjectedCost_ValidationFailure_EmptySKU(t *testing.T) {
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getProjectedFunc: func(
-			ctx context.Context,
-			in *GetProjectedCostRequest,
-			opts ...grpc.CallOption,
+			_ context.Context,
+			_ *GetProjectedCostRequest,
+			_ ...grpc.CallOption,
 		) (*GetProjectedCostResponse, error) {
 			callCount++
 			return &GetProjectedCostResponse{
@@ -1662,9 +1662,9 @@ func TestGetProjectedCost_ValidationFailure_EmptyRegion(t *testing.T) {
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getProjectedFunc: func(
-			ctx context.Context,
-			in *GetProjectedCostRequest,
-			opts ...grpc.CallOption,
+			_ context.Context,
+			_ *GetProjectedCostRequest,
+			_ ...grpc.CallOption,
 		) (*GetProjectedCostResponse, error) {
 			callCount++
 			return &GetProjectedCostResponse{
@@ -1719,9 +1719,9 @@ func TestGetProjectedCost_ValidationFailure_MixedValidInvalid(t *testing.T) {
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getProjectedFunc: func(
-			ctx context.Context,
-			in *GetProjectedCostRequest,
-			opts ...grpc.CallOption,
+			_ context.Context,
+			_ *GetProjectedCostRequest,
+			_ ...grpc.CallOption,
 		) (*GetProjectedCostResponse, error) {
 			callCount++
 			return &GetProjectedCostResponse{
@@ -1799,9 +1799,9 @@ func TestGetActualCost_ValidationFailure_EmptyResourceID(t *testing.T) {
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getActualFunc: func(
-			ctx context.Context,
-			in *GetActualCostRequest,
-			opts ...grpc.CallOption,
+			_ context.Context,
+			_ *GetActualCostRequest,
+			_ ...grpc.CallOption,
 		) (*GetActualCostResponse, error) {
 			callCount++
 			return &GetActualCostResponse{
@@ -1955,9 +1955,9 @@ func TestGetActualCost_ValidationFailure_InvalidTimeRange(t *testing.T) {
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getActualFunc: func(
-			ctx context.Context,
-			in *GetActualCostRequest,
-			opts ...grpc.CallOption,
+			_ context.Context,
+			_ *GetActualCostRequest,
+			_ ...grpc.CallOption,
 		) (*GetActualCostResponse, error) {
 			callCount++
 			return &GetActualCostResponse{

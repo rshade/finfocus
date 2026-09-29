@@ -37,7 +37,7 @@ func TestTraceInterceptor_InjectsTraceIDMetadata(t *testing.T) {
 
 	// Create a mock invoker that captures the context using a channel
 	capturedCtxChan := make(chan context.Context, 1)
-	mockInvoker := func(invokerCtx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+	mockInvoker := func(invokerCtx context.Context, _ string, _, _ interface{}, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 		capturedCtxChan <- invokerCtx
 		return nil
 	}
@@ -67,7 +67,7 @@ func TestTraceInterceptor_NoTraceIDNoMetadata(t *testing.T) {
 
 	// Create a mock invoker that captures the context using a channel
 	capturedCtxChan := make(chan context.Context, 1)
-	mockInvoker := func(invokerCtx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+	mockInvoker := func(invokerCtx context.Context, _ string, _, _ interface{}, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 		capturedCtxChan <- invokerCtx
 		return nil
 	}
@@ -100,7 +100,7 @@ func TestTraceInterceptor_PreservesExistingMetadata(t *testing.T) {
 
 	// Create a mock invoker that captures the context using a channel
 	capturedCtxChan := make(chan context.Context, 1)
-	mockInvoker := func(invokerCtx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+	mockInvoker := func(invokerCtx context.Context, _ string, _, _ interface{}, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 		capturedCtxChan <- invokerCtx
 		return nil
 	}
@@ -134,7 +134,7 @@ func TestTraceInterceptor_PropagatesInvokerError(t *testing.T) {
 
 	// Create a mock invoker that returns an error
 	expectedErr := assert.AnError
-	mockInvoker := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+	mockInvoker := func(_ context.Context, _ string, _, _ interface{}, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 		return expectedErr
 	}
 
@@ -158,7 +158,7 @@ func TestLoggedInterceptor(t *testing.T) {
 	method := "/test.Service/Method"
 
 	// Success case
-	mockInvokerSuccess := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+	mockInvokerSuccess := func(_ context.Context, _ string, _, _ interface{}, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 		return nil
 	}
 
@@ -168,7 +168,7 @@ func TestLoggedInterceptor(t *testing.T) {
 
 	// Error case
 	buf.Reset()
-	mockInvokerError := func(ctx context.Context, method string, req, reply interface{}, cc *grpc.ClientConn, opts ...grpc.CallOption) error {
+	mockInvokerError := func(_ context.Context, _ string, _, _ interface{}, _ *grpc.ClientConn, _ ...grpc.CallOption) error {
 		return assert.AnError
 	}
 

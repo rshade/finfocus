@@ -239,7 +239,7 @@ func TestTerminalWidth_DefaultFallback(t *testing.T) {
 	}
 }
 
-func TestOutputModeString(t *testing.T) {
+func TestOutputModeString(_ *testing.T) {
 	// Test that we can convert OutputMode to string for debugging
 	modes := []OutputMode{OutputModePlain, OutputModeStyled, OutputModeInteractive}
 

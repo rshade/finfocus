@@ -192,9 +192,9 @@ type mockLauncher struct {
 }
 
 func (m *mockLauncher) Start(
-	ctx context.Context,
+	_ context.Context,
 	path string,
-	args ...string,
+	_ ...string,
 ) (*grpc.ClientConn, func() error, error) {
 	if m.startCalled == nil {
 		m.startCalled = make(map[string]int)

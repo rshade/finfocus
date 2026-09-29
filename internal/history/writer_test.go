@@ -218,7 +218,7 @@ func TestHistoryWriter_RecordStateSnapshot_FireAndForget(t *testing.T) {
 	writer.RecordStateSnapshot(stackCtx, resources)
 }
 
-func TestHistoryWriter_RecordStateSnapshot_NilStore(t *testing.T) {
+func TestHistoryWriter_RecordStateSnapshot_NilStore(_ *testing.T) {
 	logger := zerolog.New(zerolog.NewConsoleWriter())
 	writer := history.NewWriter(nil, logger)
 
@@ -406,7 +406,7 @@ func TestHistoryWriter_RecordPlanLineage_SkipsEmptyCloudIDs(t *testing.T) {
 	assert.Empty(t, allResults, "steps with both empty cloud IDs should be skipped")
 }
 
-func TestHistoryWriter_RecordPlanLineage_NilStore(t *testing.T) {
+func TestHistoryWriter_RecordPlanLineage_NilStore(_ *testing.T) {
 	logger := zerolog.New(zerolog.NewConsoleWriter())
 	writer := history.NewWriter(nil, logger)
 
@@ -540,7 +540,7 @@ func TestHistoryWriter_RecordAnalyzerEvent_SkipsEmptyCloudID(t *testing.T) {
 	assert.Empty(t, allResults, "event without cloud ID should not be stored (DryRun=true)")
 }
 
-func TestHistoryWriter_RecordAnalyzerEvent_NilStore(t *testing.T) {
+func TestHistoryWriter_RecordAnalyzerEvent_NilStore(_ *testing.T) {
 	logger := zerolog.New(zerolog.NewConsoleWriter())
 	writer := history.NewWriter(nil, logger)
 

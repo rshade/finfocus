@@ -93,7 +93,7 @@ func TestGetReleaseByTag(t *testing.T) {
 
 func TestDownloadAsset(t *testing.T) {
 	content := "binary content"
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", strconv.Itoa(len(content)))
 		w.Write([]byte(content))
 	}))
@@ -137,7 +137,7 @@ func TestFetchRelease_NotFound(t *testing.T) {
 }
 
 func TestFetchRelease_RateLimit(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 	}))
 	defer server.Close()
@@ -195,7 +195,7 @@ func TestListStableReleases(t *testing.T) {
 }
 
 func TestListStableReleases_WithLimit(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		releases := []GitHubRelease{
 			{TagName: "v3.0.0", Draft: false, Prerelease: false},
 			{TagName: "v2.0.0", Draft: false, Prerelease: false},

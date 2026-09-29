@@ -19,7 +19,7 @@ func TestRun(t *testing.T) {
 	// We can't easily test the full execution without setting up
 	// complex test harnesses, but we can test that the function
 	// exists and can be called
-	t.Run("run function exists", func(t *testing.T) {
+	t.Run("run function exists", func(*testing.T) {
 		// This test mainly ensures the function can be called
 		// In a real scenario, we'd mock dependencies
 		_ = run

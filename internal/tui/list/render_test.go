@@ -50,7 +50,7 @@ func TestVirtualListModel_ViewUpdatesWithScroll(t *testing.T) {
 		items[i] = "item"
 	}
 
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -75,7 +75,7 @@ func TestVirtualListModel_ViewWithBuffer(t *testing.T) {
 		items[i] = "item"
 	}
 
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -127,7 +127,7 @@ func TestVirtualListModel_ViewSelectedMarker(t *testing.T) {
 
 // TestVirtualListModel_ViewEmptyList tests rendering with no items.
 func TestVirtualListModel_ViewEmptyList(t *testing.T) {
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -147,7 +147,7 @@ func TestVirtualListModel_ViewPerformance(t *testing.T) {
 		items[i] = "item"
 	}
 
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -210,7 +210,7 @@ func TestVirtualListModel_ViewBoundaryConditions(t *testing.T) {
 				items[i] = "item"
 			}
 
-			renderFunc := func(item string, selected bool) string {
+			renderFunc := func(item string, _ bool) string {
 				return item
 			}
 

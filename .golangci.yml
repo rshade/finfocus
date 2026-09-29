@@ -438,11 +438,6 @@ linters:
         linters:
           # TODO: audit fixture field writes in https://github.com/rshade/finfocus/issues/1212.
           - govet
-      - text: "unused-parameter: parameter '.+' seems to be unused"
-        path: '_test\.go'
-        linters:
-          # TODO: clean test double parameters in https://github.com/rshade/finfocus/issues/1210.
-          - revive
       - path: '^internal/(cli|config|logging)/'
         linters:
           # TODO: normalize repeated local constants in https://github.com/rshade/finfocus/issues/1203.

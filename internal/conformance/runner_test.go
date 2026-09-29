@@ -31,7 +31,7 @@ func TestRunner_RunTest_Pass(t *testing.T) {
 		Category:    CategoryProtocol,
 		Description: "A test that always passes",
 		Timeout:     5 * time.Second,
-		TestFunc: func(ctx *TestContext) *TestResult {
+		TestFunc: func(_ *TestContext) *TestResult {
 			return &TestResult{
 				TestName: "TestPass",
 				Category: CategoryProtocol,
@@ -60,7 +60,7 @@ func TestRunner_RunTest_Fail(t *testing.T) {
 		Category:    CategoryError,
 		Description: "A test that always fails",
 		Timeout:     5 * time.Second,
-		TestFunc: func(ctx *TestContext) *TestResult {
+		TestFunc: func(_ *TestContext) *TestResult {
 			return &TestResult{
 				TestName: "TestFail",
 				Category: CategoryError,
@@ -90,7 +90,7 @@ func TestRunner_RunTest_Skip(t *testing.T) {
 		Category:    CategoryProtocol,
 		Description: "A test that is skipped",
 		Timeout:     5 * time.Second,
-		TestFunc: func(ctx *TestContext) *TestResult {
+		TestFunc: func(_ *TestContext) *TestResult {
 			return &TestResult{
 				TestName: "TestSkip",
 				Category: CategoryProtocol,
@@ -120,7 +120,7 @@ func TestRunner_RunTest_Timeout(t *testing.T) {
 		Category:    CategoryPerformance,
 		Description: "A test that times out",
 		Timeout:     50 * time.Millisecond,
-		TestFunc: func(ctx *TestContext) *TestResult {
+		TestFunc: func(_ *TestContext) *TestResult {
 			// Simulate a long-running test that should timeout
 			time.Sleep(5 * time.Second)
 			return &TestResult{
@@ -153,7 +153,7 @@ func TestRunner_RunTest_Panic(t *testing.T) {
 		Category:    CategoryError,
 		Description: "A test that panics",
 		Timeout:     5 * time.Second,
-		TestFunc: func(ctx *TestContext) *TestResult {
+		TestFunc: func(_ *TestContext) *TestResult {
 			panic("test panic")
 		},
 	}
@@ -178,7 +178,7 @@ func TestRunner_RunTest_RecordsDuration(t *testing.T) {
 		Category:    CategoryProtocol,
 		Description: "A test that takes some time",
 		Timeout:     5 * time.Second,
-		TestFunc: func(ctx *TestContext) *TestResult {
+		TestFunc: func(_ *TestContext) *TestResult {
 			time.Sleep(10 * time.Millisecond)
 			return &TestResult{
 				TestName: "TestDuration",
@@ -207,7 +207,7 @@ func TestRunner_RunTest_WithVerboseOutput(t *testing.T) {
 		Category:    CategoryProtocol,
 		Description: "A test with verbose output",
 		Timeout:     5 * time.Second,
-		TestFunc: func(ctx *TestContext) *TestResult {
+		TestFunc: func(_ *TestContext) *TestResult {
 			return &TestResult{
 				TestName: "TestVerbose",
 				Status:   StatusPass,

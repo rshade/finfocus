@@ -23,9 +23,9 @@ type TCPLauncher struct {
 }
 
 func (l *TCPLauncher) Start(
-	ctx context.Context,
-	path string,
-	args ...string,
+	_ context.Context,
+	_ string,
+	_ ...string,
 ) (*grpc.ClientConn, func() error, error) {
 	conn, err := grpc.NewClient(
 		l.Address,

@@ -22,7 +22,7 @@ func TestProcessor_Process(t *testing.T) {
 		var processedCount int32
 		var batches int32
 
-		callback := func(ctx context.Context, batch []int, batchIndex int) error {
+		callback := func(_ context.Context, batch []int, _ int) error {
 			atomic.AddInt32(&batches, 1)
 			atomic.AddInt32(&processedCount, int32(len(batch)))
 			return nil
@@ -38,7 +38,7 @@ func TestProcessor_Process(t *testing.T) {
 		p, _ := NewProcessor[int](5)
 		var processedCount int32
 
-		callback := func(ctx context.Context, batch []int, batchIndex int) error {
+		callback := func(_ context.Context, batch []int, _ int) error {
 			atomic.AddInt32(&processedCount, int32(len(batch)))
 			return nil
 		}
@@ -50,7 +50,7 @@ func TestProcessor_Process(t *testing.T) {
 
 	t.Run("ErrorHandling", func(t *testing.T) {
 		p, _ := NewProcessor[int](10)
-		callback := func(ctx context.Context, batch []int, batchIndex int) error {
+		callback := func(_ context.Context, _ []int, batchIndex int) error {
 			if batchIndex == 1 {
 				return errors.New("fail")
 			}

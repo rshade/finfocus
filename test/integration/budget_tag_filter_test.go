@@ -26,9 +26,9 @@ type mockTagFilterClient struct {
 }
 
 func (m *mockTagFilterClient) GetBudgets(
-	ctx context.Context,
-	in *pbc.GetBudgetsRequest,
-	opts ...grpc.CallOption,
+	_ context.Context,
+	_ *pbc.GetBudgetsRequest,
+	_ ...grpc.CallOption,
 ) (*pbc.GetBudgetsResponse, error) {
 	if m.err != nil {
 		return nil, m.err
@@ -37,57 +37,57 @@ func (m *mockTagFilterClient) GetBudgets(
 }
 
 func (m *mockTagFilterClient) Name(
-	ctx context.Context,
-	in *proto.Empty,
-	opts ...grpc.CallOption,
+	_ context.Context,
+	_ *proto.Empty,
+	_ ...grpc.CallOption,
 ) (*proto.NameResponse, error) {
 	return &proto.NameResponse{Name: m.name}, nil
 }
 
 func (m *mockTagFilterClient) GetProjectedCost(
-	ctx context.Context,
-	in *proto.GetProjectedCostRequest,
-	opts ...grpc.CallOption,
+	_ context.Context,
+	_ *proto.GetProjectedCostRequest,
+	_ ...grpc.CallOption,
 ) (*proto.GetProjectedCostResponse, error) {
 	return &proto.GetProjectedCostResponse{}, nil
 }
 
 func (m *mockTagFilterClient) GetActualCost(
-	ctx context.Context,
-	in *proto.GetActualCostRequest,
-	opts ...grpc.CallOption,
+	_ context.Context,
+	_ *proto.GetActualCostRequest,
+	_ ...grpc.CallOption,
 ) (*proto.GetActualCostResponse, error) {
 	return &proto.GetActualCostResponse{}, nil
 }
 
 func (m *mockTagFilterClient) GetRecommendations(
-	ctx context.Context,
-	in *proto.GetRecommendationsRequest,
-	opts ...grpc.CallOption,
+	_ context.Context,
+	_ *proto.GetRecommendationsRequest,
+	_ ...grpc.CallOption,
 ) (*proto.GetRecommendationsResponse, error) {
 	return &proto.GetRecommendationsResponse{}, nil
 }
 
 func (m *mockTagFilterClient) GetPluginInfo(
-	ctx context.Context,
-	in *proto.Empty,
-	opts ...grpc.CallOption,
+	_ context.Context,
+	_ *proto.Empty,
+	_ ...grpc.CallOption,
 ) (*pbc.GetPluginInfoResponse, error) {
 	return &pbc.GetPluginInfoResponse{}, nil
 }
 
 func (m *mockTagFilterClient) DryRun(
-	ctx context.Context,
-	in *pbc.DryRunRequest,
-	opts ...grpc.CallOption,
+	_ context.Context,
+	_ *pbc.DryRunRequest,
+	_ ...grpc.CallOption,
 ) (*pbc.DryRunResponse, error) {
 	return &pbc.DryRunResponse{}, nil
 }
 
 func (m *mockTagFilterClient) DismissRecommendation(
-	ctx context.Context,
-	in *proto.DismissRecommendationRequest,
-	opts ...grpc.CallOption,
+	_ context.Context,
+	_ *proto.DismissRecommendationRequest,
+	_ ...grpc.CallOption,
 ) (*proto.DismissRecommendationResponse, error) {
 	return &proto.DismissRecommendationResponse{Success: true}, nil
 }

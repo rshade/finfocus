@@ -91,13 +91,13 @@ func TestDetectPluginMode_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("nil args does not panic", func(t *testing.T) {
-		lookupEnv := func(key string) (string, bool) { return "", false }
+		lookupEnv := func(_ string) (string, bool) { return "", false }
 		got := DetectPluginMode(nil, lookupEnv)
 		assert.False(t, got)
 	})
 
 	t.Run("empty args does not panic", func(t *testing.T) {
-		lookupEnv := func(key string) (string, bool) { return "", false }
+		lookupEnv := func(_ string) (string, bool) { return "", false }
 		got := DetectPluginMode([]string{}, lookupEnv)
 		assert.False(t, got)
 	})

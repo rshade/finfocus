@@ -31,7 +31,7 @@ type mockCostCalculator struct {
 
 func (m *mockCostCalculator) GetRecommendationsForResources(
 	_ context.Context,
-	resources []engine.ResourceDescriptor,
+	_ []engine.ResourceDescriptor,
 ) (*engine.RecommendationsResult, error) {
 	if m.recErr != nil {
 		return nil, m.recErr
