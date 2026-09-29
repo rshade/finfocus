@@ -55,6 +55,13 @@ const (
 	// "pulumi:pulumi:Stack") that should be excluded from cost calculations
 	// since they represent framework bookkeeping, not billable cloud resources.
 	pulumiInternalPrefix = "pulumi:"
+
+	// matchSourceAutomatic marks plugin matches produced without a router.
+	matchSourceAutomatic = "automatic"
+	// adapterNone marks placeholder cost results when no plugin or spec provided pricing.
+	adapterNone = "none"
+	// noteNoPricingInfo is the message used for placeholder cost results without pricing data.
+	noteNoPricingInfo = "No pricing information available"
 )
 
 const (
@@ -331,8 +338,8 @@ func (e *Engine) selectPluginMatchesForResource(
 				Client:      client,
 				Priority:    0,
 				Fallback:    true, // Default to fallback enabled
-				MatchReason: "automatic",
-				Source:      "automatic",
+				MatchReason: matchSourceAutomatic,
+				Source:      matchSourceAutomatic,
 			}
 		}
 		return e.filterUnsupportedPlugins(ctx, matches, resource, feature)
@@ -366,8 +373,8 @@ func (e *Engine) selectPluginMatchesForResource(
 				Client:      client,
 				Priority:    0,
 				Fallback:    true,
-				MatchReason: "automatic",
-				Source:      "automatic",
+				MatchReason: matchSourceAutomatic,
+				Source:      matchSourceAutomatic,
 			}
 		}
 		return e.filterUnsupportedPlugins(ctx, fallbackMatches, resource, feature)
@@ -660,14 +667,14 @@ func (e *Engine) GetProjectedCost(
 					resourceResults = append(resourceResults, CostResult{
 						ResourceType: resource.Type,
 						ResourceID:   resource.ID,
-						Adapter:      "none",
+						Adapter:      adapterNone,
 						Currency:     defaultCurrency,
 						Monthly:      0,
 						Hourly:       0,
-						Notes:        "No pricing information available",
+						Notes:        noteNoPricingInfo,
 						Error: &StructuredError{
 							Code:         ErrCodeNoCostData,
-							Message:      "No pricing information available",
+							Message:      noteNoPricingInfo,
 							ResourceType: resource.Type,
 						},
 					})
@@ -873,14 +880,14 @@ func (e *Engine) GetProjectedCostWithErrors(
 					resourceResults = append(resourceResults, CostResult{
 						ResourceType: resource.Type,
 						ResourceID:   resource.ID,
-						Adapter:      "none",
+						Adapter:      adapterNone,
 						Currency:     defaultCurrency,
 						Monthly:      0,
 						Hourly:       0,
-						Notes:        "No pricing information available",
+						Notes:        noteNoPricingInfo,
 						Error: &StructuredError{
 							Code:         ErrCodeNoCostData,
-							Message:      "No pricing information available",
+							Message:      noteNoPricingInfo,
 							ResourceType: resource.Type,
 						},
 					})
@@ -1223,7 +1230,7 @@ func (e *Engine) GetActualCostWithOptions(
 				resourceResult = &CostResult{
 					ResourceType: resource.Type,
 					ResourceID:   resource.ID,
-					Adapter:      "none",
+					Adapter:      adapterNone,
 					Currency:     defaultCurrency,
 					TotalCost:    0,
 					Notes:        "No actual cost data available",
@@ -1577,7 +1584,7 @@ func (e *Engine) getActualCostForResource(
 	return &CostResult{
 		ResourceType: resource.Type,
 		ResourceID:   resource.ID,
-		Adapter:      "none",
+		Adapter:      adapterNone,
 		Currency:     defaultCurrency,
 		TotalCost:    0,
 		Confidence:   ConfidenceUnknown,
@@ -3758,11 +3765,11 @@ func validateActualCostResourceTypes(resources []ResourceDescriptor) error {
 }
 
 // hasOnlyPlaceholderResults reports whether every CostResult in results is a placeholder.
-// A placeholder is identified by Adapter equal to "none" or by a non-nil Error. It
+// A placeholder is identified by Adapter equal to adapterNone or by a non-nil Error. It
 // returns true when all entries meet this condition, false if any entry contains real data.
 func hasOnlyPlaceholderResults(results []CostResult) bool {
 	for i := range results {
-		if results[i].Adapter != "none" && results[i].Error == nil {
+		if results[i].Adapter != adapterNone && results[i].Error == nil {
 			return false
 		}
 	}

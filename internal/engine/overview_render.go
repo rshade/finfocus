@@ -282,7 +282,7 @@ func aggregateOverviewRows(rows []OverviewRow) (overviewRowTotals, error) {
 		}
 	}
 	if t.currency == "" {
-		t.currency = "USD"
+		t.currency = defaultCurrency
 	}
 	return t, nil
 }

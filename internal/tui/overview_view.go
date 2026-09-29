@@ -208,9 +208,9 @@ func (m OverviewModel) getSortLabel() string {
 	case SortByName:
 		return "Name"
 	case SortByType:
-		return "Type"
+		return columnTitleType
 	case SortByDelta:
-		return "Delta"
+		return columnTitleDelta
 	default:
 		return "Unknown"
 	}

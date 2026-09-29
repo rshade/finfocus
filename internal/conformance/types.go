@@ -237,3 +237,27 @@ const MaxBatchSize = 1000
 
 // ProtocolVersion is the expected protocol version for conformance testing.
 const ProtocolVersion = "1.0"
+
+// errInvalidPluginClientType is the error message used when the plugin client
+// does not implement pbc.CostSourceServiceClient.
+const errInvalidPluginClientType = "invalid plugin client type"
+
+// Standard resource descriptor values shared by conformance test cases.
+const (
+	// testProviderAWS is the provider of the standard conformance test resource.
+	testProviderAWS = "aws"
+	// testResourceTypeEC2Instance is the resource type of the standard conformance test resource.
+	testResourceTypeEC2Instance = "aws:ec2/instance:Instance"
+	// testSKUT3Micro is the SKU of the standard conformance test resource.
+	testSKUT3Micro = "t3.micro"
+	// testRegionUSEast1 is the region of the standard conformance test resource.
+	testRegionUSEast1 = "us-east-1"
+)
+
+// RPC method names used in TestCase RequiredMethods declarations.
+const (
+	// methodName is the Name RPC method name.
+	methodName = "Name"
+	// methodGetProjectedCost is the GetProjectedCost RPC method name.
+	methodGetProjectedCost = "GetProjectedCost"
+)

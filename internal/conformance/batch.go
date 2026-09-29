@@ -12,7 +12,7 @@ import (
 func testBatchHandling(ctx *TestContext) *TestResult {
 	client, ok := ctx.PluginClient.(pbc.CostSourceServiceClient)
 	if !ok {
-		return &TestResult{Status: StatusError, Error: "invalid plugin client type"}
+		return &TestResult{Status: StatusError, Error: errInvalidPluginClientType}
 	}
 
 	const batchSize = 5
@@ -25,10 +25,10 @@ func testBatchHandling(ctx *TestContext) *TestResult {
 	for range batchSize {
 		req := &pbc.GetProjectedCostRequest{
 			Resource: &pbc.ResourceDescriptor{
-				Provider:     "aws",
-				ResourceType: "aws:ec2/instance:Instance",
-				Sku:          "t3.micro",
-				Region:       "us-east-1",
+				Provider:     testProviderAWS,
+				ResourceType: testResourceTypeEC2Instance,
+				Sku:          testSKUT3Micro,
+				Region:       testRegionUSEast1,
 			},
 		}
 

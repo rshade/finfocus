@@ -25,6 +25,13 @@ const (
 	deltaEpsilon = 0.001
 )
 
+// Column titles shared by the cost and overview tables.
+const (
+	columnTitleResource = "Resource"
+	columnTitleType     = "Type"
+	columnTitleDelta    = "Delta"
+)
+
 // ResourceRow represents a single row in the interactive resource table.
 type ResourceRow struct {
 	ResourceName        string // Truncated to 40 chars.
@@ -165,12 +172,12 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 // NewResultTable creates and configures a new table model for cost results.
 func NewResultTable(results []engine.CostResult, height int) table.Model {
 	columns := []table.Column{
-		{Title: "Resource", Width: 40},        //nolint:mnd // Column width.
-		{Title: "Type", Width: 30},            //nolint:mnd // Column width.
-		{Title: "Provider", Width: 10},        //nolint:mnd // Column width.
-		{Title: "Cost", Width: 15},            //nolint:mnd // Column width.
-		{Title: "Delta", Width: 15},           //nolint:mnd // Column width.
-		{Title: "Recommendations", Width: 15}, //nolint:mnd // Column width.
+		{Title: columnTitleResource, Width: 40}, //nolint:mnd // Column width.
+		{Title: columnTitleType, Width: 30},     //nolint:mnd // Column width.
+		{Title: "Provider", Width: 10},          //nolint:mnd // Column width.
+		{Title: "Cost", Width: 15},              //nolint:mnd // Column width.
+		{Title: columnTitleDelta, Width: 15},    //nolint:mnd // Column width.
+		{Title: "Recommendations", Width: 15},   //nolint:mnd // Column width.
 	}
 
 	rows := make([]table.Row, len(results))
@@ -215,11 +222,11 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 // and standard header and selected row styles.
 func NewActualCostTable(results []engine.CostResult, height int) table.Model {
 	columns := []table.Column{
-		{Title: "Resource", Width: 40},        //nolint:mnd // Column width.
-		{Title: "Type", Width: 30},            //nolint:mnd // Column width.
-		{Title: "Provider", Width: 10},        //nolint:mnd // Column width.
-		{Title: "Total Cost", Width: 15},      //nolint:mnd // Column width.
-		{Title: "Recommendations", Width: 15}, //nolint:mnd // Column width.
+		{Title: columnTitleResource, Width: 40}, //nolint:mnd // Column width.
+		{Title: columnTitleType, Width: 30},     //nolint:mnd // Column width.
+		{Title: "Provider", Width: 10},          //nolint:mnd // Column width.
+		{Title: "Total Cost", Width: 15},        //nolint:mnd // Column width.
+		{Title: "Recommendations", Width: 15},   //nolint:mnd // Column width.
 	}
 
 	rows := make([]table.Row, len(results))

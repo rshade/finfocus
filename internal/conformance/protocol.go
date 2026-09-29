@@ -14,7 +14,7 @@ import (
 func testNameReturnsIdentifier(ctx *TestContext) *TestResult {
 	client, ok := ctx.PluginClient.(pbc.CostSourceServiceClient)
 	if !ok {
-		return &TestResult{Status: StatusError, Error: "invalid plugin client type"}
+		return &TestResult{Status: StatusError, Error: errInvalidPluginClientType}
 	}
 
 	// Use context with timeout from TestContext for suite-level timeout control
@@ -40,7 +40,7 @@ func testNameReturnsIdentifier(ctx *TestContext) *TestResult {
 func testNameReturnsProtocolVersion(ctx *TestContext) *TestResult {
 	client, ok := ctx.PluginClient.(pbc.CostSourceServiceClient)
 	if !ok {
-		return &TestResult{Status: StatusError, Error: "invalid plugin client type"}
+		return &TestResult{Status: StatusError, Error: errInvalidPluginClientType}
 	}
 
 	// Use context with timeout from TestContext for suite-level timeout control

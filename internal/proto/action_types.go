@@ -25,7 +25,7 @@ var actionTypeLabels = map[pbc.RecommendationActionType]string{
 	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_SCHEDULE:            "Schedule",
 	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_REFACTOR:            "Refactor",
 	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_INVESTIGATE:         "Investigate",
-	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_OTHER:               "Other",
+	pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_OTHER:               labelOther,
 }
 
 // actionTypeNames maps short names (for filter parsing) to proto enum values.
@@ -62,7 +62,7 @@ var stringLabels = map[string]string{
 	"SCHEDULE":            "Schedule",
 	"REFACTOR":            "Refactor",
 	"INVESTIGATE":         "Investigate",
-	"OTHER":               "Other",
+	"OTHER":               labelOther,
 }
 
 // ActionTypeLabel returns the human-readable label for a RecommendationActionType.

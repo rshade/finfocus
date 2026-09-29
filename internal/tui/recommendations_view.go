@@ -47,7 +47,7 @@ func NewRecommendationRow(rec engine.Recommendation) RecommendationRow {
 
 	currency := rec.Currency
 	if currency == "" {
-		currency = "USD"
+		currency = defaultEstimateCurrency
 	}
 
 	savings := fmt.Sprintf("$%.2f %s", rec.EstimatedSavings, currency)

@@ -92,7 +92,7 @@ func NewEstimateModel(
 		ctx:      ctx,
 		resource: resource,
 		state:    EstimateStateEditing,
-		currency: "USD",
+		currency: defaultEstimateCurrency,
 		width:    estimateDefaultWidth,
 		height:   estimateDefaultHeight,
 	}

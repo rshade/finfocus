@@ -23,6 +23,9 @@ type ValidationResult struct {
 	Warnings []ValidationWarning `json:"warnings"`
 }
 
+// pluginNameField is the configuration field name for a plugin's name, used in validation results.
+const pluginNameField = "name"
+
 // ValidationError represents a blocking validation error.
 type ValidationError struct {
 	// Plugin is the plugin name (empty for global errors).
@@ -95,7 +98,7 @@ func ValidateRoutingConfig(cfg *config.RoutingConfig, clients []*pluginhost.Clie
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
 				Plugin:  fmt.Sprintf("plugins[%d]", i),
-				Field:   "name",
+				Field:   pluginNameField,
 				Message: "plugin name is required",
 			})
 			continue
@@ -105,7 +108,7 @@ func ValidateRoutingConfig(cfg *config.RoutingConfig, clients []*pluginhost.Clie
 		if prevIndex, seen := seenPlugins[plugin.Name]; seen {
 			result.Warnings = append(result.Warnings, ValidationWarning{
 				Plugin:  plugin.Name,
-				Field:   "name",
+				Field:   pluginNameField,
 				Message: fmt.Sprintf("duplicate plugin configuration (also at index %d)", prevIndex),
 			})
 		}
@@ -116,7 +119,7 @@ func ValidateRoutingConfig(cfg *config.RoutingConfig, clients []*pluginhost.Clie
 			result.Valid = false
 			result.Errors = append(result.Errors, ValidationError{
 				Plugin:  plugin.Name,
-				Field:   "name",
+				Field:   pluginNameField,
 				Message: "plugin not found",
 			})
 		}

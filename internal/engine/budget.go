@@ -674,7 +674,7 @@ func BuildConfigBudgetResult(
 
 	// Default currency to USD when not specified but budget is enabled.
 	if budgetConfig.Currency == "" {
-		budgetConfig.Currency = "USD"
+		budgetConfig.Currency = defaultCurrency
 	}
 	currency := budgetConfig.Currency
 

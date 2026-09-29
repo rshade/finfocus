@@ -20,6 +20,13 @@ func (s FieldMappingStatus) String() string {
 	return string(s)
 }
 
+// labelOther is the human-readable label for "other" enum values.
+const labelOther = "Other"
+
+// defaultCurrency is the fallback currency for cost results when no plugin or
+// pricing data specifies one.
+const defaultCurrency = "USD"
+
 // PluginMetadata contains information about a plugin's version and capabilities.
 type PluginMetadata struct {
 	Name               string            `json:"name"                         yaml:"name"`

@@ -86,7 +86,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryProtocol,
 			Description:     "Verifies plugin returns its identifier via Name RPC",
 			Timeout:         DefaultTimeout,
-			RequiredMethods: []string{"Name"},
+			RequiredMethods: []string{methodName},
 			TestFunc:        testNameReturnsIdentifier,
 		},
 		{
@@ -94,7 +94,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryProtocol,
 			Description:     "Verifies plugin returns protocol version via Name RPC",
 			Timeout:         DefaultTimeout,
-			RequiredMethods: []string{"Name"},
+			RequiredMethods: []string{methodName},
 			TestFunc:        testNameReturnsProtocolVersion,
 		},
 		{
@@ -102,7 +102,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryProtocol,
 			Description:     "Verifies GetProjectedCost returns cost for valid resource",
 			Timeout:         DefaultTimeout,
-			RequiredMethods: []string{"GetProjectedCost"},
+			RequiredMethods: []string{methodGetProjectedCost},
 			TestFunc:        testGetProjectedCostValid,
 		},
 		{
@@ -110,7 +110,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryError,
 			Description:     "Verifies GetProjectedCost returns NotFound for unsupported resource",
 			Timeout:         DefaultTimeout,
-			RequiredMethods: []string{"GetProjectedCost"},
+			RequiredMethods: []string{methodGetProjectedCost},
 			TestFunc:        testGetProjectedCostInvalid,
 		},
 		{
@@ -118,7 +118,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryError,
 			Description:     "Verifies GetProjectedCost returns PermissionDenied for forbidden resource",
 			Timeout:         DefaultTimeout,
-			RequiredMethods: []string{"GetProjectedCost"},
+			RequiredMethods: []string{methodGetProjectedCost},
 			TestFunc:        testGetProjectedCostPermissionDenied,
 		},
 		{
@@ -126,7 +126,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryError,
 			Description:     "Verifies GetProjectedCost returns Internal for internal errors",
 			Timeout:         DefaultTimeout,
-			RequiredMethods: []string{"GetProjectedCost"},
+			RequiredMethods: []string{methodGetProjectedCost},
 			TestFunc:        testGetProjectedCostInternal,
 		},
 		{
@@ -134,7 +134,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryError,
 			Description:     "Verifies GetProjectedCost returns Unavailable when service is down",
 			Timeout:         DefaultTimeout,
-			RequiredMethods: []string{"GetProjectedCost"},
+			RequiredMethods: []string{methodGetProjectedCost},
 			TestFunc:        testGetProjectedCostUnavailable,
 		},
 		// Context tests
@@ -143,7 +143,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryContext,
 			Description:     "Verifies plugin respects context cancellation",
 			Timeout:         DefaultTimeout,
-			RequiredMethods: []string{"GetProjectedCost"},
+			RequiredMethods: []string{methodGetProjectedCost},
 			TestFunc:        testContextCancellation,
 		},
 		// Performance tests
@@ -152,7 +152,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryPerformance,
 			Description:     "Verifies plugin responds within timeout limits",
 			Timeout:         DefaultTimeout,
-			RequiredMethods: []string{"Name"},
+			RequiredMethods: []string{methodName},
 			TestFunc:        testTimeoutRespected,
 		},
 		{
@@ -160,7 +160,7 @@ func (s *Suite) registerDefaultTests() {
 			Category:        CategoryPerformance,
 			Description:     "Verifies plugin handles multiple sequential requests",
 			Timeout:         DefaultTimeout * batchTestTimeoutMultiplier,
-			RequiredMethods: []string{"GetProjectedCost"},
+			RequiredMethods: []string{methodGetProjectedCost},
 			TestFunc:        testBatchHandling,
 		},
 	}
@@ -231,7 +231,7 @@ func (s *Suite) Run(ctx context.Context) (*SuiteReport, error) {
 	client, ok := clientRaw.(pbc.CostSourceServiceClient)
 	if !ok {
 		_ = closeFn()
-		return nil, errors.New("invalid plugin client type")
+		return nil, errors.New(errInvalidPluginClientType)
 	}
 
 	// Fetch plugin info for report

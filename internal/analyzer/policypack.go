@@ -33,8 +33,8 @@ type PolicyPackConfig struct {
 // defaultPolicyPackConfig returns the default policy pack configuration.
 func defaultPolicyPackConfig() PolicyPackConfig {
 	return PolicyPackConfig{
-		Name:        "finfocus",
-		Runtime:     "finfocus",
+		Name:        policyPackName,
+		Runtime:     policyPackName,
 		Description: "FinFocus cost estimation analyzer",
 	}
 }

@@ -79,7 +79,7 @@ func (s *StdioLauncher) Start(
 		// Redirect plugin output to the core log file for a clean terminal experience.
 		// In analyzer mode this also prevents polluting the Pulumi preview stream.
 		cmd.Stderr = pluginWriter
-	case os.Getenv(constants.EnvAnalyzerMode) == "true":
+	case os.Getenv(constants.EnvAnalyzerMode) == envValueTrue:
 		// No log file available; suppress output to prevent cluttering Pulumi preview output.
 		log.Debug().
 			Ctx(ctx).

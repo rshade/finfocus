@@ -23,7 +23,7 @@ import (
 func testContextCancellation(ctx *TestContext) *TestResult {
 	client, ok := ctx.PluginClient.(pbc.CostSourceServiceClient)
 	if !ok {
-		return &TestResult{Status: StatusError, Error: "invalid plugin client type"}
+		return &TestResult{Status: StatusError, Error: errInvalidPluginClientType}
 	}
 
 	// Create a cancelled context
@@ -32,10 +32,10 @@ func testContextCancellation(ctx *TestContext) *TestResult {
 
 	req := &pbc.GetProjectedCostRequest{
 		Resource: &pbc.ResourceDescriptor{
-			Provider:     "aws",
-			ResourceType: "aws:ec2/instance:Instance",
-			Sku:          "t3.micro",
-			Region:       "us-east-1",
+			Provider:     testProviderAWS,
+			ResourceType: testResourceTypeEC2Instance,
+			Sku:          testSKUT3Micro,
+			Region:       testRegionUSEast1,
 		},
 	}
 
@@ -74,7 +74,7 @@ const shortTimeoutMs = 10
 func testTimeoutRespected(ctx *TestContext) *TestResult {
 	client, ok := ctx.PluginClient.(pbc.CostSourceServiceClient)
 	if !ok {
-		return &TestResult{Status: StatusError, Error: "invalid plugin client type"}
+		return &TestResult{Status: StatusError, Error: errInvalidPluginClientType}
 	}
 
 	// Use a short but realistic timeout (10ms instead of 1µs for CI reliability - SC-002 fix)
