@@ -13,7 +13,11 @@ const (
 
 // EffectiveRequests returns a pod's scheduling requests using the Kubernetes
 // rule: max(sum of app containers + all sidecars, the largest init container
-// plus the sidecars started before it), plus pod overhead.
+// plus the sidecars started before it), plus pod overhead. When the pod sets
+// spec.Resources (the PodLevelResources feature, beta and enabled by default
+// since Kubernetes v1.34), the pod-level request for a resource replaces the
+// container-aggregated value for that resource, matching the scheduler
+// semantics of k8s.io/component-helpers/resource.PodRequests.
 func EffectiveRequests(
 	spec corev1.PodSpec,
 ) (cpuCores, memGiB float64) { //nolint:nonamedreturns // named returns document the two units returned
@@ -37,7 +41,25 @@ func effective(spec corev1.PodSpec, name corev1.ResourceName) float64 {
 	for _, c := range spec.Containers {
 		app += quantity(c.Resources.Requests, name)
 	}
-	return max(app+sidecars, initPeak) + quantity(spec.Overhead, name)
+	base := max(app+sidecars, initPeak)
+	if pod, ok := podLevelRequest(spec, name); ok {
+		base = pod
+	}
+	return base + quantity(spec.Overhead, name)
+}
+
+// podLevelRequest reports the pod-level request for name from spec.Resources,
+// and whether one is set. Pod-level resources only support cpu, memory, and
+// hugepages; effective() is only called for cpu and memory, so every set
+// value is a supported pod-level resource.
+func podLevelRequest(spec corev1.PodSpec, name corev1.ResourceName) (float64, bool) {
+	if spec.Resources == nil {
+		return 0, false
+	}
+	if _, ok := spec.Resources.Requests[name]; !ok {
+		return 0, false
+	}
+	return quantity(spec.Resources.Requests, name), true
 }
 
 func quantity(list corev1.ResourceList, name corev1.ResourceName) float64 {
