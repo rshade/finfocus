@@ -444,8 +444,6 @@ linters:
           - dupl
           - errcheck
           - funlen
-          # TODO: migrate high-complexity tests in https://github.com/rshade/finfocus/issues/1199.
-          - gocognit
           - goconst
           - gosec
           - noctx

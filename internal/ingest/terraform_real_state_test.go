@@ -130,85 +130,128 @@ func TestRealTerraformState_Invariants(t *testing.T) {
 	require.Len(t, byID, len(descriptors), "descriptor IDs must be unique")
 
 	t.Run("data sources excluded", func(t *testing.T) {
-		for _, d := range descriptors {
-			assert.NotContains(t, d.ID, "data.")
-			assert.NotEqual(t, "aws_ami", d.Type)
-			assert.NotEqual(t, "aws_availability_zones", d.Type)
-		}
+		assertDataSourcesExcluded(t, descriptors)
 	})
 
 	t.Run("module count instances", func(t *testing.T) {
-		for _, id := range []string{"module.app.aws_instance.app[0]", "module.app.aws_instance.app[1]"} {
-			d, ok := byID[id]
-			require.True(t, ok, "missing %s", id)
-			assert.Equal(t, "aws_instance", d.Type)
-			assert.Equal(t, "m5.large", d.Properties["instanceType"])
-			assert.Equal(t, "module.app", d.Properties[ingest.PropertyTerraformModule])
-		}
-		var moduleInstances int
-		for _, d := range descriptors {
-			if strings.HasPrefix(d.ID, "module.app.") {
-				moduleInstances++
-			}
-		}
-		assert.Equal(t, 2, moduleInstances)
+		assertModuleCountInstances(t, descriptors, byID)
 	})
 
 	t.Run("for_each instances keyed by string", func(t *testing.T) {
-		want := map[string]string{
-			`aws_instance.worker["small"]`: "t3.small",
-			`aws_instance.worker["large"]`: "c5.xlarge",
-		}
-		for id, instanceType := range want {
-			d, ok := byID[id]
-			require.True(t, ok, "missing %s", id)
-			assert.Equal(t, instanceType, d.Properties["instanceType"])
-			assert.Empty(t, d.Properties[ingest.PropertyTerraformModule])
-		}
+		assertForEachInstances(t, byID)
 	})
 
 	t.Run("region and availability zone extracted", func(t *testing.T) {
-		for _, d := range descriptors {
-			assert.Equal(t, "aws", d.Provider, d.ID)
-			if d.Type == "aws_iam_role" {
-				assert.NotContains(t, d.Properties, "region", "IAM is global")
-				continue
-			}
-			assert.Equal(t, "us-east-1", d.Properties["region"], d.ID)
-		}
-		for _, id := range []string{"aws_instance.web", "aws_ebs_volume.data", "aws_db_instance.main"} {
-			assert.Equal(t, "us-east-1a", byID[id].Properties["availabilityZone"], id)
-		}
+		assertRegionAndAZ(t, descriptors, byID)
 	})
 
 	t.Run("pricing attributes", func(t *testing.T) {
-		assert.Equal(t, "t3.micro", byID["aws_instance.web"].Properties["instanceType"])
-
-		volume := byID["aws_ebs_volume.data"]
-		assert.Equal(t, "gp3", volume.Properties["type"])
-		assert.InDelta(t, 100, volume.Properties["size"], 0)
-
-		db := byID["aws_db_instance.main"]
-		assert.Equal(t, "db.t3.micro", db.Properties["instanceClass"])
-		assert.Equal(t, "postgres", db.Properties["engine"])
+		assertPricingAttributes(t, byID)
 	})
 
 	t.Run("cloud identifiers carried for actual-cost lookups", func(t *testing.T) {
-		for _, d := range descriptors {
-			if d.Type != "aws_instance" {
-				continue
-			}
-			assert.True(t, strings.HasPrefix(d.Properties[ingest.PropertyTerraformCloudID].(string), "i-"), d.ID)
-			assert.Contains(t, d.Properties[ingest.PropertyTerraformARN], ":instance/", d.ID)
-		}
+		assertCloudIdentifiers(t, descriptors)
 	})
 
 	t.Run("provider reference from state", func(t *testing.T) {
-		for _, d := range descriptors {
-			assert.Equal(t, `provider["registry.opentofu.org/hashicorp/aws"]`,
-				d.Properties[ingest.PropertyTerraformProvider], d.ID)
-		}
+		assertProviderReference(t, descriptors)
 	})
+}
+
+func assertDataSourcesExcluded(t *testing.T, descriptors []engine.ResourceDescriptor) {
+	t.Helper()
+	for _, d := range descriptors {
+		assert.NotContains(t, d.ID, "data.")
+		assert.NotEqual(t, "aws_ami", d.Type)
+		assert.NotEqual(t, "aws_availability_zones", d.Type)
+	}
+}
+
+func assertModuleCountInstances(
+	t *testing.T,
+	descriptors []engine.ResourceDescriptor,
+	byID map[string]engine.ResourceDescriptor,
+) {
+	t.Helper()
+	for _, id := range []string{"module.app.aws_instance.app[0]", "module.app.aws_instance.app[1]"} {
+		d, ok := byID[id]
+		require.True(t, ok, "missing %s", id)
+		assert.Equal(t, "aws_instance", d.Type)
+		assert.Equal(t, "m5.large", d.Properties["instanceType"])
+		assert.Equal(t, "module.app", d.Properties[ingest.PropertyTerraformModule])
+	}
+	var moduleInstances int
+	for _, d := range descriptors {
+		if strings.HasPrefix(d.ID, "module.app.") {
+			moduleInstances++
+		}
+	}
+	assert.Equal(t, 2, moduleInstances)
+}
+
+func assertForEachInstances(t *testing.T, byID map[string]engine.ResourceDescriptor) {
+	t.Helper()
+	want := map[string]string{
+		`aws_instance.worker["small"]`: "t3.small",
+		`aws_instance.worker["large"]`: "c5.xlarge",
+	}
+	for id, instanceType := range want {
+		d, ok := byID[id]
+		require.True(t, ok, "missing %s", id)
+		assert.Equal(t, instanceType, d.Properties["instanceType"])
+		assert.Empty(t, d.Properties[ingest.PropertyTerraformModule])
+	}
+}
+
+func assertRegionAndAZ(
+	t *testing.T,
+	descriptors []engine.ResourceDescriptor,
+	byID map[string]engine.ResourceDescriptor,
+) {
+	t.Helper()
+	for _, d := range descriptors {
+		assert.Equal(t, "aws", d.Provider, d.ID)
+		if d.Type == "aws_iam_role" {
+			assert.NotContains(t, d.Properties, "region", "IAM is global")
+			continue
+		}
+		assert.Equal(t, "us-east-1", d.Properties["region"], d.ID)
+	}
+	for _, id := range []string{"aws_instance.web", "aws_ebs_volume.data", "aws_db_instance.main"} {
+		assert.Equal(t, "us-east-1a", byID[id].Properties["availabilityZone"], id)
+	}
+}
+
+func assertPricingAttributes(t *testing.T, byID map[string]engine.ResourceDescriptor) {
+	t.Helper()
+	assert.Equal(t, "t3.micro", byID["aws_instance.web"].Properties["instanceType"])
+
+	volume := byID["aws_ebs_volume.data"]
+	assert.Equal(t, "gp3", volume.Properties["type"])
+	assert.InDelta(t, 100, volume.Properties["size"], 0)
+
+	db := byID["aws_db_instance.main"]
+	assert.Equal(t, "db.t3.micro", db.Properties["instanceClass"])
+	assert.Equal(t, "postgres", db.Properties["engine"])
+}
+
+func assertCloudIdentifiers(t *testing.T, descriptors []engine.ResourceDescriptor) {
+	t.Helper()
+	for _, d := range descriptors {
+		if d.Type != "aws_instance" {
+			continue
+		}
+		assert.True(t, strings.HasPrefix(d.Properties[ingest.PropertyTerraformCloudID].(string), "i-"), d.ID)
+		assert.Contains(t, d.Properties[ingest.PropertyTerraformARN], ":instance/", d.ID)
+	}
+}
+
+func assertProviderReference(t *testing.T, descriptors []engine.ResourceDescriptor) {
+	t.Helper()
+	for _, d := range descriptors {
+		assert.Equal(t, `provider["registry.opentofu.org/hashicorp/aws"]`,
+			d.Properties[ingest.PropertyTerraformProvider], d.ID)
+	}
 }
 
 func TestRealTerraformState_TaintedInstanceDropped(t *testing.T) {

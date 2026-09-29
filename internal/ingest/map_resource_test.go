@@ -429,32 +429,12 @@ func getMapResourcesTestData() []struct {
 			wantErr:   false,
 			validate: func(t *testing.T, descriptors []engine.ResourceDescriptor) {
 				// Verify first resource
-				if descriptors[0].Type != "aws:ec2/instance:Instance" {
-					t.Errorf(
-						"expected first resource type 'aws:ec2/instance:Instance', got %s",
-						descriptors[0].Type,
-					)
-				}
-				if descriptors[0].Provider != "aws" {
-					t.Errorf(
-						"expected first resource provider 'aws', got %s",
-						descriptors[0].Provider,
-					)
-				}
+				assert.Equal(t, "aws:ec2/instance:Instance", descriptors[0].Type, "first resource type")
+				assert.Equal(t, "aws", descriptors[0].Provider, "first resource provider")
 
 				// Verify second resource
-				if descriptors[1].Type != "aws:s3/bucket:Bucket" {
-					t.Errorf(
-						"expected second resource type 'aws:s3/bucket:Bucket', got %s",
-						descriptors[1].Type,
-					)
-				}
-				if descriptors[1].Provider != "aws" {
-					t.Errorf(
-						"expected second resource provider 'aws', got %s",
-						descriptors[1].Provider,
-					)
-				}
+				assert.Equal(t, "aws:s3/bucket:Bucket", descriptors[1].Type, "second resource type")
+				assert.Equal(t, "aws", descriptors[1].Provider, "second resource provider")
 			},
 		},
 		{
@@ -487,11 +467,8 @@ func getMapResourcesTestData() []struct {
 					providers[desc.Provider] = true
 				}
 
-				expectedProviders := []string{"aws", "azure", "gcp"}
-				for _, provider := range expectedProviders {
-					if !providers[provider] {
-						t.Errorf("expected provider %s not found in results", provider)
-					}
+				for _, provider := range []string{"aws", "azure", "gcp"} {
+					assert.True(t, providers[provider], "expected provider %s in results", provider)
 				}
 			},
 		},
@@ -540,26 +517,22 @@ func getMapResourcesTestData() []struct {
 				desc := descriptors[0]
 
 				// Check that complex nested properties are preserved
-				tags := desc.Properties["tags"].(map[string]interface{})
-				if tags["Environment"] != "dev" {
-					t.Errorf("expected Environment tag 'dev', got %v", tags["Environment"])
-				}
+				tags, ok := desc.Properties["tags"].(map[string]interface{})
+				require.True(t, ok, "tags property should be a map")
+				assert.Equal(t, "dev", tags["Environment"])
 
 				// Check nested object
-				paramGroup := desc.Properties["parameterGroup"].(map[string]interface{})
-				params := paramGroup["parameters"].(map[string]interface{})
-				if params["max_connections"] != float64(100) {
-					t.Errorf("expected max_connections 100, got %v", params["max_connections"])
-				}
+				paramGroup, ok := desc.Properties["parameterGroup"].(map[string]interface{})
+				require.True(t, ok, "parameterGroup property should be a map")
+				params, ok := paramGroup["parameters"].(map[string]interface{})
+				require.True(t, ok, "parameters property should be a map")
+				assert.Equal(t, float64(100), params["max_connections"])
 
 				// Check array
-				exports := desc.Properties["enabledCloudwatchLogsExports"].([]interface{})
-				if len(exports) != 2 {
-					t.Errorf("expected 2 log exports, got %d", len(exports))
-				}
-				if exports[0] != "postgresql" {
-					t.Errorf("expected first export 'postgresql', got %v", exports[0])
-				}
+				exports, ok := desc.Properties["enabledCloudwatchLogsExports"].([]interface{})
+				require.True(t, ok, "enabledCloudwatchLogsExports property should be a slice")
+				require.Len(t, exports, 2)
+				assert.Equal(t, "postgresql", exports[0])
 			},
 		},
 	}

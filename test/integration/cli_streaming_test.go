@@ -137,94 +137,85 @@ func TestNDJSONStreaming_JQProcessing(t *testing.T) {
 
 	t.Run("jq processes each line", func(t *testing.T) {
 		// Run: finfocus cost recommendations --pulumi-json plan.json --output ndjson | jq -c '.'
-		cmd1 := exec.Command(binPath, "cost", "recommendations", "--pulumi-json", planPath, "--output", "ndjson")
-		cmd2 := exec.Command("jq", "-c", ".")
-
-		r, w, pipeErr := os.Pipe()
-		require.NoError(t, pipeErr, "failed to create pipe")
-		cmd1.Stdout = w
-		cmd2.Stdin = r
-
-		var out bytes.Buffer
-		var errBuf bytes.Buffer
-		cmd2.Stdout = &out
-		cmd2.Stderr = &errBuf
-
-		err = cmd1.Start()
-		if err != nil {
-			t.Skip("finfocus binary not available, skipping integration test")
-			return
-		}
-
-		err = cmd2.Start()
-		require.NoError(t, err)
-
-		w.Close()
-
-		_ = cmd2.Wait()
-		_ = cmd1.Wait()
+		output, jqErr := runJQPipeline(t, binPath, planPath, "-c", ".")
 
 		// Verify jq processed output successfully (no stderr errors)
-		if errBuf.Len() > 0 {
-			t.Logf("jq stderr: %s", errBuf.String())
+		if jqErr != "" {
+			t.Logf("jq stderr: %s", jqErr)
 		}
 
 		// Each line of output should be valid JSON
-		output := strings.TrimSpace(out.String())
-		if output != "" {
-			scanner := bufio.NewScanner(strings.NewReader(output))
-			lineNum := 0
-			for scanner.Scan() {
-				lineNum++
-				line := scanner.Text()
-				if line != "" {
-					var jsonObj map[string]interface{}
-					unmarshalErr := json.Unmarshal([]byte(line), &jsonObj)
-					assert.NoError(t, unmarshalErr, "line %d should be valid JSON", lineNum)
-				}
-			}
-		}
+		assertEachLineValidJSON(t, output)
 	})
 
 	t.Run("jq filters specific fields", func(t *testing.T) {
 		// Run: finfocus ... | jq -c '.type // .resource_id'
 		// This selects either the type field (for summary) or resource_id field (for recommendations)
-		cmd1 := exec.Command(binPath, "cost", "recommendations", "--pulumi-json", planPath, "--output", "ndjson")
-		cmd2 := exec.Command("jq", "-c", ".type // .resource_id")
-
-		r, w, pipeErr := os.Pipe()
-		require.NoError(t, pipeErr, "failed to create pipe")
-		cmd1.Stdout = w
-		cmd2.Stdin = r
-
-		var out bytes.Buffer
-		cmd2.Stdout = &out
-
-		err = cmd1.Start()
-		if err != nil {
-			t.Skip("finfocus binary not available, skipping integration test")
-			return
-		}
-
-		err = cmd2.Start()
-		require.NoError(t, err)
-
-		w.Close()
-
-		_ = cmd2.Wait()
-		_ = cmd1.Wait()
+		output, _ := runJQPipeline(t, binPath, planPath, "-c", ".type // .resource_id")
 
 		// Verify jq extracted fields successfully
-		output := strings.TrimSpace(out.String())
-		if output != "" {
-			lines := strings.Split(output, "\n")
-			if len(lines) > 0 {
-				// First line should be "summary" (from summary.type field)
-				firstLine := strings.Trim(lines[0], "\"")
-				assert.Equal(t, "summary", firstLine, "first jq output should be 'summary'")
-			}
+		if output == "" {
+			return
 		}
+		lines := strings.Split(output, "\n")
+		require.NotEmpty(t, lines)
+		// First line should be "summary" (from summary.type field)
+		firstLine := strings.Trim(lines[0], "\"")
+		assert.Equal(t, "summary", firstLine, "first jq output should be 'summary'")
 	})
+}
+
+// runJQPipeline runs finfocus cost recommendations piped through jq and
+// returns jq's trimmed stdout and raw stderr.
+func runJQPipeline(t *testing.T, binPath, planPath string, jqArgs ...string) (string, string) {
+	t.Helper()
+
+	cmd1 := exec.Command(binPath, "cost", "recommendations", "--pulumi-json", planPath, "--output", "ndjson")
+	cmd2 := exec.Command("jq", jqArgs...)
+
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "failed to create pipe")
+	cmd1.Stdout = w
+	cmd2.Stdin = r
+
+	var out bytes.Buffer
+	var errBuf bytes.Buffer
+	cmd2.Stdout = &out
+	cmd2.Stderr = &errBuf
+
+	err = cmd1.Start()
+	if err != nil {
+		t.Skip("finfocus binary not available, skipping integration test")
+	}
+
+	err = cmd2.Start()
+	require.NoError(t, err)
+
+	w.Close()
+
+	_ = cmd2.Wait()
+	_ = cmd1.Wait()
+
+	return strings.TrimSpace(out.String()), errBuf.String()
+}
+
+// assertEachLineValidJSON asserts that every non-empty line is valid JSON.
+func assertEachLineValidJSON(t *testing.T, output string) {
+	t.Helper()
+	if output == "" {
+		return
+	}
+	scanner := bufio.NewScanner(strings.NewReader(output))
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+		if line == "" {
+			continue
+		}
+		var jsonObj map[string]interface{}
+		assert.NoError(t, json.Unmarshal([]byte(line), &jsonObj), "line %d should be valid JSON", lineNum)
+	}
 }
 
 // TestNDJSONStreaming_NoBuffering tests that NDJSON output appears immediately

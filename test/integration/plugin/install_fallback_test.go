@@ -3,12 +3,10 @@ package plugin_test
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
+	"slices"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,146 +35,63 @@ type FallbackMockConfig struct {
 func StartMockRegistryWithFallback(t *testing.T, cfg FallbackMockConfig) (*httptest.Server, func()) {
 	t.Helper()
 
-	var mu sync.Mutex
-	artifacts := make(map[string][]byte)
+	server := httptest.NewServer(&fallbackMockRegistry{t: t, cfg: cfg, store: newMockArtifactStore()})
+	return server, server.Close
+}
 
-	// Helper to check if a version should have no assets
-	hasNoAssets := func(pluginName, version string) bool {
-		noAssetVersions, ok := cfg.VersionsWithoutAssets[pluginName]
-		if !ok {
-			return false
-		}
-		for _, v := range noAssetVersions {
-			if v == version {
-				return true
-			}
-		}
-		return false
+// fallbackMockRegistry serves GitHub-style release responses where configured
+// versions return no platform assets.
+type fallbackMockRegistry struct {
+	t     *testing.T
+	cfg   FallbackMockConfig
+	store *mockArtifactStore
+}
+
+func (m *fallbackMockRegistry) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	if strings.HasPrefix(r.URL.Path, "/download/") {
+		m.store.serveDownload(w, r)
+		return
 	}
 
-	// Helper to create a release response
-	createReleaseForPlugin := func(pluginName, tagName, serverURL string) MockRelease {
-		// If this version should have no assets, return empty assets
-		if hasNoAssets(pluginName, tagName) {
-			return MockRelease{
-				TagName: tagName,
-				Assets:  []MockAsset{}, // No assets for this platform
-			}
-		}
-
-		osName := runtime.GOOS
-		arch := runtime.GOARCH
-		ext := "tar.gz"
-		if osName == "windows" {
-			ext = "zip"
-		}
-
-		assetName := fmt.Sprintf("%s_%s_%s_%s.%s", pluginName, tagName, osName, arch, ext)
-		downloadPath := fmt.Sprintf("/download/%s", assetName)
-
-		mu.Lock()
-		if _, exists := artifacts[assetName]; !exists {
-			content := CreateTestPluginArchive(t, pluginName, tagName, osName, arch)
-			artifacts[assetName] = content
-		}
-		artifactSize := int64(len(artifacts[assetName]))
-		mu.Unlock()
-
-		return MockRelease{
-			TagName: tagName,
-			Assets: []MockAsset{
-				{
-					Name:               assetName,
-					BrowserDownloadURL: serverURL + downloadPath,
-					Size:               artifactSize,
-				},
-			},
-		}
+	pluginName, versions, ok := parsePluginRequest(m.cfg.Plugins, r.URL.Path)
+	if !ok {
+		http.NotFound(w, r)
+		return
 	}
 
-	// Helper to create list of releases for fallback search
-	createReleasesList := func(pluginName, serverURL string) []MockRelease {
-		versions, exists := cfg.Plugins[pluginName]
-		if !exists {
-			return nil
-		}
+	serverURL := "http://" + r.Host
+	switch {
+	case strings.HasSuffix(r.URL.Path, "/releases") && !strings.Contains(r.URL.Path, "/tags/"):
+		// List all releases for fallback search
 		releases := make([]MockRelease, 0, len(versions))
 		for _, v := range versions {
-			releases = append(releases, createReleaseForPlugin(pluginName, v, serverURL))
+			releases = append(releases, m.releaseFor(pluginName, v, serverURL))
 		}
-		return releases
-	}
-
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Handle download requests
-		if strings.HasPrefix(r.URL.Path, "/download/") {
-			filename := strings.TrimPrefix(r.URL.Path, "/download/")
-			mu.Lock()
-			content, ok := artifacts[filename]
-			mu.Unlock()
-			if ok {
-				w.Header().Set("Content-Type", "application/octet-stream")
-				w.WriteHeader(http.StatusOK)
-				_, _ = w.Write(content)
-				return
-			}
+		_ = json.NewEncoder(w).Encode(releases)
+	case strings.Contains(r.URL.Path, "/releases/latest"):
+		_ = json.NewEncoder(w).Encode(m.releaseFor(pluginName, versions[0], serverURL))
+	case strings.Contains(r.URL.Path, "/releases/tags/"):
+		tag := releaseTag(r.URL.Path)
+		if !slices.Contains(versions, tag) {
 			http.NotFound(w, r)
 			return
 		}
-
-		// Parse owner/repo from path
-		parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
-		if len(parts) < 4 {
-			http.NotFound(w, r)
-			return
-		}
-
-		repo := parts[2]
-		pluginName := strings.TrimPrefix(repo, "finfocus-plugin-")
-
-		versions, exists := cfg.Plugins[pluginName]
-		if !exists || len(versions) == 0 {
-			http.NotFound(w, r)
-			return
-		}
-
-		// Handle /releases endpoint (list all releases for fallback search)
-		if strings.HasSuffix(r.URL.Path, "/releases") && !strings.Contains(r.URL.Path, "/tags/") {
-			releases := createReleasesList(pluginName, "http://"+r.Host)
-			_ = json.NewEncoder(w).Encode(releases)
-			return
-		}
-
-		// Handle /releases/latest
-		if strings.Contains(r.URL.Path, "/releases/latest") {
-			release := createReleaseForPlugin(pluginName, versions[0], "http://"+r.Host)
-			_ = json.NewEncoder(w).Encode(release)
-			return
-		}
-
-		// Handle /releases/tags/{tag}
-		if strings.Contains(r.URL.Path, "/releases/tags/") {
-			tag := parts[len(parts)-1]
-			found := false
-			for _, v := range versions {
-				if v == tag {
-					found = true
-					break
-				}
-			}
-			if !found {
-				http.NotFound(w, r)
-				return
-			}
-			release := createReleaseForPlugin(pluginName, tag, "http://"+r.Host)
-			_ = json.NewEncoder(w).Encode(release)
-			return
-		}
-
+		_ = json.NewEncoder(w).Encode(m.releaseFor(pluginName, tag, serverURL))
+	default:
 		http.NotFound(w, r)
-	}))
+	}
+}
 
-	return server, server.Close
+// releaseFor creates a release response; versions configured in
+// VersionsWithoutAssets return a release with no platform assets.
+func (m *fallbackMockRegistry) releaseFor(pluginName, tagName, serverURL string) MockRelease {
+	if slices.Contains(m.cfg.VersionsWithoutAssets[pluginName], tagName) {
+		return MockRelease{
+			TagName: tagName,
+			Assets:  []MockAsset{}, // No assets for this platform
+		}
+	}
+	return newMockRelease(m.t, m.store, pluginName, tagName, serverURL)
 }
 
 // TestPluginInstall_VersionWithoutAssets_ReturnsError tests that installer returns

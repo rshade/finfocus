@@ -751,13 +751,7 @@ cost:
 
 // Additional edge case tests for environment variables.
 func TestConfig_FINFOCUS_BUDGET_EXIT_ENV_EdgeCases(t *testing.T) {
-	tests := []struct {
-		name            string
-		exitOnThreshold string
-		exitCode        string
-		expectEnabled   bool
-		expectCode      int
-	}{
+	tests := []budgetExitEnvCase{
 		{
 			name:            "TRUE uppercase enables",
 			exitOnThreshold: "TRUE",
@@ -827,30 +821,53 @@ func TestConfig_FINFOCUS_BUDGET_EXIT_ENV_EdgeCases(t *testing.T) {
 			}
 
 			cfg := New()
-			// Access budget values through the Global scope
-			if cfg.Cost.Budgets == nil || cfg.Cost.Budgets.Global == nil {
-				// If no budgets configured, expect disabled behavior
-				assert.False(t, tc.expectEnabled, "expected ExitOnThreshold to be disabled when Budgets is nil")
-				return
-			}
-
-			// Check ExitOnThreshold
-			exitOnThreshold := cfg.Cost.Budgets.Global.ExitOnThreshold
-			if exitOnThreshold != nil {
-				assert.Equal(t, tc.expectEnabled, *exitOnThreshold)
-			} else {
-				assert.False(t, tc.expectEnabled, "expected ExitOnThreshold to be set")
-			}
-
-			// Check ExitCode
-			exitCodeNotSet := tc.exitCode == "" || tc.exitCode == "abc"
-			if exitCodeNotSet && cfg.Cost.Budgets.Global.ExitCode != nil {
-				assert.Equal(t, tc.expectCode, *cfg.Cost.Budgets.Global.ExitCode)
-			} else if !exitCodeNotSet {
-				require.NotNil(t, cfg.Cost.Budgets.Global.ExitCode)
-				assert.Equal(t, tc.expectCode, *cfg.Cost.Budgets.Global.ExitCode)
-			}
+			tc.assertConfig(t, cfg)
 		})
+	}
+}
+
+// budgetExitEnvCase describes one FINFOCUS_BUDGET_EXIT_* environment edge case.
+type budgetExitEnvCase struct {
+	name            string
+	exitOnThreshold string
+	exitCode        string
+	expectEnabled   bool
+	expectCode      int
+}
+
+func (tc budgetExitEnvCase) assertConfig(t *testing.T, cfg *Config) {
+	t.Helper()
+	// Access budget values through the Global scope.
+	if cfg.Cost.Budgets == nil || cfg.Cost.Budgets.Global == nil {
+		// If no budgets configured, expect disabled behavior.
+		assert.False(t, tc.expectEnabled, "expected ExitOnThreshold to be disabled when Budgets is nil")
+		return
+	}
+
+	tc.assertExitOnThreshold(t, cfg)
+	tc.assertExitCode(t, cfg)
+}
+
+func (tc budgetExitEnvCase) assertExitOnThreshold(t *testing.T, cfg *Config) {
+	t.Helper()
+	exitOnThreshold := cfg.Cost.Budgets.Global.ExitOnThreshold
+	if exitOnThreshold == nil {
+		assert.False(t, tc.expectEnabled, "expected ExitOnThreshold to be set")
+		return
+	}
+	assert.Equal(t, tc.expectEnabled, *exitOnThreshold)
+}
+
+func (tc budgetExitEnvCase) assertExitCode(t *testing.T, cfg *Config) {
+	t.Helper()
+	exitCodeNotSet := tc.exitCode == "" || tc.exitCode == "abc"
+	if !exitCodeNotSet {
+		require.NotNil(t, cfg.Cost.Budgets.Global.ExitCode)
+		assert.Equal(t, tc.expectCode, *cfg.Cost.Budgets.Global.ExitCode)
+		return
+	}
+	if cfg.Cost.Budgets.Global.ExitCode != nil {
+		assert.Equal(t, tc.expectCode, *cfg.Cost.Budgets.Global.ExitCode)
 	}
 }
 
