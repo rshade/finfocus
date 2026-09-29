@@ -2,6 +2,7 @@ package usage
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"google.golang.org/grpc/codes"
@@ -193,6 +194,12 @@ func apiError(resource, namespace string, err error) error {
 			resource, scope, resource, err)
 	case apierrors.IsUnauthorized(err):
 		return status.Errorf(codes.Unauthenticated, "kubernetes authentication failed listing %s: %v", resource, err)
+	case apierrors.IsBadRequest(err) || apierrors.IsInvalid(err):
+		return status.Errorf(codes.InvalidArgument, "list %s %s: invalid request: %v", resource, scope, err)
+	case errors.Is(err, context.Canceled):
+		return status.Errorf(codes.Canceled, "list %s %s: %v", resource, scope, err)
+	case errors.Is(err, context.DeadlineExceeded):
+		return status.Errorf(codes.DeadlineExceeded, "list %s %s: %v", resource, scope, err)
 	default:
 		return status.Errorf(codes.Unavailable, "list %s %s: %v", resource, scope, err)
 	}
