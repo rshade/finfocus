@@ -54,8 +54,8 @@ func TestNDJSONEncoder_LineByLineEncoding(t *testing.T) {
 
 		// Each line should be valid JSON
 		var jsonObj map[string]interface{}
-		err := json.Unmarshal([]byte(line), &jsonObj)
-		require.NoError(t, err, "line %d should be valid JSON: %s", lineCount, line)
+		unmarshalErr := json.Unmarshal([]byte(line), &jsonObj)
+		require.NoError(t, unmarshalErr, "line %d should be valid JSON: %s", lineCount, line)
 	}
 
 	// Should have summary + 3 recommendations = 4 lines
@@ -120,8 +120,8 @@ func TestNDJSONEncoder_EmptyList(t *testing.T) {
 		line := scanner.Text()
 
 		var jsonObj map[string]interface{}
-		err := json.Unmarshal([]byte(line), &jsonObj)
-		require.NoError(t, err)
+		unmarshalErr := json.Unmarshal([]byte(line), &jsonObj)
+		require.NoError(t, unmarshalErr)
 
 		// First line should be summary with 0 count
 		if lineCount == 1 {
@@ -229,8 +229,8 @@ func TestNDJSONEncoder_ValidJSONOnEachLine(t *testing.T) {
 
 		// Each line must be valid JSON
 		var jsonObj map[string]interface{}
-		err := json.Unmarshal([]byte(line), &jsonObj)
-		assert.NoError(t, err, "line %d should be valid JSON: %s", lineNum, line)
+		unmarshalErr := json.Unmarshal([]byte(line), &jsonObj)
+		assert.NoError(t, unmarshalErr, "line %d should be valid JSON: %s", lineNum, line)
 
 		// Verify no trailing commas or invalid JSON
 		assert.NotEmpty(t, jsonObj, "line %d should parse to non-empty object", lineNum)

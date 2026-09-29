@@ -85,8 +85,8 @@ func TestOutputFormat_NDJSON(t *testing.T) {
 				continue
 			}
 			var obj map[string]interface{}
-			err := json.Unmarshal([]byte(line), &obj)
-			assert.NoError(t, err, "Line %d should be valid JSON: %s", i, line)
+			unmarshalErr := json.Unmarshal([]byte(line), &obj)
+			assert.NoError(t, unmarshalErr, "Line %d should be valid JSON: %s", i, line)
 		}
 	}
 }

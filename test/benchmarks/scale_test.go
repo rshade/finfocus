@@ -50,9 +50,9 @@ func BenchmarkScale1K(b *testing.B) {
 	b.ReportAllocs()
 
 	for range b.N {
-		_, err := eng.GetProjectedCost(ctx, resources)
-		if err != nil {
-			b.Fatal(err)
+		_, costErr := eng.GetProjectedCost(ctx, resources)
+		if costErr != nil {
+			b.Fatal(costErr)
 		}
 	}
 
@@ -75,9 +75,9 @@ func BenchmarkScale10K(b *testing.B) {
 	b.ReportAllocs()
 
 	for range b.N {
-		_, err := eng.GetProjectedCost(ctx, resources)
-		if err != nil {
-			b.Fatal(err)
+		_, costErr := eng.GetProjectedCost(ctx, resources)
+		if costErr != nil {
+			b.Fatal(costErr)
 		}
 	}
 
@@ -100,9 +100,9 @@ func BenchmarkScale100K(b *testing.B) {
 	b.ReportAllocs()
 
 	for range b.N {
-		_, err := eng.GetProjectedCost(ctx, resources)
-		if err != nil {
-			b.Fatal(err)
+		_, costErr := eng.GetProjectedCost(ctx, resources)
+		if costErr != nil {
+			b.Fatal(costErr)
 		}
 	}
 
@@ -125,9 +125,9 @@ func BenchmarkDeeplyNested(b *testing.B) {
 	b.ReportAllocs()
 
 	for range b.N {
-		_, err := eng.GetProjectedCost(ctx, resources)
-		if err != nil {
-			b.Fatal(err)
+		_, costErr := eng.GetProjectedCost(ctx, resources)
+		if costErr != nil {
+			b.Fatal(costErr)
 		}
 	}
 
@@ -156,8 +156,8 @@ func BenchmarkJSONParsing(b *testing.B) {
 
 	for range b.N {
 		var parsed ingest.PulumiPlan
-		if err := json.Unmarshal(jsonData, &parsed); err != nil {
-			b.Fatal(err)
+		if unmarshalErr := json.Unmarshal(jsonData, &parsed); unmarshalErr != nil {
+			b.Fatal(unmarshalErr)
 		}
 	}
 }

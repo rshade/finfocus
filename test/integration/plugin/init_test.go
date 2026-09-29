@@ -381,10 +381,10 @@ func TestPluginInit_RecordedFixtures_Offline(t *testing.T) {
 
 	// Verify testdata directory with recorded requests exists
 	testdataDir := filepath.Join(projectDir, "testdata", "recorded_requests")
-	if _, err := os.Stat(testdataDir); err != nil {
+	if _, statErr := os.Stat(testdataDir); statErr != nil {
 		// The directory may not exist if recording wasn't fully attempted
 		// This is acceptable since we're in offline mode with potentially missing fixtures
-		t.Logf("testdata directory check: %v", err)
+		t.Logf("testdata directory check: %v", statErr)
 	}
 }
 

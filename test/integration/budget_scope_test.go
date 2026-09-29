@@ -258,17 +258,17 @@ tags:
 		eval := engine.NewScopedBudgetEvaluator(cfg)
 
 		// Wildcard should match any value for the key
-		ctx := context.Background()
-		devMatches := eval.MatchTagBudgets(ctx, map[string]string{"env": "dev"})
+		evalCtx := context.Background()
+		devMatches := eval.MatchTagBudgets(evalCtx, map[string]string{"env": "dev"})
 		require.Len(t, devMatches, 1)
 		assert.Equal(t, "env:*", devMatches[0].Selector)
 
-		prodMatches := eval.MatchTagBudgets(ctx, map[string]string{"env": "prod"})
+		prodMatches := eval.MatchTagBudgets(evalCtx, map[string]string{"env": "prod"})
 		require.Len(t, prodMatches, 1)
 		assert.Equal(t, "env:*", prodMatches[0].Selector)
 
 		// Key not present should not match
-		noKeyMatches := eval.MatchTagBudgets(ctx, map[string]string{"team": "platform"})
+		noKeyMatches := eval.MatchTagBudgets(evalCtx, map[string]string{"team": "platform"})
 		assert.Empty(t, noKeyMatches)
 	})
 
@@ -282,7 +282,7 @@ tags:
 		}
 
 		eval := engine.NewScopedBudgetEvaluator(cfg)
-		ctx := context.Background()
+		evalCtx := context.Background()
 
 		// Resource matches both team:platform and team:backend cannot happen with exact match
 		// But we can test the tie-breaking logic directly
@@ -291,7 +291,7 @@ tags:
 			{Selector: "team:backend", Priority: 100, ScopedBudget: config.ScopedBudget{Amount: 2500}},
 		}
 
-		selected, warnings := eval.SelectHighestPriorityTagBudget(ctx, matches)
+		selected, warnings := eval.SelectHighestPriorityTagBudget(evalCtx, matches)
 		require.NotNil(t, selected)
 		// "backend" comes before "platform" alphabetically
 		assert.Equal(t, "team:backend", selected.Selector)
@@ -310,20 +310,20 @@ tags:
 		}
 
 		eval := engine.NewScopedBudgetEvaluator(cfg)
-		ctx := context.Background()
+		evalCtx := context.Background()
 
 		// Platform team resource
-		platformMatches := eval.MatchTagBudgets(ctx, map[string]string{"team": "platform"})
+		platformMatches := eval.MatchTagBudgets(evalCtx, map[string]string{"team": "platform"})
 		require.Len(t, platformMatches, 1)
 		assert.Equal(t, "team:platform", platformMatches[0].Selector)
 
 		// Backend team resource
-		backendMatches := eval.MatchTagBudgets(ctx, map[string]string{"team": "backend"})
+		backendMatches := eval.MatchTagBudgets(evalCtx, map[string]string{"team": "backend"})
 		require.Len(t, backendMatches, 1)
 		assert.Equal(t, "team:backend", backendMatches[0].Selector)
 
 		// Resource with no team tag matches neither
-		noTeamMatches := eval.MatchTagBudgets(ctx, map[string]string{"env": "prod"})
+		noTeamMatches := eval.MatchTagBudgets(evalCtx, map[string]string{"env": "prod"})
 		assert.Empty(t, noTeamMatches)
 	})
 }

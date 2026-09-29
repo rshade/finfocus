@@ -58,7 +58,7 @@ func ShallowMergeYAML(target *Config, overlayPath string) error {
 	// overlay - like the skeleton SaveProjectSkeleton writes - parses here;
 	// plain json.Unmarshal would reject its "//" comments outright).
 	var overlay map[string]json.RawMessage
-	if err := ax.ParseConfig(context.Background(), bytes.NewReader(data), &overlay); err != nil {
+	if parseErr := ax.ParseConfig(context.Background(), bytes.NewReader(data), &overlay); parseErr != nil {
 		// Hujson/JSON parsing failed, try YAML as fallback for legacy files
 		var yamlOverlay map[string]interface{}
 		if yamlErr := yaml.Unmarshal(data, &yamlOverlay); yamlErr != nil {

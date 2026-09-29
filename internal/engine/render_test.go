@@ -123,8 +123,8 @@ func TestRenderResults_NDJSONFormat(t *testing.T) {
 	// Verify each line is valid JSON
 	for i, line := range lines {
 		var result engine.CostResult
-		err := json.Unmarshal([]byte(line), &result)
-		require.NoError(t, err)
+		unmarshalErr := json.Unmarshal([]byte(line), &result)
+		require.NoError(t, unmarshalErr)
 		assert.Equal(t, results[i].ResourceID, result.ResourceID)
 	}
 }
@@ -291,8 +291,8 @@ func TestRenderActualCostResults_NDJSONFormat(t *testing.T) {
 
 	for i, line := range lines {
 		var result engine.CostResult
-		err := json.Unmarshal([]byte(line), &result)
-		require.NoError(t, err)
+		unmarshalErr := json.Unmarshal([]byte(line), &result)
+		require.NoError(t, unmarshalErr)
 		assert.Equal(t, results[i].ResourceID, result.ResourceID)
 	}
 }

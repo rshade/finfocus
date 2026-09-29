@@ -99,9 +99,9 @@ func TestRecorderPlugin_Integration(t *testing.T) {
 	// The recorder plugin writes files asynchronously; poll with timeout
 	var files []os.DirEntry
 	require.Eventually(t, func() bool {
-		var err error
-		files, err = os.ReadDir(tempDir)
-		return err == nil && len(files) >= 2
+		var readErr error
+		files, readErr = os.ReadDir(tempDir)
+		return readErr == nil && len(files) >= 2
 	}, 2*time.Second, 50*time.Millisecond, "Expected recorded JSON files")
 
 	// Check file content
@@ -109,8 +109,8 @@ func TestRecorderPlugin_Integration(t *testing.T) {
 	foundActual := false
 
 	for _, file := range files {
-		contentBytes, err := os.ReadFile(filepath.Join(tempDir, file.Name()))
-		require.NoError(t, err)
+		contentBytes, readErr := os.ReadFile(filepath.Join(tempDir, file.Name()))
+		require.NoError(t, readErr)
 		content := string(contentBytes)
 
 		if strings.Contains(content, "method") {

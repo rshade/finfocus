@@ -101,8 +101,8 @@ func (s *StdioLauncher) Start(
 	// context is canceled (issue #1231).
 	configureProcessGroup(cmd)
 	cmd.Cancel = func() error {
-		if err := killProcessGroup(cmd); err != nil && !errors.Is(err, os.ErrProcessDone) {
-			return err
+		if killErr := killProcessGroup(cmd); killErr != nil && !errors.Is(killErr, os.ErrProcessDone) {
+			return killErr
 		}
 		return nil
 	}

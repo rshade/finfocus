@@ -128,13 +128,13 @@ func TestAnalyzer_FullStackFlow(t *testing.T) {
 	// First, call Analyze() for each resource to populate the cost cache
 	// (In real Pulumi flow, the engine calls Analyze() for each resource)
 	for _, res := range resources {
-		_, err := server.Analyze(ctx, &pulumirpc.AnalyzeRequest{
+		_, analyzeErr := server.Analyze(ctx, &pulumirpc.AnalyzeRequest{
 			Type:       res.GetType(),
 			Urn:        res.GetUrn(),
 			Name:       res.GetName(),
 			Properties: res.GetProperties(),
 		})
-		require.NoError(t, err)
+		require.NoError(t, analyzeErr)
 	}
 
 	// Now call AnalyzeStack which returns only the summary diagnostic
@@ -294,12 +294,12 @@ func TestAnalyzer_ThresholdEnforcement(t *testing.T) {
 	}
 
 	for _, res := range resources {
-		_, err := server.Analyze(ctx, &pulumirpc.AnalyzeRequest{
+		_, analyzeErr := server.Analyze(ctx, &pulumirpc.AnalyzeRequest{
 			Type: res.GetType(),
 			Urn:  res.GetUrn(),
 			Name: res.GetName(),
 		})
-		require.NoError(t, err)
+		require.NoError(t, analyzeErr)
 	}
 
 	// Step 3: AnalyzeStack - should include threshold diagnostic

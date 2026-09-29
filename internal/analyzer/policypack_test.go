@@ -187,8 +187,8 @@ func TestSetupPolicyPack_WindowsCopy(t *testing.T) {
 		// permission bits (os.FileInfo.Mode reports 0666/0444 there), so the
 		// check only applies on Unix-like systems.
 		if runtime.GOOS != "windows" {
-			fi, err := os.Stat(dstPath)
-			require.NoError(t, err)
+			fi, statErr := os.Stat(dstPath)
+			require.NoError(t, statErr)
 			assert.True(t, fi.Mode()&0o111 != 0, "copy should preserve executable permissions")
 		}
 	})

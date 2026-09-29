@@ -193,9 +193,9 @@ func executeDismiss(cmd *cobra.Command, recommendationID string, params dismissP
 	// Commit: execute the dismissal (wrapping in ax.Perform for dry-run support)
 	commit := func(ctx2 context.Context) error {
 		// Execute dismissal
-		result, err := eng.DismissRecommendation(ctx2, store, req)
-		if err != nil {
-			return fmt.Errorf("dismissing recommendation: %w", err)
+		result, dismissErr := eng.DismissRecommendation(ctx2, store, req)
+		if dismissErr != nil {
+			return fmt.Errorf("dismissing recommendation: %w", dismissErr)
 		}
 
 		// Render result
@@ -302,9 +302,9 @@ func executeSnooze(cmd *cobra.Command, recommendationID string, params snoozePar
 	// Commit: execute the snooze (wrapping in ax.Perform for dry-run support)
 	commit := func(ctx2 context.Context) error {
 		// Execute snooze (dismiss with expiry)
-		result, err := eng.DismissRecommendation(ctx2, store, req)
-		if err != nil {
-			return fmt.Errorf("snoozing recommendation: %w", err)
+		result, snoozeErr := eng.DismissRecommendation(ctx2, store, req)
+		if snoozeErr != nil {
+			return fmt.Errorf("snoozing recommendation: %w", snoozeErr)
 		}
 
 		// Render result

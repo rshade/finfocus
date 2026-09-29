@@ -82,8 +82,8 @@ func TestCostRecommendations_NDJSONOutput(t *testing.T) {
 			continue
 		}
 		var obj map[string]any
-		err := json.Unmarshal([]byte(line), &obj)
-		assert.NoError(t, err, "Line %d should be valid JSON: %s", i, line)
+		unmarshalErr := json.Unmarshal([]byte(line), &obj)
+		assert.NoError(t, unmarshalErr, "Line %d should be valid JSON: %s", i, line)
 	}
 }
 
@@ -299,12 +299,12 @@ func verifyActionTypeFilter(t *testing.T, result map[string]any, expectedType st
 		return // No recommendations to verify
 	}
 	for _, rec := range recs {
-		recMap, ok := rec.(map[string]any)
-		if !ok {
+		recMap, recOK := rec.(map[string]any)
+		if !recOK {
 			continue
 		}
-		actionType, ok := recMap["type"].(string)
-		if !ok {
+		actionType, typeOK := recMap["type"].(string)
+		if !typeOK {
 			continue
 		}
 		assert.Equal(t, expectedType, actionType,
@@ -325,12 +325,12 @@ func verifyMultipleActionTypeFilter(t *testing.T, result map[string]any, expecte
 		return // No recommendations to verify
 	}
 	for _, rec := range recs {
-		recMap, ok := rec.(map[string]any)
-		if !ok {
+		recMap, recOK := rec.(map[string]any)
+		if !recOK {
 			continue
 		}
-		actionType, ok := recMap["type"].(string)
-		if !ok {
+		actionType, typeOK := recMap["type"].(string)
+		if !typeOK {
 			continue
 		}
 		assert.True(t, validTypes[actionType],

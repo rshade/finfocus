@@ -89,8 +89,8 @@ func TestLoadInstalledPluginsWithFile(t *testing.T) {
 	}
 
 	configPath := filepath.Join(configDir, "config.yaml")
-	if err := os.WriteFile(configPath, data, 0600); err != nil {
-		t.Fatal(err)
+	if writeErr := os.WriteFile(configPath, data, 0600); writeErr != nil {
+		t.Fatal(writeErr)
 	}
 
 	plugins, err := LoadInstalledPlugins()
@@ -158,8 +158,8 @@ func TestAddInstalledPlugin(t *testing.T) {
 
 	// Update existing plugin
 	plugin1Updated := InstalledPlugin{Name: "plugin1", URL: "url1", Version: "v1.1.0"}
-	if err := AddInstalledPlugin(plugin1Updated); err != nil {
-		t.Errorf("AddInstalledPlugin() update error = %v", err)
+	if updateErr := AddInstalledPlugin(plugin1Updated); updateErr != nil {
+		t.Errorf("AddInstalledPlugin() update error = %v", updateErr)
 	}
 
 	// Verify update
@@ -356,11 +356,11 @@ func TestSaveInstalledPluginsPreservesConfig(t *testing.T) {
 				return
 			}
 			require.NoError(t, err)
-			loaded, err := LoadInstalledPlugins()
-			require.NoError(t, err)
+			loaded, loadErr := LoadInstalledPlugins()
+			require.NoError(t, loadErr)
 			assert.Equal(t, plugins, loaded)
-			saved, err := os.ReadFile(filepath.Join(dir, "config.hujson"))
-			require.NoError(t, err)
+			saved, readErr := os.ReadFile(filepath.Join(dir, "config.hujson"))
+			require.NoError(t, readErr)
 			var values map[string]json.RawMessage
 			require.NoError(t, json.Unmarshal(saved, &values))
 			assert.JSONEq(t, `{"enabled":true}`, string(values["custom"]))

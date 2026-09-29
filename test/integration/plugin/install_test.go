@@ -59,8 +59,8 @@ func TestPluginInstall_FromRegistry(t *testing.T) {
 
 	// Verify binary is executable on Unix
 	if runtime.GOOS != "windows" {
-		info, err := os.Stat(binPath)
-		require.NoError(t, err)
+		info, statErr := os.Stat(binPath)
+		require.NoError(t, statErr)
 		assert.NotZero(t, info.Mode()&0111, "binary should be executable")
 	}
 }

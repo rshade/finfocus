@@ -24,8 +24,8 @@ func TestValidatePlan_Structure(t *testing.T) {
 		assert.NotEmpty(t, steps, "steps should not be empty")
 
 		if len(steps) > 0 {
-			step, ok := steps[0].(map[string]interface{})
-			require.True(t, ok, "step should be a map")
+			step, stepOK := steps[0].(map[string]interface{})
+			require.True(t, stepOK, "step should be a map")
 			assert.Contains(t, step, "type", "step should have type")
 			assert.Contains(t, step, "urn", "step should have urn")
 		}
@@ -39,8 +39,8 @@ func TestValidatePlan_Structure(t *testing.T) {
 
 		// Validate resource structure
 		if len(resources) > 0 {
-			res, ok := resources[0].(map[string]interface{})
-			require.True(t, ok, "resource should be a map")
+			res, resOK := resources[0].(map[string]interface{})
+			require.True(t, resOK, "resource should be a map")
 			assert.Contains(t, res, "type", "resource should have type")
 			assert.Contains(t, res, "id", "resource should have id")
 		}

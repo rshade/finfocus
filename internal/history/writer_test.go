@@ -58,8 +58,8 @@ func TestHistoryWriter_RecordStateSnapshot_Basic(t *testing.T) {
 
 	for _, res := range resources {
 		urnHash := history.URNHash(res.URN)
-		results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
-		require.NoError(t, err)
+		results, getErr := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
+		require.NoError(t, getErr)
 		require.Len(t, results, 1)
 
 		entry := results[0]
@@ -694,8 +694,8 @@ func TestHistoryWriter_RecordAnalyzerEvent_TagExtraction(t *testing.T) {
 
 			stackHash := stackCtx.Hash()
 			urnHash := history.URNHash(urn)
-			results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
-			require.NoError(t, err)
+			results, getErr := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix()+3600)
+			require.NoError(t, getErr)
 			require.Len(t, results, 1)
 
 			entry := results[0]

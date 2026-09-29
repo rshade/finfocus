@@ -29,9 +29,9 @@ func BenchmarkPlugin_GRPC_Call(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := client.Name(ctx, &pb.NameRequest{})
-		if err != nil {
-			b.Fatal(err)
+		_, callErr := client.Name(ctx, &pb.NameRequest{})
+		if callErr != nil {
+			b.Fatal(callErr)
 		}
 	}
 }

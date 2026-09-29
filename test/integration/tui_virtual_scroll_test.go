@@ -129,8 +129,8 @@ func TestVirtualScrolling_NavigationKeys(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Send the key message
-			updatedModel, cmd := model.Update(tt.key)
-			model = updatedModel.(*tui.RecommendationsViewModel)
+			nextModel, cmd := model.Update(tt.key)
+			model = nextModel.(*tui.RecommendationsViewModel)
 
 			// Verify model still works (no panics)
 			require.NotNil(t, model)
@@ -191,8 +191,8 @@ func TestVirtualScrolling_SortingAndFiltering(t *testing.T) {
 	t.Run("sort cycle works with virtual list", func(t *testing.T) {
 		// Press 's' to cycle sort
 		sortMsg := tea.KeyPressMsg{Text: "s"}
-		updatedModel, _ := model.Update(sortMsg)
-		model = updatedModel.(*tui.RecommendationsViewModel)
+		sortModel, _ := model.Update(sortMsg)
+		model = sortModel.(*tui.RecommendationsViewModel)
 
 		// View should still render
 		view := model.View().Content
@@ -203,8 +203,8 @@ func TestVirtualScrolling_SortingAndFiltering(t *testing.T) {
 	t.Run("filter works with virtual list", func(t *testing.T) {
 		// Press '/' to activate filter
 		filterMsg := tea.KeyPressMsg{Text: "/"}
-		updatedModel, _ := model.Update(filterMsg)
-		model = updatedModel.(*tui.RecommendationsViewModel)
+		filterModel, _ := model.Update(filterMsg)
+		model = filterModel.(*tui.RecommendationsViewModel)
 
 		// View should show filter input
 		view := model.View().Content
