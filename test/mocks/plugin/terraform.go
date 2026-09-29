@@ -14,7 +14,7 @@ import (
 func AWSTerraformTypeMappings() map[string]*pbc.ResourceTypeMapping {
 	return map[string]*pbc.ResourceTypeMapping{
 		"aws_instance": {
-			PulumiToken: "aws:ec2/instance:Instance",
+			PulumiToken: resourceTypeEC2Instance,
 			Supported:   true,
 			PropertyMappings: map[string]string{
 				"instance_type":     "instanceType",
@@ -27,12 +27,12 @@ func AWSTerraformTypeMappings() map[string]*pbc.ResourceTypeMapping {
 			PropertyMappings: map[string]string{"type": "volumeType"},
 		},
 		"aws_db_instance": {
-			PulumiToken:      "aws:rds/instance:Instance",
+			PulumiToken:      resourceTypeRDSInstance,
 			Supported:        true,
 			PropertyMappings: map[string]string{"instance_class": "instanceClass"},
 		},
 		"aws_volume_attachment": {PulumiToken: "aws:ec2/volumeAttachment:VolumeAttachment", Supported: true},
-		"aws_s3_bucket":         {PulumiToken: "aws:s3/bucket:Bucket", Supported: true},
+		"aws_s3_bucket":         {PulumiToken: resourceTypeS3Bucket, Supported: true},
 		"aws_dynamodb_table":    {PulumiToken: "aws:dynamodb/table:Table", Supported: true},
 		"aws_iam_role":          {PulumiToken: "aws:iam/role:Role", Supported: true},
 		"aws_vpc":               {PulumiToken: "aws:ec2/vpc:Vpc", Supported: true},

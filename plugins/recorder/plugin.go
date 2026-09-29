@@ -108,7 +108,7 @@ func (p *RecorderPlugin) GetProjectedCost(
 	return &pbc.GetProjectedCostResponse{
 		CostPerMonth:  0.0,
 		UnitPrice:     0.0,
-		Currency:      "USD",
+		Currency:      currencyUSD,
 		BillingDetail: "Recorder plugin - mock responses disabled",
 	}, nil
 }
@@ -203,7 +203,7 @@ func (p *RecorderPlugin) GetRecommendations(
 			Summary: &pbc.RecommendationSummary{
 				TotalRecommendations:  int32(len(recs)), //nolint:gosec // bounded by maxPageSize
 				TotalEstimatedSavings: 0,
-				Currency:              "USD",
+				Currency:              currencyUSD,
 			},
 		}, nil
 	}
@@ -213,7 +213,7 @@ func (p *RecorderPlugin) GetRecommendations(
 		Summary: &pbc.RecommendationSummary{
 			TotalRecommendations:  0,
 			TotalEstimatedSavings: 0,
-			Currency:              "USD",
+			Currency:              currencyUSD,
 		},
 	}, nil
 }
@@ -315,7 +315,7 @@ func (p *RecorderPlugin) EstimateCost(
 
 	return &pbc.EstimateCostResponse{
 		CostMonthly: 0.0,
-		Currency:    "USD",
+		Currency:    currencyUSD,
 	}, nil
 }
 

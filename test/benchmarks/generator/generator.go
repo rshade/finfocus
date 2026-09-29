@@ -27,6 +27,64 @@ var resourceTypes = []string{
 	"gcp:storage:Bucket",
 }
 
+// Benchmark tuning values for the preset configurations.
+const (
+	// benchmarkSeed is the fixed random seed shared by all presets for deterministic generation.
+	benchmarkSeed = 42
+
+	// smallResourceCount is the resource count for the small and deep-nesting presets.
+	smallResourceCount = 1000
+	// mediumResourceCount is the resource count for the medium preset.
+	mediumResourceCount = 10000
+	// largeResourceCount is the resource count for the large preset.
+	largeResourceCount = 100000
+
+	// smallMaxDepth is the nesting depth for the small preset.
+	smallMaxDepth = 3
+	// mediumMaxDepth is the nesting depth for the medium and large presets.
+	mediumMaxDepth = 5
+	// deepNestingMaxDepth is the nesting depth for the deep-nesting preset.
+	deepNestingMaxDepth = 10
+
+	// smallDependencyRatio is the dependency probability for the small preset.
+	smallDependencyRatio = 0.2
+	// mediumDependencyRatio is the dependency probability for the medium and large presets.
+	mediumDependencyRatio = 0.3
+	// deepDependencyRatio is the dependency probability for the deep-nesting preset.
+	deepDependencyRatio = 0.5
+)
+
+// Random generation bounds for synthetic plan data.
+const (
+	// maxDependencies bounds the random dependency count per resource (1-3).
+	maxDependencies = 3
+	// minProperties is the minimum property count per nesting level.
+	minProperties = 2
+	// propertyCountSpread bounds the random extra properties per nesting level (2-5 total).
+	propertyCountSpread = 4
+	// nestedObjectChance is the probability of generating a nested object property.
+	nestedObjectChance = 0.3
+	// boolPropertyChance is the probability of a true boolean property value.
+	boolPropertyChance = 0.5
+	// maxPropertyValue bounds random numeric property values and string suffixes.
+	maxPropertyValue = 1000
+	// maxArrayItems bounds the random string-array property length (1-3).
+	maxArrayItems = 3
+	// maxItemSuffix bounds random array item name suffixes.
+	maxItemSuffix = 100
+	// propertyValueKinds is the number of simple property value kinds; it must
+	// match the count of valueKind* constants below.
+	propertyValueKinds = 4
+)
+
+// Property value kinds for the random value switch in generateProperties.
+const (
+	valueKindString = iota
+	valueKindInt
+	valueKindBool
+	valueKindArray
+)
+
 // Validation errors.
 var (
 	ErrInvalidResourceCount   = errors.New("ResourceCount must be greater than 0")
@@ -61,31 +119,31 @@ type SyntheticPlan struct {
 //nolint:gochecknoglobals // Package-level preset configurations for benchmarks
 var (
 	PresetSmall = BenchmarkConfig{
-		ResourceCount:   1000,
-		MaxDepth:        3,
-		DependencyRatio: 0.2,
-		Seed:            42,
+		ResourceCount:   smallResourceCount,
+		MaxDepth:        smallMaxDepth,
+		DependencyRatio: smallDependencyRatio,
+		Seed:            benchmarkSeed,
 	}
 
 	PresetMedium = BenchmarkConfig{
-		ResourceCount:   10000,
-		MaxDepth:        5,
-		DependencyRatio: 0.3,
-		Seed:            42,
+		ResourceCount:   mediumResourceCount,
+		MaxDepth:        mediumMaxDepth,
+		DependencyRatio: mediumDependencyRatio,
+		Seed:            benchmarkSeed,
 	}
 
 	PresetLarge = BenchmarkConfig{
-		ResourceCount:   100000,
-		MaxDepth:        5,
-		DependencyRatio: 0.3,
-		Seed:            42,
+		ResourceCount:   largeResourceCount,
+		MaxDepth:        mediumMaxDepth,
+		DependencyRatio: mediumDependencyRatio,
+		Seed:            benchmarkSeed,
 	}
 
 	PresetDeepNesting = BenchmarkConfig{
-		ResourceCount:   1000,
-		MaxDepth:        10,
-		DependencyRatio: 0.5,
-		Seed:            42,
+		ResourceCount:   smallResourceCount,
+		MaxDepth:        deepNestingMaxDepth,
+		DependencyRatio: deepDependencyRatio,
+		Seed:            benchmarkSeed,
 	}
 )
 
@@ -134,7 +192,7 @@ func GeneratePlan(config BenchmarkConfig) (SyntheticPlan, error) {
 		// Add dependencies based on ratio (only to earlier resources)
 		if i > 0 && rng.Float64() < config.DependencyRatio {
 			// Pick 1-3 dependencies from earlier resources
-			numDeps := rng.IntN(3) + 1
+			numDeps := rng.IntN(maxDependencies) + 1
 			if numDeps > i {
 				numDeps = i
 			}
@@ -163,27 +221,27 @@ func generateProperties(rng *rand.Rand, maxDepth, currentDepth int) map[string]i
 	props := make(map[string]interface{})
 
 	// Add 2-5 properties
-	numProps := rng.IntN(4) + 2
+	numProps := rng.IntN(propertyCountSpread) + minProperties
 	for i := 0; i < numProps; i++ {
 		key := fmt.Sprintf("prop_%d", i)
 
-		if currentDepth < maxDepth && rng.Float64() < 0.3 {
+		if currentDepth < maxDepth && rng.Float64() < nestedObjectChance {
 			// 30% chance of nested object
 			props[key] = generateProperties(rng, maxDepth, currentDepth+1)
 		} else {
 			// Generate simple value
-			switch rng.IntN(4) {
-			case 0:
-				props[key] = fmt.Sprintf("value-%d", rng.IntN(1000))
-			case 1:
-				props[key] = rng.IntN(1000)
-			case 2:
-				props[key] = rng.Float64() < 0.5
-			case 3:
+			switch rng.IntN(propertyValueKinds) {
+			case valueKindString:
+				props[key] = fmt.Sprintf("value-%d", rng.IntN(maxPropertyValue))
+			case valueKindInt:
+				props[key] = rng.IntN(maxPropertyValue)
+			case valueKindBool:
+				props[key] = rng.Float64() < boolPropertyChance
+			case valueKindArray:
 				// Array of strings
-				arr := make([]string, rng.IntN(3)+1)
+				arr := make([]string, rng.IntN(maxArrayItems)+1)
 				for j := range arr {
-					arr[j] = fmt.Sprintf("item-%d", rng.IntN(100))
+					arr[j] = fmt.Sprintf("item-%d", rng.IntN(maxItemSuffix))
 				}
 				props[key] = arr
 			}

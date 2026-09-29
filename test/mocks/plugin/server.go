@@ -172,7 +172,7 @@ func (s *mockServer) GetActualCost(
 	// If no breakdown, create single entry with total
 	if len(results) == 0 {
 		results = append(results, &pbc.ActualCostResult{
-			Source: "total",
+			Source: breakdownKeyTotal,
 			Cost:   configuredResult.TotalCost,
 		})
 	}
