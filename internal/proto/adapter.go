@@ -1190,7 +1190,7 @@ func extractTagMap(properties map[string]interface{}, key string) map[string]str
 
 // toStringMap converts a map[string]interface{} to a map[string]string.
 // toStringMap converts a map[string]interface{} to a map[string]string.
-// For each entry, string values are kept as-is; non-nil non-string values are converted with fmt.Sprintf("%v").
+// For each entry, string values are kept as-is; non-nil non-string values are converted with [fmt.Sprintf]("%v").
 // Entries with nil values are omitted from the returned map.
 func toStringMap(m map[string]interface{}) map[string]string {
 	result := make(map[string]string, len(m))

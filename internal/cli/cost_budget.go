@@ -89,8 +89,8 @@ func RenderBudgetStatus(w io.Writer, status *engine.BudgetStatus) error {
 }
 
 // isWriterTerminal checks if the writer is a terminal (TTY).
-// isWriterTerminal reports whether the provided io.Writer refers to a terminal.
-// It returns true when w is an *os.File whose file descriptor is a terminal, and false for any other writer.
+// isWriterTerminal reports whether the provided [io.Writer] refers to a terminal.
+// It returns true when w is an *[os.File] whose file descriptor is a terminal, and false for any other writer.
 func isWriterTerminal(w io.Writer) bool {
 	// If w is a file (like os.Stdout), check if it's a terminal
 	if f, ok := w.(*os.File); ok {
@@ -108,7 +108,7 @@ func isWriterTerminal(w io.Writer) bool {
 // information those are included in the box.
 //
 // Parameters:
-//   - w: the destination io.Writer (expected to be a terminal/TTY).
+//   - w: the destination [io.Writer] (expected to be a terminal/TTY).
 //   - status: the budget status to render; its fields drive the amounts, percentages, alerts, and forecast.
 //
 // Returns an error if writing the rendered box to `w` fails.
@@ -350,8 +350,8 @@ func currencySymbol(currency string) string {
 	return currency + " "
 }
 
-// getTerminalWidth returns the terminal width in columns for the given io.Writer.
-// If the writer is an *os.File, it queries the terminal size using GetSize.
+// getTerminalWidth returns the terminal width in columns for the given [io.Writer].
+// If the writer is an *[os.File], it queries the terminal size using GetSize.
 // If the terminal size cannot be determined or yields a non-positive width,
 // it returns a sensible fallback width (defaultBoxWidth + boxPaddingWidth).
 func getTerminalWidth(w io.Writer) int {
@@ -822,7 +822,7 @@ func (e *BudgetExitError) Error() string {
 // survives ax.Execute's exit-code resolution instead of being forced into ax's
 // default ExitInternal bucket. Non-budget errors are returned unchanged. The
 // original *BudgetExitError is preserved as the cause, so existing callers doing
-// errors.As(err, &budgetErr) against the command's returned error keep working.
+// [errors.As](err, &budgetErr) against the command's returned error keep working.
 func toAxExitError(ctx context.Context, err error) error {
 	var budgetErr *BudgetExitError
 	if !errors.As(err, &budgetErr) {

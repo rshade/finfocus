@@ -164,7 +164,7 @@ func extractZip(archivePath, destDir string) error {
 	return nil
 }
 
-// extractZipFile extracts a single entry from the provided zip.File into destDir.
+// extractZipFile extracts a single entry from the provided [zip.File] into destDir.
 // It sanitizes the zip entry path to prevent path traversal, creates any required
 // parent directories, and writes the entry to disk.
 //

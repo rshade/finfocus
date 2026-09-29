@@ -15,7 +15,7 @@ const (
 )
 
 // String returns the string representation of the FieldMappingStatus.
-// It implements the fmt.Stringer interface for human-readable output in logs and debug.
+// It implements the [fmt.Stringer] interface for human-readable output in logs and debug.
 func (s FieldMappingStatus) String() string {
 	return string(s)
 }

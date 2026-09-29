@@ -19,7 +19,7 @@ const (
 )
 
 // String returns the human-readable name of the CompatibilityResult.
-// It implements the fmt.Stringer interface for use in logs and debug output.
+// It implements the [fmt.Stringer] interface for use in logs and debug output.
 // Returns "Compatible", "MajorMismatch", "Invalid", or "CompatibilityResult(n)" for unknown values.
 func (r CompatibilityResult) String() string {
 	switch r {

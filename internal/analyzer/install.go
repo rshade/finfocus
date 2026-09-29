@@ -19,7 +19,7 @@ const (
 	// to ensure exactly one "v" prefix regardless of the raw version string format.
 	analyzerDirPrefix = "analyzer-finfocus-"
 
-	// goosWindows is the runtime.GOOS value for Windows.
+	// goosWindows is the [runtime.GOOS] value for Windows.
 	goosWindows = "windows"
 
 	// analyzerBinaryName is the binary name Pulumi expects inside the plugin directory.
@@ -134,7 +134,7 @@ func IsInstalled(targetDir string) (bool, error) {
 
 // InstalledVersion returns the version string parsed from the first analyzer-finfocus-v{version}
 // directory found in the plugin directory. Returns empty string if not installed.
-// Note: os.ReadDir returns entries in lexicographic order, so when multiple versions exist
+// Note: [os.ReadDir] returns entries in lexicographic order, so when multiple versions exist
 // the first match wins. The --force flag removes old directories, keeping only one version.
 func InstalledVersion(targetDir string) (string, error) {
 	entries, err := os.ReadDir(targetDir)
@@ -177,7 +177,7 @@ func NeedsUpdate(targetDir string) (bool, error) {
 }
 
 // Install installs the finfocus binary as a Pulumi analyzer plugin.
-// It resolves the current binary path via os.Executable, creates a versioned directory
+// It resolves the current binary path via [os.Executable], creates a versioned directory
 // in the Pulumi plugin directory, and creates a symlink (Unix) or copy (Windows) of
 // the binary with the expected analyzer name.
 func Install(ctx context.Context, opts InstallOptions) (*InstallResult, error) {

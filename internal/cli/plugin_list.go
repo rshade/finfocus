@@ -141,7 +141,7 @@ const notAvailable = "N/A"
 // It checks whether the configured plugin directory exists and prints a message and returns nil if it does not.
 // If no plugins are installed it prints 'No plugins found.' and returns nil.
 //
-// Plugin metadata is fetched concurrently using errgroup with a concurrency limit of runtime.NumCPU()
+// Plugin metadata is fetched concurrently using errgroup with a concurrency limit of [runtime.NumCPU]
 // to minimize total execution time. Results are sorted deterministically by plugin name.
 //
 // cmd is the Cobra command used for printing. verbose controls whether plugin details are shown.
@@ -186,7 +186,7 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool, output string) error {
 }
 
 // fetchPluginMetadataParallel fetches metadata from all plugins concurrently.
-// It uses errgroup with a concurrency limit of runtime.NumCPU() to prevent resource exhaustion.
+// It uses errgroup with a concurrency limit of [runtime.NumCPU] to prevent resource exhaustion.
 // Plugins that fail to respond within the timeout are skipped (not included in results).
 func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginInfo) []enrichedPluginInfo {
 	launcher := pluginhost.NewProcessLauncher()

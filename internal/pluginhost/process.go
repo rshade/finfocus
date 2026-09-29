@@ -64,7 +64,7 @@ type portListener struct {
 	port     int
 }
 
-// lockedBuffer wraps bytes.Buffer with a mutex for concurrent read/write safety.
+// lockedBuffer wraps [bytes.Buffer] with a mutex for concurrent read/write safety.
 type lockedBuffer struct {
 	mu  sync.Mutex
 	buf bytes.Buffer

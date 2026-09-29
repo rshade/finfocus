@@ -15,7 +15,7 @@ import (
 )
 
 // ErrPluginValidationFailed is returned when one or more plugins fail validation.
-// This replaces os.Exit(1) to allow proper testing and error handling (SC-002 fix).
+// This replaces [os.Exit](1) to allow proper testing and error handling (SC-002 fix).
 var ErrPluginValidationFailed = errors.New("one or more plugins failed validation")
 
 // NewPluginValidateCmd creates the plugin validate command for validating plugin installations.

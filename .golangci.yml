@@ -315,8 +315,7 @@ linters:
         - no-unused-link
         # Require proper doc links to standard library declarations where applicable.
         # https://github.com/godoc-lint/godoc-lint?tab=readme-ov-file#require-stdlib-doclink
-        # TODO: add stdlib doc links in https://github.com/rshade/finfocus/issues/1211.
-        # - require-stdlib-doclink
+        - require-stdlib-doclink
 
     govet:
       # Enable all analyzers.

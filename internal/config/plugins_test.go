@@ -14,7 +14,7 @@ import (
 
 // setHomeDir sets the appropriate home directory environment variable
 // for both Unix (HOME) and Windows (USERPROFILE) systems.
-// This ensures os.UserHomeDir() works correctly in tests on all platforms.
+// This ensures [os.UserHomeDir] works correctly in tests on all platforms.
 func setHomeDir(t *testing.T, dir string) {
 	t.Helper()
 	t.Setenv("HOME", dir)

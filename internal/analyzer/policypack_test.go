@@ -160,7 +160,7 @@ func TestSetupPolicyPack_Idempotent(t *testing.T) {
 }
 
 // T011 [US2] - Verify file copy path works (used on Windows or when symlinks fail).
-// Since runtime.GOOS cannot be mocked, we test the copyFile path directly
+// Since [runtime.GOOS] cannot be mocked, we test the copyFile path directly
 // which is the code path used on Windows.
 func TestSetupPolicyPack_WindowsCopy(t *testing.T) {
 	t.Parallel()

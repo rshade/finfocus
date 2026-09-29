@@ -285,7 +285,7 @@ func createTestHome(t *testing.T) (string, string) {
 }
 
 // setupTestHome points the user home directory at the test home directory.
-// os.UserHomeDir reads HOME on Unix but USERPROFILE on Windows, so both must
+// [os.UserHomeDir] reads HOME on Unix but USERPROFILE on Windows, so both must
 // be set for the registry's default plugin path to land in the temp dir.
 func setupTestHome(t *testing.T, homeDir string) {
 	t.Helper()

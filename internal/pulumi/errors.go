@@ -35,7 +35,7 @@ var (
 // The returned error wraps ErrPulumiNotFound and includes guidance to
 // install the CLI (pulumiInstallURL) or to provide Pulumi input via
 // --pulumi-json or --pulumi-state. Callers can still detect the sentinel
-// using errors.Is(err, ErrPulumiNotFound).
+// using [errors.Is](err, ErrPulumiNotFound).
 func NotFoundError() error {
 	return fmt.Errorf("%w; install from %s or provide --pulumi-json / --pulumi-state",
 		ErrPulumiNotFound, pulumiInstallURL)

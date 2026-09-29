@@ -365,7 +365,7 @@ func readServePort(ctx context.Context, reader io.Reader) (int, error) {
 }
 
 // stopCommand cancels the context and kills the subprocess. The 1-second
-// time.After provides a brief grace period for cmd.Wait() to return after
+// [time.After] provides a brief grace period for cmd.Wait() to return after
 // SIGKILL; child processes are expected to exit promptly, so a longer timeout
 // is unnecessary. The select prevents indefinite blocking if Wait never returns.
 func stopCommand(cancel context.CancelFunc, cmd *exec.Cmd, waitDone <-chan error) {

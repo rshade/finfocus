@@ -86,7 +86,7 @@ type DefaultBudgetEngine struct {
 	now func() time.Time
 }
 
-// NewBudgetEngine returns a DefaultBudgetEngine configured to use time.Now as the time source.
+// NewBudgetEngine returns a DefaultBudgetEngine configured to use [time.Now] as the time source.
 func NewBudgetEngine() *DefaultBudgetEngine {
 	return &DefaultBudgetEngine{
 		now: time.Now,
@@ -96,7 +96,7 @@ func NewBudgetEngine() *DefaultBudgetEngine {
 // NewBudgetEngineWithTime creates a new DefaultBudgetEngine with a custom time function.
 // NewBudgetEngineWithTime creates a DefaultBudgetEngine that uses nowFunc as the source of current time.
 // nowFunc is called whenever the engine needs the current time and enables deterministic behavior for tests.
-// If nowFunc is nil, time.Now is used as the default.
+// If nowFunc is nil, [time.Now] is used as the default.
 // It returns a pointer to a DefaultBudgetEngine configured to use the provided time function.
 func NewBudgetEngineWithTime(nowFunc func() time.Time) *DefaultBudgetEngine {
 	if nowFunc == nil {

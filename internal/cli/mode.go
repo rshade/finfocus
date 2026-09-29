@@ -9,8 +9,8 @@ import (
 // It checks the binary name and the FINFOCUS_PLUGIN_MODE environment variable.
 // This is a pure function with no side effects and is safe to call multiple times.
 //
-// args: usually os.Args (nil or empty is handled gracefully).
-// lookupEnv: function to retrieve environment variables (e.g., os.LookupEnv).
+// args: usually [os.Args] (nil or empty is handled gracefully).
+// lookupEnv: function to retrieve environment variables (e.g., [os.LookupEnv]).
 //
 //	If nil, environment variable detection is skipped.
 func DetectPluginMode(args []string, lookupEnv func(string) (string, bool)) bool {

@@ -2968,7 +2968,7 @@ func groupResultsByPeriod(
 
 // formatPeriodForGrouping formats a date according to the grouping type.
 //
-// This function converts time.Time values into string periods suitable for
+// This function converts [time.Time] values into string periods suitable for
 // grouping and sorting in cross-provider aggregations.
 //
 // Parameters:
@@ -2982,8 +2982,8 @@ func groupResultsByPeriod(
 //   - Other groupBy values: Default to monthly format
 //
 // Format Examples:
-//   - Daily: time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) → "2024-01-15"
-//   - Monthly: time.Date(2024, 1, 15, 10, 30, 0, 0, time.UTC) → "2024-01"
+//   - Daily: [time.Date](2024, 1, 15, 10, 30, 0, 0, [time.UTC]) → "2024-01-15"
+//   - Monthly: [time.Date](2024, 1, 15, 10, 30, 0, 0, [time.UTC]) → "2024-01"
 //
 // Usage in Aggregation:
 //   - Periods are used as map keys for grouping
