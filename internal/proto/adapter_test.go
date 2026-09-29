@@ -3387,7 +3387,7 @@ func TestGetProjectedCostWithErrors_StructuredError_PluginError(t *testing.T) {
 		"StructuredError.Message should not have prefix")
 }
 
-// T008: Test that TIMEOUT_ERROR is set for context.DeadlineExceeded.
+// T008: Test that TIMEOUT_ERROR is set for [context.DeadlineExceeded].
 func TestGetProjectedCostWithErrors_StructuredError_Timeout(t *testing.T) {
 	ctx := context.Background()
 	client := &mockCostSourceClient{

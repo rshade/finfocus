@@ -17,8 +17,8 @@ import (
 )
 
 // newTestLoggingCmd builds a minimal cobra.Command with the flags that setupLogging
-// reads. The command's context is pre-set to context.Background() so that
-// context.WithValue in setupLogging does not panic.
+// reads. The command's context is pre-set to [context.Background]() so that
+// [context.WithValue] in setupLogging does not panic.
 func newTestLoggingCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "test", RunE: func(_ *cobra.Command, _ []string) error { return nil }}
 	cmd.PersistentFlags().Bool("debug", false, "enable debug logging")

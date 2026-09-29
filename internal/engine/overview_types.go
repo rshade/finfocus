@@ -57,12 +57,12 @@ func (s ResourceStatus) String() string {
 	}
 }
 
-// MarshalJSON implements json.Marshaler to output ResourceStatus as string.
+// MarshalJSON implements [json.Marshaler] to output ResourceStatus as string.
 func (s ResourceStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-// UnmarshalJSON implements json.Unmarshaler to parse ResourceStatus from string.
+// UnmarshalJSON implements [json.Unmarshaler] to parse ResourceStatus from string.
 func (s *ResourceStatus) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {
@@ -120,12 +120,12 @@ func (e ErrorType) String() string {
 	}
 }
 
-// MarshalJSON implements json.Marshaler to output ErrorType as string.
+// MarshalJSON implements [json.Marshaler] to output ErrorType as string.
 func (e ErrorType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(e.String())
 }
 
-// UnmarshalJSON implements json.Unmarshaler to parse ErrorType from string.
+// UnmarshalJSON implements [json.Unmarshaler] to parse ErrorType from string.
 func (e *ErrorType) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {

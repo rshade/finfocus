@@ -7,7 +7,7 @@ type constError string
 func (e constError) Error() string { return string(e) }
 
 // Error types for equivalency calculations.
-// These are sentinel errors that can be compared with errors.Is().
+// These are sentinel errors that can be compared with [errors.Is].
 var (
 	// ErrInvalidUnit indicates an unrecognized carbon unit.
 	// This error is returned when NormalizeToKg receives an unknown unit string.

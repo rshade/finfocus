@@ -157,7 +157,7 @@ func TestRecorder_NonWritableDirectory(t *testing.T) {
 	assert.Contains(t, err.Error(), "disabled")
 }
 
-// T047: Ensure thread-safety with sync.Mutex.
+// T047: Ensure thread-safety with [sync.Mutex].
 func TestRecorder_ThreadSafety(t *testing.T) {
 	tmpDir := t.TempDir()
 	recorder := NewRecorder(tmpDir, silentLogger())

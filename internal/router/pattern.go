@@ -20,7 +20,7 @@ type CompiledPattern struct {
 }
 
 // matchResourceTypeGlob normalizes path separators in a glob pattern and a resource type
-// and then applies filepath.Match to determine whether the pattern matches the resource type.
+// and then applies [filepath.Match] to determine whether the pattern matches the resource type.
 //
 // The function replaces "/" characters in both the pattern and resourceType with a
 // non-separator sentinel before matching so that glob wildcards do not treat "/" as a
@@ -32,7 +32,7 @@ type CompiledPattern struct {
 //   - resourceType: resource type string to test against the pattern.
 //
 // Returns true if the normalized pattern matches the normalized resourceType, and any
-// error produced by filepath.Match.
+// error produced by [filepath.Match].
 func matchResourceTypeGlob(pattern, resourceType string) (bool, error) {
 	// filepath.Match treats path separators specially ("*") doesn't cross them.
 	// Pulumi resource types contain "/" (e.g. aws:ec2/instance:Instance), so we
@@ -59,7 +59,7 @@ func (p *CompiledPattern) Match(resourceType string) (bool, error) {
 
 // CompilePattern compiles a ResourcePattern for efficient matching.
 // It returns a *CompiledPattern containing the original pattern and, if the pattern is a regex,
-// the compiled *regexp.Regexp stored in the CompiledPattern.Regex field.
+// the compiled *[regexp.Regexp] stored in the CompiledPattern.Regex field.
 // If the pattern is marked as a regex but fails to compile, it returns an error that includes the
 // original pattern and the underlying compilation error.
 func CompilePattern(pattern config.ResourcePattern) (*CompiledPattern, error) {

@@ -336,8 +336,8 @@ func TestRootCmdProjectDirFlag(t *testing.T) {
 // TestExitCodeBehavior verifies that the CLI returns proper exit codes:
 // - nil (exit 0) for successful commands
 // - error (exit 1) for failed commands
-// Note: This tests the Execute() error return, not os.Exit() directly.
-// The main() function converts non-nil errors to os.Exit(1).
+// Note: This tests the Execute() error return, not [os.Exit] directly.
+// The main() function converts non-nil errors to [os.Exit](1).
 func TestExitCodeBehavior(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 

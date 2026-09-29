@@ -89,7 +89,7 @@ type cacheEntryJSON struct {
 // in nanoseconds (after 1973) is above it.
 const unixSecondsCutoff = 100_000_000_000 // 1e11
 
-// decodeUnixTime converts a stored int64 timestamp back into a time.Time.
+// decodeUnixTime converts a stored int64 timestamp back into a [time.Time].
 // Values below unixSecondsCutoff are legacy second-precision timestamps and
 // are scaled up; anything at or above the cutoff is already nanoseconds.
 func decodeUnixTime(v int64) time.Time {
@@ -99,7 +99,7 @@ func decodeUnixTime(v int64) time.Time {
 	return time.Unix(0, v)
 }
 
-// MarshalJSON implements json.Marshaler for CacheEntry.
+// MarshalJSON implements [json.Marshaler] for CacheEntry.
 // Times are stored as Unix nanosecond timestamps (int64) for bbolt storage
 // efficiency. Sub-second precision is required: truncating to whole seconds
 // can make an entry appear expired up to a second before its true TTL elapses.
@@ -113,7 +113,7 @@ func (e *CacheEntry) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON implements json.Unmarshaler for CacheEntry.
+// UnmarshalJSON implements [json.Unmarshaler] for CacheEntry.
 // Parses Unix timestamps from stored data, accepting both the current
 // nanosecond-precision format and the legacy second-precision format.
 func (e *CacheEntry) UnmarshalJSON(data []byte) error {

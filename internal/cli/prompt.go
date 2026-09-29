@@ -32,7 +32,7 @@ type PromptResult struct {
 //
 // Parameters:
 //   - writer: where to write the prompt message (typically cmd.OutOrStdout())
-//   - reader: where to read user input from (typically os.Stdin)
+//   - reader: where to read user input from (typically [os.Stdin])
 //   - pluginName: name of the plugin being installed
 //   - requestedVersion: the version originally requested
 //   - fallbackVersion: the version being offered as fallback
@@ -105,7 +105,7 @@ func confirmWithReader(cmd *cobra.Command, prompt string) bool {
 	return response == "y" || response == answerYes
 }
 
-// ConfirmFallbackWithStdin is a convenience wrapper that uses os.Stdin as the reader.
+// ConfirmFallbackWithStdin is a convenience wrapper that uses [os.Stdin] as the reader.
 func ConfirmFallbackWithStdin(
 	writer io.Writer,
 	pluginName string,

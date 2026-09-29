@@ -19,7 +19,7 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 )
 
-// Duration is a wrapper around time.Duration that supports YAML/JSON parsing.
+// Duration is a wrapper around [time.Duration] that supports YAML/JSON parsing.
 type Duration time.Duration
 
 // UnmarshalYAML implements yaml.Unmarshaler for Duration.
@@ -41,7 +41,7 @@ func (d Duration) MarshalYAML() (interface{}, error) {
 	return time.Duration(d).String(), nil
 }
 
-// UnmarshalJSON implements json.Unmarshaler for Duration.
+// UnmarshalJSON implements [json.Unmarshaler] for Duration.
 func (d *Duration) UnmarshalJSON(data []byte) error {
 	var s string
 	if err := json.Unmarshal(data, &s); err != nil {
@@ -55,12 +55,12 @@ func (d *Duration) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON implements json.Marshaler for Duration.
+// MarshalJSON implements [json.Marshaler] for Duration.
 func (d Duration) MarshalJSON() ([]byte, error) {
 	return json.Marshal(time.Duration(d).String())
 }
 
-// Duration returns the underlying time.Duration value.
+// Duration returns the underlying [time.Duration] value.
 func (d Duration) Duration() time.Duration {
 	return time.Duration(d)
 }
@@ -127,7 +127,7 @@ type PluginConfig struct {
 	Config map[string]interface{} `yaml:",inline" json:",inline"`
 }
 
-// UnmarshalJSON implements json.Unmarshaler for PluginConfig.
+// UnmarshalJSON implements [json.Unmarshaler] for PluginConfig.
 // It treats the entire JSON object as the Config map (simulating the YAML inline behavior).
 func (pc *PluginConfig) UnmarshalJSON(data []byte) error {
 	var m map[string]interface{}
@@ -141,7 +141,7 @@ func (pc *PluginConfig) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-// MarshalJSON implements json.Marshaler for PluginConfig.
+// MarshalJSON implements [json.Marshaler] for PluginConfig.
 // It marshals the Config map directly (simulating the YAML inline behavior).
 func (pc PluginConfig) MarshalJSON() ([]byte, error) {
 	if pc.Config == nil {

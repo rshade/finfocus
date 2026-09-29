@@ -255,7 +255,7 @@ type checksumTestEnv struct {
 // verification tests: resets config, creates temp HOME with .finfocus dir,
 // initializes global config, and returns an environment with a GitHubClient
 // and Installer ready for use. The caller must set client.HTTPClient and
-// client.BaseURL to point at their httptest.Server.
+// client.BaseURL to point at their [httptest.Server].
 func setupChecksumTest(t *testing.T) *checksumTestEnv {
 	t.Helper()
 	config.ResetGlobalConfigForTest()

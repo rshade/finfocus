@@ -28,7 +28,7 @@ import (
 	"github.com/rshade/finfocus/internal/tui"
 )
 
-// fdProvider is implemented by *os.File and other writers that expose a file descriptor.
+// fdProvider is implemented by *[os.File] and other writers that expose a file descriptor.
 // Used to detect whether an output stream is a TTY.
 type fdProvider interface{ Fd() uintptr }
 
@@ -468,7 +468,7 @@ func loadOverviewFromFiles(
 
 // exportStateFromProject auto-detects the Pulumi project, runs `pulumi stack export`,
 // parses the result, and returns the state resources plus metadata.
-// passphrase is injected into the subprocess environment only (never os.Setenv).
+// passphrase is injected into the subprocess environment only (never [os.Setenv]).
 // It is shared by loadOverviewFromAutoDetect and loadStateForOverview.
 func exportStateFromProject(
 	ctx context.Context, stack string, passphrase *string,
@@ -521,7 +521,7 @@ func loadOverviewFromAutoDetect(
 }
 
 // resolveOverviewPlan loads plan steps from a file or runs pulumi preview.
-// passphrase is injected into the subprocess environment only (never os.Setenv).
+// passphrase is injected into the subprocess environment only (never [os.Setenv]).
 func resolveOverviewPlan(
 	ctx context.Context, pulumiJSON, projectDir, stack string, passphrase *string,
 ) ([]engine.PlanStep, error) {
@@ -789,7 +789,7 @@ func deepCopyAny(v interface{}) interface{} {
 }
 
 // formatDiffValue converts a property value to a human-readable string.
-// Simple types use fmt.Sprintf; complex types (maps, slices) use compact JSON.
+// Simple types use [fmt.Sprintf]; complex types (maps, slices) use compact JSON.
 func formatDiffValue(v interface{}) string {
 	if v == nil {
 		return ""
@@ -997,7 +997,7 @@ func renderOverviewOutput(
 }
 
 // shouldUseInteractiveTUI determines if the interactive TUI should be used.
-// It accepts an io.Writer (typically cmd.OutOrStdout()) and type-asserts to
+// It accepts an [io.Writer] (typically cmd.OutOrStdout()) and type-asserts to
 // check for a file descriptor, ensuring cmd.SetOut() redirections are respected.
 func shouldUseInteractiveTUI(w io.Writer, outputFormat string, plainFlag bool) bool {
 	// Only use interactive TUI for table output
@@ -1362,7 +1362,7 @@ func sendBudgetResultToTUI(
 }
 
 // loadStateForOverview loads Pulumi state only (without preview/plan).
-// passphrase is injected into subprocess env only (never os.Setenv).
+// passphrase is injected into subprocess env only (never [os.Setenv]).
 // Returns stateResources, manifestTime, projectDir, stackName, and any error.
 func loadStateForOverview(
 	ctx context.Context, params overviewParams, passphrase *string,
@@ -1386,7 +1386,7 @@ func loadStateForOverview(
 }
 
 // loadPlanForOverview loads plan steps from a file or runs pulumi preview.
-// passphrase is injected into subprocess env only (never os.Setenv).
+// passphrase is injected into subprocess env only (never [os.Setenv]).
 // This is the preview-path helper used by overviewInitAndEnrich.
 func loadPlanForOverview(
 	ctx context.Context, params overviewParams, projectDir, stack string, passphrase *string,
@@ -1397,7 +1397,7 @@ func loadPlanForOverview(
 // runBackgroundPreview runs pulumi preview in the background and returns an
 // OverviewChangesReadyMsg with the resulting status map. It is used as a
 // tea.Cmd payload for the on-demand 'p' key handler.
-// passphrase is injected into subprocess env only (never os.Setenv).
+// passphrase is injected into subprocess env only (never [os.Setenv]).
 // If preview fails, it returns an empty OverviewChangesReadyMsg so the TUI
 // remains usable in state-only mode.
 func runBackgroundPreview(
@@ -1466,7 +1466,7 @@ func shortErrMsg(err error) string {
 // the passphrase (or the context is cancelled).
 //
 // Returns a *string passphrase and any error:
-//   - nil    = not provided (subprocess inherits parent env via os.Environ())
+//   - nil    = not provided (subprocess inherits parent env via [os.Environ])
 //   - &""    = explicitly empty passphrase (inject PULUMI_CONFIG_PASSPHRASE= into subprocess)
 //   - &"sec" = non-empty passphrase (inject PULUMI_CONFIG_PASSPHRASE=sec)
 //

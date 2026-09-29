@@ -58,12 +58,12 @@ func (s StepStatus) String() string {
 	}
 }
 
-// MarshalJSON implements json.Marshaler to output StepStatus as a string.
+// MarshalJSON implements [json.Marshaler] to output StepStatus as a string.
 func (s StepStatus) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.String())
 }
 
-// UnmarshalJSON implements json.Unmarshaler to parse StepStatus from a string.
+// UnmarshalJSON implements [json.Unmarshaler] to parse StepStatus from a string.
 func (s *StepStatus) UnmarshalJSON(data []byte) error {
 	var str string
 	if err := json.Unmarshal(data, &str); err != nil {

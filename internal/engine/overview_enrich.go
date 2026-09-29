@@ -343,7 +343,7 @@ func daysInCurrentMonth(t time.Time) int {
 
 // classifyError converts a Go error into an OverviewRowError with an appropriate ErrorType.
 // It uses substring matching intentionally: upstream plugins and gRPC do not expose typed
-// or sentinel errors for auth/network/rate-limit conditions, so errors.Is/errors.As checks
+// or sentinel errors for auth/network/rate-limit conditions, so [errors.Is]/[errors.As] checks
 // would be dead code.
 func classifyError(urn string, err error) *OverviewRowError {
 	msg := err.Error()

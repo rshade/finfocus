@@ -189,12 +189,12 @@ func newLoggerWithWriter(cfg Config, writer io.Writer) zerolog.Logger {
 	return logger
 }
 
-// createWriter selects an io.Writer based on the provided LoggingConfig.
-// If cfg.Output is "stdout" it returns os.Stdout. If cfg.Output is "file" and
+// createWriter selects an [io.Writer] based on the provided LoggingConfig.
+// If cfg.Output is "stdout" it returns [os.Stdout]. If cfg.Output is "file" and
 // cfg.File is a non-empty path it attempts to open (or create) the file for
-// appending and returns the opened *os.File. If opening the file fails or
-// cfg.File is empty, it falls back to os.Stderr and emits a warning to stderr.
-// For any other cfg.Output value it returns os.Stderr.
+// appending and returns the opened *[os.File]. If opening the file fails or
+// cfg.File is empty, it falls back to [os.Stderr] and emits a warning to stderr.
+// For any other cfg.Output value it returns [os.Stderr].
 func createWriter(cfg LoggingConfig) io.Writer {
 	switch cfg.Output {
 	case "stdout":

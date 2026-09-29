@@ -272,7 +272,7 @@ func validateTagFilter(filter string) error {
 	return nil
 }
 
-// validateGlobPattern checks if a pattern is valid for path.Match.
+// validateGlobPattern checks if a pattern is valid for [path.Match].
 func validateGlobPattern(pattern string) error {
 	_, err := path.Match(pattern, "")
 	return err

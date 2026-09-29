@@ -61,7 +61,7 @@ type CommandRunner interface {
 	) (stdout []byte, stderr []byte, err error)
 }
 
-// execRunner is the default CommandRunner that uses exec.CommandContext.
+// execRunner is the default CommandRunner that uses [exec.CommandContext].
 type execRunner struct{}
 
 func (r *execRunner) Run(

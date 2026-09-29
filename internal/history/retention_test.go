@@ -84,7 +84,7 @@ func TestCleanupExpired_KeepsRecentEntries(t *testing.T) {
 
 // TestCleanupExpired_BoundaryExact verifies that entries just inside the
 // retention window (90 days ago + 1 second) are kept, not removed.
-// Uses a 1-second buffer to avoid TOCTOU flakiness from separate time.Now() calls.
+// Uses a 1-second buffer to avoid TOCTOU flakiness from separate [time.Now] calls.
 func TestCleanupExpired_BoundaryExact(t *testing.T) {
 	ctx := context.Background()
 	tempDir := t.TempDir()

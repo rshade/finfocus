@@ -120,7 +120,7 @@ type budgetHealthJSON struct {
 	CurrentSpend float64 `json:"currentSpend"`
 }
 
-// MarshalJSON implements json.Marshaler, converting Health to a string label.
+// MarshalJSON implements [json.Marshaler], converting Health to a string label.
 func (b BudgetHealthResult) MarshalJSON() ([]byte, error) {
 	return json.Marshal(budgetHealthJSON{
 		BudgetID:     b.BudgetID,
@@ -135,7 +135,7 @@ func (b BudgetHealthResult) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// UnmarshalJSON implements json.Unmarshaler, parsing Health from a string label.
+// UnmarshalJSON implements [json.Unmarshaler], parsing Health from a string label.
 // Returns an error for unrecognized non-empty health labels to prevent silent data loss.
 func (b *BudgetHealthResult) UnmarshalJSON(data []byte) error {
 	var raw budgetHealthJSON
@@ -362,7 +362,7 @@ func getMetadataValue(b *pbc.Budget, key string) string {
 
 // matchesBudgetTagsWithGlob checks if a budget's metadata matches all specified tags.
 // Tags are matched using AND logic: all specified tags must match for the budget to pass.
-// Tag values support glob patterns (via path.Match), e.g., "prod-*" matches "prod-us", "prod-eu".
+// Tag values support glob patterns (via [path.Match]), e.g., "prod-*" matches "prod-us", "prod-eu".
 // The match is case-sensitive for both keys and values.
 //
 // Parameters:

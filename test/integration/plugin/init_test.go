@@ -539,7 +539,7 @@ func TestPluginInit_OnlineNetworkFailure(t *testing.T) {
 	}
 }
 
-// failingTransport is a custom http.RoundTripper that always returns an error.
+// failingTransport is a custom [http.RoundTripper] that always returns an error.
 type failingTransport struct{}
 
 func (t *failingTransport) RoundTrip(*http.Request) (*http.Response, error) {

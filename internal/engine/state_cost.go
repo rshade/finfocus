@@ -60,7 +60,7 @@ type StateCostResult struct {
 //
 // Parameters:
 //   - input: StateCostInput with resource details, hourly rate, and creation time
-//   - referenceTime: The time to calculate runtime against (usually time.Now())
+//   - referenceTime: The time to calculate runtime against (usually [time.Now])
 //
 // Returns StateCostResult with TotalCost, RuntimeHours, and any warning Notes.
 func CalculateStateCost(input StateCostInput, referenceTime time.Time) StateCostResult {

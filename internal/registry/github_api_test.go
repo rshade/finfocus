@@ -15,7 +15,7 @@ import (
 
 // testAssetName generates a platform-specific asset name for testing.
 // This ensures tests pass on all platforms (Linux, macOS, Windows) by matching
-// what FindReleaseWithAsset expects based on runtime.GOOS and runtime.GOARCH.
+// what FindReleaseWithAsset expects based on [runtime.GOOS] and [runtime.GOARCH].
 func testAssetName(project, version string) string {
 	ext := ".tar.gz"
 	if runtime.GOOS == "windows" {
