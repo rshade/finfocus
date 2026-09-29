@@ -13,7 +13,7 @@
 go = "1.27.1"
 
 # Same pin as GOLANGCI_LINT_VERSION in the Makefile; change both together.
-golangci-lint = "2.13.2"
+golangci-lint = "2.14.0"
 
 # ------------------------------------------------------------------ docs & lint
 
