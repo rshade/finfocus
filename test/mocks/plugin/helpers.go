@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/test/bufconn"
 )
@@ -102,7 +103,9 @@ func (s *MockServer) Address() string {
 // Dial creates a gRPC client connection to the mock server.
 // The connection should be closed when no longer needed.
 //
-//nolint:staticcheck // SA1019: migrate deprecated grpc dial helpers in https://github.com/rshade/finfocus/issues/1213.
+// bufconn connections are lazy (grpc.NewClient never blocks); TCP connections
+// block until the server is reachable or ctx expires, matching the old
+// grpc.DialContext + grpc.WithBlock behavior used by integration tests.
 func (s *MockServer) Dial(ctx context.Context) (*grpc.ClientConn, error) {
 	if s.address == "bufnet" {
 		// Use bufconn dialer for in-memory testing
@@ -110,21 +113,45 @@ func (s *MockServer) Dial(ctx context.Context) (*grpc.ClientConn, error) {
 			return s.listener.Dial()
 		}
 
-		return grpc.DialContext(
-			ctx,
-			"bufnet",
+		conn, err := grpc.NewClient(
+			"passthrough:///bufnet",
 			grpc.WithContextDialer(bufDialer),
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
 		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create bufconn client: %w", err)
+		}
+
+		return conn, nil
 	}
 
 	// Use normal TCP dial for TCP servers
-	return grpc.DialContext(
-		ctx,
+	conn, err := grpc.NewClient(
 		s.address,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithBlock(),
 	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create TCP client: %w", err)
+	}
+
+	if err := waitForReady(ctx, conn); err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("failed to connect to %s: %w", s.address, err)
+	}
+
+	return conn, nil
+}
+
+// waitForReady blocks until conn reports connectivity.Ready or ctx is done,
+// reproducing grpc.WithBlock semantics on top of grpc.NewClient.
+func waitForReady(ctx context.Context, conn *grpc.ClientConn) error {
+	conn.Connect()
+	for state := conn.GetState(); state != connectivity.Ready; state = conn.GetState() {
+		if !conn.WaitForStateChange(ctx, state) {
+			return fmt.Errorf("timed out waiting for connection: %w", ctx.Err())
+		}
+	}
+	return nil
 }
 
 // Stop gracefully stops the mock server and cleans up resources.
