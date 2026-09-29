@@ -3,6 +3,7 @@ package usage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -15,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/validation/field"
 	"k8s.io/client-go/kubernetes/fake"
 	k8stesting "k8s.io/client-go/testing"
 
@@ -152,6 +154,55 @@ func TestCollect_Unavailable(t *testing.T) {
 	require.Error(t, err)
 	assert.Equal(t, codes.Unavailable, status.Code(err))
 	assert.Contains(t, err.Error(), "in namespace team-a")
+}
+
+func TestCollect_APIErrorCodes(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want codes.Code
+	}{
+		{
+			name: "bad request",
+			err:  apierrors.NewBadRequest("invalid label selector"),
+			want: codes.InvalidArgument,
+		},
+		{
+			name: "invalid",
+			err: apierrors.NewInvalid(
+				schema.GroupKind{Kind: "Pod"},
+				"pods",
+				field.ErrorList{field.Invalid(field.NewPath("metadata", "labels"), "a b", "invalid label key")},
+			),
+			want: codes.InvalidArgument,
+		},
+		{
+			name: "context canceled in-flight",
+			err:  context.Canceled,
+			want: codes.Canceled,
+		},
+		{
+			name: "context deadline exceeded in-flight",
+			err:  context.DeadlineExceeded,
+			want: codes.DeadlineExceeded,
+		},
+		{
+			name: "wrapped context canceled in-flight",
+			err:  fmt.Errorf("list pods: %w", context.Canceled),
+			want: codes.Canceled,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cs := fake.NewSimpleClientset(readyNode("n1", "2", "8Gi", awsLabels))
+			cs.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
+				return true, nil, tt.err
+			})
+			_, err := Collect(context.Background(), cs, Options{Cluster: "c"})
+			require.Error(t, err)
+			assert.Equal(t, tt.want, status.Code(err))
+		})
+	}
 }
 
 func TestCollect_NodeNotPriceable(t *testing.T) {
