@@ -1,7 +1,6 @@
 package config_test
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -80,27 +79,12 @@ func TestLoggingConfig_OverridePrecedence(t *testing.T) {
 	// Note: This test validates env var precedence over defaults; file-based
 	// overrides are tested in config_test.go which has access to stubHome().
 
-	// Save and restore environment using pluginsdk constants for consistency.
-	origLevel := os.Getenv(pluginsdk.EnvLogLevel)
-	origFormat := os.Getenv(pluginsdk.EnvLogFormat)
-	t.Cleanup(func() {
-		if origLevel != "" {
-			_ = os.Setenv(pluginsdk.EnvLogLevel, origLevel)
-		} else {
-			_ = os.Unsetenv(pluginsdk.EnvLogLevel)
-		}
-		if origFormat != "" {
-			_ = os.Setenv(pluginsdk.EnvLogFormat, origFormat)
-		} else {
-			_ = os.Unsetenv(pluginsdk.EnvLogFormat)
-		}
-	})
+	// Set environment variables to override defaults using pluginsdk constants.
+	// t.Setenv restores the original values on test completion.
+	t.Setenv(pluginsdk.EnvLogLevel, "debug")
+	t.Setenv(pluginsdk.EnvLogFormat, "text")
 
 	t.Run("env vars override default values", func(t *testing.T) {
-		// Set environment variables to override defaults using pluginsdk constants.
-		_ = os.Setenv(pluginsdk.EnvLogLevel, "debug")
-		_ = os.Setenv(pluginsdk.EnvLogFormat, "text")
-
 		// Load config - env vars should take precedence over defaults.
 		cfg := config.New()
 

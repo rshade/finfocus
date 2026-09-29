@@ -406,6 +406,9 @@ linters:
       # Enable/disable `os.TempDir()` detections.
       # Default: false
       os-temp-dir: true
+      # Enable/disable `os.Chdir()` detections.
+      # Default: false
+      os-chdir: true
 
   exclusions:
     # Log a warning if an exclusion rule is unused.
@@ -452,6 +455,4 @@ linters:
           - testifylint
           # TODO: migrate same-package tests in https://github.com/rshade/finfocus/issues/1197.
           - testpackage
-          # TODO: migrate process-state test helpers in https://github.com/rshade/finfocus/issues/1207.
-          - usetesting
           - wrapcheck

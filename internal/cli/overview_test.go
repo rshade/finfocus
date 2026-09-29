@@ -28,11 +28,7 @@ func TestNewOverviewCmd_NoArgsAutoDetectFails(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	// Run from a temp dir with no Pulumi project so auto-detect fails
-	origDir, err := os.Getwd()
-	require.NoError(t, err)
-	tmpDir := t.TempDir()
-	require.NoError(t, os.Chdir(tmpDir))
-	t.Cleanup(func() { _ = os.Chdir(origDir) })
+	t.Chdir(t.TempDir())
 
 	var buf bytes.Buffer
 	cmd := cli.NewOverviewCmd()

@@ -1,23 +1,17 @@
 package cli_test
 
 import (
-	"os"
 	"testing"
-
-	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/config"
 )
 
 // isolateFromPulumiProject changes the working directory to a temp dir so
-// tests are not influenced by a Pulumi.yaml in the repository tree. The
-// original directory is restored via t.Cleanup.
+// tests are not influenced by a Pulumi.yaml in the repository tree. t.Chdir
+// restores the original directory on test completion.
 func isolateFromPulumiProject(t *testing.T) {
 	t.Helper()
-	oldwd, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(t.TempDir()))
-	t.Cleanup(func() { require.NoError(t, os.Chdir(oldwd)) })
+	t.Chdir(t.TempDir())
 }
 
 // isolateConfig isolates the test from the user's real ~/.finfocus directory

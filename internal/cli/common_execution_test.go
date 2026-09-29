@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"os"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -323,11 +322,7 @@ func TestDetectPulumiProject_NoProject(t *testing.T) {
 	}
 
 	// Run from a temp dir with no Pulumi.yaml so project detection fails.
-	origDir, dirErr := os.Getwd()
-	require.NoError(t, dirErr)
-	tmpDir := t.TempDir()
-	require.NoError(t, os.Chdir(tmpDir))
-	t.Cleanup(func() { _ = os.Chdir(origDir) })
+	t.Chdir(t.TempDir())
 
 	_, _, err := detectPulumiProject(context.Background(), "")
 	require.Error(t, err)

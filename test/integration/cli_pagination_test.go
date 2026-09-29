@@ -409,7 +409,7 @@ func createTestPlanWithRecommendations(t *testing.T) string {
   ]
 }`
 
-	tmpFile, err := os.CreateTemp("", "test-plan-*.json")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "test-plan-*.json")
 	require.NoError(t, err)
 	defer tmpFile.Close()
 

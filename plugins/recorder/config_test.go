@@ -21,8 +21,7 @@ func TestLoadConfig_Defaults(t *testing.T) {
 
 func TestLoadConfig_CustomOutputDir(t *testing.T) {
 	customDir := "/tmp/my-recordings"
-	os.Setenv(EnvOutputDir, customDir)
-	defer os.Unsetenv(EnvOutputDir)
+	t.Setenv(EnvOutputDir, customDir)
 
 	cfg := LoadConfig()
 
@@ -45,8 +44,7 @@ func TestLoadConfig_MockResponseTrue(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			os.Setenv(EnvMockResponse, tc.value)
-			defer os.Unsetenv(EnvMockResponse)
+			t.Setenv(EnvMockResponse, tc.value)
 
 			cfg := LoadConfig()
 
@@ -74,8 +72,7 @@ func TestLoadConfig_MockResponseFalse(t *testing.T) {
 			if tc.value == "" {
 				os.Unsetenv(EnvMockResponse)
 			} else {
-				os.Setenv(EnvMockResponse, tc.value)
-				defer os.Unsetenv(EnvMockResponse)
+				t.Setenv(EnvMockResponse, tc.value)
 			}
 
 			cfg := LoadConfig()
@@ -86,8 +83,7 @@ func TestLoadConfig_MockResponseFalse(t *testing.T) {
 }
 
 func TestLoadConfig_WithWhitespace(t *testing.T) {
-	os.Setenv(EnvMockResponse, "  true  ")
-	defer os.Unsetenv(EnvMockResponse)
+	t.Setenv(EnvMockResponse, "  true  ")
 
 	cfg := LoadConfig()
 

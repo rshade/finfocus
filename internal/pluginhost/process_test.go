@@ -749,8 +749,7 @@ func TestGetPluginBindTimeout(t *testing.T) {
 	}
 
 	// Test CI
-	os.Setenv("CI", "true")
-	defer os.Unsetenv("CI")
+	t.Setenv("CI", "true")
 	if timeout := getPluginBindTimeout(); timeout != ciPluginBindTimeout {
 		t.Errorf("expected CI timeout %v, got %v", ciPluginBindTimeout, timeout)
 	}
@@ -875,15 +874,7 @@ func TestProcessLauncher_DebugLoggingPortDetection(t *testing.T) {
 	// exists by checking that the function handles the PORT detection scenario.
 
 	// Set PORT in environment to simulate user having PORT set
-	originalPort := os.Getenv("PORT")
-	os.Setenv("PORT", "3000")
-	defer func() {
-		if originalPort == "" {
-			os.Unsetenv("PORT")
-		} else {
-			os.Setenv("PORT", originalPort)
-		}
-	}()
+	t.Setenv("PORT", "3000")
 
 	// The DEBUG logging code path should be triggered in startPlugin()
 	// We verify this by ensuring the code compiles and runs without panic

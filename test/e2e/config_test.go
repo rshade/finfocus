@@ -24,20 +24,14 @@ func TestE2ETestConfig_LoadFromEnv(t *testing.T) {
 }
 
 func TestE2ETestConfig_Defaults(t *testing.T) {
-	// Save and restore current env to avoid polluting other tests
-	savedRegion := os.Getenv("FINFOCUS_E2E_AWS_REGION")
-	savedTol := os.Getenv("FINFOCUS_E2E_TOLERANCE")
-	savedTimeout := os.Getenv("FINFOCUS_E2E_TIMEOUT")
-	t.Cleanup(func() {
-		os.Setenv("FINFOCUS_E2E_AWS_REGION", savedRegion)
-		os.Setenv("FINFOCUS_E2E_TOLERANCE", savedTol)
-		os.Setenv("FINFOCUS_E2E_TIMEOUT", savedTimeout)
-	})
-
-	// Unset the specific env vars we care about
-	os.Unsetenv("FINFOCUS_E2E_AWS_REGION")
-	os.Unsetenv("FINFOCUS_E2E_TOLERANCE")
-	os.Unsetenv("FINFOCUS_E2E_TIMEOUT")
+	// Unset the specific env vars we care about; t.Setenv registers the
+	// original values so they are restored on cleanup.
+	for _, key := range []string{"FINFOCUS_E2E_AWS_REGION", "FINFOCUS_E2E_TOLERANCE", "FINFOCUS_E2E_TIMEOUT"} {
+		if value, ok := os.LookupEnv(key); ok {
+			t.Setenv(key, value)
+		}
+		os.Unsetenv(key)
+	}
 
 	config := LoadConfig()
 	require.NotNil(t, config)
