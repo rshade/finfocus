@@ -40,19 +40,9 @@ func TestDetectOutputMode_ExplicitFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Clear environment variables for consistent testing
-			oldNoColor := os.Getenv("NO_COLOR")
-			oldTerm := os.Getenv("TERM")
-			oldCI := os.Getenv("CI")
-			defer func() {
-				os.Setenv("NO_COLOR", oldNoColor)
-				os.Setenv("TERM", oldTerm)
-				os.Setenv("CI", oldCI)
-			}()
-
-			os.Unsetenv("NO_COLOR")
-			os.Unsetenv("TERM")
-			os.Unsetenv("CI")
+			// Clear environment variables for consistent testing; clearEnv
+			// restores the original values on cleanup.
+			clearEnv(t, "NO_COLOR", "TERM", "CI")
 
 			result := DetectOutputMode(tt.forceColor, tt.noColor, tt.plain)
 			if result != tt.expected {
@@ -85,28 +75,10 @@ func TestDetectOutputMode_EnvironmentVariables(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Save original environment
-			oldEnv := make(map[string]string)
-			for key := range tt.envVars {
-				oldEnv[key] = os.Getenv(key)
-			}
-			defer func() {
-				for key, value := range oldEnv {
-					if value == "" {
-						os.Unsetenv(key)
-					} else {
-						os.Setenv(key, value)
-					}
-				}
-			}()
-
-			// Clear all relevant env vars first
-			os.Unsetenv("NO_COLOR")
-			os.Unsetenv("TERM")
-			os.Unsetenv("CI")
-			// Set test environment
+			// Clear all relevant env vars first, then set the test environment.
+			clearEnv(t, "NO_COLOR", "TERM", "CI")
 			for key, value := range tt.envVars {
-				os.Setenv(key, value)
+				t.Setenv(key, value)
 			}
 
 			result := DetectOutputMode(false, false, false)
@@ -122,25 +94,8 @@ func TestDetectOutputMode_DefaultBehavior(t *testing.T) {
 	// Test default behavior when no flags or env vars are set
 	// This will depend on whether we're running in a TTY or not
 
-	// Clear all relevant environment variables
-	oldEnv := map[string]string{
-		"NO_COLOR": os.Getenv("NO_COLOR"),
-		"TERM":     os.Getenv("TERM"),
-		"CI":       os.Getenv("CI"),
-	}
-	defer func() {
-		for key, value := range oldEnv {
-			if value == "" {
-				os.Unsetenv(key)
-			} else {
-				os.Setenv(key, value)
-			}
-		}
-	}()
-
-	os.Unsetenv("NO_COLOR")
-	os.Unsetenv("TERM")
-	os.Unsetenv("CI")
+	// Clear all relevant environment variables; clearEnv restores them on cleanup.
+	clearEnv(t, "NO_COLOR", "TERM", "CI")
 
 	result := DetectOutputMode(false, false, false)
 
@@ -154,25 +109,11 @@ func TestDetectOutputMode_DefaultBehavior(t *testing.T) {
 func TestDetectOutputMode_FlagPrecedence(t *testing.T) {
 	// Test that explicit flags override environment variables
 
-	oldEnv := map[string]string{
-		"NO_COLOR": os.Getenv("NO_COLOR"),
-		"TERM":     os.Getenv("TERM"),
-		"CI":       os.Getenv("CI"),
-	}
-	defer func() {
-		for key, value := range oldEnv {
-			if value == "" {
-				os.Unsetenv(key)
-			} else {
-				os.Setenv(key, value)
-			}
-		}
-	}()
+	clearEnv(t, "NO_COLOR", "TERM", "CI")
 
 	// Set environment to suggest styled output
-	os.Unsetenv("NO_COLOR")
-	os.Setenv("TERM", "xterm")
-	os.Setenv("CI", "true")
+	t.Setenv("TERM", "xterm")
+	t.Setenv("CI", "true")
 
 	// But explicit flags should override
 	tests := []struct {
@@ -253,8 +194,7 @@ func TestOutputModeString(_ *testing.T) {
 func TestDetectOutputMode_Integration(t *testing.T) {
 	tests := []struct {
 		name       string
-		setup      func()
-		cleanup    func()
+		setup      func(t *testing.T)
 		forceColor bool
 		noColor    bool
 		plain      bool
@@ -262,72 +202,50 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 	}{
 		{
 			name: "NO_COLOR forces plain",
-			setup: func() {
-				os.Setenv("NO_COLOR", "1")
-				os.Unsetenv("TERM")
-				os.Unsetenv("CI")
-			},
-			cleanup: func() {
-				os.Unsetenv("NO_COLOR")
+			setup: func(t *testing.T) {
+				t.Setenv("NO_COLOR", "1")
+				clearEnv(t, "TERM", "CI")
 			},
 			expected: OutputModePlain,
 		},
 		{
 			name: "TERM=dumb forces plain",
-			setup: func() {
-				os.Unsetenv("NO_COLOR")
-				os.Setenv("TERM", "dumb")
-				os.Unsetenv("CI")
-			},
-			cleanup: func() {
-				os.Unsetenv("TERM")
+			setup: func(t *testing.T) {
+				t.Setenv("TERM", "dumb")
+				clearEnv(t, "NO_COLOR", "CI")
 			},
 			expected: OutputModePlain,
 		},
 		{
 			name: "CI environment gets styled",
-			setup: func() {
-				os.Unsetenv("NO_COLOR")
-				os.Unsetenv("TERM")
-				os.Setenv("CI", "true")
-			},
-			cleanup: func() {
-				os.Unsetenv("CI")
+			setup: func(t *testing.T) {
+				t.Setenv("CI", "true")
+				clearEnv(t, "NO_COLOR", "TERM")
 			},
 			expected: OutputModePlain, // Not a TTY in test environment
 		},
 		{
 			name: "forceColor enables styled output",
-			setup: func() {
-				os.Unsetenv("NO_COLOR")
-				os.Unsetenv("TERM")
-				os.Unsetenv("CI")
+			setup: func(t *testing.T) {
+				clearEnv(t, "NO_COLOR", "TERM", "CI")
 			},
-			cleanup:    func() {},
 			forceColor: true,
 			expected:   OutputModeStyled,
 		},
 		{
 			name: "plain flag overrides forceColor",
-			setup: func() {
-				os.Unsetenv("NO_COLOR")
-				os.Unsetenv("TERM")
-				os.Unsetenv("CI")
+			setup: func(t *testing.T) {
+				clearEnv(t, "NO_COLOR", "TERM", "CI")
 			},
-			cleanup:    func() {},
 			forceColor: true,
 			plain:      true,
 			expected:   OutputModePlain,
 		},
 		{
 			name: "NO_COLOR overrides forceColor",
-			setup: func() {
-				os.Setenv("NO_COLOR", "1")
-				os.Unsetenv("TERM")
-				os.Unsetenv("CI")
-			},
-			cleanup: func() {
-				os.Unsetenv("NO_COLOR")
+			setup: func(t *testing.T) {
+				t.Setenv("NO_COLOR", "1")
+				clearEnv(t, "TERM", "CI")
 			},
 			forceColor: true,
 			expected:   OutputModePlain,
@@ -336,13 +254,27 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			tt.setup()
-			defer tt.cleanup()
+			tt.setup(t)
 
 			result := DetectOutputMode(tt.forceColor, tt.noColor, tt.plain)
 			if result != tt.expected {
 				t.Errorf("Integration test failed: got %v, expected %v", result, tt.expected)
 			}
 		})
+	}
+}
+
+// clearEnv unsets the given environment variables for the duration of the
+// test. t.Setenv registers the original values so they are restored on
+// cleanup; variables that were originally unset stay unset.
+func clearEnv(t *testing.T, keys ...string) {
+	t.Helper()
+	for _, key := range keys {
+		if value, ok := os.LookupEnv(key); ok {
+			t.Setenv(key, value)
+		}
+		if err := os.Unsetenv(key); err != nil {
+			t.Fatalf("failed to unset %s: %v", key, err)
+		}
 	}
 }

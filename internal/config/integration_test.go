@@ -99,10 +99,9 @@ func TestEnsureLogDirError(t *testing.T) {
 
 	// Try to create a log directory in a place we don't have permission
 	// Use a path that's likely to fail (existing file as directory)
-	tmpFile, err := os.CreateTemp("", "test-file")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "test-file")
 	require.NoError(t, err)
 	tmpFile.Close()
-	defer os.Remove(tmpFile.Name())
 
 	cfg.Logging.File = filepath.Join(tmpFile.Name(), "subdir", "test.log")
 

@@ -226,25 +226,18 @@ func TestReadStackSettingsFile_QualifiedStackUsesShortName(t *testing.T) {
 
 func TestCheckAndPromptPassphrase_QualifiedStackEndToEnd(t *testing.T) {
 	// Ensure passphrase env vars are truly unset; empty values still count as "set".
+	// t.Setenv registers the original values so they are restored on cleanup.
 	unsetEnv := func(key string) {
-		orig, ok := os.LookupEnv(key)
+		if orig, ok := os.LookupEnv(key); ok {
+			t.Setenv(key, orig)
+		}
 		require.NoError(t, os.Unsetenv(key))
-		t.Cleanup(func() {
-			if ok {
-				_ = os.Setenv(key, orig)
-			} else {
-				_ = os.Unsetenv(key)
-			}
-		})
 	}
 	unsetEnv("PULUMI_CONFIG_PASSPHRASE")
 	unsetEnv("PULUMI_CONFIG_PASSPHRASE_FILE")
 
 	tmpDir := t.TempDir()
-	origDir, err := os.Getwd()
-	require.NoError(t, err)
-	require.NoError(t, os.Chdir(tmpDir))
-	t.Cleanup(func() { _ = os.Chdir(origDir) })
+	t.Chdir(tmpDir)
 
 	// Make FindBinary() succeed without depending on a system Pulumi install.
 	pulumiName := "pulumi"

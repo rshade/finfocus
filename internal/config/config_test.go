@@ -246,9 +246,7 @@ func TestConfig_Validation(t *testing.T) {
 }
 
 func TestConfig_SaveLoad(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "finfocus-config-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	cfg := &Config{
 		Output: OutputConfig{
@@ -266,7 +264,7 @@ func TestConfig_SaveLoad(t *testing.T) {
 	}
 
 	// Save configuration
-	err = cfg.Save()
+	err := cfg.Save()
 	require.NoError(t, err)
 
 	// Load configuration
@@ -328,21 +326,12 @@ func TestConfig_PluginMethods(t *testing.T) {
 func TestConfig_EnvironmentOverrides(t *testing.T) {
 	// Set environment variables
 	customLogFile := filepath.Join(t.TempDir(), "custom.log")
-	os.Setenv("FINFOCUS_OUTPUT_FORMAT", "json")
-	os.Setenv("FINFOCUS_OUTPUT_PRECISION", "5")
-	os.Setenv("FINFOCUS_LOG_LEVEL", "debug")
-	os.Setenv("FINFOCUS_LOG_FILE", customLogFile)
-	os.Setenv("FINFOCUS_PLUGIN_AWS_REGION", "eu-west-1")
-	os.Setenv("FINFOCUS_PLUGIN_AWS_PROFILE", "test")
-
-	defer func() {
-		os.Unsetenv("FINFOCUS_OUTPUT_FORMAT")
-		os.Unsetenv("FINFOCUS_OUTPUT_PRECISION")
-		os.Unsetenv("FINFOCUS_LOG_LEVEL")
-		os.Unsetenv("FINFOCUS_LOG_FILE")
-		os.Unsetenv("FINFOCUS_PLUGIN_AWS_REGION")
-		os.Unsetenv("FINFOCUS_PLUGIN_AWS_PROFILE")
-	}()
+	t.Setenv("FINFOCUS_OUTPUT_FORMAT", "json")
+	t.Setenv("FINFOCUS_OUTPUT_PRECISION", "5")
+	t.Setenv("FINFOCUS_LOG_LEVEL", "debug")
+	t.Setenv("FINFOCUS_LOG_FILE", customLogFile)
+	t.Setenv("FINFOCUS_PLUGIN_AWS_REGION", "eu-west-1")
+	t.Setenv("FINFOCUS_PLUGIN_AWS_PROFILE", "test")
 
 	stubHome(t)
 	cfg := New()

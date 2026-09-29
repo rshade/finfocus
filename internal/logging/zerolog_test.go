@@ -303,8 +303,7 @@ func TestSafeStr_AllowsNonSensitiveValues(t *testing.T) {
 // T056: Unit test for FINFOCUS_TRACE_ID environment variable override.
 func TestGetOrGenerateTraceID_UsesEnvVar(t *testing.T) {
 	// Set env var
-	os.Setenv("FINFOCUS_TRACE_ID", "env-trace-id")
-	defer os.Unsetenv("FINFOCUS_TRACE_ID")
+	t.Setenv("FINFOCUS_TRACE_ID", "env-trace-id")
 
 	ctx := context.Background()
 	traceID := GetOrGenerateTraceID(ctx)
@@ -315,8 +314,7 @@ func TestGetOrGenerateTraceID_UsesEnvVar(t *testing.T) {
 // T057: Unit test for external trace ID appearing in all log entries.
 func TestExternalTraceID_AppearsInLogEntries(t *testing.T) {
 	// Set external trace ID via environment
-	os.Setenv("FINFOCUS_TRACE_ID", "external-trace-12345")
-	defer os.Unsetenv("FINFOCUS_TRACE_ID")
+	t.Setenv("FINFOCUS_TRACE_ID", "external-trace-12345")
 
 	var buf bytes.Buffer
 	cfg := LoggingConfig{

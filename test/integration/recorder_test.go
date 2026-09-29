@@ -34,9 +34,7 @@ func TestRecorderPlugin_Integration(t *testing.T) {
 	}
 
 	// Create a temporary directory for recording
-	tempDir, err := os.MkdirTemp("", "recorder-test")
-	require.NoError(t, err)
-	defer os.RemoveAll(tempDir)
+	tempDir := t.TempDir()
 
 	// Configure environment variables for the plugin process
 	// Using t.Setenv ensures automatic cleanup and isolation
