@@ -32,6 +32,12 @@ type auditContext struct {
 	command string
 }
 
+// Audit parameter keys shared by the cost and overview commands.
+const (
+	auditKeyOutput     = "output"
+	auditKeyPulumiJSON = "pulumi_json"
+)
+
 // newAuditContext creates a new audit context.
 func newAuditContext(ctx context.Context, command string, params map[string]string) *auditContext {
 	return &auditContext{

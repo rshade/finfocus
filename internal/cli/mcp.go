@@ -50,7 +50,7 @@ var mcpExcludedCommands = []mcpExclusion{
 		reason: "interactive first-run wizard",
 	},
 	{
-		path:   []string{"plugin", "init"},
+		path:   []string{cmdNamePlugin, "init"},
 		reason: "scaffolds a plugin project into the working directory; a developer action, not an agent query",
 	},
 }

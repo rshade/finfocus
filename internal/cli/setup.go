@@ -42,6 +42,15 @@ const (
 	StepError
 )
 
+// Setup step names used in StepResult entries.
+const (
+	stepNameAnalyzerInstall = "Analyzer installation"
+	stepNamePluginInstall   = "Plugin installation"
+	stepNamePulumiDetection = "Pulumi detection"
+	stepNameDirCreation     = "Directory creation"
+	stepNameConfigInit      = "Config initialization"
+)
+
 // String returns the human-readable label for a StepStatus.
 func (s StepStatus) String() string {
 	switch s {
@@ -299,7 +308,7 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions, runner *SetupRunner) error
 	// Step 5: Install analyzer
 	if opts.SkipAnalyzer {
 		step = StepResult{
-			Name:    "Analyzer installation",
+			Name:    stepNameAnalyzerInstall,
 			Status:  StepSkipped,
 			Message: "Skipped analyzer installation",
 		}
@@ -312,7 +321,7 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions, runner *SetupRunner) error
 	// Step 6: Install plugins
 	if opts.SkipPlugins {
 		step = StepResult{
-			Name:    "Plugin installation",
+			Name:    stepNamePluginInstall,
 			Status:  StepSkipped,
 			Message: "Skipped plugin installation",
 		}
@@ -422,7 +431,7 @@ func StepDetectPulumi(ctx context.Context) StepResult {
 			Str("component", "setup").
 			Msg("pulumi CLI not found on PATH")
 		return StepResult{
-			Name:    "Pulumi detection",
+			Name:    stepNamePulumiDetection,
 			Status:  StepWarning,
 			Message: "Pulumi CLI not found on PATH. Install from https://www.pulumi.com/docs/install/",
 			Err:     err,
@@ -440,7 +449,7 @@ func StepDetectPulumi(ctx context.Context) StepResult {
 			Err(runErr).
 			Msg("failed to get pulumi version")
 		return StepResult{
-			Name:    "Pulumi detection",
+			Name:    stepNamePulumiDetection,
 			Status:  StepWarning,
 			Message: "Pulumi CLI found but could not determine version",
 			Err:     runErr,
@@ -449,7 +458,7 @@ func StepDetectPulumi(ctx context.Context) StepResult {
 
 	pulumiVer := strings.TrimSpace(string(out))
 	return StepResult{
-		Name:    "Pulumi detection",
+		Name:    stepNamePulumiDetection,
 		Status:  StepSuccess,
 		Message: fmt.Sprintf("Pulumi CLI detected (%s)", pulumiVer),
 	}
@@ -474,7 +483,7 @@ func StepCreateDirectories(baseDir string) []StepResult {
 		info, err := os.Stat(d.path)
 		if err == nil && info.IsDir() {
 			results = append(results, StepResult{
-				Name:     "Directory creation",
+				Name:     stepNameDirCreation,
 				Status:   StepSuccess,
 				Message:  fmt.Sprintf("Directory exists: %s", d.name),
 				Critical: true,
@@ -484,7 +493,7 @@ func StepCreateDirectories(baseDir string) []StepResult {
 
 		if mkErr := os.MkdirAll(d.path, d.perm); mkErr != nil {
 			results = append(results, StepResult{
-				Name:   "Directory creation",
+				Name:   stepNameDirCreation,
 				Status: StepError,
 				Message: fmt.Sprintf(
 					"Failed to create %s: %v\n  Try: export FINFOCUS_HOME=/path/to/writable/directory",
@@ -498,7 +507,7 @@ func StepCreateDirectories(baseDir string) []StepResult {
 		}
 
 		results = append(results, StepResult{
-			Name:     "Directory creation",
+			Name:     stepNameDirCreation,
 			Status:   StepSuccess,
 			Message:  fmt.Sprintf("Created %s", d.name),
 			Critical: true,
@@ -514,7 +523,7 @@ func StepInitConfig(baseDir string) StepResult {
 
 	if _, err := os.Stat(configPath); err == nil {
 		return StepResult{
-			Name:     "Config initialization",
+			Name:     stepNameConfigInit,
 			Status:   StepSuccess,
 			Message:  fmt.Sprintf("Config already exists (%s)", configPath),
 			Critical: true,
@@ -529,7 +538,7 @@ func StepInitConfig(baseDir string) StepResult {
 	}
 	if err != nil {
 		return StepResult{
-			Name:     "Config initialization",
+			Name:     stepNameConfigInit,
 			Status:   StepError,
 			Message:  fmt.Sprintf("Failed to initialize config: %v", err),
 			Critical: true,
@@ -538,7 +547,7 @@ func StepInitConfig(baseDir string) StepResult {
 	}
 
 	return StepResult{
-		Name:     "Config initialization",
+		Name:     stepNameConfigInit,
 		Status:   StepSuccess,
 		Message:  fmt.Sprintf("Initialized config (%s)", configPath),
 		Critical: true,
@@ -550,7 +559,7 @@ func (r *SetupRunner) StepInstallAnalyzer(ctx context.Context) StepResult {
 	result, err := r.AnalyzerInstaller.Install(ctx, analyzer.InstallOptions{})
 	if err != nil {
 		return StepResult{
-			Name:   "Analyzer installation",
+			Name:   stepNameAnalyzerInstall,
 			Status: StepWarning,
 			Message: fmt.Sprintf(
 				"Failed to install analyzer: %v\n  Try: finfocus analyzer install",
@@ -563,7 +572,7 @@ func (r *SetupRunner) StepInstallAnalyzer(ctx context.Context) StepResult {
 	switch result.Action {
 	case analyzer.ActionInstalled:
 		return StepResult{
-			Name:   "Analyzer installation",
+			Name:   stepNameAnalyzerInstall,
 			Status: StepSuccess,
 			Message: fmt.Sprintf(
 				"Installed Pulumi analyzer (v%s, %s)",
@@ -573,13 +582,13 @@ func (r *SetupRunner) StepInstallAnalyzer(ctx context.Context) StepResult {
 		}
 	case analyzer.ActionAlreadyCurrent:
 		return StepResult{
-			Name:    "Analyzer installation",
+			Name:    stepNameAnalyzerInstall,
 			Status:  StepSuccess,
 			Message: fmt.Sprintf("Pulumi analyzer already current (v%s)", result.Version),
 		}
 	case analyzer.ActionUpdateAvailable:
 		return StepResult{
-			Name:   "Analyzer installation",
+			Name:   stepNameAnalyzerInstall,
 			Status: StepWarning,
 			Message: fmt.Sprintf(
 				"Pulumi analyzer installed at v%s, update available (v%s). Use: finfocus analyzer install --force",
@@ -589,7 +598,7 @@ func (r *SetupRunner) StepInstallAnalyzer(ctx context.Context) StepResult {
 		}
 	default:
 		return StepResult{
-			Name:    "Analyzer installation",
+			Name:    stepNameAnalyzerInstall,
 			Status:  StepSuccess,
 			Message: fmt.Sprintf("Pulumi analyzer (v%s)", result.Version),
 		}
@@ -615,7 +624,7 @@ func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []
 		pluginPath := filepath.Join(pluginDir, pluginName)
 		if info, statErr := os.Stat(pluginPath); statErr == nil && info.IsDir() && pluginHasVersionDir(pluginPath) {
 			results = append(results, StepResult{
-				Name:    "Plugin installation",
+				Name:    stepNamePluginInstall,
 				Status:  StepSuccess,
 				Message: fmt.Sprintf("Plugin already installed: %s", pluginName),
 			})
@@ -627,7 +636,7 @@ func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []
 		}, nil)
 		if err != nil {
 			results = append(results, StepResult{
-				Name:   "Plugin installation",
+				Name:   stepNamePluginInstall,
 				Status: StepWarning,
 				Message: fmt.Sprintf(
 					"Failed to install plugin %s: %v\n  Try later: finfocus plugin install %s",
@@ -645,7 +654,7 @@ func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []
 			verInfo = "latest"
 		}
 		results = append(results, StepResult{
-			Name:    "Plugin installation",
+			Name:    stepNamePluginInstall,
 			Status:  StepSuccess,
 			Message: fmt.Sprintf("Installed plugin: %s (%s)", installResult.Name, verInfo),
 		})

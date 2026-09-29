@@ -30,6 +30,14 @@ const (
 	healthUnspecified      = "UNSPECIFIED"
 )
 
+// Budget scope names accepted in --budget-scope filter expressions.
+const (
+	budgetScopeGlobal   = "global"
+	budgetScopeProvider = "provider"
+	budgetScopeTag      = "tag"
+	budgetScopeType     = "type"
+)
+
 // BudgetScopeFilter defines which budget scopes to render.
 type BudgetScopeFilter struct {
 	// ShowGlobal displays the global budget section.
@@ -75,39 +83,39 @@ func NewBudgetScopeFilter(scopeFlag string) *BudgetScopeFilter {
 		partLower := strings.ToLower(part)
 
 		switch {
-		case partLower == "global":
+		case partLower == budgetScopeGlobal:
 			filter.ShowGlobal = true
-		case strings.HasPrefix(partLower, "provider="):
+		case strings.HasPrefix(partLower, budgetScopeProvider+"="):
 			filter.ShowProvider = true
-			provider := strings.TrimPrefix(part, "provider=")
+			provider := strings.TrimPrefix(part, budgetScopeProvider+"=")
 			provider = strings.TrimPrefix(provider, "Provider=")
 			provider = strings.TrimPrefix(provider, "PROVIDER=")
 			if provider != "" {
 				filter.ProviderFilter = append(filter.ProviderFilter, provider)
 			}
-		case partLower == "provider":
+		case partLower == budgetScopeProvider:
 			filter.ShowProvider = true
-		case strings.HasPrefix(partLower, "tag="):
+		case strings.HasPrefix(partLower, budgetScopeTag+"="):
 			filter.ShowTag = true
 			// Preserve original case for tag selectors (key:value format)
-			tagSelector := strings.TrimPrefix(part, "tag=")
+			tagSelector := strings.TrimPrefix(part, budgetScopeTag+"=")
 			tagSelector = strings.TrimPrefix(tagSelector, "Tag=")
 			tagSelector = strings.TrimPrefix(tagSelector, "TAG=")
 			if tagSelector != "" {
 				filter.TagFilter = append(filter.TagFilter, tagSelector)
 			}
-		case partLower == "tag":
+		case partLower == budgetScopeTag:
 			filter.ShowTag = true
-		case strings.HasPrefix(partLower, "type="):
+		case strings.HasPrefix(partLower, budgetScopeType+"="):
 			filter.ShowType = true
 			// Preserve original case for resource types (aws:ec2/instance format)
-			resourceType := strings.TrimPrefix(part, "type=")
+			resourceType := strings.TrimPrefix(part, budgetScopeType+"=")
 			resourceType = strings.TrimPrefix(resourceType, "Type=")
 			resourceType = strings.TrimPrefix(resourceType, "TYPE=")
 			if resourceType != "" {
 				filter.TypeFilter = append(filter.TypeFilter, resourceType)
 			}
-		case partLower == "type":
+		case partLower == budgetScopeType:
 			filter.ShowType = true
 		}
 	}

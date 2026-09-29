@@ -34,7 +34,7 @@ func NewPluginListCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "list",
+		Use:   cmdNameList,
 		Short: "List installed plugins",
 		Long:  "List all installed plugins with their versions and paths",
 		Example: `  # List all installed plugins

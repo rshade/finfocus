@@ -118,7 +118,7 @@ func NewConfigRoutesListCmd() *cobra.Command {
 	var outputFormat string
 
 	cmd := &cobra.Command{
-		Use:   "list",
+		Use:   cmdNameList,
 		Short: "Display routing rules",
 		Long: `Display the effective plugin routing configuration.
 

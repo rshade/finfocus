@@ -14,13 +14,15 @@ import (
 
 // Top-level config key names used for shallow merge.
 const (
-	keyOutput     = "output"
-	keyPlugins    = "plugins"
-	keyLogging    = "logging"
-	keyAnalyzer   = "analyzer"
-	keyPluginHost = "plugin_host"
-	keyCost       = "cost"
-	keyRouting    = "routing"
+	keyOutput          = "output"
+	keyPlugins         = "plugins"
+	keyLogging         = "logging"
+	keyAnalyzer        = "analyzer"
+	keyPluginHost      = "plugin_host"
+	keyCost            = "cost"
+	keyRouting         = "routing"
+	keyPluginDir       = "plugin_dir"
+	keyInstalledPlugin = "installed_plugins"
 )
 
 // knownTopLevelKeys lists the YAML keys that correspond to exported Config fields.

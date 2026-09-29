@@ -101,7 +101,7 @@ func SaveInstalledPlugins(plugins []InstalledPlugin) error {
 	if cfg == nil {
 		cfg = make(map[string]interface{})
 	}
-	cfg["installed_plugins"] = plugins
+	cfg[keyInstalledPlugin] = plugins
 	return saveConfig(configPath, cfg)
 }
 
