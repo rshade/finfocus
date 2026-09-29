@@ -434,10 +434,6 @@ linters:
         linters:
           # TODO: audit strict shadow findings in https://github.com/rshade/finfocus/issues/1209.
           - govet
-      - text: 'unusedwrite: unused write to field .+'
-        linters:
-          # TODO: audit fixture field writes in https://github.com/rshade/finfocus/issues/1212.
-          - govet
       - path: '^internal/(cli|config|logging)/'
         linters:
           # TODO: normalize repeated local constants in https://github.com/rshade/finfocus/issues/1203.

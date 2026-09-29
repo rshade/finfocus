@@ -44,7 +44,6 @@ func TestCostEstimate_SingleResource(t *testing.T) {
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
 			Type:     "ec2:Instance",
-			ID:       "test-server",
 			Properties: map[string]interface{}{
 				"instanceType": "t3.micro",
 				"region":       "us-east-1",
@@ -268,21 +267,6 @@ func TestCostEstimate_EstimateResult(t *testing.T) {
 
 	t.Run("handles fallback flag", func(t *testing.T) {
 		result := &engine.EstimateResult{
-			Resource: &engine.ResourceDescriptor{
-				Provider: "aws",
-				Type:     "ec2:Instance",
-				ID:       "test-server",
-			},
-			Baseline: &engine.CostResult{
-				Monthly:  8.32,
-				Currency: "USD",
-			},
-			Modified: &engine.CostResult{
-				Monthly:  83.22,
-				Currency: "USD",
-			},
-			TotalChange:  74.90,
-			Deltas:       []engine.CostDelta{},
 			UsedFallback: true,
 		}
 
@@ -294,11 +278,6 @@ func TestCostEstimate_EstimateResult(t *testing.T) {
 func TestCostEstimate_EdgeCases(t *testing.T) {
 	t.Run("handles zero cost resources", func(t *testing.T) {
 		result := &engine.EstimateResult{
-			Resource: &engine.ResourceDescriptor{
-				Provider: "aws",
-				Type:     "iam:Role",
-				ID:       "test-role",
-			},
 			Baseline: &engine.CostResult{
 				Monthly:  0.0,
 				Currency: "USD",
@@ -310,16 +289,13 @@ func TestCostEstimate_EdgeCases(t *testing.T) {
 			TotalChange: 0.0,
 		}
 
+		assert.Equal(t, 0.0, result.Baseline.Monthly)
+		assert.Equal(t, 0.0, result.Modified.Monthly)
 		assert.Equal(t, 0.0, result.TotalChange)
 	})
 
 	t.Run("handles nil baseline", func(t *testing.T) {
 		result := &engine.EstimateResult{
-			Resource: &engine.ResourceDescriptor{
-				Provider: "aws",
-				Type:     "ec2:Instance",
-				ID:       "new-server",
-			},
 			Baseline: nil, // New resource, no baseline
 			Modified: &engine.CostResult{
 				Monthly:  83.22,
@@ -335,11 +311,6 @@ func TestCostEstimate_EdgeCases(t *testing.T) {
 
 	t.Run("handles nil modified", func(t *testing.T) {
 		result := &engine.EstimateResult{
-			Resource: &engine.ResourceDescriptor{
-				Provider: "aws",
-				Type:     "ec2:Instance",
-				ID:       "deleted-server",
-			},
 			Baseline: &engine.CostResult{
 				Monthly:  8.32,
 				Currency: "USD",

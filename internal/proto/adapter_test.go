@@ -659,29 +659,26 @@ func TestNewCostSourceClient(t *testing.T) {
 
 // Test clientAdapter.Name method.
 func TestClientAdapter_Name(t *testing.T) {
-	t.Run("successful name call", func(_ *testing.T) {
-		mockClient := &mockCostSourceClient{
-			nameFunc: func(_ context.Context, _ *Empty, _ ...grpc.CallOption) (*NameResponse, error) {
-				return &NameResponse{Name: "mock-plugin-name"}, nil
-			},
-		}
+	t.Run("successful name call", func(t *testing.T) {
+		adapter := &clientAdapter{client: &mockPbcCostSourceServiceClient{}}
 
-		adapter := &clientAdapter{client: nil} // We mock the client behavior
-		// Note: In a real test, we'd need to mock the underlying gRPC client
-		// This is a placeholder test structure
-
-		_ = mockClient // Use the mock to show intended usage
-		_ = adapter    // Avoid unused variable error
+		resp, err := adapter.Name(context.Background(), &Empty{})
+		require.NoError(t, err)
+		assert.Equal(t, "mock-grpc-plugin", resp.GetName())
 	})
 
-	t.Run("name call with error", func(_ *testing.T) {
-		mockClient := &mockCostSourceClient{
-			nameFunc: func(_ context.Context, _ *Empty, _ ...grpc.CallOption) (*NameResponse, error) {
+	t.Run("name call with error", func(t *testing.T) {
+		mockGRPC := &mockPbcCostSourceServiceClient{
+			nameFunc: func(_ context.Context, _ *pbc.NameRequest, _ ...grpc.CallOption) (*pbc.NameResponse, error) {
 				return nil, errors.New("grpc error")
 			},
 		}
+		adapter := &clientAdapter{client: mockGRPC}
 
-		_ = mockClient // Use the mock to show intended usage
+		resp, err := adapter.Name(context.Background(), &Empty{})
+		require.Error(t, err)
+		assert.Nil(t, resp)
+		assert.Contains(t, err.Error(), "grpc error")
 	})
 }
 
@@ -775,8 +772,6 @@ func TestClientAdapter_GetActualCost(t *testing.T) {
 	t.Run("empty resource IDs", func(t *testing.T) {
 		req := &GetActualCostRequest{
 			ResourceIDs: []string{},
-			StartTime:   1000000000,
-			EndTime:     1000003600,
 		}
 
 		if len(req.ResourceIDs) != 0 {
@@ -3135,9 +3130,14 @@ func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
 }
 
 // mockPbcCostSourceServiceClient mocks the generated pbc.CostSourceServiceClient
-// gRPC interface. Only GetActualCost uses a configurable callback; the rest return
-// empty success responses.
+// gRPC interface. Only Name, GetActualCost, GetProjectedCost, and BatchCost use
+// configurable callbacks; the rest return empty success responses.
 type mockPbcCostSourceServiceClient struct {
+	nameFunc func(
+		ctx context.Context,
+		in *pbc.NameRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.NameResponse, error)
 	getActualCostFunc func(
 		ctx context.Context,
 		in *pbc.GetActualCostRequest,
@@ -3156,8 +3156,11 @@ type mockPbcCostSourceServiceClient struct {
 }
 
 func (m *mockPbcCostSourceServiceClient) Name(
-	_ context.Context, _ *pbc.NameRequest, _ ...grpc.CallOption,
+	ctx context.Context, in *pbc.NameRequest, opts ...grpc.CallOption,
 ) (*pbc.NameResponse, error) {
+	if m.nameFunc != nil {
+		return m.nameFunc(ctx, in, opts...)
+	}
 	return &pbc.NameResponse{Name: "mock-grpc-plugin"}, nil
 }
 
