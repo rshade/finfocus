@@ -203,7 +203,7 @@ func TestStackFlagExists(t *testing.T) {
 	stackFlag := costCmd.PersistentFlags().Lookup("stack")
 	require.NotNil(t, stackFlag, "--stack flag should be on cost parent command")
 	assert.Equal(t, "string", stackFlag.Value.Type())
-	assert.Equal(t, "", stackFlag.DefValue)
+	assert.Empty(t, stackFlag.DefValue)
 	assert.Contains(t, stackFlag.Usage, "auto-detection")
 }
 
@@ -356,7 +356,7 @@ func TestCostProjectedCmd_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	// Without plugins or specs, returns empty resources
-	assert.Len(t, results.Resources, 0)
+	assert.Empty(t, results.Resources)
 	assert.Empty(t, results.Summary.Currency)
 }
 
@@ -436,7 +436,7 @@ func TestCostProjectedCmd_MultipleResources(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results.Resources, 0) // No plugins/specs = empty
+	assert.Empty(t, results.Resources) // No plugins/specs = empty
 }
 
 // TestCostProjectedCmd_OutputFormatsAndFilters consolidates tests for table/NDJSON output
@@ -539,7 +539,7 @@ func TestCostProjectedCmd_OutputFormatsAndFilters(t *testing.T) {
 				var results engine.AggregatedResults
 				err = json.Unmarshal(out.Bytes(), &results)
 				require.NoError(t, err)
-				assert.Len(t, results.Resources, 0) // No plugins/specs = empty
+				assert.Empty(t, results.Resources) // No plugins/specs = empty
 			}
 		})
 	}
@@ -568,7 +568,7 @@ func TestCostProjectedCmd_EmptyPlan(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Empty(t, results.Resources)
-	assert.Equal(t, 0.0, results.Summary.TotalMonthly)
+	assert.InDelta(t, 0.0, results.Summary.TotalMonthly, 1e-9)
 }
 
 // TestCostProjectedCmd_NoArgs tests error when command invoked with no arguments.
@@ -654,7 +654,7 @@ func TestCostProjectedCmd_ComplexResourceProperties(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results.Resources, 0) // No plugins/specs = empty
+	assert.Empty(t, results.Resources) // No plugins/specs = empty
 }
 
 func TestCostProjectedTerraformStateFlagValidation(t *testing.T) {

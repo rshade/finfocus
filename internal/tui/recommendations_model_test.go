@@ -16,7 +16,7 @@ func TestNewRecommendationsSummary(t *testing.T) {
 		summary := NewRecommendationsSummary(nil)
 
 		assert.Equal(t, 0, summary.TotalCount)
-		assert.Equal(t, 0.0, summary.TotalSavings)
+		assert.InDelta(t, 0.0, summary.TotalSavings, 1e-9)
 		assert.Empty(t, summary.CountByAction)
 		assert.Empty(t, summary.SavingsByAction)
 		assert.Empty(t, summary.TopRecommendations)
@@ -36,10 +36,10 @@ func TestNewRecommendationsSummary(t *testing.T) {
 		summary := NewRecommendationsSummary(recs)
 
 		assert.Equal(t, 1, summary.TotalCount)
-		assert.Equal(t, 50.0, summary.TotalSavings)
+		assert.InDelta(t, 50.0, summary.TotalSavings, 1e-9)
 		assert.Equal(t, "USD", summary.Currency)
 		assert.Equal(t, 1, summary.CountByAction["RIGHTSIZE"])
-		assert.Equal(t, 50.0, summary.SavingsByAction["RIGHTSIZE"])
+		assert.InDelta(t, 50.0, summary.SavingsByAction["RIGHTSIZE"], 1e-9)
 		assert.Len(t, summary.TopRecommendations, 1)
 	})
 
@@ -53,9 +53,9 @@ func TestNewRecommendationsSummary(t *testing.T) {
 		summary := NewRecommendationsSummary(recs)
 
 		assert.Equal(t, 3, summary.TotalCount)
-		assert.Equal(t, 100.0, summary.TotalSavings)
+		assert.InDelta(t, 100.0, summary.TotalSavings, 1e-9)
 		assert.Equal(t, 3, summary.CountByAction["RIGHTSIZE"])
-		assert.Equal(t, 100.0, summary.SavingsByAction["RIGHTSIZE"])
+		assert.InDelta(t, 100.0, summary.SavingsByAction["RIGHTSIZE"], 1e-9)
 	})
 
 	t.Run("multiple action types", func(t *testing.T) {
@@ -69,12 +69,12 @@ func TestNewRecommendationsSummary(t *testing.T) {
 		summary := NewRecommendationsSummary(recs)
 
 		assert.Equal(t, 4, summary.TotalCount)
-		assert.Equal(t, 205.0, summary.TotalSavings)
+		assert.InDelta(t, 205.0, summary.TotalSavings, 1e-9)
 		assert.Equal(t, 2, summary.CountByAction["RIGHTSIZE"])
 		assert.Equal(t, 1, summary.CountByAction["TERMINATE"])
 		assert.Equal(t, 1, summary.CountByAction["DELETE_UNUSED"])
-		assert.Equal(t, 80.0, summary.SavingsByAction["RIGHTSIZE"])
-		assert.Equal(t, 100.0, summary.SavingsByAction["TERMINATE"])
+		assert.InDelta(t, 80.0, summary.SavingsByAction["RIGHTSIZE"], 1e-9)
+		assert.InDelta(t, 100.0, summary.SavingsByAction["TERMINATE"], 1e-9)
 	})
 
 	t.Run("top 5 sorted by savings", func(t *testing.T) {
@@ -146,7 +146,7 @@ func TestRecommendationsViewModel_StateTransitions(t *testing.T) {
 		model := NewRecommendationsViewModel(recs)
 		require.NotNil(t, model.summary)
 		assert.Equal(t, 2, model.summary.TotalCount)
-		assert.Equal(t, 150.0, model.summary.TotalSavings)
+		assert.InDelta(t, 150.0, model.summary.TotalSavings, 1e-9)
 	})
 
 	t.Run("loading state with fetcher", func(t *testing.T) {
@@ -205,7 +205,7 @@ func TestRecommendationsViewModel_LoadingState(t *testing.T) {
 		assert.Len(t, m.recommendations, 2)
 		require.NotNil(t, m.summary)
 		assert.Equal(t, 2, m.summary.TotalCount)
-		assert.Equal(t, 150.0, m.summary.TotalSavings)
+		assert.InDelta(t, 150.0, m.summary.TotalSavings, 1e-9)
 	})
 
 	t.Run("loading error transitions to error state", func(t *testing.T) {
@@ -356,12 +356,12 @@ func TestRecommendationsViewModel_FilterLogic(t *testing.T) {
 
 	t.Run("filter updates summary", func(t *testing.T) {
 		model := NewRecommendationsViewModel(recs)
-		assert.Equal(t, 225.0, model.summary.TotalSavings) // 100 + 50 + 75
+		assert.InDelta(t, 225.0, model.summary.TotalSavings, 1e-9) // 100 + 50 + 75
 
 		model.textInput.SetValue("aws")
 		model.applyFilter()
 
-		assert.Equal(t, 175.0, model.summary.TotalSavings) // 100 + 75 (aws resources only)
+		assert.InDelta(t, 175.0, model.summary.TotalSavings, 1e-9) // 100 + 75 (aws resources only)
 	})
 }
 
@@ -552,7 +552,7 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 		updatedModel, _ := model.Update(msg)
 		m := updatedModel.(*RecommendationsViewModel)
 
-		assert.Equal(t, "", m.textInput.Value())
+		assert.Empty(t, m.textInput.Value())
 	})
 }
 
@@ -641,9 +641,9 @@ func TestRecommendationsViewModel_SortingVariants(t *testing.T) {
 		model.applySort()
 
 		// Highest savings first
-		assert.Equal(t, 100.0, model.recommendations[0].EstimatedSavings)
-		assert.Equal(t, 50.0, model.recommendations[1].EstimatedSavings)
-		assert.Equal(t, 25.0, model.recommendations[2].EstimatedSavings)
+		assert.InDelta(t, 100.0, model.recommendations[0].EstimatedSavings, 1e-9)
+		assert.InDelta(t, 50.0, model.recommendations[1].EstimatedSavings, 1e-9)
+		assert.InDelta(t, 25.0, model.recommendations[2].EstimatedSavings, 1e-9)
 	})
 }
 

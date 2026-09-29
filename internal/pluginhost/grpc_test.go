@@ -173,6 +173,6 @@ func TestLoggedInterceptor(t *testing.T) {
 	}
 
 	err = interceptor(ctx, method, nil, nil, nil, mockInvokerError)
-	assert.ErrorIs(t, err, assert.AnError)
+	require.ErrorIs(t, err, assert.AnError)
 	assert.Contains(t, buf.String(), "gRPC call failed")
 }

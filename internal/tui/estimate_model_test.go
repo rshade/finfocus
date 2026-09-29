@@ -73,8 +73,8 @@ func TestNewEstimateModel(t *testing.T) {
 		model := NewEstimateModel(ctx, resource, result)
 
 		require.NotNil(t, model)
-		assert.Equal(t, 8.32, model.baselineCost)
-		assert.Equal(t, 83.22, model.modifiedCost)
+		assert.InDelta(t, 8.32, model.baselineCost, 1e-9)
+		assert.InDelta(t, 83.22, model.modifiedCost, 1e-9)
 	})
 
 	t.Run("handles nil resource properties", func(t *testing.T) {
@@ -396,10 +396,10 @@ func TestEstimateModel_PropertyEditing(t *testing.T) {
 
 // TestEstimateState_Constants tests state constant values.
 func TestEstimateState_Constants(t *testing.T) {
-	assert.Equal(t, EstimateState(0), EstimateStateEditing)
-	assert.Equal(t, EstimateState(1), EstimateStateCalculating)
-	assert.Equal(t, EstimateState(2), EstimateStateQuitting)
-	assert.Equal(t, EstimateState(3), EstimateStateError)
+	assert.Equal(t, EstimateStateEditing, EstimateState(0))
+	assert.Equal(t, EstimateStateCalculating, EstimateState(1))
+	assert.Equal(t, EstimateStateQuitting, EstimateState(2))
+	assert.Equal(t, EstimateStateError, EstimateState(3))
 }
 
 // TestPropertyRow_Struct tests PropertyRow structure.
@@ -414,5 +414,5 @@ func TestPropertyRow_Struct(t *testing.T) {
 	assert.Equal(t, "instanceType", row.Key)
 	assert.Equal(t, "t3.micro", row.OriginalValue)
 	assert.Equal(t, "m5.large", row.CurrentValue)
-	assert.Equal(t, 74.90, row.CostDelta)
+	assert.InDelta(t, 74.90, row.CostDelta, 1e-9)
 }

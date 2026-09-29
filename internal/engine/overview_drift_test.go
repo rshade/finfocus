@@ -518,7 +518,7 @@ func TestCalculateProjectedDelta(t *testing.T) {
 			delta, currency := CalculateProjectedDelta(tt.rows, tt.currentDay)
 
 			if tt.deltaComparison == "exact" {
-				assert.Equal(t, tt.wantDelta, delta)
+				assert.InDelta(t, tt.wantDelta, delta, 1e-9)
 			} else {
 				assert.InDelta(t, tt.wantDelta, delta, 1.0,
 					"delta should be approximately %.1f", tt.wantDelta)
@@ -559,7 +559,7 @@ func TestCalculateProjectedDelta_MathConsistency(t *testing.T) {
 	// With day 15 of 30-day month, deleting extrapolates 50 * (30/15) = 100.
 	// Net = +100 - 100 = 0
 	delta, _ := CalculateProjectedDelta(rows, 15)
-	assert.True(t, math.Abs(delta) < 1.0,
+	assert.Less(t, math.Abs(delta), 1.0,
 		"creating and deleting same-cost resource should net close to zero, got %.2f", delta)
 }
 
@@ -682,7 +682,7 @@ func TestCalculateRowDelta_NoPropertyDiffs(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			delta, ok := CalculateRowDelta(tt.row, 15)
 			assert.False(t, ok, "no PropertyDiffs should return false")
-			assert.Equal(t, 0.0, delta)
+			assert.InDelta(t, 0.0, delta, 1e-9)
 		})
 	}
 }
@@ -736,13 +736,13 @@ func TestForceExtrapolateActual_EarlyMonth(t *testing.T) {
 
 func TestForceExtrapolateActual_NilActualCost(t *testing.T) {
 	row := OverviewRow{}
-	assert.Equal(t, 0.0, ForceExtrapolateActual(row, 5))
+	assert.InDelta(t, 0.0, ForceExtrapolateActual(row, 5), 1e-9)
 }
 
 func TestForceExtrapolateActual_ZeroDayOfMonth(t *testing.T) {
 	row := OverviewRow{ActualCost: &ActualCostData{MTDCost: 10.0}}
 	// dayOfMonth <= 0: returns raw MTD.
-	assert.Equal(t, 10.0, ForceExtrapolateActual(row, 0))
+	assert.InDelta(t, 10.0, ForceExtrapolateActual(row, 0), 1e-9)
 }
 
 // ---------------------------------------------------------------------------
@@ -788,7 +788,7 @@ func TestPopulateComputedDeltas_MixedStatuses(t *testing.T) {
 
 	// Creating → +projected.
 	require.NotNil(t, rows[1].ComputedDelta)
-	assert.Equal(t, 50.0, *rows[1].ComputedDelta)
+	assert.InDelta(t, 50.0, *rows[1].ComputedDelta, 1e-9)
 
 	// Deleting → -extrapolated actual (30 * 30/15 = 60).
 	require.NotNil(t, rows[2].ComputedDelta)

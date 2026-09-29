@@ -451,8 +451,6 @@ linters:
           - noctx
           # TODO: audit test isolation before enabling in https://github.com/rshade/finfocus/issues/1198.
           - paralleltest
-          # TODO: adopt stricter assertion helpers in https://github.com/rshade/finfocus/issues/1206.
-          - testifylint
           # TODO: migrate same-package tests in https://github.com/rshade/finfocus/issues/1197.
           - testpackage
           - wrapcheck

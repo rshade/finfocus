@@ -651,7 +651,7 @@ func TestCostActualCmd_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	// Without plugins, actual cost returns empty array (no fallback like projected)
-	assert.Len(t, results, 0) // No plugins = empty results
+	assert.Empty(t, results) // No plugins = empty results
 }
 
 // TestCostActualCmd_MissingStartDate tests error for missing start date.
@@ -722,7 +722,7 @@ func TestCostActualCmd_DefaultEndDate(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results, 0) // No plugins = empty results
+	assert.Empty(t, results) // No plugins = empty results
 }
 
 // TestCostActualCmd_InvalidDateFormat tests error for invalid date format.
@@ -790,7 +790,7 @@ func TestCostActualCmd_RFC3339DateFormat(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results, 0) // No plugins = empty results
+	assert.Empty(t, results) // No plugins = empty results
 }
 
 // TestCostActualCmd_GroupByResource tests resource-level grouping.
@@ -832,7 +832,7 @@ func TestCostActualCmd_GroupByResource(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results, 0) // No plugins = empty results
+	assert.Empty(t, results) // No plugins = empty results
 }
 
 // TestCostActualCmd_GroupByType tests type-level grouping.
@@ -874,7 +874,7 @@ func TestCostActualCmd_GroupByType(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results, 0) // No plugins = empty results
+	assert.Empty(t, results) // No plugins = empty results
 }
 
 // TestCostActualCmd_GroupByProvider tests provider-level grouping.
@@ -916,7 +916,7 @@ func TestCostActualCmd_GroupByProvider(t *testing.T) {
 	err = json.Unmarshal(out.Bytes(), &results)
 	require.NoError(t, err)
 
-	assert.Len(t, results, 0) // No plugins = empty results
+	assert.Empty(t, results) // No plugins = empty results
 }
 
 // TestCostActualCmd_GroupByDaily tests daily grouping.
@@ -1061,7 +1061,7 @@ func TestCostActualCmd_AdapterFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	// Should succeed even without the specified adapter
-	assert.Len(t, results, 0) // No plugins = empty results
+	assert.Empty(t, results) // No plugins = empty results
 }
 
 // T016: Tests for MergeHistoricalResources merge logic.

@@ -31,7 +31,7 @@ pricing:
 	assert.Equal(t, "t3.micro", pricingSpec.SKU)
 	assert.Equal(t, "USD", pricingSpec.Currency)
 	assert.NotNil(t, pricingSpec.Pricing)
-	assert.Equal(t, 0.0104, pricingSpec.Pricing["onDemandHourly"])
+	assert.InDelta(t, 0.0104, pricingSpec.Pricing["onDemandHourly"], 1e-9)
 }
 
 // TestParseYAML_WithMetadata tests parsing a spec with optional metadata.
@@ -86,8 +86,8 @@ pricing:
 	// Verify nested pricing structure
 	onDemand, ok := pricingSpec.Pricing["onDemand"].(map[string]interface{})
 	require.True(t, ok)
-	assert.Equal(t, 0.068, onDemand["hourly"])
-	assert.Equal(t, 49.64, onDemand["monthly"])
+	assert.InDelta(t, 0.068, onDemand["hourly"], 1e-9)
+	assert.InDelta(t, 49.64, onDemand["monthly"], 1e-9)
 }
 
 // TestParseYAML_EmptyPricing tests parsing a spec with empty pricing (invalid).
@@ -386,9 +386,9 @@ pricing:
 	err := yaml.Unmarshal([]byte(yamlContent), &pricingSpec)
 
 	require.NoError(t, err)
-	assert.Equal(t, 0.0104, pricingSpec.Pricing["floatValue"])
+	assert.InDelta(t, 0.0104, pricingSpec.Pricing["floatValue"], 1e-9)
 	assert.Equal(t, 10, pricingSpec.Pricing["intValue"])
-	assert.Equal(t, 1.5e-3, pricingSpec.Pricing["scientificNotation"])
+	assert.InDelta(t, 1.5e-3, pricingSpec.Pricing["scientificNotation"], 1e-9)
 }
 
 // TestParseYAML_BooleanInMetadata tests boolean values in metadata.

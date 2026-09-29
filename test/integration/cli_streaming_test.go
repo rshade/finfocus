@@ -102,7 +102,7 @@ func TestNDJSONStreaming_HeadTermination(t *testing.T) {
 		output := strings.TrimSpace(out.String())
 		if output != "" {
 			lines := strings.Split(output, "\n")
-			assert.Equal(t, 1, len(lines), "head -n 1 should return exactly 1 line")
+			assert.Len(t, lines, 1, "head -n 1 should return exactly 1 line")
 
 			// Parse and verify it's the summary line
 			var summary map[string]interface{}
@@ -269,7 +269,7 @@ func TestNDJSONStreaming_NoBuffering(t *testing.T) {
 			firstLine := scanner.Text()
 			var summary map[string]interface{}
 			unmarshalErr := json.Unmarshal([]byte(firstLine), &summary)
-			assert.NoError(t, unmarshalErr, "first line should be valid JSON")
+			require.NoError(t, unmarshalErr, "first line should be valid JSON")
 			assert.Equal(t, "summary", summary["type"], "first line should be summary")
 		}
 	})

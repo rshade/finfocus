@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -124,5 +123,5 @@ func TestFileLogging_WritesToFile(t *testing.T) {
 	// Verify it was written
 	content, err := os.ReadFile(logFile)
 	require.NoError(t, err)
-	assert.True(t, strings.Contains(string(content), "test message for file"))
+	assert.Contains(t, string(content), "test message for file")
 }

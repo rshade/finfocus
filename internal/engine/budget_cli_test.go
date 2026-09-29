@@ -31,8 +31,8 @@ func TestDefaultBudgetEngine_Evaluate(t *testing.T) {
 			currency:     "USD",
 			wantErr:      false,
 			check: func(t *testing.T, status *BudgetStatus) {
-				assert.Equal(t, 500.0, status.CurrentSpend)
-				assert.Equal(t, 50.0, status.Percentage)
+				assert.InDelta(t, 500.0, status.CurrentSpend, 1e-9)
+				assert.InDelta(t, 50.0, status.Percentage, 1e-9)
 				assert.Equal(t, "USD", status.Currency)
 			},
 		},
@@ -46,9 +46,9 @@ func TestDefaultBudgetEngine_Evaluate(t *testing.T) {
 			currency:     "USD",
 			wantErr:      false,
 			check: func(t *testing.T, status *BudgetStatus) {
-				assert.Equal(t, 150.0, status.Percentage)
+				assert.InDelta(t, 150.0, status.Percentage, 1e-9)
 				assert.True(t, status.IsOverBudget())
-				assert.Equal(t, 100.0, status.CappedPercentage())
+				assert.InDelta(t, 100.0, status.CappedPercentage(), 1e-9)
 			},
 		},
 		{
@@ -61,7 +61,7 @@ func TestDefaultBudgetEngine_Evaluate(t *testing.T) {
 			currency:     "USD",
 			wantErr:      false,
 			check: func(t *testing.T, status *BudgetStatus) {
-				assert.Equal(t, 0.0, status.Percentage)
+				assert.InDelta(t, 0.0, status.Percentage, 1e-9)
 				assert.False(t, status.IsOverBudget())
 			},
 		},
@@ -302,24 +302,24 @@ func TestDefaultBudgetEngine_MixedAlertTypes(t *testing.T) {
 	status, err := engine.Evaluate(budget, 450.0, "USD")
 	require.NoError(t, err)
 
-	assert.Equal(t, 45.0, status.Percentage)                // 45% actual
+	assert.InDelta(t, 45.0, status.Percentage, 1e-9)        // 45% actual
 	assert.InDelta(t, 93.0, status.ForecastPercentage, 0.5) // ~93% forecast
 
 	// Check alert statuses
 	require.Len(t, status.Alerts, 3)
 
 	// 50% actual: APPROACHING (we're at 45%, which is exactly at boundary 50-5=45, and 45 >= 45)
-	assert.Equal(t, 50.0, status.Alerts[0].Threshold)
+	assert.InDelta(t, 50.0, status.Alerts[0].Threshold, 1e-9)
 	assert.Equal(t, config.AlertTypeActual, status.Alerts[0].Type)
 	assert.Equal(t, ThresholdStatusApproaching, status.Alerts[0].Status)
 
 	// 80% actual: OK (we're at 45%)
-	assert.Equal(t, 80.0, status.Alerts[1].Threshold)
+	assert.InDelta(t, 80.0, status.Alerts[1].Threshold, 1e-9)
 	assert.Equal(t, config.AlertTypeActual, status.Alerts[1].Type)
 	assert.Equal(t, ThresholdStatusOK, status.Alerts[1].Status)
 
 	// 100% forecasted: OK (we're at ~93%, which is < 95% threshold for approaching)
-	assert.Equal(t, 100.0, status.Alerts[2].Threshold)
+	assert.InDelta(t, 100.0, status.Alerts[2].Threshold, 1e-9)
 	assert.Equal(t, config.AlertTypeForecasted, status.Alerts[2].Type)
 	assert.Equal(t, ThresholdStatusOK, status.Alerts[2].Status)
 }
@@ -369,14 +369,14 @@ func TestBudgetStatus_Methods(t *testing.T) {
 				{Threshold: 100.0, Status: ThresholdStatusOK},
 			},
 		}
-		assert.Equal(t, 80.0, status.GetHighestExceededThreshold())
+		assert.InDelta(t, 80.0, status.GetHighestExceededThreshold(), 1e-9)
 
 		statusNoneExceeded := &BudgetStatus{
 			Alerts: []ThresholdStatus{
 				{Threshold: 50.0, Status: ThresholdStatusOK},
 			},
 		}
-		assert.Equal(t, 0.0, statusNoneExceeded.GetHighestExceededThreshold())
+		assert.InDelta(t, 0.0, statusNoneExceeded.GetHighestExceededThreshold(), 1e-9)
 	})
 
 	t.Run("CappedPercentage", func(t *testing.T) {
@@ -392,7 +392,7 @@ func TestBudgetStatus_Methods(t *testing.T) {
 
 		for _, tc := range tests {
 			status := &BudgetStatus{Percentage: tc.percentage}
-			assert.Equal(t, tc.expected, status.CappedPercentage())
+			assert.InDelta(t, tc.expected, status.CappedPercentage(), 1e-9)
 		}
 	})
 }

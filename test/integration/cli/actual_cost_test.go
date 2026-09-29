@@ -128,7 +128,7 @@ func TestActualCost_OutputFormats(t *testing.T) {
 			if format == "json" {
 				var resources []map[string]any
 				err = json.Unmarshal([]byte(output), &resources)
-				assert.NoError(t, err, "JSON output should be valid")
+				require.NoError(t, err, "JSON output should be valid")
 			}
 
 			if format == "ndjson" {

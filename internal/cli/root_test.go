@@ -289,7 +289,7 @@ func TestRootCmdProjectDirFlag(t *testing.T) {
 		flag := cmd.PersistentFlags().Lookup("project-dir")
 		require.NotNil(t, flag, "--project-dir persistent flag should exist")
 		assert.Equal(t, "string", flag.Value.Type(), "flag should be a string type")
-		assert.Equal(t, "", flag.DefValue, "flag should have empty default value")
+		assert.Empty(t, flag.DefValue, "flag should have empty default value")
 		assert.Contains(t, flag.Usage, "project directory",
 			"flag usage should describe project directory")
 	})

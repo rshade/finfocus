@@ -725,7 +725,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 
 		assert.True(t, cfg.Cost.Budgets.HasGlobalBudget())
 		assert.False(t, cfg.Cost.Budgets.HasScopedBudgets())
-		assert.Equal(t, 5000.0, cfg.Cost.Budgets.Global.Amount)
+		assert.InDelta(t, 5000.0, cfg.Cost.Budgets.Global.Amount, 1e-9)
 		assert.Equal(t, "USD", cfg.Cost.Budgets.Global.Currency)
 		assert.Len(t, cfg.Cost.Budgets.Global.Alerts, 3)
 	})
@@ -737,9 +737,9 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 		assert.Empty(t, warnings)
 
 		assert.Len(t, cfg.Cost.Budgets.Providers, 3)
-		assert.Equal(t, 5000.0, cfg.Cost.Budgets.Providers["aws"].Amount)
-		assert.Equal(t, 3000.0, cfg.Cost.Budgets.Providers["gcp"].Amount)
-		assert.Equal(t, 2000.0, cfg.Cost.Budgets.Providers["azure"].Amount)
+		assert.InDelta(t, 5000.0, cfg.Cost.Budgets.Providers["aws"].Amount, 1e-9)
+		assert.InDelta(t, 3000.0, cfg.Cost.Budgets.Providers["gcp"].Amount, 1e-9)
+		assert.InDelta(t, 2000.0, cfg.Cost.Budgets.Providers["azure"].Amount, 1e-9)
 	})
 
 	t.Run("tag_budgets.yaml", func(t *testing.T) {
@@ -759,7 +759,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 		assert.Empty(t, warnings)
 
 		assert.Len(t, cfg.Cost.Budgets.Types, 4)
-		assert.Equal(t, 3000.0, cfg.Cost.Budgets.Types["aws:ec2/instance"].Amount)
+		assert.InDelta(t, 3000.0, cfg.Cost.Budgets.Types["aws:ec2/instance"].Amount, 1e-9)
 	})
 
 	t.Run("full_scoped.yaml", func(t *testing.T) {
@@ -822,8 +822,8 @@ func TestScopedBudget_HelperMethods(t *testing.T) {
 
 	t.Run("GetCurrency", func(t *testing.T) {
 		var nilBudget *config.ScopedBudget
-		assert.Equal(t, "", nilBudget.GetCurrency())
-		assert.Equal(t, "", (&config.ScopedBudget{}).GetCurrency())
+		assert.Empty(t, nilBudget.GetCurrency())
+		assert.Empty(t, (&config.ScopedBudget{}).GetCurrency())
 		assert.Equal(t, "USD", (&config.ScopedBudget{Currency: "USD"}).GetCurrency())
 	})
 

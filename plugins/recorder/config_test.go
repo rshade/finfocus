@@ -125,5 +125,5 @@ func TestConfigConstants(t *testing.T) {
 	require.Equal(t, "FINFOCUS_RECORDER_OUTPUT_DIR", EnvOutputDir)
 	require.Equal(t, "FINFOCUS_RECORDER_MOCK_RESPONSE", EnvMockResponse)
 	require.Equal(t, "./recorded_data", DefaultOutputDir)
-	require.Equal(t, false, DefaultMockResponse)
+	require.False(t, DefaultMockResponse)
 }

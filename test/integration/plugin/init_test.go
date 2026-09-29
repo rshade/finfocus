@@ -182,7 +182,7 @@ func TestPluginInit_Force(t *testing.T) {
 	})
 
 	err = cmd2.Execute()
-	assert.Error(t, err, "should fail without --force when directory exists")
+	require.Error(t, err, "should fail without --force when directory exists")
 	assert.Contains(t, err.Error(), "already exists")
 
 	// Now use --force to overwrite
@@ -292,7 +292,7 @@ func TestPluginInit_InvalidName(t *testing.T) {
 			err := cmd.Execute()
 
 			if tc.expectError {
-				assert.Error(t, err, "expected error for plugin name: %s", tc.pluginName)
+				require.Error(t, err, "expected error for plugin name: %s", tc.pluginName)
 				if tc.errorMsg != "" {
 					assert.Contains(t, err.Error(), tc.errorMsg)
 				}
@@ -347,7 +347,7 @@ func TestPluginInit_MissingRequiredFlags(t *testing.T) {
 			cmd.SetArgs(tc.args)
 
 			err := cmd.Execute()
-			assert.Error(t, err, "expected error for %s", tc.name)
+			require.Error(t, err, "expected error for %s", tc.name)
 			assert.Contains(t, err.Error(), tc.errorMsg)
 		})
 	}

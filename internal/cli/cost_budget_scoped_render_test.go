@@ -144,7 +144,7 @@ func TestNewBudgetScopeFilter(t *testing.T) {
 func TestRenderScopedBudgetStatus_Nil(t *testing.T) {
 	var buf bytes.Buffer
 	err := RenderScopedBudgetStatus(&buf, nil, nil)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.Empty(t, buf.String())
 }
 

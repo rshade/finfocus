@@ -2575,7 +2575,7 @@ func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
 
 		require.Len(t, result.Results, 1)
 		assert.Empty(t, result.Errors)
-		assert.Equal(t, 42.0, result.Results[0].MonthlyCost)
+		assert.InDelta(t, 42.0, result.Results[0].MonthlyCost, 1e-9)
 
 		// Verify the mock received the request with properties intact
 		require.NotNil(t, capturedReq)
@@ -2618,7 +2618,7 @@ func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
 		assert.Contains(t, result.Errors[0].Error.Error(), "cost API unavailable")
 		require.Len(t, result.Results, 1)
 		assert.Contains(t, result.Results[0].Notes, "ERROR:")
-		assert.Equal(t, 0.0, result.Results[0].MonthlyCost)
+		assert.InDelta(t, 0.0, result.Results[0].MonthlyCost, 1e-9)
 	})
 
 	t.Run("missing cloudId falls back to resource URN", func(t *testing.T) {
@@ -2677,7 +2677,7 @@ func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
 		result := GetActualCostWithErrors(context.Background(), mockClient, "test-plugin", req)
 
 		require.Len(t, result.Errors, 1)
-		assert.ErrorIs(t, result.Errors[0].Error, ErrPropertiesMultiResource)
+		require.ErrorIs(t, result.Errors[0].Error, ErrPropertiesMultiResource)
 		assert.Empty(t, result.Results)
 		assert.Contains(t, result.Errors[0].ResourceID, "resource-1")
 		assert.Contains(t, result.Errors[0].ResourceID, "resource-2")
@@ -3306,7 +3306,7 @@ func TestAppendActualCostResults_DeepCopy(t *testing.T) {
 	result.Results[0].CostBreakdown["Compute"] = 999.0
 
 	// Verify the original was NOT mutated
-	assert.Equal(t, 100.0, originalBreakdown["Compute"], "Original CostBreakdown should not be mutated")
+	assert.InDelta(t, 100.0, originalBreakdown["Compute"], 1e-9, "Original CostBreakdown should not be mutated")
 }
 
 func TestAppendActualCostResults_ExpiresAtPropagated(t *testing.T) {
@@ -3935,7 +3935,7 @@ func TestMapBatchProjectedResults(t *testing.T) {
 
 		// First resource — full mapping
 		assert.NotNil(t, mapped[0].Result)
-		assert.Nil(t, mapped[0].Err)
+		require.NoError(t, mapped[0].Err)
 		assert.False(t, mapped[0].Skip)
 		assert.Equal(t, "USD", mapped[0].Result.Currency)
 		assert.InDelta(t, 100.0, mapped[0].Result.MonthlyCost, 0.001)
@@ -3986,13 +3986,13 @@ func TestMapBatchProjectedResults(t *testing.T) {
 		require.Len(t, mapped, 2)
 
 		assert.Nil(t, mapped[0].Result)
-		assert.Error(t, mapped[0].Err)
+		require.Error(t, mapped[0].Err)
 		assert.Contains(t, mapped[0].Err.Error(), "internal error")
 		assert.Contains(t, mapped[0].Err.Error(), "aws:ec2:Instance")
 		assert.False(t, mapped[0].Skip)
 
 		assert.Nil(t, mapped[1].Result)
-		assert.Error(t, mapped[1].Err)
+		require.Error(t, mapped[1].Err)
 		assert.Contains(t, mapped[1].Err.Error(), "not found")
 	})
 
@@ -4053,7 +4053,7 @@ func TestMapBatchProjectedResults(t *testing.T) {
 		mapped := MapBatchProjectedResults(resp)
 		require.Len(t, mapped, 1)
 		assert.Nil(t, mapped[0].Result)
-		assert.Nil(t, mapped[0].Err)
+		require.NoError(t, mapped[0].Err)
 		assert.False(t, mapped[0].Skip)
 	})
 
@@ -4070,7 +4070,7 @@ func TestMapBatchProjectedResults(t *testing.T) {
 		mapped := MapBatchProjectedResults(resp)
 		require.Len(t, mapped, 1)
 		assert.Nil(t, mapped[0].Result)
-		assert.Nil(t, mapped[0].Err)
+		require.NoError(t, mapped[0].Err)
 		assert.False(t, mapped[0].Skip)
 	})
 
@@ -4122,7 +4122,7 @@ func TestMapBatchProjectedResults(t *testing.T) {
 		require.Len(t, mapped, 1)
 		assert.True(t, mapped[0].Skip)
 		assert.Nil(t, mapped[0].Result)
-		assert.Nil(t, mapped[0].Err)
+		assert.NoError(t, mapped[0].Err)
 	})
 }
 
@@ -4174,7 +4174,7 @@ func TestMapBatchActualResults(t *testing.T) {
 		assert.InDelta(t, 15.0, mapped[0].ActualResult.CostBreakdown["aws-cur"], 0.001)
 		require.NotNil(t, mapped[0].ActualResult.ExpiresAt)
 		assert.WithinDuration(t, expiresAt, *mapped[0].ActualResult.ExpiresAt, time.Second)
-		assert.Nil(t, mapped[0].Err)
+		require.NoError(t, mapped[0].Err)
 		assert.False(t, mapped[0].Skip)
 
 		// Second resource
@@ -4202,7 +4202,7 @@ func TestMapBatchActualResults(t *testing.T) {
 		require.Len(t, mapped, 1)
 		assert.True(t, mapped[0].Skip)
 		assert.Nil(t, mapped[0].ActualResult)
-		assert.Nil(t, mapped[0].Err)
+		assert.NoError(t, mapped[0].Err)
 	})
 
 	t.Run("ResourceError without ResourceTypeUnsupported", func(t *testing.T) {
@@ -4222,7 +4222,7 @@ func TestMapBatchActualResults(t *testing.T) {
 
 		mapped := MapBatchActualResults(resp)
 		require.Len(t, mapped, 1)
-		assert.Error(t, mapped[0].Err)
+		require.Error(t, mapped[0].Err)
 		assert.Contains(t, mapped[0].Err.Error(), "billing API error")
 		assert.Contains(t, mapped[0].Err.Error(), "aws:ec2:Instance")
 		assert.Nil(t, mapped[0].ActualResult)
@@ -4247,7 +4247,7 @@ func TestMapBatchActualResults(t *testing.T) {
 		mapped := MapBatchActualResults(resp)
 		require.Len(t, mapped, 1)
 		assert.Nil(t, mapped[0].ActualResult)
-		assert.Nil(t, mapped[0].Err)
+		require.NoError(t, mapped[0].Err)
 		assert.False(t, mapped[0].Skip)
 	})
 
@@ -4264,7 +4264,7 @@ func TestMapBatchActualResults(t *testing.T) {
 		mapped := MapBatchActualResults(resp)
 		require.Len(t, mapped, 1)
 		assert.Nil(t, mapped[0].ActualResult)
-		assert.Nil(t, mapped[0].Err)
+		require.NoError(t, mapped[0].Err)
 		assert.False(t, mapped[0].Skip)
 	})
 
@@ -4290,7 +4290,7 @@ func TestMapBatchActualResults(t *testing.T) {
 		require.Len(t, mapped, 1)
 		// Empty actual cost results → nil ActualResult (fallback)
 		assert.Nil(t, mapped[0].ActualResult)
-		assert.Nil(t, mapped[0].Err)
+		assert.NoError(t, mapped[0].Err)
 	})
 }
 

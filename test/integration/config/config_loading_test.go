@@ -239,7 +239,7 @@ func TestConfigLoading_Integration_FullWorkflow(t *testing.T) {
 	// Verify JSON output - renderJSON wraps results in {"finfocus": ...}
 	var wrapper map[string]interface{}
 	err = json.Unmarshal([]byte(output), &wrapper)
-	assert.NoError(t, err, "Should produce JSON output")
+	require.NoError(t, err, "Should produce JSON output")
 
 	// Extract the finfocus wrapper
 	result, ok := wrapper["finfocus"].(map[string]interface{})

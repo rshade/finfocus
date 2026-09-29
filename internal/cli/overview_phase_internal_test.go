@@ -151,12 +151,12 @@ func TestResolveIsStateOnly(t *testing.T) {
 // an explicit update to both the constants and the slice.
 func TestPhaseConstantsAlignWithTUI(t *testing.T) {
 	n := len(tui.GetPhaseNames())
-	require.Greater(t, n, 0, "tui.GetPhaseNames() must not be empty")
+	require.Positive(t, n, "tui.GetPhaseNames() must not be empty")
 
 	assert.Less(t, phaseEnrichResources, n,
 		"phaseEnrichResources (%d) must be a valid index into tui.PhaseNames (len=%d)",
 		phaseEnrichResources, n)
-	assert.Equal(t, n-1, phaseEnrichResources,
+	assert.Equal(t, phaseEnrichResources, n-1,
 		"phaseEnrichResources should be the last phase index; update the constant if PhaseNames changed")
 	assert.Equal(t, 0, phaseLoadStackState,
 		"phaseLoadStackState should be the first phase index")

@@ -70,7 +70,7 @@ func TestCostEstimate_SingleResource(t *testing.T) {
 		// Verify delta cost exists for property
 		delta, hasDelta := mock.deltaCosts["instanceType"]
 		assert.True(t, hasDelta)
-		assert.Equal(t, 74.90, delta)
+		assert.InDelta(t, 74.90, delta, 1e-9)
 		assert.NotEmpty(t, overrides)
 	})
 
@@ -94,7 +94,7 @@ func TestCostEstimate_SingleResource(t *testing.T) {
 
 		// With no overrides, we just get baseline
 		baseline := mock.baselineCosts["aws:ec2/instance:Instance"]
-		assert.Equal(t, 8.32, baseline)
+		assert.InDelta(t, 8.32, baseline, 1e-9)
 		assert.NotNil(t, resource)
 	})
 }
@@ -209,8 +209,8 @@ func TestCostEstimate_FallbackBehavior(t *testing.T) {
 		modified := mock.modifiedCosts["aws:ec2/instance:Instance"]
 		expectedDelta := modified - baseline
 
-		assert.Equal(t, 8.32, baseline)
-		assert.Equal(t, 83.22, modified)
+		assert.InDelta(t, 8.32, baseline, 1e-9)
+		assert.InDelta(t, 83.22, modified, 1e-9)
 		assert.InDelta(t, 74.90, expectedDelta, 0.01)
 	})
 
@@ -260,7 +260,7 @@ func TestCostEstimate_EstimateResult(t *testing.T) {
 		assert.NotNil(t, result.Resource)
 		assert.NotNil(t, result.Baseline)
 		assert.NotNil(t, result.Modified)
-		assert.Equal(t, 74.90, result.TotalChange)
+		assert.InDelta(t, 74.90, result.TotalChange, 1e-9)
 		assert.Len(t, result.Deltas, 1)
 		assert.False(t, result.UsedFallback)
 	})
@@ -289,9 +289,9 @@ func TestCostEstimate_EdgeCases(t *testing.T) {
 			TotalChange: 0.0,
 		}
 
-		assert.Equal(t, 0.0, result.Baseline.Monthly)
-		assert.Equal(t, 0.0, result.Modified.Monthly)
-		assert.Equal(t, 0.0, result.TotalChange)
+		assert.InDelta(t, 0.0, result.Baseline.Monthly, 1e-9)
+		assert.InDelta(t, 0.0, result.Modified.Monthly, 1e-9)
+		assert.InDelta(t, 0.0, result.TotalChange, 1e-9)
 	})
 
 	t.Run("handles nil baseline", func(t *testing.T) {
@@ -306,7 +306,7 @@ func TestCostEstimate_EdgeCases(t *testing.T) {
 
 		assert.Nil(t, result.Baseline)
 		assert.NotNil(t, result.Modified)
-		assert.Equal(t, 83.22, result.TotalChange)
+		assert.InDelta(t, 83.22, result.TotalChange, 1e-9)
 	})
 
 	t.Run("handles nil modified", func(t *testing.T) {
@@ -321,7 +321,7 @@ func TestCostEstimate_EdgeCases(t *testing.T) {
 
 		assert.NotNil(t, result.Baseline)
 		assert.Nil(t, result.Modified)
-		assert.Equal(t, -8.32, result.TotalChange)
+		assert.InDelta(t, -8.32, result.TotalChange, 1e-9)
 	})
 }
 
@@ -332,7 +332,7 @@ func TestCostEstimate_ContextHandling(t *testing.T) {
 		cancel() // Immediately cancel
 
 		// Context should be cancelled
-		assert.Error(t, ctx.Err())
+		require.Error(t, ctx.Err())
 		assert.Equal(t, context.Canceled, ctx.Err())
 	})
 }

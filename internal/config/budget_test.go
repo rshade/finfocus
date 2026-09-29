@@ -213,15 +213,15 @@ func TestBudgetConfig_GetAlertsByType(t *testing.T) {
 	t.Run("GetActualAlerts", func(t *testing.T) {
 		actual := budget.GetActualAlerts()
 		assert.Len(t, actual, 2)
-		assert.Equal(t, 50.0, actual[0].Threshold)
-		assert.Equal(t, 80.0, actual[1].Threshold)
+		assert.InDelta(t, 50.0, actual[0].Threshold, 1e-9)
+		assert.InDelta(t, 80.0, actual[1].Threshold, 1e-9)
 	})
 
 	t.Run("GetForecastedAlerts", func(t *testing.T) {
 		forecasted := budget.GetForecastedAlerts()
 		assert.Len(t, forecasted, 2)
-		assert.Equal(t, 100.0, forecasted[0].Threshold)
-		assert.Equal(t, 120.0, forecasted[1].Threshold)
+		assert.InDelta(t, 100.0, forecasted[0].Threshold, 1e-9)
+		assert.InDelta(t, 120.0, forecasted[1].Threshold, 1e-9)
 	})
 
 	t.Run("empty alerts", func(t *testing.T) {
@@ -343,17 +343,17 @@ cost:
 
 	require.NotNil(t, cfg.Cost.Budgets)
 	require.NotNil(t, cfg.Cost.Budgets.Global)
-	assert.Equal(t, 1000.0, cfg.Cost.Budgets.Global.Amount)
+	assert.InDelta(t, 1000.0, cfg.Cost.Budgets.Global.Amount, 1e-9)
 	assert.Equal(t, "USD", cfg.Cost.Budgets.Global.Currency)
 	assert.Equal(t, "monthly", cfg.Cost.Budgets.Global.Period)
 	assert.Len(t, cfg.Cost.Budgets.Global.Alerts, 3)
 
 	// Validate alert parsing
-	assert.Equal(t, 50.0, cfg.Cost.Budgets.Global.Alerts[0].Threshold)
+	assert.InDelta(t, 50.0, cfg.Cost.Budgets.Global.Alerts[0].Threshold, 1e-9)
 	assert.Equal(t, AlertTypeActual, cfg.Cost.Budgets.Global.Alerts[0].Type)
-	assert.Equal(t, 80.0, cfg.Cost.Budgets.Global.Alerts[1].Threshold)
+	assert.InDelta(t, 80.0, cfg.Cost.Budgets.Global.Alerts[1].Threshold, 1e-9)
 	assert.Equal(t, AlertTypeActual, cfg.Cost.Budgets.Global.Alerts[1].Type)
-	assert.Equal(t, 100.0, cfg.Cost.Budgets.Global.Alerts[2].Threshold)
+	assert.InDelta(t, 100.0, cfg.Cost.Budgets.Global.Alerts[2].Threshold, 1e-9)
 	assert.Equal(t, AlertTypeForecasted, cfg.Cost.Budgets.Global.Alerts[2].Type)
 
 	// Validate the parsed config
@@ -387,11 +387,11 @@ func TestBudgetConfig_YAMLRoundTrip(t *testing.T) {
 	// Verify equality
 	require.NotNil(t, parsed.Budgets)
 	require.NotNil(t, parsed.Budgets.Global)
-	assert.Equal(t, original.Budgets.Global.Amount, parsed.Budgets.Global.Amount)
+	assert.InDelta(t, original.Budgets.Global.Amount, parsed.Budgets.Global.Amount, 1e-9)
 	assert.Equal(t, original.Budgets.Global.Currency, parsed.Budgets.Global.Currency)
 	assert.Equal(t, original.Budgets.Global.Period, parsed.Budgets.Global.Period)
 	assert.Len(t, parsed.Budgets.Global.Alerts, 2)
-	assert.Equal(t, original.Budgets.Global.Alerts[0].Threshold, parsed.Budgets.Global.Alerts[0].Threshold)
+	assert.InDelta(t, original.Budgets.Global.Alerts[0].Threshold, parsed.Budgets.Global.Alerts[0].Threshold, 1e-9)
 	assert.Equal(t, original.Budgets.Global.Alerts[0].Type, parsed.Budgets.Global.Alerts[0].Type)
 }
 
@@ -411,7 +411,7 @@ func TestConfig_CostIntegration(t *testing.T) {
 		// Get cost values
 		amount, err := cfg.Get("cost.budgets.amount")
 		require.NoError(t, err)
-		assert.Equal(t, 1000.0, amount)
+		assert.InDelta(t, 1000.0, amount, 1e-9)
 
 		currency, err := cfg.Get("cost.budgets.currency")
 		require.NoError(t, err)
@@ -440,7 +440,7 @@ func TestConfig_CostIntegration(t *testing.T) {
 		require.True(t, ok)
 		require.NotNil(t, costConfig.Budgets)
 		require.NotNil(t, costConfig.Budgets.Global)
-		assert.Equal(t, 500.0, costConfig.Budgets.Global.Amount)
+		assert.InDelta(t, 500.0, costConfig.Budgets.Global.Amount, 1e-9)
 	})
 
 	t.Run("get entire budgets config", func(t *testing.T) {
@@ -460,7 +460,7 @@ func TestConfig_CostIntegration(t *testing.T) {
 		budgetsConfig, ok := budgets.(*BudgetsConfig)
 		require.True(t, ok)
 		require.NotNil(t, budgetsConfig.Global)
-		assert.Equal(t, 750.0, budgetsConfig.Global.Amount)
+		assert.InDelta(t, 750.0, budgetsConfig.Global.Amount, 1e-9)
 	})
 
 	t.Run("invalid set value", func(t *testing.T) {
@@ -505,13 +505,13 @@ func TestConfig_List_IncludesCost(t *testing.T) {
 	require.True(t, ok)
 	require.NotNil(t, costConfig.Budgets)
 	require.NotNil(t, costConfig.Budgets.Global)
-	assert.Equal(t, 1000.0, costConfig.Budgets.Global.Amount)
+	assert.InDelta(t, 1000.0, costConfig.Budgets.Global.Amount, 1e-9)
 }
 
 // T004: Unit test for ErrExitCodeOutOfRange error type.
 func TestErrExitCodeOutOfRange(t *testing.T) {
 	// Verify the error variable exists and has the expected message
-	require.NotNil(t, ErrExitCodeOutOfRange)
+	require.Error(t, ErrExitCodeOutOfRange)
 	assert.Contains(t, ErrExitCodeOutOfRange.Error(), "exit code must be between 0 and 255")
 }
 
@@ -683,7 +683,7 @@ cost:
 
 	assert.Nil(t, cfg.Cost.History.Enabled, "nil when omitted")
 	assert.Nil(t, cfg.Cost.History.RetentionDays, "nil when omitted")
-	assert.Equal(t, "", cfg.Cost.History.Directory, "empty when omitted")
+	assert.Empty(t, cfg.Cost.History.Directory, "empty when omitted")
 }
 
 func TestHistoryConfig_YAMLExplicitValues(t *testing.T) {

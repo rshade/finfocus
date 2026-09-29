@@ -189,7 +189,7 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
 		require.NotNil(t, cfg)
 		require.NotNil(t, cfg.Cost.Budgets)
 		require.NotNil(t, cfg.Cost.Budgets.Global)
-		assert.Equal(t, float64(5000), cfg.Cost.Budgets.Global.Amount,
+		assert.InDelta(t, float64(5000), cfg.Cost.Budgets.Global.Amount, 1e-9,
 			"project budget should override global budget")
 	})
 
@@ -229,7 +229,7 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
 			"output precision should be inherited from global config")
 		require.NotNil(t, cfg.Cost.Budgets)
 		require.NotNil(t, cfg.Cost.Budgets.Global)
-		assert.Equal(t, float64(5000), cfg.Cost.Budgets.Global.Amount,
+		assert.InDelta(t, float64(5000), cfg.Cost.Budgets.Global.Amount, 1e-9,
 			"budget should come from project config")
 	})
 
@@ -293,7 +293,7 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
 		require.NotNil(t, cfgA)
 		require.NotNil(t, cfgA.Cost.Budgets)
 		require.NotNil(t, cfgA.Cost.Budgets.Global)
-		assert.Equal(t, float64(3000), cfgA.Cost.Budgets.Global.Amount,
+		assert.InDelta(t, float64(3000), cfgA.Cost.Budgets.Global.Amount, 1e-9,
 			"project A budget should be 3000")
 
 		// Reset and init with project B and verify.
@@ -303,7 +303,7 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
 		require.NotNil(t, cfgB)
 		require.NotNil(t, cfgB.Cost.Budgets)
 		require.NotNil(t, cfgB.Cost.Budgets.Global)
-		assert.Equal(t, float64(7000), cfgB.Cost.Budgets.Global.Amount,
+		assert.InDelta(t, float64(7000), cfgB.Cost.Budgets.Global.Amount, 1e-9,
 			"project B budget should be 7000")
 
 		// Cleanup.

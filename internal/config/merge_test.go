@@ -317,13 +317,13 @@ cost:
 
 	require.NotNil(t, target.Cost.Budgets)
 	require.NotNil(t, target.Cost.Budgets.Global)
-	assert.Equal(t, 5000.0, target.Cost.Budgets.Global.Amount)
+	assert.InDelta(t, 5000.0, target.Cost.Budgets.Global.Amount, 1e-9)
 	assert.Equal(t, "USD", target.Cost.Budgets.Global.Currency)
 	assert.Equal(t, "monthly", target.Cost.Budgets.Global.Period)
 	require.Len(t, target.Cost.Budgets.Global.Alerts, 2)
-	assert.Equal(t, 80.0, target.Cost.Budgets.Global.Alerts[0].Threshold)
+	assert.InDelta(t, 80.0, target.Cost.Budgets.Global.Alerts[0].Threshold, 1e-9)
 	assert.Equal(t, config.AlertTypeActual, target.Cost.Budgets.Global.Alerts[0].Type)
-	assert.Equal(t, 100.0, target.Cost.Budgets.Global.Alerts[1].Threshold)
+	assert.InDelta(t, 100.0, target.Cost.Budgets.Global.Alerts[1].Threshold, 1e-9)
 	assert.Equal(t, config.AlertTypeForecasted, target.Cost.Budgets.Global.Alerts[1].Type)
 }
 

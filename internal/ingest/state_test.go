@@ -127,7 +127,7 @@ func TestLoadStackExport(t *testing.T) {
 			content:     `{"version": 3, "deployment": {"manifest": {}, "resources": []}}`,
 			expectError: false,
 			validate: func(t *testing.T, state *ingest.StackExport) {
-				assert.Len(t, state.Deployment.Resources, 0)
+				assert.Empty(t, state.Deployment.Resources)
 				assert.False(t, state.HasTimestamps())
 			},
 		},
@@ -469,8 +469,8 @@ func TestMapStateResource_CloudIdentifiers(t *testing.T) {
 			},
 			validate: func(t *testing.T, desc engine.ResourceDescriptor) {
 				// Provider-computed values from outputs available in properties
-				assert.Equal(t, float64(100), desc.Properties["size"])
-				assert.Equal(t, float64(3000), desc.Properties["iops"])
+				assert.InDelta(t, float64(100), desc.Properties["size"], 1e-9)
+				assert.InDelta(t, float64(3000), desc.Properties["iops"], 1e-9)
 				assert.Equal(t, "gp3", desc.Properties["type"])
 
 				// Inputs still present

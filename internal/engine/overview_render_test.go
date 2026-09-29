@@ -515,7 +515,7 @@ func TestAggregateOverviewRows_SavingsExcludesDismissed(t *testing.T) {
 	totals, err := aggregateOverviewRows(rows)
 	require.NoError(t, err)
 	// Only active rec savings (30.0) should be included; dismissed (50) and snoozed (10) excluded.
-	assert.Equal(t, 30.0, totals.savings)
+	assert.InDelta(t, 30.0, totals.savings, 1e-9)
 }
 
 func TestFormatDeltaColumn_UsesPreComputedDelta(t *testing.T) {
@@ -652,10 +652,10 @@ func TestRenderOverviewAsJSON_EmptyRows(t *testing.T) {
 
 	assert.Equal(t, "test-stack", output.Metadata.StackName)
 	assert.Equal(t, 0, output.Metadata.TotalResources)
-	assert.Len(t, output.Resources, 0)
+	assert.Empty(t, output.Resources)
 	assert.Empty(t, output.Errors)
-	assert.Equal(t, 0.0, output.Summary.TotalActualMTD)
-	assert.Equal(t, 0.0, output.Summary.ProjectedMonthly)
+	assert.InDelta(t, 0.0, output.Summary.TotalActualMTD, 1e-9)
+	assert.InDelta(t, 0.0, output.Summary.ProjectedMonthly, 1e-9)
 	assert.Equal(t, "USD", output.Summary.Currency)
 }
 
@@ -706,15 +706,15 @@ func TestRenderOverviewAsJSON_SingleResource(t *testing.T) {
 	assert.Equal(t, "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-server", res.URN)
 	assert.Equal(t, "active", res.Status.String())
 	assert.NotNil(t, res.ActualCost)
-	assert.Equal(t, 45.67, res.ActualCost.MTDCost)
+	assert.InDelta(t, 45.67, res.ActualCost.MTDCost, 1e-9)
 	assert.NotNil(t, res.ProjectedCost)
-	assert.Equal(t, 150.00, res.ProjectedCost.MonthlyCost)
+	assert.InDelta(t, 150.00, res.ProjectedCost.MonthlyCost, 1e-9)
 
 	// Verify summary — all-active rows produce zero delta because
 	// CalculateProjectedDelta only counts pending-change statuses.
-	assert.Equal(t, 45.67, output.Summary.TotalActualMTD)
-	assert.Equal(t, 150.00, output.Summary.ProjectedMonthly)
-	assert.Equal(t, 0.0, output.Summary.ProjectedDelta)
+	assert.InDelta(t, 45.67, output.Summary.TotalActualMTD, 1e-9)
+	assert.InDelta(t, 150.00, output.Summary.ProjectedMonthly, 1e-9)
+	assert.InDelta(t, 0.0, output.Summary.ProjectedDelta, 1e-9)
 	assert.Equal(t, "USD", output.Summary.Currency)
 }
 
@@ -792,10 +792,10 @@ func TestRenderOverviewAsJSON_SummaryTotals(t *testing.T) {
 	err = json.Unmarshal(buf.Bytes(), &output)
 	require.NoError(t, err)
 
-	assert.Equal(t, 300.00, output.Summary.TotalActualMTD)
-	assert.Equal(t, 800.00, output.Summary.ProjectedMonthly)
+	assert.InDelta(t, 300.00, output.Summary.TotalActualMTD, 1e-9)
+	assert.InDelta(t, 800.00, output.Summary.ProjectedMonthly, 1e-9)
 	// All-active rows: CalculateProjectedDelta returns 0 (no pending changes).
-	assert.Equal(t, 0.0, output.Summary.ProjectedDelta)
+	assert.InDelta(t, 0.0, output.Summary.ProjectedDelta, 1e-9)
 }
 
 func TestRenderOverviewAsJSON_PerRowDeltaAndSummary(t *testing.T) {
@@ -878,7 +878,7 @@ func TestRenderOverviewAsJSON_PerRowDeltaAndSummary(t *testing.T) {
 	// Creating resource: delta = +projected.
 	require.NotNil(t, output.Resources[1].ComputedDelta,
 		"creating resource should have computed delta")
-	assert.Equal(t, 50.0, *output.Resources[1].ComputedDelta)
+	assert.InDelta(t, 50.0, *output.Resources[1].ComputedDelta, 1e-9)
 
 	// Updating resource with PropertyDiffs: delta = projected - extrapolated actual.
 	require.NotNil(t, output.Resources[2].ComputedDelta,
@@ -1018,7 +1018,7 @@ func TestRenderOverviewAsJSON_Recommendations(t *testing.T) {
 	err = json.Unmarshal(buf.Bytes(), &output)
 	require.NoError(t, err)
 
-	assert.Equal(t, 75.00, output.Summary.PotentialSavings)
+	assert.InDelta(t, 75.00, output.Summary.PotentialSavings, 1e-9)
 	assert.Len(t, output.Resources[0].Recommendations, 2)
 }
 
@@ -1069,7 +1069,7 @@ func TestRenderOverviewAsNDJSON_SingleRow(t *testing.T) {
 	assert.Equal(t, "urn:pulumi:dev::myapp::aws:ec2/instance:Instance::web-1", row.URN)
 	assert.Equal(t, "active", row.Status.String())
 	assert.NotNil(t, row.ActualCost)
-	assert.Equal(t, 42.50, row.ActualCost.MTDCost)
+	assert.InDelta(t, 42.50, row.ActualCost.MTDCost, 1e-9)
 }
 
 func TestRenderOverviewAsNDJSON_MultipleRows(t *testing.T) {
@@ -1327,8 +1327,8 @@ func TestRenderOverviewAsJSON_WithBudgets(t *testing.T) {
 	assert.InDelta(t, 85.2, b.Utilization, 0.01)
 	assert.InDelta(t, 102.5, b.Forecasted, 0.01)
 	assert.Equal(t, "USD", b.Currency)
-	assert.Equal(t, 10000.0, b.Limit)
-	assert.Equal(t, 8520.0, b.CurrentSpend)
+	assert.InDelta(t, 10000.0, b.Limit, 1e-9)
+	assert.InDelta(t, 8520.0, b.CurrentSpend, 1e-9)
 
 	// Verify health serializes as string in raw JSON
 	rawJSON := buf.String()
@@ -1557,9 +1557,9 @@ func TestBudgetHealthResult_RoundTrip(t *testing.T) {
 	assert.Equal(t, original.BudgetName, roundTripped.BudgetName)
 	assert.Equal(t, original.Provider, roundTripped.Provider)
 	assert.Equal(t, original.Health, roundTripped.Health)
-	assert.Equal(t, original.Utilization, roundTripped.Utilization)
-	assert.Equal(t, original.Forecasted, roundTripped.Forecasted)
+	assert.InDelta(t, original.Utilization, roundTripped.Utilization, 1e-9)
+	assert.InDelta(t, original.Forecasted, roundTripped.Forecasted, 1e-9)
 	assert.Equal(t, original.Currency, roundTripped.Currency)
-	assert.Equal(t, original.Limit, roundTripped.Limit)
-	assert.Equal(t, original.CurrentSpend, roundTripped.CurrentSpend)
+	assert.InDelta(t, original.Limit, roundTripped.Limit, 1e-9)
+	assert.InDelta(t, original.CurrentSpend, roundTripped.CurrentSpend, 1e-9)
 }

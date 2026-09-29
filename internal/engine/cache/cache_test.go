@@ -194,7 +194,7 @@ func TestBoltStore_Disabled(t *testing.T) {
 	data := json.RawMessage(`{"test":"value"}`)
 
 	err := store.Set("projected/aws/test", data)
-	assert.ErrorIs(t, err, ErrCacheDisabled)
+	require.ErrorIs(t, err, ErrCacheDisabled)
 
 	_, err = store.Get("projected/aws/test")
 	assert.ErrorIs(t, err, ErrCacheDisabled)
@@ -204,7 +204,7 @@ func TestBoltStore_EmptyKey(t *testing.T) {
 	store := newTestStore(t, true, 3600)
 
 	err := store.Set("", json.RawMessage(`{}`))
-	assert.ErrorIs(t, err, ErrInvalidCacheKey)
+	require.ErrorIs(t, err, ErrInvalidCacheKey)
 
 	_, err = store.Get("")
 	assert.ErrorIs(t, err, ErrInvalidCacheKey)
@@ -388,7 +388,7 @@ func TestBoltStore_LockTimeout(t *testing.T) {
 
 	// Attempt to open second store at same path → should return nil, ErrCacheLocked
 	store2, err := NewBoltStore(context.Background(), dir, true, 3600, 0)
-	assert.ErrorIs(t, err, ErrCacheLocked)
+	require.ErrorIs(t, err, ErrCacheLocked)
 	assert.Nil(t, store2)
 
 	// First store should still work
@@ -418,7 +418,7 @@ func TestBoltStore_InvalidateByPrefix(t *testing.T) {
 
 		// GCP should remain
 		_, err = store.Get("projected/gcp/compute:Instance/us-central1/n1-standard-1")
-		assert.NoError(t, err)
+		require.NoError(t, err)
 
 		// AWS should be gone
 		_, err = store.Get("projected/aws/ec2:Instance/us-east-1/t3.micro")
@@ -486,7 +486,7 @@ func TestBoltStore_Delete(t *testing.T) {
 	require.NoError(t, store.Delete(key))
 
 	_, err := store.Get(key)
-	assert.ErrorIs(t, err, ErrCacheNotFound)
+	require.ErrorIs(t, err, ErrCacheNotFound)
 
 	// Idempotent: delete non-existent key should not error
 	require.NoError(t, store.Delete(key))
@@ -517,7 +517,7 @@ func TestBoltStore_Size(t *testing.T) {
 
 	size, err := store.Size()
 	require.NoError(t, err)
-	assert.Greater(t, size, int64(0))
+	assert.Positive(t, size)
 }
 
 func TestBoltStore_Count(t *testing.T) {
@@ -582,20 +582,20 @@ func TestBoltStore_CompactReopenFailureGracefulDegradation(t *testing.T) {
 
 	// All cache operations must return ErrCacheDisabled, not panic.
 	_, getErr := store.Get("projected/aws/ec2:Instance/us-east-1/t3.micro")
-	assert.ErrorIs(t, getErr, ErrCacheDisabled)
+	require.ErrorIs(t, getErr, ErrCacheDisabled)
 
 	setErr := store.Set("projected/aws/ec2:Instance/us-east-1/t3.micro", json.RawMessage(`{}`))
-	assert.ErrorIs(t, setErr, ErrCacheDisabled)
+	require.ErrorIs(t, setErr, ErrCacheDisabled)
 
 	delErr := store.Delete("projected/aws/ec2:Instance/us-east-1/t3.micro")
-	assert.ErrorIs(t, delErr, ErrCacheDisabled)
+	require.ErrorIs(t, delErr, ErrCacheDisabled)
 
 	_, countErr := store.Count()
-	assert.ErrorIs(t, countErr, ErrCacheDisabled)
+	require.ErrorIs(t, countErr, ErrCacheDisabled)
 
 	// compact() on a disabled store returns ErrCacheDisabled too.
 	compactErr := store.compact()
-	assert.ErrorIs(t, compactErr, ErrCacheDisabled)
+	require.ErrorIs(t, compactErr, ErrCacheDisabled)
 
 	assert.False(t, store.IsEnabled())
 }

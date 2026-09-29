@@ -189,7 +189,7 @@ func TestSetupPolicyPack_WindowsCopy(t *testing.T) {
 		if runtime.GOOS != "windows" {
 			fi, statErr := os.Stat(dstPath)
 			require.NoError(t, statErr)
-			assert.True(t, fi.Mode()&0o111 != 0, "copy should preserve executable permissions")
+			assert.NotEqual(t, 0, fi.Mode()&0o111, "copy should preserve executable permissions")
 		}
 	})
 

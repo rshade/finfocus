@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -114,7 +113,7 @@ func TestDismissalStore_LoadSave(t *testing.T) {
 
 		err = store.Load()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrStoreCorrupted))
+		require.ErrorIs(t, err, ErrStoreCorrupted)
 		assert.Equal(t, 0, store.Count())
 	})
 
@@ -131,7 +130,7 @@ func TestDismissalStore_LoadSave(t *testing.T) {
 
 		err = store.Load()
 		require.Error(t, err)
-		assert.True(t, errors.Is(err, ErrStoreCorrupted))
+		require.ErrorIs(t, err, ErrStoreCorrupted)
 		assert.Equal(t, 0, store.Count())
 	})
 }

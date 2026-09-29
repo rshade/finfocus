@@ -244,7 +244,7 @@ func TestRenderDetailPropertyChanges_EmptySlice(t *testing.T) {
 
 func TestTruncateDiffValue(t *testing.T) {
 	assert.Equal(t, "short", truncateDiffValue("short"))
-	assert.Equal(t, "", truncateDiffValue(""))
+	assert.Empty(t, truncateDiffValue(""))
 
 	long := strings.Repeat("x", 60)
 	result := truncateDiffValue(long)

@@ -129,7 +129,7 @@ func TestBoltStore_GetNonExistent(t *testing.T) {
 
 	entry, err := store.Get("projected/nonexistent-key")
 	require.Error(t, err)
-	assert.ErrorIs(t, err, cache.ErrCacheNotFound)
+	require.ErrorIs(t, err, cache.ErrCacheNotFound)
 	assert.Nil(t, entry)
 }
 
@@ -161,7 +161,7 @@ func TestBoltStore_TTLExpiration(t *testing.T) {
 	// Try to retrieve expired entry
 	entry, err = store.Get(key)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, cache.ErrCacheExpired)
+	require.ErrorIs(t, err, cache.ErrCacheExpired)
 	assert.Nil(t, entry)
 }
 
@@ -191,7 +191,7 @@ func TestBoltStore_Delete(t *testing.T) {
 	// Verify entry no longer exists
 	_, err = store.Get(key)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, cache.ErrCacheNotFound)
+	require.ErrorIs(t, err, cache.ErrCacheNotFound)
 
 	// Delete again (should be idempotent)
 	err = store.Delete(key)
@@ -239,7 +239,7 @@ func TestBoltStore_Size(t *testing.T) {
 	// BoltDB file exists even when empty
 	size, err := store.Size()
 	require.NoError(t, err)
-	assert.Greater(t, size, int64(0))
+	assert.Positive(t, size)
 
 	// Add entry
 	testData := []byte(`{"key": "value", "number": 42}`)
@@ -249,7 +249,7 @@ func TestBoltStore_Size(t *testing.T) {
 	// Verify size
 	size, err = store.Size()
 	require.NoError(t, err)
-	assert.Greater(t, size, int64(0))
+	assert.Positive(t, size)
 }
 
 // TestBoltStore_Count verifies cache entry counting.
@@ -290,27 +290,27 @@ func TestBoltStore_DisabledOperations(t *testing.T) {
 
 	// Get returns ErrCacheDisabled
 	_, err = store.Get("projected/key")
-	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
+	require.ErrorIs(t, err, cache.ErrCacheDisabled)
 
 	// Set returns ErrCacheDisabled
 	err = store.Set("projected/key", json.RawMessage(testData))
-	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
+	require.ErrorIs(t, err, cache.ErrCacheDisabled)
 
 	// Delete returns ErrCacheDisabled
 	err = store.Delete("projected/key")
-	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
+	require.ErrorIs(t, err, cache.ErrCacheDisabled)
 
 	// Clear returns ErrCacheDisabled
 	err = store.Clear()
-	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
+	require.ErrorIs(t, err, cache.ErrCacheDisabled)
 
 	// InvalidateByPrefix returns ErrCacheDisabled
 	_, err = store.InvalidateByPrefix("projected/")
-	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
+	require.ErrorIs(t, err, cache.ErrCacheDisabled)
 
 	// Size returns ErrCacheDisabled
 	_, err = store.Size()
-	assert.ErrorIs(t, err, cache.ErrCacheDisabled)
+	require.ErrorIs(t, err, cache.ErrCacheDisabled)
 
 	// Count returns ErrCacheDisabled
 	_, err = store.Count()
@@ -329,10 +329,10 @@ func TestBoltStore_EmptyKeyValidation(t *testing.T) {
 
 	// Empty key should fail
 	_, err = store.Get("")
-	assert.ErrorIs(t, err, cache.ErrInvalidCacheKey)
+	require.ErrorIs(t, err, cache.ErrInvalidCacheKey)
 
 	err = store.Set("", json.RawMessage(testData))
-	assert.ErrorIs(t, err, cache.ErrInvalidCacheKey)
+	require.ErrorIs(t, err, cache.ErrInvalidCacheKey)
 
 	err = store.Delete("")
 	assert.ErrorIs(t, err, cache.ErrInvalidCacheKey)

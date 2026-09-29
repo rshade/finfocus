@@ -456,10 +456,10 @@ func TestPropertyDoesntAffectPricing(t *testing.T) {
 			Baseline:    &engine.CostResult{Monthly: 100.00, Currency: "USD"},
 			Modified:    &engine.CostResult{Monthly: 100.00, Currency: "USD"},
 		}
-		assert.Equal(t, 0.0, result.TotalChange)
+		assert.InDelta(t, 0.0, result.TotalChange, 1e-9)
 		require.NotNil(t, result.Baseline)
 		require.NotNil(t, result.Modified)
-		assert.Equal(t, result.Baseline.Monthly, result.Modified.Monthly)
+		assert.InDelta(t, result.Baseline.Monthly, result.Modified.Monthly, 1e-9)
 	})
 
 	t.Run("zero cost delta with property changes", func(t *testing.T) {
@@ -471,9 +471,9 @@ func TestPropertyDoesntAffectPricing(t *testing.T) {
 			Baseline: &engine.CostResult{Monthly: 50.00, Currency: "USD"},
 			Modified: &engine.CostResult{Monthly: 50.00, Currency: "USD"},
 		}
-		assert.Equal(t, 0.0, result.TotalChange)
+		assert.InDelta(t, 0.0, result.TotalChange, 1e-9)
 		require.Len(t, result.Deltas, 1)
-		assert.Equal(t, 0.0, result.Deltas[0].CostChange)
+		assert.InDelta(t, 0.0, result.Deltas[0].CostChange, 1e-9)
 	})
 }
 

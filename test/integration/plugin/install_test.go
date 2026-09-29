@@ -177,7 +177,7 @@ func TestPluginInstall_Force(t *testing.T) {
 
 	// Try to install again without force (should fail)
 	_, err = installer.Install(context.Background(), specifier, opts, nil)
-	assert.Error(t, err, "should fail without force flag")
+	require.Error(t, err, "should fail without force flag")
 	assert.Contains(t, err.Error(), "already installed")
 
 	// Install with force

@@ -164,7 +164,7 @@ func TestParseSort(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.wantField, field)
 				assert.Equal(t, tt.wantOrder, order)
 			}
@@ -345,16 +345,16 @@ func TestRecommendationSorter(t *testing.T) {
 
 	t.Run("SortBySavingsAsc", func(t *testing.T) {
 		sorted := sorter.Sort(recs, "savings", "asc")
-		assert.Equal(t, 5.0, sorted[0].EstimatedSavings)
-		assert.Equal(t, 10.0, sorted[1].EstimatedSavings)
-		assert.Equal(t, 20.0, sorted[2].EstimatedSavings)
+		assert.InDelta(t, 5.0, sorted[0].EstimatedSavings, 1e-9)
+		assert.InDelta(t, 10.0, sorted[1].EstimatedSavings, 1e-9)
+		assert.InDelta(t, 20.0, sorted[2].EstimatedSavings, 1e-9)
 	})
 
 	t.Run("SortBySavingsDesc", func(t *testing.T) {
 		sorted := sorter.Sort(recs, "savings", "desc")
-		assert.Equal(t, 20.0, sorted[0].EstimatedSavings)
-		assert.Equal(t, 10.0, sorted[1].EstimatedSavings)
-		assert.Equal(t, 5.0, sorted[2].EstimatedSavings)
+		assert.InDelta(t, 20.0, sorted[0].EstimatedSavings, 1e-9)
+		assert.InDelta(t, 10.0, sorted[1].EstimatedSavings, 1e-9)
+		assert.InDelta(t, 5.0, sorted[2].EstimatedSavings, 1e-9)
 	})
 
 	t.Run("SortByName", func(t *testing.T) {
@@ -405,7 +405,7 @@ func TestParseSortExpression(t *testing.T) {
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				assert.Equal(t, tt.wantField, field)
 				assert.Equal(t, tt.wantOrder, order)
 			}

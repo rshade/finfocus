@@ -124,11 +124,11 @@ func TestMocker_Randomness(t *testing.T) {
 
 func TestMockerConstants(t *testing.T) {
 	// Verify constants are reasonable
-	assert.Equal(t, 0.01, MinProjectedCost)
-	assert.Equal(t, 1000.0, MaxProjectedCost)
-	assert.Equal(t, 0.001, MinActualCost)
-	assert.Equal(t, 100.0, MaxActualCost)
-	assert.Equal(t, 730.0, HoursPerMonth)
+	assert.InDelta(t, 0.01, MinProjectedCost, 1e-9)
+	assert.InDelta(t, 1000.0, MaxProjectedCost, 1e-9)
+	assert.InDelta(t, 0.001, MinActualCost, 1e-9)
+	assert.InDelta(t, 100.0, MaxActualCost, 1e-9)
+	assert.InDelta(t, 730.0, HoursPerMonth, 1e-9)
 }
 
 func TestMocker_GenerateRecommendations_Count(t *testing.T) {
@@ -137,7 +137,7 @@ func TestMocker_GenerateRecommendations_Count(t *testing.T) {
 	// Generate recommendations multiple times and verify count is in expected range
 	for i := 0; i < 100; i++ {
 		recs := mocker.GenerateRecommendations()
-		assert.Greater(t, len(recs), 0, "should generate at least 1 recommendation")
+		assert.NotEmpty(t, recs, "should generate at least 1 recommendation")
 		assert.LessOrEqual(
 			t,
 			len(recs),
@@ -151,7 +151,7 @@ func TestMocker_GenerateRecommendations_Structure(t *testing.T) {
 	mocker := NewMocker(mockerTestLogger())
 
 	recs := mocker.GenerateRecommendations()
-	require.Greater(t, len(recs), 0)
+	require.NotEmpty(t, recs)
 
 	for _, rec := range recs {
 		assert.NotEmpty(t, rec.GetId(), "recommendation should have an ID")
@@ -169,7 +169,7 @@ func TestMocker_CreateRecommendationsResponse(t *testing.T) {
 	resp := mocker.CreateRecommendationsResponse()
 
 	require.NotNil(t, resp)
-	require.Greater(t, len(resp.GetRecommendations()), 0)
+	require.NotEmpty(t, resp.GetRecommendations())
 
 	for _, rec := range resp.GetRecommendations() {
 		assert.NotEmpty(t, rec.GetId())

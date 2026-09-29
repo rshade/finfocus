@@ -67,7 +67,7 @@ func TestDismissLifecycle_LocalOnly(t *testing.T) {
 	assert.Equal(t, config.StatusDismissed, allRecords[recID].Status)
 	assert.Equal(t, "BUSINESS_CONSTRAINT", allRecords[recID].Reason)
 	require.NotNil(t, allRecords[recID].LastKnown)
-	assert.Equal(t, 45.00, allRecords[recID].LastKnown.EstimatedSavings)
+	assert.InDelta(t, 45.00, allRecords[recID].LastKnown.EstimatedSavings, 1e-9)
 
 	// Step 4: Undismiss the recommendation
 	record, found := store.Get(recID)
@@ -262,5 +262,5 @@ func TestDismissalStorePersistence(t *testing.T) {
 
 	version, ok := parsed["version"].(float64)
 	require.True(t, ok)
-	assert.Equal(t, float64(1), version)
+	assert.InDelta(t, float64(1), version, 1e-9)
 }

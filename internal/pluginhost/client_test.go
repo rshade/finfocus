@@ -190,7 +190,7 @@ func TestGetPluginInfo(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.wantErrIs != nil {
-					assert.ErrorIs(t, err, tt.wantErrIs)
+					require.ErrorIs(t, err, tt.wantErrIs)
 				}
 				assert.Nil(t, client)
 				return
@@ -398,7 +398,7 @@ func TestClient_Close(t *testing.T) {
 	// Close the client
 	closeErr := client.Close()
 
-	assert.NoError(t, closeErr)
+	require.NoError(t, closeErr)
 	assert.True(t, closeCalled, "Close function should be called")
 }
 
@@ -424,7 +424,7 @@ func TestClient_CloseError(t *testing.T) {
 	// Close the client
 	closeErr := client.Close()
 
-	assert.Error(t, closeErr)
+	require.Error(t, closeErr)
 	assert.ErrorIs(t, closeErr, expectedErr)
 }
 
@@ -481,7 +481,7 @@ func TestClient_ContextCancellation(t *testing.T) {
 	client, err := pluginhost.NewClient(ctx, mockLauncherInst, "/fake/path")
 
 	// Should fail due to cancelled context
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, client)
 }
 

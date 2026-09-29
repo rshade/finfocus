@@ -79,10 +79,10 @@ func TestBoltStore_Close_SetsEnabledFalse(t *testing.T) {
 
 	// Operations on a closed store should no-op without error.
 	entry := newTestEntry("urn:test", "i-123")
-	assert.NoError(t, store.Upsert("hash", entry))
+	require.NoError(t, store.Upsert("hash", entry))
 
 	results, getErr := store.GetAllForStack("hash", 0, time.Now().Unix())
-	assert.NoError(t, getErr)
+	require.NoError(t, getErr)
 	assert.Nil(t, results)
 }
 
@@ -119,7 +119,7 @@ func TestNewBoltStore_Disabled(t *testing.T) {
 
 	results, err := store.GetCloudIDsForURN(stackHash, urnHash, 0, time.Now().Unix())
 	require.NoError(t, err)
-	assert.Len(t, results, 0)
+	assert.Empty(t, results)
 
 	err = store.Close()
 	require.NoError(t, err)
@@ -129,7 +129,7 @@ func TestNewBoltStore_EmptyDirectory(t *testing.T) {
 	ctx := context.Background()
 
 	store, err := history.NewBoltStore(ctx, "", true, 90)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, store)
 }
 
@@ -143,7 +143,7 @@ func TestNewBoltStore_DirectoryAutoCreation(t *testing.T) {
 	require.NotNil(t, store)
 
 	_, err = os.Stat(dbPath)
-	assert.NoError(t, err, "database directory should be auto-created")
+	require.NoError(t, err, "database directory should be auto-created")
 
 	err = store.Close()
 	require.NoError(t, err)
@@ -505,7 +505,7 @@ func TestBoltStore_GetAllForStack_TimeFilter(t *testing.T) {
 	results, err := store.GetAllForStack(stackHash, now-3000, now+1000)
 	require.NoError(t, err)
 
-	assert.True(t, len(results) >= 2)
+	assert.GreaterOrEqual(t, len(results), 2)
 
 	urns := make(map[string]bool)
 	for _, r := range results {
@@ -572,7 +572,7 @@ func TestBoltStore_LockTimeout(t *testing.T) {
 
 	select {
 	case lockErr := <-done:
-		assert.Error(t, lockErr, "second store should fail to acquire lock")
+		require.Error(t, lockErr, "second store should fail to acquire lock")
 	case <-time.After(10 * time.Second):
 		t.Fatal("lock acquisition should timeout within 10 seconds")
 	}
@@ -641,7 +641,7 @@ func TestBoltStore_GetDeletedResources_Empty(t *testing.T) {
 	now := time.Now().Unix()
 	results, err := store.GetDeletedResources(stackHash, map[string]bool{}, now-10000, now+3600)
 	require.NoError(t, err)
-	assert.Len(t, results, 0)
+	assert.Empty(t, results)
 }
 
 func TestBoltStore_GetDeletedResources_WithCurrent(t *testing.T) {
@@ -754,7 +754,7 @@ func TestBoltStore_Disabled_UpsertBatch_NoOp(t *testing.T) {
 
 	results, err := store.GetAllForStack(stackHash, 0, time.Now().Unix()+3600)
 	require.NoError(t, err)
-	assert.Len(t, results, 0)
+	assert.Empty(t, results)
 }
 
 func TestBoltStore_Disabled_CleanupExpired_NoOp(t *testing.T) {
@@ -778,7 +778,7 @@ func TestBoltStore_Disabled_GetDeletedResources_NoOp(t *testing.T) {
 
 	results, err := store.GetDeletedResources("test-hash", map[string]bool{}, 0, time.Now().Unix())
 	require.NoError(t, err)
-	assert.Len(t, results, 0)
+	assert.Empty(t, results)
 }
 
 // ---------------------------------------------------------------------------

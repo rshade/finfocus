@@ -148,7 +148,7 @@ func TestIntegration_TableRender_MixedChanges(t *testing.T) {
 	// Detect changes
 	hasChanges, changeCount := engine.DetectPendingChanges(ctx, planSteps)
 	require.True(t, hasChanges)
-	require.Greater(t, changeCount, 0)
+	require.Positive(t, changeCount)
 
 	// Build stack context
 	now := time.Date(2025, 6, 15, 12, 0, 0, 0, time.UTC)
@@ -180,8 +180,8 @@ func TestIntegration_TableRender_MixedChanges(t *testing.T) {
 	for _, row := range rows {
 		statusCounts[row.Status]++
 	}
-	assert.Greater(t, statusCounts[engine.StatusActive], 0, "should have active resources")
-	assert.Greater(t, statusCounts[engine.StatusUpdating], 0, "should have updating resources")
+	assert.Positive(t, statusCounts[engine.StatusActive], "should have active resources")
+	assert.Positive(t, statusCounts[engine.StatusUpdating], "should have updating resources")
 
 	// Golden file comparison
 	assertGoldenFile(t, filepath.Join(goldenDir(t), "table-with-changes.txt"), output)
@@ -439,7 +439,7 @@ func TestIntegration_JSONRender_NoChanges(t *testing.T) {
 
 	// Verify structure
 	assert.Equal(t, "state-no-changes", output.Metadata.StackName)
-	assert.Greater(t, len(output.Resources), 0)
+	assert.NotEmpty(t, output.Resources)
 	assert.Empty(t, output.Errors)
 	assert.Equal(t, "USD", output.Summary.Currency)
 }
@@ -471,7 +471,7 @@ func TestIntegration_NDJSONRender_MixedChanges(t *testing.T) {
 
 	// Verify each line is valid JSON
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	assert.Equal(t, len(rows), len(lines))
+	assert.Len(t, lines, len(rows))
 
 	for i, line := range lines {
 		var row engine.OverviewRow
@@ -537,7 +537,7 @@ func TestIntegration_MergeMixedChanges(t *testing.T) {
 		statusCounts[row.Status]++
 	}
 
-	assert.Greater(t, statusCounts[engine.StatusActive], 0, "should have active resources")
+	assert.Positive(t, statusCounts[engine.StatusActive], "should have active resources")
 	assert.Equal(t, 3, statusCounts[engine.StatusUpdating], "should have 3 updating resources")
 	assert.Equal(t, 2, statusCounts[engine.StatusDeleting], "should have 2 deleting resources")
 	assert.Equal(t, 2, statusCounts[engine.StatusReplacing], "should have 2 replacing resources")

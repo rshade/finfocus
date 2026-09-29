@@ -129,7 +129,7 @@ func TestConnectionRetry_Timeout(t *testing.T) {
 	conn, closeFn, err := launcher.Start(ctx, pluginPath)
 	elapsed := time.Since(start)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, conn)
 	assert.Nil(t, closeFn)
 	assert.Contains(t, err.Error(), "timeout")
@@ -219,7 +219,7 @@ func TestBinaryValidation_Permissions(t *testing.T) {
 
 	conn, closeFn, err := launcher.Start(ctx, pluginPath)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, conn)
 	assert.Nil(t, closeFn)
 	assert.Contains(t, err.Error(), "permission denied")
@@ -256,7 +256,7 @@ func TestProcessCleanup_ZombieProcesses(t *testing.T) {
 
 		// Close immediately
 		err = closeFn()
-		assert.NoError(t, err, "Failed to close plugin %d", i)
+		require.NoError(t, err, "Failed to close plugin %d", i)
 	}
 
 	// Wait a moment for processes to be reaped

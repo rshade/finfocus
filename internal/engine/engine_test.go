@@ -192,7 +192,7 @@ func TestValidateFilter(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := engine.ValidateFilter(tt.filter)
 			if tt.wantError {
-				assert.Error(t, err)
+				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.errorMsg)
 			} else {
 				assert.NoError(t, err)
@@ -237,8 +237,8 @@ func TestGetProjectedCostEmpty(t *testing.T) {
 
 		result := results[0]
 		assert.Equal(t, "none", result.Adapter)
-		assert.Equal(t, 0.0, result.Monthly)
-		assert.Equal(t, 0.0, result.Hourly)
+		assert.InDelta(t, 0.0, result.Monthly, 1e-9)
+		assert.InDelta(t, 0.0, result.Hourly, 1e-9)
 		assert.Contains(t, result.Notes, "No pricing information available")
 	})
 }
@@ -307,8 +307,8 @@ func TestGetProjectedCost_PropagatesContextError(t *testing.T) {
 	})
 
 	require.Error(t, err)
-	assert.ErrorIs(t, err, context.Canceled)
-	assert.Len(t, results, 0)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Empty(t, results)
 }
 
 func TestFormatPeriod(t *testing.T) {
@@ -821,8 +821,8 @@ func TestGetActualCostWithOptions_PropagatesContextError(t *testing.T) {
 
 	results, err := eng.GetActualCostWithOptions(ctx, req)
 	require.Error(t, err)
-	assert.ErrorIs(t, err, context.Canceled)
-	assert.Len(t, results, 0)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.Empty(t, results)
 }
 
 func TestGroupByValidation(t *testing.T) {
@@ -999,7 +999,7 @@ func TestGetActualCostWithOptionsAndErrors(t *testing.T) {
 
 		require.NoError(t, err)
 		require.NotNil(t, result)
-		assert.Len(t, result.Results, 0)
+		assert.Empty(t, result.Results)
 		assert.False(t, result.HasErrors())
 	})
 
@@ -1139,7 +1139,7 @@ func TestRecommendationsResult_Structure(t *testing.T) {
 
 	assert.True(t, result.HasErrors())
 	assert.Len(t, result.Recommendations, 1)
-	assert.Equal(t, 15.0, result.TotalSavings)
+	assert.InDelta(t, 15.0, result.TotalSavings, 1e-9)
 }
 
 // T053: Test error handling for recommendation failures.
@@ -1387,8 +1387,8 @@ func TestGetProjectedCost_WithPlugin(t *testing.T) {
 	assert.Equal(t, "i-1234567890abcdef0", result.ResourceID)
 	assert.Equal(t, "test-plugin", result.Adapter)
 	assert.Equal(t, "USD", result.Currency)
-	assert.Equal(t, 7.30, result.Monthly)
-	assert.Equal(t, 0.01, result.Hourly)
+	assert.InDelta(t, 7.30, result.Monthly, 1e-9)
+	assert.InDelta(t, 0.01, result.Hourly, 1e-9)
 	assert.Contains(t, result.Notes, "t3.micro")
 }
 
@@ -1497,7 +1497,7 @@ func TestGetProjectedCost_MultiPluginSupport(t *testing.T) {
 
 	// Verify only the first plugin contributed
 	assert.Equal(t, "plugin1", results[0].Adapter)
-	assert.Equal(t, 10.0, results[0].Monthly)
+	assert.InDelta(t, 10.0, results[0].Monthly, 1e-9)
 }
 
 // TestGetProjectedCost_PartialData tests scenario with missing data for some resources.
@@ -1537,7 +1537,7 @@ func TestGetProjectedCost_PartialData(t *testing.T) {
 	// S3 resource should fall back to "none"
 	s3 := byID["bucket-001"]
 	assert.Equal(t, "none", s3.Adapter)
-	assert.Equal(t, 0.0, s3.Monthly)
+	assert.InDelta(t, 0.0, s3.Monthly, 1e-9)
 }
 
 // TestGetProjectedCost_HighCost tests high-cost scenario.
@@ -1594,8 +1594,8 @@ func TestGetProjectedCost_ZeroCost(t *testing.T) {
 
 	result := results[0]
 	assert.Equal(t, "test-plugin", result.Adapter)
-	assert.Equal(t, 0.0, result.Monthly)
-	assert.Equal(t, 0.0, result.Hourly)
+	assert.InDelta(t, 0.0, result.Monthly, 1e-9)
+	assert.InDelta(t, 0.0, result.Hourly, 1e-9)
 	assert.Contains(t, result.Notes, "Free tier")
 }
 
@@ -1693,7 +1693,7 @@ func TestGetActualCost_WithPlugin(t *testing.T) {
 
 	result := results[0]
 	assert.Equal(t, "test-plugin", result.Adapter)
-	assert.Equal(t, 45.67, result.TotalCost)
+	assert.InDelta(t, 45.67, result.TotalCost, 1e-9)
 	assert.NotEmpty(t, result.CostPeriod)
 	assert.Equal(t, from, result.StartDate)
 	assert.Equal(t, to, result.EndDate)
@@ -1721,7 +1721,7 @@ func TestGetActualCost_NoPlugin(t *testing.T) {
 	// Should return placeholder with "none" adapter
 	result := results[0]
 	assert.Equal(t, "none", result.Adapter)
-	assert.Equal(t, 0.0, result.TotalCost)
+	assert.InDelta(t, 0.0, result.TotalCost, 1e-9)
 	assert.Contains(t, result.Notes, "No actual cost data")
 }
 
@@ -1754,7 +1754,7 @@ func TestGetActualCost_TimeRange(t *testing.T) {
 	require.Len(t, results, 1)
 
 	result := results[0]
-	assert.Equal(t, 100.0, result.TotalCost)
+	assert.InDelta(t, 100.0, result.TotalCost, 1e-9)
 	// Period can be in days or weeks depending on duration
 	assert.NotEmpty(t, result.CostPeriod)
 
@@ -1801,7 +1801,7 @@ func TestGetProjectedCost_SupportsFilterUnsupported(t *testing.T) {
 
 	// Only the supported plugin's result should be used
 	assert.Equal(t, "aws-public", results[0].Adapter)
-	assert.Equal(t, 10.0, results[0].Monthly)
+	assert.InDelta(t, 10.0, results[0].Monthly, 1e-9)
 }
 
 // TestGetProjectedCost_SupportsFailOpen tests that if a plugin's Supports()
@@ -1833,7 +1833,7 @@ func TestGetProjectedCost_SupportsFailOpen(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, results, 1)
 	assert.Equal(t, "test-plugin", results[0].Adapter)
-	assert.Equal(t, 10.0, results[0].Monthly)
+	assert.InDelta(t, 10.0, results[0].Monthly, 1e-9)
 }
 
 // TestGetProjectedCost_AllUnsupported tests that when all plugins declare
@@ -1901,7 +1901,7 @@ func TestGetProjectedCost_BreakOnFirstSuccess(t *testing.T) {
 
 	// First plugin wins
 	assert.Equal(t, "plugin1", results[0].Adapter)
-	assert.Equal(t, 10.0, results[0].Monthly)
+	assert.InDelta(t, 10.0, results[0].Monthly, 1e-9)
 }
 
 // TestGetProjectedCost_FallbackOnFirstPluginError tests that when the first
@@ -1938,5 +1938,5 @@ func TestGetProjectedCost_FallbackOnFirstPluginError(t *testing.T) {
 
 	// Second plugin should provide the result (fallback from first)
 	assert.Equal(t, "plugin2", results[0].Adapter)
-	assert.Equal(t, 12.0, results[0].Monthly)
+	assert.InDelta(t, 12.0, results[0].Monthly, 1e-9)
 }

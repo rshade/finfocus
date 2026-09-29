@@ -57,7 +57,7 @@ func TestLoadSpec_NonExistentFile(t *testing.T) {
 	loader := spec.NewLoader(tmpDir)
 	result, err := loader.LoadSpec("aws", "ec2", "nonexistent")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, spec.ErrSpecNotFound)
 }
@@ -70,7 +70,7 @@ func TestLoadSpec_NonExistentDirectory(t *testing.T) {
 	loader := spec.NewLoader(nonexistentDir)
 	result, err := loader.LoadSpec("aws", "ec2", "t3.micro")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.ErrorIs(t, err, spec.ErrSpecNotFound)
 }
@@ -91,7 +91,7 @@ pricing: [unclosed
 	loader := spec.NewLoader(tmpDir)
 	result, err := loader.LoadSpec("aws", "ec2", "t3.micro")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "parsing spec YAML")
 }
@@ -190,7 +190,7 @@ func TestLoadSpec_PermissionDenied(t *testing.T) {
 	loader := spec.NewLoader(tmpDir)
 	result, err := loader.LoadSpec("aws", "ec2", "restricted")
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "reading spec file")
 }
@@ -326,7 +326,7 @@ func TestListSpecs_PermissionError(t *testing.T) {
 	loader := spec.NewLoader(tmpDir)
 	specs, err := loader.ListSpecs()
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, specs)
 	assert.Contains(t, err.Error(), "reading spec directory")
 }
@@ -359,7 +359,7 @@ func TestValidateSpec_MissingProvider(t *testing.T) {
 	}
 
 	err := spec.ValidateSpec(pricingSpec)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "provider is required")
 }
 
@@ -375,7 +375,7 @@ func TestValidateSpec_MissingService(t *testing.T) {
 	}
 
 	err := spec.ValidateSpec(pricingSpec)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "service is required")
 }
 
@@ -391,7 +391,7 @@ func TestValidateSpec_MissingSKU(t *testing.T) {
 	}
 
 	err := spec.ValidateSpec(pricingSpec)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "SKU is required")
 }
 
@@ -407,7 +407,7 @@ func TestValidateSpec_MissingCurrency(t *testing.T) {
 	}
 
 	err := spec.ValidateSpec(pricingSpec)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "currency is required")
 }
 
@@ -422,7 +422,7 @@ func TestValidateSpec_EmptyPricing(t *testing.T) {
 	}
 
 	err := spec.ValidateSpec(pricingSpec)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pricing information is required")
 }
 
@@ -437,7 +437,7 @@ func TestValidateSpec_NilPricing(t *testing.T) {
 	}
 
 	err := spec.ValidateSpec(pricingSpec)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pricing information is required")
 }
 
@@ -535,6 +535,6 @@ pricing:
 	// Verify nested structure exists
 	onDemand, ok := pricingSpec.Pricing["onDemand"].(map[string]interface{})
 	require.True(t, ok)
-	assert.Equal(t, 0.192, onDemand["hourly"])
-	assert.Equal(t, 140.16, onDemand["monthly"])
+	assert.InDelta(t, 0.192, onDemand["hourly"], 1e-9)
+	assert.InDelta(t, 140.16, onDemand["monthly"], 1e-9)
 }

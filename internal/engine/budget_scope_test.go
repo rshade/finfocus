@@ -278,15 +278,15 @@ func TestScopedBudgetEvaluator(t *testing.T) {
 		// Test case-insensitive provider lookup
 		awsBudget := eval.GetProviderBudget("aws")
 		require.NotNil(t, awsBudget)
-		assert.Equal(t, 5000.0, awsBudget.Amount)
+		assert.InDelta(t, 5000.0, awsBudget.Amount, 1e-9)
 
 		awsBudget2 := eval.GetProviderBudget("AWS")
 		require.NotNil(t, awsBudget2)
-		assert.Equal(t, 5000.0, awsBudget2.Amount)
+		assert.InDelta(t, 5000.0, awsBudget2.Amount, 1e-9)
 
 		gcpBudget := eval.GetProviderBudget("gcp")
 		require.NotNil(t, gcpBudget)
-		assert.Equal(t, 3000.0, gcpBudget.Amount)
+		assert.InDelta(t, 3000.0, gcpBudget.Amount, 1e-9)
 
 		// Test non-existent provider
 		assert.Nil(t, eval.GetProviderBudget("azure"))
@@ -294,7 +294,7 @@ func TestScopedBudgetEvaluator(t *testing.T) {
 		// Test type lookup
 		ec2Budget := eval.GetTypeBudget("aws:ec2/instance")
 		require.NotNil(t, ec2Budget)
-		assert.Equal(t, 1000.0, ec2Budget.Amount)
+		assert.InDelta(t, 1000.0, ec2Budget.Amount, 1e-9)
 
 		assert.Nil(t, eval.GetTypeBudget("aws:rds/instance"))
 	})
@@ -417,7 +417,7 @@ func TestAllocateCostToProvider(t *testing.T) {
 
 		require.NotNil(t, allocation)
 		assert.Equal(t, "aws", allocation.Provider)
-		assert.Equal(t, 100.0, allocation.Cost)
+		assert.InDelta(t, 100.0, allocation.Cost, 1e-9)
 		assert.Contains(t, allocation.AllocatedScopes, "provider:aws")
 	})
 
@@ -462,7 +462,7 @@ func TestAllocateCostToProvider(t *testing.T) {
 		allocation := eval.AllocateCostToProvider(ctx, ":unknown/resource", 100.0)
 
 		require.NotNil(t, allocation)
-		assert.Equal(t, "", allocation.Provider)
+		assert.Empty(t, allocation.Provider)
 		assert.Empty(t, allocation.AllocatedScopes)
 	})
 }
@@ -480,8 +480,8 @@ func TestGetProviderBudgetStatus(t *testing.T) {
 		require.NotNil(t, status)
 		assert.Equal(t, engine.ScopeTypeProvider, status.ScopeType)
 		assert.Equal(t, "aws", status.ScopeKey)
-		assert.Equal(t, 850.0, status.CurrentSpend)
-		assert.Equal(t, 85.0, status.Percentage)
+		assert.InDelta(t, 850.0, status.CurrentSpend, 1e-9)
+		assert.InDelta(t, 85.0, status.Percentage, 1e-9)
 		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING, status.Health)
 	})
 
@@ -495,7 +495,7 @@ func TestGetProviderBudgetStatus(t *testing.T) {
 
 		require.NotNil(t, status)
 		// When budget is 0, percentage should be calculated safely
-		assert.Equal(t, 0.0, status.Percentage)
+		assert.InDelta(t, 0.0, status.Percentage, 1e-9)
 	})
 
 	t.Run("exceeded budget health", func(t *testing.T) {
@@ -507,7 +507,7 @@ func TestGetProviderBudgetStatus(t *testing.T) {
 		status := engine.CalculateProviderBudgetStatus("gcp", budget, 1200.0)
 
 		require.NotNil(t, status)
-		assert.Equal(t, 120.0, status.Percentage)
+		assert.InDelta(t, 120.0, status.Percentage, 1e-9)
 		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED, status.Health)
 		assert.True(t, status.IsOverBudget())
 	})
@@ -531,7 +531,7 @@ func TestAllocateCostToTag(t *testing.T) {
 		allocation := eval.AllocateCostToTag(ctx, "aws:ec2/instance", tags, 100.0)
 
 		require.NotNil(t, allocation)
-		assert.Equal(t, 100.0, allocation.Cost)
+		assert.InDelta(t, 100.0, allocation.Cost, 1e-9)
 		assert.Equal(t, "team:platform", allocation.SelectedTagBudget) // Higher priority
 		assert.Contains(t, allocation.AllocatedScopes, "tag:team:platform")
 		assert.Len(t, allocation.MatchedTags, 2)
@@ -555,7 +555,7 @@ func TestAllocateCostToTag(t *testing.T) {
 		require.NotNil(t, allocation)
 		assert.Empty(t, allocation.AllocatedScopes)
 		assert.Empty(t, allocation.MatchedTags)
-		assert.Equal(t, "", allocation.SelectedTagBudget)
+		assert.Empty(t, allocation.SelectedTagBudget)
 	})
 
 	t.Run("no allocation with empty tags", func(t *testing.T) {
@@ -628,8 +628,8 @@ func TestCalculateTagBudgetStatus(t *testing.T) {
 		require.NotNil(t, status)
 		assert.Equal(t, engine.ScopeTypeTag, status.ScopeType)
 		assert.Equal(t, "team:platform", status.ScopeKey)
-		assert.Equal(t, 850.0, status.CurrentSpend)
-		assert.Equal(t, 85.0, status.Percentage)
+		assert.InDelta(t, 850.0, status.CurrentSpend, 1e-9)
+		assert.InDelta(t, 85.0, status.Percentage, 1e-9)
 	})
 
 	t.Run("handles zero budget amount", func(t *testing.T) {
@@ -641,7 +641,7 @@ func TestCalculateTagBudgetStatus(t *testing.T) {
 		status := engine.CalculateTagBudgetStatus(tagBudget, 100.0)
 
 		require.NotNil(t, status)
-		assert.Equal(t, 0.0, status.Percentage)
+		assert.InDelta(t, 0.0, status.Percentage, 1e-9)
 	})
 
 	t.Run("exceeded budget health", func(t *testing.T) {
@@ -656,7 +656,7 @@ func TestCalculateTagBudgetStatus(t *testing.T) {
 		status := engine.CalculateTagBudgetStatus(tagBudget, 1200.0)
 
 		require.NotNil(t, status)
-		assert.Equal(t, 120.0, status.Percentage)
+		assert.InDelta(t, 120.0, status.Percentage, 1e-9)
 		assert.True(t, status.IsOverBudget())
 	})
 }
@@ -678,15 +678,15 @@ func TestGetTypeBudget(t *testing.T) {
 		// Test exact type match
 		ec2Budget := eval.GetTypeBudget("aws:ec2/instance")
 		require.NotNil(t, ec2Budget)
-		assert.Equal(t, 1000.0, ec2Budget.Amount)
+		assert.InDelta(t, 1000.0, ec2Budget.Amount, 1e-9)
 
 		rdsBudget := eval.GetTypeBudget("aws:rds/instance")
 		require.NotNil(t, rdsBudget)
-		assert.Equal(t, 2000.0, rdsBudget.Amount)
+		assert.InDelta(t, 2000.0, rdsBudget.Amount, 1e-9)
 
 		gcpBudget := eval.GetTypeBudget("gcp:compute/instance")
 		require.NotNil(t, gcpBudget)
-		assert.Equal(t, 1500.0, gcpBudget.Amount)
+		assert.InDelta(t, 1500.0, gcpBudget.Amount, 1e-9)
 	})
 
 	t.Run("returns nil for unconfigured type", func(t *testing.T) {
@@ -757,7 +757,7 @@ func TestAllocateCostToType(t *testing.T) {
 		require.NotNil(t, allocation)
 		assert.Equal(t, "aws:ec2/instance", allocation.ResourceType)
 		assert.Equal(t, "aws", allocation.Provider)
-		assert.Equal(t, 100.0, allocation.Cost)
+		assert.InDelta(t, 100.0, allocation.Cost, 1e-9)
 		assert.Contains(t, allocation.AllocatedScopes, "type:aws:ec2/instance")
 	})
 
@@ -839,8 +839,8 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 		require.NotNil(t, status)
 		assert.Equal(t, engine.ScopeTypeType, status.ScopeType)
 		assert.Equal(t, "aws:ec2/instance", status.ScopeKey)
-		assert.Equal(t, 850.0, status.CurrentSpend)
-		assert.Equal(t, 85.0, status.Percentage)
+		assert.InDelta(t, 850.0, status.CurrentSpend, 1e-9)
+		assert.InDelta(t, 85.0, status.Percentage, 1e-9)
 		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING, status.Health)
 		assert.Equal(t, "USD", status.Currency)
 	})
@@ -854,7 +854,7 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 		status := engine.CalculateTypeBudgetStatus("aws:ec2/instance", budget, 100.0)
 
 		require.NotNil(t, status)
-		assert.Equal(t, 0.0, status.Percentage)
+		assert.InDelta(t, 0.0, status.Percentage, 1e-9)
 		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK, status.Health)
 	})
 
@@ -867,7 +867,7 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 		status := engine.CalculateTypeBudgetStatus("aws:rds/instance", budget, 1200.0)
 
 		require.NotNil(t, status)
-		assert.Equal(t, 120.0, status.Percentage)
+		assert.InDelta(t, 120.0, status.Percentage, 1e-9)
 		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED, status.Health)
 		assert.True(t, status.IsOverBudget())
 	})
@@ -881,7 +881,7 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 		status := engine.CalculateTypeBudgetStatus("aws:ec2/instance", budget, 500.0)
 
 		require.NotNil(t, status)
-		assert.Equal(t, 50.0, status.Percentage)
+		assert.InDelta(t, 50.0, status.Percentage, 1e-9)
 		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK, status.Health)
 	})
 
@@ -894,7 +894,7 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 		status := engine.CalculateTypeBudgetStatus("aws:ec2/instance", budget, 950.0)
 
 		require.NotNil(t, status)
-		assert.Equal(t, 95.0, status.Percentage)
+		assert.InDelta(t, 95.0, status.Percentage, 1e-9)
 		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL, status.Health)
 	})
 }
@@ -920,7 +920,7 @@ func TestBudgetAllocation(t *testing.T) {
 	assert.Equal(t, "i-1234567890abcdef0", allocation.ResourceID)
 	assert.Equal(t, "aws:ec2/instance", allocation.ResourceType)
 	assert.Equal(t, "aws", allocation.Provider)
-	assert.Equal(t, 100.50, allocation.Cost)
+	assert.InDelta(t, 100.50, allocation.Cost, 1e-9)
 	assert.Len(t, allocation.AllocatedScopes, 4)
 	assert.Len(t, allocation.MatchedTags, 2)
 	assert.Equal(t, "team:platform", allocation.SelectedTagBudget)
@@ -955,7 +955,7 @@ func TestAllocateCosts(t *testing.T) {
 		allocation := eval.AllocateCosts(ctx, "aws:ec2/instance", map[string]string{"team": "platform"}, 100.0)
 
 		require.NotNil(t, allocation)
-		assert.Equal(t, 100.0, allocation.Cost)
+		assert.InDelta(t, 100.0, allocation.Cost, 1e-9)
 		assert.Equal(t, "aws", allocation.Provider)
 		assert.Contains(t, allocation.AllocatedScopes, "global")
 		assert.Contains(t, allocation.AllocatedScopes, "provider:aws")
@@ -1041,7 +1041,7 @@ func TestAllocateCosts(t *testing.T) {
 		allocation := eval.AllocateCosts(ctx, "oracle:database/instance", nil, 150.0)
 
 		require.NotNil(t, allocation)
-		assert.Equal(t, 150.0, allocation.Cost)
+		assert.InDelta(t, 150.0, allocation.Cost, 1e-9)
 		assert.Equal(t, "oracle", allocation.Provider)
 		// Should ONLY allocate to global - no provider, tag, or type match
 		assert.Contains(t, allocation.AllocatedScopes, "global")

@@ -16,7 +16,7 @@ func TestCostCalculationPrecedence(t *testing.T) {
 		Monthly:    1000, // Should be ignored
 	}
 	cost1 := calculateCostForPeriod(res1, GroupByDaily)
-	assert.Equal(t, 60.0, cost1, "Should use sum of DailyCosts")
+	assert.InDelta(t, 60.0, cost1, 1e-9, "Should use sum of DailyCosts")
 
 	// Case 2: TotalCost present -> TotalCost
 	res2 := CostResult{
@@ -24,7 +24,7 @@ func TestCostCalculationPrecedence(t *testing.T) {
 		Monthly:   1000, // Should be ignored
 	}
 	cost2 := calculateCostForPeriod(res2, GroupByDaily)
-	assert.Equal(t, 500.0, cost2, "Should use TotalCost over Monthly")
+	assert.InDelta(t, 500.0, cost2, 1e-9, "Should use TotalCost over Monthly")
 
 	// Case 3: Only Monthly present, GroupByDaily -> Monthly / 30.44
 	res3 := CostResult{
@@ -35,5 +35,5 @@ func TestCostCalculationPrecedence(t *testing.T) {
 
 	// Case 4: Only Monthly present, GroupByMonthly -> Monthly
 	cost4 := calculateCostForPeriod(res3, GroupByMonthly)
-	assert.Equal(t, 3044.0, cost4, "Should use Monthly as is")
+	assert.InDelta(t, 3044.0, cost4, 1e-9, "Should use Monthly as is")
 }

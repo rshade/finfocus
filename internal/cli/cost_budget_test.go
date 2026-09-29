@@ -39,7 +39,7 @@ func TestCheckBudgetExit_WarningOnlyMode(t *testing.T) {
 	err := checkBudgetExit(cmd, status, nil)
 
 	// Should not return an error (no exit)
-	assert.NoError(t, err, "warning-only mode should not return an error")
+	require.NoError(t, err, "warning-only mode should not return an error")
 
 	// Should have logged a warning to stderr
 	assert.Contains(t, errBuf.String(), "WARNING:")
@@ -90,7 +90,7 @@ func TestCheckBudgetExit_WarningOnlyNoExitError(t *testing.T) {
 	err := checkBudgetExit(cmd, status, nil)
 
 	// Warning-only mode should NOT return a BudgetExitError
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// But should log the warning
 	warningOutput := errBuf.String()
@@ -359,7 +359,7 @@ func TestCostCmd_CLIFlagsOverrideConfig(t *testing.T) {
 	assert.Equal(t, 7, *globalCfg.Cost.Budgets.Global.ExitCode, "CLI flag should override config to 7")
 
 	// Verify other config values were preserved
-	assert.Equal(t, 1000.0, globalCfg.Cost.Budgets.Global.Amount, "budget amount should be preserved")
+	assert.InDelta(t, 1000.0, globalCfg.Cost.Budgets.Global.Amount, 1e-9, "budget amount should be preserved")
 	assert.Equal(t, "USD", globalCfg.Cost.Budgets.Global.Currency, "currency should be preserved")
 }
 

@@ -129,7 +129,7 @@ func TestServer_WithConfig(t *testing.T) {
 			} else {
 				require.NotNil(t, server.cfg)
 				if tc.expectedMaxMonthly > 0 {
-					assert.Equal(t, tc.expectedMaxMonthly, server.cfg.Analyzer.MaxMonthlyCost)
+					assert.InDelta(t, tc.expectedMaxMonthly, server.cfg.Analyzer.MaxMonthlyCost, 1e-9)
 				}
 				if tc.expectedEnforcement != "" {
 					assert.Equal(t, tc.expectedEnforcement, server.cfg.Analyzer.Enforcement)
@@ -687,8 +687,8 @@ func TestZeroCostResult(t *testing.T) {
 	assert.Equal(t, "pulumi:pulumi:Stack", result.ResourceType)
 	assert.Equal(t, "my-stack", result.ResourceID)
 	assert.Equal(t, "USD", result.Currency)
-	assert.Equal(t, float64(0), result.Monthly)
-	assert.Equal(t, float64(0), result.Hourly)
+	assert.InDelta(t, float64(0), result.Monthly, 1e-9)
+	assert.InDelta(t, float64(0), result.Hourly, 1e-9)
 	assert.Equal(t, "Internal Pulumi resource (no cloud cost)", result.Notes)
 }
 
@@ -1192,7 +1192,7 @@ func TestServer_AnalyzeStack_SummaryFileIntegration(t *testing.T) {
 		assert.Equal(t, "1", summary.SchemaVersion)
 		assert.Equal(t, "dev", summary.Stack)
 		assert.Equal(t, "my-infra", summary.Project)
-		assert.Equal(t, 150.0, summary.TotalMonthlyCost)
+		assert.InDelta(t, 150.0, summary.TotalMonthlyCost, 1e-9)
 		assert.Equal(t, "USD", summary.Currency)
 		assert.Equal(t, 1, summary.ResourceCount)
 		require.Len(t, summary.Resources, 1)
@@ -1386,7 +1386,7 @@ func TestAnalyze_CachesErrorCosts(t *testing.T) {
 	// The key assertion: error cost should be cached for AnalyzeStack visibility
 	cached := server.getCachedCosts()
 	require.Len(t, cached, 1, "error cost should be cached for AnalyzeStack visibility")
-	assert.Equal(t, float64(0), cached[0].Monthly)
+	assert.InDelta(t, float64(0), cached[0].Monthly, 1e-9)
 	assert.Contains(t, cached[0].Notes, "ERROR:")
 }
 

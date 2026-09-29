@@ -77,7 +77,7 @@ func TestRecorderPlugin_GetProjectedCost_MockDisabled(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	assert.Equal(t, float64(0), resp.GetCostPerMonth())
+	assert.InDelta(t, float64(0), resp.GetCostPerMonth(), 1e-9)
 	assert.Equal(t, "USD", resp.GetCurrency())
 	assert.Contains(t, resp.GetBillingDetail(), "mock responses disabled")
 }
@@ -188,7 +188,7 @@ func TestRecorderPlugin_EstimateCost_MockDisabled(t *testing.T) {
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
-	assert.Equal(t, float64(0), resp.GetCostMonthly())
+	assert.InDelta(t, float64(0), resp.GetCostMonthly(), 1e-9)
 	assert.Equal(t, "USD", resp.GetCurrency())
 }
 

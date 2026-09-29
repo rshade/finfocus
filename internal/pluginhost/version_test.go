@@ -172,7 +172,7 @@ func TestCheckVersionCompatibility_StrictMode(t *testing.T) {
 
 		err := checkVersionCompatibility(ctx, "test-plugin", "invalid-version")
 		require.Error(t, err, "strict mode should error on parse failures")
-		assert.ErrorIs(t, err, ErrPluginIncompatible)
+		require.ErrorIs(t, err, ErrPluginIncompatible)
 		assert.Contains(t, err.Error(), "failed to parse spec version")
 		assert.Contains(t, err.Error(), "test-plugin")
 	})

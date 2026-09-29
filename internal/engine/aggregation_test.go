@@ -37,12 +37,12 @@ func TestCreateCrossProviderAggregation_DailyGrouping(t *testing.T) {
 
 	agg := aggregations[0]
 	assert.Equal(t, "2024-01-01", agg.Period)
-	assert.Equal(t, 250.0, agg.Total) // 100 + 150
+	assert.InDelta(t, 250.0, agg.Total, 1e-9) // 100 + 150
 	assert.Equal(t, "USD", agg.Currency)
 	assert.Contains(t, agg.Providers, "aws")
 	assert.Contains(t, agg.Providers, "azure")
-	assert.Equal(t, 100.0, agg.Providers["aws"])
-	assert.Equal(t, 150.0, agg.Providers["azure"])
+	assert.InDelta(t, 100.0, agg.Providers["aws"], 1e-9)
+	assert.InDelta(t, 150.0, agg.Providers["azure"], 1e-9)
 }
 
 // TestCreateCrossProviderAggregation_MonthlyGrouping tests monthly aggregation.
@@ -77,13 +77,13 @@ func TestCreateCrossProviderAggregation_MonthlyGrouping(t *testing.T) {
 	// Verify January
 	jan := aggregations[0]
 	assert.Equal(t, "2024-01", jan.Period)
-	assert.Equal(t, 3100.0, jan.Total)
+	assert.InDelta(t, 3100.0, jan.Total, 1e-9)
 	assert.Contains(t, jan.Providers, "aws")
 
 	// Verify February
 	feb := aggregations[1]
 	assert.Equal(t, "2024-02", feb.Period)
-	assert.Equal(t, 4650.0, feb.Total)
+	assert.InDelta(t, 4650.0, feb.Total, 1e-9)
 	assert.Contains(t, feb.Providers, "azure")
 }
 
@@ -122,11 +122,11 @@ func TestCreateCrossProviderAggregation_MultipleProviders(t *testing.T) {
 	require.Len(t, aggregations, 1)
 
 	agg := aggregations[0]
-	assert.Equal(t, 325.0, agg.Total) // 100 + 150 + 75
+	assert.InDelta(t, 325.0, agg.Total, 1e-9) // 100 + 150 + 75
 	assert.Len(t, agg.Providers, 3)
-	assert.Equal(t, 100.0, agg.Providers["aws"])
-	assert.Equal(t, 150.0, agg.Providers["azure"])
-	assert.Equal(t, 75.0, agg.Providers["gcp"])
+	assert.InDelta(t, 100.0, agg.Providers["aws"], 1e-9)
+	assert.InDelta(t, 150.0, agg.Providers["azure"], 1e-9)
+	assert.InDelta(t, 75.0, agg.Providers["gcp"], 1e-9)
 }
 
 // TestCreateCrossProviderAggregation_MultipleDays tests aggregation across multiple days.
@@ -171,14 +171,14 @@ func TestCreateCrossProviderAggregation_MultipleDays(t *testing.T) {
 
 	// Verify Day 1 totals
 	day1 := aggregations[0]
-	assert.Equal(t, 300.0, day1.Total) // 100 + 200
-	assert.Equal(t, 100.0, day1.Providers["aws"])
-	assert.Equal(t, 200.0, day1.Providers["azure"])
+	assert.InDelta(t, 300.0, day1.Total, 1e-9) // 100 + 200
+	assert.InDelta(t, 100.0, day1.Providers["aws"], 1e-9)
+	assert.InDelta(t, 200.0, day1.Providers["azure"], 1e-9)
 
 	// Verify Day 3 totals
 	day3 := aggregations[1]
-	assert.Equal(t, 110.0, day3.Total)
-	assert.Equal(t, 110.0, day3.Providers["aws"])
+	assert.InDelta(t, 110.0, day3.Total, 1e-9)
+	assert.InDelta(t, 110.0, day3.Providers["aws"], 1e-9)
 }
 
 // TestCreateCrossProviderAggregation_WithDailyCosts tests aggregation with daily cost breakdown.
@@ -203,13 +203,13 @@ func TestCreateCrossProviderAggregation_WithDailyCosts(t *testing.T) {
 
 	// Verify daily breakdown
 	assert.Equal(t, "2024-01-01", aggregations[0].Period)
-	assert.Equal(t, 100.0, aggregations[0].Total)
+	assert.InDelta(t, 100.0, aggregations[0].Total, 1e-9)
 
 	assert.Equal(t, "2024-01-02", aggregations[1].Period)
-	assert.Equal(t, 110.0, aggregations[1].Total)
+	assert.InDelta(t, 110.0, aggregations[1].Total, 1e-9)
 
 	assert.Equal(t, "2024-01-03", aggregations[2].Period)
-	assert.Equal(t, 120.0, aggregations[2].Total)
+	assert.InDelta(t, 120.0, aggregations[2].Total, 1e-9)
 }
 
 // TestCreateCrossProviderAggregation_FallbackToMonthly tests fallback to monthly costs.
@@ -268,7 +268,7 @@ func TestCreateCrossProviderAggregation_EmptyCurrencyDefaultsToUSD(t *testing.T)
 	// Empty currency should default to USD and match
 	agg := aggregations[0]
 	assert.Equal(t, "USD", agg.Currency)
-	assert.Equal(t, 250.0, agg.Total)
+	assert.InDelta(t, 250.0, agg.Total, 1e-9)
 }
 
 // TestCreateCrossProviderAggregation_ZeroDateHandling tests handling of zero dates.
@@ -351,8 +351,8 @@ func TestAggregateResults_SingleResource(t *testing.T) {
 	aggregated := AggregateResults(results)
 
 	require.NotNil(t, aggregated)
-	assert.Equal(t, 10.0, aggregated.Summary.TotalMonthly)
-	assert.Equal(t, 0.014, aggregated.Summary.TotalHourly)
+	assert.InDelta(t, 10.0, aggregated.Summary.TotalMonthly, 1e-9)
+	assert.InDelta(t, 0.014, aggregated.Summary.TotalHourly, 1e-9)
 	assert.Equal(t, "USD", aggregated.Summary.Currency)
 	assert.Len(t, aggregated.Resources, 1)
 }
@@ -383,7 +383,7 @@ func TestAggregateResults_MultipleResources(t *testing.T) {
 	aggregated := AggregateResults(results)
 
 	require.NotNil(t, aggregated)
-	assert.Equal(t, 35.0, aggregated.Summary.TotalMonthly)
+	assert.InDelta(t, 35.0, aggregated.Summary.TotalMonthly, 1e-9)
 	assert.InDelta(t, 0.048, aggregated.Summary.TotalHourly, 0.001)
 	assert.Len(t, aggregated.Resources, 3)
 }
@@ -410,8 +410,8 @@ func TestAggregateResults_ByProvider(t *testing.T) {
 
 	aggregated := AggregateResults(results)
 
-	assert.Equal(t, 15.0, aggregated.Summary.ByProvider["aws"])
-	assert.Equal(t, 15.0, aggregated.Summary.ByProvider["azure"])
+	assert.InDelta(t, 15.0, aggregated.Summary.ByProvider["aws"], 1e-9)
+	assert.InDelta(t, 15.0, aggregated.Summary.ByProvider["azure"], 1e-9)
 }
 
 // TestAggregateResults_ByService tests service-level aggregation.
@@ -436,8 +436,8 @@ func TestAggregateResults_ByService(t *testing.T) {
 
 	aggregated := AggregateResults(results)
 
-	assert.Equal(t, 13.0, aggregated.Summary.ByService["ec2"])
-	assert.Equal(t, 5.0, aggregated.Summary.ByService["s3"])
+	assert.InDelta(t, 13.0, aggregated.Summary.ByService["ec2"], 1e-9)
+	assert.InDelta(t, 5.0, aggregated.Summary.ByService["s3"], 1e-9)
 }
 
 // TestAggregateResults_ByAdapter tests adapter-level aggregation.
@@ -465,9 +465,9 @@ func TestAggregateResults_ByAdapter(t *testing.T) {
 
 	aggregated := AggregateResults(results)
 
-	assert.Equal(t, 10.0, aggregated.Summary.ByAdapter["plugin1"])
-	assert.Equal(t, 5.0, aggregated.Summary.ByAdapter["plugin2"])
-	assert.Equal(t, 20.0, aggregated.Summary.ByAdapter["local-spec"])
+	assert.InDelta(t, 10.0, aggregated.Summary.ByAdapter["plugin1"], 1e-9)
+	assert.InDelta(t, 5.0, aggregated.Summary.ByAdapter["plugin2"], 1e-9)
+	assert.InDelta(t, 20.0, aggregated.Summary.ByAdapter["local-spec"], 1e-9)
 }
 
 func TestAggregation_ZeroCostsNoDivideByZero(t *testing.T) {
@@ -483,8 +483,8 @@ func TestAggregation_ZeroCostsNoDivideByZero(t *testing.T) {
 	aggregated := AggregateResults(results)
 
 	require.NotNil(t, aggregated)
-	assert.Equal(t, 0.0, aggregated.Summary.TotalMonthly)
-	assert.Equal(t, 0.0, aggregated.Summary.TotalHourly)
+	assert.InDelta(t, 0.0, aggregated.Summary.TotalMonthly, 1e-9)
+	assert.InDelta(t, 0.0, aggregated.Summary.TotalHourly, 1e-9)
 }
 
 func TestAggregation_SingleResultUnchanged(t *testing.T) {
@@ -501,9 +501,9 @@ func TestAggregation_SingleResultUnchanged(t *testing.T) {
 
 	require.NotNil(t, aggregated)
 
-	assert.Equal(t, 123.45, aggregated.Summary.TotalMonthly)
+	assert.InDelta(t, 123.45, aggregated.Summary.TotalMonthly, 1e-9)
 
-	assert.Equal(t, 0.5, aggregated.Summary.TotalHourly)
+	assert.InDelta(t, 0.5, aggregated.Summary.TotalHourly, 1e-9)
 
 	assert.Equal(t, "EUR", aggregated.Summary.Currency)
 }
@@ -543,7 +543,7 @@ func TestEdgeCase_NilPropertiesNoNilPointerPanic(t *testing.T) {
 
 	// Validate should handle nil Properties gracefully
 	err := resource.Validate()
-	assert.NoError(t, err, "Validate should not panic or error on nil Properties")
+	require.NoError(t, err, "Validate should not panic or error on nil Properties")
 
 	// FilterResources should handle nil Properties
 	resources := []ResourceDescriptor{resource}

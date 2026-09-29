@@ -57,7 +57,7 @@ func TestNewRecommendationRow(t *testing.T) {
 		// Description should be truncated to maxDescLen with "..."
 		assert.LessOrEqual(t, len(row.Description), maxDescLen)
 		if len(longDesc) > maxDescLen {
-			assert.True(t, len(row.Description) <= maxDescLen)
+			assert.LessOrEqual(t, len(row.Description), maxDescLen)
 			assert.Contains(t, row.Description, "...")
 		}
 	})

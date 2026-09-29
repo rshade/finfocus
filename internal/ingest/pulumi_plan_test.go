@@ -288,7 +288,7 @@ func getPulumiPlanGetResourcesTestData() []struct {
 				assert.Equal(t, "Web Server", tags["Name"])
 
 				assert.Equal(t, true, r.Inputs["enabled"])
-				assert.Equal(t, float64(1), r.Inputs["count"])
+				assert.InDelta(t, float64(1), r.Inputs["count"], 1e-9)
 			},
 		},
 		{
@@ -373,8 +373,8 @@ func getPulumiPlanGetResourcesTestData() []struct {
 			validate: func(t *testing.T, resources []ingest.PulumiResource) {
 				r := resources[0]
 				require.NotNil(t, r.Outputs, "expected Outputs to be populated from OldState")
-				assert.Equal(t, float64(100), r.Outputs["size"])
-				assert.Equal(t, float64(3000), r.Outputs["iops"])
+				assert.InDelta(t, float64(100), r.Outputs["size"], 1e-9)
+				assert.InDelta(t, float64(3000), r.Outputs["iops"], 1e-9)
 			},
 		},
 		{

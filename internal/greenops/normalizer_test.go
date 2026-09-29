@@ -160,7 +160,7 @@ func TestNormalizeToKg(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				if tt.errType != nil {
-					assert.ErrorIs(t, err, tt.errType)
+					require.ErrorIs(t, err, tt.errType)
 				}
 				return
 			}

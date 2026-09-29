@@ -32,7 +32,7 @@ func TestParseTerraformState(t *testing.T) {
 		require.NoError(t, err)
 		_, err = ingest.ParseTerraformState(data)
 		require.Error(t, err)
-		assert.ErrorIs(t, err, ingest.ErrEncryptedState)
+		require.ErrorIs(t, err, ingest.ErrEncryptedState)
 		assert.Contains(t, err.Error(), "encryption_version")
 	})
 

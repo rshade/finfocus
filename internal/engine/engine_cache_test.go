@@ -228,7 +228,7 @@ func TestProjectedCostCacheIntegration(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, results.Results, 1)
 		assert.Contains(t, results.Results[0].Adapter, "(cached)")
-		assert.Equal(t, 10.0, results.Results[0].Monthly)
+		assert.InDelta(t, 10.0, results.Results[0].Monthly, 1e-9)
 		assert.Empty(t, results.Errors, "cache hit should produce no errors")
 	})
 
@@ -437,7 +437,7 @@ func TestActualCostCacheIntegration(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, results.Results, 1)
 		assert.Contains(t, results.Results[0].Adapter, "(cached)")
-		assert.Equal(t, 100.0, results.Results[0].TotalCost)
+		assert.InDelta(t, 100.0, results.Results[0].TotalCost, 1e-9)
 		assert.Empty(t, results.Errors, "cache hit should produce no errors")
 	})
 
@@ -460,7 +460,7 @@ func TestActualCostCacheIntegration(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, results.Results, 1)
 		assert.NotContains(t, results.Results[0].Adapter, "(cached)")
-		assert.Greater(t, mc.setCalls, 0, "cache miss should store result")
+		assert.Positive(t, mc.setCalls, "cache miss should store result")
 	})
 
 	t.Run("cache disabled skips all cache operations", func(t *testing.T) {

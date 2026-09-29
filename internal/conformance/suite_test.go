@@ -193,7 +193,7 @@ func TestSuite_GetTestCases(t *testing.T) {
 		assert.NotEmpty(t, tc.Name, "test case name should not be empty")
 		assert.NotEmpty(t, tc.Category, "test case category should not be empty")
 		assert.NotEmpty(t, tc.Description, "test case description should not be empty")
-		assert.True(t, tc.Timeout > 0, "test case timeout should be positive")
+		assert.Positive(t, tc.Timeout, "test case timeout should be positive")
 		assert.NotNil(t, tc.TestFunc, "test case function should not be nil")
 	}
 }

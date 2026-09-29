@@ -100,7 +100,7 @@ func TestNewAnalyzerInstallCmd_FlagParsing(t *testing.T) {
 
 	targetFlag := cmd.Flags().Lookup("target-dir")
 	require.NotNil(t, targetFlag)
-	assert.Equal(t, "", targetFlag.DefValue)
+	assert.Empty(t, targetFlag.DefValue)
 }
 
 func TestNewAnalyzerInstallCmd_TargetDirPropagation(t *testing.T) {

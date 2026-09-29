@@ -64,7 +64,7 @@ func TestGetWorkerCount_WithJobsOverride(t *testing.T) {
 			got := eng.getWorkerCount(tt.jobCount)
 			if tt.autoMode {
 				// Auto mode: result should be > 0 when jobCount > 0
-				assert.Greater(t, got, 0, "auto mode should return positive worker count")
+				assert.Positive(t, got, "auto mode should return positive worker count")
 				assert.LessOrEqual(t, got, tt.jobCount, "worker count should not exceed job count")
 			} else {
 				assert.Equal(t, tt.want, got)

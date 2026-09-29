@@ -65,7 +65,7 @@ func TestFindBinary_NotFound(t *testing.T) {
 
 	_, err := FindBinary()
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrPulumiNotFound)
+	require.ErrorIs(t, err, ErrPulumiNotFound)
 	assert.Contains(t, err.Error(), pulumiInstallURL)
 	assert.Contains(t, err.Error(), "--pulumi-json")
 }
@@ -119,7 +119,7 @@ func TestFindProject_NotFound(t *testing.T) {
 func TestErrPulumiNotFound_ContainsInstallURL(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	err := NotFoundError()
-	assert.ErrorIs(t, err, ErrPulumiNotFound)
+	require.ErrorIs(t, err, ErrPulumiNotFound)
 	assert.Contains(t, err.Error(), pulumiInstallURL)
 	assert.Contains(t, err.Error(), "--pulumi-json")
 }
@@ -146,7 +146,7 @@ func TestNotFoundError_MentionsBothFlags(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	err := NotFoundError()
-	assert.ErrorIs(t, err, ErrPulumiNotFound)
+	require.ErrorIs(t, err, ErrPulumiNotFound)
 	assert.Contains(t, err.Error(), "--pulumi-json")
 	assert.Contains(t, err.Error(), "--pulumi-state")
 	assert.Contains(t, err.Error(), pulumiInstallURL)
@@ -158,7 +158,7 @@ func TestNoCurrentStackError_IncludesStackNames(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	err := NoCurrentStackError([]string{"dev", "staging", "prod"})
-	assert.ErrorIs(t, err, ErrNoCurrentStack)
+	require.ErrorIs(t, err, ErrNoCurrentStack)
 	assert.Contains(t, err.Error(), "--stack")
 	assert.Contains(t, err.Error(), "dev")
 	assert.Contains(t, err.Error(), "staging")
@@ -169,7 +169,7 @@ func TestNoCurrentStackError_EmptyList(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	err := NoCurrentStackError([]string{})
-	assert.ErrorIs(t, err, ErrNoCurrentStack)
+	require.ErrorIs(t, err, ErrNoCurrentStack)
 	assert.Contains(t, err.Error(), "no stacks found")
 }
 
@@ -179,7 +179,7 @@ func TestPreviewError_IncludesStderr(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	err := PreviewError("error: missing provider credentials")
-	assert.ErrorIs(t, err, ErrPreviewFailed)
+	require.ErrorIs(t, err, ErrPreviewFailed)
 	assert.Contains(t, err.Error(), "missing provider credentials")
 }
 
@@ -187,7 +187,7 @@ func TestExportError_IncludesStderr(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
 	err := ExportError("error: stack 'prod' not found")
-	assert.ErrorIs(t, err, ErrExportFailed)
+	require.ErrorIs(t, err, ErrExportFailed)
 	assert.Contains(t, err.Error(), "stack 'prod' not found")
 }
 
@@ -230,7 +230,7 @@ func TestGetCurrentStack_NoCurrent(t *testing.T) {
 
 	_, err := GetCurrentStack(context.Background(), "/project")
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrNoCurrentStack)
+	require.ErrorIs(t, err, ErrNoCurrentStack)
 	assert.Contains(t, err.Error(), "dev")
 	assert.Contains(t, err.Error(), "staging")
 	assert.Contains(t, err.Error(), "--stack")
@@ -245,7 +245,7 @@ func TestGetCurrentStack_EmptyList(t *testing.T) {
 
 	_, err := GetCurrentStack(context.Background(), "/project")
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrNoCurrentStack)
+	require.ErrorIs(t, err, ErrNoCurrentStack)
 	assert.Contains(t, err.Error(), "no stacks found")
 }
 
@@ -321,7 +321,7 @@ func TestPreview_Failure(t *testing.T) {
 		ProjectDir: "/project",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrPreviewFailed)
+	require.ErrorIs(t, err, ErrPreviewFailed)
 	assert.Contains(t, err.Error(), "program failed to compile")
 }
 
@@ -403,7 +403,7 @@ func TestStackExport_Failure(t *testing.T) {
 		ProjectDir: "/project",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrExportFailed)
+	require.ErrorIs(t, err, ErrExportFailed)
 	assert.Contains(t, err.Error(), "stack not found")
 }
 

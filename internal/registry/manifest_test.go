@@ -107,7 +107,7 @@ func TestLoadManifest_NonExistentFile(t *testing.T) {
 
 	manifest, err := registry.LoadManifest(path)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, manifest)
 }
 
@@ -122,7 +122,7 @@ func TestLoadManifest_InvalidJSON(t *testing.T) {
 
 	manifest, err := registry.LoadManifest(path)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, manifest)
 }
 
@@ -137,7 +137,7 @@ func TestLoadManifest_EmptyFile(t *testing.T) {
 
 	manifest, err := registry.LoadManifest(path)
 
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, manifest)
 }
 
@@ -175,7 +175,7 @@ func TestLoadManifest_InvalidFieldTypes(t *testing.T) {
 	manifest, err := registry.LoadManifest(path)
 
 	// JSON unmarshaling should fail due to type mismatch
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Nil(t, manifest)
 }
 

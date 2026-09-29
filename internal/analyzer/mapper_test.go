@@ -357,7 +357,7 @@ func TestMapResource_EmptyType(t *testing.T) {
 
 	result := MapResource(resource)
 
-	assert.Equal(t, "", result.Type)
+	assert.Empty(t, result.Type)
 	assert.Equal(t, "resource", result.ID)
 	assert.Equal(t, "unknown", result.Provider)
 }

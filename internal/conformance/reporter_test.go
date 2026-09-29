@@ -158,10 +158,10 @@ func TestReport_WriteJSON(t *testing.T) {
 	// Check summary
 	summary, ok := parsed["summary"].(map[string]interface{})
 	require.True(t, ok, "summary should be a map")
-	assert.Equal(t, float64(4), summary["total"])
-	assert.Equal(t, float64(2), summary["passed"])
-	assert.Equal(t, float64(1), summary["failed"])
-	assert.Equal(t, float64(1), summary["skipped"])
+	assert.InDelta(t, float64(4), summary["total"], 1e-9)
+	assert.InDelta(t, float64(2), summary["passed"], 1e-9)
+	assert.InDelta(t, float64(1), summary["failed"], 1e-9)
+	assert.InDelta(t, float64(1), summary["skipped"], 1e-9)
 }
 
 func TestReport_WriteJUnit(t *testing.T) {

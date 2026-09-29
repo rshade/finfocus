@@ -50,7 +50,7 @@ func TestCleanupExpired_RemovesOldEntries(t *testing.T) {
 
 	allAfter, err := store.GetAllForStack("testhash", 0, time.Now().Unix())
 	require.NoError(t, err)
-	assert.Len(t, allAfter, 0, "entry should be removed after cleanup")
+	assert.Empty(t, allAfter, "entry should be removed after cleanup")
 }
 
 // TestCleanupExpired_KeepsRecentEntries verifies that entries within the

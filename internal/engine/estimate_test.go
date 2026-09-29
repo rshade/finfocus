@@ -212,7 +212,7 @@ func TestEstimateCost_ResourceValidation(t *testing.T) {
 		}
 
 		result, err := engine.EstimateCost(context.Background(), request)
-		assert.Error(t, err)
+		require.Error(t, err)
 		assert.Nil(t, result)
 		assert.Contains(t, err.Error(), "resource type is required")
 	})
@@ -242,7 +242,7 @@ func TestEstimateCost_Context(t *testing.T) {
 
 		_, err := eng.EstimateCost(ctx, request)
 		// With cancelled context, should return context.Canceled or wrapped error
-		assert.Error(t, err)
+		require.Error(t, err)
 		// The error could be context.Canceled itself or wrapped
 		assert.True(t, errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded),
 			"expected context cancellation error, got: %v", err)
@@ -459,8 +459,8 @@ func TestTryEstimateCostRPC_Success(t *testing.T) {
 	assert.Equal(t, 2, callCount, "should call EstimateCost twice (baseline + modified)")
 	require.NotNil(t, result.Baseline)
 	require.NotNil(t, result.Modified)
-	assert.Equal(t, 10.0, result.Baseline.Monthly)
-	assert.Equal(t, 25.0, result.Modified.Monthly)
+	assert.InDelta(t, 10.0, result.Baseline.Monthly, 1e-9)
+	assert.InDelta(t, 25.0, result.Modified.Monthly, 1e-9)
 	assert.InDelta(t, 15.0, result.TotalChange, 0.001)
 
 	// Verify baseline request carries original properties
@@ -855,8 +855,8 @@ func TestEstimateCost_MultiPlugin_FirstUnimplemented(t *testing.T) {
 	assert.Equal(t, 2, callCount, "second plugin should be called twice (baseline + modified)")
 	require.NotNil(t, result.Baseline)
 	require.NotNil(t, result.Modified)
-	assert.Equal(t, 20.0, result.Baseline.Monthly)
-	assert.Equal(t, 45.0, result.Modified.Monthly)
+	assert.InDelta(t, 20.0, result.Baseline.Monthly, 1e-9)
+	assert.InDelta(t, 45.0, result.Modified.Monthly, 1e-9)
 	assert.InDelta(t, 25.0, result.TotalChange, 0.001)
 }
 
@@ -1004,7 +1004,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 
 		require.Contains(t, merged, "volumeSize")
 		assert.IsType(t, float64(0), merged["volumeSize"])
-		assert.Equal(t, float64(100), merged["volumeSize"])
+		assert.InDelta(t, float64(100), merged["volumeSize"], 1e-9)
 	})
 
 	t.Run("override preserves bool type", func(t *testing.T) {
@@ -1033,7 +1033,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 		merged := mergePropertiesWithOverrides(properties, overrides)
 
 		assert.Equal(t, "value", merged["newKey"])
-		assert.Equal(t, float64(1), merged["existing"])
+		assert.InDelta(t, float64(1), merged["existing"], 1e-9)
 	})
 
 	t.Run("unparseable override stays string", func(t *testing.T) {
@@ -1058,7 +1058,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 
 		merged := mergePropertiesWithOverrides(properties, map[string]string{})
 
-		assert.Equal(t, float64(1), merged["a"])
+		assert.InDelta(t, float64(1), merged["a"], 1e-9)
 	})
 
 	t.Run("mixed types all preserved", func(t *testing.T) {
@@ -1075,7 +1075,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 
 		merged := mergePropertiesWithOverrides(properties, overrides)
 
-		assert.Equal(t, float64(16), merged["num"])
+		assert.InDelta(t, float64(16), merged["num"], 1e-9)
 		assert.Equal(t, false, merged["flag"])
 		assert.Equal(t, "bar", merged["name"])
 	})
@@ -1086,7 +1086,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 
 		_ = mergePropertiesWithOverrides(properties, overrides)
 
-		assert.Equal(t, float64(1), properties["x"])
+		assert.InDelta(t, float64(1), properties["x"], 1e-9)
 	})
 }
 

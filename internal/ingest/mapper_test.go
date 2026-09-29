@@ -415,8 +415,8 @@ func TestMapResource_OutputsMergedWithInputs(t *testing.T) {
 	assert.Equal(t, "us-east-1a", descriptor.Properties["availabilityZone"])
 	assert.Equal(t, "snap-012345", descriptor.Properties["snapshotId"])
 	// Outputs merged in
-	assert.Equal(t, float64(100), descriptor.Properties["size"])
-	assert.Equal(t, float64(3000), descriptor.Properties["iops"])
+	assert.InDelta(t, float64(100), descriptor.Properties["size"], 1e-9)
+	assert.InDelta(t, float64(3000), descriptor.Properties["iops"], 1e-9)
 	assert.Equal(t, "arn:aws:ec2:us-east-1:123:volume/vol-abc", descriptor.Properties["arn"])
 }
 
@@ -474,5 +474,5 @@ func TestMapResources_WithOutputs(t *testing.T) {
 
 	// Second resource: input + output merged
 	assert.Equal(t, "us-east-1a", descriptors[1].Properties["availabilityZone"])
-	assert.Equal(t, float64(50), descriptors[1].Properties["size"])
+	assert.InDelta(t, float64(50), descriptors[1].Properties["size"], 1e-9)
 }

@@ -78,7 +78,7 @@ func TestRecorder_GenerateFilename(t *testing.T) {
 	// Verify timestamp format (20060102T150405Z)
 	timestamp := parts[0]
 	_, err := time.Parse("20060102T150405Z", timestamp)
-	assert.NoError(t, err, "timestamp should be valid ISO8601 compact format")
+	require.NoError(t, err, "timestamp should be valid ISO8601 compact format")
 
 	// Verify method name
 	assert.Equal(t, "TestMethod", parts[1])
@@ -112,7 +112,7 @@ func TestRecorder_DirectoryCreation(t *testing.T) {
 		},
 	}
 	err = recorder.RecordRequest("Test", req)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	assert.False(t, recorder.disabled)
 }
 
@@ -153,7 +153,7 @@ func TestRecorder_NonWritableDirectory(t *testing.T) {
 	// Recording should fail with error
 	req := &pbc.GetProjectedCostRequest{}
 	err = recorder.RecordRequest("Test", req)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Contains(t, err.Error(), "disabled")
 }
 

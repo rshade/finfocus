@@ -600,8 +600,8 @@ func TestRenderRecommendationsSection_SortStability(t *testing.T) {
 	assert.NotEqual(t, -1, idxFirst, "[FIRST] marker not found in output")
 	assert.NotEqual(t, -1, idxSecond, "[SECOND] marker not found in output")
 	assert.NotEqual(t, -1, idxThird, "[THIRD] marker not found in output")
-	assert.True(t, idxFirst < idxSecond, "FIRST should appear before SECOND")
-	assert.True(t, idxSecond < idxThird, "SECOND should appear before THIRD")
+	assert.Less(t, idxFirst, idxSecond, "FIRST should appear before SECOND")
+	assert.Less(t, idxSecond, idxThird, "SECOND should appear before THIRD")
 }
 
 // TestRenderDetailViewRecommendations verifies the RECOMMENDATIONS section renders

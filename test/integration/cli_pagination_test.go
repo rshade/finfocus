@@ -183,8 +183,8 @@ func TestCLIPagination_PageBased(t *testing.T) {
 			pageSize:    3,
 			expectError: false,
 			checkMeta: func(t *testing.T, meta map[string]interface{}) {
-				assert.Equal(t, float64(1), meta["current_page"])
-				assert.Equal(t, float64(3), meta["page_size"])
+				assert.InDelta(t, float64(1), meta["current_page"], 1e-9)
+				assert.InDelta(t, float64(3), meta["page_size"], 1e-9)
 				assert.False(t, meta["has_previous"].(bool))
 			},
 		},
@@ -194,7 +194,7 @@ func TestCLIPagination_PageBased(t *testing.T) {
 			pageSize:    3,
 			expectError: false,
 			checkMeta: func(t *testing.T, meta map[string]interface{}) {
-				assert.Equal(t, float64(2), meta["current_page"])
+				assert.InDelta(t, float64(2), meta["current_page"], 1e-9)
 				assert.True(t, meta["has_previous"].(bool))
 			},
 		},
@@ -330,8 +330,8 @@ func TestCLIPagination_JSONMetadata(t *testing.T) {
 	// Verify pagination metadata is present
 	pagination, ok := result["pagination"].(map[string]interface{})
 	require.True(t, ok, "pagination metadata should be present")
-	assert.Equal(t, float64(1), pagination["current_page"])
-	assert.Equal(t, float64(5), pagination["page_size"])
+	assert.InDelta(t, float64(1), pagination["current_page"], 1e-9)
+	assert.InDelta(t, float64(5), pagination["page_size"], 1e-9)
 
 	totalItems, ok := pagination["total_items"].(float64)
 	require.True(t, ok, "total_items should be a number")
