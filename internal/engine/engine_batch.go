@@ -384,7 +384,7 @@ func newValidationBatchResult(ir indexedResource, validationErr error, queryType
 	placeholder := &CostResult{
 		ResourceType: ir.resource.Type,
 		ResourceID:   ir.resource.ID,
-		Currency:     "USD",
+		Currency:     defaultCurrency,
 		Notes:        fmt.Sprintf("VALIDATION: %v", validationErr),
 		Error: &StructuredError{
 			Code:         ErrCodeValidationError,

@@ -48,15 +48,15 @@ func testGetProjectedCostUnavailable(ctx *TestContext) *TestResult {
 func testGetProjectedCostErrorCode(ctx *TestContext, resourceType string, expectedCode codes.Code) *TestResult {
 	client, ok := ctx.PluginClient.(pbc.CostSourceServiceClient)
 	if !ok {
-		return &TestResult{Status: StatusError, Error: "invalid plugin client type"}
+		return &TestResult{Status: StatusError, Error: errInvalidPluginClientType}
 	}
 
 	req := &pbc.GetProjectedCostRequest{
 		Resource: &pbc.ResourceDescriptor{
-			Provider:     "aws",
+			Provider:     testProviderAWS,
 			ResourceType: resourceType,
 			Sku:          "any",
-			Region:       "us-east-1",
+			Region:       testRegionUSEast1,
 		},
 	}
 

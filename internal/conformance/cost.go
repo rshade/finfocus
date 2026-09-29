@@ -18,16 +18,16 @@ import (
 func testGetProjectedCostValid(ctx *TestContext) *TestResult {
 	client, ok := ctx.PluginClient.(pbc.CostSourceServiceClient)
 	if !ok {
-		return &TestResult{Status: StatusError, Error: "invalid plugin client type"}
+		return &TestResult{Status: StatusError, Error: errInvalidPluginClientType}
 	}
 
 	// Create a standard test resource (e.g., t3.micro EC2)
 	req := &pbc.GetProjectedCostRequest{
 		Resource: &pbc.ResourceDescriptor{
-			Provider:     "aws",
-			ResourceType: "aws:ec2/instance:Instance",
-			Sku:          "t3.micro",
-			Region:       "us-east-1",
+			Provider:     testProviderAWS,
+			ResourceType: testResourceTypeEC2Instance,
+			Sku:          testSKUT3Micro,
+			Region:       testRegionUSEast1,
 		},
 	}
 
@@ -64,16 +64,16 @@ func testGetProjectedCostValid(ctx *TestContext) *TestResult {
 func testGetProjectedCostInvalid(ctx *TestContext) *TestResult {
 	client, ok := ctx.PluginClient.(pbc.CostSourceServiceClient)
 	if !ok {
-		return &TestResult{Status: StatusError, Error: "invalid plugin client type"}
+		return &TestResult{Status: StatusError, Error: errInvalidPluginClientType}
 	}
 
 	// Create an invalid/unsupported resource
 	req := &pbc.GetProjectedCostRequest{
 		Resource: &pbc.ResourceDescriptor{
-			Provider:     "aws",
+			Provider:     testProviderAWS,
 			ResourceType: "invalid:resource",
 			Sku:          "non-existent",
-			Region:       "us-east-1",
+			Region:       testRegionUSEast1,
 		},
 	}
 

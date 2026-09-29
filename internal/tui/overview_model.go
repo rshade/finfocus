@@ -308,8 +308,8 @@ func (m *OverviewModel) targetVariableColumnWidths() (int, int) {
 	resourceTarget := minResourceColWidth
 	typeTarget := minTypeColWidth
 
-	resourceTarget = max(resourceTarget, utf8.RuneCountInString("Resource"))
-	typeTarget = max(typeTarget, utf8.RuneCountInString("Type"))
+	resourceTarget = max(resourceTarget, utf8.RuneCountInString(columnTitleResource))
+	typeTarget = max(typeTarget, utf8.RuneCountInString(columnTitleType))
 
 	for _, row := range m.getVisibleRows() {
 		resourceName := resourceDisplayName(row.URN)
@@ -692,12 +692,12 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 	resourceWidth := m.resourceColumnWidth()
 	typeWidth := m.typeColumnWidth()
 	columns := []table.Column{
-		{Title: "Resource", Width: resourceWidth},
-		{Title: "Type", Width: typeWidth},
+		{Title: columnTitleResource, Width: resourceWidth},
+		{Title: columnTitleType, Width: typeWidth},
 		{Title: "Status", Width: colWidthStatus},
 		{Title: "Actual", Width: colWidthActual},
 		{Title: projectedHeader, Width: colWidthProjected},
-		{Title: "Delta", Width: colWidthDelta},
+		{Title: columnTitleDelta, Width: colWidthDelta},
 		{Title: "Drift%", Width: colWidthDrift},
 		{Title: "Recs", Width: colWidthRecs},
 	}

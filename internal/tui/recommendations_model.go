@@ -53,7 +53,7 @@ const (
 func getCurrencySymbol(currency string) string {
 	// Mapping of ISO 4217 currency codes to their symbols.
 	switch currency {
-	case "USD":
+	case defaultCurrency:
 		return "$"
 	case "EUR":
 		return "€"

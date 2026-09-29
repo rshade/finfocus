@@ -255,7 +255,7 @@ func getCurrencySymbol(currency string) string {
 		return "£"
 	case "JPY":
 		return "¥"
-	case "USD", "":
+	case defaultCurrency, "":
 		return "$"
 	default:
 		return "$"

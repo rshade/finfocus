@@ -149,7 +149,7 @@ func GetProjectedCostWithErrors(
 
 			// Add placeholder result with structured validation error
 			result.Results = append(result.Results, &CostResult{
-				Currency:    "USD",
+				Currency:    defaultCurrency,
 				MonthlyCost: 0,
 				HourlyCost:  0,
 				Notes:       fmt.Sprintf("VALIDATION: %v", err),
@@ -185,7 +185,7 @@ func GetProjectedCostWithErrors(
 
 			// Add placeholder result with structured error
 			result.Results = append(result.Results, &CostResult{
-				Currency:    "USD",
+				Currency:    defaultCurrency,
 				MonthlyCost: 0,
 				HourlyCost:  0,
 				Notes:       fmt.Sprintf("ERROR: %v", err),
@@ -204,7 +204,7 @@ func GetProjectedCostWithErrors(
 		} else {
 			// Add empty result if no results returned
 			result.Results = append(result.Results, &CostResult{
-				Currency:    "USD",
+				Currency:    defaultCurrency,
 				MonthlyCost: 0,
 				HourlyCost:  0,
 			})
@@ -239,7 +239,7 @@ func validateActualCostRequest(pluginName string, req *GetActualCostRequest) *Co
 // notes is an informational string stored in the placeholder's Notes field.
 func appendActualCostPlaceholder(result *CostResultWithErrors, notes string) {
 	result.Results = append(result.Results, &CostResult{
-		Currency:    "USD",
+		Currency:    defaultCurrency,
 		MonthlyCost: 0,
 		HourlyCost:  0,
 		Notes:       notes,
@@ -279,7 +279,7 @@ func recordActualCostValidationError(
 	})
 
 	result.Results = append(result.Results, &CostResult{
-		Currency:    "USD",
+		Currency:    defaultCurrency,
 		MonthlyCost: 0,
 		HourlyCost:  0,
 		Notes:       fmt.Sprintf("VALIDATION: %v", validationErr),
@@ -316,7 +316,7 @@ func recordActualCostPluginError(
 	})
 
 	result.Results = append(result.Results, &CostResult{
-		Currency:    "USD",
+		Currency:    defaultCurrency,
 		MonthlyCost: 0,
 		HourlyCost:  0,
 		Notes:       fmt.Sprintf("ERROR: %v", pluginErr),
@@ -1451,7 +1451,7 @@ func actualCostCurrency(pbcResults []*pbc.ActualCostResult) string {
 	if pricingCandidate != "" {
 		return pricingCandidate
 	}
-	return "USD"
+	return defaultCurrency
 }
 
 // aggregateImpactMetrics sums impact metric values by kind across all actual cost results

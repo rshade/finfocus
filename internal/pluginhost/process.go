@@ -43,12 +43,15 @@ const (
 	initialBackoff    = 100 * time.Millisecond
 	maxBackoff        = 2 * time.Second
 	backoffMultiplier = 2
+
+	// envValueTrue is the environment variable value that enables a boolean toggle.
+	envValueTrue = "true"
 )
 
 // getPluginBindTimeout returns the timeout for plugin binding, with increased timeout in CI environments.
 func getPluginBindTimeout() time.Duration {
 	// Increase timeout in CI environments where resources may be constrained
-	if os.Getenv("CI") == "true" {
+	if os.Getenv("CI") == envValueTrue {
 		return ciPluginBindTimeout
 	}
 	return pluginBindTimeout
@@ -96,7 +99,7 @@ type ProcessLauncher struct {
 func NewProcessLauncher() *ProcessLauncher {
 	maxRetries := maxPortRetries
 	// Increase retries in CI environments
-	if os.Getenv("CI") == "true" {
+	if os.Getenv("CI") == envValueTrue {
 		maxRetries = ciMaxPortRetries
 	}
 	return &ProcessLauncher{
@@ -529,7 +532,7 @@ func (p *ProcessLauncher) startPlugin(
 		// Redirect plugin output to the core log file for a clean terminal experience.
 		cmd.Stderr = pluginWriter
 		cmd.Stdout = io.MultiWriter(pluginWriter, &stdoutBuf)
-	case os.Getenv(constants.EnvAnalyzerMode) == "true":
+	case os.Getenv(constants.EnvAnalyzerMode) == envValueTrue:
 		// In analyzer mode, suppress plugin output to prevent cluttering Pulumi preview output.
 		// This addresses issue #401 where plugin JSON messages appear in user-facing output.
 		log.Debug().

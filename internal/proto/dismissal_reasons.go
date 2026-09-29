@@ -19,7 +19,7 @@ var dismissalReasonLabels = map[pbc.DismissalReason]string{
 	pbc.DismissalReason_DISMISSAL_REASON_TECHNICAL_CONSTRAINT: "Technical Constraint",
 	pbc.DismissalReason_DISMISSAL_REASON_DEFERRED:             "Deferred",
 	pbc.DismissalReason_DISMISSAL_REASON_INACCURATE:           "Inaccurate",
-	pbc.DismissalReason_DISMISSAL_REASON_OTHER:                "Other",
+	pbc.DismissalReason_DISMISSAL_REASON_OTHER:                labelOther,
 }
 
 // dismissalReasonNames maps CLI flag values to proto enum values.

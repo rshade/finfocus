@@ -33,7 +33,7 @@ func zeroCostResult(resourceType, resourceID string) engine.CostResult {
 	return engine.CostResult{
 		ResourceType: resourceType,
 		ResourceID:   resourceID,
-		Currency:     "USD",
+		Currency:     defaultCurrency,
 		Monthly:      0,
 		Hourly:       0,
 		Notes:        "Internal Pulumi resource (no cloud cost)",
@@ -268,7 +268,7 @@ func (s *Server) Analyze(
 		errResult := engine.CostResult{
 			ResourceType: resourceType,
 			ResourceID:   resourceID,
-			Currency:     "USD",
+			Currency:     defaultCurrency,
 			Notes:        "ERROR: " + calcErr.Error(),
 		}
 		s.cacheCost(resourceID, errResult)
@@ -321,7 +321,7 @@ func (s *Server) Analyze(
 		cost := engine.CostResult{
 			ResourceType: resourceType,
 			ResourceID:   resourceID,
-			Currency:     "USD",
+			Currency:     defaultCurrency,
 			Monthly:      0,
 			Hourly:       0,
 			Notes:        "No pricing information available",

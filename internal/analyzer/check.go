@@ -31,6 +31,15 @@ const (
 	checkTimeout    = 5 * time.Second
 )
 
+// Check names and display names used in CheckResult entries.
+const (
+	checkNamePolicyPackDir    = "policy_pack_dir"
+	checkDisplayPolicyPackDir = "Policy pack directory"
+	checkNamePulumiPolicyYAML = "pulumi_policy_yaml"
+	checkNameGRPCSmokeTest    = "grpc_smoke_test"
+	checkDisplayGRPCSmokeTest = "gRPC smoke test"
+)
+
 // CheckResult represents the outcome of a single analyzer setup verification.
 type CheckResult struct {
 	Name        string `json:"name"`
@@ -59,11 +68,11 @@ func RunChecks(ctx context.Context) (*CheckReport, error) {
 	results = append(results, policyDirResult)
 	if policyDirResult.Status != checkStatusPass {
 		results = append(results,
-			skippedCheckResult("pulumi_policy_yaml", "PulumiPolicy.yaml",
+			skippedCheckResult(checkNamePulumiPolicyYAML, pulumiPolicyFilename,
 				"skipped because policy pack directory check failed"),
 			skippedCheckResult("binary_in_path", "Analyzer binary in PATH",
 				"skipped because policy pack directory check failed"),
-			skippedCheckResult("grpc_smoke_test", "gRPC smoke test",
+			skippedCheckResult(checkNameGRPCSmokeTest, checkDisplayGRPCSmokeTest,
 				"skipped because policy pack directory check failed"),
 		)
 		return &CheckReport{Checks: results, AllPass: false}, nil
@@ -75,7 +84,7 @@ func RunChecks(ctx context.Context) (*CheckReport, error) {
 		results = append(results,
 			skippedCheckResult("binary_in_path", "Analyzer binary in PATH",
 				"skipped because PulumiPolicy.yaml check failed"),
-			skippedCheckResult("grpc_smoke_test", "gRPC smoke test",
+			skippedCheckResult(checkNameGRPCSmokeTest, checkDisplayGRPCSmokeTest,
 				"skipped because PulumiPolicy.yaml check failed"),
 		)
 		return &CheckReport{Checks: results, AllPass: false}, nil
@@ -85,7 +94,7 @@ func RunChecks(ctx context.Context) (*CheckReport, error) {
 	results = append(results, binaryResult)
 	if binaryResult.Status != checkStatusPass {
 		results = append(results,
-			skippedCheckResult("grpc_smoke_test", "gRPC smoke test",
+			skippedCheckResult(checkNameGRPCSmokeTest, checkDisplayGRPCSmokeTest,
 				"skipped because PATH binary check failed"),
 		)
 		return &CheckReport{Checks: results, AllPass: false}, nil
@@ -104,8 +113,8 @@ func checkPolicyPackDir() (CheckResult, string) {
 	dir, err := ResolvePolicyPackDir()
 	if err != nil {
 		return CheckResult{
-			Name:        "policy_pack_dir",
-			DisplayName: "Policy pack directory",
+			Name:        checkNamePolicyPackDir,
+			DisplayName: checkDisplayPolicyPackDir,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("failed to resolve policy pack directory: %v", err),
 			Remediation: "Set FINFOCUS_HOME to a valid directory and run: finfocus analyzer install",
@@ -115,8 +124,8 @@ func checkPolicyPackDir() (CheckResult, string) {
 	info, statErr := os.Stat(dir)
 	if statErr != nil {
 		return CheckResult{
-			Name:        "policy_pack_dir",
-			DisplayName: "Policy pack directory",
+			Name:        checkNamePolicyPackDir,
+			DisplayName: checkDisplayPolicyPackDir,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("policy pack directory not found: %s", dir),
 			Remediation: "Run: finfocus analyzer install",
@@ -124,8 +133,8 @@ func checkPolicyPackDir() (CheckResult, string) {
 	}
 	if !info.IsDir() {
 		return CheckResult{
-			Name:        "policy_pack_dir",
-			DisplayName: "Policy pack directory",
+			Name:        checkNamePolicyPackDir,
+			DisplayName: checkDisplayPolicyPackDir,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("policy pack path is not a directory: %s", dir),
 			Remediation: "Remove the file and run: finfocus analyzer install",
@@ -133,8 +142,8 @@ func checkPolicyPackDir() (CheckResult, string) {
 	}
 
 	return CheckResult{
-		Name:        "policy_pack_dir",
-		DisplayName: "Policy pack directory",
+		Name:        checkNamePolicyPackDir,
+		DisplayName: checkDisplayPolicyPackDir,
 		Status:      checkStatusPass,
 		Message:     fmt.Sprintf("directory exists: %s", dir),
 	}, dir
@@ -146,8 +155,8 @@ func checkPulumiPolicyYAML(dir string) CheckResult {
 	data, err := os.ReadFile(yamlPath)
 	if err != nil {
 		return CheckResult{
-			Name:        "pulumi_policy_yaml",
-			DisplayName: "PulumiPolicy.yaml",
+			Name:        checkNamePulumiPolicyYAML,
+			DisplayName: pulumiPolicyFilename,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("failed to read %s: %v", yamlPath, err),
 			Remediation: "Re-run: finfocus analyzer install",
@@ -157,18 +166,18 @@ func checkPulumiPolicyYAML(dir string) CheckResult {
 	var cfg PolicyPackConfig
 	if unmarshalErr := yaml.Unmarshal(data, &cfg); unmarshalErr != nil {
 		return CheckResult{
-			Name:        "pulumi_policy_yaml",
-			DisplayName: "PulumiPolicy.yaml",
+			Name:        checkNamePulumiPolicyYAML,
+			DisplayName: pulumiPolicyFilename,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("invalid YAML in %s: %v", yamlPath, unmarshalErr),
 			Remediation: "Re-run: finfocus analyzer install",
 		}
 	}
 
-	if cfg.Runtime != "finfocus" {
+	if cfg.Runtime != policyPackName {
 		return CheckResult{
-			Name:        "pulumi_policy_yaml",
-			DisplayName: "PulumiPolicy.yaml",
+			Name:        checkNamePulumiPolicyYAML,
+			DisplayName: pulumiPolicyFilename,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("invalid runtime %q in %s", cfg.Runtime, yamlPath),
 			Remediation: "Set runtime: finfocus in PulumiPolicy.yaml or run: finfocus analyzer install",
@@ -176,8 +185,8 @@ func checkPulumiPolicyYAML(dir string) CheckResult {
 	}
 
 	return CheckResult{
-		Name:        "pulumi_policy_yaml",
-		DisplayName: "PulumiPolicy.yaml",
+		Name:        checkNamePulumiPolicyYAML,
+		DisplayName: pulumiPolicyFilename,
 		Status:      checkStatusPass,
 		Message:     fmt.Sprintf("%s is valid", pulumiPolicyFilename),
 	}
@@ -223,8 +232,8 @@ func checkGRPCSmokeTest(ctx context.Context) CheckResult {
 	execPath, err := os.Executable()
 	if err != nil {
 		return CheckResult{
-			Name:        "grpc_smoke_test",
-			DisplayName: "gRPC smoke test",
+			Name:        checkNameGRPCSmokeTest,
+			DisplayName: checkDisplayGRPCSmokeTest,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("failed to resolve executable path: %v", err),
 			Remediation: "Rebuild finfocus and retry",
@@ -242,8 +251,8 @@ func checkGRPCSmokeTest(ctx context.Context) CheckResult {
 	stdout, pipeErr := cmd.StdoutPipe()
 	if pipeErr != nil {
 		return CheckResult{
-			Name:        "grpc_smoke_test",
-			DisplayName: "gRPC smoke test",
+			Name:        checkNameGRPCSmokeTest,
+			DisplayName: checkDisplayGRPCSmokeTest,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("failed to capture analyzer serve stdout: %v", pipeErr),
 			Remediation: "Retry the command and verify local process execution permissions",
@@ -255,8 +264,8 @@ func checkGRPCSmokeTest(ctx context.Context) CheckResult {
 
 	if startErr := cmd.Start(); startErr != nil {
 		return CheckResult{
-			Name:        "grpc_smoke_test",
-			DisplayName: "gRPC smoke test",
+			Name:        checkNameGRPCSmokeTest,
+			DisplayName: checkDisplayGRPCSmokeTest,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("failed to start analyzer serve: %v", startErr),
 			Remediation: "Run `finfocus analyzer serve` manually to inspect startup errors",
@@ -281,8 +290,8 @@ func checkGRPCSmokeTest(ctx context.Context) CheckResult {
 			msg = fmt.Sprintf("%s (stderr: %s)", msg, firstLine(stderrStr))
 		}
 		return CheckResult{
-			Name:        "grpc_smoke_test",
-			DisplayName: "gRPC smoke test",
+			Name:        checkNameGRPCSmokeTest,
+			DisplayName: checkDisplayGRPCSmokeTest,
 			Status:      checkStatusFail,
 			Message:     msg,
 			Remediation: "Run `finfocus analyzer serve` manually to verify startup output",
@@ -293,8 +302,8 @@ func checkGRPCSmokeTest(ctx context.Context) CheckResult {
 	conn, connErr := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if connErr != nil {
 		return CheckResult{
-			Name:        "grpc_smoke_test",
-			DisplayName: "gRPC smoke test",
+			Name:        checkNameGRPCSmokeTest,
+			DisplayName: checkDisplayGRPCSmokeTest,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("failed to create gRPC client: %v", connErr),
 			Remediation: "Verify local loopback networking and retry",
@@ -308,8 +317,8 @@ func checkGRPCSmokeTest(ctx context.Context) CheckResult {
 
 	if _, rpcErr := client.GetAnalyzerInfo(smokeCtx, &emptypb.Empty{}); rpcErr != nil {
 		return CheckResult{
-			Name:        "grpc_smoke_test",
-			DisplayName: "gRPC smoke test",
+			Name:        checkNameGRPCSmokeTest,
+			DisplayName: checkDisplayGRPCSmokeTest,
 			Status:      checkStatusFail,
 			Message:     fmt.Sprintf("GetAnalyzerInfo call failed: %v", rpcErr),
 			Remediation: "Ensure `finfocus analyzer serve` starts cleanly and is reachable on localhost",
@@ -317,8 +326,8 @@ func checkGRPCSmokeTest(ctx context.Context) CheckResult {
 	}
 
 	return CheckResult{
-		Name:        "grpc_smoke_test",
-		DisplayName: "gRPC smoke test",
+		Name:        checkNameGRPCSmokeTest,
+		DisplayName: checkDisplayGRPCSmokeTest,
 		Status:      checkStatusPass,
 		Message:     "analyzer serve responded to GetAnalyzerInfo",
 	}

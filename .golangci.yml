@@ -447,10 +447,6 @@ linters:
         linters:
           # TODO: normalize repeated local constants in https://github.com/rshade/finfocus/issues/1203.
           - goconst
-      - path: '^internal/(analyzer|conformance|engine|pluginhost|proto|pulumi|registry|router|skus|spec|tui)/'
-        linters:
-          # TODO: normalize repeated domain constants in https://github.com/rshade/finfocus/issues/1204.
-          - goconst
       - path: '.*'
         linters:
           # TODO: apply Go modernization rules incrementally in https://github.com/rshade/finfocus/issues/1208.
