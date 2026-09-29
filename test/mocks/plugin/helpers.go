@@ -228,7 +228,7 @@ func (h *TestHelper) ConfigureScenario(scenario ResponseScenario) {
 
 // SetProjectedCost is a convenience method to set a projected cost response.
 func (h *TestHelper) SetProjectedCost(resourceType string, monthly, hourly float64) {
-	h.server.Plugin.SetProjectedCostResponse(resourceType, QuickResponse("USD", monthly, hourly))
+	h.server.Plugin.SetProjectedCostResponse(resourceType, QuickResponse(currencyUSD, monthly, hourly))
 }
 
 // SetError is a convenience method to configure error injection.

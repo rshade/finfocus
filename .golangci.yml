@@ -451,11 +451,6 @@ linters:
         linters:
           # TODO: normalize repeated domain constants in https://github.com/rshade/finfocus/issues/1204.
           - goconst
-      - path: '^(plugins/recorder|test/)'
-        linters:
-          # TODO: clean fixture constants and magic numbers in https://github.com/rshade/finfocus/issues/1205.
-          - goconst
-          - mnd
       - path: '.*'
         linters:
           # TODO: apply Go modernization rules incrementally in https://github.com/rshade/finfocus/issues/1208.

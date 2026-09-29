@@ -32,6 +32,9 @@ const (
 
 	// maxRecommendationsPerRequest is the maximum number of recommendations to generate per request.
 	maxRecommendationsPerRequest = 5
+
+	// currencyUSD is the ISO 4217 currency code used for all mock responses.
+	currencyUSD = "USD"
 )
 
 // Mocker generates randomized but valid cost responses for testing.
@@ -76,7 +79,7 @@ func (m *Mocker) CreateProjectedCostResponse() *pbc.GetProjectedCostResponse {
 	return &pbc.GetProjectedCostResponse{
 		CostPerMonth:  monthlyCost,
 		UnitPrice:     hourlyCost,
-		Currency:      "USD",
+		Currency:      currencyUSD,
 		BillingDetail: fmt.Sprintf("Mock cost: $%.2f/month (recorder plugin)", monthlyCost),
 	}
 }
@@ -109,7 +112,7 @@ func (m *Mocker) CreateEstimateCostResponse() *pbc.EstimateCostResponse {
 
 	return &pbc.EstimateCostResponse{
 		CostMonthly: monthlyCost,
-		Currency:    "USD",
+		Currency:    currencyUSD,
 	}
 }
 
@@ -127,7 +130,7 @@ func (m *Mocker) GenerateRecommendations() []*pbc.Recommendation {
 			Description: "Mock recommendation from recorder plugin",
 			Impact: &pbc.RecommendationImpact{
 				EstimatedSavings: savings,
-				Currency:         "USD",
+				Currency:         currencyUSD,
 			},
 		}
 	}

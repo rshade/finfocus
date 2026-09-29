@@ -11,6 +11,16 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
+// Fixed mock cost values returned by the conformance reference plugin.
+const (
+	// mockCostPerMonth is the fixed projected monthly cost returned by GetProjectedCost.
+	mockCostPerMonth = 100.0
+	// mockUnitPrice is the fixed hourly unit price returned by GetProjectedCost.
+	mockUnitPrice = 0.137
+	// mockActualCost is the fixed actual cost returned by GetActualCost.
+	mockActualCost = 50.0
+)
+
 // ConformancePlugin is a reference implementation that correctly implements
 // all protocol requirements. It's used as a baseline for conformance testing.
 type ConformancePlugin struct {
@@ -43,10 +53,10 @@ func NewConformancePlugin() *ConformancePlugin {
 		PluginVersion:         "1.0.0",
 		PluginProtocolVersion: "1.0",
 		SupportedResourceTypes: []string{
-			"aws:ec2/instance:Instance",
-			"aws:s3/bucket:Bucket",
-			"aws:rds/instance:Instance",
-			"aws:lambda/function:Function",
+			resourceTypeEC2Instance,
+			resourceTypeS3Bucket,
+			resourceTypeRDSInstance,
+			resourceTypeLambdaFunction,
 		},
 		FailOnMethod: make(map[string]error),
 	}
@@ -107,9 +117,9 @@ func (p *ConformancePlugin) GetProjectedCost(
 
 	// Return a mock cost response
 	return &pbc.GetProjectedCostResponse{
-		Currency:      "USD",
-		CostPerMonth:  100.0,
-		UnitPrice:     0.137,
+		Currency:      currencyUSD,
+		CostPerMonth:  mockCostPerMonth,
+		UnitPrice:     mockUnitPrice,
 		BillingDetail: "Mock cost for " + resourceType,
 	}, nil
 }
@@ -142,7 +152,7 @@ func (p *ConformancePlugin) GetActualCost(
 		Results: []*pbc.ActualCostResult{
 			{
 				Source: "mock",
-				Cost:   50.0,
+				Cost:   mockActualCost,
 			},
 		},
 	}, nil
@@ -228,10 +238,10 @@ func (p *ConformancePlugin) Reset() {
 	p.PluginVersion = "1.0.0"
 	p.PluginProtocolVersion = "1.0"
 	p.SupportedResourceTypes = []string{
-		"aws:ec2/instance:Instance",
-		"aws:s3/bucket:Bucket",
-		"aws:rds/instance:Instance",
-		"aws:lambda/function:Function",
+		resourceTypeEC2Instance,
+		resourceTypeS3Bucket,
+		resourceTypeRDSInstance,
+		resourceTypeLambdaFunction,
 	}
 	p.SimulateLatency = 0
 	p.FailOnMethod = make(map[string]error)

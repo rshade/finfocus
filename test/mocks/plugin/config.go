@@ -24,6 +24,37 @@ const (
 	ScenarioMultiCurrency ResponseScenario = "multi_currency"
 )
 
+// Shared fixture constants for mock plugin responses.
+const (
+	// currencyUSD is the ISO 4217 currency code used for mock cost data.
+	currencyUSD = "USD"
+
+	// resourceTypeEC2Instance is the Pulumi type token for AWS EC2 instances.
+	resourceTypeEC2Instance = "aws:ec2/instance:Instance"
+	// resourceTypeS3Bucket is the Pulumi type token for AWS S3 buckets.
+	resourceTypeS3Bucket = "aws:s3/bucket:Bucket"
+	// resourceTypeRDSInstance is the Pulumi type token for AWS RDS instances.
+	resourceTypeRDSInstance = "aws:rds/instance:Instance"
+	// resourceTypeLambdaFunction is the Pulumi type token for AWS Lambda functions.
+	resourceTypeLambdaFunction = "aws:lambda/function:Function"
+
+	// breakdownKeyCompute is the cost breakdown key for compute charges.
+	breakdownKeyCompute = "compute"
+	// breakdownKeyStorage is the cost breakdown key for storage charges.
+	breakdownKeyStorage = "storage"
+	// breakdownKeyRequests is the cost breakdown key for request charges.
+	breakdownKeyRequests = "requests"
+	// breakdownKeyTotal is the cost breakdown key for total-cost rollup entries.
+	breakdownKeyTotal = "total"
+
+	// ec2MicroMonthlyCost is the t3.micro on-demand fixture price shared by the
+	// success, partial-data, and multi-currency scenarios.
+	ec2MicroMonthlyCost = 7.30
+	// ec2MicroHourlyCost is the t3.micro on-demand hourly fixture price shared by
+	// the success, partial-data, and multi-currency scenarios.
+	ec2MicroHourlyCost = 0.01
+)
+
 // ConfigureScenario applies a pre-defined response scenario to the mock plugin.
 // This is a convenience method for common testing scenarios.
 func (m *MockPlugin) ConfigureScenario(scenario ResponseScenario) {
@@ -44,49 +75,51 @@ func (m *MockPlugin) ConfigureScenario(scenario ResponseScenario) {
 }
 
 // configureSuccessScenario sets up typical successful responses for common AWS resources.
+//
+//nolint:mnd // One-off fixture prices (S3, RDS, Lambda) are intentionally literal data.
 func (m *MockPlugin) configureSuccessScenario() {
 	// EC2 t3.micro instance
-	m.SetProjectedCostResponse("aws:ec2/instance:Instance", &proto.CostResult{
-		Currency:    "USD",
-		MonthlyCost: 7.30,
-		HourlyCost:  0.01,
+	m.SetProjectedCostResponse(resourceTypeEC2Instance, &proto.CostResult{
+		Currency:    currencyUSD,
+		MonthlyCost: ec2MicroMonthlyCost,
+		HourlyCost:  ec2MicroHourlyCost,
 		Notes:       "t3.micro on-demand pricing",
 		CostBreakdown: map[string]float64{
-			"compute": 7.30,
+			breakdownKeyCompute: ec2MicroMonthlyCost,
 		},
 	})
 
 	// S3 bucket (standard storage)
-	m.SetProjectedCostResponse("aws:s3/bucket:Bucket", &proto.CostResult{
-		Currency:    "USD",
+	m.SetProjectedCostResponse(resourceTypeS3Bucket, &proto.CostResult{
+		Currency:    currencyUSD,
 		MonthlyCost: 2.30,
 		HourlyCost:  0.00315,
 		Notes:       "Standard storage, 100GB",
 		CostBreakdown: map[string]float64{
-			"storage": 2.30,
+			breakdownKeyStorage: 2.30,
 		},
 	})
 
 	// RDS db.t3.micro instance
-	m.SetProjectedCostResponse("aws:rds/instance:Instance", &proto.CostResult{
-		Currency:    "USD",
+	m.SetProjectedCostResponse(resourceTypeRDSInstance, &proto.CostResult{
+		Currency:    currencyUSD,
 		MonthlyCost: 12.41,
 		HourlyCost:  0.017,
 		Notes:       "db.t3.micro single-AZ",
 		CostBreakdown: map[string]float64{
-			"compute": 12.41,
+			breakdownKeyCompute: 12.41,
 		},
 	})
 
 	// Lambda function
-	m.SetProjectedCostResponse("aws:lambda/function:Function", &proto.CostResult{
-		Currency:    "USD",
+	m.SetProjectedCostResponse(resourceTypeLambdaFunction, &proto.CostResult{
+		Currency:    currencyUSD,
 		MonthlyCost: 0.20,
 		HourlyCost:  0.000274,
 		Notes:       "128MB, 1M requests/month",
 		CostBreakdown: map[string]float64{
-			"compute":  0.17,
-			"requests": 0.03,
+			breakdownKeyCompute:  0.17,
+			breakdownKeyRequests: 0.03,
 		},
 	})
 }
@@ -94,86 +127,90 @@ func (m *MockPlugin) configureSuccessScenario() {
 // configurePartialDataScenario simulates a scenario where some resources have no cost data.
 func (m *MockPlugin) configurePartialDataScenario() {
 	// Only configure some resources
-	m.SetProjectedCostResponse("aws:ec2/instance:Instance", &proto.CostResult{
-		Currency:    "USD",
-		MonthlyCost: 7.30,
-		HourlyCost:  0.01,
+	m.SetProjectedCostResponse(resourceTypeEC2Instance, &proto.CostResult{
+		Currency:    currencyUSD,
+		MonthlyCost: ec2MicroMonthlyCost,
+		HourlyCost:  ec2MicroHourlyCost,
 		Notes:       "t3.micro on-demand pricing",
 		CostBreakdown: map[string]float64{
-			"compute": 7.30,
+			breakdownKeyCompute: ec2MicroMonthlyCost,
 		},
 	})
 	// aws:s3/bucket:Bucket intentionally not configured to simulate missing data
 }
 
 // configureHighCostScenario simulates expensive resources for testing cost warnings.
+//
+//nolint:mnd // One-off fixture prices are intentionally literal data.
 func (m *MockPlugin) configureHighCostScenario() {
 	// High-end EC2 instance
-	m.SetProjectedCostResponse("aws:ec2/instance:Instance", &proto.CostResult{
-		Currency:    "USD",
+	m.SetProjectedCostResponse(resourceTypeEC2Instance, &proto.CostResult{
+		Currency:    currencyUSD,
 		MonthlyCost: 2500.00,
 		HourlyCost:  3.424,
 		Notes:       "p3.8xlarge GPU instance",
 		CostBreakdown: map[string]float64{
-			"compute": 2500.00,
+			breakdownKeyCompute: 2500.00,
 		},
 	})
 
 	// Large RDS instance
-	m.SetProjectedCostResponse("aws:rds/instance:Instance", &proto.CostResult{
-		Currency:    "USD",
+	m.SetProjectedCostResponse(resourceTypeRDSInstance, &proto.CostResult{
+		Currency:    currencyUSD,
 		MonthlyCost: 1200.00,
 		HourlyCost:  1.644,
 		Notes:       "db.r5.4xlarge multi-AZ",
 		CostBreakdown: map[string]float64{
-			"compute": 1200.00,
+			breakdownKeyCompute: 1200.00,
 		},
 	})
 }
 
 // configureZeroCostScenario simulates free-tier or zero-cost resources.
 func (m *MockPlugin) configureZeroCostScenario() {
-	m.SetProjectedCostResponse("aws:s3/bucket:Bucket", &proto.CostResult{
-		Currency:    "USD",
-		MonthlyCost: 0.00,
-		HourlyCost:  0.00,
+	m.SetProjectedCostResponse(resourceTypeS3Bucket, &proto.CostResult{
+		Currency:    currencyUSD,
+		MonthlyCost: 0,
+		HourlyCost:  0,
 		Notes:       "Free tier eligible",
 		CostBreakdown: map[string]float64{
-			"storage": 0.00,
+			breakdownKeyStorage: 0,
 		},
 	})
 
-	m.SetProjectedCostResponse("aws:lambda/function:Function", &proto.CostResult{
-		Currency:    "USD",
-		MonthlyCost: 0.00,
-		HourlyCost:  0.00,
+	m.SetProjectedCostResponse(resourceTypeLambdaFunction, &proto.CostResult{
+		Currency:    currencyUSD,
+		MonthlyCost: 0,
+		HourlyCost:  0,
 		Notes:       "Within free tier limits",
 		CostBreakdown: map[string]float64{
-			"compute":  0.00,
-			"requests": 0.00,
+			breakdownKeyCompute:  0,
+			breakdownKeyRequests: 0,
 		},
 	})
 }
 
 // configureMultiCurrencyScenario simulates mixed currency responses for testing aggregation.
+//
+//nolint:mnd // The EUR fixture price is intentionally literal data.
 func (m *MockPlugin) configureMultiCurrencyScenario() {
-	m.SetProjectedCostResponse("aws:ec2/instance:Instance", &proto.CostResult{
-		Currency:    "USD",
-		MonthlyCost: 7.30,
-		HourlyCost:  0.01,
+	m.SetProjectedCostResponse(resourceTypeEC2Instance, &proto.CostResult{
+		Currency:    currencyUSD,
+		MonthlyCost: ec2MicroMonthlyCost,
+		HourlyCost:  ec2MicroHourlyCost,
 		Notes:       "US region pricing",
 		CostBreakdown: map[string]float64{
-			"compute": 7.30,
+			breakdownKeyCompute: ec2MicroMonthlyCost,
 		},
 	})
 
-	m.SetProjectedCostResponse("aws:rds/instance:Instance", &proto.CostResult{
+	m.SetProjectedCostResponse(resourceTypeRDSInstance, &proto.CostResult{
 		Currency:    "EUR",
 		MonthlyCost: 11.50,
 		HourlyCost:  0.0158,
 		Notes:       "EU region pricing",
 		CostBreakdown: map[string]float64{
-			"compute": 11.50,
+			breakdownKeyCompute: 11.50,
 		},
 	})
 }
@@ -181,7 +218,7 @@ func (m *MockPlugin) configureMultiCurrencyScenario() {
 // ConfigureActualCostScenario sets up actual cost responses for testing historical data.
 func (m *MockPlugin) ConfigureActualCostScenario(resourceID string, totalCost float64, breakdown map[string]float64) {
 	m.SetActualCostResponse(resourceID, &proto.ActualCostResult{
-		Currency:      "USD",
+		Currency:      currencyUSD,
 		TotalCost:     totalCost,
 		CostBreakdown: breakdown,
 	})
@@ -194,7 +231,7 @@ func QuickResponse(currency string, monthly, hourly float64) *proto.CostResult {
 		MonthlyCost: monthly,
 		HourlyCost:  hourly,
 		CostBreakdown: map[string]float64{
-			"total": monthly,
+			breakdownKeyTotal: monthly,
 		},
 	}
 }
@@ -205,7 +242,7 @@ func QuickActualResponse(currency string, total float64) *proto.ActualCostResult
 		Currency:  currency,
 		TotalCost: total,
 		CostBreakdown: map[string]float64{
-			"total": total,
+			breakdownKeyTotal: total,
 		},
 	}
 }
