@@ -1127,7 +1127,7 @@ func testGetRecommendationsSuccess(t *testing.T) {
 	rec := resp.Recommendations[0]
 	assert.Equal(t, "rec-123", rec.ID)
 	assert.Equal(t, "Switch to t3.small to save $15/mo", rec.Description)
-	assert.Equal(t, 15.00, rec.Impact.EstimatedSavings)
+	assert.InDelta(t, 15.00, rec.Impact.EstimatedSavings, 1e-9)
 }
 
 func testGetRecommendationsEmpty(t *testing.T) {

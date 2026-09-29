@@ -134,7 +134,7 @@ func (s *MockServer) Dial(ctx context.Context) (*grpc.ClientConn, error) {
 		return nil, fmt.Errorf("failed to create TCP client: %w", err)
 	}
 
-	if err := waitForReady(ctx, conn); err != nil {
+	if err = waitForReady(ctx, conn); err != nil {
 		_ = conn.Close()
 		return nil, fmt.Errorf("failed to connect to %s: %w", s.address, err)
 	}

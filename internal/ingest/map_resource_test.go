@@ -526,7 +526,7 @@ func getMapResourcesTestData() []struct {
 				require.True(t, ok, "parameterGroup property should be a map")
 				params, ok := paramGroup["parameters"].(map[string]interface{})
 				require.True(t, ok, "parameters property should be a map")
-				assert.Equal(t, float64(100), params["max_connections"])
+				assert.InDelta(t, float64(100), params["max_connections"], 1e-9)
 
 				// Check array
 				exports, ok := desc.Properties["enabledCloudwatchLogsExports"].([]interface{})
