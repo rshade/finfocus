@@ -455,7 +455,3 @@ linters:
           # TODO: migrate process-state test helpers in https://github.com/rshade/finfocus/issues/1207.
           - usetesting
           - wrapcheck
-      - path: '^test/mocks/plugin/examples_test\.go$'
-        linters:
-          # TODO: add deterministic example output in https://github.com/rshade/finfocus/issues/1200.
-          - testableexamples
