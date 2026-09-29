@@ -143,9 +143,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
 	}
 	audit := newAuditContext(ctx, "overview", map[string]string{
-		"pulumi_state": params.pulumiState,
-		"pulumi_json":  params.pulumiJSON,
-		"output":       params.output,
+		"pulumi_state":     params.pulumiState,
+		auditKeyPulumiJSON: params.pulumiJSON,
+		auditKeyOutput:     params.output,
 	})
 
 	// Load config once and share across all history operations.
@@ -871,6 +871,13 @@ func extractStackName(statePath string) string {
 	return base
 }
 
+// Overview filter keys accepted in --filter expressions.
+const (
+	filterKeyType     = "type"
+	filterKeyStatus   = "status"
+	filterKeyProvider = "provider"
+)
+
 // validateAndApplyOverviewFilters validates filter keys and applies filters.
 // Returns the filtered rows, or an error if an unknown key is found.
 func validateAndApplyOverviewFilters(
@@ -881,7 +888,7 @@ func validateAndApplyOverviewFilters(
 		return rows, nil
 	}
 	allowedKeys := map[string]bool{
-		"type": true, "status": true, "provider": true,
+		filterKeyType: true, filterKeyStatus: true, filterKeyProvider: true,
 	}
 	for _, f := range filters {
 		parts := splitFilter(f)
@@ -931,15 +938,15 @@ func matchesOverviewFilters(row engine.OverviewRow, filters []string) bool {
 		}
 		key, value := parts[0], parts[1]
 		switch key {
-		case "type":
+		case filterKeyType:
 			if row.Type != value {
 				return false
 			}
-		case "status":
+		case filterKeyStatus:
 			if row.Status.String() != value {
 				return false
 			}
-		case "provider":
+		case filterKeyProvider:
 			if engine.ExtractProviderFromResourceType(row.Type) != value {
 				return false
 			}

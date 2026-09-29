@@ -227,14 +227,14 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 // command, recording the input source selected by params: the Terraform state
 // path, the Pulumi plan path, or "auto-detect" when neither flag is set.
 func newCostProjectedAudit(ctx context.Context, params costProjectedParams) *auditContext {
-	auditParams := map[string]string{"output": params.output}
+	auditParams := map[string]string{auditKeyOutput: params.output}
 	switch {
 	case params.terraformState != "":
 		auditParams["terraform_state"] = params.terraformState
 	case params.planPath != "":
-		auditParams["pulumi_json"] = params.planPath
+		auditParams[auditKeyPulumiJSON] = params.planPath
 	default:
-		auditParams["pulumi_json"] = "auto-detect"
+		auditParams[auditKeyPulumiJSON] = "auto-detect"
 	}
 	if len(params.filter) > 0 {
 		auditParams["filter"] = strings.Join(params.filter, ",")

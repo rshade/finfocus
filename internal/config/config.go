@@ -246,19 +246,19 @@ func New() *Config {
 
 		// New configuration
 		Output: OutputConfig{
-			DefaultFormat: "table",
+			DefaultFormat: formatTable,
 			Precision:     defaultPrecision,
 		},
 		Plugins: make(map[string]PluginConfig),
 		Logging: LoggingConfig{
-			Level:  "info",
-			Format: "text",
+			Level:  levelInfo,
+			Format: formatText,
 			File:   filepath.Join(finfocusDir, "logs", "finfocus.log"),
 			Outputs: []LogOutput{
 				{
-					Type:   "console",
-					Level:  "info",
-					Format: "text",
+					Type:   outputTypeConsole,
+					Level:  levelInfo,
+					Format: formatText,
 				},
 			},
 		},
@@ -270,7 +270,7 @@ func New() *Config {
 			},
 			Plugins:        make(map[string]AnalyzerPlugin),
 			MaxMonthlyCost: 0,
-			Enforcement:    "advisory",
+			Enforcement:    enforcementAdvisory,
 		},
 		Cost: CostConfig{
 			Cache: CacheConfig{
@@ -340,19 +340,19 @@ func NewStrict() (*Config, error) {
 
 		// New configuration
 		Output: OutputConfig{
-			DefaultFormat: "table",
+			DefaultFormat: formatTable,
 			Precision:     defaultPrecision,
 		},
 		Plugins: make(map[string]PluginConfig),
 		Logging: LoggingConfig{
-			Level:  "info",
-			Format: "text",
+			Level:  levelInfo,
+			Format: formatText,
 			File:   filepath.Join(finfocusDir, "logs", "finfocus.log"),
 			Outputs: []LogOutput{
 				{
-					Type:   "console",
-					Level:  "info",
-					Format: "text",
+					Type:   outputTypeConsole,
+					Level:  levelInfo,
+					Format: formatText,
 				},
 			},
 		},
@@ -364,7 +364,7 @@ func NewStrict() (*Config, error) {
 			},
 			Plugins:        make(map[string]AnalyzerPlugin),
 			MaxMonthlyCost: 0,
-			Enforcement:    "advisory",
+			Enforcement:    enforcementAdvisory,
 		},
 		Cost: CostConfig{
 			Cache: CacheConfig{
@@ -418,8 +418,8 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &keys); err != nil {
 		return err
 	}
-	for _, key := range []string{"output", "plugins", "logging", "analyzer", "plugin_host",
-		"cost", "routing", "plugin_dir", "installed_plugins"} {
+	for _, key := range []string{keyOutput, keyPlugins, keyLogging, keyAnalyzer, keyPluginHost,
+		keyCost, keyRouting, keyPluginDir, keyInstalledPlugin} {
 		delete(keys, key)
 	}
 	c.extraKeys = keys
@@ -571,15 +571,15 @@ func (c *Config) Set(key, value string) error {
 	}
 
 	switch parts[0] {
-	case "output":
+	case keyOutput:
 		return c.setOutputValue(parts[1:], value)
-	case "plugins":
+	case keyPlugins:
 		return c.setPluginValue(parts[1:], value)
-	case "logging":
+	case keyLogging:
 		return c.setLoggingValue(parts[1:], value)
-	case "plugin_host":
+	case keyPluginHost:
 		return c.setPluginHostValue(parts[1:], value)
-	case "cost":
+	case keyCost:
 		return c.setCostValue(parts[1:], value)
 	default:
 		return fmt.Errorf("unknown configuration section: %s", parts[0])
@@ -594,15 +594,15 @@ func (c *Config) Get(key string) (interface{}, error) {
 	}
 
 	switch parts[0] {
-	case "output":
+	case keyOutput:
 		return c.getOutputValue(parts[1:])
-	case "plugins":
+	case keyPlugins:
 		return c.getPluginValue(parts[1:])
-	case "logging":
+	case keyLogging:
 		return c.getLoggingValue(parts[1:])
-	case "plugin_host":
+	case keyPluginHost:
 		return c.getPluginHostValue(parts[1:])
-	case "cost":
+	case keyCost:
 		return c.getCostValue(parts[1:])
 	default:
 		return nil, fmt.Errorf("unknown configuration section: %s", parts[0])
@@ -612,20 +612,20 @@ func (c *Config) Get(key string) (interface{}, error) {
 // List returns all configuration as a map.
 func (c *Config) List() map[string]interface{} {
 	return map[string]interface{}{
-		"output":      c.Output,
-		"plugins":     c.Plugins,
-		"logging":     c.Logging,
-		"analyzer":    c.Analyzer,
-		"plugin_host": c.PluginHostConfig,
-		"cost":        c.Cost,
-		"routing":     c.Routing,
+		keyOutput:     c.Output,
+		keyPlugins:    c.Plugins,
+		keyLogging:    c.Logging,
+		keyAnalyzer:   c.Analyzer,
+		keyPluginHost: c.PluginHostConfig,
+		keyCost:       c.Cost,
+		keyRouting:    c.Routing,
 	}
 }
 
 // Validate validates the configuration.
 func (c *Config) Validate() error {
 	// Validate output format
-	validFormats := []string{"table", "json", "ndjson"}
+	validFormats := []string{formatTable, "json", "ndjson"}
 	valid := false
 	for _, format := range validFormats {
 		if c.Output.DefaultFormat == format {
@@ -686,17 +686,17 @@ func (c *Config) validateAnalyzerThreshold() {
 	}
 
 	if c.Analyzer.Enforcement == "" {
-		c.Analyzer.Enforcement = "advisory"
+		c.Analyzer.Enforcement = enforcementAdvisory
 	} else {
 		validEnforcement := map[string]bool{
-			"advisory":  true,
-			"mandatory": true,
+			enforcementAdvisory: true,
+			"mandatory":         true,
 		}
 		if !validEnforcement[c.Analyzer.Enforcement] {
 			log.Warn().
 				Str("enforcement", c.Analyzer.Enforcement).
 				Msg("unrecognized enforcement mode, defaulting to advisory")
-			c.Analyzer.Enforcement = "advisory"
+			c.Analyzer.Enforcement = enforcementAdvisory
 		}
 	}
 }
@@ -757,7 +757,7 @@ func (c *Config) validateAuditConfig() error {
 }
 
 func isValidLevel(level string) error {
-	validLevels := []string{"debug", "info", "warn", "error"}
+	validLevels := []string{"debug", levelInfo, "warn", "error"}
 	for _, validLevel := range validLevels {
 		if level == validLevel {
 			return nil
@@ -767,7 +767,7 @@ func isValidLevel(level string) error {
 }
 
 func isValidFormat(format string) error {
-	validFormats := []string{"json", "text"}
+	validFormats := []string{"json", formatText}
 	for _, validFormat := range validFormats {
 		if format == validFormat {
 			return nil
@@ -794,7 +794,15 @@ func validateFilePath(path string) error {
 }
 
 const (
-	outputTypeFile = "file"
+	outputTypeFile    = "file"
+	outputTypeConsole = "console"
+
+	formatTable = "table"
+	formatText  = "text"
+
+	levelInfo = "info"
+
+	enforcementAdvisory = "advisory"
 )
 
 // validateLogOutput validates a single log output configuration.
@@ -827,7 +835,7 @@ func validateLogOutput(output LogOutput) error {
 }
 
 func validateOutputType(outputType string) error {
-	validTypes := []string{"console", outputTypeFile, "syslog"}
+	validTypes := []string{outputTypeConsole, outputTypeFile, "syslog"}
 	for _, t := range validTypes {
 		if outputType == t {
 			return nil

@@ -18,6 +18,14 @@ func isTerminal(f *os.File) bool {
 	return term.IsTerminal(int(f.Fd()))
 }
 
+// Application and command names shared across the cli package.
+const (
+	appName       = "finfocus"
+	cmdNameCost   = "cost"
+	cmdNamePlugin = "plugin"
+	cmdNameList   = "list"
+)
+
 // NewRootCmd creates the root Cobra command for the finfocus CLI.
 // It wires up logging, tracing, audit logging, and subcommands (cost, plugin, config, analyzer, overview, setup).
 // The command dynamically adjusts its Use and Example strings based on whether it's running
@@ -42,7 +50,7 @@ func NewRootCmdWithArgs(
 	pluginMode := DetectPluginMode(args, lookupEnv)
 
 	// Select the appropriate Use and Example strings based on mode
-	useName := "finfocus"
+	useName := appName
 	example := rootCmdExample
 	if pluginMode {
 		useName = "pulumi plugin run tool cost"
@@ -238,7 +246,7 @@ func newCostCmd() *cobra.Command {
 	var flags CostFlags
 
 	cmd := &cobra.Command{
-		Use:   "cost",
+		Use:   cmdNameCost,
 		Short: "Cost calculation commands",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// Call root command's PersistentPreRunE to ensure logging/tracing is set up.
@@ -305,7 +313,7 @@ func newCostCmd() *cobra.Command {
 
 // newPluginCmd creates the plugin command group with management subcommands.
 func newPluginCmd() *cobra.Command {
-	cmd := &cobra.Command{Use: "plugin", Short: "Plugin management commands"}
+	cmd := &cobra.Command{Use: cmdNamePlugin, Short: "Plugin management commands"}
 	cmd.AddCommand(
 		NewPluginValidateCmd(), NewPluginListCmd(), NewPluginInitCmd(),
 		NewPluginInstallCmd(), NewPluginUpdateCmd(), NewPluginRemoveCmd(),

@@ -499,7 +499,7 @@ func buildActualAuditParams(params costActualParams) map[string]string {
 		"from":                params.fromStr,
 		"to":                  params.toStr,
 		"adapter":             params.adapter,
-		"output":              params.output,
+		auditKeyOutput:        params.output,
 		"group_by":            params.groupBy,
 		"estimate_confidence": strconv.FormatBool(params.estimateConfidence),
 		"fallback_estimate":   strconv.FormatBool(params.fallbackEstimate),

@@ -22,7 +22,7 @@ import (
 func NewConfigListCmd() *cobra.Command {
 	var as string
 	cmd := &cobra.Command{
-		Use:   "list",
+		Use:   cmdNameList,
 		Short: "List all configuration values",
 		Long:  "Lists all configuration values from the config file in the specified style.",
 		Example: `  # List all configuration (default YAML style)

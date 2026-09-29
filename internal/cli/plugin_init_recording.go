@@ -110,17 +110,17 @@ func (w *RecorderWorkflow) RunWithRecorder(
 		cmd  string
 		args []string
 	}{
-		{"GetProjectedCost", "finfocus", []string{"cost", "projected", "--pulumi-json", planPath}},
+		{"GetProjectedCost", appName, []string{cmdNameCost, "projected", "--pulumi-json", planPath}},
 		// Fixed date "2025-01-01" ensures deterministic fixture generation for tests
 		{
 			"GetActualCost",
-			"finfocus",
-			[]string{"cost", "actual", "--pulumi-state", statePath, "--from", "2025-01-01"},
+			appName,
+			[]string{cmdNameCost, "actual", "--pulumi-state", statePath, "--from", "2025-01-01"},
 		},
 		{
 			"GetRecommendations",
-			"finfocus",
-			[]string{"cost", "recommendations", "--pulumi-json", planPath},
+			appName,
+			[]string{cmdNameCost, "recommendations", "--pulumi-json", planPath},
 		},
 	}
 

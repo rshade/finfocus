@@ -703,6 +703,16 @@ spec:
 {{CODE_BLOCK_END}}
 `
 
+// Placeholder tokens substituted into the generated plugin templates.
+const (
+	tplName           = "{{NAME}}"
+	tplCodeBlockStart = "{{CODE_BLOCK_START}}"
+	tplCodeBlockEnd   = "{{CODE_BLOCK_END}}"
+
+	// markdownCodeFence delimits fenced code blocks in generated markdown.
+	markdownCodeFence = "```"
+)
+
 // renderDocTokens substitutes the shared placeholder tokens used by the
 // generated docs/ markdown templates.
 func renderDocTokens(content, name string) string {
@@ -710,8 +720,8 @@ func renderDocTokens(content, name string) string {
 		"{{PLUGIN_NAME}}":        name,
 		"{{PLUGIN_DESCRIPTION}}": fmt.Sprintf("FinFocus plugin for %s", name),
 		"{{BACKTICK}}":           "`",
-		"{{CODE_BLOCK_START}}":   "```",
-		"{{CODE_BLOCK_END}}":     "```",
+		tplCodeBlockStart:        markdownCodeFence,
+		tplCodeBlockEnd:          markdownCodeFence,
 	}
 	for token, value := range replacements {
 		content = strings.ReplaceAll(content, token, value)
@@ -1027,10 +1037,10 @@ func runRecordingWorkflow(
 // It returns the rendered markdown content as a string.
 func renderIssues(providers []string) string {
 	replacements := map[string]string{
-		"{{PROVIDERS}}":        strings.Join(providers, ", "),
-		"{{BACKTICK}}":         "`",
-		"{{CODE_BLOCK_START}}": "```",
-		"{{CODE_BLOCK_END}}":   "```",
+		"{{PROVIDERS}}":   strings.Join(providers, ", "),
+		"{{BACKTICK}}":    "`",
+		tplCodeBlockStart: markdownCodeFence,
+		tplCodeBlockEnd:   markdownCodeFence,
 	}
 	content := pluginIssuesTemplate
 	for token, value := range replacements {
@@ -1048,12 +1058,12 @@ func renderDockerfile(goVersion string) string {
 func renderReadme(name string, providers []string) string {
 	quotedName := fmt.Sprintf("%q", name)
 	replacements := map[string]string{
-		"{{NAME}}":                    name,
+		tplName:                       name,
 		"{{PROVIDERS}}":               strings.Join(providers, ", "),
 		"{{QUOTED_NAME}}":             quotedName,
 		"{{BASH_BLOCK_START}}":        "```bash",
 		"{{GO_BLOCK_START}}":          "```go",
-		"{{CODE_BLOCK_END}}":          "```",
+		tplCodeBlockEnd:               markdownCodeFence,
 		"{{INLINE_CMD_PLUGIN}}":       "`cmd/plugin`",
 		"{{INLINE_INTERNAL_PRICING}}": "`internal/pricing`",
 		"{{INLINE_INTERNAL_CLIENT}}":  "`internal/client`",
@@ -1438,7 +1448,7 @@ func (g *projectGenerator) generateManifest() error {
 			Description: fmt.Sprintf("FinFocus plugin for %s", g.name),
 			Author:      g.author,
 			License:     "Apache-2.0",
-			Keywords:    append([]string{"finfocus", "cost", "plugin"}, g.providers...),
+			Keywords:    append([]string{appName, cmdNameCost, cmdNamePlugin}, g.providers...),
 		},
 		Specification: &pbc.PluginSpecification{
 			SpecVersion:        "1.0",
@@ -1777,7 +1787,7 @@ func (c *Calculator) calculateEC2InstanceCost(resource *pbc.ResourceDescriptor) 
 // plugin name, author, and provider list tokens.
 func renderCalculator(name, author string, providers []string) string {
 	replacements := map[string]string{
-		"{{NAME}}":           name,
+		tplName:              name,
 		"{{AUTHOR}}":         author,
 		"{{PROVIDERS_LIST}}": strings.Join(providers, `", "`),
 	}
@@ -2103,7 +2113,7 @@ func renderMakefile(name string, withDocker bool) string {
 	}
 
 	replacements := map[string]string{
-		"{{NAME}}":           name,
+		tplName:              name,
 		"{{VERSION}}":        pluginInitVersion,
 		"{{DOCKER_PHONY}}":   dockerPhony,
 		"{{DOCKER_HELP}}":    dockerHelp,
@@ -2266,7 +2276,7 @@ func renderCalculatorTest(name string, providers []string) string {
 	}
 
 	replacements := map[string]string{
-		"{{NAME}}":                  name,
+		tplName:                     name,
 		"{{INFO_PROVIDER_ASSERTS}}": strings.Join(infoProviderAsserts, "\n"),
 		"{{SUPPORTS_CASES}}":        strings.Join(supportsCases, "\n"),
 	}

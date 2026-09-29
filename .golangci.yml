@@ -434,10 +434,6 @@ linters:
         linters:
           # TODO: audit strict shadow findings in https://github.com/rshade/finfocus/issues/1209.
           - govet
-      - path: '^internal/(cli|config|logging)/'
-        linters:
-          # TODO: normalize repeated local constants in https://github.com/rshade/finfocus/issues/1203.
-          - goconst
       - path: '.*'
         linters:
           # TODO: apply Go modernization rules incrementally in https://github.com/rshade/finfocus/issues/1208.

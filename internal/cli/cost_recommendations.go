@@ -171,8 +171,8 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 
 	// Setup audit context for logging
 	auditParams := map[string]string{
-		"pulumi_json": params.planPath,
-		"output":      params.output,
+		auditKeyPulumiJSON: params.planPath,
+		auditKeyOutput:     params.output,
 	}
 	if len(params.filter) > 0 {
 		auditParams["filter"] = strings.Join(params.filter, ",")

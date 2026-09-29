@@ -363,7 +363,7 @@ func createDismissEngine(
 
 	// Open plugin connections using the shared helper
 	audit := newAuditContext(ctx, "dismiss recommendation", map[string]string{
-		"pulumi_json": planPath,
+		auditKeyPulumiJSON: planPath,
 	})
 
 	clients, cleanup, err := openPlugins(ctx, adapter, audit)
