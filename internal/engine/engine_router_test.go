@@ -71,7 +71,7 @@ func TestEngine_RouterIntegration(t *testing.T) {
 		capturedResourceType := ""
 
 		router := &mockRouter{
-			selectPluginsFunc: func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
+			selectPluginsFunc: func(_ context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
 				capturedFeature = feature
 				capturedResourceType = resource.Type
 				// Return empty - engine will fallback to "none" adapter
@@ -93,7 +93,7 @@ func TestEngine_RouterIntegration(t *testing.T) {
 
 	t.Run("router empty match falls back to all clients", func(t *testing.T) {
 		router := &mockRouter{
-			selectPluginsFunc: func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
+			selectPluginsFunc: func(_ context.Context, _ ResourceDescriptor, _ string) []PluginMatch {
 				// Return empty - should fall back to all clients
 				return []PluginMatch{}
 			},
@@ -119,7 +119,7 @@ func TestEngine_RouterIntegration(t *testing.T) {
 		var selectionCount int32
 
 		router := &mockRouter{
-			selectPluginsFunc: func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
+			selectPluginsFunc: func(_ context.Context, _ ResourceDescriptor, _ string) []PluginMatch {
 				atomic.AddInt32(&selectionCount, 1)
 				// Return empty for test purposes
 				return []PluginMatch{}
@@ -154,7 +154,7 @@ func TestEngine_RouterNotNilReturnsPluginMatch(t *testing.T) {
 		gcpClient := &pluginhost.Client{Name: "gcp-public"}
 
 		router := &mockRouter{
-			selectPluginsFunc: func(ctx context.Context, resource ResourceDescriptor, feature string) []PluginMatch {
+			selectPluginsFunc: func(_ context.Context, resource ResourceDescriptor, _ string) []PluginMatch {
 				// Track what the router returned
 				if resource.Type == "aws:ec2:Instance" {
 					selectedPlugins = append(selectedPlugins, "aws-public")

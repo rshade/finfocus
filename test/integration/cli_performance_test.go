@@ -59,7 +59,7 @@ func TestCLIPerformance_1000Items(t *testing.T) {
 	err = processor.Process(
 		testContext(t),
 		recommendations,
-		func(ctx context.Context, batch []engine.Recommendation, batchIndex int) error {
+		func(_ context.Context, batch []engine.Recommendation, _ int) error {
 			// Simulate processing work (filtering, aggregation, etc.)
 			for range batch {
 				processedCount++
@@ -128,7 +128,7 @@ func TestCLIPerformance_BatchProcessing(t *testing.T) {
 	err = processor.Process(
 		testContext(t),
 		recommendations,
-		func(ctx context.Context, batch []engine.Recommendation, batchIndex int) error {
+		func(_ context.Context, batch []engine.Recommendation, _ int) error {
 			batchesProcessed++
 			itemsProcessed += len(batch)
 			return nil

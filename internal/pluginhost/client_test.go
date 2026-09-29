@@ -33,15 +33,15 @@ type mockCostSourceServer struct {
 }
 
 func (s *mockCostSourceServer) Name(
-	ctx context.Context,
-	req *pbc.NameRequest,
+	_ context.Context,
+	_ *pbc.NameRequest,
 ) (*pbc.NameResponse, error) {
 	return &pbc.NameResponse{Name: s.name}, nil
 }
 
 func (s *mockCostSourceServer) GetPluginInfo(
 	ctx context.Context,
-	req *pbc.GetPluginInfoRequest,
+	_ *pbc.GetPluginInfoRequest,
 ) (*pbc.GetPluginInfoResponse, error) {
 	if s.pluginInfoWait > 0 {
 		select {
@@ -62,9 +62,9 @@ type grpcMockLauncher struct {
 }
 
 func (m *grpcMockLauncher) Start(
-	ctx context.Context,
-	path string,
-	args ...string,
+	_ context.Context,
+	_ string,
+	_ ...string,
 ) (*grpc.ClientConn, func() error, error) {
 	conn, err := grpc.NewClient(
 		"passthrough:///bufnet",

@@ -304,7 +304,7 @@ func TestCostRecommendationsCmd_ValidActionTypeFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(*testing.T) {
 			cmd := cli.NewCostRecommendationsCmd()
 			var outBuf bytes.Buffer
 			cmd.SetOut(&outBuf)

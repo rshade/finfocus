@@ -55,7 +55,7 @@ func FuzzJSON(f *testing.F) {
 	f.Add([]byte(`{"steps":[{"op":"create","urn":"bucket-日本語","type":"test"}]}`))
 	f.Add([]byte(`{"steps":[{"op":"create","urn":"test\u0000null","type":"test"}]}`))
 
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		// The parser must not panic on any input
 		var plan PulumiPlan
 		_ = json.Unmarshal(data, &plan)
@@ -88,7 +88,7 @@ func FuzzPulumiPlanParse(f *testing.F) {
 	f.Add([]byte(`{"steps":null}`))
 	f.Add([]byte(`{"unexpected_field": true}`))
 
-	f.Fuzz(func(t *testing.T, data []byte) {
+	f.Fuzz(func(_ *testing.T, data []byte) {
 		var plan PulumiPlan
 		err := json.Unmarshal(data, &plan)
 

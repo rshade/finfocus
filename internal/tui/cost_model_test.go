@@ -187,7 +187,7 @@ func TestCostViewModel_Init(t *testing.T) {
 		assert.NotNil(t, cmd)
 	})
 
-	t.Run("list state with no filter returns nil", func(t *testing.T) {
+	t.Run("list state with no filter returns nil", func(*testing.T) {
 		m := NewCostViewModel(context.Background(), []engine.CostResult{})
 		cmd := m.Init()
 		// Without loading or filter, Init returns nil (tea.Batch of empty).
@@ -410,7 +410,7 @@ func TestCostViewModel_SortAllFields(t *testing.T) {
 	})
 }
 
-func TestCostViewModel_HandleLoadingUpdate(t *testing.T) {
+func TestCostViewModel_HandleLoadingUpdate(_ *testing.T) {
 	m := NewCostViewModelWithLoading(context.Background(), func() ([]engine.CostResult, error) {
 		return nil, nil
 	})

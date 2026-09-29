@@ -21,12 +21,12 @@ import (
 var _ = plugin.NewMockPlugin
 
 // TestLauncherInterface_ProcessLauncher tests that ProcessLauncher implements Launcher interface.
-func TestLauncherInterface_ProcessLauncher(t *testing.T) {
+func TestLauncherInterface_ProcessLauncher(_ *testing.T) {
 	var _ pluginhost.Launcher = (*pluginhost.ProcessLauncher)(nil)
 }
 
 // TestLauncherInterface_StdioLauncher tests that StdioLauncher implements Launcher interface.
-func TestLauncherInterface_StdioLauncher(t *testing.T) {
+func TestLauncherInterface_StdioLauncher(_ *testing.T) {
 	var _ pluginhost.Launcher = (*pluginhost.StdioLauncher)(nil)
 }
 

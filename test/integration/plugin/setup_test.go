@@ -126,7 +126,7 @@ func createTestArtifactContent(t *testing.T, name, version string) []byte {
 // CreateTestPluginArchive generates a valid .tar.gz or .zip plugin artifact containing a mock binary.
 // This is the main helper function (T004) that generates archives with specified OS/arch.
 // For Windows, it creates a .zip file; for other platforms, it creates a .tar.gz file.
-func CreateTestPluginArchive(t *testing.T, name, version, targetOS, arch string) []byte {
+func CreateTestPluginArchive(t *testing.T, name, version, targetOS, _ string) []byte {
 	t.Helper()
 
 	// Determine binary name based on target OS

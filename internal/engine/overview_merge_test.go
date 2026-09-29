@@ -716,7 +716,7 @@ func TestApplyPropertyDiffsToRows(t *testing.T) {
 	assert.Empty(t, rows[1].PropertyDiffs)
 }
 
-func TestApplyPropertyDiffsToRows_NilRows(t *testing.T) {
+func TestApplyPropertyDiffsToRows_NilRows(_ *testing.T) {
 	// Should not panic.
 	ApplyPropertyDiffsToRows(nil, map[string][]PropertyDiff{
 		"urn:a": {{Key: "k", OldValue: "old", NewValue: "new"}},

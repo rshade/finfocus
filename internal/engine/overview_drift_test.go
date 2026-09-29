@@ -799,7 +799,7 @@ func TestPopulateComputedDeltas_MixedStatuses(t *testing.T) {
 	assert.InDelta(t, 80.0, *rows[3].ComputedDelta, 0.01)
 }
 
-func TestPopulateComputedDeltas_EmptyRows(t *testing.T) {
+func TestPopulateComputedDeltas_EmptyRows(_ *testing.T) {
 	// Should not panic on empty/nil slices.
 	PopulateComputedDeltas(nil, 15)
 	PopulateComputedDeltas([]OverviewRow{}, 15)

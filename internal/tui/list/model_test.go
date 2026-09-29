@@ -13,7 +13,7 @@ import (
 // TestVirtualListModel_NewModel tests VirtualListModel initialization.
 func TestVirtualListModel_NewModel(t *testing.T) {
 	items := []string{"item1", "item2", "item3", "item4", "item5"}
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -76,7 +76,7 @@ func TestVirtualListModel_VisibleRangeCalculation(t *testing.T) {
 			for i := range items {
 				items[i] = "item"
 			}
-			renderFunc := func(item string, selected bool) string {
+			renderFunc := func(item string, _ bool) string {
 				return item
 			}
 
@@ -95,7 +95,7 @@ func TestVirtualListModel_ScrollBoundaries(t *testing.T) {
 	for i := range items {
 		items[i] = "item"
 	}
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -148,7 +148,7 @@ func TestVirtualListModel_SelectionLogic(t *testing.T) {
 	for i := range items {
 		items[i] = "item"
 	}
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -214,7 +214,7 @@ func TestVirtualListModel_PageUpDown(t *testing.T) {
 	for i := range items {
 		items[i] = "item"
 	}
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -268,7 +268,7 @@ func TestVirtualListModel_WindowResize(t *testing.T) {
 	for i := range items {
 		items[i] = "item"
 	}
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -284,7 +284,7 @@ func TestVirtualListModel_WindowResize(t *testing.T) {
 
 // TestVirtualListModel_EmptyList tests behavior with no items.
 func TestVirtualListModel_EmptyList(t *testing.T) {
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -305,7 +305,7 @@ func TestVirtualListModel_EmptyList(t *testing.T) {
 
 // TestVirtualListModel_SingleItem tests behavior with one item.
 func TestVirtualListModel_SingleItem(t *testing.T) {
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 
@@ -328,7 +328,7 @@ func TestVirtualListModel_SetSelected(t *testing.T) {
 	for i := range items {
 		items[i] = "item"
 	}
-	renderFunc := func(item string, selected bool) string {
+	renderFunc := func(item string, _ bool) string {
 		return item
 	}
 

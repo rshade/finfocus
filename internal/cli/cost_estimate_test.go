@@ -407,7 +407,7 @@ func TestCostEstimateCmd_OutputFormats(t *testing.T) {
 	formats := []string{"table", "json", "ndjson"}
 
 	for _, format := range formats {
-		t.Run(format, func(t *testing.T) {
+		t.Run(format, func(*testing.T) {
 			cmd := cli.NewCostEstimateCmd()
 			var out bytes.Buffer
 			cmd.SetOut(&out)

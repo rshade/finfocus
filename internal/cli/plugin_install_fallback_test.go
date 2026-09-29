@@ -90,7 +90,7 @@ func TestIsNoAssetError(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(*testing.T) {
 			// We need to call the exported function
 			// Since isNoAssetError is unexported, we test via behavior
 			// For now, we document the expected behavior

@@ -93,7 +93,7 @@ func TestProcess_1000Items(t *testing.T) {
 	var mu sync.Mutex
 
 	// Callback to collect batch information
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, batch []int, batchIndex int) error {
 		mu.Lock()
 		defer mu.Unlock()
 		processedItems = append(processedItems, batch...)
@@ -141,7 +141,7 @@ func TestProcess_UnevenBatch(t *testing.T) {
 	var batchSizes []int
 	var mu sync.Mutex
 
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, batch []int, _ int) error {
 		mu.Lock()
 		defer mu.Unlock()
 		batchSizes = append(batchSizes, len(batch))
@@ -197,7 +197,7 @@ func TestProcess_ProgressCallback(t *testing.T) {
 		})
 	}
 
-	batchCallback := func(ctx context.Context, batch []int, batchIndex int) error {
+	batchCallback := func(_ context.Context, _ []int, _ int) error {
 		return nil
 	}
 
@@ -236,7 +236,7 @@ func TestProcess_ErrorHandling(t *testing.T) {
 	var processedBatches int
 	testErr := errors.New("batch processing error")
 
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, _ []int, batchIndex int) error {
 		processedBatches++
 		// Fail on batch 3
 		if batchIndex == 2 {
@@ -270,7 +270,7 @@ func TestProcess_ContextCancellation(t *testing.T) {
 	var processedBatches int
 	var mu sync.Mutex
 
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, _ []int, batchIndex int) error {
 		mu.Lock()
 		processedBatches++
 		mu.Unlock()
@@ -304,7 +304,7 @@ func TestProcess_EmptyItems(t *testing.T) {
 
 	items := []int{}
 
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, _ []int, _ int) error {
 		t.Fatal("callback should not be called for empty items")
 		return nil
 	}
@@ -343,7 +343,7 @@ func TestProcessConcurrent_1000Items(t *testing.T) {
 	var processedItems []int
 	var mu sync.Mutex
 
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, batch []int, _ int) error {
 		// Simulate processing time
 		time.Sleep(1 * time.Millisecond)
 
@@ -377,7 +377,7 @@ func TestProcessConcurrent_ErrorCollection(t *testing.T) {
 		items[i] = i
 	}
 
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, _ []int, batchIndex int) error {
 		// Fail batches 1 and 3
 		if batchIndex == 1 || batchIndex == 3 {
 			return fmt.Errorf("batch %d error", batchIndex)
@@ -455,7 +455,7 @@ func TestCalculateBatches(t *testing.T) {
 // TestWithProgressCallback_Chaining verifies method chaining.
 func TestWithProgressCallback_Chaining(t *testing.T) {
 	called := false
-	callback := func(progress *batch.Progress) {
+	callback := func(_ *batch.Progress) {
 		called = true
 	}
 
@@ -468,7 +468,7 @@ func TestWithProgressCallback_Chaining(t *testing.T) {
 	// Verify callback was set by processing items
 	ctx := context.Background()
 	items := []int{1, 2, 3}
-	batchCallback := func(ctx context.Context, batch []int, batchIndex int) error {
+	batchCallback := func(_ context.Context, _ []int, _ int) error {
 		return nil
 	}
 
@@ -484,7 +484,7 @@ func TestProcess_LargeBatchSize(t *testing.T) {
 	items := []int{1, 2, 3, 4, 5}
 
 	var batchSizes []int
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, batch []int, _ int) error {
 		batchSizes = append(batchSizes, len(batch))
 		return nil
 	}
@@ -510,7 +510,7 @@ func BenchmarkProcess_1000Items(b *testing.B) {
 		items[i] = i
 	}
 
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, _ []int, _ int) error {
 		// Simulate minimal processing
 		return nil
 	}
@@ -532,7 +532,7 @@ func BenchmarkProcessConcurrent_1000Items(b *testing.B) {
 		items[i] = i
 	}
 
-	callback := func(ctx context.Context, batch []int, batchIndex int) error {
+	callback := func(_ context.Context, _ []int, _ int) error {
 		// Simulate minimal processing
 		time.Sleep(100 * time.Microsecond)
 		return nil
