@@ -49,7 +49,7 @@ jq = "1.8.2"
 # Spec Kit CLI: drives the .specify/ workflow (/specify, /plan, /tasks).
 # Installed through mise's pipx backend, so this one also needs a Python
 # available to mise.
-"pipx:specify-cli" = "1.0.8"
+"pipx:specify-cli" = "1.0.12"
 
 # Editor/agent-only pin: no make target invokes gopls, but a coding agent
 # working in this checkout gets the same language server the maintainers do.
