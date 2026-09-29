@@ -1,9 +1,8 @@
 package plugin_test
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/assert"
+	"fmt"
+	"sort"
 
 	"github.com/rshade/finfocus/test/mocks/plugin"
 )
@@ -19,7 +18,11 @@ func Example_basicUsage() {
 	)
 
 	// Use the mock in your tests
-	_ = mock
+	config := mock.GetConfig()
+	resp := config.ProjectedCostResponses["aws:ec2/instance:Instance"]
+	fmt.Println(resp.Currency, resp.MonthlyCost, resp.HourlyCost)
+
+	// Output: USD 7.3 0.01
 }
 
 // Example_scenarioSuccess demonstrates the success scenario with realistic costs.
@@ -31,10 +34,21 @@ func Example_scenarioSuccess() {
 
 	// Now the mock has responses for EC2, S3, RDS, and Lambda
 	config := mock.GetConfig()
-	_ = config.ProjectedCostResponses["aws:ec2/instance:Instance"]    // EC2 instance
-	_ = config.ProjectedCostResponses["aws:s3/bucket:Bucket"]         // S3 bucket
-	_ = config.ProjectedCostResponses["aws:rds/instance:Instance"]    // RDS instance
-	_ = config.ProjectedCostResponses["aws:lambda/function:Function"] // Lambda function
+	ec2 := config.ProjectedCostResponses["aws:ec2/instance:Instance"]
+	s3 := config.ProjectedCostResponses["aws:s3/bucket:Bucket"]
+	rds := config.ProjectedCostResponses["aws:rds/instance:Instance"]
+	lambda := config.ProjectedCostResponses["aws:lambda/function:Function"]
+
+	fmt.Println("EC2:", ec2.Currency, ec2.MonthlyCost)
+	fmt.Println("S3:", s3.Currency, s3.MonthlyCost)
+	fmt.Println("RDS:", rds.Currency, rds.MonthlyCost)
+	fmt.Println("Lambda:", lambda.Currency, lambda.MonthlyCost)
+
+	// Output:
+	// EC2: USD 7.3
+	// S3: USD 2.3
+	// RDS: USD 12.41
+	// Lambda: USD 0.2
 }
 
 // Example_scenarioPartialData demonstrates testing with missing cost data.
@@ -46,8 +60,15 @@ func Example_scenarioPartialData() {
 
 	// Your code should handle missing cost data gracefully
 	config := mock.GetConfig()
-	_ = config.ProjectedCostResponses["aws:ec2/instance:Instance"] // Has data
-	// aws:s3/bucket:Bucket intentionally not configured
+	ec2, hasEC2 := config.ProjectedCostResponses["aws:ec2/instance:Instance"]
+	_, hasS3 := config.ProjectedCostResponses["aws:s3/bucket:Bucket"]
+
+	fmt.Println("has EC2:", hasEC2, "has S3:", hasS3)
+	fmt.Println("EC2 monthly:", ec2.MonthlyCost)
+
+	// Output:
+	// has EC2: true has S3: false
+	// EC2 monthly: 7.3
 }
 
 // Example_scenarioHighCost demonstrates testing cost warnings with expensive resources.
@@ -60,7 +81,13 @@ func Example_scenarioHighCost() {
 	// Resources will have high monthly costs (>$1000)
 	config := mock.GetConfig()
 	ec2 := config.ProjectedCostResponses["aws:ec2/instance:Instance"]
-	_ = ec2.MonthlyCost // Will be > $1000 for GPU instance
+
+	fmt.Println("EC2 monthly:", ec2.MonthlyCost)
+	fmt.Println("exceeds $1000:", ec2.MonthlyCost > 1000)
+
+	// Output:
+	// EC2 monthly: 2500
+	// exceeds $1000: true
 }
 
 // Example_scenarioZeroCost demonstrates testing free-tier resources.
@@ -73,7 +100,14 @@ func Example_scenarioZeroCost() {
 	// All costs will be $0.00
 	config := mock.GetConfig()
 	s3 := config.ProjectedCostResponses["aws:s3/bucket:Bucket"]
-	_ = s3.MonthlyCost // Will be 0.00
+	lambda := config.ProjectedCostResponses["aws:lambda/function:Function"]
+
+	fmt.Println("S3 monthly:", s3.MonthlyCost)
+	fmt.Println("Lambda monthly:", lambda.MonthlyCost)
+
+	// Output:
+	// S3 monthly: 0
+	// Lambda monthly: 0
 }
 
 // Example_scenarioMultiCurrency demonstrates testing currency aggregation.
@@ -88,8 +122,12 @@ func Example_scenarioMultiCurrency() {
 	ec2 := config.ProjectedCostResponses["aws:ec2/instance:Instance"]
 	rds := config.ProjectedCostResponses["aws:rds/instance:Instance"]
 
-	_ = ec2.Currency // "USD"
-	_ = rds.Currency // "EUR"
+	fmt.Println("EC2 currency:", ec2.Currency)
+	fmt.Println("RDS currency:", rds.Currency)
+
+	// Output:
+	// EC2 currency: USD
+	// RDS currency: EUR
 }
 
 // Example_errorTimeout demonstrates timeout error injection.
@@ -101,8 +139,12 @@ func Example_errorTimeout() {
 
 	// Your code should handle timeout gracefully
 	config := mock.GetConfig()
-	_ = config.ErrorType   // ErrorTimeout
-	_ = config.ErrorMethod // "GetProjectedCost"
+	fmt.Println("error type:", config.ErrorType)
+	fmt.Println("error method:", config.ErrorMethod)
+
+	// Output:
+	// error type: timeout
+	// error method: GetProjectedCost
 }
 
 // Example_errorProtocol demonstrates protocol error injection.
@@ -114,7 +156,12 @@ func Example_errorProtocol() {
 
 	// Test your error handling
 	config := mock.GetConfig()
-	_ = config.ErrorType // ErrorProtocol
+	fmt.Println("error type:", config.ErrorType)
+	fmt.Println("error method:", config.ErrorMethod)
+
+	// Output:
+	// error type: protocol
+	// error method: GetActualCost
 }
 
 // Example_errorInvalidData demonstrates invalid data error injection.
@@ -126,7 +173,10 @@ func Example_errorInvalidData() {
 
 	// Your code should validate plugin responses
 	config := mock.GetConfig()
-	_ = config.ErrorType // ErrorInvalidData
+	fmt.Println("error type:", config.ErrorType)
+
+	// Output:
+	// error type: invalid_data
 }
 
 // Example_errorUnavailable demonstrates service unavailable error injection.
@@ -138,7 +188,10 @@ func Example_errorUnavailable() {
 
 	// Test retry logic or fallback behavior
 	config := mock.GetConfig()
-	_ = config.ErrorType // ErrorUnavailable
+	fmt.Println("error type:", config.ErrorType)
+
+	// Output:
+	// error type: unavailable
 }
 
 // Example_latencySimulation demonstrates performance testing with latency.
@@ -150,7 +203,10 @@ func Example_latencySimulation() {
 
 	// Your performance tests can measure total time
 	config := mock.GetConfig()
-	_ = config.LatencyMS // 100
+	fmt.Println("latency (ms):", config.LatencyMS)
+
+	// Output:
+	// latency (ms): 100
 }
 
 // Example_combinedConfiguration demonstrates complex test scenarios.
@@ -166,6 +222,16 @@ func Example_combinedConfiguration() {
 	// - Projected costs work (scenario configured)
 	// - Actual costs fail with timeout (error configured)
 	// - Everything has 50ms delay (latency configured)
+	config := mock.GetConfig()
+	_, hasEC2 := config.ProjectedCostResponses["aws:ec2/instance:Instance"]
+	fmt.Println("has EC2 response:", hasEC2)
+	fmt.Println("error:", config.ErrorMethod, config.ErrorType)
+	fmt.Println("latency (ms):", config.LatencyMS)
+
+	// Output:
+	// has EC2 response: true
+	// error: GetActualCost timeout
+	// latency (ms): 50
 }
 
 // Example_customResponse demonstrates creating custom cost responses.
@@ -178,7 +244,10 @@ func Example_customResponse() {
 
 	// Test with your custom resource type
 	config := mock.GetConfig()
-	_ = config.ProjectedCostResponses["custom:service:Type"]
+	resp := config.ProjectedCostResponses["custom:service:Type"]
+	fmt.Println(resp.Currency, resp.MonthlyCost, resp.HourlyCost)
+
+	// Output: USD 99.99 0.137
 }
 
 // Example_actualCostResponse demonstrates configuring actual cost responses.
@@ -196,8 +265,22 @@ func Example_actualCostResponse() {
 	// Test actual cost queries
 	config := mock.GetConfig()
 	actual := config.ActualCostResponses["resource-id-123"]
-	_ = actual.TotalCost     // 175.00
-	_ = actual.CostBreakdown // Map with detailed breakdown
+
+	fmt.Println(actual.Currency, actual.TotalCost)
+	keys := make([]string, 0, len(actual.CostBreakdown))
+	for key := range actual.CostBreakdown {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		fmt.Println(key, actual.CostBreakdown[key])
+	}
+
+	// Output:
+	// USD 175
+	// compute 100
+	// network 25
+	// storage 50
 }
 
 // Example_reset demonstrates resetting mock state between tests.
@@ -216,9 +299,14 @@ func Example_reset() {
 
 	// Mock is now back to default state
 	config := mock.GetConfig()
-	_ = len(config.ProjectedCostResponses) // 0 (empty)
-	_ = config.ErrorType                   // ErrorNone
-	_ = config.LatencyMS                   // 0
+	fmt.Println("responses:", len(config.ProjectedCostResponses))
+	fmt.Println("no error:", config.ErrorType == plugin.ErrorNone)
+	fmt.Println("latency (ms):", config.LatencyMS)
+
+	// Output:
+	// responses: 0
+	// no error: true
+	// latency (ms): 0
 }
 
 // Example_testIsolation demonstrates proper test isolation.
@@ -234,6 +322,16 @@ func Example_testIsolation() {
 	// ... test with mock2 ...
 
 	// Each mock is isolated and doesn't affect the other
+	fmt.Println("mock1 responses:", len(mock1.GetConfig().ProjectedCostResponses))
+	fmt.Println("mock1 error:", mock1.GetConfig().ErrorType == plugin.ErrorNone)
+	fmt.Println("mock2 responses:", len(mock2.GetConfig().ProjectedCostResponses))
+	fmt.Println("mock2 error:", mock2.GetConfig().ErrorType)
+
+	// Output:
+	// mock1 responses: 4
+	// mock1 error: true
+	// mock2 responses: 0
+	// mock2 error: timeout
 }
 
 // Example_dynamicConfiguration demonstrates changing configuration during a test.
@@ -242,46 +340,24 @@ func Example_dynamicConfiguration() {
 
 	// Start with normal costs
 	mock.ConfigureScenario(plugin.ScenarioSuccess)
+	normal := mock.GetConfig().ProjectedCostResponses["aws:ec2/instance:Instance"].MonthlyCost
 	// ... test normal behavior ...
 
 	// Change to high costs
 	mock.ConfigureScenario(plugin.ScenarioHighCost)
+	high := mock.GetConfig().ProjectedCostResponses["aws:ec2/instance:Instance"].MonthlyCost
 	// ... test high cost alerts ...
 
 	// Change to errors
 	mock.SetError("GetActualCost", plugin.ErrorUnavailable)
 	// ... test error handling ...
-}
 
-// TestExamplesCompile verifies all examples compile and run without panics.
-func TestExamplesCompile(t *testing.T) {
-	// Basic usage
-	Example_basicUsage()
+	fmt.Println("normal EC2 monthly:", normal)
+	fmt.Println("high EC2 monthly:", high)
+	fmt.Println("error:", mock.GetConfig().ErrorMethod, mock.GetConfig().ErrorType)
 
-	// Scenarios
-	Example_scenarioSuccess()
-	Example_scenarioPartialData()
-	Example_scenarioHighCost()
-	Example_scenarioZeroCost()
-	Example_scenarioMultiCurrency()
-
-	// Error injection
-	Example_errorTimeout()
-	Example_errorProtocol()
-	Example_errorInvalidData()
-	Example_errorUnavailable()
-
-	// Performance
-	Example_latencySimulation()
-
-	// Advanced
-	Example_combinedConfiguration()
-	Example_customResponse()
-	Example_actualCostResponse()
-	Example_reset()
-	Example_testIsolation()
-	Example_dynamicConfiguration()
-
-	// All examples should compile and run
-	assert.True(t, true, "All examples compiled and ran successfully")
+	// Output:
+	// normal EC2 monthly: 7.3
+	// high EC2 monthly: 2500
+	// error: GetActualCost unavailable
 }
