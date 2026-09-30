@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"strconv"
 	"strings"
@@ -438,9 +439,7 @@ func mergePropertiesWithOverrides(
 	overrides map[string]string,
 ) map[string]any {
 	merged := make(map[string]any, len(properties)+len(overrides))
-	for k, v := range properties {
-		merged[k] = v
-	}
+	maps.Copy(merged, properties)
 	for k, v := range overrides {
 		merged[k] = coerceOverrideValue(v, properties[k])
 	}

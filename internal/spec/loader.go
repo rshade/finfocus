@@ -35,16 +35,16 @@ func NewLoader(specDir string) *Loader {
 
 // PricingSpec represents a pricing specification for a cloud service SKU.
 type PricingSpec struct {
-	Provider string                 `yaml:"provider"`
-	Service  string                 `yaml:"service"`
-	SKU      string                 `yaml:"sku"`
-	Currency string                 `yaml:"currency"`
-	Pricing  map[string]interface{} `yaml:"pricing"`
-	Metadata map[string]interface{} `yaml:"metadata,omitempty"`
+	Provider string         `yaml:"provider"`
+	Service  string         `yaml:"service"`
+	SKU      string         `yaml:"sku"`
+	Currency string         `yaml:"currency"`
+	Pricing  map[string]any `yaml:"pricing"`
+	Metadata map[string]any `yaml:"metadata,omitempty"`
 }
 
 // LoadSpec loads a pricing specification by provider, service, and SKU.
-func (l *Loader) LoadSpec(provider, service, sku string) (interface{}, error) {
+func (l *Loader) LoadSpec(provider, service, sku string) (any, error) {
 	return l.LoadSpecWithContext(context.Background(), provider, service, sku)
 }
 
@@ -52,7 +52,7 @@ func (l *Loader) LoadSpec(provider, service, sku string) (interface{}, error) {
 func (l *Loader) LoadSpecWithContext(
 	ctx context.Context,
 	provider, service, sku string,
-) (interface{}, error) {
+) (any, error) {
 	log := logging.FromContext(ctx)
 	filename := fmt.Sprintf("%s-%s-%s.yaml", provider, service, sku)
 	path := filepath.Join(l.specDir, filename)

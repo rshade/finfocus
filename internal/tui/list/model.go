@@ -169,10 +169,7 @@ func (m *VirtualListModel[T]) updateVisibleRange() {
 	// Adjust if we're near the end
 	if idealTo > len(m.items) {
 		idealTo = len(m.items)
-		idealFrom = idealTo - m.height
-		if idealFrom < 0 {
-			idealFrom = 0
-		}
+		idealFrom = max(idealTo-m.height, 0)
 	}
 
 	// Store the viewport range (without buffer)
@@ -187,15 +184,9 @@ func (m *VirtualListModel[T]) View() tea.View {
 	}
 
 	// Calculate render range with buffer for smooth scrolling
-	renderFrom := m.visibleFrom - m.bufferSize
-	if renderFrom < 0 {
-		renderFrom = 0
-	}
+	renderFrom := max(m.visibleFrom-m.bufferSize, 0)
 
-	renderTo := m.visibleTo + m.bufferSize
-	if renderTo > len(m.items) {
-		renderTo = len(m.items)
-	}
+	renderTo := min(m.visibleTo+m.bufferSize, len(m.items))
 
 	var content string
 	var contentSb199 strings.Builder

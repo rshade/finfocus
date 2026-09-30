@@ -292,17 +292,17 @@ func (e *OverviewRowError) Validate() error {
 // Each row combines state, plan, actual costs, projected costs, drift, and
 // recommendations for a resource.
 type OverviewRow struct {
-	URN        string                 `json:"urn"`
-	Type       string                 `json:"type"`
-	ResourceID string                 `json:"resourceId,omitempty"`
-	Status     ResourceStatus         `json:"status"`
-	Properties map[string]interface{} `json:"properties,omitempty"`
+	URN        string         `json:"urn"`
+	Type       string         `json:"type"`
+	ResourceID string         `json:"resourceId,omitempty"`
+	Status     ResourceStatus `json:"status"`
+	Properties map[string]any `json:"properties,omitempty"`
 	// ProjectedProperties stores preview-merged properties used for projected
 	// cost calls (deep-merge of old state and new inputs). Actual cost calls
 	// continue to use Properties from current state.
-	ProjectedProperties map[string]interface{} `json:"projectedProperties,omitempty"`
-	ActualCost          *ActualCostData        `json:"actualCost,omitempty"`
-	ProjectedCost       *ProjectedCostData     `json:"projectedCost,omitempty"`
+	ProjectedProperties map[string]any     `json:"projectedProperties,omitempty"`
+	ActualCost          *ActualCostData    `json:"actualCost,omitempty"`
+	ProjectedCost       *ProjectedCostData `json:"projectedCost,omitempty"`
 	// BaselineProjectedCost captures projected monthly cost using current-state
 	// properties (before pending changes). It is internal to delta math and is
 	// intentionally omitted from serialized output.
@@ -384,7 +384,8 @@ type StackContext struct {
 	HasChanges     bool      `json:"hasChanges"`
 	TotalResources int       `json:"totalResources"`
 	PendingChanges int       `json:"pendingChanges"`
-	GeneratedAt    time.Time `json:"generatedAt,omitempty" ax:"nondeterministic"`
+	//nolint:modernize // omitempty is a no-op for time.Time, but omitzero would change serialized output.
+	GeneratedAt time.Time `json:"generatedAt,omitempty" ax:"nondeterministic"`
 	// IsStateOnly is true when no pulumi preview was run; costs reflect the current state only.
 	IsStateOnly bool `json:"isStateOnly,omitempty"`
 	// BudgetHealth provides a stack-level budget health summary for JSON output.
@@ -436,11 +437,11 @@ type OverviewRowUpdate struct {
 // This is a lightweight projection of ingest.StackExportResource to avoid an
 // import cycle (ingest already imports engine).
 type StateResource struct {
-	URN        string                 `json:"urn,omitempty"`
-	Type       string                 `json:"type,omitempty"`
-	ID         string                 `json:"id,omitempty"`
-	Custom     bool                   `json:"custom,omitempty"`
-	Properties map[string]interface{} `json:"properties,omitempty"`
+	URN        string         `json:"urn,omitempty"`
+	Type       string         `json:"type,omitempty"`
+	ID         string         `json:"id,omitempty"`
+	Custom     bool           `json:"custom,omitempty"`
+	Properties map[string]any `json:"properties,omitempty"`
 	// CreatedAt tracks when the resource was first added to Pulumi state.
 	// Available since Pulumi v3.60.0; nil for older state files.
 	// JSON key is "createdAt" (not "created" as in the Pulumi state format);
@@ -467,7 +468,7 @@ type PlanStep struct {
 	PropertyDiffs []PropertyDiff `json:"propertyDiffs,omitempty"`
 	// ProjectedProperties carries preview properties (deep-merge of old state
 	// and new inputs) used to price pending changes accurately.
-	ProjectedProperties map[string]interface{} `json:"projectedProperties,omitempty"`
+	ProjectedProperties map[string]any `json:"projectedProperties,omitempty"`
 	// OldCloudID is the cloud resource ID from OldState (populated for replace/delete ops).
 	OldCloudID string `json:"oldCloudId,omitempty"`
 	// NewCloudID is the cloud resource ID from NewState (populated for replace/create ops).

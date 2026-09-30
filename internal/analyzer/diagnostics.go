@@ -360,10 +360,7 @@ func formatRecommendations(recommendations []engine.Recommendation) string {
 	}
 
 	var parts []string
-	displayCount := len(validRecs)
-	if displayCount > maxRecommendationsToShow {
-		displayCount = maxRecommendationsToShow
-	}
+	displayCount := min(len(validRecs), maxRecommendationsToShow)
 
 	for i := range displayCount {
 		parts = append(parts, formatRecommendation(validRecs[i]))

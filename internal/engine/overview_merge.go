@@ -248,7 +248,7 @@ func ApplyPropertyDiffsToRows(rows []OverviewRow, diffsByURN map[string][]Proper
 // their current ProjectedProperties.
 //
 // No-op if rows is nil.
-func ApplyProjectedPropertiesToRows(rows []OverviewRow, projectedPropsByURN map[string]map[string]interface{}) {
+func ApplyProjectedPropertiesToRows(rows []OverviewRow, projectedPropsByURN map[string]map[string]any) {
 	if rows == nil {
 		return
 	}
@@ -283,8 +283,8 @@ func BuildPropertyDiffsByURN(planSteps []PlanStep) map[string][]PropertyDiff {
 // BuildProjectedPropertiesByURN converts a slice of PlanSteps to a map of URN
 // → projected properties. For replace flows where multiple operations may
 // appear for the same URN, the first non-empty projected properties are kept.
-func BuildProjectedPropertiesByURN(planSteps []PlanStep) map[string]map[string]interface{} {
-	propsByURN := make(map[string]map[string]interface{})
+func BuildProjectedPropertiesByURN(planSteps []PlanStep) map[string]map[string]any {
+	propsByURN := make(map[string]map[string]any)
 	for _, step := range planSteps {
 		if len(step.ProjectedProperties) == 0 {
 			continue
@@ -297,23 +297,23 @@ func BuildProjectedPropertiesByURN(planSteps []PlanStep) map[string]map[string]i
 	return propsByURN
 }
 
-func cloneProperties(in map[string]interface{}) map[string]interface{} {
+func cloneProperties(in map[string]any) map[string]any {
 	if len(in) == 0 {
 		return nil
 	}
-	out := make(map[string]interface{}, len(in))
+	out := make(map[string]any, len(in))
 	for k, v := range in {
 		out[k] = cloneAny(v)
 	}
 	return out
 }
 
-func cloneAny(v interface{}) interface{} {
+func cloneAny(v any) any {
 	switch t := v.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return cloneProperties(t)
-	case []interface{}:
-		out := make([]interface{}, len(t))
+	case []any:
+		out := make([]any, len(t))
 		for i := range t {
 			out[i] = cloneAny(t[i])
 		}

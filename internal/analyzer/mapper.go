@@ -242,9 +242,9 @@ func extractProvider(r *pulumirpc.AnalyzerResource) string {
 //   - Struct → map[string]interface{}
 //
 // Returns an empty map if the input is nil.
-func structToMap(s *structpb.Struct) map[string]interface{} {
+func structToMap(s *structpb.Struct) map[string]any {
 	if s == nil {
-		return make(map[string]interface{})
+		return make(map[string]any)
 	}
 	return s.AsMap()
 }

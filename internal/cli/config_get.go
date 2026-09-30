@@ -61,13 +61,13 @@ and will not appear in configuration files.`,
 }
 
 // formatAndPrintValue formats and prints configuration values based on their type.
-func formatAndPrintValue(cmd *cobra.Command, key string, value interface{}) {
+func formatAndPrintValue(cmd *cobra.Command, key string, value any) {
 	switch v := value.(type) {
 	case string:
 		cmd.Printf("%s\n", v)
 	case int:
 		cmd.Printf("%d\n", v)
-	case map[string]interface{}:
+	case map[string]any:
 		cmd.Printf("%s:\n", key)
 		// Sort keys for deterministic output
 		keys := make([]string, 0, len(v))

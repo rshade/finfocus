@@ -151,8 +151,8 @@ func parseSingleBudgetFilter(ctx context.Context, f string, opts *engine.BudgetF
 	log := logging.FromContext(ctx)
 
 	// Parse provider filter: provider=<name>
-	if strings.HasPrefix(f, "provider=") {
-		provider := strings.TrimPrefix(f, "provider=")
+	if after, ok := strings.CutPrefix(f, "provider="); ok {
+		provider := after
 		opts.Providers = append(opts.Providers, provider)
 		return nil
 	}
@@ -249,19 +249,19 @@ func validateTagFilter(filter string) error {
 	tagPart := strings.TrimPrefix(filter, "tag:")
 
 	// Must contain "="
-	idx := strings.Index(tagPart, "=")
-	if idx < 0 {
+	before, after, ok := strings.Cut(tagPart, "=")
+	if !ok {
 		return fmt.Errorf("%w: missing '=' in %q", ErrInvalidBudgetFilter, filter)
 	}
 
 	// Key must not be empty
-	key := tagPart[:idx]
+	key := before
 	if key == "" {
 		return fmt.Errorf("%w: empty key in %q", ErrInvalidBudgetFilter, filter)
 	}
 
 	// Validate glob pattern syntax if value is non-empty
-	value := tagPart[idx+1:]
+	value := after
 	if value != "" {
 		if err := validateGlobPattern(value); err != nil {
 			return fmt.Errorf("%w: invalid glob pattern %q in %q: %w",

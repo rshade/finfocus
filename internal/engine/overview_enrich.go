@@ -68,37 +68,29 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 
 	// Fetch actual costs (skip for resources being created - they have no history)
 	if row.Status != StatusCreating {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			actualErr = enrichActualCost(ctx, row, eng, resource, dateRange)
-		}()
+		})
 	}
 
 	// Fetch projected costs
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		projectedErr = enrichProjectedCost(ctx, row, eng, projectedResource)
-	}()
+	})
 
 	// For updates/replacements, also fetch projected cost at current-state
 	// properties. Delta math can then use projected(new) - projected(current),
 	// avoiding month-to-date extrapolation noise for unchanged pricing.
 	if row.Status == StatusUpdating || row.Status == StatusReplacing {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			enrichBaselineProjectedCost(ctx, row, eng, resource)
-		}()
+		})
 	}
 
 	// Fetch recommendations
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		enrichRecommendations(ctx, row, eng, resource)
-	}()
+	})
 
 	// wg.Wait() establishes a happens-before edge: all goroutine writes to
 	// actualErr, projectedErr, and the distinct row fields (ActualCost,
@@ -119,7 +111,7 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 	}
 }
 
-func projectedPropertiesForRow(row OverviewRow) map[string]interface{} {
+func projectedPropertiesForRow(row OverviewRow) map[string]any {
 	if len(row.ProjectedProperties) > 0 {
 		return row.ProjectedProperties
 	}
@@ -458,21 +450,16 @@ func EnrichOverviewRows(
 		Int("row_count", len(rows)).
 		Msg("starting concurrent row enrichment")
 
-	numWorkers := overviewConcurrencyLimit
-	if len(rows) < numWorkers {
-		numWorkers = len(rows)
-	}
+	numWorkers := min(len(rows), overviewConcurrencyLimit)
 
 	jobs := make(chan int, len(rows))
 	var wg sync.WaitGroup
 
 	// Start fixed number of workers.
 	for range numWorkers {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			enrichWorker(ctx, jobs, rows, eng, dateRange, progressChan)
-		}()
+		})
 	}
 
 	// Send all jobs to the worker pool.

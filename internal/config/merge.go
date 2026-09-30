@@ -61,7 +61,7 @@ func ShallowMergeYAML(target *Config, overlayPath string) error {
 	var overlay map[string]json.RawMessage
 	if parseErr := ax.ParseConfig(context.Background(), bytes.NewReader(data), &overlay); parseErr != nil {
 		// Hujson/JSON parsing failed, try YAML as fallback for legacy files
-		var yamlOverlay map[string]interface{}
+		var yamlOverlay map[string]any
 		if yamlErr := yaml.Unmarshal(data, &yamlOverlay); yamlErr != nil {
 			return fmt.Errorf("parsing overlay file from %s (tried Hujson and YAML): %w", overlayPath, yamlErr)
 		}

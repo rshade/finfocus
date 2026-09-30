@@ -521,8 +521,8 @@ func buildAssetPatterns(
 
 	// Version variations (with and without v prefix)
 	versions := []string{version}
-	if strings.HasPrefix(version, "v") {
-		versions = append(versions, strings.TrimPrefix(version, "v"))
+	if after, ok := strings.CutPrefix(version, "v"); ok {
+		versions = append(versions, after)
 	} else {
 		versions = append(versions, "v"+version)
 	}

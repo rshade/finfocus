@@ -433,11 +433,6 @@ linters:
       - text: 'comment on exported \S+ \S+ should be of the form ".+"'
         source: '// ?(nolint|TODO)'
         linters: [ revive, staticcheck ]
-      - path: '.*'
-        linters:
-          # TODO: apply Go modernization rules incrementally in https://github.com/rshade/finfocus/issues/1208.
-          - intrange
-          - modernize
       - path: '_test\.go'
         linters:
           - bodyclose
@@ -446,6 +441,10 @@ linters:
           - funlen
           - goconst
           - gosec
+          # TODO: apply Go modernization rules to test files in a later
+          # increment of https://github.com/rshade/finfocus/issues/1208.
+          - intrange
+          - modernize
           - noctx
           # TODO: audit test isolation before enabling in https://github.com/rshade/finfocus/issues/1198.
           - paralleltest

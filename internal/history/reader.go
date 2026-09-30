@@ -1,6 +1,7 @@
 package history
 
 import (
+	"maps"
 	"slices"
 	"sort"
 
@@ -75,9 +76,7 @@ func (hr *Reader) GetResourcesForPeriod(stack StackContext, from, to int64) ([]H
 		}
 
 		// Merge tags — sorted by LastSeen so most-recent values win
-		for k, v := range entry.Tags {
-			res.Tags[k] = v
-		}
+		maps.Copy(res.Tags, entry.Tags)
 	}
 
 	// Convert map to slice

@@ -29,10 +29,10 @@ const (
 
 // ResourceDescriptor represents a cloud resource with its type, provider, and properties.
 type ResourceDescriptor struct {
-	Type       string                 `json:"type"`
-	ID         string                 `json:"id"`
-	Provider   string                 `json:"provider"`
-	Properties map[string]interface{} `json:"properties"`
+	Type       string         `json:"type"`
+	ID         string         `json:"id"`
+	Provider   string         `json:"provider"`
+	Properties map[string]any `json:"properties"`
 }
 
 // Validate checks that the ResourceDescriptor has valid fields and returns an error if validation fails.
@@ -490,8 +490,10 @@ type CostResult struct {
 	TotalCost  float64   `json:"totalCost,omitempty"`
 	DailyCosts []float64 `json:"dailyCosts,omitempty"`
 	CostPeriod string    `json:"costPeriod,omitempty"`
-	StartDate  time.Time `json:"startDate,omitempty"`
-	EndDate    time.Time `json:"endDate,omitempty"`
+	//nolint:modernize // omitempty is a no-op for time.Time, but omitzero would change serialized output.
+	StartDate time.Time `json:"startDate,omitempty"`
+	//nolint:modernize // omitempty is a no-op for time.Time, but omitzero would change serialized output.
+	EndDate time.Time `json:"endDate,omitempty"`
 
 	// Delta represents the cost change (trend) compared to a baseline, in the same currency as the cost.
 	// Positive values indicate cost increase, negative values indicate decrease.

@@ -121,20 +121,20 @@ func SnakeToCamel(s string) string {
 
 // convertKeysRecursive converts all map keys in a property tree to camelCase,
 // preserving nested structure (objects and arrays of objects).
-func convertKeysRecursive(m map[string]interface{}) map[string]interface{} {
-	out := make(map[string]interface{}, len(m))
+func convertKeysRecursive(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m))
 	for k, v := range m {
 		out[SnakeToCamel(k)] = convertValueRecursive(v)
 	}
 	return out
 }
 
-func convertValueRecursive(v interface{}) interface{} {
+func convertValueRecursive(v any) any {
 	switch val := v.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return convertKeysRecursive(val)
-	case []interface{}:
-		out := make([]interface{}, len(val))
+	case []any:
+		out := make([]any, len(val))
 		for i, item := range val {
 			out[i] = convertValueRecursive(item)
 		}

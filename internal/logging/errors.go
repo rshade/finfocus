@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+	"maps"
 	"sort"
 	"strings"
 )
@@ -103,9 +104,7 @@ func DeveloperError(message, solution string, cause error) *CategorizedError {
 func (e *CategorizedError) WithContext(key, value string) *CategorizedError {
 	// Create a copy of the context map
 	newContext := make(map[string]string, len(e.Context)+1)
-	for k, v := range e.Context {
-		newContext[k] = v
-	}
+	maps.Copy(newContext, e.Context)
 	newContext[key] = value
 
 	// Return a new error with the updated context

@@ -19,7 +19,7 @@ type OverviewPreviewTickMsg struct{}
 type OverviewChangesReadyMsg struct {
 	StatusByURN         map[string]engine.ResourceStatus
 	PropertyDiffsByURN  map[string][]engine.PropertyDiff
-	ProjectedPropsByURN map[string]map[string]interface{}
+	ProjectedPropsByURN map[string]map[string]any
 	HasChanges          bool
 	ChangeCount         int
 }

@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"context"
+	"slices"
 	"sync"
 	"time"
 
@@ -162,12 +163,7 @@ func (p *ConformancePlugin) GetActualCost(
 func (p *ConformancePlugin) supportsResourceType(resourceType string) bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	for _, supported := range p.SupportedResourceTypes {
-		if supported == resourceType {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(p.SupportedResourceTypes, resourceType)
 }
 
 // checkMethodError returns an error if one is configured for the given method.

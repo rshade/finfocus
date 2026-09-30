@@ -812,7 +812,7 @@ func MergeHistoricalResources(
 				ID:       hr.URN,
 				Type:     hr.Type,
 				Provider: hr.Provider,
-				Properties: map[string]interface{}{
+				Properties: map[string]any{
 					"pulumi:cloudId": cloudID,
 				},
 			})

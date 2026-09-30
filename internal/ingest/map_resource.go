@@ -2,6 +2,7 @@ package ingest
 
 import (
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/rshade/finfocus/internal/engine"
@@ -12,17 +13,13 @@ const unknownProvider = "unknown"
 // MergeProperties merges two property maps into a single map. Keys from the
 // inputs map override keys from the outputs map when they conflict. If both
 // inputs and outputs are nil, MergeProperties returns nil.
-func MergeProperties(outputs, inputs map[string]interface{}) map[string]interface{} {
+func MergeProperties(outputs, inputs map[string]any) map[string]any {
 	if outputs == nil && inputs == nil {
 		return nil
 	}
-	result := make(map[string]interface{}, len(outputs)+len(inputs))
-	for k, v := range outputs {
-		result[k] = v
-	}
-	for k, v := range inputs {
-		result[k] = v
-	}
+	result := make(map[string]any, len(outputs)+len(inputs))
+	maps.Copy(result, outputs)
+	maps.Copy(result, inputs)
 	return result
 }
 

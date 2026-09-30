@@ -102,16 +102,16 @@ type BenchmarkConfig struct {
 
 // SyntheticResource represents a generic infrastructure resource for testing.
 type SyntheticResource struct {
-	Type       string                 `json:"type"`
-	Name       string                 `json:"name"`
-	Properties map[string]interface{} `json:"properties"`
-	DependsOn  []string               `json:"dependsOn"`
+	Type       string         `json:"type"`
+	Name       string         `json:"name"`
+	Properties map[string]any `json:"properties"`
+	DependsOn  []string       `json:"dependsOn"`
 }
 
 // SyntheticPlan is the top-level container for generated datasets.
 type SyntheticPlan struct {
-	Resources []SyntheticResource    `json:"resources"`
-	Variables map[string]interface{} `json:"variables,omitempty"`
+	Resources []SyntheticResource `json:"resources"`
+	Variables map[string]any      `json:"variables,omitempty"`
 }
 
 // Preset configurations for common benchmark scenarios.
@@ -171,7 +171,7 @@ func GeneratePlan(config BenchmarkConfig) (SyntheticPlan, error) {
 	rng := rand.New(rand.NewPCG(uint64(config.Seed), uint64(config.Seed)))
 	plan := SyntheticPlan{
 		Resources: make([]SyntheticResource, 0, config.ResourceCount),
-		Variables: make(map[string]interface{}),
+		Variables: make(map[string]any),
 	}
 
 	// Generate resource names first for dependency references
@@ -181,7 +181,7 @@ func GeneratePlan(config BenchmarkConfig) (SyntheticPlan, error) {
 	}
 
 	// Generate resources
-	for i := 0; i < config.ResourceCount; i++ {
+	for i := range config.ResourceCount {
 		resource := SyntheticResource{
 			Type:       resourceTypes[rng.IntN(len(resourceTypes))],
 			Name:       resourceNames[i],
@@ -192,12 +192,9 @@ func GeneratePlan(config BenchmarkConfig) (SyntheticPlan, error) {
 		// Add dependencies based on ratio (only to earlier resources)
 		if i > 0 && rng.Float64() < config.DependencyRatio {
 			// Pick 1-3 dependencies from earlier resources
-			numDeps := rng.IntN(maxDependencies) + 1
-			if numDeps > i {
-				numDeps = i
-			}
+			numDeps := min(rng.IntN(maxDependencies)+1, i)
 			deps := make(map[string]bool)
-			for j := 0; j < numDeps; j++ {
+			for range numDeps {
 				depIdx := rng.IntN(i)
 				deps[resourceNames[depIdx]] = true
 			}
@@ -217,12 +214,12 @@ func GeneratePlan(config BenchmarkConfig) (SyntheticPlan, error) {
 }
 
 // generateProperties creates nested properties up to maxDepth.
-func generateProperties(rng *rand.Rand, maxDepth, currentDepth int) map[string]interface{} {
-	props := make(map[string]interface{})
+func generateProperties(rng *rand.Rand, maxDepth, currentDepth int) map[string]any {
+	props := make(map[string]any)
 
 	// Add 2-5 properties
 	numProps := rng.IntN(propertyCountSpread) + minProperties
-	for i := 0; i < numProps; i++ {
+	for i := range numProps {
 		key := fmt.Sprintf("prop_%d", i)
 
 		if currentDepth < maxDepth && rng.Float64() < nestedObjectChance {

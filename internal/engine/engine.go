@@ -100,7 +100,7 @@ var (
 
 // SpecLoader is an interface for loading pricing specifications from local YAML files.
 type SpecLoader interface {
-	LoadSpec(provider, service, sku string) (interface{}, error)
+	LoadSpec(provider, service, sku string) (any, error)
 }
 
 // PluginMatch represents a matched plugin from the router.
@@ -480,10 +480,7 @@ func (e *Engine) getWorkerCount(jobCount int) int {
 		}
 		return jobCount
 	}
-	numWorkers := runtime.NumCPU() * e.getConcurrencyMultiplier()
-	if jobCount < numWorkers {
-		numWorkers = jobCount
-	}
+	numWorkers := min(jobCount, runtime.NumCPU()*e.getConcurrencyMultiplier())
 	return numWorkers
 }
 
@@ -1868,7 +1865,7 @@ func (e *Engine) loadSpecWithFallback(
 
 func (e *Engine) tryLoadSpec(ctx context.Context, provider, service, sku string) *PricingSpec {
 	if loader, ok := e.loader.(interface {
-		LoadSpecWithContext(ctx context.Context, provider, service, sku string) (interface{}, error)
+		LoadSpecWithContext(ctx context.Context, provider, service, sku string) (any, error)
 	}); ok {
 		specData, err := loader.LoadSpecWithContext(ctx, provider, service, sku)
 		if err != nil {
@@ -2004,7 +2001,7 @@ func deriveActualCostWindow(
 // ConvertToProto converts a map[string]interface{} to map[string]string for gRPC.
 // It handles nested structures from protobuf Struct conversions by extracting
 // meaningful values from common patterns.
-func ConvertToProto(properties map[string]interface{}) map[string]string {
+func ConvertToProto(properties map[string]any) map[string]string {
 	result := make(map[string]string)
 	for k, v := range properties {
 		result[k] = ConvertValueToString(v)
@@ -2016,7 +2013,7 @@ func ConvertToProto(properties map[string]interface{}) map[string]string {
 // It handles nested maps and slices that may come from protobuf Struct conversions.
 //
 //nolint:gocognit // Complexity is inherent to handling multiple types in a type switch
-func ConvertValueToString(v interface{}) string {
+func ConvertValueToString(v any) string {
 	if v == nil {
 		return ""
 	}
@@ -2033,7 +2030,7 @@ func ConvertValueToString(v interface{}) string {
 		return strconv.FormatFloat(val, 'f', -1, 64)
 	case bool:
 		return strconv.FormatBool(val)
-	case map[string]interface{}:
+	case map[string]any:
 		// Try common nested patterns from protobuf Struct
 		// Pattern 1: {"value": "..."} - common in Pulumi outputs
 		if value, ok := val["value"]; ok {
@@ -2055,7 +2052,7 @@ func ConvertValueToString(v interface{}) string {
 		}
 		// Fallback: convert to string representation
 		return fmt.Sprintf("%v", val)
-	case []interface{}:
+	case []any:
 		// For arrays, try to extract first element if single-element array
 		if len(val) == 1 {
 			return ConvertValueToString(val[0])
@@ -2098,7 +2095,7 @@ func extractSKU(resource ResourceDescriptor) string {
 	return extractSKUFromType(resource.Type)
 }
 
-func extractSKUFromProperties(properties map[string]interface{}) string {
+func extractSKUFromProperties(properties map[string]any) string {
 	if properties == nil {
 		return ""
 	}
@@ -2120,7 +2117,7 @@ func extractSKUFromType(resourceType string) string {
 	return ""
 }
 
-func getStringProperty(properties map[string]interface{}, key string) (string, bool) {
+func getStringProperty(properties map[string]any, key string) (string, bool) {
 	if sku, ok := properties[key]; ok {
 		if skuStr, isStr := sku.(string); isStr {
 			return skuStr, true
@@ -2144,7 +2141,7 @@ func calculateCostsFromSpec(spec *PricingSpec, resource ResourceDescriptor) (flo
 }
 
 func tryExtractCostsFromPricing(
-	pricing map[string]interface{},
+	pricing map[string]any,
 	resource ResourceDescriptor,
 ) (float64, float64, bool) {
 	// Try direct monthly estimate first
@@ -2166,7 +2163,7 @@ func tryExtractCostsFromPricing(
 	return tryFallbackNumericValue(pricing)
 }
 
-func tryMonthlyEstimate(pricing map[string]interface{}) (float64, float64, bool) {
+func tryMonthlyEstimate(pricing map[string]any) (float64, float64, bool) {
 	if monthlyFloat, ok := getFloatFromPricing(pricing, "monthlyEstimate"); ok {
 		monthly := monthlyFloat
 		hourly := monthly / hoursPerMonth
@@ -2187,7 +2184,7 @@ func tryMonthlyEstimate(pricing map[string]interface{}) (float64, float64, bool)
 //
 // Returns the monthly estimate, the hourly rate, and a boolean indicating whether
 // a valid hourly rate was found.
-func tryHourlyRates(pricing map[string]interface{}) (float64, float64, bool) {
+func tryHourlyRates(pricing map[string]any) (float64, float64, bool) {
 	hourlyKeys := []string{"onDemandHourly", "hourlyRate"}
 	for _, key := range hourlyKeys {
 		if hourlyFloat, ok := getFloatFromPricing(pricing, key); ok {
@@ -2208,7 +2205,7 @@ func tryHourlyRates(pricing map[string]interface{}) (float64, float64, bool) {
 // size or the pricing does not contain `pricePerGBMonth` as a float64, it returns
 // zeros and `false`.
 func tryStoragePricing(
-	pricing map[string]interface{},
+	pricing map[string]any,
 	resource ResourceDescriptor,
 ) (float64, float64, bool) {
 	sizeGB, hasSize := getStorageSize(resource)
@@ -2224,7 +2221,7 @@ func tryStoragePricing(
 	return 0, 0, false
 }
 
-func tryFallbackNumericValue(pricing map[string]interface{}) (float64, float64, bool) {
+func tryFallbackNumericValue(pricing map[string]any) (float64, float64, bool) {
 	for _, value := range pricing {
 		if floatValue, ok := value.(float64); ok && floatValue > 0 {
 			monthly := floatValue * hoursPerMonth // Assume it's hourly
@@ -2235,7 +2232,7 @@ func tryFallbackNumericValue(pricing map[string]interface{}) (float64, float64, 
 	return 0, 0, false
 }
 
-func getFloatFromPricing(pricing map[string]interface{}, key string) (float64, bool) {
+func getFloatFromPricing(pricing map[string]any, key string) (float64, bool) {
 	if value, ok := pricing[key]; ok {
 		if floatValue, isFloat := value.(float64); isFloat {
 			return floatValue, true
@@ -2281,7 +2278,7 @@ func getStorageSize(resource ResourceDescriptor) (float64, bool) {
 // parseFloatValue attempts to convert value to a float64.
 // It accepts a float64, an int (converted to float64), or a numeric string.
 // It returns the converted float64 and true on success, or 0 and false if conversion fails.
-func parseFloatValue(value interface{}) (float64, bool) {
+func parseFloatValue(value any) (float64, bool) {
 	if sizeFloat, ok := value.(float64); ok {
 		return sizeFloat, true
 	}
@@ -2385,7 +2382,7 @@ func extractProviderFromType(resourceType string) string {
 // extractStringProperty returns the first non-empty string value found in properties for the supplied keys,
 // checked in the order they are provided. It returns an empty string if none of the keys exist or none map to
 // a non-empty string.
-func extractStringProperty(properties map[string]interface{}, keys ...string) string {
+func extractStringProperty(properties map[string]any, keys ...string) string {
 	for _, key := range keys {
 		if v, ok := properties[key]; ok {
 			if s, isStr := v.(string); isStr && s != "" {
@@ -2486,8 +2483,8 @@ func matchesProperties(resource ResourceDescriptor, key, value string) bool {
 	}
 
 	propKey := key
-	if strings.HasPrefix(key, "tag:") {
-		propKey = strings.TrimPrefix(key, "tag:")
+	if after, ok := strings.CutPrefix(key, "tag:"); ok {
+		propKey = after
 	}
 
 	for k, v := range resource.Properties {
@@ -2499,7 +2496,7 @@ func matchesProperties(resource ResourceDescriptor, key, value string) bool {
 		// Also check if this property is a map and contains the key (for tags/labels)
 		kl := strings.ToLower(k)
 		if kl == "tags" || kl == "labels" {
-			if m, ok := v.(map[string]interface{}); ok {
+			if m, ok := v.(map[string]any); ok {
 				if matchInMap(m, propKey, value) {
 					return true
 				}
@@ -2515,7 +2512,7 @@ func matchesProperties(resource ResourceDescriptor, key, value string) bool {
 // propKey and value are matched against the map contents in a case-insensitive manner; if a
 // matching key is found and its stringified value contains the provided value, the function
 // returns true, otherwise it returns false.
-func matchInMap(m map[string]interface{}, propKey, value string) bool {
+func matchInMap(m map[string]any, propKey, value string) bool {
 	for mk, mv := range m {
 		if strings.ToLower(mk) == propKey {
 			if strings.Contains(strings.ToLower(fmt.Sprintf("%v", mv)), value) {

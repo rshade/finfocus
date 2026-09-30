@@ -8,6 +8,7 @@ package plugin
 
 import (
 	"errors"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -208,12 +209,7 @@ func (m *MockPlugin) SetFailForTypes(types []string) {
 func (m *MockPlugin) ShouldFailForType(resourceType string) bool {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	for _, ft := range m.config.FailForTypes {
-		if ft == resourceType {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(m.config.FailForTypes, resourceType)
 }
 
 // IncrementCallCount atomically increments the call counter.

@@ -275,10 +275,7 @@ func (m *OverviewModel) variableColumnWidths() (int, int) {
 		return minResourceColWidth, minTypeColWidth
 	}
 
-	reduceResource := (overflow * resourceSlack) / totalSlack
-	if reduceResource > resourceSlack {
-		reduceResource = resourceSlack
-	}
+	reduceResource := min((overflow*resourceSlack)/totalSlack, resourceSlack)
 	reduceType := overflow - reduceResource
 	if reduceType > typeSlack {
 		extra := reduceType - typeSlack
@@ -749,10 +746,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		}
 	}
 
-	availableHeight := m.height - summaryHeight - 1
-	if availableHeight < minHeight {
-		availableHeight = minHeight
-	}
+	availableHeight := max(m.height-summaryHeight-1, minHeight)
 
 	t := table.New(
 		table.WithColumns(columns),
@@ -877,10 +871,7 @@ func (m *OverviewModel) getVisibleRows() []engine.OverviewRow {
 	}
 
 	start := (m.currentPage - 1) * maxOverviewResourcesPerPage
-	end := start + maxOverviewResourcesPerPage
-	if end > len(m.rows) {
-		end = len(m.rows)
-	}
+	end := min(start+maxOverviewResourcesPerPage, len(m.rows))
 
 	if start >= len(m.rows) {
 		return []engine.OverviewRow{}

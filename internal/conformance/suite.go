@@ -215,7 +215,7 @@ func (s *Suite) Run(ctx context.Context) (*SuiteReport, error) {
 
 	// Create a factory function for connecting to the plugin
 	launcher := pluginhost.NewProcessLauncher()
-	connectFn := func(ctx context.Context) (interface{}, func() error, error) {
+	connectFn := func(ctx context.Context) (any, func() error, error) {
 		conn, closeFn, err := launcher.Start(ctx, s.config.PluginPath)
 		if err != nil {
 			return nil, nil, err

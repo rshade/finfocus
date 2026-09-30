@@ -317,7 +317,7 @@ func parseRootBlockDevice(raw string) (map[string]string, bool) {
 
 	// Try JSON format first (e.g., {"volumeType":"gp3","volumeSize":"100"}).
 	if strings.HasPrefix(trimmed, "{") {
-		var jsonMap map[string]interface{}
+		var jsonMap map[string]any
 		if err := json.Unmarshal([]byte(trimmed), &jsonMap); err == nil && len(jsonMap) > 0 {
 			fields := make(map[string]string, len(jsonMap))
 			for k, v := range jsonMap {
@@ -338,7 +338,7 @@ func parseRootBlockDevice(raw string) (map[string]string, bool) {
 	}
 
 	fields := make(map[string]string)
-	for _, token := range strings.Fields(body) {
+	for token := range strings.FieldsSeq(body) {
 		parts := strings.SplitN(token, ":", kvPairParts)
 		if len(parts) != kvPairParts {
 			continue

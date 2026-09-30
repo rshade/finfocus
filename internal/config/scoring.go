@@ -193,7 +193,7 @@ func (c *Config) ensureScoring() *ScoringConfig {
 	return c.Scoring
 }
 
-func (c *Config) getScoringValue(parts []string) (interface{}, error) {
+func (c *Config) getScoringValue(parts []string) (any, error) {
 	if len(parts) < 1 {
 		return c.Scoring, nil
 	}
@@ -216,7 +216,7 @@ func (c *Config) getScoringValue(parts []string) (interface{}, error) {
 	}
 }
 
-func (c *Config) getScoringReviewValue(parts []string, resolved ResolvedScoring) (interface{}, error) {
+func (c *Config) getScoringReviewValue(parts []string, resolved ResolvedScoring) (any, error) {
 	if len(parts) < 1 {
 		return map[string]float64{
 			scoringReviewKeyRisk:                 resolved.RiskThreshold,
@@ -269,7 +269,7 @@ func (c *Config) setScoringValue(parts []string, value string) error {
 		next.TimeoutSeconds = n
 	case scoringKeyFieldAllowlist:
 		next.FieldAllowlist = nil
-		for _, f := range strings.Split(value, ",") {
+		for f := range strings.SplitSeq(value, ",") {
 			if f = strings.TrimSpace(f); f != "" {
 				next.FieldAllowlist = append(next.FieldAllowlist, f)
 			}

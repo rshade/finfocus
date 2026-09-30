@@ -114,7 +114,7 @@ type AnalyzerResource struct {
 	Type       string
 	Provider   string
 	CloudID    string // Available when DryRun=false
-	Properties map[string]interface{}
+	Properties map[string]any
 }
 
 // HistoricalResource is the enriched output from history queries,

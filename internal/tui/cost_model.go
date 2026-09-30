@@ -371,10 +371,7 @@ func (m *CostViewModel) applySort() {
 }
 
 func (m *CostViewModel) rebuildTable() {
-	availableHeight := m.height - summaryHeight - 1
-	if availableHeight < minHeight {
-		availableHeight = minHeight
-	}
+	availableHeight := max(m.height-summaryHeight-1, minHeight)
 
 	switch {
 	case m.isActual && m.groupBy.IsTimeBasedGrouping():

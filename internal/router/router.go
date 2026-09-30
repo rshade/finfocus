@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"slices"
 	"sort"
 	"sync"
 
@@ -409,10 +410,8 @@ func (r *DefaultRouter) matchesFeature(client *pluginhost.Client, cfg config.Plu
 		return r.matchesCapabilities(client, resolvedFeature)
 	}
 
-	for _, f := range cfg.Features {
-		if f == resolvedFeature {
-			return r.matchesCapabilities(client, resolvedFeature)
-		}
+	if slices.Contains(cfg.Features, resolvedFeature) {
+		return r.matchesCapabilities(client, resolvedFeature)
 	}
 	return false
 }
