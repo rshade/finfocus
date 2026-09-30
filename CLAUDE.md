@@ -605,7 +605,6 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 - **OpenCode Action** (`sst/opencode/github@dev`) ONLY works with `issue_comment` events.
   For other triggers, use CLI installation
-- **`/opencode-review-fix`** comment on a PR triggers automatic fix of all review issues
 
 ## Recent Changes
 
