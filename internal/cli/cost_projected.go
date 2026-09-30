@@ -154,7 +154,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	params.output = resolveOutputFormat(cmd, "output", params.output)
 
 	if err := validateCostProjectedParams(params); err != nil {
-		return err
+		return toValidationError(ctx, err)
 	}
 	ctx = context.WithValue(ctx, engine.ContextKeyUtilization, params.utilization)
 
@@ -167,6 +167,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	resources, err := loadProjectedResources(ctx, cmd, params, audit)
 	if err != nil {
 		audit.logFailure(ctx, err)
+		if params.terraformState != "" || params.planPath != "" {
+			return toValidationError(ctx, err)
+		}
 		return err
 	}
 
@@ -174,7 +177,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
 		audit.logFailure(ctx, err)
-		return fmt.Errorf("applying filters: %w", err)
+		return toValidationError(ctx, fmt.Errorf("applying filters: %w", err))
 	}
 
 	cfg, specDir := config.GetGlobalConfig(), params.specDir
@@ -187,6 +190,8 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		return err
 	}
 	defer cleanup()
+
+	warnNoTypeResolvingPlugin(cmd, params.terraformState, clients)
 
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	defer cacheCleanup()

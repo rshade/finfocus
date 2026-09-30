@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // overviewConcurrencyLimit is the maximum number of concurrent enrichment goroutines.
@@ -49,7 +50,7 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 	resource := ResourceDescriptor{
 		Type:       row.Type,
 		ID:         row.URN,
-		Provider:   extractProviderFromType(row.Type),
+		Provider:   resourcetype.ExtractProvider(row.Type),
 		Properties: row.Properties,
 	}
 	projectedResource := ResourceDescriptor{
@@ -386,7 +387,7 @@ func classifyError(urn string, err error) *OverviewRowError {
 // ExtractProviderFromResourceType returns the provider name extracted from resourceType,
 // or an empty string if no provider can be determined.
 func ExtractProviderFromResourceType(resourceType string) string {
-	return extractProviderFromType(resourceType)
+	return resourcetype.ExtractProvider(resourceType)
 }
 
 // enrichWorker consumes row indices from the jobs channel, enriches each corresponding

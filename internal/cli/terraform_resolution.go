@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/engine/cache"
@@ -20,6 +22,30 @@ const capabilityResolveResourceTypes = "resolve_resource_types"
 
 // sourceFormatTerraform is the cache-key segment for Terraform source formats.
 const sourceFormatTerraform = "terraform"
+
+// terraformTypeResolutionDocsURL links to the CLI reference section explaining
+// the resolve_resource_types capability requirement for Terraform state input.
+const terraformTypeResolutionDocsURL = "https://rshade.github.io/finfocus/reference/cli-commands/#cost-projected"
+
+// warnNoTypeResolvingPlugin emits a single stderr warning when Terraform state
+// input is used but no loaded plugin advertises the resolve_resource_types
+// capability. Without type resolution, projected pricing falls back to raw
+// Terraform types that plugins typically do not support, producing $0.00
+// totals while exiting 0 — this warning makes that fallback visible. It is a
+// no-op when terraformState is empty or any loaded plugin has the capability.
+func warnNoTypeResolvingPlugin(cmd *cobra.Command, terraformState string, clients []*pluginhost.Client) {
+	if terraformState == "" {
+		return
+	}
+	for _, c := range clients {
+		if c != nil && c.HasCapability(capabilityResolveResourceTypes) {
+			return
+		}
+	}
+	cmd.PrintErrln("Warning: no installed plugin advertises the resolve_resource_types capability " +
+		"(requires a plugin built on finfocus-spec >= v0.6.1); resources from --terraform-state will use " +
+		"raw Terraform types and may price at $0.00. See " + terraformTypeResolutionDocsURL)
+}
 
 // cachedTypeMapping is the JSON shape stored in the resolve_types cache bucket.
 // Only fields the resolution pipeline consumes are persisted.

@@ -712,6 +712,64 @@ func TestRenderSummary_RecommendationCount(t *testing.T) {
 	})
 }
 
+// TestRenderActualCostTable_NeverProjectedHeader verifies that actual-cost
+// table output always uses the actual-cost header (Total Cost / Period), never
+// a "Projected Monthly" header — including for empty results and for results
+// without actual cost data.
+func TestRenderActualCostTable_NeverProjectedHeader(t *testing.T) {
+	tests := []struct {
+		name    string
+		results []CostResult
+	}{
+		{"empty results", []CostResult{}},
+		{"nil results", nil},
+		{
+			"results without actual cost data",
+			[]CostResult{
+				{
+					ResourceType: "aws_instance", ResourceID: "i-123",
+					Adapter: "aws-public", Monthly: 7.59, Currency: "USD",
+				},
+			},
+		},
+		{
+			"results with actual cost data",
+			[]CostResult{
+				{
+					ResourceType: "aws:ec2:Instance", ResourceID: "i-123", Adapter: "aws-public",
+					TotalCost: 150.0, CostPeriod: "30 days", Currency: "USD",
+				},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf strings.Builder
+			err := renderActualCostTable(&buf, tt.results, false)
+			require.NoError(t, err)
+			output := buf.String()
+
+			assert.NotContains(t, output, "Projected Monthly")
+			assert.Contains(t, output, "Total Cost")
+			assert.Contains(t, output, "Period")
+		})
+	}
+
+	t.Run("estimated rows are marked as estimates", func(t *testing.T) {
+		results := []CostResult{
+			{ResourceType: "aws_instance", ResourceID: "i-123", Adapter: "aws-public", Monthly: 7.59, Currency: "USD"},
+		}
+
+		var buf strings.Builder
+		err := renderActualCostTable(&buf, results, false)
+		require.NoError(t, err)
+
+		assert.Contains(t, buf.String(), "7.59 (est)")
+		assert.Contains(t, buf.String(), "monthly (est)")
+	})
+}
+
 // TestRenderActualCostTable_RecommendationCount verifies the recommendation count
 // in the actual cost table output.
 func TestRenderActualCostTable_RecommendationCount(t *testing.T) {

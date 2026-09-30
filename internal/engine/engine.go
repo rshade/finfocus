@@ -28,6 +28,7 @@ import (
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // HoursPerMonth is the canonical number of hours in a standard business month
@@ -2343,7 +2344,7 @@ func AggregateResults(results []CostResult) *AggregatedResults {
 		summary.TotalHourly += result.Hourly
 
 		// Aggregate by provider
-		provider := extractProviderFromType(result.ResourceType)
+		provider := resourcetype.ExtractProvider(result.ResourceType)
 		summary.ByProvider[provider] += result.Monthly
 
 		// Aggregate by service
@@ -2358,28 +2359,6 @@ func AggregateResults(results []CostResult) *AggregatedResults {
 		Summary:   summary,
 		Resources: results,
 	}
-}
-
-// extractProviderFromType extracts the provider prefix from a resource type string.
-// Pulumi-style types ("aws:ec2/instance:Instance") yield the substring before the
-// first colon; Terraform-style types ("aws_instance") yield the substring before the
-// first underscore. An empty input or empty leading segment returns unknownProvider.
-func extractProviderFromType(resourceType string) string {
-	if resourceType == "" {
-		return unknownProvider
-	}
-	if idx := strings.Index(resourceType, ":"); idx >= 0 {
-		if idx == 0 {
-			return unknownProvider
-		}
-		return resourceType[:idx]
-	}
-	// Unresolved Terraform types carry no colon: "aws_instance" -> "aws".
-	// Mirrors router.ExtractProviderFromType, which engine cannot import (cycle).
-	if idx := strings.Index(resourceType, "_"); idx > 0 {
-		return resourceType[:idx]
-	}
-	return resourceType
 }
 
 // extractStringProperty returns the first non-empty string value found in properties for the supplied keys,
@@ -2459,7 +2438,7 @@ func matchesFilter(resource ResourceDescriptor, filter string) bool {
 	case "type":
 		return strings.Contains(strings.ToLower(resource.Type), value)
 	case "provider":
-		provider := extractProviderFromType(resource.Type)
+		provider := resourcetype.ExtractProvider(resource.Type)
 		return strings.Contains(strings.ToLower(provider), value)
 	case "service":
 		service := extractService(resource.Type)
@@ -3038,7 +3017,7 @@ func groupResultsByPeriod(
 	}
 
 	for _, result := range results {
-		provider := extractProviderFromType(result.ResourceType)
+		provider := resourcetype.ExtractProvider(result.ResourceType)
 
 		// Prefer distributing per-day amounts when available
 		if len(result.DailyCosts) > 0 && !result.StartDate.IsZero() {

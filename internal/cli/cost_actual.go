@@ -166,7 +166,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	log := logging.FromContext(ctx)
 
 	if err := validateActualParams(params); err != nil {
-		return err
+		return toValidationError(ctx, err)
 	}
 
 	log.Debug().Ctx(ctx).Str("operation", "cost_actual").
@@ -178,7 +178,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 
 	resources, err := loadActualResources(ctx, cmd, params, audit)
 	if err != nil {
-		return err
+		return wrapActualLoadError(ctx, params, err)
 	}
 
 	clients, cleanup, err := openPlugins(ctx, params.adapter, audit)
@@ -186,6 +186,8 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 		return err
 	}
 	defer cleanup()
+
+	warnNoTypeResolvingPlugin(cmd, params.terraformState, clients)
 
 	eng, historyStore, cacheStore, combinedCleanup := newEngineWithCacheAndHistory(ctx, cmd, clients, nil)
 	defer combinedCleanup()
@@ -195,14 +197,14 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 
 	fromStr, err := resolveFromDate(ctx, params, resources)
 	if err != nil {
-		return err
+		return toValidationError(ctx, err)
 	}
 
 	from, to, err := ParseTimeRange(fromStr, defaultToNow(params.toStr))
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to parse time range")
 		audit.logFailure(ctx, err)
-		return fmt.Errorf("parsing time range: %w", err)
+		return toValidationError(ctx, fmt.Errorf("parsing time range: %w", err))
 	}
 
 	// Enrich with historical resources before filtering so merged entries
@@ -213,7 +215,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("invalid filter expression")
 		audit.logFailure(ctx, err)
-		return fmt.Errorf("applying filters: %w", err)
+		return toValidationError(ctx, fmt.Errorf("applying filters: %w", err))
 	}
 
 	// Resolve raw Terraform types to Pulumi tokens after filtering so
@@ -243,15 +245,14 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	log.Info().Ctx(ctx).Str("operation", "cost_actual").Int("result_count", len(resultWithErrors.Results)).
 		Dur("duration_ms", time.Since(audit.start)).Msg("actual cost calculation complete")
 
-	totalCost := sumTotalCosts(resultWithErrors.Results)
 	if budgetErr := evaluateBudgetStatusForOutput(
-		cmd, resultWithErrors.Results, totalCost, params.output,
+		cmd, resultWithErrors.Results, sumTotalCosts(resultWithErrors.Results), params.output,
 	); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return toAxExitError(ctx, budgetErr)
 	}
 
-	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
+	audit.logSuccess(ctx, len(resultWithErrors.Results), sumTotalCosts(resultWithErrors.Results))
 	return nil
 }
 
@@ -820,4 +821,15 @@ func MergeHistoricalResources(
 	}
 
 	return merged
+}
+
+// wrapActualLoadError classifies a resource-loading failure as a validation
+// error when the resources came from a user-supplied input file, so it exits
+// with ax.ExitValidation. Auto-detected Pulumi project failures are returned
+// unchanged.
+func wrapActualLoadError(ctx context.Context, params costActualParams, err error) error {
+	if params.terraformState != "" || params.statePath != "" || params.planPath != "" {
+		return toValidationError(ctx, err)
+	}
+	return err
 }

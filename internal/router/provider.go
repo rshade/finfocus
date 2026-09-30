@@ -1,9 +1,13 @@
 package router
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/rshade/finfocus/internal/resourcetype"
+)
 
 // ProviderUnknown is the sentinel value for resources with indeterminate providers.
-const ProviderUnknown = "unknown"
+const ProviderUnknown = resourcetype.ProviderUnknown
 
 // ProviderWildcard represents a plugin that handles all providers.
 const ProviderWildcard = "*"
@@ -31,22 +35,10 @@ const ProviderWildcard = "*"
 //   - "" → "unknown"
 //
 // If resourceType is empty or has an empty first colon-separated segment, it
-// returns ProviderUnknown.
+// returns ProviderUnknown. It delegates to [resourcetype.ExtractProvider], the
+// single source of truth shared with the engine package.
 func ExtractProviderFromType(resourceType string) string {
-	if resourceType == "" {
-		return ProviderUnknown
-	}
-	if idx := strings.Index(resourceType, ":"); idx >= 0 {
-		if idx > 0 {
-			return resourceType[:idx]
-		}
-		return ProviderUnknown
-	}
-	// Terraform-style types carry no colon: "aws_instance" -> "aws".
-	if idx := strings.Index(resourceType, "_"); idx > 0 {
-		return resourceType[:idx]
-	}
-	return resourceType
+	return resourcetype.ExtractProvider(resourceType)
 }
 
 // IsGlobalProvider checks if the provider value indicates a global plugin.
