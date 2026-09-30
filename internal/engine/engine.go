@@ -3261,17 +3261,20 @@ func createSortedAggregations(
 // The plugin is expected to populate ResourceID from the Id field sent in ResourceDescriptor.
 func convertProtoRecommendation(rec *proto.Recommendation) Recommendation {
 	engineRec := Recommendation{
-		ID:              rec.ID,
-		ResourceID:      rec.ResourceID,
-		Type:            rec.ActionType,
-		Category:        specifiedEnum(rec.Category),
-		Priority:        specifiedEnum(rec.Priority),
-		ConfidenceScore: rec.ConfidenceScore,
-		Source:          rec.Source,
-		CreatedAt:       rec.CreatedAt,
-		Metadata:        rec.Metadata,
-		Description:     rec.Description,
-		Reasoning:       rec.Reasoning,
+		ID:               rec.ID,
+		ResourceID:       rec.ResourceID,
+		Type:             rec.ActionType,
+		Category:         specifiedEnum(rec.Category),
+		Priority:         specifiedEnum(rec.Priority),
+		ConfidenceScore:  rec.ConfidenceScore,
+		Source:           rec.Source,
+		CreatedAt:        rec.CreatedAt,
+		Metadata:         rec.Metadata,
+		Description:      rec.Description,
+		Reasoning:        rec.Reasoning,
+		PrimaryReason:    specifiedEnum(rec.PrimaryReason),
+		SecondaryReasons: rec.SecondaryReasons,
+		ActionDetail:     convertProtoActionDetail(rec.ActionDetail),
 	}
 
 	if engineRec.Type == "" {
@@ -3308,16 +3311,82 @@ func convertProtoRecommendationResource(res *proto.RecommendationResource) *Reco
 		Tags:         res.Tags,
 	}
 	if res.Utilization != nil {
-		info.Utilization = &RecommendationUtilizationInfo{
-			CPUPercent:     res.Utilization.CPUPercent,
-			MemoryPercent:  res.Utilization.MemoryPercent,
-			StoragePercent: res.Utilization.StoragePercent,
-			NetworkInMbps:  res.Utilization.NetworkInMbps,
-			NetworkOutMbps: res.Utilization.NetworkOutMbps,
-			CustomMetrics:  res.Utilization.CustomMetrics,
-		}
+		info.Utilization = convertProtoRecommendationUtilization(res.Utilization)
 	}
 	return info
+}
+
+func convertProtoRecommendationUtilization(u *proto.RecommendationUtilization) *RecommendationUtilizationInfo {
+	if u == nil {
+		return nil
+	}
+	return &RecommendationUtilizationInfo{
+		CPUPercent:     u.CPUPercent,
+		MemoryPercent:  u.MemoryPercent,
+		StoragePercent: u.StoragePercent,
+		NetworkInMbps:  u.NetworkInMbps,
+		NetworkOutMbps: u.NetworkOutMbps,
+		CustomMetrics:  u.CustomMetrics,
+	}
+}
+
+func convertProtoKubernetesResources(res *proto.KubernetesResourceValues) *KubernetesResourceValues {
+	if res == nil {
+		return nil
+	}
+	return &KubernetesResourceValues{CPU: res.CPU, Memory: res.Memory}
+}
+
+// convertProtoActionDetail maps the adapter's action detail to the engine type.
+// It returns nil when the recommendation carries no action detail.
+func convertProtoActionDetail(d *proto.RecommendationActionDetail) *RecommendationActionDetail {
+	if d == nil {
+		return nil
+	}
+	switch {
+	case d.Rightsize != nil:
+		return &RecommendationActionDetail{Rightsize: &RightsizeActionDetail{
+			CurrentSKU:              d.Rightsize.CurrentSKU,
+			RecommendedSKU:          d.Rightsize.RecommendedSKU,
+			CurrentInstanceType:     d.Rightsize.CurrentInstanceType,
+			RecommendedInstanceType: d.Rightsize.RecommendedInstanceType,
+			ProjectedUtilization:    convertProtoRecommendationUtilization(d.Rightsize.ProjectedUtilization),
+		}}
+	case d.Terminate != nil:
+		return &RecommendationActionDetail{Terminate: &TerminateActionDetail{
+			TerminationReason: d.Terminate.TerminationReason,
+			IdleDays:          d.Terminate.IdleDays,
+		}}
+	case d.Commitment != nil:
+		return &RecommendationActionDetail{Commitment: &CommitmentActionDetail{
+			CommitmentType:      d.Commitment.CommitmentType,
+			Term:                d.Commitment.Term,
+			PaymentOption:       d.Commitment.PaymentOption,
+			RecommendedQuantity: d.Commitment.RecommendedQuantity,
+			Scope:               d.Commitment.Scope,
+		}}
+	case d.Kubernetes != nil:
+		return &RecommendationActionDetail{Kubernetes: &KubernetesActionDetail{
+			ClusterID:           d.Kubernetes.ClusterID,
+			Namespace:           d.Kubernetes.Namespace,
+			ControllerKind:      d.Kubernetes.ControllerKind,
+			ControllerName:      d.Kubernetes.ControllerName,
+			ContainerName:       d.Kubernetes.ContainerName,
+			CurrentRequests:     convertProtoKubernetesResources(d.Kubernetes.CurrentRequests),
+			RecommendedRequests: convertProtoKubernetesResources(d.Kubernetes.RecommendedRequests),
+			CurrentLimits:       convertProtoKubernetesResources(d.Kubernetes.CurrentLimits),
+			RecommendedLimits:   convertProtoKubernetesResources(d.Kubernetes.RecommendedLimits),
+			Algorithm:           d.Kubernetes.Algorithm,
+		}}
+	case d.Modify != nil:
+		return &RecommendationActionDetail{Modify: &ModifyActionDetail{
+			ModificationType:  d.Modify.ModificationType,
+			CurrentConfig:     d.Modify.CurrentConfig,
+			RecommendedConfig: d.Modify.RecommendedConfig,
+		}}
+	default:
+		return nil
+	}
 }
 
 // specifiedEnum returns "" for proto enum names that denote the UNSPECIFIED value.

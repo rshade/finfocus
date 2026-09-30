@@ -149,6 +149,15 @@ func TestConvertProtoRecommendation_RetainsFullRecord(t *testing.T) {
 				CustomMetrics:  map[string]float64{"iops": 100},
 			},
 		},
+		PrimaryReason:    "RECOMMENDATION_REASON_OVER_PROVISIONED",
+		SecondaryReasons: []string{"RECOMMENDATION_REASON_IDLE"},
+		ActionDetail: &proto.RecommendationActionDetail{Rightsize: &proto.RightsizeActionDetail{
+			CurrentSKU:              "m5.large",
+			RecommendedSKU:          "t3.large",
+			CurrentInstanceType:     "m5.large",
+			RecommendedInstanceType: "t3.large",
+			ProjectedUtilization:    &proto.RecommendationUtilization{CPUPercent: 45},
+		}},
 	})
 
 	assert.Equal(t, "rec-1", got.ID)
@@ -191,19 +200,38 @@ func TestConvertProtoRecommendation_RetainsFullRecord(t *testing.T) {
 	assert.InDelta(t, 1.0, got.ResourceInfo.Utilization.NetworkInMbps, 1e-9)
 	assert.InDelta(t, 2.0, got.ResourceInfo.Utilization.NetworkOutMbps, 1e-9)
 	assert.Equal(t, map[string]float64{"iops": 100}, got.ResourceInfo.Utilization.CustomMetrics)
+
+	assert.Equal(t, "RECOMMENDATION_REASON_OVER_PROVISIONED", got.PrimaryReason)
+	assert.Equal(t, []string{"RECOMMENDATION_REASON_IDLE"}, got.SecondaryReasons)
+
+	require.NotNil(t, got.ActionDetail)
+	rs := got.ActionDetail.Rightsize
+	require.NotNil(t, rs)
+	assert.Equal(t, "m5.large", rs.CurrentSKU)
+	assert.Equal(t, "t3.large", rs.RecommendedSKU)
+	assert.Equal(t, "m5.large", rs.CurrentInstanceType)
+	assert.Equal(t, "t3.large", rs.RecommendedInstanceType)
+	require.NotNil(t, rs.ProjectedUtilization)
+	assert.InDelta(t, 45.0, rs.ProjectedUtilization.CPUPercent, 1e-9)
+	assert.Nil(t, got.ActionDetail.Terminate)
+	assert.Nil(t, got.ActionDetail.Kubernetes)
 }
 
 func TestConvertProtoRecommendation_UnspecifiedEnumsAreEmpty(t *testing.T) {
 	got := convertProtoRecommendation(&proto.Recommendation{
-		ID:         "rec-2",
-		Category:   "RECOMMENDATION_CATEGORY_UNSPECIFIED",
-		ActionType: "RECOMMENDATION_ACTION_TYPE_UNSPECIFIED",
-		Priority:   "",
+		ID:            "rec-2",
+		Category:      "RECOMMENDATION_CATEGORY_UNSPECIFIED",
+		ActionType:    "RECOMMENDATION_ACTION_TYPE_UNSPECIFIED",
+		Priority:      "",
+		PrimaryReason: "RECOMMENDATION_REASON_UNSPECIFIED",
 	})
 
 	assert.Equal(t, "rec-2", got.ID)
 	assert.Empty(t, got.Category)
 	assert.Empty(t, got.Priority)
+	assert.Empty(t, got.PrimaryReason)
+	assert.Empty(t, got.SecondaryReasons)
+	assert.Nil(t, got.ActionDetail)
 	assert.Nil(t, got.ConfidenceScore)
 	assert.Nil(t, got.CreatedAt)
 	assert.Nil(t, got.ImpactDetail)
@@ -244,6 +272,14 @@ func TestRecommendation_JSONKeysAdditive(t *testing.T) {
 			Metadata:        map[string]string{"k": "v"},
 			ImpactDetail:    &RecommendationImpactDetail{CurrentCost: 10},
 			ResourceInfo:    &RecommendationResourceInfo{Name: "n", Tags: map[string]string{"a": "b"}},
+			PrimaryReason:   "RECOMMENDATION_REASON_OVER_PROVISIONED",
+			SecondaryReasons: []string{
+				"RECOMMENDATION_REASON_IDLE",
+			},
+			ActionDetail: &RecommendationActionDetail{Terminate: &TerminateActionDetail{
+				TerminationReason: "idle",
+				IdleDays:          30,
+			}},
 		}
 		data, err := json.Marshal(in)
 		require.NoError(t, err)

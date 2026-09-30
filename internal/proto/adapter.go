@@ -629,6 +629,84 @@ type Recommendation struct {
 
 	// Resource carries the plugin's description of the affected resource; nil when not reported.
 	Resource *RecommendationResource
+
+	// ActionDetail carries the provider-specific detail for the recommended action;
+	// nil when not reported.
+	ActionDetail *RecommendationActionDetail
+
+	// PrimaryReason is the proto RecommendationReason enum name of the main driver,
+	// or empty when unspecified.
+	PrimaryReason string
+
+	// SecondaryReasons are the proto RecommendationReason enum names of contributing
+	// factors; unspecified entries are dropped.
+	SecondaryReasons []string
+}
+
+// RecommendationActionDetail carries the provider-specific detail behind a
+// recommendation's action. Exactly one field is set, matching ActionType.
+type RecommendationActionDetail struct {
+	// Rightsize holds detail for right-sizing recommendations.
+	Rightsize *RightsizeActionDetail
+	// Terminate holds detail for termination recommendations.
+	Terminate *TerminateActionDetail
+	// Commitment holds detail for commitment purchase recommendations.
+	Commitment *CommitmentActionDetail
+	// Kubernetes holds detail for Kubernetes resource adjustments.
+	Kubernetes *KubernetesActionDetail
+	// Modify holds detail for generic modification recommendations.
+	Modify *ModifyActionDetail
+}
+
+// RightsizeActionDetail contains details for rightsizing recommendations.
+type RightsizeActionDetail struct {
+	CurrentSKU              string
+	RecommendedSKU          string
+	CurrentInstanceType     string
+	RecommendedInstanceType string
+	ProjectedUtilization    *RecommendationUtilization
+}
+
+// TerminateActionDetail contains details for termination recommendations.
+type TerminateActionDetail struct {
+	TerminationReason string
+	IdleDays          int32
+}
+
+// CommitmentActionDetail contains details for commitment purchase recommendations.
+type CommitmentActionDetail struct {
+	CommitmentType      string
+	Term                string
+	PaymentOption       string
+	RecommendedQuantity float64
+	Scope               string
+}
+
+// KubernetesActionDetail contains details for Kubernetes resource adjustments.
+type KubernetesActionDetail struct {
+	ClusterID           string
+	Namespace           string
+	ControllerKind      string
+	ControllerName      string
+	ContainerName       string
+	CurrentRequests     *KubernetesResourceValues
+	RecommendedRequests *KubernetesResourceValues
+	CurrentLimits       *KubernetesResourceValues
+	RecommendedLimits   *KubernetesResourceValues
+	Algorithm           string
+}
+
+// KubernetesResourceValues specifies CPU and memory quantities for a container.
+type KubernetesResourceValues struct {
+	CPU    string
+	Memory string
+}
+
+// ModifyActionDetail contains details for generic modification recommendations.
+type ModifyActionDetail struct {
+	ModificationType  string
+	CurrentConfig     map[string]string
+	RecommendedConfig map[string]string
 }
 
 // RecommendationResource describes the resource a recommendation applies to.
@@ -1554,6 +1632,20 @@ func priorityName(p pbc.RecommendationPriority) string {
 	return p.String()
 }
 
+func convertRecommendationUtilization(util *pbc.ResourceUtilization) *RecommendationUtilization {
+	if util == nil {
+		return nil
+	}
+	return &RecommendationUtilization{
+		CPUPercent:     util.GetCpuPercent(),
+		MemoryPercent:  util.GetMemoryPercent(),
+		StoragePercent: util.GetStoragePercent(),
+		NetworkInMbps:  util.GetNetworkInMbps(),
+		NetworkOutMbps: util.GetNetworkOutMbps(),
+		CustomMetrics:  util.GetCustomMetrics(),
+	}
+}
+
 func convertRecommendationResource(info *pbc.ResourceRecommendationInfo) *RecommendationResource {
 	res := &RecommendationResource{
 		Name:         info.GetName(),
@@ -1563,17 +1655,83 @@ func convertRecommendationResource(info *pbc.ResourceRecommendationInfo) *Recomm
 		SKU:          info.GetSku(),
 		Tags:         info.GetTags(),
 	}
-	if util := info.GetUtilization(); util != nil {
-		res.Utilization = &RecommendationUtilization{
-			CPUPercent:     util.GetCpuPercent(),
-			MemoryPercent:  util.GetMemoryPercent(),
-			StoragePercent: util.GetStoragePercent(),
-			NetworkInMbps:  util.GetNetworkInMbps(),
-			NetworkOutMbps: util.GetNetworkOutMbps(),
-			CustomMetrics:  util.GetCustomMetrics(),
+	res.Utilization = convertRecommendationUtilization(info.GetUtilization())
+	return res
+}
+
+// reasonName returns the proto RecommendationReason enum name, or "" when unspecified.
+func reasonName(r pbc.RecommendationReason) string {
+	if r == pbc.RecommendationReason_RECOMMENDATION_REASON_UNSPECIFIED {
+		return ""
+	}
+	return r.String()
+}
+
+// reasonNames maps reason enums to their names, dropping unspecified entries.
+func reasonNames(rs []pbc.RecommendationReason) []string {
+	var out []string
+	for _, r := range rs {
+		if name := reasonName(r); name != "" {
+			out = append(out, name)
 		}
 	}
-	return res
+	return out
+}
+
+func convertKubernetesResources(res *pbc.KubernetesResources) *KubernetesResourceValues {
+	if res == nil {
+		return nil
+	}
+	return &KubernetesResourceValues{CPU: res.GetCpu(), Memory: res.GetMemory()}
+}
+
+// convertRecommendationActionDetail maps the proto action_detail oneof to the internal
+// representation. It returns nil when the recommendation carries no action detail.
+func convertRecommendationActionDetail(rec *pbc.Recommendation) *RecommendationActionDetail {
+	switch d := rec.GetActionDetail().(type) {
+	case *pbc.Recommendation_Rightsize:
+		return &RecommendationActionDetail{Rightsize: &RightsizeActionDetail{
+			CurrentSKU:              d.Rightsize.GetCurrentSku(),
+			RecommendedSKU:          d.Rightsize.GetRecommendedSku(),
+			CurrentInstanceType:     d.Rightsize.GetCurrentInstanceType(),
+			RecommendedInstanceType: d.Rightsize.GetRecommendedInstanceType(),
+			ProjectedUtilization:    convertRecommendationUtilization(d.Rightsize.GetProjectedUtilization()),
+		}}
+	case *pbc.Recommendation_Terminate:
+		return &RecommendationActionDetail{Terminate: &TerminateActionDetail{
+			TerminationReason: d.Terminate.GetTerminationReason(),
+			IdleDays:          d.Terminate.GetIdleDays(),
+		}}
+	case *pbc.Recommendation_Commitment:
+		return &RecommendationActionDetail{Commitment: &CommitmentActionDetail{
+			CommitmentType:      d.Commitment.GetCommitmentType(),
+			Term:                d.Commitment.GetTerm(),
+			PaymentOption:       d.Commitment.GetPaymentOption(),
+			RecommendedQuantity: d.Commitment.GetRecommendedQuantity(),
+			Scope:               d.Commitment.GetScope(),
+		}}
+	case *pbc.Recommendation_Kubernetes:
+		return &RecommendationActionDetail{Kubernetes: &KubernetesActionDetail{
+			ClusterID:           d.Kubernetes.GetClusterId(),
+			Namespace:           d.Kubernetes.GetNamespace(),
+			ControllerKind:      d.Kubernetes.GetControllerKind(),
+			ControllerName:      d.Kubernetes.GetControllerName(),
+			ContainerName:       d.Kubernetes.GetContainerName(),
+			CurrentRequests:     convertKubernetesResources(d.Kubernetes.GetCurrentRequests()),
+			RecommendedRequests: convertKubernetesResources(d.Kubernetes.GetRecommendedRequests()),
+			CurrentLimits:       convertKubernetesResources(d.Kubernetes.GetCurrentLimits()),
+			RecommendedLimits:   convertKubernetesResources(d.Kubernetes.GetRecommendedLimits()),
+			Algorithm:           d.Kubernetes.GetAlgorithm(),
+		}}
+	case *pbc.Recommendation_Modify:
+		return &RecommendationActionDetail{Modify: &ModifyActionDetail{
+			ModificationType:  d.Modify.GetModificationType(),
+			CurrentConfig:     d.Modify.GetCurrentConfig(),
+			RecommendedConfig: d.Modify.GetRecommendedConfig(),
+		}}
+	default:
+		return nil
+	}
 }
 
 func (c *clientAdapter) GetRecommendations(
@@ -1611,14 +1769,17 @@ func (c *clientAdapter) GetRecommendations(
 	var recommendations []*Recommendation
 	for _, rec := range resp.GetRecommendations() {
 		protoRec := &Recommendation{
-			ID:          rec.GetId(),
-			Category:    rec.GetCategory().String(),
-			ActionType:  rec.GetActionType().String(),
-			Description: rec.GetDescription(),
-			Source:      rec.GetSource(),
-			Metadata:    rec.GetMetadata(),
-			Reasoning:   rec.GetReasoning(),
-			Priority:    priorityName(rec.GetPriority()),
+			ID:               rec.GetId(),
+			Category:         rec.GetCategory().String(),
+			ActionType:       rec.GetActionType().String(),
+			Description:      rec.GetDescription(),
+			Source:           rec.GetSource(),
+			Metadata:         rec.GetMetadata(),
+			Reasoning:        rec.GetReasoning(),
+			Priority:         priorityName(rec.GetPriority()),
+			PrimaryReason:    reasonName(rec.GetPrimaryReason()),
+			SecondaryReasons: reasonNames(rec.GetSecondaryReasons()),
+			ActionDetail:     convertRecommendationActionDetail(rec),
 		}
 
 		if rec.ConfidenceScore != nil {

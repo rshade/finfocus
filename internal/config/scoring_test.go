@@ -58,6 +58,13 @@ func TestScoringConfig_Validate(t *testing.T) {
 		{"negative timeout", &ScoringConfig{TimeoutSeconds: -1}, "timeout_seconds"},
 		{"unknown allowlist field", &ScoringConfig{FieldAllowlist: []string{"nope"}}, "field_allowlist"},
 		{
+			"all allowlist fields valid",
+			&ScoringConfig{FieldAllowlist: []string{
+				"action_detail", "primary_reason", "secondary_reasons",
+			}},
+			"",
+		},
+		{
 			"threshold out of range",
 			&ScoringConfig{NeedsReview: &ScoringReviewConfig{Risk: &bad}},
 			"needs_review.risk",
