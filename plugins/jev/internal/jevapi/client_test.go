@@ -162,6 +162,53 @@ func TestClient_RetriesHonourRetryAfter(t *testing.T) {
 	assert.Equal(t, []time.Duration{3 * time.Second, time.Second}, sleeps)
 }
 
+func TestClient_RetryThatOutlastsDeadlineFailsFast(t *testing.T) {
+	tests := []struct {
+		name       string
+		retryAfter string
+		deadline   time.Duration
+		wantCalls  int32
+		wantSleeps int
+	}{
+		{"wait past deadline returns the rate limit", "30", time.Second, 1, 0},
+		{"wait inside deadline still retries", "1", time.Minute, 2, 1},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var calls atomic.Int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if calls.Add(1) == 1 {
+					w.Header().Set("Retry-After", tt.retryAfter)
+					w.WriteHeader(http.StatusTooManyRequests)
+					return
+				}
+				_, _ = w.Write([]byte(okBody))
+			}))
+			defer srv.Close()
+
+			sleeps := 0
+			c := newClient(t, srv, func(cfg *jevapi.Config) {
+				cfg.Sleep = func(context.Context, time.Duration) error {
+					sleeps++
+					return nil
+				}
+			})
+			ctx, cancel := context.WithTimeout(t.Context(), tt.deadline)
+			defer cancel()
+			_, err := c.SystemOne(ctx, sampleRequest())
+			if tt.wantCalls == 1 {
+				var apiErr *jevapi.APIError
+				require.ErrorAs(t, err, &apiErr)
+				assert.Equal(t, jevapi.KindRateLimited, apiErr.Kind)
+			} else {
+				require.NoError(t, err)
+			}
+			assert.Equal(t, tt.wantCalls, calls.Load())
+			assert.Equal(t, tt.wantSleeps, sleeps)
+		})
+	}
+}
+
 func TestClient_RetryAfterHTTPDate(t *testing.T) {
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
