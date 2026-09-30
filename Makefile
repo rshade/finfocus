@@ -83,19 +83,57 @@ test-kubernetes:
 lint-kubernetes:
 	cd $(KUBERNETES_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
 
+JEV_PLUGIN_DIR=plugins/jev
+JEV_VERSION=$(shell jq -r '."plugins/jev" // "0.0.0"' .release-please-manifest.json)
+JEV_INSTALL_DIR=$(HOME)/.finfocus/plugins/jev/v$(JEV_VERSION)
+
+.PHONY: build-jev
+build-jev:
+	@mkdir -p bin
+	go -C $(JEV_PLUGIN_DIR) build -ldflags "-X main.version=v$(JEV_VERSION)" \
+		-o $(CURDIR)/bin/finfocus-plugin-jev ./cmd
+
+.PHONY: install-jev
+install-jev: build-jev
+	@command -v jq >/dev/null 2>&1 || { \
+		echo "install-jev requires jq to stamp the installed plugin manifest version; install jq and retry" >&2; \
+		exit 1; \
+	}
+	@if [ -z "$(JEV_VERSION)" ]; then \
+		echo "install-jev: JEV_VERSION resolved empty (check jq and .release-please-manifest.json)" >&2; \
+		exit 1; \
+	fi
+	@mkdir -p $(JEV_INSTALL_DIR)
+	cp bin/finfocus-plugin-jev $(JEV_INSTALL_DIR)/
+	jq --arg v "v$(JEV_VERSION)" '.version = $$v' \
+		$(JEV_PLUGIN_DIR)/plugin.manifest.json > $(JEV_INSTALL_DIR)/plugin.manifest.json
+	chmod 644 $(JEV_INSTALL_DIR)/plugin.manifest.json
+	@echo "Set TYPESAFE_API_KEY to enable scoring; see plugins/jev/README.md for what is sent to TypeSafe AI."
+	@echo "Verify with: finfocus plugin list"
+
+.PHONY: test-jev
+test-jev:
+	go -C $(JEV_PLUGIN_DIR) test -race ./...
+
+.PHONY: lint-jev
+lint-jev:
+	cd $(JEV_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
+
 .PHONY: check-plugin-boundaries
 check-plugin-boundaries:
-	@if go -C $(KUBERNETES_PLUGIN_DIR) list -deps ./... | grep -E '^github.com/rshade/finfocus/(internal|pkg)(/|$$)'; then \
-		echo "plugins/kubernetes must not import finfocus core packages" >&2; exit 1; fi
+	@for dir in $(KUBERNETES_PLUGIN_DIR) $(JEV_PLUGIN_DIR); do \
+		if go -C $$dir list -deps ./... | grep -E '^github.com/rshade/finfocus/(internal|pkg)(/|$$)'; then \
+			echo "$$dir must not import finfocus core packages" >&2; exit 1; fi; \
+	done
 	@echo "plugin boundaries OK"
 
 .PHONY: build-all
-build-all: build build-recorder build-plugin build-kubernetes
+build-all: build build-recorder build-plugin build-kubernetes build-jev
 
 # Default test target - runs unit tests only (fast, for CI and local dev)
 # Unit tests are colocated with source; see test/README.md for details
 .PHONY: test
-test: test-unit test-kubernetes
+test: test-unit test-kubernetes test-jev
 
 .PHONY: test-unit
 test-unit:
@@ -135,7 +173,7 @@ test-all:
 	go test -v -timeout 15m ./internal/... ./pkg/... ./test/integration/...
 
 .PHONY: lint
-lint: lint-kubernetes check-plugin-boundaries
+lint: lint-kubernetes lint-jev check-plugin-boundaries
 	@echo "Running golangci-lint (expected version $(GOLANGCI_LINT_VERSION))..."
 	@$(GOLANGCI_LINT) --version | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "golangci-lint $(GOLANGCI_LINT_VERSION) required. Install with"; \
@@ -320,10 +358,13 @@ help:
 	@echo "  install-recorder - Build and install recorder plugin to ~/.finfocus/plugins/"
 	@echo "  build-kubernetes - Build the kubernetes plugin"
 	@echo "  install-kubernetes - Build and install kubernetes plugin to ~/.finfocus/plugins/"
+	@echo "  build-jev        - Build the jev scorer plugin"
+	@echo "  install-jev      - Build and install jev scorer plugin to ~/.finfocus/plugins/"
 	@echo "  build-all        - Build binary and all plugins"
 	@echo "  test             - Run unit tests (fast, default)"
 	@echo "  test-unit        - Run unit tests only"
 	@echo "  test-kubernetes  - Run kubernetes plugin module tests"
+	@echo "  test-jev         - Run jev plugin module tests"
 	@echo "  test-race        - Run unit tests with race detector"
 	@echo "  test-integration - Run integration tests (slower)"
 	@echo "  test-integration-plugin - Run plugin integration tests"
@@ -332,7 +373,8 @@ help:
 	@echo "  gen-terraform-goldens - Regenerate real Terraform state goldens (docker + mise)"
 	@echo "  lint             - Run Go + Markdown linters"
 	@echo "  lint-kubernetes  - Run golangci-lint on the kubernetes plugin module"
-	@echo "  check-plugin-boundaries - Verify plugins/kubernetes does not import finfocus core packages"
+	@echo "  lint-jev         - Run golangci-lint on the jev plugin module"
+	@echo "  check-plugin-boundaries - Verify plugins/kubernetes and plugins/jev do not import finfocus core packages"
 	@echo "  lint-actions     - Run actionlint on GitHub workflows"
 	@echo "  validate         - Run validation (go mod tidy, go vet)"
 	@echo "  tools            - Install toolchain pinned in mise.toml (mise install)"

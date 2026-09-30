@@ -33,6 +33,8 @@ make docs-build    # Build Jekyll site
 make docs-serve    # Serve docs at http://localhost:4000/finfocus/
 make build-recorder    # Build recorder plugin to bin/finfocus-plugin-recorder
 make install-recorder  # Build and install recorder to ~/.finfocus/plugins/recorder/0.1.0/
+make test-jev          # Test the jev scorer plugin module (plugins/jev, separate go.mod)
+make install-jev       # Build and install the jev scorer plugin
 ```
 
 ### Single Package/Test Commands
@@ -340,6 +342,24 @@ Reference plugin for inspecting Core-to-plugin data shapes and contract testing.
 | --- | --- | --- |
 | `FINFOCUS_RECORDER_OUTPUT_DIR` | `./recorded_data` | Directory for recorded JSON files |
 | `FINFOCUS_RECORDER_MOCK_RESPONSE` | `false` | Enable randomized mock responses |
+
+## Jev Scorer Plugin
+
+`plugins/jev/` is a separate module (like `plugins/kubernetes`) implementing
+`RecommendationScorerService` with TypeSafe AI's Jev API. It must not import
+finfocus core packages (`make check-plugin-boundaries`). Design notes:
+
+- Off unless `TYPESAFE_API_KEY` is set; without it every scoring call returns
+  `UNAUTHENTICATED`. The key is read only from the environment and must never
+  appear in logs, errors, tests or committed files.
+- Thin `net/http` client in `plugins/jev/internal/jevapi`; no third-party Jev SDK.
+- Question names are `<signal>:<recommendation id>` over an ordered state list,
+  and question text never contains recommendation content. Free text is
+  stripped and capped in `internal/scoring/record.go`.
+- Live tests (`TestLive*`, `TestEvaluation` with `JEV_EVAL=1`) are skipped without
+  a key. Batching lowers `priority` rank quality (Spearman about 0.55 at batch
+  25 against 0.77 at batch 1), so priority is always one record per request.
+- Scores are ranking-only. Never gate an irreversible action on one.
 
 ## Package-Specific Gotchas
 

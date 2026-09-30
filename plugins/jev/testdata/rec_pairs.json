@@ -1,0 +1,2894 @@
+[
+  {
+    "a": {
+      "id": "pair-01-a",
+      "source": "opencost",
+      "category": "COST",
+      "action_type": "ADJUST_REQUESTS",
+      "description": "Deployment query-api reserves far more CPU than it consumes; a request of about 1.5 cores matches p95 usage.",
+      "resource": {
+        "id": "eks-us-east-1/search/Deployment/query-api",
+        "name": "query-api",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "cpu-request=4000m",
+        "tags": {
+          "env": "prod",
+          "team": "search",
+          "app": "query-api"
+        },
+        "utilization": {
+          "cpu_percent": 15,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 193.0,
+        "current_cost": 318.0,
+        "projected_cost": 125.0,
+        "savings_percentage": 60.69,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-01-b",
+      "source": "kubecost",
+      "category": "COST",
+      "action_type": "ADJUST_REQUESTS",
+      "description": "Reduce CPU request for search/query-api from 4000m to 1500m.",
+      "resource": {
+        "id": "eks-us-east-1/search/Deployment/query-api",
+        "name": "query-api",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "cpu-request=4000m",
+        "tags": {
+          "env": "prod",
+          "team": "search",
+          "app": "query-api"
+        },
+        "utilization": {
+          "cpu_percent": 15,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 190.0,
+        "current_cost": 320.0,
+        "projected_cost": 130.0,
+        "savings_percentage": 59.38,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-02-a",
+      "source": "azure-cost-mgmt",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "This database has had constant compute for a year; reserving capacity for 12 months would lower the rate.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-sqldb/providers/Microsoft.Sql/servers/databases/sqldb-catalog-prod",
+        "name": "sqldb-catalog-prod",
+        "provider": "azure",
+        "resource_type": "Microsoft.Sql/servers/databases",
+        "region": "westeurope",
+        "sku": "GP_Gen5_4",
+        "tags": {
+          "env": "prod",
+          "team": "catalog",
+          "app": "catalog"
+        },
+        "utilization": {
+          "cpu_percent": 48,
+          "memory_percent": 60
+        }
+      },
+      "impact": {
+        "estimated_savings": 193.0,
+        "current_cost": 665.0,
+        "projected_cost": 472.0,
+        "savings_percentage": 29.02,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "b": {
+      "id": "pair-02-b",
+      "source": "azure-advisor",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "Buy a 1-year Azure SQL reserved capacity for GP_Gen5_4.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-sqldb/providers/Microsoft.Sql/servers/databases/sqldb-catalog-prod",
+        "name": "sqldb-catalog-prod",
+        "provider": "azure",
+        "resource_type": "Microsoft.Sql/servers/databases",
+        "region": "westeurope",
+        "sku": "GP_Gen5_4",
+        "tags": {
+          "env": "prod",
+          "team": "catalog",
+          "app": "catalog"
+        },
+        "utilization": {
+          "cpu_percent": 48,
+          "memory_percent": 60
+        }
+      },
+      "impact": {
+        "estimated_savings": 195.0,
+        "current_cost": 665.0,
+        "projected_cost": 470.0,
+        "savings_percentage": 29.32,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-03-a",
+      "source": "kubecost",
+      "category": "COST",
+      "action_type": "ADJUST_REQUESTS",
+      "description": "Lower ingest-worker CPU request from 2000m to 800m.",
+      "resource": {
+        "id": "eks-us-east-1/platform/Deployment/ingest-worker",
+        "name": "ingest-worker",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "cpu-request=2000m replicas=6",
+        "tags": {
+          "env": "prod",
+          "team": "platform"
+        },
+        "utilization": {
+          "cpu_percent": 20,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 170.0,
+        "current_cost": 300.0,
+        "projected_cost": 130.0,
+        "savings_percentage": 56.67,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-03-b",
+      "source": "opencost",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Enable horizontal pod autoscaling on ingest-worker to run 2 to 6 replicas instead of fixed 6.",
+      "resource": {
+        "id": "eks-us-east-1/platform/Deployment/ingest-worker",
+        "name": "ingest-worker",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "cpu-request=2000m replicas=6",
+        "tags": {
+          "env": "prod",
+          "team": "platform"
+        },
+        "utilization": {
+          "cpu_percent": 20,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 150.0,
+        "current_cost": 300.0,
+        "projected_cost": 150.0,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.75,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-04-a",
+      "source": "azure-cost-mgmt",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "A Premium P20 disk is unattached and accrues full monthly charges; it can be deleted.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-disk/providers/Microsoft.Compute/disks/disk-old-snapshot-holder",
+        "name": "disk-old-snapshot-holder",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/disks",
+        "region": "westus2",
+        "sku": "Premium_LRS P20 512GiB",
+        "tags": {
+          "env": "dev",
+          "team": "qa"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 73.0,
+        "current_cost": 73.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "60"
+      }
+    },
+    "b": {
+      "id": "pair-04-b",
+      "source": "azure-advisor",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "Delete unattached managed disk.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-disk/providers/Microsoft.Compute/disks/disk-old-snapshot-holder",
+        "name": "disk-old-snapshot-holder",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/disks",
+        "region": "westus2",
+        "sku": "Premium_LRS P20 512GiB",
+        "tags": {
+          "env": "dev",
+          "team": "qa"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 73.4,
+        "current_cost": 73.4,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.94,
+      "metadata": {
+        "lookback_days": "60"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-05-a",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Downsize m5.4xlarge to m5.2xlarge.",
+      "resource": {
+        "id": "i-03c00fd29441911a3",
+        "name": "api-gateway-node-3",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.4xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "api"
+        },
+        "utilization": {
+          "cpu_percent": 18,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 280.32,
+        "current_cost": 560.64,
+        "projected_cost": 280.32,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-05-b",
+      "source": "aws-compute-optimizer",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Instance is over-provisioned; move down to m5.xlarge.",
+      "resource": {
+        "id": "i-03c00fd29441911a3",
+        "name": "api-gateway-node-3",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.4xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "api"
+        },
+        "utilization": {
+          "cpu_percent": 18,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 420.48,
+        "current_cost": 560.64,
+        "projected_cost": 140.16,
+        "savings_percentage": 75.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-06-a",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Change volume type from gp2 to gp3.",
+      "resource": {
+        "id": "vol-0342c0bbf1db225a9",
+        "name": "vol-app-cache-3",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "eu-west-1",
+        "sku": "gp2 800GiB",
+        "tags": {
+          "env": "prod",
+          "team": "platform",
+          "app": "cache"
+        },
+        "utilization": {
+          "storage_percent": 55
+        }
+      },
+      "impact": {
+        "estimated_savings": 17.6,
+        "current_cost": 88.0,
+        "projected_cost": 70.4,
+        "savings_percentage": 20.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.96,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "b": {
+      "id": "pair-06-b",
+      "source": "aws-compute-optimizer",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "This gp2 EBS volume would be cheaper and no slower as gp3 with the default 3000 IOPS.",
+      "resource": {
+        "id": "vol-0342c0bbf1db225a9",
+        "name": "vol-app-cache-3",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "eu-west-1",
+        "sku": "gp2 800GiB",
+        "tags": {
+          "env": "prod",
+          "team": "platform",
+          "app": "cache"
+        },
+        "utilization": {
+          "storage_percent": 55
+        }
+      },
+      "impact": {
+        "estimated_savings": 18.0,
+        "current_cost": 88.0,
+        "projected_cost": 70.0,
+        "savings_percentage": 20.45,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-07-a",
+      "source": "gcp-billing",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "Ten n2-standard-8 machines have run continuously all year; a committed use contract would discount them.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/us-east1/instances/gke-prod-pool-b",
+        "name": "gke-prod-pool-b",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Instance",
+        "region": "us-east1",
+        "sku": "n2-standard-8 x10",
+        "tags": {
+          "env": "prod",
+          "team": "platform"
+        },
+        "utilization": {
+          "cpu_percent": 55,
+          "memory_percent": 60
+        }
+      },
+      "impact": {
+        "estimated_savings": 675.0,
+        "current_cost": 2450.0,
+        "projected_cost": 1775.0,
+        "savings_percentage": 27.55,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "b": {
+      "id": "pair-07-b",
+      "source": "gcp-recommender",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "Purchase 1-year committed use discount for n2 vCPU and memory.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/us-east1/instances/gke-prod-pool-b",
+        "name": "gke-prod-pool-b",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Instance",
+        "region": "us-east1",
+        "sku": "n2-standard-8 x10",
+        "tags": {
+          "env": "prod",
+          "team": "platform"
+        },
+        "utilization": {
+          "cpu_percent": 55,
+          "memory_percent": 60
+        }
+      },
+      "impact": {
+        "estimated_savings": 680.0,
+        "current_cost": 2450.0,
+        "projected_cost": 1770.0,
+        "savings_percentage": 27.76,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.92,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-08-a",
+      "source": "azure-cost-mgmt",
+      "category": "COST",
+      "action_type": "SCHEDULE",
+      "description": "Set an auto-shutdown schedule for vm-test-agents-05 outside working hours.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-vm/providers/Microsoft.Compute/virtualMachines/vm-test-agents-05",
+        "name": "vm-test-agents-05",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/virtualMachines",
+        "region": "westeurope",
+        "sku": "Standard_D4s_v5",
+        "tags": {
+          "env": "dev",
+          "team": "devex"
+        },
+        "utilization": {
+          "cpu_percent": 4,
+          "memory_percent": 18
+        }
+      },
+      "impact": {
+        "estimated_savings": 80.2,
+        "current_cost": 140.2,
+        "projected_cost": 60.0,
+        "savings_percentage": 57.2,
+        "implementation_cost": 0,
+        "migration_effort_hours": 3
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "b": {
+      "id": "pair-08-b",
+      "source": "azure-advisor",
+      "category": "COST",
+      "action_type": "TERMINATE",
+      "description": "Virtual machine has had no sign-ins or meaningful CPU for 50 days; shut it down.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-vm/providers/Microsoft.Compute/virtualMachines/vm-test-agents-05",
+        "name": "vm-test-agents-05",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/virtualMachines",
+        "region": "westeurope",
+        "sku": "Standard_D4s_v5",
+        "tags": {
+          "env": "dev",
+          "team": "devex"
+        },
+        "utilization": {
+          "cpu_percent": 4,
+          "memory_percent": 18
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.2,
+        "current_cost": 140.2,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "50"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-09-a",
+      "source": "azure-advisor",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Shutdown or resize underutilized virtual machine: resize Standard_D8s_v3 to Standard_D4s_v3.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-vm/providers/Microsoft.Compute/virtualMachines/vm-batch-runner-02",
+        "name": "vm-batch-runner-02",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/virtualMachines",
+        "region": "eastus",
+        "sku": "Standard_D8s_v3",
+        "tags": {
+          "env": "dev",
+          "team": "data"
+        },
+        "utilization": {
+          "cpu_percent": 7,
+          "memory_percent": 24
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.1,
+        "current_cost": 280.3,
+        "projected_cost": 140.2,
+        "savings_percentage": 49.98,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-09-b",
+      "source": "azure-cost-mgmt",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "vm-batch-runner-02 uses under a quarter of its vCPUs; a D4s_v3 is a better match.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-vm/providers/Microsoft.Compute/virtualMachines/vm-batch-runner-02",
+        "name": "vm-batch-runner-02",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/virtualMachines",
+        "region": "eastus",
+        "sku": "Standard_D8s_v3",
+        "tags": {
+          "env": "dev",
+          "team": "data"
+        },
+        "utilization": {
+          "cpu_percent": 7,
+          "memory_percent": 24
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.0,
+        "current_cost": 280.0,
+        "projected_cost": 140.0,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-10-a",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Add a lifecycle rule to move objects older than 60 days to S3 Glacier Instant Retrieval.",
+      "resource": {
+        "id": "arn:aws:s3:::acme-clickstream-raw",
+        "name": "acme-clickstream-raw",
+        "provider": "aws",
+        "resource_type": "s3:bucket",
+        "region": "us-east-1",
+        "sku": "STANDARD 55TiB",
+        "tags": {
+          "env": "prod",
+          "team": "analytics"
+        },
+        "utilization": {
+          "storage_percent": 100
+        }
+      },
+      "impact": {
+        "estimated_savings": 795.0,
+        "current_cost": 1265.0,
+        "projected_cost": 470.0,
+        "savings_percentage": 62.85,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "b": {
+      "id": "pair-10-b",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Bucket holds 55 TiB of cold data in STANDARD; transition older objects to Glacier Instant Retrieval.",
+      "resource": {
+        "id": "arn:aws:s3:::acme-clickstream-raw",
+        "name": "acme-clickstream-raw",
+        "provider": "aws",
+        "resource_type": "s3:bucket",
+        "region": "us-east-1",
+        "sku": "STANDARD 55TiB",
+        "tags": {
+          "env": "prod",
+          "team": "analytics"
+        },
+        "utilization": {
+          "storage_percent": 100
+        }
+      },
+      "impact": {
+        "estimated_savings": 785.0,
+        "current_cost": 1265.0,
+        "projected_cost": 480.0,
+        "savings_percentage": 62.06,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.83,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-11-a",
+      "source": "azure-cost-mgmt",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Most data in this account has not been read in three months; lifecycle management to Cool would save storage cost.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-stlogsarchive03/providers/Microsoft.Storage/storageAccounts/stlogsarchive03",
+        "name": "stlogsarchive03",
+        "provider": "azure",
+        "resource_type": "Microsoft.Storage/storageAccounts",
+        "region": "northeurope",
+        "sku": "Standard_LRS Hot 12TiB",
+        "tags": {
+          "env": "prod",
+          "team": "platform"
+        },
+        "utilization": {
+          "storage_percent": 100
+        }
+      },
+      "impact": {
+        "estimated_savings": 80.0,
+        "current_cost": 248.0,
+        "projected_cost": 168.0,
+        "savings_percentage": 32.26,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.82,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "b": {
+      "id": "pair-11-b",
+      "source": "azure-advisor",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Move blobs older than 90 days to the Cool access tier.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-stlogsarchive03/providers/Microsoft.Storage/storageAccounts/stlogsarchive03",
+        "name": "stlogsarchive03",
+        "provider": "azure",
+        "resource_type": "Microsoft.Storage/storageAccounts",
+        "region": "northeurope",
+        "sku": "Standard_LRS Hot 12TiB",
+        "tags": {
+          "env": "prod",
+          "team": "platform"
+        },
+        "utilization": {
+          "storage_percent": 100
+        }
+      },
+      "impact": {
+        "estimated_savings": 83.0,
+        "current_cost": 248.0,
+        "projected_cost": 165.0,
+        "savings_percentage": 33.47,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.86,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-12-a",
+      "source": "azure-cost-mgmt",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Resize this virtual machine to Standard_D4s_v3 for better fit.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-vm/providers/Microsoft.Compute/virtualMachines/vm-ci-agent-02",
+        "name": "vm-ci-agent-02",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/virtualMachines",
+        "region": "eastus",
+        "sku": "Standard_D8s_v3",
+        "tags": {
+          "env": "dev",
+          "team": "devex"
+        },
+        "utilization": {
+          "cpu_percent": 9,
+          "memory_percent": 22
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.1,
+        "current_cost": 280.3,
+        "projected_cost": 140.2,
+        "savings_percentage": 49.98,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.82,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-12-b",
+      "source": "azure-advisor",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Resize to Standard_D4s_v3.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-vm/providers/Microsoft.Compute/virtualMachines/vm-ci-agent-01",
+        "name": "vm-ci-agent-01",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/virtualMachines",
+        "region": "eastus",
+        "sku": "Standard_D8s_v3",
+        "tags": {
+          "env": "dev",
+          "team": "devex"
+        },
+        "utilization": {
+          "cpu_percent": 8,
+          "memory_percent": 20
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.1,
+        "current_cost": 280.3,
+        "projected_cost": 140.2,
+        "savings_percentage": 49.98,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-13-a",
+      "source": "aws-compute-optimizer",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "This gp2 volume is eligible for gp3 at lower cost.",
+      "resource": {
+        "id": "vol-00b29a908f184f163",
+        "name": "vol-logs-b",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "us-east-1",
+        "sku": "gp2 500GiB",
+        "tags": {
+          "env": "prod",
+          "team": "platform"
+        },
+        "utilization": {
+          "storage_percent": 58
+        }
+      },
+      "impact": {
+        "estimated_savings": 10.0,
+        "current_cost": 50.0,
+        "projected_cost": 40.0,
+        "savings_percentage": 20.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "b": {
+      "id": "pair-13-b",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Migrate volume from gp2 to gp3.",
+      "resource": {
+        "id": "vol-0564e55433acc1828",
+        "name": "vol-logs-a",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "us-east-1",
+        "sku": "gp2 500GiB",
+        "tags": {
+          "env": "prod",
+          "team": "platform"
+        },
+        "utilization": {
+          "storage_percent": 60
+        }
+      },
+      "impact": {
+        "estimated_savings": 10.0,
+        "current_cost": 50.0,
+        "projected_cost": 40.0,
+        "savings_percentage": 20.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.95,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-14-a",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Instance i-0 is over-provisioned based on 14 days of usage; switch to m5.xlarge for lower hourly cost.",
+      "resource": {
+        "id": "i-0bffbbc6d3d1845cc",
+        "name": "web-frontend-07",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.2xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "web",
+          "app": "storefront"
+        },
+        "utilization": {
+          "cpu_percent": 17,
+          "memory_percent": 33
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.0,
+        "current_cost": 281.0,
+        "projected_cost": 141.0,
+        "savings_percentage": 49.82,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.82,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-14-b",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Downsize m5.2xlarge to m5.xlarge.",
+      "resource": {
+        "id": "i-0bffbbc6d3d1845cc",
+        "name": "web-frontend-07",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.2xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "web",
+          "app": "storefront"
+        },
+        "utilization": {
+          "cpu_percent": 17,
+          "memory_percent": 33
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.16,
+        "current_cost": 280.32,
+        "projected_cost": 140.16,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "14",
+        "peak_cpu_percent": "41"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-15-a",
+      "source": "opencost",
+      "category": "COST",
+      "action_type": "SCHEDULE",
+      "description": "Staging workload gets traffic only on weekdays; an off-hours scale-down schedule would recover night and weekend costs.",
+      "resource": {
+        "id": "eks-us-east-1/growth/Deployment/report-web",
+        "name": "report-web",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "replicas=5",
+        "tags": {
+          "env": "staging",
+          "team": "growth"
+        },
+        "utilization": {
+          "cpu_percent": 3,
+          "memory_percent": 12
+        }
+      },
+      "impact": {
+        "estimated_savings": 90.0,
+        "current_cost": 150.0,
+        "projected_cost": 60.0,
+        "savings_percentage": 60.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 3
+      },
+      "confidence_score": 0.82,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "b": {
+      "id": "pair-15-b",
+      "source": "kubecost",
+      "category": "COST",
+      "action_type": "SCHEDULE",
+      "description": "Scale growth/report-web to zero outside business hours.",
+      "resource": {
+        "id": "eks-us-east-1/growth/Deployment/report-web",
+        "name": "report-web",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "replicas=5",
+        "tags": {
+          "env": "staging",
+          "team": "growth"
+        },
+        "utilization": {
+          "cpu_percent": 3,
+          "memory_percent": 12
+        }
+      },
+      "impact": {
+        "estimated_savings": 94.0,
+        "current_cost": 150.0,
+        "projected_cost": 56.0,
+        "savings_percentage": 62.67,
+        "implementation_cost": 0,
+        "migration_effort_hours": 3
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-16-a",
+      "source": "infracost-advisor",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Memory and CPU use leave more than half of this r5.4xlarge idle; an r5.2xlarge is the smaller size that still fits.",
+      "resource": {
+        "id": "i-0ad894cd93f9f8833",
+        "name": "analytics-spark-driver",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-west-2",
+        "sku": "r5.4xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "analytics",
+          "app": "spark"
+        },
+        "utilization": {
+          "cpu_percent": 22,
+          "memory_percent": 35
+        }
+      },
+      "impact": {
+        "estimated_savings": 505.0,
+        "current_cost": 1010.0,
+        "projected_cost": 505.0,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.75,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-16-b",
+      "source": "aws-compute-optimizer",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Downsize r5.4xlarge to r5.2xlarge.",
+      "resource": {
+        "id": "i-0ad894cd93f9f8833",
+        "name": "analytics-spark-driver",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-west-2",
+        "sku": "r5.4xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "analytics",
+          "app": "spark"
+        },
+        "utilization": {
+          "cpu_percent": 22,
+          "memory_percent": 35
+        }
+      },
+      "impact": {
+        "estimated_savings": 504.0,
+        "current_cost": 1008.0,
+        "projected_cost": 504.0,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-17-a",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "Steady RDS usage; a one-year reserved instance would lower cost for sessions-pg-prod.",
+      "resource": {
+        "id": "arn:aws:rds:us-east-1:482916370251:db:sessions-pg-prod",
+        "name": "sessions-pg-prod",
+        "provider": "aws",
+        "resource_type": "rds:db",
+        "region": "us-east-1",
+        "sku": "db.r6g.xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "identity"
+        },
+        "utilization": {
+          "cpu_percent": 42,
+          "memory_percent": 50
+        }
+      },
+      "impact": {
+        "estimated_savings": 125.0,
+        "current_cost": 390.0,
+        "projected_cost": 265.0,
+        "savings_percentage": 32.05,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "b": {
+      "id": "pair-17-b",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "Buy a 1-year reserved instance for db.r6g.xlarge PostgreSQL.",
+      "resource": {
+        "id": "arn:aws:rds:us-east-1:482916370251:db:users-pg-prod",
+        "name": "users-pg-prod",
+        "provider": "aws",
+        "resource_type": "rds:db",
+        "region": "us-east-1",
+        "sku": "db.r6g.xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "identity"
+        },
+        "utilization": {
+          "cpu_percent": 40,
+          "memory_percent": 55
+        }
+      },
+      "impact": {
+        "estimated_savings": 125.0,
+        "current_cost": 390.0,
+        "projected_cost": 265.0,
+        "savings_percentage": 32.05,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-18-a",
+      "source": "gcp-billing",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "Buy a 1-year committed use discount for the Cloud SQL vCPUs used by this instance.",
+      "resource": {
+        "id": "//sqladmin.googleapis.com/projects/acme-plat-4821/locations/us-central1/instances/crm-sql-prod",
+        "name": "crm-sql-prod",
+        "provider": "gcp",
+        "resource_type": "sqladmin.googleapis.com/Instance",
+        "region": "us-central1",
+        "sku": "db-custom-8-32768",
+        "tags": {
+          "env": "prod",
+          "team": "crm"
+        },
+        "utilization": {
+          "cpu_percent": 20,
+          "memory_percent": 40
+        }
+      },
+      "impact": {
+        "estimated_savings": 190.0,
+        "current_cost": 690.0,
+        "projected_cost": 500.0,
+        "savings_percentage": 27.54,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "b": {
+      "id": "pair-18-b",
+      "source": "gcp-recommender",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Reduce Cloud SQL machine size to db-custom-4-16384.",
+      "resource": {
+        "id": "//sqladmin.googleapis.com/projects/acme-plat-4821/locations/us-central1/instances/crm-sql-prod",
+        "name": "crm-sql-prod",
+        "provider": "gcp",
+        "resource_type": "sqladmin.googleapis.com/Instance",
+        "region": "us-central1",
+        "sku": "db-custom-8-32768",
+        "tags": {
+          "env": "prod",
+          "team": "crm"
+        },
+        "utilization": {
+          "cpu_percent": 20,
+          "memory_percent": 40
+        }
+      },
+      "impact": {
+        "estimated_savings": 345.0,
+        "current_cost": 690.0,
+        "projected_cost": 345.0,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-19-a",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "Delete unattached volume.",
+      "resource": {
+        "id": "vol-03a57ac240ac950cf",
+        "name": "vol-old-etl-scratch",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "us-east-1",
+        "sku": "gp3 600GiB",
+        "tags": {
+          "env": "dev",
+          "team": "data"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 48.0,
+        "current_cost": 48.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.94,
+      "metadata": {
+        "lookback_days": "60",
+        "unattached_days": "118"
+      }
+    },
+    "b": {
+      "id": "pair-19-b",
+      "source": "aws-compute-optimizer",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "600 GiB EBS volume has been detached for about four months with no I/O and can be removed.",
+      "resource": {
+        "id": "vol-03a57ac240ac950cf",
+        "name": "vol-old-etl-scratch",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "us-east-1",
+        "sku": "gp3 600GiB",
+        "tags": {
+          "env": "dev",
+          "team": "data"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 48.0,
+        "current_cost": 48.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "60"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-20-a",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Downsize m5.2xlarge to m5.xlarge.",
+      "resource": {
+        "id": "i-0c1043e68ce3ec496",
+        "name": "bi-dashboard-04",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.2xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "bi",
+          "app": "dashboards"
+        },
+        "utilization": {
+          "cpu_percent": 16,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.16,
+        "current_cost": 280.32,
+        "projected_cost": 140.16,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-20-b",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "SCHEDULE",
+      "description": "Instance is only busy on weekdays 07:00-19:00; stopping it outside those hours would save spend.",
+      "resource": {
+        "id": "i-0c1043e68ce3ec496",
+        "name": "bi-dashboard-04",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.2xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "bi",
+          "app": "dashboards"
+        },
+        "utilization": {
+          "cpu_percent": 16,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 160.32,
+        "current_cost": 280.32,
+        "projected_cost": 120.0,
+        "savings_percentage": 57.19,
+        "implementation_cost": 0,
+        "migration_effort_hours": 3
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-21-a",
+      "source": "opencost",
+      "category": "COST",
+      "action_type": "CONSOLIDATE",
+      "description": "Dev cluster has spare allocatable capacity equal to one node; pods can be repacked and a node drained.",
+      "resource": {
+        "id": "eks-eu-central-1/dev-pool/Node/dev-pool-nodes",
+        "name": "dev-pool-nodes",
+        "provider": "kubernetes",
+        "resource_type": "v1/Node",
+        "region": "eu-central-1",
+        "sku": "m5.xlarge x4",
+        "tags": {
+          "env": "dev",
+          "team": "platform"
+        },
+        "utilization": {
+          "cpu_percent": 18,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 145.0,
+        "current_cost": 560.0,
+        "projected_cost": 415.0,
+        "savings_percentage": 25.89,
+        "implementation_cost": 0,
+        "migration_effort_hours": 6
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-21-b",
+      "source": "kubecost",
+      "category": "COST",
+      "action_type": "CONSOLIDATE",
+      "description": "Consolidate dev node pool from 4 nodes to 3.",
+      "resource": {
+        "id": "eks-eu-central-1/dev-pool/Node/dev-pool-nodes",
+        "name": "dev-pool-nodes",
+        "provider": "kubernetes",
+        "resource_type": "v1/Node",
+        "region": "eu-central-1",
+        "sku": "m5.xlarge x4",
+        "tags": {
+          "env": "dev",
+          "team": "platform"
+        },
+        "utilization": {
+          "cpu_percent": 18,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.0,
+        "current_cost": 560.0,
+        "projected_cost": 420.0,
+        "savings_percentage": 25.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 6
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-22-a",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "Delete objects with no reads in 365 days from acme-media-derivatives; about 6 TiB qualify.",
+      "resource": {
+        "id": "arn:aws:s3:::acme-media-derivatives",
+        "name": "acme-media-derivatives",
+        "provider": "aws",
+        "resource_type": "s3:bucket",
+        "region": "us-east-1",
+        "sku": "STANDARD 30TiB",
+        "tags": {
+          "env": "prod",
+          "team": "media"
+        },
+        "utilization": {
+          "storage_percent": 100
+        }
+      },
+      "impact": {
+        "estimated_savings": 138.0,
+        "current_cost": 690.0,
+        "projected_cost": 552.0,
+        "savings_percentage": 20.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.65,
+      "metadata": {
+        "lookback_days": "365"
+      }
+    },
+    "b": {
+      "id": "pair-22-b",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Add an Intelligent-Tiering configuration to bucket acme-media-derivatives.",
+      "resource": {
+        "id": "arn:aws:s3:::acme-media-derivatives",
+        "name": "acme-media-derivatives",
+        "provider": "aws",
+        "resource_type": "s3:bucket",
+        "region": "us-east-1",
+        "sku": "STANDARD 30TiB",
+        "tags": {
+          "env": "prod",
+          "team": "media"
+        },
+        "utilization": {
+          "storage_percent": 100
+        }
+      },
+      "impact": {
+        "estimated_savings": 220.0,
+        "current_cost": 690.0,
+        "projected_cost": 470.0,
+        "savings_percentage": 31.88,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-23-a",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Change volume type from gp2 to gp3.",
+      "resource": {
+        "id": "vol-0b9c07e4bf3fbcc5a",
+        "name": "vol-media-render-2",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "us-west-2",
+        "sku": "gp2 2000GiB",
+        "tags": {
+          "env": "prod",
+          "team": "media"
+        },
+        "utilization": {
+          "storage_percent": 20
+        }
+      },
+      "impact": {
+        "estimated_savings": 40.0,
+        "current_cost": 200.0,
+        "projected_cost": 160.0,
+        "savings_percentage": 20.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.95,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "b": {
+      "id": "pair-23-b",
+      "source": "aws-compute-optimizer",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Volume is 20 percent full; reduce its provisioned size from 2000 GiB to 800 GiB via snapshot and restore.",
+      "resource": {
+        "id": "vol-0b9c07e4bf3fbcc5a",
+        "name": "vol-media-render-2",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "us-west-2",
+        "sku": "gp2 2000GiB",
+        "tags": {
+          "env": "prod",
+          "team": "media"
+        },
+        "utilization": {
+          "storage_percent": 20
+        }
+      },
+      "impact": {
+        "estimated_savings": 120.0,
+        "current_cost": 200.0,
+        "projected_cost": 80.0,
+        "savings_percentage": 60.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.7,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-24-a",
+      "source": "azure-advisor",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Scale database from GP_Gen5_8 to GP_Gen5_4.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-sqldb/providers/Microsoft.Sql/servers/databases/sqldb-hr-prod",
+        "name": "sqldb-hr-prod",
+        "provider": "azure",
+        "resource_type": "Microsoft.Sql/servers/databases",
+        "region": "eastus",
+        "sku": "GP_Gen5_8",
+        "tags": {
+          "env": "prod",
+          "team": "hr"
+        },
+        "utilization": {
+          "cpu_percent": 18,
+          "memory_percent": 40
+        }
+      },
+      "impact": {
+        "estimated_savings": 665.0,
+        "current_cost": 1330.0,
+        "projected_cost": 665.0,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.82,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-24-b",
+      "source": "azure-cost-mgmt",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Scale database from GP_Gen5_8 to GP_Gen5_2.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-sqldb/providers/Microsoft.Sql/servers/databases/sqldb-hr-prod",
+        "name": "sqldb-hr-prod",
+        "provider": "azure",
+        "resource_type": "Microsoft.Sql/servers/databases",
+        "region": "eastus",
+        "sku": "GP_Gen5_8",
+        "tags": {
+          "env": "prod",
+          "team": "hr"
+        },
+        "utilization": {
+          "cpu_percent": 18,
+          "memory_percent": 40
+        }
+      },
+      "impact": {
+        "estimated_savings": 998.0,
+        "current_cost": 1330.0,
+        "projected_cost": 332.0,
+        "savings_percentage": 75.04,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.7,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-25-a",
+      "source": "gcp-billing",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "Persistent disk pd-old-b is unattached and can be deleted.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/us-central1/disks/pd-old-b",
+        "name": "pd-old-b",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Disk",
+        "region": "us-central1",
+        "sku": "pd-ssd 300GiB",
+        "tags": {
+          "env": "dev",
+          "team": "infra"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 51.0,
+        "current_cost": 51.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "60"
+      }
+    },
+    "b": {
+      "id": "pair-25-b",
+      "source": "gcp-recommender",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "Delete idle disk pd-old-a.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/us-central1/disks/pd-old-a",
+        "name": "pd-old-a",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Disk",
+        "region": "us-central1",
+        "sku": "pd-ssd 300GiB",
+        "tags": {
+          "env": "dev",
+          "team": "infra"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 51.0,
+        "current_cost": 51.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.92,
+      "metadata": {
+        "lookback_days": "60"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-26-a",
+      "source": "azure-advisor",
+      "category": "COST",
+      "action_type": "SCHEDULE",
+      "description": "Enable auto-shutdown for vm-dev-sandbox-01 outside weekday working hours.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-vm/providers/Microsoft.Compute/virtualMachines/vm-dev-sandbox-01",
+        "name": "vm-dev-sandbox-01",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/virtualMachines",
+        "region": "westeurope",
+        "sku": "Standard_D4s_v5",
+        "tags": {
+          "env": "dev",
+          "team": "devex"
+        },
+        "utilization": {
+          "cpu_percent": 3,
+          "memory_percent": 15
+        }
+      },
+      "impact": {
+        "estimated_savings": 80.2,
+        "current_cost": 140.2,
+        "projected_cost": 60.0,
+        "savings_percentage": 57.2,
+        "implementation_cost": 0,
+        "migration_effort_hours": 3
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "b": {
+      "id": "pair-26-b",
+      "source": "azure-cost-mgmt",
+      "category": "COST",
+      "action_type": "SCHEDULE",
+      "description": "Virtual machine is idle nights and weekends; configure a start/stop schedule to cut compute hours.",
+      "resource": {
+        "id": "/subscriptions/0f3c1a2b-77d4-4e19-9a0c-5b2e8d6f1a34/resourceGroups/rg-vm/providers/Microsoft.Compute/virtualMachines/vm-dev-sandbox-02",
+        "name": "vm-dev-sandbox-02",
+        "provider": "azure",
+        "resource_type": "Microsoft.Compute/virtualMachines",
+        "region": "westeurope",
+        "sku": "Standard_D4s_v5",
+        "tags": {
+          "env": "dev",
+          "team": "devex"
+        },
+        "utilization": {
+          "cpu_percent": 3,
+          "memory_percent": 14
+        }
+      },
+      "impact": {
+        "estimated_savings": 80.2,
+        "current_cost": 140.2,
+        "projected_cost": 60.0,
+        "savings_percentage": 57.2,
+        "implementation_cost": 0,
+        "migration_effort_hours": 3
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-27-a",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "NAT gateway nat-staging-a shows almost no data processed; deleting it eliminates the hourly charge.",
+      "resource": {
+        "id": "arn:aws:nat:us-east-1:482916370251:gateway:nat-staging-a",
+        "name": "nat-staging-a",
+        "provider": "aws",
+        "resource_type": "nat:gateway",
+        "region": "us-east-1",
+        "sku": "nat-gateway",
+        "tags": {
+          "env": "staging",
+          "team": "platform"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 45.0,
+        "current_cost": 45.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "b": {
+      "id": "pair-27-b",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "Remove idle NAT gateway.",
+      "resource": {
+        "id": "arn:aws:nat:us-east-1:482916370251:gateway:nat-staging-a",
+        "name": "nat-staging-a",
+        "provider": "aws",
+        "resource_type": "nat:gateway",
+        "region": "us-east-1",
+        "sku": "nat-gateway",
+        "tags": {
+          "env": "staging",
+          "team": "platform"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 45.6,
+        "current_cost": 45.6,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-28-a",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "Steady RDS usage detected for this database; a one-year RI would reduce spend by about a third.",
+      "resource": {
+        "id": "arn:aws:rds:us-east-2:482916370251:db:inventory-mysql-prod",
+        "name": "inventory-mysql-prod",
+        "provider": "aws",
+        "resource_type": "rds:db",
+        "region": "us-east-2",
+        "sku": "db.r5.xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "supply",
+          "app": "inventory"
+        },
+        "utilization": {
+          "cpu_percent": 41,
+          "memory_percent": 60
+        }
+      },
+      "impact": {
+        "estimated_savings": 114.0,
+        "current_cost": 350.0,
+        "projected_cost": 236.0,
+        "savings_percentage": 32.57,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "b": {
+      "id": "pair-28-b",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "Purchase a 1-year no-upfront reserved instance for db.r5.xlarge MySQL.",
+      "resource": {
+        "id": "arn:aws:rds:us-east-2:482916370251:db:inventory-mysql-prod",
+        "name": "inventory-mysql-prod",
+        "provider": "aws",
+        "resource_type": "rds:db",
+        "region": "us-east-2",
+        "sku": "db.r5.xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "supply",
+          "app": "inventory"
+        },
+        "utilization": {
+          "cpu_percent": 41,
+          "memory_percent": 60
+        }
+      },
+      "impact": {
+        "estimated_savings": 115.4,
+        "current_cost": 350.4,
+        "projected_cost": 235.0,
+        "savings_percentage": 32.93,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.92,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-29-a",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Instance is over-provisioned; switch to m5.xlarge.",
+      "resource": {
+        "id": "i-04c21b832d0654682",
+        "name": "app-green-01",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.2xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "web"
+        },
+        "utilization": {
+          "cpu_percent": 18,
+          "memory_percent": 31
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.16,
+        "current_cost": 280.32,
+        "projected_cost": 140.16,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-29-b",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Downsize m5.2xlarge to m5.xlarge.",
+      "resource": {
+        "id": "i-028d7b35ef572fe45",
+        "name": "app-blue-01",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.2xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "web"
+        },
+        "utilization": {
+          "cpu_percent": 17,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 140.16,
+        "current_cost": 280.32,
+        "projected_cost": 140.16,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-30-a",
+      "source": "gcp-recommender",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "Delete idle persistent disk.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/europe-west1/disks/pd-old-staging-data",
+        "name": "pd-old-staging-data",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Disk",
+        "region": "europe-west1",
+        "sku": "pd-ssd 500GiB",
+        "tags": {
+          "env": "staging",
+          "team": "infra"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 85.0,
+        "current_cost": 85.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.92,
+      "metadata": {
+        "lookback_days": "60"
+      }
+    },
+    "b": {
+      "id": "pair-30-b",
+      "source": "gcp-billing",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "The 500 GiB SSD disk has no attached instance and no activity for two months and can be removed.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/europe-west1/disks/pd-old-staging-data",
+        "name": "pd-old-staging-data",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Disk",
+        "region": "europe-west1",
+        "sku": "pd-ssd 500GiB",
+        "tags": {
+          "env": "staging",
+          "team": "infra"
+        },
+        "utilization": {}
+      },
+      "impact": {
+        "estimated_savings": 85.0,
+        "current_cost": 85.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "60"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-31-a",
+      "source": "gcp-billing",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Instance dev-tools-vm is oversized relative to peak usage; n2-standard-4 offers enough capacity.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/us-central1/instances/dev-tools-vm",
+        "name": "dev-tools-vm",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Instance",
+        "region": "us-central1",
+        "sku": "n2-standard-8",
+        "tags": {
+          "env": "dev",
+          "team": "infra"
+        },
+        "utilization": {
+          "cpu_percent": 5,
+          "memory_percent": 17
+        }
+      },
+      "impact": {
+        "estimated_savings": 141.0,
+        "current_cost": 283.0,
+        "projected_cost": 142.0,
+        "savings_percentage": 49.82,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "8"
+      }
+    },
+    "b": {
+      "id": "pair-31-b",
+      "source": "gcp-recommender",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Change machine type from n2-standard-8 to n2-standard-4.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/us-central1/instances/dev-tools-vm",
+        "name": "dev-tools-vm",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Instance",
+        "region": "us-central1",
+        "sku": "n2-standard-8",
+        "tags": {
+          "env": "dev",
+          "team": "infra"
+        },
+        "utilization": {
+          "cpu_percent": 5,
+          "memory_percent": 17
+        }
+      },
+      "impact": {
+        "estimated_savings": 141.5,
+        "current_cost": 283.0,
+        "projected_cost": 141.5,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.88,
+      "metadata": {
+        "lookback_days": "8"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-32-a",
+      "source": "aws-compute-optimizer",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Change io1 volume to gp3 with 3000 baseline IOPS.",
+      "resource": {
+        "id": "vol-008ea3ed213c292c5",
+        "name": "vol-search-data-9",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "us-east-1",
+        "sku": "io1 2000GiB 10000 IOPS",
+        "tags": {
+          "env": "prod",
+          "team": "search"
+        },
+        "utilization": {
+          "storage_percent": 45
+        }
+      },
+      "impact": {
+        "estimated_savings": 675.0,
+        "current_cost": 875.0,
+        "projected_cost": 200.0,
+        "savings_percentage": 77.14,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.72,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "b": {
+      "id": "pair-32-b",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Change io1 volume to gp3 with 6000 provisioned IOPS.",
+      "resource": {
+        "id": "vol-008ea3ed213c292c5",
+        "name": "vol-search-data-9",
+        "provider": "aws",
+        "resource_type": "ebs:volume",
+        "region": "us-east-1",
+        "sku": "io1 2000GiB 10000 IOPS",
+        "tags": {
+          "env": "prod",
+          "team": "search"
+        },
+        "utilization": {
+          "storage_percent": 45
+        }
+      },
+      "impact": {
+        "estimated_savings": 615.0,
+        "current_cost": 875.0,
+        "projected_cost": 260.0,
+        "savings_percentage": 70.29,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-33-a",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "MODIFY",
+      "description": "Change instance type of batch-worker-22 to m6i.2xlarge, which fits its measured demand and has a newer CPU generation.",
+      "resource": {
+        "id": "i-09e3443c70209c283",
+        "name": "batch-worker-22",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.4xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "data",
+          "app": "batch"
+        },
+        "utilization": {
+          "cpu_percent": 27,
+          "memory_percent": 40
+        }
+      },
+      "impact": {
+        "estimated_savings": 253.0,
+        "current_cost": 561.0,
+        "projected_cost": 308.0,
+        "savings_percentage": 45.1,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-33-b",
+      "source": "aws-compute-optimizer",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Move from m5.4xlarge to m6i.2xlarge.",
+      "resource": {
+        "id": "i-09e3443c70209c283",
+        "name": "batch-worker-22",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-east-1",
+        "sku": "m5.4xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "data",
+          "app": "batch"
+        },
+        "utilization": {
+          "cpu_percent": 27,
+          "memory_percent": 40
+        }
+      },
+      "impact": {
+        "estimated_savings": 253.6,
+        "current_cost": 560.6,
+        "projected_cost": 307.0,
+        "savings_percentage": 45.24,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.83,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-34-a",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Downsize db.r5.xlarge to db.r5.large.",
+      "resource": {
+        "id": "arn:aws:rds:us-east-1:482916370251:db:reporting-pg-stg",
+        "name": "reporting-pg-stg",
+        "provider": "aws",
+        "resource_type": "rds:db",
+        "region": "us-east-1",
+        "sku": "db.r5.xlarge",
+        "tags": {
+          "env": "staging",
+          "team": "bi"
+        },
+        "utilization": {
+          "cpu_percent": 8,
+          "memory_percent": 35
+        }
+      },
+      "impact": {
+        "estimated_savings": 175.2,
+        "current_cost": 350.4,
+        "projected_cost": 175.2,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-34-b",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "PURCHASE_COMMITMENT",
+      "description": "Steady usage on db.r5.xlarge for 8 months qualifies this database for a reserved instance.",
+      "resource": {
+        "id": "arn:aws:rds:us-east-1:482916370251:db:reporting-pg-stg",
+        "name": "reporting-pg-stg",
+        "provider": "aws",
+        "resource_type": "rds:db",
+        "region": "us-east-1",
+        "sku": "db.r5.xlarge",
+        "tags": {
+          "env": "staging",
+          "team": "bi"
+        },
+        "utilization": {
+          "cpu_percent": 8,
+          "memory_percent": 35
+        }
+      },
+      "impact": {
+        "estimated_savings": 110.4,
+        "current_cost": 350.4,
+        "projected_cost": 240.0,
+        "savings_percentage": 31.51,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "90"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-35-a",
+      "source": "kubecost",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "Delete unmounted PVC data/kafka-old-2.",
+      "resource": {
+        "id": "eks-us-west-2/data/PersistentVolumeClaim/kafka-old-2",
+        "name": "kafka-old-2",
+        "provider": "kubernetes",
+        "resource_type": "v1/PersistentVolumeClaim",
+        "region": "us-west-2",
+        "sku": "gp3 500Gi",
+        "tags": {
+          "env": "dev",
+          "team": "data"
+        },
+        "utilization": {
+          "storage_percent": 0
+        }
+      },
+      "impact": {
+        "estimated_savings": 40.0,
+        "current_cost": 40.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "60"
+      }
+    },
+    "b": {
+      "id": "pair-35-b",
+      "source": "opencost",
+      "category": "COST",
+      "action_type": "DELETE_UNUSED",
+      "description": "A 500Gi persistent volume claim has had no pod mount for two months and can be reclaimed.",
+      "resource": {
+        "id": "eks-us-west-2/data/PersistentVolumeClaim/kafka-old-2",
+        "name": "kafka-old-2",
+        "provider": "kubernetes",
+        "resource_type": "v1/PersistentVolumeClaim",
+        "region": "us-west-2",
+        "sku": "gp3 500Gi",
+        "tags": {
+          "env": "dev",
+          "team": "data"
+        },
+        "utilization": {
+          "storage_percent": 0
+        }
+      },
+      "impact": {
+        "estimated_savings": 40.0,
+        "current_cost": 40.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "60"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-36-a",
+      "source": "kubecost",
+      "category": "COST",
+      "action_type": "ADJUST_REQUESTS",
+      "description": "Reduce invoice-worker memory request from 8Gi to 4Gi.",
+      "resource": {
+        "id": "eks-us-east-1/billing/Deployment/invoice-worker",
+        "name": "invoice-worker",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "memory-request=8Gi",
+        "tags": {
+          "env": "prod",
+          "team": "billing"
+        },
+        "utilization": {
+          "cpu_percent": 25,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 100.0,
+        "current_cost": 200.0,
+        "projected_cost": 100.0,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-36-b",
+      "source": "opencost",
+      "category": "COST",
+      "action_type": "ADJUST_REQUESTS",
+      "description": "Memory request of 8Gi is generous; lower it to 3Gi.",
+      "resource": {
+        "id": "eks-us-east-1/billing/Deployment/invoice-worker",
+        "name": "invoice-worker",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "memory-request=8Gi",
+        "tags": {
+          "env": "prod",
+          "team": "billing"
+        },
+        "utilization": {
+          "cpu_percent": 25,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 125.0,
+        "current_cost": 200.0,
+        "projected_cost": 75.0,
+        "savings_percentage": 62.5,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.78,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-37-a",
+      "source": "aws-compute-optimizer",
+      "category": "COST",
+      "action_type": "TERMINATE",
+      "description": "Idle instance: CPU below 1 percent for 30 days, recommend termination.",
+      "resource": {
+        "id": "i-0faa17e82b850503b",
+        "name": "qa-runner-11",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-west-2",
+        "sku": "c5.xlarge",
+        "tags": {
+          "env": "qa",
+          "team": "qa-eng"
+        },
+        "utilization": {
+          "cpu_percent": 0.9,
+          "memory_percent": 6
+        }
+      },
+      "impact": {
+        "estimated_savings": 124.1,
+        "current_cost": 124.1,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.9,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "b": {
+      "id": "pair-37-b",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "TERMINATE",
+      "description": "Unused EC2 resource detected (no meaningful CPU or network in the last month); stop paying for c5.xlarge by shutting it down.",
+      "resource": {
+        "id": "i-0faa17e82b850503b",
+        "name": "qa-runner-11",
+        "provider": "aws",
+        "resource_type": "ec2:instance",
+        "region": "us-west-2",
+        "sku": "c5.xlarge",
+        "tags": {
+          "env": "qa",
+          "team": "qa-eng"
+        },
+        "utilization": {
+          "cpu_percent": 0.9,
+          "memory_percent": 6
+        }
+      },
+      "impact": {
+        "estimated_savings": 124.0,
+        "current_cost": 124.0,
+        "projected_cost": 0.0,
+        "savings_percentage": 100.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "30"
+      }
+    },
+    "same_action": true
+  },
+  {
+    "a": {
+      "id": "pair-38-a",
+      "source": "kubecost",
+      "category": "COST",
+      "action_type": "ADJUST_REQUESTS",
+      "description": "Lower web/frontend CPU request from 1000m to 400m.",
+      "resource": {
+        "id": "eks-us-east-1/web/Deployment/frontend",
+        "name": "frontend",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "cpu-request=1000m",
+        "tags": {
+          "env": "prod",
+          "team": "web"
+        },
+        "utilization": {
+          "cpu_percent": 15,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 54.0,
+        "current_cost": 90.0,
+        "projected_cost": 36.0,
+        "savings_percentage": 60.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-38-b",
+      "source": "opencost",
+      "category": "COST",
+      "action_type": "ADJUST_REQUESTS",
+      "description": "Deployment web/backoffice requests 1000m CPU but peaks at 300m; reduce to 400m.",
+      "resource": {
+        "id": "eks-us-east-1/web/Deployment/backoffice",
+        "name": "backoffice",
+        "provider": "kubernetes",
+        "resource_type": "apps/v1/Deployment",
+        "region": "us-east-1",
+        "sku": "cpu-request=1000m",
+        "tags": {
+          "env": "prod",
+          "team": "web"
+        },
+        "utilization": {
+          "cpu_percent": 14,
+          "memory_percent": 28
+        }
+      },
+      "impact": {
+        "estimated_savings": 54.0,
+        "current_cost": 90.0,
+        "projected_cost": 36.0,
+        "savings_percentage": 60.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 1
+      },
+      "confidence_score": 0.8,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-39-a",
+      "source": "aws-public",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Downsize db.r5.2xlarge to db.r5.xlarge.",
+      "resource": {
+        "id": "arn:aws:rds:eu-west-1:482916370251:db:notifications-pg",
+        "name": "notifications-pg",
+        "provider": "aws",
+        "resource_type": "rds:db",
+        "region": "eu-west-1",
+        "sku": "db.r5.2xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "messaging"
+        },
+        "utilization": {
+          "cpu_percent": 12,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 350.4,
+        "current_cost": 700.8,
+        "projected_cost": 350.4,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "b": {
+      "id": "pair-39-b",
+      "source": "aws-cost-explorer",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Database is oversized; drop from db.r5.2xlarge to db.r5.large.",
+      "resource": {
+        "id": "arn:aws:rds:eu-west-1:482916370251:db:notifications-pg",
+        "name": "notifications-pg",
+        "provider": "aws",
+        "resource_type": "rds:db",
+        "region": "eu-west-1",
+        "sku": "db.r5.2xlarge",
+        "tags": {
+          "env": "prod",
+          "team": "messaging"
+        },
+        "utilization": {
+          "cpu_percent": 12,
+          "memory_percent": 30
+        }
+      },
+      "impact": {
+        "estimated_savings": 525.6,
+        "current_cost": 700.8,
+        "projected_cost": 175.2,
+        "savings_percentage": 75.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.75,
+      "metadata": {
+        "lookback_days": "14"
+      }
+    },
+    "same_action": false
+  },
+  {
+    "a": {
+      "id": "pair-40-a",
+      "source": "gcp-recommender",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Change machine type from n2-standard-16 to n2-standard-8.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/us-central1/instances/stg-etl-vm",
+        "name": "stg-etl-vm",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Instance",
+        "region": "us-central1",
+        "sku": "n2-standard-16",
+        "tags": {
+          "env": "staging",
+          "team": "data"
+        },
+        "utilization": {
+          "cpu_percent": 10,
+          "memory_percent": 20
+        }
+      },
+      "impact": {
+        "estimated_savings": 283.0,
+        "current_cost": 566.0,
+        "projected_cost": 283.0,
+        "savings_percentage": 50.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.85,
+      "metadata": {
+        "lookback_days": "8"
+      }
+    },
+    "b": {
+      "id": "pair-40-b",
+      "source": "gcp-billing",
+      "category": "COST",
+      "action_type": "RIGHTSIZE",
+      "description": "Change machine type from n2-standard-16 to n2-standard-4.",
+      "resource": {
+        "id": "//compute.googleapis.com/projects/acme-plat-4821/locations/us-central1/instances/stg-etl-vm",
+        "name": "stg-etl-vm",
+        "provider": "gcp",
+        "resource_type": "compute.googleapis.com/Instance",
+        "region": "us-central1",
+        "sku": "n2-standard-16",
+        "tags": {
+          "env": "staging",
+          "team": "data"
+        },
+        "utilization": {
+          "cpu_percent": 10,
+          "memory_percent": 20
+        }
+      },
+      "impact": {
+        "estimated_savings": 424.5,
+        "current_cost": 566.0,
+        "projected_cost": 141.5,
+        "savings_percentage": 75.0,
+        "implementation_cost": 0,
+        "migration_effort_hours": 2
+      },
+      "confidence_score": 0.72,
+      "metadata": {
+        "lookback_days": "8"
+      }
+    },
+    "same_action": false
+  }
+]

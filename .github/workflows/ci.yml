@@ -55,6 +55,9 @@ jobs:
       - name: Run kubernetes plugin tests
         run: make test-kubernetes
 
+      - name: Run jev plugin tests
+        run: make test-jev
+
       - name: Check overall coverage threshold
         run: |
           chmod +x scripts/check-coverage.sh
@@ -111,6 +114,13 @@ jobs:
           version: v2.14.0
           args: --timeout=5m
           working-directory: plugins/kubernetes
+
+      - name: Run golangci-lint (jev plugin)
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.14.0
+          args: --timeout=5m
+          working-directory: plugins/jev
 
       - name: Check plugin boundaries
         run: make check-plugin-boundaries
@@ -185,7 +195,7 @@ jobs:
         run: |
           ROOT_GO_VERSION=$(grep '^go ' go.mod | awk '{print $2}')
           SYNC_FAILED=0
-          for MOD in test/e2e/go.mod plugins/kubernetes/go.mod; do
+          for MOD in test/e2e/go.mod plugins/kubernetes/go.mod plugins/jev/go.mod; do
             MOD_GO_VERSION=$(grep '^go ' "$MOD" | awk '{print $2}')
             if [ "$ROOT_GO_VERSION" != "$MOD_GO_VERSION" ]; then
               echo "ERROR: Go version mismatch: root=$ROOT_GO_VERSION $MOD=$MOD_GO_VERSION"
@@ -212,6 +222,9 @@ jobs:
 
       - name: Check plugins/kubernetes go.mod tidy
         run: go -C plugins/kubernetes mod tidy -diff
+
+      - name: Check plugins/jev go.mod tidy
+        run: go -C plugins/jev mod tidy -diff
 
   fuzz:
     name: Fuzz Testing (Smoke)
@@ -504,6 +517,12 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: make build-kubernetes
+
+      - name: Build jev plugin
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: make build-jev
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v7
