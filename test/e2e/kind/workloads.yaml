@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: e2e
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: e2e}
+spec:
+  replicas: 2
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web, team: storefront}}
+    spec:
+      containers:
+        - name: web
+          image: registry.k8s.io/pause:3.10
+          resources: {requests: {cpu: 250m, memory: 256Mi}}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata: {name: db, namespace: e2e}
+spec:
+  serviceName: db
+  replicas: 1
+  selector: {matchLabels: {app: db}}
+  template:
+    metadata: {labels: {app: db, team: data}}
+    spec:
+      containers:
+        - name: db
+          image: registry.k8s.io/pause:3.10
+          resources: {requests: {cpu: 500m, memory: 1Gi}}
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata: {name: agent, namespace: e2e}
+spec:
+  selector: {matchLabels: {app: agent}}
+  template:
+    metadata: {labels: {app: agent}}
+    spec:
+      tolerations: [{operator: Exists}]
+      containers:
+        - name: agent
+          image: registry.k8s.io/pause:3.10
+          resources: {requests: {cpu: 50m, memory: 64Mi}}

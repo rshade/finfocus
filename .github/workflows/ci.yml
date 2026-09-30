@@ -529,3 +529,26 @@ jobs:
         with:
           name: finfocus-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/finfocus*
+
+  e2e-kind:
+    name: E2E (kind)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+
+      - name: Install kind and kubectl
+        uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      - name: Run kind E2E
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: make test-e2e-kind
