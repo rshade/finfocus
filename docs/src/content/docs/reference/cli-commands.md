@@ -190,8 +190,14 @@ finfocus cost recommendations --pulumi-json <file> [options]
 | `--limit`             | Limit number of recommendations                                  | 0 (all)  |
 | `--verbose`           | Show all recommendations with full details                       | false    |
 | `--include-dismissed` | Show dismissed and snoozed recommendations alongside active ones | false    |
-| `--sort`              | Sort expression (e.g., `savings:desc`)                           | None     |
+| `--sort`              | Sort expression (e.g., `savings:desc`, or `risk` with scoring)   | None     |
+| `--scoring-dry-run`   | Print what would be sent to the scorer plugin and send nothing   | false    |
+| `--no-scoring`        | Skip the scoring step for this run                               | false    |
 | `--help`              | Show help                                                        |          |
+
+`--filter` also accepts score expressions such as `risk<=0.3`, and `--sort` accepts `risk`, `false_positive`,
+`worth_acting`, `priority` and `insufficient_evidence`. These require the optional scoring step, which is off by default.
+See the [Recommendation Scoring Guide](../guides/recommendation-scoring.md).
 
 ### Subcommands (cost recommendations)
 

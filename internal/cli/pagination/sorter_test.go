@@ -61,6 +61,11 @@ func TestRecommendationSorter_GetValidFields(t *testing.T) {
 		"resourceType",
 		"provider",
 		"actionType",
+		"risk",
+		"false_positive",
+		"worth_acting",
+		"priority",
+		"insufficient_evidence",
 	}
 
 	assert.ElementsMatch(t, expectedFields, fields)
@@ -285,4 +290,58 @@ func TestParseSortExpression(t *testing.T) {
 			}
 		})
 	}
+}
+
+func scored(id string, risk *float64) engine.Recommendation {
+	rec := engine.Recommendation{ResourceID: id, EstimatedSavings: 10}
+	if risk != nil {
+		rec.Scores = &engine.RecommendationScores{Risk: risk, Priority: risk}
+	}
+	return rec
+}
+
+// TestRecommendationSorter_SortByScore verifies score sorting keeps unscored rows last.
+func TestRecommendationSorter_SortByScore(t *testing.T) {
+	sorter := pagination.NewRecommendationSorter()
+	v := func(f float64) *float64 { return &f }
+	recs := []engine.Recommendation{
+		scored(
+			"none-1",
+			nil,
+		),
+		scored("low", v(0.1)),
+		scored("high", v(0.9)),
+		scored("none-2", nil),
+		scored("mid", v(0.5)),
+	}
+
+	ids := func(in []engine.Recommendation) []string {
+		out := make([]string, len(in))
+		for i, r := range in {
+			out[i] = r.ResourceID
+		}
+		return out
+	}
+
+	assert.Equal(t, []string{"high", "mid", "low", "none-1", "none-2"},
+		ids(sorter.Sort(recs, "risk", pagination.SortOrderDesc)))
+	assert.Equal(t, []string{"low", "mid", "high", "none-1", "none-2"},
+		ids(sorter.Sort(recs, "risk", pagination.SortOrderAsc)), "unscored stay last in either order")
+	assert.Equal(t, []string{"high", "mid", "low", "none-1", "none-2"},
+		ids(sorter.Sort(recs, "priority", pagination.SortOrderDesc)))
+	assert.Equal(t, "none-1", recs[0].ResourceID, "input slice is not modified")
+}
+
+// TestRecommendationSorter_ScoreTiesBreakBySavings verifies tie-breaking.
+func TestRecommendationSorter_ScoreTiesBreakBySavings(t *testing.T) {
+	sorter := pagination.NewRecommendationSorter()
+	risk := 0.5
+	a := scored("a", &risk)
+	b := scored("b", &risk)
+	a.EstimatedSavings = 5
+	b.EstimatedSavings = 50
+
+	sorted := sorter.Sort([]engine.Recommendation{a, b}, "risk", pagination.SortOrderDesc)
+
+	assert.Equal(t, "b", sorted[0].ResourceID)
 }

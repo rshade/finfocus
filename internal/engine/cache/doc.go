@@ -16,6 +16,7 @@
 //   - projected: Per-resource projected cost results
 //   - actual: Whole-query actual cost results
 //   - recommendations: Recommendation query results
+//   - scores: Per-recommendation scorer ratings (only when scoring is enabled)
 //
 // # Key Format
 //
@@ -23,7 +24,16 @@
 //
 //   - projected/{provider}/{type}/{region}/{sku}
 //   - actual/{provider}/{types}/{from}/{to}/{filter-hash}
-//   - recommendations/multi/{sorted-types}
+//   - recommendations/multi/{sorted-types}/{inputs-hash}
+//   - scores/{scorer}/{plugin-version}/{model}/{content-hash}
+//   - scores/{scorer}/{plugin-version}/_model
+//
+// The recommendations inputs-hash is a SHA-256 digest (32 hex characters) over the
+// identity, provider, type and plugin-visible properties of every requested resource
+// plus the excluded (dismissed) recommendation IDs, so two stacks with the same type
+// mix but different resources, or a newly dismissed recommendation, never share an entry.
+// Entries written under the older recommendations/multi/{sorted-types} format are not
+// matched by the current format and expire by TTL.
 //
 // # Concurrency
 //

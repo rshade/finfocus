@@ -13,7 +13,7 @@ require (
 	github.com/pulumi/pulumi/sdk/v3 v3.265.0
 	github.com/rs/zerolog v1.35.1
 	github.com/rshade/ax-go v0.7.0
-	github.com/rshade/finfocus-spec v0.6.2
+	github.com/rshade/finfocus-spec v0.7.0
 	github.com/spf13/cobra v1.10.2
 	github.com/stretchr/testify v1.12.1
 	go.etcd.io/bbolt v1.5.0
@@ -21,7 +21,7 @@ require (
 	golang.org/x/sys v0.48.0
 	golang.org/x/term v0.46.0
 	golang.org/x/text v0.42.0
-	google.golang.org/grpc v1.83.2
+	google.golang.org/grpc v1.85.0-dev.0.20260825072537-93e31b48545e
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
 )

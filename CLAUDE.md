@@ -420,6 +420,21 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   (`Supported:false`, `Reason: pluginsdk.DefaultSupportsNotImplementedReason`); the engine
   treats that reason as fail-open (cached `true`), same as an RPC error, so such a plugin
   isn't silently dropped from routing
+- **Recommendations**: `convertProtoRecommendation` keeps the full plugin record
+  (`ID`, category, priority, confidence, source, metadata, `ImpactDetail`, `ResourceInfo`);
+  `Recommendation.ID` is the dismissal ID. The cache key is
+  `recommendations/multi/{types}/{hash}` where the hash covers resource id/provider/type/
+  properties plus dismissed IDs (`cache.HashRecommendationInputs`). Resources are routed per
+  plugin via `routeRecommendationTargets` (router feature `Recommendations`)
+- **Recommendation scoring** (`internal/scoring`, opt-in via `scoring.*` config, off by default):
+  `scoring.Service.Score` runs after the fetch in `cost recommendations`, sends recommendations
+  to a scorer plugin (`PLUGIN_CAPABILITY_RECOMMENDATION_SCORING`, normalized
+  `recommendation_scoring`) through `pbc.RecommendationScorerServiceClient`. Core applies
+  `identifier_mode` (default pseudonymized: per-request HMAC key, opaque `rec-N` ids, raw ids
+  scrubbed from text) and `field_allowlist` before sending; the first call probes batch size
+  (20, halving on INVALID_ARGUMENT), later batches run up to 8 concurrent. Scorer failure only
+  warns. Scores are cached in the `scores` bucket (extracted values only). Scores never dismiss
+  or hide anything. Scorer-only plugins are skipped by `routeRecommendationTargets`
 
 ### Overview Field Semantics (`internal/engine/overview_*.go`)
 

@@ -174,6 +174,7 @@ func renderRecommendation(rec engine.Recommendation, selected bool) string {
 		recColWidthSavings, savings,
 		recColWidthDescription, description,
 	)
+	row += scoreSuffix(rec.Scores)
 
 	// Apply selection styling
 	if selected {
@@ -184,6 +185,30 @@ func renderRecommendation(rec engine.Recommendation, selected bool) string {
 	}
 
 	return row
+}
+
+// scoreSuffix renders the compact score cell appended to a list row. It is empty for
+// recommendations the scorer did not rate, so unscored output is unchanged.
+func scoreSuffix(scores *engine.RecommendationScores) string {
+	if scores == nil {
+		return ""
+	}
+	suffix := "  risk " + formatScore(scores.Risk)
+	if scores.NeedsReview {
+		suffix += "  REVIEW"
+	}
+	if scores.DuplicateGroupID != "" {
+		suffix += "  " + scores.DuplicateGroupID
+	}
+	return suffix
+}
+
+// formatScore formats a 0-to-1 signal, or "-" when the scorer did not compute it.
+func formatScore(v *float64) string {
+	if v == nil {
+		return "-"
+	}
+	return fmt.Sprintf("%.2f", *v)
 }
 
 // Messages for RecommendationsViewModel.
@@ -626,7 +651,27 @@ func RenderRecommendationDetail(rec engine.Recommendation, width int) string {
 	fmt.Fprintf(&sb, "Savings:     %s%.2f %s\n",
 		getCurrencySymbol(currency), rec.EstimatedSavings, currency)
 	fmt.Fprintf(&sb, "Description: %s\n", rec.Description)
+	writeScoreDetail(&sb, rec.Scores)
 	_, _ = sb.WriteString("\n[Esc] Back to list  [q] Quit")
 
 	return sb.String()
+}
+
+// writeScoreDetail appends the scorer's ratings to a recommendation detail view.
+func writeScoreDetail(sb *strings.Builder, scores *engine.RecommendationScores) {
+	if scores == nil {
+		return
+	}
+	_, _ = sb.WriteString("\nScores (ranking signals, not approval to act)\n")
+	fmt.Fprintf(sb, "Risk:            %s\n", formatScore(scores.Risk))
+	fmt.Fprintf(sb, "False positive:  %s\n", formatScore(scores.FalsePositive))
+	fmt.Fprintf(sb, "Worth acting:    %s\n", formatScore(scores.WorthActing))
+	fmt.Fprintf(sb, "Priority:        %s\n", formatScore(scores.Priority))
+	fmt.Fprintf(sb, "Thin evidence:   %s\n", formatScore(scores.InsufficientEvidence))
+	if scores.DuplicateGroupID != "" {
+		fmt.Fprintf(sb, "Duplicate group: %s\n", scores.DuplicateGroupID)
+	}
+	if scores.NeedsReview {
+		_, _ = sb.WriteString("Needs review\n")
+	}
 }

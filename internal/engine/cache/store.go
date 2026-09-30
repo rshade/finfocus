@@ -41,9 +41,9 @@ type Cache interface {
 
 // allBucketNames returns the top-level bucket names used by the cache database.
 // The returned slice contains BucketProjected, BucketActual, BucketRecommendations,
-// and BucketResolveTypes.
+// BucketResolveTypes, and BucketScores.
 func allBucketNames() []string {
-	return []string{BucketProjected, BucketActual, BucketRecommendations, BucketResolveTypes}
+	return []string{BucketProjected, BucketActual, BucketRecommendations, BucketResolveTypes, BucketScores}
 }
 
 // Compile-time check that BoltStore implements Cache.

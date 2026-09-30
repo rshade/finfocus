@@ -305,6 +305,13 @@ func TestConvertCapabilities(t *testing.T) {
 			},
 		},
 		{
+			name: "RecommendationScoring",
+			input: []pbc.PluginCapability{
+				pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATION_SCORING,
+			},
+			expected: []string{"recommendation_scoring"},
+		},
+		{
 			name: "OnlyUnspecified",
 			input: []pbc.PluginCapability{
 				pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED,

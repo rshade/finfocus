@@ -159,6 +159,137 @@ type Recommendation struct {
 	// prerequisites or risks for implementing this recommendation
 	// (e.g., "Ensure application compatibility with ARM64 architecture").
 	Reasoning []string `json:"reasoning,omitempty"`
+
+	// ID is the plugin-assigned recommendation identifier. It is the value
+	// dismissal and snooze operate on and the value sent back to plugins as an
+	// excluded recommendation ID.
+	ID string `json:"id,omitempty"`
+
+	// Category is the proto RecommendationCategory enum name (e.g.,
+	// "RECOMMENDATION_CATEGORY_COST"). Empty when the plugin left it unspecified.
+	Category string `json:"category,omitempty"`
+
+	// Priority is the proto RecommendationPriority enum name (e.g.,
+	// "RECOMMENDATION_PRIORITY_HIGH"). Empty when the plugin left it unspecified.
+	Priority string `json:"priority,omitempty"`
+
+	// ConfidenceScore is the plugin's confidence in the recommendation (0.0-1.0).
+	// Nil when the plugin did not report one; a reported 0 is preserved.
+	ConfidenceScore *float64 `json:"confidenceScore,omitempty"`
+
+	// Source identifies the plugin data source (e.g., "kubecost", "aws").
+	Source string `json:"source,omitempty"`
+
+	// CreatedAt is when the plugin generated the recommendation, if reported.
+	CreatedAt *time.Time `json:"createdAt,omitempty"`
+
+	// Metadata carries plugin-specific key/value context.
+	Metadata map[string]string `json:"metadata,omitempty"`
+
+	// ImpactDetail carries the cost detail behind EstimatedSavings.
+	ImpactDetail *RecommendationImpactDetail `json:"impact,omitempty"`
+
+	// ResourceInfo carries the plugin's description of the affected resource.
+	ResourceInfo *RecommendationResourceInfo `json:"resource,omitempty"`
+
+	// Scores holds the scorer plugin's ratings. Nil when scoring is disabled, the
+	// scorer was unavailable, or this recommendation could not be scored. Scores
+	// order and route recommendations; they never dismiss or apply one.
+	Scores *RecommendationScores `json:"scores,omitempty"`
+}
+
+// RecommendationScores is one recommendation's ratings from a scorer plugin. A nil
+// signal was not computed. The scorer's ScorerInfo says whether values are
+// probabilities or only rank recommendations.
+type RecommendationScores struct {
+	// Risk is 0 to 1; high means acting could cause harm that is hard to undo.
+	Risk *float64 `json:"risk,omitempty"`
+
+	// FalsePositive is 0 to 1; high means the resource is probably in this state on purpose.
+	FalsePositive *float64 `json:"falsePositive,omitempty"`
+
+	// WorthActing is 0 to 1; high means worth an engineer's time now.
+	WorthActing *float64 `json:"worthActing,omitempty"`
+
+	// Priority is 0 (ignore) to 3 (high).
+	Priority *float64 `json:"priority,omitempty"`
+
+	// InsufficientEvidence is 0 to 1; high means the record is too thin to judge.
+	InsufficientEvidence *float64 `json:"insufficientEvidence,omitempty"`
+
+	// DuplicateGroupID is shared by recommendations in this result that duplicate
+	// each other. It is only meaningful within one result.
+	DuplicateGroupID string `json:"duplicateGroupId,omitempty"`
+
+	// NeedsReview is set by the host when a signal reaches its configured review
+	// threshold (widened by the dead band). It flags work for a human; it is not a decision.
+	NeedsReview bool `json:"needsReview,omitempty"`
+}
+
+// ScoringSummary reports what the scoring step did for one recommendations result.
+type ScoringSummary struct {
+	// Scorer is the scorer plugin's implementation name; Model is the model behind it.
+	Scorer string `json:"scorer,omitempty"`
+	Model  string `json:"model,omitempty"`
+
+	// Calibration is "ranking_only", "probability" or "unspecified".
+	Calibration string `json:"calibration,omitempty"`
+
+	// Requested counts recommendations eligible for scoring; Scored counts those that
+	// received scores (including FromCache); Unscored counts the rest.
+	Requested int `json:"requested"`
+	Scored    int `json:"scored"`
+	FromCache int `json:"fromCache,omitempty"`
+	Unscored  int `json:"unscored,omitempty"`
+
+	// OrderedBy names the score signal the list was sorted by, when the user asked for it.
+	OrderedBy string `json:"orderedBy,omitempty"`
+
+	// Warnings explain degraded scoring. Scoring never fails the command.
+	Warnings []string `json:"warnings,omitempty"`
+}
+
+// RecommendationImpactDetail is the full cost impact a plugin reported for a
+// recommendation. EstimatedSavings and Currency stay on Recommendation itself.
+type RecommendationImpactDetail struct {
+	// ProjectionPeriod is the period the figures apply to (e.g., "monthly").
+	ProjectionPeriod string `json:"projectionPeriod,omitempty"`
+
+	// CurrentCost is the resource's cost before the recommendation.
+	CurrentCost float64 `json:"currentCost,omitempty"`
+
+	// ProjectedCost is the resource's cost after the recommendation.
+	ProjectedCost float64 `json:"projectedCost,omitempty"`
+
+	// SavingsPercentage is the savings as a percentage of CurrentCost.
+	SavingsPercentage float64 `json:"savingsPercentage,omitempty"`
+
+	// ImplementationCost is the one-time cost of applying the recommendation, if reported.
+	ImplementationCost *float64 `json:"implementationCost,omitempty"`
+
+	// MigrationEffortHours is the estimated effort in hours, if reported.
+	MigrationEffortHours *float64 `json:"migrationEffortHours,omitempty"`
+}
+
+// RecommendationResourceInfo is the resource description a plugin attached to a recommendation.
+type RecommendationResourceInfo struct {
+	Name         string                         `json:"name,omitempty"`
+	Provider     string                         `json:"provider,omitempty"`
+	ResourceType string                         `json:"resourceType,omitempty"`
+	Region       string                         `json:"region,omitempty"`
+	SKU          string                         `json:"sku,omitempty"`
+	Tags         map[string]string              `json:"tags,omitempty"`
+	Utilization  *RecommendationUtilizationInfo `json:"utilization,omitempty"`
+}
+
+// RecommendationUtilizationInfo carries utilization metrics attached to a recommendation.
+type RecommendationUtilizationInfo struct {
+	CPUPercent     float64            `json:"cpuPercent,omitempty"`
+	MemoryPercent  float64            `json:"memoryPercent,omitempty"`
+	StoragePercent float64            `json:"storagePercent,omitempty"`
+	NetworkInMbps  float64            `json:"networkInMbps,omitempty"`
+	NetworkOutMbps float64            `json:"networkOutMbps,omitempty"`
+	CustomMetrics  map[string]float64 `json:"customMetrics,omitempty"`
 }
 
 // RecommendationStatus represents the lifecycle state of a recommendation.
@@ -521,6 +652,7 @@ type RecommendationError struct {
 type RecommendationsResult struct {
 	Recommendations []Recommendation      `json:"recommendations"`
 	Errors          []RecommendationError `json:"errors"`
+	Scoring         *ScoringSummary       `json:"scoring,omitempty"`
 	TotalSavings    float64               `json:"totalSavings"`
 	Currency        string                `json:"currency"`
 }
@@ -671,4 +803,45 @@ type UndismissResult struct {
 
 	// Message provides information about the undismiss operation.
 	Message string `json:"message,omitempty"`
+}
+
+// Score signal names accepted by sorting and filtering.
+const (
+	ScoreSignalRisk                 = "risk"
+	ScoreSignalFalsePositive        = "false_positive"
+	ScoreSignalWorthActing          = "worth_acting"
+	ScoreSignalPriority             = "priority"
+	ScoreSignalInsufficientEvidence = "insufficient_evidence"
+)
+
+// ScoreSignalNames lists the numeric signals a recommendation can be sorted or filtered on.
+func ScoreSignalNames() []string {
+	return []string{
+		ScoreSignalRisk, ScoreSignalFalsePositive, ScoreSignalWorthActing,
+		ScoreSignalPriority, ScoreSignalInsufficientEvidence,
+	}
+}
+
+// Signal returns the named numeric signal and whether the scorer computed it.
+func (s *RecommendationScores) Signal(name string) (float64, bool) {
+	if s == nil {
+		return 0, false
+	}
+	var v *float64
+	switch name {
+	case ScoreSignalRisk:
+		v = s.Risk
+	case ScoreSignalFalsePositive:
+		v = s.FalsePositive
+	case ScoreSignalWorthActing:
+		v = s.WorthActing
+	case ScoreSignalPriority:
+		v = s.Priority
+	case ScoreSignalInsufficientEvidence:
+		v = s.InsufficientEvidence
+	}
+	if v == nil {
+		return 0, false
+	}
+	return *v, true
 }

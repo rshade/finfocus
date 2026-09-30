@@ -101,6 +101,9 @@ type Config struct {
 	// If nil, automatic provider-based routing is used (FR-023 backward compatibility).
 	Routing *RoutingConfig `yaml:"routing,omitempty" json:"routing,omitempty"`
 
+	// Scoring configures the optional recommendation scoring step (off by default).
+	Scoring *ScoringConfig `yaml:"scoring,omitempty" json:"scoring,omitempty"`
+
 	InstalledPlugins []InstalledPlugin `yaml:"installed_plugins,omitempty" json:"installed_plugins,omitempty"`
 
 	// Internal fields
@@ -419,7 +422,7 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for _, key := range []string{keyOutput, keyPlugins, keyLogging, keyAnalyzer, keyPluginHost,
-		keyCost, keyRouting, keyPluginDir, keyInstalledPlugin} {
+		keyCost, keyRouting, keyScoring, keyPluginDir, keyInstalledPlugin} {
 		delete(keys, key)
 	}
 	c.extraKeys = keys
@@ -581,6 +584,8 @@ func (c *Config) Set(key, value string) error {
 		return c.setPluginHostValue(parts[1:], value)
 	case keyCost:
 		return c.setCostValue(parts[1:], value)
+	case keyScoring:
+		return c.setScoringValue(parts[1:], value)
 	default:
 		return fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -604,6 +609,8 @@ func (c *Config) Get(key string) (interface{}, error) {
 		return c.getPluginHostValue(parts[1:])
 	case keyCost:
 		return c.getCostValue(parts[1:])
+	case keyScoring:
+		return c.getScoringValue(parts[1:])
 	default:
 		return nil, fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -619,6 +626,7 @@ func (c *Config) List() map[string]interface{} {
 		keyPluginHost: c.PluginHostConfig,
 		keyCost:       c.Cost,
 		keyRouting:    c.Routing,
+		keyScoring:    c.Scoring,
 	}
 }
 
@@ -663,6 +671,10 @@ func (c *Config) Validate() error {
 
 	// Normalize analyzer threshold configuration (logs warnings for invalid values)
 	c.validateAnalyzerThreshold()
+
+	if err := c.Scoring.Validate(); err != nil {
+		return fmt.Errorf("scoring configuration validation failed: %w", err)
+	}
 
 	// Validate routing configuration if present
 	if c.Routing != nil {

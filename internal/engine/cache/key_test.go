@@ -127,15 +127,110 @@ func TestBuildActualKey_DifferentFiltersProduceDifferentKeys(t *testing.T) {
 
 // TestBuildRecommendationsKey verifies recommendation key generation.
 func TestBuildRecommendationsKey(t *testing.T) {
-	key := cache.BuildRecommendationsKey([]string{"ec2", "rds", "s3"})
-	assert.Equal(t, "recommendations/multi/ec2+rds+s3", key)
+	key := cache.BuildRecommendationsKey([]string{"ec2", "rds", "s3"}, "abc123")
+	assert.Equal(t, "recommendations/multi/ec2+rds+s3/abc123", key)
+}
+
+// TestBuildRecommendationsKey_EmptyPlaceholders verifies fixed segment positions.
+func TestBuildRecommendationsKey_EmptyPlaceholders(t *testing.T) {
+	assert.Equal(t, "recommendations/multi/_/_", cache.BuildRecommendationsKey(nil, ""))
 }
 
 // TestBuildRecommendationsKey_Sorting verifies resource type sorting.
 func TestBuildRecommendationsKey_Sorting(t *testing.T) {
-	key1 := cache.BuildRecommendationsKey([]string{"s3", "ec2", "rds"})
-	key2 := cache.BuildRecommendationsKey([]string{"ec2", "rds", "s3"})
+	key1 := cache.BuildRecommendationsKey([]string{"s3", "ec2", "rds"}, "h")
+	key2 := cache.BuildRecommendationsKey([]string{"ec2", "rds", "s3"}, "h")
 	assert.Equal(t, key1, key2, "resource type order should not affect key")
+}
+
+// TestBuildRecommendationsKey_HashDistinguishes verifies the input hash is part of the key.
+func TestBuildRecommendationsKey_HashDistinguishes(t *testing.T) {
+	key1 := cache.BuildRecommendationsKey([]string{"ec2"}, "h1")
+	key2 := cache.BuildRecommendationsKey([]string{"ec2"}, "h2")
+	assert.NotEqual(t, key1, key2)
+}
+
+func TestHashRecommendationInputs(t *testing.T) {
+	base := []cache.RecommendationInput{
+		{
+			ID:         "i-1",
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			Properties: map[string]string{"instanceType": "t3.micro"},
+		},
+		{
+			ID:         "i-2",
+			Provider:   "aws",
+			Type:       "aws:ec2/instance:Instance",
+			Properties: map[string]string{"instanceType": "t3.large"},
+		},
+	}
+
+	t.Run("deterministic and order independent", func(t *testing.T) {
+		reordered := []cache.RecommendationInput{base[1], base[0]}
+		hash := cache.HashRecommendationInputs(base, nil)
+		assert.Equal(t, hash, cache.HashRecommendationInputs(reordered, nil))
+		assert.Len(t, hash, 32)
+	})
+
+	t.Run("resource identity changes hash", func(t *testing.T) {
+		other := []cache.RecommendationInput{
+			{ID: "i-3", Provider: "aws", Type: base[0].Type, Properties: base[0].Properties},
+			{ID: "i-4", Provider: "aws", Type: base[1].Type, Properties: base[1].Properties},
+		}
+		assert.NotEqual(t, cache.HashRecommendationInputs(base, nil), cache.HashRecommendationInputs(other, nil))
+	})
+
+	t.Run("property change changes hash", func(t *testing.T) {
+		changed := []cache.RecommendationInput{base[0], base[1]}
+		changed[1].Properties = map[string]string{"instanceType": "t3.xlarge"}
+		assert.NotEqual(t, cache.HashRecommendationInputs(base, nil), cache.HashRecommendationInputs(changed, nil))
+	})
+
+	t.Run("provider change changes hash", func(t *testing.T) {
+		changed := []cache.RecommendationInput{base[0]}
+		changed[0].Provider = "azure"
+		assert.NotEqual(t, cache.HashRecommendationInputs(base[:1], nil), cache.HashRecommendationInputs(changed, nil))
+	})
+
+	t.Run("excluded ids change hash and are order independent", func(t *testing.T) {
+		none := cache.HashRecommendationInputs(base, nil)
+		one := cache.HashRecommendationInputs(base, []string{"rec-1"})
+		ab := cache.HashRecommendationInputs(base, []string{"rec-a", "rec-b"})
+		ba := cache.HashRecommendationInputs(base, []string{"rec-b", "rec-a", "rec-a"})
+		assert.NotEqual(t, none, one)
+		assert.Equal(t, ab, ba)
+	})
+
+	t.Run("field boundaries are unambiguous", func(t *testing.T) {
+		a := []cache.RecommendationInput{{ID: "ab", Type: "c"}}
+		b := []cache.RecommendationInput{{ID: "a", Type: "bc"}}
+		assert.NotEqual(t, cache.HashRecommendationInputs(a, nil), cache.HashRecommendationInputs(b, nil))
+
+		p1 := []cache.RecommendationInput{{ID: "x", Properties: map[string]string{"a": "b=c"}}}
+		p2 := []cache.RecommendationInput{{ID: "x", Properties: map[string]string{"a=b": "c"}}}
+		assert.NotEqual(t, cache.HashRecommendationInputs(p1, nil), cache.HashRecommendationInputs(p2, nil))
+	})
+
+	t.Run("empty inputs are stable", func(t *testing.T) {
+		assert.Equal(
+			t,
+			cache.HashRecommendationInputs(nil, nil),
+			cache.HashRecommendationInputs([]cache.RecommendationInput{}, []string{}),
+		)
+		assert.NotEmpty(t, cache.HashRecommendationInputs(nil, nil))
+	})
+}
+
+// TestBuildScoreKeys verifies score cache key generation.
+func TestBuildScoreKeys(t *testing.T) {
+	assert.Equal(t, "scores/jev/1.2.0/jev-1.13/abc", cache.BuildScoreKey("jev", "1.2.0", "jev-1.13", "abc"))
+	assert.Equal(t, "scores/jev/1.2.0/_model", cache.BuildScoreModelKey("jev", "1.2.0"))
+	assert.Equal(t, "scores/_/_/_/_", cache.BuildScoreKey("", "", "", ""))
+
+	key := cache.BuildScoreKey("a/b", "1", "m/1", "h")
+	assert.Equal(t, "scores/a_b/1/m_1/h", key)
+	assert.Equal(t, cache.BucketScores, cache.BucketFromKey(key))
 }
 
 // TestBucketFromKey verifies bucket extraction from structured keys.

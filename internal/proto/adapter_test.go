@@ -3077,6 +3077,11 @@ type mockPbcCostSourceServiceClient struct {
 		in *pbc.BatchCostRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.BatchCostResponse, error)
+	getRecommendationsFunc func(
+		ctx context.Context,
+		in *pbc.GetRecommendationsRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.GetRecommendationsResponse, error)
 }
 
 func (m *mockPbcCostSourceServiceClient) Name(
@@ -3125,8 +3130,11 @@ func (m *mockPbcCostSourceServiceClient) EstimateCost(
 }
 
 func (m *mockPbcCostSourceServiceClient) GetRecommendations(
-	_ context.Context, _ *pbc.GetRecommendationsRequest, _ ...grpc.CallOption,
+	ctx context.Context, in *pbc.GetRecommendationsRequest, opts ...grpc.CallOption,
 ) (*pbc.GetRecommendationsResponse, error) {
+	if m.getRecommendationsFunc != nil {
+		return m.getRecommendationsFunc(ctx, in, opts...)
+	}
 	return &pbc.GetRecommendationsResponse{}, nil
 }
 
