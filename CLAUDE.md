@@ -613,12 +613,6 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   `test/integration/` write legacy YAML as *input* to exercise auto-migration. Only
   assertions that `config init` *creates* a file should expect `config.hujson`
 
-### GitHub Actions (`.github/workflows/`)
-
-- **OpenCode Action** (`sst/opencode/github@dev`) ONLY works with `issue_comment` events.
-  For other triggers, use CLI installation
-- **`/opencode-review-fix`** comment on a PR triggers automatic fix of all review issues
-
 ## Recent Changes
 
 - 608-batch-cost-consumer: Added Go 1.27.1 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging)
