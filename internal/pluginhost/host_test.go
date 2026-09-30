@@ -11,6 +11,7 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 func TestNewClient_LauncherError(t *testing.T) {
@@ -350,4 +351,17 @@ func TestConvertCapabilities(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestConvertCapabilities_UsageAndAllocation(t *testing.T) {
+	got := pluginhost.ConvertCapabilities([]pbc.PluginCapability{
+		pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS,
+		pbc.PluginCapability_PLUGIN_CAPABILITY_ALLOCATION,
+	})
+	assert.Equal(t, []string{pluginhost.CapabilityUsageStats, pluginhost.CapabilityAllocation}, got)
+
+	c := &pluginhost.Client{Metadata: &proto.PluginMetadata{Capabilities: got}}
+	assert.True(t, c.HasCapability(pluginhost.CapabilityUsageStats))
+	assert.True(t, c.HasCapability(pluginhost.CapabilityAllocation))
+	assert.False(t, c.HasCapability("projected_costs"))
 }
