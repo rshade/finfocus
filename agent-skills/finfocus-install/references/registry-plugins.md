@@ -29,6 +29,28 @@ via `--metadata="region=<region>"` and a multi-region router binary (default).
 | Security | official |
 | Asset prefix | `finfocus-plugin-kubecost` |
 
+### jev
+
+| Field | Value |
+|-------|-------|
+| Repository | `rshade/finfocus` (monorepo, release tags `jev-vX.Y.Z`) |
+| Providers | `*` (any provider) |
+| Capabilities | `recommendation_scoring` |
+| Security | official |
+| Asset prefix | `finfocus-plugin-jev` |
+
+Opt-in recommendation scorer backed by TypeSafe AI's Jev model. It rates risk,
+false positives, worth and priority and groups duplicate recommendations. It is
+not part of provider detection and `finfocus setup` does not install it.
+
+- Requires `TYPESAFE_API_KEY` (from the TypeSafe console) and scoring enabled in
+  config (`scoring.enabled`); without them it does nothing.
+- Sends recommendation data to TypeSafe. Identifiers are pseudonymized by default.
+- Setup and data handling: see the
+  [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev) and
+  the Recommendation Scoring guide (`docs/src/content/docs/guides/recommendation-scoring.md`
+  in the repo).
+
 ## Provider Detection → Plugin Mapping
 
 | Detected Provider | Plugin to Install | Detection Signal |
@@ -48,6 +70,7 @@ Capabilities validated for embedded registry entries
 | `cost_retrieval` | Historical cost data from cloud APIs |
 | `pricing_specs` | Pricing specification/breakdown data |
 | `recommendations` | Cost optimization suggestions |
+| `recommendation_scoring` | Scores and groups recommendations from other plugins |
 | `projected` | Alias for projected cost support |
 | `actual` | Alias for actual cost support |
 

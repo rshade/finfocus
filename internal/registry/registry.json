@@ -47,6 +47,23 @@
       "asset_hints": {
         "asset_prefix": "finfocus-plugin-kubernetes"
       }
+    },
+    "jev": {
+      "name": "jev",
+      "description": "Recommendation scorer that rates risk, false positives, worth and priority and groups duplicates using TypeSafe AI's Jev model",
+      "repository": "rshade/finfocus",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus/tree/main/plugins/jev",
+      "supported_providers": ["*"],
+      "capabilities": ["recommendation_scoring"],
+      "security_level": "official",
+      "min_spec_version": "0.7.0",
+      "tag_prefix": "jev-",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-jev",
+        "version_prefix": true
+      }
     }
   }
 }
