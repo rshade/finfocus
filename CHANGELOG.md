@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.9](https://github.com/rshade/finfocus/compare/v0.3.8...v0.3.9) (2026-09-30)
+
+
+### Added
+
+* **plugins/jev:** add Jev-backed RecommendationScorerService plugin ([#1573](https://github.com/rshade/finfocus/issues/1573)) ([97822ef](https://github.com/rshade/finfocus/commit/97822ef1a6390bc5054affb721355f310dd102ed)), closes [#1570](https://github.com/rshade/finfocus/issues/1570)
+* **recommendations:** retain full records, fix cache key, add optional scoring ([#1572](https://github.com/rshade/finfocus/issues/1572)) ([a0c036c](https://github.com/rshade/finfocus/commit/a0c036c86f8a51c5ad54e1037de9d2843cd514e7)), closes [#1569](https://github.com/rshade/finfocus/issues/1569)
+
+
+### Fixed
+
+* **ci:** run the plugin asset script through bash ([9fe84e6](https://github.com/rshade/finfocus/commit/9fe84e699e54b5784833d76964ef240c01fa8de2))
+* **deps:** update go dependencies ([#1553](https://github.com/rshade/finfocus/issues/1553)) ([a6c9458](https://github.com/rshade/finfocus/commit/a6c945836fb2ddec8b911562132fbea71ce9fa6b))
+* **lint:** resolve govet shadow and testifylint float-compare findings ([#1571](https://github.com/rshade/finfocus/issues/1571)) ([769abff](https://github.com/rshade/finfocus/commit/769abff1cc090d1df8fd7188a0443fb6dcfc69e4))
+
+
+### Changed
+
+* normalize domain constants flagged by goconst ([#1204](https://github.com/rshade/finfocus/issues/1204)) ([#1559](https://github.com/rshade/finfocus/issues/1559)) ([c697792](https://github.com/rshade/finfocus/commit/c697792d8f89558a86882235de50ad1e091ab374))
+* **test:** migrate mock plugin gRPC helpers off deprecated DialContext ([#1213](https://github.com/rshade/finfocus/issues/1213)) ([#1561](https://github.com/rshade/finfocus/issues/1561)) ([02d478b](https://github.com/rshade/finfocus/commit/02d478b5ad1756a34fb8e867119f77b176a20327))
+* **test:** split high-complexity tests flagged by gocognit ([#1199](https://github.com/rshade/finfocus/issues/1199)) ([#1568](https://github.com/rshade/finfocus/issues/1568)) ([61de48e](https://github.com/rshade/finfocus/commit/61de48eaaf99064bd95415b6da6245098033f03a))
+
+
+### Documentation
+
+* add stdlib doc links for godoclint ([#1211](https://github.com/rshade/finfocus/issues/1211)) ([0e7fdc3](https://github.com/rshade/finfocus/commit/0e7fdc347d0d37fb222d29ab34c328e5552f6359))
+* committing roadmap 0928 ([80e8a91](https://github.com/rshade/finfocus/commit/80e8a91936bae865a64e5bda236d776ec79cdc9d))
+
 ## [0.3.8](https://github.com/rshade/finfocus/compare/v0.3.7...v0.3.8) (2026-09-28)
 
 
