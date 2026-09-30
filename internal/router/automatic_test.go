@@ -1,4 +1,4 @@
-package router
+package router_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
+	routerpkg "github.com/rshade/finfocus/internal/router"
 )
 
 // TestAutomaticRouting_ProviderMatching tests T016: automatic provider-based routing.
@@ -36,7 +37,7 @@ func TestAutomaticRouting_ProviderMatching(t *testing.T) {
 		},
 	}
 
-	router, err := NewRouter(WithClients([]*pluginhost.Client{awsClient, gcpClient, azureClient}))
+	router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{awsClient, gcpClient, azureClient}))
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -81,7 +82,7 @@ func TestAutomaticRouting_ProviderMatching(t *testing.T) {
 			} else {
 				require.Len(t, matches, 1, "expected exactly 1 match for %s", tt.resourceType)
 				assert.Equal(t, tt.wantPlugin, matches[0].Client.Name)
-				assert.Equal(t, MatchReasonAutomatic, matches[0].MatchReason)
+				assert.Equal(t, routerpkg.MatchReasonAutomatic, matches[0].MatchReason)
 			}
 		})
 	}
@@ -99,7 +100,7 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 			},
 		}
 
-		router, err := NewRouter(WithClients([]*pluginhost.Client{emptyClient}))
+		router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{emptyClient}))
 		require.NoError(t, err)
 
 		// Should match any provider
@@ -108,7 +109,7 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 			matches := router.SelectPlugins(ctx, resource, "ProjectedCosts")
 
 			require.Len(t, matches, 1, "global plugin should match %s", resourceType)
-			assert.Equal(t, MatchReasonGlobal, matches[0].MatchReason)
+			assert.Equal(t, routerpkg.MatchReasonGlobal, matches[0].MatchReason)
 		}
 	})
 
@@ -120,7 +121,7 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 			},
 		}
 
-		router, err := NewRouter(WithClients([]*pluginhost.Client{wildcardClient}))
+		router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{wildcardClient}))
 		require.NoError(t, err)
 
 		// Should match any provider
@@ -129,7 +130,7 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 			matches := router.SelectPlugins(ctx, resource, "ProjectedCosts")
 
 			require.Len(t, matches, 1, "wildcard plugin should match %s", resourceType)
-			assert.Equal(t, MatchReasonGlobal, matches[0].MatchReason)
+			assert.Equal(t, routerpkg.MatchReasonGlobal, matches[0].MatchReason)
 		}
 	})
 
@@ -139,14 +140,14 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 			Metadata: nil,
 		}
 
-		router, err := NewRouter(WithClients([]*pluginhost.Client{nilMetadataClient}))
+		router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{nilMetadataClient}))
 		require.NoError(t, err)
 
 		resource := engine.ResourceDescriptor{Type: "any:resource:Type"}
 		matches := router.SelectPlugins(ctx, resource, "ProjectedCosts")
 
 		require.Len(t, matches, 1)
-		assert.Equal(t, MatchReasonGlobal, matches[0].MatchReason)
+		assert.Equal(t, routerpkg.MatchReasonGlobal, matches[0].MatchReason)
 	})
 
 	t.Run("global plugin matches alongside specific provider", func(t *testing.T) {
@@ -163,7 +164,7 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 			},
 		}
 
-		router, err := NewRouter(WithClients([]*pluginhost.Client{awsClient, globalClient}))
+		router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{awsClient, globalClient}))
 		require.NoError(t, err)
 
 		resource := engine.ResourceDescriptor{Type: "aws:ec2:Instance"}
@@ -173,12 +174,12 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 		require.Len(t, matches, 2)
 
 		// Check we have both match reasons
-		reasons := make(map[MatchReason]bool)
+		reasons := make(map[routerpkg.MatchReason]bool)
 		for _, m := range matches {
 			reasons[m.MatchReason] = true
 		}
-		assert.True(t, reasons[MatchReasonAutomatic], "should have automatic match")
-		assert.True(t, reasons[MatchReasonGlobal], "should have global match")
+		assert.True(t, reasons[routerpkg.MatchReasonAutomatic], "should have automatic match")
+		assert.True(t, reasons[routerpkg.MatchReasonGlobal], "should have global match")
 	})
 }
 
@@ -194,7 +195,7 @@ func TestAutomaticRouting_SourceAttribution(t *testing.T) {
 	}
 
 	t.Run("automatic routing has 'automatic' source", func(t *testing.T) {
-		router, err := NewRouter(WithClients([]*pluginhost.Client{awsClient}))
+		router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{awsClient}))
 		require.NoError(t, err)
 
 		resource := engine.ResourceDescriptor{Type: "aws:ec2:Instance"}
@@ -216,9 +217,9 @@ func TestAutomaticRouting_SourceAttribution(t *testing.T) {
 			},
 		}
 
-		router, err := NewRouter(
-			WithClients([]*pluginhost.Client{awsClient}),
-			WithConfig(cfg),
+		router, err := routerpkg.NewRouter(
+			routerpkg.WithClients([]*pluginhost.Client{awsClient}),
+			routerpkg.WithConfig(cfg),
 		)
 		require.NoError(t, err)
 
@@ -247,7 +248,7 @@ func TestAutomaticRouting_MultiCloud(t *testing.T) {
 		},
 	}
 
-	router, err := NewRouter(WithClients([]*pluginhost.Client{awsClient, gcpClient}))
+	router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{awsClient, gcpClient}))
 	require.NoError(t, err)
 
 	// Simulate a multi-cloud plan
@@ -289,7 +290,7 @@ func TestAutomaticRouting_CaseInsensitive(t *testing.T) {
 		},
 	}
 
-	router, err := NewRouter(WithClients([]*pluginhost.Client{awsClient}))
+	router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{awsClient}))
 	require.NoError(t, err)
 
 	// Resource types may have different cases in practice
@@ -319,7 +320,7 @@ func TestAutomaticRouting_NoMatchingPlugins(t *testing.T) {
 		},
 	}
 
-	router, err := NewRouter(WithClients([]*pluginhost.Client{awsClient}))
+	router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{awsClient}))
 	require.NoError(t, err)
 
 	// GCP resource with only AWS plugin available
@@ -347,7 +348,7 @@ func TestAutomaticRouting_InternalPulumiTypes(t *testing.T) {
 		},
 	}
 
-	router, err := NewRouter(WithClients([]*pluginhost.Client{awsClient, globalClient}))
+	router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{awsClient, globalClient}))
 	require.NoError(t, err)
 
 	internalTypes := []string{

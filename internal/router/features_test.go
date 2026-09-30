@@ -1,10 +1,12 @@
-package router
+package router_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/router"
 )
 
 func TestIsValidFeature(t *testing.T) {
@@ -35,32 +37,32 @@ func TestIsValidFeature(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsValidFeature(tt.feature)
+			got := router.IsValidFeature(tt.feature)
 			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
 func TestValidFeatures(t *testing.T) {
-	features := ValidFeatures()
+	features := router.ValidFeatures()
 
 	require.Len(t, features, 7, "should have 7 valid features")
 
-	expected := []Feature{
-		FeatureProjectedCosts,
-		FeatureActualCosts,
-		FeatureRecommendations,
-		FeatureCarbon,
-		FeatureDryRun,
-		FeatureBudgets,
-		FeatureBatchCost,
+	expected := []router.Feature{
+		router.FeatureProjectedCosts,
+		router.FeatureActualCosts,
+		router.FeatureRecommendations,
+		router.FeatureCarbon,
+		router.FeatureDryRun,
+		router.FeatureBudgets,
+		router.FeatureBatchCost,
 	}
 
 	assert.Equal(t, expected, features)
 }
 
 func TestValidFeatureNames(t *testing.T) {
-	names := ValidFeatureNames()
+	names := router.ValidFeatureNames()
 
 	require.Len(t, names, 7)
 
@@ -81,12 +83,12 @@ func TestParseFeature(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     string
-		wantFeat  Feature
+		wantFeat  router.Feature
 		wantValid bool
 	}{
-		{"valid ProjectedCosts", "ProjectedCosts", FeatureProjectedCosts, true},
-		{"valid ActualCosts", "ActualCosts", FeatureActualCosts, true},
-		{"valid Recommendations", "Recommendations", FeatureRecommendations, true},
+		{"valid ProjectedCosts", "ProjectedCosts", router.FeatureProjectedCosts, true},
+		{"valid ActualCosts", "ActualCosts", router.FeatureActualCosts, true},
+		{"valid Recommendations", "Recommendations", router.FeatureRecommendations, true},
 		{"invalid lowercase", "projectedcosts", "", false},
 		{"invalid empty", "", "", false},
 		{"invalid unknown", "Unknown", "", false},
@@ -94,7 +96,7 @@ func TestParseFeature(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			feat, valid := ParseFeature(tt.input)
+			feat, valid := router.ParseFeature(tt.input)
 			assert.Equal(t, tt.wantFeat, feat)
 			assert.Equal(t, tt.wantValid, valid)
 		})
@@ -105,20 +107,20 @@ func TestFeatureFromMethod(t *testing.T) {
 	tests := []struct {
 		name      string
 		method    string
-		wantFeat  Feature
+		wantFeat  router.Feature
 		wantFound bool
 	}{
 		// Valid method mappings
-		{"GetProjectedCost", "GetProjectedCost", FeatureProjectedCosts, true},
-		{"GetActualCost", "GetActualCost", FeatureActualCosts, true},
-		{"GetRecommendations", "GetRecommendations", FeatureRecommendations, true},
-		{"GetCarbonFootprint", "GetCarbonFootprint", FeatureCarbon, true},
-		{"PerformDryRun", "PerformDryRun", FeatureDryRun, true},
-		{"GetBudgetStatus", "GetBudgetStatus", FeatureBudgets, true},
-		{"GetBudgets", "GetBudgets", FeatureBudgets, true},
-		{"GetBudgetHealth", "GetBudgetHealth", FeatureBudgets, true},
-		{"EvaluateBudgetAlert", "EvaluateBudgetAlert", FeatureBudgets, true},
-		{"BatchCost", "BatchCost", FeatureBatchCost, true},
+		{"GetProjectedCost", "GetProjectedCost", router.FeatureProjectedCosts, true},
+		{"GetActualCost", "GetActualCost", router.FeatureActualCosts, true},
+		{"GetRecommendations", "GetRecommendations", router.FeatureRecommendations, true},
+		{"GetCarbonFootprint", "GetCarbonFootprint", router.FeatureCarbon, true},
+		{"PerformDryRun", "PerformDryRun", router.FeatureDryRun, true},
+		{"GetBudgetStatus", "GetBudgetStatus", router.FeatureBudgets, true},
+		{"GetBudgets", "GetBudgets", router.FeatureBudgets, true},
+		{"GetBudgetHealth", "GetBudgetHealth", router.FeatureBudgets, true},
+		{"EvaluateBudgetAlert", "EvaluateBudgetAlert", router.FeatureBudgets, true},
+		{"BatchCost", "BatchCost", router.FeatureBatchCost, true},
 
 		// Invalid method mappings
 		{"empty", "", "", false},
@@ -128,7 +130,7 @@ func TestFeatureFromMethod(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			feat, found := FeatureFromMethod(tt.method)
+			feat, found := router.FeatureFromMethod(tt.method)
 			assert.Equal(t, tt.wantFeat, feat)
 			assert.Equal(t, tt.wantFound, found)
 		})
@@ -136,7 +138,7 @@ func TestFeatureFromMethod(t *testing.T) {
 }
 
 func TestDefaultFeatures(t *testing.T) {
-	defaults := DefaultFeatures()
+	defaults := router.DefaultFeatures()
 	require.Len(t, defaults, 2)
-	assert.Equal(t, []Feature{FeatureProjectedCosts, FeatureActualCosts}, defaults)
+	assert.Equal(t, []router.Feature{router.FeatureProjectedCosts, router.FeatureActualCosts}, defaults)
 }

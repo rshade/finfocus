@@ -1,11 +1,13 @@
-package registry
+package registry_test
 
 import (
 	"testing"
+
+	"github.com/rshade/finfocus/internal/registry"
 )
 
 func TestGetEmbeddedRegistry(t *testing.T) {
-	reg, err := GetEmbeddedRegistry()
+	reg, err := registry.GetEmbeddedRegistry()
 	if err != nil {
 		t.Fatalf("GetEmbeddedRegistry() error = %v", err)
 	}
@@ -32,7 +34,7 @@ func TestGetPlugin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			entry, err := GetPlugin(tt.plugin)
+			entry, err := registry.GetPlugin(tt.plugin)
 			if tt.wantFound {
 				if err != nil {
 					t.Errorf("GetPlugin(%q) error = %v", tt.plugin, err)
@@ -48,7 +50,7 @@ func TestGetPlugin(t *testing.T) {
 }
 
 func TestListRegistryPlugins(t *testing.T) {
-	plugins, err := ListPluginsFromRegistry()
+	plugins, err := registry.ListPluginsFromRegistry()
 	if err != nil {
 		t.Fatalf("ListPluginsFromRegistry() error = %v", err)
 	}

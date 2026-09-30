@@ -1,4 +1,4 @@
-package greenops
+package greenops_test
 
 import (
 	"bytes"
@@ -8,12 +8,14 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/greenops"
 )
 
 func TestCalculate(t *testing.T) {
 	tests := []struct {
 		name           string
-		input          CarbonInput
+		input          greenops.CarbonInput
 		wantMiles      float64
 		wantPhones     float64
 		wantIsEmpty    bool
@@ -26,7 +28,7 @@ func TestCalculate(t *testing.T) {
 		// Reference values from spec (SC-002: 1% margin verification)
 		{
 			name:           "150kg reference value - miles",
-			input:          CarbonInput{Value: 150.0, Unit: "kg"},
+			input:          greenops.CarbonInput{Value: 150.0, Unit: "kg"},
 			wantMiles:      381.68, // 150 / 0.393 = 381.68
 			wantPhones:     18248.18,
 			wantIsEmpty:    false,
@@ -36,7 +38,7 @@ func TestCalculate(t *testing.T) {
 		},
 		{
 			name:           "150kg reference value - smartphones",
-			input:          CarbonInput{Value: 150.0, Unit: "kg"},
+			input:          greenops.CarbonInput{Value: 150.0, Unit: "kg"},
 			wantMiles:      381.68,
 			wantPhones:     18248.18, // 150 / 0.00822 = 18248.18
 			wantIsEmpty:    false,
@@ -47,14 +49,14 @@ func TestCalculate(t *testing.T) {
 		// Unit normalization verification
 		{
 			name:        "grams normalized correctly",
-			input:       CarbonInput{Value: 150000.0, Unit: "g"},
+			input:       greenops.CarbonInput{Value: 150000.0, Unit: "g"},
 			wantMiles:   381.68,
 			wantPhones:  18248.18,
 			wantIsEmpty: false,
 		},
 		{
 			name:        "metric tons normalized correctly",
-			input:       CarbonInput{Value: 0.15, Unit: "t"},
+			input:       greenops.CarbonInput{Value: 0.15, Unit: "t"},
 			wantMiles:   381.68,
 			wantPhones:  18248.18,
 			wantIsEmpty: false,
@@ -62,37 +64,37 @@ func TestCalculate(t *testing.T) {
 		// Edge cases
 		{
 			name:        "below threshold returns empty",
-			input:       CarbonInput{Value: 0.5, Unit: "kg"},
+			input:       greenops.CarbonInput{Value: 0.5, Unit: "kg"},
 			wantIsEmpty: true,
 		},
 		{
 			name:        "exactly at threshold",
-			input:       CarbonInput{Value: 1.0, Unit: "kg"},
+			input:       greenops.CarbonInput{Value: 1.0, Unit: "kg"},
 			wantMiles:   2.544,  // 1 / 0.393
 			wantPhones:  121.65, // 1 / 0.00822
 			wantIsEmpty: false,
 		},
 		{
 			name:        "zero value returns empty",
-			input:       CarbonInput{Value: 0.0, Unit: "kg"},
+			input:       greenops.CarbonInput{Value: 0.0, Unit: "kg"},
 			wantIsEmpty: true,
 		},
 		{
 			name:    "negative value returns error",
-			input:   CarbonInput{Value: -100.0, Unit: "kg"},
+			input:   greenops.CarbonInput{Value: -100.0, Unit: "kg"},
 			wantErr: true,
-			errType: ErrNegativeValue,
+			errType: greenops.ErrNegativeValue,
 		},
 		{
 			name:    "invalid unit returns error",
-			input:   CarbonInput{Value: 100.0, Unit: "invalid"},
+			input:   greenops.CarbonInput{Value: 100.0, Unit: "invalid"},
 			wantErr: true,
-			errType: ErrInvalidUnit,
+			errType: greenops.ErrInvalidUnit,
 		},
 		// Large values
 		{
 			name:        "large value (1 million kg)",
-			input:       CarbonInput{Value: 1000000.0, Unit: "kg"},
+			input:       greenops.CarbonInput{Value: 1000000.0, Unit: "kg"},
 			wantMiles:   2544529.26, // ~2.5 million miles
 			wantPhones:  121654501.22,
 			wantIsEmpty: false,
@@ -101,7 +103,7 @@ func TestCalculate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := Calculate(context.Background(), tt.input)
+			got, err := greenops.Calculate(context.Background(), tt.input)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -124,14 +126,14 @@ func TestCalculate(t *testing.T) {
 
 			// Verify miles driven (1% margin per SC-002)
 			milesResult := got.Results[0]
-			assert.Equal(t, EquivalencyMilesDriven, milesResult.Type)
+			assert.Equal(t, greenops.EquivalencyMilesDriven, milesResult.Type)
 			assert.InDelta(t, tt.wantMiles, milesResult.Value, tt.wantMiles*0.01,
 				"miles should be within 1%% margin")
 			assert.Equal(t, "miles driven", milesResult.Label)
 
 			// Verify smartphones charged (1% margin per SC-002)
 			phonesResult := got.Results[1]
-			assert.Equal(t, EquivalencySmartphonesCharged, phonesResult.Type)
+			assert.Equal(t, greenops.EquivalencySmartphonesCharged, phonesResult.Type)
 			assert.InDelta(t, tt.wantPhones, phonesResult.Value, tt.wantPhones*0.01,
 				"phones should be within 1%% margin")
 			assert.Equal(t, "smartphones charged", phonesResult.Label)
@@ -148,13 +150,13 @@ func TestCalculate(t *testing.T) {
 func TestCalculateFromMap(t *testing.T) {
 	tests := []struct {
 		name        string
-		metrics     map[string]SustainabilityMetric
+		metrics     map[string]greenops.SustainabilityMetric
 		wantMiles   float64
 		wantIsEmpty bool
 	}{
 		{
 			name: "canonical key carbon_footprint",
-			metrics: map[string]SustainabilityMetric{
+			metrics: map[string]greenops.SustainabilityMetric{
 				"carbon_footprint": {Value: 150.0, Unit: "kg"},
 			},
 			wantMiles:   381.68,
@@ -162,7 +164,7 @@ func TestCalculateFromMap(t *testing.T) {
 		},
 		{
 			name: "deprecated key gCO2e with warning",
-			metrics: map[string]SustainabilityMetric{
+			metrics: map[string]greenops.SustainabilityMetric{
 				"gCO2e": {Value: 150.0, Unit: "kg"},
 			},
 			wantMiles:   381.68,
@@ -170,7 +172,7 @@ func TestCalculateFromMap(t *testing.T) {
 		},
 		{
 			name: "canonical takes precedence over deprecated",
-			metrics: map[string]SustainabilityMetric{
+			metrics: map[string]greenops.SustainabilityMetric{
 				"carbon_footprint": {Value: 150.0, Unit: "kg"},
 				"gCO2e":            {Value: 300.0, Unit: "kg"}, // Should be ignored
 			},
@@ -179,14 +181,14 @@ func TestCalculateFromMap(t *testing.T) {
 		},
 		{
 			name: "no carbon metric returns empty",
-			metrics: map[string]SustainabilityMetric{
+			metrics: map[string]greenops.SustainabilityMetric{
 				"energy_consumption": {Value: 2000.0, Unit: "kWh"},
 			},
 			wantIsEmpty: true,
 		},
 		{
 			name:        "empty map returns empty",
-			metrics:     map[string]SustainabilityMetric{},
+			metrics:     map[string]greenops.SustainabilityMetric{},
 			wantIsEmpty: true,
 		},
 		{
@@ -196,7 +198,7 @@ func TestCalculateFromMap(t *testing.T) {
 		},
 		{
 			name: "below threshold returns empty",
-			metrics: map[string]SustainabilityMetric{
+			metrics: map[string]greenops.SustainabilityMetric{
 				"carbon_footprint": {Value: 0.5, Unit: "kg"},
 			},
 			wantIsEmpty: true,
@@ -205,7 +207,7 @@ func TestCalculateFromMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := CalculateFromMap(context.Background(), tt.metrics)
+			got := greenops.CalculateFromMap(context.Background(), tt.metrics)
 
 			if tt.wantIsEmpty {
 				assert.True(t, got.IsEmpty, "expected IsEmpty to be true")
@@ -224,8 +226,8 @@ func TestCalculateFromMap(t *testing.T) {
 
 func TestCalculate_DisplayTextFormat(t *testing.T) {
 	// Test display text formatting per FR-003 and FR-007
-	input := CarbonInput{Value: 150.0, Unit: "kg"}
-	got, err := Calculate(context.Background(), input)
+	input := greenops.CarbonInput{Value: 150.0, Unit: "kg"}
+	got, err := greenops.Calculate(context.Background(), input)
 	require.NoError(t, err)
 
 	// FR-003: Must use "Equivalent to" or "Approx." labeling
@@ -245,8 +247,8 @@ func TestCalculate_DisplayTextFormat(t *testing.T) {
 
 func TestCalculate_LargeNumberFormatting(t *testing.T) {
 	// Test large number scaling per research.md thresholds
-	input := CarbonInput{Value: 10000000.0, Unit: "kg"} // 10 million kg
-	got, err := Calculate(context.Background(), input)
+	input := greenops.CarbonInput{Value: 10000000.0, Unit: "kg"} // 10 million kg
+	got, err := greenops.Calculate(context.Background(), input)
 	require.NoError(t, err)
 
 	// Should use "million" scaling for large values
@@ -255,8 +257,8 @@ func TestCalculate_LargeNumberFormatting(t *testing.T) {
 
 func TestCalculate_VeryLargeNumberFormatting(t *testing.T) {
 	// Test billion-scale formatting
-	input := CarbonInput{Value: 1000000000.0, Unit: "kg"} // 1 billion kg
-	got, err := Calculate(context.Background(), input)
+	input := greenops.CarbonInput{Value: 1000000000.0, Unit: "kg"} // 1 billion kg
+	got, err := greenops.Calculate(context.Background(), input)
 	require.NoError(t, err)
 
 	// Should use "billion" scaling
@@ -267,19 +269,19 @@ func TestCalculate_VeryLargeNumberFormatting(t *testing.T) {
 
 func BenchmarkCalculate(b *testing.B) {
 	ctx := context.Background()
-	input := CarbonInput{Value: 150.0, Unit: "kg"}
+	input := greenops.CarbonInput{Value: 150.0, Unit: "kg"}
 	for b.Loop() {
-		_, _ = Calculate(ctx, input)
+		_, _ = greenops.Calculate(ctx, input)
 	}
 }
 
 func BenchmarkCalculateFromMap(b *testing.B) {
 	ctx := context.Background()
-	metrics := map[string]SustainabilityMetric{
+	metrics := map[string]greenops.SustainabilityMetric{
 		"carbon_footprint": {Value: 150.0, Unit: "kg"},
 	}
 	for b.Loop() {
-		_ = CalculateFromMap(ctx, metrics)
+		_ = greenops.CalculateFromMap(ctx, metrics)
 	}
 }
 
@@ -292,11 +294,11 @@ func TestCalculateFromMap_DeprecationWarning(t *testing.T) {
 	ctx := logger.WithContext(context.Background())
 
 	// Use deprecated key
-	metrics := map[string]SustainabilityMetric{
+	metrics := map[string]greenops.SustainabilityMetric{
 		"gCO2e": {Value: 150.0, Unit: "kg"},
 	}
 
-	got := CalculateFromMap(ctx, metrics)
+	got := greenops.CalculateFromMap(ctx, metrics)
 
 	// Verify calculation still succeeds
 	assert.False(t, got.IsEmpty)

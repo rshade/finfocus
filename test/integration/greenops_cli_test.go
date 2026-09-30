@@ -1,5 +1,4 @@
-// Package integration contains integration tests for FinFocus components.
-package integration
+package integration_test
 
 import (
 	"strings"

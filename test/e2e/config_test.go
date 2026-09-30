@@ -1,4 +1,4 @@
-package e2e
+package e2e_test
 
 import (
 	"os"
@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/test/e2e"
 )
 
 func TestE2ETestConfig_LoadFromEnv(t *testing.T) {
@@ -15,7 +17,7 @@ func TestE2ETestConfig_LoadFromEnv(t *testing.T) {
 	t.Setenv("FINFOCUS_E2E_TOLERANCE", "0.05")
 	t.Setenv("FINFOCUS_E2E_TIMEOUT", "5m")
 
-	config := LoadConfig()
+	config := e2e.LoadConfig()
 	require.NotNil(t, config)
 
 	assert.Equal(t, "us-west-2", config.AWSRegion)
@@ -33,7 +35,7 @@ func TestE2ETestConfig_Defaults(t *testing.T) {
 		os.Unsetenv(key)
 	}
 
-	config := LoadConfig()
+	config := e2e.LoadConfig()
 	require.NotNil(t, config)
 
 	// Check defaults

@@ -1,4 +1,4 @@
-package config
+package config_test
 
 import (
 	"fmt"
@@ -10,6 +10,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 func TestNewDismissalStore(t *testing.T) {
@@ -18,14 +20,14 @@ func TestNewDismissalStore(t *testing.T) {
 	t.Run("with explicit path", func(t *testing.T) {
 		t.Parallel()
 		expected := filepath.Join(t.TempDir(), "test-dismissed.json")
-		store, err := NewDismissalStore(expected)
+		store, err := config.NewDismissalStore(expected)
 		require.NoError(t, err)
 		assert.Equal(t, expected, store.FilePath())
 	})
 
 	t.Run("with empty path defaults to home dir", func(t *testing.T) {
 		t.Parallel()
-		store, err := NewDismissalStore("")
+		store, err := config.NewDismissalStore("")
 		require.NoError(t, err)
 		assert.Contains(t, store.FilePath(), "dismissed.json")
 	})
@@ -37,7 +39,7 @@ func TestDismissalStore_LoadSave(t *testing.T) {
 	t.Run("missing file starts empty", func(t *testing.T) {
 		t.Parallel()
 		dir := t.TempDir()
-		store, err := NewDismissalStore(filepath.Join(dir, "dismissed.json"))
+		store, err := config.NewDismissalStore(filepath.Join(dir, "dismissed.json"))
 		require.NoError(t, err)
 
 		err = store.Load()
@@ -51,27 +53,27 @@ func TestDismissalStore_LoadSave(t *testing.T) {
 		filePath := filepath.Join(dir, "dismissed.json")
 
 		// Create and save
-		store1, err := NewDismissalStore(filePath)
+		store1, err := config.NewDismissalStore(filePath)
 		require.NoError(t, err)
 
 		now := time.Now().Truncate(time.Second)
-		record := &DismissalRecord{
+		record := &config.DismissalRecord{
 			RecommendationID: "rec-123",
-			Status:           StatusDismissed,
+			Status:           config.StatusDismissed,
 			Reason:           "BUSINESS_CONSTRAINT",
 			CustomReason:     "Burst capacity",
 			DismissedAt:      now,
 			ExpiresAt:        nil,
-			LastKnown: &LastKnownRecommendation{
+			LastKnown: &config.LastKnownRecommendation{
 				Description:      "Rightsize instance",
 				EstimatedSavings: 45.0,
 				Currency:         "USD",
 				Type:             "RIGHTSIZE",
 				ResourceID:       "aws:ec2:Instance::web-server",
 			},
-			History: []LifecycleEvent{
+			History: []config.LifecycleEvent{
 				{
-					Action:    ActionDismissed,
+					Action:    config.ActionDismissed,
 					Reason:    "BUSINESS_CONSTRAINT",
 					Timestamp: now,
 				},
@@ -82,7 +84,7 @@ func TestDismissalStore_LoadSave(t *testing.T) {
 		require.NoError(t, store1.Save())
 
 		// Load in new store instance
-		store2, err := NewDismissalStore(filePath)
+		store2, err := config.NewDismissalStore(filePath)
 		require.NoError(t, err)
 		require.NoError(t, store2.Load())
 
@@ -91,14 +93,14 @@ func TestDismissalStore_LoadSave(t *testing.T) {
 		loaded, ok := store2.Get("rec-123")
 		require.True(t, ok)
 		assert.Equal(t, "rec-123", loaded.RecommendationID)
-		assert.Equal(t, StatusDismissed, loaded.Status)
+		assert.Equal(t, config.StatusDismissed, loaded.Status)
 		assert.Equal(t, "BUSINESS_CONSTRAINT", loaded.Reason)
 		assert.Equal(t, "Burst capacity", loaded.CustomReason)
 		require.NotNil(t, loaded.LastKnown)
 		assert.Equal(t, "Rightsize instance", loaded.LastKnown.Description)
 		assert.InDelta(t, 45.0, loaded.LastKnown.EstimatedSavings, 0.01)
 		assert.Len(t, loaded.History, 1)
-		assert.Equal(t, ActionDismissed, loaded.History[0].Action)
+		assert.Equal(t, config.ActionDismissed, loaded.History[0].Action)
 	})
 
 	t.Run("corrupted file returns ErrStoreCorrupted", func(t *testing.T) {
@@ -108,12 +110,12 @@ func TestDismissalStore_LoadSave(t *testing.T) {
 
 		require.NoError(t, os.WriteFile(filePath, []byte("{invalid json"), 0o644))
 
-		store, err := NewDismissalStore(filePath)
+		store, err := config.NewDismissalStore(filePath)
 		require.NoError(t, err)
 
 		err = store.Load()
 		require.Error(t, err)
-		require.ErrorIs(t, err, ErrStoreCorrupted)
+		require.ErrorIs(t, err, config.ErrStoreCorrupted)
 		assert.Equal(t, 0, store.Count())
 	})
 
@@ -125,12 +127,12 @@ func TestDismissalStore_LoadSave(t *testing.T) {
 		data := []byte(`{"version": 99, "dismissals": {}}`)
 		require.NoError(t, os.WriteFile(filePath, data, 0o644))
 
-		store, err := NewDismissalStore(filePath)
+		store, err := config.NewDismissalStore(filePath)
 		require.NoError(t, err)
 
 		err = store.Load()
 		require.Error(t, err)
-		require.ErrorIs(t, err, ErrStoreCorrupted)
+		require.ErrorIs(t, err, config.ErrStoreCorrupted)
 		assert.Equal(t, 0, store.Count())
 	})
 }
@@ -140,7 +142,7 @@ func TestDismissalStore_GetSetDelete(t *testing.T) {
 
 	t.Run("get nonexistent returns false", func(t *testing.T) {
 		t.Parallel()
-		store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+		store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 		require.NoError(t, err)
 
 		record, ok := store.Get("nonexistent")
@@ -150,12 +152,12 @@ func TestDismissalStore_GetSetDelete(t *testing.T) {
 
 	t.Run("set and get", func(t *testing.T) {
 		t.Parallel()
-		store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+		store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 		require.NoError(t, err)
 
-		record := &DismissalRecord{
+		record := &config.DismissalRecord{
 			RecommendationID: "rec-1",
-			Status:           StatusDismissed,
+			Status:           config.StatusDismissed,
 			Reason:           "DEFERRED",
 			DismissedAt:      time.Now(),
 		}
@@ -165,12 +167,12 @@ func TestDismissalStore_GetSetDelete(t *testing.T) {
 		loaded, ok := store.Get("rec-1")
 		require.True(t, ok)
 		assert.Equal(t, "rec-1", loaded.RecommendationID)
-		assert.Equal(t, StatusDismissed, loaded.Status)
+		assert.Equal(t, config.StatusDismissed, loaded.Status)
 	})
 
 	t.Run("set nil record returns error", func(t *testing.T) {
 		t.Parallel()
-		store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+		store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 		require.NoError(t, err)
 
 		err = store.Set(nil)
@@ -180,22 +182,22 @@ func TestDismissalStore_GetSetDelete(t *testing.T) {
 
 	t.Run("set empty ID returns error", func(t *testing.T) {
 		t.Parallel()
-		store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+		store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 		require.NoError(t, err)
 
-		err = store.Set(&DismissalRecord{})
+		err = store.Set(&config.DismissalRecord{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "recommendation ID cannot be empty")
 	})
 
 	t.Run("delete existing record", func(t *testing.T) {
 		t.Parallel()
-		store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+		store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 		require.NoError(t, err)
 
-		record := &DismissalRecord{
+		record := &config.DismissalRecord{
 			RecommendationID: "rec-del",
-			Status:           StatusDismissed,
+			Status:           config.StatusDismissed,
 			Reason:           "OTHER",
 			DismissedAt:      time.Now(),
 		}
@@ -212,7 +214,7 @@ func TestDismissalStore_GetSetDelete(t *testing.T) {
 
 	t.Run("delete nonexistent is no-op", func(t *testing.T) {
 		t.Parallel()
-		store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+		store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 		require.NoError(t, err)
 
 		err = store.Delete("nonexistent")
@@ -221,7 +223,7 @@ func TestDismissalStore_GetSetDelete(t *testing.T) {
 
 	t.Run("delete empty ID returns error", func(t *testing.T) {
 		t.Parallel()
-		store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+		store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 		require.NoError(t, err)
 
 		err = store.Delete("")
@@ -231,20 +233,20 @@ func TestDismissalStore_GetSetDelete(t *testing.T) {
 
 	t.Run("set overwrites existing record", func(t *testing.T) {
 		t.Parallel()
-		store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+		store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 		require.NoError(t, err)
 
-		record1 := &DismissalRecord{
+		record1 := &config.DismissalRecord{
 			RecommendationID: "rec-overwrite",
-			Status:           StatusDismissed,
+			Status:           config.StatusDismissed,
 			Reason:           "DEFERRED",
 			DismissedAt:      time.Now(),
 		}
 		require.NoError(t, store.Set(record1))
 
-		record2 := &DismissalRecord{
+		record2 := &config.DismissalRecord{
 			RecommendationID: "rec-overwrite",
-			Status:           StatusSnoozed,
+			Status:           config.StatusSnoozed,
 			Reason:           "BUSINESS_CONSTRAINT",
 			DismissedAt:      time.Now(),
 		}
@@ -252,7 +254,7 @@ func TestDismissalStore_GetSetDelete(t *testing.T) {
 
 		loaded, ok := store.Get("rec-overwrite")
 		require.True(t, ok)
-		assert.Equal(t, StatusSnoozed, loaded.Status)
+		assert.Equal(t, config.StatusSnoozed, loaded.Status)
 		assert.Equal(t, "BUSINESS_CONSTRAINT", loaded.Reason)
 		assert.Equal(t, 1, store.Count())
 	})
@@ -261,7 +263,7 @@ func TestDismissalStore_GetSetDelete(t *testing.T) {
 func TestDismissalStore_GetDismissedIDs(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+	store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 	require.NoError(t, err)
 
 	now := time.Now()
@@ -269,26 +271,26 @@ func TestDismissalStore_GetDismissedIDs(t *testing.T) {
 	future := now.Add(time.Hour)
 
 	// Permanently dismissed
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-dismissed",
-		Status:           StatusDismissed,
+		Status:           config.StatusDismissed,
 		Reason:           "DEFERRED",
 		DismissedAt:      now,
 	}))
 
 	// Active snooze (future expiry)
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-snoozed-active",
-		Status:           StatusSnoozed,
+		Status:           config.StatusSnoozed,
 		Reason:           "DEFERRED",
 		DismissedAt:      now,
 		ExpiresAt:        &future,
 	}))
 
 	// Expired snooze (past expiry)
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-snoozed-expired",
-		Status:           StatusSnoozed,
+		Status:           config.StatusSnoozed,
 		Reason:           "DEFERRED",
 		DismissedAt:      past,
 		ExpiresAt:        &past,
@@ -306,17 +308,17 @@ func TestDismissalStore_GetDismissedIDs(t *testing.T) {
 func TestDismissalStore_GetAllRecords(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+	store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 	require.NoError(t, err)
 
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-1",
-		Status:           StatusDismissed,
+		Status:           config.StatusDismissed,
 		DismissedAt:      time.Now(),
 	}))
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-2",
-		Status:           StatusSnoozed,
+		Status:           config.StatusSnoozed,
 		DismissedAt:      time.Now(),
 	}))
 
@@ -329,28 +331,28 @@ func TestDismissalStore_GetAllRecords(t *testing.T) {
 func TestDismissalStore_GetExpiredSnoozes(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+	store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 	require.NoError(t, err)
 
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
 
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-expired",
-		Status:           StatusSnoozed,
+		Status:           config.StatusSnoozed,
 		DismissedAt:      past,
 		ExpiresAt:        &past,
 	}))
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-active",
-		Status:           StatusSnoozed,
+		Status:           config.StatusSnoozed,
 		DismissedAt:      now,
 		ExpiresAt:        &future,
 	}))
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-permanent",
-		Status:           StatusDismissed,
+		Status:           config.StatusDismissed,
 		DismissedAt:      now,
 	}))
 
@@ -362,32 +364,32 @@ func TestDismissalStore_GetExpiredSnoozes(t *testing.T) {
 func TestDismissalStore_CleanExpiredSnoozes(t *testing.T) {
 	t.Parallel()
 
-	store, err := NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
+	store, err := config.NewDismissalStore(filepath.Join(t.TempDir(), "d.json"))
 	require.NoError(t, err)
 
 	now := time.Now()
 	past := now.Add(-time.Hour)
 	future := now.Add(time.Hour)
 
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-expired",
-		Status:           StatusSnoozed,
+		Status:           config.StatusSnoozed,
 		Reason:           "DEFERRED",
 		DismissedAt:      past,
 		ExpiresAt:        &past,
-		History: []LifecycleEvent{
-			{Action: ActionSnoozed, Reason: "DEFERRED", Timestamp: past},
+		History: []config.LifecycleEvent{
+			{Action: config.ActionSnoozed, Reason: "DEFERRED", Timestamp: past},
 		},
 	}))
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-active",
-		Status:           StatusSnoozed,
+		Status:           config.StatusSnoozed,
 		DismissedAt:      now,
 		ExpiresAt:        &future,
 	}))
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-permanent",
-		Status:           StatusDismissed,
+		Status:           config.StatusDismissed,
 		DismissedAt:      now,
 	}))
 
@@ -397,10 +399,10 @@ func TestDismissalStore_CleanExpiredSnoozes(t *testing.T) {
 	// Expired snooze should be preserved with StatusActive and history
 	record, ok := store.Get("rec-expired")
 	require.True(t, ok, "expired snooze should be preserved as active")
-	assert.Equal(t, StatusActive, record.Status)
+	assert.Equal(t, config.StatusActive, record.Status)
 	assert.Nil(t, record.ExpiresAt)
 	require.Len(t, record.History, 2) // snoozed + undismissed
-	assert.Equal(t, ActionUndismissed, record.History[1].Action)
+	assert.Equal(t, config.ActionUndismissed, record.History[1].Action)
 
 	// Active snooze and permanent dismissal remain
 	_, ok = store.Get("rec-active")
@@ -417,12 +419,12 @@ func TestDismissalStore_SaveCreatesDirectory(t *testing.T) {
 	dir := t.TempDir()
 	nestedPath := filepath.Join(dir, "nested", "deep", "dismissed.json")
 
-	store, err := NewDismissalStore(nestedPath)
+	store, err := config.NewDismissalStore(nestedPath)
 	require.NoError(t, err)
 
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "rec-1",
-		Status:           StatusDismissed,
+		Status:           config.StatusDismissed,
 		DismissedAt:      time.Now(),
 	}))
 
@@ -441,50 +443,50 @@ func TestNewDismissalStore_ProjectAware(t *testing.T) {
 		projectDir := filepath.Join(t.TempDir(), "project", ".finfocus")
 
 		// Save and restore original resolved project dir
-		orig := GetResolvedProjectDir()
-		t.Cleanup(func() { SetResolvedProjectDir(orig) })
+		orig := config.GetResolvedProjectDir()
+		t.Cleanup(func() { config.SetResolvedProjectDir(orig) })
 
-		SetResolvedProjectDir(projectDir)
+		config.SetResolvedProjectDir(projectDir)
 
-		store, err := NewDismissalStore("")
+		store, err := config.NewDismissalStore("")
 		require.NoError(t, err)
 		assert.Equal(t, filepath.Join(projectDir, "dismissed.json"), store.FilePath())
 	})
 
 	t.Run("falls back to ResolveConfigDir when no project", func(t *testing.T) {
 		// Clear project dir
-		orig := GetResolvedProjectDir()
-		t.Cleanup(func() { SetResolvedProjectDir(orig) })
-		SetResolvedProjectDir("")
+		orig := config.GetResolvedProjectDir()
+		t.Cleanup(func() { config.SetResolvedProjectDir(orig) })
+		config.SetResolvedProjectDir("")
 
-		store, err := NewDismissalStore("")
+		store, err := config.NewDismissalStore("")
 		require.NoError(t, err)
 
 		// Should use ResolveConfigDir() which uses FINFOCUS_HOME, etc
-		expected := filepath.Join(ResolveConfigDir(), "dismissed.json")
+		expected := filepath.Join(config.ResolveConfigDir(), "dismissed.json")
 		assert.Equal(t, expected, store.FilePath())
 	})
 
 	t.Run("explicit filePath takes precedence over project dir", func(t *testing.T) {
-		orig := GetResolvedProjectDir()
-		t.Cleanup(func() { SetResolvedProjectDir(orig) })
-		SetResolvedProjectDir("/some/project/.finfocus")
+		orig := config.GetResolvedProjectDir()
+		t.Cleanup(func() { config.SetResolvedProjectDir(orig) })
+		config.SetResolvedProjectDir("/some/project/.finfocus")
 
 		explicitPath := filepath.Join(t.TempDir(), "custom-dismissed.json")
-		store, err := NewDismissalStore(explicitPath)
+		store, err := config.NewDismissalStore(explicitPath)
 		require.NoError(t, err)
 		assert.Equal(t, explicitPath, store.FilePath())
 	})
 
 	t.Run("respects FINFOCUS_HOME when no project", func(t *testing.T) {
-		orig := GetResolvedProjectDir()
-		t.Cleanup(func() { SetResolvedProjectDir(orig) })
-		SetResolvedProjectDir("")
+		orig := config.GetResolvedProjectDir()
+		t.Cleanup(func() { config.SetResolvedProjectDir(orig) })
+		config.SetResolvedProjectDir("")
 
 		customHome := t.TempDir()
 		t.Setenv("FINFOCUS_HOME", customHome)
 
-		store, err := NewDismissalStore("")
+		store, err := config.NewDismissalStore("")
 		require.NoError(t, err)
 		assert.Equal(t, filepath.Join(customHome, "dismissed.json"), store.FilePath())
 	})
@@ -496,12 +498,12 @@ func TestNewDismissalStore_LoadWithProjectContext(t *testing.T) {
 	projectDir := filepath.Join(t.TempDir(), "myproject", ".finfocus")
 	require.NoError(t, os.MkdirAll(projectDir, 0o755))
 
-	orig := GetResolvedProjectDir()
-	t.Cleanup(func() { SetResolvedProjectDir(orig) })
-	SetResolvedProjectDir(projectDir)
+	orig := config.GetResolvedProjectDir()
+	t.Cleanup(func() { config.SetResolvedProjectDir(orig) })
+	config.SetResolvedProjectDir(projectDir)
 
 	// Simulates what loadDismissalStore does in the CLI
-	store, err := NewDismissalStore("")
+	store, err := config.NewDismissalStore("")
 	require.NoError(t, err)
 
 	// Load should succeed (empty file = empty store)
@@ -510,9 +512,9 @@ func TestNewDismissalStore_LoadWithProjectContext(t *testing.T) {
 	assert.Equal(t, filepath.Join(projectDir, "dismissed.json"), store.FilePath())
 
 	// Set and save a record
-	require.NoError(t, store.Set(&DismissalRecord{
+	require.NoError(t, store.Set(&config.DismissalRecord{
 		RecommendationID: "test-rec",
-		Status:           StatusDismissed,
+		Status:           config.StatusDismissed,
 		Reason:           "OTHER",
 		DismissedAt:      time.Now(),
 	}))
@@ -529,7 +531,7 @@ func TestDismissalStore_ConcurrentAccess(t *testing.T) {
 	dir := t.TempDir()
 	storePath := filepath.Join(dir, "concurrent-dismissed.json")
 
-	store, err := NewDismissalStore(storePath)
+	store, err := config.NewDismissalStore(storePath)
 	require.NoError(t, err)
 
 	const goroutines = 10
@@ -546,13 +548,13 @@ func TestDismissalStore_ConcurrentAccess(t *testing.T) {
 				now := time.Now()
 
 				// Concurrent Set
-				setErr := store.Set(&DismissalRecord{
+				setErr := store.Set(&config.DismissalRecord{
 					RecommendationID: recID,
-					Status:           StatusDismissed,
+					Status:           config.StatusDismissed,
 					Reason:           "BUSINESS_CONSTRAINT",
 					DismissedAt:      now,
-					History: []LifecycleEvent{
-						{Action: ActionDismissed, Reason: "BUSINESS_CONSTRAINT", Timestamp: now},
+					History: []config.LifecycleEvent{
+						{Action: config.ActionDismissed, Reason: "BUSINESS_CONSTRAINT", Timestamp: now},
 					},
 				})
 				assert.NoError(t, setErr)

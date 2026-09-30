@@ -1,8 +1,10 @@
-package tui
+package tui_test
 
 import (
 	"strings"
 	"testing"
+
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 func TestRenderStatus(t *testing.T) {
@@ -27,7 +29,7 @@ func TestRenderStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := RenderStatus(tt.status)
+			result := tui.RenderStatus(tt.status)
 			if !strings.Contains(result, tt.expected) {
 				t.Errorf(
 					"RenderStatus(%q) = %q, expected to contain %q",
@@ -59,7 +61,7 @@ func TestRenderDelta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := RenderDelta(tt.delta)
+			result := tui.RenderDelta(tt.delta)
 			if !strings.Contains(result, tt.expected) {
 				t.Errorf(
 					"RenderDelta(%.2f) = %q, expected to contain %q",
@@ -93,7 +95,7 @@ func TestRenderPriority(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := RenderPriority(tt.priority)
+			result := tui.RenderPriority(tt.priority)
 			if !strings.Contains(result, tt.expected) {
 				t.Errorf(
 					"RenderPriority(%q) = %q, expected to contain %q",
@@ -139,7 +141,7 @@ func TestFormatActionType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatActionType(tt.input)
+			result := tui.FormatActionType(tt.input)
 			if result != tt.expected {
 				t.Errorf("FormatActionType(%q) = %q, expected %q", tt.input, result, tt.expected)
 			}
@@ -159,7 +161,7 @@ func TestFormatActionType_UnknownTypes(t *testing.T) {
 
 	for _, unknown := range unknownTypes {
 		t.Run(unknown, func(t *testing.T) {
-			result := FormatActionType(unknown)
+			result := tui.FormatActionType(unknown)
 			// Unknown types are returned as-is (not transformed)
 			if result != unknown {
 				t.Errorf("FormatActionType(%q) = %q, expected %q (unchanged)", unknown, result, unknown)
@@ -175,20 +177,20 @@ func TestRenderFunctions_BasicOutput(t *testing.T) {
 		function func() string
 		contains string
 	}{
-		{"OK status output", func() string { return RenderStatus("ok") }, "✓ OK"},
-		{"Warning status output", func() string { return RenderStatus("warning") }, "⚠ WARNING"},
-		{"Critical status output", func() string { return RenderStatus("critical") }, "🚨 CRITICAL"},
-		{"Positive delta output", func() string { return RenderDelta(10.0) }, "+$10.00 ↑"},
-		{"Negative delta output", func() string { return RenderDelta(-10.0) }, "-$10.00 ↓"},
-		{"Zero delta output", func() string { return RenderDelta(0) }, "$0.00 →"},
+		{"OK status output", func() string { return tui.RenderStatus("ok") }, "✓ OK"},
+		{"Warning status output", func() string { return tui.RenderStatus("warning") }, "⚠ WARNING"},
+		{"Critical status output", func() string { return tui.RenderStatus("critical") }, "🚨 CRITICAL"},
+		{"Positive delta output", func() string { return tui.RenderDelta(10.0) }, "+$10.00 ↑"},
+		{"Negative delta output", func() string { return tui.RenderDelta(-10.0) }, "-$10.00 ↓"},
+		{"Zero delta output", func() string { return tui.RenderDelta(0) }, "$0.00 →"},
 		{
 			"Critical priority output",
-			func() string { return RenderPriority("CRITICAL") },
+			func() string { return tui.RenderPriority("CRITICAL") },
 			"🚨 CRITICAL",
 		},
-		{"High priority output", func() string { return RenderPriority("HIGH") }, "⚠ HIGH"},
-		{"Medium priority output", func() string { return RenderPriority("MEDIUM") }, "◉ MEDIUM"},
-		{"Low priority output", func() string { return RenderPriority("LOW") }, "✓ LOW"},
+		{"High priority output", func() string { return tui.RenderPriority("HIGH") }, "⚠ HIGH"},
+		{"Medium priority output", func() string { return tui.RenderPriority("MEDIUM") }, "◉ MEDIUM"},
+		{"Low priority output", func() string { return tui.RenderPriority("LOW") }, "✓ LOW"},
 	}
 
 	for _, tt := range tests {

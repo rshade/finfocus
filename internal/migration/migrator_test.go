@@ -1,4 +1,4 @@
-package migration
+package migration_test
 
 import (
 	"os"
@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/migration"
 )
 
 func TestSafeCopy(t *testing.T) {
@@ -21,7 +23,7 @@ func TestSafeCopy(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(src, "plugins", "aws", "plugin.exe"), []byte("binary"), 0700))
 
 	// Perform copy
-	err := SafeCopy(src, dst)
+	err := migration.SafeCopy(src, dst)
 	require.NoError(t, err)
 
 	// Verify destination

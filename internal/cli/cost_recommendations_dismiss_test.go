@@ -1,4 +1,4 @@
-package cli
+package cli_test
 
 import (
 	"context"
@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rshade/finfocus/internal/cli"
 	"github.com/rshade/finfocus/internal/config"
 )
 
@@ -29,7 +30,7 @@ func findSubcommandLocal(cmd *cobra.Command, name string) *cobra.Command {
 
 // T008: Test dismiss command creation.
 func TestNewRecommendationsDismissCmd(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
+	cmd := cli.NewCostRecommendationsCmd()
 
 	dismissSub := findSubcommandLocal(cmd, "dismiss")
 	require.NotNil(t, dismissSub, "dismiss subcommand should exist")
@@ -38,7 +39,7 @@ func TestNewRecommendationsDismissCmd(t *testing.T) {
 
 // T008: Test dismiss command flags.
 func TestDismissCmd_Flags(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
+	cmd := cli.NewCostRecommendationsCmd()
 	dismissSub := findSubcommandLocal(cmd, "dismiss")
 	require.NotNil(t, dismissSub, "dismiss subcommand should exist")
 
@@ -62,7 +63,7 @@ func TestDismissCmd_Flags(t *testing.T) {
 
 // T008: Test dismiss requires reason flag.
 func TestDismissCmd_RequiresReason(t *testing.T) {
-	root := NewRootCmd("test-version")
+	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
 		[]string{"cost", "recommendations", "dismiss", "rec-123"})
 
@@ -73,7 +74,7 @@ func TestDismissCmd_RequiresReason(t *testing.T) {
 
 // T008: Test dismiss requires recommendation-id positional arg.
 func TestDismissCmd_RequiresRecommendationID(t *testing.T) {
-	root := NewRootCmd("test-version")
+	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
 		[]string{"cost", "recommendations", "dismiss", "--reason", "business-constraint"})
 
@@ -85,7 +86,7 @@ func TestDismissCmd_RequiresRecommendationID(t *testing.T) {
 
 // T008: Test "other" reason requires --note.
 func TestDismissCmd_OtherRequiresNote(t *testing.T) {
-	root := NewRootCmd("test-version")
+	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
 		[]string{"cost", "recommendations", "dismiss", "rec-123", "--reason", "other", "--force"})
 
@@ -96,7 +97,7 @@ func TestDismissCmd_OtherRequiresNote(t *testing.T) {
 
 // T008: Test invalid reason validation.
 func TestDismissCmd_InvalidReason(t *testing.T) {
-	root := NewRootCmd("test-version")
+	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
 		[]string{"cost", "recommendations", "dismiss", "rec-123", "--reason", "invalid-reason", "--force"})
 
@@ -120,7 +121,7 @@ func TestDismissCmd_ValidReasons(t *testing.T) {
 	for _, reason := range validReasons {
 		t.Run(reason, func(t *testing.T) {
 			t.Setenv("FINFOCUS_HOME", t.TempDir())
-			root := NewRootCmd("test-version")
+			root := cli.NewRootCmd("test-version")
 			result := axtest.Run(context.Background(), t, root,
 				[]string{"cost", "recommendations", "dismiss", "rec-123", "--reason", reason, "--force"})
 
@@ -136,7 +137,7 @@ func TestDismissCmd_ValidReasons(t *testing.T) {
 
 // T008: Test --force skips confirmation.
 func TestDismissCmd_ForceSkipsConfirmation(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
+	cmd := cli.NewCostRecommendationsCmd()
 	dismissSub := findSubcommandLocal(cmd, "dismiss")
 	require.NotNil(t, dismissSub)
 
@@ -151,7 +152,7 @@ func TestDismissCmd_ForceSkipsConfirmation(t *testing.T) {
 
 // T008: Test Snoozed->Dismissed direct transition (FR-010a).
 func TestDismissCmd_DirectTransitionFromSnoozed(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
+	cmd := cli.NewCostRecommendationsCmd()
 	dismissSub := findSubcommandLocal(cmd, "dismiss")
 	require.NotNil(t, dismissSub)
 
@@ -163,7 +164,7 @@ func TestDismissCmd_DirectTransitionFromSnoozed(t *testing.T) {
 
 // T015: Test snooze command creation.
 func TestNewRecommendationsSnoozeCmd(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
+	cmd := cli.NewCostRecommendationsCmd()
 
 	snoozeSub := findSubcommandLocal(cmd, "snooze")
 	require.NotNil(t, snoozeSub, "snooze subcommand should exist")
@@ -172,7 +173,7 @@ func TestNewRecommendationsSnoozeCmd(t *testing.T) {
 
 // T015: Test snooze command flags.
 func TestSnoozeCmd_Flags(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
+	cmd := cli.NewCostRecommendationsCmd()
 	snoozeSub := findSubcommandLocal(cmd, "snooze")
 	require.NotNil(t, snoozeSub)
 
@@ -193,7 +194,7 @@ func TestSnoozeCmd_Flags(t *testing.T) {
 
 // T015: Test snooze requires --until flag.
 func TestSnoozeCmd_RequiresUntil(t *testing.T) {
-	root := NewRootCmd("test-version")
+	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
 		[]string{"cost", "recommendations", "snooze", "rec-123"})
 
@@ -206,7 +207,7 @@ func TestSnoozeCmd_RequiresUntil(t *testing.T) {
 func TestSnoozeCmd_RejectsPastDate(t *testing.T) {
 	// Use a date in the past
 	pastDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
-	root := NewRootCmd("test-version")
+	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
 		[]string{"cost", "recommendations", "snooze", "rec-123", "--until", pastDate, "--force"})
 
@@ -220,7 +221,7 @@ func TestSnoozeCmd_AcceptsYYYYMMDD(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	// Use valid future date in YYYY-MM-DD format
 	futureDate := time.Now().AddDate(0, 1, 0).Format("2006-01-02")
-	root := NewRootCmd("test-version")
+	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
 		[]string{"cost", "recommendations", "snooze", "rec-123", "--until", futureDate, "--force"})
 
@@ -236,7 +237,7 @@ func TestSnoozeCmd_AcceptsRFC3339(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	// Use valid future date in RFC3339 format
 	futureDate := time.Now().AddDate(0, 1, 0).Format(time.RFC3339)
-	root := NewRootCmd("test-version")
+	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
 		[]string{"cost", "recommendations", "snooze", "rec-123", "--until", futureDate, "--force"})
 
@@ -249,7 +250,7 @@ func TestSnoozeCmd_AcceptsRFC3339(t *testing.T) {
 
 // T015: Test snooze default reason is "deferred".
 func TestSnoozeCmd_DefaultReasonDeferred(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
+	cmd := cli.NewCostRecommendationsCmd()
 	snoozeSub := findSubcommandLocal(cmd, "snooze")
 	require.NotNil(t, snoozeSub)
 
@@ -261,7 +262,7 @@ func TestSnoozeCmd_DefaultReasonDeferred(t *testing.T) {
 // NOTE: This test validates CLI structure only, not transition logic.
 // Full transition logic is tested in engine_dismiss_test.go.
 func TestSnoozeCmd_DirectTransitionAllowed_CLIParsing(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
+	cmd := cli.NewCostRecommendationsCmd()
 	snoozeSub := findSubcommandLocal(cmd, "snooze")
 	require.NotNil(t, snoozeSub)
 
@@ -274,7 +275,7 @@ func TestSnoozeCmd_DirectTransitionAllowed_CLIParsing(t *testing.T) {
 // NOTE: This test validates CLI parsing only; full transition logic is
 // tested in engine_dismiss_test.go.
 func TestSnoozeCmd_ResnoozeAllowed_CLIParsing(t *testing.T) {
-	cmd := NewCostRecommendationsCmd()
+	cmd := cli.NewCostRecommendationsCmd()
 	snoozeSub := findSubcommandLocal(cmd, "snooze")
 	require.NotNil(t, snoozeSub)
 
@@ -289,7 +290,7 @@ func TestSnoozeCmd_ResnoozeAllowed_CLIParsing(t *testing.T) {
 
 // T015: Test snooze rejects invalid date format.
 func TestSnoozeCmd_RejectsInvalidDateFormat(t *testing.T) {
-	root := NewRootCmd("test-version")
+	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
 		[]string{"cost", "recommendations", "snooze", "rec-123", "--until", "not-a-date", "--force"})
 
@@ -321,7 +322,7 @@ func TestRecommendationChangesDryRun(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Setenv("FINFOCUS_HOME", t.TempDir())
 			tt.args = append(tt.args, "--force", "--dry-run")
-			result := axtest.Run(context.Background(), t, NewRootCmd("test"), tt.args)
+			result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), tt.args)
 			require.Zero(t, result.ExitCode, string(result.Stderr))
 			assert.Contains(t, string(result.Stdout), tt.want)
 			store, err := config.NewDismissalStore("")

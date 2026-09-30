@@ -1,16 +1,18 @@
-package conformance
+package conformance_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/conformance"
 )
 
 func TestCheckProtocolVersion_Matching(t *testing.T) {
 	t.Parallel()
 
-	err := CheckProtocolVersion("1.0", ProtocolVersion)
+	err := conformance.CheckProtocolVersion("1.0", conformance.ProtocolVersion)
 
 	require.NoError(t, err)
 }
@@ -18,18 +20,18 @@ func TestCheckProtocolVersion_Matching(t *testing.T) {
 func TestCheckProtocolVersion_Mismatch(t *testing.T) {
 	t.Parallel()
 
-	err := CheckProtocolVersion("0.9", ProtocolVersion)
+	err := conformance.CheckProtocolVersion("0.9", conformance.ProtocolVersion)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "protocol version mismatch")
 	assert.Contains(t, err.Error(), "0.9")
-	assert.Contains(t, err.Error(), ProtocolVersion)
+	assert.Contains(t, err.Error(), conformance.ProtocolVersion)
 }
 
 func TestCheckProtocolVersion_Empty(t *testing.T) {
 	t.Parallel()
 
-	err := CheckProtocolVersion("", ProtocolVersion)
+	err := conformance.CheckProtocolVersion("", conformance.ProtocolVersion)
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "protocol version")
@@ -38,7 +40,7 @@ func TestCheckProtocolVersion_Empty(t *testing.T) {
 func TestCheckProtocolVersion_Invalid(t *testing.T) {
 	t.Parallel()
 
-	err := CheckProtocolVersion("invalid", ProtocolVersion)
+	err := conformance.CheckProtocolVersion("invalid", conformance.ProtocolVersion)
 
 	require.Error(t, err)
 }
@@ -61,7 +63,7 @@ func TestCheckProtocolVersion_MajorMinor(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			err := CheckProtocolVersion(tc.plugin, tc.expected)
+			err := conformance.CheckProtocolVersion(tc.plugin, tc.expected)
 			if tc.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -97,7 +99,7 @@ func TestParseVersion(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			major, minor, err := ParseVersion(tc.version)
+			major, minor, err := conformance.ParseVersion(tc.version)
 			if tc.wantErr {
 				require.Error(t, err)
 				if tc.errorContain != "" {
@@ -133,7 +135,7 @@ func TestIsCompatibleVersion(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			compatible := IsCompatibleVersion(
+			compatible := conformance.IsCompatibleVersion(
 				tc.pluginMajor, tc.pluginMinor,
 				tc.expectedMajor, tc.expectedMinor,
 			)

@@ -1,9 +1,13 @@
-package version
+package version_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rshade/finfocus/pkg/version"
+)
 
 func TestGetVersion(t *testing.T) {
-	v := GetVersion()
+	v := version.GetVersion()
 	if v == "" {
 		t.Error("GetVersion() returned empty string")
 	}
@@ -15,7 +19,7 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetGitCommit(t *testing.T) {
-	commit := GetGitCommit()
+	commit := version.GetGitCommit()
 	if commit == "" {
 		t.Error("GetGitCommit() returned empty string")
 	}
@@ -27,7 +31,7 @@ func TestGetGitCommit(t *testing.T) {
 }
 
 func TestGetBuildDate(t *testing.T) {
-	date := GetBuildDate()
+	date := version.GetBuildDate()
 	if date == "" {
 		t.Error("GetBuildDate() returned empty string")
 	}

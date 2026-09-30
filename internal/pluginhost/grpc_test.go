@@ -1,4 +1,4 @@
-package pluginhost
+package pluginhost_test
 
 import (
 	"bytes"
@@ -12,23 +12,24 @@ import (
 	"google.golang.org/grpc/metadata"
 
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
 // T036: Unit test for gRPC unary client interceptor.
 func TestTraceInterceptor_ReturnsUnaryClientInterceptor(t *testing.T) {
-	interceptor := TraceInterceptor()
+	interceptor := pluginhost.TraceInterceptor()
 	assert.NotNil(t, interceptor)
 }
 
 // T036: Test that interceptor is of correct type.
 func TestTraceInterceptor_CorrectType(t *testing.T) {
-	interceptor := TraceInterceptor()
+	interceptor := pluginhost.TraceInterceptor()
 	assert.NotNil(t, interceptor)
 }
 
 // T037: Unit test for trace ID metadata injection.
 func TestTraceInterceptor_InjectsTraceIDMetadata(t *testing.T) {
-	interceptor := TraceInterceptor()
+	interceptor := pluginhost.TraceInterceptor()
 
 	// Create context with trace ID
 	ctx := context.Background()
@@ -53,14 +54,14 @@ func TestTraceInterceptor_InjectsTraceIDMetadata(t *testing.T) {
 	md, ok := metadata.FromOutgoingContext(capturedCtx)
 	require.True(t, ok, "outgoing metadata should exist")
 
-	values := md.Get(TraceIDMetadataKey)
+	values := md.Get(pluginhost.TraceIDMetadataKey)
 	require.Len(t, values, 1, "should have exactly one trace ID value")
 	assert.Equal(t, traceID, values[0])
 }
 
 // T037: Test that interceptor handles missing trace ID gracefully.
 func TestTraceInterceptor_NoTraceIDNoMetadata(t *testing.T) {
-	interceptor := TraceInterceptor()
+	interceptor := pluginhost.TraceInterceptor()
 
 	// Create context without trace ID
 	ctx := context.Background()
@@ -82,7 +83,7 @@ func TestTraceInterceptor_NoTraceIDNoMetadata(t *testing.T) {
 	// Verify no trace ID metadata was added (but outgoing metadata might exist)
 	md, ok := metadata.FromOutgoingContext(capturedCtx)
 	if ok {
-		values := md.Get(TraceIDMetadataKey)
+		values := md.Get(pluginhost.TraceIDMetadataKey)
 		assert.Empty(t, values, "should not have trace ID metadata when not set in context")
 	}
 	// If no metadata at all, that's also fine
@@ -90,7 +91,7 @@ func TestTraceInterceptor_NoTraceIDNoMetadata(t *testing.T) {
 
 // T037: Test that interceptor preserves existing metadata.
 func TestTraceInterceptor_PreservesExistingMetadata(t *testing.T) {
-	interceptor := TraceInterceptor()
+	interceptor := pluginhost.TraceInterceptor()
 
 	// Create context with existing metadata and trace ID
 	ctx := context.Background()
@@ -120,14 +121,14 @@ func TestTraceInterceptor_PreservesExistingMetadata(t *testing.T) {
 	require.Len(t, existingValues, 1)
 	assert.Equal(t, "existing-value", existingValues[0])
 
-	traceValues := md.Get(TraceIDMetadataKey)
+	traceValues := md.Get(pluginhost.TraceIDMetadataKey)
 	require.Len(t, traceValues, 1)
 	assert.Equal(t, traceID, traceValues[0])
 }
 
 // T037: Test that interceptor propagates invoker errors.
 func TestTraceInterceptor_PropagatesInvokerError(t *testing.T) {
-	interceptor := TraceInterceptor()
+	interceptor := pluginhost.TraceInterceptor()
 
 	ctx := context.Background()
 	ctx = logging.ContextWithTraceID(ctx, "test-trace-id")
@@ -145,14 +146,14 @@ func TestTraceInterceptor_PropagatesInvokerError(t *testing.T) {
 
 // Test the TraceIDMetadataKey constant value.
 func TestTraceIDMetadataKey_Value(t *testing.T) {
-	assert.Equal(t, "x-finfocus-trace-id", TraceIDMetadataKey)
+	assert.Equal(t, "x-finfocus-trace-id", pluginhost.TraceIDMetadataKey)
 }
 
 func TestLoggedInterceptor(t *testing.T) {
 	// Capture logs
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf)
-	interceptor := LoggedInterceptor(logger)
+	interceptor := pluginhost.LoggedInterceptor(logger)
 
 	ctx := context.Background()
 	method := "/test.Service/Method"

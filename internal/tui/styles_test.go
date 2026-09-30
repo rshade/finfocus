@@ -1,4 +1,4 @@
-package tui
+package tui_test
 
 import (
 	"image/color"
@@ -6,6 +6,8 @@ import (
 
 	"charm.land/lipgloss/v2"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 // TestStyleDefinitions verifies that styles are properly initialized with
@@ -18,15 +20,15 @@ func TestStyleDefinitions(t *testing.T) {
 		wantBold  bool
 		wantColor color.Color
 	}{
-		{name: "HeaderStyle", style: HeaderStyle, wantBold: true, wantColor: ColorHeader},
-		{name: "LabelStyle", style: LabelStyle, wantColor: ColorLabel},
-		{name: "ValueStyle", style: ValueStyle, wantColor: ColorValue},
-		{name: "OKStyle", style: OKStyle, wantBold: true, wantColor: ColorOK},
-		{name: "WarningStyle", style: WarningStyle, wantBold: true, wantColor: ColorWarning},
-		{name: "CriticalStyle", style: CriticalStyle, wantBold: true, wantColor: ColorCritical},
-		{name: "InfoStyle", style: InfoStyle, wantBold: true, wantColor: ColorInfo},
-		{name: "TableHeaderStyle", style: TableHeaderStyle, wantBold: true, wantColor: ColorHeader},
-		{name: "TableSelectedStyle", style: TableSelectedStyle, wantColor: ColorHighlight},
+		{name: "HeaderStyle", style: tui.HeaderStyle, wantBold: true, wantColor: tui.ColorHeader},
+		{name: "LabelStyle", style: tui.LabelStyle, wantColor: tui.ColorLabel},
+		{name: "ValueStyle", style: tui.ValueStyle, wantColor: tui.ColorValue},
+		{name: "OKStyle", style: tui.OKStyle, wantBold: true, wantColor: tui.ColorOK},
+		{name: "WarningStyle", style: tui.WarningStyle, wantBold: true, wantColor: tui.ColorWarning},
+		{name: "CriticalStyle", style: tui.CriticalStyle, wantBold: true, wantColor: tui.ColorCritical},
+		{name: "InfoStyle", style: tui.InfoStyle, wantBold: true, wantColor: tui.ColorInfo},
+		{name: "TableHeaderStyle", style: tui.TableHeaderStyle, wantBold: true, wantColor: tui.ColorHeader},
+		{name: "TableSelectedStyle", style: tui.TableSelectedStyle, wantColor: tui.ColorHighlight},
 	}
 
 	for _, tt := range tests {
@@ -40,12 +42,12 @@ func TestStyleDefinitions(t *testing.T) {
 func TestStyleDefinitions_Padding(t *testing.T) {
 	t.Run("BoxStyle", func(t *testing.T) {
 		// BoxStyle should have padding (returns top, right, bottom, left).
-		top, right, bottom, left := BoxStyle.GetPadding()
+		top, right, bottom, left := tui.BoxStyle.GetPadding()
 		assert.NotZero(t, top+right+bottom+left, "BoxStyle should have padding")
 	})
 
 	t.Run("TableHeaderStyle", func(t *testing.T) {
-		top, right, bottom, left := TableHeaderStyle.GetPadding()
+		top, right, bottom, left := tui.TableHeaderStyle.GetPadding()
 		assert.Equal(t, 0, top, "TableHeaderStyle top padding")
 		assert.Equal(t, 1, right, "TableHeaderStyle right padding")
 		assert.Equal(t, 0, bottom, "TableHeaderStyle bottom padding")

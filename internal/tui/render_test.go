@@ -1,8 +1,10 @@
-package tui
+package tui_test
 
 import (
 	"math"
 	"testing"
+
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 func TestFormatMoney(t *testing.T) {
@@ -24,7 +26,7 @@ func TestFormatMoney(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatMoney(tt.amount, tt.currency)
+			result := tui.FormatMoney(tt.amount, tt.currency)
 			if result != tt.expected {
 				t.Errorf(
 					"FormatMoney(%.2f, %q) = %q, expected %q",
@@ -55,7 +57,7 @@ func TestFormatMoneyShort(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatMoneyShort(tt.amount)
+			result := tui.FormatMoneyShort(tt.amount)
 			if result != tt.expected {
 				t.Errorf("FormatMoneyShort(%.2f) = %q, expected %q", tt.amount, result, tt.expected)
 			}
@@ -80,7 +82,7 @@ func TestFormatPercent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := FormatPercent(tt.value)
+			result := tui.FormatPercent(tt.value)
 			if result != tt.expected {
 				t.Errorf("FormatPercent(%.3f) = %q, expected %q", tt.value, result, tt.expected)
 			}
@@ -96,38 +98,38 @@ func TestMoneyFormatting_EdgeCases(t *testing.T) {
 	}{
 		{
 			"FormatMoney with NaN",
-			func() string { return FormatMoney(math.NaN(), "USD") },
+			func() string { return tui.FormatMoney(math.NaN(), "USD") },
 			"$0.00 USD",
 		},
 		{
 			"FormatMoneyShort with NaN",
-			func() string { return FormatMoneyShort(math.NaN()) },
+			func() string { return tui.FormatMoneyShort(math.NaN()) },
 			"$0.00",
 		},
-		{"FormatPercent with NaN", func() string { return FormatPercent(math.NaN()) }, "0.0%"},
+		{"FormatPercent with NaN", func() string { return tui.FormatPercent(math.NaN()) }, "0.0%"},
 		// +Inf and -Inf should be handled gracefully
 		{
 			"FormatMoney with +Inf",
-			func() string { return FormatMoney(math.Inf(1), "USD") },
+			func() string { return tui.FormatMoney(math.Inf(1), "USD") },
 			"$0.00 USD",
 		},
 		{
 			"FormatMoneyShort with +Inf",
-			func() string { return FormatMoneyShort(math.Inf(1)) },
+			func() string { return tui.FormatMoneyShort(math.Inf(1)) },
 			"$0.00",
 		},
-		{"FormatPercent with +Inf", func() string { return FormatPercent(math.Inf(1)) }, "0.0%"},
+		{"FormatPercent with +Inf", func() string { return tui.FormatPercent(math.Inf(1)) }, "0.0%"},
 		{
 			"FormatMoney with -Inf",
-			func() string { return FormatMoney(math.Inf(-1), "USD") },
+			func() string { return tui.FormatMoney(math.Inf(-1), "USD") },
 			"$0.00 USD",
 		},
 		{
 			"FormatMoneyShort with -Inf",
-			func() string { return FormatMoneyShort(math.Inf(-1)) },
+			func() string { return tui.FormatMoneyShort(math.Inf(-1)) },
 			"$0.00",
 		},
-		{"FormatPercent with -Inf", func() string { return FormatPercent(math.Inf(-1)) }, "0.0%"},
+		{"FormatPercent with -Inf", func() string { return tui.FormatPercent(math.Inf(-1)) }, "0.0%"},
 	}
 
 	for _, tt := range tests {

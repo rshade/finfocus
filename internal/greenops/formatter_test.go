@@ -1,9 +1,11 @@
-package greenops
+package greenops_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/greenops"
 )
 
 func TestFormatNumber(t *testing.T) {
@@ -51,7 +53,7 @@ func TestFormatNumber(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatNumber(tt.n)
+			got := greenops.FormatNumber(tt.n)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -110,7 +112,7 @@ func TestFormatFloat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatFloat(tt.f, tt.precision)
+			got := greenops.FormatFloat(tt.f, tt.precision)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -166,7 +168,7 @@ func TestFormatLarge(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatLarge(tt.n)
+			got := greenops.FormatLarge(tt.n)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -176,18 +178,18 @@ func TestFormatLarge(t *testing.T) {
 
 func BenchmarkFormatNumber(b *testing.B) {
 	for b.Loop() {
-		FormatNumber(18248)
+		greenops.FormatNumber(18248)
 	}
 }
 
 func BenchmarkFormatFloat(b *testing.B) {
 	for b.Loop() {
-		FormatFloat(1234.5678, 2)
+		greenops.FormatFloat(1234.5678, 2)
 	}
 }
 
 func BenchmarkFormatLarge(b *testing.B) {
 	for b.Loop() {
-		FormatLarge(52000000)
+		greenops.FormatLarge(52000000)
 	}
 }

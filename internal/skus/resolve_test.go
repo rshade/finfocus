@@ -1,9 +1,11 @@
-package skus
+package skus_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/skus"
 )
 
 func TestResolveSKU(t *testing.T) {
@@ -67,7 +69,7 @@ func TestResolveSKU(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := ResolveSKU(tt.provider, tt.resourceType, tt.properties)
+			result := skus.ResolveSKU(tt.provider, tt.resourceType, tt.properties)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

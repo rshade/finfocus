@@ -1,4 +1,4 @@
-package engine
+package engine_test
 
 import (
 	"testing"
@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // ---------------------------------------------------------------------------
@@ -15,19 +16,19 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestApplyDismissalDeltaToRow_NoRecords(t *testing.T) {
-	row := OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
-	ApplyDismissalDeltaToRow(&row, nil)
+	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
+	engine.ApplyDismissalDeltaToRow(&row, nil)
 	assert.Empty(t, row.Recommendations)
 }
 
 func TestApplyDismissalDeltaToRow_EmptyRecords(t *testing.T) {
-	row := OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
-	ApplyDismissalDeltaToRow(&row, map[string]*config.DismissalRecord{})
+	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
+	engine.ApplyDismissalDeltaToRow(&row, map[string]*config.DismissalRecord{})
 	assert.Empty(t, row.Recommendations)
 }
 
 func TestApplyDismissalDeltaToRow_ActiveRecordSkipped(t *testing.T) {
-	row := OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
+	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-1": {
 			RecommendationID: "rec-1",
@@ -38,12 +39,12 @@ func TestApplyDismissalDeltaToRow_ActiveRecordSkipped(t *testing.T) {
 			},
 		},
 	}
-	ApplyDismissalDeltaToRow(&row, records)
+	engine.ApplyDismissalDeltaToRow(&row, records)
 	assert.Empty(t, row.Recommendations)
 }
 
 func TestApplyDismissalDeltaToRow_DismissedRecAppended(t *testing.T) {
-	row := OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
+	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-1": {
 			RecommendationID: "rec-1",
@@ -57,10 +58,10 @@ func TestApplyDismissalDeltaToRow_DismissedRecAppended(t *testing.T) {
 			},
 		},
 	}
-	ApplyDismissalDeltaToRow(&row, records)
+	engine.ApplyDismissalDeltaToRow(&row, records)
 	require.Len(t, row.Recommendations, 1)
 	rec := row.Recommendations[0]
-	assert.Equal(t, RecommendationStatusDismissed, rec.Status)
+	assert.Equal(t, engine.RecommendationStatusDismissed, rec.Status)
 	assert.Equal(t, "i-123", rec.ResourceID)
 	assert.Equal(t, "Right-sizing", rec.Type)
 	assert.Equal(t, "Downsize to t3.small", rec.Description)
@@ -70,7 +71,7 @@ func TestApplyDismissalDeltaToRow_DismissedRecAppended(t *testing.T) {
 
 func TestApplyDismissalDeltaToRow_SnoozedRecAppended(t *testing.T) {
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
-	row := OverviewRow{URN: "urn:test", ResourceID: "i-456", Type: "aws:ec2:Instance"}
+	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-456", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-2": {
 			RecommendationID: "rec-2",
@@ -85,13 +86,13 @@ func TestApplyDismissalDeltaToRow_SnoozedRecAppended(t *testing.T) {
 			},
 		},
 	}
-	ApplyDismissalDeltaToRow(&row, records)
+	engine.ApplyDismissalDeltaToRow(&row, records)
 	require.Len(t, row.Recommendations, 1)
-	assert.Equal(t, RecommendationStatusSnoozed, row.Recommendations[0].Status)
+	assert.Equal(t, engine.RecommendationStatusSnoozed, row.Recommendations[0].Status)
 }
 
 func TestApplyDismissalDeltaToRow_NoLastKnownSkipped(t *testing.T) {
-	row := OverviewRow{URN: "urn:test", ResourceID: "i-789", Type: "aws:ec2:Instance"}
+	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-789", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-3": {
 			RecommendationID: "rec-3",
@@ -99,13 +100,13 @@ func TestApplyDismissalDeltaToRow_NoLastKnownSkipped(t *testing.T) {
 			LastKnown:        nil, // No LastKnown — cannot match to a row.
 		},
 	}
-	ApplyDismissalDeltaToRow(&row, records)
+	engine.ApplyDismissalDeltaToRow(&row, records)
 	assert.Empty(t, row.Recommendations)
 }
 
 func TestApplyDismissalDeltaToRow_URNFallbackMatch(t *testing.T) {
 	// ResourceID is empty; match by URN instead.
-	row := OverviewRow{
+	row := engine.OverviewRow{
 		URN:        "urn:pulumi:stack::proj::aws:ec2:Instance::my-instance",
 		ResourceID: "",
 		Type:       "aws:ec2:Instance",
@@ -120,13 +121,13 @@ func TestApplyDismissalDeltaToRow_URNFallbackMatch(t *testing.T) {
 			},
 		},
 	}
-	ApplyDismissalDeltaToRow(&row, records)
+	engine.ApplyDismissalDeltaToRow(&row, records)
 	require.Len(t, row.Recommendations, 1)
-	assert.Equal(t, RecommendationStatusDismissed, row.Recommendations[0].Status)
+	assert.Equal(t, engine.RecommendationStatusDismissed, row.Recommendations[0].Status)
 }
 
 func TestApplyDismissalDeltaToRow_NonMatchingResourceIDSkipped(t *testing.T) {
-	row := OverviewRow{URN: "urn:test", ResourceID: "i-111", Type: "aws:ec2:Instance"}
+	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-111", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-5": {
 			RecommendationID: "rec-5",
@@ -137,12 +138,12 @@ func TestApplyDismissalDeltaToRow_NonMatchingResourceIDSkipped(t *testing.T) {
 			},
 		},
 	}
-	ApplyDismissalDeltaToRow(&row, records)
+	engine.ApplyDismissalDeltaToRow(&row, records)
 	assert.Empty(t, row.Recommendations)
 }
 
 func TestApplyDismissalDeltaToRow_MultipleMatchesAppended(t *testing.T) {
-	row := OverviewRow{URN: "urn:test", ResourceID: "i-222", Type: "aws:ec2:Instance"}
+	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-222", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-a": {
 			RecommendationID: "rec-a",
@@ -161,24 +162,24 @@ func TestApplyDismissalDeltaToRow_MultipleMatchesAppended(t *testing.T) {
 			},
 		},
 	}
-	ApplyDismissalDeltaToRow(&row, records)
+	engine.ApplyDismissalDeltaToRow(&row, records)
 	assert.Len(t, row.Recommendations, 2)
 
-	statusSet := make(map[RecommendationStatus]bool)
+	statusSet := make(map[engine.RecommendationStatus]bool)
 	for _, r := range row.Recommendations {
 		statusSet[r.Status] = true
 	}
-	assert.True(t, statusSet[RecommendationStatusDismissed])
-	assert.True(t, statusSet[RecommendationStatusSnoozed])
+	assert.True(t, statusSet[engine.RecommendationStatusDismissed])
+	assert.True(t, statusSet[engine.RecommendationStatusSnoozed])
 }
 
 func TestApplyDismissalDeltaToRow_PreservesExistingActiveRecs(t *testing.T) {
-	row := OverviewRow{
+	row := engine.OverviewRow{
 		URN:        "urn:test",
 		ResourceID: "i-333",
 		Type:       "aws:ec2:Instance",
-		Recommendations: []Recommendation{
-			{ResourceID: "i-333", Type: "Purchase Commitment", Status: RecommendationStatusActive},
+		Recommendations: []engine.Recommendation{
+			{ResourceID: "i-333", Type: "Purchase Commitment", Status: engine.RecommendationStatusActive},
 		},
 	}
 	records := map[string]*config.DismissalRecord{
@@ -191,12 +192,12 @@ func TestApplyDismissalDeltaToRow_PreservesExistingActiveRecs(t *testing.T) {
 			},
 		},
 	}
-	ApplyDismissalDeltaToRow(&row, records)
+	engine.ApplyDismissalDeltaToRow(&row, records)
 	require.Len(t, row.Recommendations, 2)
 	// First rec remains active.
-	assert.Equal(t, RecommendationStatusActive, row.Recommendations[0].Status)
+	assert.Equal(t, engine.RecommendationStatusActive, row.Recommendations[0].Status)
 	// Second rec is the appended dismissed stub.
-	assert.Equal(t, RecommendationStatusDismissed, row.Recommendations[1].Status)
+	assert.Equal(t, engine.RecommendationStatusDismissed, row.Recommendations[1].Status)
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +207,7 @@ func TestApplyDismissalDeltaToRow_PreservesExistingActiveRecs(t *testing.T) {
 func TestCountRecsActiveAndDismissed(t *testing.T) {
 	tests := []struct {
 		name          string
-		recs          []Recommendation
+		recs          []engine.Recommendation
 		wantActive    int
 		wantDismissed int
 	}{
@@ -218,8 +219,8 @@ func TestCountRecsActiveAndDismissed(t *testing.T) {
 		},
 		{
 			name: "all_active",
-			recs: []Recommendation{
-				{Status: RecommendationStatusActive},
+			recs: []engine.Recommendation{
+				{Status: engine.RecommendationStatusActive},
 				{Status: ""},
 			},
 			wantActive:    2,
@@ -227,20 +228,20 @@ func TestCountRecsActiveAndDismissed(t *testing.T) {
 		},
 		{
 			name: "all_dismissed",
-			recs: []Recommendation{
-				{Status: RecommendationStatusDismissed},
-				{Status: RecommendationStatusSnoozed},
+			recs: []engine.Recommendation{
+				{Status: engine.RecommendationStatusDismissed},
+				{Status: engine.RecommendationStatusSnoozed},
 			},
 			wantActive:    0,
 			wantDismissed: 2,
 		},
 		{
 			name: "mixed",
-			recs: []Recommendation{
-				{Status: RecommendationStatusActive},
-				{Status: RecommendationStatusDismissed},
+			recs: []engine.Recommendation{
+				{Status: engine.RecommendationStatusActive},
+				{Status: engine.RecommendationStatusDismissed},
 				{Status: ""},
-				{Status: RecommendationStatusSnoozed},
+				{Status: engine.RecommendationStatusSnoozed},
 			},
 			wantActive:    2,
 			wantDismissed: 2,
@@ -249,7 +250,7 @@ func TestCountRecsActiveAndDismissed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			active, dismissed := CountRecsActiveAndDismissed(tt.recs)
+			active, dismissed := engine.CountRecsActiveAndDismissed(tt.recs)
 			assert.Equal(t, tt.wantActive, active, "active count mismatch")
 			assert.Equal(t, tt.wantDismissed, dismissed, "dismissed count mismatch")
 		})

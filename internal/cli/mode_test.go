@@ -1,9 +1,11 @@
-package cli
+package cli_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/cli"
 )
 
 func TestDetectPluginMode(t *testing.T) {
@@ -71,7 +73,7 @@ func TestDetectPluginMode(t *testing.T) {
 				val, ok := tt.env[key]
 				return val, ok
 			}
-			got := DetectPluginMode(tt.args, lookupEnv)
+			got := cli.DetectPluginMode(tt.args, lookupEnv)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -80,30 +82,30 @@ func TestDetectPluginMode(t *testing.T) {
 func TestDetectPluginMode_EdgeCases(t *testing.T) {
 	t.Run("nil lookupEnv does not panic", func(t *testing.T) {
 		// Should not panic when lookupEnv is nil - just skip env var detection
-		got := DetectPluginMode([]string{"/usr/bin/finfocus"}, nil)
+		got := cli.DetectPluginMode([]string{"/usr/bin/finfocus"}, nil)
 		assert.False(t, got)
 	})
 
 	t.Run("nil lookupEnv with plugin binary name", func(t *testing.T) {
 		// Binary name detection should still work even with nil lookupEnv
-		got := DetectPluginMode([]string{"/usr/bin/pulumi-tool-cost"}, nil)
+		got := cli.DetectPluginMode([]string{"/usr/bin/pulumi-tool-cost"}, nil)
 		assert.True(t, got)
 	})
 
 	t.Run("nil args does not panic", func(t *testing.T) {
 		lookupEnv := func(_ string) (string, bool) { return "", false }
-		got := DetectPluginMode(nil, lookupEnv)
+		got := cli.DetectPluginMode(nil, lookupEnv)
 		assert.False(t, got)
 	})
 
 	t.Run("empty args does not panic", func(t *testing.T) {
 		lookupEnv := func(_ string) (string, bool) { return "", false }
-		got := DetectPluginMode([]string{}, lookupEnv)
+		got := cli.DetectPluginMode([]string{}, lookupEnv)
 		assert.False(t, got)
 	})
 
 	t.Run("both nil does not panic", func(t *testing.T) {
-		got := DetectPluginMode(nil, nil)
+		got := cli.DetectPluginMode(nil, nil)
 		assert.False(t, got)
 	})
 }

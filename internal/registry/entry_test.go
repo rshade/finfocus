@@ -1,21 +1,23 @@
-package registry
+package registry_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/registry"
 )
 
 func TestValidateRegistryEntry(t *testing.T) {
 	tests := []struct {
 		name    string
-		entry   RegistryEntry
+		entry   registry.RegistryEntry
 		wantErr bool
 	}{
 		{
 			name: "valid entry",
-			entry: RegistryEntry{
+			entry: registry.RegistryEntry{
 				Name:          "test-plugin",
 				Repository:    "owner/repo",
 				SecurityLevel: "community",
@@ -24,21 +26,21 @@ func TestValidateRegistryEntry(t *testing.T) {
 		},
 		{
 			name: "missing name",
-			entry: RegistryEntry{
+			entry: registry.RegistryEntry{
 				Repository: "owner/repo",
 			},
 			wantErr: true,
 		},
 		{
 			name: "missing repository",
-			entry: RegistryEntry{
+			entry: registry.RegistryEntry{
 				Name: "test-plugin",
 			},
 			wantErr: true,
 		},
 		{
 			name: "invalid repository format",
-			entry: RegistryEntry{
+			entry: registry.RegistryEntry{
 				Name:       "test-plugin",
 				Repository: "invalid",
 			},
@@ -46,7 +48,7 @@ func TestValidateRegistryEntry(t *testing.T) {
 		},
 		{
 			name: "invalid security level",
-			entry: RegistryEntry{
+			entry: registry.RegistryEntry{
 				Name:          "test-plugin",
 				Repository:    "owner/repo",
 				SecurityLevel: "invalid",
@@ -55,7 +57,7 @@ func TestValidateRegistryEntry(t *testing.T) {
 		},
 		{
 			name: "valid official security level",
-			entry: RegistryEntry{
+			entry: registry.RegistryEntry{
 				Name:          "test-plugin",
 				Repository:    "owner/repo",
 				SecurityLevel: "official",
@@ -64,7 +66,7 @@ func TestValidateRegistryEntry(t *testing.T) {
 		},
 		{
 			name: "valid experimental security level",
-			entry: RegistryEntry{
+			entry: registry.RegistryEntry{
 				Name:          "test-plugin",
 				Repository:    "owner/repo",
 				SecurityLevel: "experimental",
@@ -75,7 +77,7 @@ func TestValidateRegistryEntry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateRegistryEntry(tt.entry)
+			err := registry.ValidateRegistryEntry(tt.entry)
 			if tt.wantErr {
 				require.Error(t, err)
 			} else {
@@ -86,16 +88,16 @@ func TestValidateRegistryEntry(t *testing.T) {
 }
 
 func TestValidateRegistryEntry_TagPrefix(t *testing.T) {
-	base := RegistryEntry{Name: "kubernetes", Repository: "rshade/finfocus"}
+	base := registry.RegistryEntry{Name: "kubernetes", Repository: "rshade/finfocus"}
 	for _, p := range []string{"", "kubernetes-", "k8s-alloc-"} {
 		e := base
 		e.TagPrefix = p
-		require.NoError(t, ValidateRegistryEntry(e), "prefix %q", p)
+		require.NoError(t, registry.ValidateRegistryEntry(e), "prefix %q", p)
 	}
 	for _, p := range []string{"kubernetes", "Kubernetes-", "-", "kube/", "v", "vantage-", "v1-"} {
 		e := base
 		e.TagPrefix = p
-		err := ValidateRegistryEntry(e)
+		err := registry.ValidateRegistryEntry(e)
 		require.Error(t, err, "prefix %q", p)
 		assert.Contains(t, err.Error(), "tag_prefix")
 	}
@@ -152,7 +154,7 @@ func TestParsePluginSpecifier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := ParsePluginSpecifier(tt.spec)
+			result, err := registry.ParsePluginSpecifier(tt.spec)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
@@ -193,7 +195,7 @@ func TestParseGitHubURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			owner, repo, err := ParseGitHubURL(tt.url)
+			owner, repo, err := registry.ParseGitHubURL(tt.url)
 			if tt.wantErr {
 				require.Error(t, err)
 				return

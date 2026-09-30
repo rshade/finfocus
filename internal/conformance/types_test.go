@@ -1,4 +1,4 @@
-package conformance
+package conformance_test
 
 import (
 	"testing"
@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/conformance"
 )
 
 func TestStatus_Constants(t *testing.T) {
@@ -13,13 +15,13 @@ func TestStatus_Constants(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		status   Status
+		status   conformance.Status
 		expected string
 	}{
-		{"pass status", StatusPass, "pass"},
-		{"fail status", StatusFail, "fail"},
-		{"skip status", StatusSkip, "skip"},
-		{"error status", StatusError, "error"},
+		{"pass status", conformance.StatusPass, "pass"},
+		{"fail status", conformance.StatusFail, "fail"},
+		{"skip status", conformance.StatusSkip, "skip"},
+		{"error status", conformance.StatusError, "error"},
 	}
 
 	for _, tc := range tests {
@@ -35,13 +37,13 @@ func TestCategory_Constants(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		category Category
+		category conformance.Category
 		expected string
 	}{
-		{"protocol category", CategoryProtocol, "protocol"},
-		{"performance category", CategoryPerformance, "performance"},
-		{"error category", CategoryError, "error"},
-		{"context category", CategoryContext, "context"},
+		{"protocol category", conformance.CategoryProtocol, "protocol"},
+		{"performance category", conformance.CategoryPerformance, "performance"},
+		{"error category", conformance.CategoryError, "error"},
+		{"context category", conformance.CategoryContext, "context"},
 	}
 
 	for _, tc := range tests {
@@ -55,13 +57,13 @@ func TestCategory_Constants(t *testing.T) {
 func TestAllCategories(t *testing.T) {
 	t.Parallel()
 
-	categories := AllCategories()
+	categories := conformance.AllCategories()
 
 	require.Len(t, categories, 4)
-	assert.Contains(t, categories, CategoryProtocol)
-	assert.Contains(t, categories, CategoryPerformance)
-	assert.Contains(t, categories, CategoryError)
-	assert.Contains(t, categories, CategoryContext)
+	assert.Contains(t, categories, conformance.CategoryProtocol)
+	assert.Contains(t, categories, conformance.CategoryPerformance)
+	assert.Contains(t, categories, conformance.CategoryError)
+	assert.Contains(t, categories, conformance.CategoryContext)
 }
 
 func TestIsValidCategory(t *testing.T) {
@@ -84,7 +86,7 @@ func TestIsValidCategory(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.expected, IsValidCategory(tc.category))
+			assert.Equal(t, tc.expected, conformance.IsValidCategory(tc.category))
 		})
 	}
 }
@@ -94,13 +96,13 @@ func TestVerbosity_Constants(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		verbosity Verbosity
+		verbosity conformance.Verbosity
 		expected  string
 	}{
-		{"quiet verbosity", VerbosityQuiet, "quiet"},
-		{"normal verbosity", VerbosityNormal, "normal"},
-		{"verbose verbosity", VerbosityVerbose, "verbose"},
-		{"debug verbosity", VerbosityDebug, "debug"},
+		{"quiet verbosity", conformance.VerbosityQuiet, "quiet"},
+		{"normal verbosity", conformance.VerbosityNormal, "normal"},
+		{"verbose verbosity", conformance.VerbosityVerbose, "verbose"},
+		{"debug verbosity", conformance.VerbosityDebug, "debug"},
 	}
 
 	for _, tc := range tests {
@@ -131,7 +133,7 @@ func TestIsValidVerbosity(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.expected, IsValidVerbosity(tc.verbosity))
+			assert.Equal(t, tc.expected, conformance.IsValidVerbosity(tc.verbosity))
 		})
 	}
 }
@@ -141,11 +143,11 @@ func TestCommMode_Constants(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		commMode CommMode
+		commMode conformance.CommMode
 		expected string
 	}{
-		{"tcp mode", CommModeTCP, "tcp"},
-		{"stdio mode", CommModeStdio, "stdio"},
+		{"tcp mode", conformance.CommModeTCP, "tcp"},
+		{"stdio mode", conformance.CommModeStdio, "stdio"},
 	}
 
 	for _, tc := range tests {
@@ -174,7 +176,7 @@ func TestIsValidCommMode(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tc.expected, IsValidCommMode(tc.mode))
+			assert.Equal(t, tc.expected, conformance.IsValidCommMode(tc.mode))
 		})
 	}
 }
@@ -182,16 +184,16 @@ func TestIsValidCommMode(t *testing.T) {
 func TestTestCase(t *testing.T) {
 	t.Parallel()
 
-	tc := TestCase{
+	tc := conformance.TestCase{
 		Name:            "Name_ReturnsPluginIdentifier",
-		Category:        CategoryProtocol,
+		Category:        conformance.CategoryProtocol,
 		Description:     "Verifies plugin returns its identifier via Name RPC",
 		Timeout:         5 * time.Second,
 		RequiredMethods: []string{"Name"},
 	}
 
 	assert.Equal(t, "Name_ReturnsPluginIdentifier", tc.Name)
-	assert.Equal(t, CategoryProtocol, tc.Category)
+	assert.Equal(t, conformance.CategoryProtocol, tc.Category)
 	assert.Equal(t, "Verifies plugin returns its identifier via Name RPC", tc.Description)
 	assert.Equal(t, 5*time.Second, tc.Timeout)
 	assert.Equal(t, []string{"Name"}, tc.RequiredMethods)
@@ -201,17 +203,17 @@ func TestTestResult(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
-	result := TestResult{
+	result := conformance.TestResult{
 		TestName:  "Name_ReturnsPluginIdentifier",
-		Category:  CategoryProtocol,
-		Status:    StatusPass,
+		Category:  conformance.CategoryProtocol,
+		Status:    conformance.StatusPass,
 		Duration:  50 * time.Millisecond,
 		Timestamp: now,
 	}
 
 	assert.Equal(t, "Name_ReturnsPluginIdentifier", result.TestName)
-	assert.Equal(t, CategoryProtocol, result.Category)
-	assert.Equal(t, StatusPass, result.Status)
+	assert.Equal(t, conformance.CategoryProtocol, result.Category)
+	assert.Equal(t, conformance.StatusPass, result.Status)
 	assert.Equal(t, 50*time.Millisecond, result.Duration)
 	assert.Equal(t, now, result.Timestamp)
 	assert.Empty(t, result.Error)
@@ -221,16 +223,16 @@ func TestTestResult(t *testing.T) {
 func TestTestResult_WithError(t *testing.T) {
 	t.Parallel()
 
-	result := TestResult{
+	result := conformance.TestResult{
 		TestName: "GetProjectedCost_InvalidResource",
-		Category: CategoryError,
-		Status:   StatusFail,
+		Category: conformance.CategoryError,
+		Status:   conformance.StatusFail,
 		Duration: 110 * time.Millisecond,
 		Error:    "expected NotFound, got InvalidArgument",
 		Details:  "Request: {...}, Response: {...}",
 	}
 
-	assert.Equal(t, StatusFail, result.Status)
+	assert.Equal(t, conformance.StatusFail, result.Status)
 	assert.Equal(t, "expected NotFound, got InvalidArgument", result.Error)
 	assert.Equal(t, "Request: {...}, Response: {...}", result.Details)
 }
@@ -238,25 +240,25 @@ func TestTestResult_WithError(t *testing.T) {
 func TestPluginUnderTest(t *testing.T) {
 	t.Parallel()
 
-	plugin := PluginUnderTest{
+	plugin := conformance.PluginUnderTest{
 		Path:            "/path/to/plugin",
 		Name:            "aws-cost",
 		Version:         "1.2.0",
 		ProtocolVersion: "1.0",
-		CommMode:        CommModeTCP,
+		CommMode:        conformance.CommModeTCP,
 	}
 
 	assert.Equal(t, "/path/to/plugin", plugin.Path)
 	assert.Equal(t, "aws-cost", plugin.Name)
 	assert.Equal(t, "1.2.0", plugin.Version)
 	assert.Equal(t, "1.0", plugin.ProtocolVersion)
-	assert.Equal(t, CommModeTCP, plugin.CommMode)
+	assert.Equal(t, conformance.CommModeTCP, plugin.CommMode)
 }
 
 func TestSuiteConfig_Defaults(t *testing.T) {
 	t.Parallel()
 
-	cfg := SuiteConfig{
+	cfg := conformance.SuiteConfig{
 		PluginPath: "/path/to/plugin",
 	}
 
@@ -271,20 +273,20 @@ func TestSuiteConfig_Defaults(t *testing.T) {
 func TestSuiteConfig_FullConfiguration(t *testing.T) {
 	t.Parallel()
 
-	cfg := SuiteConfig{
+	cfg := conformance.SuiteConfig{
 		PluginPath:   "/path/to/plugin",
-		CommMode:     CommModeTCP,
-		Verbosity:    VerbosityVerbose,
+		CommMode:     conformance.CommModeTCP,
+		Verbosity:    conformance.VerbosityVerbose,
 		OutputFormat: "json",
 		OutputPath:   "/path/to/output.json",
 		Timeout:      10 * time.Minute,
-		Categories:   []Category{CategoryProtocol, CategoryError},
+		Categories:   []conformance.Category{conformance.CategoryProtocol, conformance.CategoryError},
 		TestFilter:   "Name_.*",
 	}
 
 	assert.Equal(t, "/path/to/plugin", cfg.PluginPath)
-	assert.Equal(t, CommModeTCP, cfg.CommMode)
-	assert.Equal(t, VerbosityVerbose, cfg.Verbosity)
+	assert.Equal(t, conformance.CommModeTCP, cfg.CommMode)
+	assert.Equal(t, conformance.VerbosityVerbose, cfg.Verbosity)
 	assert.Equal(t, "json", cfg.OutputFormat)
 	assert.Equal(t, "/path/to/output.json", cfg.OutputPath)
 	assert.Equal(t, 10*time.Minute, cfg.Timeout)
@@ -295,7 +297,7 @@ func TestSuiteConfig_FullConfiguration(t *testing.T) {
 func TestSummary(t *testing.T) {
 	t.Parallel()
 
-	summary := Summary{
+	summary := conformance.Summary{
 		Total:   20,
 		Passed:  18,
 		Failed:  1,
@@ -319,31 +321,31 @@ func TestSuiteReport(t *testing.T) {
 	startTime := time.Now()
 	endTime := startTime.Add(4500 * time.Millisecond)
 
-	report := SuiteReport{
+	report := conformance.SuiteReport{
 		SuiteName: "conformance",
-		Plugin: PluginUnderTest{
+		Plugin: conformance.PluginUnderTest{
 			Path:            "/path/to/plugin",
 			Name:            "aws-cost",
 			Version:         "1.2.0",
 			ProtocolVersion: "1.0",
-			CommMode:        CommModeTCP,
+			CommMode:        conformance.CommModeTCP,
 		},
-		Results: []TestResult{
+		Results: []conformance.TestResult{
 			{
 				TestName: "Name_ReturnsPluginIdentifier",
-				Category: CategoryProtocol,
-				Status:   StatusPass,
+				Category: conformance.CategoryProtocol,
+				Status:   conformance.StatusPass,
 				Duration: 50 * time.Millisecond,
 			},
 			{
 				TestName: "GetProjectedCost_InvalidResource",
-				Category: CategoryError,
-				Status:   StatusFail,
+				Category: conformance.CategoryError,
+				Status:   conformance.StatusFail,
 				Duration: 110 * time.Millisecond,
 				Error:    "expected NotFound, got InvalidArgument",
 			},
 		},
-		Summary: Summary{
+		Summary: conformance.Summary{
 			Total:   20,
 			Passed:  18,
 			Failed:  1,
@@ -368,8 +370,8 @@ func TestSuiteReport(t *testing.T) {
 func TestConstants(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, 10*time.Second, DefaultTimeout)
-	assert.Equal(t, 5*time.Minute, DefaultSuiteTimeout)
-	assert.Equal(t, 1000, MaxBatchSize)
-	assert.Equal(t, "1.0", ProtocolVersion)
+	assert.Equal(t, 10*time.Second, conformance.DefaultTimeout)
+	assert.Equal(t, 5*time.Minute, conformance.DefaultSuiteTimeout)
+	assert.Equal(t, 1000, conformance.MaxBatchSize)
+	assert.Equal(t, "1.0", conformance.ProtocolVersion)
 }

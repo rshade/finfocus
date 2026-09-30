@@ -1,4 +1,4 @@
-package engine
+package engine_test
 
 import (
 	"context"
@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // ---------------------------------------------------------------------------
@@ -16,22 +18,22 @@ import (
 func TestMapOperationToStatus(t *testing.T) {
 	tests := []struct {
 		op     string
-		expect ResourceStatus
+		expect engine.ResourceStatus
 	}{
-		{"create", StatusCreating},
-		{"update", StatusUpdating},
-		{"delete", StatusDeleting},
-		{"replace", StatusReplacing},
-		{"create-replacement", StatusReplacing},
-		{"delete-replaced", StatusReplacing},
-		{"same", StatusActive},
-		{"refresh", StatusActive},
-		{"", StatusActive},
-		{"unknown-op", StatusActive},
+		{"create", engine.StatusCreating},
+		{"update", engine.StatusUpdating},
+		{"delete", engine.StatusDeleting},
+		{"replace", engine.StatusReplacing},
+		{"create-replacement", engine.StatusReplacing},
+		{"delete-replaced", engine.StatusReplacing},
+		{"same", engine.StatusActive},
+		{"refresh", engine.StatusActive},
+		{"", engine.StatusActive},
+		{"unknown-op", engine.StatusActive},
 	}
 	for _, tt := range tests {
 		t.Run(tt.op, func(t *testing.T) {
-			assert.Equal(t, tt.expect, MapOperationToStatus(tt.op))
+			assert.Equal(t, tt.expect, engine.MapOperationToStatus(tt.op))
 		})
 	}
 }
@@ -45,21 +47,21 @@ func TestMergeResourcesForOverview(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		stateResources []StateResource
-		planSteps      []PlanStep
+		stateResources []engine.StateResource
+		planSteps      []engine.PlanStep
 		wantLen        int
 		wantURNs       []string
-		wantStatuses   []ResourceStatus
+		wantStatuses   []engine.ResourceStatus
 	}{
 		{
 			name:         "empty state and plan",
 			wantLen:      0,
 			wantURNs:     []string{},
-			wantStatuses: []ResourceStatus{},
+			wantStatuses: []engine.ResourceStatus{},
 		},
 		{
 			name: "state only no plan changes",
-			stateResources: []StateResource{
+			stateResources: []engine.StateResource{
 				{
 					URN:    "urn:pulumi:stack::proj::aws:ec2:Instance::web",
 					Type:   "aws:ec2:Instance",
@@ -78,11 +80,11 @@ func TestMergeResourcesForOverview(t *testing.T) {
 				"urn:pulumi:stack::proj::aws:ec2:Instance::web",
 				"urn:pulumi:stack::proj::aws:s3:Bucket::data",
 			},
-			wantStatuses: []ResourceStatus{StatusActive, StatusActive},
+			wantStatuses: []engine.ResourceStatus{engine.StatusActive, engine.StatusActive},
 		},
 		{
 			name: "filters out non-custom resources",
-			stateResources: []StateResource{
+			stateResources: []engine.StateResource{
 				{
 					URN:    "urn:pulumi:stack::proj::pulumi:providers:aws::default",
 					Type:   "pulumi:providers:aws",
@@ -97,11 +99,11 @@ func TestMergeResourcesForOverview(t *testing.T) {
 			},
 			wantLen:      1,
 			wantURNs:     []string{"urn:pulumi:stack::proj::aws:ec2:Instance::web"},
-			wantStatuses: []ResourceStatus{StatusActive},
+			wantStatuses: []engine.ResourceStatus{engine.StatusActive},
 		},
 		{
 			name: "state resource with matching plan update",
-			stateResources: []StateResource{
+			stateResources: []engine.StateResource{
 				{
 					URN:    "urn:pulumi:stack::proj::aws:ec2:Instance::web",
 					Type:   "aws:ec2:Instance",
@@ -109,16 +111,16 @@ func TestMergeResourcesForOverview(t *testing.T) {
 					Custom: true,
 				},
 			},
-			planSteps: []PlanStep{
+			planSteps: []engine.PlanStep{
 				{URN: "urn:pulumi:stack::proj::aws:ec2:Instance::web", Op: "update", Type: "aws:ec2:Instance"},
 			},
 			wantLen:      1,
 			wantURNs:     []string{"urn:pulumi:stack::proj::aws:ec2:Instance::web"},
-			wantStatuses: []ResourceStatus{StatusUpdating},
+			wantStatuses: []engine.ResourceStatus{engine.StatusUpdating},
 		},
 		{
 			name: "state resource with matching plan delete",
-			stateResources: []StateResource{
+			stateResources: []engine.StateResource{
 				{
 					URN:    "urn:pulumi:stack::proj::aws:ec2:Instance::web",
 					Type:   "aws:ec2:Instance",
@@ -126,16 +128,16 @@ func TestMergeResourcesForOverview(t *testing.T) {
 					Custom: true,
 				},
 			},
-			planSteps: []PlanStep{
+			planSteps: []engine.PlanStep{
 				{URN: "urn:pulumi:stack::proj::aws:ec2:Instance::web", Op: "delete", Type: "aws:ec2:Instance"},
 			},
 			wantLen:      1,
 			wantURNs:     []string{"urn:pulumi:stack::proj::aws:ec2:Instance::web"},
-			wantStatuses: []ResourceStatus{StatusDeleting},
+			wantStatuses: []engine.ResourceStatus{engine.StatusDeleting},
 		},
 		{
 			name: "state resource with matching plan replace",
-			stateResources: []StateResource{
+			stateResources: []engine.StateResource{
 				{
 					URN:    "urn:pulumi:stack::proj::aws:ec2:Instance::web",
 					Type:   "aws:ec2:Instance",
@@ -143,16 +145,16 @@ func TestMergeResourcesForOverview(t *testing.T) {
 					Custom: true,
 				},
 			},
-			planSteps: []PlanStep{
+			planSteps: []engine.PlanStep{
 				{URN: "urn:pulumi:stack::proj::aws:ec2:Instance::web", Op: "replace", Type: "aws:ec2:Instance"},
 			},
 			wantLen:      1,
 			wantURNs:     []string{"urn:pulumi:stack::proj::aws:ec2:Instance::web"},
-			wantStatuses: []ResourceStatus{StatusReplacing},
+			wantStatuses: []engine.ResourceStatus{engine.StatusReplacing},
 		},
 		{
 			name: "new resource in plan only",
-			stateResources: []StateResource{
+			stateResources: []engine.StateResource{
 				{
 					URN:    "urn:pulumi:stack::proj::aws:ec2:Instance::web",
 					Type:   "aws:ec2:Instance",
@@ -160,7 +162,7 @@ func TestMergeResourcesForOverview(t *testing.T) {
 					Custom: true,
 				},
 			},
-			planSteps: []PlanStep{
+			planSteps: []engine.PlanStep{
 				{URN: "urn:pulumi:stack::proj::aws:s3:Bucket::new-bucket", Op: "create", Type: "aws:s3:Bucket"},
 			},
 			wantLen: 2,
@@ -168,43 +170,43 @@ func TestMergeResourcesForOverview(t *testing.T) {
 				"urn:pulumi:stack::proj::aws:ec2:Instance::web",
 				"urn:pulumi:stack::proj::aws:s3:Bucket::new-bucket",
 			},
-			wantStatuses: []ResourceStatus{StatusActive, StatusCreating},
+			wantStatuses: []engine.ResourceStatus{engine.StatusActive, engine.StatusCreating},
 		},
 		{
 			name: "plan delete for non-state resource is ignored",
-			planSteps: []PlanStep{
+			planSteps: []engine.PlanStep{
 				{URN: "urn:pulumi:stack::proj::aws:ec2:Instance::ghost", Op: "delete", Type: "aws:ec2:Instance"},
 			},
 			wantLen:      0,
 			wantURNs:     []string{},
-			wantStatuses: []ResourceStatus{},
+			wantStatuses: []engine.ResourceStatus{},
 		},
 		{
 			name: "mixed scenario preserves state order",
-			stateResources: []StateResource{
+			stateResources: []engine.StateResource{
 				{URN: "urn:a", Type: "aws:ec2:Instance", ID: "i-a", Custom: true},
 				{URN: "urn:b", Type: "aws:s3:Bucket", ID: "b-b", Custom: true},
 				{URN: "urn:c", Type: "aws:rds:Instance", ID: "db-c", Custom: true},
 			},
-			planSteps: []PlanStep{
+			planSteps: []engine.PlanStep{
 				{URN: "urn:b", Op: "update", Type: "aws:s3:Bucket"},
 				{URN: "urn:c", Op: "delete", Type: "aws:rds:Instance"},
 				{URN: "urn:d", Op: "create", Type: "aws:lambda:Function"},
 			},
 			wantLen:  4,
 			wantURNs: []string{"urn:a", "urn:b", "urn:c", "urn:d"},
-			wantStatuses: []ResourceStatus{
-				StatusActive,   // urn:a - no plan entry
-				StatusUpdating, // urn:b - plan update
-				StatusDeleting, // urn:c - plan delete
-				StatusCreating, // urn:d - new in plan
+			wantStatuses: []engine.ResourceStatus{
+				engine.StatusActive,   // urn:a - no plan entry
+				engine.StatusUpdating, // urn:b - plan update
+				engine.StatusDeleting, // urn:c - plan delete
+				engine.StatusCreating, // urn:d - new in plan
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rows, err := MergeResourcesForOverview(ctx, tt.stateResources, tt.planSteps)
+			rows, err := engine.MergeResourcesForOverview(ctx, tt.stateResources, tt.planSteps)
 			require.NoError(t, err)
 			require.Len(t, rows, tt.wantLen)
 
@@ -229,11 +231,11 @@ func TestMergeResourcesForOverview(t *testing.T) {
 func TestMergeResourcesForOverview_SkeletonRowsHaveNilCosts(t *testing.T) {
 	ctx := context.Background()
 
-	rows, err := MergeResourcesForOverview(ctx,
-		[]StateResource{
+	rows, err := engine.MergeResourcesForOverview(ctx,
+		[]engine.StateResource{
 			{URN: "urn:a", Type: "aws:ec2:Instance", ID: "i-a", Custom: true},
 		},
-		[]PlanStep{
+		[]engine.PlanStep{
 			{URN: "urn:b", Op: "create", Type: "aws:s3:Bucket"},
 		},
 	)
@@ -252,8 +254,8 @@ func TestMergeResourcesForOverview_SkeletonRowsHaveNilCosts(t *testing.T) {
 func TestMergeResourcesForOverview_ResourceIDPopulated(t *testing.T) {
 	ctx := context.Background()
 
-	rows, err := MergeResourcesForOverview(ctx,
-		[]StateResource{
+	rows, err := engine.MergeResourcesForOverview(ctx,
+		[]engine.StateResource{
 			{URN: "urn:a", Type: "aws:ec2:Instance", ID: "i-abc123", Custom: true},
 		},
 		nil,
@@ -271,8 +273,8 @@ func TestMergeResourcesForOverview_PropertiesPreserved(t *testing.T) {
 		"availabilityZone": "us-east-1a",
 	}
 
-	rows, err := MergeResourcesForOverview(ctx,
-		[]StateResource{
+	rows, err := engine.MergeResourcesForOverview(ctx,
+		[]engine.StateResource{
 			{
 				URN:        "urn:a",
 				Type:       "aws:ec2:Instance",
@@ -291,11 +293,11 @@ func TestMergeResourcesForOverview_PropertiesPreserved(t *testing.T) {
 func TestMergeResourcesForOverview_NilPropertiesOK(t *testing.T) {
 	ctx := context.Background()
 
-	rows, err := MergeResourcesForOverview(ctx,
-		[]StateResource{
+	rows, err := engine.MergeResourcesForOverview(ctx,
+		[]engine.StateResource{
 			{URN: "urn:a", Type: "aws:ec2:Instance", ID: "i-123", Custom: true},
 		},
-		[]PlanStep{
+		[]engine.PlanStep{
 			{URN: "urn:b", Op: "create", Type: "aws:s3:Bucket"},
 		},
 	)
@@ -314,7 +316,7 @@ func TestNewRowsFromState(t *testing.T) {
 
 	tests := []struct {
 		name           string
-		input          []StateResource
+		input          []engine.StateResource
 		expectLen      int
 		expectURNOrder []string
 		allActive      bool
@@ -322,7 +324,7 @@ func TestNewRowsFromState(t *testing.T) {
 	}{
 		{
 			name: "only custom resources",
-			input: []StateResource{
+			input: []engine.StateResource{
 				{URN: "urn:provider", Type: "pulumi:providers:aws", Custom: false},
 				{URN: "urn:ec2", Type: "aws:ec2:Instance", ID: "i-123", Custom: true},
 				{URN: "urn:s3", Type: "aws:s3:Bucket", ID: "bucket-abc", Custom: true},
@@ -333,7 +335,7 @@ func TestNewRowsFromState(t *testing.T) {
 		},
 		{
 			name: "preserves state order",
-			input: []StateResource{
+			input: []engine.StateResource{
 				{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true},
 				{URN: "urn:b", Type: "aws:s3:Bucket", Custom: true},
 				{URN: "urn:c", Type: "aws:rds:Instance", Custom: true},
@@ -344,7 +346,7 @@ func TestNewRowsFromState(t *testing.T) {
 		},
 		{
 			name: "all skeleton rows have StatusActive",
-			input: []StateResource{
+			input: []engine.StateResource{
 				{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true},
 				{URN: "urn:b", Type: "aws:s3:Bucket", Custom: true},
 			},
@@ -353,7 +355,7 @@ func TestNewRowsFromState(t *testing.T) {
 		},
 		{
 			name: "skeleton rows have nil cost fields",
-			input: []StateResource{
+			input: []engine.StateResource{
 				{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true},
 			},
 			expectLen: 1,
@@ -363,14 +365,14 @@ func TestNewRowsFromState(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rows := NewRowsFromState(ctx, tt.input)
+			rows := engine.NewRowsFromState(ctx, tt.input)
 			require.Len(t, rows, tt.expectLen)
 			for i, urn := range tt.expectURNOrder {
 				assert.Equal(t, urn, rows[i].URN)
 			}
 			if tt.allActive {
 				for _, row := range rows {
-					assert.Equal(t, StatusActive, row.Status)
+					assert.Equal(t, engine.StatusActive, row.Status)
 				}
 			}
 			if tt.nilCosts && len(rows) > 0 {
@@ -388,8 +390,8 @@ func TestMergeResourcesForOverview_CreatedAtPreserved(t *testing.T) {
 	ctx := context.Background()
 	createdAt := time.Date(2025, 2, 13, 10, 0, 0, 0, time.UTC)
 
-	rows, err := MergeResourcesForOverview(ctx,
-		[]StateResource{
+	rows, err := engine.MergeResourcesForOverview(ctx,
+		[]engine.StateResource{
 			{
 				URN:       "urn:a",
 				Type:      "aws:ec2:Instance",
@@ -409,8 +411,8 @@ func TestMergeResourcesForOverview_CreatedAtPreserved(t *testing.T) {
 func TestMergeResourcesForOverview_NilCreatedAtOK(t *testing.T) {
 	ctx := context.Background()
 
-	rows, err := MergeResourcesForOverview(ctx,
-		[]StateResource{
+	rows, err := engine.MergeResourcesForOverview(ctx,
+		[]engine.StateResource{
 			{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true, CreatedAt: nil},
 		},
 		nil,
@@ -424,7 +426,7 @@ func TestNewRowsFromState_CreatedAtPreserved(t *testing.T) {
 	ctx := context.Background()
 	createdAt := time.Date(2025, 6, 10, 0, 0, 0, 0, time.UTC)
 
-	rows := NewRowsFromState(ctx, []StateResource{
+	rows := engine.NewRowsFromState(ctx, []engine.StateResource{
 		{URN: "urn:a", Type: "aws:ec2:Instance", Custom: true, CreatedAt: &createdAt},
 		{URN: "urn:b", Type: "aws:s3:Bucket", Custom: true, CreatedAt: nil},
 	})
@@ -440,48 +442,48 @@ func TestNewRowsFromState_CreatedAtPreserved(t *testing.T) {
 
 func TestApplyChangesToRows(t *testing.T) {
 	t.Run("updates matching URNs", func(t *testing.T) {
-		rows := []OverviewRow{
-			{URN: "urn:a", Status: StatusActive},
-			{URN: "urn:b", Status: StatusActive},
+		rows := []engine.OverviewRow{
+			{URN: "urn:a", Status: engine.StatusActive},
+			{URN: "urn:b", Status: engine.StatusActive},
 		}
-		ApplyChangesToRows(rows, map[string]ResourceStatus{"urn:a": StatusUpdating})
-		assert.Equal(t, StatusUpdating, rows[0].Status)
-		assert.Equal(t, StatusActive, rows[1].Status)
+		engine.ApplyChangesToRows(rows, map[string]engine.ResourceStatus{"urn:a": engine.StatusUpdating})
+		assert.Equal(t, engine.StatusUpdating, rows[0].Status)
+		assert.Equal(t, engine.StatusActive, rows[1].Status)
 	})
 
 	t.Run("preserves unmatched rows", func(t *testing.T) {
-		rows := []OverviewRow{
-			{URN: "urn:a", Status: StatusActive},
-			{URN: "urn:b", Status: StatusActive},
+		rows := []engine.OverviewRow{
+			{URN: "urn:a", Status: engine.StatusActive},
+			{URN: "urn:b", Status: engine.StatusActive},
 		}
-		ApplyChangesToRows(rows, map[string]ResourceStatus{"urn:c": StatusCreating})
-		assert.Equal(t, StatusActive, rows[0].Status)
-		assert.Equal(t, StatusActive, rows[1].Status)
+		engine.ApplyChangesToRows(rows, map[string]engine.ResourceStatus{"urn:c": engine.StatusCreating})
+		assert.Equal(t, engine.StatusActive, rows[0].Status)
+		assert.Equal(t, engine.StatusActive, rows[1].Status)
 	})
 
 	t.Run("empty map no-op", func(t *testing.T) {
-		rows := []OverviewRow{
-			{URN: "urn:a", Status: StatusDeleting},
-			{URN: "urn:b", Status: StatusUpdating},
+		rows := []engine.OverviewRow{
+			{URN: "urn:a", Status: engine.StatusDeleting},
+			{URN: "urn:b", Status: engine.StatusUpdating},
 		}
-		ApplyChangesToRows(rows, map[string]ResourceStatus{})
-		assert.Equal(t, StatusDeleting, rows[0].Status)
-		assert.Equal(t, StatusUpdating, rows[1].Status)
+		engine.ApplyChangesToRows(rows, map[string]engine.ResourceStatus{})
+		assert.Equal(t, engine.StatusDeleting, rows[0].Status)
+		assert.Equal(t, engine.StatusUpdating, rows[1].Status)
 	})
 
 	t.Run("nil map no-op", func(t *testing.T) {
-		rows := []OverviewRow{
-			{URN: "urn:a", Status: StatusDeleting},
-			{URN: "urn:b", Status: StatusUpdating},
+		rows := []engine.OverviewRow{
+			{URN: "urn:a", Status: engine.StatusDeleting},
+			{URN: "urn:b", Status: engine.StatusUpdating},
 		}
-		ApplyChangesToRows(rows, nil)
-		assert.Equal(t, StatusDeleting, rows[0].Status, "nil map should leave statuses unchanged")
-		assert.Equal(t, StatusUpdating, rows[1].Status, "nil map should leave statuses unchanged")
+		engine.ApplyChangesToRows(rows, nil)
+		assert.Equal(t, engine.StatusDeleting, rows[0].Status, "nil map should leave statuses unchanged")
+		assert.Equal(t, engine.StatusUpdating, rows[1].Status, "nil map should leave statuses unchanged")
 	})
 
 	t.Run("nil rows is a no-op", func(t *testing.T) {
 		assert.NotPanics(t, func() {
-			ApplyChangesToRows(nil, map[string]ResourceStatus{})
+			engine.ApplyChangesToRows(nil, map[string]engine.ResourceStatus{})
 		}, "ApplyChangesToRows should be a no-op on nil rows input")
 	})
 }
@@ -493,61 +495,61 @@ func TestApplyChangesToRows(t *testing.T) {
 func TestBuildStatusByURN(t *testing.T) {
 	tests := []struct {
 		name    string
-		steps   []PlanStep
-		wantMap map[string]ResourceStatus
+		steps   []engine.PlanStep
+		wantMap map[string]engine.ResourceStatus
 	}{
 		{
 			name:    "empty steps returns empty map",
 			steps:   nil,
-			wantMap: map[string]ResourceStatus{},
+			wantMap: map[string]engine.ResourceStatus{},
 		},
 		{
 			name: "single step per URN",
-			steps: []PlanStep{
+			steps: []engine.PlanStep{
 				{URN: "urn:a", Op: "create", Type: "aws:ec2:Instance"},
 				{URN: "urn:b", Op: "update", Type: "aws:s3:Bucket"},
 				{URN: "urn:c", Op: "delete", Type: "aws:rds:Instance"},
 			},
-			wantMap: map[string]ResourceStatus{
-				"urn:a": StatusCreating,
-				"urn:b": StatusUpdating,
-				"urn:c": StatusDeleting,
+			wantMap: map[string]engine.ResourceStatus{
+				"urn:a": engine.StatusCreating,
+				"urn:b": engine.StatusUpdating,
+				"urn:c": engine.StatusDeleting,
 			},
 		},
 		{
 			name: "delete-replaced wins over create-replacement for same URN",
-			steps: []PlanStep{
+			steps: []engine.PlanStep{
 				{URN: "urn:a", Op: "create-replacement", Type: "aws:ec2:Instance"},
 				{URN: "urn:a", Op: "delete-replaced", Type: "aws:ec2:Instance"},
 			},
-			wantMap: map[string]ResourceStatus{
-				"urn:a": StatusReplacing,
+			wantMap: map[string]engine.ResourceStatus{
+				"urn:a": engine.StatusReplacing,
 			},
 		},
 		{
 			name: "delete wins over create for same URN (highest precedence)",
-			steps: []PlanStep{
+			steps: []engine.PlanStep{
 				{URN: "urn:a", Op: "create", Type: "aws:ec2:Instance"},
 				{URN: "urn:a", Op: "delete", Type: "aws:ec2:Instance"},
 			},
-			wantMap: map[string]ResourceStatus{
-				"urn:a": StatusDeleting,
+			wantMap: map[string]engine.ResourceStatus{
+				"urn:a": engine.StatusDeleting,
 			},
 		},
 		{
 			name: "replace-family steps result in StatusReplacing",
-			steps: []PlanStep{
+			steps: []engine.PlanStep{
 				{URN: "urn:a", Op: "replace", Type: "aws:ec2:Instance"},
 			},
-			wantMap: map[string]ResourceStatus{
-				"urn:a": StatusReplacing,
+			wantMap: map[string]engine.ResourceStatus{
+				"urn:a": engine.StatusReplacing,
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := BuildStatusByURN(tt.steps)
+			got := engine.BuildStatusByURN(tt.steps)
 			require.Len(t, got, len(tt.wantMap), "map length mismatch")
 			for urn, wantStatus := range tt.wantMap {
 				assert.Equal(t, wantStatus, got[urn], "status mismatch for URN %s", urn)
@@ -565,7 +567,7 @@ func TestDetectPendingChanges(t *testing.T) {
 
 	tests := []struct {
 		name      string
-		steps     []PlanStep
+		steps     []engine.PlanStep
 		wantHas   bool
 		wantCount int
 	}{
@@ -577,7 +579,7 @@ func TestDetectPendingChanges(t *testing.T) {
 		},
 		{
 			name: "no mutating ops",
-			steps: []PlanStep{
+			steps: []engine.PlanStep{
 				{URN: "urn:a", Op: "same"},
 				{URN: "urn:b", Op: "refresh"},
 			},
@@ -586,7 +588,7 @@ func TestDetectPendingChanges(t *testing.T) {
 		},
 		{
 			name: "single create",
-			steps: []PlanStep{
+			steps: []engine.PlanStep{
 				{URN: "urn:a", Op: "create"},
 			},
 			wantHas:   true,
@@ -594,7 +596,7 @@ func TestDetectPendingChanges(t *testing.T) {
 		},
 		{
 			name: "all mutating operation types",
-			steps: []PlanStep{
+			steps: []engine.PlanStep{
 				{URN: "urn:a", Op: "create"},
 				{URN: "urn:b", Op: "update"},
 				{URN: "urn:c", Op: "delete"},
@@ -607,7 +609,7 @@ func TestDetectPendingChanges(t *testing.T) {
 		},
 		{
 			name: "mixed mutating and non-mutating",
-			steps: []PlanStep{
+			steps: []engine.PlanStep{
 				{URN: "urn:a", Op: "same"},
 				{URN: "urn:b", Op: "update"},
 				{URN: "urn:c", Op: "same"},
@@ -620,7 +622,7 @@ func TestDetectPendingChanges(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			has, count := DetectPendingChanges(ctx, tt.steps)
+			has, count := engine.DetectPendingChanges(ctx, tt.steps)
 			assert.Equal(t, tt.wantHas, has)
 			assert.Equal(t, tt.wantCount, count)
 		})
@@ -634,7 +636,7 @@ func TestDetectPendingChanges(t *testing.T) {
 func TestMergeResourcesForOverview_PropertyDiffs(t *testing.T) {
 	ctx := context.Background()
 
-	stateResources := []StateResource{
+	stateResources := []engine.StateResource{
 		{
 			URN:    "urn:pulumi:stack::proj::aws:ec2:Instance::web",
 			Type:   "aws:ec2:Instance",
@@ -642,12 +644,12 @@ func TestMergeResourcesForOverview_PropertyDiffs(t *testing.T) {
 			Custom: true,
 		},
 	}
-	planSteps := []PlanStep{
+	planSteps := []engine.PlanStep{
 		{
 			URN:  "urn:pulumi:stack::proj::aws:ec2:Instance::web",
 			Op:   "update",
 			Type: "aws:ec2:Instance",
-			PropertyDiffs: []PropertyDiff{
+			PropertyDiffs: []engine.PropertyDiff{
 				{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
 			},
 			ProjectedProperties: map[string]interface{}{
@@ -660,10 +662,10 @@ func TestMergeResourcesForOverview_PropertyDiffs(t *testing.T) {
 		},
 	}
 
-	rows, err := MergeResourcesForOverview(ctx, stateResources, planSteps)
+	rows, err := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
-	assert.Equal(t, StatusUpdating, rows[0].Status)
+	assert.Equal(t, engine.StatusUpdating, rows[0].Status)
 	require.Len(t, rows[0].PropertyDiffs, 1)
 	assert.Equal(t, "instanceType", rows[0].PropertyDiffs[0].Key)
 	assert.Equal(t, "t3.medium", rows[0].PropertyDiffs[0].OldValue)
@@ -679,7 +681,7 @@ func TestMergeResourcesForOverview_PropertyDiffs(t *testing.T) {
 func TestMergeResourcesForOverview_NoDiffsForCreate(t *testing.T) {
 	ctx := context.Background()
 
-	planSteps := []PlanStep{
+	planSteps := []engine.PlanStep{
 		{
 			URN:  "urn:pulumi:stack::proj::aws:ec2:Instance::web",
 			Op:   "create",
@@ -687,7 +689,7 @@ func TestMergeResourcesForOverview_NoDiffsForCreate(t *testing.T) {
 		},
 	}
 
-	rows, err := MergeResourcesForOverview(ctx, nil, planSteps)
+	rows, err := engine.MergeResourcesForOverview(ctx, nil, planSteps)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	assert.Empty(t, rows[0].PropertyDiffs)
@@ -698,18 +700,18 @@ func TestMergeResourcesForOverview_NoDiffsForCreate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestApplyPropertyDiffsToRows(t *testing.T) {
-	rows := []OverviewRow{
-		{URN: "urn:a", Type: "aws:ec2:Instance", Status: StatusUpdating},
-		{URN: "urn:b", Type: "aws:s3:Bucket", Status: StatusActive},
+	rows := []engine.OverviewRow{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Status: engine.StatusUpdating},
+		{URN: "urn:b", Type: "aws:s3:Bucket", Status: engine.StatusActive},
 	}
 
-	diffsByURN := map[string][]PropertyDiff{
+	diffsByURN := map[string][]engine.PropertyDiff{
 		"urn:a": {
 			{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
 		},
 	}
 
-	ApplyPropertyDiffsToRows(rows, diffsByURN)
+	engine.ApplyPropertyDiffsToRows(rows, diffsByURN)
 
 	require.Len(t, rows[0].PropertyDiffs, 1)
 	assert.Equal(t, "instanceType", rows[0].PropertyDiffs[0].Key)
@@ -718,23 +720,23 @@ func TestApplyPropertyDiffsToRows(t *testing.T) {
 
 func TestApplyPropertyDiffsToRows_NilRows(_ *testing.T) {
 	// Should not panic.
-	ApplyPropertyDiffsToRows(nil, map[string][]PropertyDiff{
+	engine.ApplyPropertyDiffsToRows(nil, map[string][]engine.PropertyDiff{
 		"urn:a": {{Key: "k", OldValue: "old", NewValue: "new"}},
 	})
 }
 
 func TestApplyPropertyDiffsToRows_NilMap(t *testing.T) {
-	rows := []OverviewRow{
+	rows := []engine.OverviewRow{
 		{URN: "urn:a", Type: "aws:ec2:Instance"},
 	}
-	ApplyPropertyDiffsToRows(rows, nil)
+	engine.ApplyPropertyDiffsToRows(rows, nil)
 	assert.Empty(t, rows[0].PropertyDiffs)
 }
 
 func TestApplyProjectedPropertiesToRows(t *testing.T) {
-	rows := []OverviewRow{
-		{URN: "urn:a", Type: "aws:ec2:Instance", Status: StatusUpdating},
-		{URN: "urn:b", Type: "aws:s3:Bucket", Status: StatusActive},
+	rows := []engine.OverviewRow{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Status: engine.StatusUpdating},
+		{URN: "urn:b", Type: "aws:s3:Bucket", Status: engine.StatusActive},
 	}
 
 	propsByURN := map[string]map[string]interface{}{
@@ -746,7 +748,7 @@ func TestApplyProjectedPropertiesToRows(t *testing.T) {
 		},
 	}
 
-	ApplyProjectedPropertiesToRows(rows, propsByURN)
+	engine.ApplyProjectedPropertiesToRows(rows, propsByURN)
 
 	require.NotNil(t, rows[0].ProjectedProperties)
 	assert.Equal(t, "t3.large", rows[0].ProjectedProperties["instanceType"])
@@ -758,12 +760,12 @@ func TestApplyProjectedPropertiesToRows(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuildPropertyDiffsByURN(t *testing.T) {
-	steps := []PlanStep{
+	steps := []engine.PlanStep{
 		{
 			URN:  "urn:a",
 			Op:   "update",
 			Type: "aws:ec2:Instance",
-			PropertyDiffs: []PropertyDiff{
+			PropertyDiffs: []engine.PropertyDiff{
 				{Key: "instanceType", OldValue: "t3.medium", NewValue: "t3.large"},
 			},
 		},
@@ -774,45 +776,45 @@ func TestBuildPropertyDiffsByURN(t *testing.T) {
 		},
 	}
 
-	result := BuildPropertyDiffsByURN(steps)
+	result := engine.BuildPropertyDiffsByURN(steps)
 	require.Len(t, result, 1)
 	require.Contains(t, result, "urn:a")
 	assert.Len(t, result["urn:a"], 1)
 }
 
 func TestBuildPropertyDiffsByURN_ReplaceFlowEdgeCase(t *testing.T) {
-	expectedDiffs := []PropertyDiff{
+	expectedDiffs := []engine.PropertyDiff{
 		{Key: "subnetId", OldValue: "subnet-aaa", NewValue: "subnet-bbb"},
 	}
 
 	t.Run("delete-replaced first then create-replacement", func(t *testing.T) {
-		steps := []PlanStep{
+		steps := []engine.PlanStep{
 			{URN: "urn:x", Op: "delete-replaced", Type: "aws:ec2:Instance"},
 			{URN: "urn:x", Op: "create-replacement", Type: "aws:ec2:Instance", PropertyDiffs: expectedDiffs},
 		}
-		result := BuildPropertyDiffsByURN(steps)
+		result := engine.BuildPropertyDiffsByURN(steps)
 		require.Contains(t, result, "urn:x")
 		assert.Equal(t, expectedDiffs, result["urn:x"])
 	})
 
 	t.Run("create-replacement first then delete-replaced", func(t *testing.T) {
-		steps := []PlanStep{
+		steps := []engine.PlanStep{
 			{URN: "urn:x", Op: "create-replacement", Type: "aws:ec2:Instance", PropertyDiffs: expectedDiffs},
 			{URN: "urn:x", Op: "delete-replaced", Type: "aws:ec2:Instance"},
 		}
-		result := BuildPropertyDiffsByURN(steps)
+		result := engine.BuildPropertyDiffsByURN(steps)
 		require.Contains(t, result, "urn:x")
 		assert.Equal(t, expectedDiffs, result["urn:x"])
 	})
 }
 
 func TestBuildPropertyDiffsByURN_EmptySteps(t *testing.T) {
-	result := BuildPropertyDiffsByURN(nil)
+	result := engine.BuildPropertyDiffsByURN(nil)
 	assert.Empty(t, result)
 }
 
 func TestBuildProjectedPropertiesByURN(t *testing.T) {
-	steps := []PlanStep{
+	steps := []engine.PlanStep{
 		{
 			URN: "urn:a",
 			Op:  "update",
@@ -826,7 +828,7 @@ func TestBuildProjectedPropertiesByURN(t *testing.T) {
 		},
 	}
 
-	result := BuildProjectedPropertiesByURN(steps)
+	result := engine.BuildProjectedPropertiesByURN(steps)
 	require.Len(t, result, 1)
 	assert.Equal(t, "t3.large", result["urn:a"]["instanceType"])
 }
@@ -837,21 +839,21 @@ func TestBuildProjectedPropertiesByURN_ReplaceFlowEdgeCase(t *testing.T) {
 	}
 
 	t.Run("delete-replaced first then create-replacement", func(t *testing.T) {
-		steps := []PlanStep{
+		steps := []engine.PlanStep{
 			{URN: "urn:x", Op: "delete-replaced"},
 			{URN: "urn:x", Op: "create-replacement", ProjectedProperties: props},
 		}
-		result := BuildProjectedPropertiesByURN(steps)
+		result := engine.BuildProjectedPropertiesByURN(steps)
 		require.Contains(t, result, "urn:x")
 		assert.Equal(t, "t3.large", result["urn:x"]["instanceType"])
 	})
 
 	t.Run("create-replacement first then delete-replaced", func(t *testing.T) {
-		steps := []PlanStep{
+		steps := []engine.PlanStep{
 			{URN: "urn:x", Op: "create-replacement", ProjectedProperties: props},
 			{URN: "urn:x", Op: "delete-replaced"},
 		}
-		result := BuildProjectedPropertiesByURN(steps)
+		result := engine.BuildProjectedPropertiesByURN(steps)
 		require.Contains(t, result, "urn:x")
 		assert.Equal(t, "t3.large", result["urn:x"]["instanceType"])
 	})

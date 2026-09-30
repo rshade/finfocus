@@ -1,6 +1,10 @@
-package tui
+package tui_test
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/rshade/finfocus/internal/tui"
+)
 
 // Benchmarks for hot-path rendering functions.
 // These functions are called frequently during CLI output rendering.
@@ -10,20 +14,20 @@ func BenchmarkFormatMoneyShort(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, amount := range amounts {
-			_ = FormatMoneyShort(amount)
+			_ = tui.FormatMoneyShort(amount)
 		}
 	}
 }
 
 func BenchmarkFormatMoney(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = FormatMoney(1234.56, "USD")
+		_ = tui.FormatMoney(1234.56, "USD")
 	}
 }
 
 func BenchmarkFormatPercent(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = FormatPercent(85.7)
+		_ = tui.FormatPercent(85.7)
 	}
 }
 
@@ -32,7 +36,7 @@ func BenchmarkRenderStatus(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, status := range statuses {
-			_ = RenderStatus(status)
+			_ = tui.RenderStatus(status)
 		}
 	}
 }
@@ -42,7 +46,7 @@ func BenchmarkRenderDelta(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, delta := range deltas {
-			_ = RenderDelta(delta)
+			_ = tui.RenderDelta(delta)
 		}
 	}
 }
@@ -52,13 +56,13 @@ func BenchmarkRenderPriority(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, priority := range priorities {
-			_ = RenderPriority(priority)
+			_ = tui.RenderPriority(priority)
 		}
 	}
 }
 
 func BenchmarkProgressBarRender(b *testing.B) {
-	pb := DefaultProgressBar()
+	pb := tui.DefaultProgressBar()
 	percents := []float64{0, 25, 50, 75, 100}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -70,6 +74,6 @@ func BenchmarkProgressBarRender(b *testing.B) {
 
 func BenchmarkDetectOutputMode(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		_ = DetectOutputMode(false, false, false)
+		_ = tui.DetectOutputMode(false, false, false)
 	}
 }

@@ -1,4 +1,4 @@
-package router
+package router_test
 
 import (
 	"sync"
@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/config"
+	"github.com/rshade/finfocus/internal/router"
 )
 
 func TestCompilePattern_Glob(t *testing.T) {
@@ -16,7 +17,7 @@ func TestCompilePattern_Glob(t *testing.T) {
 		Pattern: "aws:ec2:*",
 	}
 
-	compiled, err := CompilePattern(pattern)
+	compiled, err := router.CompilePattern(pattern)
 	require.NoError(t, err)
 	require.NotNil(t, compiled)
 	assert.Nil(t, compiled.Regex, "glob patterns should not have compiled regex")
@@ -29,7 +30,7 @@ func TestCompilePattern_Regex(t *testing.T) {
 		Pattern: "aws:(ec2|rds)/.*",
 	}
 
-	compiled, err := CompilePattern(pattern)
+	compiled, err := router.CompilePattern(pattern)
 	require.NoError(t, err)
 	require.NotNil(t, compiled)
 	assert.NotNil(t, compiled.Regex, "regex patterns should have compiled regex")
@@ -42,7 +43,7 @@ func TestCompilePattern_InvalidRegex(t *testing.T) {
 		Pattern: "aws:(ec2|rds", // Missing closing paren
 	}
 
-	compiled, err := CompilePattern(pattern)
+	compiled, err := router.CompilePattern(pattern)
 	require.Error(t, err)
 	assert.Nil(t, compiled)
 	assert.Contains(t, err.Error(), "invalid regex")
@@ -108,7 +109,7 @@ func TestCompiledPattern_Match_Glob(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pattern := config.ResourcePattern{Type: "glob", Pattern: tt.pattern}
-			compiled, err := CompilePattern(pattern)
+			compiled, err := router.CompilePattern(pattern)
 			require.NoError(t, err)
 
 			matched, err := compiled.Match(tt.resourceType)
@@ -172,7 +173,7 @@ func TestCompiledPattern_Match_Regex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pattern := config.ResourcePattern{Type: "regex", Pattern: tt.pattern}
-			compiled, err := CompilePattern(pattern)
+			compiled, err := router.CompilePattern(pattern)
 			require.NoError(t, err)
 
 			matched, err := compiled.Match(tt.resourceType)
@@ -183,7 +184,7 @@ func TestCompiledPattern_Match_Regex(t *testing.T) {
 }
 
 func TestPatternCache_MatchGlob(t *testing.T) {
-	cache := NewPatternCache()
+	cache := router.NewPatternCache()
 
 	matched, err := cache.MatchGlob("aws:*", "aws:ec2/instance:Instance")
 	require.NoError(t, err)
@@ -199,7 +200,7 @@ func TestPatternCache_MatchGlob(t *testing.T) {
 }
 
 func TestPatternCache_MatchRegex(t *testing.T) {
-	cache := NewPatternCache()
+	cache := router.NewPatternCache()
 
 	// First call compiles and caches
 	matched, err := cache.MatchRegex("aws:(ec2|rds):.*", "aws:ec2:Instance")
@@ -215,7 +216,7 @@ func TestPatternCache_MatchRegex(t *testing.T) {
 }
 
 func TestPatternCache_MatchRegex_InvalidPattern(t *testing.T) {
-	cache := NewPatternCache()
+	cache := router.NewPatternCache()
 
 	_, err := cache.MatchRegex("aws:(ec2|rds", "aws:ec2:Instance")
 	require.Error(t, err)
@@ -223,7 +224,7 @@ func TestPatternCache_MatchRegex_InvalidPattern(t *testing.T) {
 }
 
 func TestPatternCache_Match(t *testing.T) {
-	cache := NewPatternCache()
+	cache := router.NewPatternCache()
 
 	// Test glob
 	globPattern := config.ResourcePattern{Type: "glob", Pattern: "aws:ec2:*"}
@@ -239,7 +240,7 @@ func TestPatternCache_Match(t *testing.T) {
 }
 
 func TestPatternCache_Clear(t *testing.T) {
-	cache := NewPatternCache()
+	cache := router.NewPatternCache()
 
 	// Populate cache
 	_, _ = cache.MatchRegex("pattern1", "test")
@@ -252,7 +253,7 @@ func TestPatternCache_Clear(t *testing.T) {
 }
 
 func TestPatternCache_ConcurrentAccess(t *testing.T) {
-	cache := NewPatternCache()
+	cache := router.NewPatternCache()
 	const goroutines = 100
 	const iterations = 100
 
@@ -288,7 +289,7 @@ func TestPatternCache_ConcurrentAccess(t *testing.T) {
 
 func BenchmarkCompiledPattern_Match_Glob(b *testing.B) {
 	pattern := config.ResourcePattern{Type: "glob", Pattern: "aws:ec2:*"}
-	compiled, _ := CompilePattern(pattern)
+	compiled, _ := router.CompilePattern(pattern)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -298,7 +299,7 @@ func BenchmarkCompiledPattern_Match_Glob(b *testing.B) {
 
 func BenchmarkCompiledPattern_Match_Regex(b *testing.B) {
 	pattern := config.ResourcePattern{Type: "regex", Pattern: "aws:(ec2|rds)/.*:Instance"}
-	compiled, _ := CompilePattern(pattern)
+	compiled, _ := router.CompilePattern(pattern)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -307,7 +308,7 @@ func BenchmarkCompiledPattern_Match_Regex(b *testing.B) {
 }
 
 func BenchmarkPatternCache_MatchRegex_Cached(b *testing.B) {
-	cache := NewPatternCache()
+	cache := router.NewPatternCache()
 	// Pre-populate cache
 	_, _ = cache.MatchRegex("aws:(ec2|rds)/.*:Instance", "test")
 

@@ -1,20 +1,22 @@
-package tui
+package tui_test
 
 import (
 	"os"
 	"testing"
+
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 func TestOutputModeConstants(t *testing.T) {
 	// Test that constants have expected values
-	if OutputModePlain != 0 {
-		t.Errorf("Expected OutputModePlain = 0, got %d", OutputModePlain)
+	if tui.OutputModePlain != 0 {
+		t.Errorf("Expected OutputModePlain = 0, got %d", tui.OutputModePlain)
 	}
-	if OutputModeStyled != 1 {
-		t.Errorf("Expected OutputModeStyled = 1, got %d", OutputModeStyled)
+	if tui.OutputModeStyled != 1 {
+		t.Errorf("Expected OutputModeStyled = 1, got %d", tui.OutputModeStyled)
 	}
-	if OutputModeInteractive != 2 {
-		t.Errorf("Expected OutputModeInteractive = 2, got %d", OutputModeInteractive)
+	if tui.OutputModeInteractive != 2 {
+		t.Errorf("Expected OutputModeInteractive = 2, got %d", tui.OutputModeInteractive)
 	}
 }
 
@@ -24,17 +26,17 @@ func TestDetectOutputMode_ExplicitFlags(t *testing.T) {
 		forceColor bool
 		noColor    bool
 		plain      bool
-		expected   OutputMode
+		expected   tui.OutputMode
 	}{
-		{"plain flag", false, false, true, OutputModePlain},
-		{"no-color flag", false, true, false, OutputModePlain},
-		{"both plain and no-color", false, true, true, OutputModePlain},
+		{"plain flag", false, false, true, tui.OutputModePlain},
+		{"no-color flag", false, true, false, tui.OutputModePlain},
+		{"both plain and no-color", false, true, true, tui.OutputModePlain},
 		{
 			"force-color flag",
 			true,
 			false,
 			false,
-			OutputModeStyled,
+			tui.OutputModeStyled,
 		}, // forceColor enables styled output even without TTY
 	}
 
@@ -44,7 +46,7 @@ func TestDetectOutputMode_ExplicitFlags(t *testing.T) {
 			// restores the original values on cleanup.
 			clearEnv(t, "NO_COLOR", "TERM", "CI")
 
-			result := DetectOutputMode(tt.forceColor, tt.noColor, tt.plain)
+			result := tui.DetectOutputMode(tt.forceColor, tt.noColor, tt.plain)
 			if result != tt.expected {
 				t.Errorf("DetectOutputMode(%v, %v, %v) = %v, expected %v",
 					tt.forceColor, tt.noColor, tt.plain, result, tt.expected)
@@ -57,19 +59,19 @@ func TestDetectOutputMode_EnvironmentVariables(t *testing.T) {
 	tests := []struct {
 		name     string
 		envVars  map[string]string
-		expected OutputMode
+		expected tui.OutputMode
 	}{
-		{"NO_COLOR set", map[string]string{"NO_COLOR": "1"}, OutputModePlain},
-		{"TERM=dumb", map[string]string{"TERM": "dumb"}, OutputModePlain},
+		{"NO_COLOR set", map[string]string{"NO_COLOR": "1"}, tui.OutputModePlain},
+		{"TERM=dumb", map[string]string{"TERM": "dumb"}, tui.OutputModePlain},
 		{
 			"CI set",
 			map[string]string{"CI": "true"},
-			OutputModePlain,
+			tui.OutputModePlain,
 		}, // Not a TTY in test env
 		{
 			"CI and TERM set",
 			map[string]string{"CI": "true", "TERM": "xterm"},
-			OutputModePlain,
+			tui.OutputModePlain,
 		}, // Not a TTY in test env
 	}
 
@@ -81,7 +83,7 @@ func TestDetectOutputMode_EnvironmentVariables(t *testing.T) {
 				t.Setenv(key, value)
 			}
 
-			result := DetectOutputMode(false, false, false)
+			result := tui.DetectOutputMode(false, false, false)
 			if result != tt.expected {
 				t.Errorf("With env %v: DetectOutputMode() = %v, expected %v",
 					tt.envVars, result, tt.expected)
@@ -97,11 +99,11 @@ func TestDetectOutputMode_DefaultBehavior(t *testing.T) {
 	// Clear all relevant environment variables; clearEnv restores them on cleanup.
 	clearEnv(t, "NO_COLOR", "TERM", "CI")
 
-	result := DetectOutputMode(false, false, false)
+	result := tui.DetectOutputMode(false, false, false)
 
 	// In a testing environment, this might be Plain or Interactive depending on setup
 	// We just verify it's a valid OutputMode
-	if result < OutputModePlain || result > OutputModeInteractive {
+	if result < tui.OutputModePlain || result > tui.OutputModeInteractive {
 		t.Errorf("DetectOutputMode() returned invalid mode: %v", result)
 	}
 }
@@ -121,15 +123,15 @@ func TestDetectOutputMode_FlagPrecedence(t *testing.T) {
 		forceColor bool
 		noColor    bool
 		plain      bool
-		expected   OutputMode
+		expected   tui.OutputMode
 	}{
-		{"plain overrides CI", false, false, true, OutputModePlain},
-		{"no-color overrides CI", false, true, false, OutputModePlain},
+		{"plain overrides CI", false, false, true, tui.OutputModePlain},
+		{"no-color overrides CI", false, true, false, tui.OutputModePlain},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := DetectOutputMode(tt.forceColor, tt.noColor, tt.plain)
+			result := tui.DetectOutputMode(tt.forceColor, tt.noColor, tt.plain)
 			if result != tt.expected {
 				t.Errorf("DetectOutputMode(%v, %v, %v) = %v, expected %v",
 					tt.forceColor, tt.noColor, tt.plain, result, tt.expected)
@@ -140,7 +142,7 @@ func TestDetectOutputMode_FlagPrecedence(t *testing.T) {
 
 func TestIsTTY(t *testing.T) {
 	// Test that IsTTY returns a boolean
-	result := IsTTY()
+	result := tui.IsTTY()
 
 	// Result should be boolean (true or false)
 	if result != true && result != false {
@@ -152,7 +154,7 @@ func TestIsTTY(t *testing.T) {
 }
 
 func TestTerminalWidth(t *testing.T) {
-	width := TerminalWidth()
+	width := tui.TerminalWidth()
 
 	// Should return a positive width
 	if width <= 0 {
@@ -173,7 +175,7 @@ func TestTerminalWidth(t *testing.T) {
 func TestTerminalWidth_DefaultFallback(t *testing.T) {
 	// We can't easily test the fallback behavior without mocking,
 	// but we can verify the function doesn't panic and returns reasonable values
-	width := TerminalWidth()
+	width := tui.TerminalWidth()
 
 	if width <= 0 {
 		t.Error("TerminalWidth() should return positive width even on error")
@@ -182,7 +184,7 @@ func TestTerminalWidth_DefaultFallback(t *testing.T) {
 
 func TestOutputModeString(_ *testing.T) {
 	// Test that we can convert OutputMode to string for debugging
-	modes := []OutputMode{OutputModePlain, OutputModeStyled, OutputModeInteractive}
+	modes := []tui.OutputMode{tui.OutputModePlain, tui.OutputModeStyled, tui.OutputModeInteractive}
 
 	for _, mode := range modes {
 		// This should not panic
@@ -198,7 +200,7 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 		forceColor bool
 		noColor    bool
 		plain      bool
-		expected   OutputMode
+		expected   tui.OutputMode
 	}{
 		{
 			name: "NO_COLOR forces plain",
@@ -206,7 +208,7 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 				t.Setenv("NO_COLOR", "1")
 				clearEnv(t, "TERM", "CI")
 			},
-			expected: OutputModePlain,
+			expected: tui.OutputModePlain,
 		},
 		{
 			name: "TERM=dumb forces plain",
@@ -214,7 +216,7 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 				t.Setenv("TERM", "dumb")
 				clearEnv(t, "NO_COLOR", "CI")
 			},
-			expected: OutputModePlain,
+			expected: tui.OutputModePlain,
 		},
 		{
 			name: "CI environment gets styled",
@@ -222,7 +224,7 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 				t.Setenv("CI", "true")
 				clearEnv(t, "NO_COLOR", "TERM")
 			},
-			expected: OutputModePlain, // Not a TTY in test environment
+			expected: tui.OutputModePlain, // Not a TTY in test environment
 		},
 		{
 			name: "forceColor enables styled output",
@@ -230,7 +232,7 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 				clearEnv(t, "NO_COLOR", "TERM", "CI")
 			},
 			forceColor: true,
-			expected:   OutputModeStyled,
+			expected:   tui.OutputModeStyled,
 		},
 		{
 			name: "plain flag overrides forceColor",
@@ -239,7 +241,7 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 			},
 			forceColor: true,
 			plain:      true,
-			expected:   OutputModePlain,
+			expected:   tui.OutputModePlain,
 		},
 		{
 			name: "NO_COLOR overrides forceColor",
@@ -248,7 +250,7 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 				clearEnv(t, "TERM", "CI")
 			},
 			forceColor: true,
-			expected:   OutputModePlain,
+			expected:   tui.OutputModePlain,
 		},
 	}
 
@@ -256,7 +258,7 @@ func TestDetectOutputMode_Integration(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.setup(t)
 
-			result := DetectOutputMode(tt.forceColor, tt.noColor, tt.plain)
+			result := tui.DetectOutputMode(tt.forceColor, tt.noColor, tt.plain)
 			if result != tt.expected {
 				t.Errorf("Integration test failed: got %v, expected %v", result, tt.expected)
 			}

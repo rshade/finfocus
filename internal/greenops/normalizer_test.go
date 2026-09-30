@@ -1,4 +1,4 @@
-package greenops
+package greenops_test
 
 import (
 	"math"
@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/greenops"
 )
 
 func TestNormalizeToKg(t *testing.T) {
@@ -105,21 +107,21 @@ func TestNormalizeToKg(t *testing.T) {
 			value:   100.0,
 			unit:    "invalid",
 			wantErr: true,
-			errType: ErrInvalidUnit,
+			errType: greenops.ErrInvalidUnit,
 		},
 		{
 			name:    "empty unit",
 			value:   100.0,
 			unit:    "",
 			wantErr: true,
-			errType: ErrInvalidUnit,
+			errType: greenops.ErrInvalidUnit,
 		},
 		{
 			name:    "negative value",
 			value:   -100.0,
 			unit:    "kg",
 			wantErr: true,
-			errType: ErrNegativeValue,
+			errType: greenops.ErrNegativeValue,
 		},
 		// Overflow cases
 		{
@@ -127,21 +129,21 @@ func TestNormalizeToKg(t *testing.T) {
 			value:   math.Inf(1),
 			unit:    "kg",
 			wantErr: true,
-			errType: ErrCalculationOverflow,
+			errType: greenops.ErrCalculationOverflow,
 		},
 		{
 			name:    "negative infinity",
 			value:   math.Inf(-1),
 			unit:    "kg",
 			wantErr: true,
-			errType: ErrCalculationOverflow,
+			errType: greenops.ErrCalculationOverflow,
 		},
 		{
 			name:    "NaN value",
 			value:   math.NaN(),
 			unit:    "kg",
 			wantErr: true,
-			errType: ErrCalculationOverflow,
+			errType: greenops.ErrCalculationOverflow,
 		},
 		// Multiplication overflow case
 		{
@@ -149,13 +151,13 @@ func TestNormalizeToKg(t *testing.T) {
 			value:   math.MaxFloat64 / 100, // Large enough that *1000 overflows to Inf
 			unit:    "t",                   // factor = 1000
 			wantErr: true,
-			errType: ErrCalculationOverflow,
+			errType: greenops.ErrCalculationOverflow,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NormalizeToKg(tt.value, tt.unit)
+			got, err := greenops.NormalizeToKg(tt.value, tt.unit)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -200,7 +202,7 @@ func TestIsRecognizedUnit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.unit, func(t *testing.T) {
-			got := IsRecognizedUnit(tt.unit)
+			got := greenops.IsRecognizedUnit(tt.unit)
 			assert.Equal(t, tt.want, got)
 		})
 	}

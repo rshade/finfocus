@@ -1,4 +1,4 @@
-package conformance
+package conformance_test
 
 import (
 	"bytes"
@@ -9,53 +9,55 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/conformance"
 )
 
-func createTestReport() *SuiteReport {
+func createTestReport() *conformance.SuiteReport {
 	startTime := time.Date(2025, 12, 2, 10, 30, 0, 0, time.UTC)
 	endTime := startTime.Add(4500 * time.Millisecond)
 
-	return &SuiteReport{
+	return &conformance.SuiteReport{
 		SuiteName: "conformance",
-		Plugin: PluginUnderTest{
+		Plugin: conformance.PluginUnderTest{
 			Path:            "./plugins/aws-cost",
 			Name:            "aws-cost",
 			Version:         "1.2.0",
 			ProtocolVersion: "1.0",
-			CommMode:        CommModeTCP,
+			CommMode:        conformance.CommModeTCP,
 		},
-		Results: []TestResult{
+		Results: []conformance.TestResult{
 			{
 				TestName:  "Name_ReturnsPluginIdentifier",
-				Category:  CategoryProtocol,
-				Status:    StatusPass,
+				Category:  conformance.CategoryProtocol,
+				Status:    conformance.StatusPass,
 				Duration:  50 * time.Millisecond,
 				Timestamp: startTime.Add(50 * time.Millisecond),
 			},
 			{
 				TestName:  "Name_ReturnsProtocolVersion",
-				Category:  CategoryProtocol,
-				Status:    StatusPass,
+				Category:  conformance.CategoryProtocol,
+				Status:    conformance.StatusPass,
 				Duration:  45 * time.Millisecond,
 				Timestamp: startTime.Add(95 * time.Millisecond),
 			},
 			{
 				TestName:  "GetProjectedCost_InvalidResource",
-				Category:  CategoryError,
-				Status:    StatusFail,
+				Category:  conformance.CategoryError,
+				Status:    conformance.StatusFail,
 				Duration:  110 * time.Millisecond,
 				Error:     "expected NotFound, got InvalidArgument",
 				Timestamp: startTime.Add(205 * time.Millisecond),
 			},
 			{
 				TestName:  "GetActualCost_RequiresCredentials",
-				Category:  CategoryProtocol,
-				Status:    StatusSkip,
+				Category:  conformance.CategoryProtocol,
+				Status:    conformance.StatusSkip,
 				Error:     "credentials not configured",
 				Timestamp: startTime.Add(205 * time.Millisecond),
 			},
 		},
-		Summary: Summary{
+		Summary: conformance.Summary{
 			Total:   4,
 			Passed:  2,
 			Failed:  1,
@@ -219,16 +221,16 @@ func TestReport_WriteJUnit(t *testing.T) {
 func TestReport_WriteTable_EmptyResults(t *testing.T) {
 	t.Parallel()
 
-	report := &SuiteReport{
+	report := &conformance.SuiteReport{
 		SuiteName: "conformance",
-		Plugin: PluginUnderTest{
+		Plugin: conformance.PluginUnderTest{
 			Name:            "test-plugin",
 			Version:         "1.0.0",
 			ProtocolVersion: "1.0",
-			CommMode:        CommModeTCP,
+			CommMode:        conformance.CommModeTCP,
 		},
-		Results: []TestResult{},
-		Summary: Summary{
+		Results: []conformance.TestResult{},
+		Summary: conformance.Summary{
 			Total:   0,
 			Passed:  0,
 			Failed:  0,
@@ -250,16 +252,16 @@ func TestReport_WriteTable_EmptyResults(t *testing.T) {
 func TestReport_WriteJSON_EmptyResults(t *testing.T) {
 	t.Parallel()
 
-	report := &SuiteReport{
+	report := &conformance.SuiteReport{
 		SuiteName: "conformance",
-		Plugin: PluginUnderTest{
+		Plugin: conformance.PluginUnderTest{
 			Name:            "test-plugin",
 			Version:         "1.0.0",
 			ProtocolVersion: "1.0",
-			CommMode:        CommModeTCP,
+			CommMode:        conformance.CommModeTCP,
 		},
-		Results: []TestResult{},
-		Summary: Summary{},
+		Results: []conformance.TestResult{},
+		Summary: conformance.Summary{},
 	}
 
 	var buf bytes.Buffer
@@ -279,16 +281,16 @@ func TestReport_WriteJSON_EmptyResults(t *testing.T) {
 func TestReport_WriteJUnit_EmptyResults(t *testing.T) {
 	t.Parallel()
 
-	report := &SuiteReport{
+	report := &conformance.SuiteReport{
 		SuiteName: "conformance",
-		Plugin: PluginUnderTest{
+		Plugin: conformance.PluginUnderTest{
 			Name:            "test-plugin",
 			Version:         "1.0.0",
 			ProtocolVersion: "1.0",
-			CommMode:        CommModeTCP,
+			CommMode:        conformance.CommModeTCP,
 		},
-		Results: []TestResult{},
-		Summary: Summary{},
+		Results: []conformance.TestResult{},
+		Summary: conformance.Summary{},
 	}
 
 	var buf bytes.Buffer
@@ -304,36 +306,36 @@ func TestReport_WriteJUnit_EmptyResults(t *testing.T) {
 func TestReport_WriteTable_AllStatusTypes(t *testing.T) {
 	t.Parallel()
 
-	report := &SuiteReport{
+	report := &conformance.SuiteReport{
 		SuiteName: "conformance",
-		Plugin: PluginUnderTest{
+		Plugin: conformance.PluginUnderTest{
 			Name:            "test-plugin",
 			Version:         "1.0.0",
 			ProtocolVersion: "1.0",
-			CommMode:        CommModeTCP,
+			CommMode:        conformance.CommModeTCP,
 		},
-		Results: []TestResult{
-			{TestName: "PassTest", Status: StatusPass, Category: CategoryProtocol},
+		Results: []conformance.TestResult{
+			{TestName: "PassTest", Status: conformance.StatusPass, Category: conformance.CategoryProtocol},
 			{
 				TestName: "FailTest",
-				Status:   StatusFail,
-				Category: CategoryError,
+				Status:   conformance.StatusFail,
+				Category: conformance.CategoryError,
 				Error:    "assertion failed",
 			},
 			{
 				TestName: "SkipTest",
-				Status:   StatusSkip,
-				Category: CategoryProtocol,
+				Status:   conformance.StatusSkip,
+				Category: conformance.CategoryProtocol,
 				Error:    "skipped",
 			},
 			{
 				TestName: "ErrorTest",
-				Status:   StatusError,
-				Category: CategoryContext,
+				Status:   conformance.StatusError,
+				Category: conformance.CategoryContext,
 				Error:    "plugin crashed",
 			},
 		},
-		Summary: Summary{Total: 4, Passed: 1, Failed: 1, Skipped: 1, Errors: 1},
+		Summary: conformance.Summary{Total: 4, Passed: 1, Failed: 1, Skipped: 1, Errors: 1},
 	}
 
 	var buf bytes.Buffer

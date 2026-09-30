@@ -1,4 +1,4 @@
-package config
+package config_test
 
 import (
 	"testing"
@@ -6,56 +6,58 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v3"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 func TestAlertConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name      string
-		alert     AlertConfig
+		alert     config.AlertConfig
 		wantErr   bool
 		errString string
 	}{
 		{
 			name:    "valid actual alert at 80%",
-			alert:   AlertConfig{Threshold: 80.0, Type: AlertTypeActual},
+			alert:   config.AlertConfig{Threshold: 80.0, Type: config.AlertTypeActual},
 			wantErr: false,
 		},
 		{
 			name:    "valid forecasted alert at 100%",
-			alert:   AlertConfig{Threshold: 100.0, Type: AlertTypeForecasted},
+			alert:   config.AlertConfig{Threshold: 100.0, Type: config.AlertTypeForecasted},
 			wantErr: false,
 		},
 		{
 			name:    "valid alert at 0%",
-			alert:   AlertConfig{Threshold: 0.0, Type: AlertTypeActual},
+			alert:   config.AlertConfig{Threshold: 0.0, Type: config.AlertTypeActual},
 			wantErr: false,
 		},
 		{
 			name:    "valid alert at max threshold",
-			alert:   AlertConfig{Threshold: MaxThresholdPercent, Type: AlertTypeActual},
+			alert:   config.AlertConfig{Threshold: config.MaxThresholdPercent, Type: config.AlertTypeActual},
 			wantErr: false,
 		},
 		{
 			name:      "negative threshold",
-			alert:     AlertConfig{Threshold: -10.0, Type: AlertTypeActual},
+			alert:     config.AlertConfig{Threshold: -10.0, Type: config.AlertTypeActual},
 			wantErr:   true,
 			errString: "threshold must be between 0 and 1000",
 		},
 		{
 			name:      "threshold exceeds max",
-			alert:     AlertConfig{Threshold: 1001.0, Type: AlertTypeActual},
+			alert:     config.AlertConfig{Threshold: 1001.0, Type: config.AlertTypeActual},
 			wantErr:   true,
 			errString: "threshold must be between 0 and 1000",
 		},
 		{
 			name:      "invalid alert type",
-			alert:     AlertConfig{Threshold: 80.0, Type: "invalid"},
+			alert:     config.AlertConfig{Threshold: 80.0, Type: "invalid"},
 			wantErr:   true,
 			errString: "alert type must be 'actual' or 'forecasted'",
 		},
 		{
 			name:      "empty alert type",
-			alert:     AlertConfig{Threshold: 80.0, Type: ""},
+			alert:     config.AlertConfig{Threshold: 80.0, Type: ""},
 			wantErr:   true,
 			errString: "alert type must be 'actual' or 'forecasted'",
 		},
@@ -77,26 +79,26 @@ func TestAlertConfig_Validate(t *testing.T) {
 func TestBudgetConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name      string
-		budget    BudgetConfig
+		budget    config.BudgetConfig
 		wantErr   bool
 		errString string
 	}{
 		{
 			name: "valid budget with alerts",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:   1000.0,
 				Currency: "USD",
 				Period:   "monthly",
-				Alerts: []AlertConfig{
-					{Threshold: 80.0, Type: AlertTypeActual},
-					{Threshold: 100.0, Type: AlertTypeForecasted},
+				Alerts: []config.AlertConfig{
+					{Threshold: 80.0, Type: config.AlertTypeActual},
+					{Threshold: 100.0, Type: config.AlertTypeForecasted},
 				},
 			},
 			wantErr: false,
 		},
 		{
 			name: "valid budget without alerts",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:   500.0,
 				Currency: "EUR",
 			},
@@ -104,14 +106,14 @@ func TestBudgetConfig_Validate(t *testing.T) {
 		},
 		{
 			name: "disabled budget (amount zero) is valid",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount: 0.0,
 			},
 			wantErr: false,
 		},
 		{
 			name: "disabled budget ignores missing currency",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:   0.0,
 				Currency: "",
 			},
@@ -119,13 +121,13 @@ func TestBudgetConfig_Validate(t *testing.T) {
 		},
 		{
 			name:      "negative amount",
-			budget:    BudgetConfig{Amount: -100.0, Currency: "USD"},
+			budget:    config.BudgetConfig{Amount: -100.0, Currency: "USD"},
 			wantErr:   true,
 			errString: "budget amount cannot be negative",
 		},
 		{
 			name: "missing currency when enabled",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:   1000.0,
 				Currency: "",
 			},
@@ -134,11 +136,11 @@ func TestBudgetConfig_Validate(t *testing.T) {
 		},
 		{
 			name: "invalid alert propagates error",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:   1000.0,
 				Currency: "USD",
-				Alerts: []AlertConfig{
-					{Threshold: -10.0, Type: AlertTypeActual},
+				Alerts: []config.AlertConfig{
+					{Threshold: -10.0, Type: config.AlertTypeActual},
 				},
 			},
 			wantErr:   true,
@@ -172,7 +174,7 @@ func TestBudgetConfig_IsEnabled(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			budget := BudgetConfig{Amount: tc.amount}
+			budget := config.BudgetConfig{Amount: tc.amount}
 			assert.Equal(t, tc.expected, budget.IsEnabled())
 			assert.Equal(t, !tc.expected, budget.IsDisabled())
 		})
@@ -192,21 +194,21 @@ func TestBudgetConfig_GetPeriod(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			budget := BudgetConfig{Period: tc.period}
+			budget := config.BudgetConfig{Period: tc.period}
 			assert.Equal(t, tc.expected, budget.GetPeriod())
 		})
 	}
 }
 
 func TestBudgetConfig_GetAlertsByType(t *testing.T) {
-	budget := BudgetConfig{
+	budget := config.BudgetConfig{
 		Amount:   1000.0,
 		Currency: "USD",
-		Alerts: []AlertConfig{
-			{Threshold: 50.0, Type: AlertTypeActual},
-			{Threshold: 80.0, Type: AlertTypeActual},
-			{Threshold: 100.0, Type: AlertTypeForecasted},
-			{Threshold: 120.0, Type: AlertTypeForecasted},
+		Alerts: []config.AlertConfig{
+			{Threshold: 50.0, Type: config.AlertTypeActual},
+			{Threshold: 80.0, Type: config.AlertTypeActual},
+			{Threshold: 100.0, Type: config.AlertTypeForecasted},
+			{Threshold: 120.0, Type: config.AlertTypeForecasted},
 		},
 	}
 
@@ -225,7 +227,7 @@ func TestBudgetConfig_GetAlertsByType(t *testing.T) {
 	})
 
 	t.Run("empty alerts", func(t *testing.T) {
-		emptyBudget := BudgetConfig{}
+		emptyBudget := config.BudgetConfig{}
 		assert.Nil(t, emptyBudget.GetActualAlerts())
 		assert.Nil(t, emptyBudget.GetForecastedAlerts())
 	})
@@ -234,14 +236,14 @@ func TestBudgetConfig_GetAlertsByType(t *testing.T) {
 func TestCostConfig_Validate(t *testing.T) {
 	tests := []struct {
 		name    string
-		cost    CostConfig
+		cost    config.CostConfig
 		wantErr bool
 	}{
 		{
 			name: "valid cost config",
-			cost: CostConfig{
-				Budgets: &BudgetsConfig{
-					Global: &ScopedBudget{
+			cost: config.CostConfig{
+				Budgets: &config.BudgetsConfig{
+					Global: &config.ScopedBudget{
 						Amount:   1000.0,
 						Currency: "USD",
 					},
@@ -251,14 +253,14 @@ func TestCostConfig_Validate(t *testing.T) {
 		},
 		{
 			name:    "empty cost config is valid",
-			cost:    CostConfig{},
+			cost:    config.CostConfig{},
 			wantErr: false,
 		},
 		{
 			name: "invalid budget propagates error",
-			cost: CostConfig{
-				Budgets: &BudgetsConfig{
-					Global: &ScopedBudget{
+			cost: config.CostConfig{
+				Budgets: &config.BudgetsConfig{
+					Global: &config.ScopedBudget{
 						Amount: -100.0,
 					},
 				},
@@ -282,28 +284,28 @@ func TestCostConfig_Validate(t *testing.T) {
 func TestCostConfig_HasBudget(t *testing.T) {
 	tests := []struct {
 		name     string
-		cost     CostConfig
+		cost     config.CostConfig
 		expected bool
 	}{
 		{
 			name:     "empty config has no budget",
-			cost:     CostConfig{},
+			cost:     config.CostConfig{},
 			expected: false,
 		},
 		{
 			name: "zero amount has no budget",
-			cost: CostConfig{
-				Budgets: &BudgetsConfig{
-					Global: &ScopedBudget{Amount: 0.0},
+			cost: config.CostConfig{
+				Budgets: &config.BudgetsConfig{
+					Global: &config.ScopedBudget{Amount: 0.0},
 				},
 			},
 			expected: false,
 		},
 		{
 			name: "positive amount has budget",
-			cost: CostConfig{
-				Budgets: &BudgetsConfig{
-					Global: &ScopedBudget{Amount: 100.0, Currency: "USD"},
+			cost: config.CostConfig{
+				Budgets: &config.BudgetsConfig{
+					Global: &config.ScopedBudget{Amount: 100.0, Currency: "USD"},
 				},
 			},
 			expected: true,
@@ -335,7 +337,7 @@ cost:
 `
 
 	var cfg struct {
-		Cost CostConfig `yaml:"cost"`
+		Cost config.CostConfig `yaml:"cost"`
 	}
 
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
@@ -350,26 +352,26 @@ cost:
 
 	// Validate alert parsing
 	assert.InDelta(t, 50.0, cfg.Cost.Budgets.Global.Alerts[0].Threshold, 1e-9)
-	assert.Equal(t, AlertTypeActual, cfg.Cost.Budgets.Global.Alerts[0].Type)
+	assert.Equal(t, config.AlertTypeActual, cfg.Cost.Budgets.Global.Alerts[0].Type)
 	assert.InDelta(t, 80.0, cfg.Cost.Budgets.Global.Alerts[1].Threshold, 1e-9)
-	assert.Equal(t, AlertTypeActual, cfg.Cost.Budgets.Global.Alerts[1].Type)
+	assert.Equal(t, config.AlertTypeActual, cfg.Cost.Budgets.Global.Alerts[1].Type)
 	assert.InDelta(t, 100.0, cfg.Cost.Budgets.Global.Alerts[2].Threshold, 1e-9)
-	assert.Equal(t, AlertTypeForecasted, cfg.Cost.Budgets.Global.Alerts[2].Type)
+	assert.Equal(t, config.AlertTypeForecasted, cfg.Cost.Budgets.Global.Alerts[2].Type)
 
 	// Validate the parsed config
 	require.NoError(t, cfg.Cost.Validate())
 }
 
 func TestBudgetConfig_YAMLRoundTrip(t *testing.T) {
-	original := CostConfig{
-		Budgets: &BudgetsConfig{
-			Global: &ScopedBudget{
+	original := config.CostConfig{
+		Budgets: &config.BudgetsConfig{
+			Global: &config.ScopedBudget{
 				Amount:   1500.50,
 				Currency: "EUR",
 				Period:   "monthly",
-				Alerts: []AlertConfig{
-					{Threshold: 75.0, Type: AlertTypeActual},
-					{Threshold: 100.0, Type: AlertTypeForecasted},
+				Alerts: []config.AlertConfig{
+					{Threshold: 75.0, Type: config.AlertTypeActual},
+					{Threshold: 100.0, Type: config.AlertTypeForecasted},
 				},
 			},
 		},
@@ -380,7 +382,7 @@ func TestBudgetConfig_YAMLRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 
 	// Unmarshal back
-	var parsed CostConfig
+	var parsed config.CostConfig
 	err = yaml.Unmarshal(data, &parsed)
 	require.NoError(t, err)
 
@@ -398,7 +400,7 @@ func TestBudgetConfig_YAMLRoundTrip(t *testing.T) {
 func TestConfig_CostIntegration(t *testing.T) {
 	// Test that cost config integrates properly with main config
 	t.Run("set and get cost values", func(t *testing.T) {
-		cfg := &Config{}
+		cfg := &config.Config{}
 
 		// Set cost values
 		err := cfg.Set("cost.budgets.amount", "1000")
@@ -423,10 +425,10 @@ func TestConfig_CostIntegration(t *testing.T) {
 	})
 
 	t.Run("get entire cost config", func(t *testing.T) {
-		cfg := &Config{
-			Cost: CostConfig{
-				Budgets: &BudgetsConfig{
-					Global: &ScopedBudget{
+		cfg := &config.Config{
+			Cost: config.CostConfig{
+				Budgets: &config.BudgetsConfig{
+					Global: &config.ScopedBudget{
 						Amount:   500.0,
 						Currency: "EUR",
 					},
@@ -436,7 +438,7 @@ func TestConfig_CostIntegration(t *testing.T) {
 
 		cost, err := cfg.Get("cost")
 		require.NoError(t, err)
-		costConfig, ok := cost.(CostConfig)
+		costConfig, ok := cost.(config.CostConfig)
 		require.True(t, ok)
 		require.NotNil(t, costConfig.Budgets)
 		require.NotNil(t, costConfig.Budgets.Global)
@@ -444,10 +446,10 @@ func TestConfig_CostIntegration(t *testing.T) {
 	})
 
 	t.Run("get entire budgets config", func(t *testing.T) {
-		cfg := &Config{
-			Cost: CostConfig{
-				Budgets: &BudgetsConfig{
-					Global: &ScopedBudget{
+		cfg := &config.Config{
+			Cost: config.CostConfig{
+				Budgets: &config.BudgetsConfig{
+					Global: &config.ScopedBudget{
 						Amount:   750.0,
 						Currency: "GBP",
 					},
@@ -457,28 +459,28 @@ func TestConfig_CostIntegration(t *testing.T) {
 
 		budgets, err := cfg.Get("cost.budgets")
 		require.NoError(t, err)
-		budgetsConfig, ok := budgets.(*BudgetsConfig)
+		budgetsConfig, ok := budgets.(*config.BudgetsConfig)
 		require.True(t, ok)
 		require.NotNil(t, budgetsConfig.Global)
 		assert.InDelta(t, 750.0, budgetsConfig.Global.Amount, 1e-9)
 	})
 
 	t.Run("invalid set value", func(t *testing.T) {
-		cfg := &Config{}
+		cfg := &config.Config{}
 		err := cfg.Set("cost.budgets.amount", "not-a-number")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "must be a number")
 	})
 
 	t.Run("unknown cost setting", func(t *testing.T) {
-		cfg := &Config{}
+		cfg := &config.Config{}
 		err := cfg.Set("cost.unknown", "value")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown cost setting")
 	})
 
 	t.Run("unknown budgets setting", func(t *testing.T) {
-		cfg := &Config{}
+		cfg := &config.Config{}
 		err := cfg.Set("cost.budgets.unknown", "value")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unknown cost.budgets setting")
@@ -486,10 +488,10 @@ func TestConfig_CostIntegration(t *testing.T) {
 }
 
 func TestConfig_List_IncludesCost(t *testing.T) {
-	cfg := &Config{
-		Cost: CostConfig{
-			Budgets: &BudgetsConfig{
-				Global: &ScopedBudget{
+	cfg := &config.Config{
+		Cost: config.CostConfig{
+			Budgets: &config.BudgetsConfig{
+				Global: &config.ScopedBudget{
 					Amount:   1000.0,
 					Currency: "USD",
 				},
@@ -501,7 +503,7 @@ func TestConfig_List_IncludesCost(t *testing.T) {
 	cost, exists := list["cost"]
 	require.True(t, exists)
 
-	costConfig, ok := cost.(CostConfig)
+	costConfig, ok := cost.(config.CostConfig)
 	require.True(t, ok)
 	require.NotNil(t, costConfig.Budgets)
 	require.NotNil(t, costConfig.Budgets.Global)
@@ -511,35 +513,35 @@ func TestConfig_List_IncludesCost(t *testing.T) {
 // T004: Unit test for ErrExitCodeOutOfRange error type.
 func TestErrExitCodeOutOfRange(t *testing.T) {
 	// Verify the error variable exists and has the expected message
-	require.Error(t, ErrExitCodeOutOfRange)
-	assert.Contains(t, ErrExitCodeOutOfRange.Error(), "exit code must be between 0 and 255")
+	require.Error(t, config.ErrExitCodeOutOfRange)
+	assert.Contains(t, config.ErrExitCodeOutOfRange.Error(), "exit code must be between 0 and 255")
 }
 
 // T005: Unit test for BudgetConfig.GetExitCode() method.
 func TestBudgetConfig_GetExitCode(t *testing.T) {
 	tests := []struct {
 		name     string
-		budget   BudgetConfig
+		budget   config.BudgetConfig
 		expected int
 	}{
 		{
 			name:     "default exit code when not set",
-			budget:   BudgetConfig{Amount: 100.0, Currency: "USD"},
+			budget:   config.BudgetConfig{Amount: 100.0, Currency: "USD"},
 			expected: 1,
 		},
 		{
 			name:     "explicit exit code 0",
-			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitCode: 0, ExitOnThreshold: true},
+			budget:   config.BudgetConfig{Amount: 100.0, Currency: "USD", ExitCode: 0, ExitOnThreshold: true},
 			expected: 0,
 		},
 		{
 			name:     "explicit exit code 2",
-			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitCode: 2},
+			budget:   config.BudgetConfig{Amount: 100.0, Currency: "USD", ExitCode: 2},
 			expected: 2,
 		},
 		{
 			name:     "max exit code 255",
-			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitCode: 255},
+			budget:   config.BudgetConfig{Amount: 100.0, Currency: "USD", ExitCode: 255},
 			expected: 255,
 		},
 	}
@@ -555,22 +557,22 @@ func TestBudgetConfig_GetExitCode(t *testing.T) {
 func TestBudgetConfig_ShouldExitOnThreshold(t *testing.T) {
 	tests := []struct {
 		name     string
-		budget   BudgetConfig
+		budget   config.BudgetConfig
 		expected bool
 	}{
 		{
 			name:     "default is disabled",
-			budget:   BudgetConfig{Amount: 100.0, Currency: "USD"},
+			budget:   config.BudgetConfig{Amount: 100.0, Currency: "USD"},
 			expected: false,
 		},
 		{
 			name:     "explicitly enabled",
-			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitOnThreshold: true},
+			budget:   config.BudgetConfig{Amount: 100.0, Currency: "USD", ExitOnThreshold: true},
 			expected: true,
 		},
 		{
 			name:     "explicitly disabled",
-			budget:   BudgetConfig{Amount: 100.0, Currency: "USD", ExitOnThreshold: false},
+			budget:   config.BudgetConfig{Amount: 100.0, Currency: "USD", ExitOnThreshold: false},
 			expected: false,
 		},
 	}
@@ -586,13 +588,13 @@ func TestBudgetConfig_ShouldExitOnThreshold(t *testing.T) {
 func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
 	tests := []struct {
 		name      string
-		budget    BudgetConfig
+		budget    config.BudgetConfig
 		wantErr   bool
 		errString string
 	}{
 		{
 			name: "valid exit code 0",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:          100.0,
 				Currency:        "USD",
 				ExitOnThreshold: true,
@@ -602,7 +604,7 @@ func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
 		},
 		{
 			name: "valid exit code 1 (default)",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:          100.0,
 				Currency:        "USD",
 				ExitOnThreshold: true,
@@ -612,7 +614,7 @@ func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
 		},
 		{
 			name: "valid exit code 255 (max)",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:          100.0,
 				Currency:        "USD",
 				ExitOnThreshold: true,
@@ -622,7 +624,7 @@ func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
 		},
 		{
 			name: "invalid exit code 256 (exceeds max)",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:          100.0,
 				Currency:        "USD",
 				ExitOnThreshold: true,
@@ -633,7 +635,7 @@ func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
 		},
 		{
 			name: "invalid exit code -1 (negative)",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:          100.0,
 				Currency:        "USD",
 				ExitOnThreshold: true,
@@ -644,7 +646,7 @@ func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
 		},
 		{
 			name: "exit code validation skipped when exit disabled",
-			budget: BudgetConfig{
+			budget: config.BudgetConfig{
 				Amount:          100.0,
 				Currency:        "USD",
 				ExitOnThreshold: false,
@@ -675,7 +677,7 @@ cost:
   history: {}
 `
 	var cfg struct {
-		Cost CostConfig `yaml:"cost"`
+		Cost config.CostConfig `yaml:"cost"`
 	}
 
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
@@ -695,7 +697,7 @@ cost:
     directory: /tmp/custom-history
 `
 	var cfg struct {
-		Cost CostConfig `yaml:"cost"`
+		Cost config.CostConfig `yaml:"cost"`
 	}
 
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
@@ -719,7 +721,7 @@ cost:
     ttl_seconds: 3600
 `
 	var cfg struct {
-		Cost CostConfig `yaml:"cost"`
+		Cost config.CostConfig `yaml:"cost"`
 	}
 
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
@@ -736,8 +738,8 @@ cost:
 func TestHistoryConfig_YAMLRoundTrip(t *testing.T) {
 	boolTrue := true
 	retentionDays := 120
-	original := CostConfig{
-		History: HistoryConfig{
+	original := config.CostConfig{
+		History: config.HistoryConfig{
 			Enabled:       &boolTrue,
 			RetentionDays: &retentionDays,
 			Directory:     "/var/data/history",
@@ -747,7 +749,7 @@ func TestHistoryConfig_YAMLRoundTrip(t *testing.T) {
 	data, err := yaml.Marshal(original)
 	require.NoError(t, err)
 
-	var parsed CostConfig
+	var parsed config.CostConfig
 	err = yaml.Unmarshal(data, &parsed)
 	require.NoError(t, err)
 
@@ -764,7 +766,7 @@ cost:
   allocation: {}
 `
 	var cfg struct {
-		Cost CostConfig `yaml:"cost"`
+		Cost config.CostConfig `yaml:"cost"`
 	}
 
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
@@ -785,7 +787,7 @@ cost:
       - team
 `
 	var cfg struct {
-		Cost CostConfig `yaml:"cost"`
+		Cost config.CostConfig `yaml:"cost"`
 	}
 
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
@@ -810,7 +812,7 @@ cost:
     retention_days: 90
 `
 	var cfg struct {
-		Cost CostConfig `yaml:"cost"`
+		Cost config.CostConfig `yaml:"cost"`
 	}
 
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
@@ -826,8 +828,8 @@ cost:
 }
 
 func TestAllocationConfig_YAMLRoundTrip(t *testing.T) {
-	original := CostConfig{
-		Allocation: AllocationConfig{
+	original := config.CostConfig{
+		Allocation: config.AllocationConfig{
 			Enabled: true,
 			Tags:    []string{"pulumi:project", "env"},
 		},
@@ -836,7 +838,7 @@ func TestAllocationConfig_YAMLRoundTrip(t *testing.T) {
 	data, err := yaml.Marshal(original)
 	require.NoError(t, err)
 
-	var parsed CostConfig
+	var parsed config.CostConfig
 	err = yaml.Unmarshal(data, &parsed)
 	require.NoError(t, err)
 
@@ -845,9 +847,9 @@ func TestAllocationConfig_YAMLRoundTrip(t *testing.T) {
 }
 
 func TestHistoryConfig_DefaultConstants(t *testing.T) {
-	assert.Equal(t, 90, HistoryDefaultRetentionDays)
-	assert.True(t, HistoryDefaultEnabled)
-	assert.False(t, AllocationDefaultEnabled)
+	assert.Equal(t, 90, config.HistoryDefaultRetentionDays)
+	assert.True(t, config.HistoryDefaultEnabled)
+	assert.False(t, config.AllocationDefaultEnabled)
 }
 
 // ---------------------------------------------------------------------------
@@ -855,7 +857,7 @@ func TestHistoryConfig_DefaultConstants(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAllocationConfig_Validate_ValidWithTags(t *testing.T) {
-	cfg := AllocationConfig{
+	cfg := config.AllocationConfig{
 		Enabled: true,
 		Tags:    []string{"pulumi:project", "env", "team"},
 	}
@@ -864,7 +866,7 @@ func TestAllocationConfig_Validate_ValidWithTags(t *testing.T) {
 }
 
 func TestAllocationConfig_Validate_DisabledEmptyTags(t *testing.T) {
-	cfg := AllocationConfig{
+	cfg := config.AllocationConfig{
 		Enabled: false,
 		Tags:    nil,
 	}
@@ -873,7 +875,7 @@ func TestAllocationConfig_Validate_DisabledEmptyTags(t *testing.T) {
 }
 
 func TestAllocationConfig_Validate_EnabledEmptyTags(t *testing.T) {
-	cfg := AllocationConfig{
+	cfg := config.AllocationConfig{
 		Enabled: true,
 		Tags:    nil,
 	}
@@ -882,7 +884,7 @@ func TestAllocationConfig_Validate_EnabledEmptyTags(t *testing.T) {
 }
 
 func TestAllocationConfig_Validate_EmptyTagKey(t *testing.T) {
-	cfg := AllocationConfig{
+	cfg := config.AllocationConfig{
 		Enabled: true,
 		Tags:    []string{"valid", ""},
 	}
@@ -896,7 +898,7 @@ func TestAllocationConfig_Validate_TagKeyTooLong(t *testing.T) {
 	for i := range longKey {
 		longKey = longKey[:i] + "a" + longKey[i+1:]
 	}
-	cfg := AllocationConfig{
+	cfg := config.AllocationConfig{
 		Enabled: true,
 		Tags:    []string{longKey},
 	}
@@ -913,7 +915,7 @@ tags:
   - cost-center
   - team
 `
-	var cfg AllocationConfig
+	var cfg config.AllocationConfig
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)
 	require.NoError(t, err)
 
@@ -926,7 +928,7 @@ tags:
 }
 
 func TestAllocationConfig_Validate_DisabledWithInvalidTags(t *testing.T) {
-	cfg := AllocationConfig{
+	cfg := config.AllocationConfig{
 		Enabled: false,
 		Tags:    []string{"valid", ""},
 	}
@@ -947,7 +949,7 @@ cost:
 `
 
 	var cfg struct {
-		Cost CostConfig `yaml:"cost"`
+		Cost config.CostConfig `yaml:"cost"`
 	}
 
 	err := yaml.Unmarshal([]byte(yamlData), &cfg)

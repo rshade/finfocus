@@ -1,4 +1,4 @@
-package history
+package history_test
 
 import (
 	"crypto/sha256"
@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/history"
 )
 
 // hashOf is a test helper that computes the same 16-char hex hash
@@ -18,12 +20,12 @@ func hashOf(s string) string {
 }
 
 func TestStackContextHash_ShortAndQualifiedMatch(t *testing.T) {
-	short := StackContext{
+	short := history.StackContext{
 		Organization: "org",
 		Project:      "proj",
 		Stack:        "dev",
 	}
-	qualified := StackContext{
+	qualified := history.StackContext{
 		Organization: "org",
 		Project:      "proj",
 		Stack:        "org/proj/dev",
@@ -37,7 +39,7 @@ func TestStackContextHash_ShortAndQualifiedMatch(t *testing.T) {
 }
 
 func TestStackContextHash_NoDoublePrefixing(t *testing.T) {
-	sc := StackContext{
+	sc := history.StackContext{
 		Organization: "org",
 		Project:      "proj",
 		Stack:        "dev",
@@ -53,7 +55,7 @@ func TestStackContextHash_NoDoublePrefixing(t *testing.T) {
 		"hash of short name must equal hash of canonical form, not double-prefixed")
 
 	// Calling with the already-expanded form should be identical.
-	sc2 := StackContext{
+	sc2 := history.StackContext{
 		Organization: "org",
 		Project:      "proj",
 		Stack:        "org/proj/dev",
@@ -63,7 +65,7 @@ func TestStackContextHash_NoDoublePrefixing(t *testing.T) {
 }
 
 func TestStackContextHash_EmptyStack(t *testing.T) {
-	sc := StackContext{
+	sc := history.StackContext{
 		Organization: "org",
 		Project:      "proj",
 		Stack:        "",
@@ -76,7 +78,7 @@ func TestStackContextHash_EmptyStack(t *testing.T) {
 }
 
 func TestStackContextHash_EmptyContext(t *testing.T) {
-	sc := StackContext{}
+	sc := history.StackContext{}
 	hash := sc.Hash()
 	expectedEmpty := hashOf("")
 	require.Len(t, hash, 16, "zero-value context should still produce a valid 16-char hash")
@@ -85,14 +87,14 @@ func TestStackContextHash_EmptyContext(t *testing.T) {
 
 	// Empty stack with org/project fields produces the same hash as zero-value context,
 	// because the canonicalization guard skips the prefix when stack is empty.
-	emptyStackHash := StackContext{Organization: "org", Project: "proj", Stack: ""}.Hash()
+	emptyStackHash := history.StackContext{Organization: "org", Project: "proj", Stack: ""}.Hash()
 	assert.Equal(t, hash, emptyStackHash,
 		"empty-stack context and zero-value context must produce identical hashes")
 }
 
 func TestStackContextHash_CLICallerNoOrg(t *testing.T) {
 	// CLI path sets Project and Stack but not Organization.
-	sc := StackContext{
+	sc := history.StackContext{
 		Project: "myproject",
 		Stack:   "dev",
 	}
@@ -104,7 +106,7 @@ func TestStackContextHash_CLICallerNoOrg(t *testing.T) {
 }
 
 func TestStackContextHash_Deterministic(t *testing.T) {
-	sc := StackContext{
+	sc := history.StackContext{
 		Organization: "acme",
 		Project:      "infra",
 		Stack:        "production",
@@ -116,31 +118,31 @@ func TestStackContextHash_Deterministic(t *testing.T) {
 
 func TestURNHash(t *testing.T) {
 	urn := "urn:pulumi:dev::myproject::aws:ec2/instance:Instance::web-server"
-	hash := URNHash(urn)
+	hash := history.URNHash(urn)
 	require.Len(t, hash, 16)
-	assert.Equal(t, hash, URNHash(urn), "URNHash must be deterministic")
+	assert.Equal(t, hash, history.URNHash(urn), "URNHash must be deterministic")
 }
 
-func TestBuildHistoryKey(t *testing.T) {
-	key := BuildHistoryKey("stackhash", "urnhash", "i-abc123")
+func TestBuildHistoryKeyFromHash(t *testing.T) {
+	key := history.BuildHistoryKey("stackhash", "urnhash", "i-abc123")
 	assert.Equal(t, "stackhash/urnhash/i-abc123", key)
 }
 
-func TestBuildTagKey(t *testing.T) {
-	key := BuildTagKey("stackhash", "env", "prod", "urnhash")
+func TestBuildTagKeyFromHash(t *testing.T) {
+	key := history.BuildTagKey("stackhash", "env", "prod", "urnhash")
 	assert.Equal(t, "stackhash/env:prod/urnhash", key)
 }
 
 func TestStackContextHash_DifferentStacksDifferentHashes(t *testing.T) {
-	sc1 := StackContext{Organization: "org", Project: "proj", Stack: "dev"}
-	sc2 := StackContext{Organization: "org", Project: "proj", Stack: "prod"}
+	sc1 := history.StackContext{Organization: "org", Project: "proj", Stack: "dev"}
+	sc2 := history.StackContext{Organization: "org", Project: "proj", Stack: "prod"}
 
 	assert.NotEqual(t, sc1.Hash(), sc2.Hash(),
 		"different stacks should produce different hashes")
 }
 
 func TestBuildTagKey_EscapesDelimiters(t *testing.T) {
-	key := BuildTagKey("stackhash", "env:name", "prod/us", "urnhash")
+	key := history.BuildTagKey("stackhash", "env:name", "prod/us", "urnhash")
 
 	// Escaped delimiters should not create ambiguity with the key structure.
 	// The key uses "/" to separate segments and ":" between tagKey:tagValue.
