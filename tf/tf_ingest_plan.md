@@ -1,8 +1,8 @@
 > **Superseded (2026-09-22):** Option C (core-owned mapping table in the
 > adapter) was rejected in favor of plugin-owned mappings behind the
-> `ResolveResourceTypes` RPC. See
-> `docs/superpowers/specs/2026-03-26-terraform-state-ingestion-design.md`
-> for the approved design. This document is kept for historical context only.
+> `ResolveResourceTypes` RPC, which shipped in finfocus-spec v0.6.1 (see
+> `tf/finfocus-spec-changes.md`). This document is kept for historical
+> context only.
 
 # Terraform/OpenTofu State Ingestion Plan
 
