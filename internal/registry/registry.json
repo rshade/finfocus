@@ -31,6 +31,22 @@
         "asset_prefix": "finfocus-plugin-aws-public",
         "version_prefix": false
       }
+    },
+    "kubernetes": {
+      "name": "kubernetes",
+      "description": "Kubernetes workload usage and cost allocation by namespace, controller, pod, and label",
+      "repository": "rshade/finfocus",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus/tree/main/plugins/kubernetes",
+      "supported_providers": ["kubernetes"],
+      "capabilities": ["usage_stats", "allocation"],
+      "security_level": "official",
+      "min_spec_version": "0.7.0",
+      "tag_prefix": "kubernetes-",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-kubernetes"
+      }
     }
   }
 }

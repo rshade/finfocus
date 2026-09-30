@@ -122,7 +122,12 @@ func TestFindReleaseWithFallbackInfo_PrefixFiltersCoreReleases(t *testing.T) {
 	assert.True(t, info.WasFallback)
 }
 
-func TestUpdate_PrefixedPluginComparesCanonicalVersions(t *testing.T) {
+// TestCompareVersions_PrefixedCanonicalVersions verifies that the canonical
+// version derived from a prefixed monorepo tag compares equal to the installed
+// version string, so an unchanged release would not trigger a reinstall.
+// It exercises fetchRelease/installRelease directly; Installer.Update itself is
+// covered end-to-end by TestUpdate_PrefixedPluginLifecycle.
+func TestCompareVersions_PrefixedCanonicalVersions(t *testing.T) {
 	server := prefixedServer(t, "kubernetes-v0.1.0")
 	defer server.Close()
 	inst, _ := newPrefixedInstaller(t, server)
@@ -137,4 +142,40 @@ func TestUpdate_PrefixedPluginComparesCanonicalVersions(t *testing.T) {
 	cmp, err := CompareVersions(newVersion, "v0.1.0")
 	require.NoError(t, err, "canonical versions must be comparable")
 	assert.Equal(t, 0, cmp, "same version must not trigger reinstall")
+}
+
+// TestUpdate_PrefixedPluginLifecycle exercises Installer.Update end-to-end for
+// the kubernetes monorepo plugin: install at v0.1.0 through the embedded
+// registry entry, update when a newer kubernetes-vX.Y.Z tag exists, and no-op
+// once current.
+func TestUpdate_PrefixedPluginLifecycle(t *testing.T) {
+	server := prefixedServer(t, "kubernetes-v0.1.0", "kubernetes-v0.2.0")
+	defer server.Close()
+	inst, pluginDir := newPrefixedInstaller(t, server)
+	ctx := context.Background()
+
+	res, err := inst.Install(ctx, "kubernetes@v0.1.0", InstallOptions{}, nil)
+	require.NoError(t, err)
+	assert.Equal(t, "v0.1.0", res.Version)
+
+	upd, err := inst.Update(ctx, "kubernetes", UpdateOptions{}, nil)
+	require.NoError(t, err)
+	assert.False(t, upd.WasUpToDate)
+	assert.Equal(t, "v0.1.0", upd.OldVersion)
+	assert.Equal(t, "v0.2.0", upd.NewVersion)
+
+	_, statErr := os.Stat(filepath.Join(pluginDir, "kubernetes", "v0.2.0"))
+	require.NoError(t, statErr, "new version dir must exist")
+	_, statErr = os.Stat(filepath.Join(pluginDir, "kubernetes", "v0.1.0"))
+	assert.True(t, os.IsNotExist(statErr), "old version dir must be removed")
+
+	installed, err := config.GetInstalledPlugin("kubernetes")
+	require.NoError(t, err)
+	assert.Equal(t, "v0.2.0", installed.Version)
+
+	again, err := inst.Update(ctx, "kubernetes", UpdateOptions{}, nil)
+	require.NoError(t, err)
+	assert.True(t, again.WasUpToDate, "already-current plugin must be a no-op")
+	assert.Equal(t, "v0.2.0", again.OldVersion)
+	assert.Equal(t, "v0.2.0", again.NewVersion)
 }
