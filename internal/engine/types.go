@@ -952,6 +952,20 @@ func ScoreSignalNames() []string {
 	}
 }
 
+// ScoreSignalMax returns the upper bound of the named signal's scale. Every signal
+// starts at 0; priority runs to 3 and the others to 1, as finfocus-spec defines them.
+func ScoreSignalMax(name string) float64 {
+	if name == ScoreSignalPriority {
+		return scorePriorityMax
+	}
+	return scoreUnitMax
+}
+
+const (
+	scorePriorityMax = 3.0
+	scoreUnitMax     = 1.0
+)
+
 // Signal returns the named numeric signal and whether the scorer computed it.
 func (s *RecommendationScores) Signal(name string) (float64, bool) {
 	if s == nil {

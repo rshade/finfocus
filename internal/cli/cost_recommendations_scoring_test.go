@@ -52,6 +52,12 @@ func TestParseScoreFilter(t *testing.T) {
 		{"risk<=abc", scoreFilter{}, true, true},
 		{"risk<=", scoreFilter{}, true, true},
 		{"risk!=0.3", scoreFilter{}, true, true},
+		{"risk<=1", scoreFilter{"risk", "<=", 1}, true, false},
+		{"priority>=3", scoreFilter{"priority", ">=", 3}, true, false},
+		{"risk<=30", scoreFilter{}, true, true},
+		{"priority>=4", scoreFilter{}, true, true},
+		{"worth_acting>=-0.1", scoreFilter{}, true, true},
+		{"risk<=NaN", scoreFilter{}, true, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.expr, func(t *testing.T) {
@@ -65,6 +71,16 @@ func TestParseScoreFilter(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestParseScoreFilter_RangeErrorNamesScale(t *testing.T) {
+	_, _, err := parseScoreFilter("priority>=4")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "priority is on a 0 to 3 scale")
+
+	_, _, err = parseScoreFilter("risk<=30")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "risk is on a 0 to 1 scale")
 }
 
 func TestApplyScoreFilters(t *testing.T) {
