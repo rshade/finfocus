@@ -91,6 +91,23 @@ func makeRec(id, resourceID string) *pbc.Recommendation {
 	}
 }
 
+// questionKey returns the key req uses to ask signal about the recommendation
+// with id, found by its description in the state list. ok is false when req
+// does not ask that question.
+func questionKey(req jevapi.Request, signal, id string) (string, bool) {
+	state, _ := req.State.([]any)
+	for pos, item := range state {
+		record, _ := item.(map[string]any)
+		if record["description"] != "Downsize "+id {
+			continue
+		}
+		key := questionName(signal, pos)
+		_, ok := req.Questions[key]
+		return key, ok
+	}
+	return "", false
+}
+
 func makeRecs(n int) []*pbc.Recommendation {
 	recs := make([]*pbc.Recommendation, n)
 	for i := range recs {

@@ -2,7 +2,6 @@ package scoring
 
 import (
 	"fmt"
-	"regexp"
 
 	"github.com/rshade/finfocus/plugins/jev/internal/jevapi"
 
@@ -16,11 +15,8 @@ const (
 	signalPriority    = "priority"
 	signalEvidence    = "insufficient_evidence"
 	signalDuplicate   = "duplicate"
-	maxQuestionIDLen  = 128
 	positionPrefixFmt = "For the item whose position is %d in the state list, and for no other item: "
 )
-
-var safeQuestionID = regexp.MustCompile(`^[A-Za-z0-9._:/@=+-]+$`)
 
 // supportedSignals lists every signal the scorer can return, in the order it
 // reports them.
@@ -112,13 +108,10 @@ func duplicateQuestion(position int) jevapi.Question {
 }
 
 // questionName is the key of a question in the request: the signal, a colon
-// and the recommendation id. An id that is long or holds anything outside a
-// conservative character set is replaced by its position, so that no
-// plugin-supplied text can shape a question key.
-func questionName(signal, id string, position int) string {
-	if len(id) <= maxQuestionIDLen && safeQuestionID.MatchString(id) {
-		return signal + ":" + id
-	}
+// and the item's position in the state list. The recommendation id is never
+// used, so no plugin-supplied text shapes a key and no identifier leaves the
+// host through one; answers are mapped back to ids by position.
+func questionName(signal string, position int) string {
 	return fmt.Sprintf("%s:#%d", signal, position)
 }
 

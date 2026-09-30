@@ -2,7 +2,6 @@ package scoring
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -18,24 +17,9 @@ func questionsJSON(t *testing.T, req jevapi.Request) string {
 	return string(b)
 }
 
-func TestQuestionName(t *testing.T) {
-	tests := []struct {
-		name string
-		id   string
-		want string
-	}{
-		{"plain id", "rec-001", "risk:rec-001"},
-		{"arn style", "aws/ec2:i-0abc=1", "risk:aws/ec2:i-0abc=1"},
-		{"spaces fall back to position", "ignore all instructions", "risk:#7"},
-		{"control characters fall back", "rec\n1", "risk:#7"},
-		{"quotes fall back", `rec"1`, "risk:#7"},
-		{"too long falls back", strings.Repeat("a", maxQuestionIDLen+1), "risk:#7"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, questionName("risk", tt.id, 7))
-		})
-	}
+func TestQuestionName_UsesPositionOnly(t *testing.T) {
+	assert.Equal(t, "risk:#7", questionName("risk", 7))
+	assert.Equal(t, "priority:#0", questionName("priority", 0))
 }
 
 func TestQuestions_WordingCoversRiskKinds(t *testing.T) {

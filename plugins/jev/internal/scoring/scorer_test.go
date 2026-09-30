@@ -154,8 +154,12 @@ func TestScore_OtherSignalsStillBatch(t *testing.T) {
 func TestScore_SplitRequestKindsKeepAlignmentAndPerItemErrors(t *testing.T) {
 	fb := &fakeBackend{respond: func(req jevapi.Request, n int) (*jevapi.Response, error) {
 		resp := defaultResponse(req, n)
-		delete(resp.Answers, "priority:rec-002")
-		delete(resp.Answers, "risk:rec-004")
+		if key, ok := questionKey(req, "priority", "rec-002"); ok {
+			delete(resp.Answers, key)
+		}
+		if key, ok := questionKey(req, "risk", "rec-004"); ok {
+			delete(resp.Answers, key)
+		}
 		return resp, nil
 	}}
 	req := &pbc.ScoreRecommendationsRequest{Recommendations: makeRecs(6)}
@@ -178,7 +182,7 @@ func TestScore_SplitRequestKindsKeepAlignmentAndPerItemErrors(t *testing.T) {
 
 func TestScore_FailedPriorityRequestFailsOnlyThatRecord(t *testing.T) {
 	fb := &fakeBackend{respond: func(req jevapi.Request, n int) (*jevapi.Response, error) {
-		if _, bad := req.Questions["priority:rec-001"]; bad {
+		if _, bad := questionKey(req, "priority", "rec-001"); bad {
 			return nil, &jevapi.APIError{Kind: jevapi.KindInvalidRequest, Status: 422, Message: "no"}
 		}
 		return defaultResponse(req, n), nil
@@ -249,14 +253,23 @@ func TestScore_QuestionNamesAndRequestShape(t *testing.T) {
 	req := &pbc.ScoreRecommendationsRequest{Recommendations: makeRecs(2)}
 	score(t, newScorer(fb, nil), req)
 
-	r := mergedRequest(fb)
-	assert.Equal(t, testModel, r.Model)
+	assert.Equal(t, testModel, mergedRequest(fb).Model)
+	total := 0
+	for _, r := range fb.recorded() {
+		total += len(r.Questions)
+	}
+	assert.Equal(t, 10, total)
 	for _, id := range []string{"rec-000", "rec-001"} {
 		for _, sig := range []string{"risk", "false_positive", "worth_acting", "priority", "insufficient_evidence"} {
-			assert.Contains(t, r.Questions, sig+":"+id)
+			asked := 0
+			for _, r := range fb.recorded() {
+				if _, ok := questionKey(r, sig, id); ok {
+					asked++
+				}
+			}
+			assert.Equal(t, 1, asked, "%s asked about %s", sig, id)
 		}
 	}
-	assert.Len(t, r.Questions, 10)
 }
 
 func TestScore_InjectionTextDoesNotChangeQuestions(t *testing.T) {
@@ -307,11 +320,32 @@ func TestScore_HostileRecommendationIDCannotShapeQuestions(t *testing.T) {
 	assert.NotNil(t, resultScores(resp.GetResults()[1]).Risk)
 }
 
+func TestScore_RecommendationIDNeverSent(t *testing.T) {
+	recs := makeRecs(3)
+	for _, rec := range recs {
+		rec.Id = "arn:aws:ec2:us-east-1:123456789012:instance/" + rec.GetId()
+		rec.Description = "Downsize the instance"
+	}
+	fb := &fakeBackend{}
+	score(t, newScorer(fb, nil), &pbc.ScoreRecommendationsRequest{Recommendations: recs})
+
+	require.NotEmpty(t, fb.recorded())
+	for _, req := range fb.recorded() {
+		body, err := json.Marshal(req)
+		require.NoError(t, err)
+		assert.NotContains(t, string(body), "123456789012")
+	}
+}
+
 func TestScore_SingleBadItemDoesNotFailBatch(t *testing.T) {
 	fb := &fakeBackend{respond: func(req jevapi.Request, n int) (*jevapi.Response, error) {
 		resp := defaultResponse(req, n)
-		delete(resp.Answers, "risk:rec-001")
-		resp.Answers["priority:rec-002"] = noulAnswer(0.5)
+		if key, ok := questionKey(req, "risk", "rec-001"); ok {
+			delete(resp.Answers, key)
+		}
+		if key, ok := questionKey(req, "priority", "rec-002"); ok {
+			resp.Answers[key] = noulAnswer(0.5)
+		}
 		return resp, nil
 	}}
 	req := &pbc.ScoreRecommendationsRequest{Recommendations: makeRecs(4)}
@@ -330,9 +364,15 @@ func TestScore_SingleBadItemDoesNotFailBatch(t *testing.T) {
 func TestScore_ValuesAreClampedToRange(t *testing.T) {
 	fb := &fakeBackend{respond: func(req jevapi.Request, n int) (*jevapi.Response, error) {
 		resp := defaultResponse(req, n)
-		resp.Answers["risk:rec-000"] = noulAnswer(1.4)
-		resp.Answers["false_positive:rec-000"] = noulAnswer(-0.2)
-		resp.Answers["priority:rec-000"] = scoreAnswer(7)
+		for key, value := range map[string]jevapi.Answer{
+			"risk":           noulAnswer(1.4),
+			"false_positive": noulAnswer(-0.2),
+			"priority":       scoreAnswer(7),
+		} {
+			if k, ok := questionKey(req, key, "rec-000"); ok {
+				resp.Answers[k] = value
+			}
+		}
 		return resp, nil
 	}}
 	resp := score(t, newScorer(fb, nil), &pbc.ScoreRecommendationsRequest{Recommendations: makeRecs(1)})
