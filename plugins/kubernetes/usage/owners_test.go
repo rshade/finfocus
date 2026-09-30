@@ -16,6 +16,8 @@ func ctrl(kind, name string) []metav1.OwnerReference {
 }
 
 func TestOwnerIndex_Resolve(t *testing.T) {
+	t.Parallel()
+
 	rs := []appsv1.ReplicaSet{
 		{ObjectMeta: metav1.ObjectMeta{Namespace: "app", Name: "api-7d9", OwnerReferences: ctrl("Deployment", "api")}},
 		{ObjectMeta: metav1.ObjectMeta{Namespace: "app", Name: "bare-rs"}},
@@ -56,6 +58,7 @@ func TestOwnerIndex_Resolve(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			kind, name := idx.Resolve(tt.pod)
 			assert.Equal(t, tt.kind, kind)
 			assert.Equal(t, tt.ctrlName, name)

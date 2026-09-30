@@ -77,6 +77,7 @@ func buildStandardRoutingConfig() *config.RoutingConfig {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesListTable(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -125,6 +126,7 @@ func TestConfigRoutesListTable(t *testing.T) {
 	assert.Contains(t, output, "(global)")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesListAutomatic(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -139,6 +141,7 @@ func TestConfigRoutesListAutomatic(t *testing.T) {
 	assert.Contains(t, output, "No routing configured")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesListJSON(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -172,6 +175,7 @@ func TestConfigRoutesListJSON(t *testing.T) {
 	assert.Equal(t, []string{"glob:aws:ec2:*"}, output.Rules[0].Patterns)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesListAutomaticJSON(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -191,6 +195,7 @@ func TestConfigRoutesListAutomaticJSON(t *testing.T) {
 	assert.Empty(t, output.Rules)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesListEmptyPlugins(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -210,6 +215,7 @@ func TestConfigRoutesListEmptyPlugins(t *testing.T) {
 	assert.Contains(t, output, "No plugins configured")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory
 func TestConfigRoutesListProjectLocal(t *testing.T) {
 	testHome := setupConfigRoutesTest(t)
 
@@ -240,6 +246,7 @@ func TestConfigRoutesListProjectLocal(t *testing.T) {
 	assert.NotContains(t, output, filepath.Join(testHome, ".finfocus", "config.hujson"))
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestTable(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -273,6 +280,7 @@ func TestConfigRoutesTestTable(t *testing.T) {
 	assert.Contains(t, output, "Budgets:")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestWithRegion(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -293,6 +301,7 @@ func TestConfigRoutesTestWithRegion(t *testing.T) {
 	assert.Contains(t, output, "aws-ce")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestAutomatic(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -308,6 +317,7 @@ func TestConfigRoutesTestAutomatic(t *testing.T) {
 	assert.Contains(t, output, "would be queried")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestAutomaticJSON(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -329,6 +339,7 @@ func TestConfigRoutesTestAutomaticJSON(t *testing.T) {
 	assert.Empty(t, matches)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestJSON(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -363,6 +374,7 @@ func TestConfigRoutesTestJSON(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestNoMatches(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -393,6 +405,7 @@ func TestConfigRoutesTestNoMatches(t *testing.T) {
 	assert.Contains(t, output, "No plugins match")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestMissingArg(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -404,6 +417,7 @@ func TestConfigRoutesTestMissingArg(t *testing.T) {
 	assert.Contains(t, strings.ToLower(err.Error()), "resource-type")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestTooManyArgs(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -415,6 +429,7 @@ func TestConfigRoutesTestTooManyArgs(t *testing.T) {
 	assert.Contains(t, err.Error(), "at most 2 args")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesListJSONContract(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -453,6 +468,7 @@ func TestConfigRoutesListJSONContract(t *testing.T) {
 	assert.True(t, patternsIsArray, "patterns must be an array")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestJSONContract(t *testing.T) {
 	setupConfigRoutesTest(t)
 
@@ -501,6 +517,7 @@ func TestConfigRoutesTestJSONContract(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesOutputFormatValidation(t *testing.T) {
 	setupConfigRoutesTest(t)
 

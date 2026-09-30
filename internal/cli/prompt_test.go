@@ -11,7 +11,10 @@ import (
 )
 
 func TestPromptResult(t *testing.T) {
+	t.Parallel()
+
 	t.Run("default values", func(t *testing.T) {
+		t.Parallel()
 		result := cli.PromptResult{}
 		assert.False(t, result.Accepted)
 		assert.False(t, result.TimedOut)
@@ -19,6 +22,7 @@ func TestPromptResult(t *testing.T) {
 	})
 
 	t.Run("accepted state", func(t *testing.T) {
+		t.Parallel()
 		result := cli.PromptResult{Accepted: true}
 		assert.True(t, result.Accepted)
 		assert.False(t, result.TimedOut)
@@ -26,6 +30,7 @@ func TestPromptResult(t *testing.T) {
 	})
 
 	t.Run("cancelled state", func(t *testing.T) {
+		t.Parallel()
 		result := cli.PromptResult{Cancelled: true}
 		assert.False(t, result.Accepted)
 		assert.False(t, result.TimedOut)
@@ -34,6 +39,8 @@ func TestPromptResult(t *testing.T) {
 }
 
 func TestConfirmFallback(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name             string
 		input            string
@@ -164,6 +171,7 @@ func TestConfirmFallback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create mock stdin with the test input
 			reader := strings.NewReader(tt.input)
 
@@ -204,6 +212,8 @@ func TestConfirmFallback(t *testing.T) {
 }
 
 func TestConfirmFallback_EOF(t *testing.T) {
+	t.Parallel()
+
 	// Test EOF handling (empty reader)
 	reader := strings.NewReader("")
 	var output bytes.Buffer
@@ -223,6 +233,8 @@ func TestConfirmFallback_EOF(t *testing.T) {
 }
 
 func TestConfirmFallback_WarningMessage(t *testing.T) {
+	t.Parallel()
+
 	// Skip if not in TTY mode - this test requires interactive terminal
 	// The test verifies the message format matches the CLI contract
 

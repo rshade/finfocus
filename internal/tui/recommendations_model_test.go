@@ -12,7 +12,10 @@ import (
 )
 
 func TestNewRecommendationsSummary(t *testing.T) {
+	t.Parallel()
+
 	t.Run("empty recommendations", func(t *testing.T) {
+		t.Parallel()
 		summary := NewRecommendationsSummary(nil)
 
 		assert.Equal(t, 0, summary.TotalCount)
@@ -23,6 +26,7 @@ func TestNewRecommendationsSummary(t *testing.T) {
 	})
 
 	t.Run("single recommendation", func(t *testing.T) {
+		t.Parallel()
 		recs := []engine.Recommendation{
 			{
 				ResourceID:       "aws:ec2:Instance/i-123",
@@ -44,6 +48,7 @@ func TestNewRecommendationsSummary(t *testing.T) {
 	})
 
 	t.Run("multiple recommendations with same action type", func(t *testing.T) {
+		t.Parallel()
 		recs := []engine.Recommendation{
 			{Type: "RIGHTSIZE", EstimatedSavings: 50.00, Currency: "USD"},
 			{Type: "RIGHTSIZE", EstimatedSavings: 30.00, Currency: "USD"},
@@ -59,6 +64,7 @@ func TestNewRecommendationsSummary(t *testing.T) {
 	})
 
 	t.Run("multiple action types", func(t *testing.T) {
+		t.Parallel()
 		recs := []engine.Recommendation{
 			{Type: "RIGHTSIZE", EstimatedSavings: 50.00, Currency: "USD"},
 			{Type: "TERMINATE", EstimatedSavings: 100.00, Currency: "USD"},
@@ -78,6 +84,7 @@ func TestNewRecommendationsSummary(t *testing.T) {
 	})
 
 	t.Run("top 5 sorted by savings", func(t *testing.T) {
+		t.Parallel()
 		recs := []engine.Recommendation{
 			{ResourceID: "r1", EstimatedSavings: 10.00, Currency: "USD"},
 			{ResourceID: "r2", EstimatedSavings: 50.00, Currency: "USD"},
@@ -100,6 +107,7 @@ func TestNewRecommendationsSummary(t *testing.T) {
 	})
 
 	t.Run("fewer than 5 recommendations", func(t *testing.T) {
+		t.Parallel()
 		recs := []engine.Recommendation{
 			{ResourceID: "r1", EstimatedSavings: 50.00, Currency: "USD"},
 			{ResourceID: "r2", EstimatedSavings: 30.00, Currency: "USD"},
@@ -114,7 +122,10 @@ func TestNewRecommendationsSummary(t *testing.T) {
 }
 
 func TestRecommendationSortField(t *testing.T) {
+	t.Parallel()
+
 	t.Run("sort field values", func(t *testing.T) {
+		t.Parallel()
 		// Verify enum values are distinct
 		assert.NotEqual(t, SortBySavings, SortByResourceID)
 		assert.NotEqual(t, SortBySavings, SortByActionType)
@@ -122,6 +133,7 @@ func TestRecommendationSortField(t *testing.T) {
 	})
 
 	t.Run("numRecommendationSortFields is correct", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, 3, numRecommendationSortFields)
 	})
 }
@@ -131,6 +143,8 @@ func TestRecommendationSortField(t *testing.T) {
 // ============================================================================
 
 // T039: Test RecommendationsViewModel state transitions.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestRecommendationsViewModel_StateTransitions(t *testing.T) {
 	recs := []engine.Recommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
@@ -165,7 +179,10 @@ func TestRecommendationsViewModel_StateTransitions(t *testing.T) {
 
 // T060: Test loading state transitions in RecommendationsViewModel.
 func TestRecommendationsViewModel_LoadingState(t *testing.T) {
+	t.Parallel()
+
 	t.Run("loading state initialization", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		model := NewRecommendationsViewModelWithLoading(ctx, func(_ context.Context) ([]engine.Recommendation, error) {
 			return []engine.Recommendation{{ResourceID: "r1"}}, nil
@@ -176,6 +193,7 @@ func TestRecommendationsViewModel_LoadingState(t *testing.T) {
 	})
 
 	t.Run("Init returns spinner tick and fetch commands", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		model := NewRecommendationsViewModelWithLoading(ctx, func(_ context.Context) ([]engine.Recommendation, error) {
 			return nil, nil
@@ -185,6 +203,7 @@ func TestRecommendationsViewModel_LoadingState(t *testing.T) {
 	})
 
 	t.Run("loading complete transitions to list state", func(t *testing.T) {
+		t.Parallel()
 		recs := []engine.Recommendation{
 			{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
 			{ResourceID: "r2", Type: "TERMINATE", EstimatedSavings: 50.00, Currency: "USD"},
@@ -209,6 +228,7 @@ func TestRecommendationsViewModel_LoadingState(t *testing.T) {
 	})
 
 	t.Run("loading error transitions to error state", func(t *testing.T) {
+		t.Parallel()
 		expectedErr := assert.AnError
 
 		ctx := context.Background()
@@ -226,6 +246,7 @@ func TestRecommendationsViewModel_LoadingState(t *testing.T) {
 	})
 
 	t.Run("empty recommendations loading completes successfully", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		model := NewRecommendationsViewModelWithLoading(ctx, func(_ context.Context) ([]engine.Recommendation, error) {
 			return []engine.Recommendation{}, nil
@@ -244,7 +265,10 @@ func TestRecommendationsViewModel_LoadingState(t *testing.T) {
 
 // T061: Test loading view rendering.
 func TestRecommendationsViewModel_LoadingView(t *testing.T) {
+	t.Parallel()
+
 	t.Run("loading state renders loading spinner", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		model := NewRecommendationsViewModelWithLoading(ctx, func(_ context.Context) ([]engine.Recommendation, error) {
 			return nil, nil
@@ -256,6 +280,7 @@ func TestRecommendationsViewModel_LoadingView(t *testing.T) {
 	})
 
 	t.Run("error state renders error message", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		model := NewRecommendationsViewModelWithLoading(ctx, func(_ context.Context) ([]engine.Recommendation, error) {
 			return nil, assert.AnError
@@ -271,6 +296,7 @@ func TestRecommendationsViewModel_LoadingView(t *testing.T) {
 	})
 
 	t.Run("quitting state renders empty", func(t *testing.T) {
+		t.Parallel()
 		model := NewRecommendationsViewModel([]engine.Recommendation{})
 		model.state = ViewStateQuitting
 
@@ -280,6 +306,8 @@ func TestRecommendationsViewModel_LoadingView(t *testing.T) {
 }
 
 // T040: Test keyboard handlers.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestRecommendationsViewModel_KeyHandlers(t *testing.T) {
 	recs := []engine.Recommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
@@ -310,6 +338,8 @@ func TestRecommendationsViewModel_KeyHandlers(t *testing.T) {
 }
 
 // T041: Test filter logic.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestRecommendationsViewModel_FilterLogic(t *testing.T) {
 	recs := []engine.Recommendation{
 		{ResourceID: "aws-ec2-1", Type: "RIGHTSIZE", Description: "Downsize instance", EstimatedSavings: 100.00},
@@ -366,6 +396,8 @@ func TestRecommendationsViewModel_FilterLogic(t *testing.T) {
 }
 
 // T042: Test table rendering.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestRecommendationsTable(t *testing.T) {
 	recs := []engine.Recommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", Description: "Downsize", EstimatedSavings: 100.00},
@@ -392,6 +424,8 @@ func TestRecommendationsTable(t *testing.T) {
 
 // T043: Test detail view rendering.
 func TestRenderRecommendationDetail(t *testing.T) {
+	t.Parallel()
+
 	rec := engine.Recommendation{
 		ResourceID:       "aws:ec2:Instance/i-0abc123",
 		Type:             "RIGHTSIZE",
@@ -401,6 +435,7 @@ func TestRenderRecommendationDetail(t *testing.T) {
 	}
 
 	t.Run("renders all fields", func(t *testing.T) {
+		t.Parallel()
 		output := RenderRecommendationDetail(rec, 80)
 
 		assert.Contains(t, output, "aws:ec2:Instance/i-0abc123")
@@ -411,6 +446,7 @@ func TestRenderRecommendationDetail(t *testing.T) {
 	})
 
 	t.Run("shows navigation hints", func(t *testing.T) {
+		t.Parallel()
 		output := RenderRecommendationDetail(rec, 80)
 
 		assert.Contains(t, output, "Esc")
@@ -420,12 +456,16 @@ func TestRenderRecommendationDetail(t *testing.T) {
 
 // Test summary TUI rendering.
 func TestRenderRecommendationsSummaryTUI(t *testing.T) {
+	t.Parallel()
+
 	t.Run("renders nil summary gracefully", func(t *testing.T) {
+		t.Parallel()
 		output := RenderRecommendationsSummaryTUI(nil, 80)
 		assert.Contains(t, output, "No recommendations")
 	})
 
 	t.Run("renders summary with action types", func(t *testing.T) {
+		t.Parallel()
 		summary := &RecommendationsSummary{
 			TotalCount:      5,
 			TotalSavings:    250.00,
@@ -448,6 +488,8 @@ func TestRenderRecommendationsSummaryTUI(t *testing.T) {
 // ============================================================================
 
 // Test Update method with keyboard messages.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 	recs := []engine.Recommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
@@ -557,6 +599,8 @@ func TestRecommendationsViewModel_UpdateKeyboard(t *testing.T) {
 }
 
 // Test window resize handling.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestRecommendationsViewModel_WindowResize(t *testing.T) {
 	recs := []engine.Recommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00},
@@ -576,6 +620,8 @@ func TestRecommendationsViewModel_WindowResize(t *testing.T) {
 }
 
 // Test View method rendering for different states.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestRecommendationsViewModel_ViewStates(t *testing.T) {
 	recs := []engine.Recommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", Description: "Test", EstimatedSavings: 100.00, Currency: "USD"},
@@ -607,6 +653,8 @@ func TestRecommendationsViewModel_ViewStates(t *testing.T) {
 }
 
 // Test sorting applies correctly.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestRecommendationsViewModel_SortingVariants(t *testing.T) {
 	recs := []engine.Recommendation{
 		{ResourceID: "b-resource", Type: "TERMINATE", EstimatedSavings: 50.00},
@@ -649,7 +697,10 @@ func TestRecommendationsViewModel_SortingVariants(t *testing.T) {
 
 // Test empty recommendations handling.
 func TestRecommendationsViewModel_EmptyRecommendations(t *testing.T) {
+	t.Parallel()
+
 	t.Run("enter on empty list does nothing", func(t *testing.T) {
+		t.Parallel()
 		model := NewRecommendationsViewModel([]engine.Recommendation{})
 
 		msg := tea.KeyPressMsg{Code: tea.KeyEnter}
@@ -661,6 +712,7 @@ func TestRecommendationsViewModel_EmptyRecommendations(t *testing.T) {
 	})
 
 	t.Run("renders list view with filter active", func(t *testing.T) {
+		t.Parallel()
 		model := NewRecommendationsViewModel([]engine.Recommendation{
 			{ResourceID: "r1", Type: "RIGHTSIZE"},
 		})
@@ -673,6 +725,8 @@ func TestRecommendationsViewModel_EmptyRecommendations(t *testing.T) {
 
 // Test SetVerbose function.
 func TestRecommendationsViewModel_SetVerbose(t *testing.T) {
+	t.Parallel()
+
 	model := NewRecommendationsViewModel([]engine.Recommendation{})
 
 	model.SetVerbose(true)

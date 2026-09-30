@@ -15,6 +15,8 @@ import (
 )
 
 func TestNewBudgetScopeFilter(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name             string
 		scopeFlag        string
@@ -123,6 +125,7 @@ func TestNewBudgetScopeFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			filter := NewBudgetScopeFilter(tt.scopeFlag)
 			assert.Equal(t, tt.wantGlobal, filter.ShowGlobal, "ShowGlobal mismatch")
 			assert.Equal(t, tt.wantProvider, filter.ShowProvider, "ShowProvider mismatch")
@@ -142,6 +145,8 @@ func TestNewBudgetScopeFilter(t *testing.T) {
 }
 
 func TestRenderScopedBudgetStatus_Nil(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	err := RenderScopedBudgetStatus(&buf, nil, nil)
 	require.NoError(t, err)
@@ -149,6 +154,8 @@ func TestRenderScopedBudgetStatus_Nil(t *testing.T) {
 }
 
 func TestRenderPlainScopedBudget_Global(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		Global: &engine.ScopedBudgetStatus{
 			ScopeType:    engine.ScopeTypeGlobal,
@@ -177,6 +184,8 @@ func TestRenderPlainScopedBudget_Global(t *testing.T) {
 }
 
 func TestRenderPlainScopedBudget_ByProvider(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		ByProvider: map[string]*engine.ScopedBudgetStatus{
 			"aws": {
@@ -218,6 +227,8 @@ func TestRenderPlainScopedBudget_ByProvider(t *testing.T) {
 }
 
 func TestRenderPlainScopedBudget_ProviderFilter(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		ByProvider: map[string]*engine.ScopedBudgetStatus{
 			"aws": {
@@ -255,6 +266,8 @@ func TestRenderPlainScopedBudget_ProviderFilter(t *testing.T) {
 }
 
 func TestRenderPlainScopedBudget_ByTag(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		ByTag: []*engine.ScopedBudgetStatus{
 			{
@@ -284,6 +297,8 @@ func TestRenderPlainScopedBudget_ByTag(t *testing.T) {
 }
 
 func TestRenderPlainScopedBudget_ByType(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		ByType: map[string]*engine.ScopedBudgetStatus{
 			"aws:ec2/instance": {
@@ -313,6 +328,8 @@ func TestRenderPlainScopedBudget_ByType(t *testing.T) {
 }
 
 func TestRenderPlainScopedBudget_TagFilter(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		ByTag: []*engine.ScopedBudgetStatus{
 			{
@@ -350,6 +367,8 @@ func TestRenderPlainScopedBudget_TagFilter(t *testing.T) {
 }
 
 func TestRenderPlainScopedBudget_TypeFilter(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		ByType: map[string]*engine.ScopedBudgetStatus{
 			"aws:ec2/instance": {
@@ -387,6 +406,8 @@ func TestRenderPlainScopedBudget_TypeFilter(t *testing.T) {
 }
 
 func TestRenderPlainScopedBudget_CriticalScopes(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		CriticalScopes: []string{"provider:gcp", "type:aws:ec2/instance"},
 		OverallHealth:  pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED,
@@ -405,6 +426,8 @@ func TestRenderPlainScopedBudget_CriticalScopes(t *testing.T) {
 }
 
 func TestRenderPlainScopedBudget_Warnings(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		Warnings:      []string{"overlapping tag priorities for team:backend and team:platform"},
 		OverallHealth: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING,
@@ -422,6 +445,8 @@ func TestRenderPlainScopedBudget_Warnings(t *testing.T) {
 }
 
 func TestHealthStatusLabel(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		health pbc.BudgetHealthStatus
 		want   string
@@ -435,6 +460,7 @@ func TestHealthStatusLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.want, func(t *testing.T) {
+			t.Parallel()
 			got := healthStatusLabel(tt.health)
 			assert.Equal(t, tt.want, got)
 		})
@@ -442,6 +468,8 @@ func TestHealthStatusLabel(t *testing.T) {
 }
 
 func TestContainsIgnoreCase(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		slice  []string
@@ -456,6 +484,7 @@ func TestContainsIgnoreCase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := containsIgnoreCase(tt.slice, tt.target)
 			assert.Equal(t, tt.want, got)
 		})
@@ -463,6 +492,8 @@ func TestContainsIgnoreCase(t *testing.T) {
 }
 
 func TestRenderScopedProgressBar(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		percentage float64
@@ -476,6 +507,7 @@ func TestRenderScopedProgressBar(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			bar := renderScopedProgressBar(tt.percentage, tt.width)
 			assert.NotEmpty(t, bar)
 			// Bar should contain some combination of filled and empty chars
@@ -484,6 +516,8 @@ func TestRenderScopedProgressBar(t *testing.T) {
 }
 
 func TestRenderStyledScopedBudget_NoError(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.ScopedBudgetResult{
 		Global: &engine.ScopedBudgetStatus{
 			ScopeType:    engine.ScopeTypeGlobal,
@@ -521,6 +555,8 @@ func TestRenderStyledScopedBudget_NoError(t *testing.T) {
 }
 
 func TestRenderProviderSection_SortedOutput(t *testing.T) {
+	t.Parallel()
+
 	providers := map[string]*engine.ScopedBudgetStatus{
 		"gcp": {
 			ScopeType:    engine.ScopeTypeProvider,

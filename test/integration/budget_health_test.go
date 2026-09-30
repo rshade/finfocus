@@ -126,6 +126,8 @@ func (m *mockCostSourceClient) ResolveResourceTypes(
 }
 
 func TestBudgetHealth_EndToEnd(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// 1. Setup Mock Data

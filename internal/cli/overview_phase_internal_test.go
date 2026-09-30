@@ -55,6 +55,8 @@ func (m *stackLSMockRunner) Run(
 
 // TestResolveIsStateOnly verifies that detectErr does not override --yes, and that
 // without --yes a detection error correctly forces state-only mode.
+//
+//nolint:paralleltest // table cases share the parent-scoped fixture noErr = error(...)
 func TestResolveIsStateOnly(t *testing.T) {
 	detectErr := errors.New("change detection failed")
 	noErr := error(nil)
@@ -150,6 +152,8 @@ func TestResolveIsStateOnly(t *testing.T) {
 // with tui.PhaseNames. If PhaseNames grows or shrinks, this test fails, forcing
 // an explicit update to both the constants and the slice.
 func TestPhaseConstantsAlignWithTUI(t *testing.T) {
+	t.Parallel()
+
 	n := len(tui.GetPhaseNames())
 	require.Positive(t, n, "tui.GetPhaseNames() must not be empty")
 
@@ -167,6 +171,8 @@ func TestPhaseConstantsAlignWithTUI(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestConvertStateResources_CreatedAtPreserved(t *testing.T) {
+	t.Parallel()
+
 	createdAt := time.Date(2025, 2, 13, 10, 0, 0, 0, time.UTC)
 
 	resources := []ingest.StackExportResource{
@@ -186,6 +192,8 @@ func TestConvertStateResources_CreatedAtPreserved(t *testing.T) {
 }
 
 func TestConvertStateResources_NilCreatedAtOK(t *testing.T) {
+	t.Parallel()
+
 	resources := []ingest.StackExportResource{
 		{
 			URN:     "urn:pulumi:prod::app::aws:ec2:Instance::web",
@@ -202,16 +210,22 @@ func TestConvertStateResources_NilCreatedAtOK(t *testing.T) {
 }
 
 func TestStackSettingsNameCandidates_QualifiedStack(t *testing.T) {
+	t.Parallel()
+
 	candidates := stackSettingsNameCandidates("acme/infra/dev")
 	require.Equal(t, []string{"dev", "acme/infra/dev"}, candidates)
 }
 
 func TestStackSettingsNameCandidates_QualifiedStack_Windows(t *testing.T) {
+	t.Parallel()
+
 	candidates := stackSettingsNameCandidates(`acme\infra\dev`)
 	require.Equal(t, []string{"dev", `acme\infra\dev`}, candidates)
 }
 
 func TestReadStackSettingsFile_QualifiedStackUsesShortName(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	want := "encryptionsalt: v1:abc123\n"
 	require.NoError(

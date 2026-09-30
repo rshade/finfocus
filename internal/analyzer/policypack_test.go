@@ -42,6 +42,8 @@ func TestResolvePolicyPackDir(t *testing.T) {
 
 // T009 [US2] - Verify WritePulumiPolicyYAML creates valid YAML with required fields.
 func TestWritePulumiPolicyYAML(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	err := WritePulumiPolicyYAML(dir)
@@ -62,6 +64,8 @@ func TestWritePulumiPolicyYAML(t *testing.T) {
 
 // T009 continued - Verify WritePulumiPolicyYAML is idempotent.
 func TestWritePulumiPolicyYAML_Idempotent(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	// Write twice
@@ -84,6 +88,8 @@ func TestWritePulumiPolicyYAML_Idempotent(t *testing.T) {
 
 // T009 continued - Verify WritePulumiPolicyYAML fails on nonexistent directory.
 func TestWritePulumiPolicyYAML_NonexistentDir(t *testing.T) {
+	t.Parallel()
+
 	nonexistentDir := filepath.Join(t.TempDir(), "nonexistent", "path", "that", "does", "not", "exist")
 	err := WritePulumiPolicyYAML(nonexistentDir)
 	require.Error(t, err)

@@ -9,6 +9,8 @@ import (
 )
 
 func TestRegionFromARN(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		arn        string
@@ -35,6 +37,7 @@ func TestRegionFromARN(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.wantRegion, awsutil.RegionFromARN(tt.arn))
 		})
 	}

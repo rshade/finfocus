@@ -12,6 +12,8 @@ import (
 )
 
 func TestMockServer_Dial(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		startFunc func() (*MockServer, error)
@@ -28,6 +30,7 @@ func TestMockServer_Dial(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			server, err := tt.startFunc()
 			require.NoError(t, err)
 			t.Cleanup(server.Stop)
@@ -53,6 +56,8 @@ func TestMockServer_Dial(t *testing.T) {
 // connection behavior: dialing an unreachable address fails only when the
 // context expires, not immediately.
 func TestMockServer_DialTCPBlocks(t *testing.T) {
+	t.Parallel()
+
 	server := &MockServer{address: "127.0.0.1:1"}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
@@ -70,6 +75,8 @@ func TestMockServer_DialTCPBlocks(t *testing.T) {
 // TestTestHelper_Dial verifies the TestHelper wiring still produces a working
 // bufconn connection.
 func TestTestHelper_Dial(t *testing.T) {
+	t.Parallel()
+
 	helper := NewTestHelper(t)
 
 	conn := helper.Dial()

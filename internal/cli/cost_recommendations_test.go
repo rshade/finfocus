@@ -17,6 +17,8 @@ import (
 )
 
 // T001: Test NewCostRecommendationsCmd() creates a valid command.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestNewCostRecommendationsCmd(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -28,6 +30,8 @@ func TestNewCostRecommendationsCmd(t *testing.T) {
 }
 
 // T001: Test command has required flags.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestNewCostRecommendationsCmd_Flags(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -47,6 +51,8 @@ func TestNewCostRecommendationsCmd_Flags(t *testing.T) {
 }
 
 // T001: Test command fails without required pulumi-json flag.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestNewCostRecommendationsCmd_RequiredFlags(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -59,6 +65,8 @@ func TestNewCostRecommendationsCmd_RequiredFlags(t *testing.T) {
 }
 
 // T002: Test table output format rendering.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_TableOutput(t *testing.T) {
 	// Create a temporary plan file
 	planJSON := `{
@@ -100,6 +108,8 @@ func TestCostRecommendationsCmd_TableOutput(t *testing.T) {
 }
 
 // T002: Test JSON output format rendering.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_JSONOutput(t *testing.T) {
 	planJSON := `{
 		"version": 3,
@@ -141,6 +151,8 @@ func TestCostRecommendationsCmd_JSONOutput(t *testing.T) {
 }
 
 // T002: Test NDJSON output format rendering.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_NDJSONOutput(t *testing.T) {
 	planJSON := `{
 		"version": 3,
@@ -176,6 +188,8 @@ func TestCostRecommendationsCmd_NDJSONOutput(t *testing.T) {
 }
 
 // T003: Test --filter flag parsing with action types.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_FilterFlag(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -189,6 +203,8 @@ func TestCostRecommendationsCmd_FilterFlag(t *testing.T) {
 }
 
 // T003: Test multiple filter values.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_MultipleFilters(t *testing.T) {
 	planJSON := `{
 		"version": 3,
@@ -217,6 +233,8 @@ func TestCostRecommendationsCmd_MultipleFilters(t *testing.T) {
 }
 
 // T003: Test case-insensitive filter matching.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_CaseInsensitiveFilter(t *testing.T) {
 	planJSON := `{
 		"version": 3,
@@ -245,6 +263,8 @@ func TestCostRecommendationsCmd_CaseInsensitiveFilter(t *testing.T) {
 }
 
 // Test invalid plan path error handling.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_InvalidPlanPath(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	var outBuf bytes.Buffer
@@ -258,6 +278,8 @@ func TestCostRecommendationsCmd_InvalidPlanPath(t *testing.T) {
 }
 
 // Test unsupported output format error.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_UnsupportedOutputFormat(t *testing.T) {
 	planJSON := `{"version": 3, "steps": []}`
 
@@ -279,6 +301,8 @@ func TestCostRecommendationsCmd_UnsupportedOutputFormat(t *testing.T) {
 }
 
 // T022: Test action type filter parsing in CLI command with valid types.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_ValidActionTypeFilter(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -323,6 +347,8 @@ func TestCostRecommendationsCmd_ValidActionTypeFilter(t *testing.T) {
 }
 
 // T023: Test invalid action type filter error message listing all 11 valid types.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_InvalidActionTypeFilterError(t *testing.T) {
 	planJSON := `{"version": 3, "steps": []}`
 	tmpDir := t.TempDir()
@@ -355,6 +381,8 @@ func TestCostRecommendationsCmd_InvalidActionTypeFilterError(t *testing.T) {
 }
 
 // T023: Test empty action type filter error.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_EmptyActionTypeFilter(t *testing.T) {
 	planJSON := `{"version": 3, "steps": []}`
 	tmpDir := t.TempDir()
@@ -385,6 +413,8 @@ func TestCostRecommendationsCmd_EmptyActionTypeFilter(t *testing.T) {
 
 // T011: Test renderRecommendationsSummary renders summary section correctly.
 func TestRenderRecommendationsSummary(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{Type: "RIGHTSIZE", EstimatedSavings: 87.60, Currency: "USD"},
 		{Type: "TERMINATE", EstimatedSavings: 175.20, Currency: "USD"},
@@ -411,6 +441,8 @@ func TestRenderRecommendationsSummary(t *testing.T) {
 
 // T011: Test renderRecommendationsSummary with empty recommendations.
 func TestRenderRecommendationsSummary_Empty(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	cli.RenderRecommendationsSummaryForTest(&buf, nil)
 	output := buf.String()
@@ -421,6 +453,8 @@ func TestRenderRecommendationsSummary_Empty(t *testing.T) {
 
 // T012: Test sortRecommendationsBySavings sorts correctly.
 func TestSortRecommendationsBySavings(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", EstimatedSavings: 10.00},
 		{ResourceID: "r2", EstimatedSavings: 100.00},
@@ -439,12 +473,16 @@ func TestSortRecommendationsBySavings(t *testing.T) {
 
 // T012: Test sortRecommendationsBySavings with empty input.
 func TestSortRecommendationsBySavings_Empty(t *testing.T) {
+	t.Parallel()
+
 	sorted := cli.SortRecommendationsBySavingsForTest(nil)
 	assert.Empty(t, sorted)
 }
 
 // T012: Test sortRecommendationsBySavings with equal savings (stable sort).
 func TestSortRecommendationsBySavings_EqualValues(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", EstimatedSavings: 50.00},
 		{ResourceID: "r2", EstimatedSavings: 50.00},
@@ -465,6 +503,8 @@ func TestSortRecommendationsBySavings_EqualValues(t *testing.T) {
 // ============================================================================
 
 // T020: Test --verbose flag is recognized by the command.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestNewCostRecommendationsCmd_VerboseFlag(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -478,6 +518,8 @@ func TestNewCostRecommendationsCmd_VerboseFlag(t *testing.T) {
 
 // T021: Test verbose mode shows all recommendations.
 func TestRenderRecommendationsVerbose(t *testing.T) {
+	t.Parallel()
+
 	// Create 7 recommendations (more than default 5)
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
@@ -508,6 +550,8 @@ func TestRenderRecommendationsVerbose(t *testing.T) {
 
 // T021: Test non-verbose mode shows only top 5.
 func TestRenderRecommendationsNonVerbose(t *testing.T) {
+	t.Parallel()
+
 	// Create 7 recommendations (more than default 5)
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
@@ -545,6 +589,8 @@ func TestRenderRecommendationsNonVerbose(t *testing.T) {
 // T026: Test filter + summary mode interaction.
 // Verifies that filtering applies BEFORE summary calculation.
 func TestFilterWithSummaryMode(t *testing.T) {
+	t.Parallel()
+
 	// Create 7 recommendations with different action types
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
@@ -590,6 +636,8 @@ func TestFilterWithSummaryMode(t *testing.T) {
 // T027: Test filter + verbose mode interaction.
 // Verifies that filtering + verbose shows ALL filtered recommendations.
 func TestFilterWithVerboseMode(t *testing.T) {
+	t.Parallel()
+
 	// Create 10 recommendations - 6 RIGHTSIZE, 4 TERMINATE
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "right1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
@@ -637,6 +685,8 @@ func TestFilterWithVerboseMode(t *testing.T) {
 }
 
 // T028: Test applyActionTypeFilter applies correctly.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestApplyActionTypeFilter(t *testing.T) {
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
@@ -720,6 +770,8 @@ func TestApplyActionTypeFilter(t *testing.T) {
 
 // T030: Test invalid action type error message is clear.
 func TestInvalidActionTypeErrorMessage(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
 	}
@@ -738,6 +790,8 @@ func TestInvalidActionTypeErrorMessage(t *testing.T) {
 
 // T031: Test JSON output includes summary structure.
 func TestRenderRecommendationsJSON_WithSummary(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
 		{ResourceID: "r2", Type: "TERMINATE", EstimatedSavings: 90.00, Currency: "USD"},
@@ -782,6 +836,8 @@ func TestRenderRecommendationsJSON_WithSummary(t *testing.T) {
 
 // T032: Test NDJSON output includes summary as first line.
 func TestRenderRecommendationsNDJSON_WithSummary(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
 		{ResourceID: "r2", Type: "TERMINATE", EstimatedSavings: 90.00, Currency: "USD"},
@@ -825,6 +881,8 @@ func TestRenderRecommendationsNDJSON_WithSummary(t *testing.T) {
 // ============================================================================
 
 // T018: Test --include-dismissed flag exists on the command.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestCostRecommendationsCmd_IncludeDismissedFlag(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -835,6 +893,8 @@ func TestCostRecommendationsCmd_IncludeDismissedFlag(t *testing.T) {
 
 // T018: Test hasStatusAnnotations detects status annotations.
 func TestHasStatusAnnotations(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		recs   []cli.TestableRecommendation
@@ -881,6 +941,7 @@ func TestHasStatusAnnotations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := cli.HasStatusAnnotationsForTest(tt.recs)
 			assert.Equal(t, tt.expect, result)
 		})
@@ -889,6 +950,8 @@ func TestHasStatusAnnotations(t *testing.T) {
 
 // T018: Test merge of dismissed/snoozed records with active recommendations.
 func TestMergeDismissedRecommendations(t *testing.T) {
+	t.Parallel()
+
 	// Create a temp dismissal store with test data
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "dismissed.json")
@@ -978,6 +1041,8 @@ func TestMergeDismissedRecommendations(t *testing.T) {
 
 // T018: Test merge with empty dismissal store.
 func TestMergeDismissedRecommendations_EmptyStore(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "dismissed.json")
 
@@ -992,6 +1057,8 @@ func TestMergeDismissedRecommendations_EmptyStore(t *testing.T) {
 
 // T018: Test merge does not duplicate active recommendations.
 func TestMergeDismissedRecommendations_NoDuplicates(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "dismissed.json")
 
@@ -1029,6 +1096,8 @@ func TestMergeDismissedRecommendations_NoDuplicates(t *testing.T) {
 
 // T018: Test table rendering with status column shows Status header.
 func TestRenderRecommendationsTable_WithStatusColumn(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD", Status: "Active"},
 		{ResourceID: "r2", Type: "TERMINATE", EstimatedSavings: 45.00, Currency: "USD", Status: "Dismissed"},
@@ -1049,6 +1118,8 @@ func TestRenderRecommendationsTable_WithStatusColumn(t *testing.T) {
 
 // T018: Test table rendering without status column (all active).
 func TestRenderRecommendationsTable_WithoutStatusColumn(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD"},
 		{ResourceID: "r2", Type: "TERMINATE", EstimatedSavings: 90.00, Currency: "USD"},
@@ -1065,6 +1136,8 @@ func TestRenderRecommendationsTable_WithoutStatusColumn(t *testing.T) {
 
 // T018: Test JSON output includes status field when present.
 func TestRenderRecommendationsJSON_WithStatus(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 100.00, Currency: "USD", Status: "Active"},
 		{ResourceID: "r2", Type: "TERMINATE", EstimatedSavings: 45.00, Currency: "USD", Status: "Dismissed"},
@@ -1095,6 +1168,8 @@ func TestRenderRecommendationsJSON_WithStatus(t *testing.T) {
 
 // T018: Test dismissed record without LastKnown shows minimal info.
 func TestMergeDismissedRecommendations_NoLastKnown(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "dismissed.json")
 

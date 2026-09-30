@@ -24,6 +24,7 @@ func stubHome(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", "") // Prevent real FINFOCUS_HOME from leaking into tests
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_NewAndDefaults(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -37,6 +38,7 @@ func TestConfig_NewAndDefaults(t *testing.T) {
 	assert.NotEmpty(t, cfg.SpecDir)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_NewStrict(t *testing.T) {
 	t.Run("success with no config file", func(t *testing.T) {
 		stubHome(t)
@@ -84,6 +86,7 @@ func TestConfig_NewStrict(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton
 func TestGetOutputFormat(t *testing.T) {
 	// Reset global config for clean state
 	ResetGlobalConfigForTest()
@@ -103,6 +106,7 @@ func TestGetOutputFormat(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_SetGetValues(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -155,6 +159,7 @@ func TestConfig_SetGetValues(t *testing.T) {
 	assert.Equal(t, false, value)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_SetErrors(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -190,6 +195,7 @@ func TestConfig_SetErrors(t *testing.T) {
 	assert.Contains(t, err.Error(), "strict_compatibility must be a boolean")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_GetErrors(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -215,6 +221,7 @@ func TestConfig_GetErrors(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown plugin_host setting")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_Validation(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -245,6 +252,8 @@ func TestConfig_Validation(t *testing.T) {
 }
 
 func TestConfig_SaveLoad(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	cfg := &Config{
@@ -284,6 +293,7 @@ func TestConfig_SaveLoad(t *testing.T) {
 	assert.Equal(t, "us-west-2", awsConfig.Config["region"])
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_List(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -300,6 +310,7 @@ func TestConfig_List(t *testing.T) {
 	assert.Equal(t, "json", output.DefaultFormat)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_PluginMethods(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -346,6 +357,7 @@ func TestConfig_EnvironmentOverrides(t *testing.T) {
 	assert.Equal(t, "test", awsConfig.Config["profile"])
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_BackwardCompatibility(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -441,6 +453,8 @@ func TestConfig_FINFOCUS_LOG_FORMAT_EnvVar(t *testing.T) {
 }
 
 // T047: Unit test for invalid log level fallback to INFO.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_InvalidLogLevel_Validation(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -1111,6 +1125,8 @@ func TestConfig_BudgetExitCode_Validation(t *testing.T) {
 }
 
 // TestConfigPaths tests all configuration path retrieval functions.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfigPaths(t *testing.T) {
 	t.Run("all config paths are accessible", func(t *testing.T) {
 		stubHome(t)
@@ -1136,6 +1152,8 @@ func TestConfigPaths(t *testing.T) {
 }
 
 // TestConfigPermissions tests that created directories have correct permissions.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestConfigPermissions(t *testing.T) {
 	t.Run("config directories have correct permissions", func(t *testing.T) {
 		// Create a temporary directory for testing
@@ -1183,6 +1201,8 @@ func TestConfig_FinfocusPluginDirEnvOverride(t *testing.T) {
 
 // TestConfig_PluginDirYAMLKey verifies that the plugin_dir: top-level YAML key sets
 // cfg.PluginDir when loaded from a config file. Issue #753.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestConfig_PluginDirYAMLKey(t *testing.T) {
 	stubHome(t)
 
@@ -1201,6 +1221,8 @@ func TestConfig_PluginDirYAMLKey(t *testing.T) {
 // TestMigrateFromLegacyYAML covers migrateFromLegacyYAML's branches directly:
 // new-file-exists no-op, neither-file-exists no-op, a successful migration
 // that preserves the legacy file, and the corrupted-legacy-YAML error path.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestMigrateFromLegacyYAML(t *testing.T) {
 	t.Run("new file already exists is a no-op", func(t *testing.T) {
 		dir := t.TempDir()
@@ -1284,6 +1306,7 @@ func TestMigrateFromLegacyYAML(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestPluginConfigJSON(t *testing.T) {
 	for _, input := range []string{`{}`, `null`, `{"region":"us-east-1"}`} {
 		t.Run(input, func(t *testing.T) {

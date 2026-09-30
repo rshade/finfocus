@@ -25,6 +25,8 @@ func isAllowedRegistryCapability(c string) bool { return allowedRegistryCapabili
 // TestRegistryJSONValid ensures the embedded registry.json is always valid.
 // This test prevents invalid registry entries from passing CI.
 func TestRegistryJSONValid(t *testing.T) {
+	t.Parallel()
+
 	reg, err := registry.GetEmbeddedRegistry()
 	if err != nil {
 		t.Fatalf("Failed to load registry.json: %v", err)
@@ -46,6 +48,7 @@ func TestRegistryJSONValid(t *testing.T) {
 	// Validate each plugin entry
 	for name, entry := range reg.Plugins {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			validateRegistryEntryComplete(t, name, entry)
 		})
 	}
@@ -116,6 +119,8 @@ func validateRegistryEntryComplete(t *testing.T, name string, entry registry.Reg
 
 // TestRegistryCapabilities_AllowUsageAndAllocation verifies usage_stats and allocation are allowed capabilities.
 func TestRegistryCapabilities_AllowUsageAndAllocation(t *testing.T) {
+	t.Parallel()
+
 	for _, c := range []string{"usage_stats", "allocation"} {
 		assert.True(t, isAllowedRegistryCapability(c), c)
 	}
@@ -124,6 +129,8 @@ func TestRegistryCapabilities_AllowUsageAndAllocation(t *testing.T) {
 
 // TestRegistryJSONPluginNames ensures plugin names follow conventions.
 func TestRegistryJSONPluginNames(t *testing.T) {
+	t.Parallel()
+
 	reg, err := registry.GetEmbeddedRegistry()
 	if err != nil {
 		t.Fatalf("Failed to load registry.json: %v", err)
@@ -131,6 +138,7 @@ func TestRegistryJSONPluginNames(t *testing.T) {
 
 	for name := range reg.Plugins {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			// Names should be lowercase
 			for _, c := range name {
 				if c >= 'A' && c <= 'Z' {
@@ -159,6 +167,8 @@ func TestRegistryJSONPluginNames(t *testing.T) {
 // released from one monorepo share a repository, so the identity of an entry is
 // its repository together with its tag prefix.
 func TestRegistryJSONNoDuplicates(t *testing.T) {
+	t.Parallel()
+
 	reg, err := registry.GetEmbeddedRegistry()
 	if err != nil {
 		t.Fatalf("Failed to load registry.json: %v", err)

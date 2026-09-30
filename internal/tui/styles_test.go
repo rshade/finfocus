@@ -14,6 +14,8 @@ import (
 // correct properties. We test style properties rather than rendered output
 // since lipgloss may not apply ANSI codes in test environments.
 func TestStyleDefinitions(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		style     lipgloss.Style
@@ -33,6 +35,7 @@ func TestStyleDefinitions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.wantBold, tt.style.GetBold(), "bold")
 			assert.Equal(t, tt.wantColor, tt.style.GetForeground(), "foreground color")
 		})
@@ -40,13 +43,17 @@ func TestStyleDefinitions(t *testing.T) {
 }
 
 func TestStyleDefinitions_Padding(t *testing.T) {
+	t.Parallel()
+
 	t.Run("BoxStyle", func(t *testing.T) {
+		t.Parallel()
 		// BoxStyle should have padding (returns top, right, bottom, left).
 		top, right, bottom, left := tui.BoxStyle.GetPadding()
 		assert.NotZero(t, top+right+bottom+left, "BoxStyle should have padding")
 	})
 
 	t.Run("TableHeaderStyle", func(t *testing.T) {
+		t.Parallel()
 		top, right, bottom, left := tui.TableHeaderStyle.GetPadding()
 		assert.Equal(t, 0, top, "TableHeaderStyle top padding")
 		assert.Equal(t, 1, right, "TableHeaderStyle right padding")

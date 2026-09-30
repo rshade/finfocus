@@ -14,6 +14,8 @@ import (
 
 // TestCrossProjectDismissalIsolation verifies that dismissing a recommendation
 // in one Pulumi project does not affect another project's dismissal state.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory
 func TestCrossProjectDismissalIsolation(t *testing.T) {
 	// Setup: two Pulumi projects with .finfocus directories
 	projectA := filepath.Join(t.TempDir(), "project-a", ".finfocus")

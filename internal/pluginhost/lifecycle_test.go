@@ -26,6 +26,8 @@ var (
 
 // TestProcessLauncher_Success tests successful plugin launch with ProcessLauncher.
 func TestProcessLauncher_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {
@@ -56,6 +58,8 @@ func TestProcessLauncher_Success(t *testing.T) {
 
 // TestProcessLauncher_NonExistentBinary tests error handling for missing binary.
 func TestProcessLauncher_NonExistentBinary(t *testing.T) {
+	t.Parallel()
+
 	launcher := pluginhost.NewProcessLauncher()
 	ctx := context.Background()
 
@@ -69,6 +73,8 @@ func TestProcessLauncher_NonExistentBinary(t *testing.T) {
 
 // TestProcessLauncher_NonExecutableBinary tests error handling for non-executable file.
 func TestProcessLauncher_NonExecutableBinary(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {
@@ -93,6 +99,8 @@ func TestProcessLauncher_NonExecutableBinary(t *testing.T) {
 
 // TestProcessLauncher_ContextCancellation tests behavior when context is cancelled.
 func TestProcessLauncher_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {
@@ -116,6 +124,8 @@ func TestProcessLauncher_ContextCancellation(t *testing.T) {
 
 // TestProcessLauncher_Cleanup tests that cleanup properly closes connections and kills processes.
 func TestProcessLauncher_Cleanup(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {
@@ -141,6 +151,8 @@ func TestProcessLauncher_Cleanup(t *testing.T) {
 
 // TestProcessLauncher_MultipleStarts tests launching multiple plugins in sequence.
 func TestProcessLauncher_MultipleStarts(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {
@@ -176,6 +188,8 @@ func TestProcessLauncher_MultipleStarts(t *testing.T) {
 
 // TestStdioLauncher_Success tests successful plugin launch with StdioLauncher.
 func TestStdioLauncher_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {
@@ -206,6 +220,8 @@ func TestStdioLauncher_Success(t *testing.T) {
 
 // TestStdioLauncher_NonExistentBinary tests error handling for missing binary.
 func TestStdioLauncher_NonExistentBinary(t *testing.T) {
+	t.Parallel()
+
 	launcher := pluginhost.NewStdioLauncher()
 	ctx := context.Background()
 
@@ -219,6 +235,8 @@ func TestStdioLauncher_NonExistentBinary(t *testing.T) {
 
 // TestStdioLauncher_Cleanup tests that cleanup properly closes all resources.
 func TestStdioLauncher_Cleanup(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {
@@ -244,6 +262,8 @@ func TestStdioLauncher_Cleanup(t *testing.T) {
 
 // TestLauncher_SwitchBetweenTypes tests switching between ProcessLauncher and StdioLauncher.
 func TestLauncher_SwitchBetweenTypes(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {

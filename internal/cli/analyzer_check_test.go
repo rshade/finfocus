@@ -12,6 +12,7 @@ import (
 	"github.com/rshade/finfocus/internal/analyzer"
 )
 
+//nolint:paralleltest // swaps package-level variable runAnalyzerChecks
 func TestAnalyzerCheckCmd_AllPass(t *testing.T) {
 	originalRunChecks := runAnalyzerChecks
 	t.Cleanup(func() {
@@ -53,6 +54,7 @@ func TestAnalyzerCheckCmd_AllPass(t *testing.T) {
 	assert.Contains(t, output, "All checks passed")
 }
 
+//nolint:paralleltest // swaps package-level variable runAnalyzerChecks
 func TestAnalyzerCheckCmd_JSONOutput(t *testing.T) {
 	originalRunChecks := runAnalyzerChecks
 	t.Cleanup(func() {

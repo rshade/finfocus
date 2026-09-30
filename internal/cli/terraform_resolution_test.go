@@ -61,6 +61,8 @@ func tfDescriptors() []engine.ResourceDescriptor {
 }
 
 func TestResolveResourceTypes_WithCapability(t *testing.T) {
+	t.Parallel()
+
 	stub := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{
 		Mappings: map[string]*pbc.ResourceTypeMapping{
 			"aws_instance":  {PulumiToken: "aws:ec2/instance:Instance", Supported: true},
@@ -76,6 +78,8 @@ func TestResolveResourceTypes_WithCapability(t *testing.T) {
 }
 
 func TestResolveResourceTypes_FallbackNoCapability(t *testing.T) {
+	t.Parallel()
+
 	stub := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{}}
 	clients := []*pluginhost.Client{newResolverTestClient(false, stub)}
 
@@ -86,6 +90,8 @@ func TestResolveResourceTypes_FallbackNoCapability(t *testing.T) {
 }
 
 func TestResolveResourceTypes_PulumiTokensUntouched(t *testing.T) {
+	t.Parallel()
+
 	stub := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{}}
 	clients := []*pluginhost.Client{newResolverTestClient(true, stub)}
 	in := []engine.ResourceDescriptor{
@@ -99,6 +105,8 @@ func TestResolveResourceTypes_PulumiTokensUntouched(t *testing.T) {
 }
 
 func TestResolveResourceTypes_PropertyMappings(t *testing.T) {
+	t.Parallel()
+
 	stub := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{
 		Mappings: map[string]*pbc.ResourceTypeMapping{
 			"aws_instance": {
@@ -119,6 +127,8 @@ func TestResolveResourceTypes_PropertyMappings(t *testing.T) {
 }
 
 func TestResolveResourceTypes_PropertyMappingsRealFlow(t *testing.T) {
+	t.Parallel()
+
 	// Real data flow: MapTerraformResources camelCases attribute keys at
 	// ingestion, so the plugin's snake_case mapping key only matches via the
 	// camelCase fallback in applyTypeMappings.
@@ -162,6 +172,8 @@ func TestResolveResourceTypes_PropertyMappingsRealFlow(t *testing.T) {
 }
 
 func TestResolveResourceTypes_RPCErrorFallsBack(t *testing.T) {
+	t.Parallel()
+
 	stub := &stubResolverClient{err: errors.New("boom")}
 	clients := []*pluginhost.Client{newResolverTestClient(true, stub)}
 
@@ -170,6 +182,8 @@ func TestResolveResourceTypes_RPCErrorFallsBack(t *testing.T) {
 }
 
 func TestResolveResourceTypes_CacheRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	store, err := cache.NewBoltStore(context.Background(), t.TempDir(), true, 3600, 0)
 	require.NoError(t, err)
 	defer store.Close()
@@ -194,6 +208,8 @@ func TestResolveResourceTypes_CacheRoundTrip(t *testing.T) {
 }
 
 func TestResolveResourceTypes_InputNotMutated(t *testing.T) {
+	t.Parallel()
+
 	stub := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{
 		Mappings: map[string]*pbc.ResourceTypeMapping{
 			"aws_instance": {
@@ -220,6 +236,8 @@ func TestResolveResourceTypes_InputNotMutated(t *testing.T) {
 }
 
 func TestLoadAndMapTerraformResources(t *testing.T) {
+	t.Parallel()
+
 	resources, err := loadAndMapTerraformResources(
 		context.Background(), "../../examples/plans/terraform-simple-state.json", nil)
 	require.NoError(t, err)
@@ -230,6 +248,8 @@ func TestLoadAndMapTerraformResources(t *testing.T) {
 }
 
 func TestWarnNoTypeResolvingPlugin(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		clients  []*pluginhost.Client
@@ -262,6 +282,7 @@ func TestWarnNoTypeResolvingPlugin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cmd := &cobra.Command{}
 			var stderr strings.Builder
 			cmd.SetErr(&stderr)
@@ -282,6 +303,8 @@ func TestWarnNoTypeResolvingPlugin(t *testing.T) {
 }
 
 func TestWarnNoTypeResolvingPlugin_NoTerraformState(t *testing.T) {
+	t.Parallel()
+
 	cmd := &cobra.Command{}
 	var stderr strings.Builder
 	cmd.SetErr(&stderr)

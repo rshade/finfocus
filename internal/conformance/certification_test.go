@@ -9,6 +9,8 @@ import (
 )
 
 func TestCertification_Pass(t *testing.T) {
+	t.Parallel()
+
 	// Create a report with all tests passing
 	suiteReport := &conformance.SuiteReport{
 		Summary: conformance.Summary{
@@ -32,6 +34,8 @@ func TestCertification_Pass(t *testing.T) {
 }
 
 func TestCertification_Fail(t *testing.T) {
+	t.Parallel()
+
 	// Create a report with failures
 	suiteReport := &conformance.SuiteReport{
 		Summary: conformance.Summary{

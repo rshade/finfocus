@@ -12,6 +12,8 @@ import (
 )
 
 func TestRender_ShapeAndEnums(t *testing.T) {
+	t.Parallel()
+
 	rec := makeRec("rec-1", "res-1")
 	rec.Reasoning = []string{"CPU is low"}
 	rec.PrimaryReason = pbc.RecommendationReason_RECOMMENDATION_REASON_OVER_PROVISIONED
@@ -32,6 +34,8 @@ func TestRender_ShapeAndEnums(t *testing.T) {
 }
 
 func TestRender_StripsControlAndInvisibleCharacters(t *testing.T) {
+	t.Parallel()
+
 	rec := makeRec("rec-1", "res-1")
 	rec.Description = "line one\nline two\t\x00\x07 end\u202e\u200b ok"
 	rec.Resource.Tags = map[string]string{"k\x00ey\n": "va\u200dlue\r\nnext"}
@@ -46,6 +50,8 @@ func TestRender_StripsControlAndInvisibleCharacters(t *testing.T) {
 }
 
 func TestRender_CapsFieldLengthsAndCounts(t *testing.T) {
+	t.Parallel()
+
 	limits := Limits{MaxString: 10, MaxKey: 4, MaxMapValue: 6, MaxEntries: 3, MaxListLen: 2}
 	rec := makeRec("rec-1", "res-1")
 	rec.Description = strings.Repeat("é", 50)
@@ -67,6 +73,8 @@ func TestRender_CapsFieldLengthsAndCounts(t *testing.T) {
 }
 
 func TestRender_OutputIsJSONSerialisable(t *testing.T) {
+	t.Parallel()
+
 	got, err := renderer{limits: Limits{}.withDefaults()}.render(makeRec("rec-1", "res-1"))
 	require.NoError(t, err)
 	_, err = json.Marshal(got)

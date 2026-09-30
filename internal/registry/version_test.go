@@ -8,6 +8,8 @@ import (
 )
 
 func TestParseVersionConstraint(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		input   string
@@ -24,6 +26,7 @@ func TestParseVersionConstraint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := ParseVersionConstraint(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -35,6 +38,8 @@ func TestParseVersionConstraint(t *testing.T) {
 }
 
 func TestSatisfiesConstraint(t *testing.T) {
+	t.Parallel()
+
 	constraint, err := ParseVersionConstraint(">=1.0.0,<2.0.0")
 	require.NoError(t, err)
 
@@ -51,6 +56,7 @@ func TestSatisfiesConstraint(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
+			t.Parallel()
 			got, satErr := SatisfiesConstraint(tt.version, constraint)
 			require.NoError(t, satErr)
 			assert.Equal(t, tt.want, got, "SatisfiesConstraint(%q)", tt.version)
@@ -59,6 +65,8 @@ func TestSatisfiesConstraint(t *testing.T) {
 }
 
 func TestSatisfiesConstraintInvalidVersion(t *testing.T) {
+	t.Parallel()
+
 	constraint, err := ParseVersionConstraint(">=1.0.0")
 	require.NoError(t, err)
 	_, err = SatisfiesConstraint("invalid", constraint)
@@ -66,6 +74,8 @@ func TestSatisfiesConstraintInvalidVersion(t *testing.T) {
 }
 
 func TestCompareVersions(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		v1   string
 		v2   string
@@ -82,6 +92,7 @@ func TestCompareVersions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.v1+" vs "+tt.v2, func(t *testing.T) {
+			t.Parallel()
 			got, err := CompareVersions(tt.v1, tt.v2)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, got, "CompareVersions(%q, %q)", tt.v1, tt.v2)
@@ -90,6 +101,8 @@ func TestCompareVersions(t *testing.T) {
 }
 
 func TestCompareVersionsInvalid(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		v1   string
@@ -101,6 +114,7 @@ func TestCompareVersionsInvalid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := CompareVersions(tt.v1, tt.v2)
 			require.Error(t, err, "expected error for invalid version")
 		})
@@ -108,6 +122,8 @@ func TestCompareVersionsInvalid(t *testing.T) {
 }
 
 func TestIsValidVersion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		version string
 		want    bool
@@ -125,12 +141,15 @@ func TestIsValidVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.version, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, IsValidVersion(tt.version), "IsValidVersion(%q)", tt.version)
 		})
 	}
 }
 
 func TestCanonicalVersion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name, tag, prefix, want string
 	}{
@@ -141,12 +160,15 @@ func TestCanonicalVersion(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, CanonicalVersion(tt.tag, tt.prefix))
 		})
 	}
 }
 
 func TestReleaseTag(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name, version, prefix, want string
 	}{
@@ -157,12 +179,15 @@ func TestReleaseTag(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, ReleaseTag(tt.version, tt.prefix))
 		})
 	}
 }
 
 func TestHintsForEntry(t *testing.T) {
+	t.Parallel()
+
 	assert.Nil(t, HintsForEntry(&RegistryEntry{Name: "x"}))
 
 	h := HintsForEntry(&RegistryEntry{Name: "kubernetes", TagPrefix: "kubernetes-"})
@@ -180,6 +205,8 @@ func TestHintsForEntry(t *testing.T) {
 }
 
 func TestTagPrefixOf(t *testing.T) {
+	t.Parallel()
+
 	assert.Empty(t, tagPrefixOf(nil))
 	assert.Equal(t, "kubernetes-", tagPrefixOf(&AssetNamingHints{TagPrefix: "kubernetes-"}))
 }

@@ -10,6 +10,8 @@ import (
 )
 
 func TestMapResource(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		resource *pulumirpc.AnalyzerResource
@@ -72,6 +74,7 @@ func TestMapResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := MapResource(tt.resource)
 
 			assert.Equal(t, tt.wantType, result.Type)
@@ -82,6 +85,8 @@ func TestMapResource(t *testing.T) {
 }
 
 func TestMapResources(t *testing.T) {
+	t.Parallel()
+
 	resources := []*pulumirpc.AnalyzerResource{
 		{
 			Type: "aws:ec2/instance:Instance",
@@ -114,6 +119,8 @@ func TestMapResources(t *testing.T) {
 }
 
 func TestMapResources_Empty(t *testing.T) {
+	t.Parallel()
+
 	results := MapResources(nil)
 	assert.Empty(t, results)
 
@@ -122,6 +129,8 @@ func TestMapResources_Empty(t *testing.T) {
 }
 
 func TestExtractResourceID(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		urn  string
@@ -156,6 +165,7 @@ func TestExtractResourceID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := extractResourceID(tt.urn)
 			assert.Equal(t, tt.want, got)
 		})
@@ -163,6 +173,8 @@ func TestExtractResourceID(t *testing.T) {
 }
 
 func TestExtractProvider(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		resource *pulumirpc.AnalyzerResource
@@ -228,6 +240,7 @@ func TestExtractProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := extractProvider(tt.resource)
 			assert.Equal(t, tt.want, got)
 		})
@@ -235,6 +248,8 @@ func TestExtractProvider(t *testing.T) {
 }
 
 func TestStructToMap(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name  string
 		input *structpb.Struct
@@ -295,6 +310,7 @@ func TestStructToMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := structToMap(tt.input)
 			assert.Equal(t, tt.want, got)
 		})
@@ -302,6 +318,8 @@ func TestStructToMap(t *testing.T) {
 }
 
 func TestMapResource_WithProperties(t *testing.T) {
+	t.Parallel()
+
 	props, err := structpb.NewStruct(map[string]interface{}{
 		"instanceType":     "t3.micro",
 		"ami":              "ami-0123456789abcdef0",
@@ -332,6 +350,8 @@ func TestMapResource_WithProperties(t *testing.T) {
 // Phase 5 (US3) - Error Handling Tests
 
 func TestMapResource_UnsupportedResourceType(t *testing.T) {
+	t.Parallel()
+
 	// Custom/component resources that have no cost should still map correctly
 	resource := &pulumirpc.AnalyzerResource{
 		Type: "custom:my-org:CustomWidget",
@@ -348,6 +368,8 @@ func TestMapResource_UnsupportedResourceType(t *testing.T) {
 }
 
 func TestMapResource_EmptyType(t *testing.T) {
+	t.Parallel()
+
 	// Resource with empty type should handle gracefully
 	resource := &pulumirpc.AnalyzerResource{
 		Type: "",
@@ -363,6 +385,8 @@ func TestMapResource_EmptyType(t *testing.T) {
 }
 
 func TestMapResources_WithNilElements(t *testing.T) {
+	t.Parallel()
+
 	resources := []*pulumirpc.AnalyzerResource{
 		{
 			Type: "aws:ec2/instance:Instance",
@@ -385,6 +409,8 @@ func TestMapResources_WithNilElements(t *testing.T) {
 }
 
 func TestExtractProviderFromRequest(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		request *pulumirpc.AnalyzeRequest
@@ -466,6 +492,7 @@ func TestExtractProviderFromRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := extractProviderFromRequest(tt.request)
 			assert.Equal(t, tt.want, got)
 		})
@@ -473,6 +500,8 @@ func TestExtractProviderFromRequest(t *testing.T) {
 }
 
 func TestExtractProviderFromType(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -517,6 +546,7 @@ func TestExtractProviderFromType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := extractProviderFromType(tt.resourceType)
 			assert.Equal(t, tt.want, got)
 		})
@@ -524,6 +554,8 @@ func TestExtractProviderFromType(t *testing.T) {
 }
 
 func TestMapResourcesWithErrors(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		resources     []*pulumirpc.AnalyzerResource
@@ -577,6 +609,7 @@ func TestMapResourcesWithErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := MapResourcesWithErrors(tt.resources)
 
 			assert.Len(t, result.Resources, tt.wantResources)

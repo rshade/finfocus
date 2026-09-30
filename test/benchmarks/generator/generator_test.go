@@ -9,6 +9,8 @@ import (
 )
 
 func TestBenchmarkConfig_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		config  BenchmarkConfig
@@ -118,6 +120,7 @@ func TestBenchmarkConfig_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.config.Validate()
 			if tt.wantErr == nil {
 				if err != nil {
@@ -131,6 +134,8 @@ func TestBenchmarkConfig_Validate(t *testing.T) {
 }
 
 func TestGeneratePlan(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		config    BenchmarkConfig
@@ -231,6 +236,7 @@ func TestGeneratePlan(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			plan, err := GeneratePlan(tt.config)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -245,6 +251,8 @@ func TestGeneratePlan(t *testing.T) {
 }
 
 func TestGeneratePlan_Variables(t *testing.T) {
+	t.Parallel()
+
 	config := BenchmarkConfig{
 		ResourceCount:   10,
 		MaxDepth:        2,

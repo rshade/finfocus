@@ -30,6 +30,8 @@ func (m *mockRecommendationFetcher) GetRecommendationsForResources(
 }
 
 func TestFetchAndMergeRecommendations(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		resources   []engine.ResourceDescriptor
@@ -287,6 +289,7 @@ func TestFetchAndMergeRecommendations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			fetchAndMergeRecommendations(context.Background(), tt.fetcher, tt.resources, tt.results)
 
 			for idx, wantTypes := range tt.wantRecs {
@@ -315,6 +318,7 @@ func TestDetectPulumiProject_NoBinary(t *testing.T) {
 	assert.Contains(t, err.Error(), "find pulumi binary")
 }
 
+//nolint:paralleltest // t.Chdir changes the process-wide working directory
 func TestDetectPulumiProject_NoProject(t *testing.T) {
 	// Skip if no pulumi binary on real PATH (CI without pulumi installed).
 	if _, err := pulumidetect.FindBinary(); err != nil {
@@ -330,6 +334,8 @@ func TestDetectPulumiProject_NoProject(t *testing.T) {
 }
 
 func TestExtractCurrencyFromResults(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		results      []engine.CostResult
@@ -369,6 +375,7 @@ func TestExtractCurrencyFromResults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			currency, mixed := extractCurrencyFromResults(tt.results)
 			assert.Equal(t, tt.wantCurrency, currency)
 			assert.Equal(t, tt.wantMixed, mixed)
@@ -377,6 +384,8 @@ func TestExtractCurrencyFromResults(t *testing.T) {
 }
 
 func TestBuildAltIDIndex(t *testing.T) {
+	t.Parallel()
+
 	resources := []engine.ResourceDescriptor{
 		{
 			ID:   "urn:pulumi:dev::proj::aws:eks/cluster:Cluster::my-cluster",
@@ -427,6 +436,8 @@ func TestBuildAltIDIndex(t *testing.T) {
 }
 
 func TestCreateRouterForEngine_NilConfig(t *testing.T) {
+	t.Parallel()
+
 	// Passing a nil cfg should return nil without panicking.
 	ctx := context.Background()
 	result := createRouterForEngine(ctx, nil, nil)
@@ -434,12 +445,15 @@ func TestCreateRouterForEngine_NilConfig(t *testing.T) {
 }
 
 func TestCreateRouterForEngine_EmptyClients(t *testing.T) {
+	t.Parallel()
+
 	// A config with no routing section should return nil regardless of clients.
 	ctx := context.Background()
 	result := createRouterForEngine(ctx, &config.Config{}, []*pluginhost.Client{})
 	assert.Nil(t, result, "no routing config should return nil regardless of clients")
 }
 
+//nolint:paralleltest // SetGlobalConfig replaces the process-wide global config singleton
 func TestEvaluateBudgetStatusWithoutRender_SuppressesBudgetOutput(t *testing.T) {
 	config.SetGlobalConfig(&config.Config{
 		Cost: config.CostConfig{
@@ -465,6 +479,7 @@ func TestEvaluateBudgetStatusWithoutRender_SuppressesBudgetOutput(t *testing.T) 
 	assert.Empty(t, out.String(), "silent budget evaluation should not render budget text")
 }
 
+//nolint:paralleltest // SetGlobalConfig replaces the process-wide global config singleton
 func TestEvaluateBudgetStatus_RendersBudgetOutput(t *testing.T) {
 	config.SetGlobalConfig(&config.Config{
 		Cost: config.CostConfig{
@@ -516,6 +531,8 @@ func BenchmarkCreateRouterForEngine_WithConfig(b *testing.B) {
 }
 
 func TestLoadAndMapResources_NilAudit_NoPanic(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	assert.NotPanics(t, func() {
@@ -525,6 +542,8 @@ func TestLoadAndMapResources_NilAudit_NoPanic(t *testing.T) {
 }
 
 func TestOpenPlugins_NilAudit_NoPanic(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	var clients []*pluginhost.Client
@@ -546,6 +565,8 @@ func TestOpenPlugins_NilAudit_NoPanic(t *testing.T) {
 }
 
 func TestConvertDescriptorsToHistoryState_Tags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		resources []engine.ResourceDescriptor
@@ -621,6 +642,7 @@ func TestConvertDescriptorsToHistoryState_Tags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := convertDescriptorsToHistoryState(tt.resources)
 			require.Len(t, result, len(tt.wantTags))
 			for i, want := range tt.wantTags {
@@ -632,6 +654,8 @@ func TestConvertDescriptorsToHistoryState_Tags(t *testing.T) {
 }
 
 func TestConvertEngineStateToHistoryState_Tags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		resources []engine.StateResource
@@ -670,6 +694,7 @@ func TestConvertEngineStateToHistoryState_Tags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := convertEngineStateToHistoryState(tt.resources)
 			require.Len(t, result, len(tt.wantTags))
 			for i, want := range tt.wantTags {

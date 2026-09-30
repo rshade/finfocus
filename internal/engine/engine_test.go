@@ -16,6 +16,8 @@ import (
 )
 
 func TestAggregateResults(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2:Instance",
@@ -67,6 +69,7 @@ func TestAggregateResults(t *testing.T) {
 	assert.Len(t, aggregated.Resources, 3)
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture resources (composite value mutated by a subtest)
 func TestFilterResources(t *testing.T) {
 	resources := []engine.ResourceDescriptor{
 		{
@@ -135,6 +138,8 @@ func TestFilterResources(t *testing.T) {
 }
 
 func TestValidateFilter(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		filter    string
@@ -190,6 +195,7 @@ func TestValidateFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := engine.ValidateFilter(tt.filter)
 			if tt.wantError {
 				require.Error(t, err)
@@ -202,7 +208,10 @@ func TestValidateFilter(t *testing.T) {
 }
 
 func TestGetProjectedCostEmpty(t *testing.T) {
+	t.Parallel()
+
 	t.Run("colon_format", func(t *testing.T) {
+		t.Parallel()
 		eng := engine.New(nil, nil)
 
 		results, err := eng.GetProjectedCost(context.Background(), []engine.ResourceDescriptor{
@@ -226,6 +235,7 @@ func TestGetProjectedCostEmpty(t *testing.T) {
 	})
 
 	t.Run("slash_format", func(t *testing.T) {
+		t.Parallel()
 		eng := engine.New(nil, nil)
 
 		results, err := eng.GetProjectedCost(context.Background(), []engine.ResourceDescriptor{
@@ -257,6 +267,8 @@ func (m *MockSpecLoader) LoadSpec(provider, service, sku string) (interface{}, e
 }
 
 func TestGetProjectedCostWithSpecLoader(t *testing.T) {
+	t.Parallel()
+
 	loader := &MockSpecLoader{
 		specs: map[string]*engine.PricingSpec{
 			"aws-ec2-t3.micro": {
@@ -298,6 +310,8 @@ func TestGetProjectedCostWithSpecLoader(t *testing.T) {
 }
 
 func TestGetProjectedCost_PropagatesContextError(t *testing.T) {
+	t.Parallel()
+
 	eng := engine.New(nil, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -312,6 +326,8 @@ func TestGetProjectedCost_PropagatesContextError(t *testing.T) {
 }
 
 func TestFormatPeriod(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		from     time.Time
@@ -352,6 +368,7 @@ func TestFormatPeriod(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.FormatPeriod(tt.from, tt.to)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -359,6 +376,8 @@ func TestFormatPeriod(t *testing.T) {
 }
 
 func TestMatchesTags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		resource engine.ResourceDescriptor
@@ -407,12 +426,14 @@ func TestMatchesTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.MatchesTags(tt.resource, tt.tags)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture eng
 func TestGroupResults(t *testing.T) {
 	eng := &engine.Engine{}
 
@@ -479,6 +500,8 @@ func TestGroupResults(t *testing.T) {
 }
 
 func TestAggregateResultsFunction(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -507,6 +530,8 @@ func TestAggregateResultsFunction(t *testing.T) {
 }
 
 func TestCreateCrossProviderAggregation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		results     []engine.CostResult
@@ -648,6 +673,7 @@ func TestCreateCrossProviderAggregation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := engine.CreateCrossProviderAggregation(tt.results, tt.groupBy)
 
 			if tt.expectError {
@@ -686,6 +712,7 @@ func assertCrossProviderAggregations(
 	}
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture eng = engine.New(...)
 func TestGetActualCostWithOptions(t *testing.T) {
 	eng := engine.New(nil, nil) // No plugins for this test
 
@@ -767,6 +794,8 @@ func TestGetActualCostWithOptions(t *testing.T) {
 }
 
 func TestGetActualCostWithOptions_PropagatesContextError(t *testing.T) {
+	t.Parallel()
+
 	eng := engine.New(nil, nil)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -786,6 +815,8 @@ func TestGetActualCostWithOptions_PropagatesContextError(t *testing.T) {
 }
 
 func TestGroupByValidation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		groupBy     engine.GroupBy
@@ -804,6 +835,7 @@ func TestGroupByValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.isValid, tt.groupBy.IsValid())
 			assert.Equal(t, tt.isTimeBased, tt.groupBy.IsTimeBasedGrouping())
 			assert.Equal(t, string(tt.groupBy), tt.groupBy.String())
@@ -812,6 +844,8 @@ func TestGroupByValidation(t *testing.T) {
 }
 
 func TestCurrencySymbolMapping(t *testing.T) {
+	t.Parallel()
+
 	// Test via the renderCrossProviderTable function - create minimal aggregations to test currency symbol
 	aggregations := []engine.CrossProviderAggregation{
 		{
@@ -840,6 +874,8 @@ func TestCurrencySymbolMapping(t *testing.T) {
 }
 
 func TestGetProjectedCostWithErrorsReturnType(t *testing.T) {
+	t.Parallel()
+
 	// Test that GetProjectedCostWithErrors returns *CostResultWithErrors
 	eng := engine.New(nil, nil)
 
@@ -870,6 +906,8 @@ func TestGetProjectedCostWithErrorsReturnType(t *testing.T) {
 }
 
 func TestGetProjectedCostWithErrorsMultipleResources(t *testing.T) {
+	t.Parallel()
+
 	// Test with multiple resources to ensure all are processed
 	eng := engine.New(nil, nil)
 
@@ -894,7 +932,10 @@ func TestGetProjectedCostWithErrorsMultipleResources(t *testing.T) {
 }
 
 func TestGetActualCostWithOptionsAndErrors(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns results for resources without plugins", func(t *testing.T) {
+		t.Parallel()
 		eng := engine.New(nil, nil)
 		request := engine.ActualCostRequest{
 			Resources: []engine.ResourceDescriptor{
@@ -915,6 +956,7 @@ func TestGetActualCostWithOptionsAndErrors(t *testing.T) {
 	})
 
 	t.Run("filters resources by tags", func(t *testing.T) {
+		t.Parallel()
 		eng := engine.New(nil, nil)
 		request := engine.ActualCostRequest{
 			Resources: []engine.ResourceDescriptor{
@@ -948,6 +990,7 @@ func TestGetActualCostWithOptionsAndErrors(t *testing.T) {
 	})
 
 	t.Run("empty resources returns empty results", func(t *testing.T) {
+		t.Parallel()
 		eng := engine.New(nil, nil)
 		request := engine.ActualCostRequest{
 			Resources: []engine.ResourceDescriptor{},
@@ -964,6 +1007,7 @@ func TestGetActualCostWithOptionsAndErrors(t *testing.T) {
 	})
 
 	t.Run("groups results when groupBy is specified", func(t *testing.T) {
+		t.Parallel()
 		eng := engine.New(nil, nil)
 		request := engine.ActualCostRequest{
 			Resources: []engine.ResourceDescriptor{
@@ -987,6 +1031,8 @@ func TestGetActualCostWithOptionsAndErrors(t *testing.T) {
 
 // T050: Test Engine.GetRecommendationsForResources method returns empty results when no plugins available.
 func TestGetRecommendationsForResources_NoPlugins(t *testing.T) {
+	t.Parallel()
+
 	eng := engine.New(nil, nil) // No plugins
 
 	resources := []engine.ResourceDescriptor{
@@ -1007,6 +1053,8 @@ func TestGetRecommendationsForResources_NoPlugins(t *testing.T) {
 
 // T050: Test Engine.GetRecommendationsForResources with empty resource list.
 func TestGetRecommendationsForResources_EmptyResources(t *testing.T) {
+	t.Parallel()
+
 	eng := engine.New(nil, nil)
 
 	result, err := eng.GetRecommendationsForResources(context.Background(), []engine.ResourceDescriptor{})
@@ -1018,6 +1066,8 @@ func TestGetRecommendationsForResources_EmptyResources(t *testing.T) {
 
 // T051: Test MergeRecommendations function combines recommendations from multiple sources.
 func TestMergeRecommendations(t *testing.T) {
+	t.Parallel()
+
 	costResults := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2:Instance",
@@ -1062,6 +1112,8 @@ func TestMergeRecommendations(t *testing.T) {
 
 // T051: Test MergeRecommendations with no recommendations.
 func TestMergeRecommendations_Empty(t *testing.T) {
+	t.Parallel()
+
 	costResults := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2:Instance",
@@ -1078,6 +1130,8 @@ func TestMergeRecommendations_Empty(t *testing.T) {
 
 // T052: Test RecommendationsResult type structure.
 func TestRecommendationsResult_Structure(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{
 			{
@@ -1104,6 +1158,8 @@ func TestRecommendationsResult_Structure(t *testing.T) {
 
 // T053: Test error handling for recommendation failures.
 func TestRecommendationsResult_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{},
 		Errors: []engine.RecommendationError{
@@ -1127,6 +1183,8 @@ func TestRecommendationsResult_ErrorHandling(t *testing.T) {
 
 // T053: Test RecommendationsResult without errors.
 func TestRecommendationsResult_NoErrors(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{
 			{Type: "Right-sizing", EstimatedSavings: 50.0, Currency: "USD"},
@@ -1141,6 +1199,8 @@ func TestRecommendationsResult_NoErrors(t *testing.T) {
 
 // TestConvertValueToString tests the convertValueToString helper function.
 func TestConvertValueToString(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    interface{}
@@ -1230,6 +1290,7 @@ func TestConvertValueToString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.ConvertValueToString(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -1238,6 +1299,8 @@ func TestConvertValueToString(t *testing.T) {
 
 // TestConvertToProto tests the convertToProto function with various property types.
 func TestConvertToProto(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		properties map[string]interface{}
@@ -1300,6 +1363,7 @@ func TestConvertToProto(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.ConvertToProto(tt.properties)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -1308,6 +1372,8 @@ func TestConvertToProto(t *testing.T) {
 
 // TestGetProjectedCost_WithPlugin tests projected cost calculation using a mock plugin.
 func TestGetProjectedCost_WithPlugin(t *testing.T) {
+	t.Parallel()
+
 	// Setup mock plugin server
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
@@ -1354,6 +1420,8 @@ func TestGetProjectedCost_WithPlugin(t *testing.T) {
 
 // TestGetProjectedCost_MultipleResources tests calculation for multiple resources.
 func TestGetProjectedCost_MultipleResources(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
 
@@ -1394,6 +1462,8 @@ func TestGetProjectedCost_MultipleResources(t *testing.T) {
 
 // TestGetProjectedCost_PluginError tests handling of plugin errors.
 func TestGetProjectedCost_PluginError(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 
 	// Configure plugin to return errors
@@ -1425,6 +1495,8 @@ func TestGetProjectedCost_PluginError(t *testing.T) {
 // TestGetProjectedCost_MultiPluginSupport tests multiple plugins — only the first
 // successful result should be used (break on first success, matching actual cost behavior).
 func TestGetProjectedCost_MultiPluginSupport(t *testing.T) {
+	t.Parallel()
+
 	// Create first plugin
 	helper1 := plugin.NewTestHelper(t)
 	helper1.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
@@ -1462,6 +1534,8 @@ func TestGetProjectedCost_MultiPluginSupport(t *testing.T) {
 
 // TestGetProjectedCost_PartialData tests scenario with missing data for some resources.
 func TestGetProjectedCost_PartialData(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioPartialData)
 
@@ -1502,6 +1576,8 @@ func TestGetProjectedCost_PartialData(t *testing.T) {
 
 // TestGetProjectedCost_HighCost tests high-cost scenario.
 func TestGetProjectedCost_HighCost(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioHighCost)
 
@@ -1531,6 +1607,8 @@ func TestGetProjectedCost_HighCost(t *testing.T) {
 
 // TestGetProjectedCost_ZeroCost tests free-tier resources.
 func TestGetProjectedCost_ZeroCost(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioZeroCost)
 
@@ -1561,6 +1639,8 @@ func TestGetProjectedCost_ZeroCost(t *testing.T) {
 
 // TestGetProjectedCost_MultiCurrency tests mixed currency handling.
 func TestGetProjectedCost_MultiCurrency(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioMultiCurrency)
 
@@ -1593,6 +1673,8 @@ func TestGetProjectedCost_MultiCurrency(t *testing.T) {
 
 // TestGetProjectedCost_WithBreakdown tests cost breakdown data.
 func TestGetProjectedCost_WithBreakdown(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
 
@@ -1622,6 +1704,8 @@ func TestGetProjectedCost_WithBreakdown(t *testing.T) {
 
 // TestGetActualCost_WithPlugin tests actual cost retrieval.
 func TestGetActualCost_WithPlugin(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 
 	// Configure actual cost response
@@ -1663,6 +1747,8 @@ func TestGetActualCost_WithPlugin(t *testing.T) {
 
 // TestGetActualCost_NoPlugin tests actual cost with no plugin.
 func TestGetActualCost_NoPlugin(t *testing.T) {
+	t.Parallel()
+
 	eng := engine.New(nil, nil)
 
 	resources := []engine.ResourceDescriptor{
@@ -1687,6 +1773,8 @@ func TestGetActualCost_NoPlugin(t *testing.T) {
 
 // TestGetActualCost_TimeRange tests time range handling.
 func TestGetActualCost_TimeRange(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.Plugin().ConfigureActualCostScenario("i-001", 100.0, map[string]float64{
 		"compute": 100.0,
@@ -1726,6 +1814,8 @@ func TestGetActualCost_TimeRange(t *testing.T) {
 // TestGetProjectedCost_SupportsFilterUnsupported tests that plugins declaring
 // Supported=false via Supports() RPC are filtered out of plugin selection.
 func TestGetProjectedCost_SupportsFilterUnsupported(t *testing.T) {
+	t.Parallel()
+
 	// Create supporting plugin (default: SupportsAll=true)
 	helperSupported := plugin.NewTestHelper(t)
 	helperSupported.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
@@ -1767,6 +1857,8 @@ func TestGetProjectedCost_SupportsFilterUnsupported(t *testing.T) {
 // TestGetProjectedCost_SupportsFailOpen tests that if a plugin's Supports()
 // RPC fails (e.g., unimplemented), the plugin is still included (fail-open).
 func TestGetProjectedCost_SupportsFailOpen(t *testing.T) {
+	t.Parallel()
+
 	// Default mock server uses UnimplementedCostSourceServiceServer, which
 	// returns Unimplemented for Supports(). The engine should treat this as
 	// "supports everything" (fail-open for backward compatibility).
@@ -1799,6 +1891,8 @@ func TestGetProjectedCost_SupportsFailOpen(t *testing.T) {
 // TestGetProjectedCost_AllUnsupported tests that when all plugins declare
 // Supported=false, the engine falls back to spec or no-cost-data result.
 func TestGetProjectedCost_AllUnsupported(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.Plugin().SetSupportsAll(false)
 	helper.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
@@ -1830,6 +1924,8 @@ func TestGetProjectedCost_AllUnsupported(t *testing.T) {
 // TestGetProjectedCost_BreakOnFirstSuccess tests that the projected cost loop
 // stops after the first successful plugin result.
 func TestGetProjectedCost_BreakOnFirstSuccess(t *testing.T) {
+	t.Parallel()
+
 	// Create two plugins, both support the resource
 	helper1 := plugin.NewTestHelper(t)
 	helper1.Plugin().SetProjectedCostResponse("aws:ec2/instance:Instance",
@@ -1867,6 +1963,8 @@ func TestGetProjectedCost_BreakOnFirstSuccess(t *testing.T) {
 // TestGetProjectedCost_FallbackOnFirstPluginError tests that when the first
 // plugin fails, the engine falls back to the next plugin.
 func TestGetProjectedCost_FallbackOnFirstPluginError(t *testing.T) {
+	t.Parallel()
+
 	// First plugin has error injection
 	helper1 := plugin.NewTestHelper(t)
 	helper1.Plugin().SetError("GetProjectedCost", plugin.ErrorUnavailable)

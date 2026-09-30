@@ -8,6 +8,8 @@ import (
 )
 
 func TestDecode_EmptyInputsYieldDefaults(t *testing.T) {
+	t.Parallel()
+
 	_, defDigest, err := Defaults().Canonical()
 	require.NoError(t, err)
 	for _, in := range []string{"", "  ", "{}", `{"version": 1}`} {
@@ -21,6 +23,8 @@ func TestDecode_EmptyInputsYieldDefaults(t *testing.T) {
 }
 
 func TestDecode_OverridesMergeOntoDefaults(t *testing.T) {
+	t.Parallel()
+
 	p, err := Decode([]byte(`{"node_split": {"cpu_core_hour": 0.05}}`))
 	require.NoError(t, err)
 	assert.InDelta(t, 0.05, p.NodeSplit.CPUCoreHour, 1e-12)
@@ -30,6 +34,8 @@ func TestDecode_OverridesMergeOntoDefaults(t *testing.T) {
 }
 
 func TestDecode_Rejects(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name, in, wantErr string
 	}{
@@ -43,6 +49,7 @@ func TestDecode_Rejects(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := Decode([]byte(tt.in))
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
@@ -51,6 +58,8 @@ func TestDecode_Rejects(t *testing.T) {
 }
 
 func TestCanonical_StableAndDistinct(t *testing.T) {
+	t.Parallel()
+
 	a, da, err := Defaults().Canonical()
 	require.NoError(t, err)
 	b, db, err := Defaults().Canonical()

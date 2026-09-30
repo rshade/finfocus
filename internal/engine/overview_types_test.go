@@ -15,6 +15,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestResourceStatus_String(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		status ResourceStatus
@@ -29,12 +31,15 @@ func TestResourceStatus_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tt.status.String())
 		})
 	}
 }
 
 func TestIsValidResourceStatus(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		status ResourceStatus
@@ -47,6 +52,7 @@ func TestIsValidResourceStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.valid, isValidResourceStatus(tt.status))
 		})
 	}
@@ -57,6 +63,8 @@ func TestIsValidResourceStatus(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestErrorType_String(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name  string
 		eType ErrorType
@@ -70,12 +78,15 @@ func TestErrorType_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tt.eType.String())
 		})
 	}
 }
 
 func TestIsValidErrorType(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name  string
 		eType ErrorType
@@ -88,6 +99,7 @@ func TestIsValidErrorType(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.valid, isValidErrorType(tt.eType))
 		})
 	}
@@ -97,6 +109,7 @@ func TestIsValidErrorType(t *testing.T) {
 // DateRange
 // ---------------------------------------------------------------------------
 
+//nolint:paralleltest // table cases share the parent-scoped fixture later = now.Add(...)
 func TestDateRange_Validate(t *testing.T) {
 	now := time.Now()
 	later := now.Add(24 * time.Hour)
@@ -155,6 +168,8 @@ func TestDateRange_Validate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestActualCostData_Validate(t *testing.T) {
+	t.Parallel()
+
 	validPeriod := DateRange{
 		Start: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 		End:   time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC),
@@ -217,6 +232,7 @@ func TestActualCostData_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.data.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -234,6 +250,8 @@ func TestActualCostData_Validate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestProjectedCostData_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		data        ProjectedCostData
@@ -281,6 +299,7 @@ func TestProjectedCostData_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.data.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -298,6 +317,8 @@ func TestProjectedCostData_Validate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCostDriftData_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		data        CostDriftData
@@ -397,6 +418,7 @@ func TestCostDriftData_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.data.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -414,6 +436,8 @@ func TestCostDriftData_Validate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestOverviewRowError_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		err         OverviewRowError
@@ -463,6 +487,7 @@ func TestOverviewRowError_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.err.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -480,6 +505,8 @@ func TestOverviewRowError_Validate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestOverviewRow_Validate(t *testing.T) {
+	t.Parallel()
+
 	validPeriod := DateRange{
 		Start: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 		End:   time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC),
@@ -592,6 +619,7 @@ func TestOverviewRow_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.row.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -609,6 +637,8 @@ func TestOverviewRow_Validate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestStackContext_Validate(t *testing.T) {
+	t.Parallel()
+
 	validWindow := DateRange{
 		Start: time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC),
 		End:   time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC),
@@ -708,6 +738,7 @@ func TestStackContext_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.ctx.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -725,6 +756,8 @@ func TestStackContext_Validate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPropertyDiff_JSONRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	diff := PropertyDiff{
 		Key:      "instanceType",
 		OldValue: "t3.medium",
@@ -743,6 +776,8 @@ func TestPropertyDiff_JSONRoundTrip(t *testing.T) {
 }
 
 func TestPropertyDiffs_JSONPresence(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		structType      string // "PlanStep" or "OverviewRow"
@@ -824,6 +859,7 @@ func TestPropertyDiffs_JSONPresence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			data, err := json.Marshal(tt.fixture)
 			require.NoError(t, err)
 

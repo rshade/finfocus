@@ -13,6 +13,8 @@ import (
 
 // T058: Unit test for createWriter file creation.
 func TestCreateWriter_CreatesFile(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "test.log")
 
@@ -40,6 +42,8 @@ func TestCreateWriter_CreatesFile(t *testing.T) {
 }
 
 // T059: Unit test for createWriter fallback to stderr on permission error.
+//
+//nolint:paralleltest // redirects or reassigns os.Stderr
 func TestCreateWriter_FallbackOnPermissionError(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping permission test on Windows - POSIX permissions not enforced")
@@ -84,6 +88,8 @@ func TestCreateWriter_FallbackOnPermissionError(t *testing.T) {
 
 // T060: Unit test for NewLoggerWithPath file creation.
 func TestNewLoggerWithPath_CreatesFile(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	logFile := filepath.Join(tmpDir, "test.log")
 
@@ -114,6 +120,8 @@ func TestNewLoggerWithPath_CreatesFile(t *testing.T) {
 
 // T061: Unit test for NewLoggerWithPath fallback.
 func TestNewLoggerWithPath_Fallback(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping permission test on Windows - POSIX permissions not enforced")
 	}
@@ -140,6 +148,8 @@ func TestNewLoggerWithPath_Fallback(t *testing.T) {
 
 // T062: Unit test for LogPathResult properties.
 func TestLogPathResult_Stdout(t *testing.T) {
+	t.Parallel()
+
 	cfg := LoggingConfig{
 		Output: "stdout",
 	}
@@ -153,6 +163,8 @@ func TestLogPathResult_Stdout(t *testing.T) {
 
 // T063: Unit test for PrintLogPathMessage.
 func TestPrintLogPathMessage(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	PrintLogPathMessage(&buf, "/test/path.log")
 	assert.Equal(t, "Logging to: /test/path.log\n", buf.String())
@@ -164,6 +176,8 @@ func TestPrintLogPathMessage(t *testing.T) {
 
 // T064: Unit test for PrintFallbackWarning.
 func TestPrintFallbackWarning(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	PrintFallbackWarning(&buf, "permission denied")
 	assert.Equal(

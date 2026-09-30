@@ -9,6 +9,8 @@ import (
 // TestFormatProviders tests the provider list formatting function.
 // This validates T071 - SupportedProviders display formatting.
 func TestFormatProviders(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		providers []string
@@ -48,6 +50,7 @@ func TestFormatProviders(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatProviders(tt.providers)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -57,6 +60,8 @@ func TestFormatProviders(t *testing.T) {
 // TestFormatCapabilities tests the capabilities list formatting function.
 // This validates T072 - capabilities display formatting.
 func TestFormatCapabilities(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		capabilities []string
@@ -91,6 +96,7 @@ func TestFormatCapabilities(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatCapabilities(tt.capabilities)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -99,6 +105,8 @@ func TestFormatCapabilities(t *testing.T) {
 
 // TestEnrichedPluginInfoDisplayVersion tests the version display logic.
 func TestEnrichedPluginInfoDisplayVersion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		runtimeVersion string
@@ -127,6 +135,7 @@ func TestEnrichedPluginInfoDisplayVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			info := enrichedPluginInfo{
 				RuntimeVersion: tt.runtimeVersion,
 			}

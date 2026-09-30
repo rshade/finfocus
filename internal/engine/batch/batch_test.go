@@ -13,6 +13,7 @@ import (
 	batchpkg "github.com/rshade/finfocus/internal/engine/batch"
 )
 
+//nolint:paralleltest // subtests share the parent-scoped fixture items = make(...)
 func TestProcessor_Process(t *testing.T) {
 	items := make([]int, 25)
 	for i := range items {
@@ -84,6 +85,7 @@ func TestProcessor_Process(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture p = NewProgress(...)
 func TestProgress(t *testing.T) {
 	totalItems := 100
 	totalBatches := 10
@@ -133,6 +135,8 @@ func TestProgress(t *testing.T) {
 }
 
 func TestProcessor_CalculateBatches(t *testing.T) {
+	t.Parallel()
+
 	p, _ := batchpkg.NewProcessor[int](10)
 	batches := p.CalculateBatches(25)
 	require.Len(t, batches, 3)

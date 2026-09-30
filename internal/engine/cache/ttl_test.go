@@ -10,6 +10,8 @@ import (
 )
 
 func TestCalculatePluginTTL(t *testing.T) {
+	t.Parallel()
+
 	defaultTTL := 3600
 
 	tests := []struct {
@@ -88,6 +90,7 @@ func TestCalculatePluginTTL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			expiresAt := tt.expiresAtFn()
 			gotTTL, gotSkip, gotCapped := cache.CalculatePluginTTL(expiresAt, tt.defaultTTL)
 			assert.Equal(t, tt.wantSkip, gotSkip, "skip mismatch")

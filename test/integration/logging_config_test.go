@@ -14,7 +14,10 @@ import (
 
 // T009: Integration test for config file loading and logging initialization.
 func TestLoggingConfig_Integration(t *testing.T) {
+	t.Parallel()
+
 	t.Run("config file logging settings create working logger", func(t *testing.T) {
+		t.Parallel()
 		// Create a temporary log file
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
@@ -41,6 +44,7 @@ func TestLoggingConfig_Integration(t *testing.T) {
 	})
 
 	t.Run("stderr fallback works when file cannot be created", func(t *testing.T) {
+		t.Parallel()
 		// Use an invalid path that will fail
 		cfg := logging.Config{
 			Level:  "info",
@@ -58,6 +62,7 @@ func TestLoggingConfig_Integration(t *testing.T) {
 	})
 
 	t.Run("trace ID propagation works with configured logger", func(t *testing.T) {
+		t.Parallel()
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "trace.log")
 
@@ -86,6 +91,8 @@ func TestLoggingConfig_Integration(t *testing.T) {
 
 // Test console format works.
 func TestLoggingConfig_ConsoleFormat(t *testing.T) {
+	t.Parallel()
+
 	cfg := logging.Config{
 		Level:  "info",
 		Format: "console",
@@ -99,6 +106,8 @@ func TestLoggingConfig_ConsoleFormat(t *testing.T) {
 
 // Test text format is alias for console.
 func TestLoggingConfig_TextFormat(t *testing.T) {
+	t.Parallel()
+
 	cfg := logging.Config{
 		Level:  "info",
 		Format: "text",

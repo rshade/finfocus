@@ -11,6 +11,8 @@ import (
 )
 
 func TestNormalizeToKg(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		value   float64
@@ -157,6 +159,7 @@ func TestNormalizeToKg(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := greenops.NormalizeToKg(tt.value, tt.unit)
 
 			if tt.wantErr {
@@ -175,6 +178,8 @@ func TestNormalizeToKg(t *testing.T) {
 }
 
 func TestIsRecognizedUnit(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		unit string
 		want bool
@@ -202,6 +207,7 @@ func TestIsRecognizedUnit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.unit, func(t *testing.T) {
+			t.Parallel()
 			got := greenops.IsRecognizedUnit(tt.unit)
 			assert.Equal(t, tt.want, got)
 		})

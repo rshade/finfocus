@@ -14,6 +14,8 @@ import (
 )
 
 // TestConfigInit_CreateNewConfig tests creating a new configuration file.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigInit_CreateNewConfig(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -30,6 +32,8 @@ func TestConfigInit_CreateNewConfig(t *testing.T) {
 }
 
 // TestConfigInit_ExistingConfig_Error tests that init fails without --force when config exists.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigInit_ExistingConfig_Error(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -48,6 +52,8 @@ func TestConfigInit_ExistingConfig_Error(t *testing.T) {
 }
 
 // TestConfigInit_ExistingConfig_Force tests that init --force allows overwriting existing config.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigInit_ExistingConfig_Force(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -73,6 +79,8 @@ func TestConfigInit_ExistingConfig_Force(t *testing.T) {
 }
 
 // TestConfigSet_ValidKey tests setting a valid configuration key.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigSet_ValidKey(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -93,6 +101,8 @@ func TestConfigSet_ValidKey(t *testing.T) {
 }
 
 // TestConfigSet_InvalidKey tests setting an invalid configuration key.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigSet_InvalidKey(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -110,6 +120,8 @@ func TestConfigSet_InvalidKey(t *testing.T) {
 }
 
 // TestConfigGet_ExistingKey tests getting an existing configuration key.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigGet_ExistingKey(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -128,6 +140,8 @@ func TestConfigGet_ExistingKey(t *testing.T) {
 }
 
 // TestConfigGet_NestedKey tests getting a nested configuration key (plugins.aws.region).
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigGet_NestedKey(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -154,6 +168,8 @@ plugins:
 }
 
 // TestConfigList_YAML tests listing configuration in YAML format.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigList_YAML(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -174,6 +190,8 @@ func TestConfigList_YAML(t *testing.T) {
 }
 
 // TestConfigList_JSON tests listing configuration in JSON format.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigList_JSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -197,6 +215,8 @@ func TestConfigList_JSON(t *testing.T) {
 }
 
 // TestConfigValidate_Valid tests validating a valid configuration.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigValidate_Valid(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -215,6 +235,8 @@ func TestConfigValidate_Valid(t *testing.T) {
 }
 
 // TestConfigValidate_Invalid tests validating an invalid configuration.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigValidate_Invalid(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()
@@ -237,6 +259,8 @@ func TestConfigValidate_Invalid(t *testing.T) {
 }
 
 // TestConfig_FullWorkflow tests the complete config workflow: init → set → get → validate → list.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfig_FullWorkflow(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	tempHome := h.CreateTempDir()

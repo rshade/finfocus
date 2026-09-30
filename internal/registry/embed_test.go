@@ -7,6 +7,8 @@ import (
 )
 
 func TestGetEmbeddedRegistry(t *testing.T) {
+	t.Parallel()
+
 	reg, err := registry.GetEmbeddedRegistry()
 	if err != nil {
 		t.Fatalf("GetEmbeddedRegistry() error = %v", err)
@@ -22,6 +24,8 @@ func TestGetEmbeddedRegistry(t *testing.T) {
 }
 
 func TestGetPlugin(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		plugin    string
@@ -34,6 +38,7 @@ func TestGetPlugin(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			entry, err := registry.GetPlugin(tt.plugin)
 			if tt.wantFound {
 				if err != nil {
@@ -50,6 +55,8 @@ func TestGetPlugin(t *testing.T) {
 }
 
 func TestListRegistryPlugins(t *testing.T) {
+	t.Parallel()
+
 	plugins, err := registry.ListPluginsFromRegistry()
 	if err != nil {
 		t.Fatalf("ListPluginsFromRegistry() error = %v", err)

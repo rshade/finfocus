@@ -58,6 +58,7 @@ func TestPluginConformanceCmd_FlagDefaults(t *testing.T) {
 	assert.Empty(t, cmd.Flags().Lookup("filter").DefValue)
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginConformanceCmd_RequiresArg(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -75,6 +76,7 @@ func TestPluginConformanceCmd_RequiresArg(t *testing.T) {
 	// axtest.Run should indicate missing argument failure
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginConformanceCmd_InvalidMode(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -97,6 +99,7 @@ func TestPluginConformanceCmd_InvalidMode(t *testing.T) {
 	assert.Contains(t, string(result.Stderr), "invalid mode")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginConformanceCmd_InvalidVerbosity(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -119,6 +122,7 @@ func TestPluginConformanceCmd_InvalidVerbosity(t *testing.T) {
 	assert.Contains(t, string(result.Stderr), "invalid verbosity")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginConformanceCmd_InvalidOutput(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -141,6 +145,7 @@ func TestPluginConformanceCmd_InvalidOutput(t *testing.T) {
 	assert.Contains(t, string(result.Stderr), "invalid output format")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginConformanceCmd_InvalidTimeout(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -163,6 +168,7 @@ func TestPluginConformanceCmd_InvalidTimeout(t *testing.T) {
 	assert.Contains(t, string(result.Stderr), "invalid timeout")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginConformanceCmd_InvalidCategory(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -185,6 +191,7 @@ func TestPluginConformanceCmd_InvalidCategory(t *testing.T) {
 	assert.Contains(t, string(result.Stderr), "invalid category")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginConformanceCmd_PluginNotFound(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -196,6 +203,7 @@ func TestPluginConformanceCmd_PluginNotFound(t *testing.T) {
 	assert.Contains(t, string(result.Stderr), "plugin not found")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginConformanceCmd_CommandRegistered(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 

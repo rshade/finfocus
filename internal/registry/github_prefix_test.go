@@ -12,6 +12,8 @@ import (
 )
 
 func TestSelectLatestByPrefix(t *testing.T) {
+	t.Parallel()
+
 	releases := []GitHubRelease{
 		{TagName: "v0.3.8"},
 		{TagName: "kubernetes-v0.1.9"}, // published after 0.1.10 (hotfix)
@@ -29,6 +31,8 @@ func TestSelectLatestByPrefix(t *testing.T) {
 }
 
 func TestGetLatestReleaseWithPrefix_ScansPastCoreReleases(t *testing.T) {
+	t.Parallel()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !assert.Equal(t, "/repos/rshade/finfocus/releases", r.URL.Path) {
 			http.Error(w, "unexpected path", http.StatusNotFound)

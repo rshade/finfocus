@@ -17,18 +17,24 @@ import (
 
 // T036: Unit test for gRPC unary client interceptor.
 func TestTraceInterceptor_ReturnsUnaryClientInterceptor(t *testing.T) {
+	t.Parallel()
+
 	interceptor := pluginhost.TraceInterceptor()
 	assert.NotNil(t, interceptor)
 }
 
 // T036: Test that interceptor is of correct type.
 func TestTraceInterceptor_CorrectType(t *testing.T) {
+	t.Parallel()
+
 	interceptor := pluginhost.TraceInterceptor()
 	assert.NotNil(t, interceptor)
 }
 
 // T037: Unit test for trace ID metadata injection.
 func TestTraceInterceptor_InjectsTraceIDMetadata(t *testing.T) {
+	t.Parallel()
+
 	interceptor := pluginhost.TraceInterceptor()
 
 	// Create context with trace ID
@@ -61,6 +67,8 @@ func TestTraceInterceptor_InjectsTraceIDMetadata(t *testing.T) {
 
 // T037: Test that interceptor handles missing trace ID gracefully.
 func TestTraceInterceptor_NoTraceIDNoMetadata(t *testing.T) {
+	t.Parallel()
+
 	interceptor := pluginhost.TraceInterceptor()
 
 	// Create context without trace ID
@@ -91,6 +99,8 @@ func TestTraceInterceptor_NoTraceIDNoMetadata(t *testing.T) {
 
 // T037: Test that interceptor preserves existing metadata.
 func TestTraceInterceptor_PreservesExistingMetadata(t *testing.T) {
+	t.Parallel()
+
 	interceptor := pluginhost.TraceInterceptor()
 
 	// Create context with existing metadata and trace ID
@@ -128,6 +138,8 @@ func TestTraceInterceptor_PreservesExistingMetadata(t *testing.T) {
 
 // T037: Test that interceptor propagates invoker errors.
 func TestTraceInterceptor_PropagatesInvokerError(t *testing.T) {
+	t.Parallel()
+
 	interceptor := pluginhost.TraceInterceptor()
 
 	ctx := context.Background()
@@ -146,10 +158,14 @@ func TestTraceInterceptor_PropagatesInvokerError(t *testing.T) {
 
 // Test the TraceIDMetadataKey constant value.
 func TestTraceIDMetadataKey_Value(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "x-finfocus-trace-id", pluginhost.TraceIDMetadataKey)
 }
 
 func TestLoggedInterceptor(t *testing.T) {
+	t.Parallel()
+
 	// Capture logs
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf)

@@ -14,6 +14,8 @@ import (
 
 // TestRenderResults_TableFormat tests table output rendering.
 func TestRenderResults_TableFormat(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -52,6 +54,8 @@ func TestRenderResults_TableFormat(t *testing.T) {
 
 // TestRenderResults_JSONFormat tests JSON output rendering.
 func TestRenderResults_JSONFormat(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -91,6 +95,8 @@ func TestRenderResults_JSONFormat(t *testing.T) {
 
 // TestRenderResults_NDJSONFormat tests NDJSON output rendering.
 func TestRenderResults_NDJSONFormat(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -131,6 +137,8 @@ func TestRenderResults_NDJSONFormat(t *testing.T) {
 
 // TestRenderResults_EmptyResults tests rendering with no results.
 func TestRenderResults_EmptyResults(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{}
 
 	var buf bytes.Buffer
@@ -144,6 +152,8 @@ func TestRenderResults_EmptyResults(t *testing.T) {
 
 // TestRenderResults_UnsupportedFormat tests handling of invalid format.
 func TestRenderResults_UnsupportedFormat(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceID: "i-001"},
 	}
@@ -157,6 +167,8 @@ func TestRenderResults_UnsupportedFormat(t *testing.T) {
 
 // TestRenderResults_MultiProvider tests multi-provider aggregation in table.
 func TestRenderResults_MultiProvider(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -189,6 +201,8 @@ func TestRenderResults_MultiProvider(t *testing.T) {
 
 // TestRenderResults_WithBreakdown tests rendering with cost breakdowns.
 func TestRenderResults_WithBreakdown(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:lambda/function:Function",
@@ -225,6 +239,8 @@ func TestRenderResults_WithBreakdown(t *testing.T) {
 
 // TestRenderActualCostResults_TableFormat tests actual cost table rendering.
 func TestRenderActualCostResults_TableFormat(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -249,6 +265,8 @@ func TestRenderActualCostResults_TableFormat(t *testing.T) {
 
 // TestRenderActualCostResults_JSONFormat tests actual cost JSON rendering.
 func TestRenderActualCostResults_JSONFormat(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -275,6 +293,8 @@ func TestRenderActualCostResults_JSONFormat(t *testing.T) {
 
 // TestRenderActualCostResults_NDJSONFormat tests actual cost NDJSON rendering.
 func TestRenderActualCostResults_NDJSONFormat(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceID: "i-001", TotalCost: 100.0},
 		{ResourceID: "i-002", TotalCost: 200.0},
@@ -299,6 +319,8 @@ func TestRenderActualCostResults_NDJSONFormat(t *testing.T) {
 
 // TestRenderResults_LongResourceName tests truncation of long resource names.
 func TestRenderResults_LongResourceName(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -321,6 +343,8 @@ func TestRenderResults_LongResourceName(t *testing.T) {
 
 // TestRenderResults_MultiAdapter tests multiple adapters in summary.
 func TestRenderResults_MultiAdapter(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -361,6 +385,8 @@ func TestRenderResults_MultiAdapter(t *testing.T) {
 
 // TestRenderResults_JSONPrettyPrint tests JSON pretty printing.
 func TestRenderResults_JSONPrettyPrint(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceID: "i-001",

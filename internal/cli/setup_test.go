@@ -63,6 +63,8 @@ func runTestSetup(t *testing.T, flags ...string) (string, error) {
 
 // TestFormatStatus verifies TTY and non-TTY status markers.
 func TestFormatStatus(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		status         cli.StepStatus
@@ -81,6 +83,7 @@ func TestFormatStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := cli.FormatStatus(tt.status, tt.nonInteractive)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -91,6 +94,8 @@ func TestFormatStatus(t *testing.T) {
 
 // TestStepStatus_String verifies human-readable labels for all StepStatus values.
 func TestStepStatus_String(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		status   cli.StepStatus
@@ -105,6 +110,7 @@ func TestStepStatus_String(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.status.String())
 		})
 	}
@@ -112,6 +118,8 @@ func TestStepStatus_String(t *testing.T) {
 
 // TestStepStatus_MarshalJSON verifies JSON string output for StepStatus.
 func TestStepStatus_MarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		status   cli.StepStatus
@@ -125,6 +133,7 @@ func TestStepStatus_MarshalJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			data, err := json.Marshal(tt.status)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expected, string(data))
@@ -134,7 +143,10 @@ func TestStepStatus_MarshalJSON(t *testing.T) {
 
 // TestStepStatus_UnmarshalJSON verifies round-trip and error handling.
 func TestStepStatus_UnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	t.Run("round_trip", func(t *testing.T) {
+		t.Parallel()
 		statuses := []cli.StepStatus{
 			cli.StepSuccess,
 			cli.StepWarning,
@@ -153,6 +165,7 @@ func TestStepStatus_UnmarshalJSON(t *testing.T) {
 	})
 
 	t.Run("invalid_value", func(t *testing.T) {
+		t.Parallel()
 		var s cli.StepStatus
 		err := json.Unmarshal([]byte(`"bogus"`), &s)
 		require.Error(t, err)
@@ -160,6 +173,7 @@ func TestStepStatus_UnmarshalJSON(t *testing.T) {
 	})
 
 	t.Run("invalid_json", func(t *testing.T) {
+		t.Parallel()
 		var s cli.StepStatus
 		err := json.Unmarshal([]byte(`123`), &s)
 		require.Error(t, err)
@@ -169,6 +183,8 @@ func TestStepStatus_UnmarshalJSON(t *testing.T) {
 
 // TestStepStatus_StepResult_JSON verifies StepResult serializes status as string.
 func TestStepStatus_StepResult_JSON(t *testing.T) {
+	t.Parallel()
+
 	sr := cli.StepResult{
 		Name:    "test step",
 		Status:  cli.StepSuccess,
@@ -186,6 +202,8 @@ func TestStepStatus_StepResult_JSON(t *testing.T) {
 
 // TestStepDisplayVersion verifies the version step outputs version and Go runtime.
 func TestStepDisplayVersion(t *testing.T) {
+	t.Parallel()
+
 	step := cli.StepDisplayVersion()
 
 	assert.Equal(t, cli.StepSuccess, step.Status)
@@ -326,7 +344,10 @@ func TestStepInitConfig_AlreadyExists(t *testing.T) {
 
 // TestStepInstallAnalyzer tests the analyzer installation step with mock installer.
 func TestStepInstallAnalyzer(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success_installed", func(t *testing.T) {
+		t.Parallel()
 		runner := &cli.SetupRunner{
 			AnalyzerInstaller: cli.AnalyzerInstallerFunc(
 				func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
@@ -350,6 +371,7 @@ func TestStepInstallAnalyzer(t *testing.T) {
 	})
 
 	t.Run("already_current", func(t *testing.T) {
+		t.Parallel()
 		runner := &cli.SetupRunner{
 			AnalyzerInstaller: cli.AnalyzerInstallerFunc(
 				func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
@@ -370,6 +392,7 @@ func TestStepInstallAnalyzer(t *testing.T) {
 	})
 
 	t.Run("update_available", func(t *testing.T) {
+		t.Parallel()
 		runner := &cli.SetupRunner{
 			AnalyzerInstaller: cli.AnalyzerInstallerFunc(
 				func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
@@ -392,6 +415,7 @@ func TestStepInstallAnalyzer(t *testing.T) {
 	})
 
 	t.Run("error", func(t *testing.T) {
+		t.Parallel()
 		runner := &cli.SetupRunner{
 			AnalyzerInstaller: cli.AnalyzerInstallerFunc(
 				func(_ context.Context, _ analyzer.InstallOptions) (*analyzer.InstallResult, error) {
@@ -491,6 +515,8 @@ func TestSetupIdempotency(t *testing.T) {
 // --- US3 Non-Interactive Tests ---
 
 // TestSetupNonInteractive verifies ASCII output markers in non-interactive mode.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runTestSetup)
 func TestSetupNonInteractive(t *testing.T) {
 	output, err := runTestSetup(t)
 	require.NoError(t, err)

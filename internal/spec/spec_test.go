@@ -15,6 +15,8 @@ import (
 
 // TestLoadSpec tests loading pricing specifications from YAML files.
 func TestLoadSpec(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		specContent string
@@ -63,6 +65,7 @@ invalid: yaml: structure
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create a temporary directory for specs
 			tempDir := t.TempDir()
 			specDir := filepath.Join(tempDir, "specs")
@@ -92,6 +95,8 @@ invalid: yaml: structure
 
 // TestValidateSpec tests validation of pricing specification fields.
 func TestValidateSpec(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		spec        *spec.PricingSpec
@@ -180,6 +185,7 @@ func TestValidateSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := spec.ValidateSpec(tt.spec)
 
 			if tt.expectError {
@@ -197,6 +203,8 @@ func TestValidateSpec(t *testing.T) {
 
 // TestSpecFilePatterns tests parsing of spec filenames with various formats.
 func TestSpecFilePatterns(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		filename string
@@ -243,6 +251,7 @@ func TestSpecFilePatterns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			provider, service, sku, valid := spec.ParseSpecFilename(tt.filename)
 
 			assert.Equal(t, tt.isValid, valid)
@@ -258,13 +267,17 @@ func TestSpecFilePatterns(t *testing.T) {
 
 // TestSpecLoader tests spec loader creation and directory handling.
 func TestSpecLoader(t *testing.T) {
+	t.Parallel()
+
 	t.Run("creates new loader with directory", func(t *testing.T) {
+		t.Parallel()
 		tempDir := t.TempDir()
 		loader := spec.NewLoader(tempDir)
 		assert.NotNil(t, loader)
 	})
 
 	t.Run("handles empty directory", func(t *testing.T) {
+		t.Parallel()
 		tempDir := t.TempDir()
 		loader := spec.NewLoader(tempDir)
 
@@ -274,6 +287,7 @@ func TestSpecLoader(t *testing.T) {
 	})
 
 	t.Run("handles non-existent directory", func(t *testing.T) {
+		t.Parallel()
 		nonExistentDir := filepath.Join(t.TempDir(), "nonexistent")
 		loader := spec.NewLoader(nonExistentDir)
 
@@ -285,7 +299,10 @@ func TestSpecLoader(t *testing.T) {
 
 // TestSpecCache tests spec caching behavior for repeated loads.
 func TestSpecCache(t *testing.T) {
+	t.Parallel()
+
 	t.Run("caches loaded specs", func(t *testing.T) {
+		t.Parallel()
 		// Create a temporary directory for specs
 		tempDir := t.TempDir()
 		specDir := filepath.Join(tempDir, "specs")
@@ -325,7 +342,10 @@ region: us-east-1
 
 // TestSpecErrorHandling tests error handling for file permissions and malformed YAML.
 func TestSpecErrorHandling(t *testing.T) {
+	t.Parallel()
+
 	t.Run("handles file permission errors", func(t *testing.T) {
+		t.Parallel()
 		// File permission bits are not enforced on Windows, so reads succeed
 		// regardless of the mode; skip there.
 		if runtime.GOOS == "windows" {
@@ -351,6 +371,7 @@ func TestSpecErrorHandling(t *testing.T) {
 	})
 
 	t.Run("handles malformed yaml", func(t *testing.T) {
+		t.Parallel()
 		// Create a temporary directory for specs
 		tempDir := t.TempDir()
 		specDir := filepath.Join(tempDir, "specs")

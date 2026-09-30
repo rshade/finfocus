@@ -41,6 +41,8 @@ func (l *TCPLauncher) Start(
 }
 
 func TestEngineConcurrency(t *testing.T) {
+	t.Parallel()
+
 	// Start a mock plugin server on a TCP port
 	mockServer, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -169,6 +171,7 @@ func runConcurrentActualCosts(
 	}
 }
 
+//nolint:paralleltest // sleeps on the real clock for 500ms or more and asserts on timing
 func TestEngineConcurrency_SharedState(t *testing.T) {
 	// Test to verify no data races when multiple engines share clients or when clients share connections
 	// In our case, Engine owns the clients, but let's simulate shared usage if possible or just heavy load on one engine

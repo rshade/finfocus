@@ -148,6 +148,8 @@ func TestAuditConfig_Validation(t *testing.T) {
 
 // Test GetLoggingConfig retrieves from global config.
 func TestGetLoggingConfig(t *testing.T) {
+	t.Parallel()
+
 	loggingCfg := config.GetLoggingConfig()
 
 	// Should return valid defaults

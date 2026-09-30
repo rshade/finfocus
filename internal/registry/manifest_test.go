@@ -14,6 +14,8 @@ import (
 
 // TestLoadManifest_ValidManifest tests loading a valid manifest file.
 func TestLoadManifest_ValidManifest(t *testing.T) {
+	t.Parallel()
+
 	manifestData := registry.Manifest{
 		Name:        "aws-plugin",
 		Version:     "v1.0.0",
@@ -41,6 +43,8 @@ func TestLoadManifest_ValidManifest(t *testing.T) {
 
 // TestLoadManifest_MinimalManifest tests loading a manifest with only required fields.
 func TestLoadManifest_MinimalManifest(t *testing.T) {
+	t.Parallel()
+
 	manifestData := registry.Manifest{
 		Name:    "minimal-plugin",
 		Version: "v0.1.0",
@@ -61,6 +65,8 @@ func TestLoadManifest_MinimalManifest(t *testing.T) {
 
 // TestLoadManifest_MultipleProviders tests manifest with multiple providers.
 func TestLoadManifest_MultipleProviders(t *testing.T) {
+	t.Parallel()
+
 	manifestData := registry.Manifest{
 		Name:      "multi-cloud-plugin",
 		Version:   "v2.0.0",
@@ -80,6 +86,8 @@ func TestLoadManifest_MultipleProviders(t *testing.T) {
 
 // TestLoadManifest_WithMetadata tests manifest with custom metadata.
 func TestLoadManifest_WithMetadata(t *testing.T) {
+	t.Parallel()
+
 	manifestData := registry.Manifest{
 		Name:    "metadata-plugin",
 		Version: "v1.5.0",
@@ -103,6 +111,8 @@ func TestLoadManifest_WithMetadata(t *testing.T) {
 
 // TestLoadManifest_NonExistentFile tests error handling for missing file.
 func TestLoadManifest_NonExistentFile(t *testing.T) {
+	t.Parallel()
+
 	path := filepath.Join(t.TempDir(), "nonexistent.json")
 
 	manifest, err := registry.LoadManifest(path)
@@ -113,6 +123,8 @@ func TestLoadManifest_NonExistentFile(t *testing.T) {
 
 // TestLoadManifest_InvalidJSON tests error handling for malformed JSON.
 func TestLoadManifest_InvalidJSON(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 	path := filepath.Join(tempDir, "invalid.json")
 
@@ -128,6 +140,8 @@ func TestLoadManifest_InvalidJSON(t *testing.T) {
 
 // TestLoadManifest_EmptyFile tests handling of empty file.
 func TestLoadManifest_EmptyFile(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 	path := filepath.Join(tempDir, "empty.json")
 
@@ -143,6 +157,8 @@ func TestLoadManifest_EmptyFile(t *testing.T) {
 
 // TestLoadManifest_EmptyJSONObject tests handling of empty JSON object.
 func TestLoadManifest_EmptyJSONObject(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 	path := filepath.Join(tempDir, "empty-object.json")
 
@@ -160,6 +176,8 @@ func TestLoadManifest_EmptyJSONObject(t *testing.T) {
 
 // TestLoadManifest_InvalidFieldTypes tests handling of incorrect field types.
 func TestLoadManifest_InvalidFieldTypes(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 	path := filepath.Join(tempDir, "invalid-types.json")
 
@@ -181,6 +199,8 @@ func TestLoadManifest_InvalidFieldTypes(t *testing.T) {
 
 // TestLoadManifest_ExtraFields tests that extra unknown fields are ignored.
 func TestLoadManifest_ExtraFields(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 	path := filepath.Join(tempDir, "extra-fields.json")
 
@@ -204,6 +224,8 @@ func TestLoadManifest_ExtraFields(t *testing.T) {
 
 // TestLoadManifest_UnicodeContent tests handling of Unicode characters.
 func TestLoadManifest_UnicodeContent(t *testing.T) {
+	t.Parallel()
+
 	manifestData := registry.Manifest{
 		Name:        "unicode-plugin",
 		Version:     "v1.0.0",
@@ -223,6 +245,8 @@ func TestLoadManifest_UnicodeContent(t *testing.T) {
 
 // TestLoadManifest_EscapedCharacters tests handling of escaped JSON characters.
 func TestLoadManifest_EscapedCharacters(t *testing.T) {
+	t.Parallel()
+
 	manifestData := registry.Manifest{
 		Name:        "escaped-plugin",
 		Version:     "v1.0.0",
@@ -240,6 +264,8 @@ func TestLoadManifest_EscapedCharacters(t *testing.T) {
 
 // TestLoadManifest_LargeMetadata tests handling of large metadata maps.
 func TestLoadManifest_LargeMetadata(t *testing.T) {
+	t.Parallel()
+
 	metadata := make(map[string]string)
 	for i := 0; i < 100; i++ {
 		metadata[string(rune('a'+i%26))+string(rune('0'+i/26))] = string(rune('A'+i%26)) + string(rune('0'+i/26))
@@ -261,6 +287,8 @@ func TestLoadManifest_LargeMetadata(t *testing.T) {
 
 // TestLoadManifest_NilMetadata tests that nil metadata is preserved.
 func TestLoadManifest_NilMetadata(t *testing.T) {
+	t.Parallel()
+
 	manifestData := registry.Manifest{
 		Name:     "nil-metadata-plugin",
 		Version:  "v1.0.0",
@@ -277,6 +305,8 @@ func TestLoadManifest_NilMetadata(t *testing.T) {
 
 // TestLoadManifest_EmptyMetadata tests that empty metadata map is preserved.
 func TestLoadManifest_EmptyMetadata(t *testing.T) {
+	t.Parallel()
+
 	manifestData := registry.Manifest{
 		Name:     "empty-metadata-plugin",
 		Version:  "v1.0.0",

@@ -287,6 +287,8 @@ func TestEnv_SpecialCharactersInValues(t *testing.T) {
 }
 
 // TestEnv_NoEnvironmentVariables tests behavior with no environment overrides.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestEnv_NoEnvironmentVariables(t *testing.T) {
 	setupTestHome(t)
 

@@ -13,7 +13,10 @@ import (
 // TestSetupAnalyzerInfra_DisabledPlugin verifies that plugins with Enabled: false in
 // cfg.Analyzer.Plugins are excluded from the active client list. Issue #751.
 func TestSetupAnalyzerInfra_DisabledPlugin(t *testing.T) {
+	t.Parallel()
+
 	t.Run("disabled plugin is excluded", func(t *testing.T) {
+		t.Parallel()
 		clients := []*pluginhost.Client{
 			{Name: "enabled-plugin"},
 			{Name: "disabled-plugin"},
@@ -29,6 +32,7 @@ func TestSetupAnalyzerInfra_DisabledPlugin(t *testing.T) {
 	})
 
 	t.Run("plugin absent from map defaults to enabled", func(t *testing.T) {
+		t.Parallel()
 		clients := []*pluginhost.Client{
 			{Name: "unknown-plugin"},
 		}
@@ -43,6 +47,7 @@ func TestSetupAnalyzerInfra_DisabledPlugin(t *testing.T) {
 	})
 
 	t.Run("empty plugin config passes all clients through", func(t *testing.T) {
+		t.Parallel()
 		clients := []*pluginhost.Client{
 			{Name: "plugin-a"},
 			{Name: "plugin-b"},
@@ -54,6 +59,7 @@ func TestSetupAnalyzerInfra_DisabledPlugin(t *testing.T) {
 	})
 
 	t.Run("explicitly enabled plugin is kept", func(t *testing.T) {
+		t.Parallel()
 		clients := []*pluginhost.Client{
 			{Name: "my-plugin"},
 		}

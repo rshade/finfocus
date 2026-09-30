@@ -13,6 +13,8 @@ import (
 // T026: Unit tests for history CLI subcommand.
 
 // T026: Test history command creation.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestNewRecommendationsHistoryCmd(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -22,6 +24,8 @@ func TestNewRecommendationsHistoryCmd(t *testing.T) {
 }
 
 // T026: Test history command flags.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestHistoryCmd_Flags(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	historySub := findSubcommand(cmd, "history")
@@ -34,6 +38,8 @@ func TestHistoryCmd_Flags(t *testing.T) {
 }
 
 // T026: Test history requires recommendation-id positional arg.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestHistoryCmd_RequiresRecommendationID(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	var outBuf, errBuf bytes.Buffer
@@ -49,6 +55,8 @@ func TestHistoryCmd_RequiresRecommendationID(t *testing.T) {
 }
 
 // T026: Test history default output is table.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestHistoryCmd_DefaultOutputTable(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	historySub := findSubcommand(cmd, "history")
@@ -60,6 +68,8 @@ func TestHistoryCmd_DefaultOutputTable(t *testing.T) {
 }
 
 // T026: Test history --output flag parsing.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestHistoryCmd_OutputFlagParsing(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -88,6 +98,8 @@ func TestHistoryCmd_OutputFlagParsing(t *testing.T) {
 }
 
 // T026: Test history command Use field contains recommendation-id.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestHistoryCmd_UseField(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	historySub := findSubcommand(cmd, "history")
@@ -98,6 +110,8 @@ func TestHistoryCmd_UseField(t *testing.T) {
 }
 
 // T026: Test history has descriptive help.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestHistoryCmd_Help(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	historySub := findSubcommand(cmd, "history")
@@ -109,6 +123,8 @@ func TestHistoryCmd_Help(t *testing.T) {
 }
 
 // T026: Test history does not require --pulumi-json (local state only).
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestHistoryCmd_NoPluginConnectionRequired(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	historySub := findSubcommand(cmd, "history")

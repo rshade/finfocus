@@ -14,6 +14,8 @@ import (
 )
 
 func TestStartPhase_ReturnsNonZeroStart(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf).Level(zerolog.DebugLevel)
 	ctx := logger.WithContext(context.Background())
@@ -29,6 +31,8 @@ func TestStartPhase_ReturnsNonZeroStart(t *testing.T) {
 }
 
 func TestPhaseTimer_Done_DoesNotPanic(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf).Level(zerolog.DebugLevel)
 	ctx := logger.WithContext(context.Background())
@@ -42,6 +46,8 @@ func TestPhaseTimer_Done_DoesNotPanic(t *testing.T) {
 }
 
 func TestPhaseTimer_Elapsed_Positive(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf).Level(zerolog.DebugLevel)
 	ctx := logger.WithContext(context.Background())
@@ -55,6 +61,8 @@ func TestPhaseTimer_Elapsed_Positive(t *testing.T) {
 }
 
 func TestPhaseTimer_LogFields(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf).Level(zerolog.DebugLevel)
 	ctx := logger.WithContext(context.Background())
@@ -91,6 +99,8 @@ func TestPhaseTimer_LogFields(t *testing.T) {
 }
 
 func TestPhaseTimer_LogFields_DifferentComponents(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf).Level(zerolog.DebugLevel)
 	ctx := logger.WithContext(context.Background())
@@ -110,6 +120,8 @@ func TestPhaseTimer_LogFields_DifferentComponents(t *testing.T) {
 }
 
 func TestPhaseTimer_WithTraceID(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf).Level(zerolog.DebugLevel).Hook(TracingHook{})
 	ctx := logger.WithContext(context.Background())

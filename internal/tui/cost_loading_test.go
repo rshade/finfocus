@@ -10,6 +10,8 @@ import (
 )
 
 func TestLoadingState_Update(t *testing.T) {
+	t.Parallel()
+
 	loading := NewLoadingState()
 	assert.NotNil(t, loading.spinner)
 	assert.Equal(t, "Querying cost data from plugins...", loading.message)
@@ -24,6 +26,8 @@ func TestLoadingState_Update(t *testing.T) {
 }
 
 func TestLoadingState_SpinnerTick(t *testing.T) {
+	t.Parallel()
+
 	loading := NewLoadingState()
 
 	// Test that spinner tick messages are handled without panic.
@@ -38,6 +42,8 @@ func TestLoadingState_SpinnerTick(t *testing.T) {
 }
 
 func TestLoadingState_MessageUpdate(t *testing.T) {
+	t.Parallel()
+
 	loading := NewLoadingState()
 	assert.Equal(t, "Querying cost data from plugins...", loading.message)
 
@@ -50,12 +56,16 @@ func TestLoadingState_MessageUpdate(t *testing.T) {
 }
 
 func TestRenderLoading(t *testing.T) {
+	t.Parallel()
+
 	loading := NewLoadingState()
 	output := RenderLoading(loading)
 	assert.Contains(t, output, "Querying cost data from plugins...")
 }
 
 func TestRenderLoading_NilLoading(t *testing.T) {
+	t.Parallel()
+
 	output := RenderLoading(nil)
 	assert.Equal(t, "Loading...", output)
 }

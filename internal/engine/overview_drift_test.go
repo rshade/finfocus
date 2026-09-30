@@ -22,6 +22,8 @@ func computeActualMTDForDrift(projected, targetPercentDrift float64, dayOfMonth,
 // ---------------------------------------------------------------------------
 
 func TestCalculateCostDrift(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		actualMTD   float64
@@ -199,6 +201,7 @@ func TestCalculateCostDrift(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			drift, err := CalculateCostDrift(tt.actualMTD, tt.projected, tt.dayOfMonth, tt.daysInMonth)
 
 			if tt.wantErr {
@@ -234,6 +237,8 @@ func TestCalculateCostDrift(t *testing.T) {
 }
 
 func TestCalculateCostDrift_ExtrapolationAccuracy(t *testing.T) {
+	t.Parallel()
+
 	// Verify extrapolation and projected normalization formulas:
 	//   extrapolated = actualMTD * (daysInMonth / dayOfMonth)
 	//   projected_for_month = projected * (daysInMonth / standardProjectedDaysPerMonth)
@@ -255,6 +260,8 @@ func TestCalculateCostDrift_ExtrapolationAccuracy(t *testing.T) {
 }
 
 func TestCalculateCostDrift_MonthLengthNormalization(t *testing.T) {
+	t.Parallel()
+
 	projected := 100.0
 	tests := []struct {
 		name        string
@@ -280,6 +287,7 @@ func TestCalculateCostDrift_MonthLengthNormalization(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			projectedForCalendarMonth := projected * (float64(tt.daysInMonth) / standardProjectedDaysPerMonth)
 			actualMTD := projectedForCalendarMonth * (float64(tt.dayOfMonth) / float64(tt.daysInMonth))
 
@@ -291,7 +299,10 @@ func TestCalculateCostDrift_MonthLengthNormalization(t *testing.T) {
 }
 
 func TestCalculateCostDriftWithElapsedDays(t *testing.T) {
+	t.Parallel()
+
 	t.Run("insufficient elapsed days returns error", func(t *testing.T) {
+		t.Parallel()
 		drift, err := CalculateCostDriftWithElapsedDays(1.0, 10.0, 1.99, 31)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "insufficient data")
@@ -299,6 +310,7 @@ func TestCalculateCostDriftWithElapsedDays(t *testing.T) {
 	})
 
 	t.Run("fractional elapsed day avoids day-of-month rounding bias", func(t *testing.T) {
+		t.Parallel()
 		// March 3 at 06:00 is 2.25 elapsed days since March 1 00:00.
 		// This case regressed previously to ~-25% drift when denominator=3.
 		const (
@@ -320,6 +332,8 @@ func TestCalculateCostDriftWithElapsedDays(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCalculateProjectedDelta(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		rows            []OverviewRow
@@ -515,6 +529,7 @@ func TestCalculateProjectedDelta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			delta, currency := CalculateProjectedDelta(tt.rows, tt.currentDay)
 
 			if tt.deltaComparison == "exact" {
@@ -529,6 +544,8 @@ func TestCalculateProjectedDelta(t *testing.T) {
 }
 
 func TestCalculateProjectedDelta_LargeDataset(t *testing.T) {
+	t.Parallel()
+
 	// Verify consistent behaviour with many rows.
 	rows := make([]OverviewRow, 100)
 	for i := range rows {
@@ -544,6 +561,8 @@ func TestCalculateProjectedDelta_LargeDataset(t *testing.T) {
 }
 
 func TestCalculateProjectedDelta_MathConsistency(t *testing.T) {
+	t.Parallel()
+
 	// Verify that creating and then deleting the same resource nets to zero.
 	rows := []OverviewRow{
 		{
@@ -568,6 +587,8 @@ func TestCalculateProjectedDelta_MathConsistency(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCalculateRowDelta_UpdatingResource(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:        StatusUpdating,
 		ActualCost:    &ActualCostData{MTDCost: 50},
@@ -581,6 +602,8 @@ func TestCalculateRowDelta_UpdatingResource(t *testing.T) {
 }
 
 func TestCalculateRowDelta_ReplacingResource(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:        StatusReplacing,
 		ActualCost:    &ActualCostData{MTDCost: 30},
@@ -594,6 +617,8 @@ func TestCalculateRowDelta_ReplacingResource(t *testing.T) {
 }
 
 func TestCalculateRowDelta_ReplacingResource_UsesBaselineProjectedWhenAvailable(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:                StatusReplacing,
 		ProjectedCost:         &ProjectedCostData{MonthlyCost: 7.592},
@@ -607,6 +632,8 @@ func TestCalculateRowDelta_ReplacingResource_UsesBaselineProjectedWhenAvailable(
 }
 
 func TestCalculateRowDelta_CreatingResource(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:        StatusCreating,
 		ProjectedCost: &ProjectedCostData{MonthlyCost: 75},
@@ -617,6 +644,8 @@ func TestCalculateRowDelta_CreatingResource(t *testing.T) {
 }
 
 func TestCalculateRowDelta_DeletingResource(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:     StatusDeleting,
 		ActualCost: &ActualCostData{MTDCost: 50},
@@ -628,6 +657,8 @@ func TestCalculateRowDelta_DeletingResource(t *testing.T) {
 }
 
 func TestCalculateRowDelta_ActiveWithDrift(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:    StatusActive,
 		CostDrift: &CostDriftData{Delta: -25.0},
@@ -638,6 +669,8 @@ func TestCalculateRowDelta_ActiveWithDrift(t *testing.T) {
 }
 
 func TestCalculateRowDelta_ActiveWithoutDrift(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:        StatusActive,
 		ProjectedCost: &ProjectedCostData{MonthlyCost: 100},
@@ -648,6 +681,8 @@ func TestCalculateRowDelta_ActiveWithoutDrift(t *testing.T) {
 }
 
 func TestCalculateRowDelta_NoCostData(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status: StatusUpdating,
 	}
@@ -656,6 +691,8 @@ func TestCalculateRowDelta_NoCostData(t *testing.T) {
 }
 
 func TestCalculateRowDelta_NoPropertyDiffs(t *testing.T) {
+	t.Parallel()
+
 	// Updating/replacing without PropertyDiffs should skip delta calculation.
 	tests := []struct {
 		name string
@@ -680,6 +717,7 @@ func TestCalculateRowDelta_NoPropertyDiffs(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			delta, ok := CalculateRowDelta(tt.row, 15)
 			assert.False(t, ok, "no PropertyDiffs should return false")
 			assert.InDelta(t, 0.0, delta, 1e-9)
@@ -688,6 +726,8 @@ func TestCalculateRowDelta_NoPropertyDiffs(t *testing.T) {
 }
 
 func TestCalculateRowDelta_EarlyMonth(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:        StatusReplacing,
 		ActualCost:    &ActualCostData{MTDCost: 2},
@@ -701,6 +741,8 @@ func TestCalculateRowDelta_EarlyMonth(t *testing.T) {
 }
 
 func TestCalculateRowDelta_EarlyMonth_Deleting(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:     StatusDeleting,
 		ActualCost: &ActualCostData{MTDCost: 5},
@@ -712,6 +754,8 @@ func TestCalculateRowDelta_EarlyMonth_Deleting(t *testing.T) {
 }
 
 func TestCalculateRowDelta_EarlyMonth_Creating(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{
 		Status:        StatusCreating,
 		ProjectedCost: &ProjectedCostData{MonthlyCost: 75},
@@ -727,6 +771,8 @@ func TestCalculateRowDelta_EarlyMonth_Creating(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestForceExtrapolateActual_EarlyMonth(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{ActualCost: &ActualCostData{MTDCost: 2.0}}
 	// Day 1: 2.0 * (30/1) = 60.0
 	assert.InDelta(t, 60.0, ForceExtrapolateActual(row, 1), 0.01)
@@ -735,11 +781,15 @@ func TestForceExtrapolateActual_EarlyMonth(t *testing.T) {
 }
 
 func TestForceExtrapolateActual_NilActualCost(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{}
 	assert.InDelta(t, 0.0, ForceExtrapolateActual(row, 5), 1e-9)
 }
 
 func TestForceExtrapolateActual_ZeroDayOfMonth(t *testing.T) {
+	t.Parallel()
+
 	row := OverviewRow{ActualCost: &ActualCostData{MTDCost: 10.0}}
 	// dayOfMonth <= 0: returns raw MTD.
 	assert.InDelta(t, 10.0, ForceExtrapolateActual(row, 0), 1e-9)
@@ -750,6 +800,8 @@ func TestForceExtrapolateActual_ZeroDayOfMonth(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPopulateComputedDeltas_MixedStatuses(t *testing.T) {
+	t.Parallel()
+
 	rows := []OverviewRow{
 		{
 			URN:           "urn:active",
@@ -799,13 +851,17 @@ func TestPopulateComputedDeltas_MixedStatuses(t *testing.T) {
 	assert.InDelta(t, 80.0, *rows[3].ComputedDelta, 0.01)
 }
 
-func TestPopulateComputedDeltas_EmptyRows(_ *testing.T) {
+func TestPopulateComputedDeltas_EmptyRows(t *testing.T) {
+	t.Parallel()
+
 	// Should not panic on empty/nil slices.
 	PopulateComputedDeltas(nil, 15)
 	PopulateComputedDeltas([]OverviewRow{}, 15)
 }
 
 func TestPopulateComputedDeltas_ActiveWithDrift(t *testing.T) {
+	t.Parallel()
+
 	rows := []OverviewRow{
 		{
 			URN:       "urn:drifting",
@@ -822,6 +878,8 @@ func TestPopulateComputedDeltas_ActiveWithDrift(t *testing.T) {
 }
 
 func TestPopulateComputedDeltas_SummaryConsistency(t *testing.T) {
+	t.Parallel()
+
 	// Verify that sum of ComputedDelta equals CalculateProjectedDelta for
 	// rows with pending changes (the consistency guarantee this fix ensures).
 	rows := []OverviewRow{

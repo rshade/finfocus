@@ -9,6 +9,8 @@ import (
 )
 
 func TestExtractProviderFromType(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -72,6 +74,7 @@ func TestExtractProviderFromType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := router.ExtractProviderFromType(tt.resourceType)
 			assert.Equal(t, tt.want, got)
 		})
@@ -79,6 +82,8 @@ func TestExtractProviderFromType(t *testing.T) {
 }
 
 func TestIsGlobalProvider(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		provider string
@@ -93,6 +98,7 @@ func TestIsGlobalProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := router.IsGlobalProvider(tt.provider)
 			assert.Equal(t, tt.want, got)
 		})
@@ -100,6 +106,8 @@ func TestIsGlobalProvider(t *testing.T) {
 }
 
 func TestNormalizeProvider(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		provider string
@@ -114,6 +122,7 @@ func TestNormalizeProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := router.NormalizeProvider(tt.provider)
 			assert.Equal(t, tt.want, got)
 		})
@@ -121,6 +130,8 @@ func TestNormalizeProvider(t *testing.T) {
 }
 
 func TestProviderMatches(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name              string
 		resourceProvider  string
@@ -149,6 +160,7 @@ func TestProviderMatches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := router.ProviderMatches(tt.resourceProvider, tt.supportedProvider)
 			assert.Equal(t, tt.want, got)
 		})
@@ -156,6 +168,8 @@ func TestProviderMatches(t *testing.T) {
 }
 
 func TestExtractProviderFromTypeTerraformTypes(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -172,6 +186,7 @@ func TestExtractProviderFromTypeTerraformTypes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, router.ExtractProviderFromType(tt.resourceType))
 		})
 	}

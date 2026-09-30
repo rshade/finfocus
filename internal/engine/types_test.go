@@ -13,6 +13,8 @@ import (
 
 // Test GroupBy validation.
 func TestGroupBy_IsValid(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		groupBy  GroupBy
@@ -33,6 +35,7 @@ func TestGroupBy_IsValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := tt.groupBy.IsValid()
 			assert.Equal(t, tt.expected, got, "IsValid() mismatch")
 		})
@@ -41,6 +44,8 @@ func TestGroupBy_IsValid(t *testing.T) {
 
 // Test time-based grouping detection.
 func TestGroupBy_IsTimeBasedGrouping(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		groupBy  GroupBy
@@ -57,6 +62,7 @@ func TestGroupBy_IsTimeBasedGrouping(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := tt.groupBy.IsTimeBasedGrouping()
 			assert.Equal(t, tt.expected, got, "IsTimeBasedGrouping() mismatch")
 		})
@@ -65,6 +71,8 @@ func TestGroupBy_IsTimeBasedGrouping(t *testing.T) {
 
 // Test String() method.
 func TestGroupBy_String(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		groupBy  GroupBy
@@ -82,6 +90,7 @@ func TestGroupBy_String(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := tt.groupBy.String()
 			assert.Equal(t, tt.expected, got, "String() mismatch")
 		})
@@ -90,6 +99,8 @@ func TestGroupBy_String(t *testing.T) {
 
 // Test ResourceDescriptor creation.
 func TestResourceDescriptor(t *testing.T) {
+	t.Parallel()
+
 	rd := ResourceDescriptor{
 		Type:     "aws:ec2:Instance",
 		ID:       "i-123456",
@@ -112,6 +123,8 @@ func TestResourceDescriptor(t *testing.T) {
 
 // Test CostResult creation and defaults.
 func TestCostResult(t *testing.T) {
+	t.Parallel()
+
 	now := time.Now()
 	endDate := now.AddDate(0, 1, 0)
 
@@ -156,6 +169,8 @@ func TestCostResult(t *testing.T) {
 
 // Test CrossProviderAggregation.
 func TestCrossProviderAggregation(t *testing.T) {
+	t.Parallel()
+
 	agg := CrossProviderAggregation{
 		Period: "2024-01-15",
 		Providers: map[string]float64{
@@ -187,6 +202,8 @@ func TestCrossProviderAggregation(t *testing.T) {
 
 // Test error types.
 func TestErrorTypes(t *testing.T) {
+	t.Parallel()
+
 	errTests := []struct {
 		name string
 		err  error
@@ -200,6 +217,7 @@ func TestErrorTypes(t *testing.T) {
 
 	for _, tt := range errTests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			require.Error(t, tt.err, "Error should not be nil")
 			assert.NotEmpty(t, tt.err.Error(), "Error message should not be empty")
 		})
@@ -208,7 +226,10 @@ func TestErrorTypes(t *testing.T) {
 
 // Test CostResultWithErrors edge cases.
 func TestCostResultWithErrors_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil errors slice", func(t *testing.T) {
+		t.Parallel()
 		result := &CostResultWithErrors{
 			Results: []CostResult{},
 			Errors:  nil,
@@ -219,6 +240,7 @@ func TestCostResultWithErrors_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("exactly 5 errors shows all", func(t *testing.T) {
+		t.Parallel()
 		result := &CostResultWithErrors{
 			Results: []CostResult{},
 			Errors:  make([]ErrorDetail, 5),
@@ -239,6 +261,7 @@ func TestCostResultWithErrors_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("nil results slice", func(t *testing.T) {
+		t.Parallel()
 		result := &CostResultWithErrors{
 			Results: nil,
 			Errors:  []ErrorDetail{},
@@ -248,6 +271,7 @@ func TestCostResultWithErrors_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("error with empty resource type", func(t *testing.T) {
+		t.Parallel()
 		result := &CostResultWithErrors{
 			Results: []CostResult{},
 			Errors: []ErrorDetail{
@@ -267,6 +291,8 @@ func TestCostResultWithErrors_EdgeCases(t *testing.T) {
 
 // Test ErrorDetail creation and fields.
 func TestErrorDetail_Fields(t *testing.T) {
+	t.Parallel()
+
 	timestamp := time.Now()
 	detail := ErrorDetail{
 		ResourceType: "aws:ec2:Instance",
@@ -285,7 +311,10 @@ func TestErrorDetail_Fields(t *testing.T) {
 
 // Test EstimateResult creation and fields.
 func TestEstimateResult(t *testing.T) {
+	t.Parallel()
+
 	t.Run("positive cost change", func(t *testing.T) {
+		t.Parallel()
 		resource := &ResourceDescriptor{
 			Provider: "aws",
 			Type:     "ec2:Instance",
@@ -328,6 +357,7 @@ func TestEstimateResult(t *testing.T) {
 	})
 
 	t.Run("negative cost change (savings)", func(t *testing.T) {
+		t.Parallel()
 		result := EstimateResult{
 			Resource: &ResourceDescriptor{
 				Provider: "aws",
@@ -359,6 +389,7 @@ func TestEstimateResult(t *testing.T) {
 	})
 
 	t.Run("nil baseline and modified", func(t *testing.T) {
+		t.Parallel()
 		result := EstimateResult{
 			Resource: &ResourceDescriptor{
 				Provider: "aws",
@@ -376,6 +407,7 @@ func TestEstimateResult(t *testing.T) {
 	})
 
 	t.Run("multiple deltas", func(t *testing.T) {
+		t.Parallel()
 		result := EstimateResult{
 			Resource: &ResourceDescriptor{
 				Provider: "aws",
@@ -419,7 +451,10 @@ func TestEstimateResult(t *testing.T) {
 
 // Test CostDelta creation and fields.
 func TestCostDelta(t *testing.T) {
+	t.Parallel()
+
 	t.Run("cost increase", func(t *testing.T) {
+		t.Parallel()
 		delta := CostDelta{
 			Property:      "instanceType",
 			OriginalValue: "t3.micro",
@@ -434,6 +469,7 @@ func TestCostDelta(t *testing.T) {
 	})
 
 	t.Run("cost decrease (savings)", func(t *testing.T) {
+		t.Parallel()
 		delta := CostDelta{
 			Property:      "instanceType",
 			OriginalValue: "m5.large",
@@ -445,6 +481,7 @@ func TestCostDelta(t *testing.T) {
 	})
 
 	t.Run("zero cost change", func(t *testing.T) {
+		t.Parallel()
 		delta := CostDelta{
 			Property:      "tags",
 			OriginalValue: "old-tag",
@@ -456,6 +493,7 @@ func TestCostDelta(t *testing.T) {
 	})
 
 	t.Run("combined delta", func(t *testing.T) {
+		t.Parallel()
 		// When multiple properties change and per-property attribution is not possible
 		delta := CostDelta{
 			Property:      "combined",
@@ -470,7 +508,10 @@ func TestCostDelta(t *testing.T) {
 
 // Test EstimateRequest creation and fields.
 func TestEstimateRequest(t *testing.T) {
+	t.Parallel()
+
 	t.Run("with single override", func(t *testing.T) {
+		t.Parallel()
 		request := EstimateRequest{
 			Resource: &ResourceDescriptor{
 				Provider: "aws",
@@ -493,6 +534,7 @@ func TestEstimateRequest(t *testing.T) {
 	})
 
 	t.Run("with multiple overrides", func(t *testing.T) {
+		t.Parallel()
 		request := EstimateRequest{
 			Resource: &ResourceDescriptor{
 				Provider: "aws",
@@ -508,6 +550,7 @@ func TestEstimateRequest(t *testing.T) {
 	})
 
 	t.Run("with nil overrides", func(t *testing.T) {
+		t.Parallel()
 		request := EstimateRequest{
 			Resource: &ResourceDescriptor{
 				Provider: "aws",
@@ -520,6 +563,7 @@ func TestEstimateRequest(t *testing.T) {
 	})
 
 	t.Run("with empty usage profile", func(t *testing.T) {
+		t.Parallel()
 		request := EstimateRequest{
 			Resource: &ResourceDescriptor{
 				Provider: "aws",
@@ -538,6 +582,8 @@ func TestEstimateRequest(t *testing.T) {
 // TestConvertProtoRecommendationReasoning verifies that convertProtoRecommendation
 // copies the Reasoning field from proto.Recommendation to engine.Recommendation.
 func TestConvertProtoRecommendationReasoning(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name             string
 		input            *proto.Recommendation
@@ -625,6 +671,7 @@ func TestConvertProtoRecommendationReasoning(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			engineRec := convertProtoRecommendation(tt.input)
 
 			assert.Equal(t, tt.wantResourceID, engineRec.ResourceID)
@@ -649,6 +696,8 @@ func TestConvertProtoRecommendationReasoning(t *testing.T) {
 
 // TestCostResultJSONRecommendations verifies JSON serialization of CostResult with recommendations (US4).
 func TestCostResultJSONRecommendations(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		input           CostResult
@@ -733,6 +782,7 @@ func TestCostResultJSONRecommendations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			jsonBytes, err := json.Marshal(tt.input)
 			require.NoError(t, err)
 			jsonStr := string(jsonBytes)
@@ -749,7 +799,10 @@ func TestCostResultJSONRecommendations(t *testing.T) {
 
 // T007: Test StructuredError JSON serialization.
 func TestStructuredError_JSONSerialization(t *testing.T) {
+	t.Parallel()
+
 	t.Run("marshals with all fields", func(t *testing.T) {
+		t.Parallel()
 		se := &StructuredError{
 			Code:         ErrCodePluginError,
 			Message:      "connection refused",
@@ -768,6 +821,7 @@ func TestStructuredError_JSONSerialization(t *testing.T) {
 	})
 
 	t.Run("roundtrip serialization", func(t *testing.T) {
+		t.Parallel()
 		original := &StructuredError{
 			Code:         ErrCodeTimeoutError,
 			Message:      "context deadline exceeded",
@@ -788,7 +842,10 @@ func TestStructuredError_JSONSerialization(t *testing.T) {
 
 // T007: Test CostResult with StructuredError serialization.
 func TestCostResult_WithStructuredError_JSON(t *testing.T) {
+	t.Parallel()
+
 	t.Run("error present serializes error object", func(t *testing.T) {
+		t.Parallel()
 		result := CostResult{
 			ResourceType: "aws:ec2:Instance",
 			Currency:     "USD",
@@ -812,6 +869,7 @@ func TestCostResult_WithStructuredError_JSON(t *testing.T) {
 	})
 
 	t.Run("nil error omits error field", func(t *testing.T) {
+		t.Parallel()
 		result := CostResult{
 			ResourceType: "aws:ec2:Instance",
 			Currency:     "USD",
@@ -827,6 +885,7 @@ func TestCostResult_WithStructuredError_JSON(t *testing.T) {
 	})
 
 	t.Run("all error codes serialize correctly", func(t *testing.T) {
+		t.Parallel()
 		codes := []string{
 			ErrCodePluginError,
 			ErrCodeValidationError,
@@ -854,6 +913,8 @@ func TestCostResult_WithStructuredError_JSON(t *testing.T) {
 
 // T007: Test error code constants have expected values.
 func TestErrorCodeConstants(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "PLUGIN_ERROR", ErrCodePluginError)
 	assert.Equal(t, "VALIDATION_ERROR", ErrCodeValidationError)
 	assert.Equal(t, "TIMEOUT_ERROR", ErrCodeTimeoutError)

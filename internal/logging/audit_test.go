@@ -206,6 +206,7 @@ func TestAuditEntry_SensitiveDataRedaction(t *testing.T) {
 
 		for _, key := range sensitiveKeys {
 			t.Run(key, func(t *testing.T) {
+				t.Parallel()
 				var buf bytes.Buffer
 				cfg := logging.AuditLoggerConfig{
 					Enabled: true,
@@ -269,7 +270,10 @@ func TestAuditLogger_Component(t *testing.T) {
 
 // Test creating audit logger from config.
 func TestNewAuditLoggerFromConfig(t *testing.T) {
+	t.Parallel()
+
 	t.Run("creates enabled logger when audit enabled", func(t *testing.T) {
+		t.Parallel()
 		var buf bytes.Buffer
 		cfg := logging.AuditLoggerConfig{
 			Enabled: true,
@@ -281,6 +285,7 @@ func TestNewAuditLoggerFromConfig(t *testing.T) {
 	})
 
 	t.Run("creates disabled logger when audit disabled", func(t *testing.T) {
+		t.Parallel()
 		cfg := logging.AuditLoggerConfig{
 			Enabled: false,
 		}

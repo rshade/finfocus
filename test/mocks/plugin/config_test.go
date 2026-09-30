@@ -14,6 +14,8 @@ import (
 
 // TestNewMockPlugin verifies that a new mock plugin has correct default configuration.
 func TestNewMockPlugin(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	require.NotNil(t, mock)
@@ -30,6 +32,8 @@ func TestNewMockPlugin(t *testing.T) {
 
 // TestScenarioSuccess verifies the success scenario configures typical resource responses.
 func TestScenarioSuccess(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 	mock.ConfigureScenario(plugin.ScenarioSuccess)
 
@@ -67,6 +71,8 @@ func TestScenarioSuccess(t *testing.T) {
 
 // TestScenarioPartialData verifies partial data scenario with missing resources.
 func TestScenarioPartialData(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 	mock.ConfigureScenario(plugin.ScenarioPartialData)
 
@@ -83,6 +89,8 @@ func TestScenarioPartialData(t *testing.T) {
 
 // TestScenarioHighCost verifies high-cost scenario with expensive resources.
 func TestScenarioHighCost(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 	mock.ConfigureScenario(plugin.ScenarioHighCost)
 
@@ -102,6 +110,8 @@ func TestScenarioHighCost(t *testing.T) {
 
 // TestScenarioZeroCost verifies zero-cost scenario for free tier resources.
 func TestScenarioZeroCost(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 	mock.ConfigureScenario(plugin.ScenarioZeroCost)
 
@@ -123,6 +133,8 @@ func TestScenarioZeroCost(t *testing.T) {
 
 // TestScenarioMultiCurrency verifies mixed currency scenario.
 func TestScenarioMultiCurrency(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 	mock.ConfigureScenario(plugin.ScenarioMultiCurrency)
 
@@ -143,6 +155,8 @@ func TestScenarioMultiCurrency(t *testing.T) {
 
 // TestSetProjectedCostResponse verifies custom response configuration.
 func TestSetProjectedCostResponse(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	customResponse := plugin.QuickResponse("USD", 99.99, 0.137)
@@ -155,6 +169,8 @@ func TestSetProjectedCostResponse(t *testing.T) {
 
 // TestSetActualCostResponse verifies actual cost response configuration.
 func TestSetActualCostResponse(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	actualResponse := plugin.QuickActualResponse("USD", 150.50)
@@ -167,6 +183,8 @@ func TestSetActualCostResponse(t *testing.T) {
 
 // TestConfigureActualCostScenario verifies actual cost scenario setup.
 func TestConfigureActualCostScenario(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	breakdown := map[string]float64{
@@ -185,6 +203,8 @@ func TestConfigureActualCostScenario(t *testing.T) {
 
 // TestReset verifies that reset clears all configuration.
 func TestReset(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Configure some responses and errors
@@ -212,6 +232,8 @@ func TestReset(t *testing.T) {
 
 // TestConfigure verifies that Configure sets full configuration.
 func TestConfigure(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	customConfig := plugin.MockConfig{
@@ -251,6 +273,8 @@ func TestConfigure(t *testing.T) {
 
 // TestQuickResponse verifies helper function for creating responses.
 func TestQuickResponse(t *testing.T) {
+	t.Parallel()
+
 	response := plugin.QuickResponse("USD", 100.00, 0.137)
 
 	require.NotNil(t, response)
@@ -263,6 +287,8 @@ func TestQuickResponse(t *testing.T) {
 
 // TestQuickActualResponse verifies helper function for actual cost responses.
 func TestQuickActualResponse(t *testing.T) {
+	t.Parallel()
+
 	response := plugin.QuickActualResponse("EUR", 250.50)
 
 	require.NotNil(t, response)
@@ -274,6 +300,8 @@ func TestQuickActualResponse(t *testing.T) {
 
 // TestMultipleScenarioChanges verifies scenario can be changed multiple times.
 func TestMultipleScenarioChanges(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Start with success scenario
@@ -298,6 +326,8 @@ func TestMultipleScenarioChanges(t *testing.T) {
 
 // TestResponseIsolation verifies responses don't interfere with each other.
 func TestResponseIsolation(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set projected cost response
@@ -318,18 +348,23 @@ func TestResponseIsolation(t *testing.T) {
 
 // TestSleepDuration verifies SleepDuration field behavior.
 func TestSleepDuration(t *testing.T) {
+	t.Parallel()
+
 	t.Run("default is zero", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		assert.Equal(t, time.Duration(0), mock.GetSleepDuration())
 	})
 
 	t.Run("set and get", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.SetSleepDuration(15 * time.Second)
 		assert.Equal(t, 15*time.Second, mock.GetSleepDuration())
 	})
 
 	t.Run("reset clears sleep duration", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.SetSleepDuration(5 * time.Second)
 		require.Equal(t, 5*time.Second, mock.GetSleepDuration())
@@ -339,6 +374,7 @@ func TestSleepDuration(t *testing.T) {
 	})
 
 	t.Run("configure sets sleep duration", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.Configure(plugin.MockConfig{
 			ProjectedCostResponses: make(map[string]*proto.CostResult),
@@ -351,12 +387,16 @@ func TestSleepDuration(t *testing.T) {
 
 // TestFailForTypes verifies FailForTypes selective failure behavior.
 func TestFailForTypes(t *testing.T) {
+	t.Parallel()
+
 	t.Run("default does not fail", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		assert.False(t, mock.ShouldFailForType("aws:ec2/instance:Instance"))
 	})
 
 	t.Run("fails for configured types", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.SetFailForTypes([]string{"aws:ec2/instance:Instance", "aws:rds/instance:Instance"})
 
@@ -365,6 +405,7 @@ func TestFailForTypes(t *testing.T) {
 	})
 
 	t.Run("succeeds for non-matching types", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.SetFailForTypes([]string{"aws:ec2/instance:Instance"})
 
@@ -373,6 +414,7 @@ func TestFailForTypes(t *testing.T) {
 	})
 
 	t.Run("reset clears fail for types", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.SetFailForTypes([]string{"aws:ec2/instance:Instance"})
 		require.True(t, mock.ShouldFailForType("aws:ec2/instance:Instance"))
@@ -382,6 +424,7 @@ func TestFailForTypes(t *testing.T) {
 	})
 
 	t.Run("empty list does not fail", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.SetFailForTypes([]string{})
 		assert.False(t, mock.ShouldFailForType("aws:ec2/instance:Instance"))
@@ -390,12 +433,16 @@ func TestFailForTypes(t *testing.T) {
 
 // TestCallCount verifies thread-safe call counting behavior.
 func TestCallCount(t *testing.T) {
+	t.Parallel()
+
 	t.Run("default is zero", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		assert.Equal(t, int64(0), mock.GetCallCount())
 	})
 
 	t.Run("increments correctly", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.IncrementCallCount()
 		mock.IncrementCallCount()
@@ -404,6 +451,7 @@ func TestCallCount(t *testing.T) {
 	})
 
 	t.Run("reset clears count", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.IncrementCallCount()
 		mock.IncrementCallCount()
@@ -414,6 +462,7 @@ func TestCallCount(t *testing.T) {
 	})
 
 	t.Run("thread safety with concurrent increments", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		const goroutines = 100
 
@@ -431,6 +480,7 @@ func TestCallCount(t *testing.T) {
 	})
 
 	t.Run("full reset clears call count", func(t *testing.T) {
+		t.Parallel()
 		mock := plugin.NewMockPlugin()
 		mock.IncrementCallCount()
 		mock.IncrementCallCount()

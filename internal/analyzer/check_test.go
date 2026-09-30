@@ -44,6 +44,8 @@ func TestCheckPolicyPackDir_Fail(t *testing.T) {
 }
 
 func TestCheckPulumiPolicyYAML_Pass(t *testing.T) {
+	t.Parallel()
+
 	ppDir := t.TempDir()
 	require.NoError(t, WritePulumiPolicyYAML(ppDir))
 
@@ -56,6 +58,8 @@ func TestCheckPulumiPolicyYAML_Pass(t *testing.T) {
 }
 
 func TestCheckPulumiPolicyYAML_Fail(t *testing.T) {
+	t.Parallel()
+
 	ppDir := t.TempDir()
 	content := []byte("name: finfocus\nruntime: wrong-runtime\ndescription: test\n")
 	require.NoError(t, os.WriteFile(filepath.Join(ppDir, pulumiPolicyFilename), content, 0o600))
@@ -168,19 +172,24 @@ func TestRunChecks_SkipAfterBinaryFailure(t *testing.T) {
 }
 
 func TestReadServePort(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success", func(t *testing.T) {
+		t.Parallel()
 		port, err := readServePort(context.Background(), strings.NewReader("43210\n"))
 		require.NoError(t, err)
 		assert.Equal(t, 43210, port)
 	})
 
 	t.Run("invalid output", func(t *testing.T) {
+		t.Parallel()
 		_, err := readServePort(context.Background(), strings.NewReader("not-a-port\n"))
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unexpected port output")
 	})
 
 	t.Run("timeout", func(t *testing.T) {
+		t.Parallel()
 		pipeReader, pipeWriter := io.Pipe()
 		defer func() {
 			_ = pipeWriter.Close()
@@ -196,10 +205,13 @@ func TestReadServePort(t *testing.T) {
 }
 
 func TestFirstLine(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "line1", firstLine("line1\nline2"))
 	assert.Equal(t, "single-line", firstLine("single-line"))
 }
 
+//nolint:paralleltest // writes the policy pack under the real ~/.finfocus/analyzer, which the parallel install tests also use
 func TestCheckGRPCSmokeTest_FailsInTestBinary(t *testing.T) {
 	result := checkGRPCSmokeTest(context.Background())
 

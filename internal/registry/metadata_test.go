@@ -10,6 +10,8 @@ import (
 )
 
 func TestWriteAndReadPluginMetadata(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	metadata := map[string]string{
@@ -32,6 +34,8 @@ func TestWriteAndReadPluginMetadata(t *testing.T) {
 }
 
 func TestReadPluginMetadata_NotFound(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	got, err := ReadPluginMetadata(dir)
@@ -40,6 +44,8 @@ func TestReadPluginMetadata_NotFound(t *testing.T) {
 }
 
 func TestReadPluginMetadata_InvalidJSON(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	path := filepath.Join(dir, pluginMetadataFile)
@@ -51,6 +57,8 @@ func TestReadPluginMetadata_InvalidJSON(t *testing.T) {
 }
 
 func TestParseRegionFromBinaryName(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		binaryPath string
@@ -121,6 +129,7 @@ func TestParseRegionFromBinaryName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			region, ok := ParseRegionFromBinaryName(tt.binaryPath)
 			assert.Equal(t, tt.wantOk, ok)
 			assert.Equal(t, tt.wantRegion, region)
@@ -129,6 +138,8 @@ func TestParseRegionFromBinaryName(t *testing.T) {
 }
 
 func TestPluginInfo_Region(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		plugin PluginInfo
@@ -153,6 +164,7 @@ func TestPluginInfo_Region(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tt.plugin.Region())
 		})
 	}

@@ -16,6 +16,8 @@ import (
 
 // TestBudgetConfig_YAMLIntegration tests loading budget config from YAML.
 func TestBudgetConfig_YAMLIntegration(t *testing.T) {
+	t.Parallel()
+
 	configContent := `
 amount: 1000.0
 currency: USD
@@ -49,6 +51,8 @@ alerts:
 
 // TestBudgetConfig_CostConfigYAMLIntegration tests full CostConfig YAML parsing.
 func TestBudgetConfig_CostConfigYAMLIntegration(t *testing.T) {
+	t.Parallel()
+
 	// Use the new hierarchical budget format
 	configContent := `
 budgets:
@@ -76,6 +80,8 @@ budgets:
 
 // TestBudgetEngine_EvaluationIntegration tests full budget evaluation workflow.
 func TestBudgetEngine_EvaluationIntegration(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		budget         config.BudgetConfig
@@ -137,6 +143,7 @@ func TestBudgetEngine_EvaluationIntegration(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			status, err := budgetEngine.Evaluate(tc.budget, tc.currentSpend, "USD")
 			require.NoError(t, err)
 			require.NotNil(t, status)
@@ -150,6 +157,8 @@ func TestBudgetEngine_EvaluationIntegration(t *testing.T) {
 
 // TestBudgetEngine_ForecastingIntegration tests forecasting logic with controlled time.
 func TestBudgetEngine_ForecastingIntegration(t *testing.T) {
+	t.Parallel()
+
 	// Fixed time: January 15th (day 15 of 31 days)
 	fixedTime := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
 	budgetEngine := engine.NewBudgetEngineWithTime(func() time.Time { return fixedTime })
@@ -188,6 +197,7 @@ func TestBudgetEngine_ForecastingIntegration(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			status, err := budgetEngine.Evaluate(budget, tc.currentSpend, "USD")
 			require.NoError(t, err)
 
@@ -200,6 +210,8 @@ func TestBudgetEngine_ForecastingIntegration(t *testing.T) {
 
 // TestBudgetRendering_PlainText tests plain text budget rendering for CI/CD.
 func TestBudgetRendering_PlainText(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:   1000.0,
@@ -230,6 +242,8 @@ func TestBudgetRendering_PlainText(t *testing.T) {
 
 // TestBudgetRendering_WithForecasting tests budget rendering includes forecast.
 func TestBudgetRendering_WithForecasting(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:   1000.0,
@@ -257,6 +271,8 @@ func TestBudgetRendering_WithForecasting(t *testing.T) {
 
 // TestBudgetRendering_MultipleCurrencies tests different currency symbols.
 func TestBudgetRendering_MultipleCurrencies(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		currency       string
 		expectedSymbol string
@@ -269,6 +285,7 @@ func TestBudgetRendering_MultipleCurrencies(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.currency, func(t *testing.T) {
+			t.Parallel()
 			status := &engine.BudgetStatus{
 				Budget: config.BudgetConfig{
 					Amount:   1000.0,
@@ -292,6 +309,8 @@ func TestBudgetRendering_MultipleCurrencies(t *testing.T) {
 
 // TestBudgetRendering_ApproachingThreshold tests "APPROACHING" status display.
 func TestBudgetRendering_ApproachingThreshold(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:   1000.0,
@@ -316,6 +335,8 @@ func TestBudgetRendering_ApproachingThreshold(t *testing.T) {
 
 // TestBudgetRendering_OverBudget tests over-budget display (>100%).
 func TestBudgetRendering_OverBudget(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:   1000.0,
@@ -348,6 +369,8 @@ func TestBudgetRendering_OverBudget(t *testing.T) {
 
 // TestBudgetRendering_NilStatus tests nil status handling.
 func TestBudgetRendering_NilStatus(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	err := cli.RenderBudgetStatus(&buf, nil)
 	require.NoError(t, err)
@@ -356,6 +379,8 @@ func TestBudgetRendering_NilStatus(t *testing.T) {
 
 // TestBudgetConfig_ValidationIntegration tests budget configuration validation.
 func TestBudgetConfig_ValidationIntegration(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		config  config.BudgetConfig
@@ -456,6 +481,7 @@ func TestBudgetConfig_ValidationIntegration(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := tc.config.Validate()
 			if tc.wantErr {
 				assert.Error(t, err)
@@ -468,6 +494,8 @@ func TestBudgetConfig_ValidationIntegration(t *testing.T) {
 
 // TestBudgetEngine_ErrorHandling tests error cases in budget evaluation.
 func TestBudgetEngine_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
 	budgetEngine := engine.NewBudgetEngine()
 
 	tests := []struct {
@@ -511,6 +539,7 @@ func TestBudgetEngine_ErrorHandling(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := budgetEngine.Evaluate(tc.budget, tc.spend, tc.currency)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tc.errContains)

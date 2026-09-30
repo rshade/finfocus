@@ -13,6 +13,8 @@ import (
 
 // TestStateBasedActualCost_LoadAndMapResources tests loading resources from state file.
 func TestStateBasedActualCost_LoadAndMapResources(t *testing.T) {
+	t.Parallel()
+
 	statePath := "../fixtures/state/valid-state.json"
 
 	state, err := ingest.LoadStackExport(statePath)
@@ -48,6 +50,8 @@ func TestStateBasedActualCost_LoadAndMapResources(t *testing.T) {
 
 // TestStateBasedActualCost_ExtractTimestamps tests timestamp extraction from resources.
 func TestStateBasedActualCost_ExtractTimestamps(t *testing.T) {
+	t.Parallel()
+
 	statePath := "../fixtures/state/valid-state.json"
 
 	state, err := ingest.LoadStackExport(statePath)
@@ -68,6 +72,8 @@ func TestStateBasedActualCost_ExtractTimestamps(t *testing.T) {
 
 // TestStateBasedActualCost_NoTimestamps tests handling of state without timestamps.
 func TestStateBasedActualCost_NoTimestamps(t *testing.T) {
+	t.Parallel()
+
 	statePath := "../fixtures/state/no-timestamps.json"
 
 	state, err := ingest.LoadStackExport(statePath)
@@ -85,6 +91,8 @@ func TestStateBasedActualCost_NoTimestamps(t *testing.T) {
 
 // TestStateBasedActualCost_ImportedResources tests detection of imported resources.
 func TestStateBasedActualCost_ImportedResources(t *testing.T) {
+	t.Parallel()
+
 	statePath := "../fixtures/state/imported-resources.json"
 
 	state, err := ingest.LoadStackExport(statePath)
@@ -107,6 +115,8 @@ func TestStateBasedActualCost_ImportedResources(t *testing.T) {
 
 // TestStateBasedActualCost_CostCalculation tests runtime-based cost calculation.
 func TestStateBasedActualCost_CostCalculation(t *testing.T) {
+	t.Parallel()
+
 	// Use a fixed reference time
 	now := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
 	createdAt := now.Add(-48 * time.Hour) // 48 hours ago
@@ -132,6 +142,8 @@ func TestStateBasedActualCost_CostCalculation(t *testing.T) {
 
 // TestStateBasedActualCost_ImportedResourceWarning tests warning for imported resources.
 func TestStateBasedActualCost_ImportedResourceWarning(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
 	createdAt := now.Add(-24 * time.Hour)
 
@@ -155,6 +167,8 @@ func TestStateBasedActualCost_ImportedResourceWarning(t *testing.T) {
 
 // TestStateBasedActualCost_HasTimestamps tests the HasTimestamps method.
 func TestStateBasedActualCost_HasTimestamps(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		path     string
@@ -174,6 +188,7 @@ func TestStateBasedActualCost_HasTimestamps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			state, err := ingest.LoadStackExport(tt.path)
 			require.NoError(t, err)
 
@@ -185,6 +200,8 @@ func TestStateBasedActualCost_HasTimestamps(t *testing.T) {
 
 // TestStateBasedActualCost_InputValidation tests StateCostInput validation.
 func TestStateBasedActualCost_InputValidation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		input     engine.StateCostInput
@@ -226,6 +243,7 @@ func TestStateBasedActualCost_InputValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.input.Validate()
 			if tt.expectErr {
 				assert.Error(t, err)
@@ -238,6 +256,8 @@ func TestStateBasedActualCost_InputValidation(t *testing.T) {
 
 // TestStateBasedActualCost_CloudIdentifiers tests that cloud IDs and ARNs are extracted from state.
 func TestStateBasedActualCost_CloudIdentifiers(t *testing.T) {
+	t.Parallel()
+
 	statePath := "../fixtures/state/golden-eks-state.json"
 
 	state, err := ingest.LoadStackExport(statePath)
@@ -275,6 +295,8 @@ func TestStateBasedActualCost_CloudIdentifiers(t *testing.T) {
 
 // TestMultiProviderAggregation_LoadAndMapResources tests loading multi-provider state file.
 func TestMultiProviderAggregation_LoadAndMapResources(t *testing.T) {
+	t.Parallel()
+
 	statePath := "../fixtures/state/multi-provider.json"
 
 	state, err := ingest.LoadStackExport(statePath)
@@ -308,6 +330,8 @@ func TestMultiProviderAggregation_LoadAndMapResources(t *testing.T) {
 
 // TestMultiProviderAggregation_CrossProviderCostCalculation tests cross-provider cost aggregation.
 func TestMultiProviderAggregation_CrossProviderCostCalculation(t *testing.T) {
+	t.Parallel()
+
 	// Create mock cost results from multiple providers
 	jan1 := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
 	jan2 := time.Date(2025, 12, 2, 0, 0, 0, 0, time.UTC)
@@ -361,6 +385,8 @@ func TestMultiProviderAggregation_CrossProviderCostCalculation(t *testing.T) {
 
 // TestMultiProviderAggregation_MonthlyGrouping tests monthly aggregation across providers.
 func TestMultiProviderAggregation_MonthlyGrouping(t *testing.T) {
+	t.Parallel()
+
 	dec1 := time.Date(2025, 12, 1, 0, 0, 0, 0, time.UTC)
 	dec31 := time.Date(2025, 12, 31, 23, 59, 59, 0, time.UTC)
 

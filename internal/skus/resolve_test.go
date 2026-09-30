@@ -9,6 +9,8 @@ import (
 )
 
 func TestResolveSKU(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		provider     string
@@ -69,6 +71,7 @@ func TestResolveSKU(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := skus.ResolveSKU(tt.provider, tt.resourceType, tt.properties)
 			assert.Equal(t, tt.expected, result)
 		})

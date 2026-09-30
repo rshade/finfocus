@@ -18,6 +18,8 @@ import (
 )
 
 func TestConfigureProcessGroup_SetsSetpgid(t *testing.T) {
+	t.Parallel()
+
 	cmd := exec.Command("sleep", "1")
 	configureProcessGroup(cmd)
 	require.NotNil(t, cmd.SysProcAttr)
@@ -25,6 +27,8 @@ func TestConfigureProcessGroup_SetsSetpgid(t *testing.T) {
 }
 
 func TestKillProcessGroup_NilSafe(t *testing.T) {
+	t.Parallel()
+
 	assert.NoError(t, killProcessGroup(nil))
 	assert.NoError(t, killProcessGroup(&exec.Cmd{}))
 }
@@ -34,6 +38,8 @@ func TestKillProcessGroup_NilSafe(t *testing.T) {
 // descendant can survive and hold inherited file descriptors open
 // (issue #1231).
 func TestKillProcessGroup_KillsEntireGroup(t *testing.T) {
+	t.Parallel()
+
 	if testing.Short() {
 		t.Skip("skipping in short mode")
 	}

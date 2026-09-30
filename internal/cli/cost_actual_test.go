@@ -17,6 +17,7 @@ import (
 	"github.com/rshade/finfocus/internal/history"
 )
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestNewCostActualCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -169,6 +170,7 @@ func TestCostActualCmdExamples(t *testing.T) {
 	assert.Contains(t, cmd.Example, "--estimate-confidence")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestParseTimeRange(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -245,6 +247,8 @@ func TestCostActualCmdPulumiStateFlag(t *testing.T) {
 }
 
 // TestCostActualCmdMutuallyExclusiveInputs tests that --pulumi-json and --pulumi-state are mutually exclusive.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestCostActualCmdMutuallyExclusiveInputs(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -360,6 +364,8 @@ func TestCostActualCmdHelpWithEstimateConfidence(t *testing.T) {
 }
 
 // TestCostActualCmdWithEstimateConfidenceFlag tests the flag is accepted without error.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestCostActualCmdWithEstimateConfidenceFlag(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -540,6 +546,7 @@ func TestCostActualCmd_JobsFlagInHelp(t *testing.T) {
 	assert.Contains(t, output, "parallel workers")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestParseTime(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -1068,6 +1075,8 @@ func TestCostActualCmd_AdapterFilter(t *testing.T) {
 // T016: Tests for MergeHistoricalResources merge logic.
 
 func TestMergeHistoricalResources_NoHistory(t *testing.T) {
+	t.Parallel()
+
 	current := []engine.ResourceDescriptor{
 		{
 			Type:     "aws:ec2/instance:Instance",
@@ -1084,6 +1093,8 @@ func TestMergeHistoricalResources_NoHistory(t *testing.T) {
 }
 
 func TestMergeHistoricalResources_EmptyHistory(t *testing.T) {
+	t.Parallel()
+
 	current := []engine.ResourceDescriptor{
 		{
 			Type:     "aws:ec2/instance:Instance",
@@ -1099,6 +1110,8 @@ func TestMergeHistoricalResources_EmptyHistory(t *testing.T) {
 }
 
 func TestMergeHistoricalResources_AddsHistoricalCloudIDs(t *testing.T) {
+	t.Parallel()
+
 	current := []engine.ResourceDescriptor{
 		{
 			Type:     "aws:ec2/instance:Instance",
@@ -1133,6 +1146,8 @@ func TestMergeHistoricalResources_AddsHistoricalCloudIDs(t *testing.T) {
 }
 
 func TestMergeHistoricalResources_DeduplicatesExisting(t *testing.T) {
+	t.Parallel()
+
 	current := []engine.ResourceDescriptor{
 		{
 			Type:     "aws:ec2/instance:Instance",
@@ -1160,6 +1175,8 @@ func TestMergeHistoricalResources_DeduplicatesExisting(t *testing.T) {
 }
 
 func TestMergeHistoricalResources_TwoHistoricalCloudIDs(t *testing.T) {
+	t.Parallel()
+
 	// Resource replaced mid-month: old i-aaa, new i-bbb
 	// Current state only has i-bbb
 	current := []engine.ResourceDescriptor{
@@ -1197,6 +1214,8 @@ func TestMergeHistoricalResources_TwoHistoricalCloudIDs(t *testing.T) {
 }
 
 func TestMergeHistoricalResources_NilHistoryStoreNoRegression(t *testing.T) {
+	t.Parallel()
+
 	// Without history store (nil historical slice), behavior unchanged
 	current := []engine.ResourceDescriptor{
 		{
@@ -1224,6 +1243,8 @@ func TestMergeHistoricalResources_NilHistoryStoreNoRegression(t *testing.T) {
 }
 
 func TestMergeHistoricalResources_CollisionDifferentProviders(t *testing.T) {
+	t.Parallel()
+
 	// Two different resources (different URNs/providers) with the same cloud ID.
 	// Both should be preserved — deduplication should be (URN, CloudID) scoped.
 	current := []engine.ResourceDescriptor{
@@ -1256,6 +1277,7 @@ func TestMergeHistoricalResources_CollisionDifferentProviders(t *testing.T) {
 	assert.Equal(t, "azure", result[1].Provider)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestCostActualTerraformStateFlagValidation(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	tests := []struct {

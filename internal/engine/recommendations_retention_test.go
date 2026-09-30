@@ -105,6 +105,8 @@ func ec2(id string) ResourceDescriptor {
 }
 
 func TestConvertProtoRecommendation_RetainsFullRecord(t *testing.T) {
+	t.Parallel()
+
 	createdAt := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
 	score := 0.7
 	implCost := 12.0
@@ -218,6 +220,8 @@ func TestConvertProtoRecommendation_RetainsFullRecord(t *testing.T) {
 }
 
 func TestConvertProtoRecommendation_UnspecifiedEnumsAreEmpty(t *testing.T) {
+	t.Parallel()
+
 	got := convertProtoRecommendation(&proto.Recommendation{
 		ID:            "rec-2",
 		Category:      "RECOMMENDATION_CATEGORY_UNSPECIFIED",
@@ -239,7 +243,10 @@ func TestConvertProtoRecommendation_UnspecifiedEnumsAreEmpty(t *testing.T) {
 }
 
 func TestRecommendation_JSONKeysAdditive(t *testing.T) {
+	t.Parallel()
+
 	t.Run("legacy record emits only legacy keys", func(t *testing.T) {
+		t.Parallel()
 		data, err := json.Marshal(Recommendation{
 			ResourceID:       "r",
 			Type:             "RIGHTSIZE",
@@ -261,6 +268,7 @@ func TestRecommendation_JSONKeysAdditive(t *testing.T) {
 	})
 
 	t.Run("full record round trips", func(t *testing.T) {
+		t.Parallel()
 		score := 0.5
 		in := Recommendation{
 			ID:              "rec-1",
@@ -291,6 +299,8 @@ func TestRecommendation_JSONKeysAdditive(t *testing.T) {
 }
 
 func TestGetRecommendationsForResources_CacheKeyIsolatesStacks(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	plugin := &recordingRecClient{name: "p"}
 	eng := New([]*pluginhost.Client{plugin.client()}, nil).
@@ -319,6 +329,8 @@ func TestGetRecommendationsForResources_CacheKeyIsolatesStacks(t *testing.T) {
 }
 
 func TestGetRecommendationsForResources_CacheKeyReflectsProperties(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	plugin := &recordingRecClient{name: "p"}
 	eng := New([]*pluginhost.Client{plugin.client()}, nil).
@@ -337,6 +349,8 @@ func TestGetRecommendationsForResources_CacheKeyReflectsProperties(t *testing.T)
 }
 
 func TestGetRecommendationsForResources_NewDismissalInvalidatesCache(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	plugin := &recordingRecClient{
 		name: "p",
@@ -372,6 +386,8 @@ func TestGetRecommendationsForResources_NewDismissalInvalidatesCache(t *testing.
 }
 
 func TestGetRecommendationsForResources_LegacyCacheEntryIsIgnored(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store := newRecCache(t)
 	legacyKey := "recommendations/multi/aws:ec2/instance:Instance"
@@ -398,6 +414,8 @@ func TestGetRecommendationsForResources_LegacyCacheEntryIsIgnored(t *testing.T) 
 }
 
 func TestGetRecommendationsForResources_CachedResultKeepsFullRecord(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	score := 0.9
 	plugin := &recordingRecClient{
@@ -434,9 +452,12 @@ func TestGetRecommendationsForResources_CachedResultKeepsFullRecord(t *testing.T
 }
 
 func TestGetRecommendationsForResources_UsesRouter(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("only routed plugins receive each resource", func(t *testing.T) {
+		t.Parallel()
 		awsPlugin := &recordingRecClient{name: "aws-plugin"}
 		gcpPlugin := &recordingRecClient{name: "gcp-plugin"}
 		router := &mockRouter{
@@ -461,6 +482,7 @@ func TestGetRecommendationsForResources_UsesRouter(t *testing.T) {
 	})
 
 	t.Run("plugin with no routed resources is not called", func(t *testing.T) {
+		t.Parallel()
 		awsPlugin := &recordingRecClient{name: "aws-plugin"}
 		idle := &recordingRecClient{name: "idle-plugin"}
 		router := &mockRouter{
@@ -478,6 +500,7 @@ func TestGetRecommendationsForResources_UsesRouter(t *testing.T) {
 	})
 
 	t.Run("without router every plugin is queried", func(t *testing.T) {
+		t.Parallel()
 		p1 := &recordingRecClient{name: "p1"}
 		p2 := &recordingRecClient{name: "p2"}
 		eng := New([]*pluginhost.Client{p1.client(), p2.client()}, nil).
@@ -490,6 +513,7 @@ func TestGetRecommendationsForResources_UsesRouter(t *testing.T) {
 	})
 
 	t.Run("internal pulumi types are never sent to plugins", func(t *testing.T) {
+		t.Parallel()
 		p := &recordingRecClient{name: "p"}
 		eng := New([]*pluginhost.Client{p.client()}, nil).
 			WithDismissalStore(newRecDismissals(t))
@@ -501,6 +525,7 @@ func TestGetRecommendationsForResources_UsesRouter(t *testing.T) {
 	})
 
 	t.Run("routing applies on the batched path", func(t *testing.T) {
+		t.Parallel()
 		awsPlugin := &recordingRecClient{name: "aws-plugin"}
 		other := &recordingRecClient{name: "other"}
 		router := &mockRouter{
@@ -523,6 +548,7 @@ func TestGetRecommendationsForResources_UsesRouter(t *testing.T) {
 	})
 
 	t.Run("scorer-only plugins are not queried as cost sources", func(t *testing.T) {
+		t.Parallel()
 		source := &recordingRecClient{name: "source"}
 		scorer := &recordingRecClient{name: "scorer"}
 		scorerHost := scorer.client()
@@ -544,6 +570,8 @@ func TestGetRecommendationsForResources_UsesRouter(t *testing.T) {
 }
 
 func TestRecommendationScores_Signal(t *testing.T) {
+	t.Parallel()
+
 	v := func(f float64) *float64 { return &f }
 	s := &RecommendationScores{
 		Risk: v(0.1), FalsePositive: v(0.2), WorthActing: v(0.3), Priority: v(2), InsufficientEvidence: v(0.5),

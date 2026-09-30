@@ -12,6 +12,8 @@ import (
 
 // TestRecommendationSorter_ValidFields verifies valid sort field recognition.
 func TestRecommendationSorter_ValidFields(t *testing.T) {
+	t.Parallel()
+
 	sorter := pagination.NewRecommendationSorter()
 
 	validFields := []string{
@@ -25,6 +27,7 @@ func TestRecommendationSorter_ValidFields(t *testing.T) {
 
 	for _, field := range validFields {
 		t.Run(field, func(t *testing.T) {
+			t.Parallel()
 			assert.True(t, sorter.IsValidField(field), "field %s should be valid", field)
 		})
 	}
@@ -32,6 +35,8 @@ func TestRecommendationSorter_ValidFields(t *testing.T) {
 
 // TestRecommendationSorter_InvalidFields verifies invalid sort field detection.
 func TestRecommendationSorter_InvalidFields(t *testing.T) {
+	t.Parallel()
+
 	sorter := pagination.NewRecommendationSorter()
 
 	invalidFields := []string{
@@ -44,6 +49,7 @@ func TestRecommendationSorter_InvalidFields(t *testing.T) {
 
 	for _, field := range invalidFields {
 		t.Run(field, func(t *testing.T) {
+			t.Parallel()
 			assert.False(t, sorter.IsValidField(field), "field %s should be invalid", field)
 		})
 	}
@@ -51,6 +57,8 @@ func TestRecommendationSorter_InvalidFields(t *testing.T) {
 
 // TestRecommendationSorter_GetValidFields verifies valid field list.
 func TestRecommendationSorter_GetValidFields(t *testing.T) {
+	t.Parallel()
+
 	sorter := pagination.NewRecommendationSorter()
 	fields := sorter.GetValidFields()
 
@@ -73,6 +81,8 @@ func TestRecommendationSorter_GetValidFields(t *testing.T) {
 
 // TestRecommendationSorter_SortBySavingsDescending verifies sorting by savings descending.
 func TestRecommendationSorter_SortBySavingsDescending(t *testing.T) {
+	t.Parallel()
+
 	recommendations := []engine.Recommendation{
 		{ResourceID: "resource-1", EstimatedSavings: 100.0},
 		{ResourceID: "resource-2", EstimatedSavings: 300.0},
@@ -92,6 +102,8 @@ func TestRecommendationSorter_SortBySavingsDescending(t *testing.T) {
 
 // TestRecommendationSorter_SortBySavingsAscending verifies sorting by savings ascending.
 func TestRecommendationSorter_SortBySavingsAscending(t *testing.T) {
+	t.Parallel()
+
 	recommendations := []engine.Recommendation{
 		{ResourceID: "resource-1", EstimatedSavings: 100.0},
 		{ResourceID: "resource-2", EstimatedSavings: 300.0},
@@ -111,6 +123,8 @@ func TestRecommendationSorter_SortBySavingsAscending(t *testing.T) {
 
 // TestRecommendationSorter_SortByNameAscending verifies sorting by resource name.
 func TestRecommendationSorter_SortByNameAscending(t *testing.T) {
+	t.Parallel()
+
 	recommendations := []engine.Recommendation{
 		{ResourceID: "zebra-resource"},
 		{ResourceID: "alpha-resource"},
@@ -130,6 +144,8 @@ func TestRecommendationSorter_SortByNameAscending(t *testing.T) {
 
 // TestRecommendationSorter_SortByResourceTypeDescending verifies sorting by resource type.
 func TestRecommendationSorter_SortByResourceTypeDescending(t *testing.T) {
+	t.Parallel()
+
 	recommendations := []engine.Recommendation{
 		{ResourceID: "r1", Type: "RIGHTSIZE"},
 		{ResourceID: "r2", Type: "TERMINATE"},
@@ -149,6 +165,8 @@ func TestRecommendationSorter_SortByResourceTypeDescending(t *testing.T) {
 
 // TestRecommendationSorter_SortByProviderAscending verifies sorting by provider.
 func TestRecommendationSorter_SortByProviderAscending(t *testing.T) {
+	t.Parallel()
+
 	recommendations := []engine.Recommendation{
 		{ResourceID: "aws:ec2:Instance/i-123", EstimatedSavings: 100.0},
 		{ResourceID: "gcp:compute:Instance/inst-456", EstimatedSavings: 200.0},
@@ -169,6 +187,8 @@ func TestRecommendationSorter_SortByProviderAscending(t *testing.T) {
 
 // TestRecommendationSorter_DefaultOrderBehavior verifies behavior with invalid sort field.
 func TestRecommendationSorter_DefaultOrderBehavior(t *testing.T) {
+	t.Parallel()
+
 	recommendations := []engine.Recommendation{
 		{ResourceID: "resource-1", EstimatedSavings: 100.0},
 		{ResourceID: "resource-2", EstimatedSavings: 300.0},
@@ -187,6 +207,8 @@ func TestRecommendationSorter_DefaultOrderBehavior(t *testing.T) {
 
 // TestRecommendationSorter_EmptySlice verifies handling of empty recommendation slice.
 func TestRecommendationSorter_EmptySlice(t *testing.T) {
+	t.Parallel()
+
 	var recommendations []engine.Recommendation
 
 	sorter := pagination.NewRecommendationSorter()
@@ -197,6 +219,8 @@ func TestRecommendationSorter_EmptySlice(t *testing.T) {
 
 // TestRecommendationSorter_SingleItem verifies sorting single-item slice.
 func TestRecommendationSorter_SingleItem(t *testing.T) {
+	t.Parallel()
+
 	recommendations := []engine.Recommendation{
 		{ResourceID: "resource-1", EstimatedSavings: 100.0},
 	}
@@ -210,6 +234,8 @@ func TestRecommendationSorter_SingleItem(t *testing.T) {
 
 // TestRecommendationSorter_StableSort verifies stable sorting with equal values.
 func TestRecommendationSorter_StableSort(t *testing.T) {
+	t.Parallel()
+
 	recommendations := []engine.Recommendation{
 		{ResourceID: "resource-1", EstimatedSavings: 100.0},
 		{ResourceID: "resource-2", EstimatedSavings: 100.0},
@@ -228,6 +254,8 @@ func TestRecommendationSorter_StableSort(t *testing.T) {
 
 // TestParseSortExpression verifies sort expression parsing.
 func TestParseSortExpression(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		expr      string
@@ -279,6 +307,7 @@ func TestParseSortExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			field, order, err := pagination.ParseSortExpression(tt.expr)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -302,6 +331,8 @@ func scored(id string, risk *float64) engine.Recommendation {
 
 // TestRecommendationSorter_SortByScore verifies score sorting keeps unscored rows last.
 func TestRecommendationSorter_SortByScore(t *testing.T) {
+	t.Parallel()
+
 	sorter := pagination.NewRecommendationSorter()
 	v := func(f float64) *float64 { return &f }
 	recs := []engine.Recommendation{
@@ -334,6 +365,8 @@ func TestRecommendationSorter_SortByScore(t *testing.T) {
 
 // TestRecommendationSorter_ScoreTiesBreakBySavings verifies tie-breaking.
 func TestRecommendationSorter_ScoreTiesBreakBySavings(t *testing.T) {
+	t.Parallel()
+
 	sorter := pagination.NewRecommendationSorter()
 	risk := 0.5
 	a := scored("a", &risk)

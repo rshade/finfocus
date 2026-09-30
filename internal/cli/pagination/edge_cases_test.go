@@ -12,7 +12,10 @@ import (
 // TestZeroResultsWithPagination tests that pagination metadata is correct
 // when the result set is empty.
 func TestZeroResultsWithPagination(t *testing.T) {
+	t.Parallel()
+
 	t.Run("zero results with limit", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Limit:  10,
 			Offset: 0,
@@ -32,6 +35,7 @@ func TestZeroResultsWithPagination(t *testing.T) {
 	})
 
 	t.Run("zero results with page-based pagination", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Page:     1,
 			PageSize: 20,
@@ -50,6 +54,7 @@ func TestZeroResultsWithPagination(t *testing.T) {
 	})
 
 	t.Run("zero results without pagination", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Limit:  0, // unlimited
 			Offset: 0,
@@ -71,7 +76,10 @@ func TestZeroResultsWithPagination(t *testing.T) {
 // TestOutOfBoundsPage tests that requesting a page beyond the available
 // pages returns empty results with correct metadata.
 func TestOutOfBoundsPage(t *testing.T) {
+	t.Parallel()
+
 	t.Run("page beyond total pages", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Page:     10,
 			PageSize: 20,
@@ -91,6 +99,7 @@ func TestOutOfBoundsPage(t *testing.T) {
 	})
 
 	t.Run("offset beyond total items", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Limit:  10,
 			Offset: 100,
@@ -112,6 +121,7 @@ func TestOutOfBoundsPage(t *testing.T) {
 	})
 
 	t.Run("page 1 with zero items", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Page:     1,
 			PageSize: 10,
@@ -129,6 +139,7 @@ func TestOutOfBoundsPage(t *testing.T) {
 	})
 
 	t.Run("negative page number", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Page:     -1,
 			PageSize: 10,
@@ -141,6 +152,7 @@ func TestOutOfBoundsPage(t *testing.T) {
 	})
 
 	t.Run("zero page number with page-size", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Page:     0,
 			PageSize: 10,
@@ -155,6 +167,8 @@ func TestOutOfBoundsPage(t *testing.T) {
 
 // TestInvalidSortField tests that invalid sort fields are detected
 // using the existing sorter and parse functions.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture validFields = sorter.GetValidFields(...)
 func TestInvalidSortField(t *testing.T) {
 	// Create a sorter with known valid fields
 	sorter := pagination.NewRecommendationSorter()
@@ -235,7 +249,10 @@ func TestInvalidSortField(t *testing.T) {
 
 // TestPaginationParamsValidation tests comprehensive validation of pagination parameters.
 func TestPaginationParamsValidation(t *testing.T) {
+	t.Parallel()
+
 	t.Run("page and offset are mutually exclusive", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Page:     2,
 			PageSize: 10,
@@ -249,6 +266,7 @@ func TestPaginationParamsValidation(t *testing.T) {
 	})
 
 	t.Run("page requires page_size", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Page:     2,
 			PageSize: 0,
@@ -260,6 +278,7 @@ func TestPaginationParamsValidation(t *testing.T) {
 	})
 
 	t.Run("negative limit", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Limit:  -1,
 			Offset: 0,
@@ -271,6 +290,7 @@ func TestPaginationParamsValidation(t *testing.T) {
 	})
 
 	t.Run("negative offset", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Limit:  10,
 			Offset: -1,
@@ -282,6 +302,7 @@ func TestPaginationParamsValidation(t *testing.T) {
 	})
 
 	t.Run("valid offset-based pagination", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Limit:  10,
 			Offset: 20,
@@ -292,6 +313,7 @@ func TestPaginationParamsValidation(t *testing.T) {
 	})
 
 	t.Run("valid page-based pagination", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Page:     2,
 			PageSize: 20,
@@ -302,6 +324,7 @@ func TestPaginationParamsValidation(t *testing.T) {
 	})
 
 	t.Run("unlimited mode", func(t *testing.T) {
+		t.Parallel()
 		params := pagination.PaginationParams{
 			Limit:  0,
 			Offset: 0,

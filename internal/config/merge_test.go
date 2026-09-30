@@ -55,6 +55,8 @@ func writeOverlay(t *testing.T, content string) string {
 }
 
 func TestShallowMergeYAML_SingleKeyOverride(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 output:
@@ -77,6 +79,8 @@ output:
 }
 
 func TestShallowMergeYAML_MultipleKeyOverride(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 output:
@@ -100,6 +104,8 @@ cost:
 }
 
 func TestShallowMergeYAML_AbsentKeysPreserved(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 output:
@@ -123,6 +129,8 @@ output:
 }
 
 func TestShallowMergeYAML_EmptyOverlayFile(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	original := *target
 	overlay := writeOverlay(t, "")
@@ -138,6 +146,8 @@ func TestShallowMergeYAML_EmptyOverlayFile(t *testing.T) {
 }
 
 func TestShallowMergeYAML_CommentOnlyFile(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	original := *target
 	overlay := writeOverlay(t, "# this file is intentionally empty\n# just comments\n")
@@ -150,6 +160,8 @@ func TestShallowMergeYAML_CommentOnlyFile(t *testing.T) {
 }
 
 func TestShallowMergeYAML_CorruptedYAMLReturnsError(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, "{{{{not valid yaml at all")
 
@@ -159,6 +171,8 @@ func TestShallowMergeYAML_CorruptedYAMLReturnsError(t *testing.T) {
 }
 
 func TestShallowMergeYAML_MissingFileReturnsError(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 
 	err := config.ShallowMergeYAML(target, "/nonexistent/path/overlay.yaml")
@@ -167,6 +181,8 @@ func TestShallowMergeYAML_MissingFileReturnsError(t *testing.T) {
 }
 
 func TestShallowMergeYAML_OverrideOutput(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 output:
@@ -182,6 +198,8 @@ output:
 }
 
 func TestShallowMergeYAML_OverridePlugins(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 plugins:
@@ -203,6 +221,8 @@ plugins:
 }
 
 func TestShallowMergeYAML_OverrideLogging(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 logging:
@@ -218,6 +238,8 @@ logging:
 }
 
 func TestShallowMergeYAML_OverrideAnalyzer(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 analyzer:
@@ -242,6 +264,8 @@ analyzer:
 }
 
 func TestShallowMergeYAML_OverridePluginHost(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 plugin_host:
@@ -255,6 +279,8 @@ plugin_host:
 }
 
 func TestShallowMergeYAML_OverrideCost(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 cost:
@@ -273,6 +299,8 @@ cost:
 }
 
 func TestShallowMergeYAML_OverrideRouting(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	require.Nil(t, target.Routing, "default target should have nil routing")
 
@@ -297,6 +325,8 @@ routing:
 }
 
 func TestShallowMergeYAML_PartialCostWithBudgets(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 cost:
@@ -328,6 +358,8 @@ cost:
 }
 
 func TestShallowMergeYAML_ZeroValueFieldsReplaceDefaults(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 
 	// Verify target has non-zero defaults before merge.
@@ -358,6 +390,8 @@ cost:
 }
 
 func TestShallowMergeYAML_UnknownKeysIgnored(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 output:
@@ -380,6 +414,8 @@ extra_key: 42
 }
 
 func TestShallowMergeYAML_RoutingWithPatterns(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 routing:
@@ -408,6 +444,8 @@ routing:
 }
 
 func TestShallowMergeYAML_LoggingWithOutputs(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 logging:
@@ -433,6 +471,8 @@ logging:
 }
 
 func TestShallowMergeYAML_AnalyzerWithEnv(t *testing.T) {
+	t.Parallel()
+
 	target := newDefaultTarget()
 	overlay := writeOverlay(t, `
 analyzer:
@@ -458,6 +498,8 @@ analyzer:
 }
 
 func TestShallowMergeYAML_Hujson(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		content       string
@@ -501,6 +543,7 @@ func TestShallowMergeYAML_Hujson(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			overlayPath := filepath.Join(t.TempDir(), "config.hujson")
 			if tt.skeleton {
 				require.NoError(t, config.SaveProjectSkeleton(overlayPath))

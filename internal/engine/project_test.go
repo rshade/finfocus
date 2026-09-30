@@ -13,6 +13,8 @@ import (
 
 // TestRenderResults tests the main rendering dispatcher.
 func TestRenderResults(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		format  OutputFormat
@@ -67,6 +69,7 @@ func TestRenderResults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := RenderResults(io.Discard, tt.format, tt.results)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RenderResults() error = %v, wantErr %v", err, tt.wantErr)
@@ -77,6 +80,8 @@ func TestRenderResults(t *testing.T) {
 
 // TestRenderActualCostResults tests actual cost rendering.
 func TestRenderActualCostResults(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		format  OutputFormat
@@ -111,6 +116,7 @@ func TestRenderActualCostResults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := RenderActualCostResults(io.Discard, tt.format, tt.results, false)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("RenderActualCostResults() error = %v, wantErr %v", err, tt.wantErr)
@@ -121,6 +127,8 @@ func TestRenderActualCostResults(t *testing.T) {
 
 // TestRenderCrossProviderAggregation tests cross-provider rendering.
 func TestRenderCrossProviderAggregation(t *testing.T) {
+	t.Parallel()
+
 	aggregations := []CrossProviderAggregation{
 		{
 			Period:    "2025-01-01",
@@ -183,6 +191,7 @@ func TestRenderCrossProviderAggregation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := RenderCrossProviderAggregation(
 				io.Discard,
 				tt.format,
@@ -198,6 +207,8 @@ func TestRenderCrossProviderAggregation(t *testing.T) {
 
 // TestGetCurrencySymbol tests currency symbol mapping.
 func TestGetCurrencySymbol(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		currency string
 		expected string
@@ -214,6 +225,7 @@ func TestGetCurrencySymbol(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.currency, func(t *testing.T) {
+			t.Parallel()
 			got := getCurrencySymbol(tt.currency)
 			if got != tt.expected {
 				t.Errorf("getCurrencySymbol(%q) = %q, want %q", tt.currency, got, tt.expected)
@@ -224,6 +236,8 @@ func TestGetCurrencySymbol(t *testing.T) {
 
 // TestOutputFormatConstants tests that output format constants are defined.
 func TestOutputFormatConstants(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		format OutputFormat
@@ -236,6 +250,7 @@ func TestOutputFormatConstants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if string(tt.format) != tt.value {
 				t.Errorf("OutputFormat = %q, want %q", tt.format, tt.value)
 			}
@@ -245,7 +260,10 @@ func TestOutputFormatConstants(t *testing.T) {
 
 // TestJSONMarshaling tests that CostResult and CrossProviderAggregation marshal correctly.
 func TestJSONMarshaling(t *testing.T) {
+	t.Parallel()
+
 	t.Run("CostResult marshals to JSON", func(t *testing.T) {
+		t.Parallel()
 		result := CostResult{
 			ResourceType: "aws:ec2:Instance",
 			ResourceID:   "i-123",
@@ -266,6 +284,7 @@ func TestJSONMarshaling(t *testing.T) {
 	})
 
 	t.Run("CrossProviderAggregation marshals to JSON", func(t *testing.T) {
+		t.Parallel()
 		agg := CrossProviderAggregation{
 			Period:    "2025-01-01",
 			Total:     150.0,
@@ -285,6 +304,7 @@ func TestJSONMarshaling(t *testing.T) {
 	})
 
 	t.Run("AggregatedResults marshals to JSON", func(t *testing.T) {
+		t.Parallel()
 		aggregated := &AggregatedResults{
 			Summary: CostSummary{
 				TotalMonthly: 100.0,
@@ -311,7 +331,10 @@ func TestJSONMarshaling(t *testing.T) {
 
 // TestRenderingWithNilResults tests edge cases with nil results.
 func TestRenderingWithNilResults(t *testing.T) {
+	t.Parallel()
+
 	t.Run("RenderResults with nil", func(t *testing.T) {
+		t.Parallel()
 		err := RenderResults(io.Discard, OutputJSON, nil)
 		if err != nil {
 			t.Errorf("RenderResults with nil should not error: %v", err)
@@ -319,6 +342,7 @@ func TestRenderingWithNilResults(t *testing.T) {
 	})
 
 	t.Run("RenderActualCostResults with nil", func(t *testing.T) {
+		t.Parallel()
 		err := RenderActualCostResults(io.Discard, OutputJSON, nil, false)
 		if err != nil {
 			t.Errorf("RenderActualCostResults with nil should not error: %v", err)
@@ -326,6 +350,7 @@ func TestRenderingWithNilResults(t *testing.T) {
 	})
 
 	t.Run("RenderCrossProviderAggregation with nil", func(t *testing.T) {
+		t.Parallel()
 		err := RenderCrossProviderAggregation(io.Discard, OutputJSON, nil, GroupByDaily)
 		if err != nil {
 			t.Errorf("RenderCrossProviderAggregation with nil should not error: %v", err)
@@ -335,7 +360,10 @@ func TestRenderingWithNilResults(t *testing.T) {
 
 // TestRenderingWithEmptyResults tests edge cases with empty results.
 func TestRenderingWithEmptyResults(t *testing.T) {
+	t.Parallel()
+
 	t.Run("RenderResults with empty slice", func(t *testing.T) {
+		t.Parallel()
 		err := RenderResults(io.Discard, OutputTable, []CostResult{})
 		if err != nil {
 			t.Errorf("RenderResults with empty should not error: %v", err)
@@ -343,6 +371,7 @@ func TestRenderingWithEmptyResults(t *testing.T) {
 	})
 
 	t.Run("RenderActualCostResults with empty slice", func(t *testing.T) {
+		t.Parallel()
 		err := RenderActualCostResults(io.Discard, OutputTable, []CostResult{}, false)
 		if err != nil {
 			t.Errorf("RenderActualCostResults with empty should not error: %v", err)
@@ -350,6 +379,7 @@ func TestRenderingWithEmptyResults(t *testing.T) {
 	})
 
 	t.Run("RenderCrossProviderAggregation with empty slice", func(t *testing.T) {
+		t.Parallel()
 		err := RenderCrossProviderAggregation(
 			io.Discard,
 			OutputTable,
@@ -363,6 +393,8 @@ func TestRenderingWithEmptyResults(t *testing.T) {
 }
 
 // TestMultiProviderRendering tests rendering with multiple providers.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture results (composite value mutated by a subtest)
 func TestMultiProviderRendering(t *testing.T) {
 	results := []CostResult{
 		{
@@ -413,6 +445,8 @@ func TestMultiProviderRendering(t *testing.T) {
 // TestRenderBreakdowns_DeterministicOrder tests that renderBreakdowns produces deterministic output.
 // This is critical for SC-003 (deterministic output) to ensure CI tests pass reliably.
 func TestRenderBreakdowns_DeterministicOrder(t *testing.T) {
+	t.Parallel()
+
 	// Create aggregated results with multiple entries in each breakdown map.
 	// Map iteration order in Go is non-deterministic, so we need to verify
 	// that the output is sorted alphabetically regardless of insertion order.
@@ -494,6 +528,8 @@ func TestRenderBreakdowns_DeterministicOrder(t *testing.T) {
 
 // TestLongResourceNameHandling tests truncation behavior.
 func TestLongResourceNameHandling(t *testing.T) {
+	t.Parallel()
+
 	longID := "i-" + string(make([]byte, 100))
 	for i := range longID[2:] {
 		longID = longID[:2+i] + "a" + longID[2+i+1:]
@@ -517,6 +553,8 @@ func TestLongResourceNameHandling(t *testing.T) {
 
 // TestRenderActualCostResultsWithConfidence tests confidence column in table output.
 func TestRenderActualCostResultsWithConfidence(t *testing.T) {
+	t.Parallel()
+
 	results := []CostResult{
 		{
 			ResourceType: "aws:ec2:Instance",
@@ -572,6 +610,8 @@ func TestRenderActualCostResultsWithConfidence(t *testing.T) {
 
 // TestRenderActualCostResultsWithConfidenceJSON tests confidence field in JSON output.
 func TestRenderActualCostResultsWithConfidenceJSON(t *testing.T) {
+	t.Parallel()
+
 	results := []CostResult{
 		{
 			ResourceType: "aws:ec2:Instance",
@@ -620,6 +660,8 @@ func TestRenderActualCostResultsWithConfidenceJSON(t *testing.T) {
 
 // TestConfidenceInCostResultJSON tests that Confidence is properly serialized in CostResult JSON.
 func TestConfidenceInCostResultJSON(t *testing.T) {
+	t.Parallel()
+
 	result := CostResult{
 		ResourceType: "aws:ec2:Instance",
 		ResourceID:   "i-12345",
@@ -643,6 +685,8 @@ func TestConfidenceInCostResultJSON(t *testing.T) {
 
 // TestConfidenceOmittedWhenUnknown tests that empty confidence is omitted in JSON.
 func TestConfidenceOmittedWhenUnknown(t *testing.T) {
+	t.Parallel()
+
 	result := CostResult{
 		ResourceType: "aws:ec2:Instance",
 		ResourceID:   "i-12345",
@@ -666,7 +710,10 @@ func TestConfidenceOmittedWhenUnknown(t *testing.T) {
 
 // TestRenderSummary_RecommendationCount verifies the recommendation count line in plain summary.
 func TestRenderSummary_RecommendationCount(t *testing.T) {
+	t.Parallel()
+
 	t.Run("shows recommendation count when present", func(t *testing.T) {
+		t.Parallel()
 		aggregated := &AggregatedResults{
 			Summary: CostSummary{
 				TotalMonthly: 100.0,
@@ -693,6 +740,7 @@ func TestRenderSummary_RecommendationCount(t *testing.T) {
 	})
 
 	t.Run("omits recommendation count when zero", func(t *testing.T) {
+		t.Parallel()
 		aggregated := &AggregatedResults{
 			Summary: CostSummary{
 				TotalMonthly: 100.0,
@@ -717,6 +765,8 @@ func TestRenderSummary_RecommendationCount(t *testing.T) {
 // a "Projected Monthly" header — including for empty results and for results
 // without actual cost data.
 func TestRenderActualCostTable_NeverProjectedHeader(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		results []CostResult
@@ -745,6 +795,7 @@ func TestRenderActualCostTable_NeverProjectedHeader(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var buf strings.Builder
 			err := renderActualCostTable(&buf, tt.results, false)
 			require.NoError(t, err)
@@ -757,6 +808,7 @@ func TestRenderActualCostTable_NeverProjectedHeader(t *testing.T) {
 	}
 
 	t.Run("estimated rows are marked as estimates", func(t *testing.T) {
+		t.Parallel()
 		results := []CostResult{
 			{ResourceType: "aws_instance", ResourceID: "i-123", Adapter: "aws-public", Monthly: 7.59, Currency: "USD"},
 		}
@@ -773,7 +825,10 @@ func TestRenderActualCostTable_NeverProjectedHeader(t *testing.T) {
 // TestRenderActualCostTable_RecommendationCount verifies the recommendation count
 // in the actual cost table output.
 func TestRenderActualCostTable_RecommendationCount(t *testing.T) {
+	t.Parallel()
+
 	t.Run("shows recommendation count before table header", func(t *testing.T) {
+		t.Parallel()
 		results := []CostResult{
 			{
 				ResourceType: "aws:ec2:Instance",
@@ -801,6 +856,7 @@ func TestRenderActualCostTable_RecommendationCount(t *testing.T) {
 	})
 
 	t.Run("omits recommendation count when zero", func(t *testing.T) {
+		t.Parallel()
 		results := []CostResult{
 			{
 				ResourceType: "aws:ec2:Instance",
@@ -823,6 +879,8 @@ func TestRenderActualCostTable_RecommendationCount(t *testing.T) {
 
 // TestCountRecommendations verifies the helper function.
 func TestCountRecommendations(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		results []CostResult
@@ -844,6 +902,7 @@ func TestCountRecommendations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, CountRecommendations(tt.results))
 		})
 	}
@@ -852,6 +911,8 @@ func TestCountRecommendations(t *testing.T) {
 // TestRenderSustainabilitySummary_WithEquivalencies tests carbon equivalency display.
 // This test verifies User Story 1: View Carbon Equivalencies in CLI Table Output.
 func TestRenderSustainabilitySummary_WithEquivalencies(t *testing.T) {
+	t.Parallel()
+
 	// Test case from spec: 150 kg CO2e should produce equivalency text
 	aggregated := &AggregatedResults{
 		Summary: CostSummary{
@@ -897,6 +958,8 @@ func TestRenderSustainabilitySummary_WithEquivalencies(t *testing.T) {
 
 // TestRenderSustainabilitySummary_BelowThreshold tests that equivalencies are omitted for small values.
 func TestRenderSustainabilitySummary_BelowThreshold(t *testing.T) {
+	t.Parallel()
+
 	// Carbon value below 1kg threshold should not show equivalencies
 	aggregated := &AggregatedResults{
 		Summary: CostSummary{
@@ -931,6 +994,8 @@ func TestRenderSustainabilitySummary_BelowThreshold(t *testing.T) {
 
 // TestRenderSustainabilitySummary_NoCarbon tests behavior when no carbon metric exists.
 func TestRenderSustainabilitySummary_NoCarbon(t *testing.T) {
+	t.Parallel()
+
 	// Only energy consumption, no carbon_footprint
 	aggregated := &AggregatedResults{
 		Summary: CostSummary{
@@ -964,6 +1029,8 @@ func TestRenderSustainabilitySummary_NoCarbon(t *testing.T) {
 
 // TestRenderSustainabilitySummary_AggregatesMultipleResources tests aggregation.
 func TestRenderSustainabilitySummary_AggregatesMultipleResources(t *testing.T) {
+	t.Parallel()
+
 	// Multiple resources with carbon emissions should be aggregated
 	aggregated := &AggregatedResults{
 		Summary: CostSummary{
@@ -1005,6 +1072,8 @@ func TestRenderSustainabilitySummary_AggregatesMultipleResources(t *testing.T) {
 
 // TestRenderSustainabilitySummary_LargeValues tests large number formatting.
 func TestRenderSustainabilitySummary_LargeValues(t *testing.T) {
+	t.Parallel()
+
 	// Large carbon value should use million/billion scaling
 	aggregated := &AggregatedResults{
 		Summary: CostSummary{
@@ -1034,6 +1103,8 @@ func TestRenderSustainabilitySummary_LargeValues(t *testing.T) {
 
 // TestRenderSustainabilitySummary_GracefulDegradation tests error handling.
 func TestRenderSustainabilitySummary_GracefulDegradation(t *testing.T) {
+	t.Parallel()
+
 	// Empty sustainability data should not crash
 	aggregated := &AggregatedResults{
 		Summary: CostSummary{

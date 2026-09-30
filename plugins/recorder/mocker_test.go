@@ -17,6 +17,8 @@ func mockerTestLogger() zerolog.Logger {
 
 // T027: Unit test for Mocker.GenerateProjectedCost() range.
 func TestMocker_GenerateProjectedCost_Range(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	// Generate many costs and verify they're all within range
@@ -31,6 +33,8 @@ func TestMocker_GenerateProjectedCost_Range(t *testing.T) {
 
 // T028: Unit test for Mocker.GenerateActualCost() range.
 func TestMocker_GenerateActualCost_Range(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	// Generate many costs and verify they're all within range
@@ -45,6 +49,8 @@ func TestMocker_GenerateActualCost_Range(t *testing.T) {
 
 // T029: Unit test for mock response structure validity.
 func TestMocker_CreateProjectedCostResponse_Structure(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	resp := mocker.CreateProjectedCostResponse()
@@ -62,6 +68,8 @@ func TestMocker_CreateProjectedCostResponse_Structure(t *testing.T) {
 }
 
 func TestMocker_CreateActualCostResponse_Structure(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	resp := mocker.CreateActualCostResponse()
@@ -75,6 +83,8 @@ func TestMocker_CreateActualCostResponse_Structure(t *testing.T) {
 }
 
 func TestMocker_CreateEstimateCostResponse_Structure(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	resp := mocker.CreateEstimateCostResponse()
@@ -85,6 +95,8 @@ func TestMocker_CreateEstimateCostResponse_Structure(t *testing.T) {
 }
 
 func TestMocker_CostDistribution(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	// Generate costs and check distribution
@@ -109,6 +121,8 @@ func TestMocker_CostDistribution(t *testing.T) {
 }
 
 func TestMocker_Randomness(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	// Generate several costs and ensure they're not all the same
@@ -123,6 +137,8 @@ func TestMocker_Randomness(t *testing.T) {
 }
 
 func TestMockerConstants(t *testing.T) {
+	t.Parallel()
+
 	// Verify constants are reasonable
 	assert.InDelta(t, 0.01, MinProjectedCost, 1e-9)
 	assert.InDelta(t, 1000.0, MaxProjectedCost, 1e-9)
@@ -132,6 +148,8 @@ func TestMockerConstants(t *testing.T) {
 }
 
 func TestMocker_GenerateRecommendations_Count(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	// Generate recommendations multiple times and verify count is in expected range
@@ -148,6 +166,8 @@ func TestMocker_GenerateRecommendations_Count(t *testing.T) {
 }
 
 func TestMocker_GenerateRecommendations_Structure(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	recs := mocker.GenerateRecommendations()
@@ -164,6 +184,8 @@ func TestMocker_GenerateRecommendations_Structure(t *testing.T) {
 }
 
 func TestMocker_CreateRecommendationsResponse(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	resp := mocker.CreateRecommendationsResponse()
@@ -180,6 +202,8 @@ func TestMocker_CreateRecommendationsResponse(t *testing.T) {
 }
 
 func TestMocker_RecommendationSavings(t *testing.T) {
+	t.Parallel()
+
 	mocker := NewMocker(mockerTestLogger())
 
 	recs := mocker.GenerateRecommendations()

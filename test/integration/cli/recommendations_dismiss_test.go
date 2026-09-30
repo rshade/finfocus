@@ -20,6 +20,8 @@ import (
 // TestDismissLifecycle_LocalOnly tests the full dismiss lifecycle using local-only operations
 // (no plugin connection needed).
 func TestDismissLifecycle_LocalOnly(t *testing.T) {
+	t.Parallel()
+
 	// Create a temp directory for the dismissal store
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "dismissed.json")
@@ -101,6 +103,8 @@ func TestDismissLifecycle_LocalOnly(t *testing.T) {
 
 // TestSnoozeLifecycle_AutoExpiry tests snooze with automatic expiry.
 func TestSnoozeLifecycle_AutoExpiry(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "dismissed.json")
 
@@ -156,6 +160,8 @@ func TestSnoozeLifecycle_AutoExpiry(t *testing.T) {
 
 // TestDirectTransitions tests Dismissed->Snoozed and Snoozed->Dismissed transitions.
 func TestDirectTransitions(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "dismissed.json")
 
@@ -224,6 +230,8 @@ func TestDirectTransitions(t *testing.T) {
 
 // TestDismissalStorePersistence verifies that state survives save/load cycles.
 func TestDismissalStorePersistence(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "dismissed.json")
 

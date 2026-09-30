@@ -10,6 +10,8 @@ import (
 )
 
 func TestCompareSpecVersions(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		coreVersion   string
@@ -126,6 +128,7 @@ func TestCompareSpecVersions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := CompareSpecVersions(tt.coreVersion, tt.pluginVersion)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -138,6 +141,8 @@ func TestCompareSpecVersions(t *testing.T) {
 }
 
 func TestCompatibilityResult_String(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		r    CompatibilityResult
@@ -150,11 +155,13 @@ func TestCompatibilityResult_String(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			require.Equal(t, tt.want, tt.r.String())
 		})
 	}
 }
 
+//nolint:paralleltest // os.Unsetenv changes the process-wide environment
 func TestCheckVersionCompatibility_StrictMode(t *testing.T) {
 	ctx := context.Background()
 

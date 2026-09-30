@@ -118,10 +118,13 @@ func getLoadPulumiPlanTestData() []struct {
 
 // TestLoadPulumiPlan tests loading and parsing Pulumi plan JSON files.
 func TestLoadPulumiPlan(t *testing.T) {
+	t.Parallel()
+
 	tests := getLoadPulumiPlanTestData()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create temporary file
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "plan.json")
@@ -150,6 +153,7 @@ func TestLoadPulumiPlan(t *testing.T) {
 	}
 
 	t.Run("nonexistent_file", func(t *testing.T) {
+		t.Parallel()
 		_, err := ingest.LoadPulumiPlan("/nonexistent/path/file.json")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "reading plan file")
@@ -459,10 +463,13 @@ func getPulumiPlanGetResourcesTestData() []struct {
 
 // TestPulumiPlan_GetResources tests the GetResources method of PulumiPlan.
 func TestPulumiPlan_GetResources(t *testing.T) {
+	t.Parallel()
+
 	tests := getPulumiPlanGetResourcesTestData()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			resources := tt.plan.GetResources()
 			assert.Len(t, resources, tt.wantCount)
 
@@ -476,6 +483,8 @@ func TestPulumiPlan_GetResources(t *testing.T) {
 // --- ParsePulumiPlan tests (T012) ---
 
 func TestParsePulumiPlan(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		data        []byte
@@ -549,6 +558,7 @@ func TestParsePulumiPlan(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			plan, err := ingest.ParsePulumiPlan(tt.data)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -572,6 +582,8 @@ func TestParsePulumiPlan(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestPulumiState_IDField_OldAndNewState(t *testing.T) {
+	t.Parallel()
+
 	data := []byte(`{
 		"steps": [
 			{
@@ -607,6 +619,8 @@ func TestPulumiState_IDField_OldAndNewState(t *testing.T) {
 }
 
 func TestPulumiState_IDField_MissingID(t *testing.T) {
+	t.Parallel()
+
 	data := []byte(`{
 		"steps": [
 			{
@@ -632,6 +646,8 @@ func TestPulumiState_IDField_MissingID(t *testing.T) {
 }
 
 func TestPulumiState_IDField_ReplaceProducesBothIDs(t *testing.T) {
+	t.Parallel()
+
 	data := []byte(`{
 		"steps": [
 			{
@@ -672,6 +688,8 @@ func TestPulumiState_IDField_ReplaceProducesBothIDs(t *testing.T) {
 // TestLoadPulumiPlan_DelegationEquivalence verifies that LoadPulumiPlan and
 // ParsePulumiPlan produce identical results for each fixture file.
 func TestLoadPulumiPlan_DelegationEquivalence(t *testing.T) {
+	t.Parallel()
+
 	_, thisFile, _, _ := runtime.Caller(0)
 	repoRoot := filepath.Join(filepath.Dir(thisFile), "..", "..")
 	fixtures := []string{
@@ -684,6 +702,7 @@ func TestLoadPulumiPlan_DelegationEquivalence(t *testing.T) {
 
 	for _, fixture := range fixtures {
 		t.Run(filepath.Base(fixture), func(t *testing.T) {
+			t.Parallel()
 			data, err := os.ReadFile(fixture)
 			require.NoError(t, err)
 

@@ -13,6 +13,8 @@ func env(values map[string]string) func(string) string {
 }
 
 func TestConfigFromEnv_Defaults(t *testing.T) {
+	t.Parallel()
+
 	cfg, err := ConfigFromEnv(env(nil))
 	require.NoError(t, err)
 	assert.Empty(t, cfg.APIKey)
@@ -25,6 +27,8 @@ func TestConfigFromEnv_Defaults(t *testing.T) {
 }
 
 func TestConfigFromEnv_Overrides(t *testing.T) {
+	t.Parallel()
+
 	cfg, err := ConfigFromEnv(env(map[string]string{
 		"TYPESAFE_API_KEY":        "  key-value  ",
 		"JEV_BASE_URL":            "https://proxy.example.com",
@@ -43,6 +47,8 @@ func TestConfigFromEnv_Overrides(t *testing.T) {
 }
 
 func TestConfigFromEnv_RejectsBadValues(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		key  string
@@ -59,6 +65,7 @@ func TestConfigFromEnv_RejectsBadValues(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := ConfigFromEnv(env(map[string]string{tt.key: tt.val}))
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.key)

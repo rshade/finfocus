@@ -9,6 +9,8 @@ import (
 )
 
 func TestDetectPluginMode(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		args []string
@@ -69,6 +71,7 @@ func TestDetectPluginMode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			lookupEnv := func(key string) (string, bool) {
 				val, ok := tt.env[key]
 				return val, ok
@@ -80,31 +83,38 @@ func TestDetectPluginMode(t *testing.T) {
 }
 
 func TestDetectPluginMode_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil lookupEnv does not panic", func(t *testing.T) {
+		t.Parallel()
 		// Should not panic when lookupEnv is nil - just skip env var detection
 		got := cli.DetectPluginMode([]string{"/usr/bin/finfocus"}, nil)
 		assert.False(t, got)
 	})
 
 	t.Run("nil lookupEnv with plugin binary name", func(t *testing.T) {
+		t.Parallel()
 		// Binary name detection should still work even with nil lookupEnv
 		got := cli.DetectPluginMode([]string{"/usr/bin/pulumi-tool-cost"}, nil)
 		assert.True(t, got)
 	})
 
 	t.Run("nil args does not panic", func(t *testing.T) {
+		t.Parallel()
 		lookupEnv := func(_ string) (string, bool) { return "", false }
 		got := cli.DetectPluginMode(nil, lookupEnv)
 		assert.False(t, got)
 	})
 
 	t.Run("empty args does not panic", func(t *testing.T) {
+		t.Parallel()
 		lookupEnv := func(_ string) (string, bool) { return "", false }
 		got := cli.DetectPluginMode([]string{}, lookupEnv)
 		assert.False(t, got)
 	})
 
 	t.Run("both nil does not panic", func(t *testing.T) {
+		t.Parallel()
 		got := cli.DetectPluginMode(nil, nil)
 		assert.False(t, got)
 	})

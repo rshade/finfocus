@@ -28,7 +28,10 @@ type pulumiStepJSON struct {
 }
 
 func TestGenerateSyntheticPlan(t *testing.T) {
+	t.Parallel()
+
 	t.Run("generates correct resource count", func(t *testing.T) {
+		t.Parallel()
 		resourceTypes := []string{
 			"aws:ec2/instance:Instance",
 			"aws:s3/bucket:Bucket",
@@ -46,6 +49,7 @@ func TestGenerateSyntheticPlan(t *testing.T) {
 	})
 
 	t.Run("cycles through resource types", func(t *testing.T) {
+		t.Parallel()
 		resourceTypes := []string{
 			"aws:ec2/instance:Instance",
 			"aws:s3/bucket:Bucket",
@@ -71,6 +75,7 @@ func TestGenerateSyntheticPlan(t *testing.T) {
 	})
 
 	t.Run("generates valid URNs", func(t *testing.T) {
+		t.Parallel()
 		resourceTypes := []string{"aws:ec2/instance:Instance"}
 
 		filePath := helpers.GenerateSyntheticPlan(t, 3, resourceTypes)
@@ -90,6 +95,7 @@ func TestGenerateSyntheticPlan(t *testing.T) {
 	})
 
 	t.Run("includes valid inputs", func(t *testing.T) {
+		t.Parallel()
 		resourceTypes := []string{"aws:ec2/instance:Instance"}
 
 		filePath := helpers.GenerateSyntheticPlan(t, 1, resourceTypes)
@@ -110,6 +116,7 @@ func TestGenerateSyntheticPlan(t *testing.T) {
 	})
 
 	t.Run("extracts provider prefix for provider field", func(t *testing.T) {
+		t.Parallel()
 		resourceTypes := []string{"aws:ec2/instance:Instance"}
 
 		filePath := helpers.GenerateSyntheticPlan(t, 1, resourceTypes)
@@ -126,6 +133,7 @@ func TestGenerateSyntheticPlan(t *testing.T) {
 	})
 
 	t.Run("single resource type", func(t *testing.T) {
+		t.Parallel()
 		filePath := helpers.GenerateSyntheticPlan(t, 5, []string{"aws:lambda/function:Function"})
 
 		data, err := os.ReadFile(filePath)
@@ -142,6 +150,7 @@ func TestGenerateSyntheticPlan(t *testing.T) {
 	})
 
 	t.Run("file is written to temp directory", func(t *testing.T) {
+		t.Parallel()
 		filePath := helpers.GenerateSyntheticPlan(t, 1, []string{"aws:ec2/instance:Instance"})
 
 		_, err := os.Stat(filePath)
@@ -151,12 +160,16 @@ func TestGenerateSyntheticPlan(t *testing.T) {
 }
 
 func TestGenerateSyntheticStack(t *testing.T) {
+	t.Parallel()
+
 	t.Run("generates correct resource count", func(t *testing.T) {
+		t.Parallel()
 		resources := helpers.GenerateSyntheticStack(10)
 		assert.Len(t, resources, 10)
 	})
 
 	t.Run("resources have valid URNs", func(t *testing.T) {
+		t.Parallel()
 		resources := helpers.GenerateSyntheticStack(5)
 
 		for i, res := range resources {
@@ -168,6 +181,7 @@ func TestGenerateSyntheticStack(t *testing.T) {
 	})
 
 	t.Run("resources cycle through types", func(t *testing.T) {
+		t.Parallel()
 		resources := helpers.GenerateSyntheticStack(8)
 
 		// Types cycle: ec2, s3, rds, lambda, ec2, s3, rds, lambda
@@ -179,6 +193,7 @@ func TestGenerateSyntheticStack(t *testing.T) {
 	})
 
 	t.Run("resources have properties", func(t *testing.T) {
+		t.Parallel()
 		resources := helpers.GenerateSyntheticStack(1)
 		require.Len(t, resources, 1)
 
@@ -192,6 +207,7 @@ func TestGenerateSyntheticStack(t *testing.T) {
 	})
 
 	t.Run("resources have provider info", func(t *testing.T) {
+		t.Parallel()
 		resources := helpers.GenerateSyntheticStack(1)
 		require.Len(t, resources, 1)
 
@@ -202,6 +218,7 @@ func TestGenerateSyntheticStack(t *testing.T) {
 	})
 
 	t.Run("unique names and URNs", func(t *testing.T) {
+		t.Parallel()
 		resources := helpers.GenerateSyntheticStack(50)
 
 		names := make(map[string]bool)
@@ -217,6 +234,7 @@ func TestGenerateSyntheticStack(t *testing.T) {
 	})
 
 	t.Run("zero count returns empty slice", func(t *testing.T) {
+		t.Parallel()
 		resources := helpers.GenerateSyntheticStack(0)
 		assert.Empty(t, resources)
 	})

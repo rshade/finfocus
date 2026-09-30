@@ -14,11 +14,15 @@ import (
 
 // TestNewDefault tests default registry creation.
 func TestNewDefault(t *testing.T) {
+	t.Parallel()
+
 	reg := registry.NewDefault()
 	assert.NotNil(t, reg)
 }
 
 // TestListPlugins_EmptyDirectory tests listing with no plugins installed.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_EmptyDirectory(t *testing.T) {
 	homeDir, _ := createTestHome(t)
 	setupTestHome(t, homeDir)
@@ -31,6 +35,8 @@ func TestListPlugins_EmptyDirectory(t *testing.T) {
 }
 
 // TestListPlugins_NonExistentDirectory tests behavior when plugin directory doesn't exist.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_NonExistentDirectory(t *testing.T) {
 	homeDir := t.TempDir()
 	setupTestHome(t, homeDir)
@@ -44,6 +50,8 @@ func TestListPlugins_NonExistentDirectory(t *testing.T) {
 }
 
 // TestListPlugins_SinglePlugin tests discovery of a single plugin.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_SinglePlugin(t *testing.T) {
 	homeDir, pluginDir := createTestHome(t)
 	setupTestHome(t, homeDir)
@@ -60,6 +68,8 @@ func TestListPlugins_SinglePlugin(t *testing.T) {
 }
 
 // TestListPlugins_MultiplePlugins tests discovery of multiple plugins.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_MultiplePlugins(t *testing.T) {
 	homeDir, pluginDir := createTestHome(t)
 	setupTestHome(t, homeDir)
@@ -80,6 +90,8 @@ func TestListPlugins_MultiplePlugins(t *testing.T) {
 }
 
 // TestListPlugins_MultipleVersions tests discovery of a plugin with multiple versions.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_MultipleVersions(t *testing.T) {
 	homeDir, pluginDir := createTestHome(t)
 	setupTestHome(t, homeDir)
@@ -104,6 +116,8 @@ func TestListPlugins_MultipleVersions(t *testing.T) {
 }
 
 // TestListPlugins_MixedStructure tests complex plugin directory with multiple plugins and versions.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_MixedStructure(t *testing.T) {
 	homeDir, pluginDir := createTestHome(t)
 	setupTestHome(t, homeDir)
@@ -120,6 +134,8 @@ func TestListPlugins_MixedStructure(t *testing.T) {
 }
 
 // TestListPlugins_NonExecutableFiles tests that non-executable files are ignored.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_NonExecutableFiles(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping permission test on Windows")
@@ -145,6 +161,8 @@ func TestListPlugins_NonExecutableFiles(t *testing.T) {
 }
 
 // TestListPlugins_FilesInPluginRoot tests that files in plugin root directory are ignored.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_FilesInPluginRoot(t *testing.T) {
 	homeDir, pluginDir := createTestHome(t)
 	setupTestHome(t, homeDir)
@@ -167,6 +185,8 @@ func TestListPlugins_FilesInPluginRoot(t *testing.T) {
 }
 
 // TestListPlugins_EmptyVersionDirectory tests behavior with version directory containing no binaries.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_EmptyVersionDirectory(t *testing.T) {
 	homeDir, pluginDir := createTestHome(t)
 	setupTestHome(t, homeDir)
@@ -184,6 +204,8 @@ func TestListPlugins_EmptyVersionDirectory(t *testing.T) {
 }
 
 // TestListPlugins_MultipleBinariesInVersionDir tests discovery when version dir has multiple executables.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_MultipleBinariesInVersionDir(t *testing.T) {
 	homeDir, pluginDir := createTestHome(t)
 	setupTestHome(t, homeDir)
@@ -211,6 +233,8 @@ func TestListPlugins_MultipleBinariesInVersionDir(t *testing.T) {
 }
 
 // TestListPlugins_WindowsExeExtension tests .exe file detection on Windows.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_WindowsExeExtension(t *testing.T) {
 	if runtime.GOOS != "windows" {
 		t.Skip("Skipping Windows-specific test on non-Windows platform")
@@ -242,6 +266,8 @@ func TestListPlugins_WindowsExeExtension(t *testing.T) {
 }
 
 // TestListPlugins_SymlinksHandled tests that symbolic links are handled.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestListPlugins_SymlinksHandled(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping symlink test on Windows")

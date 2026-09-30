@@ -47,12 +47,16 @@ func descOf(m map[string]any) string {
 }
 
 func TestDuplicateBlocks(t *testing.T) {
+	t.Parallel()
+
 	blocks := duplicateBlocks(dupRecs(), 10)
 	assert.Equal(t, [][]int{{0, 2, 4}}, blocks)
 	assert.Equal(t, []pair{{0, 2}, {0, 4}, {2, 4}}, blockPairs(blocks))
 }
 
 func TestDuplicateBlocks_CapAndEmptyIDs(t *testing.T) {
+	t.Parallel()
+
 	recs := []*pbc.Recommendation{
 		makeRec("1", ""),
 		makeRec("2", ""),
@@ -64,6 +68,8 @@ func TestDuplicateBlocks_CapAndEmptyIDs(t *testing.T) {
 }
 
 func TestDuplicateGroups_ConnectedComponents(t *testing.T) {
+	t.Parallel()
+
 	pairs := []pair{{0, 2}, {0, 4}, {2, 4}, {5, 6}}
 	groups := duplicateGroups(8, pairs, []bool{true, false, false, true})
 	assert.Equal(t, map[int]string{0: "dup-1", 2: "dup-1", 5: "dup-2", 6: "dup-2"}, groups)
@@ -75,6 +81,8 @@ func TestDuplicateGroups_ConnectedComponents(t *testing.T) {
 }
 
 func TestScore_DuplicateGroupingBlocksByResourceAndUsesThreshold(t *testing.T) {
+	t.Parallel()
+
 	fb := &fakeBackend{respond: sameFor("a1+a2", "a2+a3")}
 	req := &pbc.ScoreRecommendationsRequest{
 		Recommendations: dupRecs(),
@@ -98,6 +106,8 @@ func TestScore_DuplicateGroupingBlocksByResourceAndUsesThreshold(t *testing.T) {
 }
 
 func TestScore_DuplicateThresholdIsConfigurable(t *testing.T) {
+	t.Parallel()
+
 	fb := &fakeBackend{respond: sameFor("a1+a2")}
 	strict := newScorer(fb, func(c *Config) { c.DuplicateThreshold = 0.95 })
 	resp := score(t, strict, &pbc.ScoreRecommendationsRequest{
@@ -110,6 +120,8 @@ func TestScore_DuplicateThresholdIsConfigurable(t *testing.T) {
 }
 
 func TestScore_DuplicateGroupingSkippedWhenIdentifiersOmitted(t *testing.T) {
+	t.Parallel()
+
 	fb := &fakeBackend{}
 	req := &pbc.ScoreRecommendationsRequest{
 		Recommendations: dupRecs(),
@@ -128,6 +140,8 @@ func TestScore_DuplicateGroupingSkippedWhenIdentifiersOmitted(t *testing.T) {
 }
 
 func TestScore_DuplicateOnlyWithoutBlocksMakesNoBackendCall(t *testing.T) {
+	t.Parallel()
+
 	fb := &fakeBackend{}
 	resp := score(t, newScorer(fb, nil), &pbc.ScoreRecommendationsRequest{
 		Recommendations: makeRecs(3),
@@ -139,6 +153,8 @@ func TestScore_DuplicateOnlyWithoutBlocksMakesNoBackendCall(t *testing.T) {
 }
 
 func TestScore_DuplicatesAlongsideOtherSignals(t *testing.T) {
+	t.Parallel()
+
 	fb := &fakeBackend{respond: sameFor("a1+a2")}
 	resp := score(t, newScorer(fb, nil), &pbc.ScoreRecommendationsRequest{Recommendations: dupRecs()})
 
@@ -151,6 +167,8 @@ func TestScore_DuplicatesAlongsideOtherSignals(t *testing.T) {
 }
 
 func TestScore_FailedPairBatchFailsOnlyItsMembers(t *testing.T) {
+	t.Parallel()
+
 	fb := &fakeBackend{respond: func(req jevapi.Request, n int) (*jevapi.Response, error) {
 		for name := range req.Questions {
 			if strings.HasPrefix(name, "duplicate:") {

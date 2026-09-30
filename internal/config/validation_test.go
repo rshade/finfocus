@@ -10,6 +10,8 @@ import (
 )
 
 // TestValidation_OutputFormat tests validation of output format values.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_OutputFormat(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -44,6 +46,8 @@ func TestValidation_OutputFormat(t *testing.T) {
 }
 
 // TestValidation_Precision tests validation of precision values.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_Precision(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -78,6 +82,8 @@ func TestValidation_Precision(t *testing.T) {
 }
 
 // TestValidation_LogLevel tests validation of log level values.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_LogLevel(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -113,6 +119,8 @@ func TestValidation_LogLevel(t *testing.T) {
 }
 
 // TestValidation_LogFormat tests validation of log format values.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_LogFormat(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -146,6 +154,8 @@ func TestValidation_LogFormat(t *testing.T) {
 }
 
 // TestValidation_LogFilePath tests validation of log file paths.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_LogFilePath(t *testing.T) {
 	t.Run("relative path is invalid", func(t *testing.T) {
 		stubHome(t)
@@ -178,6 +188,8 @@ func TestValidation_LogFilePath(t *testing.T) {
 }
 
 // TestValidation_LogOutput tests validation of log output configurations.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_LogOutput(t *testing.T) {
 	t.Run("valid console output", func(t *testing.T) {
 		stubHome(t)
@@ -308,6 +320,8 @@ func TestValidation_LogOutput(t *testing.T) {
 }
 
 // TestValidation_PluginConfigurations tests validation of plugin configurations.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_PluginConfigurations(t *testing.T) {
 	t.Run("valid plugin name", func(t *testing.T) {
 		stubHome(t)
@@ -369,6 +383,8 @@ func TestValidation_PluginConfigurations(t *testing.T) {
 }
 
 // TestValidation_MalformedConfigFile tests handling of malformed config files.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_MalformedConfigFile(t *testing.T) {
 	t.Run("invalid YAML syntax", func(t *testing.T) {
 		stubHome(t)
@@ -419,6 +435,8 @@ func TestValidation_MalformedConfigFile(t *testing.T) {
 }
 
 // TestValidation_SetErrors tests error paths in Set method.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_SetErrors(t *testing.T) {
 	t.Run("invalid output key depth", func(t *testing.T) {
 		stubHome(t)
@@ -446,6 +464,8 @@ func TestValidation_SetErrors(t *testing.T) {
 }
 
 // TestValidation_GetErrors tests error paths in Get method.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_GetErrors(t *testing.T) {
 	t.Run("invalid output key depth", func(t *testing.T) {
 		stubHome(t)
@@ -493,6 +513,8 @@ func TestValidation_GetErrors(t *testing.T) {
 }
 
 // TestValidation_SetLoggingFile tests the logging.file setting.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_SetLoggingFile(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -510,6 +532,8 @@ func TestValidation_SetLoggingFile(t *testing.T) {
 }
 
 // TestValidation_GetLoggingFile tests getting logging.file setting.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_GetLoggingFile(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -522,7 +546,10 @@ func TestValidation_GetLoggingFile(t *testing.T) {
 
 // TestValidation_SaveErrors tests error paths in Save method.
 func TestValidation_SaveErrors(t *testing.T) {
+	t.Parallel()
+
 	t.Run("save creates directory", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		cfg := &Config{
 			Output: OutputConfig{
@@ -542,6 +569,8 @@ func TestValidation_SaveErrors(t *testing.T) {
 }
 
 // TestValidation_SetPluginConfigNilMap tests SetPluginConfig with nil plugins map.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestValidation_SetPluginConfigNilMap(t *testing.T) {
 	stubHome(t)
 	cfg := New()
@@ -556,6 +585,8 @@ func TestValidation_SetPluginConfigNilMap(t *testing.T) {
 
 // TestRoutingConfig_Validate tests RoutingConfig validation.
 func TestRoutingConfig_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		config      *RoutingConfig
@@ -647,6 +678,7 @@ func TestRoutingConfig_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.config.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -660,6 +692,8 @@ func TestRoutingConfig_Validate(t *testing.T) {
 
 // TestValidatePattern tests the validatePattern helper function.
 func TestValidatePattern(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		pluginName  string
@@ -718,6 +752,7 @@ func TestValidatePattern(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := validatePattern(tt.pluginName, tt.index, tt.pattern)
 			if tt.wantErr {
 				require.Error(t, err)

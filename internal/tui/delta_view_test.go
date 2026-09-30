@@ -14,7 +14,10 @@ import (
 
 // TestRenderEstimateDelta tests the delta visualization component.
 func TestRenderEstimateDelta(t *testing.T) {
+	t.Parallel()
+
 	t.Run("renders positive delta with plus sign and up arrow", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderEstimateDelta(74.90)
 
 		assert.Contains(t, result, "+")
@@ -23,6 +26,7 @@ func TestRenderEstimateDelta(t *testing.T) {
 	})
 
 	t.Run("renders negative delta with down arrow", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderEstimateDelta(-25.50)
 
 		assert.NotContains(t, result, "+")
@@ -31,6 +35,7 @@ func TestRenderEstimateDelta(t *testing.T) {
 	})
 
 	t.Run("renders zero delta with right arrow", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderEstimateDelta(0.0)
 
 		assert.Contains(t, result, tui.IconArrowRight)
@@ -38,6 +43,7 @@ func TestRenderEstimateDelta(t *testing.T) {
 	})
 
 	t.Run("rounds small values correctly", func(t *testing.T) {
+		t.Parallel()
 		// Values smaller than a cent should render as zero
 		result := tui.RenderEstimateDelta(0.001)
 
@@ -47,7 +53,10 @@ func TestRenderEstimateDelta(t *testing.T) {
 
 // TestRenderEstimateHeader tests the estimate header rendering.
 func TestRenderEstimateHeader(t *testing.T) {
+	t.Parallel()
+
 	t.Run("renders resource type and provider", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderEstimateHeader("aws", "ec2:Instance", "i-123")
 
 		assert.Contains(t, result, "What-If")
@@ -56,6 +65,7 @@ func TestRenderEstimateHeader(t *testing.T) {
 	})
 
 	t.Run("renders without ID when empty", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderEstimateHeader("aws", "ec2:Instance", "")
 
 		assert.Contains(t, result, "aws")
@@ -66,7 +76,10 @@ func TestRenderEstimateHeader(t *testing.T) {
 
 // TestRenderCostComparison tests the cost comparison rendering.
 func TestRenderCostComparison(t *testing.T) {
+	t.Parallel()
+
 	t.Run("renders baseline and modified costs", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderCostComparison(8.32, 83.22, "USD")
 
 		assert.Contains(t, result, "Baseline")
@@ -77,6 +90,7 @@ func TestRenderCostComparison(t *testing.T) {
 	})
 
 	t.Run("renders total change", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderCostComparison(8.32, 83.22, "USD")
 
 		assert.Contains(t, result, "Change")
@@ -85,6 +99,7 @@ func TestRenderCostComparison(t *testing.T) {
 	})
 
 	t.Run("renders negative change correctly", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderCostComparison(100.00, 75.00, "USD")
 
 		// Should show savings with down arrow (no "-" prefix for formatting)
@@ -95,7 +110,10 @@ func TestRenderCostComparison(t *testing.T) {
 
 // TestRenderPropertyTable tests the property table rendering.
 func TestRenderPropertyTable(t *testing.T) {
+	t.Parallel()
+
 	t.Run("renders property rows with deltas", func(t *testing.T) {
+		t.Parallel()
 		properties := []tui.PropertyRow{
 			{
 				Key:           "instanceType",
@@ -120,6 +138,7 @@ func TestRenderPropertyTable(t *testing.T) {
 	})
 
 	t.Run("highlights focused row", func(t *testing.T) {
+		t.Parallel()
 		properties := []tui.PropertyRow{
 			{
 				Key:           "instanceType",
@@ -153,6 +172,7 @@ func TestRenderPropertyTable(t *testing.T) {
 	})
 
 	t.Run("shows edit indicator when editing", func(t *testing.T) {
+		t.Parallel()
 		properties := []tui.PropertyRow{
 			{
 				Key:           "instanceType",
@@ -185,6 +205,7 @@ func TestRenderPropertyTable(t *testing.T) {
 	})
 
 	t.Run("handles empty properties", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderPropertyTable([]tui.PropertyRow{}, 0, false)
 
 		assert.Contains(t, result, "No properties")
@@ -193,7 +214,10 @@ func TestRenderPropertyTable(t *testing.T) {
 
 // TestRenderEstimateResult tests the full estimate result rendering.
 func TestRenderEstimateResult(t *testing.T) {
+	t.Parallel()
+
 	t.Run("renders complete estimate result", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.EstimateResult{
 			Resource: &engine.ResourceDescriptor{
 				Provider: "aws",
@@ -223,6 +247,7 @@ func TestRenderEstimateResult(t *testing.T) {
 	})
 
 	t.Run("shows fallback note when used", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.EstimateResult{
 			Resource: &engine.ResourceDescriptor{
 				Provider: "aws",
@@ -240,6 +265,7 @@ func TestRenderEstimateResult(t *testing.T) {
 	})
 
 	t.Run("handles nil result gracefully", func(t *testing.T) {
+		t.Parallel()
 		rendered := tui.RenderEstimateResultView(nil, 80)
 
 		assert.Contains(t, rendered, "No")
@@ -248,7 +274,10 @@ func TestRenderEstimateResult(t *testing.T) {
 
 // TestRenderEstimateHelp tests the help text rendering.
 func TestRenderEstimateHelp(t *testing.T) {
+	t.Parallel()
+
 	t.Run("renders keyboard shortcuts", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderEstimateHelp()
 
 		assert.Contains(t, result, "↑/↓")
@@ -260,7 +289,10 @@ func TestRenderEstimateHelp(t *testing.T) {
 
 // TestRenderLoadingIndicator tests the loading indicator.
 func TestRenderLoadingIndicator(t *testing.T) {
+	t.Parallel()
+
 	t.Run("renders calculating message", func(t *testing.T) {
+		t.Parallel()
 		result := tui.RenderLoadingIndicator()
 
 		assert.Contains(t, result, "Calculating")

@@ -10,6 +10,8 @@ import (
 )
 
 func TestDefaultSpinner(t *testing.T) {
+	t.Parallel()
+
 	s := tui.DefaultSpinner()
 	assert.Equal(t, spinner.Dot, s.Spinner)
 	// Verify the spinner uses ColorInfo (ANSI color 33 - blue)

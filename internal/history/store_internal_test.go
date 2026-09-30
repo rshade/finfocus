@@ -37,6 +37,8 @@ func readTagRecord(t *testing.T, store *BoltStore, tagKeyStr string) (tagRecord,
 }
 
 func TestBoltStore_UpsertTags_MergesTimestamps(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store, err := NewBoltStore(ctx, t.TempDir(), true, 365)
 	require.NoError(t, err)
@@ -78,6 +80,8 @@ func TestBoltStore_UpsertTags_MergesTimestamps(t *testing.T) {
 }
 
 func TestBoltStore_UpsertTags_CorruptExistingOverwritten(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store, err := NewBoltStore(ctx, t.TempDir(), true, 365)
 	require.NoError(t, err)
@@ -115,6 +119,8 @@ func TestBoltStore_UpsertTags_CorruptExistingOverwritten(t *testing.T) {
 }
 
 func TestCleanupExpired_PreservesTagsForPartiallyExpiredURN(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	store, err := NewBoltStore(ctx, t.TempDir(), true, 365)
 	require.NoError(t, err)

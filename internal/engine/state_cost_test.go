@@ -12,6 +12,8 @@ import (
 )
 
 func TestCalculateStateCost(t *testing.T) {
+	t.Parallel()
+
 	// Fix a reference time for deterministic tests
 	now := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
 
@@ -112,6 +114,7 @@ func TestCalculateStateCost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.CalculateStateCost(tt.input, now)
 
 			assert.InDelta(t, tt.expectedCost, result.TotalCost, 0.01, "TotalCost mismatch")
@@ -127,6 +130,8 @@ func TestCalculateStateCost(t *testing.T) {
 }
 
 func TestCalculateStateCost_UptimeAssumption(t *testing.T) {
+	t.Parallel()
+
 	// Per spec T023a: All estimates should document 100% uptime assumption
 	now := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
 
@@ -149,6 +154,8 @@ func TestCalculateStateCost_UptimeAssumption(t *testing.T) {
 }
 
 func TestStateCostInput_Validation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		input     engine.StateCostInput
@@ -214,6 +221,7 @@ func TestStateCostInput_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.input.Validate()
 			if tt.expectErr {
 				require.Error(t, err)
@@ -226,6 +234,8 @@ func TestStateCostInput_Validation(t *testing.T) {
 }
 
 func TestExtractCreatedTimestamp(t *testing.T) {
+	t.Parallel()
+
 	// Test extracting created timestamp from resource properties
 	tests := []struct {
 		name       string
@@ -275,6 +285,7 @@ func TestExtractCreatedTimestamp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			resource := engine.ResourceDescriptor{
 				Type:       "aws:ec2/instance:Instance",
 				ID:         "i-test",
@@ -299,6 +310,8 @@ func TestExtractCreatedTimestamp(t *testing.T) {
 }
 
 func TestFindEarliestCreatedTimestamp(t *testing.T) {
+	t.Parallel()
+
 	// Test finding the earliest Created timestamp from a set of resources
 	t1 := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	t2 := time.Date(2025, 1, 5, 0, 0, 0, 0, time.UTC)
@@ -385,6 +398,7 @@ func TestFindEarliestCreatedTimestamp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			earliest, err := engine.FindEarliestCreatedTimestamp(tt.resources)
 
 			if tt.expectErr {
@@ -449,6 +463,8 @@ func BenchmarkCalculateStateCost100Resources(b *testing.B) {
 // TestCalculateStateCost100Resources_Performance validates SC-004 requirement.
 // Ensures 100 resource calculations complete in <100ms.
 func TestCalculateStateCost100Resources_Performance(t *testing.T) {
+	t.Parallel()
+
 	now := time.Now()
 
 	// Create 100 resources
@@ -478,6 +494,8 @@ func TestCalculateStateCost100Resources_Performance(t *testing.T) {
 }
 
 func TestIsExternalResource(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		properties map[string]interface{}
@@ -525,6 +543,7 @@ func TestIsExternalResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			resource := engine.ResourceDescriptor{
 				Type:       "aws:ec2/instance:Instance",
 				ID:         "i-test",

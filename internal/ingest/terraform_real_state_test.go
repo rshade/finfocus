@@ -102,11 +102,15 @@ func descriptorsByID(descriptors []engine.ResourceDescriptor) map[string]engine.
 }
 
 func TestRealTerraformState_Golden(t *testing.T) {
+	t.Parallel()
+
 	descriptors := loadRealStateDescriptors(t, realStatePath)
 	assertJSONGolden(t, realStateGoldenPath, toGoldenDescriptors(descriptors))
 }
 
 func TestRealTerraformState_Metadata(t *testing.T) {
+	t.Parallel()
+
 	state, err := ingest.LoadTerraformState(realStatePath)
 	require.NoError(t, err)
 
@@ -125,35 +129,44 @@ func TestRealTerraformState_Metadata(t *testing.T) {
 }
 
 func TestRealTerraformState_Invariants(t *testing.T) {
+	t.Parallel()
+
 	descriptors := loadRealStateDescriptors(t, realStatePath)
 	byID := descriptorsByID(descriptors)
 	require.Len(t, byID, len(descriptors), "descriptor IDs must be unique")
 
 	t.Run("data sources excluded", func(t *testing.T) {
+		t.Parallel()
 		assertDataSourcesExcluded(t, descriptors)
 	})
 
 	t.Run("module count instances", func(t *testing.T) {
+		t.Parallel()
 		assertModuleCountInstances(t, descriptors, byID)
 	})
 
 	t.Run("for_each instances keyed by string", func(t *testing.T) {
+		t.Parallel()
 		assertForEachInstances(t, byID)
 	})
 
 	t.Run("region and availability zone extracted", func(t *testing.T) {
+		t.Parallel()
 		assertRegionAndAZ(t, descriptors, byID)
 	})
 
 	t.Run("pricing attributes", func(t *testing.T) {
+		t.Parallel()
 		assertPricingAttributes(t, byID)
 	})
 
 	t.Run("cloud identifiers carried for actual-cost lookups", func(t *testing.T) {
+		t.Parallel()
 		assertCloudIdentifiers(t, descriptors)
 	})
 
 	t.Run("provider reference from state", func(t *testing.T) {
+		t.Parallel()
 		assertProviderReference(t, descriptors)
 	})
 }
@@ -255,6 +268,8 @@ func assertProviderReference(t *testing.T, descriptors []engine.ResourceDescript
 }
 
 func TestRealTerraformState_TaintedInstanceDropped(t *testing.T) {
+	t.Parallel()
+
 	state, err := ingest.LoadTerraformState(realTaintedStatePath)
 	require.NoError(t, err)
 

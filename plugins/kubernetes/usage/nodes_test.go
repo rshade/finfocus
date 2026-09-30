@@ -15,6 +15,8 @@ func mkNode(name, providerID string, labels map[string]string) *corev1.Node {
 }
 
 func TestNodeDescriptor(t *testing.T) {
+	t.Parallel()
+
 	std := map[string]string{
 		"node.kubernetes.io/instance-type": "m5.large",
 		"topology.kubernetes.io/region":    "us-east-1",
@@ -78,6 +80,8 @@ func TestNodeDescriptor(t *testing.T) {
 }
 
 func TestControlPlaneDescriptor(t *testing.T) {
+	t.Parallel()
+
 	d, ok := ControlPlaneDescriptor("https://ABCDEF.gr7.us-west-2.eks.amazonaws.com", "prod")
 	require.True(t, ok)
 	assert.Equal(t, "aws:eks/cluster:Cluster", d.GetResourceType())

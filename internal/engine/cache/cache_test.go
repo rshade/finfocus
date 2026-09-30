@@ -18,6 +18,8 @@ import (
 // --- T007: Key builder tests ---
 
 func TestBuildProjectedKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		provider string
@@ -58,6 +60,7 @@ func TestBuildProjectedKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			key := BuildProjectedKey(tt.provider, tt.resType, tt.region, tt.sku)
 			assert.Equal(t, tt.want, key)
 		})
@@ -65,10 +68,13 @@ func TestBuildProjectedKey(t *testing.T) {
 }
 
 func TestBuildActualKey(t *testing.T) {
+	t.Parallel()
+
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC)
 
 	t.Run("deterministic", func(t *testing.T) {
+		t.Parallel()
 		key1 := BuildActualKey("aws", []string{"ec2:Instance"}, from, to, nil)
 		key2 := BuildActualKey("aws", []string{"ec2:Instance"}, from, to, nil)
 		assert.Equal(t, key1, key2)
@@ -76,6 +82,7 @@ func TestBuildActualKey(t *testing.T) {
 	})
 
 	t.Run("filter hash changes key", func(t *testing.T) {
+		t.Parallel()
 		key1 := BuildActualKey("aws", []string{"ec2:Instance"}, from, to,
 			map[string]string{"env": "prod"})
 		key2 := BuildActualKey("aws", []string{"ec2:Instance"}, from, to,
@@ -84,6 +91,7 @@ func TestBuildActualKey(t *testing.T) {
 	})
 
 	t.Run("filter order independence", func(t *testing.T) {
+		t.Parallel()
 		key1 := BuildActualKey("aws", []string{"ec2:Instance"}, from, to,
 			map[string]string{"a": "1", "b": "2"})
 		key2 := BuildActualKey("aws", []string{"ec2:Instance"}, from, to,
@@ -92,6 +100,7 @@ func TestBuildActualKey(t *testing.T) {
 	})
 
 	t.Run("resource type order independence", func(t *testing.T) {
+		t.Parallel()
 		key1 := BuildActualKey("aws", []string{"ec2:Instance", "rds:DBInstance"}, from, to, nil)
 		key2 := BuildActualKey("aws", []string{"rds:DBInstance", "ec2:Instance"}, from, to, nil)
 		assert.Equal(t, key1, key2)
@@ -99,25 +108,32 @@ func TestBuildActualKey(t *testing.T) {
 }
 
 func TestBuildRecommendationsKey(t *testing.T) {
+	t.Parallel()
+
 	t.Run("deterministic", func(t *testing.T) {
+		t.Parallel()
 		key1 := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"}, "h")
 		key2 := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"}, "h")
 		assert.Equal(t, key1, key2)
 	})
 
 	t.Run("order independence", func(t *testing.T) {
+		t.Parallel()
 		key1 := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"}, "h")
 		key2 := BuildRecommendationsKey([]string{"rds:DBInstance", "ec2:Instance"}, "h")
 		assert.Equal(t, key1, key2)
 	})
 
 	t.Run("format", func(t *testing.T) {
+		t.Parallel()
 		key := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"}, "h")
 		assert.Equal(t, "recommendations/multi/ec2:Instance+rds:DBInstance/h", key)
 	})
 }
 
 func TestBucketFromKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		key  string
 		want string
@@ -130,12 +146,15 @@ func TestBucketFromKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, BucketFromKey(tt.key))
 		})
 	}
 }
 
 func TestStripBucket(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "aws/ec2:Instance", StripBucket("projected/aws/ec2:Instance"))
 	assert.Equal(t, "nobucket", StripBucket("nobucket"))
 }
@@ -143,6 +162,8 @@ func TestStripBucket(t *testing.T) {
 // --- T008: BoltStore Get/Set/IsEnabled tests ---
 
 func TestBoltStore_SetAndGet(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 
 	data := json.RawMessage(`{"test":"value"}`)
@@ -158,12 +179,15 @@ func TestBoltStore_SetAndGet(t *testing.T) {
 }
 
 func TestBoltStore_GetNonExistent(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 
 	_, err := store.Get("projected/aws/nonexistent")
 	assert.ErrorIs(t, err, ErrCacheNotFound)
 }
 
+//nolint:paralleltest // sleeps on the real clock for 500ms or more and asserts on timing
 func TestBoltStore_GetExpired(t *testing.T) {
 	store := newTestStore(t, true, 1) // 1-second TTL
 
@@ -181,6 +205,8 @@ func TestBoltStore_GetExpired(t *testing.T) {
 }
 
 func TestBoltStore_IsEnabled(t *testing.T) {
+	t.Parallel()
+
 	enabled := newTestStore(t, true, 3600)
 	assert.True(t, enabled.IsEnabled())
 
@@ -189,6 +215,8 @@ func TestBoltStore_IsEnabled(t *testing.T) {
 }
 
 func TestBoltStore_Disabled(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, false, 0)
 
 	data := json.RawMessage(`{"test":"value"}`)
@@ -201,6 +229,8 @@ func TestBoltStore_Disabled(t *testing.T) {
 }
 
 func TestBoltStore_EmptyKey(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 
 	err := store.Set("", json.RawMessage(`{}`))
@@ -211,6 +241,8 @@ func TestBoltStore_EmptyKey(t *testing.T) {
 }
 
 func TestBoltStore_MultipleBuckets(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 
 	projected := json.RawMessage(`{"type":"projected"}`)
@@ -239,6 +271,8 @@ func TestBoltStore_MultipleBuckets(t *testing.T) {
 }
 
 func TestBoltStore_CacheInterfaceCompliance(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 
 	// Verify BoltStore implements Cache interface
@@ -292,7 +326,10 @@ func BenchmarkBoltStoreGet(b *testing.B) {
 // --- T015: Corruption recovery tests ---
 
 func TestBoltStore_CorruptionRecovery(t *testing.T) {
+	t.Parallel()
+
 	t.Run("garbage bytes", func(t *testing.T) {
+		t.Parallel()
 		testDir := t.TempDir()
 		garbagePath := filepath.Join(testDir, dbFileName)
 		require.NoError(t, os.WriteFile(garbagePath, []byte("this is not a database"), 0o600))
@@ -311,6 +348,7 @@ func TestBoltStore_CorruptionRecovery(t *testing.T) {
 	})
 
 	t.Run("truncated file", func(t *testing.T) {
+		t.Parallel()
 		testDir := t.TempDir()
 		truncPath := filepath.Join(testDir, dbFileName)
 		// Write first 10 bytes of a valid header then truncate
@@ -323,6 +361,7 @@ func TestBoltStore_CorruptionRecovery(t *testing.T) {
 	})
 
 	t.Run("zero-byte file", func(t *testing.T) {
+		t.Parallel()
 		testDir := t.TempDir()
 		zeroPath := filepath.Join(testDir, dbFileName)
 		require.NoError(t, os.WriteFile(zeroPath, []byte{}, 0o600))
@@ -337,6 +376,8 @@ func TestBoltStore_CorruptionRecovery(t *testing.T) {
 // --- T016: Concurrent read/write safety ---
 
 func TestBoltStore_ConcurrentSafety(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 
 	data := json.RawMessage(`{"concurrent":true}`)
@@ -378,6 +419,8 @@ func TestBoltStore_ConcurrentSafety(t *testing.T) {
 // --- T017: Lock timeout graceful degradation ---
 
 func TestBoltStore_LockTimeout(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	// Open first store
@@ -402,7 +445,10 @@ func TestBoltStore_LockTimeout(t *testing.T) {
 // --- T020: InvalidateByPrefix tests ---
 
 func TestBoltStore_InvalidateByPrefix(t *testing.T) {
+	t.Parallel()
+
 	t.Run("by provider prefix", func(t *testing.T) {
+		t.Parallel()
 		store := newTestStore(t, true, 3600)
 		data := json.RawMessage(`{"test":true}`)
 
@@ -426,6 +472,7 @@ func TestBoltStore_InvalidateByPrefix(t *testing.T) {
 	})
 
 	t.Run("by resource type prefix", func(t *testing.T) {
+		t.Parallel()
 		store := newTestStore(t, true, 3600)
 		data := json.RawMessage(`{"test":true}`)
 
@@ -442,6 +489,7 @@ func TestBoltStore_InvalidateByPrefix(t *testing.T) {
 	})
 
 	t.Run("no matches returns 0", func(t *testing.T) {
+		t.Parallel()
 		store := newTestStore(t, true, 3600)
 		count, err := store.InvalidateByPrefix("projected/azure/")
 		require.NoError(t, err)
@@ -449,6 +497,7 @@ func TestBoltStore_InvalidateByPrefix(t *testing.T) {
 	})
 
 	t.Run("empty prefix clears all", func(t *testing.T) {
+		t.Parallel()
 		store := newTestStore(t, true, 3600)
 		data := json.RawMessage(`{"test":true}`)
 		require.NoError(t, store.Set("projected/aws/test", data))
@@ -464,6 +513,7 @@ func TestBoltStore_InvalidateByPrefix(t *testing.T) {
 	})
 
 	t.Run("empty bucket returns 0", func(t *testing.T) {
+		t.Parallel()
 		store := newTestStore(t, true, 3600)
 		count, err := store.InvalidateByPrefix("actual/")
 		require.NoError(t, err)
@@ -471,6 +521,7 @@ func TestBoltStore_InvalidateByPrefix(t *testing.T) {
 	})
 
 	t.Run("disabled store returns ErrCacheDisabled", func(t *testing.T) {
+		t.Parallel()
 		store := newTestStore(t, false, 0)
 		_, err := store.InvalidateByPrefix("projected/")
 		assert.ErrorIs(t, err, ErrCacheDisabled)
@@ -478,6 +529,8 @@ func TestBoltStore_InvalidateByPrefix(t *testing.T) {
 }
 
 func TestBoltStore_Delete(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 	data := json.RawMessage(`{"delete":true}`)
 	key := "projected/aws/ec2:Instance/us-east-1/t3.micro"
@@ -493,6 +546,8 @@ func TestBoltStore_Delete(t *testing.T) {
 }
 
 func TestBoltStore_Clear(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 	data := json.RawMessage(`{"clear":true}`)
 
@@ -510,6 +565,8 @@ func TestBoltStore_Clear(t *testing.T) {
 // --- T024: Size/Count/Compact tests ---
 
 func TestBoltStore_Size(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 	data := json.RawMessage(`{"size":"test"}`)
 
@@ -521,6 +578,8 @@ func TestBoltStore_Size(t *testing.T) {
 }
 
 func TestBoltStore_Count(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 	data := json.RawMessage(`{"count":"test"}`)
 
@@ -538,6 +597,8 @@ func TestBoltStore_Count(t *testing.T) {
 }
 
 func TestBoltStore_Compact(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 	data := json.RawMessage(`{"compact":"test"}`)
 
@@ -569,6 +630,8 @@ func TestBoltStore_Compact(t *testing.T) {
 // must be disabled (s.db = nil, s.enabled = false) so that subsequent operations
 // return ErrCacheDisabled instead of panicking on a closed/nil DB handle.
 func TestBoltStore_CompactReopenFailureGracefulDegradation(t *testing.T) {
+	t.Parallel()
+
 	store := newTestStore(t, true, 3600)
 
 	// Confirm store starts enabled.
@@ -601,6 +664,8 @@ func TestBoltStore_CompactReopenFailureGracefulDegradation(t *testing.T) {
 }
 
 func TestBoltStore_SingleDatabaseFile(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	store, err := NewBoltStore(context.Background(), dir, true, 3600, 0)
 	require.NoError(t, err)
@@ -626,6 +691,7 @@ func TestBoltStore_SingleDatabaseFile(t *testing.T) {
 
 // --- T012: CleanupExpired tests ---
 
+//nolint:paralleltest // sleeps on the real clock for 500ms or more and asserts on timing
 func TestBoltStore_CleanupExpired(t *testing.T) {
 	store := newTestStore(t, true, 1) // 1-second TTL
 	data := json.RawMessage(`{"cleanup":"test"}`)
@@ -647,6 +713,7 @@ func TestBoltStore_CleanupExpired(t *testing.T) {
 
 // --- CacheEntry tests ---
 
+//nolint:paralleltest // subtests share the parent-scoped fixture entry = NewCacheEntry(...)
 func TestCacheEntry(t *testing.T) {
 	key := "test-key"
 	data := json.RawMessage(`{"foo":"bar"}`)
@@ -708,6 +775,7 @@ func TestCacheEntry(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestTTLConfig(t *testing.T) {
 	t.Run("Valid", func(t *testing.T) {
 		cfg, err := NewTTLConfig(120)
@@ -753,7 +821,10 @@ func TestTTLConfig(t *testing.T) {
 // --- Constructor tests ---
 
 func TestNewBoltStore(t *testing.T) {
+	t.Parallel()
+
 	t.Run("disabled", func(t *testing.T) {
+		t.Parallel()
 		store, err := NewBoltStore(context.Background(), "", false, 0, 0)
 		require.NoError(t, err)
 		require.NotNil(t, store)
@@ -761,11 +832,13 @@ func TestNewBoltStore(t *testing.T) {
 	})
 
 	t.Run("empty directory with enabled", func(t *testing.T) {
+		t.Parallel()
 		_, err := NewBoltStore(context.Background(), "", true, 3600, 100)
 		require.Error(t, err)
 	})
 
 	t.Run("valid", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		store, err := NewBoltStore(context.Background(), dir, true, 3600, 100)
 		require.NoError(t, err)
@@ -779,6 +852,7 @@ func TestNewBoltStore(t *testing.T) {
 
 // --- T002: SetWithTTL tests ---
 
+//nolint:paralleltest // sleeps on the real clock for 500ms or more and asserts on timing
 func TestBoltStore_SetWithTTL(t *testing.T) {
 	t.Run("stores entry with custom TTL", func(t *testing.T) {
 		store := newTestStore(t, true, 3600)

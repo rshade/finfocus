@@ -181,6 +181,7 @@ func TestResolveProjectDir_EmptyInputs(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory
 func TestSetResolvedProjectDir_RoundTrip(t *testing.T) {
 	// Save and restore original value.
 	orig := config.GetResolvedProjectDir()
@@ -193,6 +194,7 @@ func TestSetResolvedProjectDir_RoundTrip(t *testing.T) {
 	assert.Empty(t, config.GetResolvedProjectDir())
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory
 func TestSetResolvedProjectDir_EmptyString(t *testing.T) {
 	orig := config.GetResolvedProjectDir()
 	t.Cleanup(func() { config.SetResolvedProjectDir(orig) })
@@ -201,6 +203,7 @@ func TestSetResolvedProjectDir_EmptyString(t *testing.T) {
 	assert.Empty(t, config.GetResolvedProjectDir())
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestNewWithProjectDir_BackwardCompatibility(t *testing.T) {
 	ctx := context.Background()
 
@@ -385,6 +388,8 @@ func BenchmarkResolveProjectDir_DeepTree(b *testing.B) {
 }
 
 func TestNewWithProjectDir_CorruptedYAML(t *testing.T) {
+	t.Parallel()
+
 	projectDir := filepath.Join(t.TempDir(), "project", ".finfocus")
 	require.NoError(t, os.MkdirAll(projectDir, 0o755))
 	require.NoError(t, os.WriteFile(
@@ -400,6 +405,8 @@ func TestNewWithProjectDir_CorruptedYAML(t *testing.T) {
 }
 
 func TestNewWithProjectDir_MissingConfigYAML(t *testing.T) {
+	t.Parallel()
+
 	// Project dir exists but has no config.yaml.
 	projectDir := filepath.Join(t.TempDir(), "project", ".finfocus")
 	require.NoError(t, os.MkdirAll(projectDir, 0o755))

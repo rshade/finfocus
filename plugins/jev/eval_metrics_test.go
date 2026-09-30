@@ -100,6 +100,8 @@ func spearman(a, b []float64) float64 {
 }
 
 func TestMetrics(t *testing.T) {
+	t.Parallel()
+
 	assert.InDelta(t, 1.0, auc([]float64{0.1, 0.2, 0.8, 0.9}, []bool{false, false, true, true}), 1e-9)
 	assert.InDelta(t, 0.0, auc([]float64{0.9, 0.8, 0.2, 0.1}, []bool{false, false, true, true}), 1e-9)
 	assert.InDelta(t, 0.5, auc([]float64{0.5, 0.5, 0.5, 0.5}, []bool{false, true, false, true}), 1e-9)

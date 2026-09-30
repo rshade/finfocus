@@ -435,6 +435,7 @@ func TestDismissalStore_SaveCreatesDirectory(t *testing.T) {
 	require.NoError(t, err)
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory
 func TestNewDismissalStore_ProjectAware(t *testing.T) {
 	// Not parallel: subtests mutate package-level resolvedProjectDir and use t.Setenv.
 
@@ -492,6 +493,7 @@ func TestNewDismissalStore_ProjectAware(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory
 func TestNewDismissalStore_LoadWithProjectContext(t *testing.T) {
 	// Not parallel: mutates package-level resolvedProjectDir.
 

@@ -11,6 +11,7 @@ import (
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestIntegration_ProcessLauncherWithClient(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -40,6 +41,7 @@ func TestIntegration_ProcessLauncherWithClient(t *testing.T) {
 	// Should not panic or leave hanging processes
 }
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestIntegration_StdioLauncherWithClient(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -69,6 +71,7 @@ func TestIntegration_StdioLauncherWithClient(t *testing.T) {
 	// Should not panic or leave hanging processes
 }
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestIntegration_LauncherSwitching(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -104,6 +107,7 @@ func TestIntegration_LauncherSwitching(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestIntegration_ConcurrentClients(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -148,6 +152,7 @@ func TestIntegration_ConcurrentClients(t *testing.T) {
 	// Should not panic or deadlock
 }
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestIntegration_RapidCreateDestroy(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -183,6 +188,7 @@ func TestIntegration_RapidCreateDestroy(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestIntegration_ContextCancellation(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping integration test in short mode")
@@ -211,6 +217,7 @@ func TestIntegration_ContextCancellation(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestIntegration_PluginDirectoryStructure(t *testing.T) {
 	// Test the plugin directory structure requirements
 	tempDir := t.TempDir()
@@ -264,6 +271,7 @@ func TestIntegration_PluginDirectoryStructure(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture launcher = pluginhost.NewProcessLauncher(...)
 func TestIntegration_ErrorRecovery(t *testing.T) {
 	// Test that the system recovers gracefully from various error conditions
 	launcher := pluginhost.NewProcessLauncher()

@@ -17,9 +17,12 @@ import (
 
 // TestProviderBudget_EndToEnd tests provider budget flow from config to evaluation (T020).
 func TestProviderBudget_EndToEnd(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("multi-provider budget configuration and evaluation", func(t *testing.T) {
+		t.Parallel()
 		// Step 1: Parse YAML configuration
 		configYAML := `
 global:
@@ -85,6 +88,7 @@ providers:
 	})
 
 	t.Run("provider budget warning threshold", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -105,6 +109,7 @@ providers:
 	})
 
 	t.Run("provider budget exceeded threshold", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -124,6 +129,7 @@ providers:
 	})
 
 	t.Run("AWS costs only count toward AWS budget, not GCP", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -157,9 +163,12 @@ providers:
 
 // TestTagBudget_EndToEnd tests tag budget flow from config to evaluation (T033).
 func TestTagBudget_EndToEnd(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("tag budget configuration and matching", func(t *testing.T) {
+		t.Parallel()
 		// Step 1: Parse YAML configuration with tag budgets
 		configYAML := `
 global:
@@ -249,6 +258,7 @@ tags:
 	})
 
 	t.Run("wildcard tag selector matching", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Tags: []config.TagBudget{
@@ -274,6 +284,7 @@ tags:
 	})
 
 	t.Run("overlapping tag budgets with warning emission", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Tags: []config.TagBudget{
@@ -302,6 +313,7 @@ tags:
 	})
 
 	t.Run("resources with team tag count only toward team budget", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Tags: []config.TagBudget{
@@ -331,7 +343,10 @@ tags:
 
 // TestScopedBudgets_YAMLConfigParsing tests full YAML config parsing for scoped budgets.
 func TestScopedBudgets_YAMLConfigParsing(t *testing.T) {
+	t.Parallel()
+
 	t.Run("parse full scoped budget config", func(t *testing.T) {
+		t.Parallel()
 		configYAML := `
 global:
   amount: 10000
@@ -414,9 +429,12 @@ exit_code: 2
 
 // TestFullScopedBudgetStatus_EndToEnd tests complete multi-scope budget evaluation (T057).
 func TestFullScopedBudgetStatus_EndToEnd(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("complete multi-scope budget evaluation", func(t *testing.T) {
+		t.Parallel()
 		// Step 1-2: Parse and validate comprehensive YAML configuration
 		budgetsCfg := parseFullScopedBudgetConfig(t)
 
@@ -631,9 +649,12 @@ func assertFullScopedBudgetResult(t *testing.T, result *engine.ScopedBudgetResul
 
 // TestTypeBudget_EndToEnd tests resource type budget flow from config to evaluation (T046).
 func TestTypeBudget_EndToEnd(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("type budget configuration and evaluation", func(t *testing.T) {
+		t.Parallel()
 		// Step 1: Parse YAML configuration with type budgets
 		configYAML := `
 global:
@@ -699,6 +720,7 @@ types:
 	})
 
 	t.Run("EC2 resources count only toward EC2 type budget", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -736,6 +758,7 @@ types:
 	})
 
 	t.Run("type budget exceeded threshold", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -754,6 +777,7 @@ types:
 	})
 
 	t.Run("type matching is case-sensitive", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -773,6 +797,7 @@ types:
 	})
 
 	t.Run("type budget with combined provider and type scopes", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{

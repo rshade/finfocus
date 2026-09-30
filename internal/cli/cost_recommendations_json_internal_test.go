@@ -57,6 +57,8 @@ func fullEngineRecommendation() engine.Recommendation {
 }
 
 func TestRenderRecommendationsJSON_FullRecordAdditiveKeys(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{fullEngineRecommendation()},
 		TotalSavings:    40,
@@ -112,6 +114,8 @@ func TestRenderRecommendationsJSON_FullRecordAdditiveKeys(t *testing.T) {
 }
 
 func TestRenderRecommendationsJSON_LegacyRecordKeysUnchanged(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{
 			{ResourceID: "r", Type: "RIGHTSIZE", Description: "d", EstimatedSavings: 5, Currency: "USD"},
@@ -136,6 +140,8 @@ func TestRenderRecommendationsJSON_LegacyRecordKeysUnchanged(t *testing.T) {
 }
 
 func TestRenderRecommendationsNDJSON_FullRecord(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{fullEngineRecommendation()},
 	}
@@ -155,6 +161,8 @@ func TestRenderRecommendationsNDJSON_FullRecord(t *testing.T) {
 }
 
 func TestMergeDismissalRecordsIntoResult_SkipsActiveByRecommendationID(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{
 			{ID: "rec-1", ResourceID: "i-123", Type: "RIGHTSIZE"},

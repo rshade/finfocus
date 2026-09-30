@@ -74,6 +74,8 @@ func newTestPlugin(t *testing.T, srv *httptest.Server, key string) *Plugin {
 }
 
 func TestInfo_DeclaresOnlyScoring(t *testing.T) {
+	t.Parallel()
+
 	info := Info("v0.1.0")
 	assert.Equal(t, "jev", info.Name)
 	assert.Equal(t, []pbc.PluginCapability{pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATION_SCORING},
@@ -82,16 +84,22 @@ func TestInfo_DeclaresOnlyScoring(t *testing.T) {
 }
 
 func TestPlugin_ImplementsScorerProvider(t *testing.T) {
+	t.Parallel()
+
 	var p any = newTestPlugin(t, nil, "")
 	_, ok := p.(pluginsdk.RecommendationScorerProvider)
 	assert.True(t, ok)
 }
 
 func TestScorerConformance(t *testing.T) {
+	t.Parallel()
+
 	plugintesting.RunScorerConformance(t, newTestPlugin(t, fakeJev(t, http.StatusOK), secretKey))
 }
 
 func TestSupports_OptsOutOfPricing(t *testing.T) {
+	t.Parallel()
+
 	srv := pluginsdk.NewServerWithOptions(newTestPlugin(t, nil, ""), nil, nil, Info("v0.1.0"))
 	resp, err := srv.Supports(context.Background(), &pbc.SupportsRequest{
 		Resource: &pbc.ResourceDescriptor{ResourceType: "aws:ec2/instance:Instance"},
@@ -101,6 +109,8 @@ func TestSupports_OptsOutOfPricing(t *testing.T) {
 }
 
 func TestNew_WithoutKeyStartsAndScoringIsUnauthenticated(t *testing.T) {
+	t.Parallel()
+
 	p := newTestPlugin(t, nil, "")
 	rec := &pbc.Recommendation{Id: "r1", Description: "x"}
 	_, err := p.ScoreRecommendations(t.Context(), &pbc.ScoreRecommendationsRequest{
@@ -111,6 +121,8 @@ func TestNew_WithoutKeyStartsAndScoringIsUnauthenticated(t *testing.T) {
 }
 
 func TestNew_RejectsUnsafeBaseURLOnlyWhenKeyIsSet(t *testing.T) {
+	t.Parallel()
+
 	cfg := DefaultConfig()
 	cfg.BaseURL = "http://remote.example.com"
 	_, err := New(cfg)
@@ -123,6 +135,8 @@ func TestNew_RejectsUnsafeBaseURLOnlyWhenKeyIsSet(t *testing.T) {
 }
 
 func TestScoreRecommendations_BackendRejectingKeyIsUnauthenticated(t *testing.T) {
+	t.Parallel()
+
 	p := newTestPlugin(t, fakeJev(t, http.StatusUnauthorized), secretKey)
 	_, err := p.ScoreRecommendations(t.Context(), &pbc.ScoreRecommendationsRequest{
 		Recommendations: []*pbc.Recommendation{{Id: "r1"}},
@@ -133,6 +147,8 @@ func TestScoreRecommendations_BackendRejectingKeyIsUnauthenticated(t *testing.T)
 }
 
 func TestScoreRecommendations_NothingObservableContainsTheKey(t *testing.T) {
+	t.Parallel()
+
 	var logs bytes.Buffer
 	cfg := DefaultConfig()
 	cfg.APIKey = secretKey
@@ -160,6 +176,8 @@ func TestScoreRecommendations_NothingObservableContainsTheKey(t *testing.T) {
 }
 
 func TestScoreRecommendations_WithoutKeyIsUnauthenticatedOverGRPC(t *testing.T) {
+	t.Parallel()
+
 	harness := plugintesting.NewScorerHarness(newTestPlugin(t, nil, ""))
 	harness.Start(t)
 	defer harness.Stop()

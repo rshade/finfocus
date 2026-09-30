@@ -9,6 +9,8 @@ import (
 )
 
 func TestFormatNumber(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		n    int64
@@ -53,6 +55,7 @@ func TestFormatNumber(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := greenops.FormatNumber(tt.n)
 			assert.Equal(t, tt.want, got)
 		})
@@ -60,6 +63,8 @@ func TestFormatNumber(t *testing.T) {
 }
 
 func TestFormatFloat(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		f         float64
@@ -112,6 +117,7 @@ func TestFormatFloat(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := greenops.FormatFloat(tt.f, tt.precision)
 			assert.Equal(t, tt.want, got)
 		})
@@ -119,6 +125,8 @@ func TestFormatFloat(t *testing.T) {
 }
 
 func TestFormatLarge(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		n    float64
@@ -168,6 +176,7 @@ func TestFormatLarge(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := greenops.FormatLarge(tt.n)
 			assert.Equal(t, tt.want, got)
 		})

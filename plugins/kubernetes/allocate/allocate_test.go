@@ -108,6 +108,8 @@ func assertValidAllocation(t *testing.T, req *pbc.AllocateRequest, resp *pbc.All
 const m5CPUFraction = 0.063222 / (0.063222 + 0.033896)
 
 func TestAllocate_SingleNodeSplitAndIdle(t *testing.T) {
+	t.Parallel()
+
 	req := &pbc.AllocateRequest{
 		Usage:  concat(nodeRows("n1", 2, 8), podRows("app", "api-1", "n1", 0.5, 2)),
 		Priced: []*pbc.PricedResource{pricedNode("n1", 70.08, nil)},
@@ -130,6 +132,8 @@ func TestAllocate_SingleNodeSplitAndIdle(t *testing.T) {
 }
 
 func TestAllocate_Conservation(t *testing.T) {
+	t.Parallel()
+
 	eks := &pbc.PricedResource{
 		Resource: &pbc.ResourceDescriptor{Provider: "aws", ResourceType: "aws:eks/cluster:Cluster",
 			Sku: "cluster", Region: "us-east-1", Id: "c", Tags: map[string]string{"kind": "cluster"}},
@@ -165,6 +169,7 @@ func TestAllocate_Conservation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			resp, err := Allocate(tt.req)
 			require.NoError(t, err)
 			assert.InDelta(t, tt.want, sumRows(resp), tt.want*1e-6+1e-12)
@@ -177,6 +182,8 @@ func TestAllocate_Conservation(t *testing.T) {
 }
 
 func TestAllocate_Notes(t *testing.T) {
+	t.Parallel()
+
 	req := &pbc.AllocateRequest{
 		Usage: concat(nodeRows("spot-1", 2, 8), podRows("a", "on-spot", "spot-1", 1, 1),
 			podRows("a", "fg", "fargate-ip-10-0-0-1", 0.25, 0.5),
@@ -195,6 +202,8 @@ func TestAllocate_Notes(t *testing.T) {
 }
 
 func TestAllocate_DuplicatePodNamesAcrossNamespaces(t *testing.T) {
+	t.Parallel()
+
 	req := &pbc.AllocateRequest{
 		Usage: concat(nodeRows("n1", 2, 8), podRows("team-a", "web", "n1", 0.5, 1),
 			podRows("team-b", "web", "n1", 0.5, 1)),
@@ -216,6 +225,8 @@ func TestAllocate_DuplicatePodNamesAcrossNamespaces(t *testing.T) {
 // to be "namespace/pod" only, so same-named pods in different clusters (or on
 // different nodes) merged into one allocation row and misattributed cost.
 func TestAllocate_WorkloadKeyIncludesCluster(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		req  *pbc.AllocateRequest
@@ -264,6 +275,7 @@ func TestAllocate_WorkloadKeyIncludesCluster(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			resp, err := Allocate(tt.req)
 			require.NoError(t, err)
 
@@ -296,6 +308,8 @@ func TestAllocate_WorkloadKeyIncludesCluster(t *testing.T) {
 }
 
 func TestAllocate_Errors(t *testing.T) {
+	t.Parallel()
+
 	_, err := Allocate(&pbc.AllocateRequest{PolicyJson: []byte(`{"idel":"x"}`)})
 	require.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -325,6 +339,8 @@ func TestAllocate_Errors(t *testing.T) {
 }
 
 func TestAllocate_EmptyCurrencyTakesResolvedCurrency(t *testing.T) {
+	t.Parallel()
+
 	eur := pricedNode("n1", 10, nil)
 	eur.Currency = "EUR"
 	blank := pricedNode("n2", 10, nil)
@@ -342,6 +358,8 @@ func TestAllocate_EmptyCurrencyTakesResolvedCurrency(t *testing.T) {
 }
 
 func TestAllocate_EmptyRequestReturnsEffectivePolicy(t *testing.T) {
+	t.Parallel()
+
 	req := &pbc.AllocateRequest{}
 	resp, err := Allocate(req)
 	require.NoError(t, err)
@@ -353,6 +371,8 @@ func TestAllocate_EmptyRequestReturnsEffectivePolicy(t *testing.T) {
 }
 
 func TestAllocate_DeterministicOrder(t *testing.T) {
+	t.Parallel()
+
 	req := &pbc.AllocateRequest{
 		Usage: concat(nodeRows("n2", 2, 8), nodeRows("n1", 2, 8),
 			podRows("b", "z", "n2", 1, 1), podRows("a", "y", "n1", 1, 1)),
@@ -377,6 +397,8 @@ func TestAllocate_DeterministicOrder(t *testing.T) {
 // row always needs a non-empty "node" subject key. Allocate must not emit one
 // for this node -- its cost is 0 regardless, so nothing is lost.
 func TestAllocate_UnpricedNodeWithEmptyIDHasNoIdleRow(t *testing.T) {
+	t.Parallel()
+
 	req := &pbc.AllocateRequest{
 		Priced: []*pbc.PricedResource{{
 			Resource: &pbc.ResourceDescriptor{Tags: map[string]string{"kind": "node"}, Id: ""},
@@ -398,6 +420,8 @@ func TestAllocate_UnpricedNodeWithEmptyIDHasNoIdleRow(t *testing.T) {
 // ("__cluster__") and always mismatched, giving every control-plane row a
 // spurious "unallocated priced resource kind" note.
 func TestAllocate_EKSControlPlaneRowHasNoNote(t *testing.T) {
+	t.Parallel()
+
 	eks := &pbc.PricedResource{
 		Resource: &pbc.ResourceDescriptor{Provider: "aws", ResourceType: "aws:eks/cluster:Cluster",
 			Sku: "cluster", Region: "us-east-1", Id: "c", Tags: map[string]string{"kind": "cluster"}},
@@ -416,6 +440,8 @@ func TestAllocate_EKSControlPlaneRowHasNoNote(t *testing.T) {
 // sides -- usage above request and request above usage -- with exact
 // expected shares, not just aggregate conservation.
 func TestAllocate_ChargeUsesMaxRequestUsage(t *testing.T) {
+	t.Parallel()
+
 	const cost = 70.0
 	tests := []struct {
 		name                           string
@@ -426,6 +452,7 @@ func TestAllocate_ChargeUsesMaxRequestUsage(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			req := &pbc.AllocateRequest{
 				Usage: concat(nodeRows("n1", 2, 8),
 					podRowsWithUsage("a", "p", "n1", tt.cpuReq, tt.memReq, tt.cpuUse, tt.memUse)),
@@ -452,6 +479,8 @@ func TestAllocate_ChargeUsesMaxRequestUsage(t *testing.T) {
 // must be treated as 0 rather than propagated, so malformed upstream usage
 // cannot break conservation.
 func TestAllocate_SanitizesNonFiniteAndNegativeUsage(t *testing.T) {
+	t.Parallel()
+
 	nodeUsage := []*pbc.UsageRow{
 		{Subject: map[string]string{"kind": "node", "node": "n1", "cluster": "c"},
 			Metric: "cpu_allocatable", Amount: 2, Unit: "core"},

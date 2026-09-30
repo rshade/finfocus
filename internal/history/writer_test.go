@@ -13,6 +13,8 @@ import (
 )
 
 func TestHistoryWriter_RecordStateSnapshot_Basic(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -74,6 +76,7 @@ func TestHistoryWriter_RecordStateSnapshot_Basic(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // asserts on unix-second timestamps after a real one-second sleep
 func TestHistoryWriter_RecordStateSnapshot_UpdatesLastSeen(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()
@@ -133,6 +136,8 @@ func TestHistoryWriter_RecordStateSnapshot_UpdatesLastSeen(t *testing.T) {
 }
 
 func TestHistoryWriter_RecordStateSnapshot_SkipsEmptyCloudID(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -190,6 +195,8 @@ func TestHistoryWriter_RecordStateSnapshot_SkipsEmptyCloudID(t *testing.T) {
 }
 
 func TestHistoryWriter_RecordStateSnapshot_FireAndForget(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	disabledStore, err := history.NewBoltStore(ctx, tmpDir, false, 90)
@@ -218,7 +225,9 @@ func TestHistoryWriter_RecordStateSnapshot_FireAndForget(t *testing.T) {
 	writer.RecordStateSnapshot(stackCtx, resources)
 }
 
-func TestHistoryWriter_RecordStateSnapshot_NilStore(_ *testing.T) {
+func TestHistoryWriter_RecordStateSnapshot_NilStore(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewConsoleWriter())
 	writer := history.NewWriter(nil, logger)
 
@@ -246,6 +255,8 @@ func TestHistoryWriter_RecordStateSnapshot_NilStore(_ *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHistoryWriter_RecordPlanLineage_ReplaceRecordsBothIDs(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -293,6 +304,8 @@ func TestHistoryWriter_RecordPlanLineage_ReplaceRecordsBothIDs(t *testing.T) {
 }
 
 func TestHistoryWriter_RecordPlanLineage_DeleteRecordsOldID(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -332,6 +345,8 @@ func TestHistoryWriter_RecordPlanLineage_DeleteRecordsOldID(t *testing.T) {
 }
 
 func TestHistoryWriter_RecordPlanLineage_CreateRecordsNewID(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -371,6 +386,8 @@ func TestHistoryWriter_RecordPlanLineage_CreateRecordsNewID(t *testing.T) {
 }
 
 func TestHistoryWriter_RecordPlanLineage_SkipsEmptyCloudIDs(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -406,7 +423,9 @@ func TestHistoryWriter_RecordPlanLineage_SkipsEmptyCloudIDs(t *testing.T) {
 	assert.Empty(t, allResults, "steps with both empty cloud IDs should be skipped")
 }
 
-func TestHistoryWriter_RecordPlanLineage_NilStore(_ *testing.T) {
+func TestHistoryWriter_RecordPlanLineage_NilStore(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewConsoleWriter())
 	writer := history.NewWriter(nil, logger)
 
@@ -431,6 +450,8 @@ func TestHistoryWriter_RecordPlanLineage_NilStore(_ *testing.T) {
 }
 
 func TestHistoryWriter_RecordPlanLineage_DisabledStore(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, false, 90)
@@ -465,6 +486,8 @@ func TestHistoryWriter_RecordPlanLineage_DisabledStore(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestHistoryWriter_RecordAnalyzerEvent_RecordsWithCloudID(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -507,6 +530,8 @@ func TestHistoryWriter_RecordAnalyzerEvent_RecordsWithCloudID(t *testing.T) {
 }
 
 func TestHistoryWriter_RecordAnalyzerEvent_SkipsEmptyCloudID(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -540,7 +565,9 @@ func TestHistoryWriter_RecordAnalyzerEvent_SkipsEmptyCloudID(t *testing.T) {
 	assert.Empty(t, allResults, "event without cloud ID should not be stored (DryRun=true)")
 }
 
-func TestHistoryWriter_RecordAnalyzerEvent_NilStore(_ *testing.T) {
+func TestHistoryWriter_RecordAnalyzerEvent_NilStore(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewConsoleWriter())
 	writer := history.NewWriter(nil, logger)
 
@@ -561,6 +588,8 @@ func TestHistoryWriter_RecordAnalyzerEvent_NilStore(_ *testing.T) {
 }
 
 func TestHistoryWriter_RecordAnalyzerEvent_DisabledStore(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, false, 90)
@@ -590,6 +619,7 @@ func TestHistoryWriter_RecordAnalyzerEvent_DisabledStore(t *testing.T) {
 // Tag extraction from analyzer event properties
 // ---------------------------------------------------------------------------
 
+//nolint:paralleltest // parent test defers cleanup that would run before parallel subtests
 func TestHistoryWriter_RecordAnalyzerEvent_TagExtraction(t *testing.T) {
 	tmpDir := t.TempDir()
 	ctx := context.Background()

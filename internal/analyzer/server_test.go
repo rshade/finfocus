@@ -66,6 +66,8 @@ func (m *mockCostCalculator) GetProjectedCost(
 }
 
 func TestNewServer(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{}
 	server := NewServer(calc, "1.0.0")
 
@@ -74,6 +76,8 @@ func TestNewServer(t *testing.T) {
 }
 
 // T006: Test WithConfig builder method preserving backward compatibility.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture calc
 func TestServer_WithConfig(t *testing.T) {
 	calc := &mockCostCalculator{}
 
@@ -146,6 +150,8 @@ func TestServer_WithConfig(t *testing.T) {
 }
 
 func TestServer_AnalyzeStack(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name                 string
 		resources            []*pulumirpc.AnalyzerResource
@@ -258,6 +264,7 @@ func TestServer_AnalyzeStack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			calc := &mockCostCalculator{
 				results: tt.calcResults,
 				err:     tt.calcErr,
@@ -313,6 +320,8 @@ func TestServer_AnalyzeStack(t *testing.T) {
 }
 
 func TestServer_AnalyzeStack_WithProperties(t *testing.T) {
+	t.Parallel()
+
 	// Test that properties are correctly passed through to the cost calculator
 	props, err := structpb.NewStruct(map[string]interface{}{
 		"instanceType": "t3.micro",
@@ -364,6 +373,8 @@ func TestServer_AnalyzeStack_WithProperties(t *testing.T) {
 }
 
 func TestServer_AnalyzeStack_DiagnosticFields(t *testing.T) {
+	t.Parallel()
+
 	// Verify diagnostic fields are correctly set
 	resources := []*pulumirpc.AnalyzerResource{
 		{
@@ -418,6 +429,8 @@ func TestServer_AnalyzeStack_DiagnosticFields(t *testing.T) {
 }
 
 func TestServer_GetAnalyzerInfo(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{}
 	server := NewServer(calc, "0.2.0")
 
@@ -446,6 +459,8 @@ func TestServer_GetAnalyzerInfo(t *testing.T) {
 }
 
 func TestServer_GetPluginInfo(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{}
 	server := NewServer(calc, "1.5.0")
 
@@ -457,6 +472,8 @@ func TestServer_GetPluginInfo(t *testing.T) {
 }
 
 func TestServer_GetPluginInfo_EmptyVersion(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{}
 	server := NewServer(calc, "")
 
@@ -468,6 +485,8 @@ func TestServer_GetPluginInfo_EmptyVersion(t *testing.T) {
 }
 
 func TestServer_Handshake(t *testing.T) {
+	t.Parallel()
+
 	rootDir := "/home/user/.pulumi"
 	programDir := "/home/user/myproject"
 
@@ -502,6 +521,7 @@ func TestServer_Handshake(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			calc := &mockCostCalculator{}
 			server := NewServer(calc, "1.0.0")
 
@@ -519,6 +539,8 @@ func TestServer_Handshake(t *testing.T) {
 }
 
 func TestServer_ConfigureStack(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		request *pulumirpc.AnalyzerStackConfigureRequest
@@ -553,6 +575,7 @@ func TestServer_ConfigureStack(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			calc := &mockCostCalculator{}
 			server := NewServer(calc, "1.0.0")
 
@@ -570,6 +593,8 @@ func TestServer_ConfigureStack(t *testing.T) {
 }
 
 func TestServer_ConfigureStack_StoresContext(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{}
 	server := NewServer(calc, "1.0.0")
 
@@ -591,6 +616,8 @@ func TestServer_ConfigureStack_StoresContext(t *testing.T) {
 }
 
 func TestServer_Cancel(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{}
 	server := NewServer(calc, "1.0.0")
 
@@ -608,6 +635,8 @@ func TestServer_Cancel(t *testing.T) {
 }
 
 func TestServer_Cancel_ThreadSafe(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{}
 	server := NewServer(calc, "1.0.0")
 
@@ -631,6 +660,8 @@ func TestServer_Cancel_ThreadSafe(t *testing.T) {
 }
 
 func TestIsInternalPulumiType(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -675,6 +706,7 @@ func TestIsInternalPulumiType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := router.IsInternalPulumiType(tt.resourceType)
 			assert.Equal(t, tt.want, got)
 		})
@@ -682,6 +714,8 @@ func TestIsInternalPulumiType(t *testing.T) {
 }
 
 func TestZeroCostResult(t *testing.T) {
+	t.Parallel()
+
 	result := zeroCostResult("pulumi:pulumi:Stack", "my-stack")
 
 	assert.Equal(t, "pulumi:pulumi:Stack", result.ResourceType)
@@ -692,6 +726,7 @@ func TestZeroCostResult(t *testing.T) {
 	assert.Equal(t, "Internal Pulumi resource (no cloud cost)", result.Notes)
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture server = NewServer(...)
 func TestServer_Analyze_InternalPulumiType(t *testing.T) {
 	calc := &mockCostCalculator{
 		// Should NOT be called for internal types
@@ -745,6 +780,8 @@ func TestServer_Analyze_InternalPulumiType(t *testing.T) {
 }
 
 func TestServer_AnalyzeStack_InternalPulumiTypes(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{
 		// Only non-internal types should be sent to calculator
 		results: []engine.CostResult{
@@ -815,6 +852,8 @@ func TestServer_AnalyzeStack_InternalPulumiTypes(t *testing.T) {
 }
 
 func TestServer_Analyze_WithRecommendations(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{
 		results: []engine.CostResult{
 			{
@@ -853,6 +892,8 @@ func TestServer_Analyze_WithRecommendations(t *testing.T) {
 }
 
 func TestServer_Analyze_RecommendationFailure(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{
 		results: []engine.CostResult{
 			{
@@ -892,6 +933,8 @@ type resourceDesc struct {
 }
 
 func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
+	t.Parallel()
+
 	// Helper to populate cost cache via Analyze() calls
 	analyzeResources := func(t *testing.T, server *Server, resources []resourceDesc) {
 		t.Helper()
@@ -906,6 +949,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 	}
 
 	t.Run("no threshold configured unchanged behavior", func(t *testing.T) {
+		t.Parallel()
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
 				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 100.0},
@@ -925,6 +969,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 	})
 
 	t.Run("no threshold configured with config", func(t *testing.T) {
+		t.Parallel()
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
 				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 100.0},
@@ -946,6 +991,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 	})
 
 	t.Run("threshold exceeded advisory mode", func(t *testing.T) {
+		t.Parallel()
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
 				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 3000.0},
@@ -980,6 +1026,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 	})
 
 	t.Run("threshold exceeded mandatory mode", func(t *testing.T) {
+		t.Parallel()
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
 				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 6000.0},
@@ -1006,6 +1053,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 	})
 
 	t.Run("within budget confirmation", func(t *testing.T) {
+		t.Parallel()
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
 				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 2000.0},
@@ -1034,6 +1082,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 	})
 
 	t.Run("mixed currencies skip enforcement", func(t *testing.T) {
+		t.Parallel()
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
 				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 3000.0},
@@ -1058,6 +1107,7 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 	})
 
 	t.Run("all resources failed no threshold diagnostic", func(t *testing.T) {
+		t.Parallel()
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
 				{
@@ -1096,6 +1146,8 @@ func TestServer_AnalyzeStack_ThresholdIntegration(t *testing.T) {
 }
 
 // T013 extension: Test GetAnalyzerInfo with threshold policy registration.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture calc
 func TestServer_GetAnalyzerInfo_WithThreshold(t *testing.T) {
 	calc := &mockCostCalculator{}
 
@@ -1150,7 +1202,10 @@ func TestServer_GetAnalyzerInfo_WithThreshold(t *testing.T) {
 // =============================================================================
 
 func TestServer_AnalyzeStack_SummaryFileIntegration(t *testing.T) {
+	t.Parallel()
+
 	t.Run("summary file written after successful analysis", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
@@ -1200,6 +1255,7 @@ func TestServer_AnalyzeStack_SummaryFileIntegration(t *testing.T) {
 	})
 
 	t.Run("no summary dir skips write", func(t *testing.T) {
+		t.Parallel()
 		calc := &mockCostCalculator{
 			results: []engine.CostResult{
 				{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 100.0},
@@ -1220,6 +1276,7 @@ func TestServer_AnalyzeStack_SummaryFileIntegration(t *testing.T) {
 	})
 
 	t.Run("write failure does not fail RPC", func(t *testing.T) {
+		t.Parallel()
 		// Use a read-only directory to force write failure
 		readOnlyDir := filepath.Join(t.TempDir(), "readonly")
 		require.NoError(t, os.MkdirAll(readOnlyDir, 0o500))
@@ -1254,6 +1311,8 @@ func TestServer_AnalyzeStack_SummaryFileIntegration(t *testing.T) {
 }
 
 func TestServer_AnalyzeStack_SummaryWithRecommendations(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{
 		results: []engine.CostResult{
 			{
@@ -1309,6 +1368,8 @@ func TestServer_AnalyzeStack_SummaryWithRecommendations(t *testing.T) {
 // populated the cache. The old code cleared the cache in ConfigureStack(), wiping all
 // accumulated costs before AnalyzeStack() could read them.
 func TestAnalyzeStack_CostAccumulation(t *testing.T) {
+	t.Parallel()
+
 	const numResources = 3
 	const costPerResource = 10.0
 
@@ -1367,6 +1428,8 @@ func TestAnalyzeStack_CostAccumulation(t *testing.T) {
 // T003 [US1] - Verify that when GetProjectedCost returns an error, a zero-cost error result
 // is still cached for AnalyzeStack visibility.
 func TestAnalyze_CachesErrorCosts(t *testing.T) {
+	t.Parallel()
+
 	calc := &mockCostCalculator{
 		err: errors.New("plugin connection refused"),
 	}
@@ -1393,6 +1456,8 @@ func TestAnalyze_CachesErrorCosts(t *testing.T) {
 // T004 [US1] - Verify that a stack with 3 successful and 2 error resources reports
 // correct total and "3 resources analyzed" in the stack summary.
 func TestAnalyzeStack_MixedSuccessAndError(t *testing.T) {
+	t.Parallel()
+
 	successResults := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",

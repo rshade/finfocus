@@ -31,6 +31,8 @@ func fakeClusters(t *testing.T) ClusterFactory {
 }
 
 func TestGetStats_RejectsHistorical(t *testing.T) {
+	t.Parallel()
+
 	p := New(fakeClusters(t))
 	_, err := p.GetStats(context.Background(), &pbc.GetStatsRequest{Start: timestamppb.Now()})
 	require.Error(t, err)
@@ -39,12 +41,16 @@ func TestGetStats_RejectsHistorical(t *testing.T) {
 }
 
 func TestGetStats_UnknownContext(t *testing.T) {
+	t.Parallel()
+
 	_, err := New(fakeClusters(t)).GetStats(context.Background(), &pbc.GetStatsRequest{Scope: "missing"})
 	require.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
 func TestGetStats_ValidResponse(t *testing.T) {
+	t.Parallel()
+
 	resp, err := New(fakeClusters(t)).GetStats(context.Background(),
 		&pbc.GetStatsRequest{Selector: map[string]string{"namespace": "a", "app": "web"}})
 	require.NoError(t, err)
@@ -85,6 +91,8 @@ func metricFilterPlugin(t *testing.T) *Plugin {
 }
 
 func TestGetStats_MetricsFilter(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		metrics       []string
@@ -136,6 +144,7 @@ func TestGetStats_MetricsFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			resp, err := metricFilterPlugin(t).GetStats(context.Background(),
 				&pbc.GetStatsRequest{Metrics: tt.metrics})
 			require.NoError(t, err)
@@ -153,6 +162,8 @@ func TestGetStats_MetricsFilter(t *testing.T) {
 }
 
 func TestGetStats_InvalidSelectorValue(t *testing.T) {
+	t.Parallel()
+
 	_, err := New(fakeClusters(t)).GetStats(context.Background(),
 		&pbc.GetStatsRequest{Selector: map[string]string{"team": "a,other-label=x"}})
 	require.Error(t, err)
@@ -161,6 +172,8 @@ func TestGetStats_InvalidSelectorValue(t *testing.T) {
 }
 
 func TestLabelSelector(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		input   map[string]string
@@ -211,6 +224,7 @@ func TestLabelSelector(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := labelSelector(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -224,6 +238,8 @@ func TestLabelSelector(t *testing.T) {
 }
 
 func TestInfo_ExplicitCapabilitiesOnly(t *testing.T) {
+	t.Parallel()
+
 	info := Info("v0.1.0")
 	assert.ElementsMatch(t, []pbc.PluginCapability{
 		pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS,
@@ -232,6 +248,8 @@ func TestInfo_ExplicitCapabilitiesOnly(t *testing.T) {
 }
 
 func TestPlugin_ImplementsProviders(t *testing.T) {
+	t.Parallel()
+
 	var p any = New(fakeClusters(t))
 	_, ok := p.(pluginsdk.UsageSourceProvider)
 	assert.True(t, ok)
@@ -240,6 +258,8 @@ func TestPlugin_ImplementsProviders(t *testing.T) {
 }
 
 func TestAllocatorConformance(t *testing.T) {
+	t.Parallel()
+
 	plugintesting.RunAllocatorConformance(t, New(fakeClusters(t)))
 }
 
@@ -248,6 +268,8 @@ func TestAllocatorConformance(t *testing.T) {
 // plugin's own "false" is what hosts see; without it, `cost projected` would
 // record a NotSupported error per resource.
 func TestSupports_OptsOutOfPricingThroughSDK(t *testing.T) {
+	t.Parallel()
+
 	srv := pluginsdk.NewServerWithOptions(New(fakeClusters(t)), nil, nil, Info("v0.1.0"))
 	for _, rt := range []string{"aws:ec2/instance:Instance", "ec2", "kubernetes:apps/v1:Deployment"} {
 		resp, err := srv.Supports(context.Background(), &pbc.SupportsRequest{

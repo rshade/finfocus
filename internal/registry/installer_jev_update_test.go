@@ -109,6 +109,7 @@ func installJev(t *testing.T, inst *Installer, version string) {
 	require.Equal(t, "v0.1.0", res.Version)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via newJevUpdateFixture)
 func TestUpdate_JevRegistryEntry_UpdatesToNewerPrefixedTag(t *testing.T) {
 	srv, inst, pluginDir := newJevUpdateFixture(t, "jev-v0.1.0")
 	installJev(t, inst, "v0.1.0")
@@ -129,6 +130,7 @@ func TestUpdate_JevRegistryEntry_UpdatesToNewerPrefixedTag(t *testing.T) {
 	assert.Equal(t, "v0.2.0", installed.Version)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via newJevUpdateFixture)
 func TestUpdate_JevRegistryEntry_NoOpWhenCurrent(t *testing.T) {
 	_, inst, pluginDir := newJevUpdateFixture(t, "jev-v0.1.0")
 	installJev(t, inst, "")
@@ -142,6 +144,7 @@ func TestUpdate_JevRegistryEntry_NoOpWhenCurrent(t *testing.T) {
 	assert.DirExists(t, filepath.Join(pluginDir, "jev", "v0.1.0"))
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via newJevUpdateFixture)
 func TestUpdate_JevRegistryEntry_IgnoresCoreReleaseTags(t *testing.T) {
 	srv, inst, _ := newJevUpdateFixture(t, "jev-v0.1.0")
 	installJev(t, inst, "v0.1.0")

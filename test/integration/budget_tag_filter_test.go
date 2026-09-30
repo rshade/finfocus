@@ -125,6 +125,8 @@ func (m *mockTagFilterClient) ResolveResourceTypes(
 }
 
 // TestBudgetTagFilter_EndToEnd tests tag-based budget filtering (Issue #222).
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture eng = engine.New(...)
 func TestBudgetTagFilter_EndToEnd(t *testing.T) {
 	ctx := context.Background()
 
@@ -297,6 +299,8 @@ func TestBudgetTagFilter_EndToEnd(t *testing.T) {
 
 // TestBudgetTagFilter_LegacyTagPrefix tests compatibility with legacy tag: prefix in metadata.
 func TestBudgetTagFilter_LegacyTagPrefix(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Budget with legacy "tag:key" prefix in metadata
@@ -337,6 +341,8 @@ func TestBudgetTagFilter_LegacyTagPrefix(t *testing.T) {
 
 // TestBudgetTagFilter_SpecialCharacterKeys tests tag keys with special characters.
 func TestBudgetTagFilter_SpecialCharacterKeys(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	budgets := []*pbc.Budget{
@@ -372,6 +378,8 @@ func TestBudgetTagFilter_SpecialCharacterKeys(t *testing.T) {
 
 // TestBudgetTagFilter_CaseSensitive tests that tag matching is case-sensitive.
 func TestBudgetTagFilter_CaseSensitive(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	budgets := []*pbc.Budget{

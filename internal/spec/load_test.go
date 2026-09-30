@@ -14,6 +14,8 @@ import (
 
 // TestNewLoader_CreatesLoader tests loader creation.
 func TestNewLoader_CreatesLoader(t *testing.T) {
+	t.Parallel()
+
 	specDir := "/test/specs"
 	loader := spec.NewLoader(specDir)
 
@@ -22,6 +24,8 @@ func TestNewLoader_CreatesLoader(t *testing.T) {
 
 // TestLoadSpec_ValidSpec tests loading a valid pricing spec.
 func TestLoadSpec_ValidSpec(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	specContent := `provider: aws
@@ -52,6 +56,8 @@ pricing:
 
 // TestLoadSpec_NonExistentFile tests error when spec file doesn't exist.
 func TestLoadSpec_NonExistentFile(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	loader := spec.NewLoader(tmpDir)
@@ -64,6 +70,8 @@ func TestLoadSpec_NonExistentFile(t *testing.T) {
 
 // TestLoadSpec_NonExistentDirectory tests error when directory doesn't exist.
 func TestLoadSpec_NonExistentDirectory(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	nonexistentDir := filepath.Join(tmpDir, "nonexistent")
 
@@ -77,6 +85,8 @@ func TestLoadSpec_NonExistentDirectory(t *testing.T) {
 
 // TestLoadSpec_InvalidYAML tests error when YAML is malformed.
 func TestLoadSpec_InvalidYAML(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	invalidContent := `provider: aws
@@ -98,6 +108,8 @@ pricing: [unclosed
 
 // TestLoadSpec_SKUWithDots tests loading spec with dots in SKU.
 func TestLoadSpec_SKUWithDots(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	specContent := `provider: aws
@@ -122,6 +134,8 @@ pricing:
 
 // TestLoadSpec_SKUWithDashes tests loading spec with dashes in SKU.
 func TestLoadSpec_SKUWithDashes(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	specContent := `provider: azure
@@ -146,6 +160,8 @@ pricing:
 
 // TestLoadSpec_WithMetadata tests loading spec with metadata section.
 func TestLoadSpec_WithMetadata(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	specContent := `provider: aws
@@ -176,6 +192,8 @@ metadata:
 
 // TestLoadSpec_PermissionDenied tests error when file permissions deny read.
 func TestLoadSpec_PermissionDenied(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" || os.Getuid() == 0 {
 		t.Skip("Skipping permission test on Windows or when running as root")
 	}
@@ -197,6 +215,8 @@ func TestLoadSpec_PermissionDenied(t *testing.T) {
 
 // TestListSpecs_EmptyDirectory tests listing specs in empty directory.
 func TestListSpecs_EmptyDirectory(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	loader := spec.NewLoader(tmpDir)
@@ -208,6 +228,8 @@ func TestListSpecs_EmptyDirectory(t *testing.T) {
 
 // TestListSpecs_NonExistentDirectory tests listing specs in non-existent directory.
 func TestListSpecs_NonExistentDirectory(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	nonexistentDir := filepath.Join(tmpDir, "nonexistent")
 
@@ -220,6 +242,8 @@ func TestListSpecs_NonExistentDirectory(t *testing.T) {
 
 // TestListSpecs_MultipleSpecs tests listing multiple spec files.
 func TestListSpecs_MultipleSpecs(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	// Create multiple spec files
@@ -254,6 +278,8 @@ func TestListSpecs_MultipleSpecs(t *testing.T) {
 
 // TestListSpecs_FiltersNonYAMLFiles tests that non-YAML files are excluded.
 func TestListSpecs_FiltersNonYAMLFiles(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	// Create mixed files
@@ -294,6 +320,8 @@ func TestListSpecs_FiltersNonYAMLFiles(t *testing.T) {
 
 // TestListSpecs_ExcludesDirectories tests that subdirectories are excluded.
 func TestListSpecs_ExcludesDirectories(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	// Create a file and a directory
@@ -313,6 +341,8 @@ func TestListSpecs_ExcludesDirectories(t *testing.T) {
 
 // TestListSpecs_PermissionError tests error when directory is not readable.
 func TestListSpecs_PermissionError(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" || os.Getuid() == 0 {
 		t.Skip("Skipping permission test on Windows or when running as root")
 	}
@@ -333,6 +363,8 @@ func TestListSpecs_PermissionError(t *testing.T) {
 
 // TestValidateSpec_ValidSpec tests validation of a valid spec.
 func TestValidateSpec_ValidSpec(t *testing.T) {
+	t.Parallel()
+
 	pricingSpec := &spec.PricingSpec{
 		Provider: "aws",
 		Service:  "ec2",
@@ -349,6 +381,8 @@ func TestValidateSpec_ValidSpec(t *testing.T) {
 
 // TestValidateSpec_MissingProvider tests validation fails for missing provider.
 func TestValidateSpec_MissingProvider(t *testing.T) {
+	t.Parallel()
+
 	pricingSpec := &spec.PricingSpec{
 		Service:  "ec2",
 		SKU:      "t3.micro",
@@ -365,6 +399,8 @@ func TestValidateSpec_MissingProvider(t *testing.T) {
 
 // TestValidateSpec_MissingService tests validation fails for missing service.
 func TestValidateSpec_MissingService(t *testing.T) {
+	t.Parallel()
+
 	pricingSpec := &spec.PricingSpec{
 		Provider: "aws",
 		SKU:      "t3.micro",
@@ -381,6 +417,8 @@ func TestValidateSpec_MissingService(t *testing.T) {
 
 // TestValidateSpec_MissingSKU tests validation fails for missing SKU.
 func TestValidateSpec_MissingSKU(t *testing.T) {
+	t.Parallel()
+
 	pricingSpec := &spec.PricingSpec{
 		Provider: "aws",
 		Service:  "ec2",
@@ -397,6 +435,8 @@ func TestValidateSpec_MissingSKU(t *testing.T) {
 
 // TestValidateSpec_MissingCurrency tests validation fails for missing currency.
 func TestValidateSpec_MissingCurrency(t *testing.T) {
+	t.Parallel()
+
 	pricingSpec := &spec.PricingSpec{
 		Provider: "aws",
 		Service:  "ec2",
@@ -413,6 +453,8 @@ func TestValidateSpec_MissingCurrency(t *testing.T) {
 
 // TestValidateSpec_EmptyPricing tests validation fails for empty pricing.
 func TestValidateSpec_EmptyPricing(t *testing.T) {
+	t.Parallel()
+
 	pricingSpec := &spec.PricingSpec{
 		Provider: "aws",
 		Service:  "ec2",
@@ -428,6 +470,8 @@ func TestValidateSpec_EmptyPricing(t *testing.T) {
 
 // TestValidateSpec_NilPricing tests validation fails for nil pricing.
 func TestValidateSpec_NilPricing(t *testing.T) {
+	t.Parallel()
+
 	pricingSpec := &spec.PricingSpec{
 		Provider: "aws",
 		Service:  "ec2",
@@ -443,6 +487,8 @@ func TestValidateSpec_NilPricing(t *testing.T) {
 
 // TestValidateSpec_OptionalMetadata tests that metadata is optional.
 func TestValidateSpec_OptionalMetadata(t *testing.T) {
+	t.Parallel()
+
 	pricingSpec := &spec.PricingSpec{
 		Provider: "aws",
 		Service:  "ec2",
@@ -459,6 +505,8 @@ func TestValidateSpec_OptionalMetadata(t *testing.T) {
 }
 
 // TestLoadSpec_MultipleProviders tests loading specs from different providers.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture loader = spec.NewLoader(...)
 func TestLoadSpec_MultipleProviders(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -503,6 +551,8 @@ pricing:
 
 // TestLoadSpec_ComplexNestedPricing tests loading spec with complex pricing structure.
 func TestLoadSpec_ComplexNestedPricing(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	specContent := `provider: aws

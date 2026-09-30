@@ -45,6 +45,8 @@ func startMock(t *testing.T, opts ...plugintesting.MockScorerOption) (*recording
 }
 
 func TestE2E_MockScorerContract(t *testing.T) {
+	t.Parallel()
+
 	const rawIDPrefix = "i-secret-"
 
 	build := func(n int) []engine.Recommendation {
@@ -57,6 +59,7 @@ func TestE2E_MockScorerContract(t *testing.T) {
 	}
 
 	t.Run("mock scorer never receives raw resource ids or names", func(t *testing.T) {
+		t.Parallel()
 		mock, harness := startMock(t)
 		recs := build(4)
 
@@ -79,6 +82,7 @@ func TestE2E_MockScorerContract(t *testing.T) {
 	})
 
 	t.Run("batches respect the scorer max_batch_size once it is known", func(t *testing.T) {
+		t.Parallel()
 		mock, harness := startMock(t, plugintesting.WithScorerMaxBatchSize(3))
 		recs := build(11)
 
@@ -98,6 +102,7 @@ func TestE2E_MockScorerContract(t *testing.T) {
 	})
 
 	t.Run("a failing item degrades only that recommendation", func(t *testing.T) {
+		t.Parallel()
 		_, harness := startMock(t)
 		recs := build(3)
 		recs[1].ResourceID = ""
@@ -116,6 +121,7 @@ func TestE2E_MockScorerContract(t *testing.T) {
 	})
 
 	t.Run("an unavailable scorer leaves recommendations unscored with a warning", func(t *testing.T) {
+		t.Parallel()
 		_, harness := startMock(t)
 		harness.Stop()
 		recs := build(3)

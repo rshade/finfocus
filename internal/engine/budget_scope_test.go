@@ -15,7 +15,10 @@ import (
 
 // TestScopeType tests ScopeType constants and methods.
 func TestScopeType(t *testing.T) {
+	t.Parallel()
+
 	t.Run("String", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, "global", engine.ScopeTypeGlobal.String())
 		assert.Equal(t, "provider", engine.ScopeTypeProvider.String())
 		assert.Equal(t, "tag", engine.ScopeTypeTag.String())
@@ -23,6 +26,7 @@ func TestScopeType(t *testing.T) {
 	})
 
 	t.Run("IsValid", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, engine.ScopeTypeGlobal.IsValid())
 		assert.True(t, engine.ScopeTypeProvider.IsValid())
 		assert.True(t, engine.ScopeTypeTag.IsValid())
@@ -34,6 +38,8 @@ func TestScopeType(t *testing.T) {
 
 // TestExtractProvider tests provider extraction from resource types.
 func TestExtractProvider(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -53,6 +59,7 @@ func TestExtractProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := engine.ExtractProvider(tt.resourceType)
 			assert.Equal(t, tt.want, got)
 		})
@@ -61,6 +68,8 @@ func TestExtractProvider(t *testing.T) {
 
 // TestCalculateHealthFromPercentage tests health calculation.
 func TestCalculateHealthFromPercentage(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		percentage float64
@@ -82,6 +91,7 @@ func TestCalculateHealthFromPercentage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := engine.CalculateHealthFromPercentage(tt.percentage)
 			assert.Equal(t, tt.want, got)
 		})
@@ -90,6 +100,8 @@ func TestCalculateHealthFromPercentage(t *testing.T) {
 
 // TestAggregateHealthStatuses tests health aggregation.
 func TestAggregateHealthStatuses(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		statuses []pbc.BudgetHealthStatus
@@ -144,6 +156,7 @@ func TestAggregateHealthStatuses(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := engine.AggregateHealthStatuses(tt.statuses)
 			assert.Equal(t, tt.want, got)
 		})
@@ -152,13 +165,17 @@ func TestAggregateHealthStatuses(t *testing.T) {
 
 // TestScopedBudgetStatus_Methods tests ScopedBudgetStatus helper methods.
 func TestScopedBudgetStatus_Methods(t *testing.T) {
+	t.Parallel()
+
 	t.Run("IsOverBudget", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, (&engine.ScopedBudgetStatus{Percentage: 99}).IsOverBudget())
 		assert.True(t, (&engine.ScopedBudgetStatus{Percentage: 100}).IsOverBudget())
 		assert.True(t, (&engine.ScopedBudgetStatus{Percentage: 150}).IsOverBudget())
 	})
 
 	t.Run("HasExceededAlerts", func(t *testing.T) {
+		t.Parallel()
 		status := &engine.ScopedBudgetStatus{
 			Alerts: []engine.ThresholdStatus{
 				{Status: engine.ThresholdStatusOK},
@@ -172,6 +189,7 @@ func TestScopedBudgetStatus_Methods(t *testing.T) {
 	})
 
 	t.Run("ScopeIdentifier", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, "global", (&engine.ScopedBudgetStatus{ScopeType: engine.ScopeTypeGlobal}).ScopeIdentifier())
 		assert.Equal(
 			t,
@@ -193,7 +211,10 @@ func TestScopedBudgetStatus_Methods(t *testing.T) {
 
 // TestScopedBudgetResult_Methods tests ScopedBudgetResult helper methods.
 func TestScopedBudgetResult_Methods(t *testing.T) {
+	t.Parallel()
+
 	t.Run("HasExceededBudgets", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{OverallHealth: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK}
 		assert.False(t, result.HasExceededBudgets())
 
@@ -205,6 +226,7 @@ func TestScopedBudgetResult_Methods(t *testing.T) {
 	})
 
 	t.Run("HasCriticalBudgets", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{OverallHealth: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK}
 		assert.False(t, result.HasCriticalBudgets())
 
@@ -219,6 +241,7 @@ func TestScopedBudgetResult_Methods(t *testing.T) {
 	})
 
 	t.Run("AllScopes", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{
 			Global: &engine.ScopedBudgetStatus{ScopeType: engine.ScopeTypeGlobal},
 			ByProvider: map[string]*engine.ScopedBudgetStatus{
@@ -247,7 +270,10 @@ func TestScopedBudgetResult_Methods(t *testing.T) {
 
 // TestScopedBudgetEvaluator tests the evaluator initialization and lookups.
 func TestScopedBudgetEvaluator(t *testing.T) {
+	t.Parallel()
+
 	t.Run("NewScopedBudgetEvaluator with nil config", func(t *testing.T) {
+		t.Parallel()
 		eval := engine.NewScopedBudgetEvaluator(nil)
 		require.NotNil(t, eval)
 
@@ -256,6 +282,7 @@ func TestScopedBudgetEvaluator(t *testing.T) {
 	})
 
 	t.Run("NewScopedBudgetEvaluator with full config", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -300,6 +327,7 @@ func TestScopedBudgetEvaluator(t *testing.T) {
 	})
 
 	t.Run("MatchTagBudgets", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Tags: []config.TagBudget{
 				{Selector: "team:platform", Priority: 100, ScopedBudget: config.ScopedBudget{Amount: 2000}},
@@ -346,6 +374,7 @@ func TestScopedBudgetEvaluator(t *testing.T) {
 	})
 
 	t.Run("SelectHighestPriorityTagBudget", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Tags: []config.TagBudget{
 				{Selector: "team:backend", Priority: 100, ScopedBudget: config.ScopedBudget{Amount: 2500}},
@@ -401,9 +430,12 @@ func TestScopedBudgetEvaluator(t *testing.T) {
 
 // TestAllocateCostToProvider tests provider-level cost allocation (T019).
 func TestAllocateCostToProvider(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("allocates to matching provider budget", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -422,6 +454,7 @@ func TestAllocateCostToProvider(t *testing.T) {
 	})
 
 	t.Run("no allocation for missing provider budget", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -438,6 +471,7 @@ func TestAllocateCostToProvider(t *testing.T) {
 	})
 
 	t.Run("case insensitive provider matching", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -454,6 +488,7 @@ func TestAllocateCostToProvider(t *testing.T) {
 	})
 
 	t.Run("handles empty provider in resource type", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 		}
@@ -469,7 +504,10 @@ func TestAllocateCostToProvider(t *testing.T) {
 
 // TestGetProviderBudgetStatus tests provider budget status calculation (T024).
 func TestGetProviderBudgetStatus(t *testing.T) {
+	t.Parallel()
+
 	t.Run("calculates provider budget status correctly", func(t *testing.T) {
+		t.Parallel()
 		budget := &config.ScopedBudget{
 			Amount:   1000,
 			Currency: "USD",
@@ -486,6 +524,7 @@ func TestGetProviderBudgetStatus(t *testing.T) {
 	})
 
 	t.Run("handles zero budget amount", func(t *testing.T) {
+		t.Parallel()
 		budget := &config.ScopedBudget{
 			Amount:   0,
 			Currency: "USD",
@@ -499,6 +538,7 @@ func TestGetProviderBudgetStatus(t *testing.T) {
 	})
 
 	t.Run("exceeded budget health", func(t *testing.T) {
+		t.Parallel()
 		budget := &config.ScopedBudget{
 			Amount:   1000,
 			Currency: "USD",
@@ -515,9 +555,12 @@ func TestGetProviderBudgetStatus(t *testing.T) {
 
 // TestAllocateCostToTag tests tag-level cost allocation (T039).
 func TestAllocateCostToTag(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("allocates to matching tag budget", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Tags: []config.TagBudget{
@@ -541,6 +584,7 @@ func TestAllocateCostToTag(t *testing.T) {
 	})
 
 	t.Run("no allocation when no tags match", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Tags: []config.TagBudget{
@@ -559,6 +603,7 @@ func TestAllocateCostToTag(t *testing.T) {
 	})
 
 	t.Run("no allocation with empty tags", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Tags: []config.TagBudget{
@@ -574,6 +619,7 @@ func TestAllocateCostToTag(t *testing.T) {
 	})
 
 	t.Run("wildcard tag matching", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Tags: []config.TagBudget{
@@ -591,6 +637,7 @@ func TestAllocateCostToTag(t *testing.T) {
 	})
 
 	t.Run("emits warning for priority tie", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Tags: []config.TagBudget{
@@ -613,7 +660,10 @@ func TestAllocateCostToTag(t *testing.T) {
 
 // TestCalculateTagBudgetStatus tests tag budget status calculation.
 func TestCalculateTagBudgetStatus(t *testing.T) {
+	t.Parallel()
+
 	t.Run("calculates tag budget status correctly", func(t *testing.T) {
+		t.Parallel()
 		tagBudget := &config.TagBudget{
 			Selector: "team:platform",
 			Priority: 100,
@@ -633,6 +683,7 @@ func TestCalculateTagBudgetStatus(t *testing.T) {
 	})
 
 	t.Run("handles zero budget amount", func(t *testing.T) {
+		t.Parallel()
 		tagBudget := &config.TagBudget{
 			Selector:     "team:platform",
 			ScopedBudget: config.ScopedBudget{Amount: 0, Currency: "USD"},
@@ -645,6 +696,7 @@ func TestCalculateTagBudgetStatus(t *testing.T) {
 	})
 
 	t.Run("exceeded budget health", func(t *testing.T) {
+		t.Parallel()
 		tagBudget := &config.TagBudget{
 			Selector: "team:platform",
 			ScopedBudget: config.ScopedBudget{
@@ -663,7 +715,10 @@ func TestCalculateTagBudgetStatus(t *testing.T) {
 
 // TestGetTypeBudget tests resource type budget lookup (T044).
 func TestGetTypeBudget(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns budget for configured type", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -690,6 +745,7 @@ func TestGetTypeBudget(t *testing.T) {
 	})
 
 	t.Run("returns nil for unconfigured type", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -705,6 +761,7 @@ func TestGetTypeBudget(t *testing.T) {
 	})
 
 	t.Run("type matching is case-sensitive", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -723,11 +780,13 @@ func TestGetTypeBudget(t *testing.T) {
 	})
 
 	t.Run("handles nil config", func(t *testing.T) {
+		t.Parallel()
 		eval := engine.NewScopedBudgetEvaluator(nil)
 		assert.Nil(t, eval.GetTypeBudget("aws:ec2/instance"))
 	})
 
 	t.Run("handles empty types map", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types:  map[string]*config.ScopedBudget{},
@@ -740,9 +799,12 @@ func TestGetTypeBudget(t *testing.T) {
 
 // TestAllocateCostToType tests resource type cost allocation (T045).
 func TestAllocateCostToType(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("allocates to matching type budget", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -762,6 +824,7 @@ func TestAllocateCostToType(t *testing.T) {
 	})
 
 	t.Run("no allocation for unconfigured type", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -780,6 +843,7 @@ func TestAllocateCostToType(t *testing.T) {
 	})
 
 	t.Run("handles empty config", func(t *testing.T) {
+		t.Parallel()
 		eval := engine.NewScopedBudgetEvaluator(nil)
 		allocation := eval.AllocateCostToType(ctx, "aws:ec2/instance", 100.0)
 
@@ -789,6 +853,7 @@ func TestAllocateCostToType(t *testing.T) {
 	})
 
 	t.Run("case sensitive type matching", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -809,6 +874,7 @@ func TestAllocateCostToType(t *testing.T) {
 	})
 
 	t.Run("extracts provider correctly", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Types: map[string]*config.ScopedBudget{
@@ -827,7 +893,10 @@ func TestAllocateCostToType(t *testing.T) {
 
 // TestCalculateTypeBudgetStatus tests type budget status calculation (T045).
 func TestCalculateTypeBudgetStatus(t *testing.T) {
+	t.Parallel()
+
 	t.Run("calculates type budget status correctly", func(t *testing.T) {
+		t.Parallel()
 		resourceType := "aws:ec2/instance"
 		budget := &config.ScopedBudget{
 			Amount:   1000,
@@ -846,6 +915,7 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 	})
 
 	t.Run("handles zero budget amount", func(t *testing.T) {
+		t.Parallel()
 		budget := &config.ScopedBudget{
 			Amount:   0,
 			Currency: "USD",
@@ -859,6 +929,7 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 	})
 
 	t.Run("exceeded budget health", func(t *testing.T) {
+		t.Parallel()
 		budget := &config.ScopedBudget{
 			Amount:   1000,
 			Currency: "USD",
@@ -873,6 +944,7 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 	})
 
 	t.Run("OK status under threshold", func(t *testing.T) {
+		t.Parallel()
 		budget := &config.ScopedBudget{
 			Amount:   1000,
 			Currency: "USD",
@@ -886,6 +958,7 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 	})
 
 	t.Run("critical status near limit", func(t *testing.T) {
+		t.Parallel()
 		budget := &config.ScopedBudget{
 			Amount:   1000,
 			Currency: "USD",
@@ -901,6 +974,8 @@ func TestCalculateTypeBudgetStatus(t *testing.T) {
 
 // TestBudgetAllocation tests the BudgetAllocation struct.
 func TestBudgetAllocation(t *testing.T) {
+	t.Parallel()
+
 	allocation := engine.BudgetAllocation{
 		ResourceID:   "i-1234567890abcdef0",
 		ResourceType: "aws:ec2/instance",
@@ -929,9 +1004,12 @@ func TestBudgetAllocation(t *testing.T) {
 
 // TestAllocateCosts tests multi-scope cost allocation (T054).
 func TestAllocateCosts(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("allocates to global, provider, tag, and type scopes", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -964,6 +1042,7 @@ func TestAllocateCosts(t *testing.T) {
 	})
 
 	t.Run("allocates to global and provider only when no tag or type match", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -994,6 +1073,7 @@ func TestAllocateCosts(t *testing.T) {
 	})
 
 	t.Run("allocates to global only when nothing else configured", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 		}
@@ -1007,6 +1087,7 @@ func TestAllocateCosts(t *testing.T) {
 	})
 
 	t.Run("handles nil config", func(t *testing.T) {
+		t.Parallel()
 		eval := engine.NewScopedBudgetEvaluator(nil)
 		allocation := eval.AllocateCosts(ctx, "aws:ec2/instance", nil, 100.0)
 
@@ -1017,6 +1098,7 @@ func TestAllocateCosts(t *testing.T) {
 	// Edge case from spec.md:L68 - "Missing Provider/Type Mapping":
 	// Resources with unrecognized providers/types should only contribute to the Global budget.
 	t.Run("unrecognized provider/type allocates to global only", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{
 			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
 			Providers: map[string]*config.ScopedBudget{
@@ -1065,7 +1147,10 @@ func TestAllocateCosts(t *testing.T) {
 
 // TestCalculateOverallHealth tests worst-wins health aggregation (T055).
 func TestCalculateOverallHealth(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns worst health status", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{
 			Global: &engine.ScopedBudgetStatus{Health: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK},
 			ByProvider: map[string]*engine.ScopedBudgetStatus{
@@ -1085,6 +1170,7 @@ func TestCalculateOverallHealth(t *testing.T) {
 	})
 
 	t.Run("exceeded wins over all", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{
 			Global: &engine.ScopedBudgetStatus{Health: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK},
 			ByProvider: map[string]*engine.ScopedBudgetStatus{
@@ -1100,6 +1186,7 @@ func TestCalculateOverallHealth(t *testing.T) {
 	})
 
 	t.Run("all OK returns OK", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{
 			Global: &engine.ScopedBudgetStatus{Health: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK},
 			ByProvider: map[string]*engine.ScopedBudgetStatus{
@@ -1112,12 +1199,14 @@ func TestCalculateOverallHealth(t *testing.T) {
 	})
 
 	t.Run("empty result returns unspecified", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{}
 		overall := engine.CalculateOverallHealth(result)
 		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED, overall)
 	})
 
 	t.Run("nil result returns unspecified", func(t *testing.T) {
+		t.Parallel()
 		overall := engine.CalculateOverallHealth(nil)
 		assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED, overall)
 	})
@@ -1125,7 +1214,10 @@ func TestCalculateOverallHealth(t *testing.T) {
 
 // TestIdentifyCriticalScopes tests critical scope identification (T056).
 func TestIdentifyCriticalScopes(t *testing.T) {
+	t.Parallel()
+
 	t.Run("identifies critical and exceeded scopes", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{
 			Global: &engine.ScopedBudgetStatus{
 				ScopeType: engine.ScopeTypeGlobal,
@@ -1171,6 +1263,7 @@ func TestIdentifyCriticalScopes(t *testing.T) {
 	})
 
 	t.Run("returns empty for all OK", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{
 			Global: &engine.ScopedBudgetStatus{Health: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK},
 			ByProvider: map[string]*engine.ScopedBudgetStatus{
@@ -1183,11 +1276,13 @@ func TestIdentifyCriticalScopes(t *testing.T) {
 	})
 
 	t.Run("handles nil result", func(t *testing.T) {
+		t.Parallel()
 		criticalScopes := engine.IdentifyCriticalScopes(nil)
 		assert.Empty(t, criticalScopes)
 	})
 
 	t.Run("includes all critical/exceeded types", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.ScopedBudgetResult{
 			Global: &engine.ScopedBudgetStatus{
 				ScopeType: engine.ScopeTypeGlobal,

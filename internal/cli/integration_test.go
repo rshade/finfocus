@@ -15,6 +15,8 @@ import (
 )
 
 // TestCLIIntegration tests the full CLI workflow with realistic scenarios.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestCLIIntegration(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -183,6 +185,8 @@ func TestCLIIntegration(t *testing.T) {
 }
 
 // TestErrorHandlingEdgeCases tests various error conditions and edge cases.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestErrorHandlingEdgeCases(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -279,6 +283,8 @@ func TestErrorHandlingEdgeCases(t *testing.T) {
 }
 
 // TestDateParsingEdgeCases tests edge cases in date parsing.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestDateParsingEdgeCases(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -358,6 +364,8 @@ func TestDateParsingEdgeCases(t *testing.T) {
 }
 
 // TestOutputFormats tests different output format validation.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestOutputFormats(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -416,6 +424,8 @@ func TestOutputFormats(t *testing.T) {
 }
 
 // TestFlagCombinations tests various flag combinations.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestFlagCombinations(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")

@@ -57,6 +57,8 @@ func (m *mockCostCalculator) GetRecommendationsForResources(
 
 // TestAnalyzer_FullStackFlow tests the complete flow from handshake to analysis.
 func TestAnalyzer_FullStackFlow(t *testing.T) {
+	t.Parallel()
+
 	// Create mock cost results
 	costs := []engine.CostResult{
 		{
@@ -163,6 +165,8 @@ func TestAnalyzer_FullStackFlow(t *testing.T) {
 
 // TestAnalyzer_HandshakeProtocol tests the handshake behavior.
 func TestAnalyzer_HandshakeProtocol(t *testing.T) {
+	t.Parallel()
+
 	calc := newMockCalculator(nil, nil)
 	server := analyzer.NewServer(calc, "0.1.0")
 	ctx := context.Background()
@@ -179,6 +183,8 @@ func TestAnalyzer_HandshakeProtocol(t *testing.T) {
 
 // TestAnalyzer_ErrorRecovery tests graceful handling of errors.
 func TestAnalyzer_ErrorRecovery(t *testing.T) {
+	t.Parallel()
+
 	// Create calculator that returns an error
 	calc := newMockCalculator(nil, assert.AnError)
 	server := analyzer.NewServer(calc, "0.1.0")
@@ -205,6 +211,8 @@ func TestAnalyzer_ErrorRecovery(t *testing.T) {
 
 // TestAnalyzer_EmptyResources tests handling of empty resource list.
 func TestAnalyzer_EmptyResources(t *testing.T) {
+	t.Parallel()
+
 	calc := newMockCalculator([]engine.CostResult{}, nil)
 	server := analyzer.NewServer(calc, "0.1.0")
 	ctx := context.Background()
@@ -223,6 +231,8 @@ func TestAnalyzer_EmptyResources(t *testing.T) {
 
 // TestAnalyzer_CancelBehavior tests the Cancel RPC behavior.
 func TestAnalyzer_CancelBehavior(t *testing.T) {
+	t.Parallel()
+
 	calc := newMockCalculator(nil, nil)
 	server := analyzer.NewServer(calc, "0.1.0")
 	ctx := context.Background()
@@ -241,6 +251,8 @@ func TestAnalyzer_CancelBehavior(t *testing.T) {
 
 // TestAnalyzer_ThresholdEnforcement tests the full analyzer lifecycle with threshold enforcement.
 func TestAnalyzer_ThresholdEnforcement(t *testing.T) {
+	t.Parallel()
+
 	costs := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -326,6 +338,8 @@ func TestAnalyzer_ThresholdEnforcement(t *testing.T) {
 
 // TestAnalyzer_ThresholdAdvisoryMode tests advisory mode does not block deployments.
 func TestAnalyzer_ThresholdAdvisoryMode(t *testing.T) {
+	t.Parallel()
+
 	costs := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -384,6 +398,8 @@ func TestAnalyzer_ThresholdAdvisoryMode(t *testing.T) {
 
 // TestAnalyzer_LatencyRequirement tests that small stacks complete quickly (SC-003).
 func TestAnalyzer_LatencyRequirement(t *testing.T) {
+	t.Parallel()
+
 	// SC-003: Cost estimation adds <2s for stacks under 50 resources
 	// Using 100ms delay per resource for testing, total should be <2s for small stacks
 

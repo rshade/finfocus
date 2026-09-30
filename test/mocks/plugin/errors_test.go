@@ -12,6 +12,8 @@ import (
 
 // TestSetError verifies error configuration for specific methods.
 func TestSetError(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set timeout error for GetProjectedCost
@@ -31,6 +33,8 @@ func TestSetError(t *testing.T) {
 
 // TestSetErrorToNone verifies clearing error injection.
 func TestSetErrorToNone(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set an error
@@ -46,6 +50,8 @@ func TestSetErrorToNone(t *testing.T) {
 
 // TestErrorTypeTimeout verifies timeout error injection.
 func TestErrorTypeTimeout(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	mock.SetError("GetProjectedCost", plugin.ErrorTimeout)
@@ -57,6 +63,8 @@ func TestErrorTypeTimeout(t *testing.T) {
 
 // TestErrorTypeProtocol verifies protocol error injection.
 func TestErrorTypeProtocol(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	mock.SetError("GetActualCost", plugin.ErrorProtocol)
@@ -68,6 +76,8 @@ func TestErrorTypeProtocol(t *testing.T) {
 
 // TestErrorTypeInvalidData verifies invalid data error injection.
 func TestErrorTypeInvalidData(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	mock.SetError("GetProjectedCost", plugin.ErrorInvalidData)
@@ -79,6 +89,8 @@ func TestErrorTypeInvalidData(t *testing.T) {
 
 // TestErrorTypeUnavailable verifies service unavailable error injection.
 func TestErrorTypeUnavailable(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	mock.SetError("GetActualCost", plugin.ErrorUnavailable)
@@ -90,6 +102,8 @@ func TestErrorTypeUnavailable(t *testing.T) {
 
 // TestErrorMethodIsolation verifies errors only apply to specified method.
 func TestErrorMethodIsolation(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set error for GetProjectedCost only
@@ -105,6 +119,8 @@ func TestErrorMethodIsolation(t *testing.T) {
 
 // TestMultipleErrorChanges verifies error type can be changed multiple times.
 func TestMultipleErrorChanges(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Start with timeout
@@ -135,6 +151,8 @@ func TestMultipleErrorChanges(t *testing.T) {
 
 // TestErrorResetClearsErrors verifies Reset() clears error configuration.
 func TestErrorResetClearsErrors(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set error
@@ -153,6 +171,8 @@ func TestErrorResetClearsErrors(t *testing.T) {
 
 // TestScenarioChangePreservesErrors verifies scenario changes don't affect error config.
 func TestScenarioChangePreservesErrors(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set error first
@@ -169,6 +189,8 @@ func TestScenarioChangePreservesErrors(t *testing.T) {
 
 // TestErrorWithResponseConfiguration verifies errors and responses can be configured together.
 func TestErrorWithResponseConfiguration(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Configure a response
@@ -187,6 +209,8 @@ func TestErrorWithResponseConfiguration(t *testing.T) {
 
 // TestErrorConstants verifies all error types have unique string values.
 func TestErrorConstants(t *testing.T) {
+	t.Parallel()
+
 	errorTypes := []plugin.ErrorType{
 		plugin.ErrorNone,
 		plugin.ErrorTimeout,
@@ -205,6 +229,8 @@ func TestErrorConstants(t *testing.T) {
 
 // TestErrorMessagesExist verifies error messages are defined for all error types.
 func TestErrorMessagesExist(t *testing.T) {
+	t.Parallel()
+
 	// Verify error variables exist and have messages
 	require.Error(t, plugin.ErrMockTimeout)
 	assert.Contains(t, plugin.ErrMockTimeout.Error(), "timeout")
@@ -224,6 +250,8 @@ func TestErrorMessagesExist(t *testing.T) {
 
 // TestCombinedErrorAndLatencyConfiguration verifies errors and latency can be set together.
 func TestCombinedErrorAndLatencyConfiguration(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set both error and latency
@@ -237,6 +265,8 @@ func TestCombinedErrorAndLatencyConfiguration(t *testing.T) {
 
 // TestFullConfigureWithErrors verifies Configure() can set all error fields.
 func TestFullConfigureWithErrors(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	fullConfig := plugin.MockConfig{
@@ -257,6 +287,8 @@ func TestFullConfigureWithErrors(t *testing.T) {
 
 // TestDifferentMethodsSeparateErrors verifies error method targeting works correctly.
 func TestDifferentMethodsSeparateErrors(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name   string
 		method string
@@ -270,6 +302,7 @@ func TestDifferentMethodsSeparateErrors(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			mock := plugin.NewMockPlugin()
 			mock.SetError(tc.method, tc.error)
 
@@ -282,6 +315,8 @@ func TestDifferentMethodsSeparateErrors(t *testing.T) {
 
 // TestErrorPersistenceAcrossConfigChanges verifies errors persist when adding responses.
 func TestErrorPersistenceAcrossConfigChanges(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set error

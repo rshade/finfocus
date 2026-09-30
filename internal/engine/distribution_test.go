@@ -10,6 +10,8 @@ import (
 // TestDistributeDailyCosts_DailyGrouping verifies daily cost distribution with GroupByDaily.
 // Each daily cost should be assigned to its corresponding date period.
 func TestDistributeDailyCosts_DailyGrouping(t *testing.T) {
+	t.Parallel()
+
 	periods := make(map[string]map[string]float64)
 	startDate := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
 	result := CostResult{
@@ -29,6 +31,8 @@ func TestDistributeDailyCosts_DailyGrouping(t *testing.T) {
 // TestDistributeDailyCosts_MonthlyGrouping verifies costs are grouped by month.
 // Multiple days in same month should accumulate to single month period.
 func TestDistributeDailyCosts_MonthlyGrouping(t *testing.T) {
+	t.Parallel()
+
 	periods := make(map[string]map[string]float64)
 	startDate := time.Date(2024, 1, 28, 0, 0, 0, 0, time.UTC)
 	result := CostResult{
@@ -47,6 +51,8 @@ func TestDistributeDailyCosts_MonthlyGrouping(t *testing.T) {
 // TestDistributeDailyCosts_CrossMonthBoundary verifies correct distribution across month boundaries.
 // Costs spanning month end should split correctly between months.
 func TestDistributeDailyCosts_CrossMonthBoundary(t *testing.T) {
+	t.Parallel()
+
 	periods := make(map[string]map[string]float64)
 	startDate := time.Date(2024, 1, 30, 0, 0, 0, 0, time.UTC)
 	result := CostResult{
@@ -64,6 +70,8 @@ func TestDistributeDailyCosts_CrossMonthBoundary(t *testing.T) {
 
 // TestDistributeDailyCosts_EmptyDailyCosts verifies no entries are added for empty array.
 func TestDistributeDailyCosts_EmptyDailyCosts(t *testing.T) {
+	t.Parallel()
+
 	periods := make(map[string]map[string]float64)
 	result := CostResult{
 		ResourceType: "gcp:compute:Instance",
@@ -78,6 +86,8 @@ func TestDistributeDailyCosts_EmptyDailyCosts(t *testing.T) {
 
 // TestDistributeDailyCosts_MultipleProviders verifies costs accumulate per provider.
 func TestDistributeDailyCosts_MultipleProviders(t *testing.T) {
+	t.Parallel()
+
 	periods := make(map[string]map[string]float64)
 	startDate := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 

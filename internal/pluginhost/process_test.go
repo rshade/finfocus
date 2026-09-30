@@ -22,6 +22,7 @@ import (
 	"github.com/rshade/finfocus/internal/logging"
 )
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_AllocatePort(t *testing.T) {
 	launcher := NewProcessLauncher()
 
@@ -45,6 +46,7 @@ func TestProcessLauncher_AllocatePort(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_AllocateMultiplePorts(t *testing.T) {
 	launcher := NewProcessLauncher()
 	ctx := context.Background()
@@ -66,6 +68,7 @@ func TestProcessLauncher_AllocateMultiplePorts(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_AllocatePortContextCancel(t *testing.T) {
 	launcher := NewProcessLauncher()
 
@@ -85,6 +88,7 @@ func TestProcessLauncher_AllocatePortContextCancel(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestProcessLauncher_Start_MockCommand(t *testing.T) {
 	// Skip this test on systems where we can't easily create mock servers
 	if testing.Short() {
@@ -119,6 +123,8 @@ func TestProcessLauncher_Start_MockCommand(t *testing.T) {
 }
 
 func TestProcessLauncher_StartInvalidCommand(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 	ctx := context.Background()
 
@@ -135,6 +141,8 @@ func TestProcessLauncher_StartInvalidCommand(t *testing.T) {
 }
 
 func TestProcessLauncher_StartWithTimeout(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 
 	// Use very short timeout
@@ -157,6 +165,8 @@ func TestProcessLauncher_StartWithTimeout(t *testing.T) {
 }
 
 func TestProcessLauncher_CreateCloseFn(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 
 	// Create a mock command for testing cleanup
@@ -201,6 +211,7 @@ func TestProcessLauncher_CreateCloseFn(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // table cases share the parent-scoped fixture listener = net.Listen(...)
 func TestProcessLauncher_TryConnect(t *testing.T) {
 	launcher := NewProcessLauncher()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
@@ -240,6 +251,8 @@ func TestProcessLauncher_TryConnect(t *testing.T) {
 }
 
 func TestProcessLauncher_IsConnectionReady(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 
 	// Create a real connection for testing
@@ -263,6 +276,8 @@ func TestProcessLauncher_IsConnectionReady(t *testing.T) {
 }
 
 func TestProcessLauncher_KillProcess(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 
 	// Test with nil command (should not panic)
@@ -291,6 +306,8 @@ func TestProcessLauncher_KillProcess(t *testing.T) {
 }
 
 func TestNewProcessLauncher(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 
 	if launcher == nil {
@@ -303,6 +320,8 @@ func TestNewProcessLauncher(t *testing.T) {
 }
 
 func TestNewProcessLauncherWithRetries(t *testing.T) {
+	t.Parallel()
+
 	maxRetries := 5
 	launcher := NewProcessLauncherWithRetries(maxRetries)
 	if launcher.maxRetries != maxRetries {
@@ -383,6 +402,7 @@ func createScript(t *testing.T, content, ext string) string {
 // Race Condition Prevention Tests
 // =============================================================================
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_AllocatePortWithListener(t *testing.T) {
 	launcher := NewProcessLauncher()
 	ctx := context.Background()
@@ -434,6 +454,8 @@ func TestProcessLauncher_AllocatePortWithListener(t *testing.T) {
 }
 
 func TestProcessLauncher_ReleasePortListener_NotExists(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 
 	err := launcher.releasePortListener(99999)
@@ -446,6 +468,7 @@ func TestProcessLauncher_ReleasePortListener_NotExists(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_ConcurrentPortAllocation(t *testing.T) {
 	launcher := NewProcessLauncher()
 
@@ -504,6 +527,8 @@ func TestProcessLauncher_ConcurrentPortAllocation(t *testing.T) {
 }
 
 func TestProcessLauncher_WaitForPluginBind_Success(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 
 	// Start a listener to simulate a plugin binding
@@ -524,6 +549,7 @@ func TestProcessLauncher_WaitForPluginBind_Success(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_WaitForPluginBind_Timeout(t *testing.T) {
 	launcher := NewProcessLauncher()
 	ctx := context.Background()
@@ -552,6 +578,7 @@ func TestProcessLauncher_WaitForPluginBind_Timeout(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_WaitForPluginBind_DelayedBind(t *testing.T) {
 	launcher := NewProcessLauncher()
 	ctx := context.Background()
@@ -598,6 +625,8 @@ func TestProcessLauncher_WaitForPluginBind_DelayedBind(t *testing.T) {
 }
 
 func TestIsPortCollisionError(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		err      error
@@ -642,6 +671,7 @@ func TestIsPortCollisionError(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := isPortCollisionError(tc.err)
 			if result != tc.expected {
 				t.Errorf("isPortCollisionError(%v) = %v, want %v", tc.err, result, tc.expected)
@@ -651,6 +681,8 @@ func TestIsPortCollisionError(t *testing.T) {
 }
 
 func TestProcessLauncher_StartWithRetry_NonPortError(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 	ctx := context.Background()
 
@@ -667,6 +699,7 @@ func TestProcessLauncher_StartWithRetry_NonPortError(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_MapCleanup(t *testing.T) {
 	launcher := NewProcessLauncher()
 	ctx := context.Background()
@@ -703,6 +736,7 @@ func TestProcessLauncher_MapCleanup(t *testing.T) {
 	launcher.mu.Unlock()
 }
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_DoubleRelease(t *testing.T) {
 	launcher := NewProcessLauncher()
 	ctx := context.Background()
@@ -729,6 +763,8 @@ func TestProcessLauncher_DoubleRelease(t *testing.T) {
 // =============================================================================
 
 func TestProcessLauncher_EnvironmentVariableConstants(t *testing.T) {
+	t.Parallel()
+
 	// Verify that pluginsdk.EnvPort matches the expected canonical value.
 	// This ensures we haven't accidentally drifted from the spec.
 	expectedEnvPort := "FINFOCUS_PLUGIN_PORT"
@@ -758,6 +794,8 @@ func TestGetPluginBindTimeout(t *testing.T) {
 // TestProcessLauncher_StartPluginEnvironment verifies that startPlugin sets the correct
 // environment variables for plugin communication using pluginsdk constants.
 // After issue #232: PORT should NOT be set, only FINFOCUS_PLUGIN_PORT.
+//
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_StartPluginEnvironment(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping environment test in short mode")
@@ -892,6 +930,8 @@ func TestProcessLauncher_DebugLoggingPortDetection(t *testing.T) {
 
 // TestProcessLauncher_GuidanceLoggingOnBindFailure verifies that guidance logging is emitted
 // when a plugin fails to bind (FR-007).
+//
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_GuidanceLoggingOnBindFailure(t *testing.T) {
 	// This test verifies the behavior specified in FR-007:
 	// Core MUST log a guidance message when plugin fails to bind, suggesting
@@ -972,6 +1012,8 @@ exit 0
 }
 
 func TestParsePortFromStdout(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    string
@@ -994,6 +1036,7 @@ func TestParsePortFromStdout(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var data []byte
 			if !tt.nilBuf {
 				data = []byte(tt.input)
@@ -1006,6 +1049,8 @@ func TestParsePortFromStdout(t *testing.T) {
 }
 
 func TestWaitForPluginBindWithFallback_DirectBind(t *testing.T) {
+	t.Parallel()
+
 	// Test that direct binding on --port still works
 	launcher := NewProcessLauncher()
 
@@ -1026,6 +1071,8 @@ func TestWaitForPluginBindWithFallback_DirectBind(t *testing.T) {
 }
 
 func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
+	t.Parallel()
+
 	// Test fallback to stdout-advertised port
 	launcher := NewProcessLauncher()
 	launcher.stdoutFallback = 500 * time.Millisecond
@@ -1053,6 +1100,8 @@ func TestWaitForPluginBindWithFallback_StdoutFallback(t *testing.T) {
 }
 
 func TestWaitForPluginBindWithFallback_BothPortsFail(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 	launcher.stdoutFallback = 200 * time.Millisecond
 
@@ -1078,6 +1127,7 @@ func TestWaitForPluginBindWithFallback_BothPortsFail(t *testing.T) {
 // Plugin Log Redirect Tests
 // =============================================================================
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_StartPlugin_RedirectsToLogWriter(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
@@ -1117,6 +1167,7 @@ sleep 0.1
 	assert.Contains(t, output, "plugin stderr log line", "stderr should be redirected to log writer")
 }
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_StartPlugin_FallbackToStderr(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")
@@ -1153,6 +1204,7 @@ exit 0
 	// No assertion needed beyond "doesn't panic / doesn't error"
 }
 
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_StartPlugin_PropagatesEnvVars(t *testing.T) {
 	if testing.Short() {
 		t.Skip("skipping in short mode")

@@ -10,6 +10,8 @@ import (
 )
 
 func TestValidateRegistryEntry(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		entry   registry.RegistryEntry
@@ -77,6 +79,7 @@ func TestValidateRegistryEntry(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := registry.ValidateRegistryEntry(tt.entry)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -88,6 +91,8 @@ func TestValidateRegistryEntry(t *testing.T) {
 }
 
 func TestValidateRegistryEntry_TagPrefix(t *testing.T) {
+	t.Parallel()
+
 	base := registry.RegistryEntry{Name: "kubernetes", Repository: "rshade/finfocus"}
 	for _, p := range []string{"", "kubernetes-", "k8s-alloc-"} {
 		e := base
@@ -104,6 +109,8 @@ func TestValidateRegistryEntry_TagPrefix(t *testing.T) {
 }
 
 func TestParsePluginSpecifier(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		spec        string
@@ -154,6 +161,7 @@ func TestParsePluginSpecifier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := registry.ParsePluginSpecifier(tt.spec)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -168,6 +176,8 @@ func TestParsePluginSpecifier(t *testing.T) {
 }
 
 func TestParseGitHubURL(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		url       string
@@ -195,6 +205,7 @@ func TestParseGitHubURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			owner, repo, err := registry.ParseGitHubURL(tt.url)
 			if tt.wantErr {
 				require.Error(t, err)

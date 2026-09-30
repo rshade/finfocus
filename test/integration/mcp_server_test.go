@@ -258,6 +258,8 @@ func runningProcessesFor(t *testing.T, path string) []string {
 // `finfocus mcp-server` and `finfocus --mcp` serve the identical tool list,
 // which is also the static `__schema --as=mcp` list pinned by the unit golden.
 func TestMCPServer_ToolListMatchesGoldenForBothEntryPoints(t *testing.T) {
+	t.Parallel()
+
 	env := newMCPTestEnv(t)
 	golden := readToolsGolden(t)
 
@@ -299,6 +301,8 @@ func TestMCPServer_ToolListMatchesGoldenForBothEntryPoints(t *testing.T) {
 // next call), the logging lifecycle must stay clean, and no plugin subprocess
 // may outlive the call that launched it.
 func TestMCPServer_SequentialCallsInOneSession(t *testing.T) {
+	t.Parallel()
+
 	env := newMCPTestEnv(t)
 	plan, err := filepath.Abs(mcpSimplePlan)
 	require.NoError(t, err)
@@ -372,6 +376,8 @@ func TestMCPServer_SequentialCallsInOneSession(t *testing.T) {
 // recommendation ID, which the ax-go live server cannot pass, so those
 // commands are not tools. This test asserts they stay off the tool list.
 func TestMCPServer_MutatingToolHonorsDryRun(t *testing.T) {
+	t.Parallel()
+
 	env := newMCPTestEnv(t)
 	session := startMCPSession(t, env, "mcp-server")
 

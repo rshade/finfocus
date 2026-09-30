@@ -148,6 +148,8 @@ func loadJSON[T any](t *testing.T, name string) T {
 }
 
 func TestTestdataConvertsToRecommendations(t *testing.T) {
+	t.Parallel()
+
 	recs := loadJSON[[]dataRec](t, "recommendations.json")
 	require.Len(t, recs, 80)
 	seen := map[string]bool{}
@@ -169,6 +171,8 @@ func TestTestdataConvertsToRecommendations(t *testing.T) {
 }
 
 func TestLive_ScoresRecommendations(t *testing.T) {
+	t.Parallel()
+
 	scorer, backend := liveScorer(t)
 	data := loadJSON[[]dataRec](t, "recommendations.json")
 	req := &pbc.ScoreRecommendationsRequest{}
@@ -191,6 +195,8 @@ func TestLive_ScoresRecommendations(t *testing.T) {
 }
 
 func TestLive_ListsModels(t *testing.T) {
+	t.Parallel()
+
 	cfg, err := ConfigFromEnv(os.Getenv)
 	require.NoError(t, err)
 	if cfg.APIKey == "" {
@@ -209,6 +215,8 @@ func TestLive_ListsModels(t *testing.T) {
 // TestEvaluation scores the labelled synthetic dataset and reports ranking
 // quality. It costs a few cents, so it needs JEV_EVAL=1 as well as a key.
 func TestEvaluation(t *testing.T) {
+	t.Parallel()
+
 	if os.Getenv(envEval) != "1" {
 		t.Skipf("set %s=1 and %s to run the evaluation", envEval, EnvAPIKey)
 	}

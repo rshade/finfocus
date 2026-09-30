@@ -9,6 +9,8 @@ import (
 )
 
 func TestIsInternalPulumiType(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -63,12 +65,15 @@ func TestIsInternalPulumiType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, router.IsInternalPulumiType(tt.resourceType))
 		})
 	}
 }
 
 func TestIsPulumiProviderResource(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -108,12 +113,15 @@ func TestIsPulumiProviderResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, router.IsPulumiProviderResource(tt.resourceType))
 		})
 	}
 }
 
 func TestIsPulumiComponentResource(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -148,6 +156,7 @@ func TestIsPulumiComponentResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, router.IsPulumiComponentResource(tt.resourceType))
 		})
 	}

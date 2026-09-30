@@ -27,6 +27,8 @@ func newTestEntryWithTime(urn, cloudID string, lastSeen int64) history.ResourceH
 // TestCleanupExpired_RemovesOldEntries verifies that entries older than the
 // retention window are deleted from the store.
 func TestCleanupExpired_RemovesOldEntries(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tempDir := t.TempDir()
 
@@ -56,6 +58,8 @@ func TestCleanupExpired_RemovesOldEntries(t *testing.T) {
 // TestCleanupExpired_KeepsRecentEntries verifies that entries within the
 // retention window are not deleted.
 func TestCleanupExpired_KeepsRecentEntries(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tempDir := t.TempDir()
 
@@ -86,6 +90,8 @@ func TestCleanupExpired_KeepsRecentEntries(t *testing.T) {
 // retention window (90 days ago + 1 second) are kept, not removed.
 // Uses a 1-second buffer to avoid TOCTOU flakiness from separate [time.Now] calls.
 func TestCleanupExpired_BoundaryExact(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tempDir := t.TempDir()
 
@@ -118,6 +124,8 @@ func TestCleanupExpired_BoundaryExact(t *testing.T) {
 // TestCleanupExpired_ReturnsCorrectCount verifies that cleanup returns the
 // correct count of deleted entries and leaves recent ones intact.
 func TestCleanupExpired_ReturnsCorrectCount(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tempDir := t.TempDir()
 
@@ -161,6 +169,8 @@ func TestCleanupExpired_ReturnsCorrectCount(t *testing.T) {
 // TestCleanupExpired_EmptyStore verifies that cleanup on an empty store
 // returns 0 with no error.
 func TestCleanupExpired_EmptyStore(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tempDir := t.TempDir()
 
@@ -176,6 +186,8 @@ func TestCleanupExpired_EmptyStore(t *testing.T) {
 // TestCleanupExpired_DisabledStore verifies that cleanup on a disabled store
 // is a no-op and returns 0 with no error.
 func TestCleanupExpired_DisabledStore(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	store, err := history.NewBoltStore(ctx, "", false, 90)

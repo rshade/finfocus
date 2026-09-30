@@ -16,6 +16,8 @@ import (
 
 // TestConfigLoading_DefaultValues tests that default configuration values are loaded correctly.
 func TestConfigLoading_DefaultValues(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.New()
 
 	// Verify default values
@@ -25,6 +27,8 @@ func TestConfigLoading_DefaultValues(t *testing.T) {
 }
 
 // TestConfigLoading_EnvironmentVariables tests configuration from environment variables.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigLoading_EnvironmentVariables(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -42,6 +46,8 @@ func TestConfigLoading_EnvironmentVariables(t *testing.T) {
 }
 
 // TestConfigLoading_ConfigFile tests loading configuration from file.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigLoading_ConfigFile(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -78,6 +84,8 @@ logging:
 }
 
 // TestConfigLoading_PrecedenceOrder tests configuration precedence (flags > env > file > defaults).
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigLoading_PrecedenceOrder(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -110,6 +118,8 @@ func TestConfigLoading_PrecedenceOrder(t *testing.T) {
 }
 
 // TestConfigLoading_InvalidConfigFile tests error handling for invalid config file.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigLoading_InvalidConfigFile(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -140,6 +150,8 @@ func TestConfigLoading_InvalidConfigFile(t *testing.T) {
 }
 
 // TestConfigLoading_MissingConfigFile tests handling of missing config file.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigLoading_MissingConfigFile(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -162,6 +174,8 @@ func TestConfigLoading_MissingConfigFile(t *testing.T) {
 }
 
 // TestConfigLoading_CLIFlags tests that CLI flags override all other configuration sources.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigLoading_CLIFlags(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -185,6 +199,8 @@ func TestConfigLoading_CLIFlags(t *testing.T) {
 }
 
 // TestConfigLoading_PluginDirectory tests plugin directory configuration.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigLoading_PluginDirectory(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -206,6 +222,8 @@ func TestConfigLoading_PluginDirectory(t *testing.T) {
 }
 
 // TestConfigLoading_SpecDirectory tests spec directory configuration.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigLoading_SpecDirectory(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -227,6 +245,8 @@ func TestConfigLoading_SpecDirectory(t *testing.T) {
 }
 
 // TestConfigLoading_Integration_FullWorkflow tests complete configuration flow in CLI.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestConfigLoading_Integration_FullWorkflow(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 

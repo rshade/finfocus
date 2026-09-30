@@ -11,6 +11,8 @@ import (
 )
 
 func TestValidatePlan_Structure(t *testing.T) {
+	t.Parallel()
+
 	// Test that loaded plans have expected structure
 	path := filepath.Join("aws", "simple.json")
 
@@ -48,6 +50,8 @@ func TestValidatePlan_Structure(t *testing.T) {
 }
 
 func TestValidateSpec_Structure(t *testing.T) {
+	t.Parallel()
+
 	// Test that loaded specs have expected structure
 	path := "aws-ec2-t3.medium.yaml"
 

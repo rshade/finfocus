@@ -14,6 +14,8 @@ import (
 
 // TestCostRecommendations_TableOutput tests basic table output format.
 // Note: Without plugins, recommendations will be empty, but command should succeed.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_TableOutput(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -30,6 +32,8 @@ func TestCostRecommendations_TableOutput(t *testing.T) {
 }
 
 // TestCostRecommendations_JSONOutput tests JSON output format with summary.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_JSONOutput(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -65,6 +69,8 @@ func TestCostRecommendations_JSONOutput(t *testing.T) {
 }
 
 // TestCostRecommendations_NDJSONOutput tests NDJSON output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_NDJSONOutput(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -88,6 +94,8 @@ func TestCostRecommendations_NDJSONOutput(t *testing.T) {
 }
 
 // TestCostRecommendations_VerboseFlag tests the --verbose flag.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_VerboseFlag(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -103,6 +111,8 @@ func TestCostRecommendations_VerboseFlag(t *testing.T) {
 }
 
 // TestCostRecommendations_VerboseWithJSON tests verbose flag combined with JSON output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_VerboseWithJSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -120,6 +130,8 @@ func TestCostRecommendations_VerboseWithJSON(t *testing.T) {
 }
 
 // TestCostRecommendations_FilterByActionType tests filtering by action type.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_FilterByActionType(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -141,6 +153,8 @@ func TestCostRecommendations_FilterByActionType(t *testing.T) {
 }
 
 // TestCostRecommendations_FilterMultipleActionTypes tests filtering by multiple action types.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_FilterMultipleActionTypes(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -162,6 +176,8 @@ func TestCostRecommendations_FilterMultipleActionTypes(t *testing.T) {
 }
 
 // TestCostRecommendations_InvalidActionTypeFilter tests error handling for invalid action type.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_InvalidActionTypeFilter(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -176,6 +192,8 @@ func TestCostRecommendations_InvalidActionTypeFilter(t *testing.T) {
 }
 
 // TestCostRecommendations_CaseInsensitiveFilter tests case-insensitive action type filtering.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_CaseInsensitiveFilter(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -194,6 +212,8 @@ func TestCostRecommendations_CaseInsensitiveFilter(t *testing.T) {
 }
 
 // TestCostRecommendations_FilterWithVerbose tests filter combined with verbose flag.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_FilterWithVerbose(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -212,6 +232,8 @@ func TestCostRecommendations_FilterWithVerbose(t *testing.T) {
 }
 
 // TestCostRecommendations_MissingPlanFile tests error handling for missing plan file.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_MissingPlanFile(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -223,6 +245,8 @@ func TestCostRecommendations_MissingPlanFile(t *testing.T) {
 }
 
 // TestCostRecommendations_InvalidOutputFormat tests error handling for invalid output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_InvalidOutputFormat(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -236,6 +260,8 @@ func TestCostRecommendations_InvalidOutputFormat(t *testing.T) {
 }
 
 // TestCostRecommendations_AllOutputFormats tests all supported output formats.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_AllOutputFormats(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -261,6 +287,8 @@ func TestCostRecommendations_AllOutputFormats(t *testing.T) {
 }
 
 // TestCostRecommendations_SummarySection tests that summary section is included in output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCostRecommendations_SummarySection(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")

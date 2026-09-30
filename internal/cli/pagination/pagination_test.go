@@ -10,6 +10,8 @@ import (
 )
 
 func TestPaginationParams_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		params  PaginationParams
@@ -98,6 +100,7 @@ func TestPaginationParams_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.params.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -110,6 +113,8 @@ func TestPaginationParams_Validate(t *testing.T) {
 }
 
 func TestParseSort(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		sortStr   string
@@ -160,6 +165,7 @@ func TestParseSort(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			field, order, err := ParseSort(tt.sortStr)
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -173,7 +179,10 @@ func TestParseSort(t *testing.T) {
 }
 
 func TestPaginationParams_Calculations(t *testing.T) {
+	t.Parallel()
+
 	t.Run("OffsetBased", func(t *testing.T) {
+		t.Parallel()
 		p := PaginationParams{Limit: 10, Offset: 20}
 		assert.False(t, p.IsPageBased())
 		assert.True(t, p.IsOffsetBased())
@@ -183,6 +192,7 @@ func TestPaginationParams_Calculations(t *testing.T) {
 	})
 
 	t.Run("PageBased", func(t *testing.T) {
+		t.Parallel()
 		p := PaginationParams{Page: 3, PageSize: 10}
 		assert.True(t, p.IsPageBased())
 		assert.False(t, p.IsOffsetBased())
@@ -194,6 +204,7 @@ func TestPaginationParams_Calculations(t *testing.T) {
 	})
 
 	t.Run("IsEnabled", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, PaginationParams{}.IsEnabled())
 		assert.True(t, PaginationParams{Limit: 10}.IsEnabled())
 		assert.True(t, PaginationParams{Page: 1}.IsEnabled())
@@ -202,6 +213,7 @@ func TestPaginationParams_Calculations(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture items (composite value mutated by a subtest)
 func TestPaginationParams_ApplyToSlice(t *testing.T) {
 	items := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 
@@ -267,6 +279,8 @@ func TestPaginationParams_ApplyToSlice(t *testing.T) {
 }
 
 func TestNewPaginationMeta(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		params     PaginationParams
@@ -329,12 +343,14 @@ func TestNewPaginationMeta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := NewPaginationMeta(tt.params, tt.totalCount)
 			assert.Equal(t, tt.want, got)
 		})
 	}
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture recs (composite value mutated by a subtest)
 func TestRecommendationSorter(t *testing.T) {
 	sorter := NewRecommendationSorter()
 	recs := []engine.Recommendation{
@@ -384,6 +400,8 @@ func TestRecommendationSorter(t *testing.T) {
 }
 
 func TestParseSortExpression(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		expr      string
@@ -401,6 +419,7 @@ func TestParseSortExpression(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			field, order, err := ParseSortExpression(tt.expr)
 			if tt.wantErr {
 				assert.Error(t, err)

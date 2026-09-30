@@ -14,6 +14,8 @@ import (
 )
 
 func TestNewClient_LauncherError(t *testing.T) {
+	t.Parallel()
+
 	// Test what happens when launcher fails
 	mockLauncher := &mockLauncher{
 		startError: errors.New("launcher failed"),
@@ -36,6 +38,8 @@ func TestNewClient_LauncherError(t *testing.T) {
 }
 
 func TestNewClient_InvalidBinaryPath(t *testing.T) {
+	t.Parallel()
+
 	// Test with invalid binary path using real launcher
 	launcher := pluginhost.NewProcessLauncher()
 
@@ -52,6 +56,8 @@ func TestNewClient_InvalidBinaryPath(t *testing.T) {
 }
 
 func TestClient_StructureValidation(t *testing.T) {
+	t.Parallel()
+
 	// Test that Client struct has the expected fields
 	client := &pluginhost.Client{
 		Name:  "test",
@@ -73,6 +79,8 @@ func TestClient_StructureValidation(t *testing.T) {
 }
 
 func TestClient_CloseWithError(t *testing.T) {
+	t.Parallel()
+
 	// Test Close function that returns an error
 	expectedError := errors.New("cleanup failed")
 	client := &pluginhost.Client{
@@ -91,7 +99,9 @@ func TestClient_CloseWithError(t *testing.T) {
 	}
 }
 
-func TestLauncherInterface(_ *testing.T) {
+func TestLauncherInterface(t *testing.T) {
+	t.Parallel()
+
 	// Test that our launcher types implement the Launcher interface
 	var launcher pluginhost.Launcher
 
@@ -105,6 +115,8 @@ func TestLauncherInterface(_ *testing.T) {
 }
 
 func TestNewClient_WithProcessLauncher(t *testing.T) {
+	t.Parallel()
+
 	// Test that NewClient works with real ProcessLauncher (will fail but shouldn't panic)
 	launcher := pluginhost.NewProcessLauncher()
 
@@ -130,6 +142,8 @@ func TestNewClient_WithProcessLauncher(t *testing.T) {
 }
 
 func TestNewClient_WithStdioLauncher(t *testing.T) {
+	t.Parallel()
+
 	// Test that NewClient works with real StdioLauncher (will fail but shouldn't panic)
 	launcher := pluginhost.NewStdioLauncher()
 
@@ -155,6 +169,8 @@ func TestNewClient_WithStdioLauncher(t *testing.T) {
 }
 
 func TestNewClient_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
 	// Test behavior with cancelled context
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
@@ -192,6 +208,8 @@ func (m *mockLauncher) Start(
 }
 
 func TestConvertCapabilities(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    []pbc.PluginCapability
@@ -323,6 +341,7 @@ func TestConvertCapabilities(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := pluginhost.ConvertCapabilities(tt.input)
 			if tt.expected == nil {
 				assert.Nil(t, result)

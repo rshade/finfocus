@@ -27,6 +27,7 @@ func createMockPluginBinary(t *testing.T, dir, name string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, name), []byte("#!/bin/sh\necho test"), 0o755))
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestNewPluginListCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -232,7 +233,10 @@ func TestPluginListCmd_InvalidOutputFormat(t *testing.T) {
 
 // T013: Test PluginJSONEntry serialization matches contract schema.
 func TestPluginJSONEntry_Serialization(t *testing.T) {
+	t.Parallel()
+
 	t.Run("full entry with all fields", func(t *testing.T) {
+		t.Parallel()
 		entry := cli.PluginJSONEntry{
 			Name:               "aws-public",
 			Version:            "1.0.0",
@@ -270,6 +274,7 @@ func TestPluginJSONEntry_Serialization(t *testing.T) {
 	})
 
 	t.Run("failure entry with null providers and capabilities", func(t *testing.T) {
+		t.Parallel()
 		entry := cli.PluginJSONEntry{
 			Name:           "broken-plugin",
 			Version:        "0.0.1",
@@ -293,6 +298,7 @@ func TestPluginJSONEntry_Serialization(t *testing.T) {
 	})
 
 	t.Run("empty array serializes as []", func(t *testing.T) {
+		t.Parallel()
 		entries := []cli.PluginJSONEntry{}
 		data, err := json.Marshal(entries)
 		require.NoError(t, err)
@@ -328,7 +334,10 @@ func TestPluginListCmd_TableOutputUnchanged(t *testing.T) {
 
 // T038: Test that batch_cost capability appears in JSON output.
 func TestPluginJSONEntry_BatchCostCapability(t *testing.T) {
+	t.Parallel()
+
 	t.Run("batch_cost in capabilities appears in JSON output", func(t *testing.T) {
+		t.Parallel()
 		entry := cli.PluginJSONEntry{
 			Name:               "aws-public",
 			Version:            "1.0.0",
@@ -361,6 +370,7 @@ func TestPluginJSONEntry_BatchCostCapability(t *testing.T) {
 	})
 
 	t.Run("batch_cost in JSON serialization", func(t *testing.T) {
+		t.Parallel()
 		// Create a PluginJSONEntry with batch_cost and verify it round-trips
 		entry := cli.PluginJSONEntry{
 			Name:         "test-plugin",

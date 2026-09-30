@@ -10,6 +10,8 @@ import (
 )
 
 func TestDefaultProgressBar(t *testing.T) {
+	t.Parallel()
+
 	pb := tui.DefaultProgressBar()
 
 	if pb.Width != tui.DefaultProgressBarWidth {
@@ -27,6 +29,8 @@ func TestDefaultProgressBar(t *testing.T) {
 }
 
 func TestProgressBarRender_Clamping(t *testing.T) {
+	t.Parallel()
+
 	pb := tui.ProgressBar{Width: 10, Filled: "█", Empty: "░", ShowPct: true}
 
 	// Test negative percentage clamped to 0
@@ -43,6 +47,8 @@ func TestProgressBarRender_Clamping(t *testing.T) {
 }
 
 func TestProgressBarRender_BarWidth(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		width    int
@@ -58,6 +64,7 @@ func TestProgressBarRender_BarWidth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			pb := tui.ProgressBar{Width: tt.width, Filled: "█", Empty: "░", ShowPct: false}
 			result := pb.Render(tt.percent)
 
@@ -85,6 +92,8 @@ func TestProgressBarRender_BarWidth(t *testing.T) {
 }
 
 func TestProgressBarRender_CustomCharacters(t *testing.T) {
+	t.Parallel()
+
 	pb := tui.ProgressBar{Width: 5, Filled: "■", Empty: "□", ShowPct: false}
 
 	result := pb.Render(60) // 60% of 5 = 3 filled
@@ -94,6 +103,8 @@ func TestProgressBarRender_CustomCharacters(t *testing.T) {
 }
 
 func TestProgressBarRender_PercentageDisplay(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		showPct  bool
@@ -106,6 +117,7 @@ func TestProgressBarRender_PercentageDisplay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			pb := tui.ProgressBar{Width: 10, Filled: "█", Empty: "░", ShowPct: tt.showPct}
 			result := pb.Render(tt.percent)
 
@@ -120,6 +132,8 @@ func TestProgressBarRender_PercentageDisplay(t *testing.T) {
 }
 
 func TestProgressBarRender_ColorCoding(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		percent     float64
@@ -133,6 +147,7 @@ func TestProgressBarRender_ColorCoding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			pb := tui.ProgressBar{Width: 10, Filled: "█", Empty: "░", ShowPct: true}
 			result := pb.Render(tt.percent)
 
@@ -155,6 +170,8 @@ func TestProgressBarRender_ColorCoding(t *testing.T) {
 }
 
 func TestProgressBarRender_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		width   int
@@ -169,6 +186,7 @@ func TestProgressBarRender_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			pb := tui.ProgressBar{Width: tt.width, Filled: "█", Empty: "░", ShowPct: false}
 
 			// Should not panic

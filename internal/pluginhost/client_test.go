@@ -216,6 +216,8 @@ func boolPtr(b bool) *bool { return &b }
 
 // TestNewClient_Success tests successful client creation with mock plugin.
 func TestNewClient_Success(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
 
@@ -240,6 +242,8 @@ func TestNewClient_Success(t *testing.T) {
 
 // TestNewClient_LauncherErrorMock tests error handling when launcher fails using mock.
 func TestNewClient_LauncherErrorMock(t *testing.T) {
+	t.Parallel()
+
 	expectedErr := errors.New("launcher failed")
 	mockLauncherInst := &mockLauncherBasic{
 		startFunc: func(_ context.Context, _ string, _ ...string) (*grpc.ClientConn, func() error, error) {
@@ -257,6 +261,8 @@ func TestNewClient_LauncherErrorMock(t *testing.T) {
 
 // TestNewClient_NameRPCError tests error handling when Name() RPC fails.
 func TestNewClient_NameRPCError(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	// Configure mock to fail on Name() call
 	helper.SetError("Name", plugin.ErrorProtocol)
@@ -283,6 +289,8 @@ func TestNewClient_NameRPCError(t *testing.T) {
 
 // TestNewClient_NameRPCErrorWithCloseFail tests error handling when both Name() and Close() fail.
 func TestNewClient_NameRPCErrorWithCloseFail(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.SetError("Name", plugin.ErrorProtocol)
 
@@ -307,6 +315,8 @@ func TestNewClient_NameRPCErrorWithCloseFail(t *testing.T) {
 
 // TestClient_Fields tests that all client fields are properly populated.
 func TestClient_Fields(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
 
@@ -339,6 +349,8 @@ func TestClient_Fields(t *testing.T) {
 
 // TestClient_APIUsage tests that the client API can be used for RPC calls.
 func TestClient_APIUsage(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
 
@@ -377,6 +389,8 @@ func TestClient_APIUsage(t *testing.T) {
 
 // TestClient_Close tests the Close() functionality.
 func TestClient_Close(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
 
@@ -404,6 +418,8 @@ func TestClient_Close(t *testing.T) {
 
 // TestClient_CloseError tests error handling in Close().
 func TestClient_CloseError(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
 
@@ -430,6 +446,8 @@ func TestClient_CloseError(t *testing.T) {
 
 // TestClient_MultipleCloses tests that Close() can be called multiple times.
 func TestClient_MultipleCloses(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
 
@@ -461,6 +479,8 @@ func TestClient_MultipleCloses(t *testing.T) {
 
 // TestClient_ContextCancellation tests behavior when context is cancelled.
 func TestClient_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
 	helper := plugin.NewTestHelper(t)
 	helper.ConfigureScenario(plugin.ScenarioSuccess)
 

@@ -25,6 +25,8 @@ import (
 // priceable-tag reads (allocate/allocate.go) actually agree end to end --
 // which final-review finding 1 found they did not for EKS control planes.
 func TestPlugin_GetStatsAllocateRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	node1 := &corev1.Node{
 		ObjectMeta: metav1.ObjectMeta{Name: "node-1", Labels: map[string]string{
 			"node.kubernetes.io/instance-type": "m5.large",

@@ -21,6 +21,8 @@ import (
 // 4. Call the merge logic with current state containing only the new cloud ID
 // 5. Verify the output contains entries for BOTH old and new cloud IDs plus the deleted resource.
 func TestHistoryCostFlow_FullWriteReadMerge(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -122,6 +124,8 @@ func TestHistoryCostFlow_FullWriteReadMerge(t *testing.T) {
 // TestHistoryCostFlow_NoHistoryStore verifies that when history store is nil,
 // the merge function returns the current resources unchanged (no regression).
 func TestHistoryCostFlow_NoHistoryStore(t *testing.T) {
+	t.Parallel()
+
 	currentResources := []engine.ResourceDescriptor{
 		{
 			ID:       "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
@@ -141,6 +145,8 @@ func TestHistoryCostFlow_NoHistoryStore(t *testing.T) {
 // TestHistoryCostFlow_DuplicateCloudIDNotAdded verifies that a historical
 // cloud ID already in the current state is not duplicated.
 func TestHistoryCostFlow_DuplicateCloudIDNotAdded(t *testing.T) {
+	t.Parallel()
+
 	currentResources := []engine.ResourceDescriptor{
 		{
 			ID:       "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
@@ -169,6 +175,8 @@ func TestHistoryCostFlow_DuplicateCloudIDNotAdded(t *testing.T) {
 // historical CloudIDs contain both a duplicate and new IDs, only the new
 // IDs are added as separate descriptors.
 func TestHistoryCostFlow_MultiCloudID_MixedDuplicateAndNew(t *testing.T) {
+	t.Parallel()
+
 	currentResources := []engine.ResourceDescriptor{
 		{
 			ID:       "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",

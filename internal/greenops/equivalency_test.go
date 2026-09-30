@@ -13,6 +13,8 @@ import (
 )
 
 func TestCalculate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		input          greenops.CarbonInput
@@ -103,6 +105,7 @@ func TestCalculate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := greenops.Calculate(context.Background(), tt.input)
 
 			if tt.wantErr {
@@ -148,6 +151,8 @@ func TestCalculate(t *testing.T) {
 }
 
 func TestCalculateFromMap(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		metrics     map[string]greenops.SustainabilityMetric
@@ -207,6 +212,7 @@ func TestCalculateFromMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := greenops.CalculateFromMap(context.Background(), tt.metrics)
 
 			if tt.wantIsEmpty {
@@ -225,6 +231,8 @@ func TestCalculateFromMap(t *testing.T) {
 }
 
 func TestCalculate_DisplayTextFormat(t *testing.T) {
+	t.Parallel()
+
 	// Test display text formatting per FR-003 and FR-007
 	input := greenops.CarbonInput{Value: 150.0, Unit: "kg"}
 	got, err := greenops.Calculate(context.Background(), input)
@@ -246,6 +254,8 @@ func TestCalculate_DisplayTextFormat(t *testing.T) {
 }
 
 func TestCalculate_LargeNumberFormatting(t *testing.T) {
+	t.Parallel()
+
 	// Test large number scaling per research.md thresholds
 	input := greenops.CarbonInput{Value: 10000000.0, Unit: "kg"} // 10 million kg
 	got, err := greenops.Calculate(context.Background(), input)
@@ -256,6 +266,8 @@ func TestCalculate_LargeNumberFormatting(t *testing.T) {
 }
 
 func TestCalculate_VeryLargeNumberFormatting(t *testing.T) {
+	t.Parallel()
+
 	// Test billion-scale formatting
 	input := greenops.CarbonInput{Value: 1000000000.0, Unit: "kg"} // 1 billion kg
 	got, err := greenops.Calculate(context.Background(), input)
@@ -288,6 +300,8 @@ func BenchmarkCalculateFromMap(b *testing.B) {
 // TestCalculateFromMap_DeprecationWarning verifies that using the deprecated 'gCO2e' key
 // logs a deprecation warning per FR-009.
 func TestCalculateFromMap_DeprecationWarning(t *testing.T) {
+	t.Parallel()
+
 	// Capture log output by creating a context with a logger that writes to a buffer.
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf)

@@ -51,6 +51,7 @@ func TestPluginCertifyCmd_FlagDefaults(t *testing.T) {
 	assert.Equal(t, "10m", cmd.Flags().Lookup("timeout").DefValue)
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginCertifyCmd_RequiresArg(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -68,6 +69,7 @@ func TestPluginCertifyCmd_RequiresArg(t *testing.T) {
 	// Cobra should report missing argument
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginCertifyCmd_InvalidMode(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -90,6 +92,7 @@ func TestPluginCertifyCmd_InvalidMode(t *testing.T) {
 	assert.Contains(t, string(result.Stderr), "invalid mode")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginCertifyCmd_InvalidTimeout(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -112,6 +115,7 @@ func TestPluginCertifyCmd_InvalidTimeout(t *testing.T) {
 	assert.Contains(t, string(result.Stderr), "invalid timeout")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginCertifyCmd_PluginNotFound(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 
@@ -123,6 +127,7 @@ func TestPluginCertifyCmd_PluginNotFound(t *testing.T) {
 	assert.Contains(t, string(result.Stderr), "plugin not found")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginCertifyCmd_CommandRegistered(t *testing.T) {
 	// Note: Cannot use t.Parallel() - tests that execute rootCmd modify global logger state
 

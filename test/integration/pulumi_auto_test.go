@@ -17,6 +17,8 @@ import (
 // TestPulumiAutoDetection verifies the full detection → resolve stack →
 // parse flow using a fixture Pulumi project. The test requires the pulumi
 // CLI to be installed; it skips otherwise.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestPulumiAutoDetection(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -69,7 +71,10 @@ func TestPulumiAutoDetection(t *testing.T) {
 // TestPulumiParsing verifies that Pulumi plan and state parsing works correctly
 // from raw bytes. These tests do not require the pulumi CLI.
 func TestPulumiParsing(t *testing.T) {
+	t.Parallel()
+
 	t.Run("ParsePulumiPlan from bytes", func(t *testing.T) {
+		t.Parallel()
 		planJSON := []byte(`{
 			"steps": [
 				{
@@ -96,6 +101,7 @@ func TestPulumiParsing(t *testing.T) {
 	})
 
 	t.Run("ParseStackExport from bytes", func(t *testing.T) {
+		t.Parallel()
 		stateJSON := []byte(`{
 			"version": 3,
 			"deployment": {

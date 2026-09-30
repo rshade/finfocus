@@ -291,6 +291,7 @@ func checksumForBytes(data []byte) string {
 	return hex.EncodeToString(h[:])
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton (via setupChecksumTest)
 func TestInstall_ChecksumVerified(t *testing.T) {
 	env := setupChecksumTest(t)
 
@@ -378,6 +379,7 @@ func TestInstall_ChecksumVerified(t *testing.T) {
 	assert.True(t, found, "expected 'Checksum verified' in progress messages, got: %v", messages)
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton (via setupChecksumTest)
 func TestInstall_ChecksumMismatchBlocksInstallation(t *testing.T) {
 	env := setupChecksumTest(t)
 
@@ -436,6 +438,7 @@ func TestInstall_ChecksumMismatchBlocksInstallation(t *testing.T) {
 	assert.True(t, os.IsNotExist(statErr), "install directory should not exist after checksum mismatch")
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton (via setupChecksumTest)
 func TestInstall_NoChecksumsAssetWarns(t *testing.T) {
 	env := setupChecksumTest(t)
 
@@ -495,6 +498,7 @@ func TestInstall_NoChecksumsAssetWarns(t *testing.T) {
 	assert.True(t, found, "expected warning about missing checksums.txt, got: %v", messages)
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton (via setupChecksumTest)
 func TestInstall_ChecksumsAssetNotListed(t *testing.T) {
 	env := setupChecksumTest(t)
 
@@ -563,6 +567,7 @@ func TestInstall_ChecksumsAssetNotListed(t *testing.T) {
 	assert.True(t, found, "expected warning about asset not listed in checksums, got: %v", messages)
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton (via setupChecksumTest)
 func TestInstall_ChecksumsDownloadFails(t *testing.T) {
 	env := setupChecksumTest(t)
 
@@ -630,6 +635,7 @@ func TestInstall_ChecksumsDownloadFails(t *testing.T) {
 	assert.True(t, found, "expected warning about checksums download failure, got: %v", messages)
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton (via setupChecksumTest)
 func TestInstall_MalformedChecksumsWarns(t *testing.T) {
 	env := setupChecksumTest(t)
 
@@ -697,6 +703,7 @@ func TestInstall_MalformedChecksumsWarns(t *testing.T) {
 	assert.True(t, found, "expected warning about malformed checksums, got: %v", messages)
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton (via setupChecksumTest)
 func TestInstall_SkipChecksumBypassesVerification(t *testing.T) {
 	env := setupChecksumTest(t)
 

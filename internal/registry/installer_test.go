@@ -14,6 +14,8 @@ import (
 )
 
 func TestNewInstaller(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		pluginDir string
@@ -33,6 +35,7 @@ func TestNewInstaller(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			installer := NewInstaller(tt.pluginDir)
 			require.NotNil(t, installer, "NewInstaller returned nil")
 			assert.NotNil(t, installer.client, "installer.client is nil")
@@ -47,6 +50,8 @@ func TestNewInstaller(t *testing.T) {
 }
 
 func TestInstallOptions(t *testing.T) {
+	t.Parallel()
+
 	opts := InstallOptions{
 		Force:     true,
 		NoSave:    true,
@@ -59,6 +64,8 @@ func TestInstallOptions(t *testing.T) {
 }
 
 func TestInstallResult(t *testing.T) {
+	t.Parallel()
+
 	result := InstallResult{
 		Name:       "test-plugin",
 		Version:    "v1.0.0",
@@ -73,6 +80,8 @@ func TestInstallResult(t *testing.T) {
 }
 
 func TestParseOwnerRepo(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		input     string
@@ -101,6 +110,7 @@ func TestParseOwnerRepo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			owner, repo, err := parseOwnerRepo(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -114,6 +124,8 @@ func TestParseOwnerRepo(t *testing.T) {
 }
 
 func TestFindPluginBinary(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		setupDir   func(t *testing.T) string
@@ -176,6 +188,7 @@ func TestFindPluginBinary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := tt.setupDir(t)
 			result := findPluginBinary(dir, tt.pluginName)
 			if tt.wantFound {
@@ -188,6 +201,8 @@ func TestFindPluginBinary(t *testing.T) {
 }
 
 func TestInstallAlreadyExists(t *testing.T) {
+	t.Parallel()
+
 	// Create temp plugin directory with existing installation
 	tmpDir := t.TempDir()
 	pluginDir := filepath.Join(tmpDir, "test-plugin", "v1.0.0")
@@ -203,6 +218,8 @@ func TestInstallAlreadyExists(t *testing.T) {
 }
 
 func TestUpdateOptions(t *testing.T) {
+	t.Parallel()
+
 	opts := UpdateOptions{
 		DryRun:    true,
 		Version:   "v2.0.0",
@@ -215,6 +232,8 @@ func TestUpdateOptions(t *testing.T) {
 }
 
 func TestRemoveOptions(t *testing.T) {
+	t.Parallel()
+
 	opts := RemoveOptions{
 		KeepConfig: true,
 		PluginDir:  "/test/dir",
@@ -225,6 +244,8 @@ func TestRemoveOptions(t *testing.T) {
 }
 
 func TestUpdateResult(t *testing.T) {
+	t.Parallel()
+
 	result := UpdateResult{
 		Name:        "test-plugin",
 		OldVersion:  "v1.0.0",
@@ -240,6 +261,8 @@ func TestUpdateResult(t *testing.T) {
 }
 
 func TestInstallEmptySpecifier(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	installer := NewInstaller(tmpDir)
 	opts := InstallOptions{}
@@ -249,6 +272,8 @@ func TestInstallEmptySpecifier(t *testing.T) {
 }
 
 func TestInstallInvalidURLFormat(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	installer := NewInstaller(tmpDir)
 	opts := InstallOptions{}
@@ -258,21 +283,29 @@ func TestInstallInvalidURLFormat(t *testing.T) {
 }
 
 func TestFindPluginBinaryNonExistentDir(t *testing.T) {
+	t.Parallel()
+
 	result := findPluginBinary("/nonexistent/path", "test")
 	assert.Empty(t, result, "expected empty string for non-existent dir")
 }
 
 func TestParseOwnerRepoEmptyInput(t *testing.T) {
+	t.Parallel()
+
 	_, _, err := parseOwnerRepo("")
 	assert.Error(t, err, "expected error for empty input")
 }
 
 func TestParseOwnerRepoOnlySlash(t *testing.T) {
+	t.Parallel()
+
 	_, _, err := parseOwnerRepo("/")
 	assert.Error(t, err, "expected error for empty owner/repo segments")
 }
 
 func TestInstallerLock(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	installer := NewInstaller(tmpDir)
 	name := "test-plugin"
@@ -300,6 +333,8 @@ func TestInstallerLock(t *testing.T) {
 }
 
 func TestInstallerLockStaleDetection(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	installer := NewInstaller(tmpDir)
 	name := "test-plugin"
@@ -319,6 +354,8 @@ func TestInstallerLockStaleDetection(t *testing.T) {
 }
 
 func TestInstallerLockEmptyFile(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	installer := NewInstaller(tmpDir)
 	name := "test-plugin"
@@ -338,6 +375,8 @@ func TestInstallerLockEmptyFile(t *testing.T) {
 }
 
 func TestInstallerLockInvalidPID(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	installer := NewInstaller(tmpDir)
 	name := "test-plugin"
@@ -370,6 +409,8 @@ func setupPluginVersions(t *testing.T, pluginName string, versions ...string) st
 }
 
 func TestRemoveOtherVersions(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		setupDir        func(t *testing.T) string
@@ -426,6 +467,7 @@ func TestRemoveOtherVersions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			pluginDir := tt.setupDir(t)
 			installer := NewInstaller(pluginDir)
 
@@ -461,6 +503,8 @@ func TestRemoveOtherVersions(t *testing.T) {
 }
 
 func TestRemoveOtherVersionsResult(t *testing.T) {
+	t.Parallel()
+
 	result := RemoveOtherVersionsResult{
 		PluginName:      "test-plugin",
 		KeptVersion:     "v2.0.0",
@@ -475,6 +519,8 @@ func TestRemoveOtherVersionsResult(t *testing.T) {
 }
 
 func TestRemoveOtherVersionsAcquiresLock(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	installer := NewInstaller(tmpDir)
 	name := "lock-test-plugin"
@@ -506,6 +552,8 @@ func TestRemoveOtherVersionsAcquiresLock(t *testing.T) {
 }
 
 func TestGetDirSize(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	// Create some files with known sizes
@@ -525,6 +573,8 @@ func TestGetDirSize(t *testing.T) {
 }
 
 func TestGetDirSizeNonExistent(t *testing.T) {
+	t.Parallel()
+
 	_, err := getDirSize("/nonexistent/path")
 	assert.Error(t, err, "expected error for non-existent path")
 }
@@ -533,6 +583,8 @@ func TestGetDirSizeNonExistent(t *testing.T) {
 // attempts are properly serialized and only one goroutine can hold the lock
 // at a time.
 func TestInstallerLockConcurrent(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	installer := NewInstaller(tmpDir)
 	name := "concurrent-test-plugin"

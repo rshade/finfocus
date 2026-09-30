@@ -247,10 +247,13 @@ func getAWSResourceMappingTestData() []struct {
 // TestResourceTypeMappingIntegration tests the complete pipeline from Pulumi JSON to ResourceDescriptor.
 // This validates the acceptance criteria resource mapping examples from the GitHub issue.
 func TestResourceTypeMappingIntegration(t *testing.T) {
+	t.Parallel()
+
 	tests := getAWSResourceMappingTestData()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Test the complete pipeline: Load -> GetResources -> MapResources
 			descriptors := loadPlanDescriptors(t, tt.planContent)
 			require.Len(t, descriptors, len(tt.expected), "resource descriptor count")
@@ -423,10 +426,13 @@ func getEdgeCaseTestData() []struct {
 
 // TestResourceTypeMappingEdgeCases tests edge cases in resource type mapping.
 func TestResourceTypeMappingEdgeCases(t *testing.T) {
+	t.Parallel()
+
 	tests := getEdgeCaseTestData()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Create temporary file
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "plan.json")

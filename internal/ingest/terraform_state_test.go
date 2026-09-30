@@ -11,7 +11,10 @@ import (
 )
 
 func TestParseTerraformState(t *testing.T) {
+	t.Parallel()
+
 	t.Run("valid v4 state", func(t *testing.T) {
+		t.Parallel()
 		data, err := os.ReadFile("../../examples/plans/terraform-simple-state.json")
 		require.NoError(t, err)
 		state, err := ingest.ParseTerraformState(data)
@@ -22,12 +25,14 @@ func TestParseTerraformState(t *testing.T) {
 	})
 
 	t.Run("rejects version 3", func(t *testing.T) {
+		t.Parallel()
 		_, err := ingest.ParseTerraformState([]byte(`{"version": 3, "resources": []}`))
 		require.Error(t, err)
 		assert.ErrorIs(t, err, ingest.ErrUnsupportedStateVersion)
 	})
 
 	t.Run("detects encrypted state", func(t *testing.T) {
+		t.Parallel()
 		data, err := os.ReadFile("../../examples/plans/terraform-encrypted-state.json")
 		require.NoError(t, err)
 		_, err = ingest.ParseTerraformState(data)
@@ -37,13 +42,17 @@ func TestParseTerraformState(t *testing.T) {
 	})
 
 	t.Run("rejects invalid JSON", func(t *testing.T) {
+		t.Parallel()
 		_, err := ingest.ParseTerraformState([]byte(`{not json`))
 		require.Error(t, err)
 	})
 }
 
 func TestGetManagedResources(t *testing.T) {
+	t.Parallel()
+
 	t.Run("filters data sources", func(t *testing.T) {
+		t.Parallel()
 		data, err := os.ReadFile("../../examples/plans/terraform-simple-state.json")
 		require.NoError(t, err)
 		state, err := ingest.ParseTerraformState(data)
@@ -56,6 +65,7 @@ func TestGetManagedResources(t *testing.T) {
 	})
 
 	t.Run("filters deposed and tainted instances", func(t *testing.T) {
+		t.Parallel()
 		data, err := os.ReadFile("../../examples/plans/terraform-deposed-state.json")
 		require.NoError(t, err)
 		state, err := ingest.ParseTerraformState(data)
@@ -69,13 +79,17 @@ func TestGetManagedResources(t *testing.T) {
 }
 
 func TestLoadTerraformState(t *testing.T) {
+	t.Parallel()
+
 	t.Run("file not found", func(t *testing.T) {
+		t.Parallel()
 		_, err := ingest.LoadTerraformState("does/not/exist.tfstate")
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "reading terraform state file")
 	})
 
 	t.Run("valid file", func(t *testing.T) {
+		t.Parallel()
 		state, err := ingest.LoadTerraformState("../../examples/plans/terraform-simple-state.json")
 		require.NoError(t, err)
 		assert.Equal(t, 4, state.Version)

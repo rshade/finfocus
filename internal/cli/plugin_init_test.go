@@ -28,6 +28,7 @@ func TestPluginInitCommand(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestPluginInitValidation(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -220,6 +221,7 @@ func TestPluginInitForceOverwrite(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestIsValidPluginName(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -270,6 +272,7 @@ func runPluginInitForTest(t *testing.T, opts *cli.PluginInitOptions) {
 	require.NoError(t, err)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitDockerFilesGenerated(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -299,6 +302,7 @@ func TestPluginInitDockerFilesGenerated(t *testing.T) {
 	assert.Contains(t, string(dockerignore), ".git")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitNoDocker(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -325,6 +329,7 @@ func TestPluginInitNoDocker(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitDockerOnly(t *testing.T) {
 	tmpDir := t.TempDir()
 	// Pre-existing project directory (docker-only targets existing projects)
@@ -354,6 +359,8 @@ func TestPluginInitDockerOnly(t *testing.T) {
 }
 
 func TestPluginInitShouldGenerateFlags(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name       string
 		opts       cli.PluginInitOptions
@@ -419,6 +426,7 @@ func TestPluginInitShouldGenerateFlags(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.wantDocker, tc.opts.ShouldGenerateDocker())
 			assert.Equal(t, tc.wantDocs, tc.opts.ShouldGenerateDocs())
 			assert.Equal(t, tc.wantHealth, tc.opts.ShouldGenerateHealth())
@@ -426,6 +434,7 @@ func TestPluginInitShouldGenerateFlags(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitMinimal(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -457,6 +466,7 @@ func TestPluginInitMinimal(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitCalculatorRPCMethods(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -492,6 +502,7 @@ func TestPluginInitCalculatorRPCMethods(t *testing.T) {
 	assert.Contains(t, string(calculatorTest), "{\"aws supported\", \"aws\", true}")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitHealthEndpoint(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -517,6 +528,7 @@ func TestPluginInitHealthEndpoint(t *testing.T) {
 	assert.Contains(t, string(mainGo), "pricing.PluginVersion")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitNoHealth(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -539,6 +551,7 @@ func TestPluginInitNoHealth(t *testing.T) {
 	assert.NotContains(t, string(mainGo), "/health")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitDocsGenerated(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -579,6 +592,7 @@ func TestPluginInitDocsGenerated(t *testing.T) {
 	assert.Contains(t, string(deployDoc), "```yaml")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitNoDocs(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -599,6 +613,7 @@ func TestPluginInitNoDocs(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitEnhancedMakefile(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -631,6 +646,7 @@ func TestPluginInitEnhancedMakefile(t *testing.T) {
 	assert.NotContains(t, content, "{{NAME}}")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitMakefileNoDocker(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -654,6 +670,7 @@ func TestPluginInitMakefileNoDocker(t *testing.T) {
 	assert.Contains(t, content, "build:")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitWorkflows(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -693,6 +710,7 @@ func TestPluginInitWorkflows(t *testing.T) {
 	assert.Contains(t, string(docker), "file: docker/Dockerfile")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitWorkflowsNoDocker(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -718,6 +736,7 @@ func TestPluginInitWorkflowsNoDocker(t *testing.T) {
 	assert.True(t, os.IsNotExist(err))
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitClaudeReviewWorkflow(t *testing.T) {
 	tmpDir := t.TempDir()
 

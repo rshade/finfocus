@@ -27,6 +27,8 @@ func newTestRootCmd() *cobra.Command {
 }
 
 // TestCLIPagination_Sorting tests sorting recommendations by different fields.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via newTestRootCmd)
 func TestCLIPagination_Sorting(t *testing.T) {
 	// Create test fixture with recommendations
 	planPath := createTestPlanWithRecommendations(t)
@@ -98,6 +100,8 @@ func TestCLIPagination_Sorting(t *testing.T) {
 }
 
 // TestCLIPagination_LimitFlag tests the --limit flag for offset-based pagination.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via newTestRootCmd)
 func TestCLIPagination_LimitFlag(t *testing.T) {
 	planPath := createTestPlanWithRecommendations(t)
 	defer os.Remove(planPath)
@@ -166,6 +170,8 @@ func TestCLIPagination_LimitFlag(t *testing.T) {
 }
 
 // TestCLIPagination_PageBased tests page-based pagination with --page and --page-size.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via newTestRootCmd)
 func TestCLIPagination_PageBased(t *testing.T) {
 	planPath := createTestPlanWithRecommendations(t)
 	defer os.Remove(planPath)
@@ -248,6 +254,8 @@ func TestCLIPagination_PageBased(t *testing.T) {
 }
 
 // TestCLIPagination_OffsetBased tests offset-based pagination with --offset and --limit.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via newTestRootCmd)
 func TestCLIPagination_OffsetBased(t *testing.T) {
 	planPath := createTestPlanWithRecommendations(t)
 	defer os.Remove(planPath)
@@ -303,6 +311,8 @@ func TestCLIPagination_OffsetBased(t *testing.T) {
 }
 
 // TestCLIPagination_JSONMetadata tests that pagination metadata is included in JSON output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via newTestRootCmd)
 func TestCLIPagination_JSONMetadata(t *testing.T) {
 	planPath := createTestPlanWithRecommendations(t)
 	defer os.Remove(planPath)
@@ -343,6 +353,8 @@ func TestCLIPagination_JSONMetadata(t *testing.T) {
 }
 
 // TestCLIPagination_MutualExclusion tests that --page and --offset cannot be used together.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via newTestRootCmd)
 func TestCLIPagination_MutualExclusion(t *testing.T) {
 	planPath := createTestPlanWithRecommendations(t)
 	defer os.Remove(planPath)

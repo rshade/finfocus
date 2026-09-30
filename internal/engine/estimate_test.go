@@ -112,7 +112,10 @@ func (m *mockSpecLoader) LoadSpec(_, _, _ string) (interface{}, error) {
 
 // TestEstimateCost_Fallback tests the fallback behavior when EstimateCost RPC is not implemented.
 func TestEstimateCost_Fallback(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single property override with fallback", func(t *testing.T) {
+		t.Parallel()
 		// Create engine with no plugins (forces fallback to spec)
 		engine := New(nil, &mockSpecLoader{})
 
@@ -145,6 +148,7 @@ func TestEstimateCost_Fallback(t *testing.T) {
 	})
 
 	t.Run("multiple property overrides with combined delta", func(t *testing.T) {
+		t.Parallel()
 		engine := New(nil, &mockSpecLoader{})
 
 		request := &EstimateRequest{
@@ -173,6 +177,7 @@ func TestEstimateCost_Fallback(t *testing.T) {
 	})
 
 	t.Run("no property overrides returns validation error", func(t *testing.T) {
+		t.Parallel()
 		engine := New(nil, &mockSpecLoader{})
 
 		request := &EstimateRequest{
@@ -196,7 +201,10 @@ func TestEstimateCost_Fallback(t *testing.T) {
 
 // TestEstimateCost_ResourceValidation tests that invalid resources are rejected.
 func TestEstimateCost_ResourceValidation(t *testing.T) {
+	t.Parallel()
+
 	t.Run("empty resource type", func(t *testing.T) {
+		t.Parallel()
 		engine := New(nil, &mockSpecLoader{})
 
 		request := &EstimateRequest{
@@ -220,7 +228,10 @@ func TestEstimateCost_ResourceValidation(t *testing.T) {
 
 // TestEstimateCost_Context tests context cancellation handling.
 func TestEstimateCost_Context(t *testing.T) {
+	t.Parallel()
+
 	t.Run("cancelled context returns context.Canceled error", func(t *testing.T) {
+		t.Parallel()
 		eng := New(nil, &mockSpecLoader{})
 
 		ctx, cancel := context.WithCancel(context.Background())
@@ -251,7 +262,10 @@ func TestEstimateCost_Context(t *testing.T) {
 
 // TestEstimateRequest_Validation tests EstimateRequest field validation.
 func TestEstimateRequest_Validation(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil resource returns error", func(t *testing.T) {
+		t.Parallel()
 		engine := New(nil, &mockSpecLoader{})
 
 		request := &EstimateRequest{
@@ -267,6 +281,7 @@ func TestEstimateRequest_Validation(t *testing.T) {
 	})
 
 	t.Run("nil request returns error", func(t *testing.T) {
+		t.Parallel()
 		engine := New(nil, &mockSpecLoader{})
 
 		// Should return error, not panic
@@ -368,6 +383,8 @@ func BenchmarkEstimateCost_MinimalOverride(b *testing.B) {
 // TestEstimateCost_PerformanceWithin5Seconds validates that single-resource estimation
 // completes within the 5-second SLA defined in SC-004.
 func TestEstimateCost_PerformanceWithin5Seconds(t *testing.T) {
+	t.Parallel()
+
 	eng := New(nil, &mockSpecLoader{})
 
 	request := &EstimateRequest{
@@ -417,6 +434,8 @@ func TestEstimateCost_PerformanceWithin5Seconds(t *testing.T) {
 // TestTryEstimateCostRPC_Success verifies the RPC path returns correct baseline/modified
 // costs and TotalChange when the plugin implements EstimateCost.
 func TestTryEstimateCostRPC_Success(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	var firstRequest, secondRequest *pbc.EstimateCostRequest
 	mock := &estimateMockPlugin{
@@ -481,6 +500,8 @@ func TestTryEstimateCostRPC_Success(t *testing.T) {
 // TestTryEstimateCostRPC_SinglePropertyDelta verifies that a single override
 // produces one CostDelta entry with the correct property name and cost change.
 func TestTryEstimateCostRPC_SinglePropertyDelta(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
@@ -519,6 +540,8 @@ func TestTryEstimateCostRPC_SinglePropertyDelta(t *testing.T) {
 // TestTryEstimateCostRPC_MultiPropertyCombinedDelta verifies that multiple
 // overrides produce a single "combined" delta entry.
 func TestTryEstimateCostRPC_MultiPropertyCombinedDelta(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
@@ -558,6 +581,8 @@ func TestTryEstimateCostRPC_MultiPropertyCombinedDelta(t *testing.T) {
 // TestTryEstimateCostRPC_NilResponse verifies that a nil response from the
 // plugin causes an error (not a panic).
 func TestTryEstimateCostRPC_NilResponse(t *testing.T) {
+	t.Parallel()
+
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
 			// Simulate a plugin returning a nil response (no proto, no error).
@@ -591,6 +616,8 @@ func TestTryEstimateCostRPC_NilResponse(t *testing.T) {
 // TestTryEstimateCostRPC_NegativeCost verifies that a negative CostMonthly
 // from the plugin causes the RPC result to be rejected.
 func TestTryEstimateCostRPC_NegativeCost(t *testing.T) {
+	t.Parallel()
+
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
 			return &pbc.EstimateCostResponse{
@@ -623,6 +650,8 @@ func TestTryEstimateCostRPC_NegativeCost(t *testing.T) {
 // TestTryEstimateCostRPC_EmptyCurrency verifies that an empty currency
 // in the plugin response causes RPC rejection and engine falls back.
 func TestTryEstimateCostRPC_EmptyCurrency(t *testing.T) {
+	t.Parallel()
+
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
 			return &pbc.EstimateCostResponse{
@@ -654,6 +683,8 @@ func TestTryEstimateCostRPC_EmptyCurrency(t *testing.T) {
 // TestTryEstimateCostRPC_CurrencyPassthrough verifies that a non-USD currency
 // from the plugin is preserved without conversion.
 func TestTryEstimateCostRPC_CurrencyPassthrough(t *testing.T) {
+	t.Parallel()
+
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
 			return &pbc.EstimateCostResponse{
@@ -688,6 +719,8 @@ func TestTryEstimateCostRPC_CurrencyPassthrough(t *testing.T) {
 // TestTryEstimateCostRPC_NilExpiresAt verifies that ExpiresAt remains nil
 // when the plugin doesn't set expires_at on the EstimateCostResponse.
 func TestTryEstimateCostRPC_NilExpiresAt(t *testing.T) {
+	t.Parallel()
+
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
 			return &pbc.EstimateCostResponse{
@@ -721,6 +754,8 @@ func TestTryEstimateCostRPC_NilExpiresAt(t *testing.T) {
 
 // TestTryEstimateCostRPC_ExpiresAt verifies that only valid cache hints propagate.
 func TestTryEstimateCostRPC_ExpiresAt(t *testing.T) {
+	t.Parallel()
+
 	expiry := time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC)
 	tests := []struct {
 		name       string
@@ -735,6 +770,7 @@ func TestTryEstimateCostRPC_ExpiresAt(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			mock := &estimateMockPlugin{
 				estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
 					return &pbc.EstimateCostResponse{
@@ -780,6 +816,8 @@ func TestTryEstimateCostRPC_ExpiresAt(t *testing.T) {
 // Unimplemented for EstimateCost, the engine falls back to double-GetProjectedCost
 // and sets UsedFallback = true.
 func TestEstimateCost_FallbackOnUnimplemented(t *testing.T) {
+	t.Parallel()
+
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
 			return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
@@ -814,6 +852,8 @@ func TestEstimateCost_FallbackOnUnimplemented(t *testing.T) {
 // plugin returns Unimplemented but the second implements the RPC, the engine
 // uses the second plugin's response with UsedFallback = false.
 func TestEstimateCost_MultiPlugin_FirstUnimplemented(t *testing.T) {
+	t.Parallel()
+
 	unimplMock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
 			return nil, status.Error(codes.Unimplemented, "EstimateCost not implemented")
@@ -862,6 +902,8 @@ func TestEstimateCost_MultiPlugin_FirstUnimplemented(t *testing.T) {
 
 // TestValidateEstimateResponse_NaN verifies that NaN CostMonthly is rejected.
 func TestValidateEstimateResponse_NaN(t *testing.T) {
+	t.Parallel()
+
 	resp := &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: math.NaN()}
 	err := validateEstimateResponse(resp)
 	require.Error(t, err)
@@ -870,6 +912,8 @@ func TestValidateEstimateResponse_NaN(t *testing.T) {
 
 // TestValidateEstimateResponse_Inf verifies that Inf CostMonthly is rejected.
 func TestValidateEstimateResponse_Inf(t *testing.T) {
+	t.Parallel()
+
 	resp := &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: math.Inf(1)}
 	err := validateEstimateResponse(resp)
 	require.Error(t, err)
@@ -878,6 +922,8 @@ func TestValidateEstimateResponse_Inf(t *testing.T) {
 
 // TestValidateEstimateResponse_NegativeInf verifies that -Inf CostMonthly is rejected.
 func TestValidateEstimateResponse_NegativeInf(t *testing.T) {
+	t.Parallel()
+
 	resp := &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: math.Inf(-1)}
 	err := validateEstimateResponse(resp)
 	require.Error(t, err)
@@ -886,6 +932,8 @@ func TestValidateEstimateResponse_NegativeInf(t *testing.T) {
 
 // TestValidateEstimateResponse_EmptyCurrency verifies that empty currency is rejected.
 func TestValidateEstimateResponse_EmptyCurrency(t *testing.T) {
+	t.Parallel()
+
 	resp := &pbc.EstimateCostResponse{Currency: "", CostMonthly: 10.0}
 	err := validateEstimateResponse(resp)
 	require.Error(t, err)
@@ -894,6 +942,8 @@ func TestValidateEstimateResponse_EmptyCurrency(t *testing.T) {
 
 // TestValidateEstimateResponse_Valid verifies that a valid response passes.
 func TestValidateEstimateResponse_Valid(t *testing.T) {
+	t.Parallel()
+
 	resp := &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: 10.0}
 	err := validateEstimateResponse(resp)
 	require.NoError(t, err)
@@ -902,6 +952,8 @@ func TestValidateEstimateResponse_Valid(t *testing.T) {
 // TestTryEstimateCostRPC_NaNFallsBackToFallback verifies that NaN CostMonthly
 // from a plugin causes RPC rejection and engine falls back.
 func TestTryEstimateCostRPC_NaNFallsBackToFallback(t *testing.T) {
+	t.Parallel()
+
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
 			return &pbc.EstimateCostResponse{
@@ -933,6 +985,8 @@ func TestTryEstimateCostRPC_NaNFallsBackToFallback(t *testing.T) {
 // TestTryEstimateCostRPC_CurrencyMismatchFallsBack verifies that differing
 // currencies between baseline and modified responses cause fallback.
 func TestTryEstimateCostRPC_CurrencyMismatchFallsBack(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {
@@ -964,6 +1018,8 @@ func TestTryEstimateCostRPC_CurrencyMismatchFallsBack(t *testing.T) {
 }
 
 func TestCoerceOverrideValue(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		override string
@@ -989,6 +1045,7 @@ func TestCoerceOverrideValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := coerceOverrideValue(tt.override, tt.original)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -996,7 +1053,10 @@ func TestCoerceOverrideValue(t *testing.T) {
 }
 
 func TestMergePropertiesWithOverrides(t *testing.T) {
+	t.Parallel()
+
 	t.Run("override preserves float64 type", func(t *testing.T) {
+		t.Parallel()
 		properties := map[string]any{"volumeSize": float64(8)}
 		overrides := map[string]string{"volumeSize": "100"}
 
@@ -1008,6 +1068,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 	})
 
 	t.Run("override preserves bool type", func(t *testing.T) {
+		t.Parallel()
 		properties := map[string]any{"enabled": true}
 		overrides := map[string]string{"enabled": "false"}
 
@@ -1018,6 +1079,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 	})
 
 	t.Run("override preserves string type", func(t *testing.T) {
+		t.Parallel()
 		properties := map[string]any{"instanceType": "t3.micro"}
 		overrides := map[string]string{"instanceType": "m5.large"}
 
@@ -1027,6 +1089,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 	})
 
 	t.Run("new key stays string", func(t *testing.T) {
+		t.Parallel()
 		properties := map[string]any{"existing": float64(1)}
 		overrides := map[string]string{"newKey": "value"}
 
@@ -1037,6 +1100,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 	})
 
 	t.Run("unparseable override stays string", func(t *testing.T) {
+		t.Parallel()
 		properties := map[string]any{"count": float64(5)}
 		overrides := map[string]string{"count": "many"}
 
@@ -1046,6 +1110,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 	})
 
 	t.Run("nil properties does not panic", func(t *testing.T) {
+		t.Parallel()
 		overrides := map[string]string{"key": "val"}
 
 		merged := mergePropertiesWithOverrides(nil, overrides)
@@ -1054,6 +1119,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 	})
 
 	t.Run("empty overrides preserves originals", func(t *testing.T) {
+		t.Parallel()
 		properties := map[string]any{"a": float64(1)}
 
 		merged := mergePropertiesWithOverrides(properties, map[string]string{})
@@ -1062,6 +1128,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 	})
 
 	t.Run("mixed types all preserved", func(t *testing.T) {
+		t.Parallel()
 		properties := map[string]any{
 			"num":  float64(8),
 			"flag": true,
@@ -1081,6 +1148,7 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 	})
 
 	t.Run("original map not mutated", func(t *testing.T) {
+		t.Parallel()
 		properties := map[string]any{"x": float64(1)}
 		overrides := map[string]string{"x": "2"}
 
@@ -1093,6 +1161,8 @@ func TestMergePropertiesWithOverrides(t *testing.T) {
 // TestTryEstimateCostRPC_ModifiedResponseInvalid verifies that a valid baseline
 // followed by an invalid modified response (negative cost) triggers fallback.
 func TestTryEstimateCostRPC_ModifiedResponseInvalid(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	mock := &estimateMockPlugin{
 		estimateCostFunc: func(_ context.Context, _ *pbc.EstimateCostRequest, _ ...grpc.CallOption) (*pbc.EstimateCostResponse, error) {

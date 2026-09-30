@@ -29,6 +29,8 @@ func findSubcommandLocal(cmd *cobra.Command, name string) *cobra.Command {
 // T015: Unit tests for snooze CLI subcommand.
 
 // T008: Test dismiss command creation.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestNewRecommendationsDismissCmd(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -38,6 +40,8 @@ func TestNewRecommendationsDismissCmd(t *testing.T) {
 }
 
 // T008: Test dismiss command flags.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestDismissCmd_Flags(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	dismissSub := findSubcommandLocal(cmd, "dismiss")
@@ -62,6 +66,8 @@ func TestDismissCmd_Flags(t *testing.T) {
 }
 
 // T008: Test dismiss requires reason flag.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestDismissCmd_RequiresReason(t *testing.T) {
 	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
@@ -73,6 +79,8 @@ func TestDismissCmd_RequiresReason(t *testing.T) {
 }
 
 // T008: Test dismiss requires recommendation-id positional arg.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestDismissCmd_RequiresRecommendationID(t *testing.T) {
 	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
@@ -85,6 +93,8 @@ func TestDismissCmd_RequiresRecommendationID(t *testing.T) {
 }
 
 // T008: Test "other" reason requires --note.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestDismissCmd_OtherRequiresNote(t *testing.T) {
 	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
@@ -96,6 +106,8 @@ func TestDismissCmd_OtherRequiresNote(t *testing.T) {
 }
 
 // T008: Test invalid reason validation.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestDismissCmd_InvalidReason(t *testing.T) {
 	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
@@ -136,6 +148,8 @@ func TestDismissCmd_ValidReasons(t *testing.T) {
 }
 
 // T008: Test --force skips confirmation.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestDismissCmd_ForceSkipsConfirmation(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	dismissSub := findSubcommandLocal(cmd, "dismiss")
@@ -151,6 +165,8 @@ func TestDismissCmd_ForceSkipsConfirmation(t *testing.T) {
 }
 
 // T008: Test Snoozed->Dismissed direct transition (FR-010a).
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestDismissCmd_DirectTransitionFromSnoozed(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	dismissSub := findSubcommandLocal(cmd, "dismiss")
@@ -163,6 +179,8 @@ func TestDismissCmd_DirectTransitionFromSnoozed(t *testing.T) {
 }
 
 // T015: Test snooze command creation.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestNewRecommendationsSnoozeCmd(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -172,6 +190,8 @@ func TestNewRecommendationsSnoozeCmd(t *testing.T) {
 }
 
 // T015: Test snooze command flags.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestSnoozeCmd_Flags(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	snoozeSub := findSubcommandLocal(cmd, "snooze")
@@ -193,6 +213,8 @@ func TestSnoozeCmd_Flags(t *testing.T) {
 }
 
 // T015: Test snooze requires --until flag.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestSnoozeCmd_RequiresUntil(t *testing.T) {
 	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,
@@ -204,6 +226,8 @@ func TestSnoozeCmd_RequiresUntil(t *testing.T) {
 }
 
 // T015: Test snooze validates future date (FR-012).
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestSnoozeCmd_RejectsPastDate(t *testing.T) {
 	// Use a date in the past
 	pastDate := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
@@ -249,6 +273,8 @@ func TestSnoozeCmd_AcceptsRFC3339(t *testing.T) {
 }
 
 // T015: Test snooze default reason is "deferred".
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestSnoozeCmd_DefaultReasonDeferred(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	snoozeSub := findSubcommandLocal(cmd, "snooze")
@@ -261,6 +287,8 @@ func TestSnoozeCmd_DefaultReasonDeferred(t *testing.T) {
 
 // NOTE: This test validates CLI structure only, not transition logic.
 // Full transition logic is tested in engine_dismiss_test.go.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestSnoozeCmd_DirectTransitionAllowed_CLIParsing(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	snoozeSub := findSubcommandLocal(cmd, "snooze")
@@ -274,6 +302,8 @@ func TestSnoozeCmd_DirectTransitionAllowed_CLIParsing(t *testing.T) {
 
 // NOTE: This test validates CLI parsing only; full transition logic is
 // tested in engine_dismiss_test.go.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestSnoozeCmd_ResnoozeAllowed_CLIParsing(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	snoozeSub := findSubcommandLocal(cmd, "snooze")
@@ -289,6 +319,8 @@ func TestSnoozeCmd_ResnoozeAllowed_CLIParsing(t *testing.T) {
 }
 
 // T015: Test snooze rejects invalid date format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestSnoozeCmd_RejectsInvalidDateFormat(t *testing.T) {
 	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root,

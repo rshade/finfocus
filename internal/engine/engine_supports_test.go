@@ -53,6 +53,8 @@ func supportsOnly(e *Engine, client *pluginhost.Client, res ResourceDescriptor) 
 }
 
 func TestCheckPluginSupports_SendsProviderRegionAndSKU(t *testing.T) {
+	t.Parallel()
+
 	api := &recordingSupportsClient{region: "us-east-1"}
 	e, client := supportsEngine(api)
 
@@ -71,6 +73,8 @@ func TestCheckPluginSupports_SendsProviderRegionAndSKU(t *testing.T) {
 }
 
 func TestCheckPluginSupports_CacheKeyIncludesRegion(t *testing.T) {
+	t.Parallel()
+
 	api := &recordingSupportsClient{region: "us-east-1"}
 	e, client := supportsEngine(api)
 	res := func(az string) ResourceDescriptor {
@@ -106,6 +110,8 @@ func (c *skuAwareSupportsClient) Supports(
 // whole provider/type/region, hiding every other SKU in that region behind
 // the same stale answer.
 func TestCheckPluginSupports_CacheKeyIncludesSKU(t *testing.T) {
+	t.Parallel()
+
 	api := &skuAwareSupportsClient{}
 	e, client := supportsEngine(api)
 	res := func(sku string) ResourceDescriptor {
@@ -141,6 +147,8 @@ func (c *notImplementedSupportsClient) Supports(
 // capability decision, so it must be treated as supported (and cached as
 // such), not silently dropped.
 func TestCheckPluginSupports_NotImplementedReasonFailsOpen(t *testing.T) {
+	t.Parallel()
+
 	api := &notImplementedSupportsClient{}
 	e, client := supportsEngine(api)
 	res := ResourceDescriptor{Type: "kubernetes:apps/v1:Deployment", Provider: "kubernetes"}
@@ -167,6 +175,8 @@ func (c *erroringSupportsClient) Supports(
 // unimplemented) must still fail open, exactly like the pre-v0.6.2 (no
 // Supports at all) case.
 func TestCheckPluginSupports_RPCErrorFailsOpen(t *testing.T) {
+	t.Parallel()
+
 	api := &erroringSupportsClient{}
 	e, client := supportsEngine(api)
 	res := ResourceDescriptor{Type: "aws:ec2/instance:Instance", Provider: "aws"}
@@ -177,6 +187,8 @@ func TestCheckPluginSupports_RPCErrorFailsOpen(t *testing.T) {
 // TestCheckPluginSupports_RPCErrorReturnsNoReason ensures a fail-open RPC
 // failure never fabricates a decline reason.
 func TestCheckPluginSupports_RPCErrorReturnsNoReason(t *testing.T) {
+	t.Parallel()
+
 	api := &erroringSupportsClient{}
 	e, client := supportsEngine(api)
 	res := ResourceDescriptor{Type: "aws:ec2/instance:Instance", Provider: "aws"}
@@ -205,6 +217,8 @@ func (c *stubSupportsClient) Supports(
 // the SDK's not-implemented fallback and every RPC error (including
 // Unimplemented) fail open, and answers may vary per region.
 func TestCheckPluginSupports_FailOpenMatrix(t *testing.T) {
+	t.Parallel()
+
 	res := ResourceDescriptor{Type: "aws:ec2/instance:Instance", Provider: "aws",
 		Properties: map[string]interface{}{"instanceType": "m5.large", "availabilityZone": "us-east-1a"}}
 
@@ -264,6 +278,7 @@ func TestCheckPluginSupports_FailOpenMatrix(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			api := &stubSupportsClient{supports: tt.supports}
 			e, client := supportsEngine(api)
 
@@ -278,6 +293,8 @@ func TestCheckPluginSupports_FailOpenMatrix(t *testing.T) {
 // side of a region-bound plugin: the same resource type in an unsupported
 // region is filtered out.
 func TestCheckPluginSupports_RegionSpecificAnswerDeclines(t *testing.T) {
+	t.Parallel()
+
 	api := &stubSupportsClient{supports: func(req *pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
 		return &pbc.SupportsResponse{Supported: req.GetResource().GetRegion() == "eu-west-1"}, nil
 	}}
@@ -291,6 +308,8 @@ func TestCheckPluginSupports_RegionSpecificAnswerDeclines(t *testing.T) {
 // TestCheckPluginSupports_DeclineReasonSurvivesCache ensures the decline
 // reason is returned on the cached path too, not just the live RPC answer.
 func TestCheckPluginSupports_DeclineReasonSurvivesCache(t *testing.T) {
+	t.Parallel()
+
 	const wantReason = "Region not supported by this binary (plugin region: us-east-1)"
 	calls := 0
 	api := &stubSupportsClient{supports: func(_ *pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
@@ -327,6 +346,8 @@ func (c *decliningSupportsClient) Supports(
 // candidate plugin declines Supports() with a distinct reason, the placeholder
 // CostResult carries both reasons instead of the bare "no pricing" note.
 func TestGetProjectedCost_DeclineReasonsSurfaced(t *testing.T) {
+	t.Parallel()
+
 	const reasonA = "Region not supported by this binary (plugin region: us-east-1)"
 	const reasonB = "SKU m5.large not priced by this plugin"
 
@@ -359,6 +380,8 @@ func TestGetProjectedCost_DeclineReasonsSurfaced(t *testing.T) {
 // plugin whose Supports() RPC fails fails open (stays selected, contributes
 // no decline reason), while a genuine decline is still surfaced.
 func TestGetProjectedCost_FailOpenNotReportedAsDecline(t *testing.T) {
+	t.Parallel()
+
 	const declineReason = "region not served by this binary"
 
 	clients := []*pluginhost.Client{
@@ -387,6 +410,8 @@ func TestGetProjectedCost_FailOpenNotReportedAsDecline(t *testing.T) {
 // TestGetProjectedCostWithErrors_DeclineReasonsSurfaced applies the same
 // surfacing to the error-tracking projected-cost path.
 func TestGetProjectedCostWithErrors_DeclineReasonsSurfaced(t *testing.T) {
+	t.Parallel()
+
 	const reason = "region not served by this binary"
 
 	clients := []*pluginhost.Client{
@@ -408,6 +433,8 @@ func TestGetProjectedCostWithErrors_DeclineReasonsSurfaced(t *testing.T) {
 // TestGetActualCost_DeclineReasonsSurfaced applies the same surfacing to the
 // actual-cost path: the placeholder note names the declining plugin.
 func TestGetActualCost_DeclineReasonsSurfaced(t *testing.T) {
+	t.Parallel()
+
 	const reason = "Region not supported by this binary (plugin region: us-east-1)"
 
 	clients := []*pluginhost.Client{
@@ -432,6 +459,8 @@ func TestGetActualCost_DeclineReasonsSurfaced(t *testing.T) {
 // TestGetActualCostWithOptionsAndErrors_DeclineReasonsSurfaced applies the
 // same surfacing to the fallback-estimate placeholder path.
 func TestGetActualCostWithOptionsAndErrors_DeclineReasonsSurfaced(t *testing.T) {
+	t.Parallel()
+
 	const reason = "region not served by this binary"
 
 	clients := []*pluginhost.Client{
@@ -456,6 +485,8 @@ func TestGetActualCostWithOptionsAndErrors_DeclineReasonsSurfaced(t *testing.T) 
 }
 
 func TestDeclineNotes(t *testing.T) {
+	t.Parallel()
+
 	longReason := strings.Repeat("x", maxDeclineReasonLen+10)
 
 	tests := []struct {
@@ -509,6 +540,7 @@ func TestDeclineNotes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := declineNotes(noteNoPricingInfo, tt.declines)
 			for _, want := range tt.want {
 				assert.Contains(t, got, want)

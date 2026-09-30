@@ -46,6 +46,8 @@ func containsAnyWarningMessage(warnings []router.ValidationWarning, substr strin
 }
 
 func TestValidateRoutingConfig(t *testing.T) {
+	t.Parallel()
+
 	tests := []validationTestCase{
 		{
 			name:          "NilConfig",
@@ -255,6 +257,7 @@ func TestValidateRoutingConfig(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := router.ValidateRoutingConfig(tc.cfg, tc.clients)
 
 			assert.Equal(t, tc.wantValid, result.Valid, "valid mismatch")
@@ -296,7 +299,10 @@ func TestValidateRoutingConfig(t *testing.T) {
 }
 
 func TestValidationResult_Methods(t *testing.T) {
+	t.Parallel()
+
 	t.Run("HasErrors", func(t *testing.T) {
+		t.Parallel()
 		result := router.ValidationResult{
 			Valid:  false,
 			Errors: []router.ValidationError{{Message: "test error"}},
@@ -308,6 +314,7 @@ func TestValidationResult_Methods(t *testing.T) {
 	})
 
 	t.Run("HasWarnings", func(t *testing.T) {
+		t.Parallel()
 		result := router.ValidationResult{
 			Valid:    true,
 			Warnings: []router.ValidationWarning{{Message: "test warning"}},
@@ -319,6 +326,7 @@ func TestValidationResult_Methods(t *testing.T) {
 	})
 
 	t.Run("ErrorMessages", func(t *testing.T) {
+		t.Parallel()
 		result := router.ValidationResult{
 			Errors: []router.ValidationError{
 				{Plugin: "p1", Field: "f1", Message: "m1"},
@@ -332,6 +340,7 @@ func TestValidationResult_Methods(t *testing.T) {
 	})
 
 	t.Run("WarningMessages", func(t *testing.T) {
+		t.Parallel()
 		result := router.ValidationResult{
 			Warnings: []router.ValidationWarning{
 				{Plugin: "p1", Field: "f1", Message: "m1"},
@@ -346,6 +355,8 @@ func TestValidationResult_Methods(t *testing.T) {
 }
 
 func TestValidationError_Error(t *testing.T) {
+	t.Parallel()
+
 	withPlugin := router.ValidationError{Plugin: "test-plugin", Field: "name", Message: "is required"}
 	assert.Equal(t, "test-plugin.name: is required", withPlugin.Error())
 

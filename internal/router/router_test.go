@@ -25,6 +25,8 @@ func mockClient(name string, providers []string) *pluginhost.Client {
 }
 
 func TestNewRouter(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		opts    []Option
@@ -78,6 +80,7 @@ func TestNewRouter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			router, err := NewRouter(tt.opts...)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -90,6 +93,8 @@ func TestNewRouter(t *testing.T) {
 }
 
 func TestSelectPlugins_AutomaticRouting(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	awsClient := mockClient("aws-public", []string{"aws"})
@@ -131,6 +136,7 @@ func TestSelectPlugins_AutomaticRouting(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			matches := router.SelectPlugins(ctx, tt.resource, tt.feature)
 
 			require.Len(t, matches, len(tt.wantPlugins),
@@ -146,6 +152,8 @@ func TestSelectPlugins_AutomaticRouting(t *testing.T) {
 }
 
 func TestSelectPlugins_PatternRouting(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	awsClient := mockClient("aws-public", []string{"aws"})
@@ -195,6 +203,7 @@ func TestSelectPlugins_PatternRouting(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			matches := router.SelectPlugins(ctx, tt.resource, "ProjectedCosts")
 
 			require.Len(t, matches, len(tt.wantPlugins))
@@ -208,6 +217,8 @@ func TestSelectPlugins_PatternRouting(t *testing.T) {
 }
 
 func TestSelectPlugins_FeatureFiltering(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	awsCEClient := mockClient("aws-ce", []string{"aws"})
@@ -237,24 +248,29 @@ func TestSelectPlugins_FeatureFiltering(t *testing.T) {
 	resource := engine.ResourceDescriptor{Type: "aws:ec2/instance:Instance"}
 
 	t.Run("Recommendations feature matches aws-ce only", func(t *testing.T) {
+		t.Parallel()
 		matches := router.SelectPlugins(ctx, resource, "Recommendations")
 		require.Len(t, matches, 1)
 		assert.Equal(t, "aws-ce", matches[0].Client.Name)
 	})
 
 	t.Run("ProjectedCosts feature matches aws-public only", func(t *testing.T) {
+		t.Parallel()
 		matches := router.SelectPlugins(ctx, resource, "ProjectedCosts")
 		require.Len(t, matches, 1)
 		assert.Equal(t, "aws-public", matches[0].Client.Name)
 	})
 
 	t.Run("Unknown feature matches neither", func(t *testing.T) {
+		t.Parallel()
 		matches := router.SelectPlugins(ctx, resource, "Carbon")
 		require.Empty(t, matches)
 	})
 }
 
 func TestSelectPlugins_PriorityOrdering(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	lowPriClient := mockClient("low-priority", []string{"aws"})
@@ -288,6 +304,8 @@ func TestSelectPlugins_PriorityOrdering(t *testing.T) {
 }
 
 func TestSelectPlugins_SourceAttribution(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	awsClient := mockClient("aws-public", []string{"aws"})
@@ -313,6 +331,7 @@ func TestSelectPlugins_SourceAttribution(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("Pattern match has config source", func(t *testing.T) {
+		t.Parallel()
 		resource := engine.ResourceDescriptor{Type: "aws:eks:Cluster"}
 		matches := router.SelectPlugins(ctx, resource, "ProjectedCosts")
 
@@ -322,6 +341,7 @@ func TestSelectPlugins_SourceAttribution(t *testing.T) {
 	})
 
 	t.Run("Provider match has automatic source", func(t *testing.T) {
+		t.Parallel()
 		resource := engine.ResourceDescriptor{Type: "aws:ec2:Instance"}
 		matches := router.SelectPlugins(ctx, resource, "ProjectedCosts")
 
@@ -333,6 +353,8 @@ func TestSelectPlugins_SourceAttribution(t *testing.T) {
 }
 
 func TestShouldFallback(t *testing.T) {
+	t.Parallel()
+
 	falseVal := false
 	trueVal := true
 
@@ -354,6 +376,8 @@ func TestShouldFallback(t *testing.T) {
 }
 
 func TestAllEqualPriority(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		matches  []PluginMatch
@@ -400,6 +424,7 @@ func TestAllEqualPriority(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := AllEqualPriority(tt.matches)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -407,6 +432,8 @@ func TestAllEqualPriority(t *testing.T) {
 }
 
 func TestMatchReason_String(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "no_match", MatchReasonNoMatch.String())
 	assert.Equal(t, "automatic", MatchReasonAutomatic.String())
 	assert.Equal(t, "pattern", MatchReasonPattern.String())
@@ -415,6 +442,8 @@ func TestMatchReason_String(t *testing.T) {
 }
 
 func TestSelectPlugins_WildcardProvider(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Test that ["*"] in SupportedProviders is treated as global
@@ -434,6 +463,8 @@ func TestSelectPlugins_WildcardProvider(t *testing.T) {
 }
 
 func TestSelectPlugins_InternalPulumiTypeFiltering(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	awsClient := mockClient("aws-public", []string{"aws"})
@@ -471,6 +502,7 @@ func TestSelectPlugins_InternalPulumiTypeFiltering(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			matches := router.SelectPlugins(ctx, tt.resource, "ProjectedCosts")
 			assert.Len(t, matches, tt.wantMatches)
 		})
@@ -478,12 +510,16 @@ func TestSelectPlugins_InternalPulumiTypeFiltering(t *testing.T) {
 }
 
 func TestCapabilityEnumFromFeature_BatchCost(t *testing.T) {
+	t.Parallel()
+
 	capability, ok := capabilityEnumFromFeature(FeatureBatchCost)
 	require.True(t, ok)
 	assert.Equal(t, pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, capability)
 }
 
 func TestCapabilityEnumFromString_BatchCost(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name  string
 		input string
@@ -494,6 +530,7 @@ func TestCapabilityEnumFromString_BatchCost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			capability, ok := capabilityEnumFromString(tt.input)
 			require.True(t, ok)
 			assert.Equal(t, pbc.PluginCapability_PLUGIN_CAPABILITY_BATCH_COST, capability)
@@ -502,6 +539,8 @@ func TestCapabilityEnumFromString_BatchCost(t *testing.T) {
 }
 
 func TestSelectPlugins_InternalPulumiTypeWithPatternOverride(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Simulate a future "pulumi cost plugin" that declares a pattern for pulumi:* types

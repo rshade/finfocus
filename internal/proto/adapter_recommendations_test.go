@@ -14,6 +14,8 @@ import (
 )
 
 func TestClientAdapter_GetRecommendations_RetainsFullRecord(t *testing.T) {
+	t.Parallel()
+
 	createdAt := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
 	confidence := 0.82
 	implCost := 25.0
@@ -134,6 +136,8 @@ func TestClientAdapter_GetRecommendations_RetainsFullRecord(t *testing.T) {
 }
 
 func TestClientAdapter_GetRecommendations_SparseRecord(t *testing.T) {
+	t.Parallel()
+
 	mockGRPC := &mockPbcCostSourceServiceClient{
 		getRecommendationsFunc: func(
 			_ context.Context, _ *pbc.GetRecommendationsRequest, _ ...grpc.CallOption,
@@ -162,6 +166,8 @@ func TestClientAdapter_GetRecommendations_SparseRecord(t *testing.T) {
 // TestClientAdapter_GetRecommendations_ActionDetailVariants covers every action_detail
 // oneof variant plus the absent case.
 func TestClientAdapter_GetRecommendations_ActionDetailVariants(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		rec  *pbc.Recommendation
@@ -285,6 +291,7 @@ func TestClientAdapter_GetRecommendations_ActionDetailVariants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			mockGRPC := &mockPbcCostSourceServiceClient{
 				getRecommendationsFunc: func(
 					_ context.Context, _ *pbc.GetRecommendationsRequest, _ ...grpc.CallOption,

@@ -16,6 +16,8 @@ import (
 
 // TestAutomaticRouting_ProviderMatching tests T016: automatic provider-based routing.
 func TestAutomaticRouting_ProviderMatching(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	awsClient := &pluginhost.Client{
@@ -74,6 +76,7 @@ func TestAutomaticRouting_ProviderMatching(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			resource := engine.ResourceDescriptor{Type: tt.resourceType}
 			matches := router.SelectPlugins(ctx, resource, "ProjectedCosts")
 
@@ -90,9 +93,12 @@ func TestAutomaticRouting_ProviderMatching(t *testing.T) {
 
 // TestAutomaticRouting_GlobalPlugins tests T017: global plugin matching.
 func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("empty SupportedProviders is global", func(t *testing.T) {
+		t.Parallel()
 		emptyClient := &pluginhost.Client{
 			Name: "global-plugin",
 			Metadata: &proto.PluginMetadata{
@@ -114,6 +120,7 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 	})
 
 	t.Run("wildcard ['*'] is global", func(t *testing.T) {
+		t.Parallel()
 		wildcardClient := &pluginhost.Client{
 			Name: "recorder-plugin",
 			Metadata: &proto.PluginMetadata{
@@ -135,6 +142,7 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 	})
 
 	t.Run("nil metadata is global", func(t *testing.T) {
+		t.Parallel()
 		nilMetadataClient := &pluginhost.Client{
 			Name:     "legacy-plugin",
 			Metadata: nil,
@@ -151,6 +159,7 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 	})
 
 	t.Run("global plugin matches alongside specific provider", func(t *testing.T) {
+		t.Parallel()
 		awsClient := &pluginhost.Client{
 			Name: "aws-public",
 			Metadata: &proto.PluginMetadata{
@@ -184,6 +193,8 @@ func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 }
 
 // TestAutomaticRouting_SourceAttribution tests T018a: source field in results.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture awsClient
 func TestAutomaticRouting_SourceAttribution(t *testing.T) {
 	ctx := context.Background()
 
@@ -233,6 +244,8 @@ func TestAutomaticRouting_SourceAttribution(t *testing.T) {
 
 // TestAutomaticRouting_MultiCloud tests mixed-cloud plan routing.
 func TestAutomaticRouting_MultiCloud(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	awsClient := &pluginhost.Client{
@@ -280,6 +293,8 @@ func TestAutomaticRouting_MultiCloud(t *testing.T) {
 
 // TestAutomaticRouting_CaseInsensitive tests provider matching is case-insensitive.
 func TestAutomaticRouting_CaseInsensitive(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Plugin declares "aws" (lowercase)
@@ -311,6 +326,8 @@ func TestAutomaticRouting_CaseInsensitive(t *testing.T) {
 
 // TestAutomaticRouting_NoMatchingPlugins tests behavior when no plugins match.
 func TestAutomaticRouting_NoMatchingPlugins(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	awsClient := &pluginhost.Client{
@@ -333,6 +350,8 @@ func TestAutomaticRouting_NoMatchingPlugins(t *testing.T) {
 // TestAutomaticRouting_InternalPulumiTypes tests that internal Pulumi types
 // are not matched by automatic or global plugins.
 func TestAutomaticRouting_InternalPulumiTypes(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	awsClient := &pluginhost.Client{

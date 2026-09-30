@@ -14,6 +14,8 @@ import (
 // T022: Unit tests for undismiss CLI subcommand.
 
 // T022: Test undismiss command creation.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestNewRecommendationsUndismissCmd(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 
@@ -23,6 +25,8 @@ func TestNewRecommendationsUndismissCmd(t *testing.T) {
 }
 
 // T022: Test undismiss command flags.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestUndismissCmd_Flags(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	undismissSub := findSubcommand(cmd, "undismiss")
@@ -35,6 +39,8 @@ func TestUndismissCmd_Flags(t *testing.T) {
 }
 
 // T022: Test undismiss requires recommendation-id positional arg.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestUndismissCmd_RequiresRecommendationID(t *testing.T) {
 	root := cli.NewRootCmd("test-version")
 	result := axtest.Run(context.Background(), t, root, []string{"cost", "recommendations", "undismiss"})
@@ -43,6 +49,8 @@ func TestUndismissCmd_RequiresRecommendationID(t *testing.T) {
 }
 
 // T022: Test --force flag parsing.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestUndismissCmd_ForceFlag(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	undismissSub := findSubcommand(cmd, "undismiss")
@@ -58,6 +66,8 @@ func TestUndismissCmd_ForceFlag(t *testing.T) {
 }
 
 // T022: Test undismiss command Use field contains recommendation-id.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestUndismissCmd_UseField(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	undismissSub := findSubcommand(cmd, "undismiss")
@@ -68,6 +78,8 @@ func TestUndismissCmd_UseField(t *testing.T) {
 }
 
 // T022: Test undismiss has descriptive help.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestUndismissCmd_Help(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	undismissSub := findSubcommand(cmd, "undismiss")
@@ -79,6 +91,8 @@ func TestUndismissCmd_Help(t *testing.T) {
 }
 
 // T022: Test undismiss does not require --pulumi-json (local state only).
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestUndismissCmd_NoPluginConnectionRequired(t *testing.T) {
 	cmd := cli.NewCostRecommendationsCmd()
 	undismissSub := findSubcommand(cmd, "undismiss")

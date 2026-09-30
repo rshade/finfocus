@@ -11,6 +11,8 @@ import (
 
 // TestPaginationParams_Validate verifies pagination parameter validation.
 func TestPaginationParams_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		params  pagination.PaginationParams
@@ -139,6 +141,7 @@ func TestPaginationParams_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.params.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -152,6 +155,8 @@ func TestPaginationParams_Validate(t *testing.T) {
 
 // TestPaginationParams_IsEnabled verifies pagination enabled detection.
 func TestPaginationParams_IsEnabled(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		params pagination.PaginationParams
@@ -197,6 +202,7 @@ func TestPaginationParams_IsEnabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tt.params.IsEnabled())
 		})
 	}
@@ -204,6 +210,8 @@ func TestPaginationParams_IsEnabled(t *testing.T) {
 
 // TestPaginationParams_CalculateOffsetLimit verifies offset/limit calculation from page/page-size.
 func TestPaginationParams_CalculateOffsetLimit(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		params     pagination.PaginationParams
@@ -268,6 +276,7 @@ func TestPaginationParams_CalculateOffsetLimit(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			offset, limit := tt.params.CalculateOffsetLimit()
 			assert.Equal(t, tt.wantOffset, offset, "offset mismatch")
 			assert.Equal(t, tt.wantLimit, limit, "limit mismatch")
@@ -276,6 +285,8 @@ func TestPaginationParams_CalculateOffsetLimit(t *testing.T) {
 }
 
 // TestPaginationParams_ApplyToSlice verifies slice pagination.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture items = make(...)
 func TestPaginationParams_ApplyToSlice(t *testing.T) {
 	// Create test data slice
 	items := make([]int, 100)

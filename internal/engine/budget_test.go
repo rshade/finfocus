@@ -15,6 +15,8 @@ import (
 )
 
 func TestFilterBudgets(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budgets  []*pbc.Budget
@@ -118,6 +120,7 @@ func TestFilterBudgets(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := FilterBudgets(tc.budgets, tc.filter)
 			var resultIDs []string
 			for _, b := range result {
@@ -129,6 +132,8 @@ func TestFilterBudgets(t *testing.T) {
 }
 
 func TestCalculateBudgetSummary(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budgets  []*pbc.Budget
@@ -178,6 +183,7 @@ func TestCalculateBudgetSummary(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := CalculateBudgetSummary(context.Background(), tc.budgets)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -185,6 +191,8 @@ func TestCalculateBudgetSummary(t *testing.T) {
 }
 
 func TestIsValidCurrency(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		currency string
 		valid    bool
@@ -201,6 +209,7 @@ func TestIsValidCurrency(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.currency, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.valid, isValidCurrency(tc.currency))
 		})
 	}
@@ -208,6 +217,8 @@ func TestIsValidCurrency(t *testing.T) {
 
 // TestValidateCurrencyExported tests the exported ValidateCurrency function (FR-003).
 func TestValidateCurrencyExported(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		currency    string
@@ -286,6 +297,7 @@ func TestValidateCurrencyExported(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateCurrency(tc.currency)
 			if tc.wantErr {
 				require.Error(t, err)
@@ -300,6 +312,8 @@ func TestValidateCurrencyExported(t *testing.T) {
 
 // TestValidateBudgetCurrency tests the ValidateBudgetCurrency function.
 func TestValidateBudgetCurrency(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		budget      *pbc.Budget
@@ -371,6 +385,7 @@ func TestValidateBudgetCurrency(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateBudgetCurrency(tc.budget)
 			if tc.wantErr {
 				require.Error(t, err)
@@ -384,6 +399,8 @@ func TestValidateBudgetCurrency(t *testing.T) {
 
 // TestFilterBudgetsByProvider tests provider filtering with BudgetFilterOptions (FR-002, FR-009).
 func TestFilterBudgetsByProvider(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		budgets   []*pbc.Budget
@@ -468,6 +485,7 @@ func TestFilterBudgetsByProvider(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := FilterBudgetsByProvider(context.Background(), tc.budgets, tc.providers)
 			var resultIDs []string
 			for _, b := range result {
@@ -480,6 +498,8 @@ func TestFilterBudgetsByProvider(t *testing.T) {
 
 // TestMatchesProvider tests the MatchesProvider function.
 func TestMatchesProvider(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		budget    *pbc.Budget
@@ -526,6 +546,7 @@ func TestMatchesProvider(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := MatchesProvider(tc.budget, tc.providers)
 			assert.Equal(t, tc.want, got)
 		})
@@ -589,6 +610,8 @@ func BenchmarkMatchesProvider(b *testing.B) {
 
 // TestMatchesBudgetTagsWithGlob_ExactMatch tests exact tag value matching (T007, US1).
 func TestMatchesBudgetTagsWithGlob_ExactMatch(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budget   *pbc.Budget
@@ -635,6 +658,7 @@ func TestMatchesBudgetTagsWithGlob_ExactMatch(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -643,6 +667,8 @@ func TestMatchesBudgetTagsWithGlob_ExactMatch(t *testing.T) {
 
 // TestMatchesBudgetTagsWithGlob_MissingKey tests budget missing required tag key (T008, US1).
 func TestMatchesBudgetTagsWithGlob_MissingKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budget   *pbc.Budget
@@ -677,6 +703,7 @@ func TestMatchesBudgetTagsWithGlob_MissingKey(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -684,6 +711,8 @@ func TestMatchesBudgetTagsWithGlob_MissingKey(t *testing.T) {
 }
 
 // TestMatchesBudgetTagsWithGlob_EmptyTags tests empty tags map returns all (T011, US1).
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture budget
 func TestMatchesBudgetTagsWithGlob_EmptyTags(t *testing.T) {
 	budget := &pbc.Budget{
 		Id:       "1",
@@ -717,6 +746,8 @@ func TestMatchesBudgetTagsWithGlob_EmptyTags(t *testing.T) {
 
 // TestMatchesBudgetTagsWithGlob_GlobPatterns tests glob pattern matching (T015-T018, US2).
 func TestMatchesBudgetTagsWithGlob_GlobPatterns(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budget   *pbc.Budget
@@ -781,6 +812,7 @@ func TestMatchesBudgetTagsWithGlob_GlobPatterns(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -789,6 +821,8 @@ func TestMatchesBudgetTagsWithGlob_GlobPatterns(t *testing.T) {
 
 // TestMatchesBudgetTagsWithGlob_MultipleTags tests AND logic for multiple tags (T021-T022, US3).
 func TestMatchesBudgetTagsWithGlob_MultipleTags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budget   *pbc.Budget
@@ -826,6 +860,7 @@ func TestMatchesBudgetTagsWithGlob_MultipleTags(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -834,6 +869,8 @@ func TestMatchesBudgetTagsWithGlob_MultipleTags(t *testing.T) {
 
 // TestMatchesBudgetTagsWithGlob_EdgeCases tests edge cases (T030-T032, Phase 7).
 func TestMatchesBudgetTagsWithGlob_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budget   *pbc.Budget
@@ -889,6 +926,7 @@ func TestMatchesBudgetTagsWithGlob_EdgeCases(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := matchesBudgetTagsWithGlob(tc.budget, tc.tags)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -896,6 +934,8 @@ func TestMatchesBudgetTagsWithGlob_EdgeCases(t *testing.T) {
 }
 
 // TestFilterBudgetsByTags tests the full filtering function (T003, T009).
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture budgets (composite value mutated by a subtest)
 func TestFilterBudgetsByTags(t *testing.T) {
 	budgets := []*pbc.Budget{
 		{Id: "1", Metadata: map[string]string{"namespace": "production", "cluster": "us-east-1"}},
@@ -953,6 +993,8 @@ func TestFilterBudgetsByTags(t *testing.T) {
 
 // TestFilterBudgetsByTags_CombinedWithProvider tests combined provider and tag filtering (T026, T028-T029, US4).
 func TestFilterBudgetsByTags_CombinedWithProvider(t *testing.T) {
+	t.Parallel()
+
 	budgets := []*pbc.Budget{
 		{Id: "1", Source: "kubecost", Metadata: map[string]string{"namespace": "production"}},
 		{Id: "2", Source: "kubecost", Metadata: map[string]string{"namespace": "staging"}},
@@ -974,6 +1016,8 @@ func TestFilterBudgetsByTags_CombinedWithProvider(t *testing.T) {
 
 // TestFilterBudgetsByTags_BackwardCompatibility tests existing provider filtering unchanged (T013, T042).
 func TestFilterBudgetsByTags_BackwardCompatibility(t *testing.T) {
+	t.Parallel()
+
 	budgets := []*pbc.Budget{
 		{Id: "1", Source: "aws-budgets"},
 		{Id: "2", Source: "kubecost"},
@@ -1034,6 +1078,8 @@ func BenchmarkMatchesBudgetTagsWithGlob(b *testing.B) {
 // =============================================================================
 
 func TestConfigBudgetToProto(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		status         *BudgetStatus
@@ -1144,6 +1190,7 @@ func TestConfigBudgetToProto(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := ConfigBudgetToProto(tc.status, tc.budgetName, tc.budgetID)
 
 			if tc.wantNil {
@@ -1173,6 +1220,8 @@ func TestConfigBudgetToProto(t *testing.T) {
 }
 
 func TestConfigBudgetToProto_ForecastedThresholdType(t *testing.T) {
+	t.Parallel()
+
 	status := &BudgetStatus{
 		Budget:       config.BudgetConfig{Amount: 200, Currency: "USD"},
 		CurrentSpend: 50,
@@ -1195,6 +1244,8 @@ func TestConfigBudgetToProto_ForecastedThresholdType(t *testing.T) {
 // =============================================================================
 
 func TestBuildConfigBudgetResult(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		cfg       *config.BudgetsConfig
@@ -1265,6 +1316,7 @@ func TestBuildConfigBudgetResult(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ctx := context.Background()
 			result := BuildConfigBudgetResult(ctx, tc.cfg, tc.totalCost)
 
@@ -1286,6 +1338,8 @@ func TestBuildConfigBudgetResult(t *testing.T) {
 }
 
 func TestBuildConfigBudgetResult_HealthStatus(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		amount     float64
@@ -1320,6 +1374,7 @@ func TestBuildConfigBudgetResult_HealthStatus(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			ctx := context.Background()
 			cfg := &config.BudgetsConfig{
 				Global: &config.ScopedBudget{
@@ -1340,6 +1395,8 @@ func TestBuildConfigBudgetResult_HealthStatus(t *testing.T) {
 }
 
 func TestBuildConfigBudgetResult_Summary(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	cfg := &config.BudgetsConfig{
 		Global: &config.ScopedBudget{
@@ -1357,6 +1414,8 @@ func TestBuildConfigBudgetResult_Summary(t *testing.T) {
 }
 
 func TestHealthStatusLabel(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		status pbc.BudgetHealthStatus
 		want   string
@@ -1370,12 +1429,15 @@ func TestHealthStatusLabel(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.want, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.want, HealthStatusLabel(tc.status))
 		})
 	}
 }
 
 func TestParseHealthStatusLabel(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		label string
 		want  pbc.BudgetHealthStatus
@@ -1394,12 +1456,15 @@ func TestParseHealthStatusLabel(t *testing.T) {
 			name = "empty"
 		}
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.want, parseHealthStatusLabel(tc.label))
 		})
 	}
 }
 
 func TestBudgetHealthResultJSONRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		health     pbc.BudgetHealthStatus
@@ -1439,6 +1504,7 @@ func TestBudgetHealthResultJSONRoundTrip(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			original := BudgetHealthResult{
 				BudgetID:     "b-1",
 				BudgetName:   "Test Budget",
@@ -1471,6 +1537,8 @@ func TestBudgetHealthResultJSONRoundTrip(t *testing.T) {
 }
 
 func TestBudgetHealthResultUnmarshalJSON_UnknownLabel(t *testing.T) {
+	t.Parallel()
+
 	input := `{"budgetID":"b-1","health":"GARBAGE","utilization":50}`
 	var result BudgetHealthResult
 	err := json.Unmarshal([]byte(input), &result)

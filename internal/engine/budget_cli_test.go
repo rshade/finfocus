@@ -11,6 +11,8 @@ import (
 )
 
 func TestDefaultBudgetEngine_Evaluate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		budget       config.BudgetConfig
@@ -104,6 +106,7 @@ func TestDefaultBudgetEngine_Evaluate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			status, err := engine.Evaluate(tc.budget, tc.currentSpend, tc.currency)
 
 			if tc.wantErr {
@@ -122,6 +125,8 @@ func TestDefaultBudgetEngine_Evaluate(t *testing.T) {
 }
 
 func TestDefaultBudgetEngine_EvaluateAlerts(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		budget          config.BudgetConfig
@@ -203,6 +208,7 @@ func TestDefaultBudgetEngine_EvaluateAlerts(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			status, err := engine.Evaluate(tc.budget, tc.currentSpend, "USD")
 			require.NoError(t, err)
 
@@ -227,6 +233,8 @@ func TestDefaultBudgetEngine_EvaluateAlerts(t *testing.T) {
 }
 
 func TestDefaultBudgetEngine_Forecasting(t *testing.T) {
+	t.Parallel()
+
 	// Fixed time: January 15th (day 15 of 31 days)
 	fixedTime := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
 	engine := NewBudgetEngineWithTime(func() time.Time { return fixedTime })
@@ -240,6 +248,7 @@ func TestDefaultBudgetEngine_Forecasting(t *testing.T) {
 	}
 
 	t.Run("forecast under budget", func(t *testing.T) {
+		t.Parallel()
 		// Spend $300 by day 15 = $20/day * 31 days = $620 forecast (62%)
 		status, err := engine.Evaluate(budget, 300.0, "USD")
 		require.NoError(t, err)
@@ -255,6 +264,7 @@ func TestDefaultBudgetEngine_Forecasting(t *testing.T) {
 	})
 
 	t.Run("forecast over budget", func(t *testing.T) {
+		t.Parallel()
 		// Spend $600 by day 15 = $40/day * 31 days = $1240 forecast (124%)
 		status, err := engine.Evaluate(budget, 600.0, "USD")
 		require.NoError(t, err)
@@ -269,6 +279,7 @@ func TestDefaultBudgetEngine_Forecasting(t *testing.T) {
 	})
 
 	t.Run("forecast approaching threshold", func(t *testing.T) {
+		t.Parallel()
 		// Spend $475 by day 15 = ~$31.67/day * 31 days = ~$981.67 forecast (~98.2%)
 		// This is within 5% of 100% threshold
 		status, err := engine.Evaluate(budget, 475.0, "USD")
@@ -284,6 +295,8 @@ func TestDefaultBudgetEngine_Forecasting(t *testing.T) {
 }
 
 func TestDefaultBudgetEngine_MixedAlertTypes(t *testing.T) {
+	t.Parallel()
+
 	// Fixed time: January 15th (day 15 of 31 days)
 	fixedTime := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
 	engine := NewBudgetEngineWithTime(func() time.Time { return fixedTime })
@@ -325,7 +338,10 @@ func TestDefaultBudgetEngine_MixedAlertTypes(t *testing.T) {
 }
 
 func TestBudgetStatus_Methods(t *testing.T) {
+	t.Parallel()
+
 	t.Run("HasExceededAlerts", func(t *testing.T) {
+		t.Parallel()
 		status := &BudgetStatus{
 			Alerts: []ThresholdStatus{
 				{Threshold: 50.0, Status: ThresholdStatusExceeded},
@@ -344,6 +360,7 @@ func TestBudgetStatus_Methods(t *testing.T) {
 	})
 
 	t.Run("HasApproachingAlerts", func(t *testing.T) {
+		t.Parallel()
 		status := &BudgetStatus{
 			Alerts: []ThresholdStatus{
 				{Threshold: 50.0, Status: ThresholdStatusExceeded},
@@ -362,6 +379,7 @@ func TestBudgetStatus_Methods(t *testing.T) {
 	})
 
 	t.Run("GetHighestExceededThreshold", func(t *testing.T) {
+		t.Parallel()
 		status := &BudgetStatus{
 			Alerts: []ThresholdStatus{
 				{Threshold: 50.0, Status: ThresholdStatusExceeded},
@@ -380,6 +398,7 @@ func TestBudgetStatus_Methods(t *testing.T) {
 	})
 
 	t.Run("CappedPercentage", func(t *testing.T) {
+		t.Parallel()
 		tests := []struct {
 			percentage float64
 			expected   float64
@@ -398,6 +417,8 @@ func TestBudgetStatus_Methods(t *testing.T) {
 }
 
 func TestDaysInMonth(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		time     time.Time
@@ -412,12 +433,15 @@ func TestDaysInMonth(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.expected, daysInMonth(tc.time))
 		})
 	}
 }
 
 func TestEvaluateThreshold(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		threshold  float64
@@ -452,6 +476,7 @@ func TestEvaluateThreshold(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.expected, evaluateThreshold(tc.threshold, tc.percentage))
 		})
 	}
@@ -463,6 +488,8 @@ func TestEvaluateThreshold(t *testing.T) {
 
 // T013: Unit test for BudgetStatus.ShouldExit() returns false when disabled.
 func TestBudgetStatus_ShouldExit_Disabled(t *testing.T) {
+	t.Parallel()
+
 	status := &BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:          1000.0,
@@ -479,6 +506,8 @@ func TestBudgetStatus_ShouldExit_Disabled(t *testing.T) {
 
 // T014: Unit test for BudgetStatus.ShouldExit() returns false when no thresholds exceeded.
 func TestBudgetStatus_ShouldExit_NoExceeded(t *testing.T) {
+	t.Parallel()
+
 	status := &BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:          1000.0,
@@ -496,6 +525,8 @@ func TestBudgetStatus_ShouldExit_NoExceeded(t *testing.T) {
 
 // T015: Unit test for BudgetStatus.ShouldExit() returns true when enabled AND exceeded.
 func TestBudgetStatus_ShouldExit_EnabledAndExceeded(t *testing.T) {
+	t.Parallel()
+
 	status := &BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:          1000.0,
@@ -512,6 +543,8 @@ func TestBudgetStatus_ShouldExit_EnabledAndExceeded(t *testing.T) {
 
 // T016: Unit test for BudgetStatus.GetExitCode() returns 0 when should not exit.
 func TestBudgetStatus_GetExitCode_NoExit(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		status *BudgetStatus
@@ -548,6 +581,7 @@ func TestBudgetStatus_GetExitCode_NoExit(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, 0, tc.status.GetExitCode(), "should return 0 when should not exit")
 		})
 	}
@@ -555,6 +589,8 @@ func TestBudgetStatus_GetExitCode_NoExit(t *testing.T) {
 
 // T017: Unit test for BudgetStatus.GetExitCode() returns configured code on exit.
 func TestBudgetStatus_GetExitCode_ShouldExit(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		exitCode     int
@@ -570,6 +606,7 @@ func TestBudgetStatus_GetExitCode_ShouldExit(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			status := &BudgetStatus{
 				Budget: config.BudgetConfig{
 					Amount:          1000.0,
@@ -589,6 +626,8 @@ func TestBudgetStatus_GetExitCode_ShouldExit(t *testing.T) {
 
 // T018: Unit test for BudgetStatus.ExitReason() returns empty string when no exit.
 func TestBudgetStatus_ExitReason_NoExit(t *testing.T) {
+	t.Parallel()
+
 	status := &BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:          1000.0,
@@ -605,6 +644,8 @@ func TestBudgetStatus_ExitReason_NoExit(t *testing.T) {
 
 // T019: Unit test for BudgetStatus.ExitReason() returns descriptive message on exit.
 func TestBudgetStatus_ExitReason_OnExit(t *testing.T) {
+	t.Parallel()
+
 	status := &BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:          1000.0,
@@ -626,6 +667,8 @@ func TestBudgetStatus_ExitReason_OnExit(t *testing.T) {
 
 // T020a: Unit test for exit code 1 when budget evaluation error occurs (FR-009).
 func TestBudgetStatus_ExitCodeOnError(t *testing.T) {
+	t.Parallel()
+
 	// When evaluation fails, the error exit code should be 1 (not the configured code)
 	// This is tested at the CLI level, but we verify the constant here
 	assert.Equal(t, 1, ExitCodeBudgetEvaluationError,
@@ -634,6 +677,8 @@ func TestBudgetStatus_ExitCodeOnError(t *testing.T) {
 
 // Additional exit code tests for edge cases.
 func TestBudgetStatus_ShouldExit_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		status     *BudgetStatus
@@ -680,6 +725,7 @@ func TestBudgetStatus_ShouldExit_EdgeCases(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.shouldExit, tc.status.ShouldExit())
 		})
 	}
@@ -687,6 +733,8 @@ func TestBudgetStatus_ShouldExit_EdgeCases(t *testing.T) {
 
 // Test exit code with warning-only mode (exit_code: 0).
 func TestBudgetStatus_GetExitCode_WarningOnly(t *testing.T) {
+	t.Parallel()
+
 	status := &BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:          1000.0,
