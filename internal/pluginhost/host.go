@@ -162,6 +162,9 @@ func checkVersionCompatibility(ctx context.Context, pluginName, pluginSpecVersio
 	return nil
 }
 
+// CapabilityRecommendationScoring is the normalized capability name of a scorer plugin.
+const CapabilityRecommendationScoring = "recommendation_scoring"
+
 // ConvertCapabilities converts proto PluginCapability enums to string slice.
 // Returns capability names in lowercase format: "projected_costs", "actual_costs", etc.
 func ConvertCapabilities(caps []pbc.PluginCapability) []string {
@@ -202,8 +205,12 @@ func ConvertCapabilities(caps []pbc.PluginCapability) []string {
 			result = append(result, "usage_stats")
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_ALLOCATION:
 			result = append(result, "allocation")
-		case pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED:
-			// Skip unspecified - not a real capability
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATION_SCORING:
+			result = append(result, CapabilityRecommendationScoring)
+		case pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED,
+			pbc.PluginCapability_PLUGIN_CAPABILITY_CONTRACT_COMMITMENTS,
+			pbc.PluginCapability_PLUGIN_CAPABILITY_INVOICE_DATA:
+			// Not a capability core acts on
 			continue
 		default:
 			// Unknown capability - skip
