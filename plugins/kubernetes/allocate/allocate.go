@@ -122,7 +122,7 @@ func groupPricedResources(priced []*pbc.PricedResource) (map[string]*node, []*pb
 }
 
 // collectWorkloadUsage folds usage rows into node capacity (mutating nodes in
-// place) and per-workload amounts, keyed by "namespace/pod".
+// place) and per-workload amounts, keyed by cluster/namespace/pod/node.
 func collectWorkloadUsage(usage []*pbc.UsageRow, nodes map[string]*node) map[string]*workload {
 	workloads := map[string]*workload{}
 	for _, u := range usage {
@@ -165,8 +165,16 @@ func sanitizeAmount(v float64) float64 {
 	return v
 }
 
+// workloadFor keys workloads on cluster/namespace/pod/node. Omitting the
+// cluster merged same-named pods from different clusters into one allocation
+// row (#1576); the node is part of the key because it decides which priced
+// node the workload is charged against. The separator is NUL so that subject
+// values containing "/" (e.g. kubeconfig context names) cannot collide.
 func workloadFor(workloads map[string]*workload, subject map[string]string) *workload {
-	key := subject[subjectNamespace] + "/" + subject[subjectPod]
+	key := strings.Join([]string{
+		subject[subjectCluster], subject[subjectNamespace],
+		subject[subjectPod], subject[subjectNode],
+	}, "\x00")
 	w := workloads[key]
 	if w == nil {
 		w = &workload{subject: subject}

@@ -15,7 +15,11 @@ import (
 )
 
 func nodeRows(node string, cpu, mem float64) []*pbc.UsageRow {
-	s := map[string]string{"kind": "node", "node": node, "cluster": "c"}
+	return nodeRowsIn("c", node, cpu, mem)
+}
+
+func nodeRowsIn(cluster, node string, cpu, mem float64) []*pbc.UsageRow {
+	s := map[string]string{"kind": "node", "node": node, "cluster": cluster}
 	return []*pbc.UsageRow{
 		{Subject: s, Metric: "cpu_allocatable", Amount: cpu, Unit: "core"},
 		{Subject: s, Metric: "mem_allocatable", Amount: mem, Unit: "GiB"},
@@ -23,8 +27,12 @@ func nodeRows(node string, cpu, mem float64) []*pbc.UsageRow {
 }
 
 func podRows(ns, pod, node string, cpu, mem float64) []*pbc.UsageRow {
+	return podRowsIn("c", ns, pod, node, cpu, mem)
+}
+
+func podRowsIn(cluster, ns, pod, node string, cpu, mem float64) []*pbc.UsageRow {
 	s := map[string]string{
-		"kind": "workload", "namespace": ns, "pod": pod, "node": node, "cluster": "c",
+		"kind": "workload", "namespace": ns, "pod": pod, "node": node, "cluster": cluster,
 		"controller_kind": "Deployment", "controller": pod + "-deploy",
 	}
 	return []*pbc.UsageRow{
@@ -202,6 +210,89 @@ func TestAllocate_DuplicatePodNamesAcrossNamespaces(t *testing.T) {
 	}
 	assert.Equal(t, 2, n)
 	assertValidAllocation(t, req, resp)
+}
+
+// TestAllocate_WorkloadKeyIncludesCluster covers #1576: the workload key used
+// to be "namespace/pod" only, so same-named pods in different clusters (or on
+// different nodes) merged into one allocation row and misattributed cost.
+func TestAllocate_WorkloadKeyIncludesCluster(t *testing.T) {
+	tests := []struct {
+		name string
+		req  *pbc.AllocateRequest
+		// wantWorkloads is the expected number of workload rows; the old key
+		// merged the two-cluster and two-node cases into a single row.
+		wantWorkloads int
+		// wantWorkloadTotal maps cluster to the summed total of its workload
+		// rows, proving cost is attributed to the right cluster.
+		wantWorkloadTotal map[string]float64
+		// wantClusterTotal maps cluster to the summed total of all its rows
+		// (workload + idle), i.e. per-cluster conservation.
+		wantClusterTotal map[string]float64
+	}{
+		{
+			name: "same namespace and pod in two clusters stay separate",
+			req: &pbc.AllocateRequest{
+				Usage: concat(nodeRowsIn("c1", "n1", 2, 8), podRowsIn("c1", "app", "web", "n1", 0.5, 2),
+					nodeRowsIn("c2", "n2", 2, 8), podRowsIn("c2", "app", "web", "n2", 1, 4)),
+				Priced: []*pbc.PricedResource{pricedNode("n1", 70, nil), pricedNode("n2", 140, nil)},
+			},
+			wantWorkloads:     2,
+			wantWorkloadTotal: map[string]float64{"c1": 70 * 0.25, "c2": 140 * 0.5},
+			wantClusterTotal:  map[string]float64{"c1": 70, "c2": 140},
+		},
+		{
+			name: "same pod on two nodes in one cluster stays separate",
+			req: &pbc.AllocateRequest{
+				Usage: concat(nodeRows("n1", 2, 8), nodeRows("n2", 2, 8),
+					podRows("app", "web", "n1", 0.5, 2), podRows("app", "web", "n2", 0.25, 1)),
+				Priced: []*pbc.PricedResource{pricedNode("n1", 70, nil), pricedNode("n2", 70, nil)},
+			},
+			wantWorkloads:     2,
+			wantWorkloadTotal: map[string]float64{"c": 70*0.25 + 70*0.125},
+			wantClusterTotal:  map[string]float64{"c": 140},
+		},
+		{
+			name: "single cluster still merges one pod's metric rows into one row",
+			req: &pbc.AllocateRequest{
+				Usage:  concat(nodeRows("n1", 2, 8), podRows("app", "web", "n1", 0.5, 2)),
+				Priced: []*pbc.PricedResource{pricedNode("n1", 70, nil)},
+			},
+			wantWorkloads:     1,
+			wantWorkloadTotal: map[string]float64{"c": 70 * 0.25},
+			wantClusterTotal:  map[string]float64{"c": 70},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := Allocate(tt.req)
+			require.NoError(t, err)
+
+			workloadTotal := map[string]float64{}
+			clusterTotal := map[string]float64{}
+			seen := map[string]bool{}
+			var workloads int
+			for _, r := range resp.GetRows() {
+				s := r.GetSubject()
+				clusterTotal[s["cluster"]] += r.GetTotalCost()
+				if s["kind"] != "workload" {
+					continue
+				}
+				workloads++
+				identity := s["cluster"] + "\x00" + s["namespace"] + "\x00" + s["pod"] + "\x00" + s["node"]
+				assert.False(t, seen[identity], "duplicate workload row for %v", s)
+				seen[identity] = true
+				workloadTotal[s["cluster"]] += r.GetTotalCost()
+			}
+			assert.Equal(t, tt.wantWorkloads, workloads)
+			for cluster, want := range tt.wantWorkloadTotal {
+				assert.InDelta(t, want, workloadTotal[cluster], want*1e-6+1e-12, "cluster %s workload total", cluster)
+			}
+			for cluster, want := range tt.wantClusterTotal {
+				assert.InDelta(t, want, clusterTotal[cluster], want*1e-6+1e-12, "cluster %s total", cluster)
+			}
+			assertValidAllocation(t, tt.req, resp)
+		})
+	}
 }
 
 func TestAllocate_Errors(t *testing.T) {
