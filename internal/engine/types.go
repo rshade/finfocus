@@ -192,10 +192,140 @@ type Recommendation struct {
 	// ResourceInfo carries the plugin's description of the affected resource.
 	ResourceInfo *RecommendationResourceInfo `json:"resource,omitempty"`
 
+	// ActionDetail carries the provider-specific detail for the recommended action.
+	ActionDetail *RecommendationActionDetail `json:"actionDetail,omitempty"`
+
+	// PrimaryReason is the proto RecommendationReason enum name of the main driver
+	// (e.g., "RECOMMENDATION_REASON_OVER_PROVISIONED"). Empty when the plugin left
+	// it unspecified.
+	PrimaryReason string `json:"primaryReason,omitempty"`
+
+	// SecondaryReasons are the proto RecommendationReason enum names of contributing
+	// factors. Unspecified entries are dropped.
+	SecondaryReasons []string `json:"secondaryReasons,omitempty"`
+
 	// Scores holds the scorer plugin's ratings. Nil when scoring is disabled, the
 	// scorer was unavailable, or this recommendation could not be scored. Scores
 	// order and route recommendations; they never dismiss or apply one.
 	Scores *RecommendationScores `json:"scores,omitempty"`
+}
+
+// RecommendationActionDetail carries the provider-specific detail behind a
+// recommendation's action. Exactly one field is set, matching Type.
+type RecommendationActionDetail struct {
+	// Rightsize holds detail for right-sizing recommendations.
+	Rightsize *RightsizeActionDetail `json:"rightsize,omitempty"`
+
+	// Terminate holds detail for termination recommendations.
+	Terminate *TerminateActionDetail `json:"terminate,omitempty"`
+
+	// Commitment holds detail for commitment purchase recommendations.
+	Commitment *CommitmentActionDetail `json:"commitment,omitempty"`
+
+	// Kubernetes holds detail for Kubernetes resource adjustments.
+	Kubernetes *KubernetesActionDetail `json:"kubernetes,omitempty"`
+
+	// Modify holds detail for generic modification recommendations.
+	Modify *ModifyActionDetail `json:"modify,omitempty"`
+}
+
+// RightsizeActionDetail contains details for rightsizing recommendations.
+type RightsizeActionDetail struct {
+	// CurrentSKU is the current SKU/size.
+	CurrentSKU string `json:"currentSku,omitempty"`
+
+	// RecommendedSKU is the recommended SKU/size.
+	RecommendedSKU string `json:"recommendedSku,omitempty"`
+
+	// CurrentInstanceType is the current instance type.
+	CurrentInstanceType string `json:"currentInstanceType,omitempty"`
+
+	// RecommendedInstanceType is the recommended instance type.
+	RecommendedInstanceType string `json:"recommendedInstanceType,omitempty"`
+
+	// ProjectedUtilization is the expected utilization after resize.
+	ProjectedUtilization *RecommendationUtilizationInfo `json:"projectedUtilization,omitempty"`
+}
+
+// TerminateActionDetail contains details for termination recommendations.
+type TerminateActionDetail struct {
+	// TerminationReason explains why termination is recommended.
+	TerminationReason string `json:"terminationReason,omitempty"`
+
+	// IdleDays is the number of days the resource has been idle.
+	IdleDays int32 `json:"idleDays,omitempty"`
+}
+
+// CommitmentActionDetail contains details for commitment purchase recommendations.
+type CommitmentActionDetail struct {
+	// CommitmentType is the type of commitment (reserved_instance, savings_plan, cud).
+	CommitmentType string `json:"commitmentType,omitempty"`
+
+	// Term is the commitment term (1_year, 3_year).
+	Term string `json:"term,omitempty"`
+
+	// PaymentOption is the payment option.
+	PaymentOption string `json:"paymentOption,omitempty"`
+
+	// RecommendedQuantity is the recommended purchase quantity.
+	RecommendedQuantity float64 `json:"recommendedQuantity,omitempty"`
+
+	// Scope is the commitment scope (account, region, etc.).
+	Scope string `json:"scope,omitempty"`
+}
+
+// KubernetesActionDetail contains details for Kubernetes resource adjustments.
+type KubernetesActionDetail struct {
+	// ClusterID identifies the Kubernetes cluster.
+	ClusterID string `json:"clusterId,omitempty"`
+
+	// Namespace is the Kubernetes namespace.
+	Namespace string `json:"namespace,omitempty"`
+
+	// ControllerKind is the controller type (Deployment, StatefulSet, etc.).
+	ControllerKind string `json:"controllerKind,omitempty"`
+
+	// ControllerName is the name of the controller.
+	ControllerName string `json:"controllerName,omitempty"`
+
+	// ContainerName is the name of the container.
+	ContainerName string `json:"containerName,omitempty"`
+
+	// CurrentRequests are the current resource requests.
+	CurrentRequests *KubernetesResourceValues `json:"currentRequests,omitempty"`
+
+	// RecommendedRequests are the recommended resource requests.
+	RecommendedRequests *KubernetesResourceValues `json:"recommendedRequests,omitempty"`
+
+	// CurrentLimits are the current resource limits.
+	CurrentLimits *KubernetesResourceValues `json:"currentLimits,omitempty"`
+
+	// RecommendedLimits are the recommended resource limits.
+	RecommendedLimits *KubernetesResourceValues `json:"recommendedLimits,omitempty"`
+
+	// Algorithm is the recommendation algorithm used.
+	Algorithm string `json:"algorithm,omitempty"`
+}
+
+// KubernetesResourceValues specifies CPU and memory quantities for a container.
+type KubernetesResourceValues struct {
+	// CPU is the CPU specification (e.g., "100m", "2").
+	CPU string `json:"cpu,omitempty"`
+
+	// Memory is the memory specification (e.g., "256Mi", "2Gi").
+	Memory string `json:"memory,omitempty"`
+}
+
+// ModifyActionDetail contains details for generic modification recommendations.
+type ModifyActionDetail struct {
+	// ModificationType describes the type of modification.
+	ModificationType string `json:"modificationType,omitempty"`
+
+	// CurrentConfig is the current configuration.
+	CurrentConfig map[string]string `json:"currentConfig,omitempty"`
+
+	// RecommendedConfig is the recommended configuration.
+	RecommendedConfig map[string]string `json:"recommendedConfig,omitempty"`
 }
 
 // RecommendationScores is one recommendation's ratings from a scorer plugin. A nil

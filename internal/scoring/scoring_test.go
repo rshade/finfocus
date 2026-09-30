@@ -741,6 +741,12 @@ func TestToProto_CarriesFullRecordAndSkipsMissingID(t *testing.T) {
 		CPUPercent: 10, MemoryPercent: 20, StoragePercent: 30, NetworkInMbps: 1, NetworkOutMbps: 2,
 		CustomMetrics: map[string]float64{"iops": 5},
 	}
+	full.PrimaryReason = "RECOMMENDATION_REASON_OVER_PROVISIONED"
+	full.SecondaryReasons = []string{"RECOMMENDATION_REASON_IDLE"}
+	full.ActionDetail = &engine.RecommendationActionDetail{Rightsize: &engine.RightsizeActionDetail{
+		CurrentSKU:     "m5.large",
+		RecommendedSKU: "t3.large",
+	}}
 	ids, err := newIdentifiers(config.ScoringIdentifierRaw)
 	require.NoError(t, err)
 
@@ -753,6 +759,13 @@ func TestToProto_CarriesFullRecordAndSkipsMissingID(t *testing.T) {
 	assert.Equal(t, "m5.large", got.GetResource().GetSku())
 	assert.InDelta(t, 20.0, got.GetResource().GetUtilization().GetMemoryPercent(), 1e-9)
 	assert.Equal(t, map[string]float64{"iops": 5}, got.GetResource().GetUtilization().GetCustomMetrics())
+	assert.Equal(t, pbc.RecommendationReason_RECOMMENDATION_REASON_OVER_PROVISIONED, got.GetPrimaryReason())
+	assert.Equal(t,
+		[]pbc.RecommendationReason{pbc.RecommendationReason_RECOMMENDATION_REASON_IDLE},
+		got.GetSecondaryReasons())
+	require.NotNil(t, got.GetRightsize())
+	assert.Equal(t, "m5.large", got.GetRightsize().GetCurrentSku())
+	assert.Equal(t, "t3.large", got.GetRightsize().GetRecommendedSku())
 
 	_, ok = toProto(engine.Recommendation{}, ids)
 	assert.False(t, ok)
@@ -761,6 +774,9 @@ func TestToProto_CarriesFullRecordAndSkipsMissingID(t *testing.T) {
 	require.True(t, ok)
 	assert.Nil(t, bare.GetImpact())
 	assert.Nil(t, bare.GetResource())
+	assert.Nil(t, bare.GetActionDetail())
+	assert.Equal(t, pbc.RecommendationReason_RECOMMENDATION_REASON_UNSPECIFIED, bare.GetPrimaryReason())
+	assert.Empty(t, bare.GetSecondaryReasons())
 }
 
 func TestApplyAllowlist_KeepsOnlyListedFields(t *testing.T) {
@@ -769,18 +785,348 @@ func TestApplyAllowlist_KeepsOnlyListedFields(t *testing.T) {
 	full := rec("plugin-1", "i-1")
 	created := time.Now()
 	full.CreatedAt = &created
+	full.PrimaryReason = "RECOMMENDATION_REASON_OVER_PROVISIONED"
+	full.SecondaryReasons = []string{"RECOMMENDATION_REASON_IDLE"}
+	full.ActionDetail = &engine.RecommendationActionDetail{Terminate: &engine.TerminateActionDetail{
+		TerminationReason: "idle",
+		IdleDays:          30,
+	}}
 
-	all, _ := toProto(full, ids)
-	applyAllowlist(all, []string{"created_at", "metadata", "reasoning", "priority", "source", "confidence_score"})
+	t.Run("unlisted fields are cleared", func(t *testing.T) {
+		all, _ := toProto(full, ids)
+		applyAllowlist(all, []string{"created_at", "metadata", "reasoning", "priority", "source", "confidence_score"})
 
-	assert.NotNil(t, all.GetCreatedAt())
-	assert.NotEmpty(t, all.GetMetadata())
-	assert.NotEmpty(t, all.GetReasoning())
-	assert.NotEmpty(t, all.GetSource())
-	assert.NotNil(t, all.ConfidenceScore)
-	assert.NotEqual(t, pbc.RecommendationPriority_RECOMMENDATION_PRIORITY_UNSPECIFIED, all.GetPriority())
-	assert.Nil(t, all.GetImpact())
-	assert.Nil(t, all.GetResource())
-	assert.Empty(t, all.GetDescription())
-	assert.NotEmpty(t, all.GetId(), "id survives the allowlist")
+		assert.NotNil(t, all.GetCreatedAt())
+		assert.NotEmpty(t, all.GetMetadata())
+		assert.NotEmpty(t, all.GetReasoning())
+		assert.NotEmpty(t, all.GetSource())
+		assert.NotNil(t, all.ConfidenceScore)
+		assert.NotEqual(t, pbc.RecommendationPriority_RECOMMENDATION_PRIORITY_UNSPECIFIED, all.GetPriority())
+		assert.Nil(t, all.GetImpact())
+		assert.Nil(t, all.GetResource())
+		assert.Empty(t, all.GetDescription())
+		assert.Nil(t, all.GetActionDetail())
+		assert.Equal(t, pbc.RecommendationReason_RECOMMENDATION_REASON_UNSPECIFIED, all.GetPrimaryReason())
+		assert.Empty(t, all.GetSecondaryReasons())
+		assert.NotEmpty(t, all.GetId(), "id survives the allowlist")
+	})
+
+	t.Run("listed fields are kept", func(t *testing.T) {
+		all, _ := toProto(full, ids)
+		applyAllowlist(all, []string{"action_detail", "primary_reason", "secondary_reasons"})
+
+		require.NotNil(t, all.GetTerminate())
+		assert.Equal(t, "idle", all.GetTerminate().GetTerminationReason())
+		assert.Equal(t, pbc.RecommendationReason_RECOMMENDATION_REASON_OVER_PROVISIONED, all.GetPrimaryReason())
+		assert.Equal(t,
+			[]pbc.RecommendationReason{pbc.RecommendationReason_RECOMMENDATION_REASON_IDLE},
+			all.GetSecondaryReasons())
+		assert.Nil(t, all.GetImpact())
+		assert.Empty(t, all.GetDescription())
+	})
+}
+
+func k8sActionDetail() *engine.RecommendationActionDetail {
+	return &engine.RecommendationActionDetail{Kubernetes: &engine.KubernetesActionDetail{
+		ClusterID:           "prod-cluster",
+		Namespace:           "payments",
+		ControllerKind:      "Deployment",
+		ControllerName:      "web-server",
+		ContainerName:       "app",
+		CurrentRequests:     &engine.KubernetesResourceValues{CPU: "500m", Memory: "256Mi"},
+		RecommendedRequests: &engine.KubernetesResourceValues{CPU: "250m", Memory: "128Mi"},
+		Algorithm:           "vpa",
+	}}
+}
+
+// TestScore_SendsActionDetailAndReasons builds a scoring request from a recommendation
+// carrying action_detail, primary_reason and secondary_reasons and asserts all three
+// reach the scorer.
+func TestScore_SendsActionDetailAndReasons(t *testing.T) {
+	scorer := &fakeScorer{}
+	svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierRaw})
+
+	input := []engine.Recommendation{rec("plugin-rec-0", "i-0")}
+	input[0].PrimaryReason = "RECOMMENDATION_REASON_OVER_PROVISIONED"
+	input[0].SecondaryReasons = []string{"RECOMMENDATION_REASON_IDLE", "RECOMMENDATION_REASON_REDUNDANT"}
+	input[0].ActionDetail = k8sActionDetail()
+
+	_, err := svc.Score(context.Background(), input, false)
+	require.NoError(t, err)
+
+	sent := scorer.sentRecommendations()
+	require.Len(t, sent, 1)
+	assert.Equal(t, pbc.RecommendationReason_RECOMMENDATION_REASON_OVER_PROVISIONED, sent[0].GetPrimaryReason())
+	assert.Equal(t,
+		[]pbc.RecommendationReason{
+			pbc.RecommendationReason_RECOMMENDATION_REASON_IDLE,
+			pbc.RecommendationReason_RECOMMENDATION_REASON_REDUNDANT,
+		},
+		sent[0].GetSecondaryReasons())
+
+	k8s := sent[0].GetKubernetes()
+	require.NotNil(t, k8s, "action_detail must reach the scorer")
+	assert.Equal(t, "prod-cluster", k8s.GetClusterId())
+	assert.Equal(t, "payments", k8s.GetNamespace())
+	assert.Equal(t, "Deployment", k8s.GetControllerKind())
+	assert.Equal(t, "web-server", k8s.GetControllerName())
+	assert.Equal(t, "app", k8s.GetContainerName())
+	assert.Equal(t, "500m", k8s.GetCurrentRequests().GetCpu())
+	assert.Equal(t, "128Mi", k8s.GetRecommendedRequests().GetMemory())
+	assert.Equal(t, "vpa", k8s.GetAlgorithm())
+}
+
+// TestScore_ActionDetailIdentifierModes proves the identifier mode reaches identifiers
+// inside action_detail: Kubernetes cluster and workload names, and free text such as a
+// termination reason.
+func TestScore_ActionDetailIdentifierModes(t *testing.T) {
+	newInput := func() []engine.Recommendation {
+		out := []engine.Recommendation{
+			rec("plugin-rec-0", rawInstance), rec("plugin-rec-1", "i-1"), rec("plugin-rec-2", "i-2"),
+		}
+		out[0].ActionDetail = k8sActionDetail()
+		out[1].ResourceID = rawInstance
+		out[1].ActionDetail = &engine.RecommendationActionDetail{Terminate: &engine.TerminateActionDetail{
+			TerminationReason: "instance " + rawInstance + " is idle",
+			IdleDays:          45,
+		}}
+		// out[2] carries no action detail: the absent case.
+		return out
+	}
+
+	t.Run("pseudonymized", func(t *testing.T) {
+		scorer := &fakeScorer{}
+		svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierPseudonymized})
+
+		_, err := svc.Score(context.Background(), newInput(), false)
+		require.NoError(t, err)
+
+		sent := scorer.sentRecommendations()
+		require.Len(t, sent, 3)
+
+		k8s := sent[0].GetKubernetes()
+		require.NotNil(t, k8s)
+		assert.True(t, strings.HasPrefix(k8s.GetClusterId(), "res-"), "cluster id is pseudonymized")
+		assert.NotEqual(t, "prod-cluster", k8s.GetClusterId())
+		for _, name := range []string{k8s.GetNamespace(), k8s.GetControllerName(), k8s.GetContainerName()} {
+			assert.True(t, strings.HasPrefix(name, "name-"), "%q is pseudonymized", name)
+		}
+		assert.Equal(t, sent[0].GetResource().GetName(), k8s.GetControllerName(),
+			"a workload named after the resource gets the same token")
+		assert.Equal(t, "Deployment", k8s.GetControllerKind())
+		assert.Equal(t, "vpa", k8s.GetAlgorithm())
+
+		term := sent[1].GetTerminate()
+		require.NotNil(t, term)
+		assert.NotContains(t, term.GetTerminationReason(), rawInstance)
+		assert.Equal(t, int32(45), term.GetIdleDays())
+
+		blob, marshalErr := protojson.Marshal(scorer.requests[0])
+		require.NoError(t, marshalErr)
+		assert.NotContains(t, string(blob), "prod-cluster")
+		assert.NotContains(t, string(blob), "payments")
+
+		assert.Nil(t, sent[2].GetActionDetail(), "absent action detail stays absent")
+	})
+
+	t.Run("omitted", func(t *testing.T) {
+		scorer := &fakeScorer{}
+		svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierOmitted})
+
+		_, err := svc.Score(context.Background(), newInput(), false)
+		require.NoError(t, err)
+
+		sent := scorer.sentRecommendations()
+		require.Len(t, sent, 3)
+
+		k8s := sent[0].GetKubernetes()
+		require.NotNil(t, k8s)
+		assert.Empty(t, k8s.GetClusterId())
+		assert.Empty(t, k8s.GetNamespace())
+		assert.Empty(t, k8s.GetControllerName())
+		assert.Empty(t, k8s.GetContainerName())
+		assert.Equal(t, "Deployment", k8s.GetControllerKind(), "non-identifier fields survive")
+
+		term := sent[1].GetTerminate()
+		require.NotNil(t, term)
+		assert.NotContains(t, term.GetTerminationReason(), rawInstance)
+		assert.Contains(t, term.GetTerminationReason(), redacted)
+	})
+
+	t.Run("raw", func(t *testing.T) {
+		scorer := &fakeScorer{}
+		svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierRaw})
+
+		_, err := svc.Score(context.Background(), newInput(), false)
+		require.NoError(t, err)
+
+		sent := scorer.sentRecommendations()
+		require.Len(t, sent, 3)
+
+		k8s := sent[0].GetKubernetes()
+		require.NotNil(t, k8s)
+		assert.Equal(t, "prod-cluster", k8s.GetClusterId())
+		assert.Equal(t, "payments", k8s.GetNamespace())
+		assert.Equal(t, "web-server", k8s.GetControllerName())
+		assert.Equal(t, "app", k8s.GetContainerName())
+
+		term := sent[1].GetTerminate()
+		require.NotNil(t, term)
+		assert.Contains(t, term.GetTerminationReason(), rawInstance, "raw mode keeps identifiers verbatim")
+	})
+}
+
+// TestScore_DryRunRequestsCarryActionDetailAndReasons proves the dry-run request output
+// includes the three fields after identifier handling, without sending anything.
+func TestScore_DryRunRequestsCarryActionDetailAndReasons(t *testing.T) {
+	scorer := &fakeScorer{}
+	svc := newService(t, scorer, Options{})
+
+	input := []engine.Recommendation{rec("plugin-rec-0", "i-0")}
+	input[0].PrimaryReason = "RECOMMENDATION_REASON_OVER_PROVISIONED"
+	input[0].SecondaryReasons = []string{"RECOMMENDATION_REASON_IDLE"}
+	input[0].ActionDetail = k8sActionDetail()
+
+	outcome, err := svc.Score(context.Background(), input, true)
+	require.NoError(t, err)
+	assert.Equal(t, 0, scorer.calls())
+
+	require.Len(t, outcome.Requests, 1)
+	blob, marshalErr := protojson.Marshal(outcome.Requests[0])
+	require.NoError(t, marshalErr)
+	text := string(blob)
+	assert.Contains(t, text, "primaryReason")
+	assert.Contains(t, text, "OVER_PROVISIONED")
+	assert.Contains(t, text, "secondaryReasons")
+	assert.Contains(t, text, "kubernetes", "protojson emits the set action_detail variant")
+	assert.NotContains(t, text, "prod-cluster", "dry-run output is already pseudonymized")
+}
+
+// TestScore_ActionDetailVariantsRoundTrip covers the remaining action_detail variants
+// and the empty-string identifier case through toProto.
+func TestScore_ActionDetailVariantsRoundTrip(t *testing.T) {
+	ids, err := newIdentifiers(config.ScoringIdentifierRaw)
+	require.NoError(t, err)
+
+	tests := []struct {
+		name string
+		rec  engine.Recommendation
+		want func(t *testing.T, got *pbc.Recommendation)
+	}{
+		{
+			name: "rightsize with projected utilization",
+			rec: engine.Recommendation{
+				ID: "r1",
+				ActionDetail: &engine.RecommendationActionDetail{Rightsize: &engine.RightsizeActionDetail{
+					CurrentSKU:              "m5.large",
+					RecommendedSKU:          "t3.large",
+					CurrentInstanceType:     "m5.large",
+					RecommendedInstanceType: "t3.large",
+					ProjectedUtilization:    &engine.RecommendationUtilizationInfo{CPUPercent: 55},
+				}},
+			},
+			want: func(t *testing.T, got *pbc.Recommendation) {
+				t.Helper()
+				rs := got.GetRightsize()
+				require.NotNil(t, rs)
+				assert.Equal(t, "m5.large", rs.GetCurrentSku())
+				assert.Equal(t, "t3.large", rs.GetRecommendedInstanceType())
+				require.NotNil(t, rs.GetProjectedUtilization())
+				assert.InDelta(t, 55.0, rs.GetProjectedUtilization().GetCpuPercent(), 1e-9)
+			},
+		},
+		{
+			name: "commitment",
+			rec: engine.Recommendation{
+				ID: "r2",
+				ActionDetail: &engine.RecommendationActionDetail{Commitment: &engine.CommitmentActionDetail{
+					CommitmentType:      "savings_plan",
+					Term:                "1_year",
+					PaymentOption:       "no_upfront",
+					RecommendedQuantity: 2,
+					Scope:               "region",
+				}},
+			},
+			want: func(t *testing.T, got *pbc.Recommendation) {
+				t.Helper()
+				c := got.GetCommitment()
+				require.NotNil(t, c)
+				assert.Equal(t, "savings_plan", c.GetCommitmentType())
+				assert.Equal(t, "1_year", c.GetTerm())
+				assert.Equal(t, "no_upfront", c.GetPaymentOption())
+				assert.InDelta(t, 2.0, c.GetRecommendedQuantity(), 1e-9)
+				assert.Equal(t, "region", c.GetScope())
+			},
+		},
+		{
+			name: "modify scrubs raw identifiers from config values",
+			rec: engine.Recommendation{
+				ID:         "r3",
+				ResourceID: rawInstance,
+				ActionDetail: &engine.RecommendationActionDetail{Modify: &engine.ModifyActionDetail{
+					ModificationType:  "storage_class",
+					CurrentConfig:     map[string]string{"volume": rawInstance},
+					RecommendedConfig: map[string]string{"class": "gp3"},
+				}},
+			},
+			want: func(t *testing.T, got *pbc.Recommendation) {
+				t.Helper()
+				m := got.GetModify()
+				require.NotNil(t, m)
+				assert.Equal(t, "storage_class", m.GetModificationType())
+				assert.Equal(t, map[string]string{"class": "gp3"}, m.GetRecommendedConfig())
+			},
+		},
+		{
+			name: "kubernetes with empty identifiers",
+			rec: engine.Recommendation{
+				ID:           "r4",
+				ActionDetail: &engine.RecommendationActionDetail{Kubernetes: &engine.KubernetesActionDetail{}},
+			},
+			want: func(t *testing.T, got *pbc.Recommendation) {
+				t.Helper()
+				k := got.GetKubernetes()
+				require.NotNil(t, k)
+				assert.Empty(t, k.GetClusterId())
+				assert.Nil(t, k.GetCurrentRequests())
+			},
+		},
+		{
+			name: "unknown reason names become unspecified",
+			rec: engine.Recommendation{
+				ID:               "r5",
+				PrimaryReason:    "NOT_A_REASON",
+				SecondaryReasons: []string{"ALSO_NOT_A_REASON"},
+			},
+			want: func(t *testing.T, got *pbc.Recommendation) {
+				t.Helper()
+				assert.Equal(t, pbc.RecommendationReason_RECOMMENDATION_REASON_UNSPECIFIED, got.GetPrimaryReason())
+				assert.Equal(t,
+					[]pbc.RecommendationReason{pbc.RecommendationReason_RECOMMENDATION_REASON_UNSPECIFIED},
+					got.GetSecondaryReasons())
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, ok := toProto(tt.rec, ids)
+			require.True(t, ok)
+			tt.want(t, got)
+		})
+	}
+
+	t.Run("pseudonymized modify config is scrubbed", func(t *testing.T) {
+		pseudo, perr := newIdentifiers(config.ScoringIdentifierPseudonymized)
+		require.NoError(t, perr)
+		got, ok := toProto(engine.Recommendation{
+			ID:         "r6",
+			ResourceID: rawInstance,
+			ActionDetail: &engine.RecommendationActionDetail{Modify: &engine.ModifyActionDetail{
+				CurrentConfig: map[string]string{"volume": rawInstance},
+			}},
+		}, pseudo)
+		require.True(t, ok)
+		assert.NotContains(t, got.GetModify().GetCurrentConfig()["volume"], rawInstance)
+	})
 }

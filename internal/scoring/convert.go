@@ -159,14 +159,16 @@ func toProto(rec engine.Recommendation, ids *identifiers) (*pbc.Recommendation, 
 	scrub := newScrubber(ids, rawID, rawName)
 
 	out := &pbc.Recommendation{
-		Id:          rec.ID,
-		Description: scrub.text(rec.Description),
-		Reasoning:   scrub.texts(rec.Reasoning),
-		Source:      rec.Source,
-		Metadata:    scrub.mapValues(rec.Metadata),
-		Category:    enumValue(pbc.RecommendationCategory_value, rec.Category, pbc.RecommendationCategory(0)),
-		ActionType:  enumValue(pbc.RecommendationActionType_value, rec.Type, pbc.RecommendationActionType(0)),
-		Priority:    enumValue(pbc.RecommendationPriority_value, rec.Priority, pbc.RecommendationPriority(0)),
+		Id:               rec.ID,
+		Description:      scrub.text(rec.Description),
+		Reasoning:        scrub.texts(rec.Reasoning),
+		Source:           rec.Source,
+		Metadata:         scrub.mapValues(rec.Metadata),
+		Category:         enumValue(pbc.RecommendationCategory_value, rec.Category, pbc.RecommendationCategory(0)),
+		ActionType:       enumValue(pbc.RecommendationActionType_value, rec.Type, pbc.RecommendationActionType(0)),
+		Priority:         enumValue(pbc.RecommendationPriority_value, rec.Priority, pbc.RecommendationPriority(0)),
+		PrimaryReason:    enumValue(pbc.RecommendationReason_value, rec.PrimaryReason, pbc.RecommendationReason(0)),
+		SecondaryReasons: reasonValues(rec.SecondaryReasons),
 	}
 	out.ConfidenceScore = rec.ConfidenceScore
 	if rec.CreatedAt != nil {
@@ -175,7 +177,21 @@ func toProto(rec engine.Recommendation, ids *identifiers) (*pbc.Recommendation, 
 
 	out.Impact = impactToProto(rec)
 	out.Resource = resourceToProto(rec, ids, scrub)
+	setActionDetail(out, rec.ActionDetail, ids, scrub)
 	return out, true
+}
+
+// reasonValues maps reason enum names back to proto values; unknown names become
+// RECOMMENDATION_REASON_UNSPECIFIED.
+func reasonValues(names []string) []pbc.RecommendationReason {
+	if len(names) == 0 {
+		return nil
+	}
+	out := make([]pbc.RecommendationReason, 0, len(names))
+	for _, name := range names {
+		out = append(out, enumValue(pbc.RecommendationReason_value, name, pbc.RecommendationReason(0)))
+	}
+	return out
 }
 
 func enumValue[E ~int32](values map[string]int32, name string, zero E) E {
@@ -219,17 +235,87 @@ func resourceToProto(rec engine.Recommendation, ids *identifiers, scrub scrubber
 	res.Region = info.Region
 	res.Sku = info.SKU
 	res.Tags = scrub.mapValues(info.Tags)
-	if u := info.Utilization; u != nil {
-		res.Utilization = &pbc.ResourceUtilization{
-			CpuPercent:     u.CPUPercent,
-			MemoryPercent:  u.MemoryPercent,
-			StoragePercent: u.StoragePercent,
-			NetworkInMbps:  u.NetworkInMbps,
-			NetworkOutMbps: u.NetworkOutMbps,
-			CustomMetrics:  u.CustomMetrics,
-		}
-	}
+	res.Utilization = utilizationToProto(info.Utilization)
 	return res
+}
+
+func utilizationToProto(u *engine.RecommendationUtilizationInfo) *pbc.ResourceUtilization {
+	if u == nil {
+		return nil
+	}
+	return &pbc.ResourceUtilization{
+		CpuPercent:     u.CPUPercent,
+		MemoryPercent:  u.MemoryPercent,
+		StoragePercent: u.StoragePercent,
+		NetworkInMbps:  u.NetworkInMbps,
+		NetworkOutMbps: u.NetworkOutMbps,
+		CustomMetrics:  u.CustomMetrics,
+	}
+}
+
+func kubernetesResourcesToProto(res *engine.KubernetesResourceValues) *pbc.KubernetesResources {
+	if res == nil {
+		return nil
+	}
+	return &pbc.KubernetesResources{Cpu: res.CPU, Memory: res.Memory}
+}
+
+// setActionDetail converts the engine action detail to the proto oneof. Identifiers
+// inside it (cluster id, namespace, controller and container names) get the same
+// identifier mode as the resource id and name, and free text is scrubbed of the raw
+// resource id and name.
+func setActionDetail(
+	out *pbc.Recommendation,
+	d *engine.RecommendationActionDetail,
+	ids *identifiers,
+	scrub scrubber,
+) {
+	if d == nil {
+		return
+	}
+	switch {
+	case d.Rightsize != nil:
+		out.ActionDetail = &pbc.Recommendation_Rightsize{Rightsize: &pbc.RightsizeAction{
+			CurrentSku:              d.Rightsize.CurrentSKU,
+			RecommendedSku:          d.Rightsize.RecommendedSKU,
+			CurrentInstanceType:     d.Rightsize.CurrentInstanceType,
+			RecommendedInstanceType: d.Rightsize.RecommendedInstanceType,
+			ProjectedUtilization:    utilizationToProto(d.Rightsize.ProjectedUtilization),
+		}}
+	case d.Terminate != nil:
+		out.ActionDetail = &pbc.Recommendation_Terminate{Terminate: &pbc.TerminateAction{
+			TerminationReason: scrub.text(d.Terminate.TerminationReason),
+			IdleDays:          d.Terminate.IdleDays,
+		}}
+	case d.Commitment != nil:
+		out.ActionDetail = &pbc.Recommendation_Commitment{Commitment: &pbc.CommitmentAction{
+			CommitmentType:      d.Commitment.CommitmentType,
+			Term:                d.Commitment.Term,
+			PaymentOption:       d.Commitment.PaymentOption,
+			RecommendedQuantity: d.Commitment.RecommendedQuantity,
+			Scope:               d.Commitment.Scope,
+		}}
+	case d.Kubernetes != nil:
+		k := d.Kubernetes
+		out.ActionDetail = &pbc.Recommendation_Kubernetes{Kubernetes: &pbc.KubernetesAction{
+			ClusterId:           ids.resourceID(k.ClusterID),
+			Namespace:           ids.resourceName(k.Namespace),
+			ControllerKind:      k.ControllerKind,
+			ControllerName:      ids.resourceName(k.ControllerName),
+			ContainerName:       ids.resourceName(k.ContainerName),
+			CurrentRequests:     kubernetesResourcesToProto(k.CurrentRequests),
+			RecommendedRequests: kubernetesResourcesToProto(k.RecommendedRequests),
+			CurrentLimits:       kubernetesResourcesToProto(k.CurrentLimits),
+			RecommendedLimits:   kubernetesResourcesToProto(k.RecommendedLimits),
+			Algorithm:           k.Algorithm,
+		}}
+	case d.Modify != nil:
+		out.ActionDetail = &pbc.Recommendation_Modify{Modify: &pbc.ModifyAction{
+			ModificationType:  d.Modify.ModificationType,
+			CurrentConfig:     scrub.mapValues(d.Modify.CurrentConfig),
+			RecommendedConfig: scrub.mapValues(d.Modify.RecommendedConfig),
+		}}
+	}
 }
 
 // applyAllowlist clears every optional field not named in the allowlist. An empty
@@ -271,6 +357,15 @@ func applyAllowlist(rec *pbc.Recommendation, allowlist []string) {
 	}
 	if !keep("metadata") {
 		rec.Metadata = nil
+	}
+	if !keep("action_detail") {
+		rec.ActionDetail = nil
+	}
+	if !keep("primary_reason") {
+		rec.PrimaryReason = 0
+	}
+	if !keep("secondary_reasons") {
+		rec.SecondaryReasons = nil
 	}
 }
 

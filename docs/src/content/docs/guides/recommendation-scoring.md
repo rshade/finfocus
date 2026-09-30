@@ -58,7 +58,9 @@ Opt in per scorer in `config.hujson`:
 | `scoring.needs_review.dead_band`             | Width of the band around each threshold that is still flagged | `0.1`           |
 
 Valid `field_allowlist` names are `category`, `action_type`, `resource`, `impact`, `priority`, `confidence_score`,
-`description`, `reasoning`, `source`, `created_at` and `metadata`. The `resource` field carries tags and utilization.
+`description`, `reasoning`, `source`, `created_at`, `metadata`, `action_detail`, `primary_reason` and
+`secondary_reasons`. The `resource` field carries tags and utilization; `action_detail` carries the provider-specific
+action detail (right-size targets, termination detail, commitment terms, Kubernetes adjustments or config changes).
 The recommendation id is always sent, as an opaque value (see [Data handling](#data-handling)).
 
 You can also set values with `finfocus config set`. Set `scoring.plugin` before `scoring.enabled`, because the
@@ -117,7 +119,8 @@ example to a hosted model. Treat the scorer as you would any service that receiv
 
 **What is sent.** A `ScoreRecommendations` request carries the recommendations as plugins returned them, limited by
 `field_allowlist`: category, action type, impact and cost detail, resource information (provider, type, region, SKU, tags,
-utilization), description, reasoning, source, metadata, priority, confidence and creation time.
+utilization), description, reasoning, source, metadata, priority, confidence, creation time, the provider-specific
+`action_detail`, and the `primary_reason` and `secondary_reasons` codes.
 
 **Identifiers.** Core applies `identifier_mode` before the request leaves the host, so a scorer never has to be trusted to
 do it:
@@ -132,7 +135,10 @@ In `pseudonymized` and `omitted` modes core also:
 
 - Replaces the plugin's recommendation id with a per-request index (`rec-0`, `rec-1`), because plugin ids can embed
   resource ids.
-- Replaces occurrences of the raw resource id and name inside the description, reasoning, tags and metadata values.
+- Replaces occurrences of the raw resource id and name inside the description, reasoning, tags and metadata values, and
+  inside free text in `action_detail` (such as a termination reason or modify config values).
+- Applies the same mode to identifiers inside `action_detail`: a Kubernetes `cluster_id`, `namespace`,
+  `controller_name` and `container_name` are pseudonymized or removed exactly like `resource.id` and `resource.name`.
 - Derives tokens with HMAC-SHA256 over the normalized (trimmed, lower-case) resource id, using a random key generated for
   each request and never stored. Tokens are not comparable across requests.
 
