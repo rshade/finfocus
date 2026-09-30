@@ -2,7 +2,9 @@
 
 **Status:** Shipped in finfocus-spec v0.6.1
 **Scope:** `github.com/rshade/finfocus-spec` — proto + Go SDK
-**Depends on:** Approved design in `docs/superpowers/specs/2026-03-26-terraform-state-ingestion-design.md` (Section 1)
+**Depends on:** Plugin-owned type mappings behind the `ResolveResourceTypes` RPC
+(the approved design was never committed to this repo; the shipped contract is
+the source of truth — see finfocus-spec v0.6.1 `proto/finfocus/v1/costsource.proto`)
 **Consumed by:** finfocus core (`internal/cli/common_execution.go` → `resolveResourceTypes()`)
 
 ## Motivation

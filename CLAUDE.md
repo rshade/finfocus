@@ -14,6 +14,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 FinFocus Core is a CLI tool and plugin host system for calculating cloud infrastructure costs from Pulumi infrastructure definitions. It provides both projected cost estimates and actual historical cost analysis through a plugin-based architecture.
 
+## Specs
+
+Feature specs, plans, and tasks live in `specs/NNN-*/` and are produced by the
+**Spec Kit** pipeline (`.specify/` templates, `.specify/memory/constitution.md`,
+and the `/speckit-*` skills). Spec Kit is the ONLY spec/plan/task pipeline:
+design or plan output from other tools (e.g. superpowers brainstorming or
+writing-plans) MUST be converted into Spec Kit feature folders under `specs/`
+before implementation, not committed elsewhere in the repo.
+
 ## Build Commands
 
 ```bash
