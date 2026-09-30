@@ -6,7 +6,9 @@ package engine
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,16 +45,24 @@ func supportsEngine(api proto.CostSourceClient) (*Engine, *pluginhost.Client) {
 	return New([]*pluginhost.Client{client}, nil), client
 }
 
+// supportsOnly unwraps checkPluginSupports for tests that only care about the
+// boolean (fail-open matrix, cache behavior).
+func supportsOnly(e *Engine, client *pluginhost.Client, res ResourceDescriptor) bool {
+	ok, _ := e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts")
+	return ok
+}
+
 func TestCheckPluginSupports_SendsProviderRegionAndSKU(t *testing.T) {
 	api := &recordingSupportsClient{region: "us-east-1"}
 	e, client := supportsEngine(api)
 
-	ok := e.checkPluginSupports(context.Background(), client, ResourceDescriptor{
+	ok, reason := e.checkPluginSupports(context.Background(), client, ResourceDescriptor{
 		Type: "aws:ec2/instance:Instance", ID: "web", Provider: "aws",
 		Properties: map[string]interface{}{"instanceType": "m5.large", "availabilityZone": "us-east-1a"},
 	}, "ProjectedCosts")
 
 	assert.True(t, ok)
+	assert.Empty(t, reason, "a supported answer carries no decline reason")
 	require.Len(t, api.seen, 1)
 	assert.Equal(t, "aws", api.seen[0].GetProvider())
 	assert.Equal(t, "aws:ec2/instance:Instance", api.seen[0].GetResourceType())
@@ -68,10 +78,10 @@ func TestCheckPluginSupports_CacheKeyIncludesRegion(t *testing.T) {
 			Properties: map[string]interface{}{"instanceType": "t3.micro", "availabilityZone": az}}
 	}
 
-	assert.True(t, e.checkPluginSupports(context.Background(), client, res("us-east-1a"), "ProjectedCosts"))
-	assert.False(t, e.checkPluginSupports(context.Background(), client, res("us-west-2a"), "ProjectedCosts"),
+	assert.True(t, supportsOnly(e, client, res("us-east-1a")))
+	assert.False(t, supportsOnly(e, client, res("us-west-2a")),
 		"a different region must not reuse the us-east-1 answer")
-	assert.True(t, e.checkPluginSupports(context.Background(), client, res("us-east-1b"), "ProjectedCosts"))
+	assert.True(t, supportsOnly(e, client, res("us-east-1b")))
 	assert.Len(t, api.seen, 2, "same provider, type, region, and feature is served from cache")
 }
 
@@ -103,10 +113,10 @@ func TestCheckPluginSupports_CacheKeyIncludesSKU(t *testing.T) {
 			Properties: map[string]interface{}{"vmSize": sku, "location": "eastus"}}
 	}
 
-	assert.False(t, e.checkPluginSupports(context.Background(), client, res(""), "ProjectedCosts"))
-	assert.True(t, e.checkPluginSupports(context.Background(), client, res("Standard_D2s_v3"), "ProjectedCosts"),
+	assert.False(t, supportsOnly(e, client, res("")))
+	assert.True(t, supportsOnly(e, client, res("Standard_D2s_v3")),
 		"a different SKU in the same provider/type/region must not reuse the SKU-less answer")
-	assert.False(t, e.checkPluginSupports(context.Background(), client, res(""), "ProjectedCosts"))
+	assert.False(t, supportsOnly(e, client, res("")))
 	assert.Len(t, api.seen, 2, "same provider, type, region, sku, and feature is served from cache")
 }
 
@@ -135,8 +145,8 @@ func TestCheckPluginSupports_NotImplementedReasonFailsOpen(t *testing.T) {
 	e, client := supportsEngine(api)
 	res := ResourceDescriptor{Type: "kubernetes:apps/v1:Deployment", Provider: "kubernetes"}
 
-	assert.True(t, e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts"))
-	assert.True(t, e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts"),
+	assert.True(t, supportsOnly(e, client, res))
+	assert.True(t, supportsOnly(e, client, res),
 		"the fail-open answer must be cached, not re-queried")
 	assert.Equal(t, 1, api.calls)
 }
@@ -161,7 +171,19 @@ func TestCheckPluginSupports_RPCErrorFailsOpen(t *testing.T) {
 	e, client := supportsEngine(api)
 	res := ResourceDescriptor{Type: "aws:ec2/instance:Instance", Provider: "aws"}
 
-	assert.True(t, e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts"))
+	assert.True(t, supportsOnly(e, client, res))
+}
+
+// TestCheckPluginSupports_RPCErrorReturnsNoReason ensures a fail-open RPC
+// failure never fabricates a decline reason.
+func TestCheckPluginSupports_RPCErrorReturnsNoReason(t *testing.T) {
+	api := &erroringSupportsClient{}
+	e, client := supportsEngine(api)
+	res := ResourceDescriptor{Type: "aws:ec2/instance:Instance", Provider: "aws"}
+
+	ok, reason := e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts")
+	assert.True(t, ok)
+	assert.Empty(t, reason)
 }
 
 // stubSupportsClient delegates Supports to a function so a table can script
@@ -187,9 +209,10 @@ func TestCheckPluginSupports_FailOpenMatrix(t *testing.T) {
 		Properties: map[string]interface{}{"instanceType": "m5.large", "availabilityZone": "us-east-1a"}}
 
 	tests := []struct {
-		name     string
-		supports func(req *pbc.SupportsRequest) (*pbc.SupportsResponse, error)
-		want     bool
+		name       string
+		supports   func(req *pbc.SupportsRequest) (*pbc.SupportsResponse, error)
+		want       bool
+		wantReason string
 	}{
 		{
 			name: "supported",
@@ -203,7 +226,8 @@ func TestCheckPluginSupports_FailOpenMatrix(t *testing.T) {
 			supports: func(_ *pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
 				return &pbc.SupportsResponse{Supported: false, Reason: "region not served"}, nil
 			},
-			want: false,
+			want:       false,
+			wantReason: "region not served",
 		},
 		{
 			name: "sdk default not-implemented reason fails open",
@@ -243,7 +267,9 @@ func TestCheckPluginSupports_FailOpenMatrix(t *testing.T) {
 			api := &stubSupportsClient{supports: tt.supports}
 			e, client := supportsEngine(api)
 
-			assert.Equal(t, tt.want, e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts"))
+			got, reason := e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts")
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, tt.wantReason, reason)
 		})
 	}
 }
@@ -259,5 +285,237 @@ func TestCheckPluginSupports_RegionSpecificAnswerDeclines(t *testing.T) {
 	res := ResourceDescriptor{Type: "aws:ec2/instance:Instance", Provider: "aws",
 		Properties: map[string]interface{}{"instanceType": "m5.large", "availabilityZone": "us-east-1a"}}
 
-	assert.False(t, e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts"))
+	assert.False(t, supportsOnly(e, client, res))
+}
+
+// TestCheckPluginSupports_DeclineReasonSurvivesCache ensures the decline
+// reason is returned on the cached path too, not just the live RPC answer.
+func TestCheckPluginSupports_DeclineReasonSurvivesCache(t *testing.T) {
+	const wantReason = "Region not supported by this binary (plugin region: us-east-1)"
+	calls := 0
+	api := &stubSupportsClient{supports: func(_ *pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
+		calls++
+		return &pbc.SupportsResponse{Supported: false, Reason: wantReason}, nil
+	}}
+	e, client := supportsEngine(api)
+	res := ResourceDescriptor{Type: "aws:ec2/instance:Instance", Provider: "aws",
+		Properties: map[string]interface{}{"instanceType": "m5.large", "availabilityZone": "eu-west-1a"}}
+
+	for range 2 {
+		ok, reason := e.checkPluginSupports(context.Background(), client, res, "ProjectedCosts")
+		assert.False(t, ok)
+		assert.Equal(t, wantReason, reason)
+	}
+	assert.Equal(t, 1, calls, "second call must be served from cache")
+}
+
+// decliningSupportsClient always declines with a fixed reason, like a
+// region-pinned binary answering for a resource outside its region.
+type decliningSupportsClient struct {
+	mockCostSourceClient
+
+	reason string
+}
+
+func (c *decliningSupportsClient) Supports(
+	_ context.Context, _ *pbc.SupportsRequest, _ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	return &pbc.SupportsResponse{Supported: false, Reason: c.reason}, nil
+}
+
+// TestGetProjectedCost_DeclineReasonsSurfaced covers issue #1515: when every
+// candidate plugin declines Supports() with a distinct reason, the placeholder
+// CostResult carries both reasons instead of the bare "no pricing" note.
+func TestGetProjectedCost_DeclineReasonsSurfaced(t *testing.T) {
+	const reasonA = "Region not supported by this binary (plugin region: us-east-1)"
+	const reasonB = "SKU m5.large not priced by this plugin"
+
+	clients := []*pluginhost.Client{
+		{Name: "aws-public-use1", API: &decliningSupportsClient{reason: reasonA}},
+		{Name: "aws-public-euw1", API: &decliningSupportsClient{reason: reasonB}},
+	}
+	e := New(clients, nil)
+
+	resources := []ResourceDescriptor{
+		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+	}
+
+	results, err := e.GetProjectedCost(context.Background(), resources)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	result := results[0]
+	assert.Equal(t, adapterNone, result.Adapter)
+	assert.Contains(t, result.Notes, noteNoPricingInfo)
+	assert.Contains(t, result.Notes, "aws-public-use1: "+reasonA)
+	assert.Contains(t, result.Notes, "aws-public-euw1: "+reasonB)
+	require.NotNil(t, result.Error)
+	assert.Equal(t, ErrCodeNoCostData, result.Error.Code)
+	assert.Contains(t, result.Error.Message, reasonA)
+	assert.Contains(t, result.Error.Message, reasonB)
+}
+
+// TestGetProjectedCost_FailOpenNotReportedAsDecline covers issue #1515: a
+// plugin whose Supports() RPC fails fails open (stays selected, contributes
+// no decline reason), while a genuine decline is still surfaced.
+func TestGetProjectedCost_FailOpenNotReportedAsDecline(t *testing.T) {
+	const declineReason = "region not served by this binary"
+
+	clients := []*pluginhost.Client{
+		{Name: "flaky-plugin", API: &erroringSupportsClient{}},
+		{Name: "aws-public", API: &decliningSupportsClient{reason: declineReason}},
+	}
+	e := New(clients, nil)
+
+	resources := []ResourceDescriptor{
+		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+	}
+
+	results, err := e.GetProjectedCost(context.Background(), resources)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+
+	result := results[0]
+	assert.Equal(t, adapterNone, result.Adapter)
+	assert.Contains(t, result.Notes, "aws-public: "+declineReason)
+	assert.NotContains(t, result.Notes, "flaky-plugin",
+		"a fail-open RPC error must not be reported as a decline")
+	require.NotNil(t, result.Error)
+	assert.NotContains(t, result.Error.Message, "flaky-plugin")
+}
+
+// TestGetProjectedCostWithErrors_DeclineReasonsSurfaced applies the same
+// surfacing to the error-tracking projected-cost path.
+func TestGetProjectedCostWithErrors_DeclineReasonsSurfaced(t *testing.T) {
+	const reason = "region not served by this binary"
+
+	clients := []*pluginhost.Client{
+		{Name: "aws-public", API: &decliningSupportsClient{reason: reason}},
+	}
+	e := New(clients, nil)
+
+	resources := []ResourceDescriptor{
+		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+	}
+
+	result, err := e.GetProjectedCostWithErrors(context.Background(), resources)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Len(t, result.Results, 1)
+	assert.Contains(t, result.Results[0].Notes, reason)
+}
+
+// TestGetActualCost_DeclineReasonsSurfaced applies the same surfacing to the
+// actual-cost path: the placeholder note names the declining plugin.
+func TestGetActualCost_DeclineReasonsSurfaced(t *testing.T) {
+	const reason = "Region not supported by this binary (plugin region: us-east-1)"
+
+	clients := []*pluginhost.Client{
+		{Name: "aws-public", API: &decliningSupportsClient{reason: reason}},
+	}
+	e := New(clients, nil)
+
+	resources := []ResourceDescriptor{
+		{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+	}
+	from := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
+	to := time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC)
+
+	results, err := e.GetActualCost(context.Background(), resources, from, to)
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, adapterNone, results[0].Adapter)
+	assert.Contains(t, results[0].Notes, "No actual cost data available")
+	assert.Contains(t, results[0].Notes, "aws-public: "+reason)
+}
+
+// TestGetActualCostWithOptionsAndErrors_DeclineReasonsSurfaced applies the
+// same surfacing to the fallback-estimate placeholder path.
+func TestGetActualCostWithOptionsAndErrors_DeclineReasonsSurfaced(t *testing.T) {
+	const reason = "region not served by this binary"
+
+	clients := []*pluginhost.Client{
+		{Name: "aws-public", API: &decliningSupportsClient{reason: reason}},
+	}
+	e := New(clients, nil)
+
+	request := ActualCostRequest{
+		Resources: []ResourceDescriptor{
+			{Type: "aws:ec2/instance:Instance", ID: "i-001", Provider: "aws"},
+		},
+		From:             time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
+		To:               time.Date(2024, 1, 10, 0, 0, 0, 0, time.UTC),
+		FallbackEstimate: true,
+	}
+
+	result, err := e.GetActualCostWithOptionsAndErrors(context.Background(), request)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Len(t, result.Results, 1)
+	assert.Contains(t, result.Results[0].Notes, "aws-public: "+reason)
+}
+
+func TestDeclineNotes(t *testing.T) {
+	longReason := strings.Repeat("x", maxDeclineReasonLen+10)
+
+	tests := []struct {
+		name     string
+		declines []pluginDecline
+		want     []string
+		notWant  []string
+	}{
+		{
+			name:     "no declines returns base unchanged",
+			declines: nil,
+			want:     []string{"No pricing information available"},
+			notWant:  []string{"declined by"},
+		},
+		{
+			name: "single decline with reason",
+			declines: []pluginDecline{
+				{plugin: "aws-public", reason: "region not served"},
+			},
+			want: []string{"(declined by aws-public: region not served)"},
+		},
+		{
+			name: "decline without reason names only the plugin",
+			declines: []pluginDecline{
+				{plugin: "aws-public"},
+			},
+			want:    []string{"(declined by aws-public)"},
+			notWant: []string{"aws-public:"},
+		},
+		{
+			name: "count is capped with overflow hint",
+			declines: []pluginDecline{
+				{plugin: "p1", reason: "r1"},
+				{plugin: "p2", reason: "r2"},
+				{plugin: "p3", reason: "r3"},
+				{plugin: "p4", reason: "r4"},
+				{plugin: "p5", reason: "r5"},
+			},
+			want:    []string{"p3: r3", "and 2 more"},
+			notWant: []string{"p4", "p5"},
+		},
+		{
+			name: "long reasons are truncated",
+			declines: []pluginDecline{
+				{plugin: "aws-public", reason: longReason},
+			},
+			want:    []string{strings.Repeat("x", maxDeclineReasonLen) + "..."},
+			notWant: []string{longReason},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := declineNotes(noteNoPricingInfo, tt.declines)
+			for _, want := range tt.want {
+				assert.Contains(t, got, want)
+			}
+			for _, notWant := range tt.notWant {
+				assert.NotContains(t, got, notWant)
+			}
+		})
+	}
 }

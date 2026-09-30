@@ -119,7 +119,7 @@ func (e *Engine) groupResourcesByPlugin(
 			continue
 		}
 
-		matches := e.selectPluginMatchesForResource(ctx, resource, batchCostFeature)
+		matches, _ := e.selectPluginMatchesForResource(ctx, resource, batchCostFeature)
 		if len(matches) == 0 {
 			log.Debug().
 				Ctx(ctx).

@@ -129,12 +129,26 @@ type Engine struct {
 	clients        []*pluginhost.Client
 	loader         SpecLoader
 	cache          cache.Cache
-	history        history.Store          // Optional history store; if nil, no history tracking
-	router         Router                 // Optional router for plugin selection; if nil, queries all plugins
-	dismissalStore *config.DismissalStore // Optional dismissal store; if nil, created on demand
-	jobs           int                    // Override worker count; 0 means auto (default)
-	supportsCache  map[string]bool        // Cache for Supports() results, keyed by "client:provider:type:region:sku:feature"
-	supportsMu     sync.RWMutex           // Guards supportsCache
+	history        history.Store             // Optional history store; if nil, no history tracking
+	router         Router                    // Optional router for plugin selection; if nil, queries all plugins
+	dismissalStore *config.DismissalStore    // Optional dismissal store; if nil, created on demand
+	jobs           int                       // Override worker count; 0 means auto (default)
+	supportsCache  map[string]supportsResult // Cache for Supports() results, keyed by "client:provider:type:region:sku:feature"
+	supportsMu     sync.RWMutex              // Guards supportsCache
+}
+
+// supportsResult is the cached answer of a plugin's Supports() RPC.
+type supportsResult struct {
+	supported bool
+	reason    string // decline reason, only set when supported is false
+}
+
+// pluginDecline records that a plugin declined to serve a resource via
+// Supports(), along with the plugin-provided reason, so the reason can be
+// surfaced in placeholder results when no plugin serves the resource.
+type pluginDecline struct {
+	plugin string
+	reason string
 }
 
 // New creates a new Engine with the given plugin clients and spec loader.
@@ -205,12 +219,16 @@ func (e *Engine) getConcurrencyMultiplier() int {
 // pluginsdk.DefaultSupportsNotImplementedReason (see sdk.go), which is not a
 // real capability decision and previously caused such plugins to be silently
 // dropped from every resource they'd have otherwise served.
+//
+// The returned reason is the plugin's human-readable decline reason; it is
+// only non-empty for a genuine decline (Supported:false with a real reason),
+// never for any fail-open case.
 func (e *Engine) checkPluginSupports(
 	ctx context.Context,
 	client *pluginhost.Client,
 	resource ResourceDescriptor,
 	feature string,
-) bool {
+) (bool, string) {
 	props := ConvertToProto(resource.Properties)
 	sku, region := proto.ResolveSKUAndRegion(ctx, resource.Provider, resource.Type, props)
 	cacheKey := strings.Join([]string{client.Name, resource.Provider, resource.Type, region, sku, feature}, ":")
@@ -218,7 +236,7 @@ func (e *Engine) checkPluginSupports(
 	e.supportsMu.RLock()
 	if result, ok := e.supportsCache[cacheKey]; ok {
 		e.supportsMu.RUnlock()
-		return result
+		return result.supported, result.reason
 	}
 	e.supportsMu.RUnlock()
 
@@ -234,13 +252,14 @@ func (e *Engine) checkPluginSupports(
 	if err != nil {
 		// Fail-open: if plugin doesn't implement Supports() or RPC fails,
 		// assume it supports the feature (backward compatible).
-		e.cacheSupportsResult(cacheKey, true)
-		return true
+		e.cacheSupportsResult(cacheKey, supportsResult{supported: true})
+		return true, ""
 	}
 
 	supported := resp.GetSupported()
+	reason := resp.GetReason()
 	log := logging.FromContext(ctx)
-	if !supported && resp.GetReason() == pluginsdk.DefaultSupportsNotImplementedReason {
+	if !supported && reason == pluginsdk.DefaultSupportsNotImplementedReason {
 		// The plugin never implemented SupportsProvider; the SDK's generic
 		// fallback answered on its behalf. Fail open rather than treat that
 		// as a genuine "does not support" answer.
@@ -252,6 +271,7 @@ func (e *Engine) checkPluginSupports(
 			Str("feature", feature).
 			Msg("plugin has no Supports implementation, failing open")
 		supported = true
+		reason = ""
 	} else if !supported {
 		log.Debug().
 			Str("component", "engine").
@@ -259,39 +279,93 @@ func (e *Engine) checkPluginSupports(
 			Str("resource_type", resource.Type).
 			Str("resource_region", region).
 			Str("feature", feature).
-			Str("reason", resp.GetReason()).
+			Str("reason", reason).
 			Msg("plugin does not support feature, skipping")
 	}
-	e.cacheSupportsResult(cacheKey, supported)
-	return supported
+	if supported {
+		// A reason only has meaning on a genuine decline; never propagate
+		// one for a supported (or failed-open) answer.
+		reason = ""
+	}
+	e.cacheSupportsResult(cacheKey, supportsResult{supported: supported, reason: reason})
+	return supported, reason
 }
 
 // cacheSupportsResult stores a Supports() result in the engine's cache.
-func (e *Engine) cacheSupportsResult(key string, supported bool) {
+func (e *Engine) cacheSupportsResult(key string, result supportsResult) {
 	e.supportsMu.Lock()
 	defer e.supportsMu.Unlock()
 	if e.supportsCache == nil {
-		e.supportsCache = make(map[string]bool)
+		e.supportsCache = make(map[string]supportsResult)
 	}
-	e.supportsCache[key] = supported
+	e.supportsCache[key] = result
+}
+
+const (
+	// maxDeclineReasons caps how many plugin decline reasons are appended to a
+	// placeholder note, keeping the note readable when many plugins decline.
+	maxDeclineReasons = 3
+	// maxDeclineReasonLen caps the length of a single decline reason in a
+	// placeholder note.
+	maxDeclineReasonLen = 160
+)
+
+// summarizeDeclines formats collected plugin declines as
+// "plugin1: reason1; plugin2: reason2" (or "and N more" past the cap).
+func summarizeDeclines(declines []pluginDecline) string {
+	parts := make([]string, 0, min(len(declines), maxDeclineReasons))
+	for i, d := range declines {
+		if i >= maxDeclineReasons {
+			parts = append(parts, fmt.Sprintf("and %d more", len(declines)-i))
+			break
+		}
+		reason := d.reason
+		if len(reason) > maxDeclineReasonLen {
+			reason = reason[:maxDeclineReasonLen] + "..."
+		}
+		if reason == "" {
+			parts = append(parts, d.plugin)
+		} else {
+			parts = append(parts, d.plugin+": "+reason)
+		}
+	}
+	return strings.Join(parts, "; ")
+}
+
+// declineNotes appends plugin Supports() decline reasons to a placeholder
+// note, so users can distinguish "every plugin inspected the resource and
+// declined for a specific reason" from "no plugin exists for this type".
+// Returns base unchanged when there are no declines.
+func declineNotes(base string, declines []pluginDecline) string {
+	if len(declines) == 0 {
+		return base
+	}
+	return base + " (declined by " + summarizeDeclines(declines) + ")"
 }
 
 // filterUnsupportedPlugins removes plugins that declare they don't support
 // the given resource (provider, type, SKU, and region) for the requested
-// feature via the Supports() RPC.
+// feature via the Supports() RPC. It also returns the (plugin, reason) pairs
+// for every genuine decline so callers can surface them when no plugin ends
+// up serving the resource. Fail-open cases (RPC error, unimplemented
+// SupportsProvider) produce no decline entries.
 func (e *Engine) filterUnsupportedPlugins(
 	ctx context.Context,
 	matches []PluginMatch,
 	resource ResourceDescriptor,
 	feature string,
-) []PluginMatch {
+) ([]PluginMatch, []pluginDecline) {
 	filtered := make([]PluginMatch, 0, len(matches))
+	var declines []pluginDecline
 	for _, match := range matches {
-		if e.checkPluginSupports(ctx, match.Client, resource, feature) {
+		supported, reason := e.checkPluginSupports(ctx, match.Client, resource, feature)
+		if supported {
 			filtered = append(filtered, match)
+			continue
 		}
+		declines = append(declines, pluginDecline{plugin: match.Client.Name, reason: reason})
 	}
-	return filtered
+	return filtered, declines
 }
 
 // selectPluginMatchesForResource returns the full PluginMatch list for a resource.
@@ -303,12 +377,16 @@ func (e *Engine) filterUnsupportedPlugins(
 //   - feature: The feature being requested (e.g., "ProjectedCosts", "ActualCosts")
 //
 // Returns:
-//   - []PluginMatch: Matched plugins with metadata, ordered by priority
+//   - []PluginMatch: Matched plugins with metadata, ordered by priority. nil
+//     when the resource is intentionally filtered (e.g., internal Pulumi
+//     types); an empty non-nil slice when plugins exist but all declined.
+//   - []pluginDecline: Supports() decline reasons collected while filtering,
+//     so callers can explain why no plugin served the resource.
 func (e *Engine) selectPluginMatchesForResource(
 	ctx context.Context,
 	resource ResourceDescriptor,
 	feature string,
-) []PluginMatch {
+) ([]PluginMatch, []pluginDecline) {
 	log := logging.FromContext(ctx)
 
 	// If no router configured, return all clients as matches with fallback enabled
@@ -321,7 +399,7 @@ func (e *Engine) selectPluginMatchesForResource(
 				Str("operation", "select_plugins").
 				Str("resource_type", resource.Type).
 				Msg("skipping internal Pulumi type (no router)")
-			return nil
+			return nil, nil
 		}
 
 		log.Debug().
@@ -356,7 +434,7 @@ func (e *Engine) selectPluginMatchesForResource(
 				Str("operation", "select_plugins").
 				Str("resource_type", resource.Type).
 				Msg("skipping internal Pulumi type (router returned no matches)")
-			return nil
+			return nil, nil
 		}
 
 		log.Debug().
@@ -567,7 +645,7 @@ func (e *Engine) GetProjectedCost(
 			var resourceResults []CostResult
 
 			// Select plugin matches using router (if configured) or all clients
-			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
+			selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
 			if selectedMatches == nil {
 				continue // Resource intentionally filtered (e.g., internal Pulumi type)
 			}
@@ -664,6 +742,7 @@ func (e *Engine) GetProjectedCost(
 						Str("resource_id", resource.ID).
 						Msg("no pricing data available from plugins or specs")
 
+					notes := declineNotes(noteNoPricingInfo, declines)
 					resourceResults = append(resourceResults, CostResult{
 						ResourceType: resource.Type,
 						ResourceID:   resource.ID,
@@ -671,10 +750,10 @@ func (e *Engine) GetProjectedCost(
 						Currency:     defaultCurrency,
 						Monthly:      0,
 						Hourly:       0,
-						Notes:        noteNoPricingInfo,
+						Notes:        notes,
 						Error: &StructuredError{
 							Code:         ErrCodeNoCostData,
-							Message:      noteNoPricingInfo,
+							Message:      notes,
 							ResourceType: resource.Type,
 						},
 					})
@@ -810,7 +889,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 			log := logging.FromContext(ctx)
 
 			// Select plugin matches using router (if configured) or all clients
-			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
+			selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
 			if selectedMatches == nil {
 				continue // Resource intentionally filtered (e.g., internal Pulumi type)
 			}
@@ -877,6 +956,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 
 				if !fallbackUsed {
 					// Final fallback: no cost data available
+					notes := declineNotes(noteNoPricingInfo, declines)
 					resourceResults = append(resourceResults, CostResult{
 						ResourceType: resource.Type,
 						ResourceID:   resource.ID,
@@ -884,10 +964,10 @@ func (e *Engine) GetProjectedCostWithErrors(
 						Currency:     defaultCurrency,
 						Monthly:      0,
 						Hourly:       0,
-						Notes:        noteNoPricingInfo,
+						Notes:        notes,
 						Error: &StructuredError{
 							Code:         ErrCodeNoCostData,
-							Message:      noteNoPricingInfo,
+							Message:      notes,
 							ResourceType: resource.Type,
 						},
 					})
@@ -1130,7 +1210,7 @@ func (e *Engine) GetActualCostWithOptions(
 			var partialErr error
 
 			// Select plugin matches using router (if configured) or all clients
-			selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
+			selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
 			if selectedMatches == nil {
 				// Send nil result to preserve index alignment in resultsChan.
 				// Downstream consumers expect one result per worker slot; the
@@ -1233,7 +1313,7 @@ func (e *Engine) GetActualCostWithOptions(
 					Adapter:      adapterNone,
 					Currency:     defaultCurrency,
 					TotalCost:    0,
-					Notes:        "No actual cost data available",
+					Notes:        declineNotes("No actual cost data available", declines),
 					StartDate:    request.From,
 					EndDate:      request.To,
 					CostPeriod:   FormatPeriod(request.From, request.To),
@@ -1459,7 +1539,7 @@ func (e *Engine) getActualCostForResource(
 	log := logging.FromContext(ctx)
 
 	// Select plugin matches using router (if configured) or all clients
-	selectedMatches := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
+	selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, "ActualCosts")
 	if selectedMatches == nil {
 		return nil, nil // Resource intentionally filtered (e.g., internal Pulumi type)
 	}
@@ -1566,12 +1646,15 @@ func (e *Engine) getActualCostForResource(
 	// Without --fallback-estimate, warn and skip resources with no cost data.
 	// This avoids polluting output with misleading $0 results.
 	if !request.FallbackEstimate {
-		log.Warn().Ctx(ctx).
+		warn := log.Warn().Ctx(ctx).
 			Str("component", "engine").
 			Str("operation", "get_actual_cost").
 			Str("resource_type", resource.Type).
-			Str("resource_id", resource.ID).
-			Msg("no actual cost data available (use --fallback-estimate to include $0 placeholders)")
+			Str("resource_id", resource.ID)
+		if len(declines) > 0 {
+			warn = warn.Str("decline_reasons", summarizeDeclines(declines))
+		}
+		warn.Msg("no actual cost data available (use --fallback-estimate to include $0 placeholders)")
 		return nil, errors
 	}
 
@@ -1579,6 +1662,8 @@ func (e *Engine) getActualCostForResource(
 	notes := "No actual cost data available"
 	if len(errors) > 0 {
 		notes = "ERROR: plugin call failed"
+	} else {
+		notes = declineNotes(notes, declines)
 	}
 
 	return &CostResult{
@@ -3399,7 +3484,8 @@ func (e *Engine) routeRecommendationTargets(
 ) []recommendationTarget {
 	byName := make(map[string][]ResourceDescriptor, len(e.clients))
 	for _, resource := range resources {
-		for _, match := range e.selectPluginMatchesForResource(ctx, resource, recommendationsFeature) {
+		matches, _ := e.selectPluginMatchesForResource(ctx, resource, recommendationsFeature)
+		for _, match := range matches {
 			if isScorerOnly(match.Client) {
 				continue
 			}
