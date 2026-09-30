@@ -3,6 +3,7 @@ package pagination
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -34,6 +35,12 @@ func NewRecommendationSorter() *RecommendationSorter {
 			"resourceType": true,
 			"provider":     true,
 			"actionType":   true,
+
+			engine.ScoreSignalRisk:                 true,
+			engine.ScoreSignalFalsePositive:        true,
+			engine.ScoreSignalWorthActing:          true,
+			engine.ScoreSignalPriority:             true,
+			engine.ScoreSignalInsufficientEvidence: true,
 		},
 	}
 }
@@ -69,6 +76,11 @@ func (s *RecommendationSorter) Sort(
 	sorted := make([]engine.Recommendation, len(recommendations))
 	copy(sorted, recommendations)
 
+	if isScoreField(field) {
+		sortByScore(sorted, field, order)
+		return sorted
+	}
+
 	// Sort using stable sort
 	sort.SliceStable(sorted, func(i, j int) bool {
 		// For descending order, swap i and j in comparisons to maintain stability
@@ -99,6 +111,29 @@ func (s *RecommendationSorter) Sort(
 	})
 
 	return sorted
+}
+
+func isScoreField(field string) bool {
+	return slices.Contains(engine.ScoreSignalNames(), field)
+}
+
+// sortByScore orders by a scorer signal. Recommendations without that signal always sort
+// last, in either order, and ties break by estimated savings (largest first).
+func sortByScore(recs []engine.Recommendation, field, order string) {
+	sort.SliceStable(recs, func(i, j int) bool {
+		vi, okI := recs[i].Scores.Signal(field)
+		vj, okJ := recs[j].Scores.Signal(field)
+		if okI != okJ {
+			return okI
+		}
+		if okI && vi != vj {
+			if order == SortOrderDesc {
+				return vi > vj
+			}
+			return vi < vj
+		}
+		return recs[i].EstimatedSavings > recs[j].EstimatedSavings
+	})
 }
 
 // extractProvider extracts the provider name from a resource ID.

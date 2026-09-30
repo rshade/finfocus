@@ -3170,13 +3170,23 @@ func createSortedAggregations(
 	return aggregations
 }
 
-// convertProtoRecommendation converts a proto recommendation to an engine Recommendation.
+// convertProtoRecommendation converts a proto recommendation to an engine Recommendation,
+// retaining every field the plugin reported. Unspecified category and priority enums
+// become empty strings.
 // The plugin is expected to populate ResourceID from the Id field sent in ResourceDescriptor.
 func convertProtoRecommendation(rec *proto.Recommendation) Recommendation {
 	engineRec := Recommendation{
-		ResourceID:  rec.ResourceID,
-		Type:        rec.ActionType,
-		Description: rec.Description,
+		ID:              rec.ID,
+		ResourceID:      rec.ResourceID,
+		Type:            rec.ActionType,
+		Category:        specifiedEnum(rec.Category),
+		Priority:        specifiedEnum(rec.Priority),
+		ConfidenceScore: rec.ConfidenceScore,
+		Source:          rec.Source,
+		CreatedAt:       rec.CreatedAt,
+		Metadata:        rec.Metadata,
+		Description:     rec.Description,
+		Reasoning:       rec.Reasoning,
 	}
 
 	if engineRec.Type == "" {
@@ -3186,17 +3196,55 @@ func convertProtoRecommendation(rec *proto.Recommendation) Recommendation {
 	if rec.Impact != nil {
 		engineRec.EstimatedSavings = rec.Impact.EstimatedSavings
 		engineRec.Currency = rec.Impact.Currency
+		engineRec.ImpactDetail = &RecommendationImpactDetail{
+			ProjectionPeriod:     rec.Impact.ProjectionPeriod,
+			CurrentCost:          rec.Impact.CurrentCost,
+			ProjectedCost:        rec.Impact.ProjectedCost,
+			SavingsPercentage:    rec.Impact.SavingsPercentage,
+			ImplementationCost:   rec.Impact.ImplementationCost,
+			MigrationEffortHours: rec.Impact.MigrationEffortHours,
+		}
 	}
 
-	engineRec.Reasoning = rec.Reasoning
+	if rec.Resource != nil {
+		engineRec.ResourceInfo = convertProtoRecommendationResource(rec.Resource)
+	}
 
 	return engineRec
 }
 
+func convertProtoRecommendationResource(res *proto.RecommendationResource) *RecommendationResourceInfo {
+	info := &RecommendationResourceInfo{
+		Name:         res.Name,
+		Provider:     res.Provider,
+		ResourceType: res.ResourceType,
+		Region:       res.Region,
+		SKU:          res.SKU,
+		Tags:         res.Tags,
+	}
+	if res.Utilization != nil {
+		info.Utilization = &RecommendationUtilizationInfo{
+			CPUPercent:     res.Utilization.CPUPercent,
+			MemoryPercent:  res.Utilization.MemoryPercent,
+			StoragePercent: res.Utilization.StoragePercent,
+			NetworkInMbps:  res.Utilization.NetworkInMbps,
+			NetworkOutMbps: res.Utilization.NetworkOutMbps,
+			CustomMetrics:  res.Utilization.CustomMetrics,
+		}
+	}
+	return info
+}
+
+// specifiedEnum returns "" for proto enum names that denote the UNSPECIFIED value.
+func specifiedEnum(name string) string {
+	if strings.HasSuffix(name, "_UNSPECIFIED") {
+		return ""
+	}
+	return name
+}
+
 // GetRecommendationsForResources fetches cost optimization recommendations for the given resources.
 // For large datasets (>100 resources), it uses batch processing to improve performance and memory usage.
-//
-//nolint:gocognit // Complex orchestration function with caching and batch processing.
 func (e *Engine) GetRecommendationsForResources(
 	ctx context.Context,
 	resources []ResourceDescriptor,
@@ -3210,8 +3258,10 @@ func (e *Engine) GetRecommendationsForResources(
 		return result, nil
 	}
 
+	excludedIDs := loadExcludedRecommendationIDs(ctx, e.dismissalStore)
+
 	// Compute cache key once for both read and write paths.
-	recommendationsCacheKey := e.generateRecommendationsCacheKey(resources)
+	recommendationsCacheKey := e.generateRecommendationsCacheKey(resources, excludedIDs)
 
 	// Check cache if enabled
 	if e.cache != nil && e.cache.IsEnabled() {
@@ -3234,50 +3284,8 @@ func (e *Engine) GetRecommendationsForResources(
 		}
 	}
 
-	// Load dismissal store to filter excluded recommendation IDs
-	excludedIDs := loadExcludedRecommendationIDs(ctx, e.dismissalStore)
-
-	// Use batch processing for large datasets
-	useBatchProcessing := len(resources) > batchProcessingThreshold
-
-	for _, client := range e.clients {
-		log.Info().
-			Ctx(ctx).
-			Str("component", "engine").
-			Str("plugin", client.Name).
-			Int("resource_count", len(resources)).
-			Bool("batch_processing", useBatchProcessing).
-			Msg("fetching recommendations from plugin")
-
-		if useBatchProcessing {
-			if err := e.fetchRecommendationsWithBatching(ctx, client, resources, result, excludedIDs); err != nil {
-				log.Warn().
-					Ctx(ctx).
-					Str("component", "engine").
-					Str("plugin", client.Name).
-					Err(err).
-					Msg("failed to fetch recommendations with batching")
-
-				result.Errors = append(result.Errors, RecommendationError{
-					PluginName: client.Name,
-					Error:      err.Error(),
-				})
-			}
-		} else {
-			if err := e.fetchRecommendationsSequential(ctx, client, resources, result, excludedIDs); err != nil {
-				log.Warn().
-					Ctx(ctx).
-					Str("component", "engine").
-					Str("plugin", client.Name).
-					Err(err).
-					Msg("failed to fetch recommendations")
-
-				result.Errors = append(result.Errors, RecommendationError{
-					PluginName: client.Name,
-					Error:      err.Error(),
-				})
-			}
-		}
+	for _, target := range e.routeRecommendationTargets(ctx, resources) {
+		e.fetchRecommendationsFromTarget(ctx, target, result, excludedIDs)
 	}
 
 	// Store result in cache if enabled
@@ -3305,14 +3313,108 @@ func (e *Engine) GetRecommendationsForResources(
 	return result, nil
 }
 
-// generateRecommendationsCacheKey generates a cache key for the given resources.
-// Format: recommendations/multi/{sorted-types}.
-func (e *Engine) generateRecommendationsCacheKey(resources []ResourceDescriptor) string {
+// fetchRecommendationsFromTarget queries one plugin for its routed resources, using batch
+// processing for large sets, and records a failure on result.Errors instead of aborting.
+func (e *Engine) fetchRecommendationsFromTarget(
+	ctx context.Context,
+	target recommendationTarget,
+	result *RecommendationsResult,
+	excludedIDs []string,
+) {
+	log := logging.FromContext(ctx)
+	client := target.client
+	useBatchProcessing := len(target.resources) > batchProcessingThreshold
+
+	log.Info().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("plugin", client.Name).
+		Int("resource_count", len(target.resources)).
+		Bool("batch_processing", useBatchProcessing).
+		Msg("fetching recommendations from plugin")
+
+	var err error
+	if useBatchProcessing {
+		err = e.fetchRecommendationsWithBatching(ctx, client, target.resources, result, excludedIDs)
+	} else {
+		err = e.fetchRecommendationsSequential(ctx, client, target.resources, result, excludedIDs)
+	}
+	if err == nil {
+		return
+	}
+
+	log.Warn().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("plugin", client.Name).
+		Bool("batch_processing", useBatchProcessing).
+		Err(err).
+		Msg("failed to fetch recommendations")
+
+	result.Errors = append(result.Errors, RecommendationError{
+		PluginName: client.Name,
+		Error:      err.Error(),
+	})
+}
+
+// generateRecommendationsCacheKey generates a cache key for the given resources and
+// excluded (dismissed) recommendation IDs.
+// Format: recommendations/multi/{sorted-types}/{inputs-hash}, where the hash covers the
+// identity, provider, type and plugin-visible properties of every resource plus the
+// excluded IDs.
+func (e *Engine) generateRecommendationsCacheKey(resources []ResourceDescriptor, excludedIDs []string) string {
 	resourceTypes := make([]string, 0, len(resources))
+	inputs := make([]cache.RecommendationInput, 0, len(resources))
 	for _, r := range resources {
 		resourceTypes = append(resourceTypes, r.Type)
+		inputs = append(inputs, cache.RecommendationInput{
+			ID:         r.ID,
+			Provider:   r.Provider,
+			Type:       r.Type,
+			Properties: ConvertToProto(r.Properties),
+		})
 	}
-	return cache.BuildRecommendationsKey(resourceTypes)
+	return cache.BuildRecommendationsKey(resourceTypes, cache.HashRecommendationInputs(inputs, excludedIDs))
+}
+
+// isScorerOnly reports whether a plugin advertises recommendation scoring without
+// recommendations. Such a plugin rates recommendations; it does not produce them.
+func isScorerOnly(client *pluginhost.Client) bool {
+	return client.HasCapability(pluginhost.CapabilityRecommendationScoring) &&
+		!client.HasCapability(capabilityRecommendations)
+}
+
+// recommendationTarget is a plugin together with the resources routed to it.
+type recommendationTarget struct {
+	client    *pluginhost.Client
+	resources []ResourceDescriptor
+}
+
+// routeRecommendationTargets assigns each resource to the plugins selected for
+// FeatureRecommendations, so a plugin only receives resources it is routed and
+// supports. Targets follow e.clients order; plugins with no routed resources are omitted.
+func (e *Engine) routeRecommendationTargets(
+	ctx context.Context,
+	resources []ResourceDescriptor,
+) []recommendationTarget {
+	byName := make(map[string][]ResourceDescriptor, len(e.clients))
+	for _, resource := range resources {
+		for _, match := range e.selectPluginMatchesForResource(ctx, resource, recommendationsFeature) {
+			if isScorerOnly(match.Client) {
+				continue
+			}
+			byName[match.Client.Name] = append(byName[match.Client.Name], resource)
+		}
+	}
+
+	targets := make([]recommendationTarget, 0, len(byName))
+	for _, client := range e.clients {
+		if rs, ok := byName[client.Name]; ok {
+			delete(byName, client.Name)
+			targets = append(targets, recommendationTarget{client: client, resources: rs})
+		}
+	}
+	return targets
 }
 
 // fetchRecommendationsSequential fetches recommendations without batching (for small datasets).
@@ -3747,6 +3849,12 @@ func loadExcludedRecommendationIDs(ctx context.Context, existing *config.Dismiss
 
 	return excludedIDs
 }
+
+// recommendationsFeature is the router feature name used to select recommendation plugins.
+const recommendationsFeature = "Recommendations"
+
+// capabilityRecommendations is the capability string for recommendation support.
+const capabilityRecommendations = "recommendations"
 
 // capabilityDismissRecommendations is the capability string for dismiss support.
 const capabilityDismissRecommendations = "dismiss_recommendations"

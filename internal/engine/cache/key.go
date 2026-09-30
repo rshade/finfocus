@@ -3,8 +3,11 @@ package cache
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"fmt"
+	"hash"
+	"io"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -15,12 +18,13 @@ const (
 	BucketActual          = "actual"
 	BucketRecommendations = "recommendations"
 	BucketResolveTypes    = "resolve_types"
+	BucketScores          = "scores"
 )
 
 // isValidBucket reports whether the given name is a recognized top-level bucket.
 func isValidBucket(name string) bool {
 	switch name {
-	case BucketProjected, BucketActual, BucketRecommendations, BucketResolveTypes:
+	case BucketProjected, BucketActual, BucketRecommendations, BucketResolveTypes, BucketScores:
 		return true
 	default:
 		return false
@@ -79,20 +83,89 @@ func BuildActualKey(provider string, resourceTypes []string, from, to time.Time,
 	}, "/")
 }
 
+// RecommendationInput carries the identity and plugin-visible properties of one
+// resource requested for recommendations. It is the input to HashRecommendationInputs.
+type RecommendationInput struct {
+	ID         string
+	Provider   string
+	Type       string
+	Properties map[string]string
+}
+
 // BuildRecommendationsKey constructs a cache key for recommendation results.
-// The key has the format "recommendations/multi/{sorted-types-joined-by-+}".
-// When resourceTypes is empty, the types segment uses "_" as a placeholder
-// (consistent with sibling builders) to avoid a trailing slash.
-func BuildRecommendationsKey(resourceTypes []string) string {
+// The key has the format "recommendations/multi/{sorted-types-joined-by-+}/{inputs-hash}",
+// where inputs-hash comes from HashRecommendationInputs. Empty segments use "_" as a
+// placeholder (consistent with sibling builders). Entries written under the previous
+// "recommendations/multi/{sorted-types}" format are never matched by this format and
+// simply expire.
+func BuildRecommendationsKey(resourceTypes []string, inputsHash string) string {
 	sorted := make([]string, len(resourceTypes))
 	copy(sorted, resourceTypes)
 	sort.Strings(sorted)
 
-	combined := strings.Join(sorted, "+")
-	if combined == "" {
-		combined = "_"
+	return strings.Join([]string{
+		BucketRecommendations,
+		"multi",
+		placeholder(strings.Join(sorted, "+")),
+		placeholder(inputsHash),
+	}, "/")
+}
+
+// HashRecommendationInputs returns a stable hex digest of the requested resources
+// (identity, provider, type and properties) together with the excluded recommendation
+// IDs. Resource order and excluded ID order do not affect the result; duplicate excluded
+// IDs are ignored. Every field is length-prefixed so adjacent values cannot collide.
+// It returns the first 16 bytes of the SHA-256 digest as 32 lowercase hex characters.
+func HashRecommendationInputs(resources []RecommendationInput, excludedIDs []string) string {
+	records := make([]string, 0, len(resources))
+	for _, r := range resources {
+		var sb strings.Builder
+		writeField(&sb, r.ID)
+		writeField(&sb, r.Provider)
+		writeField(&sb, r.Type)
+
+		keys := make([]string, 0, len(r.Properties))
+		for k := range r.Properties {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			writeField(&sb, k)
+			writeField(&sb, r.Properties[k])
+		}
+		records = append(records, sb.String())
 	}
-	return fmt.Sprintf("%s/multi/%s", BucketRecommendations, combined)
+	sort.Strings(records)
+
+	excluded := make([]string, len(excludedIDs))
+	copy(excluded, excludedIDs)
+	sort.Strings(excluded)
+	excluded = slices.Compact(excluded)
+
+	h := sha256.New()
+	writeHashField(h, "resources")
+	writeHashField(h, strconv.Itoa(len(records)))
+	for _, rec := range records {
+		writeHashField(h, rec)
+	}
+	writeHashField(h, "excluded")
+	writeHashField(h, strconv.Itoa(len(excluded)))
+	for _, id := range excluded {
+		writeHashField(h, id)
+	}
+	return hex.EncodeToString(h.Sum(nil)[:16])
+}
+
+func writeField(sb *strings.Builder, v string) {
+	sb.WriteString(strconv.Itoa(len(v)))
+	sb.WriteByte(':')
+	sb.WriteString(v)
+}
+
+func writeHashField(h hash.Hash, v string) {
+	_, _ = io.WriteString(h, strconv.Itoa(len(v)))
+	_, _ = io.WriteString(h, ":")
+	_, _ = io.WriteString(h, v)
 }
 
 // BucketFromKey returns the leading bucket name from a cache key by taking the substring
@@ -146,4 +219,25 @@ func BuildResolveTypesKey(sourceFormat, sourceType string) string {
 		placeholder(sourceFormat),
 		placeholder(sourceType),
 	}, "/")
+}
+
+// segment makes a value safe to use as one path segment of a cache key.
+func segment(s string) string {
+	return placeholder(strings.ReplaceAll(s, "/", "_"))
+}
+
+// BuildScoreKey constructs the cache key for one recommendation's scores.
+// The key has the form "scores/{scorer}/{plugin-version}/{model}/{content-hash}".
+// Changing the scorer, its plugin version or its model therefore never reuses an entry.
+func BuildScoreKey(scorer, pluginVersion, model, contentHash string) string {
+	return strings.Join([]string{
+		BucketScores, segment(scorer), segment(pluginVersion), segment(model), segment(contentHash),
+	}, "/")
+}
+
+// BuildScoreModelKey constructs the key holding the model a scorer reported last,
+// which lets a later run build score keys before it calls the scorer.
+// The key has the form "scores/{scorer}/{plugin-version}/_model".
+func BuildScoreModelKey(scorer, pluginVersion string) string {
+	return strings.Join([]string{BucketScores, segment(scorer), segment(pluginVersion), "_model"}, "/")
 }

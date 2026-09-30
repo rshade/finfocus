@@ -166,7 +166,10 @@ func TestCLIPerformance_CacheEfficiency(t *testing.T) {
 	defer cacheStore.Close()
 
 	// Use structured key builder
-	cacheKey := cache.BuildRecommendationsKey([]string{"Instance", "Database", "Bucket", "LoadBalancer", "Cache"})
+	cacheKey := cache.BuildRecommendationsKey(
+		[]string{"Instance", "Database", "Bucket", "LoadBalancer", "Cache"},
+		"inputs",
+	)
 
 	// Create test data (1000 recommendations as JSON)
 	testData := make([]map[string]interface{}, 1000)

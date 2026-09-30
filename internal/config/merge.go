@@ -37,6 +37,7 @@ var knownTopLevelKeys = map[string]bool{
 	keyPluginHost: true,
 	keyCost:       true,
 	keyRouting:    true,
+	keyScoring:    true,
 }
 
 // ShallowMergeYAML loads a Hujson/JSON file (or legacy YAML for backward compatibility)
@@ -151,6 +152,8 @@ func unmarshalSection(target *Config, key string, data []byte) error {
 		}
 		target.Routing = &v
 		return nil
+	case keyScoring:
+		return unmarshalPtr(data, &target.Scoring)
 	default:
 		// Defensive safety net: callers filter keys against knownTopLevelKeys before
 		// calling unmarshalSection, so this branch is effectively unreachable. It exists
@@ -158,4 +161,14 @@ func unmarshalSection(target *Config, key string, data []byte) error {
 		// corresponding case here.
 		return fmt.Errorf("unknown config key: %s", key)
 	}
+}
+
+// unmarshalPtr unmarshals data into a fresh value and points dst at it.
+func unmarshalPtr[T any](data []byte, dst **T) error {
+	v := new(T)
+	if err := json.Unmarshal(data, v); err != nil {
+		return err
+	}
+	*dst = v
+	return nil
 }

@@ -617,6 +617,39 @@ type Recommendation struct {
 	// proto Recommendation.Reasoning (field 14). These explain prerequisites
 	// or risks associated with implementing the recommendation.
 	Reasoning []string
+
+	// Priority is the proto RecommendationPriority enum name, or empty when unspecified.
+	Priority string
+
+	// ConfidenceScore is the plugin's confidence in the recommendation (0.0-1.0); nil when not reported.
+	ConfidenceScore *float64
+
+	// CreatedAt is when the plugin generated the recommendation; nil when not reported.
+	CreatedAt *time.Time
+
+	// Resource carries the plugin's description of the affected resource; nil when not reported.
+	Resource *RecommendationResource
+}
+
+// RecommendationResource describes the resource a recommendation applies to.
+type RecommendationResource struct {
+	Name         string
+	Provider     string
+	ResourceType string
+	Region       string
+	SKU          string
+	Tags         map[string]string
+	Utilization  *RecommendationUtilization
+}
+
+// RecommendationUtilization carries resource utilization metrics attached to a recommendation.
+type RecommendationUtilization struct {
+	CPUPercent     float64
+	MemoryPercent  float64
+	StoragePercent float64
+	NetworkInMbps  float64
+	NetworkOutMbps float64
+	CustomMetrics  map[string]float64
 }
 
 // RecommendationImpact describes the financial impact of implementing a recommendation.
@@ -635,6 +668,15 @@ type RecommendationImpact struct {
 
 	// SavingsPercentage is the savings as a percentage.
 	SavingsPercentage float64
+
+	// ProjectionPeriod is the period the figures apply to (e.g., "monthly").
+	ProjectionPeriod string
+
+	// ImplementationCost is the one-time cost of applying the recommendation; nil when not reported.
+	ImplementationCost *float64
+
+	// MigrationEffortHours is the estimated effort in hours; nil when not reported.
+	MigrationEffortHours *float64
 }
 
 // DismissRecommendationRequest contains parameters for dismissing a recommendation via plugin RPC.
@@ -1505,6 +1547,35 @@ func BuildEstimateCostRequest(
 	}, nil
 }
 
+func priorityName(p pbc.RecommendationPriority) string {
+	if p == pbc.RecommendationPriority_RECOMMENDATION_PRIORITY_UNSPECIFIED {
+		return ""
+	}
+	return p.String()
+}
+
+func convertRecommendationResource(info *pbc.ResourceRecommendationInfo) *RecommendationResource {
+	res := &RecommendationResource{
+		Name:         info.GetName(),
+		Provider:     info.GetProvider(),
+		ResourceType: info.GetResourceType(),
+		Region:       info.GetRegion(),
+		SKU:          info.GetSku(),
+		Tags:         info.GetTags(),
+	}
+	if util := info.GetUtilization(); util != nil {
+		res.Utilization = &RecommendationUtilization{
+			CPUPercent:     util.GetCpuPercent(),
+			MemoryPercent:  util.GetMemoryPercent(),
+			StoragePercent: util.GetStoragePercent(),
+			NetworkInMbps:  util.GetNetworkInMbps(),
+			NetworkOutMbps: util.GetNetworkOutMbps(),
+			CustomMetrics:  util.GetCustomMetrics(),
+		}
+	}
+	return res
+}
+
 func (c *clientAdapter) GetRecommendations(
 	ctx context.Context,
 	in *GetRecommendationsRequest,
@@ -1547,11 +1618,21 @@ func (c *clientAdapter) GetRecommendations(
 			Source:      rec.GetSource(),
 			Metadata:    rec.GetMetadata(),
 			Reasoning:   rec.GetReasoning(),
+			Priority:    priorityName(rec.GetPriority()),
 		}
 
-		// Extract resource ID from resource info if available
-		if rec.GetResource() != nil {
-			protoRec.ResourceID = rec.GetResource().GetId()
+		if rec.ConfidenceScore != nil {
+			score := rec.GetConfidenceScore()
+			protoRec.ConfidenceScore = &score
+		}
+		if rec.GetCreatedAt() != nil {
+			createdAt := rec.GetCreatedAt().AsTime()
+			protoRec.CreatedAt = &createdAt
+		}
+
+		if info := rec.GetResource(); info != nil {
+			protoRec.ResourceID = info.GetId()
+			protoRec.Resource = convertRecommendationResource(info)
 		}
 
 		// Convert impact if available
@@ -1562,6 +1643,15 @@ func (c *clientAdapter) GetRecommendations(
 				CurrentCost:       rec.GetImpact().GetCurrentCost(),
 				ProjectedCost:     rec.GetImpact().GetProjectedCost(),
 				SavingsPercentage: rec.GetImpact().GetSavingsPercentage(),
+				ProjectionPeriod:  rec.GetImpact().GetProjectionPeriod(),
+			}
+			if rec.GetImpact().ImplementationCost != nil {
+				cost := rec.GetImpact().GetImplementationCost()
+				protoRec.Impact.ImplementationCost = &cost
+			}
+			if rec.GetImpact().MigrationEffortHours != nil {
+				hours := rec.GetImpact().GetMigrationEffortHours()
+				protoRec.Impact.MigrationEffortHours = &hours
 			}
 		}
 

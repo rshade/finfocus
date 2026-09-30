@@ -100,20 +100,20 @@ func TestBuildActualKey(t *testing.T) {
 
 func TestBuildRecommendationsKey(t *testing.T) {
 	t.Run("deterministic", func(t *testing.T) {
-		key1 := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"})
-		key2 := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"})
+		key1 := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"}, "h")
+		key2 := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"}, "h")
 		assert.Equal(t, key1, key2)
 	})
 
 	t.Run("order independence", func(t *testing.T) {
-		key1 := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"})
-		key2 := BuildRecommendationsKey([]string{"rds:DBInstance", "ec2:Instance"})
+		key1 := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"}, "h")
+		key2 := BuildRecommendationsKey([]string{"rds:DBInstance", "ec2:Instance"}, "h")
 		assert.Equal(t, key1, key2)
 	})
 
 	t.Run("format", func(t *testing.T) {
-		key := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"})
-		assert.Equal(t, "recommendations/multi/ec2:Instance+rds:DBInstance", key)
+		key := BuildRecommendationsKey([]string{"ec2:Instance", "rds:DBInstance"}, "h")
+		assert.Equal(t, "recommendations/multi/ec2:Instance+rds:DBInstance/h", key)
 	})
 }
 
@@ -275,7 +275,7 @@ func BenchmarkBoltStoreGet(b *testing.B) {
 			time.Now(), time.Now().Add(24*time.Hour), filters,
 		), data)
 		recType := []string{fmt.Sprintf("ec2:Instance-%d", i)}
-		_ = store.Set(BuildRecommendationsKey(recType), data)
+		_ = store.Set(BuildRecommendationsKey(recType, "h"), data)
 	}
 
 	// Target key to lookup

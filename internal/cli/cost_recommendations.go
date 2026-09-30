@@ -57,6 +57,8 @@ type costRecommendationsParams struct {
 	offset           int
 	sort             string
 	includeDismissed bool
+	scoringDryRun    bool
+	noScoring        bool
 }
 
 // NewCostRecommendationsCmd creates the "recommendations" subcommand that fetches cost optimization
@@ -66,7 +68,10 @@ type costRecommendationsParams struct {
 //   - --pulumi-json (required): path to Pulumi preview JSON output
 //   - --adapter: restrict to a specific adapter plugin
 //   - --output: output format (table, json, ndjson; defaults from configuration)
-//   - --filter: filter expressions for recommendations (e.g., 'action=MIGRATE')
+//   - --filter: filter expressions for recommendations (e.g., 'action=MIGRATE', 'risk<=0.3')
+//   - --sort: sort expression (e.g., 'savings:desc', 'risk')
+//   - --scoring-dry-run: print the requests that scoring would send, and send nothing
+//   - --no-scoring: skip the optional scoring step for this run
 //
 // The returned *cobra.Command is ready to be added to the CLI command tree.
 func NewCostRecommendationsCmd() *cobra.Command {
@@ -109,7 +114,13 @@ Valid action types for filtering:
   finfocus cost recommendations --pulumi-json plan.json --filter "action=RIGHTSIZE,TERMINATE"
 
   # Use a specific adapter plugin
-  finfocus cost recommendations --pulumi-json plan.json --adapter kubecost`,
+  finfocus cost recommendations --pulumi-json plan.json --adapter kubecost
+
+  # With scoring enabled in the config: list the lowest-risk recommendations first
+  finfocus cost recommendations --pulumi-json plan.json --sort risk:asc --filter "risk<=0.3"
+
+  # Show exactly what would be sent to the scorer plugin, without sending it
+  finfocus cost recommendations --pulumi-json plan.json --scoring-dry-run`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return executeCostRecommendations(cmd, params)
 		},
@@ -136,7 +147,11 @@ Valid action types for filtering:
 	cmd.Flags().IntVar(&params.offset, "offset", 0,
 		"Number of items to skip for offset-based pagination")
 	cmd.Flags().StringVar(&params.sort, "sort", "",
-		"Sort expression (e.g., 'savings:desc', 'name:asc')")
+		"Sort expression (e.g., 'savings:desc', 'name:asc'; with scoring: 'risk', 'priority', 'worth_acting')")
+	cmd.Flags().BoolVar(&params.scoringDryRun, "scoring-dry-run", false,
+		"Print exactly what would be sent to the scorer plugin and send nothing (requires scoring.enabled)")
+	cmd.Flags().BoolVar(&params.noScoring, "no-scoring", false,
+		"Skip the scoring step for this run even when scoring.enabled is set")
 	cmd.Flags().BoolVar(&params.includeDismissed, "include-dismissed", false,
 		"Show dismissed and snoozed recommendations alongside active ones")
 
@@ -166,6 +181,11 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
 	}
 
+	scoringCfg := config.New().Scoring.Resolve()
+	if flagErr := validateScoringFlags(params, scoringCfg); flagErr != nil {
+		return flagErr
+	}
+
 	log.Debug().Ctx(ctx).Str("operation", "cost_recommendations").Str("plan_path", params.planPath).
 		Msg("starting recommendations fetch")
 
@@ -193,7 +213,7 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	defer cleanup()
 
 	// Create engine with optional cache and router
-	eng, _, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
+	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
 	defer cacheCleanup()
 
 	// Fetch recommendations with progress indicator
@@ -212,6 +232,13 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	// Annotate active recommendations with status
 	annotateActiveStatus(result)
 
+	// Optional scoring step: rates active recommendations, never dismisses or hides any
+	done, scorerCleanup, scoreErr := runScoringStep(ctx, cmd, params, scoringCfg, clients, cacheStore, audit, result)
+	defer scorerCleanup()
+	if scoreErr != nil || done {
+		return scoreErr
+	}
+
 	// Merge dismissed/snoozed recommendations if --include-dismissed
 	if params.includeDismissed {
 		if mergeErr := mergeDismissedRecommendations(ctx, result); mergeErr != nil {
@@ -220,30 +247,9 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 		}
 	}
 
-	// Apply filters, sorting, and pagination
-	filteredRecommendations, err := applyActionTypeFilters(ctx, result.Recommendations, params.filter)
+	filteredResult, filteredRecommendations, paginationMeta, err := buildRecommendationsView(ctx, result, params)
 	if err != nil {
 		return err
-	}
-
-	filteredRecommendations, err = applySortExpression(ctx, filteredRecommendations, params.sort)
-	if err != nil {
-		return err
-	}
-
-	paginatedRecommendations, paginationMeta, err := paginateRecommendations(
-		ctx, filteredRecommendations, params,
-	)
-	if err != nil {
-		return err
-	}
-
-	// Create filtered result for rendering
-	filteredResult := &engine.RecommendationsResult{
-		Recommendations: paginatedRecommendations,
-		Errors:          result.Errors,
-		TotalSavings:    calculateTotalSavings(filteredRecommendations),
-		Currency:        result.Currency,
 	}
 
 	// Render output
@@ -260,6 +266,48 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 
 	audit.logSuccess(ctx, len(filteredRecommendations), filteredResult.TotalSavings)
 	return nil
+}
+
+// buildRecommendationsView applies filters, sorting and pagination to result. It returns the
+// result to render, the full filtered list (before pagination), and the pagination metadata.
+func buildRecommendationsView(
+	ctx context.Context,
+	result *engine.RecommendationsResult,
+	params costRecommendationsParams,
+) (*engine.RecommendationsResult, []engine.Recommendation, *pagination.PaginationMeta, error) {
+	filtered, err := applyActionTypeFilters(ctx, result.Recommendations, params.filter)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	filtered, err = applyScoreFilters(filtered, params.filter)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	filtered, err = applySortExpression(ctx, filtered, params.sort)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	paginated, paginationMeta, err := paginateRecommendations(ctx, filtered, params)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	view := &engine.RecommendationsResult{
+		Recommendations: paginated,
+		Errors:          result.Errors,
+		TotalSavings:    calculateTotalSavings(filtered),
+		Currency:        result.Currency,
+		Scoring:         result.Scoring,
+	}
+	if field := scoreSortField(params.sort); field != "" && view.Scoring != nil {
+		summary := *view.Scoring
+		summary.OrderedBy = field
+		view.Scoring = &summary
+	}
+	return view, filtered, paginationMeta, nil
 }
 
 // fetchRecommendationsWithProgress fetches recommendations while showing a progress
@@ -640,6 +688,10 @@ func renderRecommendationsTableWithVerbose(
 ) error {
 	// Render summary section first
 	renderRecommendationsSummary(w, result.Recommendations)
+	if result.Scoring != nil {
+		fmt.Fprint(w, scoringSummaryLine(result.Scoring, result.Recommendations))
+		fmt.Fprintln(w)
+	}
 
 	// Handle empty case
 	if len(result.Recommendations) == 0 {
@@ -647,8 +699,13 @@ func renderRecommendationsTableWithVerbose(
 		return nil
 	}
 
-	// Sort by savings
+	// Sort by savings unless the user asked for a score order
+	sortLabel := "SAVINGS"
 	sorted := sortRecommendationsBySavings(result.Recommendations)
+	if result.Scoring != nil && result.Scoring.OrderedBy != "" {
+		sorted = result.Recommendations
+		sortLabel = strings.ToUpper(strings.ReplaceAll(result.Scoring.OrderedBy, "_", " "))
+	}
 	displayRecs := sorted
 	showMoreHint := false
 
@@ -660,9 +717,9 @@ func renderRecommendationsTableWithVerbose(
 
 	// Header for recommendations
 	if verbose {
-		fmt.Fprintf(w, "ALL %d RECOMMENDATIONS (SORTED BY SAVINGS)\n", len(displayRecs))
+		fmt.Fprintf(w, "ALL %d RECOMMENDATIONS (SORTED BY %s)\n", len(displayRecs), sortLabel)
 	} else {
-		fmt.Fprintf(w, "TOP %d RECOMMENDATIONS BY SAVINGS\n", len(displayRecs))
+		fmt.Fprintf(w, "TOP %d RECOMMENDATIONS BY %s\n", len(displayRecs), sortLabel)
 	}
 	fmt.Fprintln(w, strings.Repeat("-", headerSeparatorLen))
 
@@ -670,19 +727,24 @@ func renderRecommendationsTableWithVerbose(
 
 	// Detect if any recommendations have status annotations
 	hasStatus := hasStatusAnnotations(displayRecs)
+	showScores := hasScores(displayRecs)
 
 	// Header
+	header, rule := "RESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS", "--------\t-----------\t-----------\t-------"
 	if hasStatus {
-		fmt.Fprintln(tw, "STATUS\tRESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS")
-		fmt.Fprintln(tw, "------\t--------\t-----------\t-----------\t-------")
-	} else {
-		fmt.Fprintln(tw, "RESOURCE\tACTION TYPE\tDESCRIPTION\tSAVINGS")
-		fmt.Fprintln(tw, "--------\t-----------\t-----------\t-------")
+		header = "STATUS\t" + header
+		rule = "------\t" + rule
 	}
+	if showScores {
+		header += "\tRISK\tFALSE POS\tWORTH\tPRIORITY\tREVIEW\tGROUP"
+		rule += "\t----\t---------\t-----\t--------\t------\t-----"
+	}
+	fmt.Fprintln(tw, header)
+	fmt.Fprintln(tw, rule)
 
-	// Recommendations (top 5 by savings or all in verbose)
+	// Recommendations (top 5 or all in verbose)
 	for _, rec := range displayRecs {
-		writeRecommendationRow(tw, rec, hasStatus)
+		writeRecommendationRow(tw, rec, hasStatus, showScores)
 	}
 
 	if err := tw.Flush(); err != nil {
@@ -711,7 +773,7 @@ func renderRecommendationsTableWithVerbose(
 }
 
 // writeRecommendationRow writes a single recommendation row to the tabwriter.
-func writeRecommendationRow(tw *tabwriter.Writer, rec engine.Recommendation, hasStatus bool) {
+func writeRecommendationRow(tw *tabwriter.Writer, rec engine.Recommendation, hasStatus, showScores bool) {
 	savings := ""
 	if rec.EstimatedSavings > 0 {
 		savings = fmt.Sprintf("%.2f %s", rec.EstimatedSavings, rec.Currency)
@@ -724,17 +786,19 @@ func writeRecommendationRow(tw *tabwriter.Writer, rec engine.Recommendation, has
 		description = description[:maxDescLen-3] + "..."
 	}
 
+	row := fmt.Sprintf("%s\t%s\t%s\t%s",
+		rec.ResourceID, formatActionTypeLabel(rec.Type), description, savings)
 	if hasStatus {
 		status := rec.Status
 		if status == "" {
 			status = statusActive
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\n",
-			status, rec.ResourceID, formatActionTypeLabel(rec.Type), description, savings)
-	} else {
-		fmt.Fprintf(tw, "%s\t%s\t%s\t%s\n",
-			rec.ResourceID, formatActionTypeLabel(rec.Type), description, savings)
+		row = fmt.Sprintf("%s\t%s", status, row)
 	}
+	if showScores {
+		row += "\t" + scoreCells(rec.Scores)
+	}
+	fmt.Fprintln(tw, row)
 }
 
 // renderRecommendationsJSON renders recommendations in JSON format.
@@ -753,17 +817,11 @@ func renderRecommendationsJSON(
 		Currency:        result.Currency,
 		Errors:          result.Errors,
 		Pagination:      paginationMeta,
+		Scoring:         newScoringJSON(result.Scoring),
 	}
 
 	for _, rec := range result.Recommendations {
-		jsonRec := recommendationJSON{
-			ResourceID:       rec.ResourceID,
-			ActionType:       rec.Type,
-			Description:      rec.Description,
-			EstimatedSavings: rec.EstimatedSavings,
-			Currency:         rec.Currency,
-			Status:           string(rec.Status),
-		}
+		jsonRec := newRecommendationJSON(rec)
 		output.Recommendations = append(output.Recommendations, jsonRec)
 	}
 
@@ -795,6 +853,7 @@ func renderRecommendationsNDJSON(
 		CountByActionType: jsonSum.CountByActionType,
 		SavingsByAction:   jsonSum.SavingsByAction,
 		Pagination:        paginationMeta,
+		Scoring:           newScoringJSON(result.Scoring),
 	}
 	if err := encoder.Encode(summary); err != nil {
 		return fmt.Errorf("encoding NDJSON summary: %w", err)
@@ -802,14 +861,7 @@ func renderRecommendationsNDJSON(
 
 	// Emit individual recommendations
 	for _, rec := range result.Recommendations {
-		jsonRec := recommendationJSON{
-			ResourceID:       rec.ResourceID,
-			ActionType:       rec.Type,
-			Description:      rec.Description,
-			EstimatedSavings: rec.EstimatedSavings,
-			Currency:         rec.Currency,
-			Status:           string(rec.Status),
-		}
+		jsonRec := newRecommendationJSON(rec)
 		if err := encoder.Encode(jsonRec); err != nil {
 			return fmt.Errorf("encoding NDJSON: %w", err)
 		}
@@ -889,6 +941,9 @@ func mergeDismissalRecordsIntoResult(records map[string]*config.DismissalRecord,
 	for _, rec := range result.Recommendations {
 		activeResourceIDs[rec.ResourceID] = true
 		activeRecommendationIDs[rec.ResourceID] = true
+		if rec.ID != "" {
+			activeRecommendationIDs[rec.ID] = true
+		}
 	}
 
 	for _, record := range records {
@@ -914,6 +969,7 @@ func mergeDismissalRecordsIntoResult(records map[string]*config.DismissalRecord,
 
 		// Convert LastKnown snapshot to Recommendation
 		rec := engine.Recommendation{
+			ID:     record.RecommendationID,
 			Status: status,
 		}
 
@@ -941,6 +997,7 @@ type recommendationsJSONOutput struct {
 	Currency        string                       `json:"currency"`
 	Errors          []engine.RecommendationError `json:"errors,omitempty"`
 	Pagination      *pagination.PaginationMeta   `json:"pagination,omitempty"`
+	Scoring         *scoringJSON                 `json:"scoring,omitempty"`
 }
 
 // jsonSummary represents the summary section in JSON output.
@@ -961,6 +1018,7 @@ type ndjsonSummary struct {
 	CountByActionType map[string]int             `json:"count_by_action_type"`
 	SavingsByAction   map[string]float64         `json:"savings_by_action_type"`
 	Pagination        *pagination.PaginationMeta `json:"pagination,omitempty"`
+	Scoring           *scoringJSON               `json:"scoring,omitempty"`
 }
 
 type recommendationJSON struct {
@@ -970,6 +1028,101 @@ type recommendationJSON struct {
 	EstimatedSavings float64 `json:"estimated_savings,omitempty"`
 	Currency         string  `json:"currency,omitempty"`
 	Status           string  `json:"status,omitempty"`
+
+	ID              string                      `json:"id,omitempty"`
+	Category        string                      `json:"category,omitempty"`
+	Priority        string                      `json:"priority,omitempty"`
+	ConfidenceScore *float64                    `json:"confidence_score,omitempty"`
+	Source          string                      `json:"source,omitempty"`
+	CreatedAt       *time.Time                  `json:"created_at,omitempty"`
+	Metadata        map[string]string           `json:"metadata,omitempty"`
+	Reasoning       []string                    `json:"reasoning,omitempty"`
+	Impact          *recommendationImpactJSON   `json:"impact,omitempty"`
+	Resource        *recommendationResourceJSON `json:"resource,omitempty"`
+	Scores          *recommendationScoresJSON   `json:"scores,omitempty"`
+}
+
+type recommendationImpactJSON struct {
+	ProjectionPeriod     string   `json:"projection_period,omitempty"`
+	CurrentCost          float64  `json:"current_cost,omitempty"`
+	ProjectedCost        float64  `json:"projected_cost,omitempty"`
+	SavingsPercentage    float64  `json:"savings_percentage,omitempty"`
+	ImplementationCost   *float64 `json:"implementation_cost,omitempty"`
+	MigrationEffortHours *float64 `json:"migration_effort_hours,omitempty"`
+}
+
+type recommendationResourceJSON struct {
+	Name         string                         `json:"name,omitempty"`
+	Provider     string                         `json:"provider,omitempty"`
+	ResourceType string                         `json:"resource_type,omitempty"`
+	Region       string                         `json:"region,omitempty"`
+	SKU          string                         `json:"sku,omitempty"`
+	Tags         map[string]string              `json:"tags,omitempty"`
+	Utilization  *recommendationUtilizationJSON `json:"utilization,omitempty"`
+}
+
+type recommendationUtilizationJSON struct {
+	CPUPercent     float64            `json:"cpu_percent,omitempty"`
+	MemoryPercent  float64            `json:"memory_percent,omitempty"`
+	StoragePercent float64            `json:"storage_percent,omitempty"`
+	NetworkInMbps  float64            `json:"network_in_mbps,omitempty"`
+	NetworkOutMbps float64            `json:"network_out_mbps,omitempty"`
+	CustomMetrics  map[string]float64 `json:"custom_metrics,omitempty"`
+}
+
+// newRecommendationJSON maps an engine recommendation to its JSON/NDJSON representation.
+func newRecommendationJSON(rec engine.Recommendation) recommendationJSON {
+	out := recommendationJSON{
+		ResourceID:       rec.ResourceID,
+		ActionType:       rec.Type,
+		Description:      rec.Description,
+		EstimatedSavings: rec.EstimatedSavings,
+		Currency:         rec.Currency,
+		Status:           string(rec.Status),
+		ID:               rec.ID,
+		Category:         rec.Category,
+		Priority:         rec.Priority,
+		ConfidenceScore:  rec.ConfidenceScore,
+		Source:           rec.Source,
+		CreatedAt:        rec.CreatedAt,
+		Metadata:         rec.Metadata,
+		Reasoning:        rec.Reasoning,
+		Scores:           newScoresJSON(rec.Scores),
+	}
+
+	if d := rec.ImpactDetail; d != nil {
+		out.Impact = &recommendationImpactJSON{
+			ProjectionPeriod:     d.ProjectionPeriod,
+			CurrentCost:          d.CurrentCost,
+			ProjectedCost:        d.ProjectedCost,
+			SavingsPercentage:    d.SavingsPercentage,
+			ImplementationCost:   d.ImplementationCost,
+			MigrationEffortHours: d.MigrationEffortHours,
+		}
+	}
+
+	if r := rec.ResourceInfo; r != nil {
+		out.Resource = &recommendationResourceJSON{
+			Name:         r.Name,
+			Provider:     r.Provider,
+			ResourceType: r.ResourceType,
+			Region:       r.Region,
+			SKU:          r.SKU,
+			Tags:         r.Tags,
+		}
+		if u := r.Utilization; u != nil {
+			out.Resource.Utilization = &recommendationUtilizationJSON{
+				CPUPercent:     u.CPUPercent,
+				MemoryPercent:  u.MemoryPercent,
+				StoragePercent: u.StoragePercent,
+				NetworkInMbps:  u.NetworkInMbps,
+				NetworkOutMbps: u.NetworkOutMbps,
+				CustomMetrics:  u.CustomMetrics,
+			}
+		}
+	}
+
+	return out
 }
 
 // buildJSONSummary constructs the summary structure for JSON/NDJSON output.
