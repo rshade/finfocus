@@ -7,14 +7,15 @@ import (
 )
 
 var allowedRegistryCapabilities = map[string]bool{ //nolint:gochecknoglobals // test fixture
-	"projected":       true,
-	"actual":          true,
-	"cost_retrieval":  true,
-	"cost_projection": true,
-	"pricing_specs":   true,
-	"recommendations": true,
-	"usage_stats":     true,
-	"allocation":      true,
+	"projected":              true,
+	"actual":                 true,
+	"cost_retrieval":         true,
+	"cost_projection":        true,
+	"pricing_specs":          true,
+	"recommendations":        true,
+	"usage_stats":            true,
+	"allocation":             true,
+	"recommendation_scoring": true,
 }
 
 func isAllowedRegistryCapability(c string) bool { return allowedRegistryCapabilities[c] }
@@ -97,6 +98,7 @@ func validateRegistryEntryComplete(t *testing.T, name string, entry RegistryEntr
 		"gcp":        true,
 		"azure":      true,
 		"kubernetes": true,
+		"*":          true,
 	}
 	for _, provider := range entry.SupportedProviders {
 		if !validProviders[provider] {
@@ -151,23 +153,27 @@ func TestRegistryJSONPluginNames(t *testing.T) {
 	}
 }
 
-// TestRegistryJSONNoDuplicates ensures no duplicate entries exist.
+// TestRegistryJSONNoDuplicates ensures no duplicate entries exist. Plugins
+// released from one monorepo share a repository, so the identity of an entry is
+// its repository together with its tag prefix.
 func TestRegistryJSONNoDuplicates(t *testing.T) {
 	reg, err := GetEmbeddedRegistry()
 	if err != nil {
 		t.Fatalf("Failed to load registry.json: %v", err)
 	}
 
-	repos := make(map[string]string)
+	sources := make(map[string]string)
 	for name, entry := range reg.Plugins {
-		if existing, ok := repos[entry.Repository]; ok {
+		key := entry.Repository + "|" + entry.TagPrefix
+		if existing, ok := sources[key]; ok {
 			t.Errorf(
-				"duplicate repository %s: used by both %q and %q",
+				"duplicate repository %s with tag prefix %q: used by both %q and %q",
 				entry.Repository,
+				entry.TagPrefix,
 				existing,
 				name,
 			)
 		}
-		repos[entry.Repository] = name
+		sources[key] = name
 	}
 }

@@ -20,7 +20,9 @@ snoozes, hides or applies a recommendation because of a score.
 **Prerequisites**:
 
 - A scorer plugin installed under `~/.finfocus/plugins/<name>/<version>/` that advertises the
-  `recommendation_scoring` capability
+  `recommendation_scoring` capability. The registry provides one: `finfocus plugin install jev` installs the
+  Jev-backed scorer, which needs `TYPESAFE_API_KEY` and sends recommendation data to TypeSafe AI (pseudonymized by
+  default). See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev).
 - At least one cost-source plugin that returns recommendations
 
 ## Enable Scoring
