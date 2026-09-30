@@ -362,9 +362,14 @@ finfocus core packages (`make check-plugin-boundaries`). Design notes:
   `UNAUTHENTICATED`. The key is read only from the environment and must never
   appear in logs, errors, tests or committed files.
 - Thin `net/http` client in `plugins/jev/internal/jevapi`; no third-party Jev SDK.
-- Question names are `<signal>:<recommendation id>` over an ordered state list,
-  and question text never contains recommendation content. Free text is
-  stripped and capped in `internal/scoring/record.go`.
+- Question names are `<signal>:#<position>` over an ordered state list; the
+  recommendation id never leaves the plugin (answers map back by position via
+  `batch.indexes`). Question text never contains recommendation content. Free
+  text is stripped and capped in `internal/scoring/record.go`. Tests find a
+  record's key with `questionKey()` in `helpers_test.go`, because every
+  one-record `priority` request uses `priority:#0`.
+- `jevapi.Client` does not start a retry whose wait outlasts the caller's
+  deadline (core's `scoring.timeout_seconds`); it returns the `*APIError`.
 - Live tests (`TestLive*`, `TestEvaluation` with `JEV_EVAL=1`) are skipped without
   a key. Batching lowers `priority` rank quality (Spearman about 0.55 at batch
   25 against 0.77 at batch 1), so priority is always one record per request.

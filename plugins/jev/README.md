@@ -19,22 +19,33 @@ scoring call returns `UNAUTHENTICATED`. FinFocus core makes no network calls
 for scoring; this plugin makes the only outbound requests, to
 `https://api.typesafe.ai` (`POST /v1/systemone`).
 
-**What is sent to TypeSafe AI** for each recommendation:
+**What is sent to TypeSafe AI.** Every field of each recommendation the host
+sends, except its `id` and `created_at`. With the current spec that is:
 
-- The recommendation's category, action type, description, reasoning, source,
-  priority, plugin confidence and metadata.
+- Category, action type, description, reasoning, source, priority, plugin
+  confidence and metadata.
 - The resource's provider, type, region, SKU, tags and utilization.
 - The resource `id` and `name` exactly as the host presented them in the
   request. The host's `identifier_mode` decides whether those are raw,
   pseudonymized tokens or absent; the plugin sends what it receives.
 - The impact figures (savings, current and projected cost, effort).
+- `action_detail`: right-size targets, termination detail, commitment terms,
+  Kubernetes adjustments (cluster, namespace, controller and container names)
+  and config changes.
+- The `primary_reason` and `secondary_reasons` codes.
 - Fixed question text and the pinned model id.
 
+A field added to the spec later is sent too. To narrow what reaches TypeSafe,
+set `scoring.field_allowlist` in FinFocus; the host drops every field not on
+the list before the plugin sees it.
+
 **What is not sent:** the recommendation `id` and creation time, credentials,
-Pulumi state, and anything outside the recommendations in the request. The
-plugin does not write recommendation text to logs. Logs carry counts, token
-usage, the model, provider request ids and timings only. The API key is never
-logged and never appears in errors.
+Pulumi state, and anything outside the recommendations in the request.
+Question keys carry only a signal name and the item's position in the batch
+(`risk:#3`), and answers are matched back to recommendation ids inside the
+plugin. The plugin does not write recommendation text to logs. Logs carry
+counts, token usage, the model, provider request ids and timings only. The API
+key is never logged and never appears in errors.
 
 Free text is untrusted. The plugin removes control, invisible and
 bidirectional characters, caps every string, list and map before sending, and
@@ -47,9 +58,19 @@ Retention and processing terms are set by your agreement with TypeSafe AI. The
 Master Customer Agreement and data-processing terms have not been reviewed for
 third-party plugin use, and zero data retention is documented as an enterprise
 plan feature. Review them before enabling the plugin on sensitive data, and
-prefer the host's `PSEUDONYMIZED` identifier mode.
+keep the host's default `identifier_mode: pseudonymized`.
 
 ## Install
+
+```bash
+finfocus plugin install jev
+```
+
+This installs the latest `jev-v*` release to
+`~/.finfocus/plugins/jev/<version>/`. The registry does not install it during
+`finfocus setup`; it is always an explicit choice.
+
+### From source
 
 From the `finfocus` repository root:
 
@@ -57,8 +78,28 @@ From the `finfocus` repository root:
 make install-jev
 ```
 
-This builds the plugin and installs it to `~/.finfocus/plugins/jev/<version>/`,
-the same pattern as `make install-recorder`.
+This builds the plugin and installs it the same way as `make install-recorder`.
+
+## Enable in FinFocus
+
+Scoring is off in FinFocus until you turn it on. Set the plugin before
+enabling, because every config change is validated:
+
+```bash
+export TYPESAFE_API_KEY=...   # from the TypeSafe console; keep it out of history
+finfocus config set scoring.plugin jev
+finfocus config set scoring.enabled true
+
+# Check exactly what would be sent, and send nothing
+finfocus cost recommendations --pulumi-json plan.json --scoring-dry-run
+
+# Score for real
+finfocus cost recommendations --pulumi-json plan.json --sort risk:asc
+```
+
+Without the key the plugin still starts, but every scoring call returns
+`UNAUTHENTICATED`, which FinFocus shows as a scoring warning while listing the
+recommendations unscored.
 
 ## Configuration
 
@@ -73,6 +114,13 @@ All configuration is environment variables read at startup.
 | `JEV_BATCH_SIZE` | `25` | Recommendations per backend request for the batched signals, 1 to 80. `priority` is always one per request. |
 | `JEV_DUPLICATE_THRESHOLD` | `0.5` | Yes probability at which two recommendations count as duplicates. |
 | `FINFOCUS_LOG_LEVEL` | `info` | Set to `debug` for verbose logs. |
+
+FinFocus's `scoring.timeout_seconds` (default 30) bounds each whole scoring
+call, including every backend request and retry the plugin makes for it.
+`JEV_TIMEOUT` can only shorten a single attempt inside that. When a retry wait
+(from `Retry-After` or backoff) would outlast the remaining time, the plugin
+fails at once with the rate-limit or outage error instead of timing out. If
+you hit rate limits often, raise `scoring.timeout_seconds`.
 
 Keep the key out of shell history and committed files. Do not put it in a
 `.env` that is tracked by git.
@@ -99,8 +147,10 @@ resource are compared.
 - A request holds up to 100 recommendations (`max_batch_size`). The plugin
   splits it into backend requests of up to 25 recommendations, each asking
   risk, false positive, worth acting and insufficient evidence as named
-  questions `<signal>:<recommendation id>` about an ordered list. `priority`
-  goes in its own request per recommendation. Up to 8 requests are in flight.
+  questions `<signal>:#<position>` about an ordered list. `priority` goes in
+  its own request per recommendation. Up to 8 requests are in flight.
+- A retry whose wait would outlast the caller's deadline is not attempted; the
+  call fails at once with the underlying rate-limit or outage error.
 - Results are index-aligned with the request and echo each recommendation id.
   An item the backend could not answer is returned as a `ResourceError`
   without failing the rest.
@@ -113,9 +163,10 @@ resource are compared.
 
 ## Cost and limits
 
-Input is billed at about $0.042 per million tokens, and a batched record costs
-about 430 input tokens, so scoring 1,000 recommendations costs roughly two
-cents. Output tokens are free. Latency is around 20 ms per record in batches.
+As of 2026-09, input is billed at about $0.042 per million tokens, and a
+batched record costs about 430 input tokens, so scoring 1,000 recommendations
+costs roughly two cents. Output tokens are free. Latency is around 20 ms per
+record in batches.
 
 Scoring `priority` next to other records was measured to lower its rank
 correlation with labellers on the synthetic set (Spearman 0.77 for one record

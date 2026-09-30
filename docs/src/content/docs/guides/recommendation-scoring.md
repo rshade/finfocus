@@ -68,7 +68,40 @@ The recommendation id is always sent, as an opaque value (see [Data handling](#d
 You can also set values with `finfocus config set`. Set `scoring.plugin` before `scoring.enabled`, because the
 configuration is validated on every change.
 
+`scoring.timeout_seconds` bounds the whole scorer call, including any retries the plugin makes against a hosted model.
+If a hosted scorer reports rate limits often, raise it.
+
+### Quick start with Jev
+
+The registry's `jev` plugin scores with TypeSafe AI's Jev model. It needs an API key from the TypeSafe console and sends
+recommendation data to TypeSafe, so read its
+[data-handling notes](https://github.com/rshade/finfocus/tree/main/plugins/jev#opt-in-and-data-handling) first.
+
+```bash
+finfocus plugin install jev
+export TYPESAFE_API_KEY=...
+finfocus config set scoring.plugin jev
+finfocus config set scoring.enabled true
+
+# See exactly what would be sent, and send nothing
+finfocus cost recommendations --pulumi-json plan.json --scoring-dry-run
+
+# Score for real, lowest risk first
+finfocus cost recommendations --pulumi-json plan.json --sort risk:asc
+```
+
+Without `TYPESAFE_API_KEY` the plugin starts but every scoring call returns `UNAUTHENTICATED`, which appears as a scoring
+warning while the recommendations are listed unscored.
+
 ## Use Scores
+
+| Signal                  | Scale  | Higher means                            |
+| ----------------------- | ------ | --------------------------------------- |
+| `risk`                  | 0 to 1 | Acting is riskier                       |
+| `false_positive`        | 0 to 1 | More likely in this state on purpose    |
+| `worth_acting`          | 0 to 1 | More worth an engineer's time           |
+| `priority`              | 0 to 3 | 0 ignore, 1 low, 2 medium, 3 high       |
+| `insufficient_evidence` | 0 to 1 | The record is thinner or contradictory  |
 
 ```bash
 # Lowest-risk recommendations first
@@ -76,6 +109,9 @@ finfocus cost recommendations --pulumi-json plan.json --sort risk:asc
 
 # Highest priority first, only recommendations at or below 0.3 risk
 finfocus cost recommendations --pulumi-json plan.json --sort priority --filter "risk<=0.3"
+
+# Medium or high priority only (priority is on a 0 to 3 scale)
+finfocus cost recommendations --pulumi-json plan.json --filter "priority>=2"
 
 # JSON with scores and a scoring summary
 finfocus cost recommendations --pulumi-json plan.json --output json
@@ -88,7 +124,8 @@ finfocus cost recommendations --pulumi-json plan.json --no-scoring
   `:asc` or `:desc` (default `desc`). Recommendations without that score always sort last. Ties break by savings.
 - `--filter` accepts `signal<op>value` expressions with `<`, `<=`, `>`, `>=` and `=`, for example `risk<=0.3` or
   `worth_acting>=0.6`. Several filters combine with AND, and they combine with `action=` filters. Recommendations
-  without the filtered score are dropped.
+  without the filtered score are dropped. A value outside the signal's scale, such as `risk<=30` or `priority>=4`, is an
+  error.
 - Sorting or filtering by a score without scoring enabled is an error, not a silent no-op.
 
 The table gains `RISK`, `FALSE POS`, `WORTH`, `PRIORITY`, `REVIEW` and `GROUP` columns when scores exist, JSON and NDJSON
@@ -124,8 +161,8 @@ example to a hosted model. Treat the scorer as you would any service that receiv
 utilization), description, reasoning, source, metadata, priority, confidence, creation time, the provider-specific
 `action_detail`, and the `primary_reason` and `secondary_reasons` codes.
 
-**Identifiers.** Core applies `identifier_mode` before the request leaves the host, so a scorer never has to be trusted to
-do it:
+**Identifiers.** Core applies `identifier_mode` before the request leaves the host, so a scorer never has to be trusted
+to do it:
 
 | Mode                      | What the scorer receives                                                                                                                                 |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -144,8 +181,8 @@ In `pseudonymized` and `omitted` modes core also:
 - Derives tokens with HMAC-SHA256 over the normalized (trimmed, lower-case) resource id, using a random key generated for
   each request and never stored. Tokens are not comparable across requests.
 
-**What is not protected.** Tags, metadata and free text can still contain sensitive values that are not the resource id or
-name, such as team names, account names or hostnames. Identifier handling alone does not make a request safe to send.
+**What is not protected.** Tags, metadata and free text can still contain sensitive values that are not the resource id
+or name, such as team names, account names or hostnames. Identifier handling alone does not make a request safe to send.
 Use `field_allowlist` to drop fields you do not want a scorer to see, and read the scorer plugin's own data-handling
 documentation, which must say what leaves the host.
 
