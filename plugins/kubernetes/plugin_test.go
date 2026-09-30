@@ -10,6 +10,9 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -46,6 +49,107 @@ func TestGetStats_ValidResponse(t *testing.T) {
 		&pbc.GetStatsRequest{Selector: map[string]string{"namespace": "a", "app": "web"}})
 	require.NoError(t, err)
 	require.NoError(t, plugintesting.ValidateStatsResponse(resp))
+}
+
+// metricFilterPlugin returns a plugin over one priceable node with one
+// running pod, so GetStats emits one row per served metric.
+func metricFilterPlugin(t *testing.T) *Plugin {
+	t.Helper()
+	node := &corev1.Node{
+		ObjectMeta: metav1.ObjectMeta{Name: "node-1", Labels: map[string]string{
+			"node.kubernetes.io/instance-type": "m5.large",
+			"topology.kubernetes.io/region":    "us-east-1",
+		}},
+		Spec: corev1.NodeSpec{ProviderID: "aws:///us-east-1a/i-node1"},
+		Status: corev1.NodeStatus{Allocatable: corev1.ResourceList{ //nolint:exhaustive // fixture only sets cpu/memory
+			corev1.ResourceCPU:    resource.MustParse("4"),
+			corev1.ResourceMemory: resource.MustParse("16Gi"),
+		}},
+	}
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{Name: "web-1", Namespace: "prod"},
+		Spec: corev1.PodSpec{NodeName: "node-1", Containers: []corev1.Container{{Name: "c",
+			Resources: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{ //nolint:exhaustive // fixture only sets cpu/memory requests
+					corev1.ResourceCPU:    resource.MustParse("1"),
+					corev1.ResourceMemory: resource.MustParse("2Gi"),
+				},
+			},
+		}}},
+		Status: corev1.PodStatus{Phase: corev1.PodRunning},
+	}
+	cs := fake.NewSimpleClientset(node, pod)
+	return New(func(string) (*Cluster, error) {
+		return &Cluster{Client: cs, Context: "test-cluster"}, nil
+	})
+}
+
+func TestGetStats_MetricsFilter(t *testing.T) {
+	tests := []struct {
+		name          string
+		metrics       []string
+		wantMetrics   []string
+		wantWarnings  []string
+		wantPriceable int
+	}{
+		{
+			name:          "empty request returns the source defaults",
+			metrics:       nil,
+			wantMetrics:   []string{"cpu_request", "mem_request", "cpu_allocatable", "mem_allocatable"},
+			wantPriceable: 1,
+		},
+		{
+			name:          "single known metric filters rows",
+			metrics:       []string{"cpu_request"},
+			wantMetrics:   []string{"cpu_request"},
+			wantPriceable: 1,
+		},
+		{
+			name:          "node metrics keep the priceable node",
+			metrics:       []string{"cpu_allocatable", "mem_allocatable"},
+			wantMetrics:   []string{"cpu_allocatable", "mem_allocatable"},
+			wantPriceable: 1,
+		},
+		{
+			name:         "unknown metric warns and returns no rows",
+			metrics:      []string{"gpu_seconds"},
+			wantWarnings: []string{`unknown metric "gpu_seconds" ignored`},
+		},
+		{
+			name:          "mixed known and unknown filters and warns",
+			metrics:       []string{"mem_request", "gpu_seconds"},
+			wantMetrics:   []string{"mem_request"},
+			wantWarnings:  []string{`unknown metric "gpu_seconds" ignored`},
+			wantPriceable: 1,
+		},
+		{
+			name:         "duplicate unknown names warn once",
+			metrics:      []string{"gpu_seconds", "gpu_seconds"},
+			wantWarnings: []string{`unknown metric "gpu_seconds" ignored`},
+		},
+		{
+			name:         "unimplemented usage metric warns as unserved",
+			metrics:      []string{"cpu_usage"},
+			wantWarnings: []string{`unknown metric "cpu_usage" ignored`},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := metricFilterPlugin(t).GetStats(context.Background(),
+				&pbc.GetStatsRequest{Metrics: tt.metrics})
+			require.NoError(t, err)
+			require.NoError(t, plugintesting.ValidateStatsResponse(resp))
+
+			var got []string
+			for _, row := range resp.GetRows() {
+				got = append(got, row.GetMetric())
+			}
+			assert.ElementsMatch(t, tt.wantMetrics, got)
+			assert.Equal(t, tt.wantWarnings, resp.GetWarnings())
+			assert.Len(t, resp.GetPriceable(), tt.wantPriceable)
+		})
+	}
 }
 
 func TestGetStats_InvalidSelectorValue(t *testing.T) {
