@@ -153,17 +153,24 @@ key-value store. No external database process is required.
 
 ### Buckets and Key Structure
 
-The database contains three buckets, one per cost operation:
+The database contains one bucket per cached operation:
 
 | Bucket            | Key Format                                    | Scope          |
 | ----------------- | --------------------------------------------- | -------------- |
 | `projected`       | `projected/{provider}/{type}/{region}/{sku}`  | Per resource   |
 | `actual`          | `actual/{adapter}/{start}/{end}/{groupBy}/...`| Per query      |
-| `recommendations` | `recommendations/{provider}/{type}/{region}`  | Per resource   |
+| `recommendations` | `recommendations/multi/{types}/{inputs-hash}` | Per query      |
+| `scores`          | `scores/{scorer}/{version}/{model}/{hash}`    | Per recommendation |
 
 Projected costs are cached per individual resource, so changing one resource only
 invalidates that resource's entry. Actual cost queries are cached as a whole (the full
-query including time range and filters forms the key).
+query including time range and filters forms the key). Recommendation queries are also
+cached as a whole: `inputs-hash` covers the identity, provider, type and properties of
+every requested resource plus the dismissed recommendation IDs, so a different resource
+set or a new dismissal never reuses an older entry.
+
+The `scores` bucket is written only when the optional [recommendation scoring](./recommendation-scoring.md) step is
+enabled. It holds extracted score values keyed on a hash of the recommendation content, never raw scorer payloads.
 
 ### TTL and Expiration
 

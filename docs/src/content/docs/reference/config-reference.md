@@ -115,6 +115,23 @@ Configure the BoltDB-backed cost calculation cache.
 - `directory`: Explicit path for the cache database file. When empty, auto-resolves
   to the project `.finfocus/` directory or `~/.finfocus/cache/`.
 
+### Scoring
+
+Configure the optional recommendation scoring step. It is off by default and adds no network activity of its own; the
+scorer is a plugin. See the [Recommendation Scoring Guide](../guides/recommendation-scoring.md) for behavior and data
+handling.
+
+- `scoring.enabled`: Turn scoring on. Default: `false`.
+- `scoring.plugin`: Name of the scorer plugin. Required when enabled.
+- `scoring.identifier_mode`: How resource ids and names reach the scorer: `pseudonymized` (default), `omitted` or `raw`.
+- `scoring.field_allowlist`: Recommendation fields sent to the scorer. Empty sends all. Valid names: `category`,
+  `action_type`, `resource`, `impact`, `priority`, `confidence_score`, `description`, `reasoning`, `source`,
+  `created_at`, `metadata`.
+- `scoring.timeout_seconds`: Timeout for each scorer call. Default: `30`.
+- `scoring.needs_review.risk`, `scoring.needs_review.false_positive`, `scoring.needs_review.insufficient_evidence`:
+  Thresholds (0 to 1) for the needs-review marker. Defaults: `0.3`, `0.3`, `0.5`.
+- `scoring.needs_review.dead_band`: Band around each threshold that is still flagged. Default: `0.1`.
+
 ### Resource History
 
 Configure the BoltDB-backed resource history store that tracks cloud resource

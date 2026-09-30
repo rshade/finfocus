@@ -126,19 +126,64 @@ finfocus cost recommendations --pulumi-json plan.json --output json > savings.js
 ```json
 {
   "summary": {
-    "totalPotentialSavings": 150.0,
-    "currency": "USD"
+    "total_count": 1,
+    "total_savings": 50.0,
+    "currency": "USD",
+    "count_by_action_type": { "RECOMMENDATION_ACTION_TYPE_RIGHTSIZE": 1 },
+    "savings_by_action_type": { "RECOMMENDATION_ACTION_TYPE_RIGHTSIZE": 50.0 }
   },
   "recommendations": [
     {
-      "resourceId": "i-1234567890abcdef0",
-      "action": "Terminate",
-      "savings": 50.0,
-      "priority": "high"
+      "resource_id": "i-1234567890abcdef0",
+      "action_type": "RECOMMENDATION_ACTION_TYPE_RIGHTSIZE",
+      "description": "Switch to t3.small",
+      "estimated_savings": 50.0,
+      "currency": "USD",
+      "id": "rec-123",
+      "category": "RECOMMENDATION_CATEGORY_COST",
+      "priority": "RECOMMENDATION_PRIORITY_HIGH",
+      "confidence_score": 0.82,
+      "source": "kubecost",
+      "impact": { "projection_period": "monthly", "current_cost": 100.0, "projected_cost": 50.0 },
+      "resource": { "name": "web", "region": "us-east-1", "tags": { "env": "prod" } }
     }
-  ]
+  ],
+  "total_savings": 50.0,
+  "currency": "USD"
 }
 ```
+
+The first five keys of each recommendation (`resource_id`, `action_type`, `description`,
+`estimated_savings`, `currency`) and `status` are stable. The remaining keys carry the
+full record the plugin returned and are omitted when the plugin did not report them:
+`id`, `category`, `priority`, `confidence_score`, `source`, `created_at`, `metadata`,
+`reasoning`, `impact` (`projection_period`, `current_cost`, `projected_cost`,
+`savings_percentage`, `implementation_cost`, `migration_effort_hours`) and `resource`
+(`name`, `provider`, `resource_type`, `region`, `sku`, `tags`, `utilization`).
+NDJSON output carries the same keys on each recommendation line. The table output is
+unchanged.
+
+The `id` value is the identifier to pass to `dismiss`, `snooze`, `undismiss` and
+`history`.
+
+### Scores
+
+When the optional [scoring step](./recommendation-scoring.md) is enabled, each recommendation also carries a `scores`
+object (`risk`, `false_positive`, `worth_acting`, `priority`, `insufficient_evidence`, `duplicate_group_id` and
+`needs_review`) and the output carries a `scoring` summary. Scores rank work for review; they never dismiss or apply
+anything.
+
+### Plugin Routing and Caching
+
+Each resource is sent only to the plugins that the router selects for the
+`Recommendations` feature (see the [routing guide](./routing.md)). Internal Pulumi types
+are never sent to plugins.
+
+Results are cached per request. The cache key includes the identity, provider, type and
+properties of every requested resource plus the IDs of dismissed recommendations, so a
+different set of resources, a changed property, or a new dismissal produces a fresh
+query. Older cache entries written under the previous key format are not matched and
+expire by TTL.
 
 ### Example 2: Filtering by Category
 
