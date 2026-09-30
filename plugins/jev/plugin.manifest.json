@@ -1,0 +1,13 @@
+{
+  "name": "jev",
+  "version": "0.1.0",
+  "description": "Recommendation scorer that rates risk, false positives, worth and priority and groups duplicates using TypeSafe AI's Jev model",
+  "author": "FinFocus Team",
+  "supported_providers": ["*"],
+  "protocols": ["grpc"],
+  "binary": "finfocus-plugin-jev",
+  "metadata": {
+    "repository": "https://github.com/rshade/finfocus",
+    "docs": "https://github.com/rshade/finfocus/tree/main/plugins/jev"
+  }
+}
