@@ -28,6 +28,8 @@ func capClient(name string, caps ...string) *pluginhost.Client {
 }
 
 func TestSelectCapablePlugin(t *testing.T) {
+	t.Parallel()
+
 	k8s := capClient("kubernetes", pluginhost.CapabilityUsageStats, pluginhost.CapabilityAllocation)
 	prom := capClient("prometheus", pluginhost.CapabilityUsageStats)
 	aws := capClient("aws-public", "projected_costs")
@@ -54,6 +56,7 @@ func TestSelectCapablePlugin(t *testing.T) {
 	assert.Contains(t, err.Error(), `"aws-public" is not installed or lacks usage_stats`)
 }
 
+//nolint:paralleltest // builds a root command, which sets the process-wide resolved project dir
 func TestCostCluster_ValidatesFlagsBeforeLoadingPlugins(t *testing.T) {
 	isolateClusterTestConfig(t)
 	tests := []struct {
@@ -74,6 +77,7 @@ func TestCostCluster_ValidatesFlagsBeforeLoadingPlugins(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // builds a root command, which sets the process-wide resolved project dir
 func TestCostCluster_NoPluginsInstalled(t *testing.T) {
 	isolateClusterTestConfig(t)
 	res := axtest.Run(context.Background(), t, NewRootCmd("test"), []string{"cost", "cluster"})
@@ -86,6 +90,8 @@ func TestCostCluster_NoPluginsInstalled(t *testing.T) {
 // usage source, so the missing-capability error names allocation, not
 // usage_stats. The positive path (an allocator installed, no cluster
 // reachable) is covered by the kind E2E.
+//
+//nolint:paralleltest // builds a root command, which sets the process-wide resolved project dir
 func TestCostCluster_ShowPolicyNeedsOnlyAllocator(t *testing.T) {
 	isolateClusterTestConfig(t)
 	res := axtest.Run(context.Background(), t, NewRootCmd("test"), []string{"cost", "cluster", "--show-policy"})

@@ -25,6 +25,7 @@ func isolatedClusterHome(t *testing.T) string {
 	return home
 }
 
+//nolint:paralleltest // isolatedClusterHome uses t.Setenv
 func TestCostCluster_NoPluginsInstalled(t *testing.T) {
 	isolatedClusterHome(t)
 	h := helpers.NewCLIHelper(t)
@@ -38,6 +39,8 @@ func TestCostCluster_NoPluginsInstalled(t *testing.T) {
 // `cost projected` for AWS resources records no per-resource errors from it:
 // the plugin declines Supports and is never called for pricing. The engine's
 // deliberate "declined by kubernetes: ..." note documents the skip.
+//
+//nolint:paralleltest // isolatedClusterHome uses t.Setenv
 func TestKubernetesPlugin_DoesNotPolluteCostProjected(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds the kubernetes plugin")

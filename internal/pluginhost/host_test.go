@@ -354,6 +354,8 @@ func TestConvertCapabilities(t *testing.T) {
 }
 
 func TestConvertCapabilities_UsageAndAllocation(t *testing.T) {
+	t.Parallel()
+
 	got := pluginhost.ConvertCapabilities([]pbc.PluginCapability{
 		pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS,
 		pbc.PluginCapability_PLUGIN_CAPABILITY_ALLOCATION,

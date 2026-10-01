@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 
 	"google.golang.org/grpc"
 
@@ -99,9 +100,7 @@ func RunClusterAllocation(
 	req ClusterRequest,
 ) (*ClusterResult, error) {
 	selector := map[string]string{}
-	for k, v := range req.Selector {
-		selector[k] = v
-	}
+	maps.Copy(selector, req.Selector)
 	if req.Namespace != "" {
 		selector["namespace"] = req.Namespace
 	}
@@ -188,7 +187,7 @@ func VerifyConservation(req *pbc.AllocateRequest, resp *pbc.AllocateResponse) er
 // PriceableToResource converts a usage source's priceable descriptor into the
 // engine's resource shape; sku and region travel as properties.
 func PriceableToResource(d *pbc.ResourceDescriptor) ResourceDescriptor {
-	props := map[string]interface{}{"sku": d.GetSku(), "region": d.GetRegion()}
+	props := map[string]any{"sku": d.GetSku(), "region": d.GetRegion()}
 	for k, v := range d.GetTags() {
 		props[k] = v
 	}

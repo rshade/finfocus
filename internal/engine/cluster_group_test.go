@@ -34,6 +34,8 @@ func groupTotals(gs []ClusterGroup) map[string]float64 {
 }
 
 func TestGroupClusterRows(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		groupBy string
 		want    map[string]float64
@@ -50,6 +52,7 @@ func TestGroupClusterRows(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.groupBy, func(t *testing.T) {
+			t.Parallel()
 			gs, err := GroupClusterRows(clusterRows(), tt.groupBy)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, groupTotals(gs))
@@ -63,6 +66,8 @@ func TestGroupClusterRows(t *testing.T) {
 }
 
 func TestGroupClusterRows_OrderAndNotes(t *testing.T) {
+	t.Parallel()
+
 	gs, err := GroupClusterRows(clusterRows(), "namespace")
 	require.NoError(t, err)
 	assert.Equal(t, "__cluster__", gs[0].Key, "highest total first")
@@ -75,6 +80,8 @@ func TestGroupClusterRows_OrderAndNotes(t *testing.T) {
 }
 
 func TestValidateClusterGroupBy(t *testing.T) {
+	t.Parallel()
+
 	for _, ok := range []string{"namespace", "controller", "pod", "node", "label:team", "label:app.kubernetes.io/name"} {
 		require.NoError(t, ValidateClusterGroupBy(ok), ok)
 	}

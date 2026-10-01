@@ -80,6 +80,8 @@ func conservingAlloc() *fakeAlloc {
 }
 
 func TestRunClusterAllocation_HappyPath(t *testing.T) {
+	t.Parallel()
+
 	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
 		Mode:      pbc.StatsMode_STATS_MODE_RUN_RATE,
 		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1"), nodeDesc("n2")},
@@ -118,6 +120,8 @@ func TestRunClusterAllocation_HappyPath(t *testing.T) {
 }
 
 func TestRunClusterAllocation_UnpricedResources(t *testing.T) {
+	t.Parallel()
+
 	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
 		Mode:      pbc.StatsMode_STATS_MODE_RUN_RATE,
 		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1"), nodeDesc("n2"), nodeDesc("n3")},
@@ -146,6 +150,8 @@ func TestRunClusterAllocation_UnpricedResources(t *testing.T) {
 }
 
 func TestRunClusterAllocation_AllUnpricedIsFatal(t *testing.T) {
+	t.Parallel()
+
 	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
 		Mode: pbc.StatsMode_STATS_MODE_RUN_RATE, Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")}}}
 	pricer := fakePricer{results: []CostResult{{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1"}}}
@@ -155,6 +161,8 @@ func TestRunClusterAllocation_AllUnpricedIsFatal(t *testing.T) {
 }
 
 func TestRunClusterAllocation_NamespaceScopeDropsSharedRows(t *testing.T) {
+	t.Parallel()
+
 	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
 		Mode: pbc.StatsMode_STATS_MODE_RUN_RATE, Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")}}}
 	pricer := fakePricer{results: []CostResult{
@@ -172,24 +180,29 @@ func TestRunClusterAllocation_NamespaceScopeDropsSharedRows(t *testing.T) {
 }
 
 func TestRunClusterAllocation_Errors(t *testing.T) {
+	t.Parallel()
+
 	okUsage := &pbc.GetStatsResponse{Mode: pbc.StatsMode_STATS_MODE_RUN_RATE,
 		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")}}
 	okPricer := fakePricer{results: []CostResult{
 		{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 100, Currency: "USD"}}}
 
 	t.Run("usage error wrapped", func(t *testing.T) {
+		t.Parallel()
 		_, err := RunClusterAllocation(context.Background(), &fakeUsage{err: errors.New("forbidden")},
 			conservingAlloc(), okPricer, ClusterRequest{})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "get usage stats: forbidden")
 	})
 	t.Run("historical mode rejected", func(t *testing.T) {
+		t.Parallel()
 		_, err := RunClusterAllocation(context.Background(),
 			&fakeUsage{resp: &pbc.GetStatsResponse{Mode: pbc.StatsMode_STATS_MODE_HISTORICAL}},
 			conservingAlloc(), okPricer, ClusterRequest{})
 		require.ErrorIs(t, err, ErrHistoricalUnsupported)
 	})
 	t.Run("conservation violation", func(t *testing.T) {
+		t.Parallel()
 		broken := &fakeAlloc{fn: func(*pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
 			return &pbc.AllocateResponse{
 				PolicyDigest: "d", EffectivePolicyJson: []byte(`{"version":1}`),
@@ -211,6 +224,7 @@ func TestRunClusterAllocation_Errors(t *testing.T) {
 		assert.Contains(t, err.Error(), "88", "message reports the actual total")
 	})
 	t.Run("contract violation", func(t *testing.T) {
+		t.Parallel()
 		noIdle := &fakeAlloc{fn: func(*pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
 			return &pbc.AllocateResponse{
 				PolicyDigest: "d", EffectivePolicyJson: []byte(`{"version":1}`),
@@ -235,6 +249,7 @@ func TestRunClusterAllocation_Errors(t *testing.T) {
 		)
 	})
 	t.Run("mixed currencies", func(t *testing.T) {
+		t.Parallel()
 		usage := &fakeUsage{resp: &pbc.GetStatsResponse{Mode: pbc.StatsMode_STATS_MODE_RUN_RATE,
 			Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1"), nodeDesc("n2")}}}
 		pricer := fakePricer{results: []CostResult{
@@ -246,6 +261,8 @@ func TestRunClusterAllocation_Errors(t *testing.T) {
 }
 
 func TestShowAllocationPolicy(t *testing.T) {
+	t.Parallel()
+
 	alloc := &fakeAlloc{fn: func(r *pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
 		assert.Empty(t, r.GetUsage())
 		assert.Empty(t, r.GetPriced())
@@ -259,6 +276,8 @@ func TestShowAllocationPolicy(t *testing.T) {
 }
 
 func TestPriceableToResource(t *testing.T) {
+	t.Parallel()
+
 	r := PriceableToResource(&pbc.ResourceDescriptor{Provider: "aws", ResourceType: "aws:eks/cluster:Cluster",
 		Sku: "cluster", Region: "us-west-2", Id: "prod", Tags: map[string]string{"kind": "cluster"}})
 	assert.Equal(t, "aws", r.Provider)

@@ -42,6 +42,8 @@ func renderTo(t *testing.T, format string, out clusterOutput) string {
 }
 
 func TestRenderCluster_Table(t *testing.T) {
+	t.Parallel()
+
 	s := renderTo(t, outputFormatTable, sampleClusterOutput(false))
 	assert.Contains(t, s, "GROUP")
 	assert.Contains(t, s, "payments")
@@ -57,6 +59,8 @@ func TestRenderCluster_Table(t *testing.T) {
 }
 
 func TestRenderCluster_JSON(t *testing.T) {
+	t.Parallel()
+
 	var got map[string]any
 	require.NoError(t, json.Unmarshal([]byte(renderTo(t, outputFormatJSON, sampleClusterOutput(false))), &got))
 	assert.Equal(t, "run-rate", got["mode"])
@@ -72,6 +76,8 @@ func TestRenderCluster_JSON(t *testing.T) {
 }
 
 func TestRenderCluster_NDJSON(t *testing.T) {
+	t.Parallel()
+
 	lines := strings.Split(strings.TrimSpace(renderTo(t, outputFormatNDJSON, sampleClusterOutput(false))), "\n")
 	require.Len(t, lines, 3)
 	var first, second map[string]any

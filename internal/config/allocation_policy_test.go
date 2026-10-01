@@ -28,6 +28,7 @@ func isolatePolicyDirs(t *testing.T) (string, string) {
 	return home, project
 }
 
+//nolint:paralleltest // isolatePolicyDirs uses t.Setenv and the process-wide resolved project dir
 func TestResolveAllocationPolicy_Precedence(t *testing.T) {
 	home, project := isolatePolicyDirs(t)
 	ctx := context.Background()
@@ -56,6 +57,7 @@ func TestResolveAllocationPolicy_Precedence(t *testing.T) {
 	assert.Equal(t, flagPath, got.Source)
 }
 
+//nolint:paralleltest // isolatePolicyDirs uses t.Setenv and the process-wide resolved project dir
 func TestResolveAllocationPolicy_NullDocument(t *testing.T) {
 	home, _ := isolatePolicyDirs(t)
 
@@ -66,6 +68,7 @@ func TestResolveAllocationPolicy_NullDocument(t *testing.T) {
 	assert.Nil(t, got.JSON, "a null document is equivalent to no policy")
 }
 
+//nolint:paralleltest // isolatePolicyDirs uses t.Setenv and the process-wide resolved project dir
 func TestResolveAllocationPolicy_Errors(t *testing.T) {
 	home, _ := isolatePolicyDirs(t)
 	ctx := context.Background()
