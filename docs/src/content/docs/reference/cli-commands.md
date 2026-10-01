@@ -164,7 +164,9 @@ Caveats:
 - Type resolution to Pulumi tokens requires a plugin advertising the
   `resolve_resource_types` capability. Without it, FinFocus falls back to raw
   Terraform types and mechanical property conversion; resources that cannot be
-  priced show `$0.00 / no cost data`.
+  priced show `$0.00 / no cost data`. When no loaded plugin advertises the
+  capability (it requires a plugin built on finfocus-spec v0.6.1 or later),
+  FinFocus prints one warning to stderr and still exits 0.
 - Encrypted state (e.g. OpenTofu state encryption) is not decrypted. Run
   `tofu state pull` (or the Terraform equivalent) to obtain plaintext state
   first.
@@ -1255,11 +1257,18 @@ Newline-delimited JSON (one per line):
 
 ## Exit Codes
 
-| Code | Meaning           |
-| ---- | ----------------- |
-| 0    | Success           |
-| 1    | General error     |
-| 2    | Invalid arguments |
+| Code | Meaning                                                       |
+| ---- | ------------------------------------------------------------- |
+| 0    | Success                                                       |
+| 1    | General error                                                 |
+| 2    | Invalid input (`error_code: validation_error` in JSON output) |
+
+Exit code 2 covers invalid flag combinations, unreadable or malformed
+`--terraform-state`, `--pulumi-json` and `--pulumi-state` input (missing file,
+directory, empty file, bad JSON, unsupported or encrypted state), invalid
+filters, and unparseable date ranges for `cost projected` and `cost actual`.
+Earlier releases reported these as exit code 1 with
+`error_code: internal_error`.
 
 ---
 

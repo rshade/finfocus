@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"maps"
+	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -225,4 +227,66 @@ func TestLoadAndMapTerraformResources(t *testing.T) {
 	assert.Equal(t, "aws_instance.web", resources[0].ID)
 	assert.Equal(t, "aws", resources[0].Provider)
 	assert.Equal(t, "aws_s3_bucket.assets", resources[1].ID)
+}
+
+func TestWarnNoTypeResolvingPlugin(t *testing.T) {
+	tests := []struct {
+		name     string
+		clients  []*pluginhost.Client
+		wantWarn bool
+	}{
+		{
+			name:     "no clients warns",
+			clients:  nil,
+			wantWarn: true,
+		},
+		{
+			name:     "client without capability warns",
+			clients:  []*pluginhost.Client{newResolverTestClient(false, &stubResolverClient{})},
+			wantWarn: true,
+		},
+		{
+			name:     "client with capability stays silent",
+			clients:  []*pluginhost.Client{newResolverTestClient(true, &stubResolverClient{})},
+			wantWarn: false,
+		},
+		{
+			name: "one capable client among several stays silent",
+			clients: []*pluginhost.Client{
+				newResolverTestClient(false, &stubResolverClient{}),
+				newResolverTestClient(true, &stubResolverClient{}),
+			},
+			wantWarn: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := &cobra.Command{}
+			var stderr strings.Builder
+			cmd.SetErr(&stderr)
+
+			warnNoTypeResolvingPlugin(cmd, "state.tfstate", tt.clients)
+
+			if tt.wantWarn {
+				warning := stderr.String()
+				assert.Contains(t, warning, "resolve_resource_types")
+				assert.Contains(t, warning, "finfocus-spec >= v0.6.1")
+				assert.Contains(t, warning, terraformTypeResolutionDocsURL)
+				assert.Equal(t, 1, strings.Count(warning, "resolve_resource_types"))
+			} else {
+				assert.Empty(t, stderr.String())
+			}
+		})
+	}
+}
+
+func TestWarnNoTypeResolvingPlugin_NoTerraformState(t *testing.T) {
+	cmd := &cobra.Command{}
+	var stderr strings.Builder
+	cmd.SetErr(&stderr)
+
+	warnNoTypeResolvingPlugin(cmd, "", nil)
+
+	assert.Empty(t, stderr.String())
 }

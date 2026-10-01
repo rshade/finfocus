@@ -6,8 +6,10 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
+	"github.com/rshade/ax-go"
 	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -693,6 +695,7 @@ func TestCostProjectedTerraformStateFlagValidation(t *testing.T) {
 			err := cmd.Execute()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.errorMsg)
+			assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
 		})
 	}
 }
@@ -716,4 +719,5 @@ func TestCostProjectedTerraformStateEndToEnd(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, buf.String(), "aws_instance.web")
 	assert.Contains(t, buf.String(), "aws_s3_bucket.assets")
+	assert.Equal(t, 1, strings.Count(buf.String(), "resolve_resource_types capability"))
 }

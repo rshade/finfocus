@@ -455,22 +455,12 @@ func formatResourceNotes(result CostResult) string {
 	return notes
 }
 
-// renderActualCostTable writes an actual-cost table representation of the provided
-// CostResult slice to the given writer. It inspects results to determine whether
-// any entries contain actual cost data (TotalCost > 0 or a non-empty CostPeriod)
-// and selects an appropriate header, then renders a row for each result and
-// flushes the internal tabwriter.
-//
-// Parameters:
-//   - writer: destination for rendered table output.
-//   - results: slice of CostResult values to render.
-//   - showConfidence: whether to include confidence column.
-//
-// renderActualCostTable writes an actual-cost table to the provided writer using a tabwriter.
-// It writes a recommendations summary when any recommendations exist, selects header columns depending
-// on whether any result contains actual cost data, and renders one row per CostResult. The
-// showConfidence flag controls whether a Confidence column is included. It returns an error if
-// flushing the tabwriter fails.
+// renderActualCostTable writes an actual-cost table representation of the
+// provided CostResult slice to the given writer. It writes a recommendations
+// summary when any recommendations exist, then renders the actual-cost header
+// and one row per CostResult. The showConfidence flag controls whether a
+// Confidence column is included. It returns an error if flushing the internal
+// tabwriter fails.
 func renderActualCostTable(writer io.Writer, results []CostResult, showConfidence bool) error {
 	w := tabwriter.NewWriter(writer, 0, 0, defaultTabPadding, ' ', 0)
 
@@ -480,47 +470,29 @@ func renderActualCostTable(writer io.Writer, results []CostResult, showConfidenc
 		fmt.Fprintf(w, "Recommendations:\t%d\n\n", recCount)
 	}
 
-	// Check if we have actual cost data to determine appropriate headers
-	hasActualCosts := false
-	for _, result := range results {
-		if result.TotalCost > 0 || result.CostPeriod != "" {
-			hasActualCosts = true
-			break
-		}
-	}
-
-	renderActualCostHeader(w, hasActualCosts, showConfidence)
+	renderActualCostHeader(w, showConfidence)
 
 	for _, result := range results {
-		renderActualCostRow(w, result, hasActualCosts, showConfidence)
+		renderActualCostRow(w, result, showConfidence)
 	}
 
 	return w.Flush()
 }
 
-// renderActualCostHeader writes the table header for actual-cost output to w.
-// If hasActualCosts is true it writes columns for Total Cost and Period;
-// otherwise it writes a header for Projected Monthly values.
-// If showConfidence is true, a Confidence column is added.
-func renderActualCostHeader(w io.Writer, hasActualCosts bool, showConfidence bool) {
-	headers, separators := buildActualCostHeaderColumns(hasActualCosts, showConfidence)
+// renderActualCostHeader writes the table header for actual-cost output to w,
+// with Total Cost and Period columns. If showConfidence is true, a Confidence
+// column is added.
+func renderActualCostHeader(w io.Writer, showConfidence bool) {
+	headers, separators := buildActualCostHeaderColumns(showConfidence)
 	fmt.Fprintln(w, strings.Join(headers, "\t"))
 	fmt.Fprintln(w, strings.Join(separators, "\t"))
 }
 
 // buildActualCostHeaderColumns returns the header labels and separator lines
 // for actual cost table output based on the display options.
-func buildActualCostHeaderColumns(hasActualCosts bool, showConfidence bool) ([]string, []string) {
-	headers := []string{"Resource", "Adapter"}
-	separators := []string{"--------", "-------"}
-
-	if hasActualCosts {
-		headers = append(headers, "Total Cost", "Period")
-		separators = append(separators, "----------", "------")
-	} else {
-		headers = append(headers, "Projected Monthly")
-		separators = append(separators, "-----------------")
-	}
+func buildActualCostHeaderColumns(showConfidence bool) ([]string, []string) {
+	headers := []string{"Resource", "Adapter", "Total Cost", "Period"}
+	separators := []string{"--------", "-------", "----------", "------"}
 
 	if showConfidence {
 		headers = append(headers, "Confidence")
@@ -535,28 +507,25 @@ func buildActualCostHeaderColumns(hasActualCosts bool, showConfidence bool) ([]s
 
 // renderActualCostRow writes a single row for a cost result into the actual-cost table.
 // It formats the resource as "ResourceType/ResourceID" (truncated with an ellipsis if too long),
-// appends formatted notes (including any sustainability metrics), and emits either actual-cost
-// columns or projected-monthly columns depending on hasActualCosts.
+// appends formatted notes (including any sustainability metrics), and emits the actual-cost
+// columns.
 //
 // Parameters:
 //   - w: destination writer to receive the formatted table row.
 //   - result: the CostResult to render.
-//   - hasActualCosts: when true, the row contains Total Cost and Period columns; when false,
-//     the row contains the Projected Monthly column.
 //   - showConfidence: when true, includes a Confidence column in the output.
 //
 // Behavior details:
-//   - If hasActualCosts is true, the Total Cost column shows result.TotalCost formatted with
-//     two decimals. If TotalCost is zero but result.Monthly > 0, the Total Cost column shows
-//     the monthly value with " (est)" appended. The Period column uses result.CostPeriod or
-//     defaults to "monthly (est)" when empty.
-//   - If hasActualCosts is false, the row shows result.Monthly formatted with two decimals.
+//   - The Total Cost column shows result.TotalCost formatted with two decimals. If
+//     TotalCost is zero but result.Monthly > 0, the Total Cost column shows the
+//     monthly value with " (est)" appended. The Period column uses result.CostPeriod
+//     or defaults to "monthly (est)" when empty.
 //   - The Currency and Notes columns are always emitted. Notes include existing notes and a
 //     bracketed list of sustainability metrics when present.
-func renderActualCostRow(w io.Writer, result CostResult, hasActualCosts bool, showConfidence bool) {
+func renderActualCostRow(w io.Writer, result CostResult, showConfidence bool) {
 	resource := formatResourceName(result.ResourceType, result.ResourceID)
 	notes := formatResourceNotes(result)
-	columns := buildActualCostRowColumns(result, resource, notes, hasActualCosts, showConfidence)
+	columns := buildActualCostRowColumns(result, resource, notes, showConfidence)
 	fmt.Fprintln(w, strings.Join(columns, "\t"))
 }
 
@@ -570,25 +539,17 @@ func formatResourceName(resourceType, resourceID string) string {
 	return resource
 }
 
-// buildActualCostRowColumns constructs the column values for an actual cost row
 // buildActualCostRowColumns constructs the ordered list of string columns for an actual-cost table row.
 // The returned slice contains columns in this order:
-// Resource, Adapter,
-// then either Total Cost and Period (if hasActualCosts) or Projected Monthly (if not),
+// Resource, Adapter, Total Cost, Period,
 // optionally Confidence (if showConfidence is true),
 // followed by Currency, Recommendations, and Notes.
 func buildActualCostRowColumns(
 	result CostResult,
 	resource, notes string,
-	hasActualCosts, showConfidence bool,
+	showConfidence bool,
 ) []string {
-	columns := []string{resource, result.Adapter}
-
-	if hasActualCosts {
-		columns = append(columns, formatCostDisplay(result), formatPeriodDisplay(result))
-	} else {
-		columns = append(columns, fmt.Sprintf("%.2f", result.Monthly))
-	}
+	columns := []string{resource, result.Adapter, formatCostDisplay(result), formatPeriodDisplay(result)}
 
 	if showConfidence {
 		columns = append(columns, result.Confidence.DisplayLabel())

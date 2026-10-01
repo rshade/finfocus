@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rshade/ax-go"
 	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1289,6 +1290,7 @@ func TestCostActualTerraformStateFlagValidation(t *testing.T) {
 			err := cmd.Execute()
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.errorMsg)
+			assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
 		})
 	}
 }

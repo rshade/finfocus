@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // TestCreateCrossProviderAggregation_DailyGrouping tests daily aggregation.
@@ -575,7 +577,7 @@ func TestEdgeCase_UnknownProviderReturnsUnknown(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := extractProviderFromType(tt.resourceType)
+			result := resourcetype.ExtractProvider(tt.resourceType)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

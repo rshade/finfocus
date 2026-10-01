@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // ---------------------------------------------------------------------------
@@ -590,7 +592,7 @@ func TestEnrichActualCost_ReturnsNilOnSuccess(t *testing.T) {
 	resource := ResourceDescriptor{
 		Type:     row.Type,
 		ID:       row.URN,
-		Provider: extractProviderFromType(row.Type),
+		Provider: resourcetype.ExtractProvider(row.Type),
 	}
 
 	result := enrichActualCost(ctx, &row, eng, resource, dateRange)
@@ -610,7 +612,7 @@ func TestEnrichProjectedCost_ReturnsNilOnSuccess(t *testing.T) {
 	resource := ResourceDescriptor{
 		Type:     row.Type,
 		ID:       row.URN,
-		Provider: extractProviderFromType(row.Type),
+		Provider: resourcetype.ExtractProvider(row.Type),
 	}
 
 	result := enrichProjectedCost(ctx, &row, eng, resource)
