@@ -126,7 +126,7 @@ handling.
 - `scoring.identifier_mode`: How resource ids and names reach the scorer: `pseudonymized` (default), `omitted` or `raw`.
 - `scoring.field_allowlist`: Recommendation fields sent to the scorer. Empty sends all. Valid names: `category`,
   `action_type`, `resource`, `impact`, `priority`, `confidence_score`, `description`, `reasoning`, `source`,
-  `created_at`, `metadata`.
+  `created_at`, `metadata`, `action_detail`, `primary_reason`, `secondary_reasons`.
 - `scoring.timeout_seconds`: Timeout for each scorer call. Default: `30`.
 - `scoring.needs_review.risk`, `scoring.needs_review.false_positive`, `scoring.needs_review.insufficient_evidence`:
   Thresholds (0 to 1) for the needs-review marker. Defaults: `0.3`, `0.3`, `0.5`.

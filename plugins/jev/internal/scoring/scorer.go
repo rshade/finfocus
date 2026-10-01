@@ -235,7 +235,7 @@ func (s *Scorer) recordBatch(items []*itemState, indexes []int, signals []perRec
 		record["position"] = pos
 		state[pos] = record
 		for _, sig := range signals {
-			questions[questionName(sig.name, items[idx].rec.GetId(), pos)] = sig.build(pos)
+			questions[questionName(sig.name, pos)] = sig.build(pos)
 		}
 	}
 	return &batch{
@@ -363,7 +363,7 @@ func (s *Scorer) applyScores(items []*itemState, batches []*batch) {
 		for pos, idx := range b.indexes {
 			it := items[idx]
 			for _, sig := range b.signals {
-				name := questionName(sig.name, it.rec.GetId(), pos)
+				name := questionName(sig.name, pos)
 				value, ok := answerValue(b.resp.Answers[name], sig.signal)
 				if !ok {
 					it.fail(codes.Internal, fmt.Sprintf(missingAnswerFm, sig.name))

@@ -44,7 +44,11 @@ false positives, worth and priority and groups duplicate recommendations. It is
 not part of provider detection and `finfocus setup` does not install it.
 
 - Requires `TYPESAFE_API_KEY` (from the TypeSafe console) and scoring enabled in
-  config (`scoring.enabled`); without them it does nothing.
+  config; without them it does nothing. Without the key every scoring call
+  returns `UNAUTHENTICATED`, shown as a scoring warning.
+- Enable in this order, because each config change is validated:
+  `finfocus config set scoring.plugin jev`, then
+  `finfocus config set scoring.enabled true`.
 - Sends recommendation data to TypeSafe. Identifiers are pseudonymized by default.
 - Setup and data handling: see the
   [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev) and

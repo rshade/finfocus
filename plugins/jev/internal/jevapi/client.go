@@ -199,7 +199,13 @@ func (c *Client) do(ctx context.Context, method, path string, body []byte) ([]by
 		if !apiErr.retryable() || attempt >= c.maxRetries {
 			return nil, nil, last
 		}
-		if err = c.sleep(ctx, c.delay(apiErr, attempt)); err != nil {
+		wait := c.delay(apiErr, attempt)
+		// A wait that outlasts the caller's deadline would only turn this
+		// error into a vaguer timeout, so report it now.
+		if deadline, ok := ctx.Deadline(); ok && time.Until(deadline) < wait {
+			return nil, nil, last
+		}
+		if err = c.sleep(ctx, wait); err != nil {
 			return nil, nil, err
 		}
 	}

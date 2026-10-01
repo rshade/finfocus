@@ -52,6 +52,10 @@ func parseScoreFilter(expr string) (scoreFilter, bool, error) {
 	if err != nil {
 		return scoreFilter{}, true, fmt.Errorf("invalid score filter %q: value must be a number", expr)
 	}
+	if maxValue := engine.ScoreSignalMax(m[1]); !(value >= 0 && value <= maxValue) {
+		return scoreFilter{}, true, fmt.Errorf(
+			"invalid score filter %q: %s is on a 0 to %g scale", expr, m[1], maxValue)
+	}
 	return scoreFilter{signal: m[1], op: op, value: value}, true, nil
 }
 
