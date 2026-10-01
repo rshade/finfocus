@@ -179,9 +179,9 @@ tool. The excluded commands still appear in `finfocus --help`.
 
 ## Migrating from finfocus-mcp
 
-The standalone [finfocus-mcp](https://github.com/rshade/finfocus-mcp) server
-(formerly `pulumicost-mcp`) is superseded by the built-in server. It had
-hand-written tools that called the CLI. The built-in server exposes the CLI
+The standalone `finfocus-mcp` server (formerly `pulumicost-mcp`) has been
+retired and is superseded by the built-in server. It had hand-written tools
+that called the CLI. The built-in server exposes the CLI
 directly, so it stays in step with each finfocus release. Replace the old
 server entry in your MCP client configuration with `finfocus --mcp`. The old
 tools map to built-in tools as follows:
