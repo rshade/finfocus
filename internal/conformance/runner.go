@@ -25,7 +25,7 @@ func NewRunner(logger zerolog.Logger, verbosity Verbosity) *Runner {
 
 // RunTest executes a single test case and returns the result.
 // It handles timeout, panic recovery, and result recording.
-func (r *Runner) RunTest(ctx context.Context, tc TestCase, client interface{}) *TestResult {
+func (r *Runner) RunTest(ctx context.Context, tc TestCase, client any) *TestResult {
 	result := &TestResult{
 		TestName:  tc.Name,
 		Category:  tc.Category,

@@ -497,10 +497,7 @@ func (m *RecommendationsViewModel) applySort() {
 
 // rebuildList rebuilds the virtual list model with current recommendations.
 func (m *RecommendationsViewModel) rebuildList() {
-	availableHeight := m.height - recSummaryHeight - 1
-	if availableHeight < minHeight {
-		availableHeight = minHeight
-	}
+	availableHeight := max(m.height-recSummaryHeight-1, minHeight)
 	m.virtualList = listview.NewVirtualListModel(
 		m.recommendations,
 		availableHeight,

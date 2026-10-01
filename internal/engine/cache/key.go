@@ -171,21 +171,21 @@ func writeHashField(h hash.Hash, v string) {
 // BucketFromKey returns the leading bucket name from a cache key by taking the substring
 // before the first '/'. If the key contains no '/', the entire key is returned.
 func BucketFromKey(key string) string {
-	idx := strings.Index(key, "/")
-	if idx < 0 {
+	before, _, ok := strings.Cut(key, "/")
+	if !ok {
 		return key
 	}
-	return key[:idx]
+	return before
 }
 
 // StripBucket returns the portion of key after the first "/" separator.
 // If key contains no "/", the original key is returned unchanged.
 func StripBucket(key string) string {
-	idx := strings.Index(key, "/")
-	if idx < 0 {
+	_, after, ok := strings.Cut(key, "/")
+	if !ok {
 		return key
 	}
-	return key[idx+1:]
+	return after
 }
 
 // hashFilters produces a short deterministic hex string representing the given filters.

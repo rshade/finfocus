@@ -68,8 +68,8 @@ func detectOutputFormatFromArgs(argv []string) string {
 		if arg == "--" {
 			break
 		}
-		if strings.HasPrefix(arg, "--output=") {
-			return strings.TrimSpace(strings.TrimPrefix(arg, "--output="))
+		if after, ok := strings.CutPrefix(arg, "--output="); ok {
+			return strings.TrimSpace(after)
 		}
 		if arg == "--output" || arg == "-o" {
 			if i+1 < len(argv) {
@@ -77,8 +77,8 @@ func detectOutputFormatFromArgs(argv []string) string {
 			}
 			return ""
 		}
-		if strings.HasPrefix(arg, "-o=") {
-			return strings.TrimSpace(strings.TrimPrefix(arg, "-o="))
+		if after, ok := strings.CutPrefix(arg, "-o="); ok {
+			return strings.TrimSpace(after)
 		}
 	}
 	return ""

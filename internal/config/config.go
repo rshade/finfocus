@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -37,7 +39,7 @@ func (d *Duration) UnmarshalYAML(value *yaml.Node) error {
 }
 
 // MarshalYAML implements yaml.Marshaler for Duration.
-func (d Duration) MarshalYAML() (interface{}, error) {
+func (d Duration) MarshalYAML() (any, error) {
 	return time.Duration(d).String(), nil
 }
 
@@ -127,18 +129,18 @@ type OutputConfig struct {
 
 // PluginConfig defines plugin-specific configuration.
 type PluginConfig struct {
-	Config map[string]interface{} `yaml:",inline" json:",inline"`
+	Config map[string]any `yaml:",inline" json:",inline"`
 }
 
 // UnmarshalJSON implements [json.Unmarshaler] for PluginConfig.
 // It treats the entire JSON object as the Config map (simulating the YAML inline behavior).
 func (pc *PluginConfig) UnmarshalJSON(data []byte) error {
-	var m map[string]interface{}
+	var m map[string]any
 	if err := json.Unmarshal(data, &m); err != nil {
 		return fmt.Errorf("parsing plugins configuration section: %w", err)
 	}
 	if m == nil {
-		m = make(map[string]interface{})
+		m = make(map[string]any)
 	}
 	pc.Config = m
 	return nil
@@ -148,7 +150,7 @@ func (pc *PluginConfig) UnmarshalJSON(data []byte) error {
 // It marshals the Config map directly (simulating the YAML inline behavior).
 func (pc PluginConfig) MarshalJSON() ([]byte, error) {
 	if pc.Config == nil {
-		return json.Marshal(map[string]interface{}{})
+		return json.Marshal(map[string]any{})
 	}
 	return json.Marshal(pc.Config)
 }
@@ -440,9 +442,7 @@ func (c *Config) MarshalJSON() ([]byte, error) {
 	if unmarshalErr := json.Unmarshal(data, &keys); unmarshalErr != nil {
 		return nil, unmarshalErr
 	}
-	for key, value := range c.extraKeys {
-		keys[key] = value
-	}
+	maps.Copy(keys, c.extraKeys)
 	return json.Marshal(keys)
 }
 
@@ -482,7 +482,7 @@ func migrateFromLegacyYAML(configPath string) error {
 		return fmt.Errorf("reading legacy YAML config: %w", err)
 	}
 
-	var yamlMap map[string]interface{}
+	var yamlMap map[string]any
 	if unmarshalErr := yaml.Unmarshal(data, &yamlMap); unmarshalErr != nil {
 		return fmt.Errorf("parsing corrupted legacy YAML config: %w", unmarshalErr)
 	}
@@ -515,7 +515,7 @@ func (c *Config) Load() error {
 }
 
 // loadConfig reads either format through the shared migration path.
-func loadConfig(configPath string, dst interface{}) error {
+func loadConfig(configPath string, dst any) error {
 	if err := migrateFromLegacyYAML(configPath); err != nil {
 		return err
 	}
@@ -543,7 +543,7 @@ func (c *Config) Save() error {
 }
 
 // saveConfig atomically writes a configuration document as JSON.
-func saveConfig(configPath string, cfg interface{}) error {
+func saveConfig(configPath string, cfg any) error {
 	// Ensure directory exists
 	if err := os.MkdirAll(filepath.Dir(configPath), 0700); err != nil {
 		return fmt.Errorf("failed to create config directory: %w", err)
@@ -592,7 +592,7 @@ func (c *Config) Set(key, value string) error {
 }
 
 // Get gets a configuration value using dot notation.
-func (c *Config) Get(key string) (interface{}, error) {
+func (c *Config) Get(key string) (any, error) {
 	parts := strings.Split(key, ".")
 	if len(parts) < 1 {
 		return nil, errors.New("invalid key format")
@@ -617,8 +617,8 @@ func (c *Config) Get(key string) (interface{}, error) {
 }
 
 // List returns all configuration as a map.
-func (c *Config) List() map[string]interface{} {
-	return map[string]interface{}{
+func (c *Config) List() map[string]any {
+	return map[string]any{
 		keyOutput:     c.Output,
 		keyPlugins:    c.Plugins,
 		keyLogging:    c.Logging,
@@ -634,13 +634,7 @@ func (c *Config) List() map[string]interface{} {
 func (c *Config) Validate() error {
 	// Validate output format
 	validFormats := []string{formatTable, "json", "ndjson"}
-	valid := false
-	for _, format := range validFormats {
-		if c.Output.DefaultFormat == format {
-			valid = true
-			break
-		}
-	}
+	valid := slices.Contains(validFormats, c.Output.DefaultFormat)
 	if !valid {
 		return fmt.Errorf(
 			"invalid output format: %s (must be one of: %v)",
@@ -770,20 +764,16 @@ func (c *Config) validateAuditConfig() error {
 
 func isValidLevel(level string) error {
 	validLevels := []string{"debug", levelInfo, "warn", "error"}
-	for _, validLevel := range validLevels {
-		if level == validLevel {
-			return nil
-		}
+	if slices.Contains(validLevels, level) {
+		return nil
 	}
 	return fmt.Errorf("invalid log level: %s (must be one of: %v)", level, validLevels)
 }
 
 func isValidFormat(format string) error {
 	validFormats := []string{"json", formatText}
-	for _, validFormat := range validFormats {
-		if format == validFormat {
-			return nil
-		}
+	if slices.Contains(validFormats, format) {
+		return nil
 	}
 	return fmt.Errorf("invalid log format: %s (must be one of: %v)", format, validFormats)
 }
@@ -848,10 +838,8 @@ func validateLogOutput(output LogOutput) error {
 
 func validateOutputType(outputType string) error {
 	validTypes := []string{outputTypeConsole, outputTypeFile, "syslog"}
-	for _, t := range validTypes {
-		if outputType == t {
-			return nil
-		}
+	if slices.Contains(validTypes, outputType) {
+		return nil
 	}
 	return fmt.Errorf("invalid output type: %s (must be one of: %v)", outputType, validTypes)
 }
@@ -926,15 +914,15 @@ func (c *Config) PluginPath(name, version string) string {
 }
 
 // GetPluginConfig returns configuration for a specific plugin.
-func (c *Config) GetPluginConfig(pluginName string) (map[string]interface{}, error) {
+func (c *Config) GetPluginConfig(pluginName string) (map[string]any, error) {
 	if plugin, exists := c.Plugins[pluginName]; exists {
 		return plugin.Config, nil
 	}
-	return make(map[string]interface{}), nil
+	return make(map[string]any), nil
 }
 
 // SetPluginConfig sets configuration for a specific plugin.
-func (c *Config) SetPluginConfig(pluginName string, config map[string]interface{}) {
+func (c *Config) SetPluginConfig(pluginName string, config map[string]any) {
 	if c.Plugins == nil {
 		c.Plugins = make(map[string]PluginConfig)
 	}
@@ -1082,7 +1070,7 @@ func (c *Config) applyLegacyEnvOverrides() {
 			c.Plugins = make(map[string]PluginConfig)
 		}
 		if c.Plugins[pluginName].Config == nil {
-			c.Plugins[pluginName] = PluginConfig{Config: make(map[string]interface{})}
+			c.Plugins[pluginName] = PluginConfig{Config: make(map[string]any)}
 		}
 		c.Plugins[pluginName].Config[configKey] = value
 	}
@@ -1119,7 +1107,7 @@ func (c *Config) scanPluginEnvironmentVars() {
 		}
 
 		if c.Plugins[pluginName].Config == nil {
-			c.Plugins[pluginName] = PluginConfig{Config: make(map[string]interface{})}
+			c.Plugins[pluginName] = PluginConfig{Config: make(map[string]any)}
 		}
 
 		c.Plugins[pluginName].Config[configKey] = value
@@ -1161,7 +1149,7 @@ func (c *Config) setPluginValue(parts []string, value string) error {
 	}
 
 	if c.Plugins[pluginName].Config == nil {
-		c.Plugins[pluginName] = PluginConfig{Config: make(map[string]interface{})}
+		c.Plugins[pluginName] = PluginConfig{Config: make(map[string]any)}
 	}
 
 	c.Plugins[pluginName].Config[configKey] = value
@@ -1186,7 +1174,7 @@ func (c *Config) setLoggingValue(parts []string, value string) error {
 }
 
 // Helper methods for getting values.
-func (c *Config) getOutputValue(parts []string) (interface{}, error) {
+func (c *Config) getOutputValue(parts []string) (any, error) {
 	if len(parts) != 1 {
 		return nil, errors.New("invalid output key")
 	}
@@ -1201,7 +1189,7 @@ func (c *Config) getOutputValue(parts []string) (interface{}, error) {
 	}
 }
 
-func (c *Config) getPluginValue(parts []string) (interface{}, error) {
+func (c *Config) getPluginValue(parts []string) (any, error) {
 	if len(parts) < 1 {
 		return c.Plugins, nil
 	}
@@ -1225,7 +1213,7 @@ func (c *Config) getPluginValue(parts []string) (interface{}, error) {
 	return value, nil
 }
 
-func (c *Config) getLoggingValue(parts []string) (interface{}, error) {
+func (c *Config) getLoggingValue(parts []string) (any, error) {
 	if len(parts) != 1 {
 		return nil, errors.New("invalid logging key")
 	}
@@ -1260,7 +1248,7 @@ func (c *Config) setPluginHostValue(parts []string, value string) error {
 	return nil
 }
 
-func (c *Config) getPluginHostValue(parts []string) (interface{}, error) {
+func (c *Config) getPluginHostValue(parts []string) (any, error) {
 	if len(parts) != 1 {
 		return nil, errors.New("invalid plugin_host key")
 	}
@@ -1325,7 +1313,7 @@ func (c *Config) ensureBudgetsConfig() {
 	}
 }
 
-func (c *Config) getCostValue(parts []string) (interface{}, error) {
+func (c *Config) getCostValue(parts []string) (any, error) {
 	if len(parts) < 1 {
 		return c.Cost, nil
 	}
@@ -1338,7 +1326,7 @@ func (c *Config) getCostValue(parts []string) (interface{}, error) {
 	}
 }
 
-func (c *Config) getCostBudgetsValue(parts []string) (interface{}, error) {
+func (c *Config) getCostBudgetsValue(parts []string) (any, error) {
 	if len(parts) < 1 {
 		return c.Cost.Budgets, nil
 	}

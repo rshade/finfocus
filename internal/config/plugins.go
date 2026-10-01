@@ -94,12 +94,12 @@ func LoadInstalledPlugins() ([]InstalledPlugin, error) {
 // It returns an error if marshaling or file operations fail.
 func SaveInstalledPlugins(plugins []InstalledPlugin) error {
 	configPath := pluginsConfigPath()
-	var cfg map[string]interface{}
+	var cfg map[string]any
 	if err := loadConfig(configPath, &cfg); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 	if cfg == nil {
-		cfg = make(map[string]interface{})
+		cfg = make(map[string]any)
 	}
 	cfg[keyInstalledPlugin] = plugins
 	return saveConfig(configPath, cfg)

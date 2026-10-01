@@ -322,12 +322,10 @@ func fetchRecommendationsWithProgress(
 	defer cancelProgress()
 
 	var spinnerWg sync.WaitGroup
-	spinnerWg.Add(1)
 
-	go func() {
-		defer spinnerWg.Done()
+	spinnerWg.Go(func() {
 		showProgressIndicator(progressCtx, cmd, resources)
-	}()
+	})
 
 	result, err := eng.GetRecommendationsForResources(ctx, resources)
 
@@ -894,8 +892,7 @@ func isBrokenPipe(err error) bool {
 		return false
 	}
 	// Check for EPIPE (broken pipe) error
-	var errno syscall.Errno
-	if errors.As(err, &errno) {
+	if errno, ok := errors.AsType[syscall.Errno](err); ok {
 		return errno == syscall.EPIPE
 	}
 	// Also check error message as fallback

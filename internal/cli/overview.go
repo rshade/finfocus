@@ -711,13 +711,13 @@ func diffInputs(oldState, newState *ingest.PulumiState) []engine.PropertyDiff {
 //
 // This preserves unchanged state-derived fields while applying intended preview
 // changes, avoiding mispricing from "new inputs only" payloads.
-func projectedPropertiesFromStep(step ingest.PulumiStep) map[string]interface{} {
-	var oldMerged map[string]interface{}
+func projectedPropertiesFromStep(step ingest.PulumiStep) map[string]any {
+	var oldMerged map[string]any
 	if step.OldState != nil {
 		oldMerged = ingest.MergeProperties(step.OldState.Outputs, step.OldState.Inputs)
 	}
 
-	var newInputs map[string]interface{}
+	var newInputs map[string]any
 	switch {
 	case step.NewState != nil && len(step.NewState.Inputs) > 0:
 		newInputs = step.NewState.Inputs
@@ -735,13 +735,13 @@ func projectedPropertiesFromStep(step ingest.PulumiStep) map[string]interface{} 
 // deepMergeProperties recursively merges two maps and returns a fresh map.
 // Nested map[string]interface{} values are merged; all other override values
 // replace the base value.
-func deepMergeProperties(base, override map[string]interface{}) map[string]interface{} {
+func deepMergeProperties(base, override map[string]any) map[string]any {
 	if len(base) == 0 && len(override) == 0 {
 		return nil
 	}
 	out := deepCopyProperties(base)
 	if out == nil {
-		out = make(map[string]interface{}, len(override))
+		out = make(map[string]any, len(override))
 	}
 	for k, v := range override {
 		existing, exists := out[k]
@@ -750,35 +750,35 @@ func deepMergeProperties(base, override map[string]interface{}) map[string]inter
 	return out
 }
 
-func deepMergeValue(exists bool, baseValue, overrideValue interface{}) interface{} {
+func deepMergeValue(exists bool, baseValue, overrideValue any) any {
 	if !exists {
 		return deepCopyAny(overrideValue)
 	}
-	baseMap, baseIsMap := baseValue.(map[string]interface{})
-	overrideMap, overrideIsMap := overrideValue.(map[string]interface{})
+	baseMap, baseIsMap := baseValue.(map[string]any)
+	overrideMap, overrideIsMap := overrideValue.(map[string]any)
 	if baseIsMap && overrideIsMap {
 		return deepMergeProperties(baseMap, overrideMap)
 	}
 	return deepCopyAny(overrideValue)
 }
 
-func deepCopyProperties(in map[string]interface{}) map[string]interface{} {
+func deepCopyProperties(in map[string]any) map[string]any {
 	if len(in) == 0 {
 		return nil
 	}
-	out := make(map[string]interface{}, len(in))
+	out := make(map[string]any, len(in))
 	for k, v := range in {
 		out[k] = deepCopyAny(v)
 	}
 	return out
 }
 
-func deepCopyAny(v interface{}) interface{} {
+func deepCopyAny(v any) any {
 	switch t := v.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		return deepCopyProperties(t)
-	case []interface{}:
-		out := make([]interface{}, len(t))
+	case []any:
+		out := make([]any, len(t))
 		for i := range t {
 			out[i] = deepCopyAny(t[i])
 		}
@@ -790,7 +790,7 @@ func deepCopyAny(v interface{}) interface{} {
 
 // formatDiffValue converts a property value to a human-readable string.
 // Simple types use [fmt.Sprintf]; complex types (maps, slices) use compact JSON.
-func formatDiffValue(v interface{}) string {
+func formatDiffValue(v any) string {
 	if v == nil {
 		return ""
 	}

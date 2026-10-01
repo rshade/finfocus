@@ -304,7 +304,7 @@ func simulatePluginSelection(
 	resource := engine.ResourceDescriptor{
 		Type:       resourceType,
 		Provider:   provider,
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 	}
 	if region != "" {
 		resource.Properties["region"] = region

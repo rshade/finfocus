@@ -21,24 +21,24 @@ type PulumiPlan struct {
 
 // PulumiStep represents a single resource operation step in a Pulumi plan.
 type PulumiStep struct {
-	Op       string                 `json:"op"`
-	URN      string                 `json:"urn"`
-	Type     string                 `json:"type"`
-	Provider string                 `json:"provider"`
-	Inputs   map[string]interface{} `json:"inputs"`
-	Outputs  map[string]interface{} `json:"outputs"`
-	NewState *PulumiState           `json:"newState,omitempty"`
-	OldState *PulumiState           `json:"oldState,omitempty"`
+	Op       string         `json:"op"`
+	URN      string         `json:"urn"`
+	Type     string         `json:"type"`
+	Provider string         `json:"provider"`
+	Inputs   map[string]any `json:"inputs"`
+	Outputs  map[string]any `json:"outputs"`
+	NewState *PulumiState   `json:"newState,omitempty"`
+	OldState *PulumiState   `json:"oldState,omitempty"`
 }
 
 // PulumiState represents the state of a resource in a Pulumi step.
 type PulumiState struct {
-	ID       string                 `json:"id,omitempty"`
-	Type     string                 `json:"type"`
-	URN      string                 `json:"urn"`
-	Inputs   map[string]interface{} `json:"inputs"`
-	Outputs  map[string]interface{} `json:"outputs"`
-	Provider string                 `json:"provider"`
+	ID       string         `json:"id,omitempty"`
+	Type     string         `json:"type"`
+	URN      string         `json:"urn"`
+	Inputs   map[string]any `json:"inputs"`
+	Outputs  map[string]any `json:"outputs"`
+	Provider string         `json:"provider"`
 }
 
 // PulumiResource contains the detailed information about a resource in a Pulumi step.
@@ -46,8 +46,8 @@ type PulumiResource struct {
 	Type     string
 	URN      string
 	Provider string
-	Inputs   map[string]interface{}
-	Outputs  map[string]interface{}
+	Inputs   map[string]any
+	Outputs  map[string]any
 	OldID    string // Cloud ID from OldState (populated for replace/delete ops)
 	NewID    string // Cloud ID from NewState (populated for replace/create ops)
 }
@@ -297,7 +297,7 @@ func extractDeleteResource(step PulumiStep) PulumiResource {
 // It selects outputs with the following priority: step-level Outputs, NewState.Outputs,
 // and for operations "update" or "same" falls back to OldState.Outputs.
 // Returns nil if no outputs are available.
-func resolveStepOutputs(step PulumiStep) map[string]interface{} {
+func resolveStepOutputs(step PulumiStep) map[string]any {
 	switch {
 	case len(step.Outputs) > 0:
 		return step.Outputs

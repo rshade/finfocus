@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"maps"
 	"strings"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -174,10 +175,8 @@ func applyTypeMappings(
 		if len(m.PropertyMappings) == 0 {
 			continue
 		}
-		props := make(map[string]interface{}, len(out[i].Properties)+len(m.PropertyMappings))
-		for k, v := range out[i].Properties {
-			props[k] = v
-		}
+		props := make(map[string]any, len(out[i].Properties)+len(m.PropertyMappings))
+		maps.Copy(props, out[i].Properties)
 		for tfKey, pulumiKey := range m.PropertyMappings {
 			if v, exists := props[tfKey]; exists {
 				props[pulumiKey] = v

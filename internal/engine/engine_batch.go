@@ -87,10 +87,7 @@ func chunkResources(resources []indexedResource, chunkSize int) [][]indexedResou
 	chunks := make([][]indexedResource, 0, numChunks)
 
 	for i := 0; i < len(resources); i += chunkSize {
-		end := i + chunkSize
-		if end > len(resources) {
-			end = len(resources)
-		}
+		end := min(i+chunkSize, len(resources))
 		chunks = append(chunks, resources[i:end])
 	}
 	return chunks
@@ -485,13 +482,8 @@ func mapProtoActualCostResultToEngine(
 // context's remaining deadline so a single slow chunk cannot consume the entire
 // request budget.
 func batchChunkTimeout(ctx context.Context, resourceCount int) time.Duration {
-	t := perResourceTimeout * time.Duration(resourceCount)
-	if t < minBatchTimeout {
-		t = minBatchTimeout
-	}
-	if t > maxBatchTimeout {
-		t = maxBatchTimeout
-	}
+	t := max(perResourceTimeout*time.Duration(resourceCount), minBatchTimeout)
+	t = min(t, maxBatchTimeout)
 	if deadline, ok := ctx.Deadline(); ok {
 		if remaining := time.Until(deadline); remaining < t {
 			t = remaining

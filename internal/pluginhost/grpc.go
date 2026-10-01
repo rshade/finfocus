@@ -20,7 +20,7 @@ func TraceInterceptor() grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
-		req, reply interface{},
+		req, reply any,
 		cc *grpc.ClientConn,
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,
@@ -74,7 +74,7 @@ func LoggedInterceptor(logger zerolog.Logger) grpc.UnaryClientInterceptor {
 	return func(
 		ctx context.Context,
 		method string,
-		req, reply interface{},
+		req, reply any,
 		cc *grpc.ClientConn,
 		invoker grpc.UnaryInvoker,
 		opts ...grpc.CallOption,

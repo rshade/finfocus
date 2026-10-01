@@ -121,12 +121,12 @@ type TestFunc func(ctx *TestContext) *TestResult
 
 // ConnectFunc is a factory function for connecting to a plugin.
 // It returns a gRPC client, a function to close the connection/process, and any error.
-type ConnectFunc func(ctx context.Context) (pbc interface{}, closeFn func() error, err error)
+type ConnectFunc func(ctx context.Context) (pbc any, closeFn func() error, err error)
 
 // TestContext provides context for test execution.
 type TestContext struct {
 	// PluginClient is the gRPC client connected to the plugin under test.
-	PluginClient interface{}
+	PluginClient any
 	// Logger is the configured logger for this test run.
 	Logger zerolog.Logger
 	// Verbosity is the configured verbosity level.

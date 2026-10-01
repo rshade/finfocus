@@ -96,7 +96,7 @@ func GetLogFile() string {
 }
 
 // GetPluginConfiguration returns configuration for a specific plugin.
-func GetPluginConfiguration(pluginName string) (map[string]interface{}, error) {
+func GetPluginConfiguration(pluginName string) (map[string]any, error) {
 	cfg := GetGlobalConfig()
 	return cfg.GetPluginConfig(pluginName)
 }

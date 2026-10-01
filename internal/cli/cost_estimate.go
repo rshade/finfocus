@@ -221,20 +221,20 @@ func ParseModifications(mods []string) (map[string]map[string]string, error) {
 	result := make(map[string]map[string]string, len(mods))
 	for _, m := range mods {
 		// Find the first colon to separate resource name from property
-		colonIdx := strings.Index(m, ":")
-		if colonIdx == -1 {
+		before, after, ok := strings.Cut(m, ":")
+		if !ok {
 			return nil, fmt.Errorf("invalid modify format %q: expected resource:key=value", m)
 		}
-		resourceName := m[:colonIdx]
-		propPart := m[colonIdx+1:]
+		resourceName := before
+		propPart := after
 
 		// Parse key=value
-		eqIdx := strings.Index(propPart, "=")
-		if eqIdx == -1 {
+		before0, after0, ok0 := strings.Cut(propPart, "=")
+		if !ok0 {
 			return nil, fmt.Errorf("invalid modify format %q: expected resource:key=value", m)
 		}
-		key := propPart[:eqIdx]
-		value := propPart[eqIdx+1:]
+		key := before0
+		value := after0
 
 		if resourceName == "" {
 			return nil, fmt.Errorf("resource name cannot be empty in %q", m)
@@ -349,7 +349,7 @@ func executeSingleResourceEstimate(cmd *cobra.Command, params CostEstimateParams
 		Provider:   params.Provider,
 		Type:       params.ResourceType,
 		ID:         "estimate-resource",
-		Properties: map[string]interface{}{},
+		Properties: map[string]any{},
 	}
 
 	// Add region if specified
@@ -692,7 +692,7 @@ func renderMultipleEstimateResultsNDJSON(w io.Writer, results []*engine.Estimate
 
 // buildResourceFromParams creates a ResourceDescriptor from CLI parameters.
 func buildResourceFromParams(provider, resourceType, region string) *engine.ResourceDescriptor {
-	props := make(map[string]interface{})
+	props := make(map[string]any)
 	if region != "" {
 		props["region"] = region
 	}

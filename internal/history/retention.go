@@ -132,11 +132,11 @@ func (s *BoltStore) cleanupExpiredTags(tx *bolt.Tx, expiredURNHashes map[string]
 	c := tagBucket.Cursor()
 	for k, _ := c.First(); k != nil; k, _ = c.Next() {
 		keyStr := string(k)
-		lastSlash := strings.LastIndex(keyStr, "/")
-		if lastSlash < 0 {
+		_, after, ok := strings.CutLast(keyStr, "/")
+		if !ok {
 			continue
 		}
-		urnHash := keyStr[lastSlash+1:]
+		urnHash := after
 		if expiredURNHashes[urnHash] {
 			_ = tagBucket.Delete(k)
 		}

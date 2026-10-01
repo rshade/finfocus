@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"sync"
@@ -267,9 +268,7 @@ func (s *BoltStore) tryUpdateExisting(
 		if existingEntry.Tags == nil {
 			existingEntry.Tags = make(map[string]string, len(entry.Tags))
 		}
-		for k, v := range entry.Tags {
-			existingEntry.Tags[k] = v
-		}
+		maps.Copy(existingEntry.Tags, entry.Tags)
 	}
 
 	data, marshalErr := json.Marshal(existingEntry)

@@ -56,7 +56,7 @@ func NewCLIHelper(t *testing.T) *CLIHelper {
 // scenarios. This function filters out lines that look like zerolog JSON output.
 func filterLogLines(output string) string {
 	var filtered []string
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		trimmed := strings.TrimSpace(line)
 		// Skip zerolog JSON log lines (start with {"level":)
 		if strings.HasPrefix(trimmed, "{\"level\":") {
@@ -145,7 +145,7 @@ func (h *CLIHelper) ExecuteExpectError(args ...string) string {
 }
 
 // ExecuteJSON runs a CLI command with JSON output and unmarshals the result.
-func (h *CLIHelper) ExecuteJSON(v interface{}, args ...string) error {
+func (h *CLIHelper) ExecuteJSON(v any, args ...string) error {
 	h.t.Helper()
 
 	output, err := h.Execute(args...)
@@ -157,7 +157,7 @@ func (h *CLIHelper) ExecuteJSON(v interface{}, args ...string) error {
 }
 
 // ExecuteJSONOrFail runs a CLI command with JSON output and fails if unmarshaling fails.
-func (h *CLIHelper) ExecuteJSONOrFail(v interface{}, args ...string) {
+func (h *CLIHelper) ExecuteJSONOrFail(v any, args ...string) {
 	h.t.Helper()
 
 	err := h.ExecuteJSON(v, args...)
@@ -258,10 +258,10 @@ func (h *CLIHelper) AssertNotContains(output, unexpected string) {
 }
 
 // AssertJSONField asserts that a JSON field has the expected value.
-func (h *CLIHelper) AssertJSONField(output, field string, expected interface{}) {
+func (h *CLIHelper) AssertJSONField(output, field string, expected any) {
 	h.t.Helper()
 
-	var result map[string]interface{}
+	var result map[string]any
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(h.t, err, "Failed to parse JSON output")
 

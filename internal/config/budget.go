@@ -282,6 +282,7 @@ type CostConfig struct {
 	Budgets *BudgetsConfig `yaml:"budgets,omitempty" json:"budgets,omitempty"`
 
 	// Cache contains the cache configuration for query result caching.
+	//nolint:modernize // omitempty is a no-op for struct fields, but omitzero would change serialized config output.
 	Cache CacheConfig `yaml:"cache,omitempty" json:"cache,omitempty"`
 
 	// History contains the resource history tracking configuration.

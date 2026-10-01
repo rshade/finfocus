@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -12,7 +13,6 @@ import (
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/proto"
 
 	"github.com/rshade/finfocus/plugins/jev/internal/jevapi"
 
@@ -231,9 +231,7 @@ func (s *Scorer) recordBatch(items []*itemState, indexes []int, signals []perRec
 	questions := make(map[string]jevapi.Question, len(indexes)*len(signals))
 	for pos, idx := range indexes {
 		record := make(map[string]any, len(items[idx].rendered)+1)
-		for k, v := range items[idx].rendered {
-			record[k] = v
-		}
+		maps.Copy(record, items[idx].rendered)
 		record["position"] = pos
 		state[pos] = record
 		for _, sig := range signals {
@@ -321,8 +319,7 @@ func (s *Scorer) run(ctx context.Context, batches []*batch) error {
 // wholeCallStatus maps a backend error to a gRPC status when it should fail
 // the whole call.
 func wholeCallStatus(err error) (bool, error) {
-	var apiErr *jevapi.APIError
-	if errors.As(err, &apiErr) {
+	if apiErr, ok := errors.AsType[*jevapi.APIError](err); ok {
 		switch apiErr.Kind {
 		case jevapi.KindUnauthenticated:
 			return true, status.Error(codes.Unauthenticated, "jev backend rejected the API key: "+apiErr.Error())
@@ -456,7 +453,7 @@ func buildScores(it *itemState, wanted map[pbc.ScoreSignal]bool) *pbc.Recommenda
 	scores := &pbc.RecommendationScores{}
 	set := func(signal pbc.ScoreSignal, dst **float64) {
 		if v, ok := it.values[signal]; ok && wanted[signal] {
-			*dst = proto.Float64(v)
+			*dst = new(v)
 		}
 	}
 	set(pbc.ScoreSignal_SCORE_SIGNAL_RISK, &scores.Risk)

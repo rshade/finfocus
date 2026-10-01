@@ -14,12 +14,12 @@ import (
 
 // pulumiStep mirrors the JSON structure of a single Pulumi preview step.
 type pulumiStep struct {
-	Op       string                 `json:"op"`
-	URN      string                 `json:"urn"`
-	Type     string                 `json:"type"`
-	Provider string                 `json:"provider"`
-	Inputs   map[string]interface{} `json:"inputs"`
-	Outputs  map[string]interface{} `json:"outputs"`
+	Op       string         `json:"op"`
+	URN      string         `json:"urn"`
+	Type     string         `json:"type"`
+	Provider string         `json:"provider"`
+	Inputs   map[string]any `json:"inputs"`
+	Outputs  map[string]any `json:"outputs"`
 }
 
 // pulumiPlan mirrors the top-level Pulumi preview JSON structure.
@@ -46,16 +46,16 @@ func GenerateSyntheticPlan(t *testing.T, count int, resourceTypes []string) stri
 			URN:      fmt.Sprintf("urn:pulumi:dev::synthetic-project::%s::resource-%d", resType, i),
 			Type:     resType,
 			Provider: fmt.Sprintf("urn:pulumi:dev::synthetic-project::pulumi:providers:%s::default", providerName),
-			Inputs: map[string]interface{}{
+			Inputs: map[string]any{
 				"instanceType":     "t3.micro",
 				"region":           "us-east-1",
 				"availabilityZone": "us-east-1a",
-				"tags": map[string]interface{}{
+				"tags": map[string]any{
 					"Name":        fmt.Sprintf("synthetic-resource-%d", i),
 					"Environment": "test",
 				},
 			},
-			Outputs: map[string]interface{}{},
+			Outputs: map[string]any{},
 		})
 	}
 
@@ -98,7 +98,7 @@ func GenerateSyntheticStack(count int) []*pulumirpc.AnalyzerResource {
 		providerName := extractProviderPrefix(resType)
 		resourceName := fmt.Sprintf("test-resource-%d", i)
 
-		props, _ := structpb.NewStruct(map[string]interface{}{
+		props, _ := structpb.NewStruct(map[string]any{
 			"instanceType":     "t3.micro",
 			"region":           "us-east-1",
 			"availabilityZone": "us-east-1a",

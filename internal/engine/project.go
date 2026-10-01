@@ -619,7 +619,7 @@ func formatPeriodDisplay(result CostResult) string {
 
 // renderJSON writes the aggregated results as indented JSON to the provided writer.
 func renderJSON(writer io.Writer, aggregated *AggregatedResults) error {
-	output := map[string]interface{}{
+	output := map[string]any{
 		"finfocus": aggregated,
 	}
 	encoder := json.NewEncoder(writer)

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 	"time"
@@ -349,13 +350,9 @@ func appendActualCostResults(result *CostResultWithErrors, actualResults []*Actu
 			costResult.ExpiresAt = &t
 		}
 
-		for k, v := range actual.CostBreakdown {
-			costResult.CostBreakdown[k] = v
-		}
+		maps.Copy(costResult.CostBreakdown, actual.CostBreakdown)
 
-		for k, v := range actual.Sustainability {
-			costResult.Sustainability[k] = v
-		}
+		maps.Copy(costResult.Sustainability, actual.Sustainability)
 		result.Results = append(result.Results, costResult)
 	}
 }
@@ -519,7 +516,7 @@ type GetActualCostRequest struct {
 	EndTime     int64
 	// Properties carries resource context (cloud IDs, ARN, tags) from state.
 	// Used by the adapter to populate proto fields (ResourceId, Arn, Tags).
-	Properties map[string]interface{}
+	Properties map[string]any
 	// Provider is the cloud provider identifier (e.g., "aws", "azure", "gcp").
 	// When set, the adapter resolves SKU and region from Properties and injects
 	// them into the tags sent to the plugin, enabling plugins like aws-public
@@ -1210,7 +1207,7 @@ func resolveSKUAndRegion(
 // and a map of tags (empty if no tags are present).
 func resolveActualCostIdentifiers(
 	resourceID string,
-	properties map[string]interface{},
+	properties map[string]any,
 ) (string, string, map[string]string) {
 	cloudID := resourceID
 	var arn string
@@ -1236,7 +1233,7 @@ func resolveActualCostIdentifiers(
 
 // firstNonEmptyProperty returns the first non-empty string value among
 // properties[k] for keys in lookup order, or "" when none match.
-func firstNonEmptyProperty(properties map[string]interface{}, keys ...string) string {
+func firstNonEmptyProperty(properties map[string]any, keys ...string) string {
 	for _, k := range keys {
 		if s, ok := properties[k].(string); ok && s != "" {
 			return s
@@ -1258,7 +1255,7 @@ func firstNonEmptyValue(m map[string]string, keys ...string) string {
 
 // extractResourceTags extracts a flat map[string]string of tags from resource properties.
 // It checks "tagsAll" first (AWS complete tag set), then "tags".
-func extractResourceTags(properties map[string]interface{}) map[string]string {
+func extractResourceTags(properties map[string]any) map[string]string {
 	tags := make(map[string]string)
 
 	// Try tagsAll first (AWS-specific: includes default tags + resource tags)
@@ -1283,7 +1280,7 @@ func extractResourceTags(properties map[string]interface{}) map[string]string {
 // each value is converted to its string representation; for non-string values
 // the result contains the formatted string. If the key is not present or the
 // value is not a supported map type, an empty map is returned.
-func extractTagMap(properties map[string]interface{}, key string) map[string]string {
+func extractTagMap(properties map[string]any, key string) map[string]string {
 	result := make(map[string]string)
 	v, found := properties[key]
 	if !found {
@@ -1291,7 +1288,7 @@ func extractTagMap(properties map[string]interface{}, key string) map[string]str
 	}
 
 	switch m := v.(type) {
-	case map[string]interface{}:
+	case map[string]any:
 		for k, val := range m {
 			if s, isStr := val.(string); isStr {
 				result[k] = s
@@ -1300,9 +1297,7 @@ func extractTagMap(properties map[string]interface{}, key string) map[string]str
 			}
 		}
 	case map[string]string:
-		for k, val := range m {
-			result[k] = val
-		}
+		maps.Copy(result, m)
 	}
 
 	return result
@@ -1312,7 +1307,7 @@ func extractTagMap(properties map[string]interface{}, key string) map[string]str
 // toStringMap converts a map[string]interface{} to a map[string]string.
 // For each entry, string values are kept as-is; non-nil non-string values are converted with [fmt.Sprintf]("%v").
 // Entries with nil values are omitted from the returned map.
-func toStringMap(m map[string]interface{}) map[string]string {
+func toStringMap(m map[string]any) map[string]string {
 	result := make(map[string]string, len(m))
 	for k, v := range m {
 		if s, ok := v.(string); ok {
@@ -1343,7 +1338,7 @@ func enrichTagsWithSKUAndRegion(
 	ctx context.Context,
 	tags map[string]string,
 	provider, resourceType string,
-	properties map[string]interface{},
+	properties map[string]any,
 ) {
 	stringProps := toStringMap(properties)
 	sku, region := resolveSKUAndRegion(ctx, provider, resourceType, stringProps)

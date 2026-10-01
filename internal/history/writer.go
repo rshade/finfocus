@@ -2,6 +2,7 @@ package history
 
 import (
 	"fmt"
+	"maps"
 	"time"
 
 	"github.com/rs/zerolog"
@@ -47,9 +48,7 @@ func copyTags(src map[string]string) map[string]string {
 		return make(map[string]string)
 	}
 	dst := make(map[string]string, len(src))
-	for k, v := range src {
-		dst[k] = v
-	}
+	maps.Copy(dst, src)
 	return dst
 }
 
@@ -79,9 +78,7 @@ func ExtractTagsFromProperties(properties map[string]any) map[string]string {
 			return tags
 		case map[string]string:
 			tags := make(map[string]string, len(m))
-			for k, val := range m {
-				tags[k] = val
-			}
+			maps.Copy(tags, m)
 			return tags
 		}
 	}

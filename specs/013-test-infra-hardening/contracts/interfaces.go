@@ -27,6 +27,6 @@ type SyntheticPlan struct {
 type SyntheticResource struct {
 	Type       string
 	Name       string
-	Properties map[string]interface{}
+	Properties map[string]any
 	DependsOn  []string
 }

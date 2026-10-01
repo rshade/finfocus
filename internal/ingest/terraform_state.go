@@ -40,10 +40,10 @@ type TerraformStateResource struct {
 // TerraformStateInstance represents a single instance of a Terraform resource.
 // A resource with count/for_each has one instance per key.
 type TerraformStateInstance struct {
-	IndexKey            interface{}            `json:"index_key,omitempty"`
-	Attributes          map[string]interface{} `json:"attributes"`
-	SensitiveAttributes []interface{}          `json:"sensitive_attributes,omitempty"`
-	Dependencies        []string               `json:"dependencies,omitempty"`
+	IndexKey            any            `json:"index_key,omitempty"`
+	Attributes          map[string]any `json:"attributes"`
+	SensitiveAttributes []any          `json:"sensitive_attributes,omitempty"`
+	Dependencies        []string       `json:"dependencies,omitempty"`
 	// Deposed is set on create-before-destroy leftover instances; they must
 	// not be priced alongside the replacement instance.
 	Deposed string `json:"deposed,omitempty"`

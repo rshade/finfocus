@@ -97,10 +97,7 @@ func (p *Processor[T]) Process(ctx context.Context, items []T, callback BatchCal
 
 		// Calculate batch boundaries
 		start := batchIndex * p.batchSize
-		end := start + p.batchSize
-		if end > len(items) {
-			end = len(items)
-		}
+		end := min(start+p.batchSize, len(items))
 
 		batch := items[start:end]
 
@@ -159,18 +156,12 @@ func (p *Processor[T]) ProcessConcurrent(
 
 		// Calculate batch boundaries
 		start := batchIndex * p.batchSize
-		end := start + p.batchSize
-		if end > len(items) {
-			end = len(items)
-		}
+		end := min(start+p.batchSize, len(items))
 
 		batch := items[start:end]
 		batchIdx := batchIndex
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			// Acquire semaphore
 			sem <- struct{}{}
 			defer func() { <-sem }()
@@ -188,7 +179,7 @@ func (p *Processor[T]) ProcessConcurrent(
 			if p.onProgress != nil {
 				p.onProgress(progress)
 			}
-		}()
+		})
 	}
 
 	// Wait for all batches to complete
@@ -221,10 +212,7 @@ func (p *Processor[T]) CalculateBatches(totalItems int) [][2]int {
 
 	for i := range totalBatches {
 		start := i * p.batchSize
-		end := start + p.batchSize
-		if end > totalItems {
-			end = totalItems
-		}
+		end := min(start+p.batchSize, totalItems)
 		batches[i] = [2]int{start, end}
 	}
 

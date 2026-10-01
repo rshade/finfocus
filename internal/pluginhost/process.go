@@ -444,8 +444,8 @@ func parsePortFromStdout(data []byte) (int, bool) {
 		// Try "PORT=NNNNN" format (case-insensitive)
 		if strings.HasPrefix(strings.ToUpper(line), "PORT=") {
 			var portStr string
-			if idx := strings.Index(line, "="); idx >= 0 {
-				portStr = strings.TrimSpace(line[idx+1:])
+			if _, after, ok := strings.Cut(line, "="); ok {
+				portStr = strings.TrimSpace(after)
 			}
 			if port, err := strconv.Atoi(portStr); err == nil && port > 0 && port <= 65535 {
 				return port, true

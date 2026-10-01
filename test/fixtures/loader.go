@@ -12,7 +12,7 @@ import (
 
 // LoadJSON loads and unmarshals a JSON fixture file into the provided target.
 // The path should be relative to the test/fixtures directory.
-func LoadJSON(filename string, target interface{}) error {
+func LoadJSON(filename string, target any) error {
 	data, err := Load(filename)
 	if err != nil {
 		return err
@@ -27,7 +27,7 @@ func LoadJSON(filename string, target interface{}) error {
 
 // LoadYAML loads and unmarshals a YAML fixture file into the provided target.
 // The path should be relative to the test/fixtures directory.
-func LoadYAML(filename string, target interface{}) error {
+func LoadYAML(filename string, target any) error {
 	data, err := Load(filename)
 	if err != nil {
 		return err
@@ -126,8 +126,8 @@ func List(subdir string) ([]string, error) {
 
 // LoadPlan loads a Pulumi plan JSON file from test/fixtures/plans/.
 // This is a convenience wrapper around LoadJSON.
-func LoadPlan(filename string) (map[string]interface{}, error) {
-	var plan map[string]interface{}
+func LoadPlan(filename string) (map[string]any, error) {
+	var plan map[string]any
 	if err := LoadJSON(filepath.Join("plans", filename), &plan); err != nil {
 		return nil, err
 	}
@@ -136,8 +136,8 @@ func LoadPlan(filename string) (map[string]interface{}, error) {
 
 // LoadSpec loads a pricing spec YAML file from test/fixtures/specs/.
 // This is a convenience wrapper around LoadYAML.
-func LoadSpec(filename string) (map[string]interface{}, error) {
-	var spec map[string]interface{}
+func LoadSpec(filename string) (map[string]any, error) {
+	var spec map[string]any
 	if err := LoadYAML(filepath.Join("specs", filename), &spec); err != nil {
 		return nil, err
 	}
@@ -146,8 +146,8 @@ func LoadSpec(filename string) (map[string]interface{}, error) {
 
 // LoadResponse loads a mock response JSON file from test/fixtures/responses/.
 // This is a convenience wrapper around LoadJSON.
-func LoadResponse(filename string) (map[string]interface{}, error) {
-	var response map[string]interface{}
+func LoadResponse(filename string) (map[string]any, error) {
+	var response map[string]any
 	if err := LoadJSON(filepath.Join("responses", filename), &response); err != nil {
 		return nil, err
 	}
@@ -166,7 +166,7 @@ func MustLoad(filename string) []byte {
 
 // MustLoadJSON loads a JSON fixture and panics if it fails.
 // Use this in test setup when fixture loading must succeed.
-func MustLoadJSON(filename string, target interface{}) {
+func MustLoadJSON(filename string, target any) {
 	if err := LoadJSON(filename, target); err != nil {
 		panic(fmt.Sprintf("failed to load required JSON fixture %s: %v", filename, err))
 	}
@@ -174,7 +174,7 @@ func MustLoadJSON(filename string, target interface{}) {
 
 // MustLoadYAML loads a YAML fixture and panics if it fails.
 // Use this in test setup when fixture loading must succeed.
-func MustLoadYAML(filename string, target interface{}) {
+func MustLoadYAML(filename string, target any) {
 	if err := LoadYAML(filename, target); err != nil {
 		panic(fmt.Sprintf("failed to load required YAML fixture %s: %v", filename, err))
 	}
@@ -182,8 +182,8 @@ func MustLoadYAML(filename string, target interface{}) {
 
 // LoadRecommendations loads a recommendations JSON file from test/fixtures/recommendations/.
 // This is a convenience wrapper around LoadJSON for recommendation test fixtures.
-func LoadRecommendations(filename string) (map[string]interface{}, error) {
-	var recommendations map[string]interface{}
+func LoadRecommendations(filename string) (map[string]any, error) {
+	var recommendations map[string]any
 	if err := LoadJSON(filepath.Join("recommendations", filename), &recommendations); err != nil {
 		return nil, err
 	}
