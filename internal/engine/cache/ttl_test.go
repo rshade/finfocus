@@ -1,10 +1,12 @@
-package cache
+package cache_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/engine/cache"
 )
 
 func TestCalculatePluginTTL(t *testing.T) {
@@ -52,7 +54,7 @@ func TestCalculatePluginTTL(t *testing.T) {
 			name:        "timestamp exceeding MaxTTLSeconds returns capped value",
 			expiresAtFn: func() *time.Time { return timePtr(time.Now().Add(14 * 24 * time.Hour)) },
 			defaultTTL:  defaultTTL,
-			wantTTL:     MaxTTLSeconds,
+			wantTTL:     cache.MaxTTLSeconds,
 			wantSkip:    false,
 			wantCapped:  true,
 		},
@@ -67,10 +69,10 @@ func TestCalculatePluginTTL(t *testing.T) {
 		{
 			name: "exactly MaxTTLSeconds is not capped",
 			expiresAtFn: func() *time.Time {
-				return timePtr(time.Now().Add(time.Duration(MaxTTLSeconds) * time.Second))
+				return timePtr(time.Now().Add(time.Duration(cache.MaxTTLSeconds) * time.Second))
 			},
 			defaultTTL: defaultTTL,
-			wantTTL:    MaxTTLSeconds,
+			wantTTL:    cache.MaxTTLSeconds,
 			wantSkip:   false,
 			wantCapped: false,
 			approxTTL:  true,
@@ -87,7 +89,7 @@ func TestCalculatePluginTTL(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			expiresAt := tt.expiresAtFn()
-			gotTTL, gotSkip, gotCapped := CalculatePluginTTL(expiresAt, tt.defaultTTL)
+			gotTTL, gotSkip, gotCapped := cache.CalculatePluginTTL(expiresAt, tt.defaultTTL)
 			assert.Equal(t, tt.wantSkip, gotSkip, "skip mismatch")
 			assert.Equal(t, tt.wantCapped, gotCapped, "capped mismatch")
 			if tt.approxTTL {

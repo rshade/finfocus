@@ -1,4 +1,4 @@
-package batch
+package batch_test
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	batchpkg "github.com/rshade/finfocus/internal/engine/batch"
 )
 
 func TestProcessor_Process(t *testing.T) {
@@ -18,7 +20,7 @@ func TestProcessor_Process(t *testing.T) {
 	}
 
 	t.Run("Sequential", func(t *testing.T) {
-		p, _ := NewProcessor[int](10)
+		p, _ := batchpkg.NewProcessor[int](10)
 		var processedCount int32
 		var batches int32
 
@@ -35,7 +37,7 @@ func TestProcessor_Process(t *testing.T) {
 	})
 
 	t.Run("Concurrent", func(t *testing.T) {
-		p, _ := NewProcessor[int](5)
+		p, _ := batchpkg.NewProcessor[int](5)
 		var processedCount int32
 
 		callback := func(_ context.Context, batch []int, _ int) error {
@@ -49,7 +51,7 @@ func TestProcessor_Process(t *testing.T) {
 	})
 
 	t.Run("ErrorHandling", func(t *testing.T) {
-		p, _ := NewProcessor[int](10)
+		p, _ := batchpkg.NewProcessor[int](10)
 		callback := func(_ context.Context, _ []int, batchIndex int) error {
 			if batchIndex == 1 {
 				return errors.New("fail")
@@ -63,21 +65,21 @@ func TestProcessor_Process(t *testing.T) {
 	})
 
 	t.Run("EmptyItems", func(t *testing.T) {
-		p := NewProcessorWithDefaults[int]()
+		p := batchpkg.NewProcessorWithDefaults[int]()
 		err := p.Process(context.Background(), nil, nil)
-		assert.Equal(t, ErrEmptyItems, err)
+		assert.Equal(t, batchpkg.ErrEmptyItems, err)
 	})
 
 	t.Run("NilCallback", func(t *testing.T) {
-		p := NewProcessorWithDefaults[int]()
+		p := batchpkg.NewProcessorWithDefaults[int]()
 		err := p.Process(context.Background(), items, nil)
-		assert.Equal(t, ErrNilCallback, err)
+		assert.Equal(t, batchpkg.ErrNilCallback, err)
 	})
 
 	t.Run("InvalidBatchSize", func(t *testing.T) {
-		_, err := NewProcessor[int](0)
+		_, err := batchpkg.NewProcessor[int](0)
 		require.Error(t, err)
-		_, err = NewProcessor[int](2000)
+		_, err = batchpkg.NewProcessor[int](2000)
 		assert.Error(t, err)
 	})
 }
@@ -86,7 +88,7 @@ func TestProgress(t *testing.T) {
 	totalItems := 100
 	totalBatches := 10
 	batchSize := 10
-	p := NewProgress(totalItems, totalBatches, batchSize)
+	p := batchpkg.NewProgress(totalItems, totalBatches, batchSize)
 
 	assert.InDelta(t, 0.0, p.PercentComplete(), 1e-9)
 	assert.False(t, p.IsComplete())
@@ -131,7 +133,7 @@ func TestProgress(t *testing.T) {
 }
 
 func TestProcessor_CalculateBatches(t *testing.T) {
-	p, _ := NewProcessor[int](10)
+	p, _ := batchpkg.NewProcessor[int](10)
 	batches := p.CalculateBatches(25)
 	require.Len(t, batches, 3)
 	assert.Equal(t, [2]int{0, 10}, batches[0])

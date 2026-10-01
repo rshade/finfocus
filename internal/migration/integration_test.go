@@ -1,4 +1,4 @@
-package migration
+package migration_test
 
 import (
 	"os"

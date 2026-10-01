@@ -1,4 +1,4 @@
-package engine
+package engine_test
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // TestCalculateBudgetSummary verifies basic summary aggregation (FR-004).
@@ -52,7 +53,7 @@ func TestCalculateBudgetSummary_US3(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := CalculateBudgetSummary(ctx, tc.budgets)
+			result := engine.CalculateBudgetSummary(ctx, tc.budgets)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -92,7 +93,7 @@ func TestCalculateExtendedSummary(t *testing.T) {
 		},
 	}
 
-	result := CalculateExtendedSummary(ctx, budgets)
+	result := engine.CalculateExtendedSummary(ctx, budgets)
 	require.NotNil(t, result)
 
 	// Verify basic summary embedding

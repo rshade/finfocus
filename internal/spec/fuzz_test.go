@@ -1,9 +1,11 @@
-package spec
+package spec_test
 
 import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	specpkg "github.com/rshade/finfocus/internal/spec"
 )
 
 // FuzzYAML tests the YAML parser for resilience against malformed inputs.
@@ -73,7 +75,7 @@ spec:
   provider: aws`))
 
 	f.Fuzz(func(t *testing.T, data []byte) {
-		var spec PricingSpec
+		var spec specpkg.PricingSpec
 
 		// Scope the panic recovery to yaml.Unmarshal only so that field access
 		// assertions below are never silently swallowed by recover.
@@ -124,7 +126,7 @@ func FuzzSpecFilename(f *testing.F) {
 
 	f.Fuzz(func(t *testing.T, filename string) {
 		// The function must not panic on any input
-		provider, service, sku, ok := ParseSpecFilename(filename)
+		provider, service, sku, ok := specpkg.ParseSpecFilename(filename)
 
 		// If parsing succeeded, verify results are non-empty
 		if ok {

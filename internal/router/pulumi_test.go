@@ -1,9 +1,11 @@
-package router
+package router_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/router"
 )
 
 func TestIsInternalPulumiType(t *testing.T) {
@@ -61,7 +63,7 @@ func TestIsInternalPulumiType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, IsInternalPulumiType(tt.resourceType))
+			assert.Equal(t, tt.want, router.IsInternalPulumiType(tt.resourceType))
 		})
 	}
 }
@@ -106,7 +108,7 @@ func TestIsPulumiProviderResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, IsPulumiProviderResource(tt.resourceType))
+			assert.Equal(t, tt.want, router.IsPulumiProviderResource(tt.resourceType))
 		})
 	}
 }
@@ -146,7 +148,7 @@ func TestIsPulumiComponentResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, IsPulumiComponentResource(tt.resourceType))
+			assert.Equal(t, tt.want, router.IsPulumiComponentResource(tt.resourceType))
 		})
 	}
 }

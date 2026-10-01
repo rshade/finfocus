@@ -1,4 +1,4 @@
-package engine
+package engine_test
 
 import (
 	"fmt"
@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 func TestCalculateStateCost(t *testing.T) {
@@ -15,7 +17,7 @@ func TestCalculateStateCost(t *testing.T) {
 
 	tests := []struct {
 		name          string
-		input         StateCostInput
+		input         engine.StateCostInput
 		expectedCost  float64
 		expectedHours float64
 		expectedNotes string
@@ -23,8 +25,8 @@ func TestCalculateStateCost(t *testing.T) {
 	}{
 		{
 			name: "standard resource running for 24 hours",
-			input: StateCostInput{
-				Resource: ResourceDescriptor{
+			input: engine.StateCostInput{
+				Resource: engine.ResourceDescriptor{
 					Type:     "aws:ec2/instance:Instance",
 					ID:       "i-1234567890",
 					Provider: "aws",
@@ -40,8 +42,8 @@ func TestCalculateStateCost(t *testing.T) {
 		},
 		{
 			name: "resource running for 7 days",
-			input: StateCostInput{
-				Resource: ResourceDescriptor{
+			input: engine.StateCostInput{
+				Resource: engine.ResourceDescriptor{
 					Type:     "aws:rds/instance:Instance",
 					ID:       "db-production",
 					Provider: "aws",
@@ -57,8 +59,8 @@ func TestCalculateStateCost(t *testing.T) {
 		},
 		{
 			name: "imported (external) resource",
-			input: StateCostInput{
-				Resource: ResourceDescriptor{
+			input: engine.StateCostInput{
+				Resource: engine.ResourceDescriptor{
 					Type:     "aws:ec2/instance:Instance",
 					ID:       "i-imported-123",
 					Provider: "aws",
@@ -74,8 +76,8 @@ func TestCalculateStateCost(t *testing.T) {
 		},
 		{
 			name: "zero hourly rate",
-			input: StateCostInput{
-				Resource: ResourceDescriptor{
+			input: engine.StateCostInput{
+				Resource: engine.ResourceDescriptor{
 					Type:     "aws:s3/bucket:Bucket",
 					ID:       "my-bucket",
 					Provider: "aws",
@@ -91,8 +93,8 @@ func TestCalculateStateCost(t *testing.T) {
 		},
 		{
 			name: "resource created just now (< 1 hour)",
-			input: StateCostInput{
-				Resource: ResourceDescriptor{
+			input: engine.StateCostInput{
+				Resource: engine.ResourceDescriptor{
 					Type:     "aws:ec2/instance:Instance",
 					ID:       "i-new",
 					Provider: "aws",
@@ -110,7 +112,7 @@ func TestCalculateStateCost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := CalculateStateCost(tt.input, now)
+			result := engine.CalculateStateCost(tt.input, now)
 
 			assert.InDelta(t, tt.expectedCost, result.TotalCost, 0.01, "TotalCost mismatch")
 			assert.InDelta(t, tt.expectedHours, result.RuntimeHours, 0.01, "RuntimeHours mismatch")
@@ -128,8 +130,8 @@ func TestCalculateStateCost_UptimeAssumption(t *testing.T) {
 	// Per spec T023a: All estimates should document 100% uptime assumption
 	now := time.Date(2025, 1, 15, 12, 0, 0, 0, time.UTC)
 
-	input := StateCostInput{
-		Resource: ResourceDescriptor{
+	input := engine.StateCostInput{
+		Resource: engine.ResourceDescriptor{
 			Type:     "aws:ec2/instance:Instance",
 			ID:       "i-test",
 			Provider: "aws",
@@ -139,7 +141,7 @@ func TestCalculateStateCost_UptimeAssumption(t *testing.T) {
 		IsExternal: false,
 	}
 
-	result := CalculateStateCost(input, now)
+	result := engine.CalculateStateCost(input, now)
 
 	// The uptime assumption note is added by the higher-level function
 	// Here we just verify the calculation is correct
@@ -149,14 +151,14 @@ func TestCalculateStateCost_UptimeAssumption(t *testing.T) {
 func TestStateCostInput_Validation(t *testing.T) {
 	tests := []struct {
 		name      string
-		input     StateCostInput
+		input     engine.StateCostInput
 		expectErr bool
 		errMsg    string
 	}{
 		{
 			name: "valid input",
-			input: StateCostInput{
-				Resource: ResourceDescriptor{
+			input: engine.StateCostInput{
+				Resource: engine.ResourceDescriptor{
 					Type:     "aws:ec2/instance:Instance",
 					ID:       "i-123",
 					Provider: "aws",
@@ -168,8 +170,8 @@ func TestStateCostInput_Validation(t *testing.T) {
 		},
 		{
 			name: "missing created timestamp",
-			input: StateCostInput{
-				Resource: ResourceDescriptor{
+			input: engine.StateCostInput{
+				Resource: engine.ResourceDescriptor{
 					Type:     "aws:ec2/instance:Instance",
 					ID:       "i-123",
 					Provider: "aws",
@@ -182,8 +184,8 @@ func TestStateCostInput_Validation(t *testing.T) {
 		},
 		{
 			name: "negative hourly rate",
-			input: StateCostInput{
-				Resource: ResourceDescriptor{
+			input: engine.StateCostInput{
+				Resource: engine.ResourceDescriptor{
 					Type:     "aws:ec2/instance:Instance",
 					ID:       "i-123",
 					Provider: "aws",
@@ -196,8 +198,8 @@ func TestStateCostInput_Validation(t *testing.T) {
 		},
 		{
 			name: "future created timestamp",
-			input: StateCostInput{
-				Resource: ResourceDescriptor{
+			input: engine.StateCostInput{
+				Resource: engine.ResourceDescriptor{
 					Type:     "aws:ec2/instance:Instance",
 					ID:       "i-123",
 					Provider: "aws",
@@ -273,14 +275,14 @@ func TestExtractCreatedTimestamp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resource := ResourceDescriptor{
+			resource := engine.ResourceDescriptor{
 				Type:       "aws:ec2/instance:Instance",
 				ID:         "i-test",
 				Provider:   "aws",
 				Properties: tt.properties,
 			}
 
-			ts, err := ExtractCreatedTimestamp(resource)
+			ts, err := engine.ExtractCreatedTimestamp(resource)
 
 			if tt.expectErr {
 				require.Error(t, err)
@@ -304,13 +306,13 @@ func TestFindEarliestCreatedTimestamp(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		resources    []ResourceDescriptor
+		resources    []engine.ResourceDescriptor
 		expectedTime time.Time
 		expectErr    bool
 	}{
 		{
 			name: "multiple resources with timestamps",
-			resources: []ResourceDescriptor{
+			resources: []engine.ResourceDescriptor{
 				{
 					Type:     "aws:ec2/instance:Instance",
 					ID:       "i-1",
@@ -341,7 +343,7 @@ func TestFindEarliestCreatedTimestamp(t *testing.T) {
 		},
 		{
 			name: "some resources without timestamps",
-			resources: []ResourceDescriptor{
+			resources: []engine.ResourceDescriptor{
 				{
 					Type:       "aws:ec2/instance:Instance",
 					ID:         "i-1",
@@ -362,7 +364,7 @@ func TestFindEarliestCreatedTimestamp(t *testing.T) {
 		},
 		{
 			name: "no resources with timestamps",
-			resources: []ResourceDescriptor{
+			resources: []engine.ResourceDescriptor{
 				{
 					Type:       "aws:ec2/instance:Instance",
 					ID:         "i-1",
@@ -375,7 +377,7 @@ func TestFindEarliestCreatedTimestamp(t *testing.T) {
 		},
 		{
 			name:         "empty resources",
-			resources:    []ResourceDescriptor{},
+			resources:    []engine.ResourceDescriptor{},
 			expectedTime: time.Time{},
 			expectErr:    true,
 		},
@@ -383,7 +385,7 @@ func TestFindEarliestCreatedTimestamp(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			earliest, err := FindEarliestCreatedTimestamp(tt.resources)
+			earliest, err := engine.FindEarliestCreatedTimestamp(tt.resources)
 
 			if tt.expectErr {
 				require.Error(t, err)
@@ -399,8 +401,8 @@ func TestFindEarliestCreatedTimestamp(t *testing.T) {
 // Per SC-004: State-based cost calculation should complete in <100ms for 100 resources.
 func BenchmarkCalculateStateCost(b *testing.B) {
 	now := time.Now()
-	input := StateCostInput{
-		Resource: ResourceDescriptor{
+	input := engine.StateCostInput{
+		Resource: engine.ResourceDescriptor{
 			Type:     "aws:ec2/instance:Instance",
 			ID:       "i-benchmark",
 			Provider: "aws",
@@ -412,7 +414,7 @@ func BenchmarkCalculateStateCost(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		CalculateStateCost(input, now)
+		engine.CalculateStateCost(input, now)
 	}
 }
 
@@ -422,10 +424,10 @@ func BenchmarkCalculateStateCost100Resources(b *testing.B) {
 	now := time.Now()
 
 	// Create 100 resources with varying creation times
-	inputs := make([]StateCostInput, 100)
+	inputs := make([]engine.StateCostInput, 100)
 	for i := 0; i < 100; i++ {
-		inputs[i] = StateCostInput{
-			Resource: ResourceDescriptor{
+		inputs[i] = engine.StateCostInput{
+			Resource: engine.ResourceDescriptor{
 				Type:     "aws:ec2/instance:Instance",
 				ID:       fmt.Sprintf("i-%03d", i),
 				Provider: "aws",
@@ -439,7 +441,7 @@ func BenchmarkCalculateStateCost100Resources(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for j := 0; j < 100; j++ {
-			CalculateStateCost(inputs[j], now)
+			engine.CalculateStateCost(inputs[j], now)
 		}
 	}
 }
@@ -450,10 +452,10 @@ func TestCalculateStateCost100Resources_Performance(t *testing.T) {
 	now := time.Now()
 
 	// Create 100 resources
-	inputs := make([]StateCostInput, 100)
+	inputs := make([]engine.StateCostInput, 100)
 	for i := 0; i < 100; i++ {
-		inputs[i] = StateCostInput{
-			Resource: ResourceDescriptor{
+		inputs[i] = engine.StateCostInput{
+			Resource: engine.ResourceDescriptor{
 				Type:     "aws:ec2/instance:Instance",
 				ID:       "i-perf-test",
 				Provider: "aws",
@@ -466,7 +468,7 @@ func TestCalculateStateCost100Resources_Performance(t *testing.T) {
 
 	start := time.Now()
 	for _, input := range inputs {
-		CalculateStateCost(input, now)
+		engine.CalculateStateCost(input, now)
 	}
 	elapsed := time.Since(start)
 
@@ -523,14 +525,14 @@ func TestIsExternalResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resource := ResourceDescriptor{
+			resource := engine.ResourceDescriptor{
 				Type:       "aws:ec2/instance:Instance",
 				ID:         "i-test",
 				Provider:   "aws",
 				Properties: tt.properties,
 			}
 
-			result := IsExternalResource(resource)
+			result := engine.IsExternalResource(resource)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

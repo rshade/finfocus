@@ -1,4 +1,4 @@
-package engine
+package engine_test
 
 import (
 	"context"
@@ -10,23 +10,24 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // TestDefaultThresholds verifies standard threshold defaults (FR-007).
 func TestDefaultThresholds(t *testing.T) {
-	defaults := DefaultThresholds()
+	defaults := engine.DefaultThresholds()
 	require.Len(t, defaults, 3)
 
 	// Verify 50% ACTUAL
-	assert.InDelta(t, DefaultThreshold50, defaults[0].GetPercentage(), 1e-9)
+	assert.InDelta(t, engine.DefaultThreshold50, defaults[0].GetPercentage(), 1e-9)
 	assert.Equal(t, pbc.ThresholdType_THRESHOLD_TYPE_ACTUAL, defaults[0].GetType())
 
 	// Verify 80% ACTUAL
-	assert.InDelta(t, DefaultThreshold80, defaults[1].GetPercentage(), 1e-9)
+	assert.InDelta(t, engine.DefaultThreshold80, defaults[1].GetPercentage(), 1e-9)
 	assert.Equal(t, pbc.ThresholdType_THRESHOLD_TYPE_ACTUAL, defaults[1].GetType())
 
 	// Verify 100% ACTUAL
-	assert.InDelta(t, DefaultThreshold100, defaults[2].GetPercentage(), 1e-9)
+	assert.InDelta(t, engine.DefaultThreshold100, defaults[2].GetPercentage(), 1e-9)
 	assert.Equal(t, pbc.ThresholdType_THRESHOLD_TYPE_ACTUAL, defaults[2].GetType())
 }
 
@@ -77,14 +78,14 @@ func TestApplyDefaultThresholds(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := ApplyDefaultThresholds(tc.budget)
+			result := engine.ApplyDefaultThresholds(tc.budget)
 			if tc.budget == nil {
 				assert.Nil(t, result)
 				return
 			}
 			if tc.shouldModify {
 				assert.Len(t, result.GetThresholds(), tc.expectedCount)
-				assert.InDelta(t, DefaultThreshold50, result.GetThresholds()[0].GetPercentage(), 1e-9)
+				assert.InDelta(t, engine.DefaultThreshold50, result.GetThresholds()[0].GetPercentage(), 1e-9)
 			} else {
 				assert.Equal(t, tc.budget.GetThresholds(), result.GetThresholds())
 			}
@@ -112,13 +113,13 @@ func TestEvaluateThresholds(t *testing.T) {
 		name            string
 		currentSpend    float64
 		forecastedSpend float64
-		checkFunc       func(t *testing.T, results []ThresholdEvaluationResult)
+		checkFunc       func(t *testing.T, results []engine.ThresholdEvaluationResult)
 	}{
 		{
 			name:            "no thresholds triggered (20%)",
 			currentSpend:    200, // 20%
 			forecastedSpend: 500, // 50%
-			checkFunc: func(t *testing.T, results []ThresholdEvaluationResult) {
+			checkFunc: func(t *testing.T, results []engine.ThresholdEvaluationResult) {
 				for _, r := range results {
 					assert.False(t, r.Triggered, "threshold %.0f%% should not trigger", r.Threshold.GetPercentage())
 				}
@@ -128,7 +129,7 @@ func TestEvaluateThresholds(t *testing.T) {
 			name:            "50% actual triggered (55%)",
 			currentSpend:    550, // 55%
 			forecastedSpend: 800, // 80%
-			checkFunc: func(t *testing.T, results []ThresholdEvaluationResult) {
+			checkFunc: func(t *testing.T, results []engine.ThresholdEvaluationResult) {
 				// 50% Actual -> Triggered
 				assert.True(t, results[0].Triggered)
 				assert.InDelta(t, 50.0, results[0].Threshold.GetPercentage(), 1e-9)
@@ -143,7 +144,7 @@ func TestEvaluateThresholds(t *testing.T) {
 			name:            "all actual triggered (105%)",
 			currentSpend:    1050, // 105%
 			forecastedSpend: 1200, // 120%
-			checkFunc: func(t *testing.T, results []ThresholdEvaluationResult) {
+			checkFunc: func(t *testing.T, results []engine.ThresholdEvaluationResult) {
 				assert.True(t, results[0].Triggered) // 50%
 				assert.True(t, results[1].Triggered) // 80%
 				assert.True(t, results[2].Triggered) // 100%
@@ -153,7 +154,7 @@ func TestEvaluateThresholds(t *testing.T) {
 			name:            "forecasted triggered (120%)",
 			currentSpend:    500,  // 50%
 			forecastedSpend: 1200, // 120% -> triggers 110% Forecasted
-			checkFunc: func(t *testing.T, results []ThresholdEvaluationResult) {
+			checkFunc: func(t *testing.T, results []engine.ThresholdEvaluationResult) {
 				assert.True(t, results[0].Triggered)  // 50% Actual
 				assert.False(t, results[1].Triggered) // 80% Actual
 				assert.False(t, results[2].Triggered) // 100% Actual
@@ -168,7 +169,7 @@ func TestEvaluateThresholds(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			results := EvaluateThresholds(ctx, budget, tc.currentSpend, tc.forecastedSpend)
+			results := engine.EvaluateThresholds(ctx, budget, tc.currentSpend, tc.forecastedSpend)
 			tc.checkFunc(t, results)
 		})
 	}
@@ -191,7 +192,7 @@ func TestEvaluateThresholdsUpdatesTimestamp(t *testing.T) {
 	}
 
 	// 1st pass: Trigger it
-	results1 := EvaluateThresholds(ctx, budget, 60, 60)
+	results1 := engine.EvaluateThresholds(ctx, budget, 60, 60)
 	require.True(t, results1[0].Triggered)
 	triggeredAt1 := results1[0].TriggeredAt
 	assert.False(t, triggeredAt1.IsZero())
@@ -216,7 +217,7 @@ func TestEvaluateThresholdsUpdatesTimestamp(t *testing.T) {
 	// Wait a bit to ensure time would change if we overwrote it
 	time.Sleep(10 * time.Millisecond)
 
-	results2 := EvaluateThresholds(ctx, budget, 70, 70)
+	results2 := engine.EvaluateThresholds(ctx, budget, 70, 70)
 	require.True(t, results2[0].Triggered)
 
 	// Should preserve original timestamp if already triggered?

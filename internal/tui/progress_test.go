@@ -1,17 +1,19 @@
-package tui
+package tui_test
 
 import (
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 func TestDefaultProgressBar(t *testing.T) {
-	pb := DefaultProgressBar()
+	pb := tui.DefaultProgressBar()
 
-	if pb.Width != DefaultProgressBarWidth {
-		t.Errorf("Expected Width %d, got %d", DefaultProgressBarWidth, pb.Width)
+	if pb.Width != tui.DefaultProgressBarWidth {
+		t.Errorf("Expected Width %d, got %d", tui.DefaultProgressBarWidth, pb.Width)
 	}
 	if pb.Filled != "█" {
 		t.Errorf("Expected Filled '█', got %q", pb.Filled)
@@ -25,7 +27,7 @@ func TestDefaultProgressBar(t *testing.T) {
 }
 
 func TestProgressBarRender_Clamping(t *testing.T) {
-	pb := ProgressBar{Width: 10, Filled: "█", Empty: "░", ShowPct: true}
+	pb := tui.ProgressBar{Width: 10, Filled: "█", Empty: "░", ShowPct: true}
 
 	// Test negative percentage clamped to 0
 	result := pb.Render(-10)
@@ -56,7 +58,7 @@ func TestProgressBarRender_BarWidth(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pb := ProgressBar{Width: tt.width, Filled: "█", Empty: "░", ShowPct: false}
+			pb := tui.ProgressBar{Width: tt.width, Filled: "█", Empty: "░", ShowPct: false}
 			result := pb.Render(tt.percent)
 
 			filledCount := strings.Count(result, "█")
@@ -83,7 +85,7 @@ func TestProgressBarRender_BarWidth(t *testing.T) {
 }
 
 func TestProgressBarRender_CustomCharacters(t *testing.T) {
-	pb := ProgressBar{Width: 5, Filled: "■", Empty: "□", ShowPct: false}
+	pb := tui.ProgressBar{Width: 5, Filled: "■", Empty: "□", ShowPct: false}
 
 	result := pb.Render(60) // 60% of 5 = 3 filled
 
@@ -104,7 +106,7 @@ func TestProgressBarRender_PercentageDisplay(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pb := ProgressBar{Width: 10, Filled: "█", Empty: "░", ShowPct: tt.showPct}
+			pb := tui.ProgressBar{Width: 10, Filled: "█", Empty: "░", ShowPct: tt.showPct}
 			result := pb.Render(tt.percent)
 
 			if tt.contains != "" && !strings.Contains(result, tt.contains) {
@@ -131,7 +133,7 @@ func TestProgressBarRender_ColorCoding(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pb := ProgressBar{Width: 10, Filled: "█", Empty: "░", ShowPct: true}
+			pb := tui.ProgressBar{Width: 10, Filled: "█", Empty: "░", ShowPct: true}
 			result := pb.Render(tt.percent)
 
 			// Basic validation that rendering produces output
@@ -167,7 +169,7 @@ func TestProgressBarRender_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			pb := ProgressBar{Width: tt.width, Filled: "█", Empty: "░", ShowPct: false}
+			pb := tui.ProgressBar{Width: tt.width, Filled: "█", Empty: "░", ShowPct: false}
 
 			// Should not panic
 			result := pb.Render(tt.percent)

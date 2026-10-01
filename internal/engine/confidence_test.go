@@ -1,55 +1,57 @@
-package engine
+package engine_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // TestConfidenceConstants validates that confidence level constants are defined.
 func TestConfidenceConstants(t *testing.T) {
 	// Verify constants exist and have expected values
-	assert.Equal(t, ConfidenceHigh, Confidence("high"))
-	assert.Equal(t, ConfidenceMedium, Confidence("medium"))
-	assert.Equal(t, ConfidenceLow, Confidence("low"))
-	assert.Equal(t, ConfidenceUnknown, Confidence(""))
+	assert.Equal(t, engine.ConfidenceHigh, engine.Confidence("high"))
+	assert.Equal(t, engine.ConfidenceMedium, engine.Confidence("medium"))
+	assert.Equal(t, engine.ConfidenceLow, engine.Confidence("low"))
+	assert.Equal(t, engine.ConfidenceUnknown, engine.Confidence(""))
 }
 
 // TestConfidenceIsValid tests the IsValid method on Confidence type.
 func TestConfidenceIsValid(t *testing.T) {
 	tests := []struct {
 		name       string
-		confidence Confidence
+		confidence engine.Confidence
 		wantValid  bool
 	}{
 		{
 			name:       "high is valid",
-			confidence: ConfidenceHigh,
+			confidence: engine.ConfidenceHigh,
 			wantValid:  true,
 		},
 		{
 			name:       "medium is valid",
-			confidence: ConfidenceMedium,
+			confidence: engine.ConfidenceMedium,
 			wantValid:  true,
 		},
 		{
 			name:       "low is valid",
-			confidence: ConfidenceLow,
+			confidence: engine.ConfidenceLow,
 			wantValid:  true,
 		},
 		{
 			name:       "unknown is valid (empty string)",
-			confidence: ConfidenceUnknown,
+			confidence: engine.ConfidenceUnknown,
 			wantValid:  true,
 		},
 		{
 			name:       "invalid confidence string",
-			confidence: Confidence("invalid"),
+			confidence: engine.Confidence("invalid"),
 			wantValid:  false,
 		},
 		{
 			name:       "uppercase is invalid (must be lowercase)",
-			confidence: Confidence("HIGH"),
+			confidence: engine.Confidence("HIGH"),
 			wantValid:  false,
 		},
 	}
@@ -65,27 +67,27 @@ func TestConfidenceIsValid(t *testing.T) {
 func TestConfidenceString(t *testing.T) {
 	tests := []struct {
 		name       string
-		confidence Confidence
+		confidence engine.Confidence
 		want       string
 	}{
 		{
 			name:       "high to string",
-			confidence: ConfidenceHigh,
+			confidence: engine.ConfidenceHigh,
 			want:       "high",
 		},
 		{
 			name:       "medium to string",
-			confidence: ConfidenceMedium,
+			confidence: engine.ConfidenceMedium,
 			want:       "medium",
 		},
 		{
 			name:       "low to string",
-			confidence: ConfidenceLow,
+			confidence: engine.ConfidenceLow,
 			want:       "low",
 		},
 		{
 			name:       "unknown to empty string",
-			confidence: ConfidenceUnknown,
+			confidence: engine.ConfidenceUnknown,
 			want:       "",
 		},
 	}
@@ -107,37 +109,37 @@ func TestDetermineConfidence(t *testing.T) {
 		name           string
 		hasBillingData bool // true if data came from actual billing API
 		isExternal     bool // true if resource was imported
-		want           Confidence
+		want           engine.Confidence
 	}{
 		{
 			name:           "high confidence - real billing data",
 			hasBillingData: true,
 			isExternal:     false,
-			want:           ConfidenceHigh,
+			want:           engine.ConfidenceHigh,
 		},
 		{
 			name:           "high confidence - billing data for external resource",
 			hasBillingData: true,
 			isExternal:     true, // External flag is irrelevant when we have billing data
-			want:           ConfidenceHigh,
+			want:           engine.ConfidenceHigh,
 		},
 		{
 			name:           "medium confidence - runtime estimate, non-external",
 			hasBillingData: false,
 			isExternal:     false,
-			want:           ConfidenceMedium,
+			want:           engine.ConfidenceMedium,
 		},
 		{
 			name:           "low confidence - runtime estimate, external/imported",
 			hasBillingData: false,
 			isExternal:     true,
-			want:           ConfidenceLow,
+			want:           engine.ConfidenceLow,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DetermineConfidence(tt.hasBillingData, tt.isExternal)
+			got := engine.DetermineConfidence(tt.hasBillingData, tt.isExternal)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -148,62 +150,62 @@ func TestDetermineConfidence(t *testing.T) {
 func TestDetermineConfidenceFromResult(t *testing.T) {
 	tests := []struct {
 		name       string
-		result     CostResult
+		result     engine.CostResult
 		isExternal bool
-		want       Confidence
+		want       engine.Confidence
 	}{
 		{
 			name: "high confidence - has TotalCost from billing",
-			result: CostResult{
+			result: engine.CostResult{
 				TotalCost: 150.00,
 				Adapter:   "kubecost",
 			},
 			isExternal: false,
-			want:       ConfidenceHigh,
+			want:       engine.ConfidenceHigh,
 		},
 		{
 			name: "medium confidence - monthly estimate, non-external",
-			result: CostResult{
+			result: engine.CostResult{
 				Monthly: 50.00,
 				Hourly:  0.0685,
 				Adapter: "local-spec",
 			},
 			isExternal: false,
-			want:       ConfidenceMedium,
+			want:       engine.ConfidenceMedium,
 		},
 		{
 			name: "low confidence - monthly estimate, external resource",
-			result: CostResult{
+			result: engine.CostResult{
 				Monthly: 50.00,
 				Hourly:  0.0685,
 				Adapter: "local-spec",
 			},
 			isExternal: true,
-			want:       ConfidenceLow,
+			want:       engine.ConfidenceLow,
 		},
 		{
 			name: "high confidence - TotalCost overrides external flag",
-			result: CostResult{
+			result: engine.CostResult{
 				TotalCost: 200.00,
 				Adapter:   "vantage",
 			},
 			isExternal: true, // Ignored when TotalCost > 0
-			want:       ConfidenceHigh,
+			want:       engine.ConfidenceHigh,
 		},
 		{
 			name: "medium confidence - zero TotalCost, non-external",
-			result: CostResult{
+			result: engine.CostResult{
 				TotalCost: 0.0,
 				Monthly:   25.00,
 			},
 			isExternal: false,
-			want:       ConfidenceMedium,
+			want:       engine.ConfidenceMedium,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := DetermineConfidenceFromResult(tt.result, tt.isExternal)
+			got := engine.DetermineConfidenceFromResult(tt.result, tt.isExternal)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -211,27 +213,27 @@ func TestDetermineConfidenceFromResult(t *testing.T) {
 
 // TestCostResultConfidenceField tests that CostResult has a Confidence field.
 func TestCostResultConfidenceField(t *testing.T) {
-	result := CostResult{
+	result := engine.CostResult{
 		ResourceType: "aws:ec2:Instance",
 		ResourceID:   "i-12345",
 		Monthly:      50.00,
-		Confidence:   ConfidenceHigh,
+		Confidence:   engine.ConfidenceHigh,
 	}
 
-	assert.Equal(t, ConfidenceHigh, result.Confidence)
+	assert.Equal(t, engine.ConfidenceHigh, result.Confidence)
 	assert.Equal(t, "high", result.Confidence.String())
 }
 
 // TestConfidenceDisplayLabel tests human-readable display labels for UI.
 func TestConfidenceDisplayLabel(t *testing.T) {
 	tests := []struct {
-		confidence Confidence
+		confidence engine.Confidence
 		want       string
 	}{
-		{ConfidenceHigh, "HIGH"},
-		{ConfidenceMedium, "MEDIUM"},
-		{ConfidenceLow, "LOW"},
-		{ConfidenceUnknown, "-"},
+		{engine.ConfidenceHigh, "HIGH"},
+		{engine.ConfidenceMedium, "MEDIUM"},
+		{engine.ConfidenceLow, "LOW"},
+		{engine.ConfidenceUnknown, "-"},
 	}
 
 	for _, tt := range tests {

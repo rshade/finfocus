@@ -1,4 +1,4 @@
-package engine
+package engine_test
 
 import (
 	"context"
@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/config"
+	enginepkg "github.com/rshade/finfocus/internal/engine"
 )
 
 // T007: Unit tests for Engine.DismissRecommendation.
@@ -31,8 +32,8 @@ func createTestStore(t *testing.T) *config.DismissalStore {
 }
 
 // createTestEngine creates a minimal Engine for dismiss testing (no plugins).
-func createTestEngine() *Engine {
-	return New(nil, nil)
+func createTestEngine() *enginepkg.Engine {
+	return enginepkg.New(nil, nil)
 }
 
 // T007: Test Engine.DismissRecommendation with various scenarios.
@@ -43,7 +44,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		engine := createTestEngine()
 		store := createTestStore(t)
 
-		req := DismissRequest{
+		req := enginepkg.DismissRequest{
 			RecommendationID: "rec-123",
 			Reason:           "business-constraint",
 			CustomReason:     "Intentional oversizing for burst capacity",
@@ -68,7 +69,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		store := createTestStore(t)
 
 		expiresAt := time.Now().Add(7 * 24 * time.Hour)
-		req := DismissRequest{
+		req := enginepkg.DismissRequest{
 			RecommendationID: "rec-456",
 			Reason:           "deferred",
 			CustomReason:     "Q2 review",
@@ -90,7 +91,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		engine := createTestEngine()
 		store := createTestStore(t)
 
-		req := DismissRequest{
+		req := enginepkg.DismissRequest{
 			RecommendationID: "",
 			Reason:           "business-constraint",
 		}
@@ -104,7 +105,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		engine := createTestEngine()
 		store := createTestStore(t)
 
-		req := DismissRequest{
+		req := enginepkg.DismissRequest{
 			RecommendationID: "rec-invalid",
 			Reason:           "not-a-valid-reason",
 		}
@@ -119,7 +120,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		store := createTestStore(t)
 
 		// First dismiss permanently
-		req1 := DismissRequest{
+		req1 := enginepkg.DismissRequest{
 			RecommendationID: "rec-transition",
 			Reason:           "business-constraint",
 		}
@@ -133,7 +134,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 
 		// Now snooze (direct transition Dismissed -> Snoozed, FR-010a)
 		expiresAt := time.Now().Add(30 * 24 * time.Hour)
-		req2 := DismissRequest{
+		req2 := enginepkg.DismissRequest{
 			RecommendationID: "rec-transition",
 			Reason:           "deferred",
 			ExpiresAt:        &expiresAt,
@@ -156,7 +157,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 
 		// First snooze
 		expiresAt1 := time.Now().Add(7 * 24 * time.Hour)
-		req1 := DismissRequest{
+		req1 := enginepkg.DismissRequest{
 			RecommendationID: "rec-resnooze",
 			Reason:           "deferred",
 			ExpiresAt:        &expiresAt1,
@@ -166,7 +167,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 
 		// Re-snooze with new date (FR-010a)
 		expiresAt2 := time.Now().Add(60 * 24 * time.Hour)
-		req2 := DismissRequest{
+		req2 := enginepkg.DismissRequest{
 			RecommendationID: "rec-resnooze",
 			Reason:           "deferred",
 			ExpiresAt:        &expiresAt2,
@@ -189,7 +190,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 
 		// First snooze
 		expiresAt := time.Now().Add(7 * 24 * time.Hour)
-		req1 := DismissRequest{
+		req1 := enginepkg.DismissRequest{
 			RecommendationID: "rec-snooze-to-dismiss",
 			Reason:           "deferred",
 			ExpiresAt:        &expiresAt,
@@ -198,7 +199,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		require.NoError(t, err)
 
 		// Dismiss permanently (direct transition Snoozed -> Dismissed, FR-010a)
-		req2 := DismissRequest{
+		req2 := enginepkg.DismissRequest{
 			RecommendationID: "rec-snooze-to-dismiss",
 			Reason:           "business-constraint",
 			CustomReason:     "Decided to keep permanently",
@@ -219,10 +220,10 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		engine := createTestEngine()
 		store := createTestStore(t)
 
-		req := DismissRequest{
+		req := enginepkg.DismissRequest{
 			RecommendationID: "rec-with-details",
 			Reason:           "not-applicable",
-			Recommendation: &Recommendation{
+			Recommendation: &enginepkg.Recommendation{
 				ResourceID:       "i-abc123",
 				Type:             "RIGHTSIZE",
 				Description:      "Resize instance to t3.small",
@@ -260,7 +261,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 		}
 
 		for i, reason := range reasons {
-			req := DismissRequest{
+			req := enginepkg.DismissRequest{
 				RecommendationID: "rec-reason-" + reason,
 				Reason:           reason,
 				CustomReason:     "Note for " + reason,
@@ -282,7 +283,7 @@ func TestEngine_UndismissRecommendation(t *testing.T) {
 		store := createTestStore(t)
 
 		// First dismiss
-		req := DismissRequest{
+		req := enginepkg.DismissRequest{
 			RecommendationID: "rec-undismiss",
 			Reason:           "business-constraint",
 		}
@@ -313,7 +314,7 @@ func TestEngine_UndismissRecommendation(t *testing.T) {
 
 		// First snooze
 		expiresAt := time.Now().Add(7 * 24 * time.Hour)
-		req := DismissRequest{
+		req := enginepkg.DismissRequest{
 			RecommendationID: "rec-undismiss-snooze",
 			Reason:           "deferred",
 			ExpiresAt:        &expiresAt,
@@ -362,7 +363,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 		store := createTestStore(t)
 
 		// Dismiss
-		req1 := DismissRequest{
+		req1 := enginepkg.DismissRequest{
 			RecommendationID: "rec-history",
 			Reason:           "business-constraint",
 		}
@@ -409,7 +410,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 		store := createTestStore(t)
 
 		// Dismiss
-		req1 := DismissRequest{
+		req1 := enginepkg.DismissRequest{
 			RecommendationID: "rec-multi-history",
 			Reason:           "business-constraint",
 		}
@@ -418,7 +419,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 
 		// Snooze (direct transition)
 		expiresAt := time.Now().Add(7 * 24 * time.Hour)
-		req2 := DismissRequest{
+		req2 := enginepkg.DismissRequest{
 			RecommendationID: "rec-multi-history",
 			Reason:           "deferred",
 			ExpiresAt:        &expiresAt,

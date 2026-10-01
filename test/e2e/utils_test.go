@@ -1,10 +1,12 @@
-package e2e
+package e2e_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/test/e2e"
 )
 
 func TestParseTimeRange(t *testing.T) {
@@ -39,7 +41,7 @@ func TestParseTimeRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			start, end, err := ParseTimeRange(tt.start, tt.end)
+			start, end, err := e2e.ParseTimeRange(tt.start, tt.end)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {

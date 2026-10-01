@@ -1,4 +1,4 @@
-package engine
+package engine_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // TestCalculateForecastedSpend verifies linear extrapolation logic (FR-006).
@@ -90,7 +91,7 @@ func TestCalculateForecastedSpend(t *testing.T) {
 			// Or make `CalculateForecastedSpendAt(..., now)` and have the main one call it.
 			// I'll implement `CalculateForecastedSpendAt` in the code and test THAT.
 
-			result := CalculateForecastedSpendAt(tc.currentSpend, start, end, tc.simulatedNow)
+			result := engine.CalculateForecastedSpendAt(tc.currentSpend, start, end, tc.simulatedNow)
 
 			if tc.expected != -1 {
 				assert.InDelta(t, tc.expected, result, tc.delta)
@@ -117,7 +118,7 @@ func TestCalculateForecastedPercentage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := CalculateForecastedPercentage(tc.forecasted, tc.limit)
+			result := engine.CalculateForecastedPercentage(tc.forecasted, tc.limit)
 			assert.InDelta(t, tc.expected, result, 1e-9)
 		})
 	}
@@ -140,7 +141,7 @@ func TestUpdateBudgetForecast(t *testing.T) {
 		},
 	}
 
-	UpdateBudgetForecast(ctx, budget, start, end)
+	engine.UpdateBudgetForecast(ctx, budget, start, end)
 
 	status := budget.GetStatus()
 	require.NotNil(t, status)

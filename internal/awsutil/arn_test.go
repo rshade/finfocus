@@ -1,9 +1,11 @@
-package awsutil
+package awsutil_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/awsutil"
 )
 
 func TestRegionFromARN(t *testing.T) {
@@ -33,7 +35,7 @@ func TestRegionFromARN(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.wantRegion, RegionFromARN(tt.arn))
+			assert.Equal(t, tt.wantRegion, awsutil.RegionFromARN(tt.arn))
 		})
 	}
 }

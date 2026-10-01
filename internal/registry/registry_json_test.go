@@ -1,9 +1,11 @@
-package registry
+package registry_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/registry"
 )
 
 var allowedRegistryCapabilities = map[string]bool{ //nolint:gochecknoglobals // test fixture
@@ -23,7 +25,7 @@ func isAllowedRegistryCapability(c string) bool { return allowedRegistryCapabili
 // TestRegistryJSONValid ensures the embedded registry.json is always valid.
 // This test prevents invalid registry entries from passing CI.
 func TestRegistryJSONValid(t *testing.T) {
-	reg, err := GetEmbeddedRegistry()
+	reg, err := registry.GetEmbeddedRegistry()
 	if err != nil {
 		t.Fatalf("Failed to load registry.json: %v", err)
 	}
@@ -49,7 +51,7 @@ func TestRegistryJSONValid(t *testing.T) {
 	}
 }
 
-func validateRegistryEntryComplete(t *testing.T, name string, entry RegistryEntry) {
+func validateRegistryEntryComplete(t *testing.T, name string, entry registry.RegistryEntry) {
 	t.Helper()
 
 	// Name must match key
@@ -69,7 +71,7 @@ func validateRegistryEntryComplete(t *testing.T, name string, entry RegistryEntr
 	}
 
 	// Validate repository format (owner/repo)
-	if err := ValidateRegistryEntry(entry); err != nil {
+	if err := registry.ValidateRegistryEntry(entry); err != nil {
 		t.Errorf("invalid entry: %v", err)
 	}
 
@@ -107,7 +109,7 @@ func validateRegistryEntryComplete(t *testing.T, name string, entry RegistryEntr
 	}
 
 	// Min spec version should be valid semver if specified
-	if entry.MinSpecVersion != "" && !IsValidVersion(entry.MinSpecVersion) {
+	if entry.MinSpecVersion != "" && !registry.IsValidVersion(entry.MinSpecVersion) {
 		t.Errorf("invalid min_spec_version: %s", entry.MinSpecVersion)
 	}
 }
@@ -122,7 +124,7 @@ func TestRegistryCapabilities_AllowUsageAndAllocation(t *testing.T) {
 
 // TestRegistryJSONPluginNames ensures plugin names follow conventions.
 func TestRegistryJSONPluginNames(t *testing.T) {
-	reg, err := GetEmbeddedRegistry()
+	reg, err := registry.GetEmbeddedRegistry()
 	if err != nil {
 		t.Fatalf("Failed to load registry.json: %v", err)
 	}
@@ -157,7 +159,7 @@ func TestRegistryJSONPluginNames(t *testing.T) {
 // released from one monorepo share a repository, so the identity of an entry is
 // its repository together with its tag prefix.
 func TestRegistryJSONNoDuplicates(t *testing.T) {
-	reg, err := GetEmbeddedRegistry()
+	reg, err := registry.GetEmbeddedRegistry()
 	if err != nil {
 		t.Fatalf("Failed to load registry.json: %v", err)
 	}

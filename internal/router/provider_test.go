@@ -1,9 +1,11 @@
-package router
+package router_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
+	"github.com/rshade/finfocus/internal/router"
 )
 
 func TestExtractProviderFromType(t *testing.T) {
@@ -49,7 +51,7 @@ func TestExtractProviderFromType(t *testing.T) {
 		{
 			name:         "empty string",
 			resourceType: "",
-			want:         ProviderUnknown,
+			want:         router.ProviderUnknown,
 		},
 		{
 			name:         "no colon separator",
@@ -64,13 +66,13 @@ func TestExtractProviderFromType(t *testing.T) {
 		{
 			name:         "starts with colon",
 			resourceType: ":ec2:Instance",
-			want:         ProviderUnknown,
+			want:         router.ProviderUnknown,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ExtractProviderFromType(tt.resourceType)
+			got := router.ExtractProviderFromType(tt.resourceType)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -91,7 +93,7 @@ func TestIsGlobalProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := IsGlobalProvider(tt.provider)
+			got := router.IsGlobalProvider(tt.provider)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -112,7 +114,7 @@ func TestNormalizeProvider(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := NormalizeProvider(tt.provider)
+			got := router.NormalizeProvider(tt.provider)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -147,7 +149,7 @@ func TestProviderMatches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := ProviderMatches(tt.resourceProvider, tt.supportedProvider)
+			got := router.ProviderMatches(tt.resourceProvider, tt.supportedProvider)
 			assert.Equal(t, tt.want, got)
 		})
 	}
@@ -165,12 +167,12 @@ func TestExtractProviderFromTypeTerraformTypes(t *testing.T) {
 		{"terraform azure", "azurerm_linux_virtual_machine", "azurerm"},
 		{"terraform random", "random_pet", "random"},
 		{"no colon no underscore", "kubernetes", "kubernetes"},
-		{"empty", "", ProviderUnknown},
-		{"leading colon", ":foo", ProviderUnknown},
+		{"empty", "", router.ProviderUnknown},
+		{"leading colon", ":foo", router.ProviderUnknown},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, ExtractProviderFromType(tt.resourceType))
+			assert.Equal(t, tt.want, router.ExtractProviderFromType(tt.resourceType))
 		})
 	}
 }

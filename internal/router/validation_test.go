@@ -1,4 +1,4 @@
-package router
+package router_test
 
 import (
 	"strings"
@@ -10,6 +10,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
+	"github.com/rshade/finfocus/internal/router"
 )
 
 // validationTestCase defines a single test case for ValidateRoutingConfig.
@@ -25,7 +26,7 @@ type validationTestCase struct {
 }
 
 // containsAnyErrorMessage checks if any error message contains the given substring.
-func containsAnyErrorMessage(errors []ValidationError, substr string) bool {
+func containsAnyErrorMessage(errors []router.ValidationError, substr string) bool {
 	for _, err := range errors {
 		if strings.Contains(err.Error(), substr) {
 			return true
@@ -35,7 +36,7 @@ func containsAnyErrorMessage(errors []ValidationError, substr string) bool {
 }
 
 // containsAnyWarningMessage checks if any warning message contains the given substring.
-func containsAnyWarningMessage(warnings []ValidationWarning, substr string) bool {
+func containsAnyWarningMessage(warnings []router.ValidationWarning, substr string) bool {
 	for _, warn := range warnings {
 		if strings.Contains(warn.Message, substr) {
 			return true
@@ -254,7 +255,7 @@ func TestValidateRoutingConfig(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := ValidateRoutingConfig(tc.cfg, tc.clients)
+			result := router.ValidateRoutingConfig(tc.cfg, tc.clients)
 
 			assert.Equal(t, tc.wantValid, result.Valid, "valid mismatch")
 
@@ -296,30 +297,30 @@ func TestValidateRoutingConfig(t *testing.T) {
 
 func TestValidationResult_Methods(t *testing.T) {
 	t.Run("HasErrors", func(t *testing.T) {
-		result := ValidationResult{
+		result := router.ValidationResult{
 			Valid:  false,
-			Errors: []ValidationError{{Message: "test error"}},
+			Errors: []router.ValidationError{{Message: "test error"}},
 		}
 		assert.True(t, result.HasErrors())
 
-		emptyResult := ValidationResult{Valid: true}
+		emptyResult := router.ValidationResult{Valid: true}
 		assert.False(t, emptyResult.HasErrors())
 	})
 
 	t.Run("HasWarnings", func(t *testing.T) {
-		result := ValidationResult{
+		result := router.ValidationResult{
 			Valid:    true,
-			Warnings: []ValidationWarning{{Message: "test warning"}},
+			Warnings: []router.ValidationWarning{{Message: "test warning"}},
 		}
 		assert.True(t, result.HasWarnings())
 
-		emptyResult := ValidationResult{Valid: true}
+		emptyResult := router.ValidationResult{Valid: true}
 		assert.False(t, emptyResult.HasWarnings())
 	})
 
 	t.Run("ErrorMessages", func(t *testing.T) {
-		result := ValidationResult{
-			Errors: []ValidationError{
+		result := router.ValidationResult{
+			Errors: []router.ValidationError{
 				{Plugin: "p1", Field: "f1", Message: "m1"},
 				{Field: "f2", Message: "m2"},
 			},
@@ -331,8 +332,8 @@ func TestValidationResult_Methods(t *testing.T) {
 	})
 
 	t.Run("WarningMessages", func(t *testing.T) {
-		result := ValidationResult{
-			Warnings: []ValidationWarning{
+		result := router.ValidationResult{
+			Warnings: []router.ValidationWarning{
 				{Plugin: "p1", Field: "f1", Message: "m1"},
 				{Field: "f2", Message: "m2"},
 			},
@@ -345,9 +346,9 @@ func TestValidationResult_Methods(t *testing.T) {
 }
 
 func TestValidationError_Error(t *testing.T) {
-	withPlugin := ValidationError{Plugin: "test-plugin", Field: "name", Message: "is required"}
+	withPlugin := router.ValidationError{Plugin: "test-plugin", Field: "name", Message: "is required"}
 	assert.Equal(t, "test-plugin.name: is required", withPlugin.Error())
 
-	withoutPlugin := ValidationError{Field: "config", Message: "is invalid"}
+	withoutPlugin := router.ValidationError{Field: "config", Message: "is invalid"}
 	assert.Equal(t, "config: is invalid", withoutPlugin.Error())
 }

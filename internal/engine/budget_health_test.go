@@ -1,4 +1,4 @@
-package engine
+package engine_test
 
 import (
 	"context"
@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"github.com/rshade/finfocus/internal/engine"
 )
 
 // TestCalculateBudgetHealthFromPercentage tests the core health calculation function (FR-001).
@@ -112,7 +113,7 @@ func TestCalculateBudgetHealthFromPercentage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := CalculateBudgetHealthFromPercentage(tc.percentageUsed)
+			result := engine.CalculateBudgetHealthFromPercentage(tc.percentageUsed)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -206,7 +207,7 @@ func TestCalculateBudgetHealth(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := CalculateBudgetHealth(tc.budget)
+			result := engine.CalculateBudgetHealth(tc.budget)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -316,7 +317,7 @@ func TestAggregateHealth(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			result := AggregateHealth(tc.budgets)
+			result := engine.AggregateHealth(tc.budgets)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
@@ -330,7 +331,7 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 		name          string
 		budgets       []*pbc.Budget
 		expectedCount int
-		checkFunc     func(t *testing.T, results []BudgetHealthResult)
+		checkFunc     func(t *testing.T, results []engine.BudgetHealthResult)
 	}{
 		{
 			name:          "empty budgets returns empty results",
@@ -363,7 +364,7 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 				},
 			},
 			expectedCount: 1,
-			checkFunc: func(t *testing.T, results []BudgetHealthResult) {
+			checkFunc: func(t *testing.T, results []engine.BudgetHealthResult) {
 				require.Len(t, results, 1)
 				r := results[0]
 				assert.Equal(t, "budget-1", r.BudgetID)
@@ -393,7 +394,7 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 				},
 			},
 			expectedCount: 1,
-			checkFunc: func(t *testing.T, results []BudgetHealthResult) {
+			checkFunc: func(t *testing.T, results []engine.BudgetHealthResult) {
 				require.Len(t, results, 1)
 				r := results[0]
 				assert.Empty(t, r.Currency)
@@ -412,7 +413,7 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 				},
 			},
 			expectedCount: 1,
-			checkFunc: func(t *testing.T, results []BudgetHealthResult) {
+			checkFunc: func(t *testing.T, results []engine.BudgetHealthResult) {
 				require.Len(t, results, 1)
 				r := results[0]
 				assert.Equal(t, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED, r.Health)
@@ -425,7 +426,7 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			results := CalculateBudgetHealthResults(ctx, tc.budgets)
+			results := engine.CalculateBudgetHealthResults(ctx, tc.budgets)
 			assert.Len(t, results, tc.expectedCount)
 			if tc.checkFunc != nil {
 				tc.checkFunc(t, results)
@@ -436,9 +437,9 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 
 // TestHealthThresholdConstants verifies the threshold constants match spec.
 func TestHealthThresholdConstants(t *testing.T) {
-	assert.InDelta(t, 80.0, HealthThresholdWarning, 1e-9)
-	assert.InDelta(t, 90.0, HealthThresholdCritical, 1e-9)
-	assert.InDelta(t, 100.0, HealthThresholdExceeded, 1e-9)
+	assert.InDelta(t, 80.0, engine.HealthThresholdWarning, 1e-9)
+	assert.InDelta(t, 90.0, engine.HealthThresholdCritical, 1e-9)
+	assert.InDelta(t, 100.0, engine.HealthThresholdExceeded, 1e-9)
 }
 
 // =============================================================================
@@ -480,7 +481,7 @@ func BenchmarkCalculateBudgetHealthFromPercentage(b *testing.B) {
 	b.ResetTimer()
 	for b.Loop() {
 		for _, p := range percentages {
-			_ = CalculateBudgetHealthFromPercentage(p)
+			_ = engine.CalculateBudgetHealthFromPercentage(p)
 		}
 	}
 }
@@ -500,7 +501,7 @@ func BenchmarkCalculateBudgetHealth(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		_ = CalculateBudgetHealth(budget)
+		_ = engine.CalculateBudgetHealth(budget)
 	}
 }
 
@@ -511,7 +512,7 @@ func BenchmarkAggregateHealth1000(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		_ = AggregateHealth(budgets)
+		_ = engine.AggregateHealth(budgets)
 	}
 }
 
@@ -523,6 +524,6 @@ func BenchmarkCalculateBudgetHealthResults1000(b *testing.B) {
 
 	b.ResetTimer()
 	for b.Loop() {
-		_ = CalculateBudgetHealthResults(ctx, budgets)
+		_ = engine.CalculateBudgetHealthResults(ctx, budgets)
 	}
 }

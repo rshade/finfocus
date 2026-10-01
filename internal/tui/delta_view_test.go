@@ -1,4 +1,4 @@
-package tui
+package tui_test
 
 import (
 	"regexp"
@@ -9,45 +9,46 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 // TestRenderEstimateDelta tests the delta visualization component.
 func TestRenderEstimateDelta(t *testing.T) {
 	t.Run("renders positive delta with plus sign and up arrow", func(t *testing.T) {
-		result := RenderEstimateDelta(74.90)
+		result := tui.RenderEstimateDelta(74.90)
 
 		assert.Contains(t, result, "+")
-		assert.Contains(t, result, IconArrowUp)
+		assert.Contains(t, result, tui.IconArrowUp)
 		assert.Contains(t, result, "74.90")
 	})
 
 	t.Run("renders negative delta with down arrow", func(t *testing.T) {
-		result := RenderEstimateDelta(-25.50)
+		result := tui.RenderEstimateDelta(-25.50)
 
 		assert.NotContains(t, result, "+")
-		assert.Contains(t, result, IconArrowDown)
+		assert.Contains(t, result, tui.IconArrowDown)
 		assert.Contains(t, result, "25.50")
 	})
 
 	t.Run("renders zero delta with right arrow", func(t *testing.T) {
-		result := RenderEstimateDelta(0.0)
+		result := tui.RenderEstimateDelta(0.0)
 
-		assert.Contains(t, result, IconArrowRight)
+		assert.Contains(t, result, tui.IconArrowRight)
 		assert.Contains(t, result, "0.00")
 	})
 
 	t.Run("rounds small values correctly", func(t *testing.T) {
 		// Values smaller than a cent should render as zero
-		result := RenderEstimateDelta(0.001)
+		result := tui.RenderEstimateDelta(0.001)
 
-		assert.Contains(t, result, IconArrowRight)
+		assert.Contains(t, result, tui.IconArrowRight)
 	})
 }
 
 // TestRenderEstimateHeader tests the estimate header rendering.
 func TestRenderEstimateHeader(t *testing.T) {
 	t.Run("renders resource type and provider", func(t *testing.T) {
-		result := RenderEstimateHeader("aws", "ec2:Instance", "i-123")
+		result := tui.RenderEstimateHeader("aws", "ec2:Instance", "i-123")
 
 		assert.Contains(t, result, "What-If")
 		assert.Contains(t, result, "aws")
@@ -55,7 +56,7 @@ func TestRenderEstimateHeader(t *testing.T) {
 	})
 
 	t.Run("renders without ID when empty", func(t *testing.T) {
-		result := RenderEstimateHeader("aws", "ec2:Instance", "")
+		result := tui.RenderEstimateHeader("aws", "ec2:Instance", "")
 
 		assert.Contains(t, result, "aws")
 		assert.Contains(t, result, "ec2:Instance")
@@ -66,7 +67,7 @@ func TestRenderEstimateHeader(t *testing.T) {
 // TestRenderCostComparison tests the cost comparison rendering.
 func TestRenderCostComparison(t *testing.T) {
 	t.Run("renders baseline and modified costs", func(t *testing.T) {
-		result := RenderCostComparison(8.32, 83.22, "USD")
+		result := tui.RenderCostComparison(8.32, 83.22, "USD")
 
 		assert.Contains(t, result, "Baseline")
 		assert.Contains(t, result, "8.32")
@@ -76,7 +77,7 @@ func TestRenderCostComparison(t *testing.T) {
 	})
 
 	t.Run("renders total change", func(t *testing.T) {
-		result := RenderCostComparison(8.32, 83.22, "USD")
+		result := tui.RenderCostComparison(8.32, 83.22, "USD")
 
 		assert.Contains(t, result, "Change")
 		// Should show the delta
@@ -84,10 +85,10 @@ func TestRenderCostComparison(t *testing.T) {
 	})
 
 	t.Run("renders negative change correctly", func(t *testing.T) {
-		result := RenderCostComparison(100.00, 75.00, "USD")
+		result := tui.RenderCostComparison(100.00, 75.00, "USD")
 
 		// Should show savings with down arrow (no "-" prefix for formatting)
-		assert.Contains(t, result, IconArrowDown)
+		assert.Contains(t, result, tui.IconArrowDown)
 		assert.Contains(t, result, "25.00")
 	})
 }
@@ -95,7 +96,7 @@ func TestRenderCostComparison(t *testing.T) {
 // TestRenderPropertyTable tests the property table rendering.
 func TestRenderPropertyTable(t *testing.T) {
 	t.Run("renders property rows with deltas", func(t *testing.T) {
-		properties := []PropertyRow{
+		properties := []tui.PropertyRow{
 			{
 				Key:           "instanceType",
 				OriginalValue: "t3.micro",
@@ -110,7 +111,7 @@ func TestRenderPropertyTable(t *testing.T) {
 			},
 		}
 
-		result := RenderPropertyTable(properties, 0, false)
+		result := tui.RenderPropertyTable(properties, 0, false)
 
 		assert.Contains(t, result, "instanceType")
 		assert.Contains(t, result, "t3.micro")
@@ -119,7 +120,7 @@ func TestRenderPropertyTable(t *testing.T) {
 	})
 
 	t.Run("highlights focused row", func(t *testing.T) {
-		properties := []PropertyRow{
+		properties := []tui.PropertyRow{
 			{
 				Key:           "instanceType",
 				OriginalValue: "t3.micro",
@@ -128,7 +129,7 @@ func TestRenderPropertyTable(t *testing.T) {
 			},
 		}
 
-		result := RenderPropertyTable(properties, 0, false)
+		result := tui.RenderPropertyTable(properties, 0, false)
 
 		// Verify focus indicator is present
 		assert.Contains(t, result, "instanceType", "should contain property name")
@@ -152,7 +153,7 @@ func TestRenderPropertyTable(t *testing.T) {
 	})
 
 	t.Run("shows edit indicator when editing", func(t *testing.T) {
-		properties := []PropertyRow{
+		properties := []tui.PropertyRow{
 			{
 				Key:           "instanceType",
 				OriginalValue: "t3.micro",
@@ -161,7 +162,7 @@ func TestRenderPropertyTable(t *testing.T) {
 			},
 		}
 
-		result := RenderPropertyTable(properties, 0, true)
+		result := tui.RenderPropertyTable(properties, 0, true)
 
 		// Verify property name is present
 		assert.Contains(t, result, "instanceType", "should contain property name")
@@ -184,7 +185,7 @@ func TestRenderPropertyTable(t *testing.T) {
 	})
 
 	t.Run("handles empty properties", func(t *testing.T) {
-		result := RenderPropertyTable([]PropertyRow{}, 0, false)
+		result := tui.RenderPropertyTable([]tui.PropertyRow{}, 0, false)
 
 		assert.Contains(t, result, "No properties")
 	})
@@ -212,7 +213,7 @@ func TestRenderEstimateResult(t *testing.T) {
 			UsedFallback: false,
 		}
 
-		rendered := RenderEstimateResultView(result, 80)
+		rendered := tui.RenderEstimateResultView(result, 80)
 
 		require.NotEmpty(t, rendered)
 		assert.Contains(t, rendered, "aws")
@@ -233,13 +234,13 @@ func TestRenderEstimateResult(t *testing.T) {
 			UsedFallback: true,
 		}
 
-		rendered := RenderEstimateResultView(result, 80)
+		rendered := tui.RenderEstimateResultView(result, 80)
 
 		assert.Contains(t, rendered, "fallback")
 	})
 
 	t.Run("handles nil result gracefully", func(t *testing.T) {
-		rendered := RenderEstimateResultView(nil, 80)
+		rendered := tui.RenderEstimateResultView(nil, 80)
 
 		assert.Contains(t, rendered, "No")
 	})
@@ -248,7 +249,7 @@ func TestRenderEstimateResult(t *testing.T) {
 // TestRenderEstimateHelp tests the help text rendering.
 func TestRenderEstimateHelp(t *testing.T) {
 	t.Run("renders keyboard shortcuts", func(t *testing.T) {
-		result := RenderEstimateHelp()
+		result := tui.RenderEstimateHelp()
 
 		assert.Contains(t, result, "↑/↓")
 		assert.Contains(t, result, "Enter")
@@ -260,7 +261,7 @@ func TestRenderEstimateHelp(t *testing.T) {
 // TestRenderLoadingIndicator tests the loading indicator.
 func TestRenderLoadingIndicator(t *testing.T) {
 	t.Run("renders calculating message", func(t *testing.T) {
-		result := RenderLoadingIndicator()
+		result := tui.RenderLoadingIndicator()
 
 		assert.Contains(t, result, "Calculating")
 	})
