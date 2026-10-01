@@ -36,6 +36,8 @@ func scoredRec(id string, risk float64, savings float64) engine.Recommendation {
 }
 
 func TestParseScoreFilter(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		expr    string
 		want    scoreFilter
@@ -61,6 +63,7 @@ func TestParseScoreFilter(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.expr, func(t *testing.T) {
+			t.Parallel()
 			got, isScore, err := parseScoreFilter(tt.expr)
 			assert.Equal(t, tt.isScore, isScore)
 			if tt.wantErr {
@@ -74,6 +77,8 @@ func TestParseScoreFilter(t *testing.T) {
 }
 
 func TestParseScoreFilter_RangeErrorNamesScale(t *testing.T) {
+	t.Parallel()
+
 	_, _, err := parseScoreFilter("priority>=4")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "priority is on a 0 to 3 scale")
@@ -84,6 +89,8 @@ func TestParseScoreFilter_RangeErrorNamesScale(t *testing.T) {
 }
 
 func TestApplyScoreFilters(t *testing.T) {
+	t.Parallel()
+
 	recs := []engine.Recommendation{
 		scoredRec("a", 0.1, 10),
 		scoredRec("b", 0.3, 20),
@@ -110,6 +117,8 @@ func TestApplyScoreFilters(t *testing.T) {
 }
 
 func TestValidateScoringFlags(t *testing.T) {
+	t.Parallel()
+
 	disabled := config.ResolvedScoring{}
 	enabled := config.ResolvedScoring{Enabled: true, Plugin: "scorer"}
 
@@ -152,6 +161,7 @@ func TestValidateScoringFlags(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := validateScoringFlags(tt.params, tt.cfg)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
@@ -164,6 +174,8 @@ func TestValidateScoringFlags(t *testing.T) {
 }
 
 func TestFindScorerClient(t *testing.T) {
+	t.Parallel()
+
 	scorer := &pluginhost.Client{Name: "scorer", Metadata: &proto.PluginMetadata{
 		Version: "1.2.3", Capabilities: []string{pluginhost.CapabilityRecommendationScoring},
 	}}
@@ -186,6 +198,8 @@ func TestFindScorerClient(t *testing.T) {
 }
 
 func TestScoreRecommendations_EndToEndWithMockScorer(t *testing.T) {
+	t.Parallel()
+
 	harness := plugintesting.NewScorerHarness(plugintesting.NewMockRecommendationScorer())
 	harness.Start(t)
 	t.Cleanup(harness.Stop)
@@ -211,6 +225,8 @@ func TestScoreRecommendations_EndToEndWithMockScorer(t *testing.T) {
 }
 
 func TestScoreRecommendations_DryRunPrintsExactRequestsWithoutIdentifiers(t *testing.T) {
+	t.Parallel()
+
 	harness := plugintesting.NewScorerHarness(plugintesting.NewMockRecommendationScorer())
 	harness.Start(t)
 	t.Cleanup(harness.Stop)
@@ -242,6 +258,8 @@ func TestScoreRecommendations_DryRunPrintsExactRequestsWithoutIdentifiers(t *tes
 }
 
 func TestScoreRecommendations_ScorerFailureIsAWarningNotAnError(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{Recommendations: []engine.Recommendation{
 		{ID: "r1", ResourceID: "i-1", Status: engine.RecommendationStatusActive},
 	}}
@@ -276,6 +294,8 @@ func renderRecsTable(t *testing.T, result *engine.RecommendationsResult, verbose
 }
 
 func TestRenderTable_ScoreColumnsOnlyWhenScored(t *testing.T) {
+	t.Parallel()
+
 	plain := &engine.RecommendationsResult{Recommendations: []engine.Recommendation{
 		{ID: "a", ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 5},
 	}}
@@ -298,6 +318,8 @@ func TestRenderTable_ScoreColumnsOnlyWhenScored(t *testing.T) {
 }
 
 func TestRenderTable_KeepsScoreOrderWhenSorted(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{
 			scoredRec("low-savings-high-risk", 0.9, 1),
@@ -313,6 +335,8 @@ func TestRenderTable_KeepsScoreOrderWhenSorted(t *testing.T) {
 }
 
 func TestRenderTable_NonVerboseHeaderNamesTheSort(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{scoredRec("a", 0.9, 1)},
 		Scoring:         &engine.ScoringSummary{Scored: 1, Requested: 1, OrderedBy: "worth_acting"},
@@ -322,6 +346,8 @@ func TestRenderTable_NonVerboseHeaderNamesTheSort(t *testing.T) {
 }
 
 func TestRenderTable_SortsBySavingsWithoutScoreSort(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{scoredRec("small", 0.9, 1), scoredRec("big", 0.1, 100)},
 		Scoring:         &engine.ScoringSummary{Scored: 2, Requested: 2},
@@ -334,6 +360,8 @@ func TestRenderTable_SortsBySavingsWithoutScoreSort(t *testing.T) {
 }
 
 func TestRenderJSON_ScoresAndSummary(t *testing.T) {
+	t.Parallel()
+
 	rec := scoredRec("a", 0.42, 5)
 	rec.Scores.DuplicateGroupID = "dup-1"
 	rec.Scores.FalsePositive = f64(0.2)
@@ -371,6 +399,8 @@ func TestRenderJSON_ScoresAndSummary(t *testing.T) {
 }
 
 func TestRenderJSON_NoScoringKeysWhenUnscored(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{Recommendations: []engine.Recommendation{
 		{ResourceID: "r", Type: "RIGHTSIZE", Description: "d"},
 	}}
@@ -383,6 +413,8 @@ func TestRenderJSON_NoScoringKeysWhenUnscored(t *testing.T) {
 }
 
 func TestRenderNDJSON_ScoresAndSummary(t *testing.T) {
+	t.Parallel()
+
 	result := &engine.RecommendationsResult{
 		Recommendations: []engine.Recommendation{scoredRec("a", 0.42, 5)},
 		Scoring:         &engine.ScoringSummary{Scorer: "mock", Requested: 1, Scored: 1},
@@ -398,6 +430,7 @@ func TestRenderNDJSON_ScoresAndSummary(t *testing.T) {
 	assert.Contains(t, lines[1], `"needs_review":true`)
 }
 
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewCostRecommendationsCmd)
 func TestNewCostRecommendationsCmd_ScoringFlags(t *testing.T) {
 	cmd := NewCostRecommendationsCmd()
 

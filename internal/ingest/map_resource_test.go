@@ -12,6 +12,8 @@ import (
 )
 
 func TestMergeProperties(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		outputs  map[string]interface{}
@@ -70,6 +72,7 @@ func TestMergeProperties(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ingest.MergeProperties(tt.outputs, tt.inputs)
 			if tt.expected == nil {
 				assert.Nil(t, result)
@@ -82,6 +85,8 @@ func TestMergeProperties(t *testing.T) {
 }
 
 func TestMapResource(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		pulumiResource ingest.PulumiResource
@@ -369,6 +374,7 @@ func TestMapResource(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := ingest.MapResource(tt.pulumiResource)
 
 			if tt.wantErr {
@@ -540,10 +546,13 @@ func getMapResourcesTestData() []struct {
 
 // TestMapResources tests the mapping of multiple Pulumi resources to engine resource descriptors.
 func TestMapResources(t *testing.T) {
+	t.Parallel()
+
 	tests := getMapResourcesTestData()
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := ingest.MapResources(tt.resources)
 
 			if tt.wantErr {

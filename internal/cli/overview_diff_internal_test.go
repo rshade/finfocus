@@ -14,6 +14,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestConvertPlanSteps_UpdateExtractsDiffs(t *testing.T) {
+	t.Parallel()
+
 	steps := []ingest.PulumiStep{
 		{
 			URN:  "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
@@ -43,6 +45,8 @@ func TestConvertPlanSteps_UpdateExtractsDiffs(t *testing.T) {
 }
 
 func TestConvertPlanSteps_ReplaceExtractsDiffs(t *testing.T) {
+	t.Parallel()
+
 	steps := []ingest.PulumiStep{
 		{
 			URN:  "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
@@ -68,6 +72,8 @@ func TestConvertPlanSteps_ReplaceExtractsDiffs(t *testing.T) {
 }
 
 func TestConvertPlanSteps_CreateReplacementExtractsDiffs(t *testing.T) {
+	t.Parallel()
+
 	steps := []ingest.PulumiStep{
 		{
 			URN:  "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
@@ -93,6 +99,8 @@ func TestConvertPlanSteps_CreateReplacementExtractsDiffs(t *testing.T) {
 }
 
 func TestConvertPlanSteps_CreateNoDiffs(t *testing.T) {
+	t.Parallel()
+
 	steps := []ingest.PulumiStep{
 		{
 			URN:  "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
@@ -114,6 +122,8 @@ func TestConvertPlanSteps_CreateNoDiffs(t *testing.T) {
 }
 
 func TestConvertPlanSteps_DeleteNoDiffs(t *testing.T) {
+	t.Parallel()
+
 	steps := []ingest.PulumiStep{
 		{
 			URN:  "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
@@ -133,6 +143,8 @@ func TestConvertPlanSteps_DeleteNoDiffs(t *testing.T) {
 }
 
 func TestConvertPlanSteps_SameNoDiffs(t *testing.T) {
+	t.Parallel()
+
 	steps := []ingest.PulumiStep{
 		{
 			URN:  "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
@@ -151,24 +163,32 @@ func TestConvertPlanSteps_SameNoDiffs(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDiffInputs_NilStates(t *testing.T) {
+	t.Parallel()
+
 	assert.Nil(t, diffInputs(nil, nil))
 	assert.Nil(t, diffInputs(&ingest.PulumiState{}, nil))
 	assert.Nil(t, diffInputs(nil, &ingest.PulumiState{}))
 }
 
 func TestDiffInputs_EmptyInputs(t *testing.T) {
+	t.Parallel()
+
 	oldS := &ingest.PulumiState{Inputs: map[string]interface{}{}}
 	newS := &ingest.PulumiState{Inputs: map[string]interface{}{}}
 	assert.Nil(t, diffInputs(oldS, newS))
 }
 
 func TestDiffInputs_IdenticalInputs(t *testing.T) {
+	t.Parallel()
+
 	oldS := &ingest.PulumiState{Inputs: map[string]interface{}{"key": "value"}}
 	newS := &ingest.PulumiState{Inputs: map[string]interface{}{"key": "value"}}
 	assert.Empty(t, diffInputs(oldS, newS))
 }
 
 func TestDiffInputs_AddedKey(t *testing.T) {
+	t.Parallel()
+
 	oldS := &ingest.PulumiState{Inputs: map[string]interface{}{}}
 	newS := &ingest.PulumiState{Inputs: map[string]interface{}{"key": "value"}}
 	diffs := diffInputs(oldS, newS)
@@ -179,6 +199,8 @@ func TestDiffInputs_AddedKey(t *testing.T) {
 }
 
 func TestDiffInputs_RemovedKey(t *testing.T) {
+	t.Parallel()
+
 	oldS := &ingest.PulumiState{Inputs: map[string]interface{}{"key": "value"}}
 	newS := &ingest.PulumiState{Inputs: map[string]interface{}{}}
 	diffs := diffInputs(oldS, newS)
@@ -189,6 +211,8 @@ func TestDiffInputs_RemovedKey(t *testing.T) {
 }
 
 func TestDiffInputs_SortedByKey(t *testing.T) {
+	t.Parallel()
+
 	oldS := &ingest.PulumiState{
 		Inputs: map[string]interface{}{
 			"zebra": "a",
@@ -208,6 +232,8 @@ func TestDiffInputs_SortedByKey(t *testing.T) {
 }
 
 func TestDiffInputs_ComplexValues(t *testing.T) {
+	t.Parallel()
+
 	oldS := &ingest.PulumiState{
 		Inputs: map[string]interface{}{
 			"tags": map[string]interface{}{"env": "staging"},
@@ -226,6 +252,8 @@ func TestDiffInputs_ComplexValues(t *testing.T) {
 }
 
 func TestDiffInputs_TypeOnlyChange(t *testing.T) {
+	t.Parallel()
+
 	// Regression: type-only changes (e.g., string "1" → float64 1) must be
 	// detected as diffs, even though formatDiffValue produces the same string.
 	oldS := &ingest.PulumiState{
@@ -252,6 +280,8 @@ func TestDiffInputs_TypeOnlyChange(t *testing.T) {
 }
 
 func TestDiffInputs_SkipsInternalKeys(t *testing.T) {
+	t.Parallel()
+
 	oldS := &ingest.PulumiState{
 		Inputs: map[string]interface{}{
 			"__defaults":   []interface{}{"a", "b"},
@@ -270,6 +300,8 @@ func TestDiffInputs_SkipsInternalKeys(t *testing.T) {
 }
 
 func TestConvertPlanSteps_ProjectedProperties_DeepMergeOldAndNewInputs(t *testing.T) {
+	t.Parallel()
+
 	steps := []ingest.PulumiStep{
 		{
 			URN:  "urn:pulumi:stack::proj::aws:ec2/instance:Instance::web",
@@ -315,6 +347,8 @@ func TestConvertPlanSteps_ProjectedProperties_DeepMergeOldAndNewInputs(t *testin
 // ---------------------------------------------------------------------------
 
 func TestFormatDiffValue(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		val  interface{}
@@ -331,6 +365,7 @@ func TestFormatDiffValue(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, formatDiffValue(tt.val))
 		})
 	}

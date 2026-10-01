@@ -12,6 +12,8 @@ import (
 
 // TestCreateCrossProviderAggregation_DailyGrouping tests daily aggregation.
 func TestCreateCrossProviderAggregation_DailyGrouping(t *testing.T) {
+	t.Parallel()
+
 	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	jan2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 
@@ -49,6 +51,8 @@ func TestCreateCrossProviderAggregation_DailyGrouping(t *testing.T) {
 
 // TestCreateCrossProviderAggregation_MonthlyGrouping tests monthly aggregation.
 func TestCreateCrossProviderAggregation_MonthlyGrouping(t *testing.T) {
+	t.Parallel()
+
 	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	jan31 := time.Date(2024, 1, 31, 23, 59, 59, 0, time.UTC)
 	feb1 := time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC)
@@ -91,6 +95,8 @@ func TestCreateCrossProviderAggregation_MonthlyGrouping(t *testing.T) {
 
 // TestCreateCrossProviderAggregation_MultipleProviders tests aggregation with multiple providers.
 func TestCreateCrossProviderAggregation_MultipleProviders(t *testing.T) {
+	t.Parallel()
+
 	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	jan2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 
@@ -133,6 +139,8 @@ func TestCreateCrossProviderAggregation_MultipleProviders(t *testing.T) {
 
 // TestCreateCrossProviderAggregation_MultipleDays tests aggregation across multiple days.
 func TestCreateCrossProviderAggregation_MultipleDays(t *testing.T) {
+	t.Parallel()
+
 	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	jan2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 	jan3 := time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)
@@ -185,6 +193,8 @@ func TestCreateCrossProviderAggregation_MultipleDays(t *testing.T) {
 
 // TestCreateCrossProviderAggregation_WithDailyCosts tests aggregation with daily cost breakdown.
 func TestCreateCrossProviderAggregation_WithDailyCosts(t *testing.T) {
+	t.Parallel()
+
 	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	jan4 := time.Date(2024, 1, 4, 0, 0, 0, 0, time.UTC)
 
@@ -216,6 +226,8 @@ func TestCreateCrossProviderAggregation_WithDailyCosts(t *testing.T) {
 
 // TestCreateCrossProviderAggregation_FallbackToMonthly tests fallback to monthly costs.
 func TestCreateCrossProviderAggregation_FallbackToMonthly(t *testing.T) {
+	t.Parallel()
+
 	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	jan2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 
@@ -242,6 +254,8 @@ func TestCreateCrossProviderAggregation_FallbackToMonthly(t *testing.T) {
 
 // TestCreateCrossProviderAggregation_EmptyCurrencyDefaultsToUSD tests empty currency handling.
 func TestCreateCrossProviderAggregation_EmptyCurrencyDefaultsToUSD(t *testing.T) {
+	t.Parallel()
+
 	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	jan2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 
@@ -275,6 +289,8 @@ func TestCreateCrossProviderAggregation_EmptyCurrencyDefaultsToUSD(t *testing.T)
 
 // TestCreateCrossProviderAggregation_ZeroDateHandling tests handling of zero dates.
 func TestCreateCrossProviderAggregation_ZeroDateHandling(t *testing.T) {
+	t.Parallel()
+
 	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 
 	results := []CostResult{
@@ -296,6 +312,8 @@ func TestCreateCrossProviderAggregation_ZeroDateHandling(t *testing.T) {
 
 // TestCreateCrossProviderAggregation_SortingOrder tests chronological sorting.
 func TestCreateCrossProviderAggregation_SortingOrder(t *testing.T) {
+	t.Parallel()
+
 	jan1 := time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)
 	jan2 := time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)
 	jan15 := time.Date(2024, 1, 15, 0, 0, 0, 0, time.UTC)
@@ -340,6 +358,8 @@ func TestCreateCrossProviderAggregation_SortingOrder(t *testing.T) {
 
 // TestAggregateResults_SingleResource tests aggregation with one resource.
 func TestAggregateResults_SingleResource(t *testing.T) {
+	t.Parallel()
+
 	results := []CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -361,6 +381,8 @@ func TestAggregateResults_SingleResource(t *testing.T) {
 
 // TestAggregateResults_MultipleResources tests aggregation with multiple resources.
 func TestAggregateResults_MultipleResources(t *testing.T) {
+	t.Parallel()
+
 	results := []CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -392,6 +414,8 @@ func TestAggregateResults_MultipleResources(t *testing.T) {
 
 // TestAggregateResults_ByProvider tests provider-level aggregation.
 func TestAggregateResults_ByProvider(t *testing.T) {
+	t.Parallel()
+
 	results := []CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -418,6 +442,8 @@ func TestAggregateResults_ByProvider(t *testing.T) {
 
 // TestAggregateResults_ByService tests service-level aggregation.
 func TestAggregateResults_ByService(t *testing.T) {
+	t.Parallel()
+
 	results := []CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -444,6 +470,8 @@ func TestAggregateResults_ByService(t *testing.T) {
 
 // TestAggregateResults_ByAdapter tests adapter-level aggregation.
 func TestAggregateResults_ByAdapter(t *testing.T) {
+	t.Parallel()
+
 	results := []CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -473,6 +501,8 @@ func TestAggregateResults_ByAdapter(t *testing.T) {
 }
 
 func TestAggregation_ZeroCostsNoDivideByZero(t *testing.T) {
+	t.Parallel()
+
 	results := []CostResult{
 		{
 			ResourceType: "aws:ec2:Instance",
@@ -490,6 +520,8 @@ func TestAggregation_ZeroCostsNoDivideByZero(t *testing.T) {
 }
 
 func TestAggregation_SingleResultUnchanged(t *testing.T) {
+	t.Parallel()
+
 	results := []CostResult{
 		{
 			ResourceType: "aws:ec2:Instance",
@@ -511,6 +543,8 @@ func TestAggregation_SingleResultUnchanged(t *testing.T) {
 }
 
 func TestEdgeCase_LargeValuesNoOverflow(t *testing.T) {
+	t.Parallel()
+
 	// Use very large numbers, much smaller than MaxFloat64 (1.8e308), to allow addition without overflow
 	largeValue := float64(1e300)
 	numResources := 100
@@ -536,6 +570,8 @@ func TestEdgeCase_LargeValuesNoOverflow(t *testing.T) {
 // TestEdgeCase_NilPropertiesNoNilPointerPanic verifies that resources with nil Properties
 // do not cause nil pointer panics during processing.
 func TestEdgeCase_NilPropertiesNoNilPointerPanic(t *testing.T) {
+	t.Parallel()
+
 	// Create resource descriptor with nil Properties map
 	resource := ResourceDescriptor{
 		Type:       "aws:ec2:Instance",
@@ -556,6 +592,8 @@ func TestEdgeCase_NilPropertiesNoNilPointerPanic(t *testing.T) {
 // TestEdgeCase_UnknownProviderReturnsUnknown verifies extractProviderFromType handles
 // malformed resource types by returning "unknown".
 func TestEdgeCase_UnknownProviderReturnsUnknown(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -577,6 +615,7 @@ func TestEdgeCase_UnknownProviderReturnsUnknown(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := resourcetype.ExtractProvider(tt.resourceType)
 			assert.Equal(t, tt.expected, result)
 		})

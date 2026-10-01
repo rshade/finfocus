@@ -18,6 +18,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestClassifyError(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		err       error
@@ -93,6 +95,7 @@ func TestClassifyError(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := classifyError("urn:test", tt.err)
 			require.NotNil(t, result)
 			assert.Equal(t, "urn:test", result.URN)
@@ -104,6 +107,8 @@ func TestClassifyError(t *testing.T) {
 }
 
 func TestClassifyError_LongMessage(t *testing.T) {
+	t.Parallel()
+
 	longMsg := make([]byte, maxMessageLen+100)
 	for i := range longMsg {
 		longMsg[i] = 'x'
@@ -118,6 +123,8 @@ func TestClassifyError_LongMessage(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDaysInCurrentMonth(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		time time.Time
@@ -130,6 +137,7 @@ func TestDaysInCurrentMonth(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, daysInCurrentMonth(tt.time))
 		})
 	}
@@ -140,6 +148,8 @@ func TestDaysInCurrentMonth(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestEnrichOverviewRow_NoPlugins(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	eng := New(nil, nil) // No plugins, no spec loader
 
@@ -167,6 +177,8 @@ func TestEnrichOverviewRow_NoPlugins(t *testing.T) {
 }
 
 func TestEnrichOverviewRow_PropertiesPassedToEngine(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	eng := New(nil, nil)
 
@@ -197,6 +209,8 @@ func TestEnrichOverviewRow_PropertiesPassedToEngine(t *testing.T) {
 }
 
 func TestEnrichOverviewRow_CreatingStatus_SkipsActualCost(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	eng := New(nil, nil)
 
@@ -225,6 +239,8 @@ func TestEnrichOverviewRow_CreatingStatus_SkipsActualCost(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestEnrichOverviewRows_EmptySlice(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	eng := New(nil, nil)
 
@@ -240,6 +256,8 @@ func TestEnrichOverviewRows_EmptySlice(t *testing.T) {
 }
 
 func TestEnrichOverviewRows_ProgressUpdates(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	eng := New(nil, nil)
 
@@ -273,6 +291,8 @@ func TestEnrichOverviewRows_ProgressUpdates(t *testing.T) {
 }
 
 func TestEnrichOverviewRows_NilProgressChan(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	eng := New(nil, nil)
 
@@ -292,6 +312,8 @@ func TestEnrichOverviewRows_NilProgressChan(t *testing.T) {
 }
 
 func TestEnrichOverviewRows_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
@@ -328,6 +350,8 @@ func TestEnrichOverviewRows_ContextCancellation(t *testing.T) {
 }
 
 func TestEnrichOverviewRows_ConcurrencyLimit(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	eng := New(nil, nil)
 
@@ -355,6 +379,8 @@ func TestEnrichOverviewRows_ConcurrencyLimit(t *testing.T) {
 }
 
 func TestEnrichOverviewRows_WorkerPoolBound(t *testing.T) {
+	t.Parallel()
+
 	// Verify that the fixed worker pool pattern processes many rows
 	// without creating unbounded goroutines. A cancelled context ensures
 	// workers exit immediately without calling EnrichOverviewRow.
@@ -383,6 +409,8 @@ func TestEnrichOverviewRows_WorkerPoolBound(t *testing.T) {
 }
 
 func TestEnrichOverviewRows_ClosesProgressChan(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
@@ -407,6 +435,8 @@ func TestEnrichOverviewRows_ClosesProgressChan(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestEnrichOverviewRow_ParallelConsistencyNoPlugins(t *testing.T) {
+	t.Parallel()
+
 	// Verify that running all three enrichment sub-calls concurrently does not
 	// introduce data races and leaves the row in a consistent state. With no
 	// plugins or spec loader the cost fields remain nil; the assertions here
@@ -445,6 +475,8 @@ func TestEnrichOverviewRow_ParallelConsistencyNoPlugins(t *testing.T) {
 }
 
 func TestEnrichOverviewRow_ErrorMerge_NoErrors(t *testing.T) {
+	t.Parallel()
+
 	// Verify that when neither enrichment call returns an error,
 	// row.Error remains nil after the merge.
 	ctx := context.Background()
@@ -468,6 +500,8 @@ func TestEnrichOverviewRow_ErrorMerge_NoErrors(t *testing.T) {
 }
 
 func TestEnrichOverviewRow_RaceDetector(t *testing.T) {
+	t.Parallel()
+
 	// Stress-test concurrent enrichment with the race detector by processing
 	// many rows through EnrichOverviewRows (worker pool), where each row
 	// internally runs 3 concurrent goroutines. This exercises both the
@@ -519,6 +553,8 @@ func TestEnrichOverviewRow_RaceDetector(t *testing.T) {
 }
 
 func TestEnrichOverviewRow_CostDrift_AfterParallelCompletion(t *testing.T) {
+	t.Parallel()
+
 	// Verify that cost drift is calculated correctly after both actual
 	// and projected costs complete in parallel. With no plugins, both
 	// enrichment calls return empty results (no cost data), so drift
@@ -546,6 +582,8 @@ func TestEnrichOverviewRow_CostDrift_AfterParallelCompletion(t *testing.T) {
 }
 
 func TestEnrichOverviewRow_CostDrift_SkippedWhenMissingCost(t *testing.T) {
+	t.Parallel()
+
 	// Verify that cost drift is nil when actual cost is missing
 	// (StatusCreating skips actual cost enrichment).
 	ctx := context.Background()
@@ -574,6 +612,8 @@ func TestEnrichOverviewRow_CostDrift_SkippedWhenMissingCost(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestEnrichActualCost_ReturnsNilOnSuccess(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	eng := New(nil, nil)
 
@@ -600,6 +640,8 @@ func TestEnrichActualCost_ReturnsNilOnSuccess(t *testing.T) {
 }
 
 func TestEnrichProjectedCost_ReturnsNilOnSuccess(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	eng := New(nil, nil)
 
@@ -659,6 +701,8 @@ func (m *mockEnricher) GetRecommendationsForResources(
 // ---------------------------------------------------------------------------
 
 func TestEnrichOverviewRow_ErrorPrecedence(t *testing.T) {
+	t.Parallel()
+
 	// Verify the deterministic error-merge logic: actualErr wins over
 	// projectedErr; if only one is non-nil, that one is used; if neither
 	// is non-nil, row.Error remains nil.
@@ -703,6 +747,7 @@ func TestEnrichOverviewRow_ErrorPrecedence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			ctx := context.Background()
 			mock := &mockEnricher{
 				actualErr:    tt.actualErr,
@@ -740,6 +785,8 @@ func TestEnrichOverviewRow_ErrorPrecedence(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestEnrichCostDrift_MidMonthCreatedAt_UsesElapsedSinceCreation(t *testing.T) {
+	t.Parallel()
+
 	// CreatedAt in the current window must use elapsed time since creation as
 	// the denominator to avoid treating pre-creation days as zero spend.
 	refTime := time.Date(2025, 2, 20, 0, 0, 0, 0, time.UTC)
@@ -767,6 +814,8 @@ func TestEnrichCostDrift_MidMonthCreatedAt_UsesElapsedSinceCreation(t *testing.T
 }
 
 func TestEnrichCostDrift_NilCreatedAt_UsesExistingBehavior(t *testing.T) {
+	t.Parallel()
+
 	// When CreatedAt is nil, enrichCostDrift should use elapsed time since
 	// dateRange.Start as denominator.
 	refTime := time.Date(2025, 6, 16, 0, 0, 0, 0, time.UTC)
@@ -795,6 +844,8 @@ func TestEnrichCostDrift_NilCreatedAt_UsesExistingBehavior(t *testing.T) {
 }
 
 func TestEnrichCostDrift_CreatedAtBeforeDateRangeStart(t *testing.T) {
+	t.Parallel()
+
 	// When CreatedAt is before dateRange.Start, treat as full-month resource.
 	refTime := time.Date(2025, 6, 16, 0, 0, 0, 0, time.UTC)
 	createdAt := time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC) // Created last month
@@ -821,6 +872,8 @@ func TestEnrichCostDrift_CreatedAtBeforeDateRangeStart(t *testing.T) {
 }
 
 func TestEnrichCostDrift_CreatedAtWithinFirst2Days_SuppressesDrift(t *testing.T) {
+	t.Parallel()
+
 	// When elapsed runtime is below the minimum threshold, drift is suppressed.
 	refTime := time.Date(2025, 6, 16, 0, 0, 0, 0, time.UTC)
 	createdAt := time.Date(2025, 6, 15, 0, 0, 0, 0, time.UTC) // 1 day elapsed
@@ -845,6 +898,8 @@ func TestEnrichCostDrift_CreatedAtWithinFirst2Days_SuppressesDrift(t *testing.T)
 }
 
 func TestEnrichCostDrift_EarlyMonthFractionalElapsedAvoidsFalseBias(t *testing.T) {
+	t.Parallel()
+
 	// March 3 at 06:00 is only 2.25 elapsed days since March 1 00:00.
 	// Using integer dayOfMonth=3 would produce a false ~-25% drift for this
 	// run-rate-matching case.
@@ -873,6 +928,8 @@ func TestEnrichCostDrift_EarlyMonthFractionalElapsedAvoidsFalseBias(t *testing.T
 }
 
 func TestEnrichCostDrift_CreatedAt_Day1Day15Day28(t *testing.T) {
+	t.Parallel()
+
 	refTime := time.Date(2025, 2, 28, 12, 0, 0, 0, time.UTC)
 	dateRange := DateRange{
 		Start: time.Date(2025, 2, 1, 0, 0, 0, 0, time.UTC),
@@ -911,6 +968,7 @@ func TestEnrichCostDrift_CreatedAt_Day1Day15Day28(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			createdAt := tt.createdAt
 			row := OverviewRow{
 				URN:           "urn:pulumi:prod::app::aws:ec2:Instance::created-scenario",
@@ -935,6 +993,8 @@ func TestEnrichCostDrift_CreatedAt_Day1Day15Day28(t *testing.T) {
 }
 
 func TestEnrichCostDrift_CreatedAtExactlyOnDateRangeStart(t *testing.T) {
+	t.Parallel()
+
 	// When CreatedAt equals dateRange.Start exactly, After() returns false,
 	// so it should use the standard window-start denominator.
 	refTime := time.Date(2025, 6, 16, 0, 0, 0, 0, time.UTC)
@@ -961,6 +1021,8 @@ func TestEnrichCostDrift_CreatedAtExactlyOnDateRangeStart(t *testing.T) {
 }
 
 func TestEnrichCostDrift_MidMonthCreatedAt_LargeDrift(t *testing.T) {
+	t.Parallel()
+
 	// A mid-month resource with genuinely high drift should still report it.
 	// Created on day 9 and measured on day 20 at midnight => elapsedDays=11.
 	refTime := time.Date(2025, 6, 20, 0, 0, 0, 0, time.UTC)
@@ -991,6 +1053,8 @@ func TestEnrichCostDrift_MidMonthCreatedAt_LargeDrift(t *testing.T) {
 }
 
 func TestEnrichCostDrift_CreatedAtEqualsRefTime_SuppressesDrift(t *testing.T) {
+	t.Parallel()
+
 	// When CreatedAt equals refTime exactly, Before(refTime) is false,
 	// so the mid-month path is skipped and window-start denominator is used.
 	refTime := time.Date(2025, 6, 16, 0, 0, 0, 0, time.UTC)
@@ -1017,6 +1081,8 @@ func TestEnrichCostDrift_CreatedAtEqualsRefTime_SuppressesDrift(t *testing.T) {
 }
 
 func TestEnrichCostDrift_FutureCreatedAt_UseWindowStart(t *testing.T) {
+	t.Parallel()
+
 	// When CreatedAt is in the future (after refTime), the mid-month path
 	// must not be entered. This guards against clock skew or corrupted state.
 	refTime := time.Date(2025, 6, 16, 0, 0, 0, 0, time.UTC)
@@ -1043,6 +1109,8 @@ func TestEnrichCostDrift_FutureCreatedAt_UseWindowStart(t *testing.T) {
 }
 
 func TestEnrichOverviewRow_CostDrift_ComputedOnCompletion(t *testing.T) {
+	t.Parallel()
+
 	// Verify that CostDrift is computed when both actual and projected costs
 	// are returned by the engine. The mock returns deterministic values so
 	// the expected drift can be calculated exactly.

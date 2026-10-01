@@ -21,6 +21,8 @@ func writeFileWithMtime(t *testing.T, dir, name string, mtime time.Time) {
 }
 
 func TestDetectChanges_NeverDeployed(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -32,6 +34,8 @@ func TestDetectChanges_NeverDeployed(t *testing.T) {
 }
 
 func TestDetectChanges_NoMatchingFiles(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -49,6 +53,8 @@ func TestDetectChanges_NoMatchingFiles(t *testing.T) {
 }
 
 func TestDetectChanges_NoChanges(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -68,6 +74,8 @@ func TestDetectChanges_NoChanges(t *testing.T) {
 }
 
 func TestDetectChanges_TypeScriptFileModified(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -87,6 +95,8 @@ func TestDetectChanges_TypeScriptFileModified(t *testing.T) {
 }
 
 func TestDetectChanges_GoModModified(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -104,6 +114,8 @@ func TestDetectChanges_GoModModified(t *testing.T) {
 }
 
 func TestDetectChanges_PulumiYamlModified(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -119,6 +131,8 @@ func TestDetectChanges_PulumiYamlModified(t *testing.T) {
 }
 
 func TestDetectChanges_MalformedManifestTime(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -129,6 +143,8 @@ func TestDetectChanges_MalformedManifestTime(t *testing.T) {
 }
 
 func TestDetectChanges_InvalidProjectDir(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	_, err := DetectChanges(ctx, time.Now().UTC().Format(time.RFC3339), "/nonexistent/path/that/does/not/exist")
@@ -137,6 +153,8 @@ func TestDetectChanges_InvalidProjectDir(t *testing.T) {
 }
 
 func TestDetectChanges_StatErrorSkipsFile(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -164,6 +182,8 @@ func TestDetectChanges_StatErrorSkipsFile(t *testing.T) {
 }
 
 func TestDetectChanges_MultipleModifiedFiles(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	tmpDir := t.TempDir()
 
@@ -188,6 +208,8 @@ func TestDetectChanges_MultipleModifiedFiles(t *testing.T) {
 // handled by pulumiSourceFile: Pulumi YAML stack configs, TypeScript/JavaScript,
 // Python, Go, C# (.NET), F# (.NET), Java, and dependency files.
 func TestPulumiSourceFile_KnownExtensions(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		filename string
@@ -230,6 +252,7 @@ func TestPulumiSourceFile_KnownExtensions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, pulumiSourceFile(tt.filename))
 		})
 	}
@@ -237,6 +260,8 @@ func TestPulumiSourceFile_KnownExtensions(t *testing.T) {
 
 // TestPulumiSourceFile_UnknownExtension verifies unrecognised files return false.
 func TestPulumiSourceFile_UnknownExtension(t *testing.T) {
+	t.Parallel()
+
 	unknown := []string{
 		"README.md",
 		".gitignore",
@@ -249,6 +274,7 @@ func TestPulumiSourceFile_UnknownExtension(t *testing.T) {
 	}
 	for _, name := range unknown {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			assert.False(t, pulumiSourceFile(name), "should not match: %s", name)
 		})
 	}
@@ -257,6 +283,8 @@ func TestPulumiSourceFile_UnknownExtension(t *testing.T) {
 // TestPulumiSourceFile_CaseInsensitivePulumiPrefix verifies that mixed-case variants
 // of Pulumi YAML files are recognized.
 func TestPulumiSourceFile_CaseInsensitivePulumiPrefix(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		filename string
 		want     bool
@@ -268,6 +296,7 @@ func TestPulumiSourceFile_CaseInsensitivePulumiPrefix(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.filename, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, c.want, pulumiSourceFile(c.filename))
 		})
 	}
@@ -275,6 +304,8 @@ func TestPulumiSourceFile_CaseInsensitivePulumiPrefix(t *testing.T) {
 
 // TestDetectChanges_EmptyProjectDir verifies that an empty projectDir returns an error.
 func TestDetectChanges_EmptyProjectDir(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	_, err := DetectChanges(ctx, "2025-01-01T00:00:00Z", "")
 	require.Error(t, err)

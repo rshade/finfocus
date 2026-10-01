@@ -12,6 +12,8 @@ import (
 
 // T011: Table-driven tests for ActionTypeLabel() covering all 11 types.
 func TestActionTypeLabel(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    pbc.RecommendationActionType
@@ -86,6 +88,7 @@ func TestActionTypeLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := proto.ActionTypeLabel(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -94,6 +97,8 @@ func TestActionTypeLabel(t *testing.T) {
 
 // T012: Table-driven tests for ParseActionType() with valid/invalid inputs.
 func TestParseActionType(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		input       string
@@ -219,6 +224,7 @@ func TestParseActionType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := proto.ParseActionType(tt.input)
 			if tt.expectError {
 				require.Error(t, err)
@@ -233,6 +239,8 @@ func TestParseActionType(t *testing.T) {
 
 // T013: Table-driven tests for ParseActionTypeFilter() with comma-separated values.
 func TestParseActionTypeFilter(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		input       string
@@ -300,6 +308,7 @@ func TestParseActionTypeFilter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := proto.ParseActionTypeFilter(tt.input)
 			if tt.expectError {
 				assert.Error(t, err)
@@ -313,6 +322,8 @@ func TestParseActionTypeFilter(t *testing.T) {
 
 // T014: Tests for ValidActionTypes() excluding UNSPECIFIED.
 func TestValidActionTypes(t *testing.T) {
+	t.Parallel()
+
 	types := proto.ValidActionTypes()
 
 	// Should have exactly 12 types (excluding UNSPECIFIED)
@@ -345,6 +356,8 @@ func TestValidActionTypes(t *testing.T) {
 
 // T015: Tests for unknown/future enum value handling (display as "Unknown (N)").
 func TestActionTypeLabel_UnknownValue(t *testing.T) {
+	t.Parallel()
+
 	// Test with a hypothetical future value (high integer)
 	unknownType := pbc.RecommendationActionType(999)
 	result := proto.ActionTypeLabel(unknownType)
@@ -355,6 +368,8 @@ func TestActionTypeLabel_UnknownValue(t *testing.T) {
 
 // Test ActionTypeLabelFromString for string-based lookups.
 func TestActionTypeLabelFromString(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    string
@@ -370,6 +385,7 @@ func TestActionTypeLabelFromString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := proto.ActionTypeLabelFromString(tt.input)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -378,6 +394,8 @@ func TestActionTypeLabelFromString(t *testing.T) {
 
 // Test MatchesActionType for recommendation filtering.
 func TestMatchesActionType(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		recType  string
@@ -436,6 +454,7 @@ func TestMatchesActionType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := proto.MatchesActionType(tt.recType, tt.types)
 			assert.Equal(t, tt.expected, result)
 		})

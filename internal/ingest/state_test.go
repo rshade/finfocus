@@ -86,6 +86,7 @@ const stateWithoutTimestamps = `{
   }
 }`
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestLoadStackExport(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -194,6 +195,7 @@ func TestGetCustomResources(t *testing.T) {
 	assert.Contains(t, types, "aws:s3/bucket:Bucket")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestMapStateResource(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -329,6 +331,7 @@ func TestMapStateResources(t *testing.T) {
 	assert.Equal(t, "2024-06-20T14:22:00Z", ec2Desc.Properties[ingest.PropertyPulumiModified])
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestGetResourceByURN(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -401,6 +404,7 @@ func TestGetCustomResourcesWithContext(t *testing.T) {
 	assert.Len(t, resources, 2)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestMapStateResource_CloudIdentifiers(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -597,6 +601,7 @@ func TestMapStateResource_CloudIdentifiers(t *testing.T) {
 
 // --- ParseStackExport tests (T013) ---
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestParseStackExport(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -678,6 +683,8 @@ func TestParseStackExportWithContext(t *testing.T) {
 
 // TestLoadStackExport_DelegationEquivalence verifies that LoadStackExport and
 // ParseStackExport produce identical results for each fixture file.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestLoadStackExport_DelegationEquivalence(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 

@@ -14,7 +14,10 @@ import (
 
 // T017: Integration test for file logging with path output.
 func TestFileLogging_PathOutput(t *testing.T) {
+	t.Parallel()
+
 	t.Run("creates log file and returns path info", func(t *testing.T) {
+		t.Parallel()
 		tempDir := t.TempDir()
 		logFile := filepath.Join(tempDir, "test.log")
 
@@ -35,6 +38,7 @@ func TestFileLogging_PathOutput(t *testing.T) {
 	})
 
 	t.Run("returns fallback info when file cannot be created", func(t *testing.T) {
+		t.Parallel()
 		cfg := logging.Config{
 			Level:  "info",
 			Format: "json",
@@ -52,6 +56,7 @@ func TestFileLogging_PathOutput(t *testing.T) {
 	})
 
 	t.Run("no path info when output is stderr", func(t *testing.T) {
+		t.Parallel()
 		cfg := logging.Config{
 			Level:  "info",
 			Format: "json",
@@ -69,7 +74,10 @@ func TestFileLogging_PathOutput(t *testing.T) {
 
 // T015/T016: Test log path display message formatting.
 func TestLogPathDisplay(t *testing.T) {
+	t.Parallel()
+
 	t.Run("formats logging to file message correctly", func(t *testing.T) {
+		t.Parallel()
 		var buf bytes.Buffer
 		logPath := "/var/log/finfocus.log"
 
@@ -81,6 +89,7 @@ func TestLogPathDisplay(t *testing.T) {
 	})
 
 	t.Run("formats fallback warning message correctly", func(t *testing.T) {
+		t.Parallel()
 		var buf bytes.Buffer
 		reason := "permission denied"
 
@@ -93,6 +102,7 @@ func TestLogPathDisplay(t *testing.T) {
 	})
 
 	t.Run("no message when not using file", func(t *testing.T) {
+		t.Parallel()
 		var buf bytes.Buffer
 
 		// Empty path means not using file
@@ -104,6 +114,8 @@ func TestLogPathDisplay(t *testing.T) {
 
 // Test that file logging actually writes to the file.
 func TestFileLogging_WritesToFile(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 	logFile := filepath.Join(tempDir, "write-test.log")
 

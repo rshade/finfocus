@@ -12,6 +12,8 @@ import (
 )
 
 func TestIsProcessRunning(t *testing.T) {
+	t.Parallel()
+
 	// Test with current process - should be running
 	currentPID := os.Getpid()
 	assert.True(t, isProcessRunning(currentPID), "Expected current process to be running")
@@ -24,6 +26,7 @@ func TestIsProcessRunning(t *testing.T) {
 	_ = isProcessRunning(0)
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture tmpDir = t.TempDir(...)
 func TestIsLockStale(t *testing.T) {
 	tmpDir := t.TempDir()
 

@@ -51,6 +51,8 @@ func sampleRequest() jevapi.Request {
 }
 
 func TestClient_SystemOneSuccess(t *testing.T) {
+	t.Parallel()
+
 	var gotAuth, gotPath, gotMethod, gotType string
 	var gotBody map[string]any
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -84,6 +86,8 @@ func TestClient_SystemOneSuccess(t *testing.T) {
 }
 
 func TestClient_QuestionWireShape(t *testing.T) {
+	t.Parallel()
+
 	b, err := json.Marshal(map[string]jevapi.Question{
 		"n": jevapi.NoulQuestion("q?", "yes", "no"),
 		"s": jevapi.ScoreQuestion("rate", "A", "B"),
@@ -94,6 +98,8 @@ func TestClient_QuestionWireShape(t *testing.T) {
 }
 
 func TestClient_ErrorStatuses(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		status    int
@@ -109,6 +115,7 @@ func TestClient_ErrorStatuses(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var calls atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				calls.Add(1)
@@ -133,6 +140,8 @@ func TestClient_ErrorStatuses(t *testing.T) {
 }
 
 func TestClient_RetriesHonourRetryAfter(t *testing.T) {
+	t.Parallel()
+
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		switch calls.Add(1) {
@@ -163,6 +172,8 @@ func TestClient_RetriesHonourRetryAfter(t *testing.T) {
 }
 
 func TestClient_RetryThatOutlastsDeadlineFailsFast(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		retryAfter string
@@ -175,6 +186,7 @@ func TestClient_RetryThatOutlastsDeadlineFailsFast(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var calls atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if calls.Add(1) == 1 {
@@ -210,6 +222,8 @@ func TestClient_RetryThatOutlastsDeadlineFailsFast(t *testing.T) {
 }
 
 func TestClient_RetryAfterHTTPDate(t *testing.T) {
+	t.Parallel()
+
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if calls.Add(1) == 1 {
@@ -235,6 +249,8 @@ func TestClient_RetryAfterHTTPDate(t *testing.T) {
 }
 
 func TestClient_BackoffWithoutRetryAfterIsBoundedAndJittered(t *testing.T) {
+	t.Parallel()
+
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if calls.Add(1) < 4 {
@@ -265,6 +281,8 @@ func TestClient_BackoffWithoutRetryAfterIsBoundedAndJittered(t *testing.T) {
 }
 
 func TestClient_RetriesExhausted(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		status   int
@@ -275,6 +293,7 @@ func TestClient_RetriesExhausted(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var calls atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				calls.Add(1)
@@ -293,6 +312,8 @@ func TestClient_RetriesExhausted(t *testing.T) {
 }
 
 func TestClient_RetriesConnectionFailures(t *testing.T) {
+	t.Parallel()
+
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if calls.Add(1) == 1 {
@@ -319,6 +340,8 @@ func TestClient_RetriesConnectionFailures(t *testing.T) {
 }
 
 func TestClient_ConnectionFailureExhausted(t *testing.T) {
+	t.Parallel()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
 	c := newClient(t, srv, func(cfg *jevapi.Config) { cfg.MaxRetries = 1 })
 	srv.Close()
@@ -331,6 +354,8 @@ func TestClient_ConnectionFailureExhausted(t *testing.T) {
 }
 
 func TestClient_Timeout(t *testing.T) {
+	t.Parallel()
+
 	release := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 		select {
@@ -350,6 +375,8 @@ func TestClient_Timeout(t *testing.T) {
 }
 
 func TestClient_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
 	started := make(chan struct{})
 	release := make(chan struct{})
 	srv := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
@@ -372,6 +399,8 @@ func TestClient_ContextCancellation(t *testing.T) {
 }
 
 func TestClient_CancellationDuringBackoff(t *testing.T) {
+	t.Parallel()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
 	}))
@@ -389,6 +418,8 @@ func TestClient_CancellationDuringBackoff(t *testing.T) {
 }
 
 func TestClient_MalformedResponses(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		body string
@@ -402,6 +433,7 @@ func TestClient_MalformedResponses(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				_, _ = w.Write([]byte(tt.body))
 			}))
@@ -414,6 +446,8 @@ func TestClient_MalformedResponses(t *testing.T) {
 }
 
 func TestClient_Models(t *testing.T) {
+	t.Parallel()
+
 	var gotPath, gotAuth string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath, gotAuth = r.URL.Path, r.Header.Get("Authorization")
@@ -431,6 +465,8 @@ func TestClient_Models(t *testing.T) {
 }
 
 func TestClient_ModelsUnauthorized(t *testing.T) {
+	t.Parallel()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
@@ -443,6 +479,8 @@ func TestClient_ModelsUnauthorized(t *testing.T) {
 }
 
 func TestClient_ErrorMessageIsBounded(t *testing.T) {
+	t.Parallel()
+
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		_, _ = w.Write([]byte(`{"detail":"` + strings.Repeat("x", 5000) + `"}`))
@@ -455,6 +493,8 @@ func TestClient_ErrorMessageIsBounded(t *testing.T) {
 }
 
 func TestNew_Validation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		cfg  jevapi.Config
@@ -467,6 +507,7 @@ func TestNew_Validation(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := jevapi.New(tt.cfg)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.want)

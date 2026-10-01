@@ -12,6 +12,8 @@ import (
 
 // TestVirtualListModel_NewModel tests VirtualListModel initialization.
 func TestVirtualListModel_NewModel(t *testing.T) {
+	t.Parallel()
+
 	items := []string{"item1", "item2", "item3", "item4", "item5"}
 	renderFunc := func(item string, _ bool) string {
 		return item
@@ -28,6 +30,8 @@ func TestVirtualListModel_NewModel(t *testing.T) {
 
 // TestVirtualListModel_VisibleRangeCalculation tests visible range logic.
 func TestVirtualListModel_VisibleRangeCalculation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		totalItems     int
@@ -72,6 +76,7 @@ func TestVirtualListModel_VisibleRangeCalculation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			items := make([]string, tt.totalItems)
 			for i := range items {
 				items[i] = "item"
@@ -90,6 +95,8 @@ func TestVirtualListModel_VisibleRangeCalculation(t *testing.T) {
 }
 
 // TestVirtualListModel_ScrollBoundaries tests scroll boundary conditions.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture model = listview.NewVirtualListModel(...)
 func TestVirtualListModel_ScrollBoundaries(t *testing.T) {
 	items := make([]string, 100)
 	for i := range items {
@@ -143,6 +150,8 @@ func TestVirtualListModel_ScrollBoundaries(t *testing.T) {
 }
 
 // TestVirtualListModel_SelectionLogic tests item selection behavior.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture model = listview.NewVirtualListModel(...)
 func TestVirtualListModel_SelectionLogic(t *testing.T) {
 	items := make([]string, 50)
 	for i := range items {
@@ -209,6 +218,8 @@ func TestVirtualListModel_SelectionLogic(t *testing.T) {
 }
 
 // TestVirtualListModel_PageUpDown tests page navigation.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture model = listview.NewVirtualListModel(...)
 func TestVirtualListModel_PageUpDown(t *testing.T) {
 	items := make([]string, 100)
 	for i := range items {
@@ -264,6 +275,8 @@ func TestVirtualListModel_PageUpDown(t *testing.T) {
 
 // TestVirtualListModel_WindowResize tests viewport height adjustment.
 func TestVirtualListModel_WindowResize(t *testing.T) {
+	t.Parallel()
+
 	items := make([]string, 100)
 	for i := range items {
 		items[i] = "item"
@@ -284,6 +297,8 @@ func TestVirtualListModel_WindowResize(t *testing.T) {
 
 // TestVirtualListModel_EmptyList tests behavior with no items.
 func TestVirtualListModel_EmptyList(t *testing.T) {
+	t.Parallel()
+
 	renderFunc := func(item string, _ bool) string {
 		return item
 	}
@@ -305,6 +320,8 @@ func TestVirtualListModel_EmptyList(t *testing.T) {
 
 // TestVirtualListModel_SingleItem tests behavior with one item.
 func TestVirtualListModel_SingleItem(t *testing.T) {
+	t.Parallel()
+
 	renderFunc := func(item string, _ bool) string {
 		return item
 	}
@@ -323,6 +340,8 @@ func TestVirtualListModel_SingleItem(t *testing.T) {
 }
 
 // TestVirtualListModel_SetSelected tests direct selection setting.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture model = listview.NewVirtualListModel(...)
 func TestVirtualListModel_SetSelected(t *testing.T) {
 	items := make([]string, 50)
 	for i := range items {

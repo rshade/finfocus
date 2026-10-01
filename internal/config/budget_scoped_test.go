@@ -40,6 +40,8 @@ type testConfig struct {
 
 // TestScopedBudget_Validation tests ScopedBudget validation logic.
 func TestScopedBudget_Validation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		budget         *config.ScopedBudget
@@ -174,6 +176,7 @@ func TestScopedBudget_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.budget.Validate(tt.globalCurrency)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -187,6 +190,8 @@ func TestScopedBudget_Validation(t *testing.T) {
 
 // TestTagBudget_Validation tests TagBudget validation including selector parsing.
 func TestTagBudget_Validation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		tagBudget      *config.TagBudget
@@ -274,6 +279,7 @@ func TestTagBudget_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.tagBudget.Validate(tt.globalCurrency)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -287,6 +293,8 @@ func TestTagBudget_Validation(t *testing.T) {
 
 // TestParseTagSelector tests tag selector parsing.
 func TestParseTagSelector(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		selector   string
@@ -352,6 +360,7 @@ func TestParseTagSelector(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			parsed, err := config.ParseTagSelector(tt.selector)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -369,6 +378,8 @@ func TestParseTagSelector(t *testing.T) {
 
 // TestParsedTagSelector_Matches tests tag matching logic.
 func TestParsedTagSelector_Matches(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		selector string
@@ -427,6 +438,7 @@ func TestParsedTagSelector_Matches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			parsed, err := config.ParseTagSelector(tt.selector)
 			require.NoError(t, err)
 
@@ -438,6 +450,8 @@ func TestParsedTagSelector_Matches(t *testing.T) {
 
 // TestBudgetsConfig_Validation tests BudgetsConfig validation.
 func TestBudgetsConfig_Validation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		config      *config.BudgetsConfig
@@ -592,6 +606,7 @@ func TestBudgetsConfig_Validation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			warnings, err := tt.config.Validate()
 			if tt.wantErr {
 				require.Error(t, err)
@@ -606,7 +621,10 @@ func TestBudgetsConfig_Validation(t *testing.T) {
 
 // TestBudgetsConfig_Helpers tests helper methods on BudgetsConfig.
 func TestBudgetsConfig_Helpers(t *testing.T) {
+	t.Parallel()
+
 	t.Run("HasScopedBudgets", func(t *testing.T) {
+		t.Parallel()
 		tests := []struct {
 			name   string
 			config *config.BudgetsConfig
@@ -630,12 +648,14 @@ func TestBudgetsConfig_Helpers(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 				assert.Equal(t, tt.want, tt.config.HasScopedBudgets())
 			})
 		}
 	})
 
 	t.Run("HasGlobalBudget", func(t *testing.T) {
+		t.Parallel()
 		tests := []struct {
 			name   string
 			config *config.BudgetsConfig
@@ -650,12 +670,14 @@ func TestBudgetsConfig_Helpers(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 				assert.Equal(t, tt.want, tt.config.HasGlobalBudget())
 			})
 		}
 	})
 
 	t.Run("IsEnabled", func(t *testing.T) {
+		t.Parallel()
 		tests := []struct {
 			name   string
 			config *config.BudgetsConfig
@@ -684,12 +706,14 @@ func TestBudgetsConfig_Helpers(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 				assert.Equal(t, tt.want, tt.config.IsEnabled())
 			})
 		}
 	})
 
 	t.Run("GetEffectiveExitOnThreshold", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{ExitOnThreshold: true}
 		assert.True(t, cfg.GetEffectiveExitOnThreshold(nil))
 		assert.False(t, cfg.GetEffectiveExitOnThreshold(ptr(false)))
@@ -700,6 +724,7 @@ func TestBudgetsConfig_Helpers(t *testing.T) {
 	})
 
 	t.Run("GetEffectiveExitCode", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.BudgetsConfig{ExitCode: ptr(5)}
 		assert.Equal(t, 5, cfg.GetEffectiveExitCode(nil))
 		assert.Equal(t, 10, cfg.GetEffectiveExitCode(ptr(10)))
@@ -717,7 +742,10 @@ func TestBudgetsConfig_Helpers(t *testing.T) {
 
 // TestBudgetsConfig_LoadFromFixtures tests loading and validating fixture files.
 func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
+	t.Parallel()
+
 	t.Run("global_only.yaml", func(t *testing.T) {
+		t.Parallel()
 		cfg := loadFixture(t, "global_only.yaml")
 		warnings, err := cfg.Cost.Budgets.Validate()
 		require.NoError(t, err)
@@ -731,6 +759,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 	})
 
 	t.Run("multi_provider.yaml", func(t *testing.T) {
+		t.Parallel()
 		cfg := loadFixture(t, "multi_provider.yaml")
 		warnings, err := cfg.Cost.Budgets.Validate()
 		require.NoError(t, err)
@@ -743,6 +772,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 	})
 
 	t.Run("tag_budgets.yaml", func(t *testing.T) {
+		t.Parallel()
 		cfg := loadFixture(t, "tag_budgets.yaml")
 		warnings, err := cfg.Cost.Budgets.Validate()
 		require.NoError(t, err)
@@ -753,6 +783,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 	})
 
 	t.Run("resource_types.yaml", func(t *testing.T) {
+		t.Parallel()
 		cfg := loadFixture(t, "resource_types.yaml")
 		warnings, err := cfg.Cost.Budgets.Validate()
 		require.NoError(t, err)
@@ -763,6 +794,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 	})
 
 	t.Run("full_scoped.yaml", func(t *testing.T) {
+		t.Parallel()
 		cfg := loadFixture(t, "full_scoped.yaml")
 		warnings, err := cfg.Cost.Budgets.Validate()
 		require.NoError(t, err)
@@ -776,6 +808,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 	})
 
 	t.Run("invalid_currency_mismatch.yaml", func(t *testing.T) {
+		t.Parallel()
 		cfg := loadFixture(t, "invalid_currency_mismatch.yaml")
 		_, err := cfg.Cost.Budgets.Validate()
 		require.Error(t, err)
@@ -783,6 +816,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 	})
 
 	t.Run("invalid_missing_global.yaml", func(t *testing.T) {
+		t.Parallel()
 		cfg := loadFixture(t, "invalid_missing_global.yaml")
 		_, err := cfg.Cost.Budgets.Validate()
 		require.Error(t, err)
@@ -790,6 +824,7 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 	})
 
 	t.Run("invalid_tag_selector.yaml", func(t *testing.T) {
+		t.Parallel()
 		cfg := loadFixture(t, "invalid_tag_selector.yaml")
 		_, err := cfg.Cost.Budgets.Validate()
 		require.Error(t, err)
@@ -799,7 +834,10 @@ func TestBudgetsConfig_LoadFromFixtures(t *testing.T) {
 
 // TestScopedBudget_HelperMethods tests ScopedBudget helper methods.
 func TestScopedBudget_HelperMethods(t *testing.T) {
+	t.Parallel()
+
 	t.Run("IsEnabled", func(t *testing.T) {
+		t.Parallel()
 		var nilBudget *config.ScopedBudget
 		assert.False(t, nilBudget.IsEnabled())
 		assert.True(t, (&config.ScopedBudget{Amount: 100}).IsEnabled())
@@ -807,6 +845,7 @@ func TestScopedBudget_HelperMethods(t *testing.T) {
 	})
 
 	t.Run("IsDisabled", func(t *testing.T) {
+		t.Parallel()
 		var nilBudget *config.ScopedBudget
 		assert.True(t, nilBudget.IsDisabled())
 		assert.False(t, (&config.ScopedBudget{Amount: 100}).IsDisabled())
@@ -814,6 +853,7 @@ func TestScopedBudget_HelperMethods(t *testing.T) {
 	})
 
 	t.Run("GetPeriod", func(t *testing.T) {
+		t.Parallel()
 		var nilBudget *config.ScopedBudget
 		assert.Equal(t, "monthly", nilBudget.GetPeriod())
 		assert.Equal(t, "monthly", (&config.ScopedBudget{}).GetPeriod())
@@ -821,6 +861,7 @@ func TestScopedBudget_HelperMethods(t *testing.T) {
 	})
 
 	t.Run("GetCurrency", func(t *testing.T) {
+		t.Parallel()
 		var nilBudget *config.ScopedBudget
 		assert.Empty(t, nilBudget.GetCurrency())
 		assert.Empty(t, (&config.ScopedBudget{}).GetCurrency())
@@ -828,6 +869,7 @@ func TestScopedBudget_HelperMethods(t *testing.T) {
 	})
 
 	t.Run("ShouldExitOnThreshold", func(t *testing.T) {
+		t.Parallel()
 		var nilBudget *config.ScopedBudget
 		assert.Nil(t, nilBudget.ShouldExitOnThreshold())
 		assert.Nil(t, (&config.ScopedBudget{}).ShouldExitOnThreshold())
@@ -837,6 +879,7 @@ func TestScopedBudget_HelperMethods(t *testing.T) {
 	})
 
 	t.Run("GetExitCode", func(t *testing.T) {
+		t.Parallel()
 		var nilBudget *config.ScopedBudget
 		assert.Nil(t, nilBudget.GetExitCode())
 		assert.Nil(t, (&config.ScopedBudget{}).GetExitCode())

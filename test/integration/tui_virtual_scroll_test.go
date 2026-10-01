@@ -14,6 +14,8 @@ import (
 // TestVirtualScrolling_LargeDataset tests the recommendations TUI with a large dataset
 // to verify virtual scrolling performance and correctness.
 func TestVirtualScrolling_LargeDataset(t *testing.T) {
+	t.Parallel()
+
 	// Create a large dataset (1000 recommendations)
 	recommendations := make([]engine.Recommendation, 1000)
 	for i := range recommendations {
@@ -58,6 +60,8 @@ func TestVirtualScrolling_LargeDataset(t *testing.T) {
 }
 
 // TestVirtualScrolling_NavigationKeys tests keyboard navigation with virtual scrolling.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture model = tui.NewRecommendationsViewModel(...)
 func TestVirtualScrolling_NavigationKeys(t *testing.T) {
 	// Create a medium dataset (100 recommendations)
 	recommendations := make([]engine.Recommendation, 100)
@@ -147,6 +151,8 @@ func TestVirtualScrolling_NavigationKeys(t *testing.T) {
 
 // TestVirtualScrolling_SortingAndFiltering tests that virtual scrolling works
 // correctly when combined with sorting and filtering operations.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture model = tui.NewRecommendationsViewModel(...)
 func TestVirtualScrolling_SortingAndFiltering(t *testing.T) {
 	// Create a dataset with varied savings
 	recommendations := []engine.Recommendation{
@@ -214,6 +220,8 @@ func TestVirtualScrolling_SortingAndFiltering(t *testing.T) {
 
 // TestVirtualScrolling_DetailView tests that detail view still works with virtual scrolling.
 func TestVirtualScrolling_DetailView(t *testing.T) {
+	t.Parallel()
+
 	recommendations := []engine.Recommendation{
 		{
 			ResourceID:       "test-resource",
@@ -246,6 +254,8 @@ func TestVirtualScrolling_DetailView(t *testing.T) {
 
 // TestVirtualScrolling_EmptyList tests virtual scrolling with empty recommendations.
 func TestVirtualScrolling_EmptyList(t *testing.T) {
+	t.Parallel()
+
 	model := tui.NewRecommendationsViewModel([]engine.Recommendation{})
 	require.NotNil(t, model)
 
@@ -263,6 +273,8 @@ func TestVirtualScrolling_EmptyList(t *testing.T) {
 // TestVirtualScrolling_Performance tests that rendering performance is acceptable
 // even with very large datasets (10,000+ items).
 func TestVirtualScrolling_Performance(t *testing.T) {
+	t.Parallel()
+
 	// Create a very large dataset (10,000 recommendations)
 	recommendations := make([]engine.Recommendation, 10000)
 	for i := range recommendations {

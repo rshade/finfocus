@@ -13,6 +13,8 @@ import (
 
 // TestCalculateBudgetSummary verifies basic summary aggregation (FR-004).
 func TestCalculateBudgetSummary_US3(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -53,6 +55,7 @@ func TestCalculateBudgetSummary_US3(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.CalculateBudgetSummary(ctx, tc.budgets)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -61,6 +64,8 @@ func TestCalculateBudgetSummary_US3(t *testing.T) {
 
 // TestCalculateExtendedSummary verifies detailed breakdown calculation.
 func TestCalculateExtendedSummary(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	budgets := []*pbc.Budget{

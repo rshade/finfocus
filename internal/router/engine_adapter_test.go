@@ -13,6 +13,8 @@ import (
 )
 
 func TestEngineAdapter_SelectPlugins(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		matches        []PluginMatch
@@ -127,6 +129,7 @@ func TestEngineAdapter_SelectPlugins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			stub := &stubRouter{matches: tt.matches, fallback: true}
 			adapter := NewEngineAdapter(stub)
 			ctx := context.Background()
@@ -147,6 +150,8 @@ func TestEngineAdapter_SelectPlugins(t *testing.T) {
 }
 
 func TestEngineAdapter_SelectPlugins_FeaturePassthrough(t *testing.T) {
+	t.Parallel()
+
 	stub := &stubRouter{
 		matches:  []PluginMatch{},
 		fallback: true,
@@ -163,6 +168,8 @@ func TestEngineAdapter_SelectPlugins_FeaturePassthrough(t *testing.T) {
 }
 
 func TestEngineAdapter_ShouldFallback(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		fallback   bool
@@ -182,6 +189,7 @@ func TestEngineAdapter_ShouldFallback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			stub := &stubRouter{fallback: tt.fallback}
 			adapter := NewEngineAdapter(stub)
 
@@ -194,6 +202,8 @@ func TestEngineAdapter_ShouldFallback(t *testing.T) {
 }
 
 func TestEngineAdapter_WithRealRouter(t *testing.T) {
+	t.Parallel()
+
 	clients := []*pluginhost.Client{
 		mockClient("aws-public", []string{"aws"}),
 	}
@@ -223,6 +233,8 @@ func TestEngineAdapter_WithRealRouter(t *testing.T) {
 }
 
 func TestEngineAdapter_PriorityAndFallbackPreservation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		priority int
@@ -236,6 +248,7 @@ func TestEngineAdapter_PriorityAndFallbackPreservation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			stub := &stubRouter{
 				matches: []PluginMatch{
 					{
@@ -262,6 +275,8 @@ func TestEngineAdapter_PriorityAndFallbackPreservation(t *testing.T) {
 }
 
 func TestEngineAdapter_MatchReasonNoMatch_EdgeCase(t *testing.T) {
+	t.Parallel()
+
 	// MatchReasonNoMatch has value -1 (iota - 1), verify it converts correctly.
 	stub := &stubRouter{
 		matches: []PluginMatch{
@@ -281,6 +296,8 @@ func TestEngineAdapter_MatchReasonNoMatch_EdgeCase(t *testing.T) {
 }
 
 func TestNewEngineAdapter_NilRouter(t *testing.T) {
+	t.Parallel()
+
 	adapter := NewEngineAdapter(nil)
 	assert.Nil(t, adapter, "NewEngineAdapter(nil) should return nil")
 }

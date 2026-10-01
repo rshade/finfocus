@@ -12,6 +12,7 @@ import (
 	"github.com/rshade/finfocus/internal/cli"
 )
 
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via NewAnalyzerCmd)
 func TestNewAnalyzerCmd(t *testing.T) {
 	cmd := cli.NewAnalyzerCmd()
 
@@ -31,6 +32,7 @@ func TestNewAnalyzerCmd(t *testing.T) {
 	assert.Equal(t, "check", checkCmd.Use)
 }
 
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via NewAnalyzerServeCmd)
 func TestNewAnalyzerServeCmd(t *testing.T) {
 	cmd := cli.NewAnalyzerServeCmd()
 
@@ -39,6 +41,7 @@ func TestNewAnalyzerServeCmd(t *testing.T) {
 	assert.Contains(t, cmd.Short, "gRPC server")
 }
 
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via NewAnalyzerServeCmd)
 func TestAnalyzerServeCmd_PrintsPort(t *testing.T) {
 	// This test verifies that the serve command:
 	// 1. Starts without immediate error
@@ -75,6 +78,7 @@ func TestAnalyzerServeCmd_PrintsPort(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestAnalyzerCmd_InRootCmd(t *testing.T) {
 	rootCmd := cli.NewRootCmd("1.0.0-test")
 
@@ -90,6 +94,7 @@ func TestAnalyzerCmd_InRootCmd(t *testing.T) {
 	assert.Equal(t, "serve", serveCmd.Use)
 }
 
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via NewAnalyzerServeCmd)
 func TestAnalyzerServeCmd_HelpOutput(t *testing.T) {
 	cmd := cli.NewAnalyzerServeCmd()
 

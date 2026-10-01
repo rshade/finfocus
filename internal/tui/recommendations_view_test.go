@@ -9,7 +9,10 @@ import (
 )
 
 func TestNewRecommendationRow(t *testing.T) {
+	t.Parallel()
+
 	t.Run("basic recommendation", func(t *testing.T) {
+		t.Parallel()
 		rec := engine.Recommendation{
 			ResourceID:       "aws:ec2:Instance/i-123",
 			Type:             "RIGHTSIZE",
@@ -28,6 +31,7 @@ func TestNewRecommendationRow(t *testing.T) {
 	})
 
 	t.Run("zero savings", func(t *testing.T) {
+		t.Parallel()
 		rec := engine.Recommendation{
 			ResourceID:       "aws:s3:Bucket/my-bucket",
 			Type:             "MODIFY",
@@ -43,6 +47,7 @@ func TestNewRecommendationRow(t *testing.T) {
 	})
 
 	t.Run("long description truncation", func(t *testing.T) {
+		t.Parallel()
 		longDesc := "This is a very long description that exceeds forty characters and should be truncated"
 		rec := engine.Recommendation{
 			ResourceID:       "res-1",
@@ -63,6 +68,7 @@ func TestNewRecommendationRow(t *testing.T) {
 	})
 
 	t.Run("long resource ID truncation", func(t *testing.T) {
+		t.Parallel()
 		longResourceID := "aws:ec2:Instance/i-0123456789abcdef0123456789abcdef"
 		rec := engine.Recommendation{
 			ResourceID:       longResourceID,
@@ -79,6 +85,7 @@ func TestNewRecommendationRow(t *testing.T) {
 	})
 
 	t.Run("empty currency defaults to USD", func(t *testing.T) {
+		t.Parallel()
 		rec := engine.Recommendation{
 			ResourceID:       "res-1",
 			Type:             "RIGHTSIZE",
@@ -93,6 +100,7 @@ func TestNewRecommendationRow(t *testing.T) {
 	})
 
 	t.Run("different currencies", func(t *testing.T) {
+		t.Parallel()
 		rec := engine.Recommendation{
 			ResourceID:       "res-1",
 			Type:             "RIGHTSIZE",
@@ -108,7 +116,10 @@ func TestNewRecommendationRow(t *testing.T) {
 }
 
 func TestRecommendationRowConstants(t *testing.T) {
+	t.Parallel()
+
 	t.Run("constants are reasonable", func(t *testing.T) {
+		t.Parallel()
 		// Verify constants are set to reasonable values
 		assert.GreaterOrEqual(t, maxDescLen, 30)
 		assert.LessOrEqual(t, maxDescLen, 60)

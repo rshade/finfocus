@@ -10,6 +10,8 @@ import (
 
 // TestConfidenceConstants validates that confidence level constants are defined.
 func TestConfidenceConstants(t *testing.T) {
+	t.Parallel()
+
 	// Verify constants exist and have expected values
 	assert.Equal(t, engine.ConfidenceHigh, engine.Confidence("high"))
 	assert.Equal(t, engine.ConfidenceMedium, engine.Confidence("medium"))
@@ -19,6 +21,8 @@ func TestConfidenceConstants(t *testing.T) {
 
 // TestConfidenceIsValid tests the IsValid method on Confidence type.
 func TestConfidenceIsValid(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		confidence engine.Confidence
@@ -58,6 +62,7 @@ func TestConfidenceIsValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.wantValid, tt.confidence.IsValid())
 		})
 	}
@@ -65,6 +70,8 @@ func TestConfidenceIsValid(t *testing.T) {
 
 // TestConfidenceString tests the String method on Confidence type.
 func TestConfidenceString(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		confidence engine.Confidence
@@ -94,6 +101,7 @@ func TestConfidenceString(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tt.confidence.String())
 		})
 	}
@@ -105,6 +113,8 @@ func TestConfidenceString(t *testing.T) {
 //   - MEDIUM: Runtime-based estimate where External=false
 //   - LOW: Runtime-based estimate where External=true (imported resources)
 func TestDetermineConfidence(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		hasBillingData bool // true if data came from actual billing API
@@ -139,6 +149,7 @@ func TestDetermineConfidence(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := engine.DetermineConfidence(tt.hasBillingData, tt.isExternal)
 			assert.Equal(t, tt.want, got)
 		})
@@ -148,6 +159,8 @@ func TestDetermineConfidence(t *testing.T) {
 // TestDetermineConfidenceFromResult tests confidence determination from a CostResult.
 // This is useful when we have a completed cost calculation and need to set confidence.
 func TestDetermineConfidenceFromResult(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		result     engine.CostResult
@@ -205,6 +218,7 @@ func TestDetermineConfidenceFromResult(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := engine.DetermineConfidenceFromResult(tt.result, tt.isExternal)
 			assert.Equal(t, tt.want, got)
 		})
@@ -213,6 +227,8 @@ func TestDetermineConfidenceFromResult(t *testing.T) {
 
 // TestCostResultConfidenceField tests that CostResult has a Confidence field.
 func TestCostResultConfidenceField(t *testing.T) {
+	t.Parallel()
+
 	result := engine.CostResult{
 		ResourceType: "aws:ec2:Instance",
 		ResourceID:   "i-12345",
@@ -226,6 +242,8 @@ func TestCostResultConfidenceField(t *testing.T) {
 
 // TestConfidenceDisplayLabel tests human-readable display labels for UI.
 func TestConfidenceDisplayLabel(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		confidence engine.Confidence
 		want       string
@@ -238,6 +256,7 @@ func TestConfidenceDisplayLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.confidence.String(), func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tt.confidence.DisplayLabel())
 		})
 	}

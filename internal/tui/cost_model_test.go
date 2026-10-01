@@ -12,6 +12,8 @@ import (
 )
 
 func TestCostViewModel_Update(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceType: "res1", Monthly: 10.0},
 		{ResourceType: "res2", Monthly: 20.0},
@@ -53,6 +55,8 @@ func TestCostViewModel_Update(t *testing.T) {
 }
 
 func TestCostViewModel_Filter(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceType: "aws:ec2", ResourceID: "match-me"},
 		{ResourceType: "aws:s3", ResourceID: "ignore-me"},
@@ -76,6 +80,8 @@ func TestCostViewModel_Filter(t *testing.T) {
 }
 
 func TestCostViewModel_Sort(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceID: "A", Monthly: 10.0},
 		{ResourceID: "B", Monthly: 20.0},
@@ -95,6 +101,8 @@ func TestCostViewModel_Sort(t *testing.T) {
 }
 
 func TestCostViewModel_ActualCostMode(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceType: "aws:ec2", TotalCost: 100.0, Currency: "USD"},
 	}
@@ -108,6 +116,8 @@ func TestCostViewModel_ActualCostMode(t *testing.T) {
 }
 
 func TestCostViewModel_ActualCostModeWithAggregation(t *testing.T) {
+	t.Parallel()
+
 	// Create results with dates for time-based grouping.
 	results := []engine.CostResult{
 		{
@@ -126,6 +136,8 @@ func TestCostViewModel_ActualCostModeWithAggregation(t *testing.T) {
 }
 
 func TestCostViewModel_ErrorState(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{}
 	m := NewCostViewModel(context.Background(), results)
 
@@ -139,6 +151,8 @@ func TestCostViewModel_ErrorState(t *testing.T) {
 }
 
 func TestCostViewModel_WindowResize(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceType: "aws:ec2", Monthly: 10.0},
 	}
@@ -155,6 +169,8 @@ func TestCostViewModel_WindowResize(t *testing.T) {
 }
 
 func TestNewCostViewModelWithLoading(t *testing.T) {
+	t.Parallel()
+
 	fetched := false
 	fetcher := func() ([]engine.CostResult, error) {
 		fetched = true
@@ -179,7 +195,10 @@ func TestNewCostViewModelWithLoading(t *testing.T) {
 }
 
 func TestCostViewModel_Init(t *testing.T) {
+	t.Parallel()
+
 	t.Run("loading state returns commands", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModelWithLoading(context.Background(), func() ([]engine.CostResult, error) {
 			return []engine.CostResult{}, nil
 		})
@@ -187,7 +206,8 @@ func TestCostViewModel_Init(t *testing.T) {
 		assert.NotNil(t, cmd)
 	})
 
-	t.Run("list state with no filter returns nil", func(*testing.T) {
+	t.Run("list state with no filter returns nil", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModel(context.Background(), []engine.CostResult{})
 		cmd := m.Init()
 		// Without loading or filter, Init returns nil (tea.Batch of empty).
@@ -195,6 +215,7 @@ func TestCostViewModel_Init(t *testing.T) {
 	})
 
 	t.Run("list state with filter returns blink command", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModel(context.Background(), []engine.CostResult{})
 		m.showFilter = true
 		cmd := m.Init()
@@ -203,7 +224,10 @@ func TestCostViewModel_Init(t *testing.T) {
 }
 
 func TestCostViewModel_HandleLoadingComplete(t *testing.T) {
+	t.Parallel()
+
 	t.Run("success transition to list", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModelWithLoading(context.Background(), func() ([]engine.CostResult, error) {
 			return []engine.CostResult{{ResourceType: "aws:ec2", Monthly: 50.0}}, nil
 		})
@@ -220,6 +244,7 @@ func TestCostViewModel_HandleLoadingComplete(t *testing.T) {
 	})
 
 	t.Run("error transition to error state", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModelWithLoading(context.Background(), func() ([]engine.CostResult, error) {
 			return nil, assert.AnError
 		})
@@ -238,6 +263,8 @@ func TestCostViewModel_HandleLoadingComplete(t *testing.T) {
 }
 
 func TestCostViewModel_HandleFilterInput(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceType: "aws:ec2", ResourceID: "test-1"},
 		{ResourceType: "aws:s3", ResourceID: "test-2"},
@@ -264,6 +291,8 @@ func TestCostViewModel_HandleFilterInput(t *testing.T) {
 }
 
 func TestCostViewModel_HandleListUpdate_ActivateFilter(t *testing.T) {
+	t.Parallel()
+
 	m := NewCostViewModel(context.Background(), []engine.CostResult{
 		{ResourceType: "aws:ec2", Monthly: 10.0},
 	})
@@ -276,6 +305,8 @@ func TestCostViewModel_HandleListUpdate_ActivateFilter(t *testing.T) {
 }
 
 func TestCostViewModel_HandleListUpdate_CycleSort(t *testing.T) {
+	t.Parallel()
+
 	m := NewCostViewModel(context.Background(), []engine.CostResult{
 		{ResourceType: "aws:ec2", ResourceID: "A", Monthly: 10.0},
 		{ResourceType: "aws:s3", ResourceID: "B", Monthly: 20.0},
@@ -291,6 +322,8 @@ func TestCostViewModel_HandleListUpdate_CycleSort(t *testing.T) {
 }
 
 func TestCostViewModel_HandleListUpdate_ClearFilter(t *testing.T) {
+	t.Parallel()
+
 	m := NewCostViewModel(context.Background(), []engine.CostResult{
 		{ResourceType: "aws:ec2", ResourceID: "test"},
 	})
@@ -307,6 +340,8 @@ func TestCostViewModel_HandleListUpdate_ClearFilter(t *testing.T) {
 }
 
 func TestCostViewModel_HandleListUpdate_EnterOnAggregation(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceType: "aws:ec2", TotalCost: 100.0, Currency: "USD"},
 	}
@@ -321,13 +356,17 @@ func TestCostViewModel_HandleListUpdate_EnterOnAggregation(t *testing.T) {
 }
 
 func TestCostViewModel_View_AllStates(t *testing.T) {
+	t.Parallel()
+
 	t.Run("quitting state returns empty", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModel(context.Background(), []engine.CostResult{})
 		m.state = ViewStateQuitting
 		assert.Empty(t, m.View().Content)
 	})
 
 	t.Run("loading state returns loading view", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModelWithLoading(context.Background(), func() ([]engine.CostResult, error) {
 			return nil, nil
 		})
@@ -336,6 +375,7 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 	})
 
 	t.Run("detail state with valid index", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModel(context.Background(), []engine.CostResult{
 			{ResourceType: "aws:ec2", ResourceID: "test-instance", Monthly: 50.0},
 		})
@@ -347,6 +387,7 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 	})
 
 	t.Run("detail state with invalid index", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModel(context.Background(), []engine.CostResult{})
 		m.state = ViewStateDetail
 		m.selected = 99
@@ -355,6 +396,7 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 	})
 
 	t.Run("list state renders summary and table", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModel(context.Background(), []engine.CostResult{
 			{ResourceType: "aws:ec2", Monthly: 50.0},
 		})
@@ -364,6 +406,7 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 	})
 
 	t.Run("list state with filter shows filter input", func(t *testing.T) {
+		t.Parallel()
 		m := NewCostViewModel(context.Background(), []engine.CostResult{
 			{ResourceType: "aws:ec2", Monthly: 50.0},
 		})
@@ -374,6 +417,7 @@ func TestCostViewModel_View_AllStates(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture results (composite value mutated by a subtest)
 func TestCostViewModel_SortAllFields(t *testing.T) {
 	results := []engine.CostResult{
 		{ResourceID: "C", ResourceType: "aws:ec2", Monthly: 10.0, Delta: 5.0},
@@ -410,7 +454,9 @@ func TestCostViewModel_SortAllFields(t *testing.T) {
 	})
 }
 
-func TestCostViewModel_HandleLoadingUpdate(_ *testing.T) {
+func TestCostViewModel_HandleLoadingUpdate(t *testing.T) {
+	t.Parallel()
+
 	m := NewCostViewModelWithLoading(context.Background(), func() ([]engine.CostResult, error) {
 		return nil, nil
 	})
@@ -424,6 +470,8 @@ func TestCostViewModel_HandleLoadingUpdate(_ *testing.T) {
 }
 
 func TestCostViewModel_CtrlC(t *testing.T) {
+	t.Parallel()
+
 	m := NewCostViewModel(context.Background(), []engine.CostResult{})
 
 	// Test Ctrl+C quits.
@@ -435,6 +483,8 @@ func TestCostViewModel_CtrlC(t *testing.T) {
 }
 
 func TestCostViewModel_RebuildTable_SmallHeight(t *testing.T) {
+	t.Parallel()
+
 	m := NewCostViewModel(context.Background(), []engine.CostResult{
 		{ResourceType: "aws:ec2", Monthly: 50.0},
 	})
@@ -446,6 +496,8 @@ func TestCostViewModel_RebuildTable_SmallHeight(t *testing.T) {
 }
 
 func TestCostViewModel_FilterByResourceType(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{ResourceType: "aws:ec2/instance", ResourceID: "i-123"},
 		{ResourceType: "aws:s3/bucket", ResourceID: "my-bucket"},

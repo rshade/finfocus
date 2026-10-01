@@ -38,9 +38,12 @@ func createTestEngine() *enginepkg.Engine {
 
 // T007: Test Engine.DismissRecommendation with various scenarios.
 func TestEngine_DismissRecommendation(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("dismiss with valid reason", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -65,6 +68,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("snooze with expiry", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -88,6 +92,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("empty recommendation ID returns error", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -102,6 +107,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("invalid reason returns error", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -116,6 +122,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("direct transition dismissed to snoozed", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -152,6 +159,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("re-snooze updates expiry date", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -185,6 +193,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("snoozed to dismissed direct transition", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -217,6 +226,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("preserves LastKnown recommendation details", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -247,6 +257,7 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("all valid dismissal reasons", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -276,9 +287,12 @@ func TestEngine_DismissRecommendation(t *testing.T) {
 
 // T022: Test Engine.UndismissRecommendation.
 func TestEngine_UndismissRecommendation(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("undismiss dismissed record", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -309,6 +323,7 @@ func TestEngine_UndismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("undismiss snoozed record", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -335,6 +350,7 @@ func TestEngine_UndismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("undismiss non-dismissed ID returns informational message", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -345,6 +361,7 @@ func TestEngine_UndismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("empty recommendation ID returns error", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -356,9 +373,12 @@ func TestEngine_UndismissRecommendation(t *testing.T) {
 
 // T026: Test Engine.GetRecommendationHistory.
 func TestEngine_GetRecommendationHistory(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("returns history in chronological order", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -378,6 +398,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 	})
 
 	t.Run("returns empty for unknown ID", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -387,6 +408,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 	})
 
 	t.Run("returns empty for active ID", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -397,6 +419,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 	})
 
 	t.Run("empty recommendation ID returns error", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -406,6 +429,7 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 	})
 
 	t.Run("multiple lifecycle events in history", func(t *testing.T) {
+		t.Parallel()
 		engine := createTestEngine()
 		store := createTestStore(t)
 
@@ -438,6 +462,8 @@ func TestEngine_GetRecommendationHistory(t *testing.T) {
 
 // TestDismissalStore_ExcludedIDs_ForEngineFiltering validates the DismissalStore load/extract path.
 func TestDismissalStore_ExcludedIDs_ForEngineFiltering(t *testing.T) {
+	t.Parallel()
+
 	// This test verifies that T012 is implemented correctly:
 	// GetRecommendationsForResources should load DismissalStore,
 	// extract dismissed IDs, and pass them to plugins.
@@ -477,6 +503,8 @@ func TestDismissalStore_ExcludedIDs_ForEngineFiltering(t *testing.T) {
 
 // Test snooze expiry handling in GetDismissedIDs.
 func TestEngine_ExpiredSnoozeHandling(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	storePath := filepath.Join(tmpDir, "dismissed.json")
 
@@ -517,6 +545,8 @@ func TestEngine_ExpiredSnoozeHandling(t *testing.T) {
 
 // Verify dismissal state file path is correct.
 func TestDismissalStore_DefaultPath(t *testing.T) {
+	t.Parallel()
+
 	// Skip if running in CI without HOME set
 	homeDir, err := os.UserHomeDir()
 	if err != nil {

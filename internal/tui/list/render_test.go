@@ -11,6 +11,8 @@ import (
 
 // TestVirtualListModel_ViewRendersOnlyVisibleRows tests that only visible rows are rendered.
 func TestVirtualListModel_ViewRendersOnlyVisibleRows(t *testing.T) {
+	t.Parallel()
+
 	// Create 1000 items
 	items := make([]string, 1000)
 	for i := range items {
@@ -45,6 +47,8 @@ func TestVirtualListModel_ViewRendersOnlyVisibleRows(t *testing.T) {
 
 // TestVirtualListModel_ViewUpdatesWithScroll tests that view updates when scrolling.
 func TestVirtualListModel_ViewUpdatesWithScroll(t *testing.T) {
+	t.Parallel()
+
 	items := make([]string, 100)
 	for i := range items {
 		items[i] = "item"
@@ -70,6 +74,8 @@ func TestVirtualListModel_ViewUpdatesWithScroll(t *testing.T) {
 
 // TestVirtualListModel_ViewWithBuffer tests buffer rendering around visible rows.
 func TestVirtualListModel_ViewWithBuffer(t *testing.T) {
+	t.Parallel()
+
 	items := make([]string, 100)
 	for i := range items {
 		items[i] = "item"
@@ -103,6 +109,8 @@ func TestVirtualListModel_ViewWithBuffer(t *testing.T) {
 
 // TestVirtualListModel_ViewSelectedMarker tests selected item is visually marked.
 func TestVirtualListModel_ViewSelectedMarker(t *testing.T) {
+	t.Parallel()
+
 	items := []string{"apple", "banana", "cherry"}
 
 	renderFunc := func(item string, selected bool) string {
@@ -127,6 +135,8 @@ func TestVirtualListModel_ViewSelectedMarker(t *testing.T) {
 
 // TestVirtualListModel_ViewEmptyList tests rendering with no items.
 func TestVirtualListModel_ViewEmptyList(t *testing.T) {
+	t.Parallel()
+
 	renderFunc := func(item string, _ bool) string {
 		return item
 	}
@@ -141,6 +151,8 @@ func TestVirtualListModel_ViewEmptyList(t *testing.T) {
 
 // TestVirtualListModel_ViewPerformance tests rendering performance with large lists.
 func TestVirtualListModel_ViewPerformance(t *testing.T) {
+	t.Parallel()
+
 	// Create 10,000 items (extreme case)
 	items := make([]string, 10000)
 	for i := range items {
@@ -171,6 +183,8 @@ func TestVirtualListModel_ViewPerformance(t *testing.T) {
 
 // TestVirtualListModel_ViewBoundaryConditions tests edge cases in rendering.
 func TestVirtualListModel_ViewBoundaryConditions(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		totalItems int
@@ -205,6 +219,7 @@ func TestVirtualListModel_ViewBoundaryConditions(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			items := make([]string, tt.totalItems)
 			for i := range items {
 				items[i] = "item"

@@ -18,6 +18,8 @@ import (
 )
 
 func TestListLatestPlugins(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name              string
 		setupDir          func(t *testing.T) string
@@ -91,6 +93,7 @@ func TestListLatestPlugins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			rootDir := tt.setupDir(t)
 			reg := &Registry{
 				root:     rootDir,
@@ -113,6 +116,8 @@ func TestListLatestPlugins(t *testing.T) {
 }
 
 func TestListLatestPlugins_FSErrors(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping permission tests on Windows")
 	}
@@ -138,6 +143,8 @@ func TestListLatestPlugins_FSErrors(t *testing.T) {
 }
 
 func TestListLatestPlugins_BinaryValidation(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	// 1. Missing Binary
@@ -164,6 +171,8 @@ func TestListLatestPlugins_BinaryValidation(t *testing.T) {
 }
 
 func TestListLatestPlugins_Concurrency(t *testing.T) {
+	t.Parallel()
+
 	dir := createMultiVersionPluginDir(t)
 	reg := &Registry{
 		root:     dir,
@@ -203,6 +212,7 @@ func (m *mockLauncher) Start(
 	return nil, func() error { return nil }, errors.New("mock launch failed")
 }
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestRegistry_Open_WithWarnings(t *testing.T) {
 	// Create directory with valid and invalid plugins
 	dir := createEdgeCasePluginDir(t)
@@ -241,6 +251,8 @@ func TestRegistry_Open_WithWarnings(t *testing.T) {
 }
 
 func TestListPlugins(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		setupDir    func(t *testing.T) string
@@ -311,6 +323,7 @@ func TestListPlugins(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			rootDir := tt.setupDir(t)
 			reg := &Registry{
 				root:     rootDir,
@@ -324,6 +337,8 @@ func TestListPlugins(t *testing.T) {
 }
 
 func TestFindBinary(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		setupDir   func(t *testing.T) string
@@ -338,6 +353,7 @@ func TestFindBinary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			dir := tt.setupDir(t)
 			reg := &Registry{root: "", launcher: pluginhost.NewProcessLauncher()}
 			binPath := reg.findBinary(dir, nil)
@@ -347,6 +363,8 @@ func TestFindBinary(t *testing.T) {
 }
 
 func TestRegistry_Open(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		setupDir    func(t *testing.T) string
@@ -361,6 +379,7 @@ func TestRegistry_Open(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			rootDir := tt.setupDir(t)
 			reg := &Registry{root: rootDir, launcher: pluginhost.NewProcessLauncher()}
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -412,7 +431,10 @@ func TestFindBinary_Legacy(t *testing.T) {
 }
 
 func TestFindBinary_MetadataRegion(t *testing.T) {
+	t.Parallel()
+
 	t.Run("metadata region selects correct binary", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		pluginDir := filepath.Join(dir, "aws-public", "v1.0.0")
 		require.NoError(t, os.MkdirAll(pluginDir, 0755))
@@ -440,6 +462,7 @@ func TestFindBinary_MetadataRegion(t *testing.T) {
 	})
 
 	t.Run("no metadata falls back to standard pattern", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		pluginDir := filepath.Join(dir, "aws-public", "v1.0.0")
 		require.NoError(t, os.MkdirAll(pluginDir, 0755))
@@ -459,6 +482,7 @@ func TestFindBinary_MetadataRegion(t *testing.T) {
 	})
 
 	t.Run("metadata region binary missing falls back to standard", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		pluginDir := filepath.Join(dir, "aws-public", "v1.0.0")
 		require.NoError(t, os.MkdirAll(pluginDir, 0755))
@@ -482,6 +506,7 @@ func TestFindBinary_MetadataRegion(t *testing.T) {
 	})
 
 	t.Run("metadata without region enriches from binary name", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		pluginDir := filepath.Join(dir, "aws-public", "v1.0.0")
 		require.NoError(t, os.MkdirAll(pluginDir, 0755))
@@ -619,6 +644,8 @@ func verifyExpectedPlugins(t *testing.T, plugins []PluginInfo, wantPlugins []Plu
 }
 
 func TestNewDefault(t *testing.T) {
+	t.Parallel()
+
 	reg := NewDefault()
 
 	if reg == nil {
@@ -761,11 +788,14 @@ func createEdgeCasePluginDir(t *testing.T) string {
 // via directory-level symlinks (issue #750). DirEntry.IsDir() returns false for symlinks,
 // so the pre-fix code silently skips symlinked plugin and version directories.
 func TestListPlugins_SymlinkDiscovery(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" {
 		t.Skipf("os.Symlink may require elevation on Windows; skipping symlink discovery tests")
 	}
 
 	t.Run("symlink at plugin name level is discovered", func(t *testing.T) {
+		t.Parallel()
 		root := t.TempDir()
 
 		// Create a real plugin directory structure.
@@ -796,6 +826,7 @@ func TestListPlugins_SymlinkDiscovery(t *testing.T) {
 	})
 
 	t.Run("symlink at version level is discovered", func(t *testing.T) {
+		t.Parallel()
 		root := t.TempDir()
 
 		// Create a real version directory with a binary.

@@ -10,11 +10,15 @@ import (
 )
 
 func TestResolveStderrPassthrough(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil stderr discards", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, io.Discard, resolveStderrPassthrough(nil))
 	})
 
 	t.Run("non-terminal stderr discards", func(t *testing.T) {
+		t.Parallel()
 		// A pipe stands in for CI/test runners where Core's stderr is not a
 		// terminal; plugin output must not be passed through (issue #1231).
 		r, w, err := os.Pipe()

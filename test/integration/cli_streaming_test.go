@@ -17,6 +17,8 @@ import (
 
 // TestNDJSONStreaming_HeadTermination tests that NDJSON output works correctly
 // when piped to `head -n N` command, verifying graceful SIGPIPE handling.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture err = os.WriteFile(...)
 func TestNDJSONStreaming_HeadTermination(t *testing.T) {
 	// Create a simple Pulumi plan JSON
 	planJSON := `{
@@ -116,6 +118,8 @@ func TestNDJSONStreaming_HeadTermination(t *testing.T) {
 // TestNDJSONStreaming_JQProcessing tests that NDJSON output works correctly
 // with jq for line-by-line JSON processing.
 func TestNDJSONStreaming_JQProcessing(t *testing.T) {
+	t.Parallel()
+
 	// Create a Pulumi plan JSON
 	planJSON := `{
 		"version": 3,
@@ -136,6 +140,7 @@ func TestNDJSONStreaming_JQProcessing(t *testing.T) {
 	}
 
 	t.Run("jq processes each line", func(t *testing.T) {
+		t.Parallel()
 		// Run: finfocus cost recommendations --pulumi-json plan.json --output ndjson | jq -c '.'
 		output, jqErr := runJQPipeline(t, binPath, planPath, "-c", ".")
 
@@ -149,6 +154,7 @@ func TestNDJSONStreaming_JQProcessing(t *testing.T) {
 	})
 
 	t.Run("jq filters specific fields", func(t *testing.T) {
+		t.Parallel()
 		// Run: finfocus ... | jq -c '.type // .resource_id'
 		// This selects either the type field (for summary) or resource_id field (for recommendations)
 		output, _ := runJQPipeline(t, binPath, planPath, "-c", ".type // .resource_id")
@@ -220,6 +226,8 @@ func assertEachLineValidJSON(t *testing.T, output string) {
 
 // TestNDJSONStreaming_NoBuffering tests that NDJSON output appears immediately
 // without buffering delays when processed line-by-line.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture err = os.WriteFile(...)
 func TestNDJSONStreaming_NoBuffering(t *testing.T) {
 	planJSON := `{
 		"version": 3,
@@ -269,6 +277,8 @@ func TestNDJSONStreaming_NoBuffering(t *testing.T) {
 // TestNDJSONStreaming_NoPaginationMetadata verifies that NDJSON output
 // does not include pagination metadata for true streaming compatibility.
 func TestNDJSONStreaming_NoPaginationMetadata(t *testing.T) {
+	t.Parallel()
+
 	planJSON := `{
 		"version": 3,
 		"steps": []
@@ -282,6 +292,7 @@ func TestNDJSONStreaming_NoPaginationMetadata(t *testing.T) {
 	binPath := filepath.Join("..", "..", "bin", "finfocus")
 
 	t.Run("summary has no pagination metadata", func(t *testing.T) {
+		t.Parallel()
 		cmd := exec.Command(binPath, "cost", "recommendations", "--pulumi-json", planPath, "--output", "ndjson")
 
 		out, cmdErr := cmd.Output()

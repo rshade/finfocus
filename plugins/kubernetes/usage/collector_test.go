@@ -61,6 +61,8 @@ func rowsFor(resp *pbc.GetStatsResponse, key, val string) []*pbc.UsageRow {
 }
 
 func TestCollect_RunRate(t *testing.T) {
+	t.Parallel()
+
 	fargate := readyNode("fargate-ip-1", "2", "4Gi", map[string]string{"eks.amazonaws.com/compute-type": "fargate"})
 	cs := fake.NewSimpleClientset(
 		readyNode("n1", "2", "8Gi", awsLabels), fargate,
@@ -95,6 +97,8 @@ func TestCollect_RunRate(t *testing.T) {
 }
 
 func TestCollect_NamespaceScope(t *testing.T) {
+	t.Parallel()
+
 	cs := fake.NewSimpleClientset(
 		readyNode("n1", "2", "8Gi", awsLabels),
 		runningPod("a", "p1", "n1", corev1.PodRunning, nil),
@@ -107,8 +111,11 @@ func TestCollect_NamespaceScope(t *testing.T) {
 }
 
 func TestCollect_Forbidden(t *testing.T) {
+	t.Parallel()
+
 	for _, resourceName := range []string{"nodes", "pods", "replicasets", "jobs"} {
 		t.Run(resourceName, func(t *testing.T) {
+			t.Parallel()
 			cs := fake.NewSimpleClientset(readyNode("n1", "2", "8Gi", awsLabels))
 			cs.PrependReactor("list", resourceName, func(k8stesting.Action) (bool, runtime.Object, error) {
 				return true, nil, apierrors.NewForbidden(schema.GroupResource{Resource: resourceName}, "", nil)
@@ -122,6 +129,8 @@ func TestCollect_Forbidden(t *testing.T) {
 }
 
 func TestCollect_ControlPlane(t *testing.T) {
+	t.Parallel()
+
 	cs := fake.NewSimpleClientset(readyNode("n1", "2", "8Gi", awsLabels))
 	resp, err := Collect(context.Background(), cs, Options{
 		Cluster: "prod", APIServerHost: "https://X.gr7.us-east-1.eks.amazonaws.com",
@@ -135,6 +144,8 @@ func TestCollect_ControlPlane(t *testing.T) {
 }
 
 func TestCollect_Unauthorized(t *testing.T) {
+	t.Parallel()
+
 	cs := fake.NewSimpleClientset(readyNode("n1", "2", "8Gi", awsLabels))
 	cs.PrependReactor("list", "nodes", func(k8stesting.Action) (bool, runtime.Object, error) {
 		return true, nil, apierrors.NewUnauthorized("token expired")
@@ -146,6 +157,8 @@ func TestCollect_Unauthorized(t *testing.T) {
 }
 
 func TestCollect_Unavailable(t *testing.T) {
+	t.Parallel()
+
 	cs := fake.NewSimpleClientset(readyNode("n1", "2", "8Gi", awsLabels))
 	cs.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
 		return true, nil, errors.New("connection refused")
@@ -157,6 +170,8 @@ func TestCollect_Unavailable(t *testing.T) {
 }
 
 func TestCollect_APIErrorCodes(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		err  error
@@ -194,6 +209,7 @@ func TestCollect_APIErrorCodes(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cs := fake.NewSimpleClientset(readyNode("n1", "2", "8Gi", awsLabels))
 			cs.PrependReactor("list", "pods", func(k8stesting.Action) (bool, runtime.Object, error) {
 				return true, nil, tt.err
@@ -206,6 +222,8 @@ func TestCollect_APIErrorCodes(t *testing.T) {
 }
 
 func TestCollect_NodeNotPriceable(t *testing.T) {
+	t.Parallel()
+
 	unknown := mkNode("unknown-provider", "kind://docker/x", nil)
 	unknown.Status.Allocatable = corev1.ResourceList{ //nolint:exhaustive // fixture only sets cpu/memory allocatable
 		corev1.ResourceCPU: resource.MustParse("2"), corev1.ResourceMemory: resource.MustParse("4Gi"),
@@ -220,6 +238,8 @@ func TestCollect_NodeNotPriceable(t *testing.T) {
 }
 
 func TestListAll_Pagination(t *testing.T) {
+	t.Parallel()
+
 	pages := [][]int{{1, 2}, {3}}
 	calls := 0
 	items, err := listAll(context.Background(), "widgets", "", func(o metav1.ListOptions) ([]int, string, error) {
@@ -238,6 +258,8 @@ func TestListAll_Pagination(t *testing.T) {
 }
 
 func TestListAll_ContextCanceled(t *testing.T) {
+	t.Parallel()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	calls := 0
 	_, err := listAll(ctx, "widgets", "", func(metav1.ListOptions) ([]int, string, error) {

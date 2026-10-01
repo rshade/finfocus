@@ -199,6 +199,34 @@ After modifying `internal/tui/` code, ALWAYS:
 
 String-only assertions (`assert.Contains`) are NOT sufficient for TUI testing.
 
+### Parallel Tests
+
+Tests call `t.Parallel()` (top level and each `t.Run` subtest) unless they touch
+process-wide state. Parallel tests only run after every sequential test in the
+package has finished, so the hazard is parallel tests interfering with each other.
+
+- Not parallel: `t.Setenv`, `t.Chdir`, `os.Setenv`, swapping a package-level
+  variable, `config.ResetGlobalConfigForTest`/`SetGlobalConfig`, or anything that
+  builds a root command (`NewRootCmd*` sets the process-wide resolved project
+  directory through `config.SetResolvedProjectDir`). This includes helpers that call
+  those, such as `stubHome` or `WithEnv`.
+- Not parallel: a test that writes a script or binary (`#!/bin/sh`, `os.WriteFile`
+  or `os.Chmod` with exec bits) and then executes it, directly or through a helper
+  or launcher. A concurrent fork in the same process lets the child inherit the open
+  write fd, so the exec fails with `text file busy` (ETXTBSY, golang/go#22315).
+  Only the executing test needs to be sequential, because sequential tests never
+  overlap parallel ones.
+- Mark such a test with `//nolint:paralleltest // <specific reason>` on the line
+  above `func`. Put the directive on the `t.Run` or `for` line instead when only
+  some subtests must stay sequential. `nolintlint` requires the reason.
+- Table-driven subtests must not share a mutable fixture. Production code mutates
+  proto messages and slices in place (for example `Engine.GetBudgets` on a shared
+  `*pbc.Budget`), so build the fixture inside the subtest.
+- Do not use `defer` in a parent test that starts parallel subtests; use
+  `t.Cleanup`. The defer runs before the paused subtests resume.
+- Verify with `go test -race -shuffle=on -count=3 ./<pkg>/...`. A flake or race
+  means the test is not safe to parallelise.
+
 ### E2E Testing
 
 **Location**: `test/e2e/` (separate Go module)

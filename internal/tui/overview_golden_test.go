@@ -35,6 +35,8 @@ func newGoldenModel(t *testing.T, rows []engine.OverviewRow) OverviewModel {
 // TestGolden_DetailView_ActiveResource verifies the detail view for an active
 // resource with both actual and projected cost data.
 func TestGolden_DetailView_ActiveResource(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 3, goldenDayOfMonth, 12, 0, 0, 0, time.UTC)
 	period := engine.DateRange{Start: now.Add(-14 * 24 * time.Hour), End: now}
 
@@ -71,6 +73,8 @@ func TestGolden_DetailView_ActiveResource(t *testing.T) {
 // TestGolden_DetailView_UpdatingResource verifies the detail view for a resource
 // being updated, including property changes and cost impact.
 func TestGolden_DetailView_UpdatingResource(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 3, goldenDayOfMonth, 12, 0, 0, 0, time.UTC)
 	period := engine.DateRange{Start: now.Add(-14 * 24 * time.Hour), End: now}
 
@@ -103,6 +107,8 @@ func TestGolden_DetailView_UpdatingResource(t *testing.T) {
 // TestGolden_DetailView_CreatingResource verifies the detail view for a new
 // resource being created with projected cost and cost impact.
 func TestGolden_DetailView_CreatingResource(t *testing.T) {
+	t.Parallel()
+
 	rows := []engine.OverviewRow{
 		{
 			URN:    "urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::data-lake",
@@ -127,6 +133,8 @@ func TestGolden_DetailView_CreatingResource(t *testing.T) {
 // TestGolden_DetailView_DeletingResource verifies the detail view for a resource
 // being deleted with actual cost and cost impact (savings).
 func TestGolden_DetailView_DeletingResource(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 3, goldenDayOfMonth, 12, 0, 0, 0, time.UTC)
 	period := engine.DateRange{Start: now.Add(-14 * 24 * time.Hour), End: now}
 
@@ -151,6 +159,8 @@ func TestGolden_DetailView_DeletingResource(t *testing.T) {
 // TestGolden_DetailView_ReplacingResource verifies the detail view for a resource
 // being replaced, including property changes and cost impact.
 func TestGolden_DetailView_ReplacingResource(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 3, goldenDayOfMonth, 12, 0, 0, 0, time.UTC)
 	period := engine.DateRange{Start: now.Add(-14 * 24 * time.Hour), End: now}
 
@@ -183,6 +193,8 @@ func TestGolden_DetailView_ReplacingResource(t *testing.T) {
 // TestGolden_DetailView_WithRecommendations verifies the detail view with
 // active recommendations displayed.
 func TestGolden_DetailView_WithRecommendations(t *testing.T) {
+	t.Parallel()
+
 	now := time.Date(2026, 3, goldenDayOfMonth, 12, 0, 0, 0, time.UTC)
 	period := engine.DateRange{Start: now.Add(-14 * 24 * time.Hour), End: now}
 
@@ -227,6 +239,8 @@ func TestGolden_DetailView_WithRecommendations(t *testing.T) {
 // TestGolden_DetailView_WithError verifies the detail view when a resource
 // has an error condition.
 func TestGolden_DetailView_WithError(t *testing.T) {
+	t.Parallel()
+
 	rows := []engine.OverviewRow{
 		{
 			URN:    "urn:pulumi:prod::myapp::aws:rds/instance:Instance::database",

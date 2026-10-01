@@ -13,7 +13,10 @@ import (
 
 // TestNewEstimateModel tests EstimateModel initialization.
 func TestNewEstimateModel(t *testing.T) {
+	t.Parallel()
+
 	t.Run("initializes with resource data", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -34,6 +37,7 @@ func TestNewEstimateModel(t *testing.T) {
 	})
 
 	t.Run("initializes property rows from resource", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -52,6 +56,7 @@ func TestNewEstimateModel(t *testing.T) {
 	})
 
 	t.Run("initializes with existing result", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -78,6 +83,7 @@ func TestNewEstimateModel(t *testing.T) {
 	})
 
 	t.Run("handles nil resource properties", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider:   "aws",
@@ -95,7 +101,10 @@ func TestNewEstimateModel(t *testing.T) {
 
 // TestEstimateModel_Init tests the Init method.
 func TestEstimateModel_Init(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns no commands in editing state", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -122,7 +131,10 @@ func TestEstimateModel_Init(t *testing.T) {
 
 // TestEstimateModel_Update tests the Update method message handling.
 func TestEstimateModel_Update(t *testing.T) {
+	t.Parallel()
+
 	t.Run("handles quit key", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -142,6 +154,7 @@ func TestEstimateModel_Update(t *testing.T) {
 	})
 
 	t.Run("handles ctrl+c", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -161,6 +174,7 @@ func TestEstimateModel_Update(t *testing.T) {
 	})
 
 	t.Run("handles up/down navigation", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -187,6 +201,7 @@ func TestEstimateModel_Update(t *testing.T) {
 	})
 
 	t.Run("handles enter to start editing", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -206,6 +221,7 @@ func TestEstimateModel_Update(t *testing.T) {
 	})
 
 	t.Run("handles escape to cancel editing", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -227,6 +243,7 @@ func TestEstimateModel_Update(t *testing.T) {
 	})
 
 	t.Run("handles window resize", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -248,7 +265,10 @@ func TestEstimateModel_Update(t *testing.T) {
 
 // TestEstimateModel_View tests the View method.
 func TestEstimateModel_View(t *testing.T) {
+	t.Parallel()
+
 	t.Run("renders editing state", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -267,6 +287,7 @@ func TestEstimateModel_View(t *testing.T) {
 	})
 
 	t.Run("renders loading state", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -285,6 +306,7 @@ func TestEstimateModel_View(t *testing.T) {
 	})
 
 	t.Run("renders error state", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -304,6 +326,7 @@ func TestEstimateModel_View(t *testing.T) {
 	})
 
 	t.Run("renders quitting state as empty", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -324,7 +347,10 @@ func TestEstimateModel_View(t *testing.T) {
 
 // TestEstimateModel_PropertyEditing tests property editing behavior.
 func TestEstimateModel_PropertyEditing(t *testing.T) {
+	t.Parallel()
+
 	t.Run("commits edit on enter in edit mode", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -348,6 +374,7 @@ func TestEstimateModel_PropertyEditing(t *testing.T) {
 	})
 
 	t.Run("types characters in edit mode", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -374,6 +401,7 @@ func TestEstimateModel_PropertyEditing(t *testing.T) {
 	})
 
 	t.Run("handles backspace in edit mode", func(t *testing.T) {
+		t.Parallel()
 		ctx := context.Background()
 		resource := &engine.ResourceDescriptor{
 			Provider: "aws",
@@ -396,6 +424,8 @@ func TestEstimateModel_PropertyEditing(t *testing.T) {
 
 // TestEstimateState_Constants tests state constant values.
 func TestEstimateState_Constants(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, EstimateStateEditing, EstimateState(0))
 	assert.Equal(t, EstimateStateCalculating, EstimateState(1))
 	assert.Equal(t, EstimateStateQuitting, EstimateState(2))
@@ -404,6 +434,8 @@ func TestEstimateState_Constants(t *testing.T) {
 
 // TestPropertyRow_Struct tests PropertyRow structure.
 func TestPropertyRow_Struct(t *testing.T) {
+	t.Parallel()
+
 	row := PropertyRow{
 		Key:           "instanceType",
 		OriginalValue: "t3.micro",

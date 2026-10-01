@@ -8,6 +8,8 @@ import (
 )
 
 func TestDefaultTableStyles(t *testing.T) {
+	t.Parallel()
+
 	s := DefaultTableStyles()
 	// Check if our styles are applied
 	// Note: lipgloss.Style equality checking is not straightforward,
@@ -18,6 +20,8 @@ func TestDefaultTableStyles(t *testing.T) {
 }
 
 func TestNewTable(t *testing.T) {
+	t.Parallel()
+
 	cols := []table.Column{{Title: "Test", Width: 10}}
 	rows := []table.Row{{"Data"}}
 	height := 5
@@ -34,6 +38,8 @@ func TestNewTable(t *testing.T) {
 }
 
 func TestTableWidthFromColumns(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		columns []table.Column
@@ -62,12 +68,15 @@ func TestTableWidthFromColumns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tableWidthFromColumns(tt.columns))
 		})
 	}
 }
 
 func TestTablePaddingForColumns(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		columnCount int
@@ -97,6 +106,7 @@ func TestTablePaddingForColumns(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, tablePaddingForColumns(tt.columnCount))
 		})
 	}

@@ -20,6 +20,8 @@ func hashOf(s string) string {
 }
 
 func TestStackContextHash_ShortAndQualifiedMatch(t *testing.T) {
+	t.Parallel()
+
 	short := history.StackContext{
 		Organization: "org",
 		Project:      "proj",
@@ -39,6 +41,8 @@ func TestStackContextHash_ShortAndQualifiedMatch(t *testing.T) {
 }
 
 func TestStackContextHash_NoDoublePrefixing(t *testing.T) {
+	t.Parallel()
+
 	sc := history.StackContext{
 		Organization: "org",
 		Project:      "proj",
@@ -65,6 +69,8 @@ func TestStackContextHash_NoDoublePrefixing(t *testing.T) {
 }
 
 func TestStackContextHash_EmptyStack(t *testing.T) {
+	t.Parallel()
+
 	sc := history.StackContext{
 		Organization: "org",
 		Project:      "proj",
@@ -78,6 +84,8 @@ func TestStackContextHash_EmptyStack(t *testing.T) {
 }
 
 func TestStackContextHash_EmptyContext(t *testing.T) {
+	t.Parallel()
+
 	sc := history.StackContext{}
 	hash := sc.Hash()
 	expectedEmpty := hashOf("")
@@ -93,6 +101,8 @@ func TestStackContextHash_EmptyContext(t *testing.T) {
 }
 
 func TestStackContextHash_CLICallerNoOrg(t *testing.T) {
+	t.Parallel()
+
 	// CLI path sets Project and Stack but not Organization.
 	sc := history.StackContext{
 		Project: "myproject",
@@ -106,6 +116,8 @@ func TestStackContextHash_CLICallerNoOrg(t *testing.T) {
 }
 
 func TestStackContextHash_Deterministic(t *testing.T) {
+	t.Parallel()
+
 	sc := history.StackContext{
 		Organization: "acme",
 		Project:      "infra",
@@ -117,6 +129,8 @@ func TestStackContextHash_Deterministic(t *testing.T) {
 }
 
 func TestURNHash(t *testing.T) {
+	t.Parallel()
+
 	urn := "urn:pulumi:dev::myproject::aws:ec2/instance:Instance::web-server"
 	hash := history.URNHash(urn)
 	require.Len(t, hash, 16)
@@ -124,16 +138,22 @@ func TestURNHash(t *testing.T) {
 }
 
 func TestBuildHistoryKeyFromHash(t *testing.T) {
+	t.Parallel()
+
 	key := history.BuildHistoryKey("stackhash", "urnhash", "i-abc123")
 	assert.Equal(t, "stackhash/urnhash/i-abc123", key)
 }
 
 func TestBuildTagKeyFromHash(t *testing.T) {
+	t.Parallel()
+
 	key := history.BuildTagKey("stackhash", "env", "prod", "urnhash")
 	assert.Equal(t, "stackhash/env:prod/urnhash", key)
 }
 
 func TestStackContextHash_DifferentStacksDifferentHashes(t *testing.T) {
+	t.Parallel()
+
 	sc1 := history.StackContext{Organization: "org", Project: "proj", Stack: "dev"}
 	sc2 := history.StackContext{Organization: "org", Project: "proj", Stack: "prod"}
 
@@ -142,6 +162,8 @@ func TestStackContextHash_DifferentStacksDifferentHashes(t *testing.T) {
 }
 
 func TestBuildTagKey_EscapesDelimiters(t *testing.T) {
+	t.Parallel()
+
 	key := history.BuildTagKey("stackhash", "env:name", "prod/us", "urnhash")
 
 	// Escaped delimiters should not create ambiguity with the key structure.

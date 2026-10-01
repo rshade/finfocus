@@ -18,6 +18,8 @@ import (
 func strPtr(s string) *string { return &s }
 
 // TestNewCostEstimateCmd_FlagParsing tests that flags are correctly defined.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture cmd = cli.NewCostEstimateCmd(...)
 func TestNewCostEstimateCmd_FlagParsing(t *testing.T) {
 	cmd := cli.NewCostEstimateCmd()
 
@@ -50,6 +52,8 @@ func TestNewCostEstimateCmd_FlagParsing(t *testing.T) {
 
 // TestParsePropertyOverrides tests the property parsing function.
 func TestParsePropertyOverrides(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		input       []string
@@ -98,6 +102,7 @@ func TestParsePropertyOverrides(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := cli.ParsePropertyOverrides(tt.input)
 			if tt.expectError {
 				require.Error(t, err)
@@ -112,6 +117,8 @@ func TestParsePropertyOverrides(t *testing.T) {
 
 // TestParsePropertyOverrides_DoSLimits tests DoS protection limits.
 func TestParsePropertyOverrides_DoSLimits(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		propsFunc func() []string
@@ -146,6 +153,7 @@ func TestParsePropertyOverrides_DoSLimits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := cli.ParsePropertyOverrides(tt.propsFunc())
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
@@ -155,6 +163,8 @@ func TestParsePropertyOverrides_DoSLimits(t *testing.T) {
 
 // TestParseModifications tests the modification parsing function.
 func TestParseModifications(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		input       []string
@@ -217,6 +227,7 @@ func TestParseModifications(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := cli.ParseModifications(tt.input)
 			if tt.expectError {
 				require.Error(t, err)
@@ -231,6 +242,8 @@ func TestParseModifications(t *testing.T) {
 
 // TestParseModifications_DoSLimits tests DoS protection limits.
 func TestParseModifications_DoSLimits(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		modsFunc func() []string
@@ -265,6 +278,7 @@ func TestParseModifications_DoSLimits(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			_, err := cli.ParseModifications(tt.modsFunc())
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)
@@ -274,6 +288,8 @@ func TestParseModifications_DoSLimits(t *testing.T) {
 
 // TestValidateEstimateFlags tests the flag validation logic.
 func TestValidateEstimateFlags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		params      cli.CostEstimateParams
@@ -350,6 +366,7 @@ func TestValidateEstimateFlags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := cli.ValidateEstimateFlags(&tt.params)
 			if tt.expectError {
 				require.Error(t, err)
@@ -363,7 +380,10 @@ func TestValidateEstimateFlags(t *testing.T) {
 
 // TestCostEstimateCmd_SingleResource tests single-resource estimation via CLI.
 func TestCostEstimateCmd_SingleResource(t *testing.T) {
+	t.Parallel()
+
 	t.Run("shows baseline only when no properties specified", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewCostEstimateCmd()
 		var out bytes.Buffer
 		cmd.SetOut(&out)
@@ -384,6 +404,8 @@ func TestCostEstimateCmd_SingleResource(t *testing.T) {
 
 // TestCostEstimateCmd_Help tests the help output.
 func TestCostEstimateCmd_Help(t *testing.T) {
+	t.Parallel()
+
 	cmd := cli.NewCostEstimateCmd()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
@@ -404,10 +426,13 @@ func TestCostEstimateCmd_Help(t *testing.T) {
 
 // TestCostEstimateCmd_OutputFormats tests that output format flag is recognized.
 func TestCostEstimateCmd_OutputFormats(t *testing.T) {
+	t.Parallel()
+
 	formats := []string{"table", "json", "ndjson"}
 
 	for _, format := range formats {
-		t.Run(format, func(*testing.T) {
+		t.Run(format, func(t *testing.T) {
+			t.Parallel()
 			cmd := cli.NewCostEstimateCmd()
 			var out bytes.Buffer
 			cmd.SetOut(&out)
@@ -436,6 +461,8 @@ func newTestCostCmd() *cobra.Command {
 
 // TestCostEstimateCmd_Integration tests the command integrated in the cost group.
 func TestCostEstimateCmd_Integration(t *testing.T) {
+	t.Parallel()
+
 	cmd := newTestCostCmd()
 	var out bytes.Buffer
 	cmd.SetOut(&out)
@@ -450,7 +477,10 @@ func TestCostEstimateCmd_Integration(t *testing.T) {
 
 // TestPropertyDoesntAffectPricing tests edge case where property change has zero cost impact.
 func TestPropertyDoesntAffectPricing(t *testing.T) {
+	t.Parallel()
+
 	t.Run("zero cost delta renders gracefully", func(t *testing.T) {
+		t.Parallel()
 		result := engine.EstimateResult{
 			TotalChange: 0.0,
 			Baseline:    &engine.CostResult{Monthly: 100.00, Currency: "USD"},
@@ -463,6 +493,7 @@ func TestPropertyDoesntAffectPricing(t *testing.T) {
 	})
 
 	t.Run("zero cost delta with property changes", func(t *testing.T) {
+		t.Parallel()
 		result := engine.EstimateResult{
 			TotalChange: 0.0,
 			Deltas: []engine.CostDelta{
@@ -479,7 +510,10 @@ func TestPropertyDoesntAffectPricing(t *testing.T) {
 
 // TestCostEstimateCmd_PlanBased tests plan-based estimation via CLI.
 func TestCostEstimateCmd_PlanBased(t *testing.T) {
+	t.Parallel()
+
 	t.Run("loads plan and applies modifications", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewCostEstimateCmd()
 		var out bytes.Buffer
 		cmd.SetOut(&out)
@@ -502,6 +536,7 @@ func TestCostEstimateCmd_PlanBased(t *testing.T) {
 	})
 
 	t.Run("requires pulumi-json when modify specified", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewCostEstimateCmd()
 		var out bytes.Buffer
 		cmd.SetOut(&out)
@@ -519,9 +554,12 @@ func TestCostEstimateCmd_PlanBased(t *testing.T) {
 
 // TestFindModificationsForResource tests the resource matching logic.
 func TestFindModificationsForResource(t *testing.T) {
+	t.Parallel()
+
 	// Note: findModificationsForResource is unexported, so we test through
 	// the CLI execution or via a wrapper test helper
 	t.Run("resource ID matching via validation", func(t *testing.T) {
+		t.Parallel()
 		// Test through ParseModifications
 		mods, err := cli.ParseModifications([]string{
 			"web-server:instanceType=m5.large",
@@ -535,6 +573,7 @@ func TestFindModificationsForResource(t *testing.T) {
 	})
 
 	t.Run("multiple resources with modifications", func(t *testing.T) {
+		t.Parallel()
 		mods, err := cli.ParseModifications([]string{
 			"web-server:instanceType=m5.large",
 			"api-server:instanceType=t3.medium",
@@ -548,7 +587,10 @@ func TestFindModificationsForResource(t *testing.T) {
 
 // TestCostEstimateCmd_ResourceNotFound tests error handling when resource not found in plan.
 func TestCostEstimateCmd_ResourceNotFound(t *testing.T) {
+	t.Parallel()
+
 	t.Run("modification for nonexistent resource", func(t *testing.T) {
+		t.Parallel()
 		// When a modification references a resource not in the plan,
 		// the command should skip that resource and continue with others
 		cmd := cli.NewCostEstimateCmd()

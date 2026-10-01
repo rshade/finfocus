@@ -10,6 +10,8 @@ import (
 
 // TestPaginationMeta_NewPaginationMeta verifies pagination metadata creation.
 func TestPaginationMeta_NewPaginationMeta(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		params       pagination.PaginationParams
@@ -115,6 +117,7 @@ func TestPaginationMeta_NewPaginationMeta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			meta := pagination.NewPaginationMeta(tt.params, tt.totalCount)
 
 			assert.Equal(t, tt.wantPage, meta.CurrentPage, "current_page mismatch")
@@ -129,6 +132,8 @@ func TestPaginationMeta_NewPaginationMeta(t *testing.T) {
 
 // TestPaginationMeta_OutOfBounds verifies out-of-bounds page handling.
 func TestPaginationMeta_OutOfBounds(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		params      pagination.PaginationParams
@@ -166,6 +171,7 @@ func TestPaginationMeta_OutOfBounds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			meta := pagination.NewPaginationMeta(tt.params, tt.totalCount)
 
 			assert.Equal(t, tt.wantPage, meta.CurrentPage)
@@ -178,6 +184,8 @@ func TestPaginationMeta_OutOfBounds(t *testing.T) {
 
 // TestPaginationMeta_EmptyResults verifies metadata for empty result sets.
 func TestPaginationMeta_EmptyResults(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		params       pagination.PaginationParams
@@ -218,6 +226,7 @@ func TestPaginationMeta_EmptyResults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			meta := pagination.NewPaginationMeta(tt.params, tt.totalCount)
 
 			assert.Equal(t, tt.wantPage, meta.CurrentPage)
@@ -232,6 +241,8 @@ func TestPaginationMeta_EmptyResults(t *testing.T) {
 
 // TestPaginationMeta_EdgeCases verifies edge case handling.
 func TestPaginationMeta_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		params     pagination.PaginationParams
@@ -278,6 +289,7 @@ func TestPaginationMeta_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			meta := pagination.NewPaginationMeta(tt.params, tt.totalCount)
 			assert.Equal(t, tt.wantTotal, meta.TotalPages)
 		})

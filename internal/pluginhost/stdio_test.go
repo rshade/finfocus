@@ -21,6 +21,7 @@ const (
 	testTimeout = 30 * time.Second
 )
 
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestStdioLauncher_Start_MockCommand(t *testing.T) {
 	// Skip this test in short mode as it involves process creation
 	if testing.Short() {
@@ -52,6 +53,8 @@ func TestStdioLauncher_Start_MockCommand(t *testing.T) {
 }
 
 func TestStdioLauncher_StartInvalidCommand(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewStdioLauncher()
 	ctx := context.Background()
 
@@ -68,6 +71,8 @@ func TestStdioLauncher_StartInvalidCommand(t *testing.T) {
 }
 
 func TestStdioLauncher_StartWithTimeout(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewStdioLauncher()
 
 	// Use very short timeout
@@ -90,6 +95,8 @@ func TestStdioLauncher_StartWithTimeout(t *testing.T) {
 }
 
 func TestStdioLauncher_StartWithStdinPipeError(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewStdioLauncher()
 	ctx := context.Background()
 
@@ -111,6 +118,8 @@ func TestStdioLauncher_StartWithStdinPipeError(t *testing.T) {
 }
 
 func TestStdioLauncher_Proxy(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewStdioLauncher()
 
 	// Create test pipes to simulate stdin/stdout
@@ -169,6 +178,8 @@ func TestStdioLauncher_Proxy(t *testing.T) {
 }
 
 func TestStdioLauncher_ProxyConnectionError(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewStdioLauncher()
 
 	// Create a listener that we'll close immediately
@@ -193,6 +204,8 @@ func TestStdioLauncher_ProxyConnectionError(t *testing.T) {
 }
 
 func TestStdioLauncher_CleanupFunction(t *testing.T) {
+	t.Parallel()
+
 	// Create a test command
 	cmd := exec.Command("sleep", "60")
 	if err := cmd.Start(); err != nil {
@@ -251,6 +264,8 @@ func TestStdioLauncher_CleanupFunction(t *testing.T) {
 }
 
 func TestNewStdioLauncher(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewStdioLauncher()
 
 	if launcher == nil {
@@ -263,6 +278,8 @@ func TestNewStdioLauncher(t *testing.T) {
 }
 
 func TestStdioLauncher_ProcessCleanup(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewStdioLauncher()
 	ctx := context.Background()
 
@@ -283,6 +300,8 @@ func TestStdioLauncher_ProcessCleanup(t *testing.T) {
 }
 
 func TestStdioLauncher_MultipleStarts(t *testing.T) {
+	t.Parallel()
+
 	if testing.Short() {
 		t.Skip("skipping multiple starts test in short mode")
 	}
@@ -374,6 +393,8 @@ func (t *testGRPCConn) GetState() interface{} {
 }
 
 func TestProxy_GracefulShutdown(t *testing.T) {
+	t.Parallel()
+
 	// Create a listener for the proxy.
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)

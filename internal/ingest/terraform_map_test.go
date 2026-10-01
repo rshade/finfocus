@@ -11,6 +11,8 @@ import (
 )
 
 func TestMapTerraformResource_Simple(t *testing.T) {
+	t.Parallel()
+
 	data, err := os.ReadFile("../../examples/plans/terraform-simple-state.json")
 	require.NoError(t, err)
 	state, err := ingest.ParseTerraformState(data)
@@ -35,6 +37,8 @@ func TestMapTerraformResource_Simple(t *testing.T) {
 }
 
 func TestMapTerraformResources_Addresses(t *testing.T) {
+	t.Parallel()
+
 	data, err := os.ReadFile("../../examples/plans/terraform-multimodule-state.json")
 	require.NoError(t, err)
 	state, err := ingest.ParseTerraformState(data)
@@ -57,6 +61,8 @@ func TestMapTerraformResources_Addresses(t *testing.T) {
 }
 
 func TestMapTerraformResource_NestedBlocks(t *testing.T) {
+	t.Parallel()
+
 	data, err := os.ReadFile("../../examples/plans/terraform-nested-blocks-state.json")
 	require.NoError(t, err)
 	state, err := ingest.ParseTerraformState(data)
@@ -84,6 +90,8 @@ func TestMapTerraformResource_NestedBlocks(t *testing.T) {
 }
 
 func TestMapTerraformResource_ProviderDerivation(t *testing.T) {
+	t.Parallel()
+
 	resource := ingest.TerraformStateResource{Type: "aws_s3_bucket", Name: "b"}
 	instance := ingest.TerraformStateInstance{Attributes: map[string]interface{}{}}
 

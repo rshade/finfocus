@@ -11,6 +11,8 @@ import (
 )
 
 func TestAlertConfig_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		alert     config.AlertConfig
@@ -65,6 +67,7 @@ func TestAlertConfig_Validate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := tc.alert.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
@@ -77,6 +80,8 @@ func TestAlertConfig_Validate(t *testing.T) {
 }
 
 func TestBudgetConfig_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		budget    config.BudgetConfig
@@ -150,6 +155,7 @@ func TestBudgetConfig_Validate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := tc.budget.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
@@ -162,6 +168,8 @@ func TestBudgetConfig_Validate(t *testing.T) {
 }
 
 func TestBudgetConfig_IsEnabled(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		amount   float64
@@ -174,6 +182,7 @@ func TestBudgetConfig_IsEnabled(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			budget := config.BudgetConfig{Amount: tc.amount}
 			assert.Equal(t, tc.expected, budget.IsEnabled())
 			assert.Equal(t, !tc.expected, budget.IsDisabled())
@@ -182,6 +191,8 @@ func TestBudgetConfig_IsEnabled(t *testing.T) {
 }
 
 func TestBudgetConfig_GetPeriod(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		period   string
@@ -194,12 +205,14 @@ func TestBudgetConfig_GetPeriod(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			budget := config.BudgetConfig{Period: tc.period}
 			assert.Equal(t, tc.expected, budget.GetPeriod())
 		})
 	}
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture budget (composite value mutated by a subtest)
 func TestBudgetConfig_GetAlertsByType(t *testing.T) {
 	budget := config.BudgetConfig{
 		Amount:   1000.0,
@@ -234,6 +247,8 @@ func TestBudgetConfig_GetAlertsByType(t *testing.T) {
 }
 
 func TestCostConfig_Validate(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		cost    config.CostConfig
@@ -271,6 +286,7 @@ func TestCostConfig_Validate(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := tc.cost.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
@@ -282,6 +298,8 @@ func TestCostConfig_Validate(t *testing.T) {
 }
 
 func TestCostConfig_HasBudget(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		cost     config.CostConfig
@@ -314,12 +332,15 @@ func TestCostConfig_HasBudget(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.expected, tc.cost.HasBudget())
 		})
 	}
 }
 
 func TestBudgetConfig_YAMLParsing(t *testing.T) {
+	t.Parallel()
+
 	yamlData := `
 cost:
   budgets:
@@ -363,6 +384,8 @@ cost:
 }
 
 func TestBudgetConfig_YAMLRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	original := config.CostConfig{
 		Budgets: &config.BudgetsConfig{
 			Global: &config.ScopedBudget{
@@ -398,8 +421,11 @@ func TestBudgetConfig_YAMLRoundTrip(t *testing.T) {
 }
 
 func TestConfig_CostIntegration(t *testing.T) {
+	t.Parallel()
+
 	// Test that cost config integrates properly with main config
 	t.Run("set and get cost values", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.Config{}
 
 		// Set cost values
@@ -425,6 +451,7 @@ func TestConfig_CostIntegration(t *testing.T) {
 	})
 
 	t.Run("get entire cost config", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.Config{
 			Cost: config.CostConfig{
 				Budgets: &config.BudgetsConfig{
@@ -446,6 +473,7 @@ func TestConfig_CostIntegration(t *testing.T) {
 	})
 
 	t.Run("get entire budgets config", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.Config{
 			Cost: config.CostConfig{
 				Budgets: &config.BudgetsConfig{
@@ -466,6 +494,7 @@ func TestConfig_CostIntegration(t *testing.T) {
 	})
 
 	t.Run("invalid set value", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.Config{}
 		err := cfg.Set("cost.budgets.amount", "not-a-number")
 		require.Error(t, err)
@@ -473,6 +502,7 @@ func TestConfig_CostIntegration(t *testing.T) {
 	})
 
 	t.Run("unknown cost setting", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.Config{}
 		err := cfg.Set("cost.unknown", "value")
 		require.Error(t, err)
@@ -480,6 +510,7 @@ func TestConfig_CostIntegration(t *testing.T) {
 	})
 
 	t.Run("unknown budgets setting", func(t *testing.T) {
+		t.Parallel()
 		cfg := &config.Config{}
 		err := cfg.Set("cost.budgets.unknown", "value")
 		require.Error(t, err)
@@ -488,6 +519,8 @@ func TestConfig_CostIntegration(t *testing.T) {
 }
 
 func TestConfig_List_IncludesCost(t *testing.T) {
+	t.Parallel()
+
 	cfg := &config.Config{
 		Cost: config.CostConfig{
 			Budgets: &config.BudgetsConfig{
@@ -512,6 +545,8 @@ func TestConfig_List_IncludesCost(t *testing.T) {
 
 // T004: Unit test for ErrExitCodeOutOfRange error type.
 func TestErrExitCodeOutOfRange(t *testing.T) {
+	t.Parallel()
+
 	// Verify the error variable exists and has the expected message
 	require.Error(t, config.ErrExitCodeOutOfRange)
 	assert.Contains(t, config.ErrExitCodeOutOfRange.Error(), "exit code must be between 0 and 255")
@@ -519,6 +554,8 @@ func TestErrExitCodeOutOfRange(t *testing.T) {
 
 // T005: Unit test for BudgetConfig.GetExitCode() method.
 func TestBudgetConfig_GetExitCode(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budget   config.BudgetConfig
@@ -548,6 +585,7 @@ func TestBudgetConfig_GetExitCode(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.expected, tc.budget.GetExitCode())
 		})
 	}
@@ -555,6 +593,8 @@ func TestBudgetConfig_GetExitCode(t *testing.T) {
 
 // T006: Unit test for BudgetConfig.ShouldExitOnThreshold() method.
 func TestBudgetConfig_ShouldExitOnThreshold(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budget   config.BudgetConfig
@@ -579,6 +619,7 @@ func TestBudgetConfig_ShouldExitOnThreshold(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tc.expected, tc.budget.ShouldExitOnThreshold())
 		})
 	}
@@ -586,6 +627,8 @@ func TestBudgetConfig_ShouldExitOnThreshold(t *testing.T) {
 
 // T007: Unit test for exit code validation (0-255 range).
 func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		budget    config.BudgetConfig
@@ -658,6 +701,7 @@ func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			err := tc.budget.Validate()
 			if tc.wantErr {
 				require.Error(t, err)
@@ -672,6 +716,8 @@ func TestBudgetConfig_Validate_ExitCode(t *testing.T) {
 // T006: Tests for HistoryConfig and AllocationConfig YAML deserialization.
 
 func TestHistoryConfig_YAMLDefaults(t *testing.T) {
+	t.Parallel()
+
 	yamlData := `
 cost:
   history: {}
@@ -689,6 +735,8 @@ cost:
 }
 
 func TestHistoryConfig_YAMLExplicitValues(t *testing.T) {
+	t.Parallel()
+
 	yamlData := `
 cost:
   history:
@@ -711,6 +759,8 @@ cost:
 }
 
 func TestHistoryConfig_NestedUnderCost(t *testing.T) {
+	t.Parallel()
+
 	yamlData := `
 cost:
   history:
@@ -736,6 +786,8 @@ cost:
 }
 
 func TestHistoryConfig_YAMLRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	boolTrue := true
 	retentionDays := 120
 	original := config.CostConfig{
@@ -761,6 +813,8 @@ func TestHistoryConfig_YAMLRoundTrip(t *testing.T) {
 }
 
 func TestAllocationConfig_YAMLDefaults(t *testing.T) {
+	t.Parallel()
+
 	yamlData := `
 cost:
   allocation: {}
@@ -777,6 +831,8 @@ cost:
 }
 
 func TestAllocationConfig_YAMLExplicitValues(t *testing.T) {
+	t.Parallel()
+
 	yamlData := `
 cost:
   allocation:
@@ -801,6 +857,8 @@ cost:
 }
 
 func TestAllocationConfig_NestedUnderCost(t *testing.T) {
+	t.Parallel()
+
 	yamlData := `
 cost:
   allocation:
@@ -828,6 +886,8 @@ cost:
 }
 
 func TestAllocationConfig_YAMLRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	original := config.CostConfig{
 		Allocation: config.AllocationConfig{
 			Enabled: true,
@@ -847,6 +907,8 @@ func TestAllocationConfig_YAMLRoundTrip(t *testing.T) {
 }
 
 func TestHistoryConfig_DefaultConstants(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, 90, config.HistoryDefaultRetentionDays)
 	assert.True(t, config.HistoryDefaultEnabled)
 	assert.False(t, config.AllocationDefaultEnabled)
@@ -857,6 +919,8 @@ func TestHistoryConfig_DefaultConstants(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAllocationConfig_Validate_ValidWithTags(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.AllocationConfig{
 		Enabled: true,
 		Tags:    []string{"pulumi:project", "env", "team"},
@@ -866,6 +930,8 @@ func TestAllocationConfig_Validate_ValidWithTags(t *testing.T) {
 }
 
 func TestAllocationConfig_Validate_DisabledEmptyTags(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.AllocationConfig{
 		Enabled: false,
 		Tags:    nil,
@@ -875,6 +941,8 @@ func TestAllocationConfig_Validate_DisabledEmptyTags(t *testing.T) {
 }
 
 func TestAllocationConfig_Validate_EnabledEmptyTags(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.AllocationConfig{
 		Enabled: true,
 		Tags:    nil,
@@ -884,6 +952,8 @@ func TestAllocationConfig_Validate_EnabledEmptyTags(t *testing.T) {
 }
 
 func TestAllocationConfig_Validate_EmptyTagKey(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.AllocationConfig{
 		Enabled: true,
 		Tags:    []string{"valid", ""},
@@ -894,6 +964,8 @@ func TestAllocationConfig_Validate_EmptyTagKey(t *testing.T) {
 }
 
 func TestAllocationConfig_Validate_TagKeyTooLong(t *testing.T) {
+	t.Parallel()
+
 	longKey := string(make([]byte, 129))
 	for i := range longKey {
 		longKey = longKey[:i] + "a" + longKey[i+1:]
@@ -908,6 +980,8 @@ func TestAllocationConfig_Validate_TagKeyTooLong(t *testing.T) {
 }
 
 func TestAllocationConfig_Validate_TagsPreservedThroughYAML(t *testing.T) {
+	t.Parallel()
+
 	yamlData := `
 enabled: true
 tags:
@@ -928,6 +1002,8 @@ tags:
 }
 
 func TestAllocationConfig_Validate_DisabledWithInvalidTags(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.AllocationConfig{
 		Enabled: false,
 		Tags:    []string{"valid", ""},
@@ -938,6 +1014,8 @@ func TestAllocationConfig_Validate_DisabledWithInvalidTags(t *testing.T) {
 
 // Test YAML parsing with exit code fields.
 func TestBudgetConfig_YAMLParsing_ExitCode(t *testing.T) {
+	t.Parallel()
+
 	yamlData := `
 cost:
   budgets:

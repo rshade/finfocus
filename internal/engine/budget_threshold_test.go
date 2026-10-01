@@ -15,6 +15,8 @@ import (
 
 // TestDefaultThresholds verifies standard threshold defaults (FR-007).
 func TestDefaultThresholds(t *testing.T) {
+	t.Parallel()
+
 	defaults := engine.DefaultThresholds()
 	require.Len(t, defaults, 3)
 
@@ -33,6 +35,8 @@ func TestDefaultThresholds(t *testing.T) {
 
 // TestApplyDefaultThresholds verifies default application logic.
 func TestApplyDefaultThresholds(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		budget        *pbc.Budget
@@ -78,6 +82,7 @@ func TestApplyDefaultThresholds(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.ApplyDefaultThresholds(tc.budget)
 			if tc.budget == nil {
 				assert.Nil(t, result)
@@ -94,6 +99,8 @@ func TestApplyDefaultThresholds(t *testing.T) {
 }
 
 // TestEvaluateThresholds verifies threshold triggering logic (FR-005, FR-010).
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture budget
 func TestEvaluateThresholds(t *testing.T) {
 	ctx := context.Background()
 
@@ -177,6 +184,8 @@ func TestEvaluateThresholds(t *testing.T) {
 
 // TestEvaluateThresholdsUpdatesTimestamp verifies FR-010 timestamp updating.
 func TestEvaluateThresholdsUpdatesTimestamp(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	threshold := &pbc.BudgetThreshold{

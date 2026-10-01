@@ -9,6 +9,8 @@ import (
 )
 
 func TestUserError(t *testing.T) {
+	t.Parallel()
+
 	cause := errors.New("underlying cause")
 	err := logging.UserError("Invalid input", "Check your input and try again", cause)
 
@@ -29,6 +31,8 @@ func TestUserError(t *testing.T) {
 }
 
 func TestSystemError(t *testing.T) {
+	t.Parallel()
+
 	cause := errors.New("network timeout")
 	err := logging.SystemError("Network failure", "Check your connection", cause)
 
@@ -43,6 +47,8 @@ func TestSystemError(t *testing.T) {
 }
 
 func TestDeveloperError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.DeveloperError("Protocol mismatch", "Update the plugin", nil)
 
 	if err.Category != logging.ErrorCategoryDeveloper {
@@ -56,6 +62,8 @@ func TestDeveloperError(t *testing.T) {
 }
 
 func TestCategorizedError_WithContext(t *testing.T) {
+	t.Parallel()
+
 	err := logging.UserError("Test error", "Fix it", nil).
 		WithContext("key1", "value1").
 		WithContext("key2", "value2")
@@ -70,6 +78,8 @@ func TestCategorizedError_WithContext(t *testing.T) {
 }
 
 func TestCategorizedError_Unwrap(t *testing.T) {
+	t.Parallel()
+
 	cause := errors.New("root cause")
 	err := logging.UserError("Wrapper error", "Solution", cause)
 
@@ -83,6 +93,8 @@ func TestCategorizedError_Unwrap(t *testing.T) {
 }
 
 func TestInvalidArgumentError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.InvalidArgumentError("--invalid-flag", nil)
 
 	if err.Category != logging.ErrorCategoryUser {
@@ -99,6 +111,8 @@ func TestInvalidArgumentError(t *testing.T) {
 }
 
 func TestMissingConfigError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.MissingConfigError("api.key", nil)
 
 	errMsg := err.Error()
@@ -111,6 +125,8 @@ func TestMissingConfigError(t *testing.T) {
 }
 
 func TestInvalidPulumiJSONError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.InvalidPulumiJSONError("/path/to/plan.json", nil)
 
 	errMsg := err.Error()
@@ -123,6 +139,8 @@ func TestInvalidPulumiJSONError(t *testing.T) {
 }
 
 func TestPluginNotFoundError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.PluginNotFoundError("aws-plugin", nil)
 
 	errMsg := err.Error()
@@ -135,6 +153,8 @@ func TestPluginNotFoundError(t *testing.T) {
 }
 
 func TestNetworkError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.NetworkError("API call", errors.New("timeout"))
 
 	if err.Category != logging.ErrorCategorySystem {
@@ -148,6 +168,8 @@ func TestNetworkError(t *testing.T) {
 }
 
 func TestFileSystemError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.FileSystemError("write", "/tmp/test.log", errors.New("permission denied"))
 
 	if err.Category != logging.ErrorCategorySystem {
@@ -164,6 +186,8 @@ func TestFileSystemError(t *testing.T) {
 }
 
 func TestPluginCommunicationError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.PluginCommunicationError("aws-plugin", errors.New("connection refused"))
 
 	if err.Category != logging.ErrorCategorySystem {
@@ -172,6 +196,8 @@ func TestPluginCommunicationError(t *testing.T) {
 }
 
 func TestProtocolMismatchError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.ProtocolMismatchError("aws-plugin", "v1.0", "v2.0")
 
 	if err.Category != logging.ErrorCategoryDeveloper {
@@ -185,6 +211,8 @@ func TestProtocolMismatchError(t *testing.T) {
 }
 
 func TestPluginBugError(t *testing.T) {
+	t.Parallel()
+
 	err := logging.PluginBugError("aws-plugin", "GetCost", errors.New("nil pointer"))
 
 	if err.Category != logging.ErrorCategoryDeveloper {

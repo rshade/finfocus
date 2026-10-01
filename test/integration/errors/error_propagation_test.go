@@ -12,6 +12,8 @@ import (
 )
 
 // TestErrorPropagation_MissingPlanFile tests error when plan file doesn't exist.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteExpectError)
 func TestErrorPropagation_MissingPlanFile(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -23,6 +25,8 @@ func TestErrorPropagation_MissingPlanFile(t *testing.T) {
 }
 
 // TestErrorPropagation_InvalidJSON tests error when JSON parsing fails.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteExpectError)
 func TestErrorPropagation_InvalidJSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -38,6 +42,8 @@ func TestErrorPropagation_InvalidJSON(t *testing.T) {
 }
 
 // TestErrorPropagation_EmptyResourceType tests error handling for resources without type.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestErrorPropagation_EmptyResourceType(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -63,6 +69,8 @@ func TestErrorPropagation_EmptyResourceType(t *testing.T) {
 }
 
 // TestErrorPropagation_PluginError tests error propagation from plugin layer.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestErrorPropagation_PluginError(t *testing.T) {
 	// This test would require setting up a mock plugin that returns errors
 	// For now, we test the error path when no plugins are available
@@ -88,6 +96,8 @@ func TestErrorPropagation_PluginError(t *testing.T) {
 }
 
 // TestErrorPropagation_InvalidOutputFormat tests error for unsupported output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteExpectError)
 func TestErrorPropagation_InvalidOutputFormat(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -102,6 +112,8 @@ func TestErrorPropagation_InvalidOutputFormat(t *testing.T) {
 }
 
 // TestErrorPropagation_MalformedPlanStructure tests handling of malformed plan structure.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestErrorPropagation_MalformedPlanStructure(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -123,6 +135,8 @@ func TestErrorPropagation_MalformedPlanStructure(t *testing.T) {
 
 // TestErrorPropagation_PluginTimeout tests timeout error from plugin.
 func TestErrorPropagation_PluginTimeout(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin with timeout error
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -140,6 +154,8 @@ func TestErrorPropagation_PluginTimeout(t *testing.T) {
 
 // TestErrorPropagation_PluginProtocolError tests protocol error from plugin.
 func TestErrorPropagation_PluginProtocolError(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin with protocol error
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -155,6 +171,8 @@ func TestErrorPropagation_PluginProtocolError(t *testing.T) {
 
 // TestErrorPropagation_PluginInvalidData tests invalid data error from plugin.
 func TestErrorPropagation_PluginInvalidData(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin with invalid data error
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -170,6 +188,8 @@ func TestErrorPropagation_PluginInvalidData(t *testing.T) {
 
 // TestErrorPropagation_PluginUnavailable tests unavailable error from plugin.
 func TestErrorPropagation_PluginUnavailable(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin with unavailable error
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -184,6 +204,8 @@ func TestErrorPropagation_PluginUnavailable(t *testing.T) {
 }
 
 // TestErrorPropagation_MultipleErrors tests handling of multiple errors.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteExpectError)
 func TestErrorPropagation_MultipleErrors(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -204,6 +226,8 @@ func TestErrorPropagation_MultipleErrors(t *testing.T) {
 }
 
 // TestErrorPropagation_GracefulDegradation tests graceful handling when components fail.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestErrorPropagation_GracefulDegradation(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 

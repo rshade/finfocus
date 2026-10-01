@@ -11,6 +11,7 @@ import (
 	"github.com/rshade/finfocus/pkg/version"
 )
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestCLIBranding(t *testing.T) {
 	t.Run("root command help shows FinFocus", func(t *testing.T) {
 		root := cli.NewRootCmd(version.GetVersion())

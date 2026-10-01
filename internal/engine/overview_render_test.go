@@ -19,6 +19,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestStatusIcon(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		status ResourceStatus
 		want   string
@@ -32,6 +34,7 @@ func TestStatusIcon(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.status.String(), func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, StatusIcon(tt.status))
 		})
 	}
@@ -42,6 +45,8 @@ func TestStatusIcon(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFormatOverviewCurrency(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		amount float64
@@ -59,6 +64,7 @@ func TestFormatOverviewCurrency(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, FormatOverviewCurrency(tt.amount))
 		})
 	}
@@ -69,6 +75,8 @@ func TestFormatOverviewCurrency(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFormatOverviewDelta(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		amount float64
@@ -82,6 +90,7 @@ func TestFormatOverviewDelta(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, FormatOverviewDelta(tt.amount))
 		})
 	}
@@ -92,6 +101,8 @@ func TestFormatOverviewDelta(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRenderOverviewAsTable_EmptyRows(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -110,6 +121,8 @@ func TestRenderOverviewAsTable_EmptyRows(t *testing.T) {
 }
 
 func TestRenderOverviewAsTable_SingleActiveResource(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -158,6 +171,8 @@ func TestRenderOverviewAsTable_SingleActiveResource(t *testing.T) {
 }
 
 func TestRenderOverviewAsTable_AllStatuses(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -189,6 +204,8 @@ func TestRenderOverviewAsTable_AllStatuses(t *testing.T) {
 }
 
 func TestRenderOverviewAsTable_ErrorRow(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -218,6 +235,8 @@ func TestRenderOverviewAsTable_ErrorRow(t *testing.T) {
 }
 
 func TestRenderOverviewAsTable_DriftWarning(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -261,6 +280,8 @@ func TestRenderOverviewAsTable_DriftWarning(t *testing.T) {
 }
 
 func TestRenderOverviewAsTable_Recommendations(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -295,6 +316,8 @@ func TestRenderOverviewAsTable_Recommendations(t *testing.T) {
 }
 
 func TestRenderOverviewAsTable_SummaryTotals(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -345,6 +368,8 @@ func TestRenderOverviewAsTable_SummaryTotals(t *testing.T) {
 }
 
 func TestRenderOverviewAsTable_LongURNTruncation(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -373,6 +398,8 @@ func TestRenderOverviewAsTable_LongURNTruncation(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestTruncateResource(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		input  string
@@ -386,6 +413,7 @@ func TestTruncateResource(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, truncateResource(tt.input, tt.maxLen))
 		})
 	}
@@ -396,6 +424,8 @@ func TestTruncateResource(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFormatWithCommas(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		amount float64
@@ -409,6 +439,7 @@ func TestFormatWithCommas(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, formatWithCommas(tt.amount))
 		})
 	}
@@ -423,6 +454,8 @@ func TestFormatWithCommas(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestFormatRecsColumn(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		row  OverviewRow
@@ -480,6 +513,7 @@ func TestFormatRecsColumn(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatRecsColumn(tt.row)
 			assert.Equal(t, tt.want, result)
 		})
@@ -491,6 +525,8 @@ func TestFormatRecsColumn(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestAggregateOverviewRows_SavingsExcludesDismissed(t *testing.T) {
+	t.Parallel()
+
 	now := time.Now()
 	period := DateRange{Start: now.Add(-24 * time.Hour), End: now}
 
@@ -519,6 +555,8 @@ func TestAggregateOverviewRows_SavingsExcludesDismissed(t *testing.T) {
 }
 
 func TestFormatDeltaColumn_UsesPreComputedDelta(t *testing.T) {
+	t.Parallel()
+
 	// Pre-compute delta via PopulateComputedDeltas, then verify formatDeltaColumn reads it.
 	now := time.Now()
 	period := DateRange{Start: now.Add(-24 * time.Hour), End: now}
@@ -552,6 +590,8 @@ func TestFormatDeltaColumn_UsesPreComputedDelta(t *testing.T) {
 }
 
 func TestFormatDeltaColumn_ActiveWithNoDrift(t *testing.T) {
+	t.Parallel()
+
 	// Active without drift → ComputedDelta is nil → dash.
 	row := OverviewRow{
 		URN:    "urn:active-no-drift",
@@ -572,6 +612,8 @@ func TestFormatDeltaColumn_ActiveWithNoDrift(t *testing.T) {
 }
 
 func TestFormatDeltaColumn_CreatingResource(t *testing.T) {
+	t.Parallel()
+
 	// Pre-populate ComputedDelta before calling formatDeltaColumn.
 	row := OverviewRow{
 		URN:    "urn:creating-resource",
@@ -591,6 +633,8 @@ func TestFormatDeltaColumn_CreatingResource(t *testing.T) {
 }
 
 func TestFormatDriftColumn(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		row  OverviewRow
@@ -624,6 +668,7 @@ func TestFormatDriftColumn(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := formatDriftColumn(tt.row)
 			assert.Equal(t, tt.want, result)
 		})
@@ -635,6 +680,8 @@ func TestFormatDriftColumn(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRenderOverviewAsJSON_EmptyRows(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -660,6 +707,8 @@ func TestRenderOverviewAsJSON_EmptyRows(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_SingleResource(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -719,6 +768,8 @@ func TestRenderOverviewAsJSON_SingleResource(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_MetadataFields(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -746,6 +797,8 @@ func TestRenderOverviewAsJSON_MetadataFields(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_SummaryTotals(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -799,6 +852,8 @@ func TestRenderOverviewAsJSON_SummaryTotals(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_PerRowDeltaAndSummary(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -905,6 +960,8 @@ func TestRenderOverviewAsJSON_PerRowDeltaAndSummary(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_CurrencyConsistency(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -937,6 +994,8 @@ func TestRenderOverviewAsJSON_CurrencyConsistency(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_ErrorsArray(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -987,6 +1046,8 @@ func TestRenderOverviewAsJSON_ErrorsArray(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_Recommendations(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -1027,6 +1088,8 @@ func TestRenderOverviewAsJSON_Recommendations(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRenderOverviewAsNDJSON_EmptyRows(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	err := RenderOverviewAsNDJSON(&buf, nil)
 	require.NoError(t, err)
@@ -1034,6 +1097,8 @@ func TestRenderOverviewAsNDJSON_EmptyRows(t *testing.T) {
 }
 
 func TestRenderOverviewAsNDJSON_SingleRow(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	period := DateRange{Start: now.Add(-24 * time.Hour), End: now}
@@ -1073,6 +1138,8 @@ func TestRenderOverviewAsNDJSON_SingleRow(t *testing.T) {
 }
 
 func TestRenderOverviewAsNDJSON_MultipleRows(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	period := DateRange{Start: now.Add(-24 * time.Hour), End: now}
@@ -1140,6 +1207,8 @@ func TestRenderOverviewAsNDJSON_MultipleRows(t *testing.T) {
 }
 
 func TestRenderOverviewAsNDJSON_AllStatuses(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	rows := []OverviewRow{
 		{URN: "urn:active", Type: "aws:ec2:Instance", Status: StatusActive},
@@ -1169,6 +1238,8 @@ func TestRenderOverviewAsNDJSON_AllStatuses(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestResourceStatus_MarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		status ResourceStatus
@@ -1182,6 +1253,7 @@ func TestResourceStatus_MarshalJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			data, err := json.Marshal(tt.status)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, string(data))
@@ -1190,6 +1262,8 @@ func TestResourceStatus_MarshalJSON(t *testing.T) {
 }
 
 func TestResourceStatus_UnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		input   string
@@ -1205,6 +1279,7 @@ func TestResourceStatus_UnmarshalJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var status ResourceStatus
 			err := json.Unmarshal([]byte(tt.input), &status)
 			if tt.wantErr {
@@ -1222,6 +1297,8 @@ func TestResourceStatus_UnmarshalJSON(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestErrorType_MarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		errorType ErrorType
@@ -1234,6 +1311,7 @@ func TestErrorType_MarshalJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			data, err := json.Marshal(tt.errorType)
 			require.NoError(t, err)
 			assert.Equal(t, tt.want, string(data))
@@ -1242,6 +1320,8 @@ func TestErrorType_MarshalJSON(t *testing.T) {
 }
 
 func TestErrorType_UnmarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		input   string
@@ -1256,6 +1336,7 @@ func TestErrorType_UnmarshalJSON(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var et ErrorType
 			err := json.Unmarshal([]byte(tt.input), &et)
 			if tt.wantErr {
@@ -1273,6 +1354,8 @@ func TestErrorType_UnmarshalJSON(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestRenderOverviewAsJSON_WithBudgets(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -1337,6 +1420,8 @@ func TestRenderOverviewAsJSON_WithBudgets(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_MultipleBudgets(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -1398,6 +1483,8 @@ func TestRenderOverviewAsJSON_MultipleBudgets(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_NilBudgetResult(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -1421,6 +1508,8 @@ func TestRenderOverviewAsJSON_NilBudgetResult(t *testing.T) {
 }
 
 func TestRenderOverviewAsJSON_EmptyBudgetResult(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	now := time.Now()
 	stackCtx := StackContext{
@@ -1446,6 +1535,8 @@ func TestRenderOverviewAsJSON_EmptyBudgetResult(t *testing.T) {
 }
 
 func TestRenderOverviewAsNDJSON_ExcludesBudgetData(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	rows := []OverviewRow{
 		{URN: "urn:r1", Type: "aws:ec2:Instance", Status: StatusActive},
@@ -1474,6 +1565,8 @@ func TestRenderOverviewAsNDJSON_ExcludesBudgetData(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBudgetHealthResult_MarshalJSON(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		result     BudgetHealthResult
@@ -1523,6 +1616,7 @@ func TestBudgetHealthResult_MarshalJSON(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			data, err := json.Marshal(tt.result)
 			require.NoError(t, err)
 
@@ -1535,6 +1629,8 @@ func TestBudgetHealthResult_MarshalJSON(t *testing.T) {
 }
 
 func TestBudgetHealthResult_RoundTrip(t *testing.T) {
+	t.Parallel()
+
 	original := BudgetHealthResult{
 		BudgetID:     "prod-budget",
 		BudgetName:   "Production Budget",

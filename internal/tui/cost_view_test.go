@@ -11,6 +11,8 @@ import (
 )
 
 func TestRenderCostSummary(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		results  []engine.CostResult
@@ -124,6 +126,7 @@ func TestRenderCostSummary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			output := RenderCostSummary(context.Background(), tt.results, tt.width)
 			for _, s := range tt.contains {
 				assert.Contains(t, output, s)
@@ -133,6 +136,8 @@ func TestRenderCostSummary(t *testing.T) {
 }
 
 func TestRenderDetailView(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		resource    engine.CostResult
@@ -254,6 +259,7 @@ func TestRenderDetailView(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			output := RenderDetailView(tt.resource, tt.width)
 			for _, s := range tt.contains {
 				assert.Contains(t, output, s)
@@ -268,6 +274,8 @@ func TestRenderDetailView(t *testing.T) {
 // TestRenderCostSummary_RecommendationCount verifies that the recommendation count
 // is displayed in the cost summary when results have recommendations, and is absent otherwise.
 func TestRenderCostSummary_RecommendationCount(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		results     []engine.CostResult
@@ -334,6 +342,7 @@ func TestRenderCostSummary_RecommendationCount(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			output := RenderCostSummary(context.Background(), tt.results, tt.width)
 			for _, s := range tt.contains {
 				assert.Contains(t, output, s)
@@ -348,6 +357,8 @@ func TestRenderCostSummary_RecommendationCount(t *testing.T) {
 // TestRenderCostSummary_WithCarbonEquivalencies tests User Story 2:
 // Carbon equivalencies in TUI summary view.
 func TestRenderCostSummary_WithCarbonEquivalencies(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		results     []engine.CostResult
@@ -459,6 +470,7 @@ func TestRenderCostSummary_WithCarbonEquivalencies(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			output := RenderCostSummary(context.Background(), tt.results, tt.width)
 
 			for _, s := range tt.contains {
@@ -473,6 +485,8 @@ func TestRenderCostSummary_WithCarbonEquivalencies(t *testing.T) {
 
 // TestRenderRecommendationsSection verifies the rendering of recommendation items.
 func TestRenderRecommendationsSection(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		recs        []engine.Recommendation
@@ -569,6 +583,7 @@ func TestRenderRecommendationsSection(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			var content strings.Builder
 			renderRecommendationsSection(&content, tt.recs)
 			output := content.String()
@@ -585,6 +600,8 @@ func TestRenderRecommendationsSection(t *testing.T) {
 // TestRenderRecommendationsSection_SortStability verifies that recommendations with
 // equal savings maintain their original order.
 func TestRenderRecommendationsSection_SortStability(t *testing.T) {
+	t.Parallel()
+
 	recs := []engine.Recommendation{
 		{Type: "FIRST", Description: "First with 5", EstimatedSavings: 5.0, Currency: "USD"},
 		{Type: "SECOND", Description: "Second with 5", EstimatedSavings: 5.0, Currency: "USD"},
@@ -607,6 +624,8 @@ func TestRenderRecommendationsSection_SortStability(t *testing.T) {
 // TestRenderDetailViewRecommendations verifies the RECOMMENDATIONS section renders
 // correctly in the detail view for various recommendation states.
 func TestRenderDetailViewRecommendations(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		resource    engine.CostResult
@@ -715,6 +734,7 @@ func TestRenderDetailViewRecommendations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			output := RenderDetailView(tt.resource, tt.width)
 
 			for _, s := range tt.contains {
@@ -737,6 +757,8 @@ func TestRenderDetailViewRecommendations(t *testing.T) {
 
 // TestRenderCostSummary_EquivalencyStyling tests that equivalencies use consistent TUI styling.
 func TestRenderCostSummary_EquivalencyStyling(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance",

@@ -34,6 +34,8 @@ func podResources(cpu, mem string) *corev1.ResourceRequirements {
 }
 
 func TestEffectiveRequests(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		spec        corev1.PodSpec
@@ -133,6 +135,7 @@ func TestEffectiveRequests(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cpu, mem := EffectiveRequests(tt.spec)
 			assert.InDelta(t, tt.cpu, cpu, 1e-9)
 			assert.InDelta(t, tt.memGiB, mem, 1e-9)

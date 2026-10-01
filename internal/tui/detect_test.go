@@ -8,6 +8,8 @@ import (
 )
 
 func TestOutputModeConstants(t *testing.T) {
+	t.Parallel()
+
 	// Test that constants have expected values
 	if tui.OutputModePlain != 0 {
 		t.Errorf("Expected OutputModePlain = 0, got %d", tui.OutputModePlain)
@@ -20,6 +22,7 @@ func TestOutputModeConstants(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via clearEnv)
 func TestDetectOutputMode_ExplicitFlags(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -92,6 +95,7 @@ func TestDetectOutputMode_EnvironmentVariables(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via clearEnv)
 func TestDetectOutputMode_DefaultBehavior(t *testing.T) {
 	// Test default behavior when no flags or env vars are set
 	// This will depend on whether we're running in a TTY or not
@@ -108,6 +112,7 @@ func TestDetectOutputMode_DefaultBehavior(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestDetectOutputMode_FlagPrecedence(t *testing.T) {
 	// Test that explicit flags override environment variables
 
@@ -141,6 +146,8 @@ func TestDetectOutputMode_FlagPrecedence(t *testing.T) {
 }
 
 func TestIsTTY(t *testing.T) {
+	t.Parallel()
+
 	// Test that IsTTY returns a boolean
 	result := tui.IsTTY()
 
@@ -154,6 +161,8 @@ func TestIsTTY(t *testing.T) {
 }
 
 func TestTerminalWidth(t *testing.T) {
+	t.Parallel()
+
 	width := tui.TerminalWidth()
 
 	// Should return a positive width
@@ -173,6 +182,8 @@ func TestTerminalWidth(t *testing.T) {
 }
 
 func TestTerminalWidth_DefaultFallback(t *testing.T) {
+	t.Parallel()
+
 	// We can't easily test the fallback behavior without mocking,
 	// but we can verify the function doesn't panic and returns reasonable values
 	width := tui.TerminalWidth()
@@ -182,7 +193,9 @@ func TestTerminalWidth_DefaultFallback(t *testing.T) {
 	}
 }
 
-func TestOutputModeString(_ *testing.T) {
+func TestOutputModeString(t *testing.T) {
+	t.Parallel()
+
 	// Test that we can convert OutputMode to string for debugging
 	modes := []tui.OutputMode{tui.OutputModePlain, tui.OutputModeStyled, tui.OutputModeInteractive}
 
@@ -193,6 +206,8 @@ func TestOutputModeString(_ *testing.T) {
 }
 
 // TestDetectOutputMode_Integration tests the full logic integration.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestDetectOutputMode_Integration(t *testing.T) {
 	tests := []struct {
 		name       string

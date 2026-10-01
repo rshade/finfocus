@@ -12,6 +12,7 @@ import (
 	"github.com/rshade/finfocus/test/integration/helpers"
 )
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestProjectedCost_FilterByType(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -43,6 +44,7 @@ func TestProjectedCost_FilterByType(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestProjectedCost_FilterByTypeSubstring(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -72,6 +74,7 @@ func TestProjectedCost_FilterByTypeSubstring(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestProjectedCost_FilterByProvider(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -103,6 +106,7 @@ func TestProjectedCost_FilterByProvider(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_FilterByTag(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -135,6 +139,7 @@ func TestActualCost_FilterByTag(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_FilterByTagAndType(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -182,6 +187,7 @@ func TestActualCost_FilterByTagAndType(t *testing.T) {
 	assert.True(t, foundRDS, "Should find RDS")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestProjectedCost_FilterNoMatch(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -206,6 +212,7 @@ func TestProjectedCost_FilterNoMatch(t *testing.T) {
 	assert.Empty(t, resources, "Expected no resources to match 'type=nonexistent'")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestProjectedCost_FilterInvalidSyntax(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -219,6 +226,7 @@ func TestProjectedCost_FilterInvalidSyntax(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid filter syntax")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestFilter_CaseSensitivity(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -243,6 +251,7 @@ func TestFilter_CaseSensitivity(t *testing.T) {
 	assert.NotEmpty(t, resources, "Filter should be case-insensitive")
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestFilter_AllOutputFormats(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -275,6 +284,8 @@ func TestFilter_AllOutputFormats(t *testing.T) {
 }
 
 // TestActualCost_FilterByTag_NDJSON tests tag filter with NDJSON output for actual costs.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_FilterByTag_NDJSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -303,6 +314,8 @@ func TestActualCost_FilterByTag_NDJSON(t *testing.T) {
 }
 
 // TestActualCost_FilterByType_Exact tests exact type match filter.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_FilterByType_Exact(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -328,6 +341,8 @@ func TestActualCost_FilterByType_Exact(t *testing.T) {
 }
 
 // TestActualCost_FilterByType_Substring tests partial type match filter.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_FilterByType_Substring(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -353,6 +368,8 @@ func TestActualCost_FilterByType_Substring(t *testing.T) {
 }
 
 // TestActualCost_FilterByProvider_Actual tests provider filter for actual costs.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_FilterByProvider_Actual(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -378,6 +395,8 @@ func TestActualCost_FilterByProvider_Actual(t *testing.T) {
 }
 
 // TestActualCost_FilterNoMatch tests filter with no matching results.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_FilterNoMatch(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -399,6 +418,8 @@ func TestActualCost_FilterNoMatch(t *testing.T) {
 }
 
 // TestActualCost_FilterCaseSensitivity tests case-insensitive filter matching.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_FilterCaseSensitivity(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -421,6 +442,8 @@ func TestActualCost_FilterCaseSensitivity(t *testing.T) {
 }
 
 // TestActualCost_FilterInvalidSyntax_Actual tests invalid filter syntax for actual costs.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_FilterInvalidSyntax_Actual(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -435,6 +458,8 @@ func TestActualCost_FilterInvalidSyntax_Actual(t *testing.T) {
 }
 
 // TestActualCost_MultipleFilters tests using multiple --filter flags.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_MultipleFilters(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")

@@ -24,6 +24,8 @@ func silentLogger() zerolog.Logger {
 
 // T013: Unit test for Recorder.Record().
 func TestRecorder_RecordRequest(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	recorder := NewRecorder(tmpDir, silentLogger())
 
@@ -66,6 +68,8 @@ func TestRecorder_RecordRequest(t *testing.T) {
 
 // T014: Unit test for generateFilename() ULID format.
 func TestRecorder_GenerateFilename(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	recorder := NewRecorder(tmpDir, silentLogger())
 
@@ -94,6 +98,8 @@ func TestRecorder_GenerateFilename(t *testing.T) {
 
 // T015: Unit test for directory creation.
 func TestRecorder_DirectoryCreation(t *testing.T) {
+	t.Parallel()
+
 	// Create a path that doesn't exist
 	tmpDir := t.TempDir()
 	nestedDir := filepath.Join(tmpDir, "nested", "recording", "dir")
@@ -118,6 +124,8 @@ func TestRecorder_DirectoryCreation(t *testing.T) {
 
 // T016a: Unit test for malformed request handling.
 func TestRecorder_MalformedRequestHandling(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	recorder := NewRecorder(tmpDir, silentLogger())
 
@@ -135,6 +143,8 @@ func TestRecorder_MalformedRequestHandling(t *testing.T) {
 
 // T025: Handle edge case: non-writable directory.
 func TestRecorder_NonWritableDirectory(t *testing.T) {
+	t.Parallel()
+
 	// Skip on Windows where permission model is different
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping on Windows")
@@ -159,6 +169,8 @@ func TestRecorder_NonWritableDirectory(t *testing.T) {
 
 // T047: Ensure thread-safety with [sync.Mutex].
 func TestRecorder_ThreadSafety(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	recorder := NewRecorder(tmpDir, silentLogger())
 
@@ -196,6 +208,8 @@ func TestRecorder_ThreadSafety(t *testing.T) {
 }
 
 func TestRecorder_SerializeRequest(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	recorder := NewRecorder(tmpDir, silentLogger())
 
@@ -227,6 +241,8 @@ func TestRecorder_SerializeRequest(t *testing.T) {
 }
 
 func TestRecorder_Close(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	recorder := NewRecorder(tmpDir, silentLogger())
 
@@ -257,6 +273,8 @@ func BenchmarkRecorder_RecordRequest(b *testing.B) {
 
 // T041a: Concurrent request stress test (100+ parallel requests).
 func TestRecorder_StressTest(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	recorder := NewRecorder(tmpDir, silentLogger())
 
@@ -294,6 +312,8 @@ func TestRecorder_StressTest(t *testing.T) {
 
 // Test isDiskFullError function.
 func TestIsDiskFullError(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		err      error
@@ -333,6 +353,7 @@ func TestIsDiskFullError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := isDiskFullError(tt.err)
 			assert.Equal(t, tt.expected, result)
 		})

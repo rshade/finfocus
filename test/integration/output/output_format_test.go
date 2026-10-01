@@ -14,6 +14,8 @@ import (
 )
 
 // TestOutputFormat_JSON tests JSON output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestOutputFormat_JSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -45,6 +47,8 @@ func TestOutputFormat_JSON(t *testing.T) {
 }
 
 // TestOutputFormat_Table tests table output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestOutputFormat_Table(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -66,6 +70,8 @@ func TestOutputFormat_Table(t *testing.T) {
 }
 
 // TestOutputFormat_NDJSON tests NDJSON (newline-delimited JSON) output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestOutputFormat_NDJSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -92,6 +98,8 @@ func TestOutputFormat_NDJSON(t *testing.T) {
 }
 
 // TestOutputFormat_DefaultIsTable tests that table is the default output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestOutputFormat_DefaultIsTable(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -107,6 +115,8 @@ func TestOutputFormat_DefaultIsTable(t *testing.T) {
 }
 
 // TestOutputFormat_InvalidFormat tests error handling for invalid format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteExpectError)
 func TestOutputFormat_InvalidFormat(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -120,6 +130,8 @@ func TestOutputFormat_InvalidFormat(t *testing.T) {
 }
 
 // TestOutputFormat_EmptyResults tests output formats with empty results.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestOutputFormat_EmptyResults(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -152,6 +164,8 @@ func TestOutputFormat_EmptyResults(t *testing.T) {
 }
 
 // TestOutputFormat_CurrencyFormatting tests currency formatting in different outputs.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestOutputFormat_CurrencyFormatting(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -182,6 +196,8 @@ func TestOutputFormat_CurrencyFormatting(t *testing.T) {
 }
 
 // TestOutputFormat_CostPrecision tests decimal precision in cost values.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestOutputFormat_CostPrecision(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -209,6 +225,8 @@ func TestOutputFormat_CostPrecision(t *testing.T) {
 }
 
 // TestOutputFormat_ResourceFields tests that all expected resource fields are present.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestOutputFormat_ResourceFields(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -243,6 +261,8 @@ func TestOutputFormat_ResourceFields(t *testing.T) {
 }
 
 // TestOutputFormat_ConsistencyAcrossFormats tests that data is consistent across formats.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestOutputFormat_ConsistencyAcrossFormats(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 

@@ -22,6 +22,7 @@ func setupTestEnv(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
 func TestNewPluginValidateCmd(t *testing.T) {
 	setupTestEnv(t)
 
@@ -66,6 +67,7 @@ func TestNewPluginValidateCmd(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
 func TestPluginValidateCmdFlags(t *testing.T) {
 	setupTestEnv(t)
 
@@ -79,6 +81,7 @@ func TestPluginValidateCmdFlags(t *testing.T) {
 	assert.Contains(t, pluginFlag.Usage, "Validate a specific plugin by name")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
 func TestPluginValidateCmdHelp(t *testing.T) {
 	setupTestEnv(t)
 
@@ -97,6 +100,7 @@ func TestPluginValidateCmdHelp(t *testing.T) {
 	assert.Equal(t, "Validate installed plugins", cmd.Short)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
 func TestPluginValidateCmdExamples(t *testing.T) {
 	setupTestEnv(t)
 
@@ -110,6 +114,7 @@ func TestPluginValidateCmdExamples(t *testing.T) {
 	assert.Contains(t, cmd.Example, "kubecost")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
 func TestValidatePlugin(t *testing.T) {
 	setupTestEnv(t)
 
@@ -239,6 +244,8 @@ func TestValidatePlugin(t *testing.T) {
 }
 
 // TestPluginValidateCmd_NoPlugins tests validation with no plugins.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
 func TestPluginValidateCmd_NoPlugins(t *testing.T) {
 	setupTestEnv(t)
 
@@ -257,6 +264,8 @@ func TestPluginValidateCmd_NoPlugins(t *testing.T) {
 }
 
 // TestPluginValidateCmd_ValidPlugin tests validation with valid plugin.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
 func TestPluginValidateCmd_ValidPlugin(t *testing.T) {
 	setupTestEnv(t)
 	tempDir := os.Getenv("FINFOCUS_HOME")
@@ -282,6 +291,8 @@ func TestPluginValidateCmd_ValidPlugin(t *testing.T) {
 }
 
 // TestPluginValidateCmd_NonExecutable tests validation skips non-executable files.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
 func TestPluginValidateCmd_NonExecutable(t *testing.T) {
 	setupTestEnv(t)
 	tempDir := os.Getenv("FINFOCUS_HOME")

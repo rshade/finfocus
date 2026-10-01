@@ -14,11 +14,15 @@ import (
 )
 
 func TestRenderBudgetStatus_Nil(t *testing.T) {
+	t.Parallel()
+
 	err := RenderBudgetStatus(io.Discard, nil)
 	assert.NoError(t, err)
 }
 
 func TestRenderPlainBudget(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:   1000.0,
@@ -48,6 +52,8 @@ func TestRenderPlainBudget(t *testing.T) {
 }
 
 func TestGetStatusMessage(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		status *engine.BudgetStatus
@@ -82,6 +88,7 @@ func TestGetStatusMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := getStatusMessage(tt.status)
 			assert.Equal(t, tt.want, got)
 		})
@@ -89,6 +96,8 @@ func TestGetStatusMessage(t *testing.T) {
 }
 
 func TestCurrencySymbol(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "$", currencySymbol("USD"))
 	assert.Equal(t, "€", currencySymbol("EUR"))
 	assert.Equal(t, "£", currencySymbol("GBP"))
@@ -102,22 +111,30 @@ func TestCurrencySymbol(t *testing.T) {
 }
 
 func TestCalculateBoxWidth(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, minBoxWidth, calculateBoxWidth(20))
 	assert.Equal(t, defaultBoxWidth, calculateBoxWidth(100))
 	assert.Equal(t, 32, calculateBoxWidth(40))
 }
 
 func TestCalculateProgressBarWidth(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, minProgressBarWidth, calculateProgressBarWidth(20))
 	assert.Equal(t, progressBarWidth, calculateProgressBarWidth(100))
 }
 
 func TestIsWriterTerminal(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	assert.False(t, isWriterTerminal(&buf))
 }
 
 func TestRenderProgressBar(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Percentage: 50.0,
 	}
@@ -127,12 +144,16 @@ func TestRenderProgressBar(t *testing.T) {
 }
 
 func TestDetermineProgressBarColor(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, progressOKColor(), determineProgressBarColor(50.0))
 	assert.Equal(t, lipgloss.Color("214"), determineProgressBarColor(85.0))
 	assert.Equal(t, progressExceededColor(), determineProgressBarColor(110.0))
 }
 
 func TestFormatAlertMessage(t *testing.T) {
+	t.Parallel()
+
 	alert := engine.ThresholdStatus{
 		Threshold: 80.0,
 		Type:      config.AlertTypeActual,
@@ -144,6 +165,8 @@ func TestFormatAlertMessage(t *testing.T) {
 }
 
 func TestRenderAlertMessages(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Alerts: []engine.ThresholdStatus{
 			{Threshold: 100.0, Status: engine.ThresholdStatusExceeded, Type: config.AlertTypeActual},
@@ -156,6 +179,8 @@ func TestRenderAlertMessages(t *testing.T) {
 }
 
 func TestRenderStyledBudget(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:   1000.0,

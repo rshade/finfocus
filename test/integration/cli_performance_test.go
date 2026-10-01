@@ -28,6 +28,8 @@ func testContext(t *testing.T) context.Context {
 // - Loads in <2 seconds.
 // - Memory usage <100MB.
 func TestCLIPerformance_1000Items(t *testing.T) {
+	t.Parallel()
+
 	// Load 1000-item test fixture
 	fixtureData, err := os.ReadFile("../fixtures/large_dataset_1000.json")
 	require.NoError(t, err, "failed to load 1000-item fixture")
@@ -100,6 +102,8 @@ func TestCLIPerformance_1000Items(t *testing.T) {
 
 // TestCLIPerformance_BatchProcessing verifies batch processing efficiency.
 func TestCLIPerformance_BatchProcessing(t *testing.T) {
+	t.Parallel()
+
 	// Load 1000-item test fixture
 	fixtureData, err := os.ReadFile("../fixtures/large_dataset_1000.json")
 	require.NoError(t, err, "failed to load 1000-item fixture")
@@ -159,6 +163,8 @@ func TestCLIPerformance_BatchProcessing(t *testing.T) {
 
 // TestCLIPerformance_CacheEfficiency verifies cache performance with large datasets.
 func TestCLIPerformance_CacheEfficiency(t *testing.T) {
+	t.Parallel()
+
 	// Setup cache
 	tmpDir := t.TempDir()
 	cacheStore, err := cache.NewBoltStore(context.Background(), tmpDir, true, 3600, 100)

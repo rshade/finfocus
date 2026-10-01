@@ -11,6 +11,8 @@ import (
 
 // TestSetLatency verifies latency configuration.
 func TestSetLatency(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set 100ms latency
@@ -32,6 +34,8 @@ func TestSetLatency(t *testing.T) {
 
 // TestLatencyDefaultValue verifies default latency is zero.
 func TestLatencyDefaultValue(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	config := mock.GetConfig()
@@ -40,6 +44,8 @@ func TestLatencyDefaultValue(t *testing.T) {
 
 // TestLatencyWithScenarios verifies latency persists across scenario changes.
 func TestLatencyWithScenarios(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set latency
@@ -57,6 +63,8 @@ func TestLatencyWithScenarios(t *testing.T) {
 
 // TestLatencyResetClearsLatency verifies Reset() clears latency configuration.
 func TestLatencyResetClearsLatency(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set latency
@@ -73,6 +81,8 @@ func TestLatencyResetClearsLatency(t *testing.T) {
 
 // TestLatencyWithResponseConfiguration verifies latency and responses can be configured together.
 func TestLatencyWithResponseConfiguration(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Configure a response
@@ -90,6 +100,8 @@ func TestLatencyWithResponseConfiguration(t *testing.T) {
 
 // TestDifferentLatencyValues verifies various latency values can be set.
 func TestDifferentLatencyValues(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name      string
 		latencyMS int
@@ -104,6 +116,7 @@ func TestDifferentLatencyValues(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			mock := plugin.NewMockPlugin()
 			mock.SetLatency(tc.latencyMS)
 
@@ -115,6 +128,8 @@ func TestDifferentLatencyValues(t *testing.T) {
 
 // TestLatencyPersistenceAcrossConfigChanges verifies latency persists when adding responses.
 func TestLatencyPersistenceAcrossConfigChanges(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set latency
@@ -135,6 +150,8 @@ func TestLatencyPersistenceAcrossConfigChanges(t *testing.T) {
 
 // TestFullConfigureWithLatency verifies Configure() can set latency.
 func TestFullConfigureWithLatency(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	fullConfig := plugin.MockConfig{
@@ -153,6 +170,8 @@ func TestFullConfigureWithLatency(t *testing.T) {
 
 // TestCombinedErrorAndLatency verifies both error and latency can be set together.
 func TestCombinedErrorAndLatency(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set both
@@ -167,6 +186,8 @@ func TestCombinedErrorAndLatency(t *testing.T) {
 
 // TestLatencyChangeMultipleTimes verifies latency can be changed multiple times.
 func TestLatencyChangeMultipleTimes(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set different latencies
@@ -181,6 +202,8 @@ func TestLatencyChangeMultipleTimes(t *testing.T) {
 
 // TestLatencyWithScenarioAndError verifies complete configuration with latency.
 func TestLatencyWithScenarioAndError(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Configure everything
@@ -203,6 +226,8 @@ func TestLatencyWithScenarioAndError(t *testing.T) {
 
 // TestNegativeLatency verifies negative latency values can be set (treated as 0 or error by implementation).
 func TestNegativeLatency(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set negative latency (implementation may clamp to 0 or allow it)
@@ -215,6 +240,8 @@ func TestNegativeLatency(t *testing.T) {
 
 // TestZeroLatencyAfterPositive verifies clearing latency by setting to 0.
 func TestZeroLatencyAfterPositive(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set positive latency
@@ -230,6 +257,8 @@ func TestZeroLatencyAfterPositive(t *testing.T) {
 
 // TestLatencyIsolationFromErrors verifies latency and errors are independent.
 func TestLatencyIsolationFromErrors(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	// Set latency
@@ -248,6 +277,8 @@ func TestLatencyIsolationFromErrors(t *testing.T) {
 
 // TestLatencyAfterMultipleResets verifies latency clears after each reset.
 func TestLatencyAfterMultipleResets(t *testing.T) {
+	t.Parallel()
+
 	mock := plugin.NewMockPlugin()
 
 	for i := 0; i < 5; i++ {

@@ -30,6 +30,8 @@ func newTestEntry(urn, cloudID string) history.ResourceHistoryEntry {
 }
 
 func TestBoltStore_GetDeletedResources_ReturnsNewestEntry(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
@@ -66,6 +68,8 @@ func TestBoltStore_GetDeletedResources_ReturnsNewestEntry(t *testing.T) {
 }
 
 func TestBoltStore_Close_SetsEnabledFalse(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
@@ -87,6 +91,8 @@ func TestBoltStore_Close_SetsEnabledFalse(t *testing.T) {
 }
 
 func TestNewBoltStore_Enabled(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
@@ -101,6 +107,8 @@ func TestNewBoltStore_Enabled(t *testing.T) {
 }
 
 func TestNewBoltStore_Disabled(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
@@ -126,6 +134,8 @@ func TestNewBoltStore_Disabled(t *testing.T) {
 }
 
 func TestNewBoltStore_EmptyDirectory(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	store, err := history.NewBoltStore(ctx, "", true, 90)
@@ -134,6 +144,8 @@ func TestNewBoltStore_EmptyDirectory(t *testing.T) {
 }
 
 func TestNewBoltStore_DirectoryAutoCreation(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	dbPath := filepath.Join(tmpDir, "subdir", "nested", "db")
 	ctx := context.Background()
@@ -150,6 +162,8 @@ func TestNewBoltStore_DirectoryAutoCreation(t *testing.T) {
 }
 
 func TestBoltStore_Upsert_NewEntry(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -175,6 +189,8 @@ func TestBoltStore_Upsert_NewEntry(t *testing.T) {
 }
 
 func TestBoltStore_Upsert_UpdateLastSeen(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -224,6 +240,8 @@ func TestBoltStore_Upsert_UpdateLastSeen(t *testing.T) {
 }
 
 func TestBoltStore_Upsert_DifferentCloudID(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -275,6 +293,8 @@ func TestBoltStore_Upsert_DifferentCloudID(t *testing.T) {
 }
 
 func TestBoltStore_UpsertBatch(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -345,6 +365,8 @@ func TestBoltStore_UpsertBatch(t *testing.T) {
 }
 
 func TestBoltStore_GetCloudIDsForURN_TimeFilter(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -402,6 +424,8 @@ func TestBoltStore_GetCloudIDsForURN_TimeFilter(t *testing.T) {
 }
 
 func TestBoltStore_GetAllForStack(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -458,6 +482,8 @@ func TestBoltStore_GetAllForStack(t *testing.T) {
 }
 
 func TestBoltStore_GetAllForStack_TimeFilter(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -516,6 +542,8 @@ func TestBoltStore_GetAllForStack_TimeFilter(t *testing.T) {
 }
 
 func TestBoltStore_CorruptionRecovery(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
@@ -551,6 +579,8 @@ func TestBoltStore_CorruptionRecovery(t *testing.T) {
 }
 
 func TestBoltStore_LockTimeout(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 
@@ -579,6 +609,8 @@ func TestBoltStore_LockTimeout(t *testing.T) {
 }
 
 func TestBoltStore_SameCloudID_DifferentURNs(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -630,6 +662,8 @@ func TestBoltStore_SameCloudID_DifferentURNs(t *testing.T) {
 }
 
 func TestBoltStore_GetDeletedResources_Empty(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -645,6 +679,8 @@ func TestBoltStore_GetDeletedResources_Empty(t *testing.T) {
 }
 
 func TestBoltStore_GetDeletedResources_WithCurrent(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -689,6 +725,8 @@ func TestBoltStore_GetDeletedResources_WithCurrent(t *testing.T) {
 }
 
 func TestBoltStore_CleanupExpired(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 7)
@@ -736,6 +774,8 @@ func TestBoltStore_CleanupExpired(t *testing.T) {
 }
 
 func TestBoltStore_Disabled_UpsertBatch_NoOp(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, false, 90)
@@ -758,6 +798,8 @@ func TestBoltStore_Disabled_UpsertBatch_NoOp(t *testing.T) {
 }
 
 func TestBoltStore_Disabled_CleanupExpired_NoOp(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, false, 90)
@@ -770,6 +812,8 @@ func TestBoltStore_Disabled_CleanupExpired_NoOp(t *testing.T) {
 }
 
 func TestBoltStore_Disabled_GetDeletedResources_NoOp(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, false, 90)
@@ -858,6 +902,8 @@ func BenchmarkBoltStore_GetAllForStack(b *testing.B) {
 // ---------------------------------------------------------------------------
 
 func TestBoltStore_GetDeletedResources_ReturnsDeletedOnly(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -893,6 +939,8 @@ func TestBoltStore_GetDeletedResources_ReturnsDeletedOnly(t *testing.T) {
 }
 
 func TestBoltStore_GetDeletedResources_ExcludesCurrentResources(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -920,6 +968,8 @@ func TestBoltStore_GetDeletedResources_ExcludesCurrentResources(t *testing.T) {
 }
 
 func TestBoltStore_GetDeletedResources_TimeRangeFilter(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -955,6 +1005,8 @@ func TestBoltStore_GetDeletedResources_TimeRangeFilter(t *testing.T) {
 }
 
 func TestBoltStore_GetDeletedResources_EmptyStore(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -972,6 +1024,8 @@ func TestBoltStore_GetDeletedResources_EmptyStore(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestResourceHistoryEntry_Validate(t *testing.T) {
+	t.Parallel()
+
 	now := time.Now().Unix()
 	validEntry := history.ResourceHistoryEntry{
 		URN: "urn:pulumi:dev::app::aws:ec2/instance:Instance::web", CloudID: "i-123",
@@ -1064,6 +1118,7 @@ func TestResourceHistoryEntry_Validate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.entry.Validate()
 			if tt.wantErr == "" {
 				assert.NoError(t, err)
@@ -1076,16 +1131,22 @@ func TestResourceHistoryEntry_Validate(t *testing.T) {
 }
 
 func TestBuildHistoryKey(t *testing.T) {
+	t.Parallel()
+
 	key := history.BuildHistoryKey("stackabc", "urnxyz", "i-123")
 	assert.Equal(t, "stackabc/urnxyz/i-123", key)
 }
 
 func TestBuildTagKey(t *testing.T) {
+	t.Parallel()
+
 	key := history.BuildTagKey("stackabc", "env", "prod", "urnxyz")
 	assert.Equal(t, "stackabc/env:prod/urnxyz", key)
 }
 
 func TestBoltStore_CleanupExpired_WithTags(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 365)

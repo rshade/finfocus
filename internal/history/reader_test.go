@@ -14,6 +14,8 @@ import (
 )
 
 func TestHistoryReader_GetResourcesForPeriod_Basic(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -75,6 +77,8 @@ func TestHistoryReader_GetResourcesForPeriod_Basic(t *testing.T) {
 }
 
 func TestHistoryReader_GetResourcesForPeriod_TimeFilter(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -125,6 +129,8 @@ func TestHistoryReader_GetResourcesForPeriod_TimeFilter(t *testing.T) {
 }
 
 func TestHistoryReader_GetResourcesForPeriod_GroupsCloudIDs(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -201,6 +207,8 @@ func TestHistoryReader_GetResourcesForPeriod_GroupsCloudIDs(t *testing.T) {
 }
 
 func TestHistoryReader_GetResourcesForPeriod_EmptyStore(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, true, 90)
@@ -223,6 +231,8 @@ func TestHistoryReader_GetResourcesForPeriod_EmptyStore(t *testing.T) {
 }
 
 func TestHistoryReader_GetResourcesForPeriod_DisabledStore(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	ctx := context.Background()
 	store, err := history.NewBoltStore(ctx, tmpDir, false, 90)

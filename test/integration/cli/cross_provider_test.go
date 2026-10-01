@@ -13,6 +13,8 @@ import (
 )
 
 // TestCrossProvider_MultiProviderPlan tests cross-provider aggregation with a multi-provider plan.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCrossProvider_MultiProviderPlan(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -46,6 +48,8 @@ func TestCrossProvider_MultiProviderPlan(t *testing.T) {
 }
 
 // TestCrossProvider_GroupByProvider tests cross-provider aggregation grouped by provider.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCrossProvider_GroupByProvider(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -67,6 +71,8 @@ func TestCrossProvider_GroupByProvider(t *testing.T) {
 }
 
 // TestCrossProvider_GroupByMonthly tests cross-provider aggregation with monthly grouping.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCrossProvider_GroupByMonthly(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -88,6 +94,8 @@ func TestCrossProvider_GroupByMonthly(t *testing.T) {
 }
 
 // TestCrossProvider_StateFile tests cross-provider aggregation with a multi-provider state file.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCrossProvider_StateFile(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	stateFile := filepath.Join("..", "..", "..", "test", "fixtures", "state", "multi-provider.json")
@@ -109,6 +117,8 @@ func TestCrossProvider_StateFile(t *testing.T) {
 }
 
 // TestCrossProvider_FilterThenAggregate tests filtering followed by cross-provider aggregation.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCrossProvider_FilterThenAggregate(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -132,6 +142,8 @@ func TestCrossProvider_FilterThenAggregate(t *testing.T) {
 }
 
 // TestCrossProvider_CurrencyConsistency tests that all results use consistent currency.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCrossProvider_CurrencyConsistency(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -162,6 +174,8 @@ func TestCrossProvider_CurrencyConsistency(t *testing.T) {
 }
 
 // TestCrossProvider_TableOutput tests cross-provider results in table format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCrossProvider_TableOutput(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -181,6 +195,8 @@ func TestCrossProvider_TableOutput(t *testing.T) {
 }
 
 // TestCrossProvider_NDJSONOutput tests cross-provider results in NDJSON format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCrossProvider_NDJSONOutput(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")

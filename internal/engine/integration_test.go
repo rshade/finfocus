@@ -14,6 +14,8 @@ import (
 )
 
 func TestProjectedCostIntegration(t *testing.T) {
+	t.Parallel()
+
 	// Create temporary directory for specs
 	tempDir := t.TempDir()
 
@@ -88,6 +90,7 @@ metadata:
 	assert.Equal(t, "none", rdsResult.Adapter)
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture resources (composite value mutated by a subtest)
 func TestFilteringIntegration(t *testing.T) {
 	resources := []engine.ResourceDescriptor{
 		{
@@ -157,6 +160,8 @@ func TestFilteringIntegration(t *testing.T) {
 }
 
 func TestAggregationIntegration(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2:Instance",
@@ -217,6 +222,8 @@ func TestAggregationIntegration(t *testing.T) {
 }
 
 func TestSpecFallbackIntegration(t *testing.T) {
+	t.Parallel()
+
 	// Create temporary directory for specs
 	tempDir := t.TempDir()
 

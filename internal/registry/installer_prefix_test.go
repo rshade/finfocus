@@ -76,6 +76,7 @@ var kubernetesHints = &AssetNamingHints{
 	TagPrefix:   "kubernetes-",
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via newPrefixedInstaller)
 func TestInstallRelease_PrefixedTagUsesCanonicalDir(t *testing.T) {
 	server := prefixedServer(t, "kubernetes-v0.1.0")
 	defer server.Close()
@@ -98,6 +99,7 @@ func TestInstallRelease_PrefixedTagUsesCanonicalDir(t *testing.T) {
 	assert.Equal(t, "v0.1.0", plugins[0].Version)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via newPrefixedInstaller)
 func TestFetchRelease_BareVersionResolvesPrefixedTag(t *testing.T) {
 	server := prefixedServer(t, "kubernetes-v0.1.0", "kubernetes-v0.2.0")
 	defer server.Close()
@@ -111,6 +113,8 @@ func TestFetchRelease_BareVersionResolvesPrefixedTag(t *testing.T) {
 }
 
 func TestFindReleaseWithFallbackInfo_PrefixFiltersCoreReleases(t *testing.T) {
+	t.Parallel()
+
 	server := prefixedServer(t, "kubernetes-v0.1.0")
 	defer server.Close()
 	c := &GitHubClient{HTTPClient: server.Client(), BaseURL: server.URL}
@@ -127,6 +131,8 @@ func TestFindReleaseWithFallbackInfo_PrefixFiltersCoreReleases(t *testing.T) {
 // version string, so an unchanged release would not trigger a reinstall.
 // It exercises fetchRelease/installRelease directly; Installer.Update itself is
 // covered end-to-end by TestUpdate_PrefixedPluginLifecycle.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via newPrefixedInstaller)
 func TestCompareVersions_PrefixedCanonicalVersions(t *testing.T) {
 	server := prefixedServer(t, "kubernetes-v0.1.0")
 	defer server.Close()
@@ -148,6 +154,8 @@ func TestCompareVersions_PrefixedCanonicalVersions(t *testing.T) {
 // the kubernetes monorepo plugin: install at v0.1.0 through the embedded
 // registry entry, update when a newer kubernetes-vX.Y.Z tag exists, and no-op
 // once current.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via newPrefixedInstaller)
 func TestUpdate_PrefixedPluginLifecycle(t *testing.T) {
 	server := prefixedServer(t, "kubernetes-v0.1.0", "kubernetes-v0.2.0")
 	defer server.Close()

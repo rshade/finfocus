@@ -37,13 +37,17 @@ func (m *mockRouter) ShouldFallback(pluginName string) bool {
 
 // TestEngine_WithRouter tests that WithRouter properly configures the engine.
 func TestEngine_WithRouter(t *testing.T) {
+	t.Parallel()
+
 	t.Run("router is optional", func(t *testing.T) {
+		t.Parallel()
 		// Engine should work without a router
 		e := New(nil, nil)
 		assert.NotNil(t, e)
 	})
 
 	t.Run("router can be set via WithRouter", func(t *testing.T) {
+		t.Parallel()
 		router := &mockRouter{}
 		e := New(nil, nil).WithRouter(router)
 		assert.NotNil(t, e)
@@ -54,9 +58,12 @@ func TestEngine_WithRouter(t *testing.T) {
 // NOTE: Full integration tests with actual plugin calls are in test/integration/routing_*.go
 // These tests verify the routing logic without requiring real plugin connections.
 func TestEngine_RouterIntegration(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("without router and no clients returns empty results", func(t *testing.T) {
+		t.Parallel()
 		// Create engine with no router and no clients
 		e := New(nil, nil)
 
@@ -67,6 +74,7 @@ func TestEngine_RouterIntegration(t *testing.T) {
 	})
 
 	t.Run("router SelectPlugins is called with correct feature", func(t *testing.T) {
+		t.Parallel()
 		capturedFeature := ""
 		capturedResourceType := ""
 
@@ -92,6 +100,7 @@ func TestEngine_RouterIntegration(t *testing.T) {
 	})
 
 	t.Run("router empty match falls back to all clients", func(t *testing.T) {
+		t.Parallel()
 		router := &mockRouter{
 			selectPluginsFunc: func(_ context.Context, _ ResourceDescriptor, _ string) []PluginMatch {
 				// Return empty - should fall back to all clients
@@ -116,6 +125,7 @@ func TestEngine_RouterIntegration(t *testing.T) {
 	})
 
 	t.Run("router tracks selected plugins correctly", func(t *testing.T) {
+		t.Parallel()
 		var selectionCount int32
 
 		router := &mockRouter{
@@ -146,7 +156,10 @@ func TestEngine_RouterIntegration(t *testing.T) {
 // TestEngine_RouterNotNilReturnsPluginMatch tests that when router returns matches,
 // only those plugins are used (indirectly verified through selection tracking).
 func TestEngine_RouterNotNilReturnsPluginMatch(t *testing.T) {
+	t.Parallel()
+
 	t.Run("router returns specific plugin selection", func(t *testing.T) {
+		t.Parallel()
 		// Track selections
 		var selectedPlugins []string
 

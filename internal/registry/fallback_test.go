@@ -11,7 +11,10 @@ import (
 
 // TestFallbackInfo tests the FallbackInfo struct fields and state.
 func TestFallbackInfo(t *testing.T) {
+	t.Parallel()
+
 	t.Run("non-fallback scenario", func(t *testing.T) {
+		t.Parallel()
 		info := registry.FallbackInfo{
 			Release:          &registry.GitHubRelease{TagName: "v1.0.0"},
 			Asset:            &registry.ReleaseAsset{Name: "plugin_v1.0.0_linux_amd64.tar.gz"},
@@ -28,6 +31,7 @@ func TestFallbackInfo(t *testing.T) {
 	})
 
 	t.Run("fallback scenario", func(t *testing.T) {
+		t.Parallel()
 		info := registry.FallbackInfo{
 			Release:          &registry.GitHubRelease{TagName: "v0.9.0"},
 			Asset:            &registry.ReleaseAsset{Name: "plugin_v0.9.0_linux_amd64.tar.gz"},
@@ -44,6 +48,7 @@ func TestFallbackInfo(t *testing.T) {
 	})
 
 	t.Run("version mismatch when fallback", func(t *testing.T) {
+		t.Parallel()
 		info := registry.FallbackInfo{
 			Release:          &registry.GitHubRelease{TagName: "v0.9.0"},
 			WasFallback:      true,
@@ -59,7 +64,10 @@ func TestFallbackInfo(t *testing.T) {
 
 // TestInstallOptionsExtended tests the extended InstallOptions struct.
 func TestInstallOptionsExtended(t *testing.T) {
+	t.Parallel()
+
 	t.Run("default values", func(t *testing.T) {
+		t.Parallel()
 		opts := registry.InstallOptions{}
 
 		assert.False(t, opts.Force)
@@ -70,6 +78,7 @@ func TestInstallOptionsExtended(t *testing.T) {
 	})
 
 	t.Run("fallback to latest enabled", func(t *testing.T) {
+		t.Parallel()
 		opts := registry.InstallOptions{
 			FallbackToLatest: true,
 		}
@@ -79,6 +88,7 @@ func TestInstallOptionsExtended(t *testing.T) {
 	})
 
 	t.Run("no fallback enabled", func(t *testing.T) {
+		t.Parallel()
 		opts := registry.InstallOptions{
 			NoFallback: true,
 		}
@@ -88,6 +98,7 @@ func TestInstallOptionsExtended(t *testing.T) {
 	})
 
 	t.Run("mutual exclusivity validation", func(t *testing.T) {
+		t.Parallel()
 		opts := registry.InstallOptions{
 			FallbackToLatest: true,
 			NoFallback:       true,
@@ -100,6 +111,7 @@ func TestInstallOptionsExtended(t *testing.T) {
 	})
 
 	t.Run("combined with existing flags", func(t *testing.T) {
+		t.Parallel()
 		opts := registry.InstallOptions{
 			Force:            true,
 			NoSave:           true,
@@ -116,7 +128,10 @@ func TestInstallOptionsExtended(t *testing.T) {
 
 // TestInstallResultExtended tests the extended InstallResult struct.
 func TestInstallResultExtended(t *testing.T) {
+	t.Parallel()
+
 	t.Run("non-fallback result", func(t *testing.T) {
+		t.Parallel()
 		result := registry.InstallResult{
 			Name:             "test-plugin",
 			Version:          "v1.0.0",
@@ -134,6 +149,7 @@ func TestInstallResultExtended(t *testing.T) {
 	})
 
 	t.Run("fallback result", func(t *testing.T) {
+		t.Parallel()
 		result := registry.InstallResult{
 			Name:             "test-plugin",
 			Version:          "v0.9.0",
@@ -152,6 +168,7 @@ func TestInstallResultExtended(t *testing.T) {
 	})
 
 	t.Run("url-based install with fallback", func(t *testing.T) {
+		t.Parallel()
 		result := registry.InstallResult{
 			Name:             "custom-plugin",
 			Version:          "v2.0.0",
@@ -168,6 +185,7 @@ func TestInstallResultExtended(t *testing.T) {
 	})
 
 	t.Run("latest version request with fallback", func(t *testing.T) {
+		t.Parallel()
 		result := registry.InstallResult{
 			Name:             "test-plugin",
 			Version:          "v0.9.0",

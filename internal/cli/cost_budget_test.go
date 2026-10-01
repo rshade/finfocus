@@ -17,6 +17,8 @@ import (
 
 // T037: Unit test for warning log when exit_code: 0 and threshold exceeded.
 func TestCheckBudgetExit_WarningOnlyMode(t *testing.T) {
+	t.Parallel()
+
 	// Create a test command to capture output
 	cmd := &cobra.Command{}
 	var errBuf bytes.Buffer
@@ -48,6 +50,8 @@ func TestCheckBudgetExit_WarningOnlyMode(t *testing.T) {
 
 // T036: Unit test for exit_code: 0 with exit_on_threshold: true returns exit 0.
 func TestBudgetStatus_ExitCode_WarningOnly(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:          1000.0,
@@ -69,6 +73,8 @@ func TestBudgetStatus_ExitCode_WarningOnly(t *testing.T) {
 
 // T038: Integration test for warning-only mode (tested at CLI level).
 func TestCheckBudgetExit_WarningOnlyNoExitError(t *testing.T) {
+	t.Parallel()
+
 	cmd := &cobra.Command{}
 	var errBuf bytes.Buffer
 	cmd.SetErr(&errBuf)
@@ -99,6 +105,8 @@ func TestCheckBudgetExit_WarningOnlyNoExitError(t *testing.T) {
 
 // Test checkBudgetExit returns BudgetExitError for non-zero exit codes.
 func TestCheckBudgetExit_ReturnsExitError(t *testing.T) {
+	t.Parallel()
+
 	cmd := &cobra.Command{}
 	var errBuf bytes.Buffer
 	cmd.SetErr(&errBuf)
@@ -126,6 +134,8 @@ func TestCheckBudgetExit_ReturnsExitError(t *testing.T) {
 
 // Test checkBudgetExit returns nil when no budget status.
 func TestCheckBudgetExit_NilStatus(t *testing.T) {
+	t.Parallel()
+
 	cmd := &cobra.Command{}
 
 	err := checkBudgetExit(cmd, nil, nil)
@@ -135,6 +145,8 @@ func TestCheckBudgetExit_NilStatus(t *testing.T) {
 
 // Test checkBudgetExit returns nil when exit is disabled.
 func TestCheckBudgetExit_ExitDisabled(t *testing.T) {
+	t.Parallel()
+
 	cmd := &cobra.Command{}
 
 	status := &engine.BudgetStatus{
@@ -156,6 +168,8 @@ func TestCheckBudgetExit_ExitDisabled(t *testing.T) {
 
 // Test checkBudgetExit returns nil when no thresholds exceeded.
 func TestCheckBudgetExit_NoExceeded(t *testing.T) {
+	t.Parallel()
+
 	cmd := &cobra.Command{}
 
 	status := &engine.BudgetStatus{
@@ -177,6 +191,8 @@ func TestCheckBudgetExit_NoExceeded(t *testing.T) {
 
 // T020a/T027a: Test checkBudgetExit returns exit code 1 for evaluation errors (FR-009).
 func TestCheckBudgetExit_EvaluationError(t *testing.T) {
+	t.Parallel()
+
 	cmd := &cobra.Command{}
 	var errBuf bytes.Buffer
 	cmd.SetErr(&errBuf)
@@ -196,6 +212,8 @@ func TestCheckBudgetExit_EvaluationError(t *testing.T) {
 
 // T040: ExitReason indicates warning-only mode.
 func TestBudgetStatus_ExitReason_WarningOnly(t *testing.T) {
+	t.Parallel()
+
 	status := &engine.BudgetStatus{
 		Budget: config.BudgetConfig{
 			Amount:          1000.0,
@@ -214,6 +232,8 @@ func TestBudgetStatus_ExitReason_WarningOnly(t *testing.T) {
 }
 
 // T041: Unit test for --exit-on-threshold flag parsing.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via newCostCmd)
 func TestCostCmd_ExitOnThresholdFlag(t *testing.T) {
 	// Create a fresh cost command
 	cmd := newCostCmd()
@@ -232,6 +252,8 @@ func TestCostCmd_ExitOnThresholdFlag(t *testing.T) {
 }
 
 // T041b: Unit test for --exit-on-threshold=false flag parsing.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via newCostCmd)
 func TestCostCmd_ExitOnThresholdFlagFalse(t *testing.T) {
 	cmd := newCostCmd()
 
@@ -244,6 +266,8 @@ func TestCostCmd_ExitOnThresholdFlagFalse(t *testing.T) {
 }
 
 // T042: Unit test for --exit-code flag parsing.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via newCostCmd)
 func TestCostCmd_ExitCodeFlag(t *testing.T) {
 	cmd := newCostCmd()
 
@@ -261,6 +285,8 @@ func TestCostCmd_ExitCodeFlag(t *testing.T) {
 }
 
 // T042b: Unit test for --exit-code flag default value.
+//
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via newCostCmd)
 func TestCostCmd_ExitCodeFlagDefault(t *testing.T) {
 	cmd := newCostCmd()
 
@@ -319,6 +345,8 @@ func TestCostCmd_CLIFlagsOverrideEnv(t *testing.T) {
 }
 
 // T044: Unit test for CLI flags overriding config file values.
+//
+//nolint:paralleltest // SetGlobalConfig replaces the process-wide global config singleton
 func TestCostCmd_CLIFlagsOverrideConfig(t *testing.T) {
 	// Save and restore global config
 	prev := config.GetGlobalConfig()
@@ -364,6 +392,8 @@ func TestCostCmd_CLIFlagsOverrideConfig(t *testing.T) {
 }
 
 // T045: Integration test for CLI flag overrides - only changed flags are applied.
+//
+//nolint:paralleltest // SetGlobalConfig replaces the process-wide global config singleton
 func TestCostCmd_OnlyChangedFlagsApplied(t *testing.T) {
 	// Save and restore global config
 	prev := config.GetGlobalConfig()
@@ -405,6 +435,8 @@ func TestCostCmd_OnlyChangedFlagsApplied(t *testing.T) {
 // T003: Test that checkBudgetExitFromResult returns the BudgetExitError
 // (not just logs it), ensuring cost actual propagates budget errors.
 func TestCheckBudgetExitFromResult_ReturnsBudgetError(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		result       *BudgetRenderResult
@@ -462,6 +494,7 @@ func TestCheckBudgetExitFromResult_ReturnsBudgetError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cmd := &cobra.Command{}
 			var errBuf bytes.Buffer
 			cmd.SetErr(&errBuf)
@@ -480,6 +513,8 @@ func TestCheckBudgetExitFromResult_ReturnsBudgetError(t *testing.T) {
 }
 
 // T045b: Test that PersistentPreRunE handles nil global config gracefully.
+//
+//nolint:paralleltest // SetGlobalConfig replaces the process-wide global config singleton
 func TestCostCmd_NilGlobalConfig(t *testing.T) {
 	// Save and restore global config
 	prev := config.GetGlobalConfig()
@@ -503,6 +538,8 @@ func TestCostCmd_NilGlobalConfig(t *testing.T) {
 // cmd/finfocus's former TestExtractBudgetExitCode now that exit-code resolution
 // happens inside ax.Execute rather than in main().
 func TestToAxExitError(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		err          error
@@ -537,6 +574,7 @@ func TestToAxExitError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			converted := toAxExitError(context.Background(), tt.err)
 			assert.Equal(t, tt.wantExitCode, ax.ErrorExitCode(converted))
 

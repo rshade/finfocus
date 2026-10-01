@@ -16,6 +16,8 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestMapOperationToStatus(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		op     string
 		expect engine.ResourceStatus
@@ -33,6 +35,7 @@ func TestMapOperationToStatus(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.op, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expect, engine.MapOperationToStatus(tt.op))
 		})
 	}
@@ -43,6 +46,8 @@ func TestMapOperationToStatus(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMergeResourcesForOverview(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -206,6 +211,7 @@ func TestMergeResourcesForOverview(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			rows, err := engine.MergeResourcesForOverview(ctx, tt.stateResources, tt.planSteps)
 			require.NoError(t, err)
 			require.Len(t, rows, tt.wantLen)
@@ -229,6 +235,8 @@ func TestMergeResourcesForOverview(t *testing.T) {
 }
 
 func TestMergeResourcesForOverview_SkeletonRowsHaveNilCosts(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	rows, err := engine.MergeResourcesForOverview(ctx,
@@ -252,6 +260,8 @@ func TestMergeResourcesForOverview_SkeletonRowsHaveNilCosts(t *testing.T) {
 }
 
 func TestMergeResourcesForOverview_ResourceIDPopulated(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	rows, err := engine.MergeResourcesForOverview(ctx,
@@ -266,6 +276,8 @@ func TestMergeResourcesForOverview_ResourceIDPopulated(t *testing.T) {
 }
 
 func TestMergeResourcesForOverview_PropertiesPreserved(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	props := map[string]interface{}{
@@ -291,6 +303,8 @@ func TestMergeResourcesForOverview_PropertiesPreserved(t *testing.T) {
 }
 
 func TestMergeResourcesForOverview_NilPropertiesOK(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	rows, err := engine.MergeResourcesForOverview(ctx,
@@ -312,6 +326,8 @@ func TestMergeResourcesForOverview_NilPropertiesOK(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestNewRowsFromState(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -365,6 +381,7 @@ func TestNewRowsFromState(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			rows := engine.NewRowsFromState(ctx, tt.input)
 			require.Len(t, rows, tt.expectLen)
 			for i, urn := range tt.expectURNOrder {
@@ -387,6 +404,8 @@ func TestNewRowsFromState(t *testing.T) {
 }
 
 func TestMergeResourcesForOverview_CreatedAtPreserved(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	createdAt := time.Date(2025, 2, 13, 10, 0, 0, 0, time.UTC)
 
@@ -409,6 +428,8 @@ func TestMergeResourcesForOverview_CreatedAtPreserved(t *testing.T) {
 }
 
 func TestMergeResourcesForOverview_NilCreatedAtOK(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	rows, err := engine.MergeResourcesForOverview(ctx,
@@ -423,6 +444,8 @@ func TestMergeResourcesForOverview_NilCreatedAtOK(t *testing.T) {
 }
 
 func TestNewRowsFromState_CreatedAtPreserved(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	createdAt := time.Date(2025, 6, 10, 0, 0, 0, 0, time.UTC)
 
@@ -441,7 +464,10 @@ func TestNewRowsFromState_CreatedAtPreserved(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestApplyChangesToRows(t *testing.T) {
+	t.Parallel()
+
 	t.Run("updates matching URNs", func(t *testing.T) {
+		t.Parallel()
 		rows := []engine.OverviewRow{
 			{URN: "urn:a", Status: engine.StatusActive},
 			{URN: "urn:b", Status: engine.StatusActive},
@@ -452,6 +478,7 @@ func TestApplyChangesToRows(t *testing.T) {
 	})
 
 	t.Run("preserves unmatched rows", func(t *testing.T) {
+		t.Parallel()
 		rows := []engine.OverviewRow{
 			{URN: "urn:a", Status: engine.StatusActive},
 			{URN: "urn:b", Status: engine.StatusActive},
@@ -462,6 +489,7 @@ func TestApplyChangesToRows(t *testing.T) {
 	})
 
 	t.Run("empty map no-op", func(t *testing.T) {
+		t.Parallel()
 		rows := []engine.OverviewRow{
 			{URN: "urn:a", Status: engine.StatusDeleting},
 			{URN: "urn:b", Status: engine.StatusUpdating},
@@ -472,6 +500,7 @@ func TestApplyChangesToRows(t *testing.T) {
 	})
 
 	t.Run("nil map no-op", func(t *testing.T) {
+		t.Parallel()
 		rows := []engine.OverviewRow{
 			{URN: "urn:a", Status: engine.StatusDeleting},
 			{URN: "urn:b", Status: engine.StatusUpdating},
@@ -482,6 +511,7 @@ func TestApplyChangesToRows(t *testing.T) {
 	})
 
 	t.Run("nil rows is a no-op", func(t *testing.T) {
+		t.Parallel()
 		assert.NotPanics(t, func() {
 			engine.ApplyChangesToRows(nil, map[string]engine.ResourceStatus{})
 		}, "ApplyChangesToRows should be a no-op on nil rows input")
@@ -493,6 +523,8 @@ func TestApplyChangesToRows(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuildStatusByURN(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		steps   []engine.PlanStep
@@ -549,6 +581,7 @@ func TestBuildStatusByURN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := engine.BuildStatusByURN(tt.steps)
 			require.Len(t, got, len(tt.wantMap), "map length mismatch")
 			for urn, wantStatus := range tt.wantMap {
@@ -563,6 +596,8 @@ func TestBuildStatusByURN(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestDetectPendingChanges(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -622,6 +657,7 @@ func TestDetectPendingChanges(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			has, count := engine.DetectPendingChanges(ctx, tt.steps)
 			assert.Equal(t, tt.wantHas, has)
 			assert.Equal(t, tt.wantCount, count)
@@ -634,6 +670,8 @@ func TestDetectPendingChanges(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestMergeResourcesForOverview_PropertyDiffs(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	stateResources := []engine.StateResource{
@@ -679,6 +717,8 @@ func TestMergeResourcesForOverview_PropertyDiffs(t *testing.T) {
 }
 
 func TestMergeResourcesForOverview_NoDiffsForCreate(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	planSteps := []engine.PlanStep{
@@ -700,6 +740,8 @@ func TestMergeResourcesForOverview_NoDiffsForCreate(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestApplyPropertyDiffsToRows(t *testing.T) {
+	t.Parallel()
+
 	rows := []engine.OverviewRow{
 		{URN: "urn:a", Type: "aws:ec2:Instance", Status: engine.StatusUpdating},
 		{URN: "urn:b", Type: "aws:s3:Bucket", Status: engine.StatusActive},
@@ -718,7 +760,9 @@ func TestApplyPropertyDiffsToRows(t *testing.T) {
 	assert.Empty(t, rows[1].PropertyDiffs)
 }
 
-func TestApplyPropertyDiffsToRows_NilRows(_ *testing.T) {
+func TestApplyPropertyDiffsToRows_NilRows(t *testing.T) {
+	t.Parallel()
+
 	// Should not panic.
 	engine.ApplyPropertyDiffsToRows(nil, map[string][]engine.PropertyDiff{
 		"urn:a": {{Key: "k", OldValue: "old", NewValue: "new"}},
@@ -726,6 +770,8 @@ func TestApplyPropertyDiffsToRows_NilRows(_ *testing.T) {
 }
 
 func TestApplyPropertyDiffsToRows_NilMap(t *testing.T) {
+	t.Parallel()
+
 	rows := []engine.OverviewRow{
 		{URN: "urn:a", Type: "aws:ec2:Instance"},
 	}
@@ -734,6 +780,8 @@ func TestApplyPropertyDiffsToRows_NilMap(t *testing.T) {
 }
 
 func TestApplyProjectedPropertiesToRows(t *testing.T) {
+	t.Parallel()
+
 	rows := []engine.OverviewRow{
 		{URN: "urn:a", Type: "aws:ec2:Instance", Status: engine.StatusUpdating},
 		{URN: "urn:b", Type: "aws:s3:Bucket", Status: engine.StatusActive},
@@ -760,6 +808,8 @@ func TestApplyProjectedPropertiesToRows(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestBuildPropertyDiffsByURN(t *testing.T) {
+	t.Parallel()
+
 	steps := []engine.PlanStep{
 		{
 			URN:  "urn:a",
@@ -782,6 +832,7 @@ func TestBuildPropertyDiffsByURN(t *testing.T) {
 	assert.Len(t, result["urn:a"], 1)
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture expectedDiffs (composite value mutated by a subtest)
 func TestBuildPropertyDiffsByURN_ReplaceFlowEdgeCase(t *testing.T) {
 	expectedDiffs := []engine.PropertyDiff{
 		{Key: "subnetId", OldValue: "subnet-aaa", NewValue: "subnet-bbb"},
@@ -809,11 +860,15 @@ func TestBuildPropertyDiffsByURN_ReplaceFlowEdgeCase(t *testing.T) {
 }
 
 func TestBuildPropertyDiffsByURN_EmptySteps(t *testing.T) {
+	t.Parallel()
+
 	result := engine.BuildPropertyDiffsByURN(nil)
 	assert.Empty(t, result)
 }
 
 func TestBuildProjectedPropertiesByURN(t *testing.T) {
+	t.Parallel()
+
 	steps := []engine.PlanStep{
 		{
 			URN: "urn:a",
@@ -833,6 +888,7 @@ func TestBuildProjectedPropertiesByURN(t *testing.T) {
 	assert.Equal(t, "t3.large", result["urn:a"]["instanceType"])
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture props (composite value mutated by a subtest)
 func TestBuildProjectedPropertiesByURN_ReplaceFlowEdgeCase(t *testing.T) {
 	props := map[string]interface{}{
 		"instanceType": "t3.large",

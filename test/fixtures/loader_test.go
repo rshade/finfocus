@@ -11,6 +11,8 @@ import (
 )
 
 func TestLoadPlan_Success(t *testing.T) {
+	t.Parallel()
+
 	// Use existing fixture
 	path := filepath.Join("aws", "simple.json")
 
@@ -27,11 +29,15 @@ func TestLoadPlan_Success(t *testing.T) {
 }
 
 func TestLoadPlan_NotFound(t *testing.T) {
+	t.Parallel()
+
 	_, err := fixtures.LoadPlan("nonexistent.json")
 	require.Error(t, err)
 }
 
 func TestLoadConfig_Success(t *testing.T) {
+	t.Parallel()
+
 	path := filepath.Join("configs", "test-config.yaml")
 
 	var cfg map[string]interface{}

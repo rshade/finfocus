@@ -14,6 +14,8 @@ import (
 
 // TestCalculateBudgetHealthFromPercentage tests the core health calculation function (FR-001).
 func TestCalculateBudgetHealthFromPercentage(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		percentageUsed float64
@@ -113,6 +115,7 @@ func TestCalculateBudgetHealthFromPercentage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.CalculateBudgetHealthFromPercentage(tc.percentageUsed)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -121,6 +124,8 @@ func TestCalculateBudgetHealthFromPercentage(t *testing.T) {
 
 // TestCalculateBudgetHealth tests health calculation from a budget struct.
 func TestCalculateBudgetHealth(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budget   *pbc.Budget
@@ -207,6 +212,7 @@ func TestCalculateBudgetHealth(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.CalculateBudgetHealth(tc.budget)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -215,6 +221,8 @@ func TestCalculateBudgetHealth(t *testing.T) {
 
 // TestAggregateHealth tests worst-case health aggregation (FR-008).
 func TestAggregateHealth(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		budgets  []*pbc.Budget
@@ -317,6 +325,7 @@ func TestAggregateHealth(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.AggregateHealth(tc.budgets)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -325,6 +334,8 @@ func TestAggregateHealth(t *testing.T) {
 
 // TestCalculateBudgetHealthResults tests the batch health calculation function.
 func TestCalculateBudgetHealthResults(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -426,6 +437,7 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			results := engine.CalculateBudgetHealthResults(ctx, tc.budgets)
 			assert.Len(t, results, tc.expectedCount)
 			if tc.checkFunc != nil {
@@ -437,6 +449,8 @@ func TestCalculateBudgetHealthResults(t *testing.T) {
 
 // TestHealthThresholdConstants verifies the threshold constants match spec.
 func TestHealthThresholdConstants(t *testing.T) {
+	t.Parallel()
+
 	assert.InDelta(t, 80.0, engine.HealthThresholdWarning, 1e-9)
 	assert.InDelta(t, 90.0, engine.HealthThresholdCritical, 1e-9)
 	assert.InDelta(t, 100.0, engine.HealthThresholdExceeded, 1e-9)

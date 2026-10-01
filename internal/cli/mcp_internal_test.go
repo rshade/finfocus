@@ -53,6 +53,8 @@ func TestMCPFlagServesInsteadOfOverview(t *testing.T) {
 
 // TestMCPExcludedCommandsExist guards the exclusion table against drift: a
 // renamed or removed command would otherwise make mcp.Exclude a silent no-op.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestMCPExcludedCommandsExist(t *testing.T) {
 	root := NewRootCmd("test")
 	for _, exclusion := range mcpExcludedCommands {

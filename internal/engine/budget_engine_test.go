@@ -123,6 +123,7 @@ func (m *mockCostSourceClient) ResolveResourceTypes(
 	return &pbc.ResolveResourceTypesResponse{}, nil
 }
 
+//nolint:paralleltest // table cases share the parent-scoped fixture budget1
 func TestEngine_GetBudgets(t *testing.T) {
 	ctx := context.Background()
 

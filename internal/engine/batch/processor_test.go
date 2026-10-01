@@ -16,6 +16,8 @@ import (
 
 // TestNewProcessor verifies processor creation with various batch sizes.
 func TestNewProcessor(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		batchSize int
@@ -55,6 +57,7 @@ func TestNewProcessor(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			p, err := batch.NewProcessor[int](tt.batchSize)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -71,6 +74,8 @@ func TestNewProcessor(t *testing.T) {
 
 // TestNewProcessorWithDefaults verifies default processor creation.
 func TestNewProcessorWithDefaults(t *testing.T) {
+	t.Parallel()
+
 	p := batch.NewProcessorWithDefaults[string]()
 	require.NotNil(t, p)
 	assert.Equal(t, batch.DefaultBatchSize, p.GetBatchSize())
@@ -78,6 +83,8 @@ func TestNewProcessorWithDefaults(t *testing.T) {
 
 // TestProcess_1000Items verifies processing of 1000-item dataset in 100-item batches.
 func TestProcess_1000Items(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Generate 1000-item test dataset
@@ -130,6 +137,8 @@ func TestProcess_1000Items(t *testing.T) {
 
 // TestProcess_UnevenBatch verifies handling of dataset not evenly divisible by batch size.
 func TestProcess_UnevenBatch(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Generate 1050-item dataset (not evenly divisible by 100)
@@ -168,6 +177,8 @@ func TestProcess_UnevenBatch(t *testing.T) {
 
 // TestProcess_ProgressCallback verifies progress callback invocation.
 func TestProcess_ProgressCallback(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	items := make([]int, 300)
@@ -226,6 +237,8 @@ func TestProcess_ProgressCallback(t *testing.T) {
 
 // TestProcess_ErrorHandling verifies error handling and early termination.
 func TestProcess_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	items := make([]int, 500)
@@ -259,6 +272,8 @@ func TestProcess_ErrorHandling(t *testing.T) {
 
 // TestProcess_ContextCancellation verifies context cancellation handling.
 func TestProcess_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
 	// Create context with cancellation
 	ctx, cancel := context.WithCancel(context.Background())
 
@@ -300,6 +315,8 @@ func TestProcess_ContextCancellation(t *testing.T) {
 
 // TestProcess_EmptyItems verifies error handling for empty input.
 func TestProcess_EmptyItems(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	items := []int{}
@@ -319,6 +336,8 @@ func TestProcess_EmptyItems(t *testing.T) {
 
 // TestProcess_NilCallback verifies error handling for nil callback.
 func TestProcess_NilCallback(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	items := []int{1, 2, 3}
@@ -333,6 +352,8 @@ func TestProcess_NilCallback(t *testing.T) {
 
 // TestProcessConcurrent_1000Items verifies concurrent processing of 1000-item dataset.
 func TestProcessConcurrent_1000Items(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	items := make([]int, 1000)
@@ -370,6 +391,8 @@ func TestProcessConcurrent_1000Items(t *testing.T) {
 
 // TestProcessConcurrent_ErrorCollection verifies error collection in concurrent processing.
 func TestProcessConcurrent_ErrorCollection(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	items := make([]int, 500)
@@ -396,6 +419,8 @@ func TestProcessConcurrent_ErrorCollection(t *testing.T) {
 
 // TestCalculateBatches verifies batch boundary calculation.
 func TestCalculateBatches(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		batchSize  int
@@ -443,6 +468,7 @@ func TestCalculateBatches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			p, err := batch.NewProcessor[int](tt.batchSize)
 			require.NoError(t, err)
 
@@ -454,6 +480,8 @@ func TestCalculateBatches(t *testing.T) {
 
 // TestWithProgressCallback_Chaining verifies method chaining.
 func TestWithProgressCallback_Chaining(t *testing.T) {
+	t.Parallel()
+
 	called := false
 	callback := func(_ *batch.Progress) {
 		called = true
@@ -479,6 +507,8 @@ func TestWithProgressCallback_Chaining(t *testing.T) {
 
 // TestProcess_LargeBatchSize verifies handling of batch size larger than dataset.
 func TestProcess_LargeBatchSize(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	items := []int{1, 2, 3, 4, 5}

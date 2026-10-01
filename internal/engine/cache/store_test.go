@@ -17,6 +17,8 @@ import (
 
 // TestNewBoltStore verifies BoltDB store creation and directory setup.
 func TestNewBoltStore(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	tests := []struct {
@@ -54,6 +56,7 @@ func TestNewBoltStore(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			store, err := cache.NewBoltStore(
 				context.Background(), tt.directory, tt.enabled, tt.ttlSeconds, tt.maxSizeMB,
 			)
@@ -83,6 +86,8 @@ func TestNewBoltStore(t *testing.T) {
 
 // TestBoltStore_SetAndGet verifies basic cache set/get operations.
 func TestBoltStore_SetAndGet(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
@@ -121,6 +126,8 @@ func TestBoltStore_SetAndGet(t *testing.T) {
 
 // TestBoltStore_GetNonExistent verifies handling of missing cache entries.
 func TestBoltStore_GetNonExistent(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
@@ -134,6 +141,8 @@ func TestBoltStore_GetNonExistent(t *testing.T) {
 }
 
 // TestBoltStore_TTLExpiration verifies TTL expiration handling.
+//
+//nolint:paralleltest // sleeps on the real clock for 500ms or more and asserts on timing
 func TestBoltStore_TTLExpiration(t *testing.T) {
 	tempDir := t.TempDir()
 
@@ -167,6 +176,8 @@ func TestBoltStore_TTLExpiration(t *testing.T) {
 
 // TestBoltStore_Delete verifies cache entry deletion.
 func TestBoltStore_Delete(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
@@ -200,6 +211,8 @@ func TestBoltStore_Delete(t *testing.T) {
 
 // TestBoltStore_Clear verifies clearing all cache entries.
 func TestBoltStore_Clear(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
@@ -230,6 +243,8 @@ func TestBoltStore_Clear(t *testing.T) {
 
 // TestBoltStore_Size verifies cache size calculation.
 func TestBoltStore_Size(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
@@ -254,6 +269,8 @@ func TestBoltStore_Size(t *testing.T) {
 
 // TestBoltStore_Count verifies cache entry counting.
 func TestBoltStore_Count(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
@@ -282,6 +299,8 @@ func TestBoltStore_Count(t *testing.T) {
 
 // TestBoltStore_DisabledOperations verifies disabled cache behavior.
 func TestBoltStore_DisabledOperations(t *testing.T) {
+	t.Parallel()
+
 	store, err := cache.NewBoltStore(context.Background(), "", false, 0, 0)
 	require.NoError(t, err)
 	assert.False(t, store.IsEnabled())
@@ -319,6 +338,8 @@ func TestBoltStore_DisabledOperations(t *testing.T) {
 
 // TestBoltStore_EmptyKeyValidation verifies empty key handling.
 func TestBoltStore_EmptyKeyValidation(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
@@ -340,6 +361,8 @@ func TestBoltStore_EmptyKeyValidation(t *testing.T) {
 
 // TestBoltStore_AtomicOverwrite verifies overwrite behavior.
 func TestBoltStore_AtomicOverwrite(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)
@@ -371,6 +394,8 @@ func TestBoltStore_AtomicOverwrite(t *testing.T) {
 
 // TestBoltStore_MultipleEntries verifies handling of multiple entries.
 func TestBoltStore_MultipleEntries(t *testing.T) {
+	t.Parallel()
+
 	tempDir := t.TempDir()
 
 	store, err := cache.NewBoltStore(context.Background(), tempDir, true, 3600, 100)

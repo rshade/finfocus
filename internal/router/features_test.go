@@ -10,6 +10,8 @@ import (
 )
 
 func TestIsValidFeature(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		feature string
@@ -37,6 +39,7 @@ func TestIsValidFeature(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := router.IsValidFeature(tt.feature)
 			assert.Equal(t, tt.want, got)
 		})
@@ -44,6 +47,8 @@ func TestIsValidFeature(t *testing.T) {
 }
 
 func TestValidFeatures(t *testing.T) {
+	t.Parallel()
+
 	features := router.ValidFeatures()
 
 	require.Len(t, features, 7, "should have 7 valid features")
@@ -62,6 +67,8 @@ func TestValidFeatures(t *testing.T) {
 }
 
 func TestValidFeatureNames(t *testing.T) {
+	t.Parallel()
+
 	names := router.ValidFeatureNames()
 
 	require.Len(t, names, 7)
@@ -80,6 +87,8 @@ func TestValidFeatureNames(t *testing.T) {
 }
 
 func TestParseFeature(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		input     string
@@ -96,6 +105,7 @@ func TestParseFeature(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			feat, valid := router.ParseFeature(tt.input)
 			assert.Equal(t, tt.wantFeat, feat)
 			assert.Equal(t, tt.wantValid, valid)
@@ -104,6 +114,8 @@ func TestParseFeature(t *testing.T) {
 }
 
 func TestFeatureFromMethod(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		method    string
@@ -130,6 +142,7 @@ func TestFeatureFromMethod(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			feat, found := router.FeatureFromMethod(tt.method)
 			assert.Equal(t, tt.wantFeat, feat)
 			assert.Equal(t, tt.wantFound, found)
@@ -138,6 +151,8 @@ func TestFeatureFromMethod(t *testing.T) {
 }
 
 func TestDefaultFeatures(t *testing.T) {
+	t.Parallel()
+
 	defaults := router.DefaultFeatures()
 	require.Len(t, defaults, 2)
 	assert.Equal(t, []router.Feature{router.FeatureProjectedCosts, router.FeatureActualCosts}, defaults)

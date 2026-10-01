@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:paralleltest // os.Unsetenv changes the process-wide environment
 func TestLoadConfig_Defaults(t *testing.T) {
 	// Clear environment variables
 	os.Unsetenv(EnvOutputDir)
@@ -91,6 +92,8 @@ func TestLoadConfig_WithWhitespace(t *testing.T) {
 }
 
 func TestParseBool(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		input    string
 		expected bool
@@ -114,6 +117,7 @@ func TestParseBool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
 			result := parseBool(tc.input)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -121,6 +125,8 @@ func TestParseBool(t *testing.T) {
 }
 
 func TestConfigConstants(t *testing.T) {
+	t.Parallel()
+
 	// Verify constants are defined correctly
 	require.Equal(t, "FINFOCUS_RECORDER_OUTPUT_DIR", EnvOutputDir)
 	require.Equal(t, "FINFOCUS_RECORDER_MOCK_RESPONSE", EnvMockResponse)

@@ -24,6 +24,8 @@ func setHomeDir(t *testing.T, dir string) {
 }
 
 func TestInstalledPlugin(t *testing.T) {
+	t.Parallel()
+
 	plugin := InstalledPlugin{
 		Name:    "test-plugin",
 		URL:     "github.com/owner/repo",
@@ -42,6 +44,8 @@ func TestInstalledPlugin(t *testing.T) {
 }
 
 func TestInstalledPluginsConfig(t *testing.T) {
+	t.Parallel()
+
 	cfg := InstalledPluginsConfig{
 		InstalledPlugins: []InstalledPlugin{
 			{Name: "plugin1", URL: "url1", Version: "v1.0.0"},
@@ -54,6 +58,7 @@ func TestInstalledPluginsConfig(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestLoadInstalledPluginsNoFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	setHomeDir(t, tmpDir)
@@ -67,6 +72,7 @@ func TestLoadInstalledPluginsNoFile(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestLoadInstalledPluginsWithFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	setHomeDir(t, tmpDir)
@@ -102,6 +108,7 @@ func TestLoadInstalledPluginsWithFile(t *testing.T) {
 	require.Equal(t, "test-plugin", plugins[0].Name)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestSaveInstalledPlugins(t *testing.T) {
 	tmpDir := t.TempDir()
 	setHomeDir(t, tmpDir)
@@ -131,6 +138,7 @@ func TestSaveInstalledPlugins(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestAddInstalledPlugin(t *testing.T) {
 	tmpDir := t.TempDir()
 	setHomeDir(t, tmpDir)
@@ -174,6 +182,7 @@ func TestAddInstalledPlugin(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestRemoveInstalledPlugin(t *testing.T) {
 	tmpDir := t.TempDir()
 	setHomeDir(t, tmpDir)
@@ -205,6 +214,7 @@ func TestRemoveInstalledPlugin(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestGetInstalledPlugin(t *testing.T) {
 	tmpDir := t.TempDir()
 	setHomeDir(t, tmpDir)
@@ -231,6 +241,7 @@ func TestGetInstalledPlugin(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestUpdateInstalledPluginVersion(t *testing.T) {
 	tmpDir := t.TempDir()
 	setHomeDir(t, tmpDir)
@@ -262,6 +273,7 @@ func TestUpdateInstalledPluginVersion(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestGetMissingPlugins(t *testing.T) {
 	tmpDir := t.TempDir()
 	setHomeDir(t, tmpDir)
@@ -300,6 +312,7 @@ func TestGetMissingPlugins(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setHomeDir)
 func TestLoadInstalledPluginsInvalidYAML(t *testing.T) {
 	tmpDir := t.TempDir()
 	setHomeDir(t, tmpDir)

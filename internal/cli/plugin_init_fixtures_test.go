@@ -12,6 +12,8 @@ import (
 )
 
 func TestFixtureResolver_ResolvePlanFixture_Offline(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
 	tmpDir := t.TempDir()
@@ -36,6 +38,8 @@ func TestFixtureResolver_ResolvePlanFixture_Offline(t *testing.T) {
 }
 
 func TestFixtureResolver_ResolvePlanFixture_OfflineNotFound(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
 	tmpDir := t.TempDir()
@@ -48,6 +52,8 @@ func TestFixtureResolver_ResolvePlanFixture_OfflineNotFound(t *testing.T) {
 }
 
 func TestFixtureResolver_ResolveStateFixture_Offline(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
 	tmpDir := t.TempDir()
@@ -70,6 +76,8 @@ func TestFixtureResolver_ResolveStateFixture_Offline(t *testing.T) {
 }
 
 func TestFixtureResolver_ResolveStateFixture_OfflineNotFound(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
 	tmpDir := t.TempDir()
@@ -82,6 +90,8 @@ func TestFixtureResolver_ResolveStateFixture_OfflineNotFound(t *testing.T) {
 }
 
 func TestFixtureResolver_DownloadFixture_Offline(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
 	tmpDir := t.TempDir()
@@ -100,6 +110,8 @@ func TestFixtureResolver_DownloadFixture_Offline(t *testing.T) {
 }
 
 func TestFixtureResolver_DownloadFixture_Offline_FileExists(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
 	tmpDir := t.TempDir()
@@ -129,6 +141,8 @@ func TestFixtureResolver_DownloadFixture_Offline_FileExists(t *testing.T) {
 }
 
 func TestInitialization(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		test func(t *testing.T)
@@ -167,11 +181,16 @@ func TestInitialization(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, tt.test)
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			tt.test(t)
+		})
 	}
 }
 
 func TestFixtureResolver_ResolveRemotePlanFixture_ExplicitVersion(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
 	resolver := NewFixtureResolver(logger, false, "main", "/test/path")
@@ -188,6 +207,8 @@ func TestFixtureResolver_ResolveRemotePlanFixture_ExplicitVersion(t *testing.T) 
 }
 
 func TestFixtureResolver_ResolveRemotePlanFixture_LatestFallback(t *testing.T) {
+	t.Parallel()
+
 	logger := zerolog.New(zerolog.NewTestWriter(t))
 
 	// Use stubbed releaseTagFetcher to avoid network calls

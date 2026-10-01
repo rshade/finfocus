@@ -14,6 +14,8 @@ import (
 
 // TestBuildProjectedKey verifies structured projected cost key generation.
 func TestBuildProjectedKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		provider     string
@@ -49,6 +51,7 @@ func TestBuildProjectedKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			key := cache.BuildProjectedKey(tt.provider, tt.resourceType, tt.region, tt.sku)
 			assert.Equal(t, tt.want, key)
 		})
@@ -57,6 +60,8 @@ func TestBuildProjectedKey(t *testing.T) {
 
 // TestBuildProjectedKey_Deterministic verifies same inputs produce same key.
 func TestBuildProjectedKey_Deterministic(t *testing.T) {
+	t.Parallel()
+
 	key1 := cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.micro")
 	key2 := cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.micro")
 	assert.Equal(t, key1, key2)
@@ -64,6 +69,8 @@ func TestBuildProjectedKey_Deterministic(t *testing.T) {
 
 // TestBuildProjectedKey_DifferentInputs verifies different inputs produce different keys.
 func TestBuildProjectedKey_DifferentInputs(t *testing.T) {
+	t.Parallel()
+
 	key1 := cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.micro")
 	key2 := cache.BuildProjectedKey("aws", "aws:ec2:Instance", "us-east-1", "t3.large")
 	assert.NotEqual(t, key1, key2)
@@ -71,6 +78,8 @@ func TestBuildProjectedKey_DifferentInputs(t *testing.T) {
 
 // TestBuildActualKey verifies structured actual cost key generation.
 func TestBuildActualKey(t *testing.T) {
+	t.Parallel()
+
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
@@ -80,6 +89,8 @@ func TestBuildActualKey(t *testing.T) {
 
 // TestBuildActualKey_ResourceTypeSorting verifies resource types are sorted for determinism.
 func TestBuildActualKey_ResourceTypeSorting(t *testing.T) {
+	t.Parallel()
+
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
@@ -90,6 +101,8 @@ func TestBuildActualKey_ResourceTypeSorting(t *testing.T) {
 
 // TestBuildActualKey_FiltersDeterministic verifies filter order independence.
 func TestBuildActualKey_FiltersDeterministic(t *testing.T) {
+	t.Parallel()
+
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
@@ -104,6 +117,8 @@ func TestBuildActualKey_FiltersDeterministic(t *testing.T) {
 // TestBuildActualKey_PositionalAmbiguity verifies that empty provider with non-empty
 // resource types produces a different key than non-empty provider with empty types.
 func TestBuildActualKey_PositionalAmbiguity(t *testing.T) {
+	t.Parallel()
+
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
@@ -117,6 +132,8 @@ func TestBuildActualKey_PositionalAmbiguity(t *testing.T) {
 
 // TestBuildActualKey_DifferentFiltersProduceDifferentKeys verifies filter sensitivity.
 func TestBuildActualKey_DifferentFiltersProduceDifferentKeys(t *testing.T) {
+	t.Parallel()
+
 	from := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	to := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
@@ -127,17 +144,23 @@ func TestBuildActualKey_DifferentFiltersProduceDifferentKeys(t *testing.T) {
 
 // TestBuildRecommendationsKey verifies recommendation key generation.
 func TestBuildRecommendationsKey(t *testing.T) {
+	t.Parallel()
+
 	key := cache.BuildRecommendationsKey([]string{"ec2", "rds", "s3"}, "abc123")
 	assert.Equal(t, "recommendations/multi/ec2+rds+s3/abc123", key)
 }
 
 // TestBuildRecommendationsKey_EmptyPlaceholders verifies fixed segment positions.
 func TestBuildRecommendationsKey_EmptyPlaceholders(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "recommendations/multi/_/_", cache.BuildRecommendationsKey(nil, ""))
 }
 
 // TestBuildRecommendationsKey_Sorting verifies resource type sorting.
 func TestBuildRecommendationsKey_Sorting(t *testing.T) {
+	t.Parallel()
+
 	key1 := cache.BuildRecommendationsKey([]string{"s3", "ec2", "rds"}, "h")
 	key2 := cache.BuildRecommendationsKey([]string{"ec2", "rds", "s3"}, "h")
 	assert.Equal(t, key1, key2, "resource type order should not affect key")
@@ -145,11 +168,14 @@ func TestBuildRecommendationsKey_Sorting(t *testing.T) {
 
 // TestBuildRecommendationsKey_HashDistinguishes verifies the input hash is part of the key.
 func TestBuildRecommendationsKey_HashDistinguishes(t *testing.T) {
+	t.Parallel()
+
 	key1 := cache.BuildRecommendationsKey([]string{"ec2"}, "h1")
 	key2 := cache.BuildRecommendationsKey([]string{"ec2"}, "h2")
 	assert.NotEqual(t, key1, key2)
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture base (composite value mutated by a subtest)
 func TestHashRecommendationInputs(t *testing.T) {
 	base := []cache.RecommendationInput{
 		{
@@ -224,6 +250,8 @@ func TestHashRecommendationInputs(t *testing.T) {
 
 // TestBuildScoreKeys verifies score cache key generation.
 func TestBuildScoreKeys(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "scores/jev/1.2.0/jev-1.13/abc", cache.BuildScoreKey("jev", "1.2.0", "jev-1.13", "abc"))
 	assert.Equal(t, "scores/jev/1.2.0/_model", cache.BuildScoreModelKey("jev", "1.2.0"))
 	assert.Equal(t, "scores/_/_/_/_", cache.BuildScoreKey("", "", "", ""))
@@ -235,6 +263,8 @@ func TestBuildScoreKeys(t *testing.T) {
 
 // TestBucketFromKey verifies bucket extraction from structured keys.
 func TestBucketFromKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		key  string
 		want string
@@ -247,6 +277,7 @@ func TestBucketFromKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, cache.BucketFromKey(tt.key))
 		})
 	}
@@ -254,6 +285,8 @@ func TestBucketFromKey(t *testing.T) {
 
 // TestStripBucket verifies bucket prefix removal.
 func TestStripBucket(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		key  string
 		want string
@@ -265,6 +298,7 @@ func TestStripBucket(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.key, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.want, cache.StripBucket(tt.key))
 		})
 	}
@@ -291,6 +325,8 @@ func BenchmarkBuildActualKey(b *testing.B) {
 }
 
 func TestBuildResolveTypesKey(t *testing.T) {
+	t.Parallel()
+
 	assert.Equal(t, "resolve_types/terraform/aws_instance",
 		cache.BuildResolveTypesKey("terraform", "aws_instance"))
 	assert.Equal(t, "resolve_types/cloudformation/AWS::EC2::Instance",
@@ -298,6 +334,8 @@ func TestBuildResolveTypesKey(t *testing.T) {
 }
 
 func TestResolveTypesBucketRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	store, err := cache.NewBoltStore(context.Background(), t.TempDir(), true, 3600, 0)
 	require.NoError(t, err)
 	defer store.Close()

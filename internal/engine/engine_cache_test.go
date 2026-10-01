@@ -110,6 +110,8 @@ func (m *mockCache) preloadResults(key string, results []CostResult) {
 // --- Tests for generateProjectedCostResourceKey (structured keys) ---
 
 func TestGenerateProjectedCostResourceKey(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		resource        ResourceDescriptor
@@ -159,6 +161,7 @@ func TestGenerateProjectedCostResourceKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			key, err := generateProjectedCostResourceKey(tt.resource)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -196,7 +199,10 @@ func TestGenerateProjectedCostResourceKey(t *testing.T) {
 // --- Tests for projected cost cache integration ---
 
 func TestProjectedCostCacheIntegration(t *testing.T) {
+	t.Parallel()
+
 	t.Run("cache hit returns result with (cached) in Adapter", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 
 		resource := ResourceDescriptor{
@@ -233,6 +239,7 @@ func TestProjectedCostCacheIntegration(t *testing.T) {
 	})
 
 	t.Run("cache disabled skips all cache operations", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(false)
 
 		resource := ResourceDescriptor{
@@ -251,6 +258,7 @@ func TestProjectedCostCacheIntegration(t *testing.T) {
 	})
 
 	t.Run("cache store failure logs WARN and returns live result", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		mc.setErr = assert.AnError
 
@@ -273,6 +281,8 @@ func TestProjectedCostCacheIntegration(t *testing.T) {
 // --- Tests for generateActualCostCacheKey (structured keys) ---
 
 func TestGenerateActualCostCacheKey(t *testing.T) {
+	t.Parallel()
+
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
@@ -377,6 +387,7 @@ func TestGenerateActualCostCacheKey(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			key1 := generateActualCostCacheKey(tt.request1)
 			assert.NotEmpty(t, key1)
 
@@ -403,10 +414,13 @@ func TestGenerateActualCostCacheKey(t *testing.T) {
 // --- Tests for actual cost cache integration ---
 
 func TestActualCostCacheIntegration(t *testing.T) {
+	t.Parallel()
+
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
 	t.Run("cache hit returns results with (cached) markers", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 
 		request := ActualCostRequest{
@@ -442,6 +456,7 @@ func TestActualCostCacheIntegration(t *testing.T) {
 	})
 
 	t.Run("cache miss calls plugins", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 
 		request := ActualCostRequest{
@@ -464,6 +479,7 @@ func TestActualCostCacheIntegration(t *testing.T) {
 	})
 
 	t.Run("cache disabled skips all cache operations", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(false)
 
 		request := ActualCostRequest{
@@ -489,7 +505,10 @@ func TestActualCostCacheIntegration(t *testing.T) {
 
 // T008: Tests for storeProjectedCostCache TTL override when ExpiresAt is set.
 func TestStoreProjectedCostCache_TTLOverride(t *testing.T) {
+	t.Parallel()
+
 	t.Run("SetWithTTL called when ExpiresAt is set", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -518,6 +537,7 @@ func TestStoreProjectedCostCache_TTLOverride(t *testing.T) {
 	})
 
 	t.Run("Set called with default TTL when ExpiresAt is nil", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -543,6 +563,7 @@ func TestStoreProjectedCostCache_TTLOverride(t *testing.T) {
 	})
 
 	t.Run("SetWithTTL error logs warning without panic", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		mc.setErr = assert.AnError
 		eng := New(nil, nil)
@@ -575,7 +596,10 @@ func TestStoreProjectedCostCache_TTLOverride(t *testing.T) {
 
 // T019: Tests for skip-caching when projected cost ExpiresAt is in the past.
 func TestStoreProjectedCostCache_SkipPastExpiry(t *testing.T) {
+	t.Parallel()
+
 	t.Run("neither Set nor SetWithTTL called when ExpiresAt is in the past", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -605,10 +629,13 @@ func TestStoreProjectedCostCache_SkipPastExpiry(t *testing.T) {
 
 // T020: Tests for skip-caching when all actual cost results have past ExpiresAt.
 func TestStoreActualCostCache_SkipPastExpiry(t *testing.T) {
+	t.Parallel()
+
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
 	t.Run("neither Set nor SetWithTTL called when all results have past ExpiresAt", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -646,6 +673,7 @@ func TestStoreActualCostCache_SkipPastExpiry(t *testing.T) {
 	})
 
 	t.Run("mixed {nil, past} batch uses default TTL via Set", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -684,7 +712,10 @@ func TestStoreActualCostCache_SkipPastExpiry(t *testing.T) {
 
 // T021: Tests for cache-disabled edge case — expires_at hints are irrelevant.
 func TestStoreCache_DisabledIgnoresExpiresAt(t *testing.T) {
+	t.Parallel()
+
 	t.Run("projected: cache disabled ignores ExpiresAt entirely", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(false)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -712,6 +743,7 @@ func TestStoreCache_DisabledIgnoresExpiresAt(t *testing.T) {
 	})
 
 	t.Run("actual: cache disabled ignores ExpiresAt entirely", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(false)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -743,10 +775,13 @@ func TestStoreCache_DisabledIgnoresExpiresAt(t *testing.T) {
 
 // T009: Tests for storeActualCostCache TTL override when ExpiresAt is set.
 func TestStoreActualCostCache_TTLOverride(t *testing.T) {
+	t.Parallel()
+
 	baseTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	endTime := time.Date(2025, 1, 31, 0, 0, 0, 0, time.UTC)
 
 	t.Run("SetWithTTL called with earliest TTL from batch", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -785,6 +820,7 @@ func TestStoreActualCostCache_TTLOverride(t *testing.T) {
 	})
 
 	t.Run("Set called with default when no ExpiresAt", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -822,7 +858,10 @@ func ctxWithLogBuffer(level zerolog.Level) (context.Context, *bytes.Buffer) {
 
 // T023: Tests for debug logging when plugin TTL differs from default.
 func TestStoreProjectedCostCache_DebugLog_TTLOverride(t *testing.T) {
+	t.Parallel()
+
 	t.Run("debug log emitted when plugin TTL differs from default", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -854,7 +893,10 @@ func TestStoreProjectedCostCache_DebugLog_TTLOverride(t *testing.T) {
 
 // T024: Tests for debug logging when caching is skipped due to past ExpiresAt.
 func TestStoreProjectedCostCache_DebugLog_SkipCache(t *testing.T) {
+	t.Parallel()
+
 	t.Run("debug log emitted when caching skipped for past ExpiresAt", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -886,7 +928,10 @@ func TestStoreProjectedCostCache_DebugLog_SkipCache(t *testing.T) {
 
 // T025: Tests for warning logging when CalculatePluginTTL caps at MaxTTLSeconds.
 func TestStoreProjectedCostCache_WarnLog_TTLCapped(t *testing.T) {
+	t.Parallel()
+
 	t.Run("warn log emitted when plugin TTL is capped at max", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc
@@ -917,6 +962,7 @@ func TestStoreProjectedCostCache_WarnLog_TTLCapped(t *testing.T) {
 	})
 
 	t.Run("no warn when expires_at is exactly MaxTTLSeconds", func(t *testing.T) {
+		t.Parallel()
 		mc := newMockCache(true)
 		eng := New(nil, nil)
 		eng.cache = mc

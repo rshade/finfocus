@@ -13,6 +13,8 @@ import (
 )
 
 // TestNew_DefaultConfiguration tests creating a new config with default values.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestNew_DefaultConfiguration(t *testing.T) {
 	setupTestHome(t)
 
@@ -29,6 +31,8 @@ func TestNew_DefaultConfiguration(t *testing.T) {
 }
 
 // TestNew_CreatesConfigInHomeDirectory tests that config path is in ~/.finfocus/.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestNew_CreatesConfigInHomeDirectory(t *testing.T) {
 	homeDir := setupTestHome(t)
 
@@ -40,6 +44,8 @@ func TestNew_CreatesConfigInHomeDirectory(t *testing.T) {
 }
 
 // TestLoad_ValidConfigFile tests loading a valid YAML configuration file.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestLoad_ValidConfigFile(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
@@ -76,6 +82,8 @@ plugins:
 }
 
 // TestLoad_NonExistentFile tests that loading a non-existent file uses defaults.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestLoad_NonExistentFile(t *testing.T) {
 	setupTestHome(t)
 
@@ -88,6 +96,8 @@ func TestLoad_NonExistentFile(t *testing.T) {
 }
 
 // TestLoad_CorruptedYAML tests error handling for malformed YAML.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestLoad_CorruptedYAML(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
@@ -113,6 +123,8 @@ logging:
 }
 
 // TestLoad_EmptyConfigFile tests loading an empty configuration file.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestLoad_EmptyConfigFile(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
@@ -130,6 +142,8 @@ func TestLoad_EmptyConfigFile(t *testing.T) {
 }
 
 // TestLoad_PartialConfiguration tests loading a partial config with some defaults.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestLoad_PartialConfiguration(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
@@ -156,6 +170,8 @@ func TestLoad_PartialConfiguration(t *testing.T) {
 }
 
 // TestSave_CreatesDirectory tests that Save creates the config directory if it doesn't exist.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestSave_CreatesDirectory(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
@@ -171,6 +187,8 @@ func TestSave_CreatesDirectory(t *testing.T) {
 }
 
 // TestSave_CreatesFile tests that Save creates a config file with correct permissions.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestSave_CreatesFile(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
@@ -193,6 +211,8 @@ func TestSave_CreatesFile(t *testing.T) {
 }
 
 // TestSaveLoad_RoundTrip tests save and load cycle preserves configuration.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestSaveLoad_RoundTrip(t *testing.T) {
 	setupTestHome(t)
 
@@ -222,6 +242,8 @@ func TestSaveLoad_RoundTrip(t *testing.T) {
 }
 
 // TestLoad_ComplexPluginConfiguration tests loading nested plugin configurations.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestLoad_ComplexPluginConfiguration(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
@@ -259,6 +281,8 @@ func TestLoad_ComplexPluginConfiguration(t *testing.T) {
 }
 
 // TestLoad_LoggingOutputsConfiguration tests loading multiple logging outputs.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestLoad_LoggingOutputsConfiguration(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
@@ -304,6 +328,8 @@ func TestLoad_LoggingOutputsConfiguration(t *testing.T) {
 }
 
 // TestLoad_MixedConfiguration tests loading a complete configuration with all sections.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestLoad_MixedConfiguration(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")
@@ -348,6 +374,8 @@ plugins:
 }
 
 // TestLoad_WithUnicodeContent tests loading config with Unicode characters.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestHome)
 func TestLoad_WithUnicodeContent(t *testing.T) {
 	homeDir := setupTestHome(t)
 	finfocusDir := filepath.Join(homeDir, ".finfocus")

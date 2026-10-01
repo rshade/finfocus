@@ -16,18 +16,24 @@ import (
 // ---------------------------------------------------------------------------
 
 func TestApplyDismissalDeltaToRow_NoRecords(t *testing.T) {
+	t.Parallel()
+
 	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
 	engine.ApplyDismissalDeltaToRow(&row, nil)
 	assert.Empty(t, row.Recommendations)
 }
 
 func TestApplyDismissalDeltaToRow_EmptyRecords(t *testing.T) {
+	t.Parallel()
+
 	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
 	engine.ApplyDismissalDeltaToRow(&row, map[string]*config.DismissalRecord{})
 	assert.Empty(t, row.Recommendations)
 }
 
 func TestApplyDismissalDeltaToRow_ActiveRecordSkipped(t *testing.T) {
+	t.Parallel()
+
 	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-1": {
@@ -44,6 +50,8 @@ func TestApplyDismissalDeltaToRow_ActiveRecordSkipped(t *testing.T) {
 }
 
 func TestApplyDismissalDeltaToRow_DismissedRecAppended(t *testing.T) {
+	t.Parallel()
+
 	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-123", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-1": {
@@ -70,6 +78,8 @@ func TestApplyDismissalDeltaToRow_DismissedRecAppended(t *testing.T) {
 }
 
 func TestApplyDismissalDeltaToRow_SnoozedRecAppended(t *testing.T) {
+	t.Parallel()
+
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-456", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
@@ -92,6 +102,8 @@ func TestApplyDismissalDeltaToRow_SnoozedRecAppended(t *testing.T) {
 }
 
 func TestApplyDismissalDeltaToRow_NoLastKnownSkipped(t *testing.T) {
+	t.Parallel()
+
 	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-789", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-3": {
@@ -105,6 +117,8 @@ func TestApplyDismissalDeltaToRow_NoLastKnownSkipped(t *testing.T) {
 }
 
 func TestApplyDismissalDeltaToRow_URNFallbackMatch(t *testing.T) {
+	t.Parallel()
+
 	// ResourceID is empty; match by URN instead.
 	row := engine.OverviewRow{
 		URN:        "urn:pulumi:stack::proj::aws:ec2:Instance::my-instance",
@@ -127,6 +141,8 @@ func TestApplyDismissalDeltaToRow_URNFallbackMatch(t *testing.T) {
 }
 
 func TestApplyDismissalDeltaToRow_NonMatchingResourceIDSkipped(t *testing.T) {
+	t.Parallel()
+
 	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-111", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-5": {
@@ -143,6 +159,8 @@ func TestApplyDismissalDeltaToRow_NonMatchingResourceIDSkipped(t *testing.T) {
 }
 
 func TestApplyDismissalDeltaToRow_MultipleMatchesAppended(t *testing.T) {
+	t.Parallel()
+
 	row := engine.OverviewRow{URN: "urn:test", ResourceID: "i-222", Type: "aws:ec2:Instance"}
 	records := map[string]*config.DismissalRecord{
 		"rec-a": {
@@ -174,6 +192,8 @@ func TestApplyDismissalDeltaToRow_MultipleMatchesAppended(t *testing.T) {
 }
 
 func TestApplyDismissalDeltaToRow_PreservesExistingActiveRecs(t *testing.T) {
+	t.Parallel()
+
 	row := engine.OverviewRow{
 		URN:        "urn:test",
 		ResourceID: "i-333",
@@ -205,6 +225,8 @@ func TestApplyDismissalDeltaToRow_PreservesExistingActiveRecs(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestCountRecsActiveAndDismissed(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		recs          []engine.Recommendation
@@ -250,6 +272,7 @@ func TestCountRecsActiveAndDismissed(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			active, dismissed := engine.CountRecsActiveAndDismissed(tt.recs)
 			assert.Equal(t, tt.wantActive, active, "active count mismatch")
 			assert.Equal(t, tt.wantDismissed, dismissed, "dismissed count mismatch")

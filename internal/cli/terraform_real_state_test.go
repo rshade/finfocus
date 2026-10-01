@@ -70,6 +70,8 @@ func resourcesByID(resources []engine.ResourceDescriptor) map[string]engine.Reso
 }
 
 func TestLoadAndMapTerraformResources_RealStateMatchesIngest(t *testing.T) {
+	t.Parallel()
+
 	state, err := ingest.LoadTerraformState(realTerraformStatePath)
 	require.NoError(t, err)
 	want, err := ingest.MapTerraformResources(state.GetManagedResources())
@@ -80,6 +82,7 @@ func TestLoadAndMapTerraformResources_RealStateMatchesIngest(t *testing.T) {
 	assert.Len(t, got, 14)
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture client = newMockResolverClient(...)
 func TestResolveResourceTypes_RealStateViaMockPlugin(t *testing.T) {
 	client, mock := newMockResolverClient(t, func(m *mockplugin.MockPlugin) {
 		m.ConfigureTerraformResolver(mockplugin.AWSTerraformTypeMappings())
@@ -137,6 +140,8 @@ func TestResolveResourceTypes_RealStateViaMockPlugin(t *testing.T) {
 }
 
 func TestResolveResourceTypes_RealStateFallbacks(t *testing.T) {
+	t.Parallel()
+
 	instanceOnly := map[string]*pbc.ResourceTypeMapping{
 		"aws_instance": mockplugin.AWSTerraformTypeMappings()["aws_instance"],
 	}
@@ -179,6 +184,7 @@ func TestResolveResourceTypes_RealStateFallbacks(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			client, mock := newMockResolverClient(t, tt.configure)
 			in := loadRealTerraformResources(t)
 

@@ -11,6 +11,8 @@ import (
 )
 
 func TestDetectOutputFormatFromArgs(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		argv []string
@@ -45,6 +47,7 @@ func TestDetectOutputFormatFromArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := detectOutputFormatFromArgs(tt.argv)
 			assert.Equal(t, tt.want, got)
 		})
@@ -52,6 +55,8 @@ func TestDetectOutputFormatFromArgs(t *testing.T) {
 }
 
 func TestShouldSuppressAuxiliaryOutput(t *testing.T) {
+	t.Parallel()
+
 	assert.True(t, shouldSuppressAuxiliaryOutput([]string{"finfocus", "overview", "--output", "json"}))
 	assert.True(t, shouldSuppressAuxiliaryOutput([]string{"finfocus", "overview", "--output=ndjson"}))
 	assert.False(t, shouldSuppressAuxiliaryOutput([]string{"finfocus", "overview", "--output", "table"}))
@@ -59,6 +64,8 @@ func TestShouldSuppressAuxiliaryOutput(t *testing.T) {
 }
 
 func TestSuppressAuxOutputContextHelpers(t *testing.T) {
+	t.Parallel()
+
 	base := context.Background()
 	assert.False(t, suppressAuxOutputFromContext(base))
 
@@ -140,6 +147,7 @@ func TestResolveOutputFormat(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestResolveJSONFlag(t *testing.T) {
 	t.Setenv(agentModeEnv, "")
 	tests := []struct {

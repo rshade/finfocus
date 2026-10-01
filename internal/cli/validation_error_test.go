@@ -12,11 +12,15 @@ import (
 )
 
 func TestToValidationError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil error passes through", func(t *testing.T) {
+		t.Parallel()
 		assert.NoError(t, toValidationError(context.Background(), nil))
 	})
 
 	t.Run("plain error becomes validation_error with exit code 2", func(t *testing.T) {
+		t.Parallel()
 		cause := errors.New("--from is required when using --terraform-state")
 		err := toValidationError(context.Background(), cause)
 		require.Error(t, err)
@@ -31,6 +35,7 @@ func TestToValidationError(t *testing.T) {
 	})
 
 	t.Run("existing ax error is unchanged", func(t *testing.T) {
+		t.Parallel()
 		original := ax.NewError(context.Background(), "budget_exceeded", "over budget",
 			ax.WithErrorExitCode(42))
 		err := toValidationError(context.Background(), original)

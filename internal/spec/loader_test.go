@@ -12,6 +12,8 @@ import (
 
 // TestNewLoader tests the creation of a new spec loader.
 func TestNewLoader(t *testing.T) {
+	t.Parallel()
+
 	baseDir := "/test/path"
 	loader := NewLoader(baseDir)
 
@@ -21,6 +23,8 @@ func TestNewLoader(t *testing.T) {
 
 // TestLoadSpec_Success tests successful spec loading scenarios.
 func TestLoadSpec_Success(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		provider     string
@@ -85,6 +89,7 @@ pricing:
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 
 			// Create spec file
@@ -111,6 +116,8 @@ pricing:
 
 // TestLoadSpec_Errors tests error handling in LoadSpec.
 func TestLoadSpec_Errors(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		provider    string
@@ -147,6 +154,7 @@ func TestLoadSpec_Errors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			tt.setupFunc(t, tmpDir)
 
@@ -168,6 +176,8 @@ func TestLoadSpec_Errors(t *testing.T) {
 
 // TestLoadSpec_NonexistentDirectory tests loading from a non-existent directory.
 func TestLoadSpec_NonexistentDirectory(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	nonexistentDir := filepath.Join(tmpDir, "nonexistent")
 
@@ -181,6 +191,8 @@ func TestLoadSpec_NonexistentDirectory(t *testing.T) {
 
 // TestLoadSpec_PermissionError tests loading a spec file with restricted permissions.
 func TestLoadSpec_PermissionError(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping permission test on Windows - POSIX permissions not enforced")
 	}
@@ -206,6 +218,8 @@ func TestLoadSpec_PermissionError(t *testing.T) {
 
 // TestParseSpecFilename_Valid tests parsing valid spec filenames.
 func TestParseSpecFilename_Valid(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		filename string
 		provider string
@@ -246,6 +260,7 @@ func TestParseSpecFilename_Valid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.filename, func(t *testing.T) {
+			t.Parallel()
 			provider, service, sku, valid := ParseSpecFilename(tt.filename)
 
 			assert.True(t, valid, "filename should be valid")
@@ -258,6 +273,8 @@ func TestParseSpecFilename_Valid(t *testing.T) {
 
 // TestParseSpecFilename_Invalid tests parsing invalid spec filenames.
 func TestParseSpecFilename_Invalid(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		filename string
 		reason   string
@@ -290,6 +307,7 @@ func TestParseSpecFilename_Invalid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.reason, func(t *testing.T) {
+			t.Parallel()
 			provider, service, sku, valid := ParseSpecFilename(tt.filename)
 
 			assert.False(t, valid, "filename should be invalid: %s", tt.reason)
@@ -302,6 +320,8 @@ func TestParseSpecFilename_Invalid(t *testing.T) {
 
 // TestListSpecs tests listing specs in a directory.
 func TestListSpecs(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	// Create test files
@@ -351,6 +371,8 @@ func TestListSpecs(t *testing.T) {
 
 // TestListSpecs_EmptyDirectory tests listing specs in an empty directory.
 func TestListSpecs_EmptyDirectory(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	loader := NewLoader(tmpDir)
@@ -362,6 +384,8 @@ func TestListSpecs_EmptyDirectory(t *testing.T) {
 
 // TestListSpecs_NonexistentDirectory tests listing specs in a non-existent directory.
 func TestListSpecs_NonexistentDirectory(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	nonexistentDir := filepath.Join(tmpDir, "nonexistent")
 
@@ -374,6 +398,8 @@ func TestListSpecs_NonexistentDirectory(t *testing.T) {
 
 // TestListSpecs_PermissionError tests listing specs with permission error.
 func TestListSpecs_PermissionError(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping permission test on Windows - POSIX permissions not enforced")
 	}
@@ -398,6 +424,8 @@ func TestListSpecs_PermissionError(t *testing.T) {
 
 // TestValidateSpec tests spec validation.
 func TestValidateSpec(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		spec    *PricingSpec
@@ -490,6 +518,7 @@ func TestValidateSpec(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateSpec(tt.spec)
 
 			if tt.wantErr == "" {
@@ -504,6 +533,8 @@ func TestValidateSpec(t *testing.T) {
 
 // TestLoadSpec_ContentValidation tests that loaded specs have correct content.
 func TestLoadSpec_ContentValidation(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	specContent := `provider: aws

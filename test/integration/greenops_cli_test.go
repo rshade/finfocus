@@ -14,6 +14,8 @@ import (
 // This integration test verifies that when cost results contain carbon_footprint metrics,
 // the CLI table output displays real-world equivalencies using EPA formulas.
 func TestGreenOps_CLIEquivalencyOutput(t *testing.T) {
+	t.Parallel()
+
 	// Create sample cost results with carbon footprint data
 	results := []engine.CostResult{
 		{
@@ -59,6 +61,8 @@ func TestGreenOps_CLIEquivalencyOutput(t *testing.T) {
 // TestGreenOps_CLIEquivalencyOmittedWhenZero tests FR-002: graceful omission.
 // Equivalencies should not be displayed when carbon emissions are zero or below threshold.
 func TestGreenOps_CLIEquivalencyOmittedWhenZero(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		carbonValue float64
@@ -93,6 +97,7 @@ func TestGreenOps_CLIEquivalencyOmittedWhenZero(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			results := []engine.CostResult{
 				{
 					ResourceType: "aws:ec2:Instance",
@@ -123,6 +128,8 @@ func TestGreenOps_CLIEquivalencyOmittedWhenZero(t *testing.T) {
 
 // TestGreenOps_CLINoSustainabilityData tests graceful handling when no sustainability data exists.
 func TestGreenOps_CLINoSustainabilityData(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType:   "aws:ec2:Instance",
@@ -148,6 +155,8 @@ func TestGreenOps_CLINoSustainabilityData(t *testing.T) {
 
 // TestGreenOps_CLIMultipleResourcesAggregation tests aggregation of carbon from multiple resources.
 func TestGreenOps_CLIMultipleResourcesAggregation(t *testing.T) {
+	t.Parallel()
+
 	// Two resources, each with 75 kg carbon = 150 kg total
 	results := []engine.CostResult{
 		{
@@ -188,6 +197,8 @@ func TestGreenOps_CLIMultipleResourcesAggregation(t *testing.T) {
 
 // TestGreenOps_CLILargeNumberFormatting tests FR-005: large number scaling.
 func TestGreenOps_CLILargeNumberFormatting(t *testing.T) {
+	t.Parallel()
+
 	// 10 million kg of carbon should produce "million" formatted output
 	results := []engine.CostResult{
 		{
@@ -214,6 +225,8 @@ func TestGreenOps_CLILargeNumberFormatting(t *testing.T) {
 
 // TestGreenOps_CLIOnlyEnergyNoCarbon tests behavior with only energy metrics, no carbon.
 func TestGreenOps_CLIOnlyEnergyNoCarbon(t *testing.T) {
+	t.Parallel()
+
 	results := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2:Instance",

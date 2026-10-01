@@ -17,6 +17,8 @@ import (
 
 // T004: Unit test for TracingHook trace ID injection.
 func TestTracingHook_InjectsTraceID(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf)
 
@@ -41,6 +43,8 @@ func TestTracingHook_InjectsTraceID(t *testing.T) {
 }
 
 func TestTracingHook_NoTraceIDWithoutContext(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf)
 
@@ -60,6 +64,8 @@ func TestTracingHook_NoTraceIDWithoutContext(t *testing.T) {
 
 // T005: Unit test for NewLogger factory function.
 func TestNewLogger_DefaultsToJSON(t *testing.T) {
+	t.Parallel()
+
 	cfg := LoggingConfig{
 		Level:  "info",
 		Format: "json",
@@ -78,6 +84,8 @@ func TestNewLogger_DefaultsToJSON(t *testing.T) {
 }
 
 func TestNewLogger_ConsoleFormat(t *testing.T) {
+	t.Parallel()
+
 	cfg := LoggingConfig{
 		Level:  "info",
 		Format: "console",
@@ -99,6 +107,8 @@ func TestNewLogger_ConsoleFormat(t *testing.T) {
 }
 
 func TestNewLogger_LevelConfiguration(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name          string
 		configLevel   string
@@ -114,6 +124,7 @@ func TestNewLogger_LevelConfiguration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cfg := LoggingConfig{
 				Level:  tt.configLevel,
 				Format: "json",
@@ -144,6 +155,8 @@ func TestNewLogger_LevelConfiguration(t *testing.T) {
 
 // T006: Unit test for OpenTelemetry trace ID generation.
 func TestGenerateTraceID_ReturnsValidOTelFormat(t *testing.T) {
+	t.Parallel()
+
 	traceID := GenerateTraceID()
 
 	// OpenTelemetry trace ID is 32 lowercase hex characters
@@ -157,6 +170,8 @@ func TestGenerateTraceID_ReturnsValidOTelFormat(t *testing.T) {
 }
 
 func TestGenerateTraceID_Unique(t *testing.T) {
+	t.Parallel()
+
 	ids := make(map[string]bool)
 	for i := 0; i < 100; i++ {
 		id := GenerateTraceID()
@@ -167,6 +182,8 @@ func TestGenerateTraceID_Unique(t *testing.T) {
 
 // T007: Unit test for context helpers.
 func TestContextWithTraceID_StoresAndRetrieves(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	traceID := "test-trace-456"
 
@@ -177,12 +194,16 @@ func TestContextWithTraceID_StoresAndRetrieves(t *testing.T) {
 }
 
 func TestTraceIDFromContext_ReturnsEmptyIfNotSet(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	retrieved := TraceIDFromContext(ctx)
 	assert.Empty(t, retrieved)
 }
 
 func TestFromContext_ReturnsLoggerWithTraceID(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	baseLogger := zerolog.New(&buf).Hook(TracingHook{})
 
@@ -202,6 +223,8 @@ func TestFromContext_ReturnsLoggerWithTraceID(t *testing.T) {
 
 // T008: Unit test for log level parsing.
 func TestParseLevel(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		input    string
 		expected zerolog.Level
@@ -223,6 +246,7 @@ func TestParseLevel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			level := parseLevel(tt.input)
 			assert.Equal(t, tt.expected, level)
 		})
@@ -231,6 +255,8 @@ func TestParseLevel(t *testing.T) {
 
 // T009: Unit test for sensitive data protection patterns.
 func TestIsSensitiveKey(t *testing.T) {
+	t.Parallel()
+
 	sensitive := []string{
 		"api_key",
 		"apikey",
@@ -254,6 +280,7 @@ func TestIsSensitiveKey(t *testing.T) {
 
 	for _, key := range sensitive {
 		t.Run(key, func(t *testing.T) {
+			t.Parallel()
 			assert.True(t, isSensitiveKey(key), "%s should be sensitive", key)
 		})
 	}
@@ -269,12 +296,15 @@ func TestIsSensitiveKey(t *testing.T) {
 
 	for _, key := range notSensitive {
 		t.Run(key, func(t *testing.T) {
+			t.Parallel()
 			assert.False(t, isSensitiveKey(key), "%s should not be sensitive", key)
 		})
 	}
 }
 
 func TestSafeStr_RedactsSensitiveValues(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf)
 
@@ -288,6 +318,8 @@ func TestSafeStr_RedactsSensitiveValues(t *testing.T) {
 }
 
 func TestSafeStr_AllowsNonSensitiveValues(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf)
 
@@ -349,6 +381,7 @@ func TestExternalTraceID_AppearsInLogEntries(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // os.Unsetenv changes the process-wide environment
 func TestGetOrGenerateTraceID_UsesContextIfNoEnv(t *testing.T) {
 	// Ensure env var is not set
 	os.Unsetenv("FINFOCUS_TRACE_ID")
@@ -359,6 +392,7 @@ func TestGetOrGenerateTraceID_UsesContextIfNoEnv(t *testing.T) {
 	assert.Equal(t, "context-trace-id", traceID)
 }
 
+//nolint:paralleltest // os.Unsetenv changes the process-wide environment
 func TestGetOrGenerateTraceID_GeneratesNewIfNone(t *testing.T) {
 	// Ensure env var is not set
 	os.Unsetenv("FINFOCUS_TRACE_ID")
@@ -372,6 +406,8 @@ func TestGetOrGenerateTraceID_GeneratesNewIfNone(t *testing.T) {
 
 // Test for timestamp presence in logs.
 func TestNewLogger_IncludesTimestamp(t *testing.T) {
+	t.Parallel()
+
 	cfg := LoggingConfig{
 		Level:  "info",
 		Format: "json",
@@ -392,6 +428,8 @@ func TestNewLogger_IncludesTimestamp(t *testing.T) {
 
 // Test default stderr output.
 func TestCreateWriter_DefaultsToStderr(t *testing.T) {
+	t.Parallel()
+
 	cfg := LoggingConfig{
 		Level:  "info",
 		Format: "json",
@@ -405,6 +443,8 @@ func TestCreateWriter_DefaultsToStderr(t *testing.T) {
 
 // Test component logger pattern.
 func TestLogger_WithComponent(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	logger := zerolog.New(&buf)
 
@@ -420,6 +460,8 @@ func TestLogger_WithComponent(t *testing.T) {
 
 // Test that NewLoggerWithPath auto-creates the log directory.
 func TestNewLoggerWithPath_CreatesLogDirectory(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "nested", "deep", "finfocus.log")
 
@@ -451,6 +493,8 @@ func TestNewLoggerWithPath_CreatesLogDirectory(t *testing.T) {
 
 // Test that NewLoggerWithPath falls back to stderr when it cannot create the log directory.
 func TestNewLoggerWithPath_MkdirAllFails(t *testing.T) {
+	t.Parallel()
+
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping permission test on Windows - POSIX permissions not enforced")
 	}
@@ -479,6 +523,8 @@ func TestNewLoggerWithPath_MkdirAllFails(t *testing.T) {
 
 // Test text format alias.
 func TestNewLogger_TextFormatAlias(t *testing.T) {
+	t.Parallel()
+
 	cfg := LoggingConfig{
 		Level:  "info",
 		Format: "text",
@@ -501,6 +547,8 @@ func TestNewLogger_TextFormatAlias(t *testing.T) {
 // Tests for plugin log writer context helpers.
 
 func TestContextWithPluginLogWriter_StoresAndRetrieves(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	ctx := context.Background()
 	ctx = ContextWithPluginLogWriter(ctx, &buf)
@@ -515,12 +563,16 @@ func TestContextWithPluginLogWriter_StoresAndRetrieves(t *testing.T) {
 }
 
 func TestPluginLogWriterFromContext_ReturnsNilIfNotSet(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	writer := PluginLogWriterFromContext(ctx)
 	assert.Nil(t, writer)
 }
 
 func TestContextWithPluginLogPath_StoresAndRetrieves(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	ctx = ContextWithPluginLogPath(ctx, "/tmp/test.log")
 
@@ -529,12 +581,16 @@ func TestContextWithPluginLogPath_StoresAndRetrieves(t *testing.T) {
 }
 
 func TestPluginLogPathFromContext_ReturnsEmptyIfNotSet(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	path := PluginLogPathFromContext(ctx)
 	assert.Empty(t, path)
 }
 
 func TestLogPathResult_SetPluginLogFile_ClosedOnClose(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	logPath := filepath.Join(tmpDir, "test.log")
 
@@ -564,6 +620,8 @@ func TestLogPathResult_SetPluginLogFile_ClosedOnClose(t *testing.T) {
 }
 
 func TestLogPathResult_CloseIsIdempotent(t *testing.T) {
+	t.Parallel()
+
 	logPath := filepath.Join(t.TempDir(), "logs", "finfocus.log")
 	result := NewLoggerWithPath(Config{Level: "info", Format: "json", Output: "file", File: logPath})
 	require.True(t, result.UsingFile)

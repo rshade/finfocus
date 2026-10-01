@@ -13,6 +13,8 @@ import (
 )
 
 // TestActualCost_DateRangeValid tests valid date range parameters.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_DateRangeValid(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "aws-simple-plan.json")
@@ -31,6 +33,8 @@ func TestActualCost_DateRangeValid(t *testing.T) {
 }
 
 // TestActualCost_DateRangeInvalid tests that to < from produces an error.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_DateRangeInvalid(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "aws-simple-plan.json")
@@ -45,6 +49,8 @@ func TestActualCost_DateRangeInvalid(t *testing.T) {
 }
 
 // TestActualCost_DateFormats tests multiple date format support.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_DateFormats(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "aws-simple-plan.json")
@@ -75,6 +81,8 @@ func TestActualCost_DateFormats(t *testing.T) {
 }
 
 // TestActualCost_DefaultToDate tests that only --from is specified (to defaults to now).
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_DefaultToDate(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "aws-simple-plan.json")
@@ -94,6 +102,8 @@ func TestActualCost_DefaultToDate(t *testing.T) {
 }
 
 // TestActualCost_MissingFromDate tests that --from is required.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_MissingFromDate(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "aws-simple-plan.json")
@@ -108,6 +118,8 @@ func TestActualCost_MissingFromDate(t *testing.T) {
 }
 
 // TestActualCost_OutputFormats tests all supported output formats.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_OutputFormats(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "aws-simple-plan.json")
@@ -147,6 +159,8 @@ func TestActualCost_OutputFormats(t *testing.T) {
 }
 
 // TestActualCost_WithStateFile tests using a state JSON file as input.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_WithStateFile(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	stateFile := filepath.Join("..", "..", "..", "test", "fixtures", "state", "valid-state.json")
@@ -164,6 +178,8 @@ func TestActualCost_WithStateFile(t *testing.T) {
 }
 
 // TestActualCost_CombinedFlags tests combining filter + group-by + output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_CombinedFlags(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -191,6 +207,8 @@ func TestActualCost_CombinedFlags(t *testing.T) {
 }
 
 // TestActualCost_EmptyPlan tests behavior with a plan that has no resources.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_EmptyPlan(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -212,6 +230,8 @@ func TestActualCost_EmptyPlan(t *testing.T) {
 }
 
 // TestActualCost_NonExistentFile tests error handling for missing input file.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_NonExistentFile(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -229,6 +249,8 @@ func TestActualCost_NonExistentFile(t *testing.T) {
 }
 
 // TestActualCost_InvalidJSON tests error handling for invalid JSON input.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestActualCost_InvalidJSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 

@@ -12,6 +12,8 @@ import (
 
 // TestMapResource_ValidResource tests mapping a valid Pulumi resource to ResourceDescriptor.
 func TestMapResource_ValidResource(t *testing.T) {
+	t.Parallel()
+
 	resource := ingest.PulumiResource{
 		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
 		Type:     "aws:ec2/instance:Instance",
@@ -33,6 +35,8 @@ func TestMapResource_ValidResource(t *testing.T) {
 
 // TestMapResource_EmptyInputs tests mapping a resource with no inputs.
 func TestMapResource_EmptyInputs(t *testing.T) {
+	t.Parallel()
+
 	resource := ingest.PulumiResource{
 		URN:      "urn:pulumi:dev::app::aws:s3/bucket:Bucket::assets",
 		Type:     "aws:s3/bucket:Bucket",
@@ -50,6 +54,8 @@ func TestMapResource_EmptyInputs(t *testing.T) {
 
 // TestMapResource_NilInputs tests mapping a resource with nil inputs.
 func TestMapResource_NilInputs(t *testing.T) {
+	t.Parallel()
+
 	resource := ingest.PulumiResource{
 		URN:      "urn:pulumi:dev::app::aws:s3/bucket:Bucket::assets",
 		Type:     "aws:s3/bucket:Bucket",
@@ -67,6 +73,8 @@ func TestMapResource_NilInputs(t *testing.T) {
 
 // TestMapResource_ComplexInputs tests mapping a resource with nested inputs.
 func TestMapResource_ComplexInputs(t *testing.T) {
+	t.Parallel()
+
 	resource := ingest.PulumiResource{
 		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
 		Type:     "aws:ec2/instance:Instance",
@@ -104,6 +112,8 @@ func TestMapResource_ComplexInputs(t *testing.T) {
 
 // TestMapResource_StringProperties tests that all properties are converted to strings.
 func TestMapResource_StringProperties(t *testing.T) {
+	t.Parallel()
+
 	resource := ingest.PulumiResource{
 		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
 		Type:     "aws:ec2/instance:Instance",
@@ -128,6 +138,8 @@ func TestMapResource_StringProperties(t *testing.T) {
 
 // TestMapResource_DifferentProviders tests mapping resources from different cloud providers.
 func TestMapResource_DifferentProviders(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name             string
 		resource         ingest.PulumiResource
@@ -171,6 +183,7 @@ func TestMapResource_DifferentProviders(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			descriptor, err := ingest.MapResource(tc.resource)
 
 			require.NoError(t, err)
@@ -182,6 +195,8 @@ func TestMapResource_DifferentProviders(t *testing.T) {
 
 // TestMapResources_MultipleResources tests mapping a slice of resources.
 func TestMapResources_MultipleResources(t *testing.T) {
+	t.Parallel()
+
 	resources := []ingest.PulumiResource{
 		{
 			URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
@@ -220,6 +235,8 @@ func TestMapResources_MultipleResources(t *testing.T) {
 
 // TestMapResources_EmptySlice tests mapping an empty resource slice.
 func TestMapResources_EmptySlice(t *testing.T) {
+	t.Parallel()
+
 	resources := []ingest.PulumiResource{}
 
 	descriptors, err := ingest.MapResources(resources)
@@ -230,6 +247,8 @@ func TestMapResources_EmptySlice(t *testing.T) {
 
 // TestMapResources_NilSlice tests mapping a nil resource slice.
 func TestMapResources_NilSlice(t *testing.T) {
+	t.Parallel()
+
 	var resources []ingest.PulumiResource
 
 	descriptors, err := ingest.MapResources(resources)
@@ -240,6 +259,8 @@ func TestMapResources_NilSlice(t *testing.T) {
 
 // TestMapResources_PreservesOrder tests that resource order is maintained.
 func TestMapResources_PreservesOrder(t *testing.T) {
+	t.Parallel()
+
 	resources := []ingest.PulumiResource{
 		{
 			URN:      "urn:pulumi:dev::app::aws:s3/bucket:Bucket::first",
@@ -272,6 +293,8 @@ func TestMapResources_PreservesOrder(t *testing.T) {
 
 // TestMapResources_MixedProviders tests mapping resources from multiple providers.
 func TestMapResources_MixedProviders(t *testing.T) {
+	t.Parallel()
+
 	resources := []ingest.PulumiResource{
 		{
 			URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
@@ -304,6 +327,8 @@ func TestMapResources_MixedProviders(t *testing.T) {
 
 // TestMapResources_VerifyDescriptorStructure tests that mapped descriptors have correct structure.
 func TestMapResources_VerifyDescriptorStructure(t *testing.T) {
+	t.Parallel()
+
 	resources := []ingest.PulumiResource{
 		{
 			URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
@@ -330,6 +355,8 @@ func TestMapResources_VerifyDescriptorStructure(t *testing.T) {
 
 // TestMapResource_ProviderExtraction tests provider extraction from resource type.
 func TestMapResource_ProviderExtraction(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name             string
 		resourceType     string
@@ -359,6 +386,7 @@ func TestMapResource_ProviderExtraction(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			resource := ingest.PulumiResource{
 				URN:      "urn:pulumi:dev::app::" + tc.resourceType + "::test",
 				Type:     tc.resourceType,
@@ -375,6 +403,8 @@ func TestMapResource_ProviderExtraction(t *testing.T) {
 
 // TestMapResource_VerifyEngineDescriptorType tests that mapped result is engine.ResourceDescriptor.
 func TestMapResource_VerifyEngineDescriptorType(t *testing.T) {
+	t.Parallel()
+
 	resource := ingest.PulumiResource{
 		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
 		Type:     "aws:ec2/instance:Instance",
@@ -393,6 +423,8 @@ func TestMapResource_VerifyEngineDescriptorType(t *testing.T) {
 
 // TestMapResource_OutputsMergedWithInputs tests that Outputs are merged as base with Inputs overlay.
 func TestMapResource_OutputsMergedWithInputs(t *testing.T) {
+	t.Parallel()
+
 	resource := ingest.PulumiResource{
 		URN:      "urn:pulumi:dev::app::aws:ebs/volume:Volume::data",
 		Type:     "aws:ebs/volume:Volume",
@@ -422,6 +454,8 @@ func TestMapResource_OutputsMergedWithInputs(t *testing.T) {
 
 // TestMapResource_InputsOverrideOutputs tests that Inputs win on conflict with Outputs.
 func TestMapResource_InputsOverrideOutputs(t *testing.T) {
+	t.Parallel()
+
 	resource := ingest.PulumiResource{
 		URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::resize",
 		Type:     "aws:ec2/instance:Instance",
@@ -446,6 +480,8 @@ func TestMapResource_InputsOverrideOutputs(t *testing.T) {
 
 // TestMapResources_WithOutputs tests that MapResources handles Outputs on multiple resources.
 func TestMapResources_WithOutputs(t *testing.T) {
+	t.Parallel()
+
 	resources := []ingest.PulumiResource{
 		{
 			URN:      "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",

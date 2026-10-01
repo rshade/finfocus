@@ -19,8 +19,11 @@ import (
 // =============================================================================
 
 func TestBuildCostSummary(t *testing.T) {
+	t.Parallel()
+
 	fixedTime := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
 	t.Run("normal costs", func(t *testing.T) {
+		t.Parallel()
 		costs := []engine.CostResult{
 			{
 				ResourceType: "aws:ec2/instance:Instance",
@@ -56,6 +59,7 @@ func TestBuildCostSummary(t *testing.T) {
 	})
 
 	t.Run("mixed currencies detection", func(t *testing.T) {
+		t.Parallel()
 		costs := []engine.CostResult{
 			{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 100.0},
 			{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web2", Currency: "EUR", Monthly: 200.0},
@@ -68,6 +72,7 @@ func TestBuildCostSummary(t *testing.T) {
 	})
 
 	t.Run("error resources excluded from total", func(t *testing.T) {
+		t.Parallel()
 		costs := []engine.CostResult{
 			{
 				ResourceType: "aws:ec2/instance:Instance",
@@ -102,6 +107,7 @@ func TestBuildCostSummary(t *testing.T) {
 	})
 
 	t.Run("empty cost list", func(t *testing.T) {
+		t.Parallel()
 		summary := BuildCostSummary([]engine.CostResult{}, "dev", "infra", fixedTime)
 
 		assert.Equal(t, costSummarySchemaVersion, summary.SchemaVersion)
@@ -113,6 +119,7 @@ func TestBuildCostSummary(t *testing.T) {
 	})
 
 	t.Run("resource count accuracy", func(t *testing.T) {
+		t.Parallel()
 		costs := []engine.CostResult{
 			{ResourceType: "aws:ec2/instance:Instance", ResourceID: "web1", Currency: "USD", Monthly: 50.0},
 			{
@@ -133,6 +140,7 @@ func TestBuildCostSummary(t *testing.T) {
 	})
 
 	t.Run("nil cost list", func(t *testing.T) {
+		t.Parallel()
 		summary := BuildCostSummary(nil, "dev", "infra", fixedTime)
 
 		assert.InDelta(t, 0.0, summary.TotalMonthlyCost, 1e-9)
@@ -146,7 +154,10 @@ func TestBuildCostSummary(t *testing.T) {
 // =============================================================================
 
 func TestWriteCostSummary(t *testing.T) {
+	t.Parallel()
+
 	t.Run("successful write and read back", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		summary := &CostSummary{
 			SchemaVersion:    "1",
@@ -193,6 +204,7 @@ func TestWriteCostSummary(t *testing.T) {
 	})
 
 	t.Run("atomic overwrite of existing file", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		first := &CostSummary{
 			SchemaVersion:    "1",
@@ -234,6 +246,7 @@ func TestWriteCostSummary(t *testing.T) {
 	})
 
 	t.Run("directory creation if missing", func(t *testing.T) {
+		t.Parallel()
 		base := t.TempDir()
 		nestedDir := filepath.Join(base, "nested", "deep", ".finfocus")
 
@@ -255,6 +268,7 @@ func TestWriteCostSummary(t *testing.T) {
 	})
 
 	t.Run("MkdirAll failure", func(t *testing.T) {
+		t.Parallel()
 		// Create a file where a directory is expected — MkdirAll will fail
 		tmpFile := filepath.Join(t.TempDir(), "not-a-dir")
 		require.NoError(t, os.WriteFile(tmpFile, []byte("block"), 0o600))
@@ -272,6 +286,7 @@ func TestWriteCostSummary(t *testing.T) {
 	})
 
 	t.Run("WriteFile failure read-only dir", func(t *testing.T) {
+		t.Parallel()
 		if runtime.GOOS == "windows" {
 			t.Skip("chmod not effective on Windows")
 		}
@@ -295,6 +310,7 @@ func TestWriteCostSummary(t *testing.T) {
 	})
 
 	t.Run("file permissions 0600", func(t *testing.T) {
+		t.Parallel()
 		if runtime.GOOS == "windows" {
 			t.Skip("permission check not supported on Windows")
 		}
@@ -318,6 +334,7 @@ func TestWriteCostSummary(t *testing.T) {
 	})
 
 	t.Run("JSON schema validity", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		summary := &CostSummary{
 			SchemaVersion:    "1",
@@ -373,6 +390,7 @@ func TestWriteCostSummary(t *testing.T) {
 	})
 
 	t.Run("nil summary input", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		err := WriteCostSummary(nil, dir)
 		require.Error(t, err)
@@ -385,6 +403,8 @@ func TestWriteCostSummary(t *testing.T) {
 // in the ResourceCount and TotalMonthlyCost. This ensures that the secondary filter
 // in BuildCostSummary does not accidentally exclude valid results.
 func TestBuildCostSummary_IncludesNonErrorItems(t *testing.T) {
+	t.Parallel()
+
 	costs := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",

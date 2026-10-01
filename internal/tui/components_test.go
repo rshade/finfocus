@@ -8,6 +8,8 @@ import (
 )
 
 func TestRenderStatus(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		status   string
@@ -29,6 +31,7 @@ func TestRenderStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tui.RenderStatus(tt.status)
 			if !strings.Contains(result, tt.expected) {
 				t.Errorf(
@@ -43,6 +46,8 @@ func TestRenderStatus(t *testing.T) {
 }
 
 func TestRenderDelta(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		delta    float64
@@ -61,6 +66,7 @@ func TestRenderDelta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tui.RenderDelta(tt.delta)
 			if !strings.Contains(result, tt.expected) {
 				t.Errorf(
@@ -75,6 +81,8 @@ func TestRenderDelta(t *testing.T) {
 }
 
 func TestRenderPriority(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		priority string
@@ -95,6 +103,7 @@ func TestRenderPriority(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tui.RenderPriority(tt.priority)
 			if !strings.Contains(result, tt.expected) {
 				t.Errorf(
@@ -110,6 +119,8 @@ func TestRenderPriority(t *testing.T) {
 
 // T027: Test FormatActionType for TUI action type label rendering.
 func TestFormatActionType(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		input    string
@@ -141,6 +152,7 @@ func TestFormatActionType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tui.FormatActionType(tt.input)
 			if result != tt.expected {
 				t.Errorf("FormatActionType(%q) = %q, expected %q", tt.input, result, tt.expected)
@@ -151,6 +163,8 @@ func TestFormatActionType(t *testing.T) {
 
 // T030: Test FormatActionType for unknown action types.
 func TestFormatActionType_UnknownTypes(t *testing.T) {
+	t.Parallel()
+
 	// Unknown types should be returned as-is for forward compatibility
 	unknownTypes := []string{
 		"UNKNOWN",
@@ -161,6 +175,7 @@ func TestFormatActionType_UnknownTypes(t *testing.T) {
 
 	for _, unknown := range unknownTypes {
 		t.Run(unknown, func(t *testing.T) {
+			t.Parallel()
 			result := tui.FormatActionType(unknown)
 			// Unknown types are returned as-is (not transformed)
 			if result != unknown {
@@ -171,6 +186,8 @@ func TestFormatActionType_UnknownTypes(t *testing.T) {
 }
 
 func TestRenderFunctions_BasicOutput(t *testing.T) {
+	t.Parallel()
+
 	// Test that the functions produce expected output (styling may be disabled in test env)
 	tests := []struct {
 		name     string
@@ -195,6 +212,7 @@ func TestRenderFunctions_BasicOutput(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tt.function()
 
 			// Should contain expected text content

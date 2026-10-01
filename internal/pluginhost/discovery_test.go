@@ -21,17 +21,23 @@ import (
 var _ = plugin.NewMockPlugin
 
 // TestLauncherInterface_ProcessLauncher tests that ProcessLauncher implements Launcher interface.
-func TestLauncherInterface_ProcessLauncher(_ *testing.T) {
+func TestLauncherInterface_ProcessLauncher(t *testing.T) {
+	t.Parallel()
+
 	var _ pluginhost.Launcher = (*pluginhost.ProcessLauncher)(nil)
 }
 
 // TestLauncherInterface_StdioLauncher tests that StdioLauncher implements Launcher interface.
-func TestLauncherInterface_StdioLauncher(_ *testing.T) {
+func TestLauncherInterface_StdioLauncher(t *testing.T) {
+	t.Parallel()
+
 	var _ pluginhost.Launcher = (*pluginhost.StdioLauncher)(nil)
 }
 
 // TestPortAllocation_Uniqueness tests that ProcessLauncher allocates unique ports.
 func TestPortAllocation_Uniqueness(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
@@ -79,6 +85,8 @@ func TestPortAllocation_Uniqueness(t *testing.T) {
 
 // TestConnectionRetry_Success tests that launcher retries connection attempts.
 func TestConnectionRetry_Success(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
@@ -111,6 +119,8 @@ func TestConnectionRetry_Success(t *testing.T) {
 
 // TestConnectionRetry_Timeout tests that launcher times out after max retries.
 func TestConnectionRetry_Timeout(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
@@ -138,6 +148,8 @@ func TestConnectionRetry_Timeout(t *testing.T) {
 
 // TestEnvironmentVariables_PortPassing tests that port is passed via environment variable.
 func TestEnvironmentVariables_PortPassing(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {
@@ -162,6 +174,8 @@ func TestEnvironmentVariables_PortPassing(t *testing.T) {
 
 // TestConnectionState_Ready tests that connection reaches Ready or Idle state.
 func TestConnectionState_Ready(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {
@@ -202,6 +216,8 @@ func TestConnectionState_Ready(t *testing.T) {
 }
 
 // TestBinaryValidation_Permissions tests handling of non-executable binaries.
+//
+//nolint:paralleltest // executes a file it just wrote; concurrent forks cause ETXTBSY (golang/go#22315)
 func TestBinaryValidation_Permissions(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Skipping permission test on Windows")
@@ -227,17 +243,23 @@ func TestBinaryValidation_Permissions(t *testing.T) {
 
 // TestLauncherCreation_ProcessLauncher tests ProcessLauncher constructor.
 func TestLauncherCreation_ProcessLauncher(t *testing.T) {
+	t.Parallel()
+
 	launcher := pluginhost.NewProcessLauncher()
 	assert.NotNil(t, launcher)
 }
 
 // TestLauncherCreation_StdioLauncher tests StdioLauncher constructor.
 func TestLauncherCreation_StdioLauncher(t *testing.T) {
+	t.Parallel()
+
 	launcher := pluginhost.NewStdioLauncher()
 	assert.NotNil(t, launcher)
 }
 
 // TestProcessCleanup_ZombieProcesses tests that processes are properly reaped.
+//
+//nolint:paralleltest // sleeps on the real clock for 500ms or more and asserts on timing
 func TestProcessCleanup_ZombieProcesses(t *testing.T) {
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
@@ -277,6 +299,8 @@ func TestProcessCleanup_ZombieProcesses(t *testing.T) {
 
 // TestConcurrentConnections tests multiple simultaneous plugin connections.
 func TestConcurrentConnections(t *testing.T) {
+	t.Parallel()
+
 	t.Skip("Skipping test that requires building plugin binaries (internal package import restrictions)")
 
 	if testing.Short() {

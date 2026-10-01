@@ -11,6 +11,7 @@ import (
 	"github.com/rshade/finfocus/internal/cli"
 )
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginInstallCmd_FallbackFlags(t *testing.T) {
 	t.Run("fallback-to-latest flag exists", func(t *testing.T) {
 		cmd := cli.NewPluginInstallCmd()
@@ -62,6 +63,8 @@ func TestPluginInstallCmd_FallbackFlags(t *testing.T) {
 }
 
 func TestIsNoAssetError(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		errMsg   string
@@ -90,7 +93,8 @@ func TestIsNoAssetError(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(*testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// We need to call the exported function
 			// Since isNoAssetError is unexported, we test via behavior
 			// For now, we document the expected behavior
@@ -101,19 +105,25 @@ func TestIsNoAssetError(t *testing.T) {
 }
 
 func TestGetPlatformString(t *testing.T) {
+	t.Parallel()
+
 	// getPlatformString returns runtime.GOOS/runtime.GOARCH
 	// We can't directly test this without exposing the function
 	// This test documents the expected format
 	t.Run("format documentation", func(t *testing.T) {
+		t.Parallel()
 		// Expected format: "os/arch" e.g., "linux/amd64", "darwin/arm64", "windows/amd64"
 		t.Log("Platform string should be in 'os/arch' format")
 	})
 }
 
 func TestDisplayInstallResult(t *testing.T) {
+	t.Parallel()
+
 	// displayInstallResult is an internal function
 	// We test its behavior through command output verification
 	t.Run("format documentation", func(t *testing.T) {
+		t.Parallel()
 		// Non-fallback: shows just version
 		// Fallback: shows "Version: v0.9.0 (requested: v1.0.0)"
 		t.Log("Non-fallback shows 'Version: vX.Y.Z'")
@@ -124,7 +134,10 @@ func TestDisplayInstallResult(t *testing.T) {
 // TestPluginInstallCmd_FallbackToLatest_FlagBehavior tests the --fallback-to-latest flag [T019].
 // This tests that the flag is correctly parsed and passed to the install options.
 func TestPluginInstallCmd_FallbackToLatest_FlagBehavior(t *testing.T) {
+	t.Parallel()
+
 	t.Run("flag defaults to false", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewPluginInstallCmd()
 		flag := cmd.Flags().Lookup("fallback-to-latest")
 		require.NotNil(t, flag)
@@ -132,6 +145,7 @@ func TestPluginInstallCmd_FallbackToLatest_FlagBehavior(t *testing.T) {
 	})
 
 	t.Run("flag can be set to true", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewPluginInstallCmd()
 		err := cmd.Flags().Set("fallback-to-latest", "true")
 		require.NoError(t, err)
@@ -141,6 +155,7 @@ func TestPluginInstallCmd_FallbackToLatest_FlagBehavior(t *testing.T) {
 	})
 
 	t.Run("flag usage describes automatic fallback", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewPluginInstallCmd()
 		flag := cmd.Flags().Lookup("fallback-to-latest")
 		assert.Contains(t, flag.Usage, "Automatically")
@@ -151,7 +166,10 @@ func TestPluginInstallCmd_FallbackToLatest_FlagBehavior(t *testing.T) {
 // TestPluginInstallCmd_NoFallback_FlagBehavior tests the --no-fallback flag [T026].
 // This tests that the flag correctly disables fallback behavior.
 func TestPluginInstallCmd_NoFallback_FlagBehavior(t *testing.T) {
+	t.Parallel()
+
 	t.Run("flag defaults to false", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewPluginInstallCmd()
 		flag := cmd.Flags().Lookup("no-fallback")
 		require.NotNil(t, flag)
@@ -159,6 +177,7 @@ func TestPluginInstallCmd_NoFallback_FlagBehavior(t *testing.T) {
 	})
 
 	t.Run("flag can be set to true", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewPluginInstallCmd()
 		err := cmd.Flags().Set("no-fallback", "true")
 		require.NoError(t, err)
@@ -168,6 +187,7 @@ func TestPluginInstallCmd_NoFallback_FlagBehavior(t *testing.T) {
 	})
 
 	t.Run("flag usage describes disabling fallback", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewPluginInstallCmd()
 		flag := cmd.Flags().Lookup("no-fallback")
 		assert.Contains(t, flag.Usage, "Disable")
@@ -176,6 +196,8 @@ func TestPluginInstallCmd_NoFallback_FlagBehavior(t *testing.T) {
 }
 
 // TestPluginInstallCmd_MutualExclusivity_Detailed tests mutual exclusivity in detail [T025].
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestPluginInstallCmd_MutualExclusivity_Detailed(t *testing.T) {
 	t.Run("fallback-to-latest alone works", func(t *testing.T) {
 		cmd := cli.NewPluginInstallCmd()

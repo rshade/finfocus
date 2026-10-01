@@ -7,6 +7,8 @@ import (
 )
 
 func TestGetVersion(t *testing.T) {
+	t.Parallel()
+
 	v := version.GetVersion()
 	if v == "" {
 		t.Error("GetVersion() returned empty string")
@@ -19,6 +21,8 @@ func TestGetVersion(t *testing.T) {
 }
 
 func TestGetGitCommit(t *testing.T) {
+	t.Parallel()
+
 	commit := version.GetGitCommit()
 	if commit == "" {
 		t.Error("GetGitCommit() returned empty string")
@@ -31,6 +35,8 @@ func TestGetGitCommit(t *testing.T) {
 }
 
 func TestGetBuildDate(t *testing.T) {
+	t.Parallel()
+
 	date := version.GetBuildDate()
 	if date == "" {
 		t.Error("GetBuildDate() returned empty string")

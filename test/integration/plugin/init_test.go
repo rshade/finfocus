@@ -16,6 +16,8 @@ import (
 
 // TestPluginInit_Basic verifies that plugin init creates correct project scaffolding [US1][T009].
 func TestPluginInit_Basic(t *testing.T) {
+	t.Parallel()
+
 	outputDir := t.TempDir()
 
 	// Create and execute the init command
@@ -85,6 +87,8 @@ func TestPluginInit_Basic(t *testing.T) {
 
 // TestPluginInit_MultiProvider verifies manifest contains multiple providers [US1][T010].
 func TestPluginInit_MultiProvider(t *testing.T) {
+	t.Parallel()
+
 	outputDir := t.TempDir()
 
 	cmd := cli.NewPluginInitCmd()
@@ -122,6 +126,8 @@ func TestPluginInit_MultiProvider(t *testing.T) {
 
 // TestPluginInit_CustomOutputDir verifies creation in specified path [US1][T011].
 func TestPluginInit_CustomOutputDir(t *testing.T) {
+	t.Parallel()
+
 	// Create a nested output directory
 	baseDir := t.TempDir()
 	customDir := filepath.Join(baseDir, "custom", "path", "plugins")
@@ -150,6 +156,8 @@ func TestPluginInit_CustomOutputDir(t *testing.T) {
 
 // TestPluginInit_Force verifies overwrite behavior [US1][T012].
 func TestPluginInit_Force(t *testing.T) {
+	t.Parallel()
+
 	outputDir := t.TempDir()
 
 	// First, create a project
@@ -212,6 +220,8 @@ func TestPluginInit_Force(t *testing.T) {
 }
 
 // TestPluginInit_InvalidName verifies error handling for invalid plugin names [US1][T013].
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture outputDir = t.TempDir(...)
 func TestPluginInit_InvalidName(t *testing.T) {
 	outputDir := t.TempDir()
 
@@ -304,6 +314,8 @@ func TestPluginInit_InvalidName(t *testing.T) {
 }
 
 // TestPluginInit_MissingRequiredFlags verifies error handling for missing required flags.
+//
+//nolint:paralleltest // table cases share the parent-scoped fixture outputDir = t.TempDir(...)
 func TestPluginInit_MissingRequiredFlags(t *testing.T) {
 	outputDir := t.TempDir()
 
@@ -355,6 +367,8 @@ func TestPluginInit_MissingRequiredFlags(t *testing.T) {
 
 // TestPluginInit_RecordedFixtures_Offline verifies recorded fixtures are generated offline [US1][T008].
 func TestPluginInit_RecordedFixtures_Offline(t *testing.T) {
+	t.Parallel()
+
 	outputDir := t.TempDir()
 
 	// Create the init command with recording enabled and offline mode
@@ -390,6 +404,8 @@ func TestPluginInit_RecordedFixtures_Offline(t *testing.T) {
 
 // TestPluginInit_RecordedFixtures_Flag verifies --record-fixtures flag acceptance [US1][T008].
 func TestPluginInit_RecordedFixtures_Flag(t *testing.T) {
+	t.Parallel()
+
 	outputDir := t.TempDir()
 
 	// Create the init command with recording enabled
@@ -423,6 +439,8 @@ func TestPluginInit_RecordedFixtures_Flag(t *testing.T) {
 
 // TestPluginInit_OfflineMode verifies --offline flag prevents network access [US2][T015].
 func TestPluginInit_OfflineMode(t *testing.T) {
+	t.Parallel()
+
 	outputDir := t.TempDir()
 
 	// Create the init command with offline mode enabled
@@ -454,6 +472,8 @@ func TestPluginInit_OfflineMode(t *testing.T) {
 
 // TestPluginInit_OfflineWithRecording verifies offline mode works with --record-fixtures [US2][T015].
 func TestPluginInit_OfflineWithRecording(t *testing.T) {
+	t.Parallel()
+
 	outputDir := t.TempDir()
 
 	// Create the init command with offline mode and recording enabled
@@ -487,6 +507,8 @@ func TestPluginInit_OfflineWithRecording(t *testing.T) {
 }
 
 // TestPluginInit_OnlineNetworkFailure verifies graceful degradation when network access fails in online mode.
+//
+//nolint:paralleltest // reassigns the process-wide http.DefaultTransport
 func TestPluginInit_OnlineNetworkFailure(t *testing.T) {
 	outputDir := t.TempDir()
 

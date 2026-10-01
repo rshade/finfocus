@@ -486,6 +486,8 @@ func TestIntegration_NDJSONRender_MixedChanges(t *testing.T) {
 // ---------------------------------------------------------------------------
 
 func TestIntegration_MergeNoChanges(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	td := testdataDir(t)
 
@@ -508,6 +510,8 @@ func TestIntegration_MergeNoChanges(t *testing.T) {
 }
 
 func TestIntegration_MergeMixedChanges(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	td := testdataDir(t)
 

@@ -13,6 +13,8 @@ import (
 )
 
 // TestCalculateForecastedSpend verifies linear extrapolation logic (FR-006).
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture end = (...)
 func TestCalculateForecastedSpend(t *testing.T) {
 	now := time.Now()
 	// Create a standard month: Jan 1 to Jan 31 (31 days)
@@ -104,6 +106,8 @@ func TestCalculateForecastedSpend(t *testing.T) {
 
 // TestCalculateForecastedPercentage verifies percentage calculation.
 func TestCalculateForecastedPercentage(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		forecasted float64
@@ -118,6 +122,7 @@ func TestCalculateForecastedPercentage(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := engine.CalculateForecastedPercentage(tc.forecasted, tc.limit)
 			assert.InDelta(t, tc.expected, result, 1e-9)
 		})
@@ -126,6 +131,8 @@ func TestCalculateForecastedPercentage(t *testing.T) {
 
 // TestUpdateBudgetForecast verifies integration of forecast logic.
 func TestUpdateBudgetForecast(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	now := time.Now()
 	// Period: Starts 15 days ago, ends 15 days from now (30 days total)

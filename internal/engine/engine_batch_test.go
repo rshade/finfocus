@@ -211,6 +211,7 @@ func projectedBatchResult(res *pbc.ResourceDescriptor, monthly, unitPrice float6
 	}
 }
 
+//nolint:paralleltest // table cases share the parent-scoped fixture start = timestamppb.New(...)
 func TestBuildBatchCostRequest_Validation_Table(t *testing.T) {
 	now := timestamppb.Now()
 	start := timestamppb.New(now.AsTime().Add(-24 * time.Hour))
@@ -332,6 +333,8 @@ func TestBuildBatchCostRequest_Validation_Table(t *testing.T) {
 }
 
 func TestExecuteBatchForPlugin_ValidationSkipsRPC(t *testing.T) {
+	t.Parallel()
+
 	batchCalled := false
 	mockAPI := &mockBatchCostSourceClient{
 		batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
@@ -362,6 +365,8 @@ func TestExecuteBatchForPlugin_ValidationSkipsRPC(t *testing.T) {
 }
 
 func TestExecuteBatchForPlugin_MixedValidation(t *testing.T) {
+	t.Parallel()
+
 	var capturedReq *pbc.BatchCostRequest
 	mockAPI := &mockBatchCostSourceClient{
 		// Return ID-specific costs so assertions can verify correct request→result mapping.
@@ -439,6 +444,8 @@ func TestExecuteBatchForPlugin_MixedValidation(t *testing.T) {
 
 // T011: Unit tests for chunkResources.
 func TestChunkResources(t *testing.T) {
+	t.Parallel()
+
 	makeIndexed := func(n int) []indexedResource {
 		result := make([]indexedResource, n)
 		for i := range n {
@@ -451,12 +458,14 @@ func TestChunkResources(t *testing.T) {
 	}
 
 	t.Run("50 resources with chunk size 100 produces 1 chunk", func(t *testing.T) {
+		t.Parallel()
 		chunks := chunkResources(makeIndexed(50), 100)
 		require.Len(t, chunks, 1)
 		assert.Len(t, chunks[0], 50)
 	})
 
 	t.Run("200 resources with chunk size 100 produces 2 chunks", func(t *testing.T) {
+		t.Parallel()
 		chunks := chunkResources(makeIndexed(200), 100)
 		require.Len(t, chunks, 2)
 		assert.Len(t, chunks[0], 100)
@@ -464,6 +473,7 @@ func TestChunkResources(t *testing.T) {
 	})
 
 	t.Run("101 resources produces 2 chunks of 100 and 1", func(t *testing.T) {
+		t.Parallel()
 		chunks := chunkResources(makeIndexed(101), 100)
 		require.Len(t, chunks, 2)
 		assert.Len(t, chunks[0], 100)
@@ -471,6 +481,7 @@ func TestChunkResources(t *testing.T) {
 	})
 
 	t.Run("chunk size 0 uses default of 100", func(t *testing.T) {
+		t.Parallel()
 		chunks := chunkResources(makeIndexed(150), 0)
 		require.Len(t, chunks, 2)
 		assert.Len(t, chunks[0], 100)
@@ -478,11 +489,13 @@ func TestChunkResources(t *testing.T) {
 	})
 
 	t.Run("empty input returns nil", func(t *testing.T) {
+		t.Parallel()
 		chunks := chunkResources(nil, 100)
 		assert.Nil(t, chunks)
 	})
 
 	t.Run("preserves order", func(t *testing.T) {
+		t.Parallel()
 		indexed := makeIndexed(5)
 		chunks := chunkResources(indexed, 3)
 		require.Len(t, chunks, 2)
@@ -496,7 +509,10 @@ func TestChunkResources(t *testing.T) {
 
 // T012: Unit tests for groupResourcesByPlugin.
 func TestGroupResourcesByPlugin(t *testing.T) {
+	t.Parallel()
+
 	t.Run("all resources match one plugin", func(t *testing.T) {
+		t.Parallel()
 		mockAPI := &mockBatchCostSourceClient{}
 		client := makeBatchCapableClient("aws-plugin", mockAPI)
 		eng := New([]*pluginhost.Client{client}, nil)
@@ -513,6 +529,7 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 	})
 
 	t.Run("resources split across 2 plugins", func(t *testing.T) {
+		t.Parallel()
 		awsAPI := &mockBatchCostSourceClient{}
 		azureAPI := &mockBatchCostSourceClient{}
 		awsClient := makeBatchCapableClient("aws-plugin", awsAPI)
@@ -545,6 +562,7 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 	})
 
 	t.Run("internal Pulumi types are filtered", func(t *testing.T) {
+		t.Parallel()
 		mockAPI := &mockBatchCostSourceClient{}
 		client := makeBatchCapableClient("aws-plugin", mockAPI)
 		eng := New([]*pluginhost.Client{client}, nil)
@@ -571,6 +589,7 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 	})
 
 	t.Run("batch capability detection", func(t *testing.T) {
+		t.Parallel()
 		batchAPI := &mockBatchCostSourceClient{}
 		nonBatchAPI := &mockBatchCostSourceClient{}
 		batchClient := makeBatchCapableClient("batch-plugin", batchAPI)
@@ -596,6 +615,8 @@ func TestGroupResourcesByPlugin(t *testing.T) {
 
 // T013: Unit tests for executeBatchForPlugin.
 func TestExecuteBatchForPlugin(t *testing.T) {
+	t.Parallel()
+
 	t.Run("single chunk success with projected query", testBatchSingleChunkProjected)
 	t.Run("actual query type with date range", testBatchActualQueryDateRange)
 	t.Run("multi-chunk with max_batch_size adjustment", testBatchMultiChunkMaxBatchSize)
@@ -604,6 +625,7 @@ func TestExecuteBatchForPlugin(t *testing.T) {
 }
 
 func testBatchSingleChunkProjected(t *testing.T) {
+	t.Parallel()
 	var capturedReq *pbc.BatchCostRequest
 	mockAPI := &mockBatchCostSourceClient{
 		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
@@ -641,6 +663,7 @@ func testBatchSingleChunkProjected(t *testing.T) {
 }
 
 func testBatchActualQueryDateRange(t *testing.T) {
+	t.Parallel()
 	var capturedReq *pbc.BatchCostRequest
 	now := time.Now()
 	start := timestamppb.New(now.Add(-24 * time.Hour))
@@ -706,6 +729,7 @@ func testBatchActualQueryDateRange(t *testing.T) {
 }
 
 func testBatchMultiChunkMaxBatchSize(t *testing.T) {
+	t.Parallel()
 	callCount := 0
 	mockAPI := &mockBatchCostSourceClient{
 		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
@@ -738,6 +762,7 @@ func testBatchMultiChunkMaxBatchSize(t *testing.T) {
 }
 
 func testBatchRechunkedTail(t *testing.T) {
+	t.Parallel()
 	var chunkSizes []int
 	mockAPI := &mockBatchCostSourceClient{
 		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
@@ -779,6 +804,7 @@ func testBatchRechunkedTail(t *testing.T) {
 }
 
 func testBatchResponseCountMismatch(t *testing.T) {
+	t.Parallel()
 	mockAPI := &mockBatchCostSourceClient{
 		batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
 			// Return fewer results than requested
@@ -805,7 +831,10 @@ func testBatchResponseCountMismatch(t *testing.T) {
 // is a later task (T022), this test validates the batch helper functions
 // compose correctly end-to-end.
 func TestBatchProjectedCostIntegration(t *testing.T) {
+	t.Parallel()
+
 	t.Run("50 resources batch-capable plugin returns all results", func(t *testing.T) {
+		t.Parallel()
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
 				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
@@ -859,7 +888,10 @@ func TestBatchProjectedCostIntegration(t *testing.T) {
 
 // T015: Integration test for batch path with actual cost queries.
 func TestBatchActualCostIntegration(t *testing.T) {
+	t.Parallel()
+
 	t.Run("resources with date range passed correctly", func(t *testing.T) {
+		t.Parallel()
 		now := time.Now()
 		start := timestamppb.New(now.Add(-7 * 24 * time.Hour))
 		end := timestamppb.New(now)
@@ -953,7 +985,10 @@ func makeUniqueTestResources(n int) []ResourceDescriptor {
 
 // T016: Unit test for cache pre-check in batch path.
 func TestBatchCachePreCheck(t *testing.T) {
+	t.Parallel()
+
 	t.Run("cached resources excluded from batch request", func(t *testing.T) {
+		t.Parallel()
 		var capturedReq *pbc.BatchCostRequest
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
@@ -1021,7 +1056,10 @@ func TestBatchCachePreCheck(t *testing.T) {
 
 // T024: Unit test for non-batch plugin fallback.
 func TestNonBatchPluginFallback(t *testing.T) {
+	t.Parallel()
+
 	t.Run("non-batch plugin uses per-resource worker pool", func(t *testing.T) {
+		t.Parallel()
 		batchCalled := false
 
 		mockAPI := &mockBatchCostSourceClient{
@@ -1049,6 +1087,8 @@ func TestNonBatchPluginFallback(t *testing.T) {
 
 // T025: Unit test for batch-level gRPC error fallback.
 func TestBatchGRPCErrorFallback(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		grpcCode codes.Code
@@ -1060,6 +1100,7 @@ func TestBatchGRPCErrorFallback(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name+"_falls_back_to_per_resource", func(t *testing.T) {
+			t.Parallel()
 			batchCallCount := 0
 			mockAPI := &mockBatchCostSourceClient{
 				batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
@@ -1084,6 +1125,7 @@ func TestBatchGRPCErrorFallback(t *testing.T) {
 	}
 
 	t.Run("DeadlineExceeded_with_context_still_valid_falls_back", func(t *testing.T) {
+		t.Parallel()
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
 				return nil, status.Error(codes.DeadlineExceeded, "deadline exceeded")
@@ -1108,7 +1150,10 @@ func TestBatchGRPCErrorFallback(t *testing.T) {
 
 // T026: Unit test for response count mismatch fallback.
 func TestBatchResponseCountMismatchFallback(t *testing.T) {
+	t.Parallel()
+
 	t.Run("mismatch triggers fallback to per-resource queries", func(t *testing.T) {
+		t.Parallel()
 		batchCallCount := 0
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
@@ -1151,7 +1196,10 @@ func TestBatchResponseCountMismatchFallback(t *testing.T) {
 
 // T031: Unit test for mixed success/error batch results.
 func TestBatchMixedSuccessError(t *testing.T) {
+	t.Parallel()
+
 	t.Run("7 succeed 3 fail with mixed error types", func(t *testing.T) {
+		t.Parallel()
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
 				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
@@ -1238,7 +1286,10 @@ func TestBatchMixedSuccessError(t *testing.T) {
 
 // T032: Unit test for resource_type_unsupported skip behavior.
 func TestBatchResourceTypeUnsupportedSkip(t *testing.T) {
+	t.Parallel()
+
 	t.Run("unsupported resource type is skipped with WARN log", func(t *testing.T) {
+		t.Parallel()
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
 				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
@@ -1298,7 +1349,10 @@ func TestBatchResourceTypeUnsupportedSkip(t *testing.T) {
 
 // T033: Unit test for all-fail batch — all resources return ResourceError.
 func TestBatchAllResourcesFail(t *testing.T) {
+	t.Parallel()
+
 	t.Run("all resources return errors are handled individually", func(t *testing.T) {
+		t.Parallel()
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
 				results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
@@ -1331,7 +1385,10 @@ func TestBatchAllResourcesFail(t *testing.T) {
 
 // T034: Unit test for nil/empty CostData fallback.
 func TestBatchNilCostDataFallback(t *testing.T) {
+	t.Parallel()
+
 	t.Run("nil CostData queued for fallback", func(t *testing.T) {
+		t.Parallel()
 		batchCallCount := 0
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
@@ -1395,7 +1452,10 @@ func TestBatchNilCostDataFallback(t *testing.T) {
 
 // T030: Unit test for deadline-aware fallback.
 func TestBatchDeadlineExceededPropagation(t *testing.T) {
+	t.Parallel()
+
 	t.Run("DeadlineExceeded_with_expired_context_propagates_error", func(t *testing.T) {
+		t.Parallel()
 		mockAPI := &mockBatchCostSourceClient{
 			batchCostFunc: func(_ context.Context, _ *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
 				return nil, status.Error(codes.DeadlineExceeded, "deadline exceeded")
@@ -1421,6 +1481,8 @@ func TestBatchDeadlineExceededPropagation(t *testing.T) {
 
 // Tests for mapProtoCostResultToEngine — covers sustainability and structured error branches.
 func TestMapProtoCostResultToEngine(t *testing.T) {
+	t.Parallel()
+
 	resource := ResourceDescriptor{
 		Type:     "aws:ec2:Instance",
 		ID:       "i-test-001",
@@ -1428,6 +1490,7 @@ func TestMapProtoCostResultToEngine(t *testing.T) {
 	}
 
 	t.Run("basic fields mapped correctly", func(t *testing.T) {
+		t.Parallel()
 		result := &proto.CostResult{
 			Currency:    "USD",
 			MonthlyCost: 150.0,
@@ -1447,6 +1510,7 @@ func TestMapProtoCostResultToEngine(t *testing.T) {
 	})
 
 	t.Run("structured error mapped", func(t *testing.T) {
+		t.Parallel()
 		result := &proto.CostResult{
 			Currency:    "USD",
 			MonthlyCost: 0,
@@ -1464,6 +1528,7 @@ func TestMapProtoCostResultToEngine(t *testing.T) {
 	})
 
 	t.Run("sustainability metrics mapped", func(t *testing.T) {
+		t.Parallel()
 		result := &proto.CostResult{
 			Currency:    "USD",
 			MonthlyCost: 100.0,
@@ -1481,6 +1546,7 @@ func TestMapProtoCostResultToEngine(t *testing.T) {
 	})
 
 	t.Run("expires_at mapped", func(t *testing.T) {
+		t.Parallel()
 		expiry := time.Date(2026, 4, 2, 12, 0, 0, 0, time.UTC)
 		result := &proto.CostResult{
 			Currency:    "USD",
@@ -1493,6 +1559,7 @@ func TestMapProtoCostResultToEngine(t *testing.T) {
 	})
 
 	t.Run("cost breakdown mapped", func(t *testing.T) {
+		t.Parallel()
 		result := &proto.CostResult{
 			Currency:    "USD",
 			MonthlyCost: 200.0,
@@ -1510,6 +1577,8 @@ func TestMapProtoCostResultToEngine(t *testing.T) {
 
 // Tests for mapProtoActualCostResultToEngine — covers sustainability and ExpiresAt branches.
 func TestMapProtoActualCostResultToEngine(t *testing.T) {
+	t.Parallel()
+
 	resource := ResourceDescriptor{
 		Type:     "aws:s3:Bucket",
 		ID:       "my-bucket",
@@ -1517,6 +1586,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 	}
 
 	t.Run("basic fields mapped correctly", func(t *testing.T) {
+		t.Parallel()
 		result := &proto.ActualCostResult{
 			Currency:  "USD",
 			TotalCost: 42.50,
@@ -1536,6 +1606,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 	})
 
 	t.Run("sustainability metrics mapped", func(t *testing.T) {
+		t.Parallel()
 		result := &proto.ActualCostResult{
 			Currency:  "USD",
 			TotalCost: 100.0,
@@ -1550,6 +1621,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 	})
 
 	t.Run("expires_at mapped", func(t *testing.T) {
+		t.Parallel()
 		expiry := time.Date(2026, 4, 5, 0, 0, 0, 0, time.UTC)
 		result := &proto.ActualCostResult{
 			Currency:  "USD",
@@ -1562,6 +1634,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 	})
 
 	t.Run("zero time window leaves rate fields empty", func(t *testing.T) {
+		t.Parallel()
 		result := &proto.ActualCostResult{
 			Currency:  "USD",
 			TotalCost: 42.50,
@@ -1577,6 +1650,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 	})
 
 	t.Run("rate fields derived from time window", func(t *testing.T) {
+		t.Parallel()
 		from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
 		to := time.Date(2026, 3, 8, 0, 0, 0, 0, time.UTC) // 7-day window
 		result := &proto.ActualCostResult{
@@ -1599,6 +1673,7 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 	})
 
 	t.Run("sub-day window projects monthly from hourly rate", func(t *testing.T) {
+		t.Parallel()
 		from := time.Date(2026, 3, 1, 0, 0, 0, 0, time.UTC)
 		to := from.Add(12 * time.Hour)
 		result := &proto.ActualCostResult{
@@ -1617,6 +1692,8 @@ func TestMapProtoActualCostResultToEngine(t *testing.T) {
 // actual-cost mapper derives the same rate fields as the non-batch path
 // (getActualCostFromPlugin) for the same time window and total cost.
 func TestMapProtoActualCostResultToEngine_ParityWithPerResourcePath(t *testing.T) {
+	t.Parallel()
+
 	resource := ResourceDescriptor{
 		Type:     "aws:ec2:Instance",
 		ID:       "i-parity",
@@ -1659,7 +1736,10 @@ func TestMapProtoActualCostResultToEngine_ParityWithPerResourcePath(t *testing.T
 // scaling by resource count, clamping to min/max, and capping by the parent
 // context's remaining deadline.
 func TestBatchChunkTimeout(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no parent deadline", func(t *testing.T) {
+		t.Parallel()
 		tests := []struct {
 			name          string
 			resourceCount int
@@ -1672,12 +1752,14 @@ func TestBatchChunkTimeout(t *testing.T) {
 		}
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
+				t.Parallel()
 				assert.Equal(t, tt.want, batchChunkTimeout(context.Background(), tt.resourceCount))
 			})
 		}
 	})
 
 	t.Run("parent deadline sooner than chunk timeout", func(t *testing.T) {
+		t.Parallel()
 		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
 
@@ -1687,6 +1769,7 @@ func TestBatchChunkTimeout(t *testing.T) {
 	})
 
 	t.Run("parent deadline later than chunk timeout", func(t *testing.T) {
+		t.Parallel()
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 
@@ -1696,6 +1779,8 @@ func TestBatchChunkTimeout(t *testing.T) {
 
 // TestBatchChunkTimeoutAppliedToRPC verifies executeBatchForPlugin bounds each
 // BatchCost RPC with a per-chunk deadline capped by the parent context's deadline.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture resources (composite value mutated by a subtest)
 func TestBatchChunkTimeoutAppliedToRPC(t *testing.T) {
 	newMockAPI := func(capturedDeadline *time.Time, hasDeadline *bool) *mockBatchCostSourceClient {
 		return &mockBatchCostSourceClient{

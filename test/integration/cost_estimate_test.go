@@ -37,7 +37,10 @@ func newMockEstimateCalculator() *mockEstimateCalculator {
 
 // TestCostEstimate_SingleResource tests single-resource estimation flow.
 func TestCostEstimate_SingleResource(t *testing.T) {
+	t.Parallel()
+
 	t.Run("estimates cost for EC2 instance", func(t *testing.T) {
+		t.Parallel()
 		mock := newMockEstimateCalculator()
 
 		// Create a single resource descriptor
@@ -61,6 +64,7 @@ func TestCostEstimate_SingleResource(t *testing.T) {
 	})
 
 	t.Run("handles property override for instance type change", func(t *testing.T) {
+		t.Parallel()
 		mock := newMockEstimateCalculator()
 
 		overrides := map[string]string{
@@ -75,6 +79,7 @@ func TestCostEstimate_SingleResource(t *testing.T) {
 	})
 
 	t.Run("property that doesn't affect pricing shows zero delta", func(t *testing.T) {
+		t.Parallel()
 		mock := newMockEstimateCalculator()
 
 		// "tags" doesn't affect pricing
@@ -83,6 +88,7 @@ func TestCostEstimate_SingleResource(t *testing.T) {
 	})
 
 	t.Run("no properties specified shows baseline only", func(t *testing.T) {
+		t.Parallel()
 		mock := newMockEstimateCalculator()
 
 		resource := &engine.ResourceDescriptor{
@@ -101,7 +107,10 @@ func TestCostEstimate_SingleResource(t *testing.T) {
 
 // TestCostEstimate_PlanBased tests plan-based estimation with modifications.
 func TestCostEstimate_PlanBased(t *testing.T) {
+	t.Parallel()
+
 	t.Run("loads resources from plan fixture", func(t *testing.T) {
+		t.Parallel()
 		planPath := "../fixtures/estimate/plan-with-modify.json"
 
 		state, err := ingest.LoadStackExport(planPath)
@@ -119,6 +128,7 @@ func TestCostEstimate_PlanBased(t *testing.T) {
 	})
 
 	t.Run("applies modifications to specific resource", func(t *testing.T) {
+		t.Parallel()
 		planPath := "../fixtures/estimate/plan-with-modify.json"
 
 		state, err := ingest.LoadStackExport(planPath)
@@ -150,6 +160,7 @@ func TestCostEstimate_PlanBased(t *testing.T) {
 	})
 
 	t.Run("handles resource not found in plan", func(t *testing.T) {
+		t.Parallel()
 		planPath := "../fixtures/estimate/plan-with-modify.json"
 
 		state, err := ingest.LoadStackExport(planPath)
@@ -171,6 +182,7 @@ func TestCostEstimate_PlanBased(t *testing.T) {
 	})
 
 	t.Run("estimates multiple resources with modifications", func(t *testing.T) {
+		t.Parallel()
 		mock := newMockEstimateCalculator()
 		planPath := "../fixtures/estimate/plan-with-modify.json"
 
@@ -197,7 +209,10 @@ func TestCostEstimate_PlanBased(t *testing.T) {
 
 // TestCostEstimate_FallbackBehavior tests fallback to GetProjectedCost.
 func TestCostEstimate_FallbackBehavior(t *testing.T) {
+	t.Parallel()
+
 	t.Run("uses fallback when EstimateCost not implemented", func(t *testing.T) {
+		t.Parallel()
 		// When EstimateCost RPC is not available, engine falls back to:
 		// 1. GetProjectedCost with original properties (baseline)
 		// 2. GetProjectedCost with modified properties (modified)
@@ -215,6 +230,7 @@ func TestCostEstimate_FallbackBehavior(t *testing.T) {
 	})
 
 	t.Run("fallback correctly calculates negative delta for downgrade", func(t *testing.T) {
+		t.Parallel()
 		// Downgrade from m5.large to t3.micro should show savings
 		mock := newMockEstimateCalculator()
 
@@ -230,7 +246,10 @@ func TestCostEstimate_FallbackBehavior(t *testing.T) {
 
 // TestCostEstimate_EstimateResult tests EstimateResult structure.
 func TestCostEstimate_EstimateResult(t *testing.T) {
+	t.Parallel()
+
 	t.Run("creates valid EstimateResult", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.EstimateResult{
 			Resource: &engine.ResourceDescriptor{
 				Provider: "aws",
@@ -266,6 +285,7 @@ func TestCostEstimate_EstimateResult(t *testing.T) {
 	})
 
 	t.Run("handles fallback flag", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.EstimateResult{
 			UsedFallback: true,
 		}
@@ -276,7 +296,10 @@ func TestCostEstimate_EstimateResult(t *testing.T) {
 
 // TestCostEstimate_EdgeCases tests edge cases for cost estimation.
 func TestCostEstimate_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	t.Run("handles zero cost resources", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.EstimateResult{
 			Baseline: &engine.CostResult{
 				Monthly:  0.0,
@@ -295,6 +318,7 @@ func TestCostEstimate_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("handles nil baseline", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.EstimateResult{
 			Baseline: nil, // New resource, no baseline
 			Modified: &engine.CostResult{
@@ -310,6 +334,7 @@ func TestCostEstimate_EdgeCases(t *testing.T) {
 	})
 
 	t.Run("handles nil modified", func(t *testing.T) {
+		t.Parallel()
 		result := &engine.EstimateResult{
 			Baseline: &engine.CostResult{
 				Monthly:  8.32,
@@ -327,7 +352,10 @@ func TestCostEstimate_EdgeCases(t *testing.T) {
 
 // TestCostEstimate_ContextHandling tests context propagation.
 func TestCostEstimate_ContextHandling(t *testing.T) {
+	t.Parallel()
+
 	t.Run("respects context cancellation", func(t *testing.T) {
+		t.Parallel()
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Immediately cancel
 

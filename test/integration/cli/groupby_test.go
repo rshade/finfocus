@@ -13,6 +13,8 @@ import (
 )
 
 // TestGroupBy_Resource_JSON tests --group-by resource with JSON output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_Resource_JSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -39,6 +41,8 @@ func TestGroupBy_Resource_JSON(t *testing.T) {
 }
 
 // TestGroupBy_Type_JSON tests --group-by type with JSON output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_Type_JSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -72,6 +76,8 @@ func TestGroupBy_Type_JSON(t *testing.T) {
 }
 
 // TestGroupBy_Provider_JSON tests --group-by provider with JSON output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_Provider_JSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -109,6 +115,8 @@ func TestGroupBy_Provider_JSON(t *testing.T) {
 }
 
 // TestGroupBy_Daily_JSON tests --group-by daily with JSON output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_Daily_JSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -131,6 +139,8 @@ func TestGroupBy_Daily_JSON(t *testing.T) {
 }
 
 // TestGroupBy_Monthly_JSON tests --group-by monthly with JSON output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_Monthly_JSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -153,6 +163,8 @@ func TestGroupBy_Monthly_JSON(t *testing.T) {
 }
 
 // TestGroupBy_Date_Alias tests --group-by date (alias for legacy date grouping).
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_Date_Alias(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -173,6 +185,8 @@ func TestGroupBy_Date_Alias(t *testing.T) {
 }
 
 // TestGroupBy_WithFilter_Combined tests combining --filter with --group-by.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_WithFilter_Combined(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -195,6 +209,8 @@ func TestGroupBy_WithFilter_Combined(t *testing.T) {
 }
 
 // TestGroupBy_TableOutput tests --group-by with table output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_TableOutput(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -215,6 +231,8 @@ func TestGroupBy_TableOutput(t *testing.T) {
 }
 
 // TestGroupBy_NDJSONOutput tests --group-by with NDJSON output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_NDJSONOutput(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -243,6 +261,8 @@ func TestGroupBy_NDJSONOutput(t *testing.T) {
 }
 
 // TestGroupBy_InvalidValue tests --group-by with an invalid value.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_InvalidValue(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -268,6 +288,8 @@ func TestGroupBy_InvalidValue(t *testing.T) {
 }
 
 // TestGroupBy_MultiProvider tests grouping across multiple providers.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_MultiProvider(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")
@@ -302,6 +324,8 @@ func TestGroupBy_MultiProvider(t *testing.T) {
 }
 
 // TestGroupBy_EmptyResults tests grouping with no matching resources.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestGroupBy_EmptyResults(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	planFile := filepath.Join("..", "..", "..", "test", "fixtures", "plans", "multi-resource-plan.json")

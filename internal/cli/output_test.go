@@ -17,6 +17,8 @@ import (
 // TestNDJSONEncoder_LineByLineEncoding tests that NDJSON encoder writes
 // each item as a separate line immediately without buffering.
 func TestNDJSONEncoder_LineByLineEncoding(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{
 			ResourceID:       "r1",
@@ -65,6 +67,8 @@ func TestNDJSONEncoder_LineByLineEncoding(t *testing.T) {
 // TestNDJSONEncoder_NoBuffering tests that NDJSON output appears immediately
 // without buffering delays.
 func TestNDJSONEncoder_NoBuffering(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{
 			ResourceID:       "r1",
@@ -108,6 +112,8 @@ func TestNDJSONEncoder_NoBuffering(t *testing.T) {
 
 // TestNDJSONEncoder_EmptyList tests NDJSON output with zero recommendations.
 func TestNDJSONEncoder_EmptyList(t *testing.T) {
+	t.Parallel()
+
 	var buf bytes.Buffer
 	err := cli.RenderRecommendationsNDJSONForTest(&buf, []cli.TestableRecommendation{})
 	require.NoError(t, err)
@@ -136,6 +142,8 @@ func TestNDJSONEncoder_EmptyList(t *testing.T) {
 // TestNDJSONEncoder_NoPaginationMetadata tests that NDJSON output
 // does not include pagination metadata (for true streaming).
 func TestNDJSONEncoder_NoPaginationMetadata(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{
 			ResourceID:       "r1",
@@ -170,6 +178,8 @@ func TestNDJSONEncoder_NoPaginationMetadata(t *testing.T) {
 // TestNDJSONEncoder_LargeDataset tests NDJSON output with large dataset
 // to verify memory efficiency and no buffering.
 func TestNDJSONEncoder_LargeDataset(t *testing.T) {
+	t.Parallel()
+
 	// Create 1000 recommendations
 	recs := make([]cli.TestableRecommendation, 1000)
 	for i := range recs {
@@ -200,6 +210,8 @@ func TestNDJSONEncoder_LargeDataset(t *testing.T) {
 // TestNDJSONEncoder_ValidJSONOnEachLine tests that every line
 // in NDJSON output is valid, parseable JSON.
 func TestNDJSONEncoder_ValidJSONOnEachLine(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{
 			ResourceID:       "r1",
@@ -241,6 +253,8 @@ func TestNDJSONEncoder_ValidJSONOnEachLine(t *testing.T) {
 
 // TestNDJSONEncoder_SummaryStructure tests the structure of the summary line.
 func TestNDJSONEncoder_SummaryStructure(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{
 			ResourceID:       "r1",
@@ -285,6 +299,8 @@ func TestNDJSONEncoder_SummaryStructure(t *testing.T) {
 
 // TestNDJSONEncoder_RecommendationStructure tests the structure of recommendation lines.
 func TestNDJSONEncoder_RecommendationStructure(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{
 			ResourceID:       "aws:ec2:Instance/i-0abc123",
@@ -322,6 +338,8 @@ func TestNDJSONEncoder_RecommendationStructure(t *testing.T) {
 
 // TestNDJSONEncoder_NewlineTermination tests that output ends with newline.
 func TestNDJSONEncoder_NewlineTermination(t *testing.T) {
+	t.Parallel()
+
 	recs := []cli.TestableRecommendation{
 		{
 			ResourceID:       "r1",

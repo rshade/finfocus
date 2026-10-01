@@ -11,6 +11,8 @@ import (
 )
 
 func TestScoringConfig_ResolveDefaults(t *testing.T) {
+	t.Parallel()
+
 	var s *ScoringConfig
 	got := s.Resolve()
 
@@ -22,6 +24,8 @@ func TestScoringConfig_ResolveDefaults(t *testing.T) {
 }
 
 func TestScoringConfig_ResolveOverrides(t *testing.T) {
+	t.Parallel()
+
 	risk := 0.5
 	band := 0.2
 	s := &ScoringConfig{
@@ -45,6 +49,8 @@ func TestScoringConfig_ResolveOverrides(t *testing.T) {
 }
 
 func TestScoringConfig_Validate(t *testing.T) {
+	t.Parallel()
+
 	bad := 1.5
 	tests := []struct {
 		name    string
@@ -73,6 +79,7 @@ func TestScoringConfig_Validate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := tt.cfg.Validate()
 			if tt.wantErr == "" {
 				require.NoError(t, err)
@@ -85,6 +92,8 @@ func TestScoringConfig_Validate(t *testing.T) {
 }
 
 func TestConfig_ScoringSetGet(t *testing.T) {
+	t.Parallel()
+
 	c := &Config{}
 
 	require.NoError(t, c.Set("scoring.plugin", "scorer"))
@@ -121,6 +130,8 @@ func TestConfig_ScoringSetGet(t *testing.T) {
 }
 
 func TestConfig_ScoringDisabledByDefaultAndOmittedFromJSON(t *testing.T) {
+	t.Parallel()
+
 	c := &Config{Output: OutputConfig{DefaultFormat: "table"}}
 	assert.False(t, c.Scoring.Resolve().Enabled)
 
@@ -130,6 +141,8 @@ func TestConfig_ScoringDisabledByDefaultAndOmittedFromJSON(t *testing.T) {
 }
 
 func TestShallowMergeYAML_Scoring(t *testing.T) {
+	t.Parallel()
+
 	path := filepath.Join(t.TempDir(), "project.hujson")
 	require.NoError(t, os.WriteFile(path, []byte(`{
 		// scorer opt-in
@@ -146,6 +159,8 @@ func TestShallowMergeYAML_Scoring(t *testing.T) {
 }
 
 func TestConfig_ScoringRoundTripKeepsKey(t *testing.T) {
+	t.Parallel()
+
 	var c Config
 	require.NoError(t, json.Unmarshal([]byte(`{"scoring":{"enabled":true,"plugin":"p"}}`), &c))
 	require.NotNil(t, c.Scoring)

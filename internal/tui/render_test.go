@@ -8,6 +8,8 @@ import (
 )
 
 func TestFormatMoney(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		amount   float64
@@ -26,6 +28,7 @@ func TestFormatMoney(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tui.FormatMoney(tt.amount, tt.currency)
 			if result != tt.expected {
 				t.Errorf(
@@ -41,6 +44,8 @@ func TestFormatMoney(t *testing.T) {
 }
 
 func TestFormatMoneyShort(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		amount   float64
@@ -57,6 +62,7 @@ func TestFormatMoneyShort(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tui.FormatMoneyShort(tt.amount)
 			if result != tt.expected {
 				t.Errorf("FormatMoneyShort(%.2f) = %q, expected %q", tt.amount, result, tt.expected)
@@ -66,6 +72,8 @@ func TestFormatMoneyShort(t *testing.T) {
 }
 
 func TestFormatPercent(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		value    float64
@@ -82,6 +90,7 @@ func TestFormatPercent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tui.FormatPercent(tt.value)
 			if result != tt.expected {
 				t.Errorf("FormatPercent(%.3f) = %q, expected %q", tt.value, result, tt.expected)
@@ -91,6 +100,8 @@ func TestFormatPercent(t *testing.T) {
 }
 
 func TestMoneyFormatting_EdgeCases(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		function func() string
@@ -134,6 +145,7 @@ func TestMoneyFormatting_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := tt.function()
 			if result != tt.expected {
 				t.Errorf("%s = %q, expected %q", tt.name, result, tt.expected)

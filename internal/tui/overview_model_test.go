@@ -22,6 +22,8 @@ import (
 
 // TestNewOverviewModel verifies initial model state.
 func TestNewOverviewModel(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{
@@ -48,6 +50,8 @@ func TestNewOverviewModel(t *testing.T) {
 
 // TestOverviewModel_StateTransitions verifies state machine transitions.
 func TestOverviewModel_StateTransitions(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -77,6 +81,8 @@ func TestOverviewModel_StateTransitions(t *testing.T) {
 
 // TestOverviewModel_ResourceLoadedMsg verifies row updates.
 func TestOverviewModel_ResourceLoadedMsg(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test1", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -106,6 +112,8 @@ func TestOverviewModel_ResourceLoadedMsg(t *testing.T) {
 
 // TestOverviewModel_LoadingProgressMsg verifies progress updates.
 func TestOverviewModel_LoadingProgressMsg(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -123,6 +131,8 @@ func TestOverviewModel_LoadingProgressMsg(t *testing.T) {
 
 // TestOverviewModel_KeyboardNavigation verifies up/down/j/k keys.
 func TestOverviewModel_KeyboardNavigation(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test1", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -163,6 +173,8 @@ func TestOverviewModel_KeyboardNavigation(t *testing.T) {
 
 // TestOverviewModel_SortCycling verifies 's' key sort cycling.
 func TestOverviewModel_SortCycling(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test1", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -198,6 +210,8 @@ func TestOverviewModel_SortCycling(t *testing.T) {
 
 // TestOverviewModel_FilterMode verifies filter entry/exit.
 func TestOverviewModel_FilterMode(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test:ec2", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -224,6 +238,8 @@ func TestOverviewModel_FilterMode(t *testing.T) {
 
 // TestOverviewModel_FilterTextMatching verifies URN and Type matching.
 func TestOverviewModel_FilterTextMatching(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{
@@ -264,6 +280,8 @@ func TestOverviewModel_FilterTextMatching(t *testing.T) {
 
 // TestOverviewModel_PaginationBoundaries verifies PgUp/PgDn at boundaries.
 func TestOverviewModel_PaginationBoundaries(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Create 300 rows to trigger pagination (threshold is 250)
@@ -309,6 +327,8 @@ func TestOverviewModel_PaginationBoundaries(t *testing.T) {
 
 // TestOverviewModel_QuitKeys verifies q and Ctrl+C quit.
 func TestOverviewModel_QuitKeys(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -335,6 +355,8 @@ func TestOverviewModel_QuitKeys(t *testing.T) {
 
 // TestOverviewModel_WindowResize verifies terminal resize handling.
 func TestOverviewModel_WindowResize(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -354,6 +376,8 @@ func TestOverviewModel_WindowResize(t *testing.T) {
 }
 
 // TestOverviewModel_ResourceColumnWidth verifies dynamic resource column sizing.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture rows (composite value mutated by a subtest)
 func TestOverviewModel_ResourceColumnWidth(t *testing.T) {
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
@@ -397,6 +421,8 @@ func TestOverviewModel_ResourceColumnWidth(t *testing.T) {
 }
 
 // TestOverviewModel_TypeColumnWidth verifies dynamic type column sizing.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture rows (composite value mutated by a subtest)
 func TestOverviewModel_TypeColumnWidth(t *testing.T) {
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
@@ -441,6 +467,8 @@ func TestOverviewModel_TypeColumnWidth(t *testing.T) {
 
 // TestOverviewModel_BuildOverviewTable_WidthBudget verifies table width
 // accounting includes default cell padding and fits the viewport when possible.
+//
+//nolint:paralleltest // subtests share the parent-scoped fixture rows (composite value mutated by a subtest)
 func TestOverviewModel_BuildOverviewTable_WidthBudget(t *testing.T) {
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
@@ -494,6 +522,8 @@ func TestOverviewModel_BuildOverviewTable_WidthBudget(t *testing.T) {
 // TestOverviewModel_BuildOverviewTable_StatusAndDelta verifies status icon
 // rendering and delta fallback formatting in table rows.
 func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -549,6 +579,7 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Pre-populate ComputedDelta (matches production flow).
 			rows := []engine.OverviewRow{tt.row}
 			engine.PopulateComputedDeltas(rows, 15)
@@ -581,6 +612,8 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 // TestOverviewModel_BuildOverviewTable_PrioritizesLongType verifies type width
 // can expand to fit common Pulumi resource type strings when space allows.
 func TestOverviewModel_BuildOverviewTable_PrioritizesLongType(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	row := engine.OverviewRow{
 		URN:    "demo-instance-large",
@@ -601,6 +634,8 @@ func TestOverviewModel_BuildOverviewTable_PrioritizesLongType(t *testing.T) {
 // TestOverviewModel_BuildOverviewTable_HeaderLineWidthMatchesRows verifies that
 // header text/border and row content share the same rendered width budget.
 func TestOverviewModel_BuildOverviewTable_HeaderLineWidthMatchesRows(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
 		{
@@ -632,6 +667,8 @@ func TestOverviewModel_BuildOverviewTable_HeaderLineWidthMatchesRows(t *testing.
 
 // TestTruncateResourceName verifies URN truncation with dynamic max length.
 func TestTruncateResourceName(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		urn      string
@@ -672,6 +709,7 @@ func TestTruncateResourceName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := truncateResourceName(tt.urn, tt.maxLen)
 			assert.Equal(t, tt.expected, result)
 			if tt.urn != "" {
@@ -683,6 +721,8 @@ func TestTruncateResourceName(t *testing.T) {
 
 // TestOverviewModel_GetCost verifies cost extraction for sorting.
 func TestOverviewModel_GetCost(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -721,6 +761,7 @@ func TestOverviewModel_GetCost(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1, nil, nil)
 			cost := model.getCost(tt.row)
 			assert.InDelta(t, tt.expected, cost, 1e-9)
@@ -730,6 +771,8 @@ func TestOverviewModel_GetCost(t *testing.T) {
 
 // TestOverviewModel_GetDelta verifies drift delta extraction for sorting.
 func TestOverviewModel_GetDelta(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -753,6 +796,7 @@ func TestOverviewModel_GetDelta(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Pre-populate ComputedDelta (matches production flow).
 			rows := []engine.OverviewRow{tt.row}
 			engine.PopulateComputedDeltas(rows, 15)
@@ -766,6 +810,8 @@ func TestOverviewModel_GetDelta(t *testing.T) {
 
 // TestOverviewModel_GetVisibleRows verifies pagination row slicing.
 func TestOverviewModel_GetVisibleRows(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Create 300 rows
@@ -795,6 +841,8 @@ func TestOverviewModel_GetVisibleRows(t *testing.T) {
 
 // TestOverviewModel_AllResourcesLoadedTransition verifies loading completion.
 func TestOverviewModel_AllResourcesLoadedTransition(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test1", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -815,6 +863,8 @@ func TestOverviewModel_AllResourcesLoadedTransition(t *testing.T) {
 
 // TestOverviewModel_InitCmd verifies Init returns loading spinner command.
 func TestOverviewModel_InitCmd(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	skeletonRows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -828,6 +878,8 @@ func TestOverviewModel_InitCmd(t *testing.T) {
 
 // TestOverviewModel_EnrichmentIntegration verifies progressive row updates.
 func TestOverviewModel_EnrichmentIntegration(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	now := time.Now()
 
@@ -869,6 +921,8 @@ func TestOverviewModel_EnrichmentIntegration(t *testing.T) {
 
 // TestOverviewModel_PhaseMsg verifies that OverviewPhaseMsg updates progressMsg.
 func TestOverviewModel_PhaseMsg(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
@@ -884,6 +938,8 @@ func TestOverviewModel_PhaseMsg(t *testing.T) {
 
 // TestOverviewModel_DataReadyMsg verifies transition from Initializing to Loading.
 func TestOverviewModel_DataReadyMsg(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
@@ -912,6 +968,8 @@ func TestOverviewModel_DataReadyMsg(t *testing.T) {
 
 // TestOverviewModel_NilRowsInit verifies nil vs non-nil row initialization.
 func TestOverviewModel_NilRowsInit(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// nil rows → ViewStateInitializing
@@ -932,6 +990,8 @@ func TestOverviewModel_NilRowsInit(t *testing.T) {
 
 // TestOverviewModel_InitErrorMsg verifies error transitions to ViewStateError.
 func TestOverviewModel_InitErrorMsg(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
@@ -951,6 +1011,8 @@ func TestOverviewModel_InitErrorMsg(t *testing.T) {
 // TestOverviewModel_DataReadyMsg_StaleIgnored verifies that a stale OverviewDataReadyMsg
 // arriving after the model has left ViewStateInitializing is ignored.
 func TestOverviewModel_DataReadyMsg_StaleIgnored(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Start with skeleton rows so state is ViewStateLoading (not Initializing).
@@ -980,6 +1042,8 @@ func TestOverviewModel_DataReadyMsg_StaleIgnored(t *testing.T) {
 // TestOverviewModel_DataReadyMsg_StaleIgnored_ViewStateList verifies that a stale
 // OverviewDataReadyMsg arriving when the model is in ViewStateList is also ignored.
 func TestOverviewModel_DataReadyMsg_StaleIgnored_ViewStateList(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	initialRows := []engine.OverviewRow{
@@ -1007,6 +1071,8 @@ func TestOverviewModel_DataReadyMsg_StaleIgnored_ViewStateList(t *testing.T) {
 // TestOverviewModel_InitErrorMsg_StaleIgnored verifies that a stale OverviewInitErrorMsg
 // arriving after the model has left ViewStateInitializing is ignored.
 func TestOverviewModel_InitErrorMsg_StaleIgnored(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	// Start with skeleton rows so state is ViewStateLoading (not Initializing).
@@ -1028,6 +1094,8 @@ func TestOverviewModel_InitErrorMsg_StaleIgnored(t *testing.T) {
 
 // TestOverviewModel_QuitDuringInitializing verifies q and Ctrl+C quit during init.
 func TestOverviewModel_QuitDuringInitializing(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -1040,6 +1108,7 @@ func TestOverviewModel_QuitDuringInitializing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
 			assert.Equal(t, ViewStateInitializing, model.state)
 
@@ -1054,6 +1123,8 @@ func TestOverviewModel_QuitDuringInitializing(t *testing.T) {
 
 // TestOverviewModel_WindowResizeDuringInitializing verifies resize during init.
 func TestOverviewModel_WindowResizeDuringInitializing(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	model, _ := NewOverviewModel(ctx, nil, 0, nil, nil)
@@ -1070,6 +1141,8 @@ func TestOverviewModel_WindowResizeDuringInitializing(t *testing.T) {
 
 // TestOverviewModel_PreviewTickUpdatesElapsed verifies OverviewPreviewTickMsg updates previewElapsed.
 func TestOverviewModel_PreviewTickUpdatesElapsed(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -1090,6 +1163,8 @@ func TestOverviewModel_PreviewTickUpdatesElapsed(t *testing.T) {
 
 // TestOverviewModel_PreviewTickNoOpWhenNotLoading verifies tick is no-op when not loading.
 func TestOverviewModel_PreviewTickNoOpWhenNotLoading(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -1109,6 +1184,8 @@ func TestOverviewModel_PreviewTickNoOpWhenNotLoading(t *testing.T) {
 
 // TestOverviewModel_ChangesReadyClearsStateOnly verifies OverviewChangesReadyMsg clears state-only mode.
 func TestOverviewModel_ChangesReadyClearsStateOnly(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -1136,6 +1213,8 @@ func TestOverviewModel_ChangesReadyClearsStateOnly(t *testing.T) {
 
 // TestOverviewModel_PKeyStartsPreview verifies 'p' key returns preview command batch.
 func TestOverviewModel_PKeyStartsPreview(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -1156,6 +1235,8 @@ func TestOverviewModel_PKeyStartsPreview(t *testing.T) {
 
 // TestOverviewModel_PKeyNoOpWhileLoading verifies 'p' key is no-op while preview is loading.
 func TestOverviewModel_PKeyNoOpWhileLoading(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -1177,6 +1258,8 @@ func TestOverviewModel_PKeyNoOpWhileLoading(t *testing.T) {
 
 // TestOverviewModel_PKeyNoOpAfterLoaded verifies 'p' key is no-op after preview loaded.
 func TestOverviewModel_PKeyNoOpAfterLoaded(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -1197,6 +1280,8 @@ func TestOverviewModel_PKeyNoOpAfterLoaded(t *testing.T) {
 
 // TestOverviewModel_SetStateOnlyMsg verifies OverviewSetStateOnlyMsg sets isStateOnly and previewCmd.
 func TestOverviewModel_SetStateOnlyMsg(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	rows := []engine.OverviewRow{
 		{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
@@ -1222,6 +1307,8 @@ func TestOverviewModel_SetStateOnlyMsg(t *testing.T) {
 // TestOverviewModel_BudgetDataReadyMsg verifies BudgetDataReadyMsg handling
 // sets budgetResult, budgetErr, and budgetLoaded for success, error, and nil cases.
 func TestOverviewModel_BudgetDataReadyMsg(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	tests := []struct {
@@ -1283,6 +1370,7 @@ func TestOverviewModel_BudgetDataReadyMsg(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			rows := []engine.OverviewRow{
 				{URN: "urn:test", Type: "aws:ec2:Instance", Status: engine.StatusActive},
 			}

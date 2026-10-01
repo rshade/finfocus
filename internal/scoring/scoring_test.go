@@ -166,6 +166,8 @@ func (m *memCache) Close() error                                             { r
 func (m *memCache) InvalidateByPrefix(string) (int, error)                   { return 0, nil }
 
 func TestScore_PseudonymizedNeverSendsRawIdentifiers(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{})
 	input := recs(3)
@@ -191,6 +193,8 @@ func TestScore_PseudonymizedNeverSendsRawIdentifiers(t *testing.T) {
 }
 
 func TestScore_PseudonymTokensAreStablePerResourceAndFreshPerRequest(t *testing.T) {
+	t.Parallel()
+
 	a := rec("rec-a", rawInstance)
 	b := rec("rec-b", strings.ToUpper(rawInstance))
 	c := rec("rec-c", "i-other")
@@ -210,6 +214,8 @@ func TestScore_PseudonymTokensAreStablePerResourceAndFreshPerRequest(t *testing.
 }
 
 func TestScore_RawModeKeepsIdentifiersOnExplicitOptIn(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierRaw})
 
@@ -225,6 +231,8 @@ func TestScore_RawModeKeepsIdentifiersOnExplicitOptIn(t *testing.T) {
 }
 
 func TestScore_OmittedModeRemovesIdentifiers(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierOmitted})
 
@@ -242,6 +250,8 @@ func TestScore_OmittedModeRemovesIdentifiers(t *testing.T) {
 }
 
 func TestScore_ScrubsRawIdentifiersFromFreeText(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{})
 	input := []engine.Recommendation{rec("rec-1", rawInstance)}
@@ -258,6 +268,8 @@ func TestScore_ScrubsRawIdentifiersFromFreeText(t *testing.T) {
 }
 
 func TestScore_FieldAllowlist(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{FieldAllowlist: []string{"impact", "category"}})
 
@@ -279,6 +291,8 @@ func TestScore_FieldAllowlist(t *testing.T) {
 }
 
 func TestScore_AppliesScoresAndSummary(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{})
 	input := recs(3)
@@ -303,6 +317,8 @@ func TestScore_AppliesScoresAndSummary(t *testing.T) {
 }
 
 func TestScore_WithMockScorerGroupsDuplicates(t *testing.T) {
+	t.Parallel()
+
 	harness := plugintesting.NewScorerHarness(plugintesting.NewMockRecommendationScorer())
 	harness.Start(t)
 	t.Cleanup(harness.Stop)
@@ -325,6 +341,8 @@ func TestScore_WithMockScorerGroupsDuplicates(t *testing.T) {
 }
 
 func TestScore_OmittedModeDoesNotGroup(t *testing.T) {
+	t.Parallel()
+
 	harness := plugintesting.NewScorerHarness(plugintesting.NewMockRecommendationScorer())
 	harness.Start(t)
 	t.Cleanup(harness.Stop)
@@ -338,6 +356,8 @@ func TestScore_OmittedModeDoesNotGroup(t *testing.T) {
 }
 
 func TestScore_SplitsByLearnedMaxBatchSize(t *testing.T) {
+	t.Parallel()
+
 	harness := plugintesting.NewScorerHarness(plugintesting.NewMockRecommendationScorer(
 		plugintesting.WithScorerMaxBatchSize(3),
 	))
@@ -355,6 +375,8 @@ func TestScore_SplitsByLearnedMaxBatchSize(t *testing.T) {
 }
 
 func TestScore_RunsAtMostEightBatchesConcurrently(t *testing.T) {
+	t.Parallel()
+
 	var inFlight, peak int32
 	scorer := &fakeScorer{
 		handler: func(req *pbc.ScoreRecommendationsRequest) (*pbc.ScoreRecommendationsResponse, error) {
@@ -392,6 +414,8 @@ func (blockingScorer) ScoreRecommendations(
 }
 
 func TestScore_TimeoutDegradesToUnscored(t *testing.T) {
+	t.Parallel()
+
 	svc := newService(t, blockingScorer{}, Options{Timeout: 30 * time.Millisecond})
 	input := recs(2)
 
@@ -407,6 +431,8 @@ func TestScore_TimeoutDegradesToUnscored(t *testing.T) {
 }
 
 func TestScore_UnavailableScorerDegradesToUnscored(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{handler: func(*pbc.ScoreRecommendationsRequest) (*pbc.ScoreRecommendationsResponse, error) {
 		return nil, status.Error(codes.Unavailable, "backend down")
 	}}
@@ -428,6 +454,8 @@ func TestScore_UnavailableScorerDegradesToUnscored(t *testing.T) {
 }
 
 func TestScore_PerItemErrorsLeaveOthersScored(t *testing.T) {
+	t.Parallel()
+
 	harness := plugintesting.NewScorerHarness(plugintesting.NewMockRecommendationScorer())
 	harness.Start(t)
 	t.Cleanup(harness.Stop)
@@ -449,6 +477,8 @@ func TestScore_PerItemErrorsLeaveOthersScored(t *testing.T) {
 }
 
 func TestScore_InvalidResponseIsTreatedAsFailure(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{
 		handler: func(req *pbc.ScoreRecommendationsRequest) (*pbc.ScoreRecommendationsResponse, error) {
 			resp := okResponse(req, "model-1", 100)
@@ -469,6 +499,8 @@ func TestScore_InvalidResponseIsTreatedAsFailure(t *testing.T) {
 }
 
 func TestScore_SkipsDismissedRecommendationsAndNeverChangesStatus(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{})
 	input := recs(3)
@@ -487,6 +519,8 @@ func TestScore_SkipsDismissedRecommendationsAndNeverChangesStatus(t *testing.T) 
 }
 
 func TestScore_MissingAndDuplicateIDsStayUnscored(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{})
 	input := []engine.Recommendation{rec("", "i-1"), rec("same", "i-2"), rec("same", "i-3"), rec("ok", "i-4")}
@@ -504,6 +538,8 @@ func TestScore_MissingAndDuplicateIDsStayUnscored(t *testing.T) {
 }
 
 func TestScore_CacheServesRepeatRunsWithoutCallingScorer(t *testing.T) {
+	t.Parallel()
+
 	store := newMemCache()
 	scorer := &fakeScorer{}
 	opts := Options{Cache: store, PluginVersion: "1.0.0"}
@@ -527,6 +563,8 @@ func TestScore_CacheServesRepeatRunsWithoutCallingScorer(t *testing.T) {
 }
 
 func TestScore_CacheKeyedOnScorerVersionAndContent(t *testing.T) {
+	t.Parallel()
+
 	store := newMemCache()
 	scorer := &fakeScorer{}
 
@@ -549,6 +587,8 @@ func TestScore_CacheKeyedOnScorerVersionAndContent(t *testing.T) {
 }
 
 func TestScore_CacheStoresOnlyScoreValues(t *testing.T) {
+	t.Parallel()
+
 	store := newMemCache()
 	scorer := &fakeScorer{}
 
@@ -568,6 +608,8 @@ func TestScore_CacheStoresOnlyScoreValues(t *testing.T) {
 }
 
 func TestScore_DryRunSendsNothingAndReportsRequests(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{ProbeBatchSize: 2})
 
@@ -589,6 +631,8 @@ func TestScore_DryRunSendsNothingAndReportsRequests(t *testing.T) {
 }
 
 func TestScore_DryRunOmitsCachedRecommendations(t *testing.T) {
+	t.Parallel()
+
 	store := newMemCache()
 	scorer := &fakeScorer{}
 	opts := Options{Cache: store, PluginVersion: "1.0.0"}
@@ -606,6 +650,8 @@ func TestScore_DryRunOmitsCachedRecommendations(t *testing.T) {
 }
 
 func TestScore_MarksNeedsReview(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{
 		handler: func(req *pbc.ScoreRecommendationsRequest) (*pbc.ScoreRecommendationsResponse, error) {
 			resp := okResponse(req, "model-1", 100)
@@ -629,6 +675,8 @@ func TestScore_MarksNeedsReview(t *testing.T) {
 }
 
 func TestReviewPolicy_NeedsReview(t *testing.T) {
+	t.Parallel()
+
 	p := ReviewPolicy{Risk: 0.3, FalsePositive: 0.4, InsufficientEvidence: 0.5, DeadBand: 0.1}
 
 	assert.False(t, p.NeedsReview(nil))
@@ -641,6 +689,8 @@ func TestReviewPolicy_NeedsReview(t *testing.T) {
 }
 
 func TestScore_NamespacesDuplicateGroupsAcrossBatches(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{
 		handler: func(req *pbc.ScoreRecommendationsRequest) (*pbc.ScoreRecommendationsResponse, error) {
 			resp := okResponse(req, "model-1", 2)
@@ -663,6 +713,8 @@ func TestScore_NamespacesDuplicateGroupsAcrossBatches(t *testing.T) {
 }
 
 func TestScore_EmptyInputCallsNothing(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	outcome, err := newService(t, scorer, Options{}).Score(context.Background(), nil, false)
 
@@ -672,6 +724,8 @@ func TestScore_EmptyInputCallsNothing(t *testing.T) {
 }
 
 func TestOptionsFromConfig(t *testing.T) {
+	t.Parallel()
+
 	cfg := config.ResolvedScoring{
 		Plugin: "scorer", IdentifierMode: config.ScoringIdentifierOmitted, FieldAllowlist: []string{"impact"},
 		TimeoutSeconds: 7, RiskThreshold: 0.4, FalsePositiveLimit: 0.5, InsufficientEvidence: 0.6, DeadBand: 0.2,
@@ -688,6 +742,8 @@ func TestOptionsFromConfig(t *testing.T) {
 }
 
 func TestScore_ReportsCalibrationFromScorer(t *testing.T) {
+	t.Parallel()
+
 	tests := map[pbc.ScoreCalibration]string{
 		pbc.ScoreCalibration_SCORE_CALIBRATION_PROBABILITY:  "probability",
 		pbc.ScoreCalibration_SCORE_CALIBRATION_RANKING_ONLY: "ranking_only",
@@ -710,6 +766,8 @@ func TestScore_ReportsCalibrationFromScorer(t *testing.T) {
 }
 
 func TestScore_IgnoresCorruptCacheEntries(t *testing.T) {
+	t.Parallel()
+
 	store := newMemCache()
 	scorer := &fakeScorer{}
 	opts := Options{Cache: store, PluginVersion: "1.0.0"}
@@ -731,6 +789,8 @@ func TestScore_IgnoresCorruptCacheEntries(t *testing.T) {
 }
 
 func TestToProto_CarriesFullRecordAndSkipsMissingID(t *testing.T) {
+	t.Parallel()
+
 	created := time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC)
 	full := rec("plugin-1", "i-1")
 	full.CreatedAt = &created
@@ -779,6 +839,7 @@ func TestToProto_CarriesFullRecordAndSkipsMissingID(t *testing.T) {
 	assert.Empty(t, bare.GetSecondaryReasons())
 }
 
+//nolint:paralleltest // subtests share the parent-scoped fixture full = rec(...)
 func TestApplyAllowlist_KeepsOnlyListedFields(t *testing.T) {
 	ids, err := newIdentifiers(config.ScoringIdentifierRaw)
 	require.NoError(t, err)
@@ -843,6 +904,8 @@ func k8sActionDetail() *engine.RecommendationActionDetail {
 // carrying action_detail, primary_reason and secondary_reasons and asserts all three
 // reach the scorer.
 func TestScore_SendsActionDetailAndReasons(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierRaw})
 
@@ -880,6 +943,8 @@ func TestScore_SendsActionDetailAndReasons(t *testing.T) {
 // inside action_detail: Kubernetes cluster and workload names, and free text such as a
 // termination reason.
 func TestScore_ActionDetailIdentifierModes(t *testing.T) {
+	t.Parallel()
+
 	newInput := func() []engine.Recommendation {
 		out := []engine.Recommendation{
 			rec("plugin-rec-0", rawInstance), rec("plugin-rec-1", "i-1"), rec("plugin-rec-2", "i-2"),
@@ -895,6 +960,7 @@ func TestScore_ActionDetailIdentifierModes(t *testing.T) {
 	}
 
 	t.Run("pseudonymized", func(t *testing.T) {
+		t.Parallel()
 		scorer := &fakeScorer{}
 		svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierPseudonymized})
 
@@ -930,6 +996,7 @@ func TestScore_ActionDetailIdentifierModes(t *testing.T) {
 	})
 
 	t.Run("omitted", func(t *testing.T) {
+		t.Parallel()
 		scorer := &fakeScorer{}
 		svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierOmitted})
 
@@ -954,6 +1021,7 @@ func TestScore_ActionDetailIdentifierModes(t *testing.T) {
 	})
 
 	t.Run("raw", func(t *testing.T) {
+		t.Parallel()
 		scorer := &fakeScorer{}
 		svc := newService(t, scorer, Options{IdentifierMode: config.ScoringIdentifierRaw})
 
@@ -979,6 +1047,8 @@ func TestScore_ActionDetailIdentifierModes(t *testing.T) {
 // TestScore_DryRunRequestsCarryActionDetailAndReasons proves the dry-run request output
 // includes the three fields after identifier handling, without sending anything.
 func TestScore_DryRunRequestsCarryActionDetailAndReasons(t *testing.T) {
+	t.Parallel()
+
 	scorer := &fakeScorer{}
 	svc := newService(t, scorer, Options{})
 
@@ -1005,6 +1075,8 @@ func TestScore_DryRunRequestsCarryActionDetailAndReasons(t *testing.T) {
 // TestScore_ActionDetailVariantsRoundTrip covers the remaining action_detail variants
 // and the empty-string identifier case through toProto.
 func TestScore_ActionDetailVariantsRoundTrip(t *testing.T) {
+	t.Parallel()
+
 	ids, err := newIdentifiers(config.ScoringIdentifierRaw)
 	require.NoError(t, err)
 
@@ -1110,6 +1182,7 @@ func TestScore_ActionDetailVariantsRoundTrip(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, ok := toProto(tt.rec, ids)
 			require.True(t, ok)
 			tt.want(t, got)
@@ -1117,6 +1190,7 @@ func TestScore_ActionDetailVariantsRoundTrip(t *testing.T) {
 	}
 
 	t.Run("pseudonymized modify config is scrubbed", func(t *testing.T) {
+		t.Parallel()
 		pseudo, perr := newIdentifiers(config.ScoringIdentifierPseudonymized)
 		require.NoError(t, perr)
 		got, ok := toProto(engine.Recommendation{

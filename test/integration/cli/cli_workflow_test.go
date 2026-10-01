@@ -13,6 +13,8 @@ import (
 )
 
 // TestCLIWorkflow_ProjectedCost tests the complete CLI → Engine flow for projected costs.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCLIWorkflow_ProjectedCost(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -45,6 +47,8 @@ func TestCLIWorkflow_ProjectedCost(t *testing.T) {
 }
 
 // TestCLIWorkflow_ProjectedCost_TableOutput tests table output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteOrFail)
 func TestCLIWorkflow_ProjectedCost_TableOutput(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -60,6 +64,8 @@ func TestCLIWorkflow_ProjectedCost_TableOutput(t *testing.T) {
 }
 
 // TestCLIWorkflow_ProjectedCost_MissingPlan tests error handling for missing plan file.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteExpectError)
 func TestCLIWorkflow_ProjectedCost_MissingPlan(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -71,6 +77,8 @@ func TestCLIWorkflow_ProjectedCost_MissingPlan(t *testing.T) {
 }
 
 // TestCLIWorkflow_ProjectedCost_InvalidJSON tests error handling for invalid JSON.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteExpectError)
 func TestCLIWorkflow_ProjectedCost_InvalidJSON(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -86,6 +94,8 @@ func TestCLIWorkflow_ProjectedCost_InvalidJSON(t *testing.T) {
 }
 
 // TestCLIWorkflow_ProjectedCost_EmptyPlan tests handling of empty plan.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCLIWorkflow_ProjectedCost_EmptyPlan(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -113,6 +123,8 @@ func TestCLIWorkflow_ProjectedCost_EmptyPlan(t *testing.T) {
 }
 
 // TestCLIWorkflow_ProjectedCost_NDJSONOutput tests NDJSON output format.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via Execute)
 func TestCLIWorkflow_ProjectedCost_NDJSONOutput(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -139,6 +151,8 @@ func TestCLIWorkflow_ProjectedCost_NDJSONOutput(t *testing.T) {
 }
 
 // TestCLIWorkflow_Help tests help command output.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteOrFail)
 func TestCLIWorkflow_Help(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -160,6 +174,8 @@ func TestCLIWorkflow_Help(t *testing.T) {
 }
 
 // TestCLIWorkflow_Version tests version command.
+//
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via ExecuteOrFail)
 func TestCLIWorkflow_Version(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -170,6 +186,8 @@ func TestCLIWorkflow_Version(t *testing.T) {
 }
 
 // TestCLIWorkflow_PluginList tests plugin list command.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestCLIWorkflow_PluginList(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 
@@ -186,6 +204,8 @@ func TestCLIWorkflow_PluginList(t *testing.T) {
 }
 
 // TestCLIWorkflow_PluginValidate tests plugin validate command.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestCLIWorkflow_PluginValidate(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 

@@ -14,6 +14,8 @@ import (
 // ingest.PropertyPulumiARN, ingest.PropertyTerraformCloudID, and
 // ingest.PropertyTerraformARN; update these literals if those constants change.
 func TestPropertyConstantsMatch(t *testing.T) {
+	t.Parallel()
+
 	// These must match ingest.PropertyPulumiCloudID and ingest.PropertyPulumiARN.
 	assert.Equal(t, "pulumi:cloudId", propCloudIDPulumi,
 		"propCloudIDPulumi must match ingest.PropertyPulumiCloudID")

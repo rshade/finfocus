@@ -17,8 +17,7 @@ func toValidationError(ctx context.Context, err error) error {
 	if err == nil {
 		return nil
 	}
-	var axErr *ax.Error
-	if errors.As(err, &axErr) {
+	if _, ok := errors.AsType[*ax.Error](err); ok {
 		return err
 	}
 	return ax.NewError(ctx, "validation_error", err.Error(),

@@ -15,6 +15,8 @@ import (
 )
 
 func TestCostToDiagnostic(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		cost         engine.CostResult
@@ -71,6 +73,7 @@ func TestCostToDiagnostic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			diag := CostToDiagnostic(tt.cost, tt.urn, tt.version)
 
 			require.NotNil(t, diag)
@@ -86,6 +89,8 @@ func TestCostToDiagnostic(t *testing.T) {
 }
 
 func TestStackSummaryDiagnostic(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		costs        []engine.CostResult
@@ -133,6 +138,7 @@ func TestStackSummaryDiagnostic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			diag := StackSummaryDiagnostic(tt.costs, tt.version)
 
 			require.NotNil(t, diag)
@@ -149,6 +155,8 @@ func TestStackSummaryDiagnostic(t *testing.T) {
 }
 
 func TestFormatCostMessage(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		cost engine.CostResult
@@ -193,6 +201,7 @@ func TestFormatCostMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := formatCostMessage(tt.cost)
 			assert.Equal(t, tt.want, got)
 		})
@@ -200,6 +209,8 @@ func TestFormatCostMessage(t *testing.T) {
 }
 
 func TestCostToDiagnostic_EnforcementLevel(t *testing.T) {
+	t.Parallel()
+
 	// Verify all cost diagnostics use ADVISORY (never ERROR in MVP)
 	cost := engine.CostResult{
 		ResourceType: "aws:ec2/instance:Instance",
@@ -221,6 +232,8 @@ func TestCostToDiagnostic_EnforcementLevel(t *testing.T) {
 }
 
 func TestStackSummaryDiagnostic_CurrencyHandling(t *testing.T) {
+	t.Parallel()
+
 	// Test that currency is properly extracted from results.
 	// BuildCostSummary uses the first non-empty currency encountered.
 	costs := []engine.CostResult{
@@ -237,6 +250,8 @@ func TestStackSummaryDiagnostic_CurrencyHandling(t *testing.T) {
 
 // T001 [US1] - Verify StackSummaryDiagnostic and BuildCostSummary produce consistent totals.
 func TestStackSummaryDiagnostic_MatchesBuildCostSummary(t *testing.T) {
+	t.Parallel()
+
 	costs := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -273,6 +288,8 @@ func TestStackSummaryDiagnostic_MatchesBuildCostSummary(t *testing.T) {
 
 // T002 [US1] - Verify error resources (ERROR:/VALIDATION: prefix) are excluded from summary.
 func TestStackSummaryDiagnostic_ExcludesErrors(t *testing.T) {
+	t.Parallel()
+
 	costs := []engine.CostResult{
 		{
 			ResourceType: "aws:ec2/instance:Instance",
@@ -307,6 +324,8 @@ func TestStackSummaryDiagnostic_ExcludesErrors(t *testing.T) {
 // Phase 5 (US3) - Warning Diagnostic Tests
 
 func TestWarningDiagnostic(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name    string
 		message string
@@ -335,6 +354,7 @@ func TestWarningDiagnostic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			diag := WarningDiagnostic(tt.message, tt.urn, tt.version)
 
 			require.NotNil(t, diag)
@@ -350,6 +370,8 @@ func TestWarningDiagnostic(t *testing.T) {
 }
 
 func TestWarningDiagnostic_NoURN(t *testing.T) {
+	t.Parallel()
+
 	// Stack-level warnings have no URN
 	diag := WarningDiagnostic("Unable to connect to pricing API", "", "0.1.0")
 
@@ -359,6 +381,8 @@ func TestWarningDiagnostic_NoURN(t *testing.T) {
 }
 
 func TestCostToDiagnostic_ErrorInNotes(t *testing.T) {
+	t.Parallel()
+
 	// When cost calculation fails, the error appears in Notes
 	cost := engine.CostResult{
 		ResourceType: "aws:lambda/function:Function",
@@ -385,6 +409,8 @@ func TestCostToDiagnostic_ErrorInNotes(t *testing.T) {
 // Phase 2 (Foundational) - Recommendation Formatting Tests
 
 func TestFormatRecommendation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		rec  engine.Recommendation
@@ -442,6 +468,7 @@ func TestFormatRecommendation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := formatRecommendation(tt.rec)
 			assert.Equal(t, tt.want, got)
 		})
@@ -449,6 +476,8 @@ func TestFormatRecommendation(t *testing.T) {
 }
 
 func TestFormatRecommendations(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		recs []engine.Recommendation
@@ -577,6 +606,7 @@ func TestFormatRecommendations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := formatRecommendations(tt.recs)
 			assert.Equal(t, tt.want, got)
 		})
@@ -586,6 +616,8 @@ func TestFormatRecommendations(t *testing.T) {
 // Phase 3 (US1) - CostToDiagnostic with Recommendations Tests
 
 func TestCostToDiagnostic_SingleRecommendation(t *testing.T) {
+	t.Parallel()
+
 	// T008: Test CostToDiagnostic with a single recommendation
 	cost := engine.CostResult{
 		ResourceType: "aws:ec2/instance:Instance",
@@ -618,6 +650,8 @@ func TestCostToDiagnostic_SingleRecommendation(t *testing.T) {
 }
 
 func TestCostToDiagnostic_MultipleRecommendations(t *testing.T) {
+	t.Parallel()
+
 	// T009: Test CostToDiagnostic with multiple recommendations
 	cost := engine.CostResult{
 		ResourceType: "aws:ec2/instance:Instance",
@@ -657,6 +691,8 @@ func TestCostToDiagnostic_MultipleRecommendations(t *testing.T) {
 }
 
 func TestCostToDiagnostic_NoRecommendations(t *testing.T) {
+	t.Parallel()
+
 	// T010: Test CostToDiagnostic with no recommendations (empty slice)
 	cost := engine.CostResult{
 		ResourceType:    "aws:ec2/instance:Instance",
@@ -681,6 +717,8 @@ func TestCostToDiagnostic_NoRecommendations(t *testing.T) {
 }
 
 func TestCostToDiagnostic_RecommendationsWithSustainability(t *testing.T) {
+	t.Parallel()
+
 	// T011: Test recommendations combined with sustainability metrics
 	cost := engine.CostResult{
 		ResourceType: "aws:ec2/instance:Instance",
@@ -717,6 +755,8 @@ func TestCostToDiagnostic_RecommendationsWithSustainability(t *testing.T) {
 }
 
 func TestCostToDiagnostic_RecommendationsADVISORYEnforcement(t *testing.T) {
+	t.Parallel()
+
 	// T012: Verify ADVISORY enforcement level for recommendation diagnostics (FR-008)
 	testCases := []struct {
 		name string
@@ -769,6 +809,7 @@ func TestCostToDiagnostic_RecommendationsADVISORYEnforcement(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			diag := CostToDiagnostic(
 				tc.cost,
 				"urn:pulumi:dev::myapp::aws:ec2/instance:Instance::test",
@@ -788,6 +829,8 @@ func TestCostToDiagnostic_RecommendationsADVISORYEnforcement(t *testing.T) {
 // Phase 4 (US2) - Stack Summary with Recommendations Tests
 
 func TestStackSummaryDiagnostic_WithRecommendations(t *testing.T) {
+	t.Parallel()
+
 	// T017: Test StackSummaryDiagnostic includes recommendation summary
 	costs := []engine.CostResult{
 		{
@@ -834,6 +877,8 @@ func TestStackSummaryDiagnostic_WithRecommendations(t *testing.T) {
 }
 
 func TestStackSummaryDiagnostic_AggregateSavingsSameCurrency(t *testing.T) {
+	t.Parallel()
+
 	// T018: Test aggregate savings calculation with same currency
 	costs := []engine.CostResult{
 		{
@@ -872,6 +917,8 @@ func TestStackSummaryDiagnostic_AggregateSavingsSameCurrency(t *testing.T) {
 }
 
 func TestStackSummaryDiagnostic_MixedCurrencyHandling(t *testing.T) {
+	t.Parallel()
+
 	// T019: Test mixed currency handling in stack summary
 	costs := []engine.CostResult{
 		{
@@ -906,6 +953,8 @@ func TestStackSummaryDiagnostic_MixedCurrencyHandling(t *testing.T) {
 }
 
 func TestStackSummaryDiagnostic_NoRecommendations(t *testing.T) {
+	t.Parallel()
+
 	// Additional test: Stack summary without any recommendations
 	costs := []engine.CostResult{
 		{Monthly: 50.00, Currency: "USD", Recommendations: nil},
@@ -924,6 +973,8 @@ func TestStackSummaryDiagnostic_NoRecommendations(t *testing.T) {
 // Phase 5 (US3) - Graceful Handling Tests
 
 func TestFormatRecommendations_NilSlice(t *testing.T) {
+	t.Parallel()
+
 	// T024: Test nil Recommendations slice handling
 	var recs []engine.Recommendation
 	result := formatRecommendations(recs)
@@ -931,6 +982,8 @@ func TestFormatRecommendations_NilSlice(t *testing.T) {
 }
 
 func TestFormatRecommendations_EmptySlice(t *testing.T) {
+	t.Parallel()
+
 	// T025: Test empty Recommendations slice handling
 	recs := []engine.Recommendation{}
 	result := formatRecommendations(recs)
@@ -938,6 +991,8 @@ func TestFormatRecommendations_EmptySlice(t *testing.T) {
 }
 
 func TestFormatRecommendation_ZeroSavings(t *testing.T) {
+	t.Parallel()
+
 	// T026: Test recommendation with zero savings
 	rec := engine.Recommendation{
 		Type:             "Review",
@@ -953,6 +1008,8 @@ func TestFormatRecommendation_ZeroSavings(t *testing.T) {
 }
 
 func TestFormatRecommendation_EmptyDescription(t *testing.T) {
+	t.Parallel()
+
 	// T027: Test recommendation with empty description
 	// Note: formatRecommendation still formats it, but formatRecommendations
 	// will filter it out as malformed
@@ -968,6 +1025,8 @@ func TestFormatRecommendation_EmptyDescription(t *testing.T) {
 }
 
 func TestFormatRecommendations_FiltersInvalid(t *testing.T) {
+	t.Parallel()
+
 	// Test that formatRecommendations filters out invalid recommendations
 	recs := []engine.Recommendation{
 		{Type: "", Description: "No type"},                    // Invalid: empty type
@@ -988,6 +1047,8 @@ func TestFormatRecommendations_FiltersInvalid(t *testing.T) {
 }
 
 func TestFormatRecommendations_SkipsMalformed(t *testing.T) {
+	t.Parallel()
+
 	// T027 extension: Test that malformed recommendations are skipped
 	recs := []engine.Recommendation{
 		{Type: "", Description: "", EstimatedSavings: 10.00, Currency: "USD"}, // Both empty
@@ -1004,6 +1065,8 @@ func TestFormatRecommendations_SkipsMalformed(t *testing.T) {
 }
 
 func TestCostToDiagnostic_NilRecommendations(t *testing.T) {
+	t.Parallel()
+
 	// Test CostToDiagnostic with nil recommendations (graceful handling)
 	cost := engine.CostResult{
 		ResourceType:    "aws:ec2/instance:Instance",
@@ -1027,6 +1090,8 @@ func TestCostToDiagnostic_NilRecommendations(t *testing.T) {
 }
 
 func TestAggregateRecommendations_EmptyCosts(t *testing.T) {
+	t.Parallel()
+
 	// Test aggregation with empty costs slice
 	costs := []engine.CostResult{}
 	agg := AggregateRecommendations(costs)
@@ -1038,6 +1103,8 @@ func TestAggregateRecommendations_EmptyCosts(t *testing.T) {
 }
 
 func TestAggregateRecommendations_NilCosts(t *testing.T) {
+	t.Parallel()
+
 	// Test aggregation with nil costs slice
 	var costs []engine.CostResult
 	agg := AggregateRecommendations(costs)
@@ -1051,6 +1118,8 @@ func TestAggregateRecommendations_NilCosts(t *testing.T) {
 // Phase 5 (US3) - Carbon Equivalency Tests for Analyzer Diagnostics
 
 func TestFormatCostMessage_WithCarbonEquivalencies(t *testing.T) {
+	t.Parallel()
+
 	// T034: Test formatCostMessage displays carbon equivalencies in compact format
 	cost := engine.CostResult{
 		Monthly:  100.0,
@@ -1077,6 +1146,8 @@ func TestFormatCostMessage_WithCarbonEquivalencies(t *testing.T) {
 }
 
 func TestFormatCostMessage_CompactFormatForAnalyzer(t *testing.T) {
+	t.Parallel()
+
 	// T035: Test that analyzer uses compact format (≈ X mi, Y phones)
 	cost := engine.CostResult{
 		Monthly:  50.0,
@@ -1103,6 +1174,8 @@ func TestFormatCostMessage_CompactFormatForAnalyzer(t *testing.T) {
 }
 
 func TestFormatCostMessage_OmitsEquivalenciesBelowThreshold(t *testing.T) {
+	t.Parallel()
+
 	// Equivalencies should be omitted when carbon is below threshold (1 kg)
 	cost := engine.CostResult{
 		Monthly:  50.0,
@@ -1124,6 +1197,8 @@ func TestFormatCostMessage_OmitsEquivalenciesBelowThreshold(t *testing.T) {
 }
 
 func TestFormatCostMessage_OmitsEquivalenciesWhenNoCarbon(t *testing.T) {
+	t.Parallel()
+
 	// Equivalencies should be omitted when no carbon data
 	cost := engine.CostResult{
 		Monthly:  50.0,
@@ -1145,6 +1220,8 @@ func TestFormatCostMessage_OmitsEquivalenciesWhenNoCarbon(t *testing.T) {
 }
 
 func TestFormatCostMessage_LargeCarbon_MillionScaling(t *testing.T) {
+	t.Parallel()
+
 	// Large carbon values should use million scaling
 	cost := engine.CostResult{
 		Monthly:  1000000.0,
@@ -1166,6 +1243,8 @@ func TestFormatCostMessage_LargeCarbon_MillionScaling(t *testing.T) {
 // =============================================================================
 
 func TestThresholdDiagnostic(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		totalCost       float64
@@ -1222,6 +1301,7 @@ func TestThresholdDiagnostic(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			diag := ThresholdDiagnostic(tt.totalCost, tt.threshold, tt.currency, tt.version)
 
 			require.NotNil(t, diag)
@@ -1255,7 +1335,10 @@ func extractMetadataJSON(t *testing.T, formatted string) string {
 }
 
 func TestFormatCostMetadata(t *testing.T) {
+	t.Parallel()
+
 	t.Run("normal cost metadata JSON formatting", func(t *testing.T) {
+		t.Parallel()
 		m := CostMetadata{Monthly: 150.0, Currency: "USD", Adapter: "aws-public"}
 		result := FormatCostMetadata(m)
 
@@ -1271,12 +1354,14 @@ func TestFormatCostMetadata(t *testing.T) {
 	})
 
 	t.Run("zero cost skip", func(t *testing.T) {
+		t.Parallel()
 		m := CostMetadata{Monthly: 0, Currency: "USD", Adapter: "none"}
 		result := FormatCostMetadata(m)
 		assert.Empty(t, result, "zero-cost resources should not have metadata")
 	})
 
 	t.Run("metadata parsing roundtrip", func(t *testing.T) {
+		t.Parallel()
 		original := CostMetadata{Monthly: 42.99, Currency: "EUR", Adapter: "vantage"}
 		formatted := FormatCostMetadata(original)
 
@@ -1287,6 +1372,7 @@ func TestFormatCostMetadata(t *testing.T) {
 	})
 
 	t.Run("small cost values preserved", func(t *testing.T) {
+		t.Parallel()
 		m := CostMetadata{Monthly: 0.01, Currency: "USD", Adapter: "local-spec"}
 		result := FormatCostMetadata(m)
 		assert.NotEmpty(t, result)
@@ -1299,7 +1385,10 @@ func TestFormatCostMetadata(t *testing.T) {
 // =============================================================================
 
 func TestFormatCostMessage_BackwardCompatibility(t *testing.T) {
+	t.Parallel()
+
 	t.Run("message still starts with existing format", func(t *testing.T) {
+		t.Parallel()
 		cost := engine.CostResult{
 			Monthly:  25.50,
 			Currency: "USD",
@@ -1313,6 +1402,7 @@ func TestFormatCostMessage_BackwardCompatibility(t *testing.T) {
 	})
 
 	t.Run("metadata appended as last line", func(t *testing.T) {
+		t.Parallel()
 		cost := engine.CostResult{
 			Monthly:  100.0,
 			Currency: "USD",
@@ -1332,6 +1422,7 @@ func TestFormatCostMessage_BackwardCompatibility(t *testing.T) {
 	})
 
 	t.Run("human readable portion unchanged", func(t *testing.T) {
+		t.Parallel()
 		cost := engine.CostResult{
 			Monthly:  75.0,
 			Currency: "USD",
@@ -1345,6 +1436,7 @@ func TestFormatCostMessage_BackwardCompatibility(t *testing.T) {
 	})
 
 	t.Run("zero cost internal resource has no metadata", func(t *testing.T) {
+		t.Parallel()
 		cost := engine.CostResult{
 			Monthly:  0,
 			Currency: "USD",
@@ -1356,6 +1448,7 @@ func TestFormatCostMessage_BackwardCompatibility(t *testing.T) {
 	})
 
 	t.Run("zero cost with notes has no metadata", func(t *testing.T) {
+		t.Parallel()
 		cost := engine.CostResult{
 			Monthly: 0,
 			Notes:   "No pricing information available",

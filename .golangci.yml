@@ -446,8 +446,6 @@ linters:
           - intrange
           - modernize
           - noctx
-          # TODO: audit test isolation before enabling in https://github.com/rshade/finfocus/issues/1198.
-          - paralleltest
           # TODO: migrate same-package tests in https://github.com/rshade/finfocus/issues/1197.
           - testpackage
           - wrapcheck

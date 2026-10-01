@@ -11,6 +11,8 @@ import (
 )
 
 func TestConfigureProcessGroup_SetsPdeathsig(t *testing.T) {
+	t.Parallel()
+
 	cmd := exec.Command("sleep", "1")
 	configureProcessGroup(cmd)
 	assert.Equal(t, syscall.SIGKILL, cmd.SysProcAttr.Pdeathsig,

@@ -381,6 +381,7 @@ func TestConfigGetCmdIntOutput(t *testing.T) {
 	assert.Contains(t, string(result.Stdout), "4")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestConfig)
 func TestConfigListCmdDirectRun(t *testing.T) {
 	cleanup := setupTestConfig(t)
 	defer cleanup()

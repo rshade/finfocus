@@ -7,6 +7,8 @@ import (
 )
 
 func TestGetWorkerCount_WithJobsOverride(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		jobs     int
@@ -60,6 +62,7 @@ func TestGetWorkerCount_WithJobsOverride(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			eng := New(nil, nil).WithJobs(tt.jobs)
 			got := eng.getWorkerCount(tt.jobCount)
 			if tt.autoMode {
@@ -74,6 +77,8 @@ func TestGetWorkerCount_WithJobsOverride(t *testing.T) {
 }
 
 func TestWithJobs_BuilderPattern(t *testing.T) {
+	t.Parallel()
+
 	// Verify WithJobs returns the same engine for chaining
 	eng := New(nil, nil)
 	result := eng.WithJobs(4)
@@ -82,11 +87,15 @@ func TestWithJobs_BuilderPattern(t *testing.T) {
 }
 
 func TestWithJobs_ZeroIsDefault(t *testing.T) {
+	t.Parallel()
+
 	eng := New(nil, nil)
 	assert.Equal(t, 0, eng.jobs, "default jobs should be 0 (auto)")
 }
 
 func TestWithJobs_ChainedWithOtherOptions(t *testing.T) {
+	t.Parallel()
+
 	// Verify WithJobs works correctly when chained with other builder methods
 	eng := New(nil, nil).
 		WithJobs(8).

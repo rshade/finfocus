@@ -214,7 +214,10 @@ func (m *mockCostSourceClient) ResolveResourceTypes(
 
 // T020: Unit test for DryRun wrapper.
 func TestDryRun(t *testing.T) {
+	t.Parallel()
+
 	t.Run("Success", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{
 			dryRunFunc: func(_ context.Context, _ *pbc.DryRunRequest, _ ...grpc.CallOption) (*pbc.DryRunResponse, error) {
 				return &pbc.DryRunResponse{
@@ -237,6 +240,7 @@ func TestDryRun(t *testing.T) {
 	})
 
 	t.Run("Unimplemented", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{
 			dryRunFunc: func(_ context.Context, _ *pbc.DryRunRequest, _ ...grpc.CallOption) (*pbc.DryRunResponse, error) {
 				return nil, errors.New("unimplemented")
@@ -248,6 +252,7 @@ func TestDryRun(t *testing.T) {
 	})
 
 	t.Run("InvalidResource", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{
 			dryRunFunc: func(_ context.Context, _ *pbc.DryRunRequest, _ ...grpc.CallOption) (*pbc.DryRunResponse, error) {
 				return nil, errors.New("invalid resource type")
@@ -263,6 +268,8 @@ func TestDryRun(t *testing.T) {
 
 // T003: Unit test for ErrorDetail struct creation.
 func TestErrorDetail_Creation(t *testing.T) {
+	t.Parallel()
+
 	timestamp := time.Now()
 	err := errors.New("test error")
 
@@ -293,6 +300,8 @@ func TestErrorDetail_Creation(t *testing.T) {
 
 // T004: Unit test for CostResultWithErrors struct creation.
 func TestCostResultWithErrors_Creation(t *testing.T) {
+	t.Parallel()
+
 	result := &CostResultWithErrors{
 		Results: []*CostResult{
 			{Currency: "USD", MonthlyCost: 100.0},
@@ -311,6 +320,8 @@ func TestCostResultWithErrors_Creation(t *testing.T) {
 }
 
 func TestCostResultWithErrors_Empty(t *testing.T) {
+	t.Parallel()
+
 	result := &CostResultWithErrors{
 		Results: []*CostResult{},
 		Errors:  []ErrorDetail{},
@@ -326,6 +337,8 @@ func TestCostResultWithErrors_Empty(t *testing.T) {
 
 // T005: Unit test for HasErrors() method.
 func TestCostResultWithErrors_HasErrors(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		errors   []ErrorDetail
@@ -359,6 +372,7 @@ func TestCostResultWithErrors_HasErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := &CostResultWithErrors{
 				Results: []*CostResult{},
 				Errors:  tt.errors,
@@ -373,6 +387,8 @@ func TestCostResultWithErrors_HasErrors(t *testing.T) {
 
 // T006: Unit test for ErrorSummary() output format.
 func TestCostResultWithErrors_ErrorSummary(t *testing.T) {
+	t.Parallel()
+
 	t.Run("no errors returns empty string", testErrorSummaryNoErrors)
 	t.Run("single error", testErrorSummarySingleError)
 	t.Run("multiple errors up to 5", testErrorSummaryMultipleErrors)
@@ -395,6 +411,7 @@ func makeErrorDetails(n int) []ErrorDetail {
 }
 
 func testErrorSummaryNoErrors(t *testing.T) {
+	t.Parallel()
 	result := &CostResultWithErrors{
 		Results: []*CostResult{},
 		Errors:  []ErrorDetail{},
@@ -404,6 +421,7 @@ func testErrorSummaryNoErrors(t *testing.T) {
 }
 
 func testErrorSummarySingleError(t *testing.T) {
+	t.Parallel()
 	result := &CostResultWithErrors{
 		Results: []*CostResult{},
 		Errors: []ErrorDetail{
@@ -426,6 +444,7 @@ func testErrorSummarySingleError(t *testing.T) {
 }
 
 func testErrorSummaryMultipleErrors(t *testing.T) {
+	t.Parallel()
 	result := &CostResultWithErrors{
 		Results: []*CostResult{},
 		Errors:  makeErrorDetails(3),
@@ -441,6 +460,7 @@ func testErrorSummaryMultipleErrors(t *testing.T) {
 }
 
 func testErrorSummaryTruncates(t *testing.T) {
+	t.Parallel()
 	result := &CostResultWithErrors{
 		Results: []*CostResult{},
 		Errors:  makeErrorDetails(10),
@@ -459,7 +479,10 @@ func testErrorSummaryTruncates(t *testing.T) {
 
 // T011: Unit test for GetProjectedCost error tracking (plugin errors, not validation errors).
 func TestGetProjectedCostWithErrors(t *testing.T) {
+	t.Parallel()
+
 	t.Run("tracks errors for failed resources", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{
 			getProjectedFunc: func(_ context.Context, in *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
 				// Fail for the second resource
@@ -513,7 +536,10 @@ func TestGetProjectedCostWithErrors(t *testing.T) {
 
 // T020: Unit test for GetActualCost error tracking.
 func TestGetActualCostWithErrors(t *testing.T) {
+	t.Parallel()
+
 	t.Run("tracks errors for failed resources", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{
 			getActualFunc: func(_ context.Context, in *GetActualCostRequest, _ ...grpc.CallOption) (*GetActualCostResponse, error) {
 				// Fail for the second resource ID
@@ -563,6 +589,8 @@ func TestGetActualCostWithErrors(t *testing.T) {
 
 // Test NameResponse.GetName method.
 func TestNameResponse_GetName(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		response NameResponse
@@ -587,6 +615,7 @@ func TestNameResponse_GetName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			if got := tt.response.GetName(); got != tt.expected {
 				t.Errorf("GetName() = %v, want %v", got, tt.expected)
 			}
@@ -596,10 +625,13 @@ func TestNameResponse_GetName(t *testing.T) {
 
 // Test NewCostSourceClient function.
 func TestNewCostSourceClient(t *testing.T) {
+	t.Parallel()
+
 	// This is a basic test since we can't easily create a real gRPC connection
 	// in a unit test. We test that the function doesn't panic and returns
 	// a non-nil client.
 	t.Run("returns non-nil client", func(t *testing.T) {
+		t.Parallel()
 		// We can't create a real connection, but we can test the function signature
 		// and that it would work with a nil connection (though it would fail at runtime)
 		defer func() {
@@ -618,7 +650,10 @@ func TestNewCostSourceClient(t *testing.T) {
 
 // Test clientAdapter.Name method.
 func TestClientAdapter_Name(t *testing.T) {
+	t.Parallel()
+
 	t.Run("successful name call", func(t *testing.T) {
+		t.Parallel()
 		adapter := &clientAdapter{client: &mockPbcCostSourceServiceClient{}}
 
 		resp, err := adapter.Name(context.Background(), &Empty{})
@@ -627,6 +662,7 @@ func TestClientAdapter_Name(t *testing.T) {
 	})
 
 	t.Run("name call with error", func(t *testing.T) {
+		t.Parallel()
 		mockGRPC := &mockPbcCostSourceServiceClient{
 			nameFunc: func(_ context.Context, _ *pbc.NameRequest, _ ...grpc.CallOption) (*pbc.NameResponse, error) {
 				return nil, errors.New("grpc error")
@@ -643,7 +679,10 @@ func TestClientAdapter_Name(t *testing.T) {
 
 // Test clientAdapter.GetProjectedCost method.
 func TestClientAdapter_GetProjectedCost(t *testing.T) {
+	t.Parallel()
+
 	t.Run("successful cost calculation", func(t *testing.T) {
+		t.Parallel()
 		// Test with resources that have SKU and region in properties
 		req := &GetProjectedCostRequest{
 			Resources: []*ResourceDescriptor{
@@ -677,6 +716,7 @@ func TestClientAdapter_GetProjectedCost(t *testing.T) {
 	})
 
 	t.Run("resource without sku/region properties", func(t *testing.T) {
+		t.Parallel()
 		req := &GetProjectedCostRequest{
 			Resources: []*ResourceDescriptor{
 				{
@@ -707,7 +747,10 @@ func TestClientAdapter_GetProjectedCost(t *testing.T) {
 
 // Test clientAdapter.GetActualCost method.
 func TestClientAdapter_GetActualCost(t *testing.T) {
+	t.Parallel()
+
 	t.Run("successful actual cost query", func(t *testing.T) {
+		t.Parallel()
 		startTime := time.Now().Add(-24 * time.Hour).Unix()
 		endTime := time.Now().Unix()
 
@@ -729,6 +772,7 @@ func TestClientAdapter_GetActualCost(t *testing.T) {
 	})
 
 	t.Run("empty resource IDs", func(t *testing.T) {
+		t.Parallel()
 		req := &GetActualCostRequest{
 			ResourceIDs: []string{},
 		}
@@ -741,6 +785,8 @@ func TestClientAdapter_GetActualCost(t *testing.T) {
 
 // TestExtractSKUFromProperties tests the SKU extraction function.
 func TestExtractSKUFromProperties(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		provider   string
@@ -813,6 +859,7 @@ func TestExtractSKUFromProperties(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			provider := "aws"
 			if tt.provider != "" {
 				provider = tt.provider
@@ -911,6 +958,8 @@ func TestExtractRegionFromProperties(t *testing.T) {
 
 // T041: Unit test for GetRecommendationsRequest type.
 func TestGetRecommendationsRequest_Creation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		request  GetRecommendationsRequest
@@ -989,6 +1038,7 @@ func TestGetRecommendationsRequest_Creation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tt.validate(t, tt.request)
 		})
 	}
@@ -996,6 +1046,8 @@ func TestGetRecommendationsRequest_Creation(t *testing.T) {
 
 // T042: Unit test for GetRecommendationsResponse type.
 func TestGetRecommendationsResponse_Creation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		response GetRecommendationsResponse
@@ -1072,6 +1124,7 @@ func TestGetRecommendationsResponse_Creation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tt.validate(t, tt.response)
 		})
 	}
@@ -1079,6 +1132,8 @@ func TestGetRecommendationsResponse_Creation(t *testing.T) {
 
 // T043: Unit test for clientAdapter.GetRecommendations method.
 func TestClientAdapter_GetRecommendations(t *testing.T) {
+	t.Parallel()
+
 	t.Run("successful recommendations query", testGetRecommendationsSuccess)
 	t.Run("query with no recommendations available", testGetRecommendationsEmpty)
 	t.Run("query with error", testGetRecommendationsError)
@@ -1087,6 +1142,7 @@ func TestClientAdapter_GetRecommendations(t *testing.T) {
 }
 
 func testGetRecommendationsSuccess(t *testing.T) {
+	t.Parallel()
 	mockClient := &mockCostSourceClient{
 		getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
 			return &GetRecommendationsResponse{
@@ -1131,6 +1187,7 @@ func testGetRecommendationsSuccess(t *testing.T) {
 }
 
 func testGetRecommendationsEmpty(t *testing.T) {
+	t.Parallel()
 	mockClient := &mockCostSourceClient{
 		getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
 			return &GetRecommendationsResponse{
@@ -1151,6 +1208,7 @@ func testGetRecommendationsEmpty(t *testing.T) {
 }
 
 func testGetRecommendationsError(t *testing.T) {
+	t.Parallel()
 	mockClient := &mockCostSourceClient{
 		getRecommendationsFunc: func(_ context.Context, _ *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
 			return nil, errors.New("service unavailable")
@@ -1165,6 +1223,7 @@ func testGetRecommendationsError(t *testing.T) {
 }
 
 func testGetRecommendationsPagination(t *testing.T) {
+	t.Parallel()
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getRecommendationsFunc: func(_ context.Context, in *GetRecommendationsRequest, _ ...grpc.CallOption) (*GetRecommendationsResponse, error) {
@@ -1205,6 +1264,7 @@ func testGetRecommendationsPagination(t *testing.T) {
 }
 
 func testGetRecommendationsDefaultMock(t *testing.T) {
+	t.Parallel()
 	mockClient := &mockCostSourceClient{} // No function set
 
 	resp, err := mockClient.GetRecommendations(context.Background(), &GetRecommendationsRequest{})
@@ -1215,6 +1275,8 @@ func testGetRecommendationsDefaultMock(t *testing.T) {
 // T031: Test that Recommendation struct correctly stores ActionType for all 11 action types.
 // This ensures JSON serialization will work correctly for recommendations output.
 func TestRecommendation_ActionTypeAll11Types(t *testing.T) {
+	t.Parallel()
+
 	// All 11 action types that must be supported
 	actionTypes := []struct {
 		name             string
@@ -1236,6 +1298,7 @@ func TestRecommendation_ActionTypeAll11Types(t *testing.T) {
 
 	for _, tt := range actionTypes {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			rec := Recommendation{
 				ID:          "rec-" + strings.ToLower(tt.actionType),
 				Category:    "COST",
@@ -1274,6 +1337,8 @@ func TestRecommendation_ActionTypeAll11Types(t *testing.T) {
 
 // T032: Verify that ActionType string representations work correctly for JSON output.
 func TestRecommendation_ActionType_JSONSerialization(t *testing.T) {
+	t.Parallel()
+
 	// Create a recommendation with each action type and verify the string representation
 	// is what we expect for JSON serialization
 	recommendations := []Recommendation{
@@ -1311,6 +1376,8 @@ func TestRecommendation_ActionType_JSONSerialization(t *testing.T) {
 
 // TestRecommendation_Creation tests the Recommendation type.
 func TestRecommendation_Creation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		rec      Recommendation
@@ -1401,6 +1468,7 @@ func TestRecommendation_Creation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tt.validate(t, tt.rec)
 		})
 	}
@@ -1408,6 +1476,8 @@ func TestRecommendation_Creation(t *testing.T) {
 
 // TestRecommendationImpact_Creation tests the RecommendationImpact type.
 func TestRecommendationImpact_Creation(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		impact RecommendationImpact
@@ -1440,6 +1510,7 @@ func TestRecommendationImpact_Creation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Basic validation that the struct was created correctly
 			if tt.impact.Currency == "" && tt.impact.EstimatedSavings > 0 {
 				t.Error("Currency should be set when EstimatedSavings > 0")
@@ -1455,6 +1526,8 @@ func TestRecommendationImpact_Creation(t *testing.T) {
 // T002: TestGetProjectedCost_ValidationFailure_EmptyProvider verifies that
 // resources with empty provider trigger pre-flight validation failure.
 func TestGetProjectedCost_ValidationFailure_EmptyProvider(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getProjectedFunc: func(
@@ -1517,6 +1590,8 @@ func TestGetProjectedCost_ValidationFailure_EmptyProvider(t *testing.T) {
 // T003: TestGetProjectedCost_ValidationFailure_EmptySKU verifies that
 // resources with empty SKU trigger pre-flight validation failure.
 func TestGetProjectedCost_ValidationFailure_EmptySKU(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getProjectedFunc: func(
@@ -1635,6 +1710,8 @@ func TestGetProjectedCost_ValidationFailure_EmptyRegion(t *testing.T) {
 // T005: TestGetProjectedCost_ValidationFailure_MixedValidInvalid verifies that
 // valid resources are processed while invalid ones get validation errors.
 func TestGetProjectedCost_ValidationFailure_MixedValidInvalid(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getProjectedFunc: func(
@@ -1715,6 +1792,8 @@ func TestGetProjectedCost_ValidationFailure_MixedValidInvalid(t *testing.T) {
 // T010: TestGetActualCost_ValidationFailure_EmptyResourceID verifies that
 // requests with empty resource ID trigger pre-flight validation failure.
 func TestGetActualCost_ValidationFailure_EmptyResourceID(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getActualFunc: func(
@@ -1871,6 +1950,8 @@ func TestResolveSKUAndRegion_AWSRegionFallbackScope(t *testing.T) {
 // T011: TestGetActualCost_ValidationFailure_InvalidTimeRange verifies that
 // requests with end time before start time trigger pre-flight validation failure.
 func TestGetActualCost_ValidationFailure_InvalidTimeRange(t *testing.T) {
+	t.Parallel()
+
 	callCount := 0
 	mockClient := &mockCostSourceClient{
 		getActualFunc: func(
@@ -1928,6 +2009,8 @@ func TestGetActualCost_ValidationFailure_InvalidTimeRange(t *testing.T) {
 // T006: Unit tests for DismissRecommendation adapter method.
 
 func TestDismissRecommendationRequest_Creation(t *testing.T) {
+	t.Parallel()
+
 	expiresAt := time.Now().Add(24 * time.Hour)
 
 	tests := []struct {
@@ -1997,12 +2080,15 @@ func TestDismissRecommendationRequest_Creation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tt.validate(t, tt.request)
 		})
 	}
 }
 
 func TestDismissRecommendationResponse_Creation(t *testing.T) {
+	t.Parallel()
+
 	dismissedAt := time.Now()
 	expiresAt := time.Now().Add(7 * 24 * time.Hour)
 
@@ -2058,15 +2144,19 @@ func TestDismissRecommendationResponse_Creation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tt.validate(t, tt.response)
 		})
 	}
 }
 
 func TestMockCostSourceClient_DismissRecommendation(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	t.Run("successful dismissal via mock", func(t *testing.T) {
+		t.Parallel()
 		dismissedAt := time.Now()
 		mockClient := &mockCostSourceClient{
 			dismissRecommendationFunc: func(
@@ -2097,6 +2187,7 @@ func TestMockCostSourceClient_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("dismissal with ExpiresAt conversion", func(t *testing.T) {
+		t.Parallel()
 		expiresAt := time.Now().Add(30 * 24 * time.Hour)
 		var capturedReq *DismissRecommendationRequest
 
@@ -2129,6 +2220,7 @@ func TestMockCostSourceClient_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("dismissal error handling", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{
 			dismissRecommendationFunc: func(
 				_ context.Context,
@@ -2151,6 +2243,7 @@ func TestMockCostSourceClient_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("default mock returns success", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{}
 
 		req := &DismissRecommendationRequest{
@@ -2164,6 +2257,7 @@ func TestMockCostSourceClient_DismissRecommendation(t *testing.T) {
 	})
 
 	t.Run("all dismissal reasons", func(t *testing.T) {
+		t.Parallel()
 		reasons := []pbc.DismissalReason{
 			pbc.DismissalReason_DISMISSAL_REASON_NOT_APPLICABLE,
 			pbc.DismissalReason_DISMISSAL_REASON_ALREADY_IMPLEMENTED,
@@ -2194,6 +2288,8 @@ func TestMockCostSourceClient_DismissRecommendation(t *testing.T) {
 // =============================================================================
 
 func TestResolveActualCostIdentifiers(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		resourceID  string
@@ -2324,6 +2420,7 @@ func TestResolveActualCostIdentifiers(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			cloudID, arn, tags := resolveActualCostIdentifiers(tt.resourceID, tt.properties)
 
 			assert.Equal(t, tt.wantCloudID, cloudID)
@@ -2338,6 +2435,8 @@ func TestResolveActualCostIdentifiers(t *testing.T) {
 }
 
 func TestExtractResourceTags(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		properties map[string]interface{}
@@ -2390,6 +2489,7 @@ func TestExtractResourceTags(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tags := extractResourceTags(tt.properties)
 			assert.Len(t, tags, tt.wantLen)
 		})
@@ -2405,6 +2505,8 @@ func TestExtractResourceTags(t *testing.T) {
 }
 
 func TestExtractTagMap(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		properties map[string]interface{}
@@ -2452,6 +2554,7 @@ func TestExtractTagMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := extractTagMap(tt.properties, tt.key)
 			assert.Len(t, result, tt.wantLen)
 			if tt.wantKey != "" {
@@ -2462,10 +2565,13 @@ func TestExtractTagMap(t *testing.T) {
 }
 
 func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
+	t.Parallel()
+
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	endTime := time.Now().Unix()
 
 	t.Run("captures resolved cloud identifiers", func(t *testing.T) {
+		t.Parallel()
 		var capturedReq *GetActualCostRequest
 		mockClient := &mockCostSourceClient{
 			getActualFunc: func(
@@ -2517,6 +2623,7 @@ func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
 	})
 
 	t.Run("plugin error propagation with properties", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{
 			getActualFunc: func(
 				_ context.Context,
@@ -2546,6 +2653,7 @@ func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
 	})
 
 	t.Run("missing cloudId falls back to resource URN", func(t *testing.T) {
+		t.Parallel()
 		var capturedReq *GetActualCostRequest
 		mockClient := &mockCostSourceClient{
 			getActualFunc: func(
@@ -2589,6 +2697,7 @@ func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
 	})
 
 	t.Run("multi-resource with properties returns error", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{}
 
 		req := &GetActualCostRequest{
@@ -2609,10 +2718,13 @@ func TestGetActualCostWithErrors_CloudIdentifiers(t *testing.T) {
 }
 
 func TestGetActualCostWithErrors_SKURegionInjection(t *testing.T) {
+	t.Parallel()
+
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	endTime := time.Now().Unix()
 
 	t.Run("injects SKU and region into tags when provider set", func(t *testing.T) {
+		t.Parallel()
 		var capturedReq *GetActualCostRequest
 		mockClient := &mockCostSourceClient{
 			getActualFunc: func(
@@ -2655,6 +2767,7 @@ func TestGetActualCostWithErrors_SKURegionInjection(t *testing.T) {
 	})
 
 	t.Run("does not inject SKU/region without provider", func(t *testing.T) {
+		t.Parallel()
 		var capturedReq *GetActualCostRequest
 		mockClient := &mockCostSourceClient{
 			getActualFunc: func(
@@ -2691,6 +2804,7 @@ func TestGetActualCostWithErrors_SKURegionInjection(t *testing.T) {
 	})
 
 	t.Run("does not overwrite existing tags", func(t *testing.T) {
+		t.Parallel()
 		mockClient := &mockCostSourceClient{
 			getActualFunc: func(
 				_ context.Context,
@@ -2728,6 +2842,8 @@ func TestGetActualCostWithErrors_SKURegionInjection(t *testing.T) {
 }
 
 func TestToStringMap(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name  string
 		input map[string]interface{}
@@ -2752,6 +2868,7 @@ func TestToStringMap(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := toStringMap(tt.input)
 			assert.Equal(t, tt.want, got)
 		})
@@ -2759,7 +2876,10 @@ func TestToStringMap(t *testing.T) {
 }
 
 func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
+	t.Parallel()
+
 	t.Run("injects SKU and region from AWS properties", func(t *testing.T) {
+		t.Parallel()
 		tags := map[string]string{"Name": "web-server"}
 		props := map[string]interface{}{
 			"instanceType":     "t3.medium",
@@ -2776,6 +2896,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 	})
 
 	t.Run("does not overwrite existing sku/region in tags", func(t *testing.T) {
+		t.Parallel()
 		tags := map[string]string{
 			"sku":           "existing-sku",
 			"region":        "existing-region",
@@ -2796,6 +2917,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 	})
 
 	t.Run("extracts region from ARN when no explicit region", func(t *testing.T) {
+		t.Parallel()
 		tags := map[string]string{"Name": "web-server"}
 		props := map[string]interface{}{
 			"instanceType": "t3.medium",
@@ -2809,6 +2931,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 	})
 
 	t.Run("extracts region from terraform ARN when no explicit region", func(t *testing.T) {
+		t.Parallel()
 		tags := map[string]string{"Name": "web-server"}
 		props := map[string]interface{}{
 			"instanceType":  "t3.medium",
@@ -2822,6 +2945,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 	})
 
 	t.Run("explicit region takes precedence over ARN", func(t *testing.T) {
+		t.Parallel()
 		tags := map[string]string{}
 		props := map[string]interface{}{
 			"instanceType":     "t3.medium",
@@ -2835,6 +2959,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 	})
 
 	t.Run("empty properties does not add tags", func(t *testing.T) {
+		t.Parallel()
 		tags := map[string]string{"Name": "test"}
 		props := map[string]interface{}{}
 
@@ -2849,6 +2974,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 	})
 
 	t.Run("EKS cluster gets SKU from well-known map via resourceType fallback", func(t *testing.T) {
+		t.Parallel()
 		tags := map[string]string{"Name": "my-cluster"}
 		props := map[string]interface{}{
 			"name": "my-cluster",
@@ -2862,6 +2988,7 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 	})
 
 	t.Run("injects provider and resource_type into empty tags", func(t *testing.T) {
+		t.Parallel()
 		tags := map[string]string{}
 		props := map[string]interface{}{}
 
@@ -2877,6 +3004,8 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 }
 
 func TestRegionFromARN(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		arn  string
@@ -2894,6 +3023,7 @@ func TestRegionFromARN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := awsutil.RegionFromARN(tt.arn)
 			assert.Equal(t, tt.want, got)
 		})
@@ -2907,10 +3037,13 @@ func TestRegionFromARN(t *testing.T) {
 // Here we mock pbc.CostSourceServiceClient (the raw gRPC client) to capture the actual
 // pbc.GetActualCostRequest and inspect its Tags map.
 func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
+	t.Parallel()
+
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	endTime := time.Now().Unix()
 
 	t.Run("proto tags contain enriched sku and region", func(t *testing.T) {
+		t.Parallel()
 		var capturedProtoReq *pbc.GetActualCostRequest
 		mockGRPC := &mockPbcCostSourceServiceClient{
 			getActualCostFunc: func(
@@ -2954,6 +3087,7 @@ func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
 	})
 
 	t.Run("proto tags empty when provider is empty", func(t *testing.T) {
+		t.Parallel()
 		var capturedProtoReq *pbc.GetActualCostRequest
 		mockGRPC := &mockPbcCostSourceServiceClient{
 			getActualCostFunc: func(
@@ -3000,6 +3134,7 @@ func TestActualCost_ProtoTagsContainSKUAndRegion(t *testing.T) {
 	})
 
 	t.Run("proto tags preserve existing sku and region", func(t *testing.T) {
+		t.Parallel()
 		var capturedProtoReq *pbc.GetActualCostRequest
 		mockGRPC := &mockPbcCostSourceServiceClient{
 			getActualCostFunc: func(
@@ -3178,6 +3313,8 @@ func (m *mockPbcCostSourceServiceClient) ResolveResourceTypes(
 }
 
 func TestClientAdapter_GetActualCost_EmptyPluginResponse(t *testing.T) {
+	t.Parallel()
+
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	endTime := time.Now().Unix()
 
@@ -3212,6 +3349,8 @@ func TestClientAdapter_GetActualCost_EmptyPluginResponse(t *testing.T) {
 }
 
 func TestAppendActualCostResults_DeepCopy(t *testing.T) {
+	t.Parallel()
+
 	// Arrange
 	originalBreakdown := map[string]float64{
 		"Compute": 100.0,
@@ -3242,6 +3381,8 @@ func TestAppendActualCostResults_DeepCopy(t *testing.T) {
 }
 
 func TestAppendActualCostResults_ExpiresAtPropagated(t *testing.T) {
+	t.Parallel()
+
 	expiresAt := time.Now().Add(2 * time.Hour)
 	actualResults := []*ActualCostResult{
 		{
@@ -3270,6 +3411,8 @@ func TestAppendActualCostResults_ExpiresAtPropagated(t *testing.T) {
 
 // T008: Test that StructuredError is populated for validation failures.
 func TestGetProjectedCostWithErrors_StructuredError_Validation(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	client := &mockCostSourceClient{}
 
@@ -3294,6 +3437,8 @@ func TestGetProjectedCostWithErrors_StructuredError_Validation(t *testing.T) {
 
 // T008: Test that StructuredError is populated for plugin gRPC failures.
 func TestGetProjectedCostWithErrors_StructuredError_PluginError(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	client := &mockCostSourceClient{
 		getProjectedFunc: func(_ context.Context, _ *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
@@ -3324,6 +3469,8 @@ func TestGetProjectedCostWithErrors_StructuredError_PluginError(t *testing.T) {
 
 // T008: Test that TIMEOUT_ERROR is set for [context.DeadlineExceeded].
 func TestGetProjectedCostWithErrors_StructuredError_Timeout(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	client := &mockCostSourceClient{
 		getProjectedFunc: func(_ context.Context, _ *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
@@ -3347,6 +3494,8 @@ func TestGetProjectedCostWithErrors_StructuredError_Timeout(t *testing.T) {
 
 // T008: Test that TIMEOUT_ERROR is set for gRPC status-wrapped deadline errors.
 func TestGetProjectedCostWithErrors_StructuredError_GRPCTimeout(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	client := &mockCostSourceClient{
 		getProjectedFunc: func(_ context.Context, _ *GetProjectedCostRequest, _ ...grpc.CallOption) (*GetProjectedCostResponse, error) {
@@ -3371,6 +3520,8 @@ func TestGetProjectedCostWithErrors_StructuredError_GRPCTimeout(t *testing.T) {
 
 // T008: Test StructuredError for actual cost validation failure.
 func TestGetActualCostWithErrors_StructuredError_Validation(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	client := &mockCostSourceClient{}
 
@@ -3391,6 +3542,8 @@ func TestGetActualCostWithErrors_StructuredError_Validation(t *testing.T) {
 
 // T008: Test StructuredError for actual cost plugin failure.
 func TestGetActualCostWithErrors_StructuredError_PluginError(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	client := &mockCostSourceClient{
 		getActualFunc: func(_ context.Context, _ *GetActualCostRequest, _ ...grpc.CallOption) (*GetActualCostResponse, error) {
@@ -3415,6 +3568,8 @@ func TestGetActualCostWithErrors_StructuredError_PluginError(t *testing.T) {
 
 // T008: Test that TIMEOUT_ERROR is set for gRPC status-wrapped deadline errors in actual cost path.
 func TestGetActualCostWithErrors_StructuredError_GRPCTimeout(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	client := &mockCostSourceClient{
 		getActualFunc: func(_ context.Context, _ *GetActualCostRequest, _ ...grpc.CallOption) (*GetActualCostResponse, error) {
@@ -3443,6 +3598,8 @@ func TestGetActualCostWithErrors_StructuredError_GRPCTimeout(t *testing.T) {
 // empty strings rather than panicking when properties map has no recognisable SKU/region
 // keys, and that the debug log is emitted without error.
 func TestResolveSKUAndRegion_EmptyFallback(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		provider     string
@@ -3495,6 +3652,7 @@ func TestResolveSKUAndRegion_EmptyFallback(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Should not panic and should return empty strings for unrecognised properties.
 			sku, region := resolveSKUAndRegion(context.Background(), tt.provider, tt.resourceType, tt.properties)
 			assert.Equal(t, tt.wantSKU, sku, "unexpected SKU for provider=%s", tt.provider)
@@ -3505,7 +3663,10 @@ func TestResolveSKUAndRegion_EmptyFallback(t *testing.T) {
 
 // T006: Tests for ExpiresAt extraction in clientAdapter.GetProjectedCost.
 func TestClientAdapter_GetProjectedCost_ExpiresAt(t *testing.T) {
+	t.Parallel()
+
 	t.Run("ExpiresAt populated when proto response has expires_at", func(t *testing.T) {
+		t.Parallel()
 		futureTime := time.Now().Add(24 * time.Hour)
 
 		mockGRPC := &mockPbcCostSourceServiceClient{
@@ -3540,6 +3701,7 @@ func TestClientAdapter_GetProjectedCost_ExpiresAt(t *testing.T) {
 	})
 
 	t.Run("ExpiresAt nil when proto response has no expires_at", func(t *testing.T) {
+		t.Parallel()
 		mockGRPC := &mockPbcCostSourceServiceClient{
 			getProjectedCostFunc: func(
 				_ context.Context,
@@ -3570,10 +3732,13 @@ func TestClientAdapter_GetProjectedCost_ExpiresAt(t *testing.T) {
 
 // T007: Tests for ExpiresAt extraction in clientAdapter.GetActualCost.
 func TestClientAdapter_GetActualCost_ExpiresAt(t *testing.T) {
+	t.Parallel()
+
 	startTime := time.Now().Add(-24 * time.Hour).Unix()
 	endTime := time.Now().Unix()
 
 	t.Run("ExpiresAt populated from earliest expires_at across batch", func(t *testing.T) {
+		t.Parallel()
 		earlier := time.Now().Add(1 * time.Hour)
 		later := time.Now().Add(24 * time.Hour)
 
@@ -3611,6 +3776,7 @@ func TestClientAdapter_GetActualCost_ExpiresAt(t *testing.T) {
 	})
 
 	t.Run("ExpiresAt nil when no results have expires_at", func(t *testing.T) {
+		t.Parallel()
 		mockGRPC := &mockPbcCostSourceServiceClient{
 			getActualCostFunc: func(
 				_ context.Context,
@@ -3642,6 +3808,7 @@ func TestClientAdapter_GetActualCost_ExpiresAt(t *testing.T) {
 	})
 
 	t.Run("ExpiresAt uses only non-nil timestamps from batch", func(t *testing.T) {
+		t.Parallel()
 		onlyTS := time.Now().Add(6 * time.Hour)
 
 		mockGRPC := &mockPbcCostSourceServiceClient{
@@ -3679,6 +3846,8 @@ func TestClientAdapter_GetActualCost_ExpiresAt(t *testing.T) {
 }
 
 func TestBuildEstimateCostRequest_ValidResource(t *testing.T) {
+	t.Parallel()
+
 	properties := map[string]any{
 		"instanceType": "m5.large",
 		"region":       "us-east-1",
@@ -3696,6 +3865,8 @@ func TestBuildEstimateCostRequest_ValidResource(t *testing.T) {
 }
 
 func TestBuildEstimateCostRequest_EmptyType(t *testing.T) {
+	t.Parallel()
+
 	req, err := BuildEstimateCostRequest("", map[string]any{"key": "val"})
 	require.Error(t, err)
 	assert.Nil(t, req)
@@ -3703,6 +3874,8 @@ func TestBuildEstimateCostRequest_EmptyType(t *testing.T) {
 }
 
 func TestBuildEstimateCostRequest_NilProperties(t *testing.T) {
+	t.Parallel()
+
 	req, err := BuildEstimateCostRequest("aws:ec2/instance:Instance", nil)
 	require.NoError(t, err)
 	require.NotNil(t, req)
@@ -3712,6 +3885,8 @@ func TestBuildEstimateCostRequest_NilProperties(t *testing.T) {
 }
 
 func TestBuildEstimateCostRequest_UnsupportedPropertyType(t *testing.T) {
+	t.Parallel()
+
 	properties := map[string]any{
 		"badField": make(chan int),
 	}
@@ -3722,6 +3897,8 @@ func TestBuildEstimateCostRequest_UnsupportedPropertyType(t *testing.T) {
 }
 
 func TestBuildEstimateCostRequest_UnsupportedAttribute(t *testing.T) {
+	t.Parallel()
+
 	// Functions are not supported by structpb.NewStruct
 	properties := map[string]any{
 		"bad": func() {},
@@ -3734,7 +3911,10 @@ func TestBuildEstimateCostRequest_UnsupportedAttribute(t *testing.T) {
 
 // T001: Unit tests for clientAdapter.BatchCost pass-through delegation.
 func TestClientAdapterBatchCost(t *testing.T) {
+	t.Parallel()
+
 	t.Run("passes request and returns response", func(t *testing.T) {
+		t.Parallel()
 		expectedResp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -3788,6 +3968,7 @@ func TestClientAdapterBatchCost(t *testing.T) {
 	})
 
 	t.Run("propagates error", func(t *testing.T) {
+		t.Parallel()
 		mockGRPC := &mockPbcCostSourceServiceClient{
 			batchCostFunc: func(
 				_ context.Context,
@@ -3809,7 +3990,10 @@ func TestClientAdapterBatchCost(t *testing.T) {
 
 // T002: Unit tests for MapBatchProjectedResults.
 func TestMapBatchProjectedResults(t *testing.T) {
+	t.Parallel()
+
 	t.Run("all success with 3 resources", func(t *testing.T) {
+		t.Parallel()
 		expiresAt := time.Now().Add(2 * time.Hour)
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
@@ -3891,6 +4075,7 @@ func TestMapBatchProjectedResults(t *testing.T) {
 	})
 
 	t.Run("all errors", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -3929,6 +4114,7 @@ func TestMapBatchProjectedResults(t *testing.T) {
 	})
 
 	t.Run("mixed success and error", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -3967,12 +4153,14 @@ func TestMapBatchProjectedResults(t *testing.T) {
 	})
 
 	t.Run("empty response", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{}
 		mapped := MapBatchProjectedResults(resp)
 		assert.Empty(t, mapped)
 	})
 
 	t.Run("nil CostData triggers fallback", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -3990,6 +4178,7 @@ func TestMapBatchProjectedResults(t *testing.T) {
 	})
 
 	t.Run("CostData present but projected cost nil triggers fallback", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -4007,6 +4196,7 @@ func TestMapBatchProjectedResults(t *testing.T) {
 	})
 
 	t.Run("ExpiresAt extraction", func(t *testing.T) {
+		t.Parallel()
 		expiresAt := time.Now().Add(4 * time.Hour)
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
@@ -4035,6 +4225,7 @@ func TestMapBatchProjectedResults(t *testing.T) {
 	})
 
 	t.Run("resource_type_unsupported skip", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -4060,7 +4251,10 @@ func TestMapBatchProjectedResults(t *testing.T) {
 
 // T003: Unit tests for MapBatchActualResults.
 func TestMapBatchActualResults(t *testing.T) {
+	t.Parallel()
+
 	t.Run("all success with ActualCostData", func(t *testing.T) {
+		t.Parallel()
 		expiresAt := time.Now().Add(1 * time.Hour)
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
@@ -4115,6 +4309,7 @@ func TestMapBatchActualResults(t *testing.T) {
 	})
 
 	t.Run("ResourceError with ResourceTypeUnsupported", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -4138,6 +4333,7 @@ func TestMapBatchActualResults(t *testing.T) {
 	})
 
 	t.Run("ResourceError without ResourceTypeUnsupported", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -4161,12 +4357,14 @@ func TestMapBatchActualResults(t *testing.T) {
 	})
 
 	t.Run("empty results array", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{}
 		mapped := MapBatchActualResults(resp)
 		assert.Empty(t, mapped)
 	})
 
 	t.Run("nil CostData", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -4184,6 +4382,7 @@ func TestMapBatchActualResults(t *testing.T) {
 	})
 
 	t.Run("CostData present but actual cost nil triggers fallback", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -4201,6 +4400,7 @@ func TestMapBatchActualResults(t *testing.T) {
 	})
 
 	t.Run("ActualCostData with empty results", func(t *testing.T) {
+		t.Parallel()
 		resp := &pbc.BatchCostResponse{
 			Results: []*pbc.ResourceCostResult{
 				{
@@ -4244,6 +4444,8 @@ func (s *stubPBCCostSourceClient) ResolveResourceTypes(
 }
 
 func TestClientAdapterResolveResourceTypes(t *testing.T) {
+	t.Parallel()
+
 	stub := &stubPBCCostSourceClient{}
 	adapter := &clientAdapter{client: stub}
 

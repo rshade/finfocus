@@ -12,6 +12,8 @@ import (
 )
 
 func TestCompilePattern_Glob(t *testing.T) {
+	t.Parallel()
+
 	pattern := config.ResourcePattern{
 		Type:    "glob",
 		Pattern: "aws:ec2:*",
@@ -25,6 +27,8 @@ func TestCompilePattern_Glob(t *testing.T) {
 }
 
 func TestCompilePattern_Regex(t *testing.T) {
+	t.Parallel()
+
 	pattern := config.ResourcePattern{
 		Type:    "regex",
 		Pattern: "aws:(ec2|rds)/.*",
@@ -38,6 +42,8 @@ func TestCompilePattern_Regex(t *testing.T) {
 }
 
 func TestCompilePattern_InvalidRegex(t *testing.T) {
+	t.Parallel()
+
 	pattern := config.ResourcePattern{
 		Type:    "regex",
 		Pattern: "aws:(ec2|rds", // Missing closing paren
@@ -50,6 +56,8 @@ func TestCompilePattern_InvalidRegex(t *testing.T) {
 }
 
 func TestCompiledPattern_Match_Glob(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		pattern      string
@@ -108,6 +116,7 @@ func TestCompiledPattern_Match_Glob(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			pattern := config.ResourcePattern{Type: "glob", Pattern: tt.pattern}
 			compiled, err := router.CompilePattern(pattern)
 			require.NoError(t, err)
@@ -120,6 +129,8 @@ func TestCompiledPattern_Match_Glob(t *testing.T) {
 }
 
 func TestCompiledPattern_Match_Regex(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		pattern      string
@@ -172,6 +183,7 @@ func TestCompiledPattern_Match_Regex(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			pattern := config.ResourcePattern{Type: "regex", Pattern: tt.pattern}
 			compiled, err := router.CompilePattern(pattern)
 			require.NoError(t, err)
@@ -184,6 +196,8 @@ func TestCompiledPattern_Match_Regex(t *testing.T) {
 }
 
 func TestPatternCache_MatchGlob(t *testing.T) {
+	t.Parallel()
+
 	cache := router.NewPatternCache()
 
 	matched, err := cache.MatchGlob("aws:*", "aws:ec2/instance:Instance")
@@ -200,6 +214,8 @@ func TestPatternCache_MatchGlob(t *testing.T) {
 }
 
 func TestPatternCache_MatchRegex(t *testing.T) {
+	t.Parallel()
+
 	cache := router.NewPatternCache()
 
 	// First call compiles and caches
@@ -216,6 +232,8 @@ func TestPatternCache_MatchRegex(t *testing.T) {
 }
 
 func TestPatternCache_MatchRegex_InvalidPattern(t *testing.T) {
+	t.Parallel()
+
 	cache := router.NewPatternCache()
 
 	_, err := cache.MatchRegex("aws:(ec2|rds", "aws:ec2:Instance")
@@ -224,6 +242,8 @@ func TestPatternCache_MatchRegex_InvalidPattern(t *testing.T) {
 }
 
 func TestPatternCache_Match(t *testing.T) {
+	t.Parallel()
+
 	cache := router.NewPatternCache()
 
 	// Test glob
@@ -240,6 +260,8 @@ func TestPatternCache_Match(t *testing.T) {
 }
 
 func TestPatternCache_Clear(t *testing.T) {
+	t.Parallel()
+
 	cache := router.NewPatternCache()
 
 	// Populate cache
@@ -253,6 +275,8 @@ func TestPatternCache_Clear(t *testing.T) {
 }
 
 func TestPatternCache_ConcurrentAccess(t *testing.T) {
+	t.Parallel()
+
 	cache := router.NewPatternCache()
 	const goroutines = 100
 	const iterations = 100

@@ -19,6 +19,8 @@ import (
 
 // TestPluginCommunication_BasicConnection tests basic gRPC connection and Name method.
 func TestPluginCommunication_BasicConnection(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin server on TCP
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -39,6 +41,8 @@ func TestPluginCommunication_BasicConnection(t *testing.T) {
 
 // TestPluginCommunication_ProjectedCostFlow tests projected cost calculation flow with custom responses.
 func TestPluginCommunication_ProjectedCostFlow(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin server on TCP
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -81,6 +85,8 @@ func TestPluginCommunication_ProjectedCostFlow(t *testing.T) {
 
 // TestPluginCommunication_ActualCostFlow tests actual cost retrieval with custom responses.
 func TestPluginCommunication_ActualCostFlow(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin server on TCP
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -117,6 +123,8 @@ func TestPluginCommunication_ActualCostFlow(t *testing.T) {
 
 // TestPluginCommunication_ErrorHandling tests error injection and handling in plugin communication.
 func TestPluginCommunication_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin server on TCP
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -144,6 +152,8 @@ func TestPluginCommunication_ErrorHandling(t *testing.T) {
 
 // TestPluginCommunication_Timeout tests context timeout handling with delayed responses.
 func TestPluginCommunication_Timeout(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin server on TCP
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -191,6 +201,8 @@ func containsAny(s string, substrings ...string) bool {
 
 // TestIntegration_PluginFallbackToSpec tests that engine falls back to spec when plugin unavailable.
 func TestIntegration_PluginFallbackToSpec(t *testing.T) {
+	t.Parallel()
+
 	// Start mock plugin server
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
@@ -220,6 +232,8 @@ func TestIntegration_PluginFallbackToSpec(t *testing.T) {
 
 // TestIntegration_TagFilterProcessing tests tag-based filtering in plugin requests.
 func TestIntegration_TagFilterProcessing(t *testing.T) {
+	t.Parallel()
+
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
 	defer server.Stop()
@@ -252,6 +266,8 @@ func TestIntegration_TagFilterProcessing(t *testing.T) {
 
 // TestIntegration_DailyCostsAggregation tests daily costs are correctly processed.
 func TestIntegration_DailyCostsAggregation(t *testing.T) {
+	t.Parallel()
+
 	server, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)
 	defer server.Stop()
@@ -280,6 +296,8 @@ func TestIntegration_DailyCostsAggregation(t *testing.T) {
 
 // TestIntegration_MultiPluginCostCollection tests cost collection from multiple plugins.
 func TestIntegration_MultiPluginCostCollection(t *testing.T) {
+	t.Parallel()
+
 	// Start first mock plugin server
 	server1, err := plugin.StartMockServerTCP()
 	require.NoError(t, err)

@@ -13,6 +13,7 @@ import (
 	"github.com/rshade/finfocus/internal/cli"
 )
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestNewRootCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -167,6 +168,8 @@ func TestRootCmdFlags(t *testing.T) {
 
 // TestRootCmdPluginMode tests that the root command correctly detects plugin mode
 // and adjusts its Use and Example strings accordingly.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestRootCmdPluginMode(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 
@@ -279,6 +282,8 @@ func TestRootCmdPluginModeHelpOutput(t *testing.T) {
 // 1. Exists as a persistent string flag with empty default
 // 2. Is available on subcommands (inherited)
 // 3. Appears in help output.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestRootCmdProjectDirFlag(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
@@ -338,6 +343,8 @@ func TestRootCmdProjectDirFlag(t *testing.T) {
 // - error (exit 1) for failed commands
 // Note: This tests the Execute() error return, not [os.Exit] directly.
 // The main() function converts non-nil errors to [os.Exit](1).
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestExitCodeBehavior(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 

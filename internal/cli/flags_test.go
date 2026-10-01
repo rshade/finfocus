@@ -69,6 +69,8 @@ func TestFlags_CostActual_AllFlags(t *testing.T) {
 }
 
 // TestFlags_OutputFormat_Values tests all valid output format values.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestFlags_OutputFormat_Values(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -101,6 +103,8 @@ func TestFlags_OutputFormat_Values(t *testing.T) {
 }
 
 // TestFlags_GroupBy_Values tests all valid group-by values.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestFlags_GroupBy_Values(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -149,6 +153,8 @@ func TestFlags_GroupBy_Values(t *testing.T) {
 }
 
 // TestFlags_Filter_Expressions tests various filter expression formats.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestFlags_Filter_Expressions(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -193,6 +199,8 @@ func TestFlags_Filter_Expressions(t *testing.T) {
 }
 
 // TestFlags_DateFormats tests various date format inputs.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestFlags_DateFormats(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")

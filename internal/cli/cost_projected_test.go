@@ -18,6 +18,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 )
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestNewCostProjectedCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
@@ -443,6 +444,8 @@ func TestCostProjectedCmd_MultipleResources(t *testing.T) {
 
 // TestCostProjectedCmd_OutputFormatsAndFilters consolidates tests for table/NDJSON output
 // formats and type/provider filtering into a single table-driven test (#782).
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestCostProjectedCmd_OutputFormatsAndFilters(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	isolateConfig(t)
@@ -659,6 +662,7 @@ func TestCostProjectedCmd_ComplexResourceProperties(t *testing.T) {
 	assert.Empty(t, results.Resources) // No plugins/specs = empty
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestCostProjectedTerraformStateFlagValidation(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	tests := []struct {

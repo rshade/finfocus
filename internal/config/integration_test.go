@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton
 func TestGlobalConfig(t *testing.T) {
 	// Reset global config
 	ResetGlobalConfigForTest()
@@ -29,6 +30,7 @@ func TestGlobalConfig(t *testing.T) {
 	assert.NotSame(t, cfg, cfg3)
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton
 func TestConfigGetters(t *testing.T) {
 	// Reset and initialize with test values
 	ResetGlobalConfigForTest()
@@ -73,6 +75,7 @@ func TestEnsureConfigDir(t *testing.T) {
 	assert.True(t, stat.IsDir())
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton
 func TestEnsureLogDir(t *testing.T) {
 	// Create a temporary directory for logs
 	tmpDir := t.TempDir()
@@ -92,6 +95,7 @@ func TestEnsureLogDir(t *testing.T) {
 	assert.True(t, stat.IsDir())
 }
 
+//nolint:paralleltest // ResetGlobalConfigForTest resets the process-wide global config singleton
 func TestEnsureLogDirError(t *testing.T) {
 	// Reset global config and set invalid log file path
 	ResetGlobalConfigForTest()
@@ -110,6 +114,7 @@ func TestEnsureLogDirError(t *testing.T) {
 	assert.Error(t, err)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestGetConfigDir(t *testing.T) {
 	stubHome(t)
 
@@ -124,6 +129,7 @@ func TestGetConfigDir(t *testing.T) {
 	assert.Contains(t, dir, ".finfocus")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestGetPluginDir(t *testing.T) {
 	stubHome(t)
 
@@ -138,6 +144,7 @@ func TestGetPluginDir(t *testing.T) {
 	assert.Contains(t, dir, "plugins")
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestGetSpecDir(t *testing.T) {
 	stubHome(t)
 
@@ -311,6 +318,7 @@ func TestInitGlobalConfigWithProject(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via stubHome)
 func TestEnsureSubDirs(t *testing.T) {
 	stubHome(t)
 

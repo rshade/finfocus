@@ -15,6 +15,8 @@ import (
 )
 
 func TestComputeSHA256(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		content     []byte
@@ -37,6 +39,7 @@ func TestComputeSHA256(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpFile := filepath.Join(t.TempDir(), "testfile")
 			require.NoError(t, os.WriteFile(tmpFile, tt.content, 0644))
 
@@ -59,11 +62,15 @@ func TestComputeSHA256(t *testing.T) {
 }
 
 func TestComputeSHA256_FileNotFound(t *testing.T) {
+	t.Parallel()
+
 	_, err := computeSHA256(context.Background(), "/nonexistent/path/file.bin")
 	require.Error(t, err)
 }
 
 func TestComputeSHA256_Performance(t *testing.T) {
+	t.Parallel()
+
 	// SC-006: Must complete in under 2 seconds for 50 MB file
 	tmpFile := filepath.Join(t.TempDir(), "largefile")
 	data := make([]byte, 50*1024*1024) // 50 MB
@@ -94,6 +101,7 @@ func BenchmarkComputeSHA256_50MB(b *testing.B) {
 	}
 }
 
+//nolint:paralleltest // table cases share the parent-scoped fixture correctHash = hex.EncodeToString(...)
 func TestVerifyChecksum(t *testing.T) {
 	content := []byte("test file content")
 	h := sha256.Sum256(content)
@@ -147,12 +155,16 @@ func TestVerifyChecksum(t *testing.T) {
 }
 
 func TestVerifyChecksum_FileNotFound(t *testing.T) {
+	t.Parallel()
+
 	err := VerifyChecksum(context.Background(), "/nonexistent/file", strings.Repeat("ab", 32))
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, ErrChecksumMismatch)
 }
 
 func TestParseChecksumsFile(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		data        string
@@ -264,6 +276,7 @@ func TestParseChecksumsFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := ParseChecksumsFile([]byte(tt.data), tt.assetName)
 			if tt.wantErr != nil {
 				require.Error(t, err)
@@ -277,6 +290,8 @@ func TestParseChecksumsFile(t *testing.T) {
 }
 
 func TestFindChecksumAsset(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		release   *GitHubRelease
@@ -358,6 +373,7 @@ func TestFindChecksumAsset(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := FindChecksumAsset(tt.release)
 			if tt.wantFound {
 				require.NotNil(t, result)

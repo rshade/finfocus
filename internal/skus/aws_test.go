@@ -7,6 +7,8 @@ import (
 )
 
 func TestResolveAWSSKU(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -51,6 +53,7 @@ func TestResolveAWSSKU(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := resolveAWSSKU(tt.resourceType, nil)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -58,6 +61,8 @@ func TestResolveAWSSKU(t *testing.T) {
 }
 
 func TestExtractPulumiSegment(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -92,6 +97,7 @@ func TestExtractPulumiSegment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := extractPulumiSegment(tt.resourceType)
 			assert.Equal(t, tt.expected, result)
 		})

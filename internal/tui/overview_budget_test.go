@@ -96,6 +96,8 @@ func testModelWithBudget(result *engine.BudgetResult) OverviewModel {
 // TestRenderBudgetFooter verifies budget footer rendering across all health
 // states, edge cases, and mixed-currency scenarios.
 func TestRenderBudgetFooter(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		model          OverviewModel
@@ -196,6 +198,7 @@ func TestRenderBudgetFooter(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := renderBudgetFooter(tt.model)
 			if tt.expectEmpty {
 				assert.Empty(t, result)
@@ -215,6 +218,8 @@ func TestRenderBudgetFooter(t *testing.T) {
 // TestRenderDetailBudgetStatus verifies the detail view budget section rendering
 // including per-budget breakdown, triggered alerts, and edge cases.
 func TestRenderDetailBudgetStatus(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		model          OverviewModel
@@ -309,6 +314,7 @@ func TestRenderDetailBudgetStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := renderDetailBudgetStatus(tt.model)
 			if tt.expectEmpty {
 				assert.Empty(t, result)

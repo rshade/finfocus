@@ -11,6 +11,8 @@ import (
 )
 
 func TestExtractResourceRegion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		resource engine.ResourceDescriptor
@@ -85,6 +87,7 @@ func TestExtractResourceRegion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := ExtractResourceRegion(tt.resource)
 			assert.Equal(t, tt.want, got)
 		})
@@ -92,6 +95,8 @@ func TestExtractResourceRegion(t *testing.T) {
 }
 
 func TestNormalizeToRegion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		input string
 		want  string
@@ -113,6 +118,7 @@ func TestNormalizeToRegion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
 			got := normalizeToRegion(tt.input)
 			assert.Equal(t, tt.want, got)
 		})
@@ -120,6 +126,8 @@ func TestNormalizeToRegion(t *testing.T) {
 }
 
 func TestExtractRegionFromARN(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name string
 		arn  string
@@ -154,6 +162,7 @@ func TestExtractRegionFromARN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := extractRegionFromARN(tt.arn)
 			assert.Equal(t, tt.want, got)
 		})
@@ -161,6 +170,8 @@ func TestExtractRegionFromARN(t *testing.T) {
 }
 
 func TestRegionMatches(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name           string
 		pluginRegion   string
@@ -177,6 +188,7 @@ func TestRegionMatches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := RegionMatches(tt.pluginRegion, tt.resourceRegion)
 			assert.Equal(t, tt.want, got)
 		})
@@ -184,6 +196,8 @@ func TestRegionMatches(t *testing.T) {
 }
 
 func TestPluginRegion(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name   string
 		client *pluginhost.Client
@@ -208,6 +222,7 @@ func TestPluginRegion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := PluginRegion(tt.client)
 			assert.Equal(t, tt.want, got)
 		})

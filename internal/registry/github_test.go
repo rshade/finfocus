@@ -14,6 +14,8 @@ import (
 )
 
 func TestNewGitHubClient(t *testing.T) {
+	t.Parallel()
+
 	client := NewGitHubClient()
 	if client == nil {
 		t.Fatal("NewGitHubClient() returned nil")
@@ -24,6 +26,8 @@ func TestNewGitHubClient(t *testing.T) {
 }
 
 func TestGitHubRelease(t *testing.T) {
+	t.Parallel()
+
 	release := GitHubRelease{
 		TagName:    "v1.0.0",
 		Name:       "Release 1.0.0",
@@ -48,6 +52,8 @@ func TestGitHubRelease(t *testing.T) {
 }
 
 func TestReleaseAsset(t *testing.T) {
+	t.Parallel()
+
 	asset := ReleaseAsset{
 		Name:               "test-asset.tar.gz",
 		Size:               2048,
@@ -64,6 +70,8 @@ func TestReleaseAsset(t *testing.T) {
 }
 
 func TestFindPlatformAsset(t *testing.T) {
+	t.Parallel()
+
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
@@ -102,6 +110,8 @@ func TestFindPlatformAsset(t *testing.T) {
 }
 
 func TestFindPlatformAssetNotFound(t *testing.T) {
+	t.Parallel()
+
 	release := &GitHubRelease{
 		TagName: "v1.0.0",
 		Assets: []ReleaseAsset{
@@ -119,6 +129,8 @@ func TestFindPlatformAssetNotFound(t *testing.T) {
 }
 
 func TestFindPlatformAssetEmptyAssets(t *testing.T) {
+	t.Parallel()
+
 	release := &GitHubRelease{
 		TagName: "v1.0.0",
 		Assets:  []ReleaseAsset{},
@@ -147,6 +159,8 @@ func TestGetGitHubToken(t *testing.T) {
 }
 
 func TestConstants(t *testing.T) {
+	t.Parallel()
+
 	// Verify constants are defined correctly
 	if osWindows != "windows" {
 		t.Errorf("osWindows = %v, want windows", osWindows)
@@ -163,6 +177,8 @@ func TestConstants(t *testing.T) {
 }
 
 func TestGitHubClient_ContextCancellation(t *testing.T) {
+	t.Parallel()
+
 	// Create a slow server that takes too long to respond
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check if context was cancelled
@@ -192,6 +208,8 @@ func TestGitHubClient_ContextCancellation(t *testing.T) {
 }
 
 func TestGitHubClient_ContextCancellation_ListStableReleases(t *testing.T) {
+	t.Parallel()
+
 	// Create a slow server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
@@ -218,6 +236,8 @@ func TestGitHubClient_ContextCancellation_ListStableReleases(t *testing.T) {
 }
 
 func TestGitHubClient_ContextCancellation_DownloadAsset(t *testing.T) {
+	t.Parallel()
+
 	// Create a slow server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		select {
@@ -245,6 +265,8 @@ func TestGitHubClient_ContextCancellation_DownloadAsset(t *testing.T) {
 }
 
 func TestGitHubClient_ContextPropagation(t *testing.T) {
+	t.Parallel()
+
 	// Verify that context is passed through to HTTP requests
 	var requestReceived atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {

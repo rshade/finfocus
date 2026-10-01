@@ -14,6 +14,8 @@ import (
 
 // TestParseYAML_ValidSpec tests parsing a valid YAML pricing spec.
 func TestParseYAML_ValidSpec(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: aws
 service: ec2
 sku: t3.micro
@@ -36,6 +38,8 @@ pricing:
 
 // TestParseYAML_WithMetadata tests parsing a spec with optional metadata.
 func TestParseYAML_WithMetadata(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: aws
 service: ec2
 sku: t3.micro
@@ -59,6 +63,8 @@ metadata:
 
 // TestParseYAML_ComplexPricing tests parsing complex pricing structures.
 func TestParseYAML_ComplexPricing(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: aws
 service: rds
 sku: db.t3.medium
@@ -92,6 +98,8 @@ pricing:
 
 // TestParseYAML_EmptyPricing tests parsing a spec with empty pricing (invalid).
 func TestParseYAML_EmptyPricing(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: aws
 service: ec2
 sku: t3.micro
@@ -107,6 +115,8 @@ pricing: {}
 
 // TestParseYAML_MissingFields tests parsing with missing required fields.
 func TestParseYAML_MissingFields(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: aws
 service: ec2
 currency: USD
@@ -123,6 +133,8 @@ pricing:
 
 // TestParseYAML_InvalidYAML tests parsing invalid YAML.
 func TestParseYAML_InvalidYAML(t *testing.T) {
+	t.Parallel()
+
 	invalidYAML := `provider: aws
 service: ec2
 sku: t3.micro
@@ -137,6 +149,8 @@ pricing: [unclosed
 
 // TestParseYAML_ExtraFields tests that extra unknown fields are ignored.
 func TestParseYAML_ExtraFields(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: aws
 service: ec2
 sku: t3.micro
@@ -157,6 +171,8 @@ anotherExtra: 123
 
 // TestParseYAML_DifferentCurrencies tests specs with different currencies.
 func TestParseYAML_DifferentCurrencies(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name     string
 		currency string
@@ -169,6 +185,7 @@ func TestParseYAML_DifferentCurrencies(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			yamlContent := `provider: aws
 service: ec2
 sku: t3.micro
@@ -187,6 +204,8 @@ pricing:
 
 // TestParseYAML_MultiCloudProviders tests parsing specs from different providers.
 func TestParseYAML_MultiCloudProviders(t *testing.T) {
+	t.Parallel()
+
 	providers := []struct {
 		provider string
 		service  string
@@ -200,6 +219,7 @@ func TestParseYAML_MultiCloudProviders(t *testing.T) {
 
 	for _, p := range providers {
 		t.Run(p.provider, func(t *testing.T) {
+			t.Parallel()
 			yamlContent := `provider: ` + p.provider + `
 service: ` + p.service + `
 sku: ` + p.sku + `
@@ -220,6 +240,8 @@ pricing:
 
 // TestParseSpecFilename_ValidFormats tests parsing valid spec filenames.
 func TestParseSpecFilename_ValidFormats(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		filename string
 		provider string
@@ -260,6 +282,7 @@ func TestParseSpecFilename_ValidFormats(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.filename, func(t *testing.T) {
+			t.Parallel()
 			provider, service, sku, valid := spec.ParseSpecFilename(tc.filename)
 
 			assert.True(t, valid)
@@ -272,6 +295,8 @@ func TestParseSpecFilename_ValidFormats(t *testing.T) {
 
 // TestParseSpecFilename_InvalidFormats tests parsing invalid spec filenames.
 func TestParseSpecFilename_InvalidFormats(t *testing.T) {
+	t.Parallel()
+
 	invalidFilenames := []struct {
 		filename string
 		reason   string
@@ -289,6 +314,7 @@ func TestParseSpecFilename_InvalidFormats(t *testing.T) {
 
 	for _, tc := range invalidFilenames {
 		t.Run(tc.reason, func(t *testing.T) {
+			t.Parallel()
 			provider, service, sku, valid := spec.ParseSpecFilename(tc.filename)
 
 			assert.False(t, valid, "Expected invalid: %s", tc.reason)
@@ -301,6 +327,8 @@ func TestParseSpecFilename_InvalidFormats(t *testing.T) {
 
 // TestParseSpecFilename_SKUWithMultipleDashes tests SKUs containing multiple dashes.
 func TestParseSpecFilename_SKUWithMultipleDashes(t *testing.T) {
+	t.Parallel()
+
 	filename := "azure-compute-standard-d2s-v3-spot.yaml"
 	provider, service, sku, valid := spec.ParseSpecFilename(filename)
 
@@ -312,6 +340,8 @@ func TestParseSpecFilename_SKUWithMultipleDashes(t *testing.T) {
 
 // TestParseSpecFilename_BothExtensions tests that both .yaml and .yml are accepted.
 func TestParseSpecFilename_BothExtensions(t *testing.T) {
+	t.Parallel()
+
 	testCases := []string{
 		"aws-ec2-t3.micro.yaml",
 		"aws-ec2-t3.micro.yml",
@@ -319,6 +349,7 @@ func TestParseSpecFilename_BothExtensions(t *testing.T) {
 
 	for _, filename := range testCases {
 		t.Run(filename, func(t *testing.T) {
+			t.Parallel()
 			provider, service, sku, valid := spec.ParseSpecFilename(filename)
 
 			assert.True(t, valid)
@@ -331,6 +362,8 @@ func TestParseSpecFilename_BothExtensions(t *testing.T) {
 
 // TestParseYAML_FromFile tests parsing YAML from an actual file.
 func TestParseYAML_FromFile(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	yamlContent := `provider: aws
@@ -373,6 +406,8 @@ metadata:
 
 // TestParseYAML_NumericTypes tests handling different numeric types in pricing.
 func TestParseYAML_NumericTypes(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: test
 service: compute
 sku: instance
@@ -393,6 +428,8 @@ pricing:
 
 // TestParseYAML_BooleanInMetadata tests boolean values in metadata.
 func TestParseYAML_BooleanInMetadata(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: test
 service: compute
 sku: instance
@@ -413,6 +450,8 @@ metadata:
 
 // TestParseYAML_ListInPricing tests array/list values in pricing.
 func TestParseYAML_ListInPricing(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: aws
 service: ec2
 sku: t3.micro
@@ -437,6 +476,8 @@ pricing:
 
 // TestParseYAML_UnicodeContent tests parsing YAML with Unicode characters.
 func TestParseYAML_UnicodeContent(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: aws
 service: ec2
 sku: t3.micro
@@ -458,6 +499,8 @@ metadata:
 
 // TestParseYAML_EscapedCharacters tests handling escaped characters in YAML.
 func TestParseYAML_EscapedCharacters(t *testing.T) {
+	t.Parallel()
+
 	yamlContent := `provider: aws
 service: ec2
 sku: t3.micro

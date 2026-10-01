@@ -9,6 +9,8 @@ import (
 // TestCostCalculationPrecedence verifies the precedence logic in calculateCostForPeriod.
 // This acts as a regression test for logic that might be subtle and missed by integration tests.
 func TestCostCalculationPrecedence(t *testing.T) {
+	t.Parallel()
+
 	// Case 1: DailyCosts present -> Sum of DailyCosts
 	res1 := CostResult{
 		DailyCosts: []float64{10, 20, 30},

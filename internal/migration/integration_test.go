@@ -10,6 +10,8 @@ import (
 )
 
 func TestMigrationFlow(t *testing.T) {
+	t.Parallel()
+
 	// We can't easily mock os.UserHomeDir() for DetectLegacy without
 	// changing how it's implemented to accept a home override or
 	// using a global variable for testing.
@@ -17,6 +19,7 @@ func TestMigrationFlow(t *testing.T) {
 	// Let's create a wrapper that uses a home getter.
 
 	t.Run("detects legacy directory", func(t *testing.T) {
+		t.Parallel()
 		tempHome := t.TempDir()
 		legacyPath := filepath.Join(tempHome, ".finfocus")
 		require.NoError(t, os.MkdirAll(legacyPath, 0700))

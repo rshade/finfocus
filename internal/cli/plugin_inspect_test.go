@@ -11,12 +11,16 @@ import (
 )
 
 func TestNewPluginInspectCmd(t *testing.T) {
+	t.Parallel()
+
 	cmd := cli.NewPluginInspectCmd()
 	assert.Equal(t, "inspect", cmd.Name())
 	assert.Equal(t, "Inspect a plugin's capabilities and field mappings", cmd.Short)
 }
 
 func TestInspectCommand_Flags(t *testing.T) {
+	t.Parallel()
+
 	cmd := cli.NewPluginInspectCmd()
 
 	jsonFlag := cmd.Flags().Lookup("json")
@@ -29,7 +33,10 @@ func TestInspectCommand_Flags(t *testing.T) {
 }
 
 func TestInspectCommand_PluginNotFound(t *testing.T) {
+	t.Parallel()
+
 	t.Run("missing args", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewPluginInspectCmd()
 		var buf bytes.Buffer
 		cmd.SetOut(&buf)
@@ -40,6 +47,7 @@ func TestInspectCommand_PluginNotFound(t *testing.T) {
 	})
 
 	t.Run("non-existent plugin", func(t *testing.T) {
+		t.Parallel()
 		cmd := cli.NewPluginInspectCmd()
 		var buf bytes.Buffer
 		cmd.SetOut(&buf)

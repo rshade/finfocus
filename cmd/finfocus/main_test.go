@@ -11,6 +11,8 @@ import (
 )
 
 func TestRun(t *testing.T) {
+	t.Parallel()
+
 	// Test that run() can be called without panicking
 	// Note: This is a basic smoke test. More comprehensive testing
 	// would require mocking the CLI execution, which is complex
@@ -19,13 +21,15 @@ func TestRun(t *testing.T) {
 	// We can't easily test the full execution without setting up
 	// complex test harnesses, but we can test that the function
 	// exists and can be called
-	t.Run("run function exists", func(*testing.T) {
+	t.Run("run function exists", func(t *testing.T) {
+		t.Parallel()
 		// This test mainly ensures the function can be called
 		// In a real scenario, we'd mock dependencies
 		_ = run
 	})
 }
 
+//nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
 func TestMainComponents(t *testing.T) {
 	t.Run("version available", func(t *testing.T) {
 		v := version.GetVersion()

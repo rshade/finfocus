@@ -55,6 +55,8 @@ func resolverPrices() map[string]float64 {
 // TestTerraformResolverPluginProcess is the plugin entry point, not a test. It
 // only runs when re-executed by a plugin launched from installResolverPlugin.
 func TestTerraformResolverPluginProcess(t *testing.T) {
+	t.Parallel()
+
 	mode := os.Getenv(envResolverMode)
 	if mode == "" {
 		t.Skip("helper process for the terraform resolver plugin tests")
@@ -181,6 +183,7 @@ func realStateInstanceIDs() []string {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via installResolverPlugin)
 func TestTerraformState_ResolverPlugin_ResolvesAndPrices(t *testing.T) {
 	eventsPath := installResolverPlugin(t, resolverModeFull)
 
@@ -217,6 +220,7 @@ func TestTerraformState_ResolverPlugin_ResolvesAndPrices(t *testing.T) {
 	})
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via installResolverPlugin)
 func TestTerraformState_ResolverPlugin_PartialResolution(t *testing.T) {
 	eventsPath := installResolverPlugin(t, resolverModePartial)
 
@@ -235,6 +239,7 @@ func TestTerraformState_ResolverPlugin_PartialResolution(t *testing.T) {
 	assert.Len(t, resolveCalls(t, eventsPath), 1)
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via installResolverPlugin)
 func TestTerraformState_ResolverPlugin_RPCErrorFallsBack(t *testing.T) {
 	eventsPath := installResolverPlugin(t, resolverModeError)
 

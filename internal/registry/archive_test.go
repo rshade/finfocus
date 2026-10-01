@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:paralleltest // table cases share the parent-scoped fixture tmpDir = t.TempDir(...)
 func TestSanitizePath(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -67,6 +68,8 @@ func TestSanitizePath(t *testing.T) {
 }
 
 func TestValidateBinary(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 
 	// Create executable file
@@ -118,6 +121,7 @@ func TestValidateBinary(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateBinary(tt.path)
 			if tt.wantErr {
 				require.Error(t, err)
@@ -129,6 +133,8 @@ func TestValidateBinary(t *testing.T) {
 }
 
 func TestExtractArchive(t *testing.T) {
+	t.Parallel()
+
 	// Create test tar.gz archive
 	tmpDir := t.TempDir()
 	tarPath := filepath.Join(tmpDir, "test.tar.gz")
@@ -150,6 +156,8 @@ func TestExtractArchive(t *testing.T) {
 }
 
 func TestExtractArchiveZip(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	zipPath := filepath.Join(tmpDir, "test.zip")
 	destDir := filepath.Join(tmpDir, "extracted")
@@ -170,6 +178,8 @@ func TestExtractArchiveZip(t *testing.T) {
 }
 
 func TestExtractArchiveUnsupported(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	unsupportedPath := filepath.Join(tmpDir, "test.rar")
 	destDir := filepath.Join(tmpDir, "extracted")
@@ -181,12 +191,16 @@ func TestExtractArchiveUnsupported(t *testing.T) {
 }
 
 func TestExtractArchiveNonExistent(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	err := ExtractArchive(filepath.Join(tmpDir, "nonexistent.tar.gz"), tmpDir)
 	require.Error(t, err, "expected error for non-existent archive")
 }
 
 func TestMaxFileSizeBoundary(t *testing.T) {
+	t.Parallel()
+
 	// Test that maxFileSize constant is set to 500MB
 	expectedSize := 500 * 1024 * 1024
 	assert.Equal(t, expectedSize, maxFileSize, "maxFileSize should be 500MB")

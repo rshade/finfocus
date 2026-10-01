@@ -11,12 +11,16 @@ import (
 func scoreVal(v float64) *float64 { return &v }
 
 func TestRenderRecommendation_UnscoredRowIsUnchanged(t *testing.T) {
+	t.Parallel()
+
 	rec := engine.Recommendation{ResourceID: "r1", Type: "RIGHTSIZE", Description: "d", EstimatedSavings: 10}
 
 	assert.NotContains(t, renderRecommendation(rec, false), "risk")
 }
 
 func TestRenderRecommendation_ShowsRiskAndReviewMarker(t *testing.T) {
+	t.Parallel()
+
 	rec := engine.Recommendation{
 		ResourceID: "r1", Type: "RIGHTSIZE", Description: "d", EstimatedSavings: 10,
 		Scores: &engine.RecommendationScores{Risk: scoreVal(0.42), NeedsReview: true, DuplicateGroupID: "dup-1"},
@@ -30,6 +34,8 @@ func TestRenderRecommendation_ShowsRiskAndReviewMarker(t *testing.T) {
 }
 
 func TestRenderRecommendation_ScoredWithoutRisk(t *testing.T) {
+	t.Parallel()
+
 	rec := engine.Recommendation{
 		ResourceID: "r1", Type: "RIGHTSIZE", EstimatedSavings: 10,
 		Scores: &engine.RecommendationScores{Priority: scoreVal(2)},
@@ -42,6 +48,8 @@ func TestRenderRecommendation_ScoredWithoutRisk(t *testing.T) {
 }
 
 func TestRenderRecommendationDetail_ListsScores(t *testing.T) {
+	t.Parallel()
+
 	rec := engine.Recommendation{
 		ResourceID: "r1", Type: "RIGHTSIZE", Description: "d", EstimatedSavings: 10, Currency: "USD",
 		Scores: &engine.RecommendationScores{
@@ -60,6 +68,8 @@ func TestRenderRecommendationDetail_ListsScores(t *testing.T) {
 }
 
 func TestRenderRecommendationDetail_NoScoresSection(t *testing.T) {
+	t.Parallel()
+
 	rec := engine.Recommendation{ResourceID: "r1", Type: "RIGHTSIZE", Description: "d"}
 
 	assert.NotContains(t, RenderRecommendationDetail(rec, 80), "Risk:")

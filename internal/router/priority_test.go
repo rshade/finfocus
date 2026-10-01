@@ -15,6 +15,8 @@ import (
 
 // TestPrioritySorting tests T043: priority-based sorting of plugin matches.
 func TestPrioritySorting(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	lowPriClient := &pluginhost.Client{
@@ -68,6 +70,8 @@ func TestPrioritySorting(t *testing.T) {
 
 // TestEqualPriorityQueryAll tests T044: equal priority returns all plugins.
 func TestEqualPriorityQueryAll(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	plugin1 := &pluginhost.Client{
@@ -123,6 +127,8 @@ func TestEqualPriorityQueryAll(t *testing.T) {
 
 // TestFallbackTriggerOnError tests T050: ShouldFallback returns true for error scenarios.
 func TestFallbackTriggerOnError(t *testing.T) {
+	t.Parallel()
+
 	trueVal := true
 	falseVal := false
 
@@ -138,24 +144,30 @@ func TestFallbackTriggerOnError(t *testing.T) {
 	require.NoError(t, err)
 
 	t.Run("explicit fallback enabled", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, router.ShouldFallback("fallback-enabled"))
 	})
 
 	t.Run("explicit fallback disabled", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, router.ShouldFallback("fallback-disabled"))
 	})
 
 	t.Run("default fallback is enabled", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, router.ShouldFallback("fallback-default"))
 	})
 
 	t.Run("unknown plugin defaults to fallback enabled", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, router.ShouldFallback("unknown-plugin"))
 	})
 }
 
 // TestFallbackDisabledBehavior tests T051: fallback disabled prevents alternative queries.
 func TestFallbackDisabledBehavior(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 	falseVal := false
 
@@ -202,6 +214,8 @@ func TestFallbackDisabledBehavior(t *testing.T) {
 // TestEmptyResultFallbackTrigger tests T052: empty result triggers fallback.
 // Note: Empty result = no cost data triggers fallback; $0 cost = valid result, NO fallback.
 func TestEmptyResultFallbackTrigger(t *testing.T) {
+	t.Parallel()
+
 	trueVal := true
 
 	cfg := &config.RoutingConfig{
@@ -228,6 +242,8 @@ func TestEmptyResultFallbackTrigger(t *testing.T) {
 // This is a semantic test documenting the expected behavior:
 // $0 is a valid cost (e.g., free-tier resources), not an empty result.
 func TestZeroCostNoFallback(t *testing.T) {
+	t.Parallel()
+
 	// This test documents the semantic distinction:
 	// - Empty result (nil/no data) = trigger fallback
 	// - $0 cost (valid result with zero value) = NO fallback
@@ -236,7 +252,8 @@ func TestZeroCostNoFallback(t *testing.T) {
 	// The engine determines what constitutes an "empty result".
 	// $0 cost is explicitly NOT an empty result (F-007).
 
-	t.Run("semantic documentation", func(_ *testing.T) {
+	t.Run("semantic documentation", func(t *testing.T) {
+		t.Parallel()
 		// A $0 cost result is a valid result:
 		// - Free-tier resources return $0
 		// - Spot instances with no charge return $0
@@ -254,6 +271,8 @@ func TestZeroCostNoFallback(t *testing.T) {
 
 // TestSortByPriorityHelper tests the sortByPriority helper function.
 func TestSortByPriorityHelper(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name      string
 		matches   []PluginMatch
@@ -317,6 +336,7 @@ func TestSortByPriorityHelper(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			sortByPriority(tt.matches)
 
 			gotOrder := make([]string, len(tt.matches))
@@ -331,6 +351,8 @@ func TestSortByPriorityHelper(t *testing.T) {
 
 // TestAllEqualPriorityHelper tests the AllEqualPriority helper function.
 func TestAllEqualPriorityHelper(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name     string
 		matches  []PluginMatch
@@ -386,6 +408,7 @@ func TestAllEqualPriorityHelper(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := AllEqualPriority(tt.matches)
 			assert.Equal(t, tt.expected, result)
 		})
@@ -394,6 +417,8 @@ func TestAllEqualPriorityHelper(t *testing.T) {
 
 // TestPriorityWithPatterns tests priority ordering with pattern matches.
 func TestPriorityWithPatterns(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	lowPriPattern := &pluginhost.Client{
@@ -451,6 +476,8 @@ func TestPriorityWithPatterns(t *testing.T) {
 
 // TestDefaultPriorityZero tests that unconfigured plugins have priority 0.
 func TestDefaultPriorityZero(t *testing.T) {
+	t.Parallel()
+
 	ctx := context.Background()
 
 	defaultClient := &pluginhost.Client{

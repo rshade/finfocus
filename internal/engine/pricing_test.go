@@ -12,6 +12,8 @@ import (
 )
 
 func TestGetDefaultMonthlyByType(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		resourceType string
@@ -39,6 +41,7 @@ func TestGetDefaultMonthlyByType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := getDefaultMonthlyByType(tt.resourceType)
 			assert.InDelta(t, tt.expected, got, 1e-9)
 		})
@@ -48,6 +51,8 @@ func TestGetDefaultMonthlyByType(t *testing.T) {
 // TestParseFloatValue tests type conversion for various input types.
 // This covers the parseFloatValue function which accepts float64, int, or numeric strings.
 func TestParseFloatValue(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		input      interface{}
@@ -82,6 +87,7 @@ func TestParseFloatValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, ok := parseFloatValue(tt.input)
 			assert.Equal(t, tt.expectedOk, ok, "unexpected ok value")
 			if tt.expectedOk {
@@ -92,6 +98,8 @@ func TestParseFloatValue(t *testing.T) {
 }
 
 func TestGetStorageSize(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name       string
 		properties map[string]interface{}
@@ -108,6 +116,7 @@ func TestGetStorageSize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res := ResourceDescriptor{Properties: tt.properties}
 			size, found := getStorageSize(res)
 			assert.Equal(t, tt.wantFound, found)
@@ -119,6 +128,8 @@ func TestGetStorageSize(t *testing.T) {
 }
 
 func TestTryStoragePricing(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name            string
 		pricing         map[string]interface{}
@@ -171,6 +182,7 @@ func TestTryStoragePricing(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			monthly, hourly, ok := tryStoragePricing(tt.pricing, tt.resource)
 			assert.Equal(t, tt.expectedOk, ok)
 			if tt.expectedOk {
@@ -182,6 +194,8 @@ func TestTryStoragePricing(t *testing.T) {
 }
 
 func TestTryFallbackNumericValue(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name        string
 		pricing     map[string]interface{}
@@ -210,6 +224,7 @@ func TestTryFallbackNumericValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			m, h, found := tryFallbackNumericValue(tt.pricing)
 			assert.Equal(t, tt.wantFound, found)
 			if found {
@@ -221,6 +236,8 @@ func TestTryFallbackNumericValue(t *testing.T) {
 }
 
 func TestGetActualCost_Wrapper(t *testing.T) {
+	t.Parallel()
+
 	// Test the simple wrapper function GetActualCost
 	// We can't easily mock the full engine here without setting up plugins,
 	// but we can test that it calls GetActualCostWithOptions correctly.

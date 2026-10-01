@@ -214,6 +214,8 @@ func TestPluginInstall_FallbackDeclinedNonTTY(t *testing.T) {
 // correctly identifies a fallback version when the requested version lacks assets [T020].
 // This is the core registry method that the CLI uses for fallback logic.
 func TestFindReleaseWithFallbackInfo_FindsFallbackVersion(t *testing.T) {
+	t.Parallel()
+
 	// Setup: v1.2.0 and v1.1.0 have no assets, only v1.0.0 has assets
 	cfg := FallbackMockConfig{
 		Plugins: map[string][]string{

@@ -96,6 +96,8 @@ func TestSetupLogging_AnalyzerModeRedirect(t *testing.T) {
 
 // TestSetupLogging_LogPathMessageSuppression verifies structured output mode can
 // suppress the "Logging to:" helper line while still using file logging.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestSetupLogging_LogPathMessageSuppression(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", tmpDir)

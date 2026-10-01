@@ -25,6 +25,8 @@ func testAssetName(project, version string) string {
 }
 
 func TestGetLatestRelease(t *testing.T) {
+	t.Parallel()
+
 	// Setup mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/repos/owner/repo/releases/latest" {
@@ -64,6 +66,8 @@ func TestGetLatestRelease(t *testing.T) {
 }
 
 func TestGetReleaseByTag(t *testing.T) {
+	t.Parallel()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/repos/owner/repo/releases/tags/v1.0.0" {
 			http.NotFound(w, r)
@@ -92,6 +96,8 @@ func TestGetReleaseByTag(t *testing.T) {
 }
 
 func TestDownloadAsset(t *testing.T) {
+	t.Parallel()
+
 	content := "binary content"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Length", strconv.Itoa(len(content)))
@@ -122,6 +128,8 @@ func TestDownloadAsset(t *testing.T) {
 }
 
 func TestFetchRelease_NotFound(t *testing.T) {
+	t.Parallel()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	}))
@@ -137,6 +145,8 @@ func TestFetchRelease_NotFound(t *testing.T) {
 }
 
 func TestFetchRelease_RateLimit(t *testing.T) {
+	t.Parallel()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
 	}))
@@ -152,6 +162,8 @@ func TestFetchRelease_RateLimit(t *testing.T) {
 }
 
 func TestListStableReleases(t *testing.T) {
+	t.Parallel()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/repos/owner/repo/releases" {
 			http.NotFound(w, r)
@@ -195,6 +207,8 @@ func TestListStableReleases(t *testing.T) {
 }
 
 func TestListStableReleases_WithLimit(t *testing.T) {
+	t.Parallel()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		releases := []GitHubRelease{
 			{TagName: "v3.0.0", Draft: false, Prerelease: false},
@@ -223,6 +237,8 @@ func TestListStableReleases_WithLimit(t *testing.T) {
 }
 
 func TestListStableReleases_NotFound(t *testing.T) {
+	t.Parallel()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 	}))
@@ -239,6 +255,8 @@ func TestListStableReleases_NotFound(t *testing.T) {
 }
 
 func TestFindReleaseWithAsset_ExactVersionFound(t *testing.T) {
+	t.Parallel()
+
 	assetName := testAssetName("plugin", "v1.0.0")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -276,6 +294,8 @@ func TestFindReleaseWithAsset_ExactVersionFound(t *testing.T) {
 }
 
 func TestFindReleaseWithAsset_FallbackToStable(t *testing.T) {
+	t.Parallel()
+
 	// v1.0.0 has the platform-specific asset we'll fall back to
 	v1AssetName := testAssetName("plugin", "v1.0.0")
 
@@ -337,6 +357,8 @@ func TestFindReleaseWithAsset_FallbackToStable(t *testing.T) {
 }
 
 func TestFindReleaseWithAsset_NoVersionSpecified(t *testing.T) {
+	t.Parallel()
+
 	assetName := testAssetName("plugin", "v1.0.0")
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/repos/owner/repo/releases" {
@@ -376,6 +398,8 @@ func TestFindReleaseWithAsset_NoVersionSpecified(t *testing.T) {
 }
 
 func TestFindReleaseWithAsset_NoCompatibleAsset(t *testing.T) {
+	t.Parallel()
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/repos/owner/repo/releases/tags/v1.0.0":

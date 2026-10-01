@@ -299,6 +299,7 @@ func TestNewOverviewCmd_YesShortFlag(t *testing.T) {
 	assert.Equal(t, "y", yesFlag.Shorthand)
 }
 
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewOverviewCmd)
 func TestNewOverviewCmd_ShortFlags(t *testing.T) {
 	cmd := cli.NewOverviewCmd()
 
@@ -321,6 +322,7 @@ func TestNewOverviewCmd_ShortFlags(t *testing.T) {
 // T013: Budget flag registration and behavior on overview command
 // ---------------------------------------------------------------------------
 
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewOverviewCmd)
 func TestNewOverviewCmd_BudgetFlagRegistration(t *testing.T) {
 	cmd := cli.NewOverviewCmd()
 
@@ -333,6 +335,7 @@ func TestNewOverviewCmd_BudgetFlagRegistration(t *testing.T) {
 		"--budget-scope flag should be registered on overview command")
 }
 
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewOverviewCmd)
 func TestNewOverviewCmd_BudgetFlagDefaults(t *testing.T) {
 	cmd := cli.NewOverviewCmd()
 
@@ -352,6 +355,7 @@ func TestNewOverviewCmd_BudgetFlagDefaults(t *testing.T) {
 	assert.Empty(t, budgetScope, "--budget-scope should default to empty")
 }
 
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewOverviewCmd)
 func TestNewOverviewCmd_BudgetFlagParsing(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -420,6 +424,7 @@ func TestNewOverviewCmd_BudgetFlagParsing(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestNewOverviewCmd_ExitCodeOutOfRange(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
@@ -507,6 +512,7 @@ func TestNewOverviewCmd_HelpIncludesBudgetFlags(t *testing.T) {
 		"help should include --budget-scope flag")
 }
 
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewOverviewCmd)
 func TestNewOverviewCmd_BudgetFlagsWithOtherFlags(t *testing.T) {
 	// Verify budget flags coexist with existing overview flags
 	cmd := cli.NewOverviewCmd()
@@ -533,6 +539,7 @@ func TestNewOverviewCmd_BudgetFlagsWithOtherFlags(t *testing.T) {
 	assert.True(t, yes)
 }
 
+//nolint:paralleltest // opens the default BoltDB file under ~/.finfocus, which is locked per process and shared by every test (via NewOverviewCmd)
 func TestNewOverviewCmd_DefaultsToTableOutput(t *testing.T) {
 	// Verify the default output format is "table", which enables the TUI path
 	// when stdout is a TTY. Budget exit-code evaluation only runs in the

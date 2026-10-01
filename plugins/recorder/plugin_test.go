@@ -21,6 +21,8 @@ func testLogger() zerolog.Logger {
 }
 
 func TestNewRecorderPlugin(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		OutputDir:    tmpDir,
@@ -36,6 +38,8 @@ func TestNewRecorderPlugin(t *testing.T) {
 }
 
 func TestNewRecorderPlugin_WithMockMode(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		OutputDir:    tmpDir,
@@ -49,6 +53,8 @@ func TestNewRecorderPlugin_WithMockMode(t *testing.T) {
 }
 
 func TestRecorderPlugin_Name(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{OutputDir: tmpDir}
 	plugin := NewRecorderPlugin(cfg, testLogger())
@@ -57,6 +63,8 @@ func TestRecorderPlugin_Name(t *testing.T) {
 }
 
 func TestRecorderPlugin_GetProjectedCost_MockDisabled(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		OutputDir:    tmpDir,
@@ -83,6 +91,8 @@ func TestRecorderPlugin_GetProjectedCost_MockDisabled(t *testing.T) {
 }
 
 func TestRecorderPlugin_GetProjectedCost_MockEnabled(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		OutputDir:    tmpDir,
@@ -109,6 +119,8 @@ func TestRecorderPlugin_GetProjectedCost_MockEnabled(t *testing.T) {
 }
 
 func TestRecorderPlugin_GetActualCost_MockDisabled(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		OutputDir:    tmpDir,
@@ -131,6 +143,8 @@ func TestRecorderPlugin_GetActualCost_MockDisabled(t *testing.T) {
 }
 
 func TestRecorderPlugin_GetActualCost_MockEnabled(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		OutputDir:    tmpDir,
@@ -155,6 +169,8 @@ func TestRecorderPlugin_GetActualCost_MockEnabled(t *testing.T) {
 }
 
 func TestRecorderPlugin_GetPricingSpec(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{OutputDir: tmpDir}
 	plugin := NewRecorderPlugin(cfg, testLogger())
@@ -173,6 +189,8 @@ func TestRecorderPlugin_GetPricingSpec(t *testing.T) {
 }
 
 func TestRecorderPlugin_EstimateCost_MockDisabled(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		OutputDir:    tmpDir,
@@ -193,6 +211,8 @@ func TestRecorderPlugin_EstimateCost_MockDisabled(t *testing.T) {
 }
 
 func TestRecorderPlugin_EstimateCost_MockEnabled(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		OutputDir:    tmpDir,
@@ -213,6 +233,8 @@ func TestRecorderPlugin_EstimateCost_MockEnabled(t *testing.T) {
 }
 
 func TestRecorderPlugin_Shutdown(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{OutputDir: tmpDir}
 	plugin := NewRecorderPlugin(cfg, testLogger())
@@ -222,6 +244,8 @@ func TestRecorderPlugin_Shutdown(t *testing.T) {
 }
 
 func TestRecorderPlugin_GetRecommendations(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		mockResponse bool
@@ -238,6 +262,7 @@ func TestRecorderPlugin_GetRecommendations(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			cfg := &Config{
 				OutputDir:    tmpDir,
@@ -270,7 +295,10 @@ func TestRecorderPlugin_GetRecommendations(t *testing.T) {
 }
 
 func TestRecorderPlugin_GetPluginInfo(t *testing.T) {
+	t.Parallel()
+
 	t.Run("successful metadata retrieval", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		cfg := &Config{OutputDir: tmpDir}
 		plugin := NewRecorderPlugin(cfg, testLogger())
@@ -293,6 +321,7 @@ func TestRecorderPlugin_GetPluginInfo(t *testing.T) {
 	})
 
 	t.Run("recording failure does not affect metadata", func(t *testing.T) {
+		t.Parallel()
 		// Use a read-only directory to trigger recording failure
 		tmpDir := t.TempDir()
 		readOnlyDir := filepath.Join(tmpDir, "readonly")
@@ -320,7 +349,10 @@ func TestRecorderPlugin_GetPluginInfo(t *testing.T) {
 }
 
 func TestRecorderPlugin_Supports(t *testing.T) {
+	t.Parallel()
+
 	t.Run("returns false for any resource", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		cfg := &Config{OutputDir: tmpDir}
 		plugin := NewRecorderPlugin(cfg, testLogger())
@@ -343,6 +375,7 @@ func TestRecorderPlugin_Supports(t *testing.T) {
 	})
 
 	t.Run("nil request returns error", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		cfg := &Config{OutputDir: tmpDir}
 		plugin := NewRecorderPlugin(cfg, testLogger())
@@ -355,6 +388,7 @@ func TestRecorderPlugin_Supports(t *testing.T) {
 	})
 
 	t.Run("records request to disk", func(t *testing.T) {
+		t.Parallel()
 		tmpDir := t.TempDir()
 		cfg := &Config{OutputDir: tmpDir}
 		plugin := NewRecorderPlugin(cfg, testLogger())
@@ -380,6 +414,8 @@ func TestRecorderPlugin_Supports(t *testing.T) {
 }
 
 func TestRecorderPlugin_ThreadSafety(t *testing.T) {
+	t.Parallel()
+
 	tmpDir := t.TempDir()
 	cfg := &Config{
 		OutputDir:    tmpDir,
@@ -413,6 +449,8 @@ func TestRecorderPlugin_ThreadSafety(t *testing.T) {
 // is enabled or disabled. A nil Summary causes flooding of "plugin returned
 // response with nil summary" WARN log entries in the engine (#747).
 func TestGetRecommendations_SummaryNotNil(t *testing.T) {
+	t.Parallel()
+
 	tests := []struct {
 		name         string
 		mockResponse bool
@@ -423,6 +461,7 @@ func TestGetRecommendations_SummaryNotNil(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			tmpDir := t.TempDir()
 			cfg := &Config{
 				OutputDir:    tmpDir,

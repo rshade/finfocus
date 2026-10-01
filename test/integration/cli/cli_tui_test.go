@@ -10,6 +10,8 @@ import (
 )
 
 // TestCLI_TUI_OutputModes verifies that the CLI correctly selects between TUI and plain output.
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment
 func TestCLI_TUI_OutputModes(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	// Use relative path from test/integration/cli

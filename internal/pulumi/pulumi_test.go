@@ -503,6 +503,8 @@ func TestStackExport_EmptyPassphrase_InjectsEnv(t *testing.T) {
 // --- GetProjectName tests ---
 
 func TestGetProjectName_ValidYaml(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte("name: my-project\n"), 0644))
 
@@ -512,6 +514,8 @@ func TestGetProjectName_ValidYaml(t *testing.T) {
 }
 
 func TestGetProjectName_FallsBackToYml(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yml"), []byte("name: yml-project\n"), 0644))
 
@@ -521,6 +525,8 @@ func TestGetProjectName_FallsBackToYml(t *testing.T) {
 }
 
 func TestGetProjectName_NoFiles(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 
 	_, err := GetProjectName(dir)
@@ -529,12 +535,16 @@ func TestGetProjectName_NoFiles(t *testing.T) {
 }
 
 func TestGetProjectName_EmptyDir(t *testing.T) {
+	t.Parallel()
+
 	_, err := GetProjectName("")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "project directory must not be empty")
 }
 
 func TestGetProjectName_PermissionError(t *testing.T) {
+	t.Parallel()
+
 	if os.Geteuid() == 0 {
 		t.Skip("running as root; permission checks are not enforced")
 	}
@@ -547,6 +557,8 @@ func TestGetProjectName_PermissionError(t *testing.T) {
 }
 
 func TestGetProjectName_InvalidYaml(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte(":\tbad"), 0644))
 
@@ -556,6 +568,8 @@ func TestGetProjectName_InvalidYaml(t *testing.T) {
 }
 
 func TestGetProjectName_MissingNameField(t *testing.T) {
+	t.Parallel()
+
 	dir := t.TempDir()
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Pulumi.yaml"), []byte("runtime: go\n"), 0644))
 

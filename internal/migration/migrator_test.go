@@ -13,6 +13,8 @@ import (
 )
 
 func TestSafeCopy(t *testing.T) {
+	t.Parallel()
+
 	// Setup temporary source directory
 	src := t.TempDir()
 	dst := t.TempDir()
