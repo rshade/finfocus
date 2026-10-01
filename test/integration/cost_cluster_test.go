@@ -42,18 +42,24 @@ func TestKubernetesPlugin_DoesNotPolluteCostProjected(t *testing.T) {
 	if testing.Short() {
 		t.Skip("builds the kubernetes plugin")
 	}
-	home := isolatedClusterHome(t)
 	exe := ""
 	if runtime.GOOS == "windows" {
 		exe = ".exe"
 	}
-	dir := filepath.Join(home, "plugins", "kubernetes", "0.1.0")
-	require.NoError(t, os.MkdirAll(dir, 0o750))
-	binary := filepath.Join(dir, "finfocus-plugin-kubernetes"+exe)
-	build := exec.Command("go", "-C", "../../plugins/kubernetes", "build", "-o", binary, "./cmd")
+	binName := "finfocus-plugin-kubernetes" + exe
+	// Build before isolatedClusterHome overrides HOME: with HOME in a temp dir,
+	// go would put GOPATH (and its read-only module cache) there, which is slow
+	// and makes t.TempDir cleanup fail with "permission denied".
+	built := filepath.Join(t.TempDir(), binName)
+	build := exec.Command("go", "-C", "../../plugins/kubernetes", "build", "-o", built, "./cmd")
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("build kubernetes plugin: %v\n%s", err, out)
 	}
+
+	home := isolatedClusterHome(t)
+	dir := filepath.Join(home, "plugins", "kubernetes", "0.1.0")
+	require.NoError(t, os.MkdirAll(dir, 0o750))
+	require.NoError(t, os.Rename(built, filepath.Join(dir, binName)))
 	manifest, err := os.ReadFile("../../plugins/kubernetes/plugin.manifest.json")
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "plugin.manifest.json"), manifest, 0o644))
