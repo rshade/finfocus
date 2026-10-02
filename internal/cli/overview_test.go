@@ -245,6 +245,8 @@ func TestNewOverviewCmd_AllFlagsAccepted(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("output"))
 	assert.NotNil(t, cmd.Flags().Lookup("filter"))
 	assert.NotNil(t, cmd.Flags().Lookup("plain"))
+	assert.NotNil(t, cmd.Flags().Lookup("force-color"))
+	assert.NotNil(t, cmd.Flags().Lookup("no-color"))
 	assert.NotNil(t, cmd.Flags().Lookup("yes"))
 	assert.NotNil(t, cmd.Flags().Lookup("no-pagination"))
 	assert.NotNil(t, cmd.Flags().Lookup("exit-on-threshold"))

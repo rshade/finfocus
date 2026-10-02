@@ -44,6 +44,8 @@ type overviewParams struct {
 	output          string
 	filter          []string
 	plain           bool
+	forceColor      bool
+	noColor         bool
 	yes             bool
 	noPagination    bool
 	exitOnThreshold bool
@@ -107,6 +109,8 @@ instead of running Pulumi CLI commands.`,
 	cmd.Flags().StringVar(&params.output, "output", "table", "output format (table, json, ndjson)")
 	cmd.Flags().StringSliceVarP(&params.filter, "filter", "f", nil, "resource filters")
 	cmd.Flags().BoolVar(&params.plain, "plain", false, "force non-interactive plain text output")
+	cmd.Flags().BoolVar(&params.forceColor, "force-color", false, "force styled output in non-TTY environments")
+	cmd.Flags().BoolVar(&params.noColor, "no-color", false, "disable all ANSI styling")
 	cmd.Flags().BoolVarP(&params.yes, "yes", "y", false, "skip confirmation prompts")
 	cmd.Flags().BoolVar(&params.noPagination, "no-pagination", false, "disable pagination (plain mode only)")
 	cmd.Flags().BoolVar(&params.exitOnThreshold, "exit-on-threshold", false,
@@ -167,10 +171,9 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 		return fmt.Errorf("invalid date range: %w", err)
 	}
 
-	// 2. Determine if we should use interactive TUI or plain text (early, before data load)
-	isInteractive := shouldUseInteractiveTUI(cmd.OutOrStdout(), params.output, params.plain)
-
-	if isInteractive {
+	// 2. Determine if we should use interactive TUI or plain text (early, before data load).
+	// Styled mode shares the plain path until a styled renderer exists.
+	if overviewInteractive(cmd.OutOrStdout(), params) {
 		// Launch TUI immediately, load data in background
 		return runInteractiveOverviewWithInit(ctx, cmd, params, dateRange, audit, totalStart)
 	}
@@ -1083,25 +1086,15 @@ func renderOverviewOutput(
 	return nil
 }
 
-// shouldUseInteractiveTUI determines if the interactive TUI should be used.
-// It accepts an [io.Writer] (typically cmd.OutOrStdout()) and type-asserts to
-// check for a file descriptor, ensuring cmd.SetOut() redirections are respected.
-func shouldUseInteractiveTUI(w io.Writer, outputFormat string, plainFlag bool) bool {
-	// Only use interactive TUI for table output
-	if outputFormat != "table" {
+// overviewInteractive reports whether overview should launch the TUI.
+// Table output is required. --plain, --no-color, NO_COLOR, a non-terminal
+// writer, and TERM=dumb stay on the text path. --force-color selects styled
+// text rather than the TUI.
+func overviewInteractive(w io.Writer, params overviewParams) bool {
+	if params.output != outputFormatTable {
 		return false
 	}
-
-	// --plain flag forces plain text
-	if plainFlag {
-		return false
-	}
-
-	// Check if the writer has a file descriptor and is a TTY.
-	if f, ok := w.(fdProvider); ok {
-		return term.IsTerminal(int(f.Fd()))
-	}
-	return false
+	return tui.DetectOutputModeFor(w, params.forceColor, params.noColor, params.plain) == tui.OutputModeInteractive
 }
 
 // runInteractiveOverviewWithInit launches the TUI immediately (before data

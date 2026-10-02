@@ -82,6 +82,8 @@ finfocus                    # same as overview when inside a Pulumi project
 | `--output`         | Output format: `table`, `json`, `ndjson`                                | `table`               |
 | `--filter`         | Resource filters, repeatable                                            | -                     |
 | `--plain`          | Force non-interactive plain text output                                 | false                 |
+| `--force-color`    | Force styled output when stdout is not a terminal                       | false                 |
+| `--no-color`       | Disable ANSI styling. Wins over `--force-color`                         | false                 |
 | `--yes`, `-y`      | Skip confirmation prompts                                               | false                 |
 | `--no-pagination`  | Disable pagination (plain mode only)                                    | false                 |
 
