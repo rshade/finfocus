@@ -2,6 +2,7 @@ package usage
 
 import (
 	"regexp"
+	"strconv"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -26,6 +27,14 @@ const (
 
 	capacitySpot     = "spot"
 	capacityOnDemand = "on-demand"
+
+	// FargateKind is the priceable tag that marks one EKS Fargate pod.
+	// aws-public prices resource type FargateResourceType from the cpu and
+	// memory_gib tags. The allocator matches those tags back to the pod.
+	FargateKind         = "fargate"
+	FargateResourceType = "aws:eks/fargate:Pod"
+	tagCPU              = "cpu"
+	tagMemoryGiB        = "memory_gib"
 )
 
 //nolint:gochecknoglobals // Zero-allocation lookup table and compiled regex, both read-only after init.
@@ -94,6 +103,34 @@ func ControlPlaneDescriptor(host, cluster string) (*pbc.ResourceDescriptor, bool
 	return &pbc.ResourceDescriptor{
 		Provider: providerAWS, ResourceType: "aws:eks/cluster:Cluster", Sku: "cluster", Region: m[1], Id: cluster,
 		Tags: map[string]string{pluginsdk.SubjectKind: "cluster"},
+	}, true
+}
+
+// FargatePodDescriptor is the priceable entry for one pod on an EKS Fargate
+// node. region comes from the virtual node's topology label. An empty region
+// cannot be priced, so the descriptor is omitted.
+func FargatePodDescriptor(
+	cluster, namespace, pod, node, region string,
+	cpu, mem float64,
+) (*pbc.ResourceDescriptor, bool) {
+	if region == "" || namespace == "" || pod == "" {
+		return nil, false
+	}
+	return &pbc.ResourceDescriptor{
+		Provider:     providerAWS,
+		ResourceType: FargateResourceType,
+		Sku:          "fargate",
+		Region:       region,
+		Id:           cluster + "/" + namespace + "/" + pod,
+		Tags: map[string]string{
+			pluginsdk.SubjectKind:      FargateKind,
+			pluginsdk.SubjectCluster:   cluster,
+			pluginsdk.SubjectNamespace: namespace,
+			pluginsdk.SubjectPod:       pod,
+			pluginsdk.SubjectNode:      node,
+			tagCPU:                     strconv.FormatFloat(cpu, 'g', -1, 64),
+			tagMemoryGiB:               strconv.FormatFloat(mem, 'g', -1, 64),
+		},
 	}, true
 }
 

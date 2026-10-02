@@ -165,8 +165,17 @@ on-demand" allocation note below) when either
 `spot`/`SPOT` (case-insensitive).
 
 **Fargate detection**: a node with `eks.amazonaws.com/compute-type=fargate`
-is an EKS Fargate virtual node and is skipped from collection entirely —
-see [Limitations](#limitations).
+is an EKS Fargate virtual node. It has no instance type and no spare
+capacity, so it contributes no capacity rows and no node descriptor. Each
+running pod on that node is its own priceable resource: type
+`aws:eks/fargate:Pod`, sku `fargate`, id `<cluster>/<namespace>/<pod>`, tags
+`kind=fargate`, `cpu` (cores requested), and `memory_gib`. The region is the
+virtual node's `topology.kubernetes.io/region` (or the legacy failure-domain
+label). A pod whose node has no region is skipped with the warning
+`fargate pod <namespace>/<pod> on <node>: region unknown; not priced`.
+aws-public supplies the per-vCPU-hour and per-GiB-hour price
+([finfocus-plugin-aws-public#409](https://github.com/rshade/finfocus-plugin-aws-public/issues/409));
+this plugin does not embed those rates. See [Limitations](#limitations).
 
 **EKS control plane**: when `usage.Options.APIServerHost` is set and matches
 the EKS API server hostname pattern (`*.<region>.eks.amazonaws.com`, or
@@ -247,8 +256,10 @@ JSON, so `"idle": "share"` shows up there with a digest that changes with it.
 `Allocate` returns one `AllocationRow` per subject. The `kind` subject key
 identifies the row type:
 
-- **`workload`** — one row per pod, with `cpu_cost`/`mem_cost`/`total_cost`
-  for its share of the node it runs on.
+- **`workload`** — one row per pod. On an EC2 node this is the pod's share
+  of that node. On EKS Fargate it is the pod's own price, split into
+  `cpu_cost` and `mem_cost` by the policy unit prices (memory takes the
+  remainder). Fargate pods are not folded into `__idle__`.
 - **`__idle__`** — one row per priced node, holding the portion of that
   node's cost not claimed by any workload (`node`/`cluster` subject keys
   identify which node). With `idle: "share"` that portion is usually `$0`,
@@ -261,8 +272,9 @@ identifies the row type:
   always validated to have a non-empty id), so there is nothing meaningful
   to attach the row to. Either way the node's cost is $0, so nothing is
   lost.
-- **`__cluster__`** — one row per priced resource that isn't a node (today,
-  only the EKS control plane), holding that resource's own cost.
+- **`__cluster__`** — one row per priced resource that is neither a node nor
+  a Fargate pod (today, the EKS control plane), holding that resource's own
+  cost.
 
 ### Notes
 
@@ -273,9 +285,10 @@ cost:
 | -------------------------------------------------- | ----------------------------------------------------------------------- |
 | `node <name> has no price`                       | The pricing plugin returned an entry for the node but marked it unpriced. Applies to that node's workload rows and its idle row. |
 | `spot node priced on-demand`                     | The node's `capacity_type` tag is `spot` (see spot detection above) and it does have a price. The plugin has no spot-price data source, so it prices spot nodes at the on-demand rate for the same instance type/region. |
-| `Fargate pricing not supported yet`              | A pod's node name has the `fargate-` prefix (an EKS Fargate virtual node). The row is a $0 orphan — see [Limitations](#limitations). |
+| `Fargate pricing not supported yet`              | A pod's node name has the `fargate-` prefix and no priced entry tagged `kind=fargate` was supplied. The row is a $0 orphan. |
+| `Fargate pod has no price`                       | A `kind=fargate` entry is present, marked unpriced, and has an empty note. The row is $0. A note from the pricer is kept instead. |
 | `node <name> not found in priced resources`      | A pod's node has no matching entry among the priced resources at all — most commonly because the node was missing pricing labels (see [Node Pricing Requirements](#node-pricing-requirements)) and was never made priceable; less commonly because the node was deleted between collection and pricing. The row is a $0 orphan. |
-| `unallocated priced resource kind "<kind>"`      | A priced resource is neither a node nor tagged `cluster` (a defensive fallback; the shipped collector never produces this today). |
+| `unallocated priced resource kind "<kind>"`      | A priced resource is neither a node, a Fargate pod, nor tagged `cluster` (a defensive fallback; the shipped collector never produces this today). |
 
 ## Limitations
 
@@ -290,9 +303,15 @@ cost:
 - **Spot nodes priced on-demand**: spot/preemptible nodes are priced at the
   on-demand rate for the same instance type and region — every row on that
   node carries a `spot node priced on-demand` note so this is visible.
-- **Fargate is $0**: EKS Fargate nodes are skipped from collection entirely,
-  so every pod scheduled on one becomes a $0 orphan row with a `Fargate
-  pricing not supported yet` note instead of a priced allocation.
+- **Fargate depends on aws-public**: each pod on an EKS Fargate node is
+  emitted as `aws:eks/fargate:Pod` and priced only when the pricing plugin
+  returns a positive monthly cost
+  ([finfocus-plugin-aws-public#409](https://github.com/rshade/finfocus-plugin-aws-public/issues/409)).
+  Otherwise the pod is a $0 row (`Fargate pod has no price`, or the pricing
+  note). There is no idle row for a Fargate node, and `idle` /
+  `system_workloads` share does not move that pod's cost. ECS Fargate and
+  Fargate Spot are out of scope. kind cannot simulate Fargate, so
+  `make test-e2e-kind` does not cover this path.
 - **Idle stays per node**: the default `idle: "separate"` reports each
   node's unused capacity as that node's own `__idle__` row. `idle: "share"`
   folds a dimension into the workloads on that same node when one of them

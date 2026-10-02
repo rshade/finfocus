@@ -614,6 +614,17 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   `ValidateAllocateResponse` requires exactly one idle row per priced node.
   When both fields are `share`, idle is distributed first (including onto
   system rows) and system rows are folded after that
+- **EKS Fargate pods** (`specs/615-eks-fargate-pods/`): a node labeled
+  `eks.amazonaws.com/compute-type=fargate` still has no capacity rows and no
+  node descriptor. Each running pod on it is a priceable
+  `aws:eks/fargate:Pod` (sku `fargate`, tags `kind=fargate`, `cpu`,
+  `memory_gib`). The allocator assigns that priced cost to the pod and never
+  folds it into `__idle__`. `Monthly <= 0` stays unpriced (`Fargate pod has
+  no price`, or the pricer's note). A `fargate-` node name with no fargate
+  priced entry still notes `Fargate pricing not supported yet`. Rates are
+  aws-public's job
+  ([finfocus-plugin-aws-public#409](https://github.com/rshade/finfocus-plugin-aws-public/issues/409));
+  kind cannot simulate Fargate, so `make test-e2e-kind` does not cover it
 
 ### MCP Server (`internal/cli/mcp.go`, `internal/cli/output_mode.go`)
 
