@@ -56,6 +56,11 @@ same effect when a Pulumi project is detected.
 
 **Alias:** `ov`
 
+Plain table output prints a pre-flight line with the resource count, any pending
+changes, and the plugin count. On a terminal, without `--yes`, overview then
+asks `Continue? [Y/n]` before pricing. Enter continues. `n` or `no` prints
+`Cancelled.` and exits successfully. Piped input and `--yes` skip the question.
+
 ### Usage (overview)
 
 ```bash

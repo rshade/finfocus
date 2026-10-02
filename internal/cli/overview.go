@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"errors"
@@ -191,6 +192,13 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	}
 	defer cleanup()
 
+	// Pre-flight confirmation before pricing. Declining skips enrichment.
+	if stop, confirmErr := confirmPlainOverview(
+		cmd, params, len(rows), hasChanges, changeCount, len(clients), isStateOnly,
+	); confirmErr != nil || stop {
+		return confirmErr
+	}
+
 	// 9. Create engine (with cache support)
 	pt = logging.StartPhase(ctx, "cli", "overview", "engine_create")
 	eng, _, cacheCleanup := newEngineWithCache(ctx, cmd, clients, nil)
@@ -240,7 +248,7 @@ func resolveOverviewData(
 }
 
 // loadAndProcessPlainOverview handles the data loading, change detection, resource merging,
-// pre-flight prompt, and filter application steps for the non-interactive overview pipeline.
+// and filter application steps for the non-interactive overview pipeline.
 // It returns the prepared rows along with stack metadata needed for rendering.
 func loadAndProcessPlainOverview(
 	ctx context.Context,
@@ -288,11 +296,6 @@ func loadAndProcessPlainOverview(
 		}
 	}
 	pt.Done(ctx)
-
-	// Pre-flight prompt (unless --yes, state-only, or non-table output).
-	if !isStateOnly && params.output == outputFormatTable {
-		printOverviewSummaryLine(cmd, params.yes, len(rows), hasChanges, changeCount)
-	}
 
 	// Validate filter keys and apply resource filters.
 	pt = logging.StartPhase(ctx, "cli", "overview", "filter_apply")
@@ -552,22 +555,99 @@ func resolveOverviewPlan(
 	return convertPlanSteps(plan.Steps), nil
 }
 
-// printOverviewSummaryLine prints a one-line pre-flight summary unless --yes.
+// printOverviewSummaryLine prints the pre-flight summary and, on a terminal
+// without --yes, asks whether to continue into pricing. proceed is false when
+// the user declines. skipPrompt is true for --yes. isTerminal reports whether
+// stdin is a terminal; non-terminals print the summary and continue.
+// Empty input and EOF continue. "n" and "no" (any case) cancel.
 func printOverviewSummaryLine(
-	cmd *cobra.Command,
+	w io.Writer,
+	r io.Reader,
 	skipPrompt bool,
+	isTerminal bool,
 	resourceCount int,
 	hasChanges bool,
 	changeCount int,
-) {
-	if skipPrompt {
-		return
+	pluginCount int,
+) (bool, error) {
+	if err := writeOverviewSummary(w, resourceCount, hasChanges, changeCount, pluginCount); err != nil {
+		return false, err
 	}
-	cmd.Printf("Overview: %d resources", resourceCount)
+	if skipPrompt || !isTerminal {
+		return true, nil
+	}
+	if _, err := io.WriteString(w, "Continue? [Y/n] "); err != nil {
+		return false, fmt.Errorf("writing overview prompt: %w", err)
+	}
+	scanner := bufio.NewScanner(r)
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return false, fmt.Errorf("reading confirmation: %w", err)
+		}
+		return true, nil
+	}
+	answer := strings.TrimSpace(strings.ToLower(scanner.Text()))
+	if answer == "n" || answer == "no" {
+		if _, err := fmt.Fprintln(w, "Cancelled."); err != nil {
+			return false, fmt.Errorf("writing cancellation: %w", err)
+		}
+		return false, nil
+	}
+	return true, nil
+}
+
+// writeOverviewSummary writes the one-line resource, change, and plugin counts.
+func writeOverviewSummary(w io.Writer, resourceCount int, hasChanges bool, changeCount, pluginCount int) error {
+	var b strings.Builder
+	fmt.Fprintf(&b, "Overview: %d resources", resourceCount)
 	if hasChanges {
-		cmd.Printf(", %d pending changes", changeCount)
+		fmt.Fprintf(&b, ", %d pending changes", changeCount)
 	}
-	cmd.Println()
+	fmt.Fprintf(&b, ", %d plugins\n", pluginCount)
+	if _, err := io.WriteString(w, b.String()); err != nil {
+		return fmt.Errorf("writing overview summary: %w", err)
+	}
+	return nil
+}
+
+// confirmPlainOverview asks whether to price the plain table view.
+// stop is true when the user cancels; that is not an error.
+// State-only and non-table output continue without a question.
+func confirmPlainOverview(
+	cmd *cobra.Command,
+	params overviewParams,
+	resourceCount int,
+	hasChanges bool,
+	changeCount int,
+	pluginCount int,
+	isStateOnly bool,
+) (bool, error) {
+	if isStateOnly || params.output != outputFormatTable {
+		return false, nil
+	}
+	proceed, err := printOverviewSummaryLine(
+		cmd.OutOrStdout(),
+		cmd.InOrStdin(),
+		params.yes,
+		stdinIsTerminal(cmd.InOrStdin()),
+		resourceCount,
+		hasChanges,
+		changeCount,
+		pluginCount,
+	)
+	if err != nil {
+		return false, fmt.Errorf("pre-flight prompt: %w", err)
+	}
+	if !proceed {
+		return true, nil
+	}
+	return false, nil
+}
+
+// stdinIsTerminal reports whether r is an [os.File] attached to a terminal.
+func stdinIsTerminal(r io.Reader) bool {
+	f, ok := r.(*os.File)
+	return ok && term.IsTerminal(int(f.Fd()))
 }
 
 // resolveOverviewDateRange parses the from/to strings into a DateRange.
