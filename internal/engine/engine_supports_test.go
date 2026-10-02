@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -536,12 +537,37 @@ func TestDeclineNotes(t *testing.T) {
 			want:    []string{strings.Repeat("x", maxDeclineReasonLen) + "..."},
 			notWant: []string{longReason},
 		},
+		{
+			name: "multi-byte rune that starts at the cap is kept whole and dropped",
+			declines: []pluginDecline{
+				{plugin: "aws-public", reason: strings.Repeat("x", maxDeclineReasonLen) + "日extra"},
+			},
+			want:    []string{strings.Repeat("x", maxDeclineReasonLen) + "..."},
+			notWant: []string{"日", "extra"},
+		},
+		{
+			name: "multi-byte rune straddling the cap is not split",
+			declines: []pluginDecline{
+				{plugin: "aws-public", reason: strings.Repeat("y", maxDeclineReasonLen-1) + "日extra"},
+			},
+			want:    []string{strings.Repeat("y", maxDeclineReasonLen-1) + "..."},
+			notWant: []string{"日", "extra"},
+		},
+		{
+			name: "multi-byte rune that begins inside the cap is dropped whole",
+			declines: []pluginDecline{
+				{plugin: "aws-public", reason: strings.Repeat("z", maxDeclineReasonLen-2) + "日extra"},
+			},
+			want:    []string{strings.Repeat("z", maxDeclineReasonLen-2) + "..."},
+			notWant: []string{"日", "extra"},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			got := declineNotes(noteNoPricingInfo, tt.declines)
+			assert.True(t, utf8.ValidString(got))
 			for _, want := range tt.want {
 				assert.Contains(t, got, want)
 			}

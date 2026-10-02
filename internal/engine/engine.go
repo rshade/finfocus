@@ -15,6 +15,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -63,6 +64,8 @@ const (
 	adapterNone = "none"
 	// noteNoPricingInfo is the message used for placeholder cost results without pricing data.
 	noteNoPricingInfo = "No pricing information available"
+	// noteNoActualCostData is the placeholder note when no plugin returned actual cost.
+	noteNoActualCostData = "No actual cost data available"
 )
 
 const (
@@ -320,10 +323,7 @@ func summarizeDeclines(declines []pluginDecline) string {
 			parts = append(parts, fmt.Sprintf("and %d more", len(declines)-i))
 			break
 		}
-		reason := d.reason
-		if len(reason) > maxDeclineReasonLen {
-			reason = reason[:maxDeclineReasonLen] + "..."
-		}
+		reason := truncateDeclineReason(d.reason)
 		if reason == "" {
 			parts = append(parts, d.plugin)
 		} else {
@@ -331,6 +331,19 @@ func summarizeDeclines(declines []pluginDecline) string {
 		}
 	}
 	return strings.Join(parts, "; ")
+}
+
+// truncateDeclineReason shortens reason to maxDeclineReasonLen bytes without
+// splitting a UTF-8 rune. Reasons that exceed the cap gain a trailing "...".
+func truncateDeclineReason(reason string) string {
+	if len(reason) <= maxDeclineReasonLen {
+		return reason
+	}
+	cut := maxDeclineReasonLen
+	for cut > 0 && !utf8.RuneStart(reason[cut]) {
+		cut--
+	}
+	return reason[:cut] + "..."
 }
 
 // declineNotes appends plugin Supports() decline reasons to a placeholder
@@ -1311,7 +1324,7 @@ func (e *Engine) GetActualCostWithOptions(
 					Adapter:      adapterNone,
 					Currency:     defaultCurrency,
 					TotalCost:    0,
-					Notes:        declineNotes("No actual cost data available", declines),
+					Notes:        declineNotes(noteNoActualCostData, declines),
 					StartDate:    request.From,
 					EndDate:      request.To,
 					CostPeriod:   FormatPeriod(request.From, request.To),
@@ -1657,7 +1670,7 @@ func (e *Engine) getActualCostForResource(
 	}
 
 	// Create placeholder result (gated behind --fallback-estimate)
-	notes := "No actual cost data available"
+	notes := noteNoActualCostData
 	if len(errors) > 0 {
 		notes = "ERROR: plugin call failed"
 	} else {
