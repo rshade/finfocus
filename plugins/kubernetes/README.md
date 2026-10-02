@@ -226,8 +226,10 @@ allocation response's rows sum to the priced total).
 claimed) onto that node's workload rows in proportion to the CPU cost or
 memory cost those rows already hold. A dimension whose workload costs are
 all zero stays on the idle row. The idle row is still emitted: the
-allocation contract requires exactly one per priced node, so a fully shared
-node reports an idle row of `$0`.
+allocation contract requires exactly one per priced node. Its total is `$0`
+only when every dimension that has node cost also has a workload with cost
+in that dimension. A node with CPU cost and no workload CPU cost keeps that
+CPU cost on the idle row.
 
 `system_workloads: "share"` treats a workload as system when its namespace
 is `kube-system` or its controller kind is `DaemonSet`. That cost is moved
@@ -293,8 +295,9 @@ cost:
   pricing not supported yet` note instead of a priced allocation.
 - **Idle stays per node**: the default `idle: "separate"` reports each
   node's unused capacity as that node's own `__idle__` row. `idle: "share"`
-  folds it into the workloads on that same node and leaves the idle row at
-  `$0`. Idle is never netted against another node's idle.
+  folds a dimension into the workloads on that same node when one of them
+  already has cost in that dimension, and leaves the rest on the idle row.
+  Idle is never netted against another node's idle.
 - **EKS-only control plane pricing**: the control plane is detected purely
   from an EKS API server hostname pattern; GKE and AKS control planes are
   not detected or priced by this version.

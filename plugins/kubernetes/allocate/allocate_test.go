@@ -563,6 +563,20 @@ func TestAllocate_ShareIdle(t *testing.T) {
 		assert.InDelta(t, cost, idle.GetTotalCost(), 1e-9)
 	})
 
+	t.Run("dimension with no workload cost stays idle", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"idle":"share"}`,
+			concat(nodeRows("n1", 2, 8), podRows("app", "mem-only", "n1", 0, 2)), priced)
+		row := rowFor(t, resp, "workload", "pod", "mem-only")
+		idle := rowFor(t, resp, "__idle__", "node", "n1")
+		cpuPortion := cost * m5CPUFraction
+		memPortion := cost * (1 - m5CPUFraction)
+		assert.InDelta(t, 0, row.GetCpuCost(), 1e-9)
+		assert.InDelta(t, memPortion, row.GetMemCost(), 1e-9)
+		assert.InDelta(t, cpuPortion, idle.GetCpuCost(), 1e-9)
+		assert.InDelta(t, 0, idle.GetMemCost(), 1e-9)
+	})
+
 	t.Run("other node is independent", func(t *testing.T) {
 		t.Parallel()
 		resp := allocateWithPolicy(t, `{"idle":"share"}`,
@@ -594,6 +608,24 @@ func TestAllocate_ShareSystemWorkloads(t *testing.T) {
 		for _, row := range resp.GetRows() {
 			assert.NotEqual(t, "kube-system", row.GetSubject()["namespace"])
 			assert.NotEqual(t, "DaemonSet", row.GetSubject()["controller_kind"])
+		}
+	})
+
+	t.Run("system memory with no recipient weight splits evenly", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"system_workloads":"share"}`,
+			concat(nodeRows("n1", 2, 8),
+				podRows("app", "a", "n1", 0.5, 0),
+				podRows("app", "b", "n1", 0.5, 0),
+				podRows("kube-system", "coredns", "n1", 0, 4)),
+			priced)
+		memPortion := cost * (1 - m5CPUFraction)
+		a := rowFor(t, resp, "workload", "pod", "a")
+		b := rowFor(t, resp, "workload", "pod", "b")
+		assert.InDelta(t, memPortion*0.25, a.GetMemCost(), 1e-9)
+		assert.InDelta(t, memPortion*0.25, b.GetMemCost(), 1e-9)
+		for _, row := range resp.GetRows() {
+			assert.NotEqual(t, "kube-system", row.GetSubject()["namespace"])
 		}
 	})
 
