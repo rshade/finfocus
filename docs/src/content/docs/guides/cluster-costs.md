@@ -9,9 +9,11 @@ description: Break down a Kubernetes cluster's monthly cost by namespace, contro
 cluster's nodes (and, on EKS, its control plane) across the workloads running
 on them. A usage-source plugin reports live cluster state, FinFocus prices the
 reported nodes through its normal pricing plugins, and an allocator plugin
-splits each node's cost by workload resource requests. Unused capacity is
-reported as a separate idle row, and every run enforces a conservation
-invariant: allocated rows must sum to the priced total.
+splits each node's cost by workload resource requests. By default, unused
+capacity is its own idle row. An allocation policy can set `idle` or
+`system_workloads` to `share`, which folds that cost into the workloads on
+the same node. Every run enforces a conservation invariant: allocated rows
+must sum to the priced total.
 
 ## Prerequisites
 
@@ -98,6 +100,13 @@ Files are HuJSON (comments and trailing commas allowed), standardized before
 being passed to the allocator. A discovered file that fails to parse is a
 fatal error — FinFocus never silently falls back to defaults. See
 `plugins/kubernetes/README.md` for the policy fields.
+
+`idle` and `system_workloads` default to `separate`. Set either to `share`
+to fold unused node capacity, or kube-system and DaemonSet cost, into the
+other workloads on the same node. The formula is locked in
+`specs/614-allocator-policy-v2/spec.md`. `--show-policy` prints the
+effective policy JSON, including whichever of those values is in effect,
+and a digest that changes when they change.
 
 Print the effective policy (defaults plus overrides) and its digest without
 contacting a cluster:

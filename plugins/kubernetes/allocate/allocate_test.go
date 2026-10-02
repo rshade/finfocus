@@ -502,3 +502,154 @@ func TestAllocate_SanitizesNonFiniteAndNegativeUsage(t *testing.T) {
 	}
 	assertValidAllocation(t, req, resp)
 }
+
+func podRowsKind(ns, pod, node, kind string, cpu, mem float64) []*pbc.UsageRow {
+	rows := podRows(ns, pod, node, cpu, mem)
+	rows[0].Subject["controller_kind"] = kind
+	return rows
+}
+
+func allocateWithPolicy(
+	t *testing.T, doc string, usage []*pbc.UsageRow, priced ...*pbc.PricedResource,
+) *pbc.AllocateResponse {
+	t.Helper()
+	req := &pbc.AllocateRequest{Usage: usage, Priced: priced, PolicyJson: []byte(doc)}
+	resp, err := Allocate(req)
+	require.NoError(t, err)
+	assertValidAllocation(t, req, resp)
+	return resp
+}
+
+func TestAllocate_ShareIdle(t *testing.T) {
+	t.Parallel()
+
+	const cost = 70.08
+	priced := pricedNode("n1", cost, nil)
+
+	t.Run("one workload absorbs the node", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"idle":"share"}`,
+			concat(nodeRows("n1", 2, 8), podRows("app", "api-1", "n1", 0.5, 2)), priced)
+		api := rowFor(t, resp, "workload", "pod", "api-1")
+		idle := rowFor(t, resp, "__idle__", "node", "n1")
+		assert.InDelta(t, cost, api.GetTotalCost(), 1e-9)
+		assert.InDelta(t, 0, idle.GetTotalCost(), 1e-9)
+	})
+
+	t.Run("equal workloads split idle evenly", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"idle":"share"}`,
+			concat(nodeRows("n1", 2, 8), podRows("app", "a", "n1", 0.5, 2), podRows("app", "b", "n1", 0.5, 2)),
+			priced)
+		assert.InDelta(t, cost/2, rowFor(t, resp, "workload", "pod", "a").GetTotalCost(), 1e-9)
+		assert.InDelta(t, cost/2, rowFor(t, resp, "workload", "pod", "b").GetTotalCost(), 1e-9)
+		assert.InDelta(t, 0, rowFor(t, resp, "__idle__", "node", "n1").GetTotalCost(), 1e-9)
+	})
+
+	t.Run("fully packed matches separate", func(t *testing.T) {
+		t.Parallel()
+		usage := concat(nodeRows("n1", 2, 8), podRows("app", "api-1", "n1", 2, 8))
+		shared := allocateWithPolicy(t, `{"idle":"share"}`, usage, priced)
+		separate := allocateWithPolicy(t, `{"idle":"separate"}`, usage, pricedNode("n1", cost, nil))
+		assert.InDelta(t, separate.GetRows()[0].GetTotalCost(), shared.GetRows()[0].GetTotalCost(), 1e-9)
+		assert.InDelta(t, 0, rowFor(t, shared, "__idle__", "node", "n1").GetTotalCost(), 1e-9)
+	})
+
+	t.Run("empty node keeps idle", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"idle":"share"}`, nodeRows("n1", 2, 8), priced)
+		assert.Len(t, resp.GetRows(), 1)
+		idle := rowFor(t, resp, "__idle__", "node", "n1")
+		assert.InDelta(t, cost, idle.GetTotalCost(), 1e-9)
+	})
+
+	t.Run("dimension with no workload cost stays idle", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"idle":"share"}`,
+			concat(nodeRows("n1", 2, 8), podRows("app", "mem-only", "n1", 0, 2)), priced)
+		row := rowFor(t, resp, "workload", "pod", "mem-only")
+		idle := rowFor(t, resp, "__idle__", "node", "n1")
+		cpuPortion := cost * m5CPUFraction
+		memPortion := cost * (1 - m5CPUFraction)
+		assert.InDelta(t, 0, row.GetCpuCost(), 1e-9)
+		assert.InDelta(t, memPortion, row.GetMemCost(), 1e-9)
+		assert.InDelta(t, cpuPortion, idle.GetCpuCost(), 1e-9)
+		assert.InDelta(t, 0, idle.GetMemCost(), 1e-9)
+	})
+
+	t.Run("other node is independent", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"idle":"share"}`,
+			concat(nodeRows("n1", 2, 8), nodeRows("n2", 2, 8), podRows("app", "api-1", "n1", 0.5, 2)),
+			priced, pricedNode("n2", 10, nil))
+		assert.InDelta(t, cost, rowFor(t, resp, "workload", "pod", "api-1").GetTotalCost(), 1e-9)
+		assert.InDelta(t, 0, rowFor(t, resp, "__idle__", "node", "n1").GetTotalCost(), 1e-9)
+		assert.InDelta(t, 10, rowFor(t, resp, "__idle__", "node", "n2").GetTotalCost(), 1e-9)
+	})
+}
+
+func TestAllocate_ShareSystemWorkloads(t *testing.T) {
+	t.Parallel()
+
+	const cost = 70.08
+	priced := pricedNode("n1", cost, nil)
+	usage := concat(nodeRows("n1", 2, 8),
+		podRows("app", "api-1", "n1", 0.5, 2),
+		podRows("kube-system", "coredns", "n1", 0.5, 2),
+		podRowsKind("app", "logger", "n1", "DaemonSet", 0.5, 2))
+
+	t.Run("kube-system and daemonset fold into the app", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"system_workloads":"share"}`, usage, priced)
+		api := rowFor(t, resp, "workload", "pod", "api-1")
+		idle := rowFor(t, resp, "__idle__", "node", "n1")
+		assert.InDelta(t, cost*0.75, api.GetTotalCost(), 1e-9)
+		assert.InDelta(t, cost*0.25, idle.GetTotalCost(), 1e-9)
+		for _, row := range resp.GetRows() {
+			assert.NotEqual(t, "kube-system", row.GetSubject()["namespace"])
+			assert.NotEqual(t, "DaemonSet", row.GetSubject()["controller_kind"])
+		}
+	})
+
+	t.Run("system memory with no recipient weight splits evenly", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"system_workloads":"share"}`,
+			concat(nodeRows("n1", 2, 8),
+				podRows("app", "a", "n1", 0.5, 0),
+				podRows("app", "b", "n1", 0.5, 0),
+				podRows("kube-system", "coredns", "n1", 0, 4)),
+			priced)
+		memPortion := cost * (1 - m5CPUFraction)
+		a := rowFor(t, resp, "workload", "pod", "a")
+		b := rowFor(t, resp, "workload", "pod", "b")
+		assert.InDelta(t, memPortion*0.25, a.GetMemCost(), 1e-9)
+		assert.InDelta(t, memPortion*0.25, b.GetMemCost(), 1e-9)
+		for _, row := range resp.GetRows() {
+			assert.NotEqual(t, "kube-system", row.GetSubject()["namespace"])
+		}
+	})
+
+	t.Run("only system workloads stay visible", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"system_workloads":"share"}`,
+			concat(nodeRows("n1", 2, 8), podRows("kube-system", "coredns", "n1", 0.5, 2)), priced)
+		core := rowFor(t, resp, "workload", "pod", "coredns")
+		assert.InDelta(t, cost*0.25, core.GetTotalCost(), 1e-9)
+	})
+
+	t.Run("idle share then system fold gives the app the node", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"idle":"share","system_workloads":"share"}`, usage, priced)
+		api := rowFor(t, resp, "workload", "pod", "api-1")
+		assert.InDelta(t, cost, api.GetTotalCost(), 1e-9)
+		assert.InDelta(t, 0, rowFor(t, resp, "__idle__", "node", "n1").GetTotalCost(), 1e-9)
+		assert.Len(t, resp.GetRows(), 2)
+	})
+
+	t.Run("idle share leaves system rows in place", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{"idle":"share","system_workloads":"separate"}`, usage, priced)
+		assert.InDelta(t, cost/3, rowFor(t, resp, "workload", "pod", "coredns").GetTotalCost(), 1e-9)
+		assert.InDelta(t, 0, rowFor(t, resp, "__idle__", "node", "n1").GetTotalCost(), 1e-9)
+	})
+}
