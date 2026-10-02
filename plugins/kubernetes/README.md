@@ -195,8 +195,8 @@ document replaces the default list wholesale, it never merges into it.
 | Field                    | Type   | Default              | Supported values          |
 | ------------------------- | ------ | --------------------- | --------------------------- |
 | `version`                 | int    | `1`                    | `1` (the only schema version this plugin understands) |
-| `idle`                    | string | `"separate"`           | `"separate"`                |
-| `system_workloads`        | string | `"separate"`           | `"separate"`                |
+| `idle`                    | string | `"separate"`           | `"separate"`, `"share"`     |
+| `system_workloads`        | string | `"separate"`           | `"separate"`, `"share"`     |
 | `node_split.method`       | string | `"unit-price-ratio"`   | `"unit-price-ratio"`        |
 | `node_split.cpu_core_hour`| float  | `0.031611` ($/vCPU-hour) | any value `>= 0`          |
 | `node_split.mem_gib_hour` | float  | `0.004237` ($/GiB-hour)  | any value `>= 0`          |
@@ -204,9 +204,10 @@ document replaces the default list wholesale, it never merges into it.
 | `control_plane`           | string | `"separate"`           | `"separate"`                |
 | `spot_nodes`              | string | `"on-demand-with-note"`| `"on-demand-with-note"`     |
 
-Every field except the two `node_split` unit prices currently supports
-exactly one value — this v1 schema reserves the field names for alternative
-modes that later versions may add; supplying anything else is rejected.
+`idle` and `system_workloads` each accept `"separate"` (the default) or
+`"share"`. Every other field except the two `node_split` unit prices
+supports exactly one value; supplying anything else is rejected. The share
+formula is locked in `specs/614-allocator-policy-v2/spec.md`.
 
 `node_split` controls how much of a node's price is attributed to CPU versus
 memory: each node's `cpu_core_hour`/`mem_gib_hour` weights are multiplied by
@@ -221,6 +222,24 @@ amount from an upstream usage row is always treated as `0`, so a malformed
 row can't corrupt shares or break conservation (the guarantee that every
 allocation response's rows sum to the priced total).
 
+`idle: "share"` then adds each dimension's leftover (the part no workload
+claimed) onto that node's workload rows in proportion to the CPU cost or
+memory cost those rows already hold. A dimension whose workload costs are
+all zero stays on the idle row. The idle row is still emitted: the
+allocation contract requires exactly one per priced node, so a fully shared
+node reports an idle row of `$0`.
+
+`system_workloads: "share"` treats a workload as system when its namespace
+is `kube-system` or its controller kind is `DaemonSet`. That cost is moved
+onto the other workloads on the same node, in proportion to their existing
+CPU cost and memory cost, and the system rows are dropped. If the other
+workloads have no cost in a dimension, that dimension is split evenly across
+them. A node with no non-system workload keeps its system rows. When both
+fields are `"share"`, idle is folded into every workload first (including
+system workloads), and system rows are folded after that. Sharing never
+crosses nodes. `finfocus cost cluster --show-policy` prints the effective
+JSON, so `"idle": "share"` shows up there with a digest that changes with it.
+
 ## Allocation Rows
 
 `Allocate` returns one `AllocationRow` per subject. The `kind` subject key
@@ -230,7 +249,8 @@ identifies the row type:
   for its share of the node it runs on.
 - **`__idle__`** — one row per priced node, holding the portion of that
   node's cost not claimed by any workload (`node`/`cluster` subject keys
-  identify which node). No idle row is emitted for a node that never made
+  identify which node). With `idle: "share"` that portion is usually `$0`,
+  and the row is still present. No idle row is emitted for a node that never made
   it into the priced set at all (see [Node Pricing
   Requirements](#node-pricing-requirements)), nor for the one edge case
   where a node does have a priced entry but it's marked unpriced with an
@@ -271,13 +291,14 @@ cost:
 - **Fargate is $0**: EKS Fargate nodes are skipped from collection entirely,
   so every pod scheduled on one becomes a $0 orphan row with a `Fargate
   pricing not supported yet` note instead of a priced allocation.
-- **No idle sharing**: each node's idle (unused) capacity is reported as
-  that node's own `__idle__` row. It is never redistributed across
-  workloads or netted against other nodes' idle capacity — idle cost is
-  visible per node, not amortized into per-workload costs.
+- **Idle stays per node**: the default `idle: "separate"` reports each
+  node's unused capacity as that node's own `__idle__` row. `idle: "share"`
+  folds it into the workloads on that same node and leaves the idle row at
+  `$0`. Idle is never netted against another node's idle.
 - **EKS-only control plane pricing**: the control plane is detected purely
   from an EKS API server hostname pattern; GKE and AKS control planes are
   not detected or priced by this version.
-- **Single policy schema version**: only `version: 1` is understood, and
-  every field except the two `node_split` unit prices supports exactly one
-  value today.
+- **Single policy schema version**: only `version: 1` is understood.
+  `idle` and `system_workloads` accept `"separate"` or `"share"`. Every
+  other field except the two `node_split` unit prices supports exactly one
+  value.

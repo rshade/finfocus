@@ -33,6 +33,27 @@ func TestDecode_OverridesMergeOntoDefaults(t *testing.T) {
 	assert.Equal(t, "separate", p.Idle)
 }
 
+func TestDecode_AcceptsShareModes(t *testing.T) {
+	t.Parallel()
+
+	p, err := Decode([]byte(`{"idle": "share", "system_workloads": "share"}`))
+	require.NoError(t, err)
+	assert.True(t, p.ShareIdle())
+	assert.True(t, p.ShareSystemWorkloads())
+	canon, digest, err := p.Canonical()
+	require.NoError(t, err)
+	assert.Contains(t, string(canon), `"idle":"share"`)
+	assert.Contains(t, string(canon), `"system_workloads":"share"`)
+	_, defDigest, err := Defaults().Canonical()
+	require.NoError(t, err)
+	assert.NotEqual(t, defDigest, digest)
+
+	separate, err := Decode([]byte(`{"idle": "separate", "system_workloads": "separate"}`))
+	require.NoError(t, err)
+	assert.False(t, separate.ShareIdle())
+	assert.Equal(t, Defaults(), separate)
+}
+
 func TestDecode_Rejects(t *testing.T) {
 	t.Parallel()
 
@@ -42,7 +63,8 @@ func TestDecode_Rejects(t *testing.T) {
 		{"unknown top-level field", `{"idel": "share"}`, "idel"},
 		{"unknown nested field reports JSON path", `{"node_split": {"cpu": 1}}`, "node_split.cpu"},
 		{"unknown version", `{"version": 2}`, "unsupported policy version 2"},
-		{"unsupported idle mode", `{"idle": "share"}`, `idle: unsupported value "share"`},
+		{"unsupported idle mode", `{"idle": "spread"}`, `idle: unsupported value "spread"`},
+		{"unsupported system mode", `{"system_workloads": "spread"}`, `system_workloads: unsupported value "spread"`},
 		{"negative weight", `{"node_split": {"mem_gib_hour": -1}}`, "node_split weights must be >= 0"},
 		{"trailing data", `{} {}`, "allocation policy"},
 		{"not json", `idle: separate`, "allocation policy"},

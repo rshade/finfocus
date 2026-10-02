@@ -12,6 +12,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
+	"strings"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 )
@@ -19,10 +21,11 @@ import (
 // CurrentVersion is the only policy schema version this plugin understands.
 const CurrentVersion = 1
 
-// Supported values for the policy fields this version defines. Every field
-// currently supports exactly one value; Validate rejects anything else.
+// Supported values for the policy fields this version defines. Validate
+// rejects anything outside the set named for that field.
 const (
 	valueSeparate         = "separate"
+	valueShare            = "share"
 	valueUnitPriceRatio   = "unit-price-ratio"
 	valueMaxRequestUsage  = "max-request-usage"
 	valueOnDemandWithNote = "on-demand-with-note"
@@ -88,22 +91,44 @@ func (p Policy) Validate() error {
 	if p.Version != CurrentVersion {
 		return fmt.Errorf("unsupported policy version %d (supported: %d)", p.Version, CurrentVersion)
 	}
-	for _, f := range []struct{ name, got, want string }{
-		{"idle", p.Idle, valueSeparate},
-		{"system_workloads", p.SystemWorkloads, valueSeparate},
-		{"node_split.method", p.NodeSplit.Method, valueUnitPriceRatio},
-		{"charge", p.Charge, valueMaxRequestUsage},
-		{"control_plane", p.ControlPlane, valueSeparate},
-		{"spot_nodes", p.SpotNodes, valueOnDemandWithNote},
+	for _, f := range []struct {
+		name string
+		got  string
+		ok   []string
+	}{
+		{"idle", p.Idle, []string{valueSeparate, valueShare}},
+		{"system_workloads", p.SystemWorkloads, []string{valueSeparate, valueShare}},
+		{"node_split.method", p.NodeSplit.Method, []string{valueUnitPriceRatio}},
+		{"charge", p.Charge, []string{valueMaxRequestUsage}},
+		{"control_plane", p.ControlPlane, []string{valueSeparate}},
+		{"spot_nodes", p.SpotNodes, []string{valueOnDemandWithNote}},
 	} {
-		if f.got != f.want {
-			return fmt.Errorf("%s: unsupported value %q (supported: %q)", f.name, f.got, f.want)
+		if err := supportedValue(f.name, f.got, f.ok); err != nil {
+			return err
 		}
 	}
 	if p.NodeSplit.CPUCoreHour < 0 || p.NodeSplit.MemGiBHour < 0 {
 		return errors.New("node_split weights must be >= 0")
 	}
 	return nil
+}
+
+// ShareIdle reports whether idle node capacity is folded into that node's workloads.
+func (p Policy) ShareIdle() bool { return p.Idle == valueShare }
+
+// ShareSystemWorkloads reports whether kube-system and DaemonSet cost is folded
+// into the other workloads on the same node.
+func (p Policy) ShareSystemWorkloads() bool { return p.SystemWorkloads == valueShare }
+
+func supportedValue(name, got string, ok []string) error {
+	if slices.Contains(ok, got) {
+		return nil
+	}
+	quoted := make([]string, len(ok))
+	for i, want := range ok {
+		quoted[i] = fmt.Sprintf("%q", want)
+	}
+	return fmt.Errorf("%s: unsupported value %q (supported: %s)", name, got, strings.Join(quoted, ", "))
 }
 
 // Canonical returns the policy's canonical JSON and its hex SHA-256 digest.

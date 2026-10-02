@@ -38,6 +38,9 @@ const (
 	kindIdle     = pluginsdk.KindIdle
 	kindCluster  = pluginsdk.KindCluster
 
+	namespaceKubeSystem = "kube-system"
+	controllerDaemonSet = "DaemonSet"
+
 	// priceableTagKind and priceableKind* describe the resource.tags["kind"]
 	// vocabulary the collector (usage/nodes.go NodeDescriptor and
 	// ControlPlaneDescriptor) attaches to *priced* resources: "node" and
@@ -280,6 +283,12 @@ func allocateNode(n *node, pol policy.Policy, currency string) ([]*pbc.Allocatio
 		})
 	}
 	idleCPU, idleMem := max(cpuPortion-cpuUsed, 0), max(memPortion-memUsed, 0)
+	if pol.ShareIdle() {
+		idleCPU, idleMem = addIdleShare(rows, idleCPU, idleMem)
+	}
+	if pol.ShareSystemWorkloads() {
+		rows = foldSystemWorkloads(rows)
+	}
 	idle := &pbc.AllocationRow{
 		Subject:   map[string]string{subjectKind: kindIdle, subjectNode: n.name, subjectCluster: n.cluster},
 		CpuCost:   idleCPU,
@@ -289,6 +298,112 @@ func allocateNode(n *node, pol policy.Policy, currency string) ([]*pbc.Allocatio
 		Note:      note,
 	}
 	return rows, idle
+}
+
+// addIdleShare moves idle CPU and memory cost onto workload rows in proportion
+// to the cost they already hold in that dimension. A dimension with no positive
+// workload cost stays on the idle row. The idle row itself is still returned by
+// the caller: the allocation contract requires exactly one per priced node.
+func addIdleShare(rows []*pbc.AllocationRow, idleCPU, idleMem float64) (float64, float64) {
+	cpuW := make([]float64, len(rows))
+	memW := make([]float64, len(rows))
+	for i, row := range rows {
+		cpuW[i] = row.GetCpuCost()
+		memW[i] = row.GetMemCost()
+	}
+	return applyDeltas(rows, distribute(idleCPU, cpuW, false), distribute(idleMem, memW, false), idleCPU, idleMem)
+}
+
+// foldSystemWorkloads moves kube-system and DaemonSet cost onto the other
+// workloads on the same node, then drops the system rows. With no other
+// workload to receive the cost, the system rows stay.
+func foldSystemWorkloads(rows []*pbc.AllocationRow) []*pbc.AllocationRow {
+	var system, normal []*pbc.AllocationRow
+	for _, row := range rows {
+		if isSystemWorkload(row.GetSubject()) {
+			system = append(system, row)
+			continue
+		}
+		normal = append(normal, row)
+	}
+	if len(system) == 0 || len(normal) == 0 {
+		return rows
+	}
+	var cpu, mem float64
+	cpuW := make([]float64, len(normal))
+	memW := make([]float64, len(normal))
+	for _, row := range system {
+		cpu += row.GetCpuCost()
+		mem += row.GetMemCost()
+	}
+	for i, row := range normal {
+		cpuW[i] = row.GetCpuCost()
+		memW[i] = row.GetMemCost()
+	}
+	applyDeltas(normal, distribute(cpu, cpuW, true), distribute(mem, memW, true), cpu, mem)
+	return normal
+}
+
+func isSystemWorkload(subject map[string]string) bool {
+	return subject[subjectNamespace] == namespaceKubeSystem ||
+		subject[pluginsdk.SubjectControllerKind] == controllerDaemonSet
+}
+
+// applyDeltas adds per-row CPU and memory deltas and returns the undistributed
+// remainder of idleCPU and idleMem. The last positive recipient absorbs the
+// rounding remainder so the moved amount sums exactly.
+func applyDeltas(rows []*pbc.AllocationRow, cpuAdd, memAdd []float64, idleCPU, idleMem float64) (float64, float64) {
+	var cpuGiven, memGiven float64
+	for i, row := range rows {
+		row.CpuCost += cpuAdd[i]
+		row.MemCost += memAdd[i]
+		row.TotalCost = row.GetCpuCost() + row.GetMemCost()
+		cpuGiven += cpuAdd[i]
+		memGiven += memAdd[i]
+	}
+	return idleCPU - cpuGiven, idleMem - memGiven
+}
+
+// distribute splits amount across weights. When evenIfZero is set and every
+// weight is zero, the amount is split evenly so system cost still has a home.
+func distribute(amount float64, weights []float64, evenIfZero bool) []float64 {
+	out := make([]float64, len(weights))
+	if amount <= 0 || len(weights) == 0 {
+		return out
+	}
+	var sum float64
+	for _, w := range weights {
+		if w > 0 {
+			sum += w
+		}
+	}
+	if sum <= 0 {
+		if !evenIfZero {
+			return out
+		}
+		each := amount / float64(len(weights))
+		var given float64
+		for i := range out {
+			out[i] = each
+			given += each
+		}
+		out[len(out)-1] += amount - given
+		return out
+	}
+	var given float64
+	last := -1
+	for i, w := range weights {
+		if w <= 0 {
+			continue
+		}
+		last = i
+		out[i] = amount * w / sum
+		given += out[i]
+	}
+	if last >= 0 {
+		out[last] += amount - given
+	}
+	return out
 }
 
 // shares returns each workload's fraction of capacity, scaled down so the

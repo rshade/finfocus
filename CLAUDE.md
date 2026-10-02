@@ -605,6 +605,15 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   (`make check-plugin-boundaries`); it declines `Supports` so `cost projected`
   skips it (finfocus-spec ≥ v0.6.2 delivers plugin `Supports` answers to hosts;
   earlier SDKs errored and the engine failed open)
+- **Allocator policy v2** (`specs/614-allocator-policy-v2/`): `idle` and
+  `system_workloads` accept `share` as well as the default `separate`. Idle
+  CPU and memory are shared in proportion to each workload's already-computed
+  CPU cost and memory cost. System rows (`namespace=kube-system` or
+  `controller_kind=DaemonSet`) are then folded into the other workloads on
+  the same node. The idle row stays even at `$0`, because
+  `ValidateAllocateResponse` requires exactly one idle row per priced node.
+  When both fields are `share`, idle is distributed first (including onto
+  system rows) and system rows are folded after that
 
 ### MCP Server (`internal/cli/mcp.go`, `internal/cli/output_mode.go`)
 
