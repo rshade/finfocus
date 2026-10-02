@@ -93,6 +93,8 @@ finfocus cost recommendations --pulumi-json plan.json --sort risk:asc
 Without `TYPESAFE_API_KEY` the plugin starts but every scoring call returns `UNAUTHENTICATED`, which appears as a scoring
 warning while the recommendations are listed unscored.
 
+For a step-by-step run with real output, see the [Jev Scorer Plugin walkthrough](../plugins/jev.md).
+
 ## Use Scores
 
 | Signal                  | Scale  | Higher means                            |
