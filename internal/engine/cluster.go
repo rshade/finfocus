@@ -163,9 +163,13 @@ func RunClusterAllocation(
 func ShowAllocationPolicy(
 	ctx context.Context, alloc Allocator, policyJSON []byte,
 ) (json.RawMessage, string, error) {
-	resp, err := alloc.Allocate(ctx, &pbc.AllocateRequest{PolicyJson: policyJSON})
+	req := &pbc.AllocateRequest{PolicyJson: policyJSON}
+	resp, err := alloc.Allocate(ctx, req)
 	if err != nil {
 		return nil, "", fmt.Errorf("allocate: %w", err)
+	}
+	if err = pluginsdk.ValidateAllocateResponse(req, resp); err != nil {
+		return nil, "", fmt.Errorf("invalid allocator response: %w", err)
 	}
 	return json.RawMessage(resp.GetEffectivePolicyJson()), resp.GetPolicyDigest(), nil
 }

@@ -55,9 +55,8 @@ func TestKubernetesPlugin_DoesNotPolluteCostProjected(t *testing.T) {
 	// and makes t.TempDir cleanup fail with "permission denied".
 	built := filepath.Join(t.TempDir(), binName)
 	build := exec.Command("go", "-C", "../../plugins/kubernetes", "build", "-o", built, "./cmd")
-	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build kubernetes plugin: %v\n%s", err, out)
-	}
+	buildOut, err := build.CombinedOutput()
+	require.NoErrorf(t, err, "build kubernetes plugin: %s", buildOut)
 
 	home := isolatedClusterHome(t)
 	dir := filepath.Join(home, "plugins", "kubernetes", "0.1.0")

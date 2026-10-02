@@ -275,6 +275,29 @@ func TestShowAllocationPolicy(t *testing.T) {
 	assert.JSONEq(t, `{"idle":"separate"}`, string(alloc.got.GetPolicyJson()))
 }
 
+func TestShowAllocationPolicy_RejectsInvalidResponse(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		resp *pbc.AllocateResponse
+		want string
+	}{
+		{"empty digest", &pbc.AllocateResponse{EffectivePolicyJson: []byte(`{"version":1}`)}, "policy_digest is empty"},
+		{"empty policy", &pbc.AllocateResponse{PolicyDigest: "abc"}, "effective_policy_json is empty"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			alloc := &fakeAlloc{fn: func(*pbc.AllocateRequest) (*pbc.AllocateResponse, error) { return tt.resp, nil }}
+			_, _, err := ShowAllocationPolicy(context.Background(), alloc, nil)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "invalid allocator response")
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
+}
+
 func TestPriceableToResource(t *testing.T) {
 	t.Parallel()
 

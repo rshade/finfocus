@@ -3,6 +3,7 @@
 package e2e
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"os"
@@ -16,7 +17,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
-const kindContext = "kind-finfocus-e2e"
+// kindContext matches the cluster test/e2e/kind/setup.sh creates.
+func kindContext() string {
+	return "kind-" + cmp.Or(os.Getenv("KIND_CLUSTER"), "finfocus-e2e")
+}
 
 type clusterJSON struct {
 	Total           float64  `json:"total"`
@@ -40,7 +44,7 @@ func runCluster(t *testing.T, args ...string) (clusterJSON, []byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, findFinFocusBinary(),
-		append([]string{"cost", "cluster", "--context", kindContext, "--output", "json"}, args...)...)
+		append([]string{"cost", "cluster", "--context", kindContext(), "--output", "json"}, args...)...)
 	out, err := cmd.Output()
 	var res clusterJSON
 	if err == nil {
@@ -53,7 +57,7 @@ type nodeAlloc struct{ cpu, memGiB float64 }
 
 func kubectlJSON(t *testing.T, v any, args ...string) {
 	t.Helper()
-	out, err := exec.Command("kubectl", append([]string{"--context", kindContext}, args...)...).Output()
+	out, err := exec.Command("kubectl", append([]string{"--context", kindContext()}, args...)...).Output()
 	require.NoError(t, err)
 	require.NoError(t, json.Unmarshal(out, v))
 }
@@ -130,10 +134,13 @@ func TestCostCluster_Kind(t *testing.T) {
 }
 
 func TestCostCluster_Kind_NamespaceScope(t *testing.T) {
-	res, out, err := runCluster(t, "--namespace", "e2e")
+	res, out, err := runCluster(t, "--namespace", "e2e", "--group-by", "namespace")
 	require.NoError(t, err, string(out))
 	assert.True(t, res.NamespaceScoped)
 	assert.Nil(t, res.Idle)
+	require.Len(t, res.Groups, 1)
+	assert.Equal(t, "e2e", res.Groups[0].Key)
+	assert.Greater(t, res.Groups[0].TotalCost, 0.0)
 	for _, g := range res.Groups {
 		assert.NotEqual(t, "__idle__", g.Key)
 	}
