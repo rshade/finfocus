@@ -4,6 +4,7 @@
 package cli
 
 import (
+	"bytes"
 	"os"
 	"strings"
 	"testing"
@@ -122,6 +123,30 @@ func TestPrintOverviewSummaryLine(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestOverviewInteractive_RespectsWriterAndFlags(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	table := overviewParams{output: outputFormatTable}
+	assert.False(t, overviewInteractive(&buf, table))
+
+	forced := table
+	forced.forceColor = true
+	assert.False(t, overviewInteractive(&buf, forced), "force-color styles text; it does not launch the TUI")
+
+	plain := table
+	plain.plain = true
+	assert.False(t, overviewInteractive(&buf, plain))
+
+	noColor := table
+	noColor.noColor = true
+	noColor.forceColor = true
+	assert.False(t, overviewInteractive(&buf, noColor))
+
+	jsonOut := overviewParams{output: outputFormatJSON, forceColor: true}
+	assert.False(t, overviewInteractive(os.Stdout, jsonOut))
 }
 
 func TestStdinIsTerminal_NonFile(t *testing.T) {

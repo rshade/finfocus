@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"io"
 	"os"
 
 	"golang.org/x/term"
@@ -54,6 +55,15 @@ const (
 //	    // Full TUI
 //	}
 func DetectOutputMode(forceColor, noColor, plain bool) OutputMode {
+	return DetectOutputModeFor(os.Stdout, forceColor, noColor, plain)
+}
+
+// DetectOutputModeFor is [DetectOutputMode] using w for the terminal check.
+// A writer with no file descriptor is not a terminal, so a command that
+// replaced stdout keeps the plain path. Flag and environment precedence match
+// DetectOutputMode: --plain and --no-color, then NO_COLOR, then --force-color,
+// then TTY, TERM=dumb, CI, and terminal width.
+func DetectOutputModeFor(w io.Writer, forceColor, noColor, plain bool) OutputMode {
 	// Explicit plain/noColor flags take highest precedence.
 	if plain || noColor {
 		return OutputModePlain
@@ -69,8 +79,8 @@ func DetectOutputMode(forceColor, noColor, plain bool) OutputMode {
 		return OutputModeStyled
 	}
 
-	// Check if stdout is connected to a terminal.
-	if !term.IsTerminal(int(os.Stdout.Fd())) {
+	fd, ok := writerFD(w)
+	if !ok || !term.IsTerminal(fd) {
 		return OutputModePlain
 	}
 
@@ -85,12 +95,30 @@ func DetectOutputMode(forceColor, noColor, plain bool) OutputMode {
 	}
 
 	// Fall back to plain text if terminal is too narrow for TUI.
-	if TerminalWidth() < MinTerminalWidth {
+	if terminalWidth(fd) < MinTerminalWidth {
 		return OutputModePlain
 	}
 
 	// Default to interactive mode for capable terminals.
 	return OutputModeInteractive
+}
+
+// writerFD returns the file descriptor of w when it exposes one.
+func writerFD(w io.Writer) (int, bool) {
+	type fdProvider interface{ Fd() uintptr }
+	f, ok := w.(fdProvider)
+	if !ok || w == nil {
+		return 0, false
+	}
+	return int(f.Fd()), true
+}
+
+func terminalWidth(fd int) int {
+	width, _, err := term.GetSize(fd)
+	if err != nil || width <= 0 {
+		return DefaultTerminalWidth
+	}
+	return width
 }
 
 // IsTTY returns true if stdout is connected to a terminal (TTY).
@@ -119,9 +147,5 @@ func IsTTY() bool {
 //   - 80: Traditional terminal width
 //   - 120-160: Modern wide terminals
 func TerminalWidth() int {
-	width, _, err := term.GetSize(int(os.Stdout.Fd()))
-	if err != nil || width <= 0 {
-		return DefaultTerminalWidth
-	}
-	return width
+	return terminalWidth(int(os.Stdout.Fd()))
 }
