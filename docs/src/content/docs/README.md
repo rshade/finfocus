@@ -36,6 +36,7 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 - **💡 [Recommendations](../guides/recommendations/)**: Actionable cost optimization insights and savings opportunities
 - **♿ [Accessibility](../guides/accessibility/)**: High-contrast, plain text, and adaptive terminal UI modes
 - **💰 [Actual Costs](../reference/cli-commands/#cost-actual)**: Track historical spending with detailed breakdowns
+- **☸️ [Cluster Cost Allocation](../guides/cluster-costs/)**: Split Kubernetes cluster cost by namespace, controller, pod, node, or label with conservation guarantees
 - **🔌 [Plugin-Based](../plugins/)**: Extensible architecture supporting multiple cost data sources
 - **🧪 [E2E Testing](../testing/e2e-guide/)**: Comprehensive guide for validating infrastructure costs against real cloud resources
 - **📈 Advanced Analytics**: Resource grouping, filtering, and aggregation
@@ -79,13 +80,11 @@ tar -xzf finfocus.tar.gz && chmod +x finfocus && sudo mv finfocus /usr/local/bin
 ```
 
 ```powershell
-# Windows - installs to a user-local directory, no admin rights required
 Invoke-WebRequest -Uri "https://github.com/rshade/finfocus/releases/download/v0.3.3/finfocus-v0.3.3-windows-amd64.zip" -OutFile finfocus.zip
 Expand-Archive finfocus.zip -DestinationPath .
 $installDir = "$env:LocalAppData\Programs\finfocus"
 New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 Move-Item finfocus.exe "$installDir\finfocus.exe"
-# Add to PATH for the current session (add to $PROFILE for a permanent effect)
 $env:PATH = "$installDir;$env:PATH"
 ```
 
@@ -213,7 +212,7 @@ FinFocus uses plugins to fetch cost data from various sources:
 
 ## Configuration
 
-FinFocus is configured via `~/.finfocus/config.yaml`.
+FinFocus is configured via `~/.finfocus/config.hujson`. Configuration files use Hujson format (JSON with `//` comments and trailing commas allowed). Legacy `config.yaml` files are automatically migrated to Hujson format on first read.
 
 ### Budget Configuration
 
@@ -538,7 +537,7 @@ finfocus cost projected --pulumi-json plan.json
 
 ### Declarative Routing (Advanced Configuration)
 
-For advanced control, configure plugin routing in `~/.finfocus/config.yaml`:
+For advanced control, configure plugin routing in `~/.finfocus/config.hujson`:
 
 ```yaml
 routing:
@@ -609,7 +608,7 @@ finfocus plugin validate
 | `aws-ce` | In Development | AWS Cost Explorer integration |
 | `azure-public` | In Development | Azure public pricing data |
 | `kubecost` | Planned | Kubernetes cost analysis |
-| `jev` | Available | Opt-in recommendation scorer using TypeSafe AI's Jev model. Needs `TYPESAFE_API_KEY` and sends recommendation data (pseudonymized by default) to TypeSafe. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev) and the [scoring guide](guides/recommendation-scoring.md) |
+| `jev` | Available | Opt-in recommendation scorer using TypeSafe AI's Jev model. Needs `TYPESAFE_API_KEY` and sends recommendation data (pseudonymized by default) to TypeSafe. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev) and the [scoring guide](../guides/recommendation-scoring/) |
 
 ## Pulumi Analyzer Integration
 
@@ -631,6 +630,66 @@ finfocus --debug cost projected --pulumi-json plan.json
 export FINFOCUS_LOG_LEVEL=debug
 export FINFOCUS_LOG_FORMAT=json    # json or console
 ```
+
+## Agentic CLI Features
+
+FinFocus supports agent and tooling integration through several features:
+
+### Global Flags
+
+All commands support these global flags for programmatic integration:
+
+- **`--format json|human`**: Output format selection (JSON for machine consumption, human for terminal)
+- **`--dry-run`**: Preview changes without making them (affects: `plugin install/update/remove`, `analyzer install/uninstall`, `config init/set`, recommendation operations)
+- **`--yes`**: Skip all confirmation prompts (equivalent to approving interactive operations)
+- **`--idempotency-key`**: Opaque retry-deduplication key for distributed systems
+
+### Machine Discoverability
+
+FinFocus can be introspected by agents and tools:
+
+```bash
+finfocus __schema
+
+finfocus __schema --as=mcp
+```
+
+### Use finfocus from an AI assistant (MCP)
+
+FinFocus has a built-in Model Context Protocol (MCP) server. MCP clients such
+as Claude Code and Claude Desktop can call finfocus commands as tools, for
+example `finfocus-cost-projected` and `finfocus-plugin-list`. Tool calls
+return JSON.
+
+```bash
+finfocus --mcp
+finfocus mcp-server
+
+finfocus mcp-server --transport=http --addr=127.0.0.1:8080
+
+finfocus mcp-server --transport=http --addr=0.0.0.0:8080 --allow-non-loopback
+```
+
+Register it with Claude Code:
+
+```bash
+claude mcp add finfocus -- finfocus --mcp
+```
+
+Or add it to Claude Desktop's `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "finfocus": { "command": "/path/to/finfocus", "args": ["--mcp"] }
+  }
+}
+```
+
+The built-in server replaces the standalone `finfocus-mcp` (formerly
+`pulumicost-mcp`) server. See the
+[MCP guide](../guides/mcp/) for the tool list, output and
+safety arguments, and the mapping from the old server's tools.
 
 ## Documentation
 
