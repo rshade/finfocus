@@ -763,6 +763,11 @@ finfocus config routes test aws:ec2:Instance --output json
 
 Initialize a new FinFocus plugin project.
 
+The scaffold includes a golangci-lint v2 config at `.golangci-lint.yml`.
+`make lint` and the generated CI workflow pass `--config .golangci-lint.yml`,
+because golangci-lint does not discover that filename on its own.
+`local-prefixes` is the plugin module path `github.com/example/<name>`.
+
 ### Usage (plugin init)
 
 ```bash

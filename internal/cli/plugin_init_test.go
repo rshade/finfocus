@@ -152,6 +152,7 @@ func TestPluginInitProjectGeneration(t *testing.T) {
 		"internal/pricing/data.go",
 		"internal/client/client.go",
 		"Makefile",
+		".golangci-lint.yml",
 		"README.md",
 		"internal/pricing/calculator_test.go",
 	}
@@ -353,6 +354,8 @@ func TestPluginInitDockerOnly(t *testing.T) {
 
 	// Standard scaffolding skipped
 	_, err = os.Stat(filepath.Join(projectDir, "go.mod"))
+	assert.True(t, os.IsNotExist(err))
+	_, err = os.Stat(filepath.Join(projectDir, ".golangci-lint.yml"))
 	assert.True(t, os.IsNotExist(err))
 	_, err = os.Stat(filepath.Join(projectDir, "cmd", "plugin", "main.go"))
 	assert.True(t, os.IsNotExist(err))
@@ -614,6 +617,39 @@ func TestPluginInitNoDocs(t *testing.T) {
 }
 
 //nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
+func TestPluginInitGolangciConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	opts := &cli.PluginInitOptions{
+		Name:      "my-plugin",
+		Author:    "Test Author",
+		Providers: []string{"aws"},
+		OutputDir: tmpDir,
+		Force:     true,
+	}
+	runPluginInitForTest(t, opts)
+
+	projectDir := filepath.Join(tmpDir, "my-plugin")
+	cfg, err := os.ReadFile(filepath.Join(projectDir, ".golangci-lint.yml"))
+	require.NoError(t, err)
+	text := string(cfg)
+	assert.Contains(t, text, "version: \"2\"")
+	assert.Contains(t, text, "local-prefixes:")
+	assert.Contains(t, text, "github.com/example/my-plugin")
+	assert.Contains(t, text, "- errcheck")
+	assert.Contains(t, text, "- staticcheck")
+	assert.Contains(t, text, "- gosec")
+
+	goMod, err := os.ReadFile(filepath.Join(projectDir, "go.mod"))
+	require.NoError(t, err)
+	assert.Contains(t, string(goMod), "module github.com/example/my-plugin")
+
+	makefile, err := os.ReadFile(filepath.Join(projectDir, "Makefile"))
+	require.NoError(t, err)
+	assert.Contains(t, string(makefile), "golangci-lint run --config .golangci-lint.yml")
+}
+
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
 func TestPluginInitEnhancedMakefile(t *testing.T) {
 	tmpDir := t.TempDir()
 
@@ -641,6 +677,7 @@ func TestPluginInitEnhancedMakefile(t *testing.T) {
 		assert.Contains(t, content, target)
 	}
 	assert.Contains(t, content, "VERSION = 0.1.0")
+	assert.Contains(t, content, "golangci-lint run --config .golangci-lint.yml --allow-parallel-runners")
 	assert.Contains(t, content, "~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/")
 	assert.Contains(t, content, "docker build -t $(PLUGIN_NAME):local -f docker/Dockerfile .")
 	assert.NotContains(t, content, "{{NAME}}")
@@ -702,6 +739,7 @@ func TestPluginInitWorkflows(t *testing.T) {
 	assert.Contains(t, string(ci), "go-version: '1.27.1'")
 	assert.NotContains(t, string(ci), "{{GO_VERSION}}")
 	assert.Contains(t, string(ci), "golangci/golangci-lint-action@v7")
+	assert.Contains(t, string(ci), "args: --config .golangci-lint.yml --allow-parallel-runners")
 
 	docker, err := os.ReadFile(filepath.Join(workflowsDir, "docker.yml"))
 	require.NoError(t, err)
