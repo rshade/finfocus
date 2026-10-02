@@ -2,8 +2,8 @@
 
 **Feature Branch**: `613-cost-cluster`
 **Created**: 2026-09-24
-**Status**: Draft (not started; converted from the superpowers SP3 plan and
-re-verified against `main` on 2026-09-29)
+**Status**: Implemented (issue #1528, branch `issue-1528`; converted from the
+superpowers SP3 plan and re-verified against `main` on 2026-09-29)
 **Input**: Superpowers plan "SP3 — `finfocus cost cluster` Implementation Plan"
 (2026-09-24, committed in PR #1522 under the since-removed superpowers docs directory), seeded by the design spec now living at
 `specs/612-k8s-cost-allocation/spec.md`. Implements SP3 of the Kubernetes

@@ -161,6 +161,13 @@ test-e2e:
 	@echo "Running E2E tests..."
 	./test/e2e/run-e2e-tests.sh $(TEST_ARGS)
 
+# Kind-based cost cluster E2E - requires Docker, kind, and kubectl; no cloud credentials
+.PHONY: test-e2e-kind
+test-e2e-kind: build install-kubernetes
+	./test/e2e/kind/setup.sh
+	./bin/finfocus plugin install aws-public --metadata region=us-east-1 --force
+	cd test/e2e && FINFOCUS_BINARY=$(CURDIR)/bin/finfocus go test -tags e2e_kind -run TestCostCluster_Kind -v -timeout 10m ./...
+
 # Regenerate the real Terraform state goldens (requires docker + mise; no cloud access)
 .PHONY: gen-terraform-goldens
 gen-terraform-goldens:
@@ -369,6 +376,7 @@ help:
 	@echo "  test-integration - Run integration tests (slower)"
 	@echo "  test-integration-plugin - Run plugin integration tests"
 	@echo "  test-e2e         - Run E2E tests (requires AWS credentials)"
+	@echo "  test-e2e-kind    - Run kind-based cost cluster E2E (requires Docker, kind, kubectl)"
 	@echo "  test-all         - Run all tests except E2E"
 	@echo "  gen-terraform-goldens - Regenerate real Terraform state goldens (docker + mise)"
 	@echo "  lint             - Run Go + Markdown linters"

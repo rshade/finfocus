@@ -31,6 +31,7 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 - **💡 [Recommendations](docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
 - **♿ [Accessibility](docs/guides/accessibility.md)**: High-contrast, plain text, and adaptive terminal UI modes
 - **💰 [Actual Costs](docs/reference/cli-commands.md#cost-actual)**: Track historical spending with detailed breakdowns
+- **☸️ [Cluster Cost Allocation](docs/src/content/docs/guides/cluster-costs.md)**: Split Kubernetes cluster cost by namespace, controller, pod, node, or label with conservation guarantees
 - **🔌 [Plugin-Based](docs/plugins/README.md)**: Extensible architecture supporting multiple cost data sources
 - **🧪 [E2E Testing](docs/testing/e2e-guide.md)**: Comprehensive guide for validating infrastructure costs against real cloud resources
 - **📈 Advanced Analytics**: Resource grouping, filtering, and aggregation

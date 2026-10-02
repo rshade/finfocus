@@ -591,6 +591,21 @@ When no preview is provided, overview shows state resources with `*` footnote
 on projected costs. The `p` key triggers on-demand preview; when it completes,
 `ApplyChangesToRows()` and `ApplyPropertyDiffsToRows()` update rows in-place.
 
+### Cluster allocation (`internal/engine/cluster*.go`, `plugins/kubernetes/`)
+
+- **Core never interprets Kubernetes**: nodes arrive from `GetStats` as ordinary
+  `ResourceDescriptor`s (`sku`/`region` passed as properties) and are priced by
+  `GetProjectedCostWithErrors`; grouping is string-map aggregation
+- **`$0` price = unpriced**: aws-public returns `$0` (not an error) for unknown
+  instance types, so `priceResources` treats `Monthly <= 0` as unpriced
+- **Conservation is enforced in core** (`VerifyConservation`, rel 1e-6, delegating to
+  `pluginsdk.CheckConservation`) even though the conformance suite also checks it —
+  third-party allocators exist, and one shared SDK rule keeps core and plugins in agreement
+- **`plugins/kubernetes` is a nested module** and must not import core packages
+  (`make check-plugin-boundaries`); it declines `Supports` so `cost projected`
+  skips it (finfocus-spec ≥ v0.6.2 delivers plugin `Supports` answers to hosts;
+  earlier SDKs errored and the engine failed open)
+
 ### MCP Server (`internal/cli/mcp.go`, `internal/cli/output_mode.go`)
 
 - **Per-call lifecycle**: ax-go's dispatcher re-executes the *shared* root once

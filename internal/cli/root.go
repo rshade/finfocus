@@ -307,7 +307,8 @@ func newCostCmd() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&flags.Stack, "stack", "",
 		"Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state)")
 
-	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd(), NewCostEstimateCmd())
+	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd(), NewCostEstimateCmd(),
+		NewCostClusterCmd())
 	return cmd
 }
 

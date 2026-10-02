@@ -30,14 +30,20 @@ their tests, and the plugin's gRPC entry point itself: `cmd/main.go` serves
 the plugin through `pluginsdk`, declaring explicit
 `PLUGIN_CAPABILITY_USAGE_STATS` and `PLUGIN_CAPABILITY_ALLOCATION`
 capabilities (see `Info()` in `plugin.go`) so hosts never route pricing
-queries here. There is no `finfocus cost cluster` CLI command yet — driving
-the plugin end to end today means calling its `GetStats` and `Allocate` RPCs
-directly (see [How It's Used](#how-its-used)). The sections below describe
-the plugin's behavior and interfaces as implemented today.
+queries here. The `finfocus cost cluster` command drives the plugin end to
+end — usage collection, node pricing, and allocation (see
+[How It's Used](#how-its-used)). The sections below describe
+the plugin's behavior and interfaces.
 
 ## Install
 
-Today, from the `finfocus` repository root:
+From the plugin registry:
+
+```bash
+finfocus plugin install kubernetes
+```
+
+Or build and install from the `finfocus` repository root:
 
 ```bash
 make install-kubernetes
@@ -45,12 +51,6 @@ make install-kubernetes
 
 This builds the plugin and installs it to `~/.finfocus/plugins/kubernetes/<version>/`,
 the same pattern as `make install-recorder`.
-
-After the plugin's first release, install it the normal way instead:
-
-```bash
-finfocus plugin install kubernetes
-```
 
 ## Kubeconfig and Cluster Context
 
@@ -92,12 +92,11 @@ never matches and no control-plane row is produced.
 
 Once installed, the plugin itself is ready to serve — it's a normal
 `pluginsdk` gRPC plugin (`cmd/main.go`) declaring the `USAGE_STATS` and
-`ALLOCATION` capabilities. FinFocus does not yet ship a `finfocus cost
-cluster` CLI command to drive it automatically; a host calls the plugin's
-`GetStats` RPC to collect run-rate node and pod usage, routes the priceable
-nodes and control plane through FinFocus's normal cost-pricing plugins, then
-calls the plugin's `Allocate` RPC with the priced resources and usage rows
-to get back per-workload allocation rows.
+`ALLOCATION` capabilities. `finfocus cost cluster` drives it automatically:
+FinFocus calls the plugin's `GetStats` RPC to collect run-rate node and pod
+usage, routes the priceable nodes and control plane through FinFocus's normal
+cost-pricing plugins, then calls the plugin's `Allocate` RPC with the priced
+resources and usage rows to get back per-workload allocation rows.
 
 ## Required RBAC
 

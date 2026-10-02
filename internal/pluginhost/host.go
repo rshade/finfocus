@@ -165,6 +165,14 @@ func checkVersionCompatibility(ctx context.Context, pluginName, pluginSpecVersio
 // CapabilityRecommendationScoring is the normalized capability name of a scorer plugin.
 const CapabilityRecommendationScoring = "recommendation_scoring"
 
+// Capability names for the usage-source and allocator services.
+const (
+	// CapabilityUsageStats is the normalized capability name of a usage-source plugin.
+	CapabilityUsageStats = "usage_stats"
+	// CapabilityAllocation is the normalized capability name of an allocator plugin.
+	CapabilityAllocation = "allocation"
+)
+
 // ConvertCapabilities converts proto PluginCapability enums to string slice.
 // Returns capability names in lowercase format: "projected_costs", "actual_costs", etc.
 func ConvertCapabilities(caps []pbc.PluginCapability) []string {
@@ -202,9 +210,9 @@ func ConvertCapabilities(caps []pbc.PluginCapability) []string {
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_RESOLVE_RESOURCE_TYPES:
 			result = append(result, "resolve_resource_types")
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS:
-			result = append(result, "usage_stats")
+			result = append(result, CapabilityUsageStats)
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_ALLOCATION:
-			result = append(result, "allocation")
+			result = append(result, CapabilityAllocation)
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATION_SCORING:
 			result = append(result, CapabilityRecommendationScoring)
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_UNSPECIFIED,
