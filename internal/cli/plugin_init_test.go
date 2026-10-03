@@ -10,8 +10,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/mod/semver"
+
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 
 	"github.com/rshade/finfocus/internal/cli"
+	"github.com/rshade/finfocus/internal/pluginupgrade"
 )
 
 func TestPluginInitCommand(t *testing.T) {
@@ -808,4 +812,65 @@ func TestPluginInitClaudeReviewWorkflow(t *testing.T) {
 		filepath.Join(tmpDir, "test-plugin", ".github", "workflows", "claude-code-review.yml"))
 	require.NoError(t, err)
 	assert.Contains(t, string(claude), "anthropics/claude-code-action@v1")
+}
+
+// minScaffoldSpecVersion is the oldest finfocus-spec a new plugin may start on
+// (#248).
+const minScaffoldSpecVersion = "v0.7.1"
+
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
+func TestPluginInitTracksCoreSpecVersion(t *testing.T) {
+	tmpDir := t.TempDir()
+	runPluginInitForTest(t, &cli.PluginInitOptions{
+		Name: "spec-plugin", Author: "Test Author", Providers: []string{"aws"},
+		OutputDir: tmpDir, Force: true,
+	})
+	projectDir := filepath.Join(tmpDir, "spec-plugin")
+
+	gomod, err := os.ReadFile(filepath.Join(projectDir, "go.mod"))
+	require.NoError(t, err)
+	assert.Contains(t, string(gomod), "github.com/rshade/finfocus-spec "+pluginsdk.SpecVersion+"\n")
+	assert.GreaterOrEqual(t, semver.Compare(pluginsdk.SpecVersion, minScaffoldSpecVersion), 0,
+		"a new plugin must start on finfocus-spec %s or newer", minScaffoldSpecVersion)
+
+	project, err := pluginupgrade.Detect(projectDir)
+	require.NoError(t, err)
+	plan, err := pluginupgrade.NewPlan(project, pluginsdk.SpecVersion, pluginsdk.SpecVersion)
+	require.NoError(t, err)
+	assert.True(t, plan.UpToDate, "a fresh scaffold needs no plugin upgrade")
+	assert.Empty(t, plan.Warnings, "the scaffold declares SpecVersion through the SDK constant")
+}
+
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via runPluginInitForTest)
+func TestPluginInitCalculatorExtractsAndValidates(t *testing.T) {
+	tmpDir := t.TempDir()
+	runPluginInitForTest(t, &cli.PluginInitOptions{
+		Name: "extract-plugin", Author: "Test Author", Providers: []string{"aws"},
+		OutputDir: tmpDir, Force: true,
+	})
+	projectDir := filepath.Join(tmpDir, "extract-plugin")
+
+	calculator, err := os.ReadFile(filepath.Join(projectDir, "internal", "pricing", "calculator.go"))
+	require.NoError(t, err)
+	content := string(calculator)
+	assert.Contains(t, content, "func fillFromInputs(resource *pbc.ResourceDescriptor)")
+	assert.Contains(t, content, "mapping.ExtractAWSSKU(resource.GetTags())")
+	assert.Contains(t, content, "mapping.ExtractAWSRegion(resource.GetTags())")
+	assert.Contains(t, content, "pluginsdk.ValidateProjectedCostRequest(req)")
+	assert.Contains(t, content, "status.Error(codes.InvalidArgument, err.Error())")
+	assert.Contains(t, content, `if resource.GetRegion() != "us-east-1"`,
+		"us-east-1 example rates must not price other regions")
+
+	readme, err := os.ReadFile(filepath.Join(projectDir, "README.md"))
+	require.NoError(t, err)
+	for _, want := range []string{
+		"https://github.com/rshade/finfocus-spec",
+		"https://pkg.go.dev/github.com/rshade/finfocus-spec/sdk/go/pluginsdk",
+		"finfocus plugin conformance ./bin/finfocus-plugin-extract-plugin",
+		"`.agents/skills/`",
+		"Go 1.27.1+",
+	} {
+		assert.Contains(t, string(readme), want)
+	}
+	assert.NotContains(t, string(readme), "{{")
 }

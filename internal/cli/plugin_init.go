@@ -145,7 +145,7 @@ finfocus cost actual --pulumi-json plan.json --from 2025-01-01
 
 ### Prerequisites
 
-- Go 1.21+
+- Go {{GO_VERSION}}+
 - FinFocus Core development environment
 - Cloud provider credentials (for actual cost retrieval)
 
@@ -176,17 +176,22 @@ Edit {{INLINE_CALCULATOR_FILE}} to implement your pricing logic:
 
 {{GO_BLOCK_START}}
 func (c *Calculator) GetProjectedCost(ctx context.Context, req *pbc.GetProjectedCostRequest) (*pbc.GetProjectedCostResponse, error) {
-    // 1. Check if resource is supported
+    // 1. Fill an empty SKU or region from the resource inputs, then validate
+    fillFromInputs(req.GetResource())
+    if err := pluginsdk.ValidateProjectedCostRequest(req); err != nil {
+        return nil, status.Error(codes.InvalidArgument, err.Error())
+    }
+
+    // 2. Check if resource is supported
     if !c.Matcher().Supports(req.Resource) {
         return nil, pluginsdk.NotSupportedError(req.Resource)
     }
 
-    // 2. Extract resource properties
-    resourceType := req.Resource.ResourceType
-    properties := req.Resource.Tags
-
-    // 3. Calculate pricing based on resource type and properties
-    unitPrice := c.calculateResourceCost(resourceType, properties)
+    // 3. Price it from real data; return an error, never a guess, when you cannot
+    unitPrice, ok := c.lookupPrice(req.Resource.ResourceType, req.Resource.Sku, req.Resource.Region)
+    if !ok {
+        return nil, pluginsdk.NotSupportedError(req.Resource)
+    }
 
     // 4. Return response
     return c.Calculator().CreateProjectedCostResponse("USD", unitPrice, "description"), nil
@@ -218,6 +223,13 @@ func TestPluginName(t *testing.T) {
 }
 {{CODE_BLOCK_END}}
 
+Check protocol compliance against the built binary with the FinFocus CLI:
+
+{{BASH_BLOCK_START}}
+make build
+finfocus plugin conformance ./bin/finfocus-plugin-{{NAME}}
+{{CODE_BLOCK_END}}
+
 ### Adding Pricing Data
 
 1. Update pricing data structures in {{INLINE_DATA_FILE}}
@@ -231,6 +243,18 @@ The plugin supports the following configuration options:
 - Environment variables for cloud provider credentials
 - Pricing data files for offline pricing calculations
 - Regional pricing variations
+
+## References
+
+- [finfocus-spec](https://github.com/rshade/finfocus-spec): protocol definitions and the Go SDK
+- [pluginsdk API reference](https://pkg.go.dev/github.com/rshade/finfocus-spec/sdk/go/pluginsdk)
+- [Plugin conformance](https://github.com/rshade/finfocus/blob/main/docs/src/content/docs/reference/cli-commands.md):
+  {{INLINE_CONFORMANCE}} and {{INLINE_UPGRADE}}
+
+{{INLINE_PLUGIN_INIT}} installs two agent skills for AI coding assistants in
+{{INLINE_AGENTS_SKILLS}} and {{INLINE_CLAUDE_SKILLS}}: finfocus-plugin-dev
+(implementing and testing this plugin) and finfocus-plugin-upgrade (moving it
+to a newer finfocus-spec version with {{INLINE_UPGRADE}}).
 
 ## Contributing
 
@@ -1077,6 +1101,12 @@ func renderReadme(name string, providers []string) string {
 		"{{INLINE_CLIENT_FILE}}":      "`internal/client/client.go`",
 		"{{INLINE_DATA_FILE}}":        "`internal/pricing/data.go`",
 		"{{INLINE_MAKE_LINT_TEST}}":   "`make lint test`",
+		"{{INLINE_CONFORMANCE}}":      "`finfocus plugin conformance`",
+		"{{INLINE_UPGRADE}}":          "`finfocus plugin upgrade`",
+		"{{INLINE_PLUGIN_INIT}}":      "`finfocus plugin init`",
+		"{{INLINE_AGENTS_SKILLS}}":    "`.agents/skills/`",
+		"{{INLINE_CLAUDE_SKILLS}}":    "`.claude/skills/`",
+		"{{GO_VERSION}}":              pluginGoVersion,
 	}
 	content := pluginReadmeTemplate
 	for token, value := range replacements {
@@ -1424,10 +1454,10 @@ func (g *projectGenerator) generateGoMod() error {
 go %s
 
 require (
-	github.com/rshade/finfocus-spec v0.6.1
+	github.com/rshade/finfocus-spec %s
 	google.golang.org/grpc v1.77.0
 )
-`, pluginModulePath(g.name), pluginGoVersion)
+`, pluginModulePath(g.name), pluginGoVersion, pluginsdk.SpecVersion)
 
 	return g.writeFile("go.mod", content)
 }
@@ -1710,7 +1740,10 @@ import (
 	"fmt"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk/mapping"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Calculator implements the FinFocus plugin interface for {{NAME}}.
@@ -1789,6 +1822,14 @@ func (c *Calculator) Supports(_ context.Context, req *pbc.SupportsRequest) (*pbc
 
 // GetProjectedCost calculates projected costs for resources.
 func (c *Calculator) GetProjectedCost(ctx context.Context, req *pbc.GetProjectedCostRequest) (*pbc.GetProjectedCostResponse, error) {
+	fillFromInputs(req.GetResource())
+
+	// finfocus validates requests the same way before it calls the plugin:
+	// provider, resource type, SKU, and region are required.
+	if err := pluginsdk.ValidateProjectedCostRequest(req); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
+
 	// Check if we support this resource
 	if !c.Matcher().Supports(req.Resource) {
 		return nil, pluginsdk.NotSupportedError(req.Resource)
@@ -1815,6 +1856,21 @@ func (c *Calculator) GetProjectedCost(ctx context.Context, req *pbc.GetProjected
 	}
 }
 
+// fillFromInputs fills an empty SKU or region from the resource inputs, which
+// finfocus sends as tags. finfocus usually sets both already; other hosts may
+// not. The mapping package has the same helpers for Azure and GCP.
+func fillFromInputs(resource *pbc.ResourceDescriptor) {
+	if resource == nil {
+		return
+	}
+	if resource.GetSku() == "" {
+		resource.Sku = mapping.ExtractAWSSKU(resource.GetTags())
+	}
+	if resource.GetRegion() == "" {
+		resource.Region = mapping.ExtractAWSRegion(resource.GetTags())
+	}
+}
+
 // GetActualCost retrieves actual historical costs.
 func (c *Calculator) GetActualCost(ctx context.Context, req *pbc.GetActualCostRequest) (*pbc.GetActualCostResponse, error) {
 	// [TEMPLATE] Implementation Required: Actual Cost Retrieval
@@ -1824,7 +1880,7 @@ func (c *Calculator) GetActualCost(ctx context.Context, req *pbc.GetActualCostRe
 }
 
 // calculateEC2InstanceCost is an example pricing calculation. It reports false
-// when the instance type is missing or has no known price.
+// when the instance type or region has no known price.
 func (c *Calculator) calculateEC2InstanceCost(resource *pbc.ResourceDescriptor) (float64, bool) {
 	// [TEMPLATE] Implementation Required: Pricing Calculation
 	// This is a simplified example. A real implementation should:
@@ -1832,14 +1888,11 @@ func (c *Calculator) calculateEC2InstanceCost(resource *pbc.ResourceDescriptor) 
 	// 2. Look up pricing from your provider's Pricing API or local pricing data
 	// 3. Consider region, operating system, tenancy, etc.
 
-	// finfocus fills Sku from the instanceType input; the tag is a fallback.
-	instanceType := resource.GetSku()
-	if instanceType == "" {
-		instanceType = resource.GetTags()["instanceType"]
-	}
-
 	// Simplified us-east-1 Linux on-demand pricing - replace with real pricing data
-	switch instanceType {
+	if resource.GetRegion() != "us-east-1" {
+		return 0, false
+	}
+	switch resource.GetSku() {
 	case "t3.micro":
 		return 0.0104, true // $0.0104/hour
 	case "t3.small":
@@ -2262,13 +2315,11 @@ func TestProjectedCostSupported(t *testing.T) {
 	plugin := NewCalculator()
 	testPlugin := pluginsdk.NewTestPlugin(t, plugin)
 
-	// Test supported resource, shaped the way finfocus sends it
+	// SKU and region are filled from the inputs when the descriptor lacks them
 	resource := pluginsdk.CreateTestResource("aws", "aws:ec2/instance:Instance", map[string]string{
-		"instanceType": "t3.micro",
-		"region":       "us-east-1",
+		"instanceType":     "t3.micro",
+		"availabilityZone": "us-east-1a",
 	})
-	resource.Sku = "t3.micro"
-	resource.Region = "us-east-1"
 
 	resp := testPlugin.TestProjectedCost(resource, false)
 	if resp == nil {
@@ -2291,6 +2342,57 @@ func TestProjectedCostUnsupported(t *testing.T) {
 	// Test unsupported resource
 	resource := pluginsdk.CreateTestResource("unsupported", "unsupported:resource:Type", nil)
 	testPlugin.TestProjectedCost(resource, true) // Expect error
+}
+
+func TestProjectedCostRequiresRegion(t *testing.T) {
+	plugin := NewCalculator()
+	testPlugin := pluginsdk.NewTestPlugin(t, plugin)
+
+	// Validation rejects a request with no region anywhere
+	resource := pluginsdk.CreateTestResource("aws", "aws:ec2/instance:Instance", map[string]string{
+		"instanceType": "t3.micro",
+	})
+	testPlugin.TestProjectedCost(resource, true) // Expect error
+}
+
+func TestFillFromInputs(t *testing.T) {
+	tests := []struct {
+		name       string
+		resource   *pbc.ResourceDescriptor
+		wantSKU    string
+		wantRegion string
+	}{
+		{
+			name: "inputs fill empty fields",
+			resource: &pbc.ResourceDescriptor{Tags: map[string]string{
+				"instanceType": "t3.small", "availabilityZone": "us-west-2b",
+			}},
+			wantSKU:    "t3.small",
+			wantRegion: "us-west-2",
+		},
+		{
+			name: "descriptor fields win",
+			resource: &pbc.ResourceDescriptor{Sku: "t3.micro", Region: "us-east-1", Tags: map[string]string{
+				"instanceType": "t3.small", "region": "us-west-2",
+			}},
+			wantSKU:    "t3.micro",
+			wantRegion: "us-east-1",
+		},
+		{
+			name:     "nothing to fill",
+			resource: &pbc.ResourceDescriptor{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fillFromInputs(tt.resource)
+			assert.Equal(t, tt.wantSKU, tt.resource.GetSku())
+			assert.Equal(t, tt.wantRegion, tt.resource.GetRegion())
+		})
+	}
+
+	assert.NotPanics(t, func() { fillFromInputs(nil) })
 }
 
 func TestProjectedCostUnknownInstanceType(t *testing.T) {
@@ -2319,15 +2421,15 @@ func TestEC2InstancePricing(t *testing.T) {
 	testCases := []struct {
 		name         string
 		sku          string
-		tags         map[string]string
+		region       string
 		expectedCost float64
 		wantOK       bool
 	}{
-		{"t3.micro from sku", "t3.micro", nil, 0.0104, true},
-		{"t3.small from sku", "t3.small", nil, 0.0208, true},
-		{"t3.medium from tag", "", map[string]string{"instanceType": "t3.medium"}, 0.0416, true},
-		{"unknown type is not priced", "unknown-type", nil, 0, false},
-		{"missing type is not priced", "", nil, 0, false},
+		{"t3.micro", "t3.micro", "us-east-1", 0.0104, true},
+		{"t3.small", "t3.small", "us-east-1", 0.0208, true},
+		{"t3.medium", "t3.medium", "us-east-1", 0.0416, true},
+		{"unknown type is not priced", "unknown-type", "us-east-1", 0, false},
+		{"other region is not priced", "t3.micro", "eu-west-1", 0, false},
 	}
 
 	for _, tc := range testCases {
@@ -2336,7 +2438,7 @@ func TestEC2InstancePricing(t *testing.T) {
 				Provider:     "aws",
 				ResourceType: "aws:ec2/instance:Instance",
 				Sku:          tc.sku,
-				Tags:         tc.tags,
+				Region:       tc.region,
 			}
 
 			cost, ok := calculator.calculateEC2InstanceCost(resource)
