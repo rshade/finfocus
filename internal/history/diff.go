@@ -299,8 +299,8 @@ func resourceLabel(urn string) string {
 	if urn == "" {
 		return "(unknown)"
 	}
-	if i := strings.LastIndex(urn, urnSeparator); i >= 0 {
-		return urn[i+len(urnSeparator):]
+	if _, label, ok := strings.CutLast(urn, urnSeparator); ok {
+		return label
 	}
 	return urn
 }
