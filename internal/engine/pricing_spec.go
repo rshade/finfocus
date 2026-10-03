@@ -319,8 +319,11 @@ func pluginSpecAmounts(
 	case billingPerHour:
 		return rate * hoursPerMonth, rate, "", true
 	case billingPerDay:
-		// The same 730-hour month as per_hour, so $1/hour and $24/day agree.
-		monthly := rate * hoursPerMonth / hoursPerDay
+		// A daily rate is billed over a 30-day month, as in AWS's billing examples
+		// (ELB: "$0.0225 * 24 hours * 30 days"; CloudWatch: "30 days * 24 hours = 720
+		// hours"). Hourly rates use 730 hours, the Pricing Calculator's basis. Both
+		// are AWS conventions, so the two do not have to agree.
+		monthly := rate * daysPerMonth
 		return monthly, monthly / hoursPerMonth, "", true
 	case billingPerGBMonth:
 		qty, assumed := sizedQuantity(resource, "gb")

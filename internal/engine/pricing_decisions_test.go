@@ -15,7 +15,12 @@ import (
 	"github.com/rshade/finfocus/internal/proto"
 )
 
-func TestPluginSpecPricesTheSameWhetherQuotedPerHourOrPerDay(t *testing.T) {
+// AWS documents two month lengths: the Pricing Calculator estimates an hourly rate
+// over 730 hours (365 x 24 / 12), and its pricing-page billing examples bill a rate
+// over a 30-day month, 720 hours ("$0.0225 * 24 hours * 30 days" on the ELB page;
+// "30 days * 24 hours = 720 hours" on the CloudWatch page). Core follows each where
+// it applies, so $1/hour and $24/day are deliberately not the same monthly price.
+func TestPluginSpecFollowsTheAWSMonthConventions(t *testing.T) {
 	t.Parallel()
 
 	resource := ResourceDescriptor{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"}
@@ -28,8 +33,8 @@ func TestPluginSpecPricesTheSameWhetherQuotedPerHourOrPerDay(t *testing.T) {
 	daily, ok := costFromPluginPricingSpec(resource, &pbc.PricingSpec{BillingMode: billingPerDay, RatePerUnit: 24}, "p")
 	require.True(t, ok)
 
-	assert.InDelta(t, 730.0, hourly.Monthly, 1e-9)
-	assert.InDelta(t, hourly.Monthly, daily.Monthly, 1e-9, "$1/h and $24/day are the same price")
+	assert.InDelta(t, 730.0, hourly.Monthly, 1e-9, "an hourly rate uses the Pricing Calculator's 730 hours")
+	assert.InDelta(t, 720.0, daily.Monthly, 1e-9, "a daily rate uses AWS's 30-day billing month")
 }
 
 func TestPluginSpecCompoundModesSayWhatTheyLeaveOut(t *testing.T) {

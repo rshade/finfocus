@@ -651,8 +651,11 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   whose router `Fallback` is false asks no plugin for a spec. With the flag on,
   projected cache keys end in `/pricing-spec`, so a run with it off never reads a
   `plugin-spec` result (the exported `ProjectedResourceCacheKey` stays the
-  default key). `per_hour`, `per_cpu_hour` and `per_day` use the 730-hour month
-  (`per_day` is rate × 730 / 24, so $1/hour and $24/day agree), and `per_gb_month`
+  default key). `per_hour` and `per_cpu_hour` use 730 hours (the AWS Pricing Calculator
+  basis, 365 × 24 / 12), `per_day` uses `daysPerMonth` (30, the month AWS's billing
+  examples use: the ELB page's `$/hour * 24 hours * 30 days` and CloudWatch's
+  `30 days * 24 hours = 720 hours`). Do not "fix" the 720 against 730 by arithmetic:
+  both are AWS's own conventions for different purposes. `per_gb_month`
   multiplies by storage size or 1 GB. A billing mode the engine does not know that
   still has a usable unit, such as `per_hour_plus_data`, is priced from the unit
   alone and the note says `<mode>: hourly rate only, other charges not included`.
