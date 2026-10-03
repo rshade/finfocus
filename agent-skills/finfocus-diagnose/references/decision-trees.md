@@ -43,7 +43,7 @@ Projected keys are `projected/{provider}/{type}/{region}/{sku}`. Actual keys are
 | --- | --- | --- |
 | Adapter ends with (cached) | The price was served from BoltDB. | Rerun with `FINFOCUS_CACHE_ENABLED=false` to compare. |
 | `cache database locked by another process` | Another process holds `cache.db`. | Stop the other finfocus process. The open already logs the lock and continues without cache. |
-| Prices survive a deleted plugin response | Corruption reopen only happens for `ErrInvalid`, `ErrChecksum`, or `ErrVersionMismatch`. | Delete `cache.db` in the cache directory. |
+| A stored price is served after the plugin would now answer differently | A cache hit is returned until the entry expires. Recreation on open only happens for `ErrInvalid`, `ErrChecksum`, or `ErrVersionMismatch`. | Delete `cache.db`, or rerun with `FINFOCUS_CACHE_ENABLED=false`. |
 | `expires_at` seems ignored | A timestamp in the past skips caching. A future timestamp beyond the max is capped. | TTL must be between 60 and 604800 seconds. The default TTL is 3600. |
 
 `CalculatePluginTTL` uses a nil `expires_at` as the default TTL, a past timestamp as skip, a future timestamp inside the max as the remaining seconds, and a future timestamp past the max as 604800.

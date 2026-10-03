@@ -66,6 +66,6 @@ BoltDB corruption is not a finfocus sentinel. Open treats `ErrInvalid`, `ErrChec
 
 The routing struct comment says `InvalidArgument` does not fall back. `Engine.GetProjectedCostWithErrors` does not implement that exception. Any error from `getProjectedCostFromPlugin` tries the next plugin when that plugin's fallback flag is enabled. The flag defaults to true.
 
-A non-empty cost result stops the chain, including a monthly cost of 0. Higher priority is a higher number (`sortByPriority`, stable, descending). Equal priority is queried in parallel when a router is configured. No `routing` section means every loaded plugin is eligible, except types that start with `pulumi:`.
+A non-empty cost result stops the chain, including a monthly cost of 0. Higher priority is a higher number (`sortByPriority`, stable, descending). Plugins in that order are tried one at a time, including plugins that share a priority. No `routing` section means every loaded plugin is eligible, except types that start with `pulumi:`.
 
 A plugin that does not implement `Supports` returns `Supports capability not implemented by this plugin`. The engine treats that reason as fail-open and still calls the plugin. A real decline (wrong region, wrong provider) skips the plugin and the placeholder note can include the decline reason after `No pricing information available`.
