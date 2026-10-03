@@ -465,6 +465,14 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   empty result (e.g. history's `len(events) == 0`) must reject an unknown format
   *first*, or an invalid `--output` silently exits 0. See `config_routes.go`,
   `analyzer_check.go`, `plugin_list.go` for the up-front pattern
+- **Cost table flags**: `--show-breakdown` on `cost projected` and `cost actual`
+  adds alphabetical component sub-rows in the plain table (`├─`, last row `└─`).
+  Empty maps, nil maps, and empty keys add no sub-rows. `--show-confidence`
+  adds the actual-cost Confidence column. Neither flag changes JSON or NDJSON.
+  `--estimate-confidence` still sets the plugin request and decides whether
+  JSON/NDJSON keep `confidence`. Either new actual flag skips the interactive
+  TUI so the table is what the user sees. Time-based `--group-by` stays on the
+  cross-provider aggregation table, which has no per-resource sub-rows
 - **Budget CLI flags stay off the global config**: `--exit-on-threshold` and
   `--exit-code` are `BudgetFlagOverrides` on the command context, passed into
   `evaluateBudgetStatus` and `legacyBudgetConfig`. They are not written onto

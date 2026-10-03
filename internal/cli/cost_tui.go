@@ -21,6 +21,7 @@ func RenderCostOutput(
 	cmd *cobra.Command,
 	outputFormat string,
 	resultWithErrors *engine.CostResultWithErrors,
+	showBreakdown bool,
 ) error {
 	// 1. Determine and validate output format.
 	fmtType := engine.OutputFormat(config.GetOutputFormat(outputFormat))
@@ -32,8 +33,13 @@ func RenderCostOutput(
 
 	// 2. If output format is explicitly structured (JSON/NDJSON), bypass TUI completely.
 	// This satisfies FR-004: Maintain output for --output json/ndjson.
+	// --show-breakdown is a table-only flag and does not change these payloads.
 	if fmtType == engine.OutputJSON || fmtType == engine.OutputNDJSON {
 		return engine.RenderResults(cmd.OutOrStdout(), fmtType, resultWithErrors.Results)
+	}
+
+	if showBreakdown {
+		return renderPlainProjected(cmd.OutOrStdout(), resultWithErrors, true)
 	}
 
 	// 2. Detect the appropriate output mode for the terminal.
@@ -66,6 +72,8 @@ func RenderActualCostOutput(
 	resultWithErrors *engine.CostResultWithErrors,
 	groupBy string,
 	estimateConfidence bool,
+	showBreakdown bool,
+	showConfidence bool,
 ) error {
 	fmtType := engine.OutputFormat(config.GetOutputFormat(outputFormat))
 
@@ -75,26 +83,40 @@ func RenderActualCostOutput(
 	}
 
 	if fmtType == engine.OutputJSON || fmtType == engine.OutputNDJSON {
-		// Use existing logic for JSON/NDJSON (handling aggregation inside)
+		// Table flags do not change JSON or NDJSON. estimate-confidence still
+		// decides whether the confidence field is kept in those payloads.
 		return renderActualCostOutput(cmd.OutOrStdout(), fmtType, resultWithErrors.Results, groupBy, estimateConfidence)
 	}
 
 	mode := tui.DetectOutputMode(false, false, false)
-	switch mode {
-	case tui.OutputModeInteractive:
+	if mode == tui.OutputModeInteractive && !showBreakdown && !showConfidence {
 		return runInteractiveActualCostTUI(ctx, resultWithErrors, engine.GroupBy(groupBy))
-
-	case tui.OutputModeStyled, tui.OutputModePlain:
-		fallthrough
-	default:
-		if err := renderActualCostOutput(
-			cmd.OutOrStdout(), engine.OutputTable, resultWithErrors.Results, groupBy, estimateConfidence,
-		); err != nil {
-			return err
-		}
-		displayErrorSummary(cmd, resultWithErrors, engine.OutputTable)
-		return nil
 	}
+
+	if err := renderActualResourceTable(
+		cmd.OutOrStdout(), resultWithErrors.Results, groupBy, estimateConfidence, showBreakdown, showConfidence,
+	); err != nil {
+		return err
+	}
+	displayErrorSummary(cmd, resultWithErrors, engine.OutputTable)
+	return nil
+}
+
+// renderActualResourceTable writes the actual-cost table. Time-based grouping
+// keeps the cross-provider table, which has no per-resource component rows.
+func renderActualResourceTable(
+	w io.Writer,
+	results []engine.CostResult,
+	groupBy string,
+	estimateConfidence, showBreakdown, showConfidence bool,
+) error {
+	if engine.GroupBy(groupBy).IsTimeBasedGrouping() {
+		return renderActualCostOutput(w, engine.OutputTable, results, groupBy, estimateConfidence)
+	}
+	return engine.RenderActualCostTable(w, results, engine.CostTableOptions{
+		ShowBreakdown:  showBreakdown,
+		ShowConfidence: estimateConfidence || showConfidence,
+	})
 }
 
 func runInteractiveTUI(ctx context.Context, resultWithErrors *engine.CostResultWithErrors) error {
@@ -119,7 +141,17 @@ func runInteractiveActualCostTUI(
 
 // renderPlainOutput renders the standard table output (legacy behavior).
 func renderPlainOutput(w io.Writer, resultWithErrors *engine.CostResultWithErrors) error {
-	if err := engine.RenderResults(w, engine.OutputTable, resultWithErrors.Results); err != nil {
+	return renderPlainProjected(w, resultWithErrors, false)
+}
+
+func renderPlainProjected(w io.Writer, resultWithErrors *engine.CostResultWithErrors, showBreakdown bool) error {
+	var err error
+	if showBreakdown {
+		err = engine.RenderCostTable(w, resultWithErrors.Results, engine.CostTableOptions{ShowBreakdown: true})
+	} else {
+		err = engine.RenderResults(w, engine.OutputTable, resultWithErrors.Results)
+	}
+	if err != nil {
 		return err
 	}
 
