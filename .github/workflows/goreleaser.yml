@@ -60,3 +60,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GORELEASER_CURRENT_TAG: ${{ steps.tags.outputs.current }}
           GORELEASER_PREVIOUS_TAG: ${{ steps.tags.outputs.previous }}
+
+      # 5. Re-assert the CLI release as latest. A monorepo plugin release
+      #    published moments later can take the flag; this runs after
+      #    GoReleaser so a late plugin release cannot leave it stolen.
+      - name: Mark CLI release as GitHub latest
+        if: ${{ !contains(env.TAG, '-') }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "$TAG" --latest
