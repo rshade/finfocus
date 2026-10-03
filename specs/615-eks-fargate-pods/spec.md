@@ -60,15 +60,17 @@ not a cluster row, so it does not emit `unallocated priced resource`.
 
 For each priced entry:
 
-1. Match an orphan workload on `namespace` + `pod` + `node`.
+1. Match an orphan workload on `cluster` + `namespace` + `pod` + `node`.
+   The same pod name on another cluster stays an orphan.
 2. Assign `priced=true` cost to that workload. Split it into `cpu_cost` and
    `mem_cost` with the policy `node_split` unit prices times the pod's CPU
    and memory requests. Memory takes `cost - cpu_cost` so the parts sum to
    the cost. A non-positive cost, or both weights zero, stays entirely on
    `cpu_cost`.
 3. Drop that workload from the orphan list so it is not also emitted at `$0`.
-4. A second priced entry that matches an already-used workload still emits
-   its own row from the tags, so the extra cost is not dropped.
+4. `ValidateAllocateRequest` rejects a second entry with the same `kind` and
+   `id`. A second entry that repeats the subject tags under a different id
+   still emits its own row from the tags, so that cost is not dropped.
 5. `priced=false` emits `$0`. An empty note becomes `Fargate pod has no
    price`; a note from the pricer is kept (the host's
    `priced at $0; treated as unpriced` is the live note until #409 lands).

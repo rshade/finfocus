@@ -444,10 +444,16 @@ func shares(ws []*workload, capacity float64, amount func(*workload) float64) []
 func fargateAllocation(
 	orphans []*workload, priced []*pbc.PricedResource, pol policy.Policy, currency string,
 ) ([]*pbc.AllocationRow, []*workload) {
+	// Same key as workloadFor, including cluster. A priced pod must not take
+	// another cluster's orphan just because namespace, pod, and node match.
+	index := make(map[string]*workload, len(orphans))
+	for _, w := range orphans {
+		index[fargateWorkloadKey(w.subject)] = w
+	}
 	used := map[*workload]bool{}
 	rows := make([]*pbc.AllocationRow, 0, len(priced))
 	for _, pr := range priced {
-		w := matchFargateWorkload(orphans, pr)
+		w := index[fargateWorkloadKey(pr.GetResource().GetTags())]
 		if w != nil && used[w] {
 			w = nil
 		}
@@ -468,17 +474,11 @@ func fargateAllocation(
 	return rows, rest
 }
 
-func matchFargateWorkload(orphans []*workload, pr *pbc.PricedResource) *workload {
-	tags := pr.GetResource().GetTags()
-	for _, w := range orphans {
-		s := w.subject
-		if s[subjectNamespace] == tags[subjectNamespace] &&
-			s[subjectPod] == tags[subjectPod] &&
-			s[subjectNode] == tags[subjectNode] {
-			return w
-		}
-	}
-	return nil
+func fargateWorkloadKey(subject map[string]string) string {
+	return strings.Join([]string{
+		subject[subjectCluster], subject[subjectNamespace],
+		subject[subjectPod], subject[subjectNode],
+	}, "\x00")
 }
 
 func fargateRow(pr *pbc.PricedResource, w *workload, pol policy.Policy, currency string) *pbc.AllocationRow {

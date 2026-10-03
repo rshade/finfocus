@@ -54,7 +54,8 @@ func podRowsWithUsage(ns, pod, node string, cpuReq, memReq, cpuUse, memUse float
 	}
 }
 
-func pricedFargate(cluster, ns, pod, node string, cost float64, priced bool) *pbc.PricedResource {
+func pricedFargate(cluster, ns string, cost float64, priced bool) *pbc.PricedResource {
+	const pod, node = "fg", "fargate-ip-1"
 	return &pbc.PricedResource{
 		Resource: &pbc.ResourceDescriptor{
 			Provider: "aws", ResourceType: "aws:eks/fargate:Pod", Sku: "fargate",
@@ -225,7 +226,7 @@ func TestAllocate_FargatePodIsNotIdle(t *testing.T) {
 	with := allocateWithPolicy(t, `{}`,
 		concat(baseUsage, podRows("app", "fg", "fargate-ip-1", 0.25, 0.5)),
 		pricedNode("n1", nodeCost, nil),
-		pricedFargate("c", "app", "fg", "fargate-ip-1", podCost, true))
+		pricedFargate("c", "app", podCost, true))
 
 	assert.InDelta(t, rowFor(t, base, "workload", "pod", "api").GetTotalCost(),
 		rowFor(t, with, "workload", "pod", "api").GetTotalCost(), 1e-9)
@@ -244,10 +245,98 @@ func TestAllocate_FargatePodIsNotIdle(t *testing.T) {
 	unpriced := allocateWithPolicy(t, `{}`,
 		concat(baseUsage, podRows("app", "fg", "fargate-ip-1", 0.25, 0.5)),
 		pricedNode("n1", nodeCost, nil),
-		pricedFargate("c", "app", "fg", "fargate-ip-1", 0, false))
+		pricedFargate("c", "app", 0, false))
 	miss := rowFor(t, unpriced, "workload", "pod", "fg")
 	assert.Zero(t, miss.GetTotalCost())
 	assert.Equal(t, "Fargate pod has no price", miss.GetNote())
+}
+
+func TestAllocate_FargateDoesNotCrossClusters(t *testing.T) {
+	t.Parallel()
+
+	resp := allocateWithPolicy(t, `{}`,
+		concat(
+			podRowsIn("east", "app", "fg", "fargate-ip-1", 0.25, 0.5),
+			podRowsIn("west", "app", "fg", "fargate-ip-1", 0.25, 0.5),
+		),
+		pricedFargate("west", "app", 12.5, true))
+
+	east := fargateRowForCluster(t, resp, "east")
+	west := fargateRowForCluster(t, resp, "west")
+	assert.Zero(t, east.GetTotalCost())
+	assert.Equal(t, "Fargate pricing not supported yet", east.GetNote())
+	assert.InDelta(t, 12.5, west.GetTotalCost(), 1e-9)
+	assert.Equal(t, "west", west.GetSubject()["cluster"])
+	assert.Empty(t, west.GetNote())
+}
+
+func TestAllocate_FargateEdges(t *testing.T) {
+	t.Parallel()
+
+	t.Run("priced entry without usage uses tags", func(t *testing.T) {
+		t.Parallel()
+		resp := allocateWithPolicy(t, `{}`, nil,
+			pricedFargate("c", "batch", 12.5, true))
+		fg := rowFor(t, resp, "workload", "pod", "fg")
+		assert.InDelta(t, 12.5, fg.GetTotalCost(), 1e-9)
+		assert.Equal(t, "c", fg.GetSubject()["cluster"])
+		assert.Equal(t, "batch", fg.GetSubject()["namespace"])
+		assert.Empty(t, fg.GetSubject()["controller_kind"])
+		assert.Empty(t, fg.GetNote())
+	})
+
+	t.Run("second priced entry keeps its cost", func(t *testing.T) {
+		t.Parallel()
+		first := pricedFargate("c", "app", 10, true)
+		second := pricedFargate("c", "app", 2.5, true)
+		// Same subject tags, different id. ValidateAllocateRequest rejects a
+		// repeated (kind, id), so this is the reachable duplicate.
+		second.Resource.Id = "c/app/fg-dup"
+		resp := allocateWithPolicy(t, `{}`,
+			podRows("app", "fg", "fargate-ip-1", 0.25, 0.5), first, second)
+		var n int
+		var sum float64
+		var withController bool
+		for _, row := range resp.GetRows() {
+			if row.GetSubject()["pod"] != "fg" {
+				continue
+			}
+			n++
+			sum += row.GetTotalCost()
+			if row.GetSubject()["controller_kind"] != "" {
+				withController = true
+			}
+		}
+		assert.Equal(t, 2, n)
+		assert.InDelta(t, 12.5, sum, 1e-9)
+		assert.True(t, withController)
+	})
+
+	t.Run("idle share does not move fargate cost", func(t *testing.T) {
+		t.Parallel()
+		const nodeCost = 70.08
+		usage := concat(nodeRows("n1", 2, 8), podRows("app", "api", "n1", 0.5, 2))
+		base := allocateWithPolicy(t, `{"idle":"share"}`, usage, pricedNode("n1", nodeCost, nil))
+		with := allocateWithPolicy(t, `{"idle":"share"}`,
+			concat(usage, podRows("app", "fg", "fargate-ip-1", 0.25, 0.5)),
+			pricedNode("n1", nodeCost, nil),
+			pricedFargate("c", "app", 12.5, true))
+		assert.InDelta(t, rowFor(t, base, "workload", "pod", "api").GetTotalCost(),
+			rowFor(t, with, "workload", "pod", "api").GetTotalCost(), 1e-9)
+		assert.InDelta(t, 0, rowFor(t, with, "__idle__", "node", "n1").GetTotalCost(), 1e-9)
+		assert.InDelta(t, 12.5, rowFor(t, with, "workload", "pod", "fg").GetTotalCost(), 1e-9)
+	})
+}
+
+func fargateRowForCluster(t *testing.T, resp *pbc.AllocateResponse, cluster string) *pbc.AllocationRow {
+	t.Helper()
+	for _, row := range resp.GetRows() {
+		if row.GetSubject()["pod"] == "fg" && row.GetSubject()["cluster"] == cluster {
+			return row
+		}
+	}
+	require.FailNowf(t, "fargate row not found", "cluster=%s", cluster)
+	return nil
 }
 
 func TestAllocate_DuplicatePodNamesAcrossNamespaces(t *testing.T) {
