@@ -297,6 +297,81 @@ func (p *regionPlugin) GetProjectedCost(
 	}}}, nil
 }
 
+func TestGetProjectedCostDiffCachedResults(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	prices := map[string]float64{"t3.micro": 10}
+
+	plan := func() []ResourceDescriptor {
+		return []ResourceDescriptor{
+			diffResource("web-0", DiffOperationCreate, "t3.micro", ""),
+			diffResource("web-1", DiffOperationCreate, "t3.micro", ""),
+			diffResource("web-2", DiffOperationSame, "t3.micro", ""),
+		}
+	}
+
+	plugin := newSKUPricePlugin(prices, nil)
+	eng := diffEngine(plugin).WithCache(newMockCache(true))
+
+	_, err := eng.GetProjectedCostDiff(ctx, plan())
+	require.NoError(t, err)
+	callsAfterWarmup := plugin.calls
+
+	diff, err := eng.GetProjectedCostDiff(ctx, plan())
+	require.NoError(t, err)
+
+	assert.Equal(t, callsAfterWarmup, plugin.calls, "second run must be served from the cache")
+	require.Len(t, diff.Entries, 3)
+	for i, id := range []string{"web-0", "web-1", "web-2"} {
+		entry := diff.Entries[i]
+		assert.Equal(t, id, entry.ResourceID)
+		assert.Equal(t, id, entry.After.ResourceID)
+		assert.InDelta(t, 10.0, monthlyOf(entry.After), 1e-9, id)
+		assert.NotEqual(t, adapterNone, entry.After.Adapter, id)
+	}
+	assert.InDelta(t, 30.0, diff.Summary.TotalAfter, 1e-9)
+	assert.InDelta(t, 10.0, diff.Summary.TotalBefore, 1e-9)
+	assert.InDelta(t, 20.0, diff.Summary.TotalDelta, 1e-9)
+}
+
+func TestGetProjectedCostCacheHitUsesRequestingResourceID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	plugin := newSKUPricePlugin(map[string]float64{"t3.micro": 10}, nil)
+	eng := diffEngine(plugin).WithCache(newMockCache(true))
+
+	_, err := eng.GetProjectedCost(ctx, []ResourceDescriptor{diffResource("web-0", "", "t3.micro", "")})
+	require.NoError(t, err)
+
+	results, err := eng.GetProjectedCost(ctx, []ResourceDescriptor{diffResource("web-1", "", "t3.micro", "")})
+	require.NoError(t, err)
+
+	require.Len(t, results, 1)
+	assert.Equal(t, "web-1", results[0].ResourceID)
+	assert.Contains(t, results[0].Adapter, "(cached)")
+}
+
+func TestGetProjectedCostDiffSkipsUnpricedInternalPulumiTypes(t *testing.T) {
+	t.Parallel()
+
+	plugin := newSKUPricePlugin(map[string]float64{"t3.micro": 10}, nil)
+	eng := diffEngine(plugin)
+
+	diff, err := eng.GetProjectedCostDiff(context.Background(), []ResourceDescriptor{
+		{Type: "pulumi:pulumi:Stack", ID: "stack", Provider: "pulumi", Operation: DiffOperationSame},
+		{Type: "pulumi:providers:aws", ID: "provider", Provider: "pulumi", Operation: DiffOperationCreate},
+		diffResource("web", DiffOperationCreate, "t3.micro", ""),
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, []string{"web"}, entryIDs(diff))
+	assert.Equal(t, 1, diff.Summary.Creates)
+	assert.Equal(t, 0, diff.Summary.Unchanged)
+	assert.InDelta(t, 10.0, diff.Summary.TotalAfter, 1e-9)
+}
+
 func TestGetProjectedCostDiffReplacement(t *testing.T) {
 	t.Parallel()
 

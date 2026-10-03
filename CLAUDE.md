@@ -536,7 +536,11 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 
 - **`hoursPerMonth = 730`** for monthly cost calculations
 - **Projected cost diff**: `cost projected` calls `GetProjectedCostDiff`.
-  An empty operation is a create (`$0` before, current price after). `update`,
+  An empty operation is a create (`$0` before, current price after); Terraform
+  state maps to `same` (existing infrastructure, no delta). Internal `pulumi:`
+  types that no plugin priced are left out of the entries, and a projected cache
+  hit is re-keyed to the requesting resource's ID (identical resources share one
+  cache entry). `update`,
   `replace`, and `create-replacement` price `OldProperties` then `Properties`.
   `delete` and `delete-replaced` price old properties and a `$0` after.
   `same` is priced once. Both sides use the same basis: `OldProperties` is outputs

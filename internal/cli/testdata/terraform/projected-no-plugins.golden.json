@@ -1,13 +1,13 @@
 {
   "finfocus": {
     "diff": {
-      "creates": 14,
+      "creates": 0,
       "currency": "USD",
       "deletes": 0,
       "totalAfter": 0,
       "totalBefore": 0,
       "totalDelta": 0,
-      "unchanged": 0,
+      "unchanged": 14,
       "updates": 0
     },
     "resources": [
@@ -26,7 +26,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_db_instance.main",
         "resourceType": "aws_db_instance",
         "startDate": "<normalized>"
@@ -46,7 +46,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_dynamodb_table.sessions",
         "resourceType": "aws_dynamodb_table",
         "startDate": "<normalized>"
@@ -66,7 +66,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_ebs_volume.data",
         "resourceType": "aws_ebs_volume",
         "startDate": "<normalized>"
@@ -86,7 +86,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_iam_role.app",
         "resourceType": "aws_iam_role",
         "startDate": "<normalized>"
@@ -106,7 +106,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_instance.web",
         "resourceType": "aws_instance",
         "startDate": "<normalized>"
@@ -126,7 +126,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_instance.worker[\"large\"]",
         "resourceType": "aws_instance",
         "startDate": "<normalized>"
@@ -146,7 +146,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_instance.worker[\"small\"]",
         "resourceType": "aws_instance",
         "startDate": "<normalized>"
@@ -166,7 +166,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_s3_bucket.assets",
         "resourceType": "aws_s3_bucket",
         "startDate": "<normalized>"
@@ -186,7 +186,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_security_group.web",
         "resourceType": "aws_security_group",
         "startDate": "<normalized>"
@@ -206,7 +206,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_subnet.a",
         "resourceType": "aws_subnet",
         "startDate": "<normalized>"
@@ -226,7 +226,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_volume_attachment.data",
         "resourceType": "aws_volume_attachment",
         "startDate": "<normalized>"
@@ -246,7 +246,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "aws_vpc.main",
         "resourceType": "aws_vpc",
         "startDate": "<normalized>"
@@ -266,7 +266,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "module.app.aws_instance.app[0]",
         "resourceType": "aws_instance",
         "startDate": "<normalized>"
@@ -286,7 +286,7 @@
         "hourly": 0,
         "monthly": 0,
         "notes": "No pricing information available",
-        "operation": "create",
+        "operation": "same",
         "resourceId": "module.app.aws_instance.app[1]",
         "resourceType": "aws_instance",
         "startDate": "<normalized>"

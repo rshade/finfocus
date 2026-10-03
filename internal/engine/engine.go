@@ -4052,6 +4052,8 @@ func generateActualCostCacheKey(request ActualCostRequest) string {
 
 // tryProjectedCostCache attempts to retrieve cached projected cost results for the
 // given resource. Returns the cached results if found, or nil on cache miss/error.
+// The key has no resource ID, so identical resources share one entry; each hit
+// is re-keyed to the requesting resource's ID.
 func (e *Engine) tryProjectedCostCache(ctx context.Context, resource ResourceDescriptor) []CostResult {
 	if e.cache == nil || !e.cache.IsEnabled() {
 		return nil
@@ -4079,6 +4081,7 @@ func (e *Engine) tryProjectedCostCache(ctx context.Context, resource ResourceDes
 	}
 
 	for i := range results {
+		results[i].ResourceID = resource.ID
 		results[i].Adapter += " (cached)"
 	}
 

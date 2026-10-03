@@ -147,6 +147,9 @@ func assembleDiff(
 		Errors:  errs,
 	}
 	for i, resource := range resources {
+		if isUnpricedInternalType(resource.Type, before[i], after[i]) {
+			continue
+		}
 		entry := buildDiffEntry(resource, plan.ops[i], before[i], after[i])
 		result.Entries = append(result.Entries, entry)
 		addDiffSummary(&result.Summary, entry)
@@ -154,6 +157,14 @@ func assembleDiff(
 	result.Summary.TotalDelta = result.Summary.TotalAfter - result.Summary.TotalBefore
 	result.Summary.Currency = summaryCurrency(result.Entries)
 	return result
+}
+
+// isUnpricedInternalType reports whether a resource is a Pulumi internal type
+// (the stack, a provider) that no plugin priced. The engine returns no result
+// for these, so they would only show as $0 rows and inflate the counts. A type
+// that a routing pattern opted in to has a result and is kept.
+func isUnpricedInternalType(resourceType string, before, after *CostResult) bool {
+	return strings.HasPrefix(resourceType, pulumiInternalPrefix) && before == nil && after == nil
 }
 
 func costsByResource(indexes []int, costs []*CostResult, n int) []*CostResult {

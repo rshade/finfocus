@@ -165,7 +165,8 @@ finfocus cost projected --pulumi-json plan.json --output ndjson
 
 `--terraform-state` parses a Terraform state v4 file (`terraform.tfstate`) and
 prices every managed resource as-is — the state represents current
-infrastructure, so there are no create/update/delete deltas.
+infrastructure, so there are no create/update/delete deltas. The cost diff
+reports every resource as unchanged, with the same price before and after.
 
 Caveats:
 

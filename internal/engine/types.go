@@ -38,7 +38,8 @@ type ResourceDescriptor struct {
 	// cross-resource references. ID remains the resource's own URN.
 	Refs map[string][]string `json:"refs,omitempty"`
 	// Operation is the Pulumi plan op. Empty means the caller has no plan
-	// operation (Terraform state, older tools) and cost diff treats it as create.
+	// operation (older tools) and cost diff treats it as create. Terraform state
+	// sets "same", because it describes existing infrastructure.
 	Operation string `json:"operation,omitempty"`
 	// OldProperties is the previous property map for update, replace, and
 	// delete: the step's outputs merged under its old inputs, the same way
