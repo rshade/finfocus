@@ -130,15 +130,16 @@ type Router interface {
 
 // Engine orchestrates cost calculations between plugins and local pricing specifications.
 type Engine struct {
-	clients        []*pluginhost.Client
-	loader         SpecLoader
-	cache          cache.Cache
-	history        history.Store             // Optional history store; if nil, no history tracking
-	router         Router                    // Optional router for plugin selection; if nil, queries all plugins
-	dismissalStore *config.DismissalStore    // Optional dismissal store; if nil, created on demand
-	jobs           int                       // Override worker count; 0 means auto (default)
-	supportsCache  map[string]supportsResult // Cache for Supports() results, keyed by "client:provider:type:region:sku:feature"
-	supportsMu     sync.RWMutex              // Guards supportsCache
+	clients             []*pluginhost.Client
+	loader              SpecLoader
+	cache               cache.Cache
+	history             history.Store             // Optional history store; if nil, no history tracking
+	router              Router                    // Optional router for plugin selection; if nil, queries all plugins
+	dismissalStore      *config.DismissalStore    // Optional dismissal store; if nil, created on demand
+	jobs                int                       // Override worker count; 0 means auto (default)
+	pricingSpecFallback bool                      // GetPricingSpec after a projected-cost miss; default off
+	supportsCache       map[string]supportsResult // Supports() cache: client, provider, type, region, sku, feature
+	supportsMu          sync.RWMutex              // Guards supportsCache
 }
 
 // supportsResult is the cached answer of a plugin's Supports() RPC.
@@ -725,51 +726,8 @@ func (e *Engine) GetProjectedCost(
 			}
 
 			if len(resourceResults) == 0 {
-				// Single spec fallback per resource
-				if e.loader != nil {
-					log.Debug().
-						Ctx(ctx).
-						Str("component", "engine").
-						Str("resource_type", resource.Type).
-						Str("resource_id", resource.ID).
-						Msg("no plugin data, trying spec fallback")
-
-					if specRes := e.getProjectedCostFromSpec(ctx, resource); specRes != nil {
-						log.Debug().
-							Ctx(ctx).
-							Str("component", "engine").
-							Str("resource_type", resource.Type).
-							Float64("monthly_cost", specRes.Monthly).
-							Msg("spec fallback provided cost data")
-						resourceResults = append(resourceResults, *specRes)
-					}
-				}
-
-				if len(resourceResults) == 0 {
-					// Final fallback: no cost data available
-					log.Warn().
-						Ctx(ctx).
-						Str("component", "engine").
-						Str("resource_type", resource.Type).
-						Str("resource_id", resource.ID).
-						Msg("no pricing data available from plugins or specs")
-
-					notes := declineNotes(noteNoPricingInfo, declines)
-					resourceResults = append(resourceResults, CostResult{
-						ResourceType: resource.Type,
-						ResourceID:   resource.ID,
-						Adapter:      adapterNone,
-						Currency:     defaultCurrency,
-						Monthly:      0,
-						Hourly:       0,
-						Notes:        notes,
-						Error: &StructuredError{
-							Code:         ErrCodeNoCostData,
-							Message:      notes,
-							ResourceType: resource.Type,
-						},
-					})
-				}
+				resourceResults = append(resourceResults,
+					e.projectedFallbackResult(ctx, resource, selectedMatches, declines))
 			}
 
 			// Store successful results in cache (skip placeholder-only results)
@@ -958,34 +916,9 @@ func (e *Engine) GetProjectedCostWithErrors(
 				}
 			}
 
-			// If no results from plugins, try spec fallback
 			if len(resourceResults) == 0 {
-				fallbackUsed := false
-				if e.loader != nil {
-					if specRes := e.getProjectedCostFromSpec(ctx, resource); specRes != nil {
-						resourceResults = append(resourceResults, *specRes)
-						fallbackUsed = true
-					}
-				}
-
-				if !fallbackUsed {
-					// Final fallback: no cost data available
-					notes := declineNotes(noteNoPricingInfo, declines)
-					resourceResults = append(resourceResults, CostResult{
-						ResourceType: resource.Type,
-						ResourceID:   resource.ID,
-						Adapter:      adapterNone,
-						Currency:     defaultCurrency,
-						Monthly:      0,
-						Hourly:       0,
-						Notes:        notes,
-						Error: &StructuredError{
-							Code:         ErrCodeNoCostData,
-							Message:      notes,
-							ResourceType: resource.Type,
-						},
-					})
-				}
+				resourceResults = append(resourceResults,
+					e.projectedFallbackResult(ctx, resource, selectedMatches, declines))
 			}
 
 			// Store successful results in cache (skip placeholder-only results)

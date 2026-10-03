@@ -123,6 +123,14 @@ func (m *mockCostSourceClient) ResolveResourceTypes(
 	return &pbc.ResolveResourceTypesResponse{}, nil
 }
 
+func (m *mockCostSourceClient) GetPricingSpec(
+	_ context.Context,
+	_ *pbc.GetPricingSpecRequest,
+	_ ...grpc.CallOption,
+) (*pbc.GetPricingSpecResponse, error) {
+	return &pbc.GetPricingSpecResponse{}, nil
+}
+
 //nolint:paralleltest // table cases share the parent-scoped fixture budget1
 func TestEngine_GetBudgets(t *testing.T) {
 	ctx := context.Background()

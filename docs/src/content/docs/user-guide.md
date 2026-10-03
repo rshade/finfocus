@@ -90,7 +90,14 @@ finfocus cost projected --pulumi-json plan.json --spec-dir ./custom-pricing
 
 # Use specific plugin only
 finfocus cost projected --pulumi-json plan.json --adapter aws-pricing-plugin
+
+# Price from plugin GetPricingSpec before local YAML (off unless set)
+finfocus cost projected --pulumi-json plan.json --pricing-spec-fallback
 ```
+
+`cost.pricing_spec_fallback` in the config file is the same switch. The CLI
+flag wins when it is present. A hit says `Calculated from plugin pricing spec`
+in Notes. Local YAML still runs when the plugin spec is missing.
 
 ### Sample Output
 

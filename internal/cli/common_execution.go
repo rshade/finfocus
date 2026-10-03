@@ -453,7 +453,8 @@ func newEngineWithCache(
 		cfg = config.New()
 	}
 	eng := engine.New(clients, loader).
-		WithRouter(createRouterForEngine(ctx, cfg, clients))
+		WithRouter(createRouterForEngine(ctx, cfg, clients)).
+		WithPricingSpecFallback(cfg.Cost.PricingSpecFallback)
 
 	cacheStore := initCacheFromConfig(ctx, cmd, cfg)
 	cacheCleanup := func() {}

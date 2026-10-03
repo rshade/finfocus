@@ -290,6 +290,10 @@ type CostConfig struct {
 
 	// Allocation contains the tag-based cost attribution configuration.
 	Allocation AllocationConfig `yaml:"allocation" json:"allocation"`
+
+	// PricingSpecFallback prices a projected resource from plugin GetPricingSpec
+	// when GetProjectedCost misses, before local YAML specs. Off by default.
+	PricingSpecFallback bool `yaml:"pricing_spec_fallback" json:"pricing_spec_fallback"`
 }
 
 // CacheConfig defines caching behavior for query results.
