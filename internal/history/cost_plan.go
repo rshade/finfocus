@@ -103,16 +103,20 @@ func parseHistoryTime(value string) (time.Time, error) {
 }
 
 // SelectOptions chooses which checkpoints collect stores.
+// Have, when non-nil, is the set of versions that already have snapshots.
+// LastVersion is the high-water drop used only when Have is nil.
 type SelectOptions struct {
 	From        time.Time
 	LastVersion uint64
 	Limit       int
 	SkipDestroy bool
+	Have        map[int]struct{}
 }
 
 // SelectUpdates keeps successful updates, and successful destroys unless skipped.
 // From is inclusive at 00:00 UTC when the caller parsed a date-only flag.
-// Limit keeps the newest N matches, then versions at or below LastVersion are dropped.
+// Limit keeps the newest N matches. Stored versions in Have are then dropped.
+// When Have is nil, versions at or below LastVersion are dropped instead.
 func SelectUpdates(updates []StackUpdate, opt SelectOptions) []StackUpdate {
 	kept := make([]StackUpdate, 0, len(updates))
 	for _, update := range updates {
@@ -130,12 +134,20 @@ func SelectUpdates(updates []StackUpdate, opt SelectOptions) []StackUpdate {
 	}
 	selected := make([]StackUpdate, 0, len(kept))
 	for _, update := range kept {
-		if update.Version >= 0 && uint64(update.Version) <= opt.LastVersion {
+		if alreadyCollected(update.Version, opt) {
 			continue
 		}
 		selected = append(selected, update)
 	}
 	return selected
+}
+
+func alreadyCollected(version int, opt SelectOptions) bool {
+	if opt.Have != nil {
+		_, ok := opt.Have[version]
+		return ok
+	}
+	return version >= 0 && uint64(version) <= opt.LastVersion
 }
 
 func keepUpdate(update StackUpdate, skipDestroy bool) bool {

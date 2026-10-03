@@ -70,6 +70,13 @@ func runView(cmd *cobra.Command, deps viewDeps) error {
 		return err
 	}
 	defer func() { _ = db.Close() }()
+	stats, err := db.Stats()
+	if err != nil {
+		return err
+	}
+	if stats.Stack != "" && stats.Stack != stack {
+		return fmt.Errorf("cost history database stack %q does not match %q", stats.Stack, stack)
+	}
 	from, to, err := viewBounds(cmd)
 	if err != nil {
 		return err

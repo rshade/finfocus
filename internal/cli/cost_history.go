@@ -155,7 +155,17 @@ func terminalWidth() int {
 	if err != nil || width <= 0 {
 		return defaultTermWidth
 	}
-	return width
+	return fitTerminalChartWidth(width, true)
+}
+
+// fitTerminalChartWidth leaves the non-terminal default unchanged and reserves
+// asciigraph's three-column axis when the measured width is a real terminal.
+func fitTerminalChartWidth(columns int, isTerminal bool) int {
+	const axisOffset = 3
+	if !isTerminal || columns <= axisOffset {
+		return columns
+	}
+	return columns - axisOffset
 }
 
 func globalBudget(cfg *config.Config) (float64, bool) {

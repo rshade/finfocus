@@ -116,6 +116,19 @@ func TestCollect_FailFastMissingPlugin(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, snaps, 1)
 	assert.Equal(t, 1, snaps[0].Version)
+
+	fixed, err := Collect(context.Background(), db, exp, CollectOptions{
+		Parallel: 1,
+		Pricer: func(_ context.Context, resources []PriceResource) ([]PriceQuote, error) {
+			return priced(resources, 5, "aws-public"), nil
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, fixed.Stored)
+	snaps, err = db.Snapshots(time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.Len(t, snaps, 2)
+	assert.Equal(t, []int{1, 2}, []int{snaps[0].Version, snaps[1].Version})
 }
 
 func TestCollect_RetryThenSkip(t *testing.T) {
@@ -147,6 +160,20 @@ func TestCollect_RetryThenSkip(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, snaps, 1)
 	assert.Equal(t, 2, snaps[0].Version)
+
+	again, err := Collect(context.Background(), db, exp, CollectOptions{
+		Parallel: 1,
+		Pricer: func(_ context.Context, resources []PriceResource) ([]PriceQuote, error) {
+			return priced(resources, 8, "aws-public"), nil
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, again.Stored)
+	snaps, err = db.Snapshots(time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.Len(t, snaps, 2)
+	assert.Equal(t, 1, snaps[0].Version)
+	assert.Equal(t, 2, snaps[1].Version)
 }
 
 func TestCollect_EmptyAndEncrypted(t *testing.T) {

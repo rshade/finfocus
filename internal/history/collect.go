@@ -119,11 +119,19 @@ func prepareCollect(ctx context.Context, db *CostDB, exp Exporter, opt CollectOp
 	if reset {
 		stats.LastVersion = 0
 	}
+	stored, err := db.Snapshots(time.Time{}, time.Time{})
+	if err != nil {
+		return preparedCollect{}, err
+	}
+	have := make(map[int]struct{}, len(stored))
+	for _, snapshot := range stored {
+		have[snapshot.Version] = struct{}{}
+	}
 	selected := SelectUpdates(updates, SelectOptions{
 		From:        opt.From,
-		LastVersion: stats.LastVersion,
 		Limit:       opt.Versions,
 		SkipDestroy: opt.SkipDestroy,
+		Have:        have,
 	})
 	plan := CollectPlan{
 		TotalHistory: len(updates),

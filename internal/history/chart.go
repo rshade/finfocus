@@ -44,7 +44,7 @@ func RenderChart(snapshots []CostSnapshot, annotations []CostAnnotation, opt Cha
 		return filtered[i].Timestamp.Before(filtered[j].Timestamp)
 	})
 	if len(filtered) == 1 {
-		return formatSingle(opt.Stack, filtered[0])
+		return formatSingle(opt.Stack, opt.Provider, filtered[0])
 	}
 	return formatPlot(filtered, annotations, opt)
 }
@@ -59,13 +59,13 @@ func filterSnapshots(snapshots []CostSnapshot, from, to time.Time) []CostSnapsho
 	return out
 }
 
-func formatSingle(stack string, snapshot CostSnapshot) string {
+func formatSingle(stack, provider string, snapshot CostSnapshot) string {
 	return fmt.Sprintf(
 		"Monthly Cost ($) — Stack: %s (1 snapshot, %s)\n%s  %s %s  v%d\n",
 		stack,
 		snapshot.Timestamp.UTC().Format("Jan 2006"),
 		snapshot.Timestamp.UTC().Format("2006-01-02"),
-		formatMoney(snapshot.TotalMonthly),
+		formatMoney(seriesValue(snapshot, provider)),
 		snapshot.Currency,
 		snapshot.Version,
 	)
@@ -171,7 +171,15 @@ func seriesValue(snapshot CostSnapshot, provider string) float64 {
 	if provider == "" {
 		return snapshot.TotalMonthly
 	}
-	return snapshot.ByProvider[provider]
+	if value, ok := snapshot.ByProvider[provider]; ok {
+		return value
+	}
+	for name, value := range snapshot.ByProvider {
+		if strings.EqualFold(name, provider) {
+			return value
+		}
+	}
+	return 0
 }
 
 func writeAnnotations(b *strings.Builder, snapshots []CostSnapshot, annotations []CostAnnotation) {

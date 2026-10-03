@@ -57,6 +57,12 @@ func TestSelectUpdates(t *testing.T) {
 
 	incremental := SelectUpdates(updates, SelectOptions{LastVersion: 4})
 	assert.Equal(t, []int{5}, versionsOf(incremental))
+
+	stored := SelectUpdates(updates, SelectOptions{Have: map[int]struct{}{2: {}, 4: {}}})
+	assert.Equal(t, []int{5}, versionsOf(stored))
+
+	gap := SelectUpdates(updates, SelectOptions{Have: map[int]struct{}{5: {}}, LastVersion: 5})
+	assert.Equal(t, []int{2, 4}, versionsOf(gap))
 }
 
 func TestVersionReset(t *testing.T) {

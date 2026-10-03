@@ -118,6 +118,27 @@ func TestView_JSONOutput(t *testing.T) {
 	assert.Contains(t, chartOut.String(), "Budget")
 }
 
+func TestView_RejectsMismatchedStack(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	seedHistory(t, dir, "a/b", viewSnap(1, time.January, 80, map[string]float64{"aws": 80}))
+	mismatched, _ := preparedHistoryCmd(t, NewCostHistoryViewCmd(), "--stack", "a-b", "--width", "20")
+	err := runView(mismatched, viewDeps{dir: dir, cfg: &config.Config{}})
+	require.ErrorContains(t, err, `cost history database stack "a/b" does not match "a-b"`)
+
+	matched, stdout := preparedHistoryCmd(t, NewCostHistoryViewCmd(), "--stack", "a/b", "--width", "20")
+	require.NoError(t, runView(matched, viewDeps{dir: dir, cfg: &config.Config{}}))
+	assert.Contains(t, stdout.String(), "1 snapshot")
+}
+
+func TestFitTerminalChartWidth(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, 77, fitTerminalChartWidth(80, true))
+	assert.Equal(t, 80, fitTerminalChartWidth(80, false))
+	assert.Equal(t, 3, fitTerminalChartWidth(3, true))
+	assert.Equal(t, 1, fitTerminalChartWidth(1, true))
+}
+
 func seedHistory(t *testing.T, dir, stack string, snaps ...history.CostSnapshot) {
 	t.Helper()
 	path, err := historyPath(dir, stack)

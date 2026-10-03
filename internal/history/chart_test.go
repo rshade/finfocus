@@ -76,12 +76,26 @@ func TestChart_SingleDataPoint(t *testing.T) {
 
 func TestChart_ProviderFilter(t *testing.T) {
 	t.Parallel()
-	out := RenderChart([]CostSnapshot{
+	snaps := []CostSnapshot{
 		sampleSnap(1, time.January, 100, map[string]float64{"aws": 80, "gcp": 20}),
 		sampleSnap(2, time.February, 200, map[string]float64{"aws": 150, "gcp": 50}),
-	}, nil, ChartOptions{Stack: "dev", Provider: "aws", Height: 6, Width: 30, NoBudget: true, NoAnnotations: true})
+	}
+	opt := ChartOptions{Stack: "dev", Provider: "aws", Height: 6, Width: 30, NoBudget: true, NoAnnotations: true}
+	out := RenderChart(snaps, nil, opt)
 	assert.Contains(t, out, "AWS")
 	assert.NotContains(t, out, "GCP")
+	opt.Provider = "AWS"
+	assert.Equal(t, out, RenderChart(snaps, nil, opt))
+}
+
+func TestChart_SingleProvider(t *testing.T) {
+	t.Parallel()
+	out := RenderChart([]CostSnapshot{
+		sampleSnap(1, time.January, 100, map[string]float64{"aws": 80, "gcp": 20}),
+	}, nil, ChartOptions{Stack: "dev", Provider: "AWS"})
+	assert.Contains(t, out, "$80")
+	assert.NotContains(t, out, "$100")
+	assert.NotContains(t, out, "$20")
 }
 
 func sampleSnap(version int, month time.Month, total float64, by map[string]float64) CostSnapshot {
