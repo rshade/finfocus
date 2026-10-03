@@ -97,9 +97,11 @@ Cache settings belong under the `cost.cache` key in either:
 
 | Option        | Type    | Default | Required | Description                                        |
 | ------------- | ------- | ------- | -------- | -------------------------------------------------- |
-| `enabled`     | boolean | `false` | No       | Master switch. `false` disables caching entirely.  |
-| `ttl_seconds` | integer | `3600`  | No       | Seconds until a cached entry expires. `0` disables.|
-| `directory`   | string  | `""`    | No       | Explicit cache directory path. Empty = auto.       |
+| `enabled`       | boolean | `false` | No       | Master switch. `false` disables caching entirely.  |
+| `ttl_seconds`   | integer | `3600`  | No       | Seconds until a cached entry expires. `0` disables.|
+| `directory`     | string  | `""`    | No       | Explicit cache directory path. Empty = auto.       |
+| `lru_enabled`   | boolean | `false` | No       | In-memory LRU in front of BoltDB.                  |
+| `lru_max_items` | integer | `256`   | No       | Memory-tier capacity. `0` uses 256.                |
 
 > **Note:** When `enabled: true` is set without specifying `ttl_seconds`, the default
 > of 3600 seconds (1 hour) applies automatically. Setting `ttl_seconds: 0` disables
@@ -119,12 +121,18 @@ finfocus cost projected --cache-ttl 0 --pulumi-json plan.json
 
 | Variable                  | Description                                   | Example               |
 | ------------------------- | --------------------------------------------- | --------------------- |
-| `FINFOCUS_CACHE_TTL`      | Override TTL in seconds (integer)             | `7200`                |
-| `FINFOCUS_CACHE_TTL_SECONDS` | Fallback alias for `FINFOCUS_CACHE_TTL`    | `7200`                |
-| `FINFOCUS_CACHE_DIR`      | Override cache directory                      | `/tmp/finfocus-cache` |
+| `FINFOCUS_CACHE_TTL`         | Override TTL in seconds (integer)          | `7200`                |
+| `FINFOCUS_CACHE_TTL_SECONDS` | Fallback alias for `FINFOCUS_CACHE_TTL`     | `7200`                |
+| `FINFOCUS_CACHE_DIR`         | Override cache directory                    | `/tmp/finfocus-cache` |
+| `FINFOCUS_CACHE_LRU_ENABLED` | Turn the in-memory LRU on or off            | `true`                |
+| `FINFOCUS_CACHE_LRU_MAX_ITEMS` | Memory-tier capacity. `0` uses 256        | `512`                 |
 
 **Precedence** (highest to lowest): `--cache-ttl` flag > `FINFOCUS_CACHE_TTL` env >
 `cost.cache.ttl_seconds` config > built-in default (3600 when enabled).
+
+`FINFOCUS_CACHE_LRU_ENABLED` and `FINFOCUS_CACHE_LRU_MAX_ITEMS` override
+`cost.cache.lru_enabled` and `cost.cache.lru_max_items`. There is no CLI flag
+for the memory tier.
 
 ### Cache Directory Resolution
 
@@ -145,6 +153,12 @@ The database file is always named `cache.db` inside the resolved directory.
 
 The cache uses [BoltDB](https://github.com/etcd-io/bbolt), a single-file embedded
 key-value store. No external database process is required.
+
+When `lru_enabled` is set, an in-memory LRU sits in front of that file. A hit
+is served from memory. A disk hit is copied into memory. A write updates the
+database first, then refreshes the memory entry. Disk remains the source of
+truth for the next process. `FINFOCUS_CACHE_LRU_ENABLED` overrides
+`cost.cache.lru_enabled`. An unparsable value is ignored.
 
 ```text
 ~/.finfocus/cache/

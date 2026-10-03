@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **engine:** optional in-memory LRU in front of the BoltDB cost cache. Off
+  unless `cost.cache.lru_enabled` or `FINFOCUS_CACHE_LRU_ENABLED` is set.
+  `lru_max_items` and `FINFOCUS_CACHE_LRU_MAX_ITEMS` default to 256. Writes
+  go to disk first, and disk stays the source of truth (#495)
 * **cli:** `cost history collect` stores projected costs for each successful
   Pulumi checkpoint, `view` charts them offline, and `list` shows the
   databases (#549)

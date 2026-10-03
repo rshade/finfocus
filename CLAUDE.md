@@ -557,6 +557,13 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `cache.CalculatePluginTTL()`, and uses `SetWithTTL()` when a plugin hint is present.
   Past timestamps skip caching entirely. TTLs exceeding `MaxTTLSeconds` (604800 = 7 days)
   are capped. Debug logs record TTL overrides; warn logs record caps and skips
+- **Optional LRU tier**: `cost.cache.lru_enabled` (default false) wraps the
+  BoltDB cache with `cache.TieredStore` inside `initCacheFromConfig`, so every
+  `newEngineWithCache` caller gets it. Reads hit memory first and promote a
+  disk hit. Writes update disk, then refresh memory. Expired memory entries
+  fall through. `lru_max_items` of 0 uses 256. `FINFOCUS_CACHE_LRU_ENABLED`
+  and `FINFOCUS_CACHE_LRU_MAX_ITEMS` override the file. A wrap failure keeps
+  the Bolt store. The engine field stays `cache.Cache`
 - `checkPluginSupports` sends provider, type, SKU, and region, and caches per
   client+provider+type+region+sku+feature (SKU is part of the key: a first SKU-less
   resource in a region must not poison the cached answer for every other SKU there);

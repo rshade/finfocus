@@ -524,7 +524,8 @@ func InitCache(ctx context.Context, cmd *cobra.Command) cache.Cache {
 // configured max size (cfg.Cost.Cache.MaxSizeMB) is used directly (0 means
 // unlimited).
 //
-// On success, a BoltDB-backed cache store is returned. If initialization fails
+// On success, a BoltDB-backed cache store is returned. When the LRU tier is
+// enabled, that store is wrapped in memory. If initialization fails
 // (including when the cache database is locked), the function logs a warning and
 // returns nil to proceed without caching.
 func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Config) cache.Cache {
@@ -614,7 +615,55 @@ func initCacheFromConfig(ctx context.Context, cmd *cobra.Command, cfg *config.Co
 		Str("cache_dir", cacheDir).
 		Msg("cache initialized with BoltDB backend")
 
-	return cacheStore
+	return wrapCacheWithLRU(ctx, cfg, cacheStore)
+}
+
+// cacheLRUSettings resolves the optional memory tier. Environment variables
+// win over the config file. Callers that have not applied env overrides still
+// honor the environment. Invalid values are ignored.
+func cacheLRUSettings(cfg *config.Config) (bool, int) {
+	enabled := cfg != nil && cfg.Cost.Cache.LRUEnabled
+	maxItems := 0
+	if cfg != nil {
+		maxItems = cfg.Cost.Cache.LRUMaxItems
+	}
+	if raw := os.Getenv(cache.EnvLRUEnabled); raw != "" {
+		if parsed, err := strconv.ParseBool(raw); err == nil {
+			enabled = parsed
+		}
+	}
+	if raw := os.Getenv(cache.EnvLRUMaxItems); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 0 {
+			maxItems = n
+		}
+	}
+	return enabled, maxItems
+}
+
+// wrapCacheWithLRU puts an in-memory LRU in front of store when the tier is
+// enabled. A wrap failure keeps the BoltDB store.
+func wrapCacheWithLRU(ctx context.Context, cfg *config.Config, store cache.Cache) cache.Cache {
+	enabled, maxItems := cacheLRUSettings(cfg)
+	if !enabled {
+		return store
+	}
+	tiered, err := cache.NewTieredStore(store, maxItems)
+	if err != nil {
+		logging.FromContext(ctx).Warn().
+			Ctx(ctx).
+			Err(err).
+			Str("component", "cache").
+			Str("operation", "init").
+			Msg("in-memory cache tier failed, using BoltDB only")
+		return store
+	}
+	logging.FromContext(ctx).Debug().
+		Ctx(ctx).
+		Str("component", "cache").
+		Str("operation", "init").
+		Int("lru_max_items", maxItems).
+		Msg("in-memory LRU tier enabled")
+	return tiered
 }
 
 // resolveCacheDir determines the cache directory using the resolution chain:

@@ -114,6 +114,10 @@ Configure the BoltDB-backed cost calculation cache.
   Default: `3600` (1 hour).
 - `directory`: Explicit path for the cache database file. When empty, auto-resolves
   to the project `.finfocus/` directory or `~/.finfocus/cache/`.
+- `lru_enabled`: Put an in-memory LRU in front of BoltDB. Default: `false`.
+  `FINFOCUS_CACHE_LRU_ENABLED` overrides this value.
+- `lru_max_items`: How many entries the memory tier keeps. `0` uses 256.
+  `FINFOCUS_CACHE_LRU_MAX_ITEMS` overrides this value. A negative value is ignored.
 
 ### Scoring
 
