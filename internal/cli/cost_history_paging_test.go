@@ -69,7 +69,7 @@ func TestPulumiExporter_HistoryReadsEveryPage(t *testing.T) {
 		versions[update.Version] = true
 	}
 	assert.Len(t, versions, 250, "no version is repeated")
-	assert.Len(t, calls, 3, "two full pages and a short one")
+	assert.Len(t, calls, 4, "two full pages, a short one, and the empty page that ends it")
 }
 
 func versionRange(high, low int) []map[string]any {
@@ -82,7 +82,7 @@ func versionRange(high, low int) []map[string]any {
 
 // A deployment that lands between two page reads pushes every row down by one,
 // so the next page starts with a version the previous page already returned.
-// That page is still full, so paging has to continue.
+// Paging has to continue, and ends on the page that adds nothing new.
 func TestPulumiExporter_HistoryContinuesPastAFullPageWithADuplicate(t *testing.T) {
 	t.Parallel()
 
@@ -112,7 +112,30 @@ func TestPulumiExporter_HistoryContinuesPastAFullPageWithADuplicate(t *testing.T
 	}
 	assert.Len(t, versions, 250, "every version from 1 to 250 is read once")
 	assert.Len(t, updates, 250, "the repeated version is not returned twice")
-	assert.Equal(t, 3, call)
+	assert.Equal(t, 4, call)
+}
+
+// A service may return fewer rows per page than --page-size asks for. A short
+// page is therefore not the end; only a page with nothing new is.
+func TestPulumiExporter_HistoryReadsPastPagesShorterThanRequested(t *testing.T) {
+	t.Parallel()
+
+	const rowsPerPage = 40
+	rows := historyRows(250)
+	exporter := pulumiExporter{
+		bin: "pulumi", stack: "dev",
+		run: func(_ context.Context, _ string, args ...string) ([]byte, error) {
+			start := min((flagInt(args, "--page")-1)*rowsPerPage, len(rows))
+			return mustJSON(t, rows[start:min(start+rowsPerPage, len(rows))]), nil
+		},
+	}
+
+	body, err := exporter.History(context.Background())
+	require.NoError(t, err)
+
+	updates, err := history.ParseStackHistory(body)
+	require.NoError(t, err)
+	assert.Len(t, updates, 250)
 }
 
 func TestPulumiExporter_HistoryStopsWhenPagingIsIgnored(t *testing.T) {

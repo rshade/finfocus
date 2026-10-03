@@ -88,7 +88,7 @@ Environment variables allow you to set preferences globally without typing flags
 | -------------------------- | ------------- | ---------------------------------------------------------- |
 | `NO_COLOR`                 | any non-empty | Standard no-color variable. See [no-color.org][no-color].  |
 | `FINFOCUS_PLAIN`           | `1` or `true` | Forces plain text mode.                                    |
-| `FORCE_COLOR`              | `1`, `2`, `3`, or `true` | Forces colored output. `0` and `false` leave it off. Other values are ignored. |
+| `FORCE_COLOR`              | any non-empty value | Forces colored output ([force-color.org](https://force-color.org)). `0` and `false` leave it off, as in the supports-color package. |
 | `FINFOCUS_HIGH_CONTRAST`   | `1` or `true` | Forces high contrast mode. Invalid values are ignored.     |
 
 An explicit flag wins over the environment. `--plain` and `--no-color` win over
