@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **engine:** `cost projected` prices the plan as a diff. Creates and resources
+  with no operation show a `$0` before, deletes show a `$0` after, and
+  unchanged resources are priced once. `summary.totalMonthly` stays the after
+  total. Table output is the diff, and JSON adds `finfocus.diff` plus
+  per-resource `operation`, `beforeMonthly`, and `deltaMonthly` (#576)
 * **tui:** `cost estimate --interactive` shows billing modes, pricing tiers,
   assumptions, and usage hints from plugin `GetPricingSpec`. A missing spec
   leaves the estimate editable, and the lookup is cached per resource type

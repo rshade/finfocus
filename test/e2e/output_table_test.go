@@ -25,6 +25,6 @@ func TestE2E_Output_Table(t *testing.T) {
 	require.NoError(t, err)
 
 	outStr := string(output)
-	assert.Contains(t, outStr, "COST SUMMARY")
-	assert.Contains(t, outStr, "RESOURCE DETAILS")
+	assert.Contains(t, outStr, "COST DIFF")
+	assert.Contains(t, outStr, "BEFORE")
 }

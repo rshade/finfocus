@@ -59,6 +59,11 @@ type PulumiResource struct {
 	Parent               string
 	Dependencies         []string
 	PropertyDependencies map[string][]string
+	// Operation is the Pulumi step op (create, update, delete, same, replace).
+	Operation string
+	// OldInputs is OldState.Inputs when the step has an old state. Inputs stays
+	// the properties callers already price (new state, or old state for deletes).
+	OldInputs map[string]any
 }
 
 // ParsePulumiPlan parses a Pulumi plan from JSON bytes.
@@ -157,17 +162,23 @@ func (p *PulumiPlan) GetResourcesWithContext(ctx context.Context) []PulumiResour
 	var skippedOps []string
 
 	for _, step := range p.Steps {
+		var res PulumiResource
 		switch step.Op {
 		case "create", "update", "same":
-			resources = append(resources, extractForwardResource(step))
+			res = extractForwardResource(step)
 		case "replace", "create-replacement":
-			resources = append(resources, extractReplaceResource(step))
+			res = extractReplaceResource(step)
 		case "delete", "delete-replaced":
-			resources = append(resources, extractDeleteResource(step))
+			res = extractDeleteResource(step)
 		default:
 			skippedOps = append(skippedOps, step.Op)
 			continue
 		}
+		res.Operation = step.Op
+		if step.OldState != nil && step.OldState.Inputs != nil {
+			res.OldInputs = step.OldState.Inputs
+		}
+		resources = append(resources, res)
 
 		log.Debug().
 			Ctx(ctx).

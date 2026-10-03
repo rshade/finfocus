@@ -32,11 +32,13 @@ func MapResource(pulumiResource PulumiResource) (engine.ResourceDescriptor, erro
 	provider := extractProvider(pulumiResource.Type)
 
 	return engine.ResourceDescriptor{
-		Type:       pulumiResource.Type,
-		ID:         pulumiResource.URN,
-		Provider:   provider,
-		Properties: MergeProperties(pulumiResource.Outputs, pulumiResource.Inputs),
-		Refs:       refsFromPropertyDependencies(pulumiResource.PropertyDependencies),
+		Type:          pulumiResource.Type,
+		ID:            pulumiResource.URN,
+		Provider:      provider,
+		Properties:    MergeProperties(pulumiResource.Outputs, pulumiResource.Inputs),
+		Refs:          refsFromPropertyDependencies(pulumiResource.PropertyDependencies),
+		Operation:     pulumiResource.Operation,
+		OldProperties: pulumiResource.OldInputs,
 	}, nil
 }
 

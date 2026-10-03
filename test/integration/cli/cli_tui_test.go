@@ -34,10 +34,9 @@ func TestCLI_TUI_OutputModes(t *testing.T) {
 		// In tests, stdout is captured via pipe, so it should fall back to plain table
 		output := h.ExecuteOrFail("cost", "projected", "--pulumi-json", planFile)
 
-		// Legacy plain text headers (from internal/engine/project.go)
-		require.Contains(t, output, "COST SUMMARY")
-		require.Contains(t, output, "============")
-		require.Contains(t, output, "Total Monthly Cost")
+		require.Contains(t, output, "COST DIFF")
+		require.Contains(t, output, "Before")
+		require.Contains(t, output, "After")
 
 		// Ensure no ANSI escape codes in plain output
 		require.NotContains(t, output, "\x1b[")
@@ -49,6 +48,6 @@ func TestCLI_TUI_OutputModes(t *testing.T) {
 
 		output := h.ExecuteOrFail("cost", "projected", "--pulumi-json", planFile)
 		require.NotContains(t, output, "\x1b[")
-		require.Contains(t, output, "COST SUMMARY")
+		require.Contains(t, output, "COST DIFF")
 	})
 }

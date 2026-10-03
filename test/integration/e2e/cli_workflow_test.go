@@ -189,11 +189,11 @@ func TestE2E_ProjectedCostWorkflow_TableOutput(t *testing.T) {
 	outputStr := string(output)
 
 	// Validate table output contains expected elements
-	assert.Contains(t, outputStr, "Resource")
-	assert.Contains(t, outputStr, "Adapter")
-	assert.Contains(t, outputStr, "Monthly")
-	assert.Contains(t, outputStr, "Currency")
-	assert.Contains(t, outputStr, "COST SUMMARY")
+	assert.Contains(t, outputStr, "RESOURCE")
+	assert.Contains(t, outputStr, "BEFORE")
+	assert.Contains(t, outputStr, "AFTER")
+	assert.Contains(t, outputStr, "CURRENCY")
+	assert.Contains(t, outputStr, "COST DIFF")
 
 	// Should contain resource types from the plan (in the format aws:service/type:Type)
 	assert.Contains(t, outputStr, "aws:ec2/instance:Instance")

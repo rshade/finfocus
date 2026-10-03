@@ -66,7 +66,7 @@ func TestExplicitOutputWinsOverFormatJSON(t *testing.T) {
 		[]string{"cost", "projected", "--pulumi-json", simplePlanPath, "--output", "table", "--format", "json"})
 	require.Equal(t, 0, result.ExitCode, "stderr: %s", result.Stderr)
 	assert.False(t, json.Valid(result.Stdout))
-	assert.Contains(t, string(result.Stdout), "COST SUMMARY")
+	assert.Contains(t, string(result.Stdout), "COST DIFF")
 }
 
 func TestFormatJSONDryRunConfigInitWritesNothing(t *testing.T) {

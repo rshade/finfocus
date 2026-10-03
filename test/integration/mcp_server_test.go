@@ -338,7 +338,7 @@ func TestMCPServer_SequentialCallsInOneSession(t *testing.T) {
 	table := session.callTool("finfocus-cost-projected", map[string]any{"pulumi-json": plan, "output": "table"})
 	require.False(t, table.isError, table.text)
 	assert.False(t, json.Valid([]byte(table.text)), "explicit output=table must return a table")
-	assert.Contains(t, table.text, "COST SUMMARY")
+	assert.Contains(t, table.text, "COST DIFF")
 
 	afterTable := session.callTool("finfocus-cost-projected", map[string]any{"pulumi-json": plan})
 	require.False(t, afterTable.isError, afterTable.text)
