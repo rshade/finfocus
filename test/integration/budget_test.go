@@ -307,7 +307,7 @@ func TestBudgetRendering_MultipleCurrencies(t *testing.T) {
 	}
 }
 
-// TestBudgetRendering_ApproachingThreshold tests "APPROACHING" status display.
+// TestBudgetRendering_ApproachingThreshold tests the plain approaching status.
 func TestBudgetRendering_ApproachingThreshold(t *testing.T) {
 	t.Parallel()
 
@@ -330,7 +330,7 @@ func TestBudgetRendering_ApproachingThreshold(t *testing.T) {
 	require.NoError(t, err)
 
 	output := buf.String()
-	assert.Contains(t, output, "APPROACHING")
+	assert.Contains(t, output, "[WARNING] Near budget threshold")
 }
 
 // TestBudgetRendering_OverBudget tests over-budget display (>100%).
