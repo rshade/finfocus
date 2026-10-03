@@ -817,6 +817,14 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 - **Core never interprets Kubernetes**: nodes arrive from `GetStats` as ordinary
   `ResourceDescriptor`s (`sku`/`region` passed as properties) and are priced by
   `GetProjectedCostWithErrors`; grouping is string-map aggregation
+- **Node identity** (#1588): the allocator keys a node by cluster and node
+  name joined with NUL, same as the workload key. The priceable `id` stays
+  the Kubernetes node name so stats validation and the idle row still match
+  it. `NodeDescriptor` copies the kubeconfig context onto tags `cluster` and
+  `node`. A priced node with no `cluster` tag still joins on the node name.
+  Two priced entries that share `kind=node` and `id` are rejected by the SDK
+  before allocation; a multi-cluster request gives each one its own id and
+  keeps the Kubernetes name on the `node` tag
 - **`$0` price = unpriced**: aws-public returns `$0` (not an error) for unknown
   instance types, so `priceResources` treats `Monthly <= 0` as unpriced
 - **Conservation is enforced in core** (`VerifyConservation`, rel 1e-6, delegating to

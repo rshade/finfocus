@@ -122,7 +122,7 @@ func collectNodes(resp *pbc.GetStatsResponse, nodes []corev1.Node, opts Options)
 				Unit:    pluginsdk.UnitGiB,
 			},
 		)
-		if d, ok := NodeDescriptor(n); ok {
+		if d, ok := NodeDescriptor(n, opts.Cluster); ok {
 			resp.Priceable = append(resp.Priceable, d)
 		} else {
 			resp.Warnings = append(resp.Warnings,
