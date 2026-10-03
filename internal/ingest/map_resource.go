@@ -26,10 +26,18 @@ func MergeProperties(outputs, inputs map[string]any) map[string]any {
 // MapResource converts a PulumiResource into an engine.ResourceDescriptor.
 // The returned descriptor contains the resource Type, URN as ID, the provider
 // derived from the resource type, and Properties produced by merging the
-// resource's outputs with its inputs (inputs take precedence).
+// resource's outputs with its inputs (inputs take precedence). OldProperties is
+// built the same way from the outputs and the old inputs, so a diff prices both
+// sides from the same kinds of property; it stays nil when the step has no old
+// inputs.
 // The function does not currently produce an error; the returned error is nil.
 func MapResource(pulumiResource PulumiResource) (engine.ResourceDescriptor, error) {
 	provider := extractProvider(pulumiResource.Type)
+
+	var oldProperties map[string]any
+	if pulumiResource.OldInputs != nil {
+		oldProperties = MergeProperties(pulumiResource.Outputs, pulumiResource.OldInputs)
+	}
 
 	return engine.ResourceDescriptor{
 		Type:          pulumiResource.Type,
@@ -38,7 +46,7 @@ func MapResource(pulumiResource PulumiResource) (engine.ResourceDescriptor, erro
 		Properties:    MergeProperties(pulumiResource.Outputs, pulumiResource.Inputs),
 		Refs:          refsFromPropertyDependencies(pulumiResource.PropertyDependencies),
 		Operation:     pulumiResource.Operation,
-		OldProperties: pulumiResource.OldInputs,
+		OldProperties: oldProperties,
 	}, nil
 }
 

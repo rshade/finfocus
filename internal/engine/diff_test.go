@@ -188,6 +188,115 @@ func TestGetProjectedCostDiff(t *testing.T) {
 	})
 }
 
+func TestGetProjectedCostDiffReferencedRegion(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	prices := map[string]float64{"Standard_D2s_v3": 10, "Standard_D4s_v3": 40}
+
+	t.Run("update prices both sides with the inherited region", func(t *testing.T) {
+		t.Parallel()
+		plugin := newRegionPlugin(prices)
+		eng := New([]*pluginhost.Client{{Name: "prices", API: plugin}}, nil)
+
+		diff, err := eng.GetProjectedCostDiff(ctx, []ResourceDescriptor{
+			referencedCluster(DiffOperationSame),
+			referencedNodePool(DiffOperationUpdate, "Standard_D4s_v3", "Standard_D2s_v3"),
+		})
+		require.NoError(t, err)
+
+		pool := diff.Entries[1]
+		assert.InDelta(t, 10.0, monthlyOf(pool.Before), 1e-9)
+		assert.InDelta(t, 40.0, monthlyOf(pool.After), 1e-9)
+		assert.InDelta(t, 30.0, pool.DeltaMonthly, 1e-9)
+		assert.Equal(t, []string{"westeurope", "westeurope"}, plugin.regionsFor(nodePoolURN))
+	})
+
+	t.Run("delete prices the baseline with the inherited region", func(t *testing.T) {
+		t.Parallel()
+		plugin := newRegionPlugin(prices)
+		eng := New([]*pluginhost.Client{{Name: "prices", API: plugin}}, nil)
+
+		diff, err := eng.GetProjectedCostDiff(ctx, []ResourceDescriptor{
+			referencedCluster(DiffOperationSame),
+			referencedNodePool(DiffOperationDelete, "Standard_D4s_v3", "Standard_D4s_v3"),
+		})
+		require.NoError(t, err)
+
+		pool := diff.Entries[1]
+		assert.InDelta(t, 40.0, monthlyOf(pool.Before), 1e-9)
+		assert.InDelta(t, -40.0, pool.DeltaMonthly, 1e-9)
+		assert.Equal(t, []string{"westeurope"}, plugin.regionsFor(nodePoolURN))
+	})
+}
+
+const (
+	clusterURN  = "urn:pulumi:dev::demo::azure:containerservice/kubernetesCluster:KubernetesCluster::cluster"
+	nodePoolURN = "urn:pulumi:dev::demo::azure:containerservice/kubernetesClusterNodePool:" +
+		"KubernetesClusterNodePool::pool"
+)
+
+func referencedCluster(op string) ResourceDescriptor {
+	return ResourceDescriptor{
+		Type:       "azure:containerservice/kubernetesCluster:KubernetesCluster",
+		ID:         clusterURN,
+		Provider:   "azure",
+		Operation:  op,
+		Properties: map[string]any{"location": "westeurope", "skuTier": "Free"},
+	}
+}
+
+func referencedNodePool(op, vmSize, oldVMSize string) ResourceDescriptor {
+	resource := ResourceDescriptor{
+		Type:       "azure:containerservice/kubernetesClusterNodePool:KubernetesClusterNodePool",
+		ID:         nodePoolURN,
+		Provider:   "azure",
+		Operation:  op,
+		Properties: map[string]any{"vmSize": vmSize},
+		Refs:       map[string][]string{"kubernetesClusterId": {clusterURN}},
+	}
+	if oldVMSize != "" {
+		resource.OldProperties = map[string]any{"vmSize": oldVMSize}
+	}
+	return resource
+}
+
+type regionPlugin struct {
+	mockCostSourceClient
+
+	mu      sync.Mutex
+	prices  map[string]float64
+	regions map[string][]string
+}
+
+func newRegionPlugin(prices map[string]float64) *regionPlugin {
+	return &regionPlugin{prices: prices, regions: map[string][]string{}}
+}
+
+func (p *regionPlugin) regionsFor(id string) []string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]string(nil), p.regions[id]...)
+}
+
+func (p *regionPlugin) GetProjectedCost(
+	_ context.Context, in *proto.GetProjectedCostRequest, _ ...grpc.CallOption,
+) (*proto.GetProjectedCostResponse, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if in == nil || len(in.Resources) == 0 || in.Resources[0] == nil {
+		return &proto.GetProjectedCostResponse{}, nil
+	}
+	resource := in.Resources[0]
+	p.regions[resource.ID] = append(p.regions[resource.ID], resource.Properties["ref.kubernetesClusterId.region"])
+	monthly := p.prices[resource.Properties["vmSize"]]
+	return &proto.GetProjectedCostResponse{Results: []*proto.CostResult{{
+		Currency:    "USD",
+		MonthlyCost: monthly,
+		HourlyCost:  monthly / hoursPerMonth,
+	}}}, nil
+}
+
 func TestRenderProjectedDiff(t *testing.T) {
 	t.Parallel()
 

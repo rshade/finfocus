@@ -32,6 +32,40 @@ func TestMapResource_OperationAndOldProperties(t *testing.T) {
 	assert.Equal(t, []string{"urn:pulumi:dev::app::aws:ec2/subnet:Subnet::net"}, descriptor.Refs["subnetId"])
 }
 
+func TestMapResource_OldPropertiesKeepOutputs(t *testing.T) {
+	t.Parallel()
+
+	resource := ingest.PulumiResource{
+		URN:       "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+		Type:      "aws:ec2/instance:Instance",
+		Operation: "update",
+		Outputs:   map[string]any{"availabilityZone": "us-east-1a", "instanceType": "stale"},
+		Inputs:    map[string]any{"instanceType": "m5.large", "iops": 3000},
+		OldInputs: map[string]any{"instanceType": "t3.micro"},
+	}
+
+	descriptor, err := ingest.MapResource(resource)
+	require.NoError(t, err)
+	assert.Equal(t, map[string]any{
+		"availabilityZone": "us-east-1a",
+		"instanceType":     "t3.micro",
+	}, descriptor.OldProperties)
+}
+
+func TestMapResource_NoOldInputsLeavesOldPropertiesNil(t *testing.T) {
+	t.Parallel()
+
+	descriptor, err := ingest.MapResource(ingest.PulumiResource{
+		URN:       "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+		Type:      "aws:ec2/instance:Instance",
+		Operation: "create",
+		Outputs:   map[string]any{"availabilityZone": "us-east-1a"},
+		Inputs:    map[string]any{"instanceType": "m5.large"},
+	})
+	require.NoError(t, err)
+	assert.Nil(t, descriptor.OldProperties)
+}
+
 // TestMapResource_ValidResource tests mapping a valid Pulumi resource to ResourceDescriptor.
 func TestMapResource_ValidResource(t *testing.T) {
 	t.Parallel()
