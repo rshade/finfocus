@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rshade/ax-go/axtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -80,6 +81,47 @@ func TestExport_FormatsAndFilters(t *testing.T) {
 	assert.InDelta(t, 0, provDoc.Snapshots[0].TotalMonthly, 0.001)
 	assert.InDelta(t, 300, provDoc.Snapshots[1].TotalMonthly, 0.001)
 	assert.Equal(t, map[string]float64{"gcp": 300}, provDoc.Snapshots[1].ByProvider)
+}
+
+// TestExport_AxExecuteWritesCSVAndNDJSON runs the shipped command through
+// ax.Execute. runExport alone never reaches the mode check that rejects csv
+// and ndjson.
+func TestExport_AxExecuteWritesCSVAndNDJSON(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", home)
+	january := viewSnap(12, time.January, 800.5, map[string]float64{"aws": 800.5})
+	seedHistory(t, filepath.Join(home, "history"), "dev", january)
+
+	csv := axtest.Run(context.Background(), t, NewRootCmd("test"), []string{
+		"cost", "history", "export", "--stack", "dev", "--format", "csv",
+	})
+	require.Zero(t, csv.ExitCode, "stderr: %s", csv.Stderr)
+	csvOut := string(csv.Stdout)
+	assert.Contains(t, csvOut, "timestamp,version,total_monthly,aws,resource_count,message")
+	assert.Contains(t, csvOut, "800.50")
+	assert.NotContains(t, csvOut, `"stack"`)
+
+	ndjson := axtest.Run(context.Background(), t, NewRootCmd("test"), []string{
+		"cost", "history", "export", "--stack", "dev", "--format=ndjson",
+	})
+	require.Zero(t, ndjson.ExitCode, "stderr: %s", ndjson.Stderr)
+	ndOut := string(ndjson.Stdout)
+	assert.Contains(t, ndOut, `"version":12`)
+	assert.Contains(t, ndOut, `"total_monthly":800.5`)
+	assert.NotContains(t, ndOut, "by_provider")
+	assert.NotContains(t, ndOut, "timestamp,version")
+
+	jsonResult := axtest.Run(context.Background(), t, NewRootCmd("test"), []string{
+		"cost", "history", "export", "--stack", "dev", "--format", "json",
+	})
+	require.Zero(t, jsonResult.ExitCode, "stderr: %s", jsonResult.Stderr)
+	assert.Contains(t, string(jsonResult.Stdout), `"stack": "dev"`)
+
+	rejected := axtest.Run(context.Background(), t, NewRootCmd("test"), []string{
+		"cost", "projected", "--format", "csv",
+	})
+	require.NotZero(t, rejected.ExitCode)
+	assert.Contains(t, string(rejected.Stderr), "unknown output mode")
 }
 
 func TestExport_RejectsFormatBeforeOpening(t *testing.T) {

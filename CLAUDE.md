@@ -595,8 +595,12 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `BoltStore.cleanupExpiredEntries`. `cost.history.retention.auto_prune`
   runs that policy after `collect` when the command loaded config
 - **Cost history export**: `cost history export` writes JSON, CSV, or NDJSON
-  from the per-stack database. `--format` is the root ax flag (`json`, `csv`,
-  or `ndjson`); the command does not declare a second `--format`. `--from`
+  from the per-stack database. `--format` is the root ax flag. The command
+  does not declare a second `--format`, because Cobra rejects the redefined
+  flag. `csv` and `ndjson` are not agent modes (`ParseMode` allows `json` and
+  `human` only). The export command's `Args` saves those two values and sets
+  the flag to `json` before `ax.Execute` resolves the mode. Other commands
+  still reject them. `--from`
   and `--to` are inclusive dates. `--provider` keeps every snapshot and sets
   `total_monthly` to that provider, or 0 when the snapshot has none.
   Sparklines are `history.Sparkline` (U+2581 through U+2588, width 7). A flat
