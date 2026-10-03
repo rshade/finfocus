@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.2...kubernetes-v0.1.3) (2026-10-03)
+
+
+### Bug Fixes
+
+* **kubernetes:** keep same-named nodes separate across clusters ([e580864](https://github.com/rshade/finfocus/commit/e580864b22566d3105f8365a2b0e8bec5c193432)), closes [#1588](https://github.com/rshade/finfocus/issues/1588)
+
 ## [0.1.2](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.1...kubernetes-v0.1.2) (2026-10-03)
 
 
