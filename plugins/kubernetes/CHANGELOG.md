@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.2](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.1...kubernetes-v0.1.2) (2026-10-03)
+
+
+### Features
+
+* **cli:** implement finfocus cost cluster (SP3) ([#1594](https://github.com/rshade/finfocus/issues/1594)) ([203333d](https://github.com/rshade/finfocus/commit/203333dcae034d8fd43f3e46a5a246410c778838))
+* **kubernetes:** link workloads to Pulumi URNs ([#1606](https://github.com/rshade/finfocus/issues/1606)) ([0ecdecf](https://github.com/rshade/finfocus/commit/0ecdecfd517a95f5aabd8e611ea738d7b70f622e)), closes [#1527](https://github.com/rshade/finfocus/issues/1527)
+* **kubernetes:** price EKS Fargate pods ([#1605](https://github.com/rshade/finfocus/issues/1605)) ([6a46b29](https://github.com/rshade/finfocus/commit/6a46b296cd5195e99dd41820bbb800414b07dccb)), closes [#1532](https://github.com/rshade/finfocus/issues/1532)
+* **kubernetes:** share idle and system workload cost ([#1604](https://github.com/rshade/finfocus/issues/1604)) ([9bbe55b](https://github.com/rshade/finfocus/commit/9bbe55b2d8e1ce356b05aeaba2791f201b7ac59a)), closes [#1533](https://github.com/rshade/finfocus/issues/1533)
+* **skills:** add finfocus-budget skill ([#1607](https://github.com/rshade/finfocus/issues/1607)) ([f5a125e](https://github.com/rshade/finfocus/commit/f5a125ed9ff7555733451770a62d2a8b44c0649c)), closes [#914](https://github.com/rshade/finfocus/issues/914)
+
+
+### Bug Fixes
+
+* **plugins/kubernetes:** honor GetStats metrics filter and warn on unknown names ([#1582](https://github.com/rshade/finfocus/issues/1582)) ([6947a43](https://github.com/rshade/finfocus/commit/6947a433278a9af109084354f262ae431af95c34)), closes [#1575](https://github.com/rshade/finfocus/issues/1575)
+* **plugins/kubernetes:** key allocation workloads by cluster to stop cross-cluster merges ([#1581](https://github.com/rshade/finfocus/issues/1581)) ([5301404](https://github.com/rshade/finfocus/commit/5301404ce5deac425381c18b2a6f532423175484)), closes [#1576](https://github.com/rshade/finfocus/issues/1576)
+
 ## [0.1.1](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.0...kubernetes-v0.1.1) (2026-09-30)
 
 
