@@ -21,35 +21,44 @@ type PulumiPlan struct {
 
 // PulumiStep represents a single resource operation step in a Pulumi plan.
 type PulumiStep struct {
-	Op       string         `json:"op"`
-	URN      string         `json:"urn"`
-	Type     string         `json:"type"`
-	Provider string         `json:"provider"`
-	Inputs   map[string]any `json:"inputs"`
-	Outputs  map[string]any `json:"outputs"`
-	NewState *PulumiState   `json:"newState,omitempty"`
-	OldState *PulumiState   `json:"oldState,omitempty"`
+	Op                   string              `json:"op"`
+	URN                  string              `json:"urn"`
+	Type                 string              `json:"type"`
+	Provider             string              `json:"provider"`
+	Inputs               map[string]any      `json:"inputs"`
+	Outputs              map[string]any      `json:"outputs"`
+	Parent               string              `json:"parent,omitempty"`
+	Dependencies         []string            `json:"dependencies,omitempty"`
+	PropertyDependencies map[string][]string `json:"propertyDependencies,omitempty"`
+	NewState             *PulumiState        `json:"newState,omitempty"`
+	OldState             *PulumiState        `json:"oldState,omitempty"`
 }
 
 // PulumiState represents the state of a resource in a Pulumi step.
 type PulumiState struct {
-	ID       string         `json:"id,omitempty"`
-	Type     string         `json:"type"`
-	URN      string         `json:"urn"`
-	Inputs   map[string]any `json:"inputs"`
-	Outputs  map[string]any `json:"outputs"`
-	Provider string         `json:"provider"`
+	ID                   string              `json:"id,omitempty"`
+	Type                 string              `json:"type"`
+	URN                  string              `json:"urn"`
+	Inputs               map[string]any      `json:"inputs"`
+	Outputs              map[string]any      `json:"outputs"`
+	Provider             string              `json:"provider"`
+	Parent               string              `json:"parent,omitempty"`
+	Dependencies         []string            `json:"dependencies,omitempty"`
+	PropertyDependencies map[string][]string `json:"propertyDependencies,omitempty"`
 }
 
 // PulumiResource contains the detailed information about a resource in a Pulumi step.
 type PulumiResource struct {
-	Type     string
-	URN      string
-	Provider string
-	Inputs   map[string]any
-	Outputs  map[string]any
-	OldID    string // Cloud ID from OldState (populated for replace/delete ops)
-	NewID    string // Cloud ID from NewState (populated for replace/create ops)
+	Type                 string
+	URN                  string
+	Provider             string
+	Inputs               map[string]any
+	Outputs              map[string]any
+	OldID                string // Cloud ID from OldState (populated for replace/delete ops)
+	NewID                string // Cloud ID from NewState (populated for replace/create ops)
+	Parent               string
+	Dependencies         []string
+	PropertyDependencies map[string][]string
 }
 
 // ParsePulumiPlan parses a Pulumi plan from JSON bytes.
@@ -215,6 +224,7 @@ func extractForwardResource(step PulumiStep) PulumiResource {
 	if step.OldState != nil {
 		res.OldID = step.OldState.ID
 	}
+	applyRelationship(&res, step, step.NewState)
 
 	return res
 }
@@ -253,6 +263,7 @@ func extractReplaceResource(step PulumiStep) PulumiResource {
 	if step.NewState != nil {
 		res.NewID = step.NewState.ID
 	}
+	applyRelationship(&res, step, step.NewState)
 
 	return res
 }
@@ -288,8 +299,54 @@ func extractDeleteResource(step PulumiStep) PulumiResource {
 	if step.OldState != nil {
 		res.OldID = step.OldState.ID
 	}
+	applyRelationship(&res, step, step.OldState)
 
 	return res
+}
+
+// applyRelationship copies parent, dependencies, and propertyDependencies onto res.
+// state wins when it carries a value; otherwise the step-level fields are used.
+// parent is the Pulumi component parent (usually the stack) and is not a pricing reference.
+func applyRelationship(res *PulumiResource, step PulumiStep, state *PulumiState) {
+	parent := step.Parent
+	deps := step.Dependencies
+	propDeps := step.PropertyDependencies
+	if state != nil {
+		if state.Parent != "" {
+			parent = state.Parent
+		}
+		if state.Dependencies != nil {
+			deps = state.Dependencies
+		}
+		if state.PropertyDependencies != nil {
+			propDeps = state.PropertyDependencies
+		}
+	}
+	res.Parent = parent
+	if deps == nil {
+		res.Dependencies = nil
+	} else {
+		res.Dependencies = append([]string{}, deps...)
+	}
+	res.PropertyDependencies = clonePropertyDependencies(propDeps)
+}
+
+// clonePropertyDependencies returns a deep copy of propertyDependencies.
+// A nil map stays nil. Empty URN lists are preserved so callers can tell
+// "not a reference" apart from a missing key.
+func clonePropertyDependencies(in map[string][]string) map[string][]string {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string][]string, len(in))
+	for key, urns := range in {
+		if urns == nil {
+			out[key] = nil
+			continue
+		}
+		out[key] = append([]string{}, urns...)
+	}
+	return out
 }
 
 // resolveStepOutputs picks the best available Outputs for a step.

@@ -115,20 +115,14 @@ func GetProjectedCostWithErrors(
 
 	for _, resource := range resources {
 		// Pre-flight validation: construct proto request and validate before gRPC call
-		sku, region := resolveSKUAndRegion(ctx, resource.Provider, resource.Type, resource.Properties)
-		protoReq := &pbc.GetProjectedCostRequest{
-			Resource: &pbc.ResourceDescriptor{
-				Id:           resource.ID,
-				Provider:     resource.Provider,
-				ResourceType: resource.Type,
-				Sku:          sku,
-				Region:       region,
-				Tags:         resource.Properties,
-			},
-		}
+		descriptor := PrepareProjectedDescriptor(
+			ctx, resource.ID, resource.Provider, resource.Type, resource.Properties,
+		)
 
-		// Validate request using pluginsdk validation functions
-		if err := pluginsdk.ValidateProjectedCostRequest(protoReq); err != nil {
+		// Validate request using pluginsdk validation functions.
+		// Resources that carry ref.* tags and have no SKU of their own use the
+		// lenient validator; see ValidateProjectedDescriptor.
+		if err := ValidateProjectedDescriptor(descriptor); err != nil {
 			// Log validation failure at WARN level with context
 			log := logging.FromContext(ctx)
 			log.Warn().
@@ -1377,18 +1371,10 @@ func (c *clientAdapter) GetProjectedCost(
 	var firstErr error
 
 	for _, resource := range in.Resources {
-		// Extract SKU and region from properties using intelligent mapping
-		sku, region := resolveSKUAndRegion(ctx, resource.Provider, resource.Type, resource.Properties)
-
 		req := &pbc.GetProjectedCostRequest{
-			Resource: &pbc.ResourceDescriptor{
-				Id:           resource.ID,
-				Provider:     resource.Provider,
-				ResourceType: resource.Type,
-				Sku:          sku,
-				Region:       region,
-				Tags:         resource.Properties,
-			},
+			Resource: PrepareProjectedDescriptor(
+				ctx, resource.ID, resource.Provider, resource.Type, resource.Properties,
+			),
 		}
 
 		resp, err := c.client.GetProjectedCost(ctx, req, opts...)

@@ -156,6 +156,8 @@ before gRPC calls. Key points:
 - Logs at WARN level with resource context for debugging
 - Returns placeholder CostResult with $0 cost and descriptive Notes
 - Invalid resources are skipped; valid resources still call the plugin
+- A projected resource with `ref.*` tags and an empty SKU uses lenient validation
+  (`pluginsdk.ValidateProjectedCostRequestLenient`) instead of failing closed on SKU
 
 ### Logging
 
@@ -314,6 +316,20 @@ checks, non-critical validations.
 The `pulumi preview --json` output nests resource details under `newState`.
 Ingestion MUST inspect `newState` to extract `inputs` and `type`. Without this,
 property extraction fails and plugins return `InvalidArgument` errors.
+
+`newState` and stack-export resources also carry `parent`, `dependencies`, and
+`propertyDependencies`. `parent` is the Pulumi stack, not a pricing reference.
+`ApplyCrossResourceRefs` follows `propertyDependencies` only: a property that
+points at exactly one in-plan resource becomes `ref.<property>.{urn,type,region,sku}`
+tags. The Pulumi unknown sentinel `04da6b54-80e4-46f7-96ec-b56ff0331ba9` is never
+sent as a tag, SKU, or region. A child's own region is filled from the referenced
+resource only when the child has none and exactly one referenced resource has a
+region. The referenced SKU is never copied into the child's `Sku`. A child with
+`ref.*` tags and an empty SKU uses `ValidateProjectedCostRequestLenient` so the
+plugin still sees the tags. Classic Azure `skuName` is copied only into
+`ref.<property>.sku` (the provider resolver does not treat `skuName` as the
+resource's own SKU). Projected cache keys append `/refs-<hash>` when those tags
+exist. Spec: `specs/618-cross-resource-refs/`.
 
 ### Property Extraction
 

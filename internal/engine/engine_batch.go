@@ -303,21 +303,13 @@ func buildBatchCostRequest(
 	)
 
 	for _, ir := range resources {
-		props := ConvertToProto(ir.resource.Properties)
-		sku, region := proto.ResolveSKUAndRegion(
+		descriptor := proto.PrepareProjectedDescriptor(
 			ctx,
+			ir.resource.ID,
 			ir.resource.Provider,
 			ir.resource.Type,
-			props,
+			ConvertToProto(ir.resource.Properties),
 		)
-		descriptor := &pbc.ResourceDescriptor{
-			Id:           ir.resource.ID,
-			Provider:     ir.resource.Provider,
-			ResourceType: ir.resource.Type,
-			Sku:          sku,
-			Region:       region,
-			Tags:         props,
-		}
 
 		// Pre-flight validation using the same pluginsdk validators as the non-batch path
 		if err := validateBatchResource(descriptor, opts); err != nil {
@@ -368,9 +360,7 @@ func validateBatchResource(descriptor *pbc.ResourceDescriptor, opts batchOptions
 			Tags:       descriptor.GetTags(),
 		})
 	}
-	return pluginsdk.ValidateProjectedCostRequest(&pbc.GetProjectedCostRequest{
-		Resource: descriptor,
-	})
+	return proto.ValidateProjectedDescriptor(descriptor)
 }
 
 // newValidationBatchResult creates a batchResult with a $0/VALIDATION placeholder matching

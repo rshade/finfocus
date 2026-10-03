@@ -529,6 +529,7 @@ func (e *Engine) GetProjectedCost(
 			return nil, fmt.Errorf("invalid resource at index %d: %w", i, err)
 		}
 	}
+	ApplyCrossResourceRefs(ctx, resources)
 
 	type job struct {
 		index    int
@@ -856,6 +857,8 @@ func (e *Engine) GetProjectedCostWithErrors(
 	ctx context.Context,
 	resources []ResourceDescriptor,
 ) (*CostResultWithErrors, error) {
+	ApplyCrossResourceRefs(ctx, resources)
+
 	type job struct {
 		index    int
 		resource ResourceDescriptor
@@ -4040,7 +4043,11 @@ func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, erro
 	region := extractStringProperty(resource.Properties, "availabilityZone", "region")
 	sku := extractStringProperty(resource.Properties, "instanceType", "type", "sku")
 
-	return cache.BuildProjectedKey(resource.Provider, resource.Type, region, sku), nil
+	key := cache.BuildProjectedKey(resource.Provider, resource.Type, region, sku)
+	if suffix := refCacheSuffix(resource.Properties); suffix != "" {
+		key += "/refs-" + suffix
+	}
+	return key, nil
 }
 
 // generateActualCostCacheKey builds a deterministic cache key for an actual cost request.

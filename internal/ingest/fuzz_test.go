@@ -27,6 +27,16 @@ func FuzzJSON(f *testing.F) {
 		),
 	)
 	f.Add([]byte(`{"steps":[{"op":"create","urn":"test","newState":{"type":"malformed","inputs":null}}]}`))
+	f.Add(
+		[]byte(
+			`{"steps":[{"op":"create","urn":"urn:child","newState":{"type":"azure:example:Child","urn":"urn:child","parent":null,"dependencies":null,"propertyDependencies":null}}]}`,
+		),
+	)
+	f.Add(
+		[]byte(
+			`{"steps":[{"op":"create","urn":"urn:child","newState":{"type":"azure:example:Child","urn":"urn:child","dependencies":[],"propertyDependencies":{"serverId":[]}}}]}`,
+		),
+	)
 
 	// Add seed corpus - edge cases
 	f.Add([]byte(`{}`))
