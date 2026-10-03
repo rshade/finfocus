@@ -54,9 +54,16 @@ const (
 	priceableKindNode    = "node"
 	priceableKindCluster = "cluster"
 	priceableKindFargate = "fargate" // usage.FargateKind
-	tagFargateCPU        = "cpu"
-	tagFargateMemoryGiB  = "memory_gib"
-	noteFargateUnpriced  = "Fargate pod has no price"
+	// priceableTagCluster and priceableTagNode are the collector's tags on a
+	// priced node. The values match the usage-subject keys. The priceable id
+	// stays the Kubernetes node name: stats validation requires that id to
+	// appear as a row's node subject, and an idle row's node subject must
+	// equal the priced resource id.
+	priceableTagCluster = "cluster"
+	priceableTagNode    = "node"
+	tagFargateCPU       = "cpu"
+	tagFargateMemoryGiB = "memory_gib"
+	noteFargateUnpriced = "Fargate pod has no price"
 
 	metricCPUAlloc   = pluginsdk.MetricCPUAllocatable
 	metricMemAlloc   = pluginsdk.MetricMemAllocatable
@@ -82,6 +89,9 @@ type node struct {
 	priced    *pbc.PricedResource
 	workloads []*workload
 	cluster   string
+	// nameOnly is a priced node with no cluster tag. Usage still joins it by
+	// node name. A cluster-qualified node must not take another cluster's rows.
+	nameOnly bool
 }
 
 // Allocate splits every priced node across the workloads scheduled on it and
@@ -116,8 +126,8 @@ func Allocate(req *pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
 	}, nil
 }
 
-// groupPricedResources splits priced entries into nodes (keyed by resource
-// id) and everything else (control plane, unallocated kinds).
+// groupPricedResources splits priced entries into nodes (keyed by cluster and
+// node name) and everything else (control plane, unallocated kinds).
 func groupPricedResources(
 	priced []*pbc.PricedResource,
 ) (map[string]*node, []*pbc.PricedResource, []*pbc.PricedResource) {
@@ -126,7 +136,10 @@ func groupPricedResources(
 	for _, pr := range priced {
 		switch pr.GetResource().GetTags()[priceableTagKind] {
 		case priceableKindNode:
-			nodeFor(nodes, pr.GetResource().GetId()).priced = pr
+			cluster, name := pricedNodeName(pr.GetResource())
+			n := nodeFor(nodes, cluster, name)
+			n.priced = pr
+			n.nameOnly = cluster == ""
 		case priceableKindFargate:
 			fargateRes = append(fargateRes, pr)
 		default:
@@ -144,7 +157,7 @@ func collectWorkloadUsage(usage []*pbc.UsageRow, nodes map[string]*node) map[str
 		s := u.GetSubject()
 		switch s[subjectKind] {
 		case kindNode:
-			applyNodeCapacity(nodeFor(nodes, s[subjectNode]), s, u)
+			applyNodeCapacity(nodeForUsage(nodes, s[subjectCluster], s[subjectNode]), s, u)
 		case kindWorkload:
 			applyWorkloadMetric(workloadFor(workloads, s), u)
 		}
@@ -152,11 +165,54 @@ func collectWorkloadUsage(usage []*pbc.UsageRow, nodes map[string]*node) map[str
 	return workloads
 }
 
-func nodeFor(nodes map[string]*node, name string) *node {
-	if nodes[name] == nil {
-		nodes[name] = &node{name: name}
+// nodeKey joins cluster and node name with NUL, the same separator as the
+// workload key, so a kubeconfig context that contains "/" cannot collide
+// with another cluster's node name (#1588). An empty cluster keeps the bare
+// node name so a priced resource that predates the cluster tag still matches.
+func nodeKey(cluster, name string) string {
+	if cluster == "" {
+		return name
 	}
-	return nodes[name]
+	return cluster + "\x00" + name
+}
+
+// pricedNodeName reads the Kubernetes node name and cluster from priced-node
+// tags. The resource id stays the node name for a single cluster, so a missing
+// node tag falls back to that id.
+func pricedNodeName(r *pbc.ResourceDescriptor) (string, string) {
+	if r == nil {
+		return "", ""
+	}
+	tags := r.GetTags()
+	cluster := tags[priceableTagCluster]
+	name := tags[priceableTagNode]
+	if name == "" {
+		name = r.GetId()
+	}
+	return cluster, name
+}
+
+func nodeFor(nodes map[string]*node, cluster, name string) *node {
+	key := nodeKey(cluster, name)
+	if nodes[key] == nil {
+		nodes[key] = &node{name: name, cluster: cluster}
+	}
+	return nodes[key]
+}
+
+// nodeForUsage finds the node a capacity row belongs to. A priced resource
+// with no cluster tag is stored under the node name; rows that name a cluster
+// still attach to it. A cluster-qualified node is never that fallback.
+func nodeForUsage(nodes map[string]*node, cluster, name string) *node {
+	if n := nodes[nodeKey(cluster, name)]; n != nil {
+		return n
+	}
+	if cluster != "" {
+		if n := nodes[name]; n != nil && n.nameOnly {
+			return n
+		}
+	}
+	return nodeFor(nodes, cluster, name)
 }
 
 func applyNodeCapacity(n *node, subject map[string]string, u *pbc.UsageRow) {
@@ -218,13 +274,41 @@ func attachWorkloadsToNodes(workloads map[string]*workload, nodes map[string]*no
 	var orphans []*workload
 	for _, key := range sortedKeys(workloads) {
 		w := workloads[key]
-		if n, ok := nodes[w.subject[subjectNode]]; ok && n.priced != nil {
+		if n := lookupPricedNode(nodes, w.subject[subjectCluster], w.subject[subjectNode]); n != nil {
 			n.workloads = append(n.workloads, w)
 		} else {
 			orphans = append(orphans, w)
 		}
 	}
 	return orphans
+}
+
+// lookupPricedNode finds the priced node a workload runs on. The cluster and
+// the node name are both required when the priced resource carries a cluster
+// tag; otherwise the node name alone matches a legacy priced resource.
+func lookupPricedNode(nodes map[string]*node, cluster, name string) *node {
+	if n := nodes[nodeKey(cluster, name)]; n != nil && n.priced != nil {
+		return n
+	}
+	if cluster != "" {
+		if n := nodes[name]; n != nil && n.priced != nil && n.nameOnly {
+			return n
+		}
+	}
+	return nil
+}
+
+// idleNodeID is the priced resource id. Response validation counts idle rows
+// by that id, and for a single cluster the id is the Kubernetes node name.
+// A caller that disambiguates same-named nodes across clusters puts the
+// unique id here; the workload rows still carry the Kubernetes name.
+func idleNodeID(n *node) string {
+	if n.priced != nil {
+		if id := n.priced.GetResource().GetId(); id != "" {
+			return id
+		}
+	}
+	return n.name
 }
 
 // buildRows renders nodes (workload + idle rows), then orphaned workloads,
@@ -243,12 +327,14 @@ func buildRows(
 		}
 		nodeRows, idle := allocateNode(n, pol, currency)
 		rows = append(rows, nodeRows...)
-		if n.name != "" {
+		if idle.GetSubject()[subjectNode] != "" {
 			// A node with an empty id can only be an unpriced entry (the SDK
 			// rejects a priced node with an empty resource.id), so its idle
 			// share is always 0. An idle row needs a non-empty "node"
 			// subject key (SDK response validation), so it is dropped
-			// rather than emitted with an empty value.
+			// rather than emitted with an empty value. The subject value is
+			// the priced resource id, which is the Kubernetes node name
+			// unless the caller disambiguated same-named nodes.
 			idleRows = append(idleRows, idle)
 		}
 	}
@@ -304,7 +390,9 @@ func allocateNode(n *node, pol policy.Policy, currency string) ([]*pbc.Allocatio
 		rows = foldSystemWorkloads(rows)
 	}
 	idle := &pbc.AllocationRow{
-		Subject:   map[string]string{subjectKind: kindIdle, subjectNode: n.name, subjectCluster: n.cluster},
+		Subject: map[string]string{
+			subjectKind: kindIdle, subjectNode: idleNodeID(n), subjectCluster: n.cluster,
+		},
 		CpuCost:   idleCPU,
 		MemCost:   idleMem,
 		TotalCost: idleCPU + idleMem,

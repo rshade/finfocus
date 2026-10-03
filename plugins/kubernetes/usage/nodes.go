@@ -52,7 +52,13 @@ func IsFargate(n *corev1.Node) bool {
 // the provider, instance type, or region cannot be determined. ResourceType is
 // a Pulumi resource type token specific to the provider: aws:ec2/instance:Instance,
 // gcp:compute/instance:Instance, or azure-native:compute:VirtualMachine.
-func NodeDescriptor(n *corev1.Node) (*pbc.ResourceDescriptor, bool) {
+//
+// Id stays n.Name. Stats validation requires a node priceable id to equal some
+// usage row's node subject, and within one cluster node names are unique.
+// cluster is stamped on the tags so a later Allocate request can tell
+// same-named nodes in different clusters apart. An empty cluster omits those
+// tags.
+func NodeDescriptor(n *corev1.Node, cluster string) (*pbc.ResourceDescriptor, bool) {
 	provider := n.Labels[labelProvider]
 	if provider == "" {
 		scheme, _, _ := strings.Cut(n.Spec.ProviderID, "://")
@@ -83,13 +89,18 @@ func NodeDescriptor(n *corev1.Node) (*pbc.ResourceDescriptor, bool) {
 		strings.EqualFold(n.Labels[labelKarpenterCap], capacitySpot) {
 		capacity = capacitySpot
 	}
+	tags := map[string]string{
+		pluginsdk.SubjectKind: pluginsdk.KindNode,
+		"provider_id":         n.Spec.ProviderID,
+		"capacity_type":       capacity,
+	}
+	if cluster != "" {
+		tags[pluginsdk.SubjectCluster] = cluster
+		tags[pluginsdk.SubjectNode] = n.Name
+	}
 	return &pbc.ResourceDescriptor{
 		Provider: provider, ResourceType: resourceType, Sku: sku, Region: region, Id: n.Name,
-		Tags: map[string]string{
-			pluginsdk.SubjectKind: pluginsdk.KindNode,
-			"provider_id":         n.Spec.ProviderID,
-			"capacity_type":       capacity,
-		},
+		Tags: tags,
 	}, true
 }
 

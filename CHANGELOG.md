@@ -79,6 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+* **kubernetes:** allocate each node by its cluster and its name, so
+  same-named nodes in different clusters keep their own cost. The priceable
+  id stays the Kubernetes node name. A cluster tag on the priced node selects
+  that cluster's usage (#1588)
 * **cli:** `cost history export --format csv` and `--format ndjson` run through
   `ax.Execute`. Those values are export documents, so the command keeps them
   before the agent-mode check, which still accepts only `json` and `human` (#551)

@@ -83,6 +83,17 @@ func pricedNode(name string, cost float64, tags map[string]string) *pbc.PricedRe
 	}
 }
 
+// pricedNodeInCluster is a node whose Kubernetes name repeats across clusters.
+// The resource id is cluster and name joined with NUL, because the SDK rejects
+// two priced nodes that share kind and id. Tags carry the cluster and the
+// Kubernetes name the usage rows use.
+func pricedNodeInCluster(cluster, name string, cost float64) *pbc.PricedResource {
+	return pricedNode(cluster+"\x00"+name, cost, map[string]string{
+		"cluster": cluster,
+		"node":    name,
+	})
+}
+
 func concat(parts ...[]*pbc.UsageRow) []*pbc.UsageRow {
 	var out []*pbc.UsageRow
 	for _, p := range parts {
@@ -464,6 +475,97 @@ func TestAllocate_WorkloadKeyIncludesCluster(t *testing.T) {
 				workloadTotal[s["cluster"]] += r.GetTotalCost()
 			}
 			assert.Equal(t, tt.wantWorkloads, workloads)
+			for cluster, want := range tt.wantWorkloadTotal {
+				assert.InDelta(t, want, workloadTotal[cluster], want*1e-6+1e-12, "cluster %s workload total", cluster)
+			}
+			for cluster, want := range tt.wantClusterTotal {
+				assert.InDelta(t, want, clusterTotal[cluster], want*1e-6+1e-12, "cluster %s total", cluster)
+			}
+			assertValidAllocation(t, tt.req, resp)
+		})
+	}
+}
+
+// TestAllocate_NodeKeyIncludesCluster covers #1588: nodes were keyed by name
+// alone, so same-named nodes in different clusters merged capacity and
+// workloads. The priced resource id has to differ per cluster (the SDK
+// rejects a duplicate kind and id). A "/" in a cluster name must not collide
+// with another cluster's node name.
+func TestAllocate_NodeKeyIncludesCluster(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name              string
+		req               *pbc.AllocateRequest
+		wantWorkloads     int
+		wantWorkloadTotal map[string]float64
+		wantClusterTotal  map[string]float64
+		wantIdleNode      map[string]string
+	}{
+		{
+			name: "same node name in two clusters stays separate",
+			req: &pbc.AllocateRequest{
+				Usage: concat(
+					nodeRowsIn("c1", "n1", 2, 8), podRowsIn("c1", "app", "web", "n1", 0.5, 2),
+					nodeRowsIn("c2", "n1", 2, 8), podRowsIn("c2", "app", "web", "n1", 1, 4),
+				),
+				Priced: []*pbc.PricedResource{
+					pricedNodeInCluster("c1", "n1", 70),
+					pricedNodeInCluster("c2", "n1", 140),
+				},
+			},
+			wantWorkloads:     2,
+			wantWorkloadTotal: map[string]float64{"c1": 70 * 0.25, "c2": 140 * 0.5},
+			wantClusterTotal:  map[string]float64{"c1": 70, "c2": 140},
+			wantIdleNode:      map[string]string{"c1": "c1\x00n1", "c2": "c2\x00n1"},
+		},
+		{
+			name: "slash in cluster does not collide with another node name",
+			req: &pbc.AllocateRequest{
+				Usage: concat(
+					nodeRowsIn("a/b", "c", 2, 8), podRowsIn("a/b", "app", "web", "c", 0.5, 2),
+					nodeRowsIn("a", "b/c", 2, 8), podRowsIn("a", "app", "web", "b/c", 0.5, 2),
+				),
+				Priced: []*pbc.PricedResource{
+					pricedNodeInCluster("a/b", "c", 70),
+					pricedNodeInCluster("a", "b/c", 140),
+				},
+			},
+			wantWorkloads:     2,
+			wantWorkloadTotal: map[string]float64{"a/b": 70 * 0.25, "a": 140 * 0.25},
+			wantClusterTotal:  map[string]float64{"a/b": 70, "a": 140},
+			wantIdleNode:      map[string]string{"a/b": "a/b\x00c", "a": "a\x00b/c"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			resp, err := Allocate(tt.req)
+			require.NoError(t, err)
+
+			workloadTotal := map[string]float64{}
+			clusterTotal := map[string]float64{}
+			idleNode := map[string]string{}
+			seen := map[string]bool{}
+			var workloads int
+			for _, r := range resp.GetRows() {
+				s := r.GetSubject()
+				clusterTotal[s["cluster"]] += r.GetTotalCost()
+				if s["kind"] == "__idle__" {
+					idleNode[s["cluster"]] = s["node"]
+					continue
+				}
+				if s["kind"] != "workload" {
+					continue
+				}
+				workloads++
+				identity := s["cluster"] + "\x00" + s["namespace"] + "\x00" + s["pod"] + "\x00" + s["node"]
+				assert.False(t, seen[identity], "duplicate workload row for %v", s)
+				seen[identity] = true
+				workloadTotal[s["cluster"]] += r.GetTotalCost()
+			}
+			assert.Equal(t, tt.wantWorkloads, workloads)
+			assert.Equal(t, tt.wantIdleNode, idleNode)
 			for cluster, want := range tt.wantWorkloadTotal {
 				assert.InDelta(t, want, workloadTotal[cluster], want*1e-6+1e-12, "cluster %s workload total", cluster)
 			}

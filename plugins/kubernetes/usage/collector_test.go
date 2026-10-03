@@ -91,12 +91,19 @@ func TestCollect_RunRate(t *testing.T) {
 	assert.Len(t, rowsFor(resp, "pod", "fg"), 2, "fargate pods still reported")
 
 	require.Len(t, resp.GetPriceable(), 2, "the node and the fargate pod are priceable")
-	var fgDesc *pbc.ResourceDescriptor
+	var fgDesc, nodeDesc *pbc.ResourceDescriptor
 	for _, d := range resp.GetPriceable() {
-		if d.GetTags()["kind"] == "fargate" {
+		switch d.GetTags()["kind"] {
+		case "fargate":
 			fgDesc = d
+		case "node":
+			nodeDesc = d
 		}
 	}
+	require.NotNil(t, nodeDesc)
+	assert.Equal(t, "n1", nodeDesc.GetId())
+	assert.Equal(t, "prod", nodeDesc.GetTags()["cluster"])
+	assert.Equal(t, "n1", nodeDesc.GetTags()["node"])
 	require.NotNil(t, fgDesc)
 	assert.Equal(t, "aws:eks/fargate:Pod", fgDesc.GetResourceType())
 	assert.Equal(t, "prod/app/fg", fgDesc.GetId())

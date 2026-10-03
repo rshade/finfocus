@@ -21,7 +21,7 @@ func TestNodeDescriptor(t *testing.T) {
 		"node.kubernetes.io/instance-type": "m5.large",
 		"topology.kubernetes.io/region":    "us-east-1",
 	}
-	d, ok := NodeDescriptor(mkNode("n1", "aws:///us-east-1a/i-0abc", std))
+	d, ok := NodeDescriptor(mkNode("n1", "aws:///us-east-1a/i-0abc", std), "")
 	require.True(t, ok)
 	assert.Equal(t, "aws", d.GetProvider())
 	assert.Equal(t, "aws:ec2/instance:Instance", d.GetResourceType())
@@ -36,7 +36,7 @@ func TestNodeDescriptor(t *testing.T) {
 	for k, v := range std {
 		spot[k] = v
 	}
-	d, ok = NodeDescriptor(mkNode("n2", "aws:///us-east-1a/i-0def", spot))
+	d, ok = NodeDescriptor(mkNode("n2", "aws:///us-east-1a/i-0def", spot), "")
 	require.True(t, ok)
 	assert.Equal(t, "spot", d.GetTags()["capacity_type"])
 
@@ -44,7 +44,7 @@ func TestNodeDescriptor(t *testing.T) {
 		"node.kubernetes.io/instance-type": "e2-standard-4",
 		"topology.kubernetes.io/region":    "us-central1",
 	}
-	d, ok = NodeDescriptor(mkNode("gke-n1", "gce://proj/us-central1-a/gke-n1", gcpLabels))
+	d, ok = NodeDescriptor(mkNode("gke-n1", "gce://proj/us-central1-a/gke-n1", gcpLabels), "")
 	require.True(t, ok)
 	assert.Equal(t, "gcp", d.GetProvider())
 	assert.Equal(t, "gcp:compute/instance:Instance", d.GetResourceType())
@@ -56,7 +56,7 @@ func TestNodeDescriptor(t *testing.T) {
 		"topology.kubernetes.io/region":    "eastus",
 	}
 	azureID := "azure:///subscriptions/sub/resourceGroups/rg/providers/Microsoft.Compute/virtualMachines/aks-n1"
-	d, ok = NodeDescriptor(mkNode("aks-n1", azureID, azureLabels))
+	d, ok = NodeDescriptor(mkNode("aks-n1", azureID, azureLabels), "")
 	require.True(t, ok)
 	assert.Equal(t, "azure", d.GetProvider())
 	assert.Equal(t, "azure-native:compute:VirtualMachine", d.GetResourceType())
@@ -68,15 +68,22 @@ func TestNodeDescriptor(t *testing.T) {
 	for k, v := range std {
 		kind[k] = v
 	}
-	_, ok = NodeDescriptor(mkNode("kind-worker", "kind://docker/kind/kind-worker", kind))
+	_, ok = NodeDescriptor(mkNode("kind-worker", "kind://docker/kind/kind-worker", kind), "")
 	assert.True(t, ok, "provider label overrides unknown providerID scheme")
 
-	_, ok = NodeDescriptor(mkNode("n3", "kind://docker/x", std))
+	_, ok = NodeDescriptor(mkNode("n3", "kind://docker/x", std), "")
 	assert.False(t, ok, "unknown provider without label is not priceable")
 	_, ok = NodeDescriptor(
 		mkNode("n4", "aws:///us-east-1a/i-1", map[string]string{"topology.kubernetes.io/region": "us-east-1"}),
+		"",
 	)
 	assert.False(t, ok, "missing instance type is not priceable")
+
+	d, ok = NodeDescriptor(mkNode("n1", "aws:///us-east-1a/i-0abc", std), "prod/east")
+	require.True(t, ok)
+	assert.Equal(t, "n1", d.GetId(), "priceable id stays the Kubernetes node name")
+	assert.Equal(t, "prod/east", d.GetTags()["cluster"])
+	assert.Equal(t, "n1", d.GetTags()["node"])
 }
 
 func TestControlPlaneDescriptor(t *testing.T) {
