@@ -496,6 +496,15 @@ func TestPluginInitCalculatorRPCMethods(t *testing.T) {
 	assert.Contains(t, string(calculator), "pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS")
 	assert.Contains(t, string(calculator), "pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS")
 	assert.Contains(t, string(calculator), "\"aws\", \"azure\"")
+	assert.Contains(t, string(calculator), "SpecVersion = pluginsdk.SpecVersion",
+		"SpecVersion must follow the SDK constant, which is v-prefixed")
+	assert.Contains(t, string(calculator), `case "aws:ec2/instance:Instance":`,
+		"the example must match the Pulumi type token finfocus sends")
+	assert.NotContains(t, string(calculator), `case "aws:ec2:Instance":`)
+	assert.NotContains(t, string(calculator), `instanceType = "t3.micro"`,
+		"a missing instance type must not default to a priced one")
+	assert.NotContains(t, string(calculator), "// fallback",
+		"an unknown instance type must not get a default price")
 
 	calculatorTest, err := os.ReadFile(filepath.Join(projectDir, "internal", "pricing", "calculator_test.go"))
 	require.NoError(t, err)
@@ -679,6 +688,10 @@ func TestPluginInitEnhancedMakefile(t *testing.T) {
 	assert.Contains(t, content, "VERSION = 0.1.0")
 	assert.Contains(t, content, "golangci-lint run --config .golangci-lint.yml --allow-parallel-runners")
 	assert.Contains(t, content, "~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/")
+	assert.Contains(t, content,
+		`> ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/plugin.manifest.json`,
+		"install must write the flat JSON manifest that plugin validate reads")
+	assert.NotContains(t, content, "cp manifest.yaml")
 	assert.Contains(t, content, "docker build -t $(PLUGIN_NAME):local -f docker/Dockerfile .")
 	assert.NotContains(t, content, "{{NAME}}")
 }

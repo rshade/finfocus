@@ -1737,8 +1737,9 @@ func NewCalculator() *Calculator {
 const (
 	// PluginVersion is the semantic version of this plugin.
 	PluginVersion = "0.1.0"
-	// SpecVersion is the finfocus-spec protocol version this plugin was compiled against.
-	SpecVersion = "0.6.1"
+	// SpecVersion is the finfocus-spec protocol version this plugin was compiled
+	// against. It follows the finfocus-spec version in go.mod.
+	SpecVersion = pluginsdk.SpecVersion
 )
 
 // GetPluginInfo returns metadata about this plugin for discovery and compatibility verification.
@@ -1797,18 +1798,21 @@ func (c *Calculator) GetProjectedCost(ctx context.Context, req *pbc.GetProjected
 	// Calculate the unit price based on the resource type and tags.
 	// The example below demonstrates how to handle AWS EC2 instances.
 	// Replace this with your provider's specific logic.
-	// Example: Basic EC2 instance pricing
-	var unitPrice float64
-	var billingDetail string
+	//
+	// finfocus sends the Pulumi type token (aws:ec2/instance:Instance), not a
+	// short form such as aws:ec2:Instance. A resource you cannot price must
+	// return an error, never a guessed or default price: an error lets finfocus
+	// fall back to another plugin, while any price (even $0) is used as is.
 	switch req.Resource.ResourceType {
-	case "aws:ec2:Instance":
-		unitPrice = c.calculateEC2InstanceCost(req.Resource)
-		billingDetail = "EC2 instance hourly cost"
+	case "aws:ec2/instance:Instance":
+		unitPrice, ok := c.calculateEC2InstanceCost(req.Resource)
+		if !ok {
+			return nil, pluginsdk.NotSupportedError(req.Resource)
+		}
+		return c.Calculator().CreateProjectedCostResponse("USD", unitPrice, "EC2 instance hourly cost"), nil
 	default:
 		return nil, pluginsdk.NotSupportedError(req.Resource)
 	}
-
-	return c.Calculator().CreateProjectedCostResponse("USD", unitPrice, billingDetail), nil
 }
 
 // GetActualCost retrieves actual historical costs.
@@ -1819,29 +1823,31 @@ func (c *Calculator) GetActualCost(ctx context.Context, req *pbc.GetActualCostRe
 	return nil, pluginsdk.NoDataError(req.ResourceId)
 }
 
-// calculateEC2InstanceCost is an example pricing calculation.
-func (c *Calculator) calculateEC2InstanceCost(resource *pbc.ResourceDescriptor) float64 {
+// calculateEC2InstanceCost is an example pricing calculation. It reports false
+// when the instance type is missing or has no known price.
+func (c *Calculator) calculateEC2InstanceCost(resource *pbc.ResourceDescriptor) (float64, bool) {
 	// [TEMPLATE] Implementation Required: Pricing Calculation
 	// This is a simplified example. A real implementation should:
 	// 1. Parse instance type from resource properties
 	// 2. Look up pricing from your provider's Pricing API or local pricing data
 	// 3. Consider region, operating system, tenancy, etc.
 
-	instanceType := resource.Tags["instanceType"]
+	// finfocus fills Sku from the instanceType input; the tag is a fallback.
+	instanceType := resource.GetSku()
 	if instanceType == "" {
-		instanceType = "t3.micro" // default
+		instanceType = resource.GetTags()["instanceType"]
 	}
 
-	// Simplified pricing - replace with real pricing data
+	// Simplified us-east-1 Linux on-demand pricing - replace with real pricing data
 	switch instanceType {
 	case "t3.micro":
-		return 0.0104 // $0.0104/hour
+		return 0.0104, true // $0.0104/hour
 	case "t3.small":
-		return 0.0208 // $0.0208/hour
+		return 0.0208, true // $0.0208/hour
 	case "t3.medium":
-		return 0.0416 // $0.0416/hour
+		return 0.0416, true // $0.0416/hour
 	default:
-		return 0.0104 // fallback
+		return 0, false
 	}
 }
 `
@@ -1929,7 +1935,7 @@ func CreateExamplePricingData() []PricingData {
 		{
 			Provider:     "aws",
 			Region:       "us-east-1",
-			ResourceType: "aws:ec2:Instance",
+			ResourceType: "aws:ec2/instance:Instance",
 			Pricing: map[string]float64{
 				"t3.micro":  0.0104,
 				"t3.small":  0.0208,
@@ -2106,7 +2112,8 @@ install: build
 	@echo "Installing plugin to local registry..."
 	@mkdir -p ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)
 	@cp $(BUILD_DIR)/$(BINARY_NAME) ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/
-	@cp manifest.yaml ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/plugin.manifest.json
+	@printf '{\n  "name": "%s",\n  "version": "%s"\n}\n' "$(PLUGIN_NAME)" "$(VERSION)" \
+		> ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/plugin.manifest.json
 	@echo "✅ Plugin installed to ~/.finfocus/plugins/$(PLUGIN_NAME)/$(VERSION)/"
 
 # Development setup
@@ -2255,11 +2262,13 @@ func TestProjectedCostSupported(t *testing.T) {
 	plugin := NewCalculator()
 	testPlugin := pluginsdk.NewTestPlugin(t, plugin)
 
-	// Test supported resource
-	resource := pluginsdk.CreateTestResource("aws", "aws:ec2:Instance", map[string]string{
+	// Test supported resource, shaped the way finfocus sends it
+	resource := pluginsdk.CreateTestResource("aws", "aws:ec2/instance:Instance", map[string]string{
 		"instanceType": "t3.micro",
 		"region":       "us-east-1",
 	})
+	resource.Sku = "t3.micro"
+	resource.Region = "us-east-1"
 
 	resp := testPlugin.TestProjectedCost(resource, false)
 	if resp == nil {
@@ -2284,6 +2293,17 @@ func TestProjectedCostUnsupported(t *testing.T) {
 	testPlugin.TestProjectedCost(resource, true) // Expect error
 }
 
+func TestProjectedCostUnknownInstanceType(t *testing.T) {
+	plugin := NewCalculator()
+	testPlugin := pluginsdk.NewTestPlugin(t, plugin)
+
+	// An instance type without a known price is an error, not a guessed price
+	resource := pluginsdk.CreateTestResource("aws", "aws:ec2/instance:Instance", nil)
+	resource.Sku = "m7i.48xlarge"
+	resource.Region = "us-east-1"
+	testPlugin.TestProjectedCost(resource, true) // Expect error
+}
+
 func TestActualCost(t *testing.T) {
 	plugin := NewCalculator()
 	testPlugin := pluginsdk.NewTestPlugin(t, plugin)
@@ -2298,29 +2318,30 @@ func TestEC2InstancePricing(t *testing.T) {
 
 	testCases := []struct {
 		name         string
-		instanceType string
+		sku          string
+		tags         map[string]string
 		expectedCost float64
+		wantOK       bool
 	}{
-		{"t3.micro", "t3.micro", 0.0104},
-		{"t3.small", "t3.small", 0.0208},
-		{"t3.medium", "t3.medium", 0.0416},
-		{"unknown", "unknown-type", 0.0104}, // fallback
+		{"t3.micro from sku", "t3.micro", nil, 0.0104, true},
+		{"t3.small from sku", "t3.small", nil, 0.0208, true},
+		{"t3.medium from tag", "", map[string]string{"instanceType": "t3.medium"}, 0.0416, true},
+		{"unknown type is not priced", "unknown-type", nil, 0, false},
+		{"missing type is not priced", "", nil, 0, false},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			resource := &pbc.ResourceDescriptor{
 				Provider:     "aws",
-				ResourceType: "aws:ec2:Instance",
-				Tags: map[string]string{
-					"instanceType": tc.instanceType,
-				},
+				ResourceType: "aws:ec2/instance:Instance",
+				Sku:          tc.sku,
+				Tags:         tc.tags,
 			}
 
-			cost := calculator.calculateEC2InstanceCost(resource)
-			if cost != tc.expectedCost {
-				t.Errorf("Expected cost %f for %s, got %f", tc.expectedCost, tc.instanceType, cost)
-			}
+			cost, ok := calculator.calculateEC2InstanceCost(resource)
+			assert.Equal(t, tc.wantOK, ok)
+			assert.InDelta(t, tc.expectedCost, cost, 1e-9)
 		})
 	}
 }
