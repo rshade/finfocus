@@ -351,7 +351,7 @@ Cross-repo changes follow the protocol in `.specify/memory/constitution.md`.
 
 ### Agent Skills Placement
 
-- **Tool-specific skills** (`finfocus-install`, `finfocus-diagnose`, etc.) → live in
+- **Tool-specific skills** (`finfocus-install`, `finfocus-budget`, `finfocus-diagnose`, etc.) → live in
   `rshade/finfocus` under `agent-skills/` — these are product skills tightly coupled to
   finfocus CLI commands, file paths, and architecture
 - **Generic cost workflow skills** (`cost-check`, `cost-drift`, `cost-optimize`,

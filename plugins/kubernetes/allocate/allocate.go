@@ -111,6 +111,8 @@ func Allocate(req *pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
 		EffectivePolicyJson: canonical,
 		PolicyDigest:        digest,
 		Rows:                buildRows(nodes, orphans, fargateRes, clusterRes, pol, currency),
+		Start:               req.GetStart(),
+		End:                 req.GetEnd(),
 	}, nil
 }
 

@@ -193,9 +193,6 @@ guardrails in `CONTEXT.md`.
   - [ ] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
         BoltDB cache issues, and zero-cost results
         ([#913](https://github.com/rshade/finfocus/issues/913)) [M]
-  - [ ] `finfocus-budget` — Configure, monitor, and troubleshoot budget
-        thresholds with scoped rules, health tracking, and CI/CD exit codes
-        ([#914](https://github.com/rshade/finfocus/issues/914)) [M]
   - *Format:* Agent Skills spec (SKILL.md + references/), installable via
     `npx skills add rshade/finfocus -s <name>`
   - *Generic cost workflow skills (cost-check, cost-drift, cost-optimize,
@@ -347,6 +344,8 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q4
 
+- [x] #914 `skills`: add the finfocus-budget agent skill.
+      Closed 2026-10-02. [M]
 - [x] #1197 `tests`: migrate internal package tests to external test packages.
       Closed 2026-10-01. [L]
 - [x] #1506 `terraform-state`: fix v0.3.7 smoke-test findings.

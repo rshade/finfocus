@@ -791,6 +791,7 @@ FinFocus ships [agent skills](agent-skills/) for AI coding assistants
 | [finfocus-install](agent-skills/finfocus-install/) | Install CLI, detect providers, setup plugins and config |
 | [finfocus-analyzer-setup](agent-skills/finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation |
 | [finfocus-routing](agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
+| [finfocus-budget](agent-skills/finfocus-budget/) | Configure budget thresholds, health, and CI exit codes |
 
 See [agent-skills/README.md](agent-skills/README.md) for the full list and
 planned skills.
