@@ -8,6 +8,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 const billingNotImplemented = "not_implemented"
@@ -57,34 +58,44 @@ func (e *Engine) DiscoverPricingSpec(ctx context.Context, resource *ResourceDesc
 	if resourceType == "" {
 		return PricingDiscovery{}
 	}
-	if found, ok := e.cachedPricingDiscovery(resourceType); ok {
+	key := pricingDiscoveryKey(ctx, resource, resourceType)
+	if found, ok := e.cachedPricingDiscovery(key); ok {
 		return found
 	}
 	found := e.collectPricingDiscovery(ctx, resource, resourceType)
 	if ctx.Err() != nil {
 		return found
 	}
-	e.storePricingDiscovery(resourceType, found)
+	e.storePricingDiscovery(key, found)
 	return clonePricingDiscovery(found)
 }
 
-func (e *Engine) cachedPricingDiscovery(resourceType string) (PricingDiscovery, bool) {
+// pricingDiscoveryKey separates cached answers by resource type, SKU, and region,
+// because a plugin's spec can differ by SKU. A type-only key would keep showing the
+// first SKU's rate after the user edits the SKU in the estimate view.
+func pricingDiscoveryKey(ctx context.Context, resource *ResourceDescriptor, resourceType string) string {
+	descriptor := proto.PrepareProjectedDescriptor(
+		ctx, resource.ID, resource.Provider, resourceType, ConvertToProto(resource.Properties))
+	return strings.Join([]string{resourceType, descriptor.GetSku(), descriptor.GetRegion()}, "|")
+}
+
+func (e *Engine) cachedPricingDiscovery(key string) (PricingDiscovery, bool) {
 	e.pricingDiscoveryMu.Lock()
 	defer e.pricingDiscoveryMu.Unlock()
-	found, ok := e.pricingDiscoveryCache[resourceType]
+	found, ok := e.pricingDiscoveryCache[key]
 	if !ok {
 		return PricingDiscovery{}, false
 	}
 	return clonePricingDiscovery(found), true
 }
 
-func (e *Engine) storePricingDiscovery(resourceType string, found PricingDiscovery) {
+func (e *Engine) storePricingDiscovery(key string, found PricingDiscovery) {
 	e.pricingDiscoveryMu.Lock()
 	defer e.pricingDiscoveryMu.Unlock()
 	if e.pricingDiscoveryCache == nil {
 		e.pricingDiscoveryCache = map[string]PricingDiscovery{}
 	}
-	e.pricingDiscoveryCache[resourceType] = clonePricingDiscovery(found)
+	e.pricingDiscoveryCache[key] = clonePricingDiscovery(found)
 }
 
 func (e *Engine) collectPricingDiscovery(

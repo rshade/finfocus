@@ -223,6 +223,9 @@ func costFromPluginPricingSpec(
 		currency = defaultCurrency
 	}
 	notes := pluginSpecNotes(spec, pluginName, mode, assumed)
+	if partial := partialModeNote(spec, mode); partial != "" {
+		notes += "; " + partial
+	}
 	return &CostResult{
 		ResourceType: resource.Type,
 		ResourceID:   resource.ID,
@@ -233,6 +236,35 @@ func costFromPluginPricingSpec(
 		Notes:        notes,
 		Breakdown:    map[string]float64{"base_cost": monthly},
 	}, true
+}
+
+// partialModeNote says so when a billing mode the engine does not know, such as
+// per_hour_plus_data, was priced from its unit alone. The data or capacity
+// charges are not in that price, and the note keeps the total from reading as
+// complete.
+func partialModeNote(spec *pbc.PricingSpec, mode string) string {
+	raw := strings.TrimSpace(spec.GetBillingMode())
+	if raw == "" || strings.EqualFold(raw, billingTiered) || normalizeBilling(raw, "") != "" {
+		return ""
+	}
+	return raw + ": " + billingModeAdjective(mode) + " rate only, other charges not included"
+}
+
+func billingModeAdjective(mode string) string {
+	switch mode {
+	case billingPerHour:
+		return "hourly"
+	case billingPerDay:
+		return "daily"
+	case billingPerGBMonth:
+		return "per-GB"
+	case billingPerRequest:
+		return "per-request"
+	case billingPerCPUHour:
+		return "per-CPU-hour"
+	default:
+		return "flat"
+	}
 }
 
 func pluginSpecNotes(spec *pbc.PricingSpec, pluginName, mode, assumed string) string {
@@ -287,7 +319,8 @@ func pluginSpecAmounts(
 	case billingPerHour:
 		return rate * hoursPerMonth, rate, "", true
 	case billingPerDay:
-		monthly := rate * daysPerMonth
+		// The same 730-hour month as per_hour, so $1/hour and $24/day agree.
+		monthly := rate * hoursPerMonth / hoursPerDay
 		return monthly, monthly / hoursPerMonth, "", true
 	case billingPerGBMonth:
 		qty, assumed := sizedQuantity(resource, "gb")
@@ -345,21 +378,20 @@ func normalizeBilling(mode, unit string) string {
 	}
 }
 
+// matchingPricingTier returns the tier that contains qty, or nil when none does.
+// A quantity in a gap or past the last tier is not priced from the first tier's
+// rate: the spec does not say what it costs, so the caller falls through.
 func matchingPricingTier(tiers []*pbc.PricingTier, qty float64) *pbc.PricingTier {
-	var fallback *pbc.PricingTier
 	for _, tier := range tiers {
 		if tier == nil {
 			continue
-		}
-		if fallback == nil {
-			fallback = tier
 		}
 		maxQty := tier.GetMaxQuantity()
 		if qty >= tier.GetMinQuantity() && (maxQty == 0 || qty < maxQty) {
 			return tier
 		}
 	}
-	return fallback
+	return nil
 }
 
 func tierQuantity(unit string, resource ResourceDescriptor) float64 {

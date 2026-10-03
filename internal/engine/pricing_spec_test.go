@@ -39,7 +39,7 @@ func TestCostFromPluginPricingSpec(t *testing.T) {
 		{
 			name:   "per day",
 			spec:   &pbc.PricingSpec{BillingMode: billingPerDay, RatePerUnit: 2, Currency: "USD"},
-			wantOK: true, wantMonthly: 60, wantHourly: 60.0 / hoursPerMonth, wantCur: "USD",
+			wantOK: true, wantMonthly: 2 * float64(hoursPerMonth) / 24, wantHourly: 2.0 / 24, wantCur: "USD",
 			wantNote: "Calculated from plugin pricing spec: plugin (per_day)",
 		},
 		{

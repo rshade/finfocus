@@ -105,10 +105,10 @@ func TestConvertToProtoDottedKeys(t *testing.T) {
 		{
 			name: "unknown sentinel",
 			properties: map[string]any{
-				"ref": map[string]any{"id": sentinel, "name": "keep"},
+				"owner": map[string]any{"id": sentinel, "name": "keep"},
 			},
-			has:    map[string]string{"ref": sentinel, "ref.name": "keep"},
-			absent: []string{"ref.id"},
+			has:    map[string]string{"owner": sentinel, "owner.name": "keep"},
+			absent: []string{"owner.id"},
 		},
 		{
 			name: "credential-like keys",
