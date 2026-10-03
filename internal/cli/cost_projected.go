@@ -183,6 +183,12 @@ func pricingSpecFallbackEnabled(changed, flagValue bool, cfg *config.Config) boo
 	return cfg.Cost.PricingSpecFallback
 }
 
+// pricingSpecFallbackForCmd resolves the fallback setting for a parsed command.
+// It is the single place that reads whether --pricing-spec-fallback was set.
+func pricingSpecFallbackForCmd(cmd *cobra.Command, flagValue bool, cfg *config.Config) bool {
+	return pricingSpecFallbackEnabled(cmd.Flags().Changed("pricing-spec-fallback"), flagValue, cfg)
+}
+
 // executeCostProjected runs the projected cost calculation pipeline and renders output.
 // It returns an error if any step (validation, loading, calculation, rendering) fails.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
@@ -231,11 +237,9 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	defer cacheCleanup()
-	eng = eng.WithJobs(params.jobs).WithPricingSpecFallback(pricingSpecFallbackEnabled(
-		cmd.Flags().Changed("pricing-spec-fallback"),
-		params.pricingSpecFallback,
-		cfg,
-	)).WithExplainPricing(params.explain)
+	eng = eng.WithJobs(params.jobs).WithPricingSpecFallback(
+		pricingSpecFallbackForCmd(cmd, params.pricingSpecFallback, cfg),
+	).WithExplainPricing(params.explain)
 	// No-op for Pulumi-sourced resources; see resolveResourceTypes.
 	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
 	start := time.Now()

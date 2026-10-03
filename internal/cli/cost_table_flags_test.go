@@ -33,31 +33,6 @@ func TestCostCommands_TableFlags(t *testing.T) {
 	require.NotNil(t, estimate)
 }
 
-func TestRenderCostOutput_ShowBreakdownTable(t *testing.T) {
-	t.Parallel()
-
-	output := renderProjected(t, "table", true)
-	assert.Contains(t, output, "  ├─ compute")
-	assert.Contains(t, output, "  └─ storage")
-	assert.Contains(t, output, "60.00")
-	assert.NotContains(t, output, "9.00")
-}
-
-func TestRenderCostOutput_JSONIgnoresShowBreakdown(t *testing.T) {
-	t.Parallel()
-
-	withFlag := renderProjected(t, "json", true)
-	withoutFlag := renderProjected(t, "json", false)
-	assert.Equal(t, withoutFlag, withFlag)
-	assert.NotContains(t, withFlag, "├─")
-	assert.NotContains(t, withFlag, "└─")
-	assert.Contains(t, withFlag, `"compute"`)
-
-	ndjson := renderProjected(t, "ndjson", true)
-	assert.NotContains(t, ndjson, "├─")
-	assert.Contains(t, ndjson, `"compute"`)
-}
-
 func TestRenderActualCostOutput_TableFlags(t *testing.T) {
 	t.Parallel()
 
@@ -104,16 +79,6 @@ func TestRenderActualCostOutput_JSONIgnoresTableFlags(t *testing.T) {
 	baseline := renderActual(t, "ndjson", false, false, false)
 	assert.Equal(t, baseline, withTableFlags)
 	assert.NotContains(t, withTableFlags, "├─")
-}
-
-func renderProjected(t *testing.T, format string, showBreakdown bool) string {
-	t.Helper()
-	cmd := &cobra.Command{}
-	var buf bytes.Buffer
-	cmd.SetOut(&buf)
-	err := cli.RenderCostOutput(context.Background(), cmd, format, projectedView(), showBreakdown)
-	require.NoError(t, err)
-	return buf.String()
 }
 
 func renderActual(t *testing.T, format string, estimate, showBreakdown, showConfidence bool) string {

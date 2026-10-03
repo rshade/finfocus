@@ -185,11 +185,7 @@ func buildDiffEntry(resource ResourceDescriptor, op string, before, after *CostR
 		copied := *after
 		before = &copied
 	}
-	delta := monthlyOf(after) - monthlyOf(before)
-	if op == DiffOperationSame {
-		delta = 0
-	}
-	return finishDiffEntry(resource, op, before, after, delta)
+	return finishDiffEntry(resource, op, before, after, monthlyOf(after)-monthlyOf(before))
 }
 
 func finishDiffEntry(

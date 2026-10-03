@@ -59,55 +59,6 @@ func mergeProjectedDiffRecommendations(
 	}
 }
 
-// RenderCostOutput routes the cost results to the appropriate rendering function
-// based on the detected output mode (Plain, Styled, or Interactive).
-// The context parameter enables trace ID propagation for contextual logging.
-func RenderCostOutput(
-	ctx context.Context,
-	cmd *cobra.Command,
-	outputFormat string,
-	resultWithErrors *engine.CostResultWithErrors,
-	showBreakdown bool,
-) error {
-	// 1. Determine and validate output format.
-	fmtType := engine.OutputFormat(config.GetOutputFormat(outputFormat))
-
-	// Validate format is supported before proceeding
-	if !isValidOutputFormat(fmtType) {
-		return fmt.Errorf("unsupported output format: %s", fmtType)
-	}
-
-	// 2. If output format is explicitly structured (JSON/NDJSON), bypass TUI completely.
-	// This satisfies FR-004: Maintain output for --output json/ndjson.
-	// --show-breakdown is a table-only flag and does not change these payloads.
-	if fmtType == engine.OutputJSON || fmtType == engine.OutputNDJSON {
-		return engine.RenderResults(cmd.OutOrStdout(), fmtType, resultWithErrors.Results)
-	}
-
-	opts := projectedTableOptions(cmd, showBreakdown)
-	if showBreakdown {
-		return renderPlainProjected(cmd.OutOrStdout(), resultWithErrors, opts)
-	}
-
-	// 2. Detect the appropriate output mode for this command's writer.
-	mode := outputModeFromCmd(cmd)
-
-	// 3. Route to specific renderer
-	switch mode {
-	case tui.OutputModeInteractive:
-		return runInteractiveTUI(ctx, resultWithErrors, opts.Trends)
-
-	case tui.OutputModeStyled:
-		return renderStyledOutput(ctx, cmd.OutOrStdout(), resultWithErrors)
-
-	case tui.OutputModePlain:
-		return renderPlainProjected(cmd.OutOrStdout(), resultWithErrors, opts)
-
-	default:
-		return renderPlainProjected(cmd.OutOrStdout(), resultWithErrors, opts)
-	}
-}
-
 // RenderActualCostOutput routes actual cost results to the appropriate rendering function.
 // The context parameter enables trace ID propagation for contextual logging.
 func RenderActualCostOutput(
@@ -160,15 +111,6 @@ func renderActualResourceTable(
 	return engine.RenderActualCostTable(w, results, opts)
 }
 
-func projectedTableOptions(cmd *cobra.Command, showBreakdown bool) engine.CostTableOptions {
-	trends, total := costTableTrends(cmd)
-	return engine.CostTableOptions{
-		ShowBreakdown: showBreakdown,
-		Trends:        trends,
-		TotalTrend:    total,
-	}
-}
-
 func actualTableOptions(
 	cmd *cobra.Command,
 	groupBy string,
@@ -186,19 +128,6 @@ func actualTableOptions(
 	return opts
 }
 
-func runInteractiveTUI(
-	ctx context.Context,
-	resultWithErrors *engine.CostResultWithErrors,
-	trends map[string]string,
-) error {
-	model := tui.NewCostViewModel(ctx, resultWithErrors.Results).WithTrends(trends)
-	p := tea.NewProgram(model)
-	if _, err := p.Run(); err != nil {
-		return fmt.Errorf("failed to run interactive TUI: %w", err)
-	}
-	return nil
-}
-
 func runInteractiveActualCostTUI(
 	ctx context.Context,
 	resultWithErrors *engine.CostResultWithErrors,
@@ -210,41 +139,6 @@ func runInteractiveActualCostTUI(
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive TUI: %w", err)
 	}
-	return nil
-}
-
-func renderPlainProjected(
-	w io.Writer,
-	resultWithErrors *engine.CostResultWithErrors,
-	opts engine.CostTableOptions,
-) error {
-	err := engine.RenderCostTable(w, resultWithErrors.Results, opts)
-	if err != nil {
-		return err
-	}
-
-	if resultWithErrors.HasErrors() {
-		fmt.Fprintln(w)
-		fmt.Fprintln(w, "ERRORS")
-		fmt.Fprintln(w, "======")
-		fmt.Fprint(w, resultWithErrors.ErrorSummary())
-	}
-	return nil
-}
-
-// renderStyledOutput renders the styled summary using Lip Gloss (T011).
-// The ctx parameter enables trace ID propagation for contextual logging.
-func renderStyledOutput(ctx context.Context, w io.Writer, resultWithErrors *engine.CostResultWithErrors) error {
-	summary := tui.RenderCostSummary(ctx, resultWithErrors.Results, tui.TerminalWidth())
-	fmt.Fprint(w, summary)
-
-	// Display error summary using plain text format.
-	// Error styling is intentionally kept simple for readability across terminals.
-	if resultWithErrors.HasErrors() {
-		fmt.Fprintln(w)
-		fmt.Fprint(w, resultWithErrors.ErrorSummary())
-	}
-
 	return nil
 }
 
