@@ -317,7 +317,7 @@ func newPluginCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: cmdNamePlugin, Short: "Plugin management commands"}
 	cmd.AddCommand(
 		NewPluginValidateCmd(), NewPluginListCmd(), NewPluginInitCmd(),
-		NewPluginInstallCmd(), NewPluginUpdateCmd(), NewPluginRemoveCmd(),
+		NewPluginInstallCmd(), NewPluginUpdateCmd(), NewPluginUpgradeCmd(), NewPluginRemoveCmd(),
 		NewPluginConformanceCmd(), NewPluginCertifyCmd(), NewPluginInspectCmd(),
 	)
 	return cmd

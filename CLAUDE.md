@@ -668,6 +668,23 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 - **Version**: the MCP handshake rejects `dev`/`unknown` versions, so binaries
   built for MCP tests need `-ldflags -X .../pkg/version.version=...`
 
+### Plugin Upgrade (`internal/pluginupgrade/`, `agent-skills/finfocus-plugin-upgrade/`)
+
+- **Bumping finfocus-spec in core needs a hop**: `TestHopsReachCoreSpecVersion`
+  fails until `hops.go` has an entry whose `To` is at least
+  `pluginsdk.SpecVersion`, and `TestHopsMatchGuides` requires a matching
+  `references/to-vX.Y.Z.md`. Add both in the bump PR, even for an additive
+  release (a guide that says "no changes required" is fine)
+- **Hops are releases that need author action, not minor lines**: v0.5.7 (a
+  patch) changed `HandleDryRun`; v0.6.1 raised Go to 1.27.1
+- **`SpecVersion` must be `v`-prefixed**: `pluginsdk.ValidateSpecVersion`
+  rejects `"0.6.1"`, so `GetPluginInfo` returns `Internal` and `plugin list`
+  shows `N/A`. `plugin init` still writes the bare form (#248); the upgrade
+  rewrites it
+- **Minimum supported version is v0.5.0**; there are no pre-rename plugins
+- Rebuild `agent-skills/finfocus-plugin-upgrade/finfocus-plugin-upgrade.skill`
+  (a zip of `SKILL.md` + `references/`) after editing either
+
 ### Integration Tests (`test/integration/`)
 
 - **The CLI helper must go through `ax.Execute`**: `helpers.CLIHelper.Execute`
@@ -704,4 +721,3 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 - BoltDB at `~/.finfocus/history/history.db` (separate from cache) (608-resource-history-store)
 - Go 1.27.1 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions), gRPC, Cobra, zerolog (608-estimate-cost-rpc)
 - N/A (no new persistent state) (608-estimate-cost-rpc)
-

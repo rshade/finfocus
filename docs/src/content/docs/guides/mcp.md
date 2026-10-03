@@ -171,6 +171,7 @@ These commands are never exposed as tools:
 | `analyzer serve`   | Long-running Pulumi handshake that would block the server           |
 | `setup`            | Interactive first-run wizard                                        |
 | `plugin init`      | Scaffolds a plugin project; a developer action, not a query         |
+| `plugin upgrade`   | Rewrites a plugin project's source; a developer action, not a query |
 | `help` and command groups | `help`, `cost`, `plugin`, `config`, and other groups only print usage |
 | Positional-arg commands | For example `plugin install <name>`, `config set <key> <value>`, and `cost recommendations dismiss <id>`. MCP tool calls can pass flags only |
 

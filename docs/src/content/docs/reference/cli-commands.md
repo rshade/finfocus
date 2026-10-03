@@ -32,6 +32,7 @@ finfocus plugin             # Plugin commands
 finfocus plugin init        # Initialize a new plugin
 finfocus plugin install     # Install a plugin
 finfocus plugin update      # Update a plugin
+finfocus plugin upgrade     # Upgrade a plugin project to a newer finfocus-spec
 finfocus plugin remove      # Remove a plugin
 finfocus plugin list        # List installed plugins
 finfocus plugin inspect     # Inspect plugin capabilities
@@ -873,6 +874,54 @@ finfocus plugin update vantage
 
 # Update all installed plugins
 finfocus plugin update --all
+```
+
+## plugin upgrade
+
+Upgrade the source of a plugin project to a newer finfocus-spec version. To
+update an installed plugin binary, use `plugin update`.
+
+The command reads the finfocus-spec requirement from `go.mod`. It then plans
+a hop for each release that needs action from plugin authors, up to the
+version this finfocus build uses. Applying the plan rewrites the `go.mod`
+requirement and `go` directive, and any `SpecVersion` declaration.
+
+Every other change is listed as a manual step, with a link to that hop's
+migration guide. The
+[`finfocus-plugin-upgrade` agent skill](https://github.com/rshade/finfocus/tree/main/agent-skills/finfocus-plugin-upgrade)
+works through those steps.
+
+Applying needs a clean git working tree. The command never uses the
+network, so run `go mod tidy` afterwards.
+
+### Usage (plugin upgrade)
+
+```bash
+finfocus plugin upgrade [options]
+```
+
+### Options (plugin upgrade)
+
+| Flag            | Description                                       | Default           |
+| --------------- | ------------------------------------------------- | ----------------- |
+| `--dir`         | Plugin project directory (containing `go.mod`)    | `.`               |
+| `--to`          | Target release: a hop version or finfocus's own   | finfocus's own    |
+| `--allow-dirty` | Apply even without a clean git working tree       | false             |
+| `--output`      | Output format: `table` or `json`                  | table             |
+| `--dry-run`     | Print the plan without changing files (global)    | false             |
+
+### Examples (plugin upgrade)
+
+```bash
+# Show the plan for the plugin in the current directory
+finfocus plugin upgrade --dry-run
+
+# Apply the automatic edits, then refresh go.sum
+finfocus plugin upgrade
+go mod tidy
+
+# Stop at a specific version
+finfocus plugin upgrade --dir ../my-plugin --to v0.6.0
 ```
 
 ## plugin remove
