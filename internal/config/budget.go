@@ -309,6 +309,14 @@ type CacheConfig struct {
 
 	// MaxSizeMB is the maximum cache size in megabytes (default: 100, 0 = unlimited).
 	MaxSizeMB int `yaml:"max_size_mb" json:"max_size_mb"`
+
+	// LRUEnabled adds an in-memory LRU in front of the BoltDB cache.
+	// Off by default. The disk store stays the source of truth.
+	LRUEnabled bool `yaml:"lru_enabled" json:"lru_enabled"`
+
+	// LRUMaxItems is the memory-tier capacity when LRUEnabled is set.
+	// Zero uses the built-in default of 256.
+	LRUMaxItems int `yaml:"lru_max_items" json:"lru_max_items"`
 }
 
 // Validate validates the cost configuration.

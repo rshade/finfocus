@@ -24,4 +24,10 @@ const (
 
 	// CacheEnvMaxSize is the environment variable for max cache size in MB.
 	CacheEnvMaxSize = "FINFOCUS_CACHE_MAX_SIZE_MB"
+
+	// CacheEnvLRUEnabled turns on the in-memory LRU in front of BoltDB.
+	CacheEnvLRUEnabled = "FINFOCUS_CACHE_LRU_ENABLED"
+
+	// CacheEnvLRUMaxItems sets the in-memory LRU capacity.
+	CacheEnvLRUMaxItems = "FINFOCUS_CACHE_LRU_MAX_ITEMS"
 )

@@ -977,6 +977,8 @@ func (c *Config) applyEnvOverrides() {
 	if dir := os.Getenv("FINFOCUS_CACHE_DIR"); dir != "" {
 		c.Cost.Cache.Directory = dir
 	}
+	c.applyCacheLRUOverrides()
+
 	if maxSize := os.Getenv("FINFOCUS_CACHE_MAX_SIZE_MB"); maxSize != "" {
 		if m, err := strconv.Atoi(maxSize); err == nil {
 			c.Cost.Cache.MaxSizeMB = m
@@ -1025,6 +1027,23 @@ func (c *Config) applyEnvOverrides() {
 	// Plugin directory override (FINFOCUS_PLUGIN_DIR takes highest precedence, #752).
 	if pluginDir := os.Getenv("FINFOCUS_PLUGIN_DIR"); pluginDir != "" {
 		c.PluginDir = pluginDir
+	}
+}
+
+// applyCacheLRUOverrides copies the optional memory-tier settings from the
+// environment. An empty or unparsable value leaves the config-file setting.
+// A non-negative max-items value is stored as given; zero means the cache
+// package's default capacity.
+func (c *Config) applyCacheLRUOverrides() {
+	if raw := os.Getenv(CacheEnvLRUEnabled); raw != "" {
+		if enabled, err := strconv.ParseBool(raw); err == nil {
+			c.Cost.Cache.LRUEnabled = enabled
+		}
+	}
+	if raw := os.Getenv(CacheEnvLRUMaxItems); raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n >= 0 {
+			c.Cost.Cache.LRUMaxItems = n
+		}
 	}
 }
 

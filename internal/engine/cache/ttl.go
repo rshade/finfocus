@@ -18,6 +18,8 @@ const (
 	DefaultCacheMaxSizeMB = config.CacheDefaultMaxSizeMB
 	EnvTTLSeconds         = config.CacheEnvTTLSeconds
 	EnvTTLSecondsLegacy   = config.CacheEnvTTLSecondsLegacy
+	EnvLRUEnabled         = config.CacheEnvLRUEnabled
+	EnvLRUMaxItems        = config.CacheEnvLRUMaxItems
 	EnvCacheEnabled       = config.CacheEnvEnabled
 	EnvCacheDir           = config.CacheEnvDir
 	EnvCacheMaxSize       = config.CacheEnvMaxSize
