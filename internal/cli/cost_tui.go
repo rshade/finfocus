@@ -84,8 +84,9 @@ func RenderCostOutput(
 		return engine.RenderResults(cmd.OutOrStdout(), fmtType, resultWithErrors.Results)
 	}
 
+	opts := projectedTableOptions(cmd, showBreakdown)
 	if showBreakdown {
-		return renderPlainProjected(cmd.OutOrStdout(), resultWithErrors, true)
+		return renderPlainProjected(cmd.OutOrStdout(), resultWithErrors, opts)
 	}
 
 	// 2. Detect the appropriate output mode for this command's writer.
@@ -94,16 +95,16 @@ func RenderCostOutput(
 	// 3. Route to specific renderer
 	switch mode {
 	case tui.OutputModeInteractive:
-		return runInteractiveTUI(ctx, resultWithErrors)
+		return runInteractiveTUI(ctx, resultWithErrors, opts.Trends)
 
 	case tui.OutputModeStyled:
 		return renderStyledOutput(ctx, cmd.OutOrStdout(), resultWithErrors)
 
 	case tui.OutputModePlain:
-		return renderPlainOutput(cmd.OutOrStdout(), resultWithErrors)
+		return renderPlainProjected(cmd.OutOrStdout(), resultWithErrors, opts)
 
 	default:
-		return renderPlainOutput(cmd.OutOrStdout(), resultWithErrors)
+		return renderPlainProjected(cmd.OutOrStdout(), resultWithErrors, opts)
 	}
 }
 
@@ -133,13 +134,12 @@ func RenderActualCostOutput(
 	}
 
 	mode := outputModeFromCmd(cmd)
+	opts := actualTableOptions(cmd, groupBy, estimateConfidence, showBreakdown, showConfidence)
 	if mode == tui.OutputModeInteractive && !showBreakdown && !showConfidence {
-		return runInteractiveActualCostTUI(ctx, resultWithErrors, engine.GroupBy(groupBy))
+		return runInteractiveActualCostTUI(ctx, resultWithErrors, engine.GroupBy(groupBy), opts.Trends)
 	}
 
-	if err := renderActualResourceTable(
-		cmd.OutOrStdout(), resultWithErrors.Results, groupBy, estimateConfidence, showBreakdown, showConfidence,
-	); err != nil {
+	if err := renderActualResourceTable(cmd.OutOrStdout(), resultWithErrors.Results, groupBy, opts); err != nil {
 		return err
 	}
 	displayErrorSummary(cmd, resultWithErrors, engine.OutputTable)
@@ -152,19 +152,47 @@ func renderActualResourceTable(
 	w io.Writer,
 	results []engine.CostResult,
 	groupBy string,
-	estimateConfidence, showBreakdown, showConfidence bool,
+	opts engine.CostTableOptions,
 ) error {
 	if engine.GroupBy(groupBy).IsTimeBasedGrouping() {
-		return renderActualCostOutput(w, engine.OutputTable, results, groupBy, estimateConfidence)
+		return renderActualCostOutput(w, engine.OutputTable, results, groupBy, opts.ShowConfidence)
 	}
-	return engine.RenderActualCostTable(w, results, engine.CostTableOptions{
-		ShowBreakdown:  showBreakdown,
-		ShowConfidence: estimateConfidence || showConfidence,
-	})
+	return engine.RenderActualCostTable(w, results, opts)
 }
 
-func runInteractiveTUI(ctx context.Context, resultWithErrors *engine.CostResultWithErrors) error {
-	p := tea.NewProgram(tui.NewCostViewModel(ctx, resultWithErrors.Results))
+func projectedTableOptions(cmd *cobra.Command, showBreakdown bool) engine.CostTableOptions {
+	trends, total := costTableTrends(cmd)
+	return engine.CostTableOptions{
+		ShowBreakdown: showBreakdown,
+		Trends:        trends,
+		TotalTrend:    total,
+	}
+}
+
+func actualTableOptions(
+	cmd *cobra.Command,
+	groupBy string,
+	estimateConfidence, showBreakdown, showConfidence bool,
+) engine.CostTableOptions {
+	opts := engine.CostTableOptions{
+		ShowBreakdown:  showBreakdown,
+		ShowConfidence: estimateConfidence || showConfidence,
+	}
+	if engine.GroupBy(groupBy).IsTimeBasedGrouping() {
+		opts.ShowConfidence = estimateConfidence
+		return opts
+	}
+	opts.Trends, opts.TotalTrend = costTableTrends(cmd)
+	return opts
+}
+
+func runInteractiveTUI(
+	ctx context.Context,
+	resultWithErrors *engine.CostResultWithErrors,
+	trends map[string]string,
+) error {
+	model := tui.NewCostViewModel(ctx, resultWithErrors.Results).WithTrends(trends)
+	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive TUI: %w", err)
 	}
@@ -175,26 +203,22 @@ func runInteractiveActualCostTUI(
 	ctx context.Context,
 	resultWithErrors *engine.CostResultWithErrors,
 	groupBy engine.GroupBy,
+	trends map[string]string,
 ) error {
-	p := tea.NewProgram(tui.NewCostViewModelFromActual(ctx, resultWithErrors.Results, groupBy))
+	model := tui.NewCostViewModelFromActual(ctx, resultWithErrors.Results, groupBy).WithTrends(trends)
+	p := tea.NewProgram(model)
 	if _, err := p.Run(); err != nil {
 		return fmt.Errorf("failed to run interactive TUI: %w", err)
 	}
 	return nil
 }
 
-// renderPlainOutput renders the standard table output (legacy behavior).
-func renderPlainOutput(w io.Writer, resultWithErrors *engine.CostResultWithErrors) error {
-	return renderPlainProjected(w, resultWithErrors, false)
-}
-
-func renderPlainProjected(w io.Writer, resultWithErrors *engine.CostResultWithErrors, showBreakdown bool) error {
-	var err error
-	if showBreakdown {
-		err = engine.RenderCostTable(w, resultWithErrors.Results, engine.CostTableOptions{ShowBreakdown: true})
-	} else {
-		err = engine.RenderResults(w, engine.OutputTable, resultWithErrors.Results)
-	}
+func renderPlainProjected(
+	w io.Writer,
+	resultWithErrors *engine.CostResultWithErrors,
+	opts engine.CostTableOptions,
+) error {
+	err := engine.RenderCostTable(w, resultWithErrors.Results, opts)
 	if err != nil {
 		return err
 	}

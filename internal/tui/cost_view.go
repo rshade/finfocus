@@ -24,6 +24,8 @@ const (
 	borderPadding     = 2
 	// deltaEpsilon is the minimum absolute delta value to display (avoids floating-point noise).
 	deltaEpsilon = 0.001
+	// trendColumnWidth fits a 7-cell Unicode sparkline.
+	trendColumnWidth = 8
 )
 
 // Column titles shared by the cost and overview tables.
@@ -165,14 +167,23 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 
 // NewResultTable creates and configures a new table model for cost results.
 func NewResultTable(results []engine.CostResult, height int) table.Model {
+	return newResultTable(results, height, nil)
+}
+
+func newResultTable(results []engine.CostResult, height int, trends map[string]string) table.Model {
 	columns := []table.Column{
 		{Title: columnTitleResource, Width: 40}, //nolint:mnd // Column width.
 		{Title: columnTitleType, Width: 30},     //nolint:mnd // Column width.
 		{Title: "Provider", Width: 10},          //nolint:mnd // Column width.
 		{Title: "Cost", Width: 15},              //nolint:mnd // Column width.
-		{Title: columnTitleDelta, Width: 15},    //nolint:mnd // Column width.
-		{Title: "Recommendations", Width: 15},   //nolint:mnd // Column width.
 	}
+	if trends != nil {
+		columns = append(columns, table.Column{Title: "Trend", Width: trendColumnWidth})
+	}
+	columns = append(columns,
+		table.Column{Title: columnTitleDelta, Width: 15},  //nolint:mnd // Column width.
+		table.Column{Title: "Recommendations", Width: 15}, //nolint:mnd // Column width.
+	)
 
 	rows := make([]table.Row, len(results))
 	for i, r := range results {
@@ -187,9 +198,11 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 			row.ResourceType,
 			row.Provider,
 			costStr,
-			deltaStr,
-			recsStr,
 		}
+		if trends != nil {
+			rows[i] = append(rows[i], trends[r.ResourceID])
+		}
+		rows[i] = append(rows[i], deltaStr, recsStr)
 	}
 
 	t := table.New(
@@ -215,13 +228,20 @@ func NewResultTable(results []engine.CostResult, height int) table.Model {
 // formatted recommendation count. The returned table is configured with a focused state, the given height,
 // and standard header and selected row styles.
 func NewActualCostTable(results []engine.CostResult, height int) table.Model {
+	return newActualCostTable(results, height, nil)
+}
+
+func newActualCostTable(results []engine.CostResult, height int, trends map[string]string) table.Model {
 	columns := []table.Column{
 		{Title: columnTitleResource, Width: 40}, //nolint:mnd // Column width.
 		{Title: columnTitleType, Width: 30},     //nolint:mnd // Column width.
 		{Title: "Provider", Width: 10},          //nolint:mnd // Column width.
 		{Title: "Total Cost", Width: 15},        //nolint:mnd // Column width.
-		{Title: "Recommendations", Width: 15},   //nolint:mnd // Column width.
 	}
+	if trends != nil {
+		columns = append(columns, table.Column{Title: "Trend", Width: trendColumnWidth})
+	}
+	columns = append(columns, table.Column{Title: "Recommendations", Width: 15}) //nolint:mnd // Column width.
 
 	rows := make([]table.Row, len(results))
 	for i, r := range results {
@@ -234,8 +254,11 @@ func NewActualCostTable(results []engine.CostResult, height int) table.Model {
 			row.ResourceType,
 			row.Provider,
 			costStr,
-			recsStr,
 		}
+		if trends != nil {
+			rows[i] = append(rows[i], trends[r.ResourceID])
+		}
+		rows[i] = append(rows[i], recsStr)
 	}
 
 	t := table.New(

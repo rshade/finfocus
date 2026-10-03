@@ -6,9 +6,59 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/engine"
 )
+
+func TestNewResultTable_TrendColumn(t *testing.T) {
+	t.Parallel()
+	results := []engine.CostResult{{
+		ResourceID:   "web",
+		ResourceType: "aws:ec2/instance:Instance",
+		Monthly:      10,
+	}}
+	plain := NewResultTable(results, 10)
+	for _, column := range plain.Columns() {
+		assert.NotEqual(t, "Trend", column.Title)
+	}
+
+	trends := map[string]string{"web": "▁▂▃▄▅▆▇"}
+	withTrend := newResultTable(results, 10, trends)
+	titles := make([]string, 0, len(withTrend.Columns()))
+	trendIndex := -1
+	for i, column := range withTrend.Columns() {
+		titles = append(titles, column.Title)
+		if column.Title == "Trend" {
+			trendIndex = i
+		}
+	}
+	assert.Contains(t, titles, "Trend")
+	require.NotEqual(t, -1, trendIndex)
+	require.NotEmpty(t, withTrend.Rows())
+	assert.Equal(t, "▁▂▃▄▅▆▇", withTrend.Rows()[0][trendIndex])
+
+	actual := newActualCostTable(results, 10, trends)
+	found := false
+	for i, column := range actual.Columns() {
+		if column.Title == "Trend" {
+			found = true
+			assert.Equal(t, "▁▂▃▄▅▆▇", actual.Rows()[0][i])
+		}
+	}
+	assert.True(t, found)
+
+	model := NewCostViewModel(context.Background(), results).WithTrends(trends)
+	require.NotNil(t, model)
+	seen := false
+	for _, column := range model.table.Columns() {
+		if column.Title == "Trend" {
+			seen = true
+		}
+	}
+	assert.True(t, seen)
+	assert.Nil(t, NewCostViewModel(context.Background(), results).WithTrends(nil).trends)
+}
 
 func TestRenderCostSummary(t *testing.T) {
 	t.Parallel()

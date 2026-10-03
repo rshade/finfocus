@@ -112,6 +112,7 @@ type CostViewModel struct {
 	groupBy      engine.GroupBy
 	aggregations []engine.CrossProviderAggregation
 	isActual     bool
+	trends       map[string]string
 
 	// Error handling
 	err error
@@ -370,16 +371,33 @@ func (m *CostViewModel) applySort() {
 	})
 }
 
-func (m *CostViewModel) rebuildTable() {
-	availableHeight := max(m.height-summaryHeight-1, minHeight)
+// WithTrends adds a Trend column when history sparklines are available.
+// A nil map leaves the existing columns in place.
+func (m *CostViewModel) WithTrends(trends map[string]string) *CostViewModel {
+	if m == nil || trends == nil {
+		return m
+	}
+	m.trends = trends
+	if m.height == 0 {
+		m.refreshCostTable(defaultHeight)
+		return m
+	}
+	m.rebuildTable()
+	return m
+}
 
+func (m *CostViewModel) rebuildTable() {
+	m.refreshCostTable(max(m.height-summaryHeight-1, minHeight))
+}
+
+func (m *CostViewModel) refreshCostTable(height int) {
 	switch {
 	case m.isActual && m.groupBy.IsTimeBasedGrouping():
-		m.table = NewAggregationTable(m.aggregations, availableHeight)
+		m.table = NewAggregationTable(m.aggregations, height)
 	case m.isActual:
-		m.table = NewActualCostTable(m.results, availableHeight)
+		m.table = newActualCostTable(m.results, height, m.trends)
 	default:
-		m.table = NewResultTable(m.results, availableHeight)
+		m.table = newResultTable(m.results, height, m.trends)
 	}
 }
 

@@ -187,8 +187,8 @@ Caveats:
 ## cost history
 
 Store and read projected-cost snapshots for one Pulumi stack. `collect`
-needs the Pulumi CLI and a cost plugin. `view`, `list`, `diff`, and
-`prune` read the per-stack database only.
+needs the Pulumi CLI and a cost plugin. `view`, `list`, `diff`, `prune`,
+and `export` read the per-stack database only.
 
 ### Usage (cost history collect)
 
@@ -213,6 +213,26 @@ default `0` backfills every successful checkpoint that is missing.
 The database is `~/.finfocus/history/<stack>.history.db`. Slashes in the
 stack name become dashes. `FINFOCUS_HOME` changes the root. CI recipes are
 in [CI/CD cost tracking](../guides/ci-cd-cost-tracking.md).
+
+### Usage (cost history export)
+
+```bash
+finfocus cost history export --stack <name> --format <json|csv|ndjson>
+```
+
+### Options (cost history export)
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--stack` | Pulumi stack name. This is the parent `cost` flag | required |
+| `--format` | `json`, `csv`, or `ndjson`. This is the root `--format` flag | required |
+| `--from` | Include snapshots on or after this date (`YYYY-MM-DD`) | none |
+| `--to` | Include snapshots on or before this date | none |
+| `--provider` | Keep one provider's monthly cost | none |
+
+`json` is one document with snapshots and annotations. `csv` has a header
+and one row per snapshot. `ndjson` is one snapshot per line. `cost projected`
+and `cost actual` add a Trend column when that stack's history file exists.
 
 ## cost recommendations
 
