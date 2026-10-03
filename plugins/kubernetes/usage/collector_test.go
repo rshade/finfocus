@@ -125,6 +125,28 @@ func TestCollect_FargateWithoutRegionWarns(t *testing.T) {
 	require.NoError(t, plugintesting.ValidateStatsResponse(resp))
 }
 
+func TestCollect_PulumiURNAnnotation(t *testing.T) {
+	t.Parallel()
+
+	const urn = "urn:pulumi:prod::payments::kubernetes:apps/v1:Deployment::api"
+	withURN := runningPod("app", "api", "n1", corev1.PodRunning, map[string]string{"team": "pay"})
+	withURN.Annotations = map[string]string{annotationPulumiURN: urn}
+	empty := runningPod("app", "blank", "n1", corev1.PodRunning, nil)
+	empty.Annotations = map[string]string{annotationPulumiURN: ""}
+	plain := runningPod("app", "plain", "n1", corev1.PodRunning, nil)
+	cs := fake.NewSimpleClientset(readyNode("n1", "2", "8Gi", awsLabels), withURN, empty, plain)
+	resp, err := Collect(context.Background(), cs, Options{Cluster: "prod"})
+	require.NoError(t, err)
+	require.NoError(t, plugintesting.ValidateStatsResponse(resp))
+
+	api := rowsFor(resp, "pod", "api")
+	require.NotEmpty(t, api)
+	assert.Equal(t, urn, api[0].GetSubject()["label."+annotationPulumiURN])
+	assert.Equal(t, "pay", api[0].GetSubject()["label.team"])
+	assert.Empty(t, rowsFor(resp, "pod", "blank")[0].GetSubject()["label."+annotationPulumiURN])
+	assert.Empty(t, rowsFor(resp, "pod", "plain")[0].GetSubject()["label."+annotationPulumiURN])
+}
+
 func TestCollect_NamespaceScope(t *testing.T) {
 	t.Parallel()
 

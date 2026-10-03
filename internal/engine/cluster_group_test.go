@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -79,15 +80,64 @@ func TestGroupClusterRows_OrderAndNotes(t *testing.T) {
 	}
 }
 
+func TestGroupClusterRows_PulumiStack(t *testing.T) {
+	t.Parallel()
+
+	const (
+		apiURN    = "urn:pulumi:prod::payments::kubernetes:apps/v1:Deployment::api"
+		workerURN = "urn:pulumi:prod::payments::kubernetes:apps/v1:Deployment::worker"
+		otherURN  = "urn:pulumi:dev::search::kubernetes:apps/v1:Deployment::api"
+		parentURN = "urn:pulumi:prod::payments::component:index:App$kubernetes:apps/v1:Deployment::child"
+		badURN    = "urn:pulumi:prod::payments"
+	)
+	row := func(urn string, cost float64) ClusterRow {
+		s := map[string]string{"kind": "workload", "namespace": "payments"}
+		if urn != "" {
+			s[pulumiURNSubjectKey] = urn
+		}
+		return ClusterRow{Subject: s, TotalCost: cost}
+	}
+	rows := []ClusterRow{
+		row(apiURN, 10),
+		row(workerURN, 4),
+		row(parentURN, 1),
+		row(otherURN, 5),
+		row(badURN, 2),
+		row("", 3),
+		{Subject: map[string]string{"kind": "__idle__", "node": "n1"}, TotalCost: 7},
+		{Subject: map[string]string{"kind": "__cluster__", "cluster": "prod"}, TotalCost: 8},
+	}
+	gs, err := GroupClusterRows(rows, "pulumi-stack")
+	require.NoError(t, err)
+	assert.Equal(t, map[string]float64{
+		"prod/payments": 15, "dev/search": 5, GroupKeyNone: 5, "__idle__": 7, "__cluster__": 8,
+	}, groupTotals(gs))
+
+	var none, payments ClusterGroup
+	for _, g := range gs {
+		switch g.Key {
+		case GroupKeyNone:
+			none = g
+		case "prod/payments":
+			payments = g
+		}
+	}
+	assert.Equal(t, []string{parentURN, apiURN, workerURN}, payments.PulumiURNs)
+	assert.Equal(t, []string{badURN}, none.PulumiURNs)
+	encoded, err := json.Marshal(payments)
+	require.NoError(t, err)
+	assert.Contains(t, string(encoded), `"pulumi_urns"`)
+}
+
 func TestValidateClusterGroupBy(t *testing.T) {
 	t.Parallel()
 
-	for _, ok := range []string{"namespace", "controller", "pod", "node", "label:team", "label:app.kubernetes.io/name"} {
+	for _, ok := range []string{"namespace", "controller", "pod", "node", "pulumi-stack", "label:team", "label:app.kubernetes.io/name"} {
 		require.NoError(t, ValidateClusterGroupBy(ok), ok)
 	}
 	for _, bad := range []string{"", "daily", "label:", "labels:team", "Namespace"} {
 		err := ValidateClusterGroupBy(bad)
 		require.Error(t, err, bad)
-		assert.Contains(t, err.Error(), "namespace, controller, pod, node, label:<key>")
+		assert.Contains(t, err.Error(), "namespace, controller, pod, node, pulumi-stack, label:<key>")
 	}
 }

@@ -20,6 +20,12 @@ import (
 
 const listPageSize = 500
 
+// annotationPulumiURN is the opt-in annotation whose value is a Pulumi URN.
+// It is an annotation, not a label: a URN contains ":" and is often longer
+// than the 63-character label-value limit. The subject key keeps the label.
+// prefix so finfocus-spec stats validation accepts it.
+const annotationPulumiURN = "finfocus.dev/pulumi-urn"
+
 // Options scopes a collection.
 type Options struct {
 	Cluster       string // cluster subject value (kube context name)
@@ -152,6 +158,9 @@ func collectPods(
 		}
 		for k, v := range p.Labels {
 			subject[pluginsdk.SubjectLabelPrefix+k] = v
+		}
+		if urn := p.Annotations[annotationPulumiURN]; urn != "" {
+			subject[pluginsdk.SubjectLabelPrefix+annotationPulumiURN] = urn
 		}
 		cpu, mem := EffectiveRequests(p.Spec)
 		resp.Rows = append(resp.Rows,
