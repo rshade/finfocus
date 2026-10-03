@@ -40,8 +40,10 @@ type ResourceDescriptor struct {
 	// Operation is the Pulumi plan op. Empty means the caller has no plan
 	// operation (Terraform state, older tools) and cost diff treats it as create.
 	Operation string `json:"operation,omitempty"`
-	// OldProperties is the previous input map for update, replace, and delete.
-	// Nil when the plan step has no old state.
+	// OldProperties is the previous property map for update, replace, and
+	// delete: the step's outputs merged under its old inputs, the same way
+	// Properties merges outputs under the new inputs. Nil when the plan step has
+	// no old state.
 	OldProperties map[string]any `json:"oldProperties,omitempty"`
 }
 

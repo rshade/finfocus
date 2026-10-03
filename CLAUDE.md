@@ -528,7 +528,10 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   An empty operation is a create (`$0` before, current price after). `update`,
   `replace`, and `create-replacement` price `OldProperties` then `Properties`.
   `delete` and `delete-replaced` price old properties and a `$0` after.
-  `same` is priced once. `summary.totalMonthly` and budget evaluation use the
+  `same` is priced once. Both sides use the same basis: `OldProperties` is outputs
+  merged under the old inputs (like `Properties`), and `ref.*` tags are resolved
+  once over the whole plan (`resolveDiffRefTags`) and given to both descriptors,
+  because the before and after slices hold different resources. `summary.totalMonthly` and budget evaluation use the
   after total. Table output is the diff table (TTY included). JSON adds
   `finfocus.diff`. NDJSON is one diff entry per line. `--show-breakdown`
   adds component sub-rows on that table only. Recommendations are merged

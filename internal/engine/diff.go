@@ -6,6 +6,8 @@ package engine
 import (
 	"context"
 	"errors"
+	"maps"
+	"strings"
 	"time"
 )
 
@@ -30,7 +32,7 @@ func (e *Engine) GetProjectedCostDiff(
 		}, nil
 	}
 
-	plan := planDiffPricing(resources)
+	plan := planDiffPricing(ctx, resources)
 	afterCosts, afterErrs, err := e.priceAligned(ctx, plan.after)
 	if err != nil {
 		return nil, err
@@ -50,37 +52,78 @@ type diffPricingPlan struct {
 	ops      []string
 }
 
-func planDiffPricing(resources []ResourceDescriptor) diffPricingPlan {
+func planDiffPricing(ctx context.Context, resources []ResourceDescriptor) diffPricingPlan {
 	plan := diffPricingPlan{ops: make([]string, len(resources))}
+	refTags := resolveDiffRefTags(ctx, resources)
 	for i, resource := range resources {
 		op := normalizeDiffOperation(resource.Operation)
 		plan.ops[i] = op
 		switch op {
 		case DiffOperationDelete:
-			plan.before = append(plan.before, descriptorForDiff(resource, deleteBaseline(resource), false))
+			plan.before = append(plan.before, descriptorForDiff(resource, deleteBaseline(resource), refTags[i]))
 			plan.beforeAt = append(plan.beforeAt, i)
 		case DiffOperationUpdate:
-			plan.before = append(plan.before, descriptorForDiff(resource, resource.OldProperties, false))
+			plan.before = append(plan.before, descriptorForDiff(resource, resource.OldProperties, refTags[i]))
 			plan.beforeAt = append(plan.beforeAt, i)
-			plan.after = append(plan.after, descriptorForDiff(resource, resource.Properties, true))
+			plan.after = append(plan.after, descriptorForDiff(resource, resource.Properties, refTags[i]))
 			plan.afterAt = append(plan.afterAt, i)
 		default:
-			plan.after = append(plan.after, descriptorForDiff(resource, resource.Properties, true))
+			plan.after = append(plan.after, descriptorForDiff(resource, resource.Properties, refTags[i]))
 			plan.afterAt = append(plan.afterAt, i)
 		}
 	}
 	return plan
 }
 
-// descriptorForDiff copies resource and swaps in props. Before-pricing drops
-// Refs so new-plan references are not applied to the old property map.
-func descriptorForDiff(resource ResourceDescriptor, props map[string]any, keepRefs bool) ResourceDescriptor {
+// descriptorForDiff copies resource and swaps in props plus the plan-wide ref
+// tags. Refs is cleared because the tags are already resolved: the before and
+// after slices hold different resource sets, so resolving inside either one
+// would miss targets that are only present in the other.
+func descriptorForDiff(resource ResourceDescriptor, props, refTags map[string]any) ResourceDescriptor {
 	out := resource
 	out.Properties = cloneProperties(props)
-	if !keepRefs {
-		out.Refs = nil
+	if len(refTags) > 0 {
+		if out.Properties == nil {
+			out.Properties = make(map[string]any, len(refTags))
+		}
+		maps.Copy(out.Properties, refTags)
 	}
+	out.Refs = nil
 	return out
+}
+
+// resolveDiffRefTags resolves cross-resource references once over the whole
+// plan and returns the ref.<property>.* tags each resource earns, by index. The
+// diff prices before and after from separate slices, so both sides take these
+// tags to stay on the same basis.
+func resolveDiffRefTags(ctx context.Context, resources []ResourceDescriptor) []map[string]any {
+	tags := make([]map[string]any, len(resources))
+	hasRefs := false
+	work := make([]ResourceDescriptor, len(resources))
+	for i, resource := range resources {
+		work[i] = resource
+		work[i].Properties = cloneProperties(resource.Properties)
+		hasRefs = hasRefs || len(resource.Refs) > 0
+	}
+	if !hasRefs {
+		return tags
+	}
+	ApplyCrossResourceRefs(ctx, work)
+	for i := range work {
+		for prop := range work[i].Refs {
+			prefix := "ref." + prop + "."
+			for key, value := range work[i].Properties {
+				if !strings.HasPrefix(key, prefix) {
+					continue
+				}
+				if tags[i] == nil {
+					tags[i] = make(map[string]any)
+				}
+				tags[i][key] = value
+			}
+		}
+	}
+	return tags
 }
 
 func deleteBaseline(resource ResourceDescriptor) map[string]any {
