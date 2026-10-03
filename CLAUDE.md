@@ -659,10 +659,12 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   multiplies by storage size or 1 GB. A billing mode the engine does not know that
   still has a usable unit, such as `per_hour_plus_data`, is priced from the unit
   alone and the note says `<mode>: hourly rate only, other charges not included`.
-  A tiered spec applies the one tier that contains the quantity to the whole
-  quantity, which is a modelling choice, not graduated pricing; a quantity in a gap
-  or past the last tier is unusable and falls through, not priced from the first
-  tier. A `$0` rate stays a price, so a plugin must answer `zero_cost` or an error
+  A tiered spec is graduated, as finfocus-spec defines it
+  (`docs/ADVANCED_PATTERNS.md`: usage in each tier is `min(usage, max) - min`; the S3
+  example is "first 50 TB at $0.023, next 400 TB at $0.022"): each tier bills the part of
+  the quantity inside it (`graduatedTierCost`). Tiers whose ranges do not cover the
+  whole quantity (a gap, a first tier above zero, a bounded last tier below the
+  quantity) are unusable and fall through, since the uncovered part has no rate. A `$0` rate stays a price, so a plugin must answer `zero_cost` or an error
   for "no price", not a zero rate (#1639 reports aws-public returning a zero
   `per_hour` rate for a type it does not find, which core prices as `$0`; unverified
   here, since it is a plugin-side issue)

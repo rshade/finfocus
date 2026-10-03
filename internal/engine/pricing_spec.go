@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"math"
+	"sort"
 	"strings"
 	"time"
 
@@ -295,15 +296,17 @@ func pluginSpecNotes(spec *pbc.PricingSpec, pluginName, mode, assumed string) st
 func pluginSpecRate(spec *pbc.PricingSpec, resource ResourceDescriptor) (float64, string, bool) {
 	rawMode := strings.ToLower(strings.TrimSpace(spec.GetBillingMode()))
 	if rawMode == billingTiered {
-		tier := matchingPricingTier(spec.GetPricingTiers(), tierQuantity(spec.GetUnit(), resource))
-		if tier == nil {
+		qty := tierQuantity(spec.GetUnit(), resource)
+		cost, ok := graduatedTierCost(spec.GetPricingTiers(), qty)
+		if !ok {
 			return 0, "", false
 		}
 		mode := normalizeBilling("", spec.GetUnit())
 		if mode == "" {
 			mode = billingFlat
 		}
-		return tier.GetRatePerUnit(), mode, true
+		// The blended rate, so the mode's rate x quantity step yields the tiered cost.
+		return cost / qty, mode, true
 	}
 	mode := normalizeBilling(rawMode, spec.GetUnit())
 	if mode == "" {
@@ -381,20 +384,51 @@ func normalizeBilling(mode, unit string) string {
 	}
 }
 
-// matchingPricingTier returns the tier that contains qty, or nil when none does.
-// A quantity in a gap or past the last tier is not priced from the first tier's
-// rate: the spec does not say what it costs, so the caller falls through.
-func matchingPricingTier(tiers []*pbc.PricingTier, qty float64) *pbc.PricingTier {
+// graduatedTierCost prices qty the way finfocus-spec defines tiered pricing: each
+// tier bills the part of the quantity that falls inside it, `min(qty, max) - min`
+// units at that tier's rate (docs/ADVANCED_PATTERNS.md, with the S3 example "first
+// 50 TB at $0.023, next 400 TB at $0.022"). Tiers are taken in ascending order of
+// min_quantity, and a max of 0 is unbounded. It reports false when the tiers do not
+// cover the whole quantity (a gap, a first tier above zero, or a last bounded tier
+// below qty): the uncovered part has no rate, so any total would be understated.
+func graduatedTierCost(tiers []*pbc.PricingTier, qty float64) (float64, bool) {
+	if qty <= 0 || math.IsNaN(qty) || math.IsInf(qty, 0) {
+		return 0, false
+	}
+	ordered := make([]*pbc.PricingTier, 0, len(tiers))
 	for _, tier := range tiers {
-		if tier == nil {
-			continue
-		}
-		maxQty := tier.GetMaxQuantity()
-		if qty >= tier.GetMinQuantity() && (maxQty == 0 || qty < maxQty) {
-			return tier
+		if tier != nil {
+			ordered = append(ordered, tier)
 		}
 	}
-	return nil
+	sort.SliceStable(ordered, func(i, j int) bool {
+		return ordered[i].GetMinQuantity() < ordered[j].GetMinQuantity()
+	})
+
+	var cost, covered float64
+	for _, tier := range ordered {
+		if covered >= qty {
+			break
+		}
+		start := tier.GetMinQuantity()
+		if start > covered {
+			return 0, false
+		}
+		start = covered
+		end := qty
+		if maxQty := tier.GetMaxQuantity(); maxQty != 0 && maxQty < end {
+			end = maxQty
+		}
+		if end <= start {
+			continue
+		}
+		cost += (end - start) * tier.GetRatePerUnit()
+		covered = end
+	}
+	if covered < qty {
+		return 0, false
+	}
+	return cost, true
 }
 
 func tierQuantity(unit string, resource ResourceDescriptor) float64 {

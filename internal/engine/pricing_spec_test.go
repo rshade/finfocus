@@ -91,7 +91,7 @@ func TestCostFromPluginPricingSpec(t *testing.T) {
 			wantNote: "Calculated from plugin pricing spec: plugin-a (tiered)",
 		},
 		{
-			name: "tiered storage uses the size tier",
+			name: "tiered storage prices each tier's share of the size",
 			spec: &pbc.PricingSpec{
 				BillingMode: billingTiered,
 				Unit:        "GB-month",
@@ -102,7 +102,7 @@ func TestCostFromPluginPricingSpec(t *testing.T) {
 				},
 			},
 			properties: map[string]any{"sizeGb": 100},
-			wantOK:     true, wantMonthly: 5, wantHourly: 5.0 / hoursPerMonth, wantCur: "USD",
+			wantOK:     true, wantMonthly: 7.5, wantHourly: 7.5 / hoursPerMonth, wantCur: "USD",
 			wantNote: "Calculated from plugin pricing spec: plugin (tiered)",
 		},
 		{

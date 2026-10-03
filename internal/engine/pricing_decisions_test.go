@@ -71,36 +71,104 @@ func TestPluginSpecCompoundModesSayWhatTheyLeaveOut(t *testing.T) {
 	})
 }
 
-func TestMatchingPricingTierDoesNotGuess(t *testing.T) {
-	t.Parallel()
-
-	tiers := []*pbc.PricingTier{
-		{MinQuantity: 10, MaxQuantity: 50, RatePerUnit: 0.10},
-		{MinQuantity: 50, MaxQuantity: 100, RatePerUnit: 0.05},
+// finfocus-spec defines tiered pricing as graduated: "Usage in each tier is
+// calculated as min(usage, max) - min" (docs/ADVANCED_PATTERNS.md), and its S3
+// example reads "First 50 TB at $0.023, next 400 TB at $0.022, over 450 TB at
+// $0.021". The rates below are that example, in GB.
+func s3TieredSpec() *pbc.PricingSpec {
+	return &pbc.PricingSpec{
+		BillingMode: billingTiered, Unit: "GB-month", Currency: "USD",
+		PricingTiers: []*pbc.PricingTier{
+			{MinQuantity: 0, MaxQuantity: 50000, RatePerUnit: 0.023},
+			{MinQuantity: 50000, MaxQuantity: 450000, RatePerUnit: 0.022},
+			{MinQuantity: 450000, MaxQuantity: 0, RatePerUnit: 0.021},
+		},
 	}
-
-	assert.InDelta(t, 0.10, matchingPricingTier(tiers, 10).GetRatePerUnit(), 1e-9)
-	assert.InDelta(t, 0.05, matchingPricingTier(tiers, 99).GetRatePerUnit(), 1e-9)
-	assert.Nil(t, matchingPricingTier(tiers, 5), "below every tier")
-	assert.Nil(t, matchingPricingTier(tiers, 100), "above every tier")
 }
 
-func TestPluginSpecTierGapFallsThroughInsteadOfUsingTheFirstRate(t *testing.T) {
+func TestPluginSpecTiersArePricedGraduated(t *testing.T) {
 	t.Parallel()
 
-	resource := ResourceDescriptor{
-		Type: "aws:s3:Bucket", ID: "b", Provider: "aws", Properties: map[string]any{"sizeGb": 500},
+	tests := []struct {
+		name   string
+		sizeGB float64
+		want   float64
+	}{
+		{"inside the first tier", 100, 100 * 0.023},
+		{"exactly at a boundary", 50000, 50000 * 0.023},
+		{"across two tiers", 100000, 50000*0.023 + 50000*0.022},
+		{"into the open last tier", 500000, 50000*0.023 + 400000*0.022 + 50000*0.021},
 	}
-	got, ok := costFromPluginPricingSpec(resource, &pbc.PricingSpec{
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			resource := ResourceDescriptor{
+				Type: "aws:s3:Bucket", ID: "b", Provider: "aws", Properties: map[string]any{"sizeGb": tt.sizeGB},
+			}
+			got, ok := costFromPluginPricingSpec(resource, s3TieredSpec(), "aws-public")
+			require.True(t, ok)
+			assert.InDelta(t, tt.want, got.Monthly, 1e-6)
+		})
+	}
+}
+
+func TestPluginSpecTiersThatDoNotCoverTheQuantityAreUnusable(t *testing.T) {
+	t.Parallel()
+
+	bounded := &pbc.PricingSpec{
 		BillingMode: billingTiered, Unit: "GB-month",
 		PricingTiers: []*pbc.PricingTier{
 			{MinQuantity: 0, MaxQuantity: 50, RatePerUnit: 0.10},
 			{MinQuantity: 50, MaxQuantity: 100, RatePerUnit: 0.05},
 		},
-	}, "p")
+	}
+	gap := &pbc.PricingSpec{
+		BillingMode: billingTiered, Unit: "GB-month",
+		PricingTiers: []*pbc.PricingTier{
+			{MinQuantity: 0, MaxQuantity: 10, RatePerUnit: 0.10},
+			{MinQuantity: 20, MaxQuantity: 0, RatePerUnit: 0.05},
+		},
+	}
+	late := &pbc.PricingSpec{
+		BillingMode: billingTiered, Unit: "GB-month",
+		PricingTiers: []*pbc.PricingTier{{MinQuantity: 10, MaxQuantity: 0, RatePerUnit: 0.05}},
+	}
 
-	assert.False(t, ok)
-	assert.Nil(t, got)
+	tests := []struct {
+		name   string
+		spec   *pbc.PricingSpec
+		sizeGB float64
+	}{
+		{"past the last bounded tier", bounded, 500},
+		{"inside a gap", gap, 15},
+		{"below the first tier", late, 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			resource := ResourceDescriptor{
+				Type: "aws:s3:Bucket", ID: "b", Provider: "aws", Properties: map[string]any{"sizeGb": tt.sizeGB},
+			}
+			got, ok := costFromPluginPricingSpec(resource, tt.spec, "p")
+			assert.False(t, ok, "part of the quantity has no rate, so the price would be understated")
+			assert.Nil(t, got)
+		})
+	}
+
+	t.Run("tiers given out of order still price", func(t *testing.T) {
+		t.Parallel()
+		spec := s3TieredSpec()
+		tiers := spec.GetPricingTiers()
+		spec.PricingTiers = []*pbc.PricingTier{tiers[2], tiers[0], tiers[1]}
+		resource := ResourceDescriptor{
+			Type: "aws:s3:Bucket", ID: "b", Provider: "aws", Properties: map[string]any{"sizeGb": 100000},
+		}
+		got, ok := costFromPluginPricingSpec(resource, spec, "p")
+		require.True(t, ok)
+		assert.InDelta(t, 50000*0.023+50000*0.022, got.Monthly, 1e-6)
+	})
 }
 
 type supportsRecorder struct {
