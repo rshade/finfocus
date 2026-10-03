@@ -44,7 +44,9 @@ func MapTerraformResources(resources []TerraformStateResource) ([]engine.Resourc
 // "aws_instance"); type resolution to Pulumi tokens happens later in the CLI
 // layer. Property keys are converted snake_case -> camelCase recursively.
 // The Provider field is the cloud for the type prefix ("azurerm" -> "azure"),
-// which the adapter's SKU/region extraction relies on.
+// which the adapter's SKU/region extraction relies on. State describes existing
+// infrastructure with no plan, so Operation is "same": the cost diff prices it
+// once and reports no change.
 func MapTerraformResource(
 	resource TerraformStateResource,
 	instance TerraformStateInstance,
@@ -71,6 +73,7 @@ func MapTerraformResource(
 		ID:         address,
 		Provider:   provider,
 		Properties: props,
+		Operation:  engine.DiffOperationSame,
 	}, nil
 }
 

@@ -82,3 +82,14 @@ func TestMapTerraformResourceProviderIsTheBillingCloud(t *testing.T) {
 		})
 	}
 }
+
+func TestMapTerraformResourceIsUnchangedInfrastructure(t *testing.T) {
+	t.Parallel()
+
+	mapped, err := ingest.MapTerraformResource(
+		ingest.TerraformStateResource{Mode: "managed", Type: "aws_instance", Name: "web"},
+		ingest.TerraformStateInstance{Attributes: map[string]any{}},
+	)
+	require.NoError(t, err)
+	assert.Equal(t, "same", mapped.Operation)
+}
