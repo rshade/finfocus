@@ -587,7 +587,12 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   before local YAML. Disabled runs do not call the RPC. Notes start with
   `Calculated from plugin pricing spec` and the adapter is `plugin-spec`.
   A `$0` rate is a priced result. Unknown billing modes and RPC errors fall
-  through to YAML. `per_hour` and `per_cpu_hour` use 730 hours, `per_day` uses
+  through to YAML. Each `GetPricingSpec` call (fallback and `DiscoverPricingSpec`)
+  has a 5s deadline (`perResourceTimeout`). A chain that stopped at a plugin
+  whose router `Fallback` is false asks no plugin for a spec. With the flag on,
+  projected cache keys end in `/pricing-spec`, so a run with it off never reads a
+  `plugin-spec` result (the exported `ProjectedResourceCacheKey` stays the
+  default key). `per_hour` and `per_cpu_hour` use 730 hours, `per_day` uses
   `daysPerMonth` (30), and `per_gb_month` multiplies by storage size or 1 GB
 - **Estimate TUI pricing discovery** calls `GetPricingSpec` when
   `cost estimate --interactive` starts. `DiscoverPricingSpec` caches by

@@ -176,16 +176,21 @@ func TestCostFromPluginPricingSpec(t *testing.T) {
 type pricingSpecPlugin struct {
 	mockCostSourceClient
 
-	projected  *proto.GetProjectedCostResponse
-	spec       *pbc.PricingSpec
-	specErr    error
-	specCalls  int
-	lastSpecID string
+	projected    *proto.GetProjectedCostResponse
+	projectedErr error
+	spec         *pbc.PricingSpec
+	specErr      error
+	hangSpec     bool
+	specCalls    int
+	lastSpecID   string
 }
 
 func (p *pricingSpecPlugin) GetProjectedCost(
 	_ context.Context, _ *proto.GetProjectedCostRequest, _ ...grpc.CallOption,
 ) (*proto.GetProjectedCostResponse, error) {
+	if p.projectedErr != nil {
+		return nil, p.projectedErr
+	}
 	if p.projected == nil {
 		return &proto.GetProjectedCostResponse{}, nil
 	}
@@ -193,11 +198,15 @@ func (p *pricingSpecPlugin) GetProjectedCost(
 }
 
 func (p *pricingSpecPlugin) GetPricingSpec(
-	_ context.Context, in *pbc.GetPricingSpecRequest, _ ...grpc.CallOption,
+	ctx context.Context, in *pbc.GetPricingSpecRequest, _ ...grpc.CallOption,
 ) (*pbc.GetPricingSpecResponse, error) {
 	p.specCalls++
 	if in.GetResource() != nil {
 		p.lastSpecID = in.GetResource().GetId()
+	}
+	if p.hangSpec {
+		<-ctx.Done()
+		return nil, ctx.Err()
 	}
 	if p.specErr != nil {
 		return nil, p.specErr

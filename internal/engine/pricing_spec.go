@@ -4,6 +4,7 @@ import (
 	"context"
 	"math"
 	"strings"
+	"time"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
@@ -37,6 +38,24 @@ func (e *Engine) WithPricingSpecFallback(enabled bool) *Engine {
 	}
 	e.pricingSpecFallback = enabled
 	return e
+}
+
+// specMatches returns the plugins whose GetPricingSpec the fallback may ask. A
+// chain that stopped at a plugin with fallback disabled asks none: the router
+// said not to move on after that plugin's failure.
+func specMatches(matches []PluginMatch, chainStopped bool) []PluginMatch {
+	if chainStopped {
+		return nil
+	}
+	return matches
+}
+
+// pricingSpecDeadline is the longest one GetPricingSpec call may take.
+func (e *Engine) pricingSpecDeadline() time.Duration {
+	if e != nil && e.pricingSpecTimeout > 0 {
+		return e.pricingSpecTimeout
+	}
+	return perResourceTimeout
 }
 
 // projectedFallbackResult prices one resource after every selected plugin's
@@ -128,7 +147,7 @@ func (e *Engine) costFromPricingSpecMatch(
 		return nil
 	}
 	pluginName := match.Client.Name
-	spec, err := fetchPluginPricingSpec(ctx, match.Client, resource)
+	spec, err := fetchPluginPricingSpec(ctx, match.Client, resource, e.pricingSpecDeadline())
 	if err != nil || spec == nil {
 		logging.FromContext(ctx).Debug().
 			Ctx(ctx).
@@ -159,7 +178,10 @@ func fetchPluginPricingSpec(
 	ctx context.Context,
 	client *pluginhost.Client,
 	resource ResourceDescriptor,
+	timeout time.Duration,
 ) (*pbc.PricingSpec, error) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
 	descriptor := proto.PrepareProjectedDescriptor(
 		ctx,
 		resource.ID,
