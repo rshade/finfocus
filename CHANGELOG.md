@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **cli:** `cost history collect` stores projected costs for each successful
+  Pulumi checkpoint, `view` charts them offline, and `list` shows the
+  databases (#549)
 * **engine:** `cost projected` prices the plan as a diff. Creates and resources
   with no operation show a `$0` before, deletes show a `$0` after, and
   unchanged resources are priced once. `summary.totalMonthly` stays the after
