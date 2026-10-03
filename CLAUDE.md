@@ -522,6 +522,16 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `finfocus.diff`. NDJSON is one diff entry per line. `--show-breakdown`
   adds component sub-rows on that table only. Recommendations are merged
   onto the after cost and skipped for deletes
+- **Cost history** (`cost history collect|view|list`): snapshots live in
+  `~/.finfocus/history/<stack>.history.db` (slashes in the stack name become
+  dashes). That file is not the resource-observation `history.db`. `collect`
+  prices each successful `update` through `GetProjectedCostWithErrors` and
+  stores the result; a successful `destroy` is `$0` with annotation
+  `Stack destroyed` and does not call the pricer. `view` and `list` are
+  read-only. A real plugin `$0` is stored. Adapter `none`, the unpriced note,
+  or a result error fails that checkpoint. `internal/history` must not import
+  `engine` or `ingest` (`engine` already imports `history`). The parent
+  `cost --stack` flag is reused; history subcommands do not redeclare it
 - **Plugin pricing spec fallback** is off by default. `newEngineWithCache`
   copies `cost.pricing_spec_fallback`. `cost projected --pricing-spec-fallback`
   overrides that for the command when the flag is set. When on, a resource

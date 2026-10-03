@@ -8,6 +8,9 @@ finfocus-config-validate
 finfocus-cost-actual
 finfocus-cost-cluster
 finfocus-cost-estimate
+finfocus-cost-history-collect
+finfocus-cost-history-list
+finfocus-cost-history-view
 finfocus-cost-projected
 finfocus-cost-recommendations
 finfocus-overview

@@ -12,14 +12,15 @@ infrastructure.
 2. [Installation](#installation)
 3. [Quick Start](#quick-start)
 4. [Cost Types](#cost-types)
-5. [Common Workflows](#common-workflows)
-6. [Configuration](#configuration)
-7. [Budget Management](#budget-management)
-8. [Output Formats](#output-formats)
-9. [Filtering and Grouping](#filtering-and-grouping)
-10. [Debugging and Logging](#debugging-and-logging)
-11. [Logging Configuration](#logging-configuration)
-12. [Troubleshooting](#troubleshooting)
+5. [Cost History](#cost-history)
+6. [Common Workflows](#common-workflows)
+7. [Configuration](#configuration)
+8. [Budget Management](#budget-management)
+9. [Output Formats](#output-formats)
+10. [Filtering and Grouping](#filtering-and-grouping)
+11. [Debugging and Logging](#debugging-and-logging)
+12. [Logging Configuration](#logging-configuration)
+13. [Troubleshooting](#troubleshooting)
 
 ---
 
@@ -139,6 +140,28 @@ finfocus cost actual --pulumi-json plan.json --from 2024-01-01 --to 2024-01-31
 ```
 
 **Note:** Requires plugin setup (Vantage, Kubecost, etc.)
+
+---
+
+## Cost History
+
+`cost history` stores a projected-cost snapshot for each successful Pulumi
+update and charts that timeline later without calling plugins.
+
+`collect` needs the Pulumi CLI and a cost plugin. It keeps successful
+`update` and `destroy` checkpoints. A destroy is stored as $0 with the
+annotation `Stack destroyed`. `view` and `list` read the per-stack database
+only.
+
+```bash
+finfocus cost history collect --stack dev
+finfocus cost history view --stack dev
+finfocus cost history list
+```
+
+Databases live under the FinFocus config directory in `history/`, one
+`<stack>.history.db` file per stack. `view --output json` prints the
+snapshots and annotations. `--plain` forces the text chart.
 
 ---
 
