@@ -515,6 +515,15 @@ finfocus cost estimate --provider aws --resource-type ec2:Instance \
   --property instanceType=m5.large --output json
 ```
 
+### Interactive pricing spec
+
+`cost estimate --interactive` asks each plugin for `GetPricingSpec` while the
+TUI loads. A returned billing mode is listed with its rate, pricing tiers,
+assumptions, and usage metric hints. Left and right move between modes when
+more than one plugin returns one. A missing spec, or a `not_implemented`
+billing mode, leaves the estimate editable. The lookup is cached for that
+resource type until the command exits.
+
 ### Output Example
 
 ```text
