@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path"
@@ -42,6 +43,10 @@ const (
 	outputTailLines = 8
 
 	lockFile = "skills-lock.json"
+
+	// Skill files are committed project files, readable by everyone.
+	dirPerm  = 0o755
+	filePerm = 0o644
 )
 
 // Skills are the skills installed into a plugin project.
@@ -179,21 +184,29 @@ func (i Installer) Install(ctx context.Context, dir, version string) Result {
 }
 
 // publish copies the skill directories the skills CLI wrote in stage into dir
-// and merges their lockfile entries. The skills CLI exits 0 even when a
-// requested skill is missing from the source, so only skills it actually
-// wrote are reported as installed; the rest are returned as missing.
+// and merges their lockfile entries. Every write goes through an [os.Root] on
+// dir, so a symlink in the checkout cannot redirect a write outside it. The
+// skills CLI exits 0 even when a requested skill is missing from the source,
+// so only skills it actually wrote are reported as installed; the rest are
+// returned as missing.
 func publish(stage, dir string) ([]string, []string, []string) {
 	var paths, missing, warnings []string
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil, Skills, []string{fmt.Sprintf("opening %s: %v", dir, err)}
+	}
+	defer root.Close()
+
 	for _, s := range Skills {
 		found := false
 		for _, a := range agentDirs {
 			rel := path.Join(a.dir, s)
 			src := filepath.Join(stage, filepath.FromSlash(rel))
-			if info, err := os.Stat(src); err != nil || !info.IsDir() {
+			if info, statErr := os.Stat(src); statErr != nil || !info.IsDir() {
 				continue
 			}
-			if err := replaceDir(src, filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
-				warnings = append(warnings, fmt.Sprintf("copying %s: %v", rel, err))
+			if copyErr := replaceDir(root, src, rel); copyErr != nil {
+				warnings = append(warnings, fmt.Sprintf("copying %s: %v", rel, copyErr))
 				continue
 			}
 			paths = append(paths, rel)
@@ -204,8 +217,8 @@ func publish(stage, dir string) ([]string, []string, []string) {
 		}
 	}
 	if len(paths) > 0 {
-		if err := mergeLock(filepath.Join(stage, lockFile), filepath.Join(dir, lockFile)); err != nil {
-			warnings = append(warnings, fmt.Sprintf("%s not updated: %v", lockFile, err))
+		if lockErr := mergeLock(filepath.Join(stage, lockFile), root, lockFile); lockErr != nil {
+			warnings = append(warnings, fmt.Sprintf("%s not updated: %v", lockFile, lockErr))
 		} else {
 			paths = append(paths, lockFile)
 		}
@@ -214,28 +227,54 @@ func publish(stage, dir string) ([]string, []string, []string) {
 	return paths, missing, warnings
 }
 
-// replaceDir replaces dst with a copy of src, so files an older install had
-// and the new one does not are removed. [os.CopyFS] rejects symlinks.
-func replaceDir(src, dst string) error {
-	if err := os.RemoveAll(dst); err != nil {
+// replaceDir replaces rel inside root with a copy of src, so files an older
+// install had and the new one does not are removed. Only directories and
+// regular files are copied.
+func replaceDir(root *os.Root, src, rel string) error {
+	if err := root.RemoveAll(filepath.FromSlash(rel)); err != nil {
 		return err
 	}
-	return os.CopyFS(dst, os.DirFS(src))
+	return fs.WalkDir(os.DirFS(src), ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		target := filepath.FromSlash(path.Join(rel, p))
+		switch {
+		case d.IsDir():
+			return root.MkdirAll(target, dirPerm)
+		case d.Type().IsRegular():
+			data, readErr := os.ReadFile(filepath.Join(src, filepath.FromSlash(p)))
+			if readErr != nil {
+				return readErr
+			}
+			return root.WriteFile(target, data, filePerm)
+		default:
+			return fmt.Errorf("%s: not a regular file", p)
+		}
+	})
 }
 
 // mergeLock sets the entries of the installed skills in the project's
-// skills-lock.json from the staged one and keeps every other entry. A project
-// lockfile that cannot be parsed is left unchanged.
-func mergeLock(stagedPath, projectPath string) error {
-	staged, err := readLock(stagedPath)
+// skills-lock.json (name, inside root) from the staged one and keeps every
+// other entry. A project lockfile that cannot be parsed is left unchanged.
+func mergeLock(stagedPath string, root *os.Root, name string) error {
+	stagedData, err := os.ReadFile(stagedPath)
+	if err != nil {
+		return fmt.Errorf("reading the skills CLI lockfile: %w", err)
+	}
+	staged, err := parseLock(stagedData)
 	if err != nil {
 		return fmt.Errorf("reading the skills CLI lockfile: %w", err)
 	}
 	project := map[string]json.RawMessage{}
-	if _, statErr := os.Stat(projectPath); statErr == nil {
-		if project, err = readLock(projectPath); err != nil {
+	projectData, err := root.ReadFile(name)
+	switch {
+	case err == nil:
+		if project, err = parseLock(projectData); err != nil {
 			return err
 		}
+	case !errors.Is(err, fs.ErrNotExist):
+		return err
 	}
 
 	stagedSkills := map[string]json.RawMessage{}
@@ -266,16 +305,12 @@ func mergeLock(stagedPath, projectPath string) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(projectPath, append(data, '\n'), 0o644) //nolint:gosec // committed project file, not a secret
+	return root.WriteFile(name, append(data, '\n'), filePerm)
 }
 
-func readLock(p string) (map[string]json.RawMessage, error) {
-	data, err := os.ReadFile(p)
-	if err != nil {
-		return nil, err
-	}
+func parseLock(data []byte) (map[string]json.RawMessage, error) {
 	lock := map[string]json.RawMessage{}
-	if err = json.Unmarshal(data, &lock); err != nil {
+	if err := json.Unmarshal(data, &lock); err != nil {
 		return nil, err
 	}
 	return lock, nil

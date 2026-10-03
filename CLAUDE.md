@@ -929,6 +929,9 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   plugin and merges their `skills-lock.json` entries. Never run npx in the
   plugin directory: npx honors its `.npmrc` (registry) and `node_modules`
   (local `skills` package), so an untrusted checkout could run its own code.
+  The copy and the lockfile merge write through an `os.Root` on the plugin
+  directory, so a symlinked `.agents`, `.claude`, or `skills-lock.json` cannot
+  redirect a write outside the checkout.
   Without `--agent` the skills CLI writes a copy for
   every agent it detects (`.bob`, `.grok`, ...). The source is the release tag
   only for a clean semver newer than v0.4.0 (the last tag without the skill),

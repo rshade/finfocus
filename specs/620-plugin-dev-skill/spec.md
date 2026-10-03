@@ -125,7 +125,9 @@ tag, which replaces the installed copies. The skill files appear in
   checkout is not trusted to choose the registry or the package. Only the
   installed skill directories are copied into the plugin (replacing older
   copies), and their entries are merged into `skills-lock.json`; other entries
-  are kept, and an unparsable lockfile is left unchanged with a warning.
+  are kept, and an unparsable lockfile is left unchanged with a warning. All
+  writes into the plugin MUST be confined to the plugin directory, so a
+  symlink in the checkout cannot redirect them elsewhere.
 - **FR-007**: Any install failure MUST be reported as a warning with the
   command to run later, and MUST NOT change the command's exit code.
 - **FR-008**: `plugin upgrade` JSON output MUST include a `skill` object
