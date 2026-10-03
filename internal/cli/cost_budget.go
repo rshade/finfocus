@@ -21,6 +21,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 // Budget rendering constants.
@@ -81,9 +82,10 @@ func RenderBudgetStatus(w io.Writer, status *engine.BudgetStatus) error {
 		return nil
 	}
 
-	// Detect if we're writing to a TTY
+	// Detect if we're writing to a TTY. Callers that have accessibility flags
+	// use renderBudgetForAccess so plain mode and high contrast apply.
 	if isWriterTerminal(w) {
-		return renderStyledBudget(w, status)
+		return renderStyledBudget(w, status, false)
 	}
 	return renderPlainBudget(w, status)
 }
@@ -112,20 +114,20 @@ func isWriterTerminal(w io.Writer) bool {
 //   - status: the budget status to render; its fields drive the amounts, percentages, alerts, and forecast.
 //
 // Returns an error if writing the rendered box to `w` fails.
-func renderStyledBudget(w io.Writer, status *engine.BudgetStatus) error {
+func renderStyledBudget(w io.Writer, status *engine.BudgetStatus, highContrast bool) error {
 	// Get terminal width for responsive layout
 	width := getTerminalWidth(w)
 	boxWidth := calculateBoxWidth(width)
 	barWidth := calculateProgressBarWidth(boxWidth)
 
-	// Create styles
+	titleColor, borderColor := budgetChrome(highContrast)
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(boxTitleColor())
+		Foreground(titleColor)
 
 	borderStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(boxBorderColor()).
+		BorderForeground(borderColor).
 		Padding(0, 1).
 		Width(boxWidth)
 
@@ -153,15 +155,17 @@ func renderStyledBudget(w io.Writer, status *engine.BudgetStatus) error {
 		status.CurrentSpend,
 		status.Percentage)
 	content.WriteString(spendLine)
+	content.WriteString("\n")
+	content.WriteString(getStatusMessage(status))
 	content.WriteString("\n\n")
 
 	// Progress bar
-	progressBar := renderProgressBar(status, barWidth)
+	progressBar := renderProgressBar(status, barWidth, highContrast)
 	content.WriteString(progressBar)
 	content.WriteString("\n")
 
 	// Alert messages
-	alertMessages := renderAlertMessages(status)
+	alertMessages := renderAlertMessages(status, highContrast)
 	if alertMessages != "" {
 		content.WriteString("\n")
 		content.WriteString(alertMessages)
@@ -174,7 +178,11 @@ func renderStyledBudget(w io.Writer, status *engine.BudgetStatus) error {
 			currencySymbol(status.Currency),
 			status.ForecastedSpend,
 			status.ForecastPercentage)
-		forecastStyle := lipgloss.NewStyle().Italic(true).Foreground(lipgloss.Color("246"))
+		forecastColor := lipgloss.Color("246")
+		if highContrast {
+			forecastColor = tui.Palette(true).Header
+		}
+		forecastStyle := lipgloss.NewStyle().Italic(true).Foreground(forecastColor)
 		content.WriteString(forecastStyle.Render(forecastLine))
 	}
 
@@ -234,14 +242,14 @@ func renderPlainBudget(w io.Writer, status *engine.BudgetStatus) error {
 // It uses status.CappedPercentage to compute the filled portion and `width` as the total bar length.
 // The returned string combines colored filled and empty segments and appends a numeric percentage
 // label; the percentage label is highlighted with the exceeded style when the status is over budget.
-func renderProgressBar(status *engine.BudgetStatus, width int) string {
+func renderProgressBar(status *engine.BudgetStatus, width int, highContrast bool) string {
 	// Calculate filled portion (capped at 100%)
 	cappedPercent := status.CappedPercentage()
 	filledWidth := int(cappedPercent / thresholdPercent100 * float64(width))
 	emptyWidth := width - filledWidth
 
 	// Determine color based on percentage
-	barColor := determineProgressBarColor(status.Percentage)
+	barColor := progressColor(status.Percentage, highContrast)
 
 	// Build the bar
 	filledStyle := lipgloss.NewStyle().Foreground(barColor)
@@ -265,6 +273,21 @@ func renderProgressBar(status *engine.BudgetStatus, width int) string {
 // determineProgressBarColor chooses a progress bar color based on the percentage of budget used.
 // It returns the exceeded color for percentages >= 100%, a warning color for percentages >= 80% and < 100%, and the OK color for percentages < 80%.
 func determineProgressBarColor(percentage float64) color.Color {
+	return progressColor(percentage, false)
+}
+
+func progressColor(percentage float64, highContrast bool) color.Color {
+	if highContrast {
+		pal := tui.Palette(true)
+		switch {
+		case percentage >= thresholdPercent100:
+			return pal.Critical
+		case percentage >= thresholdPercent80:
+			return pal.Warning
+		default:
+			return pal.OK
+		}
+	}
 	switch {
 	case percentage >= thresholdPercent100:
 		return progressExceededColor()
@@ -275,20 +298,33 @@ func determineProgressBarColor(percentage float64) color.Color {
 	}
 }
 
+func budgetChrome(highContrast bool) (color.Color, color.Color) {
+	if !highContrast {
+		return boxTitleColor(), boxBorderColor()
+	}
+	header := tui.Palette(true).Header
+	return header, header
+}
+
 // renderAlertMessages formats alert messages for the thresholds contained in the provided BudgetStatus.
 // It returns the formatted alert lines joined with newline separators; if there are no alerts to show, an empty string is returned.
-func renderAlertMessages(status *engine.BudgetStatus) string {
+func renderAlertMessages(status *engine.BudgetStatus, highContrast bool) string {
 	var messages []string
+	warnColor, approachColor := colorWarning(), colorApproaching()
+	if highContrast {
+		warnColor = tui.Palette(true).Warning
+		approachColor = warnColor
+	}
 
 	for _, alert := range status.Alerts {
 		switch alert.Status {
 		case engine.ThresholdStatusExceeded:
 			msg := formatAlertMessage(alert, "WARNING")
-			style := lipgloss.NewStyle().Foreground(colorWarning()).Bold(true)
+			style := lipgloss.NewStyle().Foreground(warnColor).Bold(true)
 			messages = append(messages, style.Render("⚠ "+msg))
 		case engine.ThresholdStatusApproaching:
 			msg := formatAlertMessage(alert, "APPROACHING")
-			style := lipgloss.NewStyle().Foreground(colorApproaching())
+			style := lipgloss.NewStyle().Foreground(approachColor)
 			messages = append(messages, style.Render("◉ "+msg))
 		case engine.ThresholdStatusOK:
 			// OK status doesn't generate an alert message.
@@ -309,20 +345,18 @@ func formatAlertMessage(alert engine.ThresholdStatus, prefix string) string {
 	return fmt.Sprintf("%s - %s exceeds %.0f%% threshold", prefix, typeStr, alert.Threshold)
 }
 
-// getStatusMessage returns a plain-text status label for non-TTY output.
-// It returns one of:
-// - "WARNING - Exceeds X% threshold" when any threshold has been exceeded (X is the highest exceeded threshold),
-// - "APPROACHING - Near budget threshold" when a threshold is being approached,
-// - "OK - Within budget" when the spend is within configured thresholds.
+// getStatusMessage returns a plain-text status label that includes a bracketed
+// word, so the status is readable without color. Exceeded and approaching
+// alerts both use [WARNING]. The exceeded form includes the highest threshold.
 func getStatusMessage(status *engine.BudgetStatus) string {
 	if status.HasExceededAlerts() {
 		highest := status.GetHighestExceededThreshold()
-		return fmt.Sprintf("WARNING - Exceeds %.0f%% threshold", highest)
+		return fmt.Sprintf("[WARNING] Exceeds %.0f%% threshold", highest)
 	}
 	if status.HasApproachingAlerts() {
-		return "APPROACHING - Near budget threshold"
+		return "[WARNING] Near budget threshold"
 	}
-	return "OK - Within budget"
+	return "[OK] Within budget"
 }
 
 // currencySymbols maps ISO currency codes to their typographic symbols.
@@ -441,8 +475,8 @@ func renderBudgetIfConfigured(
 	// Add a blank line before budget status
 	cmd.Println()
 
-	// Render the budget status
-	if renderErr := RenderBudgetStatus(cmd.OutOrStdout(), status); renderErr != nil {
+	// Render the budget status using this command's accessibility flags.
+	if renderErr := renderBudgetForAccess(cmd.OutOrStdout(), status, accessibilityFromCmd(cmd)); renderErr != nil {
 		return status, renderErr
 	}
 

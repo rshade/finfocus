@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **cli:** `--no-color`, `--plain`, `--color`, and `--high-contrast` on
+  `cost projected`, `cost actual`, `cost recommendations`, and `overview`.
+  `FINFOCUS_PLAIN`, `NO_COLOR`, `FORCE_COLOR`, and `FINFOCUS_HIGH_CONTRAST`
+  fill flags that were not set. `--plain` and `--no-color` select plain text
+  and win over the color flags. `--force-color` remains an alias of `--color`.
+  High contrast uses ANSI 46, 226, 196, and 231 on the budget box. Plain
+  budget status labels are `[OK]` and `[WARNING]` (#224)
 * **engine:** optional in-memory LRU in front of the BoltDB cost cache. Off
   unless `cost.cache.lru_enabled` or `FINFOCUS_CACHE_LRU_ENABLED` is set.
   `lru_max_items` and `FINFOCUS_CACHE_LRU_MAX_ITEMS` default to 256. Writes

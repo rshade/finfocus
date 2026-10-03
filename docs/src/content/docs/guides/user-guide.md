@@ -478,6 +478,7 @@ cost calculations:
 │                                          │
 │ Budget: $1,000.00/monthly                │
 │ Current Spend: $850.00 (85.0%)           │
+│ [WARNING] Exceeds 80% threshold          │
 │                                          │
 │ ██████████████████████████░░░░ 85%       │
 │                                          │
@@ -494,7 +495,7 @@ BUDGET STATUS
 =============
 Budget: $1000.00/monthly
 Current Spend: $850.00 (85.0%)
-Status: WARNING - Exceeds 80% threshold
+Status: [WARNING] Exceeds 80% threshold
 Forecasted: $1240.00 (124.0%)
 ```
 

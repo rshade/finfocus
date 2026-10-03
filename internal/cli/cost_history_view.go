@@ -123,12 +123,11 @@ func historyOutputFormat(cmd *cobra.Command) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	plain, err := cmd.Flags().GetBool("plain")
-	if err != nil {
+	if _, err = cmd.Flags().GetBool("plain"); err != nil {
 		return "", err
 	}
 	format := resolveOutputFormat(cmd, "output", output)
-	if plain {
+	if accessibilityFromCmd(cmd).Plain {
 		format = historyOutputPlain
 	}
 	if format != historyOutputPlain && format != historyOutputJSON {

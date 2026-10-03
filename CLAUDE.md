@@ -481,6 +481,7 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   JSON/NDJSON keep `confidence`. Either new actual flag skips the interactive
   TUI so the table is what the user sees. Time-based `--group-by` stays on the
   cross-provider aggregation table, which has no per-resource sub-rows
+- **Accessibility flags are local to output commands**: `overview`, `cost projected`, `cost actual`, and `cost recommendations` accept `--no-color`, `--plain`, `--color`, and `--high-contrast`. `overview` also keeps `--force-color` as an alias of `--color`. Do not put `--plain` on the `cost` parent: `cost history view` already defines a local `--plain`, and Cobra rejects the redefined flag. `FINFOCUS_PLAIN`, a non-empty `NO_COLOR`, `FORCE_COLOR`, and `FINFOCUS_HIGH_CONTRAST` fill unset flags (`strconv.ParseBool`; invalid values are ignored). Explicit `--plain` or `--no-color` wins over color flags. Those env vars win over `FORCE_COLOR` and `FINFOCUS_HIGH_CONTRAST` when the color mode was not set by a flag. `--plain` and `--no-color` stay `OutputModePlain`. High contrast does not change `ColorOK` and the other package color variables; `tui.Palette(true)` is ANSI 46, 226, 196, and 231, used by the styled budget box. Plain budget status text is `[OK] Within budget` or `[WARNING] Exceeds N% threshold`
 - **Budget CLI flags stay off the global config**: `--exit-on-threshold` and
   `--exit-code` are `BudgetFlagOverrides` on the command context, passed into
   `evaluateBudgetStatus` and `legacyBudgetConfig`. They are not written onto

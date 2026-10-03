@@ -164,6 +164,7 @@ Valid action types for filtering:
 		newRecommendationsUndismissCmd(),
 		newRecommendationsHistoryCmd(),
 	)
+	addAccessibilityFlags(cmd)
 
 	return cmd
 }
@@ -569,8 +570,8 @@ func RenderRecommendationsOutput(
 		// Fall through to terminal mode detection below
 	}
 
-	// For table output, detect terminal mode
-	mode := tui.DetectOutputMode(false, false, false)
+	// For table output, detect terminal mode from flags and the environment.
+	mode := outputModeFromCmd(cmd)
 
 	switch mode {
 	case tui.OutputModeInteractive:

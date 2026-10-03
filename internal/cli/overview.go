@@ -122,6 +122,7 @@ instead of running Pulumi CLI commands.`,
 	cmd.Flags().BoolVar(&params.stateOnly, "state-only", false,
 		"skip pulumi preview (faster, but won't detect pending changes)")
 	cmd.MarkFlagsMutuallyExclusive("state-only", "pulumi-json")
+	addAccessibilityFlags(cmd)
 
 	// StackContext.GeneratedAt (embedded via OverviewMetadata) varies between
 	// otherwise-identical runs; tell __schema not to expect byte-identical output.
@@ -142,6 +143,7 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	}
 	log := logging.FromContext(ctx)
 	params.output = resolveOutputFormat(cmd, "output", params.output)
+	params = applyOverviewAccessibility(cmd, params)
 	switch params.output {
 	case outputFormatTable, outputFormatJSON, outputFormatNDJSON:
 	default:
