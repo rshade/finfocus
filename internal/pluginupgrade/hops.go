@@ -89,6 +89,16 @@ var hops = []Hop{
 		},
 		Guide: "to-v0.7.1.md",
 	},
+	{
+		To:      "v0.7.2",
+		Summary: "Additive release; manifests are validated more strictly; provider means the cloud",
+		Manual: []string{
+			"If manifest validation reports two keys for one field, keep one key",
+			"Plugins that list a package name such as azure-native in GetPluginInfo.providers can list " +
+				"the cloud only; core now sends aws, azure, or gcp as the provider and keeps the package in resource_type",
+		},
+		Guide: "to-v0.7.2.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.
