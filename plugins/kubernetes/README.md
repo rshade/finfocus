@@ -290,6 +290,39 @@ cost:
 | `node <name> not found in priced resources`      | A pod's node has no matching entry among the priced resources at all — most commonly because the node was missing pricing labels (see [Node Pricing Requirements](#node-pricing-requirements)) and was never made priceable; less commonly because the node was deleted between collection and pricing. The row is a $0 orphan. |
 | `unallocated priced resource kind "<kind>"`      | A priced resource is neither a node, a Fargate pod, nor tagged `cluster` (a defensive fallback; the shipped collector never produces this today). |
 
+## Pulumi stack attribution
+
+The Pulumi Kubernetes provider does not write a resource URN onto the objects
+it manages. It may set annotations `app.kubernetes.io/managed-by` and
+`pulumi.com/autonamed` (the managed-by annotation is skipped under
+server-side apply). Neither value is a URN.
+
+Set annotation `finfocus.dev/pulumi-urn` to the resource URN. This is an
+annotation rather than a label because a URN contains `:` and is often longer
+than Kubernetes' 63-character label-value limit. The collector copies a
+non-empty value to subject key `label.finfocus.dev/pulumi-urn`. Pods without
+the annotation are unchanged.
+
+`finfocus cost cluster --group-by pulumi-stack` aggregates by
+`<stack>/<project>`. A missing or malformed value groups under `<none>` and
+is not dropped. JSON and NDJSON groups include `pulumi_urns`.
+
+```typescript
+import * as pulumi from "@pulumi/pulumi";
+import * as k8s from "@pulumi/kubernetes";
+
+const urn = `urn:pulumi:${pulumi.getStack()}::${pulumi.getProject()}::kubernetes:apps/v1:Deployment::api`;
+const app = new k8s.apps.v1.Deployment("api", {
+    metadata: { annotations: { "finfocus.dev/pulumi-urn": urn } },
+    spec: {
+        // ...
+    },
+});
+```
+
+A parented resource's URN inserts the parent type before `$`. Copy that full
+URN into the annotation. Name-based matching is not used.
+
 ## Limitations
 
 - **No historical data**: `GetStats` reports `STATS_MODE_RUN_RATE`, a

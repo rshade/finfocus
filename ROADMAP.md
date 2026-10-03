@@ -85,7 +85,7 @@ guardrails in `CONTEXT.md`.
         ([#1525](https://github.com/rshade/finfocus/issues/1525)) [L]
   - [ ] `finfocus overview` expansion of Kubernetes clusters in the stack
         ([#1526](https://github.com/rshade/finfocus/issues/1526)) [L]
-  - [ ] Link allocated workloads back to Pulumi URNs
+  - [x] Link allocated workloads back to Pulumi URNs
         ([#1527](https://github.com/rshade/finfocus/issues/1527)) [M]
 - [ ] **Kubernetes Cost Allocation — Usage & Pricing**
   - [ ] Prometheus usage source plugin — historical actuals, kind CI

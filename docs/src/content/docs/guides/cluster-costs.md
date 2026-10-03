@@ -68,6 +68,10 @@ be priced.
 - `node` — node name; idle rows group under their node
 - `label:<key>` — the value of pod label `<key>`; pods without the label group
   under `<none>` and are never dropped
+- `pulumi-stack` — `<stack>/<project>` parsed from the pod annotation
+  `finfocus.dev/pulumi-urn`. A missing or malformed URN groups under `<none>`
+  and the pod is still counted. JSON and NDJSON groups list those URNs in
+  `pulumi_urns`
 
 `__idle__` (unclaimed node capacity) and `__cluster__` (shared infrastructure
 such as the control plane) always stay separate groups. Groups sort by total
@@ -76,6 +80,7 @@ cost descending.
 ```bash
 finfocus cost cluster --group-by controller
 finfocus cost cluster --group-by label:team
+finfocus cost cluster --group-by pulumi-stack
 ```
 
 Use `--context` to pick a kubeconfig context, and `--selector key=value`
@@ -123,7 +128,8 @@ traced back to the exact policy that produced it.
 `--output json` emits a single document with `mode`, `period`, `currency`,
 `group_by`, `total`, `idle` (omitted when namespace-scoped),
 `namespace_scoped`, `incomplete`, `groups`, `priced`, `policy`, and
-`warnings`. `--output ndjson` emits a `summary` line followed by one `group`
+`warnings`. Each group may include `pulumi_urns` when a workload in it
+carries annotation `finfocus.dev/pulumi-urn`. `--output ndjson` emits a `summary` line followed by one `group`
 line per group. The command is also exposed as an MCP tool (`finfocus
 mcp-server`), so agents can call it like any other read-only command.
 

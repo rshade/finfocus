@@ -40,6 +40,7 @@ allocator plugin for the split. Idle capacity is reported as its own row.`,
   finfocus cost cluster --context prod --group-by controller
   finfocus cost cluster --namespace payments --output json
   finfocus cost cluster --group-by label:team --policy ./allocation.hujson
+  finfocus cost cluster --group-by pulumi-stack
   finfocus cost cluster --show-policy`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runCostCluster(cmd, params)
@@ -50,7 +51,8 @@ allocator plugin for the split. Idle capacity is reported as its own row.`,
 	f.StringVar(&params.namespace, "namespace", "",
 		"Only allocate workloads in this namespace (omits idle and cluster rows)")
 	f.StringArrayVar(&params.selectors, "selector", nil, "Pod label selector key=value (repeatable)")
-	f.StringVar(&params.groupBy, "group-by", "namespace", "Group by: namespace, controller, pod, node, label:<key>")
+	f.StringVar(&params.groupBy, "group-by", "namespace",
+		"Group by: namespace, controller, pod, node, pulumi-stack, label:<key>")
 	f.StringVar(&params.policyPath, "policy", "",
 		"Allocation policy file (default: project or global allocation.hujson)")
 	f.BoolVar(&params.showPolicy, "show-policy", false, "Print the effective allocation policy and exit")

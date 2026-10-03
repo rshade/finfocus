@@ -625,6 +625,13 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   aws-public's job
   ([finfocus-plugin-aws-public#409](https://github.com/rshade/finfocus-plugin-aws-public/issues/409));
   kind cannot simulate Fargate, so `make test-e2e-kind` does not cover it
+- **Pulumi URN linking** (`specs/616-k8s-pulumi-urn-linking/`): the provider
+  does not write a URN onto objects. Users set annotation
+  `finfocus.dev/pulumi-urn` (not a label: URN values contain `:` and exceed
+  63 characters). The collector copies it to subject
+  `label.finfocus.dev/pulumi-urn`, which stats validation allows. `cost
+  cluster --group-by pulumi-stack` groups by `<stack>/<project>`; a missing
+  or malformed value is `<none>`. Group JSON includes `pulumi_urns`
 
 ### MCP Server (`internal/cli/mcp.go`, `internal/cli/output_mode.go`)
 
