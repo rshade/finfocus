@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **cli:** `cost history view` warns when a range mixes currencies and charts
+  the currency with the most snapshots. `--currency` keeps one currency.
+  `--strict` fails instead of dropping the others (#556)
 * **cli:** `config validate` reports syntax, budget rules, and unknown fields
   with line numbers, hints, and a close-name suggestion. `--file` selects a
   document and `--output json` prints the report. Cost commands stop in

@@ -153,9 +153,14 @@ update and charts that timeline later without calling plugins.
 annotation `Stack destroyed`. `view` and `list` read the per-stack database
 only.
 
+`view` warns when the selected range mixes currencies and charts the
+currency with the most snapshots. `--currency USD` keeps one currency.
+`--strict` stops instead of dropping the others.
+
 ```bash
 finfocus cost history collect --stack dev
 finfocus cost history view --stack dev
+finfocus cost history view --stack dev --currency USD
 finfocus cost history list
 ```
 
