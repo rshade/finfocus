@@ -98,7 +98,7 @@ func TestResolveAccessibility_ExplicitNoColorBeatsForceEnv(t *testing.T) {
 
 func TestResolveAccessibility_InvalidEnvIgnored(t *testing.T) {
 	clearAccessibilityEnv(t)
-	t.Setenv("FORCE_COLOR", "always")
+	t.Setenv("FORCE_COLOR", "0")
 	t.Setenv("FINFOCUS_PLAIN", "yes")
 
 	got := tui.ResolveAccessibility(tui.Accessibility{}, tui.Accessibility{})
@@ -153,6 +153,10 @@ func TestStatusIndicator(t *testing.T) {
 	assert.Equal(t, "○ PENDING", tui.StatusIndicator("", false))
 }
 
+// force-color.org: a FORCE_COLOR that is present and not an empty string forces
+// color "regardless of its value". The convention says nothing about 0 or false;
+// the JavaScript supports-color package, which defined the 0 to 3 levels, treats 0
+// and false as off, so those two are the exceptions.
 func TestForceColorEnvLevels(t *testing.T) {
 	tests := []struct {
 		value string
@@ -163,10 +167,13 @@ func TestForceColorEnvLevels(t *testing.T) {
 		{"3", true},
 		{"true", true},
 		{"TRUE", true},
+		{"yes", true},
+		{"anything", true},
 		{"0", false},
 		{"false", false},
+		{"FALSE", false},
 		{"", false},
-		{"yes", false},
+		{"  ", false},
 	}
 
 	for _, tt := range tests {

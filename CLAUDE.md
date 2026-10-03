@@ -499,7 +499,7 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   resolved `tui.Accessibility` like the global box. `cost projected` prints its diff table as plain text in
   every mode, so its four flags only change the budget box (the help text says so). `FINFOCUS_PLAIN` fills
   in `cost history view`'s default format only: an explicit `--output`, `--format json`, or `AGENT_MODE`
-  keeps JSON, and an explicit `--plain` still wins. `FORCE_COLOR` accepts `1`, `2`, `3`, or `true`
+  keeps JSON, and an explicit `--plain` still wins. `FORCE_COLOR` forces color for any non-empty value except `0` and `false` (force-color.org; supports-color treats those two as off)
 - **Budget CLI flags stay off the global config**: `--exit-on-threshold` and
   `--exit-code` are `BudgetFlagOverrides` on the command context, passed into
   `evaluateBudgetStatus` and `legacyBudgetConfig`. They are not written onto
@@ -585,7 +585,7 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `cost --stack` flag is reused; history subcommands do not redeclare it
 - **Cost history collect details**: `pulumiExporter.History` reads
   `pulumi stack history` page by page (page size 100), stops on a
-  short page or a page with no new versions, and asks once without paging flags
+  page with no new versions (a short page is not an end marker), and asks once without paging flags
   if the CLI rejects them, because the default page is 10 updates. `import` and
   `refresh` updates are not collected (a checkpoint is a deployment; their cost
   shows at the next update). `history list` skips an unreadable or locked database

@@ -87,15 +87,18 @@ func explicitColorMode(out, explicit Accessibility) bool {
 	return (out.ForceColor && explicit.ForceColor) || (out.HighContrast && explicit.HighContrast)
 }
 
-// envForceColorOn reads FORCE_COLOR the way the convention defines it: 0 and
-// false turn color off, and 1, 2, 3 and true turn it on. The numbers are color
-// levels, which this tool does not distinguish. Anything else is ignored.
+// envForceColorOn reads FORCE_COLOR. The convention (force-color.org) is that a
+// variable that is present and not an empty string forces color regardless of
+// its value, so any such value turns it on. The one exception is 0 and false:
+// the convention is silent on them, but the supports-color package that defined
+// the 0 to 3 color levels treats them as "do not force", and scripts rely on it.
+// The levels themselves are not distinguished here.
 func envForceColorOn() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv(envForceColor))) {
-	case "1", "2", "3", "true":
-		return true
-	default:
+	case "", "0", "false":
 		return false
+	default:
+		return true
 	}
 }
 

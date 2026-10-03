@@ -233,9 +233,11 @@ const (
 // History returns the stack's update history as one JSON array. `pulumi stack
 // history` pages its output (its help shows a default page size of 10), so a
 // single call can hold only the newest updates and older checkpoints would never
-// be collected. It reads page by page until a short page, and stops early if a
-// page adds nothing new, so a Pulumi that ignores the paging flags cannot loop.
-// A Pulumi that rejects the flags is asked once without them.
+// be collected. It reads page by page until a page adds nothing new (an empty
+// page, or one repeating versions already read), which also ends the loop for a
+// Pulumi that ignores the paging flags. A short page is not an end marker: the
+// service may return fewer rows than requested. A Pulumi that rejects the flags
+// is asked once without them.
 func (p pulumiExporter) History(ctx context.Context) ([]byte, error) {
 	var merged []json.RawMessage
 	seen := make(map[int]struct{})
@@ -248,12 +250,12 @@ func (p pulumiExporter) History(ctx context.Context) ([]byte, error) {
 			}
 			return nil, err
 		}
-		entries, pageLen, err := newHistoryEntries(raw, seen)
+		entries, err := newHistoryEntries(raw, seen)
 		if err != nil {
 			return nil, err
 		}
 		merged = append(merged, entries...)
-		if len(entries) == 0 || pageLen < historyPageSize {
+		if len(entries) == 0 {
 			break
 		}
 	}
@@ -267,13 +269,12 @@ func flagRejected(err error) bool {
 }
 
 // newHistoryEntries decodes one page and returns the entries whose version was
-// not seen on an earlier page, plus the raw page length. A deployment between
-// two reads shifts every row down, so a full page can repeat a version from the
-// page before; the raw length, not the new count, says whether the page was full.
-func newHistoryEntries(raw []byte, seen map[int]struct{}) ([]json.RawMessage, int, error) {
+// not seen on an earlier page. A deployment between two reads shifts every row
+// down, so a page can repeat a version from the page before.
+func newHistoryEntries(raw []byte, seen map[int]struct{}) ([]json.RawMessage, error) {
 	var page []json.RawMessage
 	if err := json.Unmarshal(raw, &page); err != nil {
-		return nil, 0, fmt.Errorf("parsing stack history page: %w", err)
+		return nil, fmt.Errorf("parsing stack history page: %w", err)
 	}
 	fresh := make([]json.RawMessage, 0, len(page))
 	for _, entry := range page {
@@ -281,7 +282,7 @@ func newHistoryEntries(raw []byte, seen map[int]struct{}) ([]json.RawMessage, in
 			Version int `json:"version"`
 		}
 		if err := json.Unmarshal(entry, &head); err != nil {
-			return nil, 0, fmt.Errorf("parsing stack history entry: %w", err)
+			return nil, fmt.Errorf("parsing stack history entry: %w", err)
 		}
 		if _, dup := seen[head.Version]; dup {
 			continue
@@ -289,7 +290,7 @@ func newHistoryEntries(raw []byte, seen map[int]struct{}) ([]json.RawMessage, in
 		seen[head.Version] = struct{}{}
 		fresh = append(fresh, entry)
 	}
-	return fresh, len(page), nil
+	return fresh, nil
 }
 
 func (p pulumiExporter) Export(ctx context.Context, version int) ([]byte, error) {
