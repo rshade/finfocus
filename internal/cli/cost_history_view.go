@@ -43,6 +43,8 @@ func NewCostHistoryViewCmd() *cobra.Command {
 	cmd.Flags().Int("width", 0, "Chart width in columns (0 = terminal width)")
 	cmd.Flags().String("output", historyOutputPlain, "Output format: plain, json")
 	cmd.Flags().Bool("plain", false, "Force plain chart output")
+	cmd.Flags().String("currency", "", "Show snapshots in this currency (for example USD)")
+	cmd.Flags().Bool("strict", false, "Fail when the range contains more than one currency")
 	return cmd
 }
 
@@ -89,8 +91,20 @@ func runView(cmd *cobra.Command, deps viewDeps) error {
 	if err != nil {
 		return err
 	}
+	snapshots, annotations, warning, err := applyViewCurrency(cmd, snapshots, annotations)
+	if err != nil {
+		return err
+	}
 	if format == historyOutputJSON {
-		return writeJSON(cmd, costHistoryView{Stack: stack, Snapshots: snapshots, Annotations: annotations})
+		return writeJSON(cmd, costHistoryView{
+			Stack:           stack,
+			Snapshots:       snapshots,
+			Annotations:     annotations,
+			CurrencyWarning: warning,
+		})
+	}
+	if warning != "" {
+		cmd.Println(warning)
 	}
 	opt, err := viewChartOptions(cmd, deps, stack, from, to)
 	if err != nil {
@@ -101,9 +115,47 @@ func runView(cmd *cobra.Command, deps viewDeps) error {
 }
 
 type costHistoryView struct {
-	Stack       string                   `json:"stack"`
-	Snapshots   []history.CostSnapshot   `json:"snapshots"`
-	Annotations []history.CostAnnotation `json:"annotations"`
+	Stack           string                   `json:"stack"`
+	Snapshots       []history.CostSnapshot   `json:"snapshots"`
+	Annotations     []history.CostAnnotation `json:"annotations"`
+	CurrencyWarning string                   `json:"currency_warning,omitempty"`
+}
+
+func applyViewCurrency(
+	cmd *cobra.Command,
+	snapshots []history.CostSnapshot,
+	annotations []history.CostAnnotation,
+) ([]history.CostSnapshot, []history.CostAnnotation, string, error) {
+	currency, err := cmd.Flags().GetString("currency")
+	if err != nil {
+		return nil, nil, "", err
+	}
+	strict, err := cmd.Flags().GetBool("strict")
+	if err != nil {
+		return nil, nil, "", err
+	}
+	selected, err := history.SelectCurrency(snapshots, history.CurrencyChoice{Currency: currency, Strict: strict})
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return selected.Snapshots, annotationsForSnapshots(selected.Snapshots, annotations), selected.Warning, nil
+}
+
+func annotationsForSnapshots(
+	snapshots []history.CostSnapshot,
+	annotations []history.CostAnnotation,
+) []history.CostAnnotation {
+	versions := make(map[int]struct{}, len(snapshots))
+	for _, snapshot := range snapshots {
+		versions[snapshot.Version] = struct{}{}
+	}
+	kept := make([]history.CostAnnotation, 0, len(annotations))
+	for _, annotation := range annotations {
+		if _, ok := versions[annotation.Version]; ok {
+			kept = append(kept, annotation)
+		}
+	}
+	return kept
 }
 
 func requiredStack(cmd *cobra.Command) (string, error) {

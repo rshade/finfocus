@@ -19,7 +19,8 @@ var (
 	ErrEncryptedProperty = errors.New("required property")
 	// ErrVersionResetDeclined means the user declined to clear a recreated stack's history.
 	ErrVersionResetDeclined = errors.New("stack version reset detected")
-	// ErrMixedCurrencies means one checkpoint priced resources in more than one currency.
+	// ErrMixedCurrencies means one checkpoint priced resources in more than one currency,
+	// or a strict history view spans snapshots in more than one currency.
 	ErrMixedCurrencies = errors.New("mixed currencies not supported")
 )
 

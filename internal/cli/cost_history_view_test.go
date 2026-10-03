@@ -131,6 +131,53 @@ func TestView_RejectsMismatchedStack(t *testing.T) {
 	assert.Contains(t, stdout.String(), "1 snapshot")
 }
 
+func TestView_MixedCurrency(t *testing.T) {
+	t.Parallel()
+	usd1 := viewSnap(1, time.January, 100, map[string]float64{"aws": 100})
+	usd2 := viewSnap(2, time.February, 200, map[string]float64{"aws": 200})
+	eur := viewSnap(3, time.March, 50, map[string]float64{"aws": 50})
+	eur.Currency = "EUR"
+	dir := t.TempDir()
+	seedHistory(t, dir, "dev", usd1, usd2, eur)
+	deps := viewDeps{dir: dir, cfg: &config.Config{}}
+
+	cmd, stdout := preparedHistoryCmd(
+		t, NewCostHistoryViewCmd(), "--stack", "dev", "--width", "40", "--no-budget", "--no-annotations",
+	)
+	require.NoError(t, runView(cmd, deps))
+	out := stdout.String()
+	assert.Contains(t, out, "Warning: Mixed currencies detected (USD: 2 snapshots, EUR: 1 snapshot).")
+	assert.Contains(t, out, "Showing USD snapshots only. Use --currency EUR to view EUR snapshots.")
+	assert.NotContains(t, out, "v3")
+
+	filtered, filteredOut := preparedHistoryCmd(
+		t, NewCostHistoryViewCmd(), "--stack", "dev", "--currency", "eur", "--width", "40", "--no-budget",
+	)
+	require.NoError(t, runView(filtered, deps))
+	filteredBody := filteredOut.String()
+	assert.NotContains(t, filteredBody, "Warning:")
+	assert.Contains(t, filteredBody, "v3")
+	assert.Contains(t, filteredBody, "EUR")
+	assert.NotContains(t, filteredBody, "v1")
+
+	strict, strictOut := preparedHistoryCmd(
+		t, NewCostHistoryViewCmd(), "--stack", "dev", "--strict", "--width", "40",
+	)
+	err := runView(strict, deps)
+	require.ErrorIs(t, err, history.ErrMixedCurrencies)
+	require.ErrorContains(t, err, "Use --currency to filter or --no-strict to show dominant currency")
+	assert.Empty(t, strictOut.String())
+
+	asJSON, jsonOut := preparedHistoryCmd(
+		t, NewCostHistoryViewCmd(), "--stack", "dev", "--output", "json",
+	)
+	require.NoError(t, runView(asJSON, deps))
+	body := jsonOut.String()
+	assert.Contains(t, body, `"currency_warning"`)
+	assert.Contains(t, body, "Showing USD snapshots only.")
+	assert.NotContains(t, body, `"version": 3`)
+}
+
 func TestFitTerminalChartWidth(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, 77, fitTerminalChartWidth(80, true))

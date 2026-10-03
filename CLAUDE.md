@@ -546,6 +546,11 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   or a result error fails that checkpoint. `internal/history` must not import
   `engine` or `ingest` (`engine` already imports `history`). The parent
   `cost --stack` flag is reused; history subcommands do not redeclare it
+- **Cost history currencies**: `cost history view` warns and keeps the
+  dominant currency (most snapshots; a tie keeps the newer timestamp, then
+  the earlier code). `--currency` filters and does not warn. `--strict`
+  returns `history.ErrMixedCurrencies`. An empty currency is `(unset)`.
+  One currency produces no warning. Export flags wait for the export command
 - **Plugin pricing spec fallback** is off by default. `newEngineWithCache`
   copies `cost.pricing_spec_fallback`. `cost projected --pricing-spec-fallback`
   overrides that for the command when the flag is set. When on, a resource
