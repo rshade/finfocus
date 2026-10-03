@@ -45,6 +45,7 @@ type StackUpdate struct {
 // CostDBStats describes one per-stack cost history database.
 type CostDBStats struct {
 	Stack       string
+	Project     string
 	Path        string
 	Snapshots   int
 	First       time.Time

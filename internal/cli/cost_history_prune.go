@@ -41,17 +41,18 @@ func runPrune(cmd *cobra.Command, dir string) error {
 	if err != nil {
 		return err
 	}
-	path, err := historyPath(dir, stack)
+	target, err := resolveHistoryTarget(dir, stack)
 	if err != nil {
 		return err
 	}
+	path := target.Path
 	if _, statErr := os.Stat(path); statErr != nil {
 		if os.IsNotExist(statErr) {
 			return fmt.Errorf("no cost history for stack %q", stack)
 		}
 		return fmt.Errorf("statting cost history: %w", statErr)
 	}
-	db, err := history.OpenCostDB(path, stack)
+	db, err := history.OpenCostDBFor(path, target.Project, target.Stack)
 	if err != nil {
 		return err
 	}

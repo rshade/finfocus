@@ -35,8 +35,18 @@ type CostDB struct {
 	closeErr  error
 }
 
-// OpenCostDB creates or opens a cost timeline database for stack.
+// OpenCostDB creates or opens a cost timeline database for stack, with no
+// project recorded.
 func OpenCostDB(path, stack string) (*CostDB, error) {
+	return OpenCostDBFor(path, "", stack)
+}
+
+// OpenCostDBFor creates or opens the cost timeline database for stack of
+// project. A database that already belongs to another project is an error, so
+// two projects can never write into one timeline. A database with no recorded
+// project is claimed by the first project that opens it. An empty project skips
+// the check.
+func OpenCostDBFor(path, project, stack string) (*CostDB, error) {
 	if path == "" {
 		return nil, errors.New("cost history path is required")
 	}
@@ -48,7 +58,7 @@ func OpenCostDB(path, stack string) (*CostDB, error) {
 		return nil, fmt.Errorf("opening cost history: %w", err)
 	}
 	store := newCostDB(db, path)
-	if initErr := store.init(stack); initErr != nil {
+	if initErr := store.init(project, stack); initErr != nil {
 		_ = store.Close()
 		return nil, initErr
 	}
@@ -68,7 +78,7 @@ func newCostDB(db *bolt.DB, path string) *CostDB {
 	return &CostDB{db: db, path: path, clock: time.Now}
 }
 
-func (d *CostDB) init(stack string) error {
+func (d *CostDB) init(project, stack string) error {
 	return d.db.Update(func(tx *bolt.Tx) error {
 		meta, err := tx.CreateBucketIfNotExists([]byte(costBucketMeta))
 		if err != nil {
@@ -80,11 +90,11 @@ func (d *CostDB) init(stack string) error {
 		if _, annErr := tx.CreateBucketIfNotExists([]byte(costBucketAnnotations)); annErr != nil {
 			return fmt.Errorf("creating annotations bucket: %w", annErr)
 		}
-		return initMeta(meta, stack)
+		return initMeta(meta, project, stack)
 	})
 }
 
-func initMeta(meta *bolt.Bucket, stack string) error {
+func initMeta(meta *bolt.Bucket, project, stack string) error {
 	version := getUint64(meta, metaKeyVersion)
 	switch {
 	case version == 0:
@@ -101,6 +111,22 @@ func initMeta(meta *bolt.Bucket, stack string) error {
 		}
 	} else if stack != "" && existing != "" && existing != stack {
 		return fmt.Errorf("cost history database stack %q does not match %q", existing, stack)
+	}
+	return initProject(meta, project)
+}
+
+func initProject(meta *bolt.Bucket, project string) error {
+	if project == "" {
+		return nil
+	}
+	stored := string(meta.Get([]byte(metaKeyProject)))
+	switch {
+	case stored == "":
+		if err := meta.Put([]byte(metaKeyProject), []byte(project)); err != nil {
+			return fmt.Errorf("writing project name: %w", err)
+		}
+	case stored != project:
+		return fmt.Errorf("cost history database belongs to project %q, not %q", stored, project)
 	}
 	return nil
 }
@@ -316,6 +342,7 @@ func (d *CostDB) Stats() (CostDBStats, error) {
 			return errors.New("cost history buckets are missing")
 		}
 		stats.Stack = string(meta.Get([]byte(metaKeyStack)))
+		stats.Project = string(meta.Get([]byte(metaKeyProject)))
 		stats.LastVersion = getUint64(meta, metaKeyLastVersion)
 		stats.Schema = getUint64(meta, metaKeyVersion)
 		if raw := meta.Get([]byte(metaKeyCollectedAt)); len(raw) > 0 {
@@ -362,7 +389,12 @@ func ListCostDBs(dir string) ([]CostDBStats, error) {
 		}
 		stats = append(stats, item)
 	}
-	sort.Slice(stats, func(i, j int) bool { return stats[i].Stack < stats[j].Stack })
+	sort.Slice(stats, func(i, j int) bool {
+		if stats[i].Stack != stats[j].Stack {
+			return stats[i].Stack < stats[j].Stack
+		}
+		return stats[i].Project < stats[j].Project
+	})
 	return stats, nil
 }
 

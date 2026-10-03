@@ -17,6 +17,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/history"
+	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 )
 
 const (
@@ -86,12 +87,128 @@ func historyDir(dir string) string {
 	return filepath.Join(config.ResolveConfigDir(), "history")
 }
 
+// historyTarget is the database a --stack value resolves to, plus the project
+// and stack name to record in it.
+type historyTarget struct {
+	Path    string
+	Project string
+	Stack   string
+}
+
 func historyPath(dir, stack string) (string, error) {
-	name, err := history.CostFileName(stack)
+	target, err := resolveHistoryTarget(dir, stack)
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(historyDir(dir), name), nil
+	return target.Path, nil
+}
+
+// resolveHistoryTarget finds the cost history database for stack. The project
+// comes from a fully qualified "org/project/stack", else from the Pulumi project
+// in the working directory, which is the project `pulumi stack export` resolves
+// the stack against.
+func resolveHistoryTarget(dir, stack string) (historyTarget, error) {
+	return resolveHistoryTargetFor(dir, stack, currentProjectName())
+}
+
+func currentProjectName() string {
+	root, err := pulumidetect.FindProject(".")
+	if err != nil {
+		return ""
+	}
+	name, err := pulumidetect.GetProjectName(root)
+	if err != nil {
+		return ""
+	}
+	return name
+}
+
+func resolveHistoryTargetFor(dir, stack, cwdProject string) (historyTarget, error) {
+	stack = strings.TrimSpace(stack)
+	legacyName, err := history.CostFileName(stack)
+	if err != nil {
+		return historyTarget{}, err
+	}
+	base := historyDir(dir)
+	legacy := historyTarget{Path: filepath.Join(base, legacyName), Stack: stack}
+
+	project, short := history.SplitStack(stack)
+	if project == "" {
+		project = cwdProject
+	}
+	if project == "" {
+		return resolveUnscopedTarget(base, legacy, short)
+	}
+	name, err := history.CostFileNameFor(project, short)
+	if err != nil {
+		return historyTarget{}, err
+	}
+	scoped := historyTarget{Path: filepath.Join(base, name), Project: project, Stack: short}
+	if fileExists(scoped.Path) {
+		return scoped, nil
+	}
+	if fileExists(legacy.Path) && legacyBelongsTo(legacy.Path, project) {
+		legacy.Project = project
+		return legacy, nil
+	}
+	return scoped, nil
+}
+
+// resolveUnscopedTarget handles a bare stack name with no project to go on. A
+// legacy `<stack>.history.db` wins; otherwise a single `<project>@<stack>`
+// database is used, and several are ambiguous.
+func resolveUnscopedTarget(base string, legacy historyTarget, short string) (historyTarget, error) {
+	if fileExists(legacy.Path) {
+		return legacy, nil
+	}
+	entries, err := os.ReadDir(base)
+	if err != nil {
+		return legacy, nil //nolint:nilerr // no history directory yet: a fresh legacy-named database
+	}
+	var found []historyTarget
+	for _, entry := range entries {
+		project, stack, ok := history.ProjectFromFileName(entry.Name())
+		if !ok || entry.IsDir() || stack != short {
+			continue
+		}
+		found = append(found, historyTarget{Path: filepath.Join(base, entry.Name()), Project: project, Stack: stack})
+	}
+	switch len(found) {
+	case 0:
+		return legacy, nil
+	case 1:
+		return found[0], nil
+	default:
+		projects := make([]string, len(found))
+		for i, target := range found {
+			projects[i] = target.Project
+		}
+		return historyTarget{}, fmt.Errorf(
+			"stack %q exists in several projects (%s); run from a project directory or pass --stack org/project/%s",
+			short, strings.Join(projects, ", "), short)
+	}
+}
+
+// legacyBelongsTo reports whether a `<stack>.history.db` written before
+// projects were recorded can be used by project. It can unless its stored
+// resource URNs name a different project. A database that cannot be read here is
+// left to the real open to report.
+func legacyBelongsTo(path, project string) bool {
+	db, err := history.OpenCostDBRead(path)
+	if err != nil {
+		return true
+	}
+	defer func() { _ = db.Close() }()
+	owner, err := db.InferProject()
+	if err != nil {
+		return true
+	}
+	return owner == "" || owner == project
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }
 
 func displayPath(path string) string {
