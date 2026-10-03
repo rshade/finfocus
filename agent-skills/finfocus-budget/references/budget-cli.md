@@ -7,8 +7,8 @@
 
 | Flag | Default | Effect |
 | --- | --- | --- |
-| `--exit-on-threshold` | `false` | Writes `cost.budgets.global.exit_on_threshold` |
-| `--exit-code` | `1` | Writes `cost.budgets.global.exit_code`, range 0-255 |
+| `--exit-on-threshold` | `false` | Overrides `cost.budgets.global.exit_on_threshold` for this command |
+| `--exit-code` | `1` | Overrides `cost.budgets.global.exit_code` for this command, range 0-255 |
 | `--budget-scope` | empty (all scopes) | Which budget sections to print |
 
 `finfocus overview` has the same three flags. `--exit-on-threshold` on
@@ -36,11 +36,14 @@ An empty `--budget-scope` shows every scope.
 
 ## Exit path
 
-`--exit-on-threshold`, `--exit-code`, `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD`, and
-`FINFOCUS_BUDGET_EXIT_CODE` write `cost.budgets.global` only.
+`--exit-on-threshold` and `--exit-code` are overrides on the command's context:
+they apply to a copy of the global scope for that one run and write nothing to the
+config, and they win over the environment. `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD`
+and `FINFOCUS_BUDGET_EXIT_CODE` set `cost.budgets.global` for the process.
+Neither the flags nor the variables reach a provider, tag, or type scope.
 
 `checkBudgetExit` runs when no provider, tag, or type budget is configured. It
-reads the global scope, which is where those flags and variables land, then
+reads the global scope, which is where those overrides and variables apply, then
 the parent `cost.budgets` fields. Default is off, with exit code 1. It returns
 a `BudgetExitError` when exit is enabled and a configured alert is exceeded,
 including a `forecasted` alert. Exit code 0 prints `WARNING:` and does not

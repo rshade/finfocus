@@ -68,17 +68,18 @@ Details: [references/budget-health.md](references/budget-health.md).
 A global-only budget (no provider, tag, or type scope) exits through
 `checkBudgetExit`. That path fails when `exit_on_threshold` is true and a
 configured alert, including a `forecasted` alert, is exceeded.
-`--exit-on-threshold`, `--exit-code`, `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD`,
-and `FINFOCUS_BUDGET_EXIT_CODE` write `cost.budgets.global`. Default is off,
-exit code `1`.
+`--exit-on-threshold` and `--exit-code` override the global scope for that one
+command and write nothing to the config. `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` and
+`FINFOCUS_BUDGET_EXIT_CODE` set `cost.budgets.global` for the process, and a
+flag wins over them. Default is off, exit code `1`.
 
 Any provider, tag, or type budget switches the exit to `checkScopedBudgetExit`.
 That gate opens on CRITICAL or EXCEEDED actual-spend health. A scoped gate can fail at 90% actual utilization. Configured alerts, including a forecasted
 alert, stay on the global-only path. The breached scope uses its own
 `exit_on_threshold` when set. An unset scope uses
 `cost.budgets.exit_on_threshold`. The CLI flags and the two exit environment
-variables write the global scope, so set the provider field or the parent
-field to open a provider gate.
+variables apply to the global scope only, so set the provider field or the
+parent field to open a provider gate.
 
 ```bash
 finfocus cost projected --pulumi-json plan.json --exit-on-threshold --exit-code 2
@@ -100,7 +101,7 @@ Flags and the exit path: [references/budget-cli.md](references/budget-cli.md).
   `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD`.
 - Exit stays 0 on a provider, tag, or type budget: set that scope's
   `exit_on_threshold`, or set `cost.budgets.exit_on_threshold`. The CLI flag
-  and `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` write the global scope.
+  and `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` apply to the global scope only.
 - `global budget is required`: a provider, tag, or type budget exists without
   `global.amount > 0`.
 - Currency error: a scoped currency differs from the global currency. Omit it

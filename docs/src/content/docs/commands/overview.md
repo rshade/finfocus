@@ -31,8 +31,9 @@ the command auto-detects your Pulumi project and stack from the current director
 | `--output` | Output format: table, json, ndjson | table |
 | `--filter`, `-f` | Resource filters (repeatable) | - |
 | `--plain` | Force non-interactive plain text output | false |
-| `--force-color` | Style the plain table when stdout is not a terminal. Does not open the TUI | false |
-| `--no-color` | Disable ANSI styling. Wins over `--force-color` | false |
+| `--color`, `--force-color` | Style the plain table when stdout is not a terminal. Does not open the TUI. The two names are the same switch | false |
+| `--no-color` | Disable ANSI styling. Wins over `--color` and `--force-color` | false |
+| `--high-contrast` | Accepted for consistency with the other output commands. `overview` has no budget box to recolor, so it changes nothing | false |
 | `--yes`, `-y` | Skip confirmation prompts | false |
 | `--cache-ttl` | Root flag. Seconds to keep plugin cost results. An explicit value wins, then `FINFOCUS_CACHE_TTL`, then config. `0` disables the cache | config |
 | `--no-pagination` | Disable pagination (plain mode only) | false |
@@ -231,19 +232,20 @@ ASCII table with the following columns:
 | `Actual(MTD)` | Month-to-date spend from the actual-cost plugin. Plain header is `ACTUAL(MTD)`; the TUI header is `Actual`. `-` when the resource has no billing history |
 | `Projected` | Full-month estimate (730 hours) from the projected-cost plugin. Plain header is `PROJECTED`, or `PROJECTED*` in state-only mode. The TUI uses `Projected` and `Projected*`. `-` when there is no projection |
 | `Delta` | How this row changes the monthly bill. The plain table prints a positive amount as `+$` and a negative amount as `-$`. Updating or replacing: new projected monthly cost minus the current projected cost, or minus the extrapolated actual when there is no baseline. Creating: the new projected cost. Deleting: minus the extrapolated actual being removed. Active: the drift delta when drift is shown, otherwise `-` |
-| `Drift%` | Calendar-month extrapolation of month-to-date spend compared with the projected monthly cost. `-` when drift is not shown (day 1 or 2, at or under 10%, or nothing to compare). A shown value is above 10% and ends with a warning mark |
+| `Drift%` | Calendar-month extrapolation of month-to-date spend compared with the projected monthly cost, scaled to the month's length. It is the drift `Delta` divided by that scaled projection, so it is not the `Delta` column divided by the `Projected` column. `-` when drift is not shown (fewer than two days have elapsed, at or under 10%, or nothing to compare). A shown value is above 10% and ends with a warning mark |
 | `Recs` | Open recommendation count. `N(-M)` when M of them are dismissed. `-` when there are none |
 | `Warn` | Conditions for this resource, comma-separated in derivation order: `drift`, `error`, `new`. `-` when none apply. A shown drift stays in `Drift%` and is also listed here. The TUI column keeps that list when it fits, and otherwise shows the first name plus `+N` for the rest. `estimate` and `stale` are reserved and are not shown |
 
-Plain output (`--plain`) from the table renderer. Amounts are sample data.
+Plain output (`--plain`) from the table renderer. Amounts are sample data, and
+the drift percentages assume a 30-day month.
 A type longer than the column is shortened, and the last row is the summary:
 
 ```text
 RESOURCE     TYPE                      STATUS       ACTUAL(MTD)  PROJECTED   DELTA       DRIFT%  RECS  WARN
 --------     ----                      ------       -----------  ---------   -----       ------  ----  ----
-my-instance  aws:ec2/instance:Inst...  ✓ active     $12.40       $15.00      +$6.20      +18% ⚠  2     drift
+my-instance  aws:ec2/instance:Inst...  ✓ active     $12.40       $15.00      +$6.20      +42% ⚠  2     drift
 my-bucket    aws:s3/bucket:Bucket      ✓ active     $0.83        $1.00       -           -       -     -
-my-db        aws:rds/instance:Inst...  ✓ active     $48.20       $50.00      -$8.40      -15% ⚠  1     drift
+my-db        aws:rds/instance:Inst...  ✓ active     $48.20       $50.00      -$8.40      -17% ⚠  1     drift
 
 SUMMARY      prod                      3 resources  $61.43 USD   $66.00 USD  -$2.20 USD
 ```
@@ -322,8 +324,10 @@ One JSON object per line, no metadata wrapper:
 |------|---------|
 | 0 | Success |
 | 1 | Error (invalid input, plugin failure) |
-| 2 | User cancelled pre-flight prompt |
 | 130 | Interrupted (Ctrl+C) |
+
+Answering `n` at the pre-flight prompt prints `Cancelled.` and exits 0. Nothing
+is priced.
 
 ## Filter syntax
 
@@ -351,3 +355,6 @@ Large stacks with many resources may take longer. Use `--filter` to narrow scope
 
 A warning icon appears when the extrapolated monthly spend differs from projected
 cost by more than 10%. This helps identify resources with unexpected cost changes.
+Drift needs at least two elapsed days of data, counted from the start of the
+window or from the resource's creation time if that is later. For a resource
+that existed all month, that is from the start of the third day.
