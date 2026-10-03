@@ -90,7 +90,7 @@ guardrails in `CONTEXT.md`.
 - [ ] **Kubernetes Cost Allocation — Usage & Pricing**
   - [ ] Prometheus usage source plugin — historical actuals, kind CI
         ([#1529](https://github.com/rshade/finfocus/issues/1529)) [L]
-  - [ ] Price pods running on EKS Fargate
+  - [x] Price pods running on EKS Fargate
         ([#1532](https://github.com/rshade/finfocus/issues/1532)) [M]
   - [ ] Idle "share" and shared-workload redistribution (allocator policy v2)
         ([#1533](https://github.com/rshade/finfocus/issues/1533)) [M]

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 	"strings"
 
 	"google.golang.org/grpc/codes"
@@ -52,6 +53,10 @@ const (
 	priceableTagKind     = "kind"
 	priceableKindNode    = "node"
 	priceableKindCluster = "cluster"
+	priceableKindFargate = "fargate" // usage.FargateKind
+	tagFargateCPU        = "cpu"
+	tagFargateMemoryGiB  = "memory_gib"
+	noteFargateUnpriced  = "Fargate pod has no price"
 
 	metricCPUAlloc   = pluginsdk.MetricCPUAllocatable
 	metricMemAlloc   = pluginsdk.MetricMemAllocatable
@@ -98,30 +103,35 @@ func Allocate(req *pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
 		return nil, err
 	}
 
-	nodes, clusterRes := groupPricedResources(req.GetPriced())
+	nodes, fargateRes, clusterRes := groupPricedResources(req.GetPriced())
 	workloads := collectWorkloadUsage(req.GetUsage(), nodes)
 	orphans := attachWorkloadsToNodes(workloads, nodes)
 
 	return &pbc.AllocateResponse{
 		EffectivePolicyJson: canonical,
 		PolicyDigest:        digest,
-		Rows:                buildRows(nodes, orphans, clusterRes, pol, currency),
+		Rows:                buildRows(nodes, orphans, fargateRes, clusterRes, pol, currency),
 	}, nil
 }
 
 // groupPricedResources splits priced entries into nodes (keyed by resource
 // id) and everything else (control plane, unallocated kinds).
-func groupPricedResources(priced []*pbc.PricedResource) (map[string]*node, []*pbc.PricedResource) {
+func groupPricedResources(
+	priced []*pbc.PricedResource,
+) (map[string]*node, []*pbc.PricedResource, []*pbc.PricedResource) {
 	nodes := map[string]*node{}
-	var clusterRes []*pbc.PricedResource
+	var fargateRes, clusterRes []*pbc.PricedResource
 	for _, pr := range priced {
-		if pr.GetResource().GetTags()[priceableTagKind] == priceableKindNode {
+		switch pr.GetResource().GetTags()[priceableTagKind] {
+		case priceableKindNode:
 			nodeFor(nodes, pr.GetResource().GetId()).priced = pr
-			continue
+		case priceableKindFargate:
+			fargateRes = append(fargateRes, pr)
+		default:
+			clusterRes = append(clusterRes, pr)
 		}
-		clusterRes = append(clusterRes, pr)
 	}
-	return nodes, clusterRes
+	return nodes, fargateRes, clusterRes
 }
 
 // collectWorkloadUsage folds usage rows into node capacity (mutating nodes in
@@ -218,10 +228,12 @@ func attachWorkloadsToNodes(workloads map[string]*workload, nodes map[string]*no
 // buildRows renders nodes (workload + idle rows), then orphaned workloads,
 // then control-plane/unallocated rows, in deterministic order.
 func buildRows(
-	nodes map[string]*node, orphans []*workload, clusterRes []*pbc.PricedResource,
+	nodes map[string]*node, orphans []*workload, fargateRes, clusterRes []*pbc.PricedResource,
 	pol policy.Policy, currency string,
 ) []*pbc.AllocationRow {
 	var rows, idleRows []*pbc.AllocationRow
+	fargateRows, orphans := fargateAllocation(orphans, fargateRes, pol, currency)
+	rows = append(rows, fargateRows...)
 	for _, name := range sortedKeys(nodes) {
 		n := nodes[name]
 		if n.priced == nil {
@@ -424,6 +436,95 @@ func shares(ws []*workload, capacity float64, amount func(*workload) float64) []
 		}
 	}
 	return out
+}
+
+// fargateAllocation charges each priced Fargate pod its own cost and drops
+// that pod from the orphan list so it is not also emitted at $0. The cost is
+// never added to a node's idle row.
+func fargateAllocation(
+	orphans []*workload, priced []*pbc.PricedResource, pol policy.Policy, currency string,
+) ([]*pbc.AllocationRow, []*workload) {
+	// Same key as workloadFor, including cluster. A priced pod must not take
+	// another cluster's orphan just because namespace, pod, and node match.
+	index := make(map[string]*workload, len(orphans))
+	for _, w := range orphans {
+		index[fargateWorkloadKey(w.subject)] = w
+	}
+	used := map[*workload]bool{}
+	rows := make([]*pbc.AllocationRow, 0, len(priced))
+	for _, pr := range priced {
+		w := index[fargateWorkloadKey(pr.GetResource().GetTags())]
+		if w != nil && used[w] {
+			w = nil
+		}
+		if w != nil {
+			used[w] = true
+		}
+		rows = append(rows, fargateRow(pr, w, pol, currency))
+	}
+	if len(used) == 0 {
+		return rows, orphans
+	}
+	rest := make([]*workload, 0, len(orphans)-len(used))
+	for _, w := range orphans {
+		if !used[w] {
+			rest = append(rest, w)
+		}
+	}
+	return rows, rest
+}
+
+func fargateWorkloadKey(subject map[string]string) string {
+	return strings.Join([]string{
+		subject[subjectCluster], subject[subjectNamespace],
+		subject[subjectPod], subject[subjectNode],
+	}, "\x00")
+}
+
+func fargateRow(pr *pbc.PricedResource, w *workload, pol policy.Policy, currency string) *pbc.AllocationRow {
+	tags := pr.GetResource().GetTags()
+	subject := map[string]string{
+		subjectKind:      kindWorkload,
+		subjectCluster:   tags[subjectCluster],
+		subjectNamespace: tags[subjectNamespace],
+		subjectPod:       tags[subjectPod],
+		subjectNode:      tags[subjectNode],
+	}
+	cpuAmt, memAmt := parseTagFloat(tags[tagFargateCPU]), parseTagFloat(tags[tagFargateMemoryGiB])
+	if w != nil {
+		subject = w.subject
+		cpuAmt, memAmt = w.cpu(), w.mem()
+	}
+	cost := 0.0
+	note := pr.GetNote()
+	if pr.GetPriced() {
+		cost = pr.GetCost()
+	} else if note == "" {
+		note = noteFargateUnpriced
+	}
+	cpuCost, memCost := splitPodCost(cost, cpuAmt, memAmt, pol)
+	return &pbc.AllocationRow{
+		Subject: subject, CpuCost: cpuCost, MemCost: memCost, TotalCost: cpuCost + memCost,
+		Currency: currency, Note: note,
+	}
+}
+
+func splitPodCost(cost, cpu, mem float64, pol policy.Policy) (float64, float64) {
+	cpuW := cpu * pol.NodeSplit.CPUCoreHour
+	memW := mem * pol.NodeSplit.MemGiBHour
+	if cost <= 0 || cpuW+memW <= 0 {
+		return cost, 0
+	}
+	cpuCost := cost * cpuW / (cpuW + memW)
+	return cpuCost, cost - cpuCost
+}
+
+func parseTagFloat(v string) float64 {
+	f, err := strconv.ParseFloat(v, 64)
+	if err != nil || math.IsNaN(f) || math.IsInf(f, 0) || f < 0 {
+		return 0
+	}
+	return f
 }
 
 func orphanNote(nodeName string) string {

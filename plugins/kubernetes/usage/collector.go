@@ -78,18 +78,20 @@ func Collect(ctx context.Context, cs kubernetes.Interface, opts Options) (*pbc.G
 	}
 
 	resp := &pbc.GetStatsResponse{Mode: pbc.StatsMode_STATS_MODE_RUN_RATE}
-	collectNodes(resp, nodes, opts)
+	fargateRegions := collectNodes(resp, nodes, opts)
 	if d, ok := ControlPlaneDescriptor(opts.APIServerHost, opts.Cluster); ok {
 		resp.Priceable = append(resp.Priceable, d)
 	}
-	collectPods(resp, pods, rs, jobs, opts)
+	collectPods(resp, pods, rs, jobs, opts, fargateRegions)
 	return resp, nil
 }
 
-func collectNodes(resp *pbc.GetStatsResponse, nodes []corev1.Node, opts Options) {
+func collectNodes(resp *pbc.GetStatsResponse, nodes []corev1.Node, opts Options) map[string]string {
+	fargateRegions := map[string]string{}
 	for i := range nodes {
 		n := &nodes[i]
 		if IsFargate(n) {
+			fargateRegions[n.Name] = firstLabel(n, labelRegion, labelRegionOld)
 			continue
 		}
 		subject := map[string]string{
@@ -121,6 +123,7 @@ func collectNodes(resp *pbc.GetStatsResponse, nodes []corev1.Node, opts Options)
 				fmt.Sprintf("node %s: cannot determine provider, instance type, or region; not priced", n.Name))
 		}
 	}
+	return fargateRegions
 }
 
 func collectPods(
@@ -129,6 +132,7 @@ func collectPods(
 	rs []appsv1.ReplicaSet,
 	jobs []batchv1.Job,
 	opts Options,
+	fargateRegions map[string]string,
 ) {
 	owners := NewOwnerIndex(rs, jobs)
 	for i := range pods {
@@ -154,6 +158,15 @@ func collectPods(
 			&pbc.UsageRow{Subject: subject, Metric: pluginsdk.MetricCPURequest, Amount: cpu, Unit: pluginsdk.UnitCore},
 			&pbc.UsageRow{Subject: subject, Metric: pluginsdk.MetricMemRequest, Amount: mem, Unit: pluginsdk.UnitGiB},
 		)
+		if region, ok := fargateRegions[p.Spec.NodeName]; ok {
+			d, priced := FargatePodDescriptor(opts.Cluster, p.Namespace, p.Name, p.Spec.NodeName, region, cpu, mem)
+			if priced {
+				resp.Priceable = append(resp.Priceable, d)
+				continue
+			}
+			resp.Warnings = append(resp.Warnings, fmt.Sprintf(
+				"fargate pod %s/%s on %s: region unknown; not priced", p.Namespace, p.Name, p.Spec.NodeName))
+		}
 	}
 }
 

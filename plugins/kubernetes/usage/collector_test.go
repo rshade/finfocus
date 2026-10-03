@@ -63,7 +63,10 @@ func rowsFor(resp *pbc.GetStatsResponse, key, val string) []*pbc.UsageRow {
 func TestCollect_RunRate(t *testing.T) {
 	t.Parallel()
 
-	fargate := readyNode("fargate-ip-1", "2", "4Gi", map[string]string{"eks.amazonaws.com/compute-type": "fargate"})
+	fargate := readyNode("fargate-ip-1", "2", "4Gi", map[string]string{
+		"eks.amazonaws.com/compute-type": "fargate",
+		"topology.kubernetes.io/region":  "us-east-1",
+	})
 	cs := fake.NewSimpleClientset(
 		readyNode("n1", "2", "8Gi", awsLabels), fargate,
 		runningPod("app", "api-1", "n1", corev1.PodRunning, map[string]string{"team": "payments"}),
@@ -87,12 +90,38 @@ func TestCollect_RunRate(t *testing.T) {
 	assert.Empty(t, rowsFor(resp, "pod", "pending"), "unscheduled pods are skipped")
 	assert.Len(t, rowsFor(resp, "pod", "fg"), 2, "fargate pods still reported")
 
-	require.Len(t, resp.GetPriceable(), 1, "fargate node is not priceable")
-	assert.Equal(t, "n1", resp.GetPriceable()[0].GetId())
+	require.Len(t, resp.GetPriceable(), 2, "the node and the fargate pod are priceable")
+	var fgDesc *pbc.ResourceDescriptor
+	for _, d := range resp.GetPriceable() {
+		if d.GetTags()["kind"] == "fargate" {
+			fgDesc = d
+		}
+	}
+	require.NotNil(t, fgDesc)
+	assert.Equal(t, "aws:eks/fargate:Pod", fgDesc.GetResourceType())
+	assert.Equal(t, "prod/app/fg", fgDesc.GetId())
+	assert.Equal(t, "us-east-1", fgDesc.GetRegion())
+	assert.Equal(t, "0.5", fgDesc.GetTags()["cpu"])
+	assert.Equal(t, "1", fgDesc.GetTags()["memory_gib"])
+	assert.Equal(t, "fargate-ip-1", fgDesc.GetTags()["node"])
 	for _, r := range rowsFor(resp, "node", "fargate-ip-1") {
 		assert.NotEqual(t, "node", r.GetSubject()["kind"], "no capacity rows for fargate nodes")
 	}
 
+	require.NoError(t, plugintesting.ValidateStatsResponse(resp))
+}
+
+func TestCollect_FargateWithoutRegionWarns(t *testing.T) {
+	t.Parallel()
+
+	fargate := readyNode("fargate-ip-1", "2", "4Gi", map[string]string{
+		"eks.amazonaws.com/compute-type": "fargate",
+	})
+	cs := fake.NewSimpleClientset(fargate, runningPod("app", "fg", "fargate-ip-1", corev1.PodRunning, nil))
+	resp, err := Collect(context.Background(), cs, Options{Cluster: "prod"})
+	require.NoError(t, err)
+	assert.Empty(t, resp.GetPriceable())
+	assert.Contains(t, resp.GetWarnings(), "fargate pod app/fg on fargate-ip-1: region unknown; not priced")
 	require.NoError(t, plugintesting.ValidateStatsResponse(resp))
 }
 

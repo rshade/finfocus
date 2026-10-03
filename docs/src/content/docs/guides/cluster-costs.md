@@ -6,8 +6,8 @@ description: Break down a Kubernetes cluster's monthly cost by namespace, contro
 ## Overview
 
 `finfocus cost cluster` allocates the monthly run-rate cost of a Kubernetes
-cluster's nodes (and, on EKS, its control plane) across the workloads running
-on them. A usage-source plugin reports live cluster state, FinFocus prices the
+cluster's nodes (and, on EKS, its control plane and each Fargate pod) across
+the workloads running on them. A usage-source plugin reports live cluster state, FinFocus prices the
 reported nodes through its normal pricing plugins, and an allocator plugin
 splits each node's cost by workload resource requests. By default, unused
 capacity is its own idle row. An allocation policy can set `idle` or
@@ -132,8 +132,12 @@ mcp-server`), so agents can call it like any other read-only command.
 - Run-rate only: historical allocation (`STATS_MODE_HISTORICAL`) is rejected
   with "historical usage is not supported yet" until the Prometheus usage
   source lands.
-- Spot nodes are priced on-demand; Fargate pods report no priceable node and
-  surface as notes.
+- Spot nodes are priced on-demand. Each EKS Fargate pod is priced on its own
+  from its vCPU and memory request when the pricing plugin returns a positive
+  monthly cost; otherwise the pod is a $0 row with a note. kind cannot
+  simulate Fargate, so `make test-e2e-kind` does not cover that path. The
+  rates live in
+  [finfocus-plugin-aws-public#409](https://github.com/rshade/finfocus-plugin-aws-public/issues/409).
 - A node whose price resolves to `$0` (for example an unknown instance type in
   aws-public) is treated as unpriced, never as free; if no node can be priced
   at all the command fails.
