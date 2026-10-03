@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **cli:** `config validate` reports syntax, budget rules, and unknown fields
+  with line numbers, hints, and a close-name suggestion. `--file` selects a
+  document and `--output json` prints the report. Cost commands stop in
+  pre-run when a present config file is invalid. Flat `cost.budgets.amount`
+  is warned and not applied; use `cost.budgets.global.amount`. Period stays
+  monthly, thresholds stay 0–1000, and amount 0 still disables a scope (#223)
 * **cli:** `--no-color`, `--plain`, `--color`, and `--high-contrast` on
   `cost projected`, `cost actual`, `cost recommendations`, and `overview`.
   `FINFOCUS_PLAIN`, `NO_COLOR`, `FORCE_COLOR`, and `FINFOCUS_HIGH_CONTRAST`

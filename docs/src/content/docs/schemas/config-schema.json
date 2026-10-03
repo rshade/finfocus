@@ -11,34 +11,63 @@
       "properties": {
         "budgets": {
           "type": "object",
-          "description": "Budget thresholds and alerts",
+          "description": "Budget thresholds and alerts. The applied scope is global, providers, tags, or types.",
           "properties": {
             "amount": {
               "type": "number",
               "minimum": 0,
-              "description": "Budget amount in specified currency"
+              "description": "Not applied. Set cost.budgets.global.amount. Zero disables a scope."
             },
             "currency": {
               "type": "string",
-              "enum": ["USD", "EUR", "GBP"],
-              "default": "USD",
-              "description": "ISO 4217 currency code"
+              "pattern": "^[A-Z]{3}$",
+              "description": "Not applied. Set cost.budgets.global.currency. Three uppercase letters."
             },
             "period": {
               "type": "string",
-              "enum": ["daily", "weekly", "monthly", "yearly"],
-              "default": "monthly",
-              "description": "Budget period"
+              "enum": ["monthly"],
+              "description": "Not applied. Set cost.budgets.global.period. The only supported period is monthly."
             },
             "alerts": {
               "type": "array",
-              "description": "List of budget alerts",
+              "minItems": 1,
+              "description": "Not applied. Set cost.budgets.global.alerts. Omit alerts, or include at least one.",
               "items": {
                 "$ref": "#/definitions/BudgetAlert"
               }
+            },
+            "global": {
+              "$ref": "#/definitions/ScopedBudget"
+            },
+            "providers": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/ScopedBudget"
+              }
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/TagBudget"
+              }
+            },
+            "types": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/ScopedBudget"
+              }
+            },
+            "exit_on_threshold": {
+              "type": "boolean",
+              "description": "Exit non-zero when a threshold is exceeded, unless a scope overrides it."
+            },
+            "exit_code": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255,
+              "description": "Process exit code used when exit_on_threshold is set."
             }
-          },
-          "required": ["amount", "currency"]
+          }
         }
       }
     },
@@ -76,9 +105,9 @@
       "properties": {
         "threshold": {
           "type": "number",
-          "minimum": 1,
-          "maximum": 100,
-          "description": "Percentage of budget at which to trigger alert (1-100)"
+          "minimum": 0,
+          "maximum": 1000,
+          "description": "Percentage of budget at which to trigger alert (0-1000)"
         },
         "type": {
           "type": "string",
@@ -87,6 +116,61 @@
         }
       },
       "required": ["threshold", "type"]
+    },
+    "ScopedBudget": {
+      "type": "object",
+      "properties": {
+        "amount": {
+          "type": "number",
+          "minimum": 0,
+          "description": "Budget amount. Zero disables the scope and skips further checks."
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "description": "ISO 4217 code of three uppercase letters. Empty inherits the global currency."
+        },
+        "period": {
+          "type": "string",
+          "enum": ["monthly"],
+          "description": "The only supported period is monthly."
+        },
+        "alerts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/definitions/BudgetAlert"
+          }
+        },
+        "exit_on_threshold": {
+          "type": "boolean"
+        },
+        "exit_code": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        }
+      }
+    },
+    "TagBudget": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/ScopedBudget"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "selector": {
+              "type": "string",
+              "description": "Tag selector in key:value or key:* form."
+            },
+            "priority": {
+              "type": "integer"
+            }
+          },
+          "required": ["selector"]
+        }
+      ]
     }
   }
 }

@@ -259,7 +259,10 @@ func newCostCmd() *cobra.Command {
 
 			overrides := budgetFlagOverridesFromCmd(cmd)
 			storeBudgetFlagOverrides(cmd, overrides)
-			return validateBudgetFlagOverrides(config.GetGlobalConfig(), overrides)
+			if err := validateBudgetFlagOverrides(config.GetGlobalConfig(), overrides); err != nil {
+				return err
+			}
+			return validateCostConfig(cmd, costConfigPaths(config.GetGlobalConfig()))
 		},
 	}
 

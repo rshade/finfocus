@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/test/integration/helpers"
 )
 
@@ -292,5 +293,58 @@ func TestConfig_FullWorkflow(t *testing.T) {
 		var result map[string]any
 		err = json.Unmarshal([]byte(output), &result)
 		require.NoError(t, err)
+	})
+}
+
+// TestConfigValidate_FileAndCostPreRun checks the file report and the cost pre-run.
+//
+//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
+func TestConfigValidate_FileAndCostPreRun(t *testing.T) {
+	h := helpers.NewCLIHelper(t)
+	home := h.CreateTempDir()
+	body := "{\n" +
+		"  \"cost\": {\"budgets\": {\"global\": {\"amount\": 100, \"currency\": \"USD\", \"period\": \"weekly\"}}}\n" +
+		"}\n"
+	configPath := filepath.Join(home, "config.hujson")
+	require.NoError(t, os.WriteFile(configPath, []byte(body), 0o600))
+
+	h.WithEnv(map[string]string{
+		"FINFOCUS_HOME":                 home,
+		"FINFOCUS_SKIP_MIGRATION_CHECK": "1",
+		"NO_COLOR":                      "1",
+	}, func() {
+		t.Chdir(home)
+		config.ResetGlobalConfigForTest()
+		t.Cleanup(config.ResetGlobalConfigForTest)
+
+		stdout, err := h.Execute("config", "validate", "--file", configPath, "--output", "text")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "configuration validation failed")
+		assert.Contains(t, stdout, "must be 'monthly'")
+		assert.Contains(t, stdout, "period: monthly")
+
+		stdout, err = h.Execute("config", "validate", "--file", configPath, "--output", "json")
+		require.Error(t, err)
+		var report struct {
+			Valid  bool `json:"valid"`
+			Errors []struct {
+				Path    string `json:"path"`
+				Message string `json:"message"`
+			} `json:"errors"`
+		}
+		require.NoError(t, json.Unmarshal([]byte(stdout), &report))
+		assert.False(t, report.Valid)
+		require.NotEmpty(t, report.Errors)
+		assert.Equal(t, "cost.budgets.global.period", report.Errors[0].Path)
+		assert.Contains(t, report.Errors[0].Message, "monthly")
+
+		_, err = h.Execute("config", "validate", "--output", "yaml")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "text or json")
+
+		_, err = h.Execute("cost", "projected")
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "must be 'monthly'")
+		assert.Contains(t, err.Error(), "configuration validation failed")
 	})
 }

@@ -452,6 +452,16 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `$PROJECT/.finfocus/config.hujson` + `.gitignore`. Outside Pulumi project → global init
 - **`config routes`**: `config routes list` shows effective routing source/path;
   `config routes test <type> [region]` simulates per-feature plugin selection without loading plugin binaries
+- **`config validate` and cost pre-run**: both call `ValidateConfigSource`.
+  `--file` selects a document. `--output json` prints the report. An unknown
+  `--output` is rejected before the file is read. A missing default file stays
+  valid. `cost projected`, `cost actual`, `cost recommendations`,
+  `cost estimate`, and `cost cluster` fail in pre-run when a present file is
+  invalid, and they ignore a missing file. Flat `cost.budgets.amount` is warned
+  and not applied; the on-disk field is `cost.budgets.global.amount`. Period
+  stays monthly. Threshold stays 0–1000. Amount 0 disables a scope. Unknown
+  keys warn, with a suggestion when the name is close. There is no
+  notifications section
 - **Unit tests leak into the real `~/.finfocus`**: any test that executes a
   mutating command (`dismiss`, `snooze`, `config set`) writes to the developer's
   and the CI runner's actual home unless it sets
