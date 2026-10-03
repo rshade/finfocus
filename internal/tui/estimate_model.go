@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -36,6 +37,11 @@ type PropertyRow struct {
 type estimateRecalculateMsg struct {
 	result *engine.EstimateResult
 	err    error
+}
+
+// estimatePricingSpecMsg delivers GetPricingSpec discovery for the open resource.
+type estimatePricingSpecMsg struct {
+	discovery engine.PricingDiscovery
 }
 
 // Default dimensions for estimate model.
@@ -73,6 +79,12 @@ type EstimateModel struct {
 
 	// Cost calculation callback
 	recalculateFn func(context.Context, *engine.ResourceDescriptor, map[string]string) (*engine.EstimateResult, error)
+
+	// Plugin pricing-spec discovery. Empty modes leave the estimate editable.
+	discoverFn         func(context.Context, *engine.ResourceDescriptor) engine.PricingDiscovery
+	pricingModes       []engine.PricingMode
+	pricingMode        int
+	pricingSpecLoading bool
 }
 
 // NewEstimateModel creates a new EstimateModel for interactive cost estimation.
@@ -119,6 +131,18 @@ func NewEstimateModelWithCallback(
 ) *EstimateModel {
 	m := NewEstimateModel(ctx, resource, result)
 	m.recalculateFn = recalculateFn
+	return m
+}
+
+// WithPricingDiscovery loads GetPricingSpec when the TUI starts.
+// A nil discovery function leaves the estimate view unchanged.
+func (m *EstimateModel) WithPricingDiscovery(
+	fn func(context.Context, *engine.ResourceDescriptor) engine.PricingDiscovery,
+) *EstimateModel {
+	if m == nil {
+		return nil
+	}
+	m.discoverFn = fn
 	return m
 }
 
@@ -174,10 +198,18 @@ func (m *EstimateModel) applyResult(result *engine.EstimateResult) {
 	}
 }
 
-// Init initializes the model.
+// Init initializes the model and starts pricing-spec discovery when configured.
 func (m *EstimateModel) Init() tea.Cmd {
-	// No initial commands needed for editing state
-	return nil
+	if m.discoverFn == nil || m.resource == nil || strings.TrimSpace(m.resource.Type) == "" {
+		return nil
+	}
+	m.pricingSpecLoading = true
+	ctx := m.ctx
+	resource := m.resource
+	discoverFn := m.discoverFn
+	return func() tea.Msg {
+		return estimatePricingSpecMsg{discovery: discoverFn(ctx, resource)}
+	}
 }
 
 // Update handles messages and updates the model state.
@@ -190,6 +222,12 @@ func (m *EstimateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case estimateRecalculateMsg:
 		return m.handleRecalculateComplete(msg)
+
+	case estimatePricingSpecMsg:
+		m.pricingSpecLoading = false
+		m.pricingModes = msg.discovery.Modes
+		m.pricingMode = 0
+		return m, nil
 
 	case tea.KeyPressMsg:
 		return m.handleKeyMsg(msg)
@@ -221,6 +259,18 @@ func (m *EstimateModel) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	case tea.KeyDown:
 		if m.focusedRow < len(m.properties)-1 {
 			m.focusedRow++
+		}
+		return m, nil
+
+	case tea.KeyLeft:
+		if len(m.pricingModes) > 1 && m.pricingMode > 0 {
+			m.pricingMode--
+		}
+		return m, nil
+
+	case tea.KeyRight:
+		if len(m.pricingModes) > 1 && m.pricingMode < len(m.pricingModes)-1 {
+			m.pricingMode++
 		}
 		return m, nil
 
@@ -359,6 +409,11 @@ func (m *EstimateModel) renderEditingView() string {
 	}
 	output += RenderEstimateHeader(provider, resourceType, resourceID)
 	output += "\n\n"
+
+	if section := m.renderPricingSection(); section != "" {
+		output += section
+		output += "\n\n"
+	}
 
 	// Cost comparison
 	output += RenderCostComparison(m.baselineCost, m.modifiedCost, m.currency)

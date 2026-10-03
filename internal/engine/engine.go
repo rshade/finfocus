@@ -130,16 +130,18 @@ type Router interface {
 
 // Engine orchestrates cost calculations between plugins and local pricing specifications.
 type Engine struct {
-	clients             []*pluginhost.Client
-	loader              SpecLoader
-	cache               cache.Cache
-	history             history.Store             // Optional history store; if nil, no history tracking
-	router              Router                    // Optional router for plugin selection; if nil, queries all plugins
-	dismissalStore      *config.DismissalStore    // Optional dismissal store; if nil, created on demand
-	jobs                int                       // Override worker count; 0 means auto (default)
-	pricingSpecFallback bool                      // GetPricingSpec after a projected-cost miss; default off
-	supportsCache       map[string]supportsResult // Supports() cache: client, provider, type, region, sku, feature
-	supportsMu          sync.RWMutex              // Guards supportsCache
+	clients               []*pluginhost.Client
+	loader                SpecLoader
+	cache                 cache.Cache
+	history               history.Store          // Optional history store; if nil, no history tracking
+	router                Router                 // Optional router for plugin selection; if nil, queries all plugins
+	dismissalStore        *config.DismissalStore // Optional dismissal store; if nil, created on demand
+	jobs                  int                    // Override worker count; 0 means auto (default)
+	pricingSpecFallback   bool                   // GetPricingSpec after a projected-cost miss; default off
+	pricingDiscoveryMu    sync.Mutex             // Guards pricingDiscoveryCache
+	pricingDiscoveryCache map[string]PricingDiscovery
+	supportsCache         map[string]supportsResult // Supports() cache: client, provider, type, region, sku, feature
+	supportsMu            sync.RWMutex              // Guards supportsCache
 }
 
 // supportsResult is the cached answer of a plugin's Supports() RPC.

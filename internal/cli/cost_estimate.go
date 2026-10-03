@@ -791,8 +791,10 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 		}
 	}
 
-	// Create and run the TUI model
-	model := tui.NewEstimateModelWithCallback(ctx, resource, initialResult, recalculateFn)
+	// Create and run the TUI model. Pricing-spec discovery is display context
+	// and does not replace EstimateCost when the plugin has no spec.
+	model := tui.NewEstimateModelWithCallback(ctx, resource, initialResult, recalculateFn).
+		WithPricingDiscovery(eng.DiscoverPricingSpec)
 	program := tea.NewProgram(model)
 
 	finalModel, err := program.Run()

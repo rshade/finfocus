@@ -522,6 +522,13 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   A `$0` rate is a priced result. Unknown billing modes and RPC errors fall
   through to YAML. `per_hour` and `per_cpu_hour` use 730 hours, `per_day` uses
   `daysPerMonth` (30), and `per_gb_month` multiplies by storage size or 1 GB
+- **Estimate TUI pricing discovery** calls `GetPricingSpec` when
+  `cost estimate --interactive` starts. `DiscoverPricingSpec` caches by
+  resource type on the engine for that session. The view lists each plugin
+  billing mode, its tiers, assumptions, and usage hints. Left and right move
+  between modes. `not_implemented`, an empty mode, and RPC errors hide that
+  section and leave property editing in place. The lookup does not replace
+  `EstimateCost`
 - **Budget health thresholds**: OK (<80%), WARNING (80-89%), CRITICAL (90-100%),
   EXCEEDED (>100%). Aggregation uses worst-case status
 - **Cache hits**: Append `(cached)`, including the leading space, to the Adapter field for visual feedback

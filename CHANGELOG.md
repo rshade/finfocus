@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **tui:** `cost estimate --interactive` shows billing modes, pricing tiers,
+  assumptions, and usage hints from plugin `GetPricingSpec`. A missing spec
+  leaves the estimate editable, and the lookup is cached per resource type
+  for the session (#637)
 * **engine:** price a projected resource from plugin `GetPricingSpec` before
   local YAML when `cost projected --pricing-spec-fallback` or
   `cost.pricing_spec_fallback` is set. The fallback stays off unless one of
