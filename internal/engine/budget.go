@@ -13,6 +13,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // PercentageMultiplier is used to convert ratios to percentages.
@@ -193,7 +194,7 @@ func FilterBudgets(budgets []*pbc.Budget, filter *pbc.BudgetFilter) []*pbc.Budge
 func matchesBudgetFilter(b *pbc.Budget, filter *pbc.BudgetFilter) bool {
 	// Provider (OR logic)
 	if len(filter.GetProviders()) > 0 {
-		if !matchStringSlice(b.GetSource(), filter.GetProviders()) {
+		if !matchProviderSlice(b.GetSource(), filter.GetProviders()) {
 			return false
 		}
 	}
@@ -516,7 +517,19 @@ func MatchesProvider(budget *pbc.Budget, providers []string) bool {
 	if len(providers) == 0 {
 		return true
 	}
-	return matchStringSlice(budget.GetSource(), providers)
+	return matchProviderSlice(budget.GetSource(), providers)
+}
+
+// matchProviderSlice reports whether source names the same cloud as any of
+// providers, comparing both sides through resourcetype.NormalizeProvider.
+func matchProviderSlice(source string, providers []string) bool {
+	cloud := resourcetype.NormalizeProvider(source)
+	for _, provider := range providers {
+		if cloud == resourcetype.NormalizeProvider(provider) {
+			return true
+		}
+	}
+	return false
 }
 
 // GetBudgets retrieves budgets from plugins and applies health calculations.

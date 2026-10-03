@@ -6,11 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"maps"
-	"strings"
 	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
+
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 const (
@@ -303,19 +304,11 @@ func resourcesFromExport(data []byte) ([]PriceResource, error) {
 		resources = append(resources, PriceResource{
 			ID:         resource.URN,
 			Type:       resource.Type,
-			Provider:   providerOf(resource.Type),
+			Provider:   resourcetype.ExtractProvider(resource.Type),
 			Properties: mergeProperties(resource.Outputs, resource.Inputs),
 		})
 	}
 	return resources, nil
-}
-
-func providerOf(resourceType string) string {
-	provider, _, _ := strings.Cut(resourceType, ":")
-	if provider == "" {
-		return unknownProvider
-	}
-	return provider
 }
 
 func mergeProperties(base, overlay map[string]any) map[string]any {

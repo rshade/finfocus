@@ -1,8 +1,6 @@
 package router
 
 import (
-	"strings"
-
 	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
@@ -28,10 +26,10 @@ const ProviderWildcard = "*"
 //   - "gcp:compute:Instance" → "gcp"
 //   - "azure:compute/vm:VM" → "azure"
 //   - "kubernetes:core/v1:Pod" → "kubernetes"
-//   - "aws-native:ec2:Instance" → "aws-native"
+//   - "aws-native:ec2:Instance" → "aws"
 //   - "pulumi:providers:aws" → "pulumi"
 //   - "aws_instance" → "aws" (Terraform-style type, no colon)
-//   - "azurerm_linux_virtual_machine" → "azurerm"
+//   - "azurerm_linux_virtual_machine" → "azure"
 //   - "" → "unknown"
 //
 // If resourceType is empty or has an empty first colon-separated segment, it
@@ -48,11 +46,12 @@ func IsGlobalProvider(provider string) bool {
 	return provider == "" || provider == ProviderWildcard
 }
 
-// NormalizeProvider normalizes a provider string for comparison.
-// NormalizeProvider returns the provider string with surrounding whitespace removed and all characters lowercased.
-// Use the result for case-insensitive comparisons of provider identifiers.
+// NormalizeProvider normalizes a provider string for comparison. It trims and
+// lowercases provider and maps a package or provider name to the cloud that
+// bills it ("aws-native" → "aws"). It delegates to
+// [resourcetype.NormalizeProvider], the single alias table.
 func NormalizeProvider(provider string) string {
-	return strings.ToLower(strings.TrimSpace(provider))
+	return resourcetype.NormalizeProvider(provider)
 }
 
 // ProviderMatches checks if a resource's provider matches a plugin's supported provider.

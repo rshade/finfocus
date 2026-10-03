@@ -9,6 +9,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // Property keys for Pulumi metadata injected into ResourceDescriptor.Properties.
@@ -187,7 +188,7 @@ func (s *StackExport) GetCustomResourcesWithContext(ctx context.Context) []Stack
 //
 // It returns the mapped engine.ResourceDescriptor and an error. The function currently does not return non-nil errors.
 func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, error) {
-	provider := extractProvider(resource.Type)
+	provider := resourcetype.ExtractProvider(resource.Type)
 
 	// Merge outputs (base) with inputs (overlay) — inputs win on conflict
 	properties := MergeProperties(resource.Outputs, resource.Inputs)

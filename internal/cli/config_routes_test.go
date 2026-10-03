@@ -247,6 +247,21 @@ func TestConfigRoutesListProjectLocal(t *testing.T) {
 }
 
 //nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
+func TestConfigRoutesTestShowsPackageForNativeTypes(t *testing.T) {
+	setupConfigRoutesTest(t)
+
+	cfg := config.New()
+	cfg.Routing = buildStandardRoutingConfig()
+	require.NoError(t, cfg.Save())
+
+	routesCmd, buf := newTestConfigRoutesCmd(t)
+	routesCmd.SetArgs([]string{"test", "aws-native:ec2:Instance"})
+
+	require.NoError(t, routesCmd.Execute())
+	assert.Contains(t, buf.String(), "provider: aws (package: aws-native)")
+}
+
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupConfigRoutesTest)
 func TestConfigRoutesTestTable(t *testing.T) {
 	setupConfigRoutesTest(t)
 

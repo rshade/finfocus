@@ -3,12 +3,10 @@ package ingest
 import (
 	"fmt"
 	"maps"
-	"strings"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
-
-const unknownProvider = "unknown"
 
 // MergeProperties merges two property maps into a single map. Keys from the
 // inputs map override keys from the outputs map when they conflict. If both
@@ -32,7 +30,7 @@ func MergeProperties(outputs, inputs map[string]any) map[string]any {
 // inputs.
 // The function does not currently produce an error; the returned error is nil.
 func MapResource(pulumiResource PulumiResource) (engine.ResourceDescriptor, error) {
-	provider := extractProvider(pulumiResource.Type)
+	provider := resourcetype.ExtractProvider(pulumiResource.Type)
 
 	var oldProperties map[string]any
 	if pulumiResource.OldInputs != nil {
@@ -68,14 +66,6 @@ func refsFromPropertyDependencies(in map[string][]string) map[string][]string {
 		return nil
 	}
 	return out
-}
-
-func extractProvider(resourceType string) string {
-	parts := strings.Split(resourceType, ":")
-	if len(parts) > 0 && parts[0] != "" {
-		return parts[0]
-	}
-	return unknownProvider
 }
 
 // MapResources converts multiple Pulumi resources to ResourceDescriptors.

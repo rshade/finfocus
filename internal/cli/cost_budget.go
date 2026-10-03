@@ -21,6 +21,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/tui"
 )
 
@@ -743,7 +744,10 @@ func evaluateScopedBudgets(
 		if budget == nil {
 			continue
 		}
-		spend := providerSpend[provider]
+		if indexed := eval.GetProviderBudget(provider); indexed != nil && indexed != budget {
+			continue
+		}
+		spend := providerSpend[resourcetype.NormalizeProvider(provider)]
 		status := engine.CalculateProviderBudgetStatus(provider, budget, spend)
 		result.ByProvider[provider] = status
 	}

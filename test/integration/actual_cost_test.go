@@ -375,11 +375,11 @@ func TestMultiProviderAggregation_CrossProviderCostCalculation(t *testing.T) {
 
 	// Verify all providers are represented
 	assert.Contains(t, agg.Providers, "aws")
-	assert.Contains(t, agg.Providers, "azure-native")
+	assert.Contains(t, agg.Providers, "azure")
 	assert.Contains(t, agg.Providers, "gcp")
 
 	assert.InDelta(t, 100.0, agg.Providers["aws"], 1e-9)
-	assert.InDelta(t, 150.0, agg.Providers["azure-native"], 1e-9)
+	assert.InDelta(t, 150.0, agg.Providers["azure"], 1e-9)
 	assert.InDelta(t, 75.0, agg.Providers["gcp"], 1e-9)
 }
 

@@ -91,6 +91,82 @@ func TestAutomaticRouting_ProviderMatching(t *testing.T) {
 	}
 }
 
+func TestAutomaticRouting_ProviderAliases(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+
+	tests := []struct {
+		name         string
+		supported    string
+		resourceType string
+		wantMatch    bool
+	}{
+		{"aws plugin gets aws-native", "aws", "aws-native:ec2:Instance", true},
+		{"azure plugin gets azure-native", "azure", "azure-native:compute:VirtualMachine", true},
+		{"azure plugin gets classic azure", "azure", "azure:compute/virtualMachine:VirtualMachine", true},
+		{"azure plugin gets azurerm", "azure", "azurerm_linux_virtual_machine", true},
+		{"gcp plugin gets google-native", "gcp", "google-native:compute/v1:Instance", true},
+		{"gcp plugin gets google terraform type", "gcp", "google_compute_instance", true},
+		{"plugin listing azure-native keeps azure-native", "azure-native", "azure-native:compute:VirtualMachine", true},
+		{
+			"plugin listing azure-native gets classic azure",
+			"azure-native",
+			"azure:compute/virtualMachine:VirtualMachine",
+			true,
+		},
+		{"aws plugin does not get azure-native", "aws", "azure-native:compute:VirtualMachine", false},
+		{"azure plugin does not get aws-native", "azure", "aws-native:ec2:Instance", false},
+		{"aws plugin skips native provider resource", "aws", "pulumi:providers:aws-native", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			client := &pluginhost.Client{
+				Name:     "plugin",
+				Metadata: &proto.PluginMetadata{SupportedProviders: []string{tt.supported}},
+			}
+			router, err := routerpkg.NewRouter(routerpkg.WithClients([]*pluginhost.Client{client}))
+			require.NoError(t, err)
+
+			matches := router.SelectPlugins(ctx, engine.ResourceDescriptor{Type: tt.resourceType}, "ProjectedCosts")
+			if tt.wantMatch {
+				require.Len(t, matches, 1)
+				assert.Equal(t, routerpkg.MatchReasonAutomatic, matches[0].MatchReason)
+				return
+			}
+			assert.Empty(t, matches)
+		})
+	}
+}
+
+func TestPatternRoutingKeepsRawPackage(t *testing.T) {
+	t.Parallel()
+
+	client := &pluginhost.Client{
+		Name:     "native-only",
+		Metadata: &proto.PluginMetadata{SupportedProviders: []string{"aws"}},
+	}
+	cfg := &config.RoutingConfig{
+		Plugins: []config.PluginRouting{{
+			Name:     "native-only",
+			Patterns: []config.ResourcePattern{{Type: "glob", Pattern: "aws-native:*"}},
+		}},
+	}
+	router, err := routerpkg.NewRouter(
+		routerpkg.WithClients([]*pluginhost.Client{client}),
+		routerpkg.WithConfig(cfg),
+	)
+	require.NoError(t, err)
+
+	matches := router.SelectPlugins(
+		context.Background(), engine.ResourceDescriptor{Type: "aws-native:ec2:Instance"}, "ProjectedCosts",
+	)
+	require.Len(t, matches, 1)
+	assert.Equal(t, routerpkg.MatchReasonPattern, matches[0].MatchReason)
+}
+
 // TestAutomaticRouting_GlobalPlugins tests T017: global plugin matching.
 func TestAutomaticRouting_GlobalPlugins(t *testing.T) {
 	t.Parallel()

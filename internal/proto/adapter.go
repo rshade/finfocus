@@ -20,6 +20,7 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/awsutil"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/skus"
 )
 
@@ -1141,7 +1142,8 @@ func resolveSKUAndRegion(
 	properties map[string]string,
 ) (string, string) {
 	var sku, region string
-	switch strings.ToLower(provider) {
+	cloud := resourcetype.NormalizeProvider(provider)
+	switch cloud {
 	case awsProvider:
 		sku = mapping.ExtractAWSSKU(properties)
 		if sku == "" {
@@ -1158,10 +1160,10 @@ func resolveSKUAndRegion(
 			// Fallback: parse region from ARN (arn:aws:service:region:account:...)
 			region = awsutil.RegionFromARN(firstNonEmptyValue(properties, propARNPulumi, propARNTerraform))
 		}
-	case "azure", "azure-native":
+	case "azure":
 		sku = mapping.ExtractAzureSKU(properties)
 		region = mapping.ExtractAzureRegion(properties)
-	case "gcp", "google-native":
+	case "gcp":
 		sku = mapping.ExtractGCPSKU(properties)
 		region = mapping.ExtractGCPRegion(properties)
 	default:
@@ -1172,7 +1174,7 @@ func resolveSKUAndRegion(
 	// Fallback to AWS environment variables for region if still empty
 	// IMPORTANT: Only apply AWS-specific env vars to AWS resources to avoid
 	// incorrect region assignment for Azure/GCP resources (SC-001 fix)
-	if region == "" && strings.ToLower(provider) == "aws" {
+	if region == "" && cloud == awsProvider {
 		if envReg := os.Getenv("AWS_REGION"); envReg != "" {
 			region = envReg
 		} else {

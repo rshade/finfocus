@@ -98,6 +98,32 @@ func TestChart_SingleProvider(t *testing.T) {
 	assert.NotContains(t, out, "$20")
 }
 
+func TestChart_ProviderFilterSumsEntriesStoredUnderPackageNames(t *testing.T) {
+	t.Parallel()
+	snaps := []CostSnapshot{
+		sampleSnap(1, time.January, 120, map[string]float64{"aws": 80, "aws-native": 20, "gcp": 20}),
+	}
+	for _, provider := range []string{"aws", "aws-native", "AWS"} {
+		out := RenderChart(snaps, nil, ChartOptions{Stack: "dev", Provider: provider})
+		assert.Contains(t, out, "$100", provider)
+		assert.NotContains(t, out, "$120", provider)
+	}
+}
+
+func TestChart_SplitProvidersMergesPackageNames(t *testing.T) {
+	t.Parallel()
+	snaps := []CostSnapshot{
+		sampleSnap(1, time.January, 120, map[string]float64{"aws": 80, "aws-native": 20, "gcp": 20}),
+		sampleSnap(2, time.February, 130, map[string]float64{"aws": 90, "aws-native": 20, "gcp": 20}),
+	}
+	out := RenderChart(snaps, nil, ChartOptions{
+		Stack: "dev", SplitProviders: true, Height: 6, Width: 30, NoBudget: true, NoAnnotations: true,
+	})
+	assert.Contains(t, out, "AWS")
+	assert.Contains(t, out, "GCP")
+	assert.NotContains(t, out, "AWS-NATIVE")
+}
+
 func sampleSnap(version int, month time.Month, total float64, by map[string]float64) CostSnapshot {
 	if by == nil {
 		by = map[string]float64{}

@@ -15,6 +15,7 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/spec"
 	"github.com/rshade/finfocus/internal/tui"
 )
@@ -697,7 +698,7 @@ func buildResourceFromParams(provider, resourceType, region string) *engine.Reso
 		props["region"] = region
 	}
 	return &engine.ResourceDescriptor{
-		Provider:   provider,
+		Provider:   resourcetype.NormalizeProvider(provider),
 		Type:       resourceType,
 		ID:         "interactive-resource",
 		Properties: props,

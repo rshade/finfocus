@@ -55,6 +55,11 @@ func TestExtractProvider(t *testing.T) {
 		{"empty string", "", ""},
 		{"colon at start", ":ec2/instance", ""},
 		{"multiple colons", "aws:ec2:instance:extra", "aws"},
+		{"aws native", "aws-native:ec2:Instance", "aws"},
+		{"azure native", "azure-native:compute:VirtualMachine", "azure"},
+		{"google native", "google-native:compute/v1:Instance", "gcp"},
+		{"terraform aws", "aws_instance", "aws"},
+		{"terraform azure", "azurerm_linux_virtual_machine", "azure"},
 	}
 
 	for _, tt := range tests {
@@ -485,6 +490,56 @@ func TestAllocateCostToProvider(t *testing.T) {
 		require.NotNil(t, allocation)
 		assert.Equal(t, "aws", allocation.Provider)
 		assert.Contains(t, allocation.AllocatedScopes, "provider:aws")
+	})
+
+	t.Run("package-named resources count toward the cloud budget", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.BudgetsConfig{
+			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
+			Providers: map[string]*config.ScopedBudget{
+				"aws":   {Amount: 5000, Currency: "USD"},
+				"azure": {Amount: 3000, Currency: "USD"},
+			},
+		}
+		eval := engine.NewScopedBudgetEvaluator(cfg)
+
+		native := eval.AllocateCostToProvider(ctx, "aws-native:ec2:Instance", 100.0)
+		assert.Equal(t, "aws", native.Provider)
+		assert.Contains(t, native.AllocatedScopes, "provider:aws")
+
+		terraform := eval.AllocateCostToProvider(ctx, "azurerm_linux_virtual_machine", 100.0)
+		assert.Equal(t, "azure", terraform.Provider)
+		assert.Contains(t, terraform.AllocatedScopes, "provider:azure")
+	})
+
+	t.Run("a package-named config key resolves to the cloud budget", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.BudgetsConfig{
+			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
+			Providers: map[string]*config.ScopedBudget{
+				"aws-native": {Amount: 5000, Currency: "USD"},
+			},
+		}
+		eval := engine.NewScopedBudgetEvaluator(cfg)
+
+		allocation := eval.AllocateCostToProvider(ctx, "aws:ec2/instance", 100.0)
+		assert.Contains(t, allocation.AllocatedScopes, "provider:aws")
+		assert.NotNil(t, eval.GetProviderBudget("aws-native"))
+	})
+
+	t.Run("the cloud's own key wins over a package-named duplicate", func(t *testing.T) {
+		t.Parallel()
+		cfg := &config.BudgetsConfig{
+			Global: &config.ScopedBudget{Amount: 10000, Currency: "USD"},
+			Providers: map[string]*config.ScopedBudget{
+				"aws-native": {Amount: 111, Currency: "USD"},
+				"aws":        {Amount: 5000, Currency: "USD"},
+			},
+		}
+		eval := engine.NewScopedBudgetEvaluator(cfg)
+
+		require.NotNil(t, eval.GetProviderBudget("aws"))
+		assert.InDelta(t, 5000.0, eval.GetProviderBudget("aws").Amount, 1e-9)
 	})
 
 	t.Run("handles empty provider in resource type", func(t *testing.T) {

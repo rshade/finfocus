@@ -13,6 +13,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/router"
 )
 
@@ -178,11 +179,8 @@ func (s *Server) recordAnalyzerEvent(ctx context.Context, req *pulumirpc.Analyze
 		Stack:        s.stackName,
 	}
 
-	provider := ""
 	resourceType := req.GetType()
-	if idx := strings.IndexByte(resourceType, ':'); idx > 0 {
-		provider = resourceType[:idx]
-	}
+	provider := resourcetype.ExtractProvider(resourceType)
 
 	event := history.AnalyzerResource{
 		URN:        req.GetUrn(),

@@ -9,6 +9,7 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // URN parsing constants.
@@ -169,18 +170,10 @@ func extractResourceID(urn string) string {
 //
 //	r - the AnalyzeRequest to inspect for provider information.
 func extractProviderFromRequest(r *pulumirpc.AnalyzeRequest) string {
-	// Try provider resource first
-	if p := r.GetProvider(); p != nil {
-		if providerType := p.GetType(); providerType != "" {
-			// Format: pulumi:providers:aws
-			parts := strings.Split(providerType, ":")
-			if len(parts) >= minProviderTypeParts {
-				return parts[2]
-			}
-		}
+	if provider := providerFromProviderResource(r.GetProvider().GetType()); provider != "" {
+		return provider
 	}
 
-	// Fall back to resource type prefix
 	return extractProviderFromType(r.GetType())
 }
 
@@ -188,18 +181,20 @@ func extractProviderFromRequest(r *pulumirpc.AnalyzeRequest) string {
 //
 // Format: "aws:ec2/instance:Instance" → "aws"
 // extractProviderFromType extracts the provider name from a resource type string.
-// It returns the first colon-separated segment (for example, "aws" from "aws:ec2/instance:Instance"), or "unknown" if the input is empty or does not contain a valid prefix.
+// It returns the cloud for the type prefix (for example, "aws" from "aws:ec2/instance:Instance" and from "aws-native:ec2:Instance"), or "unknown" if the input is empty or does not contain a valid prefix.
 func extractProviderFromType(resourceType string) string {
-	if resourceType == "" {
-		return "unknown"
-	}
+	return resourcetype.ExtractProvider(resourceType)
+}
 
-	parts := strings.Split(resourceType, ":")
-	if len(parts) >= 1 && parts[0] != "" {
-		return parts[0]
+// providerFromProviderResource returns the cloud named by a provider resource
+// type of the form "pulumi:providers:NAME", or "" when providerType is empty or
+// malformed.
+func providerFromProviderResource(providerType string) string {
+	parts := strings.Split(providerType, ":")
+	if len(parts) < minProviderTypeParts || parts[2] == "" {
+		return ""
 	}
-
-	return "unknown"
+	return resourcetype.NormalizeProvider(parts[2])
 }
 
 // extractProvider extracts the provider name from the resource.
@@ -215,18 +210,10 @@ func extractProviderFromType(resourceType string) string {
 // If that is not available, it falls back to parsing the resource's type prefix via extractProviderFromType.
 // If neither approach yields a provider, it returns "unknown".
 func extractProvider(r *pulumirpc.AnalyzerResource) string {
-	// Try provider resource first
-	if p := r.GetProvider(); p != nil {
-		if providerType := p.GetType(); providerType != "" {
-			// Format: pulumi:providers:aws
-			parts := strings.Split(providerType, ":")
-			if len(parts) >= minProviderTypeParts {
-				return parts[2]
-			}
-		}
+	if provider := providerFromProviderResource(r.GetProvider().GetType()); provider != "" {
+		return provider
 	}
 
-	// Fall back to resource type prefix
 	return extractProviderFromType(r.GetType())
 }
 

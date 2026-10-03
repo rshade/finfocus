@@ -607,8 +607,8 @@ func TestEdgeCase_UnknownProviderReturnsUnknown(t *testing.T) {
 		{"leading_colon", ":ec2:Instance", "unknown"},
 		{"terraform_aws", "aws_instance", "aws"},
 		{"terraform_multi_underscore", "aws_ebs_volume", "aws"},
-		{"terraform_azurerm", "azurerm_linux_virtual_machine", "azurerm"},
-		{"terraform_google", "google_compute_instance", "google"},
+		{"terraform_azurerm", "azurerm_linux_virtual_machine", "azure"},
+		{"terraform_google", "google_compute_instance", "gcp"},
 		{"leading_underscore", "_instance", "_instance"},
 		{"pulumi_type_with_underscore", "aws:ec2/vpc_endpoint:VpcEndpoint", "aws"},
 	}

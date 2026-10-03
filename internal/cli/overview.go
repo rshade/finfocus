@@ -26,6 +26,7 @@ import (
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
+	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/tui"
 )
 
@@ -1032,7 +1033,7 @@ func matchesOverviewFilters(row engine.OverviewRow, filters []string) bool {
 				return false
 			}
 		case filterKeyProvider:
-			if engine.ExtractProviderFromResourceType(row.Type) != value {
+			if engine.ExtractProviderFromResourceType(row.Type) != resourcetype.NormalizeProvider(value) {
 				return false
 			}
 		default:

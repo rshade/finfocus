@@ -6,22 +6,14 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
-
-// extractProviderFromType extracts the provider prefix from a Pulumi type token.
-func extractProviderFromType(typeToken string) string {
-	if idx := strings.Index(typeToken, ":"); idx > 0 {
-		return typeToken[:idx]
-	}
-	return ""
-}
 
 // convertEngineStateToHistoryState converts engine.StateResource to
 // history.StateResource for recording to the history store.
@@ -35,7 +27,7 @@ func convertEngineStateToHistoryState(resources []engine.StateResource) []histor
 			URN:      r.URN,
 			CloudID:  r.ID,
 			Type:     r.Type,
-			Provider: extractProviderFromType(r.Type),
+			Provider: resourcetype.ExtractProvider(r.Type),
 			Tags:     history.ExtractTagsFromProperties(r.Properties),
 		})
 	}
@@ -90,7 +82,7 @@ func convertEnginePlanStepsToHistoryPlanSteps(steps []engine.PlanStep) []history
 			Op:         s.Op,
 			URN:        s.URN,
 			Type:       s.Type,
-			Provider:   extractProviderFromType(s.Type),
+			Provider:   resourcetype.ExtractProvider(s.Type),
 			OldCloudID: s.OldCloudID,
 			NewCloudID: s.NewCloudID,
 		})

@@ -49,9 +49,8 @@ const (
 	defaultStorageMonthlyCost   = 5.0   // Default monthly cost for storage resources
 	defaultComputeMonthlyCost   = 20.0  // Default monthly cost for compute resources
 	defaultServiceName          = "default"
-	defaultCurrency             = "USD"     // Default currency for cost calculations
-	batchProcessingThreshold    = 100       // Threshold for enabling batch processing
-	unknownProvider             = "unknown" // Fallback provider name when extraction fails
+	defaultCurrency             = "USD" // Default currency for cost calculations
+	batchProcessingThreshold    = 100   // Threshold for enabling batch processing
 
 	// pulumiInternalPrefix identifies Pulumi's internal resource types (e.g.,
 	// "pulumi:pulumi:Stack") that should be excluded from cost calculations
@@ -2388,8 +2387,7 @@ func matchesFilter(resource ResourceDescriptor, filter string) bool {
 	case "type":
 		return strings.Contains(strings.ToLower(resource.Type), value)
 	case "provider":
-		provider := resourcetype.ExtractProvider(resource.Type)
-		return strings.Contains(strings.ToLower(provider), value)
+		return resourcetype.ExtractProvider(resource.Type) == resourcetype.NormalizeProvider(value)
 	case "service":
 		service := extractService(resource.Type)
 		return strings.Contains(strings.ToLower(service), value)
@@ -2508,12 +2506,7 @@ func (e *Engine) GroupResults(results []CostResult, groupBy GroupBy) []CostResul
 		case GroupByType:
 			key = result.ResourceType
 		case GroupByProvider:
-			// Extract provider from resource type (e.g., "aws:ec2/instance:Instance" -> "aws")
-			if parts := strings.Split(result.ResourceType, ":"); len(parts) > 0 {
-				key = parts[0]
-			} else {
-				key = unknownProvider
-			}
+			key = resourcetype.ExtractProvider(result.ResourceType)
 		case GroupByDate:
 			key = result.StartDate.Format("2006-01-02")
 		case GroupByDaily:

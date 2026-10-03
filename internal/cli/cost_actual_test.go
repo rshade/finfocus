@@ -1145,6 +1145,36 @@ func TestMergeHistoricalResources_AddsHistoricalCloudIDs(t *testing.T) {
 	assert.Equal(t, "aws", result[1].Provider)
 }
 
+func TestMergeHistoricalResources_MatchesEntriesStoredUnderPackageNames(t *testing.T) {
+	t.Parallel()
+
+	current := []engine.ResourceDescriptor{
+		{
+			Type:     "aws-native:ec2:Instance",
+			Provider: "aws",
+			Properties: map[string]interface{}{
+				"pulumi:cloudId": "i-same",
+			},
+		},
+	}
+
+	historical := []history.HistoricalResource{
+		{
+			URN:      "urn:pulumi:dev::app::aws-native:ec2:Instance::web",
+			Type:     "aws-native:ec2:Instance",
+			Provider: "aws-native",
+			CloudIDs: []string{"i-same", "i-old"},
+		},
+	}
+
+	result := cli.MergeHistoricalResources(current, historical)
+
+	require.Len(t, result, 2)
+	assert.Equal(t, "i-old", result[1].Properties["pulumi:cloudId"])
+	assert.Equal(t, "aws", result[1].Provider)
+	assert.Equal(t, "aws-native:ec2:Instance", result[1].Type)
+}
+
 func TestMergeHistoricalResources_DeduplicatesExisting(t *testing.T) {
 	t.Parallel()
 

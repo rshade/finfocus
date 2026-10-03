@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // Property keys for Terraform metadata injected into ResourceDescriptor.Properties.
@@ -42,8 +43,8 @@ func MapTerraformResources(resources []TerraformStateResource) ([]engine.Resourc
 // engine.ResourceDescriptor. The descriptor Type is the raw TF type (e.g.
 // "aws_instance"); type resolution to Pulumi tokens happens later in the CLI
 // layer. Property keys are converted snake_case -> camelCase recursively.
-// The Provider field is the type prefix before the first underscore, which
-// the adapter's SKU/region extraction relies on.
+// The Provider field is the cloud for the type prefix ("azurerm" -> "azure"),
+// which the adapter's SKU/region extraction relies on.
 func MapTerraformResource(
 	resource TerraformStateResource,
 	instance TerraformStateInstance,
@@ -73,14 +74,14 @@ func MapTerraformResource(
 	}, nil
 }
 
-// extractTerraformProvider returns the provider prefix of a TF type
-// ("aws_instance" -> "aws"), or "" when the type has no underscore prefix.
+// extractTerraformProvider returns the cloud for a TF type ("aws_instance" ->
+// "aws", "azurerm_linux_virtual_machine" -> "azure"), or "" when the type has
+// no underscore prefix.
 func extractTerraformProvider(resourceType string) string {
-	idx := strings.Index(resourceType, "_")
-	if idx <= 0 {
+	if strings.Index(resourceType, "_") <= 0 {
 		return ""
 	}
-	return resourceType[:idx]
+	return resourcetype.ExtractProvider(resourceType)
 }
 
 // terraformAddress builds the TF address for a resource instance:
