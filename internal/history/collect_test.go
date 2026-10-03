@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -129,6 +130,63 @@ func TestCollect_FailFastMissingPlugin(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, snaps, 2)
 	assert.Equal(t, []int{1, 2}, []int{snaps[0].Version, snaps[1].Version})
+}
+
+func TestCollect_SkipsPulumiProviderResources(t *testing.T) {
+	t.Parallel()
+	db := openCostDB(t, filepath.Join(t.TempDir(), "dev.history.db"))
+	exp := &fakeExporter{
+		history: historyRows(row(1, "update", "succeeded", "2025-01-15T00:00:00Z", "boot")),
+		exports: map[int][]byte{1: exportWithProviderJSON("urn:web", "t3.micro")},
+	}
+	var sent []string
+	result, err := Collect(context.Background(), db, exp, CollectOptions{
+		Parallel: 1,
+		Pricer: func(_ context.Context, resources []PriceResource) ([]PriceQuote, error) {
+			var quotes []PriceQuote
+			for _, resource := range resources {
+				sent = append(sent, resource.Type)
+				if strings.HasPrefix(resource.Type, "pulumi:") {
+					continue
+				}
+				quotes = append(quotes, priced([]PriceResource{resource}, 10, "aws-public")...)
+			}
+			return quotes, nil
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Stored)
+	assert.Equal(t, []string{"aws:ec2/instance:Instance"}, sent)
+	snaps, err := db.Snapshots(time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.Len(t, snaps, 1)
+	assert.Equal(t, 1, snaps[0].ResourceCount)
+	assert.InDelta(t, 10, snaps[0].TotalMonthly, 0.001)
+}
+
+func TestCollect_ProviderOnlyStackStoresZero(t *testing.T) {
+	t.Parallel()
+	db := openCostDB(t, filepath.Join(t.TempDir(), "dev.history.db"))
+	body, err := json.Marshal(map[string]any{
+		"version": 3,
+		"deployment": map[string]any{
+			"resources": []any{providerResource()},
+		},
+	})
+	require.NoError(t, err)
+	exp := &fakeExporter{
+		history: historyRows(row(1, "update", "succeeded", "2025-01-15T00:00:00Z", "boot")),
+		exports: map[int][]byte{1: body},
+	}
+	result, err := Collect(context.Background(), db, exp, CollectOptions{
+		Parallel: 1,
+		Pricer: func(_ context.Context, resources []PriceResource) ([]PriceQuote, error) {
+			assert.Empty(t, resources)
+			return nil, nil
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.Stored)
 }
 
 func TestCollect_RetryThenSkip(t *testing.T) {
@@ -310,6 +368,33 @@ func exportJSON(urn, instance string) []byte {
 				"urn": urn, "custom": true, "type": "aws:ec2/instance:Instance",
 				"inputs": map[string]any{"instanceType": instance, "region": "us-east-1"},
 			}},
+		},
+	})
+	if err != nil {
+		panic(err)
+	}
+	return body
+}
+
+func providerResource() map[string]any {
+	return map[string]any{
+		"urn": "urn:pulumi:dev::app::pulumi:providers:aws::default", "custom": true,
+		"type":   "pulumi:providers:aws",
+		"inputs": map[string]any{"region": "us-east-1"},
+	}
+}
+
+func exportWithProviderJSON(urn, instance string) []byte {
+	body, err := json.Marshal(map[string]any{
+		"version": 3,
+		"deployment": map[string]any{
+			"resources": []any{
+				providerResource(),
+				map[string]any{
+					"urn": urn, "custom": true, "type": "aws:ec2/instance:Instance",
+					"inputs": map[string]any{"instanceType": instance, "region": "us-east-1"},
+				},
+			},
 		},
 	})
 	if err != nil {

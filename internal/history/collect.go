@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"strings"
 	"sync"
 	"time"
 
@@ -281,6 +282,10 @@ func (j collectJob) one(ctx context.Context, update StackUpdate) error {
 	return j.db.Put(snapshot, AnnotationFrom(update))
 }
 
+// pulumiInternalPrefix marks Pulumi's own resources. Provider resources are
+// custom, but they have no cloud cost and the engine never prices them.
+const pulumiInternalPrefix = "pulumi:"
+
 func resourcesFromExport(data []byte) ([]PriceResource, error) {
 	var file struct {
 		Deployment struct {
@@ -298,7 +303,7 @@ func resourcesFromExport(data []byte) ([]PriceResource, error) {
 	}
 	resources := make([]PriceResource, 0, len(file.Deployment.Resources))
 	for _, resource := range file.Deployment.Resources {
-		if !resource.Custom {
+		if !resource.Custom || strings.HasPrefix(resource.Type, pulumiInternalPrefix) {
 			continue
 		}
 		resources = append(resources, PriceResource{
