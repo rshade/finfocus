@@ -126,11 +126,11 @@ finfocus overview --pulumi-state state.json --pulumi-json plan.json --plain --ye
 Example plain text output (`--plain`). Amounts are sample data:
 
 ```text
-RESOURCE     TYPE                      STATUS       ACTUAL(MTD)  PROJECTED   DELTA       DRIFT%  RECS
---------     ----                      ------       -----------  ---------   -----       ------  ----
-my-instance  aws:ec2/instance:Inst...  ✓ active     $12.40       $15.00      +$6.20      +18% ⚠  2
-my-bucket    aws:s3/bucket:Bucket      ✓ active     $0.83        $1.00       -           -       -
-my-db        aws:rds/instance:Inst...  ✓ active     $48.20       $50.00      -$8.40      -15% ⚠  1
+RESOURCE     TYPE                      STATUS       ACTUAL(MTD)  PROJECTED   DELTA       DRIFT%  RECS  WARN
+--------     ----                      ------       -----------  ---------   -----       ------  ----  ----
+my-instance  aws:ec2/instance:Inst...  ✓ active     $12.40       $15.00      +$6.20      +18% ⚠  2     drift
+my-bucket    aws:s3/bucket:Bucket      ✓ active     $0.83        $1.00       -           -       -     -
+my-db        aws:rds/instance:Inst...  ✓ active     $48.20       $50.00      -$8.40      -15% ⚠  1     drift
 
 SUMMARY      prod                      3 resources  $61.43 USD   $66.00 USD  -$2.20 USD
 ```

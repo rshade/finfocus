@@ -288,6 +288,23 @@ func (e *OverviewRowError) Validate() error {
 	return nil
 }
 
+// OverviewWarning is a condition highlighted in the overview Warn column.
+// estimate and stale are reserved until confidence and cache age are available.
+type OverviewWarning string
+
+const (
+	// WarnDrift means calendar-month drift is above the warning threshold.
+	WarnDrift OverviewWarning = "drift"
+	// WarnEstimate is reserved for low-confidence actual cost.
+	WarnEstimate OverviewWarning = "estimate"
+	// WarnStale is reserved for cached data older than its TTL.
+	WarnStale OverviewWarning = "stale"
+	// WarnError means a cost fetch for this resource failed.
+	WarnError OverviewWarning = "error"
+	// WarnNew means the resource exists only in the pending plan.
+	WarnNew OverviewWarning = "new"
+)
+
 // OverviewRow represents a single resource row in the unified cost overview.
 // Each row combines state, plan, actual costs, projected costs, drift, and
 // recommendations for a resource.
@@ -310,7 +327,10 @@ type OverviewRow struct {
 	Recommendations       []Recommendation   `json:"recommendations,omitempty"`
 	CostDrift             *CostDriftData     `json:"costDrift,omitempty"`
 	Error                 *OverviewRowError  `json:"error,omitempty"`
-	PropertyDiffs         []PropertyDiff     `json:"propertyDiffs,omitempty"`
+	// Warnings lists overview conditions in derivation order: drift, error, new.
+	// estimate and stale are not derived yet.
+	Warnings      []OverviewWarning `json:"warnings,omitempty"`
+	PropertyDiffs []PropertyDiff    `json:"propertyDiffs,omitempty"`
 	// ComputedDelta is the per-row cost delta populated by PopulateComputedDeltas
 	// after enrichment, before any rendering. All renderers (table, JSON, NDJSON,
 	// TUI) read this value instead of computing deltas independently.

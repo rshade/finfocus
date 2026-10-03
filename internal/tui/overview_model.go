@@ -30,11 +30,13 @@ const (
 	colWidthDelta     = 12
 	colWidthDrift     = 8
 	colWidthRecs      = 9
+	// colWidthWarn fits "drift,error,new", the longest derived combination.
+	colWidthWarn = 15
 	// fixedOverviewColumnsTotal is the sum of fixed columns excluding Resource and Type.
 	fixedOverviewColumnsTotal = colWidthStatus + colWidthActual +
-		colWidthProjected + colWidthDelta + colWidthDrift + colWidthRecs
+		colWidthProjected + colWidthDelta + colWidthDrift + colWidthRecs + colWidthWarn
 	// overviewColumnCount is the number of columns in the overview table.
-	overviewColumnCount = 8
+	overviewColumnCount = 9
 	// minResourceColWidth is the minimum width for the Resource column.
 	minResourceColWidth = 12
 	// minTypeColWidth is the minimum width for the Type column.
@@ -697,6 +699,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		{Title: columnTitleDelta, Width: colWidthDelta},
 		{Title: "Drift%", Width: colWidthDrift},
 		{Title: "Recs", Width: colWidthRecs},
+		{Title: "Warn", Width: colWidthWarn},
 	}
 
 	visibleRows := m.getVisibleRows()
@@ -743,6 +746,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 			deltaStr,
 			driftPctStr,
 			recsStr,
+			engine.FormatOverviewWarnings(overviewRow.Warnings),
 		}
 	}
 
