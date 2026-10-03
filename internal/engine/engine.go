@@ -137,6 +137,7 @@ type Engine struct {
 	dismissalStore        *config.DismissalStore // Optional dismissal store; if nil, created on demand
 	jobs                  int                    // Override worker count; 0 means auto (default)
 	pricingSpecFallback   bool                   // GetPricingSpec after a projected-cost miss; default off
+	pricingSpecTimeout    time.Duration          // GetPricingSpec deadline; zero uses perResourceTimeout
 	pricingDiscoveryMu    sync.Mutex             // Guards pricingDiscoveryCache
 	pricingDiscoveryCache map[string]PricingDiscovery
 	supportsCache         map[string]supportsResult // Supports() cache: client, provider, type, region, sku, feature
@@ -657,6 +658,7 @@ func (e *Engine) GetProjectedCost(
 			}
 
 			var resourceResults []CostResult
+			chainStopped := false
 
 			// Select plugin matches using router (if configured) or all clients
 			selectedMatches, declines := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
@@ -689,6 +691,7 @@ func (e *Engine) GetProjectedCost(
 							Str("plugin", client.Name).
 							Err(err).
 							Msg("plugin failed and fallback disabled, stopping fallback chain")
+						chainStopped = true
 						break // Stop trying more plugins
 					}
 					// Log fallback event at INFO level per FR-020
@@ -728,7 +731,7 @@ func (e *Engine) GetProjectedCost(
 
 			if len(resourceResults) == 0 {
 				resourceResults = append(resourceResults,
-					e.projectedFallbackResult(ctx, resource, selectedMatches, declines))
+					e.projectedFallbackResult(ctx, resource, specMatches(selectedMatches, chainStopped), declines))
 			}
 
 			// Store successful results in cache (skip placeholder-only results)
@@ -918,8 +921,15 @@ func (e *Engine) GetProjectedCostWithErrors(
 			}
 
 			if len(resourceResults) == 0 {
-				resourceResults = append(resourceResults,
-					e.projectedFallbackResult(ctx, resource, selectedMatches, declines))
+				resourceResults = append(
+					resourceResults,
+					e.projectedFallbackResult(
+						ctx,
+						resource,
+						specMatches(selectedMatches, fallbackChainBroken),
+						declines,
+					),
+				)
 			}
 
 			// Store successful results in cache (skip placeholder-only results)
@@ -3961,6 +3971,24 @@ func hasOnlyPlaceholderResults(results []CostResult) bool {
 	return true
 }
 
+// pricingSpecCacheSuffix separates cache entries priced with the plugin
+// pricing-spec fallback from those priced without it.
+const pricingSpecCacheSuffix = "/pricing-spec"
+
+// projectedCostCacheKey is the key this engine reads and writes for one
+// resource. With the pricing-spec fallback on, the result can come from
+// GetPricingSpec, so it must not share an entry with a run that has it off.
+func (e *Engine) projectedCostCacheKey(resource ResourceDescriptor) (string, error) {
+	key, err := generateProjectedCostResourceKey(resource)
+	if err != nil {
+		return "", err
+	}
+	if e.pricingSpecFallback {
+		key += pricingSpecCacheSuffix
+	}
+	return key, nil
+}
+
 // ProjectedResourceCacheKey returns the projected-cost cache key for one resource.
 // Callers that seed the cache, including overview, must use this key. It includes
 // a digest of the flattened tag map.
@@ -4059,7 +4087,7 @@ func (e *Engine) tryProjectedCostCache(ctx context.Context, resource ResourceDes
 		return nil
 	}
 
-	key, err := generateProjectedCostResourceKey(resource)
+	key, err := e.projectedCostCacheKey(resource)
 	if err != nil {
 		return nil
 	}
@@ -4094,7 +4122,7 @@ func (e *Engine) storeProjectedCostCache(ctx context.Context, resource ResourceD
 		return
 	}
 
-	key, err := generateProjectedCostResourceKey(resource)
+	key, err := e.projectedCostCacheKey(resource)
 	if err != nil {
 		return
 	}

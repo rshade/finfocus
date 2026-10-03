@@ -119,7 +119,7 @@ func (e *Engine) pricingModeFromClient(
 	if client == nil || client.API == nil {
 		return PricingMode{}, false
 	}
-	spec, err := fetchPluginPricingSpec(ctx, client, resource)
+	spec, err := fetchPluginPricingSpec(ctx, client, resource, e.pricingSpecDeadline())
 	if err != nil || spec == nil {
 		logging.FromContext(ctx).Debug().
 			Ctx(ctx).
