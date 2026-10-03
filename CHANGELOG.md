@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **cli:** `cost history prune` drops snapshots with `--keep` and
+  `--older-than`. `--dry-run` prints the plan. The command asks before
+  deleting unless `--force` or `--yes`, then compacts the database.
+  `cost.history.retention.auto_prune` applies `max_snapshots` and
+  `max_age_days` after `collect` (#555)
 * **cli:** `cost history view` warns when a range mixes currencies and charts
   the currency with the most snapshots. `--currency` keeps one currency.
   `--strict` fails instead of dropping the others (#556)

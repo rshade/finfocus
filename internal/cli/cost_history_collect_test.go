@@ -11,6 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/detect"
 	"github.com/rshade/finfocus/internal/history"
 )
@@ -41,7 +42,7 @@ func TestCollect_ParsesStackHistory(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, stdout.String(), "Detecting Pulumi CLI... v3.120.0")
 	assert.Contains(t, stdout.String(), "[v7 — 2025-05-01]")
-	db := openHistory(t, dir, "dev")
+	db := openHistory(t, dir)
 	snaps, err := db.Snapshots(time.Time{}, time.Time{})
 	require.NoError(t, err)
 	require.Len(t, snaps, 1)
@@ -84,7 +85,7 @@ func TestCollect_IncrementalSkips(t *testing.T) {
 	cmd, stdout := preparedHistoryCmd(t, NewCostHistoryCollectCmd(), "--stack", "dev", "--parallel", "1")
 	require.NoError(t, runCollect(cmd, deps))
 	assert.Contains(t, stdout.String(), "No new versions to collect.")
-	db := openHistory(t, dir, "dev")
+	db := openHistory(t, dir)
 	snaps, err := db.Snapshots(time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.Len(t, snaps, 2)
@@ -106,7 +107,7 @@ func TestCollect_FailFastMissingPlugin(t *testing.T) {
 	})
 	require.ErrorIs(t, err, history.ErrNoPlugin)
 	require.ErrorContains(t, err, "no plugin available for resource type 'aws:ec2/instance:Instance'")
-	db := openHistory(t, dir, "dev")
+	db := openHistory(t, dir)
 	snaps, err := db.Snapshots(time.Time{}, time.Time{})
 	require.NoError(t, err)
 	assert.Empty(t, snaps)
@@ -130,6 +131,41 @@ func TestCollect_MissingPulumiAndStack(t *testing.T) {
 	require.ErrorContains(t, err, "stack 'prod' not found. Available stacks: dev, staging")
 }
 
+func TestCollect_AutoPruneKeepsNewest(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	seedHistory(t, dir, "dev", viewSnap(1, time.January, 10, map[string]float64{"aws": 10}))
+	cfg := config.New()
+	cfg.Cost.History.Retention.AutoPrune = true
+	cfg.Cost.History.Retention.MaxSnapshots = 1
+	cmd, stdout := preparedHistoryCmd(t, NewCostHistoryCollectCmd(), "--stack", "dev", "--parallel", "1")
+	err := runCollect(cmd, collectDeps{
+		dir:  dir,
+		look: pulumiLook,
+		run: scriptedHistoryPulumi(
+			historyBody(t,
+				histRow(1, "2025-01-01T00:00:00Z", "one"),
+				histRow(2, "2025-02-01T00:00:00Z", "two"),
+			),
+			map[int][]byte{
+				1: exportBody("urn:web", "t3.micro"),
+				2: exportBody("urn:web", "t3.micro"),
+			},
+			[]byte(`[{"name":"dev"}]`),
+		),
+		price: fixedPrice(5, "aws-public"),
+		cfg:   cfg,
+	})
+	require.NoError(t, err)
+	assert.Contains(t, stdout.String(), "Pruned 1 snapshots (retention policy).")
+	assert.Contains(t, stdout.String(), "Compacted database:")
+	db := openHistory(t, dir)
+	snaps, err := db.Snapshots(time.Time{}, time.Time{})
+	require.NoError(t, err)
+	require.Len(t, snaps, 1)
+	assert.Equal(t, 2, snaps[0].Version)
+}
+
 func fixedPrice(monthly float64, adapter string) history.Pricer {
 	return func(_ context.Context, resources []history.PriceResource) ([]history.PriceQuote, error) {
 		results := make([]history.PriceQuote, 0, len(resources))
@@ -146,9 +182,9 @@ func fixedPrice(monthly float64, adapter string) history.Pricer {
 	}
 }
 
-func openHistory(t *testing.T, dir, stack string) *history.CostDB {
+func openHistory(t *testing.T, dir string) *history.CostDB {
 	t.Helper()
-	path := filepath.Join(dir, stack+".history.db")
+	path := filepath.Join(dir, "dev.history.db")
 	db, err := history.OpenCostDBRead(path)
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })

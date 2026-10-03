@@ -734,6 +734,35 @@ cost:
 	assert.Empty(t, cfg.Cost.History.Directory, "empty when omitted")
 }
 
+func TestHistoryRetention_YAMLAndValidate(t *testing.T) {
+	t.Parallel()
+
+	yamlData := `
+cost:
+  history:
+    retention:
+      max_snapshots: 1000
+      max_age_days: 365
+      auto_prune: true
+`
+	var cfg struct {
+		Cost config.CostConfig `yaml:"cost"`
+	}
+	err := yaml.Unmarshal([]byte(yamlData), &cfg)
+	require.NoError(t, err)
+	assert.Equal(t, 1000, cfg.Cost.History.Retention.MaxSnapshots)
+	assert.Equal(t, 365, cfg.Cost.History.Retention.MaxAgeDays)
+	assert.True(t, cfg.Cost.History.Retention.AutoPrune)
+	require.NoError(t, cfg.Cost.History.Validate())
+
+	negative := config.HistoryConfig{}
+	negative.Retention.MaxSnapshots = -1
+	require.ErrorContains(t, negative.Validate(), "max_snapshots")
+	negative.Retention.MaxSnapshots = 0
+	negative.Retention.MaxAgeDays = -5
+	require.ErrorContains(t, negative.Validate(), "max_age_days")
+}
+
 func TestHistoryConfig_YAMLExplicitValues(t *testing.T) {
 	t.Parallel()
 
