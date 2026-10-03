@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **cli:** `cost history diff` compares two stored snapshots by resource
+  URN. `--from` and `--to` accept a version (`v35`) or a date. `--to`
+  defaults to the latest snapshot. `--threshold` hides small monthly
+  changes, and `--output json` prints the delta (#554)
 * **cli:** `cost history prune` drops snapshots with `--keep` and
   `--older-than`. `--dry-run` prints the plan. The command asks before
   deleting unless `--force` or `--yes`, then compacts the database.
