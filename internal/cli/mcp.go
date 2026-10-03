@@ -46,6 +46,10 @@ var mcpExcludedCommands = []mcpExclusion{
 		reason: "long-running Pulumi gRPC handshake; it would block the serialized MCP dispatcher forever",
 	},
 	{
+		path:   []string{"cost", "history", "collect"},
+		reason: "runs for minutes, one stack export and pricing pass per version, and would stall the serialized MCP dispatcher",
+	},
+	{
 		path:   []string{"setup"},
 		reason: "interactive first-run wizard",
 	},

@@ -8,7 +8,6 @@ finfocus-config-validate
 finfocus-cost-actual
 finfocus-cost-cluster
 finfocus-cost-estimate
-finfocus-cost-history-collect
 finfocus-cost-history-diff
 finfocus-cost-history-export
 finfocus-cost-history-list

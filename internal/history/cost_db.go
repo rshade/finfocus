@@ -323,20 +323,11 @@ func (d *CostDB) Stats() (CostDBStats, error) {
 	if err != nil {
 		return CostDBStats{}, fmt.Errorf("statting cost history: %w", err)
 	}
-	snapshots, err := d.Snapshots(time.Time{}, time.Time{})
-	if err != nil {
-		return CostDBStats{}, err
-	}
-	stats := CostDBStats{
-		Path:      d.path,
-		Snapshots: len(snapshots),
-		Size:      info.Size(),
-	}
-	if len(snapshots) > 0 {
-		stats.First = snapshots[0].Timestamp
-		stats.Last = snapshots[len(snapshots)-1].Timestamp
-	}
+	stats := CostDBStats{Path: d.path, Size: info.Size()}
 	err = d.db.View(func(tx *bolt.Tx) error {
+		if boundsErr := snapshotBounds(tx, &stats); boundsErr != nil {
+			return boundsErr
+		}
 		meta := tx.Bucket([]byte(costBucketMeta))
 		if meta == nil {
 			return errors.New("cost history buckets are missing")
@@ -360,32 +351,82 @@ func (d *CostDB) Stats() (CostDBStats, error) {
 	return stats, nil
 }
 
-// ListCostDBs opens every `*.history.db` in dir. A missing directory is an empty list.
+// snapshotBounds fills the snapshot count and the first and last timestamps
+// from the bucket's key count and its two end keys, so it does not decode every
+// snapshot (each holds its priced resources) just to list a database.
+func snapshotBounds(tx *bolt.Tx, stats *CostDBStats) error {
+	bucket := tx.Bucket([]byte(costBucketSnapshots))
+	if bucket == nil {
+		return nil
+	}
+	stats.Snapshots = bucket.Stats().KeyN
+	cursor := bucket.Cursor()
+	var err error
+	if _, value := cursor.First(); value != nil {
+		if stats.First, err = snapshotTimestamp(value); err != nil {
+			return err
+		}
+	}
+	if _, value := cursor.Last(); value != nil {
+		if stats.Last, err = snapshotTimestamp(value); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func snapshotTimestamp(value []byte) (time.Time, error) {
+	var head struct {
+		Timestamp time.Time `json:"timestamp"`
+	}
+	if err := json.Unmarshal(value, &head); err != nil {
+		return time.Time{}, fmt.Errorf("decoding snapshot: %w", err)
+	}
+	return head.Timestamp, nil
+}
+
+// CostDBIssue is a cost history database that could not be listed.
+type CostDBIssue struct {
+	Path string
+	Err  error
+}
+
+// ListCostDBs opens every `*.history.db` in dir and fails on the first one it
+// cannot read. A missing directory is an empty list.
 func ListCostDBs(dir string) ([]CostDBStats, error) {
+	stats, issues, err := ListCostDBsLenient(dir)
+	if err != nil {
+		return nil, err
+	}
+	if len(issues) > 0 {
+		return nil, issues[0].Err
+	}
+	return stats, nil
+}
+
+// ListCostDBsLenient lists every readable `*.history.db` in dir and reports the
+// ones it could not read, such as a database locked by a long collect or a
+// damaged file, instead of failing the whole listing. The error is only for an
+// unreadable directory. A missing directory is an empty list.
+func ListCostDBsLenient(dir string) ([]CostDBStats, []CostDBIssue, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return []CostDBStats{}, nil
+			return []CostDBStats{}, nil, nil
 		}
-		return nil, fmt.Errorf("reading cost history directory: %w", err)
+		return nil, nil, fmt.Errorf("reading cost history directory: %w", err)
 	}
 	stats := make([]CostDBStats, 0, len(entries))
+	var issues []CostDBIssue
 	for _, entry := range entries {
 		if entry.IsDir() || !IsCostHistoryFile(entry.Name()) {
 			continue
 		}
 		path := filepath.Join(dir, entry.Name())
-		db, openErr := OpenCostDBRead(path)
-		if openErr != nil {
-			return nil, openErr
-		}
-		item, statErr := db.Stats()
-		closeErr := db.Close()
+		item, statErr := statsFor(path)
 		if statErr != nil {
-			return nil, statErr
-		}
-		if closeErr != nil {
-			return nil, closeErr
+			issues = append(issues, CostDBIssue{Path: path, Err: statErr})
+			continue
 		}
 		stats = append(stats, item)
 	}
@@ -395,7 +436,23 @@ func ListCostDBs(dir string) ([]CostDBStats, error) {
 		}
 		return stats[i].Project < stats[j].Project
 	})
-	return stats, nil
+	return stats, issues, nil
+}
+
+func statsFor(path string) (CostDBStats, error) {
+	db, err := OpenCostDBRead(path)
+	if err != nil {
+		return CostDBStats{}, err
+	}
+	item, statErr := db.Stats()
+	closeErr := db.Close()
+	if statErr != nil {
+		return CostDBStats{}, statErr
+	}
+	if closeErr != nil {
+		return CostDBStats{}, closeErr
+	}
+	return item, nil
 }
 
 func (d *CostDB) now() time.Time {

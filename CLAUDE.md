@@ -583,6 +583,14 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   before pricing, because the engine never prices them. `internal/history` must not import
   `engine` or `ingest` (`engine` already imports `history`). The parent
   `cost --stack` flag is reused; history subcommands do not redeclare it
+- **Cost history collect details**: `pulumiExporter.History` reads
+  `pulumi stack history` page by page (page size 100), stops on a
+  short page or a page with no new versions, and asks once without paging flags
+  if the CLI rejects them, because the default page is 10 updates. `import` and
+  `refresh` updates are not collected (a checkpoint is a deployment; their cost
+  shows at the next update). `history list` skips an unreadable or locked database
+  with a stderr warning (`ListCostDBsLenient`), and `Stats` reads only the key
+  count and the two end snapshots. `view --provider` errors on an unknown provider.
 - **Cost history currencies**: `cost history view` warns and keeps the
   dominant currency (most snapshots; a tie keeps the newer timestamp, then
   the earlier code). `--currency` filters and does not warn. `--strict`
@@ -836,7 +844,8 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   call, but only on a real server. Nested `ExecuteContext` in unit tests does
   not reset, so assert cross-call `--output` behavior in the integration test
 - **Exclusion**: `applyMCPExclusions` marks `mcpExcludedCommands` (root,
-  `analyzer serve`, `setup`, `plugin init`) with ax-go's node-only `mcp.Exclude`
+  `analyzer serve`, `cost history collect` (minutes-long, would stall the serialized
+  dispatcher), `setup`, `plugin init`) with ax-go's node-only `mcp.Exclude`
   at tree build time; they stay in `--help`. ax-go (v0.7.0+) skips `help` and
   non-runnable groups itself. Never use `Hidden` to exclude a root/group: ax-go
   prunes the whole subtree. `withPositionalCommandsHidden` still hides

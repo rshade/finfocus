@@ -23,9 +23,12 @@ func NewCostHistoryListCmd() *cobra.Command {
 }
 
 func runList(cmd *cobra.Command, dir string) error {
-	stats, err := history.ListCostDBs(historyDir(dir))
+	stats, issues, err := history.ListCostDBsLenient(historyDir(dir))
 	if err != nil {
 		return err
+	}
+	for _, issue := range issues {
+		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: skipped %s: %v\n", issue.Path, issue.Err)
 	}
 	if machineOutputRequested(cmd) {
 		return writeJSON(cmd, historyListItems(stats))
