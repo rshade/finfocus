@@ -925,7 +925,11 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 - **Skill install (`internal/pluginskill/`)**: `plugin init` and `plugin upgrade`
   run `npx -y skills@1.7.0 add <finfocus tree URL> --skill finfocus-plugin-dev
   --skill finfocus-plugin-upgrade --agent codex --agent claude-code --copy -y`
-  in the plugin directory. Without `--agent` the skills CLI writes a copy for
+  in an empty temp directory, then copies the two skill directories into the
+  plugin and merges their `skills-lock.json` entries. Never run npx in the
+  plugin directory: npx honors its `.npmrc` (registry) and `node_modules`
+  (local `skills` package), so an untrusted checkout could run its own code.
+  Without `--agent` the skills CLI writes a copy for
   every agent it detects (`.bob`, `.grok`, ...). The source is the release tag
   only for a clean semver newer than v0.4.0 (the last tag without the skill),
   else `main`. Upgrade re-runs `add`, not `skills update`, because `update`

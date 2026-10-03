@@ -6,6 +6,7 @@ package pluginskill
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -39,6 +40,8 @@ const (
 	lastReleaseWithoutSkill = "v0.4.0"
 
 	outputTailLines = 8
+
+	lockFile = "skills-lock.json"
 )
 
 // Skills are the skills installed into a plugin project.
@@ -115,8 +118,13 @@ func Skipped(version, reason string) Result {
 	}
 }
 
-// Install runs the skills CLI in dir. It never returns an error: problems are
-// reported in Result.Warning together with the command to run later.
+// Install installs the skills into dir. It never returns an error: problems
+// are reported in Result.Warning together with the command to run later.
+//
+// The skills CLI runs in an empty staging directory, never in dir: npx reads
+// .npmrc and node_modules from its working directory, and a plugin checkout
+// is not trusted to choose the registry or the package that runs. Only the
+// installed skill directories and their lockfile entries are copied into dir.
 func (i Installer) Install(ctx context.Context, dir, version string) Result {
 	res := Result{Source: Source(version), Command: Command(version)}
 
@@ -126,6 +134,13 @@ func (i Installer) Install(ctx context.Context, dir, version string) Result {
 		return res
 	}
 
+	stage, err := os.MkdirTemp("", "finfocus-skills-")
+	if err != nil {
+		res.Warning = fmt.Sprintf("creating a staging directory for the skills CLI: %v", err)
+		return res
+	}
+	defer os.RemoveAll(stage)
+
 	timeout := i.Timeout
 	if timeout <= 0 {
 		timeout = DefaultTimeout
@@ -134,7 +149,7 @@ func (i Installer) Install(ctx context.Context, dir, version string) Result {
 	defer cancel()
 
 	env := []string{"DO_NOT_TRACK=1", "DISABLE_TELEMETRY=1"}
-	out, err := i.Run(runCtx, dir, env, npx, Args(version)[1:]...)
+	out, err := i.Run(runCtx, stage, env, npx, Args(version)[1:]...)
 	if err != nil {
 		if errors.Is(runCtx.Err(), context.DeadlineExceeded) {
 			res.Warning = fmt.Sprintf("skills CLI timed out after %s", timeout)
@@ -147,28 +162,10 @@ func (i Installer) Install(ctx context.Context, dir, version string) Result {
 		return res
 	}
 
-	// The skills CLI exits 0 even when a requested skill is missing from the
-	// source, so only files that now exist count as installed.
-	var missing []string
-	for _, s := range Skills {
-		found := false
-		for _, a := range agentDirs {
-			p := path.Join(a.dir, s)
-			if exists(dir, p) {
-				res.Paths = append(res.Paths, p)
-				found = true
-			}
-		}
-		if !found {
-			missing = append(missing, s)
-		}
-	}
-	if exists(dir, "skills-lock.json") {
-		res.Paths = append(res.Paths, "skills-lock.json")
-	}
-	slices.Sort(res.Paths)
+	paths, missing, warnings := publish(stage, dir)
+	res.Paths = paths
+	res.Installed = len(missing) == 0 && len(warnings) == 0
 
-	var warnings []string
 	if len(missing) > 0 {
 		warnings = append(warnings, fmt.Sprintf("skills CLI did not install %s from %s",
 			strings.Join(missing, ", "), res.Source))
@@ -177,14 +174,111 @@ func (i Installer) Install(ctx context.Context, dir, version string) Result {
 		warnings = append(warnings, fmt.Sprintf(
 			"finfocus %q is not a release build; skills come from main and may not match this binary", version))
 	}
-	res.Installed = len(missing) == 0
 	res.Warning = strings.Join(warnings, "\n")
 	return res
 }
 
-func exists(dir, rel string) bool {
-	_, err := os.Stat(filepath.Join(dir, filepath.FromSlash(rel)))
-	return err == nil
+// publish copies the skill directories the skills CLI wrote in stage into dir
+// and merges their lockfile entries. The skills CLI exits 0 even when a
+// requested skill is missing from the source, so only skills it actually
+// wrote are reported as installed; the rest are returned as missing.
+func publish(stage, dir string) ([]string, []string, []string) {
+	var paths, missing, warnings []string
+	for _, s := range Skills {
+		found := false
+		for _, a := range agentDirs {
+			rel := path.Join(a.dir, s)
+			src := filepath.Join(stage, filepath.FromSlash(rel))
+			if info, err := os.Stat(src); err != nil || !info.IsDir() {
+				continue
+			}
+			if err := replaceDir(src, filepath.Join(dir, filepath.FromSlash(rel))); err != nil {
+				warnings = append(warnings, fmt.Sprintf("copying %s: %v", rel, err))
+				continue
+			}
+			paths = append(paths, rel)
+			found = true
+		}
+		if !found {
+			missing = append(missing, s)
+		}
+	}
+	if len(paths) > 0 {
+		if err := mergeLock(filepath.Join(stage, lockFile), filepath.Join(dir, lockFile)); err != nil {
+			warnings = append(warnings, fmt.Sprintf("%s not updated: %v", lockFile, err))
+		} else {
+			paths = append(paths, lockFile)
+		}
+	}
+	slices.Sort(paths)
+	return paths, missing, warnings
+}
+
+// replaceDir replaces dst with a copy of src, so files an older install had
+// and the new one does not are removed. [os.CopyFS] rejects symlinks.
+func replaceDir(src, dst string) error {
+	if err := os.RemoveAll(dst); err != nil {
+		return err
+	}
+	return os.CopyFS(dst, os.DirFS(src))
+}
+
+// mergeLock sets the entries of the installed skills in the project's
+// skills-lock.json from the staged one and keeps every other entry. A project
+// lockfile that cannot be parsed is left unchanged.
+func mergeLock(stagedPath, projectPath string) error {
+	staged, err := readLock(stagedPath)
+	if err != nil {
+		return fmt.Errorf("reading the skills CLI lockfile: %w", err)
+	}
+	project := map[string]json.RawMessage{}
+	if _, statErr := os.Stat(projectPath); statErr == nil {
+		if project, err = readLock(projectPath); err != nil {
+			return err
+		}
+	}
+
+	stagedSkills := map[string]json.RawMessage{}
+	if raw, ok := staged["skills"]; ok {
+		if err = json.Unmarshal(raw, &stagedSkills); err != nil {
+			return fmt.Errorf("reading the skills CLI lockfile: %w", err)
+		}
+	}
+	projectSkills := map[string]json.RawMessage{}
+	if raw, ok := project["skills"]; ok {
+		if err = json.Unmarshal(raw, &projectSkills); err != nil {
+			return err
+		}
+	}
+	for _, s := range Skills {
+		if entry, ok := stagedSkills[s]; ok {
+			projectSkills[s] = entry
+		}
+	}
+	if project["skills"], err = json.Marshal(projectSkills); err != nil {
+		return err
+	}
+	if _, ok := project["version"]; !ok {
+		project["version"] = staged["version"]
+	}
+
+	data, err := json.MarshalIndent(project, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(projectPath, append(data, '\n'), 0o644) //nolint:gosec // committed project file, not a secret
+}
+
+func readLock(p string) (map[string]json.RawMessage, error) {
+	data, err := os.ReadFile(p)
+	if err != nil {
+		return nil, err
+	}
+	lock := map[string]json.RawMessage{}
+	if err = json.Unmarshal(data, &lock); err != nil {
+		return nil, err
+	}
+	return lock, nil
 }
 
 func releaseTag(version string) (string, bool) {
