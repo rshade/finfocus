@@ -469,7 +469,10 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `docs/src/content/docs/commands/overview.md`. Root `README.md` links there.
   `docs/commands/overview.md` is not a file. Plain headers are
   `ACTUAL(MTD)` and `PROJECTED` (`PROJECTED*` in state-only mode). Delta comes
-  from `CalculateRowDelta`, not projected minus month-to-date
+  from `CalculateRowDelta`, not projected minus month-to-date. The Warn column
+  repeats a shown drift as `drift` and also lists `error` and `new`. The TUI
+  cell uses `name+N` when that list does not fit in 7 columns. `estimate` and
+  `stale` exist on `OverviewWarning` and are not derived
 - **Cost table flags**: `--show-breakdown` on `cost projected` and `cost actual`
   adds alphabetical component sub-rows in the plain table (`├─`, last row `└─`).
   Empty maps, nil maps, and empty keys add no sub-rows. `--show-confidence`

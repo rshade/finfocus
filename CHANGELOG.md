@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **overview:** add a Warn column to the plain table and the TUI, and a
+  `warnings` array on JSON and NDJSON rows. Derived values are `drift`,
+  `error`, and `new`. The TUI shows `name+N` when the list does not fit (#643)
 * **engine:** pass referenced resource region and SKU to plugins as `ref.*` tags
   resolved from Pulumi `propertyDependencies` (#1610)
 * **engine:** emit nested resource inputs as dotted tag keys and include that

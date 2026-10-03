@@ -133,11 +133,11 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 	}
 
 	// Header
-	header := "RESOURCE\tTYPE\tSTATUS\tACTUAL(MTD)\t" + projectedHeader + "\tDELTA\tDRIFT%\tRECS\n"
+	header := "RESOURCE\tTYPE\tSTATUS\tACTUAL(MTD)\t" + projectedHeader + "\tDELTA\tDRIFT%\tRECS\tWARN\n"
 	if _, err := fmt.Fprint(tw, header); err != nil {
 		return fmt.Errorf("writing header: %w", err)
 	}
-	sep := "--------\t----\t------\t-----------\t" + projectedSep + "\t-----\t------\t----\n"
+	sep := "--------\t----\t------\t-----------\t" + projectedSep + "\t-----\t------\t----\t----\n"
 	if _, err := fmt.Fprint(tw, sep); err != nil {
 		return fmt.Errorf("writing separator: %w", err)
 	}
@@ -164,9 +164,10 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 			recs = formatRecsColumn(row)
 		}
 
-		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
+		warn := FormatOverviewWarnings(row.Warnings)
+		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
 			resource, resType, statusStr,
-			actual, projected, delta, drift, recs,
+			actual, projected, delta, drift, recs, warn,
 		); err != nil {
 			return fmt.Errorf("writing row: %w", err)
 		}
@@ -230,6 +231,19 @@ func formatDriftColumn(row OverviewRow) string {
 		result += " \u26a0"
 	}
 	return result
+}
+
+// FormatOverviewWarnings renders the Warn column. An empty list is "-".
+// Names stay in derivation order.
+func FormatOverviewWarnings(warnings []OverviewWarning) string {
+	if len(warnings) == 0 {
+		return "-"
+	}
+	parts := make([]string, len(warnings))
+	for i, warning := range warnings {
+		parts[i] = string(warning)
+	}
+	return strings.Join(parts, ",")
 }
 
 func formatRecsColumn(row OverviewRow) string {
@@ -304,7 +318,7 @@ func checkCurrency(current *string, next string) error {
 
 // renderSummaryFooter writes the summary line at the bottom of the table.
 func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx StackContext) error {
-	if _, err := fmt.Fprintf(tw, "\t\t\t\t\t\t\t\n"); err != nil {
+	if _, err := fmt.Fprintf(tw, "\t\t\t\t\t\t\t\t\n"); err != nil {
 		return err
 	}
 
@@ -321,7 +335,7 @@ func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx Stac
 		}
 	}
 
-	if _, writeErr := fmt.Fprintf(tw, "SUMMARY\t%s\t%d resources\t%s\t%s\t%s\t\t\n",
+	if _, writeErr := fmt.Fprintf(tw, "SUMMARY\t%s\t%d resources\t%s\t%s\t%s\t\t\t\n",
 		stackCtx.StackName,
 		stackCtx.TotalResources,
 		FormatOverviewCurrency(t.actual)+" "+t.currency,
@@ -332,7 +346,7 @@ func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx Stac
 	}
 
 	if t.savings > 0 {
-		if _, writeErr := fmt.Fprintf(tw, "\t\t\t\tPotential Savings:\t%s %s\t\t\n",
+		if _, writeErr := fmt.Fprintf(tw, "\t\t\t\tPotential Savings:\t%s %s\t\t\t\n",
 			FormatOverviewCurrency(t.savings), t.currency); writeErr != nil {
 			return writeErr
 		}
@@ -340,7 +354,7 @@ func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx Stac
 
 	if stackCtx.HasChanges {
 		if _, writeErr := fmt.Fprintf(tw,
-			"\t\t\t\t%d pending changes\t\t\t\n",
+			"\t\t\t\t%d pending changes\t\t\t\t\n",
 			stackCtx.PendingChanges,
 		); writeErr != nil {
 			return writeErr

@@ -110,6 +110,25 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 	if row.ActualCost != nil && row.ProjectedCost != nil {
 		enrichCostDrift(row, dateRange)
 	}
+	deriveWarnings(row)
+}
+
+// deriveWarnings fills row.Warnings from drift, fetch errors, and creating
+// status. estimate and stale stay unset until their source data exists.
+func deriveWarnings(row *OverviewRow) {
+	if row == nil {
+		return
+	}
+	row.Warnings = nil
+	if row.CostDrift != nil && row.CostDrift.IsWarning {
+		row.Warnings = append(row.Warnings, WarnDrift)
+	}
+	if row.Error != nil {
+		row.Warnings = append(row.Warnings, WarnError)
+	}
+	if row.Status == StatusCreating {
+		row.Warnings = append(row.Warnings, WarnNew)
+	}
 }
 
 func projectedPropertiesForRow(row OverviewRow) map[string]any {

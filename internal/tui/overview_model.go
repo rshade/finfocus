@@ -30,11 +30,14 @@ const (
 	colWidthDelta     = 12
 	colWidthDrift     = 8
 	colWidthRecs      = 9
+	// colWidthWarn fits "drift+2", the longest compact cell for the derived
+	// warnings. A wider column would take the spare Resource width at 120 columns.
+	colWidthWarn = 7
 	// fixedOverviewColumnsTotal is the sum of fixed columns excluding Resource and Type.
 	fixedOverviewColumnsTotal = colWidthStatus + colWidthActual +
-		colWidthProjected + colWidthDelta + colWidthDrift + colWidthRecs
+		colWidthProjected + colWidthDelta + colWidthDrift + colWidthRecs + colWidthWarn
 	// overviewColumnCount is the number of columns in the overview table.
-	overviewColumnCount = 8
+	overviewColumnCount = 9
 	// minResourceColWidth is the minimum width for the Resource column.
 	minResourceColWidth = 12
 	// minTypeColWidth is the minimum width for the Type column.
@@ -680,6 +683,17 @@ func (m *OverviewModel) rebuildTable() {
 	m.table = m.buildOverviewTable()
 }
 
+// formatOverviewWarnCell renders the TUI Warn cell. The comma-separated list
+// is kept when it fits in the column. A longer list shows the first name and
+// +N for the rest, so Resource keeps its width on a 120-column terminal.
+func formatOverviewWarnCell(warnings []engine.OverviewWarning) string {
+	full := engine.FormatOverviewWarnings(warnings)
+	if utf8.RuneCountInString(full) <= colWidthWarn {
+		return full
+	}
+	return string(warnings[0]) + "+" + strconv.Itoa(len(warnings)-1)
+}
+
 // buildOverviewTable creates a new table model with current configuration.
 func (m *OverviewModel) buildOverviewTable() table.Model {
 	projectedHeader := "Projected"
@@ -697,6 +711,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		{Title: columnTitleDelta, Width: colWidthDelta},
 		{Title: "Drift%", Width: colWidthDrift},
 		{Title: "Recs", Width: colWidthRecs},
+		{Title: "Warn", Width: colWidthWarn},
 	}
 
 	visibleRows := m.getVisibleRows()
@@ -743,6 +758,7 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 			deltaStr,
 			driftPctStr,
 			recsStr,
+			formatOverviewWarnCell(overviewRow.Warnings),
 		}
 	}
 

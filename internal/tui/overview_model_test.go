@@ -397,17 +397,17 @@ func TestOverviewModel_ResourceColumnWidth(t *testing.T) {
 		{
 			name:     "medium terminal 120",
 			width:    120,
-			expected: 21,
+			expected: 12,
 		},
 		{
 			name:     "wide terminal 160",
 			width:    160,
-			expected: 61,
+			expected: 52,
 		},
 		{
 			name:     "very wide terminal keeps preferred minimum and adds extra",
 			width:    220,
-			expected: 121,
+			expected: 112,
 		},
 	}
 
@@ -590,7 +590,8 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 
 			tableRows := tableModel.Rows()
 			require.Len(t, tableRows, 1)
-			require.Len(t, tableRows[0], 8)
+			require.Len(t, tableRows[0], 9)
+			assert.Equal(t, engine.FormatOverviewWarnings(tt.row.Warnings), tableRows[0][8])
 
 			expectedStatus := fmt.Sprintf(
 				"%s %s", engine.StatusIcon(tt.row.Status), tt.row.Status.String(),
@@ -622,7 +623,7 @@ func TestOverviewModel_BuildOverviewTable_PrioritizesLongType(t *testing.T) {
 	}
 
 	model, _ := NewOverviewModel(ctx, []engine.OverviewRow{row}, 1, nil, nil)
-	model.width = 130
+	model.width = 160
 
 	// With this width budget and row data, the full type should fit without truncation.
 	assert.Equal(t, utf8.RuneCountInString(row.Type), model.typeColumnWidth())
