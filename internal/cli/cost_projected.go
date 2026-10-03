@@ -48,6 +48,7 @@ type costProjectedParams struct {
 	filter         []string
 	utilization    float64
 	jobs           int
+	showBreakdown  bool
 }
 
 // NewCostProjectedCmd returns a Cobra command configured to calculate projected costs
@@ -64,6 +65,7 @@ type costProjectedParams struct {
 //   - --filter: repeatable resource filter expressions (e.g., "type=aws:ec2/instance").
 //   - --utilization: utilization rate for sustainability calculations (0.0 to 1.0).
 //   - --jobs, -j: number of parallel workers (0 = auto based on CPU count).
+//   - --show-breakdown: per-component sub-rows in table output. JSON and NDJSON ignore it.
 //
 // The returned command is ready to be added to the application's command tree.
 func NewCostProjectedCmd() *cobra.Command {
@@ -99,6 +101,8 @@ Use --stack to target a specific stack during auto-detection.`,
 		&params.utilization, "utilization", 1.0, "Utilization rate for sustainability calculations (0.0 to 1.0)")
 	cmd.Flags().IntVarP(&params.jobs, "jobs", "j", 0,
 		"Number of parallel workers (0 = auto based on CPU count)")
+	cmd.Flags().BoolVar(&params.showBreakdown, "show-breakdown", false,
+		"Show per-component cost sub-rows in table output")
 
 	return cmd
 }
@@ -208,7 +212,8 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 
 	fetchAndMergeRecommendations(ctx, eng, resources, resultWithErrors.Results)
 
-	if renderErr := RenderCostOutput(ctx, cmd, params.output, resultWithErrors); renderErr != nil {
+	renderErr := RenderCostOutput(ctx, cmd, params.output, resultWithErrors, params.showBreakdown)
+	if renderErr != nil {
 		return renderErr
 	}
 

@@ -33,6 +33,14 @@ const (
 	maxResourceDisplayLen = 40
 	// truncationEllipsis is the string to append when truncating resource names.
 	truncationEllipsis = "..."
+	// projectedDetailColumns is the Resource Details column count, including Notes.
+	projectedDetailColumns = 7
+	// monthlyCostColumn is the Monthly column in the projected resource table.
+	monthlyCostColumn = 2
+	// actualCostColumn is the Total Cost column in the actual resource table.
+	actualCostColumn      = 2
+	breakdownBranchPrefix = "  ├─ "
+	breakdownLastPrefix   = "  └─ "
 )
 
 // RenderResults renders the given cost results using the specified output format.
@@ -53,7 +61,7 @@ func RenderResultsWithContext(ctx context.Context, writer io.Writer, format Outp
 
 	switch format {
 	case OutputTable:
-		return renderTable(ctx, writer, aggregated)
+		return renderTable(ctx, writer, aggregated, false)
 	case OutputJSON:
 		return renderJSON(writer, aggregated)
 	case OutputNDJSON:
@@ -81,7 +89,7 @@ func RenderResultsWithContext(ctx context.Context, writer io.Writer, format Outp
 func RenderActualCostResults(writer io.Writer, format OutputFormat, results []CostResult, showConfidence bool) error {
 	switch format {
 	case OutputTable:
-		return renderActualCostTable(writer, results, showConfidence)
+		return renderActualCostTable(writer, results, showConfidence, false)
 	case OutputJSON:
 		return RenderActualCostJSON(writer, results, showConfidence)
 	case OutputNDJSON:
@@ -163,6 +171,26 @@ func RenderCrossProviderAggregation(
 	}
 }
 
+// CostTableOptions selects optional table columns and component sub-rows.
+// JSON and NDJSON renderers ignore these fields.
+type CostTableOptions struct {
+	ShowBreakdown  bool
+	ShowConfidence bool
+}
+
+// RenderCostTable writes the projected cost table.
+// ShowBreakdown adds one sub-row per component, sorted by name.
+// An empty breakdown adds no sub-rows.
+func RenderCostTable(writer io.Writer, results []CostResult, opts CostTableOptions) error {
+	return renderTable(context.Background(), writer, AggregateResults(results), opts.ShowBreakdown)
+}
+
+// RenderActualCostTable writes the per-resource actual cost table.
+// ShowConfidence adds the Confidence column. ShowBreakdown adds component sub-rows.
+func RenderActualCostTable(writer io.Writer, results []CostResult, opts CostTableOptions) error {
+	return renderActualCostTable(writer, results, opts.ShowConfidence, opts.ShowBreakdown)
+}
+
 // renderTable writes a human-readable cost table for the given aggregated results to stdout.
 // It prints a cost summary (total monthly/hourly and resource count), optional breakdowns by
 // provider, service, and adapter, and a detailed per-resource table with columns for Resource,
@@ -180,13 +208,13 @@ func RenderCrossProviderAggregation(
 // writer is the destination for the rendered table. aggregated contains the precomputed
 // results to render.
 // Returns an error if writing to or flushing the tabulated output fails.
-func renderTable(ctx context.Context, writer io.Writer, aggregated *AggregatedResults) error {
+func renderTable(ctx context.Context, writer io.Writer, aggregated *AggregatedResults, showBreakdown bool) error {
 	w := tabwriter.NewWriter(writer, 0, 0, defaultTabPadding, ' ', 0)
 
 	renderSummary(w, aggregated)
 	renderBreakdowns(w, aggregated)
 	renderSustainabilitySummary(ctx, w, aggregated)
-	renderResourceDetails(w, aggregated)
+	renderResourceDetails(w, aggregated, showBreakdown)
 
 	return w.Flush()
 }
@@ -394,7 +422,7 @@ func renderCarbonEquivalencies(ctx context.Context, w io.Writer, sustainTotals m
 // renderResourceDetails writes the "RESOURCE DETAILS" table to w for each resource contained in aggregated.
 // The table includes the columns: Resource, Adapter, Monthly, Hourly, Currency, Recommendations, and Notes.
 // aggregated supplies the aggregated resource entries to render; output is written in tab-separated columns.
-func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
+func renderResourceDetails(w io.Writer, aggregated *AggregatedResults, showBreakdown bool) {
 	fmt.Fprintf(w, "RESOURCE DETAILS\n")
 	fmt.Fprintf(w, "================\n")
 	fmt.Fprintln(w, "Resource\tAdapter\tMonthly\tHourly\tCurrency\tRecommendations\tNotes")
@@ -418,7 +446,39 @@ func renderResourceDetails(w io.Writer, aggregated *AggregatedResults) {
 			recs,
 			notes,
 		)
+		if showBreakdown {
+			writeBreakdownSubrows(w, result.Breakdown, projectedDetailColumns, monthlyCostColumn)
+		}
 	}
+}
+
+func writeBreakdownSubrows(w io.Writer, breakdown map[string]float64, columns, costColumn int) {
+	keys := sortedBreakdownKeys(breakdown)
+	for i, key := range keys {
+		prefix := breakdownBranchPrefix
+		if i == len(keys)-1 {
+			prefix = breakdownLastPrefix
+		}
+		cols := make([]string, columns)
+		cols[0] = prefix + key
+		cols[costColumn] = fmt.Sprintf("%.2f", breakdown[key])
+		fmt.Fprintln(w, strings.Join(cols, "\t"))
+	}
+}
+
+func sortedBreakdownKeys(breakdown map[string]float64) []string {
+	if len(breakdown) == 0 {
+		return nil
+	}
+	keys := make([]string, 0, len(breakdown))
+	for key := range breakdown {
+		if key == "" {
+			continue
+		}
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // FormatRecommendationCount returns the recommendation count as a string for table display.
@@ -461,7 +521,7 @@ func formatResourceNotes(result CostResult) string {
 // and one row per CostResult. The showConfidence flag controls whether a
 // Confidence column is included. It returns an error if flushing the internal
 // tabwriter fails.
-func renderActualCostTable(writer io.Writer, results []CostResult, showConfidence bool) error {
+func renderActualCostTable(writer io.Writer, results []CostResult, showConfidence, showBreakdown bool) error {
 	w := tabwriter.NewWriter(writer, 0, 0, defaultTabPadding, ' ', 0)
 
 	// Show recommendation count summary when recommendations exist.
@@ -473,7 +533,7 @@ func renderActualCostTable(writer io.Writer, results []CostResult, showConfidenc
 	renderActualCostHeader(w, showConfidence)
 
 	for _, result := range results {
-		renderActualCostRow(w, result, showConfidence)
+		renderActualCostRow(w, result, showConfidence, showBreakdown)
 	}
 
 	return w.Flush()
@@ -522,11 +582,14 @@ func buildActualCostHeaderColumns(showConfidence bool) ([]string, []string) {
 //     or defaults to "monthly (est)" when empty.
 //   - The Currency and Notes columns are always emitted. Notes include existing notes and a
 //     bracketed list of sustainability metrics when present.
-func renderActualCostRow(w io.Writer, result CostResult, showConfidence bool) {
+func renderActualCostRow(w io.Writer, result CostResult, showConfidence, showBreakdown bool) {
 	resource := formatResourceName(result.ResourceType, result.ResourceID)
 	notes := formatResourceNotes(result)
 	columns := buildActualCostRowColumns(result, resource, notes, showConfidence)
 	fmt.Fprintln(w, strings.Join(columns, "\t"))
+	if showBreakdown {
+		writeBreakdownSubrows(w, result.Breakdown, len(columns), actualCostColumn)
+	}
 }
 
 // formatResourceName formats the resource name as "ResourceType/ResourceID",

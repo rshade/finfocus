@@ -32,6 +32,8 @@ type costActualParams struct {
 	statePath          string // Path to Pulumi state JSON (mutually exclusive with planPath)
 	terraformState     string // Path to Terraform state file (mutually exclusive with planPath/statePath)
 	estimateConfidence bool   // Show confidence level for cost estimates
+	showConfidence     bool   // Add a confidence column to table output
+	showBreakdown      bool   // Show per-component cost sub-rows in table output
 	fallbackEstimate   bool   // Include $0 placeholders for resources with no plugin data
 	adapter            string
 	output             string
@@ -58,8 +60,10 @@ func defaultToNow(s string) string {
 // auto-detected and `pulumi stack export` is used; in that mode the --from date is
 // auto-detected from the earliest resource Created timestamp. Common flags registered
 // include --pulumi-json, --pulumi-state, --from, --to, --adapter, --output, --group-by,
-// --estimate-confidence, --fallback-estimate, --filter, and --jobs. Validation of
-// flag combinations is performed by executeCostActual.
+// --estimate-confidence, --show-confidence, --show-breakdown, --fallback-estimate,
+// --filter, and --jobs. --show-confidence and --show-breakdown change table output
+// only. --estimate-confidence still controls the plugin request and JSON/NDJSON
+// confidence field. Validation of flag combinations is performed by executeCostActual.
 func NewCostActualCmd() *cobra.Command {
 	var params costActualParams
 
@@ -139,6 +143,10 @@ timestamp if not provided.`,
 		false,
 		"Show confidence level for cost estimates",
 	)
+	cmd.Flags().BoolVar(&params.showConfidence, "show-confidence", false,
+		"Add a confidence column to table output")
+	cmd.Flags().BoolVar(&params.showBreakdown, "show-breakdown", false,
+		"Show per-component cost sub-rows in table output")
 	cmd.Flags().BoolVar(
 		&params.fallbackEstimate,
 		"fallback-estimate",
@@ -235,7 +243,8 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 	fetchAndMergeRecommendations(ctx, eng, resources, resultWithErrors.Results)
 
 	if renderErr := RenderActualCostOutput(
-		ctx, cmd, params.output, resultWithErrors, request.GroupBy, params.estimateConfidence,
+		ctx, cmd, params.output, resultWithErrors, request.GroupBy,
+		params.estimateConfidence, params.showBreakdown, params.showConfidence,
 	); renderErr != nil {
 		return renderErr
 	}

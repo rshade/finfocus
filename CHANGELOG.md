@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   resolved from Pulumi `propertyDependencies` (#1610)
 * **engine:** emit nested resource inputs as dotted tag keys and include that
   map in the projected-cost cache key (#1608)
+* **cli:** add `--show-breakdown` component sub-rows to `cost projected` and
+  `cost actual` tables, and `--show-confidence` as an actual-cost table column.
+  JSON and NDJSON ignore both flags (#685)
 
 ## [0.4.0](https://github.com/rshade/finfocus/compare/v0.3.9...v0.4.0) (2026-10-03)
 

@@ -134,6 +134,7 @@ finfocus cost projected [options]
 | `--filter`      | Filter resources (tag:key=value, type=\*)                         | None     |
 | `--output`      | Output format: table, json, ndjson                                | table    |
 | `--utilization` | Assumed resource utilization (0.0-1.0)                            | 1.0      |
+| `--show-breakdown` | Per-component cost sub-rows in table output. Ignored for json and ndjson | false |
 | `--help`        | Show help                                                         |          |
 
 ### Examples (cost projected)
@@ -393,12 +394,16 @@ finfocus cost actual [options]
 | `--filter`              | Filter resources (tag:key=value, type=\*)                                   | None    |
 | `--group-by`            | Group results (resource, type, provider, daily, monthly)                    |         |
 | `--output`              | Output format: table, json, ndjson                                          | table   |
-| `--estimate-confidence` | Show confidence level for cost estimates                                    | false   |
+| `--estimate-confidence` | Request confidence and include it in JSON and NDJSON. Also adds the table column | false   |
+| `--show-confidence`     | Add a confidence column to table output. Does not change JSON or NDJSON     | false   |
+| `--show-breakdown`      | Per-component cost sub-rows in table output. Ignored for json and ndjson    | false   |
 | `--help`                | Show help                                                                   |         |
 
 ### Confidence Levels
 
-When `--estimate-confidence` is enabled, a Confidence column appears showing data reliability:
+`--estimate-confidence` asks the plugin for a confidence level and keeps that
+field in JSON and NDJSON. `--show-confidence` only adds the table column. Either
+flag shows the column. Levels:
 
 | Level  | Description                                                     |
 | ------ | --------------------------------------------------------------- |
