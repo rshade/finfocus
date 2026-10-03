@@ -124,6 +124,78 @@ func TestChart_SplitProvidersMergesPackageNames(t *testing.T) {
 	assert.NotContains(t, out, "AWS-NATIVE")
 }
 
+func TestChart_AnnotationsFollowTheProviderSeries(t *testing.T) {
+	t.Parallel()
+	snaps := []CostSnapshot{
+		sampleSnap(1, time.January, 120, map[string]float64{"aws": 100, "gcp": 20}),
+		sampleSnap(2, time.February, 190, map[string]float64{"aws": 150, "gcp": 40}),
+	}
+	annotations := []CostAnnotation{{Version: 2, Message: "scale"}}
+	opt := ChartOptions{Stack: "dev", Provider: "aws", Height: 6, Width: 30, NoBudget: true}
+
+	out := RenderChart(snaps, annotations, opt)
+
+	assert.Contains(t, out, "$100/mo → $150/mo (+$50)")
+	assert.NotContains(t, out, "$190")
+	assert.NotContains(t, out, "$120")
+
+	opt.Provider = ""
+	total := RenderChart(snaps, annotations, opt)
+	assert.Contains(t, total, "$120/mo → $190/mo (+$70)")
+}
+
+func TestChart_CaptionAndAmountsUseTheCurrency(t *testing.T) {
+	t.Parallel()
+	euro := func(version int, month time.Month, total float64) CostSnapshot {
+		snapshot := sampleSnap(version, month, total, map[string]float64{"aws": total})
+		snapshot.Currency = "EUR"
+		return snapshot
+	}
+
+	t.Run("a timeline", func(t *testing.T) {
+		t.Parallel()
+		out := RenderChart(
+			[]CostSnapshot{euro(1, time.January, 80), euro(2, time.February, 120)},
+			[]CostAnnotation{{Version: 2, Message: "scale"}},
+			ChartOptions{Stack: "dev", Height: 6, Width: 30, NoBudget: true},
+		)
+		assert.Contains(t, out, "Monthly Cost (EUR)")
+		assert.Contains(t, out, "80 EUR/mo → 120 EUR/mo (+40 EUR)")
+		assert.NotContains(t, out, "$")
+	})
+
+	t.Run("a single snapshot", func(t *testing.T) {
+		t.Parallel()
+		out := RenderChart([]CostSnapshot{euro(1, time.January, 80)}, nil, ChartOptions{Stack: "dev"})
+		assert.Contains(t, out, "Monthly Cost (EUR)")
+		assert.Contains(t, out, "80 EUR")
+		assert.NotContains(t, out, "$")
+	})
+
+	t.Run("dollars keep the dollar sign", func(t *testing.T) {
+		t.Parallel()
+		out := RenderChart(
+			[]CostSnapshot{sampleSnap(1, time.January, 80, nil), sampleSnap(2, time.February, 120, nil)},
+			nil, ChartOptions{Stack: "dev", Height: 6, Width: 30, NoBudget: true, NoAnnotations: true},
+		)
+		assert.Contains(t, out, "Monthly Cost ($)")
+	})
+}
+
+func TestHasProvider(t *testing.T) {
+	t.Parallel()
+	snaps := []CostSnapshot{
+		sampleSnap(1, time.January, 100, map[string]float64{"aws": 80, "gcp": 20}),
+		sampleSnap(2, time.February, 100, map[string]float64{"aws-native": 100}),
+	}
+
+	assert.True(t, HasProvider(snaps, "aws"))
+	assert.True(t, HasProvider(snaps, "GCP"))
+	assert.True(t, HasProvider(snaps, "aws-native"))
+	assert.False(t, HasProvider(snaps, "azure"))
+	assert.Equal(t, []string{"aws", "gcp"}, ProviderNames(snaps))
+}
+
 func sampleSnap(version int, month time.Month, total float64, by map[string]float64) CostSnapshot {
 	if by == nil {
 		by = map[string]float64{}

@@ -52,6 +52,24 @@ func TestView_DateRangeFilter(t *testing.T) {
 	assert.NotContains(t, out, "v12")
 }
 
+func TestView_UnknownProviderIsAnError(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	seedHistory(t, dir, "dev",
+		viewSnap(1, time.January, 100, map[string]float64{"aws": 80, "gcp": 20}),
+		viewSnap(2, time.February, 140, map[string]float64{"aws": 100, "gcp": 40}),
+	)
+	cmd, stdout := preparedHistoryCmd(t, NewCostHistoryViewCmd(),
+		"--stack", "dev", "--provider", "azure", "--width", "40", "--no-budget")
+
+	err := runView(cmd, viewDeps{dir: dir, cfg: &config.Config{}})
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `no cost history for provider "azure"`)
+	assert.Contains(t, err.Error(), "aws, gcp")
+	assert.Empty(t, stdout.String())
+}
+
 func TestView_ProviderFilter(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()

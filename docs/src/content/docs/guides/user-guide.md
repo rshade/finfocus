@@ -163,6 +163,18 @@ resource type` and stores nothing for that update, so a checkpoint never holds
 an understated total. This includes a resource whose type an installed plugin
 declines to price.
 
+`import` and `refresh` updates are skipped by design. A checkpoint is a
+deployment of the program, so cost that an import adds first appears at the next
+update. `collect` reads the whole Pulumi history, page by page, not only the
+newest updates.
+
+`collect` can run for minutes, so it is not offered as an MCP tool, where it
+would stall the server's other calls. Run it from the CLI. `list` skips a
+database it cannot open, such as one a running `collect` holds locked, and says
+which on stderr. `view --provider` stops with an error when no snapshot has that
+provider, rather than drawing a $0 line, and its caption and amounts use the
+snapshots' currency.
+
 `view` warns when the selected range mixes currencies and charts the
 currency with the most snapshots. `--currency USD` keeps one currency.
 `--strict` stops instead of dropping the others.

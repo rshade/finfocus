@@ -62,13 +62,17 @@ func filterSnapshots(snapshots []CostSnapshot, from, to time.Time) []CostSnapsho
 }
 
 func formatSingle(stack, provider string, snapshot CostSnapshot) string {
+	amount := formatMoneyIn(snapshot.Currency, seriesValue(snapshot, provider))
+	if isDollar(snapshot.Currency) {
+		amount += " " + snapshot.Currency
+	}
 	return fmt.Sprintf(
-		"Monthly Cost ($) — Stack: %s (1 snapshot, %s)\n%s  %s %s  v%d\n",
+		"Monthly Cost (%s) — Stack: %s (1 snapshot, %s)\n%s  %s  v%d\n",
+		captionCurrency(snapshot.Currency),
 		stack,
 		snapshot.Timestamp.UTC().Format("Jan 2006"),
 		snapshot.Timestamp.UTC().Format("2006-01-02"),
-		formatMoney(seriesValue(snapshot, provider)),
-		snapshot.Currency,
+		strings.TrimSpace(amount),
 		snapshot.Version,
 	)
 }
@@ -97,7 +101,7 @@ func formatPlot(snapshots []CostSnapshot, annotations []CostAnnotation, opt Char
 	b.WriteString(strings.Join(legends, "  "))
 	b.WriteByte('\n')
 	if !opt.NoAnnotations {
-		writeAnnotations(&b, snapshots, annotations)
+		writeAnnotations(&b, snapshots, annotations, opt.Provider)
 	}
 	return b.String()
 }
@@ -105,7 +109,10 @@ func formatPlot(snapshots []CostSnapshot, annotations []CostAnnotation, opt Char
 func chartCaption(stack string, snapshots []CostSnapshot) string {
 	first := snapshots[0].Timestamp.UTC().Format("Jan 2006")
 	last := snapshots[len(snapshots)-1].Timestamp.UTC().Format("Jan 2006")
-	return fmt.Sprintf("Monthly Cost ($) — Stack: %s (%d snapshots, %s – %s)", stack, len(snapshots), first, last)
+	return fmt.Sprintf(
+		"Monthly Cost (%s) — Stack: %s (%d snapshots, %s – %s)",
+		captionCurrency(snapshots[0].Currency), stack, len(snapshots), first, last,
+	)
 }
 
 func chartSeries(snapshots []CostSnapshot, opt ChartOptions) ([][]float64, []string, []asciigraph.AnsiColor) {
@@ -154,6 +161,25 @@ func appendProviders(
 	return data, legends, colors
 }
 
+// ProviderNames lists the providers present in snapshots, normalized and sorted.
+func ProviderNames(snapshots []CostSnapshot) []string {
+	return providerNames(snapshots)
+}
+
+// HasProvider reports whether any snapshot has an entry for provider, compared
+// the way the chart compares it, so "aws-native" counts as "aws".
+func HasProvider(snapshots []CostSnapshot, provider string) bool {
+	want := resourcetype.NormalizeProvider(provider)
+	for _, snapshot := range snapshots {
+		for name := range snapshot.ByProvider {
+			if resourcetype.NormalizeProvider(name) == want {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func providerNames(snapshots []CostSnapshot) []string {
 	seen := map[string]struct{}{}
 	for _, snapshot := range snapshots {
@@ -183,7 +209,7 @@ func seriesValue(snapshot CostSnapshot, provider string) float64 {
 	return total
 }
 
-func writeAnnotations(b *strings.Builder, snapshots []CostSnapshot, annotations []CostAnnotation) {
+func writeAnnotations(b *strings.Builder, snapshots []CostSnapshot, annotations []CostAnnotation, provider string) {
 	listed := annotationsInSnapshots(snapshots, annotations)
 	if len(listed) == 0 {
 		return
@@ -192,7 +218,7 @@ func writeAnnotations(b *strings.Builder, snapshots []CostSnapshot, annotations 
 	for _, annotation := range listed {
 		current, _ := snapshotByVersion(snapshots, annotation.Version)
 		prev, hasPrev := previousSnapshot(snapshots, annotation.Version)
-		change := formatChange(current.TotalMonthly, prev, hasPrev)
+		change := formatChange(provider, current, prev, hasPrev)
 		fmt.Fprintf(
 			b,
 			"  v%d  %s  %q  %s\n",
@@ -233,16 +259,18 @@ func previousSnapshot(snapshots []CostSnapshot, version int) (CostSnapshot, bool
 	return CostSnapshot{}, false
 }
 
-func formatChange(current float64, prev CostSnapshot, hasPrev bool) string {
-	now := formatMoney(current) + "/mo"
+func formatChange(provider string, current, prev CostSnapshot, hasPrev bool) string {
+	now := seriesValue(current, provider)
+	nowText := formatMoneyIn(current.Currency, now) + "/mo"
 	if !hasPrev {
-		return now
+		return nowText
 	}
+	before := seriesValue(prev, provider)
 	return fmt.Sprintf(
 		"%s → %s (%s)",
-		formatMoney(prev.TotalMonthly)+"/mo",
-		now,
-		signedMoney(current-prev.TotalMonthly),
+		formatMoneyIn(prev.Currency, before)+"/mo",
+		nowText,
+		signedMoneyIn(current.Currency, now-before),
 	)
 }
 
@@ -254,6 +282,48 @@ func signedMoney(value float64) string {
 		return formatMoney(value)
 	}
 	return "$0"
+}
+
+// isDollar reports whether amounts in currency are written with a dollar sign.
+// An empty currency is the default, USD.
+func isDollar(currency string) bool {
+	return currency == "" || strings.EqualFold(currency, defaultCurrency)
+}
+
+// captionCurrency names the currency in a chart caption: "$" for dollars, else the code.
+func captionCurrency(currency string) string {
+	if isDollar(currency) {
+		return "$"
+	}
+	return strings.ToUpper(currency)
+}
+
+// formatMoneyIn writes value in currency: "$1,200" for dollars, "1,200 EUR" for
+// any other currency, so a euro total is never printed with a dollar sign.
+func formatMoneyIn(currency string, value float64) string {
+	text := formatMoney(value)
+	if isDollar(currency) {
+		return text
+	}
+	sign := ""
+	if strings.HasPrefix(text, "-") {
+		sign = "-"
+		text = text[1:]
+	}
+	return sign + strings.TrimPrefix(text, "$") + " " + strings.ToUpper(currency)
+}
+
+func signedMoneyIn(currency string, value float64) string {
+	if isDollar(currency) {
+		return signedMoney(value)
+	}
+	if value > 0 {
+		return "+" + formatMoneyIn(currency, value)
+	}
+	if value < 0 {
+		return formatMoneyIn(currency, value)
+	}
+	return "0 " + strings.ToUpper(currency)
 }
 
 func formatMoney(value float64) string {

@@ -95,6 +95,9 @@ func runView(cmd *cobra.Command, deps viewDeps) error {
 	if err != nil {
 		return err
 	}
+	if err = requireKnownProvider(cmd, snapshots); err != nil {
+		return err
+	}
 	if format == historyOutputJSON {
 		return writeJSON(cmd, costHistoryView{
 			Stack:           stack,
@@ -201,6 +204,20 @@ func plainOverridesFormat(cmd *cobra.Command) bool {
 		return true
 	}
 	return !cmd.Flags().Changed("output") && !machineOutputRequested(cmd)
+}
+
+// requireKnownProvider fails when --provider names a provider that no selected
+// snapshot has, instead of drawing a flat $0 line that looks like real data.
+func requireKnownProvider(cmd *cobra.Command, snapshots []history.CostSnapshot) error {
+	provider, err := cmd.Flags().GetString("provider")
+	if err != nil || strings.TrimSpace(provider) == "" || len(snapshots) == 0 {
+		return nil //nolint:nilerr // a missing flag means no provider was asked for
+	}
+	if history.HasProvider(snapshots, provider) {
+		return nil
+	}
+	return fmt.Errorf("no cost history for provider %q (providers: %s)",
+		provider, strings.Join(history.ProviderNames(snapshots), ", "))
 }
 
 func viewBounds(cmd *cobra.Command) (time.Time, time.Time, error) {

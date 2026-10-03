@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -224,8 +225,69 @@ type pulumiExporter struct {
 	run   func(context.Context, string, ...string) ([]byte, error)
 }
 
+const (
+	historyPageSize = 100
+	maxHistoryPages = 1000
+)
+
+// History returns the stack's update history as one JSON array. `pulumi stack
+// history` pages its output (its help shows a default page size of 10), so a
+// single call can hold only the newest updates and older checkpoints would never
+// be collected. It reads page by page until a short page, and stops early if a
+// page adds nothing new, so a Pulumi that ignores the paging flags cannot loop.
+// A Pulumi that rejects the flags is asked once without them.
 func (p pulumiExporter) History(ctx context.Context) ([]byte, error) {
-	return p.run(ctx, p.bin, "stack", "history", "--json", "--stack", p.stack)
+	var merged []json.RawMessage
+	seen := make(map[int]struct{})
+	for page := 1; page <= maxHistoryPages; page++ {
+		raw, err := p.run(ctx, p.bin, "stack", "history", "--json", "--stack", p.stack,
+			"--page-size", strconv.Itoa(historyPageSize), "--page", strconv.Itoa(page))
+		if err != nil {
+			if page == 1 && flagRejected(err) {
+				return p.run(ctx, p.bin, "stack", "history", "--json", "--stack", p.stack)
+			}
+			return nil, err
+		}
+		entries, added, err := newHistoryEntries(raw, seen)
+		if err != nil {
+			return nil, err
+		}
+		merged = append(merged, entries...)
+		if added == 0 || len(entries) < historyPageSize {
+			break
+		}
+	}
+	return json.Marshal(merged)
+}
+
+// flagRejected reports whether a Pulumi error says it does not know a flag.
+func flagRejected(err error) bool {
+	message := strings.ToLower(err.Error())
+	return strings.Contains(message, "unknown flag") || strings.Contains(message, "unknown shorthand flag")
+}
+
+// newHistoryEntries decodes one page and returns the entries whose version was
+// not seen on an earlier page, with how many there were.
+func newHistoryEntries(raw []byte, seen map[int]struct{}) ([]json.RawMessage, int, error) {
+	var page []json.RawMessage
+	if err := json.Unmarshal(raw, &page); err != nil {
+		return nil, 0, fmt.Errorf("parsing stack history page: %w", err)
+	}
+	fresh := make([]json.RawMessage, 0, len(page))
+	for _, entry := range page {
+		var head struct {
+			Version int `json:"version"`
+		}
+		if err := json.Unmarshal(entry, &head); err != nil {
+			return nil, 0, fmt.Errorf("parsing stack history entry: %w", err)
+		}
+		if _, dup := seen[head.Version]; dup {
+			continue
+		}
+		seen[head.Version] = struct{}{}
+		fresh = append(fresh, entry)
+	}
+	return fresh, len(fresh), nil
 }
 
 func (p pulumiExporter) Export(ctx context.Context, version int) ([]byte, error) {

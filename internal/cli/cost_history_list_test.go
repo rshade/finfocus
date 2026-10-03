@@ -1,6 +1,9 @@
 package cli
 
 import (
+	"bytes"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -48,4 +51,21 @@ func TestCostHistoryCommands(t *testing.T) {
 	assert.True(t, names["diff"])
 	assert.True(t, names["export"])
 	assert.Nil(t, cmd.RunE)
+}
+
+func TestList_SkipsAnUnreadableDatabaseWithAWarning(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	seedHistory(t, dir, "dev", viewSnap(1, time.January, 10, map[string]float64{"aws": 10}))
+	bad := filepath.Join(dir, "broken.history.db")
+	require.NoError(t, os.WriteFile(bad, []byte("not a bolt database"), 0o600))
+
+	cmd, stdout := preparedHistoryCmd(t, NewCostHistoryListCmd())
+	stderr := &bytes.Buffer{}
+	cmd.SetErr(stderr)
+	require.NoError(t, runList(cmd, dir))
+
+	assert.Contains(t, stdout.String(), "dev")
+	assert.Contains(t, stderr.String(), "broken.history.db")
+	assert.Contains(t, stderr.String(), "skipped")
 }
