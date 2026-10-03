@@ -207,6 +207,31 @@ func TestInstallKeepsUnreadableLock(t *testing.T) {
 	assert.FileExists(t, filepath.Join(dir, ".agents/skills/finfocus-plugin-dev/SKILL.md"))
 }
 
+func TestInstallDoesNotFollowSymlinksOutOfTheProject(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	outside := t.TempDir()
+	victim := filepath.Join(outside, "victim.txt")
+	require.NoError(t, os.WriteFile(victim, []byte("keep me\n"), 0o600))
+	require.NoError(t, os.Symlink(outside, filepath.Join(dir, ".agents")))
+	require.NoError(t, os.Symlink(victim, filepath.Join(dir, "skills-lock.json")))
+	var calls []call
+
+	res := fakeInstaller("", nil, &calls, pluginskill.Skills...).Install(context.Background(), dir, "v0.4.1")
+
+	assert.False(t, res.Installed)
+	assert.NoDirExists(t, filepath.Join(outside, "skills"), "nothing is written through the .agents symlink")
+	data, err := os.ReadFile(victim)
+	require.NoError(t, err)
+	assert.Equal(t, "keep me\n", string(data), "the lockfile symlink target is not overwritten")
+	assert.Contains(t, res.Warning, ".agents/skills/finfocus-plugin-dev")
+	assert.Contains(t, res.Warning, "skills-lock.json not updated")
+	assert.Equal(t, []string{
+		".claude/skills/finfocus-plugin-dev",
+		".claude/skills/finfocus-plugin-upgrade",
+	}, res.Paths)
+}
+
 func TestInstallFromMainWarns(t *testing.T) {
 	t.Parallel()
 	var calls []call
