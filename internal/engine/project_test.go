@@ -733,7 +733,7 @@ func TestRenderSummary_RecommendationCount(t *testing.T) {
 		}
 
 		var buf strings.Builder
-		renderSummary(&buf, aggregated)
+		renderSummary(&buf, aggregated, "")
 		output := buf.String()
 
 		assert.Contains(t, output, "Recommendations:\t2")
@@ -753,7 +753,7 @@ func TestRenderSummary_RecommendationCount(t *testing.T) {
 		}
 
 		var buf strings.Builder
-		renderSummary(&buf, aggregated)
+		renderSummary(&buf, aggregated, "")
 		output := buf.String()
 
 		assert.NotContains(t, output, "Recommendations:")
@@ -797,7 +797,7 @@ func TestRenderActualCostTable_NeverProjectedHeader(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			var buf strings.Builder
-			err := renderActualCostTable(&buf, tt.results, false, false)
+			err := renderActualCostTable(&buf, tt.results, CostTableOptions{})
 			require.NoError(t, err)
 			output := buf.String()
 
@@ -814,7 +814,7 @@ func TestRenderActualCostTable_NeverProjectedHeader(t *testing.T) {
 		}
 
 		var buf strings.Builder
-		err := renderActualCostTable(&buf, results, false, false)
+		err := renderActualCostTable(&buf, results, CostTableOptions{})
 		require.NoError(t, err)
 
 		assert.Contains(t, buf.String(), "7.59 (est)")
@@ -844,7 +844,7 @@ func TestRenderActualCostTable_RecommendationCount(t *testing.T) {
 		}
 
 		var buf strings.Builder
-		err := renderActualCostTable(&buf, results, false, false)
+		err := renderActualCostTable(&buf, results, CostTableOptions{})
 		require.NoError(t, err)
 		output := buf.String()
 
@@ -869,7 +869,7 @@ func TestRenderActualCostTable_RecommendationCount(t *testing.T) {
 		}
 
 		var buf strings.Builder
-		err := renderActualCostTable(&buf, results, false, false)
+		err := renderActualCostTable(&buf, results, CostTableOptions{})
 		require.NoError(t, err)
 		output := buf.String()
 

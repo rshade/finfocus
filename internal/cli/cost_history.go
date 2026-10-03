@@ -34,13 +34,14 @@ func NewCostHistoryCmd() *cobra.Command {
 		Short: "Collect and view projected cost history for a Pulumi stack",
 		Long: `Stores a projected-cost snapshot for each successful Pulumi update and charts
 that timeline offline. collect needs the Pulumi CLI and cost plugins. view,
-list, diff, and prune read the per-stack database only.`,
+list, diff, prune, and export read the per-stack database only.`,
 	}
 	cmd.AddCommand(
 		NewCostHistoryCollectCmd(),
 		NewCostHistoryViewCmd(),
 		NewCostHistoryListCmd(),
 		NewCostHistoryDiffCmd(),
+		NewCostHistoryExportCmd(),
 		NewCostHistoryPruneCmd(),
 	)
 	return cmd

@@ -579,12 +579,23 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   dominant currency (most snapshots; a tie keeps the newer timestamp, then
   the earlier code). `--currency` filters and does not warn. `--strict`
   returns `history.ErrMixedCurrencies`. An empty currency is `(unset)`.
-  One currency produces no warning. Export flags wait for the export command
+  One currency produces no warning. `cost history export` uses the same
+  default and prints the warning on stderr
 - **Cost history prune**: `cost history prune` deletes per-stack snapshots
   (`--keep`, `--older-than`, `--force`). `--dry-run` is the global ax flag.
   Compaction uses `bolt.Compact` after the database is closed. This is not
   `BoltStore.cleanupExpiredEntries`. `cost.history.retention.auto_prune`
   runs that policy after `collect` when the command loaded config
+- **Cost history export**: `cost history export` writes JSON, CSV, or NDJSON
+  from the per-stack database. `--format` is the root ax flag (`json`, `csv`,
+  or `ndjson`); the command does not declare a second `--format`. `--from`
+  and `--to` are inclusive dates. `--provider` keeps every snapshot and sets
+  `total_monthly` to that provider, or 0 when the snapshot has none.
+  Sparklines are `history.Sparkline` (U+2581 through U+2588, width 7). A flat
+  series is the low block. Empty input is an empty string. `cost projected`
+  and `cost actual` add a Trend column only when that stack's history file
+  exists. A missing file does not fail the cost command. There is no ntcharts
+  dependency. The interactive `d` key from #550 is not part of this command
 - **Cost history diff**: `cost history diff` compares two stored snapshots
   by URN (`internal/history/diff.go`). It reads bbolt only. A cost move of
   $0.01 or less is unchanged. `--threshold` hides smaller impacts.

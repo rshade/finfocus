@@ -46,5 +46,6 @@ func TestCostHistoryCommands(t *testing.T) {
 	assert.True(t, names["list"])
 	assert.True(t, names["prune"])
 	assert.True(t, names["diff"])
+	assert.True(t, names["export"])
 	assert.Nil(t, cmd.RunE)
 }

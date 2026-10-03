@@ -209,6 +209,61 @@ func TestRenderResults_JSONIgnoresComponentSubrows(t *testing.T) {
 	}
 }
 
+func TestRenderCostTable_TrendColumn(t *testing.T) {
+	t.Parallel()
+
+	results := []engine.CostResult{{
+		ResourceType: "aws:ec2/instance:Instance",
+		ResourceID:   "web",
+		Adapter:      "aws-plugin",
+		Currency:     "USD",
+		Monthly:      10,
+		Hourly:       0.0137,
+		Breakdown:    map[string]float64{"compute": 10},
+	}}
+	var plain bytes.Buffer
+	err := engine.RenderCostTable(&plain, results, engine.CostTableOptions{})
+	require.NoError(t, err)
+	assert.NotContains(t, plain.String(), "Trend")
+
+	var shown bytes.Buffer
+	err = engine.RenderCostTable(&shown, results, engine.CostTableOptions{
+		ShowBreakdown: true,
+		Trends:        map[string]string{"web": "▁▂▃▄▅▆▇"},
+		TotalTrend:    "▂▃▄▅▆▇█",
+	})
+	require.NoError(t, err)
+	output := shown.String()
+	assert.Contains(t, output, "▂▃▄▅▆▇█")
+	assert.Contains(t, output, "▁▂▃▄▅▆▇")
+	header := lineContaining(t, output, "Recommendations")
+	assert.Contains(t, header, "Trend")
+	assert.Contains(t, header, "Hourly")
+	assert.Contains(t, output, "  └─ compute")
+
+	var actual bytes.Buffer
+	err = engine.RenderActualCostTable(&actual, []engine.CostResult{{
+		ResourceType: "aws:ec2/instance:Instance",
+		ResourceID:   "web",
+		Adapter:      "aws-plugin",
+		Currency:     "USD",
+		TotalCost:    10,
+		CostPeriod:   "30 days",
+	}}, engine.CostTableOptions{
+		Trends:     map[string]string{"missing": "▁"},
+		TotalTrend: "█▇▅",
+	})
+	require.NoError(t, err)
+	actualOut := actual.String()
+	assert.Contains(t, actualOut, "█▇▅")
+	actualHeader := lineContaining(t, actualOut, "Total Cost")
+	assert.Contains(t, actualHeader, "Trend")
+	assert.Contains(t, actualHeader, "Period")
+	row := lineContaining(t, actualOut, "aws:ec2/instance:Instance/web")
+	assert.Contains(t, row, "30 days")
+	assert.NotContains(t, row, "▁")
+}
+
 func lineContaining(t *testing.T, output, fragment string) string {
 	t.Helper()
 	for _, line := range strings.Split(output, "\n") {

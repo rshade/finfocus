@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **cli:** `cost history export` writes JSON, CSV, or NDJSON for one stack.
+  `--from`, `--to`, and `--provider` filter the series. `cost projected` and
+  `cost actual` show a Unicode block sparkline in a Trend column when that
+  stack has cost history (#551)
 * **docs:** CI recipes record a cost snapshot after deploy with
   `cost history collect --versions 1`. The flag still defaults to `0`,
   which stores every successful checkpoint that is not already saved (#553)

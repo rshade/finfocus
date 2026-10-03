@@ -10,6 +10,7 @@ finfocus-cost-cluster
 finfocus-cost-estimate
 finfocus-cost-history-collect
 finfocus-cost-history-diff
+finfocus-cost-history-export
 finfocus-cost-history-list
 finfocus-cost-history-prune
 finfocus-cost-history-view

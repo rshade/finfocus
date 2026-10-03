@@ -150,8 +150,9 @@ update and charts that timeline later without calling plugins.
 
 `collect` needs the Pulumi CLI and a cost plugin. It keeps successful
 `update` and `destroy` checkpoints. A destroy is stored as $0 with the
-annotation `Stack destroyed`. `view` and `list` read the per-stack database
-only. `--versions` defaults to `0` (every checkpoint not already stored).
+annotation `Stack destroyed`. `view`, `list`, `diff`, `prune`, and `export`
+read the per-stack database only. `--versions` defaults to `0` (every
+checkpoint not already stored).
 `--versions 1` keeps the newest checkpoint, which is the post-deploy
 pattern. CI recipes are in [CI/CD cost tracking](ci-cd-cost-tracking.md).
 
@@ -177,12 +178,19 @@ snapshots. `--older-than` takes a duration such as `365d`, `6m`, or `2y`.
 delete, the database is compacted. Set `cost.history.retention.auto_prune`
 to apply `max_snapshots` and `max_age_days` after `collect`.
 
+`export` writes the same database as JSON, CSV, or NDJSON. `--from` and
+`--to` limit the dates. `--provider` keeps one provider's monthly cost.
+When a stack has history, `cost projected` and `cost actual` add a Trend
+column of Unicode block sparklines. A stack with no history file omits
+that column.
+
 ```bash
 finfocus cost history collect --stack dev
 finfocus cost history view --stack dev
 finfocus cost history view --stack dev --currency USD
 finfocus cost history list
 finfocus cost history diff --stack dev --from v35 --to v42
+finfocus cost history export --stack dev --format json
 finfocus cost history prune --stack dev --older-than 365d --dry-run
 ```
 
