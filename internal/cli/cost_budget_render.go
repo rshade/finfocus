@@ -15,6 +15,7 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 // Scoped budget rendering constants.
@@ -132,8 +133,14 @@ func NewBudgetScopeFilter(scopeFlag string) *BudgetScopeFilter {
 }
 
 // RenderScopedBudgetStatus renders the hierarchical scoped budget result to the writer.
-// It automatically detects if the output is a TTY and renders appropriately.
-func RenderScopedBudgetStatus(w io.Writer, result *engine.ScopedBudgetResult, filter *BudgetScopeFilter) error {
+// Plain text wins over color. A non-terminal writer stays plain unless color was
+// forced, and high contrast recolors the styled box, like the global budget box.
+func RenderScopedBudgetStatus(
+	w io.Writer,
+	result *engine.ScopedBudgetResult,
+	filter *BudgetScopeFilter,
+	access tui.Accessibility,
+) error {
 	if result == nil {
 		return nil
 	}
@@ -142,28 +149,35 @@ func RenderScopedBudgetStatus(w io.Writer, result *engine.ScopedBudgetResult, fi
 		filter = NewBudgetScopeFilter("")
 	}
 
-	if isWriterTerminal(w) {
-		return renderStyledScopedBudget(w, result, filter)
+	if access.Plain || access.NoColor || (!isWriterTerminal(w) && !access.ForceColor) {
+		return renderPlainScopedBudget(w, result, filter)
 	}
-	return renderPlainScopedBudget(w, result, filter)
+	return renderStyledScopedBudget(w, result, filter, access.HighContrast)
 }
 
 // renderStyledScopedBudget renders a styled hierarchical budget status box using Lip Gloss.
-func renderStyledScopedBudget(w io.Writer, result *engine.ScopedBudgetResult, filter *BudgetScopeFilter) error {
+func renderStyledScopedBudget(
+	w io.Writer,
+	result *engine.ScopedBudgetResult,
+	filter *BudgetScopeFilter,
+	highContrast bool,
+) error {
+	titleColor, borderColor := budgetChrome(highContrast)
+
 	// Title style
 	titleStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(boxTitleColor())
+		Foreground(titleColor)
 
 	// Section header style
 	sectionStyle := lipgloss.NewStyle().
 		Bold(true).
-		Foreground(lipgloss.Color("33"))
+		Foreground(sectionColor(highContrast))
 
 	// Border style for sections
 	borderStyle := lipgloss.NewStyle().
 		BorderStyle(lipgloss.RoundedBorder()).
-		BorderForeground(boxBorderColor()).
+		BorderForeground(borderColor).
 		Padding(0, 1).
 		Width(scopedBoxWidth)
 
@@ -176,7 +190,7 @@ func renderStyledScopedBudget(w io.Writer, result *engine.ScopedBudgetResult, fi
 	content.WriteString("\n\n")
 
 	// Overall health summary
-	content.WriteString(renderOverallHealthSummary(result))
+	content.WriteString(renderOverallHealthSummary(result, highContrast))
 	content.WriteString("\n")
 
 	sectionsRendered := 0
@@ -185,7 +199,7 @@ func renderStyledScopedBudget(w io.Writer, result *engine.ScopedBudgetResult, fi
 	if filter.ShowGlobal && result.Global != nil {
 		content.WriteString(sectionStyle.Render("GLOBAL"))
 		content.WriteString("\n")
-		content.WriteString(renderScopedStatusLine(result.Global))
+		content.WriteString(renderScopedStatusLine(result.Global, highContrast))
 		content.WriteString("\n")
 		sectionsRendered++
 	}
@@ -197,7 +211,7 @@ func renderStyledScopedBudget(w io.Writer, result *engine.ScopedBudgetResult, fi
 		}
 		content.WriteString(sectionStyle.Render("BY PROVIDER"))
 		content.WriteString("\n")
-		content.WriteString(renderProviderSection(result.ByProvider, filter.ProviderFilter))
+		content.WriteString(renderProviderSection(result.ByProvider, filter.ProviderFilter, highContrast))
 		sectionsRendered++
 	}
 
@@ -208,7 +222,7 @@ func renderStyledScopedBudget(w io.Writer, result *engine.ScopedBudgetResult, fi
 		}
 		content.WriteString(sectionStyle.Render("BY TAG"))
 		content.WriteString("\n")
-		content.WriteString(renderTagSection(result.ByTag, filter.TagFilter))
+		content.WriteString(renderTagSection(result.ByTag, filter.TagFilter, highContrast))
 		sectionsRendered++
 	}
 
@@ -219,7 +233,7 @@ func renderStyledScopedBudget(w io.Writer, result *engine.ScopedBudgetResult, fi
 		}
 		content.WriteString(sectionStyle.Render("BY TYPE"))
 		content.WriteString("\n")
-		content.WriteString(renderTypeSection(result.ByType, filter.TypeFilter))
+		content.WriteString(renderTypeSection(result.ByType, filter.TypeFilter, highContrast))
 	}
 
 	// Critical scopes warning
@@ -390,11 +404,11 @@ func writePlainWarnings(w io.Writer, warnings []string) error {
 }
 
 // renderOverallHealthSummary renders the overall health status line.
-func renderOverallHealthSummary(result *engine.ScopedBudgetResult) string {
+func renderOverallHealthSummary(result *engine.ScopedBudgetResult, highContrast bool) string {
 	p := message.NewPrinter(language.English)
 
 	label := healthStatusLabel(result.OverallHealth)
-	color := healthStatusColor(result.OverallHealth)
+	color := healthStatusColor(result.OverallHealth, highContrast)
 
 	style := lipgloss.NewStyle().
 		Bold(true).
@@ -404,7 +418,7 @@ func renderOverallHealthSummary(result *engine.ScopedBudgetResult) string {
 }
 
 // renderScopedStatusLine renders a single scoped budget status line with progress bar.
-func renderScopedStatusLine(status *engine.ScopedBudgetStatus) string {
+func renderScopedStatusLine(status *engine.ScopedBudgetStatus, highContrast bool) string {
 	p := message.NewPrinter(language.English)
 	var content strings.Builder
 
@@ -419,13 +433,13 @@ func renderScopedStatusLine(status *engine.ScopedBudgetStatus) string {
 	content.WriteString("\n")
 
 	// Progress bar
-	bar := renderScopedProgressBar(status.Percentage, scopedMinProgressBar)
+	bar := renderScopedProgressBar(status.Percentage, scopedMinProgressBar, highContrast)
 	content.WriteString("  ")
 	content.WriteString(bar)
 
 	// Health status
 	healthLabel := healthStatusLabel(status.Health)
-	healthColor := healthStatusColor(status.Health)
+	healthColor := healthStatusColor(status.Health, highContrast)
 	healthStyle := lipgloss.NewStyle().Bold(true).Foreground(healthColor)
 	content.WriteString("  ")
 	content.WriteString(healthStyle.Render(healthLabel))
@@ -450,7 +464,11 @@ func renderPlainScopedStatusLine(w io.Writer, status *engine.ScopedBudgetStatus)
 }
 
 // renderProviderSection renders the BY PROVIDER section content.
-func renderProviderSection(providers map[string]*engine.ScopedBudgetStatus, filterProviders []string) string {
+func renderProviderSection(
+	providers map[string]*engine.ScopedBudgetStatus,
+	filterProviders []string,
+	highContrast bool,
+) string {
 	var content strings.Builder
 
 	// Get sorted provider keys
@@ -470,7 +488,7 @@ func renderProviderSection(providers map[string]*engine.ScopedBudgetStatus, filt
 		labelStyle := lipgloss.NewStyle().Bold(true)
 		content.WriteString(labelStyle.Render(strings.ToUpper(key)))
 		content.WriteString("\n")
-		content.WriteString(renderScopedStatusLine(status))
+		content.WriteString(renderScopedStatusLine(status, highContrast))
 		content.WriteString("\n")
 	}
 
@@ -506,7 +524,7 @@ func renderPlainProviderSection(
 }
 
 // renderTagSection renders the BY TAG section content.
-func renderTagSection(tags []*engine.ScopedBudgetStatus, filterTags []string) string {
+func renderTagSection(tags []*engine.ScopedBudgetStatus, filterTags []string, highContrast bool) string {
 	var content strings.Builder
 
 	for _, status := range tags {
@@ -518,7 +536,7 @@ func renderTagSection(tags []*engine.ScopedBudgetStatus, filterTags []string) st
 		labelStyle := lipgloss.NewStyle().Bold(true)
 		content.WriteString(labelStyle.Render(status.ScopeKey))
 		content.WriteString("\n")
-		content.WriteString(renderScopedStatusLine(status))
+		content.WriteString(renderScopedStatusLine(status, highContrast))
 		content.WriteString("\n")
 	}
 
@@ -544,7 +562,7 @@ func renderPlainTagSection(w io.Writer, tags []*engine.ScopedBudgetStatus, filte
 }
 
 // renderTypeSection renders the BY TYPE section content.
-func renderTypeSection(types map[string]*engine.ScopedBudgetStatus, filterTypes []string) string {
+func renderTypeSection(types map[string]*engine.ScopedBudgetStatus, filterTypes []string, highContrast bool) string {
 	var content strings.Builder
 
 	keys := make([]string, 0, len(types))
@@ -563,7 +581,7 @@ func renderTypeSection(types map[string]*engine.ScopedBudgetStatus, filterTypes 
 		labelStyle := lipgloss.NewStyle().Bold(true)
 		content.WriteString(labelStyle.Render(key))
 		content.WriteString("\n")
-		content.WriteString(renderScopedStatusLine(status))
+		content.WriteString(renderScopedStatusLine(status, highContrast))
 		content.WriteString("\n")
 	}
 
@@ -637,7 +655,7 @@ func renderScopedWarnings(warnings []string) string {
 }
 
 // renderScopedProgressBar renders a progress bar for scoped budgets.
-func renderScopedProgressBar(percentage float64, width int) string {
+func renderScopedProgressBar(percentage float64, width int, highContrast bool) string {
 	// Cap percentage at 100% for bar display
 	cappedPercent := percentage
 	if cappedPercent > maxPercentageForBarCap {
@@ -648,7 +666,7 @@ func renderScopedProgressBar(percentage float64, width int) string {
 	emptyWidth := width - filledWidth
 
 	// Determine color based on percentage
-	barColor := determineProgressBarColor(percentage)
+	barColor := progressColor(percentage, highContrast)
 
 	filledStyle := lipgloss.NewStyle().Foreground(barColor)
 	emptyStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
@@ -678,7 +696,10 @@ func healthStatusLabel(health pbc.BudgetHealthStatus) string {
 }
 
 // healthStatusColor returns the appropriate color for a health status.
-func healthStatusColor(health pbc.BudgetHealthStatus) color.Color {
+func healthStatusColor(health pbc.BudgetHealthStatus, highContrast bool) color.Color {
+	if highContrast {
+		return highContrastHealthColor(health)
+	}
 	switch health {
 	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
 		return progressOKColor()
@@ -693,6 +714,32 @@ func healthStatusColor(health pbc.BudgetHealthStatus) color.Color {
 	default:
 		return lipgloss.Color("246") // Gray
 	}
+}
+
+// highContrastHealthColor maps a health status onto the brighter palette. A
+// status with no health stays gray.
+func highContrastHealthColor(health pbc.BudgetHealthStatus) color.Color {
+	palette := tui.Palette(true)
+	switch health {
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK:
+		return palette.OK
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING:
+		return palette.Warning
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_CRITICAL, pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_EXCEEDED:
+		return palette.Critical
+	case pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_UNSPECIFIED:
+		return lipgloss.Color("246")
+	default:
+		return lipgloss.Color("246")
+	}
+}
+
+// sectionColor is the color of the GLOBAL, BY PROVIDER, BY TAG and BY TYPE headings.
+func sectionColor(highContrast bool) color.Color {
+	if highContrast {
+		return tui.Palette(true).Header
+	}
+	return lipgloss.Color("33")
 }
 
 // containsIgnoreCase checks if a slice contains a string (case-insensitive).

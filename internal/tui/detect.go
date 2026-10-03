@@ -74,6 +74,22 @@ func DetectOutputModeFor(w io.Writer, forceColor, noColor, plain bool) OutputMod
 		return OutputModePlain
 	}
 
+	return detectResolvedOutputMode(w, forceColor)
+}
+
+// DetectResolvedOutputMode is [DetectOutputModeFor] for an Accessibility that
+// [ResolveAccessibility] has already settled. It does not read NO_COLOR or the
+// other variables again: the resolved struct has folded them in, so reading
+// NO_COLOR here would undo an explicit --color or --high-contrast, which win
+// over the environment.
+func DetectResolvedOutputMode(w io.Writer, access Accessibility) OutputMode {
+	if access.Plain || access.NoColor {
+		return OutputModePlain
+	}
+	return detectResolvedOutputMode(w, access.ForceColor)
+}
+
+func detectResolvedOutputMode(w io.Writer, forceColor bool) OutputMode {
 	// forceColor flag enables styled output even without TTY.
 	if forceColor {
 		return OutputModeStyled

@@ -29,6 +29,25 @@ func addAccessibilityFlags(cmd *cobra.Command) {
 	}
 }
 
+// scopeAccessibilityFlagsToBudget rewrites the help of the accessibility flags
+// for a command whose result table is always plain text. The cost diff table of
+// `cost projected` has no color or interactive mode, so these flags only change
+// the budget box printed after it. The flags stay accepted so scripts that
+// pass them keep working.
+func scopeAccessibilityFlagsToBudget(cmd *cobra.Command) {
+	usage := map[string]string{
+		"no-color":      "Disable colored budget output (the cost diff table is always plain text)",
+		"plain":         "Plain budget output without colors or borders (the cost diff table is always plain text)",
+		"color":         "Force a colored budget box when stdout is not a terminal (the cost diff table is always plain text)",
+		"high-contrast": "Use brighter colors in the budget box (the cost diff table is always plain text)",
+	}
+	for name, text := range usage {
+		if flag := cmd.Flags().Lookup(name); flag != nil {
+			flag.Usage = text
+		}
+	}
+}
+
 func flagBool(cmd *cobra.Command, name string) (bool, bool) {
 	if cmd == nil {
 		return false, false
@@ -72,7 +91,7 @@ func outputModeFromCmd(cmd *cobra.Command) tui.OutputMode {
 	if cmd != nil {
 		writer = cmd.OutOrStdout()
 	}
-	return tui.DetectOutputModeFor(writer, access.ForceColor, access.NoColor, access.Plain)
+	return tui.DetectResolvedOutputMode(writer, access)
 }
 
 func applyOverviewAccessibility(cmd *cobra.Command, params overviewParams) overviewParams {
