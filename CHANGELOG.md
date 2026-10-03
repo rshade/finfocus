@@ -72,6 +72,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `cost actual` tables, and `--show-confidence` as an actual-cost table column.
   JSON and NDJSON ignore both flags (#685)
 
+### Fixed
+
+* **cli:** `cost history export --format csv` and `--format ndjson` run through
+  `ax.Execute`. Those values are export documents, so the command keeps them
+  before the agent-mode check, which still accepts only `json` and `human` (#551)
+
 ### Documentation
 
 * **overview:** document every overview flag, the status-aware Delta column,

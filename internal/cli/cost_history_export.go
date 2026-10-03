@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -18,6 +19,10 @@ const (
 	exportFormatNDJSON = "ndjson"
 )
 
+// exportFormatKey stores csv or ndjson across ax mode resolution. Those values
+// are export documents, not agent modes, and ParseMode rejects them.
+type exportFormatKey struct{}
+
 // NewCostHistoryExportCmd creates `cost history export`.
 func NewCostHistoryExportCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -32,6 +37,11 @@ provider's monthly cost.`,
 		Example: `  finfocus cost history export --stack dev --format json
   finfocus cost history export --stack dev --format csv --from 2025-01-01 --to 2025-06-01
   finfocus cost history export --stack dev --format ndjson --provider aws`,
+		// Args runs before ax.Execute resolves --format. csv and ndjson are kept
+		// here and the flag is shown to that check as json.
+		Args: func(cmd *cobra.Command, _ []string) error {
+			return rememberExportFormat(cmd)
+		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runExport(cmd, "")
 		},
@@ -91,13 +101,43 @@ func runExport(cmd *cobra.Command, dir string) error {
 	return history.WriteExport(cmd.OutOrStdout(), format, doc)
 }
 
-func exportFormat(cmd *cobra.Command) (string, error) {
+// rememberExportFormat keeps csv and ndjson, then sets --format to json so
+// ax.Execute's mode check accepts the invocation. Other commands still reject
+// those values.
+func rememberExportFormat(cmd *cobra.Command) error {
 	if cmd == nil || cmd.Flags().Lookup("format") == nil {
-		return "", errExportFormat
+		return nil
 	}
 	raw, err := cmd.Flags().GetString("format")
 	if err != nil {
-		return "", err
+		return err
+	}
+	format := strings.ToLower(strings.TrimSpace(raw))
+	if format != exportFormatCSV && format != exportFormatNDJSON {
+		return nil
+	}
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd.SetContext(context.WithValue(ctx, exportFormatKey{}, format))
+	return cmd.Flags().Set("format", exportFormatJSON)
+}
+
+func exportFormat(cmd *cobra.Command) (string, error) {
+	if cmd == nil {
+		return "", errExportFormat
+	}
+	raw, ok := exportFormatFromContext(cmd)
+	if !ok {
+		if cmd.Flags().Lookup("format") == nil {
+			return "", errExportFormat
+		}
+		var err error
+		raw, err = cmd.Flags().GetString("format")
+		if err != nil {
+			return "", err
+		}
 	}
 	format := strings.ToLower(strings.TrimSpace(raw))
 	switch format {
@@ -108,6 +148,14 @@ func exportFormat(cmd *cobra.Command) (string, error) {
 	default:
 		return "", fmt.Errorf("unsupported export format: %s (supported: json, csv, ndjson)", raw)
 	}
+}
+
+func exportFormatFromContext(cmd *cobra.Command) (string, bool) {
+	if cmd == nil || cmd.Context() == nil {
+		return "", false
+	}
+	format, ok := cmd.Context().Value(exportFormatKey{}).(string)
+	return format, ok && format != ""
 }
 
 var errExportFormat = errors.New("--format is required (json, csv, or ndjson)")
