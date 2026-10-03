@@ -248,12 +248,12 @@ func (p pulumiExporter) History(ctx context.Context) ([]byte, error) {
 			}
 			return nil, err
 		}
-		entries, added, err := newHistoryEntries(raw, seen)
+		entries, pageLen, err := newHistoryEntries(raw, seen)
 		if err != nil {
 			return nil, err
 		}
 		merged = append(merged, entries...)
-		if added == 0 || len(entries) < historyPageSize {
+		if len(entries) == 0 || pageLen < historyPageSize {
 			break
 		}
 	}
@@ -267,7 +267,9 @@ func flagRejected(err error) bool {
 }
 
 // newHistoryEntries decodes one page and returns the entries whose version was
-// not seen on an earlier page, with how many there were.
+// not seen on an earlier page, plus the raw page length. A deployment between
+// two reads shifts every row down, so a full page can repeat a version from the
+// page before; the raw length, not the new count, says whether the page was full.
 func newHistoryEntries(raw []byte, seen map[int]struct{}) ([]json.RawMessage, int, error) {
 	var page []json.RawMessage
 	if err := json.Unmarshal(raw, &page); err != nil {
@@ -287,7 +289,7 @@ func newHistoryEntries(raw []byte, seen map[int]struct{}) ([]json.RawMessage, in
 		seen[head.Version] = struct{}{}
 		fresh = append(fresh, entry)
 	}
-	return fresh, len(fresh), nil
+	return fresh, len(page), nil
 }
 
 func (p pulumiExporter) Export(ctx context.Context, version int) ([]byte, error) {
