@@ -1,6 +1,7 @@
 package ingest_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -567,4 +568,42 @@ func TestMapResources_WithOutputs(t *testing.T) {
 	// Second resource: input + output merged
 	assert.Equal(t, "us-east-1a", descriptors[1].Properties["availabilityZone"])
 	assert.InDelta(t, float64(50), descriptors[1].Properties["size"], 1e-9)
+}
+
+func TestReplacePlanBecomesOneDiffEntry(t *testing.T) {
+	t.Parallel()
+
+	const urn = "urn:pulumi:dev::app::aws:ec2/instance:Instance::web"
+	data := []byte(`{
+		"steps": [
+			{"op": "create-replacement", "urn": "` + urn + `", "type": "aws:ec2/instance:Instance",
+			 "oldState": {"id": "i-old", "type": "aws:ec2/instance:Instance", "urn": "` + urn + `",
+			   "inputs": {"instanceType": "t3.micro"}},
+			 "newState": {"type": "aws:ec2/instance:Instance", "urn": "` + urn + `",
+			   "inputs": {"instanceType": "m5.large"}}},
+			{"op": "replace", "urn": "` + urn + `", "type": "aws:ec2/instance:Instance",
+			 "oldState": {"id": "i-old", "type": "aws:ec2/instance:Instance", "urn": "` + urn + `",
+			   "inputs": {"instanceType": "t3.micro"}},
+			 "newState": {"type": "aws:ec2/instance:Instance", "urn": "` + urn + `",
+			   "inputs": {"instanceType": "m5.large"}}},
+			{"op": "delete-replaced", "urn": "` + urn + `", "type": "aws:ec2/instance:Instance",
+			 "oldState": {"id": "i-old", "type": "aws:ec2/instance:Instance", "urn": "` + urn + `",
+			   "inputs": {"instanceType": "t3.micro"}}}
+		]
+	}`)
+
+	plan, err := ingest.ParsePulumiPlan(data)
+	require.NoError(t, err)
+	resources, err := ingest.MapResources(plan.GetResources())
+	require.NoError(t, err)
+	require.Len(t, resources, 3)
+
+	diff, err := engine.New(nil, nil).GetProjectedCostDiff(context.Background(), resources)
+	require.NoError(t, err)
+
+	require.Len(t, diff.Entries, 1)
+	assert.Equal(t, urn, diff.Entries[0].ResourceID)
+	assert.Equal(t, engine.DiffOperationUpdate, diff.Entries[0].Operation)
+	assert.Equal(t, 1, diff.Summary.Updates)
+	assert.Equal(t, 0, diff.Summary.Deletes)
 }

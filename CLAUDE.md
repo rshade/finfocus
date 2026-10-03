@@ -531,7 +531,10 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `same` is priced once. Both sides use the same basis: `OldProperties` is outputs
   merged under the old inputs (like `Properties`), and `ref.*` tags are resolved
   once over the whole plan (`resolveDiffRefTags`) and given to both descriptors,
-  because the before and after slices hold different resources. `summary.totalMonthly` and budget evaluation use the
+  because the before and after slices hold different resources. A replacement's
+  `create-replacement`, `replace`, and `delete-replaced` steps share a URN and
+  are collapsed into one `update` entry first (`collapseReplacements`), or the
+  old resource would be counted twice. `summary.totalMonthly` and budget evaluation use the
   after total. Table output is the diff table (TTY included). JSON adds
   `finfocus.diff`. NDJSON is one diff entry per line. `--show-breakdown`
   adds component sub-rows on that table only. Recommendations are merged
