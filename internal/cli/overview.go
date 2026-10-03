@@ -361,9 +361,9 @@ func finalizeOverviewOutput(
 	}
 
 	// Budget evaluation (non-TTY path only).
-	applyOverviewBudgetFlags(cmd, params)
+	overrides := applyOverviewBudgetFlags(cmd, params)
 	costResults, totalCost := overviewRowsToBudgetInputs(rows)
-	if budgetErr := evaluateBudgetStatusWithoutRender(cmd, costResults, totalCost); budgetErr != nil {
+	if budgetErr := evaluateBudgetStatusWithoutRender(cmd, costResults, totalCost, overrides); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return toAxExitError(ctx, budgetErr)
 	}
@@ -1813,32 +1813,20 @@ func applyDismissalDeltaToRows(ctx context.Context, rows []engine.OverviewRow) [
 	return rows
 }
 
-// applyOverviewBudgetFlags applies budget-related CLI flag overrides (exit-on-threshold,
-// exit-code) to the global config, matching the pattern used by newCostCmd's PersistentPreRunE.
-// It is a no-op when the global configuration is nil or no budget flags were changed.
-func applyOverviewBudgetFlags(cmd *cobra.Command, params overviewParams) {
-	cfg := config.GetGlobalConfig()
-	if cfg == nil {
-		return
+// applyOverviewBudgetFlags reads budget CLI flags without writing them onto
+// the global config. Unset flags stay nil so evaluation falls through to
+// env, config, and the default.
+func applyOverviewBudgetFlags(cmd *cobra.Command, params overviewParams) BudgetFlagOverrides {
+	var overrides BudgetFlagOverrides
+	if cmd != nil && cmd.Flags().Changed("exit-on-threshold") {
+		value := params.exitOnThreshold
+		overrides.ExitOnThreshold = &value
 	}
-
-	if !cmd.Flags().Changed("exit-on-threshold") && !cmd.Flags().Changed("exit-code") {
-		return
+	if cmd != nil && cmd.Flags().Changed("exit-code") {
+		value := params.exitCode
+		overrides.ExitCode = &value
 	}
-
-	if cfg.Cost.Budgets == nil {
-		cfg.Cost.Budgets = &config.BudgetsConfig{}
-	}
-	if cfg.Cost.Budgets.Global == nil {
-		cfg.Cost.Budgets.Global = &config.ScopedBudget{}
-	}
-
-	if cmd.Flags().Changed("exit-on-threshold") {
-		cfg.Cost.Budgets.Global.ExitOnThreshold = &params.exitOnThreshold
-	}
-	if cmd.Flags().Changed("exit-code") {
-		cfg.Cost.Budgets.Global.ExitCode = &params.exitCode
-	}
+	return overrides
 }
 
 // overviewRowsToBudgetInputs converts enriched OverviewRows to the []engine.CostResult

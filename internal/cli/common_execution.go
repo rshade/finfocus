@@ -706,8 +706,9 @@ func evaluateBudgetStatus(
 	cmd *cobra.Command,
 	results []engine.CostResult,
 	totalCost float64,
+	overrides BudgetFlagOverrides,
 ) error {
-	return evaluateBudgetStatusWithRender(cmd, results, totalCost, true)
+	return evaluateBudgetStatusWithRender(cmd, results, totalCost, true, overrides)
 }
 
 // evaluateBudgetStatusForOutput evaluates budgets and renders the budget status
@@ -718,9 +719,10 @@ func evaluateBudgetStatusForOutput(
 	results []engine.CostResult,
 	totalCost float64,
 	output string,
+	overrides BudgetFlagOverrides,
 ) error {
 	render := engine.OutputFormat(config.GetOutputFormat(output)) == engine.OutputTable
-	return evaluateBudgetStatusWithRender(cmd, results, totalCost, render)
+	return evaluateBudgetStatusWithRender(cmd, results, totalCost, render, overrides)
 }
 
 // evaluateBudgetStatusWithoutRender evaluates budgets for exit-code behavior
@@ -729,8 +731,9 @@ func evaluateBudgetStatusWithoutRender(
 	cmd *cobra.Command,
 	results []engine.CostResult,
 	totalCost float64,
+	overrides BudgetFlagOverrides,
 ) error {
-	return evaluateBudgetStatusWithRender(cmd, results, totalCost, false)
+	return evaluateBudgetStatusWithRender(cmd, results, totalCost, false, overrides)
 }
 
 // evaluateBudgetStatusWithRender evaluates budgets and optionally renders status output.
@@ -739,6 +742,7 @@ func evaluateBudgetStatusWithRender(
 	results []engine.CostResult,
 	totalCost float64,
 	render bool,
+	overrides BudgetFlagOverrides,
 ) error {
 	currency, mixedCurrencies := extractCurrencyFromResults(results)
 	if mixedCurrencies {
@@ -751,9 +755,9 @@ func evaluateBudgetStatusWithRender(
 	)
 	if render {
 		scopeFilter := getBudgetScopeFilter(cmd)
-		budgetResult, budgetErr = renderBudgetWithScope(cmd, results, totalCost, currency, scopeFilter)
+		budgetResult, budgetErr = renderBudgetWithScope(cmd, results, totalCost, currency, scopeFilter, overrides)
 	} else {
-		budgetResult, budgetErr = evaluateBudgetWithScope(cmd, results, totalCost, currency)
+		budgetResult, budgetErr = evaluateBudgetWithScope(cmd, results, totalCost, currency, overrides)
 	}
 
 	return checkBudgetExitFromResult(cmd, budgetResult, budgetErr)

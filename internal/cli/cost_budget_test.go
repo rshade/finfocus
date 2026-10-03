@@ -335,13 +335,15 @@ func TestCostCmd_CLIFlagsOverrideEnv(t *testing.T) {
 	err = preRunE(cmd, []string{})
 	require.NoError(t, err)
 
-	// Verify CLI flags overrode the env values
-	globalCfg := config.GetGlobalConfig()
-	require.NotNil(t, globalCfg)
-	require.NotNil(t, globalCfg.Cost.Budgets)
-	require.NotNil(t, globalCfg.Cost.Budgets.Global)
-	assert.True(t, *globalCfg.Cost.Budgets.Global.ExitOnThreshold, "CLI flag should override env to true")
-	assert.Equal(t, 99, *globalCfg.Cost.Budgets.Global.ExitCode, "CLI flag should override env to 99")
+	// The env values stay on the config. The CLI values are overrides.
+	require.False(t, *cfg.Cost.Budgets.Global.ExitOnThreshold)
+	require.Equal(t, 5, *cfg.Cost.Budgets.Global.ExitCode)
+	overrides := storedBudgetFlagOverrides(cmd)
+	require.NotNil(t, overrides.ExitOnThreshold)
+	require.NotNil(t, overrides.ExitCode)
+	resolved := legacyBudgetConfig(cfg.Cost.Budgets, overrides)
+	assert.True(t, resolved.ExitOnThreshold, "CLI flag should override env to true")
+	assert.Equal(t, 99, resolved.ExitCode, "CLI flag should override env to 99")
 }
 
 // T044: Unit test for CLI flags overriding config file values.
@@ -378,17 +380,16 @@ func TestCostCmd_CLIFlagsOverrideConfig(t *testing.T) {
 	err = cmd.PersistentPreRunE(cmd, []string{})
 	require.NoError(t, err)
 
-	// Verify CLI flags overrode the config file values
-	globalCfg := config.GetGlobalConfig()
-	require.NotNil(t, globalCfg)
-	require.NotNil(t, globalCfg.Cost.Budgets)
-	require.NotNil(t, globalCfg.Cost.Budgets.Global)
-	assert.True(t, *globalCfg.Cost.Budgets.Global.ExitOnThreshold, "CLI flag should override config to true")
-	assert.Equal(t, 7, *globalCfg.Cost.Budgets.Global.ExitCode, "CLI flag should override config to 7")
-
-	// Verify other config values were preserved
-	assert.InDelta(t, 1000.0, globalCfg.Cost.Budgets.Global.Amount, 1e-9, "budget amount should be preserved")
-	assert.Equal(t, "USD", globalCfg.Cost.Budgets.Global.Currency, "currency should be preserved")
+	// Config file values stay put. CLI values win only in the resolved budget.
+	require.False(t, *cfg.Cost.Budgets.Global.ExitOnThreshold)
+	require.Equal(t, 3, *cfg.Cost.Budgets.Global.ExitCode)
+	assert.InDelta(t, 1000.0, cfg.Cost.Budgets.Global.Amount, 1e-9, "budget amount should be preserved")
+	assert.Equal(t, "USD", cfg.Cost.Budgets.Global.Currency, "currency should be preserved")
+	resolved := legacyBudgetConfig(cfg.Cost.Budgets, storedBudgetFlagOverrides(cmd))
+	assert.True(t, resolved.ExitOnThreshold, "CLI flag should override config to true")
+	assert.Equal(t, 7, resolved.ExitCode, "CLI flag should override config to 7")
+	assert.InDelta(t, 1000.0, resolved.Amount, 1e-9)
+	assert.Equal(t, "USD", resolved.Currency)
 }
 
 // T045: Integration test for CLI flag overrides - only changed flags are applied.
@@ -423,13 +424,15 @@ func TestCostCmd_OnlyChangedFlagsApplied(t *testing.T) {
 	err = cmd.PersistentPreRunE(cmd, []string{})
 	require.NoError(t, err)
 
-	// Verify only the changed flag was applied
-	globalCfg := config.GetGlobalConfig()
-	require.NotNil(t, globalCfg)
-	require.NotNil(t, globalCfg.Cost.Budgets)
-	require.NotNil(t, globalCfg.Cost.Budgets.Global)
-	assert.True(t, *globalCfg.Cost.Budgets.Global.ExitOnThreshold, "unchanged flag should preserve config value")
-	assert.Equal(t, 99, *globalCfg.Cost.Budgets.Global.ExitCode, "changed flag should override config value")
+	// An unchanged flag does not replace the config value.
+	require.True(t, *cfg.Cost.Budgets.Global.ExitOnThreshold)
+	require.Equal(t, 42, *cfg.Cost.Budgets.Global.ExitCode)
+	overrides := storedBudgetFlagOverrides(cmd)
+	assert.Nil(t, overrides.ExitOnThreshold, "unchanged flag should not produce an override")
+	require.NotNil(t, overrides.ExitCode)
+	resolved := legacyBudgetConfig(cfg.Cost.Budgets, overrides)
+	assert.True(t, resolved.ExitOnThreshold, "unchanged flag should preserve config value")
+	assert.Equal(t, 99, resolved.ExitCode, "changed flag should override config value")
 }
 
 // T003: Test that checkBudgetExitFromResult returns the BudgetExitError
@@ -529,7 +532,12 @@ func TestCostCmd_NilGlobalConfig(t *testing.T) {
 
 	// PersistentPreRunE should not panic or error with nil config
 	err = cmd.PersistentPreRunE(cmd, []string{})
-	assert.NoError(t, err, "should handle nil global config gracefully")
+	require.NoError(t, err, "should handle nil global config gracefully")
+	overrides := storedBudgetFlagOverrides(cmd)
+	require.NotNil(t, overrides.ExitOnThreshold)
+	require.NotNil(t, overrides.ExitCode)
+	assert.True(t, *overrides.ExitOnThreshold)
+	assert.Equal(t, 5, *overrides.ExitCode)
 }
 
 // TestToAxExitError verifies that toAxExitError preserves a BudgetExitError's

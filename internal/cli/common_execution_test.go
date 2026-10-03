@@ -474,7 +474,7 @@ func TestEvaluateBudgetStatusWithoutRender_SuppressesBudgetOutput(t *testing.T) 
 	cmd.SetContext(context.Background())
 
 	results := []engine.CostResult{{Monthly: 125.0, Currency: "USD"}}
-	err := evaluateBudgetStatusWithoutRender(cmd, results, 125.0)
+	err := evaluateBudgetStatusWithoutRender(cmd, results, 125.0, BudgetFlagOverrides{})
 	require.NoError(t, err)
 	assert.Empty(t, out.String(), "silent budget evaluation should not render budget text")
 }
@@ -500,7 +500,7 @@ func TestEvaluateBudgetStatus_RendersBudgetOutput(t *testing.T) {
 	cmd.SetContext(context.Background())
 
 	results := []engine.CostResult{{Monthly: 125.0, Currency: "USD"}}
-	err := evaluateBudgetStatus(cmd, results, 125.0)
+	err := evaluateBudgetStatus(cmd, results, 125.0, BudgetFlagOverrides{})
 	require.NoError(t, err)
 	assert.Contains(t, out.String(), "BUDGET STATUS")
 }

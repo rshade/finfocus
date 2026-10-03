@@ -235,13 +235,10 @@ type CostFlags struct {
 //
 // The returned *cobra.Command includes persistent flags for budget behavior (--exit-on-threshold, --exit-code, --budget-scope)
 // and a --stack flag for Pulumi stack selection used during auto-detection. Its PersistentPreRunE arranges for the root command's
-// PersistentPreRunE to run, ensures the global configuration has a Budgets structure so CLI flag overrides can be applied,
-// applies explicit CLI flag values to the global config when those flags were changed, and validates the global scoped budget
-// configuration when exit-on-threshold is enabled.
+// PersistentPreRunE to run, stores explicit CLI budget flags on the command context, and validates the effective
+// exit settings when exit-on-threshold is enabled. It does not write those flags onto the global config.
 //
 // Returns a configured command that contains the projected, actual, recommendations, and estimate cost subcommands.
-//
-//nolint:gocognit // CLI command setup with flag validation naturally has high branching.
 func newCostCmd() *cobra.Command {
 	var flags CostFlags
 
@@ -260,36 +257,9 @@ func newCostCmd() *cobra.Command {
 				}
 			}
 
-			// Apply CLI flag overrides to the global config if flags were explicitly set
-			cfg := config.GetGlobalConfig()
-			if cfg == nil {
-				return nil
-			}
-
-			// Ensure budgets config structure exists for CLI flag overrides
-			if cfg.Cost.Budgets == nil {
-				cfg.Cost.Budgets = &config.BudgetsConfig{}
-			}
-			if cfg.Cost.Budgets.Global == nil {
-				cfg.Cost.Budgets.Global = &config.ScopedBudget{}
-			}
-
-			// CLI flags override environment variables and config file
-			if cmd.Flags().Changed("exit-on-threshold") {
-				cfg.Cost.Budgets.Global.ExitOnThreshold = &flags.ExitOnThreshold
-			}
-			if cmd.Flags().Changed("exit-code") {
-				cfg.Cost.Budgets.Global.ExitCode = &flags.ExitCode
-			}
-
-			// Validate budget configuration if ExitOnThreshold is enabled (T048)
-			if cfg.Cost.Budgets.Global.ExitOnThreshold != nil && *cfg.Cost.Budgets.Global.ExitOnThreshold {
-				if err := cfg.Cost.Budgets.Global.Validate(""); err != nil {
-					return fmt.Errorf("invalid budget configuration: %w", err)
-				}
-			}
-
-			return nil
+			overrides := budgetFlagOverridesFromCmd(cmd)
+			storeBudgetFlagOverrides(cmd, overrides)
+			return validateBudgetFlagOverrides(config.GetGlobalConfig(), overrides)
 		},
 	}
 
