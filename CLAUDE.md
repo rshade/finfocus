@@ -570,6 +570,12 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   Compaction uses `bolt.Compact` after the database is closed. This is not
   `BoltStore.cleanupExpiredEntries`. `cost.history.retention.auto_prune`
   runs that policy after `collect` when the command loaded config
+- **Cost history diff**: `cost history diff` compares two stored snapshots
+  by URN (`internal/history/diff.go`). It reads bbolt only. A cost move of
+  $0.01 or less is unchanged. `--threshold` hides smaller impacts.
+  `--from` and `--to` take `vN` or `YYYY-MM-DD` (nearest snapshot). Empty
+  `--to` is the newest snapshot. The interactive `d` key from #550 is not
+  part of this command
 - **Plugin pricing spec fallback** is off by default. `newEngineWithCache`
   copies `cost.pricing_spec_fallback`. `cost projected --pricing-spec-fallback`
   overrides that for the command when the flag is set. When on, a resource

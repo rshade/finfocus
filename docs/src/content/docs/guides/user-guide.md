@@ -157,6 +157,11 @@ only.
 currency with the most snapshots. `--currency USD` keeps one currency.
 `--strict` stops instead of dropping the others.
 
+`diff` compares two stored snapshots by resource URN and prints the
+monthly cost impact. `--from` and `--to` take a version such as `v35` or
+a date such as `2025-03-15`. `--to` defaults to the latest snapshot.
+`--threshold` hides smaller changes. `--output json` prints the delta.
+
 `prune` deletes old snapshots for one stack. `--keep` retains the newest
 snapshots. `--older-than` takes a duration such as `365d`, `6m`, or `2y`.
 `--dry-run` prints the plan. `--force` skips the confirmation. After a
@@ -168,6 +173,7 @@ finfocus cost history collect --stack dev
 finfocus cost history view --stack dev
 finfocus cost history view --stack dev --currency USD
 finfocus cost history list
+finfocus cost history diff --stack dev --from v35 --to v42
 finfocus cost history prune --stack dev --older-than 365d --dry-run
 ```
 
