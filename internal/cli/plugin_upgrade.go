@@ -10,13 +10,16 @@ import (
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 
+	"github.com/rshade/finfocus/internal/pluginskill"
 	"github.com/rshade/finfocus/internal/pluginupgrade"
+	"github.com/rshade/finfocus/pkg/version"
 )
 
 type pluginUpgradeOptions struct {
 	dir        string
 	to         string
 	allowDirty bool
+	noSkill    bool
 	format     string
 }
 
@@ -27,6 +30,7 @@ type pluginUpgradeResult struct {
 	DryRun    bool                `json:"dry_run"`
 	Changed   []string            `json:"changed_files"`
 	NextSteps []string            `json:"next_steps,omitempty"`
+	Skill     *pluginskill.Result `json:"skill,omitempty"`
 }
 
 // NewPluginUpgradeCmd returns the "plugin upgrade" command, which moves a
@@ -54,8 +58,14 @@ directive, and any SpecVersion declaration. Everything else is listed as a manua
 migration guide; the finfocus-plugin-upgrade agent skill works through them.
 
 Run with --dry-run first to see the plan. Applying requires a clean git
-working tree so the upgrade is one reviewable diff. It never uses the
-network: run 'go mod tidy' afterwards.`,
+working tree so the upgrade is one reviewable diff. The code edits never use
+the network: run 'go mod tidy' afterwards.
+
+After the edits, and also when the plugin is already up to date, the
+finfocus-plugin-dev and finfocus-plugin-upgrade agent skills are reinstalled
+at this finfocus release with 'npx skills add'. That step is best-effort: if
+Node or the network is unavailable it prints a warning and the command to run
+later. Use --no-skill to skip it.`,
 		Example: `  # Show the upgrade plan for the plugin in the current directory
   finfocus plugin upgrade --dry-run
 
@@ -82,6 +92,8 @@ network: run 'go mod tidy' afterwards.`,
 		"Target finfocus-spec release: a hop version or this build's own (default: this build's)")
 	cmd.Flags().BoolVar(&opts.allowDirty, "allow-dirty", false,
 		"Apply even if the directory is not a clean git working tree")
+	cmd.Flags().BoolVar(&opts.noSkill, "no-skill", false,
+		"Do not reinstall the FinFocus plugin agent skills (npx skills add)")
 	cmd.Flags().StringVar(&output, "output", outputFormatTable, "Output format (table, json)")
 
 	return cmd
@@ -102,11 +114,18 @@ func runPluginUpgrade(cmd *cobra.Command, opts pluginUpgradeOptions) error {
 	}
 
 	rehearse := func(context.Context) error {
-		return renderPluginUpgrade(cmd, opts.format, pluginUpgradeResult{Plan: plan, DryRun: true, Changed: []string{}})
+		result := pluginUpgradeResult{Plan: plan, DryRun: true, Changed: []string{}}
+		if !opts.noSkill {
+			skill := pluginskill.Skipped(version.GetVersion(), "dry run")
+			result.Skill = &skill
+		}
+		return renderPluginUpgrade(cmd, opts.format, result)
 	}
 	commit := func(ctx context.Context) error {
 		result := pluginUpgradeResult{Plan: plan, Changed: []string{}}
 		if plan.UpToDate {
+			result.Skill = installUpgradeSkills(ctx, opts)
+			result.Changed = append(result.Changed, result.Skill.Paths...)
 			return renderPluginUpgrade(cmd, opts.format, result)
 		}
 		if !opts.allowDirty {
@@ -118,11 +137,24 @@ func runPluginUpgrade(cmd *cobra.Command, opts pluginUpgradeOptions) error {
 		if applyErr != nil {
 			return applyErr
 		}
+		result.Skill = installUpgradeSkills(ctx, opts)
+		changed = append(changed, result.Skill.Paths...)
 		result.Changed = changed
 		result.NextSteps = upgradeNextSteps(plan)
 		return renderPluginUpgrade(cmd, opts.format, result)
 	}
 	return ax.Perform(cmd.Context(), rehearse, commit)
+}
+
+// installUpgradeSkills reinstalls the plugin agent skills at this finfocus
+// release unless --no-skill is set.
+func installUpgradeSkills(ctx context.Context, opts pluginUpgradeOptions) *pluginskill.Result {
+	v := version.GetVersion()
+	res := pluginskill.Skipped(v, "--no-skill")
+	if !opts.noSkill {
+		res = pluginSkills.Install(ctx, opts.dir, v)
+	}
+	return &res
 }
 
 func upgradeNextSteps(plan *pluginupgrade.Plan) []string {
@@ -146,7 +178,15 @@ func renderPluginUpgrade(cmd *cobra.Command, format string, result pluginUpgrade
 		enc.SetIndent("", "  ")
 		return enc.Encode(result)
 	}
+	renderPluginUpgradeTable(cmd, result)
+	if result.Skill != nil && !result.DryRun {
+		cmd.Println()
+		printSkillResult(cmd, *result.Skill)
+	}
+	return nil
+}
 
+func renderPluginUpgradeTable(cmd *cobra.Command, result pluginUpgradeResult) {
 	plan := result.Plan
 	cmd.Printf("Plugin:  %s %s", pluginupgrade.Module, plan.Current)
 	if plan.GoVersion != "" {
@@ -155,7 +195,7 @@ func renderPluginUpgrade(cmd *cobra.Command, format string, result pluginUpgrade
 	cmd.Println()
 	if plan.UpToDate {
 		cmd.Printf("\nPlugin is up to date (finfocus-spec %s).\n", plan.Target)
-		return nil
+		return
 	}
 	cmd.Printf("Target:  %s\n", plan.Target)
 	if plan.RequiredGo != "" {
@@ -185,7 +225,10 @@ func renderPluginUpgrade(cmd *cobra.Command, format string, result pluginUpgrade
 
 	if result.DryRun {
 		cmd.Println("\nDry run: no files changed.")
-		return nil
+		if result.Skill != nil {
+			cmd.Printf("Would reinstall the FinFocus agent skills with:\n  %s\n", result.Skill.Command)
+		}
+		return
 	}
 	cmd.Println("\nChanged files:")
 	for _, f := range result.Changed {
@@ -195,5 +238,4 @@ func renderPluginUpgrade(cmd *cobra.Command, format string, result pluginUpgrade
 	for i, s := range result.NextSteps {
 		cmd.Printf("  %d. %s\n", i+1, s)
 	}
-	return nil
 }

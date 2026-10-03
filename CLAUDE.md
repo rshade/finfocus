@@ -909,11 +909,30 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   patch) changed `HandleDryRun`; v0.6.1 raised Go to 1.27.1
 - **`SpecVersion` must be `v`-prefixed**: `pluginsdk.ValidateSpecVersion`
   rejects `"0.6.1"`, so `GetPluginInfo` returns `Internal` and `plugin list`
-  shows `N/A`. `plugin init` still writes the bare form (#248); the upgrade
-  rewrites it
+  shows `N/A`. `plugin init` now writes `SpecVersion = pluginsdk.SpecVersion`;
+  scaffolds from v0.4.0 and earlier have a bare literal, which the upgrade
+  rewrites
 - **Minimum supported version is v0.5.0**; there are no pre-rename plugins
+- **`plugin.manifest.json` is not the pluginsdk manifest**: `plugin validate`
+  parses it as the flat `registry.Manifest` (`name`, `version`, ...) and
+  requires both to match the install directory. The scaffold's `manifest.json`
+  (`pluginsdk.SaveManifest`, nested `metadata`/`specification`) fails to parse
+  there, so the generated `make install` writes the flat file with `printf`.
+  `test/integration/plugin/scaffold_build_test.go` builds, installs, and
+  validates a generated project
 - Rebuild `agent-skills/finfocus-plugin-upgrade/finfocus-plugin-upgrade.skill`
   (a zip of `SKILL.md` + `references/`) after editing either
+- **Skill install (`internal/pluginskill/`)**: `plugin init` and `plugin upgrade`
+  run `npx -y skills@1.7.0 add <finfocus tree URL> --skill finfocus-plugin-dev
+  --skill finfocus-plugin-upgrade --agent codex --agent claude-code --copy -y`
+  in the plugin directory. Without `--agent` the skills CLI writes a copy for
+  every agent it detects (`.bob`, `.grok`, ...). The source is the release tag
+  only for a clean semver newer than v0.4.0 (the last tag without the skill),
+  else `main`. Upgrade re-runs `add`, not `skills update`, because `update`
+  moves to `main`. Every failure is a warning, never an error. Tests must never
+  run npx: `internal/cli` swaps the installer in `TestMain` (`main_test.go`,
+  `export_test.go`), and `test/integration/plugin` passes `--no-skill`. Spec:
+  `specs/620-plugin-dev-skill/`
 
 ### Integration Tests (`test/integration/`)
 
