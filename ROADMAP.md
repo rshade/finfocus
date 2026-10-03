@@ -221,7 +221,7 @@ guardrails in `CONTEXT.md`.
   - [ ] `plugin-manage` — Discover, install, update, validate, and
         troubleshoot finfocus plugins via gRPC protocol
         ([#911](https://github.com/rshade/finfocus/issues/911)) [M]
-  - [ ] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
+  - [x] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
         BoltDB cache issues, and zero-cost results
         ([#913](https://github.com/rshade/finfocus/issues/913)) [M]
   - *Format:* Agent Skills spec (SKILL.md + references/), installable via
@@ -356,6 +356,8 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q4
 
+- [x] #913 `skills`: add the finfocus-diagnose agent skill.
+      Closed 2026-10-03. [M]
 - [x] #1208 `lint`: apply Go modernization lint rules incrementally.
       Closed 2026-10-03. [L]
 - [x] #1527 `kubernetes`: link allocated workloads back to Pulumi URNs.
