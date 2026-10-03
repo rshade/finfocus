@@ -5,6 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1](https://github.com/rshade/finfocus/compare/v0.4.0...v0.4.1) (2026-10-03)
+
+
+### Added
+
+* **cli:** add accessibility flags for plain and high-contrast output ([#1627](https://github.com/rshade/finfocus/issues/1627)) ([706c5f3](https://github.com/rshade/finfocus/commit/706c5f37f093c45d84a4fb4c650a12d88282ecbd))
+* **cli:** add cost history collect, view, and list ([6b6bafc](https://github.com/rshade/finfocus/commit/6b6bafcf674d78514b49dc0f4481f7faefc53c10)), closes [#549](https://github.com/rshade/finfocus/issues/549)
+* **cli:** add plugin upgrade command and agent skill ([#1611](https://github.com/rshade/finfocus/issues/1611)) ([6cdc78d](https://github.com/rshade/finfocus/commit/6cdc78d583e41fc08fb6512bd9839f20fd46c3f0))
+* **cli:** add show-breakdown and show-confidence cost flags ([c07648b](https://github.com/rshade/finfocus/commit/c07648bec80e4f2e9bccec8d1c208f565078efdd)), closes [#685](https://github.com/rshade/finfocus/issues/685)
+* **cli:** diff cost history snapshots by resource ([3e73990](https://github.com/rshade/finfocus/commit/3e7399036d4734ab7a48eb9315f7b4b73edb0220)), closes [#554](https://github.com/rshade/finfocus/issues/554)
+* **cli:** export cost history and show table sparklines ([4bcb8bd](https://github.com/rshade/finfocus/commit/4bcb8bdc356f4a56492575811464e756354d3973)), closes [#551](https://github.com/rshade/finfocus/issues/551)
+* **cli:** prune old cost history snapshots ([#1646](https://github.com/rshade/finfocus/issues/1646)) ([f6586e9](https://github.com/rshade/finfocus/commit/f6586e9e34944be3bc842264f34b2de48f1fa86e)), closes [#555](https://github.com/rshade/finfocus/issues/555)
+* **cli:** show pricing spec details with cost projected --explain ([2683c2d](https://github.com/rshade/finfocus/commit/2683c2de30a671047acd868d66a1b6186253df00)), closes [#636](https://github.com/rshade/finfocus/issues/636)
+* **config:** add configuration validation reports with hints ([9697f3f](https://github.com/rshade/finfocus/commit/9697f3f854ead108d6eef9ced0c221b58fb407b6)), closes [#223](https://github.com/rshade/finfocus/issues/223)
+* **engine:** add cost diff view to cost projected command ([967f994](https://github.com/rshade/finfocus/commit/967f9941e6b8251e41099a0eb94eff6b9ae3d3de)), closes [#576](https://github.com/rshade/finfocus/issues/576)
+* **engine:** add optional in-memory LRU in front of BoltDB cache ([3e67578](https://github.com/rshade/finfocus/commit/3e67578671226f954859fabbd20815bc4c1cf4e8)), closes [#495](https://github.com/rshade/finfocus/issues/495)
+* **engine:** add warning column and OverviewWarning type to overview ([734982d](https://github.com/rshade/finfocus/commit/734982d4b5d904b1f0dc9f409a96f775a6501dbd)), closes [#643](https://github.com/rshade/finfocus/issues/643)
+* **engine:** emit nested resource inputs as additive dotted tag keys ([8f425fd](https://github.com/rshade/finfocus/commit/8f425fd25678bb5722bfe404dccb8df537442918)), closes [#1608](https://github.com/rshade/finfocus/issues/1608)
+* **engine:** price projected cost from plugin GetPricingSpec before YAML ([7be7116](https://github.com/rshade/finfocus/commit/7be711633fec7140b7af980e286737ba91e15f80)), closes [#638](https://github.com/rshade/finfocus/issues/638)
+* **engine:** send referenced resource region and SKU as ref tags ([#1615](https://github.com/rshade/finfocus/issues/1615)) ([c32ed2d](https://github.com/rshade/finfocus/commit/c32ed2d991df478967a38d327d4d61b9569b8d8f)), closes [#1610](https://github.com/rshade/finfocus/issues/1610)
+* **plugin:** install agent skills from plugin init and plugin upgrade ([811835d](https://github.com/rshade/finfocus/commit/811835d6893733125fcd10a0f451171ed7e640b6))
+* **plugin:** scaffold new plugins on core's finfocus-spec version ([2ec0196](https://github.com/rshade/finfocus/commit/2ec0196dd1dff5c579d0bdd9c1e15c49cd073bb6)), closes [#248](https://github.com/rshade/finfocus/issues/248)
+* **skills:** add finfocus-diagnose skill ([#1612](https://github.com/rshade/finfocus/issues/1612)) ([d1f9294](https://github.com/rshade/finfocus/commit/d1f929423c62c523950b42f9139639eca2839732))
+* **tui:** show GetPricingSpec discovery in cost estimate ([d20257f](https://github.com/rshade/finfocus/commit/d20257fb5a6d3c00549cc8836076f15151a70504)), closes [#637](https://github.com/rshade/finfocus/issues/637)
+
+
+### Fixed
+
+* **cli:** accept csv and ndjson cost history export ([85a9b80](https://github.com/rshade/finfocus/commit/85a9b807b5e47828d2585457413081cca9a06cb5)), closes [#551](https://github.com/rshade/finfocus/issues/551)
+* **cli:** apply accessibility flags consistently ([0b9c333](https://github.com/rshade/finfocus/commit/0b9c333d3e7e4b1592c042de7f74509d4697f5de)), closes [#1635](https://github.com/rshade/finfocus/issues/1635)
+* **engine:** align pricing-spec and Supports with the pricing descriptor ([ad8c5ee](https://github.com/rshade/finfocus/commit/ad8c5ee25b16340b8e909758ba3fda17517149b8)), closes [#1639](https://github.com/rshade/finfocus/issues/1639)
+* **engine:** bound pricing-spec calls and key them apart in the cache ([#1651](https://github.com/rshade/finfocus/issues/1651)) ([accdf36](https://github.com/rshade/finfocus/commit/accdf36942b5e29d881ff7898456f60f9ca8ebd9)), closes [#1632](https://github.com/rshade/finfocus/issues/1632)
+* **engine:** collapse replacement steps into one cost diff entry ([#1644](https://github.com/rshade/finfocus/issues/1644)) ([e73834c](https://github.com/rshade/finfocus/commit/e73834c569e3bc693f5af5bf3568cd31ca65d9e8)), closes [#1630](https://github.com/rshade/finfocus/issues/1630)
+* **engine:** keep per_day on the 30-day billing month ([c7bdf24](https://github.com/rshade/finfocus/commit/c7bdf24887538526fece2048668c93d4a3debcf6))
+* **engine:** price cost diff before and after from the same basis ([#1642](https://github.com/rshade/finfocus/issues/1642)) ([f5af066](https://github.com/rshade/finfocus/commit/f5af066d6e8198c3b5d1d7a525540962c2c5d649)), closes [#1629](https://github.com/rshade/finfocus/issues/1629)
+* **engine:** price tiered specs as graduated tiers ([1d0e018](https://github.com/rshade/finfocus/commit/1d0e018808264aeef7cf7bb32a9f5357d0529639))
+* **engine:** re-key cached projected costs and drop internal rows from the diff ([e9fac54](https://github.com/rshade/finfocus/commit/e9fac5460f53906a09012c4e44667ab562bad466)), closes [#1631](https://github.com/rshade/finfocus/issues/1631)
+* follow FORCE_COLOR and Pulumi paging conventions from primary sources ([7b2f109](https://github.com/rshade/finfocus/commit/7b2f1099d2caf238ab0cd530682e220e88c0150c))
+* **history:** handle mixed-currency snapshots in cost history ([#1643](https://github.com/rshade/finfocus/issues/1643)) ([86588aa](https://github.com/rshade/finfocus/commit/86588aa84dd796ccdf9353a88cf8381a4841cdda)), closes [#556](https://github.com/rshade/finfocus/issues/556)
+* **history:** keep cost history per project and stack ([797912b](https://github.com/rshade/finfocus/commit/797912b88c5e8c045ae17976628613cfe5e0ee63)), closes [#1634](https://github.com/rshade/finfocus/issues/1634)
+* **history:** keep paging when a full page repeats a version ([ba3bbae](https://github.com/rshade/finfocus/commit/ba3bbae549e125a8661c65d665ad348dff6376a1))
+* **history:** read the full stack history and harden list and view ([af7df94](https://github.com/rshade/finfocus/commit/af7df94941d2eae3de98fe9206af9db59045fa02)), closes [#1637](https://github.com/rshade/finfocus/issues/1637)
+* **history:** skip Pulumi provider resources when collecting cost history ([87eb430](https://github.com/rshade/finfocus/commit/87eb4301edef79b628a0bae189b1b9a717ca8335)), closes [#1633](https://github.com/rshade/finfocus/issues/1633)
+* **kubernetes:** keep same-named nodes separate across clusters ([e580864](https://github.com/rshade/finfocus/commit/e580864b22566d3105f8365a2b0e8bec5c193432)), closes [#1588](https://github.com/rshade/finfocus/issues/1588)
+* **overview:** mark plugin cost failures with the error warning ([dfae16e](https://github.com/rshade/finfocus/commit/dfae16e3ee67a1883940badab991bfc3288f4ffb)), closes [#1636](https://github.com/rshade/finfocus/issues/1636)
+* **plugin:** correct the plugin init manifest, spec version, and pricing example ([eae59d0](https://github.com/rshade/finfocus/commit/eae59d03d71bc2c908eceda5b03f00090909d047))
+* **plugin:** keep skill install writes inside the plugin directory ([39bde0e](https://github.com/rshade/finfocus/commit/39bde0e2c5ff7007b54623da618b944d537fad5b))
+* **plugin:** run the skills CLI outside the plugin directory ([fb20b59](https://github.com/rshade/finfocus/commit/fb20b59dfa8db715ed63a93cd85b42f2b6d48a8d))
+* **router:** normalize Pulumi package prefixes to the cloud provider ([b64b28a](https://github.com/rshade/finfocus/commit/b64b28a687d5c70fba8f846b00f65f7716241033)), closes [#1645](https://github.com/rshade/finfocus/issues/1645)
+
+
+### Changed
+
+* **cli:** thread budget flag overrides without mutating config ([0b005e2](https://github.com/rshade/finfocus/commit/0b005e26e24a8f234c643b52ccf408c47e3b9e8b)), closes [#808](https://github.com/rshade/finfocus/issues/808)
+
+
+### Documentation
+
+* add CI recipes for cost history collection ([9a14ffe](https://github.com/rshade/finfocus/commit/9a14ffed01716150b6aacfff5b25ef3505201948)), closes [#553](https://github.com/rshade/finfocus/issues/553)
+* correct overview docs, note the cost projected output change, fix budget skill ([13629dc](https://github.com/rshade/finfocus/commit/13629dc01a9b578e1209ac403e62e2e5495acf53)), closes [#1638](https://github.com/rshade/finfocus/issues/1638)
+* **overview:** document flags, columns, keys, and sample output ([3124e40](https://github.com/rshade/finfocus/commit/3124e407a0843f2c0fb63f3fae7aa311f368ba1c)), closes [#646](https://github.com/rshade/finfocus/issues/646)
+
 ## [Unreleased]
 
 ### Added
