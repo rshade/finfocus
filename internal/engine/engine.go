@@ -137,6 +137,7 @@ type Engine struct {
 	dismissalStore        *config.DismissalStore // Optional dismissal store; if nil, created on demand
 	jobs                  int                    // Override worker count; 0 means auto (default)
 	pricingSpecFallback   bool                   // GetPricingSpec after a projected-cost miss; default off
+	explainPricing        bool                   // --explain display; does not change the calculated cost
 	pricingSpecTimeout    time.Duration          // GetPricingSpec deadline; zero uses perResourceTimeout
 	pricingDiscoveryMu    sync.Mutex             // Guards pricingDiscoveryCache
 	pricingDiscoveryCache map[string]PricingDiscovery

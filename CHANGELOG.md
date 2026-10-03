@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **cli:** `cost projected --explain` shows plugin `GetPricingSpec` billing
+  mode, unit, rate, source, assumptions, and tiers beside each resource.
+  The calculated cost is unchanged. JSON and NDJSON include `pricing_spec`
+  only when the flag is set. A plugin that does not implement the RPC still
+  prints the cost (#636)
 * **cli:** `cost history export` writes JSON, CSV, or NDJSON for one stack.
   `--from`, `--to`, and `--provider` filter the series. `cost projected` and
   `cost actual` show a Unicode block sparkline in a Trend column when that

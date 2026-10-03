@@ -50,6 +50,7 @@ type costProjectedParams struct {
 	jobs                int
 	showBreakdown       bool
 	pricingSpecFallback bool
+	explain             bool
 }
 
 // NewCostProjectedCmd returns a Cobra command configured to calculate projected costs
@@ -70,6 +71,8 @@ type costProjectedParams struct {
 //   - --pricing-spec-fallback: price from plugin GetPricingSpec before local YAML
 //     when GetProjectedCost misses. Default off. Overrides cost.pricing_spec_fallback
 //     when the flag is set.
+//   - --explain: show GetPricingSpec billing mode, unit, rate, source, assumptions,
+//     and tiers beside each resource. Display only; the calculated cost is unchanged.
 //
 // The returned command is ready to be added to the application's command tree.
 func NewCostProjectedCmd() *cobra.Command {
@@ -109,6 +112,8 @@ Use --stack to target a specific stack during auto-detection.`,
 		"Show per-component cost sub-rows in table output")
 	cmd.Flags().BoolVar(&params.pricingSpecFallback, "pricing-spec-fallback", false,
 		"Price from plugin GetPricingSpec before local YAML when projected cost is missing")
+	cmd.Flags().BoolVar(&params.explain, "explain", false,
+		"Show plugin GetPricingSpec details for each resource without changing the cost")
 	addAccessibilityFlags(cmd)
 	scopeAccessibilityFlagsToBudget(cmd)
 
@@ -137,7 +142,10 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
   finfocus cost projected --pulumi-json plan.json --spec-dir ./custom-specs
 
   # Price from plugin GetPricingSpec before local YAML
-  finfocus cost projected --pulumi-json plan.json --pricing-spec-fallback`
+  finfocus cost projected --pulumi-json plan.json --pricing-spec-fallback
+
+  # Show how each price was derived
+  finfocus cost projected --pulumi-json plan.json --explain`
 
 // validateCostProjectedParams validates the projected cost command parameters
 // before any expensive work begins (plan loading, plugin startup) so invalid
@@ -227,7 +235,7 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 		cmd.Flags().Changed("pricing-spec-fallback"),
 		params.pricingSpecFallback,
 		cfg,
-	))
+	)).WithExplainPricing(params.explain)
 	// No-op for Pulumi-sourced resources; see resolveResourceTypes.
 	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
 	start := time.Now()

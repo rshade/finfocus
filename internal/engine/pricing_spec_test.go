@@ -183,6 +183,7 @@ type pricingSpecPlugin struct {
 	hangSpec     bool
 	specCalls    int
 	lastSpecID   string
+	lastSKU      string
 }
 
 func (p *pricingSpecPlugin) GetProjectedCost(
@@ -203,6 +204,7 @@ func (p *pricingSpecPlugin) GetPricingSpec(
 	p.specCalls++
 	if in.GetResource() != nil {
 		p.lastSpecID = in.GetResource().GetId()
+		p.lastSKU = in.GetResource().GetSku()
 	}
 	if p.hangSpec {
 		<-ctx.Done()

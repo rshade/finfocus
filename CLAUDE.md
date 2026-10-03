@@ -629,6 +629,14 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `docs/guides/ci-cd-cost-tracking.md` page. Release assets are versioned
   archives (`finfocus-v0.4.0-linux-amd64.tar.gz`); the install script is
   `scripts/install.sh`
+- **`cost projected --explain`** calls `GetPricingSpec` after
+  `GetProjectedCostDiff` and stores the view on `DiffEntry.PricingSpec`
+  (`pricing_spec` in JSON and NDJSON). It does not change `Monthly`. The
+  default is off, and a disabled run does not call the RPC. A delete is
+  explained from the old properties; every other operation uses the new
+  ones. An RPC error or an empty spec omits the field and keeps the cost.
+  The next selected plugin is tried when the first has no spec. Unpriced
+  `pulumi:` rows are not explained because they are not diff entries
 - **Plugin pricing spec fallback** is off by default. `newEngineWithCache`
   copies `cost.pricing_spec_fallback`. `cost projected --pricing-spec-fallback`
   overrides that for the command when the flag is set. When on, a resource
