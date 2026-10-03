@@ -186,9 +186,19 @@ finfocus cost history diff --stack dev --from v35 --to v42
 finfocus cost history prune --stack dev --older-than 365d --dry-run
 ```
 
-Databases live under the FinFocus config directory in `history/`, one
-`<stack>.history.db` file per stack. `view --output json` prints the
-snapshots and annotations. `--plain` forces the text chart.
+Databases live under the FinFocus config directory in `history/`, one file per
+stack of each project: `<project>@<stack>.history.db`. Two projects that both
+have a stack named `dev` get separate histories. FinFocus takes the project from
+the `Pulumi.yaml` in the current directory, or from a fully qualified
+`--stack org/project/dev`. A database never accepts snapshots from another
+project, and `list` shows each one as `project/stack`.
+
+Databases written by earlier versions are named `<stack>.history.db`. They keep
+working: the project is read from the resource URNs they hold, and a project
+that does not own one gets a new file instead of sharing it. Outside a project
+directory, `--stack dev` uses a single matching database, and asks for a project
+when several match. `view --output json` prints the snapshots and annotations.
+`--plain` forces the text chart.
 
 ---
 

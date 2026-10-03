@@ -138,11 +138,12 @@ func detectStack(ctx context.Context, cmd *cobra.Command, stack string, deps col
 }
 
 func collectInto(ctx context.Context, cmd *cobra.Command, bin string, flags collectFlags, deps collectDeps) error {
-	path, err := historyPath(deps.dir, flags.stack)
+	target, err := resolveHistoryTarget(deps.dir, flags.stack)
 	if err != nil {
 		return err
 	}
-	db, err := history.OpenCostDB(path, flags.stack)
+	path := target.Path
+	db, err := history.OpenCostDBFor(path, target.Project, target.Stack)
 	if err != nil {
 		return err
 	}

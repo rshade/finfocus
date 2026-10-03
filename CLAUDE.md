@@ -555,8 +555,16 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   adds component sub-rows on that table only. Recommendations are merged
   onto the after cost and skipped for deletes
 - **Cost history** (`cost history collect|view|list`): snapshots live in
-  `~/.finfocus/history/<stack>.history.db` (slashes in the stack name become
-  dashes). That file is not the resource-observation `history.db`. `collect`
+  `~/.finfocus/history/<project>@<stack>.history.db` (`@` cannot appear in a
+  Pulumi name, so names never collide). The project is the `Pulumi.yaml` in the
+  working directory or the middle part of `--stack org/project/stack`
+  (`resolveHistoryTarget`). A database records its project in `meta` and
+  `OpenCostDBFor` errors on a different one. A legacy `<stack>.history.db`
+  (slashes become dashes) is kept by the project its snapshot URNs name
+  (`CostDB.InferProject`), or adopted when they name none; any other project
+  gets its own file. With no project, a bare `--stack` uses the legacy file,
+  else a single `@` match, else errors. That file is not the
+  resource-observation `history.db`. `collect`
   prices each successful `update` through `GetProjectedCostWithErrors` and
   stores the result; a successful `destroy` is `$0` with annotation
   `Stack destroyed` and does not call the pricer. `view` and `list` are

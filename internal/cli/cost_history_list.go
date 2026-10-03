@@ -40,6 +40,7 @@ func runList(cmd *cobra.Command, dir string) error {
 
 type historyListItem struct {
 	Stack       string `json:"stack"`
+	Project     string `json:"project,omitempty"`
 	Path        string `json:"path"`
 	Snapshots   int    `json:"snapshots"`
 	First       string `json:"first,omitempty"`
@@ -54,6 +55,7 @@ func historyListItems(stats []history.CostDBStats) []historyListItem {
 	for _, stat := range stats {
 		item := historyListItem{
 			Stack:       stat.Stack,
+			Project:     stat.Project,
 			Path:        stat.Path,
 			Snapshots:   stat.Snapshots,
 			Size:        stat.Size,
@@ -78,8 +80,12 @@ func writeHistoryTable(w io.Writer, stats []history.CostDBStats, now time.Time) 
 	tw := tabwriter.NewWriter(w, 0, 0, pad, ' ', 0)
 	fmt.Fprintln(tw, "Stack\tSnapshots\tDate Range\tLast Collected\tSize")
 	for _, stat := range stats {
+		label := stat.Stack
+		if stat.Project != "" {
+			label = stat.Project + "/" + stat.Stack
+		}
 		fmt.Fprintf(tw, "%s\t%d\t%s\t%s\t%s\n",
-			stat.Stack,
+			label,
 			stat.Snapshots,
 			formatHistoryRange(stat),
 			formatCollected(stat.CollectedAt, now),
