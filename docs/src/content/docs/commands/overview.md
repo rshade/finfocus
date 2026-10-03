@@ -233,7 +233,7 @@ ASCII table with the following columns:
 | `Delta` | How this row changes the monthly bill. The plain table prints a positive amount as `+$` and a negative amount as `-$`. Updating or replacing: new projected monthly cost minus the current projected cost, or minus the extrapolated actual when there is no baseline. Creating: the new projected cost. Deleting: minus the extrapolated actual being removed. Active: the drift delta when drift is shown, otherwise `-` |
 | `Drift%` | Calendar-month extrapolation of month-to-date spend compared with the projected monthly cost. `-` when drift is not shown (day 1 or 2, at or under 10%, or nothing to compare). A shown value is above 10% and ends with a warning mark |
 | `Recs` | Open recommendation count. `N(-M)` when M of them are dismissed. `-` when there are none |
-| `Warn` | Conditions for this resource, comma-separated in derivation order: `drift`, `error`, `new`. `-` when none apply. A shown drift stays in `Drift%` and is also listed here. `estimate` and `stale` are reserved and are not shown |
+| `Warn` | Conditions for this resource, comma-separated in derivation order: `drift`, `error`, `new`. `-` when none apply. A shown drift stays in `Drift%` and is also listed here. The TUI column keeps that list when it fits, and otherwise shows the first name plus `+N` for the rest. `estimate` and `stale` are reserved and are not shown |
 
 Plain output (`--plain`) from the table renderer. Amounts are sample data.
 A type longer than the column is shortened, and the last row is the summary:

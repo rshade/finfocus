@@ -28,8 +28,21 @@ func TestBuildOverviewTable_WarnColumn(t *testing.T) {
 	view := model.buildOverviewTable().View()
 	t.Logf("overview table:\n%s", view)
 	assert.Contains(t, view, "Warn")
-	assert.Contains(t, view, "drift,error")
+	assert.Contains(t, view, "drift+1")
 	assert.Contains(t, view, "new")
+	assert.NotContains(t, view, "drift,error")
 	assert.NotContains(t, view, "estimate")
 	assert.NotContains(t, view, "stale")
+}
+
+func TestFormatOverviewWarnCell(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, "-", formatOverviewWarnCell(nil))
+	assert.Equal(t, "drift", formatOverviewWarnCell([]engine.OverviewWarning{engine.WarnDrift}))
+	assert.Equal(t, "new", formatOverviewWarnCell([]engine.OverviewWarning{engine.WarnNew}))
+	assert.Equal(t, "drift+1", formatOverviewWarnCell([]engine.OverviewWarning{engine.WarnDrift, engine.WarnError}))
+	assert.Equal(t, "drift+2", formatOverviewWarnCell([]engine.OverviewWarning{
+		engine.WarnDrift, engine.WarnError, engine.WarnNew,
+	}))
 }

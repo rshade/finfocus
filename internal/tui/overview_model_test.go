@@ -397,17 +397,17 @@ func TestOverviewModel_ResourceColumnWidth(t *testing.T) {
 		{
 			name:     "medium terminal 120",
 			width:    120,
-			expected: 10,
+			expected: 12,
 		},
 		{
 			name:     "wide terminal 160",
 			width:    160,
-			expected: 44,
+			expected: 52,
 		},
 		{
 			name:     "very wide terminal keeps preferred minimum and adds extra",
 			width:    220,
-			expected: 104,
+			expected: 112,
 		},
 	}
 
@@ -442,7 +442,7 @@ func TestOverviewModel_TypeColumnWidth(t *testing.T) {
 		{
 			name:     "medium terminal 120",
 			width:    120,
-			expected: 10,
+			expected: 16,
 		},
 		{
 			name:     "wide terminal 160",
@@ -481,9 +481,9 @@ func TestOverviewModel_BuildOverviewTable_WidthBudget(t *testing.T) {
 		expectFits bool
 	}{
 		{
-			name:       "100 width cannot fit the warn column",
+			name:       "100 width fits",
 			width:      100,
-			expectFits: false,
+			expectFits: true,
 		},
 		{
 			name:       "120 width fits",
