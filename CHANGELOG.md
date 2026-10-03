@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0](https://github.com/rshade/finfocus/compare/v0.3.9...v0.4.0) (2026-10-03)
+
+
+### ⚠ BREAKING CHANGES
+
+* **cli:** input and validation errors now exit 2 with error_code validation_error instead of exit 1 with internal_error.
+
+### Added
+
+* **cli:** add overview --force-color and --no-color ([#1602](https://github.com/rshade/finfocus/issues/1602)) ([210da00](https://github.com/rshade/finfocus/commit/210da0051472d7a3df7049bebd9a4dd58a380ba8)), closes [#641](https://github.com/rshade/finfocus/issues/641)
+* **cli:** confirm overview pricing before enrichment ([#1601](https://github.com/rshade/finfocus/issues/1601)) ([3059e3e](https://github.com/rshade/finfocus/commit/3059e3e91a1bacfcf00150e6908293c00d25ec4e)), closes [#642](https://github.com/rshade/finfocus/issues/642)
+* **cli:** generate golangci-lint config ([#1603](https://github.com/rshade/finfocus/issues/1603)) ([083fa8f](https://github.com/rshade/finfocus/commit/083fa8f3687aea058c09dd49543ce266ad29b6a0)), closes [#493](https://github.com/rshade/finfocus/issues/493)
+* **cli:** implement finfocus cost cluster (SP3) ([#1594](https://github.com/rshade/finfocus/issues/1594)) ([203333d](https://github.com/rshade/finfocus/commit/203333dcae034d8fd43f3e46a5a246410c778838))
+* **engine:** surface plugin Supports() decline reasons in placeholder results ([#1579](https://github.com/rshade/finfocus/issues/1579)) ([fd7b257](https://github.com/rshade/finfocus/commit/fd7b25715a6645686eb78af16913834ca23b9918)), closes [#1515](https://github.com/rshade/finfocus/issues/1515)
+* **kubernetes:** link workloads to Pulumi URNs ([#1606](https://github.com/rshade/finfocus/issues/1606)) ([0ecdecf](https://github.com/rshade/finfocus/commit/0ecdecfd517a95f5aabd8e611ea738d7b70f622e)), closes [#1527](https://github.com/rshade/finfocus/issues/1527)
+* **kubernetes:** price EKS Fargate pods ([#1605](https://github.com/rshade/finfocus/issues/1605)) ([6a46b29](https://github.com/rshade/finfocus/commit/6a46b296cd5195e99dd41820bbb800414b07dccb)), closes [#1532](https://github.com/rshade/finfocus/issues/1532)
+* **kubernetes:** share idle and system workload cost ([#1604](https://github.com/rshade/finfocus/issues/1604)) ([9bbe55b](https://github.com/rshade/finfocus/commit/9bbe55b2d8e1ce356b05aeaba2791f201b7ac59a)), closes [#1533](https://github.com/rshade/finfocus/issues/1533)
+* **registry:** add jev plugin registry entry ([#1585](https://github.com/rshade/finfocus/issues/1585)) ([b0afa14](https://github.com/rshade/finfocus/commit/b0afa14713fd8a5fa55dda1ea261e47fda2792b0)), closes [#1577](https://github.com/rshade/finfocus/issues/1577)
+* **registry:** add kubernetes plugin entry and real Installer.Update test ([#1578](https://github.com/rshade/finfocus/issues/1578)) ([37267b8](https://github.com/rshade/finfocus/commit/37267b8418b53fb8bed2da7e2e9203aa1ef7eadc)), closes [#1534](https://github.com/rshade/finfocus/issues/1534)
+* **skills:** add finfocus-budget skill ([#1607](https://github.com/rshade/finfocus/issues/1607)) ([f5a125e](https://github.com/rshade/finfocus/commit/f5a125ed9ff7555733451770a62d2a8b44c0649c)), closes [#914](https://github.com/rshade/finfocus/issues/914)
+
+
+### Fixed
+
+* **cli:** surface terraform-state gaps and use validation exit codes ([#1596](https://github.com/rshade/finfocus/issues/1596)) ([b862265](https://github.com/rshade/finfocus/commit/b862265a4d878faea43a8dd94f76470190649a1b)), closes [#1506](https://github.com/rshade/finfocus/issues/1506)
+* **engine:** truncate decline reasons on UTF-8 boundaries ([#1599](https://github.com/rshade/finfocus/issues/1599)) ([18085f8](https://github.com/rshade/finfocus/commit/18085f847be170d5985e511f77a0f129c7ef3c82)), closes [#1589](https://github.com/rshade/finfocus/issues/1589)
+* **plugins/jev:** stop sending recommendation ids and correct Jev docs ([#1593](https://github.com/rshade/finfocus/issues/1593)) ([4cf2f27](https://github.com/rshade/finfocus/commit/4cf2f270576d9a3c4db5a8f700475dc61d8361f2))
+* **scoring:** carry action_detail and reasons into scorer requests ([#1583](https://github.com/rshade/finfocus/issues/1583)) ([d1fd730](https://github.com/rshade/finfocus/commit/d1fd730eba198309a17e11725c3fd1d2838204f9)), closes [#1574](https://github.com/rshade/finfocus/issues/1574)
+
+
+### Changed
+
+* apply intrange and modernize rules to non-test code ([#1591](https://github.com/rshade/finfocus/issues/1591)) ([32d20f5](https://github.com/rshade/finfocus/commit/32d20f533a534bb4da770d9c9538cfd1bcee4766)), closes [#1208](https://github.com/rshade/finfocus/issues/1208)
+
+
+### Documentation
+
+* **mcp:** remove dead link to the retired finfocus-mcp repo ([#1595](https://github.com/rshade/finfocus/issues/1595)) ([a569c25](https://github.com/rshade/finfocus/commit/a569c257352019a7d9dfb05a7718fca1794d6f42))
+* **plugins:** add Jev scorer walkthrough with real output ([#1600](https://github.com/rshade/finfocus/issues/1600)) ([379d2f5](https://github.com/rshade/finfocus/commit/379d2f573bc8c8833849820c01767d1c01cf4475))
+* **specs:** convert Kubernetes cost-allocation superpowers docs to Spec Kit ([#1580](https://github.com/rshade/finfocus/issues/1580)) ([a228c7f](https://github.com/rshade/finfocus/commit/a228c7f1f1e88e6dbaa8cc494e74f56118e24ad7)), closes [#1523](https://github.com/rshade/finfocus/issues/1523)
+
 ## [0.3.9](https://github.com/rshade/finfocus/compare/v0.3.8...v0.3.9) (2026-09-30)
 
 
