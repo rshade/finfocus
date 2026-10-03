@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -121,6 +123,34 @@ func assertValidAllocation(t *testing.T, req *pbc.AllocateRequest, resp *pbc.All
 
 // m5.large: 2 cores, 8 GiB. cpu weight 2*0.031611=0.063222, mem weight 8*0.004237=0.033896.
 const m5CPUFraction = 0.063222 / (0.063222 + 0.033896)
+
+func TestAllocate_EchoesPeriod(t *testing.T) {
+	t.Parallel()
+
+	start := &timestamppb.Timestamp{Seconds: 1_790_000_000, Nanos: 500}
+	end := &timestamppb.Timestamp{Seconds: 1_790_000_000 + 24*60*60}
+	req := &pbc.AllocateRequest{
+		Usage:  concat(nodeRows("n1", 2, 8), podRows("app", "api-1", "n1", 0.5, 2)),
+		Priced: []*pbc.PricedResource{pricedNode("n1", 70.08, nil)},
+		Start:  start,
+		End:    end,
+	}
+	resp, err := Allocate(req)
+	require.NoError(t, err)
+	assert.True(t, proto.Equal(start, resp.GetStart()))
+	assert.True(t, proto.Equal(end, resp.GetEnd()))
+	assertValidAllocation(t, req, resp)
+
+	plain := &pbc.AllocateRequest{
+		Usage:  req.GetUsage(),
+		Priced: req.GetPriced(),
+	}
+	omitted, err := Allocate(plain)
+	require.NoError(t, err)
+	assert.Nil(t, omitted.GetStart())
+	assert.Nil(t, omitted.GetEnd())
+	assertValidAllocation(t, plain, omitted)
+}
 
 func TestAllocate_SingleNodeSplitAndIdle(t *testing.T) {
 	t.Parallel()

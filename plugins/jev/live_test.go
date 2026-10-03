@@ -190,8 +190,9 @@ func TestLive_ScoresRecommendations(t *testing.T) {
 	}
 	assert.Equal(t, "jev", resp.GetScorer().GetName())
 	assert.Equal(t, DefaultModel, resp.GetScorer().GetModel(), "the pinned model answered")
-	t.Logf("model=%s provider_request_id=%s input_tokens=%d spend=$%.5f",
-		resp.GetScorer().GetModel(), resp.GetScorer().GetProviderRequestId(), backend.tokens, backend.spendUSD())
+	t.Logf("model=%s ids=%v tokens=%d spend=$%.5f",
+		resp.GetScorer().GetModel(), resp.GetScorer().GetProviderRequestIds(),
+		backend.tokens, backend.spendUSD())
 }
 
 func TestLive_ListsModels(t *testing.T) {
