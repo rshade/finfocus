@@ -29,8 +29,10 @@ type overviewEnricher interface {
 // EnrichOverviewRows' worker pool, the maximum concurrent goroutines is
 // approximately overviewConcurrencyLimit * 4. Partial
 // failures from actual/projected cost are captured in row.Error with actual
-// cost errors taking precedence; recommendation failures are logged but do
-// not set row.Error.
+// cost errors taking precedence, whether the engine returned an error or a
+// plugin reported one on the result (a timeout, a failed call, a validation
+// failure); a resource with no price data is not an error. Recommendation
+// failures are logged but do not set row.Error.
 func EnrichOverviewRow(ctx context.Context, row *OverviewRow, eng *Engine, dateRange DateRange) {
 	enrichOverviewRow(ctx, row, eng, dateRange)
 }
@@ -207,16 +209,15 @@ func enrichActualCost(
 
 	if result != nil && len(result.Results) > 0 {
 		costResult := result.Results[0]
-		// Skip results with errors (plugin responded but can't price this resource)
-		if costResult.Error != nil ||
-			strings.HasPrefix(costResult.Notes, "ERROR:") ||
-			strings.HasPrefix(costResult.Notes, "VALIDATION:") {
+		// A result with an error carries no cost. A failed fetch is reported so the
+		// row is marked; a resource with no price data is not a failure.
+		if costResultHasError(costResult) {
 			log.Debug().
 				Ctx(ctx).
 				Str("urn", row.URN).
 				Str("notes", costResult.Notes).
 				Msg("skipping actual cost result with error")
-			return nil
+			return costResultFailure(row.URN, costResult)
 		}
 		row.ActualCost = &ActualCostData{
 			MTDCost:  costResult.TotalCost,
@@ -255,15 +256,13 @@ func enrichProjectedCost(
 
 	if result != nil && len(result.Results) > 0 {
 		costResult := result.Results[0]
-		if costResult.Error != nil ||
-			strings.HasPrefix(costResult.Notes, "ERROR:") ||
-			strings.HasPrefix(costResult.Notes, "VALIDATION:") {
+		if costResultHasError(costResult) {
 			log.Debug().
 				Ctx(ctx).
 				Str("urn", row.URN).
 				Str("notes", costResult.Notes).
 				Msg("skipping projected cost result with error")
-			return nil
+			return costResultFailure(row.URN, costResult)
 		}
 		row.ProjectedCost = &ProjectedCostData{
 			MonthlyCost: costResult.Monthly,
@@ -351,6 +350,42 @@ func driftElapsedDays(windowStart, refTime time.Time, createdAt *time.Time) floa
 func daysInCurrentMonth(t time.Time) int {
 	y, m, _ := t.Date()
 	return time.Date(y, m+1, 0, 0, 0, 0, 0, t.Location()).Day()
+}
+
+// costResultHasError reports whether a plugin result carries an error instead of
+// a cost: a structured error, or an ERROR: or VALIDATION: note.
+func costResultHasError(result CostResult) bool {
+	return result.Error != nil ||
+		strings.HasPrefix(result.Notes, "ERROR:") ||
+		strings.HasPrefix(result.Notes, "VALIDATION:")
+}
+
+// costResultFailure returns the row error for a result with an error, or nil
+// when the result only says nothing could be priced. The engine reports a plugin
+// that failed or timed out as a result error rather than a returned error, so
+// without this the Warn column never shows `error` for them. NO_COST_DATA means
+// no plugin has a price for the type (an IAM role, for example); that is not a
+// failed fetch and is not marked.
+func costResultFailure(urn string, result CostResult) *OverviewRowError {
+	if result.Error != nil && result.Error.Code == ErrCodeNoCostData {
+		return nil
+	}
+	message := result.Notes
+	if result.Error != nil && result.Error.Message != "" {
+		message = result.Error.Message
+	}
+	if message == "" && result.Error != nil {
+		message = result.Error.Code
+	}
+	if message == "" {
+		message = "cost fetch failed"
+	}
+	failure := classifyError(urn, errors.New(message))
+	if result.Error != nil && result.Error.Code == ErrCodeTimeoutError {
+		failure.ErrorType = ErrorTypeNetwork
+		failure.Retryable = true
+	}
+	return failure
 }
 
 // classifyError converts a Go error into an OverviewRowError with an appropriate ErrorType.

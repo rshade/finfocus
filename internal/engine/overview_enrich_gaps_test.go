@@ -44,7 +44,7 @@ func TestDriftElapsedDays_EmptyWindow(t *testing.T) {
 	assert.Zero(t, driftElapsedDays(after, ref, nil))
 }
 
-func TestEnrichActualCost_SkipsErrorNotesAndDefaultsCurrency(t *testing.T) {
+func TestEnrichActualCost_ReportsErrorResultsAndDefaultsCurrency(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -55,19 +55,27 @@ func TestEnrichActualCost_SkipsErrorNotesAndDefaultsCurrency(t *testing.T) {
 	skipped := enrichActualCost(ctx, row, &mockEnricher{
 		actualResult: &CostResultWithErrors{Results: []CostResult{{Notes: "ERROR: no price"}}},
 	}, resource, window)
-	require.Nil(t, skipped)
+	require.NotNil(t, skipped)
 	assert.Nil(t, row.ActualCost)
 
 	validation := enrichActualCost(ctx, row, &mockEnricher{
 		actualResult: &CostResultWithErrors{Results: []CostResult{{Notes: "VALIDATION: bad sku"}}},
 	}, resource, window)
-	require.Nil(t, validation)
+	require.NotNil(t, validation)
 	assert.Nil(t, row.ActualCost)
 
 	structured := enrichActualCost(ctx, row, &mockEnricher{
 		actualResult: &CostResultWithErrors{Results: []CostResult{{Error: &StructuredError{}}}},
 	}, resource, window)
-	require.Nil(t, structured)
+	require.NotNil(t, structured)
+	assert.Nil(t, row.ActualCost)
+
+	noData := enrichActualCost(ctx, row, &mockEnricher{
+		actualResult: &CostResultWithErrors{Results: []CostResult{{
+			Error: &StructuredError{Code: ErrCodeNoCostData, Message: "No pricing information available"},
+		}}},
+	}, resource, window)
+	require.Nil(t, noData)
 	assert.Nil(t, row.ActualCost)
 
 	ok := enrichActualCost(ctx, row, &mockEnricher{
@@ -84,7 +92,7 @@ func TestEnrichActualCost_SkipsErrorNotesAndDefaultsCurrency(t *testing.T) {
 	assert.Contains(t, fetchErr.Message, "connection reset")
 }
 
-func TestEnrichProjectedCost_SkipsErrorNotesDefaultsCurrencyAndLogsZero(t *testing.T) {
+func TestEnrichProjectedCost_ReportsErrorResultsDefaultsCurrencyAndLogsZero(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -94,13 +102,13 @@ func TestEnrichProjectedCost_SkipsErrorNotesDefaultsCurrencyAndLogsZero(t *testi
 	skipped := enrichProjectedCost(ctx, row, &mockEnricher{
 		projectedResult: &CostResultWithErrors{Results: []CostResult{{Notes: "ERROR: no price"}}},
 	}, resource)
-	require.Nil(t, skipped)
+	require.NotNil(t, skipped)
 	assert.Nil(t, row.ProjectedCost)
 
 	validation := enrichProjectedCost(ctx, row, &mockEnricher{
 		projectedResult: &CostResultWithErrors{Results: []CostResult{{Notes: "VALIDATION: bad"}}},
 	}, resource)
-	require.Nil(t, validation)
+	require.NotNil(t, validation)
 
 	ok := enrichProjectedCost(ctx, row, &mockEnricher{
 		projectedResult: &CostResultWithErrors{Results: []CostResult{{Monthly: 0}}},

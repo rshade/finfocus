@@ -480,7 +480,10 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `docs/commands/overview.md` is not a file. Plain headers are
   `ACTUAL(MTD)` and `PROJECTED` (`PROJECTED*` in state-only mode). Delta comes
   from `CalculateRowDelta`, not projected minus month-to-date. The Warn column
-  repeats a shown drift as `drift` and also lists `error` and `new`. The TUI
+  repeats a shown drift as `drift` and also lists `error` and `new`. `error`
+  covers a plugin error reported on the result (`PLUGIN_ERROR`, `TIMEOUT_ERROR`,
+  `VALIDATION_ERROR`, an `ERROR:`/`VALIDATION:` note) as well as a returned error; `NO_COST_DATA`
+  is not an error. `ApplyChangesToRows` re-derives warnings when a status changes. The TUI
   cell uses `name+N` when that list does not fit in 7 columns. `estimate` and
   `stale` exist on `OverviewWarning` and are not derived
 - **Cost table flags**: `--show-breakdown` on `cost projected` and `cost actual`
