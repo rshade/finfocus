@@ -58,15 +58,11 @@ func TestOutputFormat_Table(t *testing.T) {
 	output, err := h.Execute("cost", "projected", "--pulumi-json", planFile, "--output", "table")
 	require.NoError(t, err, "Command should succeed")
 
-	// Verify table format
-	h.AssertContains(output, "COST SUMMARY")
-	h.AssertContains(output, "Total Monthly Cost")
-	h.AssertContains(output, "Total Hourly Cost")
-	h.AssertContains(output, "RESOURCE DETAILS")
-
-	// Verify table has separators
-	assert.Contains(t, output, "===", "Table should have separator lines")
-	assert.Contains(t, output, "---", "Table should have row separators")
+	// Verify the projected cost diff table.
+	h.AssertContains(output, "COST DIFF")
+	h.AssertContains(output, "Before")
+	h.AssertContains(output, "After")
+	h.AssertContains(output, "Change")
 }
 
 // TestOutputFormat_NDJSON tests NDJSON (newline-delimited JSON) output format.
@@ -109,9 +105,9 @@ func TestOutputFormat_DefaultIsTable(t *testing.T) {
 	output, err := h.Execute("cost", "projected", "--pulumi-json", planFile)
 	require.NoError(t, err, "Command should succeed")
 
-	// Verify it's table format (contains table headers)
-	h.AssertContains(output, "COST SUMMARY")
-	h.AssertContains(output, "Total Monthly Cost")
+	// Verify it's the projected diff table.
+	h.AssertContains(output, "COST DIFF")
+	h.AssertContains(output, "After")
 }
 
 // TestOutputFormat_InvalidFormat tests error handling for invalid format.
@@ -159,7 +155,7 @@ func TestOutputFormat_EmptyResults(t *testing.T) {
 	outputTable, err := h.Execute("cost", "projected", "--pulumi-json", planFile, "--output", "table")
 	require.NoError(t, err, "Table output should handle empty results")
 
-	h.AssertContains(outputTable, "COST SUMMARY")
+	h.AssertContains(outputTable, "COST DIFF")
 	h.AssertContains(outputTable, "0.00")
 }
 
@@ -289,7 +285,7 @@ func TestOutputFormat_ConsistencyAcrossFormats(t *testing.T) {
 
 	// Table should contain the same total (formatted as string)
 	// Can't do exact comparison due to formatting, but verify output exists
-	h.AssertContains(outputTable, "Total Monthly Cost")
+	h.AssertContains(outputTable, "After")
 
 	// Both formats should report the same resource count
 	resourcesJSON := resultJSON["resources"].([]interface{})
@@ -297,7 +293,7 @@ func TestOutputFormat_ConsistencyAcrossFormats(t *testing.T) {
 
 	// Count resources in table (rough check - just verify non-zero if JSON has resources)
 	if resourceCountJSON > 0 {
-		h.AssertContains(outputTable, "RESOURCE DETAILS")
+		h.AssertContains(outputTable, "OP")
 	}
 
 	// Verify total is non-negative in JSON

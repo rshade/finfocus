@@ -204,6 +204,11 @@ func getPulumiPlanGetResourcesTestData() []struct {
 						Inputs: map[string]interface{}{
 							"dbInstanceClass": "db.t3.micro",
 						},
+						OldState: &ingest.PulumiState{
+							Inputs: map[string]interface{}{
+								"dbInstanceClass": "db.t3.small",
+							},
+						},
 					},
 					{
 						Op:   "same",
@@ -220,10 +225,21 @@ func getPulumiPlanGetResourcesTestData() []struct {
 				// Verify delete resource has OldID populated
 				var foundDelete bool
 				for _, r := range resources {
-					if strings.Contains(r.URN, "old") {
+					switch {
+					case strings.Contains(r.URN, "old"):
 						foundDelete = true
 						assert.Equal(t, "old-bucket-id", r.OldID,
 							"delete resource should have OldID populated")
+						assert.Equal(t, "delete", r.Operation)
+						assert.Equal(t, "old-bucket", r.Inputs["bucket"])
+						assert.Equal(t, "old-bucket", r.OldInputs["bucket"])
+					case strings.Contains(r.URN, "::web"):
+						assert.Equal(t, "create", r.Operation)
+						assert.Nil(t, r.OldInputs)
+					case strings.Contains(r.URN, "::db"):
+						assert.Equal(t, "update", r.Operation)
+						assert.Equal(t, "db.t3.micro", r.Inputs["dbInstanceClass"])
+						assert.Equal(t, "db.t3.small", r.OldInputs["dbInstanceClass"])
 					}
 				}
 				assert.True(t, foundDelete, "delete resource should be included")

@@ -803,12 +803,3 @@ func sumTotalCosts(results []engine.CostResult) float64 {
 	}
 	return total
 }
-
-// sumMonthlyCosts returns the sum of Monthly across all results.
-func sumMonthlyCosts(results []engine.CostResult) float64 {
-	total := 0.0
-	for _, r := range results {
-		total += r.Monthly
-	}
-	return total
-}

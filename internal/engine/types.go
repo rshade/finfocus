@@ -37,6 +37,12 @@ type ResourceDescriptor struct {
 	// property. Empty lists are omitted. Nil when the resource has no
 	// cross-resource references. ID remains the resource's own URN.
 	Refs map[string][]string `json:"refs,omitempty"`
+	// Operation is the Pulumi plan op. Empty means the caller has no plan
+	// operation (Terraform state, older tools) and cost diff treats it as create.
+	Operation string `json:"operation,omitempty"`
+	// OldProperties is the previous input map for update, replace, and delete.
+	// Nil when the plan step has no old state.
+	OldProperties map[string]any `json:"oldProperties,omitempty"`
 }
 
 // Validate checks that the ResourceDescriptor has valid fields and returns an error if validation fails.

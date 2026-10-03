@@ -10,6 +10,28 @@ import (
 	"github.com/rshade/finfocus/internal/ingest"
 )
 
+func TestMapResource_OperationAndOldProperties(t *testing.T) {
+	t.Parallel()
+
+	resource := ingest.PulumiResource{
+		URN:       "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+		Type:      "aws:ec2/instance:Instance",
+		Operation: "update",
+		Inputs:    map[string]any{"instanceType": "m5.large"},
+		OldInputs: map[string]any{"instanceType": "t3.micro"},
+		PropertyDependencies: map[string][]string{
+			"subnetId": {"urn:pulumi:dev::app::aws:ec2/subnet:Subnet::net"},
+		},
+	}
+
+	descriptor, err := ingest.MapResource(resource)
+	require.NoError(t, err)
+	assert.Equal(t, "update", descriptor.Operation)
+	assert.Equal(t, "m5.large", descriptor.Properties["instanceType"])
+	assert.Equal(t, "t3.micro", descriptor.OldProperties["instanceType"])
+	assert.Equal(t, []string{"urn:pulumi:dev::app::aws:ec2/subnet:Subnet::net"}, descriptor.Refs["subnetId"])
+}
+
 // TestMapResource_ValidResource tests mapping a valid Pulumi resource to ResourceDescriptor.
 func TestMapResource_ValidResource(t *testing.T) {
 	t.Parallel()

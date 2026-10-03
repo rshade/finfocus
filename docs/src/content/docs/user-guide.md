@@ -99,15 +99,29 @@ finfocus cost projected --pulumi-json plan.json --pricing-spec-fallback
 flag wins when it is present. A hit says `Calculated from plugin pricing spec`
 in Notes. Local YAML still runs when the plugin spec is missing.
 
+### Cost diff
+
+`cost projected` prices the plan as a before/after diff. A create, and any
+resource with no operation, has a `$0` before. A delete has a `$0` after.
+An unchanged resource is priced once. `replace` follows the update rule.
+The after total is the projected bill, and `summary.totalMonthly` in JSON
+is that after total. JSON also includes `finfocus.diff` (`totalBefore`,
+`totalAfter`, `totalDelta`) and per-resource `operation`, `beforeMonthly`,
+and `deltaMonthly`. NDJSON writes one diff entry per line.
+
 ### Sample Output
 
 ```text
-RESOURCE                          ADAPTER     MONTHLY   CURRENCY  NOTES
-aws:ec2/instance:Instance         aws-spec    $7.50     USD       t3.micro Linux on-demand
-aws:s3/bucket:Bucket             aws-spec    $2.30     USD       Standard storage 100GB
-aws:rds/instance:Instance        aws-spec    $15.70    USD       db.t3.micro PostgreSQL
-                                                        -------
-                                  TOTAL       $25.50    USD
+COST DIFF
+Before     14.30 USD
+After      25.50 USD
+Change     +11.20 USD
+Resources  3 (1 create, 1 update, 0 delete, 1 unchanged)
+
+OP  RESOURCE                       BEFORE  AFTER  CHANGE  CURRENCY
++   aws:ec2/instance:Instance/web  0.00    7.50   +7.50   USD
+~   aws:rds/instance:Instance/db   12.00   15.70  +3.70   USD
+=   aws:s3/bucket:Bucket/assets    2.30    2.30   +0.00   USD
 ```
 
 ## Actual Cost Analysis

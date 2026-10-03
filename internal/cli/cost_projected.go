@@ -229,33 +229,32 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 	// No-op for Pulumi-sourced resources; see resolveResourceTypes.
 	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
 	start := time.Now()
-	resultWithErrors, err := eng.GetProjectedCostWithErrors(ctx, resources)
+	diff, err := eng.GetProjectedCostDiff(ctx, resources)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to calculate projected costs")
 		audit.logFailure(ctx, err)
 		return fmt.Errorf("calculating projected costs: %w", err)
 	}
 
-	fetchAndMergeRecommendations(ctx, eng, resources, resultWithErrors.Results)
+	mergeProjectedDiffRecommendations(ctx, eng, resources, diff)
 
-	renderErr := RenderCostOutput(ctx, cmd, params.output, resultWithErrors, params.showBreakdown)
-	if renderErr != nil {
+	if renderErr := renderProjectedDiff(cmd, params.output, diff, params.showBreakdown); renderErr != nil {
 		return renderErr
 	}
 
 	printTimingOutput(cmd, start, len(resources), params.output)
 
-	log.Info().Ctx(ctx).Str("operation", "cost_projected").Int("result_count", len(resultWithErrors.Results)).
+	log.Info().Ctx(ctx).Str("operation", "cost_projected").Int("result_count", len(diff.Entries)).
 		Dur("duration_ms", time.Since(audit.start)).Msg("projected cost calculation complete")
 
-	totalCost := sumMonthlyCosts(resultWithErrors.Results)
+	totalCost := diff.Summary.TotalAfter
 	if budgetErr := evaluateBudgetStatusForOutput(
-		cmd, resultWithErrors.Results, totalCost, params.output, storedBudgetFlagOverrides(cmd),
+		cmd, diff.AfterCosts(), totalCost, params.output, storedBudgetFlagOverrides(cmd),
 	); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return toAxExitError(ctx, budgetErr)
 	}
-	audit.logSuccess(ctx, len(resultWithErrors.Results), totalCost)
+	audit.logSuccess(ctx, len(diff.Entries), totalCost)
 	return nil
 }
 

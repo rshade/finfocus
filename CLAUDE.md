@@ -513,6 +513,15 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 ### Engine (`internal/engine/`)
 
 - **`hoursPerMonth = 730`** for monthly cost calculations
+- **Projected cost diff**: `cost projected` calls `GetProjectedCostDiff`.
+  An empty operation is a create (`$0` before, current price after). `update`,
+  `replace`, and `create-replacement` price `OldProperties` then `Properties`.
+  `delete` and `delete-replaced` price old properties and a `$0` after.
+  `same` is priced once. `summary.totalMonthly` and budget evaluation use the
+  after total. Table output is the diff table (TTY included). JSON adds
+  `finfocus.diff`. NDJSON is one diff entry per line. `--show-breakdown`
+  adds component sub-rows on that table only. Recommendations are merged
+  onto the after cost and skipped for deletes
 - **Plugin pricing spec fallback** is off by default. `newEngineWithCache`
   copies `cost.pricing_spec_fallback`. `cost projected --pricing-spec-fallback`
   overrides that for the command when the flag is set. When on, a resource

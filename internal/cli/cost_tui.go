@@ -13,6 +13,52 @@ import (
 	"github.com/rshade/finfocus/internal/tui"
 )
 
+// renderProjectedDiff writes the cost projected diff. Table output is the diff
+// table, including when stdout is a TTY, so before/after is what the command
+// shows. JSON keeps summary.totalMonthly as the after total.
+func renderProjectedDiff(
+	cmd *cobra.Command, outputFormat string, diff *engine.DiffResult, showBreakdown bool,
+) error {
+	fmtType := engine.OutputFormat(config.GetOutputFormat(outputFormat))
+	if !isValidOutputFormat(fmtType) {
+		return fmt.Errorf("unsupported output format: %s", fmtType)
+	}
+	breakdown := showBreakdown && fmtType == engine.OutputTable
+	return engine.RenderProjectedDiff(cmd.OutOrStdout(), fmtType, diff, breakdown)
+}
+
+// mergeProjectedDiffRecommendations attaches recommendations to the after cost
+// of every entry except deletes. A fetch error is logged and does not fail
+// the command.
+func mergeProjectedDiffRecommendations(
+	ctx context.Context,
+	fetcher recommendationFetcher,
+	resources []engine.ResourceDescriptor,
+	diff *engine.DiffResult,
+) {
+	if diff == nil {
+		return
+	}
+	recResources := make([]engine.ResourceDescriptor, 0, len(resources))
+	recResults := make([]engine.CostResult, 0, len(diff.Entries))
+	indexes := make([]int, 0, len(diff.Entries))
+	for i := range diff.Entries {
+		if diff.Entries[i].Operation == engine.DiffOperationDelete || diff.Entries[i].After == nil {
+			continue
+		}
+		if i >= len(resources) {
+			continue
+		}
+		recResources = append(recResources, resources[i])
+		recResults = append(recResults, *diff.Entries[i].After)
+		indexes = append(indexes, i)
+	}
+	fetchAndMergeRecommendations(ctx, fetcher, recResources, recResults)
+	for j, i := range indexes {
+		diff.Entries[i].After.Recommendations = recResults[j].Recommendations
+	}
+}
+
 // RenderCostOutput routes the cost results to the appropriate rendering function
 // based on the detected output mode (Plain, Styled, or Interactive).
 // The context parameter enables trace ID propagation for contextual logging.

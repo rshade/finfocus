@@ -57,10 +57,10 @@ func TestCLIWorkflow_ProjectedCost_TableOutput(t *testing.T) {
 	// Execute with table output (default)
 	output := h.ExecuteOrFail("cost", "projected", "--pulumi-json", planFile)
 
-	// Verify table format contains expected headers
-	h.AssertContains(output, "COST SUMMARY")
-	h.AssertContains(output, "Total Monthly Cost")
-	h.AssertContains(output, "RESOURCE DETAILS")
+	// Verify the projected diff table.
+	h.AssertContains(output, "COST DIFF")
+	h.AssertContains(output, "Before")
+	h.AssertContains(output, "After")
 }
 
 // TestCLIWorkflow_ProjectedCost_MissingPlan tests error handling for missing plan file.

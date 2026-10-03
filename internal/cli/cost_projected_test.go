@@ -469,7 +469,7 @@ func TestCostProjectedCmd_OutputFormatsAndFilters(t *testing.T) {
 			},
 			args:          []string{"--output", "table"},
 			checkTable:    true,
-			tableContains: []string{"COST SUMMARY", "Total Monthly Cost"},
+			tableContains: []string{"COST DIFF", "Before", "After"},
 		},
 		{
 			name: "NDJSON output",
