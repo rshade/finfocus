@@ -33,6 +33,10 @@ type ResourceDescriptor struct {
 	ID         string         `json:"id"`
 	Provider   string         `json:"provider"`
 	Properties map[string]any `json:"properties"`
+	// Refs maps an input property name to the Pulumi URNs that produced that
+	// property. Empty lists are omitted. Nil when the resource has no
+	// cross-resource references. ID remains the resource's own URN.
+	Refs map[string][]string `json:"refs,omitempty"`
 }
 
 // Validate checks that the ResourceDescriptor has valid fields and returns an error if validation fails.

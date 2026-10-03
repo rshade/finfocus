@@ -49,14 +49,17 @@ type StackExportManifest struct {
 // StackExportResource represents a resource in Pulumi state (ResourceV3).
 // Timestamps are available since Pulumi v3.60.0 (March 2023).
 type StackExportResource struct {
-	URN      string         `json:"urn"`
-	Type     string         `json:"type"`
-	ID       string         `json:"id,omitempty"`
-	Custom   bool           `json:"custom,omitempty"`
-	External bool           `json:"external,omitempty"`
-	Provider string         `json:"provider,omitempty"`
-	Inputs   map[string]any `json:"inputs,omitempty"`
-	Outputs  map[string]any `json:"outputs,omitempty"`
+	URN                  string              `json:"urn"`
+	Type                 string              `json:"type"`
+	ID                   string              `json:"id,omitempty"`
+	Custom               bool                `json:"custom,omitempty"`
+	External             bool                `json:"external,omitempty"`
+	Provider             string              `json:"provider,omitempty"`
+	Inputs               map[string]any      `json:"inputs,omitempty"`
+	Outputs              map[string]any      `json:"outputs,omitempty"`
+	Parent               string              `json:"parent,omitempty"`
+	Dependencies         []string            `json:"dependencies,omitempty"`
+	PropertyDependencies map[string][]string `json:"propertyDependencies,omitempty"`
 	// Created tracks when the remote resource was first added to state.
 	// Available since Pulumi v3.60.0 (March 2023).
 	Created *time.Time `json:"created,omitempty"`
@@ -219,6 +222,7 @@ func MapStateResource(resource StackExportResource) (engine.ResourceDescriptor, 
 		ID:         resource.URN,
 		Provider:   provider,
 		Properties: properties,
+		Refs:       refsFromPropertyDependencies(resource.PropertyDependencies),
 	}, nil
 }
 

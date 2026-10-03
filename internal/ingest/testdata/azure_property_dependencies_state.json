@@ -1,0 +1,38 @@
+{
+  "version": 3,
+  "deployment": {
+    "manifest": {"time": "2026-01-01T00:00:00Z", "magic": "x", "version": "3"},
+    "resources": [
+      {
+        "urn": "urn:pulumi:dev::demo::azure:mssql/server:Server::sqlServer",
+        "custom": true,
+        "type": "azure:mssql/server:Server",
+        "id": "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Sql/servers/sqlServer",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"location": "westeurope"},
+        "propertyDependencies": {"location": []}
+      },
+      {
+        "urn": "urn:pulumi:dev::demo::azure:mssql/database:Database::sqlDb",
+        "custom": true,
+        "type": "azure:mssql/database:Database",
+        "id": "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Sql/servers/sqlServer/databases/sqlDb",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "serverId": "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Sql/servers/sqlServer"
+        },
+        "propertyDependencies": {
+          "serverId": ["urn:pulumi:dev::demo::azure:mssql/server:Server::sqlServer"]
+        }
+      },
+      {
+        "urn": "urn:pulumi:dev::demo::azure:mssql/database:Database::idOnly",
+        "custom": true,
+        "type": "azure:mssql/database:Database",
+        "inputs": {
+          "serverId": "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Sql/servers/sqlServer"
+        }
+      }
+    ]
+  }
+}

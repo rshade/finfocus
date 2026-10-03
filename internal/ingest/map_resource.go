@@ -36,7 +36,28 @@ func MapResource(pulumiResource PulumiResource) (engine.ResourceDescriptor, erro
 		ID:         pulumiResource.URN,
 		Provider:   provider,
 		Properties: MergeProperties(pulumiResource.Outputs, pulumiResource.Inputs),
+		Refs:       refsFromPropertyDependencies(pulumiResource.PropertyDependencies),
 	}, nil
+}
+
+// refsFromPropertyDependencies copies property-to-URN entries that name at
+// least one resource. Empty lists mean the property is not a reference and are
+// dropped. A nil or all-empty map returns nil.
+func refsFromPropertyDependencies(in map[string][]string) map[string][]string {
+	if len(in) == 0 {
+		return nil
+	}
+	out := make(map[string][]string)
+	for key, urns := range in {
+		if len(urns) == 0 {
+			continue
+		}
+		out[key] = append([]string(nil), urns...)
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func extractProvider(resourceType string) string {

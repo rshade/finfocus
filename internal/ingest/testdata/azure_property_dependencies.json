@@ -1,0 +1,350 @@
+{
+  "steps": [
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:mssql/server:Server::sqlServer",
+      "newState": {
+        "type": "azure:mssql/server:Server",
+        "urn": "urn:pulumi:dev::demo::azure:mssql/server:Server::sqlServer",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"location": "westeurope", "name": "sqlServer"},
+        "propertyDependencies": {"location": [], "name": []}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:mssql/database:Database::sqlDb",
+      "newState": {
+        "type": "azure:mssql/database:Database",
+        "urn": "urn:pulumi:dev::demo::azure:mssql/database:Database::sqlDb",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "dependencies": ["urn:pulumi:dev::demo::azure:mssql/server:Server::sqlServer"],
+        "inputs": {
+          "serverId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "name": "sqlDb"
+        },
+        "propertyDependencies": {
+          "serverId": ["urn:pulumi:dev::demo::azure:mssql/server:Server::sqlServer"],
+          "name": []
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:appservice/servicePlan:ServicePlan::classicPlan",
+      "newState": {
+        "type": "azure:appservice/servicePlan:ServicePlan",
+        "urn": "urn:pulumi:dev::demo::azure:appservice/servicePlan:ServicePlan::classicPlan",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"location": "westeurope", "skuName": "S1", "osType": "Linux"},
+        "propertyDependencies": {"location": [], "skuName": [], "osType": []}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:appservice/linuxWebApp:LinuxWebApp::linuxApp",
+      "newState": {
+        "type": "azure:appservice/linuxWebApp:LinuxWebApp",
+        "urn": "urn:pulumi:dev::demo::azure:appservice/linuxWebApp:LinuxWebApp::linuxApp",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "location": "eastus",
+          "servicePlanId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "location": [],
+          "servicePlanId": ["urn:pulumi:dev::demo::azure:appservice/servicePlan:ServicePlan::classicPlan"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:appservice/windowsWebApp:WindowsWebApp::windowsApp",
+      "newState": {
+        "type": "azure:appservice/windowsWebApp:WindowsWebApp",
+        "urn": "urn:pulumi:dev::demo::azure:appservice/windowsWebApp:WindowsWebApp::windowsApp",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "location": "eastus",
+          "servicePlanId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "servicePlanId": ["urn:pulumi:dev::demo::azure:appservice/servicePlan:ServicePlan::classicPlan"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:appservice/linuxFunctionApp:LinuxFunctionApp::linuxFunc",
+      "newState": {
+        "type": "azure:appservice/linuxFunctionApp:LinuxFunctionApp",
+        "urn": "urn:pulumi:dev::demo::azure:appservice/linuxFunctionApp:LinuxFunctionApp::linuxFunc",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "location": "eastus",
+          "servicePlanId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "servicePlanId": ["urn:pulumi:dev::demo::azure:appservice/servicePlan:ServicePlan::classicPlan"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:appservice/windowsFunctionApp:WindowsFunctionApp::windowsFunc",
+      "newState": {
+        "type": "azure:appservice/windowsFunctionApp:WindowsFunctionApp",
+        "urn": "urn:pulumi:dev::demo::azure:appservice/windowsFunctionApp:WindowsFunctionApp::windowsFunc",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "location": "eastus",
+          "servicePlanId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "servicePlanId": ["urn:pulumi:dev::demo::azure:appservice/servicePlan:ServicePlan::classicPlan"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:web:AppServicePlan::nativePlan",
+      "newState": {
+        "type": "azure-native:web:AppServicePlan",
+        "urn": "urn:pulumi:dev::demo::azure-native:web:AppServicePlan::nativePlan",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "location": "westeurope",
+          "sku": {"name": "P1v3", "tier": "PremiumV3", "capacity": 1}
+        },
+        "propertyDependencies": {"location": [], "sku": []}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:web:WebApp::nativeAppA",
+      "newState": {
+        "type": "azure-native:web:WebApp",
+        "urn": "urn:pulumi:dev::demo::azure-native:web:WebApp::nativeAppA",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "location": "westeurope",
+          "serverFarmId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "serverFarmId": ["urn:pulumi:dev::demo::azure-native:web:AppServicePlan::nativePlan"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:web:WebApp::nativeAppB",
+      "newState": {
+        "type": "azure-native:web:WebApp",
+        "urn": "urn:pulumi:dev::demo::azure-native:web:WebApp::nativeAppB",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "location": "westeurope",
+          "serverFarmId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "serverFarmId": ["urn:pulumi:dev::demo::azure-native:web:AppServicePlan::nativePlan"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:containerservice/kubernetesCluster:KubernetesCluster::classicCluster",
+      "newState": {
+        "type": "azure:containerservice/kubernetesCluster:KubernetesCluster",
+        "urn": "urn:pulumi:dev::demo::azure:containerservice/kubernetesCluster:KubernetesCluster::classicCluster",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"location": "westeurope", "skuTier": "Free"},
+        "propertyDependencies": {"location": []}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:containerservice/kubernetesClusterNodePool:KubernetesClusterNodePool::classicPool",
+      "newState": {
+        "type": "azure:containerservice/kubernetesClusterNodePool:KubernetesClusterNodePool",
+        "urn": "urn:pulumi:dev::demo::azure:containerservice/kubernetesClusterNodePool:KubernetesClusterNodePool::classicPool",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "vmSize": "Standard_D2s_v3",
+          "kubernetesClusterId": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "kubernetesClusterId": ["urn:pulumi:dev::demo::azure:containerservice/kubernetesCluster:KubernetesCluster::classicCluster"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:containerservice:ManagedCluster::nativeCluster",
+      "newState": {
+        "type": "azure-native:containerservice:ManagedCluster",
+        "urn": "urn:pulumi:dev::demo::azure-native:containerservice:ManagedCluster::nativeCluster",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"location": "westeurope"},
+        "propertyDependencies": {"location": []}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:containerservice:AgentPool::nativePool",
+      "newState": {
+        "type": "azure-native:containerservice:AgentPool",
+        "urn": "urn:pulumi:dev::demo::azure-native:containerservice:AgentPool::nativePool",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "vmSize": "Standard_D4s_v3",
+          "resourceName": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "resourceName": ["urn:pulumi:dev::demo::azure-native:containerservice:ManagedCluster::nativeCluster"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:cosmosdb/account:Account::cosmosAccount",
+      "newState": {
+        "type": "azure:cosmosdb/account:Account",
+        "urn": "urn:pulumi:dev::demo::azure:cosmosdb/account:Account::cosmosAccount",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"location": "westeurope", "name": "cosmos-probe"},
+        "propertyDependencies": {"location": [], "name": []}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:cosmosdb/sqlDatabase:SqlDatabase::cosmosDb",
+      "newState": {
+        "type": "azure:cosmosdb/sqlDatabase:SqlDatabase",
+        "urn": "urn:pulumi:dev::demo::azure:cosmosdb/sqlDatabase:SqlDatabase::cosmosDb",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"accountName": "cosmos-probe", "name": "cosmosDb"},
+        "propertyDependencies": {
+          "accountName": ["urn:pulumi:dev::demo::azure:cosmosdb/account:Account::cosmosAccount"],
+          "name": []
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:cosmosdb/sqlContainer:SqlContainer::cosmosContainer",
+      "newState": {
+        "type": "azure:cosmosdb/sqlContainer:SqlContainer",
+        "urn": "urn:pulumi:dev::demo::azure:cosmosdb/sqlContainer:SqlContainer::cosmosContainer",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"accountName": "cosmos-probe", "databaseName": "cosmosDb"},
+        "propertyDependencies": {
+          "accountName": ["urn:pulumi:dev::demo::azure:cosmosdb/account:Account::cosmosAccount"],
+          "databaseName": ["urn:pulumi:dev::demo::azure:cosmosdb/sqlDatabase:SqlDatabase::cosmosDb"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:cosmosdb:DatabaseAccount::nativeCosmosAccount",
+      "newState": {
+        "type": "azure-native:cosmosdb:DatabaseAccount",
+        "urn": "urn:pulumi:dev::demo::azure-native:cosmosdb:DatabaseAccount::nativeCosmosAccount",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"location": "westeurope"},
+        "propertyDependencies": {"location": []}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:cosmosdb:SqlResourceSqlDatabase::nativeCosmosDb",
+      "newState": {
+        "type": "azure-native:cosmosdb:SqlResourceSqlDatabase",
+        "urn": "urn:pulumi:dev::demo::azure-native:cosmosdb:SqlResourceSqlDatabase::nativeCosmosDb",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "location": "northeurope",
+          "accountName": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "accountName": ["urn:pulumi:dev::demo::azure-native:cosmosdb:DatabaseAccount::nativeCosmosAccount"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:cosmosdb:SqlResourceSqlContainer::nativeCosmosContainer",
+      "newState": {
+        "type": "azure-native:cosmosdb:SqlResourceSqlContainer",
+        "urn": "urn:pulumi:dev::demo::azure-native:cosmosdb:SqlResourceSqlContainer::nativeCosmosContainer",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "accountName": "04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+          "databaseName": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "accountName": ["urn:pulumi:dev::demo::azure-native:cosmosdb:DatabaseAccount::nativeCosmosAccount"],
+          "databaseName": ["urn:pulumi:dev::demo::azure-native:cosmosdb:SqlResourceSqlDatabase::nativeCosmosDb"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:sql:Server::nativeSqlServer",
+      "newState": {
+        "type": "azure-native:sql:Server",
+        "urn": "urn:pulumi:dev::demo::azure-native:sql:Server::nativeSqlServer",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"location": "westeurope"},
+        "propertyDependencies": {"location": []}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure-native:sql:Database::nativeSqlDb",
+      "newState": {
+        "type": "azure-native:sql:Database",
+        "urn": "urn:pulumi:dev::demo::azure-native:sql:Database::nativeSqlDb",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {
+          "location": "northeurope",
+          "serverName": "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
+        },
+        "propertyDependencies": {
+          "serverName": ["urn:pulumi:dev::demo::azure-native:sql:Server::nativeSqlServer"]
+        }
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::demo::azure:example/child:Child::negative",
+      "newState": {
+        "type": "azure:example/child:Child",
+        "urn": "urn:pulumi:dev::demo::azure:example/child:Child::negative",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"name": "negative"},
+        "propertyDependencies": {
+          "name": [],
+          "gone": ["urn:pulumi:dev::demo::azure:mssql/server:Server::missing"],
+          "multi": [
+            "urn:pulumi:dev::demo::azure:mssql/server:Server::sqlServer",
+            "urn:pulumi:dev::demo::azure:appservice/servicePlan:ServicePlan::classicPlan"
+          ]
+        }
+      }
+    },
+    {
+      "op": "delete",
+      "urn": "urn:pulumi:dev::demo::azure:mssql/database:Database::deletedDb",
+      "oldState": {
+        "type": "azure:mssql/database:Database",
+        "urn": "urn:pulumi:dev::demo::azure:mssql/database:Database::deletedDb",
+        "parent": "urn:pulumi:dev::demo::pulumi:pulumi:Stack::demo-dev",
+        "inputs": {"serverId": "/subscriptions/sub/resourceGroups/rg/providers/Microsoft.Sql/servers/sqlServer"},
+        "propertyDependencies": {
+          "serverId": ["urn:pulumi:dev::demo::azure:mssql/server:Server::sqlServer"]
+        }
+      }
+    }
+  ]
+}
