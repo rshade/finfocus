@@ -17,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `cost actual` tables, and `--show-confidence` as an actual-cost table column.
   JSON and NDJSON ignore both flags (#685)
 
+### Documentation
+
+* **overview:** document every overview flag, the status-aware Delta column,
+  TUI keys including `p`, and a plain-text sample (#646)
+
 ## [0.4.0](https://github.com/rshade/finfocus/compare/v0.3.9...v0.4.0) (2026-10-03)
 
 

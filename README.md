@@ -25,7 +25,7 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 
 ## Key Features
 
-- **🔭 [Unified Overview](docs/commands/overview.md)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
+- **🔭 [Unified Overview](docs/src/content/docs/commands/overview.md)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
 - **📊 [Projected Costs](docs/reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
 - **💰 [Budgets & Alerts](docs/guides/budgets.md)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
 - **💡 [Recommendations](docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
@@ -125,18 +125,19 @@ pulumi preview --json > plan.json
 finfocus overview --pulumi-state state.json --pulumi-json plan.json --plain --yes
 ```
 
-Example plain text output:
+Example plain text output (`--plain`). Amounts are sample data:
 
 ```text
-Resource                          Type                    Status  Actual(MTD)  Projected   Delta    Drift%  Recs
-my-instance                       aws:ec2/instance:I...   ✓       $12.40       $15.00      $2.60    +8%     2
-my-bucket                         aws:s3/bucket:Bucket    ✓       $0.83        $1.00       $0.17    0%      0
-my-db                             aws:rds/instance:I...   ✓       $48.20       $50.00      $1.80    -3%     1
+RESOURCE     TYPE                      STATUS       ACTUAL(MTD)  PROJECTED   DELTA       DRIFT%  RECS
+--------     ----                      ------       -----------  ---------   -----       ------  ----
+my-instance  aws:ec2/instance:Inst...  ✓ active     $12.40       $15.00      +$6.20      +18% ⚠  2
+my-bucket    aws:s3/bucket:Bucket      ✓ active     $0.83        $1.00       -           -       -
+my-db        aws:rds/instance:Inst...  ✓ active     $48.20       $50.00      -$8.40      -15% ⚠  1
 
-Total Actual (MTD): $61.43    Projected Monthly: $66.00    Potential Savings: $45.00
+SUMMARY      prod                      3 resources  $61.43 USD   $66.00 USD  -$2.20 USD
 ```
 
-Full documentation: [docs/commands/overview.md](docs/commands/overview.md)
+Full documentation: [Overview command](docs/src/content/docs/commands/overview.md)
 
 ### 4. Calculate Costs
 
