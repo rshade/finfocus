@@ -24,19 +24,21 @@ the command auto-detects your Pulumi project and stack from the current director
 |------|-------------|---------|
 | `--pulumi-state` | Path to Pulumi state JSON (skips auto-detection) | Auto-detected |
 | `--pulumi-json` | Path to Pulumi preview JSON (skips auto-detection) | Auto-detected |
-| `--stack` | Pulumi stack name for auto-detection (ignored with `--pulumi-state`/`--pulumi-json`) | Current stack |
+| `--stack`, `-s` | Pulumi stack name for auto-detection (ignored with `--pulumi-state`/`--pulumi-json`) | Current stack |
 | `--from` | Start date (YYYY-MM-DD or RFC3339) | 1st of current month |
 | `--to` | End date (YYYY-MM-DD or RFC3339) | Now |
-| `--adapter` | Restrict to a specific adapter plugin | All plugins |
+| `--adapter`, `-a` | Restrict to a specific adapter plugin | All plugins |
 | `--output` | Output format: table, json, ndjson | table |
-| `--filter` | Resource filters (repeatable) | - |
+| `--filter`, `-f` | Resource filters (repeatable) | - |
 | `--plain` | Force non-interactive plain text output | false |
+| `--force-color` | Style the plain table when stdout is not a terminal. Does not open the TUI | false |
+| `--no-color` | Disable ANSI styling. Wins over `--force-color` | false |
 | `--yes`, `-y` | Skip confirmation prompts | false |
-| `--cache-ttl` | Cache TTL in seconds; 0 disables caching | 0 (disabled) |
+| `--cache-ttl` | Root flag. Seconds to keep plugin cost results. An explicit value wins, then `FINFOCUS_CACHE_TTL`, then config. `0` disables the cache | config |
 | `--no-pagination` | Disable pagination (plain mode only) | false |
-| `--exit-on-threshold` | Exit non-zero when budget threshold exceeded | false |
-| `--exit-code` | Exit code for threshold breach (0-255) | 1 |
-| `--state-only` | Skip pulumi preview (faster, no pending change detection) | false |
+| `--exit-on-threshold` | Exit non-zero when a budget threshold is exceeded | false |
+| `--exit-code` | Exit code for a threshold breach (0-255) | 1 |
+| `--state-only` | Skip pulumi preview (faster, no pending change detection). Mutually exclusive with `--pulumi-json` | false |
 | `--budget-scope` | Filter budget scopes: global, provider, tag, type | All |
 
 ## Auto-Detection
@@ -167,6 +169,7 @@ interactive dashboard built with Bubble Tea.
 | `Escape` | Return to list / clear filter |
 | `s` | Cycle sort field (Cost, Name, Type, Delta) |
 | `/` | Enter filter mode |
+| `p` | In state-only mode, run `pulumi preview` and apply pending changes to the open table |
 | `PgUp` / `PgDn` | Navigate pages (when >250 resources) |
 | `q` / `Ctrl+C` | Quit |
 
@@ -222,14 +225,30 @@ ASCII table with the following columns:
 
 | Column | Description |
 |--------|-------------|
-| `Resource` | Resource name truncated to 40 characters; full URN shown in detail view |
-| `Type` | Pulumi resource type (e.g., `aws:ec2/instance:Instance`) |
+| `Resource` | Resource URN, truncated to the column width. The detail view shows the full URN |
+| `Type` | Pulumi resource type (for example `aws:ec2/instance:Instance`). The plain table shortens a value longer than 24 characters |
 | `Status` | Lifecycle state with an icon prefix (see below) |
-| `Actual(MTD)` | Month-to-date actual spend fetched from your cost adapter plugin |
-| `Projected` | Estimated monthly cost from your pricing plugin |
-| `Delta` | Projected minus Actual(MTD) — positive means projected exceeds actual |
-| `Drift%` | Annualized deviation: how much the extrapolated monthly spend differs from projected |
-| `Recs` | Number of open optimization recommendations (`N(-M)` format where M = dismissed) |
+| `Actual(MTD)` | Month-to-date spend from the actual-cost plugin. Plain header is `ACTUAL(MTD)`; the TUI header is `Actual`. `-` when the resource has no billing history |
+| `Projected` | Full-month estimate (730 hours) from the projected-cost plugin. Plain header is `PROJECTED`, or `PROJECTED*` in state-only mode. The TUI uses `Projected` and `Projected*`. `-` when there is no projection |
+| `Delta` | How this row changes the monthly bill. The plain table prints a positive amount as `+$` and a negative amount as `-$`. Updating or replacing: new projected monthly cost minus the current projected cost, or minus the extrapolated actual when there is no baseline. Creating: the new projected cost. Deleting: minus the extrapolated actual being removed. Active: the drift delta when drift is shown, otherwise `-` |
+| `Drift%` | Calendar-month extrapolation of month-to-date spend compared with the projected monthly cost. `-` when drift is not shown (day 1 or 2, at or under 10%, or nothing to compare). A shown value is above 10% and ends with a warning mark |
+| `Recs` | Open recommendation count. `N(-M)` when M of them are dismissed. `-` when there are none |
+
+Plain output (`--plain`) from the table renderer. Amounts are sample data.
+A type longer than the column is shortened, and the last row is the summary:
+
+```text
+RESOURCE     TYPE                      STATUS       ACTUAL(MTD)  PROJECTED   DELTA       DRIFT%  RECS
+--------     ----                      ------       -----------  ---------   -----       ------  ----
+my-instance  aws:ec2/instance:Inst...  ✓ active     $12.40       $15.00      +$6.20      +18% ⚠  2
+my-bucket    aws:s3/bucket:Bucket      ✓ active     $0.83        $1.00       -           -       -
+my-db        aws:rds/instance:Inst...  ✓ active     $48.20       $50.00      -$8.40      -15% ⚠  1
+
+SUMMARY      prod                      3 resources  $61.43 USD   $66.00 USD  -$2.20 USD
+```
+
+A live terminal capture needs a Pulumi stack and a cost plugin. Use the
+sample above, or run `finfocus overview --plain --yes` in a project.
 
 **Status icons:**
 

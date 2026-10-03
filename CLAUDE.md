@@ -465,6 +465,11 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   empty result (e.g. history's `len(events) == 0`) must reject an unknown format
   *first*, or an invalid `--output` silently exits 0. See `config_routes.go`,
   `analyzer_check.go`, `plugin_list.go` for the up-front pattern
+- **Overview docs path**: the published page is
+  `docs/src/content/docs/commands/overview.md`. Root `README.md` links there.
+  `docs/commands/overview.md` is not a file. Plain headers are
+  `ACTUAL(MTD)` and `PROJECTED` (`PROJECTED*` in state-only mode). Delta comes
+  from `CalculateRowDelta`, not projected minus month-to-date
 - **Cost table flags**: `--show-breakdown` on `cost projected` and `cost actual`
   adds alphabetical component sub-rows in the plain table (`├─`, last row `└─`).
   Empty maps, nil maps, and empty keys add no sub-rows. `--show-confidence`
