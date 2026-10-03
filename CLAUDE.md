@@ -913,6 +913,11 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   scaffolds from v0.4.0 and earlier have a bare literal, which the upgrade
   rewrites
 - **Minimum supported version is v0.5.0**; there are no pre-rename plugins
+- **The scaffold's finfocus-spec pin is `pluginsdk.SpecVersion`** (#248), so
+  bumping finfocus-spec in core also moves new plugins.
+  `TestPluginInitTracksCoreSpecVersion` keeps it at v0.7.1 or newer and checks
+  that a fresh scaffold needs no `plugin upgrade`; the scaffold integration
+  test proves the templates still compile against it
 - **`plugin.manifest.json` is not the pluginsdk manifest**: `plugin validate`
   parses it as the flat `registry.Manifest` (`name`, `version`, ...) and
   requires both to match the install directory. The scaffold's `manifest.json`
