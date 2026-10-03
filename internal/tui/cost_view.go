@@ -13,6 +13,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/greenops"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // Layout constants.
@@ -73,17 +74,10 @@ func NewResourceRow(result engine.CostResult) ResourceRow {
 	}
 }
 
-// extractProvider extracts the provider name from a Pulumi resource type string.
-// e.g., "aws:ec2/instance:Instance" -> "aws".
+// extractProvider returns the cloud that bills a resource type string.
+// e.g., "aws:ec2/instance:Instance" and "aws-native:ec2:Instance" -> "aws".
 func extractProvider(resourceType string) string {
-	if resourceType == "" {
-		return "unknown"
-	}
-	parts := strings.Split(resourceType, ":")
-	if len(parts) > 0 && parts[0] != "" {
-		return parts[0]
-	}
-	return "unknown"
+	return resourcetype.ExtractProvider(resourceType)
 }
 
 // RenderCostSummary renders a boxed, styled cost summary for the provided cost results.

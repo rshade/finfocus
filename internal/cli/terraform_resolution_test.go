@@ -77,6 +77,53 @@ func TestResolveResourceTypes_WithCapability(t *testing.T) {
 	assert.Equal(t, "aws:s3/bucket:Bucket", out[1].Type)
 }
 
+func TestResolveResourceTypes_CloudNamedPluginResolvesProviderPrefixes(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		supported  string
+		descriptor engine.ResourceDescriptor
+		tfType     string
+		token      string
+	}{
+		{
+			name:       "azure plugin resolves azurerm types",
+			supported:  "azure",
+			descriptor: engine.ResourceDescriptor{Type: "azurerm_linux_virtual_machine", ID: "vm", Provider: "azure"},
+			tfType:     "azurerm_linux_virtual_machine",
+			token:      "azure:compute/linuxVirtualMachine:LinuxVirtualMachine",
+		},
+		{
+			name:       "gcp plugin resolves google types",
+			supported:  "gcp",
+			descriptor: engine.ResourceDescriptor{Type: "google_compute_instance", ID: "vm", Provider: "gcp"},
+			tfType:     "google_compute_instance",
+			token:      "gcp:compute/instance:Instance",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			stub := &stubResolverClient{resp: &pbc.ResolveResourceTypesResponse{
+				Mappings: map[string]*pbc.ResourceTypeMapping{
+					tt.tfType: {PulumiToken: tt.token, Supported: true},
+				},
+			}}
+			client := newResolverTestClient(true, stub)
+			client.Metadata.SupportedProviders = []string{tt.supported}
+
+			out := resolveResourceTypes(
+				context.Background(), []*pluginhost.Client{client}, nil, []engine.ResourceDescriptor{tt.descriptor},
+			)
+
+			assert.Equal(t, 1, stub.calls)
+			assert.Equal(t, tt.token, out[0].Type)
+		})
+	}
+}
+
 func TestResolveResourceTypes_FallbackNoCapability(t *testing.T) {
 	t.Parallel()
 

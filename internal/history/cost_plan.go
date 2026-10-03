@@ -34,7 +34,6 @@ const (
 	unpricedNote           = "No pricing information available"
 	secretSignature        = "4dabf18193072939515e22adb298388d" //nolint:gosec // Pulumi secret marker, not a credential
 	costDBSuffix           = ".history.db"
-	unknownProvider        = "unknown"
 )
 
 // PriceResource is one custom resource from a stack export, ready to price.

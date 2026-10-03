@@ -1884,6 +1884,13 @@ func TestResolveSKUAndRegion_AWSRegionFallbackScope(t *testing.T) {
 			expectedRegion: "us-east-1",
 		},
 		{
+			name:           "AWS-native resource uses AWS_REGION when no region in properties",
+			provider:       "aws-native",
+			properties:     map[string]string{"instanceType": "t3.micro"},
+			envVars:        map[string]string{"AWS_REGION": "us-east-1"},
+			expectedRegion: "us-east-1",
+		},
+		{
 			name:       "Azure resource does NOT use AWS_REGION fallback",
 			provider:   "azure",
 			properties: map[string]string{"vmSize": "Standard_B1s"},
@@ -4492,4 +4499,43 @@ func TestClientAdapterResolveResourceTypes(t *testing.T) {
 	assert.Equal(t, "aws:ec2/instance:Instance", resp.GetMappings()["aws_instance"].GetPulumiToken())
 	assert.True(t, resp.GetMappings()["aws_instance"].GetSupported())
 	assert.Equal(t, []string{"aws_instance"}, stub.gotTypes)
+}
+
+func TestResolveSKUAndRegion_PackageNamesUseTheCloudExtractors(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		provider   string
+		properties map[string]string
+		wantSKU    string
+		wantRegion string
+	}{
+		{
+			name:     "aws-native reads the region from the ARN",
+			provider: "aws-native",
+			properties: map[string]string{
+				"instanceType": "t3.micro",
+				"pulumi:arn":   "arn:aws:ec2:eu-west-1:123456789012:instance/i-1",
+			},
+			wantSKU:    "t3.micro",
+			wantRegion: "eu-west-1",
+		},
+		{
+			name:       "azurerm reads the Azure vmSize",
+			provider:   "azurerm",
+			properties: map[string]string{"vmSize": "Standard_B1s", "location": "eastus"},
+			wantSKU:    "Standard_B1s",
+			wantRegion: "eastus",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			sku, region := resolveSKUAndRegion(context.Background(), tt.provider, "", tt.properties)
+			assert.Equal(t, tt.wantSKU, sku)
+			assert.Equal(t, tt.wantRegion, region)
+		})
+	}
 }

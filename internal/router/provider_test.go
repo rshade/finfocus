@@ -41,7 +41,7 @@ func TestExtractProviderFromType(t *testing.T) {
 		{
 			name:         "AWS native provider",
 			resourceType: "aws-native:ec2:Instance",
-			want:         "aws-native",
+			want:         "aws",
 		},
 		// Pulumi provider reference
 		{
@@ -178,7 +178,7 @@ func TestExtractProviderFromTypeTerraformTypes(t *testing.T) {
 		{"pulumi token unchanged", "aws:ec2/instance:Instance", "aws"},
 		{"pulumi providers unchanged", "pulumi:providers:aws", "pulumi"},
 		{"terraform aws", "aws_instance", "aws"},
-		{"terraform azure", "azurerm_linux_virtual_machine", "azurerm"},
+		{"terraform azure", "azurerm_linux_virtual_machine", "azure"},
 		{"terraform random", "random_pet", "random"},
 		{"no colon no underscore", "kubernetes", "kubernetes"},
 		{"empty", "", router.ProviderUnknown},

@@ -17,6 +17,7 @@ import (
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 const (
@@ -804,7 +805,7 @@ func MergeHistoricalResources(
 	for i := range current {
 		if cloudID, ok := current[i].Properties["pulumi:cloudId"]; ok {
 			if idStr, isStr := cloudID.(string); isStr {
-				existingCloudIDs[current[i].Provider+"|"+idStr] = true
+				existingCloudIDs[resourcetype.NormalizeProvider(current[i].Provider)+"|"+idStr] = true
 			}
 		}
 	}
@@ -814,7 +815,7 @@ func MergeHistoricalResources(
 
 	for _, hr := range historical {
 		for _, cloudID := range hr.CloudIDs {
-			compositeKey := hr.Provider + "|" + cloudID
+			compositeKey := resourcetype.NormalizeProvider(hr.Provider) + "|" + cloudID
 			if existingCloudIDs[compositeKey] {
 				continue
 			}
@@ -823,7 +824,7 @@ func MergeHistoricalResources(
 			merged = append(merged, engine.ResourceDescriptor{
 				ID:       hr.URN,
 				Type:     hr.Type,
-				Provider: hr.Provider,
+				Provider: resourcetype.NormalizeProvider(hr.Provider),
 				Properties: map[string]any{
 					"pulumi:cloudId": cloudID,
 				},

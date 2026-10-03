@@ -201,6 +201,23 @@ func TestExtractProvider(t *testing.T) {
 			want: "azure",
 		},
 		{
+			name: "native provider resource maps to the cloud",
+			resource: &pulumirpc.AnalyzerResource{
+				Type: "azure-native:compute:VirtualMachine",
+				Provider: &pulumirpc.AnalyzerProviderResource{
+					Type: "pulumi:providers:azure-native",
+				},
+			},
+			want: "azure",
+		},
+		{
+			name: "native resource type without provider resource",
+			resource: &pulumirpc.AnalyzerResource{
+				Type: "aws-native:ec2:Instance",
+			},
+			want: "aws",
+		},
+		{
 			name: "provider from resource type (no provider resource)",
 			resource: &pulumirpc.AnalyzerResource{
 				Type: "aws:s3/bucket:Bucket",
@@ -520,6 +537,11 @@ func TestExtractProviderFromType(t *testing.T) {
 		{
 			name:         "gcp resource type",
 			resourceType: "gcp:compute/instance:Instance",
+			want:         "gcp",
+		},
+		{
+			name:         "google native resource type",
+			resourceType: "google-native:compute/v1:Instance",
 			want:         "gcp",
 		},
 		{

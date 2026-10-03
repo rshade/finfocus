@@ -893,3 +893,55 @@ func TestScopedBudget_HelperMethods(t *testing.T) {
 func ptr[T any](v T) *T {
 	return &v
 }
+
+func TestBudgetsConfig_ProviderAliasWarnings(t *testing.T) {
+	t.Parallel()
+
+	budget := func() *config.ScopedBudget { return &config.ScopedBudget{Amount: 100, Currency: "USD"} }
+
+	tests := []struct {
+		name      string
+		providers map[string]*config.ScopedBudget
+		want      []string
+	}{
+		{
+			name:      "distinct clouds do not warn",
+			providers: map[string]*config.ScopedBudget{"aws": budget(), "azure": budget()},
+		},
+		{
+			name:      "cloud and package key warn once",
+			providers: map[string]*config.ScopedBudget{"aws": budget(), "aws-native": budget()},
+			want: []string{
+				`provider budgets ["aws" "aws-native"] all name the aws cloud; only one of them is used`,
+			},
+		},
+		{
+			name: "case differences count as the same key",
+			providers: map[string]*config.ScopedBudget{
+				"azure":        budget(),
+				"Azure-Native": budget(),
+				"azurerm":      budget(),
+			},
+			want: []string{
+				`provider budgets ["Azure-Native" "azure" "azurerm"] all name the azure cloud; only one of them is used`,
+			},
+		},
+		{
+			name:      "nil budgets are ignored",
+			providers: map[string]*config.ScopedBudget{"aws": budget(), "aws-native": nil},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			cfg := &config.BudgetsConfig{
+				Global:    &config.ScopedBudget{Amount: 1000, Currency: "USD"},
+				Providers: tt.providers,
+			}
+			warnings, err := cfg.Validate()
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, append([]string(nil), warnings...))
+		})
+	}
+}

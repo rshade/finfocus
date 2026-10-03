@@ -537,6 +537,18 @@ func TestMatchesProvider(t *testing.T) {
 			want:      false,
 		},
 		{
+			name:      "package-named source matches the cloud",
+			budget:    &pbc.Budget{Id: "1", Source: "aws-native"},
+			providers: []string{"aws"},
+			want:      true,
+		},
+		{
+			name:      "cloud source matches a package-named filter",
+			budget:    &pbc.Budget{Id: "1", Source: "azure"},
+			providers: []string{"azure-native"},
+			want:      true,
+		},
+		{
 			name:      "match in multiple providers",
 			budget:    &pbc.Budget{Id: "1", Source: "kubecost"},
 			providers: []string{"aws-budgets", "kubecost", "gcp-billing"},

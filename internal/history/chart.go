@@ -9,6 +9,8 @@ import (
 	"time"
 
 	"github.com/guptarohit/asciigraph"
+
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 const (
@@ -143,7 +145,7 @@ func appendProviders(
 	for i, name := range providerNames(snapshots) {
 		series := make([]float64, len(snapshots))
 		for j, snapshot := range snapshots {
-			series[j] = snapshot.ByProvider[name]
+			series[j] = seriesValue(snapshot, name)
 		}
 		data = append(data, series)
 		legends = append(legends, strings.ToUpper(name))
@@ -156,7 +158,7 @@ func providerNames(snapshots []CostSnapshot) []string {
 	seen := map[string]struct{}{}
 	for _, snapshot := range snapshots {
 		for name := range snapshot.ByProvider {
-			seen[name] = struct{}{}
+			seen[resourcetype.NormalizeProvider(name)] = struct{}{}
 		}
 	}
 	names := make([]string, 0, len(seen))
@@ -171,15 +173,14 @@ func seriesValue(snapshot CostSnapshot, provider string) float64 {
 	if provider == "" {
 		return snapshot.TotalMonthly
 	}
-	if value, ok := snapshot.ByProvider[provider]; ok {
-		return value
-	}
+	want := resourcetype.NormalizeProvider(provider)
+	total := 0.0
 	for name, value := range snapshot.ByProvider {
-		if strings.EqualFold(name, provider) {
-			return value
+		if resourcetype.NormalizeProvider(name) == want {
+			total += value
 		}
 	}
-	return 0
+	return total
 }
 
 func writeAnnotations(b *strings.Builder, snapshots []CostSnapshot, annotations []CostAnnotation) {

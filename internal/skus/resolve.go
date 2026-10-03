@@ -4,7 +4,7 @@
 // package maps well-known resource types to their canonical SKU identifiers.
 package skus
 
-import "strings"
+import "github.com/rshade/finfocus/internal/resourcetype"
 
 // ResolveSKU maps a provider and resource type to a well-known SKU identifier as a fallback
 // when property-based SKU extraction yields no result.
@@ -14,7 +14,7 @@ import "strings"
 // string, which callers should treat as a no-op. The properties map may be consulted to
 // refine the mapping for certain resource types.
 func ResolveSKU(provider, resourceType string, properties map[string]string) string {
-	switch strings.ToLower(provider) {
+	switch resourcetype.NormalizeProvider(provider) {
 	case "aws":
 		return resolveAWSSKU(resourceType, properties)
 	default:

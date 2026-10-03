@@ -17,6 +17,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
+	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/router"
 )
 
@@ -232,7 +233,7 @@ func runConfigRoutesTest(cmd *cobra.Command, args []string, outputFormat string)
 				nil,
 			)
 		}
-		cmd.Printf("Plugin selection for %s (provider: %s", resourceType, provider)
+		cmd.Printf("Plugin selection for %s (provider: %s", resourceType, providerLabel(resourceType, provider))
 		if region != "" {
 			cmd.Printf(", region: %s", region)
 		}
@@ -334,6 +335,16 @@ func simulatePluginSelection(
 	return uniqueMatches, featureMatches, nil
 }
 
+// providerLabel returns provider for display, adding the raw package when it
+// differs ("aws (package: aws-native)").
+func providerLabel(resourceType, provider string) string {
+	pkg := resourcetype.ExtractPackage(resourceType)
+	if strings.EqualFold(pkg, provider) {
+		return provider
+	}
+	return fmt.Sprintf("%s (package: %s)", provider, pkg)
+}
+
 func renderRoutesTestTable(
 	cmd *cobra.Command,
 	resourceType, region, provider string,
@@ -341,7 +352,7 @@ func renderRoutesTestTable(
 	featureMatches map[string]router.PluginMatch,
 ) error {
 	out := cmd.OutOrStdout()
-	fmt.Fprintf(out, "Plugin selection for %s (provider: %s", resourceType, provider)
+	fmt.Fprintf(out, "Plugin selection for %s (provider: %s", resourceType, providerLabel(resourceType, provider))
 	if region != "" {
 		fmt.Fprintf(out, ", region: %s", region)
 	}

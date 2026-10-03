@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
+
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // Scoped budget validation errors.
@@ -428,6 +431,7 @@ func (b *BudgetsConfig) Validate() ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	warnings = append(warnings, b.providerAliasWarnings()...)
 
 	// Warn about tag budgets not being fully functional
 	// Tag-based cost allocation requires tag data in CostResult, which is not yet implemented.
@@ -461,6 +465,36 @@ func (b *BudgetsConfig) validateProviderBudgets(globalCurrency string) error {
 		}
 	}
 	return nil
+}
+
+// providerAliasWarnings warns about provider budget keys that name the same
+// cloud once normalized, such as "aws" and "aws-native". Only one of them is
+// used, so the others would silently never apply.
+func (b *BudgetsConfig) providerAliasWarnings() []string {
+	byCloud := make(map[string][]string)
+	for name, provider := range b.Providers {
+		if provider == nil {
+			continue
+		}
+		cloud := resourcetype.NormalizeProvider(name)
+		byCloud[cloud] = append(byCloud[cloud], name)
+	}
+	clouds := make([]string, 0, len(byCloud))
+	for cloud, names := range byCloud {
+		if len(names) > 1 {
+			clouds = append(clouds, cloud)
+		}
+	}
+	sort.Strings(clouds)
+
+	warnings := make([]string, 0, len(clouds))
+	for _, cloud := range clouds {
+		names := byCloud[cloud]
+		sort.Strings(names)
+		warnings = append(warnings, fmt.Sprintf(
+			"provider budgets %q all name the %s cloud; only one of them is used", names, cloud))
+	}
+	return warnings
 }
 
 // validateTagBudgets validates all tag budget configurations and checks for duplicate priorities.

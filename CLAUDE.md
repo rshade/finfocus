@@ -518,6 +518,17 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 - **Fallback chain**: `$0.00` cost is a VALID result (does NOT trigger fallback).
   Only nil/empty results trigger fallback to the next plugin
 - **Priority**: Higher number = higher priority (sorted descending by `sortByPriority`)
+- **Provider is the billing cloud, not the package**: `resourcetype.NormalizeProvider`
+  holds the only alias table (`aws-native`→`aws`; `azure-native`, `azurerm`→`azure`;
+  `google-native`, `google`→`gcp`; anything else passes through lowercased).
+  `resourcetype.ExtractProvider` returns the cloud and `ExtractPackage` the raw
+  prefix. Never split a type token for a provider anywhere else. `resource_type`
+  keeps the package, so routing `patterns` such as `aws-native:*` still match.
+  `ProviderMatches` normalizes both sides, so a plugin that still lists
+  `azure-native` keeps matching. Provider budget keys, `ByProvider`,
+  `GroupByProvider`, the `provider=` filter and history provider lookups compare
+  normalized names, which also lets history entries stored under a package name
+  match a cloud filter
 - **No config = no routing**: `createRouterForEngine()` returns nil if no routing config;
   engine falls back to querying all plugins
 

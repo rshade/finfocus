@@ -11,6 +11,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
 // ScopeType identifies the category of a budget scope.
@@ -227,23 +228,20 @@ func (r *ScopedBudgetResult) AllScopes() []*ScopedBudgetStatus {
 	return scopes
 }
 
-// ExtractProvider extracts the provider name from a resource type string.
+// ExtractProvider returns the cloud that bills a resource type, for budget
+// scoping. It delegates to [resourcetype.ExtractProvider], so package names map
+// to their cloud ("aws-native:ec2:Instance" -> "aws", "azurerm_vm" -> "azure").
+// An empty type or one with a leading colon has no provider and returns "".
 // Examples:
 //   - "aws:ec2/instance" -> "aws"
-//   - "gcp:compute/instance" -> "gcp"
+//   - "aws-native:ec2:Instance" -> "aws"
 //   - "azure:compute/virtualMachine" -> "azure"
-//   - "unknown" -> "unknown"
 //   - ":ec2/instance" -> "" (colon at start, no provider)
 func ExtractProvider(resourceType string) string {
-	idx := strings.Index(resourceType, ":")
-	if idx > 0 {
-		return strings.ToLower(resourceType[:idx])
-	}
-	if idx == 0 {
-		// Colon at start means no valid provider
+	if resourceType == "" || resourceType[0] == ':' {
 		return ""
 	}
-	return strings.ToLower(resourceType)
+	return resourcetype.ExtractProvider(resourceType)
 }
 
 // CalculateHealthFromPercentage calculates health status from a raw utilization percentage.
@@ -309,14 +307,7 @@ func NewScopedBudgetEvaluator(cfg *config.BudgetsConfig) *ScopedBudgetEvaluator 
 		}
 	}
 
-	// Build provider index (case-insensitive, skip nil and disabled budgets)
-	providerIndex := make(map[string]*config.ScopedBudget, len(cfg.Providers))
-	for name, budget := range cfg.Providers {
-		if budget == nil || budget.IsDisabled() {
-			continue
-		}
-		providerIndex[strings.ToLower(name)] = budget
-	}
+	providerIndex := buildProviderIndex(cfg.Providers)
 
 	// Sort tag budgets by priority (descending)
 	tagBudgets := make([]config.TagBudget, len(cfg.Tags))
@@ -363,8 +354,38 @@ func NewScopedBudgetEvaluator(cfg *config.BudgetsConfig) *ScopedBudgetEvaluator 
 }
 
 // GetProviderBudget returns the budget for a provider, or nil if not configured.
+// The provider is normalized, so "aws-native" finds the budget for "aws".
 func (e *ScopedBudgetEvaluator) GetProviderBudget(provider string) *config.ScopedBudget {
-	return e.providerIndex[strings.ToLower(provider)]
+	return e.providerIndex[resourcetype.NormalizeProvider(provider)]
+}
+
+// buildProviderIndex indexes provider budgets by normalized cloud, skipping nil
+// and disabled budgets. When several keys name the same cloud, the cloud's own
+// key ("aws") wins over a package-named one ("aws-native"); otherwise the
+// alphabetically first key wins so the choice does not depend on map order.
+func buildProviderIndex(providers map[string]*config.ScopedBudget) map[string]*config.ScopedBudget {
+	names := make([]string, 0, len(providers))
+	for name := range providers {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	index := make(map[string]*config.ScopedBudget, len(providers))
+	canonical := make(map[string]bool, len(providers))
+	for _, name := range names {
+		budget := providers[name]
+		if budget == nil || budget.IsDisabled() {
+			continue
+		}
+		key := resourcetype.NormalizeProvider(name)
+		isCanonical := key == strings.ToLower(strings.TrimSpace(name))
+		if _, exists := index[key]; exists && (canonical[key] || !isCanonical) {
+			continue
+		}
+		index[key] = budget
+		canonical[key] = isCanonical
+	}
+	return index
 }
 
 // GetTypeBudget returns the budget for a resource type, or nil if not configured.

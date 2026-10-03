@@ -60,14 +60,38 @@ finfocus cost projected --pulumi-json multi-cloud-plan.json
 # gcp:compute/instance:Instance  → gcp-public (provider: gcp)
 ```
 
-**Provider Extraction**: FinFocus extracts the provider from the resource type's first segment:
+**Provider Extraction**: FinFocus takes the first segment of the resource type
+and maps it to the cloud that bills the resource. The provider is the cloud
+(`aws`, `azure`, `gcp`, `kubernetes`), not the Pulumi package or Terraform
+provider name:
 
 | Resource Type                                 | Provider     |
 | --------------------------------------------- | ------------ |
 | `aws:ec2/instance:Instance`                   | `aws`        |
+| `aws-native:ec2:Instance`                     | `aws`        |
 | `gcp:compute/instance:Instance`               | `gcp`        |
+| `google-native:compute/v1:Instance`           | `gcp`        |
 | `azure:compute/virtualMachine:VirtualMachine` | `azure`      |
+| `azure-native:compute:VirtualMachine`         | `azure`      |
+| `azurerm_linux_virtual_machine` (Terraform)   | `azure`      |
+| `google_compute_instance` (Terraform)         | `gcp`        |
 | `kubernetes:core/v1:Pod`                      | `kubernetes` |
+
+These names map to a cloud: `aws-native` to `aws`; `azure-native` and
+`azurerm` to `azure`; `google-native` and `google` to `gcp`. Any other prefix
+is used as written, lowercased. The resource type itself is never changed, so
+a plugin can still read the package from the type token, and a routing pattern
+such as `aws-native:*` still matches it. `finfocus config routes test` shows
+both, for example `provider: aws (package: aws-native)`.
+
+A plugin that reports `aws` receives `aws-native` resources. A plugin that
+still lists a package name, such as `azure-native`, keeps matching, and now
+also receives resources of the same cloud under another package name; it can
+decline them through `Supports`.
+
+Cost reports, provider budgets, the `provider=` filter and history charts use
+the same cloud name, so `aws` and `aws-native` spend appears under one `aws`
+entry. Group by type to see packages separately.
 
 **Global Plugins**: Plugins reporting `["*"]` or empty providers match ALL resources (e.g., debugging plugins).
 
