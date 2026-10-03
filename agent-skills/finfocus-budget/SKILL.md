@@ -65,17 +65,28 @@ Details: [references/budget-health.md](references/budget-health.md).
 
 ## 3. Fail CI only when asked
 
-Exit non-zero only when `exit_on_threshold` is true and a threshold is crossed.
-Precedence is the CLI flag, then `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` and
-`FINFOCUS_BUDGET_EXIT_CODE`, then the scope, then `cost.budgets`, then the
-default (`false`, exit code `1`).
+A global-only budget (no provider, tag, or type scope) exits through
+`checkBudgetExit`. That path fails when `exit_on_threshold` is true and a
+configured alert, including a `forecasted` alert, is exceeded.
+`--exit-on-threshold`, `--exit-code`, `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD`,
+and `FINFOCUS_BUDGET_EXIT_CODE` write `cost.budgets.global`. Default is off,
+exit code `1`.
+
+Any provider, tag, or type budget switches the exit to `checkScopedBudgetExit`.
+That gate opens on CRITICAL or EXCEEDED actual-spend health. A scoped gate can fail at 90% actual utilization. Configured alerts, including a forecasted
+alert, stay on the global-only path. The breached scope uses its own
+`exit_on_threshold` when set. An unset scope uses
+`cost.budgets.exit_on_threshold`. The CLI flags and the two exit environment
+variables write the global scope, so set the provider field or the parent
+field to open a provider gate.
 
 ```bash
 finfocus cost projected --pulumi-json plan.json --exit-on-threshold --exit-code 2
 ```
 
-`overview` accepts the same flags. Its `--exit-on-threshold` help text says the
-exit applies in non-TTY output. Exit code `0` logs a warning and still exits 0.
+`overview` accepts the same flags and the same exit path. Its
+`--exit-on-threshold` help text says the exit applies in non-TTY output.
+On the global-only path, exit code `0` logs a warning and still exits 0.
 A budget evaluation failure uses exit code 1.
 
 Flags and the exit path: [references/budget-cli.md](references/budget-cli.md).
@@ -84,8 +95,12 @@ Flags and the exit path: [references/budget-cli.md](references/budget-cli.md).
 
 - No banner: `cost.budgets.global.amount` is missing or `0`. Read the
   effective `config.hujson` (`finfocus config list`).
-- Exit stays 0: `exit_on_threshold` is still false. Pass `--exit-on-threshold`
-  or set the config or `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD`.
+- Exit stays 0 on a global-only budget: `cost.budgets.global.exit_on_threshold`
+  is still false. Pass `--exit-on-threshold` or set that field or
+  `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD`.
+- Exit stays 0 on a provider, tag, or type budget: set that scope's
+  `exit_on_threshold`, or set `cost.budgets.exit_on_threshold`. The CLI flag
+  and `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` write the global scope.
 - `global budget is required`: a provider, tag, or type budget exists without
   `global.amount > 0`.
 - Currency error: a scoped currency differs from the global currency. Omit it

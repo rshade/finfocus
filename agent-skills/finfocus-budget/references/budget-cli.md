@@ -7,8 +7,8 @@
 
 | Flag | Default | Effect |
 | --- | --- | --- |
-| `--exit-on-threshold` | `false` | Non-zero exit when a configured threshold is exceeded |
-| `--exit-code` | `1` | Exit code used when that happens, range 0-255 |
+| `--exit-on-threshold` | `false` | Writes `cost.budgets.global.exit_on_threshold` |
+| `--exit-code` | `1` | Writes `cost.budgets.global.exit_code`, range 0-255 |
 | `--budget-scope` | empty (all scopes) | Which budget sections to print |
 
 `finfocus overview` has the same three flags. `--exit-on-threshold` on
@@ -36,17 +36,24 @@ An empty `--budget-scope` shows every scope.
 
 ## Exit path
 
-1. Changed `--exit-on-threshold` / `--exit-code` write the global scope.
-2. Otherwise `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` and
-   `FINFOCUS_BUDGET_EXIT_CODE` do, when set and parseable.
-3. Otherwise the scope's own fields, then `cost.budgets.exit_on_threshold`
-   and `cost.budgets.exit_code`.
-4. Default is off, with exit code 1.
+`--exit-on-threshold`, `--exit-code`, `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD`, and
+`FINFOCUS_BUDGET_EXIT_CODE` write `cost.budgets.global` only.
 
-`checkBudgetExit` returns a `BudgetExitError` only when exit is enabled and a
-threshold is exceeded. `toAxExitError` wraps that error so `ax.Execute` keeps
-the configured code. Exit code 0 prints `WARNING:` and does not fail the
-process. Evaluation failure uses exit code 1
+`checkBudgetExit` runs when no provider, tag, or type budget is configured. It
+reads the global scope, which is where those flags and variables land, then
+the parent `cost.budgets` fields. Default is off, with exit code 1. It returns
+a `BudgetExitError` when exit is enabled and a configured alert is exceeded,
+including a `forecasted` alert. Exit code 0 prints `WARNING:` and does not
+fail the process.
+
+`checkScopedBudgetExit` runs when any provider, tag, or type budget is
+configured, and only after overall health is CRITICAL or EXCEEDED. Each
+breached scope uses its own `exit_on_threshold` when that pointer is set, and
+otherwise `cost.budgets.exit_on_threshold`. A nil scope override reads `cost.budgets.exit_on_threshold`. A nil exit-code override reads `cost.budgets.exit_code`. The scoped gate uses actual-spend health: CRITICAL
+from 90% up to 100%, EXCEEDED at 100% and above. A scoped gate can fail at 90% actual utilization. A forecasted alert does not open it.
+
+`toAxExitError` wraps `BudgetExitError` so `ax.Execute` keeps the configured
+code. Evaluation failure uses exit code 1
 (`ExitCodeBudgetEvaluationError`), which is the same number as a generic
 internal error. Codes 2, 3, and 4 are also ax-go's validation, network, and
 auth codes, so pick a budget code with that overlap in mind.
@@ -61,9 +68,13 @@ finfocus config get <key>
 finfocus config set <key> <value>
 ```
 
-`config set` stores one dotted key in `~/.finfocus/config.hujson`. Nested
-budget objects are clearer when edited in the file than when set one leaf at
-a time.
+`config set` stores one dotted key in `~/.finfocus/config.hujson`. For
+budgets it accepts `cost.budgets.amount`, `cost.budgets.currency`, and
+`cost.budgets.period`, and those write the global scope.
+`cost.budgets.global.amount` and other nested budget keys return
+`invalid cost.budgets key`. `cost.budgets.alerts` returns
+`cost.budgets.alerts must be configured via YAML`. Edit `config.hujson` for
+nested budgets.
 
 ## CI
 
@@ -74,6 +85,8 @@ a time.
       --exit-on-threshold --exit-code 2
 ```
 
-The command exits 2 when the configured threshold is exceeded and the flag is
-set. It exits 0 when the threshold is not exceeded, or when
-`exit_on_threshold` is false.
+With only a global budget, the command exits 2 when a configured alert is
+exceeded and the flag is set. It exits 0 when that alert is not exceeded, or
+when `cost.budgets.global.exit_on_threshold` is false. A provider, tag, or
+type gate still reads its own `exit_on_threshold` or
+`cost.budgets.exit_on_threshold`.

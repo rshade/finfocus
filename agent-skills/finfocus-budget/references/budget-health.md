@@ -37,17 +37,29 @@ Threshold status (`evaluateThreshold` in `internal/engine/budget_cli.go`):
 
 ## Forecast
 
-`CalculateForecastedSpendAt` extrapolates linearly over the budget period:
+`CalculateForecastedSpendAt` is the elapsed-duration helper. It extrapolates
+linearly over the budget period:
 
 ```text
 forecast = (currentSpend / elapsed) * periodLength
 ```
 
-`elapsed` and `periodLength` are durations, not a day-of-month count. Ten
-days into a 30-day period, $100 spent forecasts $300. Before the period
-starts, or when no time has elapsed, the forecast is the current spend. After
-the period ends, the forecast is the current spend. Zero spend forecasts 0. A
-limit at or below 0 yields forecast utilization 0.
+`elapsed` and `periodLength` are durations. Ten days into a 30-day period,
+$100 spent forecasts $300. Before the period starts, or when no time has
+elapsed, the forecast is the current spend. After the period ends, the
+forecast is the current spend. Zero spend forecasts 0. A limit at or below 0
+yields forecast utilization 0.
+
+The global CLI evaluator and the scoped status enricher use a day-of-month
+formula instead:
+
+```text
+forecast = (currentSpend / dayOfMonth) * daysInMonth
+```
+
+`dayOfMonth` is the current day, and a day of 0 is treated as 1.
+`daysInMonth` is the length of that month. On day 15 of a 31-day month, $300 spent forecasts $620. Use this formula for a `forecasted` CLI alert. The
+elapsed-duration helper answers a different question.
 
 Overview cost drift uses a different pair of formulas (30-day delta versus
 calendar-day drift). Do not reuse those for a budget forecast.

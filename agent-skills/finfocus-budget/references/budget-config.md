@@ -109,8 +109,9 @@ tag-based budgets are configured but tag allocation is not yet fully implemented
 | `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` | `strconv.ParseBool` value stored on the global scope |
 | `FINFOCUS_BUDGET_EXIT_CODE` | Integer stored on the global scope |
 
-These override the file and are themselves overridden by CLI flags. They do
-not set provider, tag, or type scopes. There is no `FINFOCUS_BUDGET_AMOUNT`
+These write the global scope. CLI flags on that same scope override them.
+They leave `cost.budgets.exit_on_threshold` and provider, tag, and type exit
+fields unchanged, so they do not control those exit decisions. There is no `FINFOCUS_BUDGET_AMOUNT`
 or `FINFOCUS_BUDGET_CURRENCY` reader.
 
 ## Errors the loader returns
