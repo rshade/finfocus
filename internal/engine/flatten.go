@@ -160,13 +160,26 @@ func sortedPropertyKeys(values map[string]any) []string {
 }
 
 // tagCacheSuffix hashes the flattened tag map so projected cache keys change
-// when any tag changes, including dotted leaves. The prefix is always appended.
+// when any tag changes, including dotted leaves. Each key and value is
+// length-prefixed, matching cache.writeField, so "=" or "|" inside a value
+// cannot alias a different map. The prefix is always appended.
 func tagCacheSuffix(tags map[string]string) string {
-	parts := make([]string, 0, len(tags))
-	for key, value := range tags {
-		parts = append(parts, key+"="+value)
+	keys := make([]string, 0, len(tags))
+	for key := range tags {
+		keys = append(keys, key)
 	}
-	sort.Strings(parts)
-	sum := sha256.Sum256([]byte(strings.Join(parts, "|")))
+	sort.Strings(keys)
+	var encoded strings.Builder
+	for _, key := range keys {
+		writeTagField(&encoded, key)
+		writeTagField(&encoded, tags[key])
+	}
+	sum := sha256.Sum256([]byte(encoded.String()))
 	return hex.EncodeToString(sum[:8])
+}
+
+func writeTagField(b *strings.Builder, value string) {
+	b.WriteString(strconv.Itoa(len(value)))
+	b.WriteByte(':')
+	b.WriteString(value)
 }

@@ -394,6 +394,28 @@ func TestProjectedCacheKeySplitsNestedSKUCapacity(t *testing.T) {
 	assert.NotEqual(t, left, right)
 }
 
+func TestProjectedCacheKeyLengthPrefixAvoidsDelimiterCollision(t *testing.T) {
+	t.Parallel()
+
+	resource := func(properties map[string]any) ResourceDescriptor {
+		return ResourceDescriptor{
+			Type:       "azure-native:web:AppServicePlan",
+			Provider:   "azure-native",
+			ID:         "urn:plan",
+			Properties: properties,
+		}
+	}
+	// Joining key=value with "|" hashes these two maps to the same digest.
+	joined := resource(map[string]any{"a": "b|c=d"})
+	split := resource(map[string]any{"a": "b", "c": "d"})
+
+	left, err := generateProjectedCostResourceKey(joined)
+	require.NoError(t, err)
+	right, err := generateProjectedCostResourceKey(split)
+	require.NoError(t, err)
+	assert.NotEqual(t, left, right)
+}
+
 func TestRecommendationsCacheKeyDiffersByNestedSKUCapacity(t *testing.T) {
 	t.Parallel()
 
