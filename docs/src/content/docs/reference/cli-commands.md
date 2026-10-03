@@ -671,47 +671,44 @@ finfocus config list --as json
 
 ## config validate
 
-Validate routing configuration for errors and warnings.
+Validate the active configuration file, or the file given by `--file`.
+
+The report covers syntax, budget amount, currency, period, alerts, and exit
+codes, plus unknown fields. A close name includes a suggestion. Routing plugin
+checks run only after the file itself is valid. Warnings do not fail the
+command. `--output json` prints the same report for CI. Cost commands read the
+active file in their pre-run and stop before plugin work when it is invalid.
 
 ### Usage (config validate)
 
 ```bash
-finfocus config validate [options]
+finfocus config validate [--file path] [--output text|json] [--verbose]
 ```
 
 ### Options (config validate)
 
-| Flag     | Description |
-| -------- | ----------- |
-| `--help` | Show help   |
+| Flag         | Description                                      | Default |
+| ------------ | ------------------------------------------------ | ------- |
+| `--file`     | Configuration file to validate                   | active config |
+| `--output`   | Report format: `text` or `json`                  | `text`  |
+| `--verbose`  | Print loaded settings after a valid text report  | `false` |
+| `--help`     | Show help                                        |         |
 
 ### Examples (config validate)
 
 ```bash
-# Validate routing configuration
+# Validate the active configuration
 finfocus config validate
 
-# Success output:
-# ✓ Configuration valid
-#
-# Discovered plugins:
-#   aws-ce: Recommendations, ActualCosts (priority: 20)
-#   aws-public: ProjectedCosts, ActualCosts (priority: 10)
-#
-# Routing rules:
-#   aws:eks:* → eks-costs (pattern, priority: 30)
-#   aws:* → aws-public (provider, priority: 10)
+# Validate one file and emit JSON
+finfocus config validate --file ./config.hujson --output json
 
-# Error output:
-# ✗ Configuration invalid
-#
+# Text error (plain):
+# Configuration Error: config.hujson
 # Errors:
-#   - aws-ce: plugin not found
-#   - patterns[0].pattern: invalid regex: missing closing bracket
-#
-# Warnings:
-#   - aws-public: feature 'Carbon' not supported by plugin
-#   - eks-costs: duplicate plugin configuration found
+#   Error at line 2: budget period must be 'monthly': got "weekly"
+#   Path: cost.budgets.global.period
+#   Hint: The only supported period is monthly (period: monthly).
 ```
 
 ## config routes list

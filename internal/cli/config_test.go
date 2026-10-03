@@ -239,14 +239,14 @@ func TestConfigValidateCmd(t *testing.T) {
 	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "validate"})
 	require.Equal(t, 0, result.ExitCode)
 	output := string(result.Stdout)
-	assert.Contains(t, output, "✅ Configuration is valid")
+	assert.Contains(t, output, "Configuration is valid")
 
 	// Test with verbose flag
 	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "validate", "--verbose"})
 	require.Equal(t, 0, result.ExitCode)
 
 	verboseOutput := string(result.Stdout)
-	assert.Contains(t, verboseOutput, "✅ Configuration is valid")
+	assert.Contains(t, verboseOutput, "Configuration is valid")
 	assert.Contains(t, verboseOutput, "Configuration details:")
 	assert.Contains(t, verboseOutput, "Output format:")
 	assert.Contains(t, verboseOutput, "Logging level:")
@@ -269,8 +269,8 @@ func TestConfigValidateCmdErrors(t *testing.T) {
 	// Test invalid configuration
 	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "validate"})
 	assert.NotEqual(t, 0, result.ExitCode)
-	stderr := string(result.Stderr)
-	assert.Contains(t, stderr, "invalid output format")
+	assert.Contains(t, string(result.Stdout), "invalid output format")
+	assert.Contains(t, string(result.Stderr), "configuration validation failed")
 }
 
 func TestConfigCommandsIntegration(t *testing.T) {
@@ -304,7 +304,7 @@ func TestConfigCommandsIntegration(t *testing.T) {
 	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "validate"})
 	require.Equal(t, 0, result.ExitCode)
 	output := string(result.Stdout)
-	assert.Contains(t, output, "✅ Configuration is valid")
+	assert.Contains(t, output, "Configuration is valid")
 
 	// 5. List all configuration using the default terminal style.
 	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),

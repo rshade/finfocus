@@ -536,7 +536,7 @@ finfocus config get cost.budgets.amount
 finfocus config list [--as json|yaml]
 
 # Validate configuration
-finfocus config validate [--verbose]
+finfocus config validate [--file path] [--output text|json] [--verbose]
 
 # Inspect effective routing configuration
 finfocus config routes list [--output table|json]
@@ -610,19 +610,16 @@ routing:
 ### Validate Routing Configuration
 
 ```bash
-finfocus config validate
+finfocus config validate [--file path] [--output text|json]
 
 # Output (success):
-# ✓ Configuration valid
-#
-# Discovered plugins:
-#   aws-ce: Recommendations (priority: 20)
-#   aws-public: ProjectedCosts, ActualCosts (priority: 10)
-#
-# Routing rules:
-#   aws:eks:* → eks-costs (pattern)
-#   aws:* → aws-public (provider)
+# Configuration Validation
+# Syntax valid
+# Budget configuration valid
+# Configuration is valid
 ```
+
+`--verbose` prints loaded output, plugin, and routing settings after a valid text report.
 
 See the [Routing Configuration Guide](docs/guides/routing.md) for detailed examples and troubleshooting.
 
