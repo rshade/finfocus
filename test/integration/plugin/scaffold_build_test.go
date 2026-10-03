@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -51,7 +52,14 @@ func TestPluginInit_GeneratedProjectInstallsAndValidates(t *testing.T) {
 	}
 	run(nil, "go", "mod", "tidy")
 	run(nil, "go", "test", "./...")
-	run([]string{"HOME=" + home}, "make", "install")
+
+	// Without GOPATH set, HOME would move Go's read-only module cache into the
+	// temp dir, which t.TempDir cleanup then cannot remove.
+	goEnv, err := exec.Command("go", "env", "GOMODCACHE", "GOCACHE").Output()
+	require.NoError(t, err)
+	goPaths := strings.Split(strings.TrimSpace(string(goEnv)), "\n")
+	require.Len(t, goPaths, 2)
+	run([]string{"HOME=" + home, "GOMODCACHE=" + goPaths[0], "GOCACHE=" + goPaths[1]}, "make", "install")
 
 	t.Setenv("HOME", home)
 	t.Setenv("FINFOCUS_HOME", filepath.Join(home, ".finfocus"))
