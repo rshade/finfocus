@@ -151,7 +151,9 @@ update and charts that timeline later without calling plugins.
 `collect` needs the Pulumi CLI and a cost plugin. It keeps successful
 `update` and `destroy` checkpoints. A destroy is stored as $0 with the
 annotation `Stack destroyed`. `view` and `list` read the per-stack database
-only.
+only. `--versions` defaults to `0` (every checkpoint not already stored).
+`--versions 1` keeps the newest checkpoint, which is the post-deploy
+pattern. CI recipes are in [CI/CD cost tracking](ci-cd-cost-tracking.md).
 
 `view` warns when the selected range mixes currencies and charts the
 currency with the most snapshots. `--currency USD` keeps one currency.

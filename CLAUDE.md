@@ -580,6 +580,13 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `--from` and `--to` take `vN` or `YYYY-MM-DD` (nearest snapshot). Empty
   `--to` is the newest snapshot. The interactive `d` key from #550 is not
   part of this command
+- **Cost history in CI**: `cost history collect --versions` defaults to 0
+  (every successful checkpoint not already stored). `--versions 1` keeps
+  the newest. Recipes are
+  `docs/src/content/docs/guides/ci-cd-cost-tracking.md`. There is no
+  `docs/guides/ci-cd-cost-tracking.md` page. Release assets are versioned
+  archives (`finfocus-v0.4.0-linux-amd64.tar.gz`); the install script is
+  `scripts/install.sh`
 - **Plugin pricing spec fallback** is off by default. `newEngineWithCache`
   copies `cost.pricing_spec_fallback`. `cost projected --pricing-spec-fallback`
   overrides that for the command when the flag is set. When on, a resource
