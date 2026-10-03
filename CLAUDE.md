@@ -561,7 +561,10 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   stores the result; a successful `destroy` is `$0` with annotation
   `Stack destroyed` and does not call the pricer. `view` and `list` are
   read-only. A real plugin `$0` is stored. Adapter `none`, the unpriced note,
-  or a result error fails that checkpoint. `internal/history` must not import
+  or a result error fails that checkpoint (fail fast, per the #549 design: no
+  inaccurate totals), and that includes a type an installed plugin declines.
+  `pulumi:` internal types (provider resources are `custom: true`) are skipped
+  before pricing, because the engine never prices them. `internal/history` must not import
   `engine` or `ingest` (`engine` already imports `history`). The parent
   `cost --stack` flag is reused; history subcommands do not redeclare it
 - **Cost history currencies**: `cost history view` warns and keeps the

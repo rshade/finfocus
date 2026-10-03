@@ -155,6 +155,13 @@ only. `--versions` defaults to `0` (every checkpoint not already stored).
 `--versions 1` keeps the newest checkpoint, which is the post-deploy
 pattern. CI recipes are in [CI/CD cost tracking](ci-cd-cost-tracking.md).
 
+`collect` prices cloud resources only. Pulumi's own resources, such as the
+default provider (`pulumi:providers:aws`), are skipped. If a plugin has no
+price for another resource, `collect` stops with `no plugin available for
+resource type` and stores nothing for that update, so a checkpoint never holds
+an understated total. This includes a resource whose type an installed plugin
+declines to price.
+
 `view` warns when the selected range mixes currencies and charts the
 currency with the most snapshots. `--currency USD` keeps one currency.
 `--strict` stops instead of dropping the others.
