@@ -72,6 +72,49 @@ func TestPulumiExporter_HistoryReadsEveryPage(t *testing.T) {
 	assert.Len(t, calls, 3, "two full pages and a short one")
 }
 
+func versionRange(high, low int) []map[string]any {
+	rows := make([]map[string]any, 0, high-low+1)
+	for version := high; version >= low; version-- {
+		rows = append(rows, histRow(version, "2025-01-01T00:00:00Z", "v"+strconv.Itoa(version)))
+	}
+	return rows
+}
+
+// A deployment that lands between two page reads pushes every row down by one,
+// so the next page starts with a version the previous page already returned.
+// That page is still full, so paging has to continue.
+func TestPulumiExporter_HistoryContinuesPastAFullPageWithADuplicate(t *testing.T) {
+	t.Parallel()
+
+	pages := [][]map[string]any{
+		versionRange(250, 151),
+		versionRange(151, 52),
+		versionRange(51, 1),
+	}
+	call := 0
+	exporter := pulumiExporter{
+		bin: "pulumi", stack: "dev",
+		run: func(context.Context, string, ...string) ([]byte, error) {
+			page := pages[min(call, len(pages)-1)]
+			call++
+			return mustJSON(t, page), nil
+		},
+	}
+
+	body, err := exporter.History(context.Background())
+	require.NoError(t, err)
+
+	updates, err := history.ParseStackHistory(body)
+	require.NoError(t, err)
+	versions := make(map[int]bool, len(updates))
+	for _, update := range updates {
+		versions[update.Version] = true
+	}
+	assert.Len(t, versions, 250, "every version from 1 to 250 is read once")
+	assert.Len(t, updates, 250, "the repeated version is not returned twice")
+	assert.Equal(t, 3, call)
+}
+
 func TestPulumiExporter_HistoryStopsWhenPagingIsIgnored(t *testing.T) {
 	t.Parallel()
 
