@@ -35,6 +35,11 @@ jobs:
           fi
           echo "plugin=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
           echo "version=${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
+      - name: Demote plugin release from GitHub latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release edit "$TAG" --latest=false
       - uses: actions/checkout@v7
         with:
           ref: ${{ env.TAG }}
@@ -57,7 +62,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release edit "$TAG" --latest=false
           latest_cli=$(gh release list --exclude-drafts --exclude-pre-releases --limit 100 \
             --json tagName,isLatest,createdAt \
             --jq '[.[] | select(.tagName | test("^v[0-9]"))] | sort_by(.createdAt) | last | .tagName // empty')
