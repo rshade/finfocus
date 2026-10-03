@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 * **engine:** pass referenced resource region and SKU to plugins as `ref.*` tags
   resolved from Pulumi `propertyDependencies` (#1610)
+* **engine:** emit nested resource inputs as dotted tag keys and include that
+  map in the projected-cost cache key (#1608)
 
 ## [0.4.0](https://github.com/rshade/finfocus/compare/v0.3.9...v0.4.0) (2026-10-03)
 

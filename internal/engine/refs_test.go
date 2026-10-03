@@ -5,6 +5,7 @@ package engine
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -72,7 +73,9 @@ func TestProjectedCacheKeyIncludesRefTags(t *testing.T) {
 	}
 	key, err := generateProjectedCostResourceKey(plain)
 	require.NoError(t, err)
-	assert.Equal(t, cache.BuildProjectedKey(plain.Provider, plain.Type, "", "P1v3"), key)
+	base := cache.BuildProjectedKey(plain.Provider, plain.Type, "", "P1v3")
+	assert.True(t, strings.HasPrefix(key, base+"/tags-"), key)
+	assert.NotContains(t, key, "/refs-")
 
 	withRef := plain
 	withRef.Properties = map[string]any{
@@ -83,6 +86,7 @@ func TestProjectedCacheKeyIncludesRefTags(t *testing.T) {
 	refKey, err := generateProjectedCostResourceKey(withRef)
 	require.NoError(t, err)
 	assert.NotEqual(t, key, refKey)
+	assert.Contains(t, refKey, "/tags-")
 	assert.Contains(t, refKey, "/refs-")
 
 	changed := withRef

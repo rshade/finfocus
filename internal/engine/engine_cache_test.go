@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -174,7 +175,8 @@ func TestGenerateProjectedCostResourceKey(t *testing.T) {
 			assert.NotEmpty(t, key)
 
 			if tt.wantContains != "" {
-				assert.Equal(t, tt.wantContains, key)
+				assert.True(t, strings.HasPrefix(key, tt.wantContains+"/tags-"), key)
+				assert.NotContains(t, key, "/refs-")
 			}
 
 			// Determinism: same input produces same key

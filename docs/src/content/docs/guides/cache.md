@@ -155,19 +155,25 @@ key-value store. No external database process is required.
 
 The database contains one bucket per cached operation:
 
-| Bucket            | Key Format                                    | Scope          |
-| ----------------- | --------------------------------------------- | -------------- |
-| `projected`       | `projected/{provider}/{type}/{region}/{sku}`  | Per resource   |
-| `actual`          | `actual/{adapter}/{start}/{end}/{groupBy}/...`| Per query      |
-| `recommendations` | `recommendations/multi/{types}/{inputs-hash}` | Per query      |
-| `scores`          | `scores/{scorer}/{version}/{model}/{hash}`    | Per recommendation |
+| Bucket            | Key Format                                                 | Scope              |
+| ----------------- | ---------------------------------------------------------- | ------------------ |
+| `projected`       | `projected/{provider}/{type}/{region}/{sku}/tags-{digest}` | Per resource       |
+| `actual`          | `actual/{adapter}/{start}/{end}/{groupBy}/...`             | Per query          |
+| `recommendations` | `recommendations/multi/{types}/{inputs-hash}`              | Per query          |
+| `scores`          | `scores/{scorer}/{version}/{model}/{hash}`                 | Per recommendation |
 
 Projected costs are cached per individual resource, so changing one resource only
-invalidates that resource's entry. Actual cost queries are cached as a whole (the full
-query including time range and filters forms the key). Recommendation queries are also
-cached as a whole: `inputs-hash` covers the identity, provider, type and properties of
-every requested resource plus the dismissed recommendation IDs, so a different resource
-set or a new dismissal never reuses an older entry.
+invalidates that resource's entry. The projected key adds `/tags-{digest}`, the
+first eight bytes of SHA-256 over the flattened tag map, so two resources that
+differ only by a nested field such as `sku.capacity` do not share an entry.
+`/refs-{digest}` is appended when `ref.*` properties are present. The digest
+invalidates projected entries once; delete `~/.finfocus/cache/cache.db` to drop
+them. Actual cost queries are cached as a whole (the full query including time
+range and filters forms the key). Recommendation queries are also cached as a
+whole: `inputs-hash` covers the identity, provider, type and flattened
+properties of every requested resource plus the dismissed recommendation IDs.
+Dotted keys change that hash, so recommendation entries miss once too. A
+different resource set or a new dismissal never reuses an older entry.
 
 The `scores` bucket is written only when the optional [recommendation scoring](./recommendation-scoring.md) step is
 enabled. It holds extracted score values keyed on a hash of the recommendation content, never raw scorer payloads.
