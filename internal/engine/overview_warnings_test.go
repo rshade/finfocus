@@ -197,6 +197,78 @@ func TestEnrichOverviewRow_DerivesWarnings(t *testing.T) {
 		assert.Equal(t, []OverviewWarning{WarnError}, row.Warnings)
 	})
 
+	t.Run("plugin error result", func(t *testing.T) {
+		t.Parallel()
+		row := OverviewRow{URN: "urn:plugin-err", Type: "aws:ec2:Instance", Status: StatusActive}
+		eng := &mockEnricher{
+			actualResult: &CostResultWithErrors{Results: []CostResult{{
+				Error: &StructuredError{Code: ErrCodePluginError, Message: "connection refused"},
+			}}},
+			projectedResult: &CostResultWithErrors{Results: []CostResult{{Monthly: 10, Currency: "USD"}}},
+		}
+		enrichOverviewRow(context.Background(), &row, eng, dateRange)
+		require.NotNil(t, row.Error)
+		assert.Equal(t, ErrorTypeNetwork, row.Error.ErrorType)
+		assert.Contains(t, row.Error.Message, "connection refused")
+		assert.Equal(t, []OverviewWarning{WarnError}, row.Warnings)
+		assert.Nil(t, row.ActualCost)
+	})
+
+	t.Run("timeout error result", func(t *testing.T) {
+		t.Parallel()
+		row := OverviewRow{URN: "urn:timeout", Type: "aws:ec2:Instance", Status: StatusActive}
+		eng := &mockEnricher{
+			projectedResult: &CostResultWithErrors{Results: []CostResult{{
+				Error: &StructuredError{Code: ErrCodeTimeoutError, Message: "context deadline exceeded"},
+			}}},
+		}
+		enrichOverviewRow(context.Background(), &row, eng, dateRange)
+		require.NotNil(t, row.Error)
+		assert.Equal(t, ErrorTypeNetwork, row.Error.ErrorType)
+		assert.True(t, row.Error.Retryable)
+		assert.Equal(t, []OverviewWarning{WarnError}, row.Warnings)
+	})
+
+	t.Run("validation note result", func(t *testing.T) {
+		t.Parallel()
+		row := OverviewRow{URN: "urn:validation", Type: "aws:ec2:Instance", Status: StatusActive}
+		eng := &mockEnricher{
+			projectedResult: &CostResultWithErrors{Results: []CostResult{{Notes: "VALIDATION: region is required"}}},
+		}
+		enrichOverviewRow(context.Background(), &row, eng, dateRange)
+		require.NotNil(t, row.Error)
+		assert.Contains(t, row.Error.Message, "region is required")
+		assert.Equal(t, []OverviewWarning{WarnError}, row.Warnings)
+	})
+
+	t.Run("a resource with no cost data is not an error", func(t *testing.T) {
+		t.Parallel()
+		row := OverviewRow{URN: "urn:no-data", Type: "aws:iam:Role", Status: StatusActive}
+		eng := &mockEnricher{
+			projectedResult: &CostResultWithErrors{Results: []CostResult{{
+				Error: &StructuredError{Code: ErrCodeNoCostData, Message: "No pricing information available"},
+			}}},
+		}
+		enrichOverviewRow(context.Background(), &row, eng, dateRange)
+		assert.Nil(t, row.Error)
+		assert.Empty(t, row.Warnings)
+	})
+
+	t.Run("a plugin error on one side keeps the other side's cost", func(t *testing.T) {
+		t.Parallel()
+		row := OverviewRow{URN: "urn:half", Type: "aws:ec2:Instance", Status: StatusActive}
+		eng := &mockEnricher{
+			actualResult: &CostResultWithErrors{Results: []CostResult{{TotalCost: 50, Currency: "USD"}}},
+			projectedResult: &CostResultWithErrors{Results: []CostResult{{
+				Error: &StructuredError{Code: ErrCodePluginError, Message: "plugin down"},
+			}}},
+		}
+		enrichOverviewRow(context.Background(), &row, eng, dateRange)
+		require.NotNil(t, row.ActualCost)
+		assert.Nil(t, row.ProjectedCost)
+		assert.Equal(t, []OverviewWarning{WarnError}, row.Warnings)
+	})
+
 	t.Run("creating resource", func(t *testing.T) {
 		t.Parallel()
 		row := OverviewRow{URN: "urn:new", Type: "aws:s3:Bucket", Status: StatusCreating}
@@ -257,4 +329,27 @@ func TestRenderOverviewAsJSON_IncludesWarnings(t *testing.T) {
 	require.NoError(t, json.Unmarshal(buf.Bytes(), &parsed))
 	require.Len(t, parsed.Resources, 1)
 	assert.Equal(t, []string{"drift", "error"}, parsed.Resources[0].Warnings)
+}
+
+func TestApplyChangesToRows_RederivesWarnings(t *testing.T) {
+	t.Parallel()
+
+	rows := []OverviewRow{
+		{
+			URN: "urn:a", Status: StatusActive,
+			Error:    &OverviewRowError{URN: "urn:a", Message: "plugin down"},
+			Warnings: []OverviewWarning{WarnError},
+		},
+		{URN: "urn:b", Status: StatusCreating, Warnings: []OverviewWarning{WarnNew}},
+		{URN: "urn:c", Status: StatusActive},
+	}
+
+	ApplyChangesToRows(rows, map[string]ResourceStatus{
+		"urn:a": StatusCreating,
+		"urn:b": StatusActive,
+	})
+
+	assert.Equal(t, []OverviewWarning{WarnError, WarnNew}, rows[0].Warnings)
+	assert.Empty(t, rows[1].Warnings)
+	assert.Empty(t, rows[2].Warnings)
 }

@@ -219,6 +219,7 @@ func ApplyChangesToRows(rows []OverviewRow, statusByURN map[string]ResourceStatu
 	for i := range rows {
 		if status, ok := statusByURN[rows[i].URN]; ok {
 			rows[i].Status = status
+			deriveWarnings(&rows[i])
 		}
 	}
 }

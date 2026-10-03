@@ -302,6 +302,11 @@ Each resource object includes `warnings` when a condition applies. The values
 are `drift`, `error`, and `new`, in that order. An empty list is omitted.
 NDJSON uses the same resource object.
 
+`error` marks a failed cost fetch: the engine returned an error, or a plugin
+reported one for that resource, such as a timeout, a failed call, or a
+validation failure. The resource's `error` object carries the message and type.
+A resource that no plugin has a price for, such as an IAM role, is not an error.
+
 ### NDJSON
 
 One JSON object per line, no metadata wrapper:
