@@ -63,8 +63,12 @@ func TestScore_SingleBatchReturnsAllSignals(t *testing.T) {
 
 	assert.Equal(t, "jev", resp.GetScorer().GetName())
 	assert.Equal(t, testModel, resp.GetScorer().GetModel())
+	assert.Equal(t, []string{testModel}, resp.GetScorer().GetModels())
 	assert.Equal(t, pbc.ScoreCalibration_SCORE_CALIBRATION_RANKING_ONLY, resp.GetScorer().GetCalibration())
-	assert.Len(t, strings.Split(resp.GetScorer().GetProviderRequestId(), ","), 4)
+	ids := resp.GetScorer().GetProviderRequestIds()
+	assert.Len(t, ids, 4)
+	//nolint:staticcheck // SA1019: older hosts read only the single deprecated id.
+	assert.Equal(t, ids[0], resp.GetScorer().GetProviderRequestId())
 	assert.Equal(t, int32(DefaultMaxRequestSize), resp.GetMaxBatchSize())
 	assert.Len(t, resp.GetSupportedSignals(), 6)
 }
@@ -79,6 +83,7 @@ func TestScore_ReportsModelReturnedByAPI(t *testing.T) {
 	}}
 	resp := score(t, newScorer(fb, nil), &pbc.ScoreRecommendationsRequest{Recommendations: makeRecs(1)})
 	assert.Equal(t, "jev-1.13.0-actual", resp.GetScorer().GetModel())
+	assert.Equal(t, []string{"jev-1.13.0-actual"}, resp.GetScorer().GetModels())
 }
 
 func TestScore_SixtyRecommendationsSplitIntoBatchesOfAtMost25(t *testing.T) {

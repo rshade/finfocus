@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"maps"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -435,17 +434,23 @@ func (s *Scorer) response(
 		}
 		results[i] = result
 	}
-	model, ids := s.provenance(batches)
+	model, models, ids := s.provenance(batches)
+	info := &pbc.ScorerInfo{
+		Name:               ScorerName,
+		Model:              model,
+		Models:             models,
+		Calibration:        pbc.ScoreCalibration_SCORE_CALIBRATION_RANKING_ONLY,
+		ProviderRequestIds: ids,
+	}
+	if len(ids) > 0 {
+		//nolint:staticcheck // SA1019: older hosts read only this field; the spec says it is the first id.
+		info.ProviderRequestId = ids[0]
+	}
 	return &pbc.ScoreRecommendationsResponse{
 		Results:          results,
 		MaxBatchSize:     s.MaxBatchSize(),
 		SupportedSignals: supportedSignals(),
-		Scorer: &pbc.ScorerInfo{
-			Name:              ScorerName,
-			Model:             model,
-			Calibration:       pbc.ScoreCalibration_SCORE_CALIBRATION_RANKING_ONLY,
-			ProviderRequestId: ids,
-		},
+		Scorer:           info,
 	}
 }
 
@@ -467,24 +472,30 @@ func buildScores(it *itemState, wanted map[pbc.ScoreSignal]bool) *pbc.Recommenda
 	return scores
 }
 
-// provenance reports the model the API named and the provider request ids of
-// the calls that answered.
-func (s *Scorer) provenance(batches []*batch) (string, string) {
-	model := s.cfg.Model
-	var ids []string
-	named := false
+// provenance reports every model the calls named, primary first, and the
+// provider request ids of the calls that answered. With no named model it
+// reports the configured model.
+func (s *Scorer) provenance(batches []*batch) (string, []string, []string) {
+	var models, ids []string
 	for _, b := range batches {
 		if b.resp == nil {
 			continue
 		}
-		if !named && b.resp.Model != "" {
-			model, named = b.resp.Model, true
+		if b.resp.Model != "" && !slices.Contains(models, b.resp.Model) {
+			models = append(models, b.resp.Model)
 		}
 		if b.resp.RequestID != "" && len(ids) < maxReportedIDs {
 			ids = append(ids, b.resp.RequestID)
 		}
 	}
-	return model, strings.Join(ids, ",")
+	if len(models) == 0 && s.cfg.Model != "" {
+		models = []string{s.cfg.Model}
+	}
+	model := ""
+	if len(models) > 0 {
+		model = models[0]
+	}
+	return model, models, ids
 }
 
 func (s *Scorer) logSummary(
@@ -505,7 +516,7 @@ func (s *Scorer) logSummary(
 		Int("failed_requests", failed).
 		Int("input_tokens", tokens).
 		Str("model", resp.GetScorer().GetModel()).
-		Str("provider_request_id", resp.GetScorer().GetProviderRequestId()).
+		Strs("provider_request_ids", resp.GetScorer().GetProviderRequestIds()).
 		Dur("elapsed", elapsed).
 		Msg("scored recommendations")
 }

@@ -149,7 +149,8 @@ func TestScore_DuplicateOnlyWithoutBlocksMakesNoBackendCall(t *testing.T) {
 	})
 	assert.Zero(t, fb.calls.Load())
 	assert.Equal(t, testModel, resp.GetScorer().GetModel())
-	assert.Empty(t, resp.GetScorer().GetProviderRequestId())
+	assert.Equal(t, []string{testModel}, resp.GetScorer().GetModels())
+	assert.Empty(t, resp.GetScorer().GetProviderRequestIds())
 }
 
 func TestScore_DuplicatesAlongsideOtherSignals(t *testing.T) {
@@ -163,7 +164,7 @@ func TestScore_DuplicatesAlongsideOtherSignals(t *testing.T) {
 	assert.Empty(t, resultScores(resp.GetResults()[4]).GetDuplicateGroupId())
 	assert.NotNil(t, resultScores(resp.GetResults()[4]).Risk)
 	assert.Equal(t, int32(7), fb.calls.Load(), "one scoring batch, five priority requests and one pair batch")
-	assert.Len(t, strings.Split(resp.GetScorer().GetProviderRequestId(), ","), 7)
+	assert.Len(t, resp.GetScorer().GetProviderRequestIds(), 7)
 }
 
 func TestScore_FailedPairBatchFailsOnlyItsMembers(t *testing.T) {

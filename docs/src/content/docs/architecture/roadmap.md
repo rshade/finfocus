@@ -236,7 +236,7 @@ guardrails in `CONTEXT.md`.
   - [ ] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
         BoltDB cache issues, and zero-cost results
         ([#913](https://github.com/rshade/finfocus/issues/913)) [M]
-  - [ ] `finfocus-budget` — Configure, monitor, and troubleshoot budget
+  - [x] `finfocus-budget` — Configure, monitor, and troubleshoot budget
         thresholds with scoped rules, health tracking, and CI/CD exit codes
         ([#914](https://github.com/rshade/finfocus/issues/914)) [M]
   - *Format:* Agent Skills spec (SKILL.md + references/), installable via

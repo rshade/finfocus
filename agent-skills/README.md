@@ -15,6 +15,7 @@ cost-optimize, budget-setup) live in
 | [finfocus-install](finfocus-install/) | Install CLI, detect providers, install plugins, init config | M |
 | [finfocus-analyzer-setup](finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation | S |
 | [finfocus-routing](finfocus-routing/) | Configure plugin routing with priority, patterns, fallback | S |
+| [finfocus-budget](finfocus-budget/) | Configure budget thresholds, health, and CI exit codes | M |
 | [finfocus-plugin-upgrade](finfocus-plugin-upgrade/) | Upgrade a plugin project to a newer finfocus-spec version | M |
 
 ## Planned Skills
@@ -23,7 +24,6 @@ cost-optimize, budget-setup) live in
 |-------|-------|-----|
 | plugin-manage | [#911](https://github.com/rshade/finfocus/issues/911) | M |
 | finfocus-diagnose | [#913](https://github.com/rshade/finfocus/issues/913) | M |
-| finfocus-budget | [#914](https://github.com/rshade/finfocus/issues/914) | M |
 
 ## Skill Structure
 
