@@ -962,6 +962,12 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   output and fail ~57 tests locally; the banner now renders only for table output.)
   Always diff the integration failure *set* against a pre-change baseline rather
   than comparing failure counts
+- **Overriding `HOME` for a `go`/`make` child moves Go's caches**: when `GOPATH`
+  is not exported (CI), `HOME=<t.TempDir()>` puts the module cache under the
+  temp dir. Its files are read-only, so `t.TempDir` cleanup fails with
+  `permission denied` (green locally where `GOPATH` is set). Pass the real
+  `GOMODCACHE`/`GOCACHE` from `go env`, as `scaffold_build_test.go` does.
+  Reproduce with `env -u GOPATH go test ...`
 - **`config.yaml` fixtures are intentional**: most `config.yaml` references in
   `test/integration/` write legacy YAML as *input* to exercise auto-migration. Only
   assertions that `config init` *creates* a file should expect `config.hujson`
