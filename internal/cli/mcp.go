@@ -53,6 +53,10 @@ var mcpExcludedCommands = []mcpExclusion{
 		path:   []string{cmdNamePlugin, "init"},
 		reason: "scaffolds a plugin project into the working directory; a developer action, not an agent query",
 	},
+	{
+		path:   []string{cmdNamePlugin, "upgrade"},
+		reason: "rewrites a plugin project's source tree; a developer action, not an agent query",
+	},
 }
 
 // mcpServeFunc starts an MCP server for root. It is a variable so tests can
