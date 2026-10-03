@@ -155,19 +155,27 @@ key-value store. No external database process is required.
 
 The database contains one bucket per cached operation:
 
-| Bucket            | Key Format                                    | Scope          |
-| ----------------- | --------------------------------------------- | -------------- |
-| `projected`       | `projected/{provider}/{type}/{region}/{sku}`  | Per resource   |
-| `actual`          | `actual/{adapter}/{start}/{end}/{groupBy}/...`| Per query      |
-| `recommendations` | `recommendations/multi/{types}/{inputs-hash}` | Per query      |
-| `scores`          | `scores/{scorer}/{version}/{model}/{hash}`    | Per recommendation |
+| Bucket            | Key Format                                                 | Scope              |
+| ----------------- | ---------------------------------------------------------- | ------------------ |
+| `projected`       | `projected/{provider}/{type}/{region}/{sku}/tags-{digest}` | Per resource       |
+| `actual`          | `actual/{adapter}/{start}/{end}/{groupBy}/...`             | Per query          |
+| `recommendations` | `recommendations/multi/{types}/{inputs-hash}`              | Per query          |
+| `scores`          | `scores/{scorer}/{version}/{model}/{hash}`                 | Per recommendation |
 
 Projected costs are cached per individual resource, so changing one resource only
-invalidates that resource's entry. Actual cost queries are cached as a whole (the full
-query including time range and filters forms the key). Recommendation queries are also
-cached as a whole: `inputs-hash` covers the identity, provider, type and properties of
-every requested resource plus the dismissed recommendation IDs, so a different resource
-set or a new dismissal never reuses an older entry.
+invalidates that resource's entry. The projected key adds `/tags-{digest}`, the
+first eight bytes of SHA-256 over the flattened tag map, so two resources that
+differ only by a nested field such as `sku.capacity` do not share an entry.
+`/refs-{digest}` is appended when `ref.*` properties are present. The digest
+invalidates projected entries once. Delete `cache.db` in the resolved cache
+directory to drop them. That file is `~/.finfocus/cache/cache.db` unless
+`FINFOCUS_CACHE_DIR` or `cost.cache.directory` selects another directory.
+Actual cost queries are cached as a whole (the full query including time
+range and filters forms the key). Recommendation queries are also cached as a
+whole: `inputs-hash` covers the identity, provider, type and flattened
+properties of every requested resource plus the dismissed recommendation IDs.
+Dotted keys change that hash, so recommendation entries miss once too. A
+different resource set or a new dismissal never reuses an older entry.
 
 The `scores` bucket is written only when the optional [recommendation scoring](./recommendation-scoring.md) step is
 enabled. It holds extracted score values keyed on a hash of the recommendation content, never raw scorer payloads.
@@ -268,12 +276,12 @@ finfocus cost projected --cache-ttl 0 --pulumi-json plan.json
 
 ### Issue: Stale data after resource changes
 
-**Symptoms:** Cost output does not reflect a resource type or SKU change.
+**Symptoms:** Cost output does not reflect a resource, tag, or nested input change.
 
-**Cause:** Projected cost cache is keyed by `provider/type/region/sku`. If you changed
-an input that is part of the key (e.g., instance type), the old key is no longer matched
-and the new key is a cache miss - fresh data is fetched automatically. If you changed a
-field that is NOT part of the key (e.g., tags), the cached entry is reused.
+**Cause:** The projected key is `provider/type/region/sku` plus a digest of the
+flattened tag map. Changing the provider, type, region, SKU, a tag, or a nested
+field in that map (for example `sku.capacity`) misses the old entry and fetches
+fresh data. A field that never reaches the flattened map can still reuse the entry.
 
 **Solution:** Use `--cache-ttl 0` for a single run or reduce `ttl_seconds` in config.
 

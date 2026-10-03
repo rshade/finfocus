@@ -331,6 +331,17 @@ plugin still sees the tags. Classic Azure `skuName` is copied only into
 resource's own SKU). Projected cache keys append `/refs-<hash>` when those tags
 exist. Spec: `specs/618-cross-resource-refs/`.
 
+`ConvertToProto` also emits dotted keys for nested maps and arrays
+(`sku.capacity`, `rootBlockDevice.0.volumeType`) beside each collapsed key.
+It skips `__` segments, credential-like segments (`password`, `secret`,
+`token`, `credential`, `ciphertext`, `privatekey`), and the containers
+`tags`, `tagsAll`, `labels`, and `annotations`. Depth is capped at 6
+segments, new keys at 128 characters, new values at 256 characters, and the
+whole tag map at 50 entries. Existing collapsed keys are kept first.
+Projected cache keys always append `/tags-<digest>` of that map, then
+`/refs-<hash>` when reference tags exist. `EstimateCost` attributes stay
+nested. Spec: `specs/619-dotted-tag-keys/`.
+
 ### Property Extraction
 
 The adapter (`internal/proto/adapter.go`) relies on the `Inputs` map to extract:

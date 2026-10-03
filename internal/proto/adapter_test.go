@@ -3864,6 +3864,32 @@ func TestBuildEstimateCostRequest_ValidResource(t *testing.T) {
 	assert.Equal(t, expected.AsMap(), req.GetAttributes().AsMap())
 }
 
+func TestBuildEstimateCostRequest_KeepsNestedAttributes(t *testing.T) {
+	t.Parallel()
+
+	properties := map[string]any{
+		"sku": map[string]any{
+			"name":     "P1v3",
+			"capacity": float64(2),
+			"tier":     "PremiumV3",
+		},
+	}
+
+	req, err := BuildEstimateCostRequest("azure-native:web:AppServicePlan", properties)
+	require.NoError(t, err)
+	require.NotNil(t, req.GetAttributes())
+
+	attrs := req.GetAttributes().AsMap()
+	sku, ok := attrs["sku"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "P1v3", sku["name"])
+	assert.InDelta(t, float64(2), sku["capacity"], 0)
+	assert.Equal(t, "PremiumV3", sku["tier"])
+	assert.NotContains(t, attrs, "sku.name")
+	assert.NotContains(t, attrs, "sku.capacity")
+	assert.NotContains(t, attrs, "sku.tier")
+}
+
 func TestBuildEstimateCostRequest_EmptyType(t *testing.T) {
 	t.Parallel()
 

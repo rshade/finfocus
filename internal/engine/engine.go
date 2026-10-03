@@ -2016,13 +2016,15 @@ func deriveActualCostWindow(
 }
 
 // ConvertToProto converts a map[string]interface{} to map[string]string for gRPC.
-// It handles nested structures from protobuf Struct conversions by extracting
-// meaningful values from common patterns.
+// Every top-level key is still the collapsed ConvertValueToString value.
+// Nested maps and arrays also contribute dotted scalar keys (sku.capacity,
+// rootBlockDevice.0.volumeType). EstimateCost does not use this function.
 func ConvertToProto(properties map[string]any) map[string]string {
 	result := make(map[string]string)
 	for k, v := range properties {
 		result[k] = ConvertValueToString(v)
 	}
+	addDottedTags(result, properties)
 	return result
 }
 
@@ -4031,9 +4033,18 @@ func hasOnlyPlaceholderResults(results []CostResult) bool {
 	return true
 }
 
+// ProjectedResourceCacheKey returns the projected-cost cache key for one resource.
+// Callers that seed the cache, including overview, must use this key. It includes
+// a digest of the flattened tag map.
+func ProjectedResourceCacheKey(resource ResourceDescriptor) (string, error) {
+	return generateProjectedCostResourceKey(resource)
+}
+
 // generateProjectedCostResourceKey builds a deterministic cache key for a projected cost lookup.
-// The key has the format "projected/{provider}/{type}/{region}/{sku}". Region is extracted from
-// "availabilityZone" or "region"; SKU from "instanceType", "type", or "sku" in that order.
+// The key has the format "projected/{provider}/{type}/{region}/{sku}/tags-{digest}".
+// Region is extracted from "availabilityZone" or "region"; SKU from "instanceType", "type", or "sku".
+// The digest covers the flattened tag map, so nested fields such as sku.capacity do not collide.
+// When the resource has ref.* properties, "/refs-{digest}" is appended after the tag digest.
 // Returns an error if resource.Type is empty.
 func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, error) {
 	if resource.Type == "" {
@@ -4044,6 +4055,7 @@ func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, erro
 	sku := extractStringProperty(resource.Properties, "instanceType", "type", "sku")
 
 	key := cache.BuildProjectedKey(resource.Provider, resource.Type, region, sku)
+	key += "/tags-" + tagCacheSuffix(ConvertToProto(resource.Properties))
 	if suffix := refCacheSuffix(resource.Properties); suffix != "" {
 		key += "/refs-" + suffix
 	}

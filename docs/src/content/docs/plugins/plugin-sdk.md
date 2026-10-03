@@ -15,6 +15,7 @@ interfaces, helper functions, and utilities for building cost source plugins.
 4. [Manifest Management](#manifest-management)
 5. [Testing Utilities](#testing-utilities)
 6. [Code Examples](#code-examples)
+7. [Dotted resource tags](#dotted-resource-tags)
 
 ---
 
@@ -683,6 +684,47 @@ func (p *CustomPricingPlugin) GetProjectedCost(
     ), nil
 }
 ```
+
+---
+
+## Dotted resource tags
+
+Projected cost, `Supports`, batch, and recommendation calls build
+`ResourceDescriptor.tags` with `ConvertToProto`. Every top-level property is
+still one string. Each non-empty map or array also adds one key per scalar
+leaf. Path segments join with `.`, and array elements use a zero-based index
+(`sku.capacity`, `rootBlockDevice.0.volumeType`). Leaf text matches
+`ConvertValueToString`: whole numbers have no decimal point, and booleans are
+`true` or `false`.
+
+Existing keys and values stay the same, including keys that start with `__`.
+If a dotted key collides with an existing key, the existing value wins.
+`EstimateCost` attributes stay nested `Struct` values and do not gain dotted
+keys.
+
+The flattener does not emit:
+
+- nil leaves, empty maps, empty arrays, or a leaf equal to the Pulumi unknown
+  sentinel `04da6b54-80e4-46f7-96ec-b56ff0331ba9`
+- a path with any segment that starts with `__`
+- a path whose segment contains `password`, `secret`, `token`, `credential`,
+  `ciphertext`, or `privatekey`, compared case-insensitively
+- anything inside `tags`, `tagsAll`, `labels`, or `annotations`
+
+A scalar at six segments is kept. A seventh segment is not. A new key longer
+than 128 characters, or a new value longer than 256 characters, is skipped.
+Collapsed values that are already longer than 256 characters are left as they
+are. The tag map stops at 50 entries. Collapsed keys are kept even when they
+already pass 50. Remaining room is filled by dotted keys, shallower paths
+first and then by name. One debug log line records `dotted_kept` and
+`dotted_dropped` for a truncated resource. The line has counts only.
+
+The projected cache key is
+`projected/{provider}/{type}/{region}/{sku}/tags-{digest}`. The digest is the
+first eight bytes of SHA-256 over the flattened tag map, so nested fields such
+as `sku.capacity` change the key. `/refs-{digest}` is still appended when the
+resource has `ref.*` properties. Projected and recommendation entries miss
+once after this change. The cache file is safe to delete.
 
 ---
 

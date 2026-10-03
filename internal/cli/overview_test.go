@@ -655,7 +655,15 @@ func TestOverviewPlainText_CacheHitReturnsProjectedCost(t *testing.T) {
 	store, storeErr := cache.NewBoltStore(ctx, cacheDir, true, 3600, 0)
 	require.NoError(t, storeErr)
 
-	cacheKey := cache.BuildProjectedKey("aws", "aws:ec2/instance:Instance", "us-east-1a", "t3.micro")
+	cacheKey, keyErr := engine.ProjectedResourceCacheKey(engine.ResourceDescriptor{
+		Type:     "aws:ec2/instance:Instance",
+		Provider: "aws",
+		Properties: map[string]any{
+			"instanceType":     "t3.micro",
+			"availabilityZone": "us-east-1a",
+		},
+	})
+	require.NoError(t, keyErr)
 	cachedResults := []engine.CostResult{{
 		ResourceType: "aws:ec2/instance:Instance",
 		ResourceID:   "urn:pulumi:dev::proj::aws:ec2/instance:Instance::web",
