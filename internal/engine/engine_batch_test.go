@@ -111,6 +111,12 @@ func (m *mockBatchCostSourceClient) ResolveResourceTypes(
 	return &pbc.ResolveResourceTypesResponse{}, nil
 }
 
+func (m *mockBatchCostSourceClient) GetPricingSpec(
+	_ context.Context, _ *pbc.GetPricingSpecRequest, _ ...grpc.CallOption,
+) (*pbc.GetPricingSpecResponse, error) {
+	return &pbc.GetPricingSpecResponse{}, nil
+}
+
 // makeBatchCapableClient creates a pluginhost.Client with batch_cost capability.
 func makeBatchCapableClient(name string, api proto.CostSourceClient) *pluginhost.Client {
 	return &pluginhost.Client{

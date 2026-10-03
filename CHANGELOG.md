@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **engine:** price a projected resource from plugin `GetPricingSpec` before
+  local YAML when `cost projected --pricing-spec-fallback` or
+  `cost.pricing_spec_fallback` is set. The fallback stays off unless one of
+  those is set (#638)
 * **overview:** add a Warn column to the plain table and the TUI, and a
   `warnings` array on JSON and NDJSON rows. Derived values are `drift`,
   `error`, and `new`. The TUI shows `name+N` when the list does not fit (#643)

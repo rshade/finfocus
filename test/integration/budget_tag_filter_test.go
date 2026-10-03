@@ -124,6 +124,14 @@ func (m *mockTagFilterClient) ResolveResourceTypes(
 	return &pbc.ResolveResourceTypesResponse{}, nil
 }
 
+func (m *mockTagFilterClient) GetPricingSpec(
+	_ context.Context,
+	_ *pbc.GetPricingSpecRequest,
+	_ ...grpc.CallOption,
+) (*pbc.GetPricingSpecResponse, error) {
+	return &pbc.GetPricingSpecResponse{}, nil
+}
+
 // TestBudgetTagFilter_EndToEnd tests tag-based budget filtering (Issue #222).
 //
 //nolint:paralleltest // subtests share the parent-scoped fixture eng = engine.New(...)

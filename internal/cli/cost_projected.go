@@ -40,15 +40,16 @@ func displayErrorSummary(
 
 // costProjectedParams holds the parameters for the projected cost command execution.
 type costProjectedParams struct {
-	planPath       string
-	terraformState string
-	specDir        string
-	adapter        string
-	output         string
-	filter         []string
-	utilization    float64
-	jobs           int
-	showBreakdown  bool
+	planPath            string
+	terraformState      string
+	specDir             string
+	adapter             string
+	output              string
+	filter              []string
+	utilization         float64
+	jobs                int
+	showBreakdown       bool
+	pricingSpecFallback bool
 }
 
 // NewCostProjectedCmd returns a Cobra command configured to calculate projected costs
@@ -66,6 +67,9 @@ type costProjectedParams struct {
 //   - --utilization: utilization rate for sustainability calculations (0.0 to 1.0).
 //   - --jobs, -j: number of parallel workers (0 = auto based on CPU count).
 //   - --show-breakdown: per-component sub-rows in table output. JSON and NDJSON ignore it.
+//   - --pricing-spec-fallback: price from plugin GetPricingSpec before local YAML
+//     when GetProjectedCost misses. Default off. Overrides cost.pricing_spec_fallback
+//     when the flag is set.
 //
 // The returned command is ready to be added to the application's command tree.
 func NewCostProjectedCmd() *cobra.Command {
@@ -103,6 +107,8 @@ Use --stack to target a specific stack during auto-detection.`,
 		"Number of parallel workers (0 = auto based on CPU count)")
 	cmd.Flags().BoolVar(&params.showBreakdown, "show-breakdown", false,
 		"Show per-component cost sub-rows in table output")
+	cmd.Flags().BoolVar(&params.pricingSpecFallback, "pricing-spec-fallback", false,
+		"Price from plugin GetPricingSpec before local YAML when projected cost is missing")
 
 	return cmd
 }
@@ -126,7 +132,10 @@ const costProjectedExample = `  # Auto-detect from Pulumi project
   finfocus cost projected --pulumi-json plan.json --adapter aws-plugin
 
   # Use custom spec directory
-  finfocus cost projected --pulumi-json plan.json --spec-dir ./custom-specs`
+  finfocus cost projected --pulumi-json plan.json --spec-dir ./custom-specs
+
+  # Price from plugin GetPricingSpec before local YAML
+  finfocus cost projected --pulumi-json plan.json --pricing-spec-fallback`
 
 // validateCostProjectedParams validates the projected cost command parameters
 // before any expensive work begins (plan loading, plugin startup) so invalid
@@ -149,6 +158,19 @@ func validateCostProjectedParams(params costProjectedParams) error {
 	}
 
 	return nil
+}
+
+// pricingSpecFallbackEnabled reports whether projected cost should call
+// GetPricingSpec before local YAML. An explicitly set CLI flag wins.
+// Otherwise cost.pricing_spec_fallback is used. Both default to off.
+func pricingSpecFallbackEnabled(changed, flagValue bool, cfg *config.Config) bool {
+	if changed {
+		return flagValue
+	}
+	if cfg == nil {
+		return false
+	}
+	return cfg.Cost.PricingSpecFallback
 }
 
 // executeCostProjected runs the projected cost calculation pipeline and renders output.
@@ -199,7 +221,11 @@ func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error 
 
 	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	defer cacheCleanup()
-	eng = eng.WithJobs(params.jobs)
+	eng = eng.WithJobs(params.jobs).WithPricingSpecFallback(pricingSpecFallbackEnabled(
+		cmd.Flags().Changed("pricing-spec-fallback"),
+		params.pricingSpecFallback,
+		cfg,
+	))
 	// No-op for Pulumi-sourced resources; see resolveResourceTypes.
 	resources = resolveResourceTypes(ctx, clients, cacheStore, resources)
 	start := time.Now()

@@ -802,8 +802,6 @@ type BatchMappedResult struct {
 }
 
 // CostSourceClient wraps the generated gRPC client from finfocus-spec.
-//
-//nolint:dupl // Mock implementation in adapter_test.go intentionally mirrors this interface.
 type CostSourceClient interface {
 	Name(ctx context.Context, in *Empty, opts ...grpc.CallOption) (*NameResponse, error)
 	GetProjectedCost(
@@ -861,6 +859,11 @@ type CostSourceClient interface {
 		in *pbc.ResolveResourceTypesRequest,
 		opts ...grpc.CallOption,
 	) (*pbc.ResolveResourceTypesResponse, error)
+	GetPricingSpec(
+		ctx context.Context,
+		in *pbc.GetPricingSpecRequest,
+		opts ...grpc.CallOption,
+	) (*pbc.GetPricingSpecResponse, error)
 }
 
 // NewCostSourceClient creates a new cost source client using the real proto client.
@@ -980,6 +983,14 @@ func (c *clientAdapter) ResolveResourceTypes(
 	opts ...grpc.CallOption,
 ) (*pbc.ResolveResourceTypesResponse, error) {
 	return c.client.ResolveResourceTypes(ctx, in, opts...)
+}
+
+func (c *clientAdapter) GetPricingSpec(
+	ctx context.Context,
+	in *pbc.GetPricingSpecRequest,
+	opts ...grpc.CallOption,
+) (*pbc.GetPricingSpecResponse, error) {
+	return c.client.GetPricingSpec(ctx, in, opts...)
 }
 
 // MapBatchProjectedResults maps a BatchCostResponse to a slice of BatchMappedResult for

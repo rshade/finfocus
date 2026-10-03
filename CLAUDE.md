@@ -513,6 +513,15 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 ### Engine (`internal/engine/`)
 
 - **`hoursPerMonth = 730`** for monthly cost calculations
+- **Plugin pricing spec fallback** is off by default. `newEngineWithCache`
+  copies `cost.pricing_spec_fallback`. `cost projected --pricing-spec-fallback`
+  overrides that for the command when the flag is set. When on, a resource
+  whose plugins returned no projected price is priced from `GetPricingSpec`
+  before local YAML. Disabled runs do not call the RPC. Notes start with
+  `Calculated from plugin pricing spec` and the adapter is `plugin-spec`.
+  A `$0` rate is a priced result. Unknown billing modes and RPC errors fall
+  through to YAML. `per_hour` and `per_cpu_hour` use 730 hours, `per_day` uses
+  `daysPerMonth` (30), and `per_gb_month` multiplies by storage size or 1 GB
 - **Budget health thresholds**: OK (<80%), WARNING (80-89%), CRITICAL (90-100%),
   EXCEEDED (>100%). Aggregation uses worst-case status
 - **Cache hits**: Append `(cached)`, including the leading space, to the Adapter field for visual feedback

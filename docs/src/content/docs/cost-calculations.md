@@ -34,9 +34,12 @@ graph TD
     A[Pulumi Plan JSON] --> B[Resource Extraction]
     B --> C[Resource Classification]
     C --> D{Plugin Available?}
-    D -->|Yes| E[Plugin Pricing Query]
+    D -->|Yes| E[Plugin GetProjectedCost]
     D -->|No| F[Local Spec Lookup]
-    E --> G[Cost Calculation]
+    E -->|price| G[Cost Calculation]
+    E -->|miss and fallback enabled| P[Plugin GetPricingSpec]
+    P -->|price| G
+    P -->|miss| F
     F --> G
     G --> H[Monthly Projection]
     H --> I[Result Aggregation]
@@ -57,9 +60,14 @@ Resources are classified by type and provider:
 
 ### Pricing Sources (Priority Order)
 
-1. **Plugin Data**: Live pricing from cloud provider APIs
-2. **Local Specs**: YAML/JSON pricing specifications
-3. **Fallback Estimates**: Default values by resource category
+1. **Plugin GetProjectedCost**: Live pricing from cloud provider APIs
+2. **Plugin GetPricingSpec**: A local estimate from the plugin's rate, unit, and
+   billing mode. This step runs only when `cost projected --pricing-spec-fallback`
+   is set, or when `cost.pricing_spec_fallback` is true. It is off by default,
+   and a disabled run does not call the RPC. Notes start with
+   `Calculated from plugin pricing spec`.
+3. **Local Specs**: YAML/JSON pricing specifications
+4. **Fallback Estimates**: Default values by resource category
 
 ### Monthly Calculation Formula
 
