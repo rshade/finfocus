@@ -211,6 +211,29 @@ type HistoryConfig struct {
 
 	// Directory overrides the history directory path (default: ~/.finfocus/history).
 	Directory string `yaml:"directory,omitempty" json:"directory,omitempty"`
+
+	// Retention is the optional cost-history prune policy. Zero counts mean unlimited.
+	// This is not RetentionDays, which applies to resource-observation cleanup.
+	Retention CostHistoryRetention `yaml:"retention" json:"retention"`
+}
+
+// CostHistoryRetention is the cost-history prune policy under cost.history.retention.
+// MaxSnapshots and MaxAgeDays of 0 mean unlimited. AutoPrune runs after collect.
+type CostHistoryRetention struct {
+	MaxSnapshots int  `yaml:"max_snapshots" json:"max_snapshots"`
+	MaxAgeDays   int  `yaml:"max_age_days"  json:"max_age_days"`
+	AutoPrune    bool `yaml:"auto_prune"    json:"auto_prune"`
+}
+
+// Validate rejects negative limits. Zero remains unlimited.
+func (r CostHistoryRetention) Validate() error {
+	if r.MaxSnapshots < 0 {
+		return fmt.Errorf("history retention max_snapshots must be >= 0, got %d", r.MaxSnapshots)
+	}
+	if r.MaxAgeDays < 0 {
+		return fmt.Errorf("history retention max_age_days must be >= 0, got %d", r.MaxAgeDays)
+	}
+	return nil
 }
 
 // IsEnabled returns whether history is enabled, respecting explicit false vs omitted.
@@ -234,6 +257,9 @@ func (h HistoryConfig) GetRetentionDays() int {
 func (h HistoryConfig) Validate() error {
 	if h.RetentionDays != nil && *h.RetentionDays <= 0 {
 		return fmt.Errorf("history retention_days must be positive when set, got %d", *h.RetentionDays)
+	}
+	if err := h.Retention.Validate(); err != nil {
+		return err
 	}
 	return nil
 }

@@ -157,11 +157,18 @@ only.
 currency with the most snapshots. `--currency USD` keeps one currency.
 `--strict` stops instead of dropping the others.
 
+`prune` deletes old snapshots for one stack. `--keep` retains the newest
+snapshots. `--older-than` takes a duration such as `365d`, `6m`, or `2y`.
+`--dry-run` prints the plan. `--force` skips the confirmation. After a
+delete, the database is compacted. Set `cost.history.retention.auto_prune`
+to apply `max_snapshots` and `max_age_days` after `collect`.
+
 ```bash
 finfocus cost history collect --stack dev
 finfocus cost history view --stack dev
 finfocus cost history view --stack dev --currency USD
 finfocus cost history list
+finfocus cost history prune --stack dev --older-than 365d --dry-run
 ```
 
 Databases live under the FinFocus config directory in `history/`, one

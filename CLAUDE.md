@@ -554,6 +554,11 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   the earlier code). `--currency` filters and does not warn. `--strict`
   returns `history.ErrMixedCurrencies`. An empty currency is `(unset)`.
   One currency produces no warning. Export flags wait for the export command
+- **Cost history prune**: `cost history prune` deletes per-stack snapshots
+  (`--keep`, `--older-than`, `--force`). `--dry-run` is the global ax flag.
+  Compaction uses `bolt.Compact` after the database is closed. This is not
+  `BoltStore.cleanupExpiredEntries`. `cost.history.retention.auto_prune`
+  runs that policy after `collect` when the command loaded config
 - **Plugin pricing spec fallback** is off by default. `newEngineWithCache`
   copies `cost.pricing_spec_fallback`. `cost projected --pricing-spec-fallback`
   overrides that for the command when the flag is set. When on, a resource

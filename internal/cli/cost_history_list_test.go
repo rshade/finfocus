@@ -20,6 +20,7 @@ func TestList_ShowsDatabases(t *testing.T) {
 	assert.Contains(t, out, "dev")
 	assert.Contains(t, out, "staging")
 	assert.Contains(t, out, "Snapshots")
+	assert.Contains(t, out, "Size")
 
 	empty, emptyOut := preparedHistoryCmd(t, NewCostHistoryListCmd())
 	require.NoError(t, runList(empty, t.TempDir()))
@@ -30,6 +31,7 @@ func TestList_ShowsDatabases(t *testing.T) {
 	body := jsonOut.String()
 	assert.Contains(t, body, `"stack": "dev"`)
 	assert.Contains(t, body, `"snapshots"`)
+	assert.Contains(t, body, `"size"`)
 }
 
 func TestCostHistoryCommands(t *testing.T) {
@@ -42,5 +44,6 @@ func TestCostHistoryCommands(t *testing.T) {
 	assert.True(t, names["collect"])
 	assert.True(t, names["view"])
 	assert.True(t, names["list"])
+	assert.True(t, names["prune"])
 	assert.Nil(t, cmd.RunE)
 }

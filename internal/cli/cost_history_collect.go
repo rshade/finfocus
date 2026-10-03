@@ -26,6 +26,7 @@ type collectDeps struct {
 	openPrice func(context.Context) (history.Pricer, func(), error)
 	dir       string
 	confirm   func(string) bool
+	cfg       *config.Config
 }
 
 type collectFlags struct {
@@ -45,7 +46,7 @@ func NewCostHistoryCollectCmd() *cobra.Command {
   finfocus cost history collect --stack dev --versions 20
   finfocus cost history collect --stack dev --from 2025-01-01 --skip-destroy`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runCollect(cmd, collectDeps{})
+			return runCollect(cmd, collectDeps{cfg: config.GetGlobalConfig()})
 		},
 	}
 	cmd.Flags().String("from", "", "Only collect versions on or after this date (YYYY-MM-DD)")
@@ -180,7 +181,7 @@ func collectInto(ctx context.Context, cmd *cobra.Command, bin string, flags coll
 	for _, skipped := range result.Skipped {
 		fmt.Fprintf(cmd.ErrOrStderr(), "Warning: skipped version %d: %v\n", skipped.Version, skipped.Err)
 	}
-	return nil
+	return autoPruneCostHistory(cmd, db, path, deps.cfg)
 }
 
 func collectConfirm(cmd *cobra.Command, deps collectDeps) func(string) bool {

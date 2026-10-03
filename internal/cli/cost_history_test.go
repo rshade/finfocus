@@ -21,6 +21,7 @@ func preparedHistoryCmd(
 	parent := &cobra.Command{Use: "cost"}
 	parent.PersistentFlags().String("stack", "", "")
 	parent.PersistentFlags().Bool("yes", false, "")
+	parent.PersistentFlags().Bool("dry-run", false, "")
 	parent.PersistentFlags().String("format", "", "")
 	parent.AddCommand(cmd)
 	found, rest, err := parent.Find(append([]string{cmd.Name()}, args...))
