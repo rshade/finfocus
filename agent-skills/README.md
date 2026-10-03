@@ -16,13 +16,13 @@ cost-optimize, budget-setup) live in
 | [finfocus-analyzer-setup](finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation | S |
 | [finfocus-routing](finfocus-routing/) | Configure plugin routing with priority, patterns, fallback | S |
 | [finfocus-budget](finfocus-budget/) | Configure budget thresholds, health, and CI exit codes | M |
+| [finfocus-diagnose](finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost | M |
 
 ## Planned Skills
 
 | Skill | Issue | LOE |
 |-------|-------|-----|
 | plugin-manage | [#911](https://github.com/rshade/finfocus/issues/911) | M |
-| finfocus-diagnose | [#913](https://github.com/rshade/finfocus/issues/913) | M |
 
 ## Skill Structure
 

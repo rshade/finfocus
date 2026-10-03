@@ -233,7 +233,7 @@ guardrails in `CONTEXT.md`.
   - [ ] `plugin-manage` — Discover, install, update, validate, and
         troubleshoot finfocus plugins via gRPC protocol
         ([#911](https://github.com/rshade/finfocus/issues/911)) [M]
-  - [ ] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
+  - [x] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
         BoltDB cache issues, and zero-cost results
         ([#913](https://github.com/rshade/finfocus/issues/913)) [M]
   - [x] `finfocus-budget` — Configure, monitor, and troubleshoot budget
