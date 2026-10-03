@@ -99,6 +99,17 @@ finfocus cost projected --pulumi-json plan.json --pricing-spec-fallback
 flag wins when it is present. A hit says `Calculated from plugin pricing spec`
 in Notes. Local YAML still runs when the plugin spec is missing.
 
+Show how a price was derived without changing it:
+
+```bash
+finfocus cost projected --pulumi-json plan.json --explain
+```
+
+`--explain` calls `GetPricingSpec` after the cost is calculated. The table
+lists billing mode, unit, rate, source, assumptions, and tiers. A plugin
+that does not implement the RPC leaves the cost row as it was. JSON and
+NDJSON include `pricing_spec` only when the flag is set.
+
 ### Cost diff
 
 `cost projected` prices the plan as a before/after diff. A create, and any

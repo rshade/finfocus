@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"text/tabwriter"
 )
 
@@ -62,6 +63,7 @@ func writeDiffRow(w io.Writer, entry *DiffEntry, showBreakdown bool) {
 	if note := diffRowNote(entry); note != "" {
 		fmt.Fprintf(w, "\t%s\n", note)
 	}
+	writePricingExplanation(w, entry.PricingSpec)
 	if showBreakdown && entry.After != nil {
 		writeBreakdownSubrows(w, entry.After.Breakdown, diffTableColumns, diffAfterColumn)
 	}
@@ -129,9 +131,10 @@ func writeDiffErrors(w io.Writer, errs []ErrorDetail) error {
 type projectedDiffResource struct {
 	CostResult
 
-	Operation     string  `json:"operation"`
-	BeforeMonthly float64 `json:"beforeMonthly"`
-	DeltaMonthly  float64 `json:"deltaMonthly"`
+	Operation     string           `json:"operation"`
+	BeforeMonthly float64          `json:"beforeMonthly"`
+	DeltaMonthly  float64          `json:"deltaMonthly"`
+	PricingSpec   *PricingSpecView `json:"pricing_spec,omitempty"`
 }
 
 type projectedDiffDocument struct {
@@ -168,6 +171,7 @@ func renderDiffJSON(w io.Writer, diff *DiffResult) error {
 		if entry.After != nil {
 			resource.CostResult = *entry.After
 		}
+		resource.PricingSpec = entry.PricingSpec
 		doc.Resources = append(doc.Resources, resource)
 	}
 	payload := map[string]any{"finfocus": doc}
@@ -204,4 +208,39 @@ func renderDiffNDJSON(w io.Writer, entries []DiffEntry) error {
 		}
 	}
 	return nil
+}
+
+func writePricingExplanation(w io.Writer, spec *PricingSpecView) {
+	if spec == nil {
+		return
+	}
+	if spec.BillingMode != "" {
+		fmt.Fprintf(w, "\tBilling Mode: %s\n", spec.BillingMode)
+	}
+	if spec.Unit != "" {
+		fmt.Fprintf(w, "\tUnit: %s\n", spec.Unit)
+	}
+	fmt.Fprintf(w, "\tRate: %s\n", formatExplainRate(spec.RatePerUnit, spec.Unit))
+	if spec.Source != "" {
+		fmt.Fprintf(w, "\tSource: %s\n", spec.Source)
+	}
+	for _, assumption := range spec.Assumptions {
+		fmt.Fprintf(w, "\t- %s\n", assumption)
+	}
+	if len(spec.PricingTiers) == 0 {
+		fmt.Fprintf(w, "\tPricing Tiers: (none)\n")
+		return
+	}
+	for _, tier := range spec.PricingTiers {
+		fmt.Fprintf(w, "\tPricing Tier: %s from %.0f to %.0f\n",
+			formatExplainRate(tier.RatePerUnit, spec.Unit), tier.MinQuantity, tier.MaxQuantity)
+	}
+}
+
+func formatExplainRate(rate float64, unit string) string {
+	text := "$" + strconv.FormatFloat(rate, 'f', -1, 64)
+	if unit == "" {
+		return text
+	}
+	return text + "/" + unit
 }

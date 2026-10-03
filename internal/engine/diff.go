@@ -42,7 +42,9 @@ func (e *Engine) GetProjectedCostDiff(
 	if err != nil {
 		return nil, err
 	}
-	return assembleDiff(resources, plan, beforeCosts, afterCosts, append(afterErrs, beforeErrs...)), nil
+	result := assembleDiff(resources, plan, beforeCosts, afterCosts, append(afterErrs, beforeErrs...))
+	e.attachPricingExplanations(ctx, resources, plan, result)
+	return result, nil
 }
 
 type diffPricingPlan struct {

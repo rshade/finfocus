@@ -17,13 +17,14 @@ const (
 
 // DiffEntry is the before/after projected cost of one resource.
 type DiffEntry struct {
-	Operation    string      `json:"operation"`
-	ResourceType string      `json:"resourceType"`
-	ResourceID   string      `json:"resourceId"`
-	Before       *CostResult `json:"before,omitempty"`
-	After        *CostResult `json:"after,omitempty"`
-	DeltaMonthly float64     `json:"deltaMonthly"`
-	Currency     string      `json:"currency,omitempty"`
+	Operation    string           `json:"operation"`
+	ResourceType string           `json:"resourceType"`
+	ResourceID   string           `json:"resourceId"`
+	Before       *CostResult      `json:"before,omitempty"`
+	After        *CostResult      `json:"after,omitempty"`
+	DeltaMonthly float64          `json:"deltaMonthly"`
+	Currency     string           `json:"currency,omitempty"`
+	PricingSpec  *PricingSpecView `json:"pricing_spec,omitempty"`
 }
 
 // DiffSummary is the plan-level before, after, and delta totals.

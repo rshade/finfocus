@@ -29,3 +29,13 @@ func TestCostProjectedPricingSpecFlagDefault(t *testing.T) {
 	assert.Equal(t, "false", flag.DefValue)
 	assert.Equal(t, "bool", flag.Value.Type())
 }
+
+func TestCostProjectedExplainFlagDefault(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewCostProjectedCmd()
+	flag := cmd.Flags().Lookup("explain")
+	require.NotNil(t, flag)
+	assert.Equal(t, "false", flag.DefValue)
+	assert.Equal(t, "bool", flag.Value.Type())
+}

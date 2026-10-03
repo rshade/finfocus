@@ -66,6 +66,9 @@ Resources are classified by type and provider:
    is set, or when `cost.pricing_spec_fallback` is true. It is off by default,
    and a disabled run does not call the RPC. Notes start with
    `Calculated from plugin pricing spec`.
+   `cost projected --explain` also calls `GetPricingSpec`, after the price
+   is chosen, and only to display billing mode, unit, rate, source,
+   assumptions, and tiers. It does not change this order or the cost.
 3. **Local Specs**: YAML/JSON pricing specifications
 4. **Fallback Estimates**: Default values by resource category
 
