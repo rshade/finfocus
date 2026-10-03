@@ -88,10 +88,8 @@ func RenderCostOutput(
 		return renderPlainProjected(cmd.OutOrStdout(), resultWithErrors, true)
 	}
 
-	// 2. Detect the appropriate output mode for the terminal.
-	// We rely on standard detection (flags passed as false for now, as they aren't global yet).
-	// Future improvement: plumb --no-color / --plain flags if added to CLI.
-	mode := tui.DetectOutputMode(false, false, false)
+	// 2. Detect the appropriate output mode for this command's writer.
+	mode := outputModeFromCmd(cmd)
 
 	// 3. Route to specific renderer
 	switch mode {
@@ -134,7 +132,7 @@ func RenderActualCostOutput(
 		return renderActualCostOutput(cmd.OutOrStdout(), fmtType, resultWithErrors.Results, groupBy, estimateConfidence)
 	}
 
-	mode := tui.DetectOutputMode(false, false, false)
+	mode := outputModeFromCmd(cmd)
 	if mode == tui.OutputModeInteractive && !showBreakdown && !showConfidence {
 		return runInteractiveActualCostTUI(ctx, resultWithErrors, engine.GroupBy(groupBy))
 	}

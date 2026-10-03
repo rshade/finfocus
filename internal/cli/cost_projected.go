@@ -109,6 +109,7 @@ Use --stack to target a specific stack during auto-detection.`,
 		"Show per-component cost sub-rows in table output")
 	cmd.Flags().BoolVar(&params.pricingSpecFallback, "pricing-spec-fallback", false,
 		"Price from plugin GetPricingSpec before local YAML when projected cost is missing")
+	addAccessibilityFlags(cmd)
 
 	return cmd
 }

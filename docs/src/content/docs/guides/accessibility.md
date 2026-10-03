@@ -64,13 +64,14 @@ export NO_COLOR=1
 
 ### Command Line Flags
 
-These flags can be added to any `finfocus` command that produces output.
+These flags are accepted by `overview`, `cost projected`, `cost actual`, and `cost recommendations`.
 
 | Flag              | Description            | Effect                                                                       |
 | ----------------- | ---------------------- | ---------------------------------------------------------------------------- |
-| `--no-color`      | Disable colored output | Removes ANSI color codes.                                                    |
-| `--high-contrast` | Enable high contrast   | Uses strictly black/white/bold colors for maximum visibility.                |
+| `--no-color`      | Disable colored output | Selects plain text. Wins over `--color` and `--high-contrast`.               |
 | `--plain`         | Enable plain text mode | Removes colors, borders, and interactive elements. Ideal for screen readers. |
+| `--color`         | Force colored output   | Styles output when stdout is not a terminal. `--force-color` is the same switch. |
+| `--high-contrast` | Enable high contrast   | Brighter budget colors: OK 46, warning 226, critical 196, header 231.        |
 
 ### Environment Variables
 
@@ -78,9 +79,19 @@ Environment variables allow you to set preferences globally without typing flags
 
 | Variable                   | Value         | Description                                                |
 | -------------------------- | ------------- | ---------------------------------------------------------- |
-| `NO_COLOR`                 | `1` or `true` | Standard no-color variable. See [no-color.org][no-color].  |
-| `FINFOCUS_HIGH_CONTRAST`   | `1` or `true` | Forces high contrast mode.                                 |
+| `NO_COLOR`                 | any non-empty | Standard no-color variable. See [no-color.org][no-color].  |
 | `FINFOCUS_PLAIN`           | `1` or `true` | Forces plain text mode.                                    |
+| `FORCE_COLOR`              | `1` or `true` | Forces colored output. Invalid values are ignored.         |
+| `FINFOCUS_HIGH_CONTRAST`   | `1` or `true` | Forces high contrast mode. Invalid values are ignored.     |
+
+An explicit flag wins over the environment. `--plain` and `--no-color` win over
+`--color`, `--force-color`, and `--high-contrast`. `FINFOCUS_PLAIN` and `NO_COLOR`
+win over `FORCE_COLOR` and `FINFOCUS_HIGH_CONTRAST` when those color modes were
+not set by a flag.
+
+`cost history view` accepts `--plain`, and `FINFOCUS_PLAIN` selects its plain
+chart. `--plain` is not a parent `cost` flag, because `cost history view`
+already defines it.
 
 [no-color]: https://no-color.org
 
@@ -124,8 +135,9 @@ finfocus cost projected --pulumi-json plan.json --no-color
 
 **Explanation:**
 
-This retains the layout (tables, borders) but strips all color codes.
-This is useful if you want structure but no color distraction.
+`--no-color` selects the same plain text path as `--plain`. Borders and the
+interactive TUI are omitted, and status text keeps a bracketed label such as
+`[OK]` or `[WARNING]`.
 
 ---
 
@@ -144,7 +156,7 @@ This is useful if you want structure but no color distraction.
 
 **Solution:**
 
-Ensure you aren't passing `--color=always` or similar flags (if applicable). Verify environment variable is exported:
+Ensure you aren't passing `--color` or `--force-color`. Verify the environment variable is exported:
 
 ```bash
 echo $NO_COLOR
@@ -179,6 +191,6 @@ If you need interaction, disable plain mode. If you need accessible interaction,
 
 ---
 
-**Last Updated**: 2026-01-20
+**Last Updated**: 2026-10-03
 **FinFocus Version**: v0.3.0
 **Feedback**: [Open an issue](https://github.com/rshade/finfocus/issues/new) to improve accessibility

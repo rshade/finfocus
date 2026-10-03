@@ -157,6 +157,7 @@ timestamp if not provided.`,
 		"Resource filter expressions (e.g., 'type=aws:ec2/instance', 'tag:env=prod')")
 	cmd.Flags().IntVarP(&params.jobs, "jobs", "j", 0,
 		"Number of parallel workers (0 = auto based on CPU count)")
+	addAccessibilityFlags(cmd)
 
 	// Note: --pulumi-json and --from are no longer required - validation is done in executeCostActual
 

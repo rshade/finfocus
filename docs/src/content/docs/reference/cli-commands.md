@@ -84,7 +84,9 @@ finfocus                    # same as overview when inside a Pulumi project
 | `--filter`         | Resource filters, repeatable                                            | -                     |
 | `--plain`          | Force non-interactive plain text output                                 | false                 |
 | `--force-color`    | Force styled output when stdout is not a terminal                       | false                 |
-| `--no-color`       | Disable ANSI styling. Wins over `--force-color`                         | false                 |
+| `--no-color`       | Plain output. Wins over `--force-color` and `--high-contrast`           | false                 |
+| `--color`          | Force colored output. Same switch as `--force-color`                    | false                 |
+| `--high-contrast`  | Brighter budget colors (ANSI 46, 226, 196, and 231)                     | false                 |
 | `--yes`, `-y`      | Skip confirmation prompts                                               | false                 |
 | `--no-pagination`  | Disable pagination (plain mode only)                                    | false                 |
 
@@ -1276,9 +1278,10 @@ finfocus [global options] command [command options]
 | `--version`            | Show version                                 |
 | `--debug`              | Enable debug logging                         |
 | `--verbose`            | Enable verbose output                        |
-| `--no-color`           | Disable colored output                       |
-| `--plain`              | Enable plain text mode (no TUI)              |
-| `--high-contrast`      | Enable high contrast mode                    |
+| `--no-color`           | Plain text on overview and cost output commands |
+| `--plain`              | Plain text on overview and cost output commands |
+| `--color`              | Force color on overview and cost output commands |
+| `--high-contrast`      | Brighter budget colors on styled output      |
 | `--skip-version-check` | Skip plugin spec version compatibility check |
 
 ## Date Formats

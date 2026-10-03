@@ -47,7 +47,7 @@ func TestRenderPlainBudget(t *testing.T) {
 	assert.Contains(t, output, "BUDGET STATUS")
 	assert.Contains(t, output, "Budget: $1000.00/monthly")
 	assert.Contains(t, output, "Current Spend: $500.00 (50.0%)")
-	assert.Contains(t, output, "Status: OK - Within budget")
+	assert.Contains(t, output, "Status: [OK] Within budget")
 	assert.Contains(t, output, "Forecasted: $1200.00 (120.0%)")
 }
 
@@ -64,7 +64,7 @@ func TestGetStatusMessage(t *testing.T) {
 			status: &engine.BudgetStatus{
 				Alerts: []engine.ThresholdStatus{},
 			},
-			want: "OK - Within budget",
+			want: "[OK] Within budget",
 		},
 		{
 			name: "Exceeded",
@@ -73,7 +73,7 @@ func TestGetStatusMessage(t *testing.T) {
 					{Threshold: 100.0, Status: engine.ThresholdStatusExceeded},
 				},
 			},
-			want: "WARNING - Exceeds 100% threshold",
+			want: "[WARNING] Exceeds 100% threshold",
 		},
 		{
 			name: "Approaching",
@@ -82,7 +82,7 @@ func TestGetStatusMessage(t *testing.T) {
 					{Threshold: 80.0, Status: engine.ThresholdStatusApproaching},
 				},
 			},
-			want: "APPROACHING - Near budget threshold",
+			want: "[WARNING] Near budget threshold",
 		},
 	}
 
@@ -139,7 +139,7 @@ func TestRenderProgressBar(t *testing.T) {
 		Percentage: 50.0,
 	}
 	// Use a small width to make it easy to verify
-	bar := renderProgressBar(status, 10)
+	bar := renderProgressBar(status, 10, false)
 	assert.Contains(t, bar, "50%")
 }
 
@@ -173,7 +173,7 @@ func TestRenderAlertMessages(t *testing.T) {
 			{Threshold: 80.0, Status: engine.ThresholdStatusApproaching, Type: config.AlertTypeActual},
 		},
 	}
-	messages := renderAlertMessages(status)
+	messages := renderAlertMessages(status, false)
 	assert.Contains(t, messages, "WARNING - spend exceeds 100% threshold")
 	assert.Contains(t, messages, "APPROACHING - spend exceeds 80% threshold")
 }
@@ -198,7 +198,7 @@ func TestRenderStyledBudget(t *testing.T) {
 	}
 
 	var buf bytes.Buffer
-	err := renderStyledBudget(&buf, status)
+	err := renderStyledBudget(&buf, status, false)
 	require.NoError(t, err)
 	assert.NotEmpty(t, buf.String())
 
