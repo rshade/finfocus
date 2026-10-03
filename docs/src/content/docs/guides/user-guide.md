@@ -667,6 +667,17 @@ will result in an error.
 
 ## Output Formats
 
+`cost projected` prices the plan as a before and after comparison, so every
+format reports each resource's change. The samples below use one plan: a new
+instance, a resized database, and an unchanged bucket.
+
+> **Changed in v0.4.1.** The table used to be a `COST SUMMARY` and now is the
+> `COST DIFF` table below, including on a terminal. NDJSON lines used to be one
+> cost result per resource and are now one diff entry with nested `before` and
+> `after` cost results. `summary.totalMonthly` is the projected bill after the plan,
+> so a deleted resource no longer counts toward it. Scripts that read the old
+> NDJSON line shape or `COST SUMMARY` need updating.
+
 ### Table (Default)
 
 ```bash
@@ -676,10 +687,20 @@ finfocus cost projected --pulumi-json plan.json
 **Output:**
 
 ```text
-RESOURCE                      TYPE              MONTHLY   CURRENCY
-aws:ec2/instance:Instance     aws:ec2:Instance  $7.50     USD
-aws:s3/bucket:Bucket          aws:s3:Bucket     $0.00     USD
+COST DIFF
+Before     14.30 USD
+After      25.50 USD
+Change     +11.20 USD
+Resources  3 (1 create, 1 update, 0 delete, 1 unchanged)
+
+OP  RESOURCE                       BEFORE  AFTER  CHANGE  CURRENCY
++   aws:ec2/instance:Instance/web  0.00    7.50   +7.50   USD
+~   aws:rds/instance:Instance/db   12.00   15.70  +3.70   USD
+=   aws:s3/bucket:Bucket/assets    2.30    2.30   +0.00   USD
 ```
+
+`OP` is `+` for a create, `~` for an update or replace, `-` for a delete, and
+`=` for a resource the plan does not change.
 
 ### JSON
 
@@ -687,37 +708,44 @@ aws:s3/bucket:Bucket          aws:s3:Bucket     $0.00     USD
 finfocus cost projected --pulumi-json plan.json --output json
 ```
 
-**Output:**
+**Output** (trimmed; each resource also carries `adapter`, `hourly`, `notes`, and
+the other cost result fields):
 
-```json
+```text
 {
-  "summary": {
-    "totalMonthly": 7.5,
-    "currency": "USD"
-  },
-  "resources": [
-    {
-      "type": "aws:ec2:Instance",
-      "estimatedCost": 7.5,
-      "currency": "USD"
-    }
-  ]
+  "finfocus": {
+    "summary": { "totalMonthly": 25.5, "currency": "USD", ... },
+    "diff": {
+      "totalBefore": 14.3, "totalAfter": 25.5, "totalDelta": 11.2,
+      "currency": "USD",
+      "creates": 1, "updates": 1, "deletes": 0, "unchanged": 1
+    },
+    "resources": [
+      { "operation": "create", "resourceId": "web", "beforeMonthly": 0,
+        "monthly": 7.5, "deltaMonthly": 7.5, "currency": "USD", ... },
+      { "operation": "update", "resourceId": "db", "beforeMonthly": 12,
+        "monthly": 15.7, "deltaMonthly": 3.7, "currency": "USD", ... },
+      { "operation": "same", "resourceId": "assets", "beforeMonthly": 2.3,
+        "monthly": 2.3, "deltaMonthly": 0, "currency": "USD", ... }
+    ]
+  }
 }
 ```
 
 ### NDJSON (Newline-Delimited JSON)
 
-Useful for streaming and pipeline processing.
+Useful for streaming and pipeline processing. Each line is one diff entry with
+the resource's `before` and `after` cost results.
 
 ```bash
 finfocus cost projected --pulumi-json plan.json --output ndjson
 ```
 
-**Output:**
+**Output** (each line trimmed; `before` and `after` are full cost results):
 
 ```text
-{"type": "aws:ec2:Instance", "estimatedCost": 7.50}
-{"type": "aws:s3:Bucket", "estimatedCost": 0.00}
+{"operation":"create","resourceType":"aws:ec2/instance:Instance","resourceId":"web","before":{...},"after":{...},"deltaMonthly":7.5,"currency":"USD"}
+{"operation":"update","resourceType":"aws:rds/instance:Instance","resourceId":"db","before":{...},"after":{...},"deltaMonthly":3.7,"currency":"USD"}
 ```
 
 ---
@@ -875,8 +903,7 @@ When file logging is configured, FinFocus displays the log location at startup:
 ```bash
 $ finfocus cost projected --pulumi-json plan.json
 Logging to: /var/log/finfocus/finfocus.log
-COST SUMMARY
-============
+COST DIFF
 ...
 ```
 
@@ -890,8 +917,7 @@ If the configured log file cannot be written (permissions, disk full), FinFocus:
 ```bash
 $ finfocus cost projected --pulumi-json plan.json
 Warning: Could not write to log file, falling back to stderr (permission denied)
-COST SUMMARY
-============
+COST DIFF
 ...
 ```
 

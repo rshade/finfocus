@@ -688,7 +688,7 @@ FinFocus supports agent and tooling integration through several features:
 All commands support these global flags for programmatic integration:
 
 - **`--format json|human`**: Output format selection (JSON for machine consumption, human for terminal)
-- **`--dry-run`**: Preview changes without making them (affects: `plugin install/update/remove`, `analyzer install/uninstall`, `config init/set`, recommendation operations)
+- **`--dry-run`**: Preview changes without making them (affects: `plugin install/update/remove`, `analyzer install/uninstall`, `config init/set`, `plugin upgrade`, recommendation operations)
 - **`--yes`**: Skip all confirmation prompts (equivalent to approving interactive operations)
 - **`--idempotency-key`**: Opaque retry-deduplication key for distributed systems
 

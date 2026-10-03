@@ -176,7 +176,7 @@ Precedence: CLI flags (`--debug`) > env vars > config file > default (info, cons
 The following flags are automatically mounted by `ax.Execute` on all commands:
 
 - **`--format json|human`**: Output format for machine vs human consumption (JSON for agent/tooling, human for terminal). When set to `json`, some commands automatically output machine-readable JSON. Defaults to auto-detection via TTY.
-- **`--dry-run`**: Preview changes without making them (skip real side effects). Affects mutating commands: `plugin install/update/remove`, `analyzer install/uninstall`, `config init/set`, and recommendation operations (dismiss/snooze/undismiss).
+- **`--dry-run`**: Preview changes without making them (skip real side effects). Affects mutating commands: `plugin install/update/remove`, `analyzer install/uninstall`, `config init/set`, and recommendation operations (dismiss/snooze/undismiss), and `plugin upgrade`.
 - **`--yes`**: Skip confirmation prompts (equivalent to `-y` or `--force` on individual commands). Automatically confirms operations that normally require user approval.
 - **`--idempotency-key string`**: Opaque retry-deduplication key for preventing duplicate-create operations in distributed systems.
 - **`--debug`**: Enable debug logging (also available as persistent flag for CLI-specific control).
