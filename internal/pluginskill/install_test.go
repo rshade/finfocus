@@ -2,6 +2,7 @@ package pluginskill_test
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -74,15 +75,31 @@ func fakeInstaller(out string, err error, calls *[]call, skills ...string) plugi
 	}
 }
 
+// writeSkills writes what the skills CLI writes into its working directory.
 func writeSkills(dir string, skills ...string) {
-	for _, agentDir := range []string{".agents/skills", ".claude/skills"} {
-		for _, s := range skills {
-			_ = os.MkdirAll(filepath.Join(dir, agentDir, s), 0o750)
+	lock := map[string]any{"version": 1, "skills": map[string]any{}}
+	for _, s := range skills {
+		for _, agentDir := range []string{".agents/skills", ".claude/skills"} {
+			skillDir := filepath.Join(dir, agentDir, s)
+			_ = os.MkdirAll(filepath.Join(skillDir, "references"), 0o750)
+			_ = os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("# "+s+"\n"), 0o600)
+			_ = os.WriteFile(filepath.Join(skillDir, "references", "a.md"), []byte("ref\n"), 0o600)
 		}
+		lock["skills"].(map[string]any)[s] = map[string]any{"source": "rshade/finfocus", "ref": "v0.4.1"}
 	}
 	if len(skills) > 0 {
-		_ = os.WriteFile(filepath.Join(dir, "skills-lock.json"), []byte("{}"), 0o600)
+		data, _ := json.Marshal(lock)
+		_ = os.WriteFile(filepath.Join(dir, "skills-lock.json"), data, 0o600)
 	}
+}
+
+func readLock(t *testing.T, dir string) map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, "skills-lock.json"))
+	require.NoError(t, err)
+	var lock map[string]any
+	require.NoError(t, json.Unmarshal(data, &lock))
+	return lock
 }
 
 func TestInstallSuccess(t *testing.T) {
@@ -94,7 +111,6 @@ func TestInstallSuccess(t *testing.T) {
 	res := inst.Install(context.Background(), dir, "v0.4.1")
 
 	require.Len(t, calls, 1)
-	assert.Equal(t, dir, calls[0].dir)
 	assert.Equal(t, "/usr/bin/npx", calls[0].name)
 	assert.Equal(t, pluginskill.Args("v0.4.1")[1:], calls[0].args)
 	assert.Contains(t, calls[0].env, "DO_NOT_TRACK=1")
@@ -111,6 +127,84 @@ func TestInstallSuccess(t *testing.T) {
 		".claude/skills/finfocus-plugin-upgrade",
 		"skills-lock.json",
 	}, res.Paths)
+}
+
+func TestInstallRunsOutsideTheProject(t *testing.T) {
+	t.Parallel()
+	var calls []call
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".npmrc"), []byte("registry=https://evil.example\n"), 0o600))
+
+	res := fakeInstaller("", nil, &calls, pluginskill.Skills...).Install(context.Background(), dir, "v0.4.1")
+
+	require.Len(t, calls, 1)
+	assert.NotEqual(t, dir, calls[0].dir, "npx must not read the project's .npmrc or node_modules")
+	_, err := os.Stat(calls[0].dir)
+	assert.True(t, os.IsNotExist(err), "the staging directory is removed")
+
+	assert.True(t, res.Installed)
+	for _, p := range []string{
+		".agents/skills/finfocus-plugin-dev/SKILL.md",
+		".claude/skills/finfocus-plugin-upgrade/references/a.md",
+	} {
+		assert.FileExists(t, filepath.Join(dir, p))
+	}
+	skills := readLock(t, dir)["skills"].(map[string]any)
+	assert.Contains(t, skills, "finfocus-plugin-dev")
+	assert.Contains(t, skills, "finfocus-plugin-upgrade")
+}
+
+func TestInstallMergesExistingLock(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	existing := `{"version": 1, "skills": {"other-skill": {"source": "someone/else"}, ` +
+		`"finfocus-plugin-dev": {"source": "rshade/finfocus", "ref": "v0.4.0"}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "skills-lock.json"), []byte(existing), 0o600))
+	var calls []call
+
+	res := fakeInstaller("", nil, &calls, pluginskill.Skills...).Install(context.Background(), dir, "v0.4.1")
+
+	assert.True(t, res.Installed)
+	assert.Empty(t, res.Warning)
+	skills := readLock(t, dir)["skills"].(map[string]any)
+	assert.Contains(t, skills, "other-skill")
+	assert.Equal(t, "v0.4.1", skills["finfocus-plugin-dev"].(map[string]any)["ref"])
+	assert.Contains(t, skills, "finfocus-plugin-upgrade")
+}
+
+func TestInstallReplacesOldSkillFiles(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	stale := filepath.Join(dir, ".agents/skills/finfocus-plugin-dev/references/removed.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(stale), 0o750))
+	require.NoError(t, os.WriteFile(stale, []byte("old\n"), 0o600))
+	other := filepath.Join(dir, ".agents/skills/other-skill/SKILL.md")
+	require.NoError(t, os.MkdirAll(filepath.Dir(other), 0o750))
+	require.NoError(t, os.WriteFile(other, []byte("keep\n"), 0o600))
+	var calls []call
+
+	fakeInstaller("", nil, &calls, pluginskill.Skills...).Install(context.Background(), dir, "v0.4.1")
+
+	assert.NoFileExists(t, stale)
+	assert.FileExists(t, filepath.Join(dir, ".agents/skills/finfocus-plugin-dev/SKILL.md"))
+	assert.FileExists(t, other, "skills finfocus did not install are left alone")
+}
+
+func TestInstallKeepsUnreadableLock(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "skills-lock.json"), []byte("not json"), 0o600))
+	var calls []call
+
+	res := fakeInstaller("", nil, &calls, pluginskill.Skills...).Install(context.Background(), dir, "v0.4.1")
+
+	data, err := os.ReadFile(filepath.Join(dir, "skills-lock.json"))
+	require.NoError(t, err)
+	assert.Equal(t, "not json", string(data))
+	assert.Contains(t, res.Warning, "skills-lock.json")
+	assert.False(t, res.Installed)
+	assert.NotContains(t, res.Paths, "skills-lock.json")
+	assert.FileExists(t, filepath.Join(dir, ".agents/skills/finfocus-plugin-dev/SKILL.md"))
 }
 
 func TestInstallFromMainWarns(t *testing.T) {
