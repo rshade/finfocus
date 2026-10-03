@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -51,6 +52,43 @@ func TestCollect_StoresPluginPrice(t *testing.T) {
 	stats, err := db.Stats()
 	require.NoError(t, err)
 	assert.Equal(t, uint64(2), stats.LastVersion)
+}
+
+func TestCollect_ParallelPricesCheckpointsConcurrently(t *testing.T) {
+	t.Parallel()
+	const total = 12
+	db := openCostDB(t, filepath.Join(t.TempDir(), "dev.history.db"))
+	rows := make([]map[string]any, 0, total)
+	exports := make(map[int][]byte, total)
+	for version := 1; version <= total; version++ {
+		rows = append(rows, row(version, "update", "succeeded", "2025-01-15T00:00:00Z", "v"))
+		exports[version] = exportJSON("urn:web", "t3.micro")
+	}
+	exp := &fakeExporter{history: historyRows(rows...), exports: exports}
+
+	var inFlight, peak atomic.Int32
+	result, err := Collect(context.Background(), db, exp, CollectOptions{
+		Parallel: 4,
+		Pricer: func(_ context.Context, resources []PriceResource) ([]PriceQuote, error) {
+			now := inFlight.Add(1)
+			for {
+				seen := peak.Load()
+				if now <= seen || peak.CompareAndSwap(seen, now) {
+					break
+				}
+			}
+			time.Sleep(20 * time.Millisecond)
+			inFlight.Add(-1)
+			return priced(resources, 5, "aws-public"), nil
+		},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, total, result.Stored)
+	assert.Greater(t, peak.Load(), int32(1), "checkpoints are priced concurrently")
+	assert.LessOrEqual(t, peak.Load(), int32(4), "the worker limit is respected")
+	stats, err := db.Stats()
+	require.NoError(t, err)
+	assert.Equal(t, total, stats.Snapshots)
 }
 
 func TestCollect_IncrementalSkipsAndDestroy(t *testing.T) {

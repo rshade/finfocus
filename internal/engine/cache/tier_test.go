@@ -1,8 +1,10 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -105,12 +107,84 @@ func TestTieredStore_SetFailureDropsMemory(t *testing.T) {
 	tier, err := NewTieredStore(inner, 4)
 	require.NoError(t, err)
 	require.NoError(t, tier.Set("projected/a", json.RawMessage(`"old"`)))
+	removed, err := inner.InvalidateByPrefix("projected/a")
+	require.NoError(t, err)
+	require.Equal(t, 1, removed)
 	inner.failSet = errors.New("disk full")
 	err = tier.Set("projected/a", json.RawMessage(`"new"`))
 	require.ErrorContains(t, err, "disk full")
+	_, err = tier.Get("projected/a")
+	require.ErrorIs(t, err, ErrCacheNotFound, "a failed Set must not leave the old memory entry serving")
+}
+
+func TestTieredStore_ConcurrentAccess(t *testing.T) {
+	t.Parallel()
+	tier, err := NewTieredStore(newMemoryCache(), 8)
+	require.NoError(t, err)
+
+	var wg sync.WaitGroup
+	for worker := range 8 {
+		wg.Go(func() {
+			for i := range 200 {
+				key := "projected/k" + strconv.Itoa(i%16)
+				switch (worker + i) % 4 {
+				case 0:
+					_ = tier.Set(key, json.RawMessage(`"v"`))
+				case 1:
+					_, _ = tier.Get(key)
+				case 2:
+					_ = tier.SetWithTTL(key, json.RawMessage(`"w"`), 120)
+				default:
+					_, _ = tier.InvalidateByPrefix("projected/k1")
+				}
+			}
+		})
+	}
+	wg.Wait()
+
+	require.NoError(t, tier.Set("projected/final", json.RawMessage(`"done"`)))
+	got, err := tier.Get("projected/final")
+	require.NoError(t, err)
+	assert.JSONEq(t, `"done"`, string(got.Data))
+}
+
+func newBoltTier(t *testing.T, ttlSeconds int) (*TieredStore, *BoltStore) {
+	t.Helper()
+	bolt, err := NewBoltStore(context.Background(), t.TempDir(), true, ttlSeconds, 10)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = bolt.Close() })
+	tier, err := NewTieredStore(bolt, 4)
+	require.NoError(t, err)
+	return tier, bolt
+}
+
+func TestTieredStore_BoltStoreRejectsOutOfBoundsTTL(t *testing.T) {
+	t.Parallel()
+	tier, _ := newBoltTier(t, 3600)
+	require.NoError(t, tier.Set("projected/a", json.RawMessage(`"old"`)))
+
+	err := tier.SetWithTTL("projected/a", json.RawMessage(`"new"`), MaxTTLSeconds+1)
+	require.ErrorIs(t, err, ErrInvalidCacheTTL)
+
 	got, err := tier.Get("projected/a")
 	require.NoError(t, err)
-	assert.JSONEq(t, `"old"`, string(got.Data))
+	assert.JSONEq(t, `"old"`, string(got.Data), "the store keeps the value it accepted")
+}
+
+func TestTieredStore_BoltStoreExpiredEntryIsNotServed(t *testing.T) {
+	t.Parallel()
+	tier, bolt := newBoltTier(t, 3600)
+	require.NoError(t, tier.SetWithTTL("projected/a", json.RawMessage(`"v"`), 1))
+	got, err := tier.Get("projected/a")
+	require.NoError(t, err)
+	assert.JSONEq(t, `"v"`, string(got.Data))
+
+	time.Sleep(1100 * time.Millisecond)
+
+	_, err = tier.Get("projected/a")
+	require.ErrorIs(t, err, ErrCacheExpired, "expired memory entry falls through to the store, which reports expiry")
+	_, err = bolt.Get("projected/a")
+	require.Error(t, err)
 }
 
 func BenchmarkTieredStore_MemoryHit(b *testing.B) {

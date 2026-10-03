@@ -163,12 +163,18 @@ func TestApplyReportsPartialWrite(t *testing.T) {
 
 	dir := copyFixture(t, "finfocus-v0.5.3")
 	project, plan := planFor(t, dir, latest)
-	goMod := filepath.Join(dir, "go.mod")
-	require.NoError(t, os.Chmod(goMod, 0o400))
-	t.Cleanup(func() { _ = os.Chmod(goMod, 0o600) })
+	goModBefore := readFile(t, dir, "go.mod")
+	require.NoError(t, os.Chmod(dir, 0o500))
+	t.Cleanup(func() { _ = os.Chmod(dir, 0o700) })
 
 	changed, err := pluginupgrade.Apply(project, plan)
 	require.Error(t, err)
+	assert.Equal(t, goModBefore, readFile(t, dir, "go.mod"), "a failed write leaves the original intact")
+	entries, readErr := os.ReadDir(dir)
+	require.NoError(t, readErr)
+	for _, entry := range entries {
+		assert.NotContains(t, entry.Name(), ".upgrade-", "no temporary file is left behind")
+	}
 	assert.Equal(t, []string{"internal/plugin/plugin.go"}, changed)
 	assert.Contains(t, err.Error(), "writing go.mod")
 	assert.Contains(t, err.Error(), "already updated: internal/plugin/plugin.go")

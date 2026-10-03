@@ -133,10 +133,37 @@ func rewriteGoMod(p *Project, plan *Plan) ([]byte, error) {
 	return out, nil
 }
 
+// writePreservingMode replaces path by writing a temporary file in the same
+// directory and renaming it over the original, so a failure never leaves a
+// truncated file behind. The original's permission bits are kept.
 func writePreservingMode(path string, data []byte) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, data, info.Mode().Perm())
+	tmp, err := os.CreateTemp(filepath.Dir(path), "."+filepath.Base(path)+".upgrade-*")
+	if err != nil {
+		return err
+	}
+	tmpPath := tmp.Name()
+	cleanup := func(cause error) error {
+		_ = tmp.Close()
+		_ = os.Remove(tmpPath)
+		return cause
+	}
+	if _, err = tmp.Write(data); err != nil {
+		return cleanup(err)
+	}
+	if err = tmp.Chmod(info.Mode().Perm()); err != nil {
+		return cleanup(err)
+	}
+	if err = tmp.Close(); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	if err = os.Rename(tmpPath, path); err != nil {
+		_ = os.Remove(tmpPath)
+		return err
+	}
+	return nil
 }

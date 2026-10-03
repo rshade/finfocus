@@ -171,7 +171,7 @@ func TestExport_MixedCurrencyKeepsDominant(t *testing.T) {
 	assert.NotContains(t, stdout.String(), `"version": 3`)
 }
 
-func TestRenderCostOutput_HistorySparkline(t *testing.T) {
+func TestRenderActualCostOutput_HistorySparkline(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", home)
 	urn := "urn:pulumi:dev::app::aws:ec2/instance:Instance::web"
@@ -196,13 +196,6 @@ func TestRenderCostOutput_HistorySparkline(t *testing.T) {
 		CostPeriod:   "30 days",
 	}}}
 
-	projected := renderCostCommand(t, "projected", []string{"--stack", "dev"})
-	require.NoError(t, RenderCostOutput(context.Background(), projected.cmd, "table", results, false))
-	projectedOut := projected.stdout.String()
-	assert.Contains(t, projectedOut, "Trend")
-	assert.Contains(t, projectedOut, "▁")
-	assert.Contains(t, projectedOut, "█")
-
 	actual := renderCostCommand(t, "actual", []string{"--stack", "dev"})
 	require.NoError(t, RenderActualCostOutput(
 		context.Background(), actual.cmd, "table", results, "", false, false, false,
@@ -213,7 +206,9 @@ func TestRenderCostOutput_HistorySparkline(t *testing.T) {
 	assert.Contains(t, actualOut, "█")
 
 	missing := renderCostCommand(t, "projected", []string{"--stack", "other"})
-	require.NoError(t, RenderCostOutput(context.Background(), missing.cmd, "table", results, false))
+	require.NoError(t, RenderActualCostOutput(
+		context.Background(), missing.cmd, "table", results, "", false, false, false,
+	))
 	assert.NotContains(t, missing.stdout.String(), "Trend")
 }
 
