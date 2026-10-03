@@ -12,6 +12,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/tui"
 )
 
 func TestNewBudgetScopeFilter(t *testing.T) {
@@ -148,7 +149,7 @@ func TestRenderScopedBudgetStatus_Nil(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	err := RenderScopedBudgetStatus(&buf, nil, nil)
+	err := RenderScopedBudgetStatus(&buf, nil, nil, tui.Accessibility{})
 	require.NoError(t, err)
 	assert.Empty(t, buf.String())
 }
@@ -508,7 +509,7 @@ func TestRenderScopedProgressBar(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			bar := renderScopedProgressBar(tt.percentage, tt.width)
+			bar := renderScopedProgressBar(tt.percentage, tt.width, false)
 			assert.NotEmpty(t, bar)
 			// Bar should contain some combination of filled and empty chars
 		})
@@ -544,7 +545,7 @@ func TestRenderStyledScopedBudget_NoError(t *testing.T) {
 	filter := NewBudgetScopeFilter("")
 
 	var buf bytes.Buffer
-	err := renderStyledScopedBudget(&buf, result, filter)
+	err := renderStyledScopedBudget(&buf, result, filter, false)
 	require.NoError(t, err)
 	assert.NotEmpty(t, buf.String())
 
@@ -587,7 +588,7 @@ func TestRenderProviderSection_SortedOutput(t *testing.T) {
 		},
 	}
 
-	output := renderProviderSection(providers, nil)
+	output := renderProviderSection(providers, nil, false)
 
 	// AWS should appear before AZURE, which should appear before GCP
 	awsIdx := strings.Index(output, "AWS")

@@ -71,7 +71,7 @@ func applyAccessibilityEnv(flags, explicit Accessibility) Accessibility {
 		out.NoColor = os.Getenv("NO_COLOR") != ""
 	}
 	if !explicit.ForceColor && !out.ForceColor {
-		out.ForceColor = envBool(envForceColor)
+		out.ForceColor = envForceColorOn()
 	}
 	if !explicit.HighContrast && !out.HighContrast {
 		out.HighContrast = envBool(envHighContrast)
@@ -85,6 +85,18 @@ func explicitPlainOrNoColor(out, explicit Accessibility) bool {
 
 func explicitColorMode(out, explicit Accessibility) bool {
 	return (out.ForceColor && explicit.ForceColor) || (out.HighContrast && explicit.HighContrast)
+}
+
+// envForceColorOn reads FORCE_COLOR the way the convention defines it: 0 and
+// false turn color off, and 1, 2, 3 and true turn it on. The numbers are color
+// levels, which this tool does not distinguish. Anything else is ignored.
+func envForceColorOn() bool {
+	switch strings.ToLower(strings.TrimSpace(os.Getenv(envForceColor))) {
+	case "1", "2", "3", "true":
+		return true
+	default:
+		return false
+	}
 }
 
 func envBool(key string) bool {

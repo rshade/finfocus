@@ -19,6 +19,7 @@ func clearAccessibilityEnv(t *testing.T) {
 	t.Setenv("NO_COLOR", "")
 	t.Setenv("FORCE_COLOR", "")
 	t.Setenv("FINFOCUS_HIGH_CONTRAST", "")
+	t.Setenv(agentModeEnv, "")
 }
 
 func TestAccessibilityFlags_OnOutputCommands(t *testing.T) {
@@ -120,12 +121,49 @@ func TestOutputModeFromCmd_ForceColorStylesBuffer(t *testing.T) {
 	assert.Equal(t, tui.OutputModeStyled, outputModeFromCmd(cmd))
 }
 
-func TestHistoryOutputFormat_PlainEnvOverridesJSON(t *testing.T) {
+func TestHistoryOutputFormat_PlainEnvFillsTheDefault(t *testing.T) {
+	clearAccessibilityEnv(t)
+	t.Setenv("FINFOCUS_PLAIN", "1")
+
+	format, err := historyOutputFormat(NewCostHistoryViewCmd())
+
+	require.NoError(t, err)
+	assert.Equal(t, historyOutputPlain, format)
+}
+
+func TestHistoryOutputFormat_PlainEnvDoesNotOverrideExplicitJSON(t *testing.T) {
 	clearAccessibilityEnv(t)
 	t.Setenv("FINFOCUS_PLAIN", "1")
 
 	cmd := NewCostHistoryViewCmd()
 	require.NoError(t, cmd.Flags().Set("output", historyOutputJSON))
+
+	got, err := historyOutputFormat(cmd)
+
+	require.NoError(t, err)
+	want := historyOutputJSON
+	assert.Equal(t, want, got)
+}
+
+func TestHistoryOutputFormat_PlainEnvDoesNotOverrideMachineFormat(t *testing.T) {
+	clearAccessibilityEnv(t)
+	t.Setenv("FINFOCUS_PLAIN", "1")
+	t.Setenv(agentModeEnv, "json")
+
+	got, err := historyOutputFormat(NewCostHistoryViewCmd())
+
+	require.NoError(t, err)
+	want := historyOutputJSON
+	assert.Equal(t, want, got)
+}
+
+//nolint:paralleltest // clearAccessibilityEnv calls t.Setenv
+func TestHistoryOutputFormat_PlainFlagStillBeatsJSON(t *testing.T) {
+	clearAccessibilityEnv(t)
+
+	cmd := NewCostHistoryViewCmd()
+	require.NoError(t, cmd.Flags().Set("output", historyOutputJSON))
+	require.NoError(t, cmd.Flags().Set("plain", "true"))
 
 	format, err := historyOutputFormat(cmd)
 

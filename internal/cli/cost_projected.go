@@ -110,6 +110,7 @@ Use --stack to target a specific stack during auto-detection.`,
 	cmd.Flags().BoolVar(&params.pricingSpecFallback, "pricing-spec-fallback", false,
 		"Price from plugin GetPricingSpec before local YAML when projected cost is missing")
 	addAccessibilityFlags(cmd)
+	scopeAccessibilityFlagsToBudget(cmd)
 
 	return cmd
 }

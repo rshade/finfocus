@@ -1097,7 +1097,8 @@ func overviewInteractive(w io.Writer, params overviewParams) bool {
 	if params.output != outputFormatTable {
 		return false
 	}
-	return tui.DetectOutputModeFor(w, params.forceColor, params.noColor, params.plain) == tui.OutputModeInteractive
+	access := tui.Accessibility{Plain: params.plain, NoColor: params.noColor, ForceColor: params.forceColor}
+	return tui.DetectResolvedOutputMode(w, access) == tui.OutputModeInteractive
 }
 
 // runInteractiveOverviewWithInit launches the TUI immediately (before data

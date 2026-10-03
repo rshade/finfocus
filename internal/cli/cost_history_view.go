@@ -179,13 +179,28 @@ func historyOutputFormat(cmd *cobra.Command) (string, error) {
 		return "", err
 	}
 	format := resolveOutputFormat(cmd, "output", output)
-	if accessibilityFromCmd(cmd).Plain {
+	if plainOverridesFormat(cmd) {
 		format = historyOutputPlain
 	}
 	if format != historyOutputPlain && format != historyOutputJSON {
 		return "", fmt.Errorf("unsupported output format: %s (supported: plain, json)", format)
 	}
 	return format, nil
+}
+
+// plainOverridesFormat reports whether plain mode replaces the chosen output
+// format. An explicit --plain does. FINFOCUS_PLAIN only fills in the default,
+// so it never overrides an explicit --output or a machine-requested format
+// (--format json, AGENT_MODE): an MCP server started with FINFOCUS_PLAIN=1
+// would otherwise return the ASCII chart where it was asked for JSON.
+func plainOverridesFormat(cmd *cobra.Command) bool {
+	if !accessibilityFromCmd(cmd).Plain {
+		return false
+	}
+	if cmd.Flags().Changed("plain") {
+		return true
+	}
+	return !cmd.Flags().Changed("output") && !machineOutputRequested(cmd)
 }
 
 func viewBounds(cmd *cobra.Command) (time.Time, time.Time, error) {

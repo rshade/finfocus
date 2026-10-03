@@ -1,8 +1,11 @@
 package tui_test
 
 import (
+	"bytes"
 	"os"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 
 	"github.com/rshade/finfocus/internal/tui"
 )
@@ -294,4 +297,25 @@ func clearEnv(t *testing.T, keys ...string) {
 			t.Fatalf("failed to unset %s: %v", key, err)
 		}
 	}
+}
+
+func TestDetectResolvedOutputMode_TrustsTheResolvedAccessibility(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+	var buf bytes.Buffer
+
+	assert.Equal(t, tui.OutputModePlain, tui.DetectOutputModeFor(&buf, true, false, false),
+		"the raw detector still reads NO_COLOR")
+	assert.Equal(t, tui.OutputModeStyled, tui.DetectResolvedOutputMode(&buf, tui.Accessibility{ForceColor: true}),
+		"a resolved --color already beat NO_COLOR")
+	assert.Equal(
+		t,
+		tui.OutputModePlain,
+		tui.DetectResolvedOutputMode(&buf, tui.Accessibility{ForceColor: true, Plain: true}),
+	)
+	assert.Equal(
+		t,
+		tui.OutputModePlain,
+		tui.DetectResolvedOutputMode(&buf, tui.Accessibility{ForceColor: true, NoColor: true}),
+	)
+	assert.Equal(t, tui.OutputModePlain, tui.DetectResolvedOutputMode(&buf, tui.Accessibility{}))
 }

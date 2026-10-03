@@ -677,7 +677,12 @@ func renderScopedBudgetIfConfigured(
 
 	// Render the scoped budget status
 	filter := NewBudgetScopeFilter(scopeFilter)
-	if renderErr := RenderScopedBudgetStatus(cmd.OutOrStdout(), result, filter); renderErr != nil {
+	if renderErr := RenderScopedBudgetStatus(
+		cmd.OutOrStdout(),
+		result,
+		filter,
+		accessibilityFromCmd(cmd),
+	); renderErr != nil {
 		return result, renderErr
 	}
 

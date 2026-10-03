@@ -152,3 +152,33 @@ func TestStatusIndicator(t *testing.T) {
 	assert.Equal(t, "[PENDING] ○", tui.StatusIndicator("pending", true))
 	assert.Equal(t, "○ PENDING", tui.StatusIndicator("", false))
 }
+
+func TestForceColorEnvLevels(t *testing.T) {
+	tests := []struct {
+		value string
+		want  bool
+	}{
+		{"1", true},
+		{"2", true},
+		{"3", true},
+		{"true", true},
+		{"TRUE", true},
+		{"0", false},
+		{"false", false},
+		{"", false},
+		{"yes", false},
+	}
+
+	for _, tt := range tests {
+		t.Run("FORCE_COLOR="+tt.value, func(t *testing.T) {
+			t.Setenv("FINFOCUS_PLAIN", "")
+			t.Setenv("NO_COLOR", "")
+			t.Setenv("FINFOCUS_HIGH_CONTRAST", "")
+			t.Setenv("FORCE_COLOR", tt.value)
+
+			got := tui.ResolveAccessibility(tui.Accessibility{}, tui.Accessibility{})
+
+			assert.Equal(t, tt.want, got.ForceColor)
+		})
+	}
+}
