@@ -465,6 +465,12 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   empty result (e.g. history's `len(events) == 0`) must reject an unknown format
   *first*, or an invalid `--output` silently exits 0. See `config_routes.go`,
   `analyzer_check.go`, `plugin_list.go` for the up-front pattern
+- **Budget CLI flags stay off the global config**: `--exit-on-threshold` and
+  `--exit-code` are `BudgetFlagOverrides` on the command context, passed into
+  `evaluateBudgetStatus` and `legacyBudgetConfig`. They are not written onto
+  `config.GetGlobalConfig()`. Precedence is the CLI pointer, then the scoped
+  budget field, then parent `BudgetsConfig`, then the zero value. Only a copy
+  of the global scope receives the overlay. Provider, tag, and type scopes do not.
 
 ### Registry (`internal/registry/`)
 
@@ -493,7 +499,7 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 - **`hoursPerMonth = 730`** for monthly cost calculations
 - **Budget health thresholds**: OK (<80%), WARNING (80-89%), CRITICAL (90-100%),
   EXCEEDED (>100%). Aggregation uses worst-case status
-- **Cache hits**: Append ` (cached)` to the Adapter field for visual feedback
+- **Cache hits**: Append `(cached)`, including the leading space, to the Adapter field for visual feedback
 - **Cache corruption**: Auto-detected and auto-recovered (delete + recreate)
 - **Plugin TTL hints**: Plugins can set `expires_at` on responses to control per-entry
   cache TTL. The engine extracts `ExpiresAt` from `CostResult`, calls

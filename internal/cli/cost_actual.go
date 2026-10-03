@@ -247,6 +247,7 @@ func executeCostActual(cmd *cobra.Command, params costActualParams) error {
 
 	if budgetErr := evaluateBudgetStatusForOutput(
 		cmd, resultWithErrors.Results, sumTotalCosts(resultWithErrors.Results), params.output,
+		storedBudgetFlagOverrides(cmd),
 	); budgetErr != nil {
 		audit.logFailure(ctx, budgetErr)
 		return toAxExitError(ctx, budgetErr)

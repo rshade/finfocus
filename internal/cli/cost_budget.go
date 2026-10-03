@@ -395,7 +395,11 @@ func calculateProgressBarWidth(boxWidth int) int {
 // evaluateBudgetIfConfigured checks whether a global budget is configured and,
 // if so, evaluates it against totalCost/currency without rendering any output.
 // It returns nil,nil when no budget is configured.
-func evaluateBudgetIfConfigured(totalCost float64, currency string) (*engine.BudgetStatus, error) {
+func evaluateBudgetIfConfigured(
+	totalCost float64,
+	currency string,
+	overrides BudgetFlagOverrides,
+) (*engine.BudgetStatus, error) {
 	// Get the global configuration
 	cfg := config.GetGlobalConfig()
 	if cfg == nil || !cfg.Cost.HasBudget() {
@@ -408,25 +412,7 @@ func evaluateBudgetIfConfigured(totalCost float64, currency string) (*engine.Bud
 		return nil, nil //nolint:nilnil // no global budget configured
 	}
 
-	// Convert ScopedBudget to BudgetConfig for evaluation
-	globalBudget := budgetsCfg.Global
-	budgetConfig := config.BudgetConfig{
-		Amount:   globalBudget.Amount,
-		Currency: globalBudget.Currency,
-		Period:   globalBudget.Period,
-		Alerts:   globalBudget.Alerts,
-	}
-	// Use scoped exit settings if present, otherwise fallback to parent BudgetsConfig settings
-	if globalBudget.ExitOnThreshold != nil {
-		budgetConfig.ExitOnThreshold = *globalBudget.ExitOnThreshold
-	} else {
-		budgetConfig.ExitOnThreshold = budgetsCfg.ExitOnThreshold
-	}
-	if globalBudget.ExitCode != nil {
-		budgetConfig.ExitCode = *globalBudget.ExitCode
-	} else if budgetsCfg.ExitCode != nil {
-		budgetConfig.ExitCode = *budgetsCfg.ExitCode
-	}
+	budgetConfig := legacyBudgetConfig(budgetsCfg, overrides)
 
 	// Create budget engine and evaluate
 	budgetEngine := engine.NewBudgetEngine()
@@ -441,8 +427,13 @@ func evaluateBudgetIfConfigured(totalCost float64, currency string) (*engine.Bud
 
 // renderBudgetIfConfigured evaluates and renders global budget status when configured.
 // It returns nil,nil when no budget is configured.
-func renderBudgetIfConfigured(cmd *cobra.Command, totalCost float64, currency string) (*engine.BudgetStatus, error) {
-	status, err := evaluateBudgetIfConfigured(totalCost, currency)
+func renderBudgetIfConfigured(
+	cmd *cobra.Command,
+	totalCost float64,
+	currency string,
+	overrides BudgetFlagOverrides,
+) (*engine.BudgetStatus, error) {
+	status, err := evaluateBudgetIfConfigured(totalCost, currency, overrides)
 	if err != nil || status == nil {
 		return status, err
 	}
@@ -478,6 +469,7 @@ func renderBudgetWithScope(
 	totalCost float64,
 	currency string,
 	scopeFilter string,
+	overrides BudgetFlagOverrides,
 ) (*BudgetRenderResult, error) {
 	cfg := config.GetGlobalConfig()
 	if cfg == nil {
@@ -488,7 +480,7 @@ func renderBudgetWithScope(
 	budgetsCfg := cfg.Cost.Budgets
 	if budgetsCfg != nil && budgetsCfg.HasScopedBudgets() {
 		// Use scoped budget rendering
-		result, err := renderScopedBudgetIfConfigured(cmd, costs, scopeFilter)
+		result, err := renderScopedBudgetIfConfigured(cmd, costs, scopeFilter, overrides)
 		if err != nil {
 			return nil, err
 		}
@@ -496,7 +488,7 @@ func renderBudgetWithScope(
 	}
 
 	// Fall back to legacy budget rendering
-	status, err := renderBudgetIfConfigured(cmd, totalCost, currency)
+	status, err := renderBudgetIfConfigured(cmd, totalCost, currency, overrides)
 	if err != nil {
 		return nil, err
 	}
@@ -510,6 +502,7 @@ func evaluateBudgetWithScope(
 	costs []engine.CostResult,
 	totalCost float64,
 	currency string,
+	overrides BudgetFlagOverrides,
 ) (*BudgetRenderResult, error) {
 	cfg := config.GetGlobalConfig()
 	if cfg == nil {
@@ -518,11 +511,11 @@ func evaluateBudgetWithScope(
 
 	budgetsCfg := cfg.Cost.Budgets
 	if budgetsCfg != nil && budgetsCfg.HasScopedBudgets() {
-		result := evaluateScopedBudgetIfConfigured(cmd, costs)
+		result := evaluateScopedBudgetIfConfigured(cmd, costs, overrides)
 		return &BudgetRenderResult{ScopedResult: result}, nil
 	}
 
-	status, err := evaluateBudgetIfConfigured(totalCost, currency)
+	status, err := evaluateBudgetIfConfigured(totalCost, currency, overrides)
 	if err != nil {
 		return nil, err
 	}
@@ -597,6 +590,7 @@ func checkScopedBudgetExit(cmd *cobra.Command, scopedResult *engine.ScopedBudget
 func evaluateScopedBudgetIfConfigured(
 	cmd *cobra.Command,
 	costs []engine.CostResult,
+	overrides BudgetFlagOverrides,
 ) *engine.ScopedBudgetResult {
 	cfg := config.GetGlobalConfig()
 	if cfg == nil {
@@ -619,7 +613,7 @@ func evaluateScopedBudgetIfConfigured(
 	eval := engine.NewScopedBudgetEvaluator(budgetsCfg)
 
 	// Allocate costs and evaluate all scopes
-	result := evaluateScopedBudgets(cmd.Context(), eval, budgetsCfg, costs)
+	result := evaluateScopedBudgets(cmd.Context(), eval, budgetsCfg, costs, overrides)
 
 	return result
 }
@@ -636,8 +630,9 @@ func renderScopedBudgetIfConfigured(
 	cmd *cobra.Command,
 	costs []engine.CostResult,
 	scopeFilter string,
+	overrides BudgetFlagOverrides,
 ) (*engine.ScopedBudgetResult, error) {
-	result := evaluateScopedBudgetIfConfigured(cmd, costs)
+	result := evaluateScopedBudgetIfConfigured(cmd, costs, overrides)
 	if result == nil {
 		return nil, nil //nolint:nilnil // intentionally returns nil,nil when no scoped budget configured
 	}
@@ -660,6 +655,7 @@ func evaluateScopedBudgets(
 	eval *engine.ScopedBudgetEvaluator,
 	cfg *config.BudgetsConfig,
 	costs []engine.CostResult,
+	overrides BudgetFlagOverrides,
 ) *engine.ScopedBudgetResult {
 	result := &engine.ScopedBudgetResult{
 		ByProvider: make(map[string]*engine.ScopedBudgetStatus),
@@ -702,7 +698,8 @@ func evaluateScopedBudgets(
 
 	// Calculate global status
 	if cfg.Global != nil {
-		result.Global = engine.CalculateProviderBudgetStatus("", cfg.Global, globalSpend)
+		globalBudget := withBudgetFlagOverrides(cfg.Global, overrides)
+		result.Global = engine.CalculateProviderBudgetStatus("", globalBudget, globalSpend)
 		result.Global.ScopeType = engine.ScopeTypeGlobal
 		result.Global.ScopeKey = ""
 	}
