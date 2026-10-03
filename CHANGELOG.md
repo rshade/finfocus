@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+* **docs:** CI recipes record a cost snapshot after deploy with
+  `cost history collect --versions 1`. The flag still defaults to `0`,
+  which stores every successful checkpoint that is not already saved (#553)
 * **cli:** `cost history diff` compares two stored snapshots by resource
   URN. `--from` and `--to` accept a version (`v35`) or a date. `--to`
   defaults to the latest snapshot. `--threshold` hides small monthly

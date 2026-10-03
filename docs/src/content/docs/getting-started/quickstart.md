@@ -114,6 +114,20 @@ finfocus cost projected --budget-scope=provider=aws
 
 ---
 
+## Automated Cost Tracking
+
+After a deploy, store only the checkpoint that just succeeded:
+
+```bash
+finfocus cost history collect --stack dev --versions 1
+```
+
+`--versions` defaults to `0`, which stores every successful checkpoint
+that is not already in the database. `1` keeps the newest checkpoint
+only. The file is `~/.finfocus/history/<stack>.history.db`. Recipes for
+GitHub Actions, GitLab CI, and the Automation API are in
+[CI/CD cost tracking](../guides/ci-cd-cost-tracking.md).
+
 ## What's Next?
 
 - **Full overview docs:** [Overview Command](../commands/overview.md)

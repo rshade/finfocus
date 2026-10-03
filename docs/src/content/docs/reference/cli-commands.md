@@ -184,6 +184,36 @@ Caveats:
   first.
 - Deposed (create-before-destroy leftover) and tainted instances are excluded.
 
+## cost history
+
+Store and read projected-cost snapshots for one Pulumi stack. `collect`
+needs the Pulumi CLI and a cost plugin. `view`, `list`, `diff`, and
+`prune` read the per-stack database only.
+
+### Usage (cost history collect)
+
+```bash
+finfocus cost history collect --stack <name> [options]
+```
+
+### Options (cost history collect)
+
+| Flag | Description | Default |
+| --- | --- | --- |
+| `--stack` | Pulumi stack name. This is the parent `cost` flag | required |
+| `--from` | Only checkpoints on or after this date (`YYYY-MM-DD`) | none |
+| `--versions` | Keep the newest N successful checkpoints. `0` is no limit | `0` |
+| `--parallel` | Concurrent `pulumi stack export` calls | `4` |
+| `--skip-destroy` | Skip destroy checkpoints instead of storing `$0` | `false` |
+
+`--versions 1` is the post-deploy pattern. It stores the newest successful
+checkpoint and skips a version that is already in the database. The
+default `0` backfills every successful checkpoint that is missing.
+
+The database is `~/.finfocus/history/<stack>.history.db`. Slashes in the
+stack name become dashes. `FINFOCUS_HOME` changes the root. CI recipes are
+in [CI/CD cost tracking](../guides/ci-cd-cost-tracking.md).
+
 ## cost recommendations
 
 Display cost optimization recommendations from cloud providers.
