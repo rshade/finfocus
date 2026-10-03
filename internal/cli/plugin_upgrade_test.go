@@ -130,14 +130,14 @@ func TestPluginUpgradeApply(t *testing.T) {
 
 //nolint:paralleltest // Builds a root command and sets FINFOCUS_HOME.
 func TestPluginUpgradeUpToDate(t *testing.T) {
-	dir := copyUpgradeFixture(t, "finfocus-v0.7.0")
-	if pluginsdk.SpecVersion != "v0.7.0" {
-		t.Skipf("fixture is at v0.7.0; core builds against %s", pluginsdk.SpecVersion)
-	}
+	dir := t.TempDir()
+	gomod := "module example.com/current\n\ngo 1.27.1\n\nrequire github.com/rshade/finfocus-spec " +
+		pluginsdk.SpecVersion + "\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0o600))
 
 	result := runUpgrade(t, "--dir", dir)
 	require.Zero(t, result.ExitCode, string(result.Stderr))
-	assert.Contains(t, string(result.Stdout), "Plugin is up to date (finfocus-spec v0.7.0).")
+	assert.Contains(t, string(result.Stdout), "Plugin is up to date (finfocus-spec "+pluginsdk.SpecVersion+").")
 	assert.NotContains(t, string(result.Stdout), "go mod tidy")
 }
 

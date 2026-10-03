@@ -80,6 +80,15 @@ var hops = []Hop{
 		Summary: "Additive release; no changes required",
 		Guide:   "to-v0.7.0.md",
 	},
+	{
+		To:      "v0.7.1",
+		Summary: "Additive release; one scorer field deprecated",
+		Manual: []string{
+			"Scorer plugins only: set ScorerInfo.ProviderRequestIds and keep ProviderRequestId as its first entry " +
+				"(the single field is deprecated, so staticcheck flags it)",
+		},
+		Guide: "to-v0.7.1.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.

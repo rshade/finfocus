@@ -43,6 +43,7 @@ releases break too: v0.5.7 changed `DryRunHandler`.
 | v0.6.1 | 1.27.1 | `go` directive | None required; `pluginsdk.Run` is an optional new entry point |
 | v0.6.2 | — | — | A default `Supports` now reaches hosts as `Supported:false`; implement `SupportsProvider` to be routed. Hand-set `Capabilities` are checked against inferred ones |
 | v0.7.0 | — | — | None; additive only |
+| v0.7.1 | — | — | Scorer plugins only: `ScorerInfo.provider_request_id` is deprecated for `provider_request_ids` |
 
 Sources: finfocus-spec tags and `go.mod` per tag; commits `15addc9` (DryRun ctx, ancestor of v0.5.7), `3c09962` (batch validation),
 `b9f841d` (Go 1.27.1), `e51f8b4` (capabilities); `sdk/go/pluginsdk/env.go`;

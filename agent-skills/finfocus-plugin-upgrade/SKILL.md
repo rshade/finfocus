@@ -141,3 +141,4 @@ review.
 | [to-v0.6.1.md](references/to-v0.6.1.md) | Go 1.27.1 |
 | [to-v0.6.2.md](references/to-v0.6.2.md) | `Supports` reaches the host; capability checks |
 | [to-v0.7.0.md](references/to-v0.7.0.md) | Additive only |
+| [to-v0.7.1.md](references/to-v0.7.1.md) | Additive; scorer request id field deprecated |
