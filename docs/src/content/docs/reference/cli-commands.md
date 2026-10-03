@@ -833,6 +833,15 @@ The scaffold includes a golangci-lint v2 config at `.golangci-lint.yml`.
 because golangci-lint does not discover that filename on its own.
 `local-prefixes` is the plugin module path `github.com/example/<name>`.
 
+After generating the project, `plugin init` installs the
+`finfocus-plugin-dev` and `finfocus-plugin-upgrade` agent skills into
+`.agents/skills/` and `.claude/skills/` with `npx skills add`, and records
+them in `skills-lock.json`. A release build installs the skills from its own
+tag, so they match the SDK version it scaffolds; a development build uses
+`main`. The step is best-effort: without Node or network access, init still
+succeeds and prints the command to run later. `--offline` and `--no-skill`
+skip it.
+
 ### Usage (plugin init)
 
 ```bash
@@ -856,6 +865,7 @@ finfocus plugin init <plugin-name> --author <name> --providers <list> [options]
 | `--no-health`   | Skip health endpoint (alias for `--with-health=false`)       | `false`    |
 | `--docker-only` | Generate only Docker files (for existing projects)           | `false`    |
 | `--with-claude-review` | Generate a Claude Code review workflow                | `false`    |
+| `--no-skill`    | Do not install the FinFocus plugin agent skills              | `false`    |
 | `--help`        | Show help                                                    |            |
 
 ### Examples (plugin init)
@@ -955,8 +965,15 @@ migration guide. The
 [`finfocus-plugin-upgrade` agent skill](https://github.com/rshade/finfocus/tree/main/agent-skills/finfocus-plugin-upgrade)
 works through those steps.
 
-Applying needs a clean git working tree. The command never uses the
+Applying needs a clean git working tree. The code edits never use the
 network, so run `go mod tidy` afterwards.
+
+After applying, and also when the plugin is already up to date, the command
+reinstalls the `finfocus-plugin-dev` and `finfocus-plugin-upgrade` agent
+skills at this finfocus release with `npx skills add`. The skill files are
+listed under changed files and in the JSON `skill` object. The step is
+best-effort: if it fails, the command prints a warning and the command to run
+later. `--dry-run` shows that command, and `--no-skill` skips the step.
 
 ### Usage (plugin upgrade)
 
@@ -971,6 +988,7 @@ finfocus plugin upgrade [options]
 | `--dir`         | Plugin project directory (containing `go.mod`)    | `.`               |
 | `--to`          | Target release: a hop version or finfocus's own   | finfocus's own    |
 | `--allow-dirty` | Apply even without a clean git working tree       | false             |
+| `--no-skill`    | Do not reinstall the plugin agent skills          | false             |
 | `--output`      | Output format: `table` or `json`                  | table             |
 | `--dry-run`     | Print the plan without changing files (global)    | false             |
 

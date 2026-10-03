@@ -31,6 +31,7 @@ func TestPluginInit_Basic(t *testing.T) {
 		"--author", "Test Author",
 		"--providers", "aws",
 		"--output-dir", outputDir,
+		"--no-skill",
 	})
 
 	err := cmd.Execute()
@@ -101,6 +102,7 @@ func TestPluginInit_MultiProvider(t *testing.T) {
 		"--author", "Test Author",
 		"--providers", "aws,azure,gcp",
 		"--output-dir", outputDir,
+		"--no-skill",
 	})
 
 	err := cmd.Execute()
@@ -143,6 +145,7 @@ func TestPluginInit_CustomOutputDir(t *testing.T) {
 		"--author", "Test Author",
 		"--providers", "aws",
 		"--output-dir", customDir,
+		"--no-skill",
 	})
 
 	err := cmd.Execute()
@@ -171,6 +174,7 @@ func TestPluginInit_Force(t *testing.T) {
 		"--author", "Original Author",
 		"--providers", "aws",
 		"--output-dir", outputDir,
+		"--no-skill",
 	})
 
 	err := cmd1.Execute()
@@ -187,6 +191,7 @@ func TestPluginInit_Force(t *testing.T) {
 		"--author", "New Author",
 		"--providers", "gcp",
 		"--output-dir", outputDir,
+		"--no-skill",
 	})
 
 	err = cmd2.Execute()
@@ -204,6 +209,7 @@ func TestPluginInit_Force(t *testing.T) {
 		"--author", "New Author",
 		"--providers", "gcp",
 		"--output-dir", outputDir,
+		"--no-skill",
 		"--force",
 	})
 
@@ -297,6 +303,7 @@ func TestPluginInit_InvalidName(t *testing.T) {
 				"--author", "Test Author",
 				"--providers", "aws",
 				"--output-dir", testOutputDir,
+				"--no-skill",
 			})
 
 			err := cmd.Execute()
@@ -330,6 +337,7 @@ func TestPluginInit_MissingRequiredFlags(t *testing.T) {
 				"test-plugin",
 				"--providers", "aws",
 				"--output-dir", outputDir,
+				"--no-skill",
 			},
 			errorMsg: "author",
 		},
@@ -339,6 +347,7 @@ func TestPluginInit_MissingRequiredFlags(t *testing.T) {
 				"test-plugin",
 				"--author", "Test Author",
 				"--output-dir", outputDir,
+				"--no-skill",
 			},
 			errorMsg: "providers",
 		},
@@ -382,6 +391,7 @@ func TestPluginInit_RecordedFixtures_Offline(t *testing.T) {
 		"--author", "Test Author",
 		"--providers", "aws",
 		"--output-dir", outputDir,
+		"--no-skill",
 		"--record-fixtures",
 		"--offline",
 	})
@@ -419,6 +429,7 @@ func TestPluginInit_RecordedFixtures_Flag(t *testing.T) {
 		"--author", "Test Author",
 		"--providers", "aws",
 		"--output-dir", outputDir,
+		"--no-skill",
 		"--record-fixtures",
 		"--fixture-version", "main",
 		"--offline",
@@ -454,6 +465,7 @@ func TestPluginInit_OfflineMode(t *testing.T) {
 		"--author", "Test Author",
 		"--providers", "aws",
 		"--output-dir", outputDir,
+		"--no-skill",
 		"--offline",
 	})
 
@@ -487,6 +499,7 @@ func TestPluginInit_OfflineWithRecording(t *testing.T) {
 		"--author", "Test Author",
 		"--providers", "aws",
 		"--output-dir", outputDir,
+		"--no-skill",
 		"--offline",
 		"--record-fixtures",
 	})
@@ -534,6 +547,7 @@ func TestPluginInit_OnlineNetworkFailure(t *testing.T) {
 		"--author", "Test Author",
 		"--providers", "aws",
 		"--output-dir", outputDir,
+		"--no-skill",
 		"--record-fixtures",
 		"--fixture-version", "latest",
 	})

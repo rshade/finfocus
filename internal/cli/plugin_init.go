@@ -16,6 +16,8 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginskill"
+	"github.com/rshade/finfocus/pkg/version"
 )
 
 // PluginInitOptions contains configuration options for plugin initialization.
@@ -38,6 +40,7 @@ type PluginInitOptions struct {
 	NoDocs           bool
 	NoHealth         bool
 	WithClaudeReview bool
+	NoSkill          bool
 }
 
 // ShouldGenerateDocker reports whether Docker support files should be
@@ -1147,6 +1150,8 @@ This command creates a new directory structure for plugin development including:
 		"Skip health endpoint generation (alias for --with-health=false)")
 	cmd.Flags().BoolVar(&opts.WithClaudeReview, "with-claude-review", false,
 		"Generate a Claude Code review workflow")
+	cmd.Flags().BoolVar(&opts.NoSkill, "no-skill", false,
+		"Do not install the FinFocus plugin agent skills (npx skills add)")
 
 	_ = cmd.MarkFlagRequired("author")
 	_ = cmd.MarkFlagRequired("providers")
@@ -1231,6 +1236,10 @@ func RunPluginInit(ctx context.Context, cmd *cobra.Command, opts *PluginInitOpti
 		}
 
 		cmd.Printf("\n✅ Plugin project initialized successfully!\n\n")
+		if !opts.DockerOnly {
+			printSkillResult(cmd, installInitSkills(ctx2, opts, projectDir))
+			cmd.Println()
+		}
 		cmd.Printf("Next steps:\n")
 		cmd.Printf("1. cd %s\n", projectDir)
 		cmd.Printf("2. go mod tidy\n")
@@ -1275,6 +1284,10 @@ func printPluginInitRehearse(cmd *cobra.Command, opts *PluginInitOptions, projec
 	if opts.ShouldGenerateDocker() {
 		cmd.Printf("  - docker/Dockerfile\n")
 		cmd.Printf("  - .dockerignore\n")
+	}
+	if !opts.DockerOnly && !opts.NoSkill && !opts.Offline {
+		cmd.Printf("\nWould install the FinFocus agent skills with:\n  %s\n",
+			pluginskill.Command(version.GetVersion()))
 	}
 }
 
@@ -2435,4 +2448,17 @@ func IsValidPluginName(name string) bool {
 
 	// Cannot start or end with hyphen
 	return name[0] != '-' && name[len(name)-1] != '-'
+}
+
+// installInitSkills installs the plugin agent skills into a new project unless
+// --no-skill or --offline asks it not to touch the network.
+func installInitSkills(ctx context.Context, opts *PluginInitOptions, projectDir string) pluginskill.Result {
+	v := version.GetVersion()
+	switch {
+	case opts.NoSkill:
+		return pluginskill.Skipped(v, "--no-skill")
+	case opts.Offline:
+		return pluginskill.Skipped(v, "--offline")
+	}
+	return pluginSkills.Install(ctx, projectDir, v)
 }

@@ -32,6 +32,12 @@ type upgradeOutput struct {
 	DryRun    bool     `json:"dry_run"`
 	Changed   []string `json:"changed_files"`
 	NextSteps []string `json:"next_steps"`
+	Skill     *struct {
+		Installed bool     `json:"installed"`
+		Command   string   `json:"command"`
+		Paths     []string `json:"paths"`
+		Warning   string   `json:"warning"`
+	} `json:"skill"`
 }
 
 // copyUpgradeFixture copies a pluginupgrade fixture into a temporary directory.
@@ -182,4 +188,76 @@ func TestPluginUpgradeErrors(t *testing.T) {
 			assert.Contains(t, string(result.Stderr), tc.wantErr)
 		})
 	}
+}
+
+//nolint:paralleltest // Builds a root command and sets FINFOCUS_HOME.
+func TestPluginUpgradeDryRunShowsSkillCommand(t *testing.T) {
+	dir := copyUpgradeFixture(t, "finfocus-v0.5.3")
+
+	result := runUpgrade(t, "--dir", dir, "--dry-run", "--output", "json")
+	require.Zero(t, result.ExitCode, string(result.Stderr))
+	var out upgradeOutput
+	require.NoError(t, json.Unmarshal(result.Stdout, &out), string(result.Stdout))
+	require.NotNil(t, out.Skill)
+	assert.False(t, out.Skill.Installed)
+	assert.Equal(t, "skill install skipped (dry run)", out.Skill.Warning)
+	assert.Contains(t, out.Skill.Command, " add https://github.com/rshade/finfocus/tree/")
+	assert.False(t, skillInstalledIn(t, dir))
+
+	table := runUpgrade(t, "--dir", dir, "--dry-run")
+	require.Zero(t, table.ExitCode, string(table.Stderr))
+	assert.Contains(t, string(table.Stdout), "Would reinstall the FinFocus agent skills with:\n  npx -y skills@")
+
+	noSkill := runUpgrade(t, "--dir", dir, "--dry-run", "--no-skill")
+	require.Zero(t, noSkill.ExitCode, string(noSkill.Stderr))
+	assert.NotContains(t, string(noSkill.Stdout), "Would reinstall")
+}
+
+//nolint:paralleltest // Builds a root command and sets FINFOCUS_HOME.
+func TestPluginUpgradeApplyInstallsSkill(t *testing.T) {
+	dir := copyUpgradeFixture(t, "finfocus-v0.6.1")
+
+	result := runUpgrade(t, "--dir", dir, "--allow-dirty", "--output", "json")
+	require.Zero(t, result.ExitCode, string(result.Stderr))
+
+	var out upgradeOutput
+	require.NoError(t, json.Unmarshal(result.Stdout, &out), string(result.Stdout))
+	require.NotNil(t, out.Skill)
+	assert.True(t, out.Skill.Installed)
+	assert.True(t, skillInstalledIn(t, dir))
+	assert.Equal(t, []string{
+		"go.mod", "internal/pricing/calculator.go",
+		".agents/skills/finfocus-plugin-dev", "skills-lock.json",
+	}, out.Changed)
+}
+
+//nolint:paralleltest // Builds a root command and sets FINFOCUS_HOME.
+func TestPluginUpgradeUpToDateInstallsSkill(t *testing.T) {
+	dir := t.TempDir()
+	gomod := "module example.com/current\n\ngo 1.27.1\n\nrequire github.com/rshade/finfocus-spec " +
+		pluginsdk.SpecVersion + "\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "go.mod"), []byte(gomod), 0o600))
+
+	result := runUpgrade(t, "--dir", dir)
+	require.Zero(t, result.ExitCode, string(result.Stderr))
+	assert.Contains(
+		t,
+		string(result.Stdout),
+		"Installed FinFocus agent skills:\n  .agents/skills/finfocus-plugin-dev\n",
+	)
+	assert.True(t, skillInstalledIn(t, dir))
+}
+
+//nolint:paralleltest // Builds a root command and sets FINFOCUS_HOME.
+func TestPluginUpgradeNoSkill(t *testing.T) {
+	dir := copyUpgradeFixture(t, "finfocus-v0.6.1")
+
+	result := runUpgrade(t, "--dir", dir, "--allow-dirty", "--no-skill")
+	require.Zero(t, result.ExitCode, string(result.Stderr))
+
+	out := string(result.Stdout)
+	assert.Contains(t, out, "skill install skipped (--no-skill)")
+	assert.Contains(t, out, "To add the agent skills later, run in the plugin directory:\n  npx -y skills@")
+	assert.Contains(t, out, "Changed files:\n  go.mod\n  internal/pricing/calculator.go\n\nNext steps:")
+	assert.False(t, skillInstalledIn(t, dir))
 }

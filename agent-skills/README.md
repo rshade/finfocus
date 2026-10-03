@@ -18,6 +18,18 @@ cost-optimize, budget-setup) live in
 | [finfocus-budget](finfocus-budget/) | Configure budget thresholds, health, and CI exit codes | M |
 | [finfocus-diagnose](finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost | M |
 | [finfocus-plugin-upgrade](finfocus-plugin-upgrade/) | Upgrade a plugin project to a newer finfocus-spec version | M |
+| [finfocus-plugin-dev](finfocus-plugin-dev/) | Implement and test a plugin scaffolded by `plugin init` | M |
+
+`finfocus plugin init` and `finfocus plugin upgrade` install
+`finfocus-plugin-dev` and `finfocus-plugin-upgrade` into the plugin
+repository with `npx skills add`, pinned to the finfocus release (`--no-skill`
+skips this). To add them by hand:
+
+```bash
+npx -y skills@1.7.0 add https://github.com/rshade/finfocus/tree/main/agent-skills \
+  --skill finfocus-plugin-dev --skill finfocus-plugin-upgrade \
+  --agent codex --agent claude-code --copy -y
+```
 
 ## Planned Skills
 
