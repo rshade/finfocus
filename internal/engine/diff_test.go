@@ -297,6 +297,104 @@ func (p *regionPlugin) GetProjectedCost(
 	}}}, nil
 }
 
+func TestGetProjectedCostDiffReplacement(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	prices := map[string]float64{"t3.micro": 10, "m5.large": 40}
+
+	t.Run("create-replacement and delete-replaced become one update", func(t *testing.T) {
+		t.Parallel()
+		plugin := newSKUPricePlugin(prices, nil)
+		eng := diffEngine(plugin)
+
+		diff, err := eng.GetProjectedCostDiff(ctx, []ResourceDescriptor{
+			replacementStep("create-replacement", "m5.large"),
+			replacementStep("delete-replaced", "t3.micro"),
+		})
+		require.NoError(t, err)
+
+		require.Len(t, diff.Entries, 1)
+		entry := diff.Entries[0]
+		assert.Equal(t, DiffOperationUpdate, entry.Operation)
+		assert.InDelta(t, 10.0, monthlyOf(entry.Before), 1e-9)
+		assert.InDelta(t, 40.0, monthlyOf(entry.After), 1e-9)
+		assert.InDelta(t, 30.0, entry.DeltaMonthly, 1e-9)
+		assert.Equal(t, 1, diff.Summary.Updates)
+		assert.Equal(t, 0, diff.Summary.Deletes)
+		assert.InDelta(t, 10.0, diff.Summary.TotalBefore, 1e-9)
+		assert.InDelta(t, 40.0, diff.Summary.TotalAfter, 1e-9)
+		assert.InDelta(t, 30.0, diff.Summary.TotalDelta, 1e-9)
+	})
+
+	t.Run("all three replace steps keep the first position", func(t *testing.T) {
+		t.Parallel()
+		plugin := newSKUPricePlugin(prices, nil)
+		eng := diffEngine(plugin)
+
+		diff, err := eng.GetProjectedCostDiff(ctx, []ResourceDescriptor{
+			diffResource("before", DiffOperationCreate, "t3.micro", ""),
+			replacementStep("create-replacement", "m5.large"),
+			replacementStep("replace", "m5.large"),
+			diffResource("after", DiffOperationCreate, "t3.micro", ""),
+			replacementStep("delete-replaced", "t3.micro"),
+		})
+		require.NoError(t, err)
+
+		require.Len(t, diff.Entries, 3)
+		assert.Equal(t, []string{"before", "box", "after"}, entryIDs(diff))
+		assert.InDelta(t, 30.0, diff.Entries[1].DeltaMonthly, 1e-9)
+		assert.InDelta(t, 50.0, diff.Summary.TotalDelta, 1e-9)
+		assert.Equal(t, 2, diff.Summary.Creates)
+		assert.Equal(t, 1, diff.Summary.Updates)
+	})
+
+	t.Run("a lone replace step is unchanged", func(t *testing.T) {
+		t.Parallel()
+		plugin := newSKUPricePlugin(prices, nil)
+		eng := diffEngine(plugin)
+
+		diff, err := eng.GetProjectedCostDiff(ctx, []ResourceDescriptor{
+			replacementStep("replace", "m5.large"),
+		})
+		require.NoError(t, err)
+		require.Len(t, diff.Entries, 1)
+		assert.InDelta(t, 30.0, diff.Entries[0].DeltaMonthly, 1e-9)
+	})
+
+	t.Run("duplicate ids still resolve references for other resources", func(t *testing.T) {
+		t.Parallel()
+		plugin := newRegionPlugin(map[string]float64{"Standard_D4s_v3": 40})
+		eng := New([]*pluginhost.Client{{Name: "prices", API: plugin}}, nil)
+
+		dupA := referencedCluster(DiffOperationCreate)
+		dupB := referencedCluster(DiffOperationCreate)
+		dupB.Properties = map[string]any{"location": "eastus"}
+		diff, err := eng.GetProjectedCostDiff(ctx, []ResourceDescriptor{
+			dupA,
+			dupB,
+			referencedNodePool(DiffOperationCreate, "Standard_D4s_v3", ""),
+		})
+		require.NoError(t, err)
+		require.Len(t, diff.Entries, 3)
+		assert.Equal(t, []string{"westeurope"}, plugin.regionsFor(nodePoolURN))
+	})
+}
+
+func replacementStep(op, sku string) ResourceDescriptor {
+	resource := diffResource("box", op, sku, "")
+	resource.OldProperties = map[string]any{"instanceType": "t3.micro"}
+	return resource
+}
+
+func entryIDs(diff *DiffResult) []string {
+	ids := make([]string, len(diff.Entries))
+	for i := range diff.Entries {
+		ids[i] = diff.Entries[i].ResourceID
+	}
+	return ids
+}
+
 func TestRenderProjectedDiff(t *testing.T) {
 	t.Parallel()
 
