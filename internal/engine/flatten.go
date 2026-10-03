@@ -21,7 +21,11 @@ const (
 	maxFlattenDepth = 6
 	// maxFlattenedTags is the conformance MaxTagCount. Collapsed keys are kept
 	// even when they already exceed it. Dotted keys fill only the remaining room.
-	maxFlattenedTags  = 50
+	maxFlattenedTags = 50
+	// refTagNamespace is the prefix of the ref.<property>.* tags that cross-
+	// resource resolution writes. A user input named "ref" must not flatten into
+	// that namespace, where it would read as a resolved reference.
+	refTagNamespace   = "ref"
 	maxDottedKeyLen   = 128
 	maxDottedValueLen = 256
 )
@@ -70,6 +74,9 @@ func addDottedTags(result map[string]string, properties map[string]any) {
 func collectDottedTags(properties map[string]any) []dottedTag {
 	var out []dottedTag
 	for _, key := range sortedPropertyKeys(properties) {
+		if key == refTagNamespace {
+			continue
+		}
 		walkDotted(properties[key], []string{key}, &out)
 	}
 	return out
@@ -133,6 +140,7 @@ func skipDottedSegment(segment string) bool {
 	// appear inside collapsed map text; dotted keys must not surface them.
 	for _, fragment := range []string{
 		"password", "secret", "token", "credential", "ciphertext", "privatekey",
+		"apikey", "api_key", "accesskey", "access_key", "connectionstring", "connection_string",
 	} {
 		if strings.Contains(lower, fragment) {
 			return true

@@ -334,7 +334,9 @@ exist. Spec: `specs/618-cross-resource-refs/`.
 `ConvertToProto` also emits dotted keys for nested maps and arrays
 (`sku.capacity`, `rootBlockDevice.0.volumeType`) beside each collapsed key.
 It skips `__` segments, credential-like segments (`password`, `secret`,
-`token`, `credential`, `ciphertext`, `privatekey`), and the containers
+`token`, `credential`, `ciphertext`, `privatekey`, `apikey`, `accesskey`,
+`connectionstring`, with the snake_case forms), a top-level input named `ref`
+(so it cannot flatten into the `ref.*` reference namespace), and the containers
 `tags`, `tagsAll`, `labels`, and `annotations`. Depth is capped at 6
 segments, new keys at 128 characters, new values at 256 characters, and the
 whole tag map at 50 entries. Existing collapsed keys are kept first.
@@ -641,11 +643,22 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   whose router `Fallback` is false asks no plugin for a spec. With the flag on,
   projected cache keys end in `/pricing-spec`, so a run with it off never reads a
   `plugin-spec` result (the exported `ProjectedResourceCacheKey` stays the
-  default key). `per_hour` and `per_cpu_hour` use 730 hours, `per_day` uses
-  `daysPerMonth` (30), and `per_gb_month` multiplies by storage size or 1 GB
+  default key). `per_hour`, `per_cpu_hour` and `per_day` use the 730-hour month
+  (`per_day` is rate × 730 / 24, so $1/hour and $24/day agree), and `per_gb_month`
+  multiplies by storage size or 1 GB. A billing mode the engine does not know that
+  still has a usable unit, such as `per_hour_plus_data`, is priced from the unit
+  alone and the note says `<mode>: hourly rate only, other charges not included`.
+  A tiered spec applies the one tier that contains the quantity to the whole
+  quantity, which is a modelling choice, not graduated pricing; a quantity in a gap
+  or past the last tier is unusable and falls through, not priced from the first
+  tier. A `$0` rate stays a price, so a plugin must answer `zero_cost` or an error
+  for "no price", not a zero rate (#1639 reports aws-public returning a zero
+  `per_hour` rate for a type it does not find, which core prices as `$0`; unverified
+  here, since it is a plugin-side issue)
 - **Estimate TUI pricing discovery** calls `GetPricingSpec` when
   `cost estimate --interactive` starts. `DiscoverPricingSpec` caches by
-  resource type on the engine for that session. The view lists each plugin
+  resource type, SKU, and region on the engine for that session, so an edited SKU
+  asks the plugin again. The view lists each plugin
   billing mode, its tiers, assumptions, and usage hints. Left and right move
   between modes. `not_implemented`, an empty mode, and RPC errors hide that
   section and leave property editing in place. The lookup does not replace
@@ -666,7 +679,9 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   fall through. `lru_max_items` of 0 uses 256. `FINFOCUS_CACHE_LRU_ENABLED`
   and `FINFOCUS_CACHE_LRU_MAX_ITEMS` override the file. A wrap failure keeps
   the Bolt store. The engine field stays `cache.Cache`
-- `checkPluginSupports` sends provider, type, SKU, and region, and caches per
+- `checkPluginSupports` sends the descriptor `proto.PrepareProjectedDescriptor` builds
+  (the same one `GetProjectedCost` sends, including a region inherited from a
+  referenced resource), and caches per
   client+provider+type+region+sku+feature (SKU is part of the key: a first SKU-less
   resource in a region must not poison the cached answer for every other SKU there);
   plugins on finfocus-spec ≥ v0.6.2 answer `Supports` for real, so a region-bound plugin

@@ -236,8 +236,12 @@ func (e *Engine) checkPluginSupports(
 	resource ResourceDescriptor,
 	feature string,
 ) (bool, string) {
-	props := ConvertToProto(resource.Properties)
-	sku, region := proto.ResolveSKUAndRegion(ctx, resource.Provider, resource.Type, props)
+	// The same descriptor GetProjectedCost sends, so a region inherited from a
+	// referenced resource reaches Supports too. A region-bound plugin that saw an
+	// empty region would decline a child it could price.
+	descriptor := proto.PrepareProjectedDescriptor(
+		ctx, resource.ID, resource.Provider, resource.Type, ConvertToProto(resource.Properties))
+	sku, region := descriptor.GetSku(), descriptor.GetRegion()
 	cacheKey := strings.Join([]string{client.Name, resource.Provider, resource.Type, region, sku, feature}, ":")
 
 	e.supportsMu.RLock()
@@ -253,7 +257,7 @@ func (e *Engine) checkPluginSupports(
 			ResourceType: resource.Type,
 			Sku:          sku,
 			Region:       region,
-			Tags:         props,
+			Tags:         descriptor.GetTags(),
 		},
 	})
 	if err != nil {
