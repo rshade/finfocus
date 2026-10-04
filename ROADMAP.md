@@ -17,75 +17,13 @@ guardrails in `CONTEXT.md`.
 
 *v0.4.0 released 2026-10-03. Everything below targets the next release.*
 
-- [ ] **Bug Queue** *(every open `bug` issue; worked from `roadmap/current`)*
-  - [ ] Key Kubernetes allocator nodes by cluster so same-named nodes across clusters don't merge
-        ([#1588](https://github.com/rshade/finfocus/issues/1588)) [S]
+The 2026-10-02 Overnight Queue finished: all 22 items closed 2026-10-03 (see
+Completed Milestones, 2026-Q4).
 
-- [ ] **Overnight Queue** *(promoted by /roadmap sync on 2026-10-02 for an
-      unattended serial run; work top to bottom, #1588 above is position 1)*
-  - *Run rules:*
-    - Work strictly in order. An item marked "after" needs those issues
-      finished first.
-    - Two failed attempts on an item means skip it and every item that
-      lists it under "after". Log the reason and continue.
-    - Each item needs `make lint` and `make test` green before the next one.
-    - Do not run `make test-e2e` (needs cloud credentials). Do not touch
-      `.golangci.yml`.
-    - Set `FINFOCUS_HOME` to a temp directory for every test run.
-  - [ ] **2.** Emit nested resource inputs as additive dotted tag keys
-        ([#1608](https://github.com/rshade/finfocus/issues/1608)) [M]
-  - [ ] **3.** Thread budget flag overrides explicitly instead of mutating
-        global config singleton
-        ([#808](https://github.com/rshade/finfocus/issues/808)) [M]
-  - [ ] **4.** Add `--output json` support to `finfocus overview`
-        ([#579](https://github.com/rshade/finfocus/issues/579)) [M]
-  - [ ] **5.** Plugin-provided GetPricingSpec as fallback before local YAML
-        specs ([#638](https://github.com/rshade/finfocus/issues/638)) [L]
-  - [ ] **6.** Cost history: `cost history collect` and `view --plain`
-        ([#549](https://github.com/rshade/finfocus/issues/549)) [L]
-  - [ ] **7.** Configuration validation with helpful error messages
-        ([#223](https://github.com/rshade/finfocus/issues/223)) [M]
-  - [ ] **8.** Resolve cross-resource references from Pulumi
-        `propertyDependencies` — after #1608
-        ([#1610](https://github.com/rshade/finfocus/issues/1610)) [M]
-    - *Scope:* issue steps 1-3 and 5 plus the region fill from step 4. Never
-      copy a referenced resource's SKU into the child. Leave pre-flight
-      validation unchanged and record the sparse-SKU decision as open in the
-      spec folder.
-  - [ ] **9.** Warning column and `OverviewWarning` type — after #579
-        ([#643](https://github.com/rshade/finfocus/issues/643)) [M]
-  - [ ] **10.** Enrich cost estimate with GetPricingSpec discovery data —
-        after #638
-        ([#637](https://github.com/rshade/finfocus/issues/637)) [M]
-  - [ ] **11.** Cost history export and inline sparklines — after #549
-        ([#551](https://github.com/rshade/finfocus/issues/551)) [M]
-  - [ ] **12.** Accessibility options (`--no-color`, `--plain`, high contrast)
-        ([#224](https://github.com/rshade/finfocus/issues/224)) [M]
-  - [ ] **13.** Add optional LRU in-memory cache layer to complement BoltStore
-        ([#495](https://github.com/rshade/finfocus/issues/495)) [M]
-  - [ ] **14.** Add `--explain` flag to `cost projected` — after #638, #637
-        ([#636](https://github.com/rshade/finfocus/issues/636)) [M]
-  - [ ] **15.** Cost history prune and retention policy — after #549
-        ([#555](https://github.com/rshade/finfocus/issues/555)) [M]
-  - [ ] **16.** Add cost diff view to `cost projected` command
-        ([#576](https://github.com/rshade/finfocus/issues/576)) [M]
-  - [ ] **17.** Test coverage for overview enrichment and CLI to 80%+ —
-        after #579, #643
-        ([#645](https://github.com/rshade/finfocus/issues/645)) [L]
-  - [ ] **18.** Add `--show-breakdown` and `--show-confidence` flags to cost
-        commands — after #636
-        ([#685](https://github.com/rshade/finfocus/issues/685)) [M]
-  - [ ] **19.** Handle mixed-currency snapshots in cost history — after #549
-        ([#556](https://github.com/rshade/finfocus/issues/556)) [M]
-  - [ ] **20.** Cost history diff: resource-level change attribution —
-        after #549
-        ([#554](https://github.com/rshade/finfocus/issues/554)) [L]
-  - [ ] **21.** Overview command documentation with screenshots — after #579,
-        #643, #645
-        ([#646](https://github.com/rshade/finfocus/issues/646)) [M]
-  - [ ] **22.** CI/CD automation recipes for cost history (documentation) —
-        after #549, #551
-        ([#553](https://github.com/rshade/finfocus/issues/553)) [S]
+- [ ] **Bug Queue**
+  - [ ] `speckit`: `create-new-feature.sh` breaks when `git fetch --all`
+        prints to stdout (two or more remotes)
+        ([#1669](https://github.com/rshade/finfocus/issues/1669)) [S]
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -108,6 +46,9 @@ guardrails in `CONTEXT.md`.
   - [ ] Configuration: Allow default profile definition in `finfocus.yaml`
   - *Spec ready:* `UsageProfile` enum (PROD/DEV/BURST) available in
     finfocus-spec v0.5.5 — core-only implementation
+- [ ] **Projected Cost Diagnostics**
+  - [ ] Report the missing region instead of "no cost data available"
+        ([#1670](https://github.com/rshade/finfocus/issues/1670)) [M]
 - [ ] **Scale Testing**
   - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
         ([#658](https://github.com/rshade/finfocus/issues/658)) [M]
@@ -123,9 +64,6 @@ guardrails in `CONTEXT.md`.
   - *Status: Spec primitives available (GrowthType/GrowthRate)*
 
 - [ ] **Kubernetes Cost Allocation — Pulumi Integration**
-  - [ ] Projected cost for Kubernetes workloads declared in a Pulumi program
-        (Deployment/StatefulSet/DaemonSet/Job/CronJob)
-        ([#1525](https://github.com/rshade/finfocus/issues/1525)) [L]
   - [ ] `finfocus overview` expansion of Kubernetes clusters in the stack
         ([#1526](https://github.com/rshade/finfocus/issues/1526)) [L]
 - [ ] **Kubernetes Cost Allocation — Usage & Pricing**
@@ -134,14 +72,11 @@ guardrails in `CONTEXT.md`.
   - *Cross-Repo:* [rshade/finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public)
     spot pricing for EC2 nodes ([#406](https://github.com/rshade/finfocus-plugin-aws-public/issues/406)) and the finfocus-spec v0.6.2 bump
     ([#407](https://github.com/rshade/finfocus-plugin-aws-public/issues/407)), which must wait for the finfocus v0.3.8 release
-- [ ] **Azure Resource Resolution — Sparse-SKU Pre-Flight** *(decision
-      needed; no issue filed yet)*
-  - *Open decision:* core's strict `ValidateProjectedCostRequest` rejects a
-    resource with an empty SKU before a plugin sees it. Choose between
-    lenient validation for resources that carry resolved tags (the SDK's
-    `ValidateProjectedCostRequestLenient` and `SPARSE_PROPERTIES` contract)
-    and a documented placeholder. The Azure plugin cannot use the dotted
-    tags from #1608 until this is decided.
+- [x] **Azure Resource Resolution — Sparse-SKU Pre-Flight** *(decided in
+      #1610)*
+  - *Decision:* a projected resource with `ref.*` tags and an empty SKU uses
+    `pluginsdk.ValidateProjectedCostRequestLenient` instead of failing closed
+    on SKU, so plugins see the dotted tags from #1608.
   - *Transferred:* the per-type Azure SKU table (was #1609) moved to
     [finfocus-plugin-azure-public issue 69](https://github.com/rshade/finfocus-plugin-azure-public/issues/69).
     It conflicted with the "Baked-in Provider Logic" boundary in
@@ -165,19 +100,16 @@ guardrails in `CONTEXT.md`.
         ([#545](https://github.com/rshade/finfocus/issues/545)) [S]
   - [ ] Add GetRecommendationHistory RPC to CostSourceService
         ([#546](https://github.com/rshade/finfocus/issues/546)) [M]
-- [ ] **Cost Time Machine** *(Phases 1 and 3 and the follow-ups are in the
-      Overnight Queue; Phase 2 stays here because it needs visual TUI
+- [ ] **Cost Time Machine** *(Phases 1 and 3 and the follow-ups shipped
+      2026-10-03; Phase 2 stays here because it needs visual TUI
       verification)*
   - [ ] Phase 2 — Interactive TUI: ntcharts TimeSeriesLineChart with
         pan/zoom, provider split, budget overlay
         ([#550](https://github.com/rshade/finfocus/issues/550)) [L]
 - [ ] TUI Lazy Loading & Error Recovery (#483) [L] *Deferred from TUI Phase 7*
 - [ ] Plugin integrity verification strategy (#164) [M]
-- [ ] **Plugin Generator Enhancements** *(Deprioritized — solo plugin dev)*
-  - [ ] Update Plugin Generator Templates for spec v0.5.x (#248) [M]
 - [ ] Use registry-based plugin install for cross-repo integration tests
       ([#517](https://github.com/rshade/finfocus/issues/517)) [M]
-- [ ] Plugin developer upgrade command for SDK migrations (#270) [L] — *Research*
 - [ ] **Dependency Visualization ("Blast Radius")**
       ([#366](https://github.com/rshade/finfocus/issues/366)) [L]
   - [ ] TUI: Interactive Dependency Tree view (consuming Lineage Metadata)
@@ -221,9 +153,6 @@ guardrails in `CONTEXT.md`.
   - [ ] `plugin-manage` — Discover, install, update, validate, and
         troubleshoot finfocus plugins via gRPC protocol
         ([#911](https://github.com/rshade/finfocus/issues/911)) [M]
-  - [x] `finfocus-diagnose` — Debug plugin connectivity, config resolution,
-        BoltDB cache issues, and zero-cost results
-        ([#913](https://github.com/rshade/finfocus/issues/913)) [M]
   - *Format:* Agent Skills spec (SKILL.md + references/), installable via
     `npx skills add rshade/finfocus -s <name>`
   - *Generic cost workflow skills (cost-check, cost-drift, cost-optimize,
@@ -356,6 +285,56 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q4
 
+- [x] #1525 `kubernetes`: projected cost for workloads declared in Pulumi.
+      Closed 2026-10-04. [L]
+- [x] #1610 `engine`: resolve cross-resource refs from `propertyDependencies`.
+      Closed 2026-10-03. [M]
+- [x] #1608 `engine`: emit nested resource inputs as dotted tag keys.
+      Closed 2026-10-03. [M]
+- [x] #1588 `kubernetes`: key allocator nodes by cluster and node name.
+      Closed 2026-10-03. [S]
+- [x] #808 `cli`: thread budget flag overrides without global mutation.
+      Closed 2026-10-03. [M]
+- [x] #579 `overview`: add `--output json` support.
+      Closed 2026-10-03. [M]
+- [x] #638 `engine`: price from plugin GetPricingSpec before local YAML.
+      Closed 2026-10-03. [L]
+- [x] #549 `history`: add `cost history collect` and `view --plain`.
+      Closed 2026-10-03. [L]
+- [x] #223 `config`: validate configuration with helpful error messages.
+      Closed 2026-10-03. [M]
+- [x] #643 `overview`: add the Warn column and `OverviewWarning` type.
+      Closed 2026-10-03. [M]
+- [x] #637 `tui`: enrich cost estimate with GetPricingSpec discovery.
+      Closed 2026-10-03. [M]
+- [x] #551 `history`: add history export and inline sparklines.
+      Closed 2026-10-03. [M]
+- [x] #224 `cli`: add `--no-color`, `--plain` and high-contrast options.
+      Closed 2026-10-03. [M]
+- [x] #495 `cache`: add an optional LRU tier over BoltDB.
+      Closed 2026-10-03. [M]
+- [x] #636 `cli`: add `--explain` to `cost projected`.
+      Closed 2026-10-03. [M]
+- [x] #555 `history`: add history prune and retention policy.
+      Closed 2026-10-03. [M]
+- [x] #576 `engine`: add the cost diff view to `cost projected`.
+      Closed 2026-10-03. [M]
+- [x] #645 `tests`: raise overview enrichment and CLI coverage to 80%+.
+      Closed 2026-10-03. [L]
+- [x] #685 `cli`: add `--show-breakdown` and `--show-confidence` flags.
+      Closed 2026-10-03. [M]
+- [x] #556 `history`: handle mixed-currency history snapshots.
+      Closed 2026-10-03. [M]
+- [x] #554 `history`: add `cost history diff` change attribution.
+      Closed 2026-10-03. [L]
+- [x] #646 `docs`: document the overview command with examples.
+      Closed 2026-10-03. [M]
+- [x] #553 `docs`: add CI/CD recipes for cost history collection.
+      Closed 2026-10-03. [S]
+- [x] #248 `plugin-init`: scaffold plugins on core's finfocus-spec version.
+      Closed 2026-10-03. [M]
+- [x] #270 `plugin`: add `plugin upgrade` for SDK migrations.
+      Closed 2026-10-03. [L]
 - [x] #913 `skills`: add the finfocus-diagnose agent skill.
       Closed 2026-10-03. [M]
 - [x] #1208 `lint`: apply Go modernization lint rules incrementally.
@@ -492,28 +471,20 @@ guardrails in `CONTEXT.md`.
 
 ### 2026-Q2
 
-- [x] Implement BatchCost RPC consumer for multi-resource queries
-      ([#846](https://github.com/rshade/finfocus/issues/846)) [L]
-      *(Completed 2026-04-04)*
-- [x] Implement EstimateCost RPC consumer (remove stub)
-      ([#847](https://github.com/rshade/finfocus/issues/847)) [M]
-      *(Completed 2026-04-04)*
-- [x] Resource History Store with Layered Cost Attribution
-      ([#934](https://github.com/rshade/finfocus/issues/934)) [L]
-      *(Completed 2026-04-04)*
-- [x] Capture analyzer resource properties and extract tags into history
-      ([#955](https://github.com/rshade/finfocus/issues/955)) [S]
-      *(Completed 2026-04-05)*
-- [x] buildBatchCostRequest should validate resources before batching
-      ([#980](https://github.com/rshade/finfocus/issues/980)) [M]
-      *(Completed 2026-04-06)*
-- [x] Fix type loss in `mergePropertiesWithOverrides` (overrides written as
-      strings)
-      ([#971](https://github.com/rshade/finfocus/issues/971)) [M]
-      *(Completed 2026-04-06)*
-- [x] Fix double-prefixing in `StackContext.Hash`
-      ([#966](https://github.com/rshade/finfocus/issues/966)) [S]
-      *(Completed 2026-04-06)*
+- [x] #846 `engine`: implement the BatchCost RPC consumer.
+      Closed 2026-04-04. [L]
+- [x] #847 `engine`: implement the EstimateCost RPC consumer.
+      Closed 2026-04-04. [M]
+- [x] #934 `history`: add the resource history store.
+      Closed 2026-04-04. [L]
+- [x] #955 `analyzer`: capture resource properties and tags into history.
+      Closed 2026-04-05. [S]
+- [x] #980 `engine`: validate resources before BatchCost batching.
+      Closed 2026-04-06. [M]
+- [x] #971 `engine`: fix type loss in `mergePropertiesWithOverrides`.
+      Closed 2026-04-06. [M]
+- [x] #966 `engine`: fix double-prefixing in `StackContext.Hash`.
+      Closed 2026-04-06. [S]
 
 ### 2026-Q1
 
