@@ -398,8 +398,70 @@ func (e *Engine) filterUnsupportedPlugins(
 	return filtered, declines
 }
 
+// skipScorerOnly reports whether feature must leave scorer-only plugins out.
+// Cost features drop them before Supports, so they are never offered a cost
+// RPC and never appear in an unpriced decline note. The recommendations
+// feature still returns them; routeRecommendationTargets drops them after
+// Supports.
+func skipScorerOnly(feature string) bool {
+	return feature != recommendationsFeature
+}
+
+// clientsForFeature returns the clients a feature may call. Cost features
+// omit scorer-only plugins. The recommendations feature keeps every client.
+func (e *Engine) clientsForFeature(feature string) []*pluginhost.Client {
+	if !skipScorerOnly(feature) {
+		return e.clients
+	}
+	return clientsWithoutScorers(e.clients)
+}
+
+// clientsWithoutScorers copies clients with scorer-only plugins removed.
+// A nil client is kept. Plugins with no capabilities stay, as do plugins
+// that advertise recommendations alongside scoring.
+func clientsWithoutScorers(clients []*pluginhost.Client) []*pluginhost.Client {
+	kept := make([]*pluginhost.Client, 0, len(clients))
+	for _, client := range clients {
+		if client != nil && isScorerOnly(client) {
+			continue
+		}
+		kept = append(kept, client)
+	}
+	return kept
+}
+
+// matchesWithoutScorers copies matches with scorer-only plugins removed.
+// The result is empty and non-nil when every match was scorer-only, which
+// is distinct from a nil match list (an intentionally filtered resource).
+func matchesWithoutScorers(matches []PluginMatch) []PluginMatch {
+	kept := make([]PluginMatch, 0, len(matches))
+	for _, match := range matches {
+		if match.Client != nil && isScorerOnly(match.Client) {
+			continue
+		}
+		kept = append(kept, match)
+	}
+	return kept
+}
+
+// automaticMatches builds fallback matches. Every match allows fallback.
+func automaticMatches(clients []*pluginhost.Client) []PluginMatch {
+	matches := make([]PluginMatch, len(clients))
+	for i, client := range clients {
+		matches[i] = PluginMatch{
+			Client:      client,
+			Priority:    0,
+			Fallback:    true,
+			MatchReason: matchSourceAutomatic,
+			Source:      matchSourceAutomatic,
+		}
+	}
+	return matches
+}
+
 // selectPluginMatchesForResource returns the full PluginMatch list for a resource.
 // This includes fallback configuration and priority information for each plugin.
+// Scorer-only plugins are omitted for every feature except recommendations.
 //
 // Parameters:
 //   - ctx: Context for cancellation and tracing
@@ -440,16 +502,7 @@ func (e *Engine) selectPluginMatchesForResource(
 			Int("client_count", len(e.clients)).
 			Msg("no router configured, using all clients")
 
-		matches := make([]PluginMatch, len(e.clients))
-		for i, client := range e.clients {
-			matches[i] = PluginMatch{
-				Client:      client,
-				Priority:    0,
-				Fallback:    true, // Default to fallback enabled
-				MatchReason: matchSourceAutomatic,
-				Source:      matchSourceAutomatic,
-			}
-		}
+		matches := automaticMatches(e.clientsForFeature(feature))
 		return e.filterUnsupportedPlugins(ctx, matches, resource, feature)
 	}
 
@@ -474,18 +527,14 @@ func (e *Engine) selectPluginMatchesForResource(
 			Str("resource_type", resource.Type).
 			Msg("router returned no matches, falling back to all clients")
 
-		// Create matches for all clients with fallback enabled
-		fallbackMatches := make([]PluginMatch, len(e.clients))
-		for i, client := range e.clients {
-			fallbackMatches[i] = PluginMatch{
-				Client:      client,
-				Priority:    0,
-				Fallback:    true,
-				MatchReason: matchSourceAutomatic,
-				Source:      matchSourceAutomatic,
-			}
-		}
+		fallbackMatches := automaticMatches(e.clientsForFeature(feature))
 		return e.filterUnsupportedPlugins(ctx, fallbackMatches, resource, feature)
+	}
+
+	// Strip after the empty check. An explicit route that names only a
+	// scorer stays empty and does not fall back to every other client.
+	if skipScorerOnly(feature) {
+		matches = matchesWithoutScorers(matches)
 	}
 
 	log.Debug().
@@ -1724,7 +1773,7 @@ func (e *Engine) getHourlyRateForResource(
 	ctx context.Context,
 	resource ResourceDescriptor,
 ) (float64, error) {
-	for _, client := range e.clients {
+	for _, client := range clientsWithoutScorers(e.clients) {
 		costResult, err := e.getProjectedCostFromPlugin(ctx, client, resource)
 		if err != nil {
 			continue
