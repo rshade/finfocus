@@ -2879,6 +2879,27 @@ func TestToStringMap(t *testing.T) {
 			input: map[string]interface{}{"str": "val", "num": 42, "nil": nil},
 			want:  map[string]string{"str": "val", "num": "42"},
 		},
+		{
+			name: "nested sku map collapses to name",
+			input: map[string]interface{}{
+				"sku": map[string]interface{}{
+					"name":     "Standard_D2s_v5",
+					"tier":     "Standard",
+					"capacity": 3,
+				},
+			},
+			want: map[string]string{"sku": "Standard_D2s_v5"},
+		},
+		{
+			name:  "nested value map collapses to value",
+			input: map[string]interface{}{"output": map[string]interface{}{"value": "resolved"}},
+			want:  map[string]string{"output": "resolved"},
+		},
+		{
+			name:  "float64 integer formats without decimal point",
+			input: map[string]interface{}{"num": float64(42)},
+			want:  map[string]string{"num": "42"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -2908,6 +2929,35 @@ func TestEnrichTagsWithSKUAndRegion(t *testing.T) {
 		assert.Equal(t, "web-server", tags["Name"]) // Original preserved
 		assert.Equal(t, "aws", tags["provider"])
 		assert.Equal(t, "aws:ec2/instance:Instance", tags["resource_type"])
+	})
+
+	t.Run("azure-native VMSS nested sku object becomes its name", func(t *testing.T) {
+		t.Parallel()
+		ctx := context.Background()
+		tags := map[string]string{}
+		props := map[string]interface{}{
+			"sku": map[string]interface{}{
+				"name":     "Standard_D2s_v5",
+				"tier":     "Standard",
+				"capacity": 3,
+			},
+			"location": "eastus",
+		}
+
+		enrichTagsWithSKUAndRegion(
+			ctx, tags, "azure", "azure-native:compute:VirtualMachineScaleSet", props,
+		)
+
+		assert.Equal(t, "Standard_D2s_v5", tags["sku"])
+
+		// The injected tags must match what the actual-cost Resource descriptor
+		// carries for the same resource (built from converted properties).
+		descriptor := PrepareProjectedDescriptor(
+			ctx, "vmss-1", "azure", "azure-native:compute:VirtualMachineScaleSet",
+			toStringMap(props), nil,
+		)
+		assert.Equal(t, descriptor.GetSku(), tags["sku"])
+		assert.Equal(t, descriptor.GetRegion(), tags["region"])
 	})
 
 	t.Run("does not overwrite existing sku/region in tags", func(t *testing.T) {
