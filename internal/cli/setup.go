@@ -393,19 +393,12 @@ func collectCriticalErrors(result *SetupResult) error {
 	return errors.Join(stepErrs...)
 }
 
-// pluginHasVersionDir checks if a plugin directory contains at least one
-// plausible version subdirectory (a directory starting with "v" and not ".").
-func pluginHasVersionDir(pluginDir string) bool {
-	entries, err := os.ReadDir(pluginDir)
-	if err != nil {
-		return false
-	}
-	for _, entry := range entries {
-		if entry.IsDir() && !strings.HasPrefix(entry.Name(), ".") && strings.HasPrefix(entry.Name(), "v") {
-			return true
-		}
-	}
-	return false
+// pluginInstalled reports whether the registry can resolve an installed version of
+// the named plugin under pluginDir, i.e. at least one valid semver version directory
+// (with or without a "v" prefix, symlinks followed) containing a plugin binary.
+func pluginInstalled(pluginDir, pluginName string) bool {
+	_, found, _, err := registry.New(pluginDir).GetLatestPlugin(pluginName)
+	return err == nil && found
 }
 
 // StepDisplayVersion prints the FinFocus version and Go runtime info.
@@ -620,9 +613,9 @@ func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []
 
 	var results []StepResult
 	for _, pluginName := range DefaultPlugins {
-		// Check if already installed by scanning the plugin directory
-		pluginPath := filepath.Join(pluginDir, pluginName)
-		if info, statErr := os.Stat(pluginPath); statErr == nil && info.IsDir() && pluginHasVersionDir(pluginPath) {
+		// Check if already installed using the registry's version resolution,
+		// so setup agrees with plugin list/inspect about what counts as installed.
+		if pluginInstalled(pluginDir, pluginName) {
 			results = append(results, StepResult{
 				Name:    stepNamePluginInstall,
 				Status:  StepSuccess,

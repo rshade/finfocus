@@ -464,9 +464,11 @@ func TestStepInstallPlugins_AlreadyInstalled(t *testing.T) {
 	tmpDir := t.TempDir()
 	t.Setenv("FINFOCUS_HOME", tmpDir)
 
-	// Pre-create the plugin directory structure
+	// Pre-create the plugin directory structure with an executable binary so the
+	// registry's version resolution detects the plugin as installed (#1683).
 	pluginDir := filepath.Join(tmpDir, "plugins", "aws-public", "v0.1.0")
 	require.NoError(t, os.MkdirAll(pluginDir, cli.DirPermPlugins))
+	writeInstalledPluginBinary(t, pluginDir)
 
 	runner := &cli.SetupRunner{}
 	steps := runner.StepInstallPlugins(t.Context(), tmpDir)
@@ -474,6 +476,81 @@ func TestStepInstallPlugins_AlreadyInstalled(t *testing.T) {
 	require.Len(t, steps, len(cli.DefaultPlugins))
 	assert.Equal(t, cli.StepSuccess, steps[0].Status)
 	assert.Contains(t, steps[0].Message, "already installed")
+}
+
+// writeInstalledPluginBinary writes an executable plugin binary into versionDir.
+func writeInstalledPluginBinary(t *testing.T, versionDir string) {
+	t.Helper()
+	binPath := filepath.Join(versionDir, "finfocus-plugin-aws-public")
+	if runtime.GOOS == "windows" {
+		binPath += ".exe"
+	}
+	require.NoError(t, os.WriteFile(binPath, []byte("#!/bin/sh\necho test"), 0o755))
+}
+
+// TestStepInstallPlugins_VersionDirForms verifies setup detects an installed plugin
+// using the same rule as plugin list/inspect (issue #1683): version directories
+// with or without a "v" prefix count, and symlinks are followed (issue #750).
+func TestStepInstallPlugins_VersionDirForms(t *testing.T) {
+	tests := []struct {
+		name    string
+		setupFn func(t *testing.T, pluginRoot string)
+	}{
+		{
+			name: "v-prefixed version dir",
+			setupFn: func(t *testing.T, pluginRoot string) {
+				t.Helper()
+				dir := filepath.Join(pluginRoot, "aws-public", "v0.1.0")
+				require.NoError(t, os.MkdirAll(dir, cli.DirPermPlugins))
+				writeInstalledPluginBinary(t, dir)
+			},
+		},
+		{
+			name: "bare semver version dir",
+			setupFn: func(t *testing.T, pluginRoot string) {
+				t.Helper()
+				dir := filepath.Join(pluginRoot, "aws-public", "0.1.0")
+				require.NoError(t, os.MkdirAll(dir, cli.DirPermPlugins))
+				writeInstalledPluginBinary(t, dir)
+			},
+		},
+		{
+			name: "symlinked version dir",
+			setupFn: func(t *testing.T, pluginRoot string) {
+				t.Helper()
+				if runtime.GOOS == "windows" {
+					t.Skipf("os.Symlink may require elevation on Windows; skipping symlink test")
+				}
+				realDir := filepath.Join(pluginRoot, "aws-public", "v0.1.0")
+				require.NoError(t, os.MkdirAll(realDir, cli.DirPermPlugins))
+				writeInstalledPluginBinary(t, realDir)
+				require.NoError(t, os.Symlink(realDir, filepath.Join(pluginRoot, "aws-public", "0.2.0")))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			t.Setenv("FINFOCUS_HOME", tmpDir)
+
+			pluginRoot := filepath.Join(tmpDir, "plugins")
+			tt.setupFn(t, pluginRoot)
+
+			runner := &cli.SetupRunner{
+				PluginInstaller: cli.PluginInstallerFunc(
+					func(_ context.Context, _ string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
+						return nil, errors.New("installer must not be called for an installed plugin")
+					},
+				),
+			}
+			steps := runner.StepInstallPlugins(t.Context(), tmpDir)
+
+			require.Len(t, steps, len(cli.DefaultPlugins))
+			assert.Equal(t, cli.StepSuccess, steps[0].Status)
+			assert.Contains(t, steps[0].Message, "already installed")
+		})
+	}
 }
 
 // --- US2 Idempotency Tests ---
