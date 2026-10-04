@@ -1,0 +1,89 @@
+package engine
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
+)
+
+func scaleSetResource() ResourceDescriptor {
+	return ResourceDescriptor{
+		ID:       "urn:pulumi:dev::app::azure-native:compute:VirtualMachineScaleSet::vmss",
+		Type:     "azure-native:compute:VirtualMachineScaleSet",
+		Provider: "azure",
+		Properties: map[string]any{
+			"location":      "eastus",
+			"sku":           map[string]any{"name": "Standard_D2s_v3", "capacity": float64(3)},
+			"adminPassword": "hunter2",
+		},
+	}
+}
+
+func TestGetActualCostFromPlugin_SendsResource(t *testing.T) {
+	t.Parallel()
+
+	var captured *proto.GetActualCostRequest
+	mockAPI := &mockBatchCostSourceClient{
+		getActualCostFunc: func(
+			_ context.Context, in *proto.GetActualCostRequest, _ ...grpc.CallOption,
+		) (*proto.GetActualCostResponse, error) {
+			captured = in
+			return &proto.GetActualCostResponse{
+				Results: []*proto.ActualCostResult{{Currency: "USD", TotalCost: 30}},
+			}, nil
+		},
+	}
+	client := makeBatchCapableClient("list-price", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+
+	resource := scaleSetResource()
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	_, err := eng.getActualCostFromPlugin(context.Background(), client, resource, from, from.AddDate(0, 0, 30))
+	require.NoError(t, err)
+	require.NotNil(t, captured)
+	require.NotNil(t, captured.Resource)
+
+	assert.Equal(t, resource.ID, captured.Resource.ID)
+	assert.Equal(t, resource.Type, captured.Resource.Type)
+	assert.Equal(t, "azure", captured.Resource.Provider)
+	assert.Equal(t, "3", captured.Resource.Properties["sku.capacity"])
+	assert.NotContains(t, captured.Resource.Properties, "adminPassword")
+
+	attrs := captured.Resource.Attributes.AsMap()
+	assert.InDelta(t, 3.0, attrs["sku"].(map[string]any)["capacity"], 1e-9)
+	assert.NotContains(t, attrs, "adminPassword")
+}
+
+func TestGenerateActualCostCacheKey_Attributes(t *testing.T) {
+	t.Parallel()
+
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	request := func(capacity float64) ActualCostRequest {
+		r := scaleSetResource()
+		r.Properties["sku"] = map[string]any{"name": "Standard_D2s_v3", "capacity": capacity}
+		return ActualCostRequest{Resources: []ResourceDescriptor{r}, From: from, To: from.AddDate(0, 0, 30)}
+	}
+
+	assert.NotEqual(t, generateActualCostCacheKey(request(3)), generateActualCostCacheKey(request(5)),
+		"a plugin can price from attributes, so a changed declared input must miss the cache")
+
+	bare := ActualCostRequest{
+		Resources: []ResourceDescriptor{{Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws"}},
+		From:      from,
+		To:        from.AddDate(0, 0, 30),
+	}
+	redactedOnly := bare
+	redactedOnly.Resources = []ResourceDescriptor{{
+		Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws",
+		Properties: map[string]any{"password": "hunter2", "__defaults": []any{}},
+	}}
+	assert.Equal(t, generateActualCostCacheKey(bare), generateActualCostCacheKey(redactedOnly),
+		"a resource that sends no attributes keeps its existing key")
+}

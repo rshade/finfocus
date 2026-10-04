@@ -11,7 +11,6 @@ import (
 	"time"
 
 	protobuf "google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -332,17 +331,13 @@ func buildBatchCostRequest(
 	)
 
 	for _, ir := range resources {
-		var attrs *structpb.Struct
-		if opts.queryType != pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
-			attrs = BuildAttributes(ctx, ir.resource.Properties)
-		}
 		descriptor := proto.PrepareProjectedDescriptor(
 			ctx,
 			ir.resource.ID,
 			ir.resource.Provider,
 			ir.resource.Type,
 			ConvertToProto(ir.resource.Properties),
-			attrs,
+			BuildAttributes(ctx, ir.resource.Properties),
 		)
 
 		// Pre-flight validation using the same pluginsdk validators as the non-batch path

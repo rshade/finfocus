@@ -1899,6 +1899,13 @@ func (e *Engine) getActualCostFromPlugin(
 		Properties:   resource.Properties,
 		Provider:     resource.Provider,
 		ResourceType: resource.Type,
+		Resource: &proto.ResourceDescriptor{
+			ID:         resource.ID,
+			Type:       resource.Type,
+			Provider:   resource.Provider,
+			Properties: ConvertToProto(resource.Properties),
+			Attributes: BuildAttributes(ctx, resource.Properties),
+		},
 	}
 
 	resp, err := client.API.GetActualCost(ctx, req)
@@ -4127,6 +4134,18 @@ func generateActualCostCacheKey(request ActualCostRequest) string {
 	}
 	for k, v := range request.Tags {
 		filters["tag:"+k] = v
+	}
+	// Plugins may price actual cost from attributes, so a changed declared
+	// input must not reuse an older answer. Resources that send none add nothing.
+	var attrDigests []string
+	for _, r := range request.Resources {
+		if suffix := attributesCacheSuffix(r.Properties); suffix != "" {
+			attrDigests = append(attrDigests, r.ID+"="+suffix)
+		}
+	}
+	if len(attrDigests) > 0 {
+		sort.Strings(attrDigests)
+		filters["attrs"] = strings.Join(attrDigests, ",")
 	}
 
 	return cache.BuildActualKey(provider, resourceTypes, request.From, request.To, filters)

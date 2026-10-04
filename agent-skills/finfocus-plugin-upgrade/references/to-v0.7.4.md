@@ -10,6 +10,10 @@ v0.7.4 removed and renamed nothing. Bumping `go.mod`, which
   redaction included. When it is set, pricing dimensions come from it and not
   from tags, and tags stay the resource's cloud tags. The same resource is sent
   on every page.
+- finfocus core sends it for single-resource actual cost requests whose
+  resource has a provider and type, built from the same redacted inputs as
+  the projected descriptor. Request `tags` keep their old keys for older
+  plugins.
 - Unset means the host sent none. Plugins fall back to `tags`, `resource_id`,
   and `arn`, as before.
 - `pluginsdk.ValidateActualCostRequest` validates `resource` when it is set.

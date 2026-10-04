@@ -354,8 +354,8 @@ nested. Spec: `specs/619-dotted-tag-keys/`.
 
 Core also sends the raw properties as `ResourceDescriptor.attributes`
 (finfocus-spec v0.7.3), built by `engine.BuildAttributes`. They go on projected
-`GetProjectedCost` and `BatchCost`, `Supports`, and `GetPricingSpec`, not on
-actual cost. At any depth they drop keys `skipDottedSegment` rejects (`__`
+`GetProjectedCost` and `BatchCost`, `Supports`, `GetPricingSpec`, actual
+`BatchCost`, and `GetActualCostRequest.resource` (finfocus-spec v0.7.4). At any depth they drop keys `skipDottedSegment` rejects (`__`
 and credential-like names) and Pulumi secrets (`history.IsPulumiSecret`, the one
 shared rule). At the top level they drop `ref` and `ref.*`. Pulumi unknowns and
 the `tags`/`labels` containers are kept. Over `pluginsdk.MaxAttributesBytes`
@@ -365,6 +365,16 @@ the `tags`/`labels` containers are kept. Over `pluginsdk.MaxAttributesBytes`
 projected `BatchCost` chunk is also split so its descriptors stay under
 `maxBatchRequestBytes` (3 MiB; grpc-go's default limit is 4 MiB). Tags are
 unchanged. Spec: `specs/621-k8s-workload-projected-cost/`.
+
+`GetActualCostRequest.resource` is built by `proto.actualCostDescriptor` from
+`GetActualCostRequest.Resource` with `PrepareProjectedDescriptor`, as the spec
+requires. It is optional enrichment: it is dropped (warn log, request still
+sent) when the request names more than one resource, provider or type is
+empty, or `pluginsdk.ValidateResourceDescriptor` rejects it, never a
+`VALIDATION` placeholder. Request `tags` keep the injected `sku`/`region`/
+`provider`/`resource_type` for plugins older than v0.7.4. Actual cache keys add
+an `attrs` filter (per-resource attributes digests) only when a resource sends
+attributes, so existing keys are unchanged.
 
 ### Property Extraction
 
