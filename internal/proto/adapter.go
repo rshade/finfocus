@@ -386,6 +386,12 @@ func GetActualCostWithErrors(
 		Errors:  []ErrorDetail{},
 	}
 
+	descriptor := actualCostDescriptor(ctx, req)
+	var resource *ResourceDescriptor
+	if descriptor != nil {
+		resource = req.Resource
+	}
+
 	for _, resourceID := range req.ResourceIDs {
 		cloudID, arn, tags := resolveActualCostIdentifiers(resourceID, req.Properties)
 
@@ -404,6 +410,7 @@ func GetActualCostWithErrors(
 			End:        timestamppb.New(time.Unix(req.EndTime, 0)),
 			Tags:       tags,
 			Arn:        arn,
+			Resource:   descriptor,
 		}
 
 		if err := pluginsdk.ValidateActualCostRequest(protoReq); err != nil {
@@ -420,11 +427,13 @@ func GetActualCostWithErrors(
 		}
 
 		singleReq := &GetActualCostRequest{
-			ResourceIDs: []string{resourceID},
-			StartTime:   req.StartTime,
-			EndTime:     req.EndTime,
-			Properties:  req.Properties,
-			Provider:    req.Provider,
+			ResourceIDs:  []string{resourceID},
+			StartTime:    req.StartTime,
+			EndTime:      req.EndTime,
+			Properties:   req.Properties,
+			Provider:     req.Provider,
+			ResourceType: req.ResourceType,
+			Resource:     resource,
 		}
 
 		resp, err := client.GetActualCost(ctx, singleReq)
@@ -526,6 +535,10 @@ type GetActualCostRequest struct {
 	// Used by resolveSKUAndRegion as a fallback for well-known SKU resolution
 	// when property-based extraction returns empty.
 	ResourceType string
+	// Resource is sent as GetActualCostRequest.resource (finfocus-spec v0.7.4),
+	// built the same way as the projected descriptor. It is sent only for a
+	// single-resource request; see actualCostDescriptor for when it is dropped.
+	Resource *ResourceDescriptor
 }
 
 // ActualCostResult represents the calculated actual cost data retrieved from cloud providers.
@@ -1466,6 +1479,7 @@ func (c *clientAdapter) GetActualCost(
 	// Convert internal request to proto request
 	var results []*ActualCostResult
 	var firstErr error
+	descriptor := actualCostDescriptor(ctx, in)
 
 	for _, resourceID := range in.ResourceIDs {
 		// Resolve cloud-specific identifiers from properties
@@ -1485,6 +1499,7 @@ func (c *clientAdapter) GetActualCost(
 			End:        timestamppb.New(time.Unix(in.EndTime, 0)),
 			Tags:       tags,
 			Arn:        arn,
+			Resource:   descriptor,
 		}
 
 		resp, err := c.client.GetActualCost(ctx, req, opts...)

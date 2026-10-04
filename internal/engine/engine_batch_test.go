@@ -1895,31 +1895,29 @@ func requestBytes(req *pbc.BatchCostRequest) int {
 func TestBuildBatchCostRequestAttributes(t *testing.T) {
 	t.Parallel()
 
-	t.Run("projected carries attributes", func(t *testing.T) {
-		t.Parallel()
-		built := buildBatchCostRequest(context.Background(), makeValidIndexedResources(2),
-			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED})
-		require.NotNil(t, built.request)
-		for _, descriptor := range built.request.GetResources() {
-			value, ok := pluginsdk.AttributeValue(descriptor.GetAttributes(), "instanceType")
-			require.True(t, ok)
-			assert.Equal(t, "t3.micro", value.GetStringValue())
-		}
-	})
-
-	t.Run("actual does not", func(t *testing.T) {
-		t.Parallel()
-		built := buildBatchCostRequest(context.Background(), makeValidIndexedResources(2),
-			batchOptions{
-				queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL,
-				start:     timestamppb.New(time.Now().Add(-24 * time.Hour)),
-				end:       timestamppb.Now(),
-			})
-		require.NotNil(t, built.request)
-		for _, descriptor := range built.request.GetResources() {
-			assert.Nil(t, descriptor.GetAttributes())
-		}
-	})
+	tests := []struct {
+		name string
+		opts batchOptions
+	}{
+		{"projected", batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED}},
+		{"actual", batchOptions{
+			queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL,
+			start:     timestamppb.New(time.Now().Add(-24 * time.Hour)),
+			end:       timestamppb.Now(),
+		}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name+" carries attributes", func(t *testing.T) {
+			t.Parallel()
+			built := buildBatchCostRequest(context.Background(), makeValidIndexedResources(2), tt.opts)
+			require.NotNil(t, built.request)
+			for _, descriptor := range built.request.GetResources() {
+				value, ok := pluginsdk.AttributeValue(descriptor.GetAttributes(), "instanceType")
+				require.True(t, ok)
+				assert.Equal(t, "t3.micro", value.GetStringValue())
+			}
+		})
+	}
 }
 
 func TestSplitBatchBySize(t *testing.T) {

@@ -687,6 +687,29 @@ func (p *CustomPricingPlugin) GetProjectedCost(
 
 ---
 
+## Resource descriptor on actual cost
+
+From finfocus-spec v0.7.4, core sets `GetActualCostRequest.resource` to the
+same descriptor it sends for projected cost: `provider`, `resource_type`,
+`sku`, `region`, flattened `tags`, and redacted `attributes`. Read pricing
+dimensions from it, and fall back to `tags`, `resource_id`, and `arn` when it
+is unset:
+
+```go
+if resource := req.GetResource(); resource != nil {
+    sku, region := resource.GetSku(), resource.GetRegion()
+    // ...
+}
+```
+
+Request `tags` stay the resource's cloud tags. Core still adds `sku`,
+`region`, `provider`, and `resource_type` there for plugins built before
+v0.7.4, but a cloud tag with the same name wins, so treat those keys as labels
+when `resource` is set. Core leaves `resource` unset when the resource has no
+provider or type, or when the descriptor would exceed the SDK limits.
+
+---
+
 ## Dotted resource tags
 
 Projected cost, `Supports`, batch, and recommendation calls build
