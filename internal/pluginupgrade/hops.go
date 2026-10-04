@@ -104,6 +104,11 @@ var hops = []Hop{
 		Summary: "Additive release; ResourceDescriptor.attributes; tag values up to 2048 bytes",
 		Guide:   "to-v0.7.3.md",
 	},
+	{
+		To:      "v0.7.4",
+		Summary: "Additive release; GetActualCostRequest.resource",
+		Guide:   "to-v0.7.4.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.
