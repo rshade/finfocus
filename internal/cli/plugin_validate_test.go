@@ -290,6 +290,59 @@ func TestPluginValidateCmd_ValidPlugin(t *testing.T) {
 	assert.Contains(t, output, "valid") // Or "✓" depending on implementation
 }
 
+// TestPluginValidateCmd_VersionDisplay tests that the text output prints the version
+// with exactly one "v" prefix for both "v0.1.0/" and "0.1.0/" directory forms (#1682).
+//
+//nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
+func TestPluginValidateCmd_VersionDisplay(t *testing.T) {
+	setupTestEnv(t)
+	tempDir := os.Getenv("FINFOCUS_HOME")
+	pluginDir := filepath.Join(tempDir, "plugins")
+
+	tests := []struct {
+		name      string
+		plugin    string
+		dirName   string
+		wantPrint string
+	}{
+		{
+			name:      "v-prefixed directory (registry install)",
+			plugin:    "registry-plugin",
+			dirName:   "v0.1.0",
+			wantPrint: "Validating registry-plugin v0.1.0...",
+		},
+		{
+			name:      "bare directory (manual install)",
+			plugin:    "manual-plugin",
+			dirName:   "0.1.0",
+			wantPrint: "Validating manual-plugin v0.1.0...",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			versionDir := filepath.Join(pluginDir, tt.plugin, tt.dirName)
+			err := os.MkdirAll(versionDir, 0755)
+			require.NoError(t, err)
+			createMockPluginBinary(t, versionDir, "finfocus-plugin-"+tt.plugin)
+		})
+	}
+
+	cmd := cli.NewPluginValidateCmd()
+
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+
+	err := cmd.Execute()
+	require.NoError(t, err)
+
+	output := out.String()
+	for _, tt := range tests {
+		assert.Contains(t, output, tt.wantPrint)
+	}
+	assert.NotContains(t, output, "vv0.1.0")
+}
+
 // TestPluginValidateCmd_NonExecutable tests validation skips non-executable files.
 //
 //nolint:paralleltest // t.Setenv changes the process-wide environment (via setupTestEnv)
