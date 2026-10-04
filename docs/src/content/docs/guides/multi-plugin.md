@@ -130,8 +130,11 @@ The `search` row is the same `search-indexer` Deployment from Step 1. In Step
 its share of real node prices. Plan-time rates are configuration, so set them
 close to your nodes' per-vCPU and per-GiB cost if you want the two to agree.
 
-On EKS, the plugin also detects the control plane from the API server address
-and adds a `__cluster__` row for it, priced by aws-public.
+On EKS, the plugin also reports the control plane as a priceable resource
+when the configured API server host matches the EKS endpoint pattern
+(`<id>.<region>.eks.amazonaws.com`). A `__cluster__` row is added only when FinFocus
+returns a price for it; if no installed plugin prices the control plane, no
+row appears.
 
 ## Step 3: Score the Recommendations
 

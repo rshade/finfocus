@@ -721,7 +721,7 @@ We welcome contributions! See our development documentation:
 
 - [CONTRIBUTING.md](./support/contributing.md) - Development setup and guidelines
 - [CLAUDE.md](https://github.com/rshade/finfocus/blob/main/CLAUDE.md) - AI assistant development context
-- [Architecture Documentation](https://github.com/rshade/finfocus/blob/main/internal/) - Internal package documentation
+- [Architecture Documentation](https://github.com/rshade/finfocus/tree/main/internal/) - Internal package documentation
 
 ## License
 
@@ -729,16 +729,16 @@ Apache-2.0 - See [LICENSE](https://github.com/rshade/finfocus/blob/main/LICENSE)
 
 ## Agent Skills
 
-FinFocus ships [agent skills](https://github.com/rshade/finfocus/blob/main/agent-skills/) for AI coding assistants
+FinFocus ships [agent skills](https://github.com/rshade/finfocus/tree/main/agent-skills/) for AI coding assistants
 (Claude Code, Gemini CLI, etc.) that automate common workflows:
 
 | Skill | Description |
 |-------|-------------|
-| [finfocus-install](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-install/) | Install CLI, detect providers, setup plugins and config |
-| [finfocus-analyzer-setup](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation |
-| [finfocus-routing](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
-| [finfocus-budget](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-budget/) | Configure budget thresholds, health, and CI exit codes |
-| [finfocus-diagnose](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost |
+| [finfocus-install](https://github.com/rshade/finfocus/tree/main/agent-skills/finfocus-install/) | Install CLI, detect providers, setup plugins and config |
+| [finfocus-analyzer-setup](https://github.com/rshade/finfocus/tree/main/agent-skills/finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation |
+| [finfocus-routing](https://github.com/rshade/finfocus/tree/main/agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
+| [finfocus-budget](https://github.com/rshade/finfocus/tree/main/agent-skills/finfocus-budget/) | Configure budget thresholds, health, and CI exit codes |
+| [finfocus-diagnose](https://github.com/rshade/finfocus/tree/main/agent-skills/finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost |
 
 See [agent-skills/README.md](https://github.com/rshade/finfocus/blob/main/agent-skills/README.md) for the full list and
 planned skills.
@@ -751,4 +751,4 @@ planned skills.
 
 ---
 
-**Getting Started**: Try the [examples](https://github.com/rshade/finfocus/blob/main/examples/) directory for sample Pulumi plans and pricing specifications.
+**Getting Started**: Try the [examples](https://github.com/rshade/finfocus/tree/main/examples/) directory for sample Pulumi plans and pricing specifications.
