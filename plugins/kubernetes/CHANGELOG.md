@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.4](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.3...kubernetes-v0.1.4) (2026-10-04)
+
+
+### Features
+
+* **engine:** send the resource descriptor on actual cost requests ([#1680](https://github.com/rshade/finfocus/issues/1680)) ([13330a7](https://github.com/rshade/finfocus/commit/13330a736feeece6f2d27d839ccd2baf5e87d493))
+* **kubernetes:** price workloads declared in a Pulumi plan ([3bb6c11](https://github.com/rshade/finfocus/commit/3bb6c116b19fa64c95a6281f0b1118d26f5bffbd)), closes [#1525](https://github.com/rshade/finfocus/issues/1525)
+
+
+### Bug Fixes
+
+* **deps:** update go dependencies ([#1678](https://github.com/rshade/finfocus/issues/1678)) ([02a2525](https://github.com/rshade/finfocus/commit/02a2525732f4b1ffc429325857673804d36c5f7a))
+
 ## [0.1.3](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.2...kubernetes-v0.1.3) (2026-10-03)
 
 

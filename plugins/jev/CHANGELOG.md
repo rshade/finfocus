@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.2](https://github.com/rshade/finfocus/compare/jev-v0.1.1...jev-v0.1.2) (2026-10-04)
+
+
+### Features
+
+* **engine:** send the resource descriptor on actual cost requests ([#1680](https://github.com/rshade/finfocus/issues/1680)) ([13330a7](https://github.com/rshade/finfocus/commit/13330a736feeece6f2d27d839ccd2baf5e87d493))
+
+
+### Bug Fixes
+
+* **deps:** update go dependencies ([#1678](https://github.com/rshade/finfocus/issues/1678)) ([02a2525](https://github.com/rshade/finfocus/commit/02a2525732f4b1ffc429325857673804d36c5f7a))
+
 ## [0.1.1](https://github.com/rshade/finfocus/compare/jev-v0.1.0...jev-v0.1.1) (2026-10-03)
 
 
