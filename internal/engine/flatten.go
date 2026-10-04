@@ -142,8 +142,9 @@ func skipDottedSegment(segment string) bool {
 func isCredentialKey(key string) bool {
 	lower := strings.ToLower(key)
 	for _, fragment := range []string{
-		"password", "secret", "token", "credential", "ciphertext", "privatekey",
-		"apikey", "api_key", "accesskey", "access_key", "connectionstring", "connection_string",
+		"password", "passwd", "passphrase", "secret", "token", "credential", "ciphertext",
+		"privatekey", "private_key", "apikey", "api_key", "accesskey", "access_key",
+		"connectionstring", "connection_string",
 	} {
 		if strings.Contains(lower, fragment) {
 			return true

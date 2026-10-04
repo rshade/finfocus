@@ -697,7 +697,9 @@ leaf. Path segments join with `.`, and array elements use a zero-based index
 `ConvertValueToString`: whole numbers have no decimal point, and booleans are
 `true` or `false`.
 
-Existing keys and values stay the same, including keys that start with `__`.
+Existing keys and values stay the same, including keys that start with `__`,
+except that a top-level input with a credential-like name (the list below) or
+a Pulumi secret value is never sent, and collapsed map text leaves those out.
 If a dotted key collides with an existing key, the existing value wins.
 `EstimateCost` attributes stay nested `Struct` values and do not gain dotted
 keys.
@@ -707,8 +709,11 @@ The flattener does not emit:
 - nil leaves, empty maps, empty arrays, or a leaf equal to the Pulumi unknown
   sentinel `04da6b54-80e4-46f7-96ec-b56ff0331ba9`
 - a path with any segment that starts with `__`
-- a path whose segment contains `password`, `secret`, `token`, `credential`,
-  `ciphertext`, or `privatekey`, compared case-insensitively
+- a path whose segment contains `password`, `passwd`, `passphrase`, `secret`,
+  `token`, `credential`, `ciphertext`, `privatekey`, `private_key`, `apikey`,
+  `api_key`, `accesskey`, `access_key`, `connectionstring`, or
+  `connection_string`, compared case-insensitively
+- a Pulumi secret value
 - anything inside `tags`, `tagsAll`, `labels`, or `annotations`
 
 A scalar at six segments is kept. A seventh segment is not. A new key longer

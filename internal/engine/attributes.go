@@ -7,6 +7,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"strings"
 	"unicode/utf8"
 
@@ -112,11 +113,12 @@ func attributeValue(ctx context.Context, key string, value any) (*structpb.Value
 	default:
 		converted, err := structpb.NewValue(value)
 		if err != nil {
+			// Log the type only: structpb errors quote the value itself.
 			logging.FromContext(ctx).Debug().
 				Ctx(ctx).
 				Str("component", "engine").
 				Str("attribute", key).
-				Err(err).
+				Str("value_type", fmt.Sprintf("%T", value)).
 				Msg("attribute value cannot be represented, omitted")
 			return nil, false
 		}

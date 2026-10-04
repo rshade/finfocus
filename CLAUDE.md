@@ -333,9 +333,10 @@ exist. Spec: `specs/618-cross-resource-refs/`.
 
 `ConvertToProto` also emits dotted keys for nested maps and arrays
 (`sku.capacity`, `rootBlockDevice.0.volumeType`) beside each collapsed key.
-It skips `__` segments, credential-like segments (`password`, `secret`,
-`token`, `credential`, `ciphertext`, `privatekey`, `apikey`, `accesskey`,
-`connectionstring`, with the snake_case forms), a top-level input named `ref`
+It skips `__` segments, credential-like segments (`password`, `passwd`,
+`passphrase`, `secret`, `token`, `credential`, `ciphertext`, `privatekey`,
+`apikey`, `accesskey`, `connectionstring`, with the snake_case forms), a
+top-level input named `ref`
 (so it cannot flatten into the `ref.*` reference namespace), and the containers
 `tags`, `tagsAll`, `labels`, and `annotations`. Depth is capped at 6
 segments, new keys at 128 characters, new values at 256 characters, and the
