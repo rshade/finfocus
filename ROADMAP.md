@@ -21,7 +21,7 @@ The 2026-10-02 Overnight Queue finished: all 22 items closed 2026-10-03 (see
 Completed Milestones, 2026-Q4).
 
 - [ ] **Bug Queue**
-  - [ ] `speckit`: `create-new-feature.sh` breaks when `git fetch --all`
+  - [x] `speckit`: `create-new-feature.sh` breaks when `git fetch --all`
         prints to stdout (two or more remotes)
         ([#1669](https://github.com/rshade/finfocus/issues/1669)) [S]
 
