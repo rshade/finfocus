@@ -272,23 +272,52 @@ func TestEstimate_ReasonIsCapped(t *testing.T) {
 	assert.LessOrEqual(t, utf8.RuneCountInString(got.Reason), MaxReasonLength)
 }
 
-func TestEstimate_OtherTypesKeepTodaysReason(t *testing.T) {
+func TestEstimate_DeclineReasons(t *testing.T) {
 	t.Parallel()
 
-	for _, desc := range []*pbc.ResourceDescriptor{
-		{Provider: "kubernetes", ResourceType: "kubernetes:core/v1:ConfigMap"},
-		{Provider: "kubernetes", ResourceType: "kubernetes:core/v1:Service"},
-		{Provider: "kubernetes", ResourceType: "kubernetes:apps/v1:ReplicaSet"},
-		{Provider: "kubernetes", ResourceType: "kubernetes:apps/v1:DeploymentPatch"},
-		{Provider: "aws", ResourceType: "aws:ec2/instance:Instance"},
-		{Provider: "aws", ResourceType: typeDeployment},
-	} {
-		t.Run(desc.GetProvider()+"/"+desc.GetResourceType(), func(t *testing.T) {
-			t.Parallel()
+	t.Run("other providers get the provider reason", func(t *testing.T) {
+		t.Parallel()
+		for _, desc := range []*pbc.ResourceDescriptor{
+			{Provider: "aws", ResourceType: "aws:ec2/instance:Instance"},
+			{Provider: "aws", ResourceType: typeDeployment},
+		} {
 			got := Estimate(desc, standard())
-			assert.Equal(t, ReasonUsageOnly, got.Reason)
-		})
-	}
+			assert.Equal(t, ReasonWrongProvider, got.Reason)
+		}
+	})
+
+	t.Run("unpriced kubernetes kinds get the kind-list reason", func(t *testing.T) {
+		t.Parallel()
+		for _, resourceType := range []string{
+			"kubernetes:core/v1:ConfigMap",
+			"kubernetes:core/v1:Service",
+			"kubernetes:apps/v1:ReplicaSet",
+			"kubernetes:apps/v1:DeploymentPatch",
+		} {
+			desc := &pbc.ResourceDescriptor{Provider: "kubernetes", ResourceType: resourceType}
+			got := Estimate(desc, standard())
+			assert.Equal(t, ReasonUnsupportedKind(), got.Reason, resourceType)
+		}
+	})
+
+	t.Run("both reasons fit a note", func(t *testing.T) {
+		t.Parallel()
+		assert.LessOrEqual(t, utf8.RuneCountInString(ReasonWrongProvider), MaxReasonLength)
+		assert.LessOrEqual(t, utf8.RuneCountInString(ReasonUnsupportedKind()), MaxReasonLength)
+	})
+
+	t.Run("the kind list names every kind kindFor prices", func(t *testing.T) {
+		t.Parallel()
+		assert.Equal(t,
+			"kubernetes plugin prices Deployment, StatefulSet, DaemonSet, Job, and CronJob only",
+			ReasonUnsupportedKind())
+		for _, entry := range kindTable() {
+			_, ok := kindFor(entry.resourceType)
+			require.True(t, ok, entry.resourceType)
+			name := entry.resourceType[strings.LastIndex(entry.resourceType, ":")+1:]
+			assert.Contains(t, ReasonUnsupportedKind(), name)
+		}
+	})
 }
 
 func TestEstimate_Hinted(t *testing.T) {

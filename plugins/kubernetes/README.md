@@ -116,9 +116,10 @@ resources and usage rows to get back per-workload allocation rows.
 | `kubernetes:batch/v1:Job` | `spec.parallelism`, default 1 |
 | `kubernetes:batch/v1:CronJob` | `spec.jobTemplate.spec.parallelism`, default 1 |
 
-Every other type, including other `kubernetes:*` types such as `ConfigMap`,
-is declined with `kubernetes plugin provides usage and allocation only`, as
-before.
+A resource from another provider is declined with `kubernetes plugin prices
+only kubernetes:* resources`; any other `kubernetes:*` type, such as
+`ConfigMap`, is declined with
+`kubernetes plugin prices Deployment, StatefulSet, DaemonSet, Job, and CronJob only`.
 
 The plugin reads the workload's pod template from the resource attributes
 FinFocus sends (finfocus-spec v0.7.3 `ResourceDescriptor.attributes`). It

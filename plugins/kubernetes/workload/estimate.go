@@ -19,8 +19,8 @@ const (
 	HoursPerMonth = 730
 	// MaxReasonLength is the decline-reason length core keeps in a note.
 	MaxReasonLength = 160
-	// ReasonUsageOnly declines every type this plugin does not price.
-	ReasonUsageOnly = "kubernetes plugin provides usage and allocation only"
+	// ReasonWrongProvider declines a resource from another provider.
+	ReasonWrongProvider = "kubernetes plugin prices only kubernetes:* resources"
 
 	provider       = "kubernetes"
 	liveClusterTip = "; for a live cluster use finfocus cost cluster"
@@ -43,24 +43,62 @@ type kind struct {
 
 const templatePodSpec = "spec.template.spec"
 
-// kindFor returns how to read a workload type, and false for every type this
-// plugin does not price.
-func kindFor(resourceType string) (kind, bool) {
-	switch resourceType {
-	case "kubernetes:apps/v1:Deployment", "kubernetes:apps/v1:StatefulSet":
-		return kind{podSpec: templatePodSpec, countPath: "spec.replicas"}, true
-	case "kubernetes:apps/v1:DaemonSet":
-		return kind{podSpec: templatePodSpec, count: countFromNodeHint}, true
-	case "kubernetes:batch/v1:Job":
-		return kind{podSpec: templatePodSpec, countPath: "spec.parallelism", usesHours: true}, true
-	case "kubernetes:batch/v1:CronJob":
-		return kind{
+// kindEntry pairs a priced workload type with how to read it.
+type kindEntry struct {
+	resourceType string
+	kind         kind
+}
+
+// kindTable lists every workload type this plugin prices, in the order the
+// decline reason names them. kindFor and ReasonUnsupportedKind both read it,
+// so adding a kind updates the message.
+func kindTable() []kindEntry {
+	replicated := kind{podSpec: templatePodSpec, countPath: "spec.replicas"}
+	return []kindEntry{
+		{"kubernetes:apps/v1:Deployment", replicated},
+		{"kubernetes:apps/v1:StatefulSet", replicated},
+		{"kubernetes:apps/v1:DaemonSet", kind{podSpec: templatePodSpec, count: countFromNodeHint}},
+		{"kubernetes:batch/v1:Job", kind{podSpec: templatePodSpec, countPath: "spec.parallelism", usesHours: true}},
+		{"kubernetes:batch/v1:CronJob", kind{
 			podSpec:   "spec.jobTemplate.spec.template.spec",
 			countPath: "spec.jobTemplate.spec.parallelism",
 			usesHours: true,
-		}, true
+		}},
+	}
+}
+
+// kindFor returns how to read a workload type, and false for every type this
+// plugin does not price.
+func kindFor(resourceType string) (kind, bool) {
+	for _, entry := range kindTable() {
+		if entry.resourceType == resourceType {
+			return entry.kind, true
+		}
+	}
+	return kind{}, false
+}
+
+// ReasonUnsupportedKind declines a kubernetes type this plugin does not
+// price, naming the kinds it does. The list comes from kindTable, so it
+// cannot drift from kindFor.
+func ReasonUnsupportedKind() string {
+	entries := kindTable()
+	names := make([]string, len(entries))
+	for i, entry := range entries {
+		names[i] = entry.resourceType[strings.LastIndex(entry.resourceType, ":")+1:]
+	}
+	return "kubernetes plugin prices " + joinAnd(names) + " only"
+}
+
+// joinAnd joins names with commas and an Oxford "and": "a, b, and c".
+func joinAnd(names []string) string {
+	switch len(names) {
+	case 0:
+		return ""
+	case 1:
+		return names[0]
 	default:
-		return kind{}, false
+		return strings.Join(names[:len(names)-1], ", ") + ", and " + names[len(names)-1]
 	}
 }
 
@@ -85,14 +123,17 @@ type podCount struct {
 }
 
 // Estimate prices a declared workload as pods × per-pod hourly request cost ×
-// hours, with rates and hints from cfg. It declines, in order: a type it does
-// not price; no attributes; a Pulumi unknown count or quantity; an invalid
-// count or quantity; no requests declared; a missing or invalid rate; a
-// missing or invalid hint for the kind.
+// hours, with rates and hints from cfg. It declines, in order: a resource from
+// another provider; a kubernetes type it does not price; no attributes; a
+// Pulumi unknown count or quantity; an invalid count or quantity; no requests
+// declared; a missing or invalid rate; a missing or invalid hint for the kind.
 func Estimate(desc *pbc.ResourceDescriptor, cfg Config) Result {
+	if desc.GetProvider() != provider {
+		return declined(ReasonWrongProvider)
+	}
 	k, ok := kindFor(desc.GetResourceType())
-	if !ok || desc.GetProvider() != provider {
-		return declined(ReasonUsageOnly)
+	if !ok {
+		return declined(ReasonUnsupportedKind())
 	}
 	attrs := desc.GetAttributes()
 	if attrs == nil {

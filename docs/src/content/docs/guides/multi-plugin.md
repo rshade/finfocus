@@ -74,7 +74,7 @@ OP  RESOURCE                                  BEFORE  AFTER  CHANGE  CURRENCY
 +   kubernetes:apps/v1:Deployment/urn:pul...  0.00  54.75  +54.75  USD
     Estimated from declared requests × configured rates: 3 pods (spec.replicas) × $0.025/pod-hour (0.5 vCPU × 0.04 + 1 GiB × 0.005) × 730 h. Rates from FINFOCUS_KUBERNETES_CPU_HOURLY_RATE and FINFOCUS_KUBERNETES_MEMORY_GIB_HOURLY_RATE are plugin configuration, not a real node price.
 +   aws:s3/bucket:Bucket/urn:pulumi:prod:...  0.00  0.00  +0.00  USD
-    No pricing information available (declined by jev: jev plugin scores recommendations only; kubernetes: kubernetes plugin provides usage and allocation only)
+    No pricing information available (declined by jev: jev plugin scores recommendations only; kubernetes: kubernetes plugin prices only kubernetes:* resources)
 
 ERRORS
 ======

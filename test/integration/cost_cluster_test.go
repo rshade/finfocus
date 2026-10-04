@@ -154,12 +154,12 @@ func TestKubernetesPlugin_DoesNotPolluteCostProjected(t *testing.T) {
 		withRates := projectedEntries(t)
 
 		assert.Contains(t, withRates["settings"].Notes,
-			"declined by kubernetes: kubernetes plugin provides usage and allocation only")
+			"declined by kubernetes: kubernetes plugin prices Deployment, StatefulSet, DaemonSet, Job, and CronJob only")
 		assert.Equal(t, withoutRates["settings"], withRates["settings"])
 		assert.Equal(t, withoutRates["bastion"], withRates["bastion"],
 			"pricing workloads must not change the EC2 instance's entry")
 		assert.Contains(t, withRates["bastion"].Notes,
-			"declined by kubernetes: kubernetes plugin provides usage and allocation only")
+			"declined by kubernetes: kubernetes plugin prices only kubernetes:* resources")
 
 		isolatedClusterHome(t)
 		noPlugin := projectedEntries(t)["bastion"]
