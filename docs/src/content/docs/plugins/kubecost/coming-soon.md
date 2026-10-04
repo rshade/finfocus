@@ -23,7 +23,6 @@ Expected availability: Q2 2025
 
 ## Related
 
-- See [Differences from Vantage](differences.md) for feature comparison
 - Check [Plugin Development Guide](../plugin-development.md) to build plugins now
 
 ---

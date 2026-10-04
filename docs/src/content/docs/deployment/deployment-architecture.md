@@ -50,6 +50,6 @@ graph TD
 
 ## Related Guides
 
-- [Deployment Overview](deployment.html)
-- [Configuration Guide](configuration.html)
-- [Docker Deployment](docker.html)
+- [Deployment Overview](deployment.md)
+- [Configuration Guide](configuration.md)
+- [Docker Deployment](docker.md)

@@ -246,7 +246,7 @@ finfocus cost recommendations --pulumi-json plan.json --output table
 
 **Configuration Reference:**
 
-- [Plugins](../plugins/README.md) - Plugin configuration
+- [Plugins](../plugin-system.md) - Plugin configuration
 
 ---
 

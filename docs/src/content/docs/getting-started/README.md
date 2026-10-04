@@ -8,7 +8,7 @@ Quick onboarding for new users.
 - **[5-Minute Quickstart](quickstart.md)** - Get up and running in 5 minutes
 - **[Installation Guide](installation.md)** - Detailed installation instructions
 - **[Prerequisites](prerequisites.md)** - System requirements
-- **[Examples](examples/)** - Practical examples with different setups
+- **[Examples](https://github.com/rshade/finfocus/tree/main/examples)** - Practical examples with different setups
 
 ---
 

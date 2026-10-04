@@ -576,4 +576,4 @@ Plugins implement rate limiting to avoid API throttling:
 - [Plugin Protocol](plugin-protocol.md) - gRPC protocol specification
 - [Cost Calculation Flow](diagrams/cost-calculation-flow.md) - Flow
   diagram
-- [Engine Implementation](../../internal/engine/CLAUDE.md) - Code details
+- [Engine Implementation](https://github.com/rshade/finfocus/tree/main/internal/engine) - Code details

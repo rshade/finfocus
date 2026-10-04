@@ -298,14 +298,10 @@ docs-sync:
 	@echo "" >> docs/src/content/docs/support/contributing.md
 	@cat CONTRIBUTING.md | sed -E \
 		-e '/^# /d' \
-		-e 's|\(docs/([^)]*)/README\.md\)|(../../\1/)|g' \
-		-e 's|\(docs/README\.md\)|(../../)|g' \
-		-e 's|\(docs/([^)]*)\.md#([^)]*)\)|(../../\1/#\2)|g' \
-		-e 's|\(docs/([^)]*)\.md\)|(../../\1/)|g' \
-		-e 's|\(docs/([^)]+/)\)|(../../\1)|g' \
-		-e 's|\(docs/\)|(../../)|g' \
-		-e 's|\(\.specify/([^)]*)\)|(https://github.com/rshade/finfocus/blob/main/.specify/\1)|g' \
-		-e 's|\(LICENSE\)|(https://github.com/rshade/finfocus/blob/main/LICENSE)|g' \
+		-e 's|\]\(docs/src/content/docs/|](../|g' \
+		-e 's|\]\(docs/\)|](../../)|g' \
+		-e 's|\]\((\.specify/[^)]*)\)|](https://github.com/rshade/finfocus/blob/main/\1)|g' \
+		-e 's|\]\(([A-Za-z0-9_][^):]*)\)|](https://github.com/rshade/finfocus/blob/main/\1)|g' \
 		>> docs/src/content/docs/support/contributing.md
 	@echo "---" > docs/src/content/docs/architecture/roadmap.md
 	@echo "title: Roadmap" >> docs/src/content/docs/architecture/roadmap.md
@@ -324,15 +320,10 @@ docs-sync:
 	@echo "<!-- markdownlint-disable MD013 -->" >> docs/src/content/docs/README.md
 	@cat README.md | sed -E \
 		-e '/^# /d' \
-		-e 's|\(docs/src/content/docs/([^)#]*)\.md(#[^)]*)?\)|(../\1/\2)|g' \
-		-e 's|\(docs/([^)]*)/README\.md\)|(../\1/)|g' \
-		-e 's|\(docs/README\.md\)|(../)|g' \
-		-e 's|\(docs/([^)]*)\.md#([^)]*)\)|(../\1/#\2)|g' \
-		-e 's|\(docs/([^)]*)\.md\)|(../\1/)|g' \
-		-e 's|\(docs/([^)]+/)\)|(../\1)|g' \
-		-e 's|\(docs/\)|(../)|g' \
-		-e 's|\(CONTRIBUTING\.md\)|(../support/contributing/)|g' \
-		-e 's|\(LICENSE\)|(https://github.com/rshade/finfocus/blob/main/LICENSE)|g' \
+		-e 's|\]\(docs/src/content/docs/|](./|g' \
+		-e 's|\]\(docs/\)|](../)|g' \
+		-e 's|\]\(CONTRIBUTING\.md\)|](./support/contributing.md)|g' \
+		-e 's|\]\(([A-Za-z0-9_][^):]*)\)|](https://github.com/rshade/finfocus/blob/main/\1)|g' \
 		>> docs/src/content/docs/README.md
 	@echo "Documentation synced."
 

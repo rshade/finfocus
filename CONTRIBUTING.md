@@ -280,7 +280,7 @@ make validate  # Module and vet checks must pass
 
 ### Test Requirements
 
-For detailed testing instructions, see the [Testing Guide](docs/testing/guide.md).
+For detailed testing instructions, see the [Testing Guide](docs/src/content/docs/testing/guide.md).
 
 - Write tests before implementation (TDD approach)
 - Include tests for all new code paths
@@ -575,9 +575,9 @@ gh issue list --repo rshade/finfocus --state closed --label decision
 
 ### Documentation
 
-- [Developer Guide](docs/guides/developer-guide.md) - Complete developer docs
-- [Architecture](docs/architecture/) - System design and diagrams
-- [Plugin Development](docs/plugins/plugin-development.md) - Building plugins
+- [Developer Guide](docs/src/content/docs/guides/developer-guide.md) - Complete developer docs
+- [Architecture](docs/src/content/docs/architecture/README.md) - System design and diagrams
+- [Plugin Development](docs/src/content/docs/plugins/plugin-development.md) - Building plugins
 
 ### Support Channels
 

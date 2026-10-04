@@ -700,7 +700,7 @@ Results include which plugin provided the data:
 
 - [Plugin Development Guide](../plugins/plugin-development.md) - How to build plugins with routing support
 - [CLI Commands Reference](../reference/cli-commands.md) - All CLI commands with routing options
-- [Configuration Schema](../reference/config-schema.md) - Complete config.yaml schema
+- [Configuration Schema](../reference/config-reference.md) - Complete config.yaml schema
 - [Architecture Overview](../architecture/system-overview.md) - How routing fits in the system
 
 ## Changelog

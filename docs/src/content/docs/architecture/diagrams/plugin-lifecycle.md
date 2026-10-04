@@ -230,6 +230,6 @@ The Registry validates the plugin manifest during discovery:
 **Related Documentation:**
 
 - [Plugin Protocol](../plugin-protocol.md) - gRPC protocol specification
-- [Plugin Host](../../../internal/pluginhost/CLAUDE.md) - Implementation
+- [Plugin Host](https://github.com/rshade/finfocus/tree/main/internal/pluginhost) - Implementation
   details
-- [Registry](../../../internal/registry/CLAUDE.md) - Discovery implementation
+- [Registry](https://github.com/rshade/finfocus/tree/main/internal/registry) - Discovery implementation

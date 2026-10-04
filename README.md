@@ -26,14 +26,14 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 ## Key Features
 
 - **🔭 [Unified Overview](docs/src/content/docs/commands/overview.md)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
-- **📊 [Projected Costs](docs/reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
-- **💰 [Budgets & Alerts](docs/guides/budgets.md)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
-- **💡 [Recommendations](docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
-- **♿ [Accessibility](docs/guides/accessibility.md)**: High-contrast, plain text, and adaptive terminal UI modes
-- **💰 [Actual Costs](docs/reference/cli-commands.md#cost-actual)**: Track historical spending with detailed breakdowns
+- **📊 [Projected Costs](docs/src/content/docs/reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
+- **💰 [Budgets & Alerts](docs/src/content/docs/guides/budgets.md)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
+- **💡 [Recommendations](docs/src/content/docs/guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
+- **♿ [Accessibility](docs/src/content/docs/guides/accessibility.md)**: High-contrast, plain text, and adaptive terminal UI modes
+- **💰 [Actual Costs](docs/src/content/docs/reference/cli-commands.md#cost-actual)**: Track historical spending with detailed breakdowns
 - **☸️ [Cluster Cost Allocation](docs/src/content/docs/guides/cluster-costs.md)**: Split Kubernetes cluster cost by namespace, controller, pod, node, or label with conservation guarantees
-- **🔌 [Plugin-Based](docs/plugins/README.md)**: Extensible architecture supporting multiple cost data sources
-- **🧪 [E2E Testing](docs/testing/e2e-guide.md)**: Comprehensive guide for validating infrastructure costs against real cloud resources
+- **🔌 [Plugin-Based](docs/src/content/docs/plugin-system.md)**: Extensible architecture supporting multiple cost data sources
+- **🧪 [E2E Testing](docs/src/content/docs/testing/e2e-guide.md)**: Comprehensive guide for validating infrastructure costs against real cloud resources
 - **📈 Advanced Analytics**: Resource grouping, filtering, and aggregation
 - **📱 Multiple Formats**: Table, JSON, and NDJSON output options
 - **🔍 Smart Filtering**: Filter by resource type, tags, or custom expressions
@@ -237,7 +237,7 @@ cost:
         type: forecasted
 ```
 
-See [Budget Guide](docs/guides/budgets.md) for full configuration details.
+See [Budget Guide](docs/src/content/docs/guides/budgets.md) for full configuration details.
 
 ### Environment Variables for Secrets
 
@@ -621,7 +621,7 @@ finfocus config validate [--file path] [--output text|json]
 
 `--verbose` prints loaded output, plugin, and routing settings after a valid text report.
 
-See the [Routing Configuration Guide](docs/guides/routing.md) for detailed examples and troubleshooting.
+See the [Routing Configuration Guide](docs/src/content/docs/guides/routing.md) for detailed examples and troubleshooting.
 
 ## Plugin Management
 
@@ -748,24 +748,24 @@ safety arguments, and the mapping from the old server's tools.
 
 Complete documentation is available in the [docs/](docs/) directory:
 
-- **👤 End Users**: [User Guide](docs/guides/user-guide.md) - How to install and use FinFocus
-- **💰 Budgets**: [Budget Guide](docs/guides/budgets.md) - Configure alerts and thresholds
-- **📜 Resource History**: [Resource History Guide](docs/guides/resource-history.md) - Accurate month-long costs
-- **💡 Recommendations**: [Recommendations Guide](docs/guides/recommendations.md) - Optimization insights
-- **♿ Accessibility**: [Accessibility Guide](docs/guides/accessibility.md) - UI configuration
-- **🛠️ Engineers**: [Developer Guide](docs/guides/developer-guide.md) - How to extend and contribute
-- **🏗️ Architects**: [Architect Guide](docs/guides/architect-guide.md) - System design and integration
-- **🧪 E2E Testers**: [E2E Testing Guide](docs/testing/e2e-guide.md) - Setup and execution
-- **💼 Business/CEO**: [Business Value](docs/guides/business-value.md) - ROI and competitive advantage
+- **👤 End Users**: [User Guide](docs/src/content/docs/guides/user-guide.md) - How to install and use FinFocus
+- **💰 Budgets**: [Budget Guide](docs/src/content/docs/guides/budgets.md) - Configure alerts and thresholds
+- **📜 Resource History**: [Resource History Guide](docs/src/content/docs/guides/resource-history.md) - Accurate month-long costs
+- **💡 Recommendations**: [Recommendations Guide](docs/src/content/docs/guides/recommendations.md) - Optimization insights
+- **♿ Accessibility**: [Accessibility Guide](docs/src/content/docs/guides/accessibility.md) - UI configuration
+- **🛠️ Engineers**: [Developer Guide](docs/src/content/docs/guides/developer-guide.md) - How to extend and contribute
+- **🏗️ Architects**: [Architect Guide](docs/src/content/docs/guides/architect-guide.md) - System design and integration
+- **🧪 E2E Testers**: [E2E Testing Guide](docs/src/content/docs/testing/e2e-guide.md) - Setup and execution
+- **💼 Business/CEO**: [Business Value](docs/src/content/docs/guides/business-value.md) - ROI and competitive advantage
 
 **Quick Links:**
 
-- [🚀 5-Minute Quickstart](docs/getting-started/quickstart.md)
-- [📖 Full Documentation Index](docs/README.md)
-- [🔌 Available Plugins](docs/plugins/) - AWS Public Pricing and more
-- [🛠️ Plugin Development](docs/plugins/plugin-development.md)
-- [🏗️ System Architecture](docs/architecture/system-overview.md)
-- [💬 FAQ & Support](docs/support/faq.md)
+- [🚀 5-Minute Quickstart](docs/src/content/docs/getting-started/quickstart.md)
+- [📖 Full Documentation Index](docs/)
+- [🔌 Available Plugins](docs/src/content/docs/plugin-system.md#available-plugins) - AWS Public Pricing and more
+- [🛠️ Plugin Development](docs/src/content/docs/plugins/plugin-development.md)
+- [🏗️ System Architecture](docs/src/content/docs/architecture/system-overview.md)
+- [💬 FAQ & Support](docs/src/content/docs/support/faq.md)
 
 ## Contributing
 

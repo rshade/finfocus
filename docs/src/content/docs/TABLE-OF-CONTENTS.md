@@ -50,7 +50,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [5-Minute Quickstart](getting-started/quickstart.md)       | Get running in 5 minutes  | Everyone       |
 | [Installation Guide](getting-started/installation.md)      | Step-by-step installation | End Users, Ops |
 | [Prerequisites](getting-started/prerequisites.md)          | System requirements       | Everyone       |
-| [Examples](getting-started/examples/)                      | Practical usage examples  | End Users      |
+| [Examples](https://github.com/rshade/finfocus/tree/main/examples)                      | Practical usage examples  | End Users      |
 | [AWS Public Setup](plugins/aws-public.md)                  | AWS public pricing plugin | End Users      |
 
 ### 📚 Comprehensive Guides (by Audience)
@@ -81,7 +81,6 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Core Concepts](architecture/core-concepts.md)             | Key concepts (resources, costs, aggregation) |
 | [Plugin Protocol](architecture/plugin-protocol.md)         | gRPC plugin specification                    |
 | [Cost Calculation](architecture/cost-calculation.md)       | How costs are calculated                     |
-| [Actual vs Projected](architecture/actual-vs-projected.md) | Understanding cost types                     |
 | [Roadmap](architecture/roadmap.md)                         | Planned features and timeline                |
 
 ### 📊 Architecture Diagrams
@@ -138,11 +137,10 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 | Page                                                             | Purpose                 |
 | ---------------------------------------------------------------- | ----------------------- |
-| [Installation Guide](deployment/installation.md)                 | Detailed installation   |
+| [Installation Guide](getting-started/installation.md)            | Detailed installation   |
 | [Configuration Guide](deployment/configuration.md)               | Configuration how-to    |
 | [Deployment Architecture](deployment/deployment-architecture.md) | Deployment diagram      |
 | [Docker](deployment/docker.md)                                   | Docker deployment       |
-| [Kubernetes](deployment/kubernetes.md)                           | K8s deployment (future) |
 | [CI/CD Integration](deployment/cicd-integration.md)              | Pipeline integration    |
 | [Security](deployment/security.md)                               | Security best practices |
 | [Troubleshooting](deployment/troubleshooting.md)                 | Operational issues      |
@@ -169,7 +167,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | Page                          | Purpose                              |
 | ----------------------------- | ------------------------------------ |
 | [Documentation Plan](plan.md) | Documentation architecture strategy  |
-| [LLM Index](llms.txt)         | Machine-readable documentation index |
+| [LLM Index](/finfocus/llms.txt)         | Machine-readable documentation index |
 
 ---
 
@@ -198,7 +196,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 - [Cost Recommendations](guides/recommendations.md)
 - [Accessibility Options](guides/accessibility.md)
 - [CLI Commands](reference/cli-commands.md)
-- [Examples](getting-started/examples/)
+- [Examples](https://github.com/rshade/finfocus/tree/main/examples)
 
 ### Building Plugins
 
@@ -214,7 +212,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 - [System Overview](architecture/system-overview.md)
 - [Plugin Protocol](architecture/plugin-protocol.md)
 - [Cost Calculation](architecture/cost-calculation.md)
-- [Architecture Diagrams](architecture/diagrams/)
+- [Architecture Diagrams](architecture/diagrams/README.md)
 
 ### Operations & Deployment
 
@@ -252,7 +250,7 @@ Use Ctrl+F to search within pages:
 
 - **"How do I..."** - See [User Guide](guides/user-guide.md)
 - **"Setup"** - See [Installation Guide](getting-started/installation.md)
-- **"Plugin"** - See [Plugin Documentation](plugins/)
+- **"Plugin"** - See [Plugin Documentation](plugin-system.md#available-plugins)
 - **"Error"** - See [Troubleshooting](support/troubleshooting.md)
 - **"Architecture"** - See [Architecture Guide](guides/architect-guide.md)
 - **"Cost"** - See [Cost Calculation](architecture/cost-calculation.md)

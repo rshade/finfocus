@@ -180,7 +180,7 @@ finfocus cost projected --pulumi-json plan.json
 This configuration sets a hard limit of $1000/month. If actual costs exceed this amount, the CLI will display a
 warning and exit with a non-zero status code (if configured).
 
-See [complete example](../examples/config-budgets/single-threshold.yaml).
+See [complete example](https://github.com/rshade/finfocus/blob/main/docs/src/content/docs/examples/config-budgets/single-threshold.yaml).
 
 ---
 
@@ -212,7 +212,7 @@ cost:
 This setup provides early visibility. You'll get notified when you hit 50% of budget, if you're _projected_ to hit
 80%, and finally when you breach 100%.
 
-See [complete example](../examples/config-budgets/multiple-thresholds.yaml).
+See [complete example](https://github.com/rshade/finfocus/blob/main/docs/src/content/docs/examples/config-budgets/multiple-thresholds.yaml).
 
 ---
 
@@ -246,7 +246,7 @@ finfocus cost projected --pulumi-json plan.json || {
 By using `type: forecasted` at 100% threshold, FinFocus checks if the _new_ infrastructure plan will push total costs
 over budget. If yes, it returns a non-zero exit code, stopping the deployment.
 
-See [complete example](../examples/config-budgets/cicd-integration.yaml).
+See [complete example](https://github.com/rshade/finfocus/blob/main/docs/src/content/docs/examples/config-budgets/cicd-integration.yaml).
 
 ---
 
@@ -551,7 +551,9 @@ Ensure you have the correct schema directive and your indentation is correct:
 
 **Examples:**
 
-- [Budget Examples](../examples/config-budgets/) - Runnable configuration files
+- [Budget Examples][budget-examples] - Runnable configuration files
+
+[budget-examples]: https://github.com/rshade/finfocus/tree/main/docs/src/content/docs/examples/config-budgets
 
 ---
 

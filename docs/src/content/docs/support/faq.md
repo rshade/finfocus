@@ -119,7 +119,7 @@ finfocus plugin install aws-public
 finfocus plugin list
 ```
 
-See [Plugin Documentation](../plugins/) for per-plugin setup.
+See [Plugin Documentation](../plugin-system.md#available-plugins) for per-plugin setup.
 
 ## Pulumi Analyzer
 

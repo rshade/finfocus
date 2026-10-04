@@ -65,7 +65,7 @@ Plugins are executable binaries that run as separate processes and communicate o
 - **SARIF output**: Publish vulnerability findings to code scanning.
 - **Environment scoping**: Pass credentials only to steps that run `finfocus`.
 
-See [CI/CD Integration](cicd-integration.html) for platform examples.
+See [CI/CD Integration](cicd-integration.md) for platform examples.
 
 ## Container Security
 
@@ -77,7 +77,7 @@ Our Docker images are built using minimal base images (Alpine) and run as non-ro
 - **Inspecting SBOMs**: Review SBOM artifacts in CI to validate dependencies.
 - **Supply chain**: Verify image digests and pin tags in production deployments.
 
-See the [Docker Guide](docker.html) for operational details.
+See the [Docker Guide](docker.md) for operational details.
 
 ## Reporting Vulnerabilities
 
@@ -87,7 +87,7 @@ workflow or follow the repository security policy for coordinated disclosure.
 
 ## Related Documentation
 
-- [Configuration Guide](configuration.html)
-- [CI/CD Integration](cicd-integration.html)
-- [Docker Deployment](docker.html)
-- [Troubleshooting](troubleshooting.html)
+- [Configuration Guide](configuration.md)
+- [CI/CD Integration](cicd-integration.md)
+- [Docker Deployment](docker.md)
+- [Troubleshooting](troubleshooting.md)

@@ -3,7 +3,7 @@ title: Deployment Configuration
 ---
 
 Use this guide to configure FinFocus across local, CI/CD, and containerized deployments.
-Refer to the [Configuration Reference](../reference/config-reference.html) for the full schema.
+Refer to the [Configuration Reference](../reference/config-reference.md) for the full schema.
 
 ## Configuration Sources
 
@@ -46,7 +46,7 @@ Environment variables are ideal for CI/CD and container deployments.
 - `FINFOCUS_CONFIG_FILE`: Path to a custom configuration file
 - `FINFOCUS_PLUGIN_DIR`: Override the plugin directory
 
-See the full list in [Environment Variables](../reference/environment-variables.html).
+See the full list in [Environment Variables](../reference/environment-variables.md).
 
 ## Deployment Examples
 
@@ -83,4 +83,4 @@ docker run --rm \
 - For Kubernetes, map secrets to environment variables
 - For Docker, prefer Docker secrets or mounted credential files
 
-Pair this guide with [Security](security.html) for more credential handling details.
+Pair this guide with [Security](security.md) for more credential handling details.
