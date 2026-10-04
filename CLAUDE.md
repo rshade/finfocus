@@ -972,6 +972,12 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   `pluginsdk.SpecVersion`, and `TestHopsMatchGuides` requires a matching
   `references/to-vX.Y.Z.md`. Add both in the bump PR, even for an additive
   release (a guide that says "no changes required" is fine)
+- **Nested modules must match the root finfocus-spec pin**: CI validation
+  compares `go.mod` with `plugins/kubernetes/go.mod` and `plugins/jev/go.mod`
+  and fails when `github.com/rshade/finfocus-spec` differs. A root pin bump
+  updates both modules even when they do not use the new field.
+  `pluginsdk.SpecVersion` stays put until a release moves it, so a
+  pseudo-version pin does not add a hop
 - **Hops are releases that need author action, not minor lines**: v0.5.7 (a
   patch) changed `HandleDryRun`; v0.6.1 raised Go to 1.27.1
 - **`SpecVersion` must be `v`-prefixed**: `pluginsdk.ValidateSpecVersion`

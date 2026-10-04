@@ -131,6 +131,8 @@ snoozed rows and asks plugins to include recommendations they have dismissed.
 - finfocus-spec has published `include_dismissed` as field 8 before this branch's module pin moves
   to that commit. Until the spec release is tagged, the pin may be the spec commit that adds the
   field. `pluginsdk.SpecVersion` stays `v0.7.4` until that release, so no upgrade hop is added here.
+  `plugins/kubernetes` and `plugins/jev` require that same pin. CI fails when their
+  `finfocus-spec` version differs from the root module.
 - Provider plugins in other repositories are not edited. Plugins with no dismissal store already
   ignore the field. The aws-public recommendations handler does not store dismissals.
 - The in-repo recorder records the request proto, so the field is captured without recorder changes.
