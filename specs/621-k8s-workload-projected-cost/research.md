@@ -62,8 +62,7 @@ Facts below were read from core at `b9fdc2e` and finfocus-spec `v0.7.3`.
     `pluginsdk.MaxAttributesBytes` (65536).
 - **Rationale**: v0.7.3 makes host redaction REQUIRED with exactly these
   classes. Reusing `skipDottedSegment` keeps one credential list for tags and
-  attributes. The secret check is new: core does not check secrets for tags
-  either (see "Out-of-scope findings").
+  attributes. The secret check is new; R11 applies it to tags too.
 - **Alternatives considered**: Copy the secret check into engine. Rejected:
   two copies of one Pulumi rule drift.
 
@@ -192,13 +191,27 @@ Facts below were read from core at `b9fdc2e` and finfocus-spec `v0.7.3`.
 - **Rationale**: `TestHopsReachCoreSpecVersion` and `TestHopsMatchGuides`
   require it.
 
-## Out-of-scope findings (report, do not fix here)
+## R11. Credential and secret leaks in existing channels (fixed here)
 
-- `ConvertToProto` (`engine.go:1971-1978`) emits every top-level input as a
-  collapsed tag, including credential-named keys such as `password`; only
-  dotted keys are filtered.
-- `ConvertValueToString` (`engine.go:1983-2024`) turns a Pulumi secret map
-  into `fmt` text that includes its ciphertext, or returns its plaintext
-  `value`.
-- Both predate this feature and affect tags, not attributes. Each needs its
-  own issue.
+Found while designing R3 and first recorded as out of scope. The user asked
+for them to be fixed in this change rather than left for separate issues.
+All predate this feature:
+
+- `ConvertToProto` emitted every top-level input as a collapsed tag,
+  including credential-named keys such as `password` and Pulumi secrets.
+- `ConvertValueToString` returned a decrypted secret's plaintext `value`
+  (pattern 1), a single-key credential map's value (pattern 4), and `%v`
+  text of maps holding nested credentials or secret ciphertext.
+- The dotted-tag walk descended into secret maps, so a decrypted secret
+  surfaced as `<key>.value`.
+- `extractTagMap` (actual cost) formatted a secret tag value with `%v`.
+- `EstimateCost` sent raw properties as attributes.
+
+- **Decision**: one credential rule (`isCredentialKey`, split out of
+  `skipDottedSegment`) and one secret rule (`history.IsPulumiSecret`) apply to
+  every channel: top-level tags, collapsed text (`withoutCredentials`), the
+  dotted walk, actual-cost tags, and `EstimateCost` (`redactedProperties`, the
+  attribute rules without the size cap or the top-level `ref` drop).
+- **Trade-off**: a property whose name merely contains a credential fragment
+  (for example `secretId`) is no longer sent as a tag. That matches the rule
+  dotted keys and attributes already used.

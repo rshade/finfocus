@@ -19,6 +19,7 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk/mapping"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	"github.com/rshade/finfocus/internal/awsutil"
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/skus"
@@ -1301,6 +1302,10 @@ func extractTagMap(properties map[string]any, key string) map[string]string {
 	switch m := v.(type) {
 	case map[string]any:
 		for k, val := range m {
+			if history.IsPulumiSecret(val) {
+				// %v would print the secret's ciphertext or plaintext.
+				continue
+			}
 			if s, isStr := val.(string); isStr {
 				result[k] = s
 			} else {

@@ -216,7 +216,10 @@ func (e *Engine) tryEstimateCostRPC(
 	log := logging.FromContext(ctx)
 	resourceType := request.Resource.Type
 
-	baselineReq, err := proto.BuildEstimateCostRequest(resourceType, request.Resource.Properties)
+	baselineReq, err := proto.BuildEstimateCostRequest(
+		resourceType,
+		redactedProperties(ctx, request.Resource.Properties),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("build baseline request: %w", err)
 	}
@@ -240,7 +243,7 @@ func (e *Engine) tryEstimateCostRPC(
 
 	modifiedProps := mergePropertiesWithOverrides(request.Resource.Properties, request.PropertyOverrides)
 
-	modifiedReq, err := proto.BuildEstimateCostRequest(resourceType, modifiedProps)
+	modifiedReq, err := proto.BuildEstimateCostRequest(resourceType, redactedProperties(ctx, modifiedProps))
 	if err != nil {
 		return nil, fmt.Errorf("build modified request: %w", err)
 	}
