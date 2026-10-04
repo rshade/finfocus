@@ -703,7 +703,7 @@ git push origin branch  # Push changes
 - **Plugin SDK:** [Plugin SDK Reference](../plugins/plugin-sdk.md)
 - **Examples:** [Code Examples](../plugins/plugin-examples.md)
 - **Architecture:** [System Architecture](../architecture/system-overview.md)
-- **Contributing:** [Contributing Guide](../../CONTRIBUTING.md)
+- **Contributing:** [Contributing Guide](../support/contributing.md)
 - **Vantage Plugin:** [Vantage Implementation Example](../plugins/vantage/README.md)
 
 ---

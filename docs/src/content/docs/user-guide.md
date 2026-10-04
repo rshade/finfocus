@@ -564,4 +564,4 @@ finfocus cost actual \
 - [Plugin System](plugin-system.md) - Plugin development and management
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
 
-For more examples, see the [examples](../examples/) directory in the repository.
+For more examples, see the [examples](https://github.com/rshade/finfocus/tree/main/examples) directory in the repository.

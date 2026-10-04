@@ -30,15 +30,15 @@ Cloud cost surprises are the norm. Teams deploy infrastructure with Pulumi but h
 
 ## Key Features
 
-- **🔭 [Unified Overview](../commands/overview/)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
-- **📊 [Projected Costs](../reference/cli-commands/#cost-projected)**: Estimate monthly costs before deploying infrastructure
-- **💰 [Budgets & Alerts](../guides/budgets/)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
-- **💡 [Recommendations](../guides/recommendations/)**: Actionable cost optimization insights and savings opportunities
-- **♿ [Accessibility](../guides/accessibility/)**: High-contrast, plain text, and adaptive terminal UI modes
-- **💰 [Actual Costs](../reference/cli-commands/#cost-actual)**: Track historical spending with detailed breakdowns
-- **☸️ [Cluster Cost Allocation](../guides/cluster-costs/)**: Split Kubernetes cluster cost by namespace, controller, pod, node, or label with conservation guarantees
-- **🔌 [Plugin-Based](../plugins/)**: Extensible architecture supporting multiple cost data sources
-- **🧪 [E2E Testing](../testing/e2e-guide/)**: Comprehensive guide for validating infrastructure costs against real cloud resources
+- **🔭 [Unified Overview](./commands/overview.md)**: Interactive dashboard combining actual costs, projected costs, drift analysis, and recommendations in a single view
+- **📊 [Projected Costs](./reference/cli-commands.md#cost-projected)**: Estimate monthly costs before deploying infrastructure
+- **💰 [Budgets & Alerts](./guides/budgets.md)**: Hierarchical budgets (global, provider, tag, type) with CI/CD thresholds
+- **💡 [Recommendations](./guides/recommendations.md)**: Actionable cost optimization insights and savings opportunities
+- **♿ [Accessibility](./guides/accessibility.md)**: High-contrast, plain text, and adaptive terminal UI modes
+- **💰 [Actual Costs](./reference/cli-commands.md#cost-actual)**: Track historical spending with detailed breakdowns
+- **☸️ [Cluster Cost Allocation](./guides/cluster-costs.md)**: Split Kubernetes cluster cost by namespace, controller, pod, node, or label with conservation guarantees
+- **🔌 [Plugin-Based](./plugin-system.md)**: Extensible architecture supporting multiple cost data sources
+- **🧪 [E2E Testing](./testing/e2e-guide.md)**: Comprehensive guide for validating infrastructure costs against real cloud resources
 - **📈 Advanced Analytics**: Resource grouping, filtering, and aggregation
 - **📱 Multiple Formats**: Table, JSON, and NDJSON output options
 - **🔍 Smart Filtering**: Filter by resource type, tags, or custom expressions
@@ -135,7 +135,7 @@ my-db        aws:rds/instance:Inst...  ✓ active     $48.20       $50.00      -
 SUMMARY      prod                      3 resources  $61.43 USD   $66.00 USD  -$2.20 USD
 ```
 
-Full documentation: [Overview command](../commands/overview/)
+Full documentation: [Overview command](./commands/overview.md)
 
 ### 4. Calculate Costs
 
@@ -229,7 +229,7 @@ cost:
         type: forecasted
 ```
 
-See [Budget Guide](../guides/budgets/) for full configuration details.
+See [Budget Guide](./guides/budgets.md) for full configuration details.
 
 ### Environment Variables for Secrets
 
@@ -512,7 +512,7 @@ finfocus config get cost.budgets.amount
 
 finfocus config list [--as json|yaml]
 
-finfocus config validate [--verbose]
+finfocus config validate [--file path] [--output text|json] [--verbose]
 
 finfocus config routes list [--output table|json]
 
@@ -576,13 +576,13 @@ routing:
 ### Validate Routing Configuration
 
 ```bash
-finfocus config validate
+finfocus config validate [--file path] [--output text|json]
 
-#
-#
 ```
 
-See the [Routing Configuration Guide](../guides/routing/) for detailed examples and troubleshooting.
+`--verbose` prints loaded output, plugin, and routing settings after a valid text report.
+
+See the [Routing Configuration Guide](./guides/routing.md) for detailed examples and troubleshooting.
 
 ## Plugin Management
 
@@ -609,7 +609,7 @@ finfocus plugin validate
 | `aws-ce` | In Development | AWS Cost Explorer integration |
 | `azure-public` | In Development | Azure public pricing data |
 | `kubecost` | Planned | Kubernetes cost analysis |
-| `jev` | Available | Opt-in recommendation scorer using TypeSafe AI's Jev model. Needs `TYPESAFE_API_KEY` and sends recommendation data (pseudonymized by default) to TypeSafe. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev) and the [scoring guide](../guides/recommendation-scoring/) |
+| `jev` | Available | Opt-in recommendation scorer using TypeSafe AI's Jev model. Needs `TYPESAFE_API_KEY` and sends recommendation data (pseudonymized by default) to TypeSafe. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev) and the [scoring guide](./guides/recommendation-scoring.md) |
 
 ## Pulumi Analyzer Integration
 
@@ -689,39 +689,39 @@ Or add it to Claude Desktop's `claude_desktop_config.json`:
 
 The built-in server replaces the standalone `finfocus-mcp` (formerly
 `pulumicost-mcp`) server. See the
-[MCP guide](../guides/mcp/) for the tool list, output and
+[MCP guide](./guides/mcp.md) for the tool list, output and
 safety arguments, and the mapping from the old server's tools.
 
 ## Documentation
 
 Complete documentation is available in the [docs/](../) directory:
 
-- **👤 End Users**: [User Guide](../guides/user-guide/) - How to install and use FinFocus
-- **💰 Budgets**: [Budget Guide](../guides/budgets/) - Configure alerts and thresholds
-- **📜 Resource History**: [Resource History Guide](../guides/resource-history/) - Accurate month-long costs
-- **💡 Recommendations**: [Recommendations Guide](../guides/recommendations/) - Optimization insights
-- **♿ Accessibility**: [Accessibility Guide](../guides/accessibility/) - UI configuration
-- **🛠️ Engineers**: [Developer Guide](../guides/developer-guide/) - How to extend and contribute
-- **🏗️ Architects**: [Architect Guide](../guides/architect-guide/) - System design and integration
-- **🧪 E2E Testers**: [E2E Testing Guide](../testing/e2e-guide/) - Setup and execution
-- **💼 Business/CEO**: [Business Value](../guides/business-value/) - ROI and competitive advantage
+- **👤 End Users**: [User Guide](./guides/user-guide.md) - How to install and use FinFocus
+- **💰 Budgets**: [Budget Guide](./guides/budgets.md) - Configure alerts and thresholds
+- **📜 Resource History**: [Resource History Guide](./guides/resource-history.md) - Accurate month-long costs
+- **💡 Recommendations**: [Recommendations Guide](./guides/recommendations.md) - Optimization insights
+- **♿ Accessibility**: [Accessibility Guide](./guides/accessibility.md) - UI configuration
+- **🛠️ Engineers**: [Developer Guide](./guides/developer-guide.md) - How to extend and contribute
+- **🏗️ Architects**: [Architect Guide](./guides/architect-guide.md) - System design and integration
+- **🧪 E2E Testers**: [E2E Testing Guide](./testing/e2e-guide.md) - Setup and execution
+- **💼 Business/CEO**: [Business Value](./guides/business-value.md) - ROI and competitive advantage
 
 **Quick Links:**
 
-- [🚀 5-Minute Quickstart](../getting-started/quickstart/)
+- [🚀 5-Minute Quickstart](./getting-started/quickstart.md)
 - [📖 Full Documentation Index](../)
-- [🔌 Available Plugins](../plugins/) - AWS Public Pricing and more
-- [🛠️ Plugin Development](../plugins/plugin-development/)
-- [🏗️ System Architecture](../architecture/system-overview/)
-- [💬 FAQ & Support](../support/faq/)
+- [🔌 Available Plugins](./plugin-system.md#available-plugins) - AWS Public Pricing and more
+- [🛠️ Plugin Development](./plugins/plugin-development.md)
+- [🏗️ System Architecture](./architecture/system-overview.md)
+- [💬 FAQ & Support](./support/faq.md)
 
 ## Contributing
 
 We welcome contributions! See our development documentation:
 
-- [CONTRIBUTING.md](../support/contributing/) - Development setup and guidelines
-- [CLAUDE.md](CLAUDE.md) - AI assistant development context
-- [Architecture Documentation](internal/) - Internal package documentation
+- [CONTRIBUTING.md](./support/contributing.md) - Development setup and guidelines
+- [CLAUDE.md](https://github.com/rshade/finfocus/blob/main/CLAUDE.md) - AI assistant development context
+- [Architecture Documentation](https://github.com/rshade/finfocus/blob/main/internal/) - Internal package documentation
 
 ## License
 
@@ -729,18 +729,18 @@ Apache-2.0 - See [LICENSE](https://github.com/rshade/finfocus/blob/main/LICENSE)
 
 ## Agent Skills
 
-FinFocus ships [agent skills](agent-skills/) for AI coding assistants
+FinFocus ships [agent skills](https://github.com/rshade/finfocus/blob/main/agent-skills/) for AI coding assistants
 (Claude Code, Gemini CLI, etc.) that automate common workflows:
 
 | Skill | Description |
 |-------|-------------|
-| [finfocus-install](agent-skills/finfocus-install/) | Install CLI, detect providers, setup plugins and config |
-| [finfocus-analyzer-setup](agent-skills/finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation |
-| [finfocus-routing](agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
-| [finfocus-budget](agent-skills/finfocus-budget/) | Configure budget thresholds, health, and CI exit codes |
-| [finfocus-diagnose](agent-skills/finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost |
+| [finfocus-install](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-install/) | Install CLI, detect providers, setup plugins and config |
+| [finfocus-analyzer-setup](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-analyzer-setup/) | Configure Pulumi Analyzer for inline cost estimation |
+| [finfocus-routing](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-routing/) | Configure plugin routing with priority and fallback |
+| [finfocus-budget](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-budget/) | Configure budget thresholds, health, and CI exit codes |
+| [finfocus-diagnose](https://github.com/rshade/finfocus/blob/main/agent-skills/finfocus-diagnose/) | Debug connectivity, config resolution, cache, and zero cost |
 
-See [agent-skills/README.md](agent-skills/README.md) for the full list and
+See [agent-skills/README.md](https://github.com/rshade/finfocus/blob/main/agent-skills/README.md) for the full list and
 planned skills.
 
 ## Related Projects
@@ -751,4 +751,4 @@ planned skills.
 
 ---
 
-**Getting Started**: Try the [examples](examples/) directory for sample Pulumi plans and pricing specifications.
+**Getting Started**: Try the [examples](https://github.com/rshade/finfocus/blob/main/examples/) directory for sample Pulumi plans and pricing specifications.

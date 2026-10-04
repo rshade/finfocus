@@ -599,9 +599,9 @@ Cost validation failed for web-server-t3-micro:
 
 ## References
 
-- [Feature Specification](../../specs/001-multi-region-e2e/spec.md)
-- [Implementation Plan](../../specs/001-multi-region-e2e/plan.md)
-- [Quickstart Guide](../../specs/001-multi-region-e2e/quickstart.md)
-- [Test Fixtures](../../test/e2e/fixtures/multi-region/)
-- [E2E Test README](../../test/e2e/README.md)
-- [CLAUDE.md - Testing Section](../../CLAUDE.md#testing)
+- [Feature Specification](https://github.com/rshade/finfocus/blob/main/specs/001-multi-region-e2e/spec.md)
+- [Implementation Plan](https://github.com/rshade/finfocus/blob/main/specs/001-multi-region-e2e/plan.md)
+- [Quickstart Guide](https://github.com/rshade/finfocus/blob/main/specs/001-multi-region-e2e/quickstart.md)
+- [Test Fixtures](https://github.com/rshade/finfocus/tree/main/test/e2e/fixtures/multi-region)
+- [E2E Test README](https://github.com/rshade/finfocus/blob/main/test/e2e/README.md)
+- [CLAUDE.md - Testing Section](https://github.com/rshade/finfocus/blob/main/CLAUDE.md#testing)

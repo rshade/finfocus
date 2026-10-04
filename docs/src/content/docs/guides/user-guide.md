@@ -1050,7 +1050,7 @@ finfocus plugin validate
 - **Installation:** [Detailed Installation Guide](../getting-started/installation.md)
 - **Vantage Setup:** [Setting up Vantage Plugin](../plugins/vantage/setup.md)
 - **CLI Reference:** [Complete CLI Commands](../reference/cli-commands.md)
-- **Examples:** [Practical Examples](../getting-started/examples/)
+- **Examples:** [Practical Examples](https://github.com/rshade/finfocus/tree/main/examples)
 
 ---
 

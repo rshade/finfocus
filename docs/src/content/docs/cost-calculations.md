@@ -509,4 +509,4 @@ done > cost-trend.csv
 - [User Guide](user-guide.md) - Complete usage instructions
 - [Plugin System](plugin-system.md) - Plugin development and configuration
 - [Troubleshooting](troubleshooting.md) - Common issues and solutions
-- [Examples](../examples/) - Sample pricing specs and configurations
+- [Examples](https://github.com/rshade/finfocus/tree/main/examples) - Sample pricing specs and configurations

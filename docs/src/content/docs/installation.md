@@ -575,7 +575,7 @@ After installation:
 1. Read the [User Guide](user-guide.md) for detailed usage instructions
 2. Review [Cost Calculations](cost-calculations.md) to understand methodologies
 3. Set up [Plugin System](plugin-system.md) for actual cost tracking
-4. Check out the [Examples](../examples/) directory
+4. Check out the [Examples](https://github.com/rshade/finfocus/tree/main/examples) directory
 
 ## Version Management
 

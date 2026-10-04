@@ -266,4 +266,4 @@ cat actual-costs.json | jq '.total_cost'
 
 - [System Architecture](system-architecture.md) - Component overview
 - [Data Flow](data-flow.md) - General data flow patterns
-- [Vantage Plugin](../../plugins/vantage/) - Vantage integration details
+- [Vantage Plugin](../../plugins/vantage/README.md) - Vantage integration details

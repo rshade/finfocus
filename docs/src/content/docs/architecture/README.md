@@ -13,7 +13,7 @@ Deep dive into FinFocus system architecture and design patterns.
 
 ## Diagrams
 
-Visual architecture diagrams are in the [diagrams/](diagrams/) directory:
+Visual architecture diagrams are in the [diagrams/](diagrams/README.md) directory:
 
 - System architecture
 - Data flow

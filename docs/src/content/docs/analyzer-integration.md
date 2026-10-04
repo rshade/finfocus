@@ -127,7 +127,7 @@ fall back to `~/.finfocus`).
 ### Environment variable precedence
 
 `FINFOCUS_HOME` takes highest precedence over `PULUMI_HOME/finfocus` and `~/.finfocus`.
-See [Configuration Reference](reference/config-schema.md) for the full precedence order.
+See [Configuration Reference](reference/config-reference.md) for the full precedence order.
 
 ## See Also
 

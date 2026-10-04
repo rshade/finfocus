@@ -200,7 +200,7 @@ If you need interaction, disable plain mode. If you need accessible interaction,
 
 **CLI Reference:**
 
-- [CLI Flags](../reference/cli-flags.md) - Detailed flag reference
+- [CLI Flags](../reference/cli-commands.md) - Detailed flag reference
 
 ---
 

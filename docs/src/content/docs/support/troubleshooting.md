@@ -216,7 +216,7 @@ cat ~/.finfocus/specs/*.yaml | grep -i currency
 
 2. **Read relevant guide:**
    - [User Guide](../guides/user-guide.md)
-   - [Plugin Documentation](../plugins/)
+   - [Plugin Documentation](../plugin-system.md#available-plugins)
    - [Configuration Guide](../deployment/configuration.md)
 
 3. **Report issue:**

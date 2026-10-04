@@ -2,11 +2,26 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
 import sitemap from '@astrojs/sitemap';
+import { satteri } from '@astrojs/markdown-satteri';
+import { fileURLToPath } from 'node:url';
+import { relativeMdLinks } from './src/plugins/relative-md-links.mjs';
+
+const base = '/finfocus';
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://rshade.github.io',
-  base: '/finfocus',
+  base,
+  markdown: {
+    processor: satteri({
+      mdastPlugins: [
+        relativeMdLinks({
+          base,
+          contentDir: fileURLToPath(new URL('./src/content/docs', import.meta.url)),
+        }),
+      ],
+    }),
+  },
   integrations: [
     starlight({
       title: 'FinFocus Documentation',

@@ -17,6 +17,7 @@ feedback.
 - [Minor Bug Fixes](#minor-bug-fixes)
 - [Quality Requirements](#quality-requirements)
 - [Submitting Changes](#submitting-changes)
+- [Agentic Workflows](#agentic-workflows)
 - [Issue Labels and Decision Tracking](#issue-labels-and-decision-tracking)
 - [Getting Help](#getting-help)
 
@@ -275,7 +276,7 @@ make validate  # Module and vet checks must pass
 
 ### Test Requirements
 
-For detailed testing instructions, see the [Testing Guide](../../testing/guide/).
+For detailed testing instructions, see the [Testing Guide](../testing/guide.md).
 
 - Write tests before implementation (TDD approach)
 - Include tests for all new code paths
@@ -409,6 +410,39 @@ All pull requests must pass:
 - Documentation validation
 - Cross-platform builds (Linux, macOS, Windows)
 
+### Releases
+
+#### Monorepo plugin releases
+
+Plugins shipped from this monorepo (under `plugins/<name>/`) release
+independently from the CLI, using a `<plugin>-vX.Y.Z` tag format (for
+example, `kubernetes-v0.1.0`) rather than the CLI's bare `vX.Y.Z` tags:
+
+- Each plugin has its own `release-please` component so its changelog and
+  version bump are tracked separately from the CLI.
+- `.github/workflows/release-monorepo-plugin.yml` builds and uploads release
+  archives (`scripts/release-plugin-assets.sh`) for a published `<plugin>-v*`
+  release; the CLI's `goreleaser.yml` and `nightly.yml` release-triggered jobs
+  are guarded to skip these tags.
+- The plugin's registry entry needs **both** `tag_prefix` set (for example,
+  `"kubernetes-"`) so the installer can resolve prefixed tags to a canonical
+  version, **and** `asset_hints.asset_prefix` set (for example,
+  `"finfocus-plugin-kubernetes"`). Without `asset_prefix` the installer falls
+  back to looking for assets named `<plugin>_v…` and never matches the
+  `finfocus-plugin-<plugin>_v…` archives that
+  `release-monorepo-plugin.yml`/`scripts/release-plugin-assets.sh` produce.
+- Monorepo plugin names (and thus `tag_prefix` values) must not start with
+  `v`. The CLI's own release workflows distinguish a bare CLI tag from a
+  plugin tag with `startsWith(tag, 'v')`; a plugin prefix starting with `v`
+  (e.g. `vantage-v0.1.0`) would defeat that guard, so
+  `ValidateRegistryEntry` rejects it.
+- A published `<plugin>-vX.Y.Z` release is never allowed to become the
+  repo's "Latest" release (that slot must stay on the newest CLI `vX.Y.Z`
+  release, since `scripts/install.sh` and `plugin_init_fixtures.go` read
+  `/releases/latest`). `release-monorepo-plugin.yml` unmarks the plugin
+  release as latest and re-marks the newest stable CLI release after
+  uploading assets.
+
 ### Automated Nightly Failure Analysis
 
 To assist with debugging, the project employs an automated nightly failure
@@ -424,6 +458,50 @@ analysis workflow:
   - **Pinned Dependencies**: Uses specific versions of CLI tools and actions.
   - **Timeouts**: Enforces a 59-minute execution limit to prevent resource exhaustion.
   - **Error Handling**: Fails explicitly on any command error to avoid silent failures.
+
+### Agentic Workflows
+
+The repository uses [GitHub Agentic Workflows (gh-aw)](https://github.com/github/gh-aw)
+to automate common maintenance tasks. These workflows run on schedules or are
+triggered by slash commands in pull request comments.
+
+#### Daily Scheduled Workflows
+
+| Workflow | Description |
+| -------- | ----------- |
+| `daily-doc-updater` | Scans merged PRs and updates documentation to reflect new features and changes. |
+| `daily-malicious-code-scan` | Reviews code changes from the last 3 days for suspicious or malicious patterns. |
+| `code-simplifier` | Analyzes recently modified code and opens PRs with readability improvements while preserving behavior. |
+| `issue-arborist` | Links related open issues as sub-issues to improve organization. |
+| `sub-issue-closer` | Automatically closes a parent issue when all of its sub-issues are resolved. |
+| `audit-workflows` | Audits all agentic workflow runs from the last 24 hours and surfaces errors or improvement opportunities. |
+
+#### Weekly Scheduled Workflows
+
+| Workflow | Description |
+| -------- | ----------- |
+| `weekly-issue-summary` | Posts a weekly summary of issue activity including trends and insights every Monday. |
+
+#### Dependency Management Workflows
+
+| Workflow | Description |
+| -------- | ----------- |
+| `dependabot-pr-bundler` | Groups compatible Dependabot updates into a single PR, runs tests, and creates a draft PR with the bundled changes. |
+
+#### On-Demand Slash Commands
+
+These workflows are triggered by a maintainer comment on a pull request:
+
+| Command | Description |
+| ------- | ----------- |
+| `/pr-fix` | Analyzes failing CI checks in a PR, identifies the root cause, implements fixes, and pushes a corrected commit to the branch. |
+| `/mergefest` | Merges the `main` branch into the current PR branch to resolve conflicts or bring it up to date. |
+
+#### CI Failure Investigation
+
+| Workflow | Description |
+| -------- | ----------- |
+| `ci-doctor` | Triggers automatically when a monitored workflow fails and performs deep log analysis to surface root causes and remediation steps. |
 
 ## Project Architecture
 
@@ -484,9 +562,9 @@ gh issue list --repo rshade/finfocus --state closed --label decision
 
 ### Documentation
 
-- [Developer Guide](../../guides/developer-guide/) - Complete developer docs
-- [Architecture](../../architecture/) - System design and diagrams
-- [Plugin Development](../../plugins/plugin-development/) - Building plugins
+- [Developer Guide](../guides/developer-guide.md) - Complete developer docs
+- [Architecture](../architecture/README.md) - System design and diagrams
+- [Plugin Development](../plugins/plugin-development.md) - Building plugins
 
 ### Support Channels
 
