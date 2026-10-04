@@ -1,5 +1,5 @@
 {
-  ".": "0.4.1",
-  "plugins/kubernetes": "0.1.3",
-  "plugins/jev": "0.1.1"
+  ".": "0.4.2",
+  "plugins/kubernetes": "0.1.4",
+  "plugins/jev": "0.1.2"
 }

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.2](https://github.com/rshade/finfocus/compare/v0.4.1...v0.4.2) (2026-10-04)
+
+
+### Added
+
+* **engine:** send redacted resource attributes to plugins ([128cb75](https://github.com/rshade/finfocus/commit/128cb759f2641b6d7354af3776ae0f810aac19f6)), closes [#1525](https://github.com/rshade/finfocus/issues/1525)
+* **engine:** send the resource descriptor on actual cost requests ([#1680](https://github.com/rshade/finfocus/issues/1680)) ([13330a7](https://github.com/rshade/finfocus/commit/13330a736feeece6f2d27d839ccd2baf5e87d493))
+* **kubernetes:** price workloads declared in a Pulumi plan ([3bb6c11](https://github.com/rshade/finfocus/commit/3bb6c116b19fa64c95a6281f0b1118d26f5bffbd)), closes [#1525](https://github.com/rshade/finfocus/issues/1525)
+
+
+### Fixed
+
+* **deps:** update go dependencies ([#1678](https://github.com/rshade/finfocus/issues/1678)) ([02a2525](https://github.com/rshade/finfocus/commit/02a2525732f4b1ffc429325857673804d36c5f7a))
+* **engine:** keep credentials and Pulumi secrets out of plugin requests ([a884ec0](https://github.com/rshade/finfocus/commit/a884ec0b5a5811be5d286690bc36bf6b859bf7eb)), closes [#1525](https://github.com/rshade/finfocus/issues/1525)
+* **engine:** stop logging omitted attribute values ([52f611b](https://github.com/rshade/finfocus/commit/52f611bd9ed09595c0512cf536d384088531a877)), closes [#1525](https://github.com/rshade/finfocus/issues/1525)
+* **registry:** handle releases without assets and honor FINFOCUS_HOME ([156c59e](https://github.com/rshade/finfocus/commit/156c59e26e27d52d39c8b490544a76bd5cd0a52a))
+* **release:** keep plugin releases from becoming Latest ([b9fdc2e](https://github.com/rshade/finfocus/commit/b9fdc2e69cf9e73d06a34c5ee158ef1ab954a1ca))
+
 ## [0.4.1](https://github.com/rshade/finfocus/compare/v0.4.0...v0.4.1) (2026-10-03)
 
 
