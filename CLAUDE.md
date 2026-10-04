@@ -555,6 +555,21 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   recorded version use the *canonical* version (`v0.1.0`, via `CanonicalVersion`). The entry
   also needs `asset_hints.asset_prefix`, and prefixes must not start with `v` (CLI workflows
   treat `v*` tags as CLI releases)
+- **Asset-less releases**: Release Please publishes a release before GoReleaser uploads
+  its archives (aws-public v0.2.0 had none for about 40 minutes). With no version
+  requested, `Installer.fetchRelease` replaces a latest release with zero assets by the
+  highest-semver earlier stable release that has assets (same rule on the `tag_prefix`
+  path) and warns through `progress`. An explicit version is never swapped:
+  `FindPlatformAssetWithHints` returns `*NoAssetsError` (`errors.Is` with
+  `ErrReleaseHasNoAssets`). Its message still starts with `no asset found for
+  <platform>` and `isNoAssetError` also matches it with `errors.Is`, so the CLI's
+  version fallback (prompt or `--fallback-to-latest`) still applies. Assets that exist
+  but do not match keep `no asset found for ... Available:`.
+  `make test-e2e-kind` pins `E2E_AWS_PUBLIC_VERSION` (Renovate bumps it via the
+  `# renovate:` comment regex manager)
+- **Default plugin dir**: `DefaultPluginDir()` is `config.ResolveConfigDir()/plugins`
+  (FINFOCUS_HOME, PULUMI_HOME/finfocus, ~/.finfocus), the directory discovery reads.
+  `NewInstaller("")` and `NewInstallerWithClient(c, "")` use it
 
 ### Router (`internal/router/`)
 

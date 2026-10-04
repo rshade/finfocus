@@ -20,7 +20,7 @@ const (
 type InstallOptions struct {
 	Force            bool              // Reinstall even if version exists
 	NoSave           bool              // Don't add to config file
-	PluginDir        string            // Custom plugin directory (default: ~/.finfocus/plugins)
+	PluginDir        string            // Custom plugin directory (default: DefaultPluginDir)
 	FallbackToLatest bool              // Automatically install latest stable version if requested version lacks assets
 	NoFallback       bool              // Disable fallback behavior entirely (fail if requested version lacks assets)
 	Metadata         map[string]string // User-supplied metadata (e.g., region=us-west-2), stored as plugin.metadata.json
@@ -59,52 +59,29 @@ func HintsForEntry(entry *RegistryEntry) *AssetNamingHints {
 	return h
 }
 
-// NewInstaller creates a new Installer configured to install plugins into pluginDir.
-// If pluginDir is empty, it defaults to "$HOME/.finfocus/plugins"; if the home
-// directory cannot be determined, the default is "./.finfocus/plugins" relative to
-// NewInstaller creates an Installer configured to install plugins into pluginDir.
-// If pluginDir is empty, it defaults to $HOME/.finfocus/plugins; when the user
-// home directory cannot be determined it falls back to the current directory.
-// The returned Installer contains an initialized GitHub client.
+// NewInstaller creates an Installer with a default GitHub client that installs
+// plugins into pluginDir. An empty pluginDir resolves to DefaultPluginDir.
 func NewInstaller(pluginDir string) *Installer {
-	if pluginDir == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			// Fallback to current directory if home cannot be determined
-			homeDir = "."
-		}
-		pluginDir = filepath.Join(homeDir, ".finfocus", "plugins")
-	}
-	return &Installer{
-		client:    NewGitHubClient(),
-		pluginDir: pluginDir,
-	}
+	return NewInstallerWithClient(NewGitHubClient(), pluginDir)
 }
 
-// NewInstallerWithClient creates a new Installer using the provided GitHub client.
-// If pluginDir is empty, it defaults to $HOME/.finfocus/plugins; if the home
-// directory cannot be determined it falls back to the current directory.
-// NewInstallerWithClient creates an Installer that uses the provided GitHub client and a resolved plugin directory.
-// If pluginDir is empty, it defaults to "$HOME/.finfocus/plugins"; if the user home directory cannot be determined
-// it falls back to the current directory ("./") and uses "./.finfocus/plugins".
-// NewInstallerWithClient creates an Installer that uses the provided GitHub client and plugin directory.
-// If pluginDir is empty, it is resolved to $HOME/.finfocus/plugins; if the user's home directory
-// cannot be determined, it falls back to the current working directory.
-// The returned Installer's client field is set to the provided client and its pluginDir field to the
-// resolved path.
+// NewInstallerWithClient creates an Installer that uses client and installs
+// plugins into pluginDir. An empty pluginDir resolves to DefaultPluginDir.
 func NewInstallerWithClient(client *GitHubClient, pluginDir string) *Installer {
 	if pluginDir == "" {
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			// Fallback to current directory if home cannot be determined
-			homeDir = "."
-		}
-		pluginDir = filepath.Join(homeDir, ".finfocus", "plugins")
+		pluginDir = DefaultPluginDir()
 	}
 	return &Installer{
 		client:    client,
 		pluginDir: pluginDir,
 	}
+}
+
+// DefaultPluginDir returns the plugins directory under the resolved FinFocus
+// home (FINFOCUS_HOME, then PULUMI_HOME/finfocus, then ~/.finfocus), the same
+// directory plugin discovery reads.
+func DefaultPluginDir() string {
+	return filepath.Join(config.ResolveConfigDir(), "plugins")
 }
 
 // Install installs a plugin from a specifier (name or URL with optional version).
@@ -171,7 +148,7 @@ func (i *Installer) installFromRegistry(
 	} else if progress != nil {
 		progress(fmt.Sprintf("Fetching latest release for %s...", spec.Name))
 	}
-	release, err := i.fetchRelease(ctx, owner, repo, spec.Version, assetHints)
+	release, err := i.fetchRelease(ctx, owner, repo, spec.Version, assetHints, progress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
@@ -196,21 +173,61 @@ func (i *Installer) installFromRegistry(
 
 // fetchRelease resolves the release to install: an explicit version (prefixed
 // when the plugin ships from a monorepo), the newest prefixed release, or the
-// repository's latest release.
+// repository's latest release. When no version was requested and the latest
+// release has no assets yet, the newest earlier stable release that has assets
+// is used instead and a warning naming both versions goes to progress. An
+// explicit version is returned as is.
 func (i *Installer) fetchRelease(
 	ctx context.Context,
 	owner, repo, version string,
 	hints *AssetNamingHints,
+	progress func(msg string),
 ) (*GitHubRelease, error) {
 	prefix := tagPrefixOf(hints)
-	switch {
-	case version != "":
+	if version != "" {
 		return i.client.GetReleaseByTag(ctx, owner, repo, ReleaseTag(version, prefix))
-	case prefix != "":
-		return i.client.GetLatestReleaseWithPrefix(ctx, owner, repo, prefix)
-	default:
-		return i.client.GetLatestRelease(ctx, owner, repo)
 	}
+
+	var releases []GitHubRelease
+	var latest *GitHubRelease
+	var err error
+	if prefix != "" {
+		releases, err = i.client.ListStableReleases(ctx, owner, repo, prefixedReleaseScan)
+		if err != nil {
+			return nil, err
+		}
+		latest, err = selectLatestByPrefix(releases, prefix)
+		if err != nil {
+			return nil, fmt.Errorf("%s/%s: %w", owner, repo, err)
+		}
+	} else {
+		latest, err = i.client.GetLatestRelease(ctx, owner, repo)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(latest.Assets) > 0 {
+		return latest, nil
+	}
+
+	if releases == nil {
+		releases, err = i.client.ListStableReleases(ctx, owner, repo, githubMaxPerPage)
+		if err != nil {
+			// installRelease reports the asset-less latest release clearly.
+			return latest, nil //nolint:nilerr // the missing assets are the error the user needs
+		}
+	}
+	earlier := selectEarlierWithAssets(releases, prefix, latest)
+	if earlier == nil {
+		return latest, nil
+	}
+	if progress != nil {
+		progress(fmt.Sprintf(
+			"Warning: latest release %s has no assets yet (the upload may still be in progress); installing %s instead",
+			CanonicalVersion(latest.TagName, prefix), CanonicalVersion(earlier.TagName, prefix),
+		))
+	}
+	return earlier, nil
 }
 
 // installFromURL installs a plugin directly from a GitHub URL.
@@ -220,27 +237,14 @@ func (i *Installer) installFromURL(
 	opts InstallOptions,
 	progress func(msg string),
 ) (*InstallResult, error) {
-	// Get release
-	var release *GitHubRelease
-	var err error
-	if spec.Version != "" {
-		if progress != nil {
-			progress(
-				fmt.Sprintf(
-					"Fetching release %s from %s/%s...",
-					spec.Version,
-					spec.Owner,
-					spec.Repo,
-				),
-			)
-		}
-		release, err = i.client.GetReleaseByTag(ctx, spec.Owner, spec.Repo, spec.Version)
-	} else {
-		if progress != nil {
+	if progress != nil {
+		if spec.Version != "" {
+			progress(fmt.Sprintf("Fetching release %s from %s/%s...", spec.Version, spec.Owner, spec.Repo))
+		} else {
 			progress(fmt.Sprintf("Fetching latest release from %s/%s...", spec.Owner, spec.Repo))
 		}
-		release, err = i.client.GetLatestRelease(ctx, spec.Owner, spec.Repo)
 	}
+	release, err := i.fetchRelease(ctx, spec.Owner, spec.Repo, spec.Version, nil, progress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
@@ -662,7 +666,7 @@ func (i *Installer) Update(
 	} else if progress != nil {
 		progress(fmt.Sprintf("Checking for updates to %s...", name))
 	}
-	release, err := i.fetchRelease(ctx, owner, repo, opts.Version, assetHints)
+	release, err := i.fetchRelease(ctx, owner, repo, opts.Version, assetHints, progress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}

@@ -19,3 +19,6 @@ func (f SkillInstallerFunc) Install(ctx context.Context, dir, version string) pl
 func SetPluginSkillsForTest(f SkillInstallerFunc) {
 	pluginSkills = f
 }
+
+// IsNoAssetError exposes isNoAssetError to tests.
+func IsNoAssetError(err error) bool { return isNoAssetError(err) }

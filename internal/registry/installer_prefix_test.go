@@ -82,7 +82,7 @@ func TestInstallRelease_PrefixedTagUsesCanonicalDir(t *testing.T) {
 	defer server.Close()
 	inst, pluginDir := newPrefixedInstaller(t, server)
 
-	rel, err := inst.fetchRelease(context.Background(), "rshade", "finfocus", "", kubernetesHints)
+	rel, err := inst.fetchRelease(context.Background(), "rshade", "finfocus", "", kubernetesHints, nil)
 	require.NoError(t, err)
 	res, err := inst.installRelease(context.Background(), "kubernetes", rel, "rshade/finfocus",
 		InstallOptions{}, nil, kubernetesHints)
@@ -106,7 +106,7 @@ func TestFetchRelease_BareVersionResolvesPrefixedTag(t *testing.T) {
 	inst, _ := newPrefixedInstaller(t, server)
 
 	for _, v := range []string{"0.1.0", "v0.1.0", "kubernetes-v0.1.0"} {
-		rel, err := inst.fetchRelease(context.Background(), "rshade", "finfocus", v, kubernetesHints)
+		rel, err := inst.fetchRelease(context.Background(), "rshade", "finfocus", v, kubernetesHints, nil)
 		require.NoError(t, err, v)
 		assert.Equal(t, "kubernetes-v0.1.0", rel.TagName, v)
 	}
@@ -138,7 +138,7 @@ func TestCompareVersions_PrefixedCanonicalVersions(t *testing.T) {
 	defer server.Close()
 	inst, _ := newPrefixedInstaller(t, server)
 
-	rel, err := inst.fetchRelease(context.Background(), "rshade", "finfocus", "", kubernetesHints)
+	rel, err := inst.fetchRelease(context.Background(), "rshade", "finfocus", "", kubernetesHints, nil)
 	require.NoError(t, err)
 	_, err = inst.installRelease(context.Background(), "kubernetes", rel, "rshade/finfocus",
 		InstallOptions{}, nil, kubernetesHints)
