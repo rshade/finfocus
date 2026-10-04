@@ -17,7 +17,7 @@ workflows.
 | -------------------- | -------- | --------------- | ---------------- | ------------- | ----------- | ---------------------------------------------------------------------------------- |
 | aws-public           | AWS      | [X]             | [!] (Fallback\*) | [ ]           | [X]         | Uses embedded list prices. \*Actual costs are estimated by `runtime × list price`. |
 | aws-costexplorer     | AWS      | [ ]             | [X]              | [X]           | [X]         | Queries real billing data. Includes discounts/RIs.                                 |
-| azure-retail         | Azure    | [X]             | [ ]              | [ ]           | [ ]         | Uses Azure Retail Prices API.                                                      |
+| azure-public         | Azure    | [X]             | [!] (Fallback\*) | [ ]           | [ ]         | Uses the Azure Retail Prices API. \*Actual costs are `hours × list price`.         |
 | google-cloud-billing | GCP      | [ ]             | [X]              | [X]           | [ ]         | Queries Google Cloud Billing API.                                                  |
 
 ## Feature Definitions

@@ -102,6 +102,7 @@ A: The main plugins today:
 | Plugin | Projected Costs | Actual Costs | Notes |
 |--------|----------------|--------------|-------|
 | `aws-public` | ✓ | ✓ | AWS public pricing API |
+| `azure-public` | ✓ | ✓ | Azure Retail Prices API, no credentials |
 | Vantage | — | ✓ | Requires Vantage account |
 | Kubecost | — | ✓ | Planned |
 
