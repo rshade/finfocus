@@ -1,6 +1,7 @@
 // Package kubernetes is a finfocus plugin that reports Kubernetes workload
-// usage (UsageSourceService) and allocates node costs to workloads
-// (AllocatorService).
+// usage (UsageSourceService), allocates node costs to workloads
+// (AllocatorService), and estimates the projected cost of workloads declared
+// in a plan from their resource requests and configured rates.
 package kubernetes
 
 import (
@@ -10,6 +11,7 @@ import (
 
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"k8s.io/apimachinery/pkg/labels"
 	k8s "k8s.io/client-go/kubernetes"
 
@@ -18,6 +20,7 @@ import (
 
 	"github.com/rshade/finfocus/plugins/kubernetes/allocate"
 	"github.com/rshade/finfocus/plugins/kubernetes/usage"
+	"github.com/rshade/finfocus/plugins/kubernetes/workload"
 )
 
 // PluginName is the registry and binary name suffix.
@@ -34,25 +37,29 @@ type Cluster struct {
 // context; empty means the current context).
 type ClusterFactory func(scope string) (*Cluster, error)
 
-// Plugin serves GetStats and Allocate.
+// Plugin serves GetStats, Allocate, and projected cost for declared workloads.
 type Plugin struct {
 	*pluginsdk.BasePlugin
 
 	clusters ClusterFactory
+	config   Config
 }
 
-// New builds the plugin.
-func New(clusters ClusterFactory) *Plugin {
-	return &Plugin{BasePlugin: pluginsdk.NewBasePlugin(PluginName), clusters: clusters}
+// New builds the plugin. Projected pricing reads only cfg and the request's
+// attributes; it never uses clusters.
+func New(clusters ClusterFactory, cfg Config) *Plugin {
+	return &Plugin{BasePlugin: pluginsdk.NewBasePlugin(PluginName), clusters: clusters, config: cfg}
 }
 
-// Info declares capabilities explicitly so hosts never route price queries here.
+// Info declares capabilities explicitly. Projected cost is the only pricing
+// capability; Supports declines every resource it cannot price.
 func Info(version string) *pluginsdk.PluginInfo {
 	return pluginsdk.NewPluginInfo(PluginName, version,
 		pluginsdk.WithProviders("kubernetes"),
 		pluginsdk.WithCapabilities(
 			pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS,
 			pbc.PluginCapability_PLUGIN_CAPABILITY_ALLOCATION,
+			pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
 		),
 	)
 }
@@ -147,9 +154,32 @@ func (p *Plugin) Allocate(_ context.Context, req *pbc.AllocateRequest) (*pbc.All
 	return allocate.Allocate(req)
 }
 
-// Supports declines every pricing request; this plugin prices nothing.
-func (p *Plugin) Supports(_ context.Context, _ *pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
-	return &pbc.SupportsResponse{Supported: false, Reason: "kubernetes plugin provides usage and allocation only"}, nil
+// Supports answers yes exactly when the workload can be priced. A decline
+// reason is the only plugin text core keeps in a NO_COST_DATA note, so every
+// reason names its fix.
+func (p *Plugin) Supports(_ context.Context, req *pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
+	estimate := workload.Estimate(req.GetResource(), p.config)
+	return &pbc.SupportsResponse{Supported: estimate.Priced(), Reason: estimate.Reason}, nil
+}
+
+// GetProjectedCost prices a declared workload. A decline is only reachable
+// when a host skipped Supports, and returns FailedPrecondition with the reason.
+// The price depends on this process's environment, which a host's cache key
+// cannot see, so expires_at is now: hosts must not reuse it after a rate change.
+func (p *Plugin) GetProjectedCost(
+	_ context.Context, req *pbc.GetProjectedCostRequest,
+) (*pbc.GetProjectedCostResponse, error) {
+	estimate := workload.Estimate(req.GetResource(), p.config)
+	if !estimate.Priced() {
+		return nil, status.Error(codes.FailedPrecondition, estimate.Reason)
+	}
+	return &pbc.GetProjectedCostResponse{
+		CostPerMonth:  estimate.Monthly,
+		UnitPrice:     estimate.PodHourly,
+		Currency:      "USD",
+		BillingDetail: estimate.Note,
+		ExpiresAt:     timestamppb.Now(),
+	}, nil
 }
 
 // labelSelector renders key=value pairs in sorted order as a Kubernetes label

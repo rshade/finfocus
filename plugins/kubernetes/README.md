@@ -3,7 +3,10 @@
 Splits Kubernetes cluster cost across namespaces, workloads, and nodes by
 combining live cluster state with FinFocus's routed pricing plugins. It
 reports both a run-rate estimate today (no historical billing data) and a
-per-node accounting of unused (idle) capacity.
+per-node accounting of unused (idle) capacity. It also estimates the cost of
+workloads declared in a Pulumi plan, before they are deployed, from their
+resource requests and rates you configure (see
+[Projected Cost from a Pulumi Plan](#projected-cost-from-a-pulumi-plan)).
 
 ## What It Does
 
@@ -28,9 +31,11 @@ The plugin has two halves that together implement FinFocus's
 The repository contains the `policy`, `allocate`, and `usage` Go packages,
 their tests, and the plugin's gRPC entry point itself: `cmd/main.go` serves
 the plugin through `pluginsdk`, declaring explicit
-`PLUGIN_CAPABILITY_USAGE_STATS` and `PLUGIN_CAPABILITY_ALLOCATION`
-capabilities (see `Info()` in `plugin.go`) so hosts never route pricing
-queries here. The `finfocus cost cluster` command drives the plugin end to
+`PLUGIN_CAPABILITY_USAGE_STATS`, `PLUGIN_CAPABILITY_ALLOCATION`, and
+`PLUGIN_CAPABILITY_PROJECTED_COSTS` capabilities (see `Info()` in
+`plugin.go`). Its `Supports` answer declines every resource except the five
+workload kinds it can price, so hosts never route other pricing queries
+here. The `finfocus cost cluster` command drives the plugin end to
 end — usage collection, node pricing, and allocation (see
 [How It's Used](#how-its-used)). The sections below describe
 the plugin's behavior and interfaces.
@@ -97,6 +102,90 @@ FinFocus calls the plugin's `GetStats` RPC to collect run-rate node and pod
 usage, routes the priceable nodes and control plane through FinFocus's normal
 cost-pricing plugins, then calls the plugin's `Allocate` RPC with the priced
 resources and usage rows to get back per-workload allocation rows.
+
+## Projected Cost from a Pulumi Plan
+
+`finfocus cost projected` can price five workload kinds from a
+`pulumi preview --json` plan without a live cluster:
+
+| Type | Pod count |
+| --- | --- |
+| `kubernetes:apps/v1:Deployment` | `spec.replicas`, default 1 |
+| `kubernetes:apps/v1:StatefulSet` | `spec.replicas`, default 1 |
+| `kubernetes:apps/v1:DaemonSet` | `FINFOCUS_KUBERNETES_DAEMONSET_NODE_COUNT` |
+| `kubernetes:batch/v1:Job` | `spec.parallelism`, default 1 |
+| `kubernetes:batch/v1:CronJob` | `spec.jobTemplate.spec.parallelism`, default 1 |
+
+Every other type, including other `kubernetes:*` types such as `ConfigMap`,
+is declined with `kubernetes plugin provides usage and allocation only`, as
+before.
+
+The plugin reads the workload's pod template from the resource attributes
+FinFocus sends (finfocus-spec v0.7.3 `ResourceDescriptor.attributes`). It
+never connects to a cluster for this.
+
+### Configuration
+
+The plugin inherits FinFocus's environment. Set the variables before running
+`finfocus`:
+
+| Variable | Unit | Needed for |
+| --- | --- | --- |
+| `FINFOCUS_KUBERNETES_CPU_HOURLY_RATE` | USD per vCPU-hour | all five kinds |
+| `FINFOCUS_KUBERNETES_MEMORY_GIB_HOURLY_RATE` | USD per GiB-hour | all five kinds |
+| `FINFOCUS_KUBERNETES_DAEMONSET_NODE_COUNT` | pods (whole number, at least 1) | DaemonSet |
+| `FINFOCUS_KUBERNETES_JOB_HOURS_PER_MONTH` | hours (above 0, at most 744) | Job, CronJob |
+
+Rates must be finite and not negative. A rate of `0` is an explicit free
+price. An invalid value does not stop the plugin; the workloads that need it
+are reported as unpriced with a note naming the variable.
+
+### Formula
+
+```text
+podHourly = cpuCores × CPU rate + memGiB × memory rate
+monthly   = pods × podHourly × hours
+```
+
+`hours` is 730, or `FINFOCUS_KUBERNETES_JOB_HOURS_PER_MONTH` for Jobs and
+CronJobs. The per-pod request follows the scheduler's rule, the same one
+`cost cluster` applies to live pods: app containers and sidecars are summed,
+a larger init container wins, and pod-level `resources.requests` replace the
+container total. A container's limit stands in for an absent request, as
+Kubernetes defaulting does. If only one of CPU or memory is declared, the
+other counts as 0 and the note says so.
+
+Worked example: a Deployment with `replicas: 3` and one container requesting
+`cpu: 500m` and `memory: 1Gi`, at rates 0.04 and 0.005:
+
+```text
+podHourly = 0.5 × 0.04 + 1 × 0.005 = 0.025
+monthly   = 3 × 0.025 × 730       = 54.75 USD
+```
+
+The result's notes name the method, the pod count and where it came from,
+and say the rates are plugin configuration, not a real node price. The
+plugin marks each price as already expired (`expires_at`), so FinFocus does
+not cache it and a rate change takes effect on the next run.
+
+### When a workload is not priced
+
+A workload the plugin cannot price shows `NO_COST_DATA` with the plugin's
+reason, never a `$0` price. The first reason that applies is reported:
+
+| Reason | Fix |
+| --- | --- |
+| core sent no inputs | upgrade FinFocus to a version that sends attributes |
+| a count or request is not known until deployment | the value is computed by Pulumi at deploy time |
+| a quantity is not valid (names the field path) | fix the quantity in the pod spec |
+| no resource requests declared | set `resources.requests` |
+| no rate set, or a rate is invalid (names the variable) | set the rate variables |
+| DaemonSet node count or Job hours missing or invalid | set the hint variable |
+
+`replicas: 0` is a real `$0` price with a "scaled to zero" note.
+
+For the cost of a running cluster from real node prices, use
+`finfocus cost cluster`; it is the authoritative live number.
 
 ## Required RBAC
 
@@ -353,6 +442,10 @@ URN into the annotation. Name-based matching is not used.
 - **EKS-only control plane pricing**: the control plane is detected purely
   from an EKS API server hostname pattern; GKE and AKS control planes are
   not detected or priced by this version.
+- **Projected cost uses configured rates**: plan-time workload prices come
+  from the rate variables above, not from node prices, so they are an
+  estimate to compare changes, not a bill. Pod overhead is set at admission
+  and is not in a plan, so it is not included.
 - **Single policy schema version**: only `version: 1` is understood.
   `idle` and `system_workloads` accept `"separate"` or `"share"`. Every
   other field except the two `node_split` unit prices supports exactly one

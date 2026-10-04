@@ -869,6 +869,20 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   aws-public's job
   ([finfocus-plugin-aws-public#409](https://github.com/rshade/finfocus-plugin-aws-public/issues/409));
   kind cannot simulate Fargate, so `make test-e2e-kind` does not cover it
+- **Projected workload pricing** (`specs/621-k8s-workload-projected-cost/`):
+  `plugins/kubernetes/workload` prices Deployment, StatefulSet, DaemonSet,
+  Job, and CronJob from `attributes` at rates from
+  `FINFOCUS_KUBERNETES_CPU_HOURLY_RATE` and
+  `FINFOCUS_KUBERNETES_MEMORY_GIB_HOURLY_RATE`, with
+  `FINFOCUS_KUBERNETES_DAEMONSET_NODE_COUNT` and
+  `FINFOCUS_KUBERNETES_JOB_HOURS_PER_MONTH` as hints. `Supports` and
+  `GetProjectedCost` share `workload.Estimate`. A `Supports` decline reason
+  (at most 160 characters) is the only plugin text core keeps in a
+  `NO_COST_DATA` note; a `GetProjectedCost` error's text is dropped. The
+  per-pod request reuses `usage.EffectiveRequests`, with limits standing in
+  for absent requests first. Prices carry `expires_at` = now because the
+  core cache key cannot see the plugin's environment; without it a rate change
+  kept the old cached price
 - **Pulumi URN linking** (`specs/616-k8s-pulumi-urn-linking/`): the provider
   does not write a URN onto objects. Users set annotation
   `finfocus.dev/pulumi-urn` (not a label: URN values contain `:` and exceed

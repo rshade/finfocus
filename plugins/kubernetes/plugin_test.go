@@ -4,11 +4,13 @@ import (
 	"context"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -18,6 +20,8 @@ import (
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 	plugintesting "github.com/rshade/finfocus-spec/sdk/go/testing"
+
+	"github.com/rshade/finfocus/plugins/kubernetes/workload"
 )
 
 func fakeClusters(t *testing.T) ClusterFactory {
@@ -33,7 +37,7 @@ func fakeClusters(t *testing.T) ClusterFactory {
 func TestGetStats_RejectsHistorical(t *testing.T) {
 	t.Parallel()
 
-	p := New(fakeClusters(t))
+	p := New(fakeClusters(t), Config{})
 	_, err := p.GetStats(context.Background(), &pbc.GetStatsRequest{Start: timestamppb.Now()})
 	require.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -43,7 +47,7 @@ func TestGetStats_RejectsHistorical(t *testing.T) {
 func TestGetStats_UnknownContext(t *testing.T) {
 	t.Parallel()
 
-	_, err := New(fakeClusters(t)).GetStats(context.Background(), &pbc.GetStatsRequest{Scope: "missing"})
+	_, err := New(fakeClusters(t), Config{}).GetStats(context.Background(), &pbc.GetStatsRequest{Scope: "missing"})
 	require.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
@@ -51,7 +55,7 @@ func TestGetStats_UnknownContext(t *testing.T) {
 func TestGetStats_ValidResponse(t *testing.T) {
 	t.Parallel()
 
-	resp, err := New(fakeClusters(t)).GetStats(context.Background(),
+	resp, err := New(fakeClusters(t), Config{}).GetStats(context.Background(),
 		&pbc.GetStatsRequest{Selector: map[string]string{"namespace": "a", "app": "web"}})
 	require.NoError(t, err)
 	require.NoError(t, plugintesting.ValidateStatsResponse(resp))
@@ -87,7 +91,7 @@ func metricFilterPlugin(t *testing.T) *Plugin {
 	cs := fake.NewSimpleClientset(node, pod)
 	return New(func(string) (*Cluster, error) {
 		return &Cluster{Client: cs, Context: "test-cluster"}, nil
-	})
+	}, Config{})
 }
 
 func TestGetStats_MetricsFilter(t *testing.T) {
@@ -164,7 +168,7 @@ func TestGetStats_MetricsFilter(t *testing.T) {
 func TestGetStats_InvalidSelectorValue(t *testing.T) {
 	t.Parallel()
 
-	_, err := New(fakeClusters(t)).GetStats(context.Background(),
+	_, err := New(fakeClusters(t), Config{}).GetStats(context.Background(),
 		&pbc.GetStatsRequest{Selector: map[string]string{"team": "a,other-label=x"}})
 	require.Error(t, err)
 	assert.Equal(t, codes.InvalidArgument, status.Code(err))
@@ -244,13 +248,14 @@ func TestInfo_ExplicitCapabilitiesOnly(t *testing.T) {
 	assert.ElementsMatch(t, []pbc.PluginCapability{
 		pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS,
 		pbc.PluginCapability_PLUGIN_CAPABILITY_ALLOCATION,
-	}, info.Capabilities)
+		pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
+	}, info.Capabilities, "projected cost is the only pricing capability")
 }
 
 func TestPlugin_ImplementsProviders(t *testing.T) {
 	t.Parallel()
 
-	var p any = New(fakeClusters(t))
+	var p any = New(fakeClusters(t), Config{})
 	_, ok := p.(pluginsdk.UsageSourceProvider)
 	assert.True(t, ok)
 	_, ok = p.(pluginsdk.AllocatorProvider)
@@ -260,7 +265,7 @@ func TestPlugin_ImplementsProviders(t *testing.T) {
 func TestAllocatorConformance(t *testing.T) {
 	t.Parallel()
 
-	plugintesting.RunAllocatorConformance(t, New(fakeClusters(t)))
+	plugintesting.RunAllocatorConformance(t, New(fakeClusters(t), Config{}))
 }
 
 // Hosts consult Supports before routing price queries. Since finfocus-spec
@@ -270,12 +275,103 @@ func TestAllocatorConformance(t *testing.T) {
 func TestSupports_OptsOutOfPricingThroughSDK(t *testing.T) {
 	t.Parallel()
 
-	srv := pluginsdk.NewServerWithOptions(New(fakeClusters(t)), nil, nil, Info("v0.1.0"))
+	srv := pluginsdk.NewServerWithOptions(New(fakeClusters(t), Config{}), nil, nil, Info("v0.1.0"))
 	for _, rt := range []string{"aws:ec2/instance:Instance", "ec2", "kubernetes:apps/v1:Deployment"} {
 		resp, err := srv.Supports(context.Background(), &pbc.SupportsRequest{
 			Resource: &pbc.ResourceDescriptor{ResourceType: rt},
 		})
 		require.NoError(t, err, rt)
 		assert.False(t, resp.GetSupported(), rt)
+	}
+}
+
+// noClusters fails the test if projected pricing ever reaches a cluster.
+func noClusters(t *testing.T) ClusterFactory {
+	t.Helper()
+	return func(string) (*Cluster, error) {
+		t.Error("projected pricing must not connect to a cluster")
+		return nil, status.Error(codes.Internal, "no cluster in this test")
+	}
+}
+
+func ratedConfig() Config {
+	return LoadConfig(envOf(map[string]string{
+		workload.EnvCPUHourlyRate:       "0.04",
+		workload.EnvMemoryGiBHourlyRate: "0.005",
+	}))
+}
+
+func deploymentDescriptor(t *testing.T) *pbc.ResourceDescriptor {
+	t.Helper()
+	attrs, err := structpb.NewStruct(map[string]any{"spec": map[string]any{
+		"replicas": 3.0,
+		"template": map[string]any{"spec": map[string]any{"containers": []any{
+			map[string]any{"resources": map[string]any{
+				"requests": map[string]any{"cpu": "500m", "memory": "1Gi"},
+			}},
+		}}},
+	}})
+	require.NoError(t, err)
+	return &pbc.ResourceDescriptor{
+		Id: "urn:web", Provider: "kubernetes", ResourceType: "kubernetes:apps/v1:Deployment", Attributes: attrs,
+	}
+}
+
+func TestProjectedCost_PricesDeclaredDeployment(t *testing.T) {
+	t.Parallel()
+
+	p := New(noClusters(t), ratedConfig())
+	desc := deploymentDescriptor(t)
+	want := workload.Estimate(desc, ratedConfig())
+
+	supports, err := p.Supports(context.Background(), &pbc.SupportsRequest{Resource: desc})
+	require.NoError(t, err)
+	assert.True(t, supports.GetSupported())
+	assert.Empty(t, supports.GetReason())
+
+	resp, err := p.GetProjectedCost(context.Background(), &pbc.GetProjectedCostRequest{Resource: desc})
+	require.NoError(t, err)
+	assert.InDelta(t, 54.75, resp.GetCostPerMonth(), 1e-9)
+	assert.InDelta(t, want.PodHourly, resp.GetUnitPrice(), 1e-12)
+	assert.Equal(t, "USD", resp.GetCurrency())
+	assert.Equal(t, want.Note, resp.GetBillingDetail())
+	require.NotNil(t, resp.GetExpiresAt(), "a config-derived price must not be cached by the host")
+	assert.False(t, resp.GetExpiresAt().AsTime().After(time.Now()))
+}
+
+func TestProjectedCost_DeclinesWithoutRates(t *testing.T) {
+	t.Parallel()
+
+	p := New(noClusters(t), Config{})
+	desc := deploymentDescriptor(t)
+	want := workload.Estimate(desc, Config{})
+	require.False(t, want.Priced())
+
+	supports, err := p.Supports(context.Background(), &pbc.SupportsRequest{Resource: desc})
+	require.NoError(t, err)
+	assert.False(t, supports.GetSupported())
+	assert.Equal(t, want.Reason, supports.GetReason())
+
+	_, err = p.GetProjectedCost(context.Background(), &pbc.GetProjectedCostRequest{Resource: desc})
+	require.Error(t, err)
+	assert.Equal(t, codes.FailedPrecondition, status.Code(err))
+	assert.Contains(t, err.Error(), workload.EnvCPUHourlyRate)
+}
+
+func TestSupports_DeclinesOtherTypesWithTodaysReason(t *testing.T) {
+	t.Parallel()
+
+	p := New(noClusters(t), ratedConfig())
+	for _, desc := range []*pbc.ResourceDescriptor{
+		{Provider: "kubernetes", ResourceType: "kubernetes:core/v1:ConfigMap"},
+		{Provider: "kubernetes", ResourceType: "kubernetes:core/v1:Service"},
+		{Provider: "kubernetes", ResourceType: "kubernetes:apps/v1:ReplicaSet"},
+		{Provider: "kubernetes", ResourceType: "kubernetes:apps/v1:DeploymentPatch"},
+		{Provider: "aws", ResourceType: "aws:ec2/instance:Instance"},
+	} {
+		resp, err := p.Supports(context.Background(), &pbc.SupportsRequest{Resource: desc})
+		require.NoError(t, err)
+		assert.False(t, resp.GetSupported(), desc.GetResourceType())
+		assert.Equal(t, "kubernetes plugin provides usage and allocation only", resp.GetReason())
 	}
 }
