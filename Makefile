@@ -288,9 +288,8 @@ docs-lint:
 docs-sync:
 	@echo "Syncing root documentation..."
 	@test -f CONTRIBUTING.md || (echo "Error: CONTRIBUTING.md not found"; exit 1)
-	@test -f ROADMAP.md || (echo "Error: ROADMAP.md not found"; exit 1)
 	@test -f README.md || (echo "Error: README.md not found"; exit 1)
-	@mkdir -p docs/src/content/docs/support docs/src/content/docs/architecture
+	@mkdir -p docs/src/content/docs/support
 	@echo "---" > docs/src/content/docs/support/contributing.md
 	@echo "title: Contributing" >> docs/src/content/docs/support/contributing.md
 	@echo "description: Development setup, guidelines, and workflow for contributing to FinFocus." >> docs/src/content/docs/support/contributing.md
@@ -303,15 +302,6 @@ docs-sync:
 		-e 's|\]\((\.specify/[^)]*)\)|](https://github.com/rshade/finfocus/blob/main/\1)|g' \
 		-e 's|\]\(([A-Za-z0-9_][^):]*)\)|](https://github.com/rshade/finfocus/blob/main/\1)|g' \
 		>> docs/src/content/docs/support/contributing.md
-	@echo "---" > docs/src/content/docs/architecture/roadmap.md
-	@echo "title: Roadmap" >> docs/src/content/docs/architecture/roadmap.md
-	@echo "description: Strategic roadmap for FinFocus development milestones and planned features." >> docs/src/content/docs/architecture/roadmap.md
-	@echo "---" >> docs/src/content/docs/architecture/roadmap.md
-	@echo "" >> docs/src/content/docs/architecture/roadmap.md
-	@cat ROADMAP.md | sed -E \
-		-e '/^# /d' \
-		-e 's|\(CONTEXT\.md\)|(https://github.com/rshade/finfocus/blob/main/CONTEXT.md)|g' \
-		>> docs/src/content/docs/architecture/roadmap.md
 	@echo "---" > docs/src/content/docs/README.md
 	@echo "title: Project README" >> docs/src/content/docs/README.md
 	@echo "description: Cloud cost analysis for Pulumi infrastructure with projected costs, budgets, and plugin architecture." >> docs/src/content/docs/README.md
@@ -390,7 +380,7 @@ help:
 	@echo ""
 	@echo "Documentation targets:"
 	@echo "  docs-lint        - Lint documentation markdown"
-	@echo "  docs-sync        - Sync root docs (CONTRIBUTING.md, ROADMAP.md) to docs site"
+	@echo "  docs-sync        - Sync root docs (README.md, CONTRIBUTING.md) to docs site"
 	@echo "  docs-build       - Build documentation site"
 	@echo "  docs-serve       - Serve documentation locally (http://localhost:4000)"
 	@echo "  docs-validate    - Validate documentation structure"

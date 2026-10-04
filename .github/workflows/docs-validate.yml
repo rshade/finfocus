@@ -4,10 +4,14 @@ on:
   push:
     paths:
       - 'docs/**'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
       - '.github/workflows/docs-validate.yml'
   pull_request:
     paths:
       - 'docs/**'
+      - 'README.md'
+      - 'CONTRIBUTING.md'
 
 permissions:
   contents: read
