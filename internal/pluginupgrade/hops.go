@@ -99,6 +99,11 @@ var hops = []Hop{
 		},
 		Guide: "to-v0.7.2.md",
 	},
+	{
+		To:      "v0.7.3",
+		Summary: "Additive release; ResourceDescriptor.attributes; tag values up to 2048 bytes",
+		Guide:   "to-v0.7.3.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.

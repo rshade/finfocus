@@ -143,3 +143,4 @@ review.
 | [to-v0.7.0.md](references/to-v0.7.0.md) | Additive only |
 | [to-v0.7.1.md](references/to-v0.7.1.md) | Additive; scorer request id field deprecated |
 | [to-v0.7.2.md](references/to-v0.7.2.md) | Additive; manifest validation; provider means the cloud |
+| [to-v0.7.3.md](references/to-v0.7.3.md) | Additive; `ResourceDescriptor.attributes`; 2048-byte tag values |
