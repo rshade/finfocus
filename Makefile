@@ -162,10 +162,14 @@ test-e2e:
 	./test/e2e/run-e2e-tests.sh $(TEST_ARGS)
 
 # Kind-based cost cluster E2E - requires Docker, kind, and kubectl; no cloud credentials
+# Pinned so a just-published release whose assets are still uploading cannot break the run.
+# renovate: datasource=github-releases depName=rshade/finfocus-plugin-aws-public
+E2E_AWS_PUBLIC_VERSION?=v0.2.0
+
 .PHONY: test-e2e-kind
 test-e2e-kind: build install-kubernetes
 	./test/e2e/kind/setup.sh
-	./bin/finfocus plugin install aws-public --metadata region=us-east-1 --force
+	./bin/finfocus plugin install aws-public@$(E2E_AWS_PUBLIC_VERSION) --metadata region=us-east-1 --force
 	cd test/e2e && FINFOCUS_BINARY=$(CURDIR)/bin/finfocus go test -tags e2e_kind -run TestCostCluster_Kind -v -timeout 10m ./...
 
 # Regenerate the real Terraform state goldens (requires docker + mise; no cloud access)

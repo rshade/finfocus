@@ -52,5 +52,17 @@
   "timezone": "UTC",
   "automerge": true,
   "automergeType": "pr",
-  "platformAutomerge": true
+  "platformAutomerge": true,
+  "customManagers": [
+    {
+      "description": "Version pins in the Makefile annotated with a '# renovate: datasource=... depName=...' comment on the line above (e.g. the aws-public plugin pinned for make test-e2e-kind).",
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/(^|/)Makefile$/"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n[A-Z0-9_]+\\s*\\??=\\s*(?<currentValue>\\S+)"
+      ]
+    }
+  ]
 }
