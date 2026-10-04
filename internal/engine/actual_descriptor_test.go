@@ -61,7 +61,7 @@ func TestGetActualCostFromPlugin_SendsResource(t *testing.T) {
 	assert.NotContains(t, attrs, "adminPassword")
 }
 
-func TestGenerateActualCostCacheKey_Attributes(t *testing.T) {
+func TestGenerateActualCostCacheKey_Descriptor(t *testing.T) {
 	t.Parallel()
 
 	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
@@ -82,8 +82,26 @@ func TestGenerateActualCostCacheKey_Attributes(t *testing.T) {
 	redactedOnly := bare
 	redactedOnly.Resources = []ResourceDescriptor{{
 		Type: "aws:ec2:Instance", ID: "i-1", Provider: "aws",
-		Properties: map[string]any{"password": "hunter2", "__defaults": []any{}},
+		Properties: map[string]any{"password": "hunter2"},
 	}}
 	assert.Equal(t, generateActualCostCacheKey(bare), generateActualCostCacheKey(redactedOnly),
-		"a resource that sends no attributes keeps its existing key")
+		"a resource whose descriptor carries no tags or attributes keeps its existing key")
+
+	withRef := func(urn string) ActualCostRequest {
+		r := request(3)
+		r.Resources[0].Properties["ref.subnetId.urn"] = urn
+		return r
+	}
+	assert.NotEqual(t,
+		generateActualCostCacheKey(withRef("urn:pulumi:dev::app::aws:ec2/subnet:Subnet::a")),
+		generateActualCostCacheKey(withRef("urn:pulumi:dev::app::aws:ec2/subnet:Subnet::b")),
+		"ref.* values reach the descriptor tags, so a changed reference must miss the cache")
+
+	untyped := request(3)
+	untyped.Resources[0].Provider = ""
+	assert.Equal(t, generateActualCostCacheKey(untyped), generateActualCostCacheKey(func() ActualCostRequest {
+		r := request(5)
+		r.Resources[0].Provider = ""
+		return r
+	}()), "no descriptor is sent without a provider, so the key ignores its properties")
 }

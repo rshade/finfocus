@@ -373,8 +373,9 @@ sent) when the request names more than one resource, provider or type is
 empty, or `pluginsdk.ValidateResourceDescriptor` rejects it, never a
 `VALIDATION` placeholder. Request `tags` keep the injected `sku`/`region`/
 `provider`/`resource_type` for plugins older than v0.7.4. Actual cache keys add
-an `attrs` filter (per-resource attributes digests) only when a resource sends
-attributes, so existing keys are unchanged.
+a `descriptor` filter (per-resource digest of flattened tags, `ref.*` included,
+and attributes; `actualDescriptorCacheSuffix`) only when a resource would send
+descriptor content, so resources without one keep their existing keys.
 
 ### Property Extraction
 

@@ -4135,20 +4135,37 @@ func generateActualCostCacheKey(request ActualCostRequest) string {
 	for k, v := range request.Tags {
 		filters["tag:"+k] = v
 	}
-	// Plugins may price actual cost from attributes, so a changed declared
-	// input must not reuse an older answer. Resources that send none add nothing.
-	var attrDigests []string
+	// Plugins may price actual cost from the resource descriptor, so a changed
+	// declared input must not reuse an older answer. Resources that send no
+	// descriptor content add nothing, which keeps their existing keys.
+	var descriptorDigests []string
 	for _, r := range request.Resources {
-		if suffix := attributesCacheSuffix(r.Properties); suffix != "" {
-			attrDigests = append(attrDigests, r.ID+"="+suffix)
+		if suffix := actualDescriptorCacheSuffix(r); suffix != "" {
+			descriptorDigests = append(descriptorDigests, r.ID+"="+suffix)
 		}
 	}
-	if len(attrDigests) > 0 {
-		sort.Strings(attrDigests)
-		filters["attrs"] = strings.Join(attrDigests, ",")
+	if len(descriptorDigests) > 0 {
+		sort.Strings(descriptorDigests)
+		filters["descriptor"] = strings.Join(descriptorDigests, ",")
 	}
 
 	return cache.BuildActualKey(provider, resourceTypes, request.From, request.To, filters)
+}
+
+// actualDescriptorCacheSuffix digests what GetActualCostRequest.resource
+// carries for r: its flattened tags, which include ref.* references, and its
+// attributes. It is empty when no descriptor is sent (no provider or type) or
+// the descriptor would carry neither.
+func actualDescriptorCacheSuffix(r ResourceDescriptor) string {
+	if r.Provider == "" || r.Type == "" {
+		return ""
+	}
+	tags := ConvertToProto(r.Properties)
+	attrs := attributesCacheSuffix(r.Properties)
+	if len(tags) == 0 && attrs == "" {
+		return ""
+	}
+	return "tags-" + tagCacheSuffix(tags) + "/attrs-" + attrs
 }
 
 // tryProjectedCostCache attempts to retrieve cached projected cost results for the
