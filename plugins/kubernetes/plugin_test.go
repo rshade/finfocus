@@ -358,7 +358,7 @@ func TestProjectedCost_DeclinesWithoutRates(t *testing.T) {
 	assert.Contains(t, err.Error(), workload.EnvCPUHourlyRate)
 }
 
-func TestSupports_DeclinesOtherTypesWithTodaysReason(t *testing.T) {
+func TestSupports_DeclinesOtherTypes(t *testing.T) {
 	t.Parallel()
 
 	p := New(noClusters(t), ratedConfig())
@@ -367,11 +367,16 @@ func TestSupports_DeclinesOtherTypesWithTodaysReason(t *testing.T) {
 		{Provider: "kubernetes", ResourceType: "kubernetes:core/v1:Service"},
 		{Provider: "kubernetes", ResourceType: "kubernetes:apps/v1:ReplicaSet"},
 		{Provider: "kubernetes", ResourceType: "kubernetes:apps/v1:DeploymentPatch"},
-		{Provider: "aws", ResourceType: "aws:ec2/instance:Instance"},
 	} {
 		resp, err := p.Supports(context.Background(), &pbc.SupportsRequest{Resource: desc})
 		require.NoError(t, err)
 		assert.False(t, resp.GetSupported(), desc.GetResourceType())
-		assert.Equal(t, "kubernetes plugin provides usage and allocation only", resp.GetReason())
+		assert.Equal(t, workload.ReasonUnsupportedKind(), resp.GetReason())
 	}
+
+	desc := &pbc.ResourceDescriptor{Provider: "aws", ResourceType: "aws:ec2/instance:Instance"}
+	resp, err := p.Supports(context.Background(), &pbc.SupportsRequest{Resource: desc})
+	require.NoError(t, err)
+	assert.False(t, resp.GetSupported())
+	assert.Equal(t, workload.ReasonWrongProvider, resp.GetReason())
 }

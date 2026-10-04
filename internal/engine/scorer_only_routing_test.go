@@ -21,7 +21,7 @@ import (
 
 const (
 	jevDeclineReason        = "jev plugin scores recommendations only"
-	kubernetesDeclineReason = "kubernetes plugin provides usage and allocation only"
+	kubernetesDeclineReason = "kubernetes plugin prices only kubernetes:* resources"
 )
 
 // callCountClient records cost RPCs. A scorer-only plugin must stay at zero
