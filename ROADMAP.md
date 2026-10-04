@@ -96,7 +96,7 @@ Completed Milestones, 2026-Q4).
   - *Note:* Requires external service integration to maintain core
     statelessness per CONTEXT.md boundaries
 - [ ] **Recommendation Lifecycle Enhancements** *(spec-first)*
-  - [ ] Add `include_dismissed` field to GetRecommendationsRequest
+  - [x] Add `include_dismissed` field to GetRecommendationsRequest
         ([#545](https://github.com/rshade/finfocus/issues/545)) [S]
   - [ ] Add GetRecommendationHistory RPC to CostSourceService
         ([#546](https://github.com/rshade/finfocus/issues/546)) [M]

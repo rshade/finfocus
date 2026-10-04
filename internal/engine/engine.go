@@ -3387,9 +3387,29 @@ func specifiedEnum(name string) string {
 
 // GetRecommendationsForResources fetches cost optimization recommendations for the given resources.
 // For large datasets (>100 resources), it uses batch processing to improve performance and memory usage.
+// Plugin-side dismissals stay omitted. Callers that set --include-dismissed use
+// GetRecommendationsForResourcesWithDismissed.
 func (e *Engine) GetRecommendationsForResources(
 	ctx context.Context,
 	resources []ResourceDescriptor,
+) (*RecommendationsResult, error) {
+	return e.getRecommendationsForResources(ctx, resources, false)
+}
+
+// GetRecommendationsForResourcesWithDismissed is GetRecommendationsForResources with
+// include_dismissed set, so a plugin that stores dismissals returns them.
+// The host's excluded recommendation IDs are still sent, and those IDs stay omitted.
+func (e *Engine) GetRecommendationsForResourcesWithDismissed(
+	ctx context.Context,
+	resources []ResourceDescriptor,
+) (*RecommendationsResult, error) {
+	return e.getRecommendationsForResources(ctx, resources, true)
+}
+
+func (e *Engine) getRecommendationsForResources(
+	ctx context.Context,
+	resources []ResourceDescriptor,
+	includeDismissed bool,
 ) (*RecommendationsResult, error) {
 	log := logging.FromContext(ctx)
 	result := &RecommendationsResult{
@@ -3403,7 +3423,7 @@ func (e *Engine) GetRecommendationsForResources(
 	excludedIDs := loadExcludedRecommendationIDs(ctx, e.dismissalStore)
 
 	// Compute cache key once for both read and write paths.
-	recommendationsCacheKey := e.generateRecommendationsCacheKey(resources, excludedIDs)
+	recommendationsCacheKey := e.recommendationsCacheKey(resources, excludedIDs, includeDismissed)
 
 	// Check cache if enabled
 	if e.cache != nil && e.cache.IsEnabled() {
@@ -3427,7 +3447,7 @@ func (e *Engine) GetRecommendationsForResources(
 	}
 
 	for _, target := range e.routeRecommendationTargets(ctx, resources) {
-		e.fetchRecommendationsFromTarget(ctx, target, result, excludedIDs)
+		e.fetchRecommendationsFromTarget(ctx, target, result, excludedIDs, includeDismissed)
 	}
 
 	// Store result in cache if enabled
@@ -3462,6 +3482,7 @@ func (e *Engine) fetchRecommendationsFromTarget(
 	target recommendationTarget,
 	result *RecommendationsResult,
 	excludedIDs []string,
+	includeDismissed bool,
 ) {
 	log := logging.FromContext(ctx)
 	client := target.client
@@ -3477,9 +3498,9 @@ func (e *Engine) fetchRecommendationsFromTarget(
 
 	var err error
 	if useBatchProcessing {
-		err = e.fetchRecommendationsWithBatching(ctx, client, target.resources, result, excludedIDs)
+		err = e.fetchRecommendationsWithBatching(ctx, client, target.resources, result, excludedIDs, includeDismissed)
 	} else {
-		err = e.fetchRecommendationsSequential(ctx, client, target.resources, result, excludedIDs)
+		err = e.fetchRecommendationsSequential(ctx, client, target.resources, result, excludedIDs, includeDismissed)
 	}
 	if err == nil {
 		return
@@ -3517,6 +3538,21 @@ func (e *Engine) generateRecommendationsCacheKey(resources []ResourceDescriptor,
 		})
 	}
 	return cache.BuildRecommendationsKey(resourceTypes, cache.HashRecommendationInputs(inputs, excludedIDs))
+}
+
+// recommendationsCacheKey is the projected recommendations cache key. A request that
+// asks plugins to include their own dismissals uses a distinct suffix so it cannot
+// read or write the default entry. The default key is unchanged.
+func (e *Engine) recommendationsCacheKey(
+	resources []ResourceDescriptor,
+	excludedIDs []string,
+	includeDismissed bool,
+) string {
+	key := e.generateRecommendationsCacheKey(resources, excludedIDs)
+	if includeDismissed {
+		return key + "/include-dismissed"
+	}
+	return key
 }
 
 // isScorerOnly reports whether a plugin advertises recommendation scoring without
@@ -3560,16 +3596,14 @@ func (e *Engine) routeRecommendationTargets(
 	return targets
 }
 
-// fetchRecommendationsSequential fetches recommendations without batching (for small datasets).
-func (e *Engine) fetchRecommendationsSequential(
-	ctx context.Context,
-	client *pluginhost.Client,
+// recommendationsRequest builds the plugin request for one recommendations fetch.
+// includeDismissed asks the plugin to return recommendations it has dismissed.
+// excluded IDs are still sent, and a plugin that honors both omits those IDs.
+func recommendationsRequest(
 	resources []ResourceDescriptor,
-	result *RecommendationsResult,
 	excludedIDs []string,
-) error {
-	log := logging.FromContext(ctx)
-
+	includeDismissed bool,
+) *proto.GetRecommendationsRequest {
 	targetResources := make([]*proto.ResourceDescriptor, 0, len(resources))
 	for _, r := range resources {
 		targetResources = append(targetResources, &proto.ResourceDescriptor{
@@ -3579,15 +3613,29 @@ func (e *Engine) fetchRecommendationsSequential(
 			Properties: ConvertToProto(r.Properties),
 		})
 	}
-
 	req := &proto.GetRecommendationsRequest{
 		TargetResources:  targetResources,
 		ProjectionPeriod: "monthly",
+		IncludeDismissed: includeDismissed,
 	}
-
 	if len(excludedIDs) > 0 {
 		req.ExcludedRecommendationIDs = excludedIDs
 	}
+	return req
+}
+
+// fetchRecommendationsSequential fetches recommendations without batching (for small datasets).
+func (e *Engine) fetchRecommendationsSequential(
+	ctx context.Context,
+	client *pluginhost.Client,
+	resources []ResourceDescriptor,
+	result *RecommendationsResult,
+	excludedIDs []string,
+	includeDismissed bool,
+) error {
+	log := logging.FromContext(ctx)
+
+	req := recommendationsRequest(resources, excludedIDs, includeDismissed)
 
 	resp, err := client.API.GetRecommendations(ctx, req)
 	if err != nil {
@@ -3620,6 +3668,7 @@ func (e *Engine) fetchRecommendationsWithBatching(
 	resources []ResourceDescriptor,
 	result *RecommendationsResult,
 	excludedIDs []string,
+	includeDismissed bool,
 ) error {
 	log := logging.FromContext(ctx)
 
@@ -3634,26 +3683,7 @@ func (e *Engine) fetchRecommendationsWithBatching(
 		ctx,
 		resources,
 		func(ctx context.Context, batchResources []ResourceDescriptor, batchIndex int) error {
-			// Convert batch to proto format
-			targetResources := make([]*proto.ResourceDescriptor, 0, len(batchResources))
-			for _, r := range batchResources {
-				targetResources = append(targetResources, &proto.ResourceDescriptor{
-					ID:         r.ID,
-					Type:       r.Type,
-					Provider:   r.Provider,
-					Properties: ConvertToProto(r.Properties),
-				})
-			}
-
-			// Fetch recommendations for this batch
-			req := &proto.GetRecommendationsRequest{
-				TargetResources:  targetResources,
-				ProjectionPeriod: "monthly",
-			}
-
-			if len(excludedIDs) > 0 {
-				req.ExcludedRecommendationIDs = excludedIDs
-			}
+			req := recommendationsRequest(batchResources, excludedIDs, includeDismissed)
 
 			resp, recErr := client.API.GetRecommendations(ctx, req)
 			if recErr != nil {

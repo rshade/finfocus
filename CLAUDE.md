@@ -757,7 +757,11 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `ActionDetail`, primary/secondary reasons);
   `Recommendation.ID` is the dismissal ID. The cache key is
   `recommendations/multi/{types}/{hash}` where the hash covers resource id/provider/type/
-  properties plus dismissed IDs (`cache.HashRecommendationInputs`). Resources are routed per
+  properties plus dismissed IDs (`cache.HashRecommendationInputs`). `--include-dismissed`
+  sets `include_dismissed` on the plugin request and still sends the host's excluded IDs,
+  so an older plugin keeps hiding host dismissals. That fetch suffixes the cache key with
+  `/include-dismissed`. The default key is unchanged. Spec: `specs/622-include-dismissed/`
+  and finfocus-spec `specs/599-include-dismissed/`. Resources are routed per
   plugin via `routeRecommendationTargets` (router feature `Recommendations`)
 - **Recommendation scoring** (`internal/scoring`, opt-in via `scoring.*` config, off by default):
   `scoring.Service.Score` runs after the fetch in `cost recommendations`, sends recommendations
@@ -1037,6 +1041,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 ## Recent Changes
 
+- 622-include-dismissed: `cost recommendations --include-dismissed` sets `GetRecommendationsRequest.include_dismissed` (finfocus-spec field 8) and still sends excluded IDs; the cache key gains `/include-dismissed`
 - 621-k8s-workload-projected-cost: finfocus-spec v0.7.3 (`ResourceDescriptor.attributes`); core sends redacted attributes; the kubernetes plugin prices declared workloads
 - 608-batch-cost-consumer: Added Go 1.27.1 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging)
 - 608-resource-history-store: Added Go 1.27.1 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`).
