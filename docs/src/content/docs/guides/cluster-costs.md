@@ -133,6 +133,37 @@ carries annotation `finfocus.dev/pulumi-urn`. `--output ndjson` emits a `summary
 line per group. The command is also exposed as an MCP tool (`finfocus
 mcp-server`), so agents can call it like any other read-only command.
 
+## Price workloads declared in a Pulumi plan
+
+`cost cluster` prices a running cluster. Before a workload is deployed, the
+same plugin can estimate it from the plan: `cost projected` prices
+Deployments, StatefulSets, DaemonSets, Jobs, and CronJobs from their declared
+resource requests and rates you set. No cluster connection is needed.
+
+```bash
+export FINFOCUS_KUBERNETES_CPU_HOURLY_RATE=0.04         # USD per vCPU-hour
+export FINFOCUS_KUBERNETES_MEMORY_GIB_HOURLY_RATE=0.005 # USD per GiB-hour
+export FINFOCUS_KUBERNETES_DAEMONSET_NODE_COUNT=4       # optional, DaemonSets
+export FINFOCUS_KUBERNETES_JOB_HOURS_PER_MONTH=10       # optional, Jobs and CronJobs
+
+pulumi preview --json > plan.json
+finfocus cost projected --pulumi-json plan.json
+```
+
+A Deployment with `replicas: 3` and one container requesting `cpu: 500m` and
+`memory: 1Gi` costs `3 × (0.5 × 0.04 + 1 × 0.005) × 730 = 54.75` USD a month.
+The note on each result names the method and the pod count source.
+
+Without the rates, each workload shows `NO_COST_DATA` with a note naming the
+missing variable, never a `$0` price. A DaemonSet without a node count, or a
+Job or CronJob without hours, is reported the same way. Other `kubernetes:*`
+types such as `ConfigMap` stay declined.
+
+These are estimates from configured rates, useful for comparing changes in a
+pull request. `cost cluster` remains the authoritative number for a running
+cluster. The variables, the decline reasons, and the request rules are in the
+[plugin README](https://github.com/rshade/finfocus/blob/main/plugins/kubernetes/README.md#projected-cost-from-a-pulumi-plan).
+
 ## Limitations
 
 - Run-rate only: historical allocation (`STATS_MODE_HISTORICAL`) is rejected

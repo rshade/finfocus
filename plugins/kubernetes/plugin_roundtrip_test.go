@@ -96,7 +96,7 @@ func TestPlugin_GetStatsAllocateRoundTrip(t *testing.T) {
 			Client: cs, Context: "test-cluster",
 			Host: "https://ABC123.gr7.us-east-1.eks.amazonaws.com",
 		}, nil
-	})
+	}, Config{})
 
 	st, err := p.GetStats(context.Background(), &pbc.GetStatsRequest{})
 	require.NoError(t, err)
@@ -141,3 +141,25 @@ func TestPlugin_GetStatsAllocateRoundTrip(t *testing.T) {
 }
 
 func boolPtr(b bool) *bool { return &b }
+
+// TestPlugin_ProjectedCostRoundTrip serves the plugin over gRPC the way a host
+// reaches it and prices a Deployment from its attributes.
+func TestPlugin_ProjectedCostRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	harness := plugintesting.NewTestHarness(
+		pluginsdk.NewServerWithOptions(New(noClusters(t), ratedConfig()), nil, nil, Info("v0.1.0")))
+	harness.Start(t)
+	t.Cleanup(harness.Stop)
+	desc := deploymentDescriptor(t)
+
+	supports, err := harness.Client().Supports(context.Background(), &pbc.SupportsRequest{Resource: desc})
+	require.NoError(t, err)
+	assert.True(t, supports.GetSupported(), supports.GetReason())
+
+	resp, err := harness.Client().GetProjectedCost(context.Background(), &pbc.GetProjectedCostRequest{Resource: desc})
+	require.NoError(t, err)
+	assert.InDelta(t, 54.75, resp.GetCostPerMonth(), 1e-9)
+	assert.Equal(t, "USD", resp.GetCurrency())
+	assert.Contains(t, resp.GetBillingDetail(), "not a real node price")
+}

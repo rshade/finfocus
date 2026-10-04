@@ -1,0 +1,285 @@
+{
+  "steps": [
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::k8s-app::kubernetes:apps/v1:Deployment::web",
+      "type": "kubernetes:apps/v1:Deployment",
+      "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "kubernetes:apps/v1:Deployment",
+        "urn": "urn:pulumi:dev::k8s-app::kubernetes:apps/v1:Deployment::web",
+        "custom": true,
+        "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "apiVersion": "apps/v1",
+          "kind": "Deployment",
+          "metadata": {
+            "name": "web",
+            "namespace": "default"
+          },
+          "spec": {
+            "replicas": 3,
+            "selector": {
+              "matchLabels": {
+                "app": "web"
+              }
+            },
+            "template": {
+              "metadata": {
+                "labels": {
+                  "app": "web"
+                }
+              },
+              "spec": {
+                "containers": [
+                  {
+                    "name": "web",
+                    "image": "registry.example.com/web:1.0.0",
+                    "resources": {
+                      "requests": {
+                        "cpu": "500m",
+                        "memory": "1Gi"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::k8s-app::kubernetes:apps/v1:StatefulSet::db",
+      "type": "kubernetes:apps/v1:StatefulSet",
+      "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "kubernetes:apps/v1:StatefulSet",
+        "urn": "urn:pulumi:dev::k8s-app::kubernetes:apps/v1:StatefulSet::db",
+        "custom": true,
+        "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "apiVersion": "apps/v1",
+          "kind": "StatefulSet",
+          "metadata": {
+            "name": "db",
+            "namespace": "default"
+          },
+          "spec": {
+            "replicas": 2,
+            "serviceName": "db",
+            "selector": {
+              "matchLabels": {
+                "app": "db"
+              }
+            },
+            "template": {
+              "metadata": {
+                "labels": {
+                  "app": "db"
+                }
+              },
+              "spec": {
+                "containers": [
+                  {
+                    "name": "db",
+                    "image": "registry.example.com/db:1.0.0",
+                    "resources": {
+                      "requests": {
+                        "cpu": "1",
+                        "memory": "2Gi"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::k8s-app::kubernetes:apps/v1:DaemonSet::log-agent",
+      "type": "kubernetes:apps/v1:DaemonSet",
+      "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "kubernetes:apps/v1:DaemonSet",
+        "urn": "urn:pulumi:dev::k8s-app::kubernetes:apps/v1:DaemonSet::log-agent",
+        "custom": true,
+        "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "apiVersion": "apps/v1",
+          "kind": "DaemonSet",
+          "metadata": {
+            "name": "log-agent",
+            "namespace": "default"
+          },
+          "spec": {
+            "selector": {
+              "matchLabels": {
+                "app": "log-agent"
+              }
+            },
+            "template": {
+              "metadata": {
+                "labels": {
+                  "app": "log-agent"
+                }
+              },
+              "spec": {
+                "containers": [
+                  {
+                    "name": "agent",
+                    "image": "registry.example.com/agent:1.0.0",
+                    "resources": {
+                      "requests": {
+                        "cpu": "100m",
+                        "memory": "128Mi"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::k8s-app::kubernetes:batch/v1:Job::migrate",
+      "type": "kubernetes:batch/v1:Job",
+      "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "kubernetes:batch/v1:Job",
+        "urn": "urn:pulumi:dev::k8s-app::kubernetes:batch/v1:Job::migrate",
+        "custom": true,
+        "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "apiVersion": "batch/v1",
+          "kind": "Job",
+          "metadata": {
+            "name": "migrate",
+            "namespace": "default"
+          },
+          "spec": {
+            "parallelism": 2,
+            "template": {
+              "spec": {
+                "restartPolicy": "Never",
+                "containers": [
+                  {
+                    "name": "migrate",
+                    "image": "registry.example.com/migrate:1.0.0",
+                    "resources": {
+                      "requests": {
+                        "cpu": "1",
+                        "memory": "1Gi"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::k8s-app::kubernetes:batch/v1:CronJob::report",
+      "type": "kubernetes:batch/v1:CronJob",
+      "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "kubernetes:batch/v1:CronJob",
+        "urn": "urn:pulumi:dev::k8s-app::kubernetes:batch/v1:CronJob::report",
+        "custom": true,
+        "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "apiVersion": "batch/v1",
+          "kind": "CronJob",
+          "metadata": {
+            "name": "report",
+            "namespace": "default"
+          },
+          "spec": {
+            "schedule": "0 2 * * *",
+            "jobTemplate": {
+              "spec": {
+                "template": {
+                  "spec": {
+                    "restartPolicy": "OnFailure",
+                    "containers": [
+                      {
+                        "name": "report",
+                        "image": "registry.example.com/report:1.0.0",
+                        "resources": {
+                          "requests": {
+                            "cpu": "500m",
+                            "memory": "512Mi"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::k8s-app::kubernetes:core/v1:ConfigMap::settings",
+      "type": "kubernetes:core/v1:ConfigMap",
+      "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "kubernetes:core/v1:ConfigMap",
+        "urn": "urn:pulumi:dev::k8s-app::kubernetes:core/v1:ConfigMap::settings",
+        "custom": true,
+        "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:kubernetes::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "apiVersion": "v1",
+          "kind": "ConfigMap",
+          "metadata": {
+            "name": "settings",
+            "namespace": "default"
+          },
+          "data": {
+            "LOG_LEVEL": "info"
+          }
+        },
+        "outputs": {}
+      }
+    },
+    {
+      "op": "create",
+      "urn": "urn:pulumi:dev::k8s-app::aws:ec2/instance:Instance::bastion",
+      "type": "aws:ec2/instance:Instance",
+      "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+      "newState": {
+        "type": "aws:ec2/instance:Instance",
+        "urn": "urn:pulumi:dev::k8s-app::aws:ec2/instance:Instance::bastion",
+        "custom": true,
+        "provider": "urn:pulumi:dev::k8s-app::pulumi:providers:aws::default::04da6b54-80e4-46f7-96ec-b56ff0331ba9",
+        "inputs": {
+          "ami": "ami-0c02fb55956c7d316",
+          "instanceType": "t3.micro",
+          "availabilityZone": "us-east-1a",
+          "tags": {
+            "Name": "bastion"
+          }
+        },
+        "outputs": {}
+      }
+    }
+  ]
+}
