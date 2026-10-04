@@ -22,14 +22,19 @@ type Registry struct {
 	launcher pluginhost.Launcher
 }
 
+// New creates a new Registry rooted at the given plugin directory,
+// using ProcessLauncher for plugin execution.
+func New(root string) *Registry {
+	return &Registry{
+		root:     root,
+		launcher: pluginhost.NewProcessLauncher(),
+	}
+}
+
 // NewDefault creates a new Registry with default configuration from config.PluginDir
 // and using ProcessLauncher for plugin execution.
 func NewDefault() *Registry {
-	cfg := config.New()
-	return &Registry{
-		root:     cfg.PluginDir,
-		launcher: pluginhost.NewProcessLauncher(),
-	}
+	return New(config.New().PluginDir)
 }
 
 // ListPlugins scans the plugin directory and returns metadata for all discovered plugins.
