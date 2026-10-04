@@ -32,6 +32,22 @@
         "version_prefix": false
       }
     },
+    "azure-public": {
+      "name": "azure-public",
+      "description": "Azure public retail pricing data",
+      "repository": "rshade/finfocus-plugin-azure-public",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus-plugin-azure-public",
+      "supported_providers": ["azure"],
+      "capabilities": ["cost_projection", "cost_retrieval", "pricing_specs"],
+      "security_level": "official",
+      "min_spec_version": "0.7.4",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-azure-public",
+        "version_prefix": false
+      }
+    },
     "kubernetes": {
       "name": "kubernetes",
       "description": "Kubernetes workload usage and cost allocation by namespace, controller, pod, and label",

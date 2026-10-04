@@ -52,6 +52,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Prerequisites](getting-started/prerequisites.md)          | System requirements       | Everyone       |
 | [Examples](https://github.com/rshade/finfocus/tree/main/examples)                      | Practical usage examples  | End Users      |
 | [AWS Public Setup](plugins/aws-public.md)                  | AWS public pricing plugin | End Users      |
+| [Azure Public Setup](plugins/azure-public.md)              | Azure retail pricing plugin | End Users    |
 
 ### 📚 Comprehensive Guides (by Audience)
 
@@ -109,6 +110,12 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | Page                                           | Purpose                        |
 | ---------------------------------------------- | ------------------------------ |
 | [AWS Public Plugin](plugins/aws-public.md)     | Setup and configuration        |
+
+#### Azure Public (AVAILABLE)
+
+| Page                                           | Purpose                        |
+| ---------------------------------------------- | ------------------------------ |
+| [Azure Public Plugin](plugins/azure-public.md) | Setup and configuration        |
 
 #### Kubecost (PLANNED)
 

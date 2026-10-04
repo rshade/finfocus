@@ -19,6 +19,20 @@ The embedded registry (`internal/registry/registry.json`) contains official plug
 Default plugin installed by `finfocus setup`. Supports region-specific binaries
 via `--metadata="region=<region>"` and a multi-region router binary (default).
 
+### azure-public
+
+| Field | Value |
+|-------|-------|
+| Repository | `rshade/finfocus-plugin-azure-public` |
+| Providers | `azure` (covers the `azure` and `azure-native` Pulumi packages) |
+| Capabilities | `cost_projection`, `cost_retrieval`, `pricing_specs` |
+| Security | official |
+| Asset prefix | `finfocus-plugin-azure-public` |
+
+Queries the public Azure Retail Prices API, so it needs no Azure credentials.
+Actual cost is a list-price projection scaled by hours, not billed spend.
+`finfocus setup` does not install it; run `finfocus plugin install azure-public`.
+
 ### kubecost
 
 | Field | Value |
@@ -60,6 +74,7 @@ not part of provider detection and `finfocus setup` does not install it.
 | Detected Provider | Plugin to Install | Detection Signal |
 |-------------------|-------------------|------------------|
 | AWS | `aws-public` | `aws:` resource prefix, `~/.aws/` directory |
+| Azure | `azure-public` | `azure:` or `azure-native:` resource prefix, `~/.azure/` directory |
 | Kubernetes | `kubecost` | `kubernetes:` resource prefix, kubeconfig |
 | None detected | `aws-public` | Default fallback |
 
