@@ -15,6 +15,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/structpb"
+
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
@@ -632,6 +635,7 @@ type skuPricePlugin struct {
 	fail   map[string]bool
 	calls  int
 	byID   map[string]int
+	attrs  []*structpb.Struct
 }
 
 func newSKUPricePlugin(prices map[string]float64, fail map[string]bool) *skuPricePlugin {
@@ -655,6 +659,7 @@ func (p *skuPricePlugin) GetProjectedCost(
 	}
 	resource := in.Resources[0]
 	p.byID[resource.ID]++
+	p.attrs = append(p.attrs, resource.Attributes)
 	if p.fail[resource.ID] {
 		return nil, errors.New("plugin down")
 	}
@@ -665,4 +670,49 @@ func (p *skuPricePlugin) GetProjectedCost(
 		MonthlyCost: monthly,
 		HourlyCost:  monthly / hoursPerMonth,
 	}}}, nil
+}
+
+func TestGetProjectedCostDiffSendsEachSidesAttributes(t *testing.T) {
+	t.Parallel()
+
+	sizesSeen := func(plugin *skuPricePlugin) []string {
+		plugin.mu.Lock()
+		defer plugin.mu.Unlock()
+		var sizes []string
+		for _, attrs := range plugin.attrs {
+			value, ok := pluginsdk.AttributeValue(attrs, "spec.size")
+			if ok {
+				sizes = append(sizes, value.GetStringValue())
+			}
+		}
+		return sizes
+	}
+	sized := func(op string) ResourceDescriptor {
+		resource := diffResource("db", op, "m5.large", "t3.micro")
+		resource.Properties["spec"] = map[string]any{"size": "new"}
+		resource.OldProperties["spec"] = map[string]any{"size": "old"}
+		return resource
+	}
+
+	t.Run("update prices each side with its own attributes", func(t *testing.T) {
+		t.Parallel()
+		plugin := newSKUPricePlugin(map[string]float64{"t3.micro": 10, "m5.large": 40}, nil)
+
+		_, err := diffEngine(plugin).GetProjectedCostDiff(context.Background(),
+			[]ResourceDescriptor{sized(DiffOperationUpdate)})
+		require.NoError(t, err)
+
+		assert.ElementsMatch(t, []string{"old", "new"}, sizesSeen(plugin))
+	})
+
+	t.Run("delete uses the old properties' attributes", func(t *testing.T) {
+		t.Parallel()
+		plugin := newSKUPricePlugin(map[string]float64{"t3.micro": 10, "m5.large": 40}, nil)
+
+		_, err := diffEngine(plugin).GetProjectedCostDiff(context.Background(),
+			[]ResourceDescriptor{sized(DiffOperationDelete)})
+		require.NoError(t, err)
+
+		assert.Equal(t, []string{"old"}, sizesSeen(plugin))
+	})
 }

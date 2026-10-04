@@ -344,6 +344,20 @@ Projected cache keys always append `/tags-<digest>` of that map, then
 `/refs-<hash>` when reference tags exist. `EstimateCost` attributes stay
 nested. Spec: `specs/619-dotted-tag-keys/`.
 
+Core also sends the raw properties as `ResourceDescriptor.attributes`
+(finfocus-spec v0.7.3), built by `engine.BuildAttributes`. They go on projected
+`GetProjectedCost` and `BatchCost`, `Supports`, and `GetPricingSpec`, not on
+actual cost. At any depth they drop keys `skipDottedSegment` rejects (`__`
+and credential-like names) and Pulumi secrets (`history.IsPulumiSecret`, the one
+shared rule). At the top level they drop `ref` and `ref.*`. Pulumi unknowns and
+the `tags`/`labels` containers are kept. Over `pluginsdk.MaxAttributesBytes`
+(65536), they are omitted with a warning. Projected cache keys add
+`/attrs-<digest>` after `/refs-`, and the in-memory `Supports` key adds
+`:attrs-<digest>`, so `Supports` runs about once per distinct resource. A
+projected `BatchCost` chunk is also split so its descriptors stay under
+`maxBatchRequestBytes` (3 MiB; grpc-go's default limit is 4 MiB). Tags are
+unchanged. Spec: `specs/621-k8s-workload-projected-cost/`.
+
 ### Property Extraction
 
 The adapter (`internal/proto/adapter.go`) relies on the `Inputs` map to extract:
@@ -694,8 +708,9 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   the Bolt store. The engine field stays `cache.Cache`
 - `checkPluginSupports` sends the descriptor `proto.PrepareProjectedDescriptor` builds
   (the same one `GetProjectedCost` sends, including a region inherited from a
-  referenced resource), and caches per
-  client+provider+type+region+sku+feature (SKU is part of the key: a first SKU-less
+  referenced resource, and its attributes), and caches per
+  client+provider+type+region+sku+feature, plus an attributes digest when the resource
+  has attributes (SKU is part of the key: a first SKU-less
   resource in a region must not poison the cached answer for every other SKU there);
   plugins on finfocus-spec ≥ v0.6.2 answer `Supports` for real, so a region-bound plugin
   (aws-public) declines other regions instead of being called and failing. A plugin that
@@ -974,6 +989,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 ## Recent Changes
 
+- 621-k8s-workload-projected-cost: finfocus-spec v0.7.3 (`ResourceDescriptor.attributes`); core sends redacted attributes; the kubernetes plugin prices declared workloads
 - 608-batch-cost-consumer: Added Go 1.27.1 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging)
 - 608-resource-history-store: Added Go 1.27.1 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`).
 - 608-estimate-cost-rpc: Added Go 1.27.1 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions), gRPC, Cobra, zerolog

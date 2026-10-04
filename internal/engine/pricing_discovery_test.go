@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
@@ -170,4 +171,20 @@ func TestDiscoverPricingSpec_EstimateStillRunsWhenSpecMisses(t *testing.T) {
 	require.NotNil(t, result.Modified)
 	assert.InDelta(t, 12.5, result.Modified.Monthly, 1e-9)
 	assert.Equal(t, 1, plugin.specCalls)
+}
+
+func TestDiscoverPricingSpecSendsAttributes(t *testing.T) {
+	t.Parallel()
+
+	plugin := &pricingSpecPlugin{spec: &pbc.PricingSpec{BillingMode: "per_hour", RatePerUnit: 0.1}}
+	eng := New([]*pluginhost.Client{{Name: "aws-plugin", API: plugin}}, nil)
+	resource := pricingResource()
+	resource.Properties["rootBlockDevice"] = map[string]any{"volumeSize": float64(100)}
+
+	got := eng.DiscoverPricingSpec(context.Background(), &resource)
+
+	require.Len(t, got.Modes, 1)
+	value, ok := pluginsdk.AttributeValue(plugin.lastAttrs, "rootBlockDevice.volumeSize")
+	require.True(t, ok)
+	assert.InDelta(t, 100.0, value.GetNumberValue(), 1e-9)
 }

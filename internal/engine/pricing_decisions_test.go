@@ -217,7 +217,7 @@ func TestCheckPluginSupportsSendsTheRegionPricingWillSend(t *testing.T) {
 	assert.Equal(t, "Standard_D2s_v3", sent.GetSku())
 
 	priced := proto.PrepareProjectedDescriptor(
-		context.Background(), resource.ID, resource.Provider, resource.Type, ConvertToProto(resource.Properties))
+		context.Background(), resource.ID, resource.Provider, resource.Type, ConvertToProto(resource.Properties), nil)
 	assert.Equal(t, priced.GetRegion(), sent.GetRegion())
 	assert.Equal(t, priced.GetSku(), sent.GetSku())
 }

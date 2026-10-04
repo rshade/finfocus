@@ -209,7 +209,7 @@ func EncryptedProperty(resources []PriceResource) string {
 	}
 	for _, resource := range resources {
 		for _, key := range keys {
-			if isPulumiSecret(resource.Properties[key]) {
+			if IsPulumiSecret(resource.Properties[key]) {
 				return key
 			}
 		}
@@ -217,7 +217,9 @@ func EncryptedProperty(resources []PriceResource) string {
 	return ""
 }
 
-func isPulumiSecret(value any) bool {
+// IsPulumiSecret reports whether value is a Pulumi secret: a map holding the
+// secret signature key. Engine shares this rule when redacting attributes.
+func IsPulumiSecret(value any) bool {
 	object, ok := value.(map[string]any)
 	if !ok {
 		return false

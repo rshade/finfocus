@@ -141,7 +141,7 @@ type Engine struct {
 	pricingSpecTimeout    time.Duration          // GetPricingSpec deadline; zero uses perResourceTimeout
 	pricingDiscoveryMu    sync.Mutex             // Guards pricingDiscoveryCache
 	pricingDiscoveryCache map[string]PricingDiscovery
-	supportsCache         map[string]supportsResult // Supports() cache: client, provider, type, region, sku, feature
+	supportsCache         map[string]supportsResult // Supports() cache: client, provider, type, region, sku, feature[, attrs digest]
 	supportsMu            sync.RWMutex              // Guards supportsCache
 }
 
@@ -241,9 +241,16 @@ func (e *Engine) checkPluginSupports(
 	// referenced resource reaches Supports too. A region-bound plugin that saw an
 	// empty region would decline a child it could price.
 	descriptor := proto.PrepareProjectedDescriptor(
-		ctx, resource.ID, resource.Provider, resource.Type, ConvertToProto(resource.Properties))
+		ctx, resource.ID, resource.Provider, resource.Type, ConvertToProto(resource.Properties),
+		BuildAttributes(ctx, resource.Properties))
 	sku, region := descriptor.GetSku(), descriptor.GetRegion()
-	cacheKey := strings.Join([]string{client.Name, resource.Provider, resource.Type, region, sku, feature}, ":")
+	keyParts := []string{client.Name, resource.Provider, resource.Type, region, sku, feature}
+	// A plugin may answer from attributes alone, and resources without a SKU
+	// or region would otherwise share one answer.
+	if suffix := attrsCacheSuffix(descriptor.GetAttributes()); suffix != "" {
+		keyParts = append(keyParts, "attrs-"+suffix)
+	}
+	cacheKey := strings.Join(keyParts, ":")
 
 	e.supportsMu.RLock()
 	if result, ok := e.supportsCache[cacheKey]; ok {
@@ -259,6 +266,7 @@ func (e *Engine) checkPluginSupports(
 			Sku:          sku,
 			Region:       region,
 			Tags:         descriptor.GetTags(),
+			Attributes:   descriptor.GetAttributes(),
 		},
 	})
 	if err != nil {
@@ -1741,6 +1749,7 @@ func (e *Engine) getProjectedCostFromPlugin(
 				Type:       resource.Type,
 				Provider:   resource.Provider,
 				Properties: ConvertToProto(resource.Properties),
+				Attributes: BuildAttributes(ctx, resource.Properties),
 			},
 		},
 	}
@@ -4006,6 +4015,8 @@ func ProjectedResourceCacheKey(resource ResourceDescriptor) (string, error) {
 // Region is extracted from "availabilityZone" or "region"; SKU from "instanceType", "type", or "sku".
 // The digest covers the flattened tag map, so nested fields such as sku.capacity do not collide.
 // When the resource has ref.* properties, "/refs-{digest}" is appended after the tag digest.
+// When the resource sends attributes, "/attrs-{digest}" follows, since the tag digest cannot
+// see values below the dotted-tag depth cap.
 // Returns an error if resource.Type is empty.
 func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, error) {
 	if resource.Type == "" {
@@ -4019,6 +4030,9 @@ func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, erro
 	key += "/tags-" + tagCacheSuffix(ConvertToProto(resource.Properties))
 	if suffix := refCacheSuffix(resource.Properties); suffix != "" {
 		key += "/refs-" + suffix
+	}
+	if suffix := attributesCacheSuffix(resource.Properties); suffix != "" {
+		key += "/attrs-" + suffix
 	}
 	return key, nil
 }

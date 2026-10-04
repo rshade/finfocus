@@ -7,6 +7,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -15,8 +17,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	protobuf "google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
@@ -1863,4 +1867,169 @@ func TestBatchChunkTimeoutAppliedToRPC(t *testing.T) {
 		require.True(t, hasDeadline)
 		assert.LessOrEqual(t, time.Until(deadline), time.Until(parentDeadline)+50*time.Millisecond)
 	})
+}
+
+// largeIndexedResources returns n valid resources whose attributes are each
+// about 60 KiB. The bulk sits in strings longer than the dotted-tag value cap,
+// so it reaches attributes but not tags.
+func largeIndexedResources(n int) []indexedResource {
+	blob := make([]any, 200)
+	for i := range blob {
+		blob[i] = strings.Repeat("x", 300)
+	}
+	resources := makeValidIndexedResources(n)
+	for i := range resources {
+		resources[i].resource.Properties["spec"] = map[string]any{"name": "big", "data": blob}
+	}
+	return resources
+}
+
+func requestBytes(req *pbc.BatchCostRequest) int {
+	total := 0
+	for _, descriptor := range req.GetResources() {
+		total += protobuf.Size(descriptor)
+	}
+	return total
+}
+
+func TestBuildBatchCostRequestAttributes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("projected carries attributes", func(t *testing.T) {
+		t.Parallel()
+		built := buildBatchCostRequest(context.Background(), makeValidIndexedResources(2),
+			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED})
+		require.NotNil(t, built.request)
+		for _, descriptor := range built.request.GetResources() {
+			value, ok := pluginsdk.AttributeValue(descriptor.GetAttributes(), "instanceType")
+			require.True(t, ok)
+			assert.Equal(t, "t3.micro", value.GetStringValue())
+		}
+	})
+
+	t.Run("actual does not", func(t *testing.T) {
+		t.Parallel()
+		built := buildBatchCostRequest(context.Background(), makeValidIndexedResources(2),
+			batchOptions{
+				queryType: pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL,
+				start:     timestamppb.New(time.Now().Add(-24 * time.Hour)),
+				end:       timestamppb.Now(),
+			})
+		require.NotNil(t, built.request)
+		for _, descriptor := range built.request.GetResources() {
+			assert.Nil(t, descriptor.GetAttributes())
+		}
+	})
+}
+
+func TestSplitBatchBySize(t *testing.T) {
+	t.Parallel()
+
+	t.Run("a single resource always forms a part", func(t *testing.T) {
+		t.Parallel()
+		built := buildBatchCostRequest(context.Background(), makeValidIndexedResources(3),
+			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED})
+
+		parts := splitBatchBySize(built, 1)
+
+		require.Len(t, parts, 3)
+		for i, part := range parts {
+			require.Len(t, part.request.GetResources(), 1)
+			require.Len(t, part.validResources, 1)
+			assert.Equal(t, i, part.validResources[0].index)
+			assert.Equal(t, part.validResources[0].resource.ID, part.request.GetResources()[0].GetId())
+		}
+	})
+
+	t.Run("under the budget stays whole", func(t *testing.T) {
+		t.Parallel()
+		built := buildBatchCostRequest(context.Background(), makeValidIndexedResources(5),
+			batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED})
+
+		parts := splitBatchBySize(built, maxBatchRequestBytes)
+
+		require.Len(t, parts, 1)
+		assert.Same(t, built.request, parts[0].request)
+	})
+}
+
+func TestExecuteBatchForPluginSplitsBySize(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	var sizes, counts []int
+	var ids []string
+	mockAPI := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			mu.Lock()
+			defer mu.Unlock()
+			sizes = append(sizes, requestBytes(in))
+			counts = append(counts, len(in.GetResources()))
+			results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+			for i, res := range in.GetResources() {
+				ids = append(ids, res.GetId())
+				results[i] = projectedBatchResult(res, 1.0, 0)
+			}
+			return &pbc.BatchCostResponse{Results: results}, nil
+		},
+	}
+	client := makeBatchCapableClient("test-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+	resources := largeIndexedResources(100)
+
+	results, err := eng.executeBatchForPlugin(context.Background(), client, resources,
+		batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED})
+	require.NoError(t, err)
+
+	assert.Greater(t, len(sizes), 1, "100 resources of 60 KiB must not go in one request")
+	for _, size := range sizes {
+		assert.Less(t, size, maxBatchRequestBytes)
+	}
+	want := make([]string, len(resources))
+	for i, r := range resources {
+		want[i] = r.resource.ID
+	}
+	assert.Equal(t, want, ids, "resources keep their order across split requests")
+	require.Len(t, results, 100)
+	seen := make(map[int]bool, len(results))
+	for _, br := range results {
+		seen[br.index] = true
+		require.NotNil(t, br.result)
+		assert.Equal(t, resources[br.index].resource.ID, br.result.ResourceID)
+	}
+	assert.Len(t, seen, 100)
+}
+
+func TestExecuteBatchForPluginSizeSplitKeepsMaxBatchSizeHint(t *testing.T) {
+	t.Parallel()
+
+	var counts []int
+	mockAPI := &mockBatchCostSourceClient{
+		batchCostFunc: func(_ context.Context, in *pbc.BatchCostRequest, _ ...grpc.CallOption) (*pbc.BatchCostResponse, error) {
+			counts = append(counts, len(in.GetResources()))
+			results := make([]*pbc.ResourceCostResult, len(in.GetResources()))
+			for i, res := range in.GetResources() {
+				results[i] = projectedBatchResult(res, 1.0, 0)
+			}
+			return &pbc.BatchCostResponse{Results: results, MaxBatchSize: 10}, nil
+		},
+	}
+	client := makeBatchCapableClient("test-plugin", mockAPI)
+	eng := New([]*pluginhost.Client{client}, nil)
+
+	results, err := eng.executeBatchForPlugin(context.Background(), client, largeIndexedResources(150),
+		batchOptions{queryType: pbc.CostQueryType_COST_QUERY_TYPE_PROJECTED})
+	require.NoError(t, err)
+
+	assert.Len(t, results, 150)
+	require.NotEmpty(t, counts)
+	total := 0
+	for _, n := range counts {
+		total += n
+	}
+	assert.Equal(t, 150, total)
+	assert.Greater(t, counts[0], 10, "the first request is sent before any hint")
+	for _, n := range counts[1:] {
+		assert.LessOrEqual(t, n, 10, "everything after the hint, split parts included, is re-chunked at 10")
+	}
 }

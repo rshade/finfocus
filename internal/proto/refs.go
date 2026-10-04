@@ -4,6 +4,8 @@ import (
 	"context"
 	"strings"
 
+	"google.golang.org/protobuf/types/known/structpb"
+
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
@@ -16,11 +18,13 @@ const UnknownPulumiValue = "04da6b54-80e4-46f7-96ec-b56ff0331ba9"
 // The Pulumi unknown sentinel is dropped from tags and from SKU and region.
 // When the resource's own region is empty and exactly one referenced resource
 // (distinct ref.*.urn) has a ref.*.region tag, that region fills Region.
-// The referenced resource's SKU is never copied into Sku.
+// The referenced resource's SKU is never copied into Sku. Attributes are
+// copied as given; the caller has already redacted and bounded them.
 func PrepareProjectedDescriptor(
 	ctx context.Context,
 	id, provider, resourceType string,
 	properties map[string]string,
+	attributes *structpb.Struct,
 ) *pbc.ResourceDescriptor {
 	tags := make(map[string]string, len(properties))
 	for key, value := range properties {
@@ -48,6 +52,7 @@ func PrepareProjectedDescriptor(
 		Sku:          sku,
 		Region:       region,
 		Tags:         tags,
+		Attributes:   attributes,
 	}
 }
 

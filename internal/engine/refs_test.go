@@ -10,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	protobuf "google.golang.org/protobuf/proto"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
@@ -38,8 +39,10 @@ func TestBatchAndDirectRequestsSharePreparedDescriptor(t *testing.T) {
 		got := built.request.GetResources()[i]
 		want := proto.PrepareProjectedDescriptor(
 			ctx, ir.resource.ID, ir.resource.Provider, ir.resource.Type, ConvertToProto(ir.resource.Properties),
+			BuildAttributes(ctx, ir.resource.Properties),
 		)
 		assert.Equal(t, want.GetSku(), got.GetSku())
+		assert.True(t, protobuf.Equal(want.GetAttributes(), got.GetAttributes()))
 		assert.Equal(t, want.GetRegion(), got.GetRegion())
 		assert.Equal(t, want.GetTags(), got.GetTags())
 	}
@@ -151,4 +154,90 @@ func pricePlanSKU(sku string) float64 {
 		return 100
 	}
 	return 0
+}
+
+// deepWorkload nests a value seven segments deep (spec.a.b.c.d.e.f), past the
+// six-segment dotted-tag cap, so only attributes can tell two of them apart.
+func deepWorkload(leaf string) ResourceDescriptor {
+	return ResourceDescriptor{
+		Type: "kubernetes:apps/v1:Deployment", Provider: "kubernetes", ID: "urn:web",
+		Properties: map[string]any{"spec": map[string]any{
+			"name": "web",
+			"a": map[string]any{"b": map[string]any{"c": map[string]any{"d": map[string]any{
+				"e": map[string]any{"f": leaf},
+			}}}},
+		}},
+	}
+}
+
+func TestProjectedCacheKeyIncludesAttributes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("values below the tag depth cap change the key", func(t *testing.T) {
+		t.Parallel()
+		small, large := deepWorkload("500m"), deepWorkload("4")
+		require.Equal(t,
+			tagCacheSuffix(ConvertToProto(small.Properties)),
+			tagCacheSuffix(ConvertToProto(large.Properties)),
+			"fixture must collide on tags alone",
+		)
+
+		smallKey, err := generateProjectedCostResourceKey(small)
+		require.NoError(t, err)
+		largeKey, err := generateProjectedCostResourceKey(large)
+		require.NoError(t, err)
+
+		assert.NotEqual(t, smallKey, largeKey)
+		assert.Contains(t, smallKey, "/attrs-")
+	})
+
+	t.Run("identical inputs give the same key", func(t *testing.T) {
+		t.Parallel()
+		want, err := generateProjectedCostResourceKey(deepWorkload("500m"))
+		require.NoError(t, err)
+		for range 20 {
+			got, keyErr := ProjectedResourceCacheKey(deepWorkload("500m"))
+			require.NoError(t, keyErr)
+			assert.Equal(t, want, got)
+		}
+	})
+
+	t.Run("no properties means no attrs suffix", func(t *testing.T) {
+		t.Parallel()
+		key, err := generateProjectedCostResourceKey(ResourceDescriptor{
+			Type: "aws:s3/bucket:Bucket", Provider: "aws", ID: "urn:bucket",
+		})
+		require.NoError(t, err)
+		assert.NotContains(t, key, "/attrs-")
+	})
+
+	t.Run("attrs sits after refs and before pricing-spec", func(t *testing.T) {
+		t.Parallel()
+		resource := ResourceDescriptor{
+			Type: "azure:appservice/linuxWebApp:LinuxWebApp", Provider: "azure", ID: "urn:app",
+			Properties: map[string]any{
+				"location":                "westeurope",
+				"siteConfig":              map[string]any{"alwaysOn": true},
+				"ref.servicePlanId.sku":   "P1v3",
+				"ref.servicePlanId.urn":   "urn:plan",
+				"ref.servicePlanId.type":  "azure:appservice/servicePlan:ServicePlan",
+				"ref.servicePlanId.other": "x",
+			},
+		}
+		eng := New(nil, nil)
+		eng.pricingSpecFallback = true
+
+		key, err := eng.projectedCostCacheKey(resource)
+		require.NoError(t, err)
+
+		tags := strings.Index(key, "/tags-")
+		refs := strings.Index(key, "/refs-")
+		attrs := strings.Index(key, "/attrs-")
+		spec := strings.Index(key, pricingSpecCacheSuffix)
+		require.True(t, tags >= 0 && refs >= 0 && attrs >= 0 && spec >= 0, key)
+		assert.Less(t, tags, refs)
+		assert.Less(t, refs, attrs)
+		assert.Less(t, attrs, spec)
+		assert.True(t, strings.HasSuffix(key, pricingSpecCacheSuffix), key)
+	})
 }

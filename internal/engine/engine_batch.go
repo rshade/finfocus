@@ -6,9 +6,12 @@ package engine
 import (
 	"context"
 	"fmt"
+	"slices"
 	"strings"
 	"time"
 
+	protobuf "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -93,6 +96,12 @@ func chunkResources(resources []indexedResource, chunkSize int) [][]indexedResou
 	return chunks
 }
 
+// maxBatchRequestBytes bounds the summed descriptor size of one BatchCost
+// request. Core dials plugins with grpc-go's default 4 MiB message limit and no
+// MaxCallSendMsgSize option; 100 resources with 64 KiB of attributes each would
+// exceed it. The 1 MiB headroom covers the envelope.
+const maxBatchRequestBytes = 3 << 20
+
 const (
 	// batchCostFeature is the feature name used for batch cost plugin matching.
 	batchCostFeature = "BatchCost"
@@ -173,6 +182,26 @@ func (e *Engine) executeBatchForPlugin(
 
 		built := buildBatchCostRequest(ctx, chunk, opts)
 		allResults = append(allResults, built.invalidResults...)
+
+		if parts := splitBatchBySize(built, maxBatchRequestBytes); len(parts) > 1 {
+			// Send the first part now and queue the rest as their own chunks, so a
+			// later max_batch_size hint re-chunks them like any other chunk. Their
+			// rebuild finds no invalid resources: only valid ones were split.
+			split := make([][]indexedResource, len(parts))
+			for i, part := range parts {
+				split[i] = part.validResources
+			}
+			chunks = slices.Concat(chunks[:chunkIdx], split, chunks[chunkIdx+1:])
+			built = parts[0]
+			log.Debug().
+				Ctx(ctx).
+				Str("component", "engine").
+				Str("operation", "execute_batch").
+				Str("plugin", plugin.Name).
+				Int("chunk_index", chunkIdx).
+				Int("parts", len(parts)).
+				Msg("batch chunk split to stay under the request size budget")
+		}
 
 		if built.request == nil {
 			log.Debug().
@@ -303,12 +332,17 @@ func buildBatchCostRequest(
 	)
 
 	for _, ir := range resources {
+		var attrs *structpb.Struct
+		if opts.queryType != pbc.CostQueryType_COST_QUERY_TYPE_ACTUAL {
+			attrs = BuildAttributes(ctx, ir.resource.Properties)
+		}
 		descriptor := proto.PrepareProjectedDescriptor(
 			ctx,
 			ir.resource.ID,
 			ir.resource.Provider,
 			ir.resource.Type,
 			ConvertToProto(ir.resource.Properties),
+			attrs,
 		)
 
 		// Pre-flight validation using the same pluginsdk validators as the non-batch path
@@ -346,6 +380,41 @@ func buildBatchCostRequest(
 		validResources: validResources,
 		invalidResults: invalidResults,
 	}
+}
+
+// splitBatchBySize splits a built request into consecutive parts whose summed
+// descriptor size stays within budget, keeping each descriptor beside its
+// indexedResource. A descriptor larger than the budget forms a part on its own.
+// Parts carry no invalid results; the caller records those from built.
+func splitBatchBySize(built buildBatchResult, budget int) []buildBatchResult {
+	descriptors := built.request.GetResources()
+	if len(descriptors) == 0 {
+		return []buildBatchResult{built}
+	}
+	var parts []buildBatchResult
+	start, size := 0, 0
+	for i, descriptor := range descriptors {
+		next := protobuf.Size(descriptor)
+		if i > start && size+next > budget {
+			parts = append(parts, batchPart(built, start, i))
+			start, size = i, 0
+		}
+		size += next
+	}
+	if start == 0 {
+		return []buildBatchResult{built}
+	}
+	return append(parts, batchPart(built, start, len(descriptors)))
+}
+
+func batchPart(built buildBatchResult, from, to int) buildBatchResult {
+	request := &pbc.BatchCostRequest{
+		Resources: built.request.GetResources()[from:to],
+		QueryType: built.request.GetQueryType(),
+		Start:     built.request.GetStart(),
+		End:       built.request.GetEnd(),
+	}
+	return buildBatchResult{request: request, validResources: built.validResources[from:to]}
 }
 
 // validateBatchResource validates a single resource descriptor against the pluginsdk validators.

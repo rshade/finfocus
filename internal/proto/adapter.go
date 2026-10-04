@@ -117,7 +117,7 @@ func GetProjectedCostWithErrors(
 	for _, resource := range resources {
 		// Pre-flight validation: construct proto request and validate before gRPC call
 		descriptor := PrepareProjectedDescriptor(
-			ctx, resource.ID, resource.Provider, resource.Type, resource.Properties,
+			ctx, resource.ID, resource.Provider, resource.Type, resource.Properties, resource.Attributes,
 		)
 
 		// Validate request using pluginsdk validation functions.
@@ -455,6 +455,10 @@ type ResourceDescriptor struct {
 	Type       string
 	Provider   string
 	Properties map[string]string
+	// Attributes holds the declared properties as nested values. finfocus-spec
+	// requires hosts to redact them (no credentials, no Pulumi secrets) and keep
+	// them within pluginsdk.MaxAttributesBytes; engine.BuildAttributes does both.
+	Attributes *structpb.Struct
 }
 
 // GetProjectedCostRequest contains resources for which projected costs should be calculated.
@@ -1386,7 +1390,7 @@ func (c *clientAdapter) GetProjectedCost(
 	for _, resource := range in.Resources {
 		req := &pbc.GetProjectedCostRequest{
 			Resource: PrepareProjectedDescriptor(
-				ctx, resource.ID, resource.Provider, resource.Type, resource.Properties,
+				ctx, resource.ID, resource.Provider, resource.Type, resource.Properties, resource.Attributes,
 			),
 		}
 

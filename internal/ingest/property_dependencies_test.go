@@ -88,7 +88,7 @@ func TestAzurePropertyDependenciesPreview(t *testing.T) {
 	prepared := make(map[string]*preparedResource, len(descriptors))
 	for _, desc := range descriptors {
 		request := proto.PrepareProjectedDescriptor(
-			context.Background(), desc.ID, desc.Provider, desc.Type, engine.ConvertToProto(desc.Properties),
+			context.Background(), desc.ID, desc.Provider, desc.Type, engine.ConvertToProto(desc.Properties), nil,
 		)
 		prepared[resourceName(desc.ID)] = &preparedResource{desc: desc, request: request}
 	}

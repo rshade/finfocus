@@ -189,6 +189,7 @@ func fetchPluginPricingSpec(
 		resource.Provider,
 		resource.Type,
 		ConvertToProto(resource.Properties),
+		BuildAttributes(ctx, resource.Properties),
 	)
 	resp, err := client.API.GetPricingSpec(ctx, &pbc.GetPricingSpecRequest{Resource: descriptor})
 	if err != nil {
