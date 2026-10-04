@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -144,5 +145,31 @@ func TestEstimateCostRedactsAttributes(t *testing.T) {
 		assert.NotContains(t, string(encoded), leakMarker)
 		assert.Contains(t, req.GetAttributes().AsMap(), "instanceClass")
 		assert.Equal(t, map[string]any{"name": "admin"}, req.GetAttributes().AsMap()["masterUser"])
+	}
+}
+
+func TestBuildAttributesDoesNotLogOmittedValues(t *testing.T) {
+	t.Parallel()
+
+	ctx, logs := ctxWithLogBuffer(zerolog.DebugLevel)
+	got := BuildAttributes(ctx, map[string]any{"userData": "LEAK-value\xff", "region": "us-east-1"})
+
+	require.NotNil(t, got)
+	assert.NotContains(t, got.AsMap(), "userData")
+	assert.Contains(t, logs.String(), "userData", "the omission is still logged by key")
+	assert.NotContains(t, logs.String(), leakMarker)
+}
+
+func TestIsCredentialKey(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []string{
+		"password", "dbPasswd", "sshPassphrase", "private_key", "privateKeyPem", "clientSecret",
+		"authToken", "api_key", "AccessKey", "connection_string", "credentials",
+	} {
+		assert.True(t, isCredentialKey(key), key)
+	}
+	for _, key := range []string{"instanceType", "region", "passengers", "keyName"} {
+		assert.False(t, isCredentialKey(key), key)
 	}
 }
