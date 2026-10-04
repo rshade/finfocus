@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -223,6 +224,16 @@ func runValidation(ctx context.Context, cmd *cobra.Command, plugins []registry.P
 	return nil
 }
 
+// displayVersion normalizes a raw version directory name for display, ensuring exactly
+// one "v" prefix. registry.ListPlugins returns the raw directory name, which is already
+// "v"-prefixed for registry installs (see installer.CanonicalVersion) but bare for
+// manual installs. Stripping all leading "v" characters and adding exactly one back
+// prevents the doubled "vv0.1.0" in text output (#1682, same pattern as #749).
+// JSON output passes plugin.Version through unchanged.
+func displayVersion(v string) string {
+	return "v" + strings.TrimLeft(v, "v")
+}
+
 // validateSinglePlugin validates the given plugin and reports progress to the provided command output.
 // It prints a per-plugin status line, prints any validation error, and a success message on success.
 //
@@ -241,7 +252,7 @@ func validateSinglePlugin(
 	cmd *cobra.Command,
 	plugin registry.PluginInfo,
 ) bool {
-	cmd.Printf("Validating %s v%s... ", plugin.Name, plugin.Version)
+	cmd.Printf("Validating %s %s... ", plugin.Name, displayVersion(plugin.Version))
 
 	if err := ValidatePlugin(ctx, plugin); err != nil {
 		cmd.Printf("FAILED: %v\n", err)
