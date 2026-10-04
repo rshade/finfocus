@@ -773,7 +773,12 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   free text there; the first call probes batch size
   (20, halving on INVALID_ARGUMENT), later batches run up to 8 concurrent. Scorer failure only
   warns. Scores are cached in the `scores` bucket (extracted values only). Scores never dismiss
-  or hide anything. Scorer-only plugins are skipped by `routeRecommendationTargets`
+  or hide anything. Scorer-only plugins are skipped by `routeRecommendationTargets`.
+  Cost features (`ProjectedCosts`, `ActualCosts`, `BatchCost`) drop scorer-only clients inside
+  `selectPluginMatchesForResource` before `Supports`, including router matches, so they never
+  appear in unpriced decline notes. State-based actual-cost estimation uses the same skip
+  before `GetProjectedCost`. Plugins with no capabilities, and plugins that also report
+  `recommendations`, stay offered. Recommendations selection is unchanged
 
 ### Overview Field Semantics (`internal/engine/overview_*.go`)
 
