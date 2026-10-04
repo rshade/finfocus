@@ -323,6 +323,7 @@ docs-sync:
 		-e 's|\]\(docs/src/content/docs/|](./|g' \
 		-e 's|\]\(docs/\)|](../)|g' \
 		-e 's|\]\(CONTRIBUTING\.md\)|](./support/contributing.md)|g' \
+		-e 's|\]\(([A-Za-z0-9_][^):]*/)\)|](https://github.com/rshade/finfocus/tree/main/\1)|g' \
 		-e 's|\]\(([A-Za-z0-9_][^):]*)\)|](https://github.com/rshade/finfocus/blob/main/\1)|g' \
 		>> docs/src/content/docs/README.md
 	@echo "Documentation synced."
