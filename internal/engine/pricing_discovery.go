@@ -72,11 +72,14 @@ func (e *Engine) DiscoverPricingSpec(ctx context.Context, resource *ResourceDesc
 
 // pricingDiscoveryKey separates cached answers by resource type, SKU, and region,
 // because a plugin's spec can differ by SKU. A type-only key would keep showing the
-// first SKU's rate after the user edits the SKU in the estimate view.
+// first SKU's rate after the user edits the SKU in the estimate view. The
+// attributes digest separates edits a plugin may price from attributes alone.
 func pricingDiscoveryKey(ctx context.Context, resource *ResourceDescriptor, resourceType string) string {
 	descriptor := proto.PrepareProjectedDescriptor(
-		ctx, resource.ID, resource.Provider, resourceType, ConvertToProto(resource.Properties))
-	return strings.Join([]string{resourceType, descriptor.GetSku(), descriptor.GetRegion()}, "|")
+		ctx, resource.ID, resource.Provider, resourceType, ConvertToProto(resource.Properties), nil)
+	return strings.Join([]string{
+		resourceType, descriptor.GetSku(), descriptor.GetRegion(), attributesCacheSuffix(resource.Properties),
+	}, "|")
 }
 
 func (e *Engine) cachedPricingDiscovery(key string) (PricingDiscovery, bool) {

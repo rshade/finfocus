@@ -86,8 +86,8 @@ func TestCheckPluginSupports_CacheKeyIncludesRegion(t *testing.T) {
 	assert.True(t, supportsOnly(e, client, res("us-east-1a")))
 	assert.False(t, supportsOnly(e, client, res("us-west-2a")),
 		"a different region must not reuse the us-east-1 answer")
-	assert.True(t, supportsOnly(e, client, res("us-east-1b")))
-	assert.Len(t, api.seen, 2, "same provider, type, region, and feature is served from cache")
+	assert.True(t, supportsOnly(e, client, res("us-east-1a")))
+	assert.Len(t, api.seen, 2, "the same resource again is served from cache")
 }
 
 // skuAwareSupportsClient answers Supports based on SKU alone, like
@@ -576,4 +576,82 @@ func TestDeclineNotes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// attrsSupportsClient records every Supports descriptor and answers yes.
+type attrsSupportsClient struct {
+	mockCostSourceClient
+
+	seen []*pbc.ResourceDescriptor
+}
+
+func (c *attrsSupportsClient) Supports(
+	_ context.Context, req *pbc.SupportsRequest, _ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	c.seen = append(c.seen, req.GetResource())
+	return &pbc.SupportsResponse{Supported: true}, nil
+}
+
+func deployment(replicas float64) ResourceDescriptor {
+	return ResourceDescriptor{
+		Type: "kubernetes:apps/v1:Deployment", Provider: "kubernetes", ID: "urn:deploy",
+		Properties: map[string]any{"spec": map[string]any{"replicas": replicas}},
+	}
+}
+
+func TestCheckPluginSupports_SendsAttributes(t *testing.T) {
+	t.Parallel()
+
+	api := &attrsSupportsClient{}
+	e, client := supportsEngine(api)
+
+	assert.True(t, supportsOnly(e, client, deployment(3)))
+
+	require.Len(t, api.seen, 1)
+	value, ok := pluginsdk.AttributeValue(api.seen[0].GetAttributes(), "spec.replicas")
+	require.True(t, ok)
+	assert.InDelta(t, 3.0, value.GetNumberValue(), 1e-9)
+}
+
+func TestCheckPluginSupports_CacheKeyIncludesAttributes(t *testing.T) {
+	t.Parallel()
+
+	t.Run("different attributes ask again", func(t *testing.T) {
+		t.Parallel()
+		api := &attrsSupportsClient{}
+		e, client := supportsEngine(api)
+
+		supportsOnly(e, client, deployment(3))
+		supportsOnly(e, client, deployment(5))
+
+		assert.Len(t, api.seen, 2)
+	})
+
+	t.Run("identical attributes share one answer", func(t *testing.T) {
+		t.Parallel()
+		api := &attrsSupportsClient{}
+		e, client := supportsEngine(api)
+
+		supportsOnly(e, client, deployment(3))
+		supportsOnly(e, client, deployment(3))
+
+		assert.Len(t, api.seen, 1)
+	})
+
+	t.Run("no attributes keeps the old key", func(t *testing.T) {
+		t.Parallel()
+		api := &attrsSupportsClient{}
+		e, client := supportsEngine(api)
+
+		supportsOnly(e, client, ResourceDescriptor{
+			Type: "aws:s3/bucket:Bucket", Provider: "aws", ID: "urn:bucket",
+		})
+
+		require.Len(t, api.seen, 1)
+		assert.Nil(t, api.seen[0].GetAttributes())
+		e.supportsMu.RLock()
+		defer e.supportsMu.RUnlock()
+		assert.Contains(t, e.supportsCache, "aws-public:aws:aws:s3/bucket:Bucket:::ProjectedCosts")
+		assert.Len(t, e.supportsCache, 1)
+	})
 }

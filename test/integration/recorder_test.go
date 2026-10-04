@@ -3,6 +3,7 @@ package integration_test
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -12,7 +13,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+
+	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
 )
@@ -129,4 +136,110 @@ func TestRecorderPlugin_Integration(t *testing.T) {
 	}
 	assert.True(t, foundProjected, "Should have recorded a GetProjectedCost request")
 	assert.True(t, foundActual, "Should have recorded a GetActualCost request")
+}
+
+// TestRecorderPlugin_RecordsRedactedAttributes checks that core puts a
+// resource's nested inputs on the wire as attributes, without credentials or
+// Pulumi secrets. The recorder declines Supports and has no batch capability,
+// so through the engine it receives only Supports; a direct GetProjectedCost
+// covers the projected descriptor.
+func TestRecorderPlugin_RecordsRedactedAttributes(t *testing.T) {
+	_, filename, _, _ := runtime.Caller(0)
+	binPath := filepath.Join(filepath.Dir(filename), "../..", "bin", "finfocus-plugin-recorder")
+	if runtime.GOOS == "windows" {
+		binPath += ".exe"
+	}
+	if _, err := os.Stat(binPath); os.IsNotExist(err) {
+		t.Skipf("Plugin binary not found at %s. Run 'make build-recorder' first.", binPath)
+	}
+
+	tempDir := t.TempDir()
+	t.Setenv("FINFOCUS_RECORDER_OUTPUT_DIR", tempDir)
+	t.Setenv("FINFOCUS_RECORDER_MOCK_RESPONSE", "true")
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	client, err := pluginhost.NewClient(ctx, pluginhost.NewProcessLauncher(), binPath)
+	require.NoError(t, err)
+	defer client.Close()
+
+	props := map[string]any{
+		"spec": map[string]any{"template": map[string]any{"spec": map[string]any{
+			"containers": []any{map[string]any{"resources": map[string]any{
+				"requests": map[string]any{"cpu": "500m"},
+			}}},
+		}}},
+		"password": "hunter2-plaintext",
+		"userData": map[string]any{
+			"4dabf18193072939515e22adb298388d": "1",
+			"ciphertext":                       "SECRET-CIPHERTEXT",
+		},
+	}
+	resource := engine.ResourceDescriptor{
+		ID: "urn:deploy", Type: "kubernetes:apps/v1:Deployment", Provider: "kubernetes", Properties: props,
+	}
+
+	_, err = engine.New([]*pluginhost.Client{client}, nil).GetProjectedCost(ctx, []engine.ResourceDescriptor{resource})
+	require.NoError(t, err)
+	_, err = client.API.GetProjectedCost(ctx, &proto.GetProjectedCostRequest{
+		Resources: []*proto.ResourceDescriptor{{
+			// The recorder requires a SKU and region, which core resolves for AWS types only.
+			ID: "urn:web", Type: "aws:ec2/instance:Instance", Provider: "aws",
+			Properties: map[string]string{"instanceType": "t3.micro", "region": "us-east-1"},
+			Attributes: engine.BuildAttributes(ctx, props),
+		}},
+	})
+	require.NoError(t, err)
+
+	recorded := map[string]*pbc.ResourceDescriptor{}
+	require.Eventually(t, func() bool {
+		recorded = recordedDescriptors(t, tempDir)
+		return recorded["Supports"] != nil && recorded["GetProjectedCost"] != nil
+	}, 2*time.Second, 50*time.Millisecond, "expected recorded Supports and GetProjectedCost requests")
+
+	for method, descriptor := range recorded {
+		attrs := descriptor.GetAttributes()
+		value, ok := pluginsdk.AttributeValue(attrs, "spec.template.spec.containers.0.resources.requests.cpu")
+		require.True(t, ok, "%s attributes lack the nested request", method)
+		assert.Equal(t, "500m", value.GetStringValue())
+		assert.NotContains(t, attrs.GetFields(), "password", method)
+		assert.NotContains(t, attrs.GetFields(), "userData", method)
+		encoded, marshalErr := protojson.Marshal(attrs)
+		require.NoError(t, marshalErr)
+		assert.NotContains(t, string(encoded), "hunter2-plaintext", method)
+		assert.NotContains(t, string(encoded), "SECRET-CIPHERTEXT", method)
+	}
+}
+
+// recordedDescriptors reads the recorder's output and returns the resource of
+// the last request recorded for each method that carries one.
+func recordedDescriptors(t *testing.T, dir string) map[string]*pbc.ResourceDescriptor {
+	t.Helper()
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err)
+	found := map[string]*pbc.ResourceDescriptor{}
+	for _, entry := range entries {
+		raw, readErr := os.ReadFile(filepath.Join(dir, entry.Name()))
+		require.NoError(t, readErr)
+		var file struct {
+			Method  string          `json:"method"`
+			Request json.RawMessage `json:"request"`
+		}
+		require.NoError(t, json.Unmarshal(raw, &file))
+		var req interface {
+			protoreflect.ProtoMessage
+			GetResource() *pbc.ResourceDescriptor
+		}
+		switch file.Method {
+		case "Supports":
+			req = &pbc.SupportsRequest{}
+		case "GetProjectedCost":
+			req = &pbc.GetProjectedCostRequest{}
+		default:
+			continue
+		}
+		require.NoError(t, protojson.Unmarshal(file.Request, req))
+		found[file.Method] = req.GetResource()
+	}
+	return found
 }

@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/structpb"
 
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
 	"github.com/rshade/finfocus/internal/pluginhost"
@@ -184,6 +187,7 @@ type pricingSpecPlugin struct {
 	specCalls    int
 	lastSpecID   string
 	lastSKU      string
+	lastAttrs    *structpb.Struct
 }
 
 func (p *pricingSpecPlugin) GetProjectedCost(
@@ -205,6 +209,7 @@ func (p *pricingSpecPlugin) GetPricingSpec(
 	if in.GetResource() != nil {
 		p.lastSpecID = in.GetResource().GetId()
 		p.lastSKU = in.GetResource().GetSku()
+		p.lastAttrs = in.GetResource().GetAttributes()
 	}
 	if p.hangSpec {
 		<-ctx.Done()
@@ -391,4 +396,20 @@ func TestProjectedPricingSpecFallbackChain(t *testing.T) {
 		assert.Contains(t, results[0].Notes, noteNoPricingInfo)
 		assert.Equal(t, 1, plugin.specCalls)
 	})
+}
+
+func TestFetchPluginPricingSpecSendsAttributes(t *testing.T) {
+	t.Parallel()
+
+	plugin := &pricingSpecPlugin{spec: &pbc.PricingSpec{BillingMode: "per_hour", RatePerUnit: 0.1}}
+	client := &pluginhost.Client{Name: "aws-plugin", API: plugin}
+	resource := pricingResource()
+	resource.Properties["rootBlockDevice"] = map[string]any{"volumeSize": float64(100)}
+
+	_, err := fetchPluginPricingSpec(context.Background(), client, resource, time.Second)
+	require.NoError(t, err)
+
+	value, ok := pluginsdk.AttributeValue(plugin.lastAttrs, "rootBlockDevice.volumeSize")
+	require.True(t, ok)
+	assert.InDelta(t, 100.0, value.GetNumberValue(), 1e-9)
 }

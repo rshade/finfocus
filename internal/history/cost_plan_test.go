@@ -172,6 +172,26 @@ func TestEncryptedProperty(t *testing.T) {
 	require.ErrorContains(t, err, "required property 'instanceType' is encrypted")
 }
 
+func TestIsPulumiSecret(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name  string
+		value any
+		want  bool
+	}{
+		{"secret map", map[string]any{secretSignature: "1", "ciphertext": "x"}, true},
+		{"plain map", map[string]any{"value": "x"}, false},
+		{"string", secretSignature, false},
+		{"nil", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, IsPulumiSecret(tt.value))
+		})
+	}
+}
+
 func TestAnnotationFrom_Destroy(t *testing.T) {
 	t.Parallel()
 	annotation := AnnotationFrom(
