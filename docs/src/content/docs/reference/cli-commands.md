@@ -920,7 +920,23 @@ finfocus plugin install my-plugin --url https://example.com/my-plugin-0.1.0.tar.
 
 # Install with region metadata (selects region-specific binary)
 finfocus plugin install aws-public --metadata="region=us-west-2"
+
+# Pin a version with name@version
+finfocus plugin install aws-public@v0.2.0
 ```
+
+Plugins install into `plugins/` under the FinFocus home: `$FINFOCUS_HOME`,
+then `$PULUMI_HOME/finfocus`, then `~/.finfocus`. `plugin update` and
+`plugin remove` use the same directory, and `--plugin-dir` overrides it.
+
+A release can be published a few minutes before its archives are uploaded.
+When you do not request a version and the latest release has no assets yet,
+the installer prints a warning naming both versions and installs the newest
+earlier stable release that has assets. When you request that version
+explicitly, the installer does not swap versions on its own. The error says
+`release <version> of <plugin> has no assets yet (the upload may still be in progress)`,
+and the usual version fallback applies: an interactive prompt, or
+`--fallback-to-latest`. Otherwise retry shortly or pin an earlier version.
 
 ## plugin update
 

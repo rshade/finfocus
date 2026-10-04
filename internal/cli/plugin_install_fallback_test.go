@@ -2,6 +2,8 @@ package cli_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/rshade/ax-go/axtest"
@@ -9,6 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/rshade/finfocus/internal/cli"
+	"github.com/rshade/finfocus/internal/registry"
 )
 
 //nolint:paralleltest // SetResolvedProjectDir sets the process-wide project directory (via NewRootCmd)
@@ -67,39 +70,30 @@ func TestIsNoAssetError(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		errMsg   string
+		err      error
 		expected bool
 	}{
+		{"nil", nil, false},
+		{"no asset found error", errors.New("no asset found for linux/amd64. Available: [x.zip]"), true},
 		{
-			name:     "no asset found error",
-			errMsg:   "no asset found for linux/amd64. Available: []",
-			expected: true,
+			"no compatible asset found error",
+			errors.New("no compatible asset found for version v1.0.0 or any of 10 fallback releases"),
+			true,
 		},
 		{
-			name:     "no compatible asset found error",
-			errMsg:   "no compatible asset found for version v1.0.0 or any of 10 fallback releases",
-			expected: true,
+			"release with no assets yet",
+			fmt.Errorf("installing plugin: %w",
+				&registry.NoAssetsError{Plugin: "aws-public", Version: "v0.2.0", Platform: "linux/amd64"}),
+			true,
 		},
-		{
-			name:     "other error",
-			errMsg:   "failed to get release: release not found",
-			expected: false,
-		},
-		{
-			name:     "connection error",
-			errMsg:   "failed to connect to GitHub API",
-			expected: false,
-		},
+		{"other error", errors.New("failed to get release: release not found"), false},
+		{"connection error", errors.New("failed to connect to GitHub API"), false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			// We need to call the exported function
-			// Since isNoAssetError is unexported, we test via behavior
-			// For now, we document the expected behavior
-			// The actual test would require exposing the function or testing through command execution
-			_ = tt.expected // Document expected values
+			assert.Equal(t, tt.expected, cli.IsNoAssetError(tt.err))
 		})
 	}
 }

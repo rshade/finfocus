@@ -152,6 +152,9 @@ func isNoAssetError(err error) bool {
 	if err == nil {
 		return false
 	}
+	if errors.Is(err, registry.ErrReleaseHasNoAssets) {
+		return true
+	}
 	errStr := err.Error()
 	return strings.Contains(errStr, "no asset found for") ||
 		strings.Contains(errStr, "no compatible asset found")

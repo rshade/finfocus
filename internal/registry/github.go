@@ -31,6 +31,33 @@ const (
 	githubMaxPerPage = 100
 )
 
+// ErrReleaseHasNoAssets reports a published release whose assets have not been
+// uploaded yet, as between a release being created and its CI upload finishing.
+var ErrReleaseHasNoAssets = errors.New("release has no assets")
+
+// NoAssetsError is returned for a release that has no assets at all. It
+// matches ErrReleaseHasNoAssets with [errors.Is].
+// The message starts with "no asset found for <platform>", which the CLI's
+// version fallback recognizes.
+type NoAssetsError struct {
+	Plugin   string
+	Version  string
+	Platform string
+}
+
+func (e *NoAssetsError) Error() string {
+	return fmt.Sprintf(
+		"no asset found for %s: release %s of %s has no assets yet (the upload may still be in progress); "+
+			"retry shortly or pin an earlier version",
+		e.Platform, e.Version, e.Plugin,
+	)
+}
+
+// Is reports whether target is ErrReleaseHasNoAssets.
+func (e *NoAssetsError) Is(target error) bool {
+	return target == ErrReleaseHasNoAssets
+}
+
 // GitHubRelease represents release metadata from GitHub API.
 type GitHubRelease struct {
 	TagName    string         `json:"tag_name"`
@@ -188,6 +215,35 @@ func selectLatestByPrefix(releases []GitHubRelease, prefix string) (*GitHubRelea
 		return nil, fmt.Errorf("no stable release with tag prefix %q found", prefix)
 	}
 	return best, nil
+}
+
+// selectEarlierWithAssets returns the stable release with the highest semver
+// below latest's among tags carrying prefix that have at least one asset. It
+// returns nil when there is none or latest's tag is not semver.
+func selectEarlierWithAssets(releases []GitHubRelease, prefix string, latest *GitHubRelease) *GitHubRelease {
+	ceiling, err := semver.NewVersion(strings.TrimPrefix(CanonicalVersion(latest.TagName, prefix), "v"))
+	if err != nil {
+		return nil
+	}
+	var candidates []GitHubRelease
+	for _, release := range releases {
+		if len(release.Assets) == 0 || !strings.HasPrefix(release.TagName, prefix) {
+			continue
+		}
+		v, verErr := semver.NewVersion(strings.TrimPrefix(CanonicalVersion(release.TagName, prefix), "v"))
+		if verErr != nil || !v.LessThan(ceiling) {
+			continue
+		}
+		candidates = append(candidates, release)
+	}
+	if len(candidates) == 0 {
+		return nil
+	}
+	best, err := selectLatestByPrefix(candidates, prefix)
+	if err != nil {
+		return nil
+	}
+	return best
 }
 
 // GetLatestReleaseWithPrefix finds the newest (by semver) stable release whose
@@ -474,6 +530,10 @@ func FindPlatformAssetWithHints(
 				return &release.Assets[i], nil
 			}
 		}
+	}
+
+	if len(release.Assets) == 0 {
+		return nil, &NoAssetsError{Plugin: projectName, Version: version, Platform: goos + "/" + goarch}
 	}
 
 	// List available assets for error message
