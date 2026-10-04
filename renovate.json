@@ -12,6 +12,13 @@
       "enabled": false
     },
     {
+      "description": "testdata go.mod files are fixtures whose pinned versions are what the tests assert (pluginupgrade fixtures model plugins scaffolded on a given finfocus-spec release). Bumping them breaks those tests, as go-deps #1678 did.",
+      "matchFileNames": [
+        "**/testdata/**"
+      ],
+      "enabled": false
+    },
+    {
       "description": "grpc v1.84.x is affected by GO-2026-6443 (fixed in v1.82.2/v1.83.2; the advisory lists no fixed v1.84.x, only v1.85.0-dev). Skip the whole v1.84 line so automerge does not reintroduce the vulnerability; v1.85.0+ remains allowed.",
       "matchManagers": [
         "gomod"
