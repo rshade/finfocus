@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -1337,19 +1338,80 @@ func extractTagMap(properties map[string]any, key string) map[string]string {
 }
 
 // toStringMap converts a map[string]interface{} to a map[string]string.
-// toStringMap converts a map[string]interface{} to a map[string]string.
-// For each entry, string values are kept as-is; non-nil non-string values are converted with [fmt.Sprintf]("%v").
-// Entries with nil values are omitted from the returned map.
+// Values are converted with valueToString, mirroring the projected-cost path
+// (engine.ConvertToProto / engine.ConvertValueToString), so a nested sku object
+// like {name: Standard_D2s_v5, tier: Standard, capacity: 3} collapses to its
+// name instead of becoming Go map text. Entries with nil values or Pulumi
+// secrets are omitted from the returned map.
 func toStringMap(m map[string]any) map[string]string {
 	result := make(map[string]string, len(m))
 	for k, v := range m {
-		if s, ok := v.(string); ok {
-			result[k] = s
-		} else if v != nil {
-			result[k] = fmt.Sprintf("%v", v)
+		if v == nil || history.IsPulumiSecret(v) {
+			continue
 		}
+		result[k] = valueToString(v)
 	}
 	return result
+}
+
+// valueToString converts an interface{} value to a string representation.
+// It mirrors engine.ConvertValueToString (which internal/proto cannot import,
+// as engine imports this package): nested maps collapse via the well-known
+// "value", "id", and "name" keys, then a single-key map's value; single-element
+// slices collapse to their element and multi-element slices join with commas.
+//
+//nolint:gocognit // Complexity is inherent to handling multiple types in a type switch
+func valueToString(v any) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case float64:
+		// Protobuf numbers are always float64
+		if val == float64(int64(val)) {
+			return strconv.FormatInt(int64(val), 10)
+		}
+		return strconv.FormatFloat(val, 'f', -1, 64)
+	case bool:
+		return strconv.FormatBool(val)
+	case map[string]any:
+		// Try common nested patterns from protobuf Struct
+		// Pattern 1: {"value": "..."} - common in Pulumi outputs
+		if value, ok := val["value"]; ok {
+			return valueToString(value)
+		}
+		// Pattern 2: {"id": "..."} - common for resource references
+		if id, ok := val["id"]; ok {
+			return valueToString(id)
+		}
+		// Pattern 3: {"name": "..."} - common for named resources
+		if name, ok := val["name"]; ok {
+			return valueToString(name)
+		}
+		// Pattern 4: Single key map - extract the value
+		if len(val) == 1 {
+			for _, innerVal := range val {
+				return valueToString(innerVal)
+			}
+		}
+		// Fallback: convert to string representation
+		return fmt.Sprintf("%v", val)
+	case []any:
+		// For arrays, try to extract first element if single-element array
+		if len(val) == 1 {
+			return valueToString(val[0])
+		}
+		// For multi-element arrays, join as comma-separated
+		if len(val) > 0 {
+			parts := make([]string, len(val))
+			for i, elem := range val {
+				parts[i] = valueToString(elem)
+			}
+			return strings.Join(parts, ",")
+		}
+		return ""
+	default:
+		return fmt.Sprintf("%v", v)
+	}
 }
 
 // enrichTagsWithSKUAndRegion injects pricing dimensions into the provided tags map so that
