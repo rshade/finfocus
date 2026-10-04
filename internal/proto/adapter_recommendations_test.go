@@ -308,3 +308,36 @@ func TestClientAdapter_GetRecommendations_ActionDetailVariants(t *testing.T) {
 		})
 	}
 }
+
+func TestClientAdapter_GetRecommendations_IncludeDismissed(t *testing.T) {
+	t.Parallel()
+
+	var got []*pbc.GetRecommendationsRequest
+	mockGRPC := &mockPbcCostSourceServiceClient{
+		getRecommendationsFunc: func(
+			_ context.Context, in *pbc.GetRecommendationsRequest, _ ...grpc.CallOption,
+		) (*pbc.GetRecommendationsResponse, error) {
+			got = append(got, in)
+			return &pbc.GetRecommendationsResponse{}, nil
+		},
+	}
+	adapter := &clientAdapter{client: mockGRPC}
+
+	_, err := adapter.GetRecommendations(context.Background(), &GetRecommendationsRequest{
+		IncludeDismissed:          true,
+		ExcludedRecommendationIDs: []string{"rec-1"},
+		ProjectionPeriod:          "monthly",
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.True(t, got[0].GetIncludeDismissed())
+	assert.Equal(t, []string{"rec-1"}, got[0].GetExcludedRecommendationIds())
+
+	_, err = adapter.GetRecommendations(context.Background(), &GetRecommendationsRequest{
+		ExcludedRecommendationIDs: []string{"rec-1"},
+	})
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	assert.False(t, got[1].GetIncludeDismissed())
+	assert.Equal(t, []string{"rec-1"}, got[1].GetExcludedRecommendationIds())
+}

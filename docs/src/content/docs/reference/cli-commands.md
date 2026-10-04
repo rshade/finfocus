@@ -253,7 +253,7 @@ finfocus cost recommendations --pulumi-json <file> [options]
 | `--output`            | Output format: table, json, ndjson                               | table    |
 | `--limit`             | Limit number of recommendations                                  | 0 (all)  |
 | `--verbose`           | Show all recommendations with full details                       | false    |
-| `--include-dismissed` | Show dismissed and snoozed recommendations alongside active ones | false    |
+| `--include-dismissed` | Show local dismissed and snoozed rows, and ask plugins to include ones they dismissed | false    |
 | `--sort`              | Sort expression (e.g., `savings:desc`, or `risk` with scoring)   | None     |
 | `--scoring-dry-run`   | Print what would be sent to the scorer plugin and send nothing   | false    |
 | `--no-scoring`        | Skip the scoring step for this run                               | false    |

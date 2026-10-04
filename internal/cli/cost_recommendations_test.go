@@ -889,6 +889,7 @@ func TestCostRecommendationsCmd_IncludeDismissedFlag(t *testing.T) {
 	flag := cmd.Flags().Lookup("include-dismissed")
 	require.NotNil(t, flag, "include-dismissed flag should exist")
 	assert.Equal(t, "false", flag.DefValue, "default should be false")
+	assert.Contains(t, flag.Usage, "ask plugins to include ones they have dismissed")
 }
 
 // T018: Test hasStatusAnnotations detects status annotations.

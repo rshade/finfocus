@@ -153,7 +153,7 @@ Valid action types for filtering:
 	cmd.Flags().BoolVar(&params.noScoring, "no-scoring", false,
 		"Skip the scoring step for this run even when scoring.enabled is set")
 	cmd.Flags().BoolVar(&params.includeDismissed, "include-dismissed", false,
-		"Show dismissed and snoozed recommendations alongside active ones")
+		"Show dismissed and snoozed recommendations, and ask plugins to include ones they have dismissed")
 
 	_ = cmd.MarkFlagRequired("pulumi-json")
 
@@ -218,7 +218,7 @@ func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsPa
 	defer cacheCleanup()
 
 	// Fetch recommendations with progress indicator
-	result, err := fetchRecommendationsWithProgress(ctx, cmd, eng, resources)
+	result, err := fetchRecommendationsWithProgress(ctx, cmd, eng, resources, params.includeDismissed)
 	if err != nil {
 		log.Error().Ctx(ctx).Err(err).Msg("failed to fetch recommendations")
 		audit.logFailure(ctx, err)
@@ -318,6 +318,7 @@ func fetchRecommendationsWithProgress(
 	cmd *cobra.Command,
 	eng *engine.Engine,
 	resources []engine.ResourceDescriptor,
+	includeDismissed bool,
 ) (*engine.RecommendationsResult, error) {
 	progressCtx, cancelProgress := context.WithCancel(ctx)
 	defer cancelProgress()
@@ -328,7 +329,13 @@ func fetchRecommendationsWithProgress(
 		showProgressIndicator(progressCtx, cmd, resources)
 	})
 
-	result, err := eng.GetRecommendationsForResources(ctx, resources)
+	var result *engine.RecommendationsResult
+	var err error
+	if includeDismissed {
+		result, err = eng.GetRecommendationsForResourcesWithDismissed(ctx, resources)
+	} else {
+		result, err = eng.GetRecommendationsForResources(ctx, resources)
+	}
 
 	cancelProgress()
 	spinnerWg.Wait()

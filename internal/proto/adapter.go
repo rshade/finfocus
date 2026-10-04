@@ -585,6 +585,10 @@ type GetRecommendationsRequest struct {
 
 	// ExcludedRecommendationIDs contains IDs of recommendations to exclude from results.
 	ExcludedRecommendationIDs []string
+
+	// IncludeDismissed asks a plugin that stores dismissals to return them.
+	// ExcludedRecommendationIDs still omit those IDs when this is true.
+	IncludeDismissed bool
 }
 
 // GetRecommendationsResponse contains the recommendations and summary from a GetRecommendations call.
@@ -1763,6 +1767,7 @@ func (c *clientAdapter) GetRecommendations(
 		PageSize:                  in.PageSize,
 		PageToken:                 in.PageToken,
 		ExcludedRecommendationIds: in.ExcludedRecommendationIDs,
+		IncludeDismissed:          in.IncludeDismissed,
 	}
 
 	// Convert target resources if provided
