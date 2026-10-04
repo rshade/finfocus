@@ -4539,3 +4539,14 @@ func TestResolveSKUAndRegion_PackageNamesUseTheCloudExtractors(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractResourceTagsDropsSecretValues(t *testing.T) {
+	t.Parallel()
+
+	secret := map[string]any{"4dabf18193072939515e22adb298388d": "1", "ciphertext": "LEAK-cipher"}
+	for _, key := range []string{"tags", "tagsAll"} {
+		tags := extractResourceTags(map[string]any{key: map[string]any{"team": "payments", "owner": secret}})
+
+		assert.Equal(t, map[string]string{"team": "payments"}, tags, key)
+	}
+}

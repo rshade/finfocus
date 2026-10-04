@@ -165,6 +165,12 @@ without, each is `NO_COST_DATA` naming its hint.
 - [X] T053 Run the integration tests touched here: `go test -run 'TestKubernetesPlugin|TestRecorder' ./test/integration/...`
 - [X] T054 Run the quickstart against the built binary with `examples/plans/k8s-workloads-plan.json` and read the table output for the five workloads, the ConfigMap, and the instance
 
+## Phase 10: Credential and secret leaks in existing channels (R11)
+
+- [X] T055 Tests in `internal/engine/redaction_test.go` that no `LEAK` marker from a credential key or Pulumi secret (encrypted or decrypted, top-level, nested, single-key map, array) reaches any `ConvertToProto` tag key or value, that `ConvertValueToString` returns `""` for a secret, and that `EstimateCost` attributes are redacted; and in `internal/proto/adapter_test.go` that actual-cost tags drop secret values
+- [X] T056 Split `isCredentialKey` out of `skipDottedSegment`; drop credential keys and secrets in `ConvertToProto`; skip secret maps in the dotted walk; redact `ConvertValueToString` text with `withoutCredentials`; redact `EstimateCost` attributes with `redactedProperties`; drop secret values in `extractTagMap`
+- [X] T057 Update CLAUDE.md and research.md (R11), then rerun `make test` and `make lint`
+
 ## Dependencies
 
 - Phase 1 → Phase 2 → US5 (Phase 3).

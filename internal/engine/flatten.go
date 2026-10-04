@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
 )
@@ -83,7 +84,7 @@ func collectDottedTags(properties map[string]any) []dottedTag {
 }
 
 func walkDotted(value any, path []string, out *[]dottedTag) {
-	if skipDottedSegment(path[len(path)-1]) {
+	if skipDottedSegment(path[len(path)-1]) || history.IsPulumiSecret(value) {
 		return
 	}
 	switch typed := value.(type) {
@@ -132,12 +133,14 @@ func appendDottedLeaf(value any, path []string, out *[]dottedTag) {
 }
 
 func skipDottedSegment(segment string) bool {
-	if strings.HasPrefix(segment, "__") {
-		return true
-	}
-	lower := strings.ToLower(segment)
-	// Substring match, not a configurable list. Nested credentials already
-	// appear inside collapsed map text; dotted keys must not surface them.
+	return strings.HasPrefix(segment, "__") || isCredentialKey(segment)
+}
+
+// isCredentialKey reports whether a property name looks like it holds a
+// credential. It is a substring match, not a configurable list, and it is the
+// one rule for tags, collapsed values, attributes, and EstimateCost.
+func isCredentialKey(key string) bool {
+	lower := strings.ToLower(key)
 	for _, fragment := range []string{
 		"password", "secret", "token", "credential", "ciphertext", "privatekey",
 		"apikey", "api_key", "accesskey", "access_key", "connectionstring", "connection_string",

@@ -1974,12 +1974,16 @@ func deriveActualCostWindow(
 }
 
 // ConvertToProto converts a map[string]interface{} to map[string]string for gRPC.
-// Every top-level key is still the collapsed ConvertValueToString value.
+// Every top-level key is still the collapsed ConvertValueToString value, except
+// credential-like keys and Pulumi secrets, which are never sent to a plugin.
 // Nested maps and arrays also contribute dotted scalar keys (sku.capacity,
 // rootBlockDevice.0.volumeType). EstimateCost does not use this function.
 func ConvertToProto(properties map[string]any) map[string]string {
 	result := make(map[string]string)
 	for k, v := range properties {
+		if isCredentialKey(k) || history.IsPulumiSecret(v) {
+			continue
+		}
 		result[k] = ConvertValueToString(v)
 	}
 	addDottedTags(result, properties)
@@ -1988,12 +1992,16 @@ func ConvertToProto(properties map[string]any) map[string]string {
 
 // ConvertValueToString converts an interface{} value to a string representation.
 // It handles nested maps and slices that may come from protobuf Struct conversions.
+// A Pulumi secret converts to "", and credential-like keys and secrets inside a
+// map or slice are left out, so the text never carries a secret's plaintext or
+// ciphertext.
 //
 //nolint:gocognit // Complexity is inherent to handling multiple types in a type switch
 func ConvertValueToString(v any) string {
-	if v == nil {
+	if v == nil || history.IsPulumiSecret(v) {
 		return ""
 	}
+	v = withoutCredentials(v)
 
 	switch val := v.(type) {
 	case string:
@@ -2045,6 +2053,33 @@ func ConvertValueToString(v any) string {
 		return ""
 	default:
 		return fmt.Sprintf("%v", v)
+	}
+}
+
+// withoutCredentials copies maps and slices at any depth without
+// credential-like keys and Pulumi secret values. Other values are returned as is.
+func withoutCredentials(v any) any {
+	switch typed := v.(type) {
+	case map[string]any:
+		out := make(map[string]any, len(typed))
+		for key, item := range typed {
+			if isCredentialKey(key) || history.IsPulumiSecret(item) {
+				continue
+			}
+			out[key] = withoutCredentials(item)
+		}
+		return out
+	case []any:
+		out := make([]any, 0, len(typed))
+		for _, item := range typed {
+			if history.IsPulumiSecret(item) {
+				continue
+			}
+			out = append(out, withoutCredentials(item))
+		}
+		return out
+	default:
+		return v
 	}
 }
 

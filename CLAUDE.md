@@ -340,6 +340,13 @@ It skips `__` segments, credential-like segments (`password`, `secret`,
 `tags`, `tagsAll`, `labels`, and `annotations`. Depth is capped at 6
 segments, new keys at 128 characters, new values at 256 characters, and the
 whole tag map at 50 entries. Existing collapsed keys are kept first.
+No credential or Pulumi secret reaches a plugin through tags: `ConvertToProto`
+drops credential-like top-level keys (`isCredentialKey`, the one rule shared
+with dotted keys and attributes) and secret values, the dotted walk skips
+secret maps (a decrypted secret's `value` leaf), `ConvertValueToString`
+returns `""` for a secret and leaves credential keys and secrets out of
+collapsed map and slice text, actual-cost tags drop secret values, and
+`EstimateCost` attributes go through `redactedProperties`.
 Projected cache keys always append `/tags-<digest>` of that map, then
 `/refs-<hash>` when reference tags exist. `EstimateCost` attributes stay
 nested. Spec: `specs/619-dotted-tag-keys/`.
