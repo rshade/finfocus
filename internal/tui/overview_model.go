@@ -435,21 +435,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	if changesMsg, ok := msg.(OverviewChangesReadyMsg); ok {
-		m.isPreviewLoading = false
-		m.previewLoaded = true
-		m.isStateOnly = false
-		// Safe: Bubble Tea Update() is single-threaded; no concurrent reads on allRows.
-		sources := make([]engine.OverviewRow, len(m.allRows))
-		for i := range m.allRows {
-			sources[i] = m.allRows[i].Source
-		}
-		engine.ApplyChangesToRows(sources, changesMsg.StatusByURN)
-		engine.ApplyPropertyDiffsToRows(sources, changesMsg.PropertyDiffsByURN)
-		engine.ApplyProjectedPropertiesToRows(sources, changesMsg.ProjectedPropsByURN)
-		// Recompute deltas after status/property changes.
-		engine.PopulateComputedDeltas(sources, time.Now().Day())
-		m.allRows = computeRowResults(sources)
-		m.applyFilter(m.textInput.Value())
+		m.applyPreviewChanges(changesMsg)
 		return m, nil
 	}
 
@@ -812,8 +798,8 @@ func (m *OverviewModel) displayEntries() []overviewDisplayEntry {
 // live allocation rows show their namespace (or "(idle)"); projected rows
 // use the regular URN display name.
 func expansionDisplayName(row engine.OverviewRowResult) string {
-	if name := engine.LiveChildName(row.Source); name != "" {
-		return name
+	if row.LiveChildName != "" {
+		return row.LiveChildName
 	}
 	return row.DisplayName
 }
@@ -897,6 +883,25 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 	t.SetStyles(s)
 
 	return t
+}
+
+// applyPreviewChanges applies preview statuses, property diffs, and projected
+// properties to the source rows, then recomputes deltas and row results.
+// Safe: Bubble Tea Update() is single-threaded; no concurrent reads on allRows.
+func (m *OverviewModel) applyPreviewChanges(changesMsg OverviewChangesReadyMsg) {
+	m.isPreviewLoading = false
+	m.previewLoaded = true
+	m.isStateOnly = false
+	sources := make([]engine.OverviewRow, len(m.allRows))
+	for i := range m.allRows {
+		sources[i] = m.allRows[i].Source
+	}
+	engine.ApplyChangesToRows(sources, changesMsg.StatusByURN)
+	engine.ApplyPropertyDiffsToRows(sources, changesMsg.PropertyDiffsByURN)
+	engine.ApplyProjectedPropertiesToRows(sources, changesMsg.ProjectedPropsByURN)
+	engine.PopulateComputedDeltas(sources, time.Now().Day())
+	m.allRows = computeRowResults(sources)
+	m.applyFilter(m.textInput.Value())
 }
 
 // computeRowResults converts enriched overview rows into pre-computed,

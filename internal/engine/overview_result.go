@@ -22,6 +22,7 @@ type OverviewRowResult struct {
 	ParentURN       string
 	ChildURNs       []string
 	ExpansionSource string
+	LiveChildName   string // "ns/<namespace>" or "(idle)" for a live child, else ""
 
 	// Cost values (nil = not applicable).
 	ActualMTD    *float64 // month-to-date actual cost
@@ -112,6 +113,7 @@ func ComputeOverviewRowResult(row OverviewRow) OverviewRowResult {
 		ParentURN:             row.ParentURN,
 		ChildURNs:             row.ChildURNs,
 		ExpansionSource:       row.ExpansionSource,
+		LiveChildName:         LiveChildName(row),
 		Delta:                 row.ComputedDelta,
 		HasError:              row.Error != nil,
 		PropertyDiffs:         row.PropertyDiffs,
@@ -125,7 +127,7 @@ func ComputeOverviewRowResult(row OverviewRow) OverviewRowResult {
 		Source:                row,
 	}
 
-	res.ResourceDisplay = overviewResourceDisplay(row)
+	res.ResourceDisplay = overviewResourceDisplay(row, res.LiveChildName)
 	res.StatusDisplay = StatusIcon(row.Status) + " " + row.Status.String()
 
 	if row.ActualCost != nil {
@@ -273,15 +275,14 @@ func (s *OverviewTotals) accumulateRow(row *OverviewRow) error {
 // overviewResourceDisplay returns the RESOURCE column text: the URN, or for
 // an expansion child a "↳ " indent before the namespace (live rows) or URN
 // (projected rows).
-func overviewResourceDisplay(row OverviewRow) string {
+func overviewResourceDisplay(row OverviewRow, liveChildName string) string {
 	if row.ParentURN == "" {
 		return row.URN
 	}
-	name := LiveChildName(row)
-	if name == "" {
-		name = row.URN
+	if liveChildName != "" {
+		return "↳ " + liveChildName
 	}
-	return "↳ " + name
+	return "↳ " + row.URN
 }
 
 // ExtractResourceDisplayName returns the rightmost "::"-separated URN

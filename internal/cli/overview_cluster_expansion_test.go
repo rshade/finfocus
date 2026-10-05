@@ -113,7 +113,9 @@ func TestIntegration_ClusterExpansion_Projected(t *testing.T) {
 
 	// Golden: JSON.
 	var jsonBuf bytes.Buffer
-	require.NoError(t, engine.RenderOverviewAsJSON(ctx, &jsonBuf, engine.ComputeOverviewResult(rows, 15), stackCtx, nil))
+	require.NoError(t, engine.RenderOverviewAsJSON(
+		ctx, &jsonBuf, engine.ComputeOverviewResult(rows, 15), stackCtx, nil,
+	))
 	assertGoldenFile(
 		t,
 		filepath.Join(goldenDir(t), "json-cluster-expansion.json"),

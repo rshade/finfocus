@@ -392,6 +392,36 @@ func TestLiveChildName(t *testing.T) {
 	assert.Empty(t, LiveChildName(OverviewRow{URN: urn, ExpansionSource: ExpansionSourceLive}))
 }
 
+func TestComputeOverviewRowResult_ExpansionResourceDisplay(t *testing.T) {
+	t.Parallel()
+	const clusterURN = "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster"
+	const apiURN = "urn:pulumi:prod::myapp::kubernetes:apps/v1:Deployment::api"
+	children, err := LiveChildrenFromResult(clusterURN, liveResult())
+	require.NoError(t, err)
+	projected := ExpandClustersProjected([]OverviewRow{clusterRow(clusterURN), workloadRow(apiURN)})
+	require.Len(t, projected, 2)
+
+	tests := []struct {
+		name        string
+		row         OverviewRow
+		wantDisplay string
+		wantLive    string
+	}{
+		{"cluster row", projected[0], clusterURN, ""},
+		{"projected child", projected[1], "↳ " + apiURN, ""},
+		{"live namespace child", children[0], "↳ ns/payments", "ns/payments"},
+		{"live idle child", children[2], "↳ (idle)", "(idle)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			res := ComputeOverviewRowResult(tt.row)
+			assert.Equal(t, tt.wantDisplay, res.ResourceDisplay)
+			assert.Equal(t, tt.wantLive, res.LiveChildName)
+		})
+	}
+}
+
 func TestClusterARNName(t *testing.T) {
 	t.Parallel()
 	assert.Equal(t, "prod", ClusterARNName("arn:aws:eks:us-east-1:123456789012:cluster/prod"))
