@@ -4,7 +4,9 @@ COMMIT=$(shell git rev-parse HEAD)
 BUILD_DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 GOLANGCI_LINT?=$(HOME)/go/bin/golangci-lint
-GOLANGCI_LINT_VERSION?=2.13.2
+# Read from mise.toml, the single source of tool versions, so Renovate bumps
+# to mise.toml cannot leave this check expecting an older release.
+GOLANGCI_LINT_VERSION?=$(shell sed -n 's/^golangci-lint = "\(.*\)"/\1/p' mise.toml)
 MARKDOWNLINT?=markdownlint
 MARKDOWNLINT_CLI2?=markdownlint-cli2
 MARKDOWNLINT_FILES?=AGENTS.md

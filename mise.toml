@@ -12,7 +12,8 @@
 # Keep in sync with the `go` directive in go.mod.
 go = "1.27.1"
 
-# Same pin as GOLANGCI_LINT_VERSION in the Makefile; change both together.
+# The Makefile reads GOLANGCI_LINT_VERSION from this line. The golangci-lint
+# action in .github/workflows/ci.yml pins the same version; change both together.
 golangci-lint = "2.14.0"
 
 # ------------------------------------------------------------------ docs & lint
