@@ -18,7 +18,7 @@ make test-race                          # Run with race detector
 make test-integration                   # Integration tests (slower)
 make test-e2e                           # E2E tests (requires AWS credentials)
 
-make lint                               # golangci-lint v2.9.0 + markdownlint + actionlint
+make lint                               # golangci-lint + markdownlint + actionlint
 make validate                           # go mod tidy -diff + go vet
 make docs-lint                          # Lint documentation only
 
@@ -27,6 +27,10 @@ go tool cover -html=coverage.out
 ```
 
 **Always run `make lint` and `make test` before committing.**
+
+Tool versions are pinned in `mise.toml` (install them with `make tools`). The Go
+and finfocus-spec versions are in `go.mod`. Read versions from those files
+instead of quoting them in prose, where they go stale.
 
 ## Architecture
 
@@ -42,13 +46,13 @@ The `finfocus` binary runs as both a standalone CLI and a Pulumi tool plugin. Mo
 
 1. **CLI** (`internal/cli/`) — Cobra commands: `overview`, `cost projected|actual|recommendations|budget|estimate`, `plugin *`, `config *`, `analyzer serve`
 2. **Engine** (`internal/engine/`) — Orchestrates cost calculation. Tries plugins first, falls back to local YAML specs in `specs/`. Uses `hoursPerMonth = 730`. Supports table, JSON, NDJSON output. Includes batch processing (threshold: 100 resources), caching, and budget forecasting.
-3. **Router** (`internal/router/`) — Routes resource types to the correct plugin based on provider patterns, priority rules, and config-driven routing from `~/.finfocus/config.yaml`.
+3. **Router** (`internal/router/`) — Routes resource types to the correct plugin based on provider patterns, priority rules, and config-driven routing from `~/.finfocus/config.hujson`.
 4. **Proto Adapter** (`internal/proto/`) — Bridge between engine and plugins. Converts `ResourceDescriptor` to protobuf requests, performs pre-flight validation via `pluginsdk`, extracts SKU/Region from resource `Inputs`, and aggregates errors with `CostResultWithErrors`.
 5. **Plugin Host** (`internal/pluginhost/`) — gRPC plugin lifecycle. `ProcessLauncher` (TCP) and `StdioLauncher` (stdin/stdout). 10-second timeout, 100ms retry. **Always call `cmd.Wait()` after `Kill()` to prevent zombies.**
 6. **Registry** (`internal/registry/`) — Discovers plugins at `~/.finfocus/plugins/<name>/<version>/`. Optional `plugin.manifest.json` validation.
 7. **Ingestion** (`internal/ingest/`) — Parses `pulumi preview --json`. **Must inspect `newState` to extract `Inputs`** — without this, property extraction fails and plugins return `InvalidArgument`.
 8. **Analyzer** (`internal/analyzer/`) — Implements `pulumirpc.AnalyzerServer` for zero-click cost estimation during `pulumi preview`. Prints ONLY port number to stdout (Pulumi handshake). All logs go to stderr. ADVISORY enforcement only.
-9. **Config** (`internal/config/`) — Manages `~/.finfocus/config.yaml` including plugin routing rules, budget definitions, and dismissed recommendation state (`~/.finfocus/dismissed.json`).
+9. **Config** (`internal/config/`) — Manages `~/.finfocus/config.hujson` (a project's `.finfocus/config.hujson` overrides it; legacy `config.yaml` is migrated on first read) including plugin routing rules, budget definitions, and dismissed recommendation state (`~/.finfocus/dismissed.json`).
 10. **TUI** (`internal/tui/`) — Bubble Tea + Lip Gloss with adaptive color schemes.
 
 ### Plugin Communication
@@ -87,7 +91,7 @@ if err := pluginsdk.ValidateProjectedCostRequest(protoReq); err != nil {
 
 ### Go Standards
 
-- **Go Version**: 1.27.1
+- **Go Version**: the `go` directive in `go.mod`
 - **Imports**: Standard library → third-party → internal packages (enforced by `goimports` in golangci-lint)
 - **Error Handling**: Wrap with `%w`: `fmt.Errorf("operation failed: %w", err)`. Sentinel errors: `var ErrName = errors.New("description")`
 - **Logging**: Use `internal/logging` with `logging.FromContext(ctx)`. Include `component` and `operation` fields. Use `Debug` for flow, `Info` for milestones, `Warn` for recoverable issues.
@@ -96,7 +100,7 @@ if err := pluginsdk.ValidateProjectedCostRequest(protoReq); err != nil {
 ### Testing
 
 - **Testify required**: Use `require.*` for setup (stops test), `assert.*` for values (continues test)
-- **Coverage**: 80% goal, 95% critical paths; CI enforces 61% minimum
+- **Coverage**: 80% goal, 95% critical paths; CI enforces the minimum set in `.github/workflows/ci.yml`
 - **Table-driven tests**: Use `wantErr` and `errContains` fields
 - **Test both paths**: Success and error cases
 - **Error messages**: `assert.Contains(t, err.Error(), "expected text")`
@@ -146,7 +150,7 @@ Cross-repo changes require coordination per `.specify/memory/constitution.md`.
 
 ## Configuration
 
-Precedence: CLI flags → Environment variables → Config file (`~/.finfocus/config.yaml`) → Defaults
+Precedence: CLI flags → Environment variables → Config file (`config.hujson`) → Defaults
 
 Key environment variables: `FINFOCUS_LOG_LEVEL`, `FINFOCUS_LOG_FORMAT`, `FINFOCUS_TRACE_ID`, `FINFOCUS_PLUGIN_*`
 
@@ -156,7 +160,7 @@ finfocus --debug cost projected --pulumi-json plan.json   # Debug output
 
 ## CI/CD
 
-All PRs must pass: unit tests with race detection, 61% coverage gate, golangci-lint v2.9.0, govulncheck, cross-platform builds (Linux/macOS/Windows, amd64/arm64).
+All PRs must pass: unit tests with race detection, the coverage gate in `.github/workflows/ci.yml`, golangci-lint (version from `mise.toml`), govulncheck, cross-platform builds (Linux/macOS/Windows, amd64/arm64).
 
 ## Feature Development
 

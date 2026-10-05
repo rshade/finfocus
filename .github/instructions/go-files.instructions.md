@@ -4,13 +4,12 @@ applyTo: '**/*.go'
 
 # Go Code Instructions
 
-This repository uses Go 1.27.1+ with specific coding standards and best practices.
+This repository uses the Go version in the `go` directive of `go.mod`, with specific coding standards and best practices.
 
 ## Go Version Requirements:
 
-- **Minimum version**: Go 1.27.1
-- **Target version**: Go 1.27.1
-- **Compatibility**: Ensure code works with Go 1.27.1 features
+- **Version**: the `go` directive in `go.mod` is both the minimum and the target
+- **Compatibility**: Use only language and standard library features available in that version
 
 ## Code Quality Standards:
 
