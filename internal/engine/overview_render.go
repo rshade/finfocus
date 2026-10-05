@@ -28,7 +28,7 @@ const (
 func StatusIcon(status ResourceStatus) string {
 	switch status {
 	case StatusActive:
-		return "\u2713" // check mark
+		return "✓" // check mark
 	case StatusCreating:
 		return "+"
 	case StatusUpdating:
@@ -36,7 +36,7 @@ func StatusIcon(status ResourceStatus) string {
 	case StatusDeleting:
 		return "-"
 	case StatusReplacing:
-		return "\u21bb" // clockwise arrow
+		return "↻" // clockwise arrow
 	default:
 		return "?"
 	}
@@ -110,33 +110,10 @@ func formatWithCommas(amount float64) string {
 	return fmt.Sprintf("%s.%02d", wholeStr, cents)
 }
 
-// truncateResource shortens a URN to fit the resource column.
-func truncateResource(urn string, maxLen int) string {
-	if len(urn) <= maxLen {
-		return urn
-	}
-	if maxLen <= truncateMinLen {
-		return urn[:maxLen]
-	}
-	return urn[:maxLen-3] + "..."
-}
-
-// overviewResourceCell renders the RESOURCE column: the truncated URN, or
-// for an expansion child a `↳` indent before the namespace (live rows) or
-// URN (projected rows).
-func overviewResourceCell(row OverviewRow) string {
-	if row.ParentURN == "" {
-		return truncateResource(row.URN, colWidthResource)
-	}
-	name := LiveChildName(row)
-	if name == "" {
-		name = row.URN
-	}
-	return truncateResource("↳ "+name, colWidthResource)
-}
-
-// RenderOverviewAsTable writes a formatted ASCII table of the overview rows.
-func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContext) error {
+// RenderOverviewAsTable writes a formatted ASCII table of the overview result.
+// All row values and totals are read from the pre-computed OverviewResult;
+// this function performs formatting only.
+func RenderOverviewAsTable(w io.Writer, result OverviewResult, stackCtx StackContext) error {
 	tw := tabwriter.NewWriter(w, 0, 0, tabwriterPadding, ' ', 0)
 
 	projectedHeader := "PROJECTED"
@@ -157,38 +134,22 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 	}
 
 	// Rows
-	for _, row := range rows {
-		resource := overviewResourceCell(row)
-		resType := truncateResource(row.Type, colWidthType)
-		statusStr := StatusIcon(row.Status) + " " + row.Status.String()
-
-		var actual, projected, delta, drift, recs string
-
-		if row.Error != nil {
-			actual = "ERR"
-			projected = "ERR"
-			delta = "-"
-			drift = "-"
-			recs = "-"
-		} else {
-			actual = formatActualColumn(row)
-			projected = formatProjectedColumn(row)
-			delta = formatDeltaColumn(row)
-			drift = formatDriftColumn(row)
-			recs = formatRecsColumn(row)
-		}
+	for _, row := range result.Rows {
+		resource := TruncateOverviewResource(row.ResourceDisplay, colWidthResource)
+		resType := TruncateOverviewResource(row.Type, colWidthType)
 
 		warn := FormatOverviewWarnings(row.Warnings)
 		if _, err := fmt.Fprintf(tw, "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n",
-			resource, resType, statusStr,
-			actual, projected, delta, drift, recs, warn,
+			resource, resType, row.StatusDisplay,
+			row.ActualDisplay, row.ProjectedDisplay, row.DeltaDisplay,
+			row.DriftDisplay, row.RecsDisplay, warn,
 		); err != nil {
 			return fmt.Errorf("writing row: %w", err)
 		}
 	}
 
 	// Summary footer
-	if err := renderSummaryFooter(tw, rows, stackCtx); err != nil {
+	if err := renderSummaryFooter(tw, result.Summary, stackCtx); err != nil {
 		return fmt.Errorf("writing summary: %w", err)
 	}
 
@@ -215,44 +176,6 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 	return nil
 }
 
-func formatActualColumn(row OverviewRow) string {
-	if row.ActualCost == nil {
-		return "-"
-	}
-	return FormatOverviewCurrency(row.ActualCost.MTDCost)
-}
-
-func formatProjectedColumn(row OverviewRow) string {
-	if row.ProjectedCost == nil {
-		return "-"
-	}
-	return FormatOverviewCurrency(row.ProjectedCost.MonthlyCost)
-}
-
-// formatDeltaColumn reads the pre-computed ComputedDelta from the row.
-// PopulateComputedDeltas must be called before rendering.
-func formatDeltaColumn(row OverviewRow) string {
-	if row.ComputedDelta == nil {
-		return "-"
-	}
-	return FormatOverviewDelta(*row.ComputedDelta)
-}
-
-func formatDriftColumn(row OverviewRow) string {
-	if row.CostDrift == nil {
-		return "-"
-	}
-	sign := "+"
-	if row.CostDrift.PercentDrift < 0 {
-		sign = ""
-	}
-	result := fmt.Sprintf("%s%.0f%%", sign, row.CostDrift.PercentDrift)
-	if row.CostDrift.IsWarning {
-		result += " \u26a0"
-	}
-	return result
-}
-
 // FormatOverviewWarnings renders the Warn column. An empty list is "-".
 // Names stay in derivation order.
 func FormatOverviewWarnings(warnings []OverviewWarning) string {
@@ -266,121 +189,26 @@ func FormatOverviewWarnings(warnings []OverviewWarning) string {
 	return strings.Join(parts, ",")
 }
 
-func formatRecsColumn(row OverviewRow) string {
-	if len(row.Recommendations) == 0 {
-		return "-"
-	}
-	active, dismissed := CountRecsActiveAndDismissed(row.Recommendations)
-	total := active + dismissed
-	if dismissed == 0 {
-		return strconv.Itoa(total)
-	}
-	return fmt.Sprintf("%d(-%d)", total, dismissed)
-}
-
-// overviewRowTotals holds aggregated totals from overview rows.
-type overviewRowTotals struct {
-	actual    float64
-	projected float64
-	savings   float64
-	currency  string
-	errors    []OverviewRowError
-}
-
-// aggregateOverviewRows computes totals across overview rows with currency
-// consistency checking. Returns ErrMixedCurrencies if different non-empty
-// currencies are encountered.
-func aggregateOverviewRows(rows []OverviewRow) (overviewRowTotals, error) {
-	var t overviewRowTotals
-	for _, row := range rows {
-		if row.Error != nil {
-			t.errors = append(t.errors, *row.Error)
-			continue
-		}
-		// Live allocation children re-allocate node cost already represented
-		// by the cluster's node rows; summing them would double count.
-		if row.ExpansionSource == ExpansionSourceLive {
-			continue
-		}
-		if err := accumulateOverviewRow(&t, row); err != nil {
-			return t, err
-		}
-	}
-	if t.currency == "" {
-		t.currency = defaultCurrency
-	}
-	return t, nil
-}
-
-// accumulateOverviewRow adds one row's costs and savings into the totals.
-func accumulateOverviewRow(t *overviewRowTotals, row OverviewRow) error {
-	if row.ActualCost != nil {
-		t.actual += row.ActualCost.MTDCost
-		if err := checkCurrency(&t.currency, row.ActualCost.Currency); err != nil {
-			return err
-		}
-	}
-	if row.ProjectedCost != nil {
-		t.projected += row.ProjectedCost.MonthlyCost
-		if err := checkCurrency(&t.currency, row.ProjectedCost.Currency); err != nil {
-			return err
-		}
-	}
-	for _, rec := range row.Recommendations {
-		if rec.Status != RecommendationStatusDismissed && rec.Status != RecommendationStatusSnoozed {
-			t.savings += rec.EstimatedSavings
-		}
-	}
-	return nil
-}
-
-// checkCurrency validates that currency is consistent. On first non-empty
-// value it sets *current; on subsequent non-empty values it returns
-// ErrMixedCurrencies if they differ.
-func checkCurrency(current *string, next string) error {
-	if next == "" {
-		return nil
-	}
-	if *current == "" {
-		*current = next
-	} else if next != *current {
-		return ErrMixedCurrencies
-	}
-	return nil
-}
-
-// renderSummaryFooter writes the summary line at the bottom of the table.
-func renderSummaryFooter(tw *tabwriter.Writer, rows []OverviewRow, stackCtx StackContext) error {
+// renderSummaryFooter writes the summary line at the bottom of the table,
+// reading the pre-computed totals from the OverviewSummary.
+func renderSummaryFooter(tw *tabwriter.Writer, summary OverviewSummary, stackCtx StackContext) error {
 	if _, err := fmt.Fprintf(tw, "\t\t\t\t\t\t\t\t\n"); err != nil {
 		return err
-	}
-
-	t, aggErr := aggregateOverviewRows(rows)
-	if aggErr != nil {
-		return aggErr
-	}
-
-	// Sum pre-computed per-row deltas for a consistent summary.
-	var totalDelta float64
-	for _, row := range rows {
-		if row.ComputedDelta != nil {
-			totalDelta += *row.ComputedDelta
-		}
 	}
 
 	if _, writeErr := fmt.Fprintf(tw, "SUMMARY\t%s\t%d resources\t%s\t%s\t%s\t\t\t\n",
 		stackCtx.StackName,
 		stackCtx.TotalResources,
-		FormatOverviewCurrency(t.actual)+" "+t.currency,
-		FormatOverviewCurrency(t.projected)+" "+t.currency,
-		FormatOverviewDelta(totalDelta)+" "+t.currency,
+		FormatOverviewCurrency(summary.TotalActual)+" "+summary.Currency,
+		FormatOverviewCurrency(summary.TotalProjected)+" "+summary.Currency,
+		FormatOverviewDelta(summary.TotalDelta)+" "+summary.Currency,
 	); writeErr != nil {
 		return writeErr
 	}
 
-	if t.savings > 0 {
+	if summary.TotalSavings > 0 {
 		if _, writeErr := fmt.Fprintf(tw, "\t\t\t\tPotential Savings:\t%s %s\t\t\t\n",
-			FormatOverviewCurrency(t.savings), t.currency); writeErr != nil {
+			FormatOverviewCurrency(summary.TotalSavings), summary.Currency); writeErr != nil {
 			return writeErr
 		}
 	}
@@ -404,8 +232,8 @@ type OverviewMetadata struct {
 	StackContext
 }
 
-// OverviewSummary holds aggregated summary statistics for the JSON output.
-type OverviewSummary struct {
+// OverviewJSONSummary holds aggregated summary statistics for the JSON output.
+type OverviewJSONSummary struct {
 	TotalActualMTD   float64 `json:"totalActualMTD"`
 	ProjectedMonthly float64 `json:"projectedMonthly"`
 	ProjectedDelta   float64 `json:"projectedDelta"`
@@ -417,40 +245,37 @@ type OverviewSummary struct {
 type OverviewJSONOutput struct {
 	Metadata  OverviewMetadata     `json:"metadata"`
 	Resources []OverviewRow        `json:"resources"`
-	Summary   OverviewSummary      `json:"summary"`
+	Summary   OverviewJSONSummary  `json:"summary"`
 	Budgets   []BudgetHealthResult `json:"budgets,omitempty"`
 	Errors    []OverviewRowError   `json:"errors"`
 }
 
-// RenderOverviewAsJSON renders the overview rows as a structured JSON object
+// RenderOverviewAsJSON renders the overview result as a structured JSON object
 // with metadata, resource array, summary, optional budgets, and errors.
+// Resources are marshaled from each row's Source OverviewRow so the serialized
+// schema is unchanged; totals come from the pre-computed summary.
 //
 // Parameters:
 //   - ctx: context for logging and tracing; threaded to CalculateBudgetHealthResults.
 //   - w: destination writer for the JSON output.
-//   - rows: slice of OverviewRow to include as resources; may be nil (will serialize as an empty array).
+//   - result: pre-computed overview result from ComputeOverviewResult.
 //   - stackCtx: stack context and metadata used in the output; GeneratedAt will be populated with the current time if zero.
 //   - budgetResult: optional budget data; when non-nil and non-empty, converted budgets are included
 //     in the `budgets` field. May be nil, in which case no budget entries are emitted.
 //
-// Returns an error if aggregating totals fails or if encoding/writing the JSON output fails.
+// Returns an error if encoding/writing the JSON output fails.
 func RenderOverviewAsJSON(
-	ctx context.Context, w io.Writer, rows []OverviewRow,
+	ctx context.Context, w io.Writer, result OverviewResult,
 	stackCtx StackContext, budgetResult *BudgetResult,
 ) error {
-	t, err := aggregateOverviewRows(rows)
-	if err != nil {
-		return err
-	}
-
 	// Initialize resources to empty slice so JSON produces [] instead of null.
-	resources := rows
-	if resources == nil {
-		resources = []OverviewRow{}
+	resources := make([]OverviewRow, len(result.Rows))
+	for i := range result.Rows {
+		resources[i] = result.Rows[i].Source
 	}
 
 	// Ensure errors is non-nil for consistent JSON output.
-	errs := t.errors
+	errs := result.Summary.Errors
 	if errs == nil {
 		errs = []OverviewRowError{}
 	}
@@ -466,26 +291,18 @@ func RenderOverviewAsJSON(
 		budgets = CalculateBudgetHealthResults(ctx, budgetResult.Budgets)
 	}
 
-	// Sum pre-computed per-row deltas for a consistent summary.
-	var totalDelta float64
-	for _, row := range resources {
-		if row.ComputedDelta != nil {
-			totalDelta += *row.ComputedDelta
-		}
-	}
-
 	// Build output structure
 	output := OverviewJSONOutput{
 		Metadata: OverviewMetadata{
 			StackContext: stackCtx,
 		},
 		Resources: resources,
-		Summary: OverviewSummary{
-			TotalActualMTD:   t.actual,
-			ProjectedMonthly: t.projected,
-			ProjectedDelta:   totalDelta,
-			PotentialSavings: t.savings,
-			Currency:         t.currency,
+		Summary: OverviewJSONSummary{
+			TotalActualMTD:   result.Summary.TotalActual,
+			ProjectedMonthly: result.Summary.TotalProjected,
+			ProjectedDelta:   result.Summary.TotalDelta,
+			PotentialSavings: result.Summary.TotalSavings,
+			Currency:         result.Summary.Currency,
 		},
 		Budgets: budgets,
 		Errors:  errs,
@@ -502,11 +319,11 @@ func RenderOverviewAsJSON(
 }
 
 // RenderOverviewAsNDJSON renders each overview row as a separate JSON line
-// with no metadata wrapper or summary. ComputedDelta must be populated
-// before calling this function (via PopulateComputedDeltas).
-func RenderOverviewAsNDJSON(w io.Writer, rows []OverviewRow) error {
-	for _, row := range rows {
-		data, marshalErr := json.Marshal(row)
+// with no metadata wrapper or summary. Rows are marshaled from each result
+// row's Source OverviewRow, which carries the pre-computed ComputedDelta.
+func RenderOverviewAsNDJSON(w io.Writer, result OverviewResult) error {
+	for _, row := range result.Rows {
+		data, marshalErr := json.Marshal(row.Source)
 		if marshalErr != nil {
 			return fmt.Errorf("marshaling row: %w", marshalErr)
 		}

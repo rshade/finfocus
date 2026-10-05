@@ -271,7 +271,7 @@ func (m OverviewModel) renderDetailViewForDay(dayOfMonth int) string {
 }
 
 // renderDetailActualCost writes actual cost details to the builder.
-func renderDetailActualCost(content *strings.Builder, row engine.OverviewRow) {
+func renderDetailActualCost(content *strings.Builder, row engine.OverviewRowResult) {
 	if row.ActualCost == nil {
 		return
 	}
@@ -285,7 +285,7 @@ func renderDetailActualCost(content *strings.Builder, row engine.OverviewRow) {
 }
 
 // renderDetailProjectedCost writes projected cost details to the builder.
-func renderDetailProjectedCost(content *strings.Builder, row engine.OverviewRow) {
+func renderDetailProjectedCost(content *strings.Builder, row engine.OverviewRowResult) {
 	if row.ProjectedCost == nil {
 		return
 	}
@@ -303,27 +303,27 @@ func renderDetailProjectedCost(content *strings.Builder, row engine.OverviewRow)
 // resources this section is not shown — drift covers that case.
 //
 // It accepts a fixed dayOfMonth for the sub-line extrapolation display;
-// the delta value itself is read from the pre-computed ComputedDelta field.
-func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewRow, dayOfMonth int) {
+// the delta value itself is read from the pre-computed Delta field.
+func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewRowResult, dayOfMonth int) {
 	if row.Status == engine.StatusActive {
 		return
 	}
 
-	if row.ComputedDelta == nil {
+	if row.Delta == nil {
 		return
 	}
-	delta := *row.ComputedDelta
+	delta := *row.Delta
 
 	content.WriteString(HeaderStyle.Render("COST IMPACT"))
 	content.WriteString("\n")
 
 	switch row.Status { //nolint:exhaustive // StatusActive already returned above.
 	case engine.StatusUpdating, engine.StatusReplacing:
-		current := engine.ForceExtrapolateActual(row, dayOfMonth)
-		if baseline, ok := engine.GetBaselineProjectedMonthlyCost(row); ok {
-			current = baseline
+		current := engine.ForceExtrapolateActual(row.Source, dayOfMonth)
+		if row.BaselineProjectedCost != nil {
+			current = row.BaselineProjectedCost.MonthlyCost
 		}
-		projected := engine.GetProjectedMonthlyCost(row)
+		projected := overviewResultProjectedCost(row)
 		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
 		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))
 		content.WriteString("\n")
@@ -332,13 +332,13 @@ func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewR
 		content.WriteString("\n")
 
 	case engine.StatusCreating:
-		projected := engine.GetProjectedMonthlyCost(row)
+		projected := overviewResultProjectedCost(row)
 		content.WriteString(LabelStyle.Render("  New Monthly Cost: "))
 		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(projected)))
 		content.WriteString("\n")
 
 	case engine.StatusDeleting:
-		current := engine.GetExtrapolatedActual(row, dayOfMonth)
+		current := engine.GetExtrapolatedActual(row.Source, dayOfMonth)
 		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
 		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))
 		content.WriteString("\n")
@@ -355,8 +355,17 @@ func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewR
 	content.WriteString("\n\n")
 }
 
+// overviewResultProjectedCost returns the pre-computed projected monthly cost
+// for a result row, or 0 when no projection is available.
+func overviewResultProjectedCost(row engine.OverviewRowResult) float64 {
+	if row.Projected != nil {
+		return *row.Projected
+	}
+	return 0
+}
+
 // renderDetailCostDrift writes cost drift details to the builder.
-func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRow) {
+func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRowResult) {
 	if row.CostDrift == nil {
 		return
 	}
@@ -383,7 +392,7 @@ func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRow) {
 // renderDetailRecommendations writes active (non-dismissed) recommendations to
 // the builder. Dismissed and snoozed recommendations are excluded from the
 // detail view — they are only reflected in the count badge.
-func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRow) {
+func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRowResult) {
 	// Collect active recs only.
 	var active []engine.Recommendation
 	for _, rec := range row.Recommendations {
@@ -409,7 +418,7 @@ func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRo
 }
 
 // renderDetailError writes error details to the builder.
-func renderDetailError(content *strings.Builder, row engine.OverviewRow) {
+func renderDetailError(content *strings.Builder, row engine.OverviewRowResult) {
 	if row.Error == nil {
 		return
 	}
@@ -426,7 +435,7 @@ const maxDiffValueLen = 40
 
 // renderDetailPropertyChanges writes the property changes section to the builder.
 // Only rendered when the resource has property diffs (update/replace operations).
-func renderDetailPropertyChanges(content *strings.Builder, row engine.OverviewRow) {
+func renderDetailPropertyChanges(content *strings.Builder, row engine.OverviewRowResult) {
 	if len(row.PropertyDiffs) == 0 {
 		return
 	}

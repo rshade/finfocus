@@ -112,10 +112,10 @@ type OverviewInitErrorMsg struct {
 type OverviewModel struct {
 	// View state
 	state     ViewState
-	allRows   []engine.OverviewRow // All loaded rows (source of truth)
-	rows      []engine.OverviewRow // Filtered/sorted rows
-	ctx       context.Context      // Context for trace ID
-	stackName string               // Stack name from data loading
+	allRows   []engine.OverviewRowResult // All loaded rows (source of truth)
+	rows      []engine.OverviewRowResult // Filtered/sorted rows
+	ctx       context.Context            // Context for trace ID
+	stackName string                     // Stack name from data loading
 
 	// Interactive components
 	table     table.Model
@@ -196,6 +196,7 @@ func NewOverviewModel(
 		initialState = ViewStateInitializing
 		skeletonRows = []engine.OverviewRow{}
 	}
+	rowResults := computeRowResults(skeletonRows)
 
 	pi := textinput.New()
 	pi.EchoMode = textinput.EchoPassword
@@ -203,8 +204,8 @@ func NewOverviewModel(
 
 	m := OverviewModel{
 		state:           initialState,
-		allRows:         skeletonRows,
-		rows:            skeletonRows,
+		allRows:         rowResults,
+		rows:            rowResults,
 		ctx:             ctx,
 		totalCount:      totalCount,
 		loadedCount:     0,
@@ -384,12 +385,10 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state != ViewStateInitializing {
 			return m, nil // Ignore stale message
 		}
-		// Defensive copy: allRows and rows must not share backing arrays
-		// because refreshTable sorts m.rows in-place.
-		m.allRows = make([]engine.OverviewRow, len(dataMsg.Rows))
-		copy(m.allRows, dataMsg.Rows)
-		m.rows = make([]engine.OverviewRow, len(dataMsg.Rows))
-		copy(m.rows, dataMsg.Rows)
+		// Conversion allocates fresh slices: allRows and rows do not share
+		// backing arrays because refreshTable sorts m.rows in-place.
+		m.allRows = computeRowResults(dataMsg.Rows)
+		m.rows = computeRowResults(dataMsg.Rows)
 		m.totalCount = dataMsg.TotalCount
 		m.stackName = dataMsg.StackName
 		m.state = ViewStateLoading
@@ -439,11 +438,16 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.previewLoaded = true
 		m.isStateOnly = false
 		// Safe: Bubble Tea Update() is single-threaded; no concurrent reads on allRows.
-		engine.ApplyChangesToRows(m.allRows, changesMsg.StatusByURN)
-		engine.ApplyPropertyDiffsToRows(m.allRows, changesMsg.PropertyDiffsByURN)
-		engine.ApplyProjectedPropertiesToRows(m.allRows, changesMsg.ProjectedPropsByURN)
+		sources := make([]engine.OverviewRow, len(m.allRows))
+		for i := range m.allRows {
+			sources[i] = m.allRows[i].Source
+		}
+		engine.ApplyChangesToRows(sources, changesMsg.StatusByURN)
+		engine.ApplyPropertyDiffsToRows(sources, changesMsg.PropertyDiffsByURN)
+		engine.ApplyProjectedPropertiesToRows(sources, changesMsg.ProjectedPropsByURN)
 		// Recompute deltas after status/property changes.
-		engine.PopulateComputedDeltas(m.allRows, time.Now().Day())
+		engine.PopulateComputedDeltas(sources, time.Now().Day())
+		m.allRows = computeRowResults(sources)
 		m.applyFilter(m.textInput.Value())
 		return m, nil
 	}
@@ -459,8 +463,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle cluster expansion results (sent after enrichment completes).
 	if expMsg, ok := msg.(OverviewExpansionReadyMsg); ok {
-		m.allRows = make([]engine.OverviewRow, len(expMsg.Rows))
-		copy(m.allRows, expMsg.Rows)
+		m.allRows = computeRowResults(expMsg.Rows)
 		m.expansionNotes = expMsg.Notes
 		m.applyFilter(m.textInput.Value())
 		return m, nil
@@ -502,7 +505,7 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m OverviewModel) handleResourceLoaded(msg OverviewResourceLoadedMsg) (tea.Model, tea.Cmd) {
 	if msg.Index >= 0 && msg.Index < len(m.allRows) {
-		m.allRows[msg.Index] = msg.Row
+		m.allRows[msg.Index] = engine.ComputeOverviewRowResult(msg.Row)
 		m.loadedCount++
 
 		// Update filtered/sorted view (applyFilter calls refreshTable)
@@ -731,7 +734,7 @@ func (m *OverviewModel) refreshTable() {
 	switch m.sortBy {
 	case SortByCost:
 		sort.Slice(m.rows, func(i, j int) bool {
-			return m.getCost(m.rows[i]) > m.getCost(m.rows[j])
+			return overviewRowSortCost(m.rows[i]) > overviewRowSortCost(m.rows[j])
 		})
 	case SortByName:
 		sort.Slice(m.rows, func(i, j int) bool {
@@ -743,7 +746,7 @@ func (m *OverviewModel) refreshTable() {
 		})
 	case SortByDelta:
 		sort.Slice(m.rows, func(i, j int) bool {
-			return m.getDelta(m.rows[i]) > m.getDelta(m.rows[j])
+			return overviewRowSortDelta(m.rows[i]) > overviewRowSortDelta(m.rows[j])
 		})
 	}
 
@@ -769,7 +772,7 @@ func formatOverviewWarnCell(warnings []engine.OverviewWarning) string {
 // overviewDisplayEntry pairs a row to render with its index in m.rows and
 // whether it is an expansion child (rendered indented).
 type overviewDisplayEntry struct {
-	row     engine.OverviewRow
+	row     engine.OverviewRowResult
 	rowsIdx int
 	child   bool
 }
@@ -807,11 +810,11 @@ func (m *OverviewModel) displayEntries() []overviewDisplayEntry {
 // expansionDisplayName renders a compact name for an expansion child row:
 // live allocation rows show their namespace (or "(idle)"); projected rows
 // use the regular URN display name.
-func expansionDisplayName(row engine.OverviewRow) string {
-	if name := engine.LiveChildName(row); name != "" {
+func expansionDisplayName(row engine.OverviewRowResult) string {
+	if name := engine.LiveChildName(row.Source); name != "" {
 		return name
 	}
-	return resourceDisplayName(row.URN)
+	return row.DisplayName
 }
 
 // entryResourceName is the untruncated Resource cell for a display entry:
@@ -827,59 +830,24 @@ func (m *OverviewModel) entryResourceName(entry overviewDisplayEntry) string {
 		}
 		return "▸ " + expansionDisplayName(entry.row)
 	default:
-		return resourceDisplayName(entry.row.URN)
+		return entry.row.DisplayName
 	}
 }
 
 // overviewTableRow renders one display entry as a table row, applying the
 // expansion marker (▸/▾) to cluster rows and the ↳ indent to child rows.
 func (m *OverviewModel) overviewTableRow(entry overviewDisplayEntry, resourceWidth int) table.Row {
-	overviewRow := entry.row
-
-	resourceName := truncateResourceName(overviewRow.URN, resourceWidth)
-	if entry.child || len(overviewRow.ChildURNs) > 0 {
-		resourceName = truncateResourceName(m.entryResourceName(entry), resourceWidth)
-	}
-	statusStr := fmt.Sprintf("%s %s", engine.StatusIcon(overviewRow.Status), overviewRow.Status.String())
-
-	actualStr := "-"
-	if overviewRow.ActualCost != nil {
-		actualStr = fmt.Sprintf("$%.2f", overviewRow.ActualCost.MTDCost)
-	}
-
-	projectedStr := "-"
-	if overviewRow.ProjectedCost != nil {
-		projectedStr = fmt.Sprintf("$%.2f", overviewRow.ProjectedCost.MonthlyCost)
-	}
-
-	deltaStr := formatOverviewDeltaCell(overviewRow)
-
-	driftPctStr := "-"
-	if overviewRow.CostDrift != nil {
-		driftPctStr = fmt.Sprintf("%.1f%%", overviewRow.CostDrift.PercentDrift)
-	}
-
-	recsStr := "-"
-	if len(overviewRow.Recommendations) > 0 {
-		active, dismissed := engine.CountRecsActiveAndDismissed(overviewRow.Recommendations)
-		total := active + dismissed
-		if dismissed == 0 {
-			recsStr = strconv.Itoa(total)
-		} else {
-			recsStr = fmt.Sprintf("%d(-%d)", total, dismissed)
-		}
-	}
-
+	row := entry.row
 	return table.Row{
-		resourceName,
-		overviewRow.Type,
-		statusStr,
-		actualStr,
-		projectedStr,
-		deltaStr,
-		driftPctStr,
-		recsStr,
-		formatOverviewWarnCell(overviewRow.Warnings),
+		engine.TruncateOverviewResource(m.entryResourceName(entry), resourceWidth),
+		row.Type,
+		row.StatusDisplay,
+		row.ActualDisplay,
+		row.ProjectedDisplay,
+		row.DeltaDisplay,
+		row.DriftDisplay,
+		row.RecsDisplay,
+		formatOverviewWarnCell(row.Warnings),
 	}
 }
 
@@ -930,40 +898,15 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 	return t
 }
 
-// formatOverviewDeltaCell reads the pre-computed ComputedDelta from the row.
-// PopulateComputedDeltas must be called before rendering.
-func formatOverviewDeltaCell(row engine.OverviewRow) string {
-	if row.ComputedDelta == nil {
-		return "-"
+// computeRowResults converts enriched overview rows into pre-computed,
+// display-ready row results. Rows must already carry ComputedDelta
+// (populated by the enrichment bridge or PopulateComputedDeltas).
+func computeRowResults(rows []engine.OverviewRow) []engine.OverviewRowResult {
+	results := make([]engine.OverviewRowResult, len(rows))
+	for i := range rows {
+		results[i] = engine.ComputeOverviewRowResult(rows[i])
 	}
-	return engine.FormatOverviewDelta(*row.ComputedDelta)
-}
-
-// truncateResourceName shortens a URN for display within the given maxLen.
-// It operates on rune counts to avoid splitting multibyte UTF-8 characters.
-func truncateResourceName(urn string, maxLen int) string {
-	name := resourceDisplayName(urn)
-	if maxLen <= 0 {
-		return ""
-	}
-	runes := []rune(name)
-	if len(runes) <= maxLen {
-		return name
-	}
-	const ellipsis = 3
-	if maxLen <= ellipsis {
-		return string(runes[:maxLen])
-	}
-	return string(runes[:maxLen-ellipsis]) + "..."
-}
-
-// resourceDisplayName extracts the rightmost URN component for display.
-func resourceDisplayName(urn string) string {
-	if urn == "" {
-		return urn
-	}
-	parts := strings.Split(urn, "::")
-	return parts[len(parts)-1]
+	return results
 }
 
 // applyFilter filters rows based on text input. It always calls refreshTable
@@ -972,11 +915,11 @@ func (m *OverviewModel) applyFilter(filterText string) {
 	if filterText == "" {
 		// Copy to avoid aliasing; refreshTable sorts m.rows in-place
 		// and must not reorder the source m.allRows.
-		m.rows = make([]engine.OverviewRow, len(m.allRows))
+		m.rows = make([]engine.OverviewRowResult, len(m.allRows))
 		copy(m.rows, m.allRows)
 	} else {
 		query := strings.ToLower(filterText)
-		filtered := []engine.OverviewRow{}
+		filtered := []engine.OverviewRowResult{}
 
 		for _, row := range m.allRows {
 			if strings.Contains(strings.ToLower(row.URN), query) ||
@@ -992,24 +935,24 @@ func (m *OverviewModel) applyFilter(filterText string) {
 	m.refreshTable()
 }
 
-// getCost returns the primary cost for sorting.
-func (m *OverviewModel) getCost(row engine.OverviewRow) float64 {
-	if row.ProjectedCost != nil {
-		return row.ProjectedCost.MonthlyCost
+// overviewRowSortCost returns the primary cost for sorting.
+func overviewRowSortCost(row engine.OverviewRowResult) float64 {
+	if row.Projected != nil {
+		return *row.Projected
 	}
-	if row.ActualCost != nil {
-		return row.ActualCost.MTDCost
+	if row.ActualMTD != nil {
+		return *row.ActualMTD
 	}
 	return 0.0
 }
 
-// getDelta returns the delta for sorting, reading the pre-computed
-// ComputedDelta to keep display and sort order consistent.
-func (m *OverviewModel) getDelta(row engine.OverviewRow) float64 {
-	if row.ComputedDelta == nil {
+// overviewRowSortDelta returns the pre-computed delta for sorting, keeping
+// display and sort order consistent.
+func overviewRowSortDelta(row engine.OverviewRowResult) float64 {
+	if row.Delta == nil {
 		return 0.0
 	}
-	return *row.ComputedDelta
+	return *row.Delta
 }
 
 // enablePaginationIfNeeded checks if pagination should be enabled and clamps
@@ -1068,9 +1011,9 @@ func (m *OverviewModel) pageUnits() []int {
 }
 
 // getVisibleRows returns the pagination units on the current page.
-func (m *OverviewModel) getVisibleRows() []engine.OverviewRow {
+func (m *OverviewModel) getVisibleRows() []engine.OverviewRowResult {
 	units := m.pageUnits()
-	rows := make([]engine.OverviewRow, len(units))
+	rows := make([]engine.OverviewRowResult, len(units))
 	for i, idx := range units {
 		rows[i] = m.rows[idx]
 	}
@@ -1087,7 +1030,7 @@ func (m *OverviewModel) renderPaginationFooter() string {
 }
 
 // AllRows returns all loaded rows (for external access).
-func (m *OverviewModel) AllRows() []engine.OverviewRow {
+func (m *OverviewModel) AllRows() []engine.OverviewRowResult {
 	return m.allRows
 }
 

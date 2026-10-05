@@ -313,15 +313,15 @@ func TestAggregateSkipsLiveRows(t *testing.T) {
 	out, suppressed := ApplyLiveExpansion(rows, clusterURN, children)
 	require.Equal(t, 1, suppressed)
 
-	totals, err := aggregateOverviewRows(out)
+	totals, err := summarizeOverviewRows(out)
 	require.NoError(t, err)
-	assert.InDelta(t, 0, totals.projected, 1e-9,
+	assert.InDelta(t, 0, totals.TotalProjected, 1e-9,
 		"live children are excluded from totals and the projected child was suppressed")
 
 	// Without live expansion, the projected child still contributes.
-	totals, err = aggregateOverviewRows(rows)
+	totals, err = summarizeOverviewRows(rows)
 	require.NoError(t, err)
-	assert.InDelta(t, 54.75, totals.projected, 1e-9)
+	assert.InDelta(t, 54.75, totals.TotalProjected, 1e-9)
 }
 
 func TestClusterRowName(t *testing.T) {

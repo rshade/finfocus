@@ -14,6 +14,18 @@ import (
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 )
 
+// testDayOfMonth is the fixed day used when computing overview results in
+// tests so delta extrapolation is deterministic.
+const testDayOfMonth = 15
+
+// mustComputeOverviewResult computes the overview result for test rows.
+func mustComputeOverviewResult(t *testing.T, rows []OverviewRow) OverviewResult {
+	t.Helper()
+	result, err := ComputeOverviewResult(rows, testDayOfMonth)
+	require.NoError(t, err)
+	return result
+}
+
 // ---------------------------------------------------------------------------
 // StatusIcon
 // ---------------------------------------------------------------------------
@@ -111,7 +123,7 @@ func TestRenderOverviewAsTable_EmptyRows(t *testing.T) {
 		TotalResources: 0,
 	}
 
-	err := RenderOverviewAsTable(&buf, nil, stackCtx)
+	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, nil), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -148,7 +160,7 @@ func TestRenderOverviewAsTable_SingleActiveResource(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsTable(&buf, rows, stackCtx)
+	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -191,7 +203,7 @@ func TestRenderOverviewAsTable_AllStatuses(t *testing.T) {
 		{URN: "urn:replacing", Type: "aws:ec2:SecurityGroup", Status: StatusReplacing},
 	}
 
-	err := RenderOverviewAsTable(&buf, rows, stackCtx)
+	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -227,7 +239,7 @@ func TestRenderOverviewAsTable_ErrorRow(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsTable(&buf, rows, stackCtx)
+	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -269,9 +281,7 @@ func TestRenderOverviewAsTable_DriftWarning(t *testing.T) {
 		},
 	}
 
-	PopulateComputedDeltas(rows, 15)
-
-	err := RenderOverviewAsTable(&buf, rows, stackCtx)
+	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -306,7 +316,7 @@ func TestRenderOverviewAsTable_Recommendations(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsTable(&buf, rows, stackCtx)
+	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -357,7 +367,7 @@ func TestRenderOverviewAsTable_SummaryTotals(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsTable(&buf, rows, stackCtx)
+	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -383,7 +393,7 @@ func TestRenderOverviewAsTable_LongURNTruncation(t *testing.T) {
 		{URN: longURN, Type: "aws:ec2:Instance", Status: StatusActive},
 	}
 
-	err := RenderOverviewAsTable(&buf, rows, stackCtx)
+	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -394,10 +404,10 @@ func TestRenderOverviewAsTable_LongURNTruncation(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// truncateResource
+// TruncateOverviewResource
 // ---------------------------------------------------------------------------
 
-func TestTruncateResource(t *testing.T) {
+func TestTruncateOverviewResource(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -414,7 +424,7 @@ func TestTruncateResource(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, truncateResource(tt.input, tt.maxLen))
+			assert.Equal(t, tt.want, TruncateOverviewResource(tt.input, tt.maxLen))
 		})
 	}
 }
@@ -446,14 +456,10 @@ func TestFormatWithCommas(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// formatDriftColumn
+// ComputeOverviewRowResult — RecsDisplay
 // ---------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------
-// formatRecsColumn
-// ---------------------------------------------------------------------------
-
-func TestFormatRecsColumn(t *testing.T) {
+func TestComputeOverviewRowResult_RecsDisplay(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -514,17 +520,17 @@ func TestFormatRecsColumn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := formatRecsColumn(tt.row)
-			assert.Equal(t, tt.want, result)
+			result := ComputeOverviewRowResult(tt.row)
+			assert.Equal(t, tt.want, result.RecsDisplay)
 		})
 	}
 }
 
 // ---------------------------------------------------------------------------
-// aggregateOverviewRows — savings excludes dismissed recs
+// ComputeOverviewResult — savings excludes dismissed recs
 // ---------------------------------------------------------------------------
 
-func TestAggregateOverviewRows_SavingsExcludesDismissed(t *testing.T) {
+func TestComputeOverviewResult_SavingsExcludesDismissed(t *testing.T) {
 	t.Parallel()
 
 	now := time.Now()
@@ -548,16 +554,15 @@ func TestAggregateOverviewRows_SavingsExcludesDismissed(t *testing.T) {
 		},
 	}
 
-	totals, err := aggregateOverviewRows(rows)
-	require.NoError(t, err)
+	result := mustComputeOverviewResult(t, rows)
 	// Only active rec savings (30.0) should be included; dismissed (50) and snoozed (10) excluded.
-	assert.InDelta(t, 30.0, totals.savings, 1e-9)
+	assert.InDelta(t, 30.0, result.Summary.TotalSavings, 1e-9)
 }
 
-func TestFormatDeltaColumn_UsesPreComputedDelta(t *testing.T) {
+func TestComputeOverviewRowResult_DeltaDisplayUsesPreComputedDelta(t *testing.T) {
 	t.Parallel()
 
-	// Pre-compute delta via PopulateComputedDeltas, then verify formatDeltaColumn reads it.
+	// Pre-compute delta via PopulateComputedDeltas, then verify DeltaDisplay reads it.
 	now := time.Now()
 	period := DateRange{Start: now.Add(-24 * time.Hour), End: now}
 
@@ -581,15 +586,15 @@ func TestFormatDeltaColumn_UsesPreComputedDelta(t *testing.T) {
 	rows := []OverviewRow{row}
 	PopulateComputedDeltas(rows, fixedDay)
 
-	result := formatDeltaColumn(rows[0])
+	result := ComputeOverviewRowResult(rows[0])
 
 	expectedDelta, ok := CalculateRowDelta(row, fixedDay)
 	require.True(t, ok)
 	expected := FormatOverviewDelta(expectedDelta)
-	assert.Equal(t, expected, result)
+	assert.Equal(t, expected, result.DeltaDisplay)
 }
 
-func TestFormatDeltaColumn_ActiveWithNoDrift(t *testing.T) {
+func TestComputeOverviewRowResult_DeltaDisplayActiveWithNoDrift(t *testing.T) {
 	t.Parallel()
 
 	// Active without drift → ComputedDelta is nil → dash.
@@ -607,14 +612,14 @@ func TestFormatDeltaColumn_ActiveWithNoDrift(t *testing.T) {
 		},
 	}
 
-	result := formatDeltaColumn(row)
-	assert.Equal(t, "-", result, "active resource without CostDrift should show dash")
+	result := ComputeOverviewRowResult(row)
+	assert.Equal(t, "-", result.DeltaDisplay, "active resource without CostDrift should show dash")
 }
 
-func TestFormatDeltaColumn_CreatingResource(t *testing.T) {
+func TestComputeOverviewRowResult_DeltaDisplayCreatingResource(t *testing.T) {
 	t.Parallel()
 
-	// Pre-populate ComputedDelta before calling formatDeltaColumn.
+	// Pre-populate ComputedDelta before computing the row result.
 	row := OverviewRow{
 		URN:    "urn:creating-resource",
 		Type:   "aws:s3:Bucket",
@@ -628,11 +633,11 @@ func TestFormatDeltaColumn_CreatingResource(t *testing.T) {
 	rows := []OverviewRow{row}
 	PopulateComputedDeltas(rows, 15)
 
-	result := formatDeltaColumn(rows[0])
-	assert.Equal(t, "+$25.00", result)
+	result := ComputeOverviewRowResult(rows[0])
+	assert.Equal(t, "+$25.00", result.DeltaDisplay)
 }
 
-func TestFormatDriftColumn(t *testing.T) {
+func TestComputeOverviewRowResult_DriftDisplay(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -669,8 +674,8 @@ func TestFormatDriftColumn(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := formatDriftColumn(tt.row)
-			assert.Equal(t, tt.want, result)
+			result := ComputeOverviewRowResult(tt.row)
+			assert.Equal(t, tt.want, result.DriftDisplay)
 		})
 	}
 }
@@ -690,7 +695,7 @@ func TestRenderOverviewAsJSON_EmptyRows(t *testing.T) {
 		TotalResources: 0,
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -736,7 +741,7 @@ func TestRenderOverviewAsJSON_SingleResource(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -781,7 +786,7 @@ func TestRenderOverviewAsJSON_MetadataFields(t *testing.T) {
 		PendingChanges: 2,
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -838,7 +843,7 @@ func TestRenderOverviewAsJSON_SummaryTotals(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -915,11 +920,12 @@ func TestRenderOverviewAsJSON_PerRowDeltaAndSummary(t *testing.T) {
 		},
 	}
 
-	// Pre-populate ComputedDelta before rendering (matches production flow).
+	// Compute deltas and display values once (matches production flow).
 	dayOfMonth := time.Now().Day()
-	PopulateComputedDeltas(rows, dayOfMonth)
+	overviewResult, computeErr := ComputeOverviewResult(rows, dayOfMonth)
+	require.NoError(t, computeErr)
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, overviewResult, stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -983,7 +989,7 @@ func TestRenderOverviewAsJSON_CurrencyConsistency(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1029,7 +1035,7 @@ func TestRenderOverviewAsJSON_ErrorsArray(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1072,7 +1078,7 @@ func TestRenderOverviewAsJSON_Recommendations(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1091,7 +1097,7 @@ func TestRenderOverviewAsNDJSON_EmptyRows(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	err := RenderOverviewAsNDJSON(&buf, nil)
+	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, nil))
 	require.NoError(t, err)
 	assert.Empty(t, buf.String())
 }
@@ -1121,7 +1127,7 @@ func TestRenderOverviewAsNDJSON_SingleRow(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsNDJSON(&buf, rows)
+	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, rows))
 	require.NoError(t, err)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
@@ -1171,7 +1177,7 @@ func TestRenderOverviewAsNDJSON_MultipleRows(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsNDJSON(&buf, rows)
+	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, rows))
 	require.NoError(t, err)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
@@ -1218,7 +1224,7 @@ func TestRenderOverviewAsNDJSON_AllStatuses(t *testing.T) {
 		{URN: "urn:replacing", Type: "aws:ec2:SecurityGroup", Status: StatusReplacing},
 	}
 
-	err := RenderOverviewAsNDJSON(&buf, rows)
+	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, rows))
 	require.NoError(t, err)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
@@ -1393,7 +1399,7 @@ func TestRenderOverviewAsJSON_WithBudgets(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, budgetResult)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, budgetResult)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1458,7 +1464,7 @@ func TestRenderOverviewAsJSON_MultipleBudgets(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, budgetResult)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, budgetResult)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1493,7 +1499,7 @@ func TestRenderOverviewAsJSON_NilBudgetResult(t *testing.T) {
 		TotalResources: 0,
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1523,7 +1529,7 @@ func TestRenderOverviewAsJSON_EmptyBudgetResult(t *testing.T) {
 		Budgets: []*pbc.Budget{},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, nil, stackCtx, budgetResult)
+	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, budgetResult)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1543,7 +1549,7 @@ func TestRenderOverviewAsNDJSON_ExcludesBudgetData(t *testing.T) {
 		{URN: "urn:r2", Type: "aws:s3:Bucket", Status: StatusCreating},
 	}
 
-	err := RenderOverviewAsNDJSON(&buf, rows)
+	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, rows))
 	require.NoError(t, err)
 
 	// NDJSON should not contain any budget-related fields

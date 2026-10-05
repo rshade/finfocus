@@ -61,8 +61,8 @@ func newListModel(t *testing.T, rows []engine.OverviewRow) OverviewModel {
 	model, _ := NewOverviewModel(ctx, rows, len(rows), nil, nil)
 	model.state = ViewStateList
 	model.width = listGoldenWidth
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 	model.rebuildTable()
 	return model
 }
@@ -197,10 +197,10 @@ func TestOverviewClusterExpansion_PaginationCountsParentsOnly(t *testing.T) {
 	entries := model.displayEntries()
 	assert.Len(t, entries, maxOverviewResourcesPerPage+2)
 
-	model.rows = append(model.rows, engine.OverviewRow{
+	model.rows = append(model.rows, engine.ComputeOverviewRowResult(engine.OverviewRow{
 		URN:  "urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::overflow",
 		Type: "aws:s3/bucket:Bucket",
-	})
+	}))
 	model.enablePaginationIfNeeded()
 	assert.True(t, model.paginationEnabled)
 	assert.Equal(t, 2, model.totalPages)

@@ -104,7 +104,7 @@ func TestIntegration_ClusterExpansion_Projected(t *testing.T) {
 
 	// Golden: plain table.
 	var tableBuf bytes.Buffer
-	require.NoError(t, engine.RenderOverviewAsTable(&tableBuf, rows, stackCtx))
+	require.NoError(t, engine.RenderOverviewAsTable(&tableBuf, overviewResult(t, rows), stackCtx))
 	assertGoldenFile(
 		t,
 		filepath.Join(goldenDir(t), "table-cluster-expansion.txt"),
@@ -113,7 +113,7 @@ func TestIntegration_ClusterExpansion_Projected(t *testing.T) {
 
 	// Golden: JSON.
 	var jsonBuf bytes.Buffer
-	require.NoError(t, engine.RenderOverviewAsJSON(ctx, &jsonBuf, rows, stackCtx, nil))
+	require.NoError(t, engine.RenderOverviewAsJSON(ctx, &jsonBuf, overviewResult(t, rows), stackCtx, nil))
 	assertGoldenFile(
 		t,
 		filepath.Join(goldenDir(t), "json-cluster-expansion.json"),
@@ -126,7 +126,7 @@ func TestIntegration_ClusterExpansion_Projected(t *testing.T) {
 
 	// Golden: NDJSON — parent line first, children immediately after.
 	var ndjsonBuf bytes.Buffer
-	require.NoError(t, engine.RenderOverviewAsNDJSON(&ndjsonBuf, rows))
+	require.NoError(t, engine.RenderOverviewAsNDJSON(&ndjsonBuf, overviewResult(t, rows)))
 	assertGoldenFile(
 		t,
 		filepath.Join(goldenDir(t), "ndjson-cluster-expansion.ndjson"),
@@ -169,9 +169,9 @@ func TestIntegration_ClusterExpansion_NoRegression(t *testing.T) {
 	render := func(rows []engine.OverviewRow) []string {
 		stackCtx := expansionStackCtx("state-cluster-expansion", len(rows), nil)
 		var table, js, nd bytes.Buffer
-		require.NoError(t, engine.RenderOverviewAsTable(&table, rows, stackCtx))
-		require.NoError(t, engine.RenderOverviewAsJSON(context.Background(), &js, rows, stackCtx, nil))
-		require.NoError(t, engine.RenderOverviewAsNDJSON(&nd, rows))
+		require.NoError(t, engine.RenderOverviewAsTable(&table, overviewResult(t, rows), stackCtx))
+		require.NoError(t, engine.RenderOverviewAsJSON(context.Background(), &js, overviewResult(t, rows), stackCtx, nil))
+		require.NoError(t, engine.RenderOverviewAsNDJSON(&nd, overviewResult(t, rows)))
 		return []string{table.String(), js.String(), nd.String()}
 	}
 	want := render(flat)
@@ -221,7 +221,7 @@ func TestIntegration_ClusterExpansion_Live(t *testing.T) {
 	stackCtx := expansionStackCtx("state-cluster-expansion", len(flat), notes)
 
 	var tableBuf bytes.Buffer
-	require.NoError(t, engine.RenderOverviewAsTable(&tableBuf, expanded, stackCtx))
+	require.NoError(t, engine.RenderOverviewAsTable(&tableBuf, overviewResult(t, expanded), stackCtx))
 	assertGoldenFile(
 		t,
 		filepath.Join(goldenDir(t), "table-cluster-expansion-live.txt"),
@@ -229,7 +229,7 @@ func TestIntegration_ClusterExpansion_Live(t *testing.T) {
 	)
 
 	var jsonBuf bytes.Buffer
-	require.NoError(t, engine.RenderOverviewAsJSON(ctx, &jsonBuf, expanded, stackCtx, nil))
+	require.NoError(t, engine.RenderOverviewAsJSON(ctx, &jsonBuf, overviewResult(t, expanded), stackCtx, nil))
 	assertGoldenFile(
 		t,
 		filepath.Join(goldenDir(t), "json-cluster-expansion-live.json"),
@@ -243,10 +243,18 @@ func TestIntegration_ClusterExpansion_Live(t *testing.T) {
 	assert.Equal(t, notes, parsed.Metadata.ExpansionNotes)
 
 	var ndjsonBuf bytes.Buffer
-	require.NoError(t, engine.RenderOverviewAsNDJSON(&ndjsonBuf, expanded))
+	require.NoError(t, engine.RenderOverviewAsNDJSON(&ndjsonBuf, overviewResult(t, expanded)))
 	assertGoldenFile(
 		t,
 		filepath.Join(goldenDir(t), "ndjson-cluster-expansion-live.ndjson"),
 		ndjsonBuf.String(),
 	)
+}
+
+// overviewResult computes the overview result the renderers consume.
+func overviewResult(t *testing.T, rows []engine.OverviewRow) engine.OverviewResult {
+	t.Helper()
+	result, err := engine.ComputeOverviewResult(rows, 15)
+	require.NoError(t, err)
+	return result
 }

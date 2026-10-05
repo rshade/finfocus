@@ -3,8 +3,8 @@ RESOURCE                            TYPE                      STATUS       ACTUA
 urn:pulumi:prod::myapp::pulumi:...  pulumi:providers:aws      ✓ active     -            -          -          -       -     -
 urn:pulumi:prod::myapp::pulumi:...  pulumi:providers:kube...  ✓ active     -            -          -          -       -     -
 urn:pulumi:prod::myapp::aws:eks...  aws:eks/cluster:Cluster   ✓ active     -            -          -          -       -     -
-↳ urn:pulumi:prod::myapp::kub...    kubernetes:apps/v1:De...  ✓ active     -            -          -          -       -     -
-↳ urn:pulumi:prod::myapp::kub...    kubernetes:apps/v1:De...  ✓ active     -            -          -          -       -     -
+↳ urn:pulumi:prod::myapp::kuber...  kubernetes:apps/v1:De...  ✓ active     -            -          -          -       -     -
+↳ urn:pulumi:prod::myapp::kuber...  kubernetes:apps/v1:De...  ✓ active     -            -          -          -       -     -
 urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/instance:Inst...  ✓ active     -            -          -          -       -     -
 urn:pulumi:prod::myapp::kuberne...  kubernetes:core/v1:Co...  ✓ active     -            -          -          -       -     -
                                                                                                                             
