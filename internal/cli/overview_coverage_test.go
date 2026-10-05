@@ -217,15 +217,16 @@ func TestRenderOverviewOutput_Formats(t *testing.T) {
 		URN: "urn:pulumi:prod::app::aws:s3/bucket:Bucket::logs", Type: "aws:s3/bucket:Bucket",
 		Status: engine.StatusActive,
 	}}
+	result := engine.ComputeOverviewResult(rows, 15)
 	stack := engine.StackContext{StackName: "prod", TotalResources: 1}
 	for _, format := range []string{outputFormatTable, outputFormatJSON, "ndjson"} {
 		cmd, out := overviewCmd(strings.NewReader(""))
-		err := renderOverviewOutput(cmd, format, rows, stack, nil)
-		require.NoError(t, err)
+		renderErr := renderOverviewOutput(cmd, format, result, stack, nil)
+		require.NoError(t, renderErr)
 		assert.NotEmpty(t, out.String())
 	}
 	cmd, _ := overviewCmd(strings.NewReader(""))
-	err := renderOverviewOutput(cmd, "yaml", nil, stack, nil)
+	err := renderOverviewOutput(cmd, "yaml", engine.OverviewResult{}, stack, nil)
 	require.ErrorContains(t, err, "unsupported output format")
 }
 

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -257,7 +258,7 @@ func TestOverviewModel_FilterTextMatching(t *testing.T) {
 
 	model, _ := NewOverviewModel(ctx, skeletonRows, 3, nil, nil)
 	model.state = ViewStateList
-	model.allRows = skeletonRows
+	model.allRows = computeRowResults(skeletonRows)
 
 	// Filter by "ec2" (should match URN and Type)
 	model.applyFilter("ec2")
@@ -610,6 +611,67 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 	}
 }
 
+// TestOverviewModel_BuildOverviewTable_MatchesPlainTableCells verifies the TUI
+// list shows the same cost, drift, and error cells as the plain table.
+func TestOverviewModel_BuildOverviewTable_MatchesPlainTableCells(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		row           engine.OverviewRow
+		wantActual    string
+		wantProjected string
+		wantDrift     string
+	}{
+		{
+			name: "drift warning and thousands separators",
+			row: engine.OverviewRow{
+				URN:           "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+				Type:          "aws:ec2/instance:Instance",
+				Status:        engine.StatusActive,
+				ActualCost:    &engine.ActualCostData{MTDCost: 1234.5},
+				ProjectedCost: &engine.ProjectedCostData{MonthlyCost: 2000},
+				CostDrift:     &engine.CostDriftData{PercentDrift: 23.6, IsWarning: true},
+			},
+			wantActual:    "$1,234.50",
+			wantProjected: "$2,000.00",
+			wantDrift:     "+24% ⚠",
+		},
+		{
+			name: "error row",
+			row: engine.OverviewRow{
+				URN:    "urn:pulumi:dev::app::aws:ec2/instance:Instance::broken",
+				Type:   "aws:ec2/instance:Instance",
+				Status: engine.StatusActive,
+				Error:  &engine.OverviewRowError{Message: "plugin failed"},
+			},
+			wantActual:    "ERR",
+			wantProjected: "ERR",
+			wantDrift:     "-",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			model, _ := NewOverviewModel(context.Background(), []engine.OverviewRow{tt.row}, 1, nil, nil)
+			model.width = 160
+			tableRows := model.buildOverviewTable().Rows()
+			require.Len(t, tableRows, 1)
+			assert.Equal(t, tt.wantActual, tableRows[0][3])
+			assert.Equal(t, tt.wantProjected, tableRows[0][4])
+			assert.Equal(t, tt.wantDrift, tableRows[0][6])
+
+			var plain bytes.Buffer
+			result := engine.ComputeOverviewResult([]engine.OverviewRow{tt.row}, 15)
+			require.NoError(t, engine.RenderOverviewAsTable(&plain, result, engine.StackContext{}))
+			assert.Contains(t, plain.String(), tt.wantDrift)
+			assert.Contains(t, plain.String(), tt.wantActual)
+		})
+	}
+}
+
 // TestOverviewModel_BuildOverviewTable_PrioritizesLongType verifies type width
 // can expand to fit common Pulumi resource type strings when space allows.
 func TestOverviewModel_BuildOverviewTable_PrioritizesLongType(t *testing.T) {
@@ -666,7 +728,8 @@ func TestOverviewModel_BuildOverviewTable_HeaderLineWidthMatchesRows(t *testing.
 	assert.Equal(t, rowWidth, borderWidth, "header border line should align with row width")
 }
 
-// TestTruncateResourceName verifies URN truncation with dynamic max length.
+// TestTruncateResourceName verifies display-name extraction and rune-aware
+// truncation with dynamic max length via the shared engine helpers.
 func TestTruncateResourceName(t *testing.T) {
 	t.Parallel()
 
@@ -711,7 +774,7 @@ func TestTruncateResourceName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := truncateResourceName(tt.urn, tt.maxLen)
+			result := engine.TruncateOverviewResource(engine.ExtractResourceDisplayName(tt.urn), tt.maxLen)
 			assert.Equal(t, tt.expected, result)
 			if tt.urn != "" {
 				assert.LessOrEqual(t, len(result), tt.maxLen)
@@ -720,8 +783,8 @@ func TestTruncateResourceName(t *testing.T) {
 	}
 }
 
-// TestOverviewModel_GetCost verifies cost extraction for sorting.
-func TestOverviewModel_GetCost(t *testing.T) {
+// TestOverviewRowSortCost verifies cost extraction for sorting.
+func TestOverviewRowSortCost(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -764,14 +827,15 @@ func TestOverviewModel_GetCost(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			model, _ := NewOverviewModel(ctx, []engine.OverviewRow{tt.row}, 1, nil, nil)
-			cost := model.getCost(tt.row)
+			require.Len(t, model.allRows, 1)
+			cost := overviewRowSortCost(model.allRows[0])
 			assert.InDelta(t, tt.expected, cost, 1e-9)
 		})
 	}
 }
 
-// TestOverviewModel_GetDelta verifies drift delta extraction for sorting.
-func TestOverviewModel_GetDelta(t *testing.T) {
+// TestOverviewRowSortDelta verifies drift delta extraction for sorting.
+func TestOverviewRowSortDelta(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -803,7 +867,8 @@ func TestOverviewModel_GetDelta(t *testing.T) {
 			engine.PopulateComputedDeltas(rows, 15)
 
 			model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
-			delta := model.getDelta(rows[0])
+			require.Len(t, model.allRows, 1)
+			delta := overviewRowSortDelta(model.allRows[0])
 			assert.InDelta(t, tt.expected, delta, 1e-9)
 		})
 	}
@@ -822,8 +887,8 @@ func TestOverviewModel_GetVisibleRows(t *testing.T) {
 	}
 
 	model, _ := NewOverviewModel(ctx, rows, 300, nil, nil)
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 	model.enablePaginationIfNeeded()
 
 	// Page 1: rows 0-249
@@ -965,6 +1030,27 @@ func TestOverviewModel_DataReadyMsg(t *testing.T) {
 	testRows[0].URN = "mutated"
 	assert.Equal(t, "urn:test1", model.allRows[0].URN,
 		"model.allRows must be independent of the original slice (defensive copy)")
+
+	model.rows[0], model.rows[2] = model.rows[2], model.rows[0]
+	assert.Equal(t, "urn:test1", model.allRows[0].URN,
+		"reordering model.rows must not reorder model.allRows")
+}
+
+// TestNewOverviewModel_RowsDoNotAliasAllRows verifies the initial rows slice
+// can be sorted without reordering allRows.
+func TestNewOverviewModel_RowsDoNotAliasAllRows(t *testing.T) {
+	t.Parallel()
+
+	rows := []engine.OverviewRow{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+		{URN: "urn:b", Type: "aws:s3:Bucket", Status: engine.StatusActive},
+	}
+	model, _ := NewOverviewModel(context.Background(), rows, 2, nil, nil)
+	require.Len(t, model.rows, 2)
+
+	model.rows[0], model.rows[1] = model.rows[1], model.rows[0]
+	assert.Equal(t, "urn:a", model.allRows[0].URN)
+	assert.Equal(t, "urn:b", model.allRows[1].URN)
 }
 
 // TestOverviewModel_NilRowsInit verifies nil vs non-nil row initialization.
@@ -1196,8 +1282,8 @@ func TestOverviewModel_ChangesReadyClearsStateOnly(t *testing.T) {
 	model.state = ViewStateList
 	model.isStateOnly = true
 	model.isPreviewLoading = true
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	msg := OverviewChangesReadyMsg{
 		StatusByURN: map[string]engine.ResourceStatus{},
@@ -1225,8 +1311,8 @@ func TestOverviewModel_PKeyStartsPreview(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, previewCmd)
 	model.state = ViewStateList
 	model.isStateOnly = true
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	pMsg := tea.KeyPressMsg{Text: "p"}
 	_, cmd := model.Update(pMsg)
@@ -1248,8 +1334,8 @@ func TestOverviewModel_PKeyNoOpWhileLoading(t *testing.T) {
 	model.state = ViewStateList
 	model.isStateOnly = true
 	model.isPreviewLoading = true // already loading
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	pMsg := tea.KeyPressMsg{Text: "p"}
 	_, cmd := model.Update(pMsg)
@@ -1270,8 +1356,8 @@ func TestOverviewModel_PKeyNoOpAfterLoaded(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, previewCmd)
 	model.state = ViewStateList
 	model.previewLoaded = true // already loaded
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	pMsg := tea.KeyPressMsg{Text: "p"}
 	_, cmd := model.Update(pMsg)
@@ -1290,8 +1376,8 @@ func TestOverviewModel_SetStateOnlyMsg(t *testing.T) {
 
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 	model.state = ViewStateList
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	assert.False(t, model.isStateOnly)
 	assert.Nil(t, model.previewCmd)

@@ -27,8 +27,8 @@ func newGoldenModel(t *testing.T, rows []engine.OverviewRow) OverviewModel {
 	model.state = ViewStateDetail
 	model.selected = 0
 	model.width = goldenWidth
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 	return model
 }
 

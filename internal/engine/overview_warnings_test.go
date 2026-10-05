@@ -114,7 +114,7 @@ func TestRenderOverviewAsTable_WarnColumn(t *testing.T) {
 			ActualCost:    &ActualCostData{MTDCost: 12.4, Currency: "USD"},
 			ProjectedCost: &ProjectedCostData{MonthlyCost: 15, Currency: "USD"},
 			ComputedDelta: &up,
-			CostDrift:     &CostDriftData{PercentDrift: 18, IsWarning: true},
+			CostDrift:     &CostDriftData{PercentDrift: 18, IsWarning: true, Delta: up},
 			Warnings:      []OverviewWarning{WarnDrift},
 			Recommendations: []Recommendation{
 				{ID: "r1"},
@@ -131,7 +131,7 @@ func TestRenderOverviewAsTable_WarnColumn(t *testing.T) {
 			ActualCost:    &ActualCostData{MTDCost: 48.20, Currency: "USD"},
 			ProjectedCost: &ProjectedCostData{MonthlyCost: 50, Currency: "USD"},
 			ComputedDelta: &down,
-			CostDrift:     &CostDriftData{PercentDrift: -15, IsWarning: true},
+			CostDrift:     &CostDriftData{PercentDrift: -15, IsWarning: true, Delta: down},
 			Warnings:      []OverviewWarning{WarnDrift},
 			Recommendations: []Recommendation{
 				{ID: "r3"},
@@ -139,7 +139,8 @@ func TestRenderOverviewAsTable_WarnColumn(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	err := RenderOverviewAsTable(&buf, rows, StackContext{StackName: "prod", TotalResources: len(rows)})
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(rows, testDayOfMonth),
+		StackContext{StackName: "prod", TotalResources: len(rows)})
 	require.NoError(t, err)
 	output := buf.String()
 	t.Logf("plain overview table:\n%s", output)
@@ -158,7 +159,8 @@ func TestRenderOverviewAsTable_WarnColumn(t *testing.T) {
 		Error:    &OverviewRowError{URN: "my-instance", ErrorType: ErrorTypeNetwork, Message: "connection reset"},
 		Warnings: []OverviewWarning{WarnError},
 	}}
-	require.NoError(t, RenderOverviewAsTable(&errBuf, errRow, StackContext{StackName: "prod", TotalResources: 1}))
+	require.NoError(t, RenderOverviewAsTable(&errBuf, ComputeOverviewResult(errRow, testDayOfMonth),
+		StackContext{StackName: "prod", TotalResources: 1}))
 	errOut := errBuf.String()
 	assert.Contains(t, errOut, "ERR")
 	assert.Contains(t, errOut, "error")
@@ -318,7 +320,8 @@ func TestRenderOverviewAsJSON_IncludesWarnings(t *testing.T) {
 		Warnings:      []OverviewWarning{WarnDrift, WarnError},
 	}}
 	var buf bytes.Buffer
-	err := RenderOverviewAsJSON(context.Background(), &buf, rows, StackContext{StackName: "prod"}, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(rows, testDayOfMonth),
+		StackContext{StackName: "prod"}, nil)
 	require.NoError(t, err)
 
 	var parsed struct {

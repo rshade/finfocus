@@ -313,15 +313,13 @@ func TestAggregateSkipsLiveRows(t *testing.T) {
 	out, suppressed := ApplyLiveExpansion(rows, clusterURN, children)
 	require.Equal(t, 1, suppressed)
 
-	totals, err := aggregateOverviewRows(out)
-	require.NoError(t, err)
-	assert.InDelta(t, 0, totals.projected, 1e-9,
+	totals := summarizeOverviewRows(out)
+	assert.InDelta(t, 0, totals.TotalProjected, 1e-9,
 		"live children are excluded from totals and the projected child was suppressed")
 
 	// Without live expansion, the projected child still contributes.
-	totals, err = aggregateOverviewRows(rows)
-	require.NoError(t, err)
-	assert.InDelta(t, 54.75, totals.projected, 1e-9)
+	totals = summarizeOverviewRows(rows)
+	assert.InDelta(t, 54.75, totals.TotalProjected, 1e-9)
 }
 
 func TestClusterRowName(t *testing.T) {
@@ -392,6 +390,36 @@ func TestLiveChildName(t *testing.T) {
 	assert.Equal(t, []string{"ns/payments", "ns/default", "(idle)"}, names)
 	assert.Empty(t, LiveChildName(workloadRow(urn)))
 	assert.Empty(t, LiveChildName(OverviewRow{URN: urn, ExpansionSource: ExpansionSourceLive}))
+}
+
+func TestComputeOverviewRowResult_ExpansionResourceDisplay(t *testing.T) {
+	t.Parallel()
+	const clusterURN = "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster"
+	const apiURN = "urn:pulumi:prod::myapp::kubernetes:apps/v1:Deployment::api"
+	children, err := LiveChildrenFromResult(clusterURN, liveResult())
+	require.NoError(t, err)
+	projected := ExpandClustersProjected([]OverviewRow{clusterRow(clusterURN), workloadRow(apiURN)})
+	require.Len(t, projected, 2)
+
+	tests := []struct {
+		name        string
+		row         OverviewRow
+		wantDisplay string
+		wantLive    string
+	}{
+		{"cluster row", projected[0], clusterURN, ""},
+		{"projected child", projected[1], "↳ " + apiURN, ""},
+		{"live namespace child", children[0], "↳ ns/payments", "ns/payments"},
+		{"live idle child", children[2], "↳ (idle)", "(idle)"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			res := ComputeOverviewRowResult(tt.row)
+			assert.Equal(t, tt.wantDisplay, res.ResourceDisplay)
+			assert.Equal(t, tt.wantLive, res.LiveChildName)
+		})
+	}
 }
 
 func TestClusterARNName(t *testing.T) {

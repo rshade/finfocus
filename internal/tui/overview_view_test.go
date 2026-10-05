@@ -149,8 +149,8 @@ func TestRenderFootnote_StateOnlyShowsAsterisk(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 	model.state = ViewStateList
 	model.isStateOnly = true
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	output := model.renderListView()
 	assert.Contains(t, output, "projected at current state")
@@ -168,8 +168,8 @@ func TestRenderFootnote_LoadedHidesAsterisk(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 	model.state = ViewStateList
 	model.previewLoaded = true
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	output := model.renderListView()
 	assert.NotContains(t, output, "projected at current state")
@@ -198,8 +198,8 @@ func TestRenderDetailView_ShowsPropertyChanges(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 	model.state = ViewStateDetail
 	model.selected = 0
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	output := model.View().Content
 	assert.Contains(t, output, "PROPERTY CHANGES")
@@ -225,8 +225,8 @@ func TestRenderDetailView_NoPropertyChanges(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 	model.state = ViewStateDetail
 	model.selected = 0
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	output := model.View().Content
 	assert.NotContains(t, output, "PROPERTY CHANGES")
@@ -250,8 +250,8 @@ func TestRenderDetailView_PropertyChangesWithNoneValues(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 	model.state = ViewStateDetail
 	model.selected = 0
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	output := model.View().Content
 	assert.Contains(t, output, "PROPERTY CHANGES")
@@ -266,7 +266,7 @@ func TestRenderDetailPropertyChanges_EmptySlice(t *testing.T) {
 	row := engine.OverviewRow{
 		PropertyDiffs: []engine.PropertyDiff{},
 	}
-	renderDetailPropertyChanges(&content, row)
+	renderDetailPropertyChanges(&content, engine.ComputeOverviewRowResult(row))
 	assert.Empty(t, content.String())
 }
 
@@ -301,8 +301,8 @@ func TestRenderDetailView_TruncatesLongValues(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 	model.state = ViewStateDetail
 	model.selected = 0
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	output := model.View().Content
 	assert.Contains(t, output, "PROPERTY CHANGES")
@@ -343,7 +343,7 @@ func TestRenderDetailCostImpact_ReplacingResource(t *testing.T) {
 	engine.PopulateComputedDeltas(rows, 15)
 	row = rows[0]
 
-	renderDetailCostImpactForDay(&content, row, 15)
+	renderDetailCostImpactForDay(&content, engine.ComputeOverviewRowResult(row), 15)
 	output := content.String()
 
 	assert.Contains(t, output, "COST IMPACT")
@@ -372,7 +372,7 @@ func TestRenderDetailCostImpact_CreatingResource(t *testing.T) {
 	engine.PopulateComputedDeltas(rows, 15)
 	row = rows[0]
 
-	renderDetailCostImpactForDay(&content, row, 15)
+	renderDetailCostImpactForDay(&content, engine.ComputeOverviewRowResult(row), 15)
 	output := content.String()
 
 	assert.Contains(t, output, "COST IMPACT")
@@ -406,7 +406,7 @@ func TestRenderDetailCostImpact_DeletingResource(t *testing.T) {
 	row = rows[0]
 
 	// Use fixed day >= driftMinDay to ensure extrapolation is valid.
-	renderDetailCostImpactForDay(&content, row, 15)
+	renderDetailCostImpactForDay(&content, engine.ComputeOverviewRowResult(row), 15)
 	output := content.String()
 
 	assert.Contains(t, output, "COST IMPACT")
@@ -429,7 +429,7 @@ func TestRenderDetailCostImpact_ActiveResource(t *testing.T) {
 		},
 	}
 
-	renderDetailCostImpactForDay(&content, row, 15)
+	renderDetailCostImpactForDay(&content, engine.ComputeOverviewRowResult(row), 15)
 	assert.Empty(t, content.String(), "active resources should not show COST IMPACT")
 }
 
@@ -444,7 +444,7 @@ func TestRenderDetailCostImpact_NoCostData(t *testing.T) {
 		// No ActualCost or ProjectedCost — CalculateRowDelta returns false.
 	}
 
-	renderDetailCostImpactForDay(&content, row, 15)
+	renderDetailCostImpactForDay(&content, engine.ComputeOverviewRowResult(row), 15)
 	assert.Empty(t, content.String(), "no cost data should not show COST IMPACT")
 }
 
@@ -479,8 +479,8 @@ func TestRenderDetailView_ShowsCostImpact(t *testing.T) {
 	model, _ := NewOverviewModel(ctx, rows, 1, nil, nil)
 	model.state = ViewStateDetail
 	model.selected = 0
-	model.allRows = rows
-	model.rows = rows
+	model.allRows = computeRowResults(rows)
+	model.rows = computeRowResults(rows)
 
 	output := model.View().Content
 	assert.Contains(t, output, "COST IMPACT")

@@ -220,16 +220,13 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 10a. Apply dismissal delta (non-fatal; marks dismissed recs for count badge)
 	rows = applyDismissalDeltaToRows(ctx, rows)
 
-	// 10b. Pre-compute per-row deltas so all renderers read the same values.
-	engine.PopulateComputedDeltas(rows, time.Now().Day())
-
-	// 10c. Cluster expansion: group declared workloads under cluster rows and,
+	// 10b. Cluster expansion: group declared workloads under cluster rows and,
 	// when usage-source/allocator plugins are installed, prefer live allocation
 	// data. Never fatal; failures fall back to the projected/flat view.
 	expansion := overviewExpansion{resourceCount: len(rows)}
 	rows, expansion.notes = expandOverviewClusters(ctx, rows, clients, eng, params.cfg)
 
-	// 11-14. Build context, render output, evaluate budgets.
+	// 11-14. Build context, compute result, render output, evaluate budgets.
 	if finalErr := finalizeOverviewOutput(
 		ctx, cmd, params, rows, eng, dateRange,
 		stackName, hasChanges, changeCount, isStateOnly, expansion, audit,
@@ -365,8 +362,11 @@ func finalizeOverviewOutput(
 		}
 	}
 
+	// Compute all display values once; renderers read the pre-computed result.
+	overviewResult := engine.ComputeOverviewResult(rows, time.Now().Day())
+
 	// Render output.
-	renderErr := renderOverviewOutput(cmd, params.output, rows, stackCtx, budgetResult)
+	renderErr := renderOverviewOutput(cmd, params.output, overviewResult, stackCtx, budgetResult)
 	if renderErr != nil {
 		audit.logFailure(ctx, renderErr)
 		return renderErr
@@ -1063,30 +1063,30 @@ func splitFilter(filter string) []string {
 	return []string{filter}
 }
 
-// renderOverviewOutput renders overview rows using the specified output format ("table",
-// "json", or "ndjson") to the command's stdout. When format is "json", the optional
-// budgetResult is included in the top-level budgets array if non-nil.
+// renderOverviewOutput renders the pre-computed overview result using the specified
+// output format ("table", "json", or "ndjson") to the command's stdout. When format
+// is "json", the optional budgetResult is included in the top-level budgets array if non-nil.
 func renderOverviewOutput(
 	cmd *cobra.Command,
 	outputFormat string,
-	rows []engine.OverviewRow,
+	result engine.OverviewResult,
 	stackCtx engine.StackContext,
 	budgetResult *engine.BudgetResult,
 ) error {
 	switch outputFormat {
 	case outputFormatTable:
-		if renderErr := engine.RenderOverviewAsTable(cmd.OutOrStdout(), rows, stackCtx); renderErr != nil {
+		if renderErr := engine.RenderOverviewAsTable(cmd.OutOrStdout(), result, stackCtx); renderErr != nil {
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
 	case outputFormatJSON:
 		renderErr := engine.RenderOverviewAsJSON(
-			cmd.Context(), cmd.OutOrStdout(), rows, stackCtx, budgetResult,
+			cmd.Context(), cmd.OutOrStdout(), result, stackCtx, budgetResult,
 		)
 		if renderErr != nil {
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
 	case "ndjson":
-		if renderErr := engine.RenderOverviewAsNDJSON(cmd.OutOrStdout(), rows); renderErr != nil {
+		if renderErr := engine.RenderOverviewAsNDJSON(cmd.OutOrStdout(), result); renderErr != nil {
 			return fmt.Errorf("rendering overview: %w", renderErr)
 		}
 	default:

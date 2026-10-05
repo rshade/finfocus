@@ -103,9 +103,10 @@ func TestIntegration_TableRender_NoChanges(t *testing.T) {
 		GeneratedAt:    now,
 	}
 
-	// Render table
+	// Compute display values once, then render table
+	result := engine.ComputeOverviewResult(rows, 15)
 	var buf bytes.Buffer
-	err = engine.RenderOverviewAsTable(&buf, rows, stackCtx)
+	err = engine.RenderOverviewAsTable(&buf, result, stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -161,9 +162,10 @@ func TestIntegration_TableRender_MixedChanges(t *testing.T) {
 		GeneratedAt:    now,
 	}
 
-	// Render table
+	// Compute display values once, then render table
+	result := engine.ComputeOverviewResult(rows, 15)
 	var buf bytes.Buffer
-	err = engine.RenderOverviewAsTable(&buf, rows, stackCtx)
+	err = engine.RenderOverviewAsTable(&buf, result, stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -427,9 +429,10 @@ func TestIntegration_JSONRender_NoChanges(t *testing.T) {
 		GeneratedAt:    now,
 	}
 
-	// Render JSON
+	// Compute display values once, then render JSON
+	result := engine.ComputeOverviewResult(rows, 15)
 	var buf bytes.Buffer
-	err = engine.RenderOverviewAsJSON(context.Background(), &buf, rows, stackCtx, nil)
+	err = engine.RenderOverviewAsJSON(context.Background(), &buf, result, stackCtx, nil)
 	require.NoError(t, err)
 
 	// Verify valid JSON
@@ -464,9 +467,10 @@ func TestIntegration_NDJSONRender_MixedChanges(t *testing.T) {
 	rows, err := engine.MergeResourcesForOverview(ctx, stateResources, planSteps)
 	require.NoError(t, err)
 
-	// Render NDJSON
+	// Compute display values once, then render NDJSON
+	result := engine.ComputeOverviewResult(rows, 15)
 	var buf bytes.Buffer
-	err = engine.RenderOverviewAsNDJSON(&buf, rows)
+	err = engine.RenderOverviewAsNDJSON(&buf, result)
 	require.NoError(t, err)
 
 	// Verify each line is valid JSON
