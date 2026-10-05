@@ -180,10 +180,13 @@ finfocus-spec versions. Check that:
   them. Existing fields that older plugins rely on (such as the injected
   `sku`/`region`/`provider`/`resource_type` tags on actual-cost requests)
   stay in place.
-- A plugin error does not abort the run. It becomes a per-resource
-  `ERROR:` note, a `PLUGIN_ERROR`/`TIMEOUT_ERROR` code, or a fallback to the
-  next plugin. A `Supports` RPC error and the SDK's "not implemented" reason
-  fail open (the plugin stays offered).
+- In projected and actual cost aggregation, a plugin error does not abort
+  processing other resources. It becomes a per-resource `ERROR:` note, a
+  `PLUGIN_ERROR`/`TIMEOUT_ERROR` code, or a fallback to the next plugin.
+- `cost history collect` is an intentional exception: an unpriced result or
+  result error fails the checkpoint so an inaccurate total is never stored.
+- A `Supports` RPC error and the SDK's "not implemented" reason fail open (the
+  plugin stays offered).
 - A failed plugin RPC keeps the plugin's own reason. Engine call sites wrap
   the error with `pluginStatusError` (`internal/engine/engine.go`), which
   renders it as `<Code>: <message>` (for example
