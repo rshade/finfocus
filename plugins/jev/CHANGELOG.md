@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/rshade/finfocus/compare/jev-v0.1.2...jev-v0.1.3) (2026-10-05)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/rshade/finfocus-spec to v0.7.5 ([#1698](https://github.com/rshade/finfocus/issues/1698)) ([2223683](https://github.com/rshade/finfocus/commit/22236838eba02cc86a4736c099e0f75422d08e7a))
+
 ## [0.1.2](https://github.com/rshade/finfocus/compare/jev-v0.1.1...jev-v0.1.2) (2026-10-04)
 
 

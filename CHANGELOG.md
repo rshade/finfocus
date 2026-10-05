@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.3](https://github.com/rshade/finfocus/compare/v0.4.2...v0.4.3) (2026-10-05)
+
+
+### Added
+
+* **cli:** pass include_dismissed on cost recommendations ([890ee39](https://github.com/rshade/finfocus/commit/890ee394161dd0473d7f7516aeb44bbdf1ac0489)), closes [#545](https://github.com/rshade/finfocus/issues/545)
+* **registry:** add azure-public plugin ([#1697](https://github.com/rshade/finfocus/issues/1697)) ([61d477c](https://github.com/rshade/finfocus/commit/61d477c21dc6d5f9c0bc4173c57a692712d83c47)), closes [#1685](https://github.com/rshade/finfocus/issues/1685)
+
+
+### Fixed
+
+* **cli:** plugin inspect resolves versions via registry ([#1694](https://github.com/rshade/finfocus/issues/1694)) ([810ceb7](https://github.com/rshade/finfocus/commit/810ceb7701fdb26a6bad9a3e899195d50409bf2e))
+* **cli:** plugin validate prints doubled v in version ([#1695](https://github.com/rshade/finfocus/issues/1695)) ([8cb46b9](https://github.com/rshade/finfocus/commit/8cb46b94ddb8ebfb3e7d89ef456b938d5d3aedb3))
+* **engine:** skip scorer-only plugins on cost requests ([b2ec655](https://github.com/rshade/finfocus/commit/b2ec65555fc0cfd9154bb44ba58aa6ebd6b8f93d)), closes [#1687](https://github.com/rshade/finfocus/issues/1687)
+* **kubernetes:** decline reason names priced workloads ([#1692](https://github.com/rshade/finfocus/issues/1692)) ([58c07e3](https://github.com/rshade/finfocus/commit/58c07e3848fb55e0f29a236ecbb97a85963b1478))
+* **pluginupgrade:** add v0.7.5 hop and guide; golines-format cluster test ([#1699](https://github.com/rshade/finfocus/issues/1699)) ([3b70279](https://github.com/rshade/finfocus/commit/3b70279a8bad451b48b2a0a10430bb7169456547))
+* **proto:** collapse nested sku objects in actual-cost tag enrichment ([#1693](https://github.com/rshade/finfocus/issues/1693)) ([a9b0770](https://github.com/rshade/finfocus/commit/a9b07707f6d09b94ef301e6bb132fff26ad7d4a6))
+
+
+### Documentation
+
+* add multi-plugin walkthrough and fix broken internal links ([d2b651c](https://github.com/rshade/finfocus/commit/d2b651c03c775ea7b4e722d8b8b6760f75c8c949))
+* point README directory links at tree/main and clarify EKS control-plane row ([8ce2814](https://github.com/rshade/finfocus/commit/8ce281422bfb7fc773184f382b1990cf59bd66a5))
+* stop committing generated root-doc copies and link the roadmap page to ROADMAP.md ([054e857](https://github.com/rshade/finfocus/commit/054e857e7087c77dcb49e14db52e40aa22aa9c03))
+
 ## [0.4.2](https://github.com/rshade/finfocus/compare/v0.4.1...v0.4.2) (2026-10-04)
 
 
