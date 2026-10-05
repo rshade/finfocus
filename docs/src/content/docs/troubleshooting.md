@@ -443,6 +443,32 @@ handles the JSON structure of your Pulumi CLI version.
 - Update `finfocus` to the latest version.
 - Check `pulumi version` and ensure compatibility.
 
+### Region Not Resolved
+
+**Problem**: A resource shows `$0.00` with a note or `.finfocus.errors` entry
+such as `plugin call failed: InvalidArgument: region is required for
+GetProjectedCost`. This means no region could be resolved for the resource, so
+the pricing plugin rejected the request.
+
+**Solution**: Provide a region through one of the supported sources, in the
+order core checks them:
+
+1. A `region` input on the resource.
+2. An `availabilityZone` input on the resource (e.g. `us-west-2a`).
+3. An ARN property on the resource (the region segment is parsed from it).
+4. The `AWS_REGION` or `AWS_DEFAULT_REGION` environment variable:
+
+   ```bash
+   AWS_REGION=us-west-2 finfocus cost projected --pulumi-json plan.json
+   ```
+
+Core does not read the Pulumi provider resource or stack configuration
+(`aws:region`), so set one of the sources above even when the stack has a
+region configured.
+
+A regionless S3 bucket is expected to price at `$0.00` without an error: the
+plugin accepts it, and bucket contents cannot be measured from a plan.
+
 ### Inaccurate Cost Estimates
 
 **Problem**: Cost estimates seem too high or too low.

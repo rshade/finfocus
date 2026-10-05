@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -720,6 +721,7 @@ func (e *Engine) GetProjectedCost(
 			}
 
 			var resourceResults []CostResult
+			var pluginErrs []ErrorDetail
 			chainStopped := false
 
 			// Select plugin matches using router (if configured) or all clients
@@ -744,6 +746,13 @@ func (e *Engine) GetProjectedCost(
 				result, err := e.getProjectedCostFromPlugin(resourceCtx, client, resource)
 				resourceCancel()
 				if err != nil {
+					pluginErrs = append(pluginErrs, ErrorDetail{
+						ResourceType: resource.Type,
+						ResourceID:   resource.ID,
+						PluginName:   client.Name,
+						Error:        fmt.Errorf("plugin call failed: %w", err),
+						Timestamp:    time.Now(),
+					})
 					// Check if fallback is enabled for this plugin
 					if !match.Fallback {
 						log.Info().
@@ -793,7 +802,9 @@ func (e *Engine) GetProjectedCost(
 
 			if len(resourceResults) == 0 {
 				resourceResults = append(resourceResults,
-					e.projectedFallbackResult(ctx, resource, specMatches(selectedMatches, chainStopped), declines))
+					e.projectedFallbackResult(
+						ctx, resource, specMatches(selectedMatches, chainStopped), declines, pluginErrs,
+					))
 			}
 
 			// Store successful results in cache (skip placeholder-only results)
@@ -990,6 +1001,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 						resource,
 						specMatches(selectedMatches, fallbackChainBroken),
 						declines,
+						resourceErrors,
 					),
 				)
 			}
@@ -1681,7 +1693,7 @@ func (e *Engine) getActualCostForResource(
 	// Create placeholder result (gated behind --fallback-estimate)
 	notes := noteNoActualCostData
 	if len(errors) > 0 {
-		notes = "ERROR: plugin call failed"
+		notes = "ERROR: " + truncateDeclineReason(errors[0].Error.Error())
 	} else {
 		notes = declineNotes(notes, declines)
 	}
@@ -1807,41 +1819,69 @@ func (e *Engine) getProjectedCostFromPlugin(
 	// when adapter supports passing it via gRPC metadata.
 
 	resp, err := client.API.GetProjectedCost(ctx, req)
-	if err == nil && len(resp.Results) > 0 {
-		result := resp.Results[0]
-		engineResult := &CostResult{
-			ResourceType:   resource.Type,
-			ResourceID:     resource.ID,
-			Adapter:        client.Name,
-			Currency:       result.Currency,
-			Monthly:        result.MonthlyCost,
-			Hourly:         result.HourlyCost,
-			Notes:          result.Notes,
-			Breakdown:      result.CostBreakdown,
-			Sustainability: make(map[string]SustainabilityMetric),
-		}
-
-		engineResult.ExpiresAt = result.ExpiresAt
-
-		// Map proto StructuredError to engine StructuredError
-		if result.StructuredError != nil {
-			engineResult.Error = &StructuredError{
-				Code:         result.StructuredError.Code,
-				Message:      result.StructuredError.Message,
-				ResourceType: result.StructuredError.ResourceType,
-			}
-		}
-
-		for k, v := range result.Sustainability {
-			engineResult.Sustainability[k] = SustainabilityMetric{
-				Value: v.Value,
-				Unit:  v.Unit,
-			}
-		}
-		return engineResult, nil
+	if err != nil {
+		return nil, pluginStatusError(err)
+	}
+	if len(resp.Results) == 0 {
+		return nil, ErrNoCostData
 	}
 
-	return nil, ErrNoCostData
+	result := resp.Results[0]
+	engineResult := &CostResult{
+		ResourceType:   resource.Type,
+		ResourceID:     resource.ID,
+		Adapter:        client.Name,
+		Currency:       result.Currency,
+		Monthly:        result.MonthlyCost,
+		Hourly:         result.HourlyCost,
+		Notes:          result.Notes,
+		Breakdown:      result.CostBreakdown,
+		Sustainability: make(map[string]SustainabilityMetric),
+	}
+
+	engineResult.ExpiresAt = result.ExpiresAt
+
+	// Map proto StructuredError to engine StructuredError
+	if result.StructuredError != nil {
+		engineResult.Error = &StructuredError{
+			Code:         result.StructuredError.Code,
+			Message:      result.StructuredError.Message,
+			ResourceType: result.StructuredError.ResourceType,
+		}
+	}
+
+	for k, v := range result.Sustainability {
+		engineResult.Sustainability[k] = SustainabilityMetric{
+			Value: v.Value,
+			Unit:  v.Unit,
+		}
+	}
+	return engineResult, nil
+}
+
+// pluginRPCError renders a plugin's gRPC status as "<Code>: <message>"
+// (e.g. "InvalidArgument: region is required for GetProjectedCost") instead of
+// "rpc error: code = ... desc = ...", and keeps the status for status.Code.
+type pluginRPCError struct {
+	st *status.Status
+}
+
+func (e *pluginRPCError) Error() string {
+	return e.st.Code().String() + ": " + e.st.Message()
+}
+
+func (e *pluginRPCError) GRPCStatus() *status.Status {
+	return e.st
+}
+
+// pluginStatusError wraps a gRPC status error in pluginRPCError; other errors,
+// such as [context.DeadlineExceeded], pass through unchanged.
+func pluginStatusError(err error) error {
+	st, ok := status.FromError(err)
+	if !ok {
+		return err
+	}
+	return &pluginRPCError{st: st}
 }
 
 func (e *Engine) getProjectedCostFromSpec(
@@ -1959,7 +1999,7 @@ func (e *Engine) getActualCostFromPlugin(
 
 	resp, err := client.API.GetActualCost(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, pluginStatusError(err)
 	}
 
 	if len(resp.Results) == 0 {

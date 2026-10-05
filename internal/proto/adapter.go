@@ -1159,6 +1159,15 @@ func ResolveSKUAndRegion(
 	return resolveSKUAndRegion(ctx, provider, resourceType, properties)
 }
 
+// resolveSKUAndRegion extracts the SKU and region for a resource from its
+// properties. Region resolution sources, in priority order (AWS):
+//
+//  1. Resource inputs: the region property, then availabilityZone.
+//  2. The region segment of an ARN property.
+//  3. AWS_REGION, then AWS_DEFAULT_REGION environment variables.
+//
+// The Pulumi provider resource and stack configuration (aws:region) are not
+// consulted.
 func resolveSKUAndRegion(
 	ctx context.Context,
 	provider, resourceType string,
