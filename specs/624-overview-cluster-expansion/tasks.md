@@ -1,6 +1,6 @@
 # Tasks: Overview Cluster Expansion
 
-**Input**: Design documents from `/specs/623-overview-cluster-expansion/`
+**Input**: Design documents from `/specs/624-overview-cluster-expansion/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/json-ndjson-expansion.md
 
 ## Format: `[ID] [P?] [Story] Description`
@@ -26,9 +26,9 @@
 - [x] T006 [US1] Implement `ExpandClustersProjected(rows []OverviewRow) []OverviewRow` in `internal/engine/overview_cluster.go`: no-op when zero or more than one cluster row exists; with exactly one cluster, set `ParentURN`/`ExpansionSource=projected` on every workload row, set `ChildURNs` on the cluster row, and order the slice parent-then-children.
 - [x] T007 [P] [US1] Unit tests for `ExpandClustersProjected` in `internal/engine/overview_cluster_test.go`: zero clusters, one cluster with workloads, multiple clusters (flat), cluster with no workloads (no `ChildURNs`), workload-only stack (unchanged), ordering parent-then-children.
 - [x] T008 [US1] Render children in the plain table renderer in `internal/engine/overview_render.go`: rows with non-empty `ParentURN` get a ↳ prefix on the resource cell; after the state-only footnote block, print each `stackCtx.ExpansionNotes` entry prefixed with †.
-- [x] T009 [P] [US1] Golden test `TestIntegration_ClusterExpansion_Projected` in `internal/cli/overview_integration_test.go`: load the T001 fixture, `MergeResourcesForOverview`, `ExpandClustersProjected`, render table + JSON + NDJSON, assert goldens `testdata/overview/golden/table-cluster-expansion.txt`, `json-cluster-expansion.json`, `ndjson-cluster-expansion.ndjson` (generate with `UPDATE_GOLDEN=1`, then read and verify the full output by eye).
+- [x] T009 [P] [US1] Golden test `TestIntegration_ClusterExpansion_Projected` in `internal/cli/overview_cluster_expansion_test.go`: load the T001 fixture, `MergeResourcesForOverview`, `ExpandClustersProjected`, render table + JSON + NDJSON, assert goldens `testdata/overview/golden/table-cluster-expansion.txt`, `json-cluster-expansion.json`, `ndjson-cluster-expansion.ndjson` (generate with `UPDATE_GOLDEN=1`, then read and verify the full output by eye).
 - [x] T010 [US1] TUI expansion in `internal/tui/overview_model.go` and `internal/tui/overview_view.go`: model gains `expanded map[string]bool` and `displayOrder []int`; cluster rows with `ChildURNs` render a `▸`/`▾` marker prefix in the Resource cell; keys `e` (toggle), `right` (expand), `left` (collapse) in `handleListKeypress`; `buildOverviewTable` emits children (indented with ↳) immediately after their parent when expanded, hides them when collapsed; selection/Enter maps through `displayOrder`; active filter renders flat.
-- [x] T011 [P] [US1] TUI golden tests in `internal/tui/overview_golden_test.go` (`overview_expanded_cluster.golden`, `overview_collapsed_cluster.golden`): build a model with a cluster + two projected children, render collapsed and expanded views, and read the full rendered output (not string-contains) per the constitution's TUI visual verification requirement.
+- [x] T011 [P] [US1] TUI golden tests in `internal/tui/overview_cluster_expansion_test.go` (`overview_expanded_cluster.golden`, `overview_collapsed_cluster.golden`): build a model with a cluster + two projected children, render collapsed and expanded views, and read the full rendered output (not string-contains) per the constitution's TUI visual verification requirement.
 
 ## Phase 4: User Story 2 — Live allocation expands a cluster (P2)
 
@@ -38,7 +38,7 @@
 - [x] T012 [US2] Implement `LiveChildrenFromResult(clusterURN string, res *ClusterResult) []OverviewRow` in `internal/engine/overview_cluster.go`: group `res.Rows` with `GroupClusterRows(rows, "namespace")`, synthesize one `OverviewRow` per group with URN `<clusterURN>#ns/<namespace>`, type `finfocus:k8s/namespace:Allocation`, `StatusActive`, `ParentURN`, `ExpansionSource=live`, and `ProjectedCost{MonthlyCost: total, Currency: res.Currency, Breakdown: {"cpu":…,"memory":…}}`; idle group uses namespace `__idle__`.
 - [x] T013 [US2] Implement `ApplyLiveExpansion(rows []OverviewRow, clusterURN string, children []OverviewRow) ([]OverviewRow, int)` in `internal/engine/overview_cluster.go`: remove existing projected children of that cluster (return suppressed count), attach live children, set `ChildURNs`, order parent-then-children.
 - [x] T014 [US2] Update `aggregateOverviewRows` in `internal/engine/overview_render.go` to skip rows with `ExpansionSource == ExpansionSourceLive` (document: live rows re-allocate node cost already represented elsewhere).
-- [x] T015 [P] [US2] Unit tests for `LiveChildrenFromResult`, `ApplyLiveExpansion`, and live-row exclusion from totals in `internal/engine/overview_cluster_test.go` and `internal/engine/overview_render_test.go`.
+- [x] T015 [P] [US2] Unit tests for `LiveChildrenFromResult`, `ApplyLiveExpansion`, and live-row exclusion from totals in `internal/engine/overview_cluster_test.go` (`TestAggregateSkipsLiveRows` covers totals).
 - [x] T016 [US2] Create `internal/cli/overview_cluster.go`: `resolveClusterScope(row engine.OverviewRow, clusterCount int, cfg *config.Config) (scope string, assumed bool)` implementing config mapping → `name`/ARN-segment → single-cluster current-context precedence; `expandClustersLive(ctx, rows, clients, eng, cfg, policyJSON)` selecting plugins via `selectCapablePlugin` semantics (skip silently when zero capable plugins, warn+skip when ambiguous), calling `engine.RunClusterAllocation` per cluster, and applying `ApplyLiveExpansion`; every error path downgrades to projected/none with a logged warning, never fatal.
 - [x] T017 [P] [US2] Unit tests for `resolveClusterScope` (each precedence branch) and `expandClustersLive` (fake `UsageSource`/`Allocator` via the small interfaces in `internal/engine/cluster.go`) in `internal/cli/overview_cluster_test.go`.
 - [x] T018 [US2] Wire expansion into the plain path in `internal/cli/overview.go` `executeOverview`: after `PopulateComputedDeltas`, call projected grouping then live expansion, collecting notes into `stackCtx.ExpansionNotes` (suppress-count note per FR-004, assumed-context note per FR-012).
@@ -56,14 +56,14 @@
 **Independent Test**: golden tests including a live-expansion case.
 
 - [x] T020 [US4] Extend `TestIntegration_ClusterExpansion_Projected` (T009) assertions to verify contract invariants: `childUrns` order, `parentUrn`, `expansionSource` values, summary unchanged vs. unexpanded run, NDJSON parent-then-children line order.
-- [x] T021 [P] [US4] Golden test `TestIntegration_ClusterExpansion_Live` in `internal/cli/overview_integration_test.go`: build rows from the T001 fixture, apply `ApplyLiveExpansion` with a synthetic `ClusterResult` (two namespaces + idle), render JSON + NDJSON + table, assert goldens including `expansionNotes` and `†` footnote.
+- [x] T021 [P] [US4] Golden test `TestIntegration_ClusterExpansion_Live` in `internal/cli/overview_cluster_expansion_test.go`: build rows from the T001 fixture, apply `ApplyLiveExpansion` with a synthetic `ClusterResult` (two namespaces + idle), render JSON + NDJSON + table, assert goldens including `expansionNotes` and `†` footnote.
 
 ## Phase 7: TUI wiring for live path + polish
 
 - [x] T022 Wire expansion into the TUI path in `internal/cli/overview.go` `overviewInitAndEnrich`: after `bridgeEnrichmentToTUI` completes, run projected grouping + live expansion, then send a new `OverviewExpansionReadyMsg{Rows, Notes}`; handle it in `internal/tui/overview_model.go` by replacing `allRows`/`rows`, rebuilding the table, and storing notes for the footer in `internal/tui/overview_view.go`.
 - [x] T023 [P] Unit test the TUI message handling: expansion message replaces rows, expansion state survives, footer note renders.
 - [x] T024 Run `golines -w` on changed Go files, `make lint`, `make test`; fix all findings.
-- [x] T025 Update `specs/623-overview-cluster-expansion/spec.md` status to `Implemented` and verify spec status tracking conventions used by sibling specs (e.g. specs/621).
+- [x] T025 Update `specs/624-overview-cluster-expansion/spec.md` status to `Implemented` and verify spec status tracking conventions used by sibling specs (e.g. specs/621).
 
 ## Dependencies
 

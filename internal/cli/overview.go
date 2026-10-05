@@ -226,12 +226,13 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 10c. Cluster expansion: group declared workloads under cluster rows and,
 	// when usage-source/allocator plugins are installed, prefer live allocation
 	// data. Never fatal; failures fall back to the projected/flat view.
-	rows, expansionNotes := expandOverviewClusters(ctx, rows, clients, eng, params.cfg)
+	expansion := overviewExpansion{resourceCount: len(rows)}
+	rows, expansion.notes = expandOverviewClusters(ctx, rows, clients, eng, params.cfg)
 
 	// 11-14. Build context, render output, evaluate budgets.
 	if finalErr := finalizeOverviewOutput(
 		ctx, cmd, params, rows, eng, dateRange,
-		stackName, hasChanges, changeCount, isStateOnly, expansionNotes, audit,
+		stackName, hasChanges, changeCount, isStateOnly, expansion, audit,
 	); finalErr != nil {
 		return finalErr
 	}
@@ -333,7 +334,7 @@ func finalizeOverviewOutput(
 	hasChanges bool,
 	changeCount int,
 	isStateOnly bool,
-	expansionNotes []string,
+	expansion overviewExpansion,
 	audit *auditContext,
 ) error {
 	log := logging.FromContext(ctx)
@@ -342,11 +343,11 @@ func finalizeOverviewOutput(
 		StackName:      stackName,
 		TimeWindow:     dateRange,
 		HasChanges:     hasChanges,
-		TotalResources: len(rows),
+		TotalResources: expansion.resourceCount,
 		PendingChanges: changeCount,
 		GeneratedAt:    time.Now(),
 		IsStateOnly:    isStateOnly,
-		ExpansionNotes: expansionNotes,
+		ExpansionNotes: expansion.notes,
 	}
 
 	// Fetch budget data for JSON output (nil for other formats).

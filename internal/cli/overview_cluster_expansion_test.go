@@ -164,13 +164,36 @@ func TestIntegration_ClusterExpansion_NoRegression(t *testing.T) {
 		assert.Empty(t, r.ChildURNs)
 		assert.Empty(t, r.ExpansionSource)
 	}
+
+	// Table, JSON, and NDJSON output, compared byte for byte.
+	render := func(rows []engine.OverviewRow) []string {
+		stackCtx := expansionStackCtx("state-cluster-expansion", len(rows), nil)
+		var table, js, nd bytes.Buffer
+		require.NoError(t, engine.RenderOverviewAsTable(&table, rows, stackCtx))
+		require.NoError(t, engine.RenderOverviewAsJSON(context.Background(), &js, rows, stackCtx, nil))
+		require.NoError(t, engine.RenderOverviewAsNDJSON(&nd, rows))
+		return []string{table.String(), js.String(), nd.String()}
+	}
+	want := render(flat)
+	got := render(out)
+	assert.Equal(t, want, got)
+	gotTable, gotJSON, gotNDJSON := got[0], got[1], got[2]
+	assert.NotContains(t, gotJSON, "parentUrn")
+	assert.NotContains(t, gotJSON, "childUrns")
+	assert.NotContains(t, gotJSON, "expansionSource")
+	assert.NotContains(t, gotTable, "↳")
+	assert.NotContains(t, gotTable, "†")
+	assertGoldenFile(t, filepath.Join(goldenDir(t), "table-cluster-no-expansion.txt"), gotTable)
+	assertGoldenFile(t, filepath.Join(goldenDir(t), "json-cluster-no-expansion.json"), gotJSON)
+	assertGoldenFile(t, filepath.Join(goldenDir(t), "ndjson-cluster-no-expansion.ndjson"), gotNDJSON)
 }
 
 func TestIntegration_ClusterExpansion_Live(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	ctx := context.Background()
 
-	rows := engine.ExpandClustersProjected(loadClusterExpansionRows(t))
+	flat := loadClusterExpansionRows(t)
+	rows := engine.ExpandClustersProjected(flat)
 
 	live := &engine.ClusterResult{
 		Mode:     engine.ModeRunRate,
@@ -195,7 +218,7 @@ func TestIntegration_ClusterExpansion_Live(t *testing.T) {
 		"live cluster data preferred for prod-cluster; 2 projected workload rows hidden to avoid double counting",
 		"live allocation rows re-allocate node cost shown by other rows; excluded from summary",
 	}
-	stackCtx := expansionStackCtx("state-cluster-expansion", len(expanded), notes)
+	stackCtx := expansionStackCtx("state-cluster-expansion", len(flat), notes)
 
 	var tableBuf bytes.Buffer
 	require.NoError(t, engine.RenderOverviewAsTable(&tableBuf, expanded, stackCtx))

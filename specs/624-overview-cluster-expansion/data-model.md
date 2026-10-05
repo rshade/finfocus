@@ -56,10 +56,12 @@ context assumed from current kubeconfig context".
 
 ## Configuration addition (`internal/config`)
 
-```yaml
-overview:
-  cluster_contexts:    # cluster name or URN suffix → kubeconfig context
-    prod-cluster: prod
+```jsonc
+"overview": {
+  "cluster_contexts": { // cluster name or full URN → kubeconfig context
+    "prod-cluster": "prod"
+  }
+}
 ```
 
 `OverviewConfig{ClusterContexts map[string]string yaml:"cluster_contexts,omitempty"}`

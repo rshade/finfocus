@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -26,60 +27,79 @@ func testClusterRow(props map[string]any) engine.OverviewRow {
 	}
 }
 
-func TestResolveClusterScope(t *testing.T) {
+func TestClusterScopeCandidates(t *testing.T) {
 	t.Parallel()
 
+	const arn = "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster"
 	named := map[string]any{"name": "prod-cluster"}
+	namedWithARN := map[string]any{"name": "prod-cluster", "arn": arn}
 	arnOnly := map[string]any{"arn": "arn:aws:eks:us-east-1:123456789012:cluster/arn-cluster"}
 
-	t.Run("config mapping by URN wins", func(t *testing.T) {
-		t.Parallel()
-		cfg := &config.Config{Overview: &config.OverviewConfig{ClusterContexts: map[string]string{
-			testClusterURN: "urn-ctx",
-			"prod-cluster": "name-ctx",
-		}}}
-		scope, assumed := resolveClusterScope(testClusterRow(named), 1, cfg)
-		assert.Equal(t, "urn-ctx", scope)
-		assert.False(t, assumed)
-	})
-
-	t.Run("config mapping by name", func(t *testing.T) {
-		t.Parallel()
-		cfg := &config.Config{Overview: &config.OverviewConfig{ClusterContexts: map[string]string{
-			"prod-cluster": "name-ctx",
-		}}}
-		scope, assumed := resolveClusterScope(testClusterRow(named), 2, cfg)
-		assert.Equal(t, "name-ctx", scope)
-		assert.False(t, assumed)
-	})
-
-	t.Run("name property becomes the context", func(t *testing.T) {
-		t.Parallel()
-		scope, assumed := resolveClusterScope(testClusterRow(named), 1, config.New())
-		assert.Equal(t, "prod-cluster", scope)
-		assert.False(t, assumed)
-	})
-
-	t.Run("arn name segment becomes the context", func(t *testing.T) {
-		t.Parallel()
-		scope, assumed := resolveClusterScope(testClusterRow(arnOnly), 1, nil)
-		assert.Equal(t, "arn-cluster", scope)
-		assert.False(t, assumed)
-	})
-
-	t.Run("single cluster without identity assumes current context", func(t *testing.T) {
-		t.Parallel()
-		scope, assumed := resolveClusterScope(testClusterRow(nil), 1, nil)
-		assert.Empty(t, scope)
-		assert.True(t, assumed)
-	})
-
-	t.Run("multi cluster without identity uses URN segment", func(t *testing.T) {
-		t.Parallel()
-		scope, assumed := resolveClusterScope(testClusterRow(nil), 2, nil)
-		assert.Equal(t, "cluster", scope)
-		assert.False(t, assumed)
-	})
+	tests := []struct {
+		name         string
+		props        map[string]any
+		clusterCount int
+		cfg          *config.Config
+		want         []clusterScope
+	}{
+		{
+			name:         "config mapping by URN wins and is the only candidate",
+			props:        named,
+			clusterCount: 1,
+			cfg: &config.Config{Overview: &config.OverviewConfig{ClusterContexts: map[string]string{
+				testClusterURN: "urn-ctx",
+				"prod-cluster": "name-ctx",
+			}}},
+			want: []clusterScope{{scope: "urn-ctx", explicit: true}},
+		},
+		{
+			name:         "config mapping by name",
+			props:        named,
+			clusterCount: 2,
+			cfg: &config.Config{Overview: &config.OverviewConfig{ClusterContexts: map[string]string{
+				"prod-cluster": "name-ctx",
+			}}},
+			want: []clusterScope{{scope: "name-ctx", explicit: true}},
+		},
+		{
+			name:         "name then current context in a single-cluster stack",
+			props:        named,
+			clusterCount: 1,
+			cfg:          config.New(),
+			want:         []clusterScope{{scope: "prod-cluster"}, {assumed: true}},
+		},
+		{
+			name:         "name, full ARN, then current context; duplicate ARN segment dropped",
+			props:        namedWithARN,
+			clusterCount: 1,
+			want:         []clusterScope{{scope: "prod-cluster"}, {scope: arn}, {assumed: true}},
+		},
+		{
+			name:         "ARN and its name segment",
+			props:        arnOnly,
+			clusterCount: 2,
+			want: []clusterScope{
+				{scope: "arn:aws:eks:us-east-1:123456789012:cluster/arn-cluster"},
+				{scope: "arn-cluster"},
+			},
+		},
+		{
+			name:         "single cluster without identity assumes current context",
+			clusterCount: 1,
+			want:         []clusterScope{{assumed: true}},
+		},
+		{
+			name:         "multi cluster without identity is not expanded live",
+			clusterCount: 2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got := clusterScopeCandidates(testClusterRow(tt.props), tt.clusterCount, tt.cfg)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
 
 // fakeUsageSource and fakeAllocator satisfy engine.UsageSource / engine.Allocator.
@@ -92,6 +112,27 @@ func (f *fakeUsageSource) GetStats(
 	_ context.Context, _ *pbc.GetStatsRequest, _ ...grpc.CallOption,
 ) (*pbc.GetStatsResponse, error) {
 	return f.resp, f.err
+}
+
+// scopedUsageSource answers GetStats only for the scopes in ok and records
+// every scope it was asked for.
+type scopedUsageSource struct {
+	resp   *pbc.GetStatsResponse
+	ok     map[string]bool
+	mu     sync.Mutex
+	scopes []string
+}
+
+func (f *scopedUsageSource) GetStats(
+	_ context.Context, in *pbc.GetStatsRequest, _ ...grpc.CallOption,
+) (*pbc.GetStatsResponse, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.scopes = append(f.scopes, in.GetScope())
+	if !f.ok[in.GetScope()] {
+		return nil, errors.New("context not found")
+	}
+	return f.resp, nil
 }
 
 type fakeAllocator struct {
@@ -190,7 +231,7 @@ func TestRunLiveExpansion(t *testing.T) {
 		t.Parallel()
 		usage, alloc, pricer := liveTestHarness()
 		rows, notes := runLiveExpansion(
-			context.Background(), newRows(), []int{0}, usage, alloc, pricer, nil, config.New(),
+			context.Background(), newRows(), usage, alloc, pricer, nil, config.New(),
 		)
 
 		// cluster + payments workload group + idle group.
@@ -211,11 +252,88 @@ func TestRunLiveExpansion(t *testing.T) {
 		_, alloc, pricer := liveTestHarness()
 		badUsage := &fakeUsageSource{err: errors.New("connection refused")}
 		rows, notes := runLiveExpansion(
-			context.Background(), newRows(), []int{0}, badUsage, alloc, pricer, nil, config.New(),
+			context.Background(), newRows(), badUsage, alloc, pricer, nil, config.New(),
 		)
 		require.Len(t, rows, 2)
 		assert.Equal(t, []string{workloadURN}, rows[0].ChildURNs)
 		assert.Equal(t, engine.ExpansionSourceProjected, rows[1].ExpansionSource)
+		assert.Empty(t, notes)
+	})
+
+	t.Run("every cluster expands after an earlier one reorders rows", func(t *testing.T) {
+		t.Parallel()
+		usage, alloc, pricer := liveTestHarness()
+		secondURN := "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::second"
+		rows := []engine.OverviewRow{
+			{URN: "urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::logs", Type: "aws:s3/bucket:Bucket"},
+			testClusterRow(map[string]any{"name": "prod-cluster"}),
+			{URN: secondURN, Type: "aws:eks/cluster:Cluster", Properties: map[string]any{"name": "second"}},
+		}
+		rows, _ = runLiveExpansion(
+			context.Background(), rows, usage, alloc, pricer, nil, config.New(),
+		)
+		childrenOf := map[string]int{}
+		for _, r := range rows {
+			if r.ParentURN != "" {
+				childrenOf[r.ParentURN]++
+			}
+		}
+		assert.Equal(t, 2, childrenOf[testClusterURN])
+		assert.Equal(t, 2, childrenOf[secondURN])
+	})
+
+	t.Run("unmatched name falls back to the current context", func(t *testing.T) {
+		t.Parallel()
+		base, alloc, pricer := liveTestHarness()
+		usage := &scopedUsageSource{resp: base.resp, ok: map[string]bool{"": true}}
+		rows, notes := runLiveExpansion(
+			context.Background(), newRows(), usage, alloc, pricer, nil, config.New(),
+		)
+		assert.Equal(t, []string{"prod-cluster", ""}, usage.scopes)
+		require.Len(t, rows, 3)
+		assert.Equal(t, engine.ExpansionSourceLive, rows[1].ExpansionSource)
+		require.Len(t, notes, 3)
+		assert.Contains(t, notes[1], "assumed from the current context")
+	})
+
+	t.Run("explicit mapping is the only scope tried", func(t *testing.T) {
+		t.Parallel()
+		base, alloc, pricer := liveTestHarness()
+		usage := &scopedUsageSource{resp: base.resp, ok: map[string]bool{"": true}}
+		cfg := &config.Config{Overview: &config.OverviewConfig{ClusterContexts: map[string]string{
+			"prod-cluster": "missing-ctx",
+		}}}
+		rows, notes := runLiveExpansion(context.Background(), newRows(), usage, alloc, pricer, nil, cfg)
+		assert.Equal(t, []string{"missing-ctx"}, usage.scopes)
+		require.Len(t, rows, 2)
+		assert.Equal(t, engine.ExpansionSourceProjected, rows[1].ExpansionSource)
+		assert.Empty(t, notes)
+	})
+
+	t.Run("deleting cluster is not expanded live", func(t *testing.T) {
+		t.Parallel()
+		usage, alloc, pricer := liveTestHarness()
+		cluster := testClusterRow(map[string]any{"name": "prod-cluster"})
+		cluster.Status = engine.StatusDeleting
+		rows, notes := runLiveExpansion(
+			context.Background(), []engine.OverviewRow{cluster}, usage, alloc, pricer, nil, nil,
+		)
+		require.Len(t, rows, 1)
+		assert.Empty(t, rows[0].ChildURNs)
+		assert.Empty(t, notes)
+	})
+
+	t.Run("multi cluster stack without identity is skipped", func(t *testing.T) {
+		t.Parallel()
+		base, alloc, pricer := liveTestHarness()
+		usage := &scopedUsageSource{resp: base.resp, ok: map[string]bool{"": true}}
+		rows := []engine.OverviewRow{
+			testClusterRow(nil),
+			{URN: "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::other", Type: "aws:eks/cluster:Cluster"},
+		}
+		out, notes := runLiveExpansion(context.Background(), rows, usage, alloc, pricer, nil, nil)
+		assert.Empty(t, usage.scopes)
+		assert.Len(t, out, 2)
 		assert.Empty(t, notes)
 	})
 
@@ -226,7 +344,7 @@ func TestRunLiveExpansion(t *testing.T) {
 			usage, alloc, pricer := liveTestHarness()
 			rows := []engine.OverviewRow{testClusterRow(nil)}
 			rows, notes := runLiveExpansion(
-				context.Background(), rows, []int{0}, usage, alloc, pricer, nil, nil,
+				context.Background(), rows, usage, alloc, pricer, nil, nil,
 			)
 			require.Len(t, rows, 3)
 			require.Len(t, notes, 2)

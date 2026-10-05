@@ -589,6 +589,8 @@ func (c *Config) Set(key, value string) error {
 		return c.setCostValue(parts[1:], value)
 	case keyScoring:
 		return c.setScoringValue(parts[1:], value)
+	case keyOverview:
+		return c.setOverviewValue(parts[1:], value)
 	default:
 		return fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -614,6 +616,8 @@ func (c *Config) Get(key string) (any, error) {
 		return c.getCostValue(parts[1:])
 	case keyScoring:
 		return c.getScoringValue(parts[1:])
+	case keyOverview:
+		return c.getOverviewValue(parts[1:])
 	default:
 		return nil, fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -630,6 +634,7 @@ func (c *Config) List() map[string]any {
 		keyCost:       c.Cost,
 		keyRouting:    c.Routing,
 		keyScoring:    c.Scoring,
+		keyOverview:   c.Overview,
 	}
 }
 

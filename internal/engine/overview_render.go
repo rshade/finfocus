@@ -121,6 +121,20 @@ func truncateResource(urn string, maxLen int) string {
 	return urn[:maxLen-3] + "..."
 }
 
+// overviewResourceCell renders the RESOURCE column: the truncated URN, or
+// for an expansion child a `↳` indent before the namespace (live rows) or
+// URN (projected rows).
+func overviewResourceCell(row OverviewRow) string {
+	if row.ParentURN == "" {
+		return truncateResource(row.URN, colWidthResource)
+	}
+	name := LiveChildName(row)
+	if name == "" {
+		name = row.URN
+	}
+	return truncateResource("↳ "+name, colWidthResource)
+}
+
 // RenderOverviewAsTable writes a formatted ASCII table of the overview rows.
 func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContext) error {
 	tw := tabwriter.NewWriter(w, 0, 0, tabwriterPadding, ' ', 0)
@@ -144,10 +158,7 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 
 	// Rows
 	for _, row := range rows {
-		resource := truncateResource(row.URN, colWidthResource)
-		if row.ParentURN != "" {
-			resource = truncateResource("↳ "+resource, colWidthResource)
-		}
+		resource := overviewResourceCell(row)
 		resType := truncateResource(row.Type, colWidthType)
 		statusStr := StatusIcon(row.Status) + " " + row.Status.String()
 

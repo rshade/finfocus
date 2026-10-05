@@ -148,6 +148,32 @@ func TestExpandClustersProjected(t *testing.T) {
 		assert.Empty(t, out[0].ChildURNs)
 	})
 
+	t.Run("input rows are not modified", func(t *testing.T) {
+		t.Parallel()
+		rows := []OverviewRow{workloadRow(apiURN), clusterRow(clusterURN)}
+		out := ExpandClustersProjected(rows)
+		require.Len(t, out, 2)
+		assert.Equal(t, clusterURN, out[0].URN)
+		assert.Equal(t, apiURN, rows[0].URN)
+		assert.Empty(t, rows[0].ParentURN)
+		assert.Empty(t, rows[0].ExpansionSource)
+		assert.Empty(t, rows[1].ChildURNs)
+	})
+
+	t.Run("deleting or errored cluster is not expanded", func(t *testing.T) {
+		t.Parallel()
+		deleting := clusterRow(clusterURN)
+		deleting.Status = StatusDeleting
+		errored := clusterRow(clusterURN)
+		errored.Error = &OverviewRowError{URN: clusterURN, ErrorType: ErrorTypeNetwork, Message: "boom"}
+		for _, cluster := range []OverviewRow{deleting, errored} {
+			out := ExpandClustersProjected([]OverviewRow{cluster, workloadRow(apiURN)})
+			require.Len(t, out, 2)
+			assert.Empty(t, out[0].ChildURNs)
+			assert.Empty(t, out[1].ParentURN)
+		}
+	})
+
 	t.Run("idempotent on already-grouped rows", func(t *testing.T) {
 		t.Parallel()
 		rows := []OverviewRow{clusterRow(clusterURN), workloadRow(apiURN)}
@@ -334,4 +360,44 @@ func TestOverviewRowValidateExpansionSource(t *testing.T) {
 
 	row.ExpansionSource = ExpansionSourceLive
 	assert.NoError(t, row.Validate())
+}
+
+func TestIsExpandableCluster(t *testing.T) {
+	t.Parallel()
+	const urn = "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster"
+	active := clusterRow(urn)
+	deleting := clusterRow(urn)
+	deleting.Status = StatusDeleting
+	errored := clusterRow(urn)
+	errored.Error = &OverviewRowError{URN: urn, ErrorType: ErrorTypeNetwork, Message: "boom"}
+	child := clusterRow(urn)
+	child.ParentURN = "urn:pulumi:prod::myapp::other"
+
+	assert.True(t, IsExpandableCluster(active))
+	assert.False(t, IsExpandableCluster(deleting))
+	assert.False(t, IsExpandableCluster(errored))
+	assert.False(t, IsExpandableCluster(child))
+	assert.False(t, IsExpandableCluster(workloadRow(urn)))
+}
+
+func TestLiveChildName(t *testing.T) {
+	t.Parallel()
+	const urn = "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster"
+	children, err := LiveChildrenFromResult(urn, liveResult())
+	require.NoError(t, err)
+	names := make([]string, len(children))
+	for i, c := range children {
+		names[i] = LiveChildName(c)
+	}
+	assert.Equal(t, []string{"ns/payments", "ns/default", "(idle)"}, names)
+	assert.Empty(t, LiveChildName(workloadRow(urn)))
+	assert.Empty(t, LiveChildName(OverviewRow{URN: urn, ExpansionSource: ExpansionSourceLive}))
+}
+
+func TestClusterARNName(t *testing.T) {
+	t.Parallel()
+	assert.Equal(t, "prod", ClusterARNName("arn:aws:eks:us-east-1:123456789012:cluster/prod"))
+	assert.Equal(t, "prod", ClusterARNName("arn:partition:service:region:account:prod"))
+	assert.Empty(t, ClusterARNName("noseparator"))
+	assert.Empty(t, ClusterARNName(""))
 }

@@ -19,6 +19,10 @@ const (
 // allocationChildType is the synthetic type token for live allocation children.
 const allocationChildType = "finfocus:k8s/namespace:Allocation"
 
+// liveChildURNMarker separates the cluster URN from the namespace in a live
+// allocation child's URN.
+const liveChildURNMarker = "#ns/"
+
 // Breakdown keys for live allocation children.
 const (
 	breakdownKeyCPU    = "cpu"
@@ -46,6 +50,13 @@ func IsClusterResource(typeToken string) bool {
 	}
 }
 
+// IsExpandableCluster reports whether a row is a top-level cluster that may
+// be expanded: a cluster being deleted or one whose enrichment failed is not.
+func IsExpandableCluster(row OverviewRow) bool {
+	return row.ParentURN == "" && IsClusterResource(row.Type) &&
+		row.Status != StatusDeleting && row.Error == nil
+}
+
 // IsWorkloadResource reports whether a Pulumi type token is a declared
 // Kubernetes workload kind that can nest under a cluster row.
 func IsWorkloadResource(typeToken string) bool {
@@ -65,21 +76,22 @@ func IsWorkloadResource(typeToken string) bool {
 // stack's cluster row. Grouping happens only when the row list contains
 // exactly one cluster: multi-cluster attribution requires provider-chain
 // data that is not propagated into StateResource today, so multi-cluster
-// stacks are left flat (documented limitation). The returned slice is
-// ordered parent-then-children. Rows already carrying a ParentURN (e.g.
-// from a previous expansion pass) are left as-is, making the function
-// idempotent.
+// stacks are left flat (documented limitation). A cluster that is being
+// deleted or whose enrichment failed is not expanded. The input slice is not
+// modified; when grouping applies, a new slice ordered parent-then-children
+// is returned. Rows already carrying a ParentURN (e.g. from a previous
+// expansion pass) are left as-is, making the function idempotent.
 func ExpandClustersProjected(rows []OverviewRow) []OverviewRow {
-	var cluster *OverviewRow
+	clusterIdx := -1
 	for i := range rows {
 		if rows[i].ParentURN == "" && IsClusterResource(rows[i].Type) {
-			if cluster != nil {
-				return rows // more than one cluster: leave flat
+			if clusterIdx >= 0 {
+				return rows
 			}
-			cluster = &rows[i]
+			clusterIdx = i
 		}
 	}
-	if cluster == nil {
+	if clusterIdx < 0 || !IsExpandableCluster(rows[clusterIdx]) {
 		return rows
 	}
 
@@ -93,15 +105,17 @@ func ExpandClustersProjected(rows []OverviewRow) []OverviewRow {
 		return rows
 	}
 
-	clusterURN := cluster.URN
+	out := make([]OverviewRow, len(rows))
+	copy(out, rows)
+	clusterURN := out[clusterIdx].URN
 	childURNs := make([]string, 0, len(workloadIdx))
 	for _, i := range workloadIdx {
-		rows[i].ParentURN = clusterURN
-		rows[i].ExpansionSource = ExpansionSourceProjected
-		childURNs = append(childURNs, rows[i].URN)
+		out[i].ParentURN = clusterURN
+		out[i].ExpansionSource = ExpansionSourceProjected
+		childURNs = append(childURNs, out[i].URN)
 	}
-	cluster.ChildURNs = childURNs
-	return orderRowsWithChildren(rows)
+	out[clusterIdx].ChildURNs = childURNs
+	return orderRowsWithChildren(out)
 }
 
 // LiveChildrenFromResult synthesizes namespace-granularity allocation child
@@ -119,7 +133,7 @@ func LiveChildrenFromResult(clusterURN string, res *ClusterResult) ([]OverviewRo
 			continue
 		}
 		children = append(children, OverviewRow{
-			URN:    clusterURN + "#ns/" + g.Key,
+			URN:    clusterURN + liveChildURNMarker + g.Key,
 			Type:   allocationChildType,
 			Status: StatusActive,
 			ProjectedCost: &ProjectedCostData{
@@ -156,13 +170,11 @@ func ApplyLiveExpansion(
 		switch {
 		case rows[i].URN == clusterURN && rows[i].ParentURN == "":
 			clusterIdx = len(kept)
-			rows[i].ChildURNs = nil
 			kept = append(kept, rows[i])
 		case rows[i].ParentURN == clusterURN:
 			if rows[i].ExpansionSource == ExpansionSourceProjected {
 				suppressed++
 			}
-			// Drop all prior children of this cluster.
 		default:
 			kept = append(kept, rows[i])
 		}
@@ -176,6 +188,24 @@ func ApplyLiveExpansion(
 	}
 	kept[clusterIdx].ChildURNs = childURNs
 	return orderRowsWithChildren(append(kept, children...)), suppressed
+}
+
+// LiveChildName returns the display name of a live allocation child row:
+// "ns/<namespace>", or "(idle)" for unallocated capacity. It returns "" for
+// any other row.
+func LiveChildName(row OverviewRow) string {
+	if row.ExpansionSource != ExpansionSourceLive {
+		return ""
+	}
+	idx := strings.Index(row.URN, liveChildURNMarker)
+	if idx < 0 {
+		return ""
+	}
+	ns := row.URN[idx+len(liveChildURNMarker):]
+	if ns == rowKindIdle {
+		return "(idle)"
+	}
+	return "ns/" + ns
 }
 
 // orderRowsWithChildren returns rows ordered so that each child immediately
@@ -215,14 +245,23 @@ func ClusterRowName(row OverviewRow) string {
 	if name, ok := row.Properties["name"].(string); ok && name != "" {
 		return name
 	}
-	if arn, ok := row.Properties["arn"].(string); ok && arn != "" {
-		if idx := strings.LastIndex(arn, "/"); idx >= 0 && idx < len(arn)-1 {
-			return arn[idx+1:]
-		}
-		if idx := strings.LastIndex(arn, ":"); idx >= 0 && idx < len(arn)-1 {
-			return arn[idx+1:]
+	if arn, ok := row.Properties["arn"].(string); ok {
+		if seg := ClusterARNName(arn); seg != "" {
+			return seg
 		}
 	}
 	parts := strings.Split(row.URN, "::")
 	return parts[len(parts)-1]
+}
+
+// ClusterARNName returns the name segment of a cluster ARN (the text after
+// the last `/`, else after the last `:`), or "" when there is none.
+func ClusterARNName(arn string) string {
+	if idx := strings.LastIndex(arn, "/"); idx >= 0 && idx < len(arn)-1 {
+		return arn[idx+1:]
+	}
+	if idx := strings.LastIndex(arn, ":"); idx >= 0 && idx < len(arn)-1 {
+		return arn[idx+1:]
+	}
+	return ""
 }

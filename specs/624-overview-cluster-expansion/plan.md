@@ -1,7 +1,7 @@
 # Implementation Plan: Overview Cluster Expansion
 
 **Branch**: `fix/issue-1526-overview-cluster-expansion` | **Date**: 2026-10-04 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `/specs/623-overview-cluster-expansion/spec.md`
+**Input**: Feature specification from `/specs/624-overview-cluster-expansion/spec.md`
 
 ## Summary
 
@@ -19,7 +19,7 @@ the TUI gains per-cluster expand/collapse; JSON/NDJSON gain `parentUrn`,
 
 **Language/Version**: Go 1.27.1
 **Primary Dependencies**: Cobra, zerolog, bubbletea v2 (TUI), finfocus-spec SDK v0.7.5 (UsageSource/Allocator protos)
-**Storage**: N/A (optional `~/.finfocus/config.yaml` gains an `overview.cluster_contexts` mapping)
+**Storage**: N/A (optional `config.hujson` gains an `overview.cluster_contexts` mapping)
 **Testing**: `go test ./...`, testify assert/require, golden files under `testdata/overview/golden` and `internal/tui/testdata`
 **Target Platform**: Linux/macOS/Windows CLI
 **Project Type**: single Go CLI (core in `internal/`, plugins in `plugins/`)
@@ -57,7 +57,7 @@ the TUI gains per-cluster expand/collapse; JSON/NDJSON gain `parentUrn`,
 ### Documentation (this feature)
 
 ```text
-specs/623-overview-cluster-expansion/
+specs/624-overview-cluster-expansion/
 ├── plan.md              # This file
 ├── research.md          # Phase 0 output
 ├── data-model.md        # Phase 1 output

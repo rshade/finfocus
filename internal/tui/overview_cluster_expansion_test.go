@@ -2,6 +2,7 @@ package tui
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -171,4 +172,43 @@ func TestOverviewExpansionReadyMsg(t *testing.T) {
 	assert.Equal(t, notes, model.expansionNotes)
 	view := model.renderListView()
 	assert.Contains(t, view, "† live cluster data preferred for prod-cluster")
+}
+
+func TestOverviewClusterExpansion_PaginationCountsParentsOnly(t *testing.T) {
+	t.Parallel()
+
+	rows := clusterExpansionRows()
+	for i := range maxOverviewResourcesPerPage - 1 {
+		rows = append(rows, engine.OverviewRow{
+			URN:  fmt.Sprintf("urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::b%03d", i),
+			Type: "aws:s3/bucket:Bucket",
+		})
+	}
+	model := newListModel(t, rows)
+	model.enablePaginationIfNeeded()
+
+	assert.False(t, model.paginationEnabled,
+		"one cluster plus %d buckets fits on one page; its children are not units",
+		maxOverviewResourcesPerPage-1)
+	assert.Len(t, model.getVisibleRows(), maxOverviewResourcesPerPage)
+
+	model.expanded[expansionClusterURN] = true
+	model.rebuildTable()
+	entries := model.displayEntries()
+	assert.Len(t, entries, maxOverviewResourcesPerPage+2)
+
+	model.rows = append(model.rows, engine.OverviewRow{
+		URN:  "urn:pulumi:prod::myapp::aws:s3/bucket:Bucket::overflow",
+		Type: "aws:s3/bucket:Bucket",
+	})
+	model.enablePaginationIfNeeded()
+	assert.True(t, model.paginationEnabled)
+	assert.Equal(t, 2, model.totalPages)
+	childCount := 0
+	for _, e := range model.displayEntries() {
+		if e.child {
+			childCount++
+		}
+	}
+	assert.Equal(t, 2, childCount, "children render on their parent's page")
 }

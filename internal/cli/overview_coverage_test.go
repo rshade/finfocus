@@ -698,9 +698,36 @@ func TestFinalizeOverviewOutput_UnsupportedFormat(t *testing.T) {
 	cmd, _ := overviewCmd(strings.NewReader(""))
 	err := finalizeOverviewOutput(
 		ctx, cmd, overviewParams{output: "yaml"}, nil, engine.New(nil, nil),
-		engine.DateRange{}, "dev", false, 0, false, nil, newAuditContext(ctx, "overview", nil),
+		engine.DateRange{}, "dev", false, 0, false, overviewExpansion{}, newAuditContext(ctx, "overview", nil),
 	)
 	require.ErrorContains(t, err, "unsupported output format")
+}
+
+func TestFinalizeOverviewOutput_ExpansionCountAndNotes(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	cmd, out := overviewCmd(strings.NewReader(""))
+	clusterURN := "urn:pulumi:dev::app::aws:eks/cluster:Cluster::c"
+	rows := []engine.OverviewRow{
+		{URN: clusterURN, Type: "aws:eks/cluster:Cluster", ChildURNs: []string{clusterURN + "#ns/payments"}},
+		{
+			URN:             clusterURN + "#ns/payments",
+			Type:            "finfocus:k8s/namespace:Allocation",
+			ParentURN:       clusterURN,
+			ExpansionSource: engine.ExpansionSourceLive,
+		},
+	}
+	err := finalizeOverviewOutput(
+		ctx, cmd, overviewParams{output: "table"}, rows, engine.New(nil, nil),
+		engine.DateRange{}, "dev", false, 0, false,
+		overviewExpansion{notes: []string{"live data preferred"}, resourceCount: 3},
+		newAuditContext(ctx, "overview", nil),
+	)
+	require.NoError(t, err)
+	assert.Contains(t, out.String(), "3 resources")
+	assert.Contains(t, out.String(), "↳ ns/payments")
+	assert.Contains(t, out.String(), "† live data preferred")
 }
 
 func TestApplyOverviewFilters_EmptyKeepsRows(t *testing.T) {

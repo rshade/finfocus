@@ -210,11 +210,29 @@ Two data sources feed the expansion:
   excluded from the summary totals.
 
 When both are available, live data wins: the projected workload rows are
-hidden and a `†` footnote reports how many were suppressed. The kubeconfig
-context for live expansion resolves from (1) the `overview.cluster_contexts`
-config mapping (cluster name or full URN → context), (2) the cluster's
-`name` property or the name segment of its ARN, or (3) the current context
-for single-cluster stacks (footnoted as assumed).
+hidden and a `†` footnote reports how many were suppressed. The summary
+resource count still includes the hidden rows and does not count the live
+namespace rows.
+
+The usage-source plugin is asked for these kubeconfig contexts in order, and
+the first one it answers is used:
+
+1. The `overview.cluster_contexts` config mapping (cluster name or full URN
+   to context). When a mapping exists, it is the only context tried.
+2. The cluster's `name` property, its full ARN (the context name that
+   `aws eks update-kubeconfig` writes), and the name segment of its ARN.
+3. The current context, for single-cluster stacks only (footnoted as
+   assumed).
+
+Set a mapping with `finfocus config set overview.cluster_contexts.<cluster>
+<context>`. A cluster with no answering context keeps its projected view.
+Clusters that are being deleted, or whose cost lookup failed, are not
+expanded.
+
+Projected grouping needs exactly one cluster in the stack. A stack with more
+than one cluster keeps its declared workload rows flat, because core cannot
+tell which cluster a workload is deployed to. Live expansion still runs for
+each cluster that has a name, ARN, or mapping.
 
 In JSON and NDJSON output the rows stay flat: children carry `parentUrn` and
 `expansionSource` (`live` or `projected`), and the cluster row carries

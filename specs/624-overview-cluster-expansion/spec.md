@@ -30,14 +30,18 @@ Two data sources already exist and this feature consumes both:
 The issue asked for these decisions to be resolved in this spec:
 
 1. **Cluster resource → kubeconfig context mapping.** Resolution order:
-   (a) an explicit per-stack mapping in `~/.finfocus/config.yaml`
-   (`overview.clusterContexts`, keyed by cluster name or URN suffix →
+   (a) an explicit mapping in `config.hujson`
+   (`overview.cluster_contexts`, keyed by cluster name or full URN →
    kubeconfig context); (b) a kubeconfig context whose name equals the
-   cluster resource's `name` property (or the name segment of its ARN);
-   (c) when the stack declares exactly one cluster and neither mapping
-   matches, the kubeconfig current-context is used and the expansion is
-   footnoted as assumed. When no context resolves, live expansion is skipped
-   silently for that cluster (projected expansion may still apply).
+   cluster resource's `name` property, its full ARN, or the name segment of
+   its ARN; (c) when the stack declares exactly one cluster and neither
+   mapping matches, the kubeconfig current-context is used and the expansion
+   is footnoted as assumed. Core does not read kubeconfig: it asks the usage
+   source for each candidate in order and stops at the first one that
+   answers. An explicit mapping is the only candidate when present. When no
+   context resolves, live expansion is skipped for that cluster (debug log
+   only; a failed explicit mapping is a warning) and projected expansion may
+   still apply.
 2. **Live vs. projected precedence.** When live expansion succeeds for a
    cluster, the projected workload rows grouped under that cluster are
    suppressed (not shown as children, not double-counted in totals) and a
