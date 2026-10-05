@@ -70,8 +70,31 @@ func runConfigValidate(cmd *cobra.Command, file, output string, verbose bool) er
 		result := config.ValidateConfig(config.New())
 		return finishConfigValidate(cmd, result, config.New(), output, verbose)
 	}
-	result, cfg := config.ValidateConfigSource(path, data)
+	result, cfg := validateConfigDocument(path, data)
 	return finishConfigValidate(cmd, result, cfg, output, verbose)
+}
+
+// validateConfigDocument validates data, applying the project config rules when
+// path is the resolved project's config.hujson.
+func validateConfigDocument(path string, data []byte) (config.ValidationResult, *config.Config) {
+	if isProjectConfigFile(path) {
+		return config.ValidateProjectConfigSource(path, data)
+	}
+	return config.ValidateConfigSource(path, data)
+}
+
+// isProjectConfigFile reports whether path is the config.hujson of the project
+// directory resolved for this run.
+func isProjectConfigFile(path string) bool {
+	dir := config.GetResolvedProjectDir()
+	if dir == "" || path == "" {
+		return false
+	}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	return absPath == filepath.Join(dir, "config.hujson")
 }
 
 func readConfigForValidate(file string) (string, []byte, bool, error) {
@@ -191,7 +214,7 @@ func validateCostConfig(cmd *cobra.Command, paths []string) error {
 		if err != nil {
 			return fmt.Errorf("reading configuration: %w", err)
 		}
-		result, _ := config.ValidateConfigSource(path, data)
+		result, _ := validateConfigDocument(path, data)
 		if result.Valid {
 			continue
 		}

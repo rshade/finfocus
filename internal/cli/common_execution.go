@@ -787,6 +787,8 @@ func evaluateBudgetStatusWithoutRender(
 }
 
 // evaluateBudgetStatusWithRender evaluates budgets and optionally renders status output.
+// Budget alert notifications are sent after evaluation and before the exit
+// check; they never change the returned error.
 func evaluateBudgetStatusWithRender(
 	cmd *cobra.Command,
 	results []engine.CostResult,
@@ -808,6 +810,9 @@ func evaluateBudgetStatusWithRender(
 		budgetResult, budgetErr = renderBudgetWithScope(cmd, results, totalCost, currency, scopeFilter, overrides)
 	} else {
 		budgetResult, budgetErr = evaluateBudgetWithScope(cmd, results, totalCost, currency, overrides)
+	}
+	if budgetErr == nil {
+		notifyBudgetAlerts(cmd, budgetResult, currency)
 	}
 
 	return checkBudgetExitFromResult(cmd, budgetResult, budgetErr)

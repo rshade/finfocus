@@ -39,6 +39,7 @@ the command auto-detects your Pulumi project and stack from the current director
 | `--no-pagination` | Disable pagination (plain mode only) | false |
 | `--exit-on-threshold` | Exit non-zero when a budget threshold is exceeded | false |
 | `--exit-code` | Exit code for a threshold breach (0-255) | 1 |
+| `--notify` | Send [budget notifications](../guides/budgets.md#budget-notifications) for exceeded thresholds. Unset uses `FINFOCUS_NOTIFY` | false |
 | `--state-only` | Skip pulumi preview (faster, no pending change detection). Mutually exclusive with `--pulumi-json` | false |
 | `--budget-scope` | Filter budget scopes: global, provider, tag, type | All |
 
@@ -260,6 +261,7 @@ the output mode.
 |------|-------------|-----------|
 | `--exit-on-threshold` | Exit non-zero when budget threshold exceeded | Plain, JSON |
 | `--exit-code` | Exit code when threshold exceeded (0-255) | Plain, JSON |
+| `--notify` | Send budget notifications for exceeded thresholds | Plain, JSON |
 | `--budget-scope` | Filter budget scopes (global, provider, tag, type) | All modes |
 
 ### Why is budget status missing in plain or NDJSON mode?

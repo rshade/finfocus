@@ -38,7 +38,7 @@ and will not appear in configuration files.`,
 			key := args[0]
 
 			// config.New() already loads from disk and applies env overrides
-			cfg := config.New()
+			cfg := config.New().MaskedForDisplay()
 
 			// Get the value
 			value, err := cfg.Get(key)

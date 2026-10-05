@@ -535,7 +535,7 @@ func CalculateProviderBudgetStatus(
 	status := &ScopedBudgetStatus{
 		ScopeType:    ScopeTypeProvider,
 		ScopeKey:     provider,
-		Budget:       *budget,
+		Budget:       scopedBudgetWithoutDestinations(*budget),
 		CurrentSpend: currentSpend,
 		Percentage:   percentage,
 		Health:       health,
@@ -616,7 +616,7 @@ func CalculateTagBudgetStatus(
 	status := &ScopedBudgetStatus{
 		ScopeType:    ScopeTypeTag,
 		ScopeKey:     tagBudget.Selector,
-		Budget:       tagBudget.ScopedBudget,
+		Budget:       scopedBudgetWithoutDestinations(tagBudget.ScopedBudget),
 		CurrentSpend: currentSpend,
 		Percentage:   percentage,
 		Health:       health,
@@ -675,7 +675,7 @@ func CalculateTypeBudgetStatus(
 	status := &ScopedBudgetStatus{
 		ScopeType:    ScopeTypeType,
 		ScopeKey:     resourceType,
-		Budget:       *budget,
+		Budget:       scopedBudgetWithoutDestinations(*budget),
 		CurrentSpend: currentSpend,
 		Percentage:   percentage,
 		Health:       health,
@@ -801,11 +801,7 @@ func enrichScopedBudgetStatus(status *ScopedBudgetStatus, budget *config.ScopedB
 		} else {
 			pct = status.ForecastPercentage
 		}
-		status.Alerts = append(status.Alerts, ThresholdStatus{
-			Threshold: alert.Threshold,
-			Type:      alert.Type,
-			Status:    evaluateThreshold(alert.Threshold, pct),
-		})
+		status.Alerts = append(status.Alerts, newThresholdStatus(alert, pct))
 	}
 }
 

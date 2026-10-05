@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/rshade/finfocus/internal/pluginskill"
 )
@@ -22,3 +23,11 @@ func SetPluginSkillsForTest(f SkillInstallerFunc) {
 
 // IsNoAssetError exposes isNoAssetError to tests.
 func IsNoAssetError(err error) bool { return isNoAssetError(err) }
+
+// SetNotificationClientForTest routes budget notifications through client and
+// returns a function that restores the previous client.
+func SetNotificationClientForTest(client *http.Client) func() {
+	prev := notificationClient
+	notificationClient = client
+	return func() { notificationClient = prev }
+}

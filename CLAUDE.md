@@ -495,8 +495,13 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   invalid, and they ignore a missing file. Flat `cost.budgets.amount` is warned
   and not applied; the on-disk field is `cost.budgets.global.amount`. Period
   stays monthly. Threshold stays 0–1000. Amount 0 disables a scope. Unknown
-  keys warn, with a suggestion when the name is close. There is no
-  notifications section
+  keys warn, with a suggestion when the name is close. Alert `notifications`
+  destinations are checked too: type `slack` or `webhook`, a literal `url`
+  must be `https://` with a host, `channel` is Slack only, `method`
+  (POST/PUT) and `headers` are webhook only, and a `${NAME}` reference must
+  name a `FINFOCUS_NOTIFY_*` variable. When the file is the resolved
+  project's `config.hujson`, `ValidateProjectConfigSource` also rejects any
+  `${...}` in a destination (`isProjectConfigFile`)
 - **Unit tests leak into the real `~/.finfocus`**: any test that executes a
   mutating command (`dismiss`, `snooze`, `config set`) writes to the developer's
   and the CI runner's actual home unless it sets
@@ -541,6 +546,25 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `config.GetGlobalConfig()`. Precedence is the CLI pointer, then the scoped
   budget field, then parent `BudgetsConfig`, then the zero value. Only a copy
   of the global scope receives the overlay. Provider, tag, and type scopes do not.
+- **Budget notifications** (`internal/notification`, `internal/cli/budget_notify.go`,
+  spec `specs/625-budget-alert-notifications/`): `notifyBudgetAlerts` runs in
+  `evaluateBudgetStatusWithRender` after evaluation and before
+  `checkBudgetExitFromResult`; it writes only to stderr and never changes the
+  returned error or stdout. A run opts in with `--notify` (persistent on `cost`,
+  local on `overview`) or `FINFOCUS_NOTIFY` (`strconv.ParseBool`; invalid warns
+  and is false); otherwise one hint line is printed when a crossed threshold has
+  destinations. No state between runs. `ThresholdStatus.Notifications` is
+  `json:"-"`, and statuses store their budget with destinations stripped, so
+  `--output json` never shows a URL. Masking is display-only
+  (`Config.MaskedForDisplay` in `config get`/`config list`), because
+  `Config.Save` marshals the struct. Only `${FINFOCUS_NOTIFY_*}` expands: the
+  dispatcher checks every reference before calling the env lookup, so no other
+  variable is ever read. `ShallowMergeYAML` marks destinations in a project
+  overlay's `cost` section as project-sourced (unexported field,
+  `FromProject()`), and the dispatcher skips any project destination that
+  contains `${` without a lookup. Sends are concurrent, 10s each, HTTPS only,
+  no redirects; reasons are redacted and never include a response body. CLI
+  tests swap the HTTP client with `cli.SetNotificationClientForTest`
 
 ### Registry (`internal/registry/`)
 
@@ -1062,6 +1086,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 ## Recent Changes
 
+- 625-budget-alert-notifications: Added Go 1.27.1 (see `go.mod`) + stdlib `net/http`, `encoding/json` (Slack and generic HTTPS webhook budget alert destinations, no new modules)
 - 622-include-dismissed: `cost recommendations --include-dismissed` sets `GetRecommendationsRequest.include_dismissed` (finfocus-spec field 8) and still sends excluded IDs; the cache key gains `/include-dismissed`
 - 621-k8s-workload-projected-cost: finfocus-spec v0.7.3 (`ResourceDescriptor.attributes`); core sends redacted attributes; the kubernetes plugin prices declared workloads
 - 608-batch-cost-consumer: Added Go 1.27.1 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging)
@@ -1072,6 +1097,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 ## Active Technologies
 
+- Go 1.27.1 (see `go.mod`) + stdlib `net/http`, `encoding/json`, Cobra, ax-go, testify; no persistent state (625-budget-alert-notifications)
 - Go 1.27.1 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging) (608-batch-cost-consumer)
 - BoltDB cost cache (`~/.finfocus/cache/cache.db`) — `Engine.GetProjectedCost` caches batch projected results per-resource via `storeProjectedCostCache`; `Engine.GetActualCostWithOptions` caches actual-cost results by full request key via `storeActualCostCacheIfClean` (608-batch-cost-consumer)
 - Go 1.27.1 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`) (608-resource-history-store)

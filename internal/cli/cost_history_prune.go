@@ -66,7 +66,7 @@ func runPrune(cmd *cobra.Command, dir string) error {
 		cmd.Printf("Stack: %s\nNothing to prune.\n", stack)
 		return nil
 	}
-	if historyDryRun(cmd) {
+	if dryRunRequested(cmd) {
 		writePruneDryRun(cmd, stack, plan, policy)
 		return nil
 	}
@@ -110,7 +110,9 @@ func flagForce(cmd *cobra.Command) bool {
 	return err == nil && value
 }
 
-func historyDryRun(cmd *cobra.Command) bool {
+// dryRunRequested reports whether the global --dry-run flag is set, from the ax
+// context or, for commands run without ax.Execute, from the flag itself.
+func dryRunRequested(cmd *cobra.Command) bool {
 	if cmd != nil && ax.DryRunFromContext(commandContext(cmd)) {
 		return true
 	}

@@ -1075,3 +1075,68 @@ cost:
 	require.NotNil(t, exitCode)
 	assert.Equal(t, 2, *exitCode)
 }
+
+func TestAlertConfig_ValidateNotifications(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		alert    config.AlertConfig
+		wantErr  error
+		contains string
+	}{
+		{
+			name: "valid destinations",
+			alert: config.AlertConfig{
+				Threshold: 80,
+				Type:      config.AlertTypeActual,
+				Notifications: []config.NotificationDestination{
+					{Type: "slack", URL: "${FINFOCUS_NOTIFY_SLACK_URL}"},
+					{Type: "webhook", URL: "https://api.example.com/hook"},
+				},
+			},
+		},
+		{
+			name: "second destination invalid carries its index",
+			alert: config.AlertConfig{
+				Threshold: 80,
+				Type:      config.AlertTypeActual,
+				Notifications: []config.NotificationDestination{
+					{Type: "slack", URL: "https://hooks.slack.com/x"},
+					{Type: "webhook", URL: "http://api.example.com"},
+				},
+			},
+			wantErr:  config.ErrNotificationHTTPSRequired,
+			contains: "notifications[1]: url",
+		},
+		{
+			name: "non-prefixed variable names the variable",
+			alert: config.AlertConfig{
+				Threshold: 80,
+				Type:      config.AlertTypeActual,
+				Notifications: []config.NotificationDestination{
+					{
+						Type:    "webhook",
+						URL:     "https://api.example.com",
+						Headers: map[string]string{"X-Key": "${API_TOKEN}"},
+					},
+				},
+			},
+			wantErr:  config.ErrNotificationVariableNotAllowed,
+			contains: "API_TOKEN",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := tc.alert.Validate()
+			if tc.wantErr == nil {
+				require.NoError(t, err)
+				return
+			}
+			require.ErrorIs(t, err, tc.wantErr)
+			assert.Contains(t, err.Error(), tc.contains)
+		})
+	}
+}

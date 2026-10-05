@@ -62,7 +62,7 @@ type overviewParams struct {
 // and recommendations. It supports auto-detection of the Pulumi project/stack or explicit
 // --pulumi-state / --pulumi-json inputs, and is configured with flags for date range, adapter,
 // output format, resource filtering, interactive/plain mode, pagination, confirmation behavior,
-// and budget controls (exit-on-threshold, exit-code, budget-scope).
+// and budget controls (exit-on-threshold, exit-code, notify, budget-scope).
 func NewOverviewCmd() *cobra.Command {
 	var params overviewParams
 
@@ -119,6 +119,7 @@ instead of running Pulumi CLI commands.`,
 		"Exit with non-zero code when budget thresholds are exceeded (non-TTY only)")
 	cmd.Flags().IntVar(&params.exitCode, "exit-code", 1,
 		"Exit code to use when budget thresholds are exceeded (0-255)")
+	cmd.Flags().Bool(notifyFlag, false, notifyFlagUsage)
 	cmd.Flags().StringVar(&params.budgetScope, "budget-scope", "",
 		"Filter budget scopes to display: global, provider, provider=aws, tag, type (comma-separated)")
 	cmd.Flags().BoolVar(&params.stateOnly, "state-only", false,

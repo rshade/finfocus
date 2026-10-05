@@ -45,6 +45,8 @@ var knownTopLevelKeys = map[string]bool{
 // ShallowMergeYAML loads a Hujson/JSON file (or legacy YAML for backward compatibility)
 // and merges its top-level keys onto the target Config. Keys present in the overlay
 // replace entire sections in the target. Keys absent in the overlay are left unchanged.
+// The overlay is a project config, so every notification destination in an
+// overlay cost section is marked as project-sourced and never expands variables.
 func ShallowMergeYAML(target *Config, overlayPath string) error {
 	if target == nil {
 		return errors.New("nil target *Config in ShallowMergeYAML")
@@ -145,6 +147,7 @@ func unmarshalSection(target *Config, key string, data []byte) error {
 		if err := json.Unmarshal(data, &v); err != nil {
 			return err
 		}
+		markProjectDestinations(v.Budgets)
 		target.Cost = v
 		return nil
 	case keyRouting:

@@ -246,3 +246,143 @@ func findError(errs []ValidationError, path string) *ValidationError {
 	}
 	return nil
 }
+
+func TestValidateConfigSource_Notifications(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		src  string
+		path string
+		text string
+		hint string
+	}{
+		{
+			name: "global http url",
+			src: `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD","alerts":[
+  {"threshold":80,"type":"actual","notifications":[
+    {"type":"slack","url":"https://hooks.slack.com/x"},
+    {"type":"webhook","url":"http://api.example.com"}
+  ]}
+]}}}}`,
+			path: "cost.budgets.global.alerts[0].notifications[1].url",
+			text: "HTTPS is required",
+			hint: "https://",
+		},
+		{
+			name: "provider unknown type",
+			src: `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD"},
+  "providers":{"aws":{"amount":50,"alerts":[{"threshold":100,"type":"forecasted",
+    "notifications":[{"type":"email","url":"https://example.com"}]}]}}}}}`,
+			path: "cost.budgets.providers.aws.alerts[0].notifications[0].type",
+			text: "slack, webhook",
+			hint: "slack, webhook",
+		},
+		{
+			name: "tag webhook channel",
+			src: `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD"},
+  "tags":[{"selector":"team:platform","amount":20,"alerts":[{"threshold":80,"type":"actual",
+    "notifications":[{"type":"webhook","url":"https://example.com","channel":"#x"}]}]}]}}}`,
+			path: "cost.budgets.tags[0].alerts[0].notifications[0].channel",
+			text: "slack",
+			hint: "slack",
+		},
+		{
+			name: "type budget references a CI variable",
+			src: `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD"},
+  "types":{"aws:ec2/instance":{"amount":20,"alerts":[{"threshold":80,"type":"actual",
+    "notifications":[{"type":"webhook","url":"https://example.com","headers":{"Authorization":"${GITHUB_TOKEN}"}}]}]}}}}}`,
+			path: "cost.budgets.types.aws:ec2/instance.alerts[0].notifications[0].headers.Authorization",
+			text: "GITHUB_TOKEN",
+			hint: "FINFOCUS_NOTIFY_",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, _ := ValidateConfigSource("config.hujson", []byte(tt.src))
+			require.False(t, result.Valid)
+			got := findError(result.Errors, tt.path)
+			require.NotNil(t, got, "errors: %+v", result.Errors)
+			assert.Contains(t, got.Message, tt.text)
+			assert.Contains(t, got.Hint, tt.hint)
+			assert.Positive(t, got.Line)
+		})
+	}
+}
+
+func TestValidateConfigSource_NotificationKeysAreKnown(t *testing.T) {
+	t.Parallel()
+
+	src := `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD","alerts":[
+  {"threshold":80,"type":"actual","notifications":[
+    {"type":"slack","url":"${FINFOCUS_NOTIFY_SLACK_URL}","channel":"#finops"},
+    {"type":"webhook","url":"https://api.example.com","method":"PUT",
+     "headers":{"Authorization":"Bearer ${FINFOCUS_NOTIFY_API_TOKEN}"}}
+  ]}
+]}}}}`
+	result, cfg := ValidateConfigSource("config.hujson", []byte(src))
+	require.True(t, result.Valid, "errors: %+v", result.Errors)
+	assert.Empty(t, result.Warnings)
+	require.NotNil(t, cfg)
+	assert.Len(t, cfg.Cost.Budgets.Global.Alerts[0].Notifications, 2)
+}
+
+func TestValidateProjectConfigSource(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		src   string
+		valid bool
+		path  string
+	}{
+		{
+			name: "literal https destination passes",
+			src: `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD","alerts":[
+  {"threshold":80,"type":"actual","notifications":[{"type":"webhook","url":"https://api.example.com/hook"}]}
+]}}}}`,
+			valid: true,
+		},
+		{
+			name: "allowed variable in url is rejected",
+			src: `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD","alerts":[
+  {"threshold":80,"type":"actual","notifications":[{"type":"slack","url":"${FINFOCUS_NOTIFY_SLACK_URL}"}]}
+]}}}}`,
+			path: "cost.budgets.global.alerts[0].notifications[0].url",
+		},
+		{
+			name: "variable in a provider header is rejected",
+			src: `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD"},
+  "providers":{"aws":{"amount":50,"alerts":[{"threshold":80,"type":"actual","notifications":[
+    {"type":"webhook","url":"https://api.example.com","headers":{"Authorization":"Bearer ${FINFOCUS_NOTIFY_TOKEN}"}}]}]}}}}}`,
+			path: "cost.budgets.providers.aws.alerts[0].notifications[0].headers.Authorization",
+		},
+		{
+			name: "variable in a tag destination is rejected",
+			src: `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD"},
+  "tags":[{"selector":"team:x","amount":5,"alerts":[{"threshold":80,"type":"actual","notifications":[
+    {"type":"slack","url":"${FINFOCUS_NOTIFY_SLACK_URL}"}]}]}],
+  "types":{"aws:s3/bucket":{"amount":5,"alerts":[{"threshold":80,"type":"actual","notifications":[
+    {"type":"slack","url":"https://hooks.slack.com/x"}]}]}}}}}`,
+			path: "cost.budgets.tags[0].alerts[0].notifications[0].url",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result, _ := ValidateProjectConfigSource(".finfocus/config.hujson", []byte(tt.src))
+			assert.Equal(t, tt.valid, result.Valid, "errors: %+v", result.Errors)
+			if tt.valid {
+				return
+			}
+			got := findError(result.Errors, tt.path)
+			require.NotNil(t, got, "errors: %+v", result.Errors)
+			assert.Contains(t, got.Message, "project config")
+			assert.Contains(t, got.Hint, "global config")
+			assert.Positive(t, got.Line)
+		})
+	}
+}

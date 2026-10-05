@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "finfocus budget.threshold.exceeded webhook event",
+  "type": "object",
+  "required": ["event", "timestamp", "budget", "threshold", "current", "metadata"],
+  "additionalProperties": false,
+  "properties": {
+    "event": {"const": "budget.threshold.exceeded"},
+    "timestamp": {"type": "string", "format": "date-time"},
+    "budget": {
+      "type": "object",
+      "required": ["name", "scope", "amount", "currency", "period"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "description": "global, or <scope>:<scope_key>"},
+        "scope": {"enum": ["global", "provider", "tag", "type"]},
+        "scope_key": {"type": "string"},
+        "amount": {"type": "number"},
+        "currency": {"type": "string"},
+        "period": {"const": "monthly"}
+      }
+    },
+    "threshold": {
+      "type": "object",
+      "required": ["percentage", "type", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "percentage": {"type": "number"},
+        "type": {"enum": ["actual", "forecasted"]},
+        "value": {"type": "number"}
+      }
+    },
+    "current": {
+      "type": "object",
+      "required": ["spend", "percentage"],
+      "additionalProperties": false,
+      "properties": {
+        "spend": {"type": "number", "description": "Forecasted spend when threshold.type is forecasted"},
+        "percentage": {"type": "number"}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "required": ["source", "version"],
+      "additionalProperties": false,
+      "properties": {
+        "source": {"const": "finfocus"},
+        "version": {"type": "string"}
+      }
+    }
+  }
+}
