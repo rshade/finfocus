@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.4](https://github.com/rshade/finfocus/compare/v0.4.3...v0.4.4) (2026-10-05)
+
+
+### Added
+
+* **budget:** send Slack and webhook notifications for budget alerts ([#1708](https://github.com/rshade/finfocus/issues/1708)) ([6824279](https://github.com/rshade/finfocus/commit/68242796c57149d14199dbb26eed8d19b0181bd9))
+* **overview:** expand Kubernetes cluster resources into workload rows ([#1705](https://github.com/rshade/finfocus/issues/1705)) ([08236bc](https://github.com/rshade/finfocus/commit/08236bccb41d025723586baa266c2c10b611e365))
+
+
+### Fixed
+
+* **engine:** report plugin's error instead of 'no cost data available' ([#1701](https://github.com/rshade/finfocus/issues/1701)) ([6619430](https://github.com/rshade/finfocus/commit/66194306bfb9b673cfce69e4cee20382be8afdf1))
+
+
+### Changed
+
+* **overview:** compute once, render many ([#853](https://github.com/rshade/finfocus/issues/853)) ([#1700](https://github.com/rshade/finfocus/issues/1700)) ([260b45c](https://github.com/rshade/finfocus/commit/260b45ce6515c28c034782c7fb2947eb5ba35fc6))
+
+
+### Documentation
+
+* **github:** stop pinning versions in Copilot instructions ([#1710](https://github.com/rshade/finfocus/issues/1710)) ([91a226d](https://github.com/rshade/finfocus/commit/91a226d74a931eaa30230ef4252811749c27234b))
+* link finfocus-action and its live demo ([#1712](https://github.com/rshade/finfocus/issues/1712)) ([54b046d](https://github.com/rshade/finfocus/commit/54b046d594bf161ee29e682654d3cf2049db5ace))
+
 ## [0.4.3](https://github.com/rshade/finfocus/compare/v0.4.2...v0.4.3) (2026-10-05)
 
 
