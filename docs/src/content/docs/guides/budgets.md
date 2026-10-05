@@ -624,7 +624,7 @@ JSON event:
 ### Security: Project Config and Pull Requests
 
 A project config (`$PROJECT/.finfocus/config.hujson`) is committed, so a pull
-request can edit it. Two rules keep CI secrets out of a destination that a
+request can edit it. Three rules keep CI secrets out of a destination that a
 pull request controls:
 
 1. Only `${FINFOCUS_NOTIFY_*}` variables expand, in any config. A reference

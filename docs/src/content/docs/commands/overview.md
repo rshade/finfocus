@@ -261,7 +261,7 @@ the output mode.
 |------|-------------|-----------|
 | `--exit-on-threshold` | Exit non-zero when budget threshold exceeded | Plain, JSON |
 | `--exit-code` | Exit code when threshold exceeded (0-255) | Plain, JSON |
-| `--notify` | Send budget notifications for exceeded thresholds | Plain, JSON |
+| `--notify` | Send budget notifications for exceeded thresholds | Plain, JSON, NDJSON |
 | `--budget-scope` | Filter budget scopes (global, provider, tag, type) | All modes |
 
 ### Why is budget status missing in plain or NDJSON mode?

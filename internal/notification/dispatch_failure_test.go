@@ -164,6 +164,24 @@ func TestDeliverRedactsVariableHostOnDNSFailure(t *testing.T) {
 	assert.NotContains(t, results[0].Reason, "budget-notify-secret-host")
 }
 
+func TestDeliverRedactsLiteralHostOnDNSFailure(t *testing.T) {
+	t.Parallel()
+
+	host := "budget-notify-literal-host.invalid"
+	d := notification.NewDispatcher(nil, (&recordingLookup{}).lookup)
+	results := d.Deliver(context.Background(), []notification.Delivery{{
+		Destination: config.NotificationDestination{
+			Type: config.NotificationTypeWebhook, URL: "https://" + host + "/hook",
+		},
+		Event: testEvent(80),
+	}}, notification.Options{Timeout: 5 * time.Second})
+
+	require.Len(t, results, 1)
+	assert.Equal(t, notification.OutcomeFailed, results[0].Outcome)
+	assert.Contains(t, results[0].Reason, notification.RedactedText)
+	assert.NotContains(t, results[0].Reason, "budget-notify-literal-host")
+}
+
 // headerEchoSender fails with an error that quotes every resolved header value,
 // to show which values the dispatcher redacts.
 type headerEchoSender struct{}

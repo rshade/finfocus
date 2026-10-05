@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
+	"net/url"
 	"sort"
 	"strings"
 	"sync"
@@ -161,8 +162,9 @@ func (d *Dispatcher) deliverOne(
 	return withOutcome(result, OutcomeSent, "")
 }
 
-// resolve expands dest's variables. The URL, every variable value, and every
-// value built from a variable are registered with redactor. A literal header
+// resolve expands dest's variables. The URL, its host (network errors name the
+// host alone), every variable value, and every value built from a variable are
+// registered with redactor. A literal header
 // value is registered only when it looks like a secret (see secretHeader), so
 // a short value such as "1" does not redact unrelated text.
 func (d *Dispatcher) resolve(dest config.NotificationDestination, redactor *Redactor) (Resolved, error) {
@@ -180,6 +182,10 @@ func (d *Dispatcher) resolve(dest config.NotificationDestination, redactor *Reda
 		return Resolved{}, fmt.Errorf("url: %w", err)
 	}
 	redactor.Add(resolvedURL)
+	if parsed, parseErr := url.Parse(resolvedURL); parseErr == nil {
+		redactor.Add(parsed.Host)
+		redactor.Add(parsed.Hostname())
+	}
 
 	headers := make(map[string]string, len(dest.Headers))
 	names := make([]string, 0, len(dest.Headers))
