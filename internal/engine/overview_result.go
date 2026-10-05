@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -60,15 +61,15 @@ type OverviewRowResult struct {
 	Source OverviewRow
 }
 
-// OverviewSummary holds pre-computed aggregate totals across all rows.
+// OverviewTotals holds pre-computed aggregate totals across all rows. It is
+// serialized as OverviewSummary in the JSON output.
 // Computed once by ComputeOverviewResult and shared by every renderer.
-type OverviewSummary struct {
+type OverviewTotals struct {
 	TotalActual    float64
 	TotalProjected float64
 	TotalDelta     float64
 	TotalSavings   float64
 	Currency       string
-	ResourceCount  int
 	// Errors collects per-row errors for the JSON errors array.
 	Errors []OverviewRowError
 	// MixedCurrencies is set when rows carry different non-empty currencies.
@@ -80,15 +81,15 @@ type OverviewSummary struct {
 // OverviewResult holds all pre-computed display values for the overview.
 type OverviewResult struct {
 	Rows    []OverviewRowResult
-	Summary OverviewSummary
+	Summary OverviewTotals
 }
 
 // ComputeOverviewResult computes every display value for the overview once:
 // per-row deltas (via PopulateComputedDeltas), per-row display values, and the
 // aggregate summary. Renderers consume the result without recomputing.
-// It writes ComputedDelta onto rows in place, so callers that keep rows see
-// the same deltas as the result.
+// The caller's rows are not modified.
 func ComputeOverviewResult(rows []OverviewRow, dayOfMonth int) OverviewResult {
+	rows = slices.Clone(rows)
 	PopulateComputedDeltas(rows, dayOfMonth)
 
 	results := make([]OverviewRowResult, len(rows))
@@ -220,8 +221,8 @@ func checkCurrency(current *string, next string) error {
 // summarizeOverviewRows computes the aggregate summary across overview rows
 // with currency consistency checking. Per-row deltas are summed from the
 // pre-computed ComputedDelta values so the summary matches the rendered rows.
-func summarizeOverviewRows(rows []OverviewRow) OverviewSummary {
-	s := OverviewSummary{ResourceCount: len(rows)}
+func summarizeOverviewRows(rows []OverviewRow) OverviewTotals {
+	var s OverviewTotals
 	for i := range rows {
 		if rows[i].ComputedDelta != nil {
 			s.TotalDelta += *rows[i].ComputedDelta
@@ -240,7 +241,7 @@ func summarizeOverviewRows(rows []OverviewRow) OverviewSummary {
 // accumulateRow adds a single row's costs, savings, and errors to the summary.
 // Live allocation children re-allocate node cost already represented by the
 // cluster's node rows, so their costs are skipped to avoid double counting.
-func (s *OverviewSummary) accumulateRow(row *OverviewRow) error {
+func (s *OverviewTotals) accumulateRow(row *OverviewRow) error {
 	if row.Error != nil {
 		s.Errors = append(s.Errors, *row.Error)
 		return nil

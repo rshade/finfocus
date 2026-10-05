@@ -190,8 +190,8 @@ func FormatOverviewWarnings(warnings []OverviewWarning) string {
 }
 
 // renderSummaryFooter writes the summary line at the bottom of the table,
-// reading the pre-computed totals from the OverviewSummary.
-func renderSummaryFooter(tw *tabwriter.Writer, summary OverviewSummary, stackCtx StackContext) error {
+// reading the pre-computed totals from the OverviewTotals.
+func renderSummaryFooter(tw *tabwriter.Writer, summary OverviewTotals, stackCtx StackContext) error {
 	if summary.MixedCurrencies {
 		return ErrMixedCurrencies
 	}
@@ -235,8 +235,8 @@ type OverviewMetadata struct {
 	StackContext
 }
 
-// OverviewJSONSummary holds aggregated summary statistics for the JSON output.
-type OverviewJSONSummary struct {
+// OverviewSummary holds aggregated summary statistics for the JSON output.
+type OverviewSummary struct {
 	TotalActualMTD   float64 `json:"totalActualMTD"`
 	ProjectedMonthly float64 `json:"projectedMonthly"`
 	ProjectedDelta   float64 `json:"projectedDelta"`
@@ -248,7 +248,7 @@ type OverviewJSONSummary struct {
 type OverviewJSONOutput struct {
 	Metadata  OverviewMetadata     `json:"metadata"`
 	Resources []OverviewRow        `json:"resources"`
-	Summary   OverviewJSONSummary  `json:"summary"`
+	Summary   OverviewSummary      `json:"summary"`
 	Budgets   []BudgetHealthResult `json:"budgets,omitempty"`
 	Errors    []OverviewRowError   `json:"errors"`
 }
@@ -305,7 +305,7 @@ func RenderOverviewAsJSON(
 			StackContext: stackCtx,
 		},
 		Resources: resources,
-		Summary: OverviewJSONSummary{
+		Summary: OverviewSummary{
 			TotalActualMTD:   result.Summary.TotalActual,
 			ProjectedMonthly: result.Summary.TotalProjected,
 			ProjectedDelta:   result.Summary.TotalDelta,

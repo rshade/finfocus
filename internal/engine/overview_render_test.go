@@ -595,7 +595,6 @@ func TestComputeOverviewResult_SingleCurrency(t *testing.T) {
 	assert.Equal(t, "EUR", result.Summary.Currency)
 	assert.InDelta(t, 10.0, result.Summary.TotalActual, 1e-9)
 	assert.InDelta(t, 20.0, result.Summary.TotalProjected, 1e-9)
-	assert.Equal(t, 3, result.Summary.ResourceCount)
 	assert.Len(t, result.Summary.Errors, 1)
 }
 
@@ -996,12 +995,16 @@ func TestRenderOverviewAsJSON_PerRowDeltaAndSummary(t *testing.T) {
 
 	// Summary delta = sum of per-row ComputedDelta values.
 	var expectedTotal float64
-	for _, row := range rows {
-		if row.ComputedDelta != nil {
-			expectedTotal += *row.ComputedDelta
+	for _, res := range output.Resources {
+		if res.ComputedDelta != nil {
+			expectedTotal += *res.ComputedDelta
 		}
 	}
+	assert.NotZero(t, expectedTotal)
 	assert.InDelta(t, expectedTotal, output.Summary.ProjectedDelta, 0.01)
+	for _, row := range rows {
+		assert.Nil(t, row.ComputedDelta, "ComputeOverviewResult must not modify the caller's rows")
+	}
 }
 
 func TestRenderOverviewAsJSON_CurrencyConsistency(t *testing.T) {

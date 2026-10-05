@@ -1029,11 +1029,6 @@ func (m *OverviewModel) renderPaginationFooter() string {
 	return fmt.Sprintf("Page %d/%d | Use PgUp/PgDn to navigate", m.currentPage, m.totalPages)
 }
 
-// AllRows returns all loaded rows (for external access).
-func (m *OverviewModel) AllRows() []engine.OverviewRowResult {
-	return m.allRows
-}
-
 // tickPreviewCmd returns a command that fires OverviewPreviewTickMsg after 1 second.
 // The model computes the actual elapsed from m.previewLoadStart in the handler.
 func tickPreviewCmd() tea.Cmd {

@@ -320,10 +320,10 @@ func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewR
 	switch row.Status { //nolint:exhaustive // StatusActive already returned above.
 	case engine.StatusUpdating, engine.StatusReplacing:
 		current := engine.ForceExtrapolateActual(row.Source, dayOfMonth)
-		if row.BaselineProjectedCost != nil {
-			current = row.BaselineProjectedCost.MonthlyCost
+		if baseline, ok := engine.GetBaselineProjectedMonthlyCost(row.Source); ok {
+			current = baseline
 		}
-		projected := overviewResultProjectedCost(row)
+		projected := engine.GetProjectedMonthlyCost(row.Source)
 		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
 		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))
 		content.WriteString("\n")
@@ -332,7 +332,7 @@ func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewR
 		content.WriteString("\n")
 
 	case engine.StatusCreating:
-		projected := overviewResultProjectedCost(row)
+		projected := engine.GetProjectedMonthlyCost(row.Source)
 		content.WriteString(LabelStyle.Render("  New Monthly Cost: "))
 		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(projected)))
 		content.WriteString("\n")
@@ -353,15 +353,6 @@ func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewR
 	}
 	content.WriteString(deltaStyle.Render(engine.FormatOverviewDelta(delta)))
 	content.WriteString("\n\n")
-}
-
-// overviewResultProjectedCost returns the pre-computed projected monthly cost
-// for a result row, or 0 when no projection is available.
-func overviewResultProjectedCost(row engine.OverviewRowResult) float64 {
-	if row.Projected != nil {
-		return *row.Projected
-	}
-	return 0
 }
 
 // renderDetailCostDrift writes cost drift details to the builder.
