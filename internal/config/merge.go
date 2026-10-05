@@ -21,6 +21,7 @@ const (
 	keyPluginHost      = "plugin_host"
 	keyCost            = "cost"
 	keyRouting         = "routing"
+	keyOverview        = "overview"
 	keyPluginDir       = "plugin_dir"
 	keyInstalledPlugin = "installed_plugins"
 )
@@ -38,6 +39,7 @@ var knownTopLevelKeys = map[string]bool{
 	keyCost:       true,
 	keyRouting:    true,
 	keyScoring:    true,
+	keyOverview:   true,
 }
 
 // ShallowMergeYAML loads a Hujson/JSON file (or legacy YAML for backward compatibility)
@@ -154,6 +156,8 @@ func unmarshalSection(target *Config, key string, data []byte) error {
 		return nil
 	case keyScoring:
 		return unmarshalPtr(data, &target.Scoring)
+	case keyOverview:
+		return unmarshalPtr(data, &target.Overview)
 	default:
 		// Defensive safety net: callers filter keys against knownTopLevelKeys before
 		// calling unmarshalSection, so this branch is effectively unreachable. It exists

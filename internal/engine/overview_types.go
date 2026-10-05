@@ -341,6 +341,15 @@ type OverviewRow struct {
 	// insufficient data points in the current billing window.
 	// Nil for resources from Pulumi < v3.60.0 or plan-only resources.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	// ParentURN references the cluster row this row is expanded under.
+	// Empty for top-level rows.
+	ParentURN string `json:"parentUrn,omitempty"`
+	// ExpansionSource marks how an expanded child row was produced:
+	// ExpansionSourceLive (synthetic allocation row) or
+	// ExpansionSourceProjected (a declared workload row). Empty otherwise.
+	ExpansionSource string `json:"expansionSource,omitempty"`
+	// ChildURNs lists the expanded children of a cluster row in display order.
+	ChildURNs []string `json:"childUrns,omitempty"`
 }
 
 // Validate checks that the OverviewRow fields are well-formed. It validates
@@ -392,6 +401,9 @@ func (r *OverviewRow) Validate() error {
 			return err
 		}
 	}
+	if r.ExpansionSource != "" && !IsValidExpansionSource(r.ExpansionSource) {
+		return fmt.Errorf("%w: invalid ExpansionSource: %q", ErrOverviewValidation, r.ExpansionSource)
+	}
 	return nil
 }
 
@@ -408,6 +420,9 @@ type StackContext struct {
 	GeneratedAt time.Time `json:"generatedAt,omitempty" ax:"nondeterministic"`
 	// IsStateOnly is true when no pulumi preview was run; costs reflect the current state only.
 	IsStateOnly bool `json:"isStateOnly,omitempty"`
+	// ExpansionNotes carries cluster-expansion footnotes (e.g. live data
+	// preferred over suppressed projected rows, assumed kubeconfig context).
+	ExpansionNotes []string `json:"expansionNotes,omitempty"`
 	// BudgetHealth provides a stack-level budget health summary for JSON output.
 	BudgetHealth *BudgetHealthSummary `json:"budgetHealth,omitempty"`
 }

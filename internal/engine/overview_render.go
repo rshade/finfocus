@@ -121,6 +121,20 @@ func truncateResource(urn string, maxLen int) string {
 	return urn[:maxLen-3] + "..."
 }
 
+// overviewResourceCell renders the RESOURCE column: the truncated URN, or
+// for an expansion child a `↳` indent before the namespace (live rows) or
+// URN (projected rows).
+func overviewResourceCell(row OverviewRow) string {
+	if row.ParentURN == "" {
+		return truncateResource(row.URN, colWidthResource)
+	}
+	name := LiveChildName(row)
+	if name == "" {
+		name = row.URN
+	}
+	return truncateResource("↳ "+name, colWidthResource)
+}
+
 // RenderOverviewAsTable writes a formatted ASCII table of the overview rows.
 func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContext) error {
 	tw := tabwriter.NewWriter(w, 0, 0, tabwriterPadding, ' ', 0)
@@ -144,7 +158,7 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 
 	// Rows
 	for _, row := range rows {
-		resource := truncateResource(row.URN, colWidthResource)
+		resource := overviewResourceCell(row)
 		resType := truncateResource(row.Type, colWidthType)
 		statusStr := StatusIcon(row.Status) + " " + row.Status.String()
 
@@ -190,6 +204,12 @@ func RenderOverviewAsTable(w io.Writer, rows []OverviewRow, stackCtx StackContex
 		)
 		if _, err := fmt.Fprintln(w, footnote); err != nil {
 			return fmt.Errorf("writing state-only footnote: %w", err)
+		}
+	}
+	// Cluster-expansion footnotes (live data preferred, assumed context).
+	for _, note := range stackCtx.ExpansionNotes {
+		if _, err := fmt.Fprintln(w, "† "+note); err != nil {
+			return fmt.Errorf("writing expansion footnote: %w", err)
 		}
 	}
 	return nil
@@ -277,28 +297,41 @@ func aggregateOverviewRows(rows []OverviewRow) (overviewRowTotals, error) {
 			t.errors = append(t.errors, *row.Error)
 			continue
 		}
-		if row.ActualCost != nil {
-			t.actual += row.ActualCost.MTDCost
-			if err := checkCurrency(&t.currency, row.ActualCost.Currency); err != nil {
-				return t, err
-			}
+		// Live allocation children re-allocate node cost already represented
+		// by the cluster's node rows; summing them would double count.
+		if row.ExpansionSource == ExpansionSourceLive {
+			continue
 		}
-		if row.ProjectedCost != nil {
-			t.projected += row.ProjectedCost.MonthlyCost
-			if err := checkCurrency(&t.currency, row.ProjectedCost.Currency); err != nil {
-				return t, err
-			}
-		}
-		for _, rec := range row.Recommendations {
-			if rec.Status != RecommendationStatusDismissed && rec.Status != RecommendationStatusSnoozed {
-				t.savings += rec.EstimatedSavings
-			}
+		if err := accumulateOverviewRow(&t, row); err != nil {
+			return t, err
 		}
 	}
 	if t.currency == "" {
 		t.currency = defaultCurrency
 	}
 	return t, nil
+}
+
+// accumulateOverviewRow adds one row's costs and savings into the totals.
+func accumulateOverviewRow(t *overviewRowTotals, row OverviewRow) error {
+	if row.ActualCost != nil {
+		t.actual += row.ActualCost.MTDCost
+		if err := checkCurrency(&t.currency, row.ActualCost.Currency); err != nil {
+			return err
+		}
+	}
+	if row.ProjectedCost != nil {
+		t.projected += row.ProjectedCost.MonthlyCost
+		if err := checkCurrency(&t.currency, row.ProjectedCost.Currency); err != nil {
+			return err
+		}
+	}
+	for _, rec := range row.Recommendations {
+		if rec.Status != RecommendationStatusDismissed && rec.Status != RecommendationStatusSnoozed {
+			t.savings += rec.EstimatedSavings
+		}
+	}
+	return nil
 }
 
 // checkCurrency validates that currency is consistent. On first non-empty

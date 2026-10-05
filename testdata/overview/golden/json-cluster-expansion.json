@@ -1,0 +1,137 @@
+{
+  "metadata": {
+    "stackName": "state-cluster-expansion",
+    "timeWindow": {
+      "start": "2025-05-31T12:00:00Z",
+      "end": "2025-06-15T12:00:00Z"
+    },
+    "hasChanges": false,
+    "totalResources": 7,
+    "pendingChanges": 0,
+    "generatedAt": "2025-06-15T12:00:00Z"
+  },
+  "resources": [
+    {
+      "urn": "urn:pulumi:prod::myapp::pulumi:providers:aws::default",
+      "type": "pulumi:providers:aws",
+      "resourceId": "provider-aws-default",
+      "status": "active"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::pulumi:providers:kubernetes::k8s",
+      "type": "pulumi:providers:kubernetes",
+      "resourceId": "provider-k8s-default",
+      "status": "active"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster",
+      "type": "aws:eks/cluster:Cluster",
+      "resourceId": "prod-cluster",
+      "status": "active",
+      "properties": {
+        "arn": "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+        "endpoint": "https://ABCDEF0123456789.gr7.us-east-1.eks.amazonaws.com",
+        "name": "prod-cluster"
+      },
+      "childUrns": [
+        "urn:pulumi:prod::myapp::kubernetes:apps/v1:Deployment::api",
+        "urn:pulumi:prod::myapp::kubernetes:apps/v1:Deployment::worker"
+      ]
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::kubernetes:apps/v1:Deployment::api",
+      "type": "kubernetes:apps/v1:Deployment",
+      "resourceId": "default/api",
+      "status": "active",
+      "properties": {
+        "metadata": {
+          "name": "api",
+          "namespace": "default"
+        },
+        "spec": {
+          "replicas": 3,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "example/api:1.0.0",
+                  "name": "api",
+                  "resources": {
+                    "requests": {
+                      "cpu": "500m",
+                      "memory": "1Gi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "parentUrn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster",
+      "expansionSource": "projected"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::kubernetes:apps/v1:Deployment::worker",
+      "type": "kubernetes:apps/v1:Deployment",
+      "resourceId": "jobs/worker",
+      "status": "active",
+      "properties": {
+        "metadata": {
+          "name": "worker",
+          "namespace": "jobs"
+        },
+        "spec": {
+          "replicas": 2,
+          "template": {
+            "spec": {
+              "containers": [
+                {
+                  "image": "example/worker:1.0.0",
+                  "name": "worker",
+                  "resources": {
+                    "requests": {
+                      "cpu": "250m",
+                      "memory": "512Mi"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      },
+      "parentUrn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster",
+      "expansionSource": "projected"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-1",
+      "type": "aws:ec2/instance:Instance",
+      "resourceId": "i-0123456789abcdef0",
+      "status": "active"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::kubernetes:core/v1:ConfigMap::app-config",
+      "type": "kubernetes:core/v1:ConfigMap",
+      "resourceId": "default/app-config",
+      "status": "active",
+      "properties": {
+        "data": {
+          "LOG_LEVEL": "info"
+        },
+        "metadata": {
+          "name": "app-config",
+          "namespace": "default"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "totalActualMTD": 0,
+    "projectedMonthly": 0,
+    "projectedDelta": 0,
+    "potentialSavings": 0,
+    "currency": "USD"
+  },
+  "errors": []
+}

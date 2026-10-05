@@ -106,6 +106,9 @@ type Config struct {
 	// Scoring configures the optional recommendation scoring step (off by default).
 	Scoring *ScoringConfig `yaml:"scoring,omitempty" json:"scoring,omitempty"`
 
+	// Overview configures the overview command. Nil means defaults everywhere.
+	Overview *OverviewConfig `yaml:"overview,omitempty" json:"overview,omitempty"`
+
 	InstalledPlugins []InstalledPlugin `yaml:"installed_plugins,omitempty" json:"installed_plugins,omitempty"`
 
 	// Internal fields
@@ -424,7 +427,7 @@ func (c *Config) UnmarshalJSON(data []byte) error {
 		return err
 	}
 	for _, key := range []string{keyOutput, keyPlugins, keyLogging, keyAnalyzer, keyPluginHost,
-		keyCost, keyRouting, keyScoring, keyPluginDir, keyInstalledPlugin} {
+		keyCost, keyRouting, keyScoring, keyOverview, keyPluginDir, keyInstalledPlugin} {
 		delete(keys, key)
 	}
 	c.extraKeys = keys
@@ -586,6 +589,8 @@ func (c *Config) Set(key, value string) error {
 		return c.setCostValue(parts[1:], value)
 	case keyScoring:
 		return c.setScoringValue(parts[1:], value)
+	case keyOverview:
+		return c.setOverviewValue(parts[1:], value)
 	default:
 		return fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -611,6 +616,8 @@ func (c *Config) Get(key string) (any, error) {
 		return c.getCostValue(parts[1:])
 	case keyScoring:
 		return c.getScoringValue(parts[1:])
+	case keyOverview:
+		return c.getOverviewValue(parts[1:])
 	default:
 		return nil, fmt.Errorf("unknown configuration section: %s", parts[0])
 	}
@@ -627,6 +634,7 @@ func (c *Config) List() map[string]any {
 		keyCost:       c.Cost,
 		keyRouting:    c.Routing,
 		keyScoring:    c.Scoring,
+		keyOverview:   c.Overview,
 	}
 }
 

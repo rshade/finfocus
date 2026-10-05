@@ -172,6 +172,9 @@ interactive dashboard built with Bubble Tea.
 | `/` | Enter filter mode |
 | `p` | In state-only mode, run `pulumi preview` and apply pending changes to the open table |
 | `PgUp` / `PgDn` | Navigate pages (when >250 resources) |
+| `e` | Toggle expansion of a cluster row (Kubernetes workloads) |
+| `Right` | Expand a cluster row |
+| `Left` | Collapse a cluster row |
 | `q` / `Ctrl+C` | Quit |
 
 ### Progressive loading
@@ -187,6 +190,55 @@ Press Enter on a resource to see a detailed breakdown including:
 - Projected cost (monthly) with breakdown
 - Cost drift analysis with extrapolation
 - Optimization recommendations with estimated savings
+
+## Kubernetes cluster expansion
+
+Rows for Kubernetes cluster resources (EKS, GKE, AKS) expand into workload
+rows. The cluster row shows a `▸` marker when collapsed and `▾` when
+expanded; children render indented beneath it.
+
+Two data sources feed the expansion:
+
+- **Projected**: workloads declared in the same Pulumi stack
+  (`kubernetes:apps/v1:Deployment`, `StatefulSet`, `DaemonSet`,
+  `kubernetes:batch/v1:Job`, `CronJob`) nest under the cluster row and keep
+  their individually priced projected cost.
+- **Live**: when a usage-source plugin and an allocator plugin are installed
+  (e.g. `finfocus plugin install kubernetes`), the cluster is expanded from
+  live allocation data grouped by namespace, including idle capacity. Live
+  rows re-allocate node cost already shown by other rows, so they are
+  excluded from the summary totals.
+
+When both are available, live data wins: the projected workload rows are
+hidden and a `†` footnote reports how many were suppressed. The summary
+resource count still includes the hidden rows and does not count the live
+namespace rows.
+
+The usage-source plugin is asked for these kubeconfig contexts in order, and
+the first one it answers is used:
+
+1. The `overview.cluster_contexts` config mapping (cluster name or full URN
+   to context). When a mapping exists, it is the only context tried.
+2. The cluster's `name` property, its full ARN (the context name that
+   `aws eks update-kubeconfig` writes), and the name segment of its ARN.
+3. The current context, for single-cluster stacks only (footnoted as
+   assumed).
+
+Set a mapping with `finfocus config set overview.cluster_contexts.<cluster>
+<context>`. A cluster with no answering context keeps its projected view.
+Clusters that are being deleted, or whose cost lookup failed, are not
+expanded.
+
+Projected grouping needs exactly one cluster in the stack. A stack with more
+than one cluster keeps its declared workload rows flat, because core cannot
+tell which cluster a workload is deployed to. Live expansion still runs for
+each cluster that has a name, ARN, or mapping.
+
+In JSON and NDJSON output the rows stay flat: children carry `parentUrn` and
+`expansionSource` (`live` or `projected`), and the cluster row carries
+`childUrns` in display order. Live namespace rows use the type
+`finfocus:k8s/namespace:Allocation` and URNs of the form
+`<clusterURN>#ns/<namespace>`.
 
 ## Budget Status
 

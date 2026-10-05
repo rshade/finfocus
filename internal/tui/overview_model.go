@@ -165,6 +165,11 @@ type OverviewModel struct {
 	budgetResult *engine.BudgetResult // Budget data from plugins (nil until loaded)
 	budgetErr    error                // Budget fetch error (nil on success)
 	budgetLoaded bool                 // True after BudgetDataReadyMsg received
+
+	// Cluster expansion state (spec 624).
+	expanded       map[string]bool // parent URN → expanded
+	displayToRows  []int           // display row index → index into m.rows
+	expansionNotes []string        // `†` footnotes for the list view
 }
 
 // NewOverviewModel creates a new interactive overview model.
@@ -211,6 +216,7 @@ func NewOverviewModel(
 		passphraseInput: pi,
 		passphraseChan:  passphraseChan,
 		previewCmd:      previewCmd,
+		expanded:        map[string]bool{},
 	}
 
 	// Initialize table with skeleton data
@@ -311,10 +317,9 @@ func (m *OverviewModel) targetVariableColumnWidths() (int, int) {
 	resourceTarget = max(resourceTarget, utf8.RuneCountInString(columnTitleResource))
 	typeTarget = max(typeTarget, utf8.RuneCountInString(columnTitleType))
 
-	for _, row := range m.getVisibleRows() {
-		resourceName := resourceDisplayName(row.URN)
-		resourceTarget = max(resourceTarget, utf8.RuneCountInString(resourceName))
-		typeTarget = max(typeTarget, utf8.RuneCountInString(row.Type))
+	for _, entry := range m.displayEntries() {
+		resourceTarget = max(resourceTarget, utf8.RuneCountInString(m.entryResourceName(entry)))
+		typeTarget = max(typeTarget, utf8.RuneCountInString(entry.row.Type))
 	}
 	return resourceTarget, typeTarget
 }
@@ -452,6 +457,15 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Handle cluster expansion results (sent after enrichment completes).
+	if expMsg, ok := msg.(OverviewExpansionReadyMsg); ok {
+		m.allRows = make([]engine.OverviewRow, len(expMsg.Rows))
+		copy(m.allRows, expMsg.Rows)
+		m.expansionNotes = expMsg.Notes
+		m.applyFilter(m.textInput.Value())
+		return m, nil
+	}
+
 	// Handle filter input
 	if m.showFilter {
 		return m.handleFilterInput(msg)
@@ -577,10 +591,19 @@ func (m OverviewModel) handleListKeypress(keyMsg tea.KeyPressMsg) (tea.Model, te
 		m.state = ViewStateQuitting
 		return m, tea.Quit
 	case keyEnter:
-		m.selected = m.absoluteIndex(m.table.Cursor())
+		m.selected = m.displayIndex(m.table.Cursor())
 		if m.selected >= 0 && m.selected < len(m.rows) {
 			m.state = ViewStateDetail
 		}
+		return m, nil
+	case keyE:
+		m.toggleExpansion(m.table.Cursor())
+		return m, nil
+	case keyRight:
+		m.setExpansion(m.table.Cursor(), true)
+		return m, nil
+	case keyLeft:
+		m.setExpansion(m.table.Cursor(), false)
 		return m, nil
 	case keySlash:
 		m.showFilter = true
@@ -630,6 +653,55 @@ func (m OverviewModel) absoluteIndex(cursor int) int {
 		return (m.currentPage-1)*maxOverviewResourcesPerPage + cursor
 	}
 	return cursor
+}
+
+// displayIndex converts a table cursor position to an index into m.rows,
+// honoring the expansion display order built by buildOverviewTable.
+func (m OverviewModel) displayIndex(cursor int) int {
+	if cursor >= 0 && cursor < len(m.displayToRows) {
+		return m.displayToRows[cursor]
+	}
+	return m.absoluteIndex(cursor)
+}
+
+// expandableRow returns the rows index at a display cursor when that row is a
+// cluster row with children, or -1 otherwise.
+func (m OverviewModel) expandableRow(cursor int) int {
+	idx := m.displayIndex(cursor)
+	if idx < 0 || idx >= len(m.rows) || len(m.rows[idx].ChildURNs) == 0 {
+		return -1
+	}
+	return idx
+}
+
+// toggleExpansion flips the expanded state of the cluster row at cursor.
+func (m *OverviewModel) toggleExpansion(cursor int) {
+	idx := m.expandableRow(cursor)
+	if idx < 0 {
+		return
+	}
+	urn := m.rows[idx].URN
+	if m.expanded == nil {
+		m.expanded = map[string]bool{}
+	}
+	m.expanded[urn] = !m.expanded[urn]
+	m.rebuildTable()
+}
+
+// setExpansion expands (true) or collapses (false) the cluster row at cursor.
+func (m *OverviewModel) setExpansion(cursor int, expand bool) {
+	idx := m.expandableRow(cursor)
+	if idx < 0 {
+		return
+	}
+	if m.expanded == nil {
+		m.expanded = map[string]bool{}
+	}
+	urn := m.rows[idx].URN
+	if m.expanded[urn] != expand {
+		m.expanded[urn] = expand
+		m.rebuildTable()
+	}
 }
 
 func (m OverviewModel) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -694,6 +766,123 @@ func formatOverviewWarnCell(warnings []engine.OverviewWarning) string {
 	return string(warnings[0]) + "+" + strconv.Itoa(len(warnings)-1)
 }
 
+// overviewDisplayEntry pairs a row to render with its index in m.rows and
+// whether it is an expansion child (rendered indented).
+type overviewDisplayEntry struct {
+	row     engine.OverviewRow
+	rowsIdx int
+	child   bool
+}
+
+// displayEntries computes the rows to show in the table: the current page's
+// pagination units in sorted order, each followed by its children when
+// expanded. Children are hidden while their parent is collapsed. When the
+// filter box has text the list is rendered flat, preserving the filter's
+// substring semantics.
+func (m *OverviewModel) displayEntries() []overviewDisplayEntry {
+	filtered := m.textInput.Value() != ""
+	childrenByParent := map[string][]int{}
+	if !filtered {
+		for i := range m.rows {
+			if parent := m.rows[i].ParentURN; parent != "" {
+				childrenByParent[parent] = append(childrenByParent[parent], i)
+			}
+		}
+	}
+
+	var entries []overviewDisplayEntry
+	for _, i := range m.pageUnits() {
+		r := m.rows[i]
+		entries = append(entries, overviewDisplayEntry{row: r, rowsIdx: i, child: r.ParentURN != ""})
+		if filtered || !m.expanded[r.URN] {
+			continue
+		}
+		for _, c := range childrenByParent[r.URN] {
+			entries = append(entries, overviewDisplayEntry{row: m.rows[c], rowsIdx: c, child: true})
+		}
+	}
+	return entries
+}
+
+// expansionDisplayName renders a compact name for an expansion child row:
+// live allocation rows show their namespace (or "(idle)"); projected rows
+// use the regular URN display name.
+func expansionDisplayName(row engine.OverviewRow) string {
+	if name := engine.LiveChildName(row); name != "" {
+		return name
+	}
+	return resourceDisplayName(row.URN)
+}
+
+// entryResourceName is the untruncated Resource cell for a display entry:
+// the ▸/▾ marker on cluster rows, the ↳ indent on children, else the
+// regular URN display name.
+func (m *OverviewModel) entryResourceName(entry overviewDisplayEntry) string {
+	switch {
+	case entry.child:
+		return "  ↳ " + expansionDisplayName(entry.row)
+	case len(entry.row.ChildURNs) > 0:
+		if m.expanded[entry.row.URN] {
+			return "▾ " + expansionDisplayName(entry.row)
+		}
+		return "▸ " + expansionDisplayName(entry.row)
+	default:
+		return resourceDisplayName(entry.row.URN)
+	}
+}
+
+// overviewTableRow renders one display entry as a table row, applying the
+// expansion marker (▸/▾) to cluster rows and the ↳ indent to child rows.
+func (m *OverviewModel) overviewTableRow(entry overviewDisplayEntry, resourceWidth int) table.Row {
+	overviewRow := entry.row
+
+	resourceName := truncateResourceName(overviewRow.URN, resourceWidth)
+	if entry.child || len(overviewRow.ChildURNs) > 0 {
+		resourceName = truncateResourceName(m.entryResourceName(entry), resourceWidth)
+	}
+	statusStr := fmt.Sprintf("%s %s", engine.StatusIcon(overviewRow.Status), overviewRow.Status.String())
+
+	actualStr := "-"
+	if overviewRow.ActualCost != nil {
+		actualStr = fmt.Sprintf("$%.2f", overviewRow.ActualCost.MTDCost)
+	}
+
+	projectedStr := "-"
+	if overviewRow.ProjectedCost != nil {
+		projectedStr = fmt.Sprintf("$%.2f", overviewRow.ProjectedCost.MonthlyCost)
+	}
+
+	deltaStr := formatOverviewDeltaCell(overviewRow)
+
+	driftPctStr := "-"
+	if overviewRow.CostDrift != nil {
+		driftPctStr = fmt.Sprintf("%.1f%%", overviewRow.CostDrift.PercentDrift)
+	}
+
+	recsStr := "-"
+	if len(overviewRow.Recommendations) > 0 {
+		active, dismissed := engine.CountRecsActiveAndDismissed(overviewRow.Recommendations)
+		total := active + dismissed
+		if dismissed == 0 {
+			recsStr = strconv.Itoa(total)
+		} else {
+			recsStr = fmt.Sprintf("%d(-%d)", total, dismissed)
+		}
+	}
+
+	return table.Row{
+		resourceName,
+		overviewRow.Type,
+		statusStr,
+		actualStr,
+		projectedStr,
+		deltaStr,
+		driftPctStr,
+		recsStr,
+		formatOverviewWarnCell(overviewRow.Warnings),
+	}
+}
+
 // buildOverviewTable creates a new table model with current configuration.
 func (m *OverviewModel) buildOverviewTable() table.Model {
 	projectedHeader := "Projected"
@@ -714,52 +903,13 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		{Title: "Warn", Width: colWidthWarn},
 	}
 
-	visibleRows := m.getVisibleRows()
-	rows := make([]table.Row, len(visibleRows))
+	entries := m.displayEntries()
+	rows := make([]table.Row, len(entries))
+	m.displayToRows = make([]int, len(entries))
 
-	for i, overviewRow := range visibleRows {
-		resourceName := truncateResourceName(overviewRow.URN, resourceWidth)
-		statusStr := fmt.Sprintf("%s %s", engine.StatusIcon(overviewRow.Status), overviewRow.Status.String())
-
-		actualStr := "-"
-		if overviewRow.ActualCost != nil {
-			actualStr = fmt.Sprintf("$%.2f", overviewRow.ActualCost.MTDCost)
-		}
-
-		projectedStr := "-"
-		if overviewRow.ProjectedCost != nil {
-			projectedStr = fmt.Sprintf("$%.2f", overviewRow.ProjectedCost.MonthlyCost)
-		}
-
-		deltaStr := formatOverviewDeltaCell(overviewRow)
-
-		driftPctStr := "-"
-		if overviewRow.CostDrift != nil {
-			driftPctStr = fmt.Sprintf("%.1f%%", overviewRow.CostDrift.PercentDrift)
-		}
-
-		recsStr := "-"
-		if len(overviewRow.Recommendations) > 0 {
-			active, dismissed := engine.CountRecsActiveAndDismissed(overviewRow.Recommendations)
-			total := active + dismissed
-			if dismissed == 0 {
-				recsStr = strconv.Itoa(total)
-			} else {
-				recsStr = fmt.Sprintf("%d(-%d)", total, dismissed)
-			}
-		}
-
-		rows[i] = table.Row{
-			resourceName,
-			overviewRow.Type,
-			statusStr,
-			actualStr,
-			projectedStr,
-			deltaStr,
-			driftPctStr,
-			recsStr,
-			formatOverviewWarnCell(overviewRow.Warnings),
-		}
+	for i, entry := range entries {
+		m.displayToRows[i] = entry.rowsIdx
+		rows[i] = m.overviewTableRow(entry, resourceWidth)
 	}
 
 	availableHeight := max(m.height-summaryHeight-1, minHeight)
@@ -865,9 +1015,10 @@ func (m *OverviewModel) getDelta(row engine.OverviewRow) float64 {
 // enablePaginationIfNeeded checks if pagination should be enabled and clamps
 // the current page to valid bounds.
 func (m *OverviewModel) enablePaginationIfNeeded() {
-	if len(m.rows) > maxOverviewResourcesPerPage {
+	units := len(m.paginationUnits())
+	if units > maxOverviewResourcesPerPage {
 		m.paginationEnabled = true
-		m.totalPages = (len(m.rows) + maxOverviewResourcesPerPage - 1) / maxOverviewResourcesPerPage
+		m.totalPages = (units + maxOverviewResourcesPerPage - 1) / maxOverviewResourcesPerPage
 		if m.currentPage > m.totalPages {
 			m.currentPage = m.totalPages
 		}
@@ -880,20 +1031,50 @@ func (m *OverviewModel) enablePaginationIfNeeded() {
 	}
 }
 
-// getVisibleRows returns the rows for the current page.
-func (m *OverviewModel) getVisibleRows() []engine.OverviewRow {
+// paginationUnits returns the m.rows indices that pagination counts. While
+// the filter box is empty, an expansion child whose parent is in m.rows is
+// drawn under that parent, so it is not a unit of its own and always lands
+// on its parent's page.
+func (m *OverviewModel) paginationUnits() []int {
+	filtered := m.textInput.Value() != ""
+	parentPresent := map[string]bool{}
+	if !filtered {
+		for i := range m.rows {
+			if m.rows[i].ParentURN == "" {
+				parentPresent[m.rows[i].URN] = true
+			}
+		}
+	}
+	units := make([]int, 0, len(m.rows))
+	for i := range m.rows {
+		if filtered || m.rows[i].ParentURN == "" || !parentPresent[m.rows[i].ParentURN] {
+			units = append(units, i)
+		}
+	}
+	return units
+}
+
+// pageUnits returns the pagination units on the current page.
+func (m *OverviewModel) pageUnits() []int {
+	units := m.paginationUnits()
 	if !m.paginationEnabled {
-		return m.rows
+		return units
 	}
-
 	start := (m.currentPage - 1) * maxOverviewResourcesPerPage
-	end := min(start+maxOverviewResourcesPerPage, len(m.rows))
-
-	if start >= len(m.rows) {
-		return []engine.OverviewRow{}
+	if start >= len(units) {
+		return nil
 	}
+	return units[start:min(start+maxOverviewResourcesPerPage, len(units))]
+}
 
-	return m.rows[start:end]
+// getVisibleRows returns the pagination units on the current page.
+func (m *OverviewModel) getVisibleRows() []engine.OverviewRow {
+	units := m.pageUnits()
+	rows := make([]engine.OverviewRow, len(units))
+	for i, idx := range units {
+		rows[i] = m.rows[idx]
+	}
+	return rows
 }
 
 // renderPaginationFooter displays page info at the bottom.

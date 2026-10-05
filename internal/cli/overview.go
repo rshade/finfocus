@@ -25,6 +25,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
 	"github.com/rshade/finfocus/internal/logging"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	pulumidetect "github.com/rshade/finfocus/internal/pulumi"
 	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/tui"
@@ -222,10 +223,16 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	// 10b. Pre-compute per-row deltas so all renderers read the same values.
 	engine.PopulateComputedDeltas(rows, time.Now().Day())
 
+	// 10c. Cluster expansion: group declared workloads under cluster rows and,
+	// when usage-source/allocator plugins are installed, prefer live allocation
+	// data. Never fatal; failures fall back to the projected/flat view.
+	expansion := overviewExpansion{resourceCount: len(rows)}
+	rows, expansion.notes = expandOverviewClusters(ctx, rows, clients, eng, params.cfg)
+
 	// 11-14. Build context, render output, evaluate budgets.
 	if finalErr := finalizeOverviewOutput(
 		ctx, cmd, params, rows, eng, dateRange,
-		stackName, hasChanges, changeCount, isStateOnly, audit,
+		stackName, hasChanges, changeCount, isStateOnly, expansion, audit,
 	); finalErr != nil {
 		return finalErr
 	}
@@ -327,6 +334,7 @@ func finalizeOverviewOutput(
 	hasChanges bool,
 	changeCount int,
 	isStateOnly bool,
+	expansion overviewExpansion,
 	audit *auditContext,
 ) error {
 	log := logging.FromContext(ctx)
@@ -335,10 +343,11 @@ func finalizeOverviewOutput(
 		StackName:      stackName,
 		TimeWindow:     dateRange,
 		HasChanges:     hasChanges,
-		TotalResources: len(rows),
+		TotalResources: expansion.resourceCount,
 		PendingChanges: changeCount,
 		GeneratedAt:    time.Now(),
 		IsStateOnly:    isStateOnly,
+		ExpansionNotes: expansion.notes,
 	}
 
 	// Fetch budget data for JSON output (nil for other formats).
@@ -1340,11 +1349,8 @@ func overviewInitAndEnrich(
 	// after enrichment completes and total cost is known.
 	budgetChan := launchBudgetFetch(enrichCtx, eng)
 
-	// Phase 6: Enrichment (blocks until all rows enriched).
-	bridgeEnrichmentToTUI(enrichCtx, p, rows, eng, dateRange, rowCount)
-
-	// After enrichment, drain budget channel and apply config fallback if needed.
-	sendBudgetResultToTUI(enrichCtx, p, budgetChan, rows)
+	// Phase 6: Enrich rows, expand clusters, and deliver budget data.
+	runOverviewEnrichment(enrichCtx, p, rows, eng, dateRange, rowCount, clients, params.cfg, budgetChan)
 }
 
 // buildOverviewRows merges state resources with optional plan steps to produce
@@ -1695,6 +1701,31 @@ func readStackSettingsFile(projectDir, stackName string) ([]byte, error) {
 	return nil, lastErr
 }
 
+// runOverviewEnrichment is Phase 6 of the TUI init flow: it enriches rows
+// (bridging progress to the TUI), applies cluster expansion, and drains the
+// budget channel with the final row set.
+func runOverviewEnrichment(
+	enrichCtx context.Context,
+	p *tea.Program,
+	rows []engine.OverviewRow,
+	eng *engine.Engine,
+	dateRange engine.DateRange,
+	rowCount *atomic.Int64,
+	clients []*pluginhost.Client,
+	cfg *config.Config,
+	budgetChan <-chan budgetFetchResult,
+) {
+	// Enrichment (blocks until all rows enriched).
+	bridgeEnrichmentToTUI(enrichCtx, p, rows, eng, dateRange, rowCount)
+
+	// Cluster expansion (projected grouping + optional live allocation).
+	// Never fatal; the TUI only receives a message when expansion changed rows.
+	rows = sendClusterExpansionToTUI(enrichCtx, p, rows, clients, eng, cfg)
+
+	// Drain the budget channel and apply config fallback if needed.
+	sendBudgetResultToTUI(enrichCtx, p, budgetChan, rows)
+}
+
 // bridgeEnrichmentToTUI runs EnrichOverviewRows and bridges progress updates
 // to the Bubble Tea program via Send().
 func bridgeEnrichmentToTUI(
@@ -1834,12 +1865,14 @@ func applyOverviewBudgetFlags(cmd *cobra.Command, params overviewParams) BudgetF
 }
 
 // overviewRowsToBudgetInputs converts enriched OverviewRows to the []engine.CostResult
-// and totalCost that evaluateBudgetStatus expects. Rows with nil ProjectedCost are skipped.
+// and totalCost that evaluateBudgetStatus expects. Rows with nil ProjectedCost are skipped,
+// as are live cluster-allocation children, whose cost re-allocates node cost already
+// represented by other rows.
 func overviewRowsToBudgetInputs(rows []engine.OverviewRow) ([]engine.CostResult, float64) {
 	var costResults []engine.CostResult
 	var totalCost float64
 	for _, row := range rows {
-		if row.ProjectedCost == nil {
+		if row.ProjectedCost == nil || row.ExpansionSource == engine.ExpansionSourceLive {
 			continue
 		}
 		totalCost += row.ProjectedCost.MonthlyCost
@@ -1859,10 +1892,12 @@ func overviewRowsToBudgetInputs(rows []engine.OverviewRow) ([]engine.CostResult,
 // This intentionally duplicates the summation loop in overviewRowsToBudgetInputs because
 // callers in the TUI path (sendBudgetResultToTUI) need only the total cost without
 // allocating a []CostResult slice, while the non-TTY budget evaluation path needs both.
+// Live cluster-allocation children are skipped: their cost re-allocates node cost
+// already represented by other rows.
 func sumOverviewProjectedCost(rows []engine.OverviewRow) float64 {
 	var total float64
 	for _, row := range rows {
-		if row.ProjectedCost != nil {
+		if row.ProjectedCost != nil && row.ExpansionSource != engine.ExpansionSourceLive {
 			total += row.ProjectedCost.MonthlyCost
 		}
 	}

@@ -46,3 +46,13 @@ type BudgetDataReadyMsg struct {
 	Result *engine.BudgetResult // Complete budget result (nil on failure)
 	Error  error                // Fetch error (nil on success)
 }
+
+// OverviewExpansionReadyMsg is sent after enrichment completes when cluster
+// expansion changed the row set (projected workloads re-parented, live
+// allocation children added, or projected rows suppressed in favor of live
+// data). Rows replaces the model's full row list; Notes are rendered as
+// `†` footnotes in the list view.
+type OverviewExpansionReadyMsg struct {
+	Rows  []engine.OverviewRow
+	Notes []string
+}
