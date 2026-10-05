@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -197,6 +198,7 @@ func TestListLatestPlugins_Concurrency(t *testing.T) {
 }
 
 type mockLauncher struct {
+	mu          sync.Mutex
 	startCalled map[string]int
 }
 
@@ -205,6 +207,8 @@ func (m *mockLauncher) Start(
 	path string,
 	_ ...string,
 ) (*grpc.ClientConn, func() error, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.startCalled == nil {
 		m.startCalled = make(map[string]int)
 	}

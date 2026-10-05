@@ -1242,3 +1242,98 @@ sleep 0.1
 	assert.Contains(t, output, "LOG_FILE=/tmp/test-finfocus.log")
 	assert.Contains(t, output, "TRACE_ID=test-trace-abc123")
 }
+
+//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
+func TestProcessLauncher_PendingPortLifecycle(t *testing.T) {
+	launcher := NewProcessLauncher()
+	ctx := context.Background()
+
+	port, _, err := launcher.allocatePortWithListener(ctx)
+	require.NoError(t, err)
+	require.NoError(t, launcher.releasePortListener(port))
+
+	launcher.mu.Lock()
+	_, pending := launcher.pendingPorts[port]
+	launcher.mu.Unlock()
+	assert.True(t, pending, "port stays reserved until the plugin has bound it")
+
+	launcher.releasePendingPort(port)
+
+	launcher.mu.Lock()
+	_, pending = launcher.pendingPorts[port]
+	launcher.mu.Unlock()
+	assert.False(t, pending)
+}
+
+//nolint:paralleltest // re-binds a just-released ephemeral port that another parallel test could take
+func TestProcessLauncher_SkipsPendingPort(t *testing.T) {
+	launcher := NewProcessLauncher()
+	ctx := context.Background()
+
+	pendingPort, _, err := launcher.allocatePortWithListener(ctx)
+	require.NoError(t, err)
+	require.NoError(t, launcher.releasePortListener(pendingPort))
+	t.Cleanup(func() { launcher.releasePendingPort(pendingPort) })
+
+	// Simulate the OS handing the just-released port out again before the
+	// plugin that was given it has bound.
+	calls := 0
+	var reissued net.Listener
+	launcher.listen = func(ctx context.Context) (net.Listener, error) {
+		calls++
+		lc := &net.ListenConfig{}
+		if calls == 1 {
+			l, listenErr := lc.Listen(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", pendingPort))
+			reissued = l
+			return l, listenErr
+		}
+		return lc.Listen(ctx, "tcp", "127.0.0.1:0")
+	}
+
+	port, _, err := launcher.allocatePortWithListener(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_ = launcher.releasePortListener(port)
+		launcher.releasePendingPort(port)
+	})
+
+	assert.NotEqual(t, pendingPort, port)
+	assert.Equal(t, 2, calls)
+
+	// The skipped listener must be closed once a free port is found.
+	require.NotNil(t, reissued)
+	_, acceptErr := reissued.Accept()
+	require.ErrorIs(t, acceptErr, net.ErrClosed)
+}
+
+func TestProcessLauncher_ConcurrentAllocationsAreUnique(t *testing.T) {
+	t.Parallel()
+
+	launcher := NewProcessLauncher()
+	ctx := context.Background()
+
+	const workers = 32
+	ports := make([]int, workers)
+	var wg sync.WaitGroup
+	for i := range workers {
+		wg.Go(func() {
+			port, _, err := launcher.allocatePortWithListener(ctx)
+			assert.NoError(t, err)
+			assert.NoError(t, launcher.releasePortListener(port))
+			ports[i] = port
+		})
+	}
+	wg.Wait()
+
+	t.Cleanup(func() {
+		for _, port := range ports {
+			launcher.releasePendingPort(port)
+		}
+	})
+
+	seen := make(map[int]bool, workers)
+	for _, port := range ports {
+		assert.False(t, seen[port], "port %d handed out twice while reserved", port)
+		seen[port] = true
+	}
+}

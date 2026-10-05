@@ -582,6 +582,10 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 
 - **Region-specific binaries**: When `plugin.metadata.json` has a `region` key, registry
   looks for `finfocus-plugin-<name>-<region>` first, then falls back to standard names
+- **Concurrent `Open`**: plugins launch in parallel (at most `maxConcurrentPluginOpens`, 8)
+  and the returned clients keep `ListLatestPlugins` order, which is sorted by name (router
+  priority ties depend on it). `ProcessLauncher` keeps a port in `pendingPorts` from
+  allocation until the plugin binds, so two concurrent launches never get the same port
 - **Checksum verification**: Only a confirmed hash mismatch is fatal. Missing
   `checksums.txt`, download failures, or unlisted assets produce warnings and continue
 - **`--skip-checksum`** flag available on `plugin install` and `plugin update`
