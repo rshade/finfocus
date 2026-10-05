@@ -40,6 +40,9 @@ const (
 	keySlash = "/"
 	keyS     = "s"
 	keyP     = "p"
+	keyE     = "e"
+	keyRight = "right"
+	keyLeft  = "left"
 )
 
 // ViewState represents the current state of the TUI view.

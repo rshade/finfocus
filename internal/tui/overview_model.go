@@ -165,6 +165,11 @@ type OverviewModel struct {
 	budgetResult *engine.BudgetResult // Budget data from plugins (nil until loaded)
 	budgetErr    error                // Budget fetch error (nil on success)
 	budgetLoaded bool                 // True after BudgetDataReadyMsg received
+
+	// Cluster expansion state (spec 623).
+	expanded       map[string]bool // parent URN → expanded
+	displayToRows  []int           // display row index → index into m.rows
+	expansionNotes []string        // `†` footnotes for the list view
 }
 
 // NewOverviewModel creates a new interactive overview model.
@@ -211,6 +216,7 @@ func NewOverviewModel(
 		passphraseInput: pi,
 		passphraseChan:  passphraseChan,
 		previewCmd:      previewCmd,
+		expanded:        map[string]bool{},
 	}
 
 	// Initialize table with skeleton data
@@ -452,6 +458,15 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	// Handle cluster expansion results (sent after enrichment completes).
+	if expMsg, ok := msg.(OverviewExpansionReadyMsg); ok {
+		m.allRows = make([]engine.OverviewRow, len(expMsg.Rows))
+		copy(m.allRows, expMsg.Rows)
+		m.expansionNotes = expMsg.Notes
+		m.applyFilter(m.textInput.Value())
+		return m, nil
+	}
+
 	// Handle filter input
 	if m.showFilter {
 		return m.handleFilterInput(msg)
@@ -577,10 +592,19 @@ func (m OverviewModel) handleListKeypress(keyMsg tea.KeyPressMsg) (tea.Model, te
 		m.state = ViewStateQuitting
 		return m, tea.Quit
 	case keyEnter:
-		m.selected = m.absoluteIndex(m.table.Cursor())
+		m.selected = m.displayIndex(m.table.Cursor())
 		if m.selected >= 0 && m.selected < len(m.rows) {
 			m.state = ViewStateDetail
 		}
+		return m, nil
+	case keyE:
+		m.toggleExpansion(m.table.Cursor())
+		return m, nil
+	case keyRight:
+		m.setExpansion(m.table.Cursor(), true)
+		return m, nil
+	case keyLeft:
+		m.setExpansion(m.table.Cursor(), false)
 		return m, nil
 	case keySlash:
 		m.showFilter = true
@@ -630,6 +654,55 @@ func (m OverviewModel) absoluteIndex(cursor int) int {
 		return (m.currentPage-1)*maxOverviewResourcesPerPage + cursor
 	}
 	return cursor
+}
+
+// displayIndex converts a table cursor position to an index into m.rows,
+// honoring the expansion display order built by buildOverviewTable.
+func (m OverviewModel) displayIndex(cursor int) int {
+	if cursor >= 0 && cursor < len(m.displayToRows) {
+		return m.displayToRows[cursor]
+	}
+	return m.absoluteIndex(cursor)
+}
+
+// expandableRow returns the rows index at a display cursor when that row is a
+// cluster row with children, or -1 otherwise.
+func (m OverviewModel) expandableRow(cursor int) int {
+	idx := m.displayIndex(cursor)
+	if idx < 0 || idx >= len(m.rows) || len(m.rows[idx].ChildURNs) == 0 {
+		return -1
+	}
+	return idx
+}
+
+// toggleExpansion flips the expanded state of the cluster row at cursor.
+func (m *OverviewModel) toggleExpansion(cursor int) {
+	idx := m.expandableRow(cursor)
+	if idx < 0 {
+		return
+	}
+	urn := m.rows[idx].URN
+	if m.expanded == nil {
+		m.expanded = map[string]bool{}
+	}
+	m.expanded[urn] = !m.expanded[urn]
+	m.rebuildTable()
+}
+
+// setExpansion expands (true) or collapses (false) the cluster row at cursor.
+func (m *OverviewModel) setExpansion(cursor int, expand bool) {
+	idx := m.expandableRow(cursor)
+	if idx < 0 {
+		return
+	}
+	if m.expanded == nil {
+		m.expanded = map[string]bool{}
+	}
+	urn := m.rows[idx].URN
+	if m.expanded[urn] != expand {
+		m.expanded[urn] = expand
+		m.rebuildTable()
+	}
 }
 
 func (m OverviewModel) handleDetailUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -694,6 +767,140 @@ func formatOverviewWarnCell(warnings []engine.OverviewWarning) string {
 	return string(warnings[0]) + "+" + strconv.Itoa(len(warnings)-1)
 }
 
+// overviewDisplayEntry pairs a row to render with its index in m.rows and
+// whether it is an expansion child (rendered indented).
+type overviewDisplayEntry struct {
+	row     engine.OverviewRow
+	rowsIdx int
+	child   bool
+}
+
+// displayEntries computes the rows to show in the table: parents in sorted
+// order, each followed by its children when expanded. Children are hidden
+// while their parent is collapsed. When the filter box has text the list is
+// rendered flat, preserving the filter's substring semantics.
+func (m *OverviewModel) displayEntries() []overviewDisplayEntry {
+	visible := m.getVisibleRows()
+	offset := 0
+	if m.paginationEnabled {
+		offset = (m.currentPage - 1) * maxOverviewResourcesPerPage
+	}
+	if m.textInput.Value() != "" {
+		entries := make([]overviewDisplayEntry, len(visible))
+		for i, r := range visible {
+			entries[i] = overviewDisplayEntry{row: r, rowsIdx: offset + i, child: r.ParentURN != ""}
+		}
+		return entries
+	}
+
+	childrenByParent := map[string][]overviewDisplayEntry{}
+	parentPresent := map[string]bool{}
+	for i := range m.rows {
+		if m.rows[i].ParentURN == "" {
+			parentPresent[m.rows[i].URN] = true
+			continue
+		}
+		childrenByParent[m.rows[i].ParentURN] = append(
+			childrenByParent[m.rows[i].ParentURN],
+			overviewDisplayEntry{row: m.rows[i], rowsIdx: i, child: true},
+		)
+	}
+
+	var entries []overviewDisplayEntry
+	for vi := range visible {
+		r := visible[vi]
+		if r.ParentURN != "" {
+			// Rendered under its parent (when expanded) or appended below as
+			// an orphan when the parent is absent from the list.
+			if !parentPresent[r.ParentURN] {
+				entries = append(entries, overviewDisplayEntry{row: r, rowsIdx: offset + vi, child: true})
+			}
+			continue
+		}
+		entries = append(entries, overviewDisplayEntry{row: r, rowsIdx: offset + vi})
+		if m.expanded[r.URN] {
+			entries = append(entries, childrenByParent[r.URN]...)
+		}
+	}
+	return entries
+}
+
+// expansionDisplayName renders a compact name for an expansion child row.
+// Live allocation rows show their namespace (or "(idle)"); projected rows
+// use the regular URN display name.
+func expansionDisplayName(row engine.OverviewRow) string {
+	const nsMarker = "#ns/"
+	if row.ExpansionSource == engine.ExpansionSourceLive {
+		if idx := strings.Index(row.URN, nsMarker); idx >= 0 {
+			ns := row.URN[idx+len(nsMarker):]
+			if ns == "__idle__" {
+				return "(idle)"
+			}
+			return "ns/" + ns
+		}
+	}
+	return resourceDisplayName(row.URN)
+}
+
+// overviewTableRow renders one display entry as a table row, applying the
+// expansion marker (▸/▾) to cluster rows and the ↳ indent to child rows.
+func (m *OverviewModel) overviewTableRow(entry overviewDisplayEntry, resourceWidth int) table.Row {
+	overviewRow := entry.row
+
+	resourceName := truncateResourceName(overviewRow.URN, resourceWidth)
+	switch {
+	case entry.child:
+		resourceName = truncateResourceName("  ↳ "+expansionDisplayName(overviewRow), resourceWidth)
+	case len(overviewRow.ChildURNs) > 0:
+		marker := "▸ "
+		if m.expanded[overviewRow.URN] {
+			marker = "▾ "
+		}
+		resourceName = truncateResourceName(marker+expansionDisplayName(overviewRow), resourceWidth)
+	}
+	statusStr := fmt.Sprintf("%s %s", engine.StatusIcon(overviewRow.Status), overviewRow.Status.String())
+
+	actualStr := "-"
+	if overviewRow.ActualCost != nil {
+		actualStr = fmt.Sprintf("$%.2f", overviewRow.ActualCost.MTDCost)
+	}
+
+	projectedStr := "-"
+	if overviewRow.ProjectedCost != nil {
+		projectedStr = fmt.Sprintf("$%.2f", overviewRow.ProjectedCost.MonthlyCost)
+	}
+
+	deltaStr := formatOverviewDeltaCell(overviewRow)
+
+	driftPctStr := "-"
+	if overviewRow.CostDrift != nil {
+		driftPctStr = fmt.Sprintf("%.1f%%", overviewRow.CostDrift.PercentDrift)
+	}
+
+	recsStr := "-"
+	if len(overviewRow.Recommendations) > 0 {
+		active, dismissed := engine.CountRecsActiveAndDismissed(overviewRow.Recommendations)
+		total := active + dismissed
+		if dismissed == 0 {
+			recsStr = strconv.Itoa(total)
+		} else {
+			recsStr = fmt.Sprintf("%d(-%d)", total, dismissed)
+		}
+	}
+
+	return table.Row{
+		resourceName,
+		overviewRow.Type,
+		statusStr,
+		actualStr,
+		projectedStr,
+		deltaStr,
+		driftPctStr,
+		recsStr,
+		formatOverviewWarnCell(overviewRow.Warnings),
+	}
+}
+
 // buildOverviewTable creates a new table model with current configuration.
 func (m *OverviewModel) buildOverviewTable() table.Model {
 	projectedHeader := "Projected"
@@ -714,52 +921,13 @@ func (m *OverviewModel) buildOverviewTable() table.Model {
 		{Title: "Warn", Width: colWidthWarn},
 	}
 
-	visibleRows := m.getVisibleRows()
-	rows := make([]table.Row, len(visibleRows))
+	entries := m.displayEntries()
+	rows := make([]table.Row, len(entries))
+	m.displayToRows = make([]int, len(entries))
 
-	for i, overviewRow := range visibleRows {
-		resourceName := truncateResourceName(overviewRow.URN, resourceWidth)
-		statusStr := fmt.Sprintf("%s %s", engine.StatusIcon(overviewRow.Status), overviewRow.Status.String())
-
-		actualStr := "-"
-		if overviewRow.ActualCost != nil {
-			actualStr = fmt.Sprintf("$%.2f", overviewRow.ActualCost.MTDCost)
-		}
-
-		projectedStr := "-"
-		if overviewRow.ProjectedCost != nil {
-			projectedStr = fmt.Sprintf("$%.2f", overviewRow.ProjectedCost.MonthlyCost)
-		}
-
-		deltaStr := formatOverviewDeltaCell(overviewRow)
-
-		driftPctStr := "-"
-		if overviewRow.CostDrift != nil {
-			driftPctStr = fmt.Sprintf("%.1f%%", overviewRow.CostDrift.PercentDrift)
-		}
-
-		recsStr := "-"
-		if len(overviewRow.Recommendations) > 0 {
-			active, dismissed := engine.CountRecsActiveAndDismissed(overviewRow.Recommendations)
-			total := active + dismissed
-			if dismissed == 0 {
-				recsStr = strconv.Itoa(total)
-			} else {
-				recsStr = fmt.Sprintf("%d(-%d)", total, dismissed)
-			}
-		}
-
-		rows[i] = table.Row{
-			resourceName,
-			overviewRow.Type,
-			statusStr,
-			actualStr,
-			projectedStr,
-			deltaStr,
-			driftPctStr,
-			recsStr,
-			formatOverviewWarnCell(overviewRow.Warnings),
-		}
+	for i, entry := range entries {
+		m.displayToRows[i] = entry.rowsIdx
+		rows[i] = m.overviewTableRow(entry, resourceWidth)
 	}
 
 	availableHeight := max(m.height-summaryHeight-1, minHeight)

@@ -172,6 +172,9 @@ interactive dashboard built with Bubble Tea.
 | `/` | Enter filter mode |
 | `p` | In state-only mode, run `pulumi preview` and apply pending changes to the open table |
 | `PgUp` / `PgDn` | Navigate pages (when >250 resources) |
+| `e` | Toggle expansion of a cluster row (Kubernetes workloads) |
+| `Right` | Expand a cluster row |
+| `Left` | Collapse a cluster row |
 | `q` / `Ctrl+C` | Quit |
 
 ### Progressive loading
@@ -187,6 +190,37 @@ Press Enter on a resource to see a detailed breakdown including:
 - Projected cost (monthly) with breakdown
 - Cost drift analysis with extrapolation
 - Optimization recommendations with estimated savings
+
+## Kubernetes cluster expansion
+
+Rows for Kubernetes cluster resources (EKS, GKE, AKS) expand into workload
+rows. The cluster row shows a `▸` marker when collapsed and `▾` when
+expanded; children render indented beneath it.
+
+Two data sources feed the expansion:
+
+- **Projected**: workloads declared in the same Pulumi stack
+  (`kubernetes:apps/v1:Deployment`, `StatefulSet`, `DaemonSet`,
+  `kubernetes:batch/v1:Job`, `CronJob`) nest under the cluster row and keep
+  their individually priced projected cost.
+- **Live**: when a usage-source plugin and an allocator plugin are installed
+  (e.g. `finfocus plugin install kubernetes`), the cluster is expanded from
+  live allocation data grouped by namespace, including idle capacity. Live
+  rows re-allocate node cost already shown by other rows, so they are
+  excluded from the summary totals.
+
+When both are available, live data wins: the projected workload rows are
+hidden and a `†` footnote reports how many were suppressed. The kubeconfig
+context for live expansion resolves from (1) the `overview.cluster_contexts`
+config mapping (cluster name or full URN → context), (2) the cluster's
+`name` property or the name segment of its ARN, or (3) the current context
+for single-cluster stacks (footnoted as assumed).
+
+In JSON and NDJSON output the rows stay flat: children carry `parentUrn` and
+`expansionSource` (`live` or `projected`), and the cluster row carries
+`childUrns` in display order. Live namespace rows use the type
+`finfocus:k8s/namespace:Allocation` and URNs of the form
+`<clusterURN>#ns/<namespace>`.
 
 ## Budget Status
 

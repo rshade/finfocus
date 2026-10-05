@@ -146,6 +146,11 @@ func (m OverviewModel) renderListView() string {
 		sections = append(sections, footnote)
 	}
 
+	// Cluster expansion footnotes (live data preferred, assumed context).
+	for _, note := range m.expansionNotes {
+		sections = append(sections, SubtleStyle.Render("† "+note))
+	}
+
 	return lipgloss.JoinVertical(lipgloss.Left, sections...)
 }
 

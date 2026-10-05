@@ -1,0 +1,121 @@
+{
+  "metadata": {
+    "stackName": "state-cluster-expansion",
+    "timeWindow": {
+      "start": "2025-05-31T12:00:00Z",
+      "end": "2025-06-15T12:00:00Z"
+    },
+    "hasChanges": false,
+    "totalResources": 8,
+    "pendingChanges": 0,
+    "generatedAt": "2025-06-15T12:00:00Z",
+    "expansionNotes": [
+      "live cluster data preferred for prod-cluster; 2 projected workload rows hidden to avoid double counting",
+      "live allocation rows re-allocate node cost shown by other rows; excluded from summary"
+    ]
+  },
+  "resources": [
+    {
+      "urn": "urn:pulumi:prod::myapp::pulumi:providers:aws::default",
+      "type": "pulumi:providers:aws",
+      "resourceId": "provider-aws-default",
+      "status": "active"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::pulumi:providers:kubernetes::k8s",
+      "type": "pulumi:providers:kubernetes",
+      "resourceId": "provider-k8s-default",
+      "status": "active"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster",
+      "type": "aws:eks/cluster:Cluster",
+      "resourceId": "prod-cluster",
+      "status": "active",
+      "properties": {
+        "arn": "arn:aws:eks:us-east-1:123456789012:cluster/prod-cluster",
+        "endpoint": "https://ABCDEF0123456789.gr7.us-east-1.eks.amazonaws.com",
+        "name": "prod-cluster"
+      },
+      "childUrns": [
+        "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster#ns/payments",
+        "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster#ns/default",
+        "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster#ns/__idle__"
+      ]
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster#ns/payments",
+      "type": "finfocus:k8s/namespace:Allocation",
+      "status": "active",
+      "projectedCost": {
+        "monthlyCost": 120.5,
+        "currency": "USD",
+        "breakdown": {
+          "cpu": 80.1,
+          "memory": 40.4
+        }
+      },
+      "parentUrn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster",
+      "expansionSource": "live"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster#ns/default",
+      "type": "finfocus:k8s/namespace:Allocation",
+      "status": "active",
+      "projectedCost": {
+        "monthlyCost": 30,
+        "currency": "USD",
+        "breakdown": {
+          "cpu": 10,
+          "memory": 20
+        }
+      },
+      "parentUrn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster",
+      "expansionSource": "live"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster#ns/__idle__",
+      "type": "finfocus:k8s/namespace:Allocation",
+      "status": "active",
+      "projectedCost": {
+        "monthlyCost": 10,
+        "currency": "USD",
+        "breakdown": {
+          "cpu": 5,
+          "memory": 5
+        }
+      },
+      "parentUrn": "urn:pulumi:prod::myapp::aws:eks/cluster:Cluster::cluster",
+      "expansionSource": "live"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::aws:ec2/instance:Instance::web-1",
+      "type": "aws:ec2/instance:Instance",
+      "resourceId": "i-0123456789abcdef0",
+      "status": "active"
+    },
+    {
+      "urn": "urn:pulumi:prod::myapp::kubernetes:core/v1:ConfigMap::app-config",
+      "type": "kubernetes:core/v1:ConfigMap",
+      "resourceId": "default/app-config",
+      "status": "active",
+      "properties": {
+        "data": {
+          "LOG_LEVEL": "info"
+        },
+        "metadata": {
+          "name": "app-config",
+          "namespace": "default"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "totalActualMTD": 0,
+    "projectedMonthly": 0,
+    "projectedDelta": 0,
+    "potentialSavings": 0,
+    "currency": "USD"
+  },
+  "errors": []
+}

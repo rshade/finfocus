@@ -1,0 +1,13 @@
+ Resource      Type              Status        Actual        Projected     Delta         Drift%    Recs       Warn    
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ ▸ cluster     aws:eks/cluster…  ✓ active      -             $73.00        -             -         -          -       
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+                                                                                                                      
+Sort: Cost | Press 's' to cycle, '/' to filter, 'q' to quit                                                           

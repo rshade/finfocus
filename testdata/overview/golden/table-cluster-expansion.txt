@@ -1,0 +1,11 @@
+RESOURCE                            TYPE                      STATUS       ACTUAL(MTD)  PROJECTED  DELTA      DRIFT%  RECS  WARN
+--------                            ----                      ------       -----------  ---------  -----      ------  ----  ----
+urn:pulumi:prod::myapp::pulumi:...  pulumi:providers:aws      ✓ active     -            -          -          -       -     -
+urn:pulumi:prod::myapp::pulumi:...  pulumi:providers:kube...  ✓ active     -            -          -          -       -     -
+urn:pulumi:prod::myapp::aws:eks...  aws:eks/cluster:Cluster   ✓ active     -            -          -          -       -     -
+↳ urn:pulumi:prod::myapp::kub...    kubernetes:apps/v1:De...  ✓ active     -            -          -          -       -     -
+↳ urn:pulumi:prod::myapp::kub...    kubernetes:apps/v1:De...  ✓ active     -            -          -          -       -     -
+urn:pulumi:prod::myapp::aws:ec2...  aws:ec2/instance:Inst...  ✓ active     -            -          -          -       -     -
+urn:pulumi:prod::myapp::kuberne...  kubernetes:core/v1:Co...  ✓ active     -            -          -          -       -     -
+                                                                                                                            
+SUMMARY                             state-cluster-expansion   7 resources  $0.00 USD    $0.00 USD  $0.00 USD                

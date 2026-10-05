@@ -698,7 +698,7 @@ func TestFinalizeOverviewOutput_UnsupportedFormat(t *testing.T) {
 	cmd, _ := overviewCmd(strings.NewReader(""))
 	err := finalizeOverviewOutput(
 		ctx, cmd, overviewParams{output: "yaml"}, nil, engine.New(nil, nil),
-		engine.DateRange{}, "dev", false, 0, false, newAuditContext(ctx, "overview", nil),
+		engine.DateRange{}, "dev", false, 0, false, nil, newAuditContext(ctx, "overview", nil),
 	)
 	require.ErrorContains(t, err, "unsupported output format")
 }
