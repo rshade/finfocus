@@ -104,8 +104,7 @@ func TestIntegration_TableRender_NoChanges(t *testing.T) {
 	}
 
 	// Compute display values once, then render table
-	result, err := engine.ComputeOverviewResult(rows, 15)
-	require.NoError(t, err)
+	result := engine.ComputeOverviewResult(rows, 15)
 	var buf bytes.Buffer
 	err = engine.RenderOverviewAsTable(&buf, result, stackCtx)
 	require.NoError(t, err)
@@ -164,8 +163,7 @@ func TestIntegration_TableRender_MixedChanges(t *testing.T) {
 	}
 
 	// Compute display values once, then render table
-	result, err := engine.ComputeOverviewResult(rows, 15)
-	require.NoError(t, err)
+	result := engine.ComputeOverviewResult(rows, 15)
 	var buf bytes.Buffer
 	err = engine.RenderOverviewAsTable(&buf, result, stackCtx)
 	require.NoError(t, err)
@@ -432,8 +430,7 @@ func TestIntegration_JSONRender_NoChanges(t *testing.T) {
 	}
 
 	// Compute display values once, then render JSON
-	result, err := engine.ComputeOverviewResult(rows, 15)
-	require.NoError(t, err)
+	result := engine.ComputeOverviewResult(rows, 15)
 	var buf bytes.Buffer
 	err = engine.RenderOverviewAsJSON(context.Background(), &buf, result, stackCtx, nil)
 	require.NoError(t, err)
@@ -471,8 +468,7 @@ func TestIntegration_NDJSONRender_MixedChanges(t *testing.T) {
 	require.NoError(t, err)
 
 	// Compute display values once, then render NDJSON
-	result, err := engine.ComputeOverviewResult(rows, 15)
-	require.NoError(t, err)
+	result := engine.ComputeOverviewResult(rows, 15)
 	var buf bytes.Buffer
 	err = engine.RenderOverviewAsNDJSON(&buf, result)
 	require.NoError(t, err)

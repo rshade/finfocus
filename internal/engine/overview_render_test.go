@@ -18,14 +18,6 @@ import (
 // tests so delta extrapolation is deterministic.
 const testDayOfMonth = 15
 
-// mustComputeOverviewResult computes the overview result for test rows.
-func mustComputeOverviewResult(t *testing.T, rows []OverviewRow) OverviewResult {
-	t.Helper()
-	result, err := ComputeOverviewResult(rows, testDayOfMonth)
-	require.NoError(t, err)
-	return result
-}
-
 // ---------------------------------------------------------------------------
 // StatusIcon
 // ---------------------------------------------------------------------------
@@ -123,7 +115,7 @@ func TestRenderOverviewAsTable_EmptyRows(t *testing.T) {
 		TotalResources: 0,
 	}
 
-	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, nil), stackCtx)
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(nil, testDayOfMonth), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -160,7 +152,7 @@ func TestRenderOverviewAsTable_SingleActiveResource(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -203,7 +195,7 @@ func TestRenderOverviewAsTable_AllStatuses(t *testing.T) {
 		{URN: "urn:replacing", Type: "aws:ec2:SecurityGroup", Status: StatusReplacing},
 	}
 
-	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -239,7 +231,7 @@ func TestRenderOverviewAsTable_ErrorRow(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -281,7 +273,7 @@ func TestRenderOverviewAsTable_DriftWarning(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -316,7 +308,7 @@ func TestRenderOverviewAsTable_Recommendations(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -367,7 +359,7 @@ func TestRenderOverviewAsTable_SummaryTotals(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -393,7 +385,7 @@ func TestRenderOverviewAsTable_LongURNTruncation(t *testing.T) {
 		{URN: longURN, Type: "aws:ec2:Instance", Status: StatusActive},
 	}
 
-	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows), stackCtx)
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx)
 	require.NoError(t, err)
 
 	output := buf.String()
@@ -554,9 +546,57 @@ func TestComputeOverviewResult_SavingsExcludesDismissed(t *testing.T) {
 		},
 	}
 
-	result := mustComputeOverviewResult(t, rows)
+	result := ComputeOverviewResult(rows, testDayOfMonth)
 	// Only active rec savings (30.0) should be included; dismissed (50) and snoozed (10) excluded.
 	assert.InDelta(t, 30.0, result.Summary.TotalSavings, 1e-9)
+}
+
+func TestComputeOverviewResult_MixedCurrencies(t *testing.T) {
+	t.Parallel()
+
+	rows := []OverviewRow{
+		{
+			URN: "urn:r1", Type: "aws:ec2:Instance", Status: StatusActive,
+			ActualCost: &ActualCostData{MTDCost: 10, Currency: "USD"},
+		},
+		{
+			URN: "urn:r2", Type: "azure:compute:VirtualMachine", Status: StatusActive,
+			ProjectedCost: &ProjectedCostData{MonthlyCost: 20, Currency: "EUR"},
+		},
+	}
+	result := ComputeOverviewResult(rows, testDayOfMonth)
+	require.True(t, result.Summary.MixedCurrencies)
+	assert.Len(t, result.Rows, 2)
+
+	var tableBuf bytes.Buffer
+	err := RenderOverviewAsTable(&tableBuf, result, StackContext{StackName: "s"})
+	require.ErrorIs(t, err, ErrMixedCurrencies)
+
+	var jsonBuf bytes.Buffer
+	err = RenderOverviewAsJSON(context.Background(), &jsonBuf, result, StackContext{}, nil)
+	require.ErrorIs(t, err, ErrMixedCurrencies)
+	assert.Empty(t, jsonBuf.String())
+
+	var ndjsonBuf bytes.Buffer
+	require.NoError(t, RenderOverviewAsNDJSON(&ndjsonBuf, result))
+	assert.Len(t, strings.Split(strings.TrimSpace(ndjsonBuf.String()), "\n"), 2)
+}
+
+func TestComputeOverviewResult_SingleCurrency(t *testing.T) {
+	t.Parallel()
+
+	rows := []OverviewRow{
+		{URN: "urn:r1", Status: StatusActive, ActualCost: &ActualCostData{MTDCost: 10, Currency: "EUR"}},
+		{URN: "urn:r2", Status: StatusActive, ProjectedCost: &ProjectedCostData{MonthlyCost: 20}},
+		{URN: "urn:r3", Status: StatusActive, Error: &OverviewRowError{URN: "urn:r3", Message: "boom"}},
+	}
+	result := ComputeOverviewResult(rows, testDayOfMonth)
+	assert.False(t, result.Summary.MixedCurrencies)
+	assert.Equal(t, "EUR", result.Summary.Currency)
+	assert.InDelta(t, 10.0, result.Summary.TotalActual, 1e-9)
+	assert.InDelta(t, 20.0, result.Summary.TotalProjected, 1e-9)
+	assert.Equal(t, 3, result.Summary.ResourceCount)
+	assert.Len(t, result.Summary.Errors, 1)
 }
 
 func TestComputeOverviewRowResult_DeltaDisplayUsesPreComputedDelta(t *testing.T) {
@@ -695,7 +735,7 @@ func TestRenderOverviewAsJSON_EmptyRows(t *testing.T) {
 		TotalResources: 0,
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(nil, testDayOfMonth), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -741,7 +781,7 @@ func TestRenderOverviewAsJSON_SingleResource(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -786,7 +826,7 @@ func TestRenderOverviewAsJSON_MetadataFields(t *testing.T) {
 		PendingChanges: 2,
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(nil, testDayOfMonth), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -843,7 +883,7 @@ func TestRenderOverviewAsJSON_SummaryTotals(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -922,8 +962,7 @@ func TestRenderOverviewAsJSON_PerRowDeltaAndSummary(t *testing.T) {
 
 	// Compute deltas and display values once (matches production flow).
 	dayOfMonth := time.Now().Day()
-	overviewResult, computeErr := ComputeOverviewResult(rows, dayOfMonth)
-	require.NoError(t, computeErr)
+	overviewResult := ComputeOverviewResult(rows, dayOfMonth)
 
 	err := RenderOverviewAsJSON(context.Background(), &buf, overviewResult, stackCtx, nil)
 	require.NoError(t, err)
@@ -989,7 +1028,7 @@ func TestRenderOverviewAsJSON_CurrencyConsistency(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1035,7 +1074,7 @@ func TestRenderOverviewAsJSON_ErrorsArray(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1078,7 +1117,7 @@ func TestRenderOverviewAsJSON_Recommendations(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1097,7 +1136,7 @@ func TestRenderOverviewAsNDJSON_EmptyRows(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, nil))
+	err := RenderOverviewAsNDJSON(&buf, ComputeOverviewResult(nil, testDayOfMonth))
 	require.NoError(t, err)
 	assert.Empty(t, buf.String())
 }
@@ -1127,7 +1166,7 @@ func TestRenderOverviewAsNDJSON_SingleRow(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, rows))
+	err := RenderOverviewAsNDJSON(&buf, ComputeOverviewResult(rows, testDayOfMonth))
 	require.NoError(t, err)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
@@ -1177,7 +1216,7 @@ func TestRenderOverviewAsNDJSON_MultipleRows(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, rows))
+	err := RenderOverviewAsNDJSON(&buf, ComputeOverviewResult(rows, testDayOfMonth))
 	require.NoError(t, err)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
@@ -1224,7 +1263,7 @@ func TestRenderOverviewAsNDJSON_AllStatuses(t *testing.T) {
 		{URN: "urn:replacing", Type: "aws:ec2:SecurityGroup", Status: StatusReplacing},
 	}
 
-	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, rows))
+	err := RenderOverviewAsNDJSON(&buf, ComputeOverviewResult(rows, testDayOfMonth))
 	require.NoError(t, err)
 
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
@@ -1399,7 +1438,9 @@ func TestRenderOverviewAsJSON_WithBudgets(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows), stackCtx, budgetResult)
+	err := RenderOverviewAsJSON(
+		context.Background(), &buf, ComputeOverviewResult(rows, testDayOfMonth), stackCtx, budgetResult,
+	)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1464,7 +1505,9 @@ func TestRenderOverviewAsJSON_MultipleBudgets(t *testing.T) {
 		},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, budgetResult)
+	err := RenderOverviewAsJSON(
+		context.Background(), &buf, ComputeOverviewResult(nil, testDayOfMonth), stackCtx, budgetResult,
+	)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1499,7 +1542,7 @@ func TestRenderOverviewAsJSON_NilBudgetResult(t *testing.T) {
 		TotalResources: 0,
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, nil)
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(nil, testDayOfMonth), stackCtx, nil)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1529,7 +1572,9 @@ func TestRenderOverviewAsJSON_EmptyBudgetResult(t *testing.T) {
 		Budgets: []*pbc.Budget{},
 	}
 
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, nil), stackCtx, budgetResult)
+	err := RenderOverviewAsJSON(
+		context.Background(), &buf, ComputeOverviewResult(nil, testDayOfMonth), stackCtx, budgetResult,
+	)
 	require.NoError(t, err)
 
 	var output OverviewJSONOutput
@@ -1549,7 +1594,7 @@ func TestRenderOverviewAsNDJSON_ExcludesBudgetData(t *testing.T) {
 		{URN: "urn:r2", Type: "aws:s3:Bucket", Status: StatusCreating},
 	}
 
-	err := RenderOverviewAsNDJSON(&buf, mustComputeOverviewResult(t, rows))
+	err := RenderOverviewAsNDJSON(&buf, ComputeOverviewResult(rows, testDayOfMonth))
 	require.NoError(t, err)
 
 	// NDJSON should not contain any budget-related fields

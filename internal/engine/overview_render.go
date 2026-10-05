@@ -28,7 +28,7 @@ const (
 func StatusIcon(status ResourceStatus) string {
 	switch status {
 	case StatusActive:
-		return "✓" // check mark
+		return "\u2713" // check mark
 	case StatusCreating:
 		return "+"
 	case StatusUpdating:
@@ -36,7 +36,7 @@ func StatusIcon(status ResourceStatus) string {
 	case StatusDeleting:
 		return "-"
 	case StatusReplacing:
-		return "↻" // clockwise arrow
+		return "\u21bb" // clockwise arrow
 	default:
 		return "?"
 	}
@@ -192,6 +192,9 @@ func FormatOverviewWarnings(warnings []OverviewWarning) string {
 // renderSummaryFooter writes the summary line at the bottom of the table,
 // reading the pre-computed totals from the OverviewSummary.
 func renderSummaryFooter(tw *tabwriter.Writer, summary OverviewSummary, stackCtx StackContext) error {
+	if summary.MixedCurrencies {
+		return ErrMixedCurrencies
+	}
 	if _, err := fmt.Fprintf(tw, "\t\t\t\t\t\t\t\t\n"); err != nil {
 		return err
 	}
@@ -263,11 +266,16 @@ type OverviewJSONOutput struct {
 //   - budgetResult: optional budget data; when non-nil and non-empty, converted budgets are included
 //     in the `budgets` field. May be nil, in which case no budget entries are emitted.
 //
-// Returns an error if encoding/writing the JSON output fails.
+// Returns ErrMixedCurrencies when the rows carry different currencies, or an
+// error if encoding/writing the JSON output fails.
 func RenderOverviewAsJSON(
 	ctx context.Context, w io.Writer, result OverviewResult,
 	stackCtx StackContext, budgetResult *BudgetResult,
 ) error {
+	if result.Summary.MixedCurrencies {
+		return ErrMixedCurrencies
+	}
+
 	// Initialize resources to empty slice so JSON produces [] instead of null.
 	resources := make([]OverviewRow, len(result.Rows))
 	for i := range result.Rows {

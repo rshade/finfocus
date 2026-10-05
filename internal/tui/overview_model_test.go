@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -606,6 +607,67 @@ func TestOverviewModel_BuildOverviewTable_StatusAndDelta(t *testing.T) {
 			} else {
 				assert.Equal(t, tt.wantDelta, tableRows[0][5])
 			}
+		})
+	}
+}
+
+// TestOverviewModel_BuildOverviewTable_MatchesPlainTableCells verifies the TUI
+// list shows the same cost, drift, and error cells as the plain table.
+func TestOverviewModel_BuildOverviewTable_MatchesPlainTableCells(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		row           engine.OverviewRow
+		wantActual    string
+		wantProjected string
+		wantDrift     string
+	}{
+		{
+			name: "drift warning and thousands separators",
+			row: engine.OverviewRow{
+				URN:           "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+				Type:          "aws:ec2/instance:Instance",
+				Status:        engine.StatusActive,
+				ActualCost:    &engine.ActualCostData{MTDCost: 1234.5},
+				ProjectedCost: &engine.ProjectedCostData{MonthlyCost: 2000},
+				CostDrift:     &engine.CostDriftData{PercentDrift: 23.6, IsWarning: true},
+			},
+			wantActual:    "$1,234.50",
+			wantProjected: "$2,000.00",
+			wantDrift:     "+24% ⚠",
+		},
+		{
+			name: "error row",
+			row: engine.OverviewRow{
+				URN:    "urn:pulumi:dev::app::aws:ec2/instance:Instance::broken",
+				Type:   "aws:ec2/instance:Instance",
+				Status: engine.StatusActive,
+				Error:  &engine.OverviewRowError{Message: "plugin failed"},
+			},
+			wantActual:    "ERR",
+			wantProjected: "ERR",
+			wantDrift:     "-",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			model, _ := NewOverviewModel(context.Background(), []engine.OverviewRow{tt.row}, 1, nil, nil)
+			model.width = 160
+			tableRows := model.buildOverviewTable().Rows()
+			require.Len(t, tableRows, 1)
+			assert.Equal(t, tt.wantActual, tableRows[0][3])
+			assert.Equal(t, tt.wantProjected, tableRows[0][4])
+			assert.Equal(t, tt.wantDrift, tableRows[0][6])
+
+			var plain bytes.Buffer
+			result := engine.ComputeOverviewResult([]engine.OverviewRow{tt.row}, 15)
+			require.NoError(t, engine.RenderOverviewAsTable(&plain, result, engine.StackContext{}))
+			assert.Contains(t, plain.String(), tt.wantDrift)
+			assert.Contains(t, plain.String(), tt.wantActual)
 		})
 	}
 }

@@ -71,6 +71,10 @@ type OverviewSummary struct {
 	ResourceCount  int
 	// Errors collects per-row errors for the JSON errors array.
 	Errors []OverviewRowError
+	// MixedCurrencies is set when rows carry different non-empty currencies.
+	// The totals are then meaningless, so the table and JSON renderers return
+	// ErrMixedCurrencies; NDJSON has no totals and still renders.
+	MixedCurrencies bool
 }
 
 // OverviewResult holds all pre-computed display values for the overview.
@@ -82,10 +86,9 @@ type OverviewResult struct {
 // ComputeOverviewResult computes every display value for the overview once:
 // per-row deltas (via PopulateComputedDeltas), per-row display values, and the
 // aggregate summary. Renderers consume the result without recomputing.
-//
-// Returns ErrMixedCurrencies when rows carry different non-empty currencies.
-func ComputeOverviewResult(rows []OverviewRow, dayOfMonth int) (OverviewResult, error) {
-	// Ensure per-row deltas are populated before display values are derived.
+// It writes ComputedDelta onto rows in place, so callers that keep rows see
+// the same deltas as the result.
+func ComputeOverviewResult(rows []OverviewRow, dayOfMonth int) OverviewResult {
 	PopulateComputedDeltas(rows, dayOfMonth)
 
 	results := make([]OverviewRowResult, len(rows))
@@ -93,12 +96,7 @@ func ComputeOverviewResult(rows []OverviewRow, dayOfMonth int) (OverviewResult, 
 		results[i] = ComputeOverviewRowResult(rows[i])
 	}
 
-	summary, err := summarizeOverviewRows(rows)
-	if err != nil {
-		return OverviewResult{}, err
-	}
-
-	return OverviewResult{Rows: results, Summary: summary}, nil
+	return OverviewResult{Rows: results, Summary: summarizeOverviewRows(rows)}
 }
 
 // ComputeOverviewRowResult computes display-ready values for a single row.
@@ -199,7 +197,7 @@ func FormatOverviewDrift(percentDrift float64, isWarning bool) string {
 	}
 	result := fmt.Sprintf("%s%.0f%%", sign, percentDrift)
 	if isWarning {
-		result += " ⚠"
+		result += " \u26a0"
 	}
 	return result
 }
@@ -220,23 +218,23 @@ func checkCurrency(current *string, next string) error {
 }
 
 // summarizeOverviewRows computes the aggregate summary across overview rows
-// with currency consistency checking. Returns ErrMixedCurrencies if different
-// non-empty currencies are encountered. Per-row deltas are summed from the
+// with currency consistency checking. Per-row deltas are summed from the
 // pre-computed ComputedDelta values so the summary matches the rendered rows.
-func summarizeOverviewRows(rows []OverviewRow) (OverviewSummary, error) {
+func summarizeOverviewRows(rows []OverviewRow) OverviewSummary {
 	s := OverviewSummary{ResourceCount: len(rows)}
 	for i := range rows {
 		if rows[i].ComputedDelta != nil {
 			s.TotalDelta += *rows[i].ComputedDelta
 		}
 		if err := s.accumulateRow(&rows[i]); err != nil {
-			return s, err
+			s.MixedCurrencies = true
+			break
 		}
 	}
 	if s.Currency == "" {
 		s.Currency = defaultCurrency
 	}
-	return s, nil
+	return s
 }
 
 // accumulateRow adds a single row's costs, savings, and errors to the summary.

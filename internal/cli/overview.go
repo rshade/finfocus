@@ -363,12 +363,7 @@ func finalizeOverviewOutput(
 	}
 
 	// Compute all display values once; renderers read the pre-computed result.
-	overviewResult, computeErr := engine.ComputeOverviewResult(rows, time.Now().Day())
-	if computeErr != nil {
-		wrapped := fmt.Errorf("computing overview result: %w", computeErr)
-		audit.logFailure(ctx, wrapped)
-		return wrapped
-	}
+	overviewResult := engine.ComputeOverviewResult(rows, time.Now().Day())
 
 	// Render output.
 	renderErr := renderOverviewOutput(cmd, params.output, overviewResult, stackCtx, budgetResult)

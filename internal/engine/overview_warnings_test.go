@@ -139,7 +139,7 @@ func TestRenderOverviewAsTable_WarnColumn(t *testing.T) {
 		},
 	}
 	var buf bytes.Buffer
-	err := RenderOverviewAsTable(&buf, mustComputeOverviewResult(t, rows),
+	err := RenderOverviewAsTable(&buf, ComputeOverviewResult(rows, testDayOfMonth),
 		StackContext{StackName: "prod", TotalResources: len(rows)})
 	require.NoError(t, err)
 	output := buf.String()
@@ -159,7 +159,7 @@ func TestRenderOverviewAsTable_WarnColumn(t *testing.T) {
 		Error:    &OverviewRowError{URN: "my-instance", ErrorType: ErrorTypeNetwork, Message: "connection reset"},
 		Warnings: []OverviewWarning{WarnError},
 	}}
-	require.NoError(t, RenderOverviewAsTable(&errBuf, mustComputeOverviewResult(t, errRow),
+	require.NoError(t, RenderOverviewAsTable(&errBuf, ComputeOverviewResult(errRow, testDayOfMonth),
 		StackContext{StackName: "prod", TotalResources: 1}))
 	errOut := errBuf.String()
 	assert.Contains(t, errOut, "ERR")
@@ -320,7 +320,7 @@ func TestRenderOverviewAsJSON_IncludesWarnings(t *testing.T) {
 		Warnings:      []OverviewWarning{WarnDrift, WarnError},
 	}}
 	var buf bytes.Buffer
-	err := RenderOverviewAsJSON(context.Background(), &buf, mustComputeOverviewResult(t, rows),
+	err := RenderOverviewAsJSON(context.Background(), &buf, ComputeOverviewResult(rows, testDayOfMonth),
 		StackContext{StackName: "prod"}, nil)
 	require.NoError(t, err)
 
