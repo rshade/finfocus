@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.5](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.4...kubernetes-v0.1.5) (2026-10-05)
+
+
+### Bug Fixes
+
+* **deps:** update module github.com/rshade/finfocus-spec to v0.7.5 ([#1698](https://github.com/rshade/finfocus/issues/1698)) ([2223683](https://github.com/rshade/finfocus/commit/22236838eba02cc86a4736c099e0f75422d08e7a))
+* **kubernetes:** decline reason names priced workloads ([#1692](https://github.com/rshade/finfocus/issues/1692)) ([58c07e3](https://github.com/rshade/finfocus/commit/58c07e3848fb55e0f29a236ecbb97a85963b1478))
+
 ## [0.1.4](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.3...kubernetes-v0.1.4) (2026-10-04)
 
 
