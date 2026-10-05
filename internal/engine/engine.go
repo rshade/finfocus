@@ -17,6 +17,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
@@ -720,6 +721,7 @@ func (e *Engine) GetProjectedCost(
 			}
 
 			var resourceResults []CostResult
+			var pluginErrs []ErrorDetail
 			chainStopped := false
 
 			// Select plugin matches using router (if configured) or all clients
@@ -744,6 +746,15 @@ func (e *Engine) GetProjectedCost(
 				result, err := e.getProjectedCostFromPlugin(resourceCtx, client, resource)
 				resourceCancel()
 				if err != nil {
+					// Keep the plugin's failure reason so the fallback
+					// placeholder row can name the real cause (#1670).
+					pluginErrs = append(pluginErrs, ErrorDetail{
+						ResourceType: resource.Type,
+						ResourceID:   resource.ID,
+						PluginName:   client.Name,
+						Error:        fmt.Errorf("plugin call failed: %w", err),
+						Timestamp:    time.Now(),
+					})
 					// Check if fallback is enabled for this plugin
 					if !match.Fallback {
 						log.Info().
@@ -793,7 +804,9 @@ func (e *Engine) GetProjectedCost(
 
 			if len(resourceResults) == 0 {
 				resourceResults = append(resourceResults,
-					e.projectedFallbackResult(ctx, resource, specMatches(selectedMatches, chainStopped), declines))
+					e.projectedFallbackResult(
+						ctx, resource, specMatches(selectedMatches, chainStopped), declines, pluginErrs,
+					))
 			}
 
 			// Store successful results in cache (skip placeholder-only results)
@@ -990,6 +1003,7 @@ func (e *Engine) GetProjectedCostWithErrors(
 						resource,
 						specMatches(selectedMatches, fallbackChainBroken),
 						declines,
+						resourceErrors,
 					),
 				)
 			}
@@ -1807,41 +1821,60 @@ func (e *Engine) getProjectedCostFromPlugin(
 	// when adapter supports passing it via gRPC metadata.
 
 	resp, err := client.API.GetProjectedCost(ctx, req)
-	if err == nil && len(resp.Results) > 0 {
-		result := resp.Results[0]
-		engineResult := &CostResult{
-			ResourceType:   resource.Type,
-			ResourceID:     resource.ID,
-			Adapter:        client.Name,
-			Currency:       result.Currency,
-			Monthly:        result.MonthlyCost,
-			Hourly:         result.HourlyCost,
-			Notes:          result.Notes,
-			Breakdown:      result.CostBreakdown,
-			Sustainability: make(map[string]SustainabilityMetric),
-		}
-
-		engineResult.ExpiresAt = result.ExpiresAt
-
-		// Map proto StructuredError to engine StructuredError
-		if result.StructuredError != nil {
-			engineResult.Error = &StructuredError{
-				Code:         result.StructuredError.Code,
-				Message:      result.StructuredError.Message,
-				ResourceType: result.StructuredError.ResourceType,
-			}
-		}
-
-		for k, v := range result.Sustainability {
-			engineResult.Sustainability[k] = SustainabilityMetric{
-				Value: v.Value,
-				Unit:  v.Unit,
-			}
-		}
-		return engineResult, nil
+	if err != nil {
+		// Preserve the plugin's failure reason (e.g. InvalidArgument when no
+		// region could be resolved) so the row and .finfocus.errors name the
+		// real cause instead of the generic ErrNoCostData (#1670).
+		return nil, pluginStatusError(err)
+	}
+	if len(resp.Results) == 0 {
+		return nil, ErrNoCostData
 	}
 
-	return nil, ErrNoCostData
+	result := resp.Results[0]
+	engineResult := &CostResult{
+		ResourceType:   resource.Type,
+		ResourceID:     resource.ID,
+		Adapter:        client.Name,
+		Currency:       result.Currency,
+		Monthly:        result.MonthlyCost,
+		Hourly:         result.HourlyCost,
+		Notes:          result.Notes,
+		Breakdown:      result.CostBreakdown,
+		Sustainability: make(map[string]SustainabilityMetric),
+	}
+
+	engineResult.ExpiresAt = result.ExpiresAt
+
+	// Map proto StructuredError to engine StructuredError
+	if result.StructuredError != nil {
+		engineResult.Error = &StructuredError{
+			Code:         result.StructuredError.Code,
+			Message:      result.StructuredError.Message,
+			ResourceType: result.StructuredError.ResourceType,
+		}
+	}
+
+	for k, v := range result.Sustainability {
+		engineResult.Sustainability[k] = SustainabilityMetric{
+			Value: v.Value,
+			Unit:  v.Unit,
+		}
+	}
+	return engineResult, nil
+}
+
+// pluginStatusError converts a plugin RPC failure into a user-facing error that
+// keeps the plugin's own message. gRPC status errors render as
+// "<Code>: <message>" (e.g. "InvalidArgument: region is required for
+// GetProjectedCost") instead of the raw "rpc error: code = ... desc = ..."
+// text; non-status errors pass through unchanged.
+func pluginStatusError(err error) error {
+	st, ok := status.FromError(err)
+	if !ok {
+		return err
+	}
+	return errors.New(st.Code().String() + ": " + st.Message())
 }
 
 func (e *Engine) getProjectedCostFromSpec(

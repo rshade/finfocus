@@ -920,8 +920,11 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   `FINFOCUS_KUBERNETES_DAEMONSET_NODE_COUNT` and
   `FINFOCUS_KUBERNETES_JOB_HOURS_PER_MONTH` as hints. `Supports` and
   `GetProjectedCost` share `workload.Estimate`. A `Supports` decline reason
-  (at most 160 characters) is the only plugin text core keeps in a
-  `NO_COST_DATA` note; a `GetProjectedCost` error's text is dropped. The
+  (at most 160 characters) is kept in a `NO_COST_DATA` note, and a failed
+  `GetProjectedCost` keeps the plugin's gRPC status text
+  (`<Code>: <message>`, e.g. `InvalidArgument: region is required for
+  GetProjectedCost`) in the note and in `.finfocus.errors`; only an empty
+  result list still collapses to `no cost data available`. The
   per-pod request reuses `usage.EffectiveRequests`, with limits standing in
   for absent requests first. Prices carry `expires_at` = now because the
   core cache key cannot see the plugin's environment; without it a rate change

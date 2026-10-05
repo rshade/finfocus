@@ -63,7 +63,10 @@ Resource shows $0
 │   └── "ERROR: " plus a deadline is TIMEOUT_ERROR on the adapter path. Any other RPC error there is PLUGIN_ERROR.
 ├── Code NO_COST_DATA and note contains "No pricing information available"
 │   └── Every plugin returned an error or no rows, and no local spec matched.
-│       getProjectedCostFromPlugin reports that as "no cost data available".
+│       A real plugin failure is appended to the note in parentheses
+│       (e.g. "plugin call failed: InvalidArgument: region is required ...");
+│       an empty result stays plain "No pricing information available" and the
+│       errors list shows "plugin call failed: no cost data available".
 ├── Monthly cost 0 and no error note
 │   └── The plugin priced the resource at 0. That is a result. The engine does not ask the next plugin.
 └── The resource is missing from the output
@@ -84,7 +87,7 @@ Checks that explain a real zero or a missing row:
 Fallback, in the order the engine uses:
 
 - A returned `CostResult`, including monthly cost 0, stops the chain.
-- An error (including an empty result collapsed to `no cost data available`) tries the next plugin when fallback is enabled. Default is enabled.
+- An error (including an empty result reported as `no cost data available`) tries the next plugin when fallback is enabled. Default is enabled.
 - `InvalidArgument` is not a special stop. See the error-code reference.
 - Higher priority number is tried first.
 - If nothing returns a row, a local spec is tried, then the `NO_COST_DATA` placeholder.
