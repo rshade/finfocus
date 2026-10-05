@@ -8,6 +8,15 @@ and visibility.
 
 ## GitHub Actions
 
+The [finfocus-action](https://github.com/rshade/finfocus-action) GitHub
+Action installs FinFocus and its plugins, runs the analysis, and posts the
+result as a pull request comment. It also supports analyzer mode, budgets,
+recommendations, and sustainability metrics. To see the comment it produces,
+open [the live demo pull request](https://github.com/rshade/finfocus-demo/pull/1)
+in [finfocus-demo](https://github.com/rshade/finfocus-demo).
+
+To run the CLI directly instead:
+
 ```yaml
 name: Cost Estimate
 on: [pull_request]
