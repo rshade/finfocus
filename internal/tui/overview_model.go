@@ -3,6 +3,7 @@ package tui
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -205,7 +206,7 @@ func NewOverviewModel(
 	m := OverviewModel{
 		state:           initialState,
 		allRows:         rowResults,
-		rows:            rowResults,
+		rows:            slices.Clone(rowResults),
 		ctx:             ctx,
 		totalCount:      totalCount,
 		loadedCount:     0,
@@ -385,10 +386,10 @@ func (m OverviewModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.state != ViewStateInitializing {
 			return m, nil // Ignore stale message
 		}
-		// Conversion allocates fresh slices: allRows and rows do not share
-		// backing arrays because refreshTable sorts m.rows in-place.
+		// allRows and rows must not share backing arrays because
+		// refreshTable sorts m.rows in-place.
 		m.allRows = computeRowResults(dataMsg.Rows)
-		m.rows = computeRowResults(dataMsg.Rows)
+		m.rows = slices.Clone(m.allRows)
 		m.totalCount = dataMsg.TotalCount
 		m.stackName = dataMsg.StackName
 		m.state = ViewStateLoading

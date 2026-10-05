@@ -1030,6 +1030,27 @@ func TestOverviewModel_DataReadyMsg(t *testing.T) {
 	testRows[0].URN = "mutated"
 	assert.Equal(t, "urn:test1", model.allRows[0].URN,
 		"model.allRows must be independent of the original slice (defensive copy)")
+
+	model.rows[0], model.rows[2] = model.rows[2], model.rows[0]
+	assert.Equal(t, "urn:test1", model.allRows[0].URN,
+		"reordering model.rows must not reorder model.allRows")
+}
+
+// TestNewOverviewModel_RowsDoNotAliasAllRows verifies the initial rows slice
+// can be sorted without reordering allRows.
+func TestNewOverviewModel_RowsDoNotAliasAllRows(t *testing.T) {
+	t.Parallel()
+
+	rows := []engine.OverviewRow{
+		{URN: "urn:a", Type: "aws:ec2:Instance", Status: engine.StatusActive},
+		{URN: "urn:b", Type: "aws:s3:Bucket", Status: engine.StatusActive},
+	}
+	model, _ := NewOverviewModel(context.Background(), rows, 2, nil, nil)
+	require.Len(t, model.rows, 2)
+
+	model.rows[0], model.rows[1] = model.rows[1], model.rows[0]
+	assert.Equal(t, "urn:a", model.allRows[0].URN)
+	assert.Equal(t, "urn:b", model.allRows[1].URN)
 }
 
 // TestOverviewModel_NilRowsInit verifies nil vs non-nil row initialization.
