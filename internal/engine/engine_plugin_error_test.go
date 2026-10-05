@@ -6,10 +6,14 @@ package engine
 import (
 	"context"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -180,7 +184,84 @@ func TestPluginStatusError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tt.want, pluginStatusError(tt.err).Error())
+			got := pluginStatusError(tt.err)
+			assert.Equal(t, tt.want, got.Error())
+			assert.Equal(t, status.Code(tt.err), status.Code(got))
 		})
 	}
+}
+
+func TestProjectedFallbackResult_PluginErrorNote(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		declines []pluginDecline
+		errs     []ErrorDetail
+		want     string
+	}{
+		{
+			name:     "decline reasons kept before plugin error",
+			declines: []pluginDecline{{plugin: "kubernetes", reason: "not a workload"}},
+			errs:     []ErrorDetail{{Error: errors.New("plugin call failed: InvalidArgument: region is required")}},
+			want: "No pricing information available (declined by kubernetes: not a workload)" +
+				" (plugin call failed: InvalidArgument: region is required)",
+		},
+		{
+			name: "no cost data errors are skipped",
+			errs: []ErrorDetail{
+				{Error: fmt.Errorf("plugin call failed: %w", ErrNoCostData)},
+				{Error: errors.New("plugin call failed: Unavailable: connection refused")},
+			},
+			want: "No pricing information available (plugin call failed: Unavailable: connection refused)",
+		},
+		{
+			name: "long plugin error is truncated",
+			errs: []ErrorDetail{{Error: errors.New(strings.Repeat("x", maxDeclineReasonLen+10))}},
+			want: "No pricing information available (" + strings.Repeat("x", maxDeclineReasonLen) + "...)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			eng := New(nil, nil)
+			row := eng.projectedFallbackResult(context.Background(), regionlessRDS(), nil, tt.declines, tt.errs)
+			assert.Equal(t, tt.want, row.Notes)
+			require.NotNil(t, row.Error)
+			assert.Equal(t, tt.want, row.Error.Message)
+		})
+	}
+}
+
+type actualErrPlugin struct {
+	mockCostSourceClient
+
+	err error
+}
+
+func (p *actualErrPlugin) GetActualCost(
+	_ context.Context, _ *proto.GetActualCostRequest, _ ...grpc.CallOption,
+) (*proto.GetActualCostResponse, error) {
+	return nil, p.err
+}
+
+func TestGetActualCostWithOptionsAndErrors_PluginErrorText(t *testing.T) {
+	t.Parallel()
+
+	plugin := &actualErrPlugin{err: status.Error(codes.FailedPrecondition, "billing data not enabled")}
+	eng := New([]*pluginhost.Client{{Name: "aws-ce", API: plugin}}, nil)
+
+	res, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), ActualCostRequest{
+		Resources:        []ResourceDescriptor{regionlessRDS()},
+		From:             time.Now().Add(-24 * time.Hour),
+		To:               time.Now(),
+		FallbackEstimate: true,
+	})
+	require.NoError(t, err)
+
+	require.Len(t, res.Errors, 1)
+	assert.Equal(t, "plugin call failed: FailedPrecondition: billing data not enabled", res.Errors[0].Error.Error())
+	require.Len(t, res.Results, 1)
+	assert.Equal(t, "ERROR: plugin call failed: FailedPrecondition: billing data not enabled", res.Results[0].Notes)
 }

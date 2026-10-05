@@ -746,8 +746,6 @@ func (e *Engine) GetProjectedCost(
 				result, err := e.getProjectedCostFromPlugin(resourceCtx, client, resource)
 				resourceCancel()
 				if err != nil {
-					// Keep the plugin's failure reason so the fallback
-					// placeholder row can name the real cause (#1670).
 					pluginErrs = append(pluginErrs, ErrorDetail{
 						ResourceType: resource.Type,
 						ResourceID:   resource.ID,
@@ -1695,7 +1693,7 @@ func (e *Engine) getActualCostForResource(
 	// Create placeholder result (gated behind --fallback-estimate)
 	notes := noteNoActualCostData
 	if len(errors) > 0 {
-		notes = "ERROR: plugin call failed"
+		notes = "ERROR: " + truncateDeclineReason(errors[0].Error.Error())
 	} else {
 		notes = declineNotes(notes, declines)
 	}
@@ -1822,9 +1820,6 @@ func (e *Engine) getProjectedCostFromPlugin(
 
 	resp, err := client.API.GetProjectedCost(ctx, req)
 	if err != nil {
-		// Preserve the plugin's failure reason (e.g. InvalidArgument when no
-		// region could be resolved) so the row and .finfocus.errors name the
-		// real cause instead of the generic ErrNoCostData (#1670).
 		return nil, pluginStatusError(err)
 	}
 	if len(resp.Results) == 0 {
@@ -1864,17 +1859,29 @@ func (e *Engine) getProjectedCostFromPlugin(
 	return engineResult, nil
 }
 
-// pluginStatusError converts a plugin RPC failure into a user-facing error that
-// keeps the plugin's own message. gRPC status errors render as
-// "<Code>: <message>" (e.g. "InvalidArgument: region is required for
-// GetProjectedCost") instead of the raw "rpc error: code = ... desc = ..."
-// text; non-status errors pass through unchanged.
+// pluginRPCError renders a plugin's gRPC status as "<Code>: <message>"
+// (e.g. "InvalidArgument: region is required for GetProjectedCost") instead of
+// "rpc error: code = ... desc = ...", and keeps the status for status.Code.
+type pluginRPCError struct {
+	st *status.Status
+}
+
+func (e *pluginRPCError) Error() string {
+	return e.st.Code().String() + ": " + e.st.Message()
+}
+
+func (e *pluginRPCError) GRPCStatus() *status.Status {
+	return e.st
+}
+
+// pluginStatusError wraps a gRPC status error in pluginRPCError; other errors,
+// such as [context.DeadlineExceeded], pass through unchanged.
 func pluginStatusError(err error) error {
 	st, ok := status.FromError(err)
 	if !ok {
 		return err
 	}
-	return errors.New(st.Code().String() + ": " + st.Message())
+	return &pluginRPCError{st: st}
 }
 
 func (e *Engine) getProjectedCostFromSpec(
@@ -1992,7 +1999,7 @@ func (e *Engine) getActualCostFromPlugin(
 
 	resp, err := client.API.GetActualCost(ctx, req)
 	if err != nil {
-		return nil, err
+		return nil, pluginStatusError(err)
 	}
 
 	if len(resp.Results) == 0 {

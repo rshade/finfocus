@@ -1166,9 +1166,8 @@ func ResolveSKUAndRegion(
 //  2. The region segment of an ARN property.
 //  3. AWS_REGION, then AWS_DEFAULT_REGION environment variables.
 //
-// The Pulumi provider or stack configuration (aws:region) is intentionally not
-// consulted: `pulumi preview --json` steps carry only a provider URN reference,
-// never the provider's configured inputs, so core cannot see it (#1670).
+// The Pulumi provider resource and stack configuration (aws:region) are not
+// consulted.
 func resolveSKUAndRegion(
 	ctx context.Context,
 	provider, resourceType string,

@@ -462,9 +462,9 @@ order core checks them:
    AWS_REGION=us-west-2 finfocus cost projected --pulumi-json plan.json
    ```
 
-The Pulumi provider or stack configuration (`aws:region`) is not read: plan
-JSON steps carry only a provider URN reference, never the provider's
-configured inputs, so core cannot see it.
+Core does not read the Pulumi provider resource or stack configuration
+(`aws:region`), so set one of the sources above even when the stack has a
+region configured.
 
 A regionless S3 bucket is expected to price at `$0.00` without an error: the
 plugin accepts it, and bucket contents cannot be measured from a plan.

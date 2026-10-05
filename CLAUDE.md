@@ -593,6 +593,16 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
 ### Engine (`internal/engine/`)
 
 - **`hoursPerMonth = 730`** for monthly cost calculations
+- **Plugin error text is kept**: a failed `GetProjectedCost` or `GetActualCost`
+  call keeps the plugin's gRPC status as `<Code>: <message>` (`pluginRPCError`,
+  which still answers `status.Code`), e.g. `plugin call failed: InvalidArgument:
+  region is required for GetProjectedCost` in `.finfocus.errors`. Only an empty
+  projected result list is `no cost data available`. The projected
+  `NO_COST_DATA` note appends the first other error after any decline reasons,
+  and the actual `--fallback-estimate` note is `ERROR: ` plus that error, both
+  capped at 160 bytes. Core does not read `aws:region` from Pulumi provider or
+  stack config; region comes from `region`, `availabilityZone`, an ARN, then
+  `AWS_REGION`/`AWS_DEFAULT_REGION`
 - **Projected cost diff**: `cost projected` calls `GetProjectedCostDiff`.
   An empty operation is a create (`$0` before, current price after); Terraform
   state maps to `same` (existing infrastructure, no delta). Internal `pulumi:`
@@ -920,11 +930,8 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   `FINFOCUS_KUBERNETES_DAEMONSET_NODE_COUNT` and
   `FINFOCUS_KUBERNETES_JOB_HOURS_PER_MONTH` as hints. `Supports` and
   `GetProjectedCost` share `workload.Estimate`. A `Supports` decline reason
-  (at most 160 characters) is kept in a `NO_COST_DATA` note, and a failed
-  `GetProjectedCost` keeps the plugin's gRPC status text
-  (`<Code>: <message>`, e.g. `InvalidArgument: region is required for
-  GetProjectedCost`) in the note and in `.finfocus.errors`; only an empty
-  result list still collapses to `no cost data available`. The
+  (at most 160 characters) is kept in a `NO_COST_DATA` note, like a
+  `GetProjectedCost` error's text (see Engine). The
   per-pod request reuses `usage.EffectiveRequests`, with limits standing in
   for absent requests first. Prices carry `expires_at` = now because the
   core cache key cannot see the plugin's environment; without it a rate change

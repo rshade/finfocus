@@ -64,9 +64,8 @@ func (e *Engine) pricingSpecDeadline() time.Duration {
 // GetProjectedCost missed. Plugin GetPricingSpec runs only when enabled.
 // Local YAML remains the next source, then the no-pricing placeholder. When a
 // plugin call failed with a real error (anything but ErrNoCostData, e.g.
-// InvalidArgument for a missing region), the first such error leads the
-// placeholder note and structured error message so the row names the actual
-// cause (#1670).
+// InvalidArgument for a missing region), the first such error is appended to
+// the placeholder note after any Supports() declines.
 func (e *Engine) projectedFallbackResult(
 	ctx context.Context,
 	resource ResourceDescriptor,
@@ -114,7 +113,7 @@ func (e *Engine) projectedFallbackResult(
 		Msg("no pricing data available from plugins or specs")
 	notes := declineNotes(noteNoPricingInfo, declines)
 	if pluginErr := firstPluginFailure(pluginErrs); pluginErr != nil {
-		notes = noteNoPricingInfo + " (" + pluginErr.Error() + ")"
+		notes += " (" + truncateDeclineReason(pluginErr.Error()) + ")"
 	}
 	return CostResult{
 		ResourceType: resource.Type,
@@ -132,8 +131,7 @@ func (e *Engine) projectedFallbackResult(
 
 // firstPluginFailure returns the first plugin error that is not ErrNoCostData.
 // ErrNoCostData only means "the plugin returned no rows", which the base
-// placeholder note already states; a real failure reason (e.g. InvalidArgument
-// for a missing region) is what the placeholder must surface (#1670).
+// placeholder note already states.
 func firstPluginFailure(errs []ErrorDetail) error {
 	for _, detail := range errs {
 		if !errors.Is(detail.Error, ErrNoCostData) {

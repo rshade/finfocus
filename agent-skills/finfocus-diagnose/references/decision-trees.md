@@ -59,7 +59,7 @@ Resource shows $0
 ├── Note starts with "VALIDATION:"
 │   └── pluginsdk rejected the request. Code VALIDATION_ERROR. Fix the resource, SKU, or region. This is not a plugin outage.
 ├── Note starts with "ERROR:"
-│   ├── "ERROR: plugin call failed" on cost actual --fallback-estimate
+│   ├── "ERROR: plugin call failed: <reason>" on cost actual --fallback-estimate (the plugin's own error text)
 │   └── "ERROR: " plus a deadline is TIMEOUT_ERROR on the adapter path. Any other RPC error there is PLUGIN_ERROR.
 ├── Code NO_COST_DATA and note contains "No pricing information available"
 │   └── Every plugin returned an error or no rows, and no local spec matched.
