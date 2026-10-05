@@ -828,6 +828,8 @@ planned skills.
 
 - [finfocus-spec](https://github.com/rshade/finfocus-spec) - Protocol definitions and schemas
 - [finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public) - AWS public pricing plugin
+- [finfocus-action](https://github.com/rshade/finfocus-action) - GitHub Action that posts cost estimates on pull requests
+- [finfocus-demo](https://github.com/rshade/finfocus-demo) - Live demo of finfocus-action; see [PR #1](https://github.com/rshade/finfocus-demo/pull/1) for the output
 - [agent-skills](https://github.com/rshade/agent-skills) - Generic cost workflow skills (multi-tool)
 
 ---
