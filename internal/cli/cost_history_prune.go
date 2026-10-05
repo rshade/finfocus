@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -66,7 +65,7 @@ func runPrune(cmd *cobra.Command, dir string) error {
 		cmd.Printf("Stack: %s\nNothing to prune.\n", stack)
 		return nil
 	}
-	if historyDryRun(cmd) {
+	if dryRunRequested(cmd) {
 		writePruneDryRun(cmd, stack, plan, policy)
 		return nil
 	}
@@ -107,17 +106,6 @@ func flagForce(cmd *cobra.Command) bool {
 		return false
 	}
 	value, err := cmd.Flags().GetBool("force")
-	return err == nil && value
-}
-
-func historyDryRun(cmd *cobra.Command) bool {
-	if cmd != nil && ax.DryRunFromContext(commandContext(cmd)) {
-		return true
-	}
-	if cmd == nil || cmd.Flags().Lookup("dry-run") == nil {
-		return false
-	}
-	value, err := cmd.Flags().GetBool("dry-run")
 	return err == nil && value
 }
 

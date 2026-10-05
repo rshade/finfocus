@@ -37,7 +37,7 @@ func NewConfigListCmd() *cobra.Command {
 			style := resolveOutputFormat(cmd, "as", as)
 
 			// config.New() already loads from disk and applies env overrides
-			cfg := config.New()
+			cfg := config.New().MaskedForDisplay()
 
 			// Get all configuration
 			allConfig := cfg.List()

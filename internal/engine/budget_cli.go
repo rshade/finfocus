@@ -3,6 +3,7 @@ package engine
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -53,6 +54,9 @@ type ThresholdStatus struct {
 	Type config.AlertType
 	// Status is the evaluation result: OK, APPROACHING, or EXCEEDED.
 	Status ThresholdStatusValue
+	// Notifications is a copy of the alert's destinations. It is never serialized,
+	// because destination URLs and headers are secrets.
+	Notifications []config.NotificationDestination `json:"-"`
 }
 
 // BudgetStatus represents the result of evaluating a budget against current spend.
@@ -144,7 +148,7 @@ func (e *DefaultBudgetEngine) Evaluate(
 	alerts := e.evaluateAlerts(budget.Alerts, percentage, forecastPercentage)
 
 	return &BudgetStatus{
-		Budget:             budget,
+		Budget:             budgetWithoutDestinations(budget),
 		CurrentSpend:       currentSpend,
 		Percentage:         percentage,
 		ForecastedSpend:    forecastedSpend,
@@ -192,15 +196,44 @@ func (e *DefaultBudgetEngine) evaluateAlerts(
 			percentage = forecastPercentage
 		}
 
-		status := evaluateThreshold(alert.Threshold, percentage)
-		results = append(results, ThresholdStatus{
-			Threshold: alert.Threshold,
-			Type:      alert.Type,
-			Status:    status,
-		})
+		results = append(results, newThresholdStatus(alert, percentage))
 	}
 
 	return results
+}
+
+// newThresholdStatus evaluates one alert and copies its notification destinations.
+func newThresholdStatus(alert config.AlertConfig, percentage float64) ThresholdStatus {
+	return ThresholdStatus{
+		Threshold:     alert.Threshold,
+		Type:          alert.Type,
+		Status:        evaluateThreshold(alert.Threshold, percentage),
+		Notifications: slices.Clone(alert.Notifications),
+	}
+}
+
+// alertsWithoutDestinations returns a copy of alerts with every Notifications
+// slice removed, so a budget stored on a status cannot serialize secrets.
+func alertsWithoutDestinations(alerts []config.AlertConfig) []config.AlertConfig {
+	if alerts == nil {
+		return nil
+	}
+	stripped := make([]config.AlertConfig, len(alerts))
+	for i, alert := range alerts {
+		alert.Notifications = nil
+		stripped[i] = alert
+	}
+	return stripped
+}
+
+func budgetWithoutDestinations(budget config.BudgetConfig) config.BudgetConfig {
+	budget.Alerts = alertsWithoutDestinations(budget.Alerts)
+	return budget
+}
+
+func scopedBudgetWithoutDestinations(budget config.ScopedBudget) config.ScopedBudget {
+	budget.Alerts = alertsWithoutDestinations(budget.Alerts)
+	return budget
 }
 
 // evaluateThreshold determines the threshold status for a given percentage relative to a threshold.

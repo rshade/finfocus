@@ -562,3 +562,64 @@ func TestShallowMergeYAML_Hujson(t *testing.T) {
 		})
 	}
 }
+
+func TestShallowMergeYAML_MarksProjectDestinations(t *testing.T) {
+	t.Parallel()
+
+	target := newDefaultTarget()
+	assert.False(t, (config.NotificationDestination{}).FromProject())
+
+	path := writeOverlay(t, `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD","alerts":[
+  {"threshold":80,"type":"actual","notifications":[{"type":"webhook","url":"https://a.example","source":"global"}]}]},
+  "providers":{"aws":{"amount":5,"alerts":[{"threshold":80,"type":"actual","notifications":[{"type":"slack","url":"https://b.example"}]}]}},
+  "tags":[{"selector":"team:x","amount":5,"alerts":[{"threshold":80,"type":"actual","notifications":[{"type":"slack","url":"https://c.example"}]}]}],
+  "types":{"aws:s3/bucket":{"amount":5,"alerts":[{"threshold":80,"type":"actual","notifications":[{"type":"slack","url":"https://d.example"}]}]}}}}}`)
+	require.NoError(t, config.ShallowMergeYAML(target, path))
+
+	budgets := target.Cost.Budgets
+	require.NotNil(t, budgets)
+	assert.True(t, budgets.Global.Alerts[0].Notifications[0].FromProject())
+	assert.True(t, budgets.Providers["aws"].Alerts[0].Notifications[0].FromProject())
+	assert.True(t, budgets.Tags[0].Alerts[0].Notifications[0].FromProject())
+	assert.True(t, budgets.Types["aws:s3/bucket"].Alerts[0].Notifications[0].FromProject())
+}
+
+func TestShallowMergeYAML_GlobalDestinationsStayGlobal(t *testing.T) {
+	t.Parallel()
+
+	target := newDefaultTarget()
+	target.Cost.Budgets = &config.BudgetsConfig{Global: &config.ScopedBudget{
+		Amount: 100, Currency: "USD",
+		Alerts: []config.AlertConfig{{
+			Threshold: 80, Type: config.AlertTypeActual,
+			Notifications: []config.NotificationDestination{{Type: "slack", URL: "${FINFOCUS_NOTIFY_SLACK_URL}"}},
+		}},
+	}}
+
+	path := writeOverlay(t, `{"output":{"default_format":"json"}}`)
+	require.NoError(t, config.ShallowMergeYAML(target, path))
+	assert.False(t, target.Cost.Budgets.Global.Alerts[0].Notifications[0].FromProject())
+}
+
+func TestShallowMergeYAML_MarksProjectDestinationsFromLegacyYAML(t *testing.T) {
+	t.Parallel()
+
+	target := newDefaultTarget()
+	path := writeOverlay(t, `cost:
+  budgets:
+    global:
+      amount: 100
+      currency: USD
+      alerts:
+        - threshold: 80
+          type: actual
+          notifications:
+            - type: slack
+              url: https://hooks.example/project
+`)
+	require.NoError(t, config.ShallowMergeYAML(target, path))
+	dests := target.Cost.Budgets.Global.Alerts[0].Notifications
+	require.Len(t, dests, 1)
+	assert.Equal(t, "https://hooks.example/project", dests[0].URL)
+	assert.True(t, dests[0].FromProject())
+}

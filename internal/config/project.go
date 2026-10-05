@@ -77,18 +77,9 @@ func NewWithProjectDir(ctx context.Context, projectDir string) *Config {
 		return cfg
 	}
 
-	overlayPath := filepath.Join(projectDir, "config.hujson")
-
-	// Check if project config exists (new format or legacy format)
+	overlayPath := ProjectConfigPath(projectDir)
 	if _, err := os.Stat(overlayPath); err != nil {
-		// New format doesn't exist, check for legacy YAML
-		legacyPath := filepath.Join(projectDir, "config.yaml")
-		if _, legacyErr := os.Stat(legacyPath); legacyErr != nil {
-			// Neither format exists - use global defaults
-			return cfg
-		}
-		// Legacy format exists, use it as overlay
-		overlayPath = legacyPath
+		return cfg
 	}
 
 	cfgCopy := New()
@@ -104,6 +95,21 @@ func NewWithProjectDir(ctx context.Context, projectDir string) *Config {
 	}
 
 	return cfgCopy
+}
+
+// ProjectConfigPath returns the project config file that NewWithProjectDir
+// merges: config.hujson in projectDir, or the legacy config.yaml when only
+// that exists. It returns the config.hujson path when neither exists.
+func ProjectConfigPath(projectDir string) string {
+	hujsonPath := filepath.Join(projectDir, "config.hujson")
+	if _, err := os.Stat(hujsonPath); err == nil {
+		return hujsonPath
+	}
+	legacyPath := filepath.Join(projectDir, "config.yaml")
+	if _, err := os.Stat(legacyPath); err == nil {
+		return legacyPath
+	}
+	return hujsonPath
 }
 
 // projectSkeletonHujson is the minimal template written by SaveProjectSkeleton.

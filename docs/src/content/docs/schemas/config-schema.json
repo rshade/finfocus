@@ -113,6 +113,13 @@
           "type": "string",
           "enum": ["actual", "forecasted"],
           "description": "Alert trigger type: actual (current costs) or forecasted (projected)"
+        },
+        "notifications": {
+          "type": "array",
+          "description": "Destinations notified when this threshold is exceeded in a run with --notify or FINFOCUS_NOTIFY=true.",
+          "items": {
+            "$ref": "#/definitions/NotificationDestination"
+          }
         }
       },
       "required": ["threshold", "type"]
@@ -169,6 +176,77 @@
             }
           },
           "required": ["selector"]
+        }
+      ]
+    },
+    "NotificationDestination": {
+      "type": "object",
+      "description": "A budget alert destination. url and header values are secrets; use ${FINFOCUS_NOTIFY_*} references in the global config. Project configs must use literal values.",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["slack", "webhook"],
+          "description": "slack (incoming webhook) or webhook (generic HTTPS endpoint)."
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^(https://|.*\\$\\{FINFOCUS_NOTIFY_[A-Za-z0-9_]+\\})",
+          "description": "https:// URL with a host, or a value using ${FINFOCUS_NOTIFY_*} references (checked for HTTPS after expansion)."
+        },
+        "channel": {
+          "type": "string",
+          "description": "Slack only. Channel override sent with the message."
+        },
+        "method": {
+          "type": "string",
+          "enum": ["POST", "PUT", "post", "put", "Post", "Put"],
+          "description": "Webhook only. HTTP method, POST by default."
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Webhook only. Extra request headers; values may use ${FINFOCUS_NOTIFY_*} references."
+        }
+      },
+      "required": ["type", "url"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "slack"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "anyOf": [
+                {
+                  "required": ["method"]
+                },
+                {
+                  "required": ["headers"]
+                }
+              ]
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "type": {
+                "const": "webhook"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": ["channel"]
+            }
+          }
         }
       ]
     }

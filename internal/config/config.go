@@ -212,14 +212,28 @@ type AnalyzerPlugin struct {
 // 3. $HOME/.finfocus/ - default fallback (standard behavior).
 // 4. ./.finfocus - fallback of last resort if home directory cannot be determined.
 func ResolveConfigDir() string {
+	dir, _ := resolveConfigDir()
+	return dir
+}
+
+// UsesWorkingDirFallback reports whether ResolveConfigDir falls back to
+// ./.finfocus because no FINFOCUS_HOME, PULUMI_HOME, or home directory is set.
+// That directory may be a committed project config, so its notification
+// destinations are treated as project-sourced.
+func UsesWorkingDirFallback() bool {
+	_, fallback := resolveConfigDir()
+	return fallback
+}
+
+func resolveConfigDir() (string, bool) {
 	// Check explicit FINFOCUS_HOME first
 	if ffHome := os.Getenv("FINFOCUS_HOME"); ffHome != "" {
-		return ffHome
+		return ffHome, false
 	}
 
 	// Check PULUMI_HOME (Pulumi ecosystem integration)
 	if pulumiHome := os.Getenv("PULUMI_HOME"); pulumiHome != "" {
-		return filepath.Join(pulumiHome, "finfocus")
+		return filepath.Join(pulumiHome, "finfocus"), false
 	}
 
 	// Fall back to HOME/.finfocus
@@ -228,11 +242,11 @@ func ResolveConfigDir() string {
 		// Last resort fallback - use current working directory
 		cwd, cwdErr := os.Getwd()
 		if cwdErr != nil {
-			return ".finfocus"
+			return ".finfocus", true
 		}
-		return filepath.Join(cwd, ".finfocus")
+		return filepath.Join(cwd, ".finfocus"), true
 	}
-	return filepath.Join(homeDir, ".finfocus")
+	return filepath.Join(homeDir, ".finfocus"), false
 }
 
 // New creates a new configuration with defaults.
@@ -320,6 +334,10 @@ func New() *Config {
 		}
 	}
 
+	if UsesWorkingDirFallback() {
+		markProjectDestinations(cfg.Cost.Budgets)
+	}
+
 	// Apply YAML plugin_dir override (lower precedence than env var, applied first).
 	if cfg.PluginDirOverride != "" {
 		cfg.PluginDir = cfg.PluginDirOverride
@@ -398,6 +416,10 @@ func NewStrict() (*Config, error) {
 			// Likely a corrupted config file - fail immediately
 			return nil, fmt.Errorf("%w: %w", ErrConfigCorrupted, loadErr)
 		}
+	}
+
+	if UsesWorkingDirFallback() {
+		markProjectDestinations(cfg.Cost.Budgets)
 	}
 
 	// Apply YAML plugin_dir override (lower precedence than env var, applied first).

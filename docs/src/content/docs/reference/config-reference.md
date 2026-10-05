@@ -241,8 +241,27 @@ Per-resource-type budgets for category control.
 
 | Option      | Type   | Default  | Description                                                        |
 | ----------- | ------ | -------- | ------------------------------------------------------------------ |
-| `threshold` | number | -        | **Required**. Percentage of budget (1-100) to trigger alert.       |
-| `type`      | string | `actual` | Trigger on `actual` (historical) or `forecasted` (projected) cost. |
+| `threshold`     | number | -        | **Required**. Percentage of budget (1-100) to trigger alert.       |
+| `type`          | string | `actual` | Trigger on `actual` (historical) or `forecasted` (projected) cost. |
+| `notifications` | list   | `[]`     | Destinations notified when the threshold is exceeded (see below).  |
+
+#### `cost.budgets.<scope>.alerts[].notifications`
+
+Each destination is sent only in runs with `--notify` or `FINFOCUS_NOTIFY=true`.
+
+| Option    | Type   | Default | Description                                                                        |
+| --------- | ------ | ------- | ---------------------------------------------------------------------------------- |
+| `type`    | string | -       | **Required**. `slack` (incoming webhook) or `webhook` (generic HTTPS endpoint).    |
+| `url`     | string | -       | **Required**. `https://` URL with a host, or `${FINFOCUS_NOTIFY_*}` references.    |
+| `channel` | string | -       | Slack only. Channel override sent with the message.                                |
+| `method`  | string | `POST`  | Webhook only. `POST` or `PUT`.                                                     |
+| `headers` | object | -       | Webhook only. Extra request headers; values may use `${FINFOCUS_NOTIFY_*}`.        |
+
+Only variables named `FINFOCUS_NOTIFY_*` expand, and only in the global config.
+A project config destination must use literal values; validation rejects any
+`${...}` there. `config get` and `config list` show `url` and header values as
+`[REDACTED]` unless the value is a single `${NAME}` reference. See
+[Budget Notifications](../guides/budgets.md#budget-notifications).
 
 #### Example: Scoped Budget Configuration
 

@@ -15,6 +15,7 @@ type ValidationView struct {
 
 // ValidationViewItem is one error or warning line in a validation view.
 type ValidationViewItem struct {
+	File       string
 	Line       int
 	Path       string
 	Message    string
@@ -67,6 +68,9 @@ func writeValidationItems(b *strings.Builder, label string, items []ValidationVi
 			fmt.Fprintf(b, "  %s at line %d: %s\n", label, item.Line, item.Message)
 		} else {
 			fmt.Fprintf(b, "  %s: %s\n", label, item.Message)
+		}
+		if item.File != "" {
+			fmt.Fprintf(b, "  File: %s\n", item.File)
 		}
 		if item.Path != "" {
 			fmt.Fprintf(b, "  Path: %s\n", item.Path)

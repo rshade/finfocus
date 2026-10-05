@@ -50,6 +50,9 @@ type AlertConfig struct {
 	Threshold float64 `yaml:"threshold" json:"threshold"`
 	// Type is the evaluation type: "actual" or "forecasted".
 	Type AlertType `yaml:"type" json:"type"`
+	// Notifications lists where to send this alert when its threshold is exceeded
+	// in a run that opted in with --notify or FINFOCUS_NOTIFY.
+	Notifications []NotificationDestination `yaml:"notifications,omitempty" json:"notifications,omitempty"`
 }
 
 // Validate checks if the alert configuration is valid.
@@ -59,6 +62,11 @@ func (a AlertConfig) Validate() error {
 	}
 	if a.Type != AlertTypeActual && a.Type != AlertTypeForecasted {
 		return fmt.Errorf("%w: got %q", ErrAlertTypeInvalid, a.Type)
+	}
+	for i, dest := range a.Notifications {
+		if err := dest.Validate(); err != nil {
+			return fmt.Errorf("notifications[%d]: %w", i, err)
+		}
 	}
 	return nil
 }

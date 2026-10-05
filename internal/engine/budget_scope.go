@@ -525,20 +525,31 @@ func CalculateProviderBudgetStatus(
 	budget *config.ScopedBudget,
 	currentSpend float64,
 ) *ScopedBudgetStatus {
+	return newScopedBudgetStatus(ScopeTypeProvider, provider, budget, currentSpend)
+}
+
+// newScopedBudgetStatus is the only constructor of a ScopedBudgetStatus. It
+// stores a copy of budget without notification destinations, because the
+// status is serialized; the destinations reach the CLI only through the
+// alert statuses' json:"-" field.
+func newScopedBudgetStatus(
+	scope ScopeType,
+	key string,
+	budget *config.ScopedBudget,
+	currentSpend float64,
+) *ScopedBudgetStatus {
 	var percentage float64
 	if budget.Amount > 0 {
 		percentage = (currentSpend / budget.Amount) * percentageMultiplier
 	}
 
-	health := CalculateHealthFromPercentage(percentage)
-
 	status := &ScopedBudgetStatus{
-		ScopeType:    ScopeTypeProvider,
-		ScopeKey:     provider,
-		Budget:       *budget,
+		ScopeType:    scope,
+		ScopeKey:     key,
+		Budget:       scopedBudgetWithoutDestinations(*budget),
 		CurrentSpend: currentSpend,
 		Percentage:   percentage,
-		Health:       health,
+		Health:       CalculateHealthFromPercentage(percentage),
 		Currency:     budget.Currency,
 	}
 
@@ -606,25 +617,7 @@ func CalculateTagBudgetStatus(
 	tagBudget *config.TagBudget,
 	currentSpend float64,
 ) *ScopedBudgetStatus {
-	var percentage float64
-	if tagBudget.Amount > 0 {
-		percentage = (currentSpend / tagBudget.Amount) * percentageMultiplier
-	}
-
-	health := CalculateHealthFromPercentage(percentage)
-
-	status := &ScopedBudgetStatus{
-		ScopeType:    ScopeTypeTag,
-		ScopeKey:     tagBudget.Selector,
-		Budget:       tagBudget.ScopedBudget,
-		CurrentSpend: currentSpend,
-		Percentage:   percentage,
-		Health:       health,
-		Currency:     tagBudget.Currency,
-	}
-
-	enrichScopedBudgetStatus(status, &tagBudget.ScopedBudget)
-	return status
+	return newScopedBudgetStatus(ScopeTypeTag, tagBudget.Selector, &tagBudget.ScopedBudget, currentSpend)
 }
 
 // AllocateCostToType allocates a resource's cost to its resource type budget.
@@ -665,25 +658,7 @@ func CalculateTypeBudgetStatus(
 	budget *config.ScopedBudget,
 	currentSpend float64,
 ) *ScopedBudgetStatus {
-	var percentage float64
-	if budget.Amount > 0 {
-		percentage = (currentSpend / budget.Amount) * percentageMultiplier
-	}
-
-	health := CalculateHealthFromPercentage(percentage)
-
-	status := &ScopedBudgetStatus{
-		ScopeType:    ScopeTypeType,
-		ScopeKey:     resourceType,
-		Budget:       *budget,
-		CurrentSpend: currentSpend,
-		Percentage:   percentage,
-		Health:       health,
-		Currency:     budget.Currency,
-	}
-
-	enrichScopedBudgetStatus(status, budget)
-	return status
+	return newScopedBudgetStatus(ScopeTypeType, resourceType, budget, currentSpend)
 }
 
 // AllocateCosts allocates a resource's cost to all applicable budget scopes.
@@ -801,11 +776,7 @@ func enrichScopedBudgetStatus(status *ScopedBudgetStatus, budget *config.ScopedB
 		} else {
 			pct = status.ForecastPercentage
 		}
-		status.Alerts = append(status.Alerts, ThresholdStatus{
-			Threshold: alert.Threshold,
-			Type:      alert.Type,
-			Status:    evaluateThreshold(alert.Threshold, pct),
-		})
+		status.Alerts = append(status.Alerts, newThresholdStatus(alert, pct))
 	}
 }
 

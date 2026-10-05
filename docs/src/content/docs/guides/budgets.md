@@ -42,6 +42,8 @@ checks into your CI/CD pipelines.
   - [Provider Budgets](#provider-budgets)
   - [Tag Budgets](#tag-budgets)
   - [Resource Type Budgets](#resource-type-budgets)
+- [Budget Notifications](#budget-notifications)
+  - [Security: Project Config and Pull Requests](#security-project-config-and-pull-requests)
 - [Troubleshooting](#troubleshooting)
 - [See Also](#see-also)
 
@@ -128,10 +130,11 @@ For IDE autocomplete and validation, add this comment to your config file:
 
 ### Alerts Options
 
-| Option      | Type   | Default    | Required | Description                     |
-| ----------- | ------ | ---------- | -------- | ------------------------------- |
-| `threshold` | number | -          | Yes      | Percentage of budget (1-100)    |
-| `type`      | string | `"actual"` | No       | Alert type (actual, forecasted) |
+| Option          | Type   | Default    | Required | Description                                                  |
+| --------------- | ------ | ---------- | -------- | ------------------------------------------------------------ |
+| `threshold`     | number | -          | Yes      | Percentage of budget (1-100)                                 |
+| `type`          | string | `"actual"` | No       | Alert type (actual, forecasted)                              |
+| `notifications` | list   | `[]`       | No       | Destinations to notify (see [Notifications](#budget-notifications)) |
 
 ### Environment Variables
 
@@ -143,6 +146,7 @@ Override configuration with environment variables:
 | `FINFOCUS_BUDGET_CURRENCY`          | Override currency                           | `EUR`    |
 | `FINFOCUS_BUDGET_EXIT_ON_THRESHOLD` | Exit process when budget threshold exceeded | `true`   |
 | `FINFOCUS_BUDGET_EXIT_CODE`         | Exit code to use when enforcement triggers  | `2`      |
+| `FINFOCUS_NOTIFY`                   | Send budget notifications when `--notify` is not set | `true` |
 
 See [Configuration Reference](../reference/config-reference.md#budgets) for complete details.
 
@@ -471,6 +475,178 @@ Overall Health: CRITICAL
 
 ---
 
+## Budget Notifications
+
+An alert threshold can send a message to Slack or to any HTTPS endpoint when a
+cost command finds that the threshold was crossed. Notifications are opt-in per
+run, so local runs stay quiet while CI sends.
+
+### Configure Destinations
+
+Add `notifications` to any alert, in any scope (`global`, `providers.<name>`,
+`tags[]`, `types.<pattern>`). Put destinations that use secrets in the global
+`~/.finfocus/config.hujson`:
+
+```jsonc
+{
+  "cost": {
+    "budgets": {
+      "global": {
+        "amount": 100,
+        "currency": "USD",
+        "alerts": [
+          {
+            "threshold": 80,
+            "type": "actual",
+            "notifications": [
+              {"type": "slack", "url": "${FINFOCUS_NOTIFY_SLACK_URL}", "channel": "#finops-alerts"},
+              {
+                "type": "webhook",
+                "url": "https://api.example.com/budget-alert",
+                "method": "POST",
+                "headers": {"Authorization": "Bearer ${FINFOCUS_NOTIFY_API_TOKEN}"}
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+| Field     | Applies to | Required | Description                                                       |
+| --------- | ---------- | -------- | ----------------------------------------------------------------- |
+| `type`    | all        | Yes      | `slack` (incoming webhook) or `webhook` (generic HTTPS endpoint)  |
+| `url`     | all        | Yes      | `https://` URL with a host, or a `${FINFOCUS_NOTIFY_*}` reference |
+| `channel` | `slack`    | No       | Channel override sent with the message                            |
+| `method`  | `webhook`  | No       | `POST` (default) or `PUT`                                         |
+| `headers` | `webhook`  | No       | Extra request headers; values may use `${FINFOCUS_NOTIFY_*}`      |
+
+Check the file with `finfocus config validate`. Validation rejects unknown
+types, `http://` URLs, `channel` on a webhook, `method` or `headers` on a Slack
+destination, and any variable that does not start with `FINFOCUS_NOTIFY_`.
+
+Slack apps bind each incoming webhook to one channel, so Slack may ignore
+`channel`. Create one webhook per channel when you need several.
+
+### Send Notifications
+
+A run sends only when you pass `--notify` (on `cost projected`, `cost actual`,
+and `overview`) or set `FINFOCUS_NOTIFY=true`. An explicit `--notify=false`
+wins over the variable. An invalid `FINFOCUS_NOTIFY` value prints a warning
+and counts as false.
+
+When a run does not opt in and a crossed threshold has destinations, nothing
+is sent and stderr shows one hint:
+
+```text
+budget notifications for 1 exceeded threshold(s) were not sent; pass --notify or set FINFOCUS_NOTIFY=true
+```
+
+Every opted-in run that crosses a threshold sends again. FinFocus keeps no
+notification history between runs, and sends one message per crossed
+threshold and destination.
+
+### CI Recipe
+
+```yaml
+env:
+  FINFOCUS_NOTIFY: "true"
+  FINFOCUS_NOTIFY_SLACK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+steps:
+  - run: finfocus cost projected --pulumi-json plan.json
+```
+
+Write the destinations into the global config from the workflow, for example
+with a step that creates `$FINFOCUS_HOME/config.hujson`. A pull request
+cannot change that step for runs that receive secrets.
+
+### Preview With Dry Run
+
+```bash
+finfocus cost projected --pulumi-json plan.json --notify --dry-run
+```
+
+```text
+dry-run: would notify slack for global budget, 80% actual threshold
+```
+
+Nothing is sent. Each line names the destination type and threshold, never
+the URL.
+
+### What the Receivers Get
+
+Slack receives a message with the budget, current (or forecasted) spend and
+percentage, the threshold, and the status. A `webhook` destination receives a
+JSON event:
+
+```json
+{
+  "event": "budget.threshold.exceeded",
+  "timestamp": "2026-10-04T15:04:05Z",
+  "budget": {"name": "provider:aws", "scope": "provider", "scope_key": "aws",
+             "amount": 50, "currency": "USD", "period": "monthly"},
+  "threshold": {"percentage": 100, "type": "forecasted", "value": 50},
+  "current": {"spend": 60, "percentage": 120},
+  "metadata": {"source": "finfocus", "version": "0.5.0"}
+}
+```
+
+`budget.name` is `global` or `<scope>:<scope_key>`. For a forecasted alert,
+`current` holds the forecasted spend and percentage. `Content-Type` is
+`application/json` unless a configured header sets it.
+
+### Delivery and Failures
+
+- Destinations are sent concurrently, each with a 10 second time limit.
+- URLs must use HTTPS. A URL built from a variable is checked after
+  expansion. Redirects are never followed; a 3xx response is a failure.
+- A failure (error status, timeout, unset variable) prints a warning on
+  stderr and never changes the command's output or exit code:
+
+  ```text
+  warning: slack notification for global budget (80% actual) failed: unexpected response status: status 500
+  ```
+
+- Warnings and logs never contain a URL, a variable's value, a secret header
+  value, or a response body. A literal header value is treated as secret when
+  it is at least 8 characters long or the header is `Authorization`,
+  `Proxy-Authorization`, `Cookie`, or a name containing `token`, `key`, or
+  `secret`.
+  `config get` and `config list` show those values as `[REDACTED]`, except a
+  value that is only a `${NAME}` reference.
+- Nothing about notifications is written to stdout, so `--output json` and
+  `--output ndjson` stay parseable.
+- Results with mixed currencies skip budget evaluation, so no notification
+  is sent.
+
+### Security: Project Config and Pull Requests
+
+A project config (`$PROJECT/.finfocus/config.hujson`) is committed, so a pull
+request can edit it. Three rules keep CI secrets out of a destination that a
+pull request controls:
+
+1. Only `${FINFOCUS_NOTIFY_*}` variables expand, in any config. A reference
+   such as `${AWS_SECRET_ACCESS_KEY}` or `${GITHUB_TOKEN}` fails validation and
+   is never read.
+2. Destinations in a project config never expand variables.
+   `finfocus config validate` (which also checks the resolved project file
+   when run without `--file`), the cost commands, and `overview --notify`
+   reject a `${...}` reference there with a hint to move the destination to
+   the global config. This covers a legacy `.finfocus/config.yaml` too. If one
+   reaches a run, that destination is skipped with a warning.
+3. When FinFocus cannot find a home directory and falls back to
+   `./.finfocus` for its global config, that file is treated as a project
+   config, because it may be committed.
+
+A project-config destination with only literal values still sends. A pull
+request can therefore point the budget event at a host it chooses. The event
+holds budget figures only, but do not set `FINFOCUS_NOTIFY` on runs for
+untrusted pull requests.
+
+---
+
 ## Budget Visibility in Overview
 
 The `finfocus overview` command shows budget status differently per output mode:
@@ -557,6 +733,6 @@ Ensure you have the correct schema directive and your indentation is correct:
 
 ---
 
-**Last Updated**: 2026-03-30
+**Last Updated**: 2026-10-04
 **FinFocus Version**: v0.3.4
 **Feedback**: [Open an issue](https://github.com/rshade/finfocus/issues/new) to improve this guide

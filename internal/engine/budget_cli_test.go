@@ -1,6 +1,8 @@
 package engine
 
 import (
+	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -749,4 +751,107 @@ func TestBudgetStatus_GetExitCode_WarningOnly(t *testing.T) {
 
 	// Should return 0 even when threshold is exceeded (warning-only mode)
 	assert.Equal(t, 0, status.GetExitCode())
+}
+
+func TestEvaluateCopiesAlertNotifications(t *testing.T) {
+	t.Parallel()
+
+	dests := []config.NotificationDestination{{Type: "slack", URL: "https://hooks.slack.com/services/SECRET"}}
+	budget := config.BudgetConfig{
+		Amount:   100,
+		Currency: "USD",
+		Alerts: []config.AlertConfig{
+			{Threshold: 80, Type: config.AlertTypeActual, Notifications: dests},
+			{Threshold: 100, Type: config.AlertTypeActual},
+		},
+	}
+
+	status, err := NewBudgetEngine().Evaluate(budget, 85, "USD")
+	require.NoError(t, err)
+	require.Len(t, status.Alerts, 2)
+	assert.Equal(t, dests, status.Alerts[0].Notifications)
+	assert.Empty(t, status.Alerts[1].Notifications)
+	assert.Empty(t, status.Budget.Alerts[0].Notifications)
+	assert.Len(t, budget.Alerts[0].Notifications, 1)
+
+	encoded, err := json.Marshal(status) //nolint:musttag // asserts what encoding/json emits for the untagged status
+	require.NoError(t, err)
+	assert.NotContains(t, string(encoded), "SECRET")
+}
+
+func TestScopedBudgetResultJSONOmitsNotifications(t *testing.T) {
+	t.Parallel()
+
+	secretURL := "https://hooks.slack.com/services/SECRET"
+	budget := &config.ScopedBudget{
+		Amount:   100,
+		Currency: "USD",
+		Alerts: []config.AlertConfig{{
+			Threshold:     80,
+			Type:          config.AlertTypeActual,
+			Notifications: []config.NotificationDestination{{Type: "slack", URL: secretURL}},
+		}},
+	}
+	tagBudget := &config.TagBudget{Selector: "team:x", ScopedBudget: *budget}
+
+	result := &ScopedBudgetResult{
+		Global:     CalculateProviderBudgetStatus("", budget, 90),
+		ByProvider: map[string]*ScopedBudgetStatus{"aws": CalculateProviderBudgetStatus("aws", budget, 90)},
+		ByTag:      []*ScopedBudgetStatus{CalculateTagBudgetStatus(tagBudget, 90)},
+		ByType: map[string]*ScopedBudgetStatus{
+			"aws:s3/bucket": CalculateTypeBudgetStatus("aws:s3/bucket", budget, 90),
+		},
+	}
+	for _, scope := range result.AllScopes() {
+		require.Len(t, scope.Alerts, 1)
+		require.Len(t, scope.Alerts[0].Notifications, 1)
+		assert.Equal(t, secretURL, scope.Alerts[0].Notifications[0].URL)
+	}
+
+	encoded, err := json.Marshal(result) //nolint:musttag // asserts what encoding/json emits for the untagged alerts
+	require.NoError(t, err)
+	assert.NotContains(t, string(encoded), "notifications")
+	assert.NotContains(t, string(encoded), "Notifications")
+	assert.NotContains(t, string(encoded), "SECRET")
+	assert.Len(t, budget.Alerts[0].Notifications, 1)
+}
+
+func TestNoStatusTypeSerializesDestinations(t *testing.T) {
+	t.Parallel()
+
+	secret := "https://hooks.example/services/STATUS-SECRET"
+	alerts := []config.AlertConfig{{
+		Threshold: 10, Type: config.AlertTypeActual,
+		Notifications: []config.NotificationDestination{{
+			Type: config.NotificationTypeWebhook, URL: secret,
+			Headers: map[string]string{"Authorization": "Bearer HEADER-SECRET"},
+		}},
+	}}
+	scoped := &config.ScopedBudget{Amount: 100, Currency: "USD", Alerts: alerts}
+	legacy, err := NewBudgetEngine().Evaluate(
+		config.BudgetConfig{Amount: 100, Currency: "USD", Alerts: alerts}, 50, "USD")
+	require.NoError(t, err)
+
+	provider := CalculateProviderBudgetStatus("aws", scoped, 50)
+	tag := CalculateTagBudgetStatus(&config.TagBudget{Selector: "team:x", ScopedBudget: *scoped}, 50)
+	typ := CalculateTypeBudgetStatus("aws:s3/bucket", scoped, 50)
+	values := map[string]any{
+		"BudgetStatus":       legacy,
+		"ThresholdStatus":    legacy.Alerts[0],
+		"provider status":    provider,
+		"tag status":         tag,
+		"type status":        typ,
+		"ScopedBudgetResult": &ScopedBudgetResult{Global: provider, ByTag: []*ScopedBudgetStatus{tag}},
+	}
+	for name, value := range values {
+		encoded, marshalErr := json.Marshal(value)
+		require.NoError(t, marshalErr, name)
+		assert.NotContains(t, string(encoded), "STATUS-SECRET", name)
+		assert.NotContains(t, string(encoded), "HEADER-SECRET", name)
+		assert.NotContains(t, strings.ToLower(string(encoded)), "notifications", name)
+	}
+	for _, status := range []*ScopedBudgetStatus{provider, tag, typ} {
+		require.Len(t, status.Alerts, 1)
+		assert.Equal(t, secret, status.Alerts[0].Notifications[0].URL, "the CLI still sees destinations")
+	}
 }

@@ -239,6 +239,35 @@ cost:
 
 See [Budget Guide](docs/src/content/docs/guides/budgets.md) for full configuration details.
 
+#### Budget Notifications
+
+Send a Slack message or a JSON event to an HTTPS webhook when an alert threshold
+is crossed. Add destinations to an alert in the global config:
+
+```jsonc
+{
+  "cost": {
+    "budgets": {
+      "global": {
+        "amount": 500,
+        "currency": "USD",
+        "alerts": [
+          {
+            "threshold": 80,
+            "type": "actual",
+            "notifications": [{"type": "slack", "url": "${FINFOCUS_NOTIFY_SLACK_URL}"}]
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+Notifications are opt-in per run (`--notify` or `FINFOCUS_NOTIFY=true`), never
+change the exit code, and only expand `${FINFOCUS_NOTIFY_*}` variables from the
+global config. See [Budget Notifications](docs/src/content/docs/guides/budgets.md#budget-notifications).
+
 ### Environment Variables for Secrets
 
 For sensitive values like API keys and credentials, use environment variables:
