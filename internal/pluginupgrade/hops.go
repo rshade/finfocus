@@ -109,6 +109,17 @@ var hops = []Hop{
 		Summary: "Additive release; GetActualCostRequest.resource",
 		Guide:   "to-v0.7.4.md",
 	},
+	{
+		To:      "v0.7.5",
+		Summary: "Additive release; include_dismissed on recommendations; handler status codes preserved",
+		Manual: []string{
+			"Recommendation plugins that store dismissals: omit dismissed recommendations unless the host sets " +
+				"include_dismissed; excluded_recommendation_ids still wins",
+			"Handlers: pluginsdk now preserves your gRPC status codes instead of wrapping them as Internal; " +
+				"do not return upstream call statuses as is",
+		},
+		Guide: "to-v0.7.5.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.

@@ -138,7 +138,12 @@ func TestKubernetesPlugin_DoesNotPolluteCostProjected(t *testing.T) {
 	list := h.ExecuteOrFail("plugin", "list")
 	assert.Contains(t, list, "kubernetes")
 
-	out, err := h.Execute("cost", "projected", "--pulumi-json", "../../examples/plans/aws-simple-plan.json")
+	out, err := h.Execute(
+		"cost",
+		"projected",
+		"--pulumi-json",
+		"../../examples/plans/aws-simple-plan.json",
+	)
 	require.NoError(t, err)
 	assert.NotContains(t, out, "not supported")
 	assert.NotContains(t, out, "ERROR:")
@@ -153,8 +158,11 @@ func TestKubernetesPlugin_DoesNotPolluteCostProjected(t *testing.T) {
 		setKubernetesRates(t)
 		withRates := projectedEntries(t)
 
-		assert.Contains(t, withRates["settings"].Notes,
-			"declined by kubernetes: kubernetes plugin prices Deployment, StatefulSet, DaemonSet, Job, and CronJob only")
+		assert.Contains(
+			t,
+			withRates["settings"].Notes,
+			"declined by kubernetes: kubernetes plugin prices Deployment, StatefulSet, DaemonSet, Job, and CronJob only",
+		)
 		assert.Equal(t, withoutRates["settings"], withRates["settings"])
 		assert.Equal(t, withoutRates["bastion"], withRates["bastion"],
 			"pricing workloads must not change the EC2 instance's entry")
@@ -214,7 +222,13 @@ func TestKubernetesPlugin_ExplainsUnpricedWorkloads(t *testing.T) {
 		entry := entries[name]
 		require.NotNil(t, entry.Error, "%s must not be presented as a price", name)
 		assert.Equal(t, "NO_COST_DATA", entry.Error.Code, name)
-		assert.NotEqual(t, "kubernetes", entry.Adapter, "%s has no price, so no adapter priced it", name)
+		assert.NotEqual(
+			t,
+			"kubernetes",
+			entry.Adapter,
+			"%s has no price, so no adapter priced it",
+			name,
+		)
 		assert.Contains(t, entry.Notes, "FINFOCUS_KUBERNETES_CPU_HOURLY_RATE", name)
 		assert.Contains(t, entry.Notes, "finfocus cost cluster", name)
 	}
