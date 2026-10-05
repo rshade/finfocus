@@ -269,19 +269,26 @@ func isVariableName(name string) bool {
 	return true
 }
 
-// hasNotificationReference reports whether value contains any "${".
-func hasNotificationReference(value string) bool {
+// IsSingleNotificationReference reports whether value is exactly one ${NAME}
+// reference and nothing else. Such a value holds no secret itself.
+func IsSingleNotificationReference(value string) bool {
+	refs, err := FindNotificationReferences(value)
+	return err == nil && len(refs) == 1 && refs[0].Start == 0 && refs[0].End == len(value)
+}
+
+// HasNotificationReference reports whether value contains any "${".
+func HasNotificationReference(value string) bool {
 	return strings.Contains(value, referenceOpen)
 }
 
 // DestinationHasReference reports whether the URL or any header value of d
 // contains a "${" reference.
 func DestinationHasReference(d NotificationDestination) bool {
-	if hasNotificationReference(d.URL) {
+	if HasNotificationReference(d.URL) {
 		return true
 	}
 	for _, value := range d.Headers {
-		if hasNotificationReference(value) {
+		if HasNotificationReference(value) {
 			return true
 		}
 	}
@@ -342,7 +349,7 @@ func projectDestinationErrors(budgets *BudgetsConfig) []ValidationError {
 	var errs []ValidationError
 	forEachDestination(budgets, func(path string, dest *NotificationDestination) {
 		fields := make([]string, 0, 1+len(dest.Headers))
-		if hasNotificationReference(dest.URL) {
+		if HasNotificationReference(dest.URL) {
 			fields = append(fields, notificationFieldURL)
 		}
 		names := make([]string, 0, len(dest.Headers))
@@ -351,7 +358,7 @@ func projectDestinationErrors(budgets *BudgetsConfig) []ValidationError {
 		}
 		sort.Strings(names)
 		for _, name := range names {
-			if hasNotificationReference(dest.Headers[name]) {
+			if HasNotificationReference(dest.Headers[name]) {
 				fields = append(fields, notificationFieldHeaders+"."+name)
 			}
 		}

@@ -353,3 +353,106 @@ func TestBudgetNotifyWebhookRejectsOtherVariable(t *testing.T) {
 	assert.NotContains(t, string(result.Stderr), "should-never-be-read")
 	assert.Empty(t, mock.received())
 }
+
+func writeProject(t *testing.T, name, content string) string {
+	t.Helper()
+	project := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(project, ".finfocus"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(project, ".finfocus", name), []byte(content), 0o600))
+	return project
+}
+
+const legacyProjectYAML = `cost:
+  budgets:
+    global:
+      amount: 100
+      currency: USD
+      alerts:
+        - threshold: 0
+          type: actual
+          notifications:
+            - type: slack
+              url: ${FINFOCUS_NOTIFY_SLACK_URL}
+`
+
+func TestBudgetNotifyLegacyYAMLProjectRejected(t *testing.T) {
+	mock := newNotifyMock(t, http.StatusOK)
+	notifyHome(t, `{}`)
+	secret := mock.srv.URL + "/services/legacy-secret"
+	t.Setenv("FINFOCUS_NOTIFY_SLACK_URL", secret)
+	project := writeProject(t, "config.yaml", legacyProjectYAML)
+
+	result := runCLI(t, projectedArgs("--notify", "--project-dir", project)...)
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "project config destinations cannot use variables")
+	assert.Contains(t, string(result.Stderr), "config.yaml")
+	assert.NotContains(t, string(result.Stderr), "legacy-secret")
+	assert.Empty(t, mock.received())
+}
+
+//nolint:paralleltest // sets env and the global config singleton
+func TestBareConfigValidateChecksProjectConfig(t *testing.T) {
+	notifyHome(t, `{}`)
+	project := writeProject(t, "config.hujson", `{"cost":{"budgets":{"global":{"amount":100,"currency":"USD",
+  "alerts":[{"threshold":80,"type":"actual","notifications":[
+    {"type":"slack","url":"${FINFOCUS_NOTIFY_SLACK_URL}"}]}]}}}}`)
+	projectFile := filepath.Join(project, ".finfocus", "config.hujson")
+
+	result := runCLI(t, "config", "validate", "--project-dir", project)
+	assert.NotEqual(t, 0, result.ExitCode)
+	out := string(result.Stdout)
+	assert.Contains(t, out, "project config destinations cannot use variables")
+	assert.Contains(t, out, "File: "+projectFile)
+
+	result = runCLI(t, "config", "validate", "--project-dir", project, "--output", "json")
+	assert.NotEqual(t, 0, result.ExitCode)
+	var report config.ValidationResult
+	require.NoError(t, json.Unmarshal(result.Stdout, &report), "stdout: %s", result.Stdout)
+	assert.False(t, report.Valid)
+	require.Len(t, report.Errors, 1)
+	assert.Equal(t, projectFile, report.Errors[0].File)
+	assert.Equal(t, "cost.budgets.global.alerts[0].notifications[0].url", report.Errors[0].Path)
+
+	clean := writeProject(t, "config.hujson", `{"output":{"default_format":"json"}}`)
+	result = runCLI(t, "config", "validate", "--project-dir", clean)
+	assert.Equal(t, 0, result.ExitCode, "stdout: %s stderr: %s", result.Stdout, result.Stderr)
+}
+
+//nolint:paralleltest // sets env, the global config singleton, and the notification client seam
+func TestBudgetNotifyNDJSONOutputStaysClean(t *testing.T) {
+	mock := newNotifyMock(t, http.StatusOK)
+	notifyHome(t, budgetWithAlert(0, slackDest(mock.srv.URL+"/services/NDJSON-SECRET")))
+
+	result := runCLI(t, projectedArgs("--notify", "--output", "ndjson")...)
+	require.Equal(t, 0, result.ExitCode, "stderr: %s", result.Stderr)
+	lines := strings.Split(strings.TrimSpace(string(result.Stdout)), "\n")
+	require.NotEmpty(t, lines)
+	for _, line := range lines {
+		assert.True(t, json.Valid([]byte(line)), "line: %s", line)
+		assert.NotContains(t, line, "notifications")
+		assert.NotContains(t, line, "NDJSON-SECRET")
+		assert.NotContains(t, line, mock.srv.URL)
+	}
+	assert.Len(t, mock.received(), 1)
+}
+
+//nolint:paralleltest // sets env, the global config singleton, and the notification client seam
+func TestOverviewNotifyValidatesConfig(t *testing.T) {
+	mock := newNotifyMock(t, http.StatusOK)
+	notifyHome(t, budgetWithAlert(0, `{"type":"webhook","url":"http://insecure.example/hook"}`))
+	fixtures := filepath.Join("..", "..", "testdata", "overview")
+	args := []string{
+		"overview",
+		"--pulumi-state", filepath.Join(fixtures, "state-mixed-changes.json"),
+		"--pulumi-json", filepath.Join(fixtures, "plan-mixed-changes.json"),
+		"--plain", "--yes",
+	}
+
+	result := runCLI(t, append(append([]string{}, args...), "--notify")...)
+	assert.NotEqual(t, 0, result.ExitCode)
+	assert.Contains(t, string(result.Stderr), "HTTPS is required")
+	assert.Empty(t, mock.received())
+
+	result = runCLI(t, args...)
+	assert.Equal(t, 0, result.ExitCode, "without --notify overview keeps its behavior: %s", result.Stderr)
+}

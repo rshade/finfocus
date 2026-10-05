@@ -32,8 +32,7 @@ func maskNotificationValue(value string) string {
 	if value == "" {
 		return ""
 	}
-	refs, err := FindNotificationReferences(value)
-	if err == nil && len(refs) == 1 && refs[0].Start == 0 && refs[0].End == len(value) {
+	if IsSingleNotificationReference(value) {
 		return value
 	}
 	return RedactedValue

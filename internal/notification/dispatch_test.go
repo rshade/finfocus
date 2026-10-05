@@ -69,7 +69,7 @@ func fakeDelivery(url string) notification.Delivery {
 
 func newFakeDispatcher(sender notification.Sender, lookup func(string) (string, bool)) *notification.Dispatcher {
 	d := notification.NewDispatcher(nil, lookup)
-	d.Register(fakeType, sender)
+	d.RegisterForTest(fakeType, sender)
 	return d
 }
 

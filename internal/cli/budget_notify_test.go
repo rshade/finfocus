@@ -1,6 +1,14 @@
 package cli
 
 import (
+	"bytes"
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -224,4 +232,83 @@ func TestCollectExceededAlertsEmpty(t *testing.T) {
 	alerts := collectExceededAlerts(&BudgetRenderResult{ScopedResult: noGlobalCurrency}, "EUR", time.Now())
 	require.Len(t, alerts, 1)
 	assert.Equal(t, "EUR", alerts[0].Event.Currency)
+}
+
+func TestIsProjectConfigFile(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	project := t.TempDir()
+	prev := config.GetResolvedProjectDir()
+	t.Cleanup(func() { config.SetResolvedProjectDir(prev) })
+
+	config.SetResolvedProjectDir("")
+	assert.False(t, isProjectConfigFile(filepath.Join(project, "config.hujson")))
+
+	config.SetResolvedProjectDir(project)
+	assert.True(t, isProjectConfigFile(filepath.Join(project, "config.hujson")))
+	assert.True(t, isProjectConfigFile(filepath.Join(project, "config.yaml")))
+	assert.False(t, isProjectConfigFile(filepath.Join(project, "other.hujson")))
+	assert.False(t, isProjectConfigFile(filepath.Join(os.Getenv("FINFOCUS_HOME"), "config.hujson")))
+	assert.False(t, isProjectConfigFile(""))
+}
+
+//nolint:paralleltest // replaces the global config singleton and the notification client seam
+func TestBannerRenderErrorStillNotifies(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+	prevClient := notificationClient
+	notificationClient = srv.Client()
+	t.Cleanup(func() { notificationClient = prevClient })
+
+	alerts := []config.AlertConfig{{
+		Threshold: 80, Type: config.AlertTypeActual,
+		Notifications: []config.NotificationDestination{{Type: config.NotificationTypeSlack, URL: srv.URL}},
+	}}
+	cases := map[string]*config.BudgetsConfig{
+		"legacy": {Global: &config.ScopedBudget{Amount: 100, Currency: "USD", Alerts: alerts}},
+		"scoped": {
+			Global:    &config.ScopedBudget{Amount: 100, Currency: "USD", Alerts: alerts},
+			Providers: map[string]*config.ScopedBudget{"aws": {Amount: 1000}},
+		},
+	}
+	prevCfg := config.GetGlobalConfig()
+	t.Cleanup(func() { config.SetGlobalConfig(prevCfg) })
+
+	for name, budgets := range cases {
+		t.Run(name, func(t *testing.T) {
+			hits.Store(0)
+			config.SetGlobalConfig(&config.Config{Cost: config.CostConfig{Budgets: budgets}})
+			cmd := notifyCmd(t, "--notify")
+			cmd.Flags().String("budget-scope", "", "")
+			cmd.SetContext(context.Background())
+			cmd.SetOut(errWriter{err: errors.New("banner write failed")})
+			var stderr bytes.Buffer
+			cmd.SetErr(&stderr)
+
+			err := evaluateBudgetStatusWithRender(cmd, []engine.CostResult{{
+				ResourceType: "aws:ec2/instance:Instance", Monthly: 90, Currency: "USD",
+			}}, 90, true, BudgetFlagOverrides{})
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "banner write failed")
+			assert.Equal(t, int32(1), hits.Load(), "stderr: %s", stderr.String())
+		})
+	}
+}
+
+func TestIsProjectConfigFileWorkingDirFallback(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", "")
+	t.Setenv("PULUMI_HOME", "")
+	t.Setenv("HOME", "")
+	dir := t.TempDir()
+	t.Chdir(dir)
+	prev := config.GetResolvedProjectDir()
+	t.Cleanup(func() { config.SetResolvedProjectDir(prev) })
+	config.SetResolvedProjectDir("")
+
+	wd, err := os.Getwd()
+	require.NoError(t, err)
+	assert.True(t, isProjectConfigFile(filepath.Join(wd, ".finfocus", "config.hujson")))
 }

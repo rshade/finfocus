@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
 
 	"github.com/tailscale/hujson"
+	"gopkg.in/yaml.v3"
 )
 
 const (
@@ -27,6 +29,9 @@ const (
 
 // ValidationError is one problem in a configuration file.
 type ValidationError struct {
+	// File is set when the finding belongs to a different file than the
+	// result's File, such as the project config checked by a bare config validate.
+	File    string `json:"file,omitempty"`
 	Line    int    `json:"line,omitempty"`
 	Path    string `json:"path"`
 	Message string `json:"message"`
@@ -36,6 +41,8 @@ type ValidationError struct {
 
 // ValidationWarning is a non-fatal configuration finding.
 type ValidationWarning struct {
+	// File is set when the finding belongs to a different file than the result's File.
+	File       string `json:"file,omitempty"`
 	Line       int    `json:"line,omitempty"`
 	Path       string `json:"path"`
 	Message    string `json:"message"`
@@ -76,17 +83,65 @@ func ValidateConfigSource(path string, data []byte) (ValidationResult, *Config) 
 // ($PROJECT/.finfocus/config.hujson). It applies every ValidateConfigSource
 // rule and also rejects any ${...} reference in a notification destination,
 // because a project config is committed and can be changed by a pull request.
+//
+// A legacy YAML project file (config.yaml) is converted to JSON first, so its
+// findings carry paths but no line numbers.
 func ValidateProjectConfigSource(path string, data []byte) (ValidationResult, *Config) {
+	fromYAML := isYAMLPath(path)
+	if fromYAML {
+		converted, err := yamlToJSON(data)
+		if err != nil {
+			result := newValidationResult(path)
+			result.Errors = append(result.Errors, ValidationError{
+				Message: "configuration syntax is invalid: " + err.Error(),
+				Hint:    "Fix the YAML syntax, or convert the file to config.hujson.",
+			})
+			return result, nil
+		}
+		data = converted
+	}
 	result, cfg, lines := validateConfigSource(path, data)
 	if cfg == nil {
+		if fromYAML {
+			clearLines(&result)
+		}
 		return result, nil
 	}
 	for _, projectErr := range projectDestinationErrors(cfg.Cost.Budgets) {
 		projectErr.Line = lineForPath(lines, projectErr.Path)
 		result.Errors = append(result.Errors, projectErr)
 	}
+	if fromYAML {
+		clearLines(&result)
+	}
 	result.Valid = len(result.Errors) == 0
 	return result, cfg
+}
+
+// clearLines removes line numbers that refer to converted text rather than the file.
+func clearLines(result *ValidationResult) {
+	for i := range result.Errors {
+		result.Errors[i].Line = 0
+	}
+	for i := range result.Warnings {
+		result.Warnings[i].Line = 0
+	}
+}
+
+func isYAMLPath(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".yaml" || ext == ".yml"
+}
+
+func yamlToJSON(data []byte) ([]byte, error) {
+	var doc map[string]any
+	if err := yaml.Unmarshal(data, &doc); err != nil {
+		return nil, err
+	}
+	if doc == nil {
+		doc = map[string]any{}
+	}
+	return json.Marshal(doc)
 }
 
 func validateConfigSource(path string, data []byte) (ValidationResult, *Config, map[string]int) {

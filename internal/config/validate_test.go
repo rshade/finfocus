@@ -386,3 +386,35 @@ func TestValidateProjectConfigSource(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateProjectConfigSource_LegacyYAML(t *testing.T) {
+	t.Parallel()
+
+	src := `cost:
+  budgets:
+    global:
+      amount: 100
+      currency: USD
+      alerts:
+        - threshold: 80
+          type: actual
+          notifications:
+            - type: slack
+              url: ${FINFOCUS_NOTIFY_SLACK_URL}
+`
+	result, _ := ValidateProjectConfigSource(".finfocus/config.yaml", []byte(src))
+	require.False(t, result.Valid)
+	got := findError(result.Errors, "cost.budgets.global.alerts[0].notifications[0].url")
+	require.NotNil(t, got, "errors: %+v", result.Errors)
+	assert.Contains(t, got.Message, "project config")
+	assert.Zero(t, got.Line, "converted YAML has no meaningful line numbers")
+
+	valid, cfg := ValidateProjectConfigSource(".finfocus/config.yml", []byte("output:\n  default_format: json\n"))
+	assert.True(t, valid.Valid, "errors: %+v", valid.Errors)
+	require.NotNil(t, cfg)
+
+	broken, cfg := ValidateProjectConfigSource(".finfocus/config.yaml", []byte("cost: [unclosed"))
+	assert.False(t, broken.Valid)
+	assert.Nil(t, cfg)
+	assert.Contains(t, broken.Errors[0].Message, "syntax is invalid")
+}

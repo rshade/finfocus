@@ -134,6 +134,17 @@ instead of running Pulumi CLI commands.`,
 	return cmd
 }
 
+// checkOverviewInputs rejects an unsupported output format and, when the run
+// opted in to budget notifications, an invalid configuration.
+func checkOverviewInputs(cmd *cobra.Command, output string) error {
+	switch output {
+	case outputFormatTable, outputFormatJSON, outputFormatNDJSON:
+	default:
+		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", output)
+	}
+	return validateNotifyConfig(cmd)
+}
+
 // executeOverview orchestrates the overview command workflow: it validates the date range,
 // loads Pulumi state and optionally a preview plan, detects pending changes, merges and
 // filters resources, opens plugin clients, constructs an engine, and either launches an
@@ -147,10 +158,8 @@ func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	log := logging.FromContext(ctx)
 	params.output = resolveOutputFormat(cmd, "output", params.output)
 	params = applyOverviewAccessibility(cmd, params)
-	switch params.output {
-	case outputFormatTable, outputFormatJSON, outputFormatNDJSON:
-	default:
-		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
+	if err := checkOverviewInputs(cmd, params.output); err != nil {
+		return err
 	}
 	audit := newAuditContext(ctx, "overview", map[string]string{
 		"pulumi_state":     params.pulumiState,

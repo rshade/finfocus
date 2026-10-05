@@ -97,18 +97,3 @@ func TestExpandMalformedReference(t *testing.T) {
 	require.ErrorIs(t, err, config.ErrNotificationReferenceMalformed)
 	assert.Empty(t, lookup.asked)
 }
-
-func TestReferenceHelpers(t *testing.T) {
-	t.Parallel()
-
-	assert.True(t, notification.IsSingleReference("${FINFOCUS_NOTIFY_URL}"))
-	assert.True(t, notification.IsSingleReference("${GITHUB_TOKEN}"))
-	assert.False(t, notification.IsSingleReference("Bearer ${FINFOCUS_NOTIFY_TOKEN}"))
-	assert.False(t, notification.IsSingleReference("${FINFOCUS_NOTIFY_A}${FINFOCUS_NOTIFY_B}"))
-	assert.False(t, notification.IsSingleReference("https://example.com"))
-	assert.False(t, notification.IsSingleReference("${FINFOCUS_NOTIFY_A"))
-
-	assert.True(t, notification.HasReference("x${"))
-	assert.True(t, notification.HasReference("Bearer ${FINFOCUS_NOTIFY_TOKEN}"))
-	assert.False(t, notification.HasReference("$NAME"))
-}

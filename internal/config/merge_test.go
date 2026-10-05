@@ -600,3 +600,26 @@ func TestShallowMergeYAML_GlobalDestinationsStayGlobal(t *testing.T) {
 	require.NoError(t, config.ShallowMergeYAML(target, path))
 	assert.False(t, target.Cost.Budgets.Global.Alerts[0].Notifications[0].FromProject())
 }
+
+func TestShallowMergeYAML_MarksProjectDestinationsFromLegacyYAML(t *testing.T) {
+	t.Parallel()
+
+	target := newDefaultTarget()
+	path := writeOverlay(t, `cost:
+  budgets:
+    global:
+      amount: 100
+      currency: USD
+      alerts:
+        - threshold: 80
+          type: actual
+          notifications:
+            - type: slack
+              url: https://hooks.example/project
+`)
+	require.NoError(t, config.ShallowMergeYAML(target, path))
+	dests := target.Cost.Budgets.Global.Alerts[0].Notifications
+	require.Len(t, dests, 1)
+	assert.Equal(t, "https://hooks.example/project", dests[0].URL)
+	assert.True(t, dests[0].FromProject())
+}

@@ -609,7 +609,11 @@ JSON event:
   warning: slack notification for global budget (80% actual) failed: unexpected response status: status 500
   ```
 
-- Warnings and logs never contain a URL, a header value, or a response body.
+- Warnings and logs never contain a URL, a variable's value, a secret header
+  value, or a response body. A literal header value is treated as secret when
+  it is at least 8 characters long or the header is `Authorization`,
+  `Proxy-Authorization`, `Cookie`, or a name containing `token`, `key`, or
+  `secret`.
   `config get` and `config list` show those values as `[REDACTED]`, except a
   value that is only a `${NAME}` reference.
 - Nothing about notifications is written to stdout, so `--output json` and
@@ -627,9 +631,14 @@ pull request controls:
    such as `${AWS_SECRET_ACCESS_KEY}` or `${GITHUB_TOKEN}` fails validation and
    is never read.
 2. Destinations in a project config never expand variables.
-   `finfocus config validate` and the cost commands reject a `${...}` reference
-   there with a hint to move the destination to the global config. If one
+   `finfocus config validate` (which also checks the resolved project file
+   when run without `--file`), the cost commands, and `overview --notify`
+   reject a `${...}` reference there with a hint to move the destination to
+   the global config. This covers a legacy `.finfocus/config.yaml` too. If one
    reaches a run, that destination is skipped with a warning.
+3. When FinFocus cannot find a home directory and falls back to
+   `./.finfocus` for its global config, that file is treated as a project
+   config, because it may be committed.
 
 A project-config destination with only literal values still sends. A pull
 request can therefore point the budget event at a host it chooses. The event

@@ -498,6 +498,8 @@ type BudgetRenderResult struct {
 // The scopeFilter parameter is only used when scoped budgets are configured.
 //
 // This is the main entry point for budget rendering in cost commands.
+// When evaluation succeeds but rendering fails, it returns the evaluated result
+// together with the render error, so callers can still act on the result.
 func renderBudgetWithScope(
 	cmd *cobra.Command,
 	costs []engine.CostResult,
@@ -516,18 +518,18 @@ func renderBudgetWithScope(
 	if budgetsCfg != nil && budgetsCfg.HasScopedBudgets() {
 		// Use scoped budget rendering
 		result, err := renderScopedBudgetIfConfigured(cmd, costs, scopeFilter, overrides)
-		if err != nil {
+		if result == nil {
 			return nil, err
 		}
-		return &BudgetRenderResult{ScopedResult: result}, nil
+		return &BudgetRenderResult{ScopedResult: result}, err
 	}
 
 	// Fall back to legacy budget rendering
 	status, err := renderBudgetIfConfigured(cmd, totalCost, currency, overrides)
-	if err != nil {
+	if status == nil {
 		return nil, err
 	}
-	return &BudgetRenderResult{LegacyStatus: status}, nil
+	return &BudgetRenderResult{LegacyStatus: status}, err
 }
 
 // evaluateBudgetWithScope evaluates budgets without rendering output.

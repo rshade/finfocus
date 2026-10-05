@@ -500,8 +500,11 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   must be `https://` with a host, `channel` is Slack only, `method`
   (POST/PUT) and `headers` are webhook only, and a `${NAME}` reference must
   name a `FINFOCUS_NOTIFY_*` variable. When the file is the resolved
-  project's `config.hujson`, `ValidateProjectConfigSource` also rejects any
-  `${...}` in a destination (`isProjectConfigFile`)
+  project's `config.hujson` or legacy `config.yaml` (`config.ProjectConfigPath`,
+  `isProjectConfigFile`), `ValidateProjectConfigSource` also rejects any
+  `${...}` in a destination; YAML is converted to JSON first and loses line
+  numbers. A bare `config validate` also checks the resolved project file with
+  those rules and tags its findings with `file`
 - **Unit tests leak into the real `~/.finfocus`**: any test that executes a
   mutating command (`dismiss`, `snooze`, `config set`) writes to the developer's
   and the CI runner's actual home unless it sets
@@ -562,9 +565,18 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   variable is ever read. `ShallowMergeYAML` marks destinations in a project
   overlay's `cost` section as project-sourced (unexported field,
   `FromProject()`), and the dispatcher skips any project destination that
-  contains `${` without a lookup. Sends are concurrent, 10s each, HTTPS only,
-  no redirects; reasons are redacted and never include a response body. CLI
-  tests swap the HTTP client with `cli.SetNotificationClientForTest`
+  contains `${` without a lookup. When no FINFOCUS_HOME, PULUMI_HOME, or home
+  directory exists, `ResolveConfigDir` falls back to `./.finfocus`
+  (`config.UsesWorkingDirFallback`); that global config is a project file too,
+  so `New` marks its destinations project-sourced. Sends are concurrent, 10s
+  each, HTTPS only, no redirects; reasons are redacted (every variable value,
+  URL, and secret-looking header: 8+ characters, or an Authorization,
+  Proxy-Authorization, Cookie, token, key, or secret name) and never include a
+  response body. A banner render error still notifies (`renderBudgetWithScope`
+  returns the result with the error). `overview` runs `validateCostConfig`
+  when the run opted in. Statuses are built only through `newScopedBudgetStatus`
+  and `Evaluate`, which strip destinations. CLI tests swap the HTTP client with
+  `cli.SetNotificationClientForTest`
 
 ### Registry (`internal/registry/`)
 

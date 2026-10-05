@@ -59,6 +59,17 @@ func notifyBudgetAlerts(cmd *cobra.Command, result *BudgetRenderResult, currency
 	reportDeliveryResults(cmd, results)
 }
 
+// validateNotifyConfig runs the cost pre-run configuration check for commands
+// outside the cost group (overview) when the run opted in to notifications, so
+// an invalid or unsafe destination fails before anything is sent.
+func validateNotifyConfig(cmd *cobra.Command) error {
+	optedIn, _ := resolveNotifyOptIn(cmd, os.LookupEnv)
+	if !optedIn {
+		return nil
+	}
+	return validateCostConfig(cmd, costConfigPaths(config.GetGlobalConfig()))
+}
+
 // resolveNotifyOptIn reports whether this run sends notifications. An explicit
 // --notify wins; otherwise FINFOCUS_NOTIFY is parsed with [strconv.ParseBool].
 // An invalid value counts as false and returns a warning that does not echo it.

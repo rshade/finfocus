@@ -61,21 +61,32 @@ The report includes:
 }
 
 // runConfigValidate reads one configuration file and writes a validation report.
+// Without --file it also checks the resolved project config with the project rules.
 func runConfigValidate(cmd *cobra.Command, file, output string, verbose bool) error {
 	path, data, missingDefault, err := readConfigForValidate(file)
 	if err != nil {
 		return err
 	}
+	var (
+		result config.ValidationResult
+		cfg    *config.Config
+	)
 	if missingDefault {
-		result := config.ValidateConfig(config.New())
-		return finishConfigValidate(cmd, result, config.New(), output, verbose)
+		cfg = config.New()
+		result = config.ValidateConfig(cfg)
+	} else {
+		result, cfg = validateConfigDocument(path, data)
 	}
-	result, cfg := validateConfigDocument(path, data)
+	if file == "" {
+		if projectErr := appendProjectValidation(&result, path); projectErr != nil {
+			return projectErr
+		}
+	}
 	return finishConfigValidate(cmd, result, cfg, output, verbose)
 }
 
 // validateConfigDocument validates data, applying the project config rules when
-// path is the resolved project's config.hujson.
+// path is the resolved project's config file (see isProjectConfigFile).
 func validateConfigDocument(path string, data []byte) (config.ValidationResult, *config.Config) {
 	if isProjectConfigFile(path) {
 		return config.ValidateProjectConfigSource(path, data)
@@ -83,18 +94,55 @@ func validateConfigDocument(path string, data []byte) (config.ValidationResult, 
 	return config.ValidateConfigSource(path, data)
 }
 
-// isProjectConfigFile reports whether path is the config.hujson of the project
-// directory resolved for this run.
+// isProjectConfigFile reports whether path is a project config for this run:
+// the config.hujson or legacy config.yaml of the resolved project directory, or
+// a global config that config.UsesWorkingDirFallback says came from ./.finfocus.
 func isProjectConfigFile(path string) bool {
-	dir := config.GetResolvedProjectDir()
-	if dir == "" || path == "" {
+	if path == "" {
 		return false
 	}
 	absPath, err := filepath.Abs(path)
 	if err != nil {
 		return false
 	}
-	return absPath == filepath.Join(dir, "config.hujson")
+	if dir := config.GetResolvedProjectDir(); dir != "" {
+		if absPath == filepath.Join(dir, "config.hujson") || absPath == filepath.Join(dir, "config.yaml") {
+			return true
+		}
+	}
+	return config.UsesWorkingDirFallback() && absPath == filepath.Join(config.ResolveConfigDir(), "config.hujson")
+}
+
+// appendProjectValidation validates the resolved project config with the
+// project rules and adds its findings to result, each naming the project file.
+// It does nothing when no project resolves, the file is missing, or it is the
+// file result already covers.
+func appendProjectValidation(result *config.ValidationResult, validated string) error {
+	dir := config.GetResolvedProjectDir()
+	if dir == "" {
+		return nil
+	}
+	path := config.ProjectConfigPath(dir)
+	if path == validated {
+		return nil
+	}
+	data, err := os.ReadFile(path)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("reading project configuration: %w", err)
+	}
+	project, _ := config.ValidateProjectConfigSource(path, data)
+	for _, item := range project.Errors {
+		item.File = path
+		result.Errors = append(result.Errors, item)
+	}
+	for _, item := range project.Warnings {
+		item.File = path
+		result.Warnings = append(result.Warnings, item)
+	}
+	return nil
 }
 
 func readConfigForValidate(file string) (string, []byte, bool, error) {
@@ -172,12 +220,14 @@ func validationView(result config.ValidationResult) tui.ValidationView {
 	}
 	for _, item := range result.Errors {
 		view.Errors = append(view.Errors, tui.ValidationViewItem{
-			Line: item.Line, Path: item.Path, Message: item.Message, Hint: item.Hint, Example: item.Example,
+			File: item.File, Line: item.Line, Path: item.Path, Message: item.Message, Hint: item.Hint,
+			Example: item.Example,
 		})
 	}
 	for _, item := range result.Warnings {
 		view.Warnings = append(view.Warnings, tui.ValidationViewItem{
-			Line: item.Line, Path: item.Path, Message: item.Message, Suggestion: item.Suggestion,
+			File: item.File, Line: item.Line, Path: item.Path, Message: item.Message,
+			Suggestion: item.Suggestion,
 		})
 	}
 	return view
@@ -239,7 +289,7 @@ func costConfigPaths(cfg *config.Config) []string {
 	}
 	paths := []string{cfg.ConfigPath()}
 	if dir := config.GetResolvedProjectDir(); dir != "" {
-		projectFile := filepath.Join(dir, "config.hujson")
+		projectFile := config.ProjectConfigPath(dir)
 		if projectFile != cfg.ConfigPath() {
 			paths = append(paths, projectFile)
 		}

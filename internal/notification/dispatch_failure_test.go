@@ -2,8 +2,10 @@ package notification_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -140,4 +142,64 @@ func TestNewHTTPClientDoesNotFollowRedirects(t *testing.T) {
 	client := notification.NewHTTPClient()
 	require.NotNil(t, client.CheckRedirect)
 	assert.ErrorIs(t, client.CheckRedirect(nil, nil), http.ErrUseLastResponse)
+}
+
+func TestDeliverRedactsVariableHostOnDNSFailure(t *testing.T) {
+	t.Parallel()
+
+	host := "budget-notify-secret-host.invalid"
+	lookup := &recordingLookup{values: map[string]string{"FINFOCUS_NOTIFY_HOST": host}}
+	d := notification.NewDispatcher(nil, lookup.lookup)
+	results := d.Deliver(context.Background(), []notification.Delivery{{
+		Destination: config.NotificationDestination{
+			Type: config.NotificationTypeWebhook, URL: "https://${FINFOCUS_NOTIFY_HOST}/hook",
+		},
+		Event: testEvent(80),
+	}}, notification.Options{Timeout: 5 * time.Second})
+
+	require.Len(t, results, 1)
+	assert.Equal(t, notification.OutcomeFailed, results[0].Outcome)
+	assert.Contains(t, results[0].Reason, notification.RedactedText)
+	assert.NotContains(t, results[0].Reason, host)
+	assert.NotContains(t, results[0].Reason, "budget-notify-secret-host")
+}
+
+// headerEchoSender fails with an error that quotes every resolved header value,
+// to show which values the dispatcher redacts.
+type headerEchoSender struct{}
+
+func (headerEchoSender) Send(_ context.Context, dest notification.Resolved, _ notification.BudgetAlertEvent) error {
+	return fmt.Errorf("x-version=%s auth=%s x-api-key=%s x-trace=%s x-ref=%s count 1",
+		dest.Headers["X-Version"], dest.Headers["Authorization"], dest.Headers["X-Api-Key"],
+		dest.Headers["X-Trace"], dest.Headers["X-Ref"])
+}
+
+func TestDeliverRedactsOnlySecretLookingHeaders(t *testing.T) {
+	t.Parallel()
+
+	lookup := &recordingLookup{values: map[string]string{"FINFOCUS_NOTIFY_REF": "r1"}}
+	d := notification.NewDispatcher(nil, lookup.lookup)
+	d.RegisterForTest(fakeType, headerEchoSender{})
+	results := d.Deliver(context.Background(), []notification.Delivery{{
+		Destination: config.NotificationDestination{
+			Type: fakeType, URL: "https://a.example",
+			Headers: map[string]string{
+				"X-Version":     "1",
+				"Authorization": "abc",
+				"X-Api-Key":     "k9",
+				"X-Trace":       "trace-id-12345",
+				"X-Ref":         "${FINFOCUS_NOTIFY_REF}",
+			},
+		},
+		Event: testEvent(80),
+	}}, notification.Options{})
+
+	require.Len(t, results, 1)
+	reason := results[0].Reason
+	assert.Contains(t, reason, "x-version=1 ")
+	assert.Contains(t, reason, "count 1")
+	for _, secret := range []string{"abc", "k9", "trace-id-12345", "r1"} {
+		assert.NotContains(t, reason, secret)
+	}
+	assert.Equal(t, 4, strings.Count(reason, notification.RedactedText), reason)
 }

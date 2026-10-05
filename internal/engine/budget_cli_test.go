@@ -2,6 +2,7 @@ package engine
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -813,4 +814,44 @@ func TestScopedBudgetResultJSONOmitsNotifications(t *testing.T) {
 	assert.NotContains(t, string(encoded), "Notifications")
 	assert.NotContains(t, string(encoded), "SECRET")
 	assert.Len(t, budget.Alerts[0].Notifications, 1)
+}
+
+func TestNoStatusTypeSerializesDestinations(t *testing.T) {
+	t.Parallel()
+
+	secret := "https://hooks.example/services/STATUS-SECRET"
+	alerts := []config.AlertConfig{{
+		Threshold: 10, Type: config.AlertTypeActual,
+		Notifications: []config.NotificationDestination{{
+			Type: config.NotificationTypeWebhook, URL: secret,
+			Headers: map[string]string{"Authorization": "Bearer HEADER-SECRET"},
+		}},
+	}}
+	scoped := &config.ScopedBudget{Amount: 100, Currency: "USD", Alerts: alerts}
+	legacy, err := NewBudgetEngine().Evaluate(
+		config.BudgetConfig{Amount: 100, Currency: "USD", Alerts: alerts}, 50, "USD")
+	require.NoError(t, err)
+
+	provider := CalculateProviderBudgetStatus("aws", scoped, 50)
+	tag := CalculateTagBudgetStatus(&config.TagBudget{Selector: "team:x", ScopedBudget: *scoped}, 50)
+	typ := CalculateTypeBudgetStatus("aws:s3/bucket", scoped, 50)
+	values := map[string]any{
+		"BudgetStatus":       legacy,
+		"ThresholdStatus":    legacy.Alerts[0],
+		"provider status":    provider,
+		"tag status":         tag,
+		"type status":        typ,
+		"ScopedBudgetResult": &ScopedBudgetResult{Global: provider, ByTag: []*ScopedBudgetStatus{tag}},
+	}
+	for name, value := range values {
+		encoded, marshalErr := json.Marshal(value)
+		require.NoError(t, marshalErr, name)
+		assert.NotContains(t, string(encoded), "STATUS-SECRET", name)
+		assert.NotContains(t, string(encoded), "HEADER-SECRET", name)
+		assert.NotContains(t, strings.ToLower(string(encoded)), "notifications", name)
+	}
+	for _, status := range []*ScopedBudgetStatus{provider, tag, typ} {
+		require.Len(t, status.Alerts, 1)
+		assert.Equal(t, secret, status.Alerts[0].Notifications[0].URL, "the CLI still sees destinations")
+	}
 }

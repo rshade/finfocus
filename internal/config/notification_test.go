@@ -262,3 +262,18 @@ func TestMaskedForDisplay(t *testing.T) {
 
 	assert.Nil(t, (&config.Config{}).MaskedForDisplay().Cost.Budgets)
 }
+
+func TestNotificationReferenceHelpers(t *testing.T) {
+	t.Parallel()
+
+	assert.True(t, config.IsSingleNotificationReference("${FINFOCUS_NOTIFY_URL}"))
+	assert.True(t, config.IsSingleNotificationReference("${GITHUB_TOKEN}"))
+	assert.False(t, config.IsSingleNotificationReference("Bearer ${FINFOCUS_NOTIFY_TOKEN}"))
+	assert.False(t, config.IsSingleNotificationReference("${FINFOCUS_NOTIFY_A}${FINFOCUS_NOTIFY_B}"))
+	assert.False(t, config.IsSingleNotificationReference("https://example.com"))
+	assert.False(t, config.IsSingleNotificationReference("${FINFOCUS_NOTIFY_A"))
+
+	assert.True(t, config.HasNotificationReference("x${"))
+	assert.True(t, config.HasNotificationReference("Bearer ${FINFOCUS_NOTIFY_TOKEN}"))
+	assert.False(t, config.HasNotificationReference("$NAME"))
+}

@@ -89,17 +89,14 @@ func NewDispatcher(client *http.Client, lookup func(string) (string, bool)) *Dis
 		lookup = func(string) (string, bool) { return "", false }
 	}
 	httpClient := noRedirectClient(client)
-	return &Dispatcher{
-		lookup: lookup,
-		senders: map[config.NotificationType]Sender{
-			config.NotificationTypeSlack:   &slackSender{client: httpClient},
-			config.NotificationTypeWebhook: &webhookSender{client: httpClient},
-		},
-	}
+	d := &Dispatcher{lookup: lookup, senders: map[config.NotificationType]Sender{}}
+	d.register(config.NotificationTypeSlack, &slackSender{client: httpClient})
+	d.register(config.NotificationTypeWebhook, &webhookSender{client: httpClient})
+	return d
 }
 
-// Register sets the sender for a destination type, replacing any existing one.
-func (d *Dispatcher) Register(notificationType config.NotificationType, sender Sender) {
+// register sets the sender for a destination type, replacing any existing one.
+func (d *Dispatcher) register(notificationType config.NotificationType, sender Sender) {
 	d.senders[notificationType] = sender
 }
 
@@ -164,9 +161,21 @@ func (d *Dispatcher) deliverOne(
 	return withOutcome(result, OutcomeSent, "")
 }
 
+// resolve expands dest's variables. The URL, every variable value, and every
+// value built from a variable are registered with redactor. A literal header
+// value is registered only when it looks like a secret (see secretHeader), so
+// a short value such as "1" does not redact unrelated text.
 func (d *Dispatcher) resolve(dest config.NotificationDestination, redactor *Redactor) (Resolved, error) {
+	lookup := func(name string) (string, bool) {
+		value, ok := d.lookup(name)
+		if ok {
+			redactor.Add(value)
+		}
+		return value, ok
+	}
+
 	redactor.Add(dest.URL)
-	resolvedURL, err := Expand(dest.URL, d.lookup)
+	resolvedURL, err := Expand(dest.URL, lookup)
 	if err != nil {
 		return Resolved{}, fmt.Errorf("url: %w", err)
 	}
@@ -179,12 +188,15 @@ func (d *Dispatcher) resolve(dest config.NotificationDestination, redactor *Reda
 	}
 	sort.Strings(names)
 	for _, name := range names {
-		redactor.Add(dest.Headers[name])
-		value, expandErr := Expand(dest.Headers[name], d.lookup)
+		raw := dest.Headers[name]
+		value, expandErr := Expand(raw, lookup)
 		if expandErr != nil {
 			return Resolved{}, fmt.Errorf("header %s: %w", name, expandErr)
 		}
-		redactor.Add(value)
+		if config.HasNotificationReference(raw) || secretHeader(name, raw) {
+			redactor.Add(raw)
+			redactor.Add(value)
+		}
 		headers[name] = value
 	}
 
@@ -195,6 +207,29 @@ func (d *Dispatcher) resolve(dest config.NotificationDestination, redactor *Reda
 		Method:  strings.ToUpper(dest.Method),
 		Headers: headers,
 	}, nil
+}
+
+// minSecretHeaderLength is the shortest literal header value treated as a
+// secret regardless of the header name.
+const minSecretHeaderLength = 8
+
+// secretHeader reports whether a literal header value should be redacted: it is
+// long enough to be a credential, or the header name says it carries one.
+func secretHeader(name, value string) bool {
+	if len(value) >= minSecretHeaderLength {
+		return true
+	}
+	lower := strings.ToLower(name)
+	switch lower {
+	case "authorization", "proxy-authorization", "cookie":
+		return true
+	}
+	for _, marker := range []string{"token", "key", "secret"} {
+		if strings.Contains(lower, marker) {
+			return true
+		}
+	}
+	return false
 }
 
 func withOutcome(result DeliveryResult, outcome Outcome, reason string) DeliveryResult {

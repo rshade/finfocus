@@ -47,15 +47,3 @@ func Expand(value string, lookup func(string) (string, bool)) (string, error) {
 	out.WriteString(value[last:])
 	return out.String(), nil
 }
-
-// IsSingleReference reports whether value is exactly one ${NAME} reference and
-// nothing else. Such a value holds no secret itself, so it can be displayed.
-func IsSingleReference(value string) bool {
-	refs, err := config.FindNotificationReferences(value)
-	return err == nil && len(refs) == 1 && refs[0].Start == 0 && refs[0].End == len(value)
-}
-
-// HasReference reports whether value contains any "${".
-func HasReference(value string) bool {
-	return strings.Contains(value, "${")
-}
