@@ -4,7 +4,7 @@ go 1.27.1
 
 require (
 	github.com/rs/zerolog v1.35.1
-	github.com/rshade/finfocus-spec v0.7.5-0.20261004190518-f605a37ed326
+	github.com/rshade/finfocus-spec v0.7.5
 	github.com/stretchr/testify v1.12.1
 	google.golang.org/grpc v1.86.0-dev
 	google.golang.org/protobuf v1.36.12
