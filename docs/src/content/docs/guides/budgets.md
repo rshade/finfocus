@@ -599,7 +599,7 @@ JSON event:
 
 ### Delivery and Failures
 
-- Destinations are sent concurrently, each with a 10 second time limit.
+- Destinations are sent concurrently, each with a 10-second time limit.
 - URLs must use HTTPS. A URL built from a variable is checked after
   expansion. Redirects are never followed; a 3xx response is a failure.
 - A failure (error status, timeout, unset variable) prints a warning on
