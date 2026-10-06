@@ -12,6 +12,9 @@ pulumi-tool-cost
 # Test binary, built with `go test -c`
 *.test
 
+# Vendored modules
+vendor/
+
 # Built binaries
 bin/*
 
