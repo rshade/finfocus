@@ -144,20 +144,17 @@ func Project(resources []Resource, months int, start time.Time) (Projection, err
 }
 
 func pricedResources(resources []Resource) ([]Resource, string, error) {
-	// A blank currency adopts the single explicit currency, or USD when every
-	// resource left it blank. Two explicit currencies do not collapse.
-	explicit := map[string]struct{}{}
+	// A blank currency is USD, the same default the engine uses. A blank
+	// resource next to an EUR price is mixed USD and EUR, not a single EUR total.
+	seen := map[string]struct{}{}
 	for _, resource := range resources {
-		if strings.TrimSpace(resource.Currency) == "" {
-			continue
-		}
-		explicit[normalizeCurrency(resource.Currency)] = struct{}{}
+		seen[normalizeCurrency(resource.Currency)] = struct{}{}
 	}
-	if len(explicit) > 1 {
-		return nil, "", fmt.Errorf("%w: %s", ErrMixedCurrencies, joinCurrencies(explicit))
+	if len(seen) > 1 {
+		return nil, "", fmt.Errorf("%w: %s", ErrMixedCurrencies, joinCurrencies(seen))
 	}
 	currency := defaultCurrency
-	for code := range explicit {
+	for code := range seen {
 		currency = code
 	}
 	priced := make([]Resource, 0, len(resources))

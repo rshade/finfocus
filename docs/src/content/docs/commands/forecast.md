@@ -37,8 +37,10 @@ A plugin that reports one of those models without a rate stays flat, and the
 output says so. A rate below -1 is rejected. A result below zero is shown as
 zero.
 
-Resources are projected on their own, then added. Two currencies fail the
-command. A plugin error is left out of the total and listed.
+Resources are projected on their own, then added. A missing currency counts
+as USD, so it does not join a total in another currency. Two currencies fail
+the command. A plugin error is left out of the total and listed. A global
+budget in a different currency is left off the chart, and the output says so.
 
 ## Output
 

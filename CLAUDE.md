@@ -735,7 +735,12 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `pulumi:` rows are not explained because they are not diff entries
 - **`cost forecast`** prices the same inputs as `cost projected` and projects
   the after-change monthly cost with `pricing.ApplyGrowth` (finfocus-spec).
-  The plugin response `growth_type` is copied onto `CostResult.GrowthType`
+  The plugin response `growth_type` is copied onto `CostResult.GrowthType`.
+  Projected cache keys end in `/growth-v1`, so an entry stored before that
+  field existed is not reused as a flat forecast. `--terraform-state` resolves
+  types before pricing, the same way `cost projected` does. A blank currency
+  is USD, so it does not join an EUR total. A global budget in another
+  currency is omitted with a warning.
   (`none`, `linear`, `exponential`, or empty). The response has no rate.
   `--growth-rate` is that rate. `--growth-type` overrides every resource.
   Linear is `base * (1 + rate * month)`. Exponential compounds. Month 0 is

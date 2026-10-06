@@ -203,6 +203,31 @@ func TestRunForecast_NoPricedResource(t *testing.T) {
 	require.ErrorIs(t, err, forecast.ErrNoCostData)
 }
 
+func TestRunForecast_BudgetCurrencyMismatchOmitsLine(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	cmd := forecastTestCmd(t, &buf, "--months", "1", "--output", "json", "--no-history")
+	err := runForecast(cmd, forecastDeps{
+		now: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+		cfg: &config.Config{
+			Cost: config.CostConfig{
+				Budgets: &config.BudgetsConfig{Global: &config.ScopedBudget{Amount: 250, Currency: "USD"}},
+			},
+		},
+		skipPrice:   true,
+		skipHistory: true,
+		costs:       []engine.CostResult{{ResourceID: "vm", Monthly: 10, Currency: "EUR"}},
+	})
+	require.NoError(t, err)
+	var doc forecastJSON
+	require.NoError(t, json.Unmarshal(buf.Bytes(), &doc))
+	assert.Nil(t, doc.Budget)
+	assert.Equal(t, "EUR", doc.Currency)
+	require.NotEmpty(t, doc.Warnings)
+	assert.Contains(t, doc.Warnings[0], "USD")
+	assert.Contains(t, doc.Warnings[0], "EUR")
+}
+
 func TestRunForecast_PlainOverridesJSON(t *testing.T) {
 	t.Parallel()
 	var buf bytes.Buffer

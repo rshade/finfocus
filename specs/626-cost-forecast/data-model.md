@@ -7,7 +7,7 @@
 | ID | string | Copied from the projected cost. Used in warnings. |
 | Provider | string | Normalized with `resourcetype.NormalizeProvider`. Empty becomes `<none>`. |
 | Monthly | number | After-change projected monthly cost. Zero is a real price. |
-| Currency | string | Blank becomes USD. Two non-blank currencies fail the forecast. |
+| Currency | string | Blank is USD. A blank resource next to EUR is mixed USD and EUR and fails. |
 | GrowthType | string | `none`, `linear`, `exponential`, or empty. Empty is `none`. |
 | GrowthRate | number, optional | Decimal per month. Required for linear and exponential when the user set the type. Nil keeps a plugin linear or exponential resource flat. |
 

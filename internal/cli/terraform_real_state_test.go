@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"testing"
 
@@ -67,6 +68,31 @@ func resourcesByID(resources []engine.ResourceDescriptor) map[string]engine.Reso
 		byID[r.ID] = r
 	}
 	return byID
+}
+
+//nolint:paralleltest // newMockResolverClient dials an in-process plugin server
+func TestPrepareForecastResources_ResolvesTerraformTypes(t *testing.T) {
+	client, _ := newMockResolverClient(t, func(m *mockplugin.MockPlugin) {
+		m.ConfigureTerraformResolver(mockplugin.AWSTerraformTypeMappings())
+	})
+	store, err := cache.NewBoltStore(context.Background(), t.TempDir(), true, 3600, 0)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = store.Close() })
+
+	in := loadRealTerraformResources(t)
+	require.Equal(t, "aws_instance", resourcesByID(in)["aws_instance.web"].Type)
+	cmd := NewCostForecastCmd()
+	cmd.SetOut(&bytes.Buffer{})
+	cmd.SetErr(&bytes.Buffer{})
+	out := prepareForecastResources(
+		context.Background(),
+		cmd,
+		realTerraformStatePath,
+		[]*pluginhost.Client{client},
+		store,
+		in,
+	)
+	assert.Equal(t, "aws:ec2/instance:Instance", resourcesByID(out)["aws_instance.web"].Type)
 }
 
 func TestLoadAndMapTerraformResources_RealStateMatchesIngest(t *testing.T) {

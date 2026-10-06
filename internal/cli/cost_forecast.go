@@ -14,8 +14,10 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/engine/cache"
 	"github.com/rshade/finfocus/internal/forecast"
 	"github.com/rshade/finfocus/internal/history"
+	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/resourcetype"
 	"github.com/rshade/finfocus/internal/spec"
 )
@@ -123,7 +125,11 @@ func runForecast(cmd *cobra.Command, deps forecastDeps) error {
 		audit.logFailure(ctx, err)
 		return err
 	}
-	budget := forecastBudget(cmd, deps.cfg)
+	budget, budgetWarning := forecastBudget(cmd, deps.cfg, projection.Currency)
+	if budgetWarning != "" {
+		projection.Warnings = append(projection.Warnings, budgetWarning)
+		sort.Strings(projection.Warnings)
+	}
 	if err = writeForecast(cmd, format, projection, historySeries, budget, deps); err != nil {
 		audit.logFailure(ctx, err)
 		return err
@@ -292,14 +298,30 @@ func forecastCosts(
 		return nil, err
 	}
 	defer cleanup()
-	eng, _, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
+	eng, cacheStore, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(specDir), cfg)
 	defer cacheCleanup()
 	eng = eng.WithJobs(jobs)
+	resources = prepareForecastResources(ctx, cmd, params.terraformState, clients, cacheStore, resources)
 	diff, err := eng.GetProjectedCostDiff(ctx, resources)
 	if err != nil {
 		return nil, fmt.Errorf("calculating projected costs: %w", err)
 	}
 	return diff.AfterCosts(), nil
+}
+
+// prepareForecastResources matches cost projected: warn when no plugin can
+// resolve Terraform types, then resolve them before pricing. Pulumi tokens
+// already contain a colon and are left unchanged.
+func prepareForecastResources(
+	ctx context.Context,
+	cmd *cobra.Command,
+	terraformState string,
+	clients []*pluginhost.Client,
+	store cache.Cache,
+	resources []engine.ResourceDescriptor,
+) []engine.ResourceDescriptor {
+	warnNoTypeResolvingPlugin(cmd, terraformState, clients)
+	return resolveResourceTypes(ctx, clients, store, resources)
 }
 
 func forecastResources(costs []engine.CostResult, growthType string, rate *float64) ([]forecast.Resource, []string) {
@@ -444,19 +466,33 @@ func optionalStack(cmd *cobra.Command) (string, error) {
 	return strings.TrimSpace(stack), nil
 }
 
-func forecastBudget(cmd *cobra.Command, cfg *config.Config) float64 {
+func forecastBudget(cmd *cobra.Command, cfg *config.Config, forecastCurrency string) (float64, string) {
 	noBudget, err := cmd.Flags().GetBool("no-budget")
 	if err != nil || noBudget {
-		return 0
+		return 0, ""
 	}
 	if cfg == nil {
 		cfg = config.GetGlobalConfig()
 	}
-	amount, ok := globalBudget(cfg)
-	if !ok {
-		return 0
+	if cfg == nil || cfg.Cost.Budgets == nil || !cfg.Cost.Budgets.HasGlobalBudget() {
+		return 0, ""
 	}
-	return amount
+	amount := cfg.Cost.Budgets.Global.Amount
+	budgetCurrency := strings.ToUpper(strings.TrimSpace(cfg.Cost.Budgets.Global.Currency))
+	if budgetCurrency == "" {
+		budgetCurrency = defaultCurrency
+	}
+	spend := strings.ToUpper(strings.TrimSpace(forecastCurrency))
+	if spend == "" {
+		spend = defaultCurrency
+	}
+	if budgetCurrency != spend {
+		return 0, fmt.Sprintf(
+			"budget currency %s does not match forecast currency %s",
+			budgetCurrency, spend,
+		)
+	}
+	return amount, ""
 }
 
 func writeForecast(

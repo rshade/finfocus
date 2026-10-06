@@ -71,15 +71,23 @@ func TestProject_MixedCurrency(t *testing.T) {
 	assert.Contains(t, err.Error(), "USD")
 }
 
-func TestProject_BlankCurrencyAdoptsExplicit(t *testing.T) {
+func TestProject_BlankCurrencyIsUSD(t *testing.T) {
 	t.Parallel()
 	got, err := Project([]Resource{
-		{ID: "a", Monthly: 1, Currency: "gbp"},
+		{ID: "a", Monthly: 1},
 		{ID: "b", Monthly: 2},
 	}, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
 	require.NoError(t, err)
-	assert.Equal(t, "GBP", got.Currency)
+	assert.Equal(t, "USD", got.Currency)
 	assert.InDelta(t, 3, got.Forecast.Points[0].Value, 1e-9)
+
+	_, err = Project([]Resource{
+		{ID: "a", Monthly: 1, Currency: "EUR"},
+		{ID: "b", Monthly: 2},
+	}, 1, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	require.ErrorIs(t, err, ErrMixedCurrencies)
+	assert.Contains(t, err.Error(), "EUR")
+	assert.Contains(t, err.Error(), "USD")
 }
 
 func TestProject_NoPricedResource(t *testing.T) {

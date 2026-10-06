@@ -4134,6 +4134,9 @@ func (e *Engine) projectedCostCacheKey(resource ResourceDescriptor) (string, err
 	return key, nil
 }
 
+// projectedGrowthCacheSuffix versions cached projected results for GrowthType.
+const projectedGrowthCacheSuffix = "/growth-v1"
+
 // ProjectedResourceCacheKey returns the projected-cost cache key for one resource.
 // Callers that seed the cache, including overview, must use this key. It includes
 // a digest of the flattened tag map.
@@ -4165,6 +4168,10 @@ func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, erro
 	if suffix := attributesCacheSuffix(resource.Properties); suffix != "" {
 		key += "/attrs-" + suffix
 	}
+	// Entries written before CostResult.GrowthType existed omit the field, and
+	// an empty type is also a valid "no growth" answer. A new suffix misses
+	// those entries so the next lookup stores the plugin's model.
+	key += projectedGrowthCacheSuffix
 	return key, nil
 }
 
