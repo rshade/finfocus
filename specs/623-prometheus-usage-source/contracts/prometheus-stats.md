@@ -70,6 +70,12 @@ use the `incomplete:` prefix.
 - Hole: if `count_over_time` of a series is more than one step short of that
   series' own first-to-last span, add `incomplete: <subject>: gap in <metric>`.
   A series whose first sample is simply after `start` is not a hole.
+  The count is of 60s subquery steps, and each step looks back 5m, so a hole
+  shorter than the lookback is not detected and the last value covers it
+  (standard Prometheus semantics). A failed scrape or a vanished series
+  writes a staleness marker, which ends the lookback, so those holes are
+  still detected. The undetected case is mainly Prometheus itself stopped
+  for under five minutes.
 - Retention shorter than the window: if the earliest
   `kube_node_status_allocatable{resource="cpu"}` sample in the window is more
   than one step after `start`, add `incomplete: stored data starts at <time>,

@@ -3,8 +3,10 @@ package prometheus
 import (
 	"context"
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strconv"
@@ -119,7 +121,11 @@ func (p *Plugin) fail(err error) error {
 func (p *Plugin) apiClient() (v1.API, error) {
 	roundTripper := http.DefaultTransport
 	if p.cfg.Token != "" {
-		roundTripper = bearerRoundTripper{base: roundTripper, token: p.cfg.Token}
+		bearer, err := newBearerRoundTripper(roundTripper, p.cfg.URL, p.cfg.Token)
+		if err != nil {
+			return nil, err
+		}
+		roundTripper = bearer
 	}
 	client, err := api.NewClient(api.Config{Address: p.cfg.URL, RoundTripper: roundTripper})
 	if err != nil {
@@ -128,12 +134,29 @@ func (p *Plugin) apiClient() (v1.API, error) {
 	return v1.NewAPI(client), nil
 }
 
+// bearerRoundTripper adds the token only to requests for the configured
+// scheme and host. net/http drops Authorization on a cross-site redirect, but
+// a transport runs for every hop, so without this check it would add the
+// token back on the redirected request.
 type bearerRoundTripper struct {
-	base  http.RoundTripper
-	token string
+	base   http.RoundTripper
+	scheme string
+	host   string
+	token  string
+}
+
+func newBearerRoundTripper(base http.RoundTripper, rawURL, token string) (bearerRoundTripper, error) {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return bearerRoundTripper{}, fmt.Errorf("parsing prometheus URL: %w", errors.New(RedactedURL(rawURL)))
+	}
+	return bearerRoundTripper{base: base, scheme: parsed.Scheme, host: parsed.Host, token: token}, nil
 }
 
 func (b bearerRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	if !strings.EqualFold(req.URL.Scheme, b.scheme) || !strings.EqualFold(req.URL.Host, b.host) {
+		return b.base.RoundTrip(req)
+	}
 	cloned := req.Clone(req.Context())
 	cloned.Header.Set("Authorization", "Bearer "+b.token)
 	return b.base.RoundTrip(cloned)

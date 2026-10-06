@@ -268,3 +268,73 @@ func emptyPrometheus(t *testing.T) *httptest.Server {
 	t.Cleanup(srv.Close)
 	return srv
 }
+
+func TestGetStats_RedirectDoesNotForwardToken(t *testing.T) {
+	t.Parallel()
+
+	var mu sync.Mutex
+	var leaked []string
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		leaked = append(leaked, r.Header.Get("Authorization"))
+		mu.Unlock()
+		http.Error(w, "nope", http.StatusBadRequest)
+	}))
+	t.Cleanup(target.Close)
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, target.URL+r.URL.Path, http.StatusTemporaryRedirect)
+	}))
+	t.Cleanup(origin.Close)
+
+	start := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	window := &pbc.GetStatsRequest{Start: timestamppb.New(start), End: timestamppb.New(start.Add(time.Hour))}
+	_, err := newTestPlugin(Config{URL: origin.URL, Token: pluginToken}).GetStats(context.Background(), window)
+	require.Error(t, err)
+
+	mu.Lock()
+	defer mu.Unlock()
+	require.NotEmpty(t, leaked, "the redirect must reach the second origin")
+	for _, got := range leaked {
+		assert.Empty(t, got, "token sent to another origin")
+	}
+}
+
+type headerRecorder struct{ auth string }
+
+func (h *headerRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
+	h.auth = req.Header.Get("Authorization")
+	return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader("")), Request: req}, nil
+}
+
+func TestBearerRoundTripper_OnlyConfiguredOrigin(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		target   string
+		wantAuth bool
+	}{
+		{name: "same origin", target: "https://prom.example:9090/api/v1/query", wantAuth: true},
+		{name: "other host", target: "https://evil.example:9090/api/v1/query"},
+		{name: "other port", target: "https://prom.example:9091/api/v1/query"},
+		{name: "downgrade to http", target: "http://prom.example:9090/api/v1/query"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rec := &headerRecorder{}
+			rt, err := newBearerRoundTripper(rec, "https://prom.example:9090", pluginToken)
+			require.NoError(t, err)
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, tt.target, nil)
+			require.NoError(t, err)
+			resp, err := rt.RoundTrip(req)
+			require.NoError(t, err)
+			require.NoError(t, resp.Body.Close())
+			if tt.wantAuth {
+				assert.Equal(t, "Bearer "+pluginToken, rec.auth)
+			} else {
+				assert.Empty(t, rec.auth)
+			}
+		})
+	}
+}

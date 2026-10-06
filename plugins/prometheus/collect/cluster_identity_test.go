@@ -118,6 +118,31 @@ func TestCollect_ScopeWithoutClusterLabelDoesNotFilter(t *testing.T) {
 	assert.Equal(t, "prod", node.GetSubject()[pluginsdk.SubjectCluster])
 }
 
+// Without kube_node_labels the clusters are still discovered from capacity
+// series, so the selected cluster's matcher is applied and the other cluster
+// is not added in.
+func TestCollect_DiscoversClustersWithoutNodeLabels(t *testing.T) {
+	t.Parallel()
+
+	noNodeLabels := func(query string) []fixtureSample {
+		switch queryKind(query) {
+		case "node_labels", "node_info":
+			return nil
+		case "cluster_discovery":
+			return []fixtureSample{
+				{labels: map[string]string{"cluster": "east"}, value: 1},
+				{labels: map[string]string{"cluster": "west"}, value: 1},
+			}
+		default:
+			return multiClusterSamples(query)
+		}
+	}
+	resp, queries, err := collectRaw(t, noNodeLabels, Options{Cluster: "west"})
+	require.NoError(t, err)
+	assertDiscoveryThenFilter(t, queries, "west")
+	assertUsage(t, resp, "api", pluginsdk.MetricCPUUsage, pluginsdk.UnitCoreHours, 1)
+}
+
 func requireClusterChoice(t *testing.T, err error, queries []string) {
 	t.Helper()
 	require.Error(t, err)
@@ -180,7 +205,7 @@ func clusterSamples(query, selected, node string, includeWest bool) []fixtureSam
 	unfiltered := !strings.Contains(query, "cluster=")
 	matched := strings.Contains(query, `cluster="`+selected+`"`)
 	switch queryKind(query) {
-	case "node_labels":
+	case "cluster_discovery", "node_labels":
 		return clusterLabelSamples(unfiltered, matched, selected, node, includeWest)
 	case "node_info":
 		return clusterInfoSamples(unfiltered, matched, selected, node, includeWest)

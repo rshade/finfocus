@@ -156,9 +156,16 @@ func appendRow(
 	})
 }
 
+// podMatch matches a usage sample to key. A sample with no node label (cAdvisor
+// scraped from the kubelet) matches on namespace and pod, because sampleKey
+// took key.node from kube_pod_info.
 func podMatch(key podKey) func(model.Metric) bool {
 	return func(m model.Metric) bool {
-		return string(m["namespace"]) == key.namespace && string(m["pod"]) == key.pod && string(m["node"]) == key.node
+		if string(m["namespace"]) != key.namespace || string(m["pod"]) != key.pod {
+			return false
+		}
+		node := string(m["node"])
+		return node == "" || node == key.node
 	}
 }
 

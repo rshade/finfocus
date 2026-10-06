@@ -224,6 +224,15 @@ func TestCollect_RetentionShorterThanWindow(t *testing.T) {
 			want:  []string{controlPlaneDisconnected},
 		},
 		{
+			name:  "data starts two steps after the window start",
+			start: new(from.Add(2 * time.Minute)),
+			want: []string{
+				"incomplete: stored data starts at 2026-09-28T00:02:00Z, after the window start " +
+					"2026-09-28T00:00:00Z; Prometheus retention may be shorter than the window",
+				controlPlaneDisconnected,
+			},
+		},
+		{
 			name: "no node series",
 			want: []string{controlPlaneDisconnected},
 		},
@@ -237,6 +246,18 @@ func TestCollect_RetentionShorterThanWindow(t *testing.T) {
 			assertQuerySent(t, queries, "min_over_time(timestamp(kube_node_status_allocatable")
 		})
 	}
+}
+
+func TestCollect_NodelessUsageUsesPodInfoNode(t *testing.T) {
+	t.Parallel()
+
+	resp, _ := collectFixture(t, nodelessSamples, Options{})
+	require.NoError(t, plugintesting.ValidateStatsResponse(resp))
+	assertPods(t, resp, "api")
+	assertUsage(t, resp, "api", pluginsdk.MetricCPUUsage, pluginsdk.UnitCoreHours, 1.5)
+	assertUsage(t, resp, "api", pluginsdk.MetricMemUsage, pluginsdk.UnitGiBHours, 2.5)
+	row := findRow(t, resp, pluginsdk.KindWorkload, "api", pluginsdk.MetricCPUUsage)
+	assert.Equal(t, "node-a", row.GetSubject()[pluginsdk.SubjectNode])
 }
 
 func hourWindow() (time.Time, time.Time) {
@@ -322,6 +343,8 @@ func writeVector(w http.ResponseWriter, samples []fixtureSample) {
 
 func queryKind(query string) string {
 	switch {
+	case strings.Contains(query, "group by (cluster)"):
+		return "cluster_discovery"
 	case strings.Contains(query, "min_over_time(timestamp(kube_node_status_allocatable"):
 		return "store_start"
 	case strings.Contains(query, "count_over_time"), strings.Contains(query, "timestamp("):
@@ -536,6 +559,29 @@ func retentionSamples(start *time.Time) func(string) []fixtureSample {
 			return []fixtureSample{{labels: map[string]string{}, value: float64(start.Unix())}}
 		}
 		return emptySamples(query)
+	}
+}
+
+// nodelessSamples is cAdvisor scraped from the kubelet without a node label.
+// kube_pod_info supplies the node.
+func nodelessSamples(query string) []fixtureSample {
+	if rows, ok := nodeSeries(query); ok {
+		return rows
+	}
+	nodeless := func(value float64) []fixtureSample {
+		return []fixtureSample{{labels: map[string]string{"namespace": "payments", "pod": "api"}, value: value}}
+	}
+	switch queryKind(query) {
+	case "cpu":
+		return nodeless(1.5)
+	case "mem":
+		return nodeless(2.5)
+	case "pod_info":
+		return []fixtureSample{
+			{labels: map[string]string{"namespace": "payments", "pod": "api", "node": "node-a"}, value: 1},
+		}
+	default:
+		return nil
 	}
 }
 

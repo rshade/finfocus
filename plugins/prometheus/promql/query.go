@@ -88,6 +88,16 @@ func SeriesGap(metric string, from, to time.Time, sel Selectors) Query {
 	return Query{Expr: expr, Time: to}
 }
 
+// ClusterDiscovery lists the cluster label values on node series in the
+// window. Capacity series count as well as node labels, so a store that does
+// not keep kube_node_labels still gets a cluster matcher.
+func ClusterDiscovery(from, to time.Time) Query {
+	dur := durationLiteral(from, to)
+	expr := `group by (cluster) (last_over_time({__name__=~"kube_node_labels|kube_node_status_allocatable"}[` +
+		dur + `]))`
+	return Query{Expr: expr, Time: to}
+}
+
 // StoreStart is the Unix time of the earliest node allocatable sample in the
 // window. Node series exist for the whole life of a node, so a value well after
 // the window start means the store holds no data for the start of the window.
@@ -112,12 +122,15 @@ func LastOverTime(metric string, from, to time.Time, sel Selectors) Query {
 	return Query{Expr: "last_over_time(" + metric + "{" + matcher + "}[" + dur + "])", Time: to}
 }
 
+// allocatable takes max by node at each step before integrating. Replicated
+// kube-state-metrics exports one series per replica for the same node, and a
+// plain sum would count that node's capacity once per replica.
 func allocatable(resource, scale string, from, to time.Time, sel Selectors) Query {
 	dur := durationLiteral(from, to)
 	selector := joinMatchers([]string{`resource="` + resource + `"`, labelEqual("cluster", sel.Cluster)})
 	expr := `sum by (node) (
   sum_over_time(
-    kube_node_status_allocatable{` + selector + `}[` + dur + `:` + substep + `]
+    (max by (node) (kube_node_status_allocatable{` + selector + `}))[` + dur + `:` + substep + `]
   )
 ) * 60 / ` + scale
 	return Query{Expr: expr, Time: to}

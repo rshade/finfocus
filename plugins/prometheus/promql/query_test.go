@@ -66,7 +66,7 @@ func TestQueries_Golden(t *testing.T) {
 			got:  CPUAllocatable(from, to, plain),
 			expr: `sum by (node) (
   sum_over_time(
-    kube_node_status_allocatable{resource="cpu"}[` + dur + `:60s]
+    (max by (node) (kube_node_status_allocatable{resource="cpu"}))[` + dur + `:60s]
   )
 ) * 60 / 3600`,
 		},
@@ -75,7 +75,7 @@ func TestQueries_Golden(t *testing.T) {
 			got:  CPUAllocatable(from, to, Selectors{Namespace: "payments", Cluster: "prod"}),
 			expr: `sum by (node) (
   sum_over_time(
-    kube_node_status_allocatable{resource="cpu",cluster="prod"}[` + dur + `:60s]
+    (max by (node) (kube_node_status_allocatable{resource="cpu",cluster="prod"}))[` + dur + `:60s]
   )
 ) * 60 / 3600`,
 		},
@@ -84,7 +84,7 @@ func TestQueries_Golden(t *testing.T) {
 			got:  MemoryAllocatable(from, to, plain),
 			expr: `sum by (node) (
   sum_over_time(
-    kube_node_status_allocatable{resource="memory"}[` + dur + `:60s]
+    (max by (node) (kube_node_status_allocatable{resource="memory"}))[` + dur + `:60s]
   )
 ) * 60 / 1073741824 / 3600`,
 		},
@@ -93,7 +93,7 @@ func TestQueries_Golden(t *testing.T) {
 			got:  MemoryAllocatable(from, to, Selectors{Namespace: "payments", Cluster: "prod"}),
 			expr: `sum by (node) (
   sum_over_time(
-    kube_node_status_allocatable{resource="memory",cluster="prod"}[` + dur + `:60s]
+    (max by (node) (kube_node_status_allocatable{resource="memory",cluster="prod"}))[` + dur + `:60s]
   )
 ) * 60 / 1073741824 / 3600`,
 		},
@@ -174,4 +174,16 @@ func TestDurationSeconds(t *testing.T) {
 	from := time.Date(2026, 9, 1, 0, 0, 30, 0, time.UTC)
 	to := time.Date(2026, 9, 1, 0, 2, 0, 0, time.UTC)
 	require.Equal(t, 90, DurationSeconds(from, to))
+}
+
+func TestClusterDiscovery_Golden(t *testing.T) {
+	t.Parallel()
+
+	from := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	to := from.AddDate(0, 0, 7)
+	got := ClusterDiscovery(from, to)
+	assert.Equal(t,
+		`group by (cluster) (last_over_time({__name__=~"kube_node_labels|kube_node_status_allocatable"}[604800s]))`,
+		got.Expr)
+	assert.True(t, to.Equal(got.Time), "evaluation time is the window end")
 }

@@ -298,6 +298,14 @@ func historicalSeries(node string, from, to time.Time) []rwSeries {
 			points: constantPoints(window, 4)},
 		{labels: withName("kube_node_status_allocatable", map[string]string{"node": node, "resource": "memory"}),
 			points: constantPoints(window, 16*gib)},
+		// A second kube-state-metrics replica exports the same node again.
+		// Capacity must not double.
+		{labels: withName("kube_node_status_allocatable", map[string]string{
+			"node": node, "resource": "cpu", "instance": "kube-state-metrics-replica-2",
+		}), points: constantPoints(window, 4)},
+		{labels: withName("kube_node_status_allocatable", map[string]string{
+			"node": node, "resource": "memory", "instance": "kube-state-metrics-replica-2",
+		}), points: constantPoints(window, 16*gib)},
 		{labels: withName("kube_node_labels", map[string]string{
 			"node":                                   node,
 			"label_node_kubernetes_io_instance_type": "m5.large",
@@ -365,7 +373,7 @@ func memoryUsageQuery() string {
 func cpuAllocQuery() string {
 	return `sum by (node) (
   sum_over_time(
-    kube_node_status_allocatable{resource="cpu"}[86400s:60s]
+    (max by (node) (kube_node_status_allocatable{resource="cpu"}))[86400s:60s]
   )
 ) * 60 / 3600`
 }
@@ -373,7 +381,7 @@ func cpuAllocQuery() string {
 func memoryAllocQuery() string {
 	return `sum by (node) (
   sum_over_time(
-    kube_node_status_allocatable{resource="memory"}[86400s:60s]
+    (max by (node) (kube_node_status_allocatable{resource="memory"}))[86400s:60s]
   )
 ) * 60 / 1073741824 / 3600`
 }

@@ -40,9 +40,9 @@ type Options struct {
 // label, so the matcher has to be on the later queries or two clusters would
 // be added together. A store with no cluster label is not filtered by scope.
 func Collect(ctx context.Context, api v1.API, from, to time.Time, opts Options) (*pbc.GetStatsResponse, error) {
-	discovered, err := instant(ctx, api, promql.LastOverTime("kube_node_labels", from, to, promql.Selectors{}))
+	discovered, err := instant(ctx, api, promql.ClusterDiscovery(from, to))
 	if err != nil {
-		return nil, fmt.Errorf("query node_labels: %w", err)
+		return nil, fmt.Errorf("query cluster discovery: %w", err)
 	}
 	clusters := clusterValues(discovered)
 	selected, err := identity.SelectCluster(clusters, opts.Cluster)
@@ -74,7 +74,7 @@ func addRetentionGap(resp *pbc.GetStatsResponse, vec model.Vector, from time.Tim
 		return
 	}
 	start := time.Unix(int64(vec[0].Value), 0).UTC()
-	if !start.After(from.Add((missingStepsOK + 1) * time.Minute)) {
+	if !start.After(from.Add(missingStepsOK * time.Minute)) {
 		return
 	}
 	resp.Warnings = append(resp.Warnings, fmt.Sprintf(
