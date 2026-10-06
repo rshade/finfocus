@@ -19,6 +19,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/term"
 
 	"github.com/rshade/finfocus/internal/config"
@@ -506,43 +507,70 @@ func exportStateFromProject(
 		return nil, "", "", "", fmt.Errorf("auto-detecting Pulumi project: %w", err)
 	}
 
+	resources, manifestTime, err := exportStateForStack(ctx, projectDir, resolvedStack, passphrase)
+	if err != nil {
+		return nil, "", "", "", err
+	}
+	return resources, manifestTime, projectDir, resolvedStack, nil
+}
+
+// exportStateForStack runs `pulumi stack export` for an already-resolved project and stack
+// and returns the custom state resources plus the manifest time.
+func exportStateForStack(
+	ctx context.Context, projectDir, stack string, passphrase *string,
+) ([]engine.StateResource, string, error) {
 	pt := logging.StartPhase(ctx, "pulumi", "overview", "stack_export")
 	defer pt.Done(ctx)
 
 	exportData, exportErr := pulumidetect.StackExport(ctx, pulumidetect.ExportOptions{
 		ProjectDir: projectDir,
-		Stack:      resolvedStack,
+		Stack:      stack,
 		Passphrase: passphrase,
 	})
 	if exportErr != nil {
-		return nil, "", "", "", fmt.Errorf("running pulumi stack export: %w", exportErr)
+		return nil, "", fmt.Errorf("running pulumi stack export: %w", exportErr)
 	}
 	state, parseErr := ingest.ParseStackExportWithContext(ctx, exportData)
 	if parseErr != nil {
-		return nil, "", "", "", fmt.Errorf("parsing pulumi stack export: %w", parseErr)
+		return nil, "", fmt.Errorf("parsing pulumi stack export: %w", parseErr)
 	}
 	resources := convertStateResources(state.GetCustomResourcesWithContext(ctx))
-	return resources, state.Deployment.Manifest.Time, projectDir, resolvedStack, nil
+	return resources, state.Deployment.Manifest.Time, nil
 }
 
 // loadOverviewFromAutoDetect discovers the Pulumi project/stack and runs
-// both `pulumi stack export` and `pulumi preview --json` to gather data.
+// `pulumi stack export` and `pulumi preview --json` concurrently to gather data.
+// The first failure cancels the other command.
 // In the plain (non-TUI) mode no passphrase is prompted; PULUMI_CONFIG_PASSPHRASE
 // is expected to be set in the caller's environment already.
 func loadOverviewFromAutoDetect(
 	ctx context.Context, params overviewParams,
 ) ([]engine.StateResource, []engine.PlanStep, string, error) {
-	stateResources, _, projectDir, resolvedStack, err := exportStateFromProject(ctx, params.stack, nil)
+	projectDir, resolvedStack, err := detectPulumiProject(ctx, params.stack)
 	if err != nil {
-		return nil, nil, "", err
+		return nil, nil, "", fmt.Errorf("auto-detecting Pulumi project: %w", err)
 	}
 
-	// Resolve plan: from file if --pulumi-json provided, otherwise auto-detect
-	ptPreview := logging.StartPhase(ctx, "pulumi", "overview", "preview")
-	planSteps, planErr := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, resolvedStack, nil)
-	ptPreview.Done(ctx)
-	if planErr != nil {
-		return nil, nil, "", planErr
+	var (
+		stateResources []engine.StateResource
+		planSteps      []engine.PlanStep
+	)
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error {
+		var exportErr error
+		stateResources, _, exportErr = exportStateForStack(gctx, projectDir, resolvedStack, nil)
+		return exportErr
+	})
+	g.Go(func() error {
+		pt := logging.StartPhase(gctx, "pulumi", "overview", "preview")
+		defer pt.Done(gctx)
+		var planErr error
+		planSteps, planErr = resolveOverviewPlan(gctx, params.pulumiJSON, projectDir, resolvedStack, nil)
+		return planErr
+	})
+	if waitErr := g.Wait(); waitErr != nil {
+		return nil, nil, "", waitErr
 	}
 
 	return stateResources, planSteps, resolvedStack, nil
