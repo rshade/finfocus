@@ -6,6 +6,7 @@ import (
 	"maps"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -146,11 +147,16 @@ func validateWindow(req *pbc.GetStatsRequest) error {
 	return nil
 }
 
+// urlPattern finds URLs in error text. Client errors quote the request URL,
+// which can carry a username or a credential in its query.
+var urlPattern = regexp.MustCompile(`https?://[^\s"']+`)
+
+// redact strips URL userinfo and query from err and masks the bearer token.
 func redact(err error, token string) error {
 	if err == nil {
 		return nil
 	}
-	message := err.Error()
+	message := urlPattern.ReplaceAllStringFunc(err.Error(), RedactedURL)
 	if token != "" {
 		message = strings.ReplaceAll(message, token, "redacted")
 	}

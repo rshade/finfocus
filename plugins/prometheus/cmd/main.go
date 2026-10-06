@@ -37,7 +37,7 @@ func run() int {
 	if err != nil {
 		logger.Warn().Err(err).Msg("no Prometheus address; GetStats will fail until it is set")
 	}
-	logger.Info().Str("prometheus_url", cfg.URL).Bool("bearer_token_set", cfg.Token != "").
+	logger.Info().Str("prometheus_url", prometheus.RedactedURL(cfg.URL)).Bool("bearer_token_set", cfg.Token != "").
 		Msg("starting prometheus usage source")
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

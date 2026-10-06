@@ -2,6 +2,7 @@ package prometheus
 
 import (
 	"errors"
+	"net/url"
 	"os"
 )
 
@@ -35,4 +36,20 @@ func LoadConfig() (Config, error) {
 		return Config{URL: inClusterPrometheusURL, Token: token}, nil
 	}
 	return Config{}, errors.New(missingPrometheusURL)
+}
+
+// RedactedURL is raw without userinfo or query, safe to log. A URL can carry
+// credentials in either place.
+func RedactedURL(raw string) string {
+	if raw == "" {
+		return ""
+	}
+	parsed, err := url.Parse(raw)
+	if err != nil {
+		return "<unparseable URL>"
+	}
+	parsed.User = nil
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
 }

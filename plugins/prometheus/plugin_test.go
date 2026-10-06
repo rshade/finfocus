@@ -205,6 +205,23 @@ func TestGetStats_DownServerAndMissingURL(t *testing.T) {
 		assert.NotContains(t, err.Error(), pluginToken)
 	})
 
+	t.Run("url credentials stay out of errors and logs", func(t *testing.T) {
+		t.Parallel()
+		down := httptest.NewServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}))
+		host := strings.TrimPrefix(down.URL, "http://")
+		down.Close()
+
+		var stderr strings.Builder
+		p := newTestPlugin(Config{URL: "http://urluser:urlpass@" + host + "/?api_key=querysecret"})
+		p.logger = zerolog.New(&stderr)
+		_, err := p.GetStats(context.Background(), window)
+		require.Error(t, err)
+		for _, secret := range []string{"urluser", "urlpass", "querysecret"} {
+			assert.NotContains(t, err.Error(), secret)
+			assert.NotContains(t, stderr.String(), secret)
+		}
+	})
+
 	t.Run("missing url", func(t *testing.T) {
 		t.Parallel()
 		_, err := newTestPlugin(Config{Token: pluginToken}).GetStats(context.Background(), window)
