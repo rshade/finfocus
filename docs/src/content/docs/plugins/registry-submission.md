@@ -175,7 +175,7 @@ release:
 
 Reference these existing plugins:
 
-- **kubecost** - Kubernetes cost analysis via Kubecost API
+- **opencost** - Kubernetes allocation cost from OpenCost or Kubecost
 - **aws-public** - AWS public pricing data
 
 ## Questions?

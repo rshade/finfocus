@@ -158,7 +158,7 @@ Completed Milestones, 2026-Q4).
         ([#1530](https://github.com/rshade/finfocus/issues/1530)) [L]
   - *Transferred:* the OpenCost plugin returning pre-allocated rows (was
     #1531) now lives in
-    [finfocus-plugin-kubecost issue 48](https://github.com/rshade/finfocus-plugin-kubecost/issues/48)
+    [finfocus-plugin-opencost issue 48](https://github.com/rshade/finfocus-plugin-opencost/issues/48)
 - [ ] **Plugin Host Pooling** *(cross-repo)*
   - [ ] Pool opted-in plugins and pass per-request credentials
         ([#1539](https://github.com/rshade/finfocus/issues/1539)) [L]

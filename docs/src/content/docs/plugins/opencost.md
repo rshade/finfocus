@@ -1,6 +1,6 @@
 ---
 title: OpenCost Plugin
-description: Report Kubernetes allocation cost from an OpenCost endpoint, with an experimental Kubecost profile.
+description: Report Kubernetes allocation cost from an OpenCost or Kubecost endpoint.
 parent: Plugins
 nav_order: 12
 ---
@@ -14,6 +14,22 @@ node, so it is the source for Kubernetes actual cost.
 
 It needs a reachable OpenCost allocation API. It does not read cloud provider
 credentials. With the default `opencost` profile it sends no token.
+
+## Using Kubecost
+
+There is no separate Kubecost plugin. To read a Kubecost endpoint, install
+`opencost` and select the `kubecost` profile:
+
+```bash
+export OPENCOST_PROFILE=kubecost
+export KUBECOST_BASE_URL=https://kubecost.example.com
+export KUBECOST_API_TOKEN=...
+```
+
+The `kubecost` profile calls `GET /model/allocation` and sends the token as a
+bearer token when one is set. It has not been verified against a live Kubecost
+yet; its responses are contract fixtures. Prefer the default `opencost` profile
+when you can run OpenCost.
 
 ## Features
 
@@ -91,7 +107,7 @@ finfocus cost projected --pulumi-json plan.json
   results.
 - **Trailing Average**: Projected cost extends the last 30 days of observed
   spend. It does not model a planned change.
-- **Kubecost Profile Is Experimental**: Its responses are contract fixtures and
+- **Kubecost Profile Not Yet Verified**: Its responses are contract fixtures and
   are not verified against a live Kubecost.
 - **No Allocation Service**: The plugin does not implement `AllocatorService`.
 - **Idle and Shared Cost**: Requests exclude idle and shared cost.

@@ -104,8 +104,7 @@ A: The main plugins today:
 | `aws-public` | ✓ | ✓ | AWS public pricing API |
 | `azure-public` | ✓ | ✓ | Azure Retail Prices API, no credentials |
 | Vantage | — | ✓ | Requires Vantage account |
-| `opencost` | ✓ | ✓ | Kubernetes allocation from OpenCost, needs a reachable endpoint |
-| Kubecost | — | — | Planned; `opencost` has an experimental Kubecost profile |
+| `opencost` | ✓ | ✓ | Kubernetes allocation from an OpenCost or Kubecost endpoint (set the `kubecost` profile for Kubecost) |
 
 ### Q: Do I need a plugin?
 
@@ -193,7 +192,7 @@ finfocus overview --plain --yes
 
 ### Q: Does FinFocus send my data anywhere?
 
-A: Only to the plugins you configure (e.g., a Vantage or Kubecost endpoint).
+A: Only to the plugins you configure (e.g., a Vantage or OpenCost endpoint).
 Local specs and the cache are entirely on your machine. No telemetry is sent.
 
 ### Q: Is my infrastructure data secure?

@@ -96,7 +96,7 @@ All links are deployed documentation URLs and resolve directly.
 - [Cloudability Plugin (Future)](https://rshade.github.io/finfocus/plugins/cloudability/coming-soon/)
 - [E2E Test Setup](https://rshade.github.io/finfocus/plugins/e2e-setup/)
 - [Flexera Plugin (Future)](https://rshade.github.io/finfocus/plugins/flexera/coming-soon/)
-- [Kubecost Plugin (Planned)](https://rshade.github.io/finfocus/plugins/kubecost/coming-soon/)
+- [OpenCost Plugin](https://rshade.github.io/finfocus/plugins/opencost/)
 - [Plugin Development Checklist](https://rshade.github.io/finfocus/plugins/plugin-checklist/)
 - [Plugin Development Guide](https://rshade.github.io/finfocus/plugins/plugin-development/)
 - [Plugin Examples and Patterns](https://rshade.github.io/finfocus/plugins/plugin-examples/)

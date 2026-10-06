@@ -478,7 +478,6 @@ All plugins follow a clear status progression:
 **Documentation:**
 
 - `plugins/kubecost/README.md` - Overview
-- `plugins/kubecost/coming-soon.md` - Timeline and features
 - `plugins/kubecost/differences.md` - How it differs from Vantage
 
 #### 3. **FUTURE** (Flexera, Cloudability, others)
@@ -840,7 +839,6 @@ help LLMs understand the documentation structure and content quickly.
 
 #### Kubecost Plugin (PLANNED)
 - [README](docs/plugins/kubecost/README.md) - Overview
-- [Coming Soon](docs/plugins/kubecost/coming-soon.md) - Timeline and features
 - [Differences](docs/plugins/kubecost/differences.md) - How it differs from Vantage
 
 #### Future Plugins
@@ -1094,7 +1092,6 @@ done > docs/llms.txt
 - [ ] plugins/plugin-development.md
 - [ ] plugins/plugin-sdk.md
 - [ ] plugins/vantage/ (all files)
-- [ ] plugins/kubecost/coming-soon.md
 - [ ] plugins/flexera/coming-soon.md
 - [ ] plugins/cloudability/coming-soon.md
 

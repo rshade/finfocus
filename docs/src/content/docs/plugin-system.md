@@ -199,29 +199,40 @@ clusters:
 
 ## Available Plugins
 
-### Kubecost Plugin
+### OpenCost Plugin
 
-**Repository**: [finfocus-plugin-kubecost](https://github.com/rshade/finfocus-plugin-kubecost)
+**Repository**: [finfocus-plugin-opencost](https://github.com/rshade/finfocus-plugin-opencost)
 
 **Capabilities:**
 
-- Actual cost data from Kubecost API
+- Actual cost data from an OpenCost or Kubecost allocation API
 - Kubernetes workload cost attribution
-- Pod, namespace, and cluster-level costs
-- Multi-cluster support
+- Namespace, controller, pod, and node costs
+- A 30-day trailing-average projection
+
+There is no separate Kubecost plugin. For Kubecost, install this plugin and
+set `OPENCOST_PROFILE=kubecost`.
+
+**Installation:**
+
+```bash
+finfocus plugin install opencost
+```
 
 **Configuration:**
 
 ```bash
-export KUBECOST_API_URL="http://kubecost.example.com:9090"
+export KUBECOST_BASE_URL="http://opencost.example.com:9003"
 export KUBECOST_API_TOKEN="optional-api-token"
 ```
 
 **Usage:**
 
 ```bash
-finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --adapter kubecost
+finfocus cost actual --pulumi-json plan.json --from 2025-01-01 --adapter opencost
 ```
+
+See [OpenCost Plugin](plugins/opencost.md) for every setting.
 
 ### AWS Pricing Plugin
 

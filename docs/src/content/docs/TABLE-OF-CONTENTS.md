@@ -122,13 +122,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 
 | Page                                           | Purpose                        |
 | ---------------------------------------------- | ------------------------------ |
-| [OpenCost Plugin](plugins/opencost.md)         | Setup and configuration        |
-
-#### Kubecost (PLANNED)
-
-| Page                                           | Purpose                     |
-| ---------------------------------------------- | --------------------------- |
-| [Coming Soon](plugins/kubecost/coming-soon.md) | Timeline and features       |
+| [OpenCost Plugin](plugins/opencost.md)         | Setup, configuration, and Kubecost profile |
 
 #### Future Plugins
 

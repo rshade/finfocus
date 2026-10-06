@@ -43,9 +43,10 @@ Actual cost is a list-price projection scaled by hours, not billed spend.
 | Security | official |
 | Asset prefix | `finfocus-plugin-opencost` |
 
-Reads Kubernetes allocation cost over HTTP from an OpenCost (or, experimentally,
-a Kubecost) endpoint, so it needs `KUBECOST_BASE_URL` pointing at a reachable
-allocation API. `finfocus setup` does not install it; run
+Reads Kubernetes allocation cost over HTTP from an OpenCost or Kubecost
+endpoint, so it needs `KUBECOST_BASE_URL` pointing at a reachable allocation
+API. There is no separate `kubecost` plugin: for Kubecost, install `opencost`
+and set `OPENCOST_PROFILE=kubecost`. `finfocus setup` does not install it; run
 `finfocus plugin install opencost`.
 
 ### jev
