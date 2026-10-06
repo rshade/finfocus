@@ -1243,8 +1243,9 @@ sleep 0.1
 	assert.Contains(t, output, "TRACE_ID=test-trace-abc123")
 }
 
-//nolint:paralleltest // asserts on OS-allocated ephemeral ports that other parallel launchers can reuse
 func TestProcessLauncher_PendingPortLifecycle(t *testing.T) {
+	t.Parallel()
+
 	launcher := NewProcessLauncher()
 	ctx := context.Background()
 
