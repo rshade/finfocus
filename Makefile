@@ -121,21 +121,56 @@ test-jev:
 lint-jev:
 	cd $(JEV_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
 
+PROMETHEUS_PLUGIN_DIR=plugins/prometheus
+PROMETHEUS_VERSION=$(shell jq -r '."plugins/prometheus" // "0.0.0"' .release-please-manifest.json)
+PROMETHEUS_INSTALL_DIR=$(HOME)/.finfocus/plugins/prometheus/v$(PROMETHEUS_VERSION)
+
+.PHONY: build-prometheus
+build-prometheus:
+	@mkdir -p bin
+	go -C $(PROMETHEUS_PLUGIN_DIR) build -ldflags "-X main.version=v$(PROMETHEUS_VERSION)" \
+		-o $(CURDIR)/bin/finfocus-plugin-prometheus ./cmd
+
+.PHONY: install-prometheus
+install-prometheus: build-prometheus
+	@command -v jq >/dev/null 2>&1 || { \
+		echo "install-prometheus requires jq to stamp the installed plugin manifest version; install jq and retry" >&2; \
+		exit 1; \
+	}
+	@if [ -z "$(PROMETHEUS_VERSION)" ]; then \
+		echo "install-prometheus: PROMETHEUS_VERSION resolved empty (check jq and .release-please-manifest.json)" >&2; \
+		exit 1; \
+	fi
+	@mkdir -p $(PROMETHEUS_INSTALL_DIR)
+	cp bin/finfocus-plugin-prometheus $(PROMETHEUS_INSTALL_DIR)/
+	jq --arg v "v$(PROMETHEUS_VERSION)" '.version = $$v' \
+		$(PROMETHEUS_PLUGIN_DIR)/plugin.manifest.json > $(PROMETHEUS_INSTALL_DIR)/plugin.manifest.json
+	chmod 644 $(PROMETHEUS_INSTALL_DIR)/plugin.manifest.json
+	@echo "Verify with: finfocus plugin list"
+
+.PHONY: test-prometheus
+test-prometheus:
+	go -C $(PROMETHEUS_PLUGIN_DIR) test -race ./...
+
+.PHONY: lint-prometheus
+lint-prometheus:
+	cd $(PROMETHEUS_PLUGIN_DIR) && $(GOLANGCI_LINT) run --allow-parallel-runners ./...
+
 .PHONY: check-plugin-boundaries
 check-plugin-boundaries:
-	@for dir in $(KUBERNETES_PLUGIN_DIR) $(JEV_PLUGIN_DIR); do \
+	@for dir in $(KUBERNETES_PLUGIN_DIR) $(JEV_PLUGIN_DIR) $(PROMETHEUS_PLUGIN_DIR); do \
 		if go -C $$dir list -deps ./... | grep -E '^github.com/rshade/finfocus/(internal|pkg)(/|$$)'; then \
 			echo "$$dir must not import finfocus core packages" >&2; exit 1; fi; \
 	done
 	@echo "plugin boundaries OK"
 
 .PHONY: build-all
-build-all: build build-recorder build-plugin build-kubernetes build-jev
+build-all: build build-recorder build-plugin build-kubernetes build-jev build-prometheus
 
 # Default test target - runs unit tests only (fast, for CI and local dev)
 # Unit tests are colocated with source; see test/README.md for details
 .PHONY: test
-test: test-unit test-kubernetes test-jev
+test: test-unit test-kubernetes test-jev test-prometheus
 
 .PHONY: test-unit
 test-unit:
@@ -169,10 +204,13 @@ test-e2e:
 E2E_AWS_PUBLIC_VERSION?=v0.2.0
 
 .PHONY: test-e2e-kind
-test-e2e-kind: build install-kubernetes
+test-e2e-kind: build install-kubernetes build-prometheus
 	./test/e2e/kind/setup.sh
 	./bin/finfocus plugin install aws-public@$(E2E_AWS_PUBLIC_VERSION) --metadata region=us-east-1 --force
-	cd test/e2e && FINFOCUS_BINARY=$(CURDIR)/bin/finfocus go test -tags e2e_kind -run TestCostCluster_Kind -v -timeout 10m ./...
+	cd test/e2e && FINFOCUS_BINARY=$(CURDIR)/bin/finfocus go test -tags e2e_kind -run 'TestCostCluster_Kind($$|_)' -v -timeout 10m ./...
+	kubectl --context "kind-$${KIND_CLUSTER:-finfocus-e2e}" apply -f test/e2e/kind/prometheus.yaml
+	kubectl --context "kind-$${KIND_CLUSTER:-finfocus-e2e}" -n monitoring rollout status deployment/prometheus --timeout=180s
+	cd test/e2e && FINFOCUS_BINARY=$(CURDIR)/bin/finfocus go test -tags e2e_kind -run '^TestCostCluster_KindHistorical$$' -v -timeout 15m ./...
 
 # Regenerate the real Terraform state goldens (requires docker + mise; no cloud access)
 .PHONY: gen-terraform-goldens
@@ -186,7 +224,7 @@ test-all:
 	go test -v -timeout 15m ./internal/... ./pkg/... ./test/integration/...
 
 .PHONY: lint
-lint: lint-kubernetes lint-jev check-plugin-boundaries
+lint: lint-kubernetes lint-jev lint-prometheus check-plugin-boundaries
 	@echo "Running golangci-lint (expected version $(GOLANGCI_LINT_VERSION))..."
 	@$(GOLANGCI_LINT) --version | grep -q "$(GOLANGCI_LINT_VERSION)" || \
 		(echo "golangci-lint $(GOLANGCI_LINT_VERSION) required. Install with"; \
@@ -355,11 +393,14 @@ help:
 	@echo "  install-kubernetes - Build and install kubernetes plugin to ~/.finfocus/plugins/"
 	@echo "  build-jev        - Build the jev scorer plugin"
 	@echo "  install-jev      - Build and install jev scorer plugin to ~/.finfocus/plugins/"
+	@echo "  build-prometheus - Build the prometheus usage plugin"
+	@echo "  install-prometheus - Build and install prometheus plugin to ~/.finfocus/plugins/"
 	@echo "  build-all        - Build binary and all plugins"
 	@echo "  test             - Run unit tests (fast, default)"
 	@echo "  test-unit        - Run unit tests only"
 	@echo "  test-kubernetes  - Run kubernetes plugin module tests"
 	@echo "  test-jev         - Run jev plugin module tests"
+	@echo "  test-prometheus  - Run prometheus plugin module tests"
 	@echo "  test-race        - Run unit tests with race detector"
 	@echo "  test-integration - Run integration tests (slower)"
 	@echo "  test-integration-plugin - Run plugin integration tests"
@@ -370,7 +411,8 @@ help:
 	@echo "  lint             - Run Go + Markdown linters"
 	@echo "  lint-kubernetes  - Run golangci-lint on the kubernetes plugin module"
 	@echo "  lint-jev         - Run golangci-lint on the jev plugin module"
-	@echo "  check-plugin-boundaries - Verify plugins/kubernetes and plugins/jev do not import finfocus core packages"
+	@echo "  lint-prometheus  - Run golangci-lint on the prometheus plugin module"
+	@echo "  check-plugin-boundaries - Verify plugins/kubernetes, plugins/jev, and plugins/prometheus do not import finfocus core packages"
 	@echo "  lint-actions     - Run actionlint on GitHub workflows"
 	@echo "  validate         - Run validation (go mod tidy, go vet)"
 	@echo "  tools            - Install toolchain pinned in mise.toml (mise install)"

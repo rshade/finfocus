@@ -43,7 +43,7 @@ func newClusterOutput(
 	res *engine.ClusterResult, groups []engine.ClusterGroup, groupBy string, policy clusterPolicyOutput,
 ) clusterOutput {
 	out := clusterOutput{
-		Mode: res.Mode, Period: "monthly", Currency: res.Currency, GroupBy: groupBy,
+		Mode: res.Mode, Period: res.Period, Currency: res.Currency, GroupBy: groupBy,
 		Total: res.Total, NamespaceScoped: res.NamespaceScoped, Incomplete: res.Incomplete,
 		Groups: groups, Priced: res.Priced, Policy: policy, Warnings: res.Warnings,
 	}
@@ -97,7 +97,7 @@ func renderClusterTable(cmd *cobra.Command, out clusterOutput) error {
 		return err
 	}
 	cmd.Println()
-	cmd.Printf("Mode:    %s (monthly, %d h)\n", out.Mode, engine.HoursPerMonth)
+	cmd.Printf("Mode:    %s\n", clusterModeLine(out))
 	cmd.Printf("Total:   $%.2f %s\n", out.Total, out.Currency)
 	if out.Idle == nil {
 		cmd.Println("Idle:    omitted (--namespace scoped)")
@@ -119,6 +119,13 @@ func renderClusterTable(cmd *cobra.Command, out clusterOutput) error {
 		cmd.Printf("Incomplete: %d resources could not be priced (%s)\n", len(missing), strings.Join(missing, "; "))
 	}
 	return nil
+}
+
+func clusterModeLine(out clusterOutput) string {
+	if out.Mode == engine.ModeHistorical {
+		return fmt.Sprintf("%s (%s)", out.Mode, out.Period)
+	}
+	return fmt.Sprintf("%s (monthly, %d h)", out.Mode, engine.HoursPerMonth)
 }
 
 func renderPolicy(cmd *cobra.Command, format string, p clusterPolicyOutput) error {

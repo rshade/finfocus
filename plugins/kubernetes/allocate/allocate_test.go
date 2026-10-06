@@ -257,6 +257,43 @@ func TestAllocate_Notes(t *testing.T) {
 	assertValidAllocation(t, req, resp)
 }
 
+func TestAllocate_HistoricalSpotOmitsOnDemandNote(t *testing.T) {
+	t.Parallel()
+
+	spotReq := func(mode pbc.StatsMode) *pbc.AllocateRequest {
+		return &pbc.AllocateRequest{
+			Mode:  mode,
+			Usage: concat(nodeRows("spot-1", 2, 8), podRows("a", "on-spot", "spot-1", 1, 1)),
+			Priced: []*pbc.PricedResource{
+				pricedNode("spot-1", 30, map[string]string{"capacity_type": "spot"}),
+			},
+		}
+	}
+
+	t.Run("historical", func(t *testing.T) {
+		t.Parallel()
+		req := spotReq(pbc.StatsMode_STATS_MODE_HISTORICAL)
+		resp, err := Allocate(req)
+		require.NoError(t, err)
+		workload := rowFor(t, resp, "workload", "pod", "on-spot")
+		assert.Empty(t, workload.GetNote())
+		idle := rowFor(t, resp, "__idle__", "node", "spot-1")
+		assert.NotEqual(t, "spot node priced on-demand", idle.GetNote())
+		assert.InDelta(t, 30, sumRows(resp), 30e-6)
+		assertValidAllocation(t, req, resp)
+	})
+
+	t.Run("run-rate", func(t *testing.T) {
+		t.Parallel()
+		req := spotReq(pbc.StatsMode_STATS_MODE_RUN_RATE)
+		resp, err := Allocate(req)
+		require.NoError(t, err)
+		assert.Equal(t, "spot node priced on-demand", rowFor(t, resp, "workload", "pod", "on-spot").GetNote())
+		assert.InDelta(t, 30, sumRows(resp), 30e-6)
+		assertValidAllocation(t, req, resp)
+	})
+}
+
 func TestAllocate_FargatePodIsNotIdle(t *testing.T) {
 	t.Parallel()
 

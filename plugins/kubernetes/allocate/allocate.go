@@ -120,7 +120,7 @@ func Allocate(req *pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
 	return &pbc.AllocateResponse{
 		EffectivePolicyJson: canonical,
 		PolicyDigest:        digest,
-		Rows:                buildRows(nodes, orphans, fargateRes, clusterRes, pol, currency),
+		Rows:                buildRows(nodes, orphans, fargateRes, clusterRes, pol, currency, req.GetMode()),
 		Start:               req.GetStart(),
 		End:                 req.GetEnd(),
 	}, nil
@@ -315,7 +315,7 @@ func idleNodeID(n *node) string {
 // then control-plane/unallocated rows, in deterministic order.
 func buildRows(
 	nodes map[string]*node, orphans []*workload, fargateRes, clusterRes []*pbc.PricedResource,
-	pol policy.Policy, currency string,
+	pol policy.Policy, currency string, mode pbc.StatsMode,
 ) []*pbc.AllocationRow {
 	var rows, idleRows []*pbc.AllocationRow
 	fargateRows, orphans := fargateAllocation(orphans, fargateRes, pol, currency)
@@ -325,7 +325,7 @@ func buildRows(
 		if n.priced == nil {
 			continue // capacity reported but nothing to split; workloads were orphaned above
 		}
-		nodeRows, idle := allocateNode(n, pol, currency)
+		nodeRows, idle := allocateNode(n, pol, currency, mode)
 		rows = append(rows, nodeRows...)
 		if idle.GetSubject()[subjectNode] != "" {
 			// A node with an empty id can only be an unpriced entry (the SDK
@@ -348,7 +348,9 @@ func buildRows(
 	return rows
 }
 
-func allocateNode(n *node, pol policy.Policy, currency string) ([]*pbc.AllocationRow, *pbc.AllocationRow) {
+func allocateNode(
+	n *node, pol policy.Policy, currency string, mode pbc.StatsMode,
+) ([]*pbc.AllocationRow, *pbc.AllocationRow) {
 	cost := 0.0
 	note := ""
 	if n.priced.GetPriced() {
@@ -356,7 +358,10 @@ func allocateNode(n *node, pol policy.Policy, currency string) ([]*pbc.Allocatio
 	} else {
 		note = fmt.Sprintf("node %s has no price", n.name)
 	}
-	if note == "" && n.priced.GetResource().GetTags()[capacityTypeKey] == capacityTypeSpot {
+	// A historical window already carries actual spend. The on-demand note is
+	// only the run-rate substitute for a missing spot price.
+	if note == "" && mode != pbc.StatsMode_STATS_MODE_HISTORICAL &&
+		n.priced.GetResource().GetTags()[capacityTypeKey] == capacityTypeSpot {
 		note = noteSpotOnDemand
 	}
 

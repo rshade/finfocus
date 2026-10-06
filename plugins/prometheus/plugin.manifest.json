@@ -1,0 +1,13 @@
+{
+  "name": "prometheus",
+  "version": "0.1.0",
+  "description": "Historical Kubernetes cluster usage from Prometheus, in core-hours and GiB-hours",
+  "author": "FinFocus Team",
+  "supported_providers": ["kubernetes"],
+  "protocols": ["grpc"],
+  "binary": "finfocus-plugin-prometheus",
+  "metadata": {
+    "repository": "https://github.com/rshade/finfocus",
+    "docs": "https://github.com/rshade/finfocus/tree/main/plugins/prometheus"
+  }
+}
