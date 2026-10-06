@@ -20,25 +20,24 @@ guardrails in `CONTEXT.md`.
 The 2026-10-02 Overnight Queue finished: all 22 items closed 2026-10-03 (see
 Completed Milestones, 2026-Q4).
 
-- [ ] **Bug Queue**
-  - [x] `speckit`: `create-new-feature.sh` breaks when `git fetch --all`
-        prints to stdout (two or more remotes)
-        ([#1669](https://github.com/rshade/finfocus/issues/1669)) [S]
-
-## Near-Term Vision (v0.3.x - Forecasting & Profiles)
-
 - [ ] **Overview Performance Pipeline** *(deferred from v0.3.2)*
+  - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
+        ([#658](https://github.com/rshade/finfocus/issues/658)) [M]
   - [ ] Parallelize plugin opening in `Registry.Open()`
         ([#693](https://github.com/rshade/finfocus/issues/693)) [M]
   - [ ] Start plugin loading concurrently with data loading
         ([#692](https://github.com/rshade/finfocus/issues/692)) [M]
   - [ ] Parallelize stack export and pulumi preview
         ([#691](https://github.com/rshade/finfocus/issues/691)) [M]
+  - *Promoted by /roadmap sync on 2026-10-05 — builds on the #853
+    compute-once refactor; #658 comes first so the speed-ups can be
+    measured against a baseline.*
+
+## Near-Term Vision (v0.3.x - Forecasting & Profiles)
+
 - [ ] **Overview TUI Quality** *(deferred from v0.3.2)*
   - [ ] Show phase progress lines sequentially and add preview phase
         ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
-  - [ ] Refactor overview to compute-once-render-many architecture
-        ([#853](https://github.com/rshade/finfocus/issues/853)) [L]
 - [ ] **Contextual Profiles ("Dev Mode")**
       ([#368](https://github.com/rshade/finfocus/issues/368)) [L]
   - [ ] CLI: Implement `--profile` flag (e.g., `dev`, `prod`) to pass hints
@@ -46,27 +45,11 @@ Completed Milestones, 2026-Q4).
   - [ ] Configuration: Allow default profile definition in `finfocus.yaml`
   - *Spec ready:* `UsageProfile` enum (PROD/DEV/BURST) available in
     finfocus-spec v0.5.5 — core-only implementation
-- [ ] **Projected Cost Diagnostics**
-  - [ ] Report the missing region instead of "no cost data available"
-        ([#1670](https://github.com/rshade/finfocus/issues/1670)) [M]
-- [ ] **Scale Testing**
-  - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
-        ([#658](https://github.com/rshade/finfocus/issues/658)) [M]
 - [ ] **Spec v0.5.7 Features**
   - *All v0.5.7 consumer items promoted to Immediate Focus*
 - [ ] **Time-Series Forecasting Enhancement**
   - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
         ([#539](https://github.com/rshade/finfocus/issues/539)) [L]
-- [x] **Forecasting & Projections ("Cost Time Machine")**
-      ([#364](https://github.com/rshade/finfocus/issues/364)) [L]
-  - [x] Projection Math Engine (Linear/Exponential extrapolation)
-  - [x] TUI: ASCII Line Chart visualization for 6-12 month forecasts
-  - *Status: `cost forecast` projects with the finfocus-spec growth helpers.
-    JSON series are timestamped for the interactive history chart (#550).*
-
-- [ ] **Kubernetes Cost Allocation — Pulumi Integration**
-  - [ ] `finfocus overview` expansion of Kubernetes clusters in the stack
-        ([#1526](https://github.com/rshade/finfocus/issues/1526)) [L]
 - [ ] **Kubernetes Cost Allocation — Usage & Pricing**
   - [ ] Prometheus usage source plugin — historical actuals, kind CI
         ([#1529](https://github.com/rshade/finfocus/issues/1529)) [L]
@@ -91,14 +74,13 @@ Completed Milestones, 2026-Q4).
   - [ ] UX: "Warning Mode" UI styles for bypassed runs
   - *Blocked:* Requires `BypassReason` enum in
     [finfocus-spec](https://github.com/rshade/finfocus-spec) (not yet defined)
-- [ ] **External Notifications**
-  - [ ] Webhook and email notifications for budget alerts
-        ([#220](https://github.com/rshade/finfocus/issues/220)) [L]
-  - *Note:* Requires external service integration to maintain core
-    statelessness per CONTEXT.md boundaries
+- [ ] **External Notifications** *(Slack and webhook shipped in #220;
+      these reuse its destination interface)*
+  - [ ] Email (SMTP) destination for budget alert notifications
+        ([#1702](https://github.com/rshade/finfocus/issues/1702)) [M]
+  - [ ] PagerDuty (Events API v2) destination for budget alert notifications
+        ([#1703](https://github.com/rshade/finfocus/issues/1703)) [M]
 - [ ] **Recommendation Lifecycle Enhancements** *(spec-first)*
-  - [x] Add `include_dismissed` field to GetRecommendationsRequest
-        ([#545](https://github.com/rshade/finfocus/issues/545)) [S]
   - [ ] Add GetRecommendationHistory RPC to CostSourceService
         ([#546](https://github.com/rshade/finfocus/issues/546)) [M]
 - [ ] **Cost Time Machine** *(Phases 1 and 3 and the follow-ups shipped
@@ -286,6 +268,20 @@ Completed Milestones, 2026-Q4).
 
 ### 2026-Q4
 
+- [x] #364 `forecast`: add `cost forecast` growth projections and chart.
+      Closed 2026-10-06. [L]
+- [x] #220 `notification`: send Slack and webhook budget alerts.
+      Closed 2026-10-05. [L]
+- [x] #853 `overview`: refactor to compute-once-render-many.
+      Closed 2026-10-05. [L]
+- [x] #1526 `overview`: expand Kubernetes clusters into workload rows.
+      Closed 2026-10-05. [L]
+- [x] #1670 `engine`: report the missing region, not "no cost data".
+      Closed 2026-10-05. [M]
+- [x] #1669 `speckit`: fix `create-new-feature.sh` with multiple remotes.
+      Closed 2026-10-04. [S]
+- [x] #545 `spec`: add `include_dismissed` to GetRecommendationsRequest.
+      Closed 2026-10-04. [S]
 - [x] #1525 `kubernetes`: projected cost for workloads declared in Pulumi.
       Closed 2026-10-04. [L]
 - [x] #1610 `engine`: resolve cross-resource refs from `propertyDependencies`.
