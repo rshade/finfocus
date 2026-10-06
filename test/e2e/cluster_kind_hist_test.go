@@ -32,8 +32,9 @@ const (
 //
 //nolint:paralleltest // executes built plugins, kubectl, and a real finfocus binary
 func TestCostCluster_KindHistorical(t *testing.T) {
+	from, to := histBounds()
 	home := installIsolatedPlugins(t)
-	assertUnreachablePrometheus(t, home)
+	assertUnreachablePrometheus(t, home, from, to)
 
 	kubectl(t, "apply", "-f", "kind/prometheus.yaml")
 	kubectl(t, "-n", "monitoring", "rollout", "status", "deployment/prometheus", "--timeout=180s")
@@ -41,10 +42,9 @@ func TestCostCluster_KindHistorical(t *testing.T) {
 	waitPrometheusReady(t, base)
 
 	node := kindNodeName(t)
-	from, to := histBounds()
 	writeHistoricalSeries(t, base, node, from, to)
 	assertFixtureHours(t, base, to)
-	assertHistoricalCost(t, home, base, node)
+	assertHistoricalCost(t, home, base, node, from, to)
 }
 
 // histBounds is a whole UTC day three days back, inside Prometheus's default
@@ -94,9 +94,9 @@ func installBuilt(t *testing.T, home, name, binary, manifestPath string) {
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "plugin.manifest.json"), manifest, 0o644))
 }
 
-func assertUnreachablePrometheus(t *testing.T, home string) {
+func assertUnreachablePrometheus(t *testing.T, home string, from, to time.Time) {
 	t.Helper()
-	stdout, _, err := runHistorical(t, home, "http://127.0.0.1:1")
+	stdout, _, err := runHistorical(t, home, "http://127.0.0.1:1", from, to)
 	require.Error(t, err)
 	assert.NotContains(t, string(stdout), `"mode"`)
 }
@@ -109,14 +109,13 @@ func assertFixtureHours(t *testing.T, base string, at time.Time) {
 	requireInstant(t, base, memoryAllocQuery(), at, gaugeHours(16))
 }
 
-func assertHistoricalCost(t *testing.T, home, base, node string) {
+func assertHistoricalCost(t *testing.T, home, base, node string, from, to time.Time) {
 	t.Helper()
-	stdout, stderr, err := runHistorical(t, home, base)
+	stdout, stderr, err := runHistorical(t, home, base, from, to)
 	require.NoErrorf(t, err, "stdout: %s\nstderr: %s", stdout, stderr)
 	var res histClusterJSON
 	require.NoError(t, json.Unmarshal(stdout, &res), string(stdout))
 	assert.Equal(t, "historical", res.Mode)
-	from, to := histBounds()
 	assert.Equal(t, from.Format(time.DateOnly)+" to "+to.Format(time.DateOnly)+", 1 day", res.Period)
 	assert.Equal(t, "USD", res.Currency)
 	assert.False(t, res.Incomplete, "warnings: %v\nstderr: %s", res.Warnings, stderr)
@@ -165,13 +164,13 @@ type histClusterJSON struct {
 	} `json:"priced"`
 }
 
-func runHistorical(t *testing.T, home, promURL string) ([]byte, []byte, error) {
+func runHistorical(t *testing.T, home, promURL string, from, to time.Time) ([]byte, []byte, error) {
 	t.Helper()
 	binary := findFinFocusBinary()
 	require.NotEmpty(t, binary, "set FINFOCUS_BINARY or build bin/finfocus")
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, binary, histArgs()...)
+	cmd := exec.CommandContext(ctx, binary, histArgs(from, to)...)
 	cmd.Env = append(os.Environ(),
 		"FINFOCUS_HOME="+home,
 		"FINFOCUS_PROMETHEUS_URL="+promURL,
@@ -184,8 +183,7 @@ func runHistorical(t *testing.T, home, promURL string) ([]byte, []byte, error) {
 	return stdout.Bytes(), stderr.Bytes(), err
 }
 
-func histArgs() []string {
-	from, to := histBounds()
+func histArgs(from, to time.Time) []string {
 	return []string{
 		"cost", "cluster",
 		"--from", from.Format(time.DateOnly), "--to", to.Format(time.DateOnly),

@@ -199,6 +199,9 @@ func TestCostCluster_Window(t *testing.T) {
 // GetStats runs. It stays sequential: it builds a plugin binary and sets
 // FINFOCUS_HOME.
 func TestCostCluster_WindowKeepsUsageSourceSelection(t *testing.T) {
+	if testing.Short() {
+		t.Skip("builds a usage-source plugin binary")
+	}
 	bin := filepath.Join(t.TempDir(), "usage-source")
 	build := exec.Command("go", "build", "-o", bin, ".")
 	build.Dir = filepath.Join("testdata", "usagesource")

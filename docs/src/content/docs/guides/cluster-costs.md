@@ -201,7 +201,7 @@ in its `--metric-labels-allowlist` flag and replaces every character that is
 not a letter, digit, or underscore with `_`. A historical `--group-by` uses
 that recorded key: `app.kubernetes.io/name` is
 `label:app_kubernetes_io_name`, and `--group-by label:app.kubernetes.io/name`
-puts every pod under `<none>`. The `--label` selector accepts either form.
+puts every pod under `<none>`. The `--selector` flag accepts either form.
 
 ## Limitations
 
