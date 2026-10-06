@@ -33,6 +33,21 @@ Queries the public Azure Retail Prices API, so it needs no Azure credentials.
 Actual cost is a list-price projection scaled by hours, not billed spend.
 `finfocus setup` does not install it; run `finfocus plugin install azure-public`.
 
+### vantage
+
+| Field | Value |
+|-------|-------|
+| Repository | `rshade/finfocus-plugin-vantage` |
+| Providers | `aws`, `azure`, `gcp`, `kubernetes` |
+| Capabilities | `cost_retrieval` |
+| Security | official |
+| Asset prefix | `finfocus-plugin-vantage` |
+
+Reads imported actual cost from a Vantage Cost Report, so it needs
+`FINFOCUS_VANTAGE_TOKEN` and `FINFOCUS_VANTAGE_COST_REPORT_TOKEN`. It has no
+projected cost. `finfocus setup` does not install it; run
+`finfocus plugin install vantage`.
+
 ### opencost
 
 | Field | Value |

@@ -65,6 +65,22 @@
         "asset_prefix": "finfocus-plugin-kubernetes"
       }
     },
+    "vantage": {
+      "name": "vantage",
+      "description": "Imported actual cloud cost from Vantage Cost Reports",
+      "repository": "rshade/finfocus-plugin-vantage",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus-plugin-vantage",
+      "supported_providers": ["aws", "azure", "gcp", "kubernetes"],
+      "capabilities": ["cost_retrieval"],
+      "security_level": "official",
+      "min_spec_version": "0.7.5",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-vantage",
+        "version_prefix": false
+      }
+    },
     "jev": {
       "name": "jev",
       "description": "Recommendation scorer that rates risk, false positives, worth and priority and groups duplicates using TypeSafe AI's Jev model",
