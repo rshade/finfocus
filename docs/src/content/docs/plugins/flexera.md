@@ -33,8 +33,8 @@ refresh token or a service account.
 ```bash
 finfocus plugin install flexera
 
-# Or from the repository path
-finfocus plugin install github.com/rshade/finfocus-plugin-flexera
+# Or pin the published release
+finfocus plugin install flexera@v0.1.1
 ```
 
 `finfocus setup` does not install this plugin by default.
