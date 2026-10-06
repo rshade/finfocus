@@ -82,10 +82,10 @@ Requires plugin credentials:
 - API key from [vantage.sh](https://vantage.sh)
 - Read-only access sufficient
 
-#### Kubecost (future)
+#### OpenCost or Kubecost (Kubernetes costs)
 
-- Kubecost cluster access
-- Metrics endpoint
+- A reachable OpenCost or Kubecost allocation API
+- `KUBECOST_BASE_URL` set for the `opencost` plugin
 
 ## Verification Checklist
 

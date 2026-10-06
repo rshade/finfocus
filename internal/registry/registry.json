@@ -3,7 +3,7 @@
   "plugins": {
     "opencost": {
       "name": "opencost",
-      "description": "Kubernetes allocation cost from OpenCost, with an experimental Kubecost profile",
+      "description": "Kubernetes allocation cost from OpenCost or Kubecost",
       "repository": "rshade/finfocus-plugin-opencost",
       "author": "FinFocus Team",
       "license": "Apache-2.0",

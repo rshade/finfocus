@@ -20,7 +20,7 @@ This integration is not yet available for installation.
 For cost data, consider using:
 
 - **[AWS Public Plugin](../aws-public.md)** - AWS public pricing data (AVAILABLE)
-- **[Kubecost](../kubecost/coming-soon.md)** - Kubernetes cost allocation (PLANNED)
+- **[OpenCost](../opencost.md)** - Kubernetes cost allocation from OpenCost or Kubecost (AVAILABLE)
 
 ## Documentation Structure
 

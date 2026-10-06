@@ -910,10 +910,10 @@ finfocus plugin install <plugin-name> [--version <version>] [--url <url>] [optio
 finfocus plugin install vantage
 
 # Install a specific version of a plugin
-finfocus plugin install kubecost --version 0.2.0
+finfocus plugin install opencost --version 0.1.2
 
 # Install and remove all other versions (cleanup disk space)
-finfocus plugin install kubecost --clean
+finfocus plugin install opencost --clean
 
 # Install from a custom URL
 finfocus plugin install my-plugin --url https://example.com/my-plugin-0.1.0.tar.gz
@@ -1075,7 +1075,7 @@ finfocus plugin list
 # Output:
 # NAME      VERSION   SPEC    PATH
 # vantage   0.1.0     0.4.14  /Users/me/.finfocus/plugins/vantage/v0.1.0/finfocus-plugin-vantage
-# kubecost  0.2.0     0.4.14  /Users/me/.finfocus/plugins/kubecost/v0.2.0/finfocus-plugin-kubecost
+# opencost  0.1.2     0.7.5   /Users/me/.finfocus/plugins/opencost/v0.1.2/finfocus-plugin-opencost
 
 # List with detailed capabilities (routing-aware)
 finfocus plugin list --verbose
@@ -1151,7 +1151,7 @@ finfocus plugin validate
 
 # Output:
 # vantage (0.1.0): OK
-# kubecost (0.2.0): OK
+# opencost (0.1.2): OK
 ```
 
 ## plugin conformance

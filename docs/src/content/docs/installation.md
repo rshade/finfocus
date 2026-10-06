@@ -393,34 +393,25 @@ mkdir -p ~/.finfocus/specs
 
 ### Installing Plugins
 
-#### Kubecost Plugin Example
+#### OpenCost Plugin Example
 
 ```bash
-# Download plugin binary (example)
-curl -L https://github.com/rshade/finfocus-plugin-kubecost/releases/latest/download/finfocus-kubecost-linux-amd64 \
-  -o ~/.finfocus/plugins/kubecost/1.0.0/finfocus-kubecost
-
-# Make executable
-chmod +x ~/.finfocus/plugins/kubecost/1.0.0/finfocus-kubecost
-
-# Create plugin manifest (optional)
-cat > ~/.finfocus/plugins/kubecost/1.0.0/plugin.manifest.json << EOF
-{
-  "name": "kubecost",
-  "version": "1.0.0",
-  "binary": "finfocus-kubecost",
-  "supports": ["actual_cost"]
-}
-EOF
+# Install from the registry (verifies the release checksum)
+finfocus plugin install opencost
 ```
+
+To install by hand, download the archive for your platform from the
+[plugin releases](https://github.com/rshade/finfocus-plugin-opencost/releases),
+extract it into `~/.finfocus/plugins/opencost/<version>/`, and make the binary
+executable. The archive includes `plugin.manifest.json`.
 
 #### Plugin Directory Structure
 
 ```text
 ~/.finfocus/plugins/
-├── kubecost/
-│   └── 1.0.0/
-│       ├── finfocus-kubecost          # Plugin binary
+├── opencost/
+│   └── 0.1.2/
+│       ├── finfocus-plugin-opencost   # Plugin binary
 │       └── plugin.manifest.json        # Optional manifest
 ├── aws-plugin/
 │   └── 0.1.0/

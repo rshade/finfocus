@@ -18,7 +18,7 @@ to explore details.
 
 - [FinFocus CLI installed](../getting-started/installation.md)
 - [Pulumi project configured](../getting-started/quickstart.md)
-- Cost plugins installed (e.g., `vantage`, `kubecost`) that support recommendations
+- Cost plugins installed (e.g., `vantage`, `aws-public`) that support recommendations
 
 **Learning Objectives**:
 
