@@ -55,6 +55,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Azure Public Setup](plugins/azure-public.md)              | Azure retail pricing plugin | End Users    |
 | [OpenCost Setup](plugins/opencost.md)                      | Kubernetes allocation plugin | End Users   |
 | [Vantage Setup](plugins/vantage.md)                        | Vantage actual cost plugin | End Users     |
+| [Flexera Setup](plugins/flexera.md)                        | Flexera One cost plugin   | End Users      |
 
 ### 📚 Comprehensive Guides (by Audience)
 
@@ -131,11 +132,16 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | ---------------------------------------------- | ------------------------------ |
 | [Vantage Plugin](plugins/vantage.md)           | Setup and configuration        |
 
+#### Flexera (AVAILABLE)
+
+| Page                                           | Purpose                        |
+| ---------------------------------------------- | ------------------------------ |
+| [Flexera Plugin](plugins/flexera.md)           | Setup and configuration        |
+
 #### Future Plugins
 
 | Page                                                            | Status                   |
 | --------------------------------------------------------------- | ------------------------ |
-| [Flexera Coming Soon](plugins/flexera/coming-soon.md)           | FUTURE (customer demand) |
 | [Cloudability Coming Soon](plugins/cloudability/coming-soon.md) | FUTURE (customer demand) |
 
 ### 📖 Reference Documentation
