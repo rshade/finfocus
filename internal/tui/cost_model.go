@@ -3,8 +3,6 @@ package tui
 import (
 	"context"
 	"fmt"
-	"sort"
-	"strings"
 
 	"charm.land/bubbles/v2/table"
 	"charm.land/bubbles/v2/textinput"
@@ -12,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // Terminal and layout constants.
@@ -64,17 +63,17 @@ const (
 )
 
 // SortField represents the field to sort the resource table by.
-type SortField int
+type SortField = viewmodel.SortField
 
 const (
 	// SortByCost sorts by monthly/total cost.
-	SortByCost SortField = iota
+	SortByCost = viewmodel.SortByCost
 	// SortByName sorts by resource ID.
-	SortByName
+	SortByName = viewmodel.SortByName
 	// SortByType sorts by resource type.
-	SortByType
+	SortByType = viewmodel.SortByType
 	// SortByDelta sorts by cost delta.
-	SortByDelta
+	SortByDelta = viewmodel.SortByDelta
 )
 
 const (
@@ -324,20 +323,7 @@ func (m *CostViewModel) handleGenericUpdate(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *CostViewModel) applyFilter() {
-	val := m.textInput.Value()
-	if val == "" {
-		m.results = m.allResults
-	} else {
-		var filtered []engine.CostResult
-		query := strings.ToLower(val)
-		for _, r := range m.allResults {
-			if strings.Contains(strings.ToLower(r.ResourceType), query) ||
-				strings.Contains(strings.ToLower(r.ResourceID), query) {
-				filtered = append(filtered, r)
-			}
-		}
-		m.results = filtered
-	}
+	m.results = viewmodel.FilterCostResults(m.allResults, m.textInput.Value())
 	m.applySort()
 	m.rebuildTable()
 }
@@ -353,25 +339,7 @@ func (m *CostViewModel) applySort() {
 		return
 	}
 
-	sort.Slice(m.results, func(i, j int) bool {
-		a, b := m.results[i], m.results[j]
-		switch m.sortBy {
-		case SortByCost:
-			costA, costB := a.Monthly, b.Monthly
-			if m.isActual {
-				costA, costB = a.TotalCost, b.TotalCost
-			}
-			return costA > costB
-		case SortByName:
-			return a.ResourceID < b.ResourceID
-		case SortByType:
-			return a.ResourceType < b.ResourceType
-		case SortByDelta:
-			return a.Delta > b.Delta
-		default:
-			return false
-		}
-	})
+	viewmodel.SortCostResults(m.results, m.sortBy, m.isActual)
 }
 
 // WithTrends adds a Trend column when history sparklines are available.

@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
-	"sort"
 	"strconv"
-	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -15,10 +13,11 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // maxOverviewResourcesPerPage is the pagination threshold.
-const maxOverviewResourcesPerPage = 250
+const maxOverviewResourcesPerPage = viewmodel.ClusterPageSize
 
 // Column width constants for the overview table.
 // All columns except Resource have fixed widths; Resource absorbs extra terminal width.
@@ -717,26 +716,7 @@ func (m *OverviewModel) cycleSort() {
 
 // refreshTable re-sorts and rebuilds the table.
 func (m *OverviewModel) refreshTable() {
-	// Sort rows
-	switch m.sortBy {
-	case SortByCost:
-		sort.Slice(m.rows, func(i, j int) bool {
-			return overviewRowSortCost(m.rows[i]) > overviewRowSortCost(m.rows[j])
-		})
-	case SortByName:
-		sort.Slice(m.rows, func(i, j int) bool {
-			return m.rows[i].URN < m.rows[j].URN
-		})
-	case SortByType:
-		sort.Slice(m.rows, func(i, j int) bool {
-			return m.rows[i].Type < m.rows[j].Type
-		})
-	case SortByDelta:
-		sort.Slice(m.rows, func(i, j int) bool {
-			return overviewRowSortDelta(m.rows[i]) > overviewRowSortDelta(m.rows[j])
-		})
-	}
-
+	viewmodel.SortOverviewRows(m.rows, m.sortBy)
 	m.rebuildTable()
 }
 
@@ -770,26 +750,14 @@ type overviewDisplayEntry struct {
 // filter box has text the list is rendered flat, preserving the filter's
 // substring semantics.
 func (m *OverviewModel) displayEntries() []overviewDisplayEntry {
-	filtered := m.textInput.Value() != ""
-	childrenByParent := map[string][]int{}
-	if !filtered {
-		for i := range m.rows {
-			if parent := m.rows[i].ParentURN; parent != "" {
-				childrenByParent[parent] = append(childrenByParent[parent], i)
-			}
-		}
-	}
+	flattened, state := viewmodel.FlattenClusterRows(m.rows, m.expanded, m.textInput.Value() != "", m.currentPage)
+	m.paginationEnabled = state.Enabled
+	m.totalPages = state.TotalPages
+	m.currentPage = state.Page
 
-	var entries []overviewDisplayEntry
-	for _, i := range m.pageUnits() {
-		r := m.rows[i]
-		entries = append(entries, overviewDisplayEntry{row: r, rowsIdx: i, child: r.ParentURN != ""})
-		if filtered || !m.expanded[r.URN] {
-			continue
-		}
-		for _, c := range childrenByParent[r.URN] {
-			entries = append(entries, overviewDisplayEntry{row: m.rows[c], rowsIdx: c, child: true})
-		}
+	entries := make([]overviewDisplayEntry, len(flattened))
+	for i, e := range flattened {
+		entries[i] = overviewDisplayEntry{row: e.Row, rowsIdx: e.RowsIdx, child: e.Child}
 	}
 	return entries
 }
@@ -918,24 +886,9 @@ func computeRowResults(rows []engine.OverviewRow) []engine.OverviewRowResult {
 // applyFilter filters rows based on text input. It always calls refreshTable
 // and enablePaginationIfNeeded to keep pagination state consistent.
 func (m *OverviewModel) applyFilter(filterText string) {
-	if filterText == "" {
-		// Copy to avoid aliasing; refreshTable sorts m.rows in-place
-		// and must not reorder the source m.allRows.
-		m.rows = make([]engine.OverviewRowResult, len(m.allRows))
-		copy(m.rows, m.allRows)
-	} else {
-		query := strings.ToLower(filterText)
-		filtered := []engine.OverviewRowResult{}
-
-		for _, row := range m.allRows {
-			if strings.Contains(strings.ToLower(row.URN), query) ||
-				strings.Contains(strings.ToLower(row.Type), query) {
-				filtered = append(filtered, row)
-			}
-		}
-
-		m.rows = filtered
-	}
+	// FilterOverviewRows copies when filterText is empty; refreshTable sorts
+	// m.rows in-place and must not reorder the source m.allRows.
+	m.rows = viewmodel.FilterOverviewRows(m.allRows, filterText)
 
 	m.enablePaginationIfNeeded()
 	m.refreshTable()
@@ -943,85 +896,32 @@ func (m *OverviewModel) applyFilter(filterText string) {
 
 // overviewRowSortCost returns the primary cost for sorting.
 func overviewRowSortCost(row engine.OverviewRowResult) float64 {
-	if row.Projected != nil {
-		return *row.Projected
-	}
-	if row.ActualMTD != nil {
-		return *row.ActualMTD
-	}
-	return 0.0
+	return viewmodel.OverviewRowSortCost(row)
 }
 
 // overviewRowSortDelta returns the pre-computed delta for sorting, keeping
 // display and sort order consistent.
 func overviewRowSortDelta(row engine.OverviewRowResult) float64 {
-	if row.Delta == nil {
-		return 0.0
-	}
-	return *row.Delta
+	return viewmodel.OverviewRowSortDelta(row)
 }
 
 // enablePaginationIfNeeded checks if pagination should be enabled and clamps
 // the current page to valid bounds.
 func (m *OverviewModel) enablePaginationIfNeeded() {
-	units := len(m.paginationUnits())
-	if units > maxOverviewResourcesPerPage {
-		m.paginationEnabled = true
-		m.totalPages = (units + maxOverviewResourcesPerPage - 1) / maxOverviewResourcesPerPage
-		if m.currentPage > m.totalPages {
-			m.currentPage = m.totalPages
-		}
-		if m.currentPage < 1 {
-			m.currentPage = 1
-		}
-	} else {
-		m.paginationEnabled = false
-		m.currentPage = 1
-	}
-}
-
-// paginationUnits returns the m.rows indices that pagination counts. While
-// the filter box is empty, an expansion child whose parent is in m.rows is
-// drawn under that parent, so it is not a unit of its own and always lands
-// on its parent's page.
-func (m *OverviewModel) paginationUnits() []int {
-	filtered := m.textInput.Value() != ""
-	parentPresent := map[string]bool{}
-	if !filtered {
-		for i := range m.rows {
-			if m.rows[i].ParentURN == "" {
-				parentPresent[m.rows[i].URN] = true
-			}
-		}
-	}
-	units := make([]int, 0, len(m.rows))
-	for i := range m.rows {
-		if filtered || m.rows[i].ParentURN == "" || !parentPresent[m.rows[i].ParentURN] {
-			units = append(units, i)
-		}
-	}
-	return units
-}
-
-// pageUnits returns the pagination units on the current page.
-func (m *OverviewModel) pageUnits() []int {
-	units := m.paginationUnits()
-	if !m.paginationEnabled {
-		return units
-	}
-	start := (m.currentPage - 1) * maxOverviewResourcesPerPage
-	if start >= len(units) {
-		return nil
-	}
-	return units[start:min(start+maxOverviewResourcesPerPage, len(units))]
+	state := viewmodel.ClusterPagination(m.rows, m.textInput.Value() != "", m.currentPage)
+	m.paginationEnabled = state.Enabled
+	m.totalPages = state.TotalPages
+	m.currentPage = state.Page
 }
 
 // getVisibleRows returns the pagination units on the current page.
 func (m *OverviewModel) getVisibleRows() []engine.OverviewRowResult {
-	units := m.pageUnits()
-	rows := make([]engine.OverviewRowResult, len(units))
-	for i, idx := range units {
-		rows[i] = m.rows[idx]
+	entries, _ := viewmodel.FlattenClusterRows(m.rows, m.expanded, m.textInput.Value() != "", m.currentPage)
+	rows := make([]engine.OverviewRowResult, 0, len(entries))
+	for _, e := range entries {
+		if e.Unit {
+			rows = append(rows, e.Row)
+		}
 	}
 	return rows
 }

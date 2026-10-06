@@ -12,7 +12,6 @@ import (
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/greenops"
-	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/resourcetype"
 )
 
@@ -153,7 +152,7 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 	content.WriteString(LabelStyle.Render(strings.Join(providerParts, "  ")))
 
 	// Add carbon equivalency if present.
-	if carbonInput, found := aggregateCarbonFromResults(ctx, results); found {
+	if carbonInput, found := engine.AggregateSustainability(ctx, results); found {
 		output, err := greenops.Calculate(ctx, carbonInput)
 		if err == nil && !output.IsEmpty {
 			content.WriteString("\n")
@@ -504,55 +503,4 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 		}
 	}
 	content.WriteString("\n")
-}
-
-// aggregateCarbonFromResults extracts and sums carbon_footprint metrics from all results.
-// aggregateCarbonFromResults aggregates carbon footprint metrics from the given cost results.
-// It scans each result's Sustainability map for the canonical carbon metric key or a deprecated
-// fallback, normalizes found values to kilograms, and sums them.
-// ctx enables trace ID propagation for warning logs.
-// Invalid or unnormalizable units are logged and skipped.
-// It returns a CarbonInput containing the total carbon in kilograms and `true` if any carbon
-// data was found; otherwise it returns a zero-value CarbonInput and `false`.
-func aggregateCarbonFromResults(ctx context.Context, results []engine.CostResult) (greenops.CarbonInput, bool) {
-	totalCarbon := 0.0
-	found := false
-
-	for _, r := range results {
-		if r.Sustainability == nil {
-			continue
-		}
-
-		// Check for canonical key first.
-		metric, ok := r.Sustainability[greenops.CarbonMetricKey]
-		if !ok {
-			// Fallback to deprecated key.
-			metric, ok = r.Sustainability[greenops.DeprecatedCarbonKey]
-		}
-
-		if ok {
-			// Normalize to kg before summing.
-			kg, err := greenops.NormalizeToKg(metric.Value, metric.Unit)
-			if err != nil {
-				logging.FromContext(ctx).Warn().
-					Ctx(ctx).
-					Str("resource_type", r.ResourceType).
-					Str("resource_id", r.ResourceID).
-					Str("unit", metric.Unit).
-					Err(err).
-					Msg("skipped resource due to NormalizeToKg error")
-				continue
-			}
-			totalCarbon += kg
-			found = true
-		}
-	}
-
-	// Always use kg as we normalize all values to kilograms.
-	unit := ""
-	if found {
-		unit = "kg"
-	}
-
-	return greenops.CarbonInput{Value: totalCarbon, Unit: unit}, found
 }

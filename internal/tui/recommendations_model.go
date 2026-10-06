@@ -12,18 +12,19 @@ import (
 
 	"github.com/rshade/finfocus/internal/engine"
 	listview "github.com/rshade/finfocus/internal/tui/list"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // RecommendationSortField represents the field to sort recommendations by.
-type RecommendationSortField int
+type RecommendationSortField = viewmodel.RecommendationSortField
 
 const (
 	// SortBySavings sorts by estimated savings (descending).
-	SortBySavings RecommendationSortField = iota
+	SortBySavings = viewmodel.SortBySavings
 	// SortByResourceID sorts by resource ID (ascending).
-	SortByResourceID
+	SortByResourceID = viewmodel.SortByResourceID
 	// SortByActionType sorts by action type (ascending).
-	SortByActionType
+	SortByActionType = viewmodel.SortByActionType
 )
 
 const (
@@ -451,21 +452,7 @@ func (m *RecommendationsViewModel) handleQuitUpdate(msg tea.Msg) (tea.Model, tea
 
 // applyFilter filters recommendations based on the text input value.
 func (m *RecommendationsViewModel) applyFilter() {
-	val := m.textInput.Value()
-	if val == "" {
-		m.recommendations = m.allRecommendations
-	} else {
-		var filtered []engine.Recommendation
-		query := strings.ToLower(val)
-		for _, r := range m.allRecommendations {
-			if strings.Contains(strings.ToLower(r.ResourceID), query) ||
-				strings.Contains(strings.ToLower(r.Type), query) ||
-				strings.Contains(strings.ToLower(r.Description), query) {
-				filtered = append(filtered, r)
-			}
-		}
-		m.recommendations = filtered
-	}
+	m.recommendations = viewmodel.FilterRecommendations(m.allRecommendations, m.textInput.Value())
 	m.summary = NewRecommendationsSummary(m.recommendations)
 	m.applySort()
 	m.rebuildList()
@@ -480,19 +467,7 @@ func (m *RecommendationsViewModel) cycleSort() {
 
 // applySort sorts recommendations based on the current sort field.
 func (m *RecommendationsViewModel) applySort() {
-	sort.Slice(m.recommendations, func(i, j int) bool {
-		a, b := m.recommendations[i], m.recommendations[j]
-		switch m.sortBy {
-		case SortBySavings:
-			return a.EstimatedSavings > b.EstimatedSavings
-		case SortByResourceID:
-			return a.ResourceID < b.ResourceID
-		case SortByActionType:
-			return a.Type < b.Type
-		default:
-			return false
-		}
-	})
+	viewmodel.SortRecommendations(m.recommendations, m.sortBy)
 }
 
 // rebuildList rebuilds the virtual list model with current recommendations.
