@@ -57,11 +57,12 @@ Completed Milestones, 2026-Q4).
 - [ ] **Time-Series Forecasting Enhancement**
   - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
         ([#539](https://github.com/rshade/finfocus/issues/539)) [L]
-- [ ] **Forecasting & Projections ("Cost Time Machine")**
+- [x] **Forecasting & Projections ("Cost Time Machine")**
       ([#364](https://github.com/rshade/finfocus/issues/364)) [L]
-  - [ ] Projection Math Engine (Linear/Exponential extrapolation)
-  - [ ] TUI: ASCII Line Chart visualization for 6-12 month forecasts
-  - *Status: Spec primitives available (GrowthType/GrowthRate)*
+  - [x] Projection Math Engine (Linear/Exponential extrapolation)
+  - [x] TUI: ASCII Line Chart visualization for 6-12 month forecasts
+  - *Status: `cost forecast` projects with the finfocus-spec growth helpers.
+    JSON series are timestamped for the interactive history chart (#550).*
 
 - [ ] **Kubernetes Cost Allocation — Pulumi Integration**
   - [ ] `finfocus overview` expansion of Kubernetes clusters in the stack

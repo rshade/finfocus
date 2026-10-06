@@ -283,7 +283,7 @@ func newCostCmd() *cobra.Command {
 		"Pulumi stack name for auto-detection (ignored with --pulumi-json/--pulumi-state)")
 
 	cmd.AddCommand(NewCostProjectedCmd(), NewCostActualCmd(), NewCostRecommendationsCmd(), NewCostEstimateCmd(),
-		NewCostClusterCmd(), NewCostHistoryCmd())
+		NewCostForecastCmd(), NewCostClusterCmd(), NewCostHistoryCmd())
 	return cmd
 }
 

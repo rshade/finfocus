@@ -1517,6 +1517,19 @@ func TestMapProtoCostResultToEngine(t *testing.T) {
 		assert.Equal(t, "on-demand pricing", engineResult.Notes)
 		assert.Nil(t, engineResult.Error)
 		assert.Empty(t, engineResult.Sustainability)
+		assert.Empty(t, engineResult.GrowthType)
+	})
+
+	t.Run("growth type is copied", func(t *testing.T) {
+		t.Parallel()
+		result := &proto.CostResult{
+			Currency:    "USD",
+			MonthlyCost: 40,
+			GrowthType:  "linear",
+		}
+		engineResult := mapProtoCostResultToEngine(resource, "test-plugin", result)
+		assert.Equal(t, "linear", engineResult.GrowthType)
+		assert.InDelta(t, 40.0, engineResult.Monthly, 0.001)
 	})
 
 	t.Run("structured error mapped", func(t *testing.T) {

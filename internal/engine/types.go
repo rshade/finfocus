@@ -524,6 +524,11 @@ type CostResult struct {
 	// TTL via cache.CalculatePluginTTL instead of the store default. Nil means
 	// the plugin did not provide a hint and the default TTL applies.
 	ExpiresAt *time.Time `json:"expiresAt,omitempty"`
+
+	// GrowthType is the plugin-reported growth model: "none", "linear",
+	// "exponential", or empty when the plugin did not set one. Empty matches
+	// none. It does not change Monthly. cost forecast reads it.
+	GrowthType string `json:"growthType,omitempty"`
 }
 
 // ErrorDetail captures information about a failed resource cost calculation.

@@ -491,7 +491,7 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   `--file` selects a document. `--output json` prints the report. An unknown
   `--output` is rejected before the file is read. A missing default file stays
   valid. `cost projected`, `cost actual`, `cost recommendations`,
-  `cost estimate`, and `cost cluster` fail in pre-run when a present file is
+  `cost estimate`, `cost forecast`, and `cost cluster` fail in pre-run when a present file is
   invalid, and they ignore a missing file. Flat `cost.budgets.amount` is warned
   and not applied; the on-disk field is `cost.budgets.global.amount`. Period
   stays monthly. Threshold stays 0–1000. Amount 0 disables a scope. Unknown
@@ -733,6 +733,25 @@ Non-obvious behaviors that can cause subtle bugs if you don't know about them.
   ones. An RPC error or an empty spec omits the field and keeps the cost.
   The next selected plugin is tried when the first has no spec. Unpriced
   `pulumi:` rows are not explained because they are not diff entries
+- **`cost forecast`** prices the same inputs as `cost projected` and projects
+  the after-change monthly cost with `pricing.ApplyGrowth` (finfocus-spec).
+  The plugin response `growth_type` is copied onto `CostResult.GrowthType`
+  (`none`, `linear`, `exponential`, or empty). The response has no rate.
+  `--growth-rate` is that rate. `--growth-type` overrides every resource.
+  Linear is `base * (1 + rate * month)`. Exponential compounds. Month 0 is
+  the current UTC month. `--months` is 1–36 and means months ahead, so the
+  series has months+1 points. A missing rate on a plugin linear or
+  exponential resource stays flat and is warned. `--growth-type linear`
+  without a rate is an error. Two currencies fail. `ERROR:` and
+  `VALIDATION:` results are omitted. A negative or non-finite point is
+  clamped to zero. Plain output is an asciigraph chart (budget line from
+  the global budget, `--split-providers` for provider series). JSON and
+  NDJSON emit timestamped `forecast.Series` values (`forecast`, provider
+  names, and `history` when `--stack` has a same-currency cost-history
+  database). A missing history file does not fail the command. The series
+  is the input for the interactive history chart (#550). This command does
+  not import ntcharts and does not change `cost projected` monthly totals.
+  Spec: `specs/626-cost-forecast/`
 - **Plugin pricing spec fallback** is off by default. `newEngineWithCache`
   copies `cost.pricing_spec_fallback`. `cost projected --pricing-spec-fallback`
   overrides that for the command when the flag is set. When on, a resource
@@ -1098,6 +1117,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 ## Recent Changes
 
+- 626-cost-forecast: `cost forecast` projects plugin GrowthType with finfocus-spec `pricing.ApplyGrowth` and emits timestamped series for a later interactive chart. No new module.
 - 625-budget-alert-notifications: Added Go 1.27.1 (see `go.mod`) + stdlib `net/http`, `encoding/json` (Slack and generic HTTPS webhook budget alert destinations, no new modules)
 - 622-include-dismissed: `cost recommendations --include-dismissed` sets `GetRecommendationsRequest.include_dismissed` (finfocus-spec field 8) and still sends excluded IDs; the cache key gains `/include-dismissed`
 - 621-k8s-workload-projected-cost: finfocus-spec v0.7.3 (`ResourceDescriptor.attributes`); core sends redacted attributes; the kubernetes plugin prices declared workloads

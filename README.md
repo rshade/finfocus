@@ -147,6 +147,14 @@ Full documentation: [Overview command](docs/src/content/docs/commands/overview.m
 finfocus cost projected --pulumi-json plan.json
 ```
 
+**Forecast** - Project that monthly cost forward. Plugins report a growth
+model. `--growth-rate 0.10` is 10% per month. The chart is plain text, and
+`--output json` returns the same points with timestamps.
+
+```bash
+finfocus cost forecast --pulumi-json plan.json --growth-type linear --growth-rate 0.10
+```
+
 **Check Budget** - Verify if plan fits within budget:
 
 ```bash
