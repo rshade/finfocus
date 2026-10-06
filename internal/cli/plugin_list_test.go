@@ -146,7 +146,7 @@ func TestPluginListCmdAvailable(t *testing.T) {
 	assert.Contains(t, output, "Repository")
 	assert.Contains(t, output, "Security")
 	// Check for known registry plugins
-	assert.Contains(t, output, "kubecost")
+	assert.Contains(t, output, "opencost")
 	assert.Contains(t, output, "aws-public")
 }
 

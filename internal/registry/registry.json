@@ -1,19 +1,20 @@
 {
   "schema_version": "1.0.0",
   "plugins": {
-    "kubecost": {
-      "name": "kubecost",
-      "description": "Kubernetes cost analysis via Kubecost API",
-      "repository": "rshade/finfocus-plugin-kubecost",
+    "opencost": {
+      "name": "opencost",
+      "description": "Kubernetes allocation cost from OpenCost, with an experimental Kubecost profile",
+      "repository": "rshade/finfocus-plugin-opencost",
       "author": "FinFocus Team",
       "license": "Apache-2.0",
-      "homepage": "https://github.com/rshade/finfocus-plugin-kubecost",
+      "homepage": "https://github.com/rshade/finfocus-plugin-opencost",
       "supported_providers": ["kubernetes"],
-      "capabilities": ["cost_retrieval", "cost_projection"],
+      "capabilities": ["cost_projection", "cost_retrieval", "pricing_specs"],
       "security_level": "official",
-      "min_spec_version": "0.1.0",
+      "min_spec_version": "0.7.5",
       "asset_hints": {
-        "asset_prefix": "finfocus-plugin-kubecost"
+        "asset_prefix": "finfocus-plugin-opencost",
+        "version_prefix": false
       }
     },
     "aws-public": {

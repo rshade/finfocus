@@ -104,7 +104,8 @@ A: The main plugins today:
 | `aws-public` | ✓ | ✓ | AWS public pricing API |
 | `azure-public` | ✓ | ✓ | Azure Retail Prices API, no credentials |
 | Vantage | — | ✓ | Requires Vantage account |
-| Kubecost | — | ✓ | Planned |
+| `opencost` | ✓ | ✓ | Kubernetes allocation from OpenCost, needs a reachable endpoint |
+| Kubecost | — | — | Planned; `opencost` has an experimental Kubecost profile |
 
 ### Q: Do I need a plugin?
 

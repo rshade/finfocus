@@ -31,7 +31,7 @@ func TestGetPlugin(t *testing.T) {
 		plugin    string
 		wantFound bool
 	}{
-		{"existing plugin", "kubecost", true},
+		{"existing plugin", "opencost", true},
 		{"aws-public plugin", "aws-public", true},
 		{"non-existent plugin", "nonexistent", false},
 	}
@@ -72,7 +72,7 @@ func TestListRegistryPlugins(t *testing.T) {
 		found[p] = true
 	}
 
-	for _, expected := range []string{"kubecost", "aws-public"} {
+	for _, expected := range []string{"opencost", "aws-public"} {
 		if !found[expected] {
 			t.Errorf("ListPluginsFromRegistry() missing expected plugin %q", expected)
 		}
