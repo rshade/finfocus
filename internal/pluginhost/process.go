@@ -87,9 +87,15 @@ func (lb *lockedBuffer) Snapshot() []byte {
 }
 
 // ProcessLauncher launches plugins as separate TCP server processes.
+// It is safe for concurrent use.
 type ProcessLauncher struct {
-	timeout        time.Duration
-	portListeners  map[int]*portListener
+	timeout       time.Duration
+	portListeners map[int]*portListener
+	// pendingPorts holds ports given to a plugin that has not bound yet, so a
+	// concurrent launch never receives the same port.
+	pendingPorts map[int]struct{}
+	// listen opens the reservation listener; nil listens on 127.0.0.1:0. Set by tests.
+	listen         func(ctx context.Context) (net.Listener, error)
 	mu             sync.Mutex
 	maxRetries     int           // Maximum number of launch retries
 	stdoutFallback time.Duration // configurable for tests; 0 means use default (stdoutPortFallback)
@@ -193,6 +199,7 @@ func (p *ProcessLauncher) startOnce(
 			Msg("failed to allocate port for plugin")
 		return nil, nil, err
 	}
+	defer p.releasePendingPort(port)
 
 	log.Debug().
 		Ctx(ctx).
@@ -274,40 +281,77 @@ func (p *ProcessLauncher) allocatePort(ctx context.Context) (int, error) {
 		return 0, err
 	}
 	// Immediately release for backward compatibility
+	p.releasePendingPort(port)
 	if releaseErr := p.releasePortListener(port); releaseErr != nil {
 		return 0, fmt.Errorf("releasing port listener: %w", releaseErr)
 	}
 	return port, nil
 }
 
+// maxPortAllocationAttempts bounds how many pending ports allocatePortWithListener
+// skips before giving up.
+const maxPortAllocationAttempts = 32
+
 // allocatePortWithListener allocates a port and keeps the listener open to prevent race conditions.
-// The caller must call releasePortListener when ready for the plugin to bind.
+// The port is also marked pending until releasePendingPort, and ports that are
+// already pending are skipped. The caller must call releasePortListener when
+// ready for the plugin to bind.
 func (p *ProcessLauncher) allocatePortWithListener(
 	ctx context.Context,
 ) (int, *portListener, error) {
+	for range maxPortAllocationAttempts {
+		listener, err := p.listenLocal(ctx)
+		if err != nil {
+			return 0, nil, fmt.Errorf("creating listener: %w", err)
+		}
+
+		tcpAddr, ok := listener.Addr().(*net.TCPAddr)
+		if !ok {
+			_ = listener.Close()
+			return 0, nil, errors.New("listener is not TCP address")
+		}
+		port := tcpAddr.Port
+
+		p.mu.Lock()
+		if _, pending := p.pendingPorts[port]; pending {
+			p.mu.Unlock()
+			// Close at once: a listener held on another launch's port would let
+			// that launch's TCP readiness probe connect to it instead of the plugin.
+			_ = listener.Close()
+			continue
+		}
+		if p.pendingPorts == nil {
+			p.pendingPorts = make(map[int]struct{})
+		}
+		p.pendingPorts[port] = struct{}{}
+		pl := &portListener{
+			listener: listener,
+			port:     port,
+		}
+		p.portListeners[port] = pl
+		p.mu.Unlock()
+
+		return port, pl, nil
+	}
+	return 0, nil, fmt.Errorf(
+		"no free port after %d attempts: every port offered was pending",
+		maxPortAllocationAttempts,
+	)
+}
+
+func (p *ProcessLauncher) listenLocal(ctx context.Context) (net.Listener, error) {
+	if p.listen != nil {
+		return p.listen(ctx)
+	}
 	lc := &net.ListenConfig{}
-	listener, err := lc.Listen(ctx, "tcp", "127.0.0.1:0")
-	if err != nil {
-		return 0, nil, fmt.Errorf("creating listener: %w", err)
-	}
+	return lc.Listen(ctx, "tcp", "127.0.0.1:0")
+}
 
-	tcpAddr, ok := listener.Addr().(*net.TCPAddr)
-	if !ok {
-		_ = listener.Close()
-		return 0, nil, errors.New("listener is not TCP address")
-	}
-	port := tcpAddr.Port
-
-	pl := &portListener{
-		listener: listener,
-		port:     port,
-	}
-
+// releasePendingPort ends the reservation taken by allocatePortWithListener.
+func (p *ProcessLauncher) releasePendingPort(port int) {
 	p.mu.Lock()
-	p.portListeners[port] = pl
+	delete(p.pendingPorts, port)
 	p.mu.Unlock()
-
-	return port, pl, nil
 }
 
 // releasePortListener closes the listener for a reserved port, allowing the plugin to bind.

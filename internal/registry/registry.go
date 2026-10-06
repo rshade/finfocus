@@ -6,14 +6,20 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
+	"strings"
 
 	"github.com/Masterminds/semver/v3"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
 	"github.com/rshade/finfocus/internal/proto"
 )
+
+// maxConcurrentPluginOpens bounds how many plugin processes Open starts at once.
+const maxConcurrentPluginOpens = 8
 
 // Registry manages plugin discovery and lifecycle operations.
 // It scans plugin directories and provides client connections to active plugins.
@@ -102,7 +108,7 @@ func (r *Registry) ListPlugins() ([]PluginInfo, error) {
 // ListLatestPlugins scans the plugin directory and returns only the latest version
 // of each plugin. Plugins with same name in different locations are treated as
 // duplicates and the latest version across all locations is selected.
-// Returns warnings for invalid or corrupted plugins.
+// Results are sorted by plugin name. Returns warnings for invalid or corrupted plugins.
 func (r *Registry) ListLatestPlugins() ([]PluginInfo, []string, error) {
 	allPlugins, err := r.ListPlugins()
 	if err != nil {
@@ -137,6 +143,9 @@ func (r *Registry) ListLatestPlugins() ([]PluginInfo, []string, error) {
 	for _, plugin := range latest {
 		result = append(result, plugin)
 	}
+	slices.SortFunc(result, func(a, b PluginInfo) int {
+		return strings.Compare(a.Name, b.Name)
+	})
 
 	return result, warnings, nil
 }
@@ -287,49 +296,11 @@ func (r *Registry) Open(
 		Int("discovered_plugins", len(filteredPlugins)).
 		Msg("latest plugins discovered after filtering")
 
-	var clients []*pluginhost.Client
+	clients := r.openPlugins(ctx, filteredPlugins)
 	cleanup := func() {
 		for _, c := range clients {
 			_ = c.Close()
 		}
-	}
-
-	for _, plugin := range filteredPlugins {
-		log.Debug().
-			Ctx(ctx).
-			Str("component", "registry").
-			Str("plugin_name", plugin.Name).
-			Str("plugin_version", plugin.Version).
-			Str("plugin_path", plugin.Path).
-			Msg("attempting to connect to plugin")
-
-		client, clientErr := pluginhost.NewClient(ctx, r.launcher, plugin.Path)
-		if clientErr != nil {
-			log.Warn().
-				Ctx(ctx).
-				Str("component", "registry").
-				Str("plugin_name", plugin.Name).
-				Str("plugin_path", plugin.Path).
-				Err(clientErr).
-				Msg("failed to connect to plugin")
-			continue
-		}
-
-		// Merge registry-level metadata (e.g., region) into the client's plugin metadata.
-		// This ensures routing decisions can use registry metadata even if the plugin
-		// didn't report it via GetPluginInfo.
-		mergeRegistryMetadata(client, plugin)
-
-		log.Debug().
-			Ctx(ctx).
-			Str("component", "registry").
-			Str("operation", "plugin_connected").
-			Str("plugin_name", plugin.Name).
-			Str("plugin_version", plugin.Version).
-			Str("region", plugin.Region()).
-			Msg("plugin connected successfully")
-
-		clients = append(clients, client)
 	}
 
 	log.Info().
@@ -339,6 +310,69 @@ func (r *Registry) Open(
 		Msg("plugin discovery complete")
 
 	return clients, cleanup, nil
+}
+
+// openPlugins launches plugins concurrently, at most maxConcurrentPluginOpens at a
+// time, and returns the clients that connected in the order of plugins.
+func (r *Registry) openPlugins(ctx context.Context, plugins []PluginInfo) []*pluginhost.Client {
+	opened := make([]*pluginhost.Client, len(plugins))
+	var g errgroup.Group
+	g.SetLimit(maxConcurrentPluginOpens)
+	for i, plugin := range plugins {
+		g.Go(func() error {
+			opened[i] = r.openPlugin(ctx, plugin)
+			return nil
+		})
+	}
+	_ = g.Wait()
+
+	var clients []*pluginhost.Client
+	for _, client := range opened {
+		if client != nil {
+			clients = append(clients, client)
+		}
+	}
+	return clients
+}
+
+// openPlugin connects to a single plugin, returning nil if it fails to start.
+func (r *Registry) openPlugin(ctx context.Context, plugin PluginInfo) *pluginhost.Client {
+	log := logging.FromContext(ctx)
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "registry").
+		Str("plugin_name", plugin.Name).
+		Str("plugin_version", plugin.Version).
+		Str("plugin_path", plugin.Path).
+		Msg("attempting to connect to plugin")
+
+	client, err := pluginhost.NewClient(ctx, r.launcher, plugin.Path)
+	if err != nil {
+		log.Warn().
+			Ctx(ctx).
+			Str("component", "registry").
+			Str("plugin_name", plugin.Name).
+			Str("plugin_path", plugin.Path).
+			Err(err).
+			Msg("failed to connect to plugin")
+		return nil
+	}
+
+	// Merge registry-level metadata (e.g., region) into the client's plugin metadata.
+	// This ensures routing decisions can use registry metadata even if the plugin
+	// didn't report it via GetPluginInfo.
+	mergeRegistryMetadata(client, plugin)
+
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "registry").
+		Str("operation", "plugin_connected").
+		Str("plugin_name", plugin.Name).
+		Str("plugin_version", plugin.Version).
+		Str("region", plugin.Region()).
+		Msg("plugin connected successfully")
+
+	return client
 }
 
 // PluginInfo contains metadata about a discovered plugin.
