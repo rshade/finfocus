@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -187,6 +188,12 @@ func (f fakePricer) GetProjectedCostWithErrors(
 	_ context.Context, _ []engine.ResourceDescriptor,
 ) (*engine.CostResultWithErrors, error) {
 	return &engine.CostResultWithErrors{Results: f.results}, nil
+}
+
+func (f fakePricer) GetWindowCost(
+	_ context.Context, _ []engine.ResourceDescriptor, _, _ time.Time,
+) ([]engine.CostResult, error) {
+	return nil, errors.New("overview cluster expansion never prices a window")
 }
 
 func liveTestHarness() (*fakeUsageSource, *fakeAllocator, fakePricer) {
