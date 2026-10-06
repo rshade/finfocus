@@ -12,6 +12,10 @@ data:
   prometheus.yml: |
     global:
       scrape_interval: 60s
+    # The E2E test remote-writes a past day one series at a time.
+    storage:
+      tsdb:
+        out_of_order_time_window: 30d
 ---
 apiVersion: apps/v1
 kind: Deployment

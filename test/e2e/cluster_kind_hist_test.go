@@ -21,8 +21,6 @@ import (
 )
 
 const (
-	histFrom    = "2026-10-02"
-	histTo      = "2026-10-03"
 	fixedTotal  = "120"
 	fixedAmount = 120.0
 	gib         = 1073741824.0
@@ -49,8 +47,10 @@ func TestCostCluster_KindHistorical(t *testing.T) {
 	assertHistoricalCost(t, home, base, node)
 }
 
+// histBounds is a whole UTC day three days back, inside Prometheus's default
+// 15-day retention whenever the test runs.
 func histBounds() (time.Time, time.Time) {
-	from := time.Date(2026, 10, 2, 0, 0, 0, 0, time.UTC)
+	from := time.Now().UTC().Truncate(24*time.Hour).AddDate(0, 0, -3)
 	return from, from.Add(24 * time.Hour)
 }
 
@@ -184,9 +184,10 @@ func runHistorical(t *testing.T, home, promURL string) ([]byte, []byte, error) {
 }
 
 func histArgs() []string {
+	from, to := histBounds()
 	return []string{
 		"cost", "cluster",
-		"--from", histFrom, "--to", histTo,
+		"--from", from.Format(time.DateOnly), "--to", to.Format(time.DateOnly),
 		"--usage-source", "prometheus", "--allocator", "kubernetes",
 		"--context", kindContext(), "--output", "json", "--group-by", "namespace",
 	}
