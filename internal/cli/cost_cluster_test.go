@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/rshade/ax-go/axtest"
 	"github.com/stretchr/testify/assert"
@@ -107,12 +108,11 @@ func TestCostCluster_ShowPolicyNeedsOnlyAllocator(t *testing.T) {
 func TestCostCluster_Window(t *testing.T) {
 	isolateClusterTestConfig(t)
 
-	const (
-		day    = "2026-09-01"
-		later  = "2026-09-08"
-		future = "2026-11-01"
-		tooOld = "2020-01-01"
-	)
+	today := time.Now().UTC().Truncate(24 * time.Hour)
+	day := today.AddDate(0, 0, -14).Format(time.DateOnly)
+	later := today.AddDate(0, 0, -7).Format(time.DateOnly)
+	future := today.AddDate(0, 0, 30).Format(time.DateOnly)
+	tooOld := today.AddDate(-maxPastYears-1, 0, 0)
 	reachedPlugins := "usage_stats"
 
 	tests := []struct {
@@ -157,8 +157,11 @@ func TestCostCluster_Window(t *testing.T) {
 			wantErr: "date cannot be in the future",
 		},
 		{
-			name:    "older than max past",
-			args:    []string{"cost", "cluster", "--from", tooOld, "--to", "2020-02-01"},
+			name: "older than max past",
+			args: []string{
+				"cost", "cluster",
+				"--from", tooOld.Format(time.DateOnly), "--to", tooOld.AddDate(0, 1, 0).Format(time.DateOnly),
+			},
 			wantErr: "date too far in past",
 		},
 		{
@@ -215,8 +218,10 @@ func TestCostCluster_WindowKeepsUsageSourceSelection(t *testing.T) {
 	marker := filepath.Join(t.TempDir(), "getstats")
 	t.Setenv("FINFOCUS_TEST_GETSTATS_MARKER", marker)
 
+	today := time.Now().UTC().Truncate(24 * time.Hour)
 	res := axtest.Run(context.Background(), t, NewRootCmd("test"), []string{
-		"cost", "cluster", "--from", "2026-09-01", "--to", "2026-09-08",
+		"cost", "cluster",
+		"--from", today.AddDate(0, 0, -14).Format(time.DateOnly), "--to", today.AddDate(0, 0, -7).Format(time.DateOnly),
 	})
 	require.Equal(t, 1, res.ExitCode, "stderr: %s", res.Stderr)
 	stderr := string(res.Stderr)
