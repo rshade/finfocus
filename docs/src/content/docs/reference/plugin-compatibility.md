@@ -20,6 +20,7 @@ workflows.
 | azure-public         | Azure    | [X]             | [!] (Fallback\*) | [ ]           | [ ]         | Uses the Azure Retail Prices API. \*Actual costs are `hours × list price`.         |
 | opencost             | Kubernetes | [X]           | [X]              | [ ]           | [ ]         | Reads OpenCost allocation data. Projected cost is a 30-day trailing average.       |
 | vantage              | AWS, Azure, GCP, Kubernetes | [ ] | [X]          | [X]           | [ ]         | Reads imported cost from a Vantage Cost Report. Billing can lag usage by days.     |
+| flexera              | AWS, Azure, GCP | [X]      | [X]              | [X]           | [ ]         | Reads Flexera One Bill Analysis. Matches `aws-ec2`-style ids, not Pulumi type tokens. |
 | google-cloud-billing | GCP      | [ ]             | [X]              | [X]           | [ ]         | Queries Google Cloud Billing API.                                                  |
 
 ## Feature Definitions
