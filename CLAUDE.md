@@ -46,8 +46,8 @@ make validate          # go mod tidy -diff, go vet
 make docs-lint
 make docs-serve        # Astro site at http://localhost:4321/finfocus/
 make check-plugin-boundaries
-make test-kubernetes | test-jev | test-prometheus      # Nested plugin modules
-make install-kubernetes | install-jev | install-prometheus | install-recorder
+make test-kubernetes   # Also test-jev, test-prometheus (nested plugin modules)
+make install-kubernetes  # Also install-jev, install-prometheus, install-recorder
 ```
 
 ```bash
@@ -83,7 +83,9 @@ go test -race -shuffle=on -count=3 ./internal/<pkg>/...   # Parallel-safety chec
 
 Entry point `cmd/finfocus/main.go`. Exit codes: 0, 1 (ax `ExitInternal`), and
 the budget code from `cost --exit-code` (default 1), preserved through
-`ax.Execute` by `cli.toAxExitError`. ax-go's 2/3/4 are not used yet.
+`ax.Execute` by `cli.toAxExitError`. User-input errors (flag combinations,
+malformed input files, bad dates) exit 2 through `toValidationError`
+(`ax.ExitValidation`). Codes 3 and 4 (`ExitNetwork`, `ExitAuth`) are not used yet.
 
 ### Configuration Resolution
 
@@ -148,7 +150,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - The run-rate half of `make test-e2e-kind` installs aws-public into the real
   `~/.finfocus`. `TestCostCluster_KindHistorical` uses a temp home: run
   `test/e2e/kind/setup.sh`, apply `test/e2e/kind/prometheus.yaml`, then
-  `go test -tags e2e_kind -run '^TestCostCluster_KindHistorical$'` with
+  `go test -tags e2e_kind -run '^TestCostCluster_KindHistorical$' ./...` from
+  `test/e2e` (its own module; a bare run from the repo root skips it) with
   `FINFOCUS_BINARY` set.
 - Remote-write fixtures need `storage.tsdb.out_of_order_time_window` in the
   Prometheus config and a window relative to now. A fixed date is rejected as
@@ -255,6 +258,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - Budget notifications (`specs/625-budget-alert-notifications/`): stderr only,
   never change stdout or the exit code. Only `${FINFOCUS_NOTIFY_*}` expands,
   and a project-sourced destination with `${` is skipped without a lookup.
+  Sends are HTTPS only, follow no redirects, and time out after 10s. Failure
+  reasons redact every variable value, URL, and secret-looking header, and
+  never include a response body.
   `ThresholdStatus.Notifications` is `json:"-"`; masking is display-only
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
