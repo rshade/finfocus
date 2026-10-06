@@ -582,6 +582,7 @@ type ActualCostRequest struct {
 	Tags               map[string]string
 	EstimateConfidence bool // Show confidence level in output
 	FallbackEstimate   bool // When true, include $0 placeholder results for resources with no plugin data
+	SkipStateEstimate  bool // When true, keep the plugin period total and do not estimate from state
 }
 
 // CrossProviderAggregation represents daily/monthly cost aggregation across providers.

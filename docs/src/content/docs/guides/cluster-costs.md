@@ -1,15 +1,17 @@
 ---
 title: Kubernetes Cluster Cost Allocation
-description: Break down a Kubernetes cluster's monthly cost by namespace, controller, pod, node, or label with the kubernetes plugin.
+description: Break down a Kubernetes cluster's cost by namespace, controller, pod, node, or label.
 ---
 
 ## Overview
 
-`finfocus cost cluster` allocates the monthly run-rate cost of a Kubernetes
+`finfocus cost cluster` allocates the cost of a Kubernetes
 cluster's nodes (and, on EKS, its control plane and each Fargate pod) across
-the workloads running on them. A usage-source plugin reports live cluster state, FinFocus prices the
+the workloads running on them. With no window, that cost is the monthly run
+rate. With `--from` and `--to`, it is the actual spend over that window.
+A usage-source plugin reports cluster state, FinFocus prices the
 reported nodes through its normal pricing plugins, and an allocator plugin
-splits each node's cost by workload resource requests. By default, unused
+splits each node's cost across the workloads. By default, unused
 capacity is its own idle row. An allocation policy can set `idle` or
 `system_workloads` to `share`, which folds that cost into the workloads on
 the same node. Every run enforces a conservation invariant: allocated rows
@@ -128,7 +130,8 @@ traced back to the exact policy that produced it.
 `--output json` emits a single document with `mode`, `period`, `currency`,
 `group_by`, `total`, `idle` (omitted when namespace-scoped),
 `namespace_scoped`, `incomplete`, `groups`, `priced`, `policy`, and
-`warnings`. Each group may include `pulumi_urns` when a workload in it
+`warnings`. In historical mode, `priced[].monthly` is the window total
+(`TotalCost`), not a 730-hour projection. Each group may include `pulumi_urns` when a workload in it
 carries annotation `finfocus.dev/pulumi-urn`. `--output ndjson` emits a `summary` line followed by one `group`
 line per group. The command is also exposed as an MCP tool (`finfocus
 mcp-server`), so agents can call it like any other read-only command.
@@ -164,16 +167,51 @@ pull request. `cost cluster` remains the authoritative number for a running
 cluster. The variables, the decline reasons, and the request rules are in the
 [plugin README](https://github.com/rshade/finfocus/blob/main/plugins/kubernetes/README.md#projected-cost-from-a-pulumi-plan).
 
+## Historical window
+
+`--from` and `--to` price actual spend over that window. Both accept
+`2006-01-02` and RFC3339. `--to` defaults to now when only `--from` is set.
+Select Prometheus when more than one usage source is installed:
+
+```bash
+export FINFOCUS_PROMETHEUS_URL=http://127.0.0.1:9090
+finfocus cost cluster \
+  --usage-source prometheus \
+  --from 2026-09-28 \
+  --to 2026-10-05
+```
+
+The footer mode is `historical` and the period is the window and its
+length, for example `historical (2026-09-28 to 2026-10-05, 7 days)`. A
+window that is not whole UTC days prints RFC3339 bounds and hours. A run with no window stays `run-rate (monthly, 730 h)`.
+When Prometheus holds no data for the start of the window, for example
+because its retention is shorter than the window, the report is marked
+incomplete with a warning naming the time stored data starts. The missing
+part is not counted as zero usage.
+
+Prometheus must be scraping cAdvisor and kube-state-metrics, including the
+node-label metrics `kube_node_labels` and `kube_node_info`. Outside a
+cluster, set `FINFOCUS_PROMETHEUS_URL`. Inside a cluster, an unset URL uses
+the Prometheus Operator service. The
+[plugin README](https://github.com/rshade/finfocus/blob/main/plugins/prometheus/README.md)
+lists the address, the bearer token, and the install gate.
+
+Pod labels come from kube-state-metrics, which exports only the labels named
+in its `--metric-labels-allowlist` flag and replaces every character that is
+not a letter, digit, or underscore with `_`. A historical `--group-by` uses
+that recorded key: `app.kubernetes.io/name` is
+`label:app_kubernetes_io_name`, and `--group-by label:app.kubernetes.io/name`
+puts every pod under `<none>`. The `--selector` flag accepts either form.
+
 ## Limitations
 
-- Run-rate only: historical allocation (`STATS_MODE_HISTORICAL`) is rejected
-  with "historical usage is not supported yet" until the Prometheus usage
-  source lands.
-- Spot nodes are priced on-demand. Each EKS Fargate pod is priced on its own
-  from its vCPU and memory request when the pricing plugin returns a positive
-  monthly cost; otherwise the pod is a $0 row with a note. kind cannot
-  simulate Fargate, so `make test-e2e-kind` does not cover that path. The
-  rates live in
+- The kubernetes usage source still rejects a window with its run-rate-only
+  error. A window needs a source that reports historical mode.
+- On the no-window path, spot nodes are priced on-demand. Each EKS Fargate pod
+  is priced on its own from its vCPU and memory request when the pricing
+  plugin returns a positive monthly cost; otherwise the pod is a $0 row with
+  a note. kind cannot simulate Fargate, so `make test-e2e-kind` does not
+  cover that path. The rates live in
   [finfocus-plugin-aws-public#409](https://github.com/rshade/finfocus-plugin-aws-public/issues/409).
 - A node whose price resolves to `$0` (for example an unknown instance type in
   aws-public) is treated as unpriced, never as free; if no node can be priced

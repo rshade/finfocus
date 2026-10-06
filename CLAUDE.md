@@ -44,6 +44,8 @@ make build-recorder    # Build recorder plugin to bin/finfocus-plugin-recorder
 make install-recorder  # Build and install recorder to ~/.finfocus/plugins/recorder/0.1.0/
 make test-jev          # Test the jev scorer plugin module (plugins/jev, separate go.mod)
 make install-jev       # Build and install the jev scorer plugin
+make test-prometheus   # Test the prometheus usage-source plugin module (plugins/prometheus, separate go.mod)
+make install-prometheus  # Build and install the prometheus usage-source plugin
 ```
 
 ### Single Package/Test Commands
@@ -948,7 +950,43 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 - **Core never interprets Kubernetes**: nodes arrive from `GetStats` as ordinary
   `ResourceDescriptor`s (`sku`/`region` passed as properties) and are priced by
-  `GetProjectedCostWithErrors`; grouping is string-map aggregation
+  the engine; grouping is string-map aggregation. Run-rate uses
+  `GetProjectedCostWithErrors` and `Monthly`. A window (`From` and `To` both
+  set, end after start) uses `GetWindowCost` and copies `TotalCost` only.
+  `Monthly` on that path is ignored. Exactly one bound errors before
+  `GetStats`. A window whose stats mode is not historical is
+  `ErrStatsModeMismatch` and the text names both modes. No window plus
+  historical stays `ErrHistoricalUnsupported`
+- **Historical unpriced**: a missing window result, a result error, or
+  `TotalCost <= 0` is unpriced and sets `Incomplete`. Projected pricing is
+  not called. Every node unpriced is still fatal. Mixed currencies and
+  `ErrConservation` are unchanged
+- **Historical pricing**: a window calls `Engine.GetWindowCost`, which sets
+  `SkipStateEstimate` and allocates `TotalCost`. No window stays
+  `GetProjectedCostWithErrors` and `Monthly`. A stats warning whose text
+  starts with `incomplete:` sets `ClusterResult.Incomplete`. The
+  `plugins/prometheus` module must not import finfocus core packages or
+  `plugins/kubernetes`
+- **Spot on-demand note**: `allocateNode` writes `spot node priced on-demand`
+  only when `AllocateRequest.mode` is not `STATS_MODE_HISTORICAL`. The cost
+  stays the value core put on `PricedResource`
+- **Prometheus node identity** (`plugins/prometheus/identity`,
+  `specs/623-prometheus-usage-source/`): descriptor rules are copied from
+  `plugins/kubernetes/usage/nodes.go`. That module is not imported.
+  kube-state-metrics names (`label_` plus non-alphanumeric to `_`) round-trip
+  only for the keys `NodeDescriptor` reads. `provider_id` comes from
+  `kube_node_info`. Recorded identity wins over the live API. A node neither
+  source can identify is omitted with
+  `incomplete: node <name>: cannot determine provider, instance type, or region`.
+  A kubeconfig failure warns `incomplete:`. Retention shorter than the window
+  is detected store-wide from the earliest node allocatable sample
+  (`promql.StoreStart`), not per pod: a pod's late first sample is not a gap. A fargate compute-type node is
+  not an allocatable priceable, and no Fargate price is added. An EKS
+  control-plane priceable is emitted only when the live client is connected
+  and the API host matches the regex in `nodes.go`. Otherwise one warning
+  without the `incomplete:` prefix. `SelectCluster` returns `InvalidArgument`
+  when several `cluster` label values are present and the scope names none of
+  them. The error lists those values
 - **Node identity** (#1588): the allocator keys a node by cluster and node
   name joined with NUL, same as the workload key. The priceable `id` stays
   the Kubernetes node name so stats validation and the idle row still match
@@ -1050,7 +1088,11 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
   fails until `hops.go` has an entry whose `To` is at least
   `pluginsdk.SpecVersion`, and `TestHopsMatchGuides` requires a matching
   `references/to-vX.Y.Z.md`. Add both in the bump PR, even for an additive
-  release (a guide that says "no changes required" is fine)
+  release (a guide that says "no changes required" is fine). The v0.7.5 hop
+  is that kind of release: handler gRPC statuses pass through (a wrapped
+  status sends only its own message; plain errors stay Internal),
+  `include_dismissed` is field 8, and `WithSampleResource` is optional. Do
+  not return an upstream status as the handler result
 - **Nested modules must match the root finfocus-spec pin**: CI validation
   compares `go.mod` with `plugins/kubernetes/go.mod` and `plugins/jev/go.mod`
   and fails when `github.com/rshade/finfocus-spec` differs. A root pin bump
@@ -1128,6 +1170,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 
 - 626-cost-forecast: `cost forecast` projects plugin GrowthType with finfocus-spec `pricing.ApplyGrowth` and emits timestamped series for a later interactive chart. No new module.
 - 625-budget-alert-notifications: Added Go 1.27.1 (see `go.mod`) + stdlib `net/http`, `encoding/json` (Slack and generic HTTPS webhook budget alert destinations, no new modules)
+- 623-prometheus-usage-source: Added Go 1.27.1 (see `go.mod`) + finfocus-spec v0.7.5 (historical stats mode, `UnitCoreHours` / `UnitGiBHours` already released), Cobra, gRPC pluginsdk, `github.com/prometheus/client_golang` query API (plugin module only), client-go (live node-identity fallback only), kind + kubectl (existing E2E), testify
 - 622-include-dismissed: `cost recommendations --include-dismissed` sets `GetRecommendationsRequest.include_dismissed` (finfocus-spec field 8) and still sends excluded IDs; the cache key gains `/include-dismissed`
 - 621-k8s-workload-projected-cost: finfocus-spec v0.7.3 (`ResourceDescriptor.attributes`); core sends redacted attributes; the kubernetes plugin prices declared workloads
 - 608-batch-cost-consumer: Added Go 1.27.1 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging)
@@ -1139,6 +1182,7 @@ on projected costs. The `p` key triggers on-demand preview; when it completes,
 ## Active Technologies
 
 - Go 1.27.1 (see `go.mod`) + stdlib `net/http`, `encoding/json`, Cobra, ax-go, testify; no persistent state (625-budget-alert-notifications)
+- Go 1.27.1 (see `go.mod`) + finfocus-spec v0.7.5 (historical stats mode, `UnitCoreHours` / `UnitGiBHours` already released), Cobra, gRPC pluginsdk, `github.com/prometheus/client_golang` query API (plugin module only), client-go (live node-identity fallback only), kind + kubectl (existing E2E), testify (623-prometheus-usage-source)
 - Go 1.27.1 (see `go.mod`) + finfocus-spec v0.6.0 (proto definitions with `BatchCost` RPC), Cobra (CLI), gRPC, zerolog (logging) (608-batch-cost-consumer)
 - BoltDB cost cache (`~/.finfocus/cache/cache.db`) — `Engine.GetProjectedCost` caches batch projected results per-resource via `storeProjectedCostCache`; `Engine.GetActualCostWithOptions` caches actual-cost results by full request key via `storeActualCostCacheIfClean` (608-batch-cost-consumer)
 - Go 1.27.1 (see `go.mod`) + BoltDB (`go.etcd.io/bbolt` — already in `go.mod`) (608-resource-history-store)

@@ -36,6 +36,10 @@ Thumbs.db
 
 # Logs
 *.log
+*.log*
+
+# Container build files are not part of the context
+Dockerfile*
 
 # Runtime data
 pids
@@ -72,6 +76,10 @@ docs/
 # Development files
 Makefile
 .golangci.yml
+
+# Secrets
+.env
+.env.*
 
 # Test artifacts
 coderabbit-output/

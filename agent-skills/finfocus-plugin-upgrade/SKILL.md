@@ -145,3 +145,4 @@ review.
 | [to-v0.7.2.md](references/to-v0.7.2.md) | Additive; manifest validation; provider means the cloud |
 | [to-v0.7.3.md](references/to-v0.7.3.md) | Additive; `ResourceDescriptor.attributes`; 2048-byte tag values |
 | [to-v0.7.4.md](references/to-v0.7.4.md) | Additive; `GetActualCostRequest.resource` |
+| [to-v0.7.5.md](references/to-v0.7.5.md) | Additive; handler statuses pass through; `include_dismissed` |

@@ -37,11 +37,32 @@ func fakeClusters(t *testing.T) ClusterFactory {
 func TestGetStats_RejectsHistorical(t *testing.T) {
 	t.Parallel()
 
-	p := New(fakeClusters(t), Config{})
-	_, err := p.GetStats(context.Background(), &pbc.GetStatsRequest{Start: timestamppb.Now()})
-	require.Error(t, err)
-	assert.Equal(t, codes.InvalidArgument, status.Code(err))
-	assert.Contains(t, err.Error(), "run-rate only")
+	start := time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name string
+		req  *pbc.GetStatsRequest
+	}{
+		{
+			name: "start set",
+			req:  &pbc.GetStatsRequest{Start: timestamppb.New(start)},
+		},
+		{
+			name: "start and end with end after start",
+			req: &pbc.GetStatsRequest{
+				Start: timestamppb.New(start),
+				End:   timestamppb.New(start.Add(24 * time.Hour)),
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			_, err := New(fakeClusters(t), Config{}).GetStats(context.Background(), tt.req)
+			require.Error(t, err)
+			assert.Equal(t, codes.InvalidArgument, status.Code(err))
+			assert.Contains(t, err.Error(), "run-rate only")
+		})
+	}
 }
 
 func TestGetStats_UnknownContext(t *testing.T) {

@@ -402,6 +402,16 @@ func TestGenerateActualCostCacheKey(t *testing.T) {
 			reason: "different adapters should produce different keys",
 		},
 		{
+			name:     "skip state estimate changes the key",
+			request1: baseRequest(),
+			request2: func() ActualCostRequest {
+				r := baseRequest()
+				r.SkipStateEstimate = true
+				return r
+			}(),
+			reason: "a window price must not reuse a state-based estimate",
+		},
+		{
 			name: "groupBy included in key",
 			request1: func() ActualCostRequest {
 				r := baseRequest()

@@ -9,7 +9,7 @@
       "changelog-path": "CHANGELOG.md",
       "draft": false,
       "prerelease": false,
-      "exclude-paths": ["plugins/kubernetes", "plugins/jev"],
+      "exclude-paths": ["plugins/kubernetes", "plugins/jev", "plugins/prometheus"],
       "changelog-sections": [
         { "type": "feat", "section": "Added", "hidden": false },
         { "type": "fix", "section": "Fixed", "hidden": false },
@@ -36,6 +36,16 @@
     "plugins/jev": {
       "release-type": "go",
       "component": "jev",
+      "include-component-in-tag": true,
+      "tag-separator": "-",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "changelog-path": "CHANGELOG.md",
+      "initial-version": "0.1.0"
+    },
+    "plugins/prometheus": {
+      "release-type": "go",
+      "component": "prometheus",
       "include-component-in-tag": true,
       "tag-separator": "-",
       "bump-minor-pre-major": true,

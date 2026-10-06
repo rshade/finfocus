@@ -1,0 +1,13 @@
+{
+  "name": "fixedcost",
+  "version": "0.1.0",
+  "description": "Test plugin that reports one positive actual-cost total from FINFOCUS_FIXEDCOST_TOTAL",
+  "author": "FinFocus Team",
+  "supported_providers": ["aws", "gcp", "azure", "kubernetes"],
+  "protocols": ["grpc"],
+  "binary": "finfocus-plugin-fixedcost",
+  "metadata": {
+    "repository": "https://github.com/rshade/finfocus",
+    "docs": "https://github.com/rshade/finfocus/tree/main/test/e2e/kind/fixedcost"
+  }
+}

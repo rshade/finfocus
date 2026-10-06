@@ -1,9 +1,11 @@
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -25,6 +27,8 @@ type costClusterParams struct {
 	usageSource string
 	allocator   string
 	output      string
+	fromStr     string
+	toStr       string
 }
 
 // NewCostClusterCmd creates `finfocus cost cluster`.
@@ -35,12 +39,16 @@ func NewCostClusterCmd() *cobra.Command {
 		Short: "Break down Kubernetes cluster cost by namespace, controller, pod, node, or label",
 		Long: `Allocates the monthly cost of a cluster's nodes (and control plane) to the
 workloads running on them, using a usage-source plugin for requests and an
-allocator plugin for the split. Idle capacity is reported as its own row.`,
+allocator plugin for the split. Idle capacity is reported as its own row.
+
+With --from and --to, the report prices actual spend over that window
+(mode historical) instead of the monthly run rate.`,
 		Example: `  finfocus cost cluster
   finfocus cost cluster --context prod --group-by controller
   finfocus cost cluster --namespace payments --output json
   finfocus cost cluster --group-by label:team --policy ./allocation.hujson
   finfocus cost cluster --group-by pulumi-stack
+  finfocus cost cluster --from 2026-09-01 --to 2026-09-08
   finfocus cost cluster --show-policy`,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return runCostCluster(cmd, params)
@@ -59,6 +67,8 @@ allocator plugin for the split. Idle capacity is reported as its own row.`,
 	f.StringVar(&params.usageSource, "usage-source", "", "Usage-source plugin to use when several are installed")
 	f.StringVar(&params.allocator, "allocator", "", "Allocator plugin to use when several are installed")
 	f.StringVar(&params.output, "output", config.GetDefaultOutputFormat(), "Output format (table, json, ndjson)")
+	f.StringVar(&params.fromStr, "from", "", "Window start (2006-01-02 or RFC3339)")
+	f.StringVar(&params.toStr, "to", "", "Window end (2006-01-02 or RFC3339); defaults to now when --from is set")
 	return cmd
 }
 
@@ -72,6 +82,10 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 		return err
 	}
 	selector, err := parseSelectors(params.selectors)
+	if err != nil {
+		return err
+	}
+	from, to, err := resolveClusterWindow(params.fromStr, params.toStr)
 	if err != nil {
 		return err
 	}
@@ -125,6 +139,8 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 			Namespace:  params.namespace,
 			Selector:   selector,
 			PolicyJSON: policy.JSON,
+			From:       from,
+			To:         to,
 		},
 	)
 	if err != nil {
@@ -176,6 +192,19 @@ func selectCapablePlugin(clients []*pluginhost.Client, capability, explicit stri
 		return nil, fmt.Errorf("several plugins provide %s (%s); choose one with %s",
 			capability, strings.Join(names, ", "), flag)
 	}
+}
+
+// resolveClusterWindow parses --from and --to before any plugin is loaded.
+// Both empty is a run-rate request. --to defaults to now when only --from
+// is set. --from is required when --to is set.
+func resolveClusterWindow(fromStr, toStr string) (time.Time, time.Time, error) {
+	if fromStr == "" && toStr == "" {
+		return time.Time{}, time.Time{}, nil
+	}
+	if fromStr == "" {
+		return time.Time{}, time.Time{}, errors.New("--from is required when --to is set")
+	}
+	return ParseTimeRange(fromStr, defaultToNow(toStr))
 }
 
 func parseSelectors(values []string) (map[string]string, error) {

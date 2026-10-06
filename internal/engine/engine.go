@@ -1653,8 +1653,9 @@ func (e *Engine) getActualCostForResource(
 		// If the plugin returned $0 actual cost with no breakdown, try state-based
 		// estimation as a fallback. The plugin may not have billing data (e.g. AWS
 		// Cost Explorer returns $0 for some resource types) but we can still estimate
-		// cost from the projected hourly rate × uptime.
-		if resourceResult.TotalCost == 0 && len(resourceResult.Breakdown) == 0 {
+		// cost from the projected hourly rate × uptime. A window price keeps the
+		// plugin total, including zero.
+		if !request.SkipStateEstimate && resourceResult.TotalCost == 0 && len(resourceResult.Breakdown) == 0 {
 			stateResult := e.tryStateBasedEstimation(ctx, resource, request)
 			if stateResult != nil && stateResult.TotalCost > 0 {
 				log.Debug().Ctx(ctx).
@@ -1670,9 +1671,12 @@ func (e *Engine) getActualCostForResource(
 		return resourceResult, errors
 	}
 
-	// Try state-based cost estimation as fallback
-	if stateResult := e.tryStateBasedEstimation(ctx, resource, request); stateResult != nil {
-		return stateResult, errors
+	// Try state-based cost estimation as fallback. Window pricing skips it so a
+	// missing plugin total is unpriced rather than a projected month.
+	if !request.SkipStateEstimate {
+		if stateResult := e.tryStateBasedEstimation(ctx, resource, request); stateResult != nil {
+			return stateResult, errors
+		}
 	}
 
 	// Without --fallback-estimate, warn and skip resources with no cost data.
@@ -4211,6 +4215,12 @@ func generateActualCostCacheKey(request ActualCostRequest) string {
 	// Build filters map for hashing (includes tags, adapter, groupBy, etc.).
 	filters := make(map[string]string)
 	filters["fallback_estimate"] = strconv.FormatBool(request.FallbackEstimate)
+	// A window price and a state-based estimate share From/To. Keep them apart
+	// so one cannot be served as the other. The default (false) leaves the
+	// existing key unchanged.
+	if request.SkipStateEstimate {
+		filters["skip_state_estimate"] = "true"
+	}
 	if request.Adapter != "" {
 		filters["adapter"] = request.Adapter
 	}

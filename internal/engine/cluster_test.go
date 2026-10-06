@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -43,6 +44,14 @@ func (f fakePricer) GetProjectedCostWithErrors(
 	_ context.Context, _ []ResourceDescriptor,
 ) (*CostResultWithErrors, error) {
 	return &CostResultWithErrors{Results: f.results}, nil
+}
+
+// GetWindowCost reports that this fake has no window price. Run-rate tests
+// never call it. Historical tests use recordingPricer.
+func (fakePricer) GetWindowCost(
+	context.Context, []ResourceDescriptor, time.Time, time.Time,
+) ([]CostResult, error) {
+	return nil, errors.New("GetWindowCost is not used on the run-rate path")
 }
 
 func nodeDesc(id string) *pbc.ResourceDescriptor {
@@ -310,4 +319,460 @@ func TestPriceableToResource(t *testing.T) {
 	assert.Equal(t, "us-west-2", r.Properties["region"])
 	assert.Equal(t, "cluster", r.Properties["kind"])
 	require.NoError(t, r.Validate())
+}
+
+type windowCall struct {
+	from time.Time
+	to   time.Time
+}
+
+// recordingPricer records which pricing path a cluster run used.
+type recordingPricer struct {
+	projected      []CostResult
+	window         []CostResult
+	windowErr      error
+	projectedCalls int
+	windowCalls    []windowCall
+}
+
+func (p *recordingPricer) GetProjectedCostWithErrors(
+	_ context.Context, _ []ResourceDescriptor,
+) (*CostResultWithErrors, error) {
+	p.projectedCalls++
+	return &CostResultWithErrors{Results: p.projected}, nil
+}
+
+func (p *recordingPricer) GetWindowCost(
+	_ context.Context, _ []ResourceDescriptor, from, to time.Time,
+) ([]CostResult, error) {
+	p.windowCalls = append(p.windowCalls, windowCall{from: from, to: to})
+	if p.windowErr != nil {
+		return nil, p.windowErr
+	}
+	return p.window, nil
+}
+
+func historicalWindow() (time.Time, time.Time) {
+	return time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC), time.Date(2026, 9, 8, 0, 0, 0, 0, time.UTC)
+}
+
+func TestRunClusterAllocation_HistoricalWindow(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+	const total = 18.5
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+		Mode:      pbc.StatsMode_STATS_MODE_HISTORICAL,
+		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+	}}
+	pricer := &recordingPricer{window: []CostResult{{
+		ResourceType: "aws:ec2/instance:Instance",
+		ResourceID:   "n1",
+		TotalCost:    total,
+		Monthly:      999,
+		Currency:     "USD",
+	}}}
+
+	res, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer, ClusterRequest{
+		Scope: "prod", From: from, To: to,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, usage.got.GetStart())
+	require.NotNil(t, usage.got.GetEnd())
+	assert.True(t, from.Equal(usage.got.GetStart().AsTime()))
+	assert.True(t, to.Equal(usage.got.GetEnd().AsTime()))
+	require.Len(t, pricer.windowCalls, 1)
+	assert.True(t, from.Equal(pricer.windowCalls[0].from))
+	assert.True(t, to.Equal(pricer.windowCalls[0].to))
+	assert.Zero(t, pricer.projectedCalls, "a window must not ask for a monthly price")
+	assert.Equal(t, ModeHistorical, res.Mode)
+	assert.Equal(t, FormatWindow(from, to), res.Period)
+	require.Len(t, res.Priced, 1)
+	assert.InDelta(t, total, res.Priced[0].Monthly, 1e-9)
+	assert.True(t, res.Priced[0].Priced)
+	assert.InDelta(t, total, res.Total, 1e-9)
+}
+
+func TestRunClusterAllocation_HistoricalNamespaceDropsSharedRows(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+	const total = 18.5
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+		Mode:      pbc.StatsMode_STATS_MODE_HISTORICAL,
+		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+	}}
+	pricer := &recordingPricer{window: []CostResult{{
+		ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", TotalCost: total, Currency: "USD",
+	}}}
+	alloc := &fakeAlloc{fn: func(r *pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
+		cost := r.GetPriced()[0].GetCost()
+		return &pbc.AllocateResponse{
+			PolicyDigest: "d", EffectivePolicyJson: []byte(`{"version":1}`),
+			Rows: []*pbc.AllocationRow{
+				{Subject: map[string]string{"kind": "workload", "namespace": "app", "pod": "p", "node": "n1"},
+					CpuCost: cost * 0.6, TotalCost: cost * 0.6, Currency: "USD"},
+				{Subject: map[string]string{"kind": "__idle__", "node": "n1"},
+					CpuCost: cost * 0.3, TotalCost: cost * 0.3, Currency: "USD"},
+				{Subject: map[string]string{"kind": "__cluster__"},
+					CpuCost: cost * 0.1, TotalCost: cost * 0.1, Currency: "USD"},
+			},
+		}, nil
+	}}
+
+	res, err := RunClusterAllocation(context.Background(), usage, alloc, pricer, ClusterRequest{
+		Namespace: "app", From: from, To: to,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "app", usage.got.GetSelector()["namespace"])
+	assert.True(t, res.NamespaceScoped)
+	require.Len(t, res.Rows, 1)
+	assert.Equal(t, "workload", res.Rows[0].Subject["kind"])
+	assert.InDelta(t, total*0.6, res.Total, 1e-9)
+	assert.Zero(t, res.Idle)
+}
+
+func TestRunClusterAllocation_IncompleteWarning(t *testing.T) {
+	t.Parallel()
+
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+		Mode:      pbc.StatsMode_STATS_MODE_RUN_RATE,
+		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+		Warnings:  []string{"incomplete: node n1: gap in cpu_usage"},
+	}}
+	pricer := fakePricer{results: []CostResult{
+		{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 70, Currency: "USD"},
+	}}
+	res, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer, ClusterRequest{})
+	require.NoError(t, err)
+	assert.True(t, res.Incomplete)
+	assert.Contains(t, res.Warnings, "incomplete: node n1: gap in cpu_usage")
+}
+
+func TestRunClusterAllocation_OtherWarningStaysComplete(t *testing.T) {
+	t.Parallel()
+
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+		Mode:      pbc.StatsMode_STATS_MODE_RUN_RATE,
+		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+		Warnings:  []string{"unknown metric ignored"},
+	}}
+	pricer := fakePricer{results: []CostResult{
+		{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 70, Currency: "USD"},
+	}}
+	res, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer, ClusterRequest{})
+	require.NoError(t, err)
+	assert.False(t, res.Incomplete)
+	assert.Contains(t, res.Warnings, "unknown metric ignored")
+}
+
+func TestRunClusterAllocation_NoWindowUsesProjectedMonthly(t *testing.T) {
+	t.Parallel()
+
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+		Mode:      pbc.StatsMode_STATS_MODE_RUN_RATE,
+		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+	}}
+	pricer := &recordingPricer{
+		projected: []CostResult{{
+			ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 70, Currency: "USD",
+		}},
+		window: []CostResult{{
+			ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", TotalCost: 1, Currency: "USD",
+		}},
+	}
+	res, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer, ClusterRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, 1, pricer.projectedCalls)
+	assert.Empty(t, pricer.windowCalls)
+	assert.Nil(t, usage.got.GetStart())
+	assert.Nil(t, usage.got.GetEnd())
+	assert.Equal(t, ModeRunRate, res.Mode)
+	assert.Equal(t, "monthly", res.Period)
+	require.Len(t, res.Priced, 1)
+	assert.InDelta(t, 70, res.Priced[0].Monthly, 1e-9)
+	assert.InDelta(t, 70, res.Total, 1e-9)
+}
+
+func TestRunClusterAllocation_WindowRequiresBothBounds(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+	tests := []struct {
+		name string
+		req  ClusterRequest
+	}{
+		{name: "from only", req: ClusterRequest{From: from}},
+		{name: "to only", req: ClusterRequest{To: to}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			usage := &fakeUsage{resp: &pbc.GetStatsResponse{Mode: pbc.StatsMode_STATS_MODE_HISTORICAL}}
+			_, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), fakePricer{}, tt.req)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), "both")
+			assert.Nil(t, usage.got, "GetStats runs only after both bounds are set")
+		})
+	}
+}
+
+func TestRunClusterAllocation_WindowRejectsRunRateStats(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+		Mode:      pbc.StatsMode_STATS_MODE_RUN_RATE,
+		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+	}}
+	pricer := &recordingPricer{
+		projected: []CostResult{{
+			ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", Monthly: 70, Currency: "USD",
+		}},
+		window: []CostResult{{
+			ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", TotalCost: 12, Currency: "USD",
+		}},
+	}
+	_, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer, ClusterRequest{
+		From: from, To: to,
+	})
+	require.ErrorIs(t, err, ErrStatsModeMismatch)
+	assert.Contains(t, err.Error(), ModeHistorical)
+	assert.Contains(t, err.Error(), ModeRunRate)
+	assert.Zero(t, pricer.projectedCalls)
+	assert.Empty(t, pricer.windowCalls)
+}
+
+func TestRunClusterAllocation_WindowEndMustBeAfterStart(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{Mode: pbc.StatsMode_STATS_MODE_HISTORICAL}}
+	_, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), fakePricer{}, ClusterRequest{
+		From: to, To: from,
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "end must be after start")
+	assert.Nil(t, usage.got)
+}
+
+func TestRunClusterAllocation_WindowPriceError(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+		Mode:      pbc.StatsMode_STATS_MODE_HISTORICAL,
+		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+	}}
+	pricer := &recordingPricer{windowErr: errors.New("billing down")}
+	_, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer, ClusterRequest{
+		From: from, To: to,
+	})
+	require.Error(t, err)
+	require.ErrorContains(t, err, "price cluster resources: billing down")
+	assert.Zero(t, pricer.projectedCalls)
+	require.Len(t, pricer.windowCalls, 1)
+}
+
+func TestRunClusterAllocation_WindowRejectsUnspecifiedMode(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+		Mode:      pbc.StatsMode_STATS_MODE_UNSPECIFIED,
+		Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+	}}
+	_, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), &recordingPricer{}, ClusterRequest{
+		From: from, To: to,
+	})
+	require.ErrorIs(t, err, ErrStatsModeMismatch)
+	assert.Contains(t, err.Error(), pbc.StatsMode_STATS_MODE_UNSPECIFIED.String())
+}
+
+func TestRunClusterAllocation_HistoricalUnpriced(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+	const okCost = 40.0
+	tests := []struct {
+		name     string
+		bad      CostResult
+		missing  bool
+		wantNote string
+	}{
+		{
+			name: "plugin error",
+			bad: CostResult{
+				ResourceType: "aws:ec2/instance:Instance", ResourceID: "bad",
+				TotalCost: 12, Monthly: 80, Currency: "USD",
+				Error: &StructuredError{Code: ErrCodeNoCostData, Message: "billing failed"},
+			},
+			wantNote: "billing failed",
+		},
+		{
+			name:    "missing result",
+			missing: true, wantNote: unpricedMissing,
+		},
+		{
+			name: "zero total ignores monthly",
+			bad: CostResult{
+				ResourceType: "aws:ec2/instance:Instance", ResourceID: "bad",
+				TotalCost: 0, Monthly: 80, Currency: "USD",
+			},
+			wantNote: unpricedZeroNote,
+		},
+		{
+			name: "negative total",
+			bad: CostResult{
+				ResourceType: "aws:ec2/instance:Instance", ResourceID: "bad",
+				TotalCost: -1, Monthly: 80, Currency: "USD",
+			},
+			wantNote: unpricedZeroNote,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+				Mode:      pbc.StatsMode_STATS_MODE_HISTORICAL,
+				Priceable: []*pbc.ResourceDescriptor{nodeDesc("ok"), nodeDesc("bad")},
+			}}
+			window := []CostResult{{
+				ResourceType: "aws:ec2/instance:Instance", ResourceID: "ok",
+				TotalCost: okCost, Monthly: 999, Currency: "USD",
+			}}
+			if !tt.missing {
+				window = append(window, tt.bad)
+			}
+			pricer := &recordingPricer{window: window, projected: []CostResult{{
+				ResourceType: "aws:ec2/instance:Instance", ResourceID: "bad", Monthly: 80, Currency: "USD",
+			}}}
+			res, err := RunClusterAllocation(context.Background(), usage, conservingAlloc(), pricer, ClusterRequest{
+				From: from, To: to,
+			})
+			require.NoError(t, err)
+			assert.Zero(t, pricer.projectedCalls, "a window must not call projected pricing")
+			require.Len(t, pricer.windowCalls, 1)
+
+			priced := map[string]PricedSummary{}
+			for _, s := range res.Priced {
+				priced[s.ID] = s
+			}
+			require.Contains(t, priced, "ok")
+			require.Contains(t, priced, "bad")
+			assert.True(t, priced["ok"].Priced)
+			assert.InDelta(t, okCost, priced["ok"].Monthly, 1e-9)
+			assert.False(t, priced["bad"].Priced)
+			assert.Zero(t, priced["bad"].Monthly)
+			assert.Contains(t, priced["bad"].Note, tt.wantNote)
+			assert.True(t, res.Incomplete)
+			assert.InDelta(t, okCost, res.Total, 1e-9)
+		})
+	}
+}
+
+func TestRunClusterAllocation_HistoricalAllUnpricedIsFatal(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+	usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+		Mode: pbc.StatsMode_STATS_MODE_HISTORICAL,
+		Priceable: []*pbc.ResourceDescriptor{
+			nodeDesc("missing"), nodeDesc("errored"), nodeDesc("zero"),
+		},
+	}}
+	pricer := &recordingPricer{window: []CostResult{
+		{ResourceType: "aws:ec2/instance:Instance", ResourceID: "errored", TotalCost: 5, Monthly: 9,
+			Error: &StructuredError{Message: "billing failed"}},
+		{ResourceType: "aws:ec2/instance:Instance", ResourceID: "zero", TotalCost: 0, Monthly: 9, Currency: "USD"},
+	}}
+	alloc := conservingAlloc()
+	_, err := RunClusterAllocation(context.Background(), usage, alloc, pricer, ClusterRequest{From: from, To: to})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no priceable resource could be priced")
+	assert.Zero(t, pricer.projectedCalls)
+	assert.Nil(t, alloc.got)
+}
+
+func TestRunClusterAllocation_HistoricalConservationAndCurrency(t *testing.T) {
+	t.Parallel()
+
+	from, to := historicalWindow()
+
+	t.Run("conservation", func(t *testing.T) {
+		t.Parallel()
+		usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+			Mode:      pbc.StatsMode_STATS_MODE_HISTORICAL,
+			Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1")},
+		}}
+		pricer := &recordingPricer{window: []CostResult{{
+			ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", TotalCost: 100, Currency: "USD",
+		}}}
+		broken := &fakeAlloc{fn: func(*pbc.AllocateRequest) (*pbc.AllocateResponse, error) {
+			return &pbc.AllocateResponse{
+				PolicyDigest: "d", EffectivePolicyJson: []byte(`{"version":1}`),
+				Rows: []*pbc.AllocationRow{
+					{Subject: map[string]string{"kind": "workload", "namespace": "app", "pod": "p"},
+						CpuCost: 88, TotalCost: 88, Currency: "USD"},
+					{Subject: map[string]string{"kind": "__idle__", "node": "n1"}, Currency: "USD"},
+				},
+			}, nil
+		}}
+		_, err := RunClusterAllocation(context.Background(), usage, broken, pricer, ClusterRequest{From: from, To: to})
+		require.ErrorIs(t, err, ErrConservation)
+		assert.Zero(t, pricer.projectedCalls)
+	})
+
+	t.Run("mixed currencies", func(t *testing.T) {
+		t.Parallel()
+		usage := &fakeUsage{resp: &pbc.GetStatsResponse{
+			Mode:      pbc.StatsMode_STATS_MODE_HISTORICAL,
+			Priceable: []*pbc.ResourceDescriptor{nodeDesc("n1"), nodeDesc("n2")},
+		}}
+		pricer := &recordingPricer{window: []CostResult{
+			{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n1", TotalCost: 5, Currency: "USD"},
+			{ResourceType: "aws:ec2/instance:Instance", ResourceID: "n2", TotalCost: 5, Currency: "EUR"},
+		}}
+		alloc := conservingAlloc()
+		_, err := RunClusterAllocation(context.Background(), usage, alloc, pricer, ClusterRequest{From: from, To: to})
+		require.ErrorIs(t, err, ErrMixedCurrencies)
+		assert.Zero(t, pricer.projectedCalls)
+		assert.Nil(t, alloc.got)
+	})
+}
+
+func TestFormatWindow(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name     string
+		from, to time.Time
+		want     string
+	}{
+		{name: "one day", from: day, to: day.AddDate(0, 0, 1), want: "2026-09-28 to 2026-09-29, 1 day"},
+		{name: "one week", from: day, to: day.AddDate(0, 0, 7), want: "2026-09-28 to 2026-10-05, 7 days"},
+		{
+			name: "same-day RFC3339",
+			from: day.Add(8 * time.Hour), to: day.Add(14*time.Hour + 30*time.Minute),
+			want: "2026-09-28T08:00:00Z to 2026-09-28T14:30:00Z, 6.5 h",
+		},
+		{
+			name: "whole days not at midnight",
+			from: day.Add(6 * time.Hour), to: day.Add(54 * time.Hour),
+			want: "2026-09-28T06:00:00Z to 2026-09-30T06:00:00Z, 2 days",
+		},
+		{
+			name: "offset bounds print in UTC",
+			from: time.Date(2026, 9, 28, 0, 0, 0, 0, time.FixedZone("CDT", -5*3600)),
+			to:   time.Date(2026, 9, 29, 0, 0, 0, 0, time.FixedZone("CDT", -5*3600)),
+			want: "2026-09-28T05:00:00Z to 2026-09-29T05:00:00Z, 1 day",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, FormatWindow(tt.from, tt.to))
+		})
+	}
 }

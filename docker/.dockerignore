@@ -31,6 +31,13 @@ Thumbs.db
 
 # Logs
 *.log
+*.log*
+
+# Container build files are not part of the context
+Dockerfile*
+
+# Coverage
+coverage/
 
 # Environment files
 .env
