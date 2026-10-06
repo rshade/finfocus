@@ -1826,37 +1826,7 @@ func (e *Engine) getProjectedCostFromPlugin(
 		return nil, ErrNoCostData
 	}
 
-	result := resp.Results[0]
-	engineResult := &CostResult{
-		ResourceType:   resource.Type,
-		ResourceID:     resource.ID,
-		Adapter:        client.Name,
-		Currency:       result.Currency,
-		Monthly:        result.MonthlyCost,
-		Hourly:         result.HourlyCost,
-		Notes:          result.Notes,
-		Breakdown:      result.CostBreakdown,
-		Sustainability: make(map[string]SustainabilityMetric),
-	}
-
-	engineResult.ExpiresAt = result.ExpiresAt
-
-	// Map proto StructuredError to engine StructuredError
-	if result.StructuredError != nil {
-		engineResult.Error = &StructuredError{
-			Code:         result.StructuredError.Code,
-			Message:      result.StructuredError.Message,
-			ResourceType: result.StructuredError.ResourceType,
-		}
-	}
-
-	for k, v := range result.Sustainability {
-		engineResult.Sustainability[k] = SustainabilityMetric{
-			Value: v.Value,
-			Unit:  v.Unit,
-		}
-	}
-	return engineResult, nil
+	return mapProtoCostResultToEngine(resource, client.Name, resp.Results[0]), nil
 }
 
 // pluginRPCError renders a plugin's gRPC status as "<Code>: <message>"
@@ -4164,6 +4134,9 @@ func (e *Engine) projectedCostCacheKey(resource ResourceDescriptor) (string, err
 	return key, nil
 }
 
+// projectedGrowthCacheSuffix versions cached projected results for GrowthType.
+const projectedGrowthCacheSuffix = "/growth-v1"
+
 // ProjectedResourceCacheKey returns the projected-cost cache key for one resource.
 // Callers that seed the cache, including overview, must use this key. It includes
 // a digest of the flattened tag map.
@@ -4195,6 +4168,10 @@ func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, erro
 	if suffix := attributesCacheSuffix(resource.Properties); suffix != "" {
 		key += "/attrs-" + suffix
 	}
+	// Entries written before CostResult.GrowthType existed omit the field, and
+	// an empty type is also a valid "no growth" answer. A new suffix misses
+	// those entries so the next lookup stores the plugin's model.
+	key += projectedGrowthCacheSuffix
 	return key, nil
 }
 

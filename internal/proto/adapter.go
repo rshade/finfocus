@@ -505,6 +505,10 @@ type CostResult struct {
 	Sustainability  map[string]SustainabilityMetric
 	StructuredError *StructuredError `json:"structuredError,omitempty"`
 	ExpiresAt       *time.Time
+	// GrowthType is the plugin-reported model: "none", "linear", "exponential",
+	// or empty when the plugin left it unset. Empty matches none. The monthly
+	// cost is the current price; cost forecast applies the model.
+	GrowthType string
 }
 
 // SustainabilityMetric represents a single sustainability impact measurement.
@@ -1052,45 +1056,64 @@ func MapBatchProjectedResults(resp *pbc.BatchCostResponse) []BatchMappedResult {
 			continue
 		}
 
-		result := &CostResult{
-			Currency:    projResp.GetCurrency(),
-			MonthlyCost: projResp.GetCostPerMonth(),
-			HourlyCost:  projResp.GetUnitPrice(),
-			Notes:       projResp.GetBillingDetail(),
-			CostBreakdown: map[string]float64{
-				"unit_price": projResp.GetUnitPrice(),
-			},
-			Sustainability: make(map[string]SustainabilityMetric),
-		}
-
-		if ts := projResp.GetExpiresAt(); ts != nil {
-			t := ts.AsTime()
-			result.ExpiresAt = &t
-		}
-
-		for _, metric := range projResp.GetImpactMetrics() {
-			var key string
-			switch metric.GetKind() {
-			case pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT:
-				key = metricKeyCarbonFootprint
-			case pbc.MetricKind_METRIC_KIND_ENERGY_CONSUMPTION:
-				key = metricKeyEnergyConsumption
-			case pbc.MetricKind_METRIC_KIND_WATER_USAGE:
-				key = metricKeyWaterUsage
-			case pbc.MetricKind_METRIC_KIND_UNSPECIFIED:
-				key = metricKeyUnspecified
-			default:
-				key = strings.ToLower(metric.GetKind().String())
-			}
-			result.Sustainability[key] = SustainabilityMetric{
-				Value: metric.GetValue(),
-				Unit:  metric.GetUnit(),
-			}
-		}
-
-		results[i] = BatchMappedResult{Result: result}
+		results[i] = BatchMappedResult{Result: mapProjectedProto(projResp)}
 	}
 	return results
+}
+
+// mapProjectedProto copies one plugin projected-cost response into the internal
+// result. GrowthType is the plugin hint. The monthly cost stays the current price.
+func mapProjectedProto(resp *pbc.GetProjectedCostResponse) *CostResult {
+	result := &CostResult{
+		Currency:    resp.GetCurrency(),
+		MonthlyCost: resp.GetCostPerMonth(),
+		HourlyCost:  resp.GetUnitPrice(),
+		Notes:       resp.GetBillingDetail(),
+		CostBreakdown: map[string]float64{
+			"unit_price": resp.GetUnitPrice(),
+		},
+		Sustainability: make(map[string]SustainabilityMetric),
+		GrowthType:     growthTypeLabel(resp.GetGrowthType()),
+	}
+	if ts := resp.GetExpiresAt(); ts != nil {
+		t := ts.AsTime()
+		result.ExpiresAt = &t
+	}
+	for _, metric := range resp.GetImpactMetrics() {
+		var key string
+		switch metric.GetKind() {
+		case pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT:
+			key = metricKeyCarbonFootprint
+		case pbc.MetricKind_METRIC_KIND_ENERGY_CONSUMPTION:
+			key = metricKeyEnergyConsumption
+		case pbc.MetricKind_METRIC_KIND_WATER_USAGE:
+			key = metricKeyWaterUsage
+		case pbc.MetricKind_METRIC_KIND_UNSPECIFIED:
+			key = metricKeyUnspecified
+		default:
+			key = strings.ToLower(metric.GetKind().String())
+		}
+		result.Sustainability[key] = SustainabilityMetric{
+			Value: metric.GetValue(),
+			Unit:  metric.GetUnit(),
+		}
+	}
+	return result
+}
+
+func growthTypeLabel(growth pbc.GrowthType) string {
+	switch growth {
+	case pbc.GrowthType_GROWTH_TYPE_NONE:
+		return "none"
+	case pbc.GrowthType_GROWTH_TYPE_LINEAR:
+		return "linear"
+	case pbc.GrowthType_GROWTH_TYPE_EXPONENTIAL:
+		return "exponential"
+	case pbc.GrowthType_GROWTH_TYPE_UNSPECIFIED:
+		return ""
+	default:
+		return ""
+	}
 }
 
 // MapBatchActualResults maps a BatchCostResponse to a slice of BatchMappedResult for
@@ -1495,44 +1518,7 @@ func (c *clientAdapter) GetProjectedCost(
 			continue
 		}
 
-		result := &CostResult{
-			Currency:    resp.GetCurrency(),
-			MonthlyCost: resp.GetCostPerMonth(),
-			HourlyCost:  resp.GetUnitPrice(), // Assuming hourly for now
-			Notes:       resp.GetBillingDetail(),
-			CostBreakdown: map[string]float64{
-				"unit_price": resp.GetUnitPrice(),
-			},
-			Sustainability: make(map[string]SustainabilityMetric),
-		}
-
-		// Extract plugin caching hint
-		if ts := resp.GetExpiresAt(); ts != nil {
-			t := ts.AsTime()
-			result.ExpiresAt = &t
-		}
-
-		// Map impact metrics
-		for _, metric := range resp.GetImpactMetrics() {
-			var key string
-			switch metric.GetKind() {
-			case pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT:
-				key = metricKeyCarbonFootprint
-			case pbc.MetricKind_METRIC_KIND_ENERGY_CONSUMPTION:
-				key = metricKeyEnergyConsumption
-			case pbc.MetricKind_METRIC_KIND_WATER_USAGE:
-				key = metricKeyWaterUsage
-			case pbc.MetricKind_METRIC_KIND_UNSPECIFIED:
-				key = metricKeyUnspecified
-			default:
-				key = strings.ToLower(metric.GetKind().String())
-			}
-			result.Sustainability[key] = SustainabilityMetric{
-				Value: metric.GetValue(),
-				Unit:  metric.GetUnit(),
-			}
-		}
-		results = append(results, result)
+		results = append(results, mapProjectedProto(resp))
 	}
 
 	if len(results) == 0 && firstErr != nil {

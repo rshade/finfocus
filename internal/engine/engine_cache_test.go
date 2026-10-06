@@ -16,6 +16,45 @@ import (
 	"github.com/rshade/finfocus/internal/engine/cache"
 )
 
+func TestProjectedCacheMissesPreGrowthEntries(t *testing.T) {
+	t.Parallel()
+	resource := ResourceDescriptor{
+		ID:         "i-old",
+		Type:       "aws:ec2:Instance",
+		Provider:   "aws",
+		Properties: map[string]any{"instanceType": "t3.micro"},
+	}
+	key, err := ProjectedResourceCacheKey(resource)
+	require.NoError(t, err)
+	assert.True(t, strings.HasSuffix(key, projectedGrowthCacheSuffix), key)
+
+	store := newMockCache(true)
+	oldKey := strings.TrimSuffix(key, projectedGrowthCacheSuffix)
+	require.NotEqual(t, oldKey, key)
+	// A result stored before GrowthType existed. Unmarshal would treat the
+	// missing field as no growth and forecast a linear resource as flat.
+	require.NoError(t, store.Set(oldKey, json.RawMessage(
+		`[{"resourceType":"aws:ec2:Instance","monthly":10,"currency":"USD"}]`,
+	)))
+
+	eng := &Engine{cache: store}
+	assert.Nil(t, eng.tryProjectedCostCache(context.Background(), resource))
+
+	fresh := []CostResult{{
+		ResourceType: "aws:ec2:Instance",
+		Monthly:      10,
+		Currency:     "USD",
+		GrowthType:   "linear",
+	}}
+	encoded, err := json.Marshal(fresh)
+	require.NoError(t, err)
+	require.NoError(t, store.Set(key, encoded))
+	got := eng.tryProjectedCostCache(context.Background(), resource)
+	require.Len(t, got, 1)
+	assert.Equal(t, "linear", got[0].GrowthType)
+	assert.Equal(t, "i-old", got[0].ResourceID)
+}
+
 // mockCache implements cache.Cache for testing.
 type mockCache struct {
 	mu         sync.RWMutex

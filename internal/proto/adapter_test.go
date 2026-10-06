@@ -4080,6 +4080,23 @@ func TestClientAdapterBatchCost(t *testing.T) {
 }
 
 // T002: Unit tests for MapBatchProjectedResults.
+func TestMapProjectedProto_GrowthType(t *testing.T) {
+	t.Parallel()
+	mapped := mapProjectedProto(&pbc.GetProjectedCostResponse{
+		Currency:     "USD",
+		CostPerMonth: 12,
+		GrowthType:   pbc.GrowthType_GROWTH_TYPE_EXPONENTIAL,
+	})
+	require.NotNil(t, mapped)
+	assert.Equal(t, "exponential", mapped.GrowthType)
+	assert.InDelta(t, 12.0, mapped.MonthlyCost, 0.001)
+
+	unset := mapProjectedProto(&pbc.GetProjectedCostResponse{CostPerMonth: 1})
+	assert.Empty(t, unset.GrowthType)
+	assert.Equal(t, "none", growthTypeLabel(pbc.GrowthType_GROWTH_TYPE_NONE))
+	assert.Empty(t, growthTypeLabel(pbc.GrowthType_GROWTH_TYPE_UNSPECIFIED))
+}
+
 func TestMapBatchProjectedResults(t *testing.T) {
 	t.Parallel()
 

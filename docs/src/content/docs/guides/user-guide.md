@@ -143,6 +143,26 @@ finfocus cost actual --pulumi-json plan.json --from 2024-01-01 --to 2024-01-31
 
 ---
 
+## Cost Forecast
+
+`cost forecast` prices the current plan, then projects that monthly cost
+forward. A plugin can mark a resource `none`, `linear`, or `exponential`.
+`--growth-rate 0.10` is 10% per month. Linear growth is
+`base * (1 + rate * month)`. Exponential growth compounds. The current
+monthly price does not change.
+
+The default view is an ASCII chart for 12 months ahead. `--output json`
+returns the points with timestamps. When `--stack` has cost history in the
+same currency, that series is included. A missing history file does not fail
+the command. The interactive history chart is a separate view.
+
+```bash
+finfocus cost forecast --pulumi-json plan.json --growth-type linear --growth-rate 0.10
+finfocus cost forecast --stack prod --months 6 --growth-rate 0.05 --output json
+```
+
+Full page: [cost forecast](../commands/forecast.md)
+
 ## Cost History
 
 `cost history` stores a projected-cost snapshot for each successful Pulumi
