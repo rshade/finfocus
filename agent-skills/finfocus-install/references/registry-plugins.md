@@ -33,15 +33,20 @@ Queries the public Azure Retail Prices API, so it needs no Azure credentials.
 Actual cost is a list-price projection scaled by hours, not billed spend.
 `finfocus setup` does not install it; run `finfocus plugin install azure-public`.
 
-### kubecost
+### opencost
 
 | Field | Value |
 |-------|-------|
-| Repository | `rshade/finfocus-plugin-kubecost` |
+| Repository | `rshade/finfocus-plugin-opencost` |
 | Providers | `kubernetes` |
-| Capabilities | `cost_retrieval`, `cost_projection` |
+| Capabilities | `cost_projection`, `cost_retrieval`, `pricing_specs` |
 | Security | official |
-| Asset prefix | `finfocus-plugin-kubecost` |
+| Asset prefix | `finfocus-plugin-opencost` |
+
+Reads Kubernetes allocation cost over HTTP from an OpenCost (or, experimentally,
+a Kubecost) endpoint, so it needs `KUBECOST_BASE_URL` pointing at a reachable
+allocation API. `finfocus setup` does not install it; run
+`finfocus plugin install opencost`.
 
 ### jev
 
@@ -75,7 +80,7 @@ not part of provider detection and `finfocus setup` does not install it.
 |-------------------|-------------------|------------------|
 | AWS | `aws-public` | `aws:` resource prefix, `~/.aws/` directory |
 | Azure | `azure-public` | `azure:` or `azure-native:` resource prefix, `~/.azure/` directory |
-| Kubernetes | `kubecost` | `kubernetes:` resource prefix, kubeconfig |
+| Kubernetes | `opencost` | `kubernetes:` resource prefix, kubeconfig |
 | None detected | `aws-public` | Default fallback |
 
 ## Registry Capabilities

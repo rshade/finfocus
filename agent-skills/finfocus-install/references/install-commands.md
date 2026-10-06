@@ -21,8 +21,8 @@ finfocus plugin install <specifier> [flags]
 
 **Specifier formats:**
 
-- `kubecost` — registry name (latest)
-- `kubecost@v1.0.0` — registry with version
+- `opencost` — registry name (latest)
+- `opencost@v1.0.0` — registry with version
 - `github.com/owner/repo` — GitHub URL
 - `github.com/owner/repo@v1.0.0` — GitHub URL with version
 

@@ -81,7 +81,7 @@ Provider-to-plugin mapping — see
 
 ```bash
 finfocus plugin install aws-public
-finfocus plugin install kubecost
+finfocus plugin install opencost
 ```
 
 Key flags — see [references/install-commands.md](references/install-commands.md)
@@ -140,7 +140,7 @@ finfocus plugin list --available  # Show registry plugins
 ├── config.yaml          # Global configuration
 ├── plugins/             # Plugin binaries
 │   ├── aws-public/<version>/finfocus-plugin-aws-public
-│   └── kubecost/<version>/finfocus-plugin-kubecost
+│   └── opencost/<version>/finfocus-plugin-opencost
 ├── cache/               # BoltDB cache (cache.db)
 ├── logs/                # Log files
 └── analyzer/            # Pulumi policy pack

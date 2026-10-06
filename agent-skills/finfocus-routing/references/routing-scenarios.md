@@ -65,7 +65,7 @@ routing:
       priority: 10
     - name: gcp-public
       priority: 10
-    - name: kubecost
+    - name: opencost
       priority: 10
     - name: recorder
       priority: 1
@@ -73,7 +73,7 @@ routing:
 ```
 
 Automatic provider matching routes `aws:*` to aws-public, `gcp:*` to
-gcp-public, `kubernetes:*` to kubecost. The recorder (priority 1) only
+gcp-public, `kubernetes:*` to opencost. The recorder (priority 1) only
 receives resources that fall through.
 
 ## Regex Patterns
