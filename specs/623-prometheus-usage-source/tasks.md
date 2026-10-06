@@ -121,7 +121,7 @@ prints mode `historical` and the window period. No window stays run-rate.
 **Independent Test**: A fake usage source returns historical rows for a
 fixed window and a fake pricer returns a known `TotalCost`. Group totals
 match that total within 1e-6. Mode is `historical`. Period is
-`FormatPeriod`, not `monthly`. The table footer does not cite 730 hours.
+`FormatWindow`, not `monthly`. The table footer does not cite 730 hours.
 A bad window exits 1 before any plugin call. A no-window run still expects
 `ErrHistoricalUnsupported` when the fake returns historical mode.
 
@@ -131,7 +131,7 @@ A bad window exits 1 before any plugin call. A no-window run still expects
   Both `ClusterRequest.From` and `To` set: `GetStats` receives those
   `timestamppb` bounds, `GetWindowCost` is called with the same bounds,
   `PricedSummary.Monthly` equals `TotalCost`, `ClusterResult.Mode` is
-  `historical`, and `Period` is `FormatPeriod(From, To)`. A stats warning
+  `historical`, and `Period` is `FormatWindow(From, To)`. A stats warning
   prefixed `incomplete:` sets `Incomplete`. A warning without that prefix
   does not. No window still prices with `GetProjectedCostWithErrors` and
   `Monthly`, and `historical_mode_rejected` still expects
@@ -159,7 +159,7 @@ A bad window exits 1 before any plugin call. A no-window run still expects
   `GetStats`. Both set and `To.After(From)`: set `GetStatsRequest` start
   and end, require `STATS_MODE_HISTORICAL`, price with `GetWindowCost`,
   and copy `TotalCost` onto the priced summary (JSON `monthly`). Set
-  `Period` with `FormatPeriod`. Treat `TotalCost <= 0`, a missing result,
+  `Period` with `FormatWindow`. Treat `TotalCost <= 0`, a missing result,
   or `Error != nil` as unpriced. A warning prefixed `incomplete:` or any
   unpriced priceable sets `Incomplete`. Both zero: keep today's run-rate
   path, including `ErrHistoricalUnsupported`
@@ -468,6 +468,10 @@ the kubernetes window rejection still fail closed.
   earliest node allocatable sample, and `collect.addRetentionGap` adds an
   `incomplete:` warning when it is more than one step after `start`. Tests
   in `plugins/prometheus/collect/hours_test.go` and the promql golden
+- [X] T046 Label the historical period as the requested window (FR-014):
+  `engine.FormatWindow` prints the bounds and the length. The shared
+  `FormatPeriod` stays for actual cost. Tests in
+  `internal/engine/cluster_test.go` and `cost_cluster_render_test.go`
 
 **Checkpoint**: `make test` and `make lint` pass. Docs match the command.
 

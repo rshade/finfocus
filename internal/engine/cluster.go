@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"strconv"
 	"strings"
 	"time"
 
@@ -192,7 +193,7 @@ func newClusterResult(
 ) *ClusterResult {
 	mode, period := ModeRunRate, periodMonthly
 	if window {
-		mode, period = ModeHistorical, FormatPeriod(req.From, req.To)
+		mode, period = ModeHistorical, FormatWindow(req.From, req.To)
 	}
 	res := &ClusterResult{
 		Mode:            mode,
@@ -428,4 +429,33 @@ func (e *Engine) GetWindowCost(
 		To:                to,
 		SkipStateEstimate: true,
 	})
+}
+
+// FormatWindow labels a historical window with its bounds and length, for
+// example "2026-09-28 to 2026-10-05, 7 days". Bounds print as UTC dates when
+// both fall on UTC midnight, otherwise as RFC3339. A length of whole days
+// prints in days, any other length in hours.
+func FormatWindow(from, to time.Time) string {
+	from, to = from.UTC(), to.UTC()
+	layout := time.RFC3339
+	if isUTCMidnight(from) && isUTCMidnight(to) {
+		layout = time.DateOnly
+	}
+	return fmt.Sprintf("%s to %s, %s", from.Format(layout), to.Format(layout), windowLength(to.Sub(from)))
+}
+
+func isUTCMidnight(t time.Time) bool {
+	return t.Equal(t.Truncate(hoursPerDay * time.Hour))
+}
+
+func windowLength(d time.Duration) string {
+	const day = hoursPerDay * time.Hour
+	if d%day == 0 {
+		days := int(d / day)
+		if days == 1 {
+			return "1 day"
+		}
+		return strconv.Itoa(days) + " days"
+	}
+	return strconv.FormatFloat(d.Hours(), 'f', -1, 64) + " h"
 }

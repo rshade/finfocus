@@ -181,8 +181,9 @@ finfocus cost cluster \
   --to 2026-10-05
 ```
 
-The footer mode is `historical` and the period is the window length, for
-example `7 days`. A run with no window stays `run-rate (monthly, 730 h)`.
+The footer mode is `historical` and the period is the window and its
+length, for example `historical (2026-09-28 to 2026-10-05, 7 days)`. A
+window that is not whole UTC days prints RFC3339 bounds and hours. A run with no window stays `run-rate (monthly, 730 h)`.
 When Prometheus holds no data for the start of the window, for example
 because its retention is shorter than the window, the report is marked
 incomplete with a warning naming the time stored data starts. The missing

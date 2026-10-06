@@ -81,14 +81,14 @@ func TestRenderCluster_HistoricalPeriod(t *testing.T) {
 	const windowTotal = 18.5
 	out := sampleClusterOutput(false)
 	out.Mode = engine.ModeHistorical
-	out.Period = "7 days"
+	out.Period = "2026-09-28 to 2026-10-05, 7 days"
 	out.Priced = []engine.PricedSummary{{
 		Kind: "node", ID: "n1", ResourceType: "aws:ec2/instance:Instance",
 		Monthly: windowTotal, Priced: true,
 	}}
 
 	table := renderTo(t, outputFormatTable, out)
-	assert.Contains(t, table, "Mode:    historical (7 days)")
+	assert.Contains(t, table, "Mode:    historical (2026-09-28 to 2026-10-05, 7 days)")
 	assert.NotContains(t, table, "monthly")
 	assert.NotContains(t, table, "730")
 
@@ -99,7 +99,7 @@ func TestRenderCluster_HistoricalPeriod(t *testing.T) {
 	var got map[string]any
 	require.NoError(t, json.Unmarshal([]byte(renderTo(t, outputFormatJSON, out)), &got))
 	assert.Equal(t, "historical", got["mode"])
-	assert.Equal(t, "7 days", got["period"])
+	assert.Equal(t, "2026-09-28 to 2026-10-05, 7 days", got["period"])
 	priced, ok := got["priced"].([]any)
 	require.True(t, ok)
 	require.Len(t, priced, 1)
@@ -110,12 +110,12 @@ func TestRenderCluster_HistoricalPeriod(t *testing.T) {
 	assert.InDelta(t, windowTotal, row["monthly"], 1e-9)
 
 	res := &engine.ClusterResult{
-		Mode: engine.ModeHistorical, Period: "7 days",
+		Mode: engine.ModeHistorical, Period: "2026-09-28 to 2026-10-05, 7 days",
 		Priced: []engine.PricedSummary{{ID: "n1", Monthly: windowTotal, Priced: true}},
 	}
 	copied := newClusterOutput(res, nil, "namespace", clusterPolicyOutput{})
 	assert.Equal(t, engine.ModeHistorical, copied.Mode)
-	assert.Equal(t, "7 days", copied.Period)
+	assert.Equal(t, "2026-09-28 to 2026-10-05, 7 days", copied.Period)
 	require.Len(t, copied.Priced, 1)
 	assert.InDelta(t, windowTotal, copied.Priced[0].Monthly, 1e-9)
 }

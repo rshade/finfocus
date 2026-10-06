@@ -39,8 +39,10 @@ projected monthly price is not requested on this path.
 
 ## JSON
 
-`mode` is `historical`. `period` is the formatted window (the same string
-`engine.FormatPeriod` uses for actual cost), not `monthly`.
+`mode` is `historical`. `period` is `engine.FormatWindow`: the bounds and
+the length, for example `2026-09-28 to 2026-10-05, 7 days`, not `monthly`.
+Bounds are UTC dates when both fall on UTC midnight, otherwise RFC3339. A
+whole number of days prints in days, any other length in hours.
 
 `priced[].monthly` keeps its name. For `mode=historical` the number is the
 window `TotalCost`, not a monthly rate. `priced=false` and a note still mean

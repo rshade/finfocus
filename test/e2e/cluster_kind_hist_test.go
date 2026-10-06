@@ -116,7 +116,8 @@ func assertHistoricalCost(t *testing.T, home, base, node string) {
 	var res histClusterJSON
 	require.NoError(t, json.Unmarshal(stdout, &res), string(stdout))
 	assert.Equal(t, "historical", res.Mode)
-	assert.Equal(t, "1 day", res.Period)
+	from, to := histBounds()
+	assert.Equal(t, from.Format(time.DateOnly)+" to "+to.Format(time.DateOnly)+", 1 day", res.Period)
 	assert.Equal(t, "USD", res.Currency)
 	assert.False(t, res.Incomplete, "warnings: %v\nstderr: %s", res.Warnings, stderr)
 	assert.InDelta(t, fixedAmount, res.Total, 1e-6)

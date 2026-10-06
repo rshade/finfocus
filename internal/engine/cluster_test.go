@@ -386,7 +386,7 @@ func TestRunClusterAllocation_HistoricalWindow(t *testing.T) {
 	assert.True(t, to.Equal(pricer.windowCalls[0].to))
 	assert.Zero(t, pricer.projectedCalls, "a window must not ask for a monthly price")
 	assert.Equal(t, ModeHistorical, res.Mode)
-	assert.Equal(t, FormatPeriod(from, to), res.Period)
+	assert.Equal(t, FormatWindow(from, to), res.Period)
 	require.Len(t, res.Priced, 1)
 	assert.InDelta(t, total, res.Priced[0].Monthly, 1e-9)
 	assert.True(t, res.Priced[0].Priced)
@@ -739,4 +739,40 @@ func TestRunClusterAllocation_HistoricalConservationAndCurrency(t *testing.T) {
 		assert.Zero(t, pricer.projectedCalls)
 		assert.Nil(t, alloc.got)
 	})
+}
+
+func TestFormatWindow(t *testing.T) {
+	t.Parallel()
+
+	day := time.Date(2026, 9, 28, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name     string
+		from, to time.Time
+		want     string
+	}{
+		{name: "one day", from: day, to: day.AddDate(0, 0, 1), want: "2026-09-28 to 2026-09-29, 1 day"},
+		{name: "one week", from: day, to: day.AddDate(0, 0, 7), want: "2026-09-28 to 2026-10-05, 7 days"},
+		{
+			name: "same-day RFC3339",
+			from: day.Add(8 * time.Hour), to: day.Add(14*time.Hour + 30*time.Minute),
+			want: "2026-09-28T08:00:00Z to 2026-09-28T14:30:00Z, 6.5 h",
+		},
+		{
+			name: "whole days not at midnight",
+			from: day.Add(6 * time.Hour), to: day.Add(54 * time.Hour),
+			want: "2026-09-28T06:00:00Z to 2026-09-30T06:00:00Z, 2 days",
+		},
+		{
+			name: "offset bounds print in UTC",
+			from: time.Date(2026, 9, 28, 0, 0, 0, 0, time.FixedZone("CDT", -5*3600)),
+			to:   time.Date(2026, 9, 29, 0, 0, 0, 0, time.FixedZone("CDT", -5*3600)),
+			want: "2026-09-28T05:00:00Z to 2026-09-29T05:00:00Z, 1 day",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, FormatWindow(tt.from, tt.to))
+		})
+	}
 }

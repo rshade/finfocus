@@ -13,7 +13,7 @@ reads and writes.
 | `From`, `To` | `engine.ClusterRequest` | Both zero: run-rate. Both set, `To` after `From`: historical. One set: error before `GetStats` |
 | `start`, `end` | `GetStatsRequest` | Set only for a historical request, as `timestamppb` of `From` and `To` |
 | `mode` | `GetStatsResponse` | `STATS_MODE_HISTORICAL` when the window was set. Anything else with a window is an error |
-| `Period` | `engine.ClusterResult` | `monthly` for run-rate. `FormatPeriod(From, To)` for historical |
+| `Period` | `engine.ClusterResult` | `monthly` for run-rate. `FormatWindow(From, To)` for historical (bounds and length) |
 
 CLI parsing is `ParseTimeRange`: date-only is midnight UTC, `--to` defaults
 to now, future and older-than-max-past are rejected, and the span must pass

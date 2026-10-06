@@ -139,7 +139,7 @@ Mode check after `GetStats`:
 field for this; the prefix is the signal.
 
 `ClusterResult` gains `Period`. Run-rate sets `monthly`. Historical sets
-`engine.FormatPeriod(from, to)`. The CLI stops hardcoding `"monthly"` and
+`engine.FormatWindow(from, to)` (bounds and length, FR-014). The CLI stops hardcoding `"monthly"` and
 stops printing `730 h` on a historical table. JSON key `priced[].monthly`
 stays, and in historical mode its value is the window `TotalCost`. See
 [contracts/cost-cluster-window.md](contracts/cost-cluster-window.md).
