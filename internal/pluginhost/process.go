@@ -288,6 +288,10 @@ func (p *ProcessLauncher) allocatePort(ctx context.Context) (int, error) {
 	return port, nil
 }
 
+// maxPortAllocationAttempts bounds how many pending ports allocatePortWithListener
+// skips before giving up.
+const maxPortAllocationAttempts = 32
+
 // allocatePortWithListener allocates a port and keeps the listener open to prevent race conditions.
 // The port is also marked pending until releasePendingPort, and ports that are
 // already pending are skipped. The caller must call releasePortListener when
@@ -295,14 +299,7 @@ func (p *ProcessLauncher) allocatePort(ctx context.Context) (int, error) {
 func (p *ProcessLauncher) allocatePortWithListener(
 	ctx context.Context,
 ) (int, *portListener, error) {
-	var skipped []net.Listener
-	defer func() {
-		for _, l := range skipped {
-			_ = l.Close()
-		}
-	}()
-
-	for {
+	for range maxPortAllocationAttempts {
 		listener, err := p.listenLocal(ctx)
 		if err != nil {
 			return 0, nil, fmt.Errorf("creating listener: %w", err)
@@ -318,8 +315,9 @@ func (p *ProcessLauncher) allocatePortWithListener(
 		p.mu.Lock()
 		if _, pending := p.pendingPorts[port]; pending {
 			p.mu.Unlock()
-			// Keep it open so the OS cannot offer this port again on the next try.
-			skipped = append(skipped, listener)
+			// Close at once: a listener held on another launch's port would let
+			// that launch's TCP readiness probe connect to it instead of the plugin.
+			_ = listener.Close()
 			continue
 		}
 		if p.pendingPorts == nil {
@@ -335,6 +333,10 @@ func (p *ProcessLauncher) allocatePortWithListener(
 
 		return port, pl, nil
 	}
+	return 0, nil, fmt.Errorf(
+		"no free port after %d attempts: every port offered was pending",
+		maxPortAllocationAttempts,
+	)
 }
 
 func (p *ProcessLauncher) listenLocal(ctx context.Context) (net.Listener, error) {

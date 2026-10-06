@@ -1280,6 +1280,7 @@ func TestProcessLauncher_SkipsPendingPort(t *testing.T) {
 	// plugin that was given it has bound.
 	calls := 0
 	var reissued net.Listener
+	var reissuedClosedBeforeRetry bool
 	launcher.listen = func(ctx context.Context) (net.Listener, error) {
 		calls++
 		lc := &net.ListenConfig{}
@@ -1288,6 +1289,11 @@ func TestProcessLauncher_SkipsPendingPort(t *testing.T) {
 			reissued = l
 			return l, listenErr
 		}
+		if tl, ok := reissued.(*net.TCPListener); ok {
+			_ = tl.SetDeadline(time.Now())
+		}
+		_, acceptErr := reissued.Accept()
+		reissuedClosedBeforeRetry = errors.Is(acceptErr, net.ErrClosed)
 		return lc.Listen(ctx, "tcp", "127.0.0.1:0")
 	}
 
@@ -1301,10 +1307,32 @@ func TestProcessLauncher_SkipsPendingPort(t *testing.T) {
 	assert.NotEqual(t, pendingPort, port)
 	assert.Equal(t, 2, calls)
 
-	// The skipped listener must be closed once a free port is found.
-	require.NotNil(t, reissued)
-	_, acceptErr := reissued.Accept()
-	require.ErrorIs(t, acceptErr, net.ErrClosed)
+	// A held listener on another launch's port would satisfy that launch's
+	// TCP readiness probe, so it is closed before the next attempt.
+	assert.True(t, reissuedClosedBeforeRetry, "skipped listener must be closed before retrying")
+}
+
+//nolint:paralleltest // re-binds a just-released ephemeral port that another parallel test could take
+func TestProcessLauncher_PendingPortAttemptsAreBounded(t *testing.T) {
+	launcher := NewProcessLauncher()
+	ctx := context.Background()
+
+	pendingPort, _, err := launcher.allocatePortWithListener(ctx)
+	require.NoError(t, err)
+	require.NoError(t, launcher.releasePortListener(pendingPort))
+	t.Cleanup(func() { launcher.releasePendingPort(pendingPort) })
+
+	calls := 0
+	launcher.listen = func(ctx context.Context) (net.Listener, error) {
+		calls++
+		lc := &net.ListenConfig{}
+		return lc.Listen(ctx, "tcp", fmt.Sprintf("127.0.0.1:%d", pendingPort))
+	}
+
+	_, _, err = launcher.allocatePortWithListener(ctx)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "no free port")
+	assert.Equal(t, maxPortAllocationAttempts, calls)
 }
 
 func TestProcessLauncher_ConcurrentAllocationsAreUnique(t *testing.T) {
