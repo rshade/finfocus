@@ -195,8 +195,10 @@ finfocus-spec versions. Check that:
   `pluginRPCError` and still answers `status.Code`. Flag a new plugin call
   path that returns the raw gRPC error (`rpc error: code = ... desc = ...`),
   replaces it with a generic message, or wraps it with `%v` instead of `%w`,
-  which drops the status. A plugin decline reason copied into a result note
-  stays capped at 160 bytes (`maxDeclineReasonLen`).
+  which drops the status. Plugin text copied into a note (a decline reason,
+  the first plugin error in an `ERROR:` note, a pricing-spec failure) goes
+  through `truncateDeclineReason`, which keeps at most 160 bytes
+  (`maxDeclineReasonLen`) without splitting a rune and appends `...`.
 - Pre-flight validation failures become `VALIDATION:` placeholders and never
   reach the plugin.
 - New batched requests stay under the gRPC message limit. Projected
@@ -228,10 +230,12 @@ finfocus-spec versions. Check that:
   `internal/cli/testdata/mcp/tools.golden`) or excluded through
   `applyMCPExclusions`. Excluding a command with `Hidden` is a bug, because
   ax-go then prunes the whole subtree.
-- Do not redefine flags the root already owns: ax-go's `--format`,
-  `--dry-run`, and `--yes`, and the root's persistent `--debug`,
-  `--project-dir`, `--exit-on-threshold`, `--exit-code`, `--notify`,
-  `--budget-scope`, and `--stack`. Cobra rejects the duplicate at runtime.
+- Do not redefine a flag an ancestor already owns: ax-go's `--format`,
+  `--dry-run`, and `--yes`; the root's persistent `--debug` and
+  `--project-dir`; and the `cost` command's persistent `--exit-on-threshold`,
+  `--exit-code`, `--notify`, `--budget-scope`, and `--stack`. Cobra rejects
+  the duplicate at runtime. A command outside `cost`, such as `overview`, may
+  declare its own budget and stack flags.
   Accessibility flags (`--plain`, `--no-color`) are local to each output
   command, and `addAccessibilityFlags` adds only the ones a command lacks.
 - Budget CLI overrides (`--exit-on-threshold`, `--exit-code`) must not be
