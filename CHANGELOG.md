@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.5](https://github.com/rshade/finfocus/compare/v0.4.4...v0.4.5) (2026-10-06)
+
+
+### Added
+
+* **cli:** add cost forecast from plugin growth ([#1715](https://github.com/rshade/finfocus/issues/1715)) ([0622f7f](https://github.com/rshade/finfocus/commit/0622f7f9bfb1e5f256564da0512d59f335add132)), closes [#364](https://github.com/rshade/finfocus/issues/364)
+* **cluster:** price historical windows from a Prometheus usage source ([#1717](https://github.com/rshade/finfocus/issues/1717)) ([d474f27](https://github.com/rshade/finfocus/commit/d474f27082a1345444943de078e9282f88bb5458))
+* **registry:** add flexera plugin ([#1725](https://github.com/rshade/finfocus/issues/1725)) ([c5606a0](https://github.com/rshade/finfocus/commit/c5606a0a0d120cd78b586a2f1e1aa8ea1388b5b9))
+* **registry:** add opencost plugin ([#1720](https://github.com/rshade/finfocus/issues/1720)) ([acc0dbf](https://github.com/rshade/finfocus/commit/acc0dbfd00f3c8247120b9710a079a74082fe74f))
+* **registry:** add vantage plugin ([#1724](https://github.com/rshade/finfocus/issues/1724)) ([6c92036](https://github.com/rshade/finfocus/commit/6c920362fb9102e83a9442ac1012efdb804aa52b))
+
+
+### Performance
+
+* **cli:** run stack export and preview concurrently in overview ([#1723](https://github.com/rshade/finfocus/issues/1723)) ([aa97c53](https://github.com/rshade/finfocus/commit/aa97c534d08f52b89be21f63d34b0aaa33d715d1)), closes [#691](https://github.com/rshade/finfocus/issues/691)
+* **registry:** open plugins concurrently in Registry.Open ([#1713](https://github.com/rshade/finfocus/issues/1713)) ([bc27ad5](https://github.com/rshade/finfocus/commit/bc27ad50f266b2c419c719cc30c73e50b6af5b6b))
+
+
+### Documentation
+
+* **claude:** trim CLAUDE.md to commands and gotchas ([#1722](https://github.com/rshade/finfocus/issues/1722)) ([a8bcab4](https://github.com/rshade/finfocus/commit/a8bcab43f37c97e573bdcbab7eeaa34604773e28))
+* **plugins:** fold kubecost into opencost and drop the planned page ([#1721](https://github.com/rshade/finfocus/issues/1721)) ([ed19769](https://github.com/rshade/finfocus/commit/ed19769c36b8d08639b88692c10646dfbdedf3c7))
+
 ## [0.4.4](https://github.com/rshade/finfocus/compare/v0.4.3...v0.4.4) (2026-10-05)
 
 

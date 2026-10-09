@@ -10,7 +10,7 @@
 # ---------------------------------------------------------------- build & test
 
 # Keep in sync with the `go` directive in go.mod.
-go = "1.27.1"
+go = "1.27.2"
 
 # The Makefile reads GOLANGCI_LINT_VERSION from this line. The golangci-lint
 # action in .github/workflows/ci.yml pins the same version; change both together.
@@ -50,7 +50,7 @@ jq = "1.8.2"
 # Spec Kit CLI: drives the .specify/ workflow (/specify, /plan, /tasks).
 # Installed through mise's pipx backend, so this one also needs a Python
 # available to mise.
-"pipx:specify-cli" = "1.0.13"
+"pipx:specify-cli" = "1.1.2"
 
 # Editor/agent-only pin: no make target invokes gopls, but a coding agent
 # working in this checkout gets the same language server the maintainers do.

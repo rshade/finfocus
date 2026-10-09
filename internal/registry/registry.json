@@ -49,6 +49,22 @@
         "version_prefix": false
       }
     },
+    "flexera": {
+      "name": "flexera",
+      "description": "Flexera One cloud cost from Bill Analysis: billed actuals and forecasts",
+      "repository": "rshade/finfocus-plugin-flexera",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus-plugin-flexera",
+      "supported_providers": ["aws", "azure", "gcp"],
+      "capabilities": ["cost_projection", "cost_retrieval", "pricing_specs"],
+      "security_level": "official",
+      "min_spec_version": "0.7.5",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-flexera",
+        "version_prefix": false
+      }
+    },
     "kubernetes": {
       "name": "kubernetes",
       "description": "Kubernetes workload usage and cost allocation by namespace, controller, pod, and label",
@@ -63,6 +79,22 @@
       "tag_prefix": "kubernetes-",
       "asset_hints": {
         "asset_prefix": "finfocus-plugin-kubernetes"
+      }
+    },
+    "vantage": {
+      "name": "vantage",
+      "description": "Imported actual cloud cost from Vantage Cost Reports",
+      "repository": "rshade/finfocus-plugin-vantage",
+      "author": "FinFocus Team",
+      "license": "Apache-2.0",
+      "homepage": "https://github.com/rshade/finfocus-plugin-vantage",
+      "supported_providers": ["aws", "azure", "gcp", "kubernetes"],
+      "capabilities": ["cost_retrieval"],
+      "security_level": "official",
+      "min_spec_version": "0.7.5",
+      "asset_hints": {
+        "asset_prefix": "finfocus-plugin-vantage",
+        "version_prefix": false
       }
     },
     "jev": {

@@ -100,8 +100,9 @@ linked issue.
 - Commands write through `cmd.Printf` / `cmd.OutOrStdout()`, never
   `fmt.Printf`, so tests and the MCP dispatcher can capture output.
 - A command with an output flag resolves it through `resolveOutputFormat`
-  (`internal/cli/output_mode.go`). It must reject an unknown `--output`
-  before any early return on empty data. Otherwise an invalid value exits 0.
+  (`internal/cli/output_mode.go`), which does not validate the value. The
+  command must reject an unknown `--output` itself, before it loads state or
+  takes any early return on empty data. Otherwise an invalid value exits 0.
 
 ## Cache Keys Must Cover Every Input
 
@@ -137,8 +138,8 @@ runs without the input keep their existing key.
   instance types.
 - A plugin pricing spec with a `$0` rate is a priced result.
 - Router priority: a higher number means a higher priority.
-- `getExtrapolatedActual` (30-day) and `CalculateCostDrift` (calendar days)
-  use different month lengths on purpose.
+- `GetExtrapolatedActual` and `ForceExtrapolateActual` (30-day) and
+  `CalculateCostDrift` (calendar days) use different month lengths on purpose.
 
 ## Providers
 
@@ -194,8 +195,10 @@ finfocus-spec versions. Check that:
   `pluginRPCError` and still answers `status.Code`. Flag a new plugin call
   path that returns the raw gRPC error (`rpc error: code = ... desc = ...`),
   replaces it with a generic message, or wraps it with `%v` instead of `%w`,
-  which drops the status. Plugin text copied into a result note stays capped
-  at 160 bytes.
+  which drops the status. Plugin text copied into a note (a decline reason,
+  the first plugin error in an `ERROR:` note, a pricing-spec failure) goes
+  through `truncateDeclineReason`, which keeps at most 160 bytes
+  (`maxDeclineReasonLen`) without splitting a rune and appends `...`.
 - Pre-flight validation failures become `VALIDATION:` placeholders and never
   reach the plugin.
 - New batched requests stay under the gRPC message limit. Projected
@@ -227,9 +230,14 @@ finfocus-spec versions. Check that:
   `internal/cli/testdata/mcp/tools.golden`) or excluded through
   `applyMCPExclusions`. Excluding a command with `Hidden` is a bug, because
   ax-go then prunes the whole subtree.
-- Do not redefine flags that a parent or the root already owns (`--format`,
-  `--dry-run`, `--yes`, `--plain` on the `cost` parent). Cobra rejects the
-  duplicate at runtime.
+- Do not redefine a flag an ancestor already owns: ax-go's `--format`,
+  `--dry-run`, and `--yes`; the root's persistent `--debug` and
+  `--project-dir`; and the `cost` command's persistent `--exit-on-threshold`,
+  `--exit-code`, `--notify`, `--budget-scope`, and `--stack`. Cobra rejects
+  the duplicate at runtime. A command outside `cost`, such as `overview`, may
+  declare its own budget and stack flags.
+  Accessibility flags (`--plain`, `--no-color`) are local to each output
+  command, and `addAccessibilityFlags` adds only the ones a command lacks.
 - Budget CLI overrides (`--exit-on-threshold`, `--exit-code`) must not be
   written onto `config.GetGlobalConfig()`.
 - Pulumi plan parsing must read `newState` for `inputs` and `type`.

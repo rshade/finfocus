@@ -5,6 +5,16 @@
   ],
   "packageRules": [
     {
+      "description": "Keep indirect Go dependencies current in real modules, including test/e2e. Fixture exclusions below still apply.",
+      "matchManagers": [
+        "gomod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "enabled": true
+    },
+    {
       "description": "gh-aw generates .github/workflows/*.lock.yml via 'gh aw compile'. Their pinned action SHAs and container tags are managed by gh-aw (recompiling bumps them), so Renovate must not touch them: edits would be reverted on the next compile and can break the gh-aw integrity manifest.",
       "matchFileNames": [
         ".github/workflows/*.lock.yml"
@@ -71,5 +81,19 @@
         "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)\\n[A-Z0-9_]+\\s*\\??=\\s*(?<currentValue>\\S+)"
       ]
     }
-  ]
+  ],
+  "ignorePaths": [
+    "**/node_modules/**",
+    "**/bower_components/**",
+    "**/vendor/**",
+    "**/examples/**",
+    "**/fixtures/**",
+    "**/testdata/**"
+  ],
+  "lockFileMaintenance": {
+    "enabled": true
+  },
+  "vulnerabilityAlerts": {
+    "enabled": true
+  }
 }

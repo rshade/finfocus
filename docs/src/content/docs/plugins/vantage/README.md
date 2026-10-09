@@ -7,29 +7,25 @@ Cost visibility platform integration for multi-cloud cost aggregation.
 
 ## Status
 
-🟡 **IN DEVELOPMENT** - This plugin is currently in development and not yet available
-for installation. See [AWS Public Plugin](../aws-public.md) for an available alternative.
+🟢 **AVAILABLE** - Install with `finfocus plugin install vantage`. See the
+[Vantage Plugin](../vantage.md) page for current setup and limits.
 
 ## Overview
 
-The Vantage plugin is in development to connect FinFocus to Vantage's cost aggregation API.
-This integration is not yet available for installation.
+The Vantage plugin reads imported actual cost from a Vantage Cost Report. The
+[Vantage Plugin](../vantage.md) page is the current reference for installation,
+configuration, and limits.
 
-## Available Alternatives
+## Earlier Design Notes
 
-For cost data, consider using:
-
-- **[AWS Public Plugin](../aws-public.md)** - AWS public pricing data (AVAILABLE)
-- **[OpenCost](../opencost.md)** - Kubernetes cost allocation from OpenCost or Kubecost (AVAILABLE)
-
-## Documentation Structure
-
-The following documentation files exist for reference while the plugin is in development:
+The files below were written before the plugin was released and describe an
+earlier design (for example a `finfocus-vantage pull` command and a YAML config
+file). They do not match the released plugin. Use the
+[plugin README](https://github.com/rshade/finfocus-plugin-vantage#readme) when
+they disagree.
 
 - [Setup Guide](setup.md)
 - [Authentication](authentication.md)
 - [Features](features.md)
 - [Cost Mapping](cost-mapping.md)
 - [Troubleshooting](troubleshooting.md)
-
-These files are provided for reference and will be updated when the plugin is released.
