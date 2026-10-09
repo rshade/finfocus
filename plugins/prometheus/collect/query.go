@@ -88,7 +88,7 @@ func fetch(ctx context.Context, api v1.API, from, to time.Time, sel promql.Selec
 }
 
 func instant(ctx context.Context, api v1.API, query promql.Query) (model.Vector, error) {
-	value, _, err := api.Query(ctx, query.Expr, query.Time)
+	value, _, _, err := api.Query(ctx, query.Expr, query.Time)
 	if err != nil {
 		return nil, err
 	}
