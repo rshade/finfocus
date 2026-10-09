@@ -30,7 +30,7 @@ The flag table, with defaults, is in the
 | Stream | Content |
 | --- | --- |
 | stdout | One line: the session URL, `http://127.0.0.1:<port>/?token=<token>`. The token is 128 random bits as 32 hex characters. |
-| stderr | Diagnostics and one request log line per request: method, path without the query string, and status. Tokens and request bodies are never logged. |
+| stderr | Diagnostics and one request log line per request that passes the `Host` check: method, path without the query string, and status. Tokens and request bodies are never logged. |
 
 Unless `--no-browser` is set, FinFocus opens the URL with the platform opener
 (`open` on macOS, `rundll32` on Windows, `xdg-open` elsewhere). A failure to
@@ -125,7 +125,9 @@ dark palettes follow the browser's `prefers-color-scheme` setting.
 The server binds `127.0.0.1` only. All responses carry
 `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, and
 `Content-Security-Policy: default-src 'self'`. Errors are JSON:
-`{"error": "<message>", "code": "<code>"}`.
+`{"error": "<message>", "code": "<code>"}`, except that a missing file under
+`/static/` gets Go's standard plain-text 404. An unknown path, or an API path
+called with the wrong method, gets `404` / `not_found` (`unknown path`).
 
 | Request | Status | Code | Message |
 | --- | --- | --- | --- |
@@ -133,7 +135,7 @@ The server binds `127.0.0.1` only. All responses carry
 | `GET /?token=<wrong>` | 401 | `unauthorized` | `invalid session token; open the URL printed in the terminal` |
 | Any other request without the session cookie | 401 | `unauthorized` | `valid session cookie required; open the URL printed in the terminal` |
 | `Host` other than `127.0.0.1:<port>` or `localhost:<port>` | 403 | `forbidden` | `host header is not this server` |
-| `Sec-Fetch-Site` other than `same-origin` or `none` | 403 | `forbidden` | `request is not from this server` |
+| `Sec-Fetch-Site` present and other than `same-origin` or `none` | 403 | `forbidden` | `request is not from this server` |
 | `Origin` other than the server's own | 403 | `forbidden` | `origin is not this server` |
 | `POST` without `Origin` | 403 | `forbidden` | `origin header required` |
 | `POST` whose `Content-Type` is not `application/json` | 415 | `unsupported_media_type` | `Content-Type must be application/json` |

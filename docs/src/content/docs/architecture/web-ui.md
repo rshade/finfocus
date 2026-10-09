@@ -79,9 +79,9 @@ The rule is that the dashboard never shows more than the equivalent CLI JSON or
 terminal view already does:
 
 - Pulumi secret values, credential-like property names, and `__`-prefixed
-  Pulumi internals such as `__defaults` are removed with the same shared rules
-  that guard CLI output and plugin requests (`engine.IsHiddenPropertyKey` and
-  `history.IsPulumiSecret`). The web layer keeps
+  Pulumi internals such as `__defaults` are removed with the engine's shared
+  rules, the same ones that filter plugin attributes and nested tags
+  (`engine.IsHiddenPropertyKey` and `history.IsPulumiSecret`). The web layer keeps
   no rule list of its own, so the rules cannot drift apart. Redaction covers
   resource details, property diffs, and the estimate view's editable
   properties.
