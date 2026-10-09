@@ -10,7 +10,7 @@
 # ---------------------------------------------------------------- build & test
 
 # Keep in sync with the `go` directive in go.mod.
-go = "1.27.1"
+go = "1.27.2"
 
 # The Makefile reads GOLANGCI_LINT_VERSION from this line. The golangci-lint
 # action in .github/workflows/ci.yml pins the same version; change both together.
