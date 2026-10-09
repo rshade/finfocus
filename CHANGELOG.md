@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.6](https://github.com/rshade/finfocus/compare/v0.4.5...v0.4.6) (2026-10-09)
+
+
+### Added
+
+* **web:** add finfocus --web localhost browser dashboard ([#1736](https://github.com/rshade/finfocus/issues/1736)) ([03628d0](https://github.com/rshade/finfocus/commit/03628d02d0aa918a6d475d42a1d767e4d047eee0))
+
+
+### Fixed
+
+* **deps:** expand Renovate security update coverage ([#1747](https://github.com/rshade/finfocus/issues/1747)) ([24236a5](https://github.com/rshade/finfocus/commit/24236a53c01c11ba35ab6759859266cad9ece938))
+* **deps:** update dompurify to v3.4.16 in docs ([#1760](https://github.com/rshade/finfocus/issues/1760)) ([a8e58e9](https://github.com/rshade/finfocus/commit/a8e58e9f6052d05fc424d145d5b8ce9429bba1f3))
+* **deps:** update go dependencies ([#1746](https://github.com/rshade/finfocus/issues/1746)) ([071d0e6](https://github.com/rshade/finfocus/commit/071d0e640f456a971fc2308b5eb1cbf31290015a))
+* **deps:** update golang.org/x/net to v0.60.0 and CI Go to 1.27.2 ([#1754](https://github.com/rshade/finfocus/issues/1754)) ([4383b26](https://github.com/rshade/finfocus/commit/4383b26266c0b3f3f532be9ca8f8577abd0ec0bb))
+* **webui:** address [#1736](https://github.com/rshade/finfocus/issues/1736) review follow-ups ([#1755](https://github.com/rshade/finfocus/issues/1755)) ([760d808](https://github.com/rshade/finfocus/commit/760d808676530d487a5b124a9044959c22e264ca))
+
+
+### Documentation
+
+* **github:** correct stale facts in the Copilot code-review skill ([#1729](https://github.com/rshade/finfocus/issues/1729)) ([f5ca6d6](https://github.com/rshade/finfocus/commit/f5ca6d67d5e6ca4ad2ecc2d69d50852abbb681d9))
+* **roadmap:** sync with GitHub issues ([#1759](https://github.com/rshade/finfocus/issues/1759)) ([ca0953e](https://github.com/rshade/finfocus/commit/ca0953ef2ea2bd8f25e3ad6cceaaf0925f205f03)), closes [#1736](https://github.com/rshade/finfocus/issues/1736)
+* **web:** document the finfocus --web dashboard ([#1756](https://github.com/rshade/finfocus/issues/1756)) ([eb83650](https://github.com/rshade/finfocus/commit/eb8365037ea6ebbae068d9825aaefbc4e8cab996)), closes [#1736](https://github.com/rshade/finfocus/issues/1736)
+
 ## [0.4.5](https://github.com/rshade/finfocus/compare/v0.4.4...v0.4.5) (2026-10-06)
 
 

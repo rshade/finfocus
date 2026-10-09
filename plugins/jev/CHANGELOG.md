@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/rshade/finfocus/compare/jev-v0.1.3...jev-v0.1.4) (2026-10-09)
+
+
+### Bug Fixes
+
+* **deps:** update golang.org/x/net to v0.60.0 and CI Go to 1.27.2 ([#1754](https://github.com/rshade/finfocus/issues/1754)) ([4383b26](https://github.com/rshade/finfocus/commit/4383b26266c0b3f3f532be9ca8f8577abd0ec0bb))
+
 ## [0.1.3](https://github.com/rshade/finfocus/compare/jev-v0.1.2...jev-v0.1.3) (2026-10-05)
 
 
