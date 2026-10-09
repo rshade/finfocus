@@ -161,6 +161,10 @@ finfocus overview --pulumi-state state.json --filter type=aws:ec2/instance:Insta
 When running in a terminal (TTY) without `--plain`, the overview launches an
 interactive dashboard built with Bubble Tea.
 
+To explore the same data in a browser instead, run `finfocus --web` from the
+project directory. It takes the overview's source, date, adapter, and filter
+flags; see [Use the browser dashboard](../guides/web-ui.md).
+
 ### Keyboard shortcuts
 
 | Key | Action |

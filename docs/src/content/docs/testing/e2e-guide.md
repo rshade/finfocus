@@ -17,6 +17,7 @@ the complete cost calculation pipeline using actual AWS services.
 - [Quick Start](#quick-start)
 - [Running Tests](#running-tests)
 - [Test Scenarios](#test-scenarios)
+- [Web UI Browser Tests](#web-ui-browser-tests)
 - [Related Documentation](#related-documentation)
 - [Troubleshooting](#troubleshooting)
 
@@ -100,6 +101,31 @@ Compares projected costs against actual costs (where applicable) to ensure accur
 ### 4. Cleanup Verification
 
 Ensures that all resources created during the test are destroyed, preventing accidental costs.
+
+## Web UI Browser Tests
+
+The [browser dashboard](../guides/web-ui.md) has two test targets of its own.
+Neither needs cloud credentials.
+
+```bash
+make test-frontend   # Renderer regression tests, Node version pinned in mise.toml
+make test-e2e-web    # Real Chromium against the real binary
+```
+
+`make test-e2e-web` builds `bin/finfocus`, installs Chromium with the
+Playwright version resolved by the nested `test/e2e` module, and runs the
+`e2e_web`-tagged `TestWebUI*` tests. The fixture plugin and Pulumi process are
+local and deterministic. The Makefile sets `FINFOCUS_WEB_E2E_REQUIRED=1`, so a
+missing binary fails the run; a direct `go test` run skips with a message
+instead. CI runs both targets.
+
+On a machine without Chromium's system libraries, let Playwright install them:
+
+```bash
+make test-e2e-web PLAYWRIGHT_INSTALL_ARGS='--with-deps chromium'
+```
+
+The root Go module and `make build` do not need Playwright or Node.
 
 ## Related Documentation
 

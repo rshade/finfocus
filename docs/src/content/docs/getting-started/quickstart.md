@@ -131,6 +131,8 @@ GitHub Actions, GitLab CI, and the Automation API are in
 ## What's Next?
 
 - **Full overview docs:** [Overview Command](../commands/overview.md)
+- **Browser dashboard:** [Use the browser dashboard](../guides/web-ui.md) — run
+  `finfocus --web` to explore the same data in your browser
 - **Analyzer setup:** [Pulumi Analyzer Setup](analyzer-setup.md) — see costs
   inline during `pulumi preview`
 - **User Guide:** [User Guide](../guides/user-guide.md)

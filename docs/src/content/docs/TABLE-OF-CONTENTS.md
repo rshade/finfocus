@@ -76,6 +76,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Recommendations](guides/recommendations.md)  | Use cost optimization recommendations    |
 | [Recommendation Scoring](guides/recommendation-scoring.md) | Rank recommendations with a scorer plugin |
 | [Accessibility](guides/accessibility.md)      | Configure colors, contrast, and TUI      |
+| [Browser Dashboard](guides/web-ui.md)         | Explore costs in a local browser with `finfocus --web` |
 
 ### 🏗️ Architecture & Design
 
@@ -85,6 +86,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [Core Concepts](architecture/core-concepts.md)             | Key concepts (resources, costs, aggregation) |
 | [Plugin Protocol](architecture/plugin-protocol.md)         | gRPC plugin specification                    |
 | [Cost Calculation](architecture/cost-calculation.md)       | How costs are calculated                     |
+| [Web UI Design](architecture/web-ui.md)                    | Browser dashboard design and security model  |
 | [Roadmap](architecture/roadmap.md)                         | Planned features and timeline                |
 
 ### 📊 Architecture Diagrams
@@ -153,6 +155,7 @@ Welcome to FinFocus documentation. Use this page to navigate all available resou
 | [API Reference](reference/api-reference.md)                 | gRPC API documentation       |
 | [Error Codes](reference/error-codes.md)                     | Error codes and solutions    |
 | [Environment Variables](reference/environment-variables.md) | Env var reference            |
+| [Web UI](reference/web-ui.md)                              | Browser dashboard reference  |
 
 ### 🚀 Deployment & Operations
 
