@@ -348,6 +348,18 @@ func estimateResponseToCostResult(resp *pbc.EstimateCostResponse, resource *Reso
 	return result
 }
 
+// withoutUnsendableProperties returns a copy of resource without the
+// credential-like keys and Pulumi secrets that ConvertToProto never sends, so
+// GetProjectedCost validates only what reaches a plugin. The plugin request
+// is unchanged by the filtering.
+func withoutUnsendableProperties(resource ResourceDescriptor) ResourceDescriptor {
+	if len(resource.Properties) == 0 {
+		return resource
+	}
+	resource.Properties, _ = withoutCredentials(resource.Properties).(map[string]any)
+	return resource
+}
+
 // estimateCostFallback calculates cost estimation using two GetProjectedCost calls.
 // When multiple properties are overridden simultaneously, it reports a single
 // "combined" delta since per-property attribution is not possible via this path.
@@ -357,7 +369,7 @@ func (e *Engine) estimateCostFallback(
 ) (*EstimateResult, error) {
 	log := logging.FromContext(ctx)
 
-	baselineResources := []ResourceDescriptor{*request.Resource}
+	baselineResources := []ResourceDescriptor{withoutUnsendableProperties(*request.Resource)}
 	baselineResults, err := e.GetProjectedCost(ctx, baselineResources)
 	if err != nil {
 		return nil, err
@@ -379,6 +391,7 @@ func (e *Engine) estimateCostFallback(
 
 	modifiedResource := *request.Resource
 	modifiedResource.Properties = mergePropertiesWithOverrides(request.Resource.Properties, request.PropertyOverrides)
+	modifiedResource = withoutUnsendableProperties(modifiedResource)
 
 	if validateErr := modifiedResource.Validate(); validateErr != nil {
 		return nil, fmt.Errorf("modified resource validation failed: %w", validateErr)

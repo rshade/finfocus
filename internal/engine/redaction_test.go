@@ -173,3 +173,14 @@ func TestIsCredentialKey(t *testing.T) {
 		assert.False(t, isCredentialKey(key), key)
 	}
 }
+
+func TestIsHiddenPropertyKey(t *testing.T) {
+	t.Parallel()
+
+	for _, key := range []string{"__defaults", "__provider", "adminPassword", "authToken"} {
+		assert.True(t, IsHiddenPropertyKey(key), key)
+	}
+	for _, key := range []string{"instanceType", "region", "_private", "tags"} {
+		assert.False(t, IsHiddenPropertyKey(key), key)
+	}
+}

@@ -33,7 +33,7 @@ func (e *Engine) estimateSelectedProvider(ctx context.Context, request *Estimate
 		return result, nil
 	}
 	if status.Code(err) != codes.Unimplemented {
-		return nil, err
+		return nil, pluginStatusError(err)
 	}
 	return e.estimateSelectedFallback(ctx, client, request)
 }
@@ -69,7 +69,9 @@ func (e *Engine) estimateSelectedFallback(
 	}
 	modifiedResource := *request.Resource
 	modifiedResource.Properties = mergePropertiesWithOverrides(request.Resource.Properties, request.PropertyOverrides)
-	if err = modifiedResource.Validate(); err != nil {
+	validationResource := modifiedResource
+	validationResource.Properties = redactedProperties(ctx, modifiedResource.Properties)
+	if err = validationResource.Validate(); err != nil {
 		return nil, err
 	}
 	modified, err := e.selectedProjectedCost(ctx, client, modifiedResource)

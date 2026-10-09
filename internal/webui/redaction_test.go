@@ -94,6 +94,15 @@ func TestRedactValue(t *testing.T) {
 			want:  map[string]any{"region": "us-east-1"},
 		},
 		{
+			name: "pulumi internal keys dropped",
+			input: map[string]any{
+				"__defaults": []any{"name"},
+				"__provider": "urn:pulumi:dev::app::pulumi:providers:aws::default",
+				"ami":        "ami-123",
+			},
+			want: map[string]any{"ami": "ami-123"},
+		},
+		{
 			name:  "pulumi secret value dropped",
 			input: map[string]any{"size": pulumiSecretFixture("cipher-1"), "ami": "ami-123"},
 			want:  map[string]any{"ami": "ami-123"},
@@ -143,6 +152,8 @@ func TestRedactJSONPayloads(t *testing.T) {
 			"instanceType":   "t3.large",
 			"adminPassword":  "payload-pw-456",
 			"userDataSecret": pulumiSecretFixture("v1:payload-cipher"),
+			"__defaults":     []any{"payload-default-name"},
+			"__provider":     "payload-provider-urn",
 		},
 		"breakdown": []any{
 			map[string]any{"component": "compute", "monthly": 12.34},
@@ -162,6 +173,9 @@ func TestRedactJSONPayloads(t *testing.T) {
 	assert.NotContains(t, out, "override-token")
 	assert.NotContains(t, out, "adminPassword")
 	assert.NotContains(t, out, "sessionToken")
+	assert.NotContains(t, out, "__defaults")
+	assert.NotContains(t, out, "payload-default-name")
+	assert.NotContains(t, out, "payload-provider-urn")
 	assert.Contains(t, out, "t3.large")
 	assert.Contains(t, out, "urn:pulumi:dev::app::aws:ec2/instance:Instance::web")
 	assert.Contains(t, out, "compute")
@@ -244,6 +258,7 @@ func TestRedactPropertyDiffAndCostDeltaNames(t *testing.T) {
 	payload := map[string]any{
 		"propertyDiffs": []engine.PropertyDiff{
 			{Key: "dbPassword", OldValue: "old-password", NewValue: "new-password"},
+			{Key: "__defaults", OldValue: "old-default", NewValue: "new-default"},
 			{
 				Key:      "size",
 				OldValue: `{"4dabf18193072939515e22adb298388d":"1","ciphertext":"old-cipher"}`,
@@ -257,7 +272,7 @@ func TestRedactPropertyDiffAndCostDeltaNames(t *testing.T) {
 	}
 	data, err := RedactJSON(payload)
 	require.NoError(t, err)
-	for _, secret := range []string{"dbPassword", "old-password", "new-password", "apiToken", "old-token", "new-token", "old-cipher"} {
+	for _, secret := range []string{"dbPassword", "old-password", "new-password", "old-default", "new-default", "apiToken", "old-token", "new-token", "old-cipher"} {
 		assert.NotContains(t, string(data), secret)
 	}
 	assert.Contains(t, string(data), "instanceType")
