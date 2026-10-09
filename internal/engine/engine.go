@@ -1826,7 +1826,7 @@ func (e *Engine) getProjectedCostFromPlugin(
 	if err != nil {
 		return nil, pluginStatusError(err)
 	}
-	if len(resp.Results) == 0 {
+	if resp == nil || len(resp.Results) == 0 || resp.Results[0] == nil {
 		return nil, ErrNoCostData
 	}
 
@@ -1981,23 +1981,31 @@ func (e *Engine) getActualCostFromPlugin(
 	}
 
 	result := resp.Results[0]
+	var sustainability map[string]SustainabilityMetric
+	if len(result.Sustainability) > 0 {
+		sustainability = make(map[string]SustainabilityMetric, len(result.Sustainability))
+		for key, metric := range result.Sustainability {
+			sustainability[key] = SustainabilityMetric{Value: metric.Value, Unit: metric.Unit}
+		}
+	}
 	monthlyRate, hourlyRate, dailyCosts, notes := deriveActualCostWindow(result.TotalCost, from, to)
 
 	return &CostResult{
-		ResourceType: resource.Type,
-		ResourceID:   resource.ID,
-		Adapter:      client.Name,
-		Currency:     result.Currency,
-		Monthly:      monthlyRate,
-		Hourly:       hourlyRate,
-		TotalCost:    result.TotalCost,
-		DailyCosts:   dailyCosts,
-		Notes:        notes,
-		Breakdown:    result.CostBreakdown,
-		StartDate:    from,
-		EndDate:      to,
-		CostPeriod:   FormatPeriod(from, to),
-		ExpiresAt:    result.ExpiresAt,
+		ResourceType:   resource.Type,
+		ResourceID:     resource.ID,
+		Adapter:        client.Name,
+		Currency:       result.Currency,
+		Monthly:        monthlyRate,
+		Hourly:         hourlyRate,
+		TotalCost:      result.TotalCost,
+		DailyCosts:     dailyCosts,
+		Notes:          notes,
+		Breakdown:      result.CostBreakdown,
+		Sustainability: sustainability,
+		StartDate:      from,
+		EndDate:        to,
+		CostPeriod:     FormatPeriod(from, to),
+		ExpiresAt:      result.ExpiresAt,
 	}, nil
 }
 

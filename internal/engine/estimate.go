@@ -59,11 +59,26 @@ var (
 //   - INFO: Successful estimations
 //   - WARN: Fallback usage
 //   - ERROR: Failed estimations
-//
-//nolint:funlen // Function is logically cohesive with clear sections; splitting would reduce readability.
 func (e *Engine) EstimateCost(
 	ctx context.Context,
 	request *EstimateRequest,
+) (*EstimateResult, error) {
+	return e.estimateCost(ctx, request, false)
+}
+
+// EstimateBaseline estimates unchanged properties through the same RPC and fallback
+// path as EstimateCost. The public EstimateCost override requirement is preserved.
+func (e *Engine) EstimateBaseline(
+	ctx context.Context, resource *ResourceDescriptor, pricingMode string,
+) (*EstimateResult, error) {
+	return e.estimateCost(ctx, &EstimateRequest{Resource: resource, PricingMode: pricingMode}, true)
+}
+
+//nolint:gocognit,funlen // Preserves the existing ordered RPC/fallback behavior for unselected requests.
+func (e *Engine) estimateCost(
+	ctx context.Context,
+	request *EstimateRequest,
+	baselineOnly bool,
 ) (*EstimateResult, error) {
 	log := logging.FromContext(ctx)
 	start := time.Now()
@@ -85,14 +100,21 @@ func (e *Engine) EstimateCost(
 		Int("override_count", len(request.PropertyOverrides)).
 		Msg("starting cost estimation")
 
-	// Validate the resource before processing
-	if err := request.Resource.Validate(); err != nil {
+	// Validate the properties sent to plugins. Opaque secrets and internal
+	// metadata are redacted from requests and must not block cost estimation.
+	validationResource := *request.Resource
+	validationResource.Properties = redactedProperties(ctx, request.Resource.Properties)
+	if err := validationResource.Validate(); err != nil {
 		return nil, err
 	}
 
 	// Validate that at least one property override is provided
-	if len(request.PropertyOverrides) == 0 {
+	if !baselineOnly && len(request.PropertyOverrides) == 0 {
 		return nil, errors.New("property overrides are required for cost estimation")
+	}
+
+	if request.PricingMode != "" {
+		return e.estimateSelectedProvider(ctx, request)
 	}
 
 	// Try EstimateCost RPC on available plugins

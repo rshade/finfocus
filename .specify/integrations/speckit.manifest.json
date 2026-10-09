@@ -1,6 +1,6 @@
 {
   "integration": "speckit",
-  "version": "1.0.8",
+  "version": "0.12.4",
   "installed_at": "2026-09-22T10:23:42.887768+00:00",
   "files": {
     ".specify/scripts/bash/check-prerequisites.sh": "b8784dd9bdce038955ac69955074c819229b1619931a094ec3810f7394722eba",
@@ -12,7 +12,6 @@
     ".specify/templates/spec-template.md": "bd529dda1cccaaee34fce4355100c5bfcf56d3811698c6aa7dbab5f6b5476c60",
     ".specify/templates/plan-template.md": "db466adbe79ee528471eeae801d3f3699644e05dfb944c7abc59cbfc01d95547",
     ".specify/scripts/bash/setup-tasks.sh": "383277db3f13fc8b157336f8fdb2a37680cdde4c2605b4905d7acbf7b42e0c0f",
-    ".specify/scripts/bash/resolve-template.sh": "829e227096abc8bf0889889ec9f792f503ca5d395b7836a8a7eb739ee75214e7",
     ".specify/templates/constitution-template.md": "ce7549540fa45543cca797a150201d868e64495fdff39dc38246fb17bd4024b3",
     ".specify/.gitignore": "8c908410d177a1ef3d0dee16d7ad55f2ac3333df3104c4d4adee1c9b82f1dbc1"
   },

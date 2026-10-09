@@ -728,7 +728,6 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 
 	// Build resource from params (single-resource mode) or load from plan
 	var resource *engine.ResourceDescriptor
-	var initialResult *engine.EstimateResult
 
 	switch {
 	case params.PlanPath != "":
@@ -769,33 +768,7 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 	eng := engine.New(clients, spec.NewLoader(cfg.SpecDir)).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
 
-	// Create a recalculation callback for the TUI
-	recalculateFn := func(
-		recalcCtx context.Context,
-		res *engine.ResourceDescriptor,
-		overrides map[string]string,
-	) (*engine.EstimateResult, error) {
-		request := &engine.EstimateRequest{
-			Resource:          res,
-			PropertyOverrides: overrides,
-		}
-		return eng.EstimateCost(recalcCtx, request)
-	}
-
-	// Get initial estimate if we have properties
-	if len(resource.Properties) > 0 {
-		request := &engine.EstimateRequest{Resource: resource, PropertyOverrides: map[string]string{}}
-		var initErr error
-		initialResult, initErr = eng.EstimateCost(ctx, request)
-		if initErr != nil {
-			log.Warn().Ctx(ctx).Str("resource_id", resource.ID).Err(initErr).Msg("failed to get initial estimate")
-		}
-	}
-
-	// Create and run the TUI model. Pricing-spec discovery is display context
-	// and does not replace EstimateCost when the plugin has no spec.
-	model := tui.NewEstimateModelWithCallback(ctx, resource, initialResult, recalculateFn).
-		WithPricingDiscovery(eng.DiscoverPricingSpec)
+	model := newInteractiveEstimateModel(ctx, eng, resource)
 	program := tea.NewProgram(model)
 
 	finalModel, err := program.Run()
@@ -817,4 +790,27 @@ func executeInteractiveEstimate(cmd *cobra.Command, params CostEstimateParams, c
 	}
 
 	return nil
+}
+
+// newInteractiveEstimateModel binds the shared engine's initial baseline,
+// pricing discovery, edited requests, and reverted-property baseline path.
+func newInteractiveEstimateModel(
+	ctx context.Context,
+	eng *engine.Engine,
+	resource *engine.ResourceDescriptor,
+) *tui.EstimateModel {
+	log := logging.FromContext(ctx)
+	// Get the unchanged baseline through the same RPC path used for edits.
+	initialResult, err := eng.EstimateBaseline(ctx, resource, "")
+	if err != nil {
+		log.Warn().Ctx(ctx).Str("resource_id", resource.ID).Err(err).Msg("failed to get initial estimate")
+	}
+	return tui.NewEstimateModel(ctx, resource, initialResult).
+		WithPricingDiscovery(eng.DiscoverPricingSpec).
+		WithEstimateCallback(func(recalcCtx context.Context, request *engine.EstimateRequest) (*engine.EstimateResult, error) {
+			if len(request.PropertyOverrides) == 0 {
+				return eng.EstimateBaseline(recalcCtx, request.Resource, request.PricingMode)
+			}
+			return eng.EstimateCost(recalcCtx, request)
+		})
 }

@@ -268,6 +268,9 @@ Completed Milestones, 2026-Q4).
 
 ### 2026-Q4
 
+- [x] `web`: add a local dashboard for overview, actual costs, recommendations,
+      and interactive estimates using shared TUI presentation.
+      Closed 2026-10-07. [L]
 - [x] #364 `forecast`: add `cost forecast` growth projections and chart.
       Closed 2026-10-06. [L]
 - [x] #220 `notification`: send Slack and webhook budget alerts.

@@ -10,6 +10,7 @@ import (
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // pulumiSecretFixture is a Pulumi secret input as it appears in exported
@@ -236,4 +237,111 @@ func TestBudgetHealthPayloadOmitsNotificationDestinations(t *testing.T) {
 func TestBudgetHealthPayloadNilResult(t *testing.T) {
 	t.Parallel()
 	assert.Nil(t, BudgetHealthPayload(context.Background(), nil))
+}
+
+func TestRedactPropertyDiffAndCostDeltaNames(t *testing.T) {
+	t.Parallel()
+	payload := map[string]any{
+		"propertyDiffs": []engine.PropertyDiff{
+			{Key: "dbPassword", OldValue: "old-password", NewValue: "new-password"},
+			{
+				Key:      "size",
+				OldValue: `{"4dabf18193072939515e22adb298388d":"1","ciphertext":"old-cipher"}`,
+				NewValue: "safe",
+			},
+		},
+		"deltas": []engine.CostDelta{
+			{Property: "apiToken", OriginalValue: "old-token", NewValue: "new-token"},
+			{Property: "instanceType", OriginalValue: "t3.small", NewValue: "t3.large"},
+		},
+	}
+	data, err := RedactJSON(payload)
+	require.NoError(t, err)
+	for _, secret := range []string{"dbPassword", "old-password", "new-password", "apiToken", "old-token", "new-token", "old-cipher"} {
+		assert.NotContains(t, string(data), secret)
+	}
+	assert.Contains(t, string(data), "instanceType")
+}
+
+func TestRedactionPreservesPassphrasePromptMetadata(t *testing.T) {
+	t.Parallel()
+	data, err := RedactJSON(OverviewSnapshot{PassphraseRequired: true})
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"passphraseRequired":true`)
+	assert.NotContains(t, string(data), "secret-value")
+	properties, propErr := RedactJSON(
+		map[string]any{"passphraseRequired": true, "password": false, "passphrase": "secret-value"},
+	)
+	require.NoError(t, propErr)
+	assert.JSONEq(t, `{}`, string(properties))
+}
+
+func TestRedactionRootSecretsAndStructuredDiffSecrets(t *testing.T) {
+	t.Parallel()
+	assert.Nil(t, RedactProperties(context.Background(), nil))
+	assert.Nil(t, RedactValue(pulumiSecretFixture("root-cipher")))
+	data, err := RedactJSON(
+		map[string]any{
+			"diffs": []any{
+				map[string]any{"key": "size", "oldValue": pulumiSecretFixture("diff-cipher"), "newValue": "safe"},
+			},
+		},
+	)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "diff-cipher")
+	assert.JSONEq(t, `{"diffs":[]}`, string(data))
+}
+
+func TestRedactEstimateDeltasRetainsSourceSensitivity(t *testing.T) {
+	t.Parallel()
+	payload := map[string]any{
+		"resource": map[string]any{
+			"properties": map[string]any{"wrapped": pulumiSecretFixture("original-secret"), "plain": "original"},
+		},
+		"deltas": []any{
+			map[string]any{"property": "wrapped", "originalValue": "", "newValue": "edited-secret"},
+			map[string]any{"property": "plain", "originalValue": "original", "newValue": "  exact plain  "},
+		},
+	}
+	raw, err := RedactJSON(payload)
+	require.NoError(t, err)
+	assert.NotContains(t, string(raw), "original-secret")
+	assert.NotContains(t, string(raw), "edited-secret")
+	assert.Contains(t, string(raw), "  exact plain  ")
+	// Non-estimate consumers do not lose unrelated delta data when no source
+	// descriptor exists; recursive credential filtering still applies normally.
+	ordinary := map[string]any{"deltas": []any{map[string]any{"property": "plain", "newValue": "preserved"}}}
+	raw, err = RedactJSON(ordinary)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), "preserved")
+	withoutProps := map[string]any{"resource": map[string]any{"id": "r"}, "deltas": []any{"preserved"}}
+	raw, err = RedactJSON(withoutProps)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), "preserved")
+}
+
+// Trusted numeric summary labels must survive without exempting property maps.
+func TestRedactJSONTrustedCostSummaryLabels(t *testing.T) {
+	t.Parallel()
+	response := actualCostQueryResponse{ActualCostPage: viewmodel.ActualCostPage{
+		Summary: viewmodel.ActualCostSummary{CostSummary: engine.CostSummary{
+			ByService:  map[string]float64{"secretsmanager": 12.5},
+			ByProvider: map[string]float64{"secret-provider": 12.5},
+			ByAdapter:  map[string]float64{"token-adapter": 12.5},
+		}},
+	}}
+	data, err := RedactJSON(response)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"secretsmanager":12.5`)
+	assert.Contains(t, string(data), `"secret-provider":12.5`)
+	assert.Contains(t, string(data), `"token-adapter":12.5`)
+	data, err = RedactJSON(
+		map[string]any{
+			"properties": map[string]any{"secretsmanager": "credential"},
+			"summary":    map[string]any{"byService": map[string]any{"secretsmanager": 12.5}},
+		},
+	)
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "secretsmanager")
+	assert.NotContains(t, string(data), "credential")
 }

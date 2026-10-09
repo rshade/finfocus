@@ -9,6 +9,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/rshade/finfocus/internal/proto"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // Status text constants.
@@ -91,27 +92,19 @@ func RenderDelta(delta float64) string {
 	// Round to cents so sign/icon match what we display.
 	rounded := math.Round(delta*centsMultiplier) / centsMultiplier
 
-	var icon, sign string
 	var fg color.Color
 
 	switch {
 	case rounded > 0:
-		icon = IconArrowUp
-		sign = "+"
 		fg = ColorWarning
 	case rounded < 0:
-		icon = IconArrowDown
-		sign = ""
 		fg = ColorOK
 	default:
-		icon = IconArrowRight
-		sign = ""
 		fg = ColorMuted
 	}
 
-	formatted := FormatMoneyShort(rounded)
 	style := lipgloss.NewStyle().Foreground(fg).Bold(true)
-	return style.Render(fmt.Sprintf("%s%s %s", sign, formatted, icon))
+	return style.Render(viewmodel.CostDeltaDisplay(delta))
 }
 
 // RenderPriority renders a styled priority indicator with icon and color.

@@ -120,7 +120,7 @@ No constitution violations — table intentionally empty.
 
 ## Browser E2E Driver
 
-Playwright via `github.com/playwright-community/playwright-go`, added to
+Playwright via `github.com/mxschmitt/playwright-go`, added to
 `test/e2e/go.mod` only; the root `go.mod` does not change and `go mod tidy
 -diff` stays clean. Browser binaries are not vendored: the `test-e2e-web`
 Makefile target runs the playwright-go install step (chromium) from `test/e2e`

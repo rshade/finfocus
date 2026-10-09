@@ -1,0 +1,43 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]: FinFocus
+    - navigation "Views" [ref=e5]:
+      - link "Overview" [ref=e6] [cursor=pointer]:
+        - /url: "#/overview"
+      - link "Cost" [ref=e7] [cursor=pointer]:
+        - /url: "#/cost"
+      - link "Recommendations" [ref=e8] [cursor=pointer]:
+        - /url: "#/recommendations"
+      - link "Estimate" [ref=e9] [cursor=pointer]:
+        - /url: "#/estimate"
+    - status [ref=e10]: Live
+  - main [ref=e11]:
+    - generic [ref=e188]:
+      - heading "What-If Cost Analysis" [active] [level=2] [ref=e189]
+      - generic [ref=e190]:
+        - generic [ref=e191]:
+          - text: Resource
+          - combobox "Resource" [ref=e192]:
+            - option "urn:pulumi:dev::aws-oidc::pulumi:providers:tls::default_5_3_0 (pulumi:providers:tls)" [selected]
+            - option "urn:pulumi:dev::aws-oidc::pulumi:providers:aws::default_7_23_0 (pulumi:providers:aws)"
+            - option "urn:pulumi:dev::aws-oidc::aws:iam/openIdConnectProvider:OpenIdConnectProvider::oidcProvider (aws:iam/openIdConnectProvider:OpenIdConnectProvider)"
+            - option "urn:pulumi:dev::aws-oidc::aws:iam/role:Role::pulumi-esc-oidc-tailscale (aws:iam/role:Role)"
+        - generic [ref=e193]:
+          - text: Pricing mode
+          - combobox "Pricing mode" [ref=e194]:
+            - option "Automatic provider" [selected]
+      - alert [ref=e195]: estimate data unavailable
+      - status [ref=e196]: Unable to calculate estimate.
+      - generic "Estimate comparison" [ref=e197]
+      - generic "Pricing details"
+      - table [ref=e199]:
+        - caption [ref=e200]: Edit a current property value and press Enter to recalculate.
+        - rowgroup [ref=e201]:
+          - row [ref=e202]:
+            - columnheader "Property" [ref=e203]
+            - columnheader "Original" [ref=e204]
+            - columnheader "Current" [ref=e205]
+            - columnheader "Cost delta" [ref=e206]
+        - rowgroup

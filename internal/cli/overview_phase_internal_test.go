@@ -20,8 +20,6 @@ import (
 	"github.com/rshade/finfocus/internal/tui"
 )
 
-const goosWindows = "windows"
-
 type testNoopModel struct{}
 
 func (testNoopModel) Init() tea.Cmd { return nil }

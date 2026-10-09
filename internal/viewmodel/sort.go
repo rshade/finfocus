@@ -114,3 +114,20 @@ func SortRecommendations(recs []engine.Recommendation, field RecommendationSortF
 		}
 	})
 }
+
+// TimeAggregationSortSupported reports fields present on time aggregate rows.
+// Aggregate rows have period and total; they carry neither resource type nor delta.
+func TimeAggregationSortSupported(field SortField) bool {
+	return field == SortByCost || field == SortByName
+}
+
+// SortTimeAggregations sorts totals descending or periods ascending, with period ties.
+func SortTimeAggregations(aggregates []engine.CrossProviderAggregation, field SortField) {
+	sort.Slice(aggregates, func(i, j int) bool {
+		a, b := aggregates[i], aggregates[j]
+		if field == SortByCost && a.Total != b.Total {
+			return a.Total > b.Total
+		}
+		return a.Period < b.Period
+	})
+}

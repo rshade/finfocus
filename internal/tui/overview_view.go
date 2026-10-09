@@ -2,7 +2,6 @@ package tui
 
 import (
 	"fmt"
-	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -11,6 +10,7 @@ import (
 	"charm.land/lipgloss/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // stateOnlyFootnote returns the footnote appended to the list view when costs
@@ -317,30 +317,14 @@ func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewR
 	content.WriteString(HeaderStyle.Render("COST IMPACT"))
 	content.WriteString("\n")
 
-	switch row.Status { //nolint:exhaustive // StatusActive already returned above.
-	case engine.StatusUpdating, engine.StatusReplacing:
-		current := engine.ForceExtrapolateActual(row.Source, dayOfMonth)
-		if baseline, ok := engine.GetBaselineProjectedMonthlyCost(row.Source); ok {
-			current = baseline
+	fields := viewmodel.OverviewImpactDisplay(row, dayOfMonth)
+	for _, field := range fields[:len(fields)-1] {
+		label := "  " + field.Name + ": "
+		if field.Name == "After Change" {
+			label = "  After Change:           "
 		}
-		projected := engine.GetProjectedMonthlyCost(row.Source)
-		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
-		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))
-		content.WriteString("\n")
-		content.WriteString(LabelStyle.Render("  After Change:           "))
-		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(projected)))
-		content.WriteString("\n")
-
-	case engine.StatusCreating:
-		projected := engine.GetProjectedMonthlyCost(row.Source)
-		content.WriteString(LabelStyle.Render("  New Monthly Cost: "))
-		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(projected)))
-		content.WriteString("\n")
-
-	case engine.StatusDeleting:
-		current := engine.GetExtrapolatedActual(row.Source, dayOfMonth)
-		content.WriteString(LabelStyle.Render("  Current (est. monthly): "))
-		content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(current)))
+		content.WriteString(LabelStyle.Render(label))
+		content.WriteString(ValueStyle.Render(field.Value))
 		content.WriteString("\n")
 	}
 
@@ -351,7 +335,7 @@ func renderDetailCostImpactForDay(content *strings.Builder, row engine.OverviewR
 	} else if delta < 0 {
 		deltaStyle = OKStyle
 	}
-	content.WriteString(deltaStyle.Render(engine.FormatOverviewDelta(delta)))
+	content.WriteString(deltaStyle.Render(fields[len(fields)-1].Value))
 	content.WriteString("\n\n")
 }
 
@@ -362,21 +346,17 @@ func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRowResul
 	}
 	content.WriteString(HeaderStyle.Render("COST DRIFT"))
 	content.WriteString("\n")
-	content.WriteString(LabelStyle.Render("  Extrapolated Monthly: "))
-	content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(row.CostDrift.ExtrapolatedMonthly)))
-	content.WriteString("\n")
-	content.WriteString(LabelStyle.Render("  Projected: "))
-	content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(row.CostDrift.Projected)))
-	content.WriteString("\n")
-	content.WriteString(LabelStyle.Render("  Delta: "))
-	content.WriteString(ValueStyle.Render(engine.FormatOverviewCurrency(row.CostDrift.Delta)))
-	content.WriteString("\n")
-	content.WriteString(LabelStyle.Render("  Drift: "))
-	driftStyle := ValueStyle
-	if row.CostDrift.IsWarning {
-		driftStyle = WarningStyle
+	for _, field := range viewmodel.OverviewDriftDisplay(row) {
+		content.WriteString(LabelStyle.Render("  " + field.Name + ": "))
+		style := ValueStyle
+		if field.Name == "Drift" && row.CostDrift.IsWarning {
+			style = WarningStyle
+		}
+		content.WriteString(style.Render(field.Value))
+		if field.Name != "Drift" {
+			content.WriteString("\n")
+		}
 	}
-	content.WriteString(driftStyle.Render(fmt.Sprintf("%.1f%%", row.CostDrift.PercentDrift)))
 	content.WriteString("\n\n")
 }
 
@@ -384,24 +364,17 @@ func renderDetailCostDrift(content *strings.Builder, row engine.OverviewRowResul
 // the builder. Dismissed and snoozed recommendations are excluded from the
 // detail view — they are only reflected in the count badge.
 func renderDetailRecommendations(content *strings.Builder, row engine.OverviewRowResult) {
-	// Collect active recs only.
-	var active []engine.Recommendation
-	for _, rec := range row.Recommendations {
-		if rec.Status != engine.RecommendationStatusDismissed &&
-			rec.Status != engine.RecommendationStatusSnoozed {
-			active = append(active, rec)
-		}
-	}
+	active := viewmodel.OverviewDetailRecommendations(row.Recommendations)
 	if len(active) == 0 {
 		return
 	}
 	content.WriteString(HeaderStyle.Render("RECOMMENDATIONS"))
 	content.WriteString("\n")
 	for i, rec := range active {
-		fmt.Fprintf(content, "  %d. %s\n", i+1, rec.Description)
+		fmt.Fprintf(content, "  %d. %s\n", i+1, rec.Recommendation.Description)
 		content.WriteString(LabelStyle.Render("     Savings: "))
 		content.WriteString(ValueStyle.Render(
-			engine.FormatOverviewCurrency(rec.EstimatedSavings),
+			rec.SavingsDisplay,
 		))
 		content.WriteString("\n")
 	}
@@ -485,12 +458,7 @@ func renderBreakdown(content *strings.Builder, breakdown map[string]float64) {
 		return
 	}
 	content.WriteString(LabelStyle.Render("  Breakdown:\n"))
-	keys := make([]string, 0, len(breakdown))
-	for k := range breakdown {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, category := range keys {
-		fmt.Fprintf(content, "    %s: %s\n", category, engine.FormatOverviewCurrency(breakdown[category]))
+	for _, item := range viewmodel.BreakdownDisplay(breakdown, false) {
+		fmt.Fprintf(content, "    %s: %s\n", item.Name, item.CostDisplay)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -47,6 +48,8 @@ const (
 
 // Options configures a Server.
 type Options struct {
+	// Session supplies shared engine and overview pipeline state. Nil creates an empty session.
+	Session *Session
 	// Port pins the listen port. Zero (the default) lets the kernel assign an
 	// ephemeral port; the actual port is reported via Port and URL.
 	Port int
@@ -59,12 +62,16 @@ type Options struct {
 // generated at construction, bootstraps an HttpOnly session cookie; every
 // other request authenticates by that cookie and a matching Host header.
 type Server struct {
-	token  string
-	logger zerolog.Logger
+	session *Session
+	mux     *http.ServeMux
+	token   string
+	logger  zerolog.Logger
 
 	reqPort    int
 	actualPort atomic.Int32
 
+	listenerMu sync.Mutex
+	closed     bool
 	listener   net.Listener
 	httpServer *http.Server
 }
@@ -80,7 +87,11 @@ func New(opts Options) (*Server, error) {
 	}
 	s := &Server{
 		token:   hex.EncodeToString(raw),
+		session: opts.Session,
 		reqPort: opts.Port,
+	}
+	if s.session == nil {
+		s.session = NewSession(context.Background(), SessionOptions{})
 	}
 	if opts.Logger != nil {
 		s.logger = *opts.Logger
@@ -101,6 +112,11 @@ var ErrInvalidPort = errors.New("invalid port")
 // when 0) and resolves the actual port. A busy pinned port fails with an
 // error naming the port.
 func (s *Server) Listen() error {
+	s.listenerMu.Lock()
+	defer s.listenerMu.Unlock()
+	if s.closed {
+		return http.ErrServerClosed
+	}
 	if s.listener != nil {
 		return errors.New("webui: server is already listening")
 	}
@@ -123,10 +139,16 @@ func (s *Server) Listen() error {
 
 // Serve accepts connections until Shutdown. It must be called after Listen.
 func (s *Server) Serve() error {
-	if s.listener == nil {
+	s.listenerMu.Lock()
+	listener, closed := s.listener, s.closed
+	s.listenerMu.Unlock()
+	if closed {
+		return http.ErrServerClosed
+	}
+	if listener == nil {
 		return errors.New("webui: Listen must be called before Serve")
 	}
-	return s.httpServer.Serve(s.listener)
+	return s.httpServer.Serve(listener)
 }
 
 // Shutdown gracefully stops the server, waiting for in-flight requests until
@@ -138,19 +160,32 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s.httpServer == nil {
 		return nil
 	}
+	s.listenerMu.Lock()
+	s.closed = true
+	listener := s.listener
+	s.listenerMu.Unlock()
+	s.session.Close()
 	s.httpServer.SetKeepAlivesEnabled(false)
 	err := s.httpServer.Shutdown(ctx)
+	// Shutdown first marks net/http closed, so racing Serve returns ErrServerClosed.
+	// Its listener registry does not include a listener bound before Serve.
+	var listenerErr error
+	if listener != nil {
+		if closeErr := listener.Close(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+			listenerErr = fmt.Errorf("webui: close listener: %w", closeErr)
+		}
+	}
 	if err == nil || errors.Is(err, http.ErrServerClosed) {
-		return nil
+		return listenerErr
 	}
 	if cerr := s.httpServer.Close(); cerr != nil {
-		return fmt.Errorf("webui: shutdown: %w", errors.Join(err, cerr))
+		return fmt.Errorf("webui: shutdown: %w", errors.Join(err, cerr, listenerErr))
 	}
 	s.logger.Warn().
 		Str("component", "webui").
 		Err(err).
 		Msg("graceful shutdown timed out; remaining connections force-closed")
-	return nil
+	return listenerErr
 }
 
 // Run listens, serves, and blocks until ctx is canceled or an interrupt
@@ -217,9 +252,17 @@ func (s *Server) cookieName() string {
 // security headers (every response) → Host check → request log → session
 // auth → Origin/Content-Type checks → routes.
 func (s *Server) handler() http.Handler {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.handleRoot)
-	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(staticFiles())))
+	mux := s.mux
+	if mux == nil {
+		mux = http.NewServeMux()
+		s.mux = mux
+		s.registerOverview(mux)
+		s.registerCost(mux)
+		s.registerEstimate(mux)
+		s.registerRecommendations(mux)
+		mux.HandleFunc("/", s.handleRoot)
+		mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(staticFiles())))
+	}
 
 	return s.securityHeaders(
 		s.hostCheck(
@@ -265,6 +308,7 @@ type statusRecorder struct {
 	status int
 }
 
+// WriteHeader records the response status before forwarding it to the underlying writer.
 func (r *statusRecorder) WriteHeader(status int) {
 	r.status = status
 	r.ResponseWriter.WriteHeader(status)
@@ -406,3 +450,7 @@ func (s *Server) writeError(w http.ResponseWriter, status int, code, message str
 		s.logger.Debug().Str("component", "webui").Err(err).Msg("encode error response")
 	}
 }
+
+// Handle registers additional engine-backed endpoints before Serve starts.
+// Every registered handler receives the same authentication and hardening middleware.
+func (s *Server) Handle(pattern string, handler http.Handler) { s.mux.Handle(pattern, handler) }

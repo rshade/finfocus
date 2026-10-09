@@ -8,7 +8,7 @@ import (
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
 
-	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // healthBadgeStyle returns the lipgloss style for a budget health status badge.
@@ -36,51 +36,12 @@ func renderBudgetFooter(m OverviewModel) string {
 		return ""
 	}
 
-	summary := m.budgetResult.Summary
-	overallHealth := pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_OK
-	if summary != nil {
-		overallHealth = summary.OverallHealth
+	display := viewmodel.BuildBudgetDisplay(m.budgetResult)
+	footer := "Budget: " + healthBadgeStyle(display.Health).Render(display.HealthDisplay)
+	if display.AmountsDisplay != "" {
+		footer += " " + display.AmountsDisplay
 	}
-
-	badge := healthBadgeStyle(overallHealth).Render(engine.HealthStatusLabel(overallHealth))
-
-	// Check if we have mixed currencies.
-	isMixed := summary != nil && len(summary.ByCurrency) > 1
-
-	if isMixed {
-		// Mixed currencies: show badge and status label only, no dollar amounts.
-		return fmt.Sprintf("Budget: %s", badge)
-	}
-
-	// Same currency (or single budget): aggregate spend and limit.
-	var totalSpend, totalLimit float64
-	for _, b := range m.budgetResult.Budgets {
-		amount := b.GetAmount()
-		status := b.GetStatus()
-		if amount == nil || status == nil {
-			continue
-		}
-		// Exclude disabled budgets (Limit <= 0).
-		if amount.GetLimit() <= 0 {
-			continue
-		}
-		totalSpend += status.GetCurrentSpend()
-		totalLimit += amount.GetLimit()
-	}
-
-	if totalLimit <= 0 {
-		return fmt.Sprintf("Budget: %s", badge)
-	}
-
-	//nolint:mnd // Percentage calculation.
-	pct := (totalSpend / totalLimit) * 100
-
-	return fmt.Sprintf("Budget: %s %s / %s (%.0f%%)",
-		badge,
-		engine.FormatOverviewCurrency(totalSpend),
-		engine.FormatOverviewCurrency(totalLimit),
-		pct,
-	)
+	return footer
 }
 
 // renderDetailBudgetStatus renders the "BUDGET STATUS" section for the detail view,
@@ -95,49 +56,22 @@ func renderDetailBudgetStatus(m OverviewModel) string {
 	content.WriteString(HeaderStyle.Render("BUDGET STATUS"))
 	content.WriteString("\n")
 
-	for _, b := range m.budgetResult.Budgets {
-		amount := b.GetAmount()
-		status := b.GetStatus()
-		if amount == nil || status == nil {
-			continue
+	for _, budget := range viewmodel.BuildBudgetDisplay(m.budgetResult).Details {
+		badge := healthBadgeStyle(budget.Health).Render(budget.HealthDisplay)
+		fmt.Fprintf(&content, "  %s  %s\n", badge, LabelStyle.Render(budget.Name))
+		fmt.Fprintf(&content, "    Limit:       %s\n", ValueStyle.Render(budget.LimitDisplay))
+		fmt.Fprintf(&content, "    Spend:       %s\n", ValueStyle.Render(budget.CurrentSpendDisplay))
+		if budget.ForecastedDisplay != "" {
+			fmt.Fprintf(&content, "    Forecasted:  %s\n", ValueStyle.Render(budget.ForecastedDisplay))
 		}
-
-		health := status.GetHealth()
-		badge := healthBadgeStyle(health).Render(engine.HealthStatusLabel(health))
-		name := b.GetName()
-		if name == "" {
-			name = b.GetId()
-		}
-
-		fmt.Fprintf(&content, "  %s  %s\n", badge, LabelStyle.Render(name))
-		fmt.Fprintf(&content, "    Limit:       %s\n",
-			ValueStyle.Render(engine.FormatOverviewCurrency(amount.GetLimit())))
-		fmt.Fprintf(&content, "    Spend:       %s\n",
-			ValueStyle.Render(engine.FormatOverviewCurrency(status.GetCurrentSpend())))
-
-		if status.GetForecastedSpend() > 0 {
-			fmt.Fprintf(&content, "    Forecasted:  %s\n",
-				ValueStyle.Render(engine.FormatOverviewCurrency(status.GetForecastedSpend())))
-		}
-
-		fmt.Fprintf(&content, "    Utilization: %s\n",
-			ValueStyle.Render(fmt.Sprintf("%.1f%%", status.GetPercentageUsed())))
-
-		// Show triggered threshold alerts.
-		for _, threshold := range b.GetThresholds() {
-			if threshold.GetTriggered() {
-				alertStyle := WarningStyle
-				if threshold.GetPercentage() >= 100 { //nolint:mnd // 100% threshold.
-					alertStyle = CriticalStyle
-				}
-				fmt.Fprintf(&content, "    %s %.0f%% threshold triggered (%s)\n",
-					alertStyle.Render("ALERT:"),
-					threshold.GetPercentage(),
-					threshold.GetType().String(),
-				)
+		fmt.Fprintf(&content, "    Utilization: %s\n", ValueStyle.Render(budget.UtilizationDisplay))
+		for _, threshold := range budget.Thresholds {
+			style := WarningStyle
+			if threshold.Critical {
+				style = CriticalStyle
 			}
+			fmt.Fprintf(&content, "    %s %s\n", style.Render("ALERT:"), threshold.Text)
 		}
-
 		content.WriteString("\n")
 	}
 

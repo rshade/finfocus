@@ -235,13 +235,13 @@
 ## Decision 11: E2E browser driver is Playwright via playwright-go
 
 - **Decision** (user, 2026-10-06): Browser e2e tests use Playwright through
-  `github.com/playwright-community/playwright-go`, added to
+  `github.com/mxschmitt/playwright-go`, added to
   `test/e2e/go.mod` only. The root `go.mod` must not change (checked by
   `go mod tidy -diff`). CI already verifies the Go version stays in step
   between the root and `test/e2e/go.mod` (`.github/workflows/ci.yml`).
 - **Browser binaries**: playwright-go downloads its driver and the browsers on
   demand. Install explicitly with
-  `go run github.com/playwright-community/playwright-go/cmd/playwright install --with-deps chromium`
+  `go run github.com/mxschmitt/playwright-go/cmd/playwright install --with-deps chromium`
   from `test/e2e` (pin the same module version as `go.mod`). The tests are
   behind their own build tag, `e2e_web`, and a Makefile target `test-e2e-web`
   runs the install step then the tests. CI needs a dedicated job (like
@@ -257,3 +257,14 @@
   but adds a Node toolchain and a `package.json` to a Go-only repo. Not
   chosen; the concern is recorded here for review. Chromedp: Chrome DevTools
   only, no cross-browser, weaker accessibility tooling.
+
+## Browser module maintenance update
+
+The nested test module pins `github.com/mxschmitt/playwright-go v0.6201.1`.
+The [upstream releases](https://github.com/mxschmitt/playwright-go/releases)
+record the module-path migration at v0.6100. The former v0.6000.0 installer
+requested Playwright 1.60.0 driver archives that returned HTTP 404 from all
+three configured official CDN mirrors during validation. The maintained
+version's module-resolved installer successfully installs Chromium.
+`make test-e2e-web` runs that exact resolved version from `test/e2e`; it uses
+neither an independent CLI pin nor `@latest`, and adds no root dependency.

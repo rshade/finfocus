@@ -82,6 +82,7 @@ func ActionTypeLabelFromString(actionType string) string {
 		return ""
 	}
 	upperType := strings.ToUpper(strings.TrimSpace(actionType))
+	upperType = strings.TrimPrefix(upperType, "RECOMMENDATION_ACTION_TYPE_")
 	if label, ok := stringLabels[upperType]; ok {
 		return label
 	}

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"slices"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/rs/zerolog"
 
 	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
@@ -14,16 +13,7 @@ import (
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/pluginhost"
-	"github.com/rshade/finfocus/internal/tui"
 )
-
-// overviewExpansion carries what cluster expansion reports to the summary:
-// its footnotes and the number of stack resources counted before expansion,
-// which excludes synthetic live rows and includes suppressed projected rows.
-type overviewExpansion struct {
-	notes         []string
-	resourceCount int
-}
 
 // expandOverviewClusters groups declared workload rows under the stack's
 // cluster row (projected expansion), then attempts live allocation per
@@ -278,23 +268,4 @@ func overviewRowsExpanded(rows []engine.OverviewRow) bool {
 		}
 	}
 	return false
-}
-
-// sendClusterExpansionToTUI runs cluster expansion after enrichment and, when
-// the row set changed, notifies the TUI via OverviewExpansionReadyMsg. It
-// returns the expanded rows, or the original rows when nothing changed.
-func sendClusterExpansionToTUI(
-	ctx context.Context,
-	p *tea.Program,
-	rows []engine.OverviewRow,
-	clients []*pluginhost.Client,
-	pricer engine.ResourcePricer,
-	cfg *config.Config,
-) []engine.OverviewRow {
-	expandedRows, notes := expandOverviewClusters(ctx, rows, clients, pricer, cfg)
-	if !overviewRowsExpanded(expandedRows) {
-		return rows
-	}
-	p.Send(tui.OverviewExpansionReadyMsg{Rows: expandedRows, Notes: notes})
-	return expandedRows
 }

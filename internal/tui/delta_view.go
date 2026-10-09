@@ -3,12 +3,12 @@ package tui
 import (
 	"fmt"
 	"image/color"
-	"math"
 	"strings"
 
 	"charm.land/lipgloss/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // Column width constants for property table formatting.
@@ -34,30 +34,17 @@ const defaultEstimateCurrency = "USD"
 //   - ↓ arrow for decreases (OK color)
 //   - → arrow for no change (muted color)
 func RenderEstimateDelta(delta float64) string {
-	// Round to cents for display consistency
-	rounded := math.Round(delta*centsMultiplier) / centsMultiplier
-
-	var icon, sign string
+	display := viewmodel.FormatEstimateDelta(delta)
 	var fg color.Color
-
-	switch {
-	case rounded > 0:
-		icon = IconArrowUp
-		sign = "+"
+	switch display.Arrow {
+	case IconArrowUp:
 		fg = ColorWarning
-	case rounded < 0:
-		icon = IconArrowDown
-		sign = ""
+	case IconArrowDown:
 		fg = ColorOK
 	default:
-		icon = IconArrowRight
-		sign = ""
 		fg = ColorMuted
 	}
-
-	formatted := fmt.Sprintf("$%.2f", math.Abs(rounded))
-	style := lipgloss.NewStyle().Foreground(fg).Bold(true)
-	return style.Render(fmt.Sprintf("%s%s %s", sign, formatted, icon))
+	return lipgloss.NewStyle().Foreground(fg).Bold(true).Render(display.Text)
 }
 
 // RenderEstimateHeader renders the header for the estimate TUI.
@@ -116,16 +103,14 @@ func RenderCostComparison(baseline, modified float64, currency string) string {
 	labelStyle := lipgloss.NewStyle().Foreground(ColorLabel)
 	valueStyle := lipgloss.NewStyle().Foreground(ColorValue).Bold(true)
 
-	symbol := getCurrencySymbol(currency)
-
 	// Baseline cost
 	sb.WriteString(labelStyle.Render("Baseline:  "))
-	sb.WriteString(valueStyle.Render(fmt.Sprintf("%s%.2f/mo (%s)", symbol, baseline, currency)))
+	sb.WriteString(valueStyle.Render(viewmodel.FormatEstimateMonthly(baseline, currency)))
 	sb.WriteString("\n")
 
 	// Modified cost
 	sb.WriteString(labelStyle.Render("Modified:  "))
-	sb.WriteString(valueStyle.Render(fmt.Sprintf("%s%.2f/mo (%s)", symbol, modified, currency)))
+	sb.WriteString(valueStyle.Render(viewmodel.FormatEstimateMonthly(modified, currency)))
 	sb.WriteString("\n\n")
 
 	// Total change

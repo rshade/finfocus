@@ -139,6 +139,43 @@ SUMMARY      prod                      3 resources  $61.43 USD   $66.00 USD  -$2
 
 Full documentation: [Overview command](docs/src/content/docs/commands/overview.md)
 
+### Browser dashboard
+
+Run from the folder containing your Pulumi program:
+
+```bash
+finfocus --web
+```
+
+FinFocus starts a local server, prints its session URL, and opens your browser.
+Use `--no-browser` on SSH or CI, and `--port 8484` when you need a fixed port.
+The Overview, Cost, Recommendations, and Estimate views use the same Go engine
+and plugins as the CLI and TUI. Keyboard navigation, resource details, cluster
+expansion, and light/dark themes are available in the browser.
+
+Sources follow `finfocus overview`: auto-detect the current Pulumi project and
+stack, or pass `--pulumi-json plan.json` / `--pulumi-state state.json`.
+`--stack`, `--from`, `--to`, `--adapter`, and `--filter` are also accepted.
+These source flags, `--port`, and `--no-browser` are root-local companions to
+`--web`; they are rejected without it. `--web` is mutually exclusive with `--mcp`.
+Terraform inputs are outside the web UI's current scope.
+
+The Cost view's group selector and tag filter, and the Recommendations view's
+**Include dismissed** toggle, add browser controls for existing CLI flags.
+The TUI fixes grouping at launch and has no include-dismissed toggle.
+Estimate changes are temporary what-if calculations; the dashboard cannot
+change infrastructure or dismiss recommendations. Use **Run preview** for an
+on-demand Pulumi preview and restart the session to load fresh actual costs.
+
+Keep the printed URL private: its token opens an authenticated local session.
+The server binds to loopback, replaces the token in the address bar with an
+HTTP-only session cookie, and checks request origins. Encrypted stacks use a
+masked browser passphrase prompt with retries. Stop the server with Ctrl+C;
+closing a browser tab leaves it running.
+
+See the [web UI guide](docs/src/content/docs/guides/web-ui.md) for launch options,
+storage behavior, and browser test commands.
+
 ### 4. Calculate Costs
 
 **Projected Costs** - Estimate costs before deployment:

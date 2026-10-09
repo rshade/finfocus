@@ -2,6 +2,7 @@ package cli_test
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -309,6 +310,13 @@ func TestPluginJSONEntry_Serialization(t *testing.T) {
 // T013: Test that table output is unchanged with --output table.
 func TestPluginListCmd_TableOutputUnchanged(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	home := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", home)
+	for _, version := range []string{"0.1.5", "0.1.9", "0.2.0"} {
+		dir := filepath.Join(home, "plugins", "aws-public", version)
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+		createMockPluginBinary(t, dir, "finfocus-plugin-aws-public")
+	}
 
 	// Run without --output flag (default table)
 	var defaultBuf bytes.Buffer
@@ -330,6 +338,40 @@ func TestPluginListCmd_TableOutputUnchanged(t *testing.T) {
 
 	// Both should produce identical output
 	assert.Equal(t, defaultBuf.String(), tableBuf.String())
+}
+
+// TestPluginListCmd_VersionOrder catches completion-order-dependent rows for
+// multiple installed versions of the same plugin.
+func TestPluginListCmd_VersionOrder(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	home := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", home)
+	for _, version := range []string{"0.1.5", "0.1.9", "0.2.0"} {
+		dir := filepath.Join(home, "plugins", "aws-public", version)
+		require.NoError(t, os.MkdirAll(dir, 0o755))
+		createMockPluginBinary(t, dir, "finfocus-plugin-aws-public")
+	}
+
+	// Cancel metadata lookups so ordering is tested independently of plugin startup.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	for range 20 {
+		var buf bytes.Buffer
+		cmd := cli.NewPluginListCmd()
+		cmd.SetContext(ctx)
+		cmd.SetOut(&buf)
+		cmd.SetErr(&buf)
+		cmd.SetArgs([]string{"--output", "json"})
+		require.NoError(t, cmd.Execute())
+
+		var entries []cli.PluginJSONEntry
+		require.NoError(t, json.Unmarshal(buf.Bytes(), &entries))
+		versions := make([]string, 0, len(entries))
+		for _, entry := range entries {
+			versions = append(versions, entry.Version)
+		}
+		assert.Equal(t, []string{"0.1.5", "0.1.9", "0.2.0"}, versions)
+	}
 }
 
 // T038: Test that batch_cost capability appears in JSON output.
