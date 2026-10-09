@@ -38,7 +38,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.27.1'
+          go-version: '1.27.2'
 
       # 3. Resolve the CLI-only tag range so GoReleaser never picks up a
       #    monorepo plugin tag (e.g. kubernetes-v0.1.0) as current/previous.
