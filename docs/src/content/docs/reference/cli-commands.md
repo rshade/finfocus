@@ -71,7 +71,8 @@ finfocus --web [options]
 ### Options (--web)
 
 All of these are root-local and only valid together with `--web`; used alone
-they fail with an error naming `--web`.
+they fail with an error naming `--web` and exit code 2. Combining `--web` with
+`--mcp` also exits 2.
 
 | Flag             | Description                                                        | Default           |
 | ---------------- | ------------------------------------------------------------------ | ----------------- |
@@ -84,7 +85,7 @@ they fail with an error naming `--web`.
 | `--from`         | Start date (YYYY-MM-DD or RFC3339)                                 | 1st of current month |
 | `--to`           | End date (YYYY-MM-DD or RFC3339)                                   | Now               |
 | `--adapter`      | Restrict to a specific adapter plugin                              | All plugins       |
-| `--filter`       | Resource filters (`type=`, `status=`, `provider=`)                 | None              |
+| `--filter`       | Resource filters (`type=`, `status=`, `provider=`), repeatable     | None              |
 
 ### Examples (--web)
 
@@ -98,6 +99,11 @@ finfocus --web --port 8484 --no-browser
 # Use pre-exported files instead of running Pulumi CLI commands
 finfocus --web --pulumi-state state.json --pulumi-json plan.json
 ```
+
+For tasks, see [Use the browser dashboard](../guides/web-ui.md). Views,
+controls, exit codes, and HTTP behavior are in the
+[Web UI reference](web-ui.md); the security model is explained in
+[Web UI design](../architecture/web-ui.md).
 
 For `--mcp`, see the [MCP guide](../guides/mcp.md).
 

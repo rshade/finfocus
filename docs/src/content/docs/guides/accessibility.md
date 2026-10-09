@@ -197,6 +197,8 @@ If you need interaction, disable plain mode. If you need accessible interaction,
 **Related Guides:**
 
 - [User Guide](./user-guide.md) - General usage
+- [Web UI Reference](../reference/web-ui.md#keyboard-and-display) - Keyboard use and color scheme in the browser
+  dashboard
 
 **CLI Reference:**
 

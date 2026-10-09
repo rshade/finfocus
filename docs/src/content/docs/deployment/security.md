@@ -51,6 +51,9 @@ Plugins are executable binaries that run as separate processes and communicate o
 ## Network Security
 
 - **Localhost-only gRPC**: All core plugin traffic stays on `127.0.0.1`.
+- **Browser dashboard**: `finfocus --web` binds `127.0.0.1` only, with no option to
+  bind elsewhere, and requires a per-session token. See
+  [Web UI design](../architecture/web-ui.md#security-model).
 - **No outbound requirement**: Core FinFocus functionality does not require external network
   access.
 - **Plugin networking**: Plugins may call external APIs (for example, Vantage) when configured.
