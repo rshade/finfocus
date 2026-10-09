@@ -1,0 +1,133 @@
+// Deterministic local browser fixture; compiled with the root module's existing SDK.
+package main
+
+import (
+	"context"
+	"errors"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"slices"
+	"strings"
+	"syscall"
+	"time"
+
+	"github.com/rs/zerolog"
+	"github.com/rshade/finfocus-spec/sdk/go/pluginsdk"
+	pbc "github.com/rshade/finfocus-spec/sdk/go/proto/finfocus/v1"
+	"google.golang.org/protobuf/types/known/timestamppb"
+)
+
+type plugin struct {
+	*pluginsdk.BasePlugin
+	rate float64
+	name string
+}
+
+func (p *plugin) Supports(context.Context, *pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
+	return &pbc.SupportsResponse{Supported: true}, nil
+}
+func (p *plugin) GetProjectedCost(ctx context.Context, req *pbc.GetProjectedCostRequest) (*pbc.GetProjectedCostResponse, error) {
+	if err := waitForEnrichmentGate(ctx, req.GetResource().GetId()); err != nil {
+		return nil, err
+	}
+	units := 1.0
+	if req.GetResource().GetTags()["instanceType"] == "t3.large" {
+		units = 4
+	}
+	currency := "USD"
+	if os.Getenv("WEB_MIXED_CURRENCY") == "true" && strings.Contains(req.GetResource().GetId(), "currency-eur") {
+		currency = "EUR"
+	}
+	return &pbc.GetProjectedCostResponse{Currency: currency, CostBreakdown: map[string]float64{"compute": p.rate * units}, UnitPrice: p.rate / 730, CostPerMonth: p.rate * units, BillingDetail: "deterministic local fixture"}, nil
+}
+
+// Gates are confined to the deterministic browser fixture, never product code.
+func waitForEnrichmentGate(ctx context.Context, resourceID string) error {
+	directory := os.Getenv("WEB_ENRICHMENT_GATE")
+	if directory == "" {
+		return nil
+	}
+	name := "rest"
+	if strings.Contains(resourceID, "progress-first") {
+		name = "first"
+	}
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		if _, err := os.Stat(filepath.Join(directory, name)); err == nil {
+			return nil
+		} else if !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
+}
+func (p *plugin) GetActualCost(_ context.Context, req *pbc.GetActualCostRequest) (*pbc.GetActualCostResponse, error) {
+	at := req.GetStart().AsTime()
+	if at.IsZero() {
+		at = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	}
+	cost := p.rate / 2
+	var impact []*pbc.ImpactMetric
+	if os.Getenv("WEB_RICH_PRESENTATION") == "true" {
+		cost = 12.3456
+		impact = []*pbc.ImpactMetric{{Kind: pbc.MetricKind_METRIC_KIND_CARBON_FOOTPRINT, Value: 12.23456, Unit: "kgCO2e"}}
+	}
+	return &pbc.GetActualCostResponse{Results: []*pbc.ActualCostResult{{Cost: cost, ImpactMetrics: impact, Timestamp: timestamppb.New(at), Source: p.name, FocusRecord: &pbc.FocusCostRecord{BillingCurrency: "USD"}}}}, nil
+}
+func (p *plugin) GetBudgets(context.Context, *pbc.GetBudgetsRequest) (*pbc.GetBudgetsResponse, error) {
+	if os.Getenv("WEB_RICH_PRESENTATION") != "true" {
+		return &pbc.GetBudgetsResponse{}, nil
+	}
+	return &pbc.GetBudgetsResponse{Budgets: []*pbc.Budget{{Id: p.name + "-budget", Name: "Presentation budget", Source: p.name, Amount: &pbc.BudgetAmount{Limit: 100.1234, Currency: "USD"}, Period: pbc.BudgetPeriod_BUDGET_PERIOD_MONTHLY, Status: &pbc.BudgetStatus{CurrentSpend: 75.6789, ForecastedSpend: 90.1234, PercentageUsed: 75.5856, Health: pbc.BudgetHealthStatus_BUDGET_HEALTH_STATUS_WARNING}, Thresholds: []*pbc.BudgetThreshold{{Percentage: 75, Type: pbc.ThresholdType_THRESHOLD_TYPE_ACTUAL, Triggered: true}}}}}, nil
+}
+func (p *plugin) GetPricingSpec(context.Context, *pbc.GetPricingSpecRequest) (*pbc.GetPricingSpecResponse, error) {
+	return &pbc.GetPricingSpecResponse{Spec: &pbc.PricingSpec{BillingMode: "hourly", Currency: "USD", RatePerUnit: p.rate / 730, Assumptions: []string{"730 hours", "local fixture"}}}, nil
+}
+func (p *plugin) EstimateCost(_ context.Context, req *pbc.EstimateCostRequest) (*pbc.EstimateCostResponse, error) {
+	units := 1.0
+	if req.GetAttributes().GetFields()["instanceType"].GetStringValue() == "t3.large" {
+		units = 4
+	}
+	return &pbc.EstimateCostResponse{Currency: "USD", CostMonthly: p.rate * units}, nil
+}
+func (p *plugin) GetRecommendations(_ context.Context, req *pbc.GetRecommendationsRequest) (*pbc.GetRecommendationsResponse, error) {
+	recs := []*pbc.Recommendation{}
+	for _, r := range req.GetTargetResources() {
+		id := p.name + ":" + r.GetId()
+		if slices.Contains(req.GetExcludedRecommendationIds(), id) {
+			continue
+		}
+		confidence := 0.9
+		recs = append(recs, &pbc.Recommendation{Id: id, ActionType: pbc.RecommendationActionType_RECOMMENDATION_ACTION_TYPE_RIGHTSIZE, Category: pbc.RecommendationCategory_RECOMMENDATION_CATEGORY_COST, Resource: &pbc.ResourceRecommendationInfo{Id: r.GetId(), ResourceType: r.GetResourceType(), Provider: strings.Split(r.GetResourceType(), ":")[0]}, Description: "Choose a smaller fixture instance", Reasoning: []string{"Verify memory before resizing"}, Source: p.name, ConfidenceScore: &confidence, Impact: &pbc.RecommendationImpact{EstimatedSavings: p.rate / 4, Currency: "USD"}})
+	}
+	return &pbc.GetRecommendationsResponse{Recommendations: recs, Summary: &pbc.RecommendationSummary{TotalRecommendations: int32(len(recs)), TotalEstimatedSavings: float64(len(recs)) * p.rate / 4, Currency: "USD", ProjectionPeriod: "monthly"}}, nil
+}
+func (p *plugin) ScoreRecommendations(_ context.Context, req *pbc.ScoreRecommendationsRequest) (*pbc.ScoreRecommendationsResponse, error) {
+	risk := 0.2
+	response := &pbc.ScoreRecommendationsResponse{SessionId: req.GetSessionId(), MaxBatchSize: 1000, Scorer: &pbc.ScorerInfo{Name: p.name}, SupportedSignals: []pbc.ScoreSignal{pbc.ScoreSignal_SCORE_SIGNAL_RISK}}
+	for _, r := range req.GetRecommendations() {
+		response.Results = append(response.Results, &pbc.RecommendationScoreResult{RecommendationId: r.GetId(), Result: &pbc.RecommendationScoreResult_Scores{Scores: &pbc.RecommendationScores{Risk: &risk}}})
+	}
+	return response, nil
+}
+func main() {
+	name := strings.TrimPrefix(filepath.Base(os.Args[0]), "finfocus-plugin-")
+	rate := 10.0
+	if name == "webalternate" {
+		rate = 30
+	}
+	p := &plugin{BasePlugin: pluginsdk.NewBasePlugin(name), rate: rate, name: name}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	logger := zerolog.New(os.Stderr)
+	info := pluginsdk.NewPluginInfo(name, "0.1.0", pluginsdk.WithScorerLimits(1000, pbc.ScoreSignal_SCORE_SIGNAL_RISK))
+	if err := pluginsdk.Serve(ctx, pluginsdk.ServeConfig{Plugin: p, PluginInfo: info, Logger: &logger}); err != nil {
+		os.Exit(1)
+	}
+}

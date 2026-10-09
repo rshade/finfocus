@@ -11,72 +11,77 @@ import (
 // All values are pre-computed by ComputeOverviewResult (or
 // ComputeOverviewRowResult) so that every renderer (table, JSON, NDJSON, TUI)
 // reads identical data instead of recomputing it independently.
+//
+// The JSON tags are the settled serializable form of an overview row (T014a):
+// the same type is consumed by RenderOverviewAsJSON (via the Source row) and
+// by the web UI payloads, so there is exactly one row schema.
 type OverviewRowResult struct {
 	// Identity.
-	URN         string
-	Type        string
-	DisplayName string // rightmost URN component
-	Status      ResourceStatus
+	URN         string         `json:"urn"`
+	Type        string         `json:"type"`
+	DisplayName string         `json:"displayName"` // rightmost URN component
+	Status      ResourceStatus `json:"status"`
 
 	// Cluster expansion.
-	ParentURN       string
-	ChildURNs       []string
-	ExpansionSource string
-	LiveChildName   string // "ns/<namespace>" or "(idle)" for a live child, else ""
+	ParentURN       string   `json:"parentUrn,omitempty"`
+	ChildURNs       []string `json:"childUrns,omitempty"`
+	ExpansionSource string   `json:"expansionSource,omitempty"`
+	LiveChildName   string   `json:"liveChildName,omitempty"` // "ns/<namespace>" or "(idle)" for a live child, else ""
 
 	// Cost values (nil = not applicable).
-	ActualMTD    *float64 // month-to-date actual cost
-	Projected    *float64 // projected monthly cost
-	Delta        *float64 // status-aware delta (from ComputedDelta)
-	DriftPct     *float64 // drift percentage
-	DriftWarning bool     // whether drift exceeds the warning threshold
+	ActualMTD    *float64 `json:"actualMtd,omitempty"`    // month-to-date actual cost
+	Projected    *float64 `json:"projected,omitempty"`    // projected monthly cost
+	Delta        *float64 `json:"delta,omitempty"`        // status-aware delta (from ComputedDelta)
+	DriftPct     *float64 `json:"driftPct,omitempty"`     // drift percentage
+	DriftWarning bool     `json:"driftWarning,omitempty"` // whether drift exceeds the warning threshold
 
 	// Pre-formatted display strings in the canonical table format.
-	ResourceDisplay  string // URN, or "↳ " + child name for an expansion child
-	StatusDisplay    string // status icon + label
-	ActualDisplay    string // FormatOverviewCurrency, "-", or "ERR"
-	ProjectedDisplay string // FormatOverviewCurrency, "-", or "ERR"
-	DeltaDisplay     string // FormatOverviewDelta or "-"
-	DriftDisplay     string // signed percent with optional warning icon, or "-"
-	RecsDisplay      string // "N", "N(-M)", or "-"
+	ResourceDisplay  string `json:"resourceDisplay"`  // URN, or "↳ " + child name for an expansion child
+	StatusDisplay    string `json:"statusDisplay"`    // status icon + label
+	ActualDisplay    string `json:"actualDisplay"`    // FormatOverviewCurrency, "-", or "ERR"
+	ProjectedDisplay string `json:"projectedDisplay"` // FormatOverviewCurrency, "-", or "ERR"
+	DeltaDisplay     string `json:"deltaDisplay"`     // FormatOverviewDelta or "-"
+	DriftDisplay     string `json:"driftDisplay"`     // signed percent with optional warning icon, or "-"
+	RecsDisplay      string `json:"recsDisplay"`      // "N", "N(-M)", or "-"
 
 	// Metadata.
-	ActiveRecs    int
-	DismissedRecs int
-	HasError      bool
+	ActiveRecs    int  `json:"activeRecs"`
+	DismissedRecs int  `json:"dismissedRecs"`
+	HasError      bool `json:"hasError"`
 
 	// Detail data (for the TUI detail view). Pointers and slices are shared
 	// with the source row, not copied.
-	PropertyDiffs         []PropertyDiff
-	Recommendations       []Recommendation
-	Warnings              []OverviewWarning
-	ActualCost            *ActualCostData
-	ProjectedCost         *ProjectedCostData
-	BaselineProjectedCost *ProjectedCostData
-	CostDrift             *CostDriftData
-	Error                 *OverviewRowError
+	PropertyDiffs         []PropertyDiff     `json:"propertyDiffs,omitempty"`
+	Recommendations       []Recommendation   `json:"recommendations,omitempty"`
+	Warnings              []OverviewWarning  `json:"warnings,omitempty"`
+	ActualCost            *ActualCostData    `json:"actualCost,omitempty"`
+	ProjectedCost         *ProjectedCostData `json:"projectedCost,omitempty"`
+	BaselineProjectedCost *ProjectedCostData `json:"-"`
+	CostDrift             *CostDriftData     `json:"costDrift,omitempty"`
+	Error                 *OverviewRowError  `json:"error,omitempty"`
 
 	// Source is the original enriched row, retained for JSON/NDJSON
 	// serialization (which marshal the full OverviewRow schema) and for
 	// day-dependent extrapolation helpers in the TUI detail view.
-	Source OverviewRow
+	Source OverviewRow `json:"source"`
 }
 
 // OverviewTotals holds pre-computed aggregate totals across all rows. It is
-// serialized as OverviewSummary in the JSON output.
+// serialized as OverviewSummary in the CLI JSON output; the JSON tags here
+// are the settled totals form for the web payloads (T014a).
 // Computed once by ComputeOverviewResult and shared by every renderer.
 type OverviewTotals struct {
-	TotalActual    float64
-	TotalProjected float64
-	TotalDelta     float64
-	TotalSavings   float64
-	Currency       string
+	TotalActual    float64 `json:"totalActual"`
+	TotalProjected float64 `json:"totalProjected"`
+	TotalDelta     float64 `json:"totalDelta"`
+	TotalSavings   float64 `json:"totalSavings"`
+	Currency       string  `json:"currency"`
 	// Errors collects per-row errors for the JSON errors array.
-	Errors []OverviewRowError
+	Errors []OverviewRowError `json:"errors,omitempty"`
 	// MixedCurrencies is set when rows carry different non-empty currencies.
 	// The totals are then meaningless, so the table and JSON renderers return
 	// ErrMixedCurrencies; NDJSON has no totals and still renders.
-	MixedCurrencies bool
+	MixedCurrencies bool `json:"mixedCurrencies,omitempty"`
 }
 
 // OverviewResult holds all pre-computed display values for the overview.

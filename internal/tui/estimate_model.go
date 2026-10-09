@@ -3,12 +3,12 @@ package tui
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // EstimateState represents the current state of the estimate TUI.
@@ -26,17 +26,13 @@ const (
 )
 
 // PropertyRow represents a single editable property in the estimate TUI.
-type PropertyRow struct {
-	Key           string
-	OriginalValue string
-	CurrentValue  string
-	CostDelta     float64
-}
+type PropertyRow = viewmodel.EstimatePropertyRow
 
 // estimateRecalculateMsg is sent when cost recalculation completes.
 type estimateRecalculateMsg struct {
-	result *engine.EstimateResult
-	err    error
+	result     *engine.EstimateResult
+	err        error
+	generation uint64
 }
 
 // estimatePricingSpecMsg delivers GetPricingSpec discovery for the open resource.
@@ -79,6 +75,10 @@ type EstimateModel struct {
 
 	// Cost calculation callback
 	recalculateFn func(context.Context, *engine.ResourceDescriptor, map[string]string) (*engine.EstimateResult, error)
+
+	// A mode-aware callback shares the engine request without changing legacy callers.
+	estimateFn func(context.Context, *engine.EstimateRequest) (*engine.EstimateResult, error)
+	generation uint64
 
 	// Plugin pricing-spec discovery. Empty modes leave the estimate editable.
 	discoverFn         func(context.Context, *engine.ResourceDescriptor) engine.PricingDiscovery
@@ -146,6 +146,17 @@ func (m *EstimateModel) WithPricingDiscovery(
 	return m
 }
 
+// WithEstimateCallback installs shared provider-aware estimation. The callback
+// handles unchanged properties with Engine.EstimateBaseline.
+func (m *EstimateModel) WithEstimateCallback(
+	fn func(context.Context, *engine.EstimateRequest) (*engine.EstimateResult, error),
+) *EstimateModel {
+	if m != nil {
+		m.estimateFn = fn
+	}
+	return m
+}
+
 // initializeProperties extracts properties from the resource into editable rows.
 func (m *EstimateModel) initializeProperties() {
 	if m.resource == nil || m.resource.Properties == nil {
@@ -153,24 +164,7 @@ func (m *EstimateModel) initializeProperties() {
 		return
 	}
 
-	// Extract and sort property keys for consistent ordering
-	keys := make([]string, 0, len(m.resource.Properties))
-	for k := range m.resource.Properties {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	m.properties = make([]PropertyRow, 0, len(keys))
-	for _, key := range keys {
-		value := m.resource.Properties[key]
-		strValue := fmt.Sprintf("%v", value)
-		m.properties = append(m.properties, PropertyRow{
-			Key:           key,
-			OriginalValue: strValue,
-			CurrentValue:  strValue,
-			CostDelta:     0,
-		})
-	}
+	m.properties = viewmodel.BuildEstimatePropertyRows(m.resource.Properties, nil)
 }
 
 // applyResult applies an estimate result to the model state.
@@ -186,16 +180,7 @@ func (m *EstimateModel) applyResult(result *engine.EstimateResult) {
 	}
 	m.deltas = result.Deltas
 
-	// Update property deltas - reset all first, then apply from result
-	for i := range m.properties {
-		m.properties[i].CostDelta = 0 // Reset to avoid stale deltas
-		for _, delta := range result.Deltas {
-			if delta.Property == m.properties[i].Key {
-				m.properties[i].CostDelta = delta.CostChange
-				break
-			}
-		}
-	}
+	viewmodel.ApplyEstimateDeltas(m.properties, result.Deltas)
 }
 
 // Init initializes the model and starts pricing-spec discovery when configured.
@@ -227,6 +212,9 @@ func (m *EstimateModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.pricingSpecLoading = false
 		m.pricingModes = msg.discovery.Modes
 		m.pricingMode = 0
+		if m.estimateFn != nil && len(m.pricingModes) > 0 {
+			return m, m.triggerRecalculation()
+		}
 		return m, nil
 
 	case tea.KeyPressMsg:
@@ -263,16 +251,9 @@ func (m *EstimateModel) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyLeft:
-		if len(m.pricingModes) > 1 && m.pricingMode > 0 {
-			m.pricingMode--
-		}
-		return m, nil
-
+		return m, m.selectPricingMode(m.pricingMode - 1)
 	case tea.KeyRight:
-		if len(m.pricingModes) > 1 && m.pricingMode < len(m.pricingModes)-1 {
-			m.pricingMode++
-		}
-		return m, nil
+		return m, m.selectPricingMode(m.pricingMode + 1)
 
 	case tea.KeyEnter:
 		if len(m.properties) > 0 && m.focusedRow < len(m.properties) {
@@ -295,6 +276,17 @@ func (m *EstimateModel) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m *EstimateModel) selectPricingMode(index int) tea.Cmd {
+	if index < 0 || index >= len(m.pricingModes) || index == m.pricingMode {
+		return nil
+	}
+	m.pricingMode = index
+	if m.estimateFn != nil || m.recalculateFn != nil {
+		return m.triggerRecalculation()
+	}
+	return nil
+}
+
 // handleEditModeKey processes keyboard input while editing a property.
 func (m *EstimateModel) handleEditModeKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 	switch msg.Code {
@@ -306,7 +298,7 @@ func (m *EstimateModel) handleEditModeKey(msg tea.KeyPressMsg) (tea.Model, tea.C
 		m.editMode = false
 
 		// Trigger recalculation if callback is set
-		if m.recalculateFn != nil {
+		if m.recalculateFn != nil || m.estimateFn != nil {
 			return m, m.triggerRecalculation()
 		}
 		return m, nil
@@ -335,6 +327,7 @@ func (m *EstimateModel) handleEditModeKey(msg tea.KeyPressMsg) (tea.Model, tea.C
 // triggerRecalculation creates a command to recalculate costs.
 func (m *EstimateModel) triggerRecalculation() tea.Cmd {
 	m.loading = true
+	m.generation++
 
 	// Build overrides from changed properties
 	overrides := make(map[string]string)
@@ -348,15 +341,33 @@ func (m *EstimateModel) triggerRecalculation() tea.Cmd {
 	ctx := m.ctx
 	resource := m.resource
 	recalculateFn := m.recalculateFn
+	estimateFn := m.estimateFn
+	generation := m.generation
+	mode := ""
+	if len(m.pricingModes) > 0 && m.pricingMode < len(m.pricingModes) {
+		mode = m.pricingModes[m.pricingMode].ID()
+	}
 
 	return func() tea.Msg {
-		result, err := recalculateFn(ctx, resource, overrides)
-		return estimateRecalculateMsg{result: result, err: err}
+		var result *engine.EstimateResult
+		var err error
+		if estimateFn != nil {
+			result, err = estimateFn(
+				ctx,
+				&engine.EstimateRequest{Resource: resource, PropertyOverrides: overrides, PricingMode: mode},
+			)
+		} else {
+			result, err = recalculateFn(ctx, resource, overrides)
+		}
+		return estimateRecalculateMsg{result: result, err: err, generation: generation}
 	}
 }
 
 // handleRecalculateComplete processes the result of a cost recalculation.
 func (m *EstimateModel) handleRecalculateComplete(msg estimateRecalculateMsg) (tea.Model, tea.Cmd) {
+	if msg.generation != m.generation {
+		return m, nil
+	}
 	m.loading = false
 
 	if msg.err != nil {
@@ -365,6 +376,8 @@ func (m *EstimateModel) handleRecalculateComplete(msg estimateRecalculateMsg) (t
 		return m, nil
 	}
 
+	m.err = nil
+	m.state = EstimateStateEditing
 	if msg.result != nil {
 		m.applyResult(msg.result)
 	}

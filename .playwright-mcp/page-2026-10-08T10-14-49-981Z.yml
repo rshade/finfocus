@@ -1,0 +1,55 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]: FinFocus
+    - navigation "Views" [ref=e5]:
+      - link "Overview" [ref=e6] [cursor=pointer]:
+        - /url: "#/overview"
+      - link "Cost" [ref=e7] [cursor=pointer]:
+        - /url: "#/cost"
+      - link "Recommendations" [ref=e8] [cursor=pointer]:
+        - /url: "#/recommendations"
+      - link "Estimate" [ref=e9] [cursor=pointer]:
+        - /url: "#/estimate"
+    - status [ref=e10]: Live
+  - main [ref=e11]:
+    - generic [ref=e155]:
+      - heading "Recommendations" [active] [level=2] [ref=e156]
+      - generic [ref=e157]:
+        - generic [ref=e158]:
+          - text: Filter
+          - searchbox "Filter" [ref=e159]
+        - generic [ref=e160]:
+          - text: Sort by
+          - combobox "Sort by" [ref=e161]:
+            - option "Savings" [selected]
+            - option "Resource"
+            - option "Action"
+        - generic [ref=e162]:
+          - checkbox "Include dismissed" [ref=e163]
+          - text: Include dismissed
+        - button "Apply" [ref=e164] [cursor=pointer]
+      - alert [ref=e165]: Some plugin data is unavailable. Available results are shown.
+      - status [ref=e166]: Recommendations loaded.
+      - generic "Recommendation summary" [ref=e167]:
+        - paragraph [ref=e168]: "Recommendations: 0"
+        - paragraph [ref=e169]: "Potential savings: $0.00 USD"
+        - list [ref=e170]
+      - generic "Scrollable recommendations" [ref=e171]:
+        - table [ref=e172]:
+          - caption [ref=e173]: Cost optimization recommendations
+          - rowgroup [ref=e174]:
+            - row [ref=e175]:
+              - columnheader "Resource" [ref=e176]
+              - columnheader "Action" [ref=e177]
+              - columnheader "Description" [ref=e178]
+              - columnheader "Savings" [ref=e179]
+              - columnheader "Status" [ref=e180]
+          - rowgroup [ref=e181]:
+            - row [ref=e182]:
+              - cell "No recommendations match these filters." [ref=e183]
+      - navigation "Recommendation pages" [ref=e184]:
+        - button "Previous page" [disabled] [ref=e185]
+        - status [ref=e186]: Page 1 of 1
+        - button "Next page" [disabled] [ref=e187]

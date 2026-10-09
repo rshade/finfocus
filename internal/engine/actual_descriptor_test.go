@@ -105,3 +105,31 @@ func TestGenerateActualCostCacheKey_Descriptor(t *testing.T) {
 		return r
 	}()), "no descriptor is sent without a provider, so the key ignores its properties")
 }
+
+func TestActualCostFromPluginPreservesSustainability(t *testing.T) {
+	t.Parallel()
+	input := &proto.ActualCostResult{
+		Currency:       "USD",
+		TotalCost:      12.3456,
+		Sustainability: map[string]proto.SustainabilityMetric{"carbon_footprint": {Value: 12.23456, Unit: "kgCO2e"}},
+	}
+	client := makeBatchCapableClient(
+		"carbon",
+		&mockBatchCostSourceClient{
+			getActualCostFunc: func(context.Context, *proto.GetActualCostRequest, ...grpc.CallOption) (*proto.GetActualCostResponse, error) {
+				return &proto.GetActualCostResponse{Results: []*proto.ActualCostResult{input}}, nil
+			},
+		},
+	)
+	eng := New([]*pluginhost.Client{client}, nil)
+	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	resource := ResourceDescriptor{Type: "aws:ec2:Instance", ID: "vm", Provider: "aws"}
+	actual, err := eng.getActualCostFromPlugin(context.Background(), client, resource, start, start.AddDate(0, 0, 6))
+	require.NoError(t, err)
+	require.NotEmpty(t, actual.Sustainability)
+	assert.Equal(t, SustainabilityMetric{Value: 12.23456, Unit: "kgCO2e"}, actual.Sustainability["carbon_footprint"])
+	batch := mapProtoActualCostResultToEngine(resource, "carbon", input, start, start.AddDate(0, 0, 6))
+	assert.Equal(t, batch, actual, "single and batch must preserve the same canonical fields")
+	actual.Sustainability["carbon_footprint"] = SustainabilityMetric{}
+	assert.InDelta(t, 12.23456, input.Sustainability["carbon_footprint"].Value, 0.000001)
+}

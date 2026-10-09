@@ -558,28 +558,42 @@ func TestLoadAndProcessPlainOverview_StateFile(t *testing.T) {
 	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	t.Setenv(config.HistoryEnvEnabled, "false")
 	ctx := context.Background()
-	cmd, _ := overviewCmd(strings.NewReader(""))
-	audit := newAuditContext(ctx, "overview", nil)
-	params := overviewParams{
+
+	runLoader := func(params overviewParams) (*OverviewPipelineData, error) {
+		cmd, _ := overviewCmd(strings.NewReader(""))
+		pipe := newOverviewPipeline(overviewPipelineConfig{
+			cmd:    cmd,
+			params: params,
+			audit:  newAuditContext(ctx, "overview", nil),
+			loader: plainOverviewLoader,
+		})
+		return pipe.cfg.loader(ctx, pipe)
+	}
+
+	data, err := runLoader(overviewParams{
 		pulumiState: overviewFixture(t, "state-no-changes.json"),
 		stateOnly:   true,
 		cfg:         &config.Config{},
-	}
-	rows, stack, hasChanges, count, stateOnly, err := loadAndProcessPlainOverview(ctx, cmd, params, audit)
+	})
 	require.NoError(t, err)
-	assert.True(t, stateOnly)
-	assert.False(t, hasChanges)
-	assert.Zero(t, count)
-	assert.NotEmpty(t, stack)
-	assert.NotEmpty(t, rows)
+	assert.True(t, data.IsStateOnly)
+	assert.False(t, data.HasChanges)
+	assert.Zero(t, data.ChangeCount)
+	assert.NotEmpty(t, data.StackName)
+	assert.NotEmpty(t, data.Rows)
 
-	params.filter = []string{"region=us-east-1"}
-	_, _, _, _, _, err = loadAndProcessPlainOverview(ctx, cmd, params, audit)
+	_, err = runLoader(overviewParams{
+		pulumiState: overviewFixture(t, "state-no-changes.json"),
+		stateOnly:   true,
+		filter:      []string{"region=us-east-1"},
+		cfg:         &config.Config{},
+	})
 	require.ErrorContains(t, err, "unknown filter key")
 
-	params.filter = nil
-	params.pulumiState = filepath.Join(t.TempDir(), "missing.json")
-	_, _, _, _, _, err = loadAndProcessPlainOverview(ctx, cmd, params, audit)
+	_, err = runLoader(overviewParams{
+		pulumiState: filepath.Join(t.TempDir(), "missing.json"),
+		cfg:         &config.Config{},
+	})
 	require.ErrorContains(t, err, "resolve overview data")
 }
 
@@ -698,8 +712,8 @@ func TestFinalizeOverviewOutput_UnsupportedFormat(t *testing.T) {
 	ctx := context.Background()
 	cmd, _ := overviewCmd(strings.NewReader(""))
 	err := finalizeOverviewOutput(
-		ctx, cmd, overviewParams{output: "yaml"}, nil, engine.New(nil, nil),
-		engine.DateRange{}, "dev", false, 0, false, overviewExpansion{}, newAuditContext(ctx, "overview", nil),
+		ctx, cmd, overviewParams{output: "yaml"}, OverviewPipelineResult{StackName: "dev"},
+		engine.DateRange{}, newAuditContext(ctx, "overview", nil),
 	)
 	require.ErrorContains(t, err, "unsupported output format")
 }
@@ -720,10 +734,14 @@ func TestFinalizeOverviewOutput_ExpansionCountAndNotes(t *testing.T) {
 		},
 	}
 	err := finalizeOverviewOutput(
-		ctx, cmd, overviewParams{output: "table"}, rows, engine.New(nil, nil),
-		engine.DateRange{}, "dev", false, 0, false,
-		overviewExpansion{notes: []string{"live data preferred"}, resourceCount: 3},
-		newAuditContext(ctx, "overview", nil),
+		ctx, cmd, overviewParams{output: "table"},
+		OverviewPipelineResult{
+			Rows:           rows,
+			StackName:      "dev",
+			ResourceCount:  3,
+			ExpansionNotes: []string{"live data preferred"},
+		},
+		engine.DateRange{}, newAuditContext(ctx, "overview", nil),
 	)
 	require.NoError(t, err)
 	assert.Contains(t, out.String(), "3 resources")

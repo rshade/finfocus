@@ -48,6 +48,16 @@ jobs:
           go test -v -race -coverprofile=coverage.out -covermode=atomic ./internal/... ./pkg/...
           go tool cover -func=coverage.out
 
+      - name: Set up frontend test tools
+        uses: jdx/mise-action@v3
+        with:
+          install: false
+
+      - name: Run frontend renderer tests
+        run: |
+          mise install node
+          mise exec node -- make test-frontend
+
       - name: Run integration tests
         run: |
           go test -v -race ./test/integration/...
@@ -529,6 +539,29 @@ jobs:
         with:
           name: finfocus-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/finfocus*
+
+  e2e-web:
+    name: E2E (web Chromium)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: |
+            go.sum
+            test/e2e/go.sum
+
+      - name: Check browser module tidy
+        run: go -C test/e2e mod tidy -diff
+
+      - name: Run real browser acceptance
+        run: make test-e2e-web PLAYWRIGHT_INSTALL_ARGS='--with-deps chromium'
 
   e2e-kind:
     name: E2E (kind)

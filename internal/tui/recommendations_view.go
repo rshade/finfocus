@@ -1,9 +1,8 @@
 package tui
 
 import (
-	"fmt"
-
 	"github.com/rshade/finfocus/internal/engine"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // Display constants for recommendations.
@@ -45,12 +44,7 @@ func NewRecommendationRow(rec engine.Recommendation) RecommendationRow {
 		description = description[:maxDescLen-3] + "..."
 	}
 
-	currency := rec.Currency
-	if currency == "" {
-		currency = defaultEstimateCurrency
-	}
-
-	savings := fmt.Sprintf("$%.2f %s", rec.EstimatedSavings, currency)
+	savings := viewmodel.RecommendationSavingsDisplay(rec)
 	hasSavings := rec.EstimatedSavings > 0
 
 	return RecommendationRow{

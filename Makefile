@@ -170,7 +170,20 @@ build-all: build build-recorder build-plugin build-kubernetes build-jev build-pr
 # Default test target - runs unit tests only (fast, for CI and local dev)
 # Unit tests are colocated with source; see test/README.md for details
 .PHONY: test
-test: test-unit test-kubernetes test-jev test-prometheus
+test: test-unit test-frontend test-kubernetes test-jev test-prometheus
+
+# Browser renderer regression tests use the Node version pinned in mise.toml.
+.PHONY: test-frontend
+test-frontend:
+	node --experimental-vm-modules --disable-warning=ExperimentalWarning --test internal/webui/frontendtest/*.test.mjs
+
+# Browser acceptance is credential-free and requires the real binary and Chromium.
+# Resolve the installer in the nested module, keeping its driver version matched.
+PLAYWRIGHT_INSTALL_ARGS?=chromium
+.PHONY: test-e2e-web
+test-e2e-web: build
+	go -C test/e2e run github.com/mxschmitt/playwright-go/cmd/playwright install $(PLAYWRIGHT_INSTALL_ARGS)
+	FINFOCUS_BINARY=$(CURDIR)/bin/finfocus FINFOCUS_WEB_E2E_REQUIRED=1 go -C test/e2e test -tags e2e_web -run '^TestWebUI' -v -count=1 -timeout 10m ./...
 
 .PHONY: test-unit
 test-unit:
@@ -406,6 +419,8 @@ help:
 	@echo "  test-integration-plugin - Run plugin integration tests"
 	@echo "  test-e2e         - Run E2E tests (requires AWS credentials)"
 	@echo "  test-e2e-kind    - Run kind-based cost cluster E2E (requires Docker, kind, kubectl)"
+	@echo "  test-e2e-web     - Run real Chromium web acceptance (no cloud credentials)"
+	@echo "  test-frontend    - Run web renderer regression tests (Node pinned in mise.toml)"
 	@echo "  test-all         - Run all tests except E2E"
 	@echo "  gen-terraform-goldens - Regenerate real Terraform state goldens (docker + mise)"
 	@echo "  lint             - Run Go + Markdown linters"

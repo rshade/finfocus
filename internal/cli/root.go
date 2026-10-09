@@ -45,7 +45,7 @@ func NewRootCmdWithArgs(
 		lifecycle      commandLifecycle
 		projectDirFlag string
 	)
-
+	webFlags := &webFlagValues{}
 	// Detect plugin mode from binary name or environment variable
 	pluginMode := DetectPluginMode(args, lookupEnv)
 
@@ -67,12 +67,7 @@ func NewRootCmdWithArgs(
 		// inside a Pulumi project, delegate to the overview command for an immediate
 		// cost dashboard. Outside a Pulumi project, display help as before.
 		// --help is always handled by Cobra before RunE is reached.
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if lifecycle.hostsMCP(cmd) {
-				return lifecycle.runRootMCP(cmd, ver)
-			}
-			return runRootDefault(cmd, args, projectDirFlag)
-		},
+		RunE: rootRunE(&lifecycle, webFlags, &projectDirFlag, ver),
 		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			suppressAuxOutput := suppressAuxiliaryOutput(cmd, args)
 			cmd.SetContext(contextWithSuppressAuxOutput(cmd.Context(), suppressAuxOutput))
@@ -128,11 +123,40 @@ func NewRootCmdWithArgs(
 		"explicit Pulumi project directory for config resolution")
 	cmd.Flags().Bool(mcpFlag, false,
 		"serve finfocus as a Model Context Protocol server over stdio (alias for mcp-server)")
+	registerWebFlags(cmd, webFlags)
 	cmd.AddCommand(newCostCmd(), newPluginCmd(), newConfigCmd(), NewAnalyzerCmd(), NewOverviewCmd(), NewSetupCmd())
 	cmd.AddCommand(newMCPServerCmd(cmd, ver, &lifecycle), newSchemaCmd(cmd, ver))
 	applyMCPExclusions(cmd)
 
 	return cmd
+}
+
+// rootRunE builds the root command's RunE. A dispatched MCP tools/call
+// (lifecycle.serving) is rejected first, so a nested execution carrying --web
+// still gets errRootNotATool and can never start a server inside a tool call;
+// only then are the --web flag combination rules checked (a dispatched call
+// sees the serving root's --mcp flag state, which is not a user conflict).
+func rootRunE(
+	lifecycle *commandLifecycle,
+	webFlags *webFlagValues,
+	projectDirFlag *string,
+	ver string,
+) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		if lifecycle.serving {
+			return lifecycle.runRootMCP(cmd, ver)
+		}
+		if err := webFlags.validate(cmd); err != nil {
+			return toValidationError(cmd.Context(), err)
+		}
+		if lifecycle.hostsMCP(cmd) {
+			return lifecycle.runRootMCP(cmd, ver)
+		}
+		if webFlags.web {
+			return runWebSession(cmd, webFlags)
+		}
+		return runRootDefault(cmd, args, *projectDirFlag)
+	}
 }
 
 // runRootDefault delegates to the overview command inside a Pulumi project

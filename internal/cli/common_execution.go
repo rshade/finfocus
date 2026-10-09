@@ -851,9 +851,5 @@ func createRouterForEngine(ctx context.Context, cfg *config.Config, clients []*p
 
 // sumTotalCosts returns the sum of TotalCost across all results.
 func sumTotalCosts(results []engine.CostResult) float64 {
-	total := 0.0
-	for _, r := range results {
-		total += r.TotalCost
-	}
-	return total
+	return engine.SumActualCosts(results)
 }

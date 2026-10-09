@@ -12,18 +12,19 @@ import (
 
 	"github.com/rshade/finfocus/internal/engine"
 	listview "github.com/rshade/finfocus/internal/tui/list"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // RecommendationSortField represents the field to sort recommendations by.
-type RecommendationSortField int
+type RecommendationSortField = viewmodel.RecommendationSortField
 
 const (
 	// SortBySavings sorts by estimated savings (descending).
-	SortBySavings RecommendationSortField = iota
+	SortBySavings = viewmodel.SortBySavings
 	// SortByResourceID sorts by resource ID (ascending).
-	SortByResourceID
+	SortByResourceID = viewmodel.SortByResourceID
 	// SortByActionType sorts by action type (ascending).
-	SortByActionType
+	SortByActionType = viewmodel.SortByActionType
 )
 
 const (
@@ -51,30 +52,7 @@ const (
 
 // getCurrencySymbol returns the symbol for a currency code, or the code itself if unknown.
 func getCurrencySymbol(currency string) string {
-	// Mapping of ISO 4217 currency codes to their symbols.
-	switch currency {
-	case defaultCurrency:
-		return "$"
-	case "EUR":
-		return "€"
-	case "GBP":
-		return "£"
-	case "JPY", "CNY":
-		return "¥"
-	case "CAD":
-		return "C$"
-	case "AUD":
-		return "A$"
-	case "CHF":
-		return "CHF"
-	case "INR":
-		return "₹"
-	case "KRW":
-		return "₩"
-	default:
-		// Fall back to currency code for unknown currencies
-		return currency
-	}
+	return viewmodel.CurrencySymbol(currency)
 }
 
 // RecommendationsSummary contains aggregated statistics for recommendations display.
@@ -204,12 +182,7 @@ func scoreSuffix(scores *engine.RecommendationScores) string {
 }
 
 // formatScore formats a 0-to-1 signal, or "-" when the scorer did not compute it.
-func formatScore(v *float64) string {
-	if v == nil {
-		return "-"
-	}
-	return fmt.Sprintf("%.2f", *v)
-}
+func formatScore(v *float64) string { return viewmodel.FormatScore(v) }
 
 // Messages for RecommendationsViewModel.
 type recommendationsLoadingMsg struct {
@@ -451,21 +424,7 @@ func (m *RecommendationsViewModel) handleQuitUpdate(msg tea.Msg) (tea.Model, tea
 
 // applyFilter filters recommendations based on the text input value.
 func (m *RecommendationsViewModel) applyFilter() {
-	val := m.textInput.Value()
-	if val == "" {
-		m.recommendations = m.allRecommendations
-	} else {
-		var filtered []engine.Recommendation
-		query := strings.ToLower(val)
-		for _, r := range m.allRecommendations {
-			if strings.Contains(strings.ToLower(r.ResourceID), query) ||
-				strings.Contains(strings.ToLower(r.Type), query) ||
-				strings.Contains(strings.ToLower(r.Description), query) {
-				filtered = append(filtered, r)
-			}
-		}
-		m.recommendations = filtered
-	}
+	m.recommendations = viewmodel.FilterRecommendations(m.allRecommendations, m.textInput.Value())
 	m.summary = NewRecommendationsSummary(m.recommendations)
 	m.applySort()
 	m.rebuildList()
@@ -480,19 +439,7 @@ func (m *RecommendationsViewModel) cycleSort() {
 
 // applySort sorts recommendations based on the current sort field.
 func (m *RecommendationsViewModel) applySort() {
-	sort.Slice(m.recommendations, func(i, j int) bool {
-		a, b := m.recommendations[i], m.recommendations[j]
-		switch m.sortBy {
-		case SortBySavings:
-			return a.EstimatedSavings > b.EstimatedSavings
-		case SortByResourceID:
-			return a.ResourceID < b.ResourceID
-		case SortByActionType:
-			return a.Type < b.Type
-		default:
-			return false
-		}
-	})
+	viewmodel.SortRecommendations(m.recommendations, m.sortBy)
 }
 
 // rebuildList rebuilds the virtual list model with current recommendations.
@@ -660,15 +607,11 @@ func writeScoreDetail(sb *strings.Builder, scores *engine.RecommendationScores) 
 		return
 	}
 	_, _ = sb.WriteString("\nScores (ranking signals, not approval to act)\n")
-	fmt.Fprintf(sb, "Risk:            %s\n", formatScore(scores.Risk))
-	fmt.Fprintf(sb, "False positive:  %s\n", formatScore(scores.FalsePositive))
-	fmt.Fprintf(sb, "Worth acting:    %s\n", formatScore(scores.WorthActing))
-	fmt.Fprintf(sb, "Priority:        %s\n", formatScore(scores.Priority))
-	fmt.Fprintf(sb, "Thin evidence:   %s\n", formatScore(scores.InsufficientEvidence))
-	if scores.DuplicateGroupID != "" {
-		fmt.Fprintf(sb, "Duplicate group: %s\n", scores.DuplicateGroupID)
-	}
-	if scores.NeedsReview {
-		_, _ = sb.WriteString("Needs review\n")
+	for _, field := range viewmodel.ScoreDisplay(scores) {
+		if field.Name == "Needs review" {
+			_, _ = sb.WriteString("Needs review\n")
+			continue
+		}
+		fmt.Fprintf(sb, "%-17s%s\n", field.Name+":", field.Value)
 	}
 }

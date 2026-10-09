@@ -15,35 +15,35 @@ const billingNotImplemented = "not_implemented"
 
 // PricingTierOption is one volume tier from a plugin pricing spec.
 type PricingTierOption struct {
-	MinQuantity float64
-	MaxQuantity float64
-	RatePerUnit float64
-	Description string
+	MinQuantity float64 `json:"minQuantity"`
+	MaxQuantity float64 `json:"maxQuantity"`
+	RatePerUnit float64 `json:"ratePerUnit"`
+	Description string  `json:"description"`
 }
 
 // PricingMetricHint names a usage input that changes the price.
 type PricingMetricHint struct {
-	Metric string
-	Unit   string
+	Metric string `json:"metric"`
+	Unit   string `json:"unit"`
 }
 
 // PricingMode is one selectable billing mode returned by a plugin.
 type PricingMode struct {
-	BillingMode string
-	RatePerUnit float64
-	Unit        string
-	Currency    string
-	Plugin      string
-	Assumptions []string
-	MetricHints []PricingMetricHint
-	Tiers       []PricingTierOption
+	BillingMode string              `json:"billingMode"`
+	RatePerUnit float64             `json:"ratePerUnit"`
+	Unit        string              `json:"unit"`
+	Currency    string              `json:"currency"`
+	Plugin      string              `json:"plugin"`
+	Assumptions []string            `json:"assumptions"`
+	MetricHints []PricingMetricHint `json:"metricHints"`
+	Tiers       []PricingTierOption `json:"tiers"`
 }
 
 // PricingDiscovery is the pricing metadata for one resource type.
 // An empty Modes slice means the estimate can continue without it.
 type PricingDiscovery struct {
-	ResourceType string
-	Modes        []PricingMode
+	ResourceType string        `json:"resourceType"`
+	Modes        []PricingMode `json:"modes"`
 }
 
 // DiscoverPricingSpec asks each plugin for GetPricingSpec and caches the

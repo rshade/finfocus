@@ -3,17 +3,14 @@ package tui
 import (
 	"context"
 	"fmt"
-	"math"
-	"sort"
 	"strconv"
 	"strings"
 
 	"charm.land/bubbles/v2/table"
 
 	"github.com/rshade/finfocus/internal/engine"
-	"github.com/rshade/finfocus/internal/greenops"
-	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/resourcetype"
+	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
 // Layout constants.
@@ -22,8 +19,6 @@ const (
 	truncateSuffix    = "..."
 	truncateOffset    = maxNameDisplayLen - len(truncateSuffix)
 	borderPadding     = 2
-	// deltaEpsilon is the minimum absolute delta value to display (avoids floating-point noise).
-	deltaEpsilon = 0.001
 	// trendColumnWidth fits a 7-cell Unicode sparkline.
 	trendColumnWidth = 8
 )
@@ -93,23 +88,7 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 		return InfoStyle.Render("No results to display.")
 	}
 
-	totalCost := 0.0
-	providerCosts := make(map[string]float64)
-
-	recCount := 0
-	for _, r := range results {
-		// Use TotalCost if present (Actual), otherwise Monthly (Projected).
-		cost := r.Monthly
-		if r.TotalCost > 0 {
-			cost = r.TotalCost
-		}
-
-		totalCost += cost
-		provider := extractProvider(r.ResourceType)
-		providerCosts[provider] += cost
-		recCount += len(r.Recommendations)
-	}
-
+	display := viewmodel.BuildCostSummaryDisplay(ctx, results)
 	// Create content.
 	var content strings.Builder
 
@@ -119,46 +98,26 @@ func RenderCostSummary(ctx context.Context, results []engine.CostResult, width i
 
 	// Total Line.
 	content.WriteString(LabelStyle.Render("Total Cost:    "))
-	content.WriteString(ValueStyle.Render(fmt.Sprintf("$%.2f", totalCost)))
+	content.WriteString(ValueStyle.Render(display.TotalDisplay))
 	content.WriteString(LabelStyle.Render("    Resources: "))
 	content.WriteString(ValueStyle.Render(strconv.Itoa(len(results))))
-	if recCount > 0 {
+	if display.RecommendationCount > 0 {
 		content.WriteString(LabelStyle.Render("    Recommendations: "))
-		content.WriteString(ValueStyle.Render(strconv.Itoa(recCount)))
+		content.WriteString(ValueStyle.Render(strconv.Itoa(display.RecommendationCount)))
 	}
 	content.WriteString("\n")
 
-	// Provider Breakdown (sorted by cost desc).
-	type pCost struct {
-		Name string
-		Cost float64
-	}
-	var pCosts []pCost
-	for p, c := range providerCosts {
-		pCosts = append(pCosts, pCost{p, c})
-	}
-	sort.Slice(pCosts, func(i, j int) bool {
-		return pCosts[i].Cost > pCosts[j].Cost
-	})
-
 	var providerParts []string
-	for _, pc := range pCosts {
-		pct := 0.0
-		if totalCost > 0 {
-			pct = (pc.Cost / totalCost) * 100 //nolint:mnd // Percentage calculation.
-		}
-		part := fmt.Sprintf("%s: $%.2f (%.1f%%)", pc.Name, pc.Cost, pct)
-		providerParts = append(providerParts, part)
+	for _, provider := range display.Providers {
+		providerParts = append(
+			providerParts,
+			fmt.Sprintf("%s: %s (%s)", provider.Name, provider.CostDisplay, provider.ShareDisplay),
+		)
 	}
 	content.WriteString(LabelStyle.Render(strings.Join(providerParts, "  ")))
-
-	// Add carbon equivalency if present.
-	if carbonInput, found := aggregateCarbonFromResults(ctx, results); found {
-		output, err := greenops.Calculate(ctx, carbonInput)
-		if err == nil && !output.IsEmpty {
-			content.WriteString("\n")
-			content.WriteString(SubtleStyle.Render(output.DisplayText))
-		}
+	if display.CarbonEquivalency != "" {
+		content.WriteString("\n")
+		content.WriteString(SubtleStyle.Render(display.CarbonEquivalency))
 	}
 
 	// Box it. Use width-2 to account for borders.
@@ -287,15 +246,9 @@ func NewAggregationTable(aggs []engine.CrossProviderAggregation, height int) tab
 
 	rows := make([]table.Row, len(aggs))
 	for i, agg := range aggs {
-		var providerSummary []string
-		for p, cost := range agg.Providers {
-			providerSummary = append(providerSummary, fmt.Sprintf("%s:$%.0f", p, cost))
-		}
-		sort.Strings(providerSummary) // Consistent order.
-
 		rows[i] = table.Row{
 			agg.Period,
-			strings.Join(providerSummary, " "),
+			viewmodel.AggregationProvidersDisplay(agg.Providers),
 			fmt.Sprintf("$%.2f", agg.Total),
 		}
 	}
@@ -324,6 +277,7 @@ func NewAggregationTable(aggs []engine.CrossProviderAggregation, height int) tab
 // The resulting content is wrapped to the provided width (accounting for border padding)
 // and returned as a string.
 func RenderDetailView(resource engine.CostResult, width int) string {
+	display := viewmodel.BuildActualCostDetail(resource)
 	var content strings.Builder
 
 	// Header.
@@ -340,33 +294,31 @@ func RenderDetailView(resource engine.CostResult, width int) string {
 	content.WriteString("\n")
 
 	content.WriteString(LabelStyle.Render("Provider:      "))
-	content.WriteString(ValueStyle.Render(extractProvider(resource.ResourceType)))
+	content.WriteString(ValueStyle.Render(display.Provider))
 	content.WriteString("\n\n")
 
 	// Cost.
-	if resource.TotalCost > 0 {
+	if display.CostDisplay != "" {
 		content.WriteString(LabelStyle.Render("Total Cost:    "))
-		content.WriteString(ValueStyle.Render(fmt.Sprintf("$%.2f %s", resource.TotalCost, resource.Currency)))
+		content.WriteString(ValueStyle.Render(display.CostDisplay))
 		content.WriteString("\n")
 
-		if !resource.StartDate.IsZero() {
+		if display.PeriodDisplay != "" {
 			content.WriteString(LabelStyle.Render("Period:        "))
-			content.WriteString(ValueStyle.Render(fmt.Sprintf("%s - %s",
-				resource.StartDate.Format("2006-01-02"),
-				resource.EndDate.Format("2006-01-02"))))
+			content.WriteString(ValueStyle.Render(display.PeriodDisplay))
 			content.WriteString("\n")
 		}
 	} else {
 		content.WriteString(LabelStyle.Render("Monthly Cost:  "))
-		content.WriteString(ValueStyle.Render(fmt.Sprintf("$%.2f %s", resource.Monthly, resource.Currency)))
+		content.WriteString(ValueStyle.Render(display.MonthlyDisplay))
 		content.WriteString("\n")
 
 		content.WriteString(LabelStyle.Render("Hourly Cost:   "))
-		content.WriteString(ValueStyle.Render(fmt.Sprintf("$%.4f %s", resource.Hourly, resource.Currency)))
+		content.WriteString(ValueStyle.Render(display.HourlyDisplay))
 		content.WriteString("\n")
 	}
 
-	if math.Abs(resource.Delta) > deltaEpsilon {
+	if display.DeltaDisplay != "" {
 		content.WriteString(LabelStyle.Render("Delta:         "))
 		content.WriteString(RenderDelta(resource.Delta))
 		content.WriteString("\n")
@@ -378,15 +330,8 @@ func RenderDetailView(resource engine.CostResult, width int) string {
 		content.WriteString(HeaderStyle.Render("BREAKDOWN"))
 		content.WriteString("\n")
 
-		// Sort keys.
-		keys := make([]string, 0, len(resource.Breakdown))
-		for k := range resource.Breakdown {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
-		for _, k := range keys {
-			fmt.Fprintf(&content, "- %s: $%.4f\n", k, resource.Breakdown[k])
+		for _, item := range display.Breakdown {
+			fmt.Fprintf(&content, "- %s: %s\n", item.Name, item.CostDisplay)
 		}
 		content.WriteString("\n")
 	}
@@ -402,11 +347,7 @@ func RenderDetailView(resource engine.CostResult, width int) string {
 		content.WriteString(HeaderStyle.Render("NOTES"))
 		content.WriteString("\n")
 		if resource.Error != nil || strings.HasPrefix(resource.Notes, "ERROR:") {
-			errorMsg := resource.Notes
-			if resource.Error != nil {
-				errorMsg = resource.Error.Message
-			}
-			content.WriteString(CriticalStyle.Render(errorMsg))
+			content.WriteString(CriticalStyle.Render(display.NotesDisplay))
 		} else {
 			content.WriteString(resource.Notes)
 		}
@@ -445,16 +386,8 @@ func renderSustainabilitySection(content *strings.Builder, sustainability map[st
 	content.WriteString(HeaderStyle.Render("SUSTAINABILITY"))
 	content.WriteString("\n")
 
-	// Sort metric keys for deterministic output.
-	keys := make([]string, 0, len(sustainability))
-	for k := range sustainability {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	for _, k := range keys {
-		metric := sustainability[k]
-		fmt.Fprintf(content, "- %s: %.2f %s\n", k, metric.Value, metric.Unit)
+	for _, metric := range viewmodel.SustainabilityDisplay(sustainability) {
+		fmt.Fprintf(content, "- %s: %s\n", metric.Name, metric.Value)
 	}
 	content.WriteString("\n")
 }
@@ -475,25 +408,14 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 		return
 	}
 
-	// Copy to avoid mutating the caller's slice during sort.
-	sorted := make([]engine.Recommendation, len(recommendations))
-	copy(sorted, recommendations)
-	sort.SliceStable(sorted, func(i, j int) bool {
-		return sorted[i].EstimatedSavings > sorted[j].EstimatedSavings
-	})
-
 	content.WriteString(HeaderStyle.Render("RECOMMENDATIONS"))
 	content.WriteString("\n")
 
-	for _, rec := range sorted {
+	for _, linked := range viewmodel.LinkedCostRecommendations(recommendations) {
+		rec := linked.Recommendation
 		savingsStr := ""
-		if rec.EstimatedSavings > 0 {
-			currency := rec.Currency
-			if currency == "" {
-				currency = defaultCurrency
-			}
-			savingsStr = fmt.Sprintf(" ($%.2f %s/mo savings)",
-				rec.EstimatedSavings, currency)
+		if linked.SavingsDisplay != "" {
+			savingsStr = " (" + linked.SavingsDisplay + "/mo savings)"
 		}
 		fmt.Fprintf(content, "- [%s] %s%s\n",
 			rec.Type, rec.Description, savingsStr)
@@ -504,55 +426,4 @@ func renderRecommendationsSection(content *strings.Builder, recommendations []en
 		}
 	}
 	content.WriteString("\n")
-}
-
-// aggregateCarbonFromResults extracts and sums carbon_footprint metrics from all results.
-// aggregateCarbonFromResults aggregates carbon footprint metrics from the given cost results.
-// It scans each result's Sustainability map for the canonical carbon metric key or a deprecated
-// fallback, normalizes found values to kilograms, and sums them.
-// ctx enables trace ID propagation for warning logs.
-// Invalid or unnormalizable units are logged and skipped.
-// It returns a CarbonInput containing the total carbon in kilograms and `true` if any carbon
-// data was found; otherwise it returns a zero-value CarbonInput and `false`.
-func aggregateCarbonFromResults(ctx context.Context, results []engine.CostResult) (greenops.CarbonInput, bool) {
-	totalCarbon := 0.0
-	found := false
-
-	for _, r := range results {
-		if r.Sustainability == nil {
-			continue
-		}
-
-		// Check for canonical key first.
-		metric, ok := r.Sustainability[greenops.CarbonMetricKey]
-		if !ok {
-			// Fallback to deprecated key.
-			metric, ok = r.Sustainability[greenops.DeprecatedCarbonKey]
-		}
-
-		if ok {
-			// Normalize to kg before summing.
-			kg, err := greenops.NormalizeToKg(metric.Value, metric.Unit)
-			if err != nil {
-				logging.FromContext(ctx).Warn().
-					Ctx(ctx).
-					Str("resource_type", r.ResourceType).
-					Str("resource_id", r.ResourceID).
-					Str("unit", metric.Unit).
-					Err(err).
-					Msg("skipped resource due to NormalizeToKg error")
-				continue
-			}
-			totalCarbon += kg
-			found = true
-		}
-	}
-
-	// Always use kg as we normalize all values to kilograms.
-	unit := ""
-	if found {
-		unit = "kg"
-	}
-
-	return greenops.CarbonInput{Value: totalCarbon, Unit: unit}, found
 }

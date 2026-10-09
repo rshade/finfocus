@@ -9,6 +9,8 @@ Complete command reference for FinFocus.
 
 ```bash
 finfocus                    # Auto-detects Pulumi project; opens overview if found, otherwise shows help
+finfocus --web              # Browser-based cost dashboard (localhost web UI)
+finfocus --mcp              # Serve as an MCP server over stdio (alias: mcp-server)
 finfocus overview           # Unified cost dashboard (alias: ov)
 finfocus cost               # Cost commands
 finfocus cost projected     # Estimate costs from plan
@@ -44,6 +46,60 @@ finfocus analyzer install   # Install the Pulumi analyzer plugin
 finfocus analyzer uninstall # Uninstall the Pulumi analyzer plugin
 finfocus analyzer serve     # Start the analyzer gRPC server
 ```
+
+## Root Command Entry Points
+
+`finfocus` itself accepts two root-local server flags, `--mcp` and `--web`.
+They are defined on the root command only: no subcommand inherits them, so
+`finfocus cost actual --web` or `finfocus overview --web` fail with
+`unknown flag`. `--web` and `--mcp` are mutually exclusive.
+
+`--web` serves the browser-based cost dashboard on localhost (127.0.0.1) and
+prints a session URL of the form `http://127.0.0.1:<port>/?token=<hex>`. Run
+it from a Pulumi project directory: with no source flags it auto-detects the
+project, stack, and state exactly like `finfocus overview`. Pulumi only —
+Terraform state input is not supported, so `--terraform-state` is not
+accepted. `--project-dir` keeps its existing meaning (config resolution) and
+does not change where project detection looks.
+
+### Usage (--web)
+
+```bash
+finfocus --web [options]
+```
+
+### Options (--web)
+
+All of these are root-local and only valid together with `--web`; used alone
+they fail with an error naming `--web`.
+
+| Flag             | Description                                                        | Default           |
+| ---------------- | ------------------------------------------------------------------ | ----------------- |
+| `--web`          | Serve the web UI on localhost and open it in a browser             | Off               |
+| `--port`         | Pin the web UI port (0 = kernel-assigned, actual port printed)     | `0`               |
+| `--no-browser`   | Do not open a browser; print the URL only                          | Off               |
+| `--pulumi-state` | Path to Pulumi state JSON (skips auto-detection)                   | Auto-detected     |
+| `--pulumi-json`  | Preview JSON; state is auto-detected unless `--pulumi-state` is set | Auto-detected     |
+| `--stack`        | Pulumi stack name for auto-detection                               | Current stack     |
+| `--from`         | Start date (YYYY-MM-DD or RFC3339)                                 | 1st of current month |
+| `--to`           | End date (YYYY-MM-DD or RFC3339)                                   | Now               |
+| `--adapter`      | Restrict to a specific adapter plugin                              | All plugins       |
+| `--filter`       | Resource filters (`type=`, `status=`, `provider=`)                 | None              |
+
+### Examples (--web)
+
+```bash
+# Auto-detect the current Pulumi project and open the dashboard
+finfocus --web
+
+# Serve on a pinned port without opening a browser (e.g. in SSH sessions)
+finfocus --web --port 8484 --no-browser
+
+# Use pre-exported files instead of running Pulumi CLI commands
+finfocus --web --pulumi-state state.json --pulumi-json plan.json
+```
+
+For `--mcp`, see the [MCP guide](../guides/mcp.md).
 
 ## overview
 

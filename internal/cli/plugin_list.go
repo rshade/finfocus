@@ -142,7 +142,8 @@ const notAvailable = "N/A"
 // If no plugins are installed it prints 'No plugins found.' and returns nil.
 //
 // Plugin metadata is fetched concurrently using errgroup with a concurrency limit of [runtime.NumCPU]
-// to minimize total execution time. Results are sorted deterministically by plugin name.
+// to minimize total execution time. Results are sorted deterministically by plugin name,
+// installed version, and path, matching the registry's lexical discovery order.
 //
 // cmd is the Cobra command used for printing. verbose controls whether plugin details are shown.
 // Returns an error if querying the registry for installed plugins fails; otherwise nil.
@@ -174,9 +175,16 @@ func runPluginListCmd(cmd *cobra.Command, verbose bool, output string) error {
 	ctx := cmd.Context()
 	enriched := fetchPluginMetadataParallel(ctx, plugins)
 
-	// Sort by plugin name for deterministic output
+	// Include installed versions and paths so metadata completion order cannot
+	// reorder multiple installations of the same plugin.
 	sort.Slice(enriched, func(i, j int) bool {
-		return enriched[i].Name < enriched[j].Name
+		if enriched[i].Name != enriched[j].Name {
+			return enriched[i].Name < enriched[j].Name
+		}
+		if enriched[i].Version != enriched[j].Version {
+			return enriched[i].Version < enriched[j].Version
+		}
+		return enriched[i].Path < enriched[j].Path
 	})
 
 	if output == outputFormatJSON {

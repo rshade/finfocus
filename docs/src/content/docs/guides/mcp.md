@@ -48,6 +48,12 @@ The server writes only MCP protocol messages to stdout. Logs go to the
 finfocus log file (`~/.finfocus/logs/finfocus.log` by default). Other
 diagnostics go to stderr.
 
+> **Note**: `finfocus --web` is not an MCP entry point. It is a separate
+> root-local flag that serves the browser-based cost dashboard on localhost,
+> and it is mutually exclusive with `--mcp`. The web UI adds no MCP tools and
+> is not reachable through the MCP server; see
+> [CLI Commands Reference](../reference/cli-commands.md#root-command-entry-points).
+
 ## Claude Code
 
 Register finfocus as an MCP server:

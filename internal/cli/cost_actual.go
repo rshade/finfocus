@@ -360,18 +360,12 @@ func ValidateDateRange(from, to time.Time) error {
 // parseTagFilter parses a group-by specifier for a tag filter and returns the parsed tags and the resulting groupBy.
 // If groupBy is of the form "tag:key=value", it returns a map containing {key: value} and an empty actualGroupBy.
 func parseTagFilter(groupBy string) (map[string]string, string) {
-	tags := make(map[string]string)
-	actualGroupBy := groupBy
-
-	if strings.HasPrefix(groupBy, "tag:") && strings.Contains(groupBy, "=") {
-		tagPart := strings.TrimPrefix(groupBy, "tag:")
-		if parts := strings.Split(tagPart, "="); len(parts) == filterKeyValueParts {
-			tags[parts[0]] = parts[1]
-			actualGroupBy = "" // Clear groupBy since we're filtering by tag
+	if tag, ok := strings.CutPrefix(groupBy, "tag:"); ok {
+		if tags, err := engine.ParseActualTagFilter(tag); err == nil {
+			return tags, ""
 		}
 	}
-
-	return tags, actualGroupBy
+	return map[string]string{}, groupBy
 }
 
 // renderActualCostOutput renders actual cost results to writer using the specified outputFormat.

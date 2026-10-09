@@ -1,0 +1,64 @@
+- generic [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main"
+  - banner [ref=e3]:
+    - generic [ref=e4]: FinFocus
+    - navigation "Views" [ref=e5]:
+      - link "Overview" [ref=e6] [cursor=pointer]:
+        - /url: "#/overview"
+      - link "Cost" [ref=e7] [cursor=pointer]:
+        - /url: "#/cost"
+      - link "Recommendations" [ref=e8] [cursor=pointer]:
+        - /url: "#/recommendations"
+      - link "Estimate" [ref=e9] [cursor=pointer]:
+        - /url: "#/estimate"
+    - status [ref=e10]: Live
+  - main [ref=e11]:
+    - generic [ref=e121]:
+      - heading "Actual Costs" [active] [level=2] [ref=e122]
+      - generic [ref=e123]:
+        - generic [ref=e124]:
+          - text: Filter
+          - searchbox "Filter" [ref=e125]
+        - generic [ref=e126]:
+          - text: Group by
+          - combobox "Group by" [ref=e127]:
+            - option "None" [selected]
+            - option "Resource"
+            - option "Type"
+            - option "Provider"
+            - option "Daily"
+            - option "Monthly"
+        - generic [ref=e128]:
+          - text: Tag filter
+          - textbox "Tag filter" [ref=e129]:
+            - /placeholder: key=value
+        - generic [ref=e130]:
+          - text: Sort by
+          - combobox "Sort by" [ref=e131]:
+            - option "Cost" [selected]
+            - option "Name"
+            - option "Type"
+            - option "Delta"
+        - button "Apply" [ref=e132] [cursor=pointer]
+      - alert [ref=e133]: Some plugin data is unavailable. Available results are shown.
+      - status [ref=e134]: Actual costs loaded.
+      - generic "Actual cost summary" [ref=e135]:
+        - paragraph [ref=e136]: "Total actual cost: $0.00"
+        - paragraph [ref=e137]: "Resources: 0"
+        - paragraph [ref=e138]: "Recommendations: 0"
+      - table [ref=e140]:
+        - caption [ref=e141]: Actual cost results
+        - rowgroup [ref=e142]:
+          - row [ref=e143]:
+            - columnheader "Resource / Period" [ref=e144]
+            - columnheader "Type / Providers" [ref=e145]
+            - columnheader "Actual Cost" [ref=e146]
+            - columnheader "Trend" [ref=e147]
+        - rowgroup [ref=e148]:
+          - row [ref=e149]:
+            - cell "No actual costs match these filters." [ref=e150]
+      - navigation "Actual cost pages" [ref=e151]:
+        - button "Previous page" [disabled] [ref=e152]
+        - status [ref=e153]: Page 1 of 1
+        - button "Next page" [disabled] [ref=e154]

@@ -1006,13 +1006,7 @@ type recommendationsJSONOutput struct {
 }
 
 // jsonSummary represents the summary section in JSON output.
-type jsonSummary struct {
-	TotalCount        int                `json:"total_count"`
-	TotalSavings      float64            `json:"total_savings"`
-	Currency          string             `json:"currency"`
-	CountByActionType map[string]int     `json:"count_by_action_type"`
-	SavingsByAction   map[string]float64 `json:"savings_by_action_type"`
-}
+type jsonSummary = engine.RecommendationSummary
 
 // ndjsonSummary represents the summary line in NDJSON output.
 type ndjsonSummary struct {
@@ -1132,27 +1126,7 @@ func newRecommendationJSON(rec engine.Recommendation) recommendationJSON {
 
 // buildJSONSummary constructs the summary structure for JSON/NDJSON output.
 func buildJSONSummary(recommendations []engine.Recommendation) jsonSummary {
-	countByAction := make(map[string]int)
-	savingsByAction := make(map[string]float64)
-	totalSavings := 0.0
-	currency := defaultCurrency
-
-	for _, rec := range recommendations {
-		countByAction[rec.Type]++
-		savingsByAction[rec.Type] += rec.EstimatedSavings
-		totalSavings += rec.EstimatedSavings
-		if rec.Currency != "" {
-			currency = rec.Currency
-		}
-	}
-
-	return jsonSummary{
-		TotalCount:        len(recommendations),
-		TotalSavings:      totalSavings,
-		Currency:          currency,
-		CountByActionType: countByAction,
-		SavingsByAction:   savingsByAction,
-	}
+	return engine.BuildRecommendationSummary(recommendations)
 }
 
 // showProgressIndicator displays a spinner with batch progress for queries >500ms.

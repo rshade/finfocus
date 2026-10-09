@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FinFocus</title>
+  <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+  <header class="app-header">
+    <span class="app-title">FinFocus</span>
+    <nav class="app-nav" aria-label="Views">
+      <a href="#/overview" data-route="overview">Overview</a>
+      <a href="#/cost" data-route="cost">Cost</a>
+      <a href="#/recommendations" data-route="recommendations">Recommendations</a>
+      <a href="#/estimate" data-route="estimate">Estimate</a>
+    </nav>
+    <span id="connection-status" class="connection-status" role="status" aria-live="polite"></span>
+  </header>
+  <main id="main" tabindex="-1">
+    <div id="view" class="view"></div>
+  </main>
+  <script type="module" src="/static/app.js"></script>
+</body>
+</html>

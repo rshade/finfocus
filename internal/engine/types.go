@@ -93,10 +93,10 @@ func (r *ResourceDescriptor) Validate() error {
 	return nil
 }
 
-// validatePropertyKey checks if a property key is a valid identifier.
 // validatePropertyKey validates a resource property key.
 // It ensures the key is not empty, does not exceed the maximum allowed length,
 // and contains only letters, digits, underscores (_), hyphens (-), or dots (.).
+// State ingestion metadata may use the pulumi: namespace with a nonempty identifier.
 // Returns an error describing the violation when the key is invalid, or nil when valid.
 func validatePropertyKey(key string) error {
 	if key == "" {
@@ -106,7 +106,11 @@ func validatePropertyKey(key string) error {
 		return fmt.Errorf("property key too long: %d bytes (max %d)", len(key), maxPropertyKeyLen)
 	}
 
-	for _, ch := range key {
+	identifier := strings.TrimPrefix(key, "pulumi:")
+	if identifier == "" {
+		return errors.New("property key identifier cannot be empty")
+	}
+	for _, ch := range identifier {
 		if !isValidPropertyKeyChar(ch) {
 			return fmt.Errorf(
 				"invalid character in property key %q: %c (must be alphanumeric, _, -, or .)",
@@ -896,6 +900,9 @@ type EstimateRequest struct {
 
 	// PropertyOverrides are the changes to evaluate
 	PropertyOverrides map[string]string `json:"propertyOverrides,omitempty"`
+
+	// PricingMode optionally selects a discovered provider and billing mode by PricingMode.ID.
+	PricingMode string `json:"pricingMode,omitempty"`
 
 	// UsageProfile optionally provides context (dev, prod, etc.)
 	UsageProfile string `json:"usageProfile,omitempty"`

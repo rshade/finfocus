@@ -136,6 +136,15 @@ func skipDottedSegment(segment string) bool {
 	return strings.HasPrefix(segment, "__") || isCredentialKey(segment)
 }
 
+// IsCredentialKey reports whether a property name looks like it holds a
+// credential. It is the exported form of the one shared rule (isCredentialKey)
+// so other presentation layers, such as the web UI redaction in
+// internal/webui, apply the exact CLI rule instead of maintaining their own
+// list.
+func IsCredentialKey(key string) bool {
+	return isCredentialKey(key)
+}
+
 // isCredentialKey reports whether a property name looks like it holds a
 // credential. It is a substring match, not a configurable list, and it is the
 // one rule for tags, collapsed values, attributes, and EstimateCost.
