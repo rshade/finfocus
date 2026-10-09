@@ -22,10 +22,10 @@ func RedactProperties(ctx context.Context, props map[string]any) map[string]any 
 }
 
 // RedactValue walks a decoded-JSON-shaped value (map[string]any, []any, or a
-// scalar) and drops credential-like property names and Pulumi secret values
-// at any depth, using the same shared rules the engine applies:
-// engine.IsCredentialKey and history.IsPulumiSecret. Non-sensitive values are
-// returned unchanged.
+// scalar) and drops credential-like and "__" property names and Pulumi secret
+// values at any depth, using the same shared rules the engine applies:
+// engine.IsHiddenPropertyKey and history.IsPulumiSecret. Non-sensitive values
+// are returned unchanged.
 func RedactValue(value any) any {
 	switch typed := value.(type) {
 	case map[string]any:
@@ -34,7 +34,7 @@ func RedactValue(value any) any {
 		}
 		out := make(map[string]any, len(typed))
 		for key, item := range typed {
-			if engine.IsCredentialKey(key) || history.IsPulumiSecret(item) {
+			if engine.IsHiddenPropertyKey(key) || history.IsPulumiSecret(item) {
 				continue
 			}
 			if key == "deltas" {
@@ -106,7 +106,7 @@ func BudgetHealthPayload(ctx context.Context, result *engine.BudgetResult) []eng
 // introducing another credential rule list.
 func sensitiveRecord(record map[string]any) bool {
 	for _, field := range []string{"key", "property"} {
-		if name, ok := record[field].(string); ok && engine.IsCredentialKey(name) {
+		if name, ok := record[field].(string); ok && engine.IsHiddenPropertyKey(name) {
 			return true
 		}
 	}

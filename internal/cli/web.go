@@ -133,7 +133,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	}
 	dateRange, err := resolveOverviewDateRange(flags.from, flags.to, time.Now())
 	if err != nil {
-		return fmt.Errorf("invalid date range: %w", err)
+		return toValidationError(ctx, fmt.Errorf("invalid date range: %w", err))
 	}
 
 	// With no source flags, fail the same way `finfocus overview` does —

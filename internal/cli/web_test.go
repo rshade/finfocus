@@ -158,6 +158,25 @@ func TestWebFlagConflictsWithMCP(t *testing.T) {
 	assert.Contains(t, stderr, "--mcp")
 }
 
+// TestWebInvalidDateRange rejects a malformed --from/--to with the validation
+// exit code before any server starts.
+//
+// Not parallel: NewRootCmd mutates process-wide config resolution.
+func TestWebInvalidDateRange(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv("FINFOCUS_SKIP_MIGRATION_CHECK", "1")
+	t.Chdir(t.TempDir())
+
+	for _, args := range [][]string{
+		{"--web", "--no-browser", "--from", "not-a-date"},
+		{"--web", "--no-browser", "--to", "2026-13-40"},
+	} {
+		result := axtest.Run(context.Background(), t, NewRootCmd("test"), args)
+		require.Equal(t, int(ax.ExitValidation), result.ExitCode, "%v must fail validation", args)
+		assert.Contains(t, string(result.Stderr), "invalid date range", "%v", args)
+	}
+}
+
 // TestWebTerraformStateUnknown proves --terraform-state is not accepted with
 // --web: the web UI is Pulumi-only (FR-012a), so the flag is simply unknown.
 //

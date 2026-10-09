@@ -3,6 +3,7 @@ package engine
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -191,6 +192,7 @@ func TestEstimateSelectedFailureDoesNotUseAnotherProvider(t *testing.T) {
 	require.Error(t, err)
 	assert.Nil(t, result)
 	assert.Equal(t, codes.Unavailable, status.Code(err))
+	assert.Equal(t, "Unavailable: offline", err.Error())
 }
 
 func TestEstimateSelectedMalformedFallback(t *testing.T) {
@@ -306,4 +308,32 @@ func TestEstimateSelectedFallbackValidatesModifiedProperties(t *testing.T) {
 	)
 	require.ErrorIs(t, err, ErrResourceValidation)
 	assert.Nil(t, result)
+}
+
+func TestEstimateSelectedFallbackOmitsOversizedSecret(t *testing.T) {
+	t.Parallel()
+	eng := New([]*pluginhost.Client{{Name: "selected", API: &selectedEstimatePlugin{fallback: true, rate: 30}}}, nil)
+	resource := &ResourceDescriptor{
+		ID:       "urn:test",
+		Type:     "aws:ec2:Instance",
+		Provider: "aws",
+		Properties: map[string]any{
+			"size": float64(2),
+			"userData": map[string]any{
+				"4dabf18193072939515e22adb298388d": "1b47061264138c4ac30d75fd1eb44270",
+				"ciphertext":                       strings.Repeat("x", maxPropertyValLen+1),
+			},
+		},
+	}
+	result, err := eng.EstimateCost(
+		context.Background(),
+		&EstimateRequest{
+			Resource:          resource,
+			PropertyOverrides: map[string]string{"size": "3"},
+			PricingMode:       `["selected","hourly"]`,
+		},
+	)
+	require.NoError(t, err)
+	assert.True(t, result.UsedFallback)
+	assert.InDelta(t, 90.0, result.Modified.Monthly, 0.001)
 }
