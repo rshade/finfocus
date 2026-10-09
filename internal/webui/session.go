@@ -12,7 +12,6 @@ import (
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
 
-// SessionOptions supplies operations owned by the CLI orchestration layer.
 const (
 	phaseActive     = "active"
 	phaseDone       = "done"

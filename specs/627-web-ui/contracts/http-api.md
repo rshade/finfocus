@@ -21,6 +21,12 @@
   every `POST` also requires `Origin` equal to the server's own origin and
   `Content-Type: application/json`; otherwise → `403` / `415`. `GET`
   requests that carry an `Origin` header must match it too.
+- A request whose `Sec-Fetch-Site` is present and is not `same-origin` or
+  `none` → `403`. Some `GET`s call plugins and record history, and an
+  `<img>` on another localhost port sends one with the cookie and no
+  `Origin`.
+- Missing or invalid authentication answers `401` with a message that points
+  the user to the URL printed in the terminal.
 - Responses carry `Cache-Control: no-store`, `Referrer-Policy: no-referrer`,
   and a `Content-Security-Policy` of `default-src 'self'` (no inline script,
   no third-party origins; the SPA loads nothing from a CDN).

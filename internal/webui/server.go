@@ -350,7 +350,8 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 		}
 		cookie, err := r.Cookie(s.cookieName())
 		if err != nil || subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(s.token)) != 1 {
-			s.writeError(w, http.StatusUnauthorized, "unauthorized", "valid session cookie required")
+			s.writeError(w, http.StatusUnauthorized,
+				"unauthorized", "valid session cookie required; open the URL printed in the terminal")
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -360,9 +361,18 @@ func (s *Server) authenticate(next http.Handler) http.Handler {
 // requestHardening rejects state-changing requests that do not come from the
 // SPA itself. SameSite=Strict does not separate two localhost ports, so every
 // state-changing method requires a same-origin Origin header and a JSON
-// Content-Type; a GET that carries an Origin header must match too.
+// Content-Type; a GET that carries an Origin header must match too. Some GETs
+// call plugins and record history, and a page on another localhost port can
+// send one with the cookie and no Origin (an <img>), so browser requests whose
+// Sec-Fetch-Site is neither same-origin nor a direct navigation are refused.
 func (s *Server) requestHardening(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Header.Get("Sec-Fetch-Site") {
+		case "", "same-origin", "none":
+		default:
+			s.writeError(w, http.StatusForbidden, "forbidden", "request is not from this server")
+			return
+		}
 		origin := r.Header.Get("Origin")
 		if origin != "" && !s.isOwnOrigin(origin) {
 			s.writeError(w, http.StatusForbidden, "forbidden", "origin is not this server")
@@ -412,7 +422,8 @@ func (s *Server) handleRoot(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Query().Has("token") {
 		candidate := r.URL.Query().Get("token")
 		if subtle.ConstantTimeCompare([]byte(candidate), []byte(s.token)) != 1 {
-			s.writeError(w, http.StatusUnauthorized, "unauthorized", "invalid session token")
+			s.writeError(w, http.StatusUnauthorized,
+				"unauthorized", "invalid session token; open the URL printed in the terminal")
 			return
 		}
 		//nolint:gosec // G124: no Secure attribute by design — the server is plaintext

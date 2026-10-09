@@ -51,7 +51,7 @@ type webProcess struct {
 func webRequired(t *testing.T, message string) {
 	t.Helper()
 	if os.Getenv("FINFOCUS_WEB_E2E_REQUIRED") == "1" {
-		t.Fatal(message)
+		require.FailNow(t, message)
 	}
 	t.Skip(message)
 }
@@ -205,16 +205,16 @@ func (f webFixture) start(t *testing.T, source string, encrypted bool, fixtureEn
 			assert.NoErrorf(t, processErr, "server shutdown: %s", logs.String())
 		case <-time.After(10 * time.Second):
 			_ = cmd.Process.Kill()
-			t.Error("web server did not stop after interrupt")
+			assert.Fail(t, "web server did not stop after interrupt")
 		}
 	})
 	var bootstrap string
 	select {
 	case bootstrap = <-urls:
 	case processErr := <-done:
-		t.Fatalf("web launch failed: %v\n%s", processErr, logs.String())
+		require.FailNowf(t, "web launch failed", "%v\n%s", processErr, logs.String())
 	case <-time.After(30 * time.Second):
-		t.Fatalf("web launch timed out: %s", logs.String())
+		require.FailNowf(t, "web launch timed out", "%s", logs.String())
 	}
 	parsed, err := url.Parse(bootstrap)
 	require.NoError(t, err)
@@ -291,7 +291,7 @@ func webTab(t *testing.T, page playwright.Page, selector string) {
 		}
 		require.NoError(t, page.Keyboard().Press("Tab"))
 	}
-	t.Fatalf("keyboard cannot reach %s", selector)
+	require.FailNowf(t, "keyboard focus unreachable", "cannot reach %s", selector)
 }
 
 func webType(t *testing.T, page playwright.Page, selector, value string) {

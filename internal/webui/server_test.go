@@ -148,6 +148,9 @@ func TestMissingOrInvalidAuth(t *testing.T) {
 			require.NoError(t, err)
 			defer func() { assert.NoError(t, resp.Body.Close()) }()
 			assert.Equal(t, http.StatusUnauthorized, resp.StatusCode)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			assert.Contains(t, string(body), "URL printed in the terminal")
 		})
 	}
 }
@@ -318,6 +321,42 @@ func TestGetWithForeignOriginRejected(t *testing.T) {
 	}
 }
 
+// TestFetchMetadataRejectsOtherSites covers requests a browser sends without
+// an Origin header, such as an <img> on another localhost port: the session
+// cookie is still attached, so only Sec-Fetch-Site tells them apart.
+func TestFetchMetadataRejectsOtherSites(t *testing.T) {
+	t.Parallel()
+	s := newRunningServer(t, Options{})
+	cookie := bootstrapSession(t, s)
+
+	tests := []struct {
+		name string
+		site string
+		want int
+	}{
+		{name: "other localhost port", site: "same-site", want: http.StatusForbidden},
+		{name: "other website", site: "cross-site", want: http.StatusForbidden},
+		{name: "spa request", site: "same-origin", want: http.StatusOK},
+		{name: "user navigation", site: "none", want: http.StatusOK},
+		{name: "non-browser client", site: "", want: http.StatusOK},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, s.BaseURL()+"/", nil)
+			require.NoError(t, err)
+			req.AddCookie(cookie)
+			if tt.site != "" {
+				req.Header.Set("Sec-Fetch-Site", tt.site)
+			}
+			resp, err := noRedirectClient().Do(req)
+			require.NoError(t, err)
+			defer func() { assert.NoError(t, resp.Body.Close()) }()
+			assert.Equal(t, tt.want, resp.StatusCode)
+		})
+	}
+}
+
 func TestSecurityHeaders(t *testing.T) {
 	t.Parallel()
 	s := newRunningServer(t, Options{})
@@ -474,7 +513,7 @@ func TestGracefulShutdownOnInterrupt(t *testing.T) {
 	case runErr := <-done:
 		require.NoError(t, runErr)
 	case <-time.After(15 * time.Second):
-		t.Fatal("Run did not return after interrupt")
+		require.FailNow(t, "Run did not return after interrupt")
 	}
 
 	// The listener is closed: new connections fail.

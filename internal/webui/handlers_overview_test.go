@@ -277,7 +277,7 @@ func TestPreviewCancellationJoinsWorkersAndReportsError(t *testing.T) {
 	select {
 	case <-returned:
 	default:
-		t.Fatal("preview worker outlived session shutdown")
+		require.FailNow(t, "preview worker outlived session shutdown")
 	}
 	failed := NewSession(
 		context.Background(),
@@ -374,6 +374,6 @@ func TestAcceptPassphraseBroadcastsAuthoritativeSnapshot(t *testing.T) {
 		assert.Equal(t, "snapshot", event.name)
 		assert.Contains(t, string(event.data), `"passphraseRequired":false`)
 	case <-time.After(100 * time.Millisecond):
-		t.Fatal("accepted unlock did not update other tabs")
+		require.FailNow(t, "accepted unlock did not update other tabs")
 	}
 }

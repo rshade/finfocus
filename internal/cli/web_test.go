@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/rshade/ax-go"
 	"github.com/rshade/ax-go/axtest"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
@@ -133,7 +134,7 @@ func TestWebCompanionsRequireWeb(t *testing.T) {
 	for _, name := range names {
 		t.Run(name, func(t *testing.T) {
 			result := axtest.Run(context.Background(), t, NewRootCmd("test"), webCompanionArgs()[name])
-			require.NotEqual(t, 0, result.ExitCode, "--%s without --web must fail", name)
+			require.Equal(t, int(ax.ExitValidation), result.ExitCode, "--%s without --web must fail validation", name)
 			stderr := string(result.Stderr)
 			assert.Contains(t, stderr, "--"+name)
 			assert.Contains(t, stderr, "--web", "the error must name --web")
@@ -151,7 +152,7 @@ func TestWebFlagConflictsWithMCP(t *testing.T) {
 	t.Chdir(t.TempDir())
 
 	result := axtest.Run(context.Background(), t, NewRootCmd("test"), []string{"--web", "--mcp"})
-	require.NotEqual(t, 0, result.ExitCode)
+	require.Equal(t, int(ax.ExitValidation), result.ExitCode)
 	stderr := string(result.Stderr)
 	assert.Contains(t, stderr, "--web")
 	assert.Contains(t, stderr, "--mcp")
@@ -246,7 +247,7 @@ func runWebCommand(
 		case err := <-done:
 			return err
 		case <-time.After(30 * time.Second):
-			t.Fatal("web command did not exit after cancellation")
+			require.FailNow(t, "web command did not exit after cancellation")
 			return nil
 		}
 	}

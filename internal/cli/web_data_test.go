@@ -49,7 +49,10 @@ func TestWebActualTagParserParity(t *testing.T) {
 func TestWebSeparateScorerOwnership(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	cfg := &config.Config{Scoring: &config.ScoringConfig{Enabled: true, Plugin: "scorer"}}
+	cfg := &config.Config{
+		Scoring: &config.ScoringConfig{Enabled: true, Plugin: "scorer"},
+		Cost:    config.CostConfig{History: config.HistoryConfig{Directory: t.TempDir()}},
+	}
 	data := newWebData(&cobra.Command{}, overviewParams{cfg: cfg, adapter: "pricing"},
 		engine.DateRange{}, newAuditContext(ctx, "test", nil))
 	pricing := &pluginhost.Client{Name: "pricing", API: &includeDismissedClient{}}
@@ -74,7 +77,10 @@ func TestWebSeparateScorerOwnership(t *testing.T) {
 func TestWebUnavailableSeparateScorerCleanup(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
-	cfg := &config.Config{Scoring: &config.ScoringConfig{Enabled: true, Plugin: "scorer"}}
+	cfg := &config.Config{
+		Scoring: &config.ScoringConfig{Enabled: true, Plugin: "scorer"},
+		Cost:    config.CostConfig{History: config.HistoryConfig{Directory: t.TempDir()}},
+	}
 	data := newWebData(&cobra.Command{}, overviewParams{cfg: cfg, adapter: "pricing"},
 		engine.DateRange{}, newAuditContext(ctx, "test", nil))
 	released := 0
@@ -119,7 +125,10 @@ func TestWebSeparateScorerSharedSDKPipeline(t *testing.T) {
 	t.Cleanup(func() { _ = conn.Close() })
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	cfg := &config.Config{Scoring: &config.ScoringConfig{Enabled: true, Plugin: "scorer"}}
+	cfg := &config.Config{
+		Scoring: &config.ScoringConfig{Enabled: true, Plugin: "scorer"},
+		Cost:    config.CostConfig{History: config.HistoryConfig{Directory: t.TempDir()}},
+	}
 	data := newWebData(&cobra.Command{}, overviewParams{cfg: cfg, adapter: "pricing"},
 		engine.DateRange{}, newAuditContext(ctx, "test", nil))
 	scorer := &pluginhost.Client{Name: "scorer", Conn: conn,
@@ -390,7 +399,10 @@ func TestWebDataEngineAndSessionWiring(t *testing.T) {
 	t.Parallel()
 	ctx := context.Background()
 	cmd := &cobra.Command{}
-	cfg := &config.Config{Scoring: &config.ScoringConfig{Enabled: true, Plugin: "absent"}}
+	cfg := &config.Config{
+		Scoring: &config.ScoringConfig{Enabled: true, Plugin: "absent"},
+		Cost:    config.CostConfig{History: config.HistoryConfig{Directory: t.TempDir()}},
+	}
 	data := newWebData(cmd, overviewParams{cfg: cfg}, engine.DateRange{}, newAuditContext(ctx, "test", nil))
 	params := data.overviewParams()
 	require.NotNil(t, params.captureState)
@@ -474,7 +486,10 @@ func TestWebDataReusesAlreadyOpenScorer(t *testing.T) {
 		Metadata: &proto.PluginMetadata{Capabilities: []string{pluginhost.CapabilityRecommendationScoring}},
 		API:      &includeDismissedClient{},
 	}
-	cfg := &config.Config{Scoring: &config.ScoringConfig{Enabled: true, Plugin: "scorer"}}
+	cfg := &config.Config{
+		Scoring: &config.ScoringConfig{Enabled: true, Plugin: "scorer"},
+		Cost:    config.CostConfig{History: config.HistoryConfig{Directory: t.TempDir()}},
+	}
 	data := newWebData(
 		&cobra.Command{},
 		overviewParams{cfg: cfg, adapter: "pricing"},

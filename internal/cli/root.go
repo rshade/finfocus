@@ -147,7 +147,7 @@ func rootRunE(
 			return lifecycle.runRootMCP(cmd, ver)
 		}
 		if err := webFlags.validate(cmd); err != nil {
-			return err
+			return toValidationError(cmd.Context(), err)
 		}
 		if lifecycle.hostsMCP(cmd) {
 			return lifecycle.runRootMCP(cmd, ver)

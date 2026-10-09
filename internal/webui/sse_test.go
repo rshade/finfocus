@@ -187,7 +187,7 @@ func TestReconnectRecoversFailedPhaseAndRetryClearsFailure(t *testing.T) {
 		assert.Equal(t, "phase", event.name)
 		assert.Contains(t, string(event.data), `"status":"error"`)
 	case <-time.After(time.Second):
-		t.Fatal("phase error transition missing")
+		require.FailNow(t, "phase error transition missing")
 	}
 	first, _, reconnectStop := session.subscribe()
 	defer reconnectStop()

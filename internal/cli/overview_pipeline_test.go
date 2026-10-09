@@ -629,7 +629,7 @@ func TestOverviewPipeline_CancellationWaitsForEnrichment(t *testing.T) {
 	case err := <-done:
 		require.ErrorIs(t, err, context.Canceled)
 	case <-time.After(5 * time.Second):
-		t.Fatal("pipeline did not finish after enrichment stopped")
+		require.FailNow(t, "pipeline did not finish after enrichment stopped")
 	}
 	assert.False(t, expanded, "cancelled enrichment must not expand clusters")
 	assert.Empty(t, events.ready, "cancelled enrichment must not report success")

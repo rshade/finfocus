@@ -282,14 +282,14 @@ func TestEstimateQueriesJoinSessionCancellation(t *testing.T) {
 	select {
 	case <-entered:
 	case <-time.After(time.Second):
-		t.Fatal("estimate did not start")
+		require.FailNow(t, "estimate did not start")
 	}
 	session.Close()
 	select {
 	case err = <-finished:
 		require.NoError(t, err)
 	case <-time.After(time.Second):
-		t.Fatal("estimate did not join cancellation")
+		require.FailNow(t, "estimate did not join cancellation")
 	}
 }
 
