@@ -201,7 +201,7 @@ test-e2e:
 # Kind-based cost cluster E2E - requires Docker, kind, and kubectl; no cloud credentials
 # Pinned so a just-published release whose assets are still uploading cannot break the run.
 # renovate: datasource=github-releases depName=rshade/finfocus-plugin-aws-public
-E2E_AWS_PUBLIC_VERSION?=v0.2.0
+E2E_AWS_PUBLIC_VERSION?=v0.2.1
 
 .PHONY: test-e2e-kind
 test-e2e-kind: build install-kubernetes build-prometheus
