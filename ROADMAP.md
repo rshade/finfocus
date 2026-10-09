@@ -23,18 +23,43 @@ Completed Milestones, 2026-Q4).
 - [ ] **Overview Performance Pipeline** *(deferred from v0.3.2)*
   - [ ] Pulumi TypeScript scalability fixture for E2E performance testing
         ([#658](https://github.com/rshade/finfocus/issues/658)) [M]
-  - [ ] Parallelize plugin opening in `Registry.Open()`
-        ([#693](https://github.com/rshade/finfocus/issues/693)) [M]
   - [ ] Start plugin loading concurrently with data loading
         ([#692](https://github.com/rshade/finfocus/issues/692)) [M]
-  - [ ] Parallelize stack export and pulumi preview
-        ([#691](https://github.com/rshade/finfocus/issues/691)) [M]
   - *Promoted by /roadmap sync on 2026-10-05 — builds on the #853
     compute-once refactor; #658 comes first so the speed-ups can be
     measured against a baseline.*
+  - *#693 and #691 shipped 2026-10-06 (see Completed Milestones, 2026-Q4).*
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
+- [ ] **Web UI Follow-ups** *(from the `--web` dashboard review and its
+      first CI runs)*
+  - [ ] Overview never learns a run is state-only; preview stays enabled
+        ([#1751](https://github.com/rshade/finfocus/issues/1751)) [M]
+  - [ ] Redaction drops trend and breakdown entries with credential-like keys
+        ([#1752](https://github.com/rshade/finfocus/issues/1752)) [M]
+  - [ ] Estimate editor loses properties and pricing modes on baseline failure
+        ([#1757](https://github.com/rshade/finfocus/issues/1757)) [M]
+  - [ ] Recommendation details 404 when plugin IDs change between queries
+        ([#1733](https://github.com/rshade/finfocus/issues/1733)) [M]
+  - [ ] Overview stream retries forever after authentication fails
+        ([#1734](https://github.com/rshade/finfocus/issues/1734)) [M]
+  - [ ] Web browser E2E tests fail intermittently on unrelated PRs
+        ([#1758](https://github.com/rshade/finfocus/issues/1758)) [M]
+- [ ] **Estimate What-If Usability**
+  - [ ] Hide known non-billable resources from the What-If picker
+        ([#1731](https://github.com/rshade/finfocus/issues/1731)) [M]
+  - [ ] Show cost-affecting properties by default in What-If
+        ([#1732](https://github.com/rshade/finfocus/issues/1732)) [M]
+- [ ] **Plugin Listing and Selection**
+  - [ ] `plugin list` orders versions randomly, flaking
+        `TestPluginListCmd_TableOutputUnchanged`
+        ([#1726](https://github.com/rshade/finfocus/issues/1726)) [S]
+  - [ ] `plugin list` shows and starts every installed version; list the
+        latest by default, add `--all`
+        ([#1727](https://github.com/rshade/finfocus/issues/1727)) [M]
+  - [ ] `Supports` validation errors let incompatible plugins attempt pricing
+        ([#1735](https://github.com/rshade/finfocus/issues/1735)) [M]
 - [ ] **Overview TUI Quality** *(deferred from v0.3.2)*
   - [ ] Show phase progress lines sequentially and add preview phase
         ([#714](https://github.com/rshade/finfocus/issues/714)) [M]
@@ -51,11 +76,11 @@ Completed Milestones, 2026-Q4).
   - [ ] Enhance `cost estimate` with ARIMA + driver-based forecasting
         ([#539](https://github.com/rshade/finfocus/issues/539)) [L]
 - [ ] **Kubernetes Cost Allocation — Usage & Pricing**
-  - [ ] Prometheus usage source plugin — historical actuals, kind CI
-        ([#1529](https://github.com/rshade/finfocus/issues/1529)) [L]
-  - *Cross-Repo:* [rshade/finfocus-plugin-aws-public](https://github.com/rshade/finfocus-plugin-aws-public)
-    spot pricing for EC2 nodes ([#406](https://github.com/rshade/finfocus-plugin-aws-public/issues/406)) and the finfocus-spec v0.6.2 bump
-    ([#407](https://github.com/rshade/finfocus-plugin-aws-public/issues/407)), which must wait for the finfocus v0.3.8 release
+  - *Cross-Repo:* spot pricing for EC2 nodes is tracked in
+    [finfocus-plugin-aws-ce issue 56](https://github.com/rshade/finfocus-plugin-aws-ce/issues/56)
+    (moved from finfocus-plugin-aws-public). The finfocus-spec v0.6.2 bump in
+    finfocus-plugin-aws-public shipped 2026-10-04. The Prometheus usage source
+    (#1529) shipped 2026-10-06.
 - [x] **Azure Resource Resolution — Sparse-SKU Pre-Flight** *(decided in
       #1610)*
   - *Decision:* a projected resource with `ref.*` tags and an empty SKU uses
@@ -166,6 +191,8 @@ Completed Milestones, 2026-Q4).
   - [ ] Flag-only `cost anomalies` command over actual-cost history, exposed
         as an MCP tool
         ([#1590](https://github.com/rshade/finfocus/issues/1590)) [L]
+- [ ] Backend-neutral scorer plugin with Jev and Clef backends
+      ([#1728](https://github.com/rshade/finfocus/issues/1728)) [M]
 - [ ] **Recommendation Scoring — Jev Plugin Ideas** *(brainstorm 2026-10-01;
       ideas only, no issues or specs yet)*
   - *Placement rule:* Jev stays in `plugins/jev`. Core and
@@ -271,6 +298,12 @@ Completed Milestones, 2026-Q4).
 - [x] `web`: add a local dashboard for overview, actual costs, recommendations,
       and interactive estimates using shared TUI presentation.
       Closed 2026-10-07. [L]
+- [x] #691 `cli`: parallelize stack export and `pulumi preview`.
+      Closed 2026-10-06. [M]
+- [x] #1529 `prometheus`: Prometheus usage source for historical actuals.
+      Closed 2026-10-06. [L]
+- [x] #693 `registry`: parallelize plugin opening in `Registry.Open()`.
+      Closed 2026-10-06. [M]
 - [x] #364 `forecast`: add `cost forecast` growth projections and chart.
       Closed 2026-10-06. [L]
 - [x] #220 `notification`: send Slack and webhook budget alerts.
