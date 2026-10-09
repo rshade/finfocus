@@ -351,7 +351,7 @@ func estimateResponseToCostResult(resp *pbc.EstimateCostResponse, resource *Reso
 // withoutUnsendableProperties returns a copy of resource without the
 // credential-like keys and Pulumi secrets that ConvertToProto never sends, so
 // GetProjectedCost validates only what reaches a plugin. The plugin request
-// and the projected cache key are unchanged by the filtering.
+// is unchanged by the filtering.
 func withoutUnsendableProperties(resource ResourceDescriptor) ResourceDescriptor {
 	if len(resource.Properties) == 0 {
 		return resource

@@ -136,12 +136,11 @@ func skipDottedSegment(segment string) bool {
 	return strings.HasPrefix(segment, "__") || isCredentialKey(segment)
 }
 
-// IsHiddenPropertyKey reports whether a property name must never be shown or
-// sent: a credential-like name or a "__"-prefixed Pulumi internal such as
-// __defaults. It is the exported form of the one shared rule
-// (skipDottedSegment) so other presentation layers, such as the web UI
-// redaction in internal/webui, apply the exact CLI rule instead of
-// maintaining their own list.
+// IsHiddenPropertyKey reports whether a property name is credential-like or a
+// "__"-prefixed Pulumi internal such as __defaults. It is the exported form of
+// skipDottedSegment, the rule that keeps those keys out of dotted tags and
+// plugin attributes, so presentation layers such as the web UI redaction in
+// internal/webui hide them without maintaining their own list.
 func IsHiddenPropertyKey(key string) bool {
 	return skipDottedSegment(key)
 }

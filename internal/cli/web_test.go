@@ -172,7 +172,7 @@ func TestWebInvalidDateRange(t *testing.T) {
 		{"--web", "--no-browser", "--to", "2026-13-40"},
 	} {
 		result := axtest.Run(context.Background(), t, NewRootCmd("test"), args)
-		require.Equal(t, int(ax.ExitValidation), result.ExitCode, "%v must fail validation", args)
+		assert.Equal(t, int(ax.ExitValidation), result.ExitCode, "%v must fail validation", args)
 		assert.Contains(t, string(result.Stderr), "invalid date range", "%v", args)
 	}
 }
