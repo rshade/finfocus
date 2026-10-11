@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.7](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.6...kubernetes-v0.1.7) (2026-10-09)
+
+
+### Bug Fixes
+
+* **deps:** update golang.org/x/net to v0.60.0 and CI Go to 1.27.2 ([#1754](https://github.com/rshade/finfocus/issues/1754)) ([4383b26](https://github.com/rshade/finfocus/commit/4383b26266c0b3f3f532be9ca8f8577abd0ec0bb))
+
 ## [0.1.6](https://github.com/rshade/finfocus/compare/kubernetes-v0.1.5...kubernetes-v0.1.6) (2026-10-06)
 
 
