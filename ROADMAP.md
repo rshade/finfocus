@@ -29,6 +29,17 @@ Completed Milestones, 2026-Q4).
     compute-once refactor; #658 comes first so the speed-ups can be
     measured against a baseline.*
   - *#693 and #691 shipped 2026-10-06 (see Completed Milestones, 2026-Q4).*
+- [ ] **Web UI Settings & Plugin Setup** *(spec-first: amends spec 627,
+      which kept the dashboard read-only)*
+  - [ ] Plugin install ignores `FINFOCUS_PLUGIN_DIR` and `plugin_dir`, so
+        installed plugins are not discovered
+        ([#1764](https://github.com/rshade/finfocus/issues/1764)) [S]
+  - [ ] View and edit FinFocus config from the web dashboard
+        ([#1763](https://github.com/rshade/finfocus/issues/1763)) [L]
+  - [ ] Plugin catalog, install, and settings page in the web dashboard
+        ([#1765](https://github.com/rshade/finfocus/issues/1765)) [L]
+  - *Order: #1764 and #1763 first; #1765 builds on #1763's write path and
+    needs the settings descriptor from finfocus-spec#635.*
 
 ## Near-Term Vision (v0.3.x - Forecasting & Profiles)
 
@@ -116,6 +127,9 @@ Completed Milestones, 2026-Q4).
         ([#550](https://github.com/rshade/finfocus/issues/550)) [L]
 - [ ] TUI Lazy Loading & Error Recovery (#483) [L] *Deferred from TUI Phase 7*
 - [ ] Plugin integrity verification strategy (#164) [M]
+- [ ] Custom plugin registry sources for the web UI and CLI
+      ([#1766](https://github.com/rshade/finfocus/issues/1766)) [L]
+      *Follow-up to #1765*
 - [ ] Use registry-based plugin install for cross-repo integration tests
       ([#517](https://github.com/rshade/finfocus/issues/517)) [M]
 - [ ] **Dependency Visualization ("Blast Radius")**
