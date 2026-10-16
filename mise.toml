@@ -14,7 +14,7 @@ go = "1.27.2"
 
 # The Makefile reads GOLANGCI_LINT_VERSION from this line. The golangci-lint
 # action in .github/workflows/ci.yml pins the same version; change both together.
-golangci-lint = "2.14.0"
+golangci-lint = "2.15.0"
 
 # ------------------------------------------------------------------ docs & lint
 
