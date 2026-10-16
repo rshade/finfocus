@@ -80,7 +80,7 @@ This will delete the plugin files and remove it from the configuration.`,
 	}
 
 	cmd.Flags().BoolVar(&keepConfig, "keep-config", false, "Keep plugin entry in config file")
-	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Custom plugin directory")
+	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Custom plugin directory (default: configured)")
 
 	return cmd
 }

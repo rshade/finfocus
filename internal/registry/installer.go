@@ -77,11 +77,12 @@ func NewInstallerWithClient(client *GitHubClient, pluginDir string) *Installer {
 	}
 }
 
-// DefaultPluginDir returns the plugins directory under the resolved FinFocus
-// home (FINFOCUS_HOME, then PULUMI_HOME/finfocus, then ~/.finfocus), the same
-// directory plugin discovery reads.
+// DefaultPluginDir returns the directory plugin discovery reads: FINFOCUS_PLUGIN_DIR,
+// then the plugin_dir config key, then the plugins directory under the resolved
+// FinFocus home (FINFOCUS_HOME, then PULUMI_HOME/finfocus, then ~/.finfocus).
+// NewDefault uses the same value, so installs land where discovery looks.
 func DefaultPluginDir() string {
-	return filepath.Join(config.ResolveConfigDir(), "plugins")
+	return config.New().PluginDir
 }
 
 // Install installs a plugin from a specifier (name or URL with optional version).

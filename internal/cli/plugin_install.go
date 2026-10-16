@@ -272,7 +272,7 @@ func NewPluginInstallCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&noSave, "no-save", false, "Don't add plugin to config file")
 	cmd.Flags().BoolVar(&clean, "clean", false, "Remove other versions after successful install")
 	cmd.Flags().
-		StringVar(&pluginDir, "plugin-dir", "", "Custom plugin directory (default: ~/.finfocus/plugins)")
+		StringVar(&pluginDir, "plugin-dir", "", "Custom plugin directory (default: the configured plugin directory)")
 	cmd.Flags().BoolVar(
 		&fallbackToLatest,
 		"fallback-to-latest",

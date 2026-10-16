@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -319,4 +320,54 @@ func TestInstall_DefaultPluginDirHonorsFinfocusHome(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, filepath.Join(ffHome, "plugins", "aws-public", "v0.1.1"), result.Path)
 	assert.DirExists(t, result.Path)
+}
+
+func TestInstall_DefaultPluginDirMatchesDiscovery(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(t *testing.T, home, pluginDir string)
+	}{
+		{
+			name: "FINFOCUS_PLUGIN_DIR",
+			setup: func(t *testing.T, _, pluginDir string) {
+				t.Setenv("FINFOCUS_PLUGIN_DIR", pluginDir)
+			},
+		},
+		{
+			name: "plugin_dir config key",
+			setup: func(t *testing.T, home, pluginDir string) {
+				t.Setenv("FINFOCUS_PLUGIN_DIR", "")
+				body := fmt.Sprintf("{\"plugin_dir\": %q}\n", pluginDir)
+				require.NoError(t, os.WriteFile(filepath.Join(home, "config.hujson"), []byte(body), 0o600))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			home := t.TempDir()
+			pluginDir := filepath.Join(t.TempDir(), "custom-plugins")
+			t.Setenv("FINFOCUS_HOME", home)
+			tt.setup(t, home, pluginDir)
+
+			server := newReleaseRaceServer(t, awsPublicRepoPath, "finfocus-plugin-aws-public", "aws-public",
+				"v0.1.1",
+				[]string{"v0.1.1"},
+				map[string]bool{"v0.1.1": true},
+				identityTag,
+			)
+			client := &GitHubClient{HTTPClient: server.Client(), BaseURL: server.URL}
+
+			result, err := NewInstallerWithClient(client, "").
+				Install(context.Background(), "aws-public", InstallOptions{NoSave: true}, nil)
+			require.NoError(t, err)
+			assert.Equal(t, filepath.Join(pluginDir, "aws-public", "v0.1.1"), result.Path)
+			assert.NoDirExists(t, filepath.Join(home, "plugins"))
+
+			found, err := NewDefault().ListPlugins()
+			require.NoError(t, err)
+			require.Len(t, found, 1)
+			assert.Equal(t, "aws-public", found[0].Name)
+		})
+	}
 }

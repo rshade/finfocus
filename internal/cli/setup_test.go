@@ -478,6 +478,64 @@ func TestStepInstallPlugins_AlreadyInstalled(t *testing.T) {
 	assert.Contains(t, steps[0].Message, "already installed")
 }
 
+// TestStepInstallPlugins_CustomPluginDir verifies setup checks and installs in the
+// runner's PluginDir, the directory plugin discovery reads, not <baseDir>/plugins.
+func TestStepInstallPlugins_CustomPluginDir(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+	customDir := filepath.Join(t.TempDir(), "custom-plugins")
+
+	versionDir := filepath.Join(customDir, "aws-public", "v0.1.0")
+	require.NoError(t, os.MkdirAll(versionDir, cli.DirPermPlugins))
+	writeInstalledPluginBinary(t, versionDir)
+
+	runner := &cli.SetupRunner{
+		PluginDir: customDir,
+		PluginInstaller: cli.PluginInstallerFunc(
+			func(_ context.Context, name string, _ registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
+				assert.NotEqual(t, "aws-public", name, "aws-public is already in the custom plugin dir")
+				return &registry.InstallResult{Name: name, Version: "v0.1.0"}, nil
+			},
+		),
+	}
+	steps := runner.StepInstallPlugins(t.Context(), tmpDir)
+
+	require.NotEmpty(t, steps)
+	assert.Contains(t, steps[0].Message, "already installed")
+}
+
+// TestStepInstallPlugins_PassesPluginDirToInstaller verifies a missing plugin is
+// installed into the directory setup checked, not the installer's own default.
+func TestStepInstallPlugins_PassesPluginDirToInstaller(t *testing.T) {
+	tmpDir := t.TempDir()
+	t.Setenv("FINFOCUS_HOME", tmpDir)
+	customDir := filepath.Join(t.TempDir(), "custom-plugins")
+
+	var gotDir string
+	runner := &cli.SetupRunner{
+		PluginDir: customDir,
+		PluginInstaller: cli.PluginInstallerFunc(
+			func(_ context.Context, name string, opts registry.InstallOptions, _ func(string)) (*registry.InstallResult, error) {
+				gotDir = opts.PluginDir
+				return &registry.InstallResult{Name: name, Version: "v0.1.0"}, nil
+			},
+		),
+	}
+	steps := runner.StepInstallPlugins(t.Context(), tmpDir)
+
+	require.Len(t, steps, len(cli.DefaultPlugins))
+	assert.Equal(t, customDir, gotDir)
+}
+
+// TestStepCreateDirectories_DefaultsToBaseDirPlugins keeps the exported helper's layout.
+func TestStepCreateDirectories_DefaultsToBaseDirPlugins(t *testing.T) {
+	t.Parallel()
+
+	base := t.TempDir()
+	cli.StepCreateDirectories(base)
+	assert.DirExists(t, filepath.Join(base, "plugins"))
+}
+
 // writeInstalledPluginBinary writes an executable plugin binary into versionDir.
 func writeInstalledPluginBinary(t *testing.T, versionDir string) {
 	t.Helper()
