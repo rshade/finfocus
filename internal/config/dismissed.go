@@ -110,42 +110,10 @@ func NewDismissalStore(filePath string) (*DismissalStore, error) {
 	return store, nil
 }
 
-// lockFilePath returns the path to the lockfile for cross-process coordination.
-func (s *DismissalStore) lockFilePath() string {
-	return s.filePath + ".lock"
-}
-
 // acquireFileLock acquires a cross-process advisory lockfile.
 // Returns a cleanup function that releases the lock.
 func (s *DismissalStore) acquireFileLock() (func(), error) {
-	lockPath := s.lockFilePath()
-
-	// Ensure directory exists
-	if err := os.MkdirAll(filepath.Dir(lockPath), 0o750); err != nil {
-		return nil, fmt.Errorf("creating lock directory: %w", err)
-	}
-
-	// Try to create lockfile exclusively; retry with stale lock detection
-	const maxRetries = 10
-	const retryDelay = 100 * time.Millisecond
-	const staleLockAge = 30 * time.Second
-
-	for range maxRetries {
-		f, err := os.OpenFile(lockPath, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0o600)
-		if err == nil {
-			// Write PID for stale lock detection
-			_, _ = fmt.Fprintf(f, "%d", os.Getpid())
-			_ = f.Close()
-			return func() { _ = os.Remove(lockPath) }, nil
-		}
-
-		if removeStaleLock(lockPath, staleLockAge) {
-			continue
-		}
-		time.Sleep(retryDelay)
-	}
-
-	return nil, fmt.Errorf("could not acquire lock on %s after retries", lockPath)
+	return acquirePathLock(s.filePath)
 }
 
 // removeStaleLock checks if a lock file is stale and removes it if so.

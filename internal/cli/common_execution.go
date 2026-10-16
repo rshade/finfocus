@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -54,6 +55,22 @@ func (a *auditContext) logFailure(ctx context.Context, err error) {
 	entry := logging.NewAuditEntry(a.command, a.traceID).
 		WithParameters(a.params).
 		WithError(err.Error()).
+		WithDuration(a.start)
+	a.logger.Log(ctx, *entry)
+}
+
+// logConfigSave records a configuration write. keys are setting names; values
+// are never included.
+func (a *auditContext) logConfigSave(ctx context.Context, tier string, keys []string) {
+	if a == nil || a.logger == nil {
+		return
+	}
+	entry := logging.NewAuditEntry("config save", a.traceID).
+		WithParameters(map[string]string{
+			"tier": tier,
+			"keys": strings.Join(keys, ","),
+		}).
+		WithSuccess(len(keys), 0).
 		WithDuration(a.start)
 	a.logger.Log(ctx, *entry)
 }

@@ -149,9 +149,11 @@ finfocus --web
 
 FinFocus starts a local server, prints its session URL, and opens your browser.
 Use `--no-browser` on SSH or CI, and `--port 8484` when you need a fixed port.
-The Overview, Cost, Recommendations, and Estimate views use the same Go engine
-and plugins as the CLI and TUI. Keyboard navigation, resource details, cluster
-expansion, and light/dark themes are available in the browser.
+The Overview, Cost, Recommendations, Estimate, and Config views use the same
+Go engine and plugins as the CLI and TUI. Config edits the project or global
+`config.hujson` and does not change cloud resources. Keyboard navigation,
+resource details, cluster expansion, and light/dark themes are available in
+the browser.
 
 Sources follow `finfocus overview`: auto-detect the current Pulumi project and
 stack, or pass `--pulumi-json plan.json` / `--pulumi-state state.json`.

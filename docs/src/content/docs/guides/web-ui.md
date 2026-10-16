@@ -138,6 +138,25 @@ state instead of restarting the load.
 If the page reports that a valid session cookie is required, the browser has no
 session for this server. Open the URL printed in the terminal.
 
+## Edit configuration
+
+Open **Config** in the header. The page lists each known setting, the value
+that is in effect, and whether that value came from the built-in default, the
+global file, the project file, or the environment.
+
+Choose **Project** or **Global**, edit the values, and choose **Review
+changes**. The preview names each change and writes nothing. **Confirm**
+updates only that tier's `config.hujson`. **Cancel** leaves the file as it was.
+Comments and keys the page does not edit stay in the file.
+
+A secret is shown as set or not set. The field starts empty. Leave it blank to
+keep the stored value, or type a replacement. The page does not show the stored
+secret and does not write the masked placeholder back to the file.
+
+The running dashboard keeps the configuration it loaded at startup. The new
+values apply to the next launch and to command-line runs. Alert destinations,
+routing, and analyzer settings are visible and are not editable on this page.
+
 ## Stop the session
 
 Closing the browser tab does not stop FinFocus. Press `Ctrl+C` in the terminal

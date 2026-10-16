@@ -4,11 +4,15 @@ description: Configuration options for FinFocus Core
 ---
 
 FinFocus is configured via a configuration file (default:
-`~/.finfocus/config.yaml`) and environment variables.
+`~/.finfocus/config.hujson`) and environment variables.
 
 ## File Format
 
-The configuration file is in YAML format.
+The configuration file is HuJSON: JSON with comments and trailing commas.
+`config set` and the dashboard Config page write `config.hujson`. A legacy
+`config.yaml` is still read. The next save of that tier writes the HuJSON
+sibling and leaves the YAML file in place. Examples below show the keys; the
+on-disk file uses JSON syntax.
 
 ```yaml
 output:
@@ -30,8 +34,8 @@ override user-global defaults.
 
 | Tier | Location | Purpose |
 | --- | --- | --- |
-| **Project-local** | `$PULUMI_PROJECT/.finfocus/config.yaml` | Project-specific budgets, output preferences, plugin config |
-| **User-global** | `~/.finfocus/config.yaml` | Shared defaults across all projects |
+| **Project-local** | `$PULUMI_PROJECT/.finfocus/config.hujson` | Project-specific budgets, output preferences, plugin config |
+| **User-global** | `~/.finfocus/config.hujson` | Shared defaults across all projects |
 
 ### Project-Local Directory Structure
 
@@ -43,7 +47,7 @@ my-pulumi-project/
 ├── Pulumi.yaml
 ├── .finfocus/
 │   ├── .gitignore       # Auto-generated, protects user-specific data
-│   ├── config.yaml      # Project budgets, output prefs
+│   ├── config.hujson    # Project budgets, output prefs
 │   └── dismissed.json   # Per-project recommendation dismissals
 ```
 
@@ -64,7 +68,7 @@ my-pulumi-project/
 
 ### Config Merge Behavior
 
-Project `config.yaml` overrides global `config.yaml` at the **top-level key**
+Project `config.hujson` overrides global `config.hujson` at the **top-level key**
 level (shallow merge). Keys absent in the project config inherit from global
 defaults.
 
@@ -73,14 +77,14 @@ the project config only defines `output`, the project `output` section replaces
 the global one entirely while `logging` is inherited from the global config.
 
 ```yaml
-# ~/.finfocus/config.yaml (global)
+# ~/.finfocus/config.hujson (global)
 output:
   default_format: table
   precision: 2
 logging:
   level: info
 
-# my-project/.finfocus/config.yaml (project)
+# my-project/.finfocus/config.hujson (project)
 output:
   default_format: json
   precision: 4
@@ -299,8 +303,11 @@ See [Budget Configuration Guide](../guides/budgets.md) for detailed usage.
 
 ## JSON Schema Validation
 
-For IDE autocompletion (VS Code, JetBrains), add this comment to the top of your `config.yaml`:
+For IDE autocompletion (VS Code, JetBrains), add this comment to the top of
+`config.hujson`:
 
-```yaml
-# yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
+```jsonc
+// yaml-language-server: $schema=https://rshade.github.io/finfocus/schemas/config.json
 ```
+
+A legacy `config.yaml` can keep the same schema comment with a leading `#`.

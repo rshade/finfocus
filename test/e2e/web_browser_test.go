@@ -1158,3 +1158,61 @@ func TestWebUIOverviewPresentation(t *testing.T) {
 		require.NoError(t, page.Locator(".detail-close").Click())
 	}
 }
+
+//nolint:paralleltest // Browser journey shares the Playwright driver process.
+func TestWebUIConfigEditKeepsProjectComment(t *testing.T) {
+	f := newWebFixture(t)
+	browser := webBrowser(t)
+	s := f.start(t, filepath.Join(f.root, "testdata/simple-plan.json"), false)
+	projectConfig := filepath.Join(s.project, ".finfocus", "config.hujson")
+	original := []byte("{\n  // keep this comment\n  \"output\": { \"precision\": 2 }\n}\n")
+	require.NoError(t, os.WriteFile(projectConfig, original, 0o600))
+	globalPath := filepath.Join(s.home, "config.yaml")
+	globalBefore, err := os.ReadFile(globalPath)
+	require.NoError(t, err)
+	hujsonPath := filepath.Join(s.home, "config.hujson")
+	globalHujsonBefore, hujsonErr := os.ReadFile(hujsonPath)
+	if hujsonErr != nil {
+		require.ErrorIs(t, hujsonErr, os.ErrNotExist)
+	}
+
+	page := webPage(t, browser, s, playwright.ColorSchemeLight)
+	webRoute(t, page, "config")
+	webWait(t, page, `() => document.querySelector('#config-output-precision') !== null`)
+	webType(t, page, "#config-output-precision", "4")
+	webTab(t, page, "#config-save")
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	webWait(t, page, `() => document.querySelector('#config-preview-dialog[open]') !== null`)
+	assert.NotContains(t, mustText(t, page, "#config-preview-dialog"), "stored-secret")
+	webTab(t, page, "#config-confirm")
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	webWait(t, page, `() => document.querySelector('#config-message')?.textContent.includes('does not reload') && document.querySelector('#config-output-precision').value === '4'`)
+
+	data, err := os.ReadFile(projectConfig)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "// keep this comment")
+	assert.Regexp(t, `"precision":\s*4\b`, string(data))
+	assert.NotRegexp(t, `"precision":\s*2\b`, string(data))
+	assert.NotContains(t, string(data), "[REDACTED]")
+	globalAfter, err := os.ReadFile(globalPath)
+	require.NoError(t, err)
+	assert.Equal(t, globalBefore, globalAfter)
+	if hujsonErr == nil {
+		globalHujsonAfter, readErr := os.ReadFile(hujsonPath)
+		require.NoError(t, readErr)
+		assert.Equal(t, globalHujsonBefore, globalHujsonAfter)
+	} else {
+		_, afterErr := os.Stat(hujsonPath)
+		assert.ErrorIs(t, afterErr, os.ErrNotExist)
+	}
+	issues, err := page.Evaluate(webContrastScript)
+	require.NoError(t, err)
+	assert.Empty(t, issues)
+}
+
+func mustText(t *testing.T, page playwright.Page, selector string) string {
+	t.Helper()
+	text, err := page.Locator(selector).TextContent()
+	require.NoError(t, err)
+	return text
+}

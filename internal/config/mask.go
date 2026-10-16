@@ -25,7 +25,68 @@ func (c *Config) MaskedForDisplay() *Config {
 		}
 		dest.Headers = headers
 	})
+	masked.Plugins = maskPlugins(c.Plugins)
 	return &masked
+}
+
+// maskPlugins copies plugin settings and replaces a non-empty credential value
+// with RedactedValue. An empty credential stays empty so a missing secret is
+// distinguishable from one that is set.
+func maskPlugins(plugins map[string]PluginConfig) map[string]PluginConfig {
+	if plugins == nil {
+		return nil
+	}
+	masked := make(map[string]PluginConfig, len(plugins))
+	for name, plugin := range plugins {
+		cloned := make(map[string]any, len(plugin.Config))
+		for key, value := range plugin.Config {
+			if credentialSetting(name, key) && presentSecret(value) {
+				cloned[key] = RedactedValue
+				continue
+			}
+			cloned[key] = maskNestedCredentials(value)
+		}
+		masked[name] = PluginConfig{Config: cloned}
+	}
+	return masked
+}
+
+func maskNestedCredentials(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		masked := make(map[string]any, len(typed))
+		for key, child := range typed {
+			if IsCredentialName(key) && presentSecret(child) {
+				masked[key] = RedactedValue
+				continue
+			}
+			masked[key] = maskNestedCredentials(child)
+		}
+		return masked
+	case []any:
+		masked := make([]any, len(typed))
+		for i, child := range typed {
+			masked[i] = maskNestedCredentials(child)
+		}
+		return masked
+	default:
+		return value
+	}
+}
+
+func credentialSetting(pluginName, key string) bool {
+	return IsCredentialName(key) || IsCredentialName(pluginName)
+}
+
+func presentSecret(value any) bool {
+	if value == nil {
+		return false
+	}
+	text, ok := value.(string)
+	if ok {
+		return text != ""
+	}
+	return true
 }
 
 func maskNotificationValue(value string) string {

@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/history"
 	"github.com/rshade/finfocus/internal/logging"
 	"github.com/rshade/finfocus/internal/proto"
@@ -149,17 +150,7 @@ func IsHiddenPropertyKey(key string) bool {
 // credential. It is a substring match, not a configurable list, and it is the
 // one rule for tags, collapsed values, attributes, and EstimateCost.
 func isCredentialKey(key string) bool {
-	lower := strings.ToLower(key)
-	for _, fragment := range []string{
-		"password", "passwd", "passphrase", "secret", "token", "credential", "ciphertext",
-		"privatekey", "private_key", "apikey", "api_key", "accesskey", "access_key",
-		"connectionstring", "connection_string",
-	} {
-		if strings.Contains(lower, fragment) {
-			return true
-		}
-	}
-	return false
+	return config.IsCredentialName(key)
 }
 
 func skipFlattenContainer(segment string) bool {

@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"path/filepath"
 
 	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
@@ -40,37 +41,33 @@ For sensitive values like API keys or credentials, use environment variables ins
 			ctx := cmd.Context()
 			key := args[0]
 			value := args[1]
+			path := filepath.Join(config.ResolveConfigDir(), "config.hujson")
+			change := config.Change{Key: key, Value: &value}
+			shown := value
+			if config.IsSecretSetting(config.CanonicalKey(key)) {
+				shown = config.RedactedValue
+			}
 
-			cfg := config.New()
-
-			// Set the value in memory
-			if err := cfg.Set(key, value); err != nil {
+			// Rehearse validates without writing. Commit patches the file in place
+			// so environment values folded by config.New are not persisted.
+			rehearse := func(_ context.Context) error {
+				if _, err := config.PatchFile(path, config.TierGlobal, "", []config.Change{change}, true); err != nil {
+					return err
+				}
+				cmd.Printf("Would set: %s = %s\n", key, shown)
+				return nil
+			}
+			commit := func(_ context.Context) error {
+				if _, err := config.PatchFile(path, config.TierGlobal, "", []config.Change{change}, false); err != nil {
+					return err
+				}
+				cmd.Printf("Configuration updated: %s = %s\n", key, shown)
+				return nil
+			}
+			if err := ax.Perform(ctx, rehearse, commit); err != nil {
 				return fmt.Errorf("failed to set config value: %w", err)
 			}
-
-			// Validate the configuration
-			if err := cfg.Validate(); err != nil {
-				return fmt.Errorf("configuration validation failed: %w", err)
-			}
-
-			// Rehearse: report what would be set
-			rehearse := func(_ context.Context) error {
-				cmd.Printf("Would set: %s = %s\n", key, value)
-				return nil
-			}
-
-			// Commit: save the configuration
-			commit := func(_ context.Context) error {
-				if err := cfg.Save(); err != nil {
-					return fmt.Errorf("failed to save config: %w", err)
-				}
-
-				cmd.Printf("Configuration updated: %s = %s\n", key, value)
-
-				return nil
-			}
-
-			return ax.Perform(ctx, rehearse, commit)
+			return nil
 		},
 	}
 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"time"
 
@@ -154,23 +155,15 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		retryPassphrase: true, transientPassphrase: true, newEngine: data.newEngine,
 	})
 	pipeDone := make(chan struct{})
-	session := webui.NewSession(pipeCtx, webSessionOptions(pipeCtx, data, pipe, pipeDone, passphrases))
+	options := webSessionOptions(pipeCtx, data, pipe, pipeDone, passphrases)
+	wireConfigEditor(ctx, &options, cmd, audit)
+	session := webui.NewSession(pipeCtx, options)
 	defer session.Close()
 	bindWebPipeline(ctx, pipe, session, params, dateRange)
 	webPipelineHook(pipe)
-	srv, err := webui.New(webui.Options{Port: flags.port, Session: session})
+	srv, err := listenAndPrintWeb(ctx, cmd, flags, session, audit)
 	if err != nil {
 		return err
-	}
-	if listenErr := srv.Listen(); listenErr != nil {
-		audit.logFailure(ctx, listenErr)
-		return listenErr
-	}
-	if _, printErr := fmt.Fprintln(cmd.OutOrStdout(), srv.URL()); printErr != nil {
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), webShutdownTimeout)
-		defer cancel()
-		_ = srv.Shutdown(shutdownCtx)
-		return fmt.Errorf("printing web UI URL: %w", printErr)
 	}
 	go func() { defer close(pipeDone); _ = pipe.Run(pipeCtx) }()
 
@@ -308,6 +301,73 @@ func bindWebPipeline(
 		session.Error(phase, message)
 		log.Warn().Ctx(ctx).Str("component", "cli").Str("operation", "web_pipeline").Int("phase", phase).Msg(message)
 	}
+}
+
+// listenAndPrintWeb starts the localhost server and prints its session URL.
+func listenAndPrintWeb(
+	ctx context.Context,
+	cmd *cobra.Command,
+	flags *webFlagValues,
+	session *webui.Session,
+	audit *auditContext,
+) (*webui.Server, error) {
+	srv, err := webui.New(webui.Options{Port: flags.port, Session: session})
+	if err != nil {
+		return nil, err
+	}
+	if listenErr := srv.Listen(); listenErr != nil {
+		audit.logFailure(ctx, listenErr)
+		return nil, listenErr
+	}
+	if _, printErr := fmt.Fprintln(cmd.OutOrStdout(), srv.URL()); printErr != nil {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), webShutdownTimeout)
+		defer cancel()
+		_ = srv.Shutdown(shutdownCtx)
+		return nil, fmt.Errorf("printing web UI URL: %w", printErr)
+	}
+	return srv, nil
+}
+
+// wireConfigEditor serves the configuration page from the global and project
+// files. Audit records name the tier and the keys that changed.
+func wireConfigEditor(ctx context.Context, options *webui.SessionOptions, cmd *cobra.Command, audit *auditContext) {
+	flagValue, _ := cmd.Flags().GetString("project-dir")
+	cwd, err := os.Getwd()
+	if err != nil {
+		cwd = "."
+	}
+	projectDir := config.ResolveProjectDir(ctx, flagValue, cwd)
+	globalPath := filepath.Join(config.ResolveConfigDir(), "config.hujson")
+	options.ConfigView = func(context.Context) (config.Page, error) {
+		return config.BuildPage(globalPath, projectDir)
+	}
+	options.ConfigPreview = func(_ context.Context, request config.WriteRequest) (config.PatchResult, error) {
+		return applyConfigWrite(globalPath, projectDir, request, true)
+	}
+	options.ConfigSave = func(saveCtx context.Context, request config.WriteRequest) (config.PatchResult, error) {
+		result, saveErr := applyConfigWrite(globalPath, projectDir, request, false)
+		if saveErr != nil {
+			return result, saveErr
+		}
+		keys := make([]string, len(result.Diff))
+		for i, entry := range result.Diff {
+			keys[i] = entry.Key
+		}
+		audit.logConfigSave(saveCtx, request.Tier, keys)
+		return result, nil
+	}
+}
+
+func applyConfigWrite(
+	globalPath, projectDir string,
+	request config.WriteRequest,
+	dryRun bool,
+) (config.PatchResult, error) {
+	path, err := config.TierPath(globalPath, projectDir, request.Tier)
+	if err != nil {
+		return config.PatchResult{}, err
+	}
+	return config.PatchFile(path, request.Tier, request.BaseVersion, request.Changes, dryRun)
 }
 
 func webSessionOptions(

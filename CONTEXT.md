@@ -21,6 +21,7 @@ To maintain its role as a lightweight orchestrator, the following are explicitly
     *   **Cost cache** (`~/.finfocus/cache/cache.db`): Avoids redundant plugin queries. Safe to delete; results rebuild on next run.
     *   **Resource history** (`~/.finfocus/history/history.db`): Tracks resource identity across billing periods for accurate month-long actual cost queries. Safe to delete; accuracy degrades for past periods but current queries still function.
     *   **Recommendation dismissals** (`dismissed.json`): Persists user dismissal decisions.
+    *   **Configuration files** (`config.hujson`, legacy `config.yaml`): Optional user settings. Editing them does not modify cloud infrastructure.
     *   The distinction: finfocus **functions correctly** without any persisted state, just with **degraded performance** (no cache) or **reduced accuracy** (no history for replaced/destroyed resources). No persistent state is a hard prerequisite for any command to succeed.
 *   **Infrastructure Management**: It is a "read-only" tool. While it may invoke `pulumi` CLI commands (like `state export`) to read infrastructure definitions, it MUST NOT perform `pulumi up`, `pulumi destroy`, or any operation that modifies cloud state.
 *   **Baked-in Provider Logic**: The core engine MUST NOT contain hardcoded logic for specific cloud services (e.g., "how to calculate S3 pricing"). This logic is strictly delegated to plugins or YAML specs.

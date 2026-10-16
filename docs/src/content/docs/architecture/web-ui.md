@@ -97,13 +97,23 @@ Because the redaction runs over every JSON payload, a data map whose keys look
 like credential names can lose entries. Issue
 [#1752](https://github.com/rshade/finfocus/issues/1752) tracks this.
 
+The Config page does not use that payload redactor. Its JSON is already masked:
+secret settings and notification destinations are omitted, and the handler
+writes that document directly. A redactor that drops credential-looking keys
+would delete settings the page is supposed to list.
+
 ## Boundaries
 
-- **Read-only.** The dashboard cannot change infrastructure or dismiss
-  recommendations. Its side effects are those the terminal UI already has:
-  plugin queries, `pulumi preview`, and the optional cost cache and history.
-- **No new state.** It adds no store of its own and works with every local
-  store deleted.
+- **Read-only toward infrastructure.** The dashboard cannot run `pulumi up` or
+  `pulumi destroy`, and it cannot dismiss recommendations. Its infrastructure
+  side effects are those the terminal UI already has: plugin queries,
+  `pulumi preview`, and the optional cost cache and history.
+- **Configuration files are user settings.** The Config page can write the
+  resolved project or global `config.hujson`. That file is not cloud
+  infrastructure. The page does not install plugins or edit alert, routing, or
+  analyzer settings.
+- **No other new state.** It adds no store of its own and works with every
+  local store deleted.
 - **Not an MCP surface.** `--web` and `--mcp` are mutually exclusive, and the
   dashboard adds no MCP tools.
 - **Pulumi only.** The overview, recommendations, and estimate experiences
