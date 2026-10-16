@@ -174,6 +174,9 @@ const pulumiVersionTimeout = 5 * time.Second
 type SetupRunner struct {
 	AnalyzerInstaller AnalyzerInstaller
 	PluginInstaller   PluginInstaller
+	// PluginDir overrides the plugin directory used by StepInstallPlugins.
+	// Empty means <baseDir>/plugins.
+	PluginDir string
 }
 
 // NewSetupRunner returns a SetupRunner wired with production defaults.
@@ -328,7 +331,11 @@ func runSetup(cmd *cobra.Command, opts *SetupOptions, runner *SetupRunner) error
 		printStep(cmd, step, opts.NonInteractive)
 		result.Steps = append(result.Steps, step)
 	} else {
-		pluginSteps := runner.StepInstallPlugins(ctx, baseDir)
+		pluginRunner := *runner
+		if pluginRunner.PluginDir == "" {
+			pluginRunner.PluginDir = config.New().PluginDir
+		}
+		pluginSteps := pluginRunner.StepInstallPlugins(ctx, baseDir)
 		for _, s := range pluginSteps {
 			printStep(cmd, s, opts.NonInteractive)
 			result.Steps = append(result.Steps, s)
@@ -600,9 +607,13 @@ func (r *SetupRunner) StepInstallAnalyzer(ctx context.Context) StepResult {
 
 // StepInstallPlugins installs the default plugin set.
 // Returns one StepResult per plugin in the default set.
-// baseDir is the resolved FinFocus home directory (e.g., ~/.finfocus).
+// baseDir is the resolved FinFocus home directory (e.g., ~/.finfocus); plugins go
+// to r.PluginDir when set, so setup installs where discovery reads.
 func (r *SetupRunner) StepInstallPlugins(ctx context.Context, baseDir string) []StepResult {
-	pluginDir := filepath.Join(baseDir, "plugins")
+	pluginDir := r.PluginDir
+	if pluginDir == "" {
+		pluginDir = filepath.Join(baseDir, "plugins")
+	}
 
 	var installer PluginInstaller
 	if r.PluginInstaller != nil {

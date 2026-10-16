@@ -58,7 +58,7 @@ The plugin must already be installed. Use 'plugin install' to install new plugin
 
 	cmd.Flags().
 		StringVar(&version, "version", "", "Specific version to update to (default: latest)")
-	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Custom plugin directory")
+	cmd.Flags().StringVar(&pluginDir, "plugin-dir", "", "Custom plugin directory (default: configured)")
 	cmd.Flags().BoolVar(
 		&skipChecksum,
 		"skip-checksum",
