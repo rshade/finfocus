@@ -65,6 +65,10 @@ func (s *Server) handleConfigWrite(w http.ResponseWriter, r *http.Request, dryRu
 	if !s.decodeJSON(w, r, &request) {
 		return
 	}
+	if request.BaseVersion == "" {
+		s.writeError(w, http.StatusBadRequest, "invalid_request", "baseVersion is required")
+		return
+	}
 	result, err := callback(r.Context(), request)
 	if err != nil {
 		s.writeConfigError(w, err)

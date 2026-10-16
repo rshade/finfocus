@@ -187,10 +187,22 @@ func settingView(setting Setting, globalDoc, projectDoc, envValues map[string]an
 	source, value, set := effective(setting.Key, projectDoc, tiers)
 	effectiveValue := EffectiveValue{Source: source}
 	if set && !secret {
-		effectiveValue.Value = value
+		effectiveValue.Value = resolvedValue(setting.Key, value)
 		effectiveValue.show = true
 	}
 	return SettingView{Setting: setting, Effective: effectiveValue, Tiers: tiers}
+}
+
+// resolvedValue applies the sentinels that the runtime resolvers treat as
+// "use the default", so the page shows what consumers actually use. The stored
+// value stays visible in its tier.
+func resolvedValue(key string, value any) any {
+	if key == keyScoringTimeout {
+		if seconds, ok := value.(int); ok && seconds <= 0 {
+			return DefaultScoringTimeoutSeconds
+		}
+	}
+	return value
 }
 
 func effective(key string, projectDoc map[string]any, tiers map[string]TierValue) (string, any, bool) {
@@ -355,7 +367,7 @@ func defaultValue(key string) any {
 		return false
 	case "scoring.identifier_mode":
 		return ScoringIdentifierPseudonymized
-	case "scoring.timeout_seconds":
+	case keyScoringTimeout:
 		return DefaultScoringTimeoutSeconds
 	case "scoring.field_allowlist":
 		return []any{}

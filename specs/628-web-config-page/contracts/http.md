@@ -74,7 +74,8 @@ Response `200`:
 }
 ```
 
-Writes nothing. `409` when `baseVersion` does not match. `400` when
+Writes nothing. `400` with `code` `invalid_request` when `baseVersion` is
+missing or empty. `409` when `baseVersion` does not match. `400` when
 validation fails, with `code` `validation` and `fields` set to the
 validation errors. The file is unchanged in both cases.
 

@@ -248,3 +248,39 @@ func mustVersion(t *testing.T, path string) string {
 	require.NoError(t, err)
 	return version
 }
+
+func TestPatchPreviewRedactsNestedCredentialsInBefore(t *testing.T) {
+	t.Parallel()
+	const secret = "stored-secret"
+	const endpoint = "https://example.test"
+	const stored = `{"plugins":{"aws":{` +
+		`"auth":{"profile":"default","token":"` + secret + `"},` +
+		`"endpoints":[{"url":"` + endpoint + `","api_key":"` + secret + `"}]}}}`
+	tests := []struct {
+		name   string
+		key    string
+		change Change
+		keep   string
+	}{
+		{"remove object", "plugins.aws.auth", Change{Key: "plugins.aws.auth", Clear: true}, "default"},
+		{"replace object", "plugins.aws.auth", Change{Key: "plugins.aws.auth", Value: strPtr("x")}, "default"},
+		{"remove array", "plugins.aws.endpoints", Change{Key: "plugins.aws.endpoints", Clear: true}, endpoint},
+		{"replace array", "plugins.aws.endpoints", Change{Key: "plugins.aws.endpoints", Value: strPtr("x")}, endpoint},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(t.TempDir(), "config.hujson")
+			require.NoError(t, os.WriteFile(path, []byte(stored), 0o600))
+			version, err := FileVersion(path)
+			require.NoError(t, err)
+
+			result, err := PatchFile(path, TierGlobal, version, []Change{tt.change}, true)
+			require.NoError(t, err)
+			require.Len(t, result.Diff, 1)
+			assert.Equal(t, tt.key, result.Diff[0].Key)
+			assert.NotContains(t, result.Diff[0].Before, secret)
+			assert.Contains(t, result.Diff[0].Before, tt.keep)
+		})
+	}
+}

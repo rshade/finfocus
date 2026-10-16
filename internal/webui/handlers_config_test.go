@@ -147,3 +147,35 @@ func configRequest(
 	t.Cleanup(func() { assert.NoError(t, response.Body.Close()) })
 	return response
 }
+
+func TestConfigAPIRequiresBaseVersion(t *testing.T) {
+	t.Parallel()
+	global := filepath.Join(t.TempDir(), "config.hujson")
+	original := []byte(`{"output": {"precision": 2}}`)
+	require.NoError(t, os.WriteFile(global, original, 0o600))
+	session := NewSession(context.Background(), SessionOptions{
+		ConfigPreview: func(_ context.Context, request config.WriteRequest) (config.PatchResult, error) {
+			return writeConfig(global, request, true)
+		},
+		ConfigSave: func(_ context.Context, request config.WriteRequest) (config.PatchResult, error) {
+			return writeConfig(global, request, false)
+		},
+	})
+	server := newRunningServer(t, Options{Session: session})
+	change := `"changes": [{"key": "output.precision", "value": "3"}]`
+	bodies := map[string]string{
+		"omitted": `{"tier": "global", ` + change + `}`,
+		"empty":   `{"tier": "global", "baseVersion": "", ` + change + `}`,
+		"null":    `{"tier": "global", "baseVersion": null, ` + change + `}`,
+	}
+	for name, body := range bodies {
+		for _, path := range []string{"/api/config/preview", "/api/config"} {
+			response := overviewRequest(t, server, http.MethodPost, path, body)
+			assert.Equal(t, http.StatusBadRequest, response.StatusCode, "%s %s", name, path)
+			assert.Contains(t, readBody(t, response), "baseVersion")
+		}
+	}
+	onDisk, err := os.ReadFile(global)
+	require.NoError(t, err)
+	assert.Equal(t, string(original), string(onDisk))
+}

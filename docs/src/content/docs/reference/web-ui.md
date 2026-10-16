@@ -161,6 +161,7 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST /api/config/preview` | 200 | - | Before/after diff. Writes nothing. |
 | `POST /api/config` | 200 | - | Writes the selected `config.hujson` and returns the page plus a reload notice. |
 | `POST /api/config` with a stale `baseVersion` | 409 | `conflict` | `configuration changed since it was loaded; reload and try again` |
+| `POST /api/config` or `/api/config/preview` with no `baseVersion` | 400 | `invalid_request` | `baseVersion is required` |
 | `POST /api/config` with the project tier and no project | 400 | `project_unavailable` | `no project directory is available` |
 | `POST /api/config` that fails validation | 400 | `validation` | The message names the setting. `fields` lists each failure. The file is unchanged. |
 

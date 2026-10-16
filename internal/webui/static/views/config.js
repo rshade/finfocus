@@ -9,12 +9,31 @@ function slug(key) {
   return String(key).replace(/[^A-Za-z0-9_-]+/g, '-');
 }
 
-function fieldID(key) {
-  return `config-${slug(key)}`;
+function derivedIDs(token) {
+  return {
+    field: `config-${token}`,
+    help: `config-${token}-help`,
+    clear: `config-clear-${token}`,
+  };
 }
 
-function clearID(key) {
-  return `config-clear-${slug(key)}`;
+// Keys that slug alike (prod/west and prod-west) must still get distinct
+// control IDs, and so must a key that slugs onto another control's help or
+// clear ID. Rows keep the readable slug unless it is taken.
+function assignIDs(settings) {
+  const used = new Set();
+  const ids = new Map();
+  for (const { key } of settings) {
+    const base = slug(key);
+    let token = base;
+    for (let n = 2; Object.values(derivedIDs(token)).some((id) => used.has(id)); n += 1) {
+      token = `${base}-${n}`;
+    }
+    const assigned = derivedIDs(token);
+    Object.values(assigned).forEach((id) => used.add(id));
+    ids.set(key, assigned);
+  }
+  return ids;
 }
 
 function setHidden(node, hidden) {
@@ -67,8 +86,7 @@ function editorInitial(setting, tier) {
   return formatValue(entry.value);
 }
 
-function editorControl(setting, tier) {
-  const id = fieldID(setting.key);
+function editorControl(setting, tier, id) {
   const entry = tierEntry(setting, tier);
   const initial = editorInitial(setting, tier);
   if (setting.kind === 'enum' || setting.kind === 'bool') {
@@ -97,10 +115,9 @@ function editorControl(setting, tier) {
   return el('input', attrs);
 }
 
-function clearControl(setting, tier) {
+function clearControl(setting, tier, id) {
   const entry = tierEntry(setting, tier);
   if (!entry?.set || setting.kind === 'bool') return null;
-  const id = clearID(setting.key);
   const box = el('input', { id, type: 'checkbox' });
   return el('label', { class: 'config-clear', for: id }, box, 'Remove');
 }
@@ -127,12 +144,13 @@ function changeFor(setting, tier, input, clear) {
   return { key: setting.key, value: current };
 }
 
-function collectChanges(root, page, tier) {
+function collectChanges(root, page, tier, ids) {
   const changes = [];
   for (const setting of page.settings ?? []) {
-    const input = root.querySelector(`#${fieldID(setting.key)}`);
+    const assigned = ids.get(setting.key);
+    const input = assigned && root.querySelector(`#${assigned.field}`);
     if (!input) continue;
-    const change = changeFor(setting, tier, input, root.querySelector(`#${clearID(setting.key)}`));
+    const change = changeFor(setting, tier, input, root.querySelector(`#${assigned.clear}`));
     if (change) changes.push(change);
   }
   return changes;
@@ -157,6 +175,7 @@ export function mount(container, { api }) {
   let message = '';
   let loadError = '';
   let pending = null;
+  let ids = new Map();
   let dialog = null;
   const root = el('section', { class: 'config-page' });
   container.replaceChildren(root);
@@ -164,6 +183,7 @@ export function mount(container, { api }) {
   function showError(err) {
     const banner = root.querySelector('#config-error');
     if (!banner) return;
+    setMessage('');
     setHidden(banner, false);
     banner.replaceChildren(...errorLines(err).map((text) => el('p', { text })));
   }
@@ -183,7 +203,7 @@ export function mount(container, { api }) {
     confirm.addEventListener('click', () => { void commit(confirm); });
     const rows = (preview.diff ?? []).map((entry) => el('tr', {},
       el('td', { text: entry.key }),
-      el('td', { text: entry.before }),
+      el('td', { text: entry.before || 'not set' }),
       el('td', { text: entry.after }),
     ));
     dialog.replaceChildren(
@@ -220,7 +240,7 @@ export function mount(container, { api }) {
   }
 
   async function preview(button) {
-    const changes = collectChanges(root, page, tier);
+    const changes = collectChanges(root, page, tier, ids);
     if (changes.length === 0) {
       setMessage('No changes for this tier.');
       return;
@@ -263,13 +283,14 @@ export function mount(container, { api }) {
   }
 
   function settingRow(setting) {
-    const control = editorControl(setting, tier);
-    const remove = clearControl(setting, tier);
-    const helpID = `${fieldID(setting.key)}-help`;
+    const assigned = ids.get(setting.key);
+    const control = editorControl(setting, tier, assigned.field);
+    const remove = clearControl(setting, tier, assigned.clear);
+    const helpID = assigned.help;
     control.setAttribute('aria-describedby', helpID);
     return el('tr', {},
       el('th', { scope: 'row' },
-        el('label', { for: fieldID(setting.key), text: setting.key }),
+        el('label', { for: assigned.field, text: setting.key }),
         el('p', { id: helpID, class: 'config-help', text: setting.help || '' }),
       ),
       el('td', { text: effectiveLabel(setting) }),
@@ -296,6 +317,7 @@ export function mount(container, { api }) {
       dialog = null;
       return;
     }
+    ids = assignIDs(page.settings ?? []);
     const tierSelect = el('select', { id: 'config-tier' });
     const projectOption = el('option', { value: 'project', text: 'Project' });
     if (!page.projectAvailable) {

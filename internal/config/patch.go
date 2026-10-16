@@ -356,7 +356,7 @@ func formatStored(value *hujson.Value, secret bool) string {
 	if err := json.Unmarshal(cloned.Pack(), &decoded); err != nil {
 		return ""
 	}
-	packed, err := json.Marshal(decoded)
+	packed, err := json.Marshal(redactNestedSecrets(decoded))
 	if err != nil {
 		return ""
 	}

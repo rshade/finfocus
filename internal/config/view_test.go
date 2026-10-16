@@ -165,3 +165,17 @@ func findSetting(t *testing.T, page Page, key string) SettingView {
 	require.Truef(t, ok, "setting %s not found", key)
 	return found
 }
+
+func TestBuildPageResolvesZeroScoringTimeout(t *testing.T) {
+	t.Parallel()
+	global := filepath.Join(t.TempDir(), "config.hujson")
+	require.NoError(t, os.WriteFile(global, []byte(`{"scoring":{"timeout_seconds":0}}`), 0o600))
+
+	page, err := buildPage(global, "", nil)
+	require.NoError(t, err)
+	timeout := findSetting(t, page, "scoring.timeout_seconds")
+	assert.Equal(t, DefaultScoringTimeoutSeconds, timeout.Effective.Value)
+	assert.Equal(t, SourceGlobal, timeout.Effective.Source)
+	assert.Equal(t, 0, timeout.Tiers[SourceGlobal].Value)
+	assert.True(t, timeout.Tiers[SourceGlobal].Set)
+}

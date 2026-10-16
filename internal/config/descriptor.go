@@ -42,6 +42,7 @@ const (
 	keyLoggingFile        = "logging.file"
 	keyBudgetGlobalAmount = "cost.budgets.global.amount"
 	keyBudgetGlobalPeriod = "cost.budgets.global.period"
+	keyScoringTimeout     = "scoring.timeout_seconds"
 
 	isoCurrencyLength = 3
 )
@@ -88,7 +89,7 @@ func KnownSettings() []Setting {
 			Help: "How resource identifiers are sent to the scorer",
 			Enum: []string{"pseudonymized", "raw", "omitted"},
 		},
-		{Key: "scoring.timeout_seconds", Kind: KindInt, Help: "Scorer timeout in seconds", Min: &zero},
+		{Key: keyScoringTimeout, Kind: KindInt, Help: "Scorer timeout in seconds", Min: &zero},
 		{Key: "scoring.field_allowlist", Kind: KindStringList, Help: "Recommendation fields the scorer may receive"},
 		{
 			Key:  "scoring.needs_review.risk",

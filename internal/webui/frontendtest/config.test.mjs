@@ -147,3 +147,38 @@ test('an unavailable project tier is disabled and validation fields render', asy
   assert.match(t.container.querySelector('#config-error').textContent, /output.precision: precision must be a number/);
   t.mounted.unmount();
 });
+
+test('settings whose keys slug alike keep separate controls', async () => {
+  const t = await setup('config');
+  const cluster = (key, value) => ({
+    key, kind: 'cluster_context', help: 'Context', secret: false,
+    effective: { source: 'project', value },
+    tiers: {
+      default: { set: false }, global: { set: false },
+      project: { set: true, value }, env: { set: false },
+    },
+  });
+  const page = configPage();
+  page.settings = [
+    cluster('overview.cluster_contexts.prod/west', 'ctx-slash'),
+    cluster('overview.cluster_contexts.prod-west', 'ctx-dash'),
+  ];
+  t.calls[0].resolve(page);
+  await flush();
+
+  const inputs = t.container.querySelectorAll('input').filter((n) => n.attrs.type === 'text');
+  assert.equal(inputs.length, 2);
+  assert.notEqual(inputs[0].id, inputs[1].id);
+  const labels = t.container.querySelectorAll('label').filter((n) => n.attrs.for && n.className !== 'config-clear');
+  assert.deepEqual(labels.map((n) => n.attrs.for).sort(), inputs.map((n) => n.id).sort());
+
+  t.container.querySelector('#config-save').dispatch('click');
+  assert.equal(t.calls.length, 1);
+  assert.match(t.container.querySelector('#config-message').textContent, /No changes/);
+
+  inputs[1].value = 'ctx-dash-new';
+  t.container.querySelector('#config-save').dispatch('click');
+  assert.deepEqual(JSON.parse(JSON.stringify(t.calls.at(-1).body.changes)), [
+    { key: 'overview.cluster_contexts.prod-west', value: 'ctx-dash-new' },
+  ]);
+});
