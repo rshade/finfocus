@@ -49,7 +49,7 @@ jobs:
           go tool cover -func=coverage.out
 
       - name: Set up frontend test tools
-        uses: jdx/mise-action@v3
+        uses: jdx/mise-action@v5
         with:
           install: false
 
