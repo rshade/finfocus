@@ -177,7 +177,7 @@ func pluginSetting(key string) (Setting, bool) {
 		Key:    key,
 		Kind:   KindPlugin,
 		Help:   "Setting " + configKey + " for plugin " + name,
-		Secret: IsCredentialName(configKey) || IsCredentialName(name),
+		Secret: IsCredentialName(configKey) || IsCredentialName(name) || pluginSecretNoted(key),
 	}, true
 }
 

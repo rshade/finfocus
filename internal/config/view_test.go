@@ -166,6 +166,29 @@ func findSetting(t *testing.T, page Page, key string) SettingView {
 	return found
 }
 
+//nolint:paralleltest // noted plugin secrets are process-wide
+func TestBuildPageMasksNotedPluginSecret(t *testing.T) {
+	ResetPluginSecretsForTest()
+	t.Cleanup(ResetPluginSecretsForTest)
+	NotePluginSecretKeys([]string{"plugins.recorder.license"})
+
+	global := filepath.Join(t.TempDir(), "config.hujson")
+	require.NoError(t, os.WriteFile(global, []byte(`{
+	  "plugins": {"recorder": {"license": "sekrit", "region": "us-east-1"}}
+	}`), 0o600))
+	page, err := buildPage(global, "", nil)
+	require.NoError(t, err)
+
+	license := findSetting(t, page, "plugins.recorder.license")
+	assert.True(t, license.Secret)
+	region := findSetting(t, page, "plugins.recorder.region")
+	assert.False(t, region.Secret)
+	encoded, err := json.Marshal(page)
+	require.NoError(t, err)
+	assert.NotContains(t, string(encoded), "sekrit")
+	assert.Contains(t, string(encoded), "us-east-1")
+}
+
 func TestBuildPageResolvesZeroScoringTimeout(t *testing.T) {
 	t.Parallel()
 	global := filepath.Join(t.TempDir(), "config.hujson")

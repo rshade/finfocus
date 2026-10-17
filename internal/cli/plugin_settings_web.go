@@ -49,6 +49,8 @@ func pluginSettingsView(
 	if err != nil {
 		return webui.PluginSettingsView{}, err
 	}
+	config.NotePluginSecretKeys(secretSettingKeys(name, state.descriptors))
+	_ = config.PersistPluginSecretKeys()
 	return state.view, nil
 }
 
@@ -59,7 +61,19 @@ func preparePluginSettings(
 	if err != nil {
 		return config.WriteRequest{}, err
 	}
+	config.NotePluginSecretKeys(secretSettingKeys(name, state.descriptors))
+	_ = config.PersistPluginSecretKeys()
 	return filterPluginChanges(name, state.descriptors, state.project, state.global, os.Environ(), request)
+}
+
+func secretSettingKeys(name string, descriptors []webui.PluginSettingDescriptor) []string {
+	var keys []string
+	for _, descriptor := range descriptors {
+		if descriptor.Secret && descriptor.Key != "" {
+			keys = append(keys, "plugins."+name+"."+descriptor.Key)
+		}
+	}
+	return keys
 }
 
 func loadPluginSettingState(

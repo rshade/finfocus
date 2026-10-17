@@ -214,7 +214,9 @@ func TestScoreRecommendations_EndToEndWithMockScorer(t *testing.T) {
 	}
 	var out bytes.Buffer
 
-	done, err := scoreRecommendations(context.Background(), &out, harness.Client(), cfg, nil, "1.0.0", result, false)
+	done, err := scoreRecommendations(
+		context.Background(), &out, harness.Client(), cfg, nil, "1.0.0", "", result, false,
+	)
 
 	require.NoError(t, err)
 	assert.False(t, done)
@@ -240,7 +242,7 @@ func TestScoreRecommendations_DryRunPrintsExactRequestsWithoutIdentifiers(t *tes
 		TimeoutSeconds: 5}
 	var out bytes.Buffer
 
-	done, err := scoreRecommendations(context.Background(), &out, harness.Client(), cfg, nil, "", result, true)
+	done, err := scoreRecommendations(context.Background(), &out, harness.Client(), cfg, nil, "", "", result, true)
 
 	require.NoError(t, err)
 	assert.True(t, done)
@@ -272,6 +274,7 @@ func TestScoreRecommendations_ScorerFailureIsAWarningNotAnError(t *testing.T) {
 		failingScorer{},
 		cfg,
 		nil,
+		"",
 		"",
 		result,
 		false,

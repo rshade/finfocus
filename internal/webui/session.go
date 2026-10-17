@@ -29,7 +29,10 @@ type ErrorEvent struct {
 
 // SessionOptions supplies the CLI domain pipelines to transport adapters.
 type SessionOptions struct {
-	EstimateResources     func(context.Context) ([]engine.ResourceDescriptor, error)
+	EstimateResources func(context.Context) ([]engine.ResourceDescriptor, error)
+	// QueryEngine is the engine that should price estimates. When set, it
+	// follows plugin reloads. When nil, Engine() is the overview engine.
+	QueryEngine           func(context.Context) (*engine.Engine, error)
 	ActualCosts           func(context.Context, string, map[string]string) (*engine.CostResultWithErrors, error)
 	Recommendations       func(context.Context, bool) (*engine.RecommendationsResult, error)
 	Trends                func() (map[string]string, string)
@@ -165,6 +168,20 @@ func (s *Session) Context() context.Context { return s.ctx }
 
 // Engine returns the shared engine, nil until preparation completes.
 func (s *Session) Engine() *engine.Engine { s.mu.Lock(); defer s.mu.Unlock(); return s.eng }
+
+// estimateEngine returns the engine that should price an estimate. A reload
+// publishes a replacement through QueryEngine. The overview engine stays on
+// Engine() for the pipeline that opened it.
+func (s *Session) estimateEngine(ctx context.Context) (*engine.Engine, error) {
+	if s.opts.QueryEngine != nil {
+		return s.opts.QueryEngine(ctx)
+	}
+	eng := s.Engine()
+	if eng == nil {
+		return nil, errors.New("overview data unavailable")
+	}
+	return eng, nil
+}
 
 // DateRange returns the date interval resolved by the shared CLI pipeline.
 func (s *Session) DateRange() engine.DateRange { s.mu.Lock(); defer s.mu.Unlock(); return s.dateRange }

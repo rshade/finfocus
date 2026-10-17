@@ -212,10 +212,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - Anything new sent to a plugin must be in the projected cache key; that is
   why keys end in `/tags-`, `/refs-`, `/attrs-` digests and feature suffixes
   (`/pricing-spec`, `/growth-v1`, `/penv-`). `/penv-` is the digest of the
-  clients `openPlugins` retained. One plugin's settings therefore invalidate
-  every projected entry. A settings or validate probe must not update it.
-  An empty digest omits the suffix. Digest tests must not run in parallel
-  and must call `ResetPluginEnvDigestsForTest`.
+  clients that engine retained at construction. A settings or validate probe
+  must not update another engine's key. An empty digest omits the suffix.
+  Tests of the process-wide helper must not run in parallel and must call
+  `ResetPluginEnvDigestsForTest`.
 - `__`-prefixed inputs (`__defaults`, `__provider`) are Pulumi internals; filter
   them from anything shown to users.
 - Analyzer import: `pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"`

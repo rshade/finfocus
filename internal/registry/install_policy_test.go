@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -297,4 +298,54 @@ func TestInstall_WrongAcceptFallbackStaysNoAssets(t *testing.T) {
 	require.ErrorAs(t, err, &noAssets)
 	assert.Equal(t, int32(0), downloads.Load())
 	assert.NotErrorIs(t, err, ErrCatalogSpecifier)
+}
+
+func TestVerifyChecksum_WebPolicyRejectsLookupFailure(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/checksums.txt":
+			http.Error(w, "unavailable", http.StatusInternalServerError)
+		case "/checksums-missing-entry.txt":
+			_, _ = io.WriteString(w, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa  other.tar.gz\n")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewGitHubClient()
+	client.HTTPClient = server.Client()
+	client.BaseURL = server.URL
+	installer := NewInstallerWithClient(client, t.TempDir())
+	archive := filepath.Join(t.TempDir(), "plugin.tar.gz")
+	require.NoError(t, os.WriteFile(archive, []byte("plugin"), 0o600))
+	asset := &ReleaseAsset{Name: "plugin.tar.gz"}
+
+	downloadFailed := &GitHubRelease{Assets: []ReleaseAsset{{
+		Name:               "checksums.txt",
+		BrowserDownloadURL: server.URL + "/checksums.txt",
+	}}}
+	err := installer.verifyChecksumForRelease(
+		context.Background(), downloadFailed, asset, archive,
+		InstallOptions{RequireChecksumFile: true}, newProgressReport(nil, nil),
+	)
+	require.Error(t, err)
+
+	err = installer.verifyChecksumForRelease(
+		context.Background(), downloadFailed, asset, archive,
+		InstallOptions{}, newProgressReport(nil, nil),
+	)
+	require.NoError(t, err)
+
+	missingEntry := &GitHubRelease{Assets: []ReleaseAsset{{
+		Name:               "checksums.txt",
+		BrowserDownloadURL: server.URL + "/checksums-missing-entry.txt",
+	}}}
+	err = installer.verifyChecksumForRelease(
+		context.Background(), missingEntry, asset, archive,
+		InstallOptions{RequireChecksumFile: true, AcceptMissingChecksum: true}, newProgressReport(nil, nil),
+	)
+	require.Error(t, err)
 }

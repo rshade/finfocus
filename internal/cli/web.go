@@ -381,6 +381,7 @@ func webSessionOptions(
 ) webui.SessionOptions {
 	return webui.SessionOptions{
 		EstimateResources: data.estimateResources,
+		QueryEngine:       data.queryEngine,
 		ActualCosts:       data.actualCosts, Recommendations: data.recommendations, Trends: data.tableTrends,
 		Preview: func(previewCtx context.Context) ([]engine.OverviewRow, error) {
 			return previewWebRows(previewCtx, pipe, pipeDone)

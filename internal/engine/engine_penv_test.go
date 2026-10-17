@@ -10,34 +10,31 @@ import (
 	"github.com/rshade/finfocus/internal/pluginhost"
 )
 
-//nolint:paralleltest // PluginEnvDigest is process-wide
-func TestCacheKey_PluginEnvDigest(t *testing.T) {
-	pluginhost.ResetPluginEnvDigestsForTest()
-	t.Cleanup(pluginhost.ResetPluginEnvDigestsForTest)
+func TestCacheKey_EngineSettingsDigest(t *testing.T) {
+	t.Parallel()
 
 	resource := ResourceDescriptor{Provider: "aws", Type: "aws:ec2:Instance", ID: "i-1"}
-	before, err := ProjectedResourceCacheKey(resource)
+	request := ActualCostRequest{From: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
+	bare := New(nil, nil)
+	before, err := bare.projectedCostCacheKey(resource)
 	require.NoError(t, err)
 	assert.NotContains(t, before, "/penv-")
+	assert.NotContains(t, bare.actualCostCacheKey(request), "/penv-")
 
-	request := ActualCostRequest{From: time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)}
-	actualBefore := generateActualCostCacheKey(request)
-	assert.NotContains(t, actualBefore, "/penv-")
-
-	pluginhost.SetPluginEnvDigestForTest("recorder", "aaa")
-	after, err := ProjectedResourceCacheKey(resource)
+	withSettings := New([]*pluginhost.Client{{Name: "recorder", DeliveredDigest: "aaa"}}, nil)
+	after, err := withSettings.projectedCostCacheKey(resource)
 	require.NoError(t, err)
 	assert.Contains(t, after, "/penv-")
 	assert.NotEqual(t, before, after)
-	assert.NotEqual(t, actualBefore, generateActualCostCacheKey(request))
+	assert.NotEqual(t, bare.actualCostCacheKey(request), withSettings.actualCostCacheKey(request))
 
-	pluginhost.SetPluginEnvDigestForTest("recorder", "bbb")
-	changed, err := ProjectedResourceCacheKey(resource)
+	changedEngine := New([]*pluginhost.Client{{Name: "recorder", DeliveredDigest: "bbb"}}, nil)
+	changed, err := changedEngine.projectedCostCacheKey(resource)
 	require.NoError(t, err)
 	assert.NotEqual(t, after, changed)
 
-	pluginhost.ResetPluginEnvDigestsForTest()
-	restored, err := ProjectedResourceCacheKey(resource)
+	// Another engine keeps the key it was built with.
+	again, err := withSettings.projectedCostCacheKey(resource)
 	require.NoError(t, err)
-	assert.Equal(t, before, restored)
+	assert.Equal(t, after, again)
 }

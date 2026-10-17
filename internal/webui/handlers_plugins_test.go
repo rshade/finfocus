@@ -98,11 +98,11 @@ func TestPluginInstallConfirmation(t *testing.T) {
 	body := `{"version":"v1.0.0","repository":"rshade/finfocus","securityLevel":"official","acceptMissingChecksum":false,"acceptFallbackFrom":""}`
 	okResp := pluginRequest(t, server, http.MethodPost, "/api/plugins/recorder/install", body)
 	assert.Equal(t, http.StatusAccepted, okResp.StatusCode)
-	mu.Lock()
-	assert.Equal(t, 1, installs)
-	assert.True(t, saw.CatalogOnly)
-	assert.True(t, saw.RequireChecksumFile)
-	mu.Unlock()
+	require.Eventually(t, func() bool {
+		mu.Lock()
+		defer mu.Unlock()
+		return installs == 1 && saw.CatalogOnly && saw.RequireChecksumFile
+	}, time.Second, 10*time.Millisecond)
 
 	mismatch := pluginRequest(t, server, http.MethodPost, "/api/plugins/recorder/install",
 		`{"version":"v9.0.0","repository":"rshade/finfocus","securityLevel":"official"}`)

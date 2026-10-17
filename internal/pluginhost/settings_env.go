@@ -327,6 +327,20 @@ func combineEnvDigests(digests map[string]string) string {
 	return hex.EncodeToString(sum.Sum(nil))
 }
 
+// CombinedDigest hashes the settings delivered to clients. An empty result
+// means none of them reported settings. The value does not depend on other
+// engines in the process.
+func CombinedDigest(clients []*Client) string {
+	digests := make(map[string]string, len(clients))
+	for _, client := range clients {
+		if client == nil || client.Name == "" || client.DeliveredDigest == "" {
+			continue
+		}
+		digests[client.Name] = client.DeliveredDigest
+	}
+	return combineEnvDigests(digests)
+}
+
 // ReplacePluginEnvDigests records the settings of the clients a cost query will
 // keep. A settings or validate probe must not call it: that probe's environment
 // can differ from the plugins still answering cost queries, and the cache key

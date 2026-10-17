@@ -489,12 +489,15 @@ func (i *Installer) verifyChecksumForRelease(
 ) error {
 	expectedHash, err := i.fetchExpectedHash(ctx, release, asset.Name)
 	if err != nil {
-		if opts.RequireChecksumFile && !opts.AcceptMissingChecksum && errors.Is(err, ErrChecksumUnavailable) {
+		// The dashboard accepts only an explicit missing-file confirmation.
+		// A download, parse, or missing-entry failure still fails closed.
+		// The CLI warns and continues unless the caller required the file.
+		missingAccepted := errors.Is(err, ErrChecksumUnavailable) && opts.AcceptMissingChecksum
+		if opts.RequireChecksumFile && !missingAccepted {
 			return err
 		}
-		// Non-fatal: warn and continue installation
 		checksumWarn(report, err.Error()+", skipping verification")
-		return nil // missing checksum file is a warning unless the caller required it
+		return nil
 	}
 
 	// This is the only fatal path: a confirmed hash mismatch

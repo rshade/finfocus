@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 
 	"github.com/rshade/ax-go"
+	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
 )
 
@@ -93,61 +94,93 @@ func LoadInstalledPlugins() ([]InstalledPlugin, error) {
 // The `plugins` parameter is the full list of plugins to persist.
 // It returns an error if marshaling or file operations fail.
 func SaveInstalledPlugins(plugins []InstalledPlugin) error {
-	configPath := pluginsConfigPath()
-	var cfg map[string]any
-	if err := loadConfig(configPath, &cfg); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return fmt.Errorf("failed to load config: %w", err)
-	}
-	if cfg == nil {
-		cfg = make(map[string]any)
-	}
-	cfg[keyInstalledPlugin] = plugins
-	return saveConfig(configPath, cfg)
+	return updateInstalledPlugins(func([]InstalledPlugin) ([]InstalledPlugin, error) {
+		return plugins, nil
+	})
 }
 
 // AddInstalledPlugin adds or updates the given plugin in the installed plugins configuration.
 // If a plugin with the same Name already exists it is replaced; otherwise the plugin is appended.
 // It persists the updated list and returns an error if loading or saving the configuration fails.
 func AddInstalledPlugin(plugin InstalledPlugin) error {
-	plugins, err := LoadInstalledPlugins()
-	if err != nil {
-		return err
-	}
-
-	// Check if already exists and update
-	found := false
-	for i, p := range plugins {
-		if p.Name == plugin.Name {
-			plugins[i] = plugin
-			found = true
-			break
+	return updateInstalledPlugins(func(plugins []InstalledPlugin) ([]InstalledPlugin, error) {
+		for i, existing := range plugins {
+			if existing.Name == plugin.Name {
+				plugins[i] = plugin
+				return plugins, nil
+			}
 		}
-	}
-
-	if !found {
-		plugins = append(plugins, plugin)
-	}
-
-	return SaveInstalledPlugins(plugins)
+		return append(plugins, plugin), nil
+	})
 }
 
 // RemoveInstalledPlugin removes the installed plugin with the given name from the configuration.
 // It returns an error if loading the current configuration or saving the updated configuration fails.
 func RemoveInstalledPlugin(name string) error {
+	return updateInstalledPlugins(func(plugins []InstalledPlugin) ([]InstalledPlugin, error) {
+		kept := make([]InstalledPlugin, 0, len(plugins))
+		for _, existing := range plugins {
+			if existing.Name != name {
+				kept = append(kept, existing)
+			}
+		}
+		return kept, nil
+	})
+}
+
+// updateInstalledPlugins holds the config file lock across the read and the
+// comment-preserving write so a settings save cannot land between them.
+func updateInstalledPlugins(mutate func([]InstalledPlugin) ([]InstalledPlugin, error)) error {
+	path := pluginsConfigPath()
+	unlock, err := acquirePathLock(path)
+	if err != nil {
+		return err
+	}
+	defer unlock()
 	plugins, err := LoadInstalledPlugins()
 	if err != nil {
 		return err
 	}
-
-	// Find and remove
-	var newPlugins []InstalledPlugin
-	for _, p := range plugins {
-		if p.Name != name {
-			newPlugins = append(newPlugins, p)
-		}
+	next, err := mutate(plugins)
+	if err != nil {
+		return err
 	}
+	return writeInstalledPlugins(path, next)
+}
 
-	return SaveInstalledPlugins(newPlugins)
+func writeInstalledPlugins(path string, plugins []InstalledPlugin) error {
+	if plugins == nil {
+		plugins = []InstalledPlugin{}
+	}
+	payload, err := json.Marshal(plugins)
+	if err != nil {
+		return fmt.Errorf("failed to marshal installed plugins: %w", err)
+	}
+	if err = os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
+		return fmt.Errorf("failed to create config directory: %w", err)
+	}
+	original, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return fmt.Errorf("failed to read config: %w", err)
+	}
+	if len(bytes.TrimSpace(original)) == 0 {
+		original = []byte("{}\n")
+	} else if isYAMLDocument(original) {
+		converted, convErr := yamlToJSON(original)
+		if convErr != nil {
+			return fmt.Errorf("converting legacy configuration: %w", convErr)
+		}
+		original = converted
+	}
+	value, err := hujson.Parse(original)
+	if err != nil {
+		return fmt.Errorf("parsing configuration: %w", err)
+	}
+	if err = setAtPointer(&value, "/"+keyInstalledPlugin, payload); err != nil {
+		return err
+	}
+	_, err = writeAtomic(path, value.Pack())
+	return err
 }
 
 // GetInstalledPlugin retrieves the installed plugin with the given name.

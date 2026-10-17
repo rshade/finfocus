@@ -287,6 +287,20 @@ func (d *webData) recommendations(ctx context.Context, include bool) (*engine.Re
 
 func (d *webData) tableTrends() (map[string]string, string) { return d.trends, d.totalTrend }
 
+// queryEngine returns the engine cost and estimate queries should use. After a
+// plugin reload this is the replacement, not the overview pipeline's original.
+func (d *webData) queryEngine(ctx context.Context) (*engine.Engine, error) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	if d.eng == nil {
+		return nil, errors.New("overview data unavailable")
+	}
+	return d.eng, nil
+}
+
 // estimateResources loads real source descriptors independently of synthetic
 // overview cluster rows. Preview properties are overlaid by the session transport.
 func (d *webData) estimateResources(ctx context.Context) ([]engine.ResourceDescriptor, error) {
