@@ -297,8 +297,6 @@ func TestConfig_FullWorkflow(t *testing.T) {
 }
 
 // TestConfigValidate_FileAndCostPreRun checks the file report and the cost pre-run.
-//
-//nolint:paralleltest // os.Setenv changes the process-wide environment (via WithEnv)
 func TestConfigValidate_FileAndCostPreRun(t *testing.T) {
 	h := helpers.NewCLIHelper(t)
 	home := h.CreateTempDir()

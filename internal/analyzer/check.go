@@ -384,7 +384,8 @@ func stopCommand(cancel context.CancelFunc, cmd *exec.Cmd, waitDone <-chan error
 	}
 
 	select {
-	case <-waitDone:
+	case err := <-waitDone:
+		_ = err
 	case <-time.After(time.Second):
 	}
 }

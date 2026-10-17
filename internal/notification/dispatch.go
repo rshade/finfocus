@@ -90,10 +90,10 @@ func NewDispatcher(client *http.Client, lookup func(string) (string, bool)) *Dis
 		lookup = func(string) (string, bool) { return "", false }
 	}
 	httpClient := noRedirectClient(client)
-	d := &Dispatcher{lookup: lookup, senders: map[config.NotificationType]Sender{}}
-	d.register(config.NotificationTypeSlack, &slackSender{client: httpClient})
-	d.register(config.NotificationTypeWebhook, &webhookSender{client: httpClient})
-	return d
+	return &Dispatcher{lookup: lookup, senders: map[config.NotificationType]Sender{
+		config.NotificationTypeSlack:   &slackSender{client: httpClient},
+		config.NotificationTypeWebhook: &webhookSender{client: httpClient},
+	}}
 }
 
 // register sets the sender for a destination type, replacing any existing one.

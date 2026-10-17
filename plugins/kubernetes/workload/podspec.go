@@ -111,7 +111,7 @@ func readRequirements(
 			return corev1.ResourceRequirements{}, false, &UnknownValueError{Path: container}
 		}
 	}
-	requirements := corev1.ResourceRequirements{Requests: corev1.ResourceList{}}
+	requirements := corev1.ResourceRequirements{Requests: make(corev1.ResourceList)}
 	set := false
 	for _, name := range []corev1.ResourceName{corev1.ResourceCPU, corev1.ResourceMemory} {
 		request, hasRequest, err := readQuantity(attrs, path+".requests."+string(name))

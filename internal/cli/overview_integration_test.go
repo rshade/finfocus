@@ -540,7 +540,7 @@ func TestIntegration_MergeMixedChanges(t *testing.T) {
 	assert.Equal(t, 10, changeCount) // 3 updates + 2 deletes + 2 replaces + 3 creates
 
 	// Count statuses
-	statusCounts := map[engine.ResourceStatus]int{}
+	statusCounts := make(map[engine.ResourceStatus]int)
 	for _, row := range rows {
 		statusCounts[row.Status]++
 	}

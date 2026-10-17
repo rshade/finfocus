@@ -318,7 +318,6 @@ func TestDetectPulumiProject_NoBinary(t *testing.T) {
 	assert.Contains(t, err.Error(), "find pulumi binary")
 }
 
-//nolint:paralleltest // t.Chdir changes the process-wide working directory
 func TestDetectPulumiProject_NoProject(t *testing.T) {
 	// Skip if no pulumi binary on real PATH (CI without pulumi installed).
 	if _, err := pulumidetect.FindBinary(); err != nil {

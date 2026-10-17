@@ -91,9 +91,9 @@ func validateRegistryEntryComplete(t *testing.T, name string, entry registry.Reg
 	}
 
 	// Capabilities must be valid if specified
-	for _, cap := range entry.Capabilities {
-		if !isAllowedRegistryCapability(cap) {
-			t.Errorf("invalid capability: %s (add to allowedRegistryCapabilities if intentional)", cap)
+	for _, capability := range entry.Capabilities {
+		if !isAllowedRegistryCapability(capability) {
+			t.Errorf("invalid capability: %s (add to allowedRegistryCapabilities if intentional)", capability)
 		}
 	}
 
