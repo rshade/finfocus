@@ -77,7 +77,7 @@ function catalog() {
 
 function descriptorSettings() {
   return {
-    name: 'recorder',
+    name: 'aws',
     mode: 'descriptor',
     projectAvailable: true,
     versions: { global: 'g1', project: 'p1' },
@@ -135,6 +135,8 @@ test('confirm dialog names the plan before install is posted', async () => {
   assert.equal(t.container.querySelector('#plugin-update-local'), undefined);
   assert.ok(t.container.querySelector('#plugin-validate-local'));
   assert.ok(t.container.querySelector('#plugin-configure-local'));
+  assert.equal(t.container.querySelector('#plugin-configure-recorder'), undefined);
+  assert.ok(t.container.querySelector('#plugin-configure-aws'));
   assert.ok(t.container.querySelector('#plugin-remove-local-0-4-0'));
   assert.ok(t.container.querySelector('#plugin-update-aws'));
 
@@ -276,8 +278,8 @@ test('validate shows pass or the reason without treating a failed check as trans
 
 test('descriptor form previews typed controls and omits an empty secret', async () => {
   const t = await open();
-  t.container.querySelector('#plugin-configure-recorder').dispatch('click');
-  assert.equal(t.calls.at(-1).path, '/api/plugins/recorder/settings');
+  t.container.querySelector('#plugin-configure-aws').dispatch('click');
+  assert.equal(t.calls.at(-1).path, '/api/plugins/aws/settings');
   t.calls.at(-1).resolve(descriptorSettings());
   await flush();
   const enabled = t.container.querySelector('#plugin-setting-enabled');
@@ -303,18 +305,18 @@ test('descriptor form previews typed controls and omits an empty secret', async 
   timeout.value = '15';
   enabled.value = 'false';
   t.container.querySelector('#plugin-save').dispatch('click');
-  assert.equal(t.calls.at(-1).path, '/api/plugins/recorder/settings/preview');
+  assert.equal(t.calls.at(-1).path, '/api/plugins/aws/settings/preview');
   assert.deepEqual(body(t.calls.at(-1)), {
     tier: 'project',
     baseVersion: 'p1',
     changes: [
-      { key: 'plugins.recorder.base_url', value: 'https://new.example' },
-      { key: 'plugins.recorder.timeout', value: '15' },
-      { key: 'plugins.recorder.enabled', value: 'false' },
+      { key: 'plugins.aws.base_url', value: 'https://new.example' },
+      { key: 'plugins.aws.timeout', value: '15' },
+      { key: 'plugins.aws.enabled', value: 'false' },
     ],
   });
   t.calls.at(-1).resolve({
-    diff: [{ key: 'plugins.recorder.base_url', before: 'https://old.example', after: 'https://new.example' }],
+    diff: [{ key: 'plugins.aws.base_url', before: 'https://old.example', after: 'https://new.example' }],
     validation: { valid: true, errors: [] },
   });
   await flush();
@@ -326,21 +328,21 @@ test('descriptor form previews typed controls and omits an empty secret', async 
     tier: 'project',
     baseVersion: 'p1',
     changes: [
-      { key: 'plugins.recorder.api_key', value: 'next-secret' },
-      { key: 'plugins.recorder.base_url', value: 'https://new.example' },
-      { key: 'plugins.recorder.timeout', value: '15' },
-      { key: 'plugins.recorder.enabled', value: 'false' },
+      { key: 'plugins.aws.api_key', value: 'next-secret' },
+      { key: 'plugins.aws.base_url', value: 'https://new.example' },
+      { key: 'plugins.aws.timeout', value: '15' },
+      { key: 'plugins.aws.enabled', value: 'false' },
     ],
   });
   const preview = body(t.calls.at(-1));
   t.calls.at(-1).resolve({
-    diff: [{ key: 'plugins.recorder.api_key', before: 'set', after: 'replaced' }],
+    diff: [{ key: 'plugins.aws.api_key', before: 'set', after: 'replaced' }],
   });
   await flush();
   assert.match(t.container.querySelector('#plugin-confirm-dialog').textContent, /replaced/);
   assert.doesNotMatch(t.container.textContent, /next-secret/);
   t.container.querySelector('#plugin-confirm-accept').dispatch('click');
-  assert.equal(t.calls.at(-1).path, '/api/plugins/recorder/settings');
+  assert.equal(t.calls.at(-1).path, '/api/plugins/aws/settings');
   assert.deepEqual(body(t.calls.at(-1)), preview);
   const saved = descriptorSettings();
   saved.message = 'Saved. These settings apply the next time this plugin is launched.';
@@ -386,7 +388,7 @@ test('generic mode renders a stored key and hides a secret that was not sent', a
 
 test('an empty secret is omitted and a typed replacement is sent', async () => {
   const t = await open();
-  t.container.querySelector('#plugin-configure-recorder').dispatch('click');
+  t.container.querySelector('#plugin-configure-aws').dispatch('click');
   t.calls.at(-1).resolve(descriptorSettings());
   await flush();
   const secret = t.container.querySelector('#plugin-setting-api_key');
@@ -400,9 +402,9 @@ test('an empty secret is omitted and a typed replacement is sent', async () => {
   assert.deepEqual(body(t.calls.at(-1)), {
     tier: 'project',
     baseVersion: 'p1',
-    changes: [{ key: 'plugins.recorder.api_key', value: 'next-secret' }],
+    changes: [{ key: 'plugins.aws.api_key', value: 'next-secret' }],
   });
-  t.calls.at(-1).resolve({ diff: [{ key: 'plugins.recorder.api_key', before: 'set', after: 'replaced' }] });
+  t.calls.at(-1).resolve({ diff: [{ key: 'plugins.aws.api_key', before: 'set', after: 'replaced' }] });
   await flush();
   assert.match(t.container.querySelector('#plugin-confirm-dialog').textContent, /replaced/);
   assert.doesNotMatch(t.container.textContent, /next-secret/);
@@ -415,8 +417,30 @@ test('an empty secret is omitted and a typed replacement is sent', async () => {
   assert.deepEqual(body(t.calls.at(-1)), {
     tier: 'project',
     baseVersion: 'p1',
-    changes: [{ key: 'plugins.recorder.api_key', clear: true }],
+    changes: [{ key: 'plugins.aws.api_key', clear: true }],
   });
   assert.doesNotMatch(JSON.stringify(t.calls.at(-1).body), /ignored-secret/);
+  t.mounted.unmount();
+});
+
+test('a stored secret bool can be removed even though it renders as a masked input', async () => {
+  const t = await open();
+  t.container.querySelector('#plugin-configure-aws').dispatch('click');
+  const settings = descriptorSettings();
+  settings.descriptors.push({ key: 'allow_credentials', type: 'bool', secret: true, description: 'Allow credentials' });
+  settings.values.push({
+    key: 'allow_credentials',
+    secret: true,
+    project: { set: true },
+    global: { set: false },
+    effectiveSource: 'project',
+  });
+  t.calls.at(-1).resolve(settings);
+  await flush();
+
+  assert.equal(t.container.querySelector('#plugin-setting-allow_credentials').attrs.type, 'password');
+  t.container.querySelector('#plugin-clear-allow_credentials').checked = true;
+  t.container.querySelector('#plugin-save').dispatch('click');
+  assert.deepEqual(body(t.calls.at(-1)).changes, [{ key: 'plugins.aws.allow_credentials', clear: true }]);
   t.mounted.unmount();
 });
