@@ -101,7 +101,7 @@ Use --stack to target a specific stack during auto-detection.`,
 	cmd.Flags().StringVar(&params.specDir, "spec-dir", "", "Directory containing pricing spec files")
 	cmd.Flags().StringVar(&params.adapter, "adapter", "", "Use only the specified adapter plugin")
 	cmd.Flags().StringVar(
-		&params.output, "output", config.GetDefaultOutputFormat(), "Output format: table, json, or ndjson")
+		&params.output, "output", "", "Output format: table, json, or ndjson (default from output.default_format, else table)")
 	cmd.Flags().StringArrayVar(&params.filter, "filter", []string{},
 		"Resource filter expressions (e.g., 'type=aws:ec2/instance')")
 	cmd.Flags().Float64Var(
@@ -193,7 +193,7 @@ func pricingSpecFallbackForCmd(cmd *cobra.Command, flagValue bool, cfg *config.C
 // It returns an error if any step (validation, loading, calculation, rendering) fails.
 func executeCostProjected(cmd *cobra.Command, params costProjectedParams) error {
 	ctx := cmd.Context()
-	params.output = resolveOutputFormat(cmd, "output", params.output)
+	params.output = resolveOutputFormatWithConfig(cmd, params.output)
 
 	if err := validateCostProjectedParams(params); err != nil {
 		return toValidationError(ctx, err)
