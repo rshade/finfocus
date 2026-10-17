@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.7](https://github.com/rshade/finfocus/compare/v0.4.6...v0.4.7) (2026-10-17)
+
+
+### Added
+
+* **webui:** add a plugin catalog and settings page ([#1796](https://github.com/rshade/finfocus/issues/1796)) ([f53294c](https://github.com/rshade/finfocus/commit/f53294c4c03d37ad7f7f8c1ad68f38ac4529a8ec))
+* **webui:** view and edit config in the dashboard ([#1789](https://github.com/rshade/finfocus/issues/1789)) ([b03a23d](https://github.com/rshade/finfocus/commit/b03a23db8d6d43688811f7d120b66bd33f04507f))
+
+
+### Fixed
+
+* **deps:** update go dependencies ([#1778](https://github.com/rshade/finfocus/issues/1778)) ([38d57b0](https://github.com/rshade/finfocus/commit/38d57b0edb5e5925262f4b4ce65cf1a97463dd24))
+* **registry:** install plugins where discovery reads them ([#1769](https://github.com/rshade/finfocus/issues/1769)) ([3d26058](https://github.com/rshade/finfocus/commit/3d26058bdb41c410263a1052c648a1b9a446f312))
+* repair main CI after dependency bumps ([#1794](https://github.com/rshade/finfocus/issues/1794)) ([0da2a71](https://github.com/rshade/finfocus/commit/0da2a7107cabe9e4c10f7b408ac356bcc26f8b23))
+* show costs for preview-only resources, plugin settings and flag-error fixes ([#1804](https://github.com/rshade/finfocus/issues/1804)) ([59f175f](https://github.com/rshade/finfocus/commit/59f175fee5f72212a7c92b803d19e8186a58b62d))
+* **webui:** config page review follow-ups ([#1795](https://github.com/rshade/finfocus/issues/1795)) ([0fed824](https://github.com/rshade/finfocus/commit/0fed8246dcf4a7244dfe9b09c289c4666f4ac7fd))
+
+
+### Documentation
+
+* **roadmap:** add web UI settings and plugin setup work ([#1767](https://github.com/rshade/finfocus/issues/1767)) ([89d1ef6](https://github.com/rshade/finfocus/commit/89d1ef621b2305ad07ed3b3a8d25184a12dcb64e))
+
 ## [0.4.6](https://github.com/rshade/finfocus/compare/v0.4.5...v0.4.6) (2026-10-09)
 
 
