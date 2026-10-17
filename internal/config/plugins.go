@@ -137,9 +137,12 @@ func updateInstalledPlugins(mutate func([]InstalledPlugin) ([]InstalledPlugin, e
 		return err
 	}
 	defer unlock()
+	if err = migrateFromLegacyYAML(path); err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
 	plugins, err := LoadInstalledPlugins()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to load config: %w", err)
 	}
 	next, err := mutate(plugins)
 	if err != nil {

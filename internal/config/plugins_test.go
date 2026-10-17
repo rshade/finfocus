@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tailscale/hujson"
 	"gopkg.in/yaml.v3"
 )
 
@@ -374,8 +375,11 @@ func TestSaveInstalledPluginsPreservesConfig(t *testing.T) {
 			assert.Equal(t, plugins, loaded)
 			saved, readErr := os.ReadFile(filepath.Join(dir, "config.hujson"))
 			require.NoError(t, readErr)
+			parsed, parseErr := hujson.Parse(saved)
+			require.NoError(t, parseErr)
+			parsed.Standardize()
 			var values map[string]json.RawMessage
-			require.NoError(t, json.Unmarshal(saved, &values))
+			require.NoError(t, json.Unmarshal(parsed.Pack(), &values))
 			assert.JSONEq(t, `{"enabled":true}`, string(values["custom"]))
 			assert.JSONEq(t, `{"default_format":"json","precision":4}`, string(values["output"]))
 		})

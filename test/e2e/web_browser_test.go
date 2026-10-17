@@ -705,7 +705,7 @@ func TestWebUIThreeFixtureParityAndCluster(t *testing.T) {
 			webWait(
 				t,
 				p,
-				`() => document.querySelector('.phase-checklist').hidden && document.querySelector('.overview-table tbody .resource-link') !== null`,
+				`() => { const list = document.querySelector('.phase-checklist'); return !!list && list.hidden && document.querySelector('.overview-table tbody .resource-link') !== null }`,
 			)
 			var overview map[string]any
 			require.NoError(
@@ -877,7 +877,7 @@ func TestWebUIProgressiveLoading(t *testing.T) {
 	s := f.start(t, source, false, "WEB_ENRICHMENT_GATE="+gate)
 	page := webPage(t, webBrowser(t), s, playwright.ColorSchemeLight)
 	_, err = page.WaitForFunction(
-		`() => !document.querySelector('.phase-checklist').hidden && document.querySelectorAll('.phase[data-status="done"]').length > 0 && document.querySelector('.phase[data-status="active"]') !== null`,
+		`() => { const list = document.querySelector('.phase-checklist'); return !!list && !list.hidden && document.querySelectorAll('.phase[data-status="done"]').length > 0 && document.querySelector('.phase[data-status="active"]') !== null }`,
 		nil,
 		playwright.PageWaitForFunctionOptions{Timeout: playwright.Float(30000)},
 	)
@@ -889,7 +889,7 @@ func TestWebUIProgressiveLoading(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => !document.querySelector('.phase-checklist').hidden && !document.querySelector('.progress-line').hidden && document.querySelector('.progress-line').textContent === 'Enriched 10 of 12 resources' && [...document.querySelectorAll('.overview-table tbody tr')].filter(r=>r.textContent.includes('progress-first') && r.textContent.includes('$')).length === 10`,
+		`() => { const list = document.querySelector('.phase-checklist'); const progress = document.querySelector('.progress-line'); return !!list && !list.hidden && !!progress && !progress.hidden && progress.textContent === 'Enriched 10 of 12 resources' && [...document.querySelectorAll('.overview-table tbody tr')].filter(r=>r.textContent.includes('progress-first') && r.textContent.includes('$')).length === 10 }`,
 	)
 	pending, evalErr := page.Evaluate(
 		`() => [...document.querySelectorAll('.overview-table tbody tr')].filter(r=>r.textContent.includes('progress-rest')).length === 2 && [...document.querySelectorAll('.overview-table tbody tr')].filter(r=>r.textContent.includes('progress-rest')).every(r=>!r.textContent.includes('$'))`,
@@ -900,7 +900,7 @@ func TestWebUIProgressiveLoading(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('.phase-checklist').hidden && document.querySelector('.progress-line').hidden && [...document.querySelectorAll('.overview-table tbody tr')].filter(r=>r.textContent.includes('progress-') && r.textContent.includes('$')).length === 12`,
+		`() => { const list = document.querySelector('.phase-checklist'); const progress = document.querySelector('.progress-line'); return !!list && list.hidden && !!progress && progress.hidden && [...document.querySelectorAll('.overview-table tbody tr')].filter(r=>r.textContent.includes('progress-') && r.textContent.includes('$')).length === 12 }`,
 	)
 }
 
@@ -1080,7 +1080,7 @@ func TestWebUIMixedCurrencyRows(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('.phase-checklist').hidden && document.querySelectorAll('.resource-link').length === 3`,
+		`() => { const list = document.querySelector('.phase-checklist'); return !!list && list.hidden && document.querySelectorAll('.resource-link').length === 3 }`,
 	)
 	totals, err := page.Locator(".totals-bar").TextContent()
 	require.NoError(t, err)
@@ -1123,7 +1123,7 @@ func TestWebUIOverviewPresentation(t *testing.T) {
 	require.NoError(t, os.WriteFile(planPath, plan, 0o600))
 	s := f.start(t, planPath, false, "WEB_AUTO_DETECT=true", "WEB_RICH_PRESENTATION=true", "WEB_STATE="+statePath)
 	page := webPage(t, browser, s, playwright.ColorSchemeLight)
-	webWait(t, page, `() => document.querySelector('.phase-checklist').hidden && document.querySelectorAll('.resource-link').length === 2`)
+	webWait(t, page, `() => { const list = document.querySelector('.phase-checklist'); return !!list && list.hidden && document.querySelectorAll('.resource-link').length === 2 }`)
 	for _, name := range []string{"updated", "active"} {
 		urn := "urn:pulumi:dev::test::aws:ec2/instance:Instance::" + name
 		resource := s.query(t, "/api/overview/resource?urn="+url.QueryEscape(urn), nil)
