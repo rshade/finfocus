@@ -260,6 +260,7 @@ func (s *Server) handler() http.Handler {
 		s.registerCost(mux)
 		s.registerEstimate(mux)
 		s.registerRecommendations(mux)
+		s.registerConfig(mux)
 		mux.HandleFunc("/", s.handleRoot)
 		mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(staticFiles())))
 	}

@@ -46,7 +46,7 @@ start the opener is logged as a warning; the server keeps running.
 
 ## Views
 
-The header links to four views. Each has its own URL fragment, and a
+The header links to five views. Each has its own URL fragment, and a
 **Skip to main content** link comes first in the tab order.
 
 | View | Fragment | Shows |
@@ -55,6 +55,7 @@ The header links to four views. Each has its own URL fragment, and a
 | Cost | `#/cost` | Actual costs, summary with provider shares and carbon equivalencies when plugins supply them, trends when history is available |
 | Recommendations | `#/recommendations` | Recommendation counts, savings, actions, descriptions, and scorer signals when scoring is configured |
 | Estimate | `#/estimate` | What-if comparison for one resource: baseline, modified monthly cost, total change, and per-property deltas |
+| Config | `#/config` | Effective configuration, the tier each value comes from, and edits to known settings in the project or global file |
 
 ### Overview controls
 
@@ -102,6 +103,23 @@ snooze, or undismiss a recommendation. Results are paged at 250 rows.
 | Pricing mode | **Automatic provider**, or a mode from a plugin's pricing spec. Choosing a mode recalculates through that plugin. |
 | Current value | Edit a property value and press `Enter` to recalculate. |
 
+### Config controls
+
+| Control | Effect |
+| --- | --- |
+| Edit tier | Selects the project or global `config.hujson` to edit. Project is disabled when no project directory resolves. |
+| Setting editor | Changes one known setting. A secret field starts empty; leaving it blank keeps the stored secret. |
+| Remove | Drops that key from the selected tier only. |
+| **Review changes** | Asks the server for a before/after preview. The preview writes nothing. |
+| **Confirm** | Writes the previewed changes to the selected file. |
+| **Cancel** | Closes the preview. The file is unchanged. |
+| **Reload** | Reads both configuration files again. |
+
+Secrets and notification destinations are shown as set or not set. The page
+never fills a secret field from the stored value. Alert, routing, and analyzer
+settings are listed and are not editable. A successful save tells you that the
+running session keeps its startup configuration.
+
 ### Web-only controls
 
 The **Group by** selector and the **Include dismissed** checkbox expose existing
@@ -139,6 +157,13 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `Origin` other than the server's own | 403 | `forbidden` | `origin is not this server` |
 | `POST` without `Origin` | 403 | `forbidden` | `origin header required` |
 | `POST` whose `Content-Type` is not `application/json` | 415 | `unsupported_media_type` | `Content-Type must be application/json` |
+| `GET /api/config` | 200 | - | Effective configuration. Secret values are omitted. |
+| `POST /api/config/preview` | 200 | - | Before/after diff. Writes nothing. |
+| `POST /api/config` | 200 | - | Writes the selected `config.hujson` and returns the page plus a reload notice. |
+| `POST /api/config` with a stale `baseVersion` | 409 | `conflict` | `configuration changed since it was loaded; reload and try again` |
+| `POST /api/config` or `/api/config/preview` with no `baseVersion` | 400 | `invalid_request` | `baseVersion is required` |
+| `POST /api/config` with the project tier and no project | 400 | `project_unavailable` | `no project directory is available` |
+| `POST /api/config` that fails validation | 400 | `validation` | The message names the setting. `fields` lists each failure. The file is unchanged. |
 
 The session cookie is `finfocus_session_<port>`, with `HttpOnly`,
 `SameSite=Strict`, and `Path=/`, and without `Secure`. The token stays valid
@@ -146,9 +171,13 @@ until the server stops.
 
 ## Side effects and storage
 
-- Read-only toward infrastructure. The only actions are plugin queries, the
-  on-demand `pulumi preview`, and the CLI's existing optional cost cache and
-  history reads and writes, which keep their configured defaults.
+- Read-only toward infrastructure. The dashboard does not run `pulumi up` or
+  `pulumi destroy`. Plugin queries, the on-demand `pulumi preview`, and the
+  CLI's existing optional cost cache and history reads and writes keep their
+  configured defaults.
+- Config can write the resolved project or global `config.hujson`. The write
+  patches that file in place. Comments, unknown keys, and the other tier's file
+  stay. The running session does not reload the file.
 - The existing dismissal store is read so earlier decisions are honored.
 - No browser-specific store is added. Missing local stores do not prevent
   launch.

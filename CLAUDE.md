@@ -197,7 +197,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `04da6b54-80e4-46f7-96ec-b56ff0331ba9` is never sent as a tag, SKU, or
   region. A referenced SKU is never copied into the child's `Sku`.
 - **No credential or Pulumi secret reaches a plugin.** One rule each:
-  `isCredentialKey`/`skipDottedSegment` for names and `history.IsPulumiSecret`
+  `config.IsCredentialName` (which `engine.isCredentialKey` calls) /
+  `skipDottedSegment` for names and `history.IsPulumiSecret`
   for values. They apply to collapsed tags, dotted keys
   (`specs/619-dotted-tag-keys/`), `ResourceDescriptor.attributes`
   (`specs/621-k8s-workload-projected-cost/`), actual-cost tags, and
@@ -265,6 +266,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
 - The overview docs page is `docs/src/content/docs/commands/overview.md`.
+- The dashboard Config page and `config set` patch `config.hujson` through
+  `config.PatchFile`. Do not call `Config.Save` for that write: it rewrites the
+  struct from `New()`, folds environment variables into the file, and drops
+  comments. `baseVersion` is the SHA-256 hex of the file bytes, or `absent`
+  when the file is missing. Legacy `config.yaml` is converted inside the patch,
+  after that hash check, not before it.
 
 ### Registry (`internal/registry/`)
 
@@ -449,6 +456,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 628-web-config-page: dashboard Config page and `config set` patch `config.hujson` in place
 - 626-cost-forecast: `cost forecast` projects plugin GrowthType with finfocus-spec `pricing.ApplyGrowth`
 - 625-budget-alert-notifications: Slack and generic HTTPS webhook budget alert destinations (stdlib `net/http`)
 - 623-prometheus-usage-source: Prometheus usage source plugin and historical `cost cluster` windows

@@ -71,6 +71,125 @@
         }
       }
     },
+    "output": {
+      "type": "object",
+      "description": "Command output preferences",
+      "properties": {
+        "default_format": {
+          "type": "string",
+          "enum": ["table", "json", "ndjson"],
+          "description": "Default command output."
+        },
+        "precision": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 10,
+          "description": "Decimal places for cost amounts."
+        }
+      }
+    },
+    "logging": {
+      "type": "object",
+      "description": "Logging preferences",
+      "properties": {
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "description": "Log level."
+        },
+        "file": {
+          "type": "string",
+          "description": "Absolute path of the log file."
+        }
+      }
+    },
+    "plugin_host": {
+      "type": "object",
+      "description": "Plugin host behavior",
+      "properties": {
+        "strict_compatibility": {
+          "type": "boolean",
+          "description": "Refuse plugins whose spec version does not match."
+        }
+      }
+    },
+    "scoring": {
+      "type": "object",
+      "description": "Optional recommendation scoring",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Score recommendations. Requires scoring.plugin."
+        },
+        "plugin": {
+          "type": "string",
+          "description": "Plugin that scores recommendations."
+        },
+        "identifier_mode": {
+          "type": "string",
+          "enum": ["pseudonymized", "raw", "omitted"],
+          "description": "How resource identifiers are sent to the scorer."
+        },
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Scorer timeout in seconds. Zero uses the default."
+        },
+        "field_allowlist": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Recommendation fields the scorer may receive."
+        },
+        "needs_review": {
+          "type": "object",
+          "properties": {
+            "risk": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Risk threshold for needs-review."
+            },
+            "false_positive": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "False-positive threshold for needs-review."
+            },
+            "insufficient_evidence": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Evidence threshold for needs-review."
+            },
+            "dead_band": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Dead band for needs-review."
+            }
+          }
+        }
+      }
+    },
+    "overview": {
+      "type": "object",
+      "description": "Overview command settings",
+      "properties": {
+        "cluster_contexts": {
+          "type": "object",
+          "additionalProperties": { "type": "string" },
+          "description": "Kubeconfig context for a cluster name. An empty value removes the mapping."
+        }
+      }
+    },
+    "plugins": {
+      "type": "object",
+      "description": "Per-plugin settings. Credential-named keys are write-only.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
     "tui": {
       "type": "object",
       "description": "Terminal UI and accessibility settings",

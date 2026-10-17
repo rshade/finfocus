@@ -13,6 +13,7 @@ const ROUTES = {
   cost: () => import('./views/cost.js'),
   recommendations: () => import('./views/recommendations.js'),
   estimate: () => import('./views/estimate.js'),
+  config: () => import('./views/config.js'),
 };
 const DEFAULT_ROUTE = 'overview';
 
@@ -55,11 +56,12 @@ export function el(tag, attrs = {}, ...children) {
 }
 
 export class ApiError extends Error {
-  constructor(message, { status, code } = {}) {
+  constructor(message, { status, code, fields } = {}) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
     this.code = code;
+    this.fields = Array.isArray(fields) ? fields : [];
   }
 }
 
@@ -94,7 +96,8 @@ async function request(path, { method = 'GET', body, signal } = {}) {
         ? data.error
         : `Request failed with status ${resp.status}.`;
     const code = data && typeof data.code === 'string' ? data.code : 'http_error';
-    throw new ApiError(message, { status: resp.status, code });
+    const fields = data && Array.isArray(data.fields) ? data.fields : [];
+    throw new ApiError(message, { status: resp.status, code, fields });
   }
   return data;
 }

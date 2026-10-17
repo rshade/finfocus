@@ -115,6 +115,62 @@ func TestConfigSetCmdErrors(t *testing.T) {
 	assert.Contains(t, stderr, "precision must be a number")
 }
 
+func TestConfigSetPatchesFileWithoutEnvironment(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestConfig(t)
+	home := os.Getenv("FINFOCUS_HOME")
+	require.NoError(t, os.MkdirAll(home, 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(home, "config.hujson"), []byte(`{
+	  "cost": {"budgets": {"global": {"currency": "USD", "period": "monthly"}}}
+	}`), 0o600))
+
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "set", "cost.budgets.amount", "25"})
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.Contains(t, string(result.Stdout), "Configuration updated: cost.budgets.amount = 25")
+	data, err := os.ReadFile(filepath.Join(home, "config.hujson"))
+	require.NoError(t, err)
+	assert.Regexp(t, `"amount":\s*25\b`, string(data))
+	assert.NotContains(t, string(data), `"level"`)
+
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "set", "output.precision", "4", "--dry-run"})
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.Contains(t, string(result.Stdout), "Would set: output.precision = 4")
+	dry, err := os.ReadFile(filepath.Join(home, "config.hujson"))
+	require.NoError(t, err)
+	assert.Equal(t, string(data), string(dry))
+}
+
+func TestConfigSetAndGetMaskPluginSecret(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	setupTestConfig(t)
+	const secret = "super-secret-value"
+
+	result := axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "set", "plugins.aws.secret_key", secret})
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.Contains(t, string(result.Stdout), "Configuration updated: plugins.aws.secret_key = "+config.RedactedValue)
+	assert.NotContains(t, string(result.Stdout), secret)
+	assert.NotContains(t, string(result.Stderr), secret)
+
+	data, err := os.ReadFile(filepath.Join(os.Getenv("FINFOCUS_HOME"), "config.hujson"))
+	require.NoError(t, err)
+	assert.Contains(t, string(data), secret)
+	assert.NotContains(t, string(data), config.RedactedValue)
+
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"),
+		[]string{"config", "get", "plugins.aws.secret_key"})
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.Equal(t, config.RedactedValue+"\n", string(result.Stdout))
+	assert.NotContains(t, string(result.Stdout), secret)
+
+	result = axtest.Run(context.Background(), t, cli.NewRootCmd("test"), []string{"config", "list"})
+	require.Equal(t, 0, result.ExitCode, string(result.Stderr))
+	assert.Contains(t, string(result.Stdout), config.RedactedValue)
+	assert.NotContains(t, string(result.Stdout), secret)
+}
+
 func TestConfigGetCmd(t *testing.T) {
 	// Set log level to error to avoid cluttering test output with debug logs
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")

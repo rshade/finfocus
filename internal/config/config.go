@@ -307,7 +307,7 @@ func New() *Config {
 	}
 
 	// Check for strict mode
-	strictMode := os.Getenv("FINFOCUS_CONFIG_STRICT") == "true" ||
+	strictMode := os.Getenv("FINFOCUS_CONFIG_STRICT") == envBoolTrue ||
 		os.Getenv("FINFOCUS_CONFIG_STRICT") == "1"
 
 	// Load from file if exists
@@ -663,7 +663,7 @@ func (c *Config) List() map[string]any {
 // Validate validates the configuration.
 func (c *Config) Validate() error {
 	// Validate output format
-	validFormats := []string{formatTable, "json", "ndjson"}
+	validFormats := []string{formatTable, formatJSON, "ndjson"}
 	valid := slices.Contains(validFormats, c.Output.DefaultFormat)
 	if !valid {
 		return fmt.Errorf(
@@ -801,7 +801,7 @@ func isValidLevel(level string) error {
 }
 
 func isValidFormat(format string) error {
-	validFormats := []string{"json", formatText}
+	validFormats := []string{formatJSON, formatText}
 	if slices.Contains(validFormats, format) {
 		return nil
 	}
@@ -830,7 +830,10 @@ const (
 	outputTypeConsole = "console"
 
 	formatTable = "table"
+	formatJSON  = "json"
 	formatText  = "text"
+
+	envBoolTrue = "true"
 
 	levelInfo = "info"
 
@@ -964,7 +967,7 @@ func (c *Config) SetPluginConfig(pluginName string, config map[string]any) {
 //nolint:gocognit // Complexity is inherent to handling multiple env overrides
 func (c *Config) applyEnvOverrides() {
 	// Compatibility layer for legacy PULUMICOST_ variables
-	if os.Getenv("FINFOCUS_COMPAT") == "1" || os.Getenv("FINFOCUS_COMPAT") == "true" {
+	if os.Getenv("FINFOCUS_COMPAT") == "1" || os.Getenv("FINFOCUS_COMPAT") == envBoolTrue {
 		c.applyLegacyEnvOverrides()
 	}
 

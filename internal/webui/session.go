@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/viewmodel"
 )
@@ -35,6 +36,9 @@ type SessionOptions struct {
 	DayOfMonth        int
 	Preview           func(context.Context) ([]engine.OverviewRow, error)
 	SubmitPassphrase  func(context.Context, string) error
+	ConfigView        func(context.Context) (config.Page, error)
+	ConfigPreview     func(context.Context, config.WriteRequest) (config.PatchResult, error)
+	ConfigSave        func(context.Context, config.WriteRequest) (config.PatchResult, error)
 }
 
 // Session shares engine data and pipeline events among browser tabs. It never

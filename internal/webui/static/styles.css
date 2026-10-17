@@ -593,6 +593,91 @@ button:disabled {
   margin-top: 0.5rem;
 }
 
+/* --- Config --------------------------------------------------------------------- */
+
+.config-note,
+.config-help {
+  margin: 0.35rem 0 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+
+.config-message {
+  margin: 0.75rem 0;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--ok);
+  border-radius: 8px;
+  background: var(--bg-subtle);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.config-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.config-table th,
+.config-table td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.config-table thead th {
+  background: var(--bg-subtle);
+  font-weight: 700;
+}
+
+.config-table caption {
+  caption-side: bottom;
+  padding: 0.4rem 0.2rem 0;
+  color: var(--fg-muted);
+  font-size: 0.875rem;
+  text-align: left;
+}
+
+.config-table select,
+.config-table input {
+  min-width: 8rem;
+  width: 100%;
+  max-width: 18rem;
+}
+
+.config-edit {
+  min-width: 12rem;
+}
+
+.config-clear {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.config-dialog {
+  max-width: min(40rem, 92vw);
+}
+
+.config-diff {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0;
+}
+
+.config-diff th,
+.config-diff td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
 /* --- Motion / small screens -------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
