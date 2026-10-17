@@ -130,7 +130,7 @@ func PatchFile(path, tier, baseVersion string, changes []Change, dryRun bool) (P
 	if dryRun || len(diff) == 0 {
 		return result, nil
 	}
-	written, err := writeAtomic(target, next)
+	written, err := writeAtomic(writeDestination(target, tier), next)
 	if err != nil {
 		return PatchResult{}, err
 	}
@@ -446,10 +446,20 @@ func ensureParents(value *hujson.Value, pointer string) error {
 	return nil
 }
 
-func writeAtomic(path string, data []byte) ([]byte, error) {
-	if resolved, err := filepath.EvalSymlinks(path); err == nil {
-		path = resolved
+// writeDestination follows a symlinked global config, such as one kept in a
+// dotfiles repository, so a save updates the real file. A project file is never
+// followed: a repository could point it at any file the user can write.
+func writeDestination(target, tier string) string {
+	if tier != TierGlobal {
+		return target
 	}
+	if resolved, err := filepath.EvalSymlinks(target); err == nil {
+		return resolved
+	}
+	return target
+}
+
+func writeAtomic(path string, data []byte) ([]byte, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("creating config directory: %w", err)
 	}

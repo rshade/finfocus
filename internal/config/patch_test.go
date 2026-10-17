@@ -373,3 +373,29 @@ func TestPatchWritesThroughSymlinkedConfig(t *testing.T) {
 	output := readStandardJSON(t, target)["output"].(map[string]any)
 	assert.InDelta(t, 4, output["precision"], 0)
 }
+
+func TestPatchReplacesSymlinkedProjectConfig(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	outside := filepath.Join(dir, "outside", "notes.json")
+	link := filepath.Join(dir, "project", "config.hujson")
+	require.NoError(t, os.MkdirAll(filepath.Dir(outside), 0o700))
+	require.NoError(t, os.MkdirAll(filepath.Dir(link), 0o700))
+	const original = `{"output":{"precision":2}}`
+	require.NoError(t, os.WriteFile(outside, []byte(original), 0o600))
+	if err := os.Symlink(outside, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	version, err := FileVersion(link)
+	require.NoError(t, err)
+
+	_, err = PatchFile(link, TierProject, version, []Change{{Key: "output.precision", Value: strPtr("4")}}, false)
+	require.NoError(t, err)
+
+	untouched, err := os.ReadFile(outside)
+	require.NoError(t, err)
+	assert.JSONEq(t, original, string(untouched))
+	info, err := os.Lstat(link)
+	require.NoError(t, err)
+	assert.Zero(t, info.Mode()&os.ModeSymlink, "a project link is replaced, never written through")
+}
