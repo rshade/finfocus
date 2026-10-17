@@ -110,6 +110,9 @@ func PatchFile(path, tier, baseVersion string, changes []Change, dryRun bool) (P
 	}
 	defer unlock()
 
+	if tier == TierProject && isSymlink(PreferredConfigPath(target)) {
+		return PatchResult{}, invalidChange("project configuration is a symlink; edit the file directly")
+	}
 	current, version, err := readTier(target)
 	if err != nil {
 		return PatchResult{}, err
@@ -446,9 +449,15 @@ func ensureParents(value *hujson.Value, pointer string) error {
 	return nil
 }
 
+func isSymlink(path string) bool {
+	info, err := os.Lstat(path)
+	return err == nil && info.Mode()&os.ModeSymlink != 0
+}
+
 // writeDestination follows a symlinked global config, such as one kept in a
 // dotfiles repository, so a save updates the real file. A project file is never
-// followed: a repository could point it at any file the user can write.
+// followed: a repository could point it at any file the user can write, so
+// PatchFile refuses a project file that is a symlink.
 func writeDestination(target, tier string) string {
 	if tier != TierGlobal {
 		return target

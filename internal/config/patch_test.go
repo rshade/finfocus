@@ -374,7 +374,7 @@ func TestPatchWritesThroughSymlinkedConfig(t *testing.T) {
 	assert.InDelta(t, 4, output["precision"], 0)
 }
 
-func TestPatchReplacesSymlinkedProjectConfig(t *testing.T) {
+func TestPatchRefusesSymlinkedProjectConfig(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	outside := filepath.Join(dir, "outside", "notes.json")
@@ -389,13 +389,19 @@ func TestPatchReplacesSymlinkedProjectConfig(t *testing.T) {
 	version, err := FileVersion(link)
 	require.NoError(t, err)
 
-	_, err = PatchFile(link, TierProject, version, []Change{{Key: "output.precision", Value: strPtr("4")}}, false)
-	require.NoError(t, err)
+	for _, dryRun := range []bool{true, false} {
+		result, patchErr := PatchFile(link, TierProject, version, []Change{
+			{Key: "output.precision", Value: strPtr("4")},
+		}, dryRun)
+		var invalid *InvalidChangeError
+		require.ErrorAs(t, patchErr, &invalid)
+		assert.Empty(t, result.Diff, "nothing read through the link is returned")
+	}
 
 	untouched, err := os.ReadFile(outside)
 	require.NoError(t, err)
 	assert.JSONEq(t, original, string(untouched))
 	info, err := os.Lstat(link)
 	require.NoError(t, err)
-	assert.Zero(t, info.Mode()&os.ModeSymlink, "a project link is replaced, never written through")
+	assert.NotZero(t, info.Mode()&os.ModeSymlink, "the link is left alone")
 }
