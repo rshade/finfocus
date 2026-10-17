@@ -35,6 +35,22 @@ type PulumiStep struct {
 	OldState             *PulumiState        `json:"oldState,omitempty"`
 }
 
+// ResourceType returns the step's resource type. Pulumi preview JSON puts it
+// under newState (or oldState for a delete), so the top-level field is only a
+// fallback, followed by the type embedded in the URN.
+func (s PulumiStep) ResourceType() string {
+	switch {
+	case s.NewState != nil && s.NewState.Type != "":
+		return s.NewState.Type
+	case s.OldState != nil && s.OldState.Type != "":
+		return s.OldState.Type
+	case s.Type != "":
+		return s.Type
+	default:
+		return extractTypeFromURN(s.URN)
+	}
+}
+
 // PulumiState represents the state of a resource in a Pulumi step.
 type PulumiState struct {
 	ID                   string              `json:"id,omitempty"`

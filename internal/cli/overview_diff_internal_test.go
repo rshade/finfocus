@@ -370,3 +370,34 @@ func TestFormatDiffValue(t *testing.T) {
 		})
 	}
 }
+
+func TestConvertPlanSteps_TypeFromNestedStateOrURN(t *testing.T) {
+	t.Parallel()
+
+	const urn = "urn:pulumi:dev::proj::aws:ec2/instance:Instance::web"
+	tests := []struct {
+		name string
+		step ingest.PulumiStep
+	}{
+		{
+			name: "preview step with type only under newState",
+			step: ingest.PulumiStep{
+				URN:      urn,
+				Op:       "create",
+				NewState: &ingest.PulumiState{Type: "aws:ec2/instance:Instance"},
+			},
+		},
+		{
+			name: "step with no type anywhere falls back to the URN",
+			step: ingest.PulumiStep{URN: urn, Op: "create"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := convertPlanSteps([]ingest.PulumiStep{tt.step})
+			require.Len(t, result, 1)
+			assert.Equal(t, "aws:ec2/instance:Instance", result[0].Type)
+		})
+	}
+}
