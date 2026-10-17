@@ -331,7 +331,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `plugin_settings_web.go`. Install progress is a per-operation SSE stream
   (`snapshot`, `progress`, `done`). Do not publish it on the overview bus:
   that bus runs `RedactJSON` and drops slow subscribers. Settings GET uses
-  `writePlainJSON`. Secret values are absent from the body. `pluginMetadata`
+  `writePlainJSON`. Secret values are absent from the body. Bool and enum
+  plugin settings skip `IsCredentialName` unless the descriptor sets `secret`.
+  `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.
 - The dashboard Config page and `config set` patch `config.hujson` through
