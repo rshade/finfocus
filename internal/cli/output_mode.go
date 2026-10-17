@@ -8,6 +8,8 @@ import (
 
 	"github.com/rshade/ax-go"
 	"github.com/spf13/cobra"
+
+	"github.com/rshade/finfocus/internal/config"
 )
 
 // suppressAuxOutputKey stores whether auxiliary human-facing messages (tips/log path)
@@ -107,6 +109,14 @@ func resolveOutputFormat(cmd *cobra.Command, flagName, current string) string {
 		return outputFormatJSON
 	}
 	return current
+}
+
+// resolveOutputFormatWithConfig is resolveOutputFormat for commands whose
+// --output flag defaults to "" so that building the command never reads the
+// config singleton. An empty result falls back to output.default_format, which
+// is read after PersistentPreRunE has applied the project overlay.
+func resolveOutputFormatWithConfig(cmd *cobra.Command, current string) string {
+	return config.GetOutputFormat(resolveOutputFormat(cmd, "output", current))
 }
 
 // resolveJSONFlag is resolveOutputFormat for commands that expose a boolean

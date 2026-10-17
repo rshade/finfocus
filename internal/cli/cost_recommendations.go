@@ -130,10 +130,8 @@ Valid action types for filtering:
 		StringVar(&params.planPath, "pulumi-json", "", "Path to Pulumi preview JSON output (required)")
 	cmd.Flags().StringVar(&params.adapter, "adapter", "", "Use only the specified adapter plugin")
 
-	// Use configuration default if no output format specified
-	defaultFormat := config.GetDefaultOutputFormat()
-	cmd.Flags().
-		StringVar(&params.output, "output", defaultFormat, "Output format: table, json, or ndjson")
+	cmd.Flags().StringVar(&params.output, "output", "",
+		"Output format: table, json, or ndjson (default from output.default_format, else table)")
 	cmd.Flags().StringArrayVar(&params.filter, "filter", []string{},
 		"Filter expressions (e.g., 'action=MIGRATE,RIGHTSIZE')")
 	cmd.Flags().BoolVar(&params.verbose, "verbose", false,
@@ -177,7 +175,7 @@ Valid action types for filtering:
 func executeCostRecommendations(cmd *cobra.Command, params costRecommendationsParams) error {
 	ctx := cmd.Context()
 	log := logging.FromContext(ctx)
-	params.output = resolveOutputFormat(cmd, "output", params.output)
+	params.output = resolveOutputFormatWithConfig(cmd, params.output)
 	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.output))) {
 		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.output)
 	}
