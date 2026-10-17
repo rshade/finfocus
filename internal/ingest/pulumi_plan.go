@@ -35,6 +35,22 @@ type PulumiStep struct {
 	OldState             *PulumiState        `json:"oldState,omitempty"`
 }
 
+// ResourceType returns the step's resource type. Pulumi preview JSON puts it
+// under newState (or oldState for a delete), so the top-level field is only a
+// fallback, followed by the type embedded in the URN.
+func (s PulumiStep) ResourceType() string {
+	switch {
+	case s.NewState != nil && s.NewState.Type != "":
+		return s.NewState.Type
+	case s.OldState != nil && s.OldState.Type != "":
+		return s.OldState.Type
+	case s.Type != "":
+		return s.Type
+	default:
+		return extractTypeFromURN(s.URN)
+	}
+}
+
 // PulumiState represents the state of a resource in a Pulumi step.
 type PulumiState struct {
 	ID                   string              `json:"id,omitempty"`
@@ -382,13 +398,19 @@ func resolveStepOutputs(step PulumiStep) map[string]any {
 
 // extractTypeFromURN extracts the resource type from a Pulumi URN.
 // It returns the third '::'-separated segment when the URN contains at least
-// minURNParts segments; otherwise it returns an empty string.
+// minURNParts segments; otherwise it returns an empty string. A child of a
+// component carries its parents' types joined by '$' (for example
+// "pkg:index:Component$aws:ec2/instance:Instance"); only the leaf type after
+// the last '$' is the resource's own type.
 func extractTypeFromURN(urn string) string {
 	parts := strings.Split(urn, "::")
-	if len(parts) >= minURNParts {
-		return parts[2]
+	if len(parts) < minURNParts {
+		return ""
 	}
-	return ""
+	if _, leaf, found := strings.CutLast(parts[2], "$"); found {
+		return leaf
+	}
+	return parts[2]
 }
 
 func extractProviderFromURN(urn string) string {

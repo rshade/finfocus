@@ -720,7 +720,7 @@ func convertPlanSteps(steps []ingest.PulumiStep) []engine.PlanStep {
 		result[i] = engine.PlanStep{
 			URN:  s.URN,
 			Op:   s.Op,
-			Type: s.Type,
+			Type: s.ResourceType(),
 		}
 		switch s.Op {
 		case "create", "update", "replace", "create-replacement":

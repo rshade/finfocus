@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"io"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -43,4 +44,29 @@ func TestToValidationError(t *testing.T) {
 		assert.Same(t, original, err)
 		assert.Equal(t, 42, ax.ErrorExitCode(err))
 	})
+}
+
+//nolint:paralleltest // NewRootCmd sets the resolved project dir, which is process-wide state.
+func TestRootCmdFlagErrorsExitAsValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+		want string
+	}{
+		{name: "unknown flag", args: []string{"cost", "projected", "--web"}, want: "unknown flag: --web"},
+		{name: "missing flag argument", args: []string{"--stack"}, want: "flag needs an argument: --stack"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := NewRootCmdWithArgs("test", tt.args, func(string) (string, bool) { return "", false })
+			cmd.SetArgs(tt.args)
+			cmd.SetOut(io.Discard)
+			cmd.SetErr(io.Discard)
+
+			err := cmd.Execute()
+			require.Error(t, err)
+			assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
 }

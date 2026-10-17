@@ -277,7 +277,9 @@ export function mount(container, { api }) {
     if (installed.length > 0) {
       actions.push(actionButton(`plugin-validate-${plugin.name}`, 'Validate', (button) => validatePlugin(plugin, button)));
     }
-    actions.push(actionButton(`plugin-configure-${plugin.name}`, 'Settings', (button) => openSettings(plugin, button)));
+    if (installed.length > 0) {
+      actions.push(actionButton(`plugin-configure-${plugin.name}`, 'Settings', (button) => openSettings(plugin, button)));
+    }
     return el('tr', {},
       el('th', { scope: 'row', text: plugin.name }),
       el('td', { text: describePlugin(plugin) }),
@@ -380,11 +382,15 @@ export function mount(container, { api }) {
     });
   }
 
+  function isSelectField(field) {
+    return !field.secret && (field.type === 'bool' || field.type === 'enum');
+  }
+
   function controlFor(field) {
     const id = `plugin-setting-${field.key}`;
     const side = tierSide(field.row, settingsTier);
     const initial = field.secret || !side.set ? '' : String(side.value ?? '');
-    if (!field.secret && (field.type === 'bool' || field.type === 'enum')) {
+    if (isSelectField(field)) {
       const select = el('select', { id });
       select.append(el('option', { value: '', text: side.set ? 'Remove from tier' : 'Not set' }));
       const options = field.type === 'bool' ? ['true', 'false'] : field.enumValues;
@@ -406,7 +412,7 @@ export function mount(container, { api }) {
 
   function clearControl(field) {
     const side = tierSide(field.row, settingsTier);
-    if (!side.set || field.type === 'bool' || field.type === 'enum') return null;
+    if (!side.set || isSelectField(field)) return null;
     const id = `plugin-clear-${field.key}`;
     const box = el('input', { id, type: 'checkbox' });
     return el('label', { class: 'config-clear', for: id }, box, 'Remove');

@@ -154,6 +154,17 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `go test -tags e2e_kind -run '^TestCostCluster_KindHistorical$' ./...` from
   `test/e2e` (its own module; a bare run from the repo root skips it) with
   `FINFOCUS_BINARY` set.
+- Real-stack checks use `../finfocus-demo` (stack `dev` in Pulumi Cloud, AWS
+  creds from an ESC environment attached with `pulumi config env add`; it
+  rewrites the tracked `Pulumi.dev.yaml`; never commit that change, since the
+  demo's CI has its own credentials). `pulumi preview` needs
+  no spend; web Cost and Recommendations read *deployed* state only, so they
+  show 0 until a `pulumi up`. Always `pulumi destroy` afterwards. Never
+  `pkill -f <name>` or `pgrep -f <name>` from a shell whose own command line
+  contains the name: it matches and kills the shell. Anchor the pattern.
+- The aws-public router starts a per-region child
+  (`finfocus-plugin-aws-public-<region>`) that outlives the router when core
+  stops it. Check `ps` for orphans after local runs.
 - Remote-write fixtures need `storage.tsdb.out_of_order_time_window` in the
   Prometheus config and a window relative to now. A fixed date is rejected as
   out of bounds once a newer sample exists, and later falls out of the 15-day
@@ -196,7 +207,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 ## Pulumi Integration
 
 - `pulumi preview --json` nests resources under `newState`; ingestion must read
-  `inputs` and `type` there or plugins get `InvalidArgument`.
+  `inputs` and `type` there or plugins get `InvalidArgument`. A step has no
+  top-level `type`: call `PulumiStep.ResourceType()`, never read `step.Type`
+  (the overview showed no costs for preview-only resources until it did).
+  Test fixtures must carry the type only under `newState`, as Pulumi emits it.
 - `parent` is the stack, not a pricing reference. Cross-resource refs follow
   `propertyDependencies` only and become `ref.<property>.{urn,type,region,sku}`
   tags (`specs/618-cross-resource-refs/`). The unknown sentinel
@@ -234,6 +248,16 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   generic cost-workflow skills live in `rshade/agent-skills`.
 
 ## Package-Specific Gotchas
+
+### Config singleton (`internal/config/integration.go`)
+
+- `GetGlobalConfig()` initializes the singleton on its first call, without the
+  project overlay, and `InitGlobalConfigWithProject` then does nothing. The
+  `cost` commands call `config.GetDefaultOutputFormat()` while their flags are
+  built, so a project-tier `cost.budgets` (what the dashboard Config page
+  writes by default) is never applied. A global-tier budget is. Known and not
+  yet fixed; `config get cost.budgets.global.amount` also rejects the key
+  `config set` accepts.
 
 ### Plugin Host (`internal/pluginhost/`)
 

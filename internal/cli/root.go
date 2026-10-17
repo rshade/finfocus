@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -113,6 +114,14 @@ func NewRootCmdWithArgs(
 			return lifecycle.stopLogging()
 		},
 	}
+
+	cmd.SetFlagErrorFunc(func(c *cobra.Command, err error) error {
+		ctx := c.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		return toValidationError(ctx, err)
+	})
 
 	cmd.PersistentFlags().Bool("debug", false, "enable debug logging")
 	cmd.PersistentFlags().
