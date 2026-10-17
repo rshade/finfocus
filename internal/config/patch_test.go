@@ -134,6 +134,16 @@ func TestPatchSecretsAndNoop(t *testing.T) {
 	data, err = os.ReadFile(path)
 	require.NoError(t, err)
 	assert.Equal(t, string(original), string(data))
+
+	result, err = PatchFile(path, TierGlobal, version, []Change{{
+		Key: "plugins.aws.region", Value: strPtr("eu-west-1"), Secret: true,
+	}}, true)
+	require.NoError(t, err)
+	require.Len(t, result.Diff, 1)
+	assert.Equal(t, "set", result.Diff[0].Before)
+	assert.Equal(t, "replaced", result.Diff[0].After)
+	assert.NotContains(t, result.Diff[0].Before+result.Diff[0].After, "us-east-1")
+	assert.NotContains(t, result.Diff[0].Before+result.Diff[0].After, "eu-west-1")
 }
 
 func TestPatchClearsAndMigratesYAML(t *testing.T) {

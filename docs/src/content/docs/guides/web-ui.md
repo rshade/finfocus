@@ -157,6 +157,36 @@ The running dashboard keeps the configuration it loaded at startup. The new
 values apply to the next launch and to command-line runs. Alert destinations,
 routing, and analyzer settings are visible and are not editable on this page.
 
+## Install and configure plugins
+
+Open **Plugins** in the header. The page lists every built-in catalog plugin
+and any installed plugin that came from outside the catalog.
+
+Choose **Install**, **Update**, or **Remove**. The confirmation names the
+plugin, the version, the source repository, and the security level. Nothing
+is downloaded until you confirm. Progress then shows each phase, including
+bytes received when the download reports a size. A second operation on the
+same plugin waits until the first one finishes.
+
+A plugin installed from outside the catalog can be validated, configured, and
+removed. Install and update stay on the catalog entries. The page does not
+accept a download URL. Custom registry addresses stay on the command line.
+
+**Validate** checks the installed files and that the plugin starts. It does
+not certify the plugin.
+
+Plugin settings use the same **Project** or **Global** choice as Config.
+Review the changes, then save. A secret field starts empty. Leave it blank to
+keep the stored secret. The page never shows the stored secret. Saved
+settings apply the next time that plugin is launched. The dashboard opens
+plugins again after a successful install, update, remove, or settings save.
+A plugin process that was already running keeps the environment it started
+with until that reopen.
+
+An environment variable that is already set for the dashboard process takes
+precedence over the project file, the global file, and the plugin's default.
+Set a secret that way when you do not want it written to a file.
+
 ## Stop the session
 
 Closing the browser tab does not stop FinFocus. Press `Ctrl+C` in the terminal

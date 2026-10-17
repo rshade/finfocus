@@ -235,10 +235,10 @@ original comments that the format can carry.
 - The global budget is edited at its scoped fields (amount, currency, and
   period). The flat budget fields that commands warn about and ignore are
   not offered as separate settings.
-- Plugin install, a dedicated per-plugin settings form, a raw configuration
-  text editor, and exposing configuration get or set to the agent tool
-  surface are out of scope. A known plugin setting can still be edited as
-  one of the known keys.
+- A raw configuration text editor, and exposing configuration get or set to
+  the agent tool surface, stay out of scope. Plugin install, update, remove,
+  and the dedicated per-plugin settings form belong to spec 629. A known
+  plugin setting can still be edited on this page as one of the known keys.
 - Routing, analyzer settings, and budget alert destinations are read-only on
   this page.
 
@@ -368,9 +368,10 @@ original comments that the format can carry.
   an empty string unless an empty string is a meaningful stored value.
 - Read-only display of alert destinations, routing, and analyzer settings uses
   the same secret masking as the editable secrets. It does not add editors.
-- A dedicated plugin-install or per-plugin settings form is a separate page
-  that will reuse this feature's tier choice and write-only secret handling.
-  This feature still edits a single `plugins.<name>.<key>` setting.
+- Spec 629 is the plugin-install page and the per-plugin settings form. It
+  reuses this feature's tier choice, comment-preserving writes, conflict
+  checks, and write-only secret handling. This page still edits a single
+  `plugins.<name>.<key>` setting.
 - Specification 627's other rules still apply: loopback only, per-session
   token, and no exposure beyond the local machine.
 - The configuration schema and the known-setting list must stay in agreement.

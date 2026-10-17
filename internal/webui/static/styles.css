@@ -678,6 +678,12 @@ button:disabled {
   vertical-align: top;
 }
 
+.plugin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
 /* --- Motion / small screens -------------------------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {

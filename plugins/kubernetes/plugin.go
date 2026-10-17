@@ -61,6 +61,34 @@ func Info(version string) *pluginsdk.PluginInfo {
 			pbc.PluginCapability_PLUGIN_CAPABILITY_ALLOCATION,
 			pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
 		),
+		// Rates and job hours are strings: PluginSetting has no float type.
+		// None are required; only DaemonSet or Job pricing needs its own value.
+		pluginsdk.WithSettings(
+			&pbc.PluginSetting{
+				Key:         "cpu_hourly_rate",
+				Type:        pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+				Description: "USD per CPU-hour for projected workload cost.",
+				Env:         workload.EnvCPUHourlyRate,
+			},
+			&pbc.PluginSetting{
+				Key:         "memory_gib_hourly_rate",
+				Type:        pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+				Description: "USD per GiB-hour for projected workload cost.",
+				Env:         workload.EnvMemoryGiBHourlyRate,
+			},
+			&pbc.PluginSetting{
+				Key:         "daemonset_node_count",
+				Type:        pbc.PluginSettingType_PLUGIN_SETTING_TYPE_INT,
+				Description: "Node count used only when pricing DaemonSets.",
+				Env:         workload.EnvDaemonSetNodeCount,
+			},
+			&pbc.PluginSetting{
+				Key:         "job_hours_per_month",
+				Type:        pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+				Description: "Hours per month used only when pricing Jobs.",
+				Env:         workload.EnvJobHoursPerMonth,
+			},
+		),
 	)
 }
 

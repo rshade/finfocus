@@ -43,9 +43,7 @@ func tryCreateLockFile(lockPath, name string) (*os.File, error) {
 
 	// Lock file exists - check if it's stale
 	if !isLockStale(lockPath) {
-		return nil, fmt.Errorf(
-			"plugin %q is currently being modified by another process (lock file %s exists)",
-			name, lockPath)
+		return nil, errPluginBusy(name, lockPath)
 	}
 
 	// Remove stale lock and try again

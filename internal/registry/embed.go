@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"os"
 	"sync"
 )
 
@@ -47,6 +48,16 @@ func GetEmbeddedRegistry() (*EmbeddedRegistry, error) {
 // If parsing the embedded registry fails, an error from GetEmbeddedRegistry is returned.
 // If the plugin is not present in the registry, an error indicating the plugin was not found is returned.
 func GetPlugin(name string) (*RegistryEntry, error) {
+	extras, err := overlayEntries()
+	if err != nil {
+		return nil, err
+	}
+	for i := range extras {
+		if extras[i].Name == name {
+			entry := extras[i]
+			return &entry, nil
+		}
+	}
 	reg, err := GetEmbeddedRegistry()
 	if err != nil {
 		return nil, err
@@ -81,9 +92,44 @@ func GetAllPluginEntries() ([]RegistryEntry, error) {
 	if err != nil {
 		return nil, err
 	}
-	plugins := make([]RegistryEntry, 0, len(reg.Plugins))
+	byName := make(map[string]RegistryEntry, len(reg.Plugins))
 	for _, entry := range reg.Plugins {
+		byName[entry.Name] = entry
+	}
+	extras, err := overlayEntries()
+	if err != nil {
+		return nil, err
+	}
+	for _, entry := range extras {
+		byName[entry.Name] = entry
+	}
+	plugins := make([]RegistryEntry, 0, len(byName))
+	for _, entry := range byName {
 		plugins = append(plugins, entry)
 	}
 	return plugins, nil
+}
+
+// overlayEntries reads FINFOCUS_CATALOG_FILE when it is set. The file uses the
+// embedded registry document shape. An unset variable adds nothing. The
+// dashboard tests use it to publish a stand-in plugin; it is not a supported
+// custom catalog.
+func overlayEntries() ([]RegistryEntry, error) {
+	path := os.Getenv("FINFOCUS_CATALOG_FILE")
+	if path == "" {
+		return nil, nil
+	}
+	data, err := os.ReadFile(path) //nolint:gosec // G703: operator-set FINFOCUS_CATALOG_FILE seam, not request input
+	if err != nil {
+		return nil, fmt.Errorf("reading catalog overlay: %w", err)
+	}
+	var doc EmbeddedRegistry
+	if unmarshalErr := json.Unmarshal(data, &doc); unmarshalErr != nil {
+		return nil, fmt.Errorf("parsing catalog overlay: %w", unmarshalErr)
+	}
+	extras := make([]RegistryEntry, 0, len(doc.Plugins))
+	for _, entry := range doc.Plugins {
+		extras = append(extras, entry)
+	}
+	return extras, nil
 }

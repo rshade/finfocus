@@ -12,6 +12,10 @@ import (
 	"github.com/rshade/finfocus/internal/config"
 )
 
+// ErrCatalogSpecifier is returned when a catalog install is asked for a URL
+// or an owner/repo slug. Catalog installs accept a registry name only.
+var ErrCatalogSpecifier = errors.New("catalog installs accept a registry name only")
+
 const (
 	executablePermissionMask = 0111 // File permission mask for executable files
 )
@@ -25,6 +29,20 @@ type InstallOptions struct {
 	NoFallback       bool              // Disable fallback behavior entirely (fail if requested version lacks assets)
 	Metadata         map[string]string // User-supplied metadata (e.g., region=us-west-2), stored as plugin.metadata.json
 	SkipChecksum     bool              // SkipChecksum bypasses SHA256 checksum verification during installation
+	// OnEvent receives a typed progress event beside the string callback.
+	// A nil OnEvent leaves the string callback as the only progress channel.
+	OnEvent func(ProgressEvent)
+	// CatalogOnly rejects URL and owner/repo specifiers and ignores SkipChecksum.
+	CatalogOnly bool
+	// RequireChecksumFile fails the install when checksums.txt is absent,
+	// unless AcceptMissingChecksum is set. A hash mismatch stays fatal.
+	RequireChecksumFile bool
+	// AcceptMissingChecksum continues when checksums.txt is absent.
+	AcceptMissingChecksum bool
+	// AcceptFallbackVersion is the canonical version the caller confirmed
+	// when the latest release has no assets. Any other value keeps the
+	// no-asset error instead of installing a different release.
+	AcceptFallbackVersion string
 }
 
 // InstallResult contains the result of a plugin installation.
@@ -96,6 +114,14 @@ func (i *Installer) Install(
 	if err != nil {
 		return nil, err
 	}
+	if opts.CatalogOnly {
+		opts.SkipChecksum = false
+		if spec.IsURL || strings.Contains(spec.Name, "/") {
+			return nil, fmt.Errorf("%w: %q", ErrCatalogSpecifier, specifier)
+		}
+	}
+
+	report := newProgressReport(progress, opts.OnEvent)
 
 	// Acquire lock for this plugin
 	unlock, err := i.acquireLock(spec.Name)
@@ -105,9 +131,9 @@ func (i *Installer) Install(
 	defer unlock()
 
 	if spec.IsURL {
-		return i.installFromURL(ctx, spec, opts, progress)
+		return i.installFromURL(ctx, spec, opts, report)
 	}
-	return i.installFromRegistry(ctx, spec, opts, progress)
+	return i.installFromRegistry(ctx, spec, opts, report)
 }
 
 // installFromRegistry installs a plugin from the embedded registry.
@@ -115,7 +141,7 @@ func (i *Installer) installFromRegistry(
 	ctx context.Context,
 	spec *PluginSpecifier,
 	opts InstallOptions,
-	progress func(msg string),
+	report progressReport,
 ) (*InstallResult, error) {
 	// Look up plugin in registry
 	entry, err := GetPlugin(spec.Name)
@@ -143,13 +169,11 @@ func (i *Installer) installFromRegistry(
 
 	// Get release
 	if spec.Version != "" {
-		if progress != nil {
-			progress(fmt.Sprintf("Fetching release %s for %s...", spec.Version, spec.Name))
-		}
-	} else if progress != nil {
-		progress(fmt.Sprintf("Fetching latest release for %s...", spec.Name))
+		report.msg(fmt.Sprintf("Fetching release %s for %s...", spec.Version, spec.Name))
+	} else {
+		report.msg(fmt.Sprintf("Fetching latest release for %s...", spec.Name))
 	}
-	release, err := i.fetchRelease(ctx, owner, repo, spec.Version, assetHints, progress)
+	release, err := i.fetchRelease(ctx, owner, repo, spec.Version, assetHints, opts, spec.Name, report)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
@@ -161,7 +185,7 @@ func (i *Installer) installFromRegistry(
 		release,
 		entry.Repository,
 		opts,
-		progress,
+		report,
 		assetHints,
 	)
 	if err != nil {
@@ -182,7 +206,9 @@ func (i *Installer) fetchRelease(
 	ctx context.Context,
 	owner, repo, version string,
 	hints *AssetNamingHints,
-	progress func(msg string),
+	opts InstallOptions,
+	pluginName string,
+	report progressReport,
 ) (*GitHubRelease, error) {
 	prefix := tagPrefixOf(hints)
 	if version != "" {
@@ -222,12 +248,18 @@ func (i *Installer) fetchRelease(
 	if earlier == nil {
 		return latest, nil
 	}
-	if progress != nil {
-		progress(fmt.Sprintf(
-			"Warning: latest release %s has no assets yet (the upload may still be in progress); installing %s instead",
-			CanonicalVersion(latest.TagName, prefix), CanonicalVersion(earlier.TagName, prefix),
-		))
+	fallbackVersion := CanonicalVersion(earlier.TagName, prefix)
+	if opts.CatalogOnly && opts.AcceptFallbackVersion != fallbackVersion {
+		return nil, &NoAssetsError{
+			Plugin:   pluginName,
+			Version:  CanonicalVersion(latest.TagName, prefix),
+			Platform: runtime.GOOS + "/" + runtime.GOARCH,
+		}
 	}
+	report.msg(fmt.Sprintf(
+		"Warning: latest release %s has no assets yet (the upload may still be in progress); installing %s instead",
+		CanonicalVersion(latest.TagName, prefix), fallbackVersion,
+	))
 	return earlier, nil
 }
 
@@ -236,23 +268,21 @@ func (i *Installer) installFromURL(
 	ctx context.Context,
 	spec *PluginSpecifier,
 	opts InstallOptions,
-	progress func(msg string),
+	report progressReport,
 ) (*InstallResult, error) {
-	if progress != nil {
-		if spec.Version != "" {
-			progress(fmt.Sprintf("Fetching release %s from %s/%s...", spec.Version, spec.Owner, spec.Repo))
-		} else {
-			progress(fmt.Sprintf("Fetching latest release from %s/%s...", spec.Owner, spec.Repo))
-		}
+	if spec.Version != "" {
+		report.msg(fmt.Sprintf("Fetching release %s from %s/%s...", spec.Version, spec.Owner, spec.Repo))
+	} else {
+		report.msg(fmt.Sprintf("Fetching latest release from %s/%s...", spec.Owner, spec.Repo))
 	}
-	release, err := i.fetchRelease(ctx, spec.Owner, spec.Repo, spec.Version, nil, progress)
+	release, err := i.fetchRelease(ctx, spec.Owner, spec.Repo, spec.Version, nil, opts, spec.Name, report)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
 
 	// Install the release (no hints for URL-based installs)
 	repository := fmt.Sprintf("%s/%s", spec.Owner, spec.Repo)
-	result, err := i.installRelease(ctx, spec.Name, release, repository, opts, progress, nil)
+	result, err := i.installRelease(ctx, spec.Name, release, repository, opts, report, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -264,14 +294,14 @@ func (i *Installer) installFromURL(
 
 // installRelease downloads and installs a specific release.
 //
-//nolint:gocognit,funlen // Complex but necessary installation logic with many steps
+//nolint:gocognit // download, checksum, and extract stay in one install transaction
 func (i *Installer) installRelease(
 	ctx context.Context,
 	name string,
 	release *GitHubRelease,
 	repository string,
 	opts InstallOptions,
-	progress func(msg string),
+	report progressReport,
 	hints *AssetNamingHints,
 ) (*InstallResult, error) {
 	version := CanonicalVersion(release.TagName, tagPrefixOf(hints))
@@ -308,12 +338,10 @@ func (i *Installer) installRelease(
 		return nil, err
 	}
 
-	if progress != nil {
-		progress(fmt.Sprintf("Downloading %s (%d bytes)...", asset.Name, asset.Size))
-	}
+	report.msg(fmt.Sprintf("Downloading %s (%d bytes)...", asset.Name, asset.Size))
 
 	// Download asset and verify checksum
-	tmpPath, cleanupTmp, err := i.downloadAndVerify(ctx, release, asset, opts.SkipChecksum, progress)
+	tmpPath, cleanupTmp, err := i.downloadAndVerify(ctx, release, asset, opts, report)
 	if err != nil {
 		return nil, err
 	}
@@ -324,9 +352,7 @@ func (i *Installer) installRelease(
 		return nil, fmt.Errorf("failed to create directory: %w", mkdirErr)
 	}
 
-	if progress != nil {
-		progress("Extracting archive...")
-	}
+	report.msg("Extracting archive...")
 
 	// Extract archive
 	if extractErr := ExtractArchive(tmpPath, installDir); extractErr != nil {
@@ -349,9 +375,7 @@ func (i *Installer) installRelease(
 	// Write plugin.metadata.json if metadata was provided
 	if len(opts.Metadata) > 0 {
 		if metaErr := WritePluginMetadata(installDir, opts.Metadata); metaErr != nil {
-			if progress != nil {
-				progress(fmt.Sprintf("Warning: failed to write plugin metadata: %v", metaErr))
-			}
+			report.msg(fmt.Sprintf("Warning: failed to write plugin metadata: %v", metaErr))
 		}
 	}
 
@@ -364,15 +388,11 @@ func (i *Installer) installRelease(
 		}
 		if addErr := config.AddInstalledPlugin(plugin); addErr != nil {
 			// Non-fatal, just warn
-			if progress != nil {
-				progress(fmt.Sprintf("Warning: failed to save to config: %v", addErr))
-			}
+			report.msg(fmt.Sprintf("Warning: failed to save to config: %v", addErr))
 		}
 	}
 
-	if progress != nil {
-		progress(fmt.Sprintf("Successfully installed %s@%s", name, version))
-	}
+	report.msg(fmt.Sprintf("Successfully installed %s@%s", name, version))
 
 	return &InstallResult{
 		Name:    name,
@@ -388,8 +408,8 @@ func (i *Installer) downloadAndVerify(
 	ctx context.Context,
 	release *GitHubRelease,
 	asset *ReleaseAsset,
-	skipChecksum bool,
-	progress func(msg string),
+	opts InstallOptions,
+	report progressReport,
 ) (string, func(), error) {
 	// Determine extension for temp file
 	pattern := "finfocus-plugin-*"
@@ -413,11 +433,24 @@ func (i *Installer) downloadAndVerify(
 	_ = tmpFile.Close()
 	cleanup := func() { _ = os.Remove(tmpPath) }
 
-	// Download asset
+	// Download asset. The percent sentence goes to the string callback once.
+	// The typed event carries the same sentence plus the byte counts.
 	downloadProgress := func(downloaded, total int64) {
-		if progress != nil && total > 0 {
-			pct := float64(downloaded) / float64(total) * 100 //nolint:mnd // percentage calculation
-			progress(fmt.Sprintf("Downloading... %.0f%%", pct))
+		if total <= 0 {
+			return
+		}
+		pct := float64(downloaded) / float64(total) * 100 //nolint:mnd // percentage calculation
+		message := fmt.Sprintf("Downloading... %.0f%%", pct)
+		if report.text != nil {
+			report.text(message)
+		}
+		if report.event != nil {
+			report.event(ProgressEvent{
+				Phase:   PhaseDownload,
+				Message: message,
+				Bytes:   downloaded,
+				Total:   total,
+			})
 		}
 	}
 	downloadErr := i.client.DownloadAsset(ctx, asset.BrowserDownloadURL, tmpPath, downloadProgress)
@@ -427,8 +460,8 @@ func (i *Installer) downloadAndVerify(
 	}
 
 	// Checksum verification (after download, before extraction)
-	if !skipChecksum {
-		if checksumErr := i.verifyChecksumForRelease(ctx, release, asset, tmpPath, progress); checksumErr != nil {
+	if !opts.SkipChecksum {
+		if checksumErr := i.verifyChecksumForRelease(ctx, release, asset, tmpPath, opts, report); checksumErr != nil {
 			cleanup()
 			return "", func() {}, checksumErr
 		}
@@ -437,11 +470,9 @@ func (i *Installer) downloadAndVerify(
 	return tmpPath, cleanup, nil
 }
 
-// checksumWarn emits a progress warning if the callback is non-nil.
-func checksumWarn(progress func(msg string), msg string) {
-	if progress != nil {
-		progress("Warning: " + msg)
-	}
+// checksumWarn emits a progress warning when a callback is set.
+func checksumWarn(report progressReport, msg string) {
+	report.msg("Warning: " + msg)
 }
 
 // verifyChecksumForRelease performs checksum verification of a downloaded file against
@@ -453,13 +484,17 @@ func (i *Installer) verifyChecksumForRelease(
 	release *GitHubRelease,
 	asset *ReleaseAsset,
 	downloadedFilePath string,
-	progress func(msg string),
+	opts InstallOptions,
+	report progressReport,
 ) error {
 	expectedHash, err := i.fetchExpectedHash(ctx, release, asset.Name)
 	if err != nil {
+		if opts.RequireChecksumFile && !opts.AcceptMissingChecksum && errors.Is(err, ErrChecksumUnavailable) {
+			return err
+		}
 		// Non-fatal: warn and continue installation
-		checksumWarn(progress, err.Error()+", skipping verification")
-		return nil //nolint:nilerr // intentional: non-fatal checksum lookup errors produce warnings only
+		checksumWarn(report, err.Error()+", skipping verification")
+		return nil // missing checksum file is a warning unless the caller required it
 	}
 
 	// This is the only fatal path: a confirmed hash mismatch
@@ -467,9 +502,7 @@ func (i *Installer) verifyChecksumForRelease(
 		return fmt.Errorf("integrity check failed: %w", verifyErr)
 	}
 
-	if progress != nil {
-		progress("Checksum verified (SHA256)")
-	}
+	report.msg("Checksum verified (SHA256)")
 	return nil
 }
 
@@ -484,7 +517,7 @@ func (i *Installer) fetchExpectedHash(
 ) (string, error) {
 	checksumAsset := FindChecksumAsset(release)
 	if checksumAsset == nil {
-		return "", errors.New("checksums.txt not found in release")
+		return "", ErrChecksumUnavailable
 	}
 
 	checksumData, err := i.downloadChecksumAsset(ctx, checksumAsset)
@@ -620,6 +653,15 @@ type UpdateOptions struct {
 	Version      string // Specific version to update to (empty = latest)
 	PluginDir    string // Custom plugin directory
 	SkipChecksum bool   // SkipChecksum bypasses SHA256 checksum verification during update
+	// OnEvent receives a typed progress event beside the string callback.
+	OnEvent func(ProgressEvent)
+	// CatalogOnly, RequireChecksumFile, AcceptMissingChecksum, and
+	// AcceptFallbackVersion match InstallOptions and apply to the install
+	// performed by a non-dry-run update.
+	CatalogOnly           bool
+	RequireChecksumFile   bool
+	AcceptMissingChecksum bool
+	AcceptFallbackVersion string
 }
 
 // UpdateResult contains the result of a plugin update.
@@ -633,13 +675,25 @@ type UpdateResult struct {
 
 // Update updates an installed plugin to the latest or specified version.
 //
-//nolint:gocognit,funlen // Complex but necessary update logic with version comparison
+//nolint:funlen // version comparison and reinstall stay together
 func (i *Installer) Update(
 	ctx context.Context,
 	name string,
 	opts UpdateOptions,
 	progress func(msg string),
 ) (*UpdateResult, error) {
+	report := newProgressReport(progress, opts.OnEvent)
+	policy := InstallOptions{
+		CatalogOnly:           opts.CatalogOnly,
+		RequireChecksumFile:   opts.RequireChecksumFile,
+		AcceptMissingChecksum: opts.AcceptMissingChecksum,
+		AcceptFallbackVersion: opts.AcceptFallbackVersion,
+	}
+	if opts.CatalogOnly {
+		opts.SkipChecksum = false
+		policy.SkipChecksum = false
+	}
+
 	// Acquire lock for this plugin
 	unlock, err := i.acquireLock(name)
 	if err != nil {
@@ -661,13 +715,11 @@ func (i *Installer) Update(
 
 	// Get target version
 	if opts.Version != "" {
-		if progress != nil {
-			progress(fmt.Sprintf("Fetching release %s for %s...", opts.Version, name))
-		}
-	} else if progress != nil {
-		progress(fmt.Sprintf("Checking for updates to %s...", name))
+		report.msg(fmt.Sprintf("Fetching release %s for %s...", opts.Version, name))
+	} else {
+		report.msg(fmt.Sprintf("Checking for updates to %s...", name))
 	}
-	release, err := i.fetchRelease(ctx, owner, repo, opts.Version, assetHints, progress)
+	release, err := i.fetchRelease(ctx, owner, repo, opts.Version, assetHints, policy, name, report)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get release: %w", err)
 	}
@@ -702,9 +754,7 @@ func (i *Installer) Update(
 	}
 
 	if opts.DryRun {
-		if progress != nil {
-			progress(fmt.Sprintf("Would update %s from %s to %s", name, oldVersion, newVersion))
-		}
+		report.msg(fmt.Sprintf("Would update %s from %s to %s", name, oldVersion, newVersion))
 		return &UpdateResult{
 			Name:       name,
 			OldVersion: oldVersion,
@@ -719,14 +769,18 @@ func (i *Installer) Update(
 	}
 
 	installOpts := InstallOptions{
-		Force:        true, // Allow overwriting
-		NoSave:       true, // We'll update config ourselves
-		PluginDir:    pluginDir,
-		SkipChecksum: opts.SkipChecksum,
+		Force:                 true, // Allow overwriting
+		NoSave:                true, // We'll update config ourselves
+		PluginDir:             pluginDir,
+		SkipChecksum:          opts.SkipChecksum,
+		CatalogOnly:           opts.CatalogOnly,
+		RequireChecksumFile:   opts.RequireChecksumFile,
+		AcceptMissingChecksum: opts.AcceptMissingChecksum,
+		AcceptFallbackVersion: opts.AcceptFallbackVersion,
 	}
 
 	repository := fmt.Sprintf("%s/%s", owner, repo)
-	result, err := i.installRelease(ctx, name, release, repository, installOpts, progress, assetHints)
+	result, err := i.installRelease(ctx, name, release, repository, installOpts, report, assetHints)
 	if err != nil {
 		return nil, err
 	}
@@ -739,9 +793,7 @@ func (i *Installer) Update(
 
 	// Update config
 	if updateErr := config.UpdateInstalledPluginVersion(name, newVersion); updateErr != nil {
-		if progress != nil {
-			progress(fmt.Sprintf("Warning: failed to update config: %v", updateErr))
-		}
+		report.msg(fmt.Sprintf("Warning: failed to update config: %v", updateErr))
 	}
 
 	return &UpdateResult{
@@ -805,6 +857,8 @@ func (i *Installer) RemoveOtherVersions(
 	pluginDir string,
 	progress func(msg string),
 ) (*RemoveOtherVersionsResult, error) {
+	report := newProgressReport(progress, nil)
+
 	// Acquire lock for concurrent safety during version removal
 	unlock, err := i.acquireLock(name)
 	if err != nil {
@@ -852,19 +906,15 @@ func (i *Installer) RemoveOtherVersions(
 
 		// Calculate directory size before removal
 		size, sizeErr := getDirSize(versionPath)
-		if sizeErr != nil && progress != nil {
-			progress(fmt.Sprintf("Debug: failed to calculate size for %s: %v", versionPath, sizeErr))
+		if sizeErr != nil {
+			report.msg(fmt.Sprintf("Debug: failed to calculate size for %s: %v", versionPath, sizeErr))
 		}
 
-		if progress != nil {
-			progress(fmt.Sprintf("Removing old version %s...", version))
-		}
+		report.msg(fmt.Sprintf("Removing old version %s...", version))
 
 		if removeErr := os.RemoveAll(versionPath); removeErr != nil {
 			// Log warning but continue with other versions
-			if progress != nil {
-				progress(fmt.Sprintf("Warning: failed to remove %s: %v", version, removeErr))
-			}
+			report.msg(fmt.Sprintf("Warning: failed to remove %s: %v", version, removeErr))
 			continue
 		}
 
@@ -890,14 +940,31 @@ func getDirSize(path string) (int64, error) {
 	return size, err
 }
 
+// LockAvailable reports whether name can be modified right now.
+// A held lock returns an error that matches ErrPluginBusy.
+func (i *Installer) LockAvailable(name string) error {
+	unlock, err := i.acquireLock(name)
+	if err != nil {
+		return err
+	}
+	unlock()
+	return nil
+}
+
 // RemoveOptions configures plugin removal behavior.
 type RemoveOptions struct {
 	KeepConfig bool   // Don't remove from config file
 	PluginDir  string // Custom plugin directory
+	// Version removes that installed version. Empty removes the configured version.
+	Version string
+	// OnEvent receives a typed progress event beside the string callback.
+	OnEvent func(ProgressEvent)
 }
 
 // Remove removes an installed plugin.
 func (i *Installer) Remove(name string, opts RemoveOptions, progress func(msg string)) error {
+	report := newProgressReport(progress, opts.OnEvent)
+
 	// Acquire lock for this plugin
 	unlock, err := i.acquireLock(name)
 	if err != nil {
@@ -916,18 +983,29 @@ func (i *Installer) Remove(name string, opts RemoveOptions, progress func(msg st
 	installed, err := config.GetInstalledPlugin(name)
 	if err != nil {
 		discovered, discoverErr := i.discoverPluginFromFilesystem(name, pluginDir)
-		if discoverErr != nil {
+		if discoverErr != nil && opts.Version == "" {
 			return fmt.Errorf("plugin %q is not installed", name)
 		}
 		installed = discovered
 		inConfig = false
 	}
+	version := ""
+	if installed != nil {
+		version = installed.Version
+	}
+	if opts.Version != "" {
+		version = opts.Version
+	}
+	if version == "" {
+		return fmt.Errorf("plugin %q is not installed", name)
+	}
+	pluginPath := filepath.Join(pluginDir, name, version)
+	if _, statErr := os.Stat(pluginPath); statErr != nil {
+		return fmt.Errorf("plugin %q is not installed", name)
+	}
 
 	// Remove plugin directory
-	pluginPath := filepath.Join(pluginDir, name, installed.Version)
-	if progress != nil {
-		progress(fmt.Sprintf("Removing %s@%s...", name, installed.Version))
-	}
+	report.msg(fmt.Sprintf("Removing %s@%s...", name, version))
 
 	if removeErr := os.RemoveAll(pluginPath); removeErr != nil {
 		return fmt.Errorf("failed to remove plugin directory: %w", removeErr)
@@ -937,25 +1015,21 @@ func (i *Installer) Remove(name string, opts RemoveOptions, progress func(msg st
 	parentDir := filepath.Join(pluginDir, name)
 	entries, err := os.ReadDir(parentDir)
 	if err == nil && len(entries) == 0 {
-		if rmErr := os.Remove(parentDir); rmErr != nil && progress != nil {
-			progress(
-				fmt.Sprintf("Warning: failed to remove parent directory %s: %v", parentDir, rmErr),
-			)
+		if rmErr := os.Remove(parentDir); rmErr != nil {
+			report.msg(fmt.Sprintf("Warning: failed to remove parent directory %s: %v", parentDir, rmErr))
 		}
 	}
 
-	// Remove from config unless --keep-config or plugin was not in config
-	if !opts.KeepConfig && inConfig {
+	// Remove from config unless --keep-config, the plugin was not in config,
+	// or a different installed version was removed.
+	configured := installed != nil && installed.Version == version
+	if !opts.KeepConfig && inConfig && configured {
 		if removeErr := config.RemoveInstalledPlugin(name); removeErr != nil {
-			if progress != nil {
-				progress(fmt.Sprintf("Warning: failed to remove from config: %v", removeErr))
-			}
+			report.msg(fmt.Sprintf("Warning: failed to remove from config: %v", removeErr))
 		}
 	}
 
-	if progress != nil {
-		progress(fmt.Sprintf("Successfully removed %s", name))
-	}
+	report.msg(fmt.Sprintf("Successfully removed %s", name))
 
 	return nil
 }

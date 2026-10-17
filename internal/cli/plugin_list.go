@@ -259,7 +259,8 @@ func fetchSinglePluginMetadata(
 		RuntimeVersion: notAvailable,
 	}
 
-	client, launchErr := pluginhost.NewClient(launchCtx, launcher, plugin.Path)
+	client, launchErr := pluginhost.NewClient(
+		pluginhost.WithInstallName(launchCtx, plugin.Name), launcher, plugin.Path)
 	if launchErr != nil {
 		log.Debug().
 			Ctx(ctx).

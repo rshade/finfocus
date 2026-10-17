@@ -251,6 +251,9 @@ func (e *Engine) checkPluginSupports(
 	if suffix := attrsCacheSuffix(descriptor.GetAttributes()); suffix != "" {
 		keyParts = append(keyParts, "attrs-"+suffix)
 	}
+	if client.DeliveredDigest != "" {
+		keyParts = append(keyParts, "penv-"+client.DeliveredDigest)
+	}
 	cacheKey := strings.Join(keyParts, ":")
 
 	e.supportsMu.RLock()
@@ -4184,6 +4187,7 @@ func generateProjectedCostResourceKey(resource ResourceDescriptor) (string, erro
 	// an empty type is also a valid "no growth" answer. A new suffix misses
 	// those entries so the next lookup stores the plugin's model.
 	key += projectedGrowthCacheSuffix
+	key += pluginEnvCacheSuffix()
 	return key, nil
 }
 
@@ -4263,7 +4267,15 @@ func generateActualCostCacheKey(request ActualCostRequest) string {
 		filters["descriptor"] = strings.Join(descriptorDigests, ",")
 	}
 
-	return cache.BuildActualKey(provider, resourceTypes, request.From, request.To, filters)
+	return cache.BuildActualKey(provider, resourceTypes, request.From, request.To, filters) + pluginEnvCacheSuffix()
+}
+
+func pluginEnvCacheSuffix() string {
+	digest := pluginhost.PluginEnvDigest()
+	if digest == "" {
+		return ""
+	}
+	return "/penv-" + digest
 }
 
 // actualDescriptorCacheSuffix digests what GetActualCostRequest.resource

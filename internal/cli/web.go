@@ -157,6 +157,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	pipeDone := make(chan struct{})
 	options := webSessionOptions(pipeCtx, data, pipe, pipeDone, passphrases)
 	wireConfigEditor(ctx, &options, cmd, audit)
+	wirePlugins(ctx, &options, cmd, data)
 	session := webui.NewSession(pipeCtx, options)
 	defer session.Close()
 	bindWebPipeline(ctx, pipe, session, params, dateRange)
@@ -185,6 +186,7 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 	// not torn down mid-flight (same race as the TUI cleanup, issue #716).
 	pipeCancel()
 	<-pipeDone
+	data.closeReloaded()
 	if cleanup := pipe.Cleanup(); cleanup != nil {
 		cleanup()
 	}

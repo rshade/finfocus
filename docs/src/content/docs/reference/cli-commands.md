@@ -723,6 +723,9 @@ finfocus config set output.default_format json
 # Set plugin configuration
 finfocus config set plugins.aws.region us-west-2
 
+# The dashboard Plugins page edits the same plugins.<name>.<key> settings
+# and installs catalog plugins. See the Web UI guide.
+
 # Set logging level
 finfocus config set logging.level debug
 
@@ -990,6 +993,9 @@ finfocus plugin install aws-public@v0.2.0
 Plugins install into `plugins/` under the FinFocus home: `$FINFOCUS_HOME`,
 then `$PULUMI_HOME/finfocus`, then `~/.finfocus`. `plugin update` and
 `plugin remove` use the same directory, and `--plugin-dir` overrides it.
+`finfocus --web` installs catalog plugins into that same directory. The page
+asks you to confirm the plugin, version, repository, and security level
+first. URL installs stay on this command.
 
 A release can be published a few minutes before its archives are uploaded.
 When you do not request a version and the latest release has no assets yet,

@@ -37,9 +37,7 @@ func lockFile(lockPath, name string) (func(), error) {
 	)
 	if err != nil {
 		_ = file.Close()
-		return nil, fmt.Errorf(
-			"plugin %q is currently being modified by another process (lock file %s exists)",
-			name, lockPath)
+		return nil, errPluginBusy(name, lockPath)
 	}
 
 	// Write our PID to the lock file for diagnostics only; the lock itself is

@@ -2,6 +2,7 @@ package recorder
 
 import (
 	"context"
+	"strconv"
 	"sync"
 
 	"github.com/rs/zerolog"
@@ -246,7 +247,29 @@ func (p *RecorderPlugin) GetPluginInfo(
 			pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS,
 			pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS,
 		},
+		Settings: recorderSettings(),
 	}, nil
+}
+
+// recorderSettings advertises the environment variables LoadConfig reads.
+// GetPluginInfo returns this list itself; a ServeConfig would not be consulted.
+func recorderSettings() []*pbc.PluginSetting {
+	return []*pbc.PluginSetting{
+		{
+			Key:          "output_dir",
+			Type:         pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+			DefaultValue: DefaultOutputDir,
+			Description:  "Directory where recorded requests are written.",
+			Env:          EnvOutputDir,
+		},
+		{
+			Key:          "mock_response",
+			Type:         pbc.PluginSettingType_PLUGIN_SETTING_TYPE_BOOL,
+			DefaultValue: strconv.FormatBool(DefaultMockResponse),
+			Description:  "Return mock cost responses instead of empty costs.",
+			Env:          EnvMockResponse,
+		},
+	}
 }
 
 // Supports overrides BasePlugin's default to always return false.

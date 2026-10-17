@@ -29,16 +29,25 @@ type ErrorEvent struct {
 
 // SessionOptions supplies the CLI domain pipelines to transport adapters.
 type SessionOptions struct {
-	EstimateResources func(context.Context) ([]engine.ResourceDescriptor, error)
-	ActualCosts       func(context.Context, string, map[string]string) (*engine.CostResultWithErrors, error)
-	Recommendations   func(context.Context, bool) (*engine.RecommendationsResult, error)
-	Trends            func() (map[string]string, string)
-	DayOfMonth        int
-	Preview           func(context.Context) ([]engine.OverviewRow, error)
-	SubmitPassphrase  func(context.Context, string) error
-	ConfigView        func(context.Context) (config.Page, error)
-	ConfigPreview     func(context.Context, config.WriteRequest) (config.PatchResult, error)
-	ConfigSave        func(context.Context, config.WriteRequest) (config.PatchResult, error)
+	EstimateResources     func(context.Context) ([]engine.ResourceDescriptor, error)
+	ActualCosts           func(context.Context, string, map[string]string) (*engine.CostResultWithErrors, error)
+	Recommendations       func(context.Context, bool) (*engine.RecommendationsResult, error)
+	Trends                func() (map[string]string, string)
+	DayOfMonth            int
+	Preview               func(context.Context) ([]engine.OverviewRow, error)
+	SubmitPassphrase      func(context.Context, string) error
+	ConfigView            func(context.Context) (config.Page, error)
+	ConfigPreview         func(context.Context, config.WriteRequest) (config.PatchResult, error)
+	ConfigSave            func(context.Context, config.WriteRequest) (config.PatchResult, error)
+	PluginCatalog         func(context.Context) ([]PluginCatalogRow, error)
+	PluginPlan            func(context.Context, string, PluginPlanRequest) (PluginPlan, error)
+	PluginPrepare         func(context.Context, string, PluginOperationRequest) error
+	PluginInstall         func(context.Context, string, PluginOperationRequest, func(PluginProgress)) error
+	PluginRemove          func(context.Context, string, PluginOperationRequest, func(PluginProgress)) error
+	PluginValidate        func(context.Context, string) (PluginValidateResult, error)
+	PluginSettings        func(context.Context, string) (PluginSettingsView, error)
+	PluginSettingsPrepare func(context.Context, string, config.WriteRequest) (config.WriteRequest, error)
+	ReloadPlugins         func(context.Context) error
 }
 
 // Session shares engine data and pipeline events among browser tabs. It never

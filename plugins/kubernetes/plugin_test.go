@@ -273,6 +273,46 @@ func TestInfo_ExplicitCapabilitiesOnly(t *testing.T) {
 	}, info.Capabilities, "projected cost is the only pricing capability")
 }
 
+func TestInfo_AdvertisesSettings(t *testing.T) {
+	t.Parallel()
+
+	info := Info("v0.0.0-test")
+	require.NoError(t, info.Validate())
+
+	want := []struct {
+		key string
+		env string
+		typ pbc.PluginSettingType
+	}{
+		{
+			key: "cpu_hourly_rate", env: "FINFOCUS_KUBERNETES_CPU_HOURLY_RATE",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+		},
+		{
+			key: "memory_gib_hourly_rate", env: "FINFOCUS_KUBERNETES_MEMORY_GIB_HOURLY_RATE",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+		},
+		{
+			key: "daemonset_node_count", env: "FINFOCUS_KUBERNETES_DAEMONSET_NODE_COUNT",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_INT,
+		},
+		{
+			key: "job_hours_per_month", env: "FINFOCUS_KUBERNETES_JOB_HOURS_PER_MONTH",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+		},
+	}
+	require.Len(t, info.Settings, len(want))
+	for i, setting := range want {
+		got := info.Settings[i]
+		assert.Equal(t, setting.key, got.GetKey())
+		assert.Equal(t, setting.env, got.GetEnv())
+		assert.Equal(t, setting.typ, got.GetType())
+		assert.Empty(t, got.GetDefaultValue())
+		assert.False(t, got.GetRequired(), setting.key)
+		assert.False(t, got.GetSecret(), setting.key)
+	}
+}
+
 func TestPlugin_ImplementsProviders(t *testing.T) {
 	t.Parallel()
 

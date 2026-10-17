@@ -346,7 +346,7 @@ func (r *Registry) openPlugin(ctx context.Context, plugin PluginInfo) *pluginhos
 		Str("plugin_path", plugin.Path).
 		Msg("attempting to connect to plugin")
 
-	client, err := pluginhost.NewClient(ctx, r.launcher, plugin.Path)
+	client, err := pluginhost.NewClient(pluginhost.WithInstallName(ctx, plugin.Name), r.launcher, plugin.Path)
 	if err != nil {
 		log.Warn().
 			Ctx(ctx).

@@ -159,6 +159,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   out of bounds once a newer sample exists, and later falls out of the 15-day
   retention.
 - `make test-e2e-kind` pins `E2E_AWS_PUBLIC_VERSION` (Renovate bumps it).
+- Web plugin e2e uses the production seams `FINFOCUS_CATALOG_FILE` and
+  `FINFOCUS_GITHUB_API` (a stand-in catalog and GitHub API, not a supported
+  custom registry). `webEnvironment` strips every `FINFOCUS_*` value before
+  `fixtureEnv` is appended, so pass those two through `fixtureEnv`.
+  `GITHUB_TOKEN` is not stripped. Do not mention the seams in user docs.
 
 ### Integration Tests (`test/integration/`)
 
@@ -206,7 +211,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `EstimateCost` attributes. Do not add a second rule.
 - Anything new sent to a plugin must be in the projected cache key; that is
   why keys end in `/tags-`, `/refs-`, `/attrs-` digests and feature suffixes
-  (`/pricing-spec`, `/growth-v1`).
+  (`/pricing-spec`, `/growth-v1`, `/penv-`). `/penv-` is the digest of the
+  clients `openPlugins` retained. One plugin's settings therefore invalidate
+  every projected entry. A settings or validate probe must not update it.
+  An empty digest omits the suffix. Digest tests must not run in parallel
+  and must call `ResetPluginEnvDigestsForTest`.
 - `__`-prefixed inputs (`__defaults`, `__provider`) are Pulumi internals; filter
   them from anything shown to users.
 - Analyzer import: `pulumirpc "github.com/pulumi/pulumi/sdk/v3/proto/go"`
@@ -234,6 +243,32 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   held listener would answer for another plugin.
 - Always `cmd.Wait()` after `cmd.Process.Kill()`.
 - Core never sets `PORT`; plugins use `--port` or `FINFOCUS_PLUGIN_PORT`.
+- `NewClient` injects delivered settings before `Launcher.Start`. A descriptor
+  key uses `descriptor.env`. A key with no descriptor uses
+  `pluginhost.GenericPluginEnv` (`FINFOCUS_PLUGIN_<NAME>_<KEY>`). A parent
+  value already set, including empty, is left as it is. Skip
+  `FINFOCUS_PLUGIN_PORT`, the log-file variable, and the trace id. Do not
+  inject from redacted `pluginValue` or `config.effective()`: the config
+  loader shallow-replaces the whole `plugins` object.
+- After `GetPluginInfo` (5s, request `*proto.Empty`), `NewClient` restarts
+  the process once when advertised settings change the injected pairs. That
+  restart happens before the version check, so stderr from the new process
+  can appear even when the client is then closed as incompatible. A second
+  change does not restart again. `Client.Close` is the func field from
+  `started.idempotentClose()`.
+- Secrets never appear in logs, errors, or another plugin's environment.
+  Credential names stay on `config.IsCredentialName`.
+- Dashboard settings apply on the next `NewClient`. The first reload must not
+  close the overview pipeline's original clients. Later reloads close only
+  the set the previous reload opened. `closeReloaded` runs before
+  `pipe.Cleanup`. Install and remove fail the operation when reopen fails.
+  A settings save still returns 200 and logs the reopen error.
+- A dashboard HTTP request context has no plugin log writer. Plugin stderr is
+  then discarded when the process stderr is not a terminal. Short probes
+  (settings read, validate) use a child of the session context that is
+  canceled when the request ends. A reload that keeps clients uses the session
+  context itself. `exec.CommandContext` kills the plugin when its launch
+  context is canceled, so a request-scoped context must not own those clients.
 
 ### CLI (`internal/cli/`)
 
@@ -267,6 +302,14 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
 - The overview docs page is `docs/src/content/docs/commands/overview.md`.
+- `internal/webui` must not import `cli`, `registry`, or `pluginhost`. Plugin
+  page callbacks live in `internal/cli/web_plugins.go` and
+  `plugin_settings_web.go`. Install progress is a per-operation SSE stream
+  (`snapshot`, `progress`, `done`). Do not publish it on the overview bus:
+  that bus runs `RedactJSON` and drops slow subscribers. Settings GET uses
+  `writePlainJSON`. Secret values are absent from the body. `pluginMetadata`
+  does not copy `Settings`, so the settings handler calls `GetPluginInfo`
+  again.
 - The dashboard Config page and `config set` patch `config.hujson` through
   `config.PatchFile`. Do not call `Config.Save` for that write: it rewrites the
   struct from `New()`, folds environment variables into the file, and drops
@@ -285,6 +328,17 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - With `region` in `plugin.metadata.json`, discovery looks for
   `finfocus-plugin-<name>-<region>` first.
 - Only a confirmed checksum mismatch is fatal; `--skip-checksum` exists.
+  The dashboard catalog path does not offer that flag. A missing
+  `checksums.txt` warns and continues on the CLI and returns
+  `ErrChecksumUnavailable` on the web path unless the person accepts it.
+  The web planner reports a zero-asset release as a fallback so confirmation
+  can name both versions. The confirmed install is an explicit `name@version`
+  of the fallback, so `AcceptFallbackVersion` stays unset. The installer
+  still does not swap an explicit version on its own.
+- `FINFOCUS_CATALOG_FILE` overlays the embedded catalog for `GetPlugin` and
+  `GetAllPluginEntries` (read each call, not cached). `ListPluginsFromRegistry`
+  stays on the embedded catalog. `FINFOCUS_GITHUB_API` replaces the GitHub API
+  base. Both are test seams. A custom registry remains #1766.
 - Monorepo plugins (`tag_prefix: "kubernetes-"`): "latest" is the highest
   prefixed stable semver, never `/releases/latest`; installs use the canonical
   version; the entry needs `asset_hints.asset_prefix`.
@@ -292,7 +346,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   archives upload) is replaced by the newest earlier release with assets. An
   explicit version is never swapped; it returns `*NoAssetsError`
   (`ErrReleaseHasNoAssets`), which the CLI's version fallback still handles.
-- `DefaultPluginDir()` is `config.ResolveConfigDir()/plugins`.
+- `DefaultPluginDir()` is `config.New().PluginDir` (`FINFOCUS_PLUGIN_DIR`,
+  then `plugin_dir`, then the plugins directory under the resolved home).
+  Install and discovery share it.
 
 ### Router (`internal/router/`)
 
@@ -461,6 +517,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 629-web-plugin-page: Plugins page in `finfocus --web` (catalog, install, settings)
 - 628-web-config-page: dashboard Config page and `config set` patch `config.hujson` in place
 - 626-cost-forecast: `cost forecast` projects plugin GrowthType with finfocus-spec `pricing.ApplyGrowth`
 - 625-budget-alert-notifications: Slack and generic HTTPS webhook budget alert destinations (stdlib `net/http`)
@@ -468,4 +525,4 @@ Specs 613-623 hold the details. Invariants:
 
 ## Active Technologies
 
-- Go 1.27.1 (`go.mod`), finfocus-spec v0.7.5 (`pluginsdk`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only
+- Go 1.27.1 (`go.mod`), finfocus-spec v0.7.6 (`pluginsdk`, `WithSettings`), Cobra, ax-go, gRPC, zerolog, BoltDB (`go.etcd.io/bbolt`), Bubble Tea v2, testify; `prometheus/client_golang` and client-go in plugin modules only

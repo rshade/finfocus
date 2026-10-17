@@ -7,6 +7,8 @@ package jev
 import (
 	"context"
 	"fmt"
+	"strconv"
+	"time"
 
 	"github.com/rshade/finfocus/plugins/jev/internal/jevapi"
 	"github.com/rshade/finfocus/plugins/jev/internal/scoring"
@@ -58,6 +60,53 @@ func Info(version string) *pluginsdk.PluginInfo {
 	return pluginsdk.NewPluginInfo(PluginName, version,
 		pluginsdk.WithProviders("*"),
 		pluginsdk.WithCapabilities(pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATION_SCORING),
+		pluginsdk.WithSettings(
+			&pbc.PluginSetting{
+				Key:         "api_key",
+				Type:        pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+				Required:    true,
+				Secret:      true,
+				Description: "TypeSafe AI API key.",
+				Env:         EnvAPIKey,
+			},
+			&pbc.PluginSetting{
+				Key:          "base_url",
+				Type:         pbc.PluginSettingType_PLUGIN_SETTING_TYPE_URL,
+				DefaultValue: DefaultBaseURL,
+				Description:  "TypeSafe AI API origin.",
+				Env:          EnvBaseURL,
+			},
+			&pbc.PluginSetting{
+				Key:          "model",
+				Type:         pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+				DefaultValue: DefaultModel,
+				Description:  "Model id sent with scoring requests.",
+				Env:          EnvModel,
+			},
+			&pbc.PluginSetting{
+				Key:  "timeout",
+				Type: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_DURATION,
+				// Duration.String renders 60s as 1m0s. Advertise whole seconds.
+				DefaultValue: strconv.FormatInt(int64(DefaultTimeout/time.Second), 10) + "s",
+				Description:  "Per-attempt request timeout.",
+				Env:          EnvTimeout,
+			},
+			&pbc.PluginSetting{
+				Key:          "batch_size",
+				Type:         pbc.PluginSettingType_PLUGIN_SETTING_TYPE_INT,
+				DefaultValue: strconv.Itoa(scoring.DefaultBatchSize),
+				Description:  "Recommendations sent in one backend request.",
+				Env:          EnvBatchSize,
+			},
+			&pbc.PluginSetting{
+				Key: "duplicate_threshold",
+				// PluginSetting has no float type; the plugin parses this text.
+				Type:         pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+				DefaultValue: strconv.FormatFloat(scoring.DefaultDuplicateThreshold, 'f', -1, 64),
+				Description:  "Yes probability that marks two recommendations as duplicates.",
+				Env:          EnvDuplicateThreshold,
+			},
+		),
 	)
 }
 

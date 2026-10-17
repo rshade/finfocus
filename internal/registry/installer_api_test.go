@@ -360,7 +360,7 @@ func TestInstall_ChecksumVerified(t *testing.T) {
 		},
 		"owner/checksum-plugin",
 		InstallOptions{PluginDir: env.pluginDir},
-		progress,
+		newProgressReport(progress, nil),
 		nil,
 	)
 
@@ -425,7 +425,7 @@ func TestInstall_ChecksumMismatchBlocksInstallation(t *testing.T) {
 		},
 		"owner/checksum-plugin",
 		InstallOptions{PluginDir: env.pluginDir},
-		nil,
+		newProgressReport(nil, nil),
 		nil,
 	)
 
@@ -480,7 +480,7 @@ func TestInstall_NoChecksumsAssetWarns(t *testing.T) {
 		},
 		"owner/no-checksum-plugin",
 		InstallOptions{PluginDir: env.pluginDir},
-		progress,
+		newProgressReport(progress, nil),
 		nil,
 	)
 
@@ -549,7 +549,7 @@ func TestInstall_ChecksumsAssetNotListed(t *testing.T) {
 		},
 		"owner/unlisted-plugin",
 		InstallOptions{PluginDir: env.pluginDir},
-		progress,
+		newProgressReport(progress, nil),
 		nil,
 	)
 
@@ -617,7 +617,7 @@ func TestInstall_ChecksumsDownloadFails(t *testing.T) {
 		},
 		"owner/download-fail-plugin",
 		InstallOptions{PluginDir: env.pluginDir},
-		progress,
+		newProgressReport(progress, nil),
 		nil,
 	)
 
@@ -685,7 +685,7 @@ func TestInstall_MalformedChecksumsWarns(t *testing.T) {
 		},
 		"owner/malformed-plugin",
 		InstallOptions{PluginDir: env.pluginDir},
-		progress,
+		newProgressReport(progress, nil),
 		nil,
 	)
 
@@ -757,7 +757,7 @@ func TestInstall_SkipChecksumBypassesVerification(t *testing.T) {
 		},
 		"owner/skip-plugin",
 		InstallOptions{PluginDir: env.pluginDir, SkipChecksum: true},
-		progress,
+		newProgressReport(progress, nil),
 		nil,
 	)
 

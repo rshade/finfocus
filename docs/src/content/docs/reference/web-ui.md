@@ -46,7 +46,7 @@ start the opener is logged as a warning; the server keeps running.
 
 ## Views
 
-The header links to five views. Each has its own URL fragment, and a
+The header links to six views. Each has its own URL fragment, and a
 **Skip to main content** link comes first in the tab order.
 
 | View | Fragment | Shows |
@@ -56,6 +56,7 @@ The header links to five views. Each has its own URL fragment, and a
 | Recommendations | `#/recommendations` | Recommendation counts, savings, actions, descriptions, and scorer signals when scoring is configured |
 | Estimate | `#/estimate` | What-if comparison for one resource: baseline, modified monthly cost, total change, and per-property deltas |
 | Config | `#/config` | Effective configuration, the tier each value comes from, and edits to known settings in the project or global file |
+| Plugins | `#/plugins` | Built-in catalog, installed versions, install, update, remove, validate, and per-plugin settings |
 
 ### Overview controls
 
@@ -120,6 +121,25 @@ never fills a secret field from the stored value. Alert, routing, and analyzer
 settings are listed and are not editable. A successful save tells you that the
 running session keeps its startup configuration.
 
+### Plugins controls
+
+| Control | Effect |
+| --- | --- |
+| Catalog row | Shows the name, description, providers, capabilities, security level, installed versions, and the latest catalog version. An older install is marked update-available. |
+| Outside the catalog | An installed plugin that is not a catalog entry. Validate, settings, and remove stay available. Install and update are not offered. |
+| **Install** / **Update** / **Remove** | Opens a confirmation that names the plugin, version, repository, and security level. The download or delete starts after confirmation. |
+| Progress | Shows the current phase and, while downloading, bytes received and the total when the host reports one. |
+| **Validate** | Checks the installed files and that the plugin process starts. A failure stays on the page with the reason. |
+| Settings tier | Selects the project or global `config.hujson`, the same files as Config. |
+| Setting editor | Edits one plugin setting. A secret field starts empty; leaving it blank keeps the stored secret. |
+| **Review changes** / **Confirm** | Previews, then writes, through the same configuration writer as Config. |
+| Save notice | Saved settings apply the next time that plugin is launched. |
+
+The page installs catalog names only. A download URL is not accepted. When the
+newest release has no files yet, the confirmation names the older version that
+will be installed. A missing checksum file is named before the install
+continues. A checksum that does not match stops the install.
+
 ### Web-only controls
 
 The **Group by** selector and the **Include dismissed** checkbox expose existing
@@ -164,6 +184,19 @@ called with the wrong method, gets `404` / `not_found` (`unknown path`).
 | `POST /api/config` or `/api/config/preview` with no `baseVersion` | 400 | `invalid_request` | `baseVersion is required` |
 | `POST /api/config` with the project tier and no project | 400 | `project_unavailable` | `no project directory is available` |
 | `POST /api/config` that fails validation | 400 | `validation` | The message names the setting. `fields` lists each failure. The file is unchanged. |
+| `GET /api/plugins/catalog` | 200 | - | Every built-in catalog entry, plus installed plugins that are outside the catalog. |
+| `POST /api/plugins/{name}/plan` | 200 | - | Names the version, repository, and security level. Downloads nothing. |
+| `POST /api/plugins/{name}/install` or `/update` | 202 | - | Starts the confirmed install. The body matches the fresh plan. |
+| `DELETE /api/plugins/{name}/{version}` | 202 | - | Starts the confirmed removal of that version. |
+| `GET /api/plugins/operations/{id}/stream` | 200 | - | Server-sent events: `snapshot`, then `progress`, then `done`. |
+| `POST /api/plugins/{name}/validate` | 200 | - | `{passed, reason}`. A failed check is still HTTP 200. |
+| `GET /api/plugins/{name}/settings` | 200 | - | Plugin settings. Secret values are omitted. |
+| `POST /api/plugins/{name}/settings/preview` | 200 | - | Before/after diff for that plugin. Writes nothing. |
+| `POST /api/plugins/{name}/settings` | 200 | - | Writes the selected `config.hujson`. The message says the settings apply the next time the plugin is launched. |
+| Plugin plan or install for a name outside the catalog | 404 | `not_found` | `plugin is not in the catalog` |
+| Install or update whose confirmation does not match a fresh plan | 409 | `conflict` | The named version, repository, or security level changed. |
+| A second install, update, or remove of the same plugin | 409 | `busy` | That plugin is already being modified. |
+| Catalog host failure | 502 | `upstream` | A rate limit says to set `GITHUB_TOKEN`. Other host failures stay generic. |
 
 The session cookie is `finfocus_session_<port>`, with `HttpOnly`,
 `SameSite=Strict`, and `Path=/`, and without `Secure`. The token stays valid
@@ -178,6 +211,11 @@ until the server stops.
 - Config can write the resolved project or global `config.hujson`. The write
   patches that file in place. Comments, unknown keys, and the other tier's file
   stay. The running session does not reload the file.
+- Plugins can install, update, and remove a plugin in the local plugin
+  directory, and can write that plugin's settings through the same
+  configuration files. Saved settings apply the next time the plugin is
+  launched. The dashboard opens its plugins again after a successful install,
+  update, remove, or settings save.
 - The existing dismissal store is read so earlier decisions are honored.
 - No browser-specific store is added. Missing local stores do not prevent
   launch.

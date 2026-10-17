@@ -521,6 +521,34 @@ func isPortCollisionError(err error) bool {
 		strings.Contains(errStr, "failed to bind to port")
 }
 
+func appendDeliveredEnv(ctx context.Context, environ []string) []string {
+	pairs, ok := DeliveredEnvFromContext(ctx)
+	if !ok {
+		return environ
+	}
+	existing := make(map[string]bool, len(environ))
+	for _, entry := range environ {
+		key, _, found := strings.Cut(entry, "=")
+		if found {
+			existing[key] = true
+		}
+	}
+	reserved := map[string]bool{
+		pluginsdk.EnvPort:    true,
+		pluginsdk.EnvLogFile: true,
+		pluginsdk.EnvTraceID: true,
+	}
+	for _, pair := range pairs {
+		key, _, found := strings.Cut(pair, "=")
+		if !found || key == "" || existing[key] || reserved[key] {
+			continue
+		}
+		environ = append(environ, pair)
+		existing[key] = true
+	}
+	return environ
+}
+
 func (p *ProcessLauncher) startPlugin(
 	ctx context.Context,
 	path string,
@@ -564,6 +592,7 @@ func (p *ProcessLauncher) startPlugin(
 			fmt.Sprintf("%s=%s", pluginsdk.EnvTraceID, traceID),
 		)
 	}
+	cmd.Env = appendDeliveredEnv(ctx, cmd.Env)
 
 	// Determine where plugin stdout/stderr should go.
 	// Priority: file logging (always capture) > analyzer mode (discard) >

@@ -160,6 +160,18 @@ finfocus plugin install aws-plugin@latest
 
 ### Plugin Configuration
 
+The dashboard **Plugins** page (`finfocus --web`, then `#/plugins`) installs,
+updates, and removes built-in catalog plugins and edits each plugin's
+settings. The confirmation names the plugin, version, repository, and
+security level before anything is downloaded. Settings are written to the
+project or global `config.hujson` and apply the next time that plugin is
+launched. An environment variable already set for the process takes
+precedence over the file and over the plugin's default. Secret values are
+not shown again after they are saved.
+
+Command-line `plugin install` can also install from a URL. The dashboard
+accepts catalog names only.
+
 #### Environment Variables
 
 Most plugins use environment variables for configuration:

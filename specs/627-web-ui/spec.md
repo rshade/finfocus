@@ -285,14 +285,16 @@ the same edit.
   and the estimate view's editable properties. The passphrase MUST reach the
   `pulumi` subprocess the same way the TUI passes it (subprocess environment
   only) and MUST NOT appear in any response, event, or log line.
-- **FR-019**: The web UI MUST stay read-only toward infrastructure. It MUST
-  NOT run `pulumi up`, `pulumi destroy`, or any other operation that changes
-  cloud resources. It MAY write the resolved project or global `config.hujson`
-  for the known settings in spec 628. That file is user configuration, not
-  infrastructure. Deleting every local store MUST NOT stop `--web` from
-  working. The other side effects it can trigger are the ones the TUI already
-  has: the on-demand `pulumi preview`, plugin queries, and the existing
-  optional cost cache and history reads and writes.
+- **FR-019**: The web UI MUST stay read-only toward cloud infrastructure. It
+  MUST NOT run `pulumi up`, `pulumi destroy`, or any other operation that
+  changes cloud resources. It MAY write the resolved project or global
+  `config.hujson` for the known settings in spec 628 and for plugin settings
+  in spec 629. It MAY install, update, and remove plugins in the local plugin
+  directory that `plugin list` already reads (spec 629). Those files are
+  local user state, not cloud infrastructure. Deleting every local store MUST
+  NOT stop `--web` from working. The other side effects it can trigger are
+  the ones the TUI already has: the on-demand `pulumi preview`, plugin
+  queries, and the existing optional cost cache and history reads and writes.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -341,11 +343,15 @@ the same edit.
   estimate) and the interactions available inside them. The group-by
   selector (FR-008a) and the include-dismissed toggle (FR-009a) go beyond the
   TUI and are documented as web-only. Known configuration settings are editable
-  in spec 628, which writes `config.hujson` only. CLI-only surfaces that have
-  no TUI screen (plugin management, alert editing, JSON/NDJSON export, the
-  dismiss/undismiss subcommands) are out of scope for this feature. The web UI
-  stays read-only toward infrastructure. Estimate edits are not persisted.
-  Config edits are persisted only in the selected configuration file.
+  in spec 628, which writes `config.hujson` only. Catalog plugin install,
+  update, remove, validate, and per-plugin settings are in scope in spec 629.
+  Those operations write the local plugin directory and the same
+  `config.hujson` files. CLI-only surfaces that have no TUI screen (alert
+  editing, JSON/NDJSON export, the dismiss/undismiss subcommands, plugin init,
+  upgrade, conformance, and certify) stay out of scope. The web UI stays
+  read-only toward cloud infrastructure. Estimate edits are not persisted.
+  Config edits and plugin settings are persisted only in the selected
+  configuration file.
 - **Local-first, single user**: The server binds to localhost and serves
   the invoking user only, guarded by a per-session token (FR-016). No
   multi-user access or remote exposure is required for this feature; those

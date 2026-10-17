@@ -66,7 +66,7 @@ func runPluginInspect(cmd *cobra.Command, args []string) error {
 
 	// 2. Launch plugin
 	launcher := pluginhost.NewProcessLauncher()
-	client, err := pluginhost.NewClient(ctx, launcher, path)
+	client, err := pluginhost.NewClient(pluginhost.WithInstallName(ctx, pluginName), launcher, path)
 	if err != nil {
 		return fmt.Errorf("failed to launch plugin: %w", err)
 	}

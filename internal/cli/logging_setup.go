@@ -57,7 +57,7 @@ func setupLogging(cmd *cobra.Command) *loggingSession {
 	// When running as a Pulumi Analyzer plugin, redirect all logs to a file so
 	// that JSON log lines do not appear in `pulumi preview`'s Diagnostics output
 	// (#748). This applies even when no log file is configured.
-	if os.Getenv(constants.EnvAnalyzerMode) == "true" {
+	if os.Getenv(constants.EnvAnalyzerMode) == textTrue {
 		if loggingCfg.File == "" {
 			loggingCfg.File = filepath.Join(config.ResolveConfigDir(), "logs", "analyzer.log")
 		}

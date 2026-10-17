@@ -38,11 +38,14 @@ type WriteRequest struct {
 }
 
 // Change is one edited setting. A nil Value with Clear false leaves a secret
-// unchanged. The masked placeholder is never written.
+// unchanged. The masked placeholder is never written. Secret marks a key the
+// plugin advertised as secret even when its name is not a credential fragment.
+// It is not accepted from JSON.
 type Change struct {
-	Key   string  `json:"key"`
-	Value *string `json:"value,omitempty"`
-	Clear bool    `json:"clear,omitempty"`
+	Key    string  `json:"key"`
+	Value  *string `json:"value,omitempty"`
+	Clear  bool    `json:"clear,omitempty"`
+	Secret bool    `json:"-"`
 }
 
 // DiffEntry is one preview line. Secret values are status words, never the stored text.
@@ -278,7 +281,7 @@ func applyKnownChange(
 	key, pointer string,
 	change Change,
 ) (DiffEntry, bool, error) {
-	secret := setting.Secret || IsSecretSetting(key)
+	secret := change.Secret || setting.Secret || IsSecretSetting(key)
 	if !change.Clear && unchangedSecret(change.Value, secret) {
 		return DiffEntry{}, true, nil
 	}

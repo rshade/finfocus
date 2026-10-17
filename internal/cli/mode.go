@@ -5,6 +5,8 @@ import (
 	"strings"
 )
 
+const textTrue = "true"
+
 // DetectPluginMode determines if the application should run in Pulumi plugin mode.
 // It checks the binary name and the FINFOCUS_PLUGIN_MODE environment variable.
 // This is a pure function with no side effects and is safe to call multiple times.
@@ -18,7 +20,7 @@ func DetectPluginMode(args []string, lookupEnv func(string) (string, bool)) bool
 	if lookupEnv != nil {
 		if val, ok := lookupEnv("FINFOCUS_PLUGIN_MODE"); ok {
 			val = strings.ToLower(val)
-			if val == "true" || val == "1" {
+			if val == textTrue || val == "1" {
 				return true
 			}
 		}
