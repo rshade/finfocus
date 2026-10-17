@@ -398,13 +398,19 @@ func resolveStepOutputs(step PulumiStep) map[string]any {
 
 // extractTypeFromURN extracts the resource type from a Pulumi URN.
 // It returns the third '::'-separated segment when the URN contains at least
-// minURNParts segments; otherwise it returns an empty string.
+// minURNParts segments; otherwise it returns an empty string. A child of a
+// component carries its parents' types joined by '$' (for example
+// "pkg:index:Component$aws:ec2/instance:Instance"); only the leaf type after
+// the last '$' is the resource's own type.
 func extractTypeFromURN(urn string) string {
 	parts := strings.Split(urn, "::")
-	if len(parts) >= minURNParts {
-		return parts[2]
+	if len(parts) < minURNParts {
+		return ""
 	}
-	return ""
+	if _, leaf, found := strings.CutLast(parts[2], "$"); found {
+		return leaf
+	}
+	return parts[2]
 }
 
 func extractProviderFromURN(urn string) string {

@@ -730,3 +730,73 @@ func TestLoadPulumiPlan_DelegationEquivalence(t *testing.T) {
 		})
 	}
 }
+
+func TestPulumiStep_ResourceType(t *testing.T) {
+	t.Parallel()
+
+	const (
+		plainURN     = "urn:pulumi:dev::proj::aws:ec2/instance:Instance::web"
+		componentURN = "urn:pulumi:dev::proj::pkg:index:Device$aws:ec2/instance:Instance::web"
+	)
+
+	tests := []struct {
+		name string
+		step ingest.PulumiStep
+		want string
+	}{
+		{
+			name: "newState type",
+			step: ingest.PulumiStep{NewState: &ingest.PulumiState{Type: "aws:ec2/instance:Instance"}},
+			want: "aws:ec2/instance:Instance",
+		},
+		{
+			name: "oldState type for a delete",
+			step: ingest.PulumiStep{Op: "delete", OldState: &ingest.PulumiState{Type: "aws:ec2/instance:Instance"}},
+			want: "aws:ec2/instance:Instance",
+		},
+		{
+			name: "top-level type when no state carries one",
+			step: ingest.PulumiStep{Type: "aws:ec2/instance:Instance"},
+			want: "aws:ec2/instance:Instance",
+		},
+		{
+			name: "newState wins over oldState and the top-level type",
+			step: ingest.PulumiStep{
+				Type:     "top-level",
+				OldState: &ingest.PulumiState{Type: "old-state"},
+				NewState: &ingest.PulumiState{Type: "new-state"},
+			},
+			want: "new-state",
+		},
+		{
+			name: "empty newState type falls through to oldState",
+			step: ingest.PulumiStep{
+				OldState: &ingest.PulumiState{Type: "old-state"},
+				NewState: &ingest.PulumiState{},
+			},
+			want: "old-state",
+		},
+		{
+			name: "URN fallback",
+			step: ingest.PulumiStep{URN: plainURN},
+			want: "aws:ec2/instance:Instance",
+		},
+		{
+			name: "URN fallback returns the leaf type of a component child",
+			step: ingest.PulumiStep{URN: componentURN},
+			want: "aws:ec2/instance:Instance",
+		},
+		{
+			name: "no type anywhere",
+			step: ingest.PulumiStep{},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, tt.step.ResourceType())
+		})
+	}
+}
