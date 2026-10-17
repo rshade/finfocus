@@ -7,8 +7,10 @@ import (
 	"time"
 )
 
-// acquirePathLock acquires the cross-process lock used by dismissal writes and
-// configuration patches. The returned function releases the lock.
+// acquirePathLock acquires an advisory lock file (<path>.lock) shared by
+// dismissal writes and configuration patches. Only callers of this helper are
+// serialized; writers such as Config.Save do not take it. The returned function
+// releases the lock.
 func acquirePathLock(targetPath string) (func(), error) {
 	lockPath := targetPath + ".lock"
 	if err := os.MkdirAll(filepath.Dir(lockPath), 0o750); err != nil {

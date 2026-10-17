@@ -38,6 +38,8 @@ func TestKnownSettingsMatchSchema(t *testing.T) {
 			}
 		case KindStringList:
 			assert.Equal(t, "array", node["type"], setting.Key)
+		case kindPluginNumber:
+			require.Failf(t, "write-time kind in the settings list", "%s", setting.Key)
 		default:
 			require.Failf(t, "unexpected kind", "%s for %s", setting.Kind, setting.Key)
 		}

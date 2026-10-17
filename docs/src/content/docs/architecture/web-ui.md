@@ -98,7 +98,8 @@ like credential names can lose entries. Issue
 [#1752](https://github.com/rshade/finfocus/issues/1752) tracks this.
 
 The Config page does not use that payload redactor. Its JSON is already masked:
-secret settings and notification destinations are omitted, and the handler
+the values of secret settings and notification destinations are omitted, while
+each setting and its set or source status stay in the response, and the handler
 writes that document directly. A redactor that drops credential-looking keys
 would delete settings the page is supposed to list.
 

@@ -91,7 +91,7 @@ func TierPath(globalPath, projectDir, tier string) (string, error) {
 		}
 		return ProjectConfigPath(projectDir), nil
 	default:
-		return "", fmt.Errorf("unknown configuration tier %q", tier)
+		return "", invalidChange("unknown configuration tier %q", tier)
 	}
 }
 
@@ -103,13 +103,16 @@ func PatchFile(path, tier, baseVersion string, changes []Change, dryRun bool) (P
 	if path == "" {
 		return PatchResult{}, ErrProjectUnavailable
 	}
-	target := hujsonPath(path)
+	target := writeDestination(hujsonPath(path), tier)
 	unlock, err := acquirePathLock(target)
 	if err != nil {
 		return PatchResult{}, err
 	}
 	defer unlock()
 
+	if tier == TierProject && isSymlink(PreferredConfigPath(target)) {
+		return PatchResult{}, invalidChange("project configuration is a symlink; edit the file directly")
+	}
 	current, version, err := readTier(target)
 	if err != nil {
 		return PatchResult{}, err
@@ -136,6 +139,18 @@ func PatchFile(path, tier, baseVersion string, changes []Change, dryRun bool) (P
 	}
 	result.Version = hashBytes(written)
 	return result, nil
+}
+
+// InvalidChangeError is a change the caller got wrong, such as an unknown key
+// or a write to a nested value. I/O failures are not InvalidChangeError.
+type InvalidChangeError struct {
+	Message string
+}
+
+func (e *InvalidChangeError) Error() string { return e.Message }
+
+func invalidChange(format string, args ...any) error {
+	return &InvalidChangeError{Message: fmt.Sprintf(format, args...)}
 }
 
 // TierValidationError is a rejected write. The target file is unchanged.
@@ -239,12 +254,12 @@ func isYAMLDocument(data []byte) bool {
 
 func applyChange(value *hujson.Value, change Change) (DiffEntry, bool, error) {
 	if isAlertsKey(change.Key) {
-		return DiffEntry{}, false, errors.New("cost.budgets.alerts must be configured via YAML")
+		return DiffEntry{}, false, invalidChange("cost.budgets.alerts must be configured via YAML")
 	}
 	key := CanonicalKey(change.Key)
 	setting, ok := LookupSetting(key)
 	if !ok {
-		return DiffEntry{}, false, fmt.Errorf("unknown configuration section: %s", sectionName(key))
+		return DiffEntry{}, false, invalidChange("unknown configuration section: %s", sectionName(key))
 	}
 	pointer, err := pointerFor(key)
 	if err != nil {
@@ -275,7 +290,29 @@ func applyKnownChange(
 	if change.Value == nil {
 		return DiffEntry{}, true, nil
 	}
+	setting, err := storedPluginSetting(setting, key, before)
+	if err != nil {
+		return DiffEntry{}, false, err
+	}
 	return writeSetting(value, setting, key, pointer, *change.Value, secret, beforeText)
+}
+
+// storedPluginSetting keeps a plugin value's stored type. A plugin may read
+// numbers and booleans, and a nested object or array holds data the page cannot
+// show, so neither is replaced by text.
+func storedPluginSetting(setting Setting, key string, before *hujson.Value) (Setting, error) {
+	if setting.Kind != KindPlugin || before == nil {
+		return setting, nil
+	}
+	switch kind := before.Value.Kind(); {
+	case kind == '{' || kind == '[':
+		return setting, invalidChange("%s holds a nested value; edit the file directly", key)
+	case kind == 't' || kind == 'f':
+		setting.Kind = KindBool
+	case kind == '-' || kind >= '0' && kind <= '9':
+		setting.Kind = kindPluginNumber
+	}
+	return setting, nil
 }
 
 func shouldClearSetting(setting Setting, change Change) bool {
@@ -308,12 +345,16 @@ func writeSetting(
 	beforeText string,
 ) (DiffEntry, bool, error) {
 	if secret && strings.TrimSpace(raw) == "" {
-		return DiffEntry{}, false, fmt.Errorf("%s must not be empty", key)
+		return DiffEntry{}, false, invalidChange("%s must not be empty", key)
 	}
 	encoded, err := encodeSetting(setting, raw)
 	if err != nil {
+		message := err.Error()
+		if secret {
+			message = lastSegment(key) + " has an invalid value"
+		}
 		return DiffEntry{}, false, &TierValidationError{Result: ValidationResult{
-			Errors: []ValidationError{{Path: key, Message: err.Error()}},
+			Errors: []ValidationError{{Path: key, Message: message}},
 		}}
 	}
 	literal, err := json.Marshal(encoded)
@@ -410,6 +451,25 @@ func ensureParents(value *hujson.Value, pointer string) error {
 		}
 	}
 	return nil
+}
+
+func isSymlink(path string) bool {
+	info, err := os.Lstat(path)
+	return err == nil && info.Mode()&os.ModeSymlink != 0
+}
+
+// writeDestination follows a symlinked global config, such as one kept in a
+// dotfiles repository, so a save updates the real file. A project file is never
+// followed: a repository could point it at any file the user can write, so
+// PatchFile refuses a project file that is a symlink.
+func writeDestination(target, tier string) string {
+	if tier != TierGlobal {
+		return target
+	}
+	if resolved, err := filepath.EvalSymlinks(target); err == nil {
+		return resolved
+	}
+	return target
 }
 
 func writeAtomic(path string, data []byte) ([]byte, error) {

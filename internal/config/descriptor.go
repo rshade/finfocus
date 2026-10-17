@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -22,6 +23,10 @@ const (
 	KindPlugin         SettingKind = "plugin"
 	KindClusterContext SettingKind = "cluster_context"
 )
+
+// kindPluginNumber is the write-time kind for a plugin value stored as a number.
+// It never appears in a page.
+const kindPluginNumber SettingKind = "plugin_number"
 
 // Setting describes one known configuration key.
 type Setting struct {
@@ -192,7 +197,7 @@ func splitPluginKey(key string) (string, string, bool) {
 func pointerFor(key string) (string, error) {
 	setting, ok := LookupSetting(key)
 	if !ok {
-		return "", fmt.Errorf("unknown configuration section: %s", strings.Split(key, ".")[0])
+		return "", invalidChange("unknown configuration section: %s", strings.Split(key, ".")[0])
 	}
 	var segments []string
 	switch {
@@ -224,6 +229,8 @@ func encodeSetting(setting Setting, raw string) (any, error) {
 		return encodeBoundedNumber(setting, raw)
 	case KindBool:
 		return encodeBool(setting, raw)
+	case kindPluginNumber:
+		return encodePluginNumber(setting, raw)
 	case KindStringList:
 		return encodeStringList(raw), nil
 	case KindString, KindPlugin, KindClusterContext:
@@ -258,6 +265,16 @@ func encodeBoundedNumber(setting Setting, raw string) (any, error) {
 	}
 	if setting.Min != nil && number < *setting.Min || setting.Max != nil && number > *setting.Max {
 		return nil, fmt.Errorf("invalid %s: %v", setting.Key, number)
+	}
+	return number, nil
+}
+
+// encodePluginNumber keeps the digits the user typed, so a large integer is not
+// rounded through float64. Only a valid JSON number is accepted.
+func encodePluginNumber(setting Setting, raw string) (any, error) {
+	number := json.Number(raw)
+	if _, err := json.Marshal(number); err != nil {
+		return nil, fmt.Errorf("%s must be a number", lastSegment(setting.Key))
 	}
 	return number, nil
 }
