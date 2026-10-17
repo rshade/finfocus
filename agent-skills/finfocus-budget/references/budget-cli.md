@@ -71,13 +71,14 @@ finfocus config get <key>
 finfocus config set <key> <value>
 ```
 
-`config set` stores one dotted key in `~/.finfocus/config.hujson`. For
-budgets it accepts `cost.budgets.amount`, `cost.budgets.currency`, and
-`cost.budgets.period`, and those write the global scope.
-`cost.budgets.global.amount` and other nested budget keys return
-`invalid cost.budgets key`. `cost.budgets.alerts` returns
+`config set` stores one dotted key in `~/.finfocus/config.hujson`.
+`config set` and `config get` accept `cost.budgets.global.amount`,
+`cost.budgets.global.currency`, and `cost.budgets.global.period`.
+`cost.budgets.amount`, `cost.budgets.currency`, and `cost.budgets.period`
+still address that same global scope.
+`cost.budgets.alerts` returns
 `cost.budgets.alerts must be configured via YAML`. Edit `config.hujson` for
-nested budgets.
+alerts and other nested budgets.
 
 ## CI
 

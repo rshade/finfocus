@@ -256,8 +256,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `cost` commands call `config.GetDefaultOutputFormat()` while their flags are
   built, so a project-tier `cost.budgets` (what the dashboard Config page
   writes by default) is never applied. A global-tier budget is. Known and not
-  yet fixed; `config get cost.budgets.global.amount` also rejects the key
-  `config set` accepts.
+  yet fixed. `config get` reads `cost.budgets.global.amount`, `currency`, and
+  `period`. Flat `cost.budgets.amount` still addresses that same global scope.
 
 ### Plugin Host (`internal/pluginhost/`)
 
