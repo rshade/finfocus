@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.5](https://github.com/rshade/finfocus/compare/jev-v0.1.4...jev-v0.1.5) (2026-10-17)
+
+
+### Features
+
+* **webui:** add a plugin catalog and settings page ([#1796](https://github.com/rshade/finfocus/issues/1796)) ([f53294c](https://github.com/rshade/finfocus/commit/f53294c4c03d37ad7f7f8c1ad68f38ac4529a8ec))
+
+
+### Bug Fixes
+
+* **deps:** update go dependencies ([#1778](https://github.com/rshade/finfocus/issues/1778)) ([38d57b0](https://github.com/rshade/finfocus/commit/38d57b0edb5e5925262f4b4ce65cf1a97463dd24))
+* repair main CI after dependency bumps ([#1794](https://github.com/rshade/finfocus/issues/1794)) ([0da2a71](https://github.com/rshade/finfocus/commit/0da2a7107cabe9e4c10f7b408ac356bcc26f8b23))
+
 ## [0.1.4](https://github.com/rshade/finfocus/compare/jev-v0.1.3...jev-v0.1.4) (2026-10-09)
 
 
