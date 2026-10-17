@@ -105,16 +105,20 @@ would delete settings the page is supposed to list.
 
 ## Boundaries
 
-- **Read-only toward infrastructure.** The dashboard cannot run `pulumi up` or
-  `pulumi destroy`, and it cannot dismiss recommendations. Its infrastructure
-  side effects are those the terminal UI already has: plugin queries,
+- **Read-only toward cloud infrastructure.** The dashboard cannot run
+  `pulumi up` or `pulumi destroy`, and it cannot dismiss recommendations. Its
+  cloud side effects are those the terminal UI already has: plugin queries,
   `pulumi preview`, and the optional cost cache and history.
-- **Configuration files are user settings.** The Config page can write the
-  resolved project or global `config.hujson`. That file is not cloud
-  infrastructure. The page does not install plugins or edit alert, routing, or
-  analyzer settings.
-- **No other new state.** It adds no store of its own and works with every
-  local store deleted.
+- **Configuration files are user settings.** The Config page and the Plugins
+  page can write the resolved project or global `config.hujson`. That file is
+  not cloud infrastructure. Alert, routing, and analyzer settings stay
+  read-only on the Config page.
+- **Plugin files are local user state.** The Plugins page can install, update,
+  and remove catalog plugins in the directory `plugin list` already reads.
+  Those files are not cloud infrastructure. Install, update, and remove are
+  not agent tools.
+- **No other new store.** Deleting the local stores does not stop `--web`
+  from launching.
 - **Not an MCP surface.** `--web` and `--mcp` are mutually exclusive, and the
   dashboard adds no MCP tools.
 - **Pulumi only.** The overview, recommendations, and estimate experiences

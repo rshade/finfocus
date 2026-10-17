@@ -318,6 +318,21 @@ func TestRecorderPlugin_GetPluginInfo(t *testing.T) {
 		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS)
 		assert.Contains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_RECOMMENDATIONS)
 		assert.NotContains(t, resp.GetCapabilities(), pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS)
+
+		byKey := make(map[string]*pbc.PluginSetting, len(resp.GetSettings()))
+		for _, setting := range resp.GetSettings() {
+			byKey[setting.GetKey()] = setting
+			assert.False(t, setting.GetSecret(), setting.GetKey())
+		}
+		outputDir := byKey["output_dir"]
+		require.NotNil(t, outputDir)
+		assert.Equal(t, "FINFOCUS_RECORDER_OUTPUT_DIR", outputDir.GetEnv())
+		assert.Equal(t, "./recorded_data", outputDir.GetDefaultValue())
+		mockResponse := byKey["mock_response"]
+		require.NotNil(t, mockResponse)
+		assert.Equal(t, "FINFOCUS_RECORDER_MOCK_RESPONSE", mockResponse.GetEnv())
+		assert.Equal(t, "false", mockResponse.GetDefaultValue())
+		assert.False(t, mockResponse.GetSecret())
 	})
 
 	t.Run("recording failure does not affect metadata", func(t *testing.T) {

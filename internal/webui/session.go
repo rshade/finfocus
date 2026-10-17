@@ -30,15 +30,28 @@ type ErrorEvent struct {
 // SessionOptions supplies the CLI domain pipelines to transport adapters.
 type SessionOptions struct {
 	EstimateResources func(context.Context) ([]engine.ResourceDescriptor, error)
-	ActualCosts       func(context.Context, string, map[string]string) (*engine.CostResultWithErrors, error)
-	Recommendations   func(context.Context, bool) (*engine.RecommendationsResult, error)
-	Trends            func() (map[string]string, string)
-	DayOfMonth        int
-	Preview           func(context.Context) ([]engine.OverviewRow, error)
-	SubmitPassphrase  func(context.Context, string) error
-	ConfigView        func(context.Context) (config.Page, error)
-	ConfigPreview     func(context.Context, config.WriteRequest) (config.PatchResult, error)
-	ConfigSave        func(context.Context, config.WriteRequest) (config.PatchResult, error)
+	// QueryEngine runs while the caller holds the engine. The returned function
+	// releases it. Reload waits until that function runs. When nil, Engine()
+	// is the overview engine and the release function is a no-op.
+	QueryEngine           func(context.Context) (*engine.Engine, func(), error)
+	ActualCosts           func(context.Context, string, map[string]string) (*engine.CostResultWithErrors, error)
+	Recommendations       func(context.Context, bool) (*engine.RecommendationsResult, error)
+	Trends                func() (map[string]string, string)
+	DayOfMonth            int
+	Preview               func(context.Context) ([]engine.OverviewRow, error)
+	SubmitPassphrase      func(context.Context, string) error
+	ConfigView            func(context.Context) (config.Page, error)
+	ConfigPreview         func(context.Context, config.WriteRequest) (config.PatchResult, error)
+	ConfigSave            func(context.Context, config.WriteRequest) (config.PatchResult, error)
+	PluginCatalog         func(context.Context) ([]PluginCatalogRow, error)
+	PluginPlan            func(context.Context, string, PluginPlanRequest) (PluginPlan, error)
+	PluginPrepare         func(context.Context, string, PluginOperationRequest) error
+	PluginInstall         func(context.Context, string, PluginOperationRequest, func(PluginProgress)) error
+	PluginRemove          func(context.Context, string, PluginOperationRequest, func(PluginProgress)) error
+	PluginValidate        func(context.Context, string) (PluginValidateResult, error)
+	PluginSettings        func(context.Context, string) (PluginSettingsView, error)
+	PluginSettingsPrepare func(context.Context, string, config.WriteRequest) (config.WriteRequest, error)
+	ReloadPlugins         func(context.Context) error
 }
 
 // Session shares engine data and pipeline events among browser tabs. It never
@@ -156,6 +169,20 @@ func (s *Session) Context() context.Context { return s.ctx }
 
 // Engine returns the shared engine, nil until preparation completes.
 func (s *Session) Engine() *engine.Engine { s.mu.Lock(); defer s.mu.Unlock(); return s.eng }
+
+// estimateEngine returns the engine that should price an estimate. A reload
+// publishes a replacement through QueryEngine. The overview engine stays on
+// Engine() for the pipeline that opened it.
+func (s *Session) estimateEngine(ctx context.Context) (*engine.Engine, func(), error) {
+	if s.opts.QueryEngine != nil {
+		return s.opts.QueryEngine(ctx)
+	}
+	eng := s.Engine()
+	if eng == nil {
+		return nil, func() {}, errors.New("overview data unavailable")
+	}
+	return eng, func() {}, nil
+}
 
 // DateRange returns the date interval resolved by the shared CLI pipeline.
 func (s *Session) DateRange() engine.DateRange { s.mu.Lock(); defer s.mu.Unlock(); return s.dateRange }

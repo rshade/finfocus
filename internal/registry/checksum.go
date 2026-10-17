@@ -21,6 +21,9 @@ var (
 
 	// ErrChecksumMismatch is returned when the computed hash does not match the expected hash.
 	ErrChecksumMismatch = errors.New("checksum mismatch")
+
+	// ErrChecksumUnavailable is returned when the release has no checksums.txt asset.
+	ErrChecksumUnavailable = errors.New("checksums.txt not found in release")
 )
 
 // sha256HexLen is the expected length of a SHA256 hash in lowercase hexadecimal.

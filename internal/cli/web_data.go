@@ -44,6 +44,8 @@ type webData struct {
 		config.ResolvedScoring, []*pluginhost.Client, cache.Cache, *auditContext,
 		*engine.RecommendationsResult) (bool, func(), error)
 	mergeDismissed func(context.Context, *engine.RecommendationsResult) error
+	reloadCleanup  func()
+	replaced       bool
 }
 
 func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRange, audit *auditContext) *webData {
@@ -93,6 +95,63 @@ func (d *webData) newEngine(
 	}
 	d.trends, d.totalTrend = costTableTrends(cmd)
 	return d.eng, func() { scorerCleanup(); cleanup() }
+}
+
+// reloadPlugins opens a new plugin set for cost queries. The first call leaves
+// the overview pipeline's original clients open; later calls close only the
+// set this method installed.
+func (d *webData) reloadPlugins(ctx context.Context) error {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	clients, pluginCleanup, err := openPlugins(ctx, d.params.adapter, d.audit)
+	if err != nil {
+		return err
+	}
+	// Reuse the cache and history the overview pipeline already holds. Opening
+	// a second Bolt file fails while that process keeps the lock, and the new
+	// engine would then answer cost queries with neither store.
+	cfg := d.params.cfg
+	eng := engine.New(clients, nil).
+		WithRouter(createRouterForEngine(ctx, cfg, clients)).
+		WithPricingSpecFallback(cfg.Cost.PricingSpecFallback)
+	if d.cache != nil {
+		eng = eng.WithCache(d.cache)
+	}
+	scorerCleanup := func() {}
+	nextClients := append([]*pluginhost.Client(nil), clients...)
+	if resolved := cfg.Scoring.Resolve(); resolved.Enabled {
+		scorer, _, release := d.resolveScorer(ctx, d.params.adapter, resolved, clients, d.audit)
+		scorerCleanup = release
+		if scorer != nil && !slices.Contains(nextClients, scorer) {
+			nextClients = append(nextClients, scorer)
+		}
+	}
+	d.eng = eng
+	d.clients = nextClients
+	next := func() {
+		scorerCleanup()
+		pluginCleanup()
+	}
+	if d.replaced && d.reloadCleanup != nil {
+		d.reloadCleanup()
+	}
+	d.reloadCleanup = next
+	d.replaced = true
+	return nil
+}
+
+// closeReloaded releases plugins opened by reloadPlugins. It does not take the
+// query gate; the server has already stopped.
+func (d *webData) closeReloaded() {
+	if !d.replaced || d.reloadCleanup == nil {
+		return
+	}
+	d.reloadCleanup()
+	d.reloadCleanup = nil
+	d.replaced = false
 }
 
 func (d *webData) lock(ctx context.Context) (func(), error) {
@@ -227,6 +286,20 @@ func (d *webData) recommendations(ctx context.Context, include bool) (*engine.Re
 }
 
 func (d *webData) tableTrends() (map[string]string, string) { return d.trends, d.totalTrend }
+
+// queryEngine returns the engine cost and estimate queries should use. After a
+// plugin reload this is the replacement, not the overview pipeline's original.
+func (d *webData) queryEngine(ctx context.Context) (*engine.Engine, func(), error) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	if d.eng == nil {
+		unlock()
+		return nil, nil, errors.New("overview data unavailable")
+	}
+	return d.eng, unlock, nil
+}
 
 // estimateResources loads real source descriptors independently of synthetic
 // overview cluster rows. Preview properties are overlaid by the session transport.

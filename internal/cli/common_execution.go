@@ -202,6 +202,7 @@ func openPlugins(ctx context.Context, adapter string, audit *auditContext) ([]*p
 		cleanup = func() {}
 	}
 	log.Debug().Ctx(ctx).Int("plugin_count", len(clients)).Msg("plugins opened")
+	pluginhost.ReplacePluginEnvDigests(clients)
 
 	return clients, cleanup, nil
 }

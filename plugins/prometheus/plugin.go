@@ -60,6 +60,22 @@ func New(cfg Config) *Plugin {
 func Info(version string) *pluginsdk.PluginInfo {
 	return pluginsdk.NewPluginInfo(PluginName, version,
 		pluginsdk.WithCapabilities(pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS),
+		// No default URL: the in-cluster Operator address depends on this process.
+		pluginsdk.WithSettings(
+			&pbc.PluginSetting{
+				Key:         "url",
+				Type:        pbc.PluginSettingType_PLUGIN_SETTING_TYPE_URL,
+				Description: "Prometheus base URL.",
+				Env:         EnvURL,
+			},
+			&pbc.PluginSetting{
+				Key:         "bearer_token",
+				Type:        pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING,
+				Secret:      true,
+				Description: "Bearer token for the Prometheus server.",
+				Env:         EnvBearerToken,
+			},
+		),
 	)
 }
 

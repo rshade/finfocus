@@ -74,6 +74,9 @@ type Server struct {
 	closed     bool
 	listener   net.Listener
 	httpServer *http.Server
+
+	opsOnce sync.Once
+	ops     *pluginOps
 }
 
 // New creates a Server with a fresh 128-bit crypto/rand session token.
@@ -164,6 +167,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	s.closed = true
 	listener := s.listener
 	s.listenerMu.Unlock()
+	s.dropPluginOps()
 	s.session.Close()
 	s.httpServer.SetKeepAlivesEnabled(false)
 	err := s.httpServer.Shutdown(ctx)
@@ -261,6 +265,7 @@ func (s *Server) handler() http.Handler {
 		s.registerEstimate(mux)
 		s.registerRecommendations(mux)
 		s.registerConfig(mux)
+		s.registerPlugins(mux)
 		mux.HandleFunc("/", s.handleRoot)
 		mux.Handle("/static/", http.StripPrefix("/static/", http.FileServerFS(staticFiles())))
 	}

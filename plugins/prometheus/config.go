@@ -7,13 +7,20 @@ import (
 )
 
 const (
+	// EnvURL is the Prometheus base URL. Inside a cluster, an unset value
+	// falls back to the Operator service. That fallback depends on this
+	// process, so it is not a setting default.
+	EnvURL = "FINFOCUS_PROMETHEUS_URL"
+	// EnvBearerToken is the bearer credential for EnvURL. It is never logged.
+	EnvBearerToken = "FINFOCUS_PROMETHEUS_BEARER_TOKEN" //nolint:gosec // The name of an environment variable, not a credential.
+
 	// inClusterPrometheusURL is the Prometheus Operator service. Any other chart
-	// sets FINFOCUS_PROMETHEUS_URL.
+	// sets EnvURL.
 	inClusterPrometheusURL = "http://prometheus-operated.monitoring.svc:9090"
 
 	// missingPrometheusURL is the error text when no address can be resolved.
 	// The bearer token is never part of this string.
-	missingPrometheusURL = "set FINFOCUS_PROMETHEUS_URL to the Prometheus base URL"
+	missingPrometheusURL = "set " + EnvURL + " to the Prometheus base URL"
 )
 
 // Config is the Prometheus address the plugin queries.
@@ -28,8 +35,8 @@ type Config struct {
 // the default. The bearer token is returned to the caller and is not
 // included in the error.
 func LoadConfig() (Config, error) {
-	token := os.Getenv("FINFOCUS_PROMETHEUS_BEARER_TOKEN")
-	if url := os.Getenv("FINFOCUS_PROMETHEUS_URL"); url != "" {
+	token := os.Getenv(EnvBearerToken)
+	if url := os.Getenv(EnvURL); url != "" {
 		return Config{URL: url, Token: token}, nil
 	}
 	if os.Getenv("KUBERNETES_SERVICE_HOST") != "" {

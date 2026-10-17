@@ -223,7 +223,7 @@ func runScoringStep(
 
 	done, err := scoreRecommendations(
 		ctx, cmd.OutOrStdout(), pbc.NewRecommendationScorerServiceClient(scorer.Conn),
-		cfg, store, scorerVersion(scorer), result, params.scoringDryRun,
+		cfg, store, scorerVersion(scorer), scorer.DeliveredDigest, result, params.scoringDryRun,
 	)
 	if err != nil || done {
 		return done, cleanup, err
@@ -249,11 +249,13 @@ func scoreRecommendations(
 	scorer scoring.Scorer,
 	cfg config.ResolvedScoring,
 	store cache.Cache,
-	version string,
+	version, settingsDigest string,
 	result *engine.RecommendationsResult,
 	dryRun bool,
 ) (bool, error) {
-	svc := scoring.New(scorer, scoring.OptionsFromConfig(cfg, store, version))
+	opts := scoring.OptionsFromConfig(cfg, store, version)
+	opts.SettingsDigest = settingsDigest
+	svc := scoring.New(scorer, opts)
 	outcome, err := svc.Score(ctx, result.Recommendations, dryRun)
 	if err != nil {
 		logging.FromContext(ctx).Warn().Ctx(ctx).Err(err).Str("component", "scoring").

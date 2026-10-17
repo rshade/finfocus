@@ -97,21 +97,28 @@ type GitHubClient struct {
 	token      string
 }
 
-// NewGitHubClient creates and returns a GitHubClient configured to access the GitHub API.
-// The client has an HTTP client with a 5-minute timeout (for large plugin downloads) and
-// BaseURL set to https://api.github.com. It initializes the authentication token by reading
 // NewGitHubClient creates and returns a GitHubClient configured for the GitHub API.
 // It sets BaseURL to "https://api.github.com", constructs an HTTP client using the
 // package downloadTimeout for request timeouts, and initializes the client's token
-// from the GITHUB_TOKEN environment variable or, if unset, by attempting to obtain
-// it from the `gh` CLI.
+// from the GITHUB_TOKEN environment variable. An empty token makes anonymous
+// requests, which are subject to stricter rate limits.
 func NewGitHubClient() *GitHubClient {
 	token := getGitHubToken()
 	return &GitHubClient{
 		HTTPClient: ax.NewHTTPClient(ax.WithHTTPTimeout(downloadTimeout)),
-		BaseURL:    "https://api.github.com",
+		BaseURL:    githubAPIBase(),
 		token:      token,
 	}
+}
+
+// githubAPIBase is https://api.github.com unless FINFOCUS_GITHUB_API names
+// another origin. The dashboard uses that only so tests can serve a stand-in
+// catalog. It is not a supported custom-registry setting.
+func githubAPIBase() string {
+	if base := strings.TrimRight(os.Getenv("FINFOCUS_GITHUB_API"), "/"); base != "" {
+		return base
+	}
+	return "https://api.github.com"
 }
 
 // getGitHubToken returns the value of the GITHUB_TOKEN environment variable.

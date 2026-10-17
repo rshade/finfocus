@@ -1,11 +1,30 @@
 package registry
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
 )
+
+// ErrPluginBusy is returned when a plugin lock is already held. The error
+// text stays the historical lock sentence.
+var ErrPluginBusy = errors.New("plugin is currently being modified")
+
+type pluginBusyError struct {
+	msg string
+}
+
+func (e *pluginBusyError) Error() string { return e.msg }
+
+func (e *pluginBusyError) Is(target error) bool { return target == ErrPluginBusy }
+
+func errPluginBusy(name, lockPath string) error {
+	return &pluginBusyError{msg: fmt.Sprintf(
+		"plugin %q is currently being modified by another process (lock file %s exists)",
+		name, lockPath)}
+}
 
 // pluginLockMutexes serializes lock acquisition within a single process,
 // keyed by lock file path. It complements the platform file lock by giving
@@ -31,9 +50,7 @@ func (i *Installer) acquireLock(name string) (func(), error) {
 
 	mu := mutexForLockPath(lockPath)
 	if !mu.TryLock() {
-		return nil, fmt.Errorf(
-			"plugin %q is currently being modified by another process (lock file %s exists)",
-			name, lockPath)
+		return nil, errPluginBusy(name, lockPath)
 	}
 
 	unlock, err := lockFile(lockPath, name)

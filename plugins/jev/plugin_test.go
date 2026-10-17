@@ -83,6 +83,57 @@ func TestInfo_DeclaresOnlyScoring(t *testing.T) {
 	require.NoError(t, info.Validate())
 }
 
+func TestInfo_AdvertisesSettings(t *testing.T) {
+	t.Parallel()
+
+	info := Info("v0.0.0-test")
+	require.NoError(t, info.Validate())
+
+	want := []struct {
+		key      string
+		env      string
+		typ      pbc.PluginSettingType
+		def      string
+		secret   bool
+		required bool
+	}{
+		{
+			key: "api_key", env: "TYPESAFE_API_KEY",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING, secret: true, required: true,
+		},
+		{
+			key: "base_url", env: "JEV_BASE_URL",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_URL, def: "https://api.typesafe.ai",
+		},
+		{
+			key: "model", env: "JEV_MODEL",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING, def: "jev-1.13.0",
+		},
+		{
+			key: "timeout", env: "JEV_TIMEOUT",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_DURATION, def: "60s",
+		},
+		{
+			key: "batch_size", env: "JEV_BATCH_SIZE",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_INT, def: "25",
+		},
+		{
+			key: "duplicate_threshold", env: "JEV_DUPLICATE_THRESHOLD",
+			typ: pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING, def: "0.5",
+		},
+	}
+	require.Len(t, info.Settings, len(want))
+	for i, setting := range want {
+		got := info.Settings[i]
+		assert.Equal(t, setting.key, got.GetKey())
+		assert.Equal(t, setting.env, got.GetEnv())
+		assert.Equal(t, setting.typ, got.GetType())
+		assert.Equal(t, setting.def, got.GetDefaultValue())
+		assert.Equal(t, setting.secret, got.GetSecret())
+		assert.Equal(t, setting.required, got.GetRequired())
+	}
+}
+
 func TestPlugin_ImplementsScorerProvider(t *testing.T) {
 	t.Parallel()
 

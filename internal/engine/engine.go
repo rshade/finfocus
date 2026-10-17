@@ -144,6 +144,7 @@ type Engine struct {
 	pricingDiscoveryCache map[string]PricingDiscovery
 	supportsCache         map[string]supportsResult // Supports() cache: client, provider, type, region, sku, feature[, attrs digest]
 	supportsMu            sync.RWMutex              // Guards supportsCache
+	envDigest             string                    // Settings digest of the clients this engine retained
 }
 
 // supportsResult is the cached answer of a plugin's Supports() RPC.
@@ -163,9 +164,10 @@ type pluginDecline struct {
 // New creates a new Engine with the given plugin clients and spec loader.
 func New(clients []*pluginhost.Client, loader SpecLoader) *Engine {
 	return &Engine{
-		clients: clients,
-		loader:  loader,
-		cache:   nil, // Cache is optional, set via WithCache
+		clients:   clients,
+		loader:    loader,
+		cache:     nil, // Cache is optional, set via WithCache
+		envDigest: pluginhost.CombinedDigest(clients),
 	}
 }
 
@@ -250,6 +252,9 @@ func (e *Engine) checkPluginSupports(
 	// or region would otherwise share one answer.
 	if suffix := attrsCacheSuffix(descriptor.GetAttributes()); suffix != "" {
 		keyParts = append(keyParts, "attrs-"+suffix)
+	}
+	if client.DeliveredDigest != "" {
+		keyParts = append(keyParts, "penv-"+client.DeliveredDigest)
 	}
 	cacheKey := strings.Join(keyParts, ":")
 
@@ -4140,6 +4145,7 @@ func (e *Engine) projectedCostCacheKey(resource ResourceDescriptor) (string, err
 	if err != nil {
 		return "", err
 	}
+	key += pluginEnvCacheSuffix(e.envDigest)
 	if e.pricingSpecFallback {
 		key += pricingSpecCacheSuffix
 	}
@@ -4266,6 +4272,17 @@ func generateActualCostCacheKey(request ActualCostRequest) string {
 	return cache.BuildActualKey(provider, resourceTypes, request.From, request.To, filters)
 }
 
+func pluginEnvCacheSuffix(digest string) string {
+	if digest == "" {
+		return ""
+	}
+	return "/penv-" + digest
+}
+
+func (e *Engine) actualCostCacheKey(request ActualCostRequest) string {
+	return generateActualCostCacheKey(request) + pluginEnvCacheSuffix(e.envDigest)
+}
+
 // actualDescriptorCacheSuffix digests what GetActualCostRequest.resource
 // carries for r: its flattened tags, which include ref.* references, and its
 // attributes. It is empty when no descriptor is sent (no provider or type) or
@@ -4358,7 +4375,7 @@ func (e *Engine) tryActualCostCache(ctx context.Context, request ActualCostReque
 		return nil
 	}
 
-	key := generateActualCostCacheKey(request)
+	key := e.actualCostCacheKey(request)
 
 	entry, err := e.cache.Get(key)
 	if err != nil {
@@ -4399,7 +4416,7 @@ func (e *Engine) storeActualCostCache(ctx context.Context, request ActualCostReq
 		return
 	}
 
-	key := generateActualCostCacheKey(request)
+	key := e.actualCostCacheKey(request)
 
 	data, marshalErr := json.Marshal(results)
 	if marshalErr != nil {

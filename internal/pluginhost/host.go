@@ -37,6 +37,9 @@ type Client struct {
 	Conn     *grpc.ClientConn
 	API      proto.CostSourceClient
 	Close    func() error
+	// DeliveredDigest hashes the settings this plugin process received.
+	// Empty means nothing was delivered, and cache keys stay unchanged.
+	DeliveredDigest string
 }
 
 // Launcher is an interface for different plugin launching strategies (TCP or stdio).
@@ -45,70 +48,155 @@ type Launcher interface {
 }
 
 // NewClient creates a new plugin client by launching the plugin and establishing a gRPC connection.
+// When the context carries an install name, settings from the config files and the
+// plugin's advertised descriptors are injected before the process starts. The process
+// is started once more when GetPluginInfo names variables the first launch did not have.
 func NewClient(ctx context.Context, launcher Launcher, binPath string) (*Client, error) {
-	conn, closeFn, err := launcher.Start(ctx, binPath)
+	installName, named := InstallNameFromContext(ctx)
+	var injected []string
+	var digest string
+	launchCtx := ctx
+	if named {
+		injected, digest = resolveInjected(ctx, installName, nil)
+		launchCtx = WithDeliveredEnv(ctx, injected)
+	}
+
+	started, err := connectPlugin(launchCtx, launcher, binPath)
 	if err != nil {
 		return nil, err
 	}
-
-	api := proto.NewCostSourceClient(conn)
-
-	// Get plugin name (legacy method, fast)
-	nameResp, err := api.Name(ctx, &proto.Empty{})
-	if err != nil {
-		if closeErr := closeFn(); closeErr != nil {
-			return nil, fmt.Errorf("getting plugin name: %w (close error: %w)", err, closeErr)
+	if named {
+		started, digest, err = applyAdvertisedSettings(ctx, launcher, binPath, installName, started, injected, digest)
+		if err != nil {
+			return nil, err
 		}
-		return nil, fmt.Errorf("getting plugin name: %w", err)
-	}
-
-	// Wrap closeFn with sync.Once to ensure idempotent Close per io.Closer convention
-	var closeOnce sync.Once
-	var onceCloseErr error
-	idempotentClose := func() error {
-		closeOnce.Do(func() {
-			onceCloseErr = closeFn()
-		})
-		return onceCloseErr
 	}
 
 	client := &Client{
-		Name:  nameResp.GetName(),
-		Conn:  conn,
-		API:   api,
-		Close: idempotentClose,
+		Name:            started.name,
+		Conn:            started.conn,
+		API:             started.api,
+		Close:           started.idempotentClose(),
+		DeliveredDigest: digest,
 	}
-
-	// Fetch plugin info with timeout
-	const infoTimeout = 5 * time.Second
-	infoCtx, cancel := context.WithTimeout(ctx, infoTimeout)
-	defer cancel()
-
-	infoResp, err := api.GetPluginInfo(infoCtx, &proto.Empty{})
-	if err != nil {
-		handleGetPluginInfoError(ctx, client.Name, err)
+	if started.info == nil {
 		return client, nil
 	}
 
-	// Store metadata
-	client.Metadata = &proto.PluginMetadata{
-		Name:               infoResp.GetName(),
-		Version:            infoResp.GetVersion(),
-		SpecVersion:        infoResp.GetSpecVersion(),
-		SupportedProviders: infoResp.GetProviders(),
-		Metadata:           infoResp.GetMetadata(),
-		Capabilities:       ConvertCapabilities(infoResp.GetCapabilities()),
-	}
-
-	// Check version compatibility (may return error in strict mode)
-	if compatErr := checkVersionCompatibility(ctx, client.Name, infoResp.GetSpecVersion()); compatErr != nil {
-		if closeErr := closeFn(); closeErr != nil {
+	client.Metadata = pluginMetadata(started.info)
+	if compatErr := checkVersionCompatibility(ctx, client.Name, started.info.GetSpecVersion()); compatErr != nil {
+		if closeErr := client.Close(); closeErr != nil {
 			return nil, fmt.Errorf("%w (close error: %w)", compatErr, closeErr)
 		}
 		return nil, compatErr
 	}
-
 	return client, nil
+}
+
+// applyAdvertisedSettings restarts the process once when GetPluginInfo names
+// variables the first launch did not receive. A second difference is kept.
+func applyAdvertisedSettings(
+	ctx context.Context,
+	launcher Launcher,
+	binPath, installName string,
+	started pluginConnection,
+	injected []string,
+	digest string,
+) (pluginConnection, string, error) {
+	if started.info == nil {
+		return started, digest, nil
+	}
+	next, digest := resolveInjected(ctx, installName, started.info.GetSettings())
+	if sameStringSet(injected, next) {
+		return started, digest, nil
+	}
+	if closeErr := started.closeFn(); closeErr != nil {
+		logging.FromContext(ctx).Warn().
+			Str("component", "pluginhost").
+			Str("operation", "restart_plugin").
+			Str("plugin", installName).
+			Err(closeErr).
+			Msg("closing plugin before applying advertised settings")
+	}
+	logging.FromContext(ctx).Debug().
+		Str("component", "pluginhost").
+		Str("operation", "restart_plugin").
+		Str("plugin", installName).
+		Int("count", len(next)).
+		Msg("restarting plugin to apply advertised settings")
+	restarted, err := connectPlugin(WithDeliveredEnv(ctx, next), launcher, binPath)
+	if err != nil {
+		return pluginConnection{}, "", err
+	}
+	if restarted.info != nil {
+		_, digest = resolveInjected(ctx, installName, restarted.info.GetSettings())
+	}
+	return restarted, digest, nil
+}
+
+type pluginConnection struct {
+	conn    *grpc.ClientConn
+	closeFn func() error
+	api     proto.CostSourceClient
+	name    string
+	info    *pbc.GetPluginInfoResponse
+}
+
+func (c pluginConnection) idempotentClose() func() error {
+	var closeOnce sync.Once
+	var onceCloseErr error
+	return func() error {
+		closeOnce.Do(func() {
+			onceCloseErr = c.closeFn()
+		})
+		return onceCloseErr
+	}
+}
+
+func connectPlugin(
+	ctx context.Context,
+	launcher Launcher,
+	binPath string,
+) (pluginConnection, error) {
+	conn, closeFn, err := launcher.Start(ctx, binPath)
+	if err != nil {
+		return pluginConnection{}, err
+	}
+	api := proto.NewCostSourceClient(conn)
+	nameResp, err := api.Name(ctx, &proto.Empty{})
+	if err != nil {
+		if closeErr := closeFn(); closeErr != nil {
+			return pluginConnection{}, fmt.Errorf("getting plugin name: %w (close error: %w)", err, closeErr)
+		}
+		return pluginConnection{}, fmt.Errorf("getting plugin name: %w", err)
+	}
+	started := pluginConnection{
+		conn:    conn,
+		closeFn: closeFn,
+		api:     api,
+		name:    nameResp.GetName(),
+	}
+	const infoTimeout = 5 * time.Second
+	infoCtx, cancel := context.WithTimeout(ctx, infoTimeout)
+	defer cancel()
+	infoResp, err := api.GetPluginInfo(infoCtx, &proto.Empty{})
+	if err != nil {
+		handleGetPluginInfoError(ctx, started.name, err)
+		return started, nil
+	}
+	started.info = infoResp
+	return started, nil
+}
+
+func pluginMetadata(info *pbc.GetPluginInfoResponse) *proto.PluginMetadata {
+	return &proto.PluginMetadata{
+		Name:               info.GetName(),
+		Version:            info.GetVersion(),
+		SpecVersion:        info.GetSpecVersion(),
+		SupportedProviders: info.GetProviders(),
+		Metadata:           info.GetMetadata(),
+		Capabilities:       ConvertCapabilities(info.GetCapabilities()),
+	}
 }
 
 func handleGetPluginInfoError(ctx context.Context, pluginName string, err error) {

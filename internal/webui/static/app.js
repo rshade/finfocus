@@ -13,6 +13,7 @@ const ROUTES = {
   cost: () => import('./views/cost.js'),
   recommendations: () => import('./views/recommendations.js'),
   estimate: () => import('./views/estimate.js'),
+  plugins: () => import('./views/plugins.js'),
   config: () => import('./views/config.js'),
 };
 const DEFAULT_ROUTE = 'overview';
@@ -105,6 +106,7 @@ async function request(path, { method = 'GET', body, signal } = {}) {
 export const api = {
   get: (path, opts) => request(path, { ...opts, method: 'GET' }),
   post: (path, body, opts) => request(path, { ...opts, method: 'POST', body: body ?? {} }),
+  del: (path, body, opts) => request(path, { ...opts, method: 'DELETE', body: body ?? {} }),
 };
 
 // OverviewStream multiplexes named SSE events from /api/overview/stream.

@@ -108,6 +108,29 @@ func TestInfo_UsageStatsOnly(t *testing.T) {
 	assert.Equal(t, pbc.PluginCapability_PLUGIN_CAPABILITY_USAGE_STATS, info.Capabilities[0])
 }
 
+func TestInfo_AdvertisesSettings(t *testing.T) {
+	t.Parallel()
+
+	info := Info("v0.0.0-test")
+	require.NoError(t, info.Validate())
+	require.Len(t, info.Settings, 2)
+
+	address := info.Settings[0]
+	assert.Equal(t, "url", address.GetKey())
+	assert.Equal(t, "FINFOCUS_PROMETHEUS_URL", address.GetEnv())
+	assert.Equal(t, pbc.PluginSettingType_PLUGIN_SETTING_TYPE_URL, address.GetType())
+	assert.Empty(t, address.GetDefaultValue())
+	assert.False(t, address.GetRequired())
+	assert.False(t, address.GetSecret())
+
+	token := info.Settings[1]
+	assert.Equal(t, "bearer_token", token.GetKey())
+	assert.Equal(t, "FINFOCUS_PROMETHEUS_BEARER_TOKEN", token.GetEnv())
+	assert.Equal(t, pbc.PluginSettingType_PLUGIN_SETTING_TYPE_STRING, token.GetType())
+	assert.Empty(t, token.GetDefaultValue())
+	assert.True(t, token.GetSecret())
+}
+
 func TestSupports_DeclinesPricing(t *testing.T) {
 	t.Parallel()
 

@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -63,6 +64,9 @@ type Options struct {
 	// ScorerName and PluginVersion key the score cache.
 	ScorerName    string
 	PluginVersion string
+	// SettingsDigest is the scorer client's delivered-settings digest.
+	// Empty keeps the historical key so an unchanged plugin still hits.
+	SettingsDigest string
 	// Review sets the "needs review" thresholds.
 	Review ReviewPolicy
 }
@@ -247,7 +251,7 @@ func (r *run) loadModel() {
 	if !r.cacheEnabled() {
 		return
 	}
-	entry, err := r.svc.opts.Cache.Get(cache.BuildScoreModelKey(r.svc.opts.ScorerName, r.svc.opts.PluginVersion))
+	entry, err := r.svc.opts.Cache.Get(r.modelKey())
 	if err != nil || entry == nil {
 		return
 	}
@@ -265,12 +269,24 @@ func (r *run) storeModel() {
 	if err != nil {
 		return
 	}
+	_ = r.svc.opts.Cache.Set(r.modelKey(), data)
+}
+
+func (r *run) modelKey() string {
 	key := cache.BuildScoreModelKey(r.svc.opts.ScorerName, r.svc.opts.PluginVersion)
-	_ = r.svc.opts.Cache.Set(key, data)
+	return key + scoreDigestSuffix(r.svc.opts.SettingsDigest)
 }
 
 func (r *run) scoreKey(hash string) string {
-	return cache.BuildScoreKey(r.svc.opts.ScorerName, r.svc.opts.PluginVersion, r.model.Model, hash)
+	key := cache.BuildScoreKey(r.svc.opts.ScorerName, r.svc.opts.PluginVersion, r.model.Model, hash)
+	return key + scoreDigestSuffix(r.svc.opts.SettingsDigest)
+}
+
+func scoreDigestSuffix(digest string) string {
+	if digest == "" {
+		return ""
+	}
+	return "/penv-" + strings.ReplaceAll(digest, "/", "_")
 }
 
 func (r *run) serveFromCache(items []item) []item {

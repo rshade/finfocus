@@ -221,7 +221,8 @@ func TestFetchRelease_LatestWithoutAssetsUsesEarlierRelease(t *testing.T) {
 	progress, messages := collectProgress()
 
 	release, err := installer.fetchRelease(
-		context.Background(), "rshade", "finfocus-plugin-aws-public", "", nil, progress,
+		context.Background(), "rshade", "finfocus-plugin-aws-public", "", nil,
+		InstallOptions{}, "aws-public", newProgressReport(progress, nil),
 	)
 	require.NoError(t, err)
 	assert.Equal(t, "v0.1.1", release.TagName)

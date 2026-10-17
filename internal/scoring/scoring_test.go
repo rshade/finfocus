@@ -577,13 +577,18 @@ func TestScore_CacheKeyedOnScorerVersionAndContent(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, scorer.calls(), "a new plugin version must not reuse cached scores")
 
+	_, err = newService(t, scorer, Options{Cache: store, PluginVersion: "2.0.0", SettingsDigest: "model-b"}).
+		Score(context.Background(), recs(2), false)
+	require.NoError(t, err)
+	assert.Equal(t, 3, scorer.calls(), "a settings change must not reuse cached scores")
+
 	changed := recs(2)
 	changed[0].Description = "a different recommendation"
 	_, err = newService(t, scorer, Options{Cache: store, PluginVersion: "2.0.0"}).
 		Score(context.Background(), changed, false)
 	require.NoError(t, err)
-	assert.Equal(t, 3, scorer.calls(), "changed content is rescored")
-	assert.Len(t, scorer.requests[2].GetRecommendations(), 1, "only the changed recommendation is sent")
+	assert.Equal(t, 4, scorer.calls(), "changed content is rescored")
+	assert.Len(t, scorer.requests[3].GetRecommendations(), 1, "only the changed recommendation is sent")
 }
 
 func TestScore_CacheStoresOnlyScoreValues(t *testing.T) {
