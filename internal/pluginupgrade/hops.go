@@ -120,6 +120,15 @@ var hops = []Hop{
 		},
 		Guide: "to-v0.7.5.md",
 	},
+	{
+		To:      "v0.7.6",
+		Summary: "Additive release; plugins can advertise their settings in GetPluginInfo",
+		Manual: []string{
+			"Optional: declare the environment variables your plugin reads with pluginsdk.WithSettings so the host " +
+				"can list and inject them; a malformed settings list is rejected, so run your conformance tests",
+		},
+		Guide: "to-v0.7.6.md",
+	},
 }
 
 // Hops returns a copy of the hop table, oldest first, with guide URLs set.
