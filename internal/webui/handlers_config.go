@@ -110,9 +110,14 @@ func (s *Server) writeConfigError(w http.ResponseWriter, err error) {
 	case errors.Is(err, config.ErrProjectUnavailable):
 		s.writeError(w, http.StatusBadRequest, "project_unavailable", err.Error())
 	default:
+		if rejected, isRejected := errors.AsType[*config.InvalidChangeError](err); isRejected {
+			s.writeError(w, http.StatusBadRequest, "invalid_request", rejected.Error())
+			return
+		}
 		invalid, ok := errors.AsType[*config.TierValidationError](err)
 		if !ok {
-			s.writeError(w, http.StatusBadRequest, "invalid_request", err.Error())
+			s.logger.Warn().Err(err).Msg("configuration write failed")
+			s.writeError(w, http.StatusInternalServerError, "internal", "configuration write failed")
 			return
 		}
 		s.writePlainJSON(w, http.StatusBadRequest, configValidationBody{

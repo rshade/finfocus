@@ -179,3 +179,58 @@ func TestConfigAPIRequiresBaseVersion(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, string(original), string(onDisk))
 }
+
+func TestConfigAPIClassifiesWriteErrors(t *testing.T) {
+	t.Parallel()
+	const leakedPath = "/home/someone/.finfocus/config.hujson"
+	tests := []struct {
+		name    string
+		err     error
+		status  int
+		code    string
+		visible string
+		hidden  string
+	}{
+		{
+			name:    "invalid change",
+			err:     &config.InvalidChangeError{Message: "unknown configuration section: nope"},
+			status:  http.StatusBadRequest,
+			code:    "invalid_request",
+			visible: "unknown configuration section: nope",
+		},
+		{
+			name:   "file system failure",
+			err:    &os.PathError{Op: "open", Path: leakedPath, Err: os.ErrPermission},
+			status: http.StatusInternalServerError,
+			code:   "internal",
+			hidden: leakedPath,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			session := NewSession(context.Background(), SessionOptions{
+				ConfigPreview: func(context.Context, config.WriteRequest) (config.PatchResult, error) {
+					return config.PatchResult{}, tt.err
+				},
+				ConfigSave: func(context.Context, config.WriteRequest) (config.PatchResult, error) {
+					return config.PatchResult{}, tt.err
+				},
+			})
+			server := newRunningServer(t, Options{Session: session})
+			body := `{"tier": "global", "baseVersion": "absent", "changes": []}`
+			for _, path := range []string{"/api/config/preview", "/api/config"} {
+				response := overviewRequest(t, server, http.MethodPost, path, body)
+				text := readBody(t, response)
+				assert.Equal(t, tt.status, response.StatusCode, path)
+				assert.Contains(t, text, `"code":"`+tt.code+`"`, path)
+				if tt.visible != "" {
+					assert.Contains(t, text, tt.visible, path)
+				}
+				if tt.hidden != "" {
+					assert.NotContains(t, text, tt.hidden, path)
+				}
+			}
+		})
+	}
+}

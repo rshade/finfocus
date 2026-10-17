@@ -91,7 +91,7 @@ func TierPath(globalPath, projectDir, tier string) (string, error) {
 		}
 		return ProjectConfigPath(projectDir), nil
 	default:
-		return "", fmt.Errorf("unknown configuration tier %q", tier)
+		return "", invalidChange("unknown configuration tier %q", tier)
 	}
 }
 
@@ -136,6 +136,18 @@ func PatchFile(path, tier, baseVersion string, changes []Change, dryRun bool) (P
 	}
 	result.Version = hashBytes(written)
 	return result, nil
+}
+
+// InvalidChangeError is a change the caller got wrong, such as an unknown key
+// or a write to a nested value. I/O failures are not InvalidChangeError.
+type InvalidChangeError struct {
+	Message string
+}
+
+func (e *InvalidChangeError) Error() string { return e.Message }
+
+func invalidChange(format string, args ...any) error {
+	return &InvalidChangeError{Message: fmt.Sprintf(format, args...)}
 }
 
 // TierValidationError is a rejected write. The target file is unchanged.
@@ -239,12 +251,12 @@ func isYAMLDocument(data []byte) bool {
 
 func applyChange(value *hujson.Value, change Change) (DiffEntry, bool, error) {
 	if isAlertsKey(change.Key) {
-		return DiffEntry{}, false, errors.New("cost.budgets.alerts must be configured via YAML")
+		return DiffEntry{}, false, invalidChange("cost.budgets.alerts must be configured via YAML")
 	}
 	key := CanonicalKey(change.Key)
 	setting, ok := LookupSetting(key)
 	if !ok {
-		return DiffEntry{}, false, fmt.Errorf("unknown configuration section: %s", sectionName(key))
+		return DiffEntry{}, false, invalidChange("unknown configuration section: %s", sectionName(key))
 	}
 	pointer, err := pointerFor(key)
 	if err != nil {
@@ -275,7 +287,29 @@ func applyKnownChange(
 	if change.Value == nil {
 		return DiffEntry{}, true, nil
 	}
+	setting, err := storedPluginSetting(setting, key, before)
+	if err != nil {
+		return DiffEntry{}, false, err
+	}
 	return writeSetting(value, setting, key, pointer, *change.Value, secret, beforeText)
+}
+
+// storedPluginSetting keeps a plugin value's stored type. A plugin may read
+// numbers and booleans, and a nested object or array holds data the page cannot
+// show, so neither is replaced by text.
+func storedPluginSetting(setting Setting, key string, before *hujson.Value) (Setting, error) {
+	if setting.Kind != KindPlugin || before == nil {
+		return setting, nil
+	}
+	switch kind := before.Value.Kind(); {
+	case kind == '{' || kind == '[':
+		return setting, invalidChange("%s holds a nested value; edit the file directly", key)
+	case kind == 't' || kind == 'f':
+		setting.Kind = KindBool
+	case kind == '-' || kind >= '0' && kind <= '9':
+		setting.Kind = KindNumber
+	}
+	return setting, nil
 }
 
 func shouldClearSetting(setting Setting, change Change) bool {
@@ -308,7 +342,7 @@ func writeSetting(
 	beforeText string,
 ) (DiffEntry, bool, error) {
 	if secret && strings.TrimSpace(raw) == "" {
-		return DiffEntry{}, false, fmt.Errorf("%s must not be empty", key)
+		return DiffEntry{}, false, invalidChange("%s must not be empty", key)
 	}
 	encoded, err := encodeSetting(setting, raw)
 	if err != nil {
@@ -413,6 +447,9 @@ func ensureParents(value *hujson.Value, pointer string) error {
 }
 
 func writeAtomic(path string, data []byte) ([]byte, error) {
+	if resolved, err := filepath.EvalSymlinks(path); err == nil {
+		path = resolved
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
 		return nil, fmt.Errorf("creating config directory: %w", err)
 	}

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"sync"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/tailscale/hujson"
 )
 
 func TestPatchKeepsCommentsAndUnknownKeys(t *testing.T) {
@@ -263,9 +265,7 @@ func TestPatchPreviewRedactsNestedCredentialsInBefore(t *testing.T) {
 		keep   string
 	}{
 		{"remove object", "plugins.aws.auth", Change{Key: "plugins.aws.auth", Clear: true}, "default"},
-		{"replace object", "plugins.aws.auth", Change{Key: "plugins.aws.auth", Value: strPtr("x")}, "default"},
 		{"remove array", "plugins.aws.endpoints", Change{Key: "plugins.aws.endpoints", Clear: true}, endpoint},
-		{"replace array", "plugins.aws.endpoints", Change{Key: "plugins.aws.endpoints", Value: strPtr("x")}, endpoint},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -283,4 +283,93 @@ func TestPatchPreviewRedactsNestedCredentialsInBefore(t *testing.T) {
 			assert.Contains(t, result.Diff[0].Before, tt.keep)
 		})
 	}
+}
+
+func readStandardJSON(t *testing.T, path string) map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	standard, err := hujson.Standardize(data)
+	require.NoError(t, err)
+	var decoded map[string]any
+	require.NoError(t, json.Unmarshal(standard, &decoded))
+	return decoded
+}
+
+func TestPatchKeepsStoredPluginScalarTypes(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "config.hujson")
+	require.NoError(t, os.WriteFile(path, []byte(
+		`{"plugins":{"aws":{"max_retries":3,"enabled":true,"region":"us-east-1"}}}`), 0o600))
+	version, err := FileVersion(path)
+	require.NoError(t, err)
+
+	_, err = PatchFile(path, TierGlobal, version, []Change{
+		{Key: "plugins.aws.max_retries", Value: strPtr("5")},
+		{Key: "plugins.aws.enabled", Value: strPtr("false")},
+		{Key: "plugins.aws.region", Value: strPtr("eu-west-1")},
+	}, false)
+	require.NoError(t, err)
+
+	aws := readStandardJSON(t, path)["plugins"].(map[string]any)["aws"].(map[string]any)
+	assert.InDelta(t, 5, aws["max_retries"], 0)
+	assert.Equal(t, false, aws["enabled"])
+	assert.Equal(t, "eu-west-1", aws["region"])
+
+	version, err = FileVersion(path)
+	require.NoError(t, err)
+	_, err = PatchFile(path, TierGlobal, version, []Change{
+		{Key: "plugins.aws.max_retries", Value: strPtr("many")},
+	}, false)
+	var invalid *TierValidationError
+	require.ErrorAs(t, err, &invalid)
+	assert.Equal(t, "plugins.aws.max_retries", invalid.Result.Errors[0].Path)
+}
+
+func TestPatchRejectsReplacingNestedPluginValues(t *testing.T) {
+	t.Parallel()
+	const stored = `{"plugins":{"aws":{` +
+		`"auth":{"profile":"default","token":"stored-secret"},` +
+		`"endpoints":["https://example.test"]}}}`
+	for _, key := range []string{"plugins.aws.auth", "plugins.aws.endpoints"} {
+		t.Run(key, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(t.TempDir(), "config.hujson")
+			require.NoError(t, os.WriteFile(path, []byte(stored), 0o600))
+			version, err := FileVersion(path)
+			require.NoError(t, err)
+
+			_, err = PatchFile(path, TierGlobal, version, []Change{{Key: key, Value: strPtr("x")}}, false)
+			var invalid *InvalidChangeError
+			require.ErrorAs(t, err, &invalid)
+			assert.Contains(t, invalid.Error(), key)
+			onDisk, readErr := os.ReadFile(path)
+			require.NoError(t, readErr)
+			assert.JSONEq(t, stored, string(onDisk))
+		})
+	}
+}
+
+func TestPatchWritesThroughSymlinkedConfig(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	target := filepath.Join(dir, "dotfiles", "config.hujson")
+	link := filepath.Join(dir, "home", "config.hujson")
+	require.NoError(t, os.MkdirAll(filepath.Dir(target), 0o700))
+	require.NoError(t, os.MkdirAll(filepath.Dir(link), 0o700))
+	require.NoError(t, os.WriteFile(target, []byte(`{"output":{"precision":2}}`), 0o600))
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	version, err := FileVersion(link)
+	require.NoError(t, err)
+
+	_, err = PatchFile(link, TierGlobal, version, []Change{{Key: "output.precision", Value: strPtr("4")}}, false)
+	require.NoError(t, err)
+
+	info, err := os.Lstat(link)
+	require.NoError(t, err)
+	assert.NotZero(t, info.Mode()&os.ModeSymlink, "the link must survive the save")
+	output := readStandardJSON(t, target)["output"].(map[string]any)
+	assert.InDelta(t, 4, output["precision"], 0)
 }

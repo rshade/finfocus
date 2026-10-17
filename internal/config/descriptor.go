@@ -192,7 +192,7 @@ func splitPluginKey(key string) (string, string, bool) {
 func pointerFor(key string) (string, error) {
 	setting, ok := LookupSetting(key)
 	if !ok {
-		return "", fmt.Errorf("unknown configuration section: %s", strings.Split(key, ".")[0])
+		return "", invalidChange("unknown configuration section: %s", strings.Split(key, ".")[0])
 	}
 	var segments []string
 	switch {
