@@ -475,7 +475,6 @@ func TestExportAndPreview_MockedPulumi(t *testing.T) {
 	assert.Empty(t, withPass)
 }
 
-//nolint:paralleltest // changes the working directory
 func TestExportStateFromProject_NoProject(t *testing.T) {
 	t.Chdir(t.TempDir())
 	installFakePulumi(t)

@@ -693,6 +693,7 @@ export function mount(container, ctx) {
     });
     cancel.addEventListener('click', () => dialog.close());
     dialog.addEventListener('close', () => {
+      if (dialog.open) return;
       promptVersion += 1;
       input.value = '';
       busy = false;

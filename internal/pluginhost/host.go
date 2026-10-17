@@ -181,8 +181,8 @@ func ConvertCapabilities(caps []pbc.PluginCapability) []string {
 	}
 
 	result := make([]string, 0, len(caps))
-	for _, cap := range caps {
-		switch cap {
+	for _, capability := range caps {
+		switch capability {
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_PROJECTED_COSTS:
 			result = append(result, "projected_costs")
 		case pbc.PluginCapability_PLUGIN_CAPABILITY_ACTUAL_COSTS:

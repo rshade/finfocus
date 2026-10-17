@@ -157,6 +157,23 @@ test('canceling a passphrase prompt erases its value', async () => {
   t.mounted.unmount();
 });
 
+test('a late close event does not clear the retry prompt after it reopened', async () => {
+  const t = await setup();
+  t.stream.emit('passphrase_required', { stack: 'encrypted' });
+  const dialog = t.container.querySelector('.passphrase-dialog');
+  const input = t.container.querySelector('#passphrase-input');
+  input.value = 'wrong';
+  t.container.querySelector('.passphrase-form').dispatch('submit');
+  const unlock = t.calls.at(-1);
+  unlock.resolve(null); await flush();
+  t.stream.emit('passphrase_required', { stack: 'encrypted' });
+  input.value = 'correct';
+  assert.equal(dialog.open, true);
+  dialog.dispatch('close');
+  assert.equal(input.value, 'correct');
+  t.mounted.unmount();
+});
+
 test('server-formatted totals render verbatim without browser currency formatting', async () => {
   const t = await setup();
   t.calls[0].resolve(page([row('alpha')], { totals: { totalActual: 12.345, totalActualDisplay: '$12.35', totalProjectedDisplay: '$25.00', totalDeltaDisplay: '+$12.65', totalSavingsDisplay: '$2.00', currency: 'USD' } }));

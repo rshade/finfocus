@@ -146,3 +146,4 @@ review.
 | [to-v0.7.3.md](references/to-v0.7.3.md) | Additive; `ResourceDescriptor.attributes`; 2048-byte tag values |
 | [to-v0.7.4.md](references/to-v0.7.4.md) | Additive; `GetActualCostRequest.resource` |
 | [to-v0.7.5.md](references/to-v0.7.5.md) | Additive; handler statuses pass through; `include_dismissed` |
+| [to-v0.7.6.md](references/to-v0.7.6.md) | Additive; `GetPluginInfoResponse.settings`; `pluginsdk.WithSettings` |

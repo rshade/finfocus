@@ -19,7 +19,7 @@ import (
 func TestModuleRequirements(t *testing.T) {
 	t.Parallel()
 
-	assert.Equal(t, "v0.7.5", pluginsdk.SpecVersion)
+	assert.Equal(t, "v0.7.6", pluginsdk.SpecVersion)
 
 	cfg := api.Config{Address: "http://prometheus.example"}
 	assert.NotEmpty(t, cfg.Address)
