@@ -16,6 +16,17 @@ import (
 
 func settingText(value string) *string { return &value }
 
+func TestFilterPluginChanges_GenericEnvSatisfiesRequired(t *testing.T) {
+	t.Parallel()
+	descriptors := []webui.PluginSettingDescriptor{{Key: "license", Type: "string", Required: true}}
+	request := config.WriteRequest{Tier: config.TierGlobal}
+	_, err := filterPluginChanges("jev", descriptors, nil, nil, []string{"FINFOCUS_PLUGIN_JEV_LICENSE=set"}, request)
+	require.NoError(t, err)
+
+	_, err = filterPluginChanges("jev", descriptors, nil, nil, nil, request)
+	require.ErrorContains(t, err, "required")
+}
+
 func TestFilterPluginChanges(t *testing.T) {
 	t.Parallel()
 	descriptors := []webui.PluginSettingDescriptor{

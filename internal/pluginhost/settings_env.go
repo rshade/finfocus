@@ -17,9 +17,11 @@ import (
 
 // SettingDesc is one advertised plugin setting, or a config key with no descriptor.
 type SettingDesc struct {
-	Key        string
-	Env        string
-	Default    string
+	Key     string
+	Env     string
+	Default string
+	// HasDefault is false when Default is empty. A proto3 string cannot tell
+	// an explicit empty default from a default that was not set.
 	HasDefault bool
 	Secret     bool
 	Required   bool

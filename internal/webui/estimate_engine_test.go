@@ -15,11 +15,15 @@ func TestEstimateEngineUsesQueryEngine(t *testing.T) {
 	fallback := engine.New(nil, nil)
 	current := engine.New(nil, nil)
 	session := NewSession(context.Background(), SessionOptions{
-		QueryEngine: func(context.Context) (*engine.Engine, error) { return current, nil },
+		QueryEngine: func(context.Context) (*engine.Engine, func(), error) {
+			return current, func() {}, nil
+		},
 	})
 	session.SetData(fallback, nil, engine.DateRange{}, "dev")
 
-	got, err := session.estimateEngine(context.Background())
+	got, release, err := session.estimateEngine(context.Background())
 	require.NoError(t, err)
+	require.NotNil(t, release)
+	release()
 	require.Same(t, current, got)
 }

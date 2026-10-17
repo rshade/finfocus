@@ -289,16 +289,16 @@ func (d *webData) tableTrends() (map[string]string, string) { return d.trends, d
 
 // queryEngine returns the engine cost and estimate queries should use. After a
 // plugin reload this is the replacement, not the overview pipeline's original.
-func (d *webData) queryEngine(ctx context.Context) (*engine.Engine, error) {
+func (d *webData) queryEngine(ctx context.Context) (*engine.Engine, func(), error) {
 	unlock, err := d.lock(ctx)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	defer unlock()
 	if d.eng == nil {
-		return nil, errors.New("overview data unavailable")
+		unlock()
+		return nil, nil, errors.New("overview data unavailable")
 	}
-	return d.eng, nil
+	return d.eng, unlock, nil
 }
 
 // estimateResources loads real source descriptors independently of synthetic

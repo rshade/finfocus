@@ -43,3 +43,13 @@ func TestPluginConfigValues_KeepsLargeIntegers(t *testing.T) {
 	assert.Equal(t, "9007199254740993", values["batch"])
 	assert.Equal(t, "1.5", values["rate"])
 }
+
+func TestPluginConfigValues_FormatsLargeYAMLFloat(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	require.NoError(t, os.WriteFile(path, []byte("plugins:\n  recorder:\n    batch: 1.0e20\n"), 0o600))
+
+	values, err := PluginConfigValues(path, "recorder")
+	require.NoError(t, err)
+	assert.Equal(t, "100000000000000000000", values["batch"])
+}

@@ -133,7 +133,10 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 		s.writeEstimateError(w, err)
 		return
 	}
-	eng, err := s.session.estimateEngine(ctx)
+	eng, release, err := s.session.estimateEngine(ctx)
+	if release != nil {
+		defer release()
+	}
 	if err != nil || eng == nil {
 		done()
 		s.writeEstimateError(w, errors.New("estimate result unavailable"))

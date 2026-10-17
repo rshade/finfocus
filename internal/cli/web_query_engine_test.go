@@ -15,13 +15,15 @@ func TestQueryEngineReturnsTheReloadedEngine(t *testing.T) {
 	data := newWebData(nil, overviewParams{}, engine.DateRange{}, nil)
 	first := engine.New(nil, nil)
 	data.eng = first
-	got, err := data.queryEngine(context.Background())
+	got, release, err := data.queryEngine(context.Background())
 	require.NoError(t, err)
 	require.Same(t, first, got)
+	release()
 
 	second := engine.New(nil, nil)
 	data.eng = second
-	got, err = data.queryEngine(context.Background())
+	got, release, err = data.queryEngine(context.Background())
 	require.NoError(t, err)
 	require.Same(t, second, got)
+	release()
 }

@@ -30,9 +30,10 @@ type ErrorEvent struct {
 // SessionOptions supplies the CLI domain pipelines to transport adapters.
 type SessionOptions struct {
 	EstimateResources func(context.Context) ([]engine.ResourceDescriptor, error)
-	// QueryEngine is the engine that should price estimates. When set, it
-	// follows plugin reloads. When nil, Engine() is the overview engine.
-	QueryEngine           func(context.Context) (*engine.Engine, error)
+	// QueryEngine runs while the caller holds the engine. The returned function
+	// releases it. Reload waits until that function runs. When nil, Engine()
+	// is the overview engine and the release function is a no-op.
+	QueryEngine           func(context.Context) (*engine.Engine, func(), error)
 	ActualCosts           func(context.Context, string, map[string]string) (*engine.CostResultWithErrors, error)
 	Recommendations       func(context.Context, bool) (*engine.RecommendationsResult, error)
 	Trends                func() (map[string]string, string)
@@ -172,15 +173,15 @@ func (s *Session) Engine() *engine.Engine { s.mu.Lock(); defer s.mu.Unlock(); re
 // estimateEngine returns the engine that should price an estimate. A reload
 // publishes a replacement through QueryEngine. The overview engine stays on
 // Engine() for the pipeline that opened it.
-func (s *Session) estimateEngine(ctx context.Context) (*engine.Engine, error) {
+func (s *Session) estimateEngine(ctx context.Context) (*engine.Engine, func(), error) {
 	if s.opts.QueryEngine != nil {
 		return s.opts.QueryEngine(ctx)
 	}
 	eng := s.Engine()
 	if eng == nil {
-		return nil, errors.New("overview data unavailable")
+		return nil, func() {}, errors.New("overview data unavailable")
 	}
-	return eng, nil
+	return eng, func() {}, nil
 }
 
 // DateRange returns the date interval resolved by the shared CLI pipeline.

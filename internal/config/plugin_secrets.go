@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 )
 
@@ -47,15 +48,13 @@ func PersistPluginSecretKeys() error {
 	if len(names) == 0 {
 		return nil
 	}
-	dir := ResolveConfigDir()
-	if err := os.MkdirAll(dir, 0o750); err != nil {
-		return err
-	}
+	slices.Sort(names)
 	data, err := json.Marshal(names)
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(dir, pluginSecretFileName), data, 0o600)
+	_, err = writeAtomic(filepath.Join(ResolveConfigDir(), pluginSecretFileName), data)
+	return err
 }
 
 func pluginSecretNoted(key string) bool {

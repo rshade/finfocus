@@ -428,12 +428,14 @@ export function mount(container, { api }) {
     return { key, value: current };
   }
 
+  const controls = new Map();
+
   function collectChanges() {
     const changes = [];
     for (const field of fields()) {
-      const input = container.querySelector(`#plugin-setting-${field.key}`);
-      if (!input) continue;
-      const change = changeFor(field, input, container.querySelector(`#plugin-clear-${field.key}`));
+      const held = controls.get(field.key);
+      if (!held?.input) continue;
+      const change = changeFor(field, held.input, held.clear);
       if (change) changes.push(change);
     }
     return changes;
@@ -450,6 +452,8 @@ export function mount(container, { api }) {
 
   function fieldRow(field) {
     const input = controlFor(field);
+    const clear = clearControl(field);
+    controls.set(field.key, { input, clear: clear?.querySelector('input') ?? null });
     const helpID = `plugin-help-${field.key}`;
     input.setAttribute('aria-describedby', helpID);
     return el('tr', {},
@@ -458,11 +462,12 @@ export function mount(container, { api }) {
         el('p', { id: helpID, class: 'config-help', text: fieldHelp(field) }),
       ),
       el('td', { text: statusText(field, settingsTier) }),
-      el('td', { class: 'config-edit' }, input, clearControl(field)),
+      el('td', { class: 'config-edit' }, input, clear),
     );
   }
 
   function renderSettings() {
+    controls.clear();
     if (!settingsView) {
       settings.replaceChildren();
       setHidden(settings, true);

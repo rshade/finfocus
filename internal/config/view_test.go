@@ -166,8 +166,8 @@ func findSetting(t *testing.T, page Page, key string) SettingView {
 	return found
 }
 
-//nolint:paralleltest // noted plugin secrets are process-wide
 func TestBuildPageMasksNotedPluginSecret(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
 	ResetPluginSecretsForTest()
 	t.Cleanup(ResetPluginSecretsForTest)
 	NotePluginSecretKeys([]string{"plugins.recorder.license"})

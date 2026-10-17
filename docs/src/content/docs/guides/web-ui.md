@@ -166,7 +166,7 @@ Choose **Install**, **Update**, or **Remove**. The confirmation names the
 plugin, the version, the source repository, and the security level. Nothing
 is downloaded until you confirm. Progress then shows each phase, including
 bytes received when the download reports a size. A second operation on the
-same plugin waits until the first one finishes.
+same plugin is refused until the first one finishes. Try it again afterward.
 
 A plugin installed from outside the catalog can be validated, configured, and
 removed. Install and update stay on the catalog entries. The page does not

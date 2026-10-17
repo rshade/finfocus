@@ -100,9 +100,6 @@ func configScalar(value any) (string, bool) {
 		if math.IsNaN(typed) || math.IsInf(typed, 0) {
 			return "", false
 		}
-		if typed == math.Trunc(typed) {
-			return strconv.FormatInt(int64(typed), 10), true
-		}
 		return strconv.FormatFloat(typed, 'f', -1, 64), true
 	default:
 		return "", false

@@ -365,7 +365,7 @@ func filterPluginChanges(
 		filtered = append(filtered, change)
 		applied[key] = change
 	}
-	if err := requirePluginSettings(byKey, project, global, environ, request.Tier, applied); err != nil {
+	if err := requirePluginSettings(name, byKey, project, global, environ, request.Tier, applied); err != nil {
 		return config.WriteRequest{}, err
 	}
 	request.Changes = filtered
@@ -373,6 +373,7 @@ func filterPluginChanges(
 }
 
 func requirePluginSettings(
+	name string,
 	byKey map[string]webui.PluginSettingDescriptor,
 	project, global map[string]string,
 	environ []string,
@@ -383,7 +384,11 @@ func requirePluginSettings(
 		if !descriptor.Required {
 			continue
 		}
-		envSet := environSet(environ, descriptor.Env)
+		envName := descriptor.Env
+		if envName == "" {
+			envName = pluginhost.GenericPluginEnv(name, key)
+		}
+		envSet := environSet(environ, envName)
 		if envSet {
 			continue
 		}
