@@ -416,7 +416,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   resolution. Unpriced `pulumi:` types are left out.
 - Cost history (`internal/history`, `cost history *`): files are
   `<project>@<stack>.history.db`, separate from the resource-observation
-  `history.db`. `collect` fails a checkpoint rather than store an inaccurate
+  `history.db`. Both use one directory: `FINFOCUS_HISTORY_DIR`, then
+  `cost.history.directory`, then `<ResolveConfigDir()>/history`.
+  `collect` fails a checkpoint rather than store an inaccurate
   total (#549). `internal/history` must not import `engine` or `ingest`.
   History subcommands reuse the parent `--stack`. `cost history export` takes
   `csv`/`ndjson` through the root `--format` by rewriting it in `Args` before

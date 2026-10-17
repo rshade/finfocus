@@ -85,7 +85,7 @@ func historyDir(dir string) string {
 	if dir != "" {
 		return dir
 	}
-	return filepath.Join(config.ResolveConfigDir(), "history")
+	return historyDirectory("", config.GetGlobalConfig())
 }
 
 // historyTarget is the database a --stack value resolves to, plus the project

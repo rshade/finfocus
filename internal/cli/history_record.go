@@ -133,7 +133,7 @@ func detectHistoryStackContext(ctx context.Context) (history.StackContext, bool)
 // Resolution precedence for each setting:
 //   - enabled: env var FINFOCUS_HISTORY_ENABLED > config > default (true)
 //   - retention_days: env var FINFOCUS_HISTORY_RETENTION_DAYS > config > default (90)
-//   - directory: env var FINFOCUS_HISTORY_DIR > config > ~/.finfocus/history
+//   - directory: FINFOCUS_HISTORY_DIR > cost.history.directory > <ResolveConfigDir()>/history
 //
 // Returns nil when history is disabled or initialization fails (logged at WARN).
 // The caller should defer the returned cleanup function.
@@ -174,9 +174,9 @@ func initHistoryFromConfig(ctx context.Context, cfg *config.Config) (history.Sto
 		return nil, noopCleanup
 	}
 
-	historyDir := resolveHistoryDir(ctx, cfg)
+	historyDirectory := resolveHistoryDir(ctx, cfg)
 
-	store, err := history.NewBoltStore(ctx, historyDir, true, retentionDays)
+	store, err := history.NewBoltStore(ctx, historyDirectory, true, retentionDays)
 	if err != nil {
 		if errors.Is(err, history.ErrHistoryLocked) {
 			log.Warn().Ctx(ctx).
@@ -194,7 +194,7 @@ func initHistoryFromConfig(ctx context.Context, cfg *config.Config) (history.Sto
 		Str("component", "history").
 		Bool("enabled", true).
 		Int("retention_days", retentionDays).
-		Str("history_dir", historyDir).
+		Str("history_dir", historyDirectory).
 		Msg("history store initialized")
 
 	cleanup := func() {
@@ -209,26 +209,41 @@ func initHistoryFromConfig(ctx context.Context, cfg *config.Config) (history.Sto
 }
 
 // resolveHistoryDir determines the history directory using the resolution chain:
-// env var (FINFOCUS_HISTORY_DIR) → config setting → ~/.finfocus/history.
+// FINFOCUS_HISTORY_DIR, then cost.history.directory, then <ResolveConfigDir()>/history.
 func resolveHistoryDir(ctx context.Context, cfg *config.Config) string {
-	log := logging.FromContext(ctx)
+	dir := historyDirectory("", cfg)
+	if historyUsesHomeFallback(cfg) {
+		_, homeErr := os.UserHomeDir()
+		logging.FromContext(ctx).Warn().Ctx(ctx).Err(homeErr).
+			Str("component", "history").
+			Str("fallback_path", dir).
+			Msg("failed to determine home directory, using absolute fallback history path")
+	}
+	return dir
+}
+
+// historyDirectory is the shared history-directory resolver.
+// An explicit directory wins, then FINFOCUS_HISTORY_DIR, then
+// cost.history.directory, then <ResolveConfigDir()>/history.
+func historyDirectory(explicit string, cfg *config.Config) string {
+	if explicit != "" {
+		return explicit
+	}
 	if dir := os.Getenv(config.HistoryEnvDir); dir != "" {
 		return dir
 	}
-	if cfg.Cost.History.Directory != "" {
+	if cfg != nil && cfg.Cost.History.Directory != "" {
 		return cfg.Cost.History.Directory
 	}
-	homeDir, homeErr := os.UserHomeDir()
-	if homeErr != nil {
-		abs, absErr := filepath.Abs(filepath.Join(".finfocus", "history"))
-		if absErr != nil {
-			abs = filepath.Join(os.TempDir(), "finfocus-history")
-		}
-		log.Warn().Ctx(ctx).Err(homeErr).
-			Str("component", "history").
-			Str("fallback_path", abs).
-			Msg("failed to determine home directory, using absolute fallback history path")
-		return abs
+	return filepath.Join(config.ResolveConfigDir(), "history")
+}
+
+func historyUsesHomeFallback(cfg *config.Config) bool {
+	if os.Getenv(config.HistoryEnvDir) != "" {
+		return false
 	}
-	return filepath.Join(homeDir, ".finfocus", "history")
+	if cfg != nil && cfg.Cost.History.Directory != "" {
+		return false
+	}
+	return config.UsesWorkingDirFallback()
 }

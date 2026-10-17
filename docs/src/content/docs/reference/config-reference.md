@@ -154,7 +154,13 @@ full-month cost reporting by remembering all cloud IDs a resource has ever had.
 | --- | --- | --- | --- | --- |
 | `cost.history.enabled` | bool | `true` | `FINFOCUS_HISTORY_ENABLED` | Master switch for resource history tracking. When disabled, all history operations are no-ops and commands fall back to current-state-only behavior. |
 | `cost.history.retention_days` | int | `90` | `FINFOCUS_HISTORY_RETENTION_DAYS` | Days before stale entries are removed. Entries with `LastSeen` older than this window are cleaned up on startup. |
-| `cost.history.directory` | string | `~/.finfocus/history` | `FINFOCUS_HISTORY_DIR` | Override the history database directory. When empty, auto-resolves to `~/.finfocus/history/`. |
+| `cost.history.directory` | string | `<FinFocus home>/history` | `FINFOCUS_HISTORY_DIR` | History database directory. |
+
+The history directory resolves in this order: `FINFOCUS_HISTORY_DIR`, then
+`cost.history.directory`, then `<FinFocus home>/history`. FinFocus home is
+`FINFOCUS_HOME`, then `$PULUMI_HOME/finfocus`, then `~/.finfocus` (or
+`./.finfocus` when no home directory can be found). When `FINFOCUS_HOME` and
+`PULUMI_HOME` are unset, the directory is `~/.finfocus/history`.
 
 #### Example: History Configuration
 
@@ -163,7 +169,7 @@ cost:
   history:
     enabled: true
     retention_days: 90
-    directory: ""  # uses default ~/.finfocus/history
+    directory: ""  # FINFOCUS_HISTORY_DIR, else <FinFocus home>/history
 ```
 
 ### Cost Allocation
