@@ -103,7 +103,7 @@ func PatchFile(path, tier, baseVersion string, changes []Change, dryRun bool) (P
 	if path == "" {
 		return PatchResult{}, ErrProjectUnavailable
 	}
-	target := hujsonPath(path)
+	target := writeDestination(hujsonPath(path), tier)
 	unlock, err := acquirePathLock(target)
 	if err != nil {
 		return PatchResult{}, err
@@ -133,7 +133,7 @@ func PatchFile(path, tier, baseVersion string, changes []Change, dryRun bool) (P
 	if dryRun || len(diff) == 0 {
 		return result, nil
 	}
-	written, err := writeAtomic(writeDestination(target, tier), next)
+	written, err := writeAtomic(target, next)
 	if err != nil {
 		return PatchResult{}, err
 	}
@@ -310,7 +310,7 @@ func storedPluginSetting(setting Setting, key string, before *hujson.Value) (Set
 	case kind == 't' || kind == 'f':
 		setting.Kind = KindBool
 	case kind == '-' || kind >= '0' && kind <= '9':
-		setting.Kind = KindNumber
+		setting.Kind = kindPluginNumber
 	}
 	return setting, nil
 }
@@ -349,8 +349,12 @@ func writeSetting(
 	}
 	encoded, err := encodeSetting(setting, raw)
 	if err != nil {
+		message := err.Error()
+		if secret {
+			message = lastSegment(key) + " has an invalid value"
+		}
 		return DiffEntry{}, false, &TierValidationError{Result: ValidationResult{
-			Errors: []ValidationError{{Path: key, Message: err.Error()}},
+			Errors: []ValidationError{{Path: key, Message: message}},
 		}}
 	}
 	literal, err := json.Marshal(encoded)

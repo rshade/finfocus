@@ -405,3 +405,93 @@ func TestPatchRefusesSymlinkedProjectConfig(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotZero(t, info.Mode()&os.ModeSymlink, "the link is left alone")
 }
+
+func TestPatchSecretScalarFailuresDoNotEchoTheValue(t *testing.T) {
+	t.Parallel()
+	const submitted = "replacement-secret"
+	for name, stored := range map[string]string{"number": "123456", "boolean": "true"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			path := filepath.Join(t.TempDir(), "config.hujson")
+			require.NoError(t, os.WriteFile(path, []byte(`{"plugins":{"aws":{"api_key":`+stored+`}}}`), 0o600))
+			version, err := FileVersion(path)
+			require.NoError(t, err)
+
+			result, err := PatchFile(path, TierGlobal, version, []Change{{
+				Key: "plugins.aws.api_key", Value: strPtr(submitted),
+			}}, true)
+			var invalid *TierValidationError
+			require.ErrorAs(t, err, &invalid)
+			assert.NotContains(t, err.Error(), submitted)
+			for _, validation := range append(invalid.Result.Errors, result.Validation.Errors...) {
+				assert.NotContains(t, validation.Message, submitted)
+			}
+		})
+	}
+}
+
+func TestPatchKeepsLargePluginIntegersExact(t *testing.T) {
+	t.Parallel()
+	path := filepath.Join(t.TempDir(), "config.hujson")
+	require.NoError(t, os.WriteFile(path, []byte(`{"plugins":{"aws":{"max_retries":3}}}`), 0o600))
+	version, err := FileVersion(path)
+	require.NoError(t, err)
+
+	_, err = PatchFile(path, TierGlobal, version, []Change{{
+		Key: "plugins.aws.max_retries", Value: strPtr("9007199254740993"),
+	}}, false)
+	require.NoError(t, err)
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Contains(t, string(data), "9007199254740993")
+
+	version, err = FileVersion(path)
+	require.NoError(t, err)
+	for _, bad := range []string{"NaN", "0x10", "1e", "+5", " 5"} {
+		_, err = PatchFile(path, TierGlobal, version, []Change{{
+			Key: "plugins.aws.max_retries", Value: strPtr(bad),
+		}}, true)
+		var invalid *TierValidationError
+		require.ErrorAs(t, err, &invalid, bad)
+	}
+}
+
+func TestPatchSerializesSavesThroughASymlinkAndItsTarget(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	target := filepath.Join(dir, "dotfiles", "config.hujson")
+	link := filepath.Join(dir, "home", "config.hujson")
+	require.NoError(t, os.MkdirAll(filepath.Dir(target), 0o700))
+	require.NoError(t, os.MkdirAll(filepath.Dir(link), 0o700))
+	require.NoError(t, os.WriteFile(target, []byte(`{"output":{"precision":2}}`), 0o600))
+	if err := os.Symlink(target, link); err != nil {
+		t.Skipf("symlinks unavailable: %v", err)
+	}
+	base, err := FileVersion(target)
+	require.NoError(t, err)
+
+	var stale error
+	var wrote int
+	var mu sync.Mutex
+	var group sync.WaitGroup
+	for _, entry := range []struct{ path, value string }{{link, "4"}, {target, "6"}} {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			_, patchErr := PatchFile(entry.path, TierGlobal, base, []Change{{
+				Key: "output.precision", Value: strPtr(entry.value),
+			}}, false)
+			mu.Lock()
+			defer mu.Unlock()
+			if patchErr == nil {
+				wrote++
+				return
+			}
+			stale = patchErr
+		}()
+	}
+	group.Wait()
+	assert.Equal(t, 1, wrote, "the second save must see the first and report a conflict")
+	require.ErrorIs(t, stale, ErrStaleConfig)
+}
