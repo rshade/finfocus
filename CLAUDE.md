@@ -96,7 +96,8 @@ malformed input files, bad dates) exit 2 through `toValidationError`
   `PULUMI_HOME/finfocus`, then `~/.finfocus/`. With none of those, it is
   `./.finfocus` (`config.UsesWorkingDirFallback`).
 - Project `config.hujson` overrides global at the top-level key (shallow
-  merge). Legacy `config.yaml` is migrated to Hujson on first read.
+  merge). The global loader migrates a legacy `config.yaml` to Hujson on first
+  read; a legacy project `config.yaml` is read as an overlay and left as it is.
 
 ## Key Patterns
 
@@ -270,8 +271,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `config.PatchFile`. Do not call `Config.Save` for that write: it rewrites the
   struct from `New()`, folds environment variables into the file, and drops
   comments. `baseVersion` is the SHA-256 hex of the file bytes, or `absent`
-  when the file is missing. Legacy `config.yaml` is converted inside the patch,
-  after that hash check, not before it.
+  when the file is missing. A legacy project `config.yaml` is hashed as raw
+  YAML and converted inside the patch, after that hash check, not before it.
+  Only the global loader rewrites a legacy file to `config.hujson`. `config set`
+  runs after that migration and passes an empty `baseVersion`. A request the
+  caller got wrong is a `config.InvalidChangeError` (400); any other write
+  error is logged and returned as a generic 500, because it can carry paths.
 
 ### Registry (`internal/registry/`)
 
