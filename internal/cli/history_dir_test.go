@@ -18,7 +18,7 @@ import (
 func TestHistoryDir_FinFocusHomeLeavesUserHomeUntouched(t *testing.T) {
 	home := t.TempDir()
 	finfocusHome := t.TempDir()
-	setHistoryResolutionEnv(t, home, finfocusHome, "", "")
+	setHistoryResolutionEnv(t, home, finfocusHome, "")
 	cfg := installHistoryConfig(t, "")
 
 	store, cleanup := initHistoryFromConfig(context.Background(), cfg, "")
@@ -75,7 +75,7 @@ func TestHistoryDir_ResolutionOrder(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			setHistoryResolutionEnv(t, home, tt.finfocusHome, "", tt.historyEnv)
+			setHistoryResolutionEnv(t, home, tt.finfocusHome, tt.historyEnv)
 			cfg := installHistoryConfig(t, tt.configDir)
 
 			want := tt.want
@@ -86,12 +86,12 @@ func TestHistoryDir_ResolutionOrder(t *testing.T) {
 	}
 }
 
-func setHistoryResolutionEnv(t *testing.T, home, finfocusHome, pulumiHome, historyEnv string) {
+func setHistoryResolutionEnv(t *testing.T, home, finfocusHome, historyEnv string) {
 	t.Helper()
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("FINFOCUS_HOME", finfocusHome)
-	t.Setenv("PULUMI_HOME", pulumiHome)
+	t.Setenv("PULUMI_HOME", "")
 	t.Setenv(config.HistoryEnvDir, historyEnv)
 }
 
@@ -133,7 +133,7 @@ func TestHistoryDir_ProjectTierTrust(t *testing.T) {
 			if tt.symlink && runtime.GOOS == goosWindows {
 				t.Skip("creating symlinks needs elevated privileges on Windows")
 			}
-			setHistoryResolutionEnv(t, home, finfocusHome, "", tt.historyEnv)
+			setHistoryResolutionEnv(t, home, finfocusHome, tt.historyEnv)
 			root := t.TempDir()
 			projectCfgDir := filepath.Join(root, ".finfocus")
 			require.NoError(t, os.MkdirAll(projectCfgDir, 0o750))
@@ -183,4 +183,53 @@ func TestHistoryDir_WorkingDirFallbackIsAbsolute(t *testing.T) {
 	got := resolveHistoryDir(context.Background(), cfg, "")
 	assert.True(t, filepath.IsAbs(got), got)
 	assert.Equal(t, "history", filepath.Base(got))
+}
+
+func TestHistoryDir_ProjectTierSymlinkedDatabase(t *testing.T) {
+	tests := []struct {
+		name     string
+		fileName string
+		symlink  bool
+	}{
+		{name: "history.db symlink rejected", fileName: "history.db", symlink: true},
+		{name: "project history file symlink rejected", fileName: "proj@dev.history.db", symlink: true},
+		{name: "regular history.db accepted", fileName: "history.db"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if tt.symlink && runtime.GOOS == goosWindows {
+				t.Skip("creating symlinks needs elevated privileges on Windows")
+			}
+			finfocusHome := t.TempDir()
+			setHistoryResolutionEnv(t, t.TempDir(), finfocusHome, "")
+			root := t.TempDir()
+			projectCfgDir := filepath.Join(root, ".finfocus")
+			require.NoError(t, os.MkdirAll(projectCfgDir, 0o750))
+			require.NoError(t, os.MkdirAll(filepath.Join(root, "hist"), 0o750))
+			body := `{"cost": {"history": {"directory": "hist"}}}`
+			require.NoError(t, os.WriteFile(filepath.Join(projectCfgDir, "config.hujson"), []byte(body), 0o600))
+
+			inProject := filepath.Join(root, "hist", tt.fileName)
+			outside := filepath.Join(t.TempDir(), "outside.db")
+			if tt.symlink {
+				require.NoError(t, os.Symlink(outside, inProject))
+			} else {
+				require.NoError(t, os.WriteFile(inProject, nil, 0o600))
+			}
+			t.Chdir(root)
+			config.SetResolvedProjectDir("")
+			t.Cleanup(func() { config.SetResolvedProjectDir("") })
+
+			cfg := config.NewWithProjectDir(context.Background(), projectCfgDir)
+			got := resolveHistoryDir(context.Background(), cfg, projectCfgDir)
+			if !tt.symlink {
+				assert.Equal(t, "hist", filepath.FromSlash(got))
+				return
+			}
+			assert.Equal(t, filepath.Join(finfocusHome, "history"), got)
+			_, err := os.Stat(outside)
+			assert.ErrorIs(t, err, os.ErrNotExist, "the link target must stay untouched")
+		})
+	}
 }

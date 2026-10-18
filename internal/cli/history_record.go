@@ -180,6 +180,9 @@ func initHistoryFromConfig(ctx context.Context, cfg *config.Config, projectDir s
 	}
 
 	historyDirectory := resolveHistoryDir(ctx, cfg, projectDir)
+	if projectHistoryDirectoryRecheckFails(ctx, cfg, projectDir, historyDirectory) {
+		historyDirectory = filepath.Join(config.ResolveConfigDir(), "history")
+	}
 
 	store, err := history.NewBoltStore(ctx, historyDirectory, true, retentionDays)
 	if err != nil {
@@ -260,13 +263,60 @@ func historyDirectory(ctx context.Context, cfg *config.Config, projectDir string
 // overlay that sets the key always supplies the merged value.
 func projectHistoryDirectoryRejected(ctx context.Context, projectDir string) bool {
 	dir := config.ProjectHistoryDirectory(projectDir)
-	if dir == "" || projectHistoryDirectorySafe(projectDir, dir) {
+	if dir == "" || (projectHistoryDirectorySafe(projectDir, dir) && historyDatabaseFilesSafe(dir)) {
 		return false
 	}
 	logging.FromContext(ctx).Warn().Ctx(ctx).
 		Str("component", "history").
 		Str("key", "cost.history.directory").
-		Msg("ignoring history directory from project config that is absolute or leaves the project")
+		Msg("ignoring history directory from project config that leaves the project or holds a non-regular database file")
+	return true
+}
+
+// projectHistoryDirectoryRecheckFails creates the project-tier directory and
+// re-runs the containment check on it, so a symlink planted in a parent that did
+// not exist during validation is caught before Bolt opens a file there. It is a
+// narrowing, not a lock: the directory can still be swapped between this check
+// and the open.
+func projectHistoryDirectoryRecheckFails(ctx context.Context, cfg *config.Config, projectDir, resolved string) bool {
+	if os.Getenv(config.HistoryEnvDir) != "" || cfg == nil || cfg.Cost.History.Directory == "" {
+		return false
+	}
+	dir := config.ProjectHistoryDirectory(projectDir)
+	if dir == "" || resolved != dir {
+		return false
+	}
+	if err := os.MkdirAll(dir, 0o750); err == nil &&
+		projectHistoryDirectorySafe(projectDir, dir) && historyDatabaseFilesSafe(dir) {
+		return false
+	}
+	logging.FromContext(ctx).Warn().Ctx(ctx).
+		Str("component", "history").
+		Str("key", "cost.history.directory").
+		Msg("ignoring history directory from project config that leaves the project after creation")
+	return true
+}
+
+// historyDatabaseFilesSafe reports whether every database file the history code
+// opens in dir (history.db and the *.history.db cost files) is absent or a
+// regular file. A symlink there would make Bolt open or create its target
+// outside the project. Lstat does not follow the link; the check is made
+// before the open, so a swap in between is not covered.
+func historyDatabaseFilesSafe(dir string) bool {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return errors.Is(err, os.ErrNotExist)
+	}
+	for _, entry := range entries {
+		name := entry.Name()
+		if name != "history.db" && !strings.HasSuffix(name, ".history.db") {
+			continue
+		}
+		info, lerr := os.Lstat(filepath.Join(dir, name))
+		if lerr != nil || !info.Mode().IsRegular() {
+			return false
+		}
+	}
 	return true
 }
 
