@@ -76,7 +76,17 @@ type Session struct {
 	preview            PreviewEvent
 	previewRunning     bool
 	workers            sync.WaitGroup
+	// stateOnly is set by the overview pipeline when no preview ran. previewLoaded
+	// is set only after an on-demand preview applies. detectError is the change
+	// detection failure that left the run state-only.
+	stateOnly     bool
+	previewLoaded bool
+	detectError   string
 }
+
+// errPreviewNotAllowed is returned when a preview is requested for a run that
+// is not state-only, or after a preview has already been applied.
+var errPreviewNotAllowed = errors.New("preview is only available for a state-only run")
 
 // PhaseEvent describes one loading checklist entry.
 type PhaseEvent struct {
@@ -116,6 +126,10 @@ type OverviewSnapshot struct {
 	Stack              string                     `json:"stack"`
 	Preview            PreviewEvent               `json:"preview"`
 	Errors             []ErrorEvent               `json:"errors"`
+	StateOnly          bool                       `json:"stateOnly"`
+	PreviewLoaded      bool                       `json:"previewLoaded"`
+	DetectError        string                     `json:"detectError,omitempty"`
+	Footnote           string                     `json:"footnote,omitempty"`
 }
 
 // OverviewTotalsPayload adds canonical display strings to engine totals.
@@ -377,7 +391,40 @@ func (s *Session) snapshotLocked() OverviewSnapshot {
 		Stack:              s.stack,
 		Preview:            s.preview,
 		Errors:             failures,
+		StateOnly:          s.stateOnly,
+		PreviewLoaded:      s.previewLoaded,
+		DetectError:        s.detectError,
+		Footnote:           s.stateOnlyFootnoteLocked(),
 	}
+}
+
+// SetStateOnly records that this run has no preview yet. detectErr is the
+// change-detection failure, empty when state-only was chosen on purpose.
+func (s *Session) SetStateOnly(detectErr string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.previewLoaded {
+		return
+	}
+	s.stateOnly = true
+	s.detectError = detectErr
+	s.publishLocked("run_status", s.runStatusLocked())
+}
+
+func (s *Session) runStatusLocked() map[string]any {
+	return map[string]any{
+		"stateOnly":     s.stateOnly,
+		"previewLoaded": s.previewLoaded,
+		"detectError":   s.detectError,
+		"footnote":      s.stateOnlyFootnoteLocked(),
+	}
+}
+
+func (s *Session) stateOnlyFootnoteLocked() string {
+	if !s.stateOnly || s.previewLoaded {
+		return ""
+	}
+	return fmt.Sprintf("* projected at current state (%dh/mo)", engine.HoursPerMonth)
 }
 func (s *Session) startPreview() error {
 	s.mu.Lock()
@@ -387,6 +434,9 @@ func (s *Session) startPreview() error {
 	}
 	if s.opts.Preview == nil {
 		return errors.New("preview unavailable")
+	}
+	if !s.stateOnly || s.previewLoaded {
+		return errPreviewNotAllowed
 	}
 	if s.previewRunning {
 		return nil
@@ -436,9 +486,13 @@ func (s *Session) runPreview() {
 	} else {
 		s.rows = cloneData(rows)
 		s.ready = true
+		s.stateOnly = false
+		s.previewLoaded = true
+		s.detectError = ""
 		s.completePhaseLocked(previewPhase)
 		s.preview.Rows = s.resultLocked().Rows
 		s.publishLocked("ready", map[string]any{"totals": totalsPayload(s.resultLocked().Summary)})
+		s.publishLocked("run_status", s.runStatusLocked())
 	}
 	s.publishLocked("preview", s.preview)
 	s.mu.Unlock()

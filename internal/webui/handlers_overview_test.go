@@ -154,6 +154,7 @@ func TestPreviewSingleFlightAndCancellation(t *testing.T) {
 			}
 		}},
 	)
+	session.SetStateOnly("")
 	s := newRunningServer(t, Options{Session: session})
 	assert.Equal(t, 202, overviewRequest(t, s, "POST", "/api/overview/preview", `{}`).StatusCode)
 	<-started
@@ -271,6 +272,7 @@ func TestPreviewCancellationJoinsWorkersAndReportsError(t *testing.T) {
 			return nil, ctx.Err()
 		}},
 	)
+	session.SetStateOnly("")
 	require.NoError(t, session.startPreview())
 	<-started
 	session.Close()
@@ -285,6 +287,7 @@ func TestPreviewCancellationJoinsWorkersAndReportsError(t *testing.T) {
 			return nil, errors.New("private subprocess output")
 		}},
 	)
+	failed.SetStateOnly("detect failed")
 	defer failed.Close()
 	_, events, unsubscribe := failed.subscribe()
 	defer unsubscribe()
@@ -307,6 +310,7 @@ func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T)
 		},
 	})
 	t.Cleanup(session.Close)
+	session.SetStateOnly("detect failed")
 	session.Phase(previewPhase, "Detecting changes...")
 	require.NoError(t, session.startPreview())
 	require.Eventually(t, func() bool {
@@ -321,6 +325,7 @@ func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T)
 	require.Equal(t, []ErrorEvent{{Message: "Preview failed", Phase: previewPhase}}, snapshot.Errors)
 	assert.NotContains(t, string(first.data), "private subprocess output")
 
+	session.SetStateOnly("")
 	require.NoError(t, session.startPreview())
 	require.Eventually(t, func() bool {
 		session.mu.Lock()
@@ -332,6 +337,44 @@ func TestPreviewFailureSurvivesReconnectAndSuccessfulRetryClearsIt(t *testing.T)
 	require.NoError(t, json.Unmarshal(next.data, &snapshot))
 	assert.Empty(t, snapshot.Errors)
 	assert.NotEmpty(t, snapshot.Rows)
+}
+
+func TestStateOnlyGatesPreviewAndClearsAfterSuccess(t *testing.T) {
+	t.Parallel()
+	session := NewSession(context.Background(), SessionOptions{
+		Preview: func(context.Context) ([]engine.OverviewRow, error) {
+			return overviewFixtureRows(), nil
+		},
+	})
+	t.Cleanup(session.Close)
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "dev")
+	s := newRunningServer(t, Options{Session: session})
+	denied := overviewRequest(t, s, "POST", "/api/overview/preview", `{}`)
+	assert.Equal(t, http.StatusConflict, denied.StatusCode)
+	body, err := io.ReadAll(denied.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(body), "preview_not_allowed")
+
+	session.SetStateOnly("detect failed")
+	first, _, stop := session.subscribe()
+	stop()
+	var snapshot OverviewSnapshot
+	require.NoError(t, json.Unmarshal(first.data, &snapshot))
+	assert.True(t, snapshot.StateOnly)
+	assert.False(t, snapshot.PreviewLoaded)
+	assert.Equal(t, "detect failed", snapshot.DetectError)
+	assert.Contains(t, snapshot.Footnote, "730h/mo")
+	assert.Equal(t, http.StatusAccepted, overviewRequest(t, s, "POST", "/api/overview/preview", `{}`).StatusCode)
+	require.Eventually(t, func() bool {
+		next, _, unsubscribe := session.subscribe()
+		unsubscribe()
+		snapshot = OverviewSnapshot{}
+		return json.Unmarshal(next.data, &snapshot) == nil && snapshot.PreviewLoaded
+	}, time.Second, time.Millisecond)
+	assert.False(t, snapshot.StateOnly)
+	assert.Empty(t, snapshot.DetectError)
+	assert.Empty(t, snapshot.Footnote)
+	assert.Equal(t, http.StatusConflict, overviewRequest(t, s, "POST", "/api/overview/preview", `{}`).StatusCode)
 }
 
 func TestOverviewDetailFiltersRecommendationsAndFormatsSavings(t *testing.T) {

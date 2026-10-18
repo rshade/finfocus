@@ -170,8 +170,14 @@ func (f webFixture) start(t *testing.T, source string, encrypted bool, fixtureEn
 			"WEB_PLAN="+filepath.Join(f.root, "testdata/overview/plan-no-changes.json"),
 		)
 		args = append(args, "--stack", "dev")
-	} else if !slices.Contains(fixtureEnv, "WEB_AUTO_DETECT=true") {
+	} else if !slices.Contains(fixtureEnv, "WEB_AUTO_DETECT=true") && !slices.Contains(fixtureEnv, "WEB_STATE_ONLY=true") {
 		args = append(args, "--pulumi-json", source)
+	}
+	if slices.Contains(fixtureEnv, "WEB_STATE_ONLY=true") {
+		// The fixture deployment is 2025-06-15. Aging project sources keeps
+		// change detection from requesting an automatic preview.
+		old := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+		require.NoError(t, os.Chtimes(filepath.Join(project, "Pulumi.yaml"), old, old))
 	}
 	cmd := exec.Command(f.binary, args...)
 	cmd.Dir = project
@@ -565,36 +571,63 @@ func TestWebUIEncryptedRetryAndPreview(t *testing.T) {
 	browser := webBrowser(t)
 	s := f.start(t, "", true)
 	page := webPage(t, browser, s, playwright.ColorSchemeLight)
-	for _, preview := range []bool{false, true} {
-		if preview {
-			webTab(t, page, ".preview-button")
-			require.NoError(t, page.Keyboard().Press("Enter"))
-		}
-		webWait(t, page, `() => document.querySelector('#passphrase-input')?.closest('dialog').open`)
-		input := page.Locator("#passphrase-input")
-		kind, err := input.GetAttribute("type")
-		require.NoError(t, err)
-		assert.Equal(t, "password", kind)
-		webType(t, page, "#passphrase-input", "web-fixture-wrong")
-		require.NoError(t, page.Keyboard().Press("Enter"))
-		webWait(
-			t,
-			page,
-			`() => document.querySelector('#passphrase-input').closest('dialog').open && !document.querySelector('#passphrase-error').hidden && document.querySelector('#passphrase-error').textContent.length > 0 && document.querySelector('#passphrase-input').value === '' && !document.querySelector('.passphrase-form button[type="submit"]').disabled`,
-		)
-		text, err := page.Locator("body").TextContent()
-		require.NoError(t, err)
-		assert.NotContains(t, text, "web-fixture-wrong")
-		webType(t, page, "#passphrase-input", "web-fixture-unlock")
-		require.NoError(t, page.Keyboard().Press("Enter"))
-		webWait(
-			t,
-			page,
-			`() => !document.querySelector('#passphrase-input').closest('dialog').open && document.querySelector('.overview-table tbody tr button') !== null && !document.querySelector('.preview-button').disabled`,
-		)
-	}
+	webWait(t, page, `() => document.querySelector('#passphrase-input')?.closest('dialog').open`)
+	input := page.Locator("#passphrase-input")
+	kind, err := input.GetAttribute("type")
+	require.NoError(t, err)
+	assert.Equal(t, "password", kind)
+	webType(t, page, "#passphrase-input", "web-fixture-wrong")
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	webWait(
+		t,
+		page,
+		`() => document.querySelector('#passphrase-input').closest('dialog').open && !document.querySelector('#passphrase-error').hidden && document.querySelector('#passphrase-error').textContent.length > 0 && document.querySelector('#passphrase-input').value === '' && !document.querySelector('.passphrase-form button[type="submit"]').disabled`,
+	)
+	text, err := page.Locator("body").TextContent()
+	require.NoError(t, err)
+	assert.NotContains(t, text, "web-fixture-wrong")
+	webType(t, page, "#passphrase-input", "web-fixture-unlock")
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	// Fresh project files are newer than the fixture deployment, so the run
+	// previews during load and Run preview stays disabled.
+	webWait(
+		t,
+		page,
+		`() => !document.querySelector('#passphrase-input').closest('dialog').open && document.querySelector('.overview-table tbody tr button') !== null && document.querySelector('.preview-button')?.disabled`,
+	)
 	assert.NotContains(t, s.logs.String(), "web-fixture-wrong")
 	assert.NotContains(t, s.logs.String(), "web-fixture-unlock")
+}
+
+//nolint:paralleltest // Browser and performance acceptance run sequentially for deterministic timing.
+func TestWebUIStateOnlyPreviewGate(t *testing.T) {
+	f := newWebFixture(t)
+	browser := webBrowser(t)
+	state := filepath.Join(f.root, "testdata/overview/state-no-changes.json")
+	plan := filepath.Join(f.root, "testdata/overview/plan-no-changes.json")
+	session := f.start(t, plan, false, "WEB_STATE_ONLY=true", "WEB_STATE="+state)
+	page := webPage(t, browser, session, playwright.ColorSchemeLight)
+	webWait(t, page, `() => {
+		const button = document.querySelector('.preview-button');
+		const header = document.querySelectorAll('.overview-table thead th')[4];
+		const note = document.querySelector('.state-only-footnote');
+		const hint = document.querySelector('.state-only-hint');
+		return !!button && !button.disabled && header?.textContent === 'Projected*' && !!note && !note.hidden && note.textContent.includes('730h/mo') && !!hint && hint.hidden;
+	}`)
+	webTab(t, page, ".preview-button")
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	webWait(t, page, `() => {
+		const button = document.querySelector('.preview-button');
+		const header = document.querySelectorAll('.overview-table thead th')[4];
+		const note = document.querySelector('.state-only-footnote');
+		return !!button && button.disabled && header?.textContent === 'Projected' && !!note && note.hidden;
+	}`)
+	status, err := page.Evaluate(`() => fetch('/api/overview/preview', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:'{}'}).then(async (response) => ({status: response.status, code: (await response.json()).code}))`)
+	require.NoError(t, err)
+	payload, ok := status.(map[string]any)
+	require.True(t, ok)
+	assert.EqualValues(t, 409, payload["status"])
+	assert.Equal(t, "preview_not_allowed", payload["code"])
 }
 
 //nolint:paralleltest // Browser and performance acceptance run sequentially for deterministic timing.

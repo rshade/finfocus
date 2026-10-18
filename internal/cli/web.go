@@ -288,6 +288,7 @@ func bindWebPipeline(
 	pipe.OnDataReady = func(rows []engine.OverviewRow, _ int, stack string) {
 		session.SetData(pipe.Engine(), rows, dateRange, stack)
 	}
+	pipe.OnStateOnly = func(detectErrMsg string) { session.SetStateOnly(detectErrMsg) }
 	pipe.OnRow = session.Row
 	pipe.OnProgress = session.Progress
 	pipe.OnBudget = session.Budget

@@ -29,6 +29,7 @@ const OVERVIEW_STREAM_EVENTS = [
   'ready',
   'passphrase_required',
   'preview',
+  'run_status',
 ];
 
 // el builds a DOM node without innerHTML so payload text is never parsed as

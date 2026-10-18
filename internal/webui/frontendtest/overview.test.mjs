@@ -295,6 +295,32 @@ test('snapshot displays a pending passphrase prompt and progress on initial moun
   instance.unmount();
 });
 
+test('preview is offered only for a ready state-only run and clears after a preview', async () => {
+  const t = await setup();
+  const button = t.container.querySelector('.preview-button');
+  const projected = t.container.querySelectorAll('th')[4];
+  assert.equal(button.disabled, true);
+  assert.equal(projected.textContent, 'Projected');
+  t.stream.emit('snapshot', {
+    phases: [], rows: [], ready: false, stateOnly: true, previewLoaded: false,
+    detectError: 'detect failed', footnote: '* projected at current state (730h/mo)',
+  });
+  await flush();
+  assert.equal(button.disabled, true);
+  t.stream.emit('ready', { totals: {} });
+  await flush();
+  assert.equal(button.disabled, false);
+  assert.equal(projected.textContent, 'Projected*');
+  assert.match(t.container.querySelector('.state-only-footnote').textContent, /730h\/mo/);
+  assert.match(t.container.querySelector('.state-only-hint').textContent, /change detection failed/);
+  t.stream.emit('run_status', { stateOnly: false, previewLoaded: true, detectError: '', footnote: '' });
+  await flush();
+  assert.equal(button.disabled, true);
+  assert.equal(projected.textContent, 'Projected');
+  assert.equal(t.container.querySelector('.state-only-footnote').hidden, true);
+  assert.equal(t.container.querySelector('.state-only-hint').hidden, true);
+  t.mounted.unmount();
+});
 test('numeric totals never bypass server display formatting', async () => {
   const t = await setup();
   t.calls[0].resolve(page([], { totals: { totalActual: 12.345, totalProjected: 25, totalDelta: 12.655, totalSavings: 2, currency: 'USD' } })); await flush();
