@@ -40,7 +40,8 @@ A developer enables Show all resources to inspect any safe source descriptor.
 **Acceptance Scenarios**:
 
 1. **Given** an eligible selected resource, **When** the toggle changes,
-   **Then** its stable identity and current editor are preserved.
+   **Then** its stable identity and current editor are preserved when source
+   properties are unchanged. Changed preview properties refresh the editor and baseline.
 2. **Given** only confirmed non-billable resources, **When** What-If opens,
    **Then** an explanation offers Show all resources, which restores them.
 3. **Given** a resource selected only in the complete list, **When** hiding it,

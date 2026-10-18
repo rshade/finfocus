@@ -135,7 +135,10 @@ The What-If picker hides Pulumi provider and stack bookkeeping by default.
 It also hides resources confirmed non-billable by available, agreeing plugin
 pricing metadata. **Show all resources** restores the complete safe source list,
 within your launch filters. An eligible selected resource and its unsaved edits
-stay selected when you toggle it.
+stay selected when you toggle it, provided the source properties are unchanged.
+If a preview changes those properties during the toggle, What-If reloads the
+editor and baseline from the updated source. A failed resource-list refresh
+shows a separate error and preserves the current estimate.
 
 Zero baseline, zero rate, or zero actual spend does not establish non-billability.
 Unsupported resources, missing region or SKU, pricing errors, and unknown

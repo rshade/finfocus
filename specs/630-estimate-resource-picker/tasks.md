@@ -41,6 +41,11 @@ Independent test: shared mixed-plan selection skips providers in terminal mode.
 - [x] T012 Run repository gates and browser checks; record results in specs/630-estimate-resource-picker/quickstart.md.
 - [x] T013 Review base c9634c6 diff and scout touched files; finalize specs/630-estimate-resource-picker/spec.md status.
 
+## Review Follow-up
+
+- [x] T014 Separate resource-list errors from calculation failures in internal/webui/static/views/estimate.js; cover failure/recovery and concurrent failures in internal/webui/frontendtest/estimate.test.mjs.
+- [x] T015 Refresh changed preview properties during toggles in internal/webui/static/views/estimate.js; cover overlapping preview refresh in internal/webui/frontendtest/estimate.test.mjs and clarify docs/src/content/docs/guides/web-ui.md.
+
 ## Dependencies and Execution
 
 T001 → T002 → T003 → T004. US1 follows foundation; US2 follows US1.

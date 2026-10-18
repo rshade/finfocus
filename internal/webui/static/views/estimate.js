@@ -8,7 +8,8 @@ export function mount(container, { api, stream }) {
   const resource = el('select', { id: 'estimate-resource' });
   const mode = el('select', { id: 'estimate-mode' });
   const showAll = el('input', { id: 'estimate-show-all', type: 'checkbox' });
-  const error = el('p', { class: 'error-banner', role: 'alert' }); error.hidden = true;
+  const error = el('p', { id: 'estimate-calculation-error', class: 'error-banner', role: 'alert' }); error.hidden = true;
+  const resourceError = el('p', { id: 'estimate-resource-error', class: 'error-banner', role: 'alert' }); resourceError.hidden = true;
   const status = el('p', { role: 'status', text: 'Loading estimate resources…' });
   const comparison = el('div', { class: 'totals-bar', 'aria-label': 'Estimate comparison' });
   const pricing = el('div', { 'aria-label': 'Pricing details' });
@@ -19,7 +20,7 @@ export function mount(container, { api, stream }) {
   container.append(heading, el('div', { class: 'toolbar estimate-toolbar' },
     el('label', { class: 'filter-label', for: 'estimate-resource' }, 'Resource', resource),
     el('label', { class: 'filter-label', for: 'estimate-mode' }, 'Pricing mode', mode),
-    el('label', { class: 'filter-label estimate-show-all', for: 'estimate-show-all' }, showAll, 'Show all resources')), error, status, comparison, pricing,
+    el('label', { class: 'filter-label estimate-show-all', for: 'estimate-show-all' }, showAll, 'Show all resources')), resourceError, error, status, comparison, pricing,
     el('div', { class: 'table-wrap' }, table));
 
   function begin(message) {
@@ -103,17 +104,18 @@ export function mount(container, { api, stream }) {
     body.replaceChildren(); comparison.replaceChildren(); pricing.replaceChildren();
     recalculate();
   }
-  async function loadResources(preserveEditor = false) {
+  async function loadResources() {
     resourceAbort?.abort(); resourceAbort = new AbortController();
     const current = ++resourceGeneration, signal = resourceAbort.signal;
     const keepingEditor = Boolean(resource.value);
     if (!keepingEditor) {
-      error.hidden = true; status.textContent = 'Loading estimate resources…';
+      status.textContent = 'Loading estimate resources…';
       table.setAttribute('aria-busy', 'true');
     }
     try {
       const result = await api.get(`/api/estimate/resources${showAll.checked ? '?showAll=true' : ''}`, { signal });
       if (!alive || current !== resourceGeneration) return;
+      resourceError.hidden = true;
       const selected = resource.value;
       const previousVersion = sourceVersions.get(selected);
       sourceVersions = new Map((result.resources ?? []).map(item => [item.id, JSON.stringify(item.properties)]));
@@ -125,7 +127,7 @@ export function mount(container, { api, stream }) {
       const retained = result.resources?.some(item => item.id === selected);
       const preferred = result.resources?.some(item => item.id === result.preferredURN) ? result.preferredURN : result.resources?.[0]?.id ?? '';
       resource.value = retained ? selected : preferred;
-      if (resource.value && retained && (preserveEditor || previousVersion === sourceVersions.get(selected))) return;
+      if (resource.value && retained && previousVersion === sourceVersions.get(selected)) return;
       if (resource.value) selectResource();
       else {
         requestAbort?.abort(); generation += 1; calculationPending = false;
@@ -138,12 +140,14 @@ export function mount(container, { api, stream }) {
       }
     } catch (err) {
       if (!alive || current !== resourceGeneration || err.name === 'AbortError') return;
-      failed(err, generation);
+      resourceError.textContent = err.status === 503 ? 'Estimate resources are still loading.' : `Unable to load estimate resources: ${err.message}`;
+      resourceError.hidden = false;
+      if (!resource.value) status.textContent = err.status === 503 ? 'Waiting for stack data…' : 'Unable to load estimate resources.';
     } finally {
       if (alive && current === resourceGeneration && !calculationPending) table.setAttribute('aria-busy', 'false');
     }
   }
-  showAll.addEventListener('change', () => loadResources(true));
+  showAll.addEventListener('change', () => loadResources());
   resource.addEventListener('change', selectResource);
   mode.addEventListener('change', () => recalculate());
   const unsubs = [stream.on('ready', () => loadResources()), stream.on('snapshot', snapshot => { if (snapshot.ready) loadResources(); })];
