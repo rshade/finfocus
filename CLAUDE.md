@@ -405,6 +405,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   actual already receives those keys from `MapStateResource`. Without the
   cloud id, a plugin can estimate a monthly figure instead of the measured
   window total the Cost page shows.
+  The request `From` is clamped to the row's `CreatedAt` when that falls
+  inside the window (`actualRequestStart`), because plugins trust an explicit
+  Start over `pulumi:created`; without it a resource made yesterday was
+  charged for the whole month. `ActualCost.Period` keeps the display window.
 - Projected diff (`cost projected`): replacement steps sharing a URN are
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`

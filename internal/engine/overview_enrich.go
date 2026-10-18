@@ -210,6 +210,17 @@ func enrichBaselineProjectedCost(
 	}
 }
 
+// actualRequestStart returns the start of the actual-cost window for a row.
+// Plugins trust an explicit start over the resource's creation time, so a
+// resource created mid-window must start there or it is charged for hours it
+// did not exist. A creation time outside (Start, End] leaves the window as is.
+func actualRequestStart(createdAt *time.Time, dateRange DateRange) time.Time {
+	if createdAt != nil && createdAt.After(dateRange.Start) && !createdAt.After(dateRange.End) {
+		return *createdAt
+	}
+	return dateRange.Start
+}
+
 // enrichActualCost fetches actual cost data for a row. It writes to
 // row.ActualCost directly and returns any classified error instead of
 // writing to row.Error, enabling the caller to merge errors
@@ -225,7 +236,7 @@ func enrichActualCost(
 
 	request := ActualCostRequest{
 		Resources: []ResourceDescriptor{resource},
-		From:      dateRange.Start,
+		From:      actualRequestStart(row.CreatedAt, dateRange),
 		To:        dateRange.End,
 	}
 
