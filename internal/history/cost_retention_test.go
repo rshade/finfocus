@@ -154,3 +154,27 @@ func TestCompactCostFile_IgnoresPlantedTempSymlink(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, leftovers)
 }
+
+func TestCompactCostFile_CleansTempOnFailure(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	path := filepath.Join(dir, "dev.history.db")
+	garbage := []byte("not a bolt database")
+	require.NoError(t, os.WriteFile(path, garbage, 0o600))
+
+	_, _, err := CompactCostFile(path)
+	require.Error(t, err)
+
+	got, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, garbage, got)
+	leftovers, err := filepath.Glob(filepath.Join(dir, "*.compact-*"))
+	require.NoError(t, err)
+	assert.Empty(t, leftovers)
+}
+
+func TestCreateCompactTemp_MissingDirectory(t *testing.T) {
+	t.Parallel()
+	_, err := createCompactTemp(filepath.Join(t.TempDir(), "absent", "dev.history.db"), 0o600)
+	require.ErrorContains(t, err, "creating compacted cost history")
+}
