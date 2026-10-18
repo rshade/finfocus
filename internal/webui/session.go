@@ -154,6 +154,8 @@ type PreviewEvent struct {
 
 // OverviewSnapshot is the complete state sent first on each SSE connection.
 type OverviewSnapshot struct {
+	RunStatus
+
 	Phases             []PhaseEvent               `json:"phases"`
 	Rows               []engine.OverviewRowResult `json:"rows"`
 	Totals             OverviewTotalsPayload      `json:"totals"`
@@ -164,8 +166,7 @@ type OverviewSnapshot struct {
 	Stack              string                     `json:"stack"`
 	Preview            PreviewEvent               `json:"preview"`
 	Errors             []ErrorEvent               `json:"errors"`
-	RunStatus
-	Footnote string `json:"footnote,omitempty"`
+	Footnote           string                     `json:"footnote,omitempty"`
 }
 
 // OverviewTotalsPayload adds canonical display strings to engine totals.

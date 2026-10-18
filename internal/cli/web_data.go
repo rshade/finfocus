@@ -124,7 +124,7 @@ func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewR
 			}
 		}
 	}
-	out := append(merged[:len(rows):len(rows)], added...)
+	out := slices.Concat(merged[:len(rows)], added)
 	if failed > 0 {
 		logging.FromContext(ctx).Warn().
 			Ctx(ctx).
