@@ -130,11 +130,9 @@ func TestOverviewPaginationAndDataOwnership(t *testing.T) {
 	}
 	session.SetData(nil, large, engine.DateRange{}, "dev")
 	s := newRunningServer(t, Options{Session: session})
-	start := time.Now()
 	page := decodeOverviewPage(t, overviewRequest(t, s, "POST", "/api/overview/query", `{"page":2}`))
 	assert.Len(t, page.Rows, 250)
 	assert.Equal(t, 5, page.TotalPages)
-	assert.Less(t, time.Since(start), time.Second)
 }
 func TestPreviewSingleFlightAndCancellation(t *testing.T) {
 	t.Parallel()

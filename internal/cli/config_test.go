@@ -22,8 +22,21 @@ func setupTestConfig(t *testing.T) func() {
 	t.Setenv("HOME", testHome)
 	t.Setenv("USERPROFILE", testHome) // Windows compatibility
 	t.Setenv("FINFOCUS_HOME", filepath.Join(testHome, ".finfocus"))
-	// If a reset helper exists, call it here; otherwise noop.
+	config.ResetGlobalConfigForTest()
+	t.Cleanup(config.ResetGlobalConfigForTest)
 	return func() {}
+}
+
+func TestSetupTestConfigDoesNotLeakGlobalConfig(t *testing.T) {
+	t.Run("pollute", func(t *testing.T) {
+		setupTestConfig(t)
+		polluted := config.New()
+		polluted.Output.DefaultFormat = "invalid"
+		config.SetGlobalConfig(polluted)
+	})
+
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	assert.NotEqual(t, "invalid", config.GetGlobalConfig().Output.DefaultFormat)
 }
 
 func TestConfigInitCmd(t *testing.T) {
