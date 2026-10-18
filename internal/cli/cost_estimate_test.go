@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"fmt"
+	"maps"
 	"strings"
 	"testing"
 
@@ -595,6 +596,101 @@ func TestFindModificationsForResource(t *testing.T) {
 		assert.Equal(t, "m5.large", mods["web-server"]["instanceType"])
 		assert.Equal(t, "t3.medium", mods["api-server"]["instanceType"])
 	})
+}
+
+func TestFindModificationsForResource_MergesAllSelectors(t *testing.T) {
+	t.Parallel()
+
+	web := engine.ResourceDescriptor{
+		ID:   "urn:pulumi:dev::proj::aws:ec2/instance:Instance::web",
+		Type: "aws:ec2/instance:Instance",
+	}
+	other := engine.ResourceDescriptor{
+		ID:   "urn:pulumi:dev::proj::aws:s3/bucket:Bucket::logs",
+		Type: "aws:s3/bucket:Bucket",
+	}
+
+	tests := []struct {
+		name     string
+		resource engine.ResourceDescriptor
+		mods     map[string]map[string]string
+		want     map[string]string
+	}{
+		{
+			name:     "name and type selectors are both applied",
+			resource: web,
+			mods: map[string]map[string]string{
+				"web":                       {"instanceType": "m5.large"},
+				"aws:ec2/instance:Instance": {"ebsOptimized": "true"},
+			},
+			want: map[string]string{"instanceType": "m5.large", "ebsOptimized": "true"},
+		},
+		{
+			name:     "id beats name beats type on conflicting key",
+			resource: web,
+			mods: map[string]map[string]string{
+				web.ID:                      {"instanceType": "id"},
+				"web":                       {"instanceType": "name", "tenancy": "name"},
+				"aws:ec2/instance:Instance": {"instanceType": "type", "tenancy": "type", "az": "type"},
+			},
+			want: map[string]string{"instanceType": "id", "tenancy": "name", "az": "type"},
+		},
+		{
+			name:     "unaffected resource gets nothing",
+			resource: other,
+			mods: map[string]map[string]string{
+				"web":                       {"instanceType": "m5.large"},
+				"aws:ec2/instance:Instance": {"ebsOptimized": "true"},
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			before := make(map[string]map[string]string, len(tt.mods))
+			for k, v := range tt.mods {
+				before[k] = maps.Clone(v)
+			}
+			got := cli.FindModificationsForResource(tt.resource, tt.mods)
+			assert.Equal(t, tt.want, got)
+			assert.Equal(t, before, tt.mods)
+		})
+	}
+}
+
+func TestUnmatchedModifySelectors_ReportsOnlyUnmatched(t *testing.T) {
+	t.Parallel()
+
+	resources := []engine.ResourceDescriptor{{
+		ID:   "urn:pulumi:dev::proj::aws:ec2/instance:Instance::web",
+		Type: "aws:ec2/instance:Instance",
+	}}
+	mods := map[string]map[string]string{
+		"web":     {"a": "1"},
+		"missing": {"b": "2"},
+	}
+	assert.Equal(t, []string{"missing"}, cli.UnmatchedModifySelectors(resources, mods))
+}
+
+func TestCostEstimateCmd_UnmatchedModifyExitsValidation(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+
+	cmd := cli.NewCostEstimateCmd()
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{
+		"--pulumi-json", "../../test/fixtures/estimate/preview-urn.json",
+		"--modify", "demo-instance:instanceType=t3.large",
+		"--modify", "nonexistent:instanceType=t3.large",
+	})
+	err := cmd.Execute()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `"nonexistent"`)
+	assert.Contains(t, err.Error(), "demo-instance")
+	assert.Equal(t, ax.ExitValidation, ax.ErrorExitCode(err))
 }
 
 // TestCostEstimateCmd_ResourceNotFound tests error handling when resource not found in plan.

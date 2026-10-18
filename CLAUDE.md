@@ -298,7 +298,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 - `cost estimate --modify` splits on the last colon before `=`, so a Pulumi
   URN selector keeps its colons. A selector matches the resource ID, the
-  logical name (the last `::` segment), or the type. A selector that matches
+  logical name (the last `::` segment), or the type, and every matching
+  selector applies; on a conflicting property the more specific wins (ID over
+  name over type). `selectorKeys` is the one definition of a match. A
+  selector that matches
   nothing is a validation error (exit 2) that lists the plan's resources.
   `--resource-type` must be a full token (`package:module:Type`) whose
   package matches `--provider`; a short name such as `ec2:Instance` is

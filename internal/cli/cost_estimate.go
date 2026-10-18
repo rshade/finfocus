@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -485,35 +487,47 @@ func executePlanBasedEstimate(cmd *cobra.Command, params CostEstimateParams, cfg
 	return renderMultipleEstimateResults(cmd.OutOrStdout(), params.Output, results)
 }
 
-// findModificationsForResource finds modifications that apply to a given engine resource.
-// A selector matches the resource ID (the Pulumi URN for plan resources), the
-// logical name (the last "::" segment), or the resource type.
+// selectorKeys lists the selectors that address a resource, most specific first:
+// the resource ID (the Pulumi URN for plan resources), the logical name (the
+// last "::" segment), then the resource type.
+func selectorKeys(resource engine.ResourceDescriptor) []string {
+	var keys []string
+	if resource.ID != "" {
+		keys = append(keys, resource.ID)
+	}
+	if name := logicalResourceName(resource.ID); name != "" {
+		keys = append(keys, name)
+	}
+	if resource.Type != "" {
+		keys = append(keys, resource.Type)
+	}
+	return keys
+}
+
+// findModificationsForResource merges the modifications of every selector that
+// matches the resource. When selectors set the same property, the more specific
+// selector wins: ID over logical name over type. The caller's maps are not mutated.
 func findModificationsForResource(
 	resource engine.ResourceDescriptor,
 	mods map[string]map[string]string,
 ) map[string]string {
-	if props, ok := mods[resource.ID]; ok {
-		return props
-	}
-	if name := logicalResourceName(resource.ID); name != "" {
-		if props, ok := mods[name]; ok {
-			return props
+	keys := selectorKeys(resource)
+	var merged map[string]string
+	for _, key := range slices.Backward(keys) {
+		props, ok := mods[key]
+		if !ok {
+			continue
 		}
-	}
-	if resource.Type != "" {
-		if props, ok := mods[resource.Type]; ok {
-			return props
+		if merged == nil {
+			merged = make(map[string]string, len(props))
 		}
+		maps.Copy(merged, props)
 	}
-	return nil
+	return merged
 }
 
 func modificationSelectorMatches(selector string, resource engine.ResourceDescriptor) bool {
-	if selector == resource.ID || (resource.Type != "" && selector == resource.Type) {
-		return true
-	}
-	name := logicalResourceName(resource.ID)
-	return name != "" && selector == name
+	return slices.Contains(selectorKeys(resource), selector)
 }
 
 func logicalResourceName(id string) string {
