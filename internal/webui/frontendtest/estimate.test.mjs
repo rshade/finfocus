@@ -124,3 +124,22 @@ test('a failed baseline keeps the selected pricing mode', async () => {
   assert.equal(t.calls.at(-1).body.pricingMode, 'opaque-mode');
   t.mounted.unmount();
 });
+
+test('a plain failure after a successful estimate clears the stale comparison but keeps rows', async () => {
+  const t = await loaded();
+  const input = t.container.querySelectorAll('.estimate-input')[0];
+  input.value = '4';
+  input.dispatch('keydown', { key: 'Enter' });
+  t.calls.at(-1).resolve({ display: { ...baseline().display, modified: 'good result' } });
+  await flush();
+  assert.match(t.container.textContent, /good result/);
+  const again = t.container.querySelectorAll('.estimate-input')[0];
+  again.value = '5';
+  again.dispatch('keydown', { key: 'Enter' });
+  t.calls.at(-1).reject(Object.assign(new Error('estimate data unavailable'), { status: 502 }));
+  await flush();
+  assert.match(t.container.textContent, /estimate data unavailable/);
+  assert.equal(t.container.querySelector('.totals-bar').textContent, '');
+  assert.ok(t.container.querySelectorAll('.estimate-input').length > 0);
+  t.mounted.unmount();
+});

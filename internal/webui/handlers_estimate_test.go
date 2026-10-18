@@ -534,3 +534,32 @@ func TestEstimateShutdownDoesNotWaitForResponseWriter(t *testing.T) {
 		})
 	}
 }
+
+func TestEstimateBaselineFailureHidesNestedSecrets(t *testing.T) {
+	t.Parallel()
+	s, session, _, _ := estimateHTTPFixture(t)
+	session.SetData(
+		engine.New(
+			[]*pluginhost.Client{{Name: "bad", API: &webEstimatePlugin{rate: 10, failure: status.Error(codes.Unavailable, "down")}}},
+			nil,
+		),
+		[]engine.OverviewRow{{
+			URN:  "urn:real",
+			Type: "aws:ec2:Instance",
+			ProjectedProperties: map[string]any{
+				"size":   float64(2),
+				"config": map[string]any{"password": "nested-credential", "region": "us-east-1"},
+				"blob":   pulumiSecretFixture("nested-secret"),
+			},
+		}},
+		engine.DateRange{},
+		"",
+	)
+	resp := overviewRequest(t, s, "GET", "/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`), "")
+	require.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	for _, secret := range []string{"nested-credential", "nested-secret", "4dabf18193072939515e22adb298388d"} {
+		assert.NotContains(t, string(raw), secret)
+	}
+}
