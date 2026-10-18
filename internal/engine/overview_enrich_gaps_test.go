@@ -167,3 +167,27 @@ func TestEnrichRecommendations_ErrorAndSuccess(t *testing.T) {
 	require.Len(t, row.Recommendations, 1)
 	assert.Equal(t, "rec-1", row.Recommendations[0].ID)
 }
+
+func TestEnrichProjectedCost_FlagsPluginFailureBehindNoCostData(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	resource := ResourceDescriptor{Type: "aws:ec2:Instance", ID: "urn:p", Provider: "aws"}
+	noData := CostResult{Error: &StructuredError{Code: ErrCodeNoCostData, Message: "no pricing"}}
+
+	unsupported := &OverviewRow{URN: resource.ID, Type: resource.Type}
+	require.Nil(t, enrichProjectedCost(ctx, unsupported, &mockEnricher{
+		projectedResult: &CostResultWithErrors{Results: []CostResult{noData}},
+	}, resource))
+	assert.False(t, unsupported.ProjectedPricingFailed)
+
+	failed := &OverviewRow{URN: resource.ID, Type: resource.Type}
+	require.Nil(t, enrichProjectedCost(ctx, failed, &mockEnricher{
+		projectedResult: &CostResultWithErrors{
+			Results: []CostResult{noData},
+			Errors:  []ErrorDetail{{Error: errors.New("plugin call failed: Unavailable")}},
+		},
+	}, resource))
+	assert.True(t, failed.ProjectedPricingFailed)
+	assert.Nil(t, failed.Error)
+}

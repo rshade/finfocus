@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
@@ -324,4 +327,53 @@ func TestAppendPreviewRowsAppliesDismissalDelta(t *testing.T) {
 	active, dismissed := engine.CountRecsActiveAndDismissed(rows[0].Recommendations)
 	assert.Equal(t, 0, active)
 	assert.Equal(t, 1, dismissed)
+}
+
+type partialPricingClient struct {
+	includeDismissedClient
+}
+
+func (c *partialPricingClient) GetProjectedCost(
+	_ context.Context,
+	in *proto.GetProjectedCostRequest,
+	_ ...grpc.CallOption,
+) (*proto.GetProjectedCostResponse, error) {
+	out := &proto.GetProjectedCostResponse{}
+	for _, res := range in.Resources {
+		if strings.Contains(res.ID, "::bad") {
+			return nil, status.Error(codes.Unavailable, "plugin unavailable")
+		}
+		out.Results = append(out.Results, &proto.CostResult{Currency: "USD", MonthlyCost: 7})
+	}
+	return out, nil
+}
+
+func TestAppendPreviewRowsReportsPricingFailure(t *testing.T) {
+	t.Parallel()
+
+	const prefix = "urn:pulumi:dev::proj::aws:ec2/instance:Instance::"
+	create := func(name string) ingest.PulumiStep {
+		urn := prefix + name
+		return ingest.PulumiStep{
+			Op: "create", URN: urn,
+			NewState: &ingest.PulumiState{
+				URN: urn, Type: "aws:ec2/instance:Instance", Inputs: map[string]any{"instanceType": "t3.micro"},
+			},
+		}
+	}
+	plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{create("good"), create("bad")}}
+	data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
+	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: &partialPricingClient{}}}, nil).
+		WithDismissalStore(isolatedDismissalStore(t))
+	data.loadDismissals = nil
+	data.captureState(nil)
+	data.capturePlan(context.Background(), plan)
+
+	rows, err := data.appendPreviewRows(context.Background(), nil)
+	require.ErrorIs(t, err, errPreviewPricing)
+	assert.NotContains(t, err.Error(), "plugin unavailable")
+	require.Len(t, rows, 2)
+	require.NotNil(t, rows[0].ProjectedCost)
+	assert.InDelta(t, 7, rows[0].ProjectedCost.MonthlyCost, 0.001)
+	assert.Nil(t, rows[1].ProjectedCost)
 }

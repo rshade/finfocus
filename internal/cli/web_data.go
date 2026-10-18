@@ -93,11 +93,14 @@ func (d *webData) capturePlan(ctx context.Context, plan *ingest.PulumiPlan) {
 	d.planSteps = convertPlanSteps(plan.Steps)
 }
 
+var errPreviewPricing = errors.New("preview rows could not be priced")
+
 // appendPreviewRows adds plan-only creates through the merge the CLI Overview
 // uses, applies the launch filters to the added rows, then prices only those
 // rows. The query gate stays held until pricing finishes, like a query lease,
 // so a settings save, install, or remove cannot reload and close the clients
-// mid-pricing.
+// mid-pricing. A row left unpriced by a failure returns the rows with
+// errPreviewPricing so the preview is not marked loaded and can run again.
 func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewRow) ([]engine.OverviewRow, error) {
 	unlock, err := d.lock(ctx)
 	if err != nil {
@@ -113,6 +116,7 @@ func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewR
 	if len(added) > 0 && d.eng != nil {
 		engine.EnrichOverviewRows(ctx, added, d.eng, d.dates, nil)
 	}
+	failed := countPricingFailures(added)
 	if d.loadDismissals != nil {
 		if records := d.loadDismissals(ctx); len(records) > 0 {
 			for i := range added {
@@ -120,7 +124,28 @@ func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewR
 			}
 		}
 	}
-	return append(merged[:len(rows):len(rows)], added...), nil
+	out := slices.Concat(merged[:len(rows)], added)
+	if failed > 0 {
+		logging.FromContext(ctx).Warn().
+			Ctx(ctx).
+			Str("component", "webui").
+			Str("operation", "append_preview_rows").
+			Int("failed_rows", failed).
+			Int("added_rows", len(added)).
+			Msg("preview rows could not be priced; preview not marked loaded")
+		return out, errPreviewPricing
+	}
+	return out, nil
+}
+
+func countPricingFailures(rows []engine.OverviewRow) int {
+	failed := 0
+	for i := range rows {
+		if rows[i].Error != nil || rows[i].ProjectedPricingFailed {
+			failed++
+		}
+	}
+	return failed
 }
 
 func (d *webData) newEngine(
