@@ -296,6 +296,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 ### CLI (`internal/cli/`)
 
+- `plugin list` orders by name ascending, then installed version descending
+  as semver. A version that is not semver uses ascending string order, and
+  path breaks remaining ties. Table and JSON use that same order.
 - `analyzer serve` prints only the port on stdout (Pulumi handshake); all logs
   go to stderr.
 - **Tests leak into the real `~/.finfocus`** unless they set
