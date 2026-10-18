@@ -164,7 +164,8 @@ The history directory resolves in this order: `FINFOCUS_HISTORY_DIR`, then
 
 FinFocus ignores a project-level `cost.history.directory` and logs a warning
 when it is absolute, contains `..`, or resolves outside the project (for
-example through a symlink), or when a history database file in it is a symlink, because a cloned repository controls that file. The global config value and `FINFOCUS_HISTORY_DIR` are
+example through a symlink), or when a history database file in it is a symlink, because a cloned repository
+controls that file. The global config value and `FINFOCUS_HISTORY_DIR` are
 trusted.
 
 #### Example: History Configuration
