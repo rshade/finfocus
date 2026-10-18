@@ -148,9 +148,9 @@ func checkOverviewInputs(cmd *cobra.Command, output string) error {
 }
 
 // executeOverview orchestrates the overview command workflow: it validates the date range,
-// loads Pulumi state and optionally a preview plan, detects pending changes, merges and
-// filters resources, opens plugin clients, constructs an engine, and either launches an
-// interactive TUI or enriches and renders plain output with optional budget evaluation.
+// then runs the shared pipeline. The pipeline opens plugin clients while it loads Pulumi
+// state and an optional preview, then either launches an interactive TUI or enriches and
+// renders plain output with optional budget evaluation.
 func executeOverview(cmd *cobra.Command, params overviewParams) error {
 	totalStart := time.Now()
 	ctx := cmd.Context()
@@ -374,7 +374,7 @@ func loadPlainOverviewData(
 	var shouldRunPreview bool
 	if params.yes || isTTY {
 		var promptErr error
-		shouldRunPreview, promptErr = promptForPreview(cmd.OutOrStdout(), cmd.InOrStdin(), signal, skipPrompt)
+		shouldRunPreview, promptErr = promptForPreview(ctx, cmd.OutOrStdout(), cmd.InOrStdin(), signal, skipPrompt)
 		if promptErr != nil {
 			return nil, nil, stackName, false, promptErr
 		}
@@ -900,7 +900,11 @@ func formatDiffValue(v any) string {
 // skipPrompt is true when --yes was passed (always run preview) or when
 // the output is not a TTY (non-interactive; skip preview for scripting).
 // w is the writer for the prompt line; r is the reader for user input.
-func promptForPreview(w io.Writer, r io.Reader, signal pulumidetect.ChangeSignal, skipPrompt bool) (bool, error) {
+// A canceled ctx unblocks the prompt so a failed plugin open does not wait
+// on stdin. The read itself may still be pending until the process exits.
+func promptForPreview(
+	ctx context.Context, w io.Writer, r io.Reader, signal pulumidetect.ChangeSignal, skipPrompt bool,
+) (bool, error) {
 	// --yes always runs preview without prompting.
 	if skipPrompt {
 		return true, nil
@@ -933,17 +937,40 @@ func promptForPreview(w io.Writer, r io.Reader, signal pulumidetect.ChangeSignal
 		return false, fmt.Errorf("writing to output: %w", err)
 	}
 
-	var line string
-	// Fscanln stops at first whitespace; accepts first word of input (e.g. "yes" from "yes please\n").
-	if _, err := fmt.Fscanln(r, &line); err != nil {
-		// EOF / unexpected-EOF means the user pressed Enter with no input — treat as Y.
-		if !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
-			return false, fmt.Errorf("reading user input: %w", err)
-		}
-		line = ""
+	line, err := readPreviewLine(ctx, r)
+	if err != nil {
+		return false, err
 	}
-	line = strings.TrimSpace(strings.ToLower(line))
 	return line == "" || line == "y" || line == answerYes, nil
+}
+
+// readPreviewLine reads one answer word. EOF and a blank line are an empty
+// answer (the caller treats that as yes). A canceled ctx returns immediately.
+func readPreviewLine(ctx context.Context, r io.Reader) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
+	type scan struct {
+		line string
+		err  error
+	}
+	// Buffered so the read can finish after ctx is canceled without blocking
+	// the sender. Fscanln stops at the first word.
+	done := make(chan scan, 1)
+	go func() {
+		var line string
+		_, err := fmt.Fscanln(r, &line)
+		done <- scan{line: line, err: err}
+	}()
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case res := <-done:
+		if res.err != nil && !errors.Is(res.err, io.EOF) && !errors.Is(res.err, io.ErrUnexpectedEOF) {
+			return "", fmt.Errorf("reading user input: %w", res.err)
+		}
+		return strings.TrimSpace(strings.ToLower(res.line)), nil
+	}
 }
 
 // extractStackName extracts a stack name from the state file path.

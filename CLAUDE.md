@@ -327,6 +327,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   because `Config.Save` marshals the struct. Tests swap the client with
   `cli.SetNotificationClientForTest`.
 - The overview docs page is `docs/src/content/docs/commands/overview.md`.
+- Overview plugin startup overlaps stack loading (`OverviewPipeline.Run`, #692).
+  The launch context is a child of the caller context. `errgroup.WithContext`
+  cancels on `Wait` and would kill plugins (`exec.CommandContext`) before
+  enrichment, so this overlap does not use it. A plugin error cancels the
+  load; a load error cancels the launch. Cleanup runs before `Run` returns
+  when either side fails, and stays on the pipeline only when both succeed.
+  Phase events stay 1..6; phase 4 is emitted when the open is joined.
 - `internal/webui` must not import `cli`, `registry`, or `pluginhost`. Plugin
   page callbacks live in `internal/cli/web_plugins.go` and
   `plugin_settings_web.go`. Install progress is a per-operation SSE stream

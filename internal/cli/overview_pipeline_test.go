@@ -397,6 +397,188 @@ func TestOverviewPipeline_ErrorCarriesPhase(t *testing.T) {
 	}
 }
 
+// TestOverviewPipeline_PluginOpenOverlapsLoad proves plugin startup is in
+// flight while stack loading is still blocked, and that cleanup waits until
+// the pipeline owner releases a successful run.
+func TestOverviewPipeline_PluginOpenOverlapsLoad(t *testing.T) {
+	t.Parallel()
+
+	loadEntered := make(chan struct{})
+	pluginsEntered := make(chan struct{})
+	release := make(chan struct{})
+	t.Cleanup(func() {
+		select {
+		case <-release:
+		default:
+			close(release)
+		}
+	})
+	var cleaned atomic.Int32
+
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
+			close(loadEntered)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			}
+			p.emitPhase(OverviewPhaseLoadStackState, overviewPhaseLoadStackStateName)
+			p.emitPhase(OverviewPhaseDetectChanges, overviewPhaseDetectChangesName)
+			p.emitPhase(OverviewPhaseMergeResources, overviewPhaseMergeResourcesName)
+			return &OverviewPipelineData{Rows: fakePipelineRows(), StackName: "dev", ProjectDir: "."}, nil
+		},
+		openPlugins: func(ctx context.Context, _ string, _ *auditContext) ([]*pluginhost.Client, func(), error) {
+			close(pluginsEntered)
+			select {
+			case <-release:
+			case <-ctx.Done():
+				return nil, nil, ctx.Err()
+			}
+			return nil, func() { cleaned.Add(1) }, nil
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+
+	done := make(chan error, 1)
+	go func() { done <- pipe.Run(context.Background()) }()
+
+	select {
+	case <-loadEntered:
+	case <-time.After(2 * time.Second):
+		require.Fail(t, "load did not start")
+	}
+	select {
+	case <-pluginsEntered:
+	case <-time.After(2 * time.Second):
+		require.Fail(t, "plugins did not start while load was in flight")
+	}
+	close(release)
+
+	require.NoError(t, <-done)
+	assert.Equal(t, []int{
+		OverviewPhaseLoadStackState, OverviewPhaseDetectChanges, OverviewPhaseMergeResources,
+		OverviewPhaseStartPlugins, OverviewPhasePrepareEngine, OverviewPhaseEnrichResources,
+	}, events.phases)
+	assert.Equal(t, int32(0), cleaned.Load(), "successful startup stays open until the owner releases it")
+	require.NotNil(t, pipe.Cleanup())
+	pipe.Cleanup()()
+	assert.Equal(t, int32(1), cleaned.Load())
+}
+
+// TestOverviewPipeline_PluginErrorCancelsLoad verifies a plugin failure
+// unblocks stack loading and is the error Run returns.
+func TestOverviewPipeline_PluginErrorCancelsLoad(t *testing.T) {
+	t.Parallel()
+
+	boom := errors.New("plugin boom")
+	loadCancelled := make(chan struct{})
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(ctx context.Context, p *OverviewPipeline) (*OverviewPipelineData, error) {
+			p.emitPhase(OverviewPhaseLoadStackState, overviewPhaseLoadStackStateName)
+			select {
+			case <-ctx.Done():
+				close(loadCancelled)
+				return nil, ctx.Err()
+			case <-time.After(5 * time.Second):
+				return nil, errors.New("load was not cancelled")
+			}
+		},
+		openPlugins: func(context.Context, string, *auditContext) ([]*pluginhost.Client, func(), error) {
+			return nil, nil, boom
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+
+	err := pipe.Run(context.Background())
+	require.ErrorIs(t, err, boom)
+	select {
+	case <-loadCancelled:
+	default:
+		require.Fail(t, "load was not cancelled")
+	}
+	require.Len(t, events.errors, 1)
+	assert.Equal(t, OverviewPhaseStartPlugins, events.errors[0])
+	assert.Nil(t, pipe.Cleanup())
+	assert.Empty(t, events.ready)
+}
+
+// TestOverviewPipeline_LoadErrorCancelsPluginOpen verifies a load failure
+// cancels plugin startup and releases any cleanup the open returned.
+func TestOverviewPipeline_LoadErrorCancelsPluginOpen(t *testing.T) {
+	t.Parallel()
+
+	boom := errors.New("load boom")
+	pluginsCancelled := make(chan struct{})
+	var cleaned atomic.Int32
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(context.Context, *OverviewPipeline) (*OverviewPipelineData, error) {
+			return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: boom}
+		},
+		openPlugins: func(ctx context.Context, _ string, _ *auditContext) ([]*pluginhost.Client, func(), error) {
+			select {
+			case <-ctx.Done():
+				close(pluginsCancelled)
+				return nil, func() { cleaned.Add(1) }, ctx.Err()
+			case <-time.After(5 * time.Second):
+				return nil, func() { cleaned.Add(1) }, errors.New("plugins were not cancelled")
+			}
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+	events := &pipelineEvents{}
+	events.attach(pipe)
+
+	err := pipe.Run(context.Background())
+	require.ErrorIs(t, err, boom)
+	select {
+	case <-pluginsCancelled:
+	default:
+		require.Fail(t, "plugin open was not cancelled")
+	}
+	assert.Equal(t, int32(1), cleaned.Load())
+	require.Len(t, events.errors, 1)
+	assert.Equal(t, OverviewPhaseMergeResources, events.errors[0])
+	assert.Nil(t, pipe.Cleanup())
+	assert.Empty(t, events.ready)
+}
+
+// TestOverviewPipeline_LoadErrorReleasesOpenedPlugins verifies plugins that
+// finished opening before the load failed are still closed, and are not left
+// for a later Cleanup call.
+func TestOverviewPipeline_LoadErrorReleasesOpenedPlugins(t *testing.T) {
+	t.Parallel()
+
+	boom := errors.New("load boom")
+	var cleaned atomic.Int32
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(context.Context, *OverviewPipeline) (*OverviewPipelineData, error) {
+			return nil, &PhaseError{Phase: OverviewPhaseLoadStackState, Err: boom}
+		},
+		openPlugins: func(context.Context, string, *auditContext) ([]*pluginhost.Client, func(), error) {
+			return nil, func() { cleaned.Add(1) }, nil
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+
+	err := pipe.Run(context.Background())
+	require.ErrorIs(t, err, boom)
+	assert.Equal(t, int32(1), cleaned.Load())
+	assert.Nil(t, pipe.Cleanup())
+}
+
 // TestOverviewPipeline_BudgetAndReady verifies the budget event fires with
 // the plugin fetch result and the ready event carries the final row set.
 func TestOverviewPipeline_BudgetAndReady(t *testing.T) {

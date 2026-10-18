@@ -194,7 +194,7 @@ func TestPromptForPreview_Branches(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := promptForPreview(tt.w, tt.r, tt.signal, tt.skip)
+			got, err := promptForPreview(context.Background(), tt.w, tt.r, tt.signal, tt.skip)
 			if tt.wantErr != "" {
 				require.ErrorContains(t, err, tt.wantErr)
 				return
@@ -767,6 +767,7 @@ func TestPromptForPreview_SecondWriteFails(t *testing.T) {
 	t.Parallel()
 
 	ok, err := promptForPreview(
+		context.Background(),
 		&nWriter{left: 1, err: errors.New("write failed")},
 		strings.NewReader("y\n"),
 		pulumidetect.ChangeSignal{HasLikelyChanges: true, ModifiedFiles: []string{"index.ts"}},
@@ -774,4 +775,51 @@ func TestPromptForPreview_SecondWriteFails(t *testing.T) {
 	)
 	require.ErrorContains(t, err, "writing to output")
 	assert.False(t, ok)
+}
+
+func TestPromptForPreview_CanceledContext(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	reader, writer := io.Pipe()
+	t.Cleanup(func() {
+		_ = writer.Close()
+		_ = reader.Close()
+	})
+
+	ok, err := promptForPreview(
+		ctx, io.Discard, reader,
+		pulumidetect.ChangeSignal{HasLikelyChanges: true}, false,
+	)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.False(t, ok)
+}
+
+func TestPromptForPreview_CancelUnblocksRead(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	reader, writer := io.Pipe()
+	t.Cleanup(func() {
+		_ = writer.Close()
+		_ = reader.Close()
+	})
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := promptForPreview(
+			ctx, io.Discard, reader,
+			pulumidetect.ChangeSignal{HasLikelyChanges: true}, false,
+		)
+		done <- err
+	}()
+	cancel()
+
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(2 * time.Second):
+		require.Fail(t, "prompt did not return after cancel")
+	}
 }
