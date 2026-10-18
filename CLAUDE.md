@@ -395,6 +395,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - A failed plugin call keeps the gRPC status as `<Code>: <message>`
   (`pluginRPCError`). Only an empty projected result is `no cost data
   available`. Core does not read `aws:region` from provider or stack config.
+  A fixed-cost type with no SKU property, including
+  `aws:ec2/natGateway:NatGateway`, gets one from `skus.ResolveSKU`. An empty
+  SKU is rejected before pricing (`resource.sku is required`) and the row
+  then shows no price.
 - Projected diff (`cost projected`): replacement steps sharing a URN are
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`

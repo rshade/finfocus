@@ -15,8 +15,9 @@ const (
 //
 //nolint:gochecknoglobals // Package-level lookup table, initialized once.
 var awsWellKnownSKUMap = map[string]string{
-	"eks/cluster": "cluster", // EKS control plane ($0.10/hr)
-	"eks/addon":   "addon",   // EKS addon (most free, some paid like CoreDNS)
+	"eks/cluster":    "cluster",    // EKS control plane ($0.10/hr)
+	"eks/addon":      "addon",      // EKS addon (most free, some paid like CoreDNS)
+	"ec2/natgateway": "natgateway", // NAT gateway hourly charge; the type has no SKU property
 }
 
 // resolveAWSSKU returns the well-known AWS SKU name for a Pulumi resource type token.
