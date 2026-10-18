@@ -6,8 +6,8 @@ const MD_LINK = /^(?![a-z][a-z\d+.-]*:|[/#])([^#?]*?)\.mdx?(#.*)?$/i;
 
 /**
  * Sätteri mdast plugin that rewrites relative links to Markdown files
- * (`./cache.md`, `../plugins/jev.md#setup`) into site routes
- * (`/finfocus/guides/cache/`, `/finfocus/plugins/jev/#setup`).
+ * (`./cache.md`, `../plugins/scorer.md#setup`) into site routes
+ * (`/finfocus/guides/cache/`, `/finfocus/plugins/scorer/#setup`).
  *
  * Authors link file-to-file so the sources browse correctly on GitHub, but the
  * browser resolves a relative href against the page URL, which has one more path

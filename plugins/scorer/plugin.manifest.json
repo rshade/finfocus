@@ -1,0 +1,13 @@
+{
+  "name": "scorer",
+  "version": "0.1.0",
+  "description": "Recommendation scorer that rates risk, false positives, worth and priority and groups duplicates using selectable Jev or Cloudflare Clef backends",
+  "author": "FinFocus Team",
+  "supported_providers": ["*"],
+  "protocols": ["grpc"],
+  "binary": "finfocus-plugin-scorer",
+  "metadata": {
+    "repository": "https://github.com/rshade/finfocus",
+    "docs": "https://github.com/rshade/finfocus/tree/main/plugins/scorer"
+  }
+}

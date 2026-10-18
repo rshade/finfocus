@@ -729,7 +729,11 @@ finfocus plugin validate
 | `aws-ce` | In Development | AWS Cost Explorer integration |
 | `azure-public` | In Development | Azure public pricing data |
 | `opencost` | Available | Kubernetes allocation cost from OpenCost or Kubecost |
-| `jev` | Available | Opt-in recommendation scorer using TypeSafe AI's Jev model. Needs `TYPESAFE_API_KEY` and sends recommendation data (pseudonymized by default) to TypeSafe. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev) and the [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
+| `scorer` | Source install; first public release pending | Opt-in recommendation ranking with Jev (default) or Clef. Uses `SCORER_API_KEY`; hosted backends send recommendation data to TypeSafe AI or Cloudflare. Build with `make install-scorer`. See the [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/scorer) and [scoring guide](docs/src/content/docs/guides/recommendation-scoring.md) |
+
+The retained `finfocus plugin install jev` command installs the last legacy Jev
+release separately and does not migrate settings. Once scorer release assets
+and its registry entry are published, use `finfocus plugin install scorer`.
 
 ## Pulumi Analyzer Integration
 

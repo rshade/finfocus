@@ -1,6 +1,6 @@
 ---
-title: Running aws-public, Kubernetes, and Jev Together
-description: End-to-end walkthrough of the three FinFocus plugins working together — aws-public pricing AWS resources, kubernetes splitting cluster costs, and jev scoring the recommendations.
+title: Running aws-public, Kubernetes, and Scorer Together
+description: End-to-end walkthrough of the three FinFocus plugins working together — aws-public pricing AWS resources, kubernetes splitting cluster costs, and scorer ranking the recommendations.
 ---
 
 ## What Each Plugin Does
@@ -13,12 +13,12 @@ walkthrough runs a realistic day with all three plugins installed:
 - **kubernetes** reports what's running in the cluster and splits each priced
   node's cost across namespaces and workloads. It also prices Kubernetes
   workloads declared in a Pulumi plan.
-- **jev** scores the cost recommendations the other plugins produce, so the
+- **scorer** scores the cost recommendations the other plugins produce, so the
   list can be ordered by risk and priority instead of raw savings.
 
 None of these plugins knows about the others. Core routes AWS resources to
 aws-public, cluster state and `kubernetes:*` plan resources to the kubernetes
-plugin, and the finished recommendations to jev.
+plugin, and the finished recommendations to scorer.
 
 ## Setup
 
@@ -27,15 +27,16 @@ Install all three plugins and set the environment they need:
 ```bash
 finfocus plugin install aws-public --metadata region=us-east-1
 finfocus plugin install kubernetes
-finfocus plugin install jev
+make install-scorer  # from the repository root; public scorer release pending
 
 # kubernetes: workload pricing rates for plan-time estimates
 export FINFOCUS_KUBERNETES_CPU_HOURLY_RATE=0.04
 export FINFOCUS_KUBERNETES_MEMORY_GIB_HOURLY_RATE=0.005
 
-# jev: opt in to scoring
-export TYPESAFE_API_KEY=...
-finfocus config set scoring.plugin jev
+# scorer: opt in with the Jev backend used in this example
+export SCORER_BACKEND=jev
+export SCORER_API_KEY=...
+finfocus config set scoring.plugin scorer
 finfocus config set scoring.enabled true
 ```
 
@@ -43,6 +44,19 @@ The kubernetes plugin also needs a reachable cluster via kubeconfig
 (`KUBECONFIG` or `~/.kube/config`) for Step 2. Set `scoring.plugin` before
 `scoring.enabled` — every config change is validated, and scoring cannot be
 enabled without a plugin.
+
+The first public scorer release and registry entry are pending; source install
+is available now. Once assets are published, `finfocus plugin install scorer`
+will install it. `finfocus plugin install jev` still installs the last legacy
+Jev release separately and does not migrate settings.
+
+Hosted Jev sends recommendation data to TypeSafe AI. To select hosted Clef,
+use `SCORER_BACKEND=clef`, a Cloudflare token in `SCORER_API_KEY`, and your
+32-hex-character `SCORER_CLEF_ACCOUNT_ID`; its default model is `clef`. Hosted
+Clef sends the data to Cloudflare. Inspect `--scoring-dry-run` and narrow data
+with `scoring.field_allowlist` before enabling either. See the
+[scorer README](https://github.com/rshade/finfocus/tree/main/plugins/scorer)
+for migration and backend settings.
 
 ## Step 1: Price the Plan Before Deploying
 
@@ -74,7 +88,7 @@ OP  RESOURCE                                  BEFORE  AFTER  CHANGE  CURRENCY
 +   kubernetes:apps/v1:Deployment/urn:pul...  0.00  54.75  +54.75  USD
     Estimated from declared requests × configured rates: 3 pods (spec.replicas) × $0.025/pod-hour (0.5 vCPU × 0.04 + 1 GiB × 0.005) × 730 h. Rates from FINFOCUS_KUBERNETES_CPU_HOURLY_RATE and FINFOCUS_KUBERNETES_MEMORY_GIB_HOURLY_RATE are plugin configuration, not a real node price.
 +   aws:s3/bucket:Bucket/urn:pulumi:prod:...  0.00  0.00  +0.00  USD
-    No pricing information available (declined by jev: jev plugin scores recommendations only; kubernetes: kubernetes plugin prices only kubernetes:* resources)
+    No pricing information available (declined by scorer: scorer plugin scores recommendations only; kubernetes: kubernetes plugin prices only kubernetes:* resources)
 
 ERRORS
 ======
@@ -140,7 +154,7 @@ row appears.
 
 aws-public also produces recommendations — here, moving the gp2 volume to gp3
 and the `m4.large` instance to `m5.large`. With scoring enabled, Core sends
-them to jev, which returns risk, false-positive, worth-acting, and priority
+them to scorer, which returns risk, false-positive, worth-acting, and priority
 scores for each:
 
 ```bash
@@ -156,7 +170,7 @@ Total Potential Savings: 6.92 USD
 By Action Type:
   RECOMMENDATION_ACTION_TYPE_MODIFY: 2 (6.92 USD)
 
-Scoring: jev/jev-1.13.0 (ranking_only): scored 2 of 2, 1 need review. Scores rank work for review; they never dismiss or apply a recommendation.
+Scoring: scorer/jev-1.13.0 (ranking_only): scored 2 of 2, 1 need review. Scores rank work for review; they never dismiss or apply a recommendation.
 
 TOP 2 RECOMMENDATIONS BY PRIORITY
 ----------------------------------------
@@ -166,19 +180,21 @@ urn:pulumi:prod::shop::aws:ebs/volume:Volume::data-volume     RECOMMENDATION_ACT
 urn:pulumi:prod::shop::aws:ec2/instance:Instance::api-server  RECOMMENDATION_ACTION_TYPE_MODIFY  Upgrade from m4.large to m5.large for better pe...  2.92 USD  0.26  0.12       0.46   2.12      review
 ```
 
-The score columns sit at the right of the table. For this run they were:
+This is illustrative output from the original Jev walkthrough, with the plugin
+name updated to `scorer`. It is not a Clef run or evidence of Clef quality.
+The score columns sit at the right of the table. For that Jev run they were:
 
 | Recommendation      | Savings  | Risk | False pos | Worth | Priority | Review |
 | ------------------- | -------- | ---- | --------- | ----- | -------- | ------ |
 | gp2 → gp3 volume    | 4.00 USD | 0.21 | 0.12      | 0.76  | 2.35     |        |
 | m4.large → m5.large | 2.92 USD | 0.26 | 0.12      | 0.46  | 2.12     | review |
 
-jev's scores are `ranking_only`: they order the list, and they are not
+The Jev backend's scores are `ranking_only`: they order the list, and they are not
 probabilities. Priority is a relative score, so read it only against the
-other rows in the same run. jev rated the gp2→gp3 change as both lower risk
+other rows in the same run. Jev rated the gp2→gp3 change as both lower risk
 and more worth doing, so it sorts first. It flagged the instance upgrade for
 `review`, which the summary line counts as "1 need review". `GROUP` is empty
-because jev found no duplicates. Scores can shift slightly between runs.
+because Jev found no duplicates. Scores can shift slightly between runs.
 
 A score never approves, dismisses, or applies anything; that decision stays
 with the reviewer.
@@ -189,7 +205,7 @@ with the reviewer.
 | ------------ | ----------------------------- | ------------------------------------------------------ |
 | `aws-public` | AWS pricing, recommendations  | `cost projected`, `cost actual` (runtime estimate, not billing data), `cost cluster` (node pricing), `cost recommendations` |
 | `kubernetes` | Cluster usage and allocation, Kubernetes workload pricing | `cost cluster`, `cost projected` (for `kubernetes:*` resources) |
-| `jev`        | Recommendation scoring        | `cost recommendations` (when `scoring.enabled` is true) |
+| `scorer`     | Recommendation scoring        | `cost recommendations` (when `scoring.enabled` is true) |
 
 Because routing is per-resource and per-capability, the same pattern extends
 to other plugins: install another plugin, such as Kubecost, and Core routes
@@ -198,7 +214,7 @@ to it without changing how these three behave.
 ## See Also
 
 - [AWS Public Plugin](../plugins/aws-public.md)
-- [Jev Scorer Plugin](../plugins/jev.md)
+- [Recommendation Scorer Plugin](../plugins/scorer.md)
 - [Kubernetes Cluster Cost Allocation](./cluster-costs.md)
 - [Recommendation Scoring Guide](./recommendation-scoring.md)
 - [Multi-Plugin Routing](./routing.md)

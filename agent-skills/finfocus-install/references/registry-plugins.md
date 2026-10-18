@@ -89,21 +89,48 @@ and set `OPENCOST_PROFILE=kubecost`. `finfocus setup` does not install it; run
 | Security | official |
 | Asset prefix | `finfocus-plugin-jev` |
 
-Opt-in recommendation scorer backed by TypeSafe AI's Jev model. It rates risk,
-false positives, worth and priority and groups duplicate recommendations. It is
-not part of provider detection and `finfocus setup` does not install it.
+Legacy opt-in Jev scorer. `finfocus plugin install jev` continues installing
+the last `jev-v*` release separately; it does not install the renamed scorer or
+migrate settings. Historical tags and assets remain available. The registry
+entry stays until new scorer release assets exist.
 
-- Requires `TYPESAFE_API_KEY` (from the TypeSafe console) and scoring enabled in
-  config; without them it does nothing. Without the key every scoring call
-  returns `UNAUTHENTICATED`, shown as a scoring warning.
-- Enable in this order, because each config change is validated:
-  `finfocus config set scoring.plugin jev`, then
-  `finfocus config set scoring.enabled true`.
-- Sends recommendation data to TypeSafe. Identifiers are pseudonymized by default.
-- Setup and data handling: see the
-  [plugin README](https://github.com/rshade/finfocus/tree/main/plugins/jev) and
-  the Recommendation Scoring guide (`docs/src/content/docs/guides/recommendation-scoring.md`
-  in the repo).
+### scorer (source install; public release pending)
+
+The renamed plugin supports `SCORER_BACKEND=jev|clef` (default `jev`). Build and
+install it from this repository with `make install-scorer`. After scorer assets
+and its registry entry are published, use `finfocus plugin install scorer`.
+Neither scorer is installed by `finfocus setup` or provider detection.
+
+- Use `SCORER_API_KEY` for the selected backend token. Clef also requires a
+  32-character hexadecimal `SCORER_CLEF_ACCOUNT_ID` when a key is supplied.
+- Defaults: `SCORER_MODEL=jev-1.13.0` for Jev or `clef` for Clef;
+  `SCORER_BASE_URL=https://api.typesafe.ai` or `https://api.cloudflare.com`.
+  The base URL is an origin; the Clef adapter appends the account path.
+- `SCORER_TIMEOUT=60s`, `SCORER_BATCH_SIZE=25` and
+  `SCORER_DUPLICATE_THRESHOLD=0.5` retain the legacy defaults.
+- Enable in order: `finfocus config set scoring.plugin scorer`, then
+  `finfocus config set scoring.enabled true`. Without a key scoring calls
+  return `UNAUTHENTICATED` and recommendations remain unscored.
+- Hosted Jev and Clef send recommendation data to TypeSafe AI and Cloudflare
+  respectively. Identifiers are pseudonymized by default; inspect the dry run
+  and narrow data with `scoring.field_allowlist`. Scores rank work for review
+  and never approve or apply changes. Local compatible endpoints may avoid
+  hosted calls, but Clef self-hosting and vLLM compatibility are untested.
+- See the [scorer README](https://github.com/rshade/finfocus/tree/main/plugins/scorer)
+  and Recommendation Scoring guide
+  (`docs/src/content/docs/guides/recommendation-scoring.md`).
+
+The new plugin does not read legacy environment variables. Migrate explicitly:
+
+| Removed setting | Replacement |
+| --- | --- |
+| `TYPESAFE_API_KEY` | `SCORER_API_KEY` |
+| `JEV_MODEL` | `SCORER_MODEL` |
+| `JEV_BASE_URL` | `SCORER_BASE_URL` |
+| `JEV_TIMEOUT` | `SCORER_TIMEOUT` |
+| `JEV_BATCH_SIZE` | `SCORER_BATCH_SIZE` |
+| `JEV_DUPLICATE_THRESHOLD` | `SCORER_DUPLICATE_THRESHOLD` |
+| `scoring.plugin: jev` | `scoring.plugin: scorer` |
 
 ## Provider Detection → Plugin Mapping
 

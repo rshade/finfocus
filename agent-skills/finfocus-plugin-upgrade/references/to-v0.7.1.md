@@ -11,11 +11,11 @@ version, but `staticcheck` (SA1019) now flags code that sets it.
 
 ```go
 // Before
-info := &pbc.ScorerInfo{Name: "jev", Model: model, ProviderRequestId: reqID}
+info := &pbc.ScorerInfo{Name: "scorer", Model: model, ProviderRequestId: reqID}
 
 // After
 info := &pbc.ScorerInfo{
-    Name:               "jev",
+    Name:               "scorer",
     Model:              model,
     ProviderRequestIds: reqIDs,
     ProviderRequestId:  reqIDs[0], //nolint:staticcheck // Hosts that read only the old field.
