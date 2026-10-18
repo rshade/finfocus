@@ -252,12 +252,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 ### Config singleton (`internal/config/integration.go`)
 
 - `GetGlobalConfig()` initializes the singleton on its first call, without the
-  project overlay, and `InitGlobalConfigWithProject` then does nothing. The
-  `cost` commands call `config.GetDefaultOutputFormat()` while their flags are
-  built, so a project-tier `cost.budgets` (what the dashboard Config page
-  writes by default) is never applied. A global-tier budget is. Known and not
-  yet fixed. `config get` reads `cost.budgets.global.amount`, `currency`, and
-  `period`. Flat `cost.budgets.amount` still addresses that same global scope.
+  project overlay, and `InitGlobalConfigWithProject` then does nothing. Never
+  call it (or `GetDefaultOutputFormat`, `GetOutputFormat`) while building a
+  command or its flags: the project tier would be lost. `--output` defaults to
+  `""` and `resolveOutputFormatWithConfig` fills it in at run time, after
+  `PersistentPreRunE`. `TestNewRootCmdDoesNotInitializeConfig` guards this.
+- `config get` reads `cost.budgets.global.amount`, `currency`, and `period`.
+  Flat `cost.budgets.amount` still addresses that same global scope.
 
 ### Plugin Host (`internal/pluginhost/`)
 

@@ -126,7 +126,7 @@ func TestCostActualCmdFlags(t *testing.T) {
 	outputFlag := cmd.Flags().Lookup("output")
 	assert.NotNil(t, outputFlag)
 	assert.Equal(t, "string", outputFlag.Value.Type())
-	assert.Equal(t, "table", outputFlag.DefValue)
+	assert.Empty(t, outputFlag.DefValue)
 
 	groupByFlag := cmd.Flags().Lookup("group-by")
 	assert.NotNil(t, groupByFlag)

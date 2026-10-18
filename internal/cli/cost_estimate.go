@@ -107,7 +107,8 @@ Examples:
 	// Common flags
 	cmd.Flags().BoolVar(&params.Interactive, "interactive", false, "Launch interactive TUI mode")
 	cmd.Flags().StringVar(
-		&params.Output, "output", config.GetDefaultOutputFormat(), "Output format (table, json, ndjson)")
+		&params.Output, "output", "",
+		"Output format: table, json, or ndjson (default from output.default_format, else table)")
 	cmd.Flags().StringVar(&params.Adapter, "adapter", "", "Specific plugin adapter to use")
 
 	return cmd
@@ -287,7 +288,7 @@ func executeCostEstimate(cmd *cobra.Command, params CostEstimateParams) error {
 	log := logging.FromContext(ctx)
 	start := time.Now()
 
-	params.Output = resolveOutputFormat(cmd, "output", params.Output)
+	params.Output = resolveOutputFormatWithConfig(cmd, params.Output)
 	if !isValidOutputFormat(engine.OutputFormat(config.GetOutputFormat(params.Output))) {
 		return fmt.Errorf("unsupported output format: %s (supported: table, json, ndjson)", params.Output)
 	}
