@@ -30,6 +30,7 @@ type webData struct {
 	clients        []*pluginhost.Client
 	raw            []engine.ResourceDescriptor
 	planned        []engine.ResourceDescriptor
+	planSteps      []engine.PlanStep
 	planErr        error
 	sourceErr      error
 	sourceCaptured bool
@@ -72,9 +73,45 @@ func (d *webData) captureState(resources []ingest.StackExportResource) {
 }
 
 // capturePlan keeps only real initial preview sources, before synthetic expansion.
-func (d *webData) capturePlan(plan *ingest.PulumiPlan) {
-	d.planned, d.planErr = ingest.MapResources(plan.GetResources())
+// The query gate is the same one estimate readers hold.
+func (d *webData) capturePlan(ctx context.Context, plan *ingest.PulumiPlan) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		logging.FromContext(ctx).Warn().
+			Str("component", "web").
+			Str("operation", "capture_plan").
+			Err(err).
+			Msg("preview plan capture skipped; query gate unavailable")
+		return
+	}
+	defer unlock()
+	resources := plan.GetResources()
+	d.planned, d.planErr = ingest.MapResources(resources)
 	d.planned = cloneWebResources(d.planned)
+	d.planSteps = convertPlanSteps(plan.Steps)
+}
+
+// appendPreviewRows adds plan-only creates through the merge the CLI Overview
+// uses, applies the launch filters to the added rows, then prices only those
+// rows. The query gate stays held until pricing finishes, like a query lease,
+// so a settings save, install, or remove cannot reload and close the clients
+// mid-pricing.
+func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewRow) ([]engine.OverviewRow, error) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+
+	merged := engine.AppendPlanOnlyRows(rows, d.planSteps)
+	added, err := validateAndApplyOverviewFilters(merged[len(rows):], d.params.filter)
+	if err != nil {
+		return nil, err
+	}
+	if len(added) > 0 && d.eng != nil {
+		engine.EnrichOverviewRows(ctx, added, d.eng, d.dates, nil)
+	}
+	return append(merged[:len(rows):len(rows)], added...), nil
 }
 
 func (d *webData) newEngine(

@@ -170,8 +170,14 @@ func (f webFixture) start(t *testing.T, source string, encrypted bool, fixtureEn
 			"WEB_PLAN="+filepath.Join(f.root, "testdata/overview/plan-no-changes.json"),
 		)
 		args = append(args, "--stack", "dev")
-	} else if !slices.Contains(fixtureEnv, "WEB_AUTO_DETECT=true") {
+	} else if !slices.Contains(fixtureEnv, "WEB_AUTO_DETECT=true") && !slices.Contains(fixtureEnv, "WEB_STATE_ONLY=true") {
 		args = append(args, "--pulumi-json", source)
+	}
+	if slices.Contains(fixtureEnv, "WEB_STATE_ONLY=true") {
+		// The fixture deployment is 2025-06-15. Aging project sources keeps
+		// change detection from requesting an automatic preview.
+		old := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+		require.NoError(t, os.Chtimes(filepath.Join(project, "Pulumi.yaml"), old, old))
 	}
 	cmd := exec.Command(f.binary, args...)
 	cmd.Dir = project
@@ -347,7 +353,7 @@ func TestWebUIBrowser(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('.overview-table tbody tr button') && document.querySelector('.phase-checklist').hidden`,
+		`() => { const button = document.querySelector('.overview-table tbody tr button'); const list = document.querySelector('.phase-checklist'); return !!button && !!list && list.hidden; }`,
 	)
 	t.Run("keyboard_all_views", func(t *testing.T) {
 		var requestMu sync.Mutex
@@ -365,12 +371,12 @@ func TestWebUIBrowser(t *testing.T) {
 			requestMu.Unlock()
 		})
 		webType(t, page, "#overview-filter", "test-instance")
-		webWait(t, page, `() => document.querySelector('.overview-table tbody').textContent.includes('test-instance')`)
+		webWait(t, page, `() => document.querySelector('.overview-table tbody')?.textContent?.includes('test-instance')`)
 		webTab(t, page, ".sort-button")
 		require.NoError(t, page.Keyboard().Press("Enter"))
 		webTab(t, page, ".overview-table tbody .resource-link")
 		require.NoError(t, page.Keyboard().Press("Enter"))
-		webWait(t, page, `() => document.querySelector('.detail-panel').hidden === false`)
+		webWait(t, page, `() => document.querySelector('.detail-panel')?.hidden === false`)
 		webTab(t, page, ".detail-panel button")
 		require.NoError(t, page.Keyboard().Press("Enter"))
 		focused, err := page.Evaluate(`() => document.activeElement.classList.contains('resource-link')`)
@@ -386,12 +392,12 @@ func TestWebUIBrowser(t *testing.T) {
 		require.NoError(t, page.Keyboard().Press("Enter"))
 		webTab(t, page, "#cost-sort")
 		require.NoError(t, page.Keyboard().Press("ArrowDown"))
-		webWait(t, page, `() => document.querySelector(".overview-table").getAttribute("aria-busy") === "false"`)
+		webWait(t, page, `() => document.querySelector(".overview-table")?.getAttribute("aria-busy") === "false"`)
 		webTab(t, page, ".overview-table tbody button")
 		require.NoError(t, page.Keyboard().Press("Enter"))
 		webWait(t, page, `() => document.querySelector('dialog[open]') !== null`)
 		require.NoError(t, page.Keyboard().Press("Escape"))
-		webWait(t, page, `() => document.activeElement.classList.contains('detail-button')`)
+		webWait(t, page, `() => document.activeElement?.classList.contains('detail-button') === true`)
 		for _, group := range []string{"", "resource", "type", "provider", "daily", "monthly"} {
 			webTab(t, page, "#cost-group")
 			require.NoError(t, page.Keyboard().Press("Home"))
@@ -403,7 +409,7 @@ func TestWebUIBrowser(t *testing.T) {
 			webWait(
 				t,
 				page,
-				`() => document.querySelector('#cost-group').value === '`+group+`' && document.querySelector('.overview-table').getAttribute('aria-busy') === 'false'`,
+				`() => document.querySelector('#cost-group')?.value === '`+group+`' && document.querySelector('.overview-table')?.getAttribute('aria-busy') === 'false'`,
 			)
 			result := s.query(t, "/api/cost/actual/query", map[string]any{"groupBy": group})
 			assert.NotEmpty(t, result["rows"], group)
@@ -435,14 +441,14 @@ func TestWebUIBrowser(t *testing.T) {
 		webWait(
 			t,
 			page,
-			`() => document.querySelector('#recommendations-dismissed').checked && document.querySelector('.overview-table').getAttribute('aria-busy') === 'false'`,
+			`() => document.querySelector('#recommendations-dismissed')?.checked === true && document.querySelector('.overview-table')?.getAttribute('aria-busy') === 'false'`,
 		)
 		after := s.query(t, "/api/recommendations/query", map[string]any{"includeDismissed": true})
 		assert.Greater(t, len(after["items"].([]any)), len(before["items"].([]any)))
 		webWait(
 			t,
 			page,
-			`() => document.querySelector('.overview-table tbody').textContent.includes('Archived test-instance')`,
+			`() => document.querySelector('.overview-table tbody')?.textContent?.includes('Archived test-instance')`,
 		)
 		store, err := os.ReadFile(filepath.Join(s.project, ".finfocus", "dismissed.json"))
 		require.NoError(t, err)
@@ -464,14 +470,14 @@ func TestWebUIBrowser(t *testing.T) {
 		webWait(
 			t,
 			page,
-			`() => !document.querySelector('#recommendations-dismissed').checked && !document.querySelector('.overview-table tbody').textContent.includes('Archived test-instance') && document.querySelector('.overview-table').getAttribute('aria-busy') === 'false'`,
+			`() => { const box = document.querySelector('#recommendations-dismissed'); const body = document.querySelector('.overview-table tbody'); const table = document.querySelector('.overview-table'); return !!box && !box.checked && !!body && !body.textContent.includes('Archived test-instance') && table?.getAttribute('aria-busy') === 'false'; }`,
 		)
 
 		webTab(t, page, ".overview-table tbody button")
 		require.NoError(t, page.Keyboard().Press("Enter"))
-		webWait(t, page, `() => document.querySelector('dialog[open]')?.textContent.includes('Risk0.20')`)
+		webWait(t, page, `() => document.querySelector('dialog[open]')?.textContent?.includes('Risk0.20')`)
 		require.NoError(t, page.Keyboard().Press("Escape"))
-		webWait(t, page, `() => document.activeElement.classList.contains('detail-button')`)
+		webWait(t, page, `() => document.activeElement?.classList.contains('detail-button') === true`)
 		webRoute(t, page, "estimate")
 		webWait(t, page, `() => document.querySelector('[aria-label="Current instanceType"]') !== null`)
 		original, err := page.Locator("[aria-label='Estimate comparison']").TextContent()
@@ -481,7 +487,7 @@ func TestWebUIBrowser(t *testing.T) {
 		webWait(
 			t,
 			page,
-			`() => document.querySelector('[aria-label="Estimate comparison"]').textContent.includes('40.00') || document.querySelector('[aria-label="Estimate comparison"]').textContent.includes('120.00')`,
+			`() => { const comparison = document.querySelector('[aria-label="Estimate comparison"]'); return !!comparison && (comparison.textContent.includes('40.00') || comparison.textContent.includes('120.00')); }`,
 		)
 		modified, err := page.Locator("[aria-label='Estimate comparison']").TextContent()
 		require.NoError(t, err)
@@ -495,7 +501,7 @@ func TestWebUIBrowser(t *testing.T) {
 		webTab(t, page, "#estimate-mode")
 		require.NoError(t, page.Keyboard().Press("End"))
 		require.NoError(t, page.Keyboard().Press("Tab"))
-		webWait(t, page, `() => document.querySelector('.overview-table').getAttribute('aria-busy') === 'false'`)
+		webWait(t, page, `() => document.querySelector('.overview-table')?.getAttribute('aria-busy') === 'false'`)
 		mode, err := page.Locator("#estimate-mode").InputValue()
 		require.NoError(t, err)
 		assert.NotEmpty(t, mode)
@@ -511,7 +517,7 @@ func TestWebUIBrowser(t *testing.T) {
 				webWait(
 					t,
 					p,
-					`() => document.querySelector('.overview-table tbody tr') !== null && document.querySelector('.overview-table').getAttribute('aria-busy') !== 'true'`,
+					`() => document.querySelector('.overview-table tbody tr') !== null && document.querySelector('.overview-table')?.getAttribute('aria-busy') !== 'true'`,
 				)
 				issues, err := p.Evaluate(webContrastScript)
 				require.NoError(t, err)
@@ -565,36 +571,63 @@ func TestWebUIEncryptedRetryAndPreview(t *testing.T) {
 	browser := webBrowser(t)
 	s := f.start(t, "", true)
 	page := webPage(t, browser, s, playwright.ColorSchemeLight)
-	for _, preview := range []bool{false, true} {
-		if preview {
-			webTab(t, page, ".preview-button")
-			require.NoError(t, page.Keyboard().Press("Enter"))
-		}
-		webWait(t, page, `() => document.querySelector('#passphrase-input')?.closest('dialog').open`)
-		input := page.Locator("#passphrase-input")
-		kind, err := input.GetAttribute("type")
-		require.NoError(t, err)
-		assert.Equal(t, "password", kind)
-		webType(t, page, "#passphrase-input", "web-fixture-wrong")
-		require.NoError(t, page.Keyboard().Press("Enter"))
-		webWait(
-			t,
-			page,
-			`() => document.querySelector('#passphrase-input').closest('dialog').open && !document.querySelector('#passphrase-error').hidden && document.querySelector('#passphrase-error').textContent.length > 0 && document.querySelector('#passphrase-input').value === '' && !document.querySelector('.passphrase-form button[type="submit"]').disabled`,
-		)
-		text, err := page.Locator("body").TextContent()
-		require.NoError(t, err)
-		assert.NotContains(t, text, "web-fixture-wrong")
-		webType(t, page, "#passphrase-input", "web-fixture-unlock")
-		require.NoError(t, page.Keyboard().Press("Enter"))
-		webWait(
-			t,
-			page,
-			`() => !document.querySelector('#passphrase-input').closest('dialog').open && document.querySelector('.overview-table tbody tr button') !== null && !document.querySelector('.preview-button').disabled`,
-		)
-	}
+	webWait(t, page, `() => document.querySelector('#passphrase-input')?.closest('dialog')?.open === true`)
+	input := page.Locator("#passphrase-input")
+	kind, err := input.GetAttribute("type")
+	require.NoError(t, err)
+	assert.Equal(t, "password", kind)
+	webType(t, page, "#passphrase-input", "web-fixture-wrong")
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	webWait(
+		t,
+		page,
+		`() => { const input = document.querySelector('#passphrase-input'); const dialog = input?.closest('dialog'); const error = document.querySelector('#passphrase-error'); const submit = document.querySelector('.passphrase-form button[type="submit"]'); return !!input && !!dialog && dialog.open && !!error && !error.hidden && error.textContent.length > 0 && input.value === '' && !!submit && !submit.disabled; }`,
+	)
+	text, err := page.Locator("body").TextContent()
+	require.NoError(t, err)
+	assert.NotContains(t, text, "web-fixture-wrong")
+	webType(t, page, "#passphrase-input", "web-fixture-unlock")
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	// Fresh project files are newer than the fixture deployment, so the run
+	// previews during load and Run preview stays disabled.
+	webWait(
+		t,
+		page,
+		`() => { const input = document.querySelector('#passphrase-input'); const dialog = input?.closest('dialog'); const button = document.querySelector('.overview-table tbody tr button'); const preview = document.querySelector('.preview-button'); return !!dialog && !dialog.open && button !== null && !!preview && preview.disabled; }`,
+	)
 	assert.NotContains(t, s.logs.String(), "web-fixture-wrong")
 	assert.NotContains(t, s.logs.String(), "web-fixture-unlock")
+}
+
+//nolint:paralleltest // Browser and performance acceptance run sequentially for deterministic timing.
+func TestWebUIStateOnlyPreviewGate(t *testing.T) {
+	f := newWebFixture(t)
+	browser := webBrowser(t)
+	state := filepath.Join(f.root, "testdata/overview/state-no-changes.json")
+	plan := filepath.Join(f.root, "testdata/overview/plan-no-changes.json")
+	session := f.start(t, plan, false, "WEB_STATE_ONLY=true", "WEB_STATE="+state)
+	page := webPage(t, browser, session, playwright.ColorSchemeLight)
+	webWait(t, page, `() => {
+		const button = document.querySelector('.preview-button');
+		const header = document.querySelectorAll('.overview-table thead th')[4];
+		const note = document.querySelector('.state-only-footnote');
+		const hint = document.querySelector('.state-only-hint');
+		return !!button && !button.disabled && header?.textContent === 'Projected*' && !!note && !note.hidden && note.textContent.includes('730h/mo') && !!hint && hint.hidden;
+	}`)
+	webTab(t, page, ".preview-button")
+	require.NoError(t, page.Keyboard().Press("Enter"))
+	webWait(t, page, `() => {
+		const button = document.querySelector('.preview-button');
+		const header = document.querySelectorAll('.overview-table thead th')[4];
+		const note = document.querySelector('.state-only-footnote');
+		return !!button && button.disabled && header?.textContent === 'Projected' && !!note && note.hidden;
+	}`)
+	status, err := page.Evaluate(`() => fetch('/api/overview/preview', {method:'POST', credentials:'same-origin', headers:{'Content-Type':'application/json'}, body:'{}'}).then(async (response) => ({status: response.status, code: (await response.json()).code}))`)
+	require.NoError(t, err)
+	payload, ok := status.(map[string]any)
+	require.True(t, ok)
+	assert.EqualValues(t, 409, payload["status"])
+	assert.Equal(t, "preview_not_allowed", payload["code"])
 }
 
 //nolint:paralleltest // Browser and performance acceptance run sequentially for deterministic timing.
@@ -834,7 +867,7 @@ func TestWebUIThreeFixtureParityAndCluster(t *testing.T) {
 				webWait(
 					t,
 					p,
-					`() => document.querySelector('.cluster-toggle').getAttribute('aria-expanded') === 'true'`,
+					`() => document.querySelector('.cluster-toggle')?.getAttribute('aria-expanded') === 'true'`,
 				)
 				focused, focusErr := p.Evaluate(`() => document.activeElement.classList.contains('cluster-toggle')`)
 				require.NoError(t, focusErr)
@@ -843,7 +876,7 @@ func TestWebUIThreeFixtureParityAndCluster(t *testing.T) {
 				webWait(
 					t,
 					p,
-					`() => document.querySelector('.cluster-toggle').getAttribute('aria-expanded') === 'false'`,
+					`() => document.querySelector('.cluster-toggle')?.getAttribute('aria-expanded') === 'false'`,
 				)
 			}
 		})
@@ -917,7 +950,7 @@ func TestWebUISharedPresentation(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('.overview-table tbody tr button') && document.querySelector('.phase-checklist').hidden`,
+		`() => { const button = document.querySelector('.overview-table tbody tr button'); const list = document.querySelector('.phase-checklist'); return !!button && !!list && list.hidden; }`,
 	)
 	budget, err := page.Locator(".budget-footer").TextContent()
 	require.NoError(t, err)
@@ -935,7 +968,7 @@ func TestWebUISharedPresentation(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('#cost-group') && document.querySelector('.overview-table').getAttribute('aria-busy') === 'false'`,
+		`() => !!document.querySelector('#cost-group') && document.querySelector('.overview-table')?.getAttribute('aria-busy') === 'false'`,
 	)
 	summary, err := page.Locator("[aria-label='Actual cost summary']").TextContent()
 	require.NoError(t, err)
@@ -966,7 +999,7 @@ func TestWebUISharedPresentation(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('dialog[open]')?.textContent.includes('Sustainability')`,
+		`() => document.querySelector('dialog[open]')?.textContent?.includes('Sustainability')`,
 	)
 	detail, err := page.Locator("dialog[open]").TextContent()
 	require.NoError(t, err)
@@ -980,20 +1013,20 @@ func TestWebUISharedPresentation(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('.overview-table').getAttribute('aria-busy') === 'false' && document.querySelector('.overview-table tbody').textContent.includes('aws:$')`,
+		`() => document.querySelector('.overview-table')?.getAttribute('aria-busy') === 'false' && document.querySelector('.overview-table tbody')?.textContent?.includes('aws:$')`,
 	)
 	webRoute(t, page, "recommendations")
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('.overview-table').getAttribute('aria-busy') === 'false' && document.querySelector('.detail-button')`,
+		`() => document.querySelector('.overview-table')?.getAttribute('aria-busy') === 'false' && !!document.querySelector('.detail-button')`,
 	)
 	text, err := page.Locator(".overview-table").TextContent()
 	require.NoError(t, err)
 	assert.Contains(t, text, "Rightsize")
 	assert.NotContains(t, text, "RECOMMENDATION_ACTION_TYPE_RIGHTSIZE")
 	visible, err := page.Evaluate(
-		`() => { const cell=document.querySelector('.recommendations-table tbody td:nth-child(4)');const r=cell.getBoundingClientRect();return r.left>=0 && r.right<=innerWidth; }`,
+		`() => { const cell=document.querySelector('.recommendations-table tbody td:nth-child(4)');const r=cell?.getBoundingClientRect();return !!r && r.left>=0 && r.right<=innerWidth; }`,
 	)
 	require.NoError(t, err)
 	assert.Equal(t, true, visible, "savings column fits the native 1280px viewport")
@@ -1001,7 +1034,7 @@ func TestWebUISharedPresentation(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('dialog[open]')?.textContent.includes('Scorer signals')`,
+		`() => document.querySelector('dialog[open]')?.textContent?.includes('Scorer signals')`,
 	)
 	text, err = page.Locator("dialog[open]").TextContent()
 	require.NoError(t, err)
@@ -1023,7 +1056,7 @@ func TestWebUIFirstDeployEstimates(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('.overview-table tbody tr button') && document.querySelector('.phase-checklist').hidden`,
+		`() => { const button = document.querySelector('.overview-table tbody tr button'); const list = document.querySelector('.phase-checklist'); return !!button && !!list && list.hidden; }`,
 	)
 	resources := s.query(t, "/api/estimate/resources", nil)
 	require.NotEmpty(t, resources["resources"], "first deploy planned resources are selectable")
@@ -1047,7 +1080,7 @@ func TestWebUIFirstDeployEstimates(t *testing.T) {
 	webWait(
 		t,
 		page,
-		`() => document.querySelector('[aria-label="Estimate comparison"]').textContent.includes(`+string(
+		`() => document.querySelector('[aria-label="Estimate comparison"]')?.textContent?.includes(`+string(
 			encodedModified,
 		)+`)`,
 	)
@@ -1186,7 +1219,7 @@ func TestWebUIConfigEditKeepsProjectComment(t *testing.T) {
 	assert.NotContains(t, mustText(t, page, "#config-preview-dialog"), "stored-secret")
 	webTab(t, page, "#config-confirm")
 	require.NoError(t, page.Keyboard().Press("Enter"))
-	webWait(t, page, `() => document.querySelector('#config-message')?.textContent.includes('does not reload') && document.querySelector('#config-output-precision').value === '4'`)
+	webWait(t, page, `() => document.querySelector('#config-message')?.textContent?.includes('does not reload') && document.querySelector('#config-output-precision')?.value === '4'`)
 
 	data, err := os.ReadFile(projectConfig)
 	require.NoError(t, err)

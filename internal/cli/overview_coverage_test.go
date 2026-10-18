@@ -289,7 +289,7 @@ func TestBuildOverviewRowsAndPlanHelpers(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, loaded)
 
-	_, err = resolveOverviewPlan(ctx, filepath.Join(t.TempDir(), "bad.json"), t.TempDir(), "dev", nil)
+	_, err = resolveOverviewPlan(ctx, filepath.Join(t.TempDir(), "bad.json"), t.TempDir(), "dev", nil, nil)
 	require.ErrorContains(t, err, "loading Pulumi plan")
 
 	cmd := buildPreviewCmd(ctx, missing, t.TempDir(), "dev", nil)
@@ -470,12 +470,12 @@ func TestExportAndPreview_MockedPulumi(t *testing.T) {
 	assert.NotEmpty(t, state)
 	assert.Empty(t, steps)
 
-	parsed, err := resolveOverviewPlan(ctx, "", project, "dev", nil)
+	parsed, err := resolveOverviewPlan(ctx, "", project, "dev", nil, nil)
 	require.NoError(t, err)
 	assert.Empty(t, parsed)
 
 	pw := "secret"
-	withPass, err := resolveOverviewPlan(ctx, "", project, "dev", &pw)
+	withPass, err := resolveOverviewPlan(ctx, "", project, "dev", &pw, nil)
 	require.NoError(t, err)
 	assert.Empty(t, withPass)
 }

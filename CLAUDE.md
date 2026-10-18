@@ -313,6 +313,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   the plugin spawned (the aws-public region binary) keeps running. That
   grandchild case belongs in the plugin. `analyzer serve` already handles
   both signals.
+- On-demand overview preview passes `capturePlan` into `resolveOverviewPlan`
+  (the hook is a normal parameter, not a variadic). The web Estimate page
+  reads that captured plan. Web Overview appends plan-only creates through
+  `engine.AppendPlanOnlyRows` (the same step `MergeResourcesForOverview` uses) and
+  prices only those new rows with `EnrichOverviewRows`; it does not only patch
+  rows that already exist. `capturePlan` takes the same query
+  gate as the readers.
 - `cost estimate --modify` splits on the last colon before `=`, so a Pulumi
   URN selector keeps its colons. A selector matches the resource ID, the
   logical name (the last `::` segment), or the type, and every matching
@@ -386,6 +393,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   also carries redacted `display.properties` with no deltas, `pricingModes`
   from `DiscoverPricingSpec`, and `resource`. `400 invalid_pricing_mode`
   stays `{error, code}` only. The editor must not treat that 502 as success.
+  Web overview learns state-only from `pipe.OnStateOnly`
+  (`Session.SetStateOnly`). Snapshot and the `run_status` event carry
+  `stateOnly`, `previewLoaded`, and `detectFailed` (a boolean; the error text stays in
+  the terminal log and never reaches the browser). `POST /api/overview/preview`
+  is 409 unless the run is state-only and a preview has not been applied. A
+  successful preview clears that status. Do not keep a second store beside
+  those session fields.
   `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.

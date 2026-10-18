@@ -38,7 +38,7 @@ type fdProvider interface{ Fd() uintptr }
 // overviewParams holds the parameters for the overview command.
 type overviewParams struct {
 	captureState    func([]ingest.StackExportResource)
-	capturePlan     func(*ingest.PulumiPlan)
+	capturePlan     func(context.Context, *ingest.PulumiPlan)
 	pulumiJSON      string
 	pulumiState     string
 	stack           string
@@ -511,7 +511,9 @@ func loadOverviewProjectData(
 		pt := logging.StartPhase(gctx, "pulumi", "overview", "preview")
 		defer pt.Done(gctx)
 		var planErr error
-		planSteps, planErr = resolveOverviewPlan(gctx, params.pulumiJSON, projectDir, resolvedStack, passphrase)
+		planSteps, planErr = resolveOverviewPlan(
+			gctx, params.pulumiJSON, projectDir, resolvedStack, passphrase, params.capturePlan,
+		)
 		return planErr
 	})
 	if waitErr := g.Wait(); waitErr != nil {
@@ -525,7 +527,7 @@ func loadOverviewProjectData(
 // passphrase is injected into the subprocess environment only (never [os.Setenv]).
 func resolveOverviewPlan(
 	ctx context.Context, pulumiJSON, projectDir, stack string, passphrase *string,
-	capture ...func(*ingest.PulumiPlan),
+	capture func(context.Context, *ingest.PulumiPlan),
 ) ([]engine.PlanStep, error) {
 	log := logging.FromContext(ctx)
 
@@ -534,8 +536,8 @@ func resolveOverviewPlan(
 		if err != nil {
 			return nil, fmt.Errorf("loading Pulumi plan: %w", err)
 		}
-		if len(capture) > 0 && capture[0] != nil {
-			capture[0](plan)
+		if capture != nil {
+			capture(ctx, plan)
 		}
 		return convertPlanSteps(plan.Steps), nil
 	}
@@ -554,8 +556,8 @@ func resolveOverviewPlan(
 	if err != nil {
 		return nil, fmt.Errorf("parsing pulumi preview: %w", err)
 	}
-	if len(capture) > 0 && capture[0] != nil {
-		capture[0](plan)
+	if capture != nil {
+		capture(ctx, plan)
 	}
 	return convertPlanSteps(plan.Steps), nil
 }
@@ -1516,7 +1518,9 @@ func runBackgroundPreviewWithError(
 	l := logging.FromContext(ctx)
 	previewStart := time.Now()
 
-	planSteps, err := resolveOverviewPlan(ctx, params.pulumiJSON, projectDir, stack, passphrase)
+	planSteps, err := resolveOverviewPlan(
+		ctx, params.pulumiJSON, projectDir, stack, passphrase, params.capturePlan,
+	)
 	if err != nil {
 		return tui.OverviewChangesReadyMsg{}, err
 	}

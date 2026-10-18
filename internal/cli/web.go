@@ -290,6 +290,7 @@ func bindWebPipeline(
 	pipe.OnDataReady = func(rows []engine.OverviewRow, _ int, stack string) {
 		session.SetData(pipe.Engine(), rows, dateRange, stack)
 	}
+	pipe.OnStateOnly = func(detectErrMsg string) { session.SetStateOnly(detectErrMsg != "") }
 	pipe.OnRow = session.Row
 	pipe.OnProgress = session.Progress
 	pipe.OnBudget = session.Budget
@@ -386,7 +387,11 @@ func webSessionOptions(
 		QueryEngine:       data.queryEngine,
 		ActualCosts:       data.actualCosts, Recommendations: data.recommendations, Trends: data.tableTrends,
 		Preview: func(previewCtx context.Context) ([]engine.OverviewRow, error) {
-			return previewWebRows(previewCtx, pipe, pipeDone)
+			rows, previewErr := previewWebRows(previewCtx, pipe, pipeDone)
+			if previewErr != nil {
+				return nil, previewErr
+			}
+			return data.appendPreviewRows(previewCtx, rows)
 		},
 		SubmitPassphrase: func(requestCtx context.Context, pw string) error {
 			select {

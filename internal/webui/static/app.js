@@ -29,6 +29,7 @@ const OVERVIEW_STREAM_EVENTS = [
   'ready',
   'passphrase_required',
   'preview',
+  'run_status',
 ];
 
 // el builds a DOM node without innerHTML so payload text is never parsed as
@@ -186,6 +187,16 @@ export class OverviewStream {
       snapshot.stack = data.stack;
     } else if (event === 'preview' || event === 'progress' || event === 'budget') {
       snapshot[event] = data;
+    } else if (event === 'run_status') {
+      // A later preview clears state-only. Remounts read this snapshot, not the live view.
+      if (typeof data.stateOnly === 'boolean') snapshot.stateOnly = data.stateOnly;
+      if (typeof data.previewLoaded === 'boolean') snapshot.previewLoaded = data.previewLoaded;
+      if (typeof data.detectFailed === 'boolean') snapshot.detectFailed = data.detectFailed;
+      if (typeof data.footnote === 'string') snapshot.footnote = data.footnote;
+      if (data.previewLoaded) {
+        snapshot.detectFailed = false;
+        snapshot.footnote = '';
+      }
     } else if (event === 'error') {
       snapshot.errors = [...(snapshot.errors ?? []).filter((error) => error.phase !== data.phase), data];
     }
