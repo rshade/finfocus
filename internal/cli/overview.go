@@ -1528,7 +1528,7 @@ func runBackgroundPreviewWithError(
 		Msg("background preview completed")
 
 	// Record plan lineage to history store (fire-and-forget).
-	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg)
+	historyStore, historyCleanup := initHistoryFromConfig(ctx, params.cfg, config.GetResolvedProjectDir())
 	recordHistoryPlanLineage(ctx, historyStore, planSteps)
 	historyCleanup()
 

@@ -211,11 +211,12 @@ func descriptorsFromInfo(settings []*pbc.PluginSetting) []webui.PluginSettingDes
 		if setting == nil || setting.GetKey() == "" {
 			continue
 		}
+		typeName := settingTypeName(setting.GetType())
 		item := webui.PluginSettingDescriptor{
 			Key:         setting.GetKey(),
-			Type:        settingTypeName(setting.GetType()),
+			Type:        typeName,
 			Required:    setting.GetRequired(),
-			Secret:      setting.GetSecret() || config.IsCredentialName(setting.GetKey()),
+			Secret:      settingSecret(setting.GetSecret(), typeName, setting.GetKey()),
 			Default:     setting.GetDefaultValue(),
 			DefaultSet:  setting.GetDefaultValue() != "",
 			Description: clipSettingDescription(setting.GetDescription()),
@@ -511,7 +512,26 @@ func settingIsSecret(descriptor webui.PluginSettingDescriptor, known bool, key s
 	if known && descriptor.Secret {
 		return true
 	}
+	if known && !credentialNameApplies(descriptor.Type) {
+		return false
+	}
 	return config.IsCredentialName(key) || config.IsSecretSetting(key)
+}
+
+// settingSecret honors an explicit plugin secret flag. Bool and enum settings
+// skip the credential-name heuristic; string and URL keys still use it.
+func settingSecret(explicit bool, typeName, key string) bool {
+	if explicit {
+		return true
+	}
+	if !credentialNameApplies(typeName) {
+		return false
+	}
+	return config.IsCredentialName(key)
+}
+
+func credentialNameApplies(typeName string) bool {
+	return typeName != settingTypeBool && typeName != settingTypeEnum
 }
 
 func environSet(environ []string, key string) bool {

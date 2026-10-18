@@ -217,7 +217,9 @@ type HistoryConfig struct {
 	// Pointer type distinguishes explicit zero from omitted (nil = use default).
 	RetentionDays *int `yaml:"retention_days" json:"retention_days"`
 
-	// Directory overrides the history directory path (default: ~/.finfocus/history).
+	// Directory overrides the history directory path.
+	// Empty resolves through FINFOCUS_HISTORY_DIR, then <ResolveConfigDir()>/history
+	// (~/.finfocus/history when FINFOCUS_HOME and PULUMI_HOME are unset).
 	Directory string `yaml:"directory,omitempty" json:"directory,omitempty"`
 
 	// Retention is the optional cost-history prune policy. Zero counts mean unlimited.

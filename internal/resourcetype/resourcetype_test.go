@@ -6,6 +6,29 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestIsFullTypeToken(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		resourceType string
+		want         bool
+	}{
+		{resourceType: "aws:ec2/instance:Instance", want: true},
+		{resourceType: "aws:ec2:Instance", want: true},
+		{resourceType: "aws-native:ec2:Instance", want: true},
+		{resourceType: "aws_instance", want: true},
+		{resourceType: "ec2:Instance", want: false},
+		{resourceType: "Instance", want: false},
+		{resourceType: "", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.resourceType, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.want, IsFullTypeToken(tt.resourceType))
+		})
+	}
+}
+
 func TestExtractPackage(t *testing.T) {
 	t.Parallel()
 
