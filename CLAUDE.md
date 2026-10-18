@@ -334,6 +334,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   load; a load error cancels the launch. Cleanup runs before `Run` returns
   when either side fails, and stays on the pipeline only when both succeed.
   Phase events stay 1..6; phase 4 is emitted when the open is joined.
+  `GetCurrentStack` wraps `ctx.Err()` when `pulumi stack ls` fails after that
+  context is canceled. The process error is `signal: killed` and does not
+  wrap `context.Canceled`, so overview would otherwise report the kill
+  instead of the plugin failure that canceled the load. A load error whose
+  context is still active stays a load error.
 - `internal/webui` must not import `cli`, `registry`, or `pluginhost`. Plugin
   page callbacks live in `internal/cli/web_plugins.go` and
   `plugin_settings_web.go`. Install progress is a per-operation SSE stream

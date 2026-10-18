@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
@@ -1110,4 +1111,82 @@ func TestWebPreviewRetriesRejectedPassphrase(t *testing.T) {
 	assert.Equal(t, []string{"passphrase_required", "error", "passphrase_required"}, events)
 	assert.Equal(t, 2, runner.calls)
 	assert.Nil(t, p.Passphrase())
+}
+
+// TestOverviewPipeline_PluginErrorBeatsKilledStackList cancels an in-flight
+// `pulumi stack ls` by failing plugin startup. The killed process reports
+// "signal: killed" and does not carry the cancellation, but the run must
+// still report the plugin failure.
+//
+// Not parallel: changes the working directory, PATH, and runs a subprocess.
+func TestOverviewPipeline_PluginErrorBeatsKilledStackList(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	project := t.TempDir()
+	t.Chdir(project)
+	require.NoError(t, os.WriteFile(
+		filepath.Join(project, "Pulumi.yaml"), []byte("name: test\nruntime: yaml\n"), 0o600,
+	))
+
+	started := filepath.Join(t.TempDir(), "started")
+	binDir := t.TempDir()
+	script := fmt.Sprintf(`#!/bin/sh
+if printf '%%s\n' "$*" | grep -q 'stack ls'; then
+  echo started > '%s'
+  exec sleep 60
+fi
+exit 0
+`, started)
+	require.NoError(t, os.WriteFile(filepath.Join(binDir, "pulumi"), []byte(script), 0o755))
+	t.Setenv("PATH", binDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	pluginErr := errors.New("plugin boom")
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}, stateOnly: true},
+		openPlugins: func(context.Context, string, *auditContext) ([]*pluginhost.Client, func(), error) {
+			deadline := time.Now().Add(5 * time.Second)
+			for {
+				if _, err := os.Stat(started); err == nil {
+					break
+				}
+				if time.Now().After(deadline) {
+					return nil, nil, errors.New("stack ls did not start")
+				}
+				time.Sleep(10 * time.Millisecond)
+			}
+			return nil, func() {}, pluginErr
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	err := pipe.Run(ctx)
+	require.ErrorIs(t, err, pluginErr)
+	assert.NotContains(t, err.Error(), "signal:")
+}
+
+// TestOverviewPipeline_IndependentLoadErrorWins keeps a stack-load failure that
+// is not the cancellation caused by a plugin error.
+func TestOverviewPipeline_IndependentLoadErrorWins(t *testing.T) {
+	t.Parallel()
+
+	loadErr := errors.New("schema mismatch")
+	pluginErr := errors.New("plugin boom")
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{cfg: &config.Config{}},
+		loader: func(context.Context, *OverviewPipeline) (*OverviewPipelineData, error) {
+			return nil, &PhaseError{Phase: OverviewPhaseMergeResources, Err: loadErr}
+		},
+		openPlugins: func(context.Context, string, *auditContext) ([]*pluginhost.Client, func(), error) {
+			return nil, func() {}, pluginErr
+		},
+		newEngine:  fakeNewEngine,
+		enrichRows: passThroughEnrichment,
+	})
+
+	err := pipe.Run(context.Background())
+	require.ErrorIs(t, err, loadErr)
+	assert.NotErrorIs(t, err, pluginErr)
 }

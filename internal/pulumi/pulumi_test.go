@@ -261,6 +261,21 @@ func TestGetCurrentStack_MalformedJSON(t *testing.T) {
 	assert.Contains(t, err.Error(), "parsing pulumi stack ls output")
 }
 
+func TestGetCurrentStack_CanceledCommandKeepsContext(t *testing.T) {
+	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
+	mock := &mockRunner{
+		stderr: []byte("signal: killed"),
+		err:    errors.New("signal: killed"),
+	}
+	withMockRunner(t, mock)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := GetCurrentStack(ctx, "/project")
+	require.ErrorIs(t, err, context.Canceled)
+	assert.NotErrorIs(t, mock.err, context.Canceled)
+}
+
 func TestGetCurrentStack_CommandError(t *testing.T) {
 	t.Setenv("FINFOCUS_LOG_LEVEL", "error")
 	mock := &mockRunner{

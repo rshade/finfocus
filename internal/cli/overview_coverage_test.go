@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -796,15 +797,47 @@ func TestPromptForPreview_CanceledContext(t *testing.T) {
 	assert.False(t, ok)
 }
 
+// partialLineReader delivers the byte 'y' and then blocks. The second read is
+// the scanner waiting for the rest of the line, which a newline would finish.
+type partialLineReader struct {
+	mu        sync.Mutex
+	delivered bool
+	partial   chan struct{}
+	blocked   chan struct{}
+	release   chan struct{}
+	blockOnce sync.Once
+}
+
+func (r *partialLineReader) Read(buf []byte) (int, error) {
+	r.mu.Lock()
+	first := !r.delivered
+	if first {
+		r.delivered = true
+	}
+	r.mu.Unlock()
+	if first {
+		if len(buf) == 0 {
+			return 0, nil
+		}
+		buf[0] = 'y'
+		close(r.partial)
+		return 1, nil
+	}
+	r.blockOnce.Do(func() { close(r.blocked) })
+	<-r.release
+	return 0, io.EOF
+}
+
 func TestPromptForPreview_CancelUnblocksRead(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	reader, writer := io.Pipe()
-	t.Cleanup(func() {
-		_ = writer.Close()
-		_ = reader.Close()
-	})
+	reader := &partialLineReader{
+		partial: make(chan struct{}),
+		blocked: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	t.Cleanup(func() { close(reader.release) })
 
 	done := make(chan error, 1)
 	go func() {
@@ -814,12 +847,23 @@ func TestPromptForPreview_CancelUnblocksRead(t *testing.T) {
 		)
 		done <- err
 	}()
+
+	select {
+	case <-reader.partial:
+	case <-time.After(2 * time.Second):
+		require.Fail(t, "scanner did not consume the partial answer")
+	}
+	select {
+	case <-reader.blocked:
+	case <-time.After(2 * time.Second):
+		require.Fail(t, "scanner did not block waiting for the rest of the line")
+	}
 	cancel()
 
 	select {
 	case err := <-done:
 		require.ErrorIs(t, err, context.Canceled)
 	case <-time.After(2 * time.Second):
-		require.Fail(t, "prompt did not return after cancel")
+		require.Fail(t, "prompt did not return after the in-progress read was canceled")
 	}
 }
