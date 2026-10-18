@@ -418,6 +418,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `<project>@<stack>.history.db`, separate from the resource-observation
   `history.db`. Both use one directory: `FINFOCUS_HISTORY_DIR`, then
   `cost.history.directory`, then `<ResolveConfigDir()>/history`.
+  A project-tier absolute or `..` `cost.history.directory` is ignored with a
+  warning (`config.ProjectHistoryDirectory` re-reads the overlay, since the
+  merged config cannot say which tier a value came from); global tier and the
+  env var are trusted. The working-dir fallback is made absolute.
   `collect` fails a checkpoint rather than store an inaccurate
   total (#549). `internal/history` must not import `engine` or `ingest`.
   History subcommands reuse the parent `--stack`. `cost history export` takes

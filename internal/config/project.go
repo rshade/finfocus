@@ -112,6 +112,25 @@ func ProjectConfigPath(projectDir string) string {
 	return hujsonPath
 }
 
+// ProjectHistoryDirectory returns the cost.history.directory value set by the
+// project-tier overlay in projectDir, or empty when there is no project, no
+// overlay, or the overlay does not set it. The merged Config cannot say which
+// tier a value came from, so callers compare against this.
+func ProjectHistoryDirectory(projectDir string) string {
+	if projectDir == "" {
+		return ""
+	}
+	overlayPath := ProjectConfigPath(projectDir)
+	if _, err := os.Stat(overlayPath); err != nil {
+		return ""
+	}
+	overlay := &Config{}
+	if err := ShallowMergeYAML(overlay, overlayPath); err != nil {
+		return ""
+	}
+	return overlay.Cost.History.Directory
+}
+
 // projectSkeletonHujson is the minimal template written by SaveProjectSkeleton.
 // It contains only comments explaining the override structure, not actual config.
 // Uses Hujson format to allow comments in the config file.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,6 @@ func TestHistoryDir_ResolutionOrder(t *testing.T) {
 		finfocusHome string
 		historyEnv   string
 		configDir    string
-		explicit     string
 		want         string
 	}{
 		{
@@ -70,13 +70,6 @@ func TestHistoryDir_ResolutionOrder(t *testing.T) {
 			name: "user home when finfocus home is unset",
 			want: filepath.Join(home, ".finfocus", "history"),
 		},
-		{
-			name:         "explicit directory beats env",
-			finfocusHome: finfocusHome,
-			historyEnv:   envDir,
-			explicit:     filepath.Join(t.TempDir(), "explicit"),
-			want:         "",
-		},
 	}
 
 	for _, tt := range tests {
@@ -85,11 +78,6 @@ func TestHistoryDir_ResolutionOrder(t *testing.T) {
 			cfg := installHistoryConfig(t, tt.configDir)
 
 			want := tt.want
-			if tt.explicit != "" {
-				want = tt.explicit
-				assert.Equal(t, want, historyDir(tt.explicit))
-				return
-			}
 			got := resolveHistoryDir(context.Background(), cfg)
 			assert.Equal(t, want, got)
 			assert.Equal(t, got, historyDir(""))
@@ -114,4 +102,63 @@ func installHistoryConfig(t *testing.T, directory string) *config.Config {
 	cfg.Cost.History.Directory = directory
 	config.SetGlobalConfig(cfg)
 	return cfg
+}
+
+//nolint:paralleltest // t.Setenv and config.SetResolvedProjectDir change process-wide state
+func TestHistoryDir_ProjectTierTrust(t *testing.T) {
+	home := t.TempDir()
+	finfocusHome := t.TempDir()
+	absDir := filepath.Join(t.TempDir(), "abs")
+	defaultDir := filepath.Join(finfocusHome, "history")
+
+	tests := []struct {
+		name       string
+		projectDir string
+		globalDir  string
+		historyEnv string
+		want       string
+	}{
+		{name: "project absolute ignored", projectDir: absDir, want: defaultDir},
+		{name: "project dotdot ignored", projectDir: "../x", want: defaultDir},
+		{name: "project relative accepted", projectDir: "hist/sub", want: "hist/sub"},
+		{name: "global absolute accepted", globalDir: absDir, want: absDir},
+		{name: "env accepted over project", projectDir: absDir, historyEnv: "/tmp/from-env", want: "/tmp/from-env"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setHistoryResolutionEnv(t, home, finfocusHome, "", tt.historyEnv)
+			projectCfgDir := t.TempDir()
+			if tt.projectDir != "" {
+				body := `{"cost": {"history": {"directory": ` + strconv.Quote(tt.projectDir) + `}}}`
+				require.NoError(t, os.WriteFile(filepath.Join(projectCfgDir, "config.hujson"), []byte(body), 0o600))
+			}
+			config.SetResolvedProjectDir(projectCfgDir)
+			t.Cleanup(func() { config.SetResolvedProjectDir("") })
+
+			merged := tt.globalDir
+			if tt.projectDir != "" {
+				merged = tt.projectDir
+			}
+			cfg := installHistoryConfig(t, merged)
+
+			assert.Equal(t, tt.want, resolveHistoryDir(context.Background(), cfg))
+		})
+	}
+}
+
+func TestHistoryDir_WorkingDirFallbackIsAbsolute(t *testing.T) {
+	workDir := t.TempDir()
+	t.Chdir(workDir)
+	t.Setenv("HOME", "")
+	t.Setenv("USERPROFILE", "")
+	t.Setenv("FINFOCUS_HOME", "")
+	t.Setenv("PULUMI_HOME", "")
+	t.Setenv(config.HistoryEnvDir, "")
+	require.True(t, config.UsesWorkingDirFallback())
+	cfg := installHistoryConfig(t, "")
+
+	got := resolveHistoryDir(context.Background(), cfg)
+	assert.True(t, filepath.IsAbs(got), got)
+	assert.Equal(t, "history", filepath.Base(got))
 }

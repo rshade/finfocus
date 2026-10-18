@@ -5,7 +5,9 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
@@ -210,40 +212,54 @@ func initHistoryFromConfig(ctx context.Context, cfg *config.Config) (history.Sto
 
 // resolveHistoryDir determines the history directory using the resolution chain:
 // FINFOCUS_HISTORY_DIR, then cost.history.directory, then <ResolveConfigDir()>/history.
+// An absolute or ".."-containing cost.history.directory that came from the
+// project tier is ignored, because a cloned repository controls that file.
 func resolveHistoryDir(ctx context.Context, cfg *config.Config) string {
-	dir := historyDirectory("", cfg)
-	if historyUsesHomeFallback(cfg) {
-		_, homeErr := os.UserHomeDir()
-		logging.FromContext(ctx).Warn().Ctx(ctx).Err(homeErr).
+	dir, usedFallback := historyDirectory(ctx, cfg)
+	if usedFallback {
+		logEvent := logging.FromContext(ctx).Warn().Ctx(ctx).
 			Str("component", "history").
-			Str("fallback_path", dir).
-			Msg("failed to determine home directory, using absolute fallback history path")
+			Str("fallback_path", dir)
+		if _, homeErr := os.UserHomeDir(); homeErr != nil {
+			logEvent = logEvent.Err(homeErr)
+		}
+		logEvent.Msg("failed to determine home directory, using absolute fallback history path")
 	}
 	return dir
 }
 
-// historyDirectory is the shared history-directory resolver.
-// An explicit directory wins, then FINFOCUS_HISTORY_DIR, then
-// cost.history.directory, then <ResolveConfigDir()>/history.
-func historyDirectory(explicit string, cfg *config.Config) string {
-	if explicit != "" {
-		return explicit
-	}
+// historyDirectory is the shared history-directory resolver. It returns the
+// directory and whether it is the working-directory fallback.
+func historyDirectory(ctx context.Context, cfg *config.Config) (string, bool) {
 	if dir := os.Getenv(config.HistoryEnvDir); dir != "" {
-		return dir
+		return dir, false
 	}
 	if cfg != nil && cfg.Cost.History.Directory != "" {
-		return cfg.Cost.History.Directory
+		dir := cfg.Cost.History.Directory
+		if !projectHistoryDirectoryRejected(ctx, dir) {
+			return dir, false
+		}
 	}
-	return filepath.Join(config.ResolveConfigDir(), "history")
+	dir := filepath.Join(config.ResolveConfigDir(), "history")
+	if !config.UsesWorkingDirFallback() {
+		return dir, false
+	}
+	if abs, err := filepath.Abs(dir); err == nil {
+		dir = abs
+	}
+	return dir, true
 }
 
-func historyUsesHomeFallback(cfg *config.Config) bool {
-	if os.Getenv(config.HistoryEnvDir) != "" {
+func projectHistoryDirectoryRejected(ctx context.Context, dir string) bool {
+	if dir != config.ProjectHistoryDirectory(config.GetResolvedProjectDir()) {
 		return false
 	}
-	if cfg != nil && cfg.Cost.History.Directory != "" {
+	if !filepath.IsAbs(dir) && !slices.Contains(strings.Split(filepath.ToSlash(dir), "/"), "..") {
 		return false
 	}
-	return config.UsesWorkingDirFallback()
+	logging.FromContext(ctx).Warn().Ctx(ctx).
+		Str("component", "history").
+		Str("key", "cost.history.directory").
+		Msg("ignoring absolute or parent-relative history directory from project config")
+	return true
 }
