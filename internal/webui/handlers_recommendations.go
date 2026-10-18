@@ -101,8 +101,7 @@ func (s *Server) handleRecommendationItem(w http.ResponseWriter, r *http.Request
 		if !ok {
 			return
 		}
-		items = safe.Recommendations
-		s.session.setPresentedRecommendations(items)
+		items = s.session.initPresentedRecommendations(safe.Recommendations)
 	}
 	for _, rec := range items {
 		if recommendationMatches(r, rec, id) {

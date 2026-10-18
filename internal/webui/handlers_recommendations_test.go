@@ -561,3 +561,25 @@ func TestReadOnlyShutdownDoesNotWaitForSlowResponseWriter(t *testing.T) {
 	<-returned
 	<-closed
 }
+
+func TestRecommendationItemFallbackDoesNotReplaceALaterQuery(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	started := make(chan struct{})
+	release := make(chan struct{})
+	s := newRecommendationServer(t, func(context.Context, bool) (*engine.RecommendationsResult, error) {
+		if calls.Add(1) == 1 {
+			close(started)
+			<-release
+			return &engine.RecommendationsResult{Recommendations: []engine.Recommendation{{ID: "old", Type: "Resize"}}}, nil
+		}
+		return &engine.RecommendationsResult{Recommendations: []engine.Recommendation{{ID: "new", Type: "Resize"}}}, nil
+	})
+	detail := make(chan int, 1)
+	go func() { detail <- overviewRequest(t, s, "GET", "/api/recommendations/item?id=old", "").StatusCode }()
+	<-started
+	require.Equal(t, 200, overviewRequest(t, s, "POST", "/api/recommendations/query", `{}`).StatusCode)
+	close(release)
+	assert.Equal(t, 404, <-detail)
+	assert.Equal(t, 200, overviewRequest(t, s, "GET", "/api/recommendations/item?id=new", "").StatusCode)
+}

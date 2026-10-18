@@ -357,6 +357,19 @@ func (s *Session) setPresentedRecommendations(items []engine.Recommendation) {
 	s.presentedSet = true
 }
 
+// initPresentedRecommendations stores items only when no query has populated
+// the cache, and returns the set the cache holds afterwards. A fallback fetch
+// that finishes after a real query must not replace that query's results.
+func (s *Session) initPresentedRecommendations(items []engine.Recommendation) []engine.Recommendation {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.presentedSet {
+		s.presentedRecs = append([]engine.Recommendation{}, items...)
+		s.presentedSet = true
+	}
+	return s.presentedRecs
+}
+
 // presentedRecommendations returns the last presented set and whether any
 // query has succeeded yet. Callers must not modify the slice.
 func (s *Session) presentedRecommendations() ([]engine.Recommendation, bool) {
