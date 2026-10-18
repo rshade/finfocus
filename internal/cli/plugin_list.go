@@ -227,13 +227,19 @@ func fetchPluginMetadataParallel(ctx context.Context, plugins []registry.PluginI
 	return enriched
 }
 
-// comparePluginVersions orders a newer semver before an older one. Versions
-// that are not semver use ascending string order.
+// comparePluginVersions orders semver versions newest first, then versions
+// that are not semver in ascending string order. Grouping keeps the order
+// transitive.
 func comparePluginVersions(left, right string) int {
 	leftVer, leftErr := semver.NewVersion(left)
 	rightVer, rightErr := semver.NewVersion(right)
-	if leftErr == nil && rightErr == nil {
+	switch {
+	case leftErr == nil && rightErr == nil:
 		return rightVer.Compare(leftVer)
+	case leftErr == nil:
+		return -1
+	case rightErr == nil:
+		return 1
 	}
 	return strings.Compare(left, right)
 }
