@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -182,4 +183,32 @@ func TestFinishInteractiveOverview_StuckEnrichmentQuitsWithinGrace(t *testing.T)
 	elapsed := time.Since(start)
 	assert.GreaterOrEqual(t, elapsed, overviewShutdownGrace)
 	assert.Less(t, elapsed, overviewShutdownGrace+overviewCleanupHandoff+500*time.Millisecond)
+}
+
+func TestFinishInteractiveOverview_RunsCleanupOnceAfterLateEnrichment(t *testing.T) {
+	t.Parallel()
+
+	enrichDone := make(chan struct{})
+	cleanupChan := make(chan func(), 1)
+	var calls atomic.Int32
+	called := make(chan struct{}, 2)
+
+	start := time.Now()
+	finishInteractiveOverview(context.Background(), enrichDone, cleanupChan)
+	assert.Less(t, time.Since(start), overviewShutdownGrace+overviewCleanupHandoff+500*time.Millisecond)
+	assert.Zero(t, calls.Load())
+
+	cleanupChan <- func() {
+		calls.Add(1)
+		called <- struct{}{}
+	}
+	close(enrichDone)
+
+	require.Eventually(t, func() bool { return calls.Load() == 1 }, 2*time.Second, 5*time.Millisecond)
+	select {
+	case <-called:
+	case <-time.After(time.Second):
+		require.Fail(t, "late cleanup did not run")
+	}
+	assert.Never(t, func() bool { return calls.Load() > 1 }, 100*time.Millisecond, 10*time.Millisecond)
 }

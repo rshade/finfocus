@@ -1273,15 +1273,8 @@ func overviewInitAndEnrich(
 	pipe.OnError = func(_ int, err error) { p.Send(tui.OverviewInitErrorMsg{Err: err}) }
 	pipe.OnPassphraseRequired = func() { p.Send(tui.OverviewPassphraseRequiredMsg{}) }
 
-	// Join the budget fetch before this function returns. The caller invokes
-	// plugin cleanup only after that return, so the fetch is not still inside
-	// its gRPC call when the connections close.
-	defer func() {
-		if pipe.budgetDone != nil {
-			<-pipe.budgetDone
-		}
-	}()
-
+	// Run joins its own budget fetch before returning, so the cleanup sent
+	// below never races a budget call still inside gRPC.
 	_ = pipe.Run(enrichCtx)
 
 	// Hand the combined cleanup to the caller once the pipeline is done;
@@ -1305,7 +1298,8 @@ const overviewCleanupHandoff = 100 * time.Millisecond
 
 // finishInteractiveOverview waits for enrichment to finish, then runs plugin
 // cleanup. The enrichment wait is capped at overviewShutdownGrace. The
-// cleanup receive is capped at overviewCleanupHandoff.
+// cleanup receive is capped at overviewCleanupHandoff. When either cap passes,
+// a detached goroutine still runs the cleanup once enrichment stops.
 func finishInteractiveOverview(ctx context.Context, enrichDone <-chan struct{}, cleanupChan <-chan func()) {
 	grace := time.NewTimer(overviewShutdownGrace)
 	defer grace.Stop()
@@ -1333,7 +1327,22 @@ func finishInteractiveOverview(ctx context.Context, enrichDone <-chan struct{}, 
 			Str("component", "cli").
 			Str("operation", "overview_shutdown").
 			Dur("handoff", overviewCleanupHandoff).
-			Msg("overview plugin cleanup was not handed off")
+			Msg("overview plugin cleanup was not handed off; will run when enrichment stops")
+		go runLateOverviewCleanup(enrichDone, cleanupChan)
+	}
+}
+
+// runLateOverviewCleanup runs the plugin cleanup for a quit that stopped
+// waiting. The enrichment goroutine queues the callback before it closes
+// enrichDone, so one non-blocking receive after the close is enough.
+func runLateOverviewCleanup(enrichDone <-chan struct{}, cleanupChan <-chan func()) {
+	<-enrichDone
+	select {
+	case cleanup := <-cleanupChan:
+		if cleanup != nil {
+			cleanup()
+		}
+	default:
 	}
 }
 
