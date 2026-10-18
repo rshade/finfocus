@@ -85,7 +85,7 @@ type analyzerInfra struct {
 // It then creates an engine (with a router), determines a server version fallback ("0.0.0-dev"), and computes a
 // summary directory (falling back to the global config dir when no project dir is set). The returned analyzerInfra
 // contains the configured analyzer server and an optional cleanup callback for any opened plugin clients.
-func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra {
+func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) (analyzerInfra, error) {
 	ctx := cmd.Context()
 
 	// Load project-aware configuration
@@ -96,6 +96,9 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra
 	projectDirFlag, _ := cmd.Flags().GetString("project-dir")
 	projectDir := config.ResolveProjectDir(ctx, projectDirFlag, cwd)
 	cfg := config.NewWithProjectDir(ctx, projectDir)
+	if _, profileErr := resolveUsageProfile(cmd, cfg); profileErr != nil {
+		return analyzerInfra{}, profileErr
+	}
 
 	// Create spec loader and registry
 	specLoader := spec.NewLoader(cfg.SpecDir)
@@ -116,6 +119,12 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra
 	// Create engine with router
 	eng := engine.New(clients, specLoader).
 		WithRouter(createRouterForEngine(ctx, cfg, clients))
+	if profileErr := applyUsageProfile(cmd, eng, cfg); profileErr != nil {
+		if cleanup != nil {
+			cleanup()
+		}
+		return analyzerInfra{}, profileErr
+	}
 
 	// Determine version and summary directory
 	version := cmd.Root().Version
@@ -147,7 +156,7 @@ func setupAnalyzerInfra(cmd *cobra.Command, logger zerolog.Logger) analyzerInfra
 			WithSummaryDir(summaryDir).
 			WithHistoryWriter(historyWriter),
 		cleanup: combinedCleanup,
-	}
+	}, nil
 }
 
 // RunAnalyzerServe starts the Pulumi Analyzer gRPC server, writes the selected
@@ -185,7 +194,10 @@ func RunAnalyzerServe(cmd *cobra.Command) error {
 
 	stderrLogger.Debug().Msg("starting analyzer server")
 
-	infra := setupAnalyzerInfra(cmd, stderrLogger)
+	infra, err := setupAnalyzerInfra(cmd, stderrLogger)
+	if err != nil {
+		return toValidationError(cmd.Context(), err)
+	}
 	if infra.cleanup != nil {
 		defer infra.cleanup()
 	}

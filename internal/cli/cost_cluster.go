@@ -125,15 +125,17 @@ func runCostCluster(cmd *cobra.Command, params costClusterParams) error {
 	if err != nil {
 		return err
 	}
-	allocator := pbc.NewAllocatorServiceClient(allocClient.Conn)
 	cfg := config.GetGlobalConfig()
 	eng, _, cacheCleanup := newEngineWithCache(ctx, cmd, clients, spec.NewLoader(cfg.SpecDir), cfg)
 	defer cacheCleanup()
+	if profileErr := applyUsageProfile(cmd, eng, cfg); profileErr != nil {
+		return toValidationError(ctx, profileErr)
+	}
 
 	res, err := engine.RunClusterAllocation(
 		ctx,
 		pbc.NewUsageSourceServiceClient(usageClient.Conn),
-		allocator,
+		pbc.NewAllocatorServiceClient(allocClient.Conn),
 		eng,
 		engine.ClusterRequest{
 			Scope:      params.context,

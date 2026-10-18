@@ -475,6 +475,8 @@ type ResourceDescriptor struct {
 // GetProjectedCostRequest contains resources for which projected costs should be calculated.
 type GetProjectedCostRequest struct {
 	Resources []*ResourceDescriptor
+	// UsageProfile is the workload hint for this run. The zero value is no preference.
+	UsageProfile pbc.UsageProfile
 }
 
 // Error code constants for StructuredError. These mirror the constants in
@@ -594,6 +596,9 @@ type GetRecommendationsRequest struct {
 	// IncludeDismissed asks a plugin that stores dismissals to return them.
 	// ExcludedRecommendationIDs still omit those IDs when this is true.
 	IncludeDismissed bool
+
+	// UsageProfile is the workload hint for this run. The zero value is no preference.
+	UsageProfile pbc.UsageProfile
 }
 
 // GetRecommendationsResponse contains the recommendations and summary from a GetRecommendations call.
@@ -1508,6 +1513,7 @@ func (c *clientAdapter) GetProjectedCost(
 			Resource: PrepareProjectedDescriptor(
 				ctx, resource.ID, resource.Provider, resource.Type, resource.Properties, resource.Attributes,
 			),
+			UsageProfile: in.UsageProfile,
 		}
 
 		resp, err := c.client.GetProjectedCost(ctx, req, opts...)
@@ -1825,6 +1831,7 @@ func (c *clientAdapter) GetRecommendations(
 		PageToken:                 in.PageToken,
 		ExcludedRecommendationIds: in.ExcludedRecommendationIDs,
 		IncludeDismissed:          in.IncludeDismissed,
+		UsageProfile:              in.UsageProfile,
 	}
 
 	// Convert target resources if provided

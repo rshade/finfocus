@@ -225,7 +225,7 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `EstimateCost` attributes. Do not add a second rule.
 - Anything new sent to a plugin must be in the projected cache key; that is
   why keys end in `/tags-`, `/refs-`, `/attrs-` digests and feature suffixes
-  (`/pricing-spec`, `/growth-v1`, `/penv-`). `/penv-` is the digest of the
+  (`/pricing-spec`, `/growth-v1`, `/penv-`, `/profile-dev|prod|burst`). `/penv-` is the digest of the
   clients that engine retained at construction. A settings or validate probe
   must not update another engine's key. An empty digest omits the suffix.
   Tests of the process-wide helper must not run in parallel and must call
@@ -497,6 +497,19 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`
   resolution. Unpriced `pulumi:` types are left out.
+- Usage profile (`specs/630-usage-profile/`): `--profile`, then
+  `FINFOCUS_PROFILE`, then `cost.profile` on the merged config
+  (`InitializedGlobalConfig`). `config.New` has no project overlay, so
+  estimate, overview, and the dashboard must not read the profile from it.
+  The environment variable is not
+  copied into the config file. Opt-in engines are projected, recommendations,
+  forecast, estimate, cluster run-rate, overview, the dashboard engine, and
+  `analyzer serve`. `cost actual` and `cost history collect` stay unspecified.
+  The hourly-rate lookup inside actual cost passes UNSPECIFIED even when the
+  engine has a profile. A set profile skips projected `BatchCost` because
+  `BatchCostRequest` has no field, and appends `/profile-dev|prod|burst`
+  after the other cache suffixes. Unspecified adds nothing. Do not set the
+  profile inside `newEngineWithCache`.
 - Cost history (`internal/history`, `cost history *`): files are
   `<project>@<stack>.history.db`, separate from the resource-observation
   `history.db`. Both use one directory: `FINFOCUS_HISTORY_DIR`, then
@@ -657,6 +670,7 @@ Specs 613-623 hold the details. Invariants:
 
 ## Recent Changes
 
+- 630-usage-profile: `--profile` / `FINFOCUS_PROFILE` / `cost.profile` sent on projected cost and recommendations (`specs/630-usage-profile/`)
 - 629-web-plugin-page: Plugins page in `finfocus --web` (catalog, install, settings)
 - 628-web-config-page: dashboard Config page and `config set` patch `config.hujson` in place
 - 626-cost-forecast: `cost forecast` projects plugin GrowthType with finfocus-spec `pricing.ApplyGrowth`

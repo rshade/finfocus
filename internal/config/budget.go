@@ -330,6 +330,10 @@ type CostConfig struct {
 	// PricingSpecFallback prices a projected resource from plugin GetPricingSpec
 	// when GetProjectedCost misses, before local YAML specs. Off by default.
 	PricingSpecFallback bool `yaml:"pricing_spec_fallback" json:"pricing_spec_fallback"`
+
+	// Profile is the default usage profile for projected cost and recommendations.
+	// Empty means no preference. Accepted values are dev, prod, burst, and default.
+	Profile string `yaml:"profile,omitempty" json:"profile,omitempty"`
 }
 
 // CacheConfig defines caching behavior for query results.
@@ -374,6 +378,12 @@ func (c CostConfig) Validate() error {
 
 	if err := c.Allocation.Validate(); err != nil {
 		return fmt.Errorf("allocation: %w", err)
+	}
+
+	if c.Profile != "" {
+		if _, err := ParseUsageProfile(c.Profile); err != nil {
+			return fmt.Errorf("profile: %w", err)
+		}
 	}
 
 	return nil

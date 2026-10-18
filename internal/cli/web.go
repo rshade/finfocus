@@ -133,6 +133,9 @@ func runWebSession(cmd *cobra.Command, flags *webFlagValues) error {
 		filter:      flags.filter,
 		cfg:         config.New(),
 	}
+	if _, err := resolveUsageProfile(cmd, usageProfileSource(params.cfg)); err != nil {
+		return toValidationError(ctx, err)
+	}
 	dateRange, err := resolveOverviewDateRange(flags.from, flags.to, time.Now())
 	if err != nil {
 		return toValidationError(ctx, fmt.Errorf("invalid date range: %w", err))
