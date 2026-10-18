@@ -24,7 +24,7 @@ func NewConfigListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   cmdNameList,
 		Short: "List all configuration values",
-		Long:  "Lists all configuration values from the config file in the specified style.",
+		Long:  "Lists all configuration values from the project config (when a project is detected) over the global config file, in the specified style.",
 		Example: `  # List all configuration (default YAML style)
   finfocus config list
 
@@ -36,8 +36,9 @@ func NewConfigListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			style := resolveOutputFormat(cmd, "as", as)
 
-			// config.New() already loads from disk and applies env overrides
-			cfg := config.New().MaskedForDisplay()
+			// NewWithProjectDir loads the global tier (with env overrides) and
+			// shallow-merges the project tier over it, as run time does.
+			cfg := config.NewWithProjectDir(cmd.Context(), config.GetResolvedProjectDir()).MaskedForDisplay()
 
 			// Get all configuration
 			allConfig := cfg.List()
