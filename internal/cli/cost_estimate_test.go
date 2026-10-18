@@ -748,6 +748,28 @@ func TestCostEstimateCmd_ModifyMatchesPlanResource(t *testing.T) {
 	}
 }
 
+func TestModifySelectorsResolveToPlanResource(t *testing.T) {
+	t.Parallel()
+
+	urn := "urn:pulumi:dev::proj::aws:ec2/instance:Instance::demo-instance"
+	resource := engine.ResourceDescriptor{ID: urn, Type: "aws:ec2/instance:Instance"}
+	selectors := []string{
+		"demo-instance",
+		urn,
+		"aws:ec2/instance:Instance",
+	}
+	for _, selector := range selectors {
+		t.Run(selector, func(t *testing.T) {
+			t.Parallel()
+			mods := map[string]map[string]string{selector: {"instanceType": "t3.large"}}
+			assert.Empty(t, cli.UnmatchedModifySelectors([]engine.ResourceDescriptor{resource}, mods))
+			assert.Equal(t,
+				map[string]string{"instanceType": "t3.large"},
+				cli.FindModificationsForResource(resource, mods))
+		})
+	}
+}
+
 func TestCostEstimateCmd_ShortResourceType(t *testing.T) {
 	t.Parallel()
 
