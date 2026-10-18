@@ -418,7 +418,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - `checkPluginSupports` caches per client, provider, type, region, SKU,
   feature, and attributes digest. SKU must stay in the key, or one SKU-less
   answer poisons every SKU in that region. The SDK's "not implemented" reason
-  is fail-open, like an RPC error.
+  is fail-open, like `Unimplemented`. `InvalidArgument` from `Supports` is a
+  decline: it is cached as unsupported, the reason is shown, and no pricing
+  RPC follows. `Unavailable`, `DeadlineExceeded`, and `Canceled` stay
+  fail-open and are not cached. Do not add a provider-name table here.
 - Plugin `expires_at` sets a per-entry TTL (capped at 7 days; a past time skips
   caching). A plugin whose price depends on its own environment must send
   `expires_at` = now, because the cache key cannot see it.

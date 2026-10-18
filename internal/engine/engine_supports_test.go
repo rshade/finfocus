@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 	"unicode/utf8"
@@ -654,4 +655,182 @@ func TestCheckPluginSupports_CacheKeyIncludesAttributes(t *testing.T) {
 		assert.Contains(t, e.supportsCache, "aws-public:aws:aws:s3/bucket:Bucket:::ProjectedCosts")
 		assert.Len(t, e.supportsCache, 1)
 	})
+}
+
+// countingCostClient prices every resource it is asked about and records
+// whether Supports ran before that pricing call.
+type countingCostClient struct {
+	mockCostSourceClient
+
+	mu            sync.Mutex
+	supportsCalls int
+	pricingCalls  int
+	supports      func(req *pbc.SupportsRequest) (*pbc.SupportsResponse, error)
+}
+
+func (c *countingCostClient) Supports(
+	_ context.Context, req *pbc.SupportsRequest, _ ...grpc.CallOption,
+) (*pbc.SupportsResponse, error) {
+	c.mu.Lock()
+	c.supportsCalls++
+	c.mu.Unlock()
+	return c.supports(req)
+}
+
+func (c *countingCostClient) GetProjectedCost(
+	_ context.Context, _ *proto.GetProjectedCostRequest, _ ...grpc.CallOption,
+) (*proto.GetProjectedCostResponse, error) {
+	c.mu.Lock()
+	c.pricingCalls++
+	c.mu.Unlock()
+	return &proto.GetProjectedCostResponse{Results: []*proto.CostResult{{
+		Currency: "USD", MonthlyCost: 12.5, HourlyCost: 12.5 / hoursPerMonth,
+	}}}, nil
+}
+
+func (c *countingCostClient) calls() (int, int) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.supportsCalls, c.pricingCalls
+}
+
+func TestGetProjectedCost_SupportsInvalidArgumentDeclines(t *testing.T) {
+	t.Parallel()
+
+	const message = "region is required for Supports"
+	api := &countingCostClient{supports: func(*pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
+		return nil, status.Error(codes.InvalidArgument, message)
+	}}
+	e := New([]*pluginhost.Client{{Name: "aws-public", API: api}}, nil)
+	resource := ResourceDescriptor{
+		Type: "civo:compute/instance:Instance", ID: "civo-1", Provider: "civo",
+		Properties: map[string]any{"region": "NYC1"},
+	}
+
+	results, err := e.GetProjectedCost(context.Background(), []ResourceDescriptor{resource})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, adapterNone, results[0].Adapter)
+	assert.Contains(t, results[0].Notes, "aws-public: "+message)
+	assert.NotContains(t, results[0].Notes, "$0.00")
+	assert.Zero(t, results[0].Monthly)
+	require.NotNil(t, results[0].Error)
+	assert.Equal(t, ErrCodeNoCostData, results[0].Error.Code)
+	supportsCalls, pricingCalls := api.calls()
+	assert.Equal(t, 1, supportsCalls)
+	assert.Zero(t, pricingCalls, "a validation failure must not be followed by a pricing RPC")
+
+	results, err = e.GetProjectedCost(context.Background(), []ResourceDescriptor{resource})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, adapterNone, results[0].Adapter)
+	assert.Contains(t, results[0].Notes, message)
+	supportsCalls, pricingCalls = api.calls()
+	assert.Equal(t, 1, supportsCalls, "the decline is cached, and not as supported")
+	assert.Zero(t, pricingCalls)
+	e.supportsMu.RLock()
+	defer e.supportsMu.RUnlock()
+	require.Len(t, e.supportsCache, 1)
+	for _, cached := range e.supportsCache {
+		assert.False(t, cached.supported)
+		assert.Equal(t, message, cached.reason)
+	}
+}
+
+func TestGetProjectedCost_SupportsUnimplementedStaysFailOpen(t *testing.T) {
+	t.Parallel()
+
+	api := &countingCostClient{supports: func(*pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
+		return nil, status.Error(codes.Unimplemented, "unknown method Supports")
+	}}
+	e := New([]*pluginhost.Client{{Name: "aws-public", API: api}}, nil)
+	resource := ResourceDescriptor{
+		Type: "aws:ec2/instance:Instance", ID: "i-aws", Provider: "aws",
+		Properties: map[string]any{"instanceType": "t3.micro", "region": "us-east-1"},
+	}
+
+	for range 2 {
+		results, err := e.GetProjectedCost(context.Background(), []ResourceDescriptor{resource})
+		require.NoError(t, err)
+		require.Len(t, results, 1)
+		assert.Equal(t, "aws-public", results[0].Adapter)
+		assert.InDelta(t, 12.5, results[0].Monthly, 1e-9)
+	}
+	supportsCalls, pricingCalls := api.calls()
+	assert.Equal(t, 1, supportsCalls, "Unimplemented is a stable fail-open and stays cached")
+	assert.Equal(t, 2, pricingCalls)
+}
+
+func TestGetProjectedCost_SupportsUnavailableIsNotCachedAsSupported(t *testing.T) {
+	t.Parallel()
+
+	for _, code := range []codes.Code{codes.Unavailable, codes.DeadlineExceeded} {
+		t.Run(code.String(), func(t *testing.T) {
+			t.Parallel()
+			api := &countingCostClient{supports: func(*pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
+				return nil, status.Error(code, "transient")
+			}}
+			e := New([]*pluginhost.Client{{Name: "aws-public", API: api}}, nil)
+			resource := ResourceDescriptor{
+				Type: "aws:ec2/instance:Instance", ID: "i-aws", Provider: "aws",
+				Properties: map[string]any{"instanceType": "t3.micro", "region": "us-east-1"},
+			}
+
+			for range 2 {
+				results, err := e.GetProjectedCost(context.Background(), []ResourceDescriptor{resource})
+				require.NoError(t, err)
+				require.Len(t, results, 1)
+				assert.Equal(t, "aws-public", results[0].Adapter)
+				assert.InDelta(t, 12.5, results[0].Monthly, 1e-9)
+			}
+			supportsCalls, pricingCalls := api.calls()
+			assert.Equal(t, 2, supportsCalls, "a transient Supports failure must not stick as supported")
+			assert.Equal(t, 2, pricingCalls)
+			e.supportsMu.RLock()
+			defer e.supportsMu.RUnlock()
+			assert.Empty(t, e.supportsCache)
+		})
+	}
+}
+
+func TestGetProjectedCost_InvalidArgumentDeclinesNonAWSAndStillPricesAWS(t *testing.T) {
+	t.Parallel()
+
+	const message = "region is required for Supports"
+	api := &countingCostClient{supports: func(req *pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
+		if req.GetResource().GetProvider() != "aws" {
+			return nil, status.Error(codes.InvalidArgument, message)
+		}
+		return &pbc.SupportsResponse{Supported: true}, nil
+	}}
+	e := New([]*pluginhost.Client{{Name: "aws-public", API: api}}, nil)
+	resources := []ResourceDescriptor{
+		{
+			Type: "civo:compute/instance:Instance", ID: "civo-1", Provider: "civo",
+			Properties: map[string]any{"region": "NYC1"},
+		},
+		{
+			Type: "aws:ec2/instance:Instance", ID: "i-aws", Provider: "aws",
+			Properties: map[string]any{"instanceType": "t3.micro", "region": "us-east-1"},
+		},
+	}
+
+	results, err := e.GetProjectedCost(context.Background(), resources)
+	require.NoError(t, err)
+	require.Len(t, results, 2)
+	byID := map[string]CostResult{}
+	for _, result := range results {
+		byID[result.ResourceID] = result
+	}
+	civo := byID["civo-1"]
+	assert.Equal(t, adapterNone, civo.Adapter)
+	assert.Contains(t, civo.Notes, "aws-public: "+message)
+	assert.Zero(t, civo.Monthly)
+	require.NotNil(t, civo.Error)
+	assert.Equal(t, ErrCodeNoCostData, civo.Error.Code)
+	aws := byID["i-aws"]
+	assert.Equal(t, "aws-public", aws.Adapter)
+	assert.InDelta(t, 12.5, aws.Monthly, 1e-9)
+	_, pricingCalls := api.calls()
+	assert.Equal(t, 1, pricingCalls, "only the supported AWS resource is priced")
 }
