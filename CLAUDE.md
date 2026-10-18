@@ -341,7 +341,11 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   query cached on the session. It does not call the plugin again, because a
   plugin may mint a new `Recommendation.ID` on every call. That ID stays the
   dismissal id. A later successful query replaces the cache, and an id that
-  was not in it is 404.
+  was not in it is 404. The web UI has no dismiss action, so a dismissal
+  made elsewhere shows only on the next query: dismissed items are absent from
+  a default query and present, flagged `Dismissed`, with `includeDismissed`.
+  With no successful query yet, the endpoint runs the query once and caches
+  it. With several tabs the last query wins.
   `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.

@@ -140,6 +140,74 @@ func TestRecommendationDetailSignals(t *testing.T) {
 	assert.Equal(t, 404, overviewRequest(t, s, "GET", "/api/recommendations/item?id=missing", "").StatusCode)
 }
 
+func newRecommendationServer(
+	t *testing.T,
+	fn func(context.Context, bool) (*engine.RecommendationsResult, error),
+) *Server {
+	t.Helper()
+	session := NewSession(context.Background(), SessionOptions{Recommendations: fn})
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	return newRunningServer(t, Options{Session: session})
+}
+
+func TestRecommendationItemFallsBackWhenNoQueryRan(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	s := newRecommendationServer(t, func(context.Context, bool) (*engine.RecommendationsResult, error) {
+		calls.Add(1)
+		return &engine.RecommendationsResult{Recommendations: []engine.Recommendation{
+			{ID: "a", ResourceID: "r1", Type: "Resize"},
+		}}, nil
+	})
+	assert.Equal(t, 200, overviewRequest(t, s, "GET", "/api/recommendations/item?id=a", "").StatusCode)
+	assert.Equal(t, 200, overviewRequest(t, s, "GET", "/api/recommendations/item?id=a", "").StatusCode)
+	assert.Equal(t, int32(1), calls.Load())
+	assert.Equal(t, 404, overviewRequest(t, s, "GET", "/api/recommendations/item?id=missing", "").StatusCode)
+}
+
+func TestRecommendationItemUnstableIDsAndDismissal(t *testing.T) {
+	t.Parallel()
+	var calls atomic.Int32
+	s := newRecommendationServer(t, func(_ context.Context, include bool) (*engine.RecommendationsResult, error) {
+		n := calls.Add(1)
+		recs := []engine.Recommendation{
+			{ID: fmt.Sprintf("fresh-%d-a", n), ResourceID: "r1", Type: "Resize", Description: "first"},
+		}
+		if include {
+			recs = append(recs, engine.Recommendation{
+				ID: "gone", ResourceID: "r2", Type: "Delete", Status: engine.RecommendationStatusDismissed,
+			})
+		}
+		return &engine.RecommendationsResult{Recommendations: recs}, nil
+	})
+	var page viewmodel.RecommendationPage
+	resp := overviewRequest(t, s, "POST", "/api/recommendations/query", `{}`)
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&page))
+	require.Len(t, page.Items, 1)
+	key := viewmodel.RecommendationDetailKey(page.Items[0])
+
+	for range 2 {
+		resp = overviewRequest(t, s, "GET", "/api/recommendations/item?id=stale&key="+url.QueryEscape(key), "")
+		require.Equal(t, 200, resp.StatusCode)
+	}
+	assert.Equal(t, int32(1), calls.Load())
+
+	assert.Equal(t, 404, overviewRequest(t, s, "GET", "/api/recommendations/item?id=gone", "").StatusCode)
+
+	resp = overviewRequest(t, s, "POST", "/api/recommendations/query", `{"includeDismissed":true}`)
+	require.Equal(t, 200, resp.StatusCode)
+	resp = overviewRequest(t, s, "GET", "/api/recommendations/item?id=gone", "")
+	require.Equal(t, 200, resp.StatusCode)
+	var detail struct {
+		Item engine.Recommendation `json:"item"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&detail))
+	assert.Equal(t, engine.RecommendationStatusDismissed, detail.Item.Status)
+
+	require.Equal(t, 200, overviewRequest(t, s, "POST", "/api/recommendations/query", `{}`).StatusCode)
+	assert.Equal(t, 404, overviewRequest(t, s, "GET", "/api/recommendations/item?id=gone", "").StatusCode)
+}
+
 func TestReadOnlyAPIFailureContracts(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
@@ -168,7 +236,7 @@ func TestReadOnlyAPIFailureContracts(t *testing.T) {
 		opts := SessionOptions{ActualCosts: failActual, Recommendations: failRecs}
 		errWant := http.StatusBadGateway
 		if route.path == "/api/recommendations/item?id=x" {
-			errWant = http.StatusNotFound
+			errWant = http.StatusBadGateway
 		}
 		cases = append(cases, struct {
 			name               string

@@ -80,6 +80,7 @@ type Session struct {
 	// Detail reads this instead of calling the plugin again: a plugin may mint
 	// a new Recommendation.ID on every call, and that ID stays the dismissal id.
 	presentedRecs []engine.Recommendation
+	presentedSet  bool
 }
 
 // PhaseEvent describes one loading checklist entry.
@@ -346,23 +347,22 @@ func (s *Session) RequirePassphrase(stack string) {
 func (s *Session) SubscriberCount() int { s.mu.Lock(); defer s.mu.Unlock(); return len(s.subscribers) }
 
 // setPresentedRecommendations replaces the recommendations the last successful
-// query showed. A later query, including one that drops a dismissed item,
-// invalidates the previous set.
+// query showed, even when that query was empty. A later query, including one
+// that drops a dismissed item, invalidates the previous set; with several
+// tabs the last query wins.
 func (s *Session) setPresentedRecommendations(items []engine.Recommendation) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.presentedRecs = append([]engine.Recommendation(nil), items...)
+	s.presentedRecs = append([]engine.Recommendation{}, items...)
+	s.presentedSet = true
 }
 
-// presentedRecommendations returns the last presented set. It reports an error
-// when the session is closed or still loading, matching beginQuery.
-func (s *Session) presentedRecommendations() ([]engine.Recommendation, error) {
+// presentedRecommendations returns the last presented set and whether any
+// query has succeeded yet. Callers must not modify the slice.
+func (s *Session) presentedRecommendations() ([]engine.Recommendation, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed || s.eng == nil {
-		return nil, errors.New("session unavailable")
-	}
-	return append([]engine.Recommendation(nil), s.presentedRecs...), nil
+	return s.presentedRecs, s.presentedSet
 }
 
 // Close cancels preview work and disconnects streams before engine cleanup.

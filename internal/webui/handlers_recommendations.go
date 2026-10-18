@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/rshade/finfocus/internal/engine"
@@ -48,29 +49,40 @@ func (s *Server) handleRecommendationsQuery(w http.ResponseWriter, r *http.Reque
 		s.writeError(w, http.StatusServiceUnavailable, "not_ready", "recommendation data is loading")
 		return
 	}
-	ctx, done, err := s.session.beginQuery(r.Context())
+	safe, ok := s.fetchRecommendations(r.Context(), w, query.IncludeDismissed)
+	if !ok {
+		return
+	}
+	s.session.setPresentedRecommendations(viewmodel.FilterRecommendations(
+		safe.Recommendations,
+		query.Filter,
+	))
+	s.WriteJSON(w, http.StatusOK, viewmodel.BuildRecommendationPage(safe, query.Filter, sort, query.Page))
+}
+
+// fetchRecommendations runs the recommendations callback once and writes the
+// error response itself when it cannot return a sanitized result.
+func (s *Server) fetchRecommendations(
+	parent context.Context,
+	w http.ResponseWriter,
+	includeDismissed bool,
+) (*engine.RecommendationsResult, bool) {
+	ctx, done, err := s.session.beginQuery(parent)
 	if err != nil {
 		s.writeError(w, http.StatusServiceUnavailable, "not_ready", "recommendation data is loading")
-		return
+		return nil, false
 	}
 	defer done()
-	result, err := s.session.opts.Recommendations(ctx, query.IncludeDismissed)
+	result, err := s.session.opts.Recommendations(ctx, includeDismissed)
 	if err != nil || result == nil {
-		done()
 		s.writeError(w, http.StatusBadGateway, "recommendations_unavailable", "recommendation data unavailable")
-		return
+		return nil, false
 	}
 	safe := cloneData(result)
-	done()
 	for i := range safe.Errors {
 		safe.Errors[i].Error = "Recommendation data unavailable"
 	}
-	presented := viewmodel.FilterRecommendations(
-		append([]engine.Recommendation(nil), safe.Recommendations...),
-		query.Filter,
-	)
-	s.session.setPresentedRecommendations(presented)
-	s.WriteJSON(w, http.StatusOK, viewmodel.BuildRecommendationPage(safe, query.Filter, sort, query.Page))
+	return safe, true
 }
 
 func (s *Server) handleRecommendationItem(w http.ResponseWriter, r *http.Request) {
@@ -83,10 +95,14 @@ func (s *Server) handleRecommendationItem(w http.ResponseWriter, r *http.Request
 		s.writeError(w, http.StatusServiceUnavailable, "not_ready", "recommendation data is loading")
 		return
 	}
-	items, err := s.session.presentedRecommendations()
-	if err != nil {
-		s.writeError(w, http.StatusServiceUnavailable, "not_ready", "recommendation data is loading")
-		return
+	items, queried := s.session.presentedRecommendations()
+	if !queried {
+		safe, ok := s.fetchRecommendations(r.Context(), w, false)
+		if !ok {
+			return
+		}
+		items = safe.Recommendations
+		s.session.setPresentedRecommendations(items)
 	}
 	for _, rec := range items {
 		if recommendationMatches(r, rec, id) {
