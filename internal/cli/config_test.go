@@ -29,15 +29,28 @@ func setupTestConfig(t *testing.T) func() {
 
 //nolint:paralleltest // Mutates the process-wide global config singleton.
 func TestSetupTestConfigDoesNotLeakGlobalConfig(t *testing.T) {
-	t.Run("pollute", func(t *testing.T) {
+	t.Cleanup(config.ResetGlobalConfigForTest)
+	polluted := func() *config.Config {
+		cfg := config.New()
+		cfg.Output.DefaultFormat = "invalid"
+		return cfg
+	}
+
+	t.Run("resets on entry", func(t *testing.T) {
+		config.SetGlobalConfig(polluted())
 		setupTestConfig(t)
-		polluted := config.New()
-		polluted.Output.DefaultFormat = "invalid"
-		config.SetGlobalConfig(polluted)
+		t.Setenv("FINFOCUS_HOME", t.TempDir())
+		assert.NotEqual(t, "invalid", config.GetGlobalConfig().Output.DefaultFormat)
 	})
 
-	setupTestConfig(t)
-	assert.NotEqual(t, "invalid", config.GetGlobalConfig().Output.DefaultFormat)
+	t.Run("resets on cleanup", func(t *testing.T) {
+		t.Run("pollute", func(t *testing.T) {
+			setupTestConfig(t)
+			config.SetGlobalConfig(polluted())
+		})
+		t.Setenv("FINFOCUS_HOME", t.TempDir())
+		assert.NotEqual(t, "invalid", config.GetGlobalConfig().Output.DefaultFormat)
+	})
 }
 
 func TestConfigInitCmd(t *testing.T) {
