@@ -399,18 +399,26 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   The overview EventSource checks `GET /api/overview/budget` (same-origin
   cookie, no bearer token) after a connection failure. A 401 stops retries
   and tells the user to open the link printed in the terminal. `close`
-  aborts that check. Other failures keep the capped backoff.
+  aborts that check. Other failures, and a check that takes over 5s, keep the
+  capped backoff. `OverviewStream` moves through explicit states
+  (`connecting`, `open`, `authenticating`, `reconnecting`, `backoff`, `failed`,
+  `closed`) only via `dispatch`.
   `GET /api/estimate/baseline` is the exception to a plain `{error, code}`
   body: a provider failure is still 502 `estimate_unavailable`, and the body
   also carries redacted `display.properties` with no deltas, `pricingModes`
   from `DiscoverPricingSpec`, and `resource`. `400 invalid_pricing_mode`
   stays `{error, code}` only. The editor must not treat that 502 as success.
   Web overview learns state-only from `pipe.OnStateOnly`
-  (`Session.SetStateOnly`). Snapshot and the `run_status` event carry
-  `stateOnly`, `previewLoaded`, and `detectFailed` (a boolean; the error text stays in
-  the terminal log and never reaches the browser). `POST /api/overview/preview`
+  (`Session.SetStateOnly`). The three flags are one `webui.RunStatus` on the
+  session (browser: `mergeRunStatus` in `app.js`); the snapshot and the
+  `run_status` event carry `stateOnly`, `previewLoaded`, and `detectFailed` (a
+  boolean; the error text stays in the terminal log and never reaches the
+  browser). `POST /api/overview/preview`
   is 409 unless the run is state-only and a preview has not been applied. A
-  successful preview clears that status. Do not keep a second store beside
+  successful preview clears that status. A preview whose added rows fail to
+  price (`appendPreviewRows` returns `errPreviewPricing`; a row has `Error` or
+  `ProjectedPricingFailed`) is an error, not loaded, so Run preview can retry;
+  an unpriced type that only reports `NO_COST_DATA` is not a failure. Do not keep a second store beside
   those session fields.
   `--pulumi-state` without `--pulumi-json` is state-only too, like the TUI.
   After a preview adds rows, `appendPreviewRows` applies the dismissal delta to
