@@ -143,25 +143,25 @@ func actualResourceForRow(row OverviewRow) ResourceDescriptor {
 		props = map[string]any{}
 	}
 	if row.ResourceID != "" {
-		if existing, ok := props[PropertyPulumiCloudID].(string); !ok || existing == "" {
-			props[PropertyPulumiCloudID] = row.ResourceID
-		}
+		setPropertyIfEmpty(props, PropertyPulumiCloudID, row.ResourceID)
 	}
 	if row.URN != "" {
-		if existing, ok := props[PropertyPulumiURN].(string); !ok || existing == "" {
-			props[PropertyPulumiURN] = row.URN
-		}
+		setPropertyIfEmpty(props, PropertyPulumiURN, row.URN)
 	}
 	if row.CreatedAt != nil {
-		if existing, ok := props[PropertyPulumiCreated].(string); !ok || existing == "" {
-			props[PropertyPulumiCreated] = row.CreatedAt.UTC().Format(time.RFC3339)
-		}
+		setPropertyIfEmpty(props, PropertyPulumiCreated, row.CreatedAt.UTC().Format(time.RFC3339))
 	}
 	return ResourceDescriptor{
 		Type:       row.Type,
 		ID:         row.URN,
 		Provider:   resourcetype.ExtractProvider(row.Type),
 		Properties: props,
+	}
+}
+
+func setPropertyIfEmpty(props map[string]any, key, value string) {
+	if existing, ok := props[key].(string); !ok || existing == "" {
+		props[key] = value
 	}
 }
 
