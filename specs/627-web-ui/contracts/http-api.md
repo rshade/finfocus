@@ -88,7 +88,7 @@ helpers for direct browser rendering.
 | GET | `/api/overview/stream` | — | SSE stream (see events below) |
 | POST | `/api/overview/query` | `OverviewQuery` | `{ rows: OverviewRowResult[], totals: OverviewTotals, page, totalPages }` — filtered/sorted/flattened by `internal/viewmodel` |
 | POST | `/api/overview/cluster/toggle` | `{ urn: string, expanded: string[] }` (the client's current expanded set) | Updated flattened page plus the new expanded set (same shape as query). The server keeps no expansion state, so two tabs never interfere |
-| POST | `/api/overview/preview` | — | Triggers live `pulumi preview` (TUI `p`-key equivalent); at most one runs at a time (a second call attaches to the running one, `202`); progress streamed on the SSE channel; final message carries updated rows |
+| POST | `/api/overview/preview` | — | Triggers live `pulumi preview` (TUI `p`-key equivalent) only while the run is state-only and no preview has been applied. Otherwise `409` / `preview_not_allowed`. At most one runs at a time (a second call while it is running attaches, `202`); progress streamed on the SSE channel; a successful result clears state-only and carries updated rows |
 | GET | `/api/overview/budget` | — | `{ budgets: BudgetHealthResult[], display: BudgetDisplay }` — the shared CLI health schema, without notification destinations |
 | GET | `/api/overview/resource?urn=...` | — | `{ row: OverviewRowResult, display: OverviewDetailDisplay, budgets: BudgetHealthResult[], budgetDisplay: BudgetDisplay, activeRecommendations: [{ recommendation, savingsDisplay }] }` — property diffs and breakdowns are in the row; active recommendations and savings use the shared TUI detail selector |
 | POST | `/api/passphrase` | `{ passphrase: string }` | `202` on accept; hands the value to the loading pipeline, which passes it to the `pulumi` subprocess environment only (never `os.Setenv`, as `internal/pulumi/pulumi.go` does for the TUI); errors surface on SSE |
@@ -109,7 +109,8 @@ recovers the current state without restarting the load.
 | `expansion` | `{ rows: OverviewRowResult[], notes: string[] }` | Cluster expansion finished after enrichment; replaces the row set (mirrors the TUI's `OverviewExpansionReadyMsg`) |
 | `ready` | `{ totals: OverviewTotals }` | Load complete |
 | `passphrase_required` | `{ stack: string }` | Encrypted stack — SPA shows masked prompt. A rejected passphrase emits `error` and then `passphrase_required` again |
-| `snapshot` | `{ phases, rows, totals, budget, progress, ready, passphraseRequired, stack, preview, errors }` | State so far, including safe phase failures; sent first on every connect and when unlock handoff starts |
+| `snapshot` | `{ phases, rows, totals, budget, progress, ready, passphraseRequired, stack, preview, errors, stateOnly, previewLoaded, detectFailed, footnote }` | State so far, including safe phase failures and whether the run is state-only; sent first on every connect and when unlock handoff starts |
+| `run_status` | `{ stateOnly, previewLoaded, detectFailed, footnote }` | State-only status. `footnote` is the TUI state-only note while a preview has not been applied. A successful preview sets `previewLoaded` and clears `stateOnly`, `detectFailed`, and `footnote` |
 | `preview` | `{ status, elapsedMs, rows? }` | On-demand preview progress/result |
 
 ## Cost actual

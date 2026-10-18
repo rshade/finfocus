@@ -73,6 +73,10 @@ export function mount(container, ctx) {
     progress: null,
     previewStatus: null,
     previewElapsedMs: null,
+    stateOnly: false,
+    previewLoaded: false,
+    detectFailed: false,
+    footnote: '',
   };
 
   // --- Static DOM skeleton -------------------------------------------------
@@ -126,6 +130,10 @@ export function mount(container, ctx) {
     sortButton,
     previewButton,
   );
+  const stateNote = el('p', { class: 'state-only-footnote' });
+  stateNote.hidden = true;
+  const detectHint = el('p', { class: 'state-only-hint' });
+  detectHint.hidden = true;
 
   const tbody = el('tbody');
   const headerRow = el('tr');
@@ -167,6 +175,8 @@ export function mount(container, ctx) {
       checklist,
       progressLine,
       toolbar,
+      stateNote,
+      detectHint,
       totalsBar,
       tableWrap,
       pager,
@@ -366,11 +376,40 @@ export function mount(container, ctx) {
     return list;
   }
 
+  function previewAllowed() {
+    return state.stateOnly && !state.previewLoaded && state.ready && !state.loading && state.previewStatus !== 'running';
+  }
+  function renderRunStatus() {
+    const marked = state.stateOnly && !state.previewLoaded;
+    const projected = headerRow.children[4];
+    if (projected) projected.textContent = marked ? 'Projected*' : 'Projected';
+    const showNote = marked && state.ready && !state.loading;
+    stateNote.hidden = !showNote || !state.footnote;
+    stateNote.textContent = showNote ? state.footnote : '';
+    const showHint = showNote && state.detectFailed;
+    detectHint.hidden = !showHint;
+    detectHint.textContent = showHint ? '(change detection failed)' : '';
+    renderPreviewButton();
+  }
+  function applyRunStatus(data) {
+    if (!data || typeof data !== 'object') return;
+    if (typeof data.stateOnly === 'boolean') state.stateOnly = data.stateOnly;
+    if (typeof data.previewLoaded === 'boolean') state.previewLoaded = data.previewLoaded;
+    if (typeof data.detectFailed === 'boolean') state.detectFailed = data.detectFailed;
+    if (data.previewLoaded) state.detectFailed = false;
+    state.footnote = typeof data.footnote === 'string' ? data.footnote : state.footnote;
+    if (data.previewLoaded) state.footnote = '';
+    renderRunStatus();
+  }
   function renderPreviewButton() {
     if (state.previewStatus === 'running') {
       previewButton.disabled = true;
       previewButton.textContent = `Preview running… ${previewElapsedText()}`;
       previewButton.setAttribute('aria-label', 'Preview in progress');
+    } else if (!previewAllowed()) {
+      previewButton.disabled = true;
+      previewButton.textContent = 'Run preview';
+      previewButton.setAttribute('aria-label', 'Run an on-demand pulumi preview');
     } else {
       previewButton.disabled = false;
       previewButton.textContent = 'Run preview';
@@ -770,6 +809,7 @@ export function mount(container, ctx) {
     }
     if (data?.passphraseRequired) onPassphraseRequired({ stack: data.stack });
     else if (data?.passphraseRequired === false) passphraseDialog.close();
+    applyRunStatus(data);
     runQuery();
   }
 
@@ -872,6 +912,7 @@ export function mount(container, ctx) {
     renderPhases();
     renderProgress();
     renderTotals();
+    renderRunStatus();
     runQuery();
   }
 
@@ -931,6 +972,7 @@ export function mount(container, ctx) {
     ['ready', onReady],
     ['passphrase_required', onPassphraseRequired],
     ['preview', onPreview],
+    ['run_status', applyRunStatus],
   ]) {
     unsubs.push(stream.on(event, handler));
   }

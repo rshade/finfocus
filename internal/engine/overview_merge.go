@@ -107,9 +107,6 @@ func MergeResourcesForOverview(
 	diffsByURN := BuildPropertyDiffsByURN(planSteps)
 	projectedPropsByURN := BuildProjectedPropertiesByURN(planSteps)
 
-	// Track URNs we have seen from state so we can detect new creates.
-	seenURNs := make(map[string]struct{}, len(stateResources))
-
 	rows := make([]OverviewRow, 0, len(stateResources)+len(planSteps))
 
 	// Phase 1: iterate state resources in order (preserves FR-011).
@@ -117,8 +114,6 @@ func MergeResourcesForOverview(
 		if !res.Custom {
 			continue
 		}
-		seenURNs[res.URN] = struct{}{}
-
 		row := stateResourceToRow(res)
 		if step, ok := planByURN[res.URN]; ok {
 			row.Status = MapOperationToStatus(step.Op)
@@ -134,6 +129,27 @@ func MergeResourcesForOverview(
 	}
 
 	// Phase 2: append new resources that appear only in the plan.
+	rows = AppendPlanOnlyRows(rows, planSteps)
+
+	log.Debug().
+		Ctx(ctx).
+		Str("component", "engine").
+		Str("operation", "merge_resources").
+		Int("total_rows", len(rows)).
+		Msg("resource merge complete")
+
+	return rows, nil
+}
+
+// AppendPlanOnlyRows appends a creating row for every plan create whose URN is
+// not already in rows. Appended rows carry projected properties (also as base
+// properties) cloned from the plan; cost fields are left nil for enrichment.
+func AppendPlanOnlyRows(rows []OverviewRow, planSteps []PlanStep) []OverviewRow {
+	seenURNs := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		seenURNs[row.URN] = struct{}{}
+	}
+	projectedPropsByURN := BuildProjectedPropertiesByURN(planSteps)
 	for _, step := range planSteps {
 		if _, seen := seenURNs[step.URN]; seen {
 			continue
@@ -155,15 +171,7 @@ func MergeResourcesForOverview(
 		}
 		rows = append(rows, row)
 	}
-
-	log.Debug().
-		Ctx(ctx).
-		Str("component", "engine").
-		Str("operation", "merge_resources").
-		Int("total_rows", len(rows)).
-		Msg("resource merge complete")
-
-	return rows, nil
+	return rows
 }
 
 // NewRowsFromState creates skeleton OverviewRows from state resources only,

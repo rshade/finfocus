@@ -197,6 +197,11 @@ func (s *Server) handleOverviewResource(w http.ResponseWriter, r *http.Request) 
 }
 func (s *Server) handlePreview(w http.ResponseWriter, _ *http.Request) {
 	if err := s.session.startPreview(); err != nil {
+		if errors.Is(err, errPreviewNotAllowed) {
+			s.writeError(w, http.StatusConflict, "preview_not_allowed",
+				"preview is available only before a preview has been loaded on a state-only run")
+			return
+		}
 		s.writeError(w, http.StatusServiceUnavailable, "unavailable", "preview unavailable")
 		return
 	}
