@@ -27,6 +27,7 @@ func setupTestConfig(t *testing.T) func() {
 	return func() {}
 }
 
+//nolint:paralleltest // Mutates the process-wide global config singleton.
 func TestSetupTestConfigDoesNotLeakGlobalConfig(t *testing.T) {
 	t.Run("pollute", func(t *testing.T) {
 		setupTestConfig(t)
