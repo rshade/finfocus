@@ -107,3 +107,23 @@ func TestCollectDataKeyedMapTypesFindsEngineDataKeyedFields(t *testing.T) {
 	collectDataKeyedMapTypes(reflect.TypeFor[payload](), map[reflect.Type]bool{}, found)
 	assert.Contains(t, found, "payload.Typed")
 }
+
+func TestRedactDoesNotRestoreADataKeyedSecretEnvelope(t *testing.T) {
+	t.Parallel()
+
+	envelope := engine.DataKeyed[any]{
+		"4dabf18193072939515e22adb298388d": "1",
+		"value":                            "plaintext-secret",
+	}
+	type payload struct {
+		Attrs engine.DataKeyed[any] `json:"attrs"`
+		Safe  engine.DataKeyed[any] `json:"safe"`
+	}
+	data, err := RedactJSON(payload{Attrs: envelope, Safe: engine.DataKeyed[any]{"urn:web": "ok"}})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), "plaintext-secret")
+	assert.NotContains(t, string(data), "4dabf18193072939515e22adb298388d")
+	assert.Contains(t, string(data), "urn:web")
+
+	assert.Nil(t, RedactValue(envelope))
+}

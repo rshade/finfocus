@@ -70,7 +70,10 @@ func preserveStruct(value reflect.Value, redacted any, depth int) any {
 		if field.Tag.Get("datakey") == "true" || isDataKeyedValue(fieldValue) {
 			_, exists := object[name]
 			if exists || (dataKeyLen(fieldValue) > 0 && !engine.IsHiddenPropertyKey(name)) {
-				object[name] = redactKeepingKeys(fieldValue, object[name], depth+1)
+				restored := redactKeepingKeys(fieldValue, object[name], depth+1)
+				if restored != nil || exists {
+					object[name] = restored
+				}
 			}
 			continue
 		}
@@ -170,6 +173,9 @@ func redactKeepingKeys(value reflect.Value, fallback any, depth int) any {
 	var decoded map[string]any
 	if unmarshalErr := json.Unmarshal(encoded, &decoded); unmarshalErr != nil {
 		return fallback
+	}
+	if history.IsPulumiSecret(decoded) {
+		return nil
 	}
 	out := make(map[string]any, len(decoded))
 	for _, key := range value.MapKeys() {
