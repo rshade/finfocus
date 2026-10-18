@@ -277,6 +277,12 @@ func webWait(t *testing.T, page playwright.Page, expression string) {
 	)
 	if err != nil {
 		text, _ := page.Locator("body").TextContent()
+		state, _ := page.Evaluate(
+			`() => ({hash: location.hash, visibility: document.visibilityState, h2: document.querySelector('#view h2')?.textContent, ` +
+				`active: document.activeElement ? document.activeElement.tagName + ' ' + ` +
+				`(document.activeElement.getAttribute('data-route') || document.activeElement.id || document.activeElement.className) : ''})`,
+		)
+		t.Logf("browser state at wait failure: %v", state)
 		t.Logf("browser DOM at wait failure: %s", text)
 	}
 	require.NoError(t, err)
@@ -311,7 +317,17 @@ func webRoute(t *testing.T, page playwright.Page, route string) {
 	t.Helper()
 	webTab(t, page, `a[data-route="`+route+`"]`)
 	require.NoError(t, page.Keyboard().Press("Enter"))
-	webWait(t, page, `() => location.hash === '#/`+route+`' && document.querySelector('#view h2') !== null`)
+	// The hash changes before the router replaces the previous view, so the old
+	// view's h2 must not satisfy the wait: require the nav link to be current
+	// and the loading placeholder gone. Otherwise the router's late
+	// heading.focus() steals focus from the next webTab target.
+	webWait(
+		t,
+		page,
+		`() => location.hash === '#/`+route+`' && `+
+			`document.querySelector('.app-nav a[data-route="`+route+`"]')?.getAttribute('aria-current') === 'page' && `+
+			`document.querySelector('#view .view-loading') === null && document.querySelector('#view h2') !== null`,
+	)
 }
 
 func webBrowser(t *testing.T) playwright.Browser {
@@ -339,6 +355,12 @@ func webPage(t *testing.T, browser playwright.Browser, s *webProcess, scheme *pl
 	t.Cleanup(func() { assert.NoError(t, ctx.Close()) })
 	page, err := ctx.NewPage()
 	require.NoError(t, err)
+	page.OnConsole(func(m playwright.ConsoleMessage) {
+		if m.Type() == "error" || m.Type() == "warning" {
+			t.Logf("browser console %s: %s", m.Type(), m.Text())
+		}
+	})
+	page.OnPageError(func(e error) { t.Logf("browser page error: %v", e) })
 	_, err = page.Goto(s.bootstrap)
 	require.NoError(t, err)
 	return page
