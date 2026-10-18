@@ -92,24 +92,26 @@ func (d *webData) capturePlan(ctx context.Context, plan *ingest.PulumiPlan) {
 }
 
 // appendPreviewRows adds plan-only creates through the merge the CLI Overview
-// uses, then prices only the added rows. The query gate guards the captured
-// plan; pricing runs after it is released so queries are not blocked.
+// uses, applies the launch filters to the added rows, then prices only those
+// rows. The query gate stays held until pricing finishes, like a query lease,
+// so a settings save, install, or remove cannot reload and close the clients
+// mid-pricing.
 func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewRow) ([]engine.OverviewRow, error) {
 	unlock, err := d.lock(ctx)
 	if err != nil {
 		return nil, err
 	}
-	steps := d.planSteps
-	eng := d.eng
-	dates := d.dates
-	unlock()
+	defer unlock()
 
-	merged := engine.AppendPlanOnlyRows(rows, steps)
-	added := merged[len(rows):]
-	if len(added) > 0 && eng != nil {
-		engine.EnrichOverviewRows(ctx, added, eng, dates, nil)
+	merged := engine.AppendPlanOnlyRows(rows, d.planSteps)
+	added, err := validateAndApplyOverviewFilters(merged[len(rows):], d.params.filter)
+	if err != nil {
+		return nil, err
 	}
-	return merged, nil
+	if len(added) > 0 && d.eng != nil {
+		engine.EnrichOverviewRows(ctx, added, d.eng, d.dates, nil)
+	}
+	return append(merged[:len(rows):len(rows)], added...), nil
 }
 
 func (d *webData) newEngine(

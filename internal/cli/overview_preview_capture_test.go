@@ -201,3 +201,84 @@ func TestCapturePlanHonorsCancellationWhileGateHeld(t *testing.T) {
 	assert.Empty(t, data.planSteps)
 	assert.Len(t, data.gate, 1)
 }
+
+type gatedPricingClient struct {
+	includeDismissedClient
+	entered chan struct{}
+	release chan struct{}
+}
+
+func (c *gatedPricingClient) GetProjectedCost(
+	_ context.Context,
+	in *proto.GetProjectedCostRequest,
+	_ ...grpc.CallOption,
+) (*proto.GetProjectedCostResponse, error) {
+	close(c.entered)
+	<-c.release
+	out := &proto.GetProjectedCostResponse{}
+	for range in.Resources {
+		out.Results = append(out.Results, &proto.CostResult{Currency: "USD", MonthlyCost: 1})
+	}
+	return out, nil
+}
+
+func TestAppendPreviewRowsHoldsQueryGateWhilePricing(t *testing.T) {
+	t.Parallel()
+
+	const urn = "urn:pulumi:dev::proj::aws:ec2/instance:Instance::fresh"
+	plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{{
+		Op:  "create",
+		URN: urn,
+		NewState: &ingest.PulumiState{
+			URN: urn, Type: "aws:ec2/instance:Instance", Inputs: map[string]any{"instanceType": "t3.micro"},
+		},
+	}}}
+	client := &gatedPricingClient{entered: make(chan struct{}), release: make(chan struct{})}
+	data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
+	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: client}}, nil)
+	data.captureState(nil)
+	data.capturePlan(context.Background(), plan)
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := data.appendPreviewRows(context.Background(), nil)
+		done <- err
+	}()
+	<-client.entered
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+	unlock, err := data.lock(ctx)
+	if err == nil {
+		unlock()
+	}
+	require.Error(t, err, "query gate must stay held while plan-only rows are priced")
+
+	close(client.release)
+	require.NoError(t, <-done)
+}
+
+func TestAppendPreviewRowsAppliesLaunchFilters(t *testing.T) {
+	t.Parallel()
+
+	const prefix = "urn:pulumi:dev::proj::"
+	create := func(urn, typ string) ingest.PulumiStep {
+		return ingest.PulumiStep{
+			Op: "create", URN: urn,
+			NewState: &ingest.PulumiState{URN: urn, Type: typ, Inputs: map[string]any{}},
+		}
+	}
+	plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{
+		create(prefix+"aws:ec2/instance:Instance::a", "aws:ec2/instance:Instance"),
+		create(prefix+"gcp:compute/instance:Instance::g", "gcp:compute/instance:Instance"),
+	}}
+	data := newWebData(&cobra.Command{}, overviewParams{
+		cfg: &config.Config{}, filter: []string{"provider=aws"},
+	}, engine.DateRange{}, nil)
+	data.capturePlan(context.Background(), plan)
+
+	rows, err := data.appendPreviewRows(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, prefix+"aws:ec2/instance:Instance::a", rows[0].URN)
+}
