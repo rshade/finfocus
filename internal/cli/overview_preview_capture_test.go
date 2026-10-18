@@ -204,6 +204,7 @@ func TestCapturePlanHonorsCancellationWhileGateHeld(t *testing.T) {
 
 type gatedPricingClient struct {
 	includeDismissedClient
+
 	entered chan struct{}
 	release chan struct{}
 }
