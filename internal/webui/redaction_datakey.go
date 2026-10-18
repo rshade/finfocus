@@ -83,7 +83,7 @@ func preserveStruct(value reflect.Value, redacted any, depth int) any {
 
 func preserveSlice(value reflect.Value, redacted any, depth int) any {
 	items, ok := redacted.([]any)
-	if !ok {
+	if !ok || !canHoldDataKeys(value.Type().Elem()) {
 		return redacted
 	}
 	indexes := surviving(value, len(items))
@@ -94,6 +94,21 @@ func preserveSlice(value reflect.Value, redacted any, depth int) any {
 		items[i] = preserveKeyed(value.Index(indexes[i]), items[i], depth+1)
 	}
 	return items
+}
+
+// canHoldDataKeys reports whether an element type can contain a data-keyed
+// map. Scalar elements such as a []float64 cannot, so they skip the per-element
+// JSON round trip in surviving.
+func canHoldDataKeys(t reflect.Type) bool {
+	switch t.Kind() {
+	case reflect.Bool, reflect.String,
+		reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Float32, reflect.Float64:
+		return false
+	default:
+		return true
+	}
 }
 
 // surviving maps each redacted element back to its original index by replaying

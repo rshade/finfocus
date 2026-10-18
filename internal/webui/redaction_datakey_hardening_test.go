@@ -37,9 +37,10 @@ func collectDataKeyedMapTypes(t reflect.Type, seen map[reflect.Type]bool, found 
 		return
 	}
 	seen[t] = true
+	marker := reflect.TypeFor[dataKeyedMap]()
 	for i := range t.NumField() {
 		field := t.Field(i)
-		if field.Tag.Get("datakey") == "true" {
+		if field.Tag.Get("datakey") == "true" || field.Type.Implements(marker) {
 			found[t.Name()+"."+field.Name] = field.Type
 		}
 		collectDataKeyedMapTypes(field.Type, seen, found)
@@ -94,4 +95,15 @@ func TestRedactJSONKeepsDataKeysWhenSiblingElementIsDropped(t *testing.T) {
 	require.Len(t, decoded.Rows, 1)
 	assert.Equal(t, map[string]float64{"urn:aws:secretsmanager:db": 2}, decoded.Rows[0].Totals)
 	assert.NotContains(t, string(data), "urn:gone")
+}
+
+func TestCollectDataKeyedMapTypesFindsEngineDataKeyedFields(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Typed engine.DataKeyed[string]
+	}
+	found := map[string]reflect.Type{}
+	collectDataKeyedMapTypes(reflect.TypeFor[payload](), map[reflect.Type]bool{}, found)
+	assert.Contains(t, found, "payload.Typed")
 }
