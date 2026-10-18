@@ -244,7 +244,7 @@ func TestEstimateHTTPValidationAndFailures(t *testing.T) {
 		"/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`),
 		"",
 	)
-	require.Equal(t, 502, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 	raw, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	assert.NotContains(t, string(raw), "credential-value")
@@ -419,13 +419,14 @@ func TestEstimateBaselineFailureKeepsRedactedRowsAndModes(t *testing.T) {
 		"/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`),
 		"",
 	)
-	require.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 	raw, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	for _, secret := range []string{"credential-value", "projected-credential", "secret-value", "projected-secret", "password", "private"} {
 		assert.NotContains(t, string(raw), secret)
 	}
 	var got struct {
+		Status   string                     `json:"status"`
 		Error    string                     `json:"error"`
 		Code     string                     `json:"code"`
 		Display  viewmodel.EstimateDisplay  `json:"display"`
@@ -433,6 +434,7 @@ func TestEstimateBaselineFailureKeepsRedactedRowsAndModes(t *testing.T) {
 		Resource *engine.ResourceDescriptor `json:"resource"`
 	}
 	require.NoError(t, json.Unmarshal(raw, &got))
+	assert.Equal(t, "unavailable", got.Status)
 	assert.Equal(t, "estimate_unavailable", got.Code)
 	assert.NotEmpty(t, got.Error)
 	assert.Empty(t, got.Display.Baseline)
@@ -459,8 +461,25 @@ func TestEstimateBaselineFailureKeepsRedactedRowsAndModes(t *testing.T) {
 	require.NoError(t, json.Unmarshal(plainBody, &plainErr))
 	assert.Equal(t, "invalid_pricing_mode", plainErr["code"])
 	assert.NotContains(t, plainErr, "display")
+	assert.NotContains(t, plainErr, "status")
 	assert.NotContains(t, plainErr, "pricingModes")
 	assert.NotContains(t, plainErr, "resource")
+}
+
+func TestEstimateRecalculateFailureStaysPlainError(t *testing.T) {
+	t.Parallel()
+	s, session, _, _ := estimateHTTPFixture(t)
+	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+	resp := overviewRequest(t, s, "POST", "/api/estimate/recalculate", `{"urn":"urn:real","overrides":{"size":"3"}}`)
+	require.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	var got map[string]any
+	require.NoError(t, json.Unmarshal(raw, &got))
+	assert.Equal(t, "estimate_unavailable", got["code"])
+	assert.NotContains(t, got, "status")
+	assert.NotContains(t, got, "display")
+	assert.NotContains(t, got, "pricingModes")
 }
 
 func TestEstimateHTTPUnavailablePriceIsNotSuccessfulZero(t *testing.T) {
@@ -468,7 +487,10 @@ func TestEstimateHTTPUnavailablePriceIsNotSuccessfulZero(t *testing.T) {
 	s, session, _, _ := estimateHTTPFixture(t)
 	session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
 	resp := overviewRequest(t, s, "GET", "/api/estimate/baseline?urn=urn:real", "")
-	assert.Equal(t, 502, resp.StatusCode)
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
+	raw, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	assert.Contains(t, string(raw), `"status":"unavailable"`)
 }
 
 func TestEstimateShutdownDoesNotWaitForResponseWriter(t *testing.T) {
@@ -486,7 +508,7 @@ func TestEstimateShutdownDoesNotWaitForResponseWriter(t *testing.T) {
 		{name: "baseline source failure", path: "/api/estimate/baseline?urn=urn:real", sourceErr: true, want: 502},
 		{name: "unknown resource", path: "/api/estimate/baseline?urn=missing", want: 404},
 		{name: "invalid mode", path: "/api/estimate/recalculate", body: `{"urn":"urn:real","overrides":{"size":"3"},"pricingMode":"invalid"}`, want: 400},
-		{name: "unavailable price", path: "/api/estimate/baseline?urn=urn:real", unpriced: true, want: 502},
+		{name: "unavailable price", path: "/api/estimate/baseline?urn=urn:real", unpriced: true, want: 200},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
@@ -564,7 +586,7 @@ func TestEstimateBaselineFailureHidesNestedSecrets(t *testing.T) {
 		"/api/estimate/baseline?urn=urn:real&pricingMode="+url.QueryEscape(`["bad","hourly"]`),
 		"",
 	)
-	require.Equal(t, http.StatusBadGateway, resp.StatusCode)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
 	raw, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	for _, secret := range []string{"nested-credential", "nested-secret", "4dabf18193072939515e22adb298388d"} {
