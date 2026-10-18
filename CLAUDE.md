@@ -331,7 +331,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `plugin_settings_web.go`. Install progress is a per-operation SSE stream
   (`snapshot`, `progress`, `done`). Do not publish it on the overview bus:
   that bus runs `RedactJSON` and drops slow subscribers. Settings GET uses
-  `writePlainJSON`. Secret values are absent from the body. `pluginMetadata`
+  `writePlainJSON`. Secret values are absent from the body.
+  Data-keyed maps keep their keys through `RedactJSON`: use `engine.DataKeyed`
+  or the struct tag `datakey:"true"` (trends, breakdowns, and the cost-summary
+  groupings). Values still pass `history.IsPulumiSecret`. Property maps do not
+  get the mark, so `IsHiddenPropertyKey` still drops credential-like names.
+  Do not add a second credential-name list or a payload-specific redactor case.
+  `pluginMetadata`
   does not copy `Settings`, so the settings handler calls `GetPluginInfo`
   again.
 - The dashboard Config page and `config set` patch `config.hujson` through

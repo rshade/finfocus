@@ -215,10 +215,6 @@ that launched it to shut down the server and its plugins.
 - **Run preview** is offered even when the session already has preview data,
   and state-only sessions do not show the terminal UI's `Projected*` marker
   ([#1751](https://github.com/rshade/finfocus/issues/1751)).
-- Redaction can hide a cost trend or breakdown entry whose key looks like a
-  credential name, such as an `input_tokens` breakdown line or a Secrets
-  Manager resource's trend
-  ([#1752](https://github.com/rshade/finfocus/issues/1752)).
 
 ## Related
 

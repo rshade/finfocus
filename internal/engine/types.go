@@ -492,7 +492,7 @@ type CostResult struct {
 	Monthly        float64                         `json:"monthly"`
 	Hourly         float64                         `json:"hourly"`
 	Notes          string                          `json:"notes"`
-	Breakdown      map[string]float64              `json:"breakdown"`
+	Breakdown      map[string]float64              `json:"breakdown"                datakey:"true"`
 	Sustainability map[string]SustainabilityMetric `json:"sustainability,omitempty"`
 	// Recommendations contains cost optimization suggestions from plugins.
 	// This field is populated when plugins provide actionable recommendations
@@ -620,10 +620,10 @@ type ActualCostRequest struct {
 //		Currency: "USD",
 //	}
 type CrossProviderAggregation struct {
-	Period    string             `json:"period"`    // Date (2024-01-01) or Month (2024-01)
-	Providers map[string]float64 `json:"providers"` // Provider name -> cost
-	Total     float64            `json:"total"`     // Total cost for this period
-	Currency  string             `json:"currency"`  // Currency for all costs
+	Period    string             `json:"period"`                   // Date (2024-01-01) or Month (2024-01)
+	Providers map[string]float64 `json:"providers" datakey:"true"` // Provider name -> cost
+	Total     float64            `json:"total"`                    // Total cost for this period
+	Currency  string             `json:"currency"`                 // Currency for all costs
 }
 
 // GroupBy defines the available grouping strategies for cost result aggregation.
@@ -785,9 +785,9 @@ type CostSummary struct {
 	TotalMonthly float64            `json:"totalMonthly"`
 	TotalHourly  float64            `json:"totalHourly"`
 	Currency     string             `json:"currency"`
-	ByProvider   map[string]float64 `json:"byProvider"`
-	ByService    map[string]float64 `json:"byService"`
-	ByAdapter    map[string]float64 `json:"byAdapter"`
+	ByProvider   map[string]float64 `json:"byProvider"   datakey:"true"`
+	ByService    map[string]float64 `json:"byService"    datakey:"true"`
+	ByAdapter    map[string]float64 `json:"byAdapter"    datakey:"true"`
 	Resources    []CostResult       `json:"resources"`
 }
 

@@ -43,7 +43,7 @@ type ActualCostPage struct {
 	Carbon         greenops.CarbonInput              `json:"carbon"`
 	CarbonDisplay  string                            `json:"carbonDisplay"`
 	TotalDisplay   string                            `json:"totalDisplay"`
-	Trends         map[string]string                 `json:"trends"`
+	Trends         map[string]string                 `json:"trends"         datakey:"true"`
 	TotalTrend     string                            `json:"totalTrend"`
 	Page           int                               `json:"page"`
 	TotalPages     int                               `json:"totalPages"`
