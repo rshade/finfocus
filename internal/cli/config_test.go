@@ -35,7 +35,7 @@ func TestSetupTestConfigDoesNotLeakGlobalConfig(t *testing.T) {
 		config.SetGlobalConfig(polluted)
 	})
 
-	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	setupTestConfig(t)
 	assert.NotEqual(t, "invalid", config.GetGlobalConfig().Output.DefaultFormat)
 }
 
