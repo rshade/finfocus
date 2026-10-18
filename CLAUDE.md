@@ -403,11 +403,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   capped backoff. `OverviewStream` moves through explicit states
   (`connecting`, `open`, `authenticating`, `reconnecting`, `backoff`, `failed`,
   `closed`) only via `dispatch`.
-  `GET /api/estimate/baseline` is the exception to a plain `{error, code}`
-  body: a provider failure is still 502 `estimate_unavailable`, and the body
-  also carries redacted `display.properties` with no deltas, `pricingModes`
-  from `DiscoverPricingSpec`, and `resource`. `400 invalid_pricing_mode`
-  stays `{error, code}` only. The editor must not treat that 502 as success.
+  `GET /api/estimate/baseline` returns a provider failure as HTTP 200 with
+  `status: "unavailable"`, `error`, `code: "estimate_unavailable"`, redacted
+  `display.properties` with no deltas, `pricingModes` from
+  `DiscoverPricingSpec`, and `resource`. Never a 5xx that carries data. The
+  editor must treat the marker as a failure, not a success. Request and
+  server errors, `400 invalid_pricing_mode`, and recalculate failures stay a
+  plain `{error, code}` 4xx/5xx.
   Web overview learns state-only from `pipe.OnStateOnly`
   (`Session.SetStateOnly`). The three flags are one `webui.RunStatus` on the
   session (browser: `mergeRunStatus` in `app.js`); the snapshot and the
@@ -516,7 +518,8 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   A project-tier `cost.history.directory` is ignored with a warning when it
   is absolute, has `..`, or resolves (symlinks followed on the deepest existing
   ancestor, against the working directory) outside the project root, or when
-  `history.db` or a `*.history.db` in it is a symlink or not a regular file
+  an entry named `history.db*` or containing `.history.db` (including the
+  `.compact-*` compaction temp) is a symlink or not a regular file
   (rechecked after `MkdirAll`; a swap after the check is not covered). The gate
   takes the project dir that built the config (`initHistoryFromConfig`'s
   `projectDir`; the analyzer passes its own, never the process-global one) and

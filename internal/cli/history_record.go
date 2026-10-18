@@ -307,8 +307,8 @@ func projectHistoryDirectoryRecheckFails(ctx context.Context, cfg *config.Config
 }
 
 // historyDatabaseFilesSafe reports whether every database file the history code
-// opens in dir (history.db and the *.history.db cost files) is absent or a
-// regular file. A symlink there would make Bolt open or create its target
+// opens in dir (history.db, the *.history.db cost files, and their compaction
+// temp files) is absent or a regular file. A symlink there would make Bolt open or create its target
 // outside the project. Lstat does not follow the link; the check is made
 // before the open, so a swap in between is not covered.
 func historyDatabaseFilesSafe(dir string) bool {
@@ -319,7 +319,7 @@ func historyDatabaseFilesSafe(dir string) bool {
 	for _, entry := range entries {
 		name := entry.Name()
 		lower := strings.ToLower(name)
-		if lower != "history.db" && !strings.HasSuffix(lower, ".history.db") {
+		if !strings.HasPrefix(lower, "history.db") && !strings.Contains(lower, ".history.db") {
 			continue
 		}
 		info, lerr := os.Lstat(filepath.Join(dir, name))

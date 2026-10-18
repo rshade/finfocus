@@ -61,14 +61,13 @@ test('a failed baseline keeps rows and modes, then edits and mode changes retry'
   const t = await setup('estimate');
   t.calls[0].resolve({ resources: [{ id: 'urn:real', type: 'aws:ec2:Instance' }] });
   await flush();
-  t.calls[1].reject(Object.assign(new Error('estimate data unavailable'), {
-    status: 502,
+  t.calls[1].resolve({
+    status: 'unavailable',
+    error: 'estimate data unavailable',
     code: 'estimate_unavailable',
-    data: {
-      pricingModes: [{ id: 'hourly', label: 'Hourly provider', rate: 'USD 10/hour' }],
-      display: { properties: [{ key: 'size', originalValue: '2', currentValue: '2', delta: '' }] },
-    },
-  }));
+    pricingModes: [{ id: 'hourly', label: 'Hourly provider', rate: 'USD 10/hour' }],
+    display: { properties: [{ key: 'size', originalValue: '2', currentValue: '2', delta: '' }] },
+  });
   await flush();
   assert.match(t.container.textContent, /estimate data unavailable/);
   assert.match(t.container.textContent, /Unable to calculate/);
@@ -109,13 +108,13 @@ test('a failed baseline keeps the selected pricing mode', async () => {
   const mode = t.container.querySelector('#estimate-mode');
   mode.value = 'opaque-mode';
   mode.dispatch('change');
-  t.calls.at(-1).reject(Object.assign(new Error('estimate data unavailable'), {
-    status: 502,
-    data: {
-      pricingModes: baseline().pricingModes,
-      display: { properties: baseline().display.properties },
-    },
-  }));
+  t.calls.at(-1).resolve({
+    status: 'unavailable',
+    error: 'estimate data unavailable',
+    code: 'estimate_unavailable',
+    pricingModes: baseline().pricingModes,
+    display: { properties: baseline().display.properties },
+  });
   await flush();
   assert.equal(mode.value, 'opaque-mode');
   const input = t.container.querySelectorAll('.estimate-input')[0];
