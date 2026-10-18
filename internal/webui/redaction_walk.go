@@ -49,16 +49,7 @@ func redactNode(v reflect.Value, node any, keyed bool, depth int) any {
 	if depth > maxRedactDepth {
 		v, keyed = reflect.Value{}, false
 	}
-	v = derefValue(v)
-	if v.IsValid() {
-		keyed = keyed || v.Type().Implements(dataKeyedType)
-		if keyed && (v.Kind() != reflect.Map || hasOwnEncoding(v.Type())) {
-			v, keyed = reflect.Value{}, false
-		}
-		if v.IsValid() && !keyed && !mayHoldDataKeys(v.Type()) {
-			v = reflect.Value{}
-		}
-	}
+	v, keyed = trustedSource(v, keyed)
 	switch typed := node.(type) {
 	case map[string]any:
 		if keyed && v.IsValid() {
@@ -70,6 +61,24 @@ func redactNode(v reflect.Value, node any, keyed bool, depth int) any {
 	default:
 		return node
 	}
+}
+
+// trustedSource decides how far the Go value can be trusted to describe the
+// decoded node. A value with its own encoding, or a data-key mark on anything
+// but a plain map, is dropped so the node follows the property-map rules.
+func trustedSource(v reflect.Value, keyed bool) (reflect.Value, bool) {
+	v = derefValue(v)
+	if !v.IsValid() {
+		return v, false
+	}
+	keyed = keyed || v.Type().Implements(dataKeyedType)
+	if keyed && (v.Kind() != reflect.Map || hasOwnEncoding(v.Type())) {
+		return reflect.Value{}, false
+	}
+	if !keyed && !mayHoldDataKeys(v.Type()) {
+		return reflect.Value{}, false
+	}
+	return v, keyed
 }
 
 func redactObject(v reflect.Value, object map[string]any, depth int) any {
@@ -111,7 +120,7 @@ func redactKeyedObject(v reflect.Value, object map[string]any, depth int) any {
 }
 
 func redactSlice(v reflect.Value, items []any, drop []bool, depth int) []any {
-	v = derefValue(v)
+	v, _ = trustedSource(v, false)
 	indexed := v.IsValid() && (v.Kind() == reflect.Slice || v.Kind() == reflect.Array)
 	out := make([]any, 0, len(items))
 	for i, item := range items {

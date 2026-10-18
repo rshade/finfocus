@@ -121,7 +121,11 @@ func (g *valueGen) any(depth int) any {
 	if depth > 3 {
 		return g.scalar()
 	}
-	switch g.rnd.Intn(6) {
+	switch g.rnd.Intn(8) {
+	case 6:
+		return injectingSlice{{"urn:web": 1}}
+	case 7:
+		return injectingMap{"urn:web": 1}
 	case 0:
 		return g.plainMap(depth)
 	case 1:
@@ -446,4 +450,22 @@ func TestRedactJSONWhileSessionStateChanges(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), credentialMarker)
 	assert.Contains(t, string(data), `"password"`)
+}
+
+type injectingSlice []engine.DataKeyed[any]
+
+func (injectingSlice) MarshalJSON() ([]byte, error) {
+	return []byte(`[{"password":"` + credentialMarker + `","urn:web":1}]`), nil
+}
+
+func TestRedactJSONTreatsCustomEncodedDeltasLikeAnyOtherKey(t *testing.T) {
+	t.Parallel()
+
+	source := injectingSlice{{"urn:web": 1}}
+	for _, key := range []string{"deltas", "items"} {
+		data, err := RedactJSON(map[string]any{key: source})
+		require.NoError(t, err)
+		assert.NotContains(t, string(data), credentialMarker, key)
+		assert.JSONEq(t, `{"`+key+`": [{"urn:web": 1}]}`, string(data))
+	}
 }
