@@ -163,8 +163,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `pkill -f <name>` or `pgrep -f <name>` from a shell whose own command line
   contains the name: it matches and kills the shell. Anchor the pattern.
 - The aws-public router starts a per-region child
-  (`finfocus-plugin-aws-public-<region>`) that outlives the router when core
-  stops it. Check `ps` for orphans after local runs.
+  (`finfocus-plugin-aws-public-<region>`) that can outlive the router when
+  finfocus is SIGKILLed or the child leaves the plugin's process group. Check
+  `ps` for orphans after local runs.
 - Remote-write fixtures need `storage.tsdb.out_of_order_time_window` in the
   Prometheus config and a window relative to now. A fixed date is rejected as
   out of bounds once a newer sample exists, and later falls out of the 15-day
@@ -309,10 +310,13 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   and `webui.Server.Run`). That is the path that stops plugin children.
   `server_sigterm_test.go` is `//go:build unix` because Windows has no
   `syscall.Kill` or SIGTERM. The interrupt test signals `os.Interrupt`.
-  SIGKILL still only delivers `Pdeathsig` to the direct child; a grandchild
-  the plugin spawned (the aws-public region binary) keeps running. That
-  grandchild case belongs in the plugin. `analyzer serve` already handles
-  both signals.
+  On SIGTERM, core SIGKILLs each plugin's whole process group
+  (`killProcessGroup`), so a grandchild that stays in the plugin's group dies
+  too; `test/integration/web_sigterm_orphan_test.go` pins that with a
+  router-like fixture. SIGKILL of finfocus itself only delivers `Pdeathsig` to
+  the direct child, and a grandchild that leaves the group (`Setsid` or its own
+  `Setpgid`) survives either way. Those cases belong in the plugin.
+  `analyzer serve` already handles both signals.
 - On-demand overview preview passes `capturePlan` into `resolveOverviewPlan`
   (the hook is a normal parameter, not a variadic). The web Estimate page
   reads that captured plan. Web Overview appends plan-only creates through
