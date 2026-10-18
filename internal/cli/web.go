@@ -384,7 +384,11 @@ func webSessionOptions(
 		QueryEngine:       data.queryEngine,
 		ActualCosts:       data.actualCosts, Recommendations: data.recommendations, Trends: data.tableTrends,
 		Preview: func(previewCtx context.Context) ([]engine.OverviewRow, error) {
-			return previewWebRows(previewCtx, pipe, pipeDone)
+			rows, previewErr := previewWebRows(previewCtx, pipe, pipeDone)
+			if previewErr != nil {
+				return nil, previewErr
+			}
+			return data.appendPreviewRows(previewCtx, rows)
 		},
 		SubmitPassphrase: func(requestCtx context.Context, pw string) error {
 			select {

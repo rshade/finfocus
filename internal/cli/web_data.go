@@ -72,9 +72,42 @@ func (d *webData) captureState(resources []ingest.StackExportResource) {
 }
 
 // capturePlan keeps only real initial preview sources, before synthetic expansion.
+// The query gate is the same one estimate readers hold.
 func (d *webData) capturePlan(plan *ingest.PulumiPlan) {
+	unlock, err := d.lock(context.Background())
+	if err != nil {
+		return
+	}
+	defer unlock()
 	d.planned, d.planErr = ingest.MapResources(plan.GetResources())
 	d.planned = cloneWebResources(d.planned)
+}
+
+// appendPreviewRows adds plan-only creates that are not already overview rows.
+func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewRow) ([]engine.OverviewRow, error) {
+	unlock, err := d.lock(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
+	seen := make(map[string]struct{}, len(rows))
+	for _, row := range rows {
+		seen[row.URN] = struct{}{}
+	}
+	for _, resource := range d.planned {
+		if _, ok := seen[resource.ID]; ok {
+			continue
+		}
+		seen[resource.ID] = struct{}{}
+		rows = append(rows, engine.OverviewRow{
+			URN:                 resource.ID,
+			Type:                resource.Type,
+			Status:              engine.StatusCreating,
+			Properties:          resource.Properties,
+			ProjectedProperties: resource.Properties,
+		})
+	}
+	return rows, nil
 }
 
 func (d *webData) newEngine(
