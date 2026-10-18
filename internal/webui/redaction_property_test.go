@@ -536,3 +536,23 @@ func TestEncodesAsComparesTheSourceWithTheDecodedObject(t *testing.T) {
 	assert.False(t, encodesAs(source, map[string]any{"compute": 1.0, "password": "x"}))
 	assert.False(t, encodesAs(reflect.Value{}, map[string]any{}))
 }
+
+func TestRedactJSONKeepsDataKeysWhenDecodingNormalizesTheValues(t *testing.T) {
+	t.Parallel()
+
+	type payload struct {
+		Detail engine.DataKeyed[any]   `json:"detail"`
+		Big    engine.DataKeyed[int64] `json:"big"`
+	}
+	data, err := RedactJSON(payload{
+		Detail: engine.DataKeyed[any]{
+			"input_tokens": 1,
+			"password":     struct{ Z, A int }{1, 2},
+		},
+		Big: engine.DataKeyed[int64]{"input_tokens": 9007199254740993},
+	})
+	require.NoError(t, err)
+	assert.Contains(t, string(data), `"input_tokens":1`)
+	assert.Contains(t, string(data), `"password":{"A":2,"Z":1}`)
+	assert.Contains(t, string(data), `"input_tokens":9007199254740992`)
+}

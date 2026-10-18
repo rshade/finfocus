@@ -79,7 +79,14 @@ func encodesAs(v reflect.Value, object map[string]any) bool {
 		return false
 	}
 	got, err := json.Marshal(v.Interface())
-	return err == nil && bytes.Equal(got, want)
+	if err != nil {
+		return false
+	}
+	if bytes.Equal(got, want) {
+		return true
+	}
+	var normalized map[string]any
+	return json.Unmarshal(got, &normalized) == nil && reflect.DeepEqual(normalized, object)
 }
 
 // trustedSource decides how far the Go value can be trusted to describe the
