@@ -61,14 +61,13 @@ test('a failed baseline keeps rows and modes, then edits and mode changes retry'
   const t = await setup('estimate');
   t.calls[0].resolve({ resources: [{ id: 'urn:real', type: 'aws:ec2:Instance' }] });
   await flush();
-  t.calls[1].reject(Object.assign(new Error('estimate data unavailable'), {
-    status: 502,
+  t.calls[1].resolve({
+    status: 'unavailable',
+    error: 'estimate data unavailable',
     code: 'estimate_unavailable',
-    data: {
-      pricingModes: [{ id: 'hourly', label: 'Hourly provider', rate: 'USD 10/hour' }],
-      display: { properties: [{ key: 'size', originalValue: '2', currentValue: '2', delta: '' }] },
-    },
-  }));
+    pricingModes: [{ id: 'hourly', label: 'Hourly provider', rate: 'USD 10/hour' }],
+    display: { properties: [{ key: 'size', originalValue: '2', currentValue: '2', delta: '' }] },
+  });
   await flush();
   assert.match(t.container.textContent, /estimate data unavailable/);
   assert.match(t.container.textContent, /Unable to calculate/);
@@ -109,13 +108,13 @@ test('a failed baseline keeps the selected pricing mode', async () => {
   const mode = t.container.querySelector('#estimate-mode');
   mode.value = 'opaque-mode';
   mode.dispatch('change');
-  t.calls.at(-1).reject(Object.assign(new Error('estimate data unavailable'), {
-    status: 502,
-    data: {
-      pricingModes: baseline().pricingModes,
-      display: { properties: baseline().display.properties },
-    },
-  }));
+  t.calls.at(-1).resolve({
+    status: 'unavailable',
+    error: 'estimate data unavailable',
+    code: 'estimate_unavailable',
+    pricingModes: baseline().pricingModes,
+    display: { properties: baseline().display.properties },
+  });
   await flush();
   assert.equal(mode.value, 'opaque-mode');
   const input = t.container.querySelectorAll('.estimate-input')[0];
@@ -269,4 +268,22 @@ test('a toggle overlapping preview changes refreshes the selected source and bas
  const input=t.container.querySelector('.estimate-input');assert.equal(input.dataset.original,'9');assert.equal(input.value,'9');
  t.emit('ready',{});const count=t.calls.length;t.calls.at(-1).resolve({resources});await flush();
  assert.equal(t.calls.length,count);assert.equal(t.container.querySelector('.estimate-input').value,'9');t.mounted.unmount();
+});
+
+test('list recovery preserves a baseline unavailable marker from the updated API', async () => {
+ const t=await loaded();
+ for(const input of t.container.querySelectorAll('.estimate-input'))input.value=input.dataset.original;
+ const mode=t.container.querySelector('#estimate-mode');mode.value='opaque-mode';mode.dispatch('change');
+ assert.match(t.calls.at(-1).path,/baseline\?urn=/);
+ t.calls.at(-1).resolve({status:'unavailable',error:'Provider unavailable',code:'estimate_unavailable',pricingModes:baseline().pricingModes,display:{properties:baseline().display.properties}});
+ await flush();
+ const calculationError=t.container.querySelector('#estimate-calculation-error');
+ assert.equal(calculationError.hidden,false);assert.match(calculationError.textContent,/Provider unavailable/);
+ const toggle=t.container.querySelector('#estimate-show-all');toggle.checked=true;toggle.dispatch('change');
+ t.calls.at(-1).reject(new Error('List unavailable'));await flush();
+ toggle.checked=false;toggle.dispatch('change');t.calls.at(-1).resolve({resources:[{id:'urn:real',type:'aws:ec2:Instance'}]});await flush();
+ assert.equal(t.container.querySelector('#estimate-resource-error').hidden,true);
+ assert.equal(calculationError.hidden,false);assert.match(calculationError.textContent,/Provider unavailable/);
+ assert.equal(mode.value,'opaque-mode');assert.equal(t.container.querySelector('.totals-bar').textContent,'');
+ assert.ok(t.container.querySelectorAll('.estimate-input').length>0);t.mounted.unmount();
 });

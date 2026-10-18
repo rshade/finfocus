@@ -205,7 +205,8 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 		modes := estimatePricingModes(eng.DiscoverPricingSpec(ctx, resource))
 		display := baselineFailureDisplay(ctx, resource)
 		done()
-		s.WriteJSON(w, http.StatusBadGateway, estimateBaselineFailure{
+		s.WriteJSON(w, http.StatusOK, estimateBaselineFailure{
+			Status:       estimateStatusUnavailable,
 			Error:        "estimate data unavailable",
 			Code:         "estimate_unavailable",
 			Resource:     resource,
@@ -237,7 +238,10 @@ func (s *Server) serveEstimate(w http.ResponseWriter, r *http.Request, query est
 	}{resource, result, modes, query.PricingMode, display})
 }
 
+const estimateStatusUnavailable = "unavailable"
+
 type estimateBaselineFailure struct {
+	Status       string                     `json:"status"`
 	Error        string                     `json:"error"`
 	Code         string                     `json:"code"`
 	Resource     *engine.ResourceDescriptor `json:"resource"`

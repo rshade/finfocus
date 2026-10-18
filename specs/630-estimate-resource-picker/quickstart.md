@@ -31,7 +31,7 @@ without `showAll=true`; identities remain unchanged and secrets stay redacted.
 - Passed `make validate`, `make test`, `make test-race`, and `make docs-lint`.
 - Passed `make lint GOLANGCI_LINT="$(mise which golangci-lint)"`; the default
   Go-bin linter was built with an older Go version than this project requires.
-- Passed all 85 frontend regression tests, including 18 estimate tests.
+- Passed all 86 frontend regression tests, including 19 estimate tests.
 - Targeted engine classification/selection coverage: 100% of statements.
 - Passed real-binary browser acceptance with local plugins and mixed state/plan
   fixtures at 1280px and 390px. Inspected screenshots; no horizontal overflow.

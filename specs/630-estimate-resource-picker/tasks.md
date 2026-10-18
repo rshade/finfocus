@@ -46,6 +46,8 @@ Independent test: shared mixed-plan selection skips providers in terminal mode.
 - [x] T014 Separate resource-list errors from calculation failures in internal/webui/static/views/estimate.js; cover failure/recovery and concurrent failures in internal/webui/frontendtest/estimate.test.mjs.
 - [x] T015 Refresh changed preview properties during toggles in internal/webui/static/views/estimate.js; cover overlapping preview refresh in internal/webui/frontendtest/estimate.test.mjs and clarify docs/src/content/docs/guides/web-ui.md.
 
+- [x] T016 Integrate main's unavailable-baseline response contract in specs/627-web-ui/contracts/http-api.md and verify independent list recovery with internal/webui/frontendtest/estimate.test.mjs.
+
 ## Dependencies and Execution
 
 T001 → T002 → T003 → T004. US1 follows foundation; US2 follows US1.
