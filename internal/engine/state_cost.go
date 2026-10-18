@@ -14,6 +14,10 @@ const (
 	PropertyPulumiModified = "pulumi:modified"
 	// PropertyPulumiExternal indicates the resource was imported (not created by Pulumi).
 	PropertyPulumiExternal = "pulumi:external"
+	// PropertyPulumiCloudID is the cloud-provider resource id used for actual cost lookup.
+	PropertyPulumiCloudID = "pulumi:cloudId"
+	// PropertyPulumiURN is the Pulumi URN preserved for correlation.
+	PropertyPulumiURN = "pulumi:urn"
 )
 
 // Errors for state cost calculation.

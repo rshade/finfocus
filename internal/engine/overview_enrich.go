@@ -55,6 +55,7 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 		Provider:   resourcetype.ExtractProvider(row.Type),
 		Properties: row.Properties,
 	}
+	actualResource := actualResourceForRow(*row)
 	projectedResource := ResourceDescriptor{
 		Type:       row.Type,
 		ID:         row.URN,
@@ -72,7 +73,7 @@ func enrichOverviewRow(ctx context.Context, row *OverviewRow, eng overviewEnrich
 	// Fetch actual costs (skip for resources being created - they have no history)
 	if row.Status != StatusCreating {
 		wg.Go(func() {
-			actualErr = enrichActualCost(ctx, row, eng, resource, dateRange)
+			actualErr = enrichActualCost(ctx, row, eng, actualResource, dateRange)
 		})
 	}
 
@@ -130,6 +131,37 @@ func deriveWarnings(row *OverviewRow) {
 	}
 	if row.Status == StatusCreating {
 		row.Warnings = append(row.Warnings, WarnNew)
+	}
+}
+
+// actualResourceForRow copies the identity keys cost actual already sends
+// (cloud id, URN, created time) onto the actual-cost descriptor. Overview
+// state rows keep the cloud id on ResourceID, not in Properties.
+func actualResourceForRow(row OverviewRow) ResourceDescriptor {
+	props := cloneProperties(row.Properties)
+	if props == nil {
+		props = map[string]any{}
+	}
+	if row.ResourceID != "" {
+		if existing, ok := props[PropertyPulumiCloudID].(string); !ok || existing == "" {
+			props[PropertyPulumiCloudID] = row.ResourceID
+		}
+	}
+	if row.URN != "" {
+		if existing, ok := props[PropertyPulumiURN].(string); !ok || existing == "" {
+			props[PropertyPulumiURN] = row.URN
+		}
+	}
+	if row.CreatedAt != nil {
+		if existing, ok := props[PropertyPulumiCreated].(string); !ok || existing == "" {
+			props[PropertyPulumiCreated] = row.CreatedAt.UTC().Format(time.RFC3339)
+		}
+	}
+	return ResourceDescriptor{
+		Type:       row.Type,
+		ID:         row.URN,
+		Provider:   resourcetype.ExtractProvider(row.Type),
+		Properties: props,
 	}
 }
 

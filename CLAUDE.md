@@ -399,6 +399,12 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   `aws:ec2/natGateway:NatGateway`, gets one from `skus.ResolveSKU`. An empty
   SKU is rejected before pricing (`resource.sku is required`) and the row
   then shows no price.
+- Overview actual enrichment copies `ResourceID` into `pulumi:cloudId`, and
+  fills `pulumi:urn` and `pulumi:created` when those properties are empty,
+  before `GetActualCost`. The row's own properties are not rewritten. Cost
+  actual already receives those keys from `MapStateResource`. Without the
+  cloud id, a plugin can estimate a monthly figure instead of the measured
+  window total the Cost page shows.
 - Projected diff (`cost projected`): replacement steps sharing a URN are
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`
