@@ -84,6 +84,10 @@ func (g *valueGen) scalar() any {
 
 func (g *valueGen) plainMap(depth int) map[string]any {
 	out := map[string]any{}
+	if g.rnd.Intn(10) == 0 {
+		out["\ufffd"] = engine.DataKeyed[any]{"compute": 1}
+		out["\xff"] = map[string]any{"password": credentialMarker}
+	}
 	for range g.rnd.Intn(5) {
 		switch g.rnd.Intn(4) {
 		case 0:
@@ -468,4 +472,37 @@ func TestRedactJSONTreatsCustomEncodedDeltasLikeAnyOtherKey(t *testing.T) {
 		assert.NotContains(t, string(data), credentialMarker, key)
 		assert.JSONEq(t, `{"`+key+`": [{"urn:web": 1}]}`, string(data))
 	}
+}
+
+func TestRedactJSONFailsClosedOnCollidingInvalidUTF8Keys(t *testing.T) {
+	t.Parallel()
+
+	data, err := RedactJSON(map[string]any{
+		"�":    engine.DataKeyed[any]{"compute": 1},
+		"\xff": map[string]any{"password": credentialMarker},
+	})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), credentialMarker)
+}
+
+func TestRedactJSONNamedUnexportedEmbeddedStructShadowsDeeperDataKeys(t *testing.T) {
+	t.Parallel()
+
+	type deep struct {
+		Entry map[string]any `json:"entry" datakey:"true"`
+	}
+	type holder struct {
+		deep
+	}
+	type shallow struct {
+		Password string `json:"password"`
+	}
+	type payload struct {
+		shallow `json:"entry"`
+
+		holder
+	}
+	data, err := RedactJSON(payload{shallow: shallow{Password: credentialMarker}})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), credentialMarker)
 }

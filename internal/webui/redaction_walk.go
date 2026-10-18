@@ -8,6 +8,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/history"
@@ -158,6 +159,9 @@ func childOf(v reflect.Value, fields map[string]fieldRef, key string) (reflect.V
 		if keyType.Kind() != reflect.String {
 			return reflect.Value{}, false
 		}
+		if strings.ContainsRune(key, utf8.RuneError) {
+			return reflect.Value{}, false
+		}
 		name := reflect.ValueOf(key)
 		if keyType != stringType {
 			name = name.Convert(keyType)
@@ -284,13 +288,20 @@ func jsonFieldName(field reflect.StructField) (string, reflect.Type, bool) {
 			return "", embedded, false
 		}
 	}
-	if !field.IsExported() {
+	if !field.IsExported() && (!field.Anonymous || !isStructOrPointer(field.Type)) {
 		return "", nil, true
 	}
 	if name == "" {
 		name = field.Name
 	}
 	return name, nil, false
+}
+
+func isStructOrPointer(t reflect.Type) bool {
+	if t.Kind() == reflect.Pointer {
+		t = t.Elem()
+	}
+	return t.Kind() == reflect.Struct
 }
 
 // mayHoldDataKeys reports whether a value of type t can contain a data-keyed
