@@ -29,6 +29,7 @@ export function mount(container, { api, stream }) {
     if (!alive || current !== generation || err.name === 'AbortError') return;
     if (err.status === 503) { status.textContent = 'Waiting for stack data…'; return; }
     error.textContent = err.message; error.hidden = false; status.textContent = 'Unable to calculate estimate.';
+    comparison.replaceChildren();
     // A provider failure still carries rows and modes. Absence of a price is
     // not an empty editor, and it is not a successful comparison.
     if (err.data?.display || err.data?.pricingModes) renderFailure(err.data);

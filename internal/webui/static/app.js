@@ -268,6 +268,7 @@ export class OverviewStream {
       .then((resp) => {
         if (controller.signal.aborted || this.closed || this.authFailed) return;
         if (resp.status === 401) {
+          if (this.source?.readyState === EventSource.OPEN) return;
           this.failAuthentication();
           return;
         }

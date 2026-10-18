@@ -51,6 +51,7 @@ async function setup() {
   document.getElementById = (id) => (id === 'view' ? view : id === 'main' ? main : id === 'connection-status' ? statusNode : null);
   class EventSource {
     static CONNECTING = 0;
+    static OPEN = 1;
     static CLOSED = 2;
     static all = [];
     constructor() {
@@ -178,4 +179,20 @@ test('a source that reopens while the session check is pending is not restarted'
   assert.equal(t.status.dataset.state, 'live');
   assert.equal(source.closed, undefined);
   assert.equal(t.EventSource.all.length, before);
+});
+
+test('a stale 401 after the source reopened does not close the live stream', async () => {
+  const t = await setup();
+  const stream = new t.OverviewStream('/api/overview/stream', t.status);
+  stream.start();
+  const source = t.EventSource.all.at(-1);
+  source.readyState = t.EventSource.CONNECTING;
+  source.listeners.get('error')({});
+  source.readyState = 1;
+  source.listeners.get('open')();
+  t.fetches[0].resolve({ status: 401, ok: false });
+  await flush();
+  assert.equal(source.closed, undefined);
+  assert.equal(t.status.dataset.state, 'live');
+  assert.doesNotMatch(t.status.textContent, /terminal/i);
 });
