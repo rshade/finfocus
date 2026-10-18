@@ -599,3 +599,48 @@ func TestRecommendationItemFallbackDoesNotReplaceALaterQuery(t *testing.T) {
 	assert.Equal(t, 404, <-detail)
 	assert.Equal(t, 200, overviewRequest(t, s, "GET", "/api/recommendations/item?id=new", "").StatusCode)
 }
+
+func TestReadOnlyShutdownDoesNotWaitForSlowErrorWriter(t *testing.T) {
+	t.Parallel()
+	for name, fn := range map[string]func(context.Context, bool) (*engine.RecommendationsResult, error){
+		"error": func(context.Context, bool) (*engine.RecommendationsResult, error) {
+			return nil, errors.New("plugin down")
+		},
+		"nil result": func(context.Context, bool) (*engine.RecommendationsResult, error) { return nil, nil }, //nolint:nilnil // a nil result is the case under test
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			session := NewSession(context.Background(), SessionOptions{Recommendations: fn})
+			session.SetData(engine.New(nil, nil), nil, engine.DateRange{}, "")
+			s := newRunningServer(t, Options{Session: session})
+			writer := &blockedJSONWriter{
+				ResponseRecorder: httptest.NewRecorder(),
+				entered:          make(chan struct{}),
+				release:          make(chan struct{}),
+			}
+			returned := make(chan struct{})
+			go func() {
+				defer close(returned)
+				s.handleRecommendationsQuery(
+					writer,
+					httptest.NewRequest(
+						http.MethodPost,
+						s.BaseURL()+"/api/recommendations/query",
+						strings.NewReader("{}"),
+					),
+				)
+			}()
+			<-writer.entered
+			closed := make(chan struct{})
+			go func() { session.Close(); close(closed) }()
+			select {
+			case <-closed:
+			case <-time.After(time.Second):
+				assert.Fail(t, "session shutdown waited for a slow error write")
+			}
+			close(writer.release)
+			<-returned
+			<-closed
+		})
+	}
+}
