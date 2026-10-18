@@ -30,7 +30,7 @@ type webData struct {
 	clients        []*pluginhost.Client
 	raw            []engine.ResourceDescriptor
 	planned        []engine.ResourceDescriptor
-	plannedCreates map[string]struct{}
+	planSteps      []engine.PlanStep
 	planErr        error
 	sourceErr      error
 	sourceCaptured bool
@@ -48,9 +48,6 @@ type webData struct {
 	reloadCleanup  func()
 	replaced       bool
 }
-
-// planOpCreate is the Pulumi step op the overview merge treats as a plan-only create.
-const planOpCreate = "create"
 
 func newWebData(cmd *cobra.Command, params overviewParams, dates engine.DateRange, audit *auditContext) *webData {
 	if params.cfg == nil {
@@ -86,42 +83,28 @@ func (d *webData) capturePlan(plan *ingest.PulumiPlan) {
 	resources := plan.GetResources()
 	d.planned, d.planErr = ingest.MapResources(resources)
 	d.planned = cloneWebResources(d.planned)
-	d.plannedCreates = make(map[string]struct{})
-	for _, res := range resources {
-		if res.Operation == planOpCreate {
-			d.plannedCreates[res.URN] = struct{}{}
-		}
-	}
+	d.planSteps = convertPlanSteps(plan.Steps)
 }
 
-// appendPreviewRows adds plan-only creates that are not already overview rows.
+// appendPreviewRows adds plan-only creates through the merge the CLI Overview
+// uses, then prices only the added rows. The query gate guards the captured
+// plan; pricing runs after it is released so queries are not blocked.
 func (d *webData) appendPreviewRows(ctx context.Context, rows []engine.OverviewRow) ([]engine.OverviewRow, error) {
 	unlock, err := d.lock(ctx)
 	if err != nil {
 		return nil, err
 	}
-	defer unlock()
-	seen := make(map[string]struct{}, len(rows))
-	for _, row := range rows {
-		seen[row.URN] = struct{}{}
+	steps := d.planSteps
+	eng := d.eng
+	dates := d.dates
+	unlock()
+
+	merged := engine.AppendPlanOnlyRows(rows, steps)
+	added := merged[len(rows):]
+	if len(added) > 0 && eng != nil {
+		engine.EnrichOverviewRows(ctx, added, eng, dates, nil)
 	}
-	for _, resource := range d.planned {
-		if _, isCreate := d.plannedCreates[resource.ID]; !isCreate {
-			continue
-		}
-		if _, ok := seen[resource.ID]; ok {
-			continue
-		}
-		seen[resource.ID] = struct{}{}
-		rows = append(rows, engine.OverviewRow{
-			URN:                 resource.ID,
-			Type:                resource.Type,
-			Status:              engine.StatusCreating,
-			Properties:          resource.Properties,
-			ProjectedProperties: resource.Properties,
-		})
-	}
-	return rows, nil
+	return merged, nil
 }
 
 func (d *webData) newEngine(

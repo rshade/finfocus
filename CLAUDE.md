@@ -298,8 +298,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 
 - On-demand overview preview passes `capturePlan` into `resolveOverviewPlan`
   (the hook is a normal parameter, not a variadic). The web Estimate page
-  reads that captured plan. Web Overview appends plan-only creates; it does
-  not only patch rows that already exist. `capturePlan` takes the same query
+  reads that captured plan. Web Overview appends plan-only creates through
+  `engine.AppendPlanOnlyRows` (the same step `MergeResourcesForOverview` uses) and
+  prices only those new rows with `EnrichOverviewRows`; it does not only patch
+  rows that already exist. `capturePlan` takes the same query
   gate as the readers.
 - `analyzer serve` prints only the port on stdout (Pulumi handshake); all logs
   go to stderr.

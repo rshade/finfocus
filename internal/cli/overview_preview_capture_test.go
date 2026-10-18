@@ -4,12 +4,16 @@ import (
 	"context"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 
 	"github.com/rshade/finfocus/internal/config"
 	"github.com/rshade/finfocus/internal/engine"
 	"github.com/rshade/finfocus/internal/ingest"
+	"github.com/rshade/finfocus/internal/pluginhost"
+	"github.com/rshade/finfocus/internal/proto"
 )
 
 func TestRunBackgroundPreviewCapturesPlan(t *testing.T) {
@@ -124,4 +128,48 @@ func TestAppendPreviewRowsAppendsOnlyPlanCreates(t *testing.T) {
 			assert.ElementsMatch(t, tt.want, got)
 		})
 	}
+}
+
+type previewPricingClient struct{ includeDismissedClient }
+
+func (c *previewPricingClient) GetProjectedCost(
+	_ context.Context,
+	in *proto.GetProjectedCostRequest,
+	_ ...grpc.CallOption,
+) (*proto.GetProjectedCostResponse, error) {
+	out := &proto.GetProjectedCostResponse{}
+	for range in.Resources {
+		out.Results = append(out.Results, &proto.CostResult{Currency: "USD", MonthlyCost: 42})
+	}
+	return out, nil
+}
+
+func TestAppendPreviewRowsPricesPlanOnlyCreatesWithZeroDeployedResources(t *testing.T) {
+	t.Parallel()
+
+	const urn = "urn:pulumi:dev::proj::aws:ec2/instance:Instance::fresh"
+	inputs := map[string]any{"instanceType": "t3.micro"}
+	plan := &ingest.PulumiPlan{Steps: []ingest.PulumiStep{{
+		Op:       "create",
+		URN:      urn,
+		NewState: &ingest.PulumiState{URN: urn, Type: "aws:ec2/instance:Instance", Inputs: inputs},
+	}}}
+
+	data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
+	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: &previewPricingClient{}}}, nil)
+	data.captureState(nil)
+	data.capturePlan(plan)
+
+	rows, err := data.appendPreviewRows(context.Background(), nil)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	assert.Equal(t, urn, rows[0].URN)
+	assert.Equal(t, "aws:ec2/instance:Instance", rows[0].Type)
+	assert.Equal(t, engine.StatusCreating, rows[0].Status)
+	require.NotNil(t, rows[0].ProjectedCost)
+	assert.InDelta(t, 42, rows[0].ProjectedCost.MonthlyCost, 0.001)
+
+	rows[0].Properties["instanceType"] = "changed"
+	assert.Equal(t, "t3.micro", inputs["instanceType"])
+	assert.Equal(t, "t3.micro", data.planned[0].Properties["instanceType"])
 }
