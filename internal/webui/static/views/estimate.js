@@ -43,9 +43,10 @@ export function mount(container, { api, stream }) {
   }
   function renderModes(result) {
     if (!result.pricingModes) return;
+    const selected = mode.value;
     mode.replaceChildren(el('option', { value: '', text: 'Automatic provider' }));
     for (const item of result.pricingModes) mode.append(el('option', { value: item.id, text: `${item.label} (${item.rate})` }));
-    mode.value = result.pricingMode ?? '';
+    mode.value = result.pricingMode ?? selected;
     pricing.replaceChildren();
     for (const item of result.pricingModes) {
       pricing.append(el('p', { text: `${item.label}: ${item.rate}` }));

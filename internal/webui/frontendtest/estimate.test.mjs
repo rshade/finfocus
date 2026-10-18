@@ -103,3 +103,24 @@ test('a failed baseline keeps rows and modes, then edits and mode changes retry'
 test('estimate resource loading retries on ready and late responses after unmount are ignored',async()=>{
  const t=await setup('estimate');t.calls[0].reject(Object.assign(new Error('loading'),{status:503}));await flush();t.emit('ready',{});assert.equal(t.calls.length,2);t.mounted.unmount();const before=t.container.textContent;t.calls[1].resolve({resources:[{id:'late',type:'aws:ec2:Instance'}]});await flush();assert.equal(t.container.textContent,before);assert.equal(t.calls[1].options.signal.aborted,true);
 });
+
+test('a failed baseline keeps the selected pricing mode', async () => {
+  const t = await loaded();
+  const mode = t.container.querySelector('#estimate-mode');
+  mode.value = 'opaque-mode';
+  mode.dispatch('change');
+  t.calls.at(-1).reject(Object.assign(new Error('estimate data unavailable'), {
+    status: 502,
+    data: {
+      pricingModes: baseline().pricingModes,
+      display: { properties: baseline().display.properties },
+    },
+  }));
+  await flush();
+  assert.equal(mode.value, 'opaque-mode');
+  const input = t.container.querySelectorAll('.estimate-input')[0];
+  input.value = '5';
+  input.dispatch('keydown', { key: 'Enter' });
+  assert.equal(t.calls.at(-1).body.pricingMode, 'opaque-mode');
+  t.mounted.unmount();
+});
