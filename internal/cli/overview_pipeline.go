@@ -403,6 +403,15 @@ func (p *OverviewPipeline) startEngine(
 	return clients, eng, true, nil
 }
 
+// previewStack names the stack a live preview targets. An explicit --stack wins
+// over the display name derived from a state file's name.
+func (p *OverviewPipeline) previewStack(result OverviewPipelineResult) string {
+	if p.cfg.params.stack != "" {
+		return p.cfg.params.stack
+	}
+	return result.StackName
+}
+
 // RunPreview runs the on-demand pulumi preview for a state-only session (the
 // TUI 'p' key and the web preview endpoint) and reports the result via
 // OnPreviewReady. It returns the same message the TUI consumes.
@@ -411,7 +420,7 @@ func (p *OverviewPipeline) RunPreview(ctx context.Context) tui.OverviewChangesRe
 	result := p.result
 	pw := p.passphrase
 	p.mu.Unlock()
-	msg := runBackgroundPreview(ctx, p.cfg.params, result.ProjectDir, result.StackName, pw)
+	msg := runBackgroundPreview(ctx, p.cfg.params, result.ProjectDir, p.previewStack(result), pw)
 	if p.OnPreviewReady != nil {
 		p.OnPreviewReady(msg)
 	}
@@ -610,6 +619,9 @@ func (p *OverviewPipeline) deliverBudget(
 		br = budgetFetchResult{result: result, err: err}
 	}
 
+	p.mu.Lock()
+	p.fallbackBudget = false
+	p.mu.Unlock()
 	if p.cfg.budgetFallback && (br.result == nil || len(br.result.Budgets) == 0) {
 		cfg := config.GetGlobalConfig()
 		var budgetsCfg *config.BudgetsConfig
@@ -955,7 +967,7 @@ func (p *OverviewPipeline) previewAttempt(
 			return tui.OverviewChangesReadyMsg{}, false, err
 		}
 	}
-	msg, err := runBackgroundPreviewWithError(ctx, p.cfg.params, result.ProjectDir, result.StackName, pw)
+	msg, err := runBackgroundPreviewWithError(ctx, p.cfg.params, result.ProjectDir, p.previewStack(result), pw)
 	return msg, pw != nil, err
 }
 

@@ -160,6 +160,7 @@ func TestAppendPreviewRowsPricesPlanOnlyCreatesWithZeroDeployedResources(t *test
 	data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
 	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: &previewPricingClient{}}}, nil).
 		WithDismissalStore(isolatedDismissalStore(t))
+	data.loadDismissals = nil
 	data.captureState(nil)
 	data.capturePlan(context.Background(), plan)
 
@@ -240,6 +241,7 @@ func TestAppendPreviewRowsHoldsQueryGateWhilePricing(t *testing.T) {
 	data := newWebData(&cobra.Command{}, overviewParams{cfg: &config.Config{}}, engine.DateRange{}, nil)
 	data.eng = engine.New([]*pluginhost.Client{{Name: "fixture", API: client}}, nil).
 		WithDismissalStore(isolatedDismissalStore(t))
+	data.loadDismissals = nil
 	data.captureState(nil)
 	data.capturePlan(context.Background(), plan)
 
@@ -279,6 +281,7 @@ func TestAppendPreviewRowsAppliesLaunchFilters(t *testing.T) {
 	data := newWebData(&cobra.Command{}, overviewParams{
 		cfg: &config.Config{}, filter: []string{"provider=aws"},
 	}, engine.DateRange{}, nil)
+	data.loadDismissals = nil
 	data.capturePlan(context.Background(), plan)
 
 	rows, err := data.appendPreviewRows(context.Background(), nil)

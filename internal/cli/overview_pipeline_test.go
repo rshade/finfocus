@@ -1005,3 +1005,74 @@ func TestOverviewPipeline_RefreshFallbackBudgetTracksAddedRows(t *testing.T) {
 	require.Len(t, events.budgets, 2)
 	assert.InDelta(t, 70, events.budgets[1].Budgets[0].GetStatus().GetCurrentSpend(), 0.001)
 }
+
+type recordingPulumi struct {
+	preview []byte
+	args    *[]string
+}
+
+func (r recordingPulumi) Run(_ context.Context, _, _ string, _ []string, args ...string) ([]byte, []byte, error) {
+	*r.args = append([]string(nil), args...)
+	return r.preview, nil, nil
+}
+
+func TestOverviewPipeline_ExplicitStatePreviewHonorsStackFlag(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Setenv(config.HistoryEnvEnabled, "false")
+	t.Chdir(t.TempDir())
+	preview, err := os.ReadFile(overviewFixture(t, "plan-no-changes.json"))
+	require.NoError(t, err)
+	var previewArgs []string
+	t.Cleanup(pulumidetect.SetRunnerForTest(recordingPulumi{preview: preview, args: &previewArgs}))
+
+	pipe := newOverviewPipeline(overviewPipelineConfig{
+		params: overviewParams{
+			pulumiState: overviewFixture(t, "state-no-changes.json"), stack: "dev", cfg: &config.Config{},
+		},
+		loader:      autoDetectOverviewLoader,
+		openPlugins: fakeOpenPlugins,
+		newEngine:   fakeNewEngine,
+		enrichRows:  passThroughEnrichment,
+	})
+	require.NoError(t, pipe.Run(context.Background()))
+	require.NotEqual(t, "dev", pipe.Result().StackName, "the file name drives the display name")
+
+	_, err = pipe.RunPreviewWithError(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, []string{"--stack", "dev"}, previewArgs[len(previewArgs)-2:])
+}
+
+func TestOverviewPipeline_DeliverBudgetResetsFallbackFlag(t *testing.T) {
+	t.Setenv("FINFOCUS_HOME", t.TempDir())
+	t.Cleanup(config.ResetGlobalConfigForTest)
+	config.SetGlobalConfig(&config.Config{Cost: config.CostConfig{
+		Budgets: &config.BudgetsConfig{Global: &config.ScopedBudget{Amount: 100, Currency: "USD"}},
+	}})
+	ctx := context.Background()
+	pipe := newOverviewPipeline(overviewPipelineConfig{budgetFallback: true})
+	var seen int
+	pipe.OnBudget = func(*engine.BudgetResult, error) { seen++ }
+
+	empty := make(chan budgetFetchResult, 1)
+	empty <- budgetFetchResult{result: &engine.BudgetResult{}}
+	_, err := pipe.deliverBudget(ctx, nil, empty, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, seen)
+
+	plugin := make(chan budgetFetchResult, 1)
+	plugin <- budgetFetchResult{result: &engine.BudgetResult{Budgets: fallbackBudgetResult(t).Budgets}}
+	_, err = pipe.deliverBudget(ctx, nil, plugin, nil)
+	require.NoError(t, err)
+	require.Equal(t, 2, seen)
+
+	pipe.RefreshFallbackBudget(ctx, nil)
+	assert.Equal(t, 2, seen, "plugin budgets must not be replaced by the config fallback")
+}
+
+func fallbackBudgetResult(t *testing.T) *engine.BudgetResult {
+	t.Helper()
+	cfg := config.GetGlobalConfig()
+	result := engine.BuildConfigBudgetResult(context.Background(), cfg.Cost.Budgets, 1)
+	require.NotNil(t, result)
+	return result
+}
