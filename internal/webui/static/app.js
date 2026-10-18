@@ -182,6 +182,16 @@ export class OverviewStream {
       snapshot.stack = data.stack;
     } else if (event === 'preview' || event === 'progress' || event === 'budget') {
       snapshot[event] = data;
+    } else if (event === 'run_status') {
+      // A later preview clears state-only. Remounts read this snapshot, not the live view.
+      if (typeof data.stateOnly === 'boolean') snapshot.stateOnly = data.stateOnly;
+      if (typeof data.previewLoaded === 'boolean') snapshot.previewLoaded = data.previewLoaded;
+      if (typeof data.detectError === 'string') snapshot.detectError = data.detectError;
+      if (typeof data.footnote === 'string') snapshot.footnote = data.footnote;
+      if (data.previewLoaded) {
+        snapshot.detectError = '';
+        snapshot.footnote = '';
+      }
     } else if (event === 'error') {
       snapshot.errors = [...(snapshot.errors ?? []).filter((error) => error.phase !== data.phase), data];
     }
