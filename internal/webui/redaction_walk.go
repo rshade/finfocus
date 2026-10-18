@@ -1,6 +1,7 @@
 package webui
 
 import (
+	"bytes"
 	"encoding"
 	"encoding/json"
 	"maps"
@@ -64,6 +65,23 @@ func redactNode(v reflect.Value, node any, keyed bool, depth int) any {
 	}
 }
 
+// encodesAs reports whether the Go map v encodes to exactly the decoded object.
+// Field and key matching mirrors the JSON encoder's rules, which differ between
+// Go versions and have corner cases (shadowed names, malformed tags, key
+// normalization); this check does not depend on them. It is the one gate in
+// front of keeping keys unchecked, so any doubt fails closed.
+func encodesAs(v reflect.Value, object map[string]any) bool {
+	if !v.IsValid() || !v.CanInterface() {
+		return false
+	}
+	want, err := json.Marshal(object)
+	if err != nil {
+		return false
+	}
+	got, err := json.Marshal(v.Interface())
+	return err == nil && bytes.Equal(got, want)
+}
+
 // trustedSource decides how far the Go value can be trusted to describe the
 // decoded node. A value with its own encoding, or a data-key mark on anything
 // but a plain map, is dropped so the node follows the property-map rules.
@@ -108,6 +126,9 @@ func redactObject(v reflect.Value, object map[string]any, depth int) any {
 func redactKeyedObject(v reflect.Value, object map[string]any, depth int) any {
 	if history.IsPulumiSecret(object) {
 		return nil
+	}
+	if !encodesAs(v, object) {
+		return redactObject(reflect.Value{}, object, depth)
 	}
 	out := make(map[string]any, len(object))
 	for key, item := range object {

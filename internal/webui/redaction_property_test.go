@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"sync"
 	"testing"
 
@@ -505,4 +506,33 @@ func TestRedactJSONNamedUnexportedEmbeddedStructShadowsDeeperDataKeys(t *testing
 	data, err := RedactJSON(payload{shallow: shallow{Password: credentialMarker}})
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), credentialMarker)
+}
+
+func TestRedactJSONIgnoresInvalidJSONTagNamesLikeTheEncoder(t *testing.T) {
+	t.Parallel()
+
+	type deep struct {
+		Entry map[string]any `json:"Entry" datakey:"true"`
+	}
+	type holder struct {
+		deep
+	}
+	type shadowed struct {
+		holder
+
+		Entry map[string]any `json:"bad'name"` //nolint:staticcheck // malformed on purpose
+	}
+	data, err := RedactJSON(shadowed{Entry: map[string]any{"password": credentialMarker}})
+	require.NoError(t, err)
+	assert.NotContains(t, string(data), credentialMarker)
+}
+
+func TestEncodesAsComparesTheSourceWithTheDecodedObject(t *testing.T) {
+	t.Parallel()
+
+	source := reflect.ValueOf(engine.DataKeyed[any]{"compute": 1.0})
+	assert.True(t, encodesAs(source, map[string]any{"compute": 1.0}))
+	assert.False(t, encodesAs(source, map[string]any{"password": credentialMarker}))
+	assert.False(t, encodesAs(source, map[string]any{"compute": 1.0, "password": "x"}))
+	assert.False(t, encodesAs(reflect.Value{}, map[string]any{}))
 }
