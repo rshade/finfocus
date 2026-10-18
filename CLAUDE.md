@@ -411,6 +411,23 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - A failed plugin call keeps the gRPC status as `<Code>: <message>`
   (`pluginRPCError`). Only an empty projected result is `no cost data
   available`. Core does not read `aws:region` from provider or stack config.
+  A fixed-cost type with no SKU property, including
+  `aws:ec2/natGateway:NatGateway`, gets one from `skus.ResolveSKU`. An empty
+  SKU is rejected before pricing (`resource.sku is required`) and the row
+  then shows no price.
+- Overview actual enrichment copies `ResourceID` into `pulumi:cloudId`, and
+  fills `pulumi:urn` and `pulumi:created` when those properties are empty,
+  before `GetActualCost`. The row's own properties are not rewritten. Cost
+  actual already receives those keys from `MapStateResource`. Without the
+  cloud id, a plugin can estimate a monthly figure instead of the measured
+  window total the Cost page shows.
+  The request `From` is clamped to the row's `CreatedAt` when that falls
+  inside the window (`actualRequestStart`), because plugins trust an explicit
+  Start over `pulumi:created`; without it a resource made yesterday was
+  charged for the whole month. `ActualCost.Period` keeps the display window.
+  An imported row (`External`) is not clamped: its `CreatedAt` is the import
+  time. A clamped row records `ActualCost.BilledDays`, and the delta
+  extrapolation divides by that instead of the day of month.
 - Projected diff (`cost projected`): replacement steps sharing a URN are
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`
@@ -445,7 +462,10 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
 - `checkPluginSupports` caches per client, provider, type, region, SKU,
   feature, and attributes digest. SKU must stay in the key, or one SKU-less
   answer poisons every SKU in that region. The SDK's "not implemented" reason
-  is fail-open, like an RPC error.
+  is fail-open, like `Unimplemented`. `InvalidArgument` from `Supports` is a
+  decline: it is cached as unsupported, the reason is shown, and no pricing
+  RPC follows. `Unavailable`, `DeadlineExceeded`, and `Canceled` stay
+  fail-open and are not cached. Do not add a provider-name table here.
 - Plugin `expires_at` sets a per-entry TTL (capped at 7 days; a past time skips
   caching). A plugin whose price depends on its own environment must send
   `expires_at` = now, because the cache key cannot see it.

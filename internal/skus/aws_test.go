@@ -25,6 +25,11 @@ func TestResolveAWSSKU(t *testing.T) {
 			expected:     "addon",
 		},
 		{
+			name:         "NAT gateway has a fixed hourly price and no SKU property",
+			resourceType: "aws:ec2/natGateway:NatGateway",
+			expected:     "natgateway",
+		},
+		{
 			name:         "EC2 instance (not in well-known map)",
 			resourceType: "aws:ec2/instance:Instance",
 			expected:     "",

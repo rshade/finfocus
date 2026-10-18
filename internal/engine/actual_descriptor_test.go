@@ -26,6 +26,60 @@ func scaleSetResource() ResourceDescriptor {
 	}
 }
 
+// cloudIDActualClient returns a measured total only when the descriptor
+// carries the cloud id. Without it, the answer is a monthly stand-in.
+type cloudIDActualClient struct {
+	mockCostSourceClient
+}
+
+func (c *cloudIDActualClient) GetActualCost(
+	_ context.Context, in *proto.GetActualCostRequest, _ ...grpc.CallOption,
+) (*proto.GetActualCostResponse, error) {
+	total := 76.15
+	if id, _ := in.Properties["pulumi:cloudId"].(string); id == "i-abc" {
+		total = 0.02
+	}
+	return &proto.GetActualCostResponse{
+		Results: []*proto.ActualCostResult{{Currency: "USD", TotalCost: total}},
+	}, nil
+}
+
+func TestOverviewMTDMatchesActualCostCloudIdentity(t *testing.T) {
+	t.Parallel()
+
+	eng := New([]*pluginhost.Client{{Name: "aws-public", API: &cloudIDActualClient{}}}, nil)
+	created := time.Date(2026, 10, 17, 23, 30, 0, 0, time.UTC)
+	row := &OverviewRow{
+		URN:        "urn:pulumi:dev::app::aws:ec2/instance:Instance::web",
+		Type:       "aws:ec2/instance:Instance",
+		ResourceID: "i-abc",
+		Status:     StatusActive,
+		Properties: map[string]any{"instanceType": "t3.micro"},
+		CreatedAt:  &created,
+	}
+	window := DateRange{
+		Start: time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC),
+		End:   time.Date(2026, 10, 17, 23, 55, 0, 0, time.UTC),
+	}
+	enrichOverviewRow(context.Background(), row, eng, window)
+
+	measured := ResourceDescriptor{
+		ID: row.URN, Type: row.Type, Provider: "aws",
+		Properties: map[string]any{"instanceType": "t3.micro", "pulumi:cloudId": "i-abc"},
+	}
+	actual, err := eng.GetActualCostWithOptionsAndErrors(context.Background(), ActualCostRequest{
+		Resources: []ResourceDescriptor{measured}, From: window.Start, To: window.End,
+	})
+	require.NoError(t, err)
+	require.Len(t, actual.Results, 1)
+	require.NotNil(t, row.ActualCost)
+	assert.InDelta(t, 0.02, actual.Results[0].TotalCost, 1e-9)
+	assert.InDelta(t, actual.Results[0].TotalCost, row.ActualCost.MTDCost, 1e-9)
+	assert.Equal(t, "t3.micro", row.Properties["instanceType"])
+	_, copied := row.Properties["pulumi:cloudId"]
+	assert.False(t, copied, "identity fields are added on the request, not written back onto the row")
+}
+
 func TestGetActualCostFromPlugin_SendsResource(t *testing.T) {
 	t.Parallel()
 
