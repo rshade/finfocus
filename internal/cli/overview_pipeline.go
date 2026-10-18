@@ -194,6 +194,7 @@ type OverviewPipeline struct {
 	passphrase     *string
 	lastPhase      int
 	cleanup        func()
+	budgetDone     <-chan struct{}
 	result         OverviewPipelineResult
 	expansionNotes []string
 	rowsEnriched   int
@@ -306,14 +307,12 @@ func (p *OverviewPipeline) Run(ctx context.Context) error {
 
 	var budgetChan <-chan budgetFetchResult
 	if p.cfg.wantBudget && p.cfg.budgetLive {
-		budgetChan = launchBudgetFetch(ctx, eng)
-		// Join only the producer owned by this run before plugins close. The
-		// producer closes the channel, so a previously consumed result drains safely.
-		defer func() {
-			for range budgetChan {
-				// Intentionally discard the result while joining this owned producer.
-			}
-		}()
+		var budgetDone <-chan struct{}
+		budgetChan, budgetDone = launchBudgetFetch(ctx, eng)
+		p.budgetDone = budgetDone
+		// Join this run's fetch before Run returns. Plugin cleanup runs after
+		// that, and the result buffer lets the producer exit without a receiver.
+		defer func() { <-budgetDone }()
 	}
 
 	p.emitPhase(OverviewPhaseEnrichResources, overviewPhaseEnrichResourcesName)
@@ -587,11 +586,13 @@ func (p *OverviewPipeline) deliverBudget(
 	if budgetChan != nil {
 		select {
 		case <-ctx.Done():
+			// The caller joins budgetDone before closing plugins. This return
+			// only skips the budget event.
 			return nil, ctx.Err()
 		case br = <-budgetChan:
 		}
 		if err := ctx.Err(); err != nil {
-			return nil, err // Cancelled: worker joined, no budget event.
+			return nil, err
 		}
 	} else {
 		result, err := eng.GetBudgets(ctx, nil)
