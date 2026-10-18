@@ -147,7 +147,7 @@ func TestCostProjectedCmdFlags(t *testing.T) {
 	outputFlag := cmd.Flags().Lookup("output")
 	assert.NotNil(t, outputFlag)
 	assert.Equal(t, "string", outputFlag.Value.Type())
-	assert.Equal(t, "table", outputFlag.DefValue)
+	assert.Empty(t, outputFlag.DefValue)
 
 	filterFlag := cmd.Flags().Lookup("filter")
 	assert.NotNil(t, filterFlag)
