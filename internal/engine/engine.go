@@ -1820,8 +1820,9 @@ func (e *Engine) getHourlyRateForResource(
 	ctx context.Context,
 	resource ResourceDescriptor,
 ) (float64, error) {
-	for _, client := range clientsWithoutScorers(e.clients) {
-		costResult, err := e.getProjectedCostFromPlugin(ctx, client, resource)
+	matches, _ := e.selectPluginMatchesForResource(ctx, resource, "ProjectedCosts")
+	for _, match := range matches {
+		costResult, err := e.getProjectedCostFromPlugin(ctx, match.Client, resource)
 		if err != nil {
 			continue
 		}

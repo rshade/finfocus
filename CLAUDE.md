@@ -409,6 +409,9 @@ Call `t.Parallel()` at the top level and in each `t.Run`, except:
   inside the window (`actualRequestStart`), because plugins trust an explicit
   Start over `pulumi:created`; without it a resource made yesterday was
   charged for the whole month. `ActualCost.Period` keeps the display window.
+  An imported row (`External`) is not clamped: its `CreatedAt` is the import
+  time. A clamped row records `ActualCost.BilledDays`, and the delta
+  extrapolation divides by that instead of the day of month.
 - Projected diff (`cost projected`): replacement steps sharing a URN are
   collapsed into one `update` (`collapseReplacements`), or the old resource
   counts twice. Both sides use the same basis and the same plan-wide `ref.*`

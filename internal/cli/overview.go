@@ -706,6 +706,7 @@ func convertStateResources(resources []ingest.StackExportResource) []engine.Stat
 			Custom:     r.Custom,
 			Properties: ingest.MergeProperties(r.Outputs, r.Inputs),
 			CreatedAt:  createdAt,
+			External:   r.External,
 		}
 	}
 	return result

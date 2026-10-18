@@ -182,6 +182,10 @@ type ActualCostData struct {
 	Currency  string             `json:"currency"`
 	Period    DateRange          `json:"period"`
 	Breakdown map[string]float64 `json:"breakdown,omitempty"`
+	// BilledDays is the length of the interval MTDCost covers when it is
+	// shorter than the display window (a resource created mid-window). Zero
+	// means MTDCost covers the whole window.
+	BilledDays float64 `json:"-"`
 }
 
 // Validate checks that the ActualCostData fields are consistent.
@@ -341,6 +345,9 @@ type OverviewRow struct {
 	// insufficient data points in the current billing window.
 	// Nil for resources from Pulumi < v3.60.0 or plan-only resources.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	// External marks an imported resource, whose CreatedAt is the import time
+	// and not the cloud creation time.
+	External bool `json:"-"`
 	// ParentURN references the cluster row this row is expanded under.
 	// Empty for top-level rows.
 	ParentURN string `json:"parentUrn,omitempty"`
@@ -482,6 +489,9 @@ type StateResource struct {
 	// JSON key is "createdAt" (not "created" as in the Pulumi state format);
 	// conversion happens in cli.convertStateResources.
 	CreatedAt *time.Time `json:"createdAt,omitempty"`
+	// External marks an imported resource, whose CreatedAt is the import time
+	// and not the cloud creation time.
+	External bool `json:"-"`
 }
 
 // PropertyDiff represents a single property change from a Pulumi plan.

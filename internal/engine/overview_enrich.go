@@ -213,8 +213,13 @@ func enrichBaselineProjectedCost(
 // actualRequestStart returns the start of the actual-cost window for a row.
 // Plugins trust an explicit start over the resource's creation time, so a
 // resource created mid-window must start there or it is charged for hours it
-// did not exist. A creation time outside (Start, End] leaves the window as is.
-func actualRequestStart(createdAt *time.Time, dateRange DateRange) time.Time {
+// did not exist. A creation time outside (Start, End] leaves the window as is,
+// and so does an imported resource, whose timestamp is the import time.
+func actualRequestStart(row *OverviewRow, dateRange DateRange) time.Time {
+	createdAt := row.CreatedAt
+	if row.External {
+		return dateRange.Start
+	}
 	if createdAt != nil && createdAt.After(dateRange.Start) && !createdAt.After(dateRange.End) {
 		return *createdAt
 	}
@@ -236,7 +241,7 @@ func enrichActualCost(
 
 	request := ActualCostRequest{
 		Resources: []ResourceDescriptor{resource},
-		From:      actualRequestStart(row.CreatedAt, dateRange),
+		From:      actualRequestStart(row, dateRange),
 		To:        dateRange.End,
 	}
 
@@ -269,6 +274,9 @@ func enrichActualCost(
 		}
 		if row.ActualCost.Currency == "" {
 			row.ActualCost.Currency = defaultCurrency
+		}
+		if request.From.After(dateRange.Start) {
+			row.ActualCost.BilledDays = request.To.Sub(request.From).Hours() / hoursPerDay
 		}
 	}
 

@@ -834,3 +834,30 @@ func TestGetProjectedCost_InvalidArgumentDeclinesNonAWSAndStillPricesAWS(t *test
 	_, pricingCalls := api.calls()
 	assert.Equal(t, 1, pricingCalls, "only the supported AWS resource is priced")
 }
+
+func TestGetActualCost_StateEstimationHonorsSupportsDecline(t *testing.T) {
+	t.Parallel()
+
+	api := &countingCostClient{supports: func(*pbc.SupportsRequest) (*pbc.SupportsResponse, error) {
+		return nil, status.Error(codes.InvalidArgument, "region is required for Supports")
+	}}
+	e := New([]*pluginhost.Client{{Name: "aws-public", API: api}}, nil)
+	resource := ResourceDescriptor{
+		Type: "aws:ec2/instance:Instance", ID: "i-1", Provider: "aws",
+		Properties: map[string]any{
+			PropertyPulumiCreated: time.Now().Add(-22 * time.Hour).UTC().Format(time.RFC3339),
+		},
+	}
+
+	results, err := e.GetActualCostWithOptionsAndErrors(context.Background(), ActualCostRequest{
+		Resources: []ResourceDescriptor{resource},
+		From:      time.Now().Add(-48 * time.Hour),
+		To:        time.Now(),
+	})
+	require.NoError(t, err)
+	for _, result := range results.Results {
+		assert.NotEqual(t, "estimate", result.Adapter, "a declined resource must not be estimated")
+	}
+	_, pricingCalls := api.calls()
+	assert.Zero(t, pricingCalls, "a declining plugin must receive no pricing RPC")
+}

@@ -82,3 +82,47 @@ func TestEnrichActualCost_ChargesOnlyHoursSinceCreation(t *testing.T) {
 	require.NotNil(t, row.ActualCost)
 	assert.InDelta(t, 0.253, row.ActualCost.MTDCost, 0.001)
 }
+
+func TestEnrichActualCost_ImportedResourceKeepsRequestedWindow(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+	imported := end.Add(-22 * time.Hour)
+	eng := &windowRecordingEnricher{hourlyRate: 8.392 / 730}
+	row := &OverviewRow{URN: "urn:web", CreatedAt: &imported, External: true}
+
+	require.Nil(t, enrichActualCost(context.Background(), row, eng,
+		ResourceDescriptor{Type: "aws:ec2/instance:Instance", ID: "i-1", Provider: "aws"},
+		DateRange{Start: start, End: end}))
+
+	assert.Equal(t, start, eng.request.From, "import time is not the cloud creation time")
+}
+
+func TestStateResourceToRow_CarriesExternal(t *testing.T) {
+	t.Parallel()
+
+	row := stateResourceToRow(StateResource{URN: "urn:web", External: true})
+
+	assert.True(t, row.External)
+}
+
+func TestForceExtrapolateActual_UsesClampedBillingInterval(t *testing.T) {
+	t.Parallel()
+
+	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	end := time.Date(2026, 10, 18, 12, 0, 0, 0, time.UTC)
+	created := end.Add(-22 * time.Hour)
+	eng := &windowRecordingEnricher{hourlyRate: 8.392 / 730}
+	row := OverviewRow{URN: "urn:web", Status: StatusDeleting, CreatedAt: &created}
+
+	require.Nil(t, enrichActualCost(context.Background(), &row, eng,
+		ResourceDescriptor{Type: "aws:ec2/instance:Instance", ID: "i-1", Provider: "aws"},
+		DateRange{Start: start, End: end}))
+
+	wantMonthly := eng.hourlyRate * 22 * (defaultDaysPerMonth * 24 / 22)
+	assert.InDelta(t, wantMonthly, ForceExtrapolateActual(row, 18), 0.001)
+	delta, ok := CalculateRowDelta(row, 18)
+	require.True(t, ok)
+	assert.InDelta(t, -wantMonthly, delta, 0.001)
+}
